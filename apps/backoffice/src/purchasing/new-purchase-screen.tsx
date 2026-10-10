@@ -13,8 +13,10 @@ import { useNavigate } from "@tanstack/react-router";
 import { Check, ShieldX, TriangleAlert, Truck, X } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { purchasedProductsToReviewState } from "../platform/purchased-products-to-review";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { StockTopBar } from "../shell/stock-top-bar";
 import type { NewPurchaseScreenServices } from "./new-purchase-services";
@@ -26,6 +28,7 @@ import {
   PURCHASE_SUPPLIER_INACTIVE,
   PURCHASE_SUPPLIER_NOT_FOUND,
   PURCHASE_SUPPLIER_REQUIRED,
+  priceReviewProductIds,
   purchaseDateMessage,
   purchaseLineQuantityRefusal,
   purchaseLinesMessage,
@@ -40,6 +43,7 @@ import { PURCHASE_REGISTERED_STATE } from "./purchase-registered-state";
 import { usePurchaseChoicesQuery, useRefreshPurchasing } from "./purchasing-queries";
 
 export type NewPurchaseScreenProps = {
+  access: BackofficeAccess;
   onSessionEnded: () => void;
   services: NewPurchaseScreenServices;
   today: CalendarDate;
@@ -49,7 +53,12 @@ type Notice = { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSecon
 
 const NO_CHOICES: PurchaseChoices = { suppliers: [], products: [], packagings: [] };
 
-export function NewPurchaseScreen({ onSessionEnded, services, today }: NewPurchaseScreenProps) {
+export function NewPurchaseScreen({
+  access,
+  onSessionEnded,
+  services,
+  today,
+}: NewPurchaseScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
   const navigate = useNavigate();
   const refreshPurchasing = useRefreshPurchasing();
@@ -86,6 +95,17 @@ export function NewPurchaseScreen({ onSessionEnded, services, today }: NewPurcha
       const outcome = await services.registerPurchase(parsed);
       if (outcome.kind === "ok") {
         void refreshPurchasing();
+        const reviewProducts = priceReviewProductIds(values.lines);
+        if (reviewProducts.length > 0) {
+          void navigate({
+            to: "/prices",
+            state: (previous) => ({
+              ...previous,
+              ...purchasedProductsToReviewState(reviewProducts),
+            }),
+          });
+          return;
+        }
         void navigate({
           to: "/purchases",
           state: (previous) => ({ ...previous, ...PURCHASE_REGISTERED_STATE }),
@@ -248,6 +268,7 @@ export function NewPurchaseScreen({ onSessionEnded, services, today }: NewPurcha
             <form.AppField name="lines">
               {() => (
                 <PurchaseLinesField
+                  access={access}
                   products={products}
                   packagings={packagings}
                   refusals={lineRefusals}

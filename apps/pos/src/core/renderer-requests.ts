@@ -24,6 +24,7 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  ReadReceiptPrinterOutcome,
   ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
@@ -36,6 +37,7 @@ import type {
   ScanProductOutcome,
   SearchProductsOutcome,
   SessionOpenSale,
+  SetReceiptPrinterOutcome,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -120,6 +122,8 @@ export interface RendererRequestDeps {
     | undefined;
   salesHistory: ((request: SalesHistoryRequest) => Promise<SalesHistoryOutcome>) | undefined;
   saleHistoryDetail: ((saleId: string) => Promise<SaleHistoryDetailOutcome>) | undefined;
+  readReceiptPrinter: (() => Promise<ReadReceiptPrinterOutcome>) | undefined;
+  setReceiptPrinter: ((address: string) => Promise<SetReceiptPrinterOutcome>) | undefined;
   closeCashSession:
     | ((sessionId: string, countedCash: number) => Promise<CloseCashSessionOutcome>)
     | undefined;
@@ -741,6 +745,26 @@ export async function answerRendererRequest(
                 state: message.state,
                 page: message.page,
               })),
+        ),
+      };
+    }
+    case "read-receipt-printer": {
+      const { readReceiptPrinter } = deps;
+      return {
+        type: "read-receipt-printer-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(deps, "reading the receipt printer", readReceiptPrinter),
+      };
+    }
+    case "set-receipt-printer": {
+      const { setReceiptPrinter } = deps;
+      return {
+        type: "set-receipt-printer-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "setting the receipt printer",
+          setReceiptPrinter && (() => setReceiptPrinter(message.address)),
         ),
       };
     }

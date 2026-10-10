@@ -9,6 +9,7 @@ export interface PricesUnderReviewQuery {
   now: Date;
   review: PriceReviewFilter;
   categoryId?: string;
+  productIds?: string[];
   search?: string;
 }
 

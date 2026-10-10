@@ -56,6 +56,7 @@ import {
   installationReportFrom,
 } from "./register/enrollment";
 import { type StartedLocalDatabase, startLocalDatabase } from "./register/local-database-startup";
+import { readReceiptPrinterFor, setReceiptPrinterFor } from "./register/receipt-printer-requests";
 import { registerServiceOf } from "./register/register-service-of-database";
 import { registerStatusFor } from "./register/register-status-requests";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
@@ -63,7 +64,7 @@ import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
-import { createReceiptPrinting, installationReceiptPrinter } from "./sales/receipt-printing-wiring";
+import { createReceiptPrinting } from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,
   addWeighedProductFor,
@@ -342,7 +343,6 @@ const receiptPrinting = createReceiptPrinting({
   ids: uuidV7Ids,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
   signedInUserId: () => signedInPerson.userId(),
-  printer: installationReceiptPrinter(),
   reportFailure,
   syncNow: () => syncSchedule.syncNow(),
 });
@@ -690,6 +690,14 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : (saleId) => saleHistoryDetailFor({ database: localDatabase, gate: actionGate }, saleId),
+  readReceiptPrinter:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : () => readReceiptPrinterFor({ database: localDatabase, gate: actionGate }),
+  setReceiptPrinter:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (address) => setReceiptPrinterFor({ database: localDatabase, gate: actionGate }, address),
   receiptPrintStatus: receiptPrinting.receiptPrintStatus,
   retryReceiptPrint: receiptPrinting.retryReceiptPrint,
   reprintSaleReceipt: receiptPrinting.reprintSaleReceipt,

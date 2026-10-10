@@ -7,6 +7,7 @@ import {
   categories,
   changes,
   priceLists,
+  priceReviewPostponements,
   priceReviews,
   prices,
   products,
@@ -17,6 +18,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { DrizzlePriceReviewReader } from "./drizzle-price-review-reader.js";
 import { DrizzlePricingStore } from "./drizzle-pricing-store.js";
+import { insertPriceReviewPostponement } from "./test-support/price-review-postponements.js";
 
 const MOMENT = new Date("2026-01-05T12:00:00.000Z");
 const EARLIER = new Date("2026-01-01T09:00:00.000Z");
@@ -229,6 +231,131 @@ describe("DrizzlePricingStore", () => {
         newValue: { priceId: GREATER_ID, unitPrice: 1200 },
       },
     ]);
+  });
+
+  it("answers the id of the review it records", async () => {
+    const productId = await insertProduct();
+    const priceListId = await seededPriceListId(db);
+    const actorId = await insertUser();
+    await db
+      .insert(prices)
+      .values({ id: LESSER_ID, productId, priceListId, unitPrice: 1000, validFrom: EARLIER });
+    const store = new DrizzlePricingStore(db, () => MOMENT);
+
+    const recorded = await store.transaction((tx) =>
+      tx.recordPriceReview({
+        productId,
+        priceListId,
+        reviewedAt: MOMENT,
+        actorId,
+        priceId: LESSER_ID,
+      }),
+    );
+
+    const [stored] = await db.select().from(priceReviews);
+    expect(recorded).toEqual({ id: stored?.id });
+  });
+
+  describe("resolving price review postponements", () => {
+    async function seedReview(productId: string, priceListId: string, actorId: string) {
+      await db
+        .insert(prices)
+        .values({ id: LESSER_ID, productId, priceListId, unitPrice: 1000, validFrom: EARLIER });
+      const [review] = await db
+        .insert(priceReviews)
+        .values({ productId, priceListId, reviewedAt: MOMENT, actorId, priceId: LESSER_ID })
+        .returning({ id: priceReviews.id });
+      return review?.id as string;
+    }
+
+    it("resolves the open postponements of that product on that price list, and only those", async () => {
+      const productId = await insertProduct();
+      const priceListId = await seededPriceListId(db);
+      const otherPriceListId = await insertOtherPriceList();
+      const actorId = await insertUser();
+      const reviewId = await seedReview(productId, priceListId, actorId);
+      const open = await insertPriceReviewPostponement(db, {
+        productId,
+        actorId,
+        postponedAt: EARLIER,
+      });
+      const onOtherPriceList = await insertPriceReviewPostponement(db, {
+        productId,
+        actorId,
+        postponedAt: EARLIER,
+        priceListId: otherPriceListId,
+      });
+      const store = new DrizzlePricingStore(db, () => MOMENT);
+
+      await store.transaction((tx) =>
+        tx.resolvePriceReviewPostponements({ productId, priceListId, reviewId }),
+      );
+
+      const resolutions = await db
+        .select({
+          id: priceReviewPostponements.id,
+          resolvedByReviewId: priceReviewPostponements.resolvedByReviewId,
+        })
+        .from(priceReviewPostponements);
+      expect(resolutions).toEqual(
+        expect.arrayContaining([
+          { id: open, resolvedByReviewId: reviewId },
+          { id: onOtherPriceList, resolvedByReviewId: null },
+        ]),
+      );
+      expect(resolutions).toHaveLength(2);
+    });
+
+    it("leaves a postponement of another product and an already resolved one as they were", async () => {
+      const productId = await insertProduct();
+      const priceListId = await seededPriceListId(db);
+      const actorId = await insertUser();
+      const reviewId = await seedReview(productId, priceListId, actorId);
+      const [otherCategory] = await db
+        .insert(categories)
+        .values({ name: "Limpieza" })
+        .returning({ id: categories.id });
+      const [otherProduct] = await db
+        .insert(products)
+        .values({ name: "Lavandina", categoryId: otherCategory?.id as string, saleUnit: "UNIT" })
+        .returning({ id: products.id });
+      const ofOtherProduct = await insertPriceReviewPostponement(db, {
+        productId: otherProduct?.id as string,
+        actorId,
+        postponedAt: EARLIER,
+      });
+      const earlierReviewId = (
+        await db
+          .insert(priceReviews)
+          .values({ productId, priceListId, reviewedAt: EARLIER, actorId, priceId: LESSER_ID })
+          .returning({ id: priceReviews.id })
+      )[0]?.id as string;
+      const alreadyResolved = await insertPriceReviewPostponement(db, {
+        productId,
+        actorId,
+        postponedAt: EARLIER,
+        resolvedByReviewId: earlierReviewId,
+      });
+      const store = new DrizzlePricingStore(db, () => MOMENT);
+
+      await store.transaction((tx) =>
+        tx.resolvePriceReviewPostponements({ productId, priceListId, reviewId }),
+      );
+
+      const resolutions = await db
+        .select({
+          id: priceReviewPostponements.id,
+          resolvedByReviewId: priceReviewPostponements.resolvedByReviewId,
+        })
+        .from(priceReviewPostponements);
+      expect(resolutions).toEqual(
+        expect.arrayContaining([
+          { id: ofOtherProduct, resolvedByReviewId: null },
+          { id: alreadyResolved, resolvedByReviewId: earlierReviewId },
+        ]),
+      );
+      expect(resolutions).toHaveLength(2);
+    });
   });
 
   it("audits a confirmation as a product price review", async () => {

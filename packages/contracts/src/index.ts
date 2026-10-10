@@ -220,6 +220,7 @@ export type {
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
   OpenCashSessionOutcome,
+  ReadReceiptPrinterOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
@@ -227,6 +228,7 @@ export type {
   RegisterRendererToCoreMessage,
   RegisterStatus,
   SessionOpenSale,
+  SetReceiptPrinterOutcome,
 } from "./register/core-messages.js";
 export {
   cashMovementTypeSchema,
@@ -237,6 +239,7 @@ export {
   recordCashMovementMessageSchema,
   registerCoreToRendererMessageSchema,
   registerRendererToCoreMessageSchema,
+  setReceiptPrinterMessageSchema,
 } from "./register/core-messages.js";
 export type { DeviceEnrollment, DeviceEnrollmentBody } from "./register/device-enrollment.js";
 export {
@@ -259,6 +262,7 @@ export type {
   MainToCoreMessage,
 } from "./register/main-messages.js";
 export { coreStatusMessageSchema, mainToCoreMessageSchema } from "./register/main-messages.js";
+export { receiptPrinterAddressTextSchema } from "./register/receipt-printer-address.js";
 export type { RegisterCreationBody } from "./register/register-creation.js";
 export { registerCreationBodySchema } from "./register/register-creation.js";
 export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-code.js";

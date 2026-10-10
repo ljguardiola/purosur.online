@@ -187,6 +187,41 @@ describe("registerOperationAccess", () => {
     });
   });
 
+  describe("for configuring the receipt printer", () => {
+    const operation: RegisterOperation = { kind: "configure_receipt_printer" };
+
+    it("permits a person who holds enroll_register_devices", () => {
+      expect(
+        registerOperationAccess(operation, {
+          id: "ana",
+          access: holding("enroll_register_devices"),
+        }),
+      ).toEqual({ kind: "permitted" });
+    });
+
+    it("permits an Administrator", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: ADMINISTRATOR })).toEqual({
+        kind: "permitted",
+      });
+    });
+
+    it("refuses, with nobody able to authorize it, a person who lacks the permission", () => {
+      expect(
+        registerOperationAccess(operation, { id: "ana", access: holding("sell_and_charge") }),
+      ).toEqual({ kind: "refused" });
+    });
+
+    it("answers that a person with no access has none", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: undefined })).toEqual({
+        kind: "no_access",
+      });
+    });
+
+    it("refuses when nobody is signed in", () => {
+      expect(registerOperationAccess(operation, undefined)).toEqual({ kind: "refused" });
+    });
+  });
+
   describe("for closing the open cash session", () => {
     const operation: RegisterOperation = { kind: "close_cash_session", session: SESSION };
 
@@ -324,6 +359,7 @@ describe("mayAuthorize", () => {
   it.each<RegisterOperation>([
     { kind: "open_cash_session" },
     { kind: "sell" },
+    { kind: "configure_receipt_printer" },
     { kind: "close_cash_session", session: SESSION },
   ])("lets nobody authorize $kind for someone else", (operation) => {
     expect(mayAuthorize(operation, { id: "bruno", access: ADMINISTRATOR })).toBe(false);
@@ -351,6 +387,12 @@ describe("registerAbilities", () => {
     "record_initial_inventory",
   ] as const)("gives the %s ability to a person who holds its permission", (key) => {
     expect(registerAbilities(holding(key))).toEqual([key]);
+  });
+
+  it("gives the configure_receipt_printer ability to a person who holds enroll_register_devices", () => {
+    expect(registerAbilities(holding("enroll_register_devices"))).toEqual([
+      "configure_receipt_printer",
+    ]);
   });
 
   it("gives no ability for a permission the register does not use", () => {

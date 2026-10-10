@@ -1741,3 +1741,39 @@ export const taxAuthorityLastAuthorizedNumbers = pgTable(
     ),
   ],
 );
+
+// A purchase puts the product's price back under review on the branch's price list until a review
+// resolves it. Rows are only opened and then resolved, never rewritten or removed.
+export const priceReviewPostponements = pgTable(
+  "price_review_postponements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    priceListId: uuid("price_list_id")
+      .notNull()
+      .references(() => priceLists.id),
+    postponedAt: timestamp("postponed_at", { withTimezone: true }).notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    purchaseId: uuid("purchase_id").notNull(),
+    resolvedByReviewId: uuid("resolved_by_review_id"),
+  },
+  (table) => [
+    foreignKey({
+      name: "price_review_postponements_purchase_id_purchases_id_fk",
+      columns: [table.purchaseId],
+      foreignColumns: [purchases.id],
+    }),
+    foreignKey({
+      name: "price_review_postponements_resolved_by_review_fk",
+      columns: [table.resolvedByReviewId],
+      foreignColumns: [priceReviews.id],
+    }),
+    index("price_review_postponements_open_idx")
+      .on(table.productId, table.priceListId)
+      .where(sql`${table.resolvedByReviewId} is null`),
+  ],
+);

@@ -516,8 +516,15 @@
     {
       "idx": 73,
       "version": "7",
-      "when": 1791626269342,
-      "tag": "0073_weighed_sale_lines",
+      "when": 1791622724772,
+      "tag": "0073_price_review_postponements",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1791631109376,
+      "tag": "0074_weighed_sale_lines",
       "breakpoints": true
     }
   ]

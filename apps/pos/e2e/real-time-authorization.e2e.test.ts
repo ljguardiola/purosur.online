@@ -135,7 +135,7 @@ describe("authorizing a sale's invoice in real time on the register", () => {
       sale_event: { event_type: "sale_completed" },
     });
     await page.getByRole("heading", { name: "No se pudo imprimir el ticket" }).waitFor();
-    await page.getByText("La impresora no responde", { exact: true }).waitFor();
+    await page.getByText("La impresora no está configurada", { exact: true }).waitFor();
     await page.getByRole("button", { name: "Seguir vendiendo" }).click();
     await page.getByText("La venta está vacía").waitFor();
   });

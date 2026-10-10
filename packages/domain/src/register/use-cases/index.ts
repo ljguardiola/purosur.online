@@ -72,6 +72,12 @@ export type {
 } from "./open-cash-session.js";
 export { openCashSession } from "./open-cash-session.js";
 export type {
+  ReadReceiptPrinterAddressOutcome,
+  ReadReceiptPrinterAddressPorts,
+} from "./read-receipt-printer-address.js";
+export { readReceiptPrinterAddress } from "./read-receipt-printer-address.js";
+export type { ReceiptPrinterSettings } from "./receipt-printer-settings.js";
+export type {
   RecordCashMovementGrant,
   RecordCashMovementInput,
   RecordCashMovementOutcome,
@@ -107,3 +113,9 @@ export type {
   RotateDeviceTokenOutcome,
 } from "./rotate-device-token.js";
 export { rotateDeviceToken } from "./rotate-device-token.js";
+export type {
+  SetReceiptPrinterAddressInput,
+  SetReceiptPrinterAddressOutcome,
+  SetReceiptPrinterAddressPorts,
+} from "./set-receipt-printer-address.js";
+export { setReceiptPrinterAddress } from "./set-receipt-printer-address.js";

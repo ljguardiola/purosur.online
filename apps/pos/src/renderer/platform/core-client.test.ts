@@ -1417,6 +1417,46 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core for the receipt printer's address and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const printer = client.readReceiptPrinter();
+    port.answer({
+      type: "read-receipt-printer-result",
+      request_id: "request-1",
+      outcome: { kind: "configured", address: { host: "10.10.10.2", port: null } },
+    });
+
+    expect(await printer).toEqual({
+      kind: "configured",
+      address: { host: "10.10.10.2", port: null },
+    });
+    expect(port.posted).toEqual([{ type: "read-receipt-printer", request_id: "request-1" }]);
+  });
+
+  it("sends the address typed for the receipt printer as it was typed and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const saving = client.setReceiptPrinter(" 10.10.10.2:9100 ");
+    port.answer({
+      type: "set-receipt-printer-result",
+      request_id: "request-1",
+      outcome: { kind: "saved", address: { host: "10.10.10.2", port: 9100 } },
+    });
+
+    expect(await saving).toEqual({
+      kind: "saved",
+      address: { host: "10.10.10.2", port: 9100 },
+    });
+    expect(port.posted).toEqual([
+      { type: "set-receipt-printer", request_id: "request-1", address: " 10.10.10.2:9100 " },
+    ]);
+  });
+
   it("ignores a pull notice arriving on a replaced port", () => {
     const client = clientWithSequentialIds();
     const previous = new FakePort();

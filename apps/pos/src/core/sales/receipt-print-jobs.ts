@@ -1,6 +1,7 @@
 import {
   mayStartReceiptPrint,
   observePrintAcknowledged,
+  observePrinterNotConfigured,
   observePrinterStatus,
   observePrintFailed,
   type ReceiptPrintObservation,
@@ -9,6 +10,7 @@ import {
 } from "@purosur/domain";
 import type {
   ReceiptPrinter,
+  ReceiptPrinters,
   ReceiptPrintStandings,
   ReceiptPrintWatch,
 } from "@purosur/domain/sales/use-cases";
@@ -20,7 +22,7 @@ export interface ReceiptPrintJobsDeps {
 
 interface ReceiptPrintRunner {
   watch: ReceiptPrintWatch;
-  printer: (inner: ReceiptPrinter) => ReceiptPrinter;
+  printers: (inner: ReceiptPrinters) => ReceiptPrinters;
 }
 
 type ReceiptPrintStart<TOutcome> =
@@ -39,6 +41,15 @@ export interface ReceiptPrintJobs extends ReceiptPrintStandings {
     run: (runner: ReceiptPrintRunner) => Promise<TOutcome>,
     options?: ReceiptPrintStartOptions,
   ): Promise<ReceiptPrintStart<TOutcome>>;
+}
+
+function isPrinterNotConfigured(outcome: unknown): boolean {
+  return (
+    typeof outcome === "object" &&
+    outcome !== null &&
+    "kind" in outcome &&
+    outcome.kind === "printer_not_configured"
+  );
 }
 
 interface Job {
@@ -74,11 +85,13 @@ export function createReceiptPrintJobs({
 
       return new Promise((resolve) => {
         let sent = false;
-        const standFailedBeforeSending = (): void => {
+        const standBeforeSending = (
+          observe: (observation: ReceiptPrintObservation) => ReceiptPrintObservation,
+        ): void => {
           entry.starting = false;
           entry.current?.abort.abort();
           entry.current = job;
-          job.observation = observePrintFailed(job.observation);
+          job.observation = observe(job.observation);
         };
         const markSent = (): void => {
           sent = true;
@@ -95,7 +108,7 @@ export function createReceiptPrintJobs({
             }
           },
         };
-        const printer = (inner: ReceiptPrinter): ReceiptPrinter => ({
+        const watched = (inner: ReceiptPrinter): ReceiptPrinter => ({
           async print(bytes, printWatch) {
             markSent();
             const ending = await inner.print(bytes, printWatch);
@@ -105,14 +118,22 @@ export function createReceiptPrintJobs({
             return ending;
           },
         });
+        const printers = (inner: ReceiptPrinters): ReceiptPrinters => ({
+          configured() {
+            const printer = inner.configured();
+            return printer === undefined ? undefined : watched(printer);
+          },
+        });
 
-        (async () => run({ watch, printer }))().then(
+        (async () => run({ watch, printers }))().then(
           (outcome) => {
             if (sent) {
               return;
             }
             if (unattended) {
-              standFailedBeforeSending();
+              standBeforeSending(
+                isPrinterNotConfigured(outcome) ? observePrinterNotConfigured : observePrintFailed,
+              );
             } else {
               entry.starting = false;
             }
@@ -121,7 +142,7 @@ export function createReceiptPrintJobs({
           (error: unknown) => {
             reportFailure("printing a receipt", error);
             if (!sent) {
-              standFailedBeforeSending();
+              standBeforeSending(observePrintFailed);
               resolve({ kind: "failed" });
             } else if (entry.current === job) {
               job.observation = observePrintFailed(job.observation);

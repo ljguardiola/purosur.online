@@ -508,23 +508,26 @@ describe("receipt print status query", () => {
     expect(read).toHaveBeenCalledTimes(2);
   });
 
-  it("stops asking once the core answers that the print failed", async () => {
-    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
-    const read = vi.fn(async () =>
-      standingOf({
-        kind: "found",
-        next_copy: { kind: "original" },
-        printed: false,
-        standing: "failed",
-      }),
-    );
-    const screen = await renderWithClient(<ReceiptPrintStatusProbe read={read} />);
-    await expect.element(screen.getByText("failed")).toBeVisible();
+  it.each(["failed", "printer_not_configured"] as const)(
+    "stops asking once the core answers the final standing %s",
+    async (standing) => {
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+      const read = vi.fn(async () =>
+        standingOf({
+          kind: "found",
+          next_copy: { kind: "original" },
+          printed: false,
+          standing,
+        }),
+      );
+      const screen = await renderWithClient(<ReceiptPrintStatusProbe read={read} />);
+      await expect.element(screen.getByText(standing)).toBeVisible();
 
-    await vi.advanceTimersByTimeAsync(5000);
+      await vi.advanceTimersByTimeAsync(5000);
 
-    expect(read).toHaveBeenCalledTimes(1);
-  });
+      expect(read).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("reads again at once when the status is refreshed", async () => {
     const answers: ReceiptPrintStatusOutcome[] = [

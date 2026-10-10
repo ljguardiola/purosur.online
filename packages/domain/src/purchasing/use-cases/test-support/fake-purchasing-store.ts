@@ -1,4 +1,5 @@
 import type { SaleUnit } from "../../../catalog/index.js";
+import type { PriceReviewPostponement } from "../../../pricing/index.js";
 import type { PurchaseReceipt } from "../../../stock/index.js";
 import type {
   LockPackagingResult,
@@ -44,7 +45,11 @@ interface FakePurchaseLineRow extends NewPurchaseLineFields {
   id: string;
 }
 
-export type FakePurchasingWrite = "insertPurchase" | "insertPurchaseLine" | "receiveStock";
+export type FakePurchasingWrite =
+  | "insertPurchase"
+  | "insertPurchaseLine"
+  | "postponePriceReviews"
+  | "receiveStock";
 
 export interface FakePurchasingState {
   suppliers: FakeSupplierRow[];
@@ -53,6 +58,7 @@ export interface FakePurchasingState {
   purchases: FakePurchaseRow[];
   purchaseLines: FakePurchaseLineRow[];
   receipts: PurchaseReceipt[];
+  priceReviewPostponements: PriceReviewPostponement[];
   nextId: number;
 }
 
@@ -67,6 +73,11 @@ function cloneState(state: FakePurchasingState): FakePurchasingState {
       ...receipt,
       occurredAt: new Date(receipt.occurredAt),
       lines: receipt.lines.map((line) => ({ ...line })),
+    })),
+    priceReviewPostponements: state.priceReviewPostponements.map((postponement) => ({
+      ...postponement,
+      postponedAt: new Date(postponement.postponedAt),
+      productIds: [...postponement.productIds],
     })),
     nextId: state.nextId,
   };
@@ -221,6 +232,14 @@ class FakePurchasingStoreTransaction implements PurchasingStoreTransaction {
     return { id };
   }
 
+  async postponePriceReviews(postponement: PriceReviewPostponement): Promise<void> {
+    this.beforeWrite("postponePriceReviews");
+    this.state.priceReviewPostponements.push({
+      ...postponement,
+      productIds: [...postponement.productIds],
+    });
+  }
+
   async receiveStock(receipt: PurchaseReceipt): Promise<void> {
     this.beforeWrite("receiveStock");
     this.store.lockLog.push("stock receipt");
@@ -267,6 +286,7 @@ export class FakePurchasingStore implements PurchasingStore {
     purchases: [],
     purchaseLines: [],
     receipts: [],
+    priceReviewPostponements: [],
     nextId: 1,
   };
 

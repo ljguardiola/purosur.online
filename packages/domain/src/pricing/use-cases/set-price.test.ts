@@ -93,6 +93,7 @@ describe("setPrice", () => {
       "latestReviewedAt",
       "recordPrice",
       "recordPriceReview",
+      "resolvePriceReviewPostponements",
       "recordPriceChange",
     ]);
   });
@@ -186,6 +187,7 @@ describe("setPrice", () => {
     ]);
     expect(after.reviews).toEqual([
       {
+        id: "review-1",
         productId: "product-1",
         priceListId: "list-1",
         reviewedAt: NOON,
@@ -348,19 +350,65 @@ describe("setPrice", () => {
     expect(outcome).toMatchObject({ lastReviewedAt: NOON });
   });
 
-  it.each(["recordPrice", "recordPriceReview", "recordPriceChange"] as const)(
-    "leaves nothing behind when %s fails",
-    async (failing) => {
-      const store = storeWithProduct();
-      seedPrice(store, { id: "price-old", unitPrice: 1000 });
-      const before = store.snapshot();
-      store.failingWrites.add(failing);
+  it.each([
+    "recordPrice",
+    "recordPriceReview",
+    "resolvePriceReviewPostponements",
+    "recordPriceChange",
+  ] as const)("leaves nothing behind when %s fails", async (failing) => {
+    const store = storeWithProduct();
+    seedPrice(store, { id: "price-old", unitPrice: 1000 });
+    const before = store.snapshot();
+    store.failingWrites.add(failing);
 
-      await expect(
-        change(store, { unitPrice: 1200, expectedCurrentPriceId: "price-old" }),
-      ).rejects.toThrow(`${failing} failed`);
+    await expect(
+      change(store, { unitPrice: 1200, expectedCurrentPriceId: "price-old" }),
+    ).rejects.toThrow(`${failing} failed`);
 
-      expect(store.snapshot()).toEqual(before);
-    },
-  );
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("resolves, with its review, every open postponement of the product's review in that price list", async () => {
+    const store = storeWithProduct();
+    seedPrice(store, { id: "price-old" });
+    store.seedPostponement({ id: "postponement-a", productId: "product-1", priceListId: "list-1" });
+    store.seedPostponement({ id: "postponement-b", productId: "product-1", priceListId: "list-1" });
+
+    await change(store, { expectedCurrentPriceId: "price-old" });
+
+    const after = store.snapshot();
+    const [review] = after.reviews;
+    expect(after.postponements).toEqual([
+      {
+        id: "postponement-a",
+        productId: "product-1",
+        priceListId: "list-1",
+        resolvedByReviewId: review?.id,
+      },
+      {
+        id: "postponement-b",
+        productId: "product-1",
+        priceListId: "list-1",
+        resolvedByReviewId: review?.id,
+      },
+    ]);
+  });
+
+  it("leaves the postponements of other products, other price lists and earlier reviews as they were", async () => {
+    const store = storeWithProduct();
+    seedPrice(store, { id: "price-old" });
+    store.seedPostponement({ id: "other-product", productId: "decoy", priceListId: "list-1" });
+    store.seedPostponement({ id: "other-list", productId: "product-1", priceListId: "list-2" });
+    store.seedPostponement({
+      id: "already-resolved",
+      productId: "product-1",
+      priceListId: "list-1",
+      resolvedByReviewId: "review-earlier",
+    });
+    const before = store.snapshot().postponements;
+
+    await change(store, { expectedCurrentPriceId: "price-old" });
+
+    expect(store.snapshot().postponements).toEqual(before);
+  });
 });

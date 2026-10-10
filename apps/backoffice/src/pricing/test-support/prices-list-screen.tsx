@@ -66,9 +66,13 @@ export function screenElement(
   {
     filters = pricesListFilters.parse({}),
     onFiltersChange = () => {},
+    purchasedProductsToReview = [],
+    onPurchaseReviewTaken = () => {},
   }: {
     filters?: PricesListFilters;
     onFiltersChange?: (filters: PricesListFilters) => void;
+    purchasedProductsToReview?: readonly string[];
+    onPurchaseReviewTaken?: () => void;
   } = {},
 ) {
   return (
@@ -79,6 +83,8 @@ export function screenElement(
           onSessionEnded={onSessionEnded}
           filters={filters}
           onFiltersChange={onFiltersChange}
+          purchasedProductsToReview={purchasedProductsToReview}
+          onPurchaseReviewTaken={onPurchaseReviewTaken}
         />
       </main>
     </FieldSizeProvider>

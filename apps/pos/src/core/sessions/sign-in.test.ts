@@ -121,6 +121,21 @@ describe("signing in", () => {
     });
   });
 
+  it("signs in a person who holds only the permission to enroll register devices, with the receipt printer as their only ability", async () => {
+    const holder = {
+      ...PIN_HOLDER,
+      access: { isAdministrator: false, permissionKeys: ["enroll_register_devices"] },
+    };
+    const { built, signedIn } = deps({ holder });
+
+    expect(await signIn(built, "u1", "1234")).toEqual({
+      kind: "signed_in",
+      person: { user_id: "u1", first_name: "Ada", abilities: ["configure_receipt_printer"] },
+      cash_session: null,
+    });
+    expect(signedIn.userId()).toBe("u1");
+  });
+
   it("answers that the cash session was opened by another person", async () => {
     const { built } = deps({ openCashSession: () => ({ openedBy: "u2" }) });
 

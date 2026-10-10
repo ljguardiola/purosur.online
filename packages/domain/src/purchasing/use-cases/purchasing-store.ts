@@ -1,4 +1,5 @@
 import type { SaleUnit } from "../../catalog/index.js";
+import type { PriceReviewPostponement } from "../../pricing/index.js";
 import type { PurchaseReceipt } from "../../stock/index.js";
 import type { ReceiptType } from "../model/purchase.js";
 
@@ -118,6 +119,7 @@ export interface PurchasingStoreTransaction {
   updatePackaging(packagingId: string, fields: PackagingFields): Promise<void>;
   insertPurchase(fields: NewPurchaseFields): Promise<{ id: string }>;
   insertPurchaseLine(fields: NewPurchaseLineFields): Promise<{ id: string }>;
+  postponePriceReviews(postponement: PriceReviewPostponement): Promise<void>;
   receiveStock(receipt: PurchaseReceipt): Promise<void>;
 }
 

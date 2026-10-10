@@ -27,6 +27,16 @@ export interface NewPriceReview {
   priceId: string;
 }
 
+export interface RecordedPriceReview {
+  id: string;
+}
+
+export interface PriceReviewPostponementsResolution {
+  productId: string;
+  priceListId: string;
+  reviewId: string;
+}
+
 export interface PriceChange {
   productId: string;
   actorId: string;
@@ -52,7 +62,8 @@ export interface PricingStoreTransaction {
   currentPrice(productId: string, priceListId: string): Promise<CurrentPrice | undefined>;
   latestReviewedAt(productId: string, priceListId: string): Promise<Date | undefined>;
   recordPrice(price: NewPrice): Promise<CurrentPrice>;
-  recordPriceReview(review: NewPriceReview): Promise<void>;
+  recordPriceReview(review: NewPriceReview): Promise<RecordedPriceReview>;
+  resolvePriceReviewPostponements(resolution: PriceReviewPostponementsResolution): Promise<void>;
   recordPriceChange(change: PriceChange): Promise<void>;
   recordPriceConfirmation(confirmation: PriceConfirmation): Promise<void>;
 }

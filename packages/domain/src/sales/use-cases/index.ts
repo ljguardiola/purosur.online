@@ -93,6 +93,7 @@ export type {
   ReceiptLedgerTransaction,
   ReceiptPrintEnding,
   ReceiptPrinter,
+  ReceiptPrinters,
   ReceiptPrintStandings,
   ReceiptPrintWatch,
   ReceiptReason,
