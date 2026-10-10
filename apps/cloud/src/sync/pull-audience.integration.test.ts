@@ -16,12 +16,15 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { DrizzleBuyerIdentificationThresholdStore } from "../fiscal/drizzle-buyer-identification-threshold-store.js";
 import { DrizzleFiscalAddressStore } from "../fiscal/drizzle-fiscal-address-store.js";
+import { DrizzleOfflineAuthorizationCodeStore } from "../fiscal/drizzle-offline-authorization-code-store.js";
 import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
 import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-point-of-sale-store.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import {
   branchSettings,
+  caeaCodes,
   locations,
+  offlineNumberBlocks,
   priceLists,
   prices,
   registers,
@@ -387,10 +390,38 @@ beforeAll(async () => {
     );
   }
 
+  const codeConnection = postgres(integrationDb.databaseUrl, { max: 1 });
+  try {
+    for (const fortnight of [
+      { start: "2026-10-01", end: "2026-10-15" },
+      { start: "2026-10-16", end: "2026-10-31" },
+    ]) {
+      await new DrizzleOfflineAuthorizationCodeStore(drizzle(codeConnection)).holdAcquisition(
+        fortnight,
+        (acquisition) =>
+          acquisition.keep({
+            code: { code: "36123456789012", fortnight, reportDeadline: "2026-11-15" },
+            obtainedAt: NOW,
+            obtainedThrough: "requested",
+          }),
+      );
+    }
+  } finally {
+    await codeConnection.end({ timeout: 1 });
+  }
+  const codeIds = (await db.select({ id: caeaCodes.id }).from(caeaCodes)).map(({ id }) => id);
+  const blockIdOf = new Map(
+    (await db.select().from(offlineNumberBlocks)).map((block) => [block.registerId, block.id]),
+  );
+
   const everyRegister = (installation: Installation): Pulled[] => [
     { entity: "register", entityId: installation.registerId },
     { entity: "register_point_of_sale", entityId: installation.registerId },
     { entity: "register_offline_point_of_sale", entityId: installation.registerId },
+    {
+      entity: "offline_number_block",
+      entityId: blockIdOf.get(installation.registerId) as string,
+    },
   ];
   expectedShared = [
     ...seededShared,
@@ -402,6 +433,7 @@ beforeAll(async () => {
     { entity: "role", entityId: role.role.id },
     { entity: "discount", entityId: discount.id },
     { entity: "buyer_identification_threshold", entityId: threshold.threshold.id },
+    ...codeIds.map((entityId) => ({ entity: "offline_authorization_code", entityId })),
   ];
   expectedForBranchA = [
     { entity: "branch_settings", entityId: locationA },
@@ -428,16 +460,43 @@ afterAll(async () => {
 });
 
 describe("the rows a register pulls", () => {
-  it("gives a register of the first branch its branch's settings, price list, prices and users, its own register and points of sale, and every shared row", async () => {
+  it("gives a register of the first branch its branch's settings, price list, prices and users, its own register, points of sale and offline number blocks, and every shared row", async () => {
     expect(await pullEverything(registerA1)).toEqual(expectedForA1);
   });
 
-  it("gives the other register of the same branch the same rows, except that it gets its own register and points of sale", async () => {
+  it("gives the other register of the same branch the same rows, except that it gets its own register, points of sale and offline number blocks", async () => {
     expect(await pullEverything(registerA2)).toEqual(expectedForA2);
   });
 
   it("gives a register of another branch its branch's settings, price list, prices and users, never the first branch's", async () => {
     expect(await pullEverything(registerB)).toEqual(expectedForB);
+  });
+
+  it("gives each register the offline number block of its own offline point of sale and never another register's", async () => {
+    const blocks = await db.select().from(offlineNumberBlocks);
+
+    for (const installation of [registerA1, registerA2, registerB]) {
+      const pulled = (await pullEverything(installation)).filter(
+        ({ entity }) => entity === "offline_number_block",
+      );
+      const own = blocks.filter(({ registerId }) => registerId === installation.registerId);
+      expect(pulled).toEqual(
+        own.map(({ id }) => ({ entity: "offline_number_block", entityId: id })),
+      );
+    }
+  });
+
+  it("gives every register every offline authorization code", async () => {
+    const codes = await db.select({ id: caeaCodes.id }).from(caeaCodes);
+
+    for (const installation of [registerA1, registerA2, registerB]) {
+      const pulled = (await pullEverything(installation)).filter(
+        ({ entity }) => entity === "offline_authorization_code",
+      );
+      expect(pulled).toEqual(
+        sorted(codes.map(({ id }) => ({ entity: "offline_authorization_code", entityId: id }))),
+      );
+    }
   });
 
   it("gives no register the price list or the prices of a price list no branch uses", async () => {
