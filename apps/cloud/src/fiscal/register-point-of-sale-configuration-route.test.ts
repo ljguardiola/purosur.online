@@ -310,6 +310,7 @@ describe("PUT /registers/:id/point-of-sale", () => {
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({
       code: "point_of_sale_taken",
+      message: "that point of sale number is already in use",
       details: [{ field: "point_of_sale_number" }],
     });
     expect(await db.select().from(registerPointsOfSale)).toHaveLength(1);
