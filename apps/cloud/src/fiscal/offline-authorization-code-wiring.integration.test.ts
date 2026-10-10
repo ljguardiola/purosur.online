@@ -97,6 +97,7 @@ describe("the offline authorization code acquisition the server sets up on a rea
 
   it("recovers a code ARCA already granted, keeping it as recovered", async () => {
     await sql`delete from caea_codes`;
+    fakeWsfe.requests.length = 0;
     fakeWsfe.behave(
       answersInTurn("fe-caea-solicitar-already-granted.xml", "fe-caea-consultar-granted.xml"),
     );
