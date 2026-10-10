@@ -1,5 +1,6 @@
 import type {
   AddProductOutcome,
+  AddWeighedProductOutcome,
   Authorization,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
@@ -8,6 +9,7 @@ import type {
   CashChargeAnswer,
   CashCountPreview,
   ChangeLineQuantityOutcome,
+  ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
@@ -89,6 +91,9 @@ export interface RendererRequestDeps {
     | undefined;
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
+  addWeighedProduct:
+    | ((productId: string, weightThousandths: number) => Promise<AddWeighedProductOutcome>)
+    | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
   cashCharge: ((request: ChargeSaleInCashRequest) => Promise<CashChargeAnswer>) | undefined;
   changeLineQuantity:
@@ -97,6 +102,13 @@ export interface RendererRequestDeps {
         quantity: number,
         expectedQuantity: number,
       ) => Promise<ChangeLineQuantityOutcome>)
+    | undefined;
+  changeLineWeight:
+    | ((
+        lineId: string,
+        weightThousandths: number,
+        expectedWeightThousandths: number,
+      ) => Promise<ChangeLineWeightOutcome>)
     | undefined;
   removeSaleLine: ((lineId: string) => Promise<RemoveSaleLineOutcome>) | undefined;
   cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
@@ -622,6 +634,24 @@ export async function answerRendererRequest(
         ),
       };
     }
+    case "change-line-weight": {
+      const { changeLineWeight } = deps;
+      return {
+        type: "change-line-weight-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "changing a line's weight",
+          changeLineWeight &&
+            (() =>
+              changeLineWeight(
+                message.line_id,
+                message.weight_thousandths,
+                message.expected_weight_thousandths,
+              )),
+        ),
+      };
+    }
     case "remove-sale-line": {
       const { removeSaleLine } = deps;
       return {
@@ -773,6 +803,19 @@ export async function answerRendererRequest(
         request_id: message.request_id,
         outcome: await attemptAddProduct(deps, message.product_id),
       };
+    case "add-weighed-product": {
+      const { addWeighedProduct } = deps;
+      return {
+        type: "add-weighed-product-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "adding a product sold by weight",
+          addWeighedProduct &&
+            (() => addWeighedProduct(message.product_id, message.weight_thousandths)),
+        ),
+      };
+    }
     case "sale-request": {
       const sale = await readCurrentSale(deps);
       if (sale === "not_permitted") {

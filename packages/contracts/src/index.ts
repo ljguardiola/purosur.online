@@ -287,11 +287,13 @@ export {
 } from "./sales/core-messages.js";
 export type {
   AddProductOutcome,
+  AddWeighedProductOutcome,
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashCharge,
   CashChargeAnswer,
   ChangeLineQuantityOutcome,
+  ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,

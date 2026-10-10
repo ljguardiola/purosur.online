@@ -11,7 +11,7 @@ export type ScanProblem =
           | "unknown_code"
           | "product_unavailable"
           | "no_price"
-          | "sold_by_weight"
+          | "weight_needed"
           | "line_quantity_limit"
           | "not_permitted"
           | "installation_revoked";
@@ -49,7 +49,7 @@ export function messageFor(problem: ScanProblem): Message {
         title: `${problem.product_name} no tiene precio`,
         help: "No se puede vender hasta que alguien con el permiso de precios se lo ponga en el backoffice.",
       };
-    case "sold_by_weight":
+    case "weight_needed":
       return {
         icon: Scale,
         title: `${problem.product_name} se vende por kilo`,

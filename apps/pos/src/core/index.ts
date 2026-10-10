@@ -66,11 +66,13 @@ import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requ
 import { createReceiptPrinting, installationReceiptPrinter } from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,
+  addWeighedProductFor,
   cancelLockedSaleFor,
   cancelPaidSaleFor,
   cancelSaleFor,
   cashChargeFor,
   changeLineQuantityFor,
+  changeLineWeightFor,
   chargeSaleByTransferFor,
   chargeSaleInCashFor,
   currentSaleFor,
@@ -586,6 +588,16 @@ const rendererRequestDeps: RendererRequestDeps = {
             quantity,
             expectedQuantity,
           ),
+  changeLineWeight:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (lineId, weightThousandths, expectedWeightThousandths) =>
+          changeLineWeightFor(
+            { database: localDatabase, gate: actionGate, now },
+            lineId,
+            weightThousandths,
+            expectedWeightThousandths,
+          ),
   removeSaleLine:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -652,6 +664,15 @@ const rendererRequestDeps: RendererRequestDeps = {
           addSearchedProductFor(
             { database: localDatabase, gate: actionGate, now, ids: uuidV7Ids },
             productId,
+          ),
+  addWeighedProduct:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (productId, weightThousandths) =>
+          addWeighedProductFor(
+            { database: localDatabase, gate: actionGate, now, ids: uuidV7Ids },
+            productId,
+            weightThousandths,
           ),
   currentSale:
     localDatabase === undefined || actionGate === undefined
