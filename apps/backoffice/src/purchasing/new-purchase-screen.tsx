@@ -52,11 +52,7 @@ type Notice = { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSecon
 
 const NO_CHOICES: Omit<PurchaseChoices, "today"> = { suppliers: [], products: [], packagings: [] };
 
-export function NewPurchaseScreen({
-  access,
-  onSessionEnded,
-  services,
-}: NewPurchaseScreenProps) {
+export function NewPurchaseScreen({ access, onSessionEnded, services }: NewPurchaseScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
   const navigate = useNavigate();
   const refreshPurchasing = useRefreshPurchasing();
@@ -71,7 +67,7 @@ export function NewPurchaseScreen({
   const today = data.status === "loaded" ? data.value.today : null;
   const [datedOn, setDatedOn] = useState<string | null>(null);
 
-  const { form, submit, submitting, reset } = useRequestForm({
+  const { form, submit, submitting } = useRequestForm({
     defaultValues: emptyPurchaseForm(null),
     request: {
       schema: purchaseRegistrationBodySchema,
@@ -157,11 +153,14 @@ export function NewPurchaseScreen({
   });
 
   useEffect(() => {
-    if (today !== null && datedOn === null) {
-      reset(emptyPurchaseForm(parseDate(today)));
-      setDatedOn(today);
+    if (today === null || today === datedOn) {
+      return;
     }
-  }, [today, datedOn, reset]);
+    if ((form.getFieldValue("purchasedOn")?.toString() ?? null) === datedOn) {
+      form.setFieldValue("purchasedOn", parseDate(today), { dontUpdateMeta: true });
+    }
+    setDatedOn(today);
+  }, [today, datedOn, form]);
 
   const supplierOptions = purchaseSupplierOptions(suppliers);
   const nothingToChoose = !supplierOptions || products.length === 0;
