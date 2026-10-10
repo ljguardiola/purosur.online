@@ -21,6 +21,6 @@ export async function recordTaxAuthorityLastAuthorized(
   if (answer.kind === "no_answer") {
     return { kind: "no_answer" };
   }
-  await counts.record({ pointOfSale, lastAuthorized: answer.number, readAt: clock.now() });
+  await counts.advance({ pointOfSale, lastAuthorized: answer.number, readAt: clock.now() });
   return { kind: "recorded" };
 }

@@ -267,7 +267,7 @@ describe("enrollInstallation", () => {
 
     await enroll(store);
 
-    expect(store.operationOrder.slice(-8)).toEqual([
+    expect(store.operationOrder.slice(-9)).toEqual([
       "revokeActiveInstallation",
       "lockRegisterKeys",
       "recordSnapshotKey",
@@ -275,6 +275,7 @@ describe("enrollInstallation", () => {
       "recordInstallation",
       "recordInstallationEnrollment",
       "markEnrollmentCodeRedeemed",
+      "requireFreshTaxAuthorityCount",
       "openEnrollmentAlert",
     ]);
   });
@@ -295,6 +296,7 @@ describe("enrollInstallation", () => {
       "recordInstallation",
       "recordInstallationEnrollment",
       "markEnrollmentCodeRedeemed",
+      "requireFreshTaxAuthorityCount",
       "openEnrollmentAlert",
     ]);
   });
@@ -345,6 +347,35 @@ describe("enrollInstallation", () => {
       expect(store.snapshot().installationRevocations).toEqual([]);
       expect(store.snapshot().installationEnrollments).toEqual([]);
     }
+  });
+
+  it("requires a fresh tax authority count for the enrolled register", async () => {
+    const store = storeWithCode();
+
+    await enroll(store);
+
+    expect(store.snapshot().freshTaxAuthorityCountRequiredFor).toEqual(["register-1"]);
+  });
+
+  it("requires no fresh tax authority count when the code is refused or the attempt is rate limited", async () => {
+    const refused = storeWithCode({ redeemedAt: EARLIER });
+    const limited = storeWithCode();
+    seedAttempts(limited, { kind: "source_address", value: SOURCE }, [...NINE, 10]);
+
+    await enroll(refused);
+    await enroll(limited);
+
+    expect(refused.snapshot().freshTaxAuthorityCountRequiredFor).toEqual([]);
+    expect(limited.snapshot().freshTaxAuthorityCountRequiredFor).toEqual([]);
+  });
+
+  it("requires no fresh tax authority count when the enrollment fails and is rolled back", async () => {
+    const store = storeWithCode();
+    store.failingWrites.add("openEnrollmentAlert");
+
+    await expect(enroll(store)).rejects.toThrow("openEnrollmentAlert failed");
+
+    expect(store.snapshot().freshTaxAuthorityCountRequiredFor).toEqual([]);
   });
 
   it("opens the register's enrollment alert for the new installation, on a register nothing held before", async () => {

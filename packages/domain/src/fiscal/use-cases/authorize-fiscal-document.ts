@@ -143,6 +143,13 @@ export async function authorizeFiscalDocument(
             fiscalDocumentId: request.fiscalDocumentId,
             saleId: request.saleId,
           }),
+          answer.kind === "authorized"
+            ? {
+                pointOfSale: request.pointOfSale,
+                lastAuthorized: request.number,
+                readAt: answeredAt,
+              }
+            : null,
         );
       } else {
         await lane.recordAnswer(request.fiscalDocumentId, answer, answeredAt);
