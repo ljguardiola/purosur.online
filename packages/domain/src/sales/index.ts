@@ -13,6 +13,7 @@ export type {
 export {
   mayStartReceiptPrint,
   observePrintAcknowledged,
+  observePrinterNotConfigured,
   observePrinterStatus,
   observePrintFailed,
   RECEIPT_RETRY_DELAY_MS,
