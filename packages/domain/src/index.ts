@@ -22,6 +22,7 @@ export type {
 } from "./alerts/index.js";
 export {
   ALERT_AUDIENCES,
+  ALERT_CONDITION_STABLE_CLEAR_MS,
   ALERT_ESCALATION_DELAY_MS,
   ALERT_KINDS,
   ALERT_LEVELS,
@@ -41,9 +42,11 @@ export {
   isDueForEscalation,
   isOpenAlert,
   offlineAuthorizationCodeAcquisitionLevel,
+  offlineAuthorizationCodeHeldObservation,
   offlineAuthorizationCodeMissingObservation,
   REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
   REGISTER_OWN_CONDITIONS,
+  registerFortnightScope,
   registerOwnConditions,
   showsAlertScope,
 } from "./alerts/index.js";

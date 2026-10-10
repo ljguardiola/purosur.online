@@ -1,16 +1,23 @@
 import {
+  ALERT_CONDITION_STABLE_CLEAR_MS,
   argentinaCalendarDay,
   argentinaInstant,
   fortnightContaining,
   offlineAuthorizationCodeAcquisitionLevel,
+  offlineAuthorizationCodeHeldObservation,
   offlineAuthorizationCodeMissingObservation,
   offlineAuthorizationCodeRequestOpensOn,
   RECOVERY_TOKEN_LIFETIME_MS,
+  registerFortnightScope,
   SIGN_IN_BLOCK_DURATION_MS,
   SIGN_IN_FAILURE_LIMIT,
   shiftCalendarDay,
 } from "@purosur/domain";
-import { closeAlert, escalateOverdueAlerts } from "@purosur/domain/alerts/use-cases";
+import {
+  closeAlert,
+  escalateOverdueAlerts,
+  resolveStablyClearedAlerts,
+} from "@purosur/domain/alerts/use-cases";
 import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import {
   allocateInternalBarcode,
@@ -62,6 +69,7 @@ const SAMPLE_DATA_ADVISORY_LOCK_KEY = 875_320;
 
 const OVERDUE_PRICE_REVIEW_AGE_MS = 60 * 24 * 60 * 60 * 1000;
 const ESCALATION_ELIGIBLE_ALERT_AGE_MS = 25 * 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
 
 class SampleDataCollisionError extends Error {}
 
@@ -469,8 +477,8 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       });
       expectOutcome(closedCriticalOutcome, "closed", "closing the critical alert");
 
-      const [closedCodeRegisterId] = sampleRegisterIdsInOrder;
-      if (!closedCodeRegisterId) {
+      const [resolvedCodeRegisterId] = sampleRegisterIdsInOrder;
+      if (!resolvedCodeRegisterId) {
         throw new Error(
           "sample-data: no sample register available to scope an informational alert to",
         );
@@ -488,26 +496,36 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         );
       }
       const pastWindowOpeningMoment = new Date(argentinaInstant(pastRequestWindowOpensOn, "09:00"));
-      const informationalOutcome = await observeAlertCondition(
-        tx,
-        offlineAuthorizationCodeMissingObservation({
-          registerId: closedCodeRegisterId,
-          deviceId: crypto.randomUUID(),
-          fortnight: pastFortnight,
-          level: pastWindowOpeningLevel,
-        }),
-        { now: () => pastWindowOpeningMoment },
+      const conditionClearedMoment = new Date(pastWindowOpeningMoment.getTime() + MINUTE_MS);
+      const stablyClearedMoment = new Date(
+        conditionClearedMoment.getTime() + ALERT_CONDITION_STABLE_CLEAR_MS,
       );
-      const informationalToClose = expectOutcome(
-        informationalOutcome,
-        "opened",
-        "the informational alert to close",
-      );
-      const closedInformationalOutcome = await closeAlert(closingPorts, {
-        alertId: informationalToClose.alertId,
-        closedBy: actorId,
+      const missingCodeObservation = offlineAuthorizationCodeMissingObservation({
+        registerId: resolvedCodeRegisterId,
+        deviceId: crypto.randomUUID(),
+        fortnight: pastFortnight,
+        level: pastWindowOpeningLevel,
       });
-      expectOutcome(closedInformationalOutcome, "closed", "closing the informational alert");
+      const informationalOutcome = await observeAlertCondition(tx, missingCodeObservation, {
+        now: () => pastWindowOpeningMoment,
+      });
+      expectOutcome(informationalOutcome, "opened", "the informational alert to resolve");
+      const codeHeldOutcome = await observeAlertCondition(
+        tx,
+        offlineAuthorizationCodeHeldObservation(
+          registerFortnightScope(resolvedCodeRegisterId, pastFortnight.start),
+        ),
+        { now: () => conditionClearedMoment },
+      );
+      expectOutcome(codeHeldOutcome, "clearing", "clearing the informational alert");
+      const resolvedCount = await resolveStablyClearedAlerts({
+        store: new DrizzleAlertStore(tx, () => stablyClearedMoment),
+        clock: { now: () => stablyClearedMoment },
+        hasher: { hash: hashSourceAddress },
+      });
+      if (resolvedCount < 1) {
+        throw new Error("sample-data: the stably cleared informational alert was not resolved");
+      }
       await pending.log(tx);
 
       return {
