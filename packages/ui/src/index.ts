@@ -174,7 +174,7 @@ export type {
   HelpCatalog,
 } from "./messages/help";
 export { defineHelp } from "./messages/help";
-export { articleMatchesQuery, searchArticles } from "./messages/help-search";
+export { searchArticles } from "./messages/help-search";
 export type { LocalAlertKind, LocalAlertText } from "./messages/local-alert-texts";
 export { isLocalAlertKind, localAlertText } from "./messages/local-alert-texts";
 export type { LocaleProviderProps } from "./messages/locale-provider";

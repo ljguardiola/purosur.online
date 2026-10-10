@@ -1,7 +1,7 @@
-import type { HelpArticle, HelpBlock } from "@purosur/ui";
-import { Eyebrow, SearchField, searchArticles } from "@purosur/ui";
+import type { HelpArticle } from "@purosur/ui";
+import { Eyebrow, HelpArticleBody, SearchField, searchArticles } from "@purosur/ui";
 import { Link, useRouter } from "@tanstack/react-router";
-import { ChevronRight, Info, Search } from "lucide-react";
+import { ChevronRight, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { focusRingClassName } from "../platform/focus-ring";
 import { useDocumentTitle } from "../shell/document-title";
@@ -57,19 +57,6 @@ function keyed<Item>(items: readonly Item[], keyOf: (item: Item) => string): Arr
   });
 }
 
-function blockContent(block: HelpBlock<string>): string {
-  switch (block.kind) {
-    case "heading":
-    case "paragraph":
-    case "note":
-      return `${block.kind}:${block.text}`;
-    case "steps":
-      return `steps:${JSON.stringify(block.items)}`;
-    case "articleLink":
-      return `articleLink:${block.article}`;
-  }
-}
-
 function ArticleList({ articles }: { articles: readonly ArticleEntry[] }) {
   return (
     <ul className="flex flex-col gap-2">
@@ -80,42 +67,6 @@ function ArticleList({ articles }: { articles: readonly ArticleEntry[] }) {
       ))}
     </ul>
   );
-}
-
-function Block({ block, help }: { block: HelpBlock<string>; help: BackofficeHelpCatalog }) {
-  switch (block.kind) {
-    case "heading":
-      return <Eyebrow text={block.text} headingLevel={2} />;
-    case "paragraph":
-      return <p className="text-body text-text">{block.text}</p>;
-    case "steps":
-      return (
-        <ol className="flex flex-col gap-3">
-          {keyed(block.items, (item) => item).map(([key, item], index) => (
-            <li key={key} className="flex items-start gap-3">
-              <span
-                aria-hidden="true"
-                className="flex size-7 shrink-0 items-center justify-center rounded-full bg-action-subtle font-bold text-text-accent text-detail"
-              >
-                {index + 1}
-              </span>
-              <p className="badge-text-offset text-body text-text leading-lg">{item}</p>
-            </li>
-          ))}
-        </ol>
-      );
-    case "note":
-      return (
-        <div className="flex items-center gap-3 rounded-lg bg-surface-subtle px-4 py-3">
-          <Info aria-hidden="true" className="size-icon-md shrink-0 text-text-accent" />
-          <p className="text-text text-detail leading-md">{block.text}</p>
-        </div>
-      );
-    case "articleLink": {
-      const linked = ownEntry(help.articles, block.article);
-      return linked ? <ArticleLinkRow articleId={block.article} article={linked} /> : null;
-    }
-  }
 }
 
 function RelatedPanel({
@@ -155,10 +106,14 @@ function ArticleView({
 }) {
   return (
     <div className="flex flex-1 gap-6">
-      <div className="flex flex-1 flex-col gap-4 rounded-lg border border-border bg-surface p-6">
-        {keyed(article.body, blockContent).map(([key, block]) => (
-          <Block key={key} block={block} help={help} />
-        ))}
+      <div className="flex-1 rounded-lg border border-border bg-surface p-6">
+        <HelpArticleBody
+          body={article.body}
+          renderArticleLink={(linkedId) => {
+            const linked = ownEntry(help.articles, linkedId);
+            return linked ? <ArticleLinkRow articleId={linkedId} article={linked} /> : null;
+          }}
+        />
       </div>
       {article.related && article.related.length > 0 && (
         <RelatedPanel help={help} relatedIds={article.related} />

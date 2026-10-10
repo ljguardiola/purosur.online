@@ -31,7 +31,11 @@ export type HelpScreenProps = {
 type Section = [id: string, article: HelpArticle<string, string>];
 
 function sectionsMatching(help: RegisterHelpCatalog, query: string): Section[] {
-  return query.trim() === "" ? Object.entries(help.articles) : searchArticles(help.articles, query);
+  const matching =
+    query.trim() === "" ? Object.entries(help.articles) : searchArticles(help.articles, query);
+  return Object.keys(help.categories).flatMap((categoryId) =>
+    matching.filter(([, article]) => article.category === categoryId),
+  );
 }
 
 export function HelpScreen({ person, registerName, help, entries, signOut }: HelpScreenProps) {
