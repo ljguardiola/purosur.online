@@ -1,3 +1,4 @@
+import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import type { SalePayment } from "../../payments/index.js";
 import { MAX_STOCK_QUANTITY } from "../../stock/index.js";
@@ -7,7 +8,6 @@ import {
   FakeSaleLedger,
   type FakeSaleLedgerState,
   FixedClock,
-  PENDING_QR_TRANSACTION,
 } from "./test-support/fake-sale-ledger.js";
 
 const NOW = new Date("2026-09-30T12:34:56.789Z");

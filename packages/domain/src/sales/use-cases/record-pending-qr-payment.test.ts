@@ -1,10 +1,10 @@
+import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import type { SaleWithLines } from "../model/sale.js";
 import { recordPendingQrPayment } from "./record-pending-qr-payment.js";
 import {
   FakeSaleLedger,
   type FakeSaleLedgerState,
-  PENDING_QR_TRANSACTION,
   SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
 

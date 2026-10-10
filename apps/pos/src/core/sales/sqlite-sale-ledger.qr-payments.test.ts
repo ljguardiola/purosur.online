@@ -1,4 +1,5 @@
 import type { PendingQrSalePayment } from "@purosur/domain";
+import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -11,10 +12,7 @@ const WAIT_ENDS_AT = new Date("2026-10-09T12:03:00.000Z");
 const PENDING: PendingQrSalePayment = {
   id: "qr-1",
   saleId: "sale-1",
-  kind: "SALE",
-  method: "QR",
-  provider: "MERCADOPAGO_QR",
-  state: "PENDING",
+  ...PENDING_QR_TRANSACTION,
   amount: 3000,
   occurredAt: STARTED_AT,
   waitEndsAt: WAIT_ENDS_AT,

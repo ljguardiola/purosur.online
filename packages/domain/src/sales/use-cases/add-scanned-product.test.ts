@@ -1,3 +1,4 @@
+import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import { BARCODE_MAX_LENGTH } from "../../catalog/index.js";
 import type { SalePayment } from "../../payments/index.js";
@@ -10,7 +11,6 @@ import {
   type FakeSaleLedgerState,
   type FakeSaleLedgerWrite,
   FixedClock,
-  PENDING_QR_TRANSACTION,
   SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
 
