@@ -94,6 +94,23 @@ test("tells when the packaging was already changed, and updating the list report
   expect(onReactivated).toHaveBeenCalledTimes(1);
 });
 
+test("tells when its product's sale unit changed since its quantity was defined, asking to edit it first", async () => {
+  const reactivatePackaging = vi
+    .fn<ReactivatePackagingModalServices["reactivatePackaging"]>()
+    .mockResolvedValue({ kind: "sale_unit_changed" });
+  const screen = await renderModal({ reactivatePackaging });
+  const dialog = await confirm(screen);
+
+  await expect
+    .element(
+      dialog.getByText(
+        "La unidad de venta del producto cambió desde que se definió esta presentación",
+      ),
+    )
+    .toBeVisible();
+  await expect.element(dialog.getByText("Editá su cantidad antes de reactivarla.")).toBeVisible();
+});
+
 test("tells when the packaging no longer exists", async () => {
   const reactivatePackaging = vi
     .fn<ReactivatePackagingModalServices["reactivatePackaging"]>()

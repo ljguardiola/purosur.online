@@ -5,6 +5,7 @@ const caja = {
   id: "k-1",
   productId: "p-1",
   productName: "Yerba",
+  productSaleUnit: "UNIT",
   saleUnit: "UNIT",
   name: "Caja x 12",
   quantityPerPackage: 12_000,
@@ -15,6 +16,7 @@ const bolsa = {
   id: "k-2",
   productId: "p-2",
   productName: "Harina",
+  productSaleUnit: "UNIT",
   saleUnit: "KG",
   name: "Bolsa x 25 kg",
   quantityPerPackage: 25_000,
@@ -24,7 +26,7 @@ const bolsa = {
 const product = { id: "p-1", name: "Yerba", saleUnit: "UNIT" };
 
 describe("packagingSummarySchema", () => {
-  it("accepts a packaging of a product sold by the unit and one of a product sold by the kilo", () => {
+  it("accepts a packaging stated in units and one stated in kilos, whatever its product is sold by now", () => {
     expect(packagingSummarySchema.safeParse(caja).data).toEqual(caja);
     expect(packagingSummarySchema.safeParse(bolsa).data).toEqual(bolsa);
   });
@@ -37,6 +39,7 @@ describe("packagingSummarySchema", () => {
     "id",
     "productId",
     "productName",
+    "productSaleUnit",
     "saleUnit",
     "name",
     "quantityPerPackage",
@@ -52,6 +55,7 @@ describe("packagingSummarySchema", () => {
     ["id", 1],
     ["productId", null],
     ["productName", 1],
+    ["productSaleUnit", "LITER"],
     ["saleUnit", "LITER"],
     ["name", null],
     ["quantityPerPackage", 1.5],

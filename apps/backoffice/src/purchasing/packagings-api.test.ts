@@ -236,3 +236,17 @@ describe.each([
     expect(await change("packaging-1")).toEqual({ kind: "failed" });
   });
 });
+
+describe("reactivatePackaging's own refusal", () => {
+  test("returns sale_unit_changed on the 409 that says its product's sale unit changed", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "packaging_sale_unit_changed" }));
+
+    expect(await reactivatePackaging("packaging-1")).toEqual({ kind: "sale_unit_changed" });
+  });
+
+  test("is not deactivatePackaging's, which reads that 409 as failed", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "packaging_sale_unit_changed" }));
+
+    expect(await deactivatePackaging("packaging-1")).toEqual({ kind: "failed" });
+  });
+});

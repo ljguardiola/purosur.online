@@ -4,6 +4,7 @@ import { MAX_STOCK_QUANTITY, STOCK_QUANTITY_PER_UNIT } from "../../stock/index.j
 import {
   isPackagingNameTooLong,
   isQuantityPerPackage,
+  mayDefinePackagingsFor,
   PACKAGING_NAME_MAX_LENGTH,
 } from "./packaging.js";
 
@@ -60,5 +61,12 @@ describe("isQuantityPerPackage", () => {
         },
       ),
     );
+  });
+});
+
+describe("mayDefinePackagingsFor", () => {
+  it("lets packagings be defined for an active product only", () => {
+    expect(mayDefinePackagingsFor({ active: true })).toBe(true);
+    expect(mayDefinePackagingsFor({ active: false })).toBe(false);
   });
 });

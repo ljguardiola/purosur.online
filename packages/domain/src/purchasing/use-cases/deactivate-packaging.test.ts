@@ -9,6 +9,7 @@ const CAJA = {
   productId: "p-unit",
   name: "Caja x 12",
   quantityPerPackage: 12_000,
+  saleUnit: "UNIT" as const,
   active: true,
   version: 3,
 };

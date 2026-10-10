@@ -27,6 +27,7 @@ describe("createPackaging", () => {
       productId: "p-unit",
       name: "Caja x 12",
       quantityPerPackage: 12_000,
+      saleUnit: "UNIT",
       active: true,
       version: 1,
     };
@@ -36,7 +37,7 @@ describe("createPackaging", () => {
     expect(store.transactionCount).toBe(1);
   });
 
-  it("accepts a quantity in grams for a product sold by the kilo", async () => {
+  it("accepts a quantity in grams for a product sold by the kilo, recording that it is stated in kilos", async () => {
     const store = storeWithProducts();
 
     const outcome = await createPackaging(store, {
@@ -46,7 +47,8 @@ describe("createPackaging", () => {
       actorId: ACTOR,
     });
 
-    expect(outcome.kind).toBe("created");
+    expect(outcome).toMatchObject({ kind: "created", packaging: { saleUnit: "KG" } });
+    expect(store.snapshot().packagings).toMatchObject([{ saleUnit: "KG" }]);
   });
 
   it("answers product_not_found for a product missing when it is locked", async () => {
@@ -54,6 +56,21 @@ describe("createPackaging", () => {
 
     const outcome = await createPackaging(store, {
       productId: "missing",
+      name: "Caja",
+      quantityPerPackage: 12_000,
+      actorId: ACTOR,
+    });
+
+    expect(outcome).toEqual({ kind: "product_not_found" });
+    expect(store.snapshot().packagings).toEqual([]);
+  });
+
+  it("answers product_not_found for a deactivated product, which packagings may not be defined for", async () => {
+    const store = storeWithProducts();
+    store.seedProduct({ id: "p-old", name: "Antiguo", saleUnit: "UNIT", active: false });
+
+    const outcome = await createPackaging(store, {
+      productId: "p-old",
       name: "Caja",
       quantityPerPackage: 12_000,
       actorId: ACTOR,
@@ -84,6 +101,7 @@ describe("createPackaging", () => {
       productId: "p-unit",
       name: "Caja x 12",
       quantityPerPackage: 12_000,
+      saleUnit: "UNIT",
       active: false,
       version: 2,
     });
@@ -106,6 +124,7 @@ describe("createPackaging", () => {
       productId: "p-kg",
       name: "Caja",
       quantityPerPackage: 1_000,
+      saleUnit: "KG",
       active: true,
       version: 1,
     });

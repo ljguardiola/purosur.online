@@ -787,28 +787,44 @@ describe("product_packagings", () => {
 
     const [packaging] = await db
       .insert(productPackagings)
-      .values({ productId, name: "Caja x 12", quantityPerPackage: 12, actorId })
+      .values({ productId, name: "Caja x 12", quantityPerPackage: 12, saleUnit: "UNIT", actorId })
       .returning();
 
     expect(packaging).toMatchObject({
       productId,
       name: "Caja x 12",
       quantityPerPackage: 12,
+      saleUnit: "UNIT",
       active: true,
       version: 1,
     });
   });
 
-  it("rejects a second packaging of the same product with the same name in another letter case, even when the first is deactivated", async () => {
+  it("rejects a packaging stated in a sale unit no product is sold in", async () => {
     const { productId, actorId } = await seedProductAndActor();
-    await db
-      .insert(productPackagings)
-      .values({ productId, name: "Caja x 12", quantityPerPackage: 12, active: false, actorId });
 
     await expect(
       db
         .insert(productPackagings)
-        .values({ productId, name: "caja X 12", quantityPerPackage: 6, actorId }),
+        .values({ productId, name: "Caja", quantityPerPackage: 12, saleUnit: "LITER", actorId }),
+    ).rejects.toMatchObject({ cause: { constraint: "product_packagings_sale_unit_check" } });
+  });
+
+  it("rejects a second packaging of the same product with the same name in another letter case, even when the first is deactivated", async () => {
+    const { productId, actorId } = await seedProductAndActor();
+    await db.insert(productPackagings).values({
+      productId,
+      name: "Caja x 12",
+      quantityPerPackage: 12,
+      saleUnit: "UNIT",
+      active: false,
+      actorId,
+    });
+
+    await expect(
+      db
+        .insert(productPackagings)
+        .values({ productId, name: "caja X 12", quantityPerPackage: 6, saleUnit: "UNIT", actorId }),
     ).rejects.toMatchObject({
       cause: { constraint: "product_packagings_product_id_name_lower_key" },
     });
@@ -823,18 +839,24 @@ describe("product_packagings", () => {
       .returning({ id: products.id });
     await db
       .insert(productPackagings)
-      .values({ productId, name: "Caja x 12", quantityPerPackage: 12, actorId });
+      .values({ productId, name: "Caja x 12", quantityPerPackage: 12, saleUnit: "UNIT", actorId });
 
-    await db
-      .insert(productPackagings)
-      .values({ productId: other?.id ?? "", name: "Caja x 12", quantityPerPackage: 12, actorId });
+    await db.insert(productPackagings).values({
+      productId: other?.id ?? "",
+      name: "Caja x 12",
+      quantityPerPackage: 12,
+      saleUnit: "UNIT",
+      actorId,
+    });
   });
 
   it.each([0, -3])("rejects a packaging holding %d", async (quantityPerPackage) => {
     const { productId, actorId } = await seedProductAndActor();
 
     await expect(
-      db.insert(productPackagings).values({ productId, name: "Caja", quantityPerPackage, actorId }),
+      db
+        .insert(productPackagings)
+        .values({ productId, name: "Caja", quantityPerPackage, saleUnit: "UNIT", actorId }),
     ).rejects.toMatchObject({ cause: { constraint: "product_packagings_quantity_check" } });
   });
 
@@ -846,6 +868,7 @@ describe("product_packagings", () => {
         productId: "00000000-0000-0000-0000-000000000000",
         name: "Caja",
         quantityPerPackage: 1,
+        saleUnit: "UNIT",
         actorId,
       }),
     ).rejects.toMatchObject({

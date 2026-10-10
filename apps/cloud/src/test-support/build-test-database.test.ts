@@ -565,6 +565,7 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       productId: product.id,
       name: "Caja x 12",
       quantityPerPackage: 12,
+      saleUnit: "UNIT",
       actorId: user.id,
     });
     await db.insert(paymentTransactions).values({

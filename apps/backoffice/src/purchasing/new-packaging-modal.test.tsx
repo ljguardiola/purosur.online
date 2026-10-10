@@ -277,3 +277,17 @@ test("cancel closes the modal without calling the API", async () => {
   expect(onClose).toHaveBeenCalledTimes(1);
   expect(createPackaging).not.toHaveBeenCalled();
 });
+
+test("tells there is no active product to define a packaging for, offering no field to fill", async () => {
+  const screen = await renderModal({ products: [] });
+  const dialog = screen.getByRole("dialog");
+
+  await expect.element(dialog.getByText("No hay productos activos")).toBeVisible();
+  await expect
+    .element(dialog.getByText("Creá uno en Productos para definir sus presentaciones."))
+    .toBeVisible();
+  expect(dialog.getByRole("textbox", { name: /^Nombre/ }).query()).toBeNull();
+  await expect
+    .element(dialog.getByRole("button", { name: "Crear la presentación" }))
+    .toBeDisabled();
+});

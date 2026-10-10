@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { editProduct } from "@purosur/domain/catalog/use-cases";
-import { createPackaging } from "@purosur/domain/purchasing/use-cases";
+import { createPackaging, reactivatePackaging } from "@purosur/domain/purchasing/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -90,6 +90,29 @@ function packagingOf(productId: string, quantityPerPackage: number) {
     });
 }
 
+async function deactivatedPackagingOf(productId: string) {
+  const [row] = await db
+    .insert(productPackagings)
+    .values({
+      productId,
+      name: "Caja",
+      quantityPerPackage: TWELVE_UNITS,
+      saleUnit: "UNIT",
+      active: false,
+      actorId,
+    })
+    .returning({ id: productPackagings.id });
+  if (!row) {
+    throw new Error("test setup: seeding the packaging returned no row");
+  }
+  return row.id;
+}
+
+function reactivation(packagingId: string) {
+  return () =>
+    reactivatePackaging(new DrizzlePurchasingStore(db, now), { id: packagingId, actorId });
+}
+
 describe("selling a product by weight while a purchase packaging is defined for it, on a real Postgres", () => {
   it("defines the packaging by the weight when the edit commits first", async () => {
     const product = await unitProduct();
@@ -125,5 +148,40 @@ describe("selling a product by weight while a purchase packaging is defined for 
     expect(
       await db.select().from(productPackagings).where(eq(productPackagings.productId, product.id)),
     ).toHaveLength(1);
+  });
+
+  it("refuses the reactivation of a packaging stated in units when the edit to weight commits first", async () => {
+    const product = await unitProduct();
+    const packagingId = await deactivatedPackagingOf(product.id);
+
+    const [edit, reactivated] = await runQueuedBehindHeldLock(
+      sql,
+      holdProductRowLock(product.id),
+      editToWeight(product),
+      reactivation(packagingId),
+    );
+
+    expect(edit.kind).toBe("applied");
+    expect(reactivated).toEqual({ kind: "sale_unit_changed" });
+    const [stored] = await db
+      .select({ active: productPackagings.active })
+      .from(productPackagings)
+      .where(eq(productPackagings.id, packagingId));
+    expect(stored?.active).toBe(false);
+  });
+
+  it("refuses the edit to weight when the reactivation commits first", async () => {
+    const product = await unitProduct();
+    const packagingId = await deactivatedPackagingOf(product.id);
+
+    const [reactivated, edit] = await runQueuedBehindHeldLock(
+      sql,
+      holdProductRowLock(product.id),
+      reactivation(packagingId),
+      editToWeight(product),
+    );
+
+    expect(reactivated).toEqual({ kind: "reactivated" });
+    expect(edit).toEqual({ kind: "sale_unit_held_by_packaging", packagingName: "Caja" });
   });
 });

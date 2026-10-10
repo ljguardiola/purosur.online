@@ -51,6 +51,7 @@ async function storedPackaging(
       productId,
       name: "Caja x 12",
       quantityPerPackage: 12_000,
+      saleUnit: "UNIT",
       actorId: await insertActor(db),
       ...fields,
     })
@@ -81,11 +82,11 @@ describe("GET /purchase-packagings", () => {
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
-  it("lists the packagings with their product's name and sale unit, and the active products to define one for", async () => {
+  it("lists the packagings with their product's name and current sale unit, and the active products to define one for", async () => {
     const { headers } = await manager();
     const arroz = await insertProduct(db, { name: "Arroz", saleUnit: "UNIT" });
     const retired = await insertProduct(db, { name: "Retirado", active: false });
-    await storedPackaging(retired.id, { name: "Bolsa", active: false });
+    await storedPackaging(retired.id, { name: "Bolsa", saleUnit: "KG", active: false });
     await storedPackaging(arroz.id);
 
     const response = await app.inject({ method: "GET", url: "/purchase-packagings", headers });
@@ -97,7 +98,8 @@ describe("GET /purchase-packagings", () => {
           id: expect.any(String),
           productId: retired.id,
           productName: "Retirado",
-          saleUnit: "UNIT",
+          productSaleUnit: "UNIT",
+          saleUnit: "KG",
           name: "Bolsa",
           quantityPerPackage: 12_000,
           active: false,
@@ -107,6 +109,7 @@ describe("GET /purchase-packagings", () => {
           id: expect.any(String),
           productId: arroz.id,
           productName: "Arroz",
+          productSaleUnit: "UNIT",
           saleUnit: "UNIT",
           name: "Caja x 12",
           quantityPerPackage: 12_000,
@@ -187,6 +190,7 @@ describe("POST /purchase-packagings", () => {
       id: expect.any(String),
       productId: product.id,
       productName: "Arroz",
+      productSaleUnit: "KG",
       saleUnit: "KG",
       name: "Bolsa x 25 kg",
       quantityPerPackage: 25_000,
@@ -210,6 +214,22 @@ describe("POST /purchase-packagings", () => {
 
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({ code: "product_not_found" });
+  });
+
+  it("answers 404 product_not_found for a deactivated product, creating nothing", async () => {
+    const { headers } = await manager();
+    const product = await insertProduct(db, { name: "Retirado", active: false });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/purchase-packagings",
+      headers,
+      payload: { productId: product.id, name: "Caja", quantityPerPackage: 12_000 },
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "product_not_found" });
+    expect(await db.select().from(productPackagings)).toEqual([]);
   });
 
   it("answers 400 for a part of a unit on a product sold by the unit", async () => {
@@ -282,6 +302,7 @@ describe("PUT /purchase-packagings/:id", () => {
       id: packaging.id,
       productId: product.id,
       productName: "Arroz",
+      productSaleUnit: "UNIT",
       saleUnit: "UNIT",
       name: "Caja x 6",
       quantityPerPackage: 6_000,
@@ -465,6 +486,24 @@ describe("PUT and DELETE /purchase-packagings/:id/deactivation", () => {
     expect(alreadyInactive.json()).toMatchObject({ code: "packaging_already_inactive" });
     expect(alreadyActive.statusCode).toBe(409);
     expect(alreadyActive.json()).toMatchObject({ code: "packaging_already_active" });
+  });
+
+  it("answers 409 packaging_sale_unit_changed when reactivating a packaging stated in a sale unit its product no longer has, changing nothing", async () => {
+    const { headers } = await manager();
+    const product = await insertProduct(db, { name: "Arroz", saleUnit: "UNIT" });
+    const packaging = await storedPackaging(product.id, { saleUnit: "KG", active: false });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/purchase-packagings/${packaging.id}/deactivation`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "packaging_sale_unit_changed" });
+    expect(await db.select().from(productPackagings)).toMatchObject([
+      { active: false, version: 1 },
+    ]);
   });
 
   it("answers 400 for an id that is not a record id", async () => {

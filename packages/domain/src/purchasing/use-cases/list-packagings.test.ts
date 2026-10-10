@@ -11,18 +11,20 @@ const CAJA = {
   productId: "p-unit",
   name: "Caja x 12",
   quantityPerPackage: 12_000,
+  saleUnit: "UNIT" as const,
   active: true,
   version: 1,
 };
 
 describe("listPackagings", () => {
-  it("answers every packaging with its product's name and sale unit", async () => {
+  it("answers every packaging with its product's name and current sale unit", async () => {
     const bolsa = {
       ...CAJA,
       id: "k-2",
       productId: "p-kg",
       name: "Bolsa x 25 kg",
       quantityPerPackage: 25_000,
+      saleUnit: "KG" as const,
       active: false,
     };
     const reader = new FakePurchasingListReader({
@@ -30,11 +32,18 @@ describe("listPackagings", () => {
       products: [YERBA, HARINA],
     });
 
-    const { packagings } = await listPackagings(reader);
+    expect(await listPackagings(reader)).toEqual([
+      { ...bolsa, productName: "Harina", productSaleUnit: "KG" },
+      { ...CAJA, productName: "Yerba", productSaleUnit: "UNIT" },
+    ]);
+  });
 
-    expect(packagings).toEqual([
-      { ...bolsa, productName: "Harina", saleUnit: "KG" },
-      { ...CAJA, productName: "Yerba", saleUnit: "UNIT" },
+  it("keeps the sale unit a packaging's quantity is stated in apart from its product's current one", async () => {
+    const bolsa = { ...CAJA, saleUnit: "KG" as const, active: false };
+    const reader = new FakePurchasingListReader({ packagings: [bolsa], products: [YERBA] });
+
+    expect(await listPackagings(reader)).toEqual([
+      { ...bolsa, productName: "Yerba", productSaleUnit: "UNIT" },
     ]);
   });
 
@@ -42,26 +51,12 @@ describe("listPackagings", () => {
     const old = { ...CAJA, productId: "p-old" };
     const reader = new FakePurchasingListReader({ packagings: [old], products: [RETIRED] });
 
-    const { packagings } = await listPackagings(reader);
-
-    expect(packagings).toEqual([{ ...old, productName: "Antiguo", saleUnit: "UNIT" }]);
-  });
-
-  it("offers only the active products a packaging may be defined for", async () => {
-    const reader = new FakePurchasingListReader({ products: [YERBA, RETIRED, HARINA] });
-
-    const { products } = await listPackagings(reader);
-
-    expect(products).toEqual([
-      { id: "p-kg", name: "Harina", saleUnit: "KG" },
-      { id: "p-unit", name: "Yerba", saleUnit: "UNIT" },
+    expect(await listPackagings(reader)).toEqual([
+      { ...old, productName: "Antiguo", productSaleUnit: "UNIT" },
     ]);
   });
 
   it("answers nothing when there is nothing to list", async () => {
-    expect(await listPackagings(new FakePurchasingListReader())).toEqual({
-      packagings: [],
-      products: [],
-    });
+    expect(await listPackagings(new FakePurchasingListReader())).toEqual([]);
   });
 });

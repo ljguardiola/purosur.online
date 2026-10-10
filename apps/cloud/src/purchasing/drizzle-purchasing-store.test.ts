@@ -14,7 +14,7 @@ import {
 } from "@purosur/domain/purchasing/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { productPackagings, suppliers } from "../platform/db/schema.js";
+import { productPackagings, products, suppliers } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzlePurchasingStore } from "./drizzle-purchasing-store.js";
 import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
@@ -178,8 +178,8 @@ describe("the suppliers a purchasing store keeps", () => {
 });
 
 describe("the purchase packagings a purchasing store keeps", () => {
-  it("stores a created packaging active at version 1, written by the actor", async () => {
-    const product = await insertProduct(db, { name: "Arroz" });
+  it("stores a created packaging active at version 1 in its product's sale unit, written by the actor", async () => {
+    const product = await insertProduct(db, { name: "Arroz", saleUnit: "KG" });
 
     const packaging = await newPackaging(product.id);
 
@@ -191,6 +191,7 @@ describe("the purchase packagings a purchasing store keeps", () => {
       productId: product.id,
       name: "Caja x 12",
       quantityPerPackage: 12_000,
+      saleUnit: "KG",
       active: true,
       version: 1,
       actorId,
@@ -207,6 +208,20 @@ describe("the purchase packagings a purchasing store keeps", () => {
     });
 
     expect(outcome).toEqual({ kind: "product_not_found" });
+  });
+
+  it("answers product_not_found for a deactivated product", async () => {
+    const product = await insertProduct(db, { name: "Retirado", active: false });
+
+    const outcome = await createPackaging(store(), {
+      productId: product.id,
+      name: "Caja",
+      quantityPerPackage: 12_000,
+      actorId,
+    });
+
+    expect(outcome).toEqual({ kind: "product_not_found" });
+    expect(await db.select().from(productPackagings)).toEqual([]);
   });
 
   it("refuses a name the product's other packaging has in another letter case, deactivated or not, but not another product's", async () => {
@@ -295,6 +310,32 @@ describe("the purchase packagings a purchasing store keeps", () => {
     expect(deactivated).toMatchObject({ active: false, version: 2, updatedAt: UPDATED_AT });
     expect(reactivated).toMatchObject({ active: true, version: 3 });
   });
+
+  it("refuses reactivating a packaging stated in a sale unit its product no longer has, until an edit re-states it", async () => {
+    const product = await insertProduct(db, { name: "Arroz", saleUnit: "UNIT" });
+    const packaging = await newPackaging(product.id);
+    await deactivatePackaging(store(), { id: packaging.id, actorId });
+    await db.update(products).set({ saleUnit: "KG" }).where(eq(products.id, product.id));
+
+    const refused = await reactivatePackaging(store(), { id: packaging.id, actorId });
+    const edited = await editPackaging(store(), {
+      id: packaging.id,
+      name: packaging.name,
+      quantityPerPackage: packaging.quantityPerPackage,
+      version: 2,
+      actorId,
+    });
+    const reactivated = await reactivatePackaging(store(), { id: packaging.id, actorId });
+
+    expect(refused).toEqual({ kind: "sale_unit_changed" });
+    expect(edited).toMatchObject({ kind: "applied", packaging: { saleUnit: "KG", version: 3 } });
+    expect(reactivated).toEqual({ kind: "reactivated" });
+    const [row] = await db
+      .select()
+      .from(productPackagings)
+      .where(eq(productPackagings.id, packaging.id));
+    expect(row).toMatchObject({ saleUnit: "KG", active: true, version: 4 });
+  });
 });
 
 describe("a write that loses a uniqueness race", () => {
@@ -378,6 +419,7 @@ describe("a write that loses a uniqueness race", () => {
           productId: product.id,
           name: "CAJA X 12",
           quantityPerPackage: 6_000,
+          saleUnit: "UNIT",
           actorId,
         }),
       ),
@@ -394,6 +436,7 @@ describe("a write that loses a uniqueness race", () => {
         tx.updatePackaging(other.id, {
           name: "caja x 12",
           quantityPerPackage: 6_000,
+          saleUnit: "UNIT",
           active: true,
           version: 2,
           actorId,

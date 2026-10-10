@@ -127,7 +127,7 @@ class FakePurchasingStoreTransaction implements PurchasingStoreTransaction {
   async lockPackaging(packagingId: string): Promise<LockPackagingResult> {
     this.store.lockCallOrder.push("lockPackaging");
     const row = this.state.packagings.find((packaging) => packaging.id === packagingId);
-    if (!row) {
+    if (!row || this.store.packagingsGoneOnceTheirProductIsLocked.has(packagingId)) {
       return { kind: "not_found" };
     }
     const { writtenBy: _writtenBy, ...packaging } = row;
@@ -153,6 +153,7 @@ class FakePurchasingStoreTransaction implements PurchasingStoreTransaction {
       productId: fields.productId,
       name: fields.name,
       quantityPerPackage: fields.quantityPerPackage,
+      saleUnit: fields.saleUnit,
       active: true,
       version: 1,
       writtenBy: fields.actorId,
@@ -166,6 +167,7 @@ class FakePurchasingStoreTransaction implements PurchasingStoreTransaction {
       if (row.id === packagingId) {
         row.name = fields.name;
         row.quantityPerPackage = fields.quantityPerPackage;
+        row.saleUnit = fields.saleUnit;
         row.active = fields.active;
         row.version = fields.version;
         row.writtenBy = fields.actorId;
@@ -176,7 +178,10 @@ class FakePurchasingStoreTransaction implements PurchasingStoreTransaction {
   private lockedProduct(productId: string): LockProductResult {
     const product = this.state.products.find((row) => row.id === productId);
     return product
-      ? { kind: "locked", product: { id: product.id, saleUnit: product.saleUnit } }
+      ? {
+          kind: "locked",
+          product: { id: product.id, saleUnit: product.saleUnit, active: product.active },
+        }
       : { kind: "not_found" };
   }
 
@@ -204,6 +209,8 @@ export class FakePurchasingStore implements PurchasingStore {
   supplierNameConflicts = new Set<string>();
   supplierCuitConflicts = new Set<string>();
   packagingNameConflicts = new Set<string>();
+
+  packagingsGoneOnceTheirProductIsLocked = new Set<string>();
 
   lockCallOrder: string[] = [];
   transactionCount = 0;

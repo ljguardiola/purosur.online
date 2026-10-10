@@ -61,12 +61,19 @@ describe("DrizzlePurchasingListReader", () => {
     ]);
   });
 
-  it("lists every packaging with its product's name and sale unit, those of a deactivated product included", async () => {
+  it("lists every packaging with the sale unit it is stated in and its product's name and current sale unit, those of a deactivated product included", async () => {
     const arroz = await insertProduct(db, { name: "Arroz", saleUnit: "UNIT" });
     const harina = await insertProduct(db, { name: "Harina", saleUnit: "KG", active: false });
     await db.insert(productPackagings).values([
-      { productId: harina.id, name: "Bolsa", quantityPerPackage: 25_000, active: false, actorId },
-      { productId: arroz.id, name: "Caja", quantityPerPackage: 12_000, actorId },
+      {
+        productId: harina.id,
+        name: "Bolsa",
+        quantityPerPackage: 25_000,
+        saleUnit: "UNIT",
+        active: false,
+        actorId,
+      },
+      { productId: arroz.id, name: "Caja", quantityPerPackage: 12_000, saleUnit: "UNIT", actorId },
     ]);
 
     const listed = await new DrizzlePurchasingListReader(db).packagings();
@@ -76,7 +83,8 @@ describe("DrizzlePurchasingListReader", () => {
         id: expect.any(String),
         productId: harina.id,
         productName: "Harina",
-        saleUnit: "KG",
+        productSaleUnit: "KG",
+        saleUnit: "UNIT",
         name: "Bolsa",
         quantityPerPackage: 25_000,
         active: false,
@@ -86,6 +94,7 @@ describe("DrizzlePurchasingListReader", () => {
         id: expect.any(String),
         productId: arroz.id,
         productName: "Arroz",
+        productSaleUnit: "UNIT",
         saleUnit: "UNIT",
         name: "Caja",
         quantityPerPackage: 12_000,
@@ -95,13 +104,19 @@ describe("DrizzlePurchasingListReader", () => {
     ]);
   });
 
-  it("finds one packaging with its product's name and sale unit, and none that does not exist", async () => {
+  it("finds one packaging with its product's name and current sale unit, and none that does not exist", async () => {
     const arroz = await insertProduct(db, { name: "Arroz" });
     const [caja] = await db
       .insert(productPackagings)
       .values([
-        { productId: arroz.id, name: "Caja", quantityPerPackage: 12_000, actorId },
-        { productId: arroz.id, name: "Bolsa", quantityPerPackage: 6_000, actorId },
+        { productId: arroz.id, name: "Caja", quantityPerPackage: 12_000, saleUnit: "KG", actorId },
+        {
+          productId: arroz.id,
+          name: "Bolsa",
+          quantityPerPackage: 6_000,
+          saleUnit: "UNIT",
+          actorId,
+        },
       ])
       .returning({ id: productPackagings.id });
     const reader = new DrizzlePurchasingListReader(db);
@@ -110,26 +125,9 @@ describe("DrizzlePurchasingListReader", () => {
       id: caja?.id,
       name: "Caja",
       productName: "Arroz",
-      saleUnit: "UNIT",
+      productSaleUnit: "UNIT",
+      saleUnit: "KG",
     });
     expect(await reader.packaging("00000000-0000-4000-8000-000000000000")).toBeUndefined();
-  });
-
-  it.each([
-    ["active", ["Activo"]],
-    ["inactive", ["Inactivo"]],
-    ["any", ["Activo", "Inactivo"]],
-  ] as const)("offers the %s products by name", async (scope, names) => {
-    await insertProduct(db, { name: "Inactivo", active: false });
-    await insertProduct(db, { name: "Activo", saleUnit: "KG" });
-
-    const listed = await new DrizzlePurchasingListReader(db).products(scope);
-
-    expect(listed.map((product) => product.name)).toEqual(names);
-    expect(listed[0]).toEqual({
-      id: expect.any(String),
-      name: names[0],
-      saleUnit: names[0] === "Activo" ? "KG" : "UNIT",
-    });
   });
 });

@@ -1,9 +1,4 @@
-import type { ProductActivityScope } from "../../../catalog/index.js";
-import type {
-  PackageableProduct,
-  PackagingListing,
-  PurchasingListReader,
-} from "../purchasing-list-reader.js";
+import type { PackagingListing, PurchasingListReader } from "../purchasing-list-reader.js";
 import type { Packaging, Supplier } from "../purchasing-store.js";
 import type { FakeProductRow } from "./fake-purchasing-store.js";
 
@@ -15,17 +10,6 @@ export interface FakePurchasingListData {
 
 function byName(first: { name: string }, second: { name: string }): number {
   return first.name.localeCompare(second.name);
-}
-
-function inScope(product: FakeProductRow, scope: ProductActivityScope): boolean {
-  switch (scope) {
-    case "active":
-      return product.active;
-    case "inactive":
-      return !product.active;
-    case "any":
-      return true;
-  }
 }
 
 export class FakePurchasingListReader implements PurchasingListReader {
@@ -47,19 +31,12 @@ export class FakePurchasingListReader implements PurchasingListReader {
     return this.data.packagings.sort(byName).flatMap((packaging) => {
       const product = this.data.products.find((row) => row.id === packaging.productId);
       return product
-        ? [{ ...packaging, productName: product.name, saleUnit: product.saleUnit }]
+        ? [{ ...packaging, productName: product.name, productSaleUnit: product.saleUnit }]
         : [];
     });
   }
 
   async packaging(packagingId: string): Promise<PackagingListing | undefined> {
     return (await this.packagings()).find((packaging) => packaging.id === packagingId);
-  }
-
-  async products(scope: ProductActivityScope): Promise<PackageableProduct[]> {
-    return this.data.products
-      .filter((product) => inScope(product, scope))
-      .sort(byName)
-      .map(({ id, name, saleUnit }) => ({ id, name, saleUnit }));
   }
 }

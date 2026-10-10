@@ -1092,6 +1092,7 @@ describe("PUT /products/:id", () => {
       productId: product.id,
       name: "Caja x 12",
       quantityPerPackage: 12,
+      saleUnit: "UNIT",
       actorId: userId,
     });
     const rawSessionId = await insertSession(userId);

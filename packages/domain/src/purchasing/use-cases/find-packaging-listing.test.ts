@@ -8,19 +8,20 @@ const CAJA = {
   productId: "p-unit",
   name: "Caja x 12",
   quantityPerPackage: 12_000,
+  saleUnit: "UNIT" as const,
   active: true,
   version: 1,
 };
 
 describe("findPackagingListing", () => {
-  it("answers the packaging with its product's name and sale unit", async () => {
+  it("answers the packaging with its product's name and current sale unit", async () => {
     const other = { ...CAJA, id: "k-2", name: "Bolsa" };
     const reader = new FakePurchasingListReader({ packagings: [other, CAJA], products: [YERBA] });
 
     expect(await findPackagingListing(reader, "k-1")).toEqual({
       ...CAJA,
       productName: "Yerba",
-      saleUnit: "UNIT",
+      productSaleUnit: "UNIT",
     });
   });
 

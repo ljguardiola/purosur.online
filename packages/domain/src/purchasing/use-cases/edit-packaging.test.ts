@@ -9,6 +9,7 @@ const CAJA = {
   productId: "p-unit",
   name: "Caja x 12",
   quantityPerPackage: 12_000,
+  saleUnit: "UNIT" as const,
   active: true,
   version: 3,
 };
@@ -153,7 +154,7 @@ describe("editPackaging", () => {
     expect(store.snapshot().packagings).toEqual([{ ...CAJA, writtenBy: null }]);
   });
 
-  it("applies a change of only the quantity, without checking the name it kept", async () => {
+  it("applies a change of only the quantity", async () => {
     const store = storeWithCaja();
 
     const outcome = await editPackaging(store, {
@@ -168,6 +169,46 @@ describe("editPackaging", () => {
       kind: "applied",
       packaging: { ...CAJA, quantityPerPackage: 24_000, version: 4 },
     });
+  });
+
+  it("checks the name it kept against the product's other packagings when only the quantity changes", async () => {
+    const store = storeWithCaja();
+    store.seedPackaging({ ...CAJA, id: "k-2", name: "CAJA X 12", active: false });
+
+    const outcome = await editPackaging(store, {
+      id: "k-1",
+      name: CAJA.name,
+      quantityPerPackage: 24_000,
+      version: 3,
+      actorId: ACTOR,
+    });
+
+    expect(outcome).toEqual({ kind: "name_taken" });
+    expect(store.snapshot().packagings[0]).toEqual({ ...CAJA, writtenBy: null });
+  });
+
+  it("re-states an unchanged quantity in the product's current sale unit, recording it", async () => {
+    const store = storeWithCaja();
+    store.seedPackaging({ ...CAJA, id: "k-2", name: "Bolsa", saleUnit: "KG", active: false });
+
+    const outcome = await editPackaging(store, {
+      id: "k-2",
+      name: "Bolsa",
+      quantityPerPackage: CAJA.quantityPerPackage,
+      version: 3,
+      actorId: ACTOR,
+    });
+
+    const expected = {
+      ...CAJA,
+      id: "k-2",
+      name: "Bolsa",
+      saleUnit: "UNIT",
+      active: false,
+      version: 4,
+    };
+    expect(outcome).toEqual({ kind: "applied", packaging: expected });
+    expect(store.snapshot().packagings[1]).toEqual({ ...expected, writtenBy: ACTOR });
   });
 
   it("applies a change of only the name's letter case", async () => {

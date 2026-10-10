@@ -95,7 +95,7 @@ describe("packagingEditRequestFrom", () => {
 });
 
 describe("packagingFormValuesOf", () => {
-  it("fills the form with the packaging's quantity written in its product's unit", () => {
+  it("fills the form with the packaging's quantity written in the sale unit it is stated in", () => {
     expect(packagingFormValuesOf(bolsaDeAvena)).toEqual({
       productId: bolsaDeAvena.productId,
       name: "Bolsa de 25 kg",
@@ -103,5 +103,14 @@ describe("packagingFormValuesOf", () => {
       version: 2,
     });
     expect(packagingFormValuesOf(cajaDeMiel).quantity).toBe("12");
+  });
+
+  it("leaves the quantity empty when it is stated in a sale unit its product no longer has", () => {
+    expect(packagingFormValuesOf({ ...bolsaDeAvena, productSaleUnit: "UNIT" })).toEqual({
+      productId: bolsaDeAvena.productId,
+      name: "Bolsa de 25 kg",
+      quantity: "",
+      version: 2,
+    });
   });
 });

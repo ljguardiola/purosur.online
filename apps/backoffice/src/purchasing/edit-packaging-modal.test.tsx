@@ -89,6 +89,33 @@ test("shows a unit product's quantity in whole units", async () => {
     .toHaveValue("12");
 });
 
+test("asks for the quantity again, in its product's current sale unit, when the one it is stated in changed", async () => {
+  const editPackaging = vi
+    .fn<EditPackagingModalServices["editPackaging"]>()
+    .mockResolvedValue({ kind: "ok" });
+  const screen = await renderModal({
+    target: { ...bolsaDeAvena, productSaleUnit: "UNIT" },
+    editPackaging,
+  });
+  const dialog = screen.getByRole("dialog");
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Cantidad por presentación/ }))
+    .toHaveValue("");
+
+  await save(screen, { quantity: "12,5" });
+  await expect
+    .element(dialog.getByText("Escribí una cantidad entera de unidades, por ejemplo 16."))
+    .toBeVisible();
+  expect(editPackaging).not.toHaveBeenCalled();
+
+  await save(screen, { quantity: "12" });
+  expect(editPackaging).toHaveBeenCalledWith(bolsaDeAvena.id, {
+    name: "Bolsa de 25 kg",
+    quantityPerPackage: 12_000,
+    version: 2,
+  });
+});
+
 test("saves the trimmed name and the quantity as thousandths with the version it opened at", async () => {
   const editPackaging = vi
     .fn<EditPackagingModalServices["editPackaging"]>()

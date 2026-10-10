@@ -426,6 +426,7 @@ describe("changing the sale unit of a product with purchase packagings", () => {
       productId,
       name: "Caja x 12",
       quantityPerPackage: 12,
+      saleUnit: "UNIT",
       actorId: actor?.id ?? "",
       ...overrides,
     });
