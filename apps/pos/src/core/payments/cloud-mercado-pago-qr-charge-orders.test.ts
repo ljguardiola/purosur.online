@@ -13,7 +13,7 @@ interface Call {
   path: string;
   bearerToken: string;
   body?: unknown;
-  options?: CloudCallOptions;
+  options?: CloudCallOptions | undefined;
 }
 
 function payment(state: string, overrides: Record<string, unknown> = {}) {

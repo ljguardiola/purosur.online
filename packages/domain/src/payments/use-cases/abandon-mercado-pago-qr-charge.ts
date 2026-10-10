@@ -5,18 +5,23 @@ export interface AbandonMercadoPagoQrChargeInput {
   paymentTransactionId: string;
 }
 
-export type AbandonMercadoPagoQrChargeOutcome<Refusal, Settlement> =
+export type AbandonMercadoPagoQrChargeOutcome<ReplacementRefusal, Settlement> =
   | { kind: "not_pending" }
   | { kind: "cancelled" }
   | { kind: "already_paid"; settlement: Settlement }
   | { kind: "closed" }
   | { kind: "replaced" }
-  | Refusal;
+  | ReplacementRefusal;
 
-export async function abandonMercadoPagoQrCharge<Refusal, Settlement>(
-  { sale, orders, charges, clock }: MercadoPagoQrChargePorts<Refusal, Settlement>,
+export async function abandonMercadoPagoQrCharge<Refusal, Settlement, ReplacementRefusal>(
+  {
+    sale,
+    orders,
+    charges,
+    clock,
+  }: MercadoPagoQrChargePorts<Refusal, Settlement, ReplacementRefusal>,
   { actorId, paymentTransactionId }: AbandonMercadoPagoQrChargeInput,
-): Promise<AbandonMercadoPagoQrChargeOutcome<Refusal, Settlement>> {
+): Promise<AbandonMercadoPagoQrChargeOutcome<ReplacementRefusal, Settlement>> {
   if (charges.pendingCharge(paymentTransactionId) === null) {
     return { kind: "not_pending" };
   }

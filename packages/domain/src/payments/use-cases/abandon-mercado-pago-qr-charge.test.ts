@@ -71,33 +71,36 @@ describe("abandonMercadoPagoQrCharge", () => {
     });
   });
 
-  it.each([
-    "EXPIRED",
-    "DECLINED",
-  ] as const)("answers the order is closed, recording it %s and not asking again", async (state) => {
-    const world = abandoningWorld();
-    world.orderCancellation = { kind: "answered", state };
+  it.each(["EXPIRED", "DECLINED"] as const)(
+    "answers the order is closed, recording it %s and not asking again",
+    async (state) => {
+      const world = abandoningWorld();
+      world.orderCancellation = { kind: "answered", state };
 
-    expect(await abandonMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "closed" });
-    expect(world.operations).toEqual(["cancelOrder", `recordEnded:${state}`]);
-    expect(await abandonMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "not_pending" });
-    expect(world.cancelledOrders).toEqual([QR_PAYMENT_ID]);
-  });
+      expect(await abandonMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "closed" });
+      expect(world.operations).toEqual(["cancelOrder", `recordEnded:${state}`]);
+      expect(await abandonMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "not_pending" });
+      expect(world.cancelledOrders).toEqual([QR_PAYMENT_ID]);
+    },
+  );
 
   it.each([
     ["cannot be reached", { kind: "unreachable" } as const],
     ["still reports the order pending", { kind: "answered", state: "PENDING" } as const],
-  ])("marks the payment replaced, leaving it pending, when the cloud %s", async (_name, cancellation) => {
-    const world = abandoningWorld();
-    world.orderCancellation = cancellation;
-    world.now = new Date("2026-10-09T12:00:19.000Z");
+  ])(
+    "marks the payment replaced, leaving it pending, when the cloud %s",
+    async (_name, cancellation) => {
+      const world = abandoningWorld();
+      world.orderCancellation = cancellation;
+      world.now = new Date("2026-10-09T12:00:19.000Z");
 
-    expect(await abandonMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "replaced" });
-    expect(world.replacedPayments).toEqual([{ ...INPUT, replacedAt: world.now }]);
-    expect(world.operations).toEqual(["cancelOrder", "replacePendingPayment"]);
-    expect(world.charges.get(QR_PAYMENT_ID)?.state).toBe("PENDING");
-    expect(world.pendingCharge(QR_PAYMENT_ID)).toBeNull();
-  });
+      expect(await abandonMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "replaced" });
+      expect(world.replacedPayments).toEqual([{ ...INPUT, replacedAt: world.now }]);
+      expect(world.operations).toEqual(["cancelOrder", "replacePendingPayment"]);
+      expect(world.charges.get(QR_PAYMENT_ID)?.state).toBe("PENDING");
+      expect(world.pendingCharge(QR_PAYMENT_ID)).toBeNull();
+    },
+  );
 
   it("dates the replacement after the cloud was asked", async () => {
     const world = abandoningWorld();

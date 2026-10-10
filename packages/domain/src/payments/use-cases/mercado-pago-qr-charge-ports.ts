@@ -21,7 +21,7 @@ export type EndedMercadoPagoQrChargeState = Exclude<
   "PENDING" | "APPROVED"
 >;
 
-export interface MercadoPagoQrChargeSale<Refusal, Settlement> {
+export interface MercadoPagoQrChargeSale<Refusal, Settlement, ReplacementRefusal = unknown> {
   recordPendingPayment(
     payment: PendingMercadoPagoQrPayment,
   ): { kind: "recorded"; paymentTransactionId: string } | { kind: "refused"; refusal: Refusal };
@@ -30,7 +30,7 @@ export interface MercadoPagoQrChargeSale<Refusal, Settlement> {
     actorId: string;
     paymentTransactionId: string;
     replacedAt: Date;
-  }): { kind: "replaced" } | { kind: "refused"; refusal: Refusal };
+  }): { kind: "replaced" } | { kind: "refused"; refusal: ReplacementRefusal };
 }
 
 export type MercadoPagoQrChargeOrderAnswer =
@@ -62,8 +62,8 @@ export interface MercadoPagoQrCharges {
   endWait(paymentTransactionId: string, endedAt: Date): void;
 }
 
-export interface MercadoPagoQrChargePorts<Refusal, Settlement> {
-  sale: MercadoPagoQrChargeSale<Refusal, Settlement>;
+export interface MercadoPagoQrChargePorts<Refusal, Settlement, ReplacementRefusal = unknown> {
+  sale: MercadoPagoQrChargeSale<Refusal, Settlement, ReplacementRefusal>;
   orders: MercadoPagoQrChargeOrders;
   charges: MercadoPagoQrCharges;
   clock: Clock;

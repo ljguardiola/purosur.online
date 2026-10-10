@@ -65,17 +65,21 @@ const startMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type StartMercadoPagoQrChargeOutcome = z.infer<typeof startMercadoPagoQrChargeOutcomeSchema>;
 
+const unsettledQrChargeOutcomes = [
+  z.object({ kind: z.literal("not_pending") }),
+  ...saleChargeRefusals,
+] as const;
+
 const settledQrChargeOutcomes = [
   z.object({ kind: z.literal("completed"), sale_id: z.string(), total: z.int().nonnegative() }),
   partiallyPaidOutcomeSchema,
-  ...saleChargeRefusals,
+  ...unsettledQrChargeOutcomes,
 ] as const;
 
 const followMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("waiting"), remaining_seconds: z.int().min(1).max(WAIT_SECONDS) }),
   z.object({ kind: z.literal("wait_over") }),
   z.object({ kind: z.literal("declined") }),
-  z.object({ kind: z.literal("not_pending") }),
   ...settledQrChargeOutcomes,
 ]);
 export type FollowMercadoPagoQrChargeOutcome = z.infer<
@@ -86,12 +90,11 @@ const abandonMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("cancelled") }),
   z.object({ kind: z.literal("closed") }),
   z.object({ kind: z.literal("replaced") }),
-  z.object({ kind: z.literal("not_pending") }),
   z.object({
     kind: z.literal("already_paid"),
     settlement: z.discriminatedUnion("kind", settledQrChargeOutcomes),
   }),
-  ...saleChargeRefusals,
+  ...unsettledQrChargeOutcomes,
 ]);
 export type AbandonMercadoPagoQrChargeOutcome = z.infer<
   typeof abandonMercadoPagoQrChargeOutcomeSchema

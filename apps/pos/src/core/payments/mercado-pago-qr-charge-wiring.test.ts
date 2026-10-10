@@ -122,7 +122,8 @@ describe("the register's Mercado Pago QR charging", () => {
     const requests: { url: string; init: RequestInit }[] = [];
     const signedIn = createSignedInPerson();
     database.exec(
-      `INSERT INTO roles (id, name, is_administrator, version) VALUES ('cashier', 'Cajera', 0, 1);
+      `UPDATE sync_state SET device_id = 'device-1';
+       INSERT INTO roles (id, name, is_administrator, version) VALUES ('cashier', 'Cajera', 0, 1);
        INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('cashier', 'sell_and_charge', 1);
        INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES ('u1', 'Ada', 'cashier', 's', 1, 1);
        INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)

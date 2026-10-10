@@ -26,7 +26,7 @@ export class FakeMercadoPagoQrChargeWorld
   implements
     MercadoPagoQrChargeOrders,
     MercadoPagoQrCharges,
-    MercadoPagoQrChargeSale<SaleRefusal, SaleSettlement>
+    MercadoPagoQrChargeSale<SaleRefusal, SaleSettlement, SaleRefusal>
 {
   readonly operations: string[] = [];
   readonly charges = new Map<

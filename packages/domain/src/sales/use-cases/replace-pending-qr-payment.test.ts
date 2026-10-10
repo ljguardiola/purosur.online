@@ -108,17 +108,17 @@ describe("replacePendingQrPayment", () => {
     ]);
   });
 
-  it.each<FakeSaleLedgerWrite>([
-    "markQrPaymentReplaced",
-    "appendOutboxEvent",
-  ])("leaves the payment unmarked and sends no event when %s fails", (write) => {
-    const store = ledger();
-    store.failOn = write;
-    const before = structuredClone(store.state);
+  it.each<FakeSaleLedgerWrite>(["markQrPaymentReplaced", "appendOutboxEvent"])(
+    "leaves the payment unmarked and sends no event when %s fails",
+    (write) => {
+      const store = ledger();
+      store.failOn = write;
+      const before = structuredClone(store.state);
 
-    expect(() => replace(store)).toThrow();
-    expect(store.state).toEqual(before);
-  });
+      expect(() => replace(store)).toThrow();
+      expect(store.state).toEqual(before);
+    },
+  );
 
   it("answers that no QR payment is pending for an unknown one, changing nothing", () => {
     const store = ledger({ pendingQrPayments: [] });
