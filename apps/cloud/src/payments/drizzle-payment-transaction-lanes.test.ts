@@ -68,6 +68,23 @@ describe("DrizzlePaymentTransactionLanes", () => {
       expect(recorded?.replaced).toBe(true);
     });
 
+    it("keeps a replaced transaction marked as replaced once the order it read comes back paid", async () => {
+      const registerId = await insertRegister(db, "caja-1");
+      const transaction = pendingTransaction(registerId, { replaced: true });
+
+      const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
+        await lane.recordPendingTransaction(transaction);
+        await lane.recordOrderResult(
+          transaction.id,
+          { state: "APPROVED", needsReview: false },
+          READ_AT,
+        );
+        return lane.recordedTransaction(registerId, transaction.id);
+      });
+
+      expect(recorded).toMatchObject({ state: "APPROVED", replaced: true });
+    });
+
     it("does not show a transaction to another register", async () => {
       const registerId = await insertRegister(db, "caja-1");
       const otherRegisterId = await insertRegister(db, "caja-2");
