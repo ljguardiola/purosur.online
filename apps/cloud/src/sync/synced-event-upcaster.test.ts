@@ -726,7 +726,7 @@ describe("decoding the events the registers pushed", () => {
 
     expect(decoded).toEqual({
       kind: "unreadable",
-      reason: "no schema reads sale_completed version 5",
+      reason: "no schema reads sale_completed version 6",
     });
   });
 
