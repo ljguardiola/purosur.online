@@ -104,3 +104,23 @@ describe("the report of a register whose local database is damaged", () => {
     expect(requests).toEqual([]);
   });
 });
+
+describe("the cloud's answer to the report of a damaged register", () => {
+  it("reads a gap with the sequence the cloud expects", async () => {
+    const { post } = cloudAnswering({
+      kind: "ok",
+      body: { status: "expected_seq", ack_seq: 4, expected_seq: 5 },
+    });
+
+    expect(await pushDamagedRegisterReport(depsWith(post))).toEqual({
+      kind: "gap",
+      expectedSeq: 5,
+    });
+  });
+
+  it("reads a stale device", async () => {
+    const { post } = cloudAnswering({ kind: "ok", body: { status: "stale_device", ack_seq: 9 } });
+
+    expect(await pushDamagedRegisterReport(depsWith(post))).toEqual({ kind: "stale_device" });
+  });
+});
