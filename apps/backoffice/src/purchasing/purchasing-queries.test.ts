@@ -2,9 +2,14 @@ import { QueryClient } from "@tanstack/react-query";
 import { expect, test } from "vitest";
 import { purchasingKey, purchasingKeys } from "./purchasing-queries";
 
-test("invalidating the purchasing key marks the suppliers, the packagings and the purchases stale", async () => {
+test("invalidating the purchasing key marks the suppliers, the packagings, the purchases and the purchase choices stale", async () => {
   const client = new QueryClient();
-  const keys = [purchasingKeys.suppliers, purchasingKeys.packagings, purchasingKeys.purchases];
+  const keys = [
+    purchasingKeys.suppliers,
+    purchasingKeys.packagings,
+    purchasingKeys.purchases,
+    purchasingKeys.purchaseChoices,
+  ];
   for (const key of keys) {
     client.setQueryData(key, []);
   }
@@ -18,8 +23,7 @@ test("invalidating the purchasing key marks the suppliers, the packagings and th
   expect(client.getQueryState(["other"])?.isInvalidated).toBe(false);
 });
 
-test("the suppliers, the packagings and the purchases have different keys", () => {
-  expect(purchasingKeys.suppliers).not.toEqual(purchasingKeys.packagings);
-  expect(purchasingKeys.purchases).not.toEqual(purchasingKeys.packagings);
-  expect(purchasingKeys.purchases).not.toEqual(purchasingKeys.suppliers);
+test("the suppliers, the packagings, the purchases and the purchase choices have different keys", () => {
+  const keys = Object.values(purchasingKeys).map((key) => key.join("/"));
+  expect(new Set(keys).size).toBe(keys.length);
 });

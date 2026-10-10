@@ -1,4 +1,8 @@
-import { purchaseListSchema, purchaseSummarySchema } from "@purosur/contracts";
+import {
+  purchaseChoicesSchema,
+  purchaseListSchema,
+  purchaseSummarySchema,
+} from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -52,7 +56,7 @@ async function buyer() {
   return signedInWith(db, ["record_purchases"], NOW);
 }
 
-async function storedSupplier(actorId: string, fields: { active?: boolean } = {}) {
+async function storedSupplier(actorId: string, fields: { active?: boolean; name?: string } = {}) {
   const [supplier] = await db
     .insert(suppliers)
     .values({ name: "Distribuidora Sur", actorId, ...fields })
@@ -63,7 +67,7 @@ async function storedSupplier(actorId: string, fields: { active?: boolean } = {}
 async function storedPackaging(
   productId: string,
   actorId: string,
-  fields: { active?: boolean } = {},
+  fields: { active?: boolean; name?: string; saleUnit?: "UNIT" | "KG" } = {},
 ) {
   const [packaging] = await db
     .insert(productPackagings)
@@ -423,11 +427,52 @@ describe("POST /purchases", () => {
     });
 
     expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
+    expect(response.json()).toEqual({
       code: "validation_failed",
+      message: "the line's quantity is not one its product may be received in",
       details: [{ field: "lines", lineIndex: 0 }],
     });
     await nothingWasStored();
+  });
+});
+
+describe("GET /purchase-choices", () => {
+  it("returns 401 when no session cookie was sent", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/purchase-choices",
+      headers: { origin: BACKOFFICE_ORIGIN },
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("returns 403 to a user without the purchases permission", async () => {
+    const { headers } = await signedInWith(db, ["sell_and_charge"], NOW);
+
+    const response = await app.inject({ method: "GET", url: "/purchase-choices", headers });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "forbidden" });
+  });
+
+  it("answers only the suppliers, products and packagings a purchase may be registered with", async () => {
+    const { headers, userId } = await buyer();
+    const supplierId = await storedSupplier(userId, { name: "Distribuidora Sur" });
+    await storedSupplier(userId, { name: "Cerrada", active: false });
+    const { productId } = await insertProduct(db, { name: "Yerba" });
+    await insertProduct(db, { name: "Antiguo", active: false });
+    const packagingId = await storedPackaging(productId, userId, { name: "Caja x 12" });
+    await storedPackaging(productId, userId, { name: "Vieja", active: false });
+    await storedPackaging(productId, userId, { name: "Por kilo", saleUnit: "KG" });
+
+    const response = await app.inject({ method: "GET", url: "/purchase-choices", headers });
+
+    expect(response.statusCode).toBe(200);
+    const choices = purchaseChoicesSchema.parse(response.json());
+    expect(choices.suppliers.map((supplier) => supplier.id)).toEqual([supplierId]);
+    expect(choices.products).toEqual([{ id: productId, name: "Yerba", saleUnit: "UNIT" }]);
+    expect(choices.packagings.map((packaging) => packaging.id)).toEqual([packagingId]);
   });
 });
 

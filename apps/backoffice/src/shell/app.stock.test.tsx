@@ -63,13 +63,9 @@ function stockServices(capabilities: Capability[]) {
     kind: "ok",
     value: [],
   });
-  vi.mocked(services.newPurchaseScreen.fetchSuppliers).mockResolvedValue({
+  vi.mocked(services.newPurchaseScreen.fetchPurchaseChoices).mockResolvedValue({
     kind: "ok",
-    value: [],
-  });
-  vi.mocked(services.newPurchaseScreen.fetchPackagings).mockResolvedValue({
-    kind: "ok",
-    value: { packagings: [], products: [] },
+    value: { suppliers: [], products: [], packagings: [] },
   });
   return services;
 }
@@ -161,6 +157,26 @@ test("confirms a purchase just registered on the purchases list, until it is dis
   await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
   await expect.poll(() => screen.getByText("Compra registrada").query()).toBeNull();
   expect(window.history.state).not.toMatchObject({ purchaseRegistered: true });
+});
+
+test("opens a new purchase dated the day it is opened", async () => {
+  const services = stockServices(["purchases", "stock_area"]);
+  window.history.pushState(null, "", "/purchases/new");
+  vi.setSystemTime(new Date("2026-09-16T15:00:00.000Z"));
+  try {
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    const date = screen.getByRole("group", { name: /^Fecha de compra/ });
+    await expect.element(date).toBeVisible();
+    expect(
+      date
+        .getByRole("spinbutton")
+        .all()
+        .map((segment) => segment.element().textContent),
+    ).toEqual(["16", "9", "2026"]);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test("hides the Stock item in the rail for a user without a stock permission", async () => {

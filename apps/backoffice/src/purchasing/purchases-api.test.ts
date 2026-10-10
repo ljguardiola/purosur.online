@@ -1,7 +1,7 @@
 import type { PurchaseRegistrationBody } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { fetchPurchases, registerPurchase } from "./purchases-api";
-import { compraDeAvena, compraDeMiel } from "./test-support/purchases";
+import { fetchPurchaseChoices, fetchPurchases, registerPurchase } from "./purchases-api";
+import { compraDeAvena, compraDeMiel, purchaseChoicesFrom } from "./test-support/purchases";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
   return new Response(
@@ -69,6 +69,40 @@ describe("fetchPurchases", () => {
     vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
     expect(await fetchPurchases()).toEqual({ kind: "failed" });
+  });
+});
+
+describe("fetchPurchaseChoices", () => {
+  test("answers what a purchase may be registered with on 200", async () => {
+    const purchaseChoices = purchaseChoicesFrom([]);
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, purchaseChoices));
+
+    expect(await fetchPurchaseChoices()).toEqual({ kind: "ok", value: purchaseChoices });
+    expect(fetch).toHaveBeenCalledWith("/api/purchase-choices");
+  });
+
+  test("returns failed when the choices do not have the expected shape", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { suppliers: [] }));
+
+    expect(await fetchPurchaseChoices()).toEqual({ kind: "failed" });
+  });
+
+  test.each(refusals)("answers a %i as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await fetchPurchaseChoices()).toEqual(outcome);
+  });
+
+  test("returns rate_limited with the Retry-After header on 429", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "45" }));
+
+    expect(await fetchPurchaseChoices()).toEqual({ kind: "rate_limited", retryAfterSeconds: 45 });
+  });
+
+  test("returns failed when the request throws", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    expect(await fetchPurchaseChoices()).toEqual({ kind: "failed" });
   });
 });
 

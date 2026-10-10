@@ -1,5 +1,5 @@
 import type { SaleUnit } from "../../../catalog/index.js";
-import type { NewLot, ReceiptMovement } from "../../../stock/index.js";
+import type { PurchaseReceipt } from "../../../stock/index.js";
 import type {
   LockPackagingResult,
   LockProductResult,
@@ -12,7 +12,6 @@ import type {
   PackagingFields,
   PurchasingStore,
   PurchasingStoreTransaction,
-  StockBalanceKey,
   Supplier,
   SupplierFields,
 } from "../purchasing-store.js";
@@ -45,25 +44,7 @@ interface FakePurchaseLineRow extends NewPurchaseLineFields {
   id: string;
 }
 
-interface FakeReceiptMovementRow extends ReceiptMovement {
-  id: string;
-}
-
-interface FakeStockBalanceRow extends StockBalanceKey {
-  quantity: number;
-}
-
-export interface FakeCountRow extends StockBalanceKey {
-  movementId: string;
-  occurredAt: Date;
-}
-
-export type FakePurchasingWrite =
-  | "insertPurchase"
-  | "insertPurchaseLine"
-  | "recordReceiptMovement"
-  | "addToStockBalance"
-  | "insertLot";
+export type FakePurchasingWrite = "insertPurchase" | "insertPurchaseLine" | "receiveStock";
 
 export interface FakePurchasingState {
   suppliers: FakeSupplierRow[];
@@ -71,10 +52,7 @@ export interface FakePurchasingState {
   products: FakeProductRow[];
   purchases: FakePurchaseRow[];
   purchaseLines: FakePurchaseLineRow[];
-  movements: FakeReceiptMovementRow[];
-  lots: NewLot[];
-  balances: FakeStockBalanceRow[];
-  counts: FakeCountRow[];
+  receipts: PurchaseReceipt[];
   nextId: number;
 }
 
@@ -85,16 +63,13 @@ function cloneState(state: FakePurchasingState): FakePurchasingState {
     products: state.products.map((row) => ({ ...row })),
     purchases: state.purchases.map((row) => ({ ...row, recordedAt: new Date(row.recordedAt) })),
     purchaseLines: state.purchaseLines.map((row) => ({ ...row })),
-    movements: state.movements.map((row) => ({ ...row, occurredAt: new Date(row.occurredAt) })),
-    lots: state.lots.map((row) => ({ ...row })),
-    balances: state.balances.map((row) => ({ ...row })),
-    counts: state.counts.map((row) => ({ ...row, occurredAt: new Date(row.occurredAt) })),
+    receipts: state.receipts.map((receipt) => ({
+      ...receipt,
+      occurredAt: new Date(receipt.occurredAt),
+      lines: receipt.lines.map((line) => ({ ...line })),
+    })),
     nextId: state.nextId,
   };
-}
-
-function sameStock(row: StockBalanceKey, key: StockBalanceKey): boolean {
-  return row.productId === key.productId && row.locationId === key.locationId;
 }
 
 function sameText(left: string, right: string): boolean {
@@ -164,6 +139,12 @@ class FakePurchasingStoreTransaction implements PurchasingStoreTransaction {
 
   async lockProduct(productId: string): Promise<LockProductResult> {
     this.store.lockCallOrder.push("lockProduct");
+    this.store.lockLog.push(`product:${productId}`);
+    return this.lockedProduct(productId);
+  }
+
+  async holdPurchasedProduct(productId: string): Promise<LockProductResult> {
+    this.store.lockCallOrder.push("holdPurchasedProduct");
     this.store.lockLog.push(`product:${productId}`);
     return this.lockedProduct(productId);
   }
@@ -240,43 +221,10 @@ class FakePurchasingStoreTransaction implements PurchasingStoreTransaction {
     return { id };
   }
 
-  async lockStockBalance(key: StockBalanceKey): Promise<void> {
-    this.store.lockCallOrder.push("lockStockBalance");
-    this.store.lockLog.push(`stock:${key.productId}`);
-  }
-
-  async earliestCountAtOrAfter(
-    key: StockBalanceKey,
-    at: Date,
-  ): Promise<{ movementId: string } | undefined> {
-    const [earliest] = this.state.counts
-      .filter((row) => sameStock(row, key) && row.occurredAt.getTime() >= at.getTime())
-      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
-    return earliest && { movementId: earliest.movementId };
-  }
-
-  async recordReceiptMovement(movement: ReceiptMovement): Promise<void> {
-    this.beforeWrite("recordReceiptMovement");
-    this.state.movements.push({ ...movement, id: `movement-${this.state.nextId++}` });
-  }
-
-  async addToStockBalance(key: StockBalanceKey, delta: number): Promise<void> {
-    this.beforeWrite("addToStockBalance");
-    const existing = this.state.balances.find((row) => sameStock(row, key));
-    if (existing) {
-      existing.quantity += delta;
-    } else {
-      this.state.balances.push({
-        productId: key.productId,
-        locationId: key.locationId,
-        quantity: delta,
-      });
-    }
-  }
-
-  async insertLot(lot: NewLot): Promise<void> {
-    this.beforeWrite("insertLot");
-    this.state.lots.push({ ...lot });
+  async receiveStock(receipt: PurchaseReceipt): Promise<void> {
+    this.beforeWrite("receiveStock");
+    this.store.lockLog.push("stock receipt");
+    this.state.receipts.push({ ...receipt, lines: receipt.lines.map((line) => ({ ...line })) });
   }
 
   private beforeWrite(operation: FakePurchasingWrite): void {
@@ -318,10 +266,7 @@ export class FakePurchasingStore implements PurchasingStore {
     products: [],
     purchases: [],
     purchaseLines: [],
-    movements: [],
-    lots: [],
-    balances: [],
-    counts: [],
+    receipts: [],
     nextId: 1,
   };
 
@@ -360,10 +305,6 @@ export class FakePurchasingStore implements PurchasingStore {
     const call = (this.writeCalls.get(operation) ?? 0) + 1;
     this.writeCalls.set(operation, call);
     return this.failingCalls.get(operation) === call;
-  }
-
-  seedCount(count: FakeCountRow): void {
-    this.state.counts.push({ ...count });
   }
 
   snapshot(): FakePurchasingState {

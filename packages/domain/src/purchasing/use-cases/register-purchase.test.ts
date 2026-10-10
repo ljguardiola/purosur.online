@@ -195,7 +195,9 @@ describe("registerPurchase", () => {
         ],
       },
     });
-    expect(store.snapshot().lots).toMatchObject([{ costTotalCents: 90_000, costQuantity: 1_000 }]);
+    expect(store.snapshot().receipts).toMatchObject([
+      { lines: [{ costPaidCents: 90_000, quantityPerPackage: 1_000 }] },
+    ]);
   });
 
   it("stores the exact cost pair without rounding it", async () => {
@@ -219,39 +221,18 @@ describe("registerPurchase", () => {
     expect(state.purchaseLines).toMatchObject([
       { costPaidCents: 10_001, quantityPerPackage: 3_000 },
     ]);
-    expect(state.lots).toMatchObject([{ costTotalCents: 10_001, costQuantity: 3_000 }]);
-  });
-
-  it("records a receipt movement at the recording instant, not the purchase date, without a reason", async () => {
-    const store = storeWithCatalog();
-
-    await registerPurchase({ store, clock: CLOCK }, purchase({ purchasedOn: "2026-01-02" }));
-
-    expect(store.snapshot().movements).toEqual([
-      {
-        id: "movement-3",
-        productId: "product-a",
-        locationId: BRANCH,
-        kind: "receipt",
-        reason: null,
-        delta: 24_000,
-        occurredAt: NOW,
-        actorId: ACTOR,
-        purchaseLineId: "purchase-line-2",
-        supersededByCountId: null,
-      },
-    ]);
-    expect(store.snapshot().balances).toEqual([
-      { productId: "product-a", locationId: BRANCH, quantity: 24_000 },
+    expect(state.receipts).toMatchObject([
+      { lines: [{ costPaidCents: 10_001, quantityPerPackage: 3_000 }] },
     ]);
   });
 
-  it("creates a lot per line with its product, branch, quantity, cost pair, lot number and expiry", async () => {
+  it("receives every line's stock at the recording instant, not the purchase date, with its purchase line, cost pair, lot number and expiry", async () => {
     const store = storeWithCatalog();
 
     await registerPurchase(
       { store, clock: CLOCK },
       purchase({
+        purchasedOn: "2026-01-02",
         lines: [
           packagedLine({ lotNumber: "L-17", expiresOn: "2027-01-31" }),
           quantityLine({ lotNumber: null, expiresOn: null }),
@@ -259,26 +240,31 @@ describe("registerPurchase", () => {
       }),
     );
 
-    expect(store.snapshot().lots).toEqual([
+    expect(store.snapshot().receipts).toEqual([
       {
-        productId: "product-a",
         locationId: BRANCH,
-        purchaseLineId: "purchase-line-2",
-        quantityReceived: 24_000,
-        costTotalCents: 1_450_050,
-        costQuantity: 12_000,
-        lotNumber: "L-17",
-        expiresOn: "2027-01-31",
-      },
-      {
-        productId: "product-b",
-        locationId: BRANCH,
-        purchaseLineId: "purchase-line-4",
-        quantityReceived: 2_500,
-        costTotalCents: 90_000,
-        costQuantity: 1_000,
-        lotNumber: null,
-        expiresOn: null,
+        occurredAt: NOW,
+        actorId: ACTOR,
+        lines: [
+          {
+            purchaseLineId: "purchase-line-2",
+            productId: "product-a",
+            quantity: 24_000,
+            costPaidCents: 1_450_050,
+            quantityPerPackage: 12_000,
+            lotNumber: "L-17",
+            expiresOn: "2027-01-31",
+          },
+          {
+            purchaseLineId: "purchase-line-3",
+            productId: "product-b",
+            quantity: 2_500,
+            costPaidCents: 90_000,
+            quantityPerPackage: 1_000,
+            lotNumber: null,
+            expiresOn: null,
+          },
+        ],
       },
     ]);
   });
@@ -306,71 +292,7 @@ describe("registerPurchase", () => {
     expect(outcome.kind).toBe("registered");
   });
 
-  it("adds every line of the same product to its balance, one movement and one lot each", async () => {
-    const store = storeWithCatalog();
-
-    await registerPurchase(
-      { store, clock: CLOCK },
-      purchase({ lines: [packagedLine(), packagedLine({ packages: 1, lotNumber: "L-2" })] }),
-    );
-
-    const state = store.snapshot();
-    expect(state.movements.map((movement) => movement.delta)).toEqual([24_000, 12_000]);
-    expect(state.lots.map((lot) => lot.quantityReceived)).toEqual([24_000, 12_000]);
-    expect(state.balances).toEqual([
-      { productId: "product-a", locationId: BRANCH, quantity: 36_000 },
-    ]);
-  });
-
-  it("adds to the balance already held", async () => {
-    const store = storeWithCatalog();
-    await registerPurchase({ store, clock: CLOCK }, purchase());
-
-    await registerPurchase({ store, clock: CLOCK }, purchase());
-
-    expect(store.snapshot().balances).toEqual([
-      { productId: "product-a", locationId: BRANCH, quantity: 48_000 },
-    ]);
-  });
-
-  it("records a receipt a later count already covers as superseded, leaving the balance alone", async () => {
-    const store = storeWithCatalog();
-    store.seedCount({
-      productId: "product-a",
-      locationId: BRANCH,
-      movementId: "count-1",
-      occurredAt: new Date("2026-03-10T15:00:00Z"),
-    });
-
-    await registerPurchase({ store, clock: CLOCK }, purchase());
-
-    const state = store.snapshot();
-    expect(state.movements).toMatchObject([{ supersededByCountId: "count-1" }]);
-    expect(state.balances).toEqual([]);
-    expect(state.lots).toHaveLength(1);
-  });
-
-  it("ignores a count taken before the receipt and a count of another branch", async () => {
-    const store = storeWithCatalog();
-    store.seedCount({
-      productId: "product-a",
-      locationId: BRANCH,
-      movementId: "count-old",
-      occurredAt: new Date("2026-03-10T14:59:59Z"),
-    });
-    store.seedCount({
-      productId: "product-a",
-      locationId: "branch-2",
-      movementId: "count-other",
-      occurredAt: new Date("2026-03-11T15:00:00Z"),
-    });
-
-    await registerPurchase({ store, clock: CLOCK }, purchase());
-
-    expect(store.snapshot().movements).toMatchObject([{ supersededByCountId: null }]);
-  });
-
-  it("locks the supplier, then the products, the packagings and the stock balances, each in id order and once", async () => {
+  it("locks the supplier, then holds the products and locks the packagings, each in id order and once, and receives the stock last", async () => {
     const store = storeWithCatalog();
 
     await registerPurchase(
@@ -391,8 +313,7 @@ describe("registerPurchase", () => {
       "product:product-b",
       "packaging:packaging-a",
       "packaging:packaging-b",
-      "stock:product-a",
-      "stock:product-b",
+      "stock receipt",
     ]);
   });
 
@@ -626,9 +547,7 @@ describe("registerPurchase", () => {
       const state = store.snapshot();
       expect(state.purchases).toEqual([]);
       expect(state.purchaseLines).toEqual([]);
-      expect(state.movements).toEqual([]);
-      expect(state.lots).toEqual([]);
-      expect(state.balances).toEqual([]);
+      expect(state.receipts).toEqual([]);
     });
 
     it("keeps its checks in order: product, then packaging, then quantity", async () => {
@@ -652,9 +571,7 @@ describe("registerPurchase", () => {
   it.each([
     ["insertPurchase", 1],
     ["insertPurchaseLine", 2],
-    ["recordReceiptMovement", 2],
-    ["addToStockBalance", 2],
-    ["insertLot", 2],
+    ["receiveStock", 1],
   ] as const)("rolls back what was written when %s fails at call %s", async (operation, call) => {
     const store = storeWithCatalog();
     const before = store.snapshot();

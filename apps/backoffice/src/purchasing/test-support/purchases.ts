@@ -1,4 +1,5 @@
-import type { PurchaseSummary } from "@purosur/contracts";
+import type { PurchaseChoices, PurchaseSummary, SupplierSummary } from "@purosur/contracts";
+import { bolsaDeAvena, cajaDeMiel, packagableProducts } from "./packagings";
 
 export const compraDeMiel: PurchaseSummary = {
   id: "c0a00000-0000-4000-8000-000000000001",
@@ -55,3 +56,7 @@ export const compraDeAvena: PurchaseSummary = {
     },
   ],
 };
+
+export function purchaseChoicesFrom(suppliers: SupplierSummary[]): PurchaseChoices {
+  return { suppliers, products: packagableProducts, packagings: [cajaDeMiel, bolsaDeAvena] };
+}

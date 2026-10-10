@@ -1,3 +1,5 @@
+import { CalendarDate } from "@internationalized/date";
+import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, expect, test, vi } from "vitest";
@@ -5,17 +7,13 @@ import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { NewPurchaseScreen } from "./new-purchase-screen";
 import type { NewPurchaseScreenServices } from "./new-purchase-services";
-import {
-  bolsaDeAlmendras,
-  bolsaDeAvena,
-  cajaDeMiel,
-  packagingList,
-} from "./test-support/packagings";
-import { compraDeAvena } from "./test-support/purchases";
+import { bolsaDeAvena, cajaDeMiel } from "./test-support/packagings";
+import { compraDeAvena, purchaseChoicesFrom } from "./test-support/purchases";
 import { suppliersWithCuits } from "./test-support/suppliers";
 
-const NOW = new Date("2026-09-16T15:00:00.000Z");
-const { andina, granos, cerealera } = suppliersWithCuits("30-70000001-7", "30-70000002-5");
+const TODAY = new CalendarDate(2026, 9, 16);
+const { andina, granos } = suppliersWithCuits(FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT);
+const purchaseChoices = purchaseChoicesFrom([andina, granos]);
 
 afterEach(() => {
   window.history.pushState(null, "", "/");
@@ -25,11 +23,7 @@ function createServices(
   overrides: Partial<NewPurchaseScreenServices> = {},
 ): NewPurchaseScreenServices {
   return {
-    fetchSuppliers: vi.fn().mockResolvedValue({ kind: "ok", value: [andina, granos, cerealera] }),
-    fetchPackagings: vi.fn().mockResolvedValue({
-      kind: "ok",
-      value: packagingList([cajaDeMiel, bolsaDeAvena, bolsaDeAlmendras]),
-    }),
+    fetchPurchaseChoices: vi.fn().mockResolvedValue({ kind: "ok", value: purchaseChoices }),
     registerPurchase: vi.fn(),
     ...overrides,
   };
@@ -47,7 +41,7 @@ function renderScreen(services: NewPurchaseScreenServices, onSessionEnded: () =>
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <NewPurchaseScreen services={services} onSessionEnded={onSessionEnded} now={() => NOW} />
+        <NewPurchaseScreen services={services} onSessionEnded={onSessionEnded} today={TODAY} />
       </main>
     </FieldSizeProvider>,
   );
@@ -100,8 +94,8 @@ const avenaLine = {
   productId: bolsaDeAvena.productId,
   quantity: 12_500,
   costPaidCents: 200_000,
-  lotNumber: "",
-  expiresOn: "",
+  lotNumber: null,
+  expiresOn: null,
 } as const;
 
 test("shows the breadcrumb, the heading and the header fields, with today as the purchase date", async () => {
@@ -126,33 +120,30 @@ test("shows the breadcrumb, the heading and the header fields, with today as the
   await expect.element(line(screen, 1)).toBeVisible();
 });
 
-test("offers only the active suppliers", async () => {
-  const screen = await opened();
-
-  await userEvent.click(screen.getByRole("combobox", { name: /^Proveedor/ }));
-
-  await expect.element(screen.getByRole("option", { name: "Distribuidora Andina" })).toBeVisible();
-  await expect.element(screen.getByRole("option", { name: "Granos del Valle" })).toBeVisible();
-  expect(screen.getByRole("option", { name: "Cerealera del Norte" }).query()).toBeNull();
-});
-
-test("says there is no supplier to choose when none is active", async () => {
+test("says there is no supplier to choose, keeping the register action disabled", async () => {
   const services = createServices({
-    fetchSuppliers: vi.fn().mockResolvedValue({ kind: "ok", value: [cerealera] }),
+    fetchPurchaseChoices: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: { ...purchaseChoices, suppliers: [] } }),
   });
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("No hay proveedores activos")).toBeVisible();
   expect(screen.getByRole("combobox", { name: /^Proveedor/ }).query()).toBeNull();
+  await expect.element(screen.getByRole("button", { name: "Registrar la compra" })).toBeDisabled();
 });
 
-test("says there is no product to buy when none is active", async () => {
+test("says there is no product to buy, keeping the register action disabled", async () => {
   const services = createServices({
-    fetchPackagings: vi.fn().mockResolvedValue({ kind: "ok", value: packagingList([], []) }),
+    fetchPurchaseChoices: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { ...purchaseChoices, products: [], packagings: [] },
+    }),
   });
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Registrar la compra" })).toBeDisabled();
 });
 
 test("says a product has no active packaging to load a line by", async () => {
@@ -165,18 +156,6 @@ test("says a product has no active packaging to load a line by", async () => {
   await expect
     .element(group.getByText("Este producto no tiene presentaciones activas").first())
     .toBeVisible();
-});
-
-test("offers the receipt types by their Spanish names", async () => {
-  const screen = await opened();
-
-  await userEvent.click(screen.getByRole("button", { name: /Tipo de comprobante/ }));
-
-  const names = screen
-    .getByRole("option")
-    .all()
-    .map((option) => option.element().textContent);
-  expect(names).toEqual(["Factura B", "Factura C", "Remito", "Ticket", "Otro", "Sin comprobante"]);
 });
 
 test("registers a purchase with a line loaded by quantity, then goes back to the list with a confirmation to show", async () => {
@@ -194,7 +173,7 @@ test("registers a purchase with a line loaded by quantity, then goes back to the
     supplierId: granos.id,
     purchasedOn: "2026-09-16",
     receiptType: "sin_comprobante",
-    receiptNumber: "",
+    receiptNumber: null,
     note: "Entrega de la tarde",
     lines: [avenaLine],
   });
@@ -234,7 +213,7 @@ test("registers a purchase with a line loaded by packaging, the lot and its expi
     purchasedOn: "2026-09-16",
     receiptType: "factura_b",
     receiptNumber: "0001-00001234",
-    note: "",
+    note: null,
     lines: [
       {
         loadedBy: "packaging",
@@ -247,21 +226,6 @@ test("registers a purchase with a line loaded by packaging, the lot and its expi
       },
     ],
   });
-});
-
-test("offers only the chosen product's active packagings", async () => {
-  const screen = await opened();
-  const group = line(screen, 1);
-  await chooseFromComboBox(screen, group, /^Producto/, "Avena arrollada");
-  await userEvent.click(group.getByText("Presentación", { exact: true }).last());
-
-  await userEvent.click(group.getByRole("button", { name: /Presentación/ }));
-
-  const names = screen
-    .getByRole("option")
-    .all()
-    .map((option) => option.element().textContent);
-  expect(names).toEqual(["Bolsa de 25 kg (25,000 kg)"]);
 });
 
 test("adds a line, and removes any line while another remains", async () => {
@@ -355,7 +319,7 @@ test.each([
     await register(screen);
 
     await expect.element(screen.getByText(message)).toBeVisible();
-    await expect.poll(() => vi.mocked(services.fetchSuppliers).mock.calls.length).toBe(2);
+    await expect.poll(() => vi.mocked(services.fetchPurchaseChoices).mock.calls.length).toBe(2);
   },
 );
 
@@ -407,6 +371,50 @@ test("shows how to type the quantity at the line the cloud refused it", async ()
         .first(),
     )
     .toBeVisible();
+});
+
+test("says a line loaded by packaging adds up to more than a line may hold, when the cloud refuses its quantity", async () => {
+  const services = createServices();
+  vi.mocked(services.registerPurchase).mockResolvedValue({
+    kind: "validation_failed",
+    field: "lines",
+    lineIndex: 0,
+  });
+  const screen = await opened(services);
+  await fillHeader(screen);
+  const group = line(screen, 1);
+  await chooseFromComboBox(screen, group, /^Producto/, "Miel pura de abeja 1 kg");
+  await userEvent.click(group.getByText("Presentación", { exact: true }).last());
+  await chooseFromSelect(screen, group, /Presentación/, "Caja x 12 (12 u)");
+  await userEvent.fill(group.getByRole("textbox", { name: /^Cantidad de presentaciones/ }), "2");
+  await userEvent.fill(group.getByRole("textbox", { name: /^Costo por presentación/ }), "7.200");
+
+  await register(screen);
+
+  await expect
+    .element(group.getByText("Son demasiadas presentaciones para una sola línea.").first())
+    .toBeVisible();
+  expect(
+    group.getByText("Escribí una cantidad entera de unidades, por ejemplo 16.").query(),
+  ).toBeNull();
+});
+
+test("clears a line's refusal once the person changes that line", async () => {
+  const services = createServices();
+  vi.mocked(services.registerPurchase).mockResolvedValue({
+    kind: "line_refused",
+    reason: "product_inactive",
+    lineIndex: 0,
+  });
+  const screen = await opened(services);
+  await fillHeader(screen);
+  await fillQuantityLine(screen);
+  await register(screen);
+  await expect.element(screen.getByText("Este producto ya no está activo.").first()).toBeVisible();
+
+  await chooseFromComboBox(screen, line(screen, 1), /^Producto/, "Miel pura de abeja 1 kg");
+
+  await expect.poll(() => screen.getByText("Este producto ya no está activo.").query()).toBeNull();
 });
 
 test("clears a line's refusal when the purchase is submitted again", async () => {
@@ -483,8 +491,8 @@ test("cancel goes back to the list", async () => {
 
 test("keeps the register action disabled while the form data loads, and after it fails to load", async () => {
   const services = createServices();
-  const firstLoad = deferred<Awaited<ReturnType<typeof services.fetchSuppliers>>>();
-  vi.mocked(services.fetchSuppliers).mockReturnValueOnce(firstLoad.promise);
+  const firstLoad = deferred<Awaited<ReturnType<typeof services.fetchPurchaseChoices>>>();
+  vi.mocked(services.fetchPurchaseChoices).mockReturnValueOnce(firstLoad.promise);
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByRole("button", { name: "Registrar la compra" })).toBeDisabled();
@@ -497,7 +505,7 @@ test("keeps the register action disabled while the form data loads, and after it
 
 test("shows a load error with a retry action that loads the form again", async () => {
   const services = createServices();
-  vi.mocked(services.fetchPackagings).mockResolvedValueOnce({ kind: "failed" });
+  vi.mocked(services.fetchPurchaseChoices).mockResolvedValueOnce({ kind: "failed" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("No pudimos abrir el formulario de compra")).toBeVisible();
 
@@ -508,7 +516,7 @@ test("shows a load error with a retry action that loads the form again", async (
 
 test("shows the rate-limited notice when the form data is rate-limited", async () => {
   const services = createServices();
-  vi.mocked(services.fetchSuppliers).mockResolvedValue({
+  vi.mocked(services.fetchPurchaseChoices).mockResolvedValue({
     kind: "rate_limited",
     retryAfterSeconds: 120,
   });
@@ -521,13 +529,13 @@ test("shows the rate-limited notice when the form data is rate-limited", async (
 test("navigates to Mi cuenta when the form data comes back forbidden, and ends the session when it finds none", async () => {
   window.history.pushState(null, "", "/purchases/new");
   const forbidden = createServices({
-    fetchSuppliers: vi.fn().mockResolvedValue({ kind: "forbidden" }),
+    fetchPurchaseChoices: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
   await renderScreen(forbidden);
   await expect.poll(() => window.location.pathname).toBe("/account");
 
   const unauthenticated = createServices({
-    fetchPackagings: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
+    fetchPurchaseChoices: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
   });
   const onSessionEnded = vi.fn();
   await renderScreen(unauthenticated, onSessionEnded);

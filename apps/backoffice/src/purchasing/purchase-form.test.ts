@@ -1,18 +1,22 @@
 import { CalendarDate } from "@internationalized/date";
 import { purchaseRegistrationBodySchema } from "@purosur/contracts";
+import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
 import {
   emptyPurchaseForm,
   emptyPurchaseLine,
+  nextPurchaseLineId,
   PURCHASE_FIELDS,
   PURCHASE_LINE_REFUSALS,
   type PurchaseFormValues,
   type PurchaseLineValues,
+  purchaseLineQuantityRefusal,
   purchaseLinesMessage,
   purchasePackagingOptions,
   purchaseReceiptNumberMessage,
   purchaseRegistrationRequestFrom,
   purchaseSupplierOptions,
+  RECEIPT_TYPE_OPTIONS,
 } from "./purchase-form";
 import {
   bolsaDeAlmendras,
@@ -23,10 +27,10 @@ import {
 import { suppliersWithCuits } from "./test-support/suppliers";
 
 const TODAY = new CalendarDate(2026, 9, 16);
-const { andina, granos, cerealera } = suppliersWithCuits("30-70000001-7", "30-70000002-5");
+const { andina, granos, cerealera } = suppliersWithCuits(FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT);
 
 function line(overrides: Partial<PurchaseLineValues> = {}): PurchaseLineValues {
-  return { ...emptyPurchaseLine(), ...overrides };
+  return { ...emptyPurchaseLine(1), ...overrides };
 }
 
 function form(overrides: Partial<PurchaseFormValues> = {}): PurchaseFormValues {
@@ -47,13 +51,23 @@ describe("emptyPurchaseForm", () => {
       receiptType: null,
       receiptNumber: "",
       note: "",
-      lines: [{ ...emptyPurchaseLine(), id: expect.any(Number) }],
+      lines: [emptyPurchaseLine(1)],
     });
-    expect(emptyPurchaseLine().loadedBy).toBe("quantity");
+    expect(emptyPurchaseLine(1).loadedBy).toBe("quantity");
   });
 
-  it("gives every line its own id", () => {
-    expect(emptyPurchaseLine().id).not.toBe(emptyPurchaseLine().id);
+  it("builds the same empty form every time it is asked for one", () => {
+    expect(emptyPurchaseForm(TODAY)).toEqual(emptyPurchaseForm(TODAY));
+  });
+});
+
+describe("nextPurchaseLineId", () => {
+  it("gives a new line an id no line of the form has", () => {
+    expect(nextPurchaseLineId([line({ id: 1 }), line({ id: 4 }), line({ id: 2 })])).toBe(5);
+  });
+
+  it("starts from one when the form has no line", () => {
+    expect(nextPurchaseLineId([])).toBe(1);
   });
 });
 
@@ -121,6 +135,12 @@ describe("purchaseRegistrationRequestFrom", () => {
     );
 
     expect(request.lines[0]).toMatchObject({ quantity: 16_000, costPaidCents: 800 });
+  });
+
+  it("leaves the receipt type empty until one is chosen", () => {
+    expect(
+      purchaseRegistrationRequestFrom(form({ receiptType: null }), packagableProducts).receiptType,
+    ).toBeNull();
   });
 
   it.each<[string, Partial<PurchaseFormValues>]>([
@@ -263,33 +283,61 @@ describe("PURCHASE_LINE_REFUSALS", () => {
   });
 });
 
+describe("purchaseLineQuantityRefusal", () => {
+  it("tells how to type the quantity of a line loaded by quantity, in its product's sale unit", () => {
+    expect(
+      purchaseLineQuantityRefusal(line({ productId: bolsaDeAvena.productId }), packagableProducts),
+    ).toBe("Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.");
+    expect(
+      purchaseLineQuantityRefusal(line({ productId: cajaDeMiel.productId }), packagableProducts),
+    ).toBe("Escribí una cantidad entera de unidades, por ejemplo 16.");
+  });
+
+  it("says a line loaded by packaging adds up to more than a line may hold", () => {
+    expect(
+      purchaseLineQuantityRefusal(
+        line({ productId: cajaDeMiel.productId, loadedBy: "packaging" }),
+        packagableProducts,
+      ),
+    ).toBe("Son demasiadas presentaciones para una sola línea.");
+  });
+});
+
+describe("RECEIPT_TYPE_OPTIONS", () => {
+  it("offers every receipt type with its Spanish name, in the contract's order", () => {
+    expect(RECEIPT_TYPE_OPTIONS).toEqual([
+      { value: "factura_b", label: "Factura B" },
+      { value: "factura_c", label: "Factura C" },
+      { value: "remito", label: "Remito" },
+      { value: "ticket", label: "Ticket" },
+      { value: "otro", label: "Otro" },
+      { value: "sin_comprobante", label: "Sin comprobante" },
+    ]);
+  });
+});
+
 describe("purchaseSupplierOptions", () => {
-  it("offers only the active suppliers, by name", () => {
+  it("offers every supplier the cloud offers, by name", () => {
     expect(purchaseSupplierOptions([granos, cerealera, andina])).toEqual([
+      { value: cerealera.id, label: cerealera.name },
       { value: andina.id, label: andina.name },
       { value: granos.id, label: granos.name },
     ]);
   });
 
-  it("offers nothing when no supplier is active", () => {
-    expect(purchaseSupplierOptions([cerealera])).toBeUndefined();
+  it("offers nothing when there is no supplier", () => {
+    expect(purchaseSupplierOptions([])).toBeUndefined();
   });
 });
 
 describe("purchasePackagingOptions", () => {
-  it("offers the product's active packagings with their quantity in its sale unit", () => {
+  it("offers every packaging of the chosen product the cloud offers, with its quantity in its sale unit", () => {
     expect(
       purchasePackagingOptions(
         [cajaDeMiel, bolsaDeAvena, bolsaDeAlmendras],
-        bolsaDeAvena.productId,
+        bolsaDeAlmendras.productId,
       ),
-    ).toEqual([{ value: bolsaDeAvena.id, label: "Bolsa de 25 kg (25,000 kg)" }]);
-  });
-
-  it("leaves out a packaging stated in a sale unit its product no longer has", () => {
-    expect(
-      purchasePackagingOptions([{ ...cajaDeMiel, saleUnitChanged: true }], cajaDeMiel.productId),
-    ).toEqual([]);
+    ).toEqual([{ value: bolsaDeAlmendras.id, label: "Bolsa de 2,5 kg (2,500 kg)" }]);
   });
 
   it("offers nothing before a product is chosen", () => {

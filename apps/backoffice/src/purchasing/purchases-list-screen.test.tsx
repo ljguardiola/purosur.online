@@ -94,6 +94,21 @@ test("lists each purchase with its date, supplier and receipt, followed by its l
     ]);
 });
 
+test("writes a line's count of packages the way every amount reads", async () => {
+  const [line] = compraDeMiel.lines;
+  if (!line) {
+    throw new Error("test setup: the purchase has no line");
+  }
+  const services = createServices();
+  vi.mocked(services.fetchPurchases).mockResolvedValue({
+    kind: "ok",
+    value: [{ ...compraDeMiel, lines: [{ ...line, packages: 1_500, quantity: 18_000_000 }] }],
+  });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("1.500 × Caja x 12 (18.000 u)")).toBeVisible();
+});
+
 test("shows the blank empty state when there are no purchases yet", async () => {
   const services = createServices();
   vi.mocked(services.fetchPurchases).mockResolvedValue({ kind: "ok", value: [] });

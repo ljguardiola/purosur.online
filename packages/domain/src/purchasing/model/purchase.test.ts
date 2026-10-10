@@ -6,8 +6,9 @@ import {
   isPurchaseDateInFuture,
   isPurchaseNoteTooLong,
   isReceiptNumberTooLong,
-  isReceiptType,
   LOT_NUMBER_MAX_LENGTH,
+  mayBePurchased,
+  mayBePurchasedFrom,
   PURCHASE_NOTE_MAX_LENGTH,
   RECEIPT_NUMBER_MAX_LENGTH,
   RECEIPT_TYPES,
@@ -26,13 +27,17 @@ describe("RECEIPT_TYPES", () => {
   });
 });
 
-describe("isReceiptType", () => {
-  it.each(RECEIPT_TYPES)("accepts %s", (type) => {
-    expect(isReceiptType(type)).toBe(true);
+describe("mayBePurchasedFrom", () => {
+  it("lets a purchase be registered from an active supplier only", () => {
+    expect(mayBePurchasedFrom({ active: true })).toBe(true);
+    expect(mayBePurchasedFrom({ active: false })).toBe(false);
   });
+});
 
-  it.each(["", "factura_a", "Remito", "sin comprobante"])("rejects %j", (type) => {
-    expect(isReceiptType(type)).toBe(false);
+describe("mayBePurchased", () => {
+  it("lets an active product be purchased only", () => {
+    expect(mayBePurchased({ active: true })).toBe(true);
+    expect(mayBePurchased({ active: false })).toBe(false);
   });
 });
 
