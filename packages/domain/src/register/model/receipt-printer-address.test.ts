@@ -50,11 +50,10 @@ describe("isValidReceiptPrinterHost", () => {
   });
 
   it("accepts a name of 253 characters and rejects one of 254", () => {
-    const label = "a".repeat(62);
-    const name = (labels: number) => Array.from({ length: labels }, () => label).join(".");
+    const label = "a".repeat(63);
 
-    expect(isValidReceiptPrinterHost(`${name(3)}.${"a".repeat(61)}`)).toBe(true);
-    expect(isValidReceiptPrinterHost(`${name(3)}.${"a".repeat(62)}`)).toBe(false);
+    expect(isValidReceiptPrinterHost(`${label}.${label}.${label}.${"a".repeat(61)}`)).toBe(true);
+    expect(isValidReceiptPrinterHost(`${label}.${label}.${label}.${"a".repeat(62)}`)).toBe(false);
   });
 
   it("accepts every IPv4 address written without leading zeros", () => {

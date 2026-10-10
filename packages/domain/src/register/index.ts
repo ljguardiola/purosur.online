@@ -46,6 +46,10 @@ export {
 } from "./model/installation-report.js";
 export { nextOperationNumber } from "./model/operation-number.js";
 export type { ReceiptPrinterAddress } from "./model/receipt-printer-address.js";
+export {
+  isValidReceiptPrinterHost,
+  isValidReceiptPrinterPort,
+} from "./model/receipt-printer-address.js";
 export { isLockedToAnother } from "./model/register-lock.js";
 export {
   isRegisterNameTooLong,

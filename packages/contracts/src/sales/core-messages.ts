@@ -184,6 +184,7 @@ const receiptPrintStatusOutcomeSchema = z.discriminatedUnion("kind", [
         "paper_out",
         "not_responding",
         "retry_offered",
+        "printer_not_configured",
         "failed",
         "printed",
       ])
@@ -198,6 +199,7 @@ export type ReceiptPrintStatusOutcome = z.infer<typeof receiptPrintStatusOutcome
 const retryReceiptPrintOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("started"), copy: receiptCopySchema }),
   z.object({ kind: z.literal("not_offered") }),
+  z.object({ kind: z.literal("printer_not_configured") }),
   z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("lacks_permission") }),
   z.object({ kind: z.literal("not_found") }),
@@ -209,6 +211,7 @@ const reprintSaleReceiptOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("started"), copy: receiptCopySchema }),
   z.object({ kind: z.literal("busy") }),
   z.object({ kind: z.literal("invalid_reason"), max_length: z.number() }),
+  z.object({ kind: z.literal("printer_not_configured") }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("not_signed_in") }),
   ...authorizationRefusalSchema.options,
