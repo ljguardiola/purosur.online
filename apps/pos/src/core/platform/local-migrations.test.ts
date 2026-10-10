@@ -1764,9 +1764,9 @@ describe("the register's local migrations", () => {
       expect(() =>
         insert.run({ id: "pulled-receipt", kind: "receipt", sale_line_id: null }),
       ).not.toThrow();
-      expect(() => insert.run({ id: "unknown-kind", kind: "transfer", sale_line_id: null })).toThrow(
-        /CHECK/,
-      );
+      expect(() =>
+        insert.run({ id: "unknown-kind", kind: "transfer", sale_line_id: null }),
+      ).toThrow(/CHECK/);
       expect(() =>
         insert.run({ id: "receipt-of-a-line", kind: "receipt", sale_line_id: "line-1" }),
       ).toThrow(/CHECK/);
