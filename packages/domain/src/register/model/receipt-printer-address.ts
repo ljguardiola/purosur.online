@@ -21,7 +21,7 @@ function isIpv4Address(labels: readonly string[]): boolean {
 
 export function isValidReceiptPrinterHost(host: string): boolean {
   const labels = host.split(".");
-  if (ONLY_DIGITS.test(labels[labels.length - 1] ?? "")) {
+  if (ONLY_DIGITS.test(host.slice(host.lastIndexOf(".") + 1))) {
     return isIpv4Address(labels);
   }
   return (
