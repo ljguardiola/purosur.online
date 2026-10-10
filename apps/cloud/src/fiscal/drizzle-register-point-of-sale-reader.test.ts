@@ -1,8 +1,12 @@
-import { configureRegisterPointOfSale } from "@purosur/domain/fiscal/use-cases";
+import {
+  configureRegisterOfflinePointOfSale,
+  configureRegisterPointOfSale,
+} from "@purosur/domain/fiscal/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { fiscalAddresses, locations, registers, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
+import { DrizzleRegisterOfflinePointOfSaleStore } from "./drizzle-register-offline-point-of-sale-store.js";
 import { DrizzleRegisterPointOfSaleReader } from "./drizzle-register-point-of-sale-reader.js";
 import { DrizzleRegisterPointOfSaleStore } from "./drizzle-register-point-of-sale-store.js";
 
@@ -92,6 +96,8 @@ describe("DrizzleRegisterPointOfSaleReader", () => {
         pointOfSaleNumber: null,
         fiscalAddressId: null,
         version: 0,
+        offlinePointOfSaleNumber: null,
+        offlineVersion: 0,
       },
       {
         registerId: configuredId,
@@ -99,6 +105,43 @@ describe("DrizzleRegisterPointOfSaleReader", () => {
         pointOfSaleNumber: 7,
         fiscalAddressId,
         version: 1,
+        offlinePointOfSaleNumber: null,
+        offlineVersion: 0,
+      },
+    ]);
+  });
+
+  it("lists a register's offline point of sale beside its real-time one", async () => {
+    const locationId = await seededLocationId(db);
+    const registerId = await insertRegister(locationId, "Caja 1");
+    const actorId = await insertActor(locationId);
+    const fiscalAddressId = await insertFiscalAddress();
+    await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOON), {
+      locationId,
+      registerId,
+      pointOfSaleNumber: 7,
+      fiscalAddressId,
+      version: 0,
+      actorId,
+    });
+    await configureRegisterOfflinePointOfSale(
+      new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOON),
+      { locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId },
+    );
+
+    const listed = await new DrizzleRegisterPointOfSaleReader(db).listBranchRegisterPointsOfSale(
+      locationId,
+    );
+
+    expect(listed).toEqual([
+      {
+        registerId,
+        registerName: "Caja 1",
+        pointOfSaleNumber: 7,
+        fiscalAddressId,
+        version: 1,
+        offlinePointOfSaleNumber: 8,
+        offlineVersion: 1,
       },
     ]);
   });

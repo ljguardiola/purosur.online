@@ -27,7 +27,7 @@ const STALE_VERSION_RESPONSE = {
 
 const POINT_OF_SALE_TAKEN_RESPONSE = {
   code: "point_of_sale_taken",
-  message: "that point of sale number belongs to another register",
+  message: "that point of sale number is already in use",
   details: [{ field: "point_of_sale_number" }],
 } as const;
 

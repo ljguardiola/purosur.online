@@ -1,6 +1,7 @@
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import {
+  configureRegisterOfflinePointOfSale,
   configureRegisterPointOfSale,
   createFiscalAddress,
   recordAuthorizedCuit,
@@ -18,6 +19,7 @@ import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-r
 import { DrizzleBuyerIdentificationThresholdStore } from "../fiscal/drizzle-buyer-identification-threshold-store.js";
 import { DrizzleFiscalAddressStore } from "../fiscal/drizzle-fiscal-address-store.js";
 import { DrizzleIssuerIdentificationStore } from "../fiscal/drizzle-issuer-identification-store.js";
+import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
 import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-point-of-sale-store.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import { buyerTaxStatusSets, users } from "../platform/db/schema.js";
@@ -163,6 +165,13 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     if (pointOfSale.kind !== "configured") {
       throw new Error("test setup: the point of sale was not configured");
     }
+    const offlinePointOfSale = await configureRegisterOfflinePointOfSale(
+      new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOW),
+      { locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId: actor.id },
+    );
+    if (offlinePointOfSale.kind !== "configured") {
+      throw new Error("test setup: the offline point of sale was not configured");
+    }
     const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => NOW } };
 
     const page = await pullChanges(ports, { deviceId, since: 0 });
@@ -177,6 +186,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       "price",
       "price_list",
       "product",
+      "register_offline_point_of_sale",
       "register_point_of_sale",
       "role",
       "role",

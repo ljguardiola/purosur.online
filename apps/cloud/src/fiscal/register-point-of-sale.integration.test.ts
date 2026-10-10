@@ -106,9 +106,12 @@ describe("a register's point of sale stored directly, as cloud_app", () => {
   it("is refused by the database when the number is claimed by another register", async () => {
     const { actorId, fiscalAddressId, firstRegisterId, secondRegisterId } =
       await seedTwoRegisters();
-    await db
-      .insert(pointOfSaleClaims)
-      .values({ pointOfSaleNumber: 51, registerId: firstRegisterId, claimedBy: actorId });
+    await db.insert(pointOfSaleClaims).values({
+      pointOfSaleNumber: 51,
+      registerId: firstRegisterId,
+      mechanism: "real_time",
+      claimedBy: actorId,
+    });
 
     const insertion = db.insert(registerPointsOfSale).values({
       registerId: secondRegisterId,
@@ -143,9 +146,12 @@ describe("a register's point of sale stored directly, as cloud_app", () => {
 
   it("is accepted when the number is the register's own claim", async () => {
     const { actorId, fiscalAddressId, firstRegisterId } = await seedTwoRegisters();
-    await db
-      .insert(pointOfSaleClaims)
-      .values({ pointOfSaleNumber: 53, registerId: firstRegisterId, claimedBy: actorId });
+    await db.insert(pointOfSaleClaims).values({
+      pointOfSaleNumber: 53,
+      registerId: firstRegisterId,
+      mechanism: "real_time",
+      claimedBy: actorId,
+    });
 
     await db.insert(registerPointsOfSale).values({
       registerId: firstRegisterId,

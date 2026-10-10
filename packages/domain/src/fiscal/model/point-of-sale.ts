@@ -5,9 +5,19 @@ export function isPointOfSaleNumber(value: number): boolean {
   return Number.isInteger(value) && value >= 1 && value <= POINT_OF_SALE_NUMBER_MAX;
 }
 
+export type PointOfSaleMechanism = "real_time" | "offline";
+
+export interface PointOfSaleHolder {
+  registerId: string;
+  mechanism: PointOfSaleMechanism;
+}
+
 export function mayRegisterClaimPointOfSale(
-  holderRegisterId: string | undefined,
+  holder: PointOfSaleHolder | undefined,
   registerId: string,
+  mechanism: PointOfSaleMechanism,
 ): boolean {
-  return holderRegisterId === undefined || holderRegisterId === registerId;
+  return (
+    holder === undefined || (holder.registerId === registerId && holder.mechanism === mechanism)
+  );
 }

@@ -43,6 +43,8 @@ const configured: RegisterPointOfSale = {
   pointOfSaleNumber: 12,
   fiscalAddressId: depot.id,
   version: 2,
+  offlinePointOfSaleNumber: 13,
+  offlineVersion: 4,
 };
 
 const neverConfigured: RegisterPointOfSale = {
@@ -50,6 +52,8 @@ const neverConfigured: RegisterPointOfSale = {
   pointOfSaleNumber: null,
   fiscalAddressId: null,
   version: 0,
+  offlinePointOfSaleNumber: null,
+  offlineVersion: 0,
 };
 
 type ModalOptions = {
@@ -206,7 +210,7 @@ test("opens the authorization modal on authorization_required, then authorizes a
   expect(services.configureRegisterPointOfSale).toHaveBeenCalledTimes(2);
 });
 
-test("says another register already has the number, on the number's field", async () => {
+test("says the number is already assigned, on the number's field", async () => {
   const services = createServices();
   vi.mocked(services.configureRegisterPointOfSale).mockResolvedValue({
     kind: "point_of_sale_taken",
@@ -216,7 +220,7 @@ test("says another register already has the number, on the number's field", asyn
 
   await save(dialog);
 
-  await expect.element(dialog.getByText("Ese punto de venta ya es de otra caja.")).toBeVisible();
+  await expect.element(dialog.getByText("Ese punto de venta ya está asignado.")).toBeVisible();
   expect(onSaved).not.toHaveBeenCalled();
 });
 
