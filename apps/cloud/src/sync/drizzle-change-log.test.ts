@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { DrizzleOfflineAuthorizationCodeStore } from "../fiscal/drizzle-offline-authorization-code-store.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
 
@@ -97,13 +98,14 @@ describe("DrizzleChangeLog requesting the missing offline authorization code", (
 
   it("rolls back only what the failed enqueue wrote, keeping the pull's earlier writes", async () => {
     const reportError = vi.fn();
+    const { deviceId } = await insertEnrolledInstallation(db, { now: new Date() });
     const enqueue = async (transaction: { execute(query: ReturnType<typeof sql>): unknown }) => {
       await transaction.execute(sql`select * from a_table_that_does_not_exist`);
     };
 
     const recorded = await new DrizzleChangeLog(db, enqueue, reportError).transaction(
       async (tx) => {
-        await tx.recordObservedPull("00000000-0000-4000-8000-000000000001", 7, new Date());
+        await tx.recordObservedPull(deviceId, 7, new Date());
         await tx.requestMissingOfflineAuthorizationCode();
         return true;
       },
