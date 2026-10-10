@@ -16,11 +16,13 @@ import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import {
   addSearchedProductFor,
+  addWeighedProductFor,
   cancelLockedSaleFor,
   cancelPaidSaleFor,
   cancelSaleFor,
   cashChargeFor,
   changeLineQuantityFor,
+  changeLineWeightFor,
   chargeSaleByTransferFor,
   chargeSaleInCashFor,
   currentSaleFor,
@@ -166,6 +168,15 @@ function seed(): void {
     .run();
 }
 
+function priceCheese(): void {
+  database
+    .prepare(
+      `INSERT INTO prices (id, product_id, price_list_id, unit_price, valid_from, version)
+       VALUES ('price-2', 'p2', 'list-1', 9000, '2026-09-01T00:00:00.000Z', 1)`,
+    )
+    .run();
+}
+
 beforeEach(() => {
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   seed();
@@ -190,6 +201,8 @@ describe("scanning a product on the register", () => {
             id: "id-2",
             product_id: "p1",
             product_name: "Yerba",
+            sale_unit: "UNIT",
+            weight_source: null,
             quantity: 2,
             list_unit_price: 1500,
             discount_amount: 0,
@@ -257,11 +270,15 @@ describe("scanning a product on the register", () => {
     });
   });
 
-  it("answers the name of a product sold by weight", async () => {
+  it("answers the id and name of a product sold by weight, whose weight is still to be typed", async () => {
+    priceCheese();
+
     expect(await scanProductFor(deps(), "222")).toEqual({
-      kind: "sold_by_weight",
+      kind: "weight_needed",
+      product_id: "p2",
       product_name: "Queso",
     });
+    expect(database.prepare("SELECT id FROM sales").all()).toEqual([]);
   });
 
   it("answers the name of a product whose line may not carry another unit", async () => {
@@ -368,6 +385,8 @@ describe("adding a searched product on the register", () => {
             id: "id-2",
             product_id: "p1",
             product_name: "Yerba",
+            sale_unit: "UNIT",
+            weight_source: null,
             quantity: 1,
             list_unit_price: 1500,
             discount_amount: 0,
@@ -387,7 +406,7 @@ describe("adding a searched product on the register", () => {
     });
   });
 
-  it("answers the name of a product that has no price or is sold by weight", async () => {
+  it("answers the name of a product that has no price", async () => {
     database.prepare("DELETE FROM prices").run();
 
     expect(await addSearchedProductFor(deps(), "p1")).toEqual({
@@ -395,7 +414,17 @@ describe("adding a searched product on the register", () => {
       product_name: "Yerba",
     });
     expect(await addSearchedProductFor(deps(), "p2")).toEqual({
-      kind: "sold_by_weight",
+      kind: "no_price",
+      product_name: "Queso",
+    });
+  });
+
+  it("answers the id and name of a product sold by weight, whose weight is still to be typed", async () => {
+    priceCheese();
+
+    expect(await addSearchedProductFor(deps(), "p2")).toEqual({
+      kind: "weight_needed",
+      product_id: "p2",
       product_name: "Queso",
     });
   });
@@ -433,6 +462,215 @@ describe("adding a searched product on the register", () => {
     database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
 
     expect(await addSearchedProductFor(deps(), "p1")).toEqual({ kind: "no_open_session" });
+  });
+});
+
+describe("adding a product sold by weight on the register", () => {
+  beforeEach(priceCheese);
+
+  const WEIGHED_LINE = {
+    id: "id-2",
+    product_id: "p2",
+    product_name: "Queso",
+    sale_unit: "KG",
+    weight_source: "MANUAL",
+    quantity: 1250,
+    list_unit_price: 9000,
+    discount_amount: 0,
+    promotion: null,
+    line_total: 11250,
+  };
+
+  it("answers the sale with the weighed line, priced per kilogram, and the total to charge", async () => {
+    expect(await addWeighedProductFor(deps(), "p2", 1250)).toEqual({
+      kind: "added",
+      sale: {
+        id: "id-1",
+        lines: [WEIGHED_LINE],
+        total: 11250,
+        paid: 0,
+        pending: 11250,
+        lines_lock: null,
+        cancel_refusal: null,
+        charge_refusal: null,
+        refunds_on_cancel: [],
+        cancel_authorization_required: true,
+      },
+    });
+  });
+
+  it("keeps the weight in thousandths of a kilogram and records that it was typed", async () => {
+    await addWeighedProductFor(deps(), "p2", 1250);
+
+    expect(
+      database
+        .prepare("SELECT sale_unit, weight_source, quantity, line_total FROM sale_lines")
+        .all(),
+    ).toEqual([{ sale_unit: "KG", weight_source: "MANUAL", quantity: 1250, line_total: 11250 }]);
+  });
+
+  it("holds a product weighed again as another line", async () => {
+    await addWeighedProductFor(deps(), "p2", 1250);
+
+    const outcome = await addWeighedProductFor(deps(), "p2", 500);
+
+    expect(outcome.kind === "added" && outcome.sale.lines).toEqual([
+      WEIGHED_LINE,
+      expect.objectContaining({ product_id: "p2", quantity: 500, line_total: 4500 }),
+    ]);
+  });
+
+  it("answers the sale in progress with the weighed line", async () => {
+    await addWeighedProductFor(deps(), "p2", 1250);
+
+    const sale = await currentSaleFor(deps());
+
+    expect(typeof sale === "object" && sale?.lines).toEqual([WEIGHED_LINE]);
+  });
+
+  it.each([
+    ["a weight of zero", "p2", 0, { kind: "invalid_weight" }],
+    ["a product sold by the unit", "p1", 1000, { kind: "not_sold_by_weight" }],
+    ["a product that does not exist", "other", 1000, { kind: "product_unavailable" }],
+  ])("answers the domain's refusal of %s", async (_case, productId, weight, expected) => {
+    expect(await addWeighedProductFor(deps(), productId, weight)).toEqual(expected);
+  });
+
+  it("answers the name of a product that has no price", async () => {
+    database.prepare("DELETE FROM prices").run();
+
+    expect(await addWeighedProductFor(deps(), "p2", 1000)).toEqual({
+      kind: "no_price",
+      product_name: "Queso",
+    });
+  });
+
+  it("answers that a product that is not sold any more is unavailable", async () => {
+    database.prepare("UPDATE products SET active = 0 WHERE id = 'p2'").run();
+
+    expect(await addWeighedProductFor(deps(), "p2", 1000)).toEqual({
+      kind: "product_unavailable",
+    });
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    signedInPerson.clear();
+
+    expect(await addWeighedProductFor(deps(), "p2", 1000)).toEqual({ kind: "not_signed_in" });
+  });
+
+  it("answers not permitted to a signed-in person without the permission to sell", async () => {
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(await addWeighedProductFor(deps(), "p2", 1000)).toEqual({ kind: "not_permitted" });
+  });
+
+  it("answers the refusal of a session that is not open", async () => {
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await addWeighedProductFor(deps(), "p2", 1000)).toEqual({ kind: "no_open_session" });
+  });
+});
+
+describe("changing the weight of a line", () => {
+  beforeEach(priceCheese);
+
+  async function sellCheese(): Promise<string> {
+    const outcome = await addWeighedProductFor(deps(), "p2", 1000);
+    if (outcome.kind !== "added") {
+      throw new Error("test setup: the cheese was not added");
+    }
+    return outcome.sale.lines[0]?.id as string;
+  }
+
+  it("answers the sale with the new weight and total", async () => {
+    const lineId = await sellCheese();
+
+    const outcome = await changeLineWeightFor(deps(), lineId, 2500, 1000);
+
+    expect(outcome).toMatchObject({
+      kind: "changed",
+      sale: {
+        lines: [
+          {
+            id: lineId,
+            quantity: 2500,
+            weight_source: "MANUAL",
+            sale_unit: "KG",
+            line_total: 22500,
+          },
+        ],
+        total: 22500,
+      },
+    });
+    expect(database.prepare("SELECT quantity, weight_source FROM sale_lines").all()).toEqual([
+      { quantity: 2500, weight_source: "MANUAL" },
+    ]);
+  });
+
+  it("answers that the line changed, writing nothing, when the screen showed another weight", async () => {
+    const lineId = await sellCheese();
+
+    expect(await changeLineWeightFor(deps(), lineId, 2500, 900)).toEqual({ kind: "stale_weight" });
+    expect(database.prepare("SELECT quantity FROM sale_lines").all()).toEqual([{ quantity: 1000 }]);
+  });
+
+  it("answers the refusal of changing the quantity of a line sold by weight", async () => {
+    const lineId = await sellCheese();
+
+    expect(await changeLineQuantityFor(deps(), lineId, 1001, 1000)).toEqual({
+      kind: "sold_by_weight",
+    });
+  });
+
+  it("answers the refusal of retyping the weight of a line sold by the unit", async () => {
+    const yerbaId = await sellTwoYerbas();
+
+    expect(await changeLineWeightFor(deps(), yerbaId, 1000, 2)).toEqual({
+      kind: "not_sold_by_weight",
+    });
+  });
+
+  it.each([
+    ["a line the sale does not have", "other-line", 1000, { kind: "unknown_line" }],
+    ["a weight of zero", "id-2", 0, { kind: "invalid_weight" }],
+  ])("answers the domain's refusal of %s", async (_case, lineId, weight, expected) => {
+    await sellCheese();
+
+    expect(await changeLineWeightFor(deps(), lineId, weight, 1000)).toEqual(expected);
+  });
+
+  it("answers that there is no sale to change", async () => {
+    expect(await changeLineWeightFor(deps(), "id-2", 1000, 1000)).toEqual({ kind: "no_open_sale" });
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    const lineId = await sellCheese();
+    signedInPerson.clear();
+
+    expect(await changeLineWeightFor(deps(), lineId, 2000, 1000)).toEqual({
+      kind: "not_signed_in",
+    });
+  });
+
+  it("answers not permitted to a person without the permission to sell", async () => {
+    const lineId = await sellCheese();
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(await changeLineWeightFor(deps(), lineId, 2000, 1000)).toEqual({
+      kind: "not_permitted",
+    });
+  });
+
+  it("answers that no session is open", async () => {
+    const lineId = await sellCheese();
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await changeLineWeightFor(deps(), lineId, 2000, 1000)).toEqual({
+      kind: "no_open_session",
+    });
   });
 });
 
@@ -475,6 +713,8 @@ describe("the sale in progress", () => {
           id: "id-2",
           product_id: "p1",
           product_name: "Yerba",
+          sale_unit: "UNIT",
+          weight_source: null,
           quantity: 2,
           list_unit_price: 1500,
           discount_amount: 0,

@@ -9,10 +9,12 @@ import {
 import { closeCashSession } from "@purosur/domain/register/use-cases";
 import {
   addScannedProduct,
+  addWeighedProduct,
   type CancelPaidSaleGrant,
   cancelPaidSale,
   cancelSale,
   changeLineQuantity,
+  changeLineWeight,
   chargeSaleByTransfer,
   chargeSaleInCash,
   currentSale,
@@ -279,12 +281,111 @@ describe("scanning a barcode", () => {
     expect(scan("111")).toEqual({ kind: "unknown_code" });
   });
 
-  it("names a product sold by weight without adding it", () => {
+  it("asks for the weight of a product sold by weight without adding it", () => {
     addProduct("111", { unit: "KG", name: "Queso" });
     addPrice("p1", "2026-09-01T00:00:00.000Z", 1500);
 
-    expect(scan("111")).toEqual({ kind: "sold_by_weight", productName: "Queso" });
+    expect(scan("111")).toEqual({
+      kind: "weight_needed",
+      productId: "p1",
+      productName: "Queso",
+    });
     expect(database.prepare("SELECT id FROM sales").all()).toEqual([]);
+  });
+});
+
+function weigh(productId: string, weightThousandths: number) {
+  return addWeighedProduct(
+    { ledger, clock: { now: () => NOW }, ids },
+    { actorId: "u1", productId, weightThousandths },
+  );
+}
+
+describe("a line sold by weight", () => {
+  beforeEach(() => {
+    readySeller();
+    addProduct("111", { unit: "KG", name: "Queso" });
+    addPrice("p1", "2026-09-01T00:00:00.000Z", 9000);
+  });
+
+  it("is stored with its weight in thousandths of a kilogram, its unit and where the weight came from", () => {
+    weigh("p1", 1250);
+
+    expect(
+      database
+        .prepare("SELECT sale_unit, weight_source, quantity, line_total FROM sale_lines")
+        .all(),
+    ).toEqual([{ sale_unit: "KG", weight_source: "MANUAL", quantity: 1250, line_total: 11250 }]);
+  });
+
+  it("is read back with its unit, its weight and its source after the register restarts", () => {
+    weigh("p1", 1250);
+
+    const outcome = currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
+
+    expect(outcome.kind === "open" && outcome.sale.lines).toEqual([
+      expect.objectContaining({
+        saleUnit: "KG",
+        weightSource: "MANUAL",
+        quantity: 1250,
+        lineTotal: 11250,
+      }),
+    ]);
+  });
+
+  it("lets a product be weighed twice in the same sale", () => {
+    weigh("p1", 1250);
+    weigh("p1", 500);
+
+    expect(
+      database.prepare("SELECT position, quantity FROM sale_lines ORDER BY position").all(),
+    ).toEqual([
+      { position: 1, quantity: 1250 },
+      { position: 2, quantity: 500 },
+    ]);
+  });
+
+  it("records the new weight and its source when the weight is typed again", () => {
+    const added = weigh("p1", 1250);
+    const lineId = added.kind === "added" ? (added.sale.lines[0]?.id as string) : "";
+
+    changeLineWeight(
+      { ledger, clock: { now: () => NOW } },
+      { actorId: "u1", lineId, weightThousandths: 2000, expectedWeightThousandths: 1250 },
+    );
+
+    expect(
+      database.prepare("SELECT quantity, weight_source, line_total FROM sale_lines").all(),
+    ).toEqual([{ quantity: 2000, weight_source: "MANUAL", line_total: 18000 }]);
+  });
+
+  it("records the typed source on a line whose weight came from the scale", () => {
+    const added = weigh("p1", 1250);
+    const lineId = added.kind === "added" ? (added.sale.lines[0]?.id as string) : "";
+    database.prepare("UPDATE sale_lines SET weight_source = 'SCALE'").run();
+
+    changeLineWeight(
+      { ledger, clock: { now: () => NOW } },
+      { actorId: "u1", lineId, weightThousandths: 1250, expectedWeightThousandths: 1250 },
+    );
+
+    expect(database.prepare("SELECT weight_source FROM sale_lines").all()).toEqual([
+      { weight_source: "MANUAL" },
+    ]);
+  });
+
+  it("keeps the line's unit and source when its promotions are read back", () => {
+    addDiscount("d1", { kind: "PRODUCT", id: "p1" }, { kind: "PERCENT_OFF", percent: 10 });
+    weigh("p1", 1000);
+
+    const outcome = currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
+
+    expect(outcome.kind === "open" && outcome.sale.lines[0]).toMatchObject({
+      saleUnit: "KG",
+      weightSource: "MANUAL",
+      promotionId: "d1",
+      lineTotal: 8100,
+    });
   });
 });
 
@@ -442,8 +543,7 @@ describe("the sale being built", () => {
     });
   });
 
-  it("keeps with each line the unit its product was sold by", () => {
-    addProduct(undefined, { id: "p-kg", name: "Queso", unit: "KG" });
+  it("keeps with each line the unit it was sold by and where its weight came from", () => {
     scan("111");
 
     ledger.transaction((tx) =>
@@ -451,6 +551,8 @@ describe("the sale being built", () => {
         id: "line-kg",
         productId: "p-kg",
         productName: "Queso",
+        saleUnit: "KG",
+        weightSource: "SCALE",
         quantity: 350,
         listUnitPrice: 1000,
         priceListId: "list-1",
@@ -462,10 +564,12 @@ describe("the sale being built", () => {
     );
 
     expect(
-      database.prepare("SELECT product_id, sale_unit FROM sale_lines ORDER BY position").all(),
+      database
+        .prepare("SELECT product_id, sale_unit, weight_source FROM sale_lines ORDER BY position")
+        .all(),
     ).toEqual([
-      { product_id: "p1", sale_unit: "UNIT" },
-      { product_id: "p-kg", sale_unit: "KG" },
+      { product_id: "p1", sale_unit: "UNIT", weight_source: null },
+      { product_id: "p-kg", sale_unit: "KG", weight_source: "SCALE" },
     ]);
   });
 
@@ -478,6 +582,8 @@ describe("the sale being built", () => {
           id: "new-line",
           productId: "p2",
           productName: "Azucar",
+          saleUnit: "UNIT",
+          weightSource: null,
           quantity: 1,
           listUnitPrice: 1000,
           priceListId: "list-1",
@@ -739,7 +845,7 @@ describe("charging an open sale in cash", () => {
     const stored = database
       .prepare("SELECT id, sale_line_id, product_id, delta FROM stock_movements")
       .all();
-    expect(event.schema_version).toBe(5);
+    expect(event.schema_version).toBe(6);
     expect(JSON.parse(event.payload).stock_movements).toEqual(
       (stored as { id: string; sale_line_id: string; product_id: string; delta: number }[]).map(
         (row) => ({ ...row }),
@@ -970,6 +1076,49 @@ describe("charging an open sale in cash", () => {
 
     expect(() => ledger.transaction((tx) => tx.recordCompletedSale(saleId, NOW, 1))).toThrow();
     expect(() => ledger.transaction((tx) => tx.recordCompletedSale("missing", NOW, 1))).toThrow();
+  });
+});
+
+describe("charging a sale with a line sold by weight", () => {
+  beforeEach(() => {
+    readySeller();
+    addProduct("111", { unit: "KG", name: "Queso" });
+    addPrice("p1", "2026-09-01T00:00:00.000Z", 9000);
+    database
+      .prepare(
+        `INSERT INTO issuer_identification_versions (
+           version, legal_name, gross_income_registration, activity_start_date, authorized_cuit, tax_status
+         ) VALUES (1, ?, ?, '2020-01-15', ?, 'Condicion de prueba')`,
+      )
+      .run(FICTIONAL_LEGAL_NAME, FICTIONAL_GROSS_INCOME_REGISTRATION, FICTIONAL_CUIT);
+    database
+      .prepare(
+        "INSERT INTO buyer_tax_status_sets (params_version, set_id, options) VALUES (1, 'set-1', ?)",
+      )
+      .run(JSON.stringify([{ code: 5, description: "Consumidor Final", invoice_class: "A/M/C" }]));
+  });
+
+  it("takes the weight out of the product's stock and reports the weight and its source", () => {
+    const added = weigh("p1", 1250);
+    const saleId = added.kind === "added" ? added.sale.id : "";
+
+    chargeSaleInCash(
+      { ledger, clock: { now: () => NOW }, ids },
+      { actorId: "u1", saleId, tendered: 12000 },
+    );
+
+    expect(database.prepare("SELECT product_id, quantity FROM stock_balances").all()).toEqual([
+      { product_id: "p1", quantity: -1250 },
+    ]);
+    const event = database.prepare("SELECT schema_version, payload FROM outbox").get() as {
+      schema_version: number;
+      payload: string;
+    };
+    expect(event.schema_version).toBe(6);
+    expect(JSON.parse(event.payload)).toMatchObject({
+      lines: [{ quantity: 1250, weight_source: "MANUAL", line_total: 11250 }],
+      stock_movements: [{ delta: -1250 }],
+    });
   });
 });
 

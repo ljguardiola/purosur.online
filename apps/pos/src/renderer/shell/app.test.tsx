@@ -108,6 +108,7 @@ function coreAnswering(
     followMercadoPagoQrCharge?: CoreClient["followMercadoPagoQrCharge"];
     searchProducts?: CoreClient["searchProducts"];
     addProduct?: CoreClient["addProduct"];
+    addWeighedProduct?: CoreClient["addWeighedProduct"];
     receiptPrintStatus?: CoreClient["receiptPrintStatus"];
     retryReceiptPrint?: CoreClient["retryReceiptPrint"];
     reprintSaleReceipt?: CoreClient["reprintSaleReceipt"];
@@ -221,6 +222,14 @@ function coreAnswering(
     },
     async changeLineQuantity() {
       return { kind: "unavailable" };
+    },
+    async changeLineWeight() {
+      return { kind: "unavailable" };
+    },
+    async addWeighedProduct(productId, weightThousandths) {
+      return sales.addWeighedProduct === undefined
+        ? { kind: "unavailable" }
+        : sales.addWeighedProduct(productId, weightThousandths);
     },
     async removeSaleLine() {
       return { kind: "unavailable" };
@@ -1148,6 +1157,8 @@ describe("App", () => {
                 id: "line-1",
                 product_id: "p1",
                 product_name: "Yerba mate 1 kg",
+                sale_unit: "UNIT" as const,
+                weight_source: null,
                 quantity: 1,
                 list_unit_price: 238_000,
                 discount_amount: 0,
@@ -1191,6 +1202,8 @@ describe("App", () => {
               id: "line-1",
               product_id: "p1",
               product_name: "Yerba mate 1 kg",
+              sale_unit: "UNIT" as const,
+              weight_source: null,
               quantity: 1,
               list_unit_price: 238_000,
               discount_amount: 0,
@@ -1235,6 +1248,8 @@ describe("App", () => {
       id: "line-1",
       product_id: "p1",
       product_name: "Yerba mate 1 kg",
+      sale_unit: "UNIT" as const,
+      weight_source: null,
       quantity: 1,
       list_unit_price: 238_000,
       discount_amount: 0,
@@ -1309,6 +1324,8 @@ describe("App", () => {
               id: "line-1",
               product_id: "p1",
               product_name: "Yerba mate 1 kg",
+              sale_unit: "UNIT" as const,
+              weight_source: null,
               quantity: 1,
               list_unit_price: 238_000,
               discount_amount: 0,
@@ -1350,6 +1367,8 @@ describe("App", () => {
       id: "line-1",
       product_id: "p1",
       product_name: "Yerba mate 1 kg",
+      sale_unit: "UNIT" as const,
+      weight_source: null,
       quantity: 1,
       list_unit_price: 238_000,
       discount_amount: 0,
@@ -1409,6 +1428,8 @@ describe("App", () => {
       id: "line-1",
       product_id: "p1",
       product_name: "Yerba mate 1 kg",
+      sale_unit: "UNIT" as const,
+      weight_source: null,
       quantity: 1,
       list_unit_price: 238_000,
       discount_amount: 0,
@@ -1510,7 +1531,7 @@ describe("App", () => {
               {
                 product_id: "p1",
                 name: "Yerba mate 1 kg",
-                sale_unit: "UNIT",
+                sale_unit: "UNIT" as const,
                 unit_price: 238_000,
                 matches: [],
               },
@@ -1535,6 +1556,37 @@ describe("App", () => {
     await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
     expect(searched).toEqual(["yer"]);
     expect(added).toEqual(["p1"]);
+  });
+
+  it("asks the core to add a product sold by weight with the weight typed in the modal", async () => {
+    const added: [string, number][] = [];
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => GRACE_SESSION },
+      {
+        scanProduct: async () => ({
+          kind: "weight_needed",
+          product_id: "p-queso",
+          product_name: "Queso cremoso",
+        }),
+        addWeighedProduct: async (productId, weight) => {
+          added.push([productId, weight]);
+          return { kind: "no_open_session" };
+        },
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await resumeLockedRegister(screen);
+    await screen.getByRole("combobox", { name: "Producto" }).fill("7790001");
+    await userEvent.keyboard("{Enter}");
+
+    await screen.getByRole("textbox", { name: "Peso en kg" }).fill("1,25");
+    await screen.getByRole("button", { name: "Agregar" }).click();
+
+    await expect.poll(() => added).toEqual([["p-queso", 1250]]);
   });
 
   it("asks the core for the cash session again each time it comes back up, and waits for the answer", async () => {
@@ -2410,6 +2462,8 @@ describe("App", () => {
                 id: "line-1",
                 product_id: "p1",
                 product_name: "Yerba mate 1 kg",
+                sale_unit: "UNIT" as const,
+                weight_source: null,
                 quantity: 1,
                 list_unit_price: 238_000,
                 discount_amount: 0,

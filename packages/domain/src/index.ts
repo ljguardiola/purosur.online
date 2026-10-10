@@ -399,6 +399,7 @@ export type {
   SalesReportTotals,
   SaleWithLines,
   SoldProduct,
+  WeightSource,
 } from "./sales/index.js";
 export {
   isSalesReportRangeAsked,
@@ -421,6 +422,7 @@ export {
   saleStandingOf,
   saleTotal,
   startedReceiptPrint,
+  WEIGHT_SOURCES,
 } from "./sales/index.js";
 export {
   BACKOFFICE_REQUEST_WINDOW_MS,

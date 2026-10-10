@@ -1,5 +1,6 @@
 import type {
   AddProductOutcome,
+  AddWeighedProductOutcome,
   Authorization,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
@@ -8,6 +9,7 @@ import type {
   CashChargeAnswer,
   CashCountPreview,
   ChangeLineQuantityOutcome,
+  ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
@@ -149,11 +151,20 @@ export interface RouterContext {
   ) => Promise<FollowMercadoPagoQrChargeOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
+  addWeighedProduct: (
+    productId: string,
+    weightThousandths: number,
+  ) => Promise<AddWeighedProductOutcome>;
   changeLineQuantity: (
     lineId: string,
     quantity: number,
     expectedQuantity: number,
   ) => Promise<ChangeLineQuantityOutcome>;
+  changeLineWeight: (
+    lineId: string,
+    weightThousandths: number,
+    expectedWeightThousandths: number,
+  ) => Promise<ChangeLineWeightOutcome>;
   removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
   cancelSale: () => Promise<CancelSaleOutcome>;
   cancelPaidSale: (
@@ -392,7 +403,9 @@ const openSessionRoute = createRoute({
       scanProduct,
       searchProducts,
       addProduct,
+      addWeighedProduct,
       changeLineQuantity,
+      changeLineWeight,
       removeSaleLine,
       cancelSale,
       cancelPaidSale,
@@ -410,7 +423,9 @@ const openSessionRoute = createRoute({
         scanProduct={scanProduct}
         searchProducts={searchProducts}
         addProduct={addProduct}
+        addWeighedProduct={addWeighedProduct}
         changeLineQuantity={changeLineQuantity}
+        changeLineWeight={changeLineWeight}
         removeSaleLine={removeSaleLine}
         cancelSale={cancelSale}
         cancelPaidSale={cancelPaidSale}
@@ -787,7 +802,9 @@ export function createAppRouter(
     | "followMercadoPagoQrCharge"
     | "searchProducts"
     | "addProduct"
+    | "addWeighedProduct"
     | "changeLineQuantity"
+    | "changeLineWeight"
     | "removeSaleLine"
     | "cancelSale"
     | "cancelPaidSale"

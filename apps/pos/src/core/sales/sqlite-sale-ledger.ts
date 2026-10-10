@@ -98,7 +98,7 @@ export class SqliteSaleLedger implements SaleLedger {
       promotionsTargeting: (productId) => this.promotionsTargeting(productId),
       recordOpenedSale: (sale) => this.recordOpenedSale(sale),
       recordSaleLine: (saleId, line) => this.recordSaleLine(saleId, line),
-      recordLineQuantity: (line) => this.recordLineQuantity(line),
+      recordChangedLine: (line) => this.recordChangedLine(line),
       deleteSaleLine: (lineId) => this.deleteSaleLine(lineId),
       salePayments: (saleId) => readSalePayments(this.database, saleId),
       discardOpenSale: (saleId) => this.discardOpenSale(saleId),
@@ -305,12 +305,12 @@ export class SqliteSaleLedger implements SaleLedger {
     this.database
       .prepare(
         `INSERT INTO sale_lines (
-           id, sale_id, position, product_id, product_name, sale_unit, quantity, list_unit_price,
-           price_list_id, promotion_id, discount_amount, line_total
+           id, sale_id, position, product_id, product_name, sale_unit, weight_source, quantity,
+           list_unit_price, price_list_id, promotion_id, discount_amount, line_total
          ) VALUES (
            @id, @sale_id,
            (SELECT coalesce(max(position), 0) + 1 FROM sale_lines WHERE sale_id = @sale_id),
-           @product_id, @product_name, (SELECT sale_unit FROM products WHERE id = @product_id),
+           @product_id, @product_name, @sale_unit, @weight_source,
            @quantity, @list_unit_price, @price_list_id,
            @promotion_id, @discount_amount, @line_total
          )`,
@@ -320,6 +320,8 @@ export class SqliteSaleLedger implements SaleLedger {
         sale_id: saleId,
         product_id: line.productId,
         product_name: line.productName,
+        sale_unit: line.saleUnit,
+        weight_source: line.weightSource,
         quantity: line.quantity,
         list_unit_price: line.listUnitPrice,
         price_list_id: line.priceListId,
@@ -340,17 +342,18 @@ export class SqliteSaleLedger implements SaleLedger {
     }
   }
 
-  private recordLineQuantity(line: SaleLine): void {
+  private recordChangedLine(line: SaleLine): void {
     this.database
       .prepare(
         `UPDATE sale_lines
-         SET quantity = @quantity, promotion_id = @promotion_id,
+         SET quantity = @quantity, weight_source = @weight_source, promotion_id = @promotion_id,
              discount_amount = @discount_amount, line_total = @line_total
          WHERE id = @id`,
       )
       .run({
         id: line.id,
         quantity: line.quantity,
+        weight_source: line.weightSource,
         promotion_id: line.promotionId,
         discount_amount: line.discountAmount,
         line_total: line.lineTotal,

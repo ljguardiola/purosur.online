@@ -7,16 +7,19 @@ import {
 } from "../shared/index.js";
 import {
   addProductOutcomeSchema,
+  addWeighedProductOutcomeSchema,
   cancelPaidSaleOutcomeSchema,
   cancelSaleOutcomeSchema,
   cashChargeSchema,
   changeLineQuantityOutcomeSchema,
+  changeLineWeightOutcomeSchema,
   chargeSaleByTransferOutcomeSchema,
   chargeSaleInCashOutcomeSchema,
   holdsQrPaymentOutcome,
   qrChargeInProgressOutcome,
   removeSaleLineOutcomeSchema,
   saleLineQuantitySchema,
+  saleLineWeightSchema,
   saleSchema,
   scanProductOutcomeSchema,
   searchProductsOutcomeSchema,
@@ -44,6 +47,14 @@ const changeLineQuantityMessageSchema = z.object({
   line_id: z.string(),
   quantity: saleLineQuantitySchema,
   expected_quantity: shownLineQuantitySchema,
+});
+
+export const changeLineWeightMessageSchema = z.object({
+  type: z.literal("change-line-weight"),
+  request_id: requestId,
+  line_id: z.string(),
+  weight_thousandths: saleLineWeightSchema,
+  expected_weight_thousandths: shownLineQuantitySchema,
 });
 
 const removeSaleLineMessageSchema = z.object({
@@ -74,6 +85,13 @@ const addProductMessageSchema = z.object({
   type: z.literal("add-product"),
   request_id: requestId,
   product_id: z.string(),
+});
+
+export const addWeighedProductMessageSchema = z.object({
+  type: z.literal("add-weighed-product"),
+  request_id: requestId,
+  product_id: z.string(),
+  weight_thousandths: saleLineWeightSchema,
 });
 
 const receiptPrintStatusMessageSchema = z.object({
@@ -146,11 +164,13 @@ const cancelLockedSaleMessageSchema = z.object({
 export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   scanProductMessageSchema,
   changeLineQuantityMessageSchema,
+  changeLineWeightMessageSchema,
   removeSaleLineMessageSchema,
   cancelSaleMessageSchema,
   cancelPaidSaleMessageSchema,
   searchProductsMessageSchema,
   addProductMessageSchema,
+  addWeighedProductMessageSchema,
   saleRequestMessageSchema,
   chargeSaleInCashMessageSchema,
   chargeSaleByTransferMessageSchema,
@@ -234,6 +254,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     outcome: changeLineQuantityOutcomeSchema,
   }),
   z.object({
+    type: z.literal("change-line-weight-result"),
+    request_id: requestId,
+    outcome: changeLineWeightOutcomeSchema,
+  }),
+  z.object({
     type: z.literal("remove-sale-line-result"),
     request_id: requestId,
     outcome: removeSaleLineOutcomeSchema,
@@ -257,6 +282,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("add-product-result"),
     request_id: requestId,
     outcome: addProductOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("add-weighed-product-result"),
+    request_id: requestId,
+    outcome: addWeighedProductOutcomeSchema,
   }),
   z.object({
     type: z.literal("charge-sale-in-cash-result"),

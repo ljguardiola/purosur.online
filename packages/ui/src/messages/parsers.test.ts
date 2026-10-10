@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { parseAmountCents, parseEsArNumber } from "./parsers";
+import { parseAmountCents, parseEsArNumber, parseWeightThousandths } from "./parsers";
 
 const MAX_POSTGRES_INTEGER = 2_147_483_647;
 
@@ -135,5 +135,32 @@ describe("parseAmountCents", () => {
         },
       ),
     );
+  });
+});
+
+describe("parseWeightThousandths", () => {
+  it("reads a typed weight in kilograms as thousandths of a kilogram", () => {
+    const accepted: [string, number][] = [
+      ["1,250", 1250],
+      ["0,5", 500],
+      ["2", 2000],
+      ["0,001", 1],
+      ["1.250,5", 1_250_500],
+      ["  0,750  ", 750],
+    ];
+    for (const [typed, thousandths] of accepted) {
+      expect(parseWeightThousandths(typed), typed).toBe(thousandths);
+    }
+  });
+
+  it("rejects more than three decimals, a dot as decimal separator and text", () => {
+    for (const typed of ["1,2345", "1.5", "abc", "", "-1", "1,"]) {
+      expect(parseWeightThousandths(typed), typed).toBeUndefined();
+    }
+  });
+
+  it("reads zero as the zero it spells, leaving the range to the caller", () => {
+    expect(parseWeightThousandths("0")).toBe(0);
+    expect(parseWeightThousandths("0,000")).toBe(0);
   });
 });

@@ -1,5 +1,6 @@
 import type {
   AddProductOutcome,
+  AddWeighedProductOutcome,
   Authorization,
   AuthorizationRefusal,
   AuthorizedBy,
@@ -8,6 +9,7 @@ import type {
   CancelSaleOutcome,
   CashChargeAnswer,
   ChangeLineQuantityOutcome,
+  ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
@@ -30,11 +32,13 @@ import {
   type AddScannedProductOutcome,
   addScannedProduct,
   addSearchedProduct,
+  addWeighedProduct,
   type CancelPaidSaleGrant,
   type Clock,
   cancelPaidSale,
   cancelSale,
   changeLineQuantity,
+  changeLineWeight,
   chargeSaleByTransfer,
   chargeSaleInCash,
   currentSale,
@@ -132,6 +136,8 @@ function toOpenSale(
       id: line.id,
       product_id: line.productId,
       product_name: line.productName,
+      sale_unit: line.saleUnit,
+      weight_source: line.weightSource,
       quantity: line.quantity,
       list_unit_price: line.listUnitPrice,
       discount_amount: line.discountAmount,
@@ -163,7 +169,7 @@ export async function scanProductFor(
   switch (outcome.kind) {
     case "added":
     case "no_price":
-    case "sold_by_weight":
+    case "weight_needed":
     case "line_quantity_limit":
       return toDetailOutcome(outcome, cancelAuthorizationRequired);
     default:
@@ -188,7 +194,7 @@ export async function addSearchedProductFor(
   switch (outcome.kind) {
     case "added":
     case "no_price":
-    case "sold_by_weight":
+    case "weight_needed":
     case "line_quantity_limit":
       return toDetailOutcome(outcome, cancelAuthorizationRequired);
     default:
@@ -228,16 +234,50 @@ export async function searchProductsFor(
 
 type SaleDetailOutcome = Extract<
   AddScannedProductOutcome,
-  { kind: "added" | "no_price" | "sold_by_weight" | "line_quantity_limit" }
+  { kind: "added" | "no_price" | "weight_needed" | "line_quantity_limit" }
 >;
 
 function toDetailOutcome(
   outcome: SaleDetailOutcome,
   cancelAuthorizationRequired: boolean,
 ): Extract<ScanProductOutcome, { kind: SaleDetailOutcome["kind"] }> {
-  return outcome.kind === "added"
-    ? { kind: "added", sale: toOpenSale(outcome, cancelAuthorizationRequired) }
-    : { kind: outcome.kind, product_name: outcome.productName };
+  switch (outcome.kind) {
+    case "added":
+      return { kind: "added", sale: toOpenSale(outcome, cancelAuthorizationRequired) };
+    case "weight_needed":
+      return {
+        kind: "weight_needed",
+        product_id: outcome.productId,
+        product_name: outcome.productName,
+      };
+    default:
+      return { kind: outcome.kind, product_name: outcome.productName };
+  }
+}
+
+export async function addWeighedProductFor(
+  { database, gate, now, ids }: SaleRequestDeps,
+  productId: string,
+  weightThousandths: number,
+): Promise<AddWeighedProductOutcome> {
+  const guarded = await asSeller({ database, gate }, (actorId) =>
+    addWeighedProduct(
+      { ledger: saleLedger(database), clock: { now }, ids },
+      { actorId, productId, weightThousandths },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const { outcome, cancelAuthorizationRequired } = guarded.result;
+  switch (outcome.kind) {
+    case "added":
+      return { kind: "added", sale: toOpenSale(outcome, cancelAuthorizationRequired) };
+    case "no_price":
+      return { kind: "no_price", product_name: outcome.productName };
+    default:
+      return { kind: outcome.kind };
+  }
 }
 
 export async function currentSaleFor({
@@ -279,6 +319,27 @@ export async function changeLineQuantityFor(
     changeLineQuantity(
       { ledger: saleLedger(database), clock: { now } },
       { actorId, lineId, quantity, expectedQuantity },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const { outcome, cancelAuthorizationRequired } = guarded.result;
+  return outcome.kind === "changed"
+    ? { kind: "changed", sale: toOpenSale(outcome, cancelAuthorizationRequired) }
+    : { kind: outcome.kind };
+}
+
+export async function changeLineWeightFor(
+  { database, gate, now }: Pick<SaleRequestDeps, "database" | "gate" | "now">,
+  lineId: string,
+  weightThousandths: number,
+  expectedWeightThousandths: number,
+): Promise<ChangeLineWeightOutcome> {
+  const guarded = await asSeller({ database, gate }, (actorId) =>
+    changeLineWeight(
+      { ledger: saleLedger(database), clock: { now } },
+      { actorId, lineId, weightThousandths, expectedWeightThousandths },
     ),
   );
   if (guarded.kind !== "performed") {

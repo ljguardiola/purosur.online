@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { type CompletedSaleLine, stockMovementsMatchLines } from "./completed-sale.js";
 
-function line(id: string, productId: string, quantity: number): CompletedSaleLine {
+function line(
+  id: string,
+  productId: string,
+  quantity: number,
+  weightSource: CompletedSaleLine["weightSource"] = null,
+): CompletedSaleLine {
   return {
+    weightSource,
     id,
     productId,
     productName: "Yerba mate 1 kg",
@@ -67,5 +73,27 @@ describe("stockMovementsMatchLines", () => {
     ],
   ])("fails when %s", (_case, movements) => {
     expect(stockMovementsMatchLines(LINES, movements)).toBe(false);
+  });
+
+  it("holds for a line sold by weight whose movement takes its weight in thousandths out of stock", () => {
+    const weighed = line("line-3", "product-cheese", 1250, "MANUAL");
+
+    expect(
+      stockMovementsMatchLines(
+        [weighed],
+        [{ id: "movement-4", saleLineId: "line-3", productId: "product-cheese", delta: -1250 }],
+      ),
+    ).toBe(true);
+  });
+
+  it("fails for a line sold by weight whose movement takes its weight as if it were units", () => {
+    const weighed = line("line-3", "product-cheese", 2, "SCALE");
+
+    expect(
+      stockMovementsMatchLines(
+        [weighed],
+        [{ id: "movement-4", saleLineId: "line-3", productId: "product-cheese", delta: -2000 }],
+      ),
+    ).toBe(false);
   });
 });

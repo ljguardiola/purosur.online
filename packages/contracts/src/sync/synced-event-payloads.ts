@@ -7,6 +7,7 @@ import {
   mayBeMovementQuantity,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   receiptReprintReason,
+  WEIGHT_SOURCES,
 } from "@purosur/domain";
 import { z } from "zod";
 
@@ -43,6 +44,10 @@ const saleLineSchema = z.object({
   discount_amount: cents,
   promotions: z.array(linePromotionSchema),
   line_total: cents,
+});
+
+const weighedSaleLineSchema = saleLineSchema.extend({
+  weight_source: z.enum(WEIGHT_SOURCES).nullable(),
 });
 
 const saleCashMovementSchema = z.object({
@@ -148,6 +153,10 @@ const saleCompletedV5Schema = saleCompletedV4Schema.extend({
   payments: z.array(paymentWithQrSchema).min(1),
 });
 
+const saleCompletedV6Schema = saleCompletedV5Schema.extend({
+  lines: z.array(weighedSaleLineSchema),
+});
+
 const salePrintStateChangedSchema = z.object({
   sale_id: text,
   print_attempted_at: instant,
@@ -195,6 +204,10 @@ const saleCancelledV1Schema = z.object({
   refunds: z.array(saleRefundSchema).min(1),
 });
 
+const saleCancelledV2Schema = saleCancelledV1Schema.extend({
+  lines: z.array(weighedSaleLineSchema),
+});
+
 const cashSessionOpenedSchema = z.object({
   opened_by: text,
   opened_at: instant,
@@ -233,9 +246,11 @@ const PAYLOAD_SCHEMAS = {
   "sale_completed@3": saleCompletedV3Schema,
   "sale_completed@4": saleCompletedV4Schema,
   "sale_completed@5": saleCompletedV5Schema,
+  "sale_completed@6": saleCompletedV6Schema,
   "sale_print_state_changed@1": salePrintStateChangedSchema,
   "reprint_recorded@1": reprintRecordedSchema,
   "sale_cancelled@1": saleCancelledV1Schema,
+  "sale_cancelled@2": saleCancelledV2Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,

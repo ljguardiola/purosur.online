@@ -1,0 +1,2 @@
+ALTER TABLE "sale_lines" ADD COLUMN "weight_source" text;--> statement-breakpoint
+ALTER TABLE "sale_lines" ADD CONSTRAINT "sale_lines_weight_source_check" CHECK ("sale_lines"."weight_source" IN ('SCALE', 'MANUAL'));

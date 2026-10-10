@@ -31,6 +31,8 @@ const OPEN_SALE: SaleWithLines = {
       id: "line-1",
       productId: "yerba",
       productName: "Yerba 1 kg",
+      saleUnit: "UNIT" as const,
+      weightSource: null,
       quantity: 2,
       listUnitPrice: 2500,
       priceListId: "list-1",

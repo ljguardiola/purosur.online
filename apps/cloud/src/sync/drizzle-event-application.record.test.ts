@@ -205,6 +205,7 @@ describe("recording the sales of applied events", () => {
         saleId: completed.id,
         productId: line.productId,
         productName: line.productName,
+        weightSource: null,
         quantity: line.quantity,
         listUnitPrice: line.listUnitPrice,
         priceListId: line.priceListId,
@@ -213,6 +214,55 @@ describe("recording the sales of applied events", () => {
         lineTotal: line.lineTotal,
       })),
     );
+  });
+
+  it("keeps the weight of a line sold by weight, in thousandths of a kilogram, and where it came from", async () => {
+    const { deviceId } = await system.enrollInstallation();
+    const sessionId = randomUUID();
+    await openSession(deviceId, sessionId);
+    const base = aCompletedSale({ sessionId });
+    const [unit] = base.lines;
+    if (!unit) {
+      throw new Error("test setup: the sale has no line");
+    }
+    const weighed = {
+      ...unit,
+      id: randomUUID(),
+      productName: "Queso cremoso",
+      weightSource: "MANUAL" as const,
+      quantity: 1250,
+      listUnitPrice: 9000,
+      lineTotal: 11250,
+    };
+    const completed = { ...base, lines: [unit, weighed], total: unit.lineTotal + 11250 };
+
+    await record({ kind: "sale_completed", sale: completed }, { deviceId });
+
+    const rows = await system.db.select().from(saleLines);
+    expect(rows.map(({ id, quantity, weightSource }) => ({ id, quantity, weightSource }))).toEqual(
+      expect.arrayContaining([
+        { id: unit.id, quantity: unit.quantity, weightSource: null },
+        { id: weighed.id, quantity: 1250, weightSource: "MANUAL" },
+      ]),
+    );
+    expect(rows).toHaveLength(2);
+  });
+
+  it("keeps the weight of a line sold by weight of a cancelled sale too", async () => {
+    const { deviceId } = await system.enrollInstallation();
+    const sessionId = randomUUID();
+    await openSession(deviceId, sessionId);
+    const base = aCancelledSale({ sessionId });
+    const [unit] = base.lines;
+    if (!unit) {
+      throw new Error("test setup: the sale has no line");
+    }
+    const weighed = { ...unit, weightSource: "SCALE" as const, quantity: 800 };
+
+    await record({ kind: "sale_cancelled", sale: { ...base, lines: [weighed] } }, { deviceId });
+
+    const [row] = await system.db.select().from(saleLines);
+    expect(row).toMatchObject({ quantity: 800, weightSource: "SCALE" });
   });
 
   it("keeps a sale that has no line", async () => {

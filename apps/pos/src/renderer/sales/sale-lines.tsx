@@ -1,6 +1,6 @@
 import type { OpenSale } from "@purosur/contracts";
-import { EmptyState, formatCents, IconButton, Tag } from "@purosur/ui";
-import { Minus, Package, Plus, ShoppingBasket, TagIcon, Trash2 } from "lucide-react";
+import { EmptyState, formatCents, formatWeight, IconButton, Tag } from "@purosur/ui";
+import { Minus, Package, Plus, Scale, ShoppingBasket, TagIcon, Trash2 } from "lucide-react";
 import { linePromotionText } from "./line-promotion-text";
 
 type SaleLine = OpenSale["lines"][number];
@@ -10,6 +10,7 @@ export type SaleLineActions = {
   editable: boolean;
   lockedReason: string | undefined;
   onChangeQuantity: (line: SaleLine, quantity: number) => void;
+  onChangeWeight: (line: SaleLine) => void;
   onRemove: (line: SaleLine) => void;
 };
 
@@ -36,7 +37,7 @@ function SaleLineRow({
     <li
       aria-current={changed ? "true" : undefined}
       className={[
-        "flex h-14 shrink-0 items-center gap-4 rounded-lg bg-surface px-4",
+        "flex min-h-14 shrink-0 items-center gap-4 rounded-lg bg-surface px-4",
         changed ? "inset-ring-2 inset-ring-action" : "",
       ].join(" ")}
     >
@@ -50,6 +51,11 @@ function SaleLineRow({
         <span className="truncate text-subheading font-semibold text-text">
           {line.product_name}
         </span>
+        {line.sale_unit === "KG" ? (
+          <span className="text-detail text-text-subtle">
+            {formatCents(line.list_unit_price)} el kg
+          </span>
+        ) : null}
         {line.promotion === null ? null : (
           <span>
             <Tag tone="success" icon={<TagIcon />}>
@@ -58,21 +64,33 @@ function SaleLineRow({
           </span>
         )}
       </span>
-      <span className="flex w-27 shrink-0 items-center justify-between">
-        <IconButton
-          aria-label={`Bajar la cantidad de ${line.product_name}`}
-          icon={<Minus />}
-          {...availability(actions, line.quantity <= 1)}
-          onPress={() => actions.onChangeQuantity(line, line.quantity - 1)}
-        />
-        <span className="text-subheading text-text">{line.quantity}</span>
-        <IconButton
-          aria-label={`Subir la cantidad de ${line.product_name}`}
-          icon={<Plus />}
-          {...availability(actions, false)}
-          onPress={() => actions.onChangeQuantity(line, line.quantity + 1)}
-        />
-      </span>
+      {line.sale_unit === "KG" ? (
+        <span className="flex w-37.5 shrink-0 items-center justify-between">
+          <span className="text-subheading text-text">{formatWeight(line.quantity)}</span>
+          <IconButton
+            aria-label={`Cambiar el peso de ${line.product_name}`}
+            icon={<Scale />}
+            {...availability(actions, false)}
+            onPress={() => actions.onChangeWeight(line)}
+          />
+        </span>
+      ) : (
+        <span className="flex w-27 shrink-0 items-center justify-between">
+          <IconButton
+            aria-label={`Bajar la cantidad de ${line.product_name}`}
+            icon={<Minus />}
+            {...availability(actions, line.quantity <= 1)}
+            onPress={() => actions.onChangeQuantity(line, line.quantity - 1)}
+          />
+          <span className="text-subheading text-text">{line.quantity}</span>
+          <IconButton
+            aria-label={`Subir la cantidad de ${line.product_name}`}
+            icon={<Plus />}
+            {...availability(actions, false)}
+            onPress={() => actions.onChangeQuantity(line, line.quantity + 1)}
+          />
+        </span>
+      )}
       <span className="flex w-37.5 shrink-0 flex-col text-right">
         {line.promotion === null ? null : (
           <s className="text-detail text-text-subtle">

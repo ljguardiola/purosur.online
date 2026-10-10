@@ -42,6 +42,8 @@ const OPEN_SALE: SaleWithLines = {
       id: "line-1",
       productId: "yerba",
       productName: "Yerba 1 kg",
+      saleUnit: "UNIT" as const,
+      weightSource: null,
       quantity: 2,
       listUnitPrice: 2500,
       priceListId: "list-1",
@@ -54,6 +56,8 @@ const OPEN_SALE: SaleWithLines = {
       id: "line-2",
       productId: "fideos",
       productName: "Fideos",
+      saleUnit: "UNIT" as const,
+      weightSource: null,
       quantity: 1,
       listUnitPrice: 900,
       priceListId: "list-1",
@@ -84,6 +88,8 @@ const DISCOUNTED_SALE: SaleWithLines = {
       id: "line-3",
       productId: "fideos",
       productName: "Fideos",
+      saleUnit: "UNIT" as const,
+      weightSource: null,
       quantity: 3,
       listUnitPrice: 1000,
       priceListId: "list-1",
@@ -338,7 +344,7 @@ describe("chargeSaleInCash", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "sale_completed",
-        schema_version: 5,
+        schema_version: 6,
         occurred_at: NOW.toISOString(),
         actor_id: "cashier",
         payload: {
@@ -355,6 +361,7 @@ describe("chargeSaleInCash", () => {
               id: "line-1",
               product_id: "yerba",
               product_name: "Yerba 1 kg",
+              weight_source: null,
               quantity: 2,
               list_unit_price: 2500,
               price_list_id: "list-1",
@@ -367,6 +374,7 @@ describe("chargeSaleInCash", () => {
               id: "line-2",
               product_id: "fideos",
               product_name: "Fideos",
+              weight_source: null,
               quantity: 1,
               list_unit_price: 900,
               price_list_id: "list-1",
@@ -417,6 +425,50 @@ describe("chargeSaleInCash", () => {
         },
       },
     ]);
+  });
+
+  describe("a sale with a line sold by weight", () => {
+    const WEIGHED_SALE: SaleWithLines = {
+      ...OPEN_SALE,
+      lines: [
+        {
+          id: "line-4",
+          productId: "queso",
+          productName: "Queso cremoso",
+          saleUnit: "KG",
+          weightSource: "MANUAL",
+          quantity: 1250,
+          listUnitPrice: 9000,
+          priceListId: "list-1",
+          promotions: [],
+          promotionId: null,
+          discountAmount: 0,
+          lineTotal: 11250,
+        },
+      ],
+    };
+
+    it("reports the line's weight and the source of the weight in the sale_completed event", () => {
+      const store = ledger({ sales: [WEIGHED_SALE] });
+
+      charge(store, 11250);
+
+      expect(store.state.outbox[0]?.payload).toMatchObject({
+        total: 11250,
+        lines: [{ id: "line-4", quantity: 1250, weight_source: "MANUAL", line_total: 11250 }],
+      });
+    });
+
+    it("takes the weight in thousandths of a kilogram out of the product's stock", () => {
+      const store = ledger({ sales: [WEIGHED_SALE], stockBalances: { queso: 5000 } });
+
+      charge(store, 11250);
+
+      expect(store.state.stockMovements).toEqual([
+        { id: "id-4", saleLineId: "line-4", productId: "queso", delta: -1250, occurredAt: NOW },
+      ]);
+      expect(store.state.stockBalances).toEqual({ queso: 3750 });
+    });
   });
 
   it("records a stock movement of the sold quantity for each line, dated when the sale is charged", () => {

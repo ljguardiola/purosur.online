@@ -334,8 +334,15 @@ function Register({ core }: { core: CoreClient }) {
     followMercadoPagoQrCharge,
     searchProducts: (query: string) => core.searchProducts(query),
     addProduct: (productId: string) => core.addProduct(productId),
+    addWeighedProduct: (productId: string, weightThousandths: number) =>
+      core.addWeighedProduct(productId, weightThousandths),
     changeLineQuantity: (lineId: string, quantity: number, expectedQuantity: number) =>
       core.changeLineQuantity(lineId, quantity, expectedQuantity),
+    changeLineWeight: (
+      lineId: string,
+      weightThousandths: number,
+      expectedWeightThousandths: number,
+    ) => core.changeLineWeight(lineId, weightThousandths, expectedWeightThousandths),
     removeSaleLine: (lineId: string) => core.removeSaleLine(lineId),
     cancelSale: () => core.cancelSale(),
     cancelPaidSale: (saleId: string, authorization: Authorization | undefined) =>

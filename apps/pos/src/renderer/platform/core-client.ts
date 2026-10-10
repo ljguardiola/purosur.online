@@ -1,5 +1,6 @@
 import type {
   AddProductOutcome,
+  AddWeighedProductOutcome,
   Authorization,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
@@ -8,6 +9,7 @@ import type {
   CashChargeAnswer,
   CashCountPreview,
   ChangeLineQuantityOutcome,
+  ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
@@ -129,12 +131,21 @@ export interface CoreClient {
   scanProduct(code: string): Promise<ScanProductOutcome>;
   searchProducts(query: string): Promise<SearchProductsOutcome>;
   addProduct(productId: string): Promise<AddProductOutcome>;
+  addWeighedProduct(
+    productId: string,
+    weightThousandths: number,
+  ): Promise<AddWeighedProductOutcome>;
   currentSale(): Promise<CurrentSaleAnswer>;
   changeLineQuantity(
     lineId: string,
     quantity: number,
     expectedQuantity: number,
   ): Promise<ChangeLineQuantityOutcome>;
+  changeLineWeight(
+    lineId: string,
+    weightThousandths: number,
+    expectedWeightThousandths: number,
+  ): Promise<ChangeLineWeightOutcome>;
   removeSaleLine(lineId: string): Promise<RemoveSaleLineOutcome>;
   cancelSale(): Promise<CancelSaleOutcome>;
   cancelPaidSale(
@@ -444,6 +455,18 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         (answer) => (answer.type === "change-line-quantity-result" ? answer.outcome : undefined),
       );
     },
+    changeLineWeight(lineId, weightThousandths, expectedWeightThousandths) {
+      return ask(
+        {
+          type: "change-line-weight",
+          request_id: deps.newRequestId(),
+          line_id: lineId,
+          weight_thousandths: weightThousandths,
+          expected_weight_thousandths: expectedWeightThousandths,
+        },
+        (answer) => (answer.type === "change-line-weight-result" ? answer.outcome : undefined),
+      );
+    },
     removeSaleLine(lineId) {
       return ask(
         { type: "remove-sale-line", request_id: deps.newRequestId(), line_id: lineId },
@@ -522,6 +545,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "add-product", request_id: deps.newRequestId(), product_id: productId },
         (answer) => (answer.type === "add-product-result" ? answer.outcome : undefined),
+      );
+    },
+    addWeighedProduct(productId, weightThousandths) {
+      return ask(
+        {
+          type: "add-weighed-product",
+          request_id: deps.newRequestId(),
+          product_id: productId,
+          weight_thousandths: weightThousandths,
+        },
+        (answer) => (answer.type === "add-weighed-product-result" ? answer.outcome : undefined),
       );
     },
     currentSale() {

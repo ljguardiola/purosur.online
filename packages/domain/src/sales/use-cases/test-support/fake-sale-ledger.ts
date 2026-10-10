@@ -68,7 +68,7 @@ export interface FakeSaleLedgerState {
 export type FakeSaleLedgerWrite =
   | "recordOpenedSale"
   | "recordSaleLine"
-  | "recordLineQuantity"
+  | "recordChangedLine"
   | "deleteSaleLine"
   | "discardOpenSale"
   | "recordPayment"
@@ -163,14 +163,15 @@ export class FakeSaleLedger implements SaleLedger {
         this.failIfAsked("recordSaleLine");
         working.sales.find((sale) => sale.id === saleId)?.lines.push(line);
       },
-      recordLineQuantity: (line) => {
-        this.failIfAsked("recordLineQuantity");
+      recordChangedLine: (line) => {
+        this.failIfAsked("recordChangedLine");
         for (const sale of working.sales) {
           sale.lines = sale.lines.map((stored) =>
             stored.id === line.id
               ? {
                   ...stored,
                   quantity: line.quantity,
+                  weightSource: line.weightSource,
                   promotionId: line.promotionId,
                   discountAmount: line.discountAmount,
                   lineTotal: line.lineTotal,

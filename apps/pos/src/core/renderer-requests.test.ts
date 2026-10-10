@@ -1,5 +1,6 @@
 import type {
   AddProductOutcome,
+  AddWeighedProductOutcome,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
@@ -7,6 +8,7 @@ import type {
   CashChargeAnswer,
   CashCountPreview,
   ChangeLineQuantityOutcome,
+  ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
@@ -59,6 +61,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const transferCharges: { saleId: string }[] = [];
   const searches: string[] = [];
   const additions: string[] = [];
+  const weighedAdditions: string[] = [];
   const kindLookups: string[] = [];
   const saleLookups: string[] = [];
   const chargeReads: { saleId: string; tendered: number }[] = [];
@@ -82,6 +85,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     transferCharges,
     searches,
     additions,
+    weighedAdditions,
     kindLookups,
     saleLookups,
     chargeReads,
@@ -148,6 +152,16 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         expectedQuantity: number,
       ): Promise<ChangeLineQuantityOutcome> => {
         saleChanges.push(["change", lineId, quantity, expectedQuantity].join(" "));
+        return { kind: "unknown_line" };
+      },
+      changeLineWeight: async (
+        lineId: string,
+        weightThousandths: number,
+        expectedWeightThousandths: number,
+      ): Promise<ChangeLineWeightOutcome> => {
+        saleChanges.push(
+          ["weight", lineId, weightThousandths, expectedWeightThousandths].join(" "),
+        );
         return { kind: "unknown_line" };
       },
       removeSaleLine: async (lineId: string): Promise<RemoveSaleLineOutcome> => {
@@ -223,6 +237,13 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       },
       addProduct: async (productId: string): Promise<AddProductOutcome> => {
         additions.push(productId);
+        return { kind: "product_unavailable" };
+      },
+      addWeighedProduct: async (
+        productId: string,
+        weightThousandths: number,
+      ): Promise<AddWeighedProductOutcome> => {
+        weighedAdditions.push([productId, weightThousandths].join(" "));
         return { kind: "product_unavailable" };
       },
       currentSale: async (): Promise<OpenSale | null> => {
@@ -1312,6 +1333,56 @@ describe("answerRendererRequest", () => {
     ).toEqual(unavailable);
   });
 
+  it("adds the product sold by weight with its typed weight and answers the outcome", async () => {
+    const outcome: AddWeighedProductOutcome = { kind: "no_price", product_name: "Queso" };
+    const { deps: withAdd, weighedAdditions } = deps(true, {
+      addWeighedProduct: async () => outcome,
+    });
+    const recording = deps(true);
+
+    expect(
+      await answerRendererRequest(withAdd, {
+        type: "add-weighed-product",
+        request_id: "r36",
+        product_id: "p2",
+        weight_thousandths: 1250,
+      }),
+    ).toEqual({ type: "add-weighed-product-result", request_id: "r36", outcome });
+    expect(weighedAdditions).toEqual([]);
+    await answerRendererRequest(recording.deps, {
+      type: "add-weighed-product",
+      request_id: "r37",
+      product_id: "p7",
+      weight_thousandths: 800,
+    });
+    expect(recording.weighedAdditions).toEqual(["p7 800"]);
+  });
+
+  it("answers that adding a product by weight is unavailable when it fails or is not possible, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      addWeighedProduct: async () => {
+        throw error;
+      },
+    });
+    const withoutDatabase = deps(true, { addWeighedProduct: undefined });
+    const unavailable = {
+      type: "add-weighed-product-result",
+      request_id: "r38",
+      outcome: { kind: "unavailable" },
+    };
+    const request = {
+      type: "add-weighed-product",
+      request_id: "r38",
+      product_id: "p2",
+      weight_thousandths: 1250,
+    } as const;
+
+    expect(await answerRendererRequest(failing.deps, request)).toEqual(unavailable);
+    expect(failing.failures).toEqual([{ context: "adding a product sold by weight", error }]);
+    expect(await answerRendererRequest(withoutDatabase.deps, request)).toEqual(unavailable);
+  });
+
   it("answers the sale in progress", async () => {
     const sale: OpenSale = {
       id: "s1",
@@ -1320,6 +1391,8 @@ describe("answerRendererRequest", () => {
           id: "l1",
           product_id: "p1",
           product_name: "Yerba",
+          sale_unit: "UNIT",
+          weight_source: null,
           quantity: 1,
           list_unit_price: 1500,
           discount_amount: 0,
@@ -2151,6 +2224,19 @@ describe("answerRendererRequest", () => {
         "changing a line's quantity",
         "change l1 2 3",
         "change-line-quantity-result",
+      ],
+      [
+        "change-line-weight",
+        {
+          type: "change-line-weight",
+          line_id: "l1",
+          weight_thousandths: 2000,
+          expected_weight_thousandths: 1500,
+        } as const,
+        "changeLineWeight",
+        "changing a line's weight",
+        "weight l1 2000 1500",
+        "change-line-weight-result",
       ],
       [
         "remove-sale-line",

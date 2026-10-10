@@ -53,7 +53,7 @@ describe("searchProductsByName", () => {
         {
           productId: "yerba",
           name: "Yerba de mate",
-          saleUnit: "UNIT",
+          saleUnit: "UNIT" as const,
           unitPrice: 2500,
           matches: [{ start: 0, length: 3 }],
         },
@@ -144,6 +144,8 @@ describe("searchProductsByName", () => {
           id: `${id}-line`,
           productId,
           productName: productId,
+          saleUnit: "UNIT" as const,
+          weightSource: null,
           quantity: 1,
           listUnitPrice: 100,
           priceListId: "list-1",
