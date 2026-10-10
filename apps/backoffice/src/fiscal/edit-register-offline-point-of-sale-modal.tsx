@@ -15,8 +15,8 @@ import {
   EMPTY_OFFLINE_POINT_OF_SALE_FORM,
   offlinePointOfSaleFormValuesFrom,
   offlinePointOfSaleRequestFrom,
-  pointOfSaleNumberMessage,
-} from "./register-point-of-sale-form";
+} from "./register-offline-point-of-sale-form";
+import { pointOfSaleNumberMessage } from "./register-point-of-sale-form";
 import type {
   ConfigureRegisterPointOfSaleOutcome,
   configureRegisterOfflinePointOfSale,

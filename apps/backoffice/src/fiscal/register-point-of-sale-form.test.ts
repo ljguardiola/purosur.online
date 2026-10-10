@@ -1,14 +1,8 @@
-import {
-  offlinePointOfSaleConfigurationBodySchema,
-  pointOfSaleConfigurationBodySchema,
-} from "@purosur/contracts";
+import { pointOfSaleConfigurationBodySchema } from "@purosur/contracts";
 import { expect, test } from "vitest";
 import {
-  EMPTY_OFFLINE_POINT_OF_SALE_FORM,
   EMPTY_REGISTER_POINT_OF_SALE_FORM,
   fiscalAddressMessage,
-  offlinePointOfSaleFormValuesFrom,
-  offlinePointOfSaleRequestFrom,
   pointOfSaleNumberMessage,
   registerPointOfSaleFormValuesFrom,
   registerPointOfSaleRequestFrom,
@@ -93,28 +87,4 @@ test("asks for the point of sale when it is empty and to review it otherwise", (
 
 test("asks to choose the fiscal address", () => {
   expect(fiscalAddressMessage()).toBe("Elegí el domicilio fiscal.");
-});
-
-test("fills the offline form with the register's offline number as typed and its offline version", () => {
-  expect(offlinePointOfSaleFormValuesFrom(configured)).toEqual({
-    pointOfSaleNumber: "13",
-    version: 5,
-  });
-});
-
-test("fills the offline form empty for a register without an offline point of sale", () => {
-  expect(
-    offlinePointOfSaleFormValuesFrom({
-      ...configured,
-      offlinePointOfSaleNumber: null,
-      offlineVersion: 0,
-    }),
-  ).toEqual(EMPTY_OFFLINE_POINT_OF_SALE_FORM);
-});
-
-test("builds the offline request with only the typed number and the version", () => {
-  const request = offlinePointOfSaleRequestFrom({ pointOfSaleNumber: " 13 ", version: 5 });
-
-  expect(request).toEqual({ point_of_sale_number: 13, version: 5 });
-  expect(offlinePointOfSaleConfigurationBodySchema.safeParse(request).success).toBe(true);
 });
