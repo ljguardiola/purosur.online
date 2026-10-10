@@ -178,7 +178,7 @@ describe("scanning products into a sale on the register", () => {
     await page.getByRole("button", { name: "Completar venta" }).click();
 
     await page.getByRole("heading", { name: "No se pudo imprimir el ticket" }).waitFor();
-    await page.getByText("La impresora no responde", { exact: true }).waitFor();
+    await page.getByText("La impresora no está configurada", { exact: true }).waitFor();
     await page.getByText("$ 240,00").waitFor();
     await page.getByRole("button", { name: "Seguir vendiendo" }).click();
 
@@ -212,7 +212,7 @@ describe("scanning products into a sale on the register", () => {
     await page.getByRole("button", { name: "Vi el ingreso" }).click();
 
     await page.getByRole("heading", { name: "No se pudo imprimir el ticket" }).waitFor();
-    await page.getByText("La impresora no responde", { exact: true }).waitFor();
+    await page.getByText("La impresora no está configurada", { exact: true }).waitFor();
     await page.getByRole("button", { name: "Seguir vendiendo" }).click();
     await page.getByText("La venta está vacía").waitFor();
   });
