@@ -60,11 +60,11 @@ describe("PERMISSION_CATALOG", () => {
     }
   });
 
-  it("marks exactly the five register-only permissions with the register marker", () => {
+  it("marks exactly the six register permissions with the register marker", () => {
     const registerOnly = PERMISSION_CATALOG.filter(
       (permission) => permission.registerMarker === "register",
     );
-    expect(registerOnly).toHaveLength(5);
+    expect(registerOnly).toHaveLength(6);
   });
 
   it("marks exactly the eleven permissions requiring another person's register PIN", () => {
@@ -76,7 +76,7 @@ describe("PERMISSION_CATALOG", () => {
 
   it("leaves every remaining permission with no register marker", () => {
     const none = PERMISSION_CATALOG.filter((permission) => permission.registerMarker === "none");
-    expect(none).toHaveLength(50 - 5 - 11);
+    expect(none).toHaveLength(50 - 6 - 11);
   });
 
   it("exports PERMISSION_AREAS in the exact drawn area order, the role editor's areas pane order", () => {
