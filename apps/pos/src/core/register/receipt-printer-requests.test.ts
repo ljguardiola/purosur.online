@@ -35,17 +35,17 @@ function deps(): ReceiptPrinterRequestDeps {
 function addPerson(id: string, permissions: string[]): void {
   database
     .prepare("INSERT INTO roles (id, name, is_administrator, version) VALUES (?, 'Rol', 0, 1)")
-    .run(`role-`);
+    .run(`role-${id}`);
   for (const key of permissions) {
     database
       .prepare("INSERT INTO role_permissions (role_id, permission_key, active) VALUES (?, ?, 1)")
-      .run(`role-`, key);
+      .run(`role-${id}`, key);
   }
   database
     .prepare(
       "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES (?, 'Ada', ?, ?, 1, 1)",
     )
-    .run(id, `role-`, encodePinHash(new Uint8Array(16).fill(1)));
+    .run(id, `role-${id}`, encodePinHash(new Uint8Array(16).fill(1)));
 }
 
 function storedAddress() {
