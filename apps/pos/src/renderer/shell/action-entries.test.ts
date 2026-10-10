@@ -38,6 +38,15 @@ describe("entriesFor", () => {
 });
 
 describe("ACTION_ENTRIES", () => {
+  it("offers the receipt printer to a person who may configure it, opening its screen", () => {
+    expect(
+      entriesFor(ACTION_ENTRIES, ["configure_receipt_printer"]).map(({ label, to }) => ({
+        label,
+        to,
+      })),
+    ).toEqual([{ label: "Impresora", to: "/receipt-printer" }]);
+  });
+
   it("offers the sales history to a person who may view it, opening its screen", () => {
     expect(
       entriesFor(ACTION_ENTRIES, ["view_sales_history"]).map(({ label, to }) => ({ label, to })),
