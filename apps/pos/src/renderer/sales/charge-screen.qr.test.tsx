@@ -245,7 +245,12 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
       await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
       await expect.element(screen.getByText("El cliente ya pagó")).toBeVisible();
       await expect
-        .poll(() => screen.getByRole("status").elements().map((status) => status.textContent))
+        .poll(() =>
+          screen
+            .getByRole("status")
+            .elements()
+            .map((status) => status.textContent),
+        )
         .toContainEqual(expect.stringContaining("El cliente ya pagó"));
       await expect.element(screen.getByText("Mercado Pago confirmó el pago del QR.")).toBeVisible();
       await expect.poll(() => receiptPrintStatus.mock.calls).toEqual([["sale-1"]]);
@@ -275,7 +280,12 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
         .toBeVisible();
       await expect.element(screen.getByText("El cliente ya pagó")).toBeVisible();
       await expect
-        .poll(() => screen.getByRole("status").elements().map((status) => status.textContent))
+        .poll(() =>
+          screen
+            .getByRole("status")
+            .elements()
+            .map((status) => status.textContent),
+        )
         .toContainEqual(expect.stringContaining("El cliente ya pagó"));
       await expect.element(screen.getByText("$ 1.760,00").first()).toBeVisible();
     });
