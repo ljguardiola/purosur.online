@@ -1,4 +1,4 @@
-import { quarantinedEventsListSchema } from "@purosur/contracts/sync/quarantined-events";
+import { quarantinedEventsListSchema } from "@purosur/contracts";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";

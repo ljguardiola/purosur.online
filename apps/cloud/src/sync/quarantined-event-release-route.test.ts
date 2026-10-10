@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { releaseQuarantinedEventErrorSchema } from "@purosur/contracts/sync/quarantined-events";
+import { releaseQuarantinedEventErrorSchema } from "@purosur/contracts";
 import { and, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";

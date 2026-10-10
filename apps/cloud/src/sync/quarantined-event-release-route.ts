@@ -1,4 +1,4 @@
-import { releaseQuarantinedEventErrorSchema } from "@purosur/contracts/sync/quarantined-events";
+import { releaseQuarantinedEventErrorSchema } from "@purosur/contracts";
 import { releaseQuarantinedEvent } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
