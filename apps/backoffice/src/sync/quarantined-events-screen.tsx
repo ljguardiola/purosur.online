@@ -59,7 +59,7 @@ function columnsFor(openRelease: (event: QuarantinedEvent) => void) {
     }),
     dataColumn({
       id: "reason",
-      header: "Último error",
+      header: "Motivo",
       render: (item: QuarantinedEvent) => quarantinedReasonText(item.reason),
     }),
     actionsColumn({
