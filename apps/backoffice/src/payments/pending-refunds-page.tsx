@@ -2,6 +2,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { PendingRefundsScreen } from "./pending-refunds-screen";
+import { defaultPendingRefundsScreenServices } from "./pending-refunds-services";
 
 const route = getRouteApi("/signed-in/cash-and-fiscal-area/pending-refunds");
 
@@ -11,7 +12,7 @@ export function PendingRefundsPage(): ReactElement {
   return (
     <PendingRefundsScreen
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.pendingRefundsScreen}
+      services={services.pendingRefundsScreen ?? defaultPendingRefundsScreenServices}
     />
   );
 }
