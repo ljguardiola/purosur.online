@@ -31,6 +31,7 @@ function saleParts(payload: CompletedSalePayload | CancelledSalePayload) {
       priceListId: line.price_list_id,
       promotionId: line.promotion_id,
       discountAmount: line.discount_amount,
+      weightSource: null,
       lineTotal: line.line_total,
     })),
     cashMovements: payload.cash_movements.map((movement) => ({

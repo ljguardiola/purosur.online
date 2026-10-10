@@ -98,7 +98,7 @@ export class SqliteSaleLedger implements SaleLedger {
       promotionsTargeting: (productId) => this.promotionsTargeting(productId),
       recordOpenedSale: (sale) => this.recordOpenedSale(sale),
       recordSaleLine: (saleId, line) => this.recordSaleLine(saleId, line),
-      recordLineQuantity: (line) => this.recordLineQuantity(line),
+      recordChangedLine: (line) => this.recordChangedLine(line),
       deleteSaleLine: (lineId) => this.deleteSaleLine(lineId),
       salePayments: (saleId) => readSalePayments(this.database, saleId),
       discardOpenSale: (saleId) => this.discardOpenSale(saleId),
@@ -340,7 +340,7 @@ export class SqliteSaleLedger implements SaleLedger {
     }
   }
 
-  private recordLineQuantity(line: SaleLine): void {
+  private recordChangedLine(line: SaleLine): void {
     this.database
       .prepare(
         `UPDATE sale_lines

@@ -12,6 +12,12 @@ export type {
 } from "./add-searched-product.js";
 export { addSearchedProduct } from "./add-searched-product.js";
 export type {
+  AddWeighedProductInput,
+  AddWeighedProductOutcome,
+  AddWeighedProductPorts,
+} from "./add-weighed-product.js";
+export { addWeighedProduct } from "./add-weighed-product.js";
+export type {
   CancelPaidSaleGrant,
   CancelPaidSaleInput,
   CancelPaidSaleOutcome,
@@ -30,6 +36,12 @@ export type {
   ChangeLineQuantityPorts,
 } from "./change-line-quantity.js";
 export { changeLineQuantity } from "./change-line-quantity.js";
+export type {
+  ChangeLineWeightInput,
+  ChangeLineWeightOutcome,
+  ChangeLineWeightPorts,
+} from "./change-line-weight.js";
+export { changeLineWeight } from "./change-line-weight.js";
 export type {
   ChargeSaleByTransferInput,
   ChargeSaleByTransferOutcome,

@@ -1,12 +1,13 @@
-import type { ChargeRefusal } from "../../fiscal/index.js";
 import type { Clock } from "../../shared/index.js";
-import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
-import type { SaleWithLines } from "../model/sale.js";
-import { mayBeSaleLineQuantity, saleTotal, withQuantity } from "../model/sale-line.js";
-import { saleChargeRefusal } from "./sale-charge-refusal.js";
+import { mayBeSaleLineQuantity, withQuantity } from "../model/sale-line.js";
 import type { SaleLedger } from "./sale-ledger.js";
-import { saleLinesLocked } from "./sale-lines-locked.js";
-import { isRefusal, sellingSession } from "./selling-session.js";
+import {
+  type ChangedLineOutcome,
+  changedLine,
+  isSaleLineChangeRefusal,
+  type SaleLineChangeRefusal,
+  saleToChange,
+} from "./sale-line-change.js";
 
 export interface ChangeLineQuantityInput {
   actorId: string;
@@ -21,41 +22,31 @@ export interface ChangeLineQuantityPorts {
 }
 
 export type ChangeLineQuantityOutcome =
-  | { kind: "not_permitted" }
-  | { kind: "no_open_session" }
-  | { kind: "no_open_sale" }
-  | { kind: "sale_has_payments" }
+  | SaleLineChangeRefusal
   | { kind: "invalid_quantity" }
   | { kind: "unknown_line" }
+  | { kind: "sold_by_weight" }
   | { kind: "stale_quantity" }
-  | ({
-      kind: "changed";
-      sale: SaleWithLines;
-      chargeRefusal: ChargeRefusal | undefined;
-    } & OpenSaleStanding);
+  | ChangedLineOutcome;
 
 export function changeLineQuantity(
   { ledger, clock }: ChangeLineQuantityPorts,
   { actorId, lineId, quantity, expectedQuantity }: ChangeLineQuantityInput,
 ): ChangeLineQuantityOutcome {
   return ledger.transaction<ChangeLineQuantityOutcome>((tx) => {
-    const session = sellingSession(tx, actorId);
-    if (isRefusal(session)) {
-      return session;
+    const sale = saleToChange(tx, actorId, clock);
+    if (isSaleLineChangeRefusal(sale)) {
+      return sale;
     }
-    const sale = tx.openSale(session.id);
-    if (!sale) {
-      return { kind: "no_open_sale" };
-    }
-    if (saleLinesLocked(tx, sale.id, clock.now())) {
-      return { kind: "sale_has_payments" };
-    }
-    if (!mayBeSaleLineQuantity(quantity)) {
+    if (!mayBeSaleLineQuantity(quantity, "UNIT")) {
       return { kind: "invalid_quantity" };
     }
     const line = sale.lines.find((candidate) => candidate.id === lineId);
     if (!line) {
       return { kind: "unknown_line" };
+    }
+    if (line.saleUnit === "KG") {
+      return { kind: "sold_by_weight" };
     }
     if (line.quantity !== expectedQuantity) {
       return { kind: "stale_quantity" };
@@ -63,19 +54,8 @@ export function changeLineQuantity(
 
     const updated = withQuantity(line, quantity);
     if (quantity !== line.quantity) {
-      tx.recordLineQuantity(updated);
+      tx.recordChangedLine(updated);
     }
-    const changed = { ...sale, lines: sale.lines.map((each) => (each === line ? updated : each)) };
-    return {
-      kind: "changed",
-      sale: changed,
-      chargeRefusal: saleChargeRefusal(tx, changed, clock.now()),
-      ...openSaleStanding(
-        saleTotal(changed.lines),
-        tx.salePayments(changed.id),
-        tx.pendingQrPaymentsOf(changed.id),
-        clock.now(),
-      ),
-    };
+    return changedLine(tx, sale, line, updated, clock.now());
   });
 }

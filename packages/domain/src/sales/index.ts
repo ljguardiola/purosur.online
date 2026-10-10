@@ -42,3 +42,5 @@ export type { ListPrice, SoldProduct } from "./model/sale-line.js";
 export { mayBeSaleLineQuantity, saleTotal } from "./model/sale-line.js";
 export type { SalesOfDay, SalesReportRange, SalesReportTotals } from "./model/sales-report.js";
 export { isSalesReportRangeAsked, SALES_REPORT_SALE_STATE } from "./model/sales-report.js";
+export type { WeightSource } from "./model/weight-source.js";
+export { WEIGHT_SOURCES } from "./model/weight-source.js";

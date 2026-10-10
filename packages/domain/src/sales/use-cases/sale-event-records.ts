@@ -25,6 +25,7 @@ export function saleLineRecord(line: SaleLine): JsonValue {
     id: line.id,
     product_id: line.productId,
     product_name: line.productName,
+    weight_source: line.weightSource,
     quantity: line.quantity,
     list_unit_price: line.listUnitPrice,
     price_list_id: line.priceListId,

@@ -86,7 +86,7 @@ export interface SaleLedgerTransaction {
   promotionsTargeting(productId: string): CandidatePromotion[];
   recordOpenedSale(sale: Sale): void;
   recordSaleLine(saleId: string, line: SaleLine): void;
-  recordLineQuantity(line: SaleLine): void;
+  recordChangedLine(line: SaleLine): void;
   deleteSaleLine(lineId: string): void;
   salePayments(saleId: string): PaymentTransaction[];
   saleCashMovements(saleId: string): SaleCashMovement[];

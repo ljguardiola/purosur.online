@@ -108,7 +108,9 @@ const saleRefusalSchemas = [
   unavailableOutcome,
 ] as const;
 
-export const saleLineQuantitySchema = z.int().refine(mayBeSaleLineQuantity);
+export const saleLineQuantitySchema = z
+  .int()
+  .refine((quantity) => mayBeSaleLineQuantity(quantity, "UNIT"));
 
 export const changeLineQuantityOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("changed"), sale: saleSchema }),
