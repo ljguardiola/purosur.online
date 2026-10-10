@@ -95,23 +95,26 @@ const quarantinedEventAlert: AlertDetail = {
 
 test("follows a quarantined event's alert to the quarantined events list", async () => {
   window.history.pushState(null, "", "/alerts");
+  const { open, resolvesByItself, deliveries, detail, ...summary } = quarantinedEventAlert;
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(sessionHolding(["alerts_area", "quarantined_events"])),
-  });
-  const { open, resolvesByItself, deliveries, detail, ...summary } = quarantinedEventAlert;
-  vi.mocked(services.alertsListScreen.fetchAlerts).mockResolvedValue({
-    kind: "ok",
-    value: {
-      alerts: [{ ...summary, salesDeniedReason: null }],
-      total: 1,
-      pageSize: 25,
-      openCount: 1,
-      openCriticalCount: 1,
+    alertsListScreen: {
+      fetchAlerts: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: {
+          alerts: [{ ...summary, salesDeniedReason: null }],
+          total: 1,
+          pageSize: 25,
+          openCount: 1,
+          openCriticalCount: 1,
+        },
+      }),
+      alertDetailModal: {
+        fetchAlert: vi.fn().mockResolvedValue({ kind: "ok", value: quarantinedEventAlert }),
+        fetchPermissionCatalog: vi.fn(),
+        closeAlert: vi.fn(),
+      },
     },
-  });
-  vi.mocked(services.alertsListScreen.alertDetailModal.fetchAlert).mockResolvedValue({
-    kind: "ok",
-    value: quarantinedEventAlert,
   });
   vi.mocked(services.quarantinedEventsScreen.fetchQuarantinedEvents).mockResolvedValue({
     kind: "ok",
