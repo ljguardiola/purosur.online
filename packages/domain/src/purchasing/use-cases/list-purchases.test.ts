@@ -22,7 +22,7 @@ const PURCHASE: PurchaseListing & { locationId: string } = {
   locationId: BRANCH,
   purchasedOn: "2026-10-01",
   supplier: { id: "s-1", name: "Distribuidora Sur" },
-  receiptType: "factura_a",
+  receiptType: "factura_b",
   receiptNumber: "0001-00000042",
   note: null,
   recordedAt: new Date("2026-10-02T12:00:00.000Z"),
