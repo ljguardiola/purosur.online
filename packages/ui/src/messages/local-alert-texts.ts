@@ -19,6 +19,13 @@ const LOCAL_ALERT_TEXTS = {
     whatToDo:
       "Avisar al Administrador de inmediato; ya fue notificado, pero conviene confirmarle la situación.",
   },
+  installation_revoked: {
+    title: "La instalación de esta caja fue revocada",
+    meaning:
+      "Esta caja ya no abre ventas nuevas: se dio de alta otra instalación para la misma caja, o la nube encontró un problema en el registro de operaciones que le envió. Lo que ya está guardado en la caja se conserva.",
+    whatToDo:
+      "Avisar al Administrador. Para volver a vender, hay que dar de alta la caja de nuevo con un código de alta emitido desde el backoffice, en Cajas registradoras.",
+  },
 } satisfies Record<string, LocalAlertText>;
 
 export type LocalAlertKind = keyof typeof LOCAL_ALERT_TEXTS;

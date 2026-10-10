@@ -32,3 +32,11 @@ export const RegisterSilent: Story = {
 export const RegisterSilentWithTitle: Story = {
   args: { kind: "register_silent", title: true },
 };
+
+export const InstallationRevoked: Story = {
+  args: { kind: "installation_revoked" },
+};
+
+export const InstallationRevokedWithTitle: Story = {
+  args: { kind: "installation_revoked", title: true },
+};
