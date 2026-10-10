@@ -1,7 +1,13 @@
 import * as Sentry from "@sentry/node";
 
+export type ErrorReportContext = Record<string, string | number>;
+
 export interface ReportErrorDeps {
-  captureException?: (error: unknown) => unknown;
+  captureException?: (error: unknown, hint?: { extra: ErrorReportContext }) => unknown;
+}
+
+export interface ReportErrorOptions extends ReportErrorDeps {
+  context?: ErrorReportContext;
 }
 
 // Called from pg's error listeners, where a throw is an uncaught exception that crashes the
@@ -12,8 +18,17 @@ function withoutThrowing(report: () => void): void {
   } catch {}
 }
 
-export function reportError(message: string, error: unknown, deps: ReportErrorDeps = {}): void {
+export function reportError(
+  message: string,
+  error: unknown,
+  { context, ...deps }: ReportErrorOptions = {},
+): void {
   const captureException = deps.captureException ?? Sentry.captureException;
-  withoutThrowing(() => console.error(message, error));
-  withoutThrowing(() => captureException(error));
+  if (context === undefined) {
+    withoutThrowing(() => console.error(message, error));
+    withoutThrowing(() => captureException(error));
+    return;
+  }
+  withoutThrowing(() => console.error(message, error, context));
+  withoutThrowing(() => captureException(error, { extra: context }));
 }
