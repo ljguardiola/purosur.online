@@ -62,14 +62,15 @@ const saleStockMovementSchema = z.object({
   delta: z.int().refine((delta) => mayBeMovementQuantity(-delta)),
 });
 
-const approvedPayment = {
+const approvedPaymentFields = {
   id: text,
   kind: z.literal("SALE"),
-  provider: z.literal("NONE"),
   amount: cents,
   state: z.literal("APPROVED"),
   occurred_at: instant,
 };
+
+const approvedPayment = { ...approvedPaymentFields, provider: z.literal("NONE") };
 
 const cashPaymentV1Schema = z.object({
   ...approvedPayment,
@@ -95,7 +96,22 @@ const transferPaymentSchema = z.object({
   confirmed_at: instant,
 });
 
+const mercadoPagoQrPaymentSchema = z.object({
+  ...approvedPaymentFields,
+  method: z.literal("QR"),
+  provider: z.literal("MERCADOPAGO_QR"),
+  tendered: z.null(),
+  authorized_by: z.null(),
+  confirmed_at: z.null(),
+});
+
 const paymentSchema = z.discriminatedUnion("method", [cashPaymentSchema, transferPaymentSchema]);
+
+const paymentWithQrSchema = z.discriminatedUnion("method", [
+  cashPaymentSchema,
+  transferPaymentSchema,
+  mercadoPagoQrPaymentSchema,
+]);
 
 const saleCompletedFields = {
   id: text,
@@ -126,6 +142,10 @@ const saleCompletedV3Schema = saleCompletedV2Schema.extend({
 
 const saleCompletedV4Schema = saleCompletedV3Schema.extend({
   operation_number: z.int().positive(),
+});
+
+const saleCompletedV5Schema = saleCompletedV4Schema.extend({
+  payments: z.array(paymentWithQrSchema).min(1),
 });
 
 const salePrintStateChangedSchema = z.object({
@@ -212,6 +232,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_completed@2": saleCompletedV2Schema,
   "sale_completed@3": saleCompletedV3Schema,
   "sale_completed@4": saleCompletedV4Schema,
+  "sale_completed@5": saleCompletedV5Schema,
   "sale_print_state_changed@1": salePrintStateChangedSchema,
   "reprint_recorded@1": reprintRecordedSchema,
   "sale_cancelled@1": saleCancelledV1Schema,

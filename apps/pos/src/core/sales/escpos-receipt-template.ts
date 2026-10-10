@@ -25,7 +25,11 @@ const ESC = 0x1b;
 const GS = 0x1d;
 const LINE_FEED = 0x0a;
 
-const PAYMENT_NAMES = { CASH: "Efectivo", TRANSFER: "Transferencia" } as const;
+const PAYMENT_NAMES = {
+  CASH: "Efectivo",
+  TRANSFER: "Transferencia",
+  QR: "QR Mercado Pago",
+} as const;
 
 class Output {
   private readonly chunks: Uint8Array[] = [];
