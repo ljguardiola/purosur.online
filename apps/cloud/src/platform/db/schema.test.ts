@@ -31,6 +31,7 @@ import {
   categories,
   discounts,
   locations,
+  lots,
   passkeyChallenges,
   priceLists,
   priceReviews,
@@ -38,6 +39,8 @@ import {
   productPackagings,
   products,
   productTags,
+  purchaseLines,
+  purchases,
   roles,
   sessions,
   suppliers,
@@ -874,5 +877,223 @@ describe("product_packagings", () => {
     ).rejects.toMatchObject({
       cause: { constraint: "product_packagings_product_id_products_id_fk" },
     });
+  });
+});
+
+describe("purchases", () => {
+  async function seedPurchase(fields: Partial<typeof purchases.$inferInsert> = {}) {
+    const actor = await insertUser("ada@example.com");
+    const [location] = await db.select({ id: locations.id }).from(locations);
+    const [supplier] = await db
+      .insert(suppliers)
+      .values({ name: "Distribuidora Sur", actorId: actor.id })
+      .returning({ id: suppliers.id });
+    const [category] = await db
+      .insert(categories)
+      .values({ name: "Almacén" })
+      .returning({ id: categories.id });
+    const [product] = await db
+      .insert(products)
+      .values({ name: "Arroz", categoryId: category?.id as string, saleUnit: "UNIT" })
+      .returning({ id: products.id });
+    const [packaging] = await db
+      .insert(productPackagings)
+      .values({
+        productId: product?.id as string,
+        name: "Caja x 12",
+        quantityPerPackage: 12_000,
+        saleUnit: "UNIT",
+        actorId: actor.id,
+      })
+      .returning({ id: productPackagings.id });
+    const [purchase] = await db
+      .insert(purchases)
+      .values({
+        supplierId: supplier?.id as string,
+        locationId: location?.id as string,
+        purchasedOn: "2026-10-01",
+        receiptType: "sin_comprobante",
+        recordedAt: new Date("2026-10-02T12:00:00.000Z"),
+        actorId: actor.id,
+        ...fields,
+      })
+      .returning({ id: purchases.id });
+    return {
+      actorId: actor.id,
+      locationId: location?.id as string,
+      supplierId: supplier?.id as string,
+      productId: product?.id as string,
+      packagingId: packaging?.id as string,
+      purchaseId: purchase?.id as string,
+    };
+  }
+
+  const LINE = { position: 1, quantity: 12_000, costPaidCents: 1_500, quantityPerPackage: 1_000 };
+
+  it("keeps a purchase with no receipt number when it has no receipt", async () => {
+    const { purchaseId } = await seedPurchase();
+
+    const [purchase] = await db.select().from(purchases).where(eq(purchases.id, purchaseId));
+
+    expect(purchase).toMatchObject({
+      receiptType: "sin_comprobante",
+      receiptNumber: null,
+      note: null,
+    });
+  });
+
+  it.each([
+    [
+      "a receipt type outside the catalog",
+      { receiptType: "boleta", receiptNumber: "0001-00000042" },
+      "purchases_receipt_type_check",
+    ],
+    [
+      "a receipt number without a receipt",
+      { receiptNumber: "0001-00000042" },
+      "purchases_receipt_number_iff_receipt_check",
+    ],
+    [
+      "a receipt without its number",
+      { receiptType: "factura_b" },
+      "purchases_receipt_number_iff_receipt_check",
+    ],
+  ])("rejects %s", async (_label, fields, constraint) => {
+    await expect(seedPurchase(fields)).rejects.toMatchObject({ cause: { constraint } });
+  });
+
+  it("accepts a receipt with its number", async () => {
+    const { purchaseId } = await seedPurchase({
+      receiptType: "factura_b",
+      receiptNumber: "0001-00000042",
+    });
+
+    expect(purchaseId).toBeDefined();
+  });
+
+  it("keeps a line loaded by packaging with its packages and the quantity they make", async () => {
+    const { purchaseId, productId, packagingId } = await seedPurchase();
+
+    const [line] = await db
+      .insert(purchaseLines)
+      .values({
+        purchaseId,
+        productId,
+        packagingId,
+        packages: 12,
+        ...LINE,
+        quantity: 144_000,
+        quantityPerPackage: 12_000,
+      })
+      .returning();
+
+    expect(line).toMatchObject({
+      packagingId,
+      packages: 12,
+      quantity: 144_000,
+      lotNumber: null,
+      expiresOn: null,
+    });
+  });
+
+  it.each([
+    [
+      "a quantity per package of zero",
+      false,
+      { quantityPerPackage: 0 },
+      "purchase_lines_quantity_per_package_check",
+    ],
+    ["a quantity of zero", false, { quantity: 0 }, "purchase_lines_quantity_check"],
+    ["a position of zero", false, { position: 0 }, "purchase_lines_position_check"],
+    ["a negative cost", false, { costPaidCents: -1 }, "purchase_lines_cost_paid_check"],
+    [
+      "packages without a packaging",
+      false,
+      { packages: 12 },
+      "purchase_lines_packaging_iff_packages_check",
+    ],
+    ["zero packages", true, { packages: 0 }, "purchase_lines_packages_quantity_check"],
+    [
+      "a quantity that is not the packages times the quantity per package",
+      true,
+      { packages: 2, quantity: 5_000, quantityPerPackage: 12_000 },
+      "purchase_lines_packages_quantity_check",
+    ],
+  ])("rejects a line with %s", async (_label, withPackaging, fields, constraint) => {
+    const { purchaseId, productId, packagingId } = await seedPurchase();
+
+    await expect(
+      db.insert(purchaseLines).values({
+        purchaseId,
+        productId,
+        packagingId: withPackaging ? packagingId : null,
+        ...LINE,
+        ...fields,
+      }),
+    ).rejects.toMatchObject({ cause: { constraint } });
+  });
+
+  it("keeps one line per position of a purchase", async () => {
+    const { purchaseId, productId } = await seedPurchase();
+    await db.insert(purchaseLines).values({ purchaseId, productId, ...LINE });
+
+    await expect(
+      db.insert(purchaseLines).values({ purchaseId, productId, ...LINE }),
+    ).rejects.toMatchObject({ cause: { constraint: "purchase_lines_purchase_id_position_key" } });
+    await expect(
+      db.insert(purchaseLines).values({ purchaseId, productId, ...LINE, position: 2 }),
+    ).resolves.toBeDefined();
+  });
+
+  it("rejects a packaging without its packages", async () => {
+    const { purchaseId, productId, packagingId } = await seedPurchase();
+
+    await expect(
+      db.insert(purchaseLines).values({ purchaseId, productId, packagingId, ...LINE }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "purchase_lines_packaging_iff_packages_check" },
+    });
+  });
+
+  it("keeps one lot per purchase line, with the line's exact cost pair", async () => {
+    const { purchaseId, productId, locationId } = await seedPurchase();
+    const [line] = await db
+      .insert(purchaseLines)
+      .values({ purchaseId, productId, ...LINE })
+      .returning({ id: purchaseLines.id });
+    const lot = {
+      productId,
+      locationId,
+      purchaseLineId: line?.id as string,
+      quantityReceived: 12_000,
+      costTotalCents: 1_500,
+      costQuantity: 1_000,
+    };
+
+    const [stored] = await db.insert(lots).values(lot).returning();
+
+    expect(stored).toMatchObject({ ...lot, lotNumber: null, expiresOn: null });
+    await expect(db.insert(lots).values(lot)).rejects.toMatchObject({
+      cause: { constraint: "lots_purchase_line_id_key" },
+    });
+  });
+
+  it("rejects a lot whose cost quantity is zero", async () => {
+    const { purchaseId, productId, locationId } = await seedPurchase();
+    const [line] = await db
+      .insert(purchaseLines)
+      .values({ purchaseId, productId, ...LINE })
+      .returning({ id: purchaseLines.id });
+
+    await expect(
+      db.insert(lots).values({
+        productId,
+        locationId,
+        purchaseLineId: line?.id as string,
+        quantityReceived: 12_000,
+        costTotalCents: 1_500,
+        costQuantity: 0,
+      }),
+    ).rejects.toMatchObject({ cause: { constraint: "lots_cost_quantity_check" } });
   });
 });

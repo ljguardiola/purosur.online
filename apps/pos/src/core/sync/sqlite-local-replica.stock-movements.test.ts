@@ -95,6 +95,15 @@ describe("the stock movements a register pulls", () => {
     expect(await replica.savedCursor()).toBe(2);
   });
 
+  it("grow the register's balance by a purchase's receipt, once however many times it arrives", async () => {
+    const page = [stockMovementChange(1, "purchase-receipt", { kind: "receipt", delta: 6000 })];
+
+    await save(...page);
+    await save(...page);
+
+    expect(balance()).toBe(16_000);
+  });
+
   it("end at the counted balance after a sale made offline and a count registered before it reached the cloud", async () => {
     sellOwnLine("own-sale-movement", -3000);
     expect(balance()).toBe(7000);

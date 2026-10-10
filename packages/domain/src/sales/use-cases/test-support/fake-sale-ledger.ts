@@ -5,7 +5,7 @@ import {
   latestBuyerTaxStatusSet,
   latestIssuerIdentification,
 } from "../../../fiscal/index.js";
-import type { PaymentTransaction } from "../../../payments/index.js";
+import type { PaymentTransaction, PendingQrSalePayment } from "../../../payments/index.js";
 import type { RoleAccess } from "../../../permissions/index.js";
 import { priceInEffectAt } from "../../../pricing/index.js";
 import { type CashMovement, nextOperationNumber } from "../../../register/index.js";
@@ -51,6 +51,7 @@ export interface FakeSaleLedgerState {
   promotionsByProduct: Record<string, CandidatePromotion[]>;
   sales: StoredSale[];
   payments: PaymentTransaction[];
+  pendingQrPayments: PendingQrSalePayment[];
   refunds: SaleRefund[];
   movements: CashMovement[];
   stockMovements: SaleStockMovement[];
@@ -71,6 +72,8 @@ export type FakeSaleLedgerWrite =
   | "deleteSaleLine"
   | "discardOpenSale"
   | "recordPayment"
+  | "recordPendingQrPayment"
+  | "approvePendingQrPayment"
   | "recordCashMovement"
   | "recordSaleStockMovement"
   | "addToStockBalance"
@@ -103,6 +106,7 @@ export class FakeSaleLedger implements SaleLedger {
       promotionsByProduct: {},
       sales: [],
       payments: [],
+      pendingQrPayments: [],
       refunds: [],
       movements: [],
       stockMovements: [],
@@ -197,6 +201,36 @@ export class FakeSaleLedger implements SaleLedger {
       recordPayment: (payment) => {
         this.failIfAsked("recordPayment");
         working.payments.push(payment);
+      },
+      recordPendingQrPayment: (payment) => {
+        this.failIfAsked("recordPendingQrPayment");
+        working.pendingQrPayments.push(payment);
+      },
+      pendingQrPayment: (paymentTransactionId) => {
+        const pending = working.pendingQrPayments.find(({ id }) => id === paymentTransactionId);
+        return pending && structuredClone(pending);
+      },
+      pendingQrPaymentsOf: (saleId) =>
+        structuredClone(working.pendingQrPayments.filter((pending) => pending.saleId === saleId)),
+      approvePendingQrPayment: (paymentTransactionId) => {
+        this.failIfAsked("approvePendingQrPayment");
+        const pending = working.pendingQrPayments.find(({ id }) => id === paymentTransactionId);
+        if (pending === undefined) {
+          return;
+        }
+        working.pendingQrPayments = working.pendingQrPayments.filter(
+          ({ id }) => id !== paymentTransactionId,
+        );
+        working.payments.push({
+          id: pending.id,
+          saleId: pending.saleId,
+          kind: "SALE",
+          method: "QR",
+          provider: "MERCADOPAGO_QR",
+          amount: pending.amount,
+          state: "APPROVED",
+          occurredAt: pending.occurredAt,
+        });
       },
       recordCashMovement: (movement) => {
         this.failIfAsked("recordCashMovement");

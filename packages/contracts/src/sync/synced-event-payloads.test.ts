@@ -133,6 +133,7 @@ describe("synced event payloads", () => {
       "sale_completed@2",
       "sale_completed@3",
       "sale_completed@4",
+      "sale_completed@5",
       "sale_print_state_changed@1",
     ]);
   });
@@ -152,7 +153,7 @@ describe("synced event payloads", () => {
 
   it.each([
     ["an unknown event type", "sale_opened", 1],
-    ["a sale_completed version nobody emitted", "sale_completed", 5],
+    ["a sale_completed version nobody emitted", "sale_completed", 6],
     ["version zero", "sale_completed", 0],
     ["a cash_session_opened version nobody emitted", "cash_session_opened", 2],
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
@@ -354,6 +355,65 @@ describe("synced event payloads", () => {
       const { operation_number: _removed, ...v3 } = sale();
 
       expect(accepts("sale_completed", 3, v3)).toBe(true);
+    });
+  });
+
+  describe("sale_completed v5", () => {
+    const sale = (): Payload => recordedPayload("sale_completed", 4);
+    const QR_PAYMENT = {
+      ...CASH_PAYMENT_V2,
+      id: "pay-3",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      tendered: null,
+    };
+    const withPayments = (payments: unknown[]) => ({ ...sale(), payments });
+
+    it("accepts a sale paid by an approved Mercado Pago QR, alone or with other payments", () => {
+      expect(accepts("sale_completed", 5, withPayments([QR_PAYMENT]))).toBe(true);
+      expect(
+        accepts(
+          "sale_completed",
+          5,
+          withPayments([CASH_PAYMENT_V2, TRANSFER_PAYMENT_V2, QR_PAYMENT]),
+        ),
+      ).toBe(true);
+    });
+
+    it("keeps accepting the sales paid in cash or by transfer", () => {
+      expect(accepts("sale_completed", 5, sale())).toBe(true);
+      expect(accepts("sale_completed", 5, withPayments([TRANSFER_PAYMENT_V2]))).toBe(true);
+    });
+
+    it.each([
+      ["a pending state", { state: "PENDING" }],
+      ["another provider", { provider: "NONE" }],
+      ["an amount tendered", { tendered: 5000 }],
+      ["an authorizer", { authorized_by: "user-2" }],
+      ["a confirmation", { confirmed_at: "2026-10-06T11:21:00.000Z" }],
+    ])("refuses a QR payment with %s", (_description, change) => {
+      expect(accepts("sale_completed", 5, withPayments([{ ...QR_PAYMENT, ...change }]))).toBe(
+        false,
+      );
+    });
+
+    it("refuses a cash payment with the Mercado Pago provider", () => {
+      const cash = { ...CASH_PAYMENT_V2, provider: "MERCADOPAGO_QR" };
+
+      expect(accepts("sale_completed", 5, withPayments([cash]))).toBe(false);
+    });
+
+    it.each([1, 2, 3, 4])("keeps refusing a QR payment in version %s", (version) => {
+      const base = { ...sale(), completed_at: "2026-10-06T11:20:00.000Z" };
+
+      expect(accepts("sale_completed", version, base)).toBe(true);
+      expect(accepts("sale_completed", version, { ...base, payments: [QR_PAYMENT] })).toBe(false);
+    });
+
+    it("refuses a QR payment in a cancelled sale", () => {
+      expect(accepts("sale_cancelled", 1, { ...CANCELLED_SALE_V1, payments: [QR_PAYMENT] })).toBe(
+        false,
+      );
     });
   });
 

@@ -739,7 +739,7 @@ describe("charging an open sale in cash", () => {
     const stored = database
       .prepare("SELECT id, sale_line_id, product_id, delta FROM stock_movements")
       .all();
-    expect(event.schema_version).toBe(4);
+    expect(event.schema_version).toBe(5);
     expect(JSON.parse(event.payload).stock_movements).toEqual(
       (stored as { id: string; sale_line_id: string; product_id: string; delta: number }[]).map(
         (row) => ({ ...row }),
@@ -1495,7 +1495,7 @@ describe("the lines of the sale being changed", () => {
     scan("111");
     scan("222");
 
-    const outcome = cancelSale({ ledger }, { actorId: "u1" });
+    const outcome = cancelSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
 
     expect(outcome).toEqual({ kind: "cancelled" });
     expect(rowsPerTable()).toEqual(before);
@@ -1506,7 +1506,7 @@ describe("the lines of the sale being changed", () => {
     chargeSaleInCash(sellerPorts(), { actorId: "u1", saleId: "id-1", tendered: 5000 });
     scan("222");
 
-    cancelSale({ ledger }, { actorId: "u1" });
+    cancelSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
 
     expect(database.prepare("SELECT id, state FROM sales").all()).toEqual([
       { id: "id-1", state: "COMPLETED" },
@@ -1610,7 +1610,7 @@ describe("the lines of the sale being changed", () => {
 
   it("lets the next scan start a new open sale once the previous one is cancelled", () => {
     scan("111");
-    cancelSale({ ledger }, { actorId: "u1" });
+    cancelSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
 
     scan("111");
 
@@ -1624,7 +1624,7 @@ describe("the lines of the sale being changed", () => {
     const before = rowsPerTable();
     scan("111");
 
-    expect(cancelSale({ ledger: keyless }, { actorId: "u1" })).toEqual({
+    expect(cancelSale({ ledger: keyless, clock: { now: () => NOW } }, { actorId: "u1" })).toEqual({
       kind: "cancelled",
     });
     expect(rowsPerTable()).toEqual(before);

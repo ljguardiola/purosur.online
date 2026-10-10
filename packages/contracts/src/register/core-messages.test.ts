@@ -591,12 +591,15 @@ describe("the open sale of the cash session", () => {
     total: 3_434_000,
     paid: 0,
     cancellable: true,
+    cancel_refusal: null,
     refunds_on_cancel: [],
   };
 
   it.each([
     openSale,
     { ...openSale, total: 0, cancellable: false },
+    { ...openSale, cancellable: false, cancel_refusal: "qr_charge_in_progress" },
+    { ...openSale, paid: 3200, cancellable: false, cancel_refusal: "holds_qr_payment" },
     { ...openSale, paid: 3200, refunds_on_cancel: [cashRefund, transferRefund] },
     null,
   ])("accepts the open sale answered: %j", (sale) => {
@@ -610,6 +613,7 @@ describe("the open sale of the cash session", () => {
     ["its total", { ...openSale, total: undefined }],
     ["what was paid", { ...openSale, paid: undefined }],
     ["whether it is cancellable", { ...openSale, cancellable: undefined }],
+    ["why cancelling it is refused", { ...openSale, cancel_refusal: undefined }],
     ["its refunds on cancel", { ...openSale, refunds_on_cancel: undefined }],
   ])("rejects an open sale without %s", (_field, sale) => {
     const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
@@ -619,6 +623,8 @@ describe("the open sale of the cash session", () => {
 
   it.each([
     { ...openSale, cancellable: "yes" },
+    { ...openSale, cancel_refusal: "closed" },
+    { ...openSale, cancel_refusal: true },
     { ...openSale, paid: -1 },
     { ...openSale, refunds_on_cancel: [{ ...cashRefund, method: "CARD" }] },
     { ...openSale, refunds_on_cancel: [{ ...cashRefund, state: "DONE" }] },

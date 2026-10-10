@@ -130,6 +130,17 @@ export {
   registerPointOfSaleSchema,
 } from "./fiscal/register-point-of-sale.js";
 export type {
+  FollowMercadoPagoQrChargeOutcome,
+  PaymentsCoreToRendererMessage,
+  PaymentsRendererToCoreMessage,
+  StartMercadoPagoQrChargeOutcome,
+} from "./payments/core-messages.js";
+export {
+  paymentsCoreToRendererMessageSchema,
+  paymentsRendererToCoreMessageSchema,
+  startMercadoPagoQrChargeMessageSchema,
+} from "./payments/core-messages.js";
+export type {
   MercadoPagoQrOrderRequestBody,
   MercadoPagoQrPaymentBody,
 } from "./payments/mercado-pago-qr-order.js";
@@ -180,6 +191,12 @@ export type { PackagingEditBody } from "./purchasing/packaging-edit.js";
 export { packagingEditBodySchema } from "./purchasing/packaging-edit.js";
 export type { PackagingList, PackagingSummary } from "./purchasing/packaging-summary.js";
 export { packagingListSchema, packagingSummarySchema } from "./purchasing/packaging-summary.js";
+export type { PurchaseChoices } from "./purchasing/purchase-choices.js";
+export { purchaseChoicesSchema } from "./purchasing/purchase-choices.js";
+export type { PurchaseRegistrationBody } from "./purchasing/purchase-registration.js";
+export { purchaseRegistrationBodySchema } from "./purchasing/purchase-registration.js";
+export type { PurchaseSummary } from "./purchasing/purchase-summary.js";
+export { purchaseListSchema, purchaseSummarySchema } from "./purchasing/purchase-summary.js";
 export type { SupplierCreationBody } from "./purchasing/supplier-creation.js";
 export { supplierCreationBodySchema } from "./purchasing/supplier-creation.js";
 export type { SupplierEditBody } from "./purchasing/supplier-edit.js";

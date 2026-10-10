@@ -72,6 +72,14 @@ describe("GET /suppliers", () => {
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
+  it("returns 403 to a user who can only record purchases, who reads what a purchase may use elsewhere", async () => {
+    const { headers } = await signedInWith(db, ["record_purchases"], NOW);
+
+    const response = await app.inject({ method: "GET", url: "/suppliers", headers });
+
+    expect(response.statusCode).toBe(403);
+  });
+
   it("lists every supplier by name, deactivated ones included", async () => {
     const { headers, userId } = await manager();
     await storedSupplier(userId, { name: "Zeta", active: false });
@@ -105,7 +113,7 @@ describe("GET /suppliers", () => {
 
 describe("POST /suppliers", () => {
   it("returns 403 to a user without the suppliers permission, creating nothing", async () => {
-    const { headers } = await signedInWith(db, ["sell_and_charge"], NOW);
+    const { headers } = await signedInWith(db, ["record_purchases"], NOW);
 
     const response = await app.inject({
       method: "POST",

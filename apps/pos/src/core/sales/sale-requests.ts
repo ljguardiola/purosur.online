@@ -89,8 +89,8 @@ interface OpenSaleAnswer {
   sale: SaleWithLines;
   chargeRefusal: ChargeRefusal | undefined;
   balance: { paid: number; pending: number };
-  linesEditable: boolean;
-  cancellable: boolean;
+  linesLock: OpenSale["lines_lock"];
+  cancelRefusal: OpenSale["cancel_refusal"];
   refundsOnCancel: readonly PlannedRefund[];
 }
 
@@ -123,7 +123,7 @@ function asSeller<Outcome>(
 }
 
 function toOpenSale(
-  { sale, chargeRefusal, balance, linesEditable, cancellable, refundsOnCancel }: OpenSaleAnswer,
+  { sale, chargeRefusal, balance, linesLock, cancelRefusal, refundsOnCancel }: OpenSaleAnswer,
   cancelAuthorizationRequired: boolean,
 ): OpenSale {
   return {
@@ -141,8 +141,8 @@ function toOpenSale(
     total: saleTotal(sale.lines),
     paid: balance.paid,
     pending: balance.pending,
-    lines_editable: linesEditable,
-    cancellable,
+    lines_lock: linesLock,
+    cancel_refusal: cancelRefusal,
     refunds_on_cancel: refundsOnCancel.map(toWireRefund),
     cancel_authorization_required: cancelAuthorizationRequired,
     charge_refusal: chargeRefusal ?? null,
@@ -309,9 +309,10 @@ export async function removeSaleLineFor(
 export async function cancelSaleFor({
   database,
   gate,
-}: Pick<SaleRequestDeps, "database" | "gate">): Promise<CancelSaleOutcome> {
+  now,
+}: Pick<SaleRequestDeps, "database" | "gate" | "now">): Promise<CancelSaleOutcome> {
   const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
-    cancelSale({ ledger: saleLedger(database) }, { actorId: signedInUserId }),
+    cancelSale({ ledger: saleLedger(database), clock: { now } }, { actorId: signedInUserId }),
   );
   if (guarded.kind !== "performed") {
     return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };

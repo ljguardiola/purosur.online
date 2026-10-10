@@ -5,6 +5,7 @@ import {
   hasProductSaleUnitChanged,
   isPackagingNameTooLong,
   isQuantityPerPackage,
+  mayBuyByPackaging,
   mayDefinePackagingsFor,
   PACKAGING_NAME_MAX_LENGTH,
 } from "./packaging.js";
@@ -69,6 +70,20 @@ describe("mayDefinePackagingsFor", () => {
   it("lets packagings be defined for an active product only", () => {
     expect(mayDefinePackagingsFor({ active: true })).toBe(true);
     expect(mayDefinePackagingsFor({ active: false })).toBe(false);
+  });
+});
+
+describe("mayBuyByPackaging", () => {
+  it("lets a line be loaded by an active packaging stated in its product's sale unit", () => {
+    expect(mayBuyByPackaging({ active: true, saleUnit: "KG" }, "KG")).toBe(true);
+  });
+
+  it("refuses a deactivated packaging", () => {
+    expect(mayBuyByPackaging({ active: false, saleUnit: "KG" }, "KG")).toBe(false);
+  });
+
+  it("refuses a packaging stated in a sale unit its product no longer has", () => {
+    expect(mayBuyByPackaging({ active: true, saleUnit: "UNIT" }, "KG")).toBe(false);
   });
 });
 

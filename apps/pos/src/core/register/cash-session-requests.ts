@@ -31,7 +31,7 @@ import {
   type OperationAuthorization,
   openCashSession,
 } from "@purosur/domain/register/use-cases";
-import { readSalePayments } from "../payments/sqlite-sale-payments";
+import { readPendingQrPaymentsOf, readSalePayments } from "../payments/sqlite-sale-payments";
 import { toWireRefund } from "../payments/wire-refund";
 import { inArgentinaTime } from "../platform/argentina-time";
 import type { LocalDatabase } from "../platform/local-database";
@@ -254,19 +254,25 @@ export function cashCountPreviewFor(
   };
 }
 
-export function sessionOpenSaleFor(database: LocalDatabase): SessionOpenSale | null {
+export function sessionOpenSaleFor(database: LocalDatabase, now: Date): SessionOpenSale | null {
   const session = readOpenSession(database);
   const sale = session && readOpenSale(database, session.id);
   if (!sale) {
     return null;
   }
   const total = saleTotal(sale.lines);
-  const standing = openSaleStanding(total, readSalePayments(database, sale.id));
+  const standing = openSaleStanding(
+    total,
+    readSalePayments(database, sale.id),
+    readPendingQrPaymentsOf(database, sale.id),
+    now,
+  );
   return {
     id: sale.id,
     total,
     paid: standing.balance.paid,
     cancellable: standing.cancellable,
+    cancel_refusal: standing.cancelRefusal,
     refunds_on_cancel: standing.refundsOnCancel.map(toWireRefund),
   };
 }

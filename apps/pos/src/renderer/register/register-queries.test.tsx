@@ -27,6 +27,7 @@ import {
   useCashMovementsQuery,
   useCashSessionQuery,
   useLockedClosersQuery,
+  useReadSessionOpenSale,
   useReceiptPrinterQuery,
   useRegisterNameQuery,
   useRegisterStatusQuery,
@@ -493,11 +494,23 @@ type OpenSaleRead = () => Promise<SessionOpenSale | null | "unavailable">;
 function OpenSaleProbe({ read, answer }: { read: OpenSaleRead; answer: SessionOpenSale | null }) {
   const sale = useSessionOpenSaleQuery("s1", read);
   const setOpenSale = useSetSessionOpenSale("s1");
+  const readOpenSale = useReadSessionOpenSale("s1", read);
   return (
     <>
       <p>{["sale", describeData(sale, (value) => JSON.stringify(value))].join(" ")}</p>
       <button type="button" onClick={() => void setOpenSale(answer)}>
         answer
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          void readOpenSale().then((read) => {
+            document.title =
+              read === null || read === "unavailable" ? String(read) : `read ${read.id}`;
+          })
+        }
+      >
+        read
       </button>
     </>
   );
@@ -510,6 +523,7 @@ describe("open sale query", () => {
       total: 3_434_000,
       paid: 0,
       cancellable: true,
+      cancel_refusal: null,
       refunds_on_cancel: [],
     }));
     const screen = await render(
@@ -520,7 +534,7 @@ describe("open sale query", () => {
     await expect
       .element(
         screen.getByText(
-          'sale {"id":"sale-1","total":3434000,"paid":0,"cancellable":true,"refunds_on_cancel":[]}',
+          'sale {"id":"sale-1","total":3434000,"paid":0,"cancellable":true,"cancel_refusal":null,"refunds_on_cancel":[]}',
         ),
       )
       .toBeVisible();
@@ -529,6 +543,47 @@ describe("open sale query", () => {
 
     await expect.element(screen.getByText("sale null")).toBeVisible();
     expect(read).toHaveBeenCalledOnce();
+  });
+
+  it("asks the core for the open sale when it is read, answering and holding what the core says now", async () => {
+    const read = vi
+      .fn<OpenSaleRead>()
+      .mockResolvedValueOnce({
+        id: "sale-1",
+        total: 3_434_000,
+        paid: 0,
+        cancellable: false,
+        cancel_refusal: "qr_charge_in_progress",
+        refunds_on_cancel: [],
+      })
+      .mockResolvedValue(null);
+    document.title = "";
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <OpenSaleProbe read={read} answer={null} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText(/qr_charge_in_progress/)).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "read" }));
+
+    await expect.poll(() => document.title).toBe("null");
+    await expect.element(screen.getByText("sale null")).toBeVisible();
+  });
+
+  it("answers unavailable when the core cannot answer a read of the open sale", async () => {
+    const read = vi.fn<OpenSaleRead>().mockResolvedValueOnce(null).mockResolvedValue("unavailable");
+    document.title = "";
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <OpenSaleProbe read={read} answer={null} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText("sale null")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "read" }));
+
+    await expect.poll(() => document.title).toBe("unavailable");
   });
 
   it("fails when the core cannot answer", async () => {

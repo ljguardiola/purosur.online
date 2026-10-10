@@ -505,6 +505,13 @@
       "when": 1791606028700,
       "tag": "0071_caea_codes",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1791619540473,
+      "tag": "0072_purchases_and_lots",
+      "breakpoints": true
     }
   ]
 }

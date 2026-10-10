@@ -22,6 +22,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["enroll_register_devices", ["registers_area"]],
   ["manage_suppliers", ["suppliers", "stock_area"]],
   ["manage_purchase_presentations", ["purchase_packagings", "stock_area"]],
+  ["record_purchases", ["purchases", "stock_area"]],
   ["view_stock_balances", ["stock_balances", "stock_area"]],
   ["perform_stock_counts", ["stock_counts", "stock_area"]],
   ["record_stock_losses", ["stock_losses", "stock_movements", "stock_area"]],

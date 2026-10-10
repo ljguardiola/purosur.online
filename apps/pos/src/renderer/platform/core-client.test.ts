@@ -477,6 +477,58 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to start a Mercado Pago QR charge of an amount of a sale and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.startMercadoPagoQrCharge("sale-1", 300_000);
+    const shown = {
+      kind: "order_shown",
+      payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
+      amount: 300_000,
+      remaining_seconds: 180,
+      wait_seconds: 180,
+    } as const;
+    port.answer({
+      type: "start-mercado-pago-qr-charge-result",
+      request_id: "request-1",
+      outcome: shown,
+    });
+
+    expect(await outcome).toEqual(shown);
+    expect(port.posted).toEqual([
+      {
+        type: "start-mercado-pago-qr-charge",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        amount: 300_000,
+      },
+    ]);
+  });
+
+  it("asks the core how a Mercado Pago QR charge is going and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.followMercadoPagoQrCharge("019a0000-0000-7000-8000-0000000000a1");
+    port.answer({
+      type: "follow-mercado-pago-qr-charge-result",
+      request_id: "request-1",
+      outcome: { kind: "waiting", remaining_seconds: 161 },
+    });
+
+    expect(await outcome).toEqual({ kind: "waiting", remaining_seconds: 161 });
+    expect(port.posted).toEqual([
+      {
+        type: "follow-mercado-pago-qr-charge",
+        request_id: "request-1",
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
+      },
+    ]);
+  });
+
   it("asks the core to record a cash movement without an authorization", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -723,8 +775,8 @@ describe("createCoreClient", () => {
       total: 4_760,
       paid: 0,
       pending: 4_760,
-      lines_editable: true,
-      cancellable: true,
+      lines_lock: null,
+      cancel_refusal: null,
       charge_refusal: null,
       refunds_on_cancel: [],
       cancel_authorization_required: false,
@@ -746,8 +798,8 @@ describe("createCoreClient", () => {
       total: 1_000_000_000,
       paid: 0,
       pending: 1_000_000_000,
-      lines_editable: true,
-      cancellable: true,
+      lines_lock: null,
+      cancel_refusal: null,
       charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 1_000_000_000 },
       refunds_on_cancel: [],
       cancel_authorization_required: false,
@@ -1013,6 +1065,7 @@ describe("createCoreClient", () => {
       total: 3_434_000,
       paid: 0,
       cancellable: true,
+      cancel_refusal: null,
       refunds_on_cancel: [],
     },
   ])("asks the core for the open sale of the session and resolves with it: %j", async (sale) => {

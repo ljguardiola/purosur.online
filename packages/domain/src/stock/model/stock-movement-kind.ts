@@ -13,7 +13,12 @@ export const MANUAL_STOCK_MOVEMENT_KINDS = ["loss", "adjustment"] as const;
 
 export type ManualStockMovementKind = (typeof MANUAL_STOCK_MOVEMENT_KINDS)[number];
 
-export const STOCK_MOVEMENT_KINDS = [...MANUAL_STOCK_MOVEMENT_KINDS, "count", "sale"] as const;
+export const STOCK_MOVEMENT_KINDS = [
+  ...MANUAL_STOCK_MOVEMENT_KINDS,
+  "count",
+  "sale",
+  "receipt",
+] as const;
 
 export type StockMovementKind = (typeof STOCK_MOVEMENT_KINDS)[number];
 

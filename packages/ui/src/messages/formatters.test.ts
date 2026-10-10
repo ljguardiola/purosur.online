@@ -4,6 +4,7 @@ import {
   formatAmountInput,
   formatCents,
   formatClockTime,
+  formatCountdown,
   formatDate,
   formatInvoiceNumber,
   formatMonthAndYear,
@@ -188,5 +189,31 @@ describe("formatClockTime", () => {
 
   it("keeps the clock of an instant written ahead of UTC", () => {
     expect(formatClockTime("2026-10-01T09:15:00.000+05:30")).toBe("09:15");
+  });
+});
+
+describe("formatCountdown", () => {
+  it("writes minutes and two-digit seconds", () => {
+    expect(formatCountdown(161)).toBe("2:41");
+  });
+
+  it("writes whole minutes with zero seconds", () => {
+    expect(formatCountdown(180)).toBe("3:00");
+  });
+
+  it("pads single-digit seconds", () => {
+    expect(formatCountdown(9)).toBe("0:09");
+  });
+
+  it("writes zero", () => {
+    expect(formatCountdown(0)).toBe("0:00");
+  });
+
+  it("keeps counting minutes past an hour", () => {
+    expect(formatCountdown(3725)).toBe("62:05");
+  });
+
+  it("drops a fraction of a second", () => {
+    expect(formatCountdown(59.9)).toBe("0:59");
   });
 });

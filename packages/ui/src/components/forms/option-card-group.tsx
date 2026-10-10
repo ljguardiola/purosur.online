@@ -9,7 +9,7 @@ import { type FieldErrorProps, fieldError } from "./field-error";
 import { fieldErrorClassName } from "./field-styles";
 import { isOptionValue, type NarrowedOption, type OptionalOptionChoiceProps } from "./option";
 
-type OptionCard<V extends string> = NarrowedOption<V, "description" | "icon">;
+type OptionCard<V extends string> = NarrowedOption<V, "description" | "icon", "disabled">;
 
 // A row gives each card an icon and help text; a grid holds more, shorter choices, three to a row,
 // each named by its title alone.
@@ -26,7 +26,8 @@ export type OptionCardGroupProps<V extends string> = FieldErrorProps &
 // Icon color reacts to the card's own data-selected state via the `group` class the card sets on itself.
 const iconWrapperClassName = `${iconSlotClassName.lg} text-text-subtle group-data-selected:text-text-accent`;
 
-const labelClassName = "text-body font-bold text-text group-data-selected:text-text-accent";
+const labelClassName =
+  "text-body font-bold text-text group-data-selected:text-text-accent group-data-disabled:text-text-subtle";
 
 const descriptionClassName = "text-caption text-text-subtle";
 
@@ -39,7 +40,11 @@ const cardClassName =
   "data-hovered:bg-surface-subtle " +
   "data-selected:bg-action-subtle data-selected:inset-ring-2 data-selected:inset-ring-action " +
   "data-hovered:data-selected:bg-action-subtle " +
-  "data-focus-visible:focus-ring";
+  "data-focus-visible:focus-ring " +
+  "data-disabled:cursor-default data-disabled:bg-surface-subtle data-disabled:data-hovered:bg-surface-subtle";
+
+const badgeClassName =
+  "flex shrink-0 rounded-full group-data-disabled:bg-border group-data-disabled:p-2";
 
 function TitleOnlyCardItem<V extends string>({ value, label }: NarrowedOption<V>) {
   return (
@@ -49,7 +54,13 @@ function TitleOnlyCardItem<V extends string>({ value, label }: NarrowedOption<V>
   );
 }
 
-function OptionCardItem<V extends string>({ value, icon, label, description }: OptionCard<V>) {
+function OptionCardItem<V extends string>({
+  value,
+  icon,
+  label,
+  description,
+  disabled = false,
+}: OptionCard<V>) {
   const descriptionId = useId();
 
   return (
@@ -57,10 +68,13 @@ function OptionCardItem<V extends string>({ value, icon, label, description }: O
       value={value}
       aria-label={label}
       aria-describedby={descriptionId}
+      isDisabled={disabled}
       className={cardClassName}
     >
-      <span aria-hidden="true" className={iconWrapperClassName}>
-        {icon}
+      <span className={badgeClassName}>
+        <span aria-hidden="true" className={iconWrapperClassName}>
+          {icon}
+        </span>
       </span>
       <span className="flex min-w-0 flex-col">
         <span className={labelClassName}>{label}</span>

@@ -9,7 +9,11 @@ import { z } from "zod";
 import {
   authorizationRefusalSchema,
   authorizedBySchema,
+  noThresholdRefusalSchema,
+  partiallyPaidOutcomeSchema,
   plannedRefundSchema,
+  reachesThresholdRefusalSchema,
+  saleCancelRefusalSchema,
 } from "../shared/index.js";
 
 const cents = z.int().nonnegative();
@@ -37,24 +41,18 @@ const saleLineSchema = z.object({
   line_total: cents,
 });
 
-const reachesThresholdRefusal = z.object({
-  kind: z.literal("reaches_buyer_identification_threshold"),
-  threshold: z.int().positive(),
-});
-const noThresholdRefusal = z.object({ kind: z.literal("no_buyer_identification_threshold") });
-
 export const saleSchema = z.object({
   id: z.string(),
   lines: z.array(saleLineSchema),
   total: cents,
   paid: cents,
   pending: cents,
-  lines_editable: z.boolean(),
-  cancellable: z.boolean(),
+  lines_lock: z.enum(["approved_payment", "qr_charge_in_progress"]).nullable(),
+  cancel_refusal: saleCancelRefusalSchema.nullable(),
   refunds_on_cancel: z.array(plannedRefundSchema),
   cancel_authorization_required: z.boolean(),
   charge_refusal: z
-    .discriminatedUnion("kind", [reachesThresholdRefusal, noThresholdRefusal])
+    .discriminatedUnion("kind", [reachesThresholdRefusalSchema, noThresholdRefusalSchema])
     .nullable(),
 });
 export type OpenSale = z.infer<typeof saleSchema>;
@@ -84,13 +82,8 @@ const noOpenSessionOutcome = z.object({ kind: z.literal("no_open_session") });
 const installationRevokedOutcome = z.object({ kind: z.literal("installation_revoked") });
 const unavailableOutcome = z.object({ kind: z.literal("unavailable") });
 const saleHasPaymentsOutcome = z.object({ kind: z.literal("sale_has_payments") });
-const partiallyPaidOutcome = z.object({
-  kind: z.literal("partially_paid"),
-  sale_id: z.string(),
-  total: cents,
-  paid: cents,
-  pending: cents,
-});
+export const qrChargeInProgressOutcome = z.object({ kind: z.literal("qr_charge_in_progress") });
+export const holdsQrPaymentOutcome = z.object({ kind: z.literal("holds_qr_payment") });
 
 export const scanProductOutcomeSchema = z.discriminatedUnion("kind", [
   addedOutcome,
@@ -138,6 +131,7 @@ export type RemoveSaleLineOutcome = z.infer<typeof removeSaleLineOutcomeSchema>;
 export const cancelSaleOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("cancelled") }),
   z.object({ kind: z.literal("has_approved_payment") }),
+  qrChargeInProgressOutcome,
   ...saleRefusalSchemas,
 ]);
 export type CancelSaleOutcome = z.infer<typeof cancelSaleOutcomeSchema>;
@@ -150,6 +144,8 @@ export const cancelPaidSaleOutcomeSchema = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("no_open_sale") }),
   z.object({ kind: z.literal("no_open_session") }),
+  qrChargeInProgressOutcome,
+  holdsQrPaymentOutcome,
   notPermittedOutcome,
   notSignedInOutcome,
   ...authorizationRefusalSchema.options,
@@ -201,12 +197,12 @@ export const chargeSaleInCashOutcomeSchema = z.discriminatedUnion("kind", [
     tendered: cents,
     change: cents,
   }),
-  partiallyPaidOutcome,
+  partiallyPaidOutcomeSchema,
   z.object({ kind: z.literal("invalid_amount") }),
   z.object({ kind: z.literal("empty_sale") }),
   z.object({ kind: z.literal("zero_total") }),
-  reachesThresholdRefusal,
-  noThresholdRefusal,
+  reachesThresholdRefusalSchema,
+  noThresholdRefusalSchema,
   z.object({ kind: z.literal("no_open_sale") }),
   z.object({ kind: z.literal("not_permitted") }),
   z.object({ kind: z.literal("not_signed_in") }),
@@ -217,13 +213,13 @@ export type ChargeSaleInCashOutcome = z.infer<typeof chargeSaleInCashOutcomeSche
 
 export const chargeSaleByTransferOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("completed"), sale_id: z.string(), total: cents }),
-  partiallyPaidOutcome,
+  partiallyPaidOutcomeSchema,
   z.object({ kind: z.literal("invalid_amount") }),
   z.object({ kind: z.literal("exceeds_pending"), pending: cents }),
   z.object({ kind: z.literal("empty_sale") }),
   z.object({ kind: z.literal("zero_total") }),
-  reachesThresholdRefusal,
-  noThresholdRefusal,
+  reachesThresholdRefusalSchema,
+  noThresholdRefusalSchema,
   z.object({ kind: z.literal("no_open_sale") }),
   z.object({ kind: z.literal("not_permitted") }),
   z.object({ kind: z.literal("not_signed_in") }),

@@ -177,6 +177,7 @@ describe("DrizzleStockStore", () => {
         kind: "loss",
         reason: "spoiled",
         saleLineId: null,
+        purchaseLineId: null,
         delta: -1200,
         occurredAt: NOW,
         recordedAt: expect.any(Date),

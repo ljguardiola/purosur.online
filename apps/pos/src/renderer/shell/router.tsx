@@ -16,6 +16,7 @@ import type {
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
+  FollowMercadoPagoQrChargeOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
   OpenCashSessionOutcome,
@@ -38,6 +39,7 @@ import type {
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
+  StartMercadoPagoQrChargeOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import type { QueryClient } from "@tanstack/react-query";
@@ -66,7 +68,11 @@ import { LockedRegisterScreen } from "../register/locked-register-screen";
 import { NoSessionScreen } from "../register/no-session-screen";
 import { OutOfServiceScreen } from "../register/out-of-service-screen";
 import { ReceiptPrinterScreen } from "../register/receipt-printer-screen";
-import { registerNameQueryOptions, useRegisterNameQuery } from "../register/register-queries";
+import {
+  registerNameQueryOptions,
+  useRegisterNameQuery,
+  useRegisterStatusQuery,
+} from "../register/register-queries";
 import { ChargeScreen } from "../sales/charge-screen";
 import { SaleScreen } from "../sales/sale-screen";
 import { SalesHistoryScreen } from "../sales/sales-history-screen";
@@ -134,6 +140,13 @@ export interface RouterContext {
   cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
+  startMercadoPagoQrCharge: (
+    saleId: string,
+    amount: number,
+  ) => Promise<StartMercadoPagoQrChargeOutcome>;
+  followMercadoPagoQrCharge: (
+    paymentTransactionId: string,
+  ) => Promise<FollowMercadoPagoQrChargeOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
   changeLineQuantity: (
@@ -424,11 +437,15 @@ const chargeRoute = createRoute({
       cashCharge,
       chargeSaleInCash,
       chargeSaleByTransfer,
+      startMercadoPagoQrCharge,
+      followMercadoPagoQrCharge,
+      registerStatus,
       receiptPrintStatus,
       retryReceiptPrint,
       refreshCashSession,
     } = chargeRoute.useRouteContext();
     const registerName = useRegisterName();
+    const status = useRegisterStatusQuery(registerStatus);
     return (
       <ChargeScreen
         sessionId={id}
@@ -439,6 +456,9 @@ const chargeRoute = createRoute({
         cashCharge={cashCharge}
         chargeSaleInCash={chargeSaleInCash}
         chargeSaleByTransfer={chargeSaleByTransfer}
+        registerStatus={status}
+        startMercadoPagoQrCharge={startMercadoPagoQrCharge}
+        followMercadoPagoQrCharge={followMercadoPagoQrCharge}
         receiptPrintStatus={receiptPrintStatus}
         retryReceiptPrint={retryReceiptPrint}
         onSessionInvalid={() => void refreshCashSession()}
@@ -763,6 +783,8 @@ export function createAppRouter(
     | "cashCharge"
     | "chargeSaleInCash"
     | "chargeSaleByTransfer"
+    | "startMercadoPagoQrCharge"
+    | "followMercadoPagoQrCharge"
     | "searchProducts"
     | "addProduct"
     | "changeLineQuantity"

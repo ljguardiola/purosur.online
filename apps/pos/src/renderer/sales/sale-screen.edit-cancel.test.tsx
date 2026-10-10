@@ -22,8 +22,8 @@ const SALE_OF_THREE_YERBAS: OpenSale = {
   total: 714_000,
   paid: 0,
   pending: 714_000,
-  lines_editable: true,
-  cancellable: true,
+  lines_lock: null,
+  cancel_refusal: null,
   charge_refusal: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
@@ -34,8 +34,8 @@ const SALE_OF_ONE_YERBA: OpenSale = {
   total: 238_000,
   paid: 0,
   pending: 238_000,
-  lines_editable: true,
-  cancellable: true,
+  lines_lock: null,
+  cancel_refusal: null,
   charge_refusal: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
@@ -46,8 +46,8 @@ const SALE_OF_ALFAJOR: OpenSale = {
   total: 150_000,
   paid: 0,
   pending: 150_000,
-  lines_editable: true,
-  cancellable: true,
+  lines_lock: null,
+  cancel_refusal: null,
   charge_refusal: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
@@ -58,8 +58,8 @@ const EMPTY_SALE: OpenSale = {
   total: 0,
   paid: 0,
   pending: 0,
-  lines_editable: true,
-  cancellable: true,
+  lines_lock: null,
+  cancel_refusal: null,
   charge_refusal: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
@@ -387,6 +387,22 @@ describe("SaleScreen cancelling the sale", () => {
     await expect.element(screen.getByText("No se puede cancelar la venta")).toBeVisible();
     await expect.element(screen.getByText("Ya tiene un pago aprobado.")).toBeVisible();
     await expect.element(screen.getByText("Probá de nuevo.")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+  });
+
+  it("tells the sale cannot be cancelled yet while its QR charge is waiting", async () => {
+    const { screen } = await renderScreen({
+      currentSale: async () => SALE_OF_YERBA,
+      cancelSale: async () => ({ kind: "qr_charge_in_progress" }),
+    });
+    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await expect.element(screen.getByText("Hay un cobro con QR en curso")).toBeVisible();
+    await expect
+      .element(screen.getByText("Esperá a que termine para cancelar la venta."))
+      .toBeVisible();
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
   });
 

@@ -5,6 +5,7 @@ import type {
   EventApplication,
   EventApplicationTransaction,
   FailedAttempt,
+  ProviderTransactionOfPayment,
   SaleStockApplication,
   SyncedFact,
   UnappliedEvent,
@@ -12,6 +13,7 @@ import type {
 import { and, asc, eq, isNull, min, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
+import { providerTransactionOfPayment } from "../payments/drizzle-provider-transactions.js";
 import { inbox, registerInstallations, registers } from "../platform/db/schema.js";
 import {
   type AppliedOrigin,
@@ -96,6 +98,12 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
       )
       .limit(1);
     return rows.length > 0;
+  }
+
+  async providerTransactionOfPayment(
+    paymentId: string,
+  ): Promise<ProviderTransactionOfPayment | null> {
+    return providerTransactionOfPayment(this.tx, paymentId);
   }
 
   async record(fact: SyncedFact, event: UnappliedEvent): Promise<void> {

@@ -43,7 +43,12 @@ export function currentSale(
       kind: "open",
       sale,
       chargeRefusal: saleChargeRefusal(tx, sale, clock.now()),
-      ...openSaleStanding(saleTotal(sale.lines), tx.salePayments(sale.id)),
+      ...openSaleStanding(
+        saleTotal(sale.lines),
+        tx.salePayments(sale.id),
+        tx.pendingQrPaymentsOf(sale.id),
+        clock.now(),
+      ),
     };
   });
 }

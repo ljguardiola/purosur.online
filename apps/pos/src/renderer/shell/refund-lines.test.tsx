@@ -35,6 +35,18 @@ describe("RefundLines", () => {
       .toBeVisible();
   });
 
+  it("says a QR payment's refund stays pending", async () => {
+    const refund: Refund = { payment_id: "p4", method: "QR", amount: 90_000, state: "PENDING" };
+
+    const screen = await render(<RefundLines refunds={[refund]} />);
+
+    await expect
+      .element(
+        screen.getByText("Reembolso pendiente del pago con QR por $ 900,00", { exact: true }),
+      )
+      .toBeVisible();
+  });
+
   it("says a refund given back now is given back by its payment's means", async () => {
     const refund: Refund = {
       payment_id: "p3",

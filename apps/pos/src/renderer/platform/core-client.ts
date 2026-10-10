@@ -17,10 +17,13 @@ import type {
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
+  FollowMercadoPagoQrChargeOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
+  PaymentsCoreToRendererMessage,
+  PaymentsRendererToCoreMessage,
   PinCodeRedemptionOutcome,
   PinPolicy,
   ReadReceiptPrinterOutcome,
@@ -47,10 +50,12 @@ import type {
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
+  StartMercadoPagoQrChargeOutcome,
   SyncCoreToRendererMessage,
 } from "@purosur/contracts";
 import {
   credentialsCoreToRendererMessageSchema,
+  paymentsCoreToRendererMessageSchema,
   registerCoreToRendererMessageSchema,
   salesCoreToRendererMessageSchema,
   sessionsCoreToRendererMessageSchema,
@@ -64,6 +69,7 @@ const coreToRendererMessageSchema = z.discriminatedUnion("type", [
   credentialsCoreToRendererMessageSchema,
   registerCoreToRendererMessageSchema,
   salesCoreToRendererMessageSchema,
+  paymentsCoreToRendererMessageSchema,
   syncCoreToRendererMessageSchema,
 ]);
 
@@ -72,13 +78,15 @@ type CoreToRendererMessage =
   | CredentialsCoreToRendererMessage
   | RegisterCoreToRendererMessage
   | SalesCoreToRendererMessage
+  | PaymentsCoreToRendererMessage
   | SyncCoreToRendererMessage;
 
 type RendererToCoreMessage =
   | SessionsRendererToCoreMessage
   | CredentialsRendererToCoreMessage
   | RegisterRendererToCoreMessage
-  | SalesRendererToCoreMessage;
+  | SalesRendererToCoreMessage
+  | PaymentsRendererToCoreMessage;
 
 export interface CorePort {
   postMessage(message: unknown): void;
@@ -147,6 +155,13 @@ export interface CoreClient {
   cashCharge(saleId: string, tendered: number): Promise<CashChargeAnswer>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer(saleId: string, amount: number): Promise<ChargeSaleByTransferOutcome>;
+  startMercadoPagoQrCharge(
+    saleId: string,
+    amount: number,
+  ): Promise<StartMercadoPagoQrChargeOutcome>;
+  followMercadoPagoQrCharge(
+    paymentTransactionId: string,
+  ): Promise<FollowMercadoPagoQrChargeOutcome>;
   closeCashSession(sessionId: string, countedCash: number): Promise<CloseCashSessionOutcome>;
   closeLockedCashSession(
     sessionId: string,
@@ -549,6 +564,29 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           amount,
         },
         (answer) => (answer.type === "charge-sale-by-transfer-result" ? answer.outcome : undefined),
+      );
+    },
+    startMercadoPagoQrCharge(saleId, amount) {
+      return ask(
+        {
+          type: "start-mercado-pago-qr-charge",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          amount,
+        },
+        (answer) =>
+          answer.type === "start-mercado-pago-qr-charge-result" ? answer.outcome : undefined,
+      );
+    },
+    followMercadoPagoQrCharge(paymentTransactionId) {
+      return ask(
+        {
+          type: "follow-mercado-pago-qr-charge",
+          request_id: deps.newRequestId(),
+          payment_transaction_id: paymentTransactionId,
+        },
+        (answer) =>
+          answer.type === "follow-mercado-pago-qr-charge-result" ? answer.outcome : undefined,
       );
     },
     closeCashSession(sessionId, countedCash) {

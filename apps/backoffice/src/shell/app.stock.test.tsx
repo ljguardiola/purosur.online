@@ -18,6 +18,8 @@ opensOnlyScreens([
   "/inventory-adjustments",
   "/inventory-counts",
   "/purchase-packagings",
+  "/purchases",
+  "/purchases/new",
   "/suppliers",
 ]);
 
@@ -57,6 +59,14 @@ function stockServices(capabilities: Capability[]) {
     kind: "ok",
     value: { packagings: [], products: [] },
   });
+  vi.mocked(services.purchasesListScreen.fetchPurchases).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  vi.mocked(services.newPurchaseScreen.fetchPurchaseChoices).mockResolvedValue({
+    kind: "ok",
+    value: { suppliers: [], products: [], packagings: [] },
+  });
   return services;
 }
 
@@ -66,6 +76,7 @@ const SECTION_LABELS = [
   "Ajustes y pérdidas",
   "Proveedores",
   "Presentaciones de compra",
+  "Compras",
 ];
 
 test.each([
@@ -75,6 +86,7 @@ test.each([
   ["stock_adjustments", "Ajustes y pérdidas", "/inventory-adjustments"],
   ["suppliers", "Proveedores", "/suppliers"],
   ["purchase_packagings", "Presentaciones de compra", "/purchase-packagings"],
+  ["purchases", "Compras", "/purchases"],
 ] as const)(
   "opens only %s's section from the rail's Stock item: %s",
   async (capability, heading, path) => {
@@ -131,6 +143,42 @@ test("lists only the sections a user holds the permission for", async () => {
   expect(links).toEqual(["Saldos", "Proveedores"]);
 });
 
+test("confirms a purchase just registered on the purchases list, until it is dismissed", async () => {
+  const services = stockServices(["purchases", "stock_area"]);
+  window.history.pushState(
+    { key: "registered", __TSR_index: 0, purchaseRegistered: true },
+    "",
+    "/purchases",
+  );
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("Compra registrada")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+  await expect.poll(() => screen.getByText("Compra registrada").query()).toBeNull();
+  expect(window.history.state).not.toMatchObject({ purchaseRegistered: true });
+});
+
+test("opens a new purchase dated the day it is opened", async () => {
+  const services = stockServices(["purchases", "stock_area"]);
+  window.history.pushState(null, "", "/purchases/new");
+  vi.setSystemTime(new Date("2026-09-16T15:00:00.000Z"));
+  try {
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    const date = screen.getByRole("group", { name: /^Fecha de compra/ });
+    await expect.element(date).toBeVisible();
+    expect(
+      date
+        .getByRole("spinbutton")
+        .all()
+        .map((segment) => segment.element().textContent),
+    ).toEqual(["16", "9", "2026"]);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 test("hides the Stock item in the rail for a user without a stock permission", async () => {
   const services = stockServices(["prices_area", "catalog_area"]);
   window.history.pushState(null, "", "/help");
@@ -147,6 +195,8 @@ test.each([
   ["/inventory-adjustments", "stock_counts"],
   ["/suppliers", "purchase_packagings"],
   ["/purchase-packagings", "suppliers"],
+  ["/purchases", "suppliers"],
+  ["/purchases/new", "suppliers"],
 ] as const)("sends a user who may not open %s to Mi cuenta", async (path, capability) => {
   const services = stockServices([capability, "stock_area"]);
   window.history.pushState(null, "", path);

@@ -1,4 +1,6 @@
 import type { SaleUnit } from "../../catalog/index.js";
+import type { PurchaseReceipt } from "../../stock/index.js";
+import type { ReceiptType } from "../model/purchase.js";
 
 export interface Supplier {
   id: string;
@@ -50,6 +52,30 @@ export interface PackagingFields {
   actorId: string;
 }
 
+export interface NewPurchaseFields {
+  supplierId: string;
+  locationId: string;
+  purchasedOn: string;
+  receiptType: ReceiptType;
+  receiptNumber: string | null;
+  note: string | null;
+  recordedAt: Date;
+  actorId: string;
+}
+
+export interface NewPurchaseLineFields {
+  purchaseId: string;
+  position: number;
+  productId: string;
+  packagingId: string | null;
+  packages: number | null;
+  quantity: number;
+  costPaidCents: number;
+  quantityPerPackage: number;
+  lotNumber: string | null;
+  expiresOn: string | null;
+}
+
 export type LockSupplierResult = { kind: "not_found" } | { kind: "locked"; supplier: Supplier };
 
 export type LockPackagingResult = { kind: "not_found" } | { kind: "locked"; packaging: Packaging };
@@ -77,6 +103,9 @@ export interface PurchasingStoreTransaction {
   updateSupplier(supplierId: string, fields: SupplierFields): Promise<void>;
   // Holds the product's row so a concurrent change of its sale unit waits.
   lockProduct(productId: string): Promise<LockProductResult>;
+  // Holds the product's row against a change of it while movements of its stock, which reference
+  // it, may still be recorded.
+  holdPurchasedProduct(productId: string): Promise<LockProductResult>;
   lockProductOfPackaging(packagingId: string): Promise<LockProductResult>;
   lockPackaging(packagingId: string): Promise<LockPackagingResult>;
   // Every packaging of the product counts, deactivated ones included, and letter case is ignored.
@@ -87,6 +116,9 @@ export interface PurchasingStoreTransaction {
   ): Promise<boolean>;
   insertPackaging(fields: NewPackagingFields): Promise<{ id: string }>;
   updatePackaging(packagingId: string, fields: PackagingFields): Promise<void>;
+  insertPurchase(fields: NewPurchaseFields): Promise<{ id: string }>;
+  insertPurchaseLine(fields: NewPurchaseLineFields): Promise<{ id: string }>;
+  receiveStock(receipt: PurchaseReceipt): Promise<void>;
 }
 
 export interface PurchasingStore {

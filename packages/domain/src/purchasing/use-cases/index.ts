@@ -13,13 +13,24 @@ export { editSupplier } from "./edit-supplier.js";
 export { findPackagingListing } from "./find-packaging-listing.js";
 export type { ListedPackaging } from "./list-packagings.js";
 export { listPackagings } from "./list-packagings.js";
+export type { PurchaseChoices } from "./list-purchase-choices.js";
+export { listPurchaseChoices } from "./list-purchase-choices.js";
+export type { ListedPurchase, ListedPurchaseLine } from "./list-purchases.js";
+export { findPurchaseListing, listPurchases } from "./list-purchases.js";
 export { listSuppliers } from "./list-suppliers.js";
-export type { PackagingListing, PurchasingListReader } from "./purchasing-list-reader.js";
+export type {
+  PackagingListing,
+  PurchaseLineListing,
+  PurchaseListing,
+  PurchasingListReader,
+} from "./purchasing-list-reader.js";
 export type {
   LockPackagingResult,
   LockProductResult,
   LockSupplierResult,
   NewPackagingFields,
+  NewPurchaseFields,
+  NewPurchaseLineFields,
   NewSupplierFields,
   Packaging,
   PackagingFields,
@@ -37,3 +48,12 @@ export type { ReactivatePackagingOutcome } from "./reactivate-packaging.js";
 export { reactivatePackaging } from "./reactivate-packaging.js";
 export type { ReactivateSupplierOutcome } from "./reactivate-supplier.js";
 export { reactivateSupplier } from "./reactivate-supplier.js";
+export type {
+  RegisteredPurchase,
+  RegisteredPurchaseLine,
+  RegisterPurchaseInput,
+  RegisterPurchaseLine,
+  RegisterPurchaseOutcome,
+  RegisterPurchasePorts,
+} from "./register-purchase.js";
+export { registerPurchase } from "./register-purchase.js";

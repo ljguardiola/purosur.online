@@ -1,5 +1,6 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import type { Clock } from "../../shared/index.js";
+import type { NewLot } from "../model/lot.js";
 import type { StockMovementKind } from "../model/stock-movement-kind.js";
 import type { AdjustmentReason, LossReason } from "../model/stock-movement-reason.js";
 
@@ -25,6 +26,7 @@ export interface CoveringCount {
 export interface NewStockMovement extends ProductStockKey {
   id?: string;
   saleLineId?: string;
+  purchaseLineId?: string;
   kind: StockMovementKind;
   reason: LossReason | AdjustmentReason | null;
   delta: number;
@@ -49,5 +51,6 @@ export interface StockStoreTransaction {
   appliedDeltaAfter(key: ProductStockKey, at: Date): Promise<number>;
   recordMovement(movement: NewStockMovement): Promise<string>;
   recordCount(count: NewStockCount): Promise<void>;
+  recordLot(lot: NewLot): Promise<void>;
   addToBalance(key: ProductStockKey, delta: number): Promise<number>;
 }

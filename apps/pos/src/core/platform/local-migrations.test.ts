@@ -869,7 +869,9 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
         "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -925,7 +927,9 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
         "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -976,7 +980,9 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
         "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1026,7 +1032,9 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
         "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1103,7 +1111,9 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
         "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1172,7 +1182,9 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
         "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1245,7 +1257,9 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
         "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1301,7 +1315,9 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
         "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1349,7 +1365,9 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
         "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1584,13 +1602,157 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("let a payment be a Mercado Pago QR payment in any state of its wait, keeping the payments and refunds a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(
+        0,
+        LOCAL_MIGRATIONS.findIndex(
+          (migration) => migration.name === "0028_mercado_pago_qr_payments",
+        ),
+      );
+      expect(previous.length).toBeGreaterThan(0);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('done', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:05:00.000Z'),
+                ('open', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at)
+         VALUES ('pay-cash', 'done', 'SALE', 'CASH', 'NONE', 1000, 1500, NULL, NULL, 'APPROVED', '2026-09-30T12:05:00.000Z'),
+                ('pay-transfer', 'open', 'SALE', 'TRANSFER', 'NONE', 400, NULL, 'u1', '2026-09-30T12:08:00.000Z', 'APPROVED', '2026-09-30T12:08:00.000Z');
+         INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
+         VALUES ('refund-1', 'pay-cash', 'CASH', 'NONE', 1000, 'APPROVED', '2026-09-30T12:20:00.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            `SELECT id, sale_id, method, provider, amount, tendered, authorized_by, confirmed_at, state,
+                    occurred_at, wait_ends_at
+             FROM payment_transactions ORDER BY id`,
+          )
+          .all(),
+      ).toEqual([
+        {
+          id: "pay-cash",
+          sale_id: "done",
+          method: "CASH",
+          provider: "NONE",
+          amount: 1000,
+          tendered: 1500,
+          authorized_by: null,
+          confirmed_at: null,
+          state: "APPROVED",
+          occurred_at: "2026-09-30T12:05:00.000Z",
+          wait_ends_at: null,
+        },
+        {
+          id: "pay-transfer",
+          sale_id: "open",
+          method: "TRANSFER",
+          provider: "NONE",
+          amount: 400,
+          tendered: null,
+          authorized_by: "u1",
+          confirmed_at: "2026-09-30T12:08:00.000Z",
+          state: "APPROVED",
+          occurred_at: "2026-09-30T12:08:00.000Z",
+          wait_ends_at: null,
+        },
+      ]);
+      expect(after.prepare("SELECT id, payment_id FROM payment_refunds").all()).toEqual([
+        { id: "refund-1", payment_id: "pay-cash" },
+      ]);
+
+      const insertPayment = after.prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at, wait_ends_at)
+         VALUES (@id, 'open', 'SALE', @method, @provider, 600, @tendered, @authorized_by, NULL, @state, '2026-09-30T12:10:00.000Z', @wait_ends_at)`,
+      );
+      const qr = {
+        method: "QR",
+        provider: "MERCADOPAGO_QR",
+        tendered: null,
+        authorized_by: null,
+        state: "PENDING",
+        wait_ends_at: "2026-09-30T12:13:00.000Z",
+      };
+      for (const [id, state] of [
+        ["qr-pending", "PENDING"],
+        ["qr-approved", "APPROVED"],
+        ["qr-declined", "DECLINED"],
+        ["qr-cancelled", "CANCELLED"],
+        ["qr-expired", "EXPIRED"],
+      ]) {
+        insertPayment.run({ ...qr, id, state });
+      }
+      expect(
+        after
+          .prepare("SELECT count(*) AS total FROM payment_transactions WHERE method = 'QR'")
+          .get(),
+      ).toEqual({ total: 5 });
+      after
+        .prepare("UPDATE payment_transactions SET state = 'APPROVED' WHERE id = 'qr-pending'")
+        .run();
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+
+      expect(() => insertPayment.run({ ...qr, id: "no-wait", wait_ends_at: null })).toThrow(
+        /CHECK/,
+      );
+      expect(() => insertPayment.run({ ...qr, id: "no-provider", provider: "NONE" })).toThrow(
+        /CHECK/,
+      );
+      expect(() => insertPayment.run({ ...qr, id: "tendered", tendered: 600 })).toThrow(/CHECK/);
+      expect(() => insertPayment.run({ ...qr, id: "authorized", authorized_by: "u1" })).toThrow(
+        /CHECK/,
+      );
+      expect(() => insertPayment.run({ ...qr, id: "unknown", state: "REFUNDED" })).toThrow(/CHECK/);
+      expect(() =>
+        insertPayment.run({
+          ...qr,
+          id: "cash-pending",
+          method: "CASH",
+          provider: "NONE",
+          wait_ends_at: null,
+        }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insertPayment.run({
+          ...qr,
+          id: "cash-waiting",
+          method: "CASH",
+          provider: "NONE",
+          state: "APPROVED",
+        }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insertPayment.run({
+          ...qr,
+          id: "cash-by-provider",
+          method: "CASH",
+          state: "APPROVED",
+          wait_ends_at: null,
+        }),
+      ).toThrow(/CHECK/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("rebuild the stock ledger over the register's own sale movements, to hold movements pulled from the cloud", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 26);
       expect(previous.at(-1)?.name).toBe("0025_last_accepted_push");
-      expect(LOCAL_MIGRATIONS[previous.length]?.name).toBe("0026_pulled_stock_movements");
+      const throughRebuild = LOCAL_MIGRATIONS.slice(0, 27);
+      expect(throughRebuild.at(-1)?.name).toBe("0026_pulled_stock_movements");
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
         `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
@@ -1605,7 +1767,7 @@ describe("the register's local migrations", () => {
       );
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      const after = openLocalDatabase(path, throughRebuild, migrationClock);
 
       expect(after.prepare("SELECT * FROM stock_movements").all()).toEqual([
         {
@@ -1708,6 +1870,74 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("let the stock ledger hold the receipts a register pulls, over the movements it already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0030_stock_receipts",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain("0030_stock_receipts");
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z');
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 1, 1500, 'list-1', 1500);
+         INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at, superseded_by_count_id)
+         VALUES ('own-movement', 'p1', 'sale', 'line-1', -1000, '2026-10-09T12:05:00.000Z', 'pulled-count'),
+                ('pulled-count', 'p1', 'count', NULL, 2000, '2026-10-09T13:00:00.000Z', NULL);
+         INSERT INTO stock_balances (product_id, quantity) VALUES ('p1', 9000);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT * FROM stock_movements ORDER BY id").all()).toEqual([
+        {
+          id: "own-movement",
+          product_id: "p1",
+          kind: "sale",
+          sale_line_id: "line-1",
+          delta: -1000,
+          occurred_at: "2026-10-09T12:05:00.000Z",
+          superseded_by_count_id: "pulled-count",
+        },
+        {
+          id: "pulled-count",
+          product_id: "p1",
+          kind: "count",
+          sale_line_id: null,
+          delta: 2000,
+          occurred_at: "2026-10-09T13:00:00.000Z",
+          superseded_by_count_id: null,
+        },
+      ]);
+      expect(after.prepare("SELECT * FROM stock_balances").all()).toEqual([
+        { product_id: "p1", quantity: 9000 },
+      ]);
+      const insert = after.prepare(
+        `INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
+         VALUES (@id, 'p1', @kind, @sale_line_id, 6000, '2026-10-09T14:00:00.000Z')`,
+      );
+      expect(() =>
+        insert.run({ id: "pulled-receipt", kind: "receipt", sale_line_id: null }),
+      ).not.toThrow();
+      expect(() =>
+        insert.run({ id: "unknown-kind", kind: "transfer", sale_line_id: null }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insert.run({ id: "receipt-of-a-line", kind: "receipt", sale_line_id: "line-1" }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insert.run({ id: "sale-of-a-missing-line", kind: "sale", sale_line_id: "missing" }),
+      ).toThrow(/FOREIGN KEY/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
   it("add the receipt printer's address with no address set over the register that already holds data", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {

@@ -58,6 +58,8 @@ describe("cancelling the open sale of a locked register", () => {
     { kind: "unavailable" },
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
     { kind: "rate_limited", retry_after_seconds: 1, attempts_left: 2 },
+    { kind: "qr_charge_in_progress" },
+    { kind: "holds_qr_payment" },
   ])("accepts the result $kind", (outcome) => {
     const message = { type: "cancel-locked-sale-result", request_id: REQUEST_ID, outcome };
 
@@ -222,8 +224,8 @@ describe("sale answers", () => {
     total: 1500,
     paid: 0,
     pending: 1500,
-    lines_editable: true,
-    cancellable: true,
+    lines_lock: null,
+    cancel_refusal: null,
     charge_refusal: null,
     refunds_on_cancel: [],
     cancel_authorization_required: false,
@@ -471,8 +473,8 @@ describe("sale line answers", () => {
     total: 0,
     paid: 0,
     pending: 0,
-    lines_editable: true,
-    cancellable: true,
+    lines_lock: null,
+    cancel_refusal: null,
     charge_refusal: null,
     refunds_on_cancel: [],
     cancel_authorization_required: false,

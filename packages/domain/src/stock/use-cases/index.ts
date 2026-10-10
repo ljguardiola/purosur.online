@@ -1,4 +1,6 @@
 export type { Clock } from "../../shared/index.js";
+export type { NewLot } from "../model/lot.js";
+export type { PurchaseReceipt } from "../model/stock-receipt.js";
 export type { ApplyPulledStockMovementOutcome } from "./apply-pulled-stock-movement.js";
 export { applyPulledStockMovement } from "./apply-pulled-stock-movement.js";
 export type {
@@ -10,6 +12,8 @@ export { applyRegisterStockMovements } from "./apply-register-stock-movements.js
 export type { AppliedStockMovement } from "./apply-stock-movement.js";
 export type { ExpectedBalanceAtInput, ExpectedBalanceAtOutcome } from "./expected-balance-at.js";
 export { expectedBalanceAt } from "./expected-balance-at.js";
+export type { ReceivePurchasedStockOutcome } from "./receive-purchased-stock.js";
+export { receivePurchasedStock } from "./receive-purchased-stock.js";
 export type { RecordAdjustmentInput, RecordAdjustmentOutcome } from "./record-adjustment.js";
 export { recordAdjustment } from "./record-adjustment.js";
 export type { RecordLossInput, RecordLossOutcome } from "./record-loss.js";

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Banknote, CreditCard, Wallet } from "lucide-react";
+import { Banknote, CreditCard, Landmark, Wallet, WifiOff } from "lucide-react";
 import { useId } from "react";
 import { within } from "storybook/test";
 import {
@@ -139,6 +139,51 @@ export const Grid: Story = {
       label="Motivo"
       options={reasonOptions}
       value="broken_or_spilled"
+      onChange={() => {}}
+    />
+  ),
+};
+
+type PaymentMethodValue = "cash" | "point" | "qr" | "transfer";
+
+const paymentMethodOptions: [
+  NarrowedOption<PaymentMethodValue, "description" | "icon", "disabled">,
+  ...NarrowedOption<PaymentMethodValue, "description" | "icon", "disabled">[],
+] = [
+  {
+    value: "cash",
+    icon: <Banknote />,
+    label: "Efectivo",
+    description: "Dinero que entra a la caja",
+  },
+  {
+    value: "point",
+    icon: <WifiOff />,
+    label: "Point integrada",
+    description: "No disponible sin conexión",
+    disabled: true,
+  },
+  {
+    value: "qr",
+    icon: <WifiOff />,
+    label: "QR de Mercado Pago",
+    description: "No disponible sin conexión",
+    disabled: true,
+  },
+  {
+    value: "transfer",
+    icon: <Landmark />,
+    label: "Transferencia",
+    description: "Dinero que entra al banco",
+  },
+];
+
+export const DisabledOptions: StoryObj<typeof OptionCardGroup<PaymentMethodValue>> = {
+  render: () => (
+    <OptionCardGroup
+      label="Medio de pago"
+      options={paymentMethodOptions}
+      value="cash"
       onChange={() => {}}
     />
   ),
