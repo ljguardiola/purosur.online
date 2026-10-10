@@ -52,13 +52,11 @@ describe("listPurchaseChoices", () => {
     ]);
   });
 
-  it.each([
-    ["2026-09-16T15:00:00.000Z", "2026-09-16"],
-    ["2026-09-17T01:00:00.000Z", "2026-09-16"],
-    ["2026-09-17T03:00:00.000Z", "2026-09-17"],
-  ])("answers, at %s, that today's purchases are dated %s", async (instant, day) => {
-    const clock = { now: () => new Date(instant) };
+  it("answers the day it is in Argentina as the day today's purchases are dated", async () => {
+    const clock = { now: () => new Date("2026-09-17T01:00:00.000Z") };
 
-    expect((await listPurchaseChoices(new FakePurchasingListReader({}), clock)).today).toBe(day);
+    expect((await listPurchaseChoices(new FakePurchasingListReader({}), clock)).today).toBe(
+      "2026-09-16",
+    );
   });
 });

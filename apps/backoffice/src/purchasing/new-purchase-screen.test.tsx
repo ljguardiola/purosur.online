@@ -37,22 +37,26 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+function screenFor(
+  services: NewPurchaseScreenServices,
+  onSessionEnded: () => void = () => {},
+  access: BackofficeAccess = ADMINISTRATOR_ACCESS,
+) {
+  return (
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <NewPurchaseScreen access={access} services={services} onSessionEnded={onSessionEnded} />
+      </main>
+    </FieldSizeProvider>
+  );
+}
+
 function renderScreen(
   services: NewPurchaseScreenServices,
   onSessionEnded: () => void = () => {},
   access: BackofficeAccess = ADMINISTRATOR_ACCESS,
 ) {
-  return render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <NewPurchaseScreen
-          access={access}
-          services={services}
-          onSessionEnded={onSessionEnded}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
+  return render(screenFor(services, onSessionEnded, access));
 }
 
 type Screen = Awaited<ReturnType<typeof renderScreen>>;
@@ -78,6 +82,17 @@ async function chooseFromComboBox(screen: Screen, scope: Scope, label: RegExp, n
 async function chooseFromSelect(screen: Screen, scope: Scope, label: RegExp, name: string) {
   await userEvent.click(scope.getByRole("button", { name: label }));
   await userEvent.click(screen.getByRole("option", { name }));
+}
+
+function purchaseDate(screen: Screen) {
+  return screen.getByRole("group", { name: /^Fecha de compra/ });
+}
+
+function purchaseDateSegments(screen: Screen) {
+  return purchaseDate(screen)
+    .getByRole("spinbutton")
+    .all()
+    .map((segment) => segment.element().textContent);
 }
 
 function line(screen: Screen, number: number) {
@@ -121,13 +136,7 @@ test("shows the breadcrumb, the heading and the header fields, with today as the
     .element(screen.getByRole("textbox", { name: /^Número de comprobante/ }))
     .toBeVisible();
   await expect.element(screen.getByRole("textbox", { name: /^Nota/ })).toBeVisible();
-  expect(
-    screen
-      .getByRole("group", { name: /^Fecha de compra/ })
-      .getByRole("spinbutton")
-      .all()
-      .map((segment) => segment.element().textContent),
-  ).toEqual(["16", "9", "2026"]);
+  expect(purchaseDateSegments(screen)).toEqual(["16", "9", "2026"]);
   await expect.element(line(screen, 1)).toBeVisible();
 });
 
@@ -142,16 +151,66 @@ test("dates the purchase on the day the cloud answers, whatever day the browser'
     });
     const screen = await opened(services);
 
-    expect(
-      screen
-        .getByRole("group", { name: /^Fecha de compra/ })
-        .getByRole("spinbutton")
-        .all()
-        .map((segment) => segment.element().textContent),
-    ).toEqual(["4", "3", "2026"]);
+    expect(purchaseDateSegments(screen)).toEqual(["4", "3", "2026"]);
   } finally {
     vi.useRealTimers();
   }
+});
+
+function answeringToday(first: string, then: string): NewPurchaseScreenServices {
+  return createServices({
+    fetchPurchaseChoices: vi
+      .fn()
+      .mockResolvedValueOnce({ kind: "ok", value: { ...purchaseChoices, today: first } })
+      .mockResolvedValue({ kind: "ok", value: { ...purchaseChoices, today: then } }),
+  });
+}
+
+test("dates the purchase on the day the cloud answers when the screen opens again on choices already read", async () => {
+  const services = answeringToday("2026-09-16", "2026-09-17");
+  const screen = await opened(services);
+  await screen.rerender(<main />);
+
+  await screen.rerender(screenFor(services));
+
+  await expect.poll(() => purchaseDateSegments(screen)).toEqual(["17", "9", "2026"]);
+});
+
+test("moves the purchase date to the day the cloud answers on reading the choices again, keeping what the person typed", async () => {
+  const services = answeringToday("2026-09-16", "2026-09-17");
+  vi.mocked(services.registerPurchase).mockResolvedValue({ kind: "supplier_inactive" });
+  const screen = await opened(services);
+  await fillHeader(screen);
+  await fillQuantityLine(screen);
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nota/ }), "Entrega parcial");
+
+  await register(screen);
+
+  await expect.poll(() => purchaseDateSegments(screen)).toEqual(["17", "9", "2026"]);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nota/ }))
+    .toHaveValue("Entrega parcial");
+  await expect
+    .element(line(screen, 1).getByRole("textbox", { name: /^Cantidad/ }))
+    .toHaveValue("12,5");
+});
+
+test("keeps the purchase date the person chose when the cloud answers a later day", async () => {
+  const services = answeringToday("2026-09-16", "2026-09-17");
+  vi.mocked(services.registerPurchase).mockResolvedValue({ kind: "supplier_inactive" });
+  const screen = await opened(services);
+  await fillHeader(screen);
+  await fillQuantityLine(screen);
+  await userEvent.click(purchaseDate(screen).getByRole("spinbutton").first());
+  await userEvent.keyboard("10092026");
+
+  await register(screen);
+
+  await expect.poll(() => vi.mocked(services.fetchPurchaseChoices).mock.calls.length).toBe(2);
+  await expect
+    .element(screen.getByText("Este proveedor ya no está activo. Elegí otro."))
+    .toBeVisible();
+  expect(purchaseDateSegments(screen)).toEqual(["10", "9", "2026"]);
 });
 
 test("says there is no supplier to choose, keeping the register action disabled", async () => {
