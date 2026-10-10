@@ -31,6 +31,7 @@ import type { PulledCloudChange } from "./pulled-changes.js";
 export type ChangesRouteOptions<TQueryResult extends PgQueryResultHKT> =
   DeviceTokensOptions<TQueryResult> & {
     enqueueOfflineAuthorizationCodeRequest?: EnqueueOfflineAuthorizationCodeRequest;
+    reportError?: (error: unknown) => void;
   };
 
 const DEVICE_TOKEN_REJECTED = cloudError(
@@ -258,7 +259,11 @@ export function registerChangesRoute<TQueryResult extends PgQueryResultHKT>(
 ): void {
   const tokenPorts = installationTokenPorts(options);
   const ports = {
-    changeLog: new DrizzleChangeLog(options.db, options.enqueueOfflineAuthorizationCodeRequest),
+    changeLog: new DrizzleChangeLog(
+      options.db,
+      options.enqueueOfflineAuthorizationCodeRequest,
+      options.reportError,
+    ),
     clock: { now: options.now },
   };
   const admission = { admission: new DrizzleRequestAdmission(options.db), clock: ports.clock };
