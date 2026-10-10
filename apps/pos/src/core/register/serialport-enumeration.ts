@@ -6,6 +6,7 @@ export interface ListedSerialPort {
   path: string;
   vendorId?: string | undefined;
   productId?: string | undefined;
+  serialNumber?: string | undefined;
 }
 
 export interface SerialportEnumerationDeps {
