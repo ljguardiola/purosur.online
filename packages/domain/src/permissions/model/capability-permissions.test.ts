@@ -20,6 +20,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["view_all_alerts", ["alerts_area"]],
   ["dismiss_alerts_manually", ["close_alerts_manually"]],
   ["enroll_register_devices", ["registers_area"]],
+  ["release_quarantined_events", ["quarantined_events"]],
   ["manage_suppliers", ["suppliers", "stock_area"]],
   ["manage_purchase_presentations", ["purchase_packagings", "stock_area"]],
   ["record_purchases", ["purchases", "stock_area"]],

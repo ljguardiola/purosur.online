@@ -1,0 +1,100 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
+import { describe, expect, it } from "vitest";
+import {
+  quarantinedEventsListSchema,
+  releaseQuarantinedEventErrorSchema,
+} from "./quarantined-events.js";
+
+const listed = {
+  eventId: "0199b7a0-0000-7000-8000-000000000001",
+  registerName: "Caja 1",
+  aggregateType: "Sale",
+  aggregateId: "0199b7a0-0000-7000-8000-000000000002",
+  eventType: "sale_completed",
+  receivedAt: "2026-10-07T10:00:05.000Z",
+  quarantinedAt: "2026-10-07T12:00:00.000Z",
+  reason: {
+    kind: "missing_dependency",
+    aggregateType: "CashSession",
+    aggregateId: "0199b7a0-0000-7000-8000-000000000003",
+  },
+};
+
+describe("the quarantined events list", () => {
+  it("holds the events with what an Administrator needs to tell them apart", () => {
+    expect(quarantinedEventsListSchema.parse({ events: [listed] })).toEqual({ events: [listed] });
+  });
+
+  it("accepts no events", () => {
+    expect(quarantinedEventsListSchema.parse({ events: [] })).toEqual({ events: [] });
+  });
+
+  it.each([{ kind: "unreadable" }, { kind: "not_recorded" }])(
+    "accepts an event quarantined because %j",
+    (reason) => {
+      expect(
+        quarantinedEventsListSchema.safeParse({ events: [{ ...listed, reason }] }).success,
+      ).toBe(true);
+    },
+  );
+
+  it("accepts an event whose quarantine reason was not kept", () => {
+    expect(
+      quarantinedEventsListSchema.safeParse({ events: [{ ...listed, reason: null }] }).success,
+    ).toBe(true);
+  });
+
+  it.each([
+    { kind: "teapot" },
+    { kind: "missing_dependency", aggregateType: "CashSession" },
+    "product p-1 is not in the catalog",
+  ])("refuses an event quarantined because %j", (reason) => {
+    expect(quarantinedEventsListSchema.safeParse({ events: [{ ...listed, reason }] }).success).toBe(
+      false,
+    );
+  });
+
+  it.each(Object.keys(listed))("refuses an event without its %s", (field) => {
+    const { [field]: _removed, ...incomplete } = listed as Record<string, unknown>;
+
+    expect(quarantinedEventsListSchema.safeParse({ events: [incomplete] }).success).toBe(false);
+  });
+
+  it("refuses a time that is not an ISO instant", () => {
+    expect(
+      quarantinedEventsListSchema.safeParse({ events: [{ ...listed, receivedAt: "yesterday" }] })
+        .success,
+    ).toBe(false);
+  });
+
+  it("refuses a body that is not an object with the events", () => {
+    expect(quarantinedEventsListSchema.safeParse([listed]).success).toBe(false);
+  });
+});
+
+describe("the release refusals", () => {
+  it.each(["not_found", "not_quarantined"])("accepts %s with its message", (code) => {
+    const body = { code, message: "no event in quarantine with that id" };
+
+    expect(releaseQuarantinedEventErrorSchema.parse(body)).toEqual(body);
+  });
+
+  it("refuses any other code", () => {
+    expect(
+      releaseQuarantinedEventErrorSchema.safeParse({ code: "teapot", message: "x" }).success,
+    ).toBe(false);
+  });
+
+  it("refuses a refusal without a message", () => {
+    expect(releaseQuarantinedEventErrorSchema.safeParse({ code: "not_found" }).success).toBe(false);
+  });
+});
+
+it.each(["receivedAt", "quarantinedAt"] as const)(
+  "tells the screens to show %s in Argentina's time zone",
+  (field) => {
+    expect(quarantinedEventsListSchema.shape.events.element.shape[field].meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
+  },
+);

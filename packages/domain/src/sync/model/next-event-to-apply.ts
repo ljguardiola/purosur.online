@@ -1,4 +1,5 @@
 import { type CreationOrderFields, inCreationOrder } from "./creation-order.js";
+import { isQuarantined } from "./quarantine-release.js";
 
 export interface HeldEventState extends CreationOrderFields {
   quarantinedAt: Date | null;
@@ -19,7 +20,7 @@ export function nextEventToApply<T extends HeldEventState>(
   if (earliest === undefined) {
     return { kind: "none" };
   }
-  if (earliest.quarantinedAt !== null) {
+  if (isQuarantined({ appliedAt: null, quarantinedAt: earliest.quarantinedAt })) {
     return { kind: "blocked_by_quarantine", eventId: earliest.eventId };
   }
   if (earliest.nextAttemptAt !== null && earliest.nextAttemptAt.getTime() > now.getTime()) {

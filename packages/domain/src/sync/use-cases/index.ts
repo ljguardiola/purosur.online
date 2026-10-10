@@ -34,12 +34,26 @@ export { pullChanges } from "./pull-changes.js";
 export type { PushOutboxOutcome } from "./push-outbox.js";
 export { pushOutbox } from "./push-outbox.js";
 export type {
+  HeldEventRecord,
+  QuarantinedEventListing,
+  QuarantinedEventReader,
+  QuarantineRelease,
+  QuarantineReleaseRecord,
+  QuarantineReleaseTransaction,
+  ReleaseQuarantinedEventPorts,
+} from "./quarantine-release-ports.js";
+export type {
   ReceivePushedEventsInput,
   ReceivePushedEventsOutcome,
 } from "./receive-pushed-events.js";
 export { receivePushedEvents } from "./receive-pushed-events.js";
 export type { AcceptedPushLog, RecordAcceptedPushPorts } from "./record-accepted-push.js";
 export { recordAcceptedPush } from "./record-accepted-push.js";
+export type {
+  ReleaseQuarantinedEventInput,
+  ReleaseQuarantinedEventOutcome,
+} from "./release-quarantined-event.js";
+export { releaseQuarantinedEvent } from "./release-quarantined-event.js";
 export type {
   AdmissionPorts,
   CatchUpPorts,

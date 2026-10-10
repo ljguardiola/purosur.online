@@ -1,8 +1,9 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { Laptop, Shield, Store, Users } from "lucide-react";
+import { Laptop, PackageX, Shield, Store, Users } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import {
   canSeeBranchArea,
+  canSeeQuarantinedEvents,
   canSeeRegistersArea,
   canSeeRolesArea,
   canSeeUsersArea,
@@ -76,6 +77,16 @@ function SettingsArea() {
                   label="Sucursal"
                   icon={<Store />}
                   active={Boolean(matchRoute({ to: "/location-settings" }))}
+                />
+              </li>
+            )}
+            {canSeeQuarantinedEvents(session) && (
+              <li>
+                <SectionLink
+                  to="/quarantined-events"
+                  label="Eventos en cuarentena"
+                  icon={<PackageX />}
+                  active={Boolean(matchRoute({ to: "/quarantined-events" }))}
                 />
               </li>
             )}
