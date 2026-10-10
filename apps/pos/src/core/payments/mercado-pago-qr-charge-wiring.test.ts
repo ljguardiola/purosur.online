@@ -70,6 +70,7 @@ describe("the register's Mercado Pago QR charging", () => {
     ]) {
       expect(charging.start).toBeUndefined();
       expect(charging.follow).toBeUndefined();
+      expect(charging.abandon).toBeUndefined();
     }
   });
 
@@ -112,6 +113,49 @@ describe("the register's Mercado Pago QR charging", () => {
       [
         "https://cloud.example/api/payments/mercado-pago-qr/qr-1",
         "GET",
+        { authorization: "Bearer prefix.secret" },
+      ],
+    ]);
+  });
+
+  it("asks the cloud to cancel a QR order at its cancel address with the device token", async () => {
+    const requests: { url: string; init: RequestInit }[] = [];
+    const signedIn = createSignedInPerson();
+    database.exec(
+      `INSERT INTO roles (id, name, is_administrator, version) VALUES ('cashier', 'Cajera', 0, 1);
+       INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('cashier', 'sell_and_charge', 1);
+       INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES ('u1', 'Ada', 'cashier', 's', 1, 1);
+       INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('session-1', 'register-1', 'device-1', 'u1', '2026-10-09T08:00:00.000Z', 0, 'OPEN');
+       INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'register-1', 'device-1', 'session-1', 'u1', 'OPEN', NULL);
+       INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at)
+         VALUES ('qr-1', 'sale-1', 'SALE', 'QR', 'MERCADOPAGO_QR', 3000, 'PENDING', '2026-10-09T11:59:00.000Z', '2026-10-09T12:02:00.000Z');`,
+    );
+    signedIn.set("u1");
+    const charging = createMercadoPagoQrCharging({
+      database,
+      gate: createActionGate({
+        store: new SqliteSignInStore(database),
+        signedInPerson: signedIn,
+        readPepper: async () => undefined,
+        hashPin: async () => "",
+        now: () => NOW,
+      }),
+      cloudClient: cloudClient(requests),
+      readDeviceToken: async () => "prefix.secret",
+      readOutboxChainKey: async () => Buffer.alloc(32, 7).toString("base64"),
+      now: () => NOW,
+      ids: { next: () => "id" },
+    });
+
+    expect(await charging.abandon?.({ paymentTransactionId: "qr-1" })).toEqual({
+      kind: "replaced",
+    });
+    expect(requests.map(({ url, init }) => [url, init.method, init.headers])).toEqual([
+      [
+        "https://cloud.example/api/payments/mercado-pago-qr/qr-1/cancel",
+        "POST",
         { authorization: "Bearer prefix.secret" },
       ],
     ]);

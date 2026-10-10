@@ -215,17 +215,14 @@ describe("asking the cloud to cancel a Mercado Pago QR order", () => {
     ]);
   });
 
-  it.each([
-    "CANCELLED",
-    "APPROVED",
-    "EXPIRED",
-    "DECLINED",
-    "PENDING",
-  ])("answers the state %s the cloud reports", async (state) => {
-    const { orders } = cloudOrders([ok(payment(state))]);
+  it.each(["CANCELLED", "APPROVED", "EXPIRED", "DECLINED", "PENDING"])(
+    "answers the state %s the cloud reports",
+    async (state) => {
+      const { orders } = cloudOrders([ok(payment(state))]);
 
-    expect(await orders.cancelOrder(PAYMENT_ID)).toEqual({ kind: "answered", state });
-  });
+      expect(await orders.cancelOrder(PAYMENT_ID)).toEqual({ kind: "answered", state });
+    },
+  );
 
   it("encodes the id in the path", async () => {
     const { calls, orders } = cloudOrders([ok(payment("CANCELLED"))]);
