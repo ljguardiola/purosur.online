@@ -18,9 +18,14 @@ import { insertRegister, pendingTransaction } from "./test-support/payment-trans
 
 const route = mercadoPagoNotificationRoutesUnderTest();
 
-async function pendingPaymentOfOrder(providerOrderId = ORDER_ID) {
+const NOT_AN_ORDER = "payment";
+
+async function pendingPaymentOfOrder(
+  providerOrderId = ORDER_ID,
+  overrides: Parameters<typeof pendingTransaction>[1] = {},
+) {
   const registerId = await insertRegister(route.db, "Caja 1");
-  const transaction = pendingTransaction(registerId, { providerOrderId });
+  const transaction = pendingTransaction(registerId, { providerOrderId, ...overrides });
   await route.db.insert(paymentTransactions).values(transaction);
   return transaction;
 }
@@ -102,13 +107,13 @@ describe("POST /payments/mercado-pago/notifications", () => {
     });
   });
 
-  describe("signature", () => {
+  describe("signature of a notification other than an order", () => {
     it("counts a notification with an invalid signature, discards it and logs it, changing nothing", async () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
       route.mercadoPago.reading = { kind: "read", result: PAID_ORDER };
       const payment = await pendingPaymentOfOrder();
 
-      const response = await route.notify({ signature: "ts=1,v1=00" });
+      const response = await route.notify({ type: NOT_AN_ORDER, signature: "ts=1,v1=00" });
 
       expect(response.statusCode).toBe(401);
       expect(route.mercadoPago.readings).toEqual([]);
@@ -117,17 +122,72 @@ describe("POST /payments/mercado-pago/notifications", () => {
       expect(warn).toHaveBeenCalledOnce();
     });
 
-    it("logs why it discarded a notification and the notification's type, and nothing secret", async () => {
+    it("logs why it discarded a malformed signature and the notification's type", async () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
-      const response = await route.notify({ signature: signatureHeader({ dataId: "ORD99OTHER" }) });
+      const response = await route.notify({ type: NOT_AN_ORDER, signature: "garbage" });
 
       expect(response.statusCode).toBe(401);
       expect(warn).toHaveBeenCalledExactlyOnceWith(
         "discarded a Mercado Pago notification with an invalid signature",
-        { reason: "mismatch", type: "order" },
+        { reason: "malformed_signature", type: NOT_AN_ORDER },
       );
-      expect(JSON.stringify(warn.mock.calls)).not.toContain(WEBHOOK_SECRET);
+    });
+
+    it("logs, on a mismatch, what the manifest was built from and every manifest tried", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+      const response = await route.notify({
+        type: NOT_AN_ORDER,
+        signature: signatureHeader({ dataId: "ORD99OTHER" }),
+        requestId: "8f2a6c1e-request",
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
+        "discarded a Mercado Pago notification with an invalid signature",
+        {
+          reason: "mismatch",
+          type: NOT_AN_ORDER,
+          dataId: ORDER_ID,
+          dataIdSource: "query",
+          ts: "1760011200000",
+          requestId: "8f2a6c1e-request",
+          manifests: [
+            "id:ORD01JQ4S4KY8HWQ6NA5PXB65B3D3;request-id:8f2a6c1e-request;ts:1760011200000;",
+            "id:ord01jq4s4ky8hwq6na5pxb65b3d3;request-id:8f2a6c1e-request;ts:1760011200000;",
+          ],
+        },
+      );
+    });
+
+    it("logs, on a mismatch, the body's data id when it differs from the query's", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+      await route.notify({
+        type: NOT_AN_ORDER,
+        signature: signatureHeader({ dataId: "ORD99OTHER" }),
+        body: { type: NOT_AN_ORDER, data: { id: "ORD01BODY" } },
+      });
+
+      expect(warn.mock.calls[0]?.[1]).toMatchObject({ dataId: ORDER_ID, bodyDataId: "ORD01BODY" });
+    });
+
+    it("logs, on a mismatch, neither the secret, the received signature nor any computed one", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      const signature = signatureHeader({ dataId: "ORD99OTHER" });
+
+      await route.notify({ type: NOT_AN_ORDER, signature });
+
+      const logged = JSON.stringify(warn.mock.calls);
+      const received = signature.split("v1=")[1] ?? "";
+      const computed = [ORDER_ID, ORDER_ID.toLowerCase()].map(
+        (dataId) => signatureHeader({ dataId }).split("v1=")[1] ?? "",
+      );
+      expect(received).toHaveLength(64);
+      for (const secretPart of [WEBHOOK_SECRET, received, ...computed]) {
+        expect(logged).not.toContain(secretPart);
+      }
     });
 
     it("refuses a notification with an invalid signature of an origin over the limit, telling when to retry", async () => {
@@ -138,10 +198,83 @@ describe("POST /payments/mercado-pago/notifications", () => {
         })),
       );
 
-      const response = await route.notify({ signature: "ts=1,v1=00" });
+      const response = await route.notify({ type: NOT_AN_ORDER, signature: "ts=1,v1=00" });
 
       expect(response.statusCode).toBe(429);
       expect(response.headers["retry-after"]).toBe("30");
+    });
+  });
+
+  describe.each([
+    ["without a signature", undefined],
+    ["with a signature that does not verify", signatureHeader({ dataId: "ORD99OTHER" })],
+  ])("an order notification %s", (_name, signature) => {
+    it("reads the order from Mercado Pago and approves our pending payment according to what it returns", async () => {
+      route.mercadoPago.reading = { kind: "read", result: PAID_ORDER };
+      const payment = await pendingPaymentOfOrder();
+
+      const response = await route.notify({ signature });
+
+      expect(response.statusCode).toBe(200);
+      expect(route.mercadoPago.readings).toEqual([ORDER_ID]);
+      expect(await stateOf(payment.id)).toBe("APPROVED");
+    });
+
+    it("leaves the payment pending when it claims the order was paid and Mercado Pago says it was not", async () => {
+      route.mercadoPago.reading = { kind: "read", result: UNPAID_ORDER };
+      const payment = await pendingPaymentOfOrder();
+
+      const response = await route.notify({
+        signature,
+        body: { type: "order", status: "processed", data: { id: ORDER_ID, status: "processed" } },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(route.mercadoPago.readings).toEqual([ORDER_ID]);
+      expect(await stateOf(payment.id)).toBe("PENDING");
+    });
+
+    it("answers 200 and reads nothing for an order no payment has", async () => {
+      const response = await route.notify({ signature, dataId: "ORD99UNKNOWN" });
+
+      expect(response.statusCode).toBe(200);
+      expect(route.mercadoPago.readings).toEqual([]);
+    });
+
+    it("answers 200 and reads nothing for the order of a payment already resolved", async () => {
+      route.mercadoPago.reading = { kind: "read", result: UNPAID_ORDER };
+      const payment = await pendingPaymentOfOrder(ORDER_ID, { state: "APPROVED" });
+
+      const response = await route.notify({ signature });
+
+      expect(response.statusCode).toBe(200);
+      expect(route.mercadoPago.readings).toEqual([]);
+      expect(await stateOf(payment.id)).toBe("APPROVED");
+    });
+
+    it("answers 200 and reads nothing when it names no order", async () => {
+      await pendingPaymentOfOrder();
+
+      const response = await route.notify({ signature, dataId: undefined });
+
+      expect(response.statusCode).toBe(200);
+      expect(route.mercadoPago.readings).toEqual([]);
+    });
+
+    it("refuses it from an origin over the limit without reading the order, telling when to retry", async () => {
+      await pendingPaymentOfOrder();
+      await route.db.insert(paymentNotificationAttempts).values(
+        Array.from({ length: PAYMENT_NOTIFICATION_LIMIT }, () => ({
+          sourceAddress: "203.0.113.50",
+          attemptedAt: new Date(NOW.getTime() - 30_000),
+        })),
+      );
+
+      const response = await route.notify({ signature });
+
+      expect(response.statusCode).toBe(429);
+      expect(response.headers["retry-after"]).toBe("30");
+      expect(route.mercadoPago.readings).toEqual([]);
     });
   });
 
