@@ -1,5 +1,6 @@
 import type { SaleUnit } from "../../../catalog/index.js";
 import type { Clock } from "../../../shared/index.js";
+import type { NewLot } from "../../model/lot.js";
 import type {
   CoveringCount,
   LockProductStockResult,
@@ -28,10 +29,11 @@ export interface FakeStockState {
   balances: FakeStockBalance[];
   movements: FakeStockMovement[];
   counts: NewStockCount[];
+  lots: NewLot[];
   nextId: number;
 }
 
-type WriteOperation = "recordMovement" | "recordCount" | "addToBalance";
+type WriteOperation = "recordMovement" | "recordCount" | "addToBalance" | "recordLot";
 
 function cloneState(state: FakeStockState): FakeStockState {
   return {
@@ -39,6 +41,7 @@ function cloneState(state: FakeStockState): FakeStockState {
     balances: state.balances.map((row) => ({ ...row })),
     movements: state.movements.map((row) => ({ ...row, occurredAt: new Date(row.occurredAt) })),
     counts: state.counts.map((row) => ({ ...row })),
+    lots: state.lots.map((row) => ({ ...row })),
     nextId: state.nextId,
   };
 }
@@ -102,6 +105,11 @@ class FakeStockStoreTransaction implements StockStoreTransaction {
     this.state.counts.push({ ...count });
   }
 
+  async recordLot(lot: NewLot): Promise<void> {
+    this.beforeWrite("recordLot");
+    this.state.lots.push({ ...lot });
+  }
+
   async addToBalance(key: ProductStockKey, delta: number): Promise<number> {
     this.beforeWrite("addToBalance");
     const existing = this.state.balances.find((row) => sameKey(row, key));
@@ -127,6 +135,7 @@ export class FakeStockStore implements StockStore {
     balances: [],
     movements: [],
     counts: [],
+    lots: [],
     nextId: 1,
   };
 

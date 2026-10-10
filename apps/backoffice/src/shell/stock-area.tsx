@@ -1,10 +1,11 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { ArrowDownUp, ClipboardCheck, Package, Scale, Truck } from "lucide-react";
+import { ArrowDownUp, ClipboardCheck, Package, Scale, ShoppingCart, Truck } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import {
   canManagePurchasePackagings,
   canManageSuppliers,
   canPerformStockCounts,
+  canRecordPurchases,
   canSeeStockBalances,
   canSeeStockMovements,
 } from "./backoffice-access";
@@ -24,6 +25,7 @@ function StockArea() {
   const movementsShown = Boolean(matchRoute({ to: "/inventory-adjustments" }));
   const suppliersShown = Boolean(matchRoute({ to: "/suppliers" }));
   const packagingsShown = Boolean(matchRoute({ to: "/purchase-packagings" }));
+  const purchasesShown = Boolean(matchRoute({ to: "/purchases", fuzzy: true }));
   return (
     <AreaLayout
       area="stock"
@@ -85,6 +87,17 @@ function StockArea() {
                   icon={<Package />}
                   search={packagingsShown ? true : {}}
                   active={packagingsShown}
+                />
+              </li>
+            )}
+            {canRecordPurchases(session) && (
+              <li>
+                <SectionLink
+                  to="/purchases"
+                  label="Compras"
+                  icon={<ShoppingCart />}
+                  search={purchasesShown ? true : {}}
+                  active={purchasesShown}
                 />
               </li>
             )}

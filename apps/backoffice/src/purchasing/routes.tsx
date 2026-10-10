@@ -1,6 +1,10 @@
 import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import { canManagePurchasePackagings, canManageSuppliers } from "../shell/backoffice-access";
+import {
+  canManagePurchasePackagings,
+  canManageSuppliers,
+  canRecordPurchases,
+} from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { refuseWithout } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";
@@ -37,4 +41,19 @@ export const packagingsListRoute = createRoute({
   validateSearch: packagingsListFilters,
   search: { middlewares: [stripSearchParams(packagingsListFilters.parse({}))] },
   component: lazyScreen(() => import("./packagings-list-page"), "PackagingsListPage"),
+});
+
+export const purchasesListRoute = createRoute({
+  getParentRoute: () => stockAreaRoute,
+  path: "purchases",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canRecordPurchases),
+  component: lazyScreen(() => import("./purchases-list-page"), "PurchasesListPage"),
+});
+
+export const newPurchaseRoute = createRoute({
+  getParentRoute: () => stockAreaRoute,
+  path: "purchases/new",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canRecordPurchases),
+  loader: () => ({ openedAt: new Date() }),
+  component: lazyScreen(() => import("./new-purchase-page"), "NewPurchasePage"),
 });

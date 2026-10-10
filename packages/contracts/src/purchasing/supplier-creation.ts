@@ -9,18 +9,7 @@ import {
 } from "@purosur/domain";
 import { z } from "zod";
 import { requiredTextSchema } from "../shared/index.js";
-import { optionalTextSchema } from "./optional-text.js";
-
-function optionalLimitedTextSchema(
-  field: string,
-  maxLength: number,
-  isTooLong: (value: string) => boolean,
-) {
-  return optionalTextSchema(
-    `${field} must be a string of at most ${maxLength} characters`,
-    (value) => !isTooLong(value),
-  ).meta({ maxLength });
-}
+import { optionalLimitedTextSchema, optionalTextSchema } from "./optional-text.js";
 
 export const supplierCreationBodySchema = z.object({
   name: requiredTextSchema("name", SUPPLIER_NAME_MAX_LENGTH, isSupplierNameTooLong),

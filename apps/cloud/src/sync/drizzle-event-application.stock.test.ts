@@ -125,6 +125,7 @@ describe("applying the stock a completed sale moved", () => {
         kind: "sale",
         reason: null,
         saleLineId: sale.lines[0]?.id,
+        purchaseLineId: null,
         delta: -2000,
         occurredAt: COMPLETED_AT,
         recordedAt: expect.any(Date),

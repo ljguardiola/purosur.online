@@ -16,8 +16,8 @@ describe("MANUAL_STOCK_MOVEMENT_KINDS", () => {
 });
 
 describe("STOCK_MOVEMENT_KINDS", () => {
-  it("lists every movement a balance moves by: the ones recorded by hand, counts and sales", () => {
-    expect(STOCK_MOVEMENT_KINDS).toEqual(["loss", "adjustment", "count", "sale"]);
+  it("lists every movement a balance moves by: the ones recorded by hand, counts, sales and receipts", () => {
+    expect(STOCK_MOVEMENT_KINDS).toEqual(["loss", "adjustment", "count", "sale", "receipt"]);
     expectTypeOf<(typeof STOCK_MOVEMENT_KINDS)[number]>().toEqualTypeOf<StockMovementKind>();
   });
 });

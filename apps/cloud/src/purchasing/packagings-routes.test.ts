@@ -82,6 +82,14 @@ describe("GET /purchase-packagings", () => {
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
+  it("returns 403 to a user who can only record purchases, who reads what a purchase may use elsewhere", async () => {
+    const { headers } = await signedInWith(db, ["record_purchases"], NOW);
+
+    const response = await app.inject({ method: "GET", url: "/purchase-packagings", headers });
+
+    expect(response.statusCode).toBe(403);
+  });
+
   it("lists the packagings with their product's name and current sale unit, and the active products to define one for", async () => {
     const { headers } = await manager();
     const arroz = await insertProduct(db, { name: "Arroz", saleUnit: "UNIT" });

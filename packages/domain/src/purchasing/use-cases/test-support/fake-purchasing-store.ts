@@ -1,9 +1,12 @@
 import type { SaleUnit } from "../../../catalog/index.js";
+import type { PurchaseReceipt } from "../../../stock/index.js";
 import type {
   LockPackagingResult,
   LockProductResult,
   LockSupplierResult,
   NewPackagingFields,
+  NewPurchaseFields,
+  NewPurchaseLineFields,
   NewSupplierFields,
   Packaging,
   PackagingFields,
@@ -33,10 +36,23 @@ export interface FakeProductRow {
   active: boolean;
 }
 
+interface FakePurchaseRow extends NewPurchaseFields {
+  id: string;
+}
+
+interface FakePurchaseLineRow extends NewPurchaseLineFields {
+  id: string;
+}
+
+export type FakePurchasingWrite = "insertPurchase" | "insertPurchaseLine" | "receiveStock";
+
 export interface FakePurchasingState {
   suppliers: FakeSupplierRow[];
   packagings: FakePackagingRow[];
   products: FakeProductRow[];
+  purchases: FakePurchaseRow[];
+  purchaseLines: FakePurchaseLineRow[];
+  receipts: PurchaseReceipt[];
   nextId: number;
 }
 
@@ -45,6 +61,13 @@ function cloneState(state: FakePurchasingState): FakePurchasingState {
     suppliers: state.suppliers.map((row) => ({ ...row })),
     packagings: state.packagings.map((row) => ({ ...row })),
     products: state.products.map((row) => ({ ...row })),
+    purchases: state.purchases.map((row) => ({ ...row, recordedAt: new Date(row.recordedAt) })),
+    purchaseLines: state.purchaseLines.map((row) => ({ ...row })),
+    receipts: state.receipts.map((receipt) => ({
+      ...receipt,
+      occurredAt: new Date(receipt.occurredAt),
+      lines: receipt.lines.map((line) => ({ ...line })),
+    })),
     nextId: state.nextId,
   };
 }
@@ -64,6 +87,7 @@ class FakePurchasingStoreTransaction implements PurchasingStoreTransaction {
 
   async lockSupplier(supplierId: string): Promise<LockSupplierResult> {
     this.store.lockCallOrder.push("lockSupplier");
+    this.store.lockLog.push(`supplier:${supplierId}`);
     const row = this.state.suppliers.find((supplier) => supplier.id === supplierId);
     if (!row) {
       return { kind: "not_found" };
@@ -115,6 +139,13 @@ class FakePurchasingStoreTransaction implements PurchasingStoreTransaction {
 
   async lockProduct(productId: string): Promise<LockProductResult> {
     this.store.lockCallOrder.push("lockProduct");
+    this.store.lockLog.push(`product:${productId}`);
+    return this.lockedProduct(productId);
+  }
+
+  async holdPurchasedProduct(productId: string): Promise<LockProductResult> {
+    this.store.lockCallOrder.push("holdPurchasedProduct");
+    this.store.lockLog.push(`product:${productId}`);
     return this.lockedProduct(productId);
   }
 
@@ -126,6 +157,7 @@ class FakePurchasingStoreTransaction implements PurchasingStoreTransaction {
 
   async lockPackaging(packagingId: string): Promise<LockPackagingResult> {
     this.store.lockCallOrder.push("lockPackaging");
+    this.store.lockLog.push(`packaging:${packagingId}`);
     const row = this.state.packagings.find((packaging) => packaging.id === packagingId);
     if (!row || this.store.packagingsGoneOnceTheirProductIsLocked.has(packagingId)) {
       return { kind: "not_found" };
@@ -175,6 +207,32 @@ class FakePurchasingStoreTransaction implements PurchasingStoreTransaction {
     }
   }
 
+  async insertPurchase(fields: NewPurchaseFields): Promise<{ id: string }> {
+    this.beforeWrite("insertPurchase");
+    const id = `purchase-${this.state.nextId++}`;
+    this.state.purchases.push({ ...fields, id });
+    return { id };
+  }
+
+  async insertPurchaseLine(fields: NewPurchaseLineFields): Promise<{ id: string }> {
+    this.beforeWrite("insertPurchaseLine");
+    const id = `purchase-line-${this.state.nextId++}`;
+    this.state.purchaseLines.push({ ...fields, id });
+    return { id };
+  }
+
+  async receiveStock(receipt: PurchaseReceipt): Promise<void> {
+    this.beforeWrite("receiveStock");
+    this.store.lockLog.push("stock receipt");
+    this.state.receipts.push({ ...receipt, lines: receipt.lines.map((line) => ({ ...line })) });
+  }
+
+  private beforeWrite(operation: FakePurchasingWrite): void {
+    if (this.store.writeFailsAtCall(operation)) {
+      throw new Error(`${operation} failed`);
+    }
+  }
+
   private lockedProduct(productId: string): LockProductResult {
     const product = this.state.products.find((row) => row.id === productId);
     return product
@@ -202,7 +260,15 @@ class FakePurchasingStoreTransaction implements PurchasingStoreTransaction {
 }
 
 export class FakePurchasingStore implements PurchasingStore {
-  private state: FakePurchasingState = { suppliers: [], packagings: [], products: [], nextId: 1 };
+  private state: FakePurchasingState = {
+    suppliers: [],
+    packagings: [],
+    products: [],
+    purchases: [],
+    purchaseLines: [],
+    receipts: [],
+    nextId: 1,
+  };
 
   // Names (already lowercased) that raise the conflict on a write, regardless of what a
   // same-transaction check found, to model a concurrent write that committed first.
@@ -212,7 +278,11 @@ export class FakePurchasingStore implements PurchasingStore {
 
   packagingsGoneOnceTheirProductIsLocked = new Set<string>();
 
+  private readonly failingCalls = new Map<FakePurchasingWrite, number>();
+  private readonly writeCalls = new Map<FakePurchasingWrite, number>();
+
   lockCallOrder: string[] = [];
+  lockLog: string[] = [];
   transactionCount = 0;
 
   seedSupplier(supplier: Supplier): void {
@@ -225,6 +295,16 @@ export class FakePurchasingStore implements PurchasingStore {
 
   seedPackaging(packaging: Packaging): void {
     this.state.packagings.push({ ...packaging, writtenBy: null });
+  }
+
+  failWriteAtCall(operation: FakePurchasingWrite, call: number): void {
+    this.failingCalls.set(operation, call);
+  }
+
+  writeFailsAtCall(operation: FakePurchasingWrite): boolean {
+    const call = (this.writeCalls.get(operation) ?? 0) + 1;
+    this.writeCalls.set(operation, call);
+    return this.failingCalls.get(operation) === call;
   }
 
   snapshot(): FakePurchasingState {

@@ -1,3 +1,4 @@
+import { movesBalance } from "../model/stock-receipt.js";
 import type { NewStockMovement, StockStoreTransaction } from "./stock-store.js";
 
 export interface AppliedStockMovement {
@@ -26,7 +27,6 @@ export async function recordStockMovement(
   movement: NewStockMovement,
 ): Promise<{ movementId: string; balance: number | null }> {
   const movementId = await tx.recordMovement(movement);
-  const balance =
-    movement.supersededByCountId === null ? await tx.addToBalance(movement, movement.delta) : null;
+  const balance = movesBalance(movement) ? await tx.addToBalance(movement, movement.delta) : null;
   return { movementId, balance };
 }

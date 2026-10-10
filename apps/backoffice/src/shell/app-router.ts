@@ -13,7 +13,12 @@ import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/rout
 import { pendingRefundsRoute } from "../payments/routes";
 import { rolesListRoute } from "../permissions/routes";
 import { discountsListRoute, pricesListRoute } from "../pricing/routes";
-import { packagingsListRoute, suppliersListRoute } from "../purchasing/routes";
+import {
+  newPurchaseRoute,
+  packagingsListRoute,
+  purchasesListRoute,
+  suppliersListRoute,
+} from "../purchasing/routes";
 import { registersListRoute } from "../register/routes";
 import { reportsIndexRoute, salesByDayRoute } from "../sales/routes";
 import { signInRoute } from "../sessions/routes";
@@ -62,6 +67,8 @@ const routeTree = rootRoute.addChildren([
       stockMovementsRoute,
       suppliersListRoute,
       packagingsListRoute,
+      purchasesListRoute,
+      newPurchaseRoute,
     ]),
     cashAndFiscalAreaRoute.addChildren([
       pointsOfSaleRoute,
