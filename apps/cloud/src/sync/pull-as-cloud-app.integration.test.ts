@@ -183,6 +183,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       "buyer_tax_status_set",
       "category",
       "issuer_identification",
+      "offline_number_block",
       "price",
       "price_list",
       "product",

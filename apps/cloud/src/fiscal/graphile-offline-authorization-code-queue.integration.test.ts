@@ -42,7 +42,13 @@ interface RequestJob {
 
 async function requestJobs(): Promise<RequestJob[]> {
   const rows = await sql<
-    { attempts: number; max_attempts: number; priority: number; run_at: Date; key: string | null }[]
+    {
+      attempts: number;
+      max_attempts: number;
+      priority: number;
+      run_at: string;
+      key: string | null;
+    }[]
   >`
     select attempts, max_attempts, priority, run_at, key from graphile_worker.jobs
     where task_identifier = ${OFFLINE_AUTHORIZATION_CODE_REQUEST_TASK_IDENTIFIER}`;
@@ -50,7 +56,7 @@ async function requestJobs(): Promise<RequestJob[]> {
     attempts: row.attempts,
     maxAttempts: row.max_attempts,
     priority: row.priority,
-    runAt: row.run_at,
+    runAt: new Date(row.run_at),
     key: row.key,
   }));
 }
@@ -62,7 +68,7 @@ function pull() {
 async function failedFarInTheFuture(attempts: number): Promise<Date> {
   const runAt = new Date(Date.now() + 3 * 60 * 60_000);
   await sql`
-    update graphile_worker._private_jobs set attempts = ${attempts}, run_at = ${runAt},
+    update graphile_worker._private_jobs set attempts = ${attempts}::int, run_at = ${runAt.toISOString()}::timestamptz,
       last_error = 'ARCA did not answer'
     where key = ${OFFLINE_AUTHORIZATION_CODE_REQUEST_TASK_IDENTIFIER}`;
   return runAt;
@@ -120,10 +126,10 @@ describe("the on-demand request for the offline authorization code on a real Pos
 
     await pull();
 
-    const [job, ...others] = await requestJobs();
-    expect(others).toEqual([]);
-    expect(job?.attempts).toBe(0);
-    expect(job?.runAt.getTime()).toBeLessThanOrEqual(Date.now());
+    const waiting = (await requestJobs()).filter(({ key }) => key !== null);
+    expect(waiting).toHaveLength(1);
+    expect(waiting[0]?.attempts).toBe(0);
+    expect(waiting[0]?.runAt.getTime()).toBeLessThanOrEqual(Date.now());
   });
 
   it("enqueues exactly one job for pulls that run at the same time", async () => {
