@@ -9,6 +9,7 @@ import {
   registerOfflinePointsOfSale,
   registerPointsOfSale,
   registers,
+  taxAuthorityLastAuthorizedNumbers,
   users,
 } from "../../platform/db/schema.js";
 import { seededLocationId } from "../../test-support/seeded-location.js";
@@ -80,6 +81,9 @@ export async function configureOfflinePointOfSale<TQueryResult extends PgQueryRe
     throw new Error("test setup: seeding the offline point of sale's parents returned no row");
   }
   const base = { locationId, registerId: register.id, actorId: actor.id };
+  await db
+    .insert(taxAuthorityLastAuthorizedNumbers)
+    .values({ pointOfSaleNumber: offlinePointOfSale, lastAuthorized: 0, readAt: now });
   const realTime = await configureRegisterPointOfSale(
     new DrizzleRegisterPointOfSaleStore(db, () => now),
     {

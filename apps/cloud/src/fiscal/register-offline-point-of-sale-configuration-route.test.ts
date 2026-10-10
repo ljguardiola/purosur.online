@@ -10,6 +10,7 @@ import {
   registerOfflinePointsOfSale,
   registerPointsOfSale,
   registers,
+  taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import {
@@ -26,6 +27,7 @@ import { registerRegisterPointOfSaleConfigurationRoute } from "./register-point-
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let app: FastifyInstance;
+let enqueuedCounts: number[];
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -39,9 +41,15 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
+  enqueuedCounts = [];
   const options = { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => SESSION_NOON };
   registerRegisterPointOfSaleConfigurationRoute(app, options);
-  registerRegisterOfflinePointOfSaleConfigurationRoute(app, options);
+  registerRegisterOfflinePointOfSaleConfigurationRoute(app, {
+    ...options,
+    enqueueTaxAuthorityCount: async (_transaction, pointOfSale) => {
+      enqueuedCounts.push(pointOfSale);
+    },
+  });
 });
 
 afterEach(async () => {
@@ -98,6 +106,12 @@ async function giveRealTimePointOfSale(
     },
   });
   expect(response.statusCode).toBe(200);
+}
+
+async function holdTaxAuthorityCount(pointOfSaleNumber: number, lastAuthorized: number) {
+  await db
+    .insert(taxAuthorityLastAuthorizedNumbers)
+    .values({ pointOfSaleNumber, lastAuthorized, readAt: SESSION_NOON });
 }
 
 function configureOffline(
@@ -222,6 +236,7 @@ describe("PUT /registers/:id/offline-point-of-sale", () => {
     const registerId = await insertRegister("Caja 1");
     const session = await sessionWith(["change_fiscal_configuration"]);
     await giveRealTimePointOfSale(registerId, 7, session.headers);
+    await holdTaxAuthorityCount(8, 0);
     const mark = await lastLoggedChangeSeq(db);
 
     const response = await configureOffline(registerId, bodyFor(), session.headers);
@@ -249,6 +264,7 @@ describe("PUT /registers/:id/offline-point-of-sale", () => {
     const registerId = await insertRegister("Caja 1");
     const session = await sessionWith(["change_fiscal_configuration"]);
     await giveRealTimePointOfSale(registerId, 7, session.headers);
+    await holdTaxAuthorityCount(8, 0);
     const mark = await lastLoggedChangeSeq(db);
 
     await configureOffline(registerId, bodyFor(), session.headers);
@@ -270,6 +286,61 @@ describe("PUT /registers/:id/offline-point-of-sale", () => {
     expect(logged.find(({ entity }) => entity === "offline_number_block")?.entityId).toBe(
       blocks[0]?.id,
     );
+  });
+
+  it("assigns the first block right after the number the tax authority last authorized", async () => {
+    const registerId = await insertRegister("Caja 1");
+    const session = await sessionWith(["change_fiscal_configuration"]);
+    await giveRealTimePointOfSale(registerId, 7, session.headers);
+    await holdTaxAuthorityCount(8, 37);
+
+    await configureOffline(registerId, bodyFor(), session.headers);
+
+    expect(await db.select().from(offlineNumberBlocks)).toMatchObject([
+      { pointOfSaleNumber: 8, firstNumber: 38, lastNumber: 1037 },
+    ]);
+    expect(enqueuedCounts).toEqual([]);
+  });
+
+  it("answers 200 with no block, and asks for the tax authority's count, while the cloud holds none", async () => {
+    const registerId = await insertRegister("Caja 1");
+    const session = await sessionWith(["change_fiscal_configuration"]);
+    await giveRealTimePointOfSale(registerId, 7, session.headers);
+
+    const response = await configureOffline(registerId, bodyFor(), session.headers);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      register_id: registerId,
+      point_of_sale_number: 8,
+      version: 1,
+    });
+    expect(await db.select().from(offlineNumberBlocks)).toEqual([]);
+    expect(enqueuedCounts).toEqual([8]);
+  });
+
+  it("answers 200 with no block, and asks for nothing, when invoicing is not configured", async () => {
+    const withoutInvoicing = Fastify();
+    registerRegisterOfflinePointOfSaleConfigurationRoute(withoutInvoicing, {
+      db,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => SESSION_NOON,
+    });
+    const registerId = await insertRegister("Caja 1");
+    const session = await sessionWith(["change_fiscal_configuration"]);
+    await giveRealTimePointOfSale(registerId, 7, session.headers);
+
+    const response = await withoutInvoicing.inject({
+      method: "PUT",
+      url: `/registers/${registerId}/offline-point-of-sale`,
+      headers: session.headers,
+      payload: bodyFor(),
+    });
+    await withoutInvoicing.close();
+
+    expect(response.statusCode).toBe(200);
+    expect(await db.select().from(offlineNumberBlocks)).toEqual([]);
+    expect(enqueuedCounts).toEqual([]);
   });
 
   it("assigns no block when the configuration is refused", async () => {

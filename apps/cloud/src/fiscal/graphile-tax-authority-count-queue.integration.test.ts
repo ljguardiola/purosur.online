@@ -185,7 +185,7 @@ describe("the tax authority count jobs on a real Postgres", () => {
     expect((await pendingCountJobs()).map((job) => job.pointOfSale)).toEqual([23, 24]);
   });
 
-  it("enqueues, at startup, the count of every claimed real-time point of sale that has none yet", async () => {
+  it("enqueues, at startup, the count of every claimed point of sale, real-time or offline, that has none yet", async () => {
     const { locationId, actorId, fiscalAddressId, registerIds } = await seedRegisters(2);
     const store = new DrizzleRegisterPointOfSaleStore(db, () => NOW);
     await configureRegisterPointOfSale(store, {
@@ -221,7 +221,60 @@ describe("the tax authority count jobs on a real Postgres", () => {
     await enqueueMissingTaxAuthorityCounts(db);
     await enqueueMissingTaxAuthorityCounts(db);
 
-    expect((await pendingCountJobs()).map((job) => job.pointOfSale)).toEqual([31]);
+    expect((await pendingCountJobs()).map((job) => job.pointOfSale)).toEqual([31, 33]);
+  });
+
+  describe("when an offline point of sale is configured with no count held", () => {
+    async function registerWithRealTimePointOfSale() {
+      const seeded = await seedRegisters(1);
+      const registerId = seeded.registerIds[0] as string;
+      await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOW), {
+        locationId: seeded.locationId,
+        registerId,
+        pointOfSaleNumber: 41,
+        fiscalAddressId: seeded.fiscalAddressId,
+        version: 0,
+        actorId: seeded.actorId,
+      });
+      return { ...seeded, registerId };
+    }
+
+    function offlineStore() {
+      return new DrizzleRegisterOfflinePointOfSaleStore(
+        db,
+        () => NOW,
+        undefined,
+        enqueueTaxAuthorityCountJob,
+      );
+    }
+
+    it("enqueues the count in the transaction that configures it", async () => {
+      const { locationId, actorId, registerId } = await registerWithRealTimePointOfSale();
+
+      const outcome = await configureRegisterOfflinePointOfSale(offlineStore(), {
+        locationId,
+        registerId,
+        pointOfSaleNumber: 42,
+        version: 0,
+        actorId,
+      });
+
+      expect(outcome.kind).toBe("configured");
+      expect(await pendingCountJobs()).toEqual([{ pointOfSale: 42, attempts: 0, maxAttempts: 25 }]);
+    });
+
+    it("enqueues nothing when the transaction rolls back", async () => {
+      await registerWithRealTimePointOfSale();
+
+      await expect(
+        offlineStore().transaction(async (tx) => {
+          await tx.requireTaxAuthorityCount(42);
+          throw new Error("the configuration failed after asking for the count");
+        }),
+      ).rejects.toThrow("the configuration failed");
+
+      expect(await pendingCountJobs()).toEqual([]);
+    });
   });
 
   describe("when an installation enrolls", () => {
