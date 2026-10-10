@@ -160,6 +160,8 @@ function contextWith(
     searchProducts: async () => ({ kind: "results", products: [], more: false }),
     addProduct: async () => ({ kind: "product_unavailable" }),
     changeLineQuantity: async () => ({ kind: "unavailable" }),
+    addWeighedProduct: async () => ({ kind: "unavailable" }),
+    changeLineWeight: async () => ({ kind: "unavailable" }),
     removeSaleLine: async () => ({ kind: "unavailable" }),
     cancelSale: async () => ({ kind: "unavailable" }),
     cancelPaidSale: async () => ({ kind: "unavailable" }),

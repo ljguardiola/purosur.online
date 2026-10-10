@@ -1,8 +1,10 @@
 import type {
   AddProductOutcome,
+  AddWeighedProductOutcome,
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
   ChangeLineQuantityOutcome,
+  ChangeLineWeightOutcome,
   OpenSale,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
@@ -47,6 +49,30 @@ export const ALFAJOR = {
   discount_amount: 0,
   promotion: null,
   line_total: 150_000,
+};
+export const QUESO = {
+  id: "line-3",
+  product_id: "p-queso",
+  product_name: "Queso cremoso",
+  sale_unit: "KG" as const,
+  weight_source: "MANUAL" as const,
+  quantity: 1250,
+  list_unit_price: 1_250_000,
+  discount_amount: 0,
+  promotion: null,
+  line_total: 1_562_500,
+};
+export const SALE_OF_QUESO: OpenSale = {
+  id: "sale-1",
+  lines: [QUESO],
+  total: 1_562_500,
+  paid: 0,
+  pending: 1_562_500,
+  lines_lock: null,
+  cancel_refusal: null,
+  charge_refusal: null,
+  refunds_on_cancel: [],
+  cancel_authorization_required: false,
 };
 export const SALE_OF_YERBA: OpenSale = {
   id: "sale-1",
@@ -93,6 +119,12 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
   const changeLineQuantity =
     overrides.changeLineQuantity ??
     vi.fn(async (): Promise<ChangeLineQuantityOutcome> => ({ kind: "unavailable" }));
+  const addWeighedProduct =
+    overrides.addWeighedProduct ??
+    vi.fn(async (): Promise<AddWeighedProductOutcome> => ({ kind: "unavailable" }));
+  const changeLineWeight =
+    overrides.changeLineWeight ??
+    vi.fn(async (): Promise<ChangeLineWeightOutcome> => ({ kind: "unavailable" }));
   const removeSaleLine =
     overrides.removeSaleLine ??
     vi.fn(async (): Promise<RemoveSaleLineOutcome> => ({ kind: "unavailable" }));
@@ -114,7 +146,9 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
       scanProduct={scanProduct}
       searchProducts={searchProducts}
       addProduct={addProduct}
+      addWeighedProduct={addWeighedProduct}
       changeLineQuantity={changeLineQuantity}
+      changeLineWeight={changeLineWeight}
       removeSaleLine={removeSaleLine}
       cancelSale={cancelSale}
       cancelPaidSale={cancelPaidSale}

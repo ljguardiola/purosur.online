@@ -24,24 +24,42 @@ const CONTROLS = [
   "Quitar Yerba mate 1 kg",
 ];
 
-async function renderLines(actions: Partial<SaleLineActions> = {}) {
+const QUESO: OpenSale["lines"][number] = {
+  id: "line-3",
+  product_id: "p3",
+  product_name: "Queso cremoso",
+  sale_unit: "KG",
+  weight_source: "MANUAL",
+  quantity: 1250,
+  list_unit_price: 1_250_000,
+  discount_amount: 0,
+  promotion: null,
+  line_total: 1_562_500,
+};
+
+async function renderLines(
+  actions: Partial<SaleLineActions> = {},
+  lines: OpenSale["lines"] = [YERBA],
+) {
   const onChangeQuantity = vi.fn();
+  const onChangeWeight = vi.fn();
   const onRemove = vi.fn();
   const screen = await render(
     <SaleLines
-      lines={[YERBA]}
+      lines={lines}
       changedLineId={undefined}
       actions={{
         busy: false,
         editable: true,
         lockedReason: undefined,
         onChangeQuantity,
+        onChangeWeight,
         onRemove,
         ...actions,
       }}
     />,
   );
-  return { screen, onChangeQuantity, onRemove };
+  return { screen, onChangeQuantity, onChangeWeight, onRemove };
 }
 
 describe("SaleLines", () => {
@@ -92,5 +110,52 @@ describe("SaleLines", () => {
     for (const name of CONTROLS) {
       await expect.element(screen.getByRole("button", { name })).toBeDisabled();
     }
+  });
+
+  describe("a line sold by the kilogram", () => {
+    it("shows its weight, its price per kilogram and that the weight was typed, with no quantity steppers", async () => {
+      const { screen } = await renderLines({}, [QUESO]);
+
+      await expect.element(screen.getByText("1,250 kg")).toBeVisible();
+      await expect.element(screen.getByText("$ 12.500,00 el kg")).toBeVisible();
+      await expect.element(screen.getByText("Peso tipeado")).toBeVisible();
+      await expect.element(screen.getByText("$ 15.625,00")).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Subir la cantidad de Queso cremoso" }))
+        .not.toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("button", { name: "Bajar la cantidad de Queso cremoso" }))
+        .not.toBeInTheDocument();
+    });
+
+    it("does not say the weight was typed when it came from the scale", async () => {
+      const { screen } = await renderLines({}, [{ ...QUESO, weight_source: "SCALE" }]);
+
+      await expect.element(screen.getByText("1,250 kg")).toBeVisible();
+      await expect.element(screen.getByText("Peso tipeado")).not.toBeInTheDocument();
+    });
+
+    it("asks to change the weight of the line", async () => {
+      const { screen, onChangeWeight } = await renderLines({}, [QUESO]);
+
+      await screen.getByRole("button", { name: "Cambiar el peso de Queso cremoso" }).click();
+
+      expect(onChangeWeight).toHaveBeenCalledExactlyOnceWith(QUESO);
+    });
+
+    it("locks the change of weight like the other controls", async () => {
+      const { screen } = await renderLines({ busy: true }, [QUESO]);
+
+      await expect
+        .element(screen.getByRole("button", { name: "Cambiar el peso de Queso cremoso" }))
+        .toBeDisabled();
+    });
+  });
+
+  it("shows a unit line with neither a price per kilogram nor a typed weight tag", async () => {
+    const { screen } = await renderLines();
+
+    await expect.element(screen.getByText("Peso tipeado")).not.toBeInTheDocument();
+    await expect.element(screen.getByText(/el kg/)).not.toBeInTheDocument();
   });
 });
