@@ -30,10 +30,11 @@ describe("alertConditionResolutionJobs", () => {
     const borrowed = vi.fn();
     const resolve = vi.fn().mockResolvedValue(0);
     const detectQuiet = vi.fn().mockResolvedValue(0);
+    const detectMissingCodes = vi.fn().mockResolvedValue(0);
 
     const jobs = alertConditionResolutionJobs(
       { now: () => new Date("2026-01-05T12:00:00.000Z") },
-      { createDatabase, resolve, detectQuiet },
+      { createDatabase, resolve, detectQuiet, detectMissingCodes },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
     if (!task) {
@@ -65,7 +66,12 @@ describe("alertConditionResolutionJobs", () => {
 
     const jobs = alertConditionResolutionJobs(
       { now: () => new Date("2026-01-05T12:00:00.000Z") },
-      { createDatabase: vi.fn().mockReturnValue(fakeDb), resolve, detectQuiet },
+      {
+        createDatabase: vi.fn().mockReturnValue(fakeDb),
+        resolve,
+        detectQuiet,
+        detectMissingCodes: vi.fn().mockResolvedValue(0),
+      },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
     if (!task) {
@@ -76,6 +82,44 @@ describe("alertConditionResolutionJobs", () => {
 
     expect(calls).toEqual(["resolve", "detectQuiet"]);
     const [dbArgument, depsArgument] = detectQuiet.mock.calls[0] as [unknown, { now: () => Date }];
+    expect(dbArgument).toBe(fakeDb);
+    expect(depsArgument.now()).toEqual(new Date("2026-01-05T12:00:00.000Z"));
+  });
+
+  it("looks for missing offline authorization codes right after the quiet registers, on the same database and by the same clock", async () => {
+    const fakeClient: PoolClient = Object.create(null);
+    const fakeDb = { marker: "fake-db" };
+    const calls: string[] = [];
+    const detectQuiet = vi.fn().mockImplementation(async () => {
+      calls.push("detectQuiet");
+      return 0;
+    });
+    const detectMissingCodes = vi.fn().mockImplementation(async () => {
+      calls.push("detectMissingCodes");
+      return 0;
+    });
+
+    const jobs = alertConditionResolutionJobs(
+      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      {
+        createDatabase: vi.fn().mockReturnValue(fakeDb),
+        resolve: vi.fn().mockResolvedValue(0),
+        detectQuiet,
+        detectMissingCodes,
+      },
+    );
+    const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
+    if (!task) {
+      throw new Error("test setup: expected the registered alert condition resolution task");
+    }
+
+    await task({}, jobHelpers(fakeClient, vi.fn()));
+
+    expect(calls).toEqual(["detectQuiet", "detectMissingCodes"]);
+    const [dbArgument, depsArgument] = detectMissingCodes.mock.calls[0] as [
+      unknown,
+      { now: () => Date },
+    ];
     expect(dbArgument).toBe(fakeDb);
     expect(depsArgument.now()).toEqual(new Date("2026-01-05T12:00:00.000Z"));
   });

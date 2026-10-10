@@ -431,6 +431,7 @@ describe("DrizzleAlertStore lockOpenAlertOfKey", () => {
 
     expect(locked).toEqual({
       alertId: id,
+      level: "warning",
       detail: { previousEmail: "a@example.com", newEmail: "b@example.com", actorId: "actor-1" },
       conditionClearedAt: clearedAt,
     });
@@ -446,9 +447,26 @@ describe("DrizzleAlertStore lockOpenAlertOfKey", () => {
 
     expect(locked).toEqual({
       alertId: id,
+      level: "warning",
       detail: { previousEmail: "a@example.com", newEmail: "b@example.com", actorId: "actor-1" },
       conditionClearedAt: null,
     });
+  });
+
+  it("answers the level the alert has now, after it was raised", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const id = await store.transaction((tx) =>
+      tx.insertAlert(newAlert({ level: "informational" })),
+    );
+    await store.transaction((tx) =>
+      tx.recordEscalation([id], { level: "critical", escalatedAt: NOON }),
+    );
+
+    const locked = await store.transaction((tx) =>
+      tx.lockOpenAlertOfKey("user_email_changed", "user-1"),
+    );
+
+    expect(locked).toMatchObject({ alertId: id, level: "critical" });
   });
 
   it("ignores a closed alert and one of another scope or kind", async () => {

@@ -4,6 +4,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-server.js";
+import { seedOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
 import { alerts, branchHours, deviceState } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { setUpRecovery } from "../server.js";
@@ -131,6 +132,55 @@ describe("the background worker the server sets up on a real Postgres", () => {
             audience: "local",
             locationId: quiet.locationId,
             resolvedAt: null,
+          });
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+    } finally {
+      await recovery.close();
+    }
+  }, 60_000);
+
+  it("opens the alert of a register with an offline point of sale that has not downloaded the current fortnight's code", async () => {
+    const registerId = await seedOfflinePointOfSale(db);
+    const installation = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: registerId,
+    });
+    const recovery = await setUpRecovery(
+      {
+        databaseUrl: integrationDb.databaseUrl,
+        emailSender: { transport: "log" },
+        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
+        emailReplyTo: "purosur.comarca@gmail.com",
+        backofficeOrigin: "https://staging.purosur.online",
+        arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
+        arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
+      },
+      () => NOW,
+      { emailSender: UNUSED_EMAIL_SENDER },
+    );
+
+    try {
+      await sql`select graphile_worker.add_job('alert-condition-resolution')`;
+
+      await vi.waitFor(
+        async () => {
+          const [row] = await db
+            .select()
+            .from(alerts)
+            .where(eq(alerts.scope, `${registerId}:2020-01-01`));
+          expect(row).toMatchObject({
+            kind: "offline_authorization_code_missing",
+            level: "critical",
+            audience: "all",
+            locationId: null,
+            resolvedAt: null,
+            detail: {
+              deviceId: installation.deviceId,
+              fortnightStart: "2020-01-01",
+              fortnightEnd: "2020-01-15",
+            },
           });
         },
         { timeout: 20_000, interval: 100 },
