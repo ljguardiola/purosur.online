@@ -96,9 +96,9 @@ describe("the sale ledger's QR payments", () => {
 
     ledger.transaction((tx) => tx.recordCancelledSale("sale-1", WAIT_ENDS_AT, undefined));
 
-    expect(database.prepare("SELECT state, occurred_at FROM sales WHERE id = 'sale-1'").get()).toEqual(
-      { state: "CANCELLED", occurred_at: WAIT_ENDS_AT.toISOString() },
-    );
+    expect(
+      database.prepare("SELECT state, occurred_at FROM sales WHERE id = 'sale-1'").get(),
+    ).toEqual({ state: "CANCELLED", occurred_at: WAIT_ENDS_AT.toISOString() });
     expect(stateOf("qr-1")).toEqual({ state: "PENDING" });
   });
 });
