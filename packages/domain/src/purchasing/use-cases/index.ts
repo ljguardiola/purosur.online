@@ -20,11 +20,14 @@ export type {
   LockProductResult,
   LockSupplierResult,
   NewPackagingFields,
+  NewPurchaseFields,
+  NewPurchaseLineFields,
   NewSupplierFields,
   Packaging,
   PackagingFields,
   PurchasingStore,
   PurchasingStoreTransaction,
+  StockBalanceKey,
   Supplier,
   SupplierFields,
 } from "./purchasing-store.js";
@@ -37,3 +40,12 @@ export type { ReactivatePackagingOutcome } from "./reactivate-packaging.js";
 export { reactivatePackaging } from "./reactivate-packaging.js";
 export type { ReactivateSupplierOutcome } from "./reactivate-supplier.js";
 export { reactivateSupplier } from "./reactivate-supplier.js";
+export type {
+  RegisteredPurchase,
+  RegisteredPurchaseLine,
+  RegisterPurchaseInput,
+  RegisterPurchaseLine,
+  RegisterPurchaseOutcome,
+  RegisterPurchasePorts,
+} from "./register-purchase.js";
+export { registerPurchase } from "./register-purchase.js";

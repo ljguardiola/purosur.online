@@ -1,4 +1,6 @@
 import type { SaleUnit } from "../../catalog/index.js";
+import type { NewLot, ReceiptMovement } from "../../stock/index.js";
+import type { ReceiptType } from "../model/purchase.js";
 
 export interface Supplier {
   id: string;
@@ -50,6 +52,34 @@ export interface PackagingFields {
   actorId: string;
 }
 
+export interface NewPurchaseFields {
+  supplierId: string;
+  locationId: string;
+  purchasedOn: string;
+  receiptType: ReceiptType;
+  receiptNumber: string | null;
+  note: string | null;
+  recordedAt: Date;
+  actorId: string;
+}
+
+export interface NewPurchaseLineFields {
+  purchaseId: string;
+  productId: string;
+  packagingId: string | null;
+  packages: number | null;
+  quantity: number;
+  costPaidCents: number;
+  quantityPerPackage: number;
+  lotNumber: string | null;
+  expiresOn: string | null;
+}
+
+export interface StockBalanceKey {
+  productId: string;
+  locationId: string;
+}
+
 export type LockSupplierResult = { kind: "not_found" } | { kind: "locked"; supplier: Supplier };
 
 export type LockPackagingResult = { kind: "not_found" } | { kind: "locked"; packaging: Packaging };
@@ -87,6 +117,17 @@ export interface PurchasingStoreTransaction {
   ): Promise<boolean>;
   insertPackaging(fields: NewPackagingFields): Promise<{ id: string }>;
   updatePackaging(packagingId: string, fields: PackagingFields): Promise<void>;
+  insertPurchase(fields: NewPurchaseFields): Promise<{ id: string }>;
+  insertPurchaseLine(fields: NewPurchaseLineFields): Promise<{ id: string }>;
+  // Holds the product's balance at the branch so concurrent movements of it wait.
+  lockStockBalance(key: StockBalanceKey): Promise<void>;
+  earliestCountAtOrAfter(
+    key: StockBalanceKey,
+    at: Date,
+  ): Promise<{ movementId: string } | undefined>;
+  recordReceiptMovement(movement: ReceiptMovement): Promise<void>;
+  addToStockBalance(key: StockBalanceKey, delta: number): Promise<void>;
+  insertLot(lot: NewLot): Promise<void>;
 }
 
 export interface PurchasingStore {
