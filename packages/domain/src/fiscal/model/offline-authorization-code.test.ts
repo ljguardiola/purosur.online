@@ -5,6 +5,7 @@ import {
   fortnightContaining,
   fortnightsWithinRequestWindowOn,
   isSameFortnight,
+  isSecondHalfOfMonth,
   OFFLINE_AUTHORIZATION_CODE_REQUEST_LEAD_DAYS,
   offlineAuthorizationCodeRequestOpensOn,
 } from "./offline-authorization-code.js";
@@ -137,5 +138,15 @@ describe("isSameFortnight", () => {
         { start: "2026-10-01", end: "2026-10-14" },
       ),
     ).toBe(false);
+  });
+});
+
+describe("isSecondHalfOfMonth", () => {
+  it("is false for the fortnight from the 1st to the 15th", () => {
+    expect(isSecondHalfOfMonth({ start: "2026-10-01", end: "2026-10-15" })).toBe(false);
+  });
+
+  it("is true for the fortnight from the 16th to the last day of the month", () => {
+    expect(isSecondHalfOfMonth({ start: "2026-10-16", end: "2026-10-31" })).toBe(true);
   });
 });

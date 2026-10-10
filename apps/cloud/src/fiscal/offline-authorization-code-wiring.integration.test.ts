@@ -52,9 +52,9 @@ function recoveryEnv() {
   return {
     databaseUrl: integrationDb.databaseUrl,
     emailSender: { transport: "log" as const },
-    emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
-    emailReplyTo: "purosur.comarca@gmail.com",
-    backofficeOrigin: "https://staging.purosur.online",
+    emailFrom: "Almacén de Prueba <acceso@mail.example.test>",
+    emailReplyTo: "consultas@example.test",
+    backofficeOrigin: "https://backoffice.example.test",
     arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
     arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
     arcaInvoicing: {

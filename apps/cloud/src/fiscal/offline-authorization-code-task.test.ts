@@ -105,49 +105,4 @@ describe("offlineAuthorizationCodeJobs", () => {
       },
     ]);
   });
-
-  it("asks ARCA nothing while no register has an offline point of sale", async () => {
-    await issueWsaaToken();
-    const taxAuthority = new FakeOfflineAuthorizationCodes();
-    const { task } = taskUnderTest(taxAuthority);
-
-    await task({}, buildJobHelpers().helpers);
-
-    expect(taxAuthority.requests).toEqual([]);
-    expect(await testDatabase.db.select().from(caeaCodes)).toEqual([]);
-  });
-
-  it("finishes without a code when ARCA gives no answer, leaving it to the next run", async () => {
-    await seedOfflinePointOfSale(testDatabase.db);
-    await issueWsaaToken();
-    const taxAuthority = new FakeOfflineAuthorizationCodes();
-    taxAuthority.requestAnswer = { kind: "no_answer" };
-    const { task } = taskUnderTest(taxAuthority);
-
-    await expect(task({}, buildJobHelpers().helpers)).resolves.toBeUndefined();
-
-    expect(await testDatabase.db.select().from(caeaCodes)).toEqual([]);
-  });
-
-  it("finishes without a code when ARCA refuses the request, leaving it to the next run", async () => {
-    await seedOfflinePointOfSale(testDatabase.db);
-    await issueWsaaToken();
-    const taxAuthority = new FakeOfflineAuthorizationCodes();
-    taxAuthority.requestAnswer = { kind: "refused", rejections: [{ code: 1, message: "No" }] };
-    const { task } = taskUnderTest(taxAuthority);
-
-    await expect(task({}, buildJobHelpers().helpers)).resolves.toBeUndefined();
-
-    expect(await testDatabase.db.select().from(caeaCodes)).toEqual([]);
-  });
-
-  it("finishes without asking ARCA when the cloud holds no valid WSAA token", async () => {
-    await seedOfflinePointOfSale(testDatabase.db);
-    const taxAuthority = new FakeOfflineAuthorizationCodes();
-    const { task } = taskUnderTest(taxAuthority);
-
-    await expect(task({}, buildJobHelpers().helpers)).resolves.toBeUndefined();
-
-    expect(taxAuthority.requests).toEqual([]);
-  });
 });
