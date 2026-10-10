@@ -1,3 +1,4 @@
+import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import type { SaleWithLines } from "../model/sale.js";
 import { recordPendingQrPayment } from "./record-pending-qr-payment.js";
@@ -62,6 +63,7 @@ describe("recordPendingQrPayment", () => {
     expect(record(store, 3000)).toEqual({ kind: "recorded", paymentTransactionId: "id-1" });
     expect(store.state.pendingQrPayments).toEqual([
       {
+        ...PENDING_QR_TRANSACTION,
         id: "id-1",
         saleId: "sale-1",
         amount: 3000,
@@ -114,6 +116,7 @@ describe("recordPendingQrPayment", () => {
     const store = ledger({
       pendingQrPayments: [
         {
+          ...PENDING_QR_TRANSACTION,
           id: "earlier",
           saleId: "sale-1",
           amount: 1000,
@@ -131,6 +134,7 @@ describe("recordPendingQrPayment", () => {
     const store = ledger({
       pendingQrPayments: [
         {
+          ...PENDING_QR_TRANSACTION,
           id: "earlier",
           saleId: "sale-1",
           amount: 1000,

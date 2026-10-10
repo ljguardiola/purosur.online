@@ -4,9 +4,12 @@ import {
   expiryWithoutOrder,
   isValidOrderAmount,
   MERCADO_PAGO_ORDER_EXPIRY_MINUTES,
+  type MercadoPagoQrOrderTransaction,
   mercadoPagoOrderExpiresAt,
   PAYMENT_TRANSACTION_STATES,
-  type ProviderPaymentTransaction,
+  type PaymentTransaction,
+  type PendingQrSalePayment,
+  type SalePayment,
 } from "./payment-transaction.js";
 
 describe("PAYMENT_TRANSACTION_STATES", () => {
@@ -21,12 +24,28 @@ describe("PAYMENT_TRANSACTION_STATES", () => {
   });
 });
 
-describe("ProviderPaymentTransaction", () => {
+describe("PaymentTransaction", () => {
   it("is the transaction of a sale and nothing else", () => {
-    type WithoutKind = Omit<ProviderPaymentTransaction, "kind">;
+    expectTypeOf<PaymentTransaction["kind"]>().toEqualTypeOf<"SALE">();
+  });
 
-    expectTypeOf<WithoutKind>().not.toExtend<ProviderPaymentTransaction>();
-    expectTypeOf<WithoutKind & { kind: "REFUND" }>().not.toExtend<ProviderPaymentTransaction>();
+  it("records what the register and the cloud each know of a transaction as that transaction", () => {
+    expectTypeOf<SalePayment>().toExtend<PaymentTransaction>();
+    expectTypeOf<PendingQrSalePayment>().toExtend<PaymentTransaction>();
+    expectTypeOf<MercadoPagoQrOrderTransaction>().toExtend<PaymentTransaction>();
+  });
+
+  it("records only approved payments in a sale", () => {
+    expectTypeOf<
+      Omit<Extract<SalePayment, { method: "QR" }>, "state"> & { state: "PENDING" }
+    >().not.toExtend<SalePayment>();
+  });
+
+  it("records the cloud's Mercado Pago QR transaction as the transaction of a sale and nothing else", () => {
+    type WithoutKind = Omit<MercadoPagoQrOrderTransaction, "kind">;
+
+    expectTypeOf<WithoutKind>().not.toExtend<MercadoPagoQrOrderTransaction>();
+    expectTypeOf<WithoutKind & { kind: "REFUND" }>().not.toExtend<MercadoPagoQrOrderTransaction>();
   });
 });
 

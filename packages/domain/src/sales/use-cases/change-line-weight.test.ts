@@ -1,5 +1,6 @@
+import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
-import type { PaymentTransaction } from "../../payments/index.js";
+import type { SalePayment } from "../../payments/index.js";
 import { MAX_STOCK_QUANTITY } from "../../stock/index.js";
 import type { SaleLine, SaleWithLines } from "../model/sale.js";
 import { changeLineWeight } from "./change-line-weight.js";
@@ -47,7 +48,7 @@ const OPEN_SALE: SaleWithLines = {
   state: "OPEN",
   lines: [QUESO_LINE, YERBA_LINE],
 };
-const PAYMENT: PaymentTransaction = {
+const PAYMENT: SalePayment = {
   id: "payment-1",
   saleId: "sale-1",
   kind: "SALE",
@@ -283,6 +284,7 @@ describe("change-line-weight on a sale with an approved payment", () => {
 
 describe("change-line-weight while a QR charge of the sale is in its wait", () => {
   const pending = (waitEndsAt: Date) => ({
+    ...PENDING_QR_TRANSACTION,
     id: "qr-1",
     saleId: "sale-1",
     amount: 1000,

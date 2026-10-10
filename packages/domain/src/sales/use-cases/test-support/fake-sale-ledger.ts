@@ -5,7 +5,7 @@ import {
   latestBuyerTaxStatusSet,
   latestIssuerIdentification,
 } from "../../../fiscal/index.js";
-import type { PaymentTransaction, PendingQrSalePayment } from "../../../payments/index.js";
+import type { PendingQrSalePayment, SalePayment } from "../../../payments/index.js";
 import type { RoleAccess } from "../../../permissions/index.js";
 import { priceInEffectAt } from "../../../pricing/index.js";
 import { type CashMovement, nextOperationNumber } from "../../../register/index.js";
@@ -50,7 +50,7 @@ export interface FakeSaleLedgerState {
   thresholds: BuyerIdentificationThreshold[];
   promotionsByProduct: Record<string, CandidatePromotion[]>;
   sales: StoredSale[];
-  payments: PaymentTransaction[];
+  payments: SalePayment[];
   pendingQrPayments: PendingQrSalePayment[];
   refunds: SaleRefund[];
   movements: CashMovement[];

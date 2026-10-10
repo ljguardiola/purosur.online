@@ -2,8 +2,8 @@ import { applyMercadoPagoOrderResult } from "../model/mercado-pago-order-result.
 import {
   isValidOrderAmount,
   MERCADO_PAGO_ORDER_EXPIRY_MINUTES,
+  type MercadoPagoQrOrderTransaction,
   mercadoPagoOrderExpiresAt,
-  type ProviderPaymentTransaction,
 } from "../model/payment-transaction.js";
 import {
   type MercadoPagoQrOrderPorts,
@@ -20,7 +20,7 @@ export interface CreateMercadoPagoQrOrderInput {
 }
 
 export type CreateMercadoPagoQrOrderOutcome =
-  | { kind: "recorded"; transaction: ProviderPaymentTransaction }
+  | { kind: "recorded"; transaction: MercadoPagoQrOrderTransaction }
   | { kind: "invalid_amount" }
   | { kind: "request_mismatch" }
   | { kind: "not_owned" }
@@ -43,7 +43,7 @@ export async function createMercadoPagoQrOrder(
         return { kind: "request_mismatch" };
       }
 
-      let transaction: ProviderPaymentTransaction;
+      let transaction: MercadoPagoQrOrderTransaction;
       if (recorded === null) {
         const createdAt = clock.now();
         transaction = {
