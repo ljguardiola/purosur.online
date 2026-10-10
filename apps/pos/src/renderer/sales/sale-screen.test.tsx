@@ -623,7 +623,7 @@ describe("SaleScreen", () => {
       },
       {
         name: "a product sold by weight",
-        outcome: { kind: "sold_by_weight", product_name: "Queso cremoso" },
+        outcome: { kind: "weight_needed", product_id: "queso", product_name: "Queso cremoso" },
         title: "Queso cremoso se vende por kilo",
         help: "Esta caja todavía no vende productos por kilo.",
       },
@@ -678,7 +678,7 @@ describe("SaleScreen", () => {
     it.each<ScanProductOutcome>([
       { kind: "unknown_code" },
       { kind: "no_price", product_name: "Yerba mate 1 kg" },
-      { kind: "sold_by_weight", product_name: "Queso cremoso" },
+      { kind: "weight_needed", product_id: "queso", product_name: "Queso cremoso" },
       { kind: "line_quantity_limit", product_name: "Yerba mate 1 kg" },
       { kind: "installation_revoked" },
       { kind: "unavailable" },

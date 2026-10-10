@@ -872,6 +872,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0033_weighed_sale_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -929,6 +930,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0033_weighed_sale_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -981,6 +983,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0033_weighed_sale_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1032,6 +1035,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0033_weighed_sale_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1110,6 +1114,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0033_weighed_sale_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1180,6 +1185,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0033_weighed_sale_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1254,6 +1260,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0033_weighed_sale_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1311,6 +1318,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0033_weighed_sale_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1360,6 +1368,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0033_weighed_sale_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1925,6 +1934,93 @@ describe("the register's local migrations", () => {
       expect(() =>
         insert.run({ id: "sale-of-a-missing-line", kind: "sale", sale_line_id: "missing" }),
       ).toThrow(/FOREIGN KEY/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("let a sale hold a product weighed several times and tell where each weight came from, over the lines it already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0033_weighed_sale_lines",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0033_weighed_sale_lines",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z');
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total, promotion_id, discount_amount)
+         VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 2, 1500, 'list-1', 2700, 'd1', 300);
+         INSERT INTO sale_line_promotions (line_id, discount_id, kind, percent)
+         VALUES ('line-1', 'd1', 'PERCENT_OFF', 10);
+         INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
+         VALUES ('movement-1', 'p1', 'sale', 'line-1', -2000, '2026-10-09T12:05:00.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT * FROM sale_lines").all()).toEqual([
+        {
+          id: "line-1",
+          sale_id: "sale-1",
+          position: 1,
+          product_id: "p1",
+          product_name: "Yerba",
+          quantity: 2,
+          list_unit_price: 1500,
+          price_list_id: "list-1",
+          line_total: 2700,
+          promotion_id: "d1",
+          discount_amount: 300,
+          sale_unit: "UNIT",
+          weight_source: null,
+        },
+      ]);
+      expect(after.prepare("SELECT line_id, discount_id FROM sale_line_promotions").all()).toEqual([
+        { line_id: "line-1", discount_id: "d1" },
+      ]);
+      expect(after.prepare("SELECT sale_line_id FROM stock_movements").all()).toEqual([
+        { sale_line_id: "line-1" },
+      ]);
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      expect(
+        after
+          .prepare(
+            "SELECT name FROM sqlite_schema WHERE type = 'index' AND tbl_name = 'sale_lines'",
+          )
+          .all(),
+      ).toContainEqual({ name: "sale_lines_by_product" });
+      const insert = after.prepare(
+        `INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, sale_unit, weight_source, quantity, list_unit_price, price_list_id, line_total)
+         VALUES (@id, 'sale-1', @position, 'p1', 'Queso', @sale_unit, @weight_source, 1250, 9000, 'list-1', 11250)`,
+      );
+      const weighed = { sale_unit: "KG", weight_source: "MANUAL" };
+      expect(() => insert.run({ id: "line-2", position: 2, ...weighed })).not.toThrow();
+      expect(() => insert.run({ id: "line-3", position: 3, ...weighed })).not.toThrow();
+      expect(() =>
+        insert.run({ id: "line-4", position: 4, sale_unit: "KG", weight_source: "SCALE" }),
+      ).not.toThrow();
+      expect(() =>
+        insert.run({ id: "line-5", position: 5, sale_unit: "UNIT", weight_source: null }),
+      ).not.toThrow();
+      expect(() => insert.run({ id: "line-6", position: 2, ...weighed })).toThrow(/UNIQUE/);
+      expect(() =>
+        insert.run({ id: "line-7", position: 7, sale_unit: "KG", weight_source: null }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insert.run({ id: "line-8", position: 8, sale_unit: "UNIT", weight_source: "MANUAL" }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insert.run({ id: "line-9", position: 9, sale_unit: "KG", weight_source: "SENSOR" }),
+      ).toThrow(/CHECK/);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

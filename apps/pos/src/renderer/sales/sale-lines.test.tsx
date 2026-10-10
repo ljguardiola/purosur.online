@@ -9,6 +9,8 @@ const YERBA: OpenSale["lines"][number] = {
   id: "line-1",
   product_id: "p1",
   product_name: "Yerba mate 1 kg",
+  sale_unit: "UNIT" as const,
+  weight_source: null,
   quantity: 2,
   list_unit_price: 238_000,
   discount_amount: 0,

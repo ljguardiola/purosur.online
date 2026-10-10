@@ -435,7 +435,7 @@ describe("SaleScreen searching by name", () => {
       },
       {
         name: "a product sold by weight",
-        outcome: { kind: "sold_by_weight", product_name: "Queso cremoso" },
+        outcome: { kind: "weight_needed", product_id: "queso", product_name: "Queso cremoso" },
         title: "Queso cremoso se vende por kilo",
       },
       {
