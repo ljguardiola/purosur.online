@@ -1,8 +1,14 @@
+import { quarantinedEventsListSchema } from "@purosur/contracts";
 import { formatDate } from "@purosur/ui";
+import { schemaText } from "../platform/schema-text";
 import { syncedAggregateTypeName, syncedEventTypeName } from "../platform/synced-event-names";
 import type { QuarantinedEvent } from "./quarantined-events-api";
 
 const SHORT_ID_LENGTH = 8;
+
+const QUARANTINE_TIME_ZONE = schemaText(
+  quarantinedEventsListSchema.shape.events.element.shape.quarantinedAt.meta()?.["timeZone"],
+);
 
 export function quarantinedEventSentenceText(eventType: string): string {
   return syncedEventTypeName(eventType) ?? eventType;
@@ -34,5 +40,6 @@ export function quarantinedDateTimeText(instant: string): string {
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
+    timeZone: QUARANTINE_TIME_ZONE,
   });
 }

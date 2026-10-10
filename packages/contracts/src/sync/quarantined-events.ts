@@ -1,4 +1,7 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { z } from "zod";
+
+const instantSchema = z.iso.datetime().meta({ timeZone: ARGENTINA_TIME_ZONE });
 
 const quarantinedEventSchema = z.object({
   eventId: z.string(),
@@ -6,8 +9,8 @@ const quarantinedEventSchema = z.object({
   aggregateType: z.string(),
   aggregateId: z.string(),
   eventType: z.string(),
-  receivedAt: z.iso.datetime(),
-  quarantinedAt: z.iso.datetime(),
+  receivedAt: instantSchema,
+  quarantinedAt: instantSchema,
   lastError: z.string().nullable(),
 });
 
