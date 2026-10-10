@@ -13,8 +13,15 @@ export { editSupplier } from "./edit-supplier.js";
 export { findPackagingListing } from "./find-packaging-listing.js";
 export type { ListedPackaging } from "./list-packagings.js";
 export { listPackagings } from "./list-packagings.js";
+export type { ListedPurchase, ListedPurchaseLine } from "./list-purchases.js";
+export { findPurchaseListing, listPurchases } from "./list-purchases.js";
 export { listSuppliers } from "./list-suppliers.js";
-export type { PackagingListing, PurchasingListReader } from "./purchasing-list-reader.js";
+export type {
+  PackagingListing,
+  PurchaseLineListing,
+  PurchaseListing,
+  PurchasingListReader,
+} from "./purchasing-list-reader.js";
 export type {
   LockPackagingResult,
   LockProductResult,
