@@ -1,15 +1,23 @@
 import { randomUUID } from "node:crypto";
 import {
   ALERT_KINDS,
+  type AlertLevel,
   alertKindPolicy,
+  argentinaCalendarDay,
   isAlertKind,
   isInternalBarcode,
+  offlineAuthorizationCodeAcquisitionLevel,
   SALE_UNITS,
 } from "@purosur/domain";
 import { eq, ne, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import pg from "pg";
 import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
+import {
+  ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER,
+  alertConditionResolutionJobs,
+} from "../alerts/alert-condition-resolution-task.js";
 import {
   alerts,
   auditLog,
@@ -33,6 +41,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import { buildJobHelpers } from "../test-support/job-helpers.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { loadSampleData } from "./load-sample-data.js";
 import {
@@ -52,7 +61,10 @@ const PRODUCIBLE_ALERT_LEVELS = new Set(
   }),
 );
 
+const LEVEL_ONLY_AN_INSTALLED_REGISTER_HOLDS_OPEN: AlertLevel = "informational";
+
 const NOW = new Date("2026-03-15T12:00:00.000Z");
+const MINUTE_MS = 60 * 1000;
 
 let integrationDb: IntegrationDatabase | undefined;
 let connection: ReturnType<typeof postgres> | undefined;
@@ -152,7 +164,7 @@ describe("loadSampleData", () => {
     expect(new Set(audited.map((row) => row.at.getTime()))).toEqual(new Set([NOW.getTime()]));
   }, 120_000);
 
-  it("loads users, roles, a category tree, products, prices, registers, branch settings and open and closed alerts of every level the alert catalog produces, and a second run changes nothing", async () => {
+  it("loads users, roles, a category tree, products, prices, registers, branch settings, closed alerts of every level the alert catalog produces and open ones of every level but informational, which only an installed register holds open, in the first two days of a fortnight's request window, and a second run changes nothing", async () => {
     const db = await freshDatabase();
     await seedActiveAdministrator(db);
 
@@ -269,8 +281,10 @@ describe("loadSampleData", () => {
     const alertRows = await db.select().from(alerts);
     for (const level of PRODUCIBLE_ALERT_LEVELS) {
       const ofLevel = alertRows.filter((alert) => alert.level === level);
-      expect(ofLevel.some((alert) => alert.resolvedAt === null)).toBe(true);
       expect(ofLevel.some((alert) => alert.resolvedAt !== null)).toBe(true);
+      if (level !== LEVEL_ONLY_AN_INSTALLED_REGISTER_HOLDS_OPEN) {
+        expect(ofLevel.some((alert) => alert.resolvedAt === null)).toBe(true);
+      }
     }
 
     const beforeSecondRun = {
@@ -511,7 +525,7 @@ describe("loadSampleData", () => {
       .from(branchHours);
     expect(hoursRows).toEqual([{ dayOfWeek: 3, opensAt: "10:00:00" }]);
   }, 120_000);
-  it("writes every sample alert with a catalog kind, the level that kind reaches, and the detail shape its real producer writes", async () => {
+  it("writes every sample alert with a catalog kind, the level its real producer gives it, and the detail shape its real producer writes", async () => {
     const db = await freshDatabase();
     const bootstrapAdministratorId = await seedActiveAdministrator(db);
     expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
@@ -548,6 +562,27 @@ describe("loadSampleData", () => {
         actorId: sampleAdministrator?.id,
       });
     }
+    const missingCodeAlerts = alertRows.filter(
+      (alert) => alert.kind === "offline_authorization_code_missing",
+    );
+    expect(missingCodeAlerts.length).toBeGreaterThan(0);
+    for (const alert of missingCodeAlerts) {
+      expect(alert.detail).toEqual({
+        deviceId: expect.any(String),
+        fortnightStart: expect.any(String),
+        fortnightEnd: expect.any(String),
+      });
+      const { fortnightStart, fortnightEnd } = alert.detail as {
+        fortnightStart: string;
+        fortnightEnd: string;
+      };
+      expect(alert.level).toBe(
+        offlineAuthorizationCodeAcquisitionLevel(
+          { start: fortnightStart, end: fortnightEnd },
+          argentinaCalendarDay(alert.escalatedAt ?? alert.openedAt),
+        ),
+      );
+    }
     const accessIncreasedAlerts = alertRows.filter(
       (alert) => alert.kind === "user_access_increased",
     );
@@ -557,5 +592,50 @@ describe("loadSampleData", () => {
         { cause: "created_as_administrator", actorId: bootstrapAdministratorId },
       ],
     ]);
+  }, 120_000);
+
+  it("loads no alert of a register missing its fortnight's offline authorization code that the per-minute alert condition job reopens, opens or changes", async () => {
+    const db = await freshDatabase();
+    await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const missingCodeAlerts = () =>
+      db
+        .select()
+        .from(alerts)
+        .where(eq(alerts.kind, "offline_authorization_code_missing"))
+        .orderBy(alerts.id);
+    const loaded = await missingCodeAlerts();
+    expect(loaded.length).toBeGreaterThan(0);
+    expect(loaded.every((alert) => alert.resolvedAt !== null)).toBe(true);
+
+    let minute = 0;
+    const jobs = alertConditionResolutionJobs({
+      now: () => new Date(NOW.getTime() + minute * MINUTE_MS),
+    });
+    const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
+    if (!task || !integrationDb) {
+      throw new Error("test setup: expected the alert condition resolution task and a database");
+    }
+    const pool = new pg.Pool({ connectionString: integrationDb.databaseUrl, max: 1 });
+    try {
+      const helpers = {
+        ...buildJobHelpers().helpers,
+        withPgClient: async <T>(callback: (client: pg.PoolClient) => Promise<T>) => {
+          const client = await pool.connect();
+          try {
+            return await callback(client);
+          } finally {
+            client.release();
+          }
+        },
+      };
+      for (minute = 0; minute <= 20; minute++) {
+        await task({}, helpers);
+      }
+    } finally {
+      await pool.end();
+    }
+
+    expect(await missingCodeAlerts()).toEqual(loaded);
   }, 120_000);
 });
