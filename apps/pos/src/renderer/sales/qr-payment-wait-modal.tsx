@@ -223,18 +223,16 @@ export function QrPaymentWaitModal({
       title="Esperando el pago del cliente"
       closable={false}
       footer={
-        charge.status === "failed" ? null : (
-          <Button
-            size="large"
-            variant="secondary"
-            fullWidth
-            icon={<ArrowRight />}
-            dataStatus={abandonment.isPending ? "loading" : "loaded"}
-            onPress={abandonOrder}
-          >
-            Cobrar con otro medio
-          </Button>
-        )
+        <Button
+          size="large"
+          variant="secondary"
+          fullWidth
+          icon={<ArrowRight />}
+          dataStatus={abandonment.isPending ? "loading" : "loaded"}
+          onPress={abandonOrder}
+        >
+          Cobrar con otro medio
+        </Button>
       }
     >
       <div className="flex flex-col gap-5">
