@@ -119,12 +119,12 @@ describe("serialDeviceStandings", () => {
   });
 
   it("does not call the other role's device unknown", () => {
-    expect(serialDeviceStandings({ scale: SCALE, reader: READER }, [detected("COM4", READER)])).toEqual(
-      {
-        scale: { kind: "not_detected" },
-        reader: { kind: "matching", path: "COM4" },
-      },
-    );
+    expect(
+      serialDeviceStandings({ scale: SCALE, reader: READER }, [detected("COM4", READER)]),
+    ).toEqual({
+      scale: { kind: "not_detected" },
+      reader: { kind: "matching", path: "COM4" },
+    });
   });
 });
 

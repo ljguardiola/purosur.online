@@ -76,6 +76,11 @@ export type {
   ReadReceiptPrinterAddressPorts,
 } from "./read-receipt-printer-address.js";
 export { readReceiptPrinterAddress } from "./read-receipt-printer-address.js";
+export type {
+  ReadSerialDevicesOutcome,
+  ReadSerialDevicesPorts,
+} from "./read-serial-devices.js";
+export { readSerialDevices } from "./read-serial-devices.js";
 export type { ReceiptPrinterSettings } from "./receipt-printer-settings.js";
 export type {
   RecordCashMovementGrant,
@@ -84,6 +89,12 @@ export type {
   RecordCashMovementPorts,
 } from "./record-cash-movement.js";
 export { recordCashMovement } from "./record-cash-movement.js";
+export type {
+  RegisterSerialDevicesInput,
+  RegisterSerialDevicesOutcome,
+  RegisterSerialDevicesPorts,
+} from "./register-serial-devices.js";
+export { registerSerialDevices } from "./register-serial-devices.js";
 export type {
   DeviceTokenIssuer,
   DeviceTokenRotationPorts,
@@ -113,6 +124,8 @@ export type {
   RotateDeviceTokenOutcome,
 } from "./rotate-device-token.js";
 export { rotateDeviceToken } from "./rotate-device-token.js";
+export type { SerialDeviceEnumeration } from "./serial-device-enumeration.js";
+export type { SerialDeviceRegistrations } from "./serial-device-registrations.js";
 export type {
   SetReceiptPrinterAddressInput,
   SetReceiptPrinterAddressOutcome,
