@@ -11,6 +11,7 @@ export { editPackaging } from "./edit-packaging.js";
 export type { EditSupplierInput, EditSupplierOutcome } from "./edit-supplier.js";
 export { editSupplier } from "./edit-supplier.js";
 export { findPackagingListing } from "./find-packaging-listing.js";
+export type { ListedPackaging } from "./list-packagings.js";
 export { listPackagings } from "./list-packagings.js";
 export { listSuppliers } from "./list-suppliers.js";
 export type { PackagingListing, PurchasingListReader } from "./purchasing-list-reader.js";

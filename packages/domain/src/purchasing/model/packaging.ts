@@ -21,3 +21,10 @@ export function mayDefinePackagingsFor(product: { active: boolean }): boolean {
 export function isQuantityPerPackage(saleUnit: SaleUnit, quantity: number): boolean {
   return isMovementQuantity(saleUnit, quantity);
 }
+
+export function hasProductSaleUnitChanged(
+  packagingSaleUnit: SaleUnit,
+  productSaleUnit: SaleUnit,
+): boolean {
+  return packagingSaleUnit !== productSaleUnit;
+}

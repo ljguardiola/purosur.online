@@ -1,3 +1,4 @@
+import { hasProductSaleUnitChanged } from "../model/packaging.js";
 import type { PurchasingStore } from "./purchasing-store.js";
 
 export type ReactivatePackagingOutcome =
@@ -22,7 +23,7 @@ export async function reactivatePackaging(
     if (locked.packaging.active) {
       return { kind: "already_active" };
     }
-    if (locked.packaging.saleUnit !== product.product.saleUnit) {
+    if (hasProductSaleUnitChanged(locked.packaging.saleUnit, product.product.saleUnit)) {
       return { kind: "sale_unit_changed" };
     }
 
