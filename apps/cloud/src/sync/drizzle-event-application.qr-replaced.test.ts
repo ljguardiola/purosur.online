@@ -4,8 +4,12 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { pendingTransaction } from "../payments/test-support/payment-transaction-fixtures.js";
 import { inbox, paymentTransactions } from "../platform/db/schema.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { syncedEventUpcaster } from "./synced-event-upcaster.js";
-import { eventApplicationUnderTest } from "./test-support/drizzle-event-application.js";
+import {
+  APPLICATION_NOW,
+  eventApplicationUnderTest,
+} from "./test-support/drizzle-event-application.js";
 import { insertInboxEvent } from "./test-support/inbox-events.js";
 import { unappliedEventOf } from "./test-support/unapplied-event.js";
 
@@ -65,7 +69,10 @@ describe("recording the replacement of a pending QR payment", () => {
 
   it("does not mark the transaction of another register and refuses the event", async () => {
     const { deviceId } = await system.enrollInstallation();
-    const other = await system.enrollInstallation();
+    const other = await insertEnrolledInstallation(system.db, {
+      now: APPLICATION_NOW,
+      registerName: "Caja 2",
+    });
     const transaction = pendingTransaction(other.registerId);
     await system.db.insert(paymentTransactions).values(transaction);
 
