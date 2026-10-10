@@ -7,6 +7,8 @@ import type { AlertLevel } from "@purosur/domain";
 import {
   Button,
   EmptyState,
+  formatCalendarDay,
+  formatCalendarDayRange,
   formatDate,
   InlineNotice,
   isLocalAlertKind,
@@ -22,6 +24,7 @@ import {
   ArrowLeft,
   Bell,
   Check,
+  CloudDownload,
   CloudOff,
   KeyRound,
   Laptop,
@@ -139,6 +142,8 @@ function alertIcon(kind: string): Icon {
       return <CloudOff />;
     case "register_silent":
       return <WifiOff />;
+    case "offline_authorization_code_missing":
+      return <CloudDownload />;
     default:
       return <Bell />;
   }
@@ -212,6 +217,24 @@ function arcaCertificateExpiringDescription(notAfter: string, environment: strin
   return `El certificado de ARCA de ${label} vence el ${alertDateTime(new Date(notAfter))}. Conviene cargar uno nuevo antes de esa fecha.`;
 }
 
+function offlineAuthorizationCodeMissingDescription(
+  { level, detail }: Extract<AlertDetail, { kind: "offline_authorization_code_missing" }>,
+  registerName: string,
+): string {
+  const fortnight = formatCalendarDayRange(detail.fortnightStart, detail.fortnightEnd);
+  const missing = `La caja «${registerName}» todavía no bajó el CAEA de la quincena`;
+  if (level === "informational") {
+    return `${missing} ${fortnight}. Ya se puede pedir a ARCA y la caja lo baja sola al sincronizar.`;
+  }
+  if (level === "warning") {
+    return `${missing} ${fortnight}. Conviene revisar que esté encendida y con internet para que lo baje.`;
+  }
+  if (detail.fortnightStarted) {
+    return `La caja «${registerName}» no tiene el CAEA de la quincena ${fortnight}, que ya empezó. Mientras ARCA no responda, sus ventas quedan diferidas. Hay que conectarla a internet.`;
+  }
+  return `${missing} que empieza el ${formatCalendarDay(detail.fortnightStart)}. Sin él, si ARCA no responde, la caja no puede emitir facturas y las ventas quedan diferidas. Hay que conectarla a internet hoy.`;
+}
+
 function localTextOf(alert: AlertDetail) {
   return alert.audience === "local" ? localAlertText(alert.kind) : undefined;
 }
@@ -247,6 +270,7 @@ function alertTitle(alert: AlertDetail): string {
     case "register_silent":
     case "sales_denied":
     case "fiscal_rejected":
+    case "offline_authorization_code_missing":
       return alertKindDescription(alert.kind);
   }
 }
@@ -303,6 +327,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return arcaCertificateExpiringDescription(alert.detail.notAfter, targetName);
     case "update_required":
       return `La caja «${targetName}» usa la versión ${alert.detail.appVersion}, que la nube ya no acepta. Hay que actualizarla para que vuelva a sincronizar.`;
+    case "offline_authorization_code_missing":
+      return offlineAuthorizationCodeMissingDescription(alert, targetName);
     case "fiscal_rejected":
       return "Cada venta de este punto de venta queda diferida hasta corregir la causa que indica ARCA.";
     case "register_silent":
