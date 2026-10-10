@@ -23,6 +23,30 @@ describe("registerSerialDevices", () => {
     expect(registrations.registeredSerialDevices()).toEqual({ scale: SCALE, reader: READER });
   });
 
+  it("registers only the scale, leaving the reader without an entry", async () => {
+    const registrations = new FakeSerialDeviceRegistrations();
+
+    const outcome = await registerSerialDevices(
+      { registrations, authority: granting(GRANT) },
+      { devices: { scale: SCALE } },
+    );
+
+    expect(outcome).toStrictEqual({ kind: "registered", devices: { scale: SCALE } });
+    expect(registrations.registeredSerialDevices()).toStrictEqual({ scale: SCALE });
+  });
+
+  it("registers only the reader, leaving the scale without an entry", async () => {
+    const registrations = new FakeSerialDeviceRegistrations();
+
+    const outcome = await registerSerialDevices(
+      { registrations, authority: granting(GRANT) },
+      { devices: { reader: READER } },
+    );
+
+    expect(outcome).toStrictEqual({ kind: "registered", devices: { reader: READER } });
+    expect(registrations.registeredSerialDevices()).toStrictEqual({ reader: READER });
+  });
+
   it("keeps the reader when only the scale is replaced", async () => {
     const registrations = new FakeSerialDeviceRegistrations({ scale: SCALE, reader: READER });
 
