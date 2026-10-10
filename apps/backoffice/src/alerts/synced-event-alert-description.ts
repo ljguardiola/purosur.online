@@ -7,6 +7,8 @@ type QuarantineReason = QuarantinedEvent["reason"];
 const EVENT_TYPE_NAMES: ReadonlyMap<string, string> = new Map([
   ["sale_completed", "venta"],
   ["sale_cancelled", "venta cancelada"],
+  ["sale_print_state_changed", "impresión del ticket"],
+  ["reprint_recorded", "reimpresión del ticket"],
   ["cash_session_opened", "apertura de caja"],
   ["cash_session_closed", "cierre de caja"],
   ["cash_movement_recorded", "movimiento de caja"],

@@ -20,6 +20,7 @@ type RoutePath =
   | "/cash"
   | "/cash-count"
   | "/charge"
+  | "/history"
   | "/help"
   | "/locked"
   | "/locked-close"
@@ -82,6 +83,7 @@ const screenFor: Record<
   "/cash": (screen) => screen.getByRole("heading", { name: "Caja" }),
   "/cash-count": (screen) => screen.getByRole("heading", { name: "Cerrar caja" }),
   "/charge": (screen) => screen.getByRole("heading", { name: "Elegí el medio de pago" }),
+  "/history": (screen) => screen.getByRole("heading", { name: "Historial de ventas" }),
   "/help": (screen) => screen.getByRole("heading", { level: 1, name: "Ayuda" }),
   "/locked": (screen) => screen.getByRole("heading", { name: "Caja bloqueada" }),
   "/locked-close": (screen) => screen.getByRole("heading", { name: "¿Quién cierra la caja?" }),
@@ -151,6 +153,11 @@ function contextWith(
     removeSaleLine: async () => ({ kind: "unavailable" }),
     cancelSale: async () => ({ kind: "unavailable" }),
     cancelPaidSale: async () => ({ kind: "unavailable" }),
+    receiptPrintStatus: async () => ({ kind: "unavailable" }),
+    retryReceiptPrint: async () => ({ kind: "unavailable" }),
+    reprintSaleReceipt: async () => ({ kind: "unavailable" }),
+    salesHistory: async () => ({ kind: "unavailable" }),
+    saleHistoryDetail: async () => ({ kind: "unavailable" }),
     refreshCashSession: async () => {},
   };
 }
@@ -501,6 +508,27 @@ describe("the register's router", () => {
       enrollment: "enrolled",
       person: null,
       redirectedTo: "/sign-in",
+    },
+    {
+      path: "/history",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      redirectedTo: "/sign-in",
+    },
+    {
+      path: "/history",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      cashSession: OPEN_SESSION,
+      redirectedTo: "/locked",
+    },
+    {
+      path: "/history",
+      coreStatus: "down",
+      enrollment: "enrolled",
+      redirectedTo: "/core-down",
     },
     {
       path: "/charge",
@@ -1676,6 +1704,8 @@ describe("the register's status bar", () => {
     { path: "/charge", cashSession: OPEN_SESSION, person: undefined, context: SALE_TO_CHARGE },
     { path: "/cash", cashSession: OPEN_SESSION, person: undefined },
     { path: "/cash-count", cashSession: OPEN_SESSION, person: undefined },
+    { path: "/history", cashSession: NO_SESSION, person: undefined },
+    { path: "/history", cashSession: OPEN_SESSION, person: undefined },
     { path: "/locked", cashSession: LOCKED_SESSION, person: null },
     { path: "/locked-close", cashSession: LOCKED_SESSION, person: null },
   ])("is shown on $path", async ({ path, cashSession, person, context }) => {

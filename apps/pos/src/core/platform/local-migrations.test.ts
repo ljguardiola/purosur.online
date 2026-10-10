@@ -868,6 +868,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -923,6 +924,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -973,6 +975,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -1022,6 +1025,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -1098,6 +1102,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -1166,6 +1171,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -1238,6 +1244,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -1293,6 +1300,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -1340,6 +1348,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -1384,13 +1393,7 @@ describe("the register's local migrations", () => {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 24);
       expect(previous.at(-1)?.name).toBe("0023_sales_stopped_reason");
-      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
-        "0024_stock_ledger",
-        "0025_last_accepted_push",
-        "0026_pulled_stock_movements",
-        "0029_register_offline_point_of_sale",
-        "0030_stock_receipts",
-      ]);
+      expect(LOCAL_MIGRATIONS[previous.length]?.name).toBe("0024_stock_ledger");
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
         `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
@@ -1433,18 +1436,117 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("add the receipt printing beside the completed sales a register already holds, freezing each sold line's unit from its product", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(({ name }) => name < "0027_receipt_printing");
+      expect(previous.at(-1)?.name).toBe("0026_pulled_stock_movements");
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:05:00.000Z');
+         INSERT INTO products (id, name, category_id, sale_unit, active, version)
+         VALUES ('p-kg', 'Yerba a granel', 'c', 'KG', 1, 1),
+                ('p-unit', 'Alfajor', 'c', 'UNIT', 1, 1);
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-kg', 'sale-1', 1, 'p-kg', 'Yerba a granel', 350, 1890000, 'list-1', 661500),
+                ('line-unit', 'sale-1', 2, 'p-unit', 'Alfajor', 2, 42000, 'list-1', 84000);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT id, sale_unit FROM sale_lines ORDER BY position").all()).toEqual(
+        [
+          { id: "line-kg", sale_unit: "KG" },
+          { id: "line-unit", sale_unit: "UNIT" },
+        ],
+      );
+      expect(() =>
+        after.exec("UPDATE sale_lines SET sale_unit = 'LITRE' WHERE id = 'line-kg'"),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        after.exec("UPDATE sale_lines SET sale_unit = NULL WHERE id = 'line-kg'"),
+      ).toThrow(/NOT NULL/);
+
+      expect(
+        after
+          .prepare("SELECT id, print_attempted_at, printed_at, operation_number FROM sales")
+          .all(),
+      ).toEqual([
+        { id: "sale-1", print_attempted_at: null, printed_at: null, operation_number: null },
+      ]);
+      expect(after.prepare("SELECT id, last_number FROM operation_counter").all()).toEqual([
+        { id: 1, last_number: 0 },
+      ]);
+      expect(() =>
+        after.prepare("INSERT INTO operation_counter (id, last_number) VALUES (2, 0)").run(),
+      ).toThrow(/CHECK/);
+      expect(() => after.prepare("UPDATE operation_counter SET last_number = -1").run()).toThrow(
+        /CHECK/,
+      );
+      after.exec(
+        `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number)
+         VALUES ('sale-2', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:06:00.000Z', 7),
+                ('sale-3', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:06:30.000Z', NULL),
+                ('sale-4', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:06:40.000Z', NULL)`,
+      );
+      expect(() =>
+        after.exec(
+          `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number)
+           VALUES ('sale-5', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:07:00.000Z', 7)`,
+        ),
+      ).toThrow(/UNIQUE/);
+      const receipt = after.prepare(
+        `INSERT INTO sale_receipts (sale_id, template_version, head, body)
+         VALUES (@sale_id, @template_version, @head, @body)`,
+      );
+      const stored = {
+        sale_id: "sale-1",
+        template_version: "1",
+        head: Buffer.from([1]),
+        body: Buffer.from([2]),
+      };
+      receipt.run(stored);
+      expect(() => receipt.run(stored)).toThrow(/UNIQUE|PRIMARY KEY/);
+      expect(() => receipt.run({ ...stored, sale_id: "missing" })).toThrow(/FOREIGN KEY/);
+      expect(() => receipt.run({ ...stored, sale_id: "sale-1", head: null })).toThrow(/NOT NULL/);
+
+      const reprint = after.prepare(
+        `INSERT INTO sale_reprints (sale_id, order_number, requested_by, authorized_by, reason_kind, reason_text, occurred_at)
+         VALUES (@sale_id, @order_number, 'u1', NULL, @reason_kind, @reason_text, '2026-09-30T12:10:00.000Z')`,
+      );
+      const retry = { sale_id: "sale-1", order_number: 1, reason_kind: "retry", reason_text: null };
+      reprint.run(retry);
+      expect(() => reprint.run(retry)).toThrow(/UNIQUE|PRIMARY KEY/);
+      reprint.run({ ...retry, order_number: 2, reason_kind: "requested", reason_text: "Ink" });
+      expect(() => reprint.run({ ...retry, order_number: 3, sale_id: "missing" })).toThrow(
+        /FOREIGN KEY/,
+      );
+      expect(() => reprint.run({ ...retry, order_number: 0 })).toThrow(/CHECK/);
+      expect(() => reprint.run({ ...retry, order_number: 4, reason_kind: "other" })).toThrow(
+        /CHECK/,
+      );
+      expect(() => reprint.run({ ...retry, order_number: 5, reason_text: "Ink" })).toThrow(/CHECK/);
+      expect(() =>
+        reprint.run({ ...retry, order_number: 6, reason_kind: "requested", reason_text: null }),
+      ).toThrow(/CHECK/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("add the last accepted push over the register that already synced, empty until a push is accepted", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 25);
       expect(previous.at(-1)?.name).toBe("0024_stock_ledger");
-      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
-        "0025_last_accepted_push",
-        "0026_pulled_stock_movements",
-        "0029_register_offline_point_of_sale",
-        "0030_stock_receipts",
-      ]);
+      expect(LOCAL_MIGRATIONS[previous.length]?.name).toBe("0025_last_accepted_push");
       const before = openLocalDatabase(path, previous, migrationClock);
       before
         .prepare(

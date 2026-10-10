@@ -5,9 +5,11 @@ import {
   formatCents,
   formatClockTime,
   formatDate,
+  formatInvoiceNumber,
   formatMonthAndYear,
   formatMonthName,
   formatNumber,
+  formatOperationNumber,
   formatPointOfSaleNumber,
   formatTimeAgo,
   parsePointOfSaleNumber,
@@ -103,6 +105,27 @@ describe("formatPointOfSaleNumber", () => {
 
   it("keeps a number that already has five digits as it is", () => {
     expect(formatPointOfSaleNumber(99999)).toBe("99999");
+  });
+});
+
+describe("formatInvoiceNumber", () => {
+  it("pads the number with zeros to the eight digits the tax authority prints", () => {
+    expect(formatInvoiceNumber(1248)).toBe("00001248");
+    expect(formatInvoiceNumber(7)).toBe("00000007");
+  });
+
+  it("keeps a number that already has eight digits as it is", () => {
+    expect(formatInvoiceNumber(12345678)).toBe("12345678");
+  });
+});
+
+describe("formatOperationNumber", () => {
+  it("pads the register's operation number with zeros to six digits", () => {
+    expect(formatOperationNumber(482)).toBe("000482");
+  });
+
+  it("keeps a number that already has six digits or more as it is", () => {
+    expect(formatOperationNumber(1234567)).toBe("1234567");
   });
 });
 

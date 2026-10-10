@@ -50,7 +50,12 @@ export function CashScreen({
 
   return (
     <div className="flex h-full w-full bg-surface">
-      <OpenSessionRail registerName={registerName} lock={lock} current="cash" />
+      <OpenSessionRail
+        registerName={registerName}
+        lock={lock}
+        current="cash"
+        abilities={person.abilities}
+      />
       <main className="flex flex-1 flex-col gap-6 p-8">
         <ScreenHeader eyebrow={registerName ?? undefined} title="Movimientos de efectivo" />
         <CashMovementsTable state={movements} />

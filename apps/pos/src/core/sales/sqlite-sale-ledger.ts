@@ -3,6 +3,7 @@ import {
   type DiscountBenefit,
   type DiscountTargetKind,
   discountsTargeting,
+  nextOperationNumber,
   type OutboxEventDraft,
   type PaymentTransaction,
   priceInEffectAt,
@@ -100,7 +101,9 @@ export class SqliteSaleLedger implements SaleLedger {
       recordCashMovement: (movement) => insertCashMovement(this.database, movement),
       recordSaleStockMovement: (movement) => insertSaleStockMovement(this.database, movement),
       addToStockBalance: (productId, delta) => addToStockBalance(this.database, productId, delta),
-      recordCompletedSale: (saleId, occurredAt) => this.recordCompletedSale(saleId, occurredAt),
+      takeOperationNumber: () => this.takeOperationNumber(),
+      recordCompletedSale: (saleId, occurredAt, operationNumber) =>
+        this.recordCompletedSale(saleId, occurredAt, operationNumber),
       recordCancelledSale: (saleId, occurredAt, authorizedBy) =>
         this.recordCancelledSale(saleId, occurredAt, authorizedBy),
       recordRefund: (refund) => this.recordRefund(refund),
@@ -290,12 +293,13 @@ export class SqliteSaleLedger implements SaleLedger {
     this.database
       .prepare(
         `INSERT INTO sale_lines (
-           id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id,
-           promotion_id, discount_amount, line_total
+           id, sale_id, position, product_id, product_name, sale_unit, quantity, list_unit_price,
+           price_list_id, promotion_id, discount_amount, line_total
          ) VALUES (
            @id, @sale_id,
            (SELECT coalesce(max(position), 0) + 1 FROM sale_lines WHERE sale_id = @sale_id),
-           @product_id, @product_name, @quantity, @list_unit_price, @price_list_id,
+           @product_id, @product_name, (SELECT sale_unit FROM products WHERE id = @product_id),
+           @quantity, @list_unit_price, @price_list_id,
            @promotion_id, @discount_amount, @line_total
          )`,
       )
@@ -382,12 +386,22 @@ export class SqliteSaleLedger implements SaleLedger {
       });
   }
 
-  private recordCompletedSale(saleId: string, occurredAt: Date): void {
+  private takeOperationNumber(): number {
+    const { last_number: lastTaken } = this.database
+      .prepare<[], { last_number: number }>("SELECT last_number FROM operation_counter")
+      .get() ?? { last_number: 0 };
+    const taken = nextOperationNumber(lastTaken);
+    this.database.prepare("UPDATE operation_counter SET last_number = ?").run(taken);
+    return taken;
+  }
+
+  private recordCompletedSale(saleId: string, occurredAt: Date, operationNumber: number): void {
     const { changes } = this.database
       .prepare(
-        "UPDATE sales SET state = 'COMPLETED', occurred_at = ? WHERE id = ? AND state = 'OPEN'",
+        `UPDATE sales SET state = 'COMPLETED', occurred_at = ?, operation_number = ?
+         WHERE id = ? AND state = 'OPEN'`,
       )
-      .run(occurredAt.toISOString(), saleId);
+      .run(occurredAt.toISOString(), operationNumber, saleId);
     if (changes !== 1) {
       throw new Error("the sale is not in progress");
     }

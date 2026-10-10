@@ -271,10 +271,11 @@ describe("running an operation that may take another person's authorization", ()
     expect(hashed).toEqual([]);
   });
 
-  it("takes only a cash movement and the cancellation of a paid sale", () => {
+  it("takes only a cash movement, the cancellation of a paid sale and the reprint of a receipt", () => {
     type RunAuthorized = Parameters<ActionGate["runAuthorized"]>[0];
     expectTypeOf<{ kind: "record_cash_movement"; movement: "CASH_IN" }>().toExtend<RunAuthorized>();
     expectTypeOf<{ kind: "cancel_paid_sale" }>().toExtend<RunAuthorized>();
+    expectTypeOf<{ kind: "reprint_receipt" }>().toExtend<RunAuthorized>();
     expectTypeOf<{ kind: "sell" }>().not.toExtend<RunAuthorized>();
   });
 });
@@ -341,6 +342,66 @@ describe("running the cancellation of a paid sale", () => {
 
   it("refuses a PIN whose person does not hold the permission", async () => {
     const { outcome, performed } = guardedCancellation(withVoidSaleHolder(), {
+      user_id: "u4",
+      pin: "1234",
+    });
+
+    expect(await outcome).toEqual({ kind: "lacks_permission" });
+    expect(performed).toEqual([]);
+  });
+});
+
+describe("running the reprint of a receipt", () => {
+  function guardedReprint(sandbox: ActionGateDeps, authorization?: Authorization) {
+    const performed: AuthorizedActor[] = [];
+    const outcome = createActionGate(sandbox).runAuthorized(
+      { kind: "reprint_receipt" },
+      authorization,
+      async (actor) => {
+        performed.push(actor);
+        return "reprinted";
+      },
+    );
+    return { outcome, performed };
+  }
+
+  function withReprintHolder(): ActionGateDeps {
+    const base = deps();
+    return {
+      ...base,
+      store: {
+        ...base.store,
+        pinHolder: (userId) =>
+          userId === "u3" ? record(["reprint_receipt"]) : record(["sell_and_charge"]),
+      },
+    };
+  }
+
+  it("refuses a cashier without the permission who brings no authorization", async () => {
+    const { outcome, performed } = guardedReprint(deps());
+
+    expect(await outcome).toEqual({ kind: "lacks_permission" });
+    expect(performed).toEqual([]);
+  });
+
+  it("runs with the person whose PIN holds the permission", async () => {
+    const { outcome, performed } = guardedReprint(withReprintHolder(), {
+      user_id: "u3",
+      pin: "1234",
+    });
+
+    expect(await outcome).toEqual({
+      kind: "performed",
+      authorized_by: { user_id: "u3", first_name: "Grace" },
+      result: "reprinted",
+    });
+    expect(performed).toEqual([
+      { signedInUserId: "u1", authorizedBy: { user_id: "u3", first_name: "Grace" } },
+    ]);
+  });
+
+  it("refuses a PIN whose person does not hold the permission", async () => {
+    const { outcome, performed } = guardedReprint(withReprintHolder(), {
       user_id: "u4",
       pin: "1234",
     });

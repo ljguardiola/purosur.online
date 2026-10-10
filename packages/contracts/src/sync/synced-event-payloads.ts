@@ -6,6 +6,7 @@ import {
   isValidCashMovementAmount,
   mayBeMovementQuantity,
   PRE_EMISSION_GATE_FAILURE_REASONS,
+  receiptReprintReason,
 } from "@purosur/domain";
 import { z } from "zod";
 
@@ -123,6 +124,36 @@ const saleCompletedV3Schema = saleCompletedV2Schema.extend({
   stock_movements: z.array(saleStockMovementSchema),
 });
 
+const saleCompletedV4Schema = saleCompletedV3Schema.extend({
+  operation_number: z.int().positive(),
+});
+
+const salePrintStateChangedSchema = z.object({
+  sale_id: text,
+  print_attempted_at: instant,
+  printed_at: instant.nullable(),
+});
+
+const reprintRecordedFields = {
+  sale_id: text,
+  order_number: z.int().positive(),
+  requested_by: text,
+  authorized_by: text.nullable(),
+};
+
+const reprintRecordedSchema = z.discriminatedUnion("reason_kind", [
+  z.object({
+    ...reprintRecordedFields,
+    reason_kind: z.literal("retry"),
+    reason_text: z.null(),
+  }),
+  z.object({
+    ...reprintRecordedFields,
+    reason_kind: z.literal("requested"),
+    reason_text: z.string().refine((reason) => receiptReprintReason(reason) === reason),
+  }),
+]);
+
 const saleRefundFields = {
   id: text,
   kind: z.literal("REFUND"),
@@ -180,6 +211,9 @@ const PAYLOAD_SCHEMAS = {
   "sale_completed@1": saleCompletedV1Schema,
   "sale_completed@2": saleCompletedV2Schema,
   "sale_completed@3": saleCompletedV3Schema,
+  "sale_completed@4": saleCompletedV4Schema,
+  "sale_print_state_changed@1": salePrintStateChangedSchema,
+  "reprint_recorded@1": reprintRecordedSchema,
   "sale_cancelled@1": saleCancelledV1Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,

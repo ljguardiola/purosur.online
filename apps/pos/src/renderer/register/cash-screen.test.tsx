@@ -50,6 +50,7 @@ const FLETE: ListedCashMovement = {
 
 async function renderScreen(
   props: {
+    person?: SignedInPerson;
     registerName?: string | null;
     loadCashBalance?: () => Promise<CashBalance | null | "unavailable">;
     loadCashMovements?: () => Promise<ListedCashMovement[] | null | "unavailable">;
@@ -61,7 +62,7 @@ async function renderScreen(
   return render(
     <CashScreen
       sessionId="s1"
-      person={PERSON}
+      person={props.person ?? PERSON}
       registerName={props.registerName === undefined ? "Caja 1" : props.registerName}
       openedAt={OPENED_AT}
       lock={() => {}}
@@ -98,6 +99,21 @@ describe("CashScreen", () => {
       .element(screen.getByRole("link", { name: "Caja" }))
       .toHaveAttribute("aria-current", "page");
     await expect.element(screen.getByRole("link", { name: "Venta" })).toBeVisible();
+  });
+
+  it("offers the sales history, in the rail, to a person who may view it", async () => {
+    const screen = await renderScreen({
+      person: { ...PERSON, abilities: ["open_cash_session", "view_sales_history"] },
+    });
+
+    await expect.element(screen.getByRole("link", { name: "Historial" })).toBeVisible();
+  });
+
+  it("offers no sales history, in the rail, to a person who may not view it", async () => {
+    const screen = await renderScreen();
+
+    await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Historial" })).not.toBeInTheDocument();
   });
 
   it("shows the cash the register expects now, broken down", async () => {
