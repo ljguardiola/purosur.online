@@ -999,34 +999,33 @@ describe("purchases", () => {
   it.each([
     [
       "a quantity per package of zero",
+      false,
       { quantityPerPackage: 0 },
       "purchase_lines_quantity_per_package_check",
     ],
-    ["a quantity of zero", { quantity: 0 }, "purchase_lines_quantity_check"],
-    ["a negative cost", { costPaidCents: -1 }, "purchase_lines_cost_paid_check"],
+    ["a quantity of zero", false, { quantity: 0 }, "purchase_lines_quantity_check"],
+    ["a negative cost", false, { costPaidCents: -1 }, "purchase_lines_cost_paid_check"],
     [
       "packages without a packaging",
+      false,
       { packages: 12 },
       "purchase_lines_packaging_iff_packages_check",
     ],
-    [
-      "zero packages",
-      { packages: 0, usePackaging: true },
-      "purchase_lines_packages_quantity_check",
-    ],
+    ["zero packages", true, { packages: 0 }, "purchase_lines_packages_quantity_check"],
     [
       "a quantity that is not the packages times the quantity per package",
-      { packages: 2, quantity: 5_000, quantityPerPackage: 12_000, usePackaging: true },
+      true,
+      { packages: 2, quantity: 5_000, quantityPerPackage: 12_000 },
       "purchase_lines_packages_quantity_check",
     ],
-  ])("rejects a line with %s", async (_label, { usePackaging, ...fields }, constraint) => {
+  ])("rejects a line with %s", async (_label, withPackaging, fields, constraint) => {
     const { purchaseId, productId, packagingId } = await seedPurchase();
 
     await expect(
       db.insert(purchaseLines).values({
         purchaseId,
         productId,
-        packagingId: usePackaging ? packagingId : null,
+        packagingId: withPackaging ? packagingId : null,
         ...LINE,
         ...fields,
       }),
