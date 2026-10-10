@@ -106,7 +106,10 @@ describe("DrizzleOfflineAuthorizationCodeRequests requesting the offline authori
   it("reports an enqueue that fails instead of failing, and rolls back what it wrote", async () => {
     const reportError = vi.fn();
     const enqueue = async (transaction: { execute(query: ReturnType<typeof sql>): unknown }) => {
-      await transaction.execute(sql`create table half_written_request (id int)`);
+      await transaction.execute(
+        sql`insert into caea_codes (fortnight_start, fortnight_end, code, report_deadline, obtained_at, obtained_through)
+            values (${OCTOBER_FIRST_HALF.start}, ${OCTOBER_FIRST_HALF.end}, '36123456789012', '2026-10-30', ${NOW.toISOString()}, 'requested')`,
+      );
       await transaction.execute(sql`select * from a_table_that_does_not_exist`);
     };
 
@@ -119,7 +122,10 @@ describe("DrizzleOfflineAuthorizationCodeRequests requesting the offline authori
     ).resolves.toBeUndefined();
 
     expect(reportError).toHaveBeenCalledTimes(1);
-    const { rows } = await db.execute(sql`select to_regclass('half_written_request') as table`);
-    expect(rows).toEqual([{ table: null }]);
+    expect(
+      await new DrizzleOfflineAuthorizationCodeRequests(db).holdsOfflineAuthorizationCodeFor(
+        OCTOBER_FIRST_HALF,
+      ),
+    ).toBe(false);
   });
 });
