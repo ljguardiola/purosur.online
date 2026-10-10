@@ -172,7 +172,7 @@ describe("RegisterStatusBar", () => {
       }),
     });
 
-    await expect.element(screen.getByText("Balanza o lector no detectado")).toBeVisible();
+    await expect.element(screen.getByText("Revisar la balanza o el lector")).toBeVisible();
     await expect.element(screen.getByText("Qué hacer")).toBeVisible();
   });
 

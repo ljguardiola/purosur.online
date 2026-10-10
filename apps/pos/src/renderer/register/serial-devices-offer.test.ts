@@ -1,7 +1,11 @@
-import type { RegisterStatus } from "@purosur/contracts";
+import type { OpenCashSession, RegisterStatus } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
 import type { SignedInPerson } from "../shell/signed-in-person";
-import { landsOnSerialDevices, landsOnSerialDevicesAfterSignIn } from "./serial-devices-offer";
+import {
+  landsOnSerialDevices,
+  landsOnSerialDevicesAfterSignIn,
+  serialDevicesOffer,
+} from "./serial-devices-offer";
 
 const CONFIGURER: SignedInPerson = {
   user_id: "u1",
@@ -19,6 +23,12 @@ function statusWith(serial_devices: RegisterStatus["serial_devices"]): RegisterS
 }
 
 const NEITHER_REGISTERED = statusWith({ scale: "not_registered", reader: "not_registered" });
+const OPEN_CASH_SESSION: OpenCashSession = {
+  id: "s1",
+  opened_at: "2026-09-30T09:02:00.000-03:00",
+  opened_by: CONFIGURER,
+  locked: false,
+};
 
 describe("landsOnSerialDevices", () => {
   it("lands a person who may configure the devices on them while neither is registered", () => {
@@ -108,5 +118,32 @@ describe("landsOnSerialDevicesAfterSignIn", () => {
 
     expect(await taken).toBe(false);
     expect(settleOffer).toHaveBeenCalledOnce();
+  });
+});
+
+describe("serialDevicesOffer", () => {
+  const readNeitherRegistered = async () => NEITHER_REGISTERED;
+
+  it("lands on the devices once after a sign-in that leaves no cash session open", async () => {
+    const offer = serialDevicesOffer();
+
+    offer.offerSerialDevicesAfterSignIn(null);
+
+    expect(await offer.takeSerialDevicesOffer(CONFIGURER, readNeitherRegistered)).toBe(true);
+    expect(await offer.takeSerialDevicesOffer(CONFIGURER, readNeitherRegistered)).toBe(false);
+  });
+
+  it("does not land on the devices after a sign-in into an open cash session, even once it is closed", async () => {
+    const offer = serialDevicesOffer();
+
+    offer.offerSerialDevicesAfterSignIn(OPEN_CASH_SESSION);
+
+    expect(await offer.takeSerialDevicesOffer(CONFIGURER, readNeitherRegistered)).toBe(false);
+  });
+
+  it("lands nowhere before anyone signed in", async () => {
+    expect(
+      await serialDevicesOffer().takeSerialDevicesOffer(CONFIGURER, readNeitherRegistered),
+    ).toBe(false);
   });
 });

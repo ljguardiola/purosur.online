@@ -1497,7 +1497,7 @@ describe("serial device messages", () => {
     expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
-  it.each([["not_registered"], ["matching"], ["not_detected"], ["mismatched"]])(
+  it.each([["not_registered"], ["matching"], ["not_detected"], ["mismatched"], ["unknown"]])(
     "accepts a status whose scale and reader stand as %s",
     (kind) => {
       const message = {

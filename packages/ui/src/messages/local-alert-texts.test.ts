@@ -33,11 +33,11 @@ test("gives a register whose installation was revoked its condition's title, wha
 
 test("gives a register whose scale or reader is missing its condition's title, what it means and what to do", () => {
   expect(localAlertText("serial_device_missing")).toEqual({
-    title: "Balanza o lector no detectado",
+    title: "Revisar la balanza o el lector",
     meaning:
       "La balanza o el lector de códigos dejaron de responder en esta caja, o el conectado no es el registrado.",
     whatToDo:
-      "Revisar que esté conectado y encendido. Mientras tanto, tipear el peso a mano y buscar los productos por nombre. Si sigue sin detectarse, avisar al Administrador.",
+      "Revisar que esté conectado y encendido. Mientras tanto, tipear el peso a mano y buscar los productos por nombre. Si el problema sigue, avisar al Administrador.",
   });
 });
 

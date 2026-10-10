@@ -1,5 +1,6 @@
 import {
   argentinaInstant,
+  type DetectedSerialDevice,
   type SerialDeviceRole,
   type SerialDeviceStanding,
 } from "@purosur/domain";
@@ -12,9 +13,11 @@ import type { CloudReachability } from "../sync/cloud-reachability";
 import { SqliteAcceptedPushLog } from "../sync/sqlite-accepted-push-log";
 import { stopOpeningNewSales } from "../sync/sqlite-local-installation";
 import { registerStatusFor } from "./register-status-requests";
+import { createSerialDeviceWatch, type SerialDeviceWatch } from "./serial-device-watch";
 
 const NOW = new Date(argentinaInstant("2026-10-05", "12:00"));
 const MINUTE_MS = 60 * 1000;
+const SCALE = { vendorId: "1a86", productId: "7523" };
 
 let database: LocalDatabase;
 
@@ -69,7 +72,27 @@ function status(
     database,
     cloud: () => cloud,
     now: () => NOW,
-    serialDevices: async () => serialDevices,
+    serialDevices: () => ({ kind: "listed", standings: serialDevices }),
+  });
+}
+
+function watchListingWith(detectedSerialDevices: () => Promise<DetectedSerialDevice[]>) {
+  return createSerialDeviceWatch({
+    registrations: { registeredSerialDevices: () => ({ scale: SCALE }) },
+    enumeration: { detectedSerialDevices },
+    intervalMs: 3000,
+    scheduleNext: () => () => undefined,
+    onChange: () => undefined,
+    onFailure: () => undefined,
+  });
+}
+
+function statusWatchedBy(watch: SerialDeviceWatch) {
+  return registerStatusFor({
+    database,
+    cloud: () => "unknown",
+    now: () => NOW,
+    serialDevices: watch.reading,
   });
 }
 
@@ -181,5 +204,31 @@ describe("the register's status", () => {
         })
       ).conditions,
     ).toEqual([]);
+  });
+
+  it("answers with its other conditions and the registered devices unknown while the serial ports are still being listed", async () => {
+    stopOpeningNewSales(database, "event_history_broken", NOW);
+    const watch = watchListingWith(() => new Promise(() => undefined));
+    void watch.start();
+
+    expect(await statusWatchedBy(watch)).toEqual({
+      conditions: ["sales_denied"],
+      cloud: "unknown",
+      serial_devices: { scale: "unknown", reader: "not_registered" },
+    });
+  });
+
+  it("answers with its other conditions and the registered devices unknown once listing the serial ports failed", async () => {
+    stopOpeningNewSales(database, "event_history_broken", NOW);
+    const watch = watchListingWith(async () => {
+      throw new Error("the ports could not be listed");
+    });
+    await watch.start();
+
+    expect(await statusWatchedBy(watch)).toEqual({
+      conditions: ["sales_denied"],
+      cloud: "unknown",
+      serial_devices: { scale: "unknown", reader: "not_registered" },
+    });
   });
 });

@@ -12,6 +12,7 @@ describe("serialDeviceStandingIndicator", () => {
       text: "Balanza no coincide con la registrada",
     },
     { role: "scale", standing: "not_registered", tone: "neutral", text: "Balanza sin registrar" },
+    { role: "scale", standing: "unknown", tone: "neutral", text: "Balanza sin verificar" },
     { role: "reader", standing: "matching", tone: "success", text: "Lector conectado" },
     { role: "reader", standing: "not_detected", tone: "error", text: "Lector no detectado" },
     {
@@ -21,6 +22,7 @@ describe("serialDeviceStandingIndicator", () => {
       text: "Lector no coincide con el registrado",
     },
     { role: "reader", standing: "not_registered", tone: "neutral", text: "Lector sin registrar" },
+    { role: "reader", standing: "unknown", tone: "neutral", text: "Lector sin verificar" },
   ] as const)(
     "shows the $role as '$text' when it is $standing",
     ({ role, standing, tone, text }) => {

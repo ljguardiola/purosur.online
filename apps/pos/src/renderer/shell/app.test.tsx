@@ -620,6 +620,39 @@ describe("App", () => {
       await expect.element(screen.getByRole("button", { name: "Ahora no" })).toBeVisible();
     });
 
+    it("lands a person who signs in by redeeming a PIN code on the devices while neither is registered", async () => {
+      const { core } = coreAnswering(
+        true,
+        undefined,
+        LINUS_SIGNED_IN,
+        {
+          redeemOutcome: {
+            kind: "resumed",
+            person: LINUS_SIGNED_IN.person,
+            cash_session: null,
+          },
+        },
+        undefined,
+        undefined,
+        undefined,
+        NEITHER_REGISTERED,
+      );
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+
+      await userEvent.click(
+        screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }),
+      );
+      await userEvent.fill(screen.getByRole("textbox", { name: "Código" }), "K7QM2XPA3DTR4HWN");
+      await userEvent.fill(screen.getByLabelText("PIN nuevo, de al menos 6 dígitos"), "482915");
+      await userEvent.fill(screen.getByLabelText("Repetí el PIN nuevo"), "482915");
+      await userEvent.click(screen.getByRole("button", { name: "Guardar el PIN nuevo" }));
+
+      await expect
+        .element(screen.getByRole("heading", { level: 1, name: "Balanza y lector" }))
+        .toBeVisible();
+    });
+
     it("goes on to the main screen on Ahora no, and stays there when the person returns to it", async () => {
       const { core } = coreAnswering(
         true,

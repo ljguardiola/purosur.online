@@ -131,6 +131,15 @@ describe("registerOwnConditions", () => {
     ).toEqual([]);
   });
 
+  it("does not hold serial_device_missing while no listing of the serial devices is current", () => {
+    expect(
+      conditions({
+        salesStop: { stopped: true, reason: "event_history_broken" },
+        serialDevices: null,
+      }),
+    ).toEqual(["sales_denied"]);
+  });
+
   it("lists serial_device_missing after register_silent", () => {
     expect(
       conditions({
