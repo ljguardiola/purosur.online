@@ -1,3 +1,4 @@
+import { serialDeviceIdentitySchema } from "@purosur/contracts";
 import type { DetectedSerialDevice } from "@purosur/domain";
 import type { SerialDeviceEnumeration } from "@purosur/domain/register/use-cases";
 
@@ -9,11 +10,8 @@ export interface ListedSerialPort {
 
 export interface SerialportEnumerationDeps {
   list: () => Promise<ListedSerialPort[]>;
-  reportFailure: (error: unknown) => void;
   onListed: () => void;
 }
-
-const FOUR_HEX_DIGITS = /^[0-9a-f]{4}$/;
 
 export async function listSerialPorts(): Promise<ListedSerialPort[]> {
   const { SerialPort } = await import("serialport");
@@ -25,43 +23,32 @@ function detectedDeviceOf({
   vendorId,
   productId,
 }: ListedSerialPort): DetectedSerialDevice | undefined {
-  const vendor = vendorId?.toLowerCase();
-  const product = productId?.toLowerCase();
-  if (
-    vendor === undefined ||
-    product === undefined ||
-    !FOUR_HEX_DIGITS.test(vendor) ||
-    !FOUR_HEX_DIGITS.test(product)
-  ) {
+  const identity = serialDeviceIdentitySchema.safeParse({
+    vendor_id: vendorId?.toLowerCase(),
+    product_id: productId?.toLowerCase(),
+  });
+  if (!identity.success) {
     return undefined;
   }
-  return { path, identity: { vendorId: vendor, productId: product } };
+  return {
+    path,
+    identity: { vendorId: identity.data.vendor_id, productId: identity.data.product_id },
+  };
 }
 
 export function serialportEnumeration({
   list,
-  reportFailure,
   onListed,
 }: SerialportEnumerationDeps): SerialDeviceEnumeration {
   let listedBefore = false;
-  let failing = false;
   return {
     async detectedSerialDevices() {
-      try {
-        const ports = await list();
-        failing = false;
-        if (!listedBefore) {
-          listedBefore = true;
-          onListed();
-        }
-        return ports.flatMap((port) => detectedDeviceOf(port) ?? []);
-      } catch (error) {
-        if (!failing) {
-          failing = true;
-          reportFailure(error);
-        }
-        return [];
+      const ports = await list();
+      if (!listedBefore) {
+        listedBefore = true;
+        onListed();
       }
+      return ports.flatMap((port) => detectedDeviceOf(port) ?? []);
     },
   };
 }

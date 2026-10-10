@@ -219,7 +219,6 @@ const { reportFailure, reportSyncFailure, reportRedeemedPinFailure } = coreFailu
 
 const serialDeviceEnumeration = serialportEnumeration({
   list: listSerialPorts,
-  reportFailure: (error) => reportFailure("listing the serial ports", error),
   onListed: () => console.info("core: serial devices listed"),
 });
 const serialDeviceWatch =
@@ -381,7 +380,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             database: localDatabase,
             cloud: () => cloudReachability,
             now,
-            serialDevices: () => serialDeviceWatch.standings(),
+            serialDevices: serialDeviceWatch.standings,
           }),
   registerService: register.service,
   registerName: () => replica?.registerName(),

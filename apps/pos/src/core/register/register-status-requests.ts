@@ -14,16 +14,16 @@ export interface RegisterStatusDeps {
   database: LocalDatabase;
   cloud: () => CloudReachability;
   now: () => Date;
-  serialDevices: () => Record<SerialDeviceRole, SerialDeviceStanding>;
+  serialDevices: () => Promise<Record<SerialDeviceRole, SerialDeviceStanding>>;
 }
 
-export function registerStatusFor({
+export async function registerStatusFor({
   database,
   cloud,
   now,
   serialDevices,
-}: RegisterStatusDeps): RegisterStatus {
-  const standings = serialDevices();
+}: RegisterStatusDeps): Promise<RegisterStatus> {
+  const standings = await serialDevices();
   return {
     conditions: registerOwnConditions({
       salesStop: salesStopOf(database),

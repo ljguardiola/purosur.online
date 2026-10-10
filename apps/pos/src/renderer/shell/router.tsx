@@ -80,7 +80,7 @@ import {
   useRegisterNameQuery,
   useRegisterStatusQuery,
 } from "../register/register-queries";
-import { landsOnSerialDevices, mayConfigureSerialDevices } from "../register/serial-devices-offer";
+import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
 import { SerialDevicesScreen } from "../register/serial-devices-screen";
 import { ChargeScreen } from "../sales/charge-screen";
 import { SaleScreen } from "../sales/sale-screen";
@@ -184,8 +184,10 @@ export interface RouterContext {
   registerSerialDevices: (
     devices: SerialDevicesToRegister,
   ) => Promise<RegisterSerialDevicesOutcome>;
-  serialDevicesOfferDismissed: boolean;
-  dismissSerialDevicesOffer: () => void;
+  takeSerialDevicesOffer: (
+    person: SignedInPerson,
+    readStatus: () => Promise<RegisterStatus>,
+  ) => Promise<boolean>;
   refreshCashSession: () => Promise<void>;
 }
 
@@ -324,14 +326,11 @@ const signedInRoute = createRoute({
   path: "/",
   beforeLoad: async ({ context }) => {
     const person = requireSignedInPerson(context);
-    const status =
-      mayConfigureSerialDevices(person) && !context.serialDevicesOfferDismissed
-        ? await context.queryClient
-            .ensureQueryData(registerStatusQueryOptions(context.registerStatus))
-            .catch(() => undefined)
-        : undefined;
-    if (landsOnSerialDevices({ person, status, dismissed: context.serialDevicesOfferDismissed })) {
-      throw redirect({ to: "/serial-devices" });
+    const landsOnSerialDevices = await context.takeSerialDevicesOffer(person, () =>
+      context.queryClient.ensureQueryData(registerStatusQueryOptions(context.registerStatus)),
+    );
+    if (landsOnSerialDevices) {
+      throw redirect({ to: "/serial-devices", search: { offered: true } });
     }
     return { person };
   },
@@ -406,6 +405,7 @@ const receiptPrinterRoute = createRoute({
 const serialDevicesRoute = createRoute({
   getParentRoute: () => statusBarRoute,
   path: "/serial-devices",
+  validateSearch: (search: { offered?: unknown }) => ({ offered: search.offered === true }),
   beforeLoad: ({ context }) => {
     const person = requireSignedInPerson(context);
     if (!mayConfigureSerialDevices(person)) {
@@ -414,23 +414,10 @@ const serialDevicesRoute = createRoute({
     return { person };
   },
   component: function SerialDevicesRoute() {
-    const {
-      person,
-      signOut,
-      readSerialDevices,
-      registerSerialDevices,
-      registerStatus,
-      serialDevicesOfferDismissed,
-      dismissSerialDevicesOffer,
-      refreshCashSession,
-    } = serialDevicesRoute.useRouteContext();
+    const { person, signOut, readSerialDevices, registerSerialDevices, refreshCashSession } =
+      serialDevicesRoute.useRouteContext();
+    const { offered } = serialDevicesRoute.useSearch();
     const registerName = useRegisterName();
-    const status = useRegisterStatusQuery(registerStatus);
-    const offered = landsOnSerialDevices({
-      person,
-      status: status.status === "loaded" ? status.value : undefined,
-      dismissed: serialDevicesOfferDismissed,
-    });
     const navigate = serialDevicesRoute.useNavigate();
     return (
       <SerialDevicesScreen
@@ -441,14 +428,7 @@ const serialDevicesRoute = createRoute({
         readSerialDevices={readSerialDevices}
         registerSerialDevices={registerSerialDevices}
         onSessionInvalid={() => void refreshCashSession()}
-        {...(offered
-          ? {
-              onSkip: () => {
-                dismissSerialDevicesOffer();
-                void navigate({ to: "/" });
-              },
-            }
-          : {})}
+        {...(offered ? { onSkip: () => void navigate({ to: "/" }) } : {})}
       />
     );
   },
@@ -879,7 +859,7 @@ export function createAppRouter(
     | "setReceiptPrinter"
     | "readSerialDevices"
     | "registerSerialDevices"
-    | "dismissSerialDevicesOffer"
+    | "takeSerialDevicesOffer"
     | "refreshCashSession"
   >,
 ) {
@@ -892,7 +872,6 @@ export function createAppRouter(
       enrollment: "unknown",
       person: undefined,
       cashSession: { status: "unknown" },
-      serialDevicesOfferDismissed: false,
       ...services,
     },
     "/starting",

@@ -2,6 +2,7 @@ import { registerSerialDevicesMessageSchema } from "@purosur/contracts";
 import type { Option, Options } from "@purosur/ui";
 import type { SerialDevicesToRegister } from "../platform/core-client";
 import type { ShownSerialDevices } from "./register-queries";
+import type { SerialDeviceRole } from "./serial-device-standing";
 
 export const serialDevicesRequestSchema = registerSerialDevicesMessageSchema.pick({
   devices: true,
@@ -27,7 +28,10 @@ function identityOf(choice: string): Identity {
   return { vendor_id, product_id };
 }
 
-export function serialDeviceOptions(detected: readonly DetectedDevice[]): Options<Option> {
+export function serialDeviceOptions(
+  role: SerialDeviceRole,
+  { registered, detected }: Pick<Read, "registered" | "detected">,
+): Options<Option> {
   const firstPortOf = new Map<string, string>();
   for (const device of detected) {
     const key = choiceKey(device);
@@ -35,28 +39,43 @@ export function serialDeviceOptions(detected: readonly DetectedDevice[]): Option
       firstPortOf.set(key, device.path);
     }
   }
-  return [
-    { value: NOT_ASSIGNED, label: "Sin asignar" },
-    ...[...firstPortOf].map(([key, path]) => ({ value: key, label: `${key} (${path})` })),
-  ];
-}
-
-function choiceFor(identity: Identity | undefined, detected: readonly DetectedDevice[]): string {
+  const connected = [...firstPortOf].map(([key, path]) => ({
+    value: key,
+    label: `${key} (${path})`,
+  }));
+  const identity = registered[role];
   if (identity === undefined) {
-    return NOT_ASSIGNED;
+    return [{ value: NOT_ASSIGNED, label: "Sin asignar" }, ...connected];
   }
-  const key = choiceKey(identity);
-  return detected.some((device) => choiceKey(device) === key) ? key : NOT_ASSIGNED;
+  const registeredKey = choiceKey(identity);
+  const [first, ...rest] = connected;
+  if (first === undefined || !firstPortOf.has(registeredKey)) {
+    return [{ value: registeredKey, label: `${registeredKey} (no conectado)` }, ...connected];
+  }
+  return [first, ...rest];
 }
 
-export function serialDevicesFormFrom(
-  registered: Read["registered"],
-  detected: readonly DetectedDevice[],
-): SerialDevicesFormValues {
+export function serialDevicesFormFrom(registered: Read["registered"]): SerialDevicesFormValues {
   return {
-    scale: choiceFor(registered.scale, detected),
-    reader: choiceFor(registered.reader, detected),
+    scale: registered.scale === undefined ? NOT_ASSIGNED : choiceKey(registered.scale),
+    reader: registered.reader === undefined ? NOT_ASSIGNED : choiceKey(registered.reader),
   };
+}
+
+export function savedSerialDevicesDescription({
+  scale,
+  reader,
+}: Read["registered"]): string | undefined {
+  if (scale !== undefined && reader !== undefined) {
+    return "La caja reconoce la balanza y el lector elegidos.";
+  }
+  if (scale !== undefined) {
+    return "La caja reconoce la balanza elegida.";
+  }
+  if (reader !== undefined) {
+    return "La caja reconoce el lector elegido.";
+  }
+  return undefined;
 }
 
 export function serialDevicesRequestFrom({ scale, reader }: SerialDevicesFormValues): {

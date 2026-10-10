@@ -36,6 +36,7 @@ import {
   useEnrollmentQuery,
   useRegisterServiceQuery,
 } from "../register/register-queries";
+import { useSerialDevicesOffer } from "../register/serial-devices-offer";
 import { salesKeys } from "../sales/sales-queries";
 import { sessionsKey } from "../sessions/sessions-queries";
 import type { Enrollment, RegisterServiceState } from "./router";
@@ -73,16 +74,8 @@ function Register({ core }: { core: CoreClient }) {
   if (coreStatus === "up" && enrollmentRead.status === "loaded") {
     enrollment = enrollmentRead.value ? "enrolled" : "not_enrolled";
   }
-  const [signedInPerson, setSignedInPerson] = useState<SignedInPerson>();
-  const [serialDevicesOfferDismissed, setSerialDevicesOfferDismissed] = useState(false);
-
-  function setPerson(next: SignedInPerson | undefined) {
-    setSignedInPerson(next);
-    if (next === undefined) {
-      setSerialDevicesOfferDismissed(false);
-    }
-  }
-
+  const [signedInPerson, setPerson] = useState<SignedInPerson>();
+  const { offerSerialDevicesAfter, takeSerialDevicesOffer } = useSerialDevicesOffer();
   const cashSession = useCashSessionQuery({
     read: () => core.cashSession(),
     enabled: enrollment === "enrolled" && registerService === "in_service",
@@ -119,6 +112,7 @@ function Register({ core }: { core: CoreClient }) {
   }
 
   async function takeSignedInPerson(outcome: SignInOutcome) {
+    offerSerialDevicesAfter(outcome);
     if (outcome.kind === "signed_in") {
       setPerson(outcome.person);
       await takeCashSession(outcome.cash_session);
@@ -311,14 +305,6 @@ function Register({ core }: { core: CoreClient }) {
     return outcome;
   }
 
-  function dismissSerialDevicesOffer() {
-    setSerialDevicesOfferDismissed(true);
-    router.update({
-      ...router.options,
-      context: { ...router.options.context, serialDevicesOfferDismissed: true },
-    });
-  }
-
   const services = {
     enroll,
     registerName: () => core.registerName(),
@@ -376,7 +362,7 @@ function Register({ core }: { core: CoreClient }) {
     readSerialDevices: () => core.readSerialDevices(),
     registerSerialDevices: (devices: SerialDevicesToRegister) =>
       core.registerSerialDevices(devices),
-    dismissSerialDevicesOffer,
+    takeSerialDevicesOffer,
     // A replaced core connection fails this request; the core coming back up asks again.
     refreshCashSession,
   };
@@ -385,8 +371,7 @@ function Register({ core }: { core: CoreClient }) {
 
   useEffect(() => {
     if (coreStatus !== "up") {
-      setSignedInPerson(undefined);
-      setSerialDevicesOfferDismissed(false);
+      setPerson(undefined);
       void queryClient.resetQueries({ queryKey: registerKeys.service });
     }
   }, [coreStatus, queryClient]);
@@ -428,19 +413,10 @@ function Register({ core }: { core: CoreClient }) {
         enrollment,
         person,
         cashSession,
-        serialDevicesOfferDismissed,
       },
     });
     void router.invalidate();
-  }, [
-    router,
-    coreStatus,
-    registerService,
-    enrollment,
-    person,
-    cashSession,
-    serialDevicesOfferDismissed,
-  ]);
+  }, [router, coreStatus, registerService, enrollment, person, cashSession]);
 
   return <RouterProvider router={router} context={{ queryClient, ...services }} />;
 }

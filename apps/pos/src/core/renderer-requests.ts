@@ -73,7 +73,7 @@ export interface RendererRequestDeps {
   requestFirstPinCode: ((userId: string) => Promise<FirstPinCodeRequestOutcome>) | undefined;
   openCashSession: ((openingFloat: number) => Promise<OpenCashSessionOutcome>) | undefined;
   cashSession: (() => OpenCashSession | null) | undefined;
-  registerStatus: (() => RegisterStatus) | undefined;
+  registerStatus: (() => Promise<RegisterStatus>) | undefined;
   recordCashMovement:
     | ((request: CashMovementRequest) => Promise<RecordCashMovementOutcome>)
     | undefined;
@@ -366,9 +366,9 @@ function readCashMovementKinds(
   }
 }
 
-function readRegisterStatus(deps: RendererRequestDeps): RegisterStatus | undefined {
+async function readRegisterStatus(deps: RendererRequestDeps): Promise<RegisterStatus | undefined> {
   try {
-    return deps.registerStatus?.();
+    return await deps.registerStatus?.();
   } catch (error) {
     deps.reportFailure("reading the register's status", error);
     return undefined;
@@ -585,7 +585,7 @@ export async function answerRendererRequest(
         : { type: "cash-session", request_id: message.request_id, session };
     }
     case "register-status-request": {
-      const status = readRegisterStatus(deps);
+      const status = await readRegisterStatus(deps);
       return status === undefined
         ? { type: "register-status-unavailable", request_id: message.request_id }
         : { type: "register-status", request_id: message.request_id, status };

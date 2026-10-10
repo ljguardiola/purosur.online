@@ -6,7 +6,7 @@ import {
 import type { SerialDeviceRegistrations } from "./serial-device-registrations.js";
 
 export interface RegisterSerialDevicesPorts<Grant, Refusal> {
-  registrations: SerialDeviceRegistrations;
+  registrations: Pick<SerialDeviceRegistrations, "transaction">;
   authority: OperationAuthority<Grant, Refusal>;
 }
 
@@ -26,16 +26,18 @@ export async function registerSerialDevices<Grant, Refusal>(
   if (authorization.kind === "refused") {
     return authorization.refusal;
   }
-  const current = registrations.registeredSerialDevices();
-  const scale = devices.scale ?? current.scale;
-  const reader = devices.reader ?? current.reader;
-  if (scale !== undefined && reader !== undefined && isSameSerialDeviceIdentity(scale, reader)) {
-    return { kind: "same_identity_for_both" };
-  }
-  const merged: RegisteredSerialDevices = {
-    ...(scale === undefined ? {} : { scale }),
-    ...(reader === undefined ? {} : { reader }),
-  };
-  registrations.saveSerialDevices(merged);
-  return { kind: "registered", devices: merged };
+  return registrations.transaction<RegisterSerialDevicesOutcome>((tx) => {
+    const current = tx.registeredSerialDevices();
+    const scale = devices.scale ?? current.scale;
+    const reader = devices.reader ?? current.reader;
+    if (scale !== undefined && reader !== undefined && isSameSerialDeviceIdentity(scale, reader)) {
+      return { kind: "same_identity_for_both" };
+    }
+    const merged: RegisteredSerialDevices = {
+      ...(scale === undefined ? {} : { scale }),
+      ...(reader === undefined ? {} : { reader }),
+    };
+    tx.saveSerialDevices(merged);
+    return { kind: "registered", devices: merged };
+  });
 }

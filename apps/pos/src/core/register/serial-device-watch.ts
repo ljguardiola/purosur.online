@@ -23,8 +23,7 @@ export interface SerialDeviceWatchDeps {
 export interface SerialDeviceWatch {
   start(): Promise<void>;
   checkNow(): Promise<void>;
-  standings(): Standings;
-  locate(role: SerialDeviceRole): string | undefined;
+  standings(): Promise<Standings>;
 }
 
 function standingsKey(standings: Standings): string {
@@ -36,26 +35,37 @@ export function createSerialDeviceWatch(deps: SerialDeviceWatchDeps): SerialDevi
   let running: Promise<void> | undefined;
   let askedWhileRunning = false;
   let cancelNext: (() => void) | undefined;
+  let failing = false;
+  let endFirstCheck: () => void = () => undefined;
+  const firstCheckEnded = new Promise<void>((resolve) => {
+    endFirstCheck = resolve;
+  });
 
   function registered(): RegisteredSerialDevices {
     return deps.registrations.registeredSerialDevices();
   }
 
-  function standings(): Standings {
+  function known(): Standings {
     return latest ?? serialDeviceStandings(registered(), []);
   }
 
   async function checkOnce(): Promise<void> {
     try {
       const detected = await deps.enumeration.detectedSerialDevices();
+      failing = false;
       const next = serialDeviceStandings(registered(), detected);
-      const changed = standingsKey(next) !== standingsKey(standings());
+      const changed = standingsKey(next) !== standingsKey(known());
       latest = next;
       if (changed) {
         deps.onChange();
       }
     } catch (error) {
-      deps.onFailure(error);
+      if (!failing) {
+        failing = true;
+        deps.onFailure(error);
+      }
+    } finally {
+      endFirstCheck();
     }
   }
 
@@ -80,10 +90,9 @@ export function createSerialDeviceWatch(deps: SerialDeviceWatchDeps): SerialDevi
   return {
     start: check,
     checkNow: check,
-    standings,
-    locate: (role) => {
-      const standing = standings()[role];
-      return standing.kind === "matching" ? standing.path : undefined;
+    standings: async () => {
+      await firstCheckEnded;
+      return known();
     },
   };
 }

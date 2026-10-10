@@ -125,7 +125,10 @@ export type {
 } from "./rotate-device-token.js";
 export { rotateDeviceToken } from "./rotate-device-token.js";
 export type { SerialDeviceEnumeration } from "./serial-device-enumeration.js";
-export type { SerialDeviceRegistrations } from "./serial-device-registrations.js";
+export type {
+  SerialDeviceRegistrations,
+  SerialDeviceRegistrationsTransaction,
+} from "./serial-device-registrations.js";
 export type {
   SetReceiptPrinterAddressInput,
   SetReceiptPrinterAddressOutcome,

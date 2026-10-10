@@ -28,6 +28,7 @@ import { useRefreshSerialDevices, useSerialDevicesQuery } from "./register-queri
 import { serialDeviceStandingIndicator } from "./serial-device-standing";
 import {
   SAME_SERIAL_DEVICE_MESSAGE,
+  savedSerialDevicesDescription,
   serialDeviceOptions,
   serialDevicesFormFrom,
   serialDevicesRequestFrom,
@@ -106,7 +107,7 @@ function DetectedDevicesTable({ read }: { read: Read }) {
 type SerialDevicesFormProps = {
   read: Read;
   registerSerialDevices: SerialDevicesScreenProps["registerSerialDevices"];
-  onSaved: () => void;
+  onSaved: (devices: Read["registered"]) => void;
   onSessionInvalid: () => void;
 };
 
@@ -117,9 +118,8 @@ function SerialDevicesForm({
   onSessionInvalid,
 }: SerialDevicesFormProps) {
   const [notice, setNotice] = useState<Notice>();
-  const options = serialDeviceOptions(read.detected);
   const { form, submit, submitting, clearFieldError } = useRequestForm({
-    defaultValues: serialDevicesFormFrom(read.registered, read.detected),
+    defaultValues: serialDevicesFormFrom(read.registered),
     request: { schema: serialDevicesRequestSchema, from: serialDevicesRequestFrom },
     fields: { devices: "reader" },
     messages: { reader: SAME_SERIAL_DEVICE_MESSAGE },
@@ -129,7 +129,7 @@ function SerialDevicesForm({
       );
       switch (outcome.kind) {
         case "registered":
-          onSaved();
+          onSaved(outcome.devices);
           break;
         case "same_identity_for_both":
           showFieldError("reader", SAME_SERIAL_DEVICE_MESSAGE);
@@ -167,10 +167,22 @@ function SerialDevicesForm({
           },
         }}
       >
-        {(scale) => <scale.Select label="Balanza" options={options} disabled={submitting} />}
+        {(scale) => (
+          <scale.Select
+            label="Balanza"
+            options={serialDeviceOptions("scale", read)}
+            disabled={submitting}
+          />
+        )}
       </form.AppField>
       <form.AppField name="reader" listeners={{ onChange: () => setNotice(undefined) }}>
-        {(reader) => <reader.Select label="Lector" options={options} disabled={submitting} />}
+        {(reader) => (
+          <reader.Select
+            label="Lector"
+            options={serialDeviceOptions("reader", read)}
+            disabled={submitting}
+          />
+        )}
       </form.AppField>
       {notice === undefined ? null : (
         <InlineNotice
@@ -214,7 +226,7 @@ export function SerialDevicesScreen({
   onSkip,
 }: SerialDevicesScreenProps) {
   const [leaving, setLeaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [savedDescription, setSavedDescription] = useState<string>();
   const devices = useSerialDevicesQuery(readSerialDevices);
   const refreshDevices = useRefreshSerialDevices();
 
@@ -260,13 +272,16 @@ export function SerialDevicesScreen({
             {read.detected.length === 0 ? null : (
               <Card>
                 <SerialDevicesForm
-                  key={serialDeviceOptions(read.detected)
+                  key={[
+                    ...serialDeviceOptions("scale", read),
+                    ...serialDeviceOptions("reader", read),
+                  ]
                     .map((option) => option.value)
                     .join(",")}
                   read={read}
                   registerSerialDevices={registerSerialDevices}
-                  onSaved={() => {
-                    setSaved(true);
+                  onSaved={(devices) => {
+                    setSavedDescription(savedSerialDevicesDescription(devices));
                     void refreshDevices();
                   }}
                   onSessionInvalid={onSessionInvalid}
@@ -283,15 +298,15 @@ export function SerialDevicesScreen({
           </div>
         )}
       </main>
-      {saved ? (
+      {savedDescription === undefined ? null : (
         <FloatingNotification
           tone="success"
           icon={<Usb />}
           title="Dispositivos guardados"
-          description="La caja reconoce la balanza y el lector elegidos."
-          onDismiss={() => setSaved(false)}
+          description={savedDescription}
+          onDismiss={() => setSavedDescription(undefined)}
         />
-      ) : null}
+      )}
       <SignOutModal
         open={leaving}
         firstName={person.first_name}
