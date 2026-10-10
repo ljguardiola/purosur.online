@@ -1,4 +1,4 @@
-import type { CashBalance, ListedCashMovement } from "@purosur/contracts";
+import type { CashBalance, ListedCashMovement, RegisterStatus } from "@purosur/contracts";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createRootRouteWithContext, createRoute, RouterProvider } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -146,6 +146,8 @@ function contextWith(
     cashCharge: async () => ({ kind: "invalid_amount" }),
     chargeSaleInCash: async () => ({ kind: "unavailable" }),
     chargeSaleByTransfer: async () => ({ kind: "unavailable" }),
+    startMercadoPagoQrCharge: async () => ({ kind: "unavailable" }),
+    followMercadoPagoQrCharge: async () => ({ kind: "unavailable" }),
     scanProduct: async () => ({ kind: "unknown_code" }),
     searchProducts: async () => ({ kind: "results", products: [], more: false }),
     addProduct: async () => ({ kind: "product_unavailable" }),
@@ -1768,5 +1770,91 @@ describe("the register's status bar", () => {
 
     await expect.element(screen.getByText("La caja no puede vender")).toBeVisible();
     await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
+  });
+});
+
+describe("the charge route's Mercado Pago QR", () => {
+  const SALE_TO_CHARGE: Partial<RouterContext> = {
+    currentSale: async () => ({
+      id: "sale-1",
+      lines: [
+        {
+          id: "line-1",
+          product_id: "p1",
+          product_name: "Yerba mate 1 kg",
+          quantity: 1,
+          list_unit_price: 238_000,
+          discount_amount: 0,
+          promotion: null,
+          line_total: 238_000,
+        },
+      ],
+      total: 238_000,
+      paid: 0,
+      pending: 238_000,
+      lines_editable: true,
+      cancellable: true,
+      charge_refusal: null,
+      refunds_on_cancel: [],
+      cancel_authorization_required: false,
+    }),
+  };
+
+  function chargeRouterWith(registerStatus: () => Promise<RegisterStatus | "unavailable">) {
+    return createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
+        ...SALE_TO_CHARGE,
+        registerStatus,
+      },
+      "/charge",
+    );
+  }
+
+  it("offers the QR once the core answers that it reaches the cloud", async () => {
+    const router = chargeRouterWith(async () => ({ conditions: [], cloud: "reachable" }));
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeEnabled();
+  });
+
+  it.each<RegisterStatus["cloud"] | "unavailable">(["unknown", "unreachable", "unavailable"])(
+    "shows the QR as unavailable when the core answers %s",
+    async (answer) => {
+      const router = chargeRouterWith(async () =>
+        answer === "unavailable" ? "unavailable" : { conditions: [], cloud: answer },
+      );
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect.element(screen.getByText("No disponible sin conexión")).toBeVisible();
+      await expect
+        .element(screen.getByRole("radio", { name: "QR de Mercado Pago" }))
+        .toBeDisabled();
+    },
+  );
+
+  it("creates the QR order through the core for the sale in progress", async () => {
+    const started: [string, number][] = [];
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
+        ...SALE_TO_CHARGE,
+        startMercadoPagoQrCharge: async (saleId, amount) => {
+          started.push([saleId, amount]);
+          return { kind: "unavailable" };
+        },
+      },
+      "/charge",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
+
+    await expect.poll(() => started).toEqual([["sale-1", 238_000]]);
   });
 });

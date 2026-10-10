@@ -104,6 +104,8 @@ function coreAnswering(
     cashCharge?: CoreClient["cashCharge"];
     chargeSaleInCash?: CoreClient["chargeSaleInCash"];
     chargeSaleByTransfer?: CoreClient["chargeSaleByTransfer"];
+    startMercadoPagoQrCharge?: CoreClient["startMercadoPagoQrCharge"];
+    followMercadoPagoQrCharge?: CoreClient["followMercadoPagoQrCharge"];
     searchProducts?: CoreClient["searchProducts"];
     addProduct?: CoreClient["addProduct"];
     receiptPrintStatus?: CoreClient["receiptPrintStatus"];
@@ -282,11 +284,15 @@ function coreAnswering(
         ? { kind: "unavailable" }
         : sales.chargeSaleByTransfer(saleId, amount);
     },
-    async startMercadoPagoQrCharge() {
-      return { kind: "unavailable" };
+    async startMercadoPagoQrCharge(saleId, amount) {
+      return sales.startMercadoPagoQrCharge === undefined
+        ? { kind: "unavailable" }
+        : sales.startMercadoPagoQrCharge(saleId, amount);
     },
-    async followMercadoPagoQrCharge() {
-      return { kind: "unavailable" };
+    async followMercadoPagoQrCharge(paymentTransactionId) {
+      return sales.followMercadoPagoQrCharge === undefined
+        ? { kind: "unavailable" }
+        : sales.followMercadoPagoQrCharge(paymentTransactionId);
     },
     async closeCashSession(sessionId, countedCash) {
       closed.push([sessionId, countedCash]);
@@ -1383,6 +1389,74 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
     await expect
       .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
+      .toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
+
+    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.poll(() => reads).toBe(3);
+    await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
+  });
+
+  it("shows no line of the sale that was just charged by QR when a new sale starts", async () => {
+    const yerba = {
+      id: "line-1",
+      product_id: "p1",
+      product_name: "Yerba mate 1 kg",
+      quantity: 1,
+      list_unit_price: 238_000,
+      discount_amount: 0,
+      promotion: null,
+      line_total: 238_000,
+    };
+    let reads = 0;
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => GRACE_SESSION },
+      {
+        currentSale: () => {
+          reads += 1;
+          return reads <= 2
+            ? Promise.resolve({
+                id: "sale-1",
+                lines: [yerba],
+                total: 238_000,
+                paid: 0,
+                pending: 238_000,
+                lines_editable: true,
+                cancellable: true,
+                charge_refusal: null,
+                refunds_on_cancel: [],
+                cancel_authorization_required: false,
+              })
+            : new Promise(() => {});
+        },
+        startMercadoPagoQrCharge: async (_saleId, amount) => ({
+          kind: "order_shown",
+          payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
+          amount,
+          remaining_seconds: 180,
+          wait_seconds: 180,
+        }),
+        followMercadoPagoQrCharge: async () => ({
+          kind: "completed",
+          sale_id: "sale-1",
+          total: 238_000,
+        }),
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await resumeLockedRegister(screen);
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+    await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
+    await expect
+      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }), {
+        timeout: 5_000,
+      })
       .toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
