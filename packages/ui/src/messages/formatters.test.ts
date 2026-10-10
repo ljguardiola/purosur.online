@@ -13,6 +13,7 @@ import {
   formatOperationNumber,
   formatPointOfSaleNumber,
   formatTimeAgo,
+  formatWeight,
   parsePointOfSaleNumber,
   plural,
 } from "./formatters";
@@ -215,5 +216,15 @@ describe("formatCountdown", () => {
 
   it("drops a fraction of a second", () => {
     expect(formatCountdown(59.9)).toBe("0:59");
+  });
+});
+
+describe("formatWeight", () => {
+  it("shows thousandths of a kilogram as kilograms with three decimals", () => {
+    expect(formatWeight(1250)).toBe("1,250 kg");
+    expect(formatWeight(500)).toBe("0,500 kg");
+    expect(formatWeight(2000)).toBe("2,000 kg");
+    expect(formatWeight(1)).toBe("0,001 kg");
+    expect(formatWeight(1_234_567)).toBe("1.234,567 kg");
   });
 });
