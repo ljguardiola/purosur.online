@@ -4,6 +4,7 @@
 // `bucket()` exposes no `.env` accessor in this SDK version, so the bucket's credentials cannot be
 // referenced from the cloud service here.
 import { bucket, defineRailway, image, postgres, project, service } from "railway/iac";
+import { resolveMercadoPagoConfig } from "../apps/cloud/src/payments/mercado-pago-config.ts";
 // Railway IaC cannot register a custom domain: it must be added once in the dashboard or with
 // `railway domain <domain> --service "Cloud Server"`, and only then declared in this file.
 // .github/scripts/apply-edge-rules.mjs reads the same file to scope the edge origin secret.
@@ -96,6 +97,7 @@ export default defineRailway((ctx) => {
   const arcaCertificate = requireEnv("ARCA_CERTIFICATE");
   // The secret key matching `ARCA_CERTIFICATE`, with which the cloud signs its logins at ARCA.
   const arcaPrivateKey = requireEnv("ARCA_PRIVATE_KEY");
+  const mercadoPago = resolveMercadoPagoConfig(process.env);
   const environment = ctx.environment;
   if (!environment) {
     throw new Error(".railway/railway.ts: the CLI gave no target environment name");
@@ -161,6 +163,13 @@ export default defineRailway((ctx) => {
       ARCA_CERTIFICATE: arcaCertificate,
       ARCA_PRIVATE_KEY: arcaPrivateKey,
       ARCA_ENVIRONMENT: arcaEnvironment,
+      ...(mercadoPago
+        ? {
+            MERCADOPAGO_ACCESS_TOKEN: mercadoPago.accessToken,
+            MERCADOPAGO_QR_EXTERNAL_POS_ID: mercadoPago.externalPosId,
+            MERCADOPAGO_WEBHOOK_SECRET: mercadoPago.webhookSecret,
+          }
+        : {}),
     },
   });
 
