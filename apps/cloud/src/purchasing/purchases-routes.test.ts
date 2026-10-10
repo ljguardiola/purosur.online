@@ -248,15 +248,13 @@ describe("POST /purchases", () => {
       .insert(prices)
       .values({ productId, priceListId, unitPrice: 1_500, validFrom: NOW })
       .returning({ id: prices.id });
-    await db
-      .insert(priceReviews)
-      .values({
-        productId,
-        priceListId,
-        priceId: price?.id as string,
-        actorId: userId,
-        reviewedAt: NOW,
-      });
+    await db.insert(priceReviews).values({
+      productId,
+      priceListId,
+      priceId: price?.id as string,
+      actorId: userId,
+      reviewedAt: NOW,
+    });
     const pendingProductIds = async () =>
       (
         await new DrizzlePriceReviewReader(db).pricesUnderReview({
