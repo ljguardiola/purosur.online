@@ -109,6 +109,13 @@ export type {
 } from "./record-pending-qr-payment.js";
 export { recordPendingQrPayment } from "./record-pending-qr-payment.js";
 export type {
+  PendingQrPaymentReplacementRefusal,
+  ReplacePendingQrPaymentInput,
+  ReplacePendingQrPaymentOutcome,
+  ReplacePendingQrPaymentPorts,
+} from "./replace-pending-qr-payment.js";
+export { replacePendingQrPayment } from "./replace-pending-qr-payment.js";
+export type {
   RegisterSalesHistory,
   SaleHistoryRecord,
   SalesHistoryEntry,
