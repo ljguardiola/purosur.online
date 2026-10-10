@@ -5,7 +5,11 @@ import {
 } from "./assign-offline-number-block.js";
 import { FakeOfflineNumberBlocks } from "./test-support/fake-offline-number-blocks.js";
 
-const input = { pointOfSaleNumber: 12, documentType: "factura_c", registerId: "register-1" } as const;
+const input = {
+  pointOfSaleNumber: 12,
+  documentType: "factura_c",
+  registerId: "register-1",
+} as const;
 
 describe("assignOfflineNumberBlock", () => {
   it("assigns the first block of the series, 1 to 1000, in use for the register, when none was assigned", async () => {
