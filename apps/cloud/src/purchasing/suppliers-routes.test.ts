@@ -72,12 +72,12 @@ describe("GET /suppliers", () => {
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
-  it("lets a user who can only record purchases read the list", async () => {
+  it("returns 403 to a user who can only record purchases, who reads what a purchase may use elsewhere", async () => {
     const { headers } = await signedInWith(db, ["record_purchases"], NOW);
 
     const response = await app.inject({ method: "GET", url: "/suppliers", headers });
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(403);
   });
 
   it("lists every supplier by name, deactivated ones included", async () => {
