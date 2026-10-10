@@ -67,3 +67,15 @@ export {
 export type { RegisterService, WatchedRegister } from "./model/register-service.js";
 export { isWatchedForQuietness } from "./model/register-service.js";
 export { lastSuccessfulSyncOfRegister } from "./model/register-sync.js";
+export type {
+  DetectedSerialDevice,
+  RegisteredSerialDevices,
+  SerialDeviceIdentity,
+  SerialDeviceRole,
+  SerialDeviceStanding,
+} from "./model/serial-devices.js";
+export {
+  isSerialDeviceMissing,
+  SERIAL_DEVICE_ROLES,
+  serialDeviceStandings,
+} from "./model/serial-devices.js";

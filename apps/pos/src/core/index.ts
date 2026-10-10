@@ -59,7 +59,11 @@ import { type StartedLocalDatabase, startLocalDatabase } from "./register/local-
 import { readReceiptPrinterFor, setReceiptPrinterFor } from "./register/receipt-printer-requests";
 import { registerServiceOf } from "./register/register-service-of-database";
 import { registerStatusFor } from "./register/register-status-requests";
+import { createSerialDeviceWatch } from "./register/serial-device-watch";
+import { readSerialDevicesFor, registerSerialDevicesFor } from "./register/serial-devices-requests";
+import { listSerialPorts, serialportEnumeration } from "./register/serialport-enumeration";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
+import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
@@ -153,6 +157,8 @@ const LOCAL_DATABASE_FILE = "register.sqlite";
 const SYNC_INTERVAL_MS = 30_000;
 const SYNC_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
 const PULLED_NOTICE: CoreToRendererMessage = { type: "pulled" };
+const SERIAL_DEVICES_CHANGED_NOTICE: CoreToRendererMessage = { type: "serial-devices-changed" };
+const SERIAL_DEVICE_CHECK_INTERVAL_MS = 3_000;
 
 const localDataFolder = localDataFolderFromCoreArguments(process.argv);
 const localDatabasePath =
@@ -212,6 +218,25 @@ const { reportFailure, reportSyncFailure, reportRedeemedPinFailure } = coreFailu
   capture: Sentry.captureException,
   watchFailure: register.watchFailure,
 });
+
+const serialDeviceEnumeration = serialportEnumeration({
+  list: listSerialPorts,
+  onListed: () => console.info("core: serial devices listed"),
+});
+const serialDeviceWatch =
+  localDatabase === undefined
+    ? undefined
+    : createSerialDeviceWatch({
+        registrations: new SqliteSerialDeviceRegistrations(localDatabase),
+        enumeration: serialDeviceEnumeration,
+        intervalMs: SERIAL_DEVICE_CHECK_INTERVAL_MS,
+        scheduleNext: (run, delayMs) => {
+          const timer = setTimeout(run, delayMs);
+          return () => clearTimeout(timer);
+        },
+        onChange: () => rendererConnection.tell(SERIAL_DEVICES_CHANGED_NOTICE),
+        onFailure: (error) => reportFailure("watching the serial devices", error),
+      });
 
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next cycle resumes from the cursor and the outbox already saved either way.
@@ -350,9 +375,15 @@ const receiptPrinting = createReceiptPrinting({
 const rendererRequestDeps: RendererRequestDeps = {
   credentialsPresent: () => mainRequests.credentialsPresent(),
   registerStatus:
-    localDatabase === undefined
+    localDatabase === undefined || serialDeviceWatch === undefined
       ? undefined
-      : () => registerStatusFor({ database: localDatabase, cloud: () => cloudReachability, now }),
+      : () =>
+          registerStatusFor({
+            database: localDatabase,
+            cloud: () => cloudReachability,
+            now,
+            serialDevices: serialDeviceWatch.reading,
+          }),
   registerService: register.service,
   registerName: () => replica?.registerName(),
   enroll: async (typedCode: string) => {
@@ -698,6 +729,27 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : (address) => setReceiptPrinterFor({ database: localDatabase, gate: actionGate }, address),
+  readSerialDevices:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : () =>
+          readSerialDevicesFor({
+            database: localDatabase,
+            gate: actionGate,
+            enumeration: serialDeviceEnumeration,
+          }),
+  registerSerialDevices:
+    localDatabase === undefined || actionGate === undefined || serialDeviceWatch === undefined
+      ? undefined
+      : (devices) =>
+          registerSerialDevicesFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              recheck: () => serialDeviceWatch.checkNow(),
+            },
+            devices,
+          ),
   receiptPrintStatus: receiptPrinting.receiptPrintStatus,
   retryReceiptPrint: receiptPrinting.retryReceiptPrint,
   reprintSaleReceipt: receiptPrinting.reprintSaleReceipt,
@@ -770,3 +822,4 @@ process.parentPort.on("message", (event) => {
 
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
 syncSchedule.start();
+void serialDeviceWatch?.start();

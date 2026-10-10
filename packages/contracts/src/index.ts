@@ -221,11 +221,13 @@ export type {
   ListedCashMovement,
   OpenCashSessionOutcome,
   ReadReceiptPrinterOutcome,
+  ReadSerialDevicesOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
   RegisterCoreToRendererMessage,
   RegisterRendererToCoreMessage,
+  RegisterSerialDevicesOutcome,
   RegisterStatus,
   SessionOpenSale,
   SetReceiptPrinterOutcome,
@@ -239,6 +241,7 @@ export {
   recordCashMovementMessageSchema,
   registerCoreToRendererMessageSchema,
   registerRendererToCoreMessageSchema,
+  registerSerialDevicesMessageSchema,
   setReceiptPrinterMessageSchema,
 } from "./register/core-messages.js";
 export type { DeviceEnrollment, DeviceEnrollmentBody } from "./register/device-enrollment.js";
@@ -274,6 +277,7 @@ export {
   registerSyncStatusListSchema,
   registerSyncStatusSchema,
 } from "./register/register-sync-status.js";
+export { serialDeviceIdentitySchema } from "./register/serial-device-identity.js";
 export type {
   CancelLockedSaleOutcome,
   ReceiptPrintStatusOutcome,

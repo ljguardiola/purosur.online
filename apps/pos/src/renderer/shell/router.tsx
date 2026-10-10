@@ -25,9 +25,11 @@ import type {
   PinCodeRedemptionOutcome,
   PinPolicy,
   ReadReceiptPrinterOutcome,
+  ReadSerialDevicesOutcome,
   ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
+  RegisterSerialDevicesOutcome,
   RegisterStatus,
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
@@ -60,7 +62,11 @@ import { FirstSignInNoPin } from "../credentials/first-sign-in-no-pin";
 import { PinCodeRedemptionScreen } from "../credentials/pin-code-redemption-screen";
 import { HelpScreen } from "../help/help-screen";
 import { help } from "../help/register-help";
-import type { CashMovementInput, SalesHistoryQuery } from "../platform/core-client";
+import type {
+  CashMovementInput,
+  SalesHistoryQuery,
+  SerialDevicesToRegister,
+} from "../platform/core-client";
 import { CashCountScreen } from "../register/cash-count-screen";
 import { CashScreen } from "../register/cash-screen";
 import type { CashSessionState } from "../register/cash-session-state";
@@ -72,9 +78,12 @@ import { OutOfServiceScreen } from "../register/out-of-service-screen";
 import { ReceiptPrinterScreen } from "../register/receipt-printer-screen";
 import {
   registerNameQueryOptions,
+  registerStatusQueryOptions,
   useRegisterNameQuery,
   useRegisterStatusQuery,
 } from "../register/register-queries";
+import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
+import { SerialDevicesScreen } from "../register/serial-devices-screen";
 import { ChargeScreen } from "../sales/charge-screen";
 import { SaleScreen } from "../sales/sale-screen";
 import { SalesHistoryScreen } from "../sales/sales-history-screen";
@@ -182,6 +191,14 @@ export interface RouterContext {
   saleHistoryDetail: (saleId: string) => Promise<SaleHistoryDetailOutcome>;
   readReceiptPrinter: () => Promise<ReadReceiptPrinterOutcome>;
   setReceiptPrinter: (address: string) => Promise<SetReceiptPrinterOutcome>;
+  readSerialDevices: () => Promise<ReadSerialDevicesOutcome>;
+  registerSerialDevices: (
+    devices: SerialDevicesToRegister,
+  ) => Promise<RegisterSerialDevicesOutcome>;
+  takeSerialDevicesOffer: (
+    person: SignedInPerson,
+    readStatus: () => Promise<RegisterStatus>,
+  ) => Promise<boolean>;
   refreshCashSession: () => Promise<void>;
 }
 
@@ -318,7 +335,16 @@ const statusBarRoute = createRoute({
 const signedInRoute = createRoute({
   getParentRoute: () => statusBarRoute,
   path: "/",
-  beforeLoad: ({ context }) => ({ person: requireSignedInPerson(context) }),
+  beforeLoad: async ({ context }) => {
+    const person = requireSignedInPerson(context);
+    const landsOnSerialDevices = await context.takeSerialDevicesOffer(person, () =>
+      context.queryClient.ensureQueryData(registerStatusQueryOptions(context.registerStatus)),
+    );
+    if (landsOnSerialDevices) {
+      throw redirect({ to: "/serial-devices", search: { offered: true } });
+    }
+    return { person };
+  },
   component: function SignedInRoute() {
     const { person, signOut, openCashSession } = signedInRoute.useRouteContext();
     const registerName = useRegisterName();
@@ -382,6 +408,38 @@ const receiptPrinterRoute = createRoute({
         readReceiptPrinter={readReceiptPrinter}
         setReceiptPrinter={setReceiptPrinter}
         onSessionInvalid={() => void refreshCashSession()}
+      />
+    );
+  },
+});
+
+const serialDevicesRoute = createRoute({
+  getParentRoute: () => statusBarRoute,
+  path: "/serial-devices",
+  validateSearch: (search: { offered?: unknown }) => ({ offered: search.offered === true }),
+  beforeLoad: ({ context }) => {
+    const person = requireSignedInPerson(context);
+    if (!mayConfigureSerialDevices(person)) {
+      throw redirect({ to: "/" });
+    }
+    return { person };
+  },
+  component: function SerialDevicesRoute() {
+    const { person, signOut, readSerialDevices, registerSerialDevices, refreshCashSession } =
+      serialDevicesRoute.useRouteContext();
+    const { offered } = serialDevicesRoute.useSearch();
+    const registerName = useRegisterName();
+    const navigate = serialDevicesRoute.useNavigate();
+    return (
+      <SerialDevicesScreen
+        person={person}
+        registerName={registerName}
+        entries={ACTION_ENTRIES}
+        signOut={signOut}
+        readSerialDevices={readSerialDevices}
+        registerSerialDevices={registerSerialDevices}
+        onSessionInvalid={() => void refreshCashSession()}
+        {...(offered ? { onSkip: () => void navigate({ to: "/" }) } : {})}
       />
     );
   },
@@ -732,6 +790,7 @@ export const routeTree = rootRoute.addChildren([
       signedInRoute,
       helpRoute,
       receiptPrinterRoute,
+      serialDevicesRoute,
       openSessionRoute,
       chargeRoute,
       historyRoute,
@@ -815,6 +874,9 @@ export function createAppRouter(
     | "saleHistoryDetail"
     | "readReceiptPrinter"
     | "setReceiptPrinter"
+    | "readSerialDevices"
+    | "registerSerialDevices"
+    | "takeSerialDevicesOffer"
     | "refreshCashSession"
   >,
 ) {

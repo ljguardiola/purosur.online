@@ -4,6 +4,7 @@ import type {
   ListedCashMovement,
   OpenCashSession,
   ReadReceiptPrinterOutcome,
+  ReadSerialDevicesOutcome,
   RecordableCashMovementKinds,
   RegisterStatus,
   SessionOpenSale,
@@ -31,6 +32,7 @@ import {
   useReceiptPrinterQuery,
   useRegisterNameQuery,
   useRegisterStatusQuery,
+  useSerialDevicesQuery,
   useSessionOpenSaleQuery,
   useSetSessionOpenSale,
 } from "./register-queries";
@@ -630,7 +632,11 @@ describe("locked register closers query", () => {
   });
 });
 
-const STATUS: RegisterStatus = { conditions: ["sales_denied"], cloud: "reachable" };
+const STATUS: RegisterStatus = {
+  conditions: ["sales_denied"],
+  cloud: "reachable",
+  serial_devices: { scale: "matching", reader: "matching" },
+};
 
 type StatusRead = () => Promise<RegisterStatus | "unavailable">;
 
@@ -731,5 +737,55 @@ describe("receipt printer query", () => {
 
   it("is keyed under the register's root key", () => {
     expect(registerKeys.receiptPrinter.at(0)).toBe("register");
+  });
+});
+
+const READ_DEVICES: ReadSerialDevicesOutcome = {
+  kind: "read",
+  registered: {},
+  detected: [{ path: "COM3", vendor_id: "0403", product_id: "6001" }],
+  standings: { scale: { kind: "not_registered" }, reader: { kind: "not_registered" } },
+};
+
+function SerialDevicesProbe({ read }: { read: () => Promise<ReadSerialDevicesOutcome> }) {
+  const devices = useSerialDevicesQuery(read);
+  return (
+    <p>
+      {devices.status === "loaded"
+        ? ["devices", JSON.stringify(devices.value)].join(" ")
+        : devices.status}
+    </p>
+  );
+}
+
+describe("serial devices query", () => {
+  it.each<ReadSerialDevicesOutcome>([
+    READ_DEVICES,
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+  ])("holds the outcome %o the core answers", async (outcome) => {
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <SerialDevicesProbe read={async () => outcome} />
+      </QueryClientProvider>,
+    );
+
+    await expect
+      .element(screen.getByText(["devices", JSON.stringify(outcome)].join(" ")))
+      .toBeVisible();
+  });
+
+  it("fails when the core cannot answer", async () => {
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <SerialDevicesProbe read={async () => ({ kind: "unavailable" })} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
+  });
+
+  it("is keyed under the register's root key", () => {
+    expect(registerKeys.serialDevices.at(0)).toBe("register");
   });
 });
