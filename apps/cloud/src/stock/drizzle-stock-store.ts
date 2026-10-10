@@ -2,6 +2,7 @@ import type { SaleUnit } from "@purosur/domain";
 import type {
   CoveringCount,
   LockProductStockResult,
+  NewLot,
   NewStockCount,
   NewStockMovement,
   ProductStockKey,
@@ -10,7 +11,13 @@ import type {
 } from "@purosur/domain/stock/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { products, stockBalances, stockCounts, stockMovements } from "../platform/db/schema.js";
+import {
+  lots,
+  products,
+  stockBalances,
+  stockCounts,
+  stockMovements,
+} from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { appliedDeltaAfter, earliestCountAtOrAfter } from "./stock-ledger-queries.js";
 import { STOCK_MOVEMENT_VERSION } from "./stock-movement-version.js";
@@ -85,6 +92,10 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
   async recordCount(count: NewStockCount): Promise<void> {
     await this.tx.insert(stockCounts).values(count);
+  }
+
+  async recordLot(lot: NewLot): Promise<void> {
+    await this.tx.insert(lots).values(lot);
   }
 
   async addToBalance(key: ProductStockKey, delta: number): Promise<number> {

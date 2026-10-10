@@ -287,16 +287,33 @@ export {
   priceInEffectAt,
   priceReviewAt,
 } from "./pricing/index.js";
+export type { ReceiptType } from "./purchasing/index.js";
 export {
+  hasPurchaseLines,
+  hasValidReceiptNumber,
+  isCostPaid,
+  isLotNumberTooLong,
+  isPackageCount,
   isPackagingNameTooLong,
+  isPurchaseDateInFuture,
+  isPurchaseNoteTooLong,
+  isReceiptNumberTooLong,
   isSupplierContactTooLong,
   isSupplierNameTooLong,
   isSupplierNoteTooLong,
+  LOT_NUMBER_MAX_LENGTH,
+  MIN_PURCHASE_LINES,
+  ONE_SALE_UNIT_QUANTITY,
   PACKAGING_NAME_MAX_LENGTH,
   PRODUCTS_PACKAGINGS_MAY_BE_DEFINED_FOR,
+  PRODUCTS_PURCHASES_MAY_BE_REGISTERED_FOR,
+  PURCHASE_NOTE_MAX_LENGTH,
+  RECEIPT_NUMBER_MAX_LENGTH,
+  RECEIPT_TYPES,
   SUPPLIER_CONTACT_MAX_LENGTH,
   SUPPLIER_NAME_MAX_LENGTH,
   SUPPLIER_NOTE_MAX_LENGTH,
+  unitCostCents,
 } from "./purchasing/index.js";
 export type {
   CashBreakdown,

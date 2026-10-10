@@ -1,4 +1,8 @@
-import type { PackagingListing, PurchasingListReader } from "../purchasing-list-reader.js";
+import type {
+  PackagingListing,
+  PurchaseListing,
+  PurchasingListReader,
+} from "../purchasing-list-reader.js";
 import type { Packaging, Supplier } from "../purchasing-store.js";
 import type { FakeProductRow } from "./fake-purchasing-store.js";
 
@@ -6,6 +10,7 @@ export interface FakePurchasingListData {
   suppliers?: Supplier[];
   packagings?: Packaging[];
   products?: FakeProductRow[];
+  purchases?: (PurchaseListing & { locationId: string })[];
 }
 
 function byName(first: { name: string }, second: { name: string }): number {
@@ -20,6 +25,7 @@ export class FakePurchasingListReader implements PurchasingListReader {
       suppliers: data.suppliers ?? [],
       packagings: data.packagings ?? [],
       products: data.products ?? [],
+      purchases: data.purchases ?? [],
     };
   }
 
@@ -38,5 +44,13 @@ export class FakePurchasingListReader implements PurchasingListReader {
 
   async packaging(packagingId: string): Promise<PackagingListing | undefined> {
     return (await this.packagings()).find((packaging) => packaging.id === packagingId);
+  }
+
+  async purchases(locationId: string): Promise<PurchaseListing[]> {
+    return this.data.purchases.filter((purchase) => purchase.locationId === locationId);
+  }
+
+  async purchase(purchaseId: string): Promise<PurchaseListing | undefined> {
+    return this.data.purchases.find((purchase) => purchase.id === purchaseId);
   }
 }

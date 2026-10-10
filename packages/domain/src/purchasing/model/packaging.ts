@@ -22,6 +22,13 @@ export function isQuantityPerPackage(saleUnit: SaleUnit, quantity: number): bool
   return isMovementQuantity(saleUnit, quantity);
 }
 
+export function mayBuyByPackaging(
+  packaging: { active: boolean; saleUnit: SaleUnit },
+  productSaleUnit: SaleUnit,
+): boolean {
+  return packaging.active && !hasProductSaleUnitChanged(packaging.saleUnit, productSaleUnit);
+}
+
 export function hasProductSaleUnitChanged(
   packagingSaleUnit: SaleUnit,
   productSaleUnit: SaleUnit,

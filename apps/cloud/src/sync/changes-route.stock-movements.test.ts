@@ -1,4 +1,5 @@
 import { type ChangesPage, changesPageSchema } from "@purosur/contracts";
+import { registerPurchase } from "@purosur/domain/purchasing/use-cases";
 import { recordLoss, registerCount } from "@purosur/domain/stock/use-cases";
 import { asc } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -9,8 +10,10 @@ import {
   products,
   stockBalances,
   stockMovements,
+  suppliers,
   users,
 } from "../platform/db/schema.js";
+import { DrizzlePurchasingStore } from "../purchasing/drizzle-purchasing-store.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { registerRouteAccess } from "../sessions/route-access.js";
 import { DrizzleStockStore } from "../stock/drizzle-stock-store.js";
@@ -151,6 +154,58 @@ describe("GET /changes carrying stock movements", () => {
           delta: -1000,
           occurred_at: BEFORE_COUNT.toISOString(),
           superseded_by_count_id: count?.id,
+          version: 1,
+        },
+      },
+    ]);
+  });
+
+  it("gives a register the receipt movement of a purchase of its branch with the line's quantity as its delta", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct();
+    const actorId = await insertActor(locationId);
+    const [supplier] = await db
+      .insert(suppliers)
+      .values({ name: "Distribuidora Sur", actorId })
+      .returning({ id: suppliers.id });
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
+    const since = await lastLoggedChangeSeq(db);
+
+    const outcome = await registerPurchase(
+      { store: new DrizzlePurchasingStore(db, () => NOW), clock: { now: () => NOW } },
+      {
+        supplierId: supplier?.id as string,
+        purchasedOn: "2026-10-09",
+        receiptType: "sin_comprobante",
+        receiptNumber: null,
+        note: null,
+        lines: [
+          {
+            loadedBy: "quantity",
+            productId,
+            quantity: 12_000,
+            costPaidCents: 6_000,
+            lotNumber: null,
+            expiresOn: null,
+          },
+        ],
+        actorId,
+        locationId,
+      },
+    );
+
+    expect(outcome.kind).toBe("registered");
+    const [receipt] = await db.select({ id: stockMovements.id }).from(stockMovements);
+    expect(await pullAfter(since, deviceToken)).toEqual([
+      {
+        entity: "stock_movement",
+        entity_id: receipt?.id,
+        row: {
+          product_id: productId,
+          kind: "receipt",
+          delta: 12_000,
+          occurred_at: NOW.toISOString(),
+          superseded_by_count_id: null,
           version: 1,
         },
       },

@@ -4,6 +4,8 @@ import {
   type LockProductResult,
   type LockSupplierResult,
   type NewPackagingFields,
+  type NewPurchaseFields,
+  type NewPurchaseLineFields,
   type NewSupplierFields,
   type PackagingFields,
   PackagingNameConflict,
@@ -13,10 +15,19 @@ import {
   type SupplierFields,
   SupplierNameConflict,
 } from "@purosur/domain/purchasing/use-cases";
+import { type PurchaseReceipt, receivePurchasedStock } from "@purosur/domain/stock/use-cases";
 import { and, eq, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
-import { productPackagings, products, suppliers } from "../platform/db/schema.js";
+import {
+  productPackagings,
+  products,
+  purchaseLines,
+  purchases,
+  suppliers,
+} from "../platform/db/schema.js";
+import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
+import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 
 const UNIQUE_VIOLATION = "23505";
 const SUPPLIER_NAME_UNIQUE_INDEX = "suppliers_name_lower_key";
@@ -50,10 +61,12 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
 {
   private readonly tx: PgDatabase<TQueryResult>;
   private readonly now: () => Date;
+  private readonly stock: DrizzleStockStoreTransaction<TQueryResult>;
 
-  constructor(tx: PgDatabase<TQueryResult>, now: () => Date) {
+  constructor(tx: PgDatabase<TQueryResult>, now: () => Date, pending: PendingChanges) {
     this.tx = tx;
     this.now = now;
+    this.stock = new DrizzleStockStoreTransaction(tx, pending);
   }
 
   async lockSupplier(supplierId: string): Promise<LockSupplierResult> {
@@ -138,6 +151,17 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
       : { kind: "not_found" };
   }
 
+  async holdPurchasedProduct(productId: string): Promise<LockProductResult> {
+    const [product] = await this.tx
+      .select({ id: products.id, saleUnit: products.saleUnit, active: products.active })
+      .from(products)
+      .where(eq(products.id, productId))
+      .for("share");
+    return product
+      ? { kind: "locked", product: { ...product, saleUnit: product.saleUnit as SaleUnit } }
+      : { kind: "not_found" };
+  }
+
   async lockProductOfPackaging(packagingId: string): Promise<LockProductResult> {
     const [product] = await this.tx
       .select({ id: products.id, saleUnit: products.saleUnit, active: products.active })
@@ -215,6 +239,35 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
       throw translatePackagingViolation(error);
     }
   }
+
+  async insertPurchase(fields: NewPurchaseFields): Promise<{ id: string }> {
+    const [purchase] = await this.tx
+      .insert(purchases)
+      .values(fields)
+      .returning({ id: purchases.id });
+    if (!purchase) {
+      throw new Error("inserting the purchase returned no row");
+    }
+    return purchase;
+  }
+
+  async insertPurchaseLine(fields: NewPurchaseLineFields): Promise<{ id: string }> {
+    const [line] = await this.tx
+      .insert(purchaseLines)
+      .values(fields)
+      .returning({ id: purchaseLines.id });
+    if (!line) {
+      throw new Error("inserting the purchase line returned no row");
+    }
+    return line;
+  }
+
+  async receiveStock(receipt: PurchaseReceipt): Promise<void> {
+    const outcome = await receivePurchasedStock(this.stock, receipt);
+    if (outcome.kind === "not_found") {
+      throw new Error(`the purchased product ${outcome.productId} vanished while it was held`);
+    }
+  }
 }
 
 export class DrizzlePurchasingStore<TQueryResult extends PgQueryResultHKT>
@@ -231,6 +284,8 @@ export class DrizzlePurchasingStore<TQueryResult extends PgQueryResultHKT>
   transaction<TOutcome>(
     work: (tx: PurchasingStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzlePurchasingStoreTransaction(tx, this.now)));
+    return withPendingChanges(this.db, undefined, (tx, pending) =>
+      work(new DrizzlePurchasingStoreTransaction(tx, this.now, pending)),
+    );
   }
 }

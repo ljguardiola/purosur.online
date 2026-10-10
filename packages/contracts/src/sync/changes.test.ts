@@ -304,6 +304,7 @@ describe("changesPageSchema", () => {
       }),
       change(3, "stock_movement", { ...stockMovementRow, kind: "adjustment", delta: 4000 }),
       change(4, "stock_movement", { ...stockMovementRow, kind: "count", delta: 0 }),
+      change(5, "stock_movement", { ...stockMovementRow, kind: "receipt", delta: 24_000 }),
     );
 
     expect(changesPageSchema.parse(page)).toEqual(page);
@@ -325,7 +326,7 @@ describe("changesPageSchema", () => {
   });
 
   it.each([
-    ["a kind no balance moves by", { kind: "receipt" }],
+    ["a kind no balance moves by", { kind: "refund" }],
     ["a fractional delta", { delta: -0.5 }],
     ["a moment that is not a date and time", { occurred_at: "2026-10-09" }],
   ])("refuses a stock movement with %s", (_, override) => {
