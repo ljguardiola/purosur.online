@@ -21,6 +21,7 @@ import {
   plural,
   StatusIndicator,
 } from "@purosur/ui";
+import { createLink } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Bell,
@@ -38,7 +39,6 @@ import {
   TriangleAlert,
   WifiOff,
 } from "lucide-react";
-import { createLink } from "@tanstack/react-router";
 import { type ReactElement, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { fetchPermissionCatalog as fetchPermissionCatalogDefault } from "../platform/permission-catalog-api";
