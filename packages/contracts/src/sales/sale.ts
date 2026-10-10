@@ -81,6 +81,8 @@ const noOpenSessionOutcome = z.object({ kind: z.literal("no_open_session") });
 const installationRevokedOutcome = z.object({ kind: z.literal("installation_revoked") });
 const unavailableOutcome = z.object({ kind: z.literal("unavailable") });
 const saleHasPaymentsOutcome = z.object({ kind: z.literal("sale_has_payments") });
+export const qrChargeInProgressOutcome = z.object({ kind: z.literal("qr_charge_in_progress") });
+export const holdsQrPaymentOutcome = z.object({ kind: z.literal("holds_qr_payment") });
 
 export const scanProductOutcomeSchema = z.discriminatedUnion("kind", [
   addedOutcome,
@@ -128,6 +130,7 @@ export type RemoveSaleLineOutcome = z.infer<typeof removeSaleLineOutcomeSchema>;
 export const cancelSaleOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("cancelled") }),
   z.object({ kind: z.literal("has_approved_payment") }),
+  qrChargeInProgressOutcome,
   ...saleRefusalSchemas,
 ]);
 export type CancelSaleOutcome = z.infer<typeof cancelSaleOutcomeSchema>;
@@ -140,6 +143,8 @@ export const cancelPaidSaleOutcomeSchema = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("no_open_sale") }),
   z.object({ kind: z.literal("no_open_session") }),
+  qrChargeInProgressOutcome,
+  holdsQrPaymentOutcome,
   notPermittedOutcome,
   notSignedInOutcome,
   ...authorizationRefusalSchema.options,

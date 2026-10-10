@@ -297,12 +297,9 @@ describe("cancelSaleOutcomeSchema", () => {
     { kind: "has_approved_payment" },
     { kind: "qr_charge_in_progress" },
     ...refusals,
-  ])(
-    "accepts the outcome $kind",
-    (outcome) => {
-      expect(cancelSaleOutcomeSchema.parse(outcome)).toEqual(outcome);
-    },
-  );
+  ])("accepts the outcome $kind", (outcome) => {
+    expect(cancelSaleOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
 
   it.each([{ kind: "unknown_line" }, { kind: "somewhere_else" }, {}])(
     "rejects the outcome %j",
