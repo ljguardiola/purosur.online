@@ -21,6 +21,7 @@ export function aCompletedSale(overrides: Partial<CompletedSale> = {}): Complete
         id: randomUUID(),
         productId: randomUUID(),
         productName: "Azucar",
+        weightSource: null,
         quantity: 2,
         listUnitPrice: 2400,
         priceListId: randomUUID(),

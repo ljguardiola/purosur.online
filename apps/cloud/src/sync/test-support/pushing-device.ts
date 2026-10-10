@@ -83,14 +83,21 @@ export function saleCompleted(options: {
   completedAt: string;
   total: number;
   payments: { amount: number }[];
-  line?: { productId: string; priceListId: string; listUnitPrice: number };
+  line?: {
+    productId: string;
+    priceListId: string;
+    listUnitPrice: number;
+    weight?: { thousandths: number; source: "SCALE" | "MANUAL" };
+  };
 }): PushedEventDraft {
   const { line } = options;
+  const lineId = randomUUID();
+  const weighed = line?.weight !== undefined;
   return {
     aggregate_type: "Sale",
     aggregate_id: options.saleId,
     event_type: "sale_completed",
-    schema_version: 2,
+    schema_version: weighed ? 6 : 2,
     occurred_at: options.completedAt,
     payload: {
       id: options.saleId,
@@ -103,10 +110,11 @@ export function saleCompleted(options: {
       lines: line
         ? [
             {
-              id: randomUUID(),
+              id: lineId,
               product_id: line.productId,
               product_name: "Miel pura de abeja 1 kg",
-              quantity: 1,
+              ...(line.weight ? { weight_source: line.weight.source } : {}),
+              quantity: line.weight?.thousandths ?? 1,
               list_unit_price: line.listUnitPrice,
               price_list_id: line.priceListId,
               promotion_id: null,
@@ -117,6 +125,19 @@ export function saleCompleted(options: {
           ]
         : [],
       cash_movements: [],
+      ...(weighed && line
+        ? {
+            operation_number: 1,
+            stock_movements: [
+              {
+                id: randomUUID(),
+                sale_line_id: lineId,
+                product_id: line.productId,
+                delta: -(line.weight?.thousandths ?? 0),
+              },
+            ],
+          }
+        : {}),
       payments: options.payments.map(({ amount }) => ({
         id: randomUUID(),
         kind: "SALE",

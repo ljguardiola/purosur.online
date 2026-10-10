@@ -2,9 +2,11 @@ import { PIN_SIGN_IN_LOCKOUT_FAILURES, SEARCH_RESULT_LIMIT } from "@purosur/doma
 import { describe, expect, it } from "vitest";
 import {
   addProductOutcomeSchema,
+  addWeighedProductOutcomeSchema,
   cancelPaidSaleOutcomeSchema,
   cancelSaleOutcomeSchema,
   changeLineQuantityOutcomeSchema,
+  changeLineWeightOutcomeSchema,
   chargeSaleByTransferOutcomeSchema,
   chargeSaleInCashOutcomeSchema,
   removeSaleLineOutcomeSchema,
@@ -17,6 +19,8 @@ const line = {
   id: "l1",
   product_id: "p1",
   product_name: "Yerba",
+  sale_unit: "UNIT",
+  weight_source: null,
   quantity: 2,
   list_unit_price: 1500,
   discount_amount: 0,
@@ -37,6 +41,27 @@ const sale = {
 };
 
 describe("saleSchema", () => {
+  it.each([
+    ["scale", "SCALE"],
+    ["typed entry", "MANUAL"],
+  ] as const)(
+    "accepts a line sold by the kilogram whose weight came from the %s",
+    (_case, weight_source) => {
+      const weighed = { ...line, sale_unit: "KG", weight_source, quantity: 1250, line_total: 1875 };
+
+      expect(saleSchema.parse({ ...sale, lines: [weighed] }).lines).toEqual([weighed]);
+    },
+  );
+
+  it.each([
+    ["without its sale unit", { ...line, sale_unit: undefined }],
+    ["without its weight source", { ...line, weight_source: undefined }],
+    ["with an unknown sale unit", { ...line, sale_unit: "LITER" }],
+    ["with an unknown weight source", { ...line, weight_source: "SENSOR" }],
+  ])("rejects a line %s", (_case, value) => {
+    expect(saleSchema.safeParse({ ...sale, lines: [value] }).success).toBe(false);
+  });
+
   it("accepts a sale with its lines and the total to charge", () => {
     expect(saleSchema.parse(sale)).toEqual(sale);
   });
@@ -178,7 +203,7 @@ describe("scanProductOutcomeSchema", () => {
     { kind: "added", sale },
     { kind: "unknown_code" },
     { kind: "no_price", product_name: "Yerba" },
-    { kind: "sold_by_weight", product_name: "Queso" },
+    { kind: "weight_needed", product_id: "p2", product_name: "Queso" },
     { kind: "line_quantity_limit", product_name: "Yerba" },
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
@@ -193,7 +218,9 @@ describe("scanProductOutcomeSchema", () => {
   it.each([
     { kind: "added" },
     { kind: "no_price" },
-    { kind: "sold_by_weight" },
+    { kind: "sold_by_weight", product_name: "Queso" },
+    { kind: "weight_needed", product_name: "Queso" },
+    { kind: "weight_needed", product_id: "p2" },
     { kind: "line_quantity_limit" },
     { kind: "somewhere_else" },
     {},
@@ -216,6 +243,7 @@ describe("changeLineQuantityOutcomeSchema", () => {
     { kind: "unknown_line" },
     { kind: "stale_quantity" },
     { kind: "invalid_quantity" },
+    { kind: "sold_by_weight" },
     { kind: "sale_has_payments" },
     ...refusals,
   ])("accepts the outcome $kind", (outcome) => {
@@ -228,6 +256,59 @@ describe("changeLineQuantityOutcomeSchema", () => {
       expect(changeLineQuantityOutcomeSchema.safeParse(outcome).success).toBe(false);
     },
   );
+});
+
+describe("changeLineWeightOutcomeSchema", () => {
+  it.each([
+    { kind: "changed", sale },
+    { kind: "unknown_line" },
+    { kind: "stale_weight" },
+    { kind: "invalid_weight" },
+    { kind: "not_sold_by_weight" },
+    { kind: "sale_has_payments" },
+    ...refusals,
+  ])("accepts the outcome $kind", (outcome) => {
+    expect(changeLineWeightOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it.each([
+    { kind: "changed" },
+    { kind: "stale_quantity" },
+    { kind: "invalid_quantity" },
+    { kind: "somewhere_else" },
+    {},
+  ])("rejects the outcome %j", (outcome) => {
+    expect(changeLineWeightOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
+});
+
+describe("addWeighedProductOutcomeSchema", () => {
+  it.each([
+    { kind: "added", sale },
+    { kind: "product_unavailable" },
+    { kind: "not_sold_by_weight" },
+    { kind: "invalid_weight" },
+    { kind: "no_price", product_name: "Queso" },
+    { kind: "sale_has_payments" },
+    { kind: "not_permitted" },
+    { kind: "not_signed_in" },
+    { kind: "no_open_session" },
+    { kind: "installation_revoked" },
+    { kind: "unavailable" },
+  ])("accepts the outcome $kind", (outcome) => {
+    expect(addWeighedProductOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it.each([
+    { kind: "added" },
+    { kind: "no_price" },
+    { kind: "weight_needed", product_id: "p2", product_name: "Queso" },
+    { kind: "line_quantity_limit", product_name: "Yerba" },
+    { kind: "somewhere_else" },
+    {},
+  ])("rejects the outcome %j", (outcome) => {
+    expect(addWeighedProductOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
 });
 
 describe("removeSaleLineOutcomeSchema", () => {
@@ -538,7 +619,7 @@ describe("addProductOutcomeSchema", () => {
   it.each([
     { kind: "added", sale },
     { kind: "no_price", product_name: "Yerba" },
-    { kind: "sold_by_weight", product_name: "Queso" },
+    { kind: "weight_needed", product_id: "p2", product_name: "Queso" },
     { kind: "line_quantity_limit", product_name: "Yerba" },
     { kind: "product_unavailable" },
     { kind: "not_permitted" },
@@ -554,7 +635,8 @@ describe("addProductOutcomeSchema", () => {
   it.each([
     { kind: "added" },
     { kind: "no_price" },
-    { kind: "sold_by_weight" },
+    { kind: "sold_by_weight", product_name: "Queso" },
+    { kind: "weight_needed", product_name: "Queso" },
     { kind: "line_quantity_limit" },
     { kind: "unknown_code" },
     { kind: "somewhere_else" },

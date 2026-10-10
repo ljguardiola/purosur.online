@@ -153,7 +153,8 @@ describe("synced event payloads", () => {
 
   it.each([
     ["an unknown event type", "sale_opened", 1],
-    ["a sale_completed version nobody emitted", "sale_completed", 6],
+    ["a sale_completed version nobody emitted", "sale_completed", 7],
+    ["a sale_cancelled version nobody emitted", "sale_cancelled", 3],
     ["version zero", "sale_completed", 0],
     ["a cash_session_opened version nobody emitted", "cash_session_opened", 2],
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
@@ -414,6 +415,93 @@ describe("synced event payloads", () => {
       expect(accepts("sale_cancelled", 1, { ...CANCELLED_SALE_V1, payments: [QR_PAYMENT] })).toBe(
         false,
       );
+    });
+  });
+
+  describe("a sale's lines recording the source of their weight", () => {
+    const WEIGHED_LINE = {
+      id: "line-2",
+      product_id: "queso",
+      product_name: "Queso cremoso",
+      weight_source: "MANUAL",
+      quantity: 1250,
+      list_unit_price: 9000,
+      price_list_id: "list-1",
+      promotion_id: null,
+      discount_amount: 0,
+      promotions: [],
+      line_total: 11250,
+    };
+    const completed = (): Payload => {
+      const sale = recordedPayload("sale_completed", 5);
+      const lines = (sale["lines"] as Payload[]).map((line) => ({ ...line, weight_source: null }));
+      return { ...sale, lines };
+    };
+    const cancelled = (): Payload => ({
+      ...CANCELLED_SALE_V1,
+      lines: (CANCELLED_SALE_V1["lines"] as Payload[]).map((line) => ({
+        ...line,
+        weight_source: null,
+      })),
+    });
+    const withLines = (sale: Payload, lines: Payload[]): Payload => ({
+      ...sale,
+      lines: [...(sale["lines"] as Payload[]), ...lines],
+    });
+
+    it.each([
+      ["sale_completed", 6, completed],
+      ["sale_cancelled", 2, cancelled],
+    ])(
+      "accepts a %s v%i whose lines are sold by the unit and record no weight source",
+      (eventType, version, sale) => {
+        expect(accepts(eventType, version, sale())).toBe(true);
+      },
+    );
+
+    it.each(["SCALE", "MANUAL"])(
+      "accepts a line sold by weight whose weight came from %s",
+      (weightSource) => {
+        const weighed = { ...WEIGHED_LINE, weight_source: weightSource };
+
+        expect(accepts("sale_completed", 6, withLines(completed(), [weighed]))).toBe(true);
+        expect(accepts("sale_cancelled", 2, withLines(cancelled(), [weighed]))).toBe(true);
+      },
+    );
+
+    it.each([
+      ["a weight source nobody records", { weight_source: "SENSOR" }],
+      ["an empty weight source", { weight_source: "" }],
+      ["a lowercase weight source", { weight_source: "manual" }],
+    ])("refuses a line with %s", (_case, change) => {
+      const line = { ...WEIGHED_LINE, ...change };
+
+      expect(accepts("sale_completed", 6, withLines(completed(), [line]))).toBe(false);
+      expect(accepts("sale_cancelled", 2, withLines(cancelled(), [line]))).toBe(false);
+    });
+
+    it("refuses a line without the field", () => {
+      const { weight_source: _removed, ...line } = WEIGHED_LINE;
+
+      expect(accepts("sale_completed", 6, withLines(completed(), [line]))).toBe(false);
+      expect(accepts("sale_cancelled", 2, withLines(cancelled(), [line]))).toBe(false);
+    });
+
+    it.each([
+      ["sale_completed", 5],
+      ["sale_cancelled", 1],
+    ])("keeps reading a %s v%i, whose lines carry no weight source", (eventType, version) => {
+      const { weight_source: _removed, ...unit } = WEIGHED_LINE;
+      const sale =
+        eventType === "sale_completed"
+          ? recordedPayload("sale_completed", 5)
+          : structuredClone(CANCELLED_SALE_V1);
+
+      expect(sale["lines"]).not.toContainEqual(
+        expect.objectContaining({ weight_source: "MANUAL" }),
+      );
+      expect(accepts(eventType, version, sale)).toBe(true);
+      expect(accepts(eventType, version, withLines(sale, [unit]))).toBe(true);
     });
   });
 

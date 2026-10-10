@@ -201,6 +201,35 @@ describe("applying what POST /events received", () => {
     expect(await route.db.select().from(alerts)).toEqual([]);
   });
 
+  it("applies a sale with a line sold by weight, keeping its weight and where it came from", async () => {
+    const { device } = await pushingFromARegister();
+    const priceListId = await seededPriceListId(route.db);
+    const { productId } = await insertProduct(route.db);
+    const sessionId = randomUUID();
+    await device.push([
+      cashSessionOpened(sessionId, "2026-10-06T11:00:00.000Z"),
+      saleCompleted({
+        saleId: randomUUID(),
+        sessionId,
+        completedAt: "2026-10-06T11:20:00.000Z",
+        total: 11250,
+        payments: [{ amount: 11250 }],
+        line: {
+          productId,
+          priceListId,
+          listUnitPrice: 9000,
+          weight: { thousandths: 1250, source: "MANUAL" },
+        },
+      }),
+    ]);
+
+    await applyAt(NOW);
+
+    const [line] = await route.db.select().from(saleLines);
+    expect(line).toMatchObject({ quantity: 1250, weightSource: "MANUAL", listUnitPrice: 9000 });
+    expect(await route.db.select().from(alerts)).toEqual([]);
+  });
+
   it("retries a sale whose cash session arrives later, and applies it once the session is applied", async () => {
     const { device } = await pushingFromARegister();
     const sessionId = randomUUID();
