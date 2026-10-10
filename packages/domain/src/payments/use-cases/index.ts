@@ -16,6 +16,11 @@ export type {
 } from "./create-mercado-pago-qr-order.js";
 export { createMercadoPagoQrOrder } from "./create-mercado-pago-qr-order.js";
 export type {
+  FollowMercadoPagoQrChargeInput,
+  FollowMercadoPagoQrChargeOutcome,
+} from "./follow-mercado-pago-qr-charge.js";
+export { followMercadoPagoQrCharge } from "./follow-mercado-pago-qr-charge.js";
+export type {
   ListPendingRefundsInput,
   ListPendingRefundsPorts,
 } from "./list-pending-refunds.js";
@@ -34,6 +39,17 @@ export type {
   PaymentTransactionDirectory,
   PaymentTransactionReference,
 } from "./mercado-pago-notification-ports.js";
+export type {
+  EndedMercadoPagoQrChargeState,
+  MercadoPagoQrChargeOrderAnswer,
+  MercadoPagoQrChargeOrderReading,
+  MercadoPagoQrChargeOrders,
+  MercadoPagoQrChargePorts,
+  MercadoPagoQrChargeSale,
+  MercadoPagoQrCharges,
+  PendingMercadoPagoQrCharge,
+  PendingMercadoPagoQrPayment,
+} from "./mercado-pago-qr-charge-ports.js";
 export type {
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
@@ -58,3 +74,8 @@ export type {
   RefundStore,
   RefundStoreTransaction,
 } from "./refund-store.js";
+export type {
+  StartMercadoPagoQrChargeInput,
+  StartMercadoPagoQrChargeOutcome,
+} from "./start-mercado-pago-qr-charge.js";
+export { startMercadoPagoQrCharge } from "./start-mercado-pago-qr-charge.js";

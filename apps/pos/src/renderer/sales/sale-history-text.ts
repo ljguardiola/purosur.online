@@ -17,6 +17,12 @@ export type ShownSaleState = HistoryRow["state"];
 const PAYMENT_METHOD_NAMES = {
   CASH: "Efectivo",
   TRANSFER: "Transferencia",
+  QR: "QR de Mercado Pago",
+} as const satisfies Record<PaymentMethod, string>;
+
+const PAYMENT_METHOD_SHORT_NAMES = {
+  ...PAYMENT_METHOD_NAMES,
+  QR: "QR",
 } as const satisfies Record<PaymentMethod, string>;
 
 const STATE_PRESENTATION = {
@@ -50,7 +56,9 @@ export function paymentMethodName(method: PaymentMethod): string {
 }
 
 export function paymentMethodsText(methods: readonly PaymentMethod[]): string {
-  return methods.length === 0 ? "—" : methods.map(paymentMethodName).join(" + ");
+  return methods.length === 0
+    ? "—"
+    : methods.map((method) => PAYMENT_METHOD_SHORT_NAMES[method]).join(" + ");
 }
 
 export function saleStatePresentation(state: ShownSaleState): {

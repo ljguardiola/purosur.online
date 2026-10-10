@@ -39,6 +39,7 @@ import { ExpectedCashPanel } from "./expected-cash-panel";
 import {
   useCashBalanceQuery,
   useCashCountPreviewQuery,
+  useReadSessionOpenSale,
   useRefreshSessionOpenSale,
   useSessionOpenSaleQuery,
   useSetSessionOpenSale,
@@ -46,6 +47,14 @@ import {
 
 const CLOSE_FAILED = "No se pudo cerrar la caja. Probá de nuevo.";
 const CANCEL_FAILED = "No se pudo cancelar la venta. Probá de nuevo.";
+const QR_CHARGE_IN_PROGRESS_MESSAGE =
+  "Hay un cobro con QR en curso. Esperá a que termine para cancelar la venta.";
+const HOLDS_QR_PAYMENT_MESSAGE =
+  "La venta tiene un pago con QR: todavía no se puede anular desde la caja.";
+const CANCEL_REFUSAL_MESSAGES: Record<NonNullable<SessionOpenSale["cancel_refusal"]>, string> = {
+  qr_charge_in_progress: QR_CHARGE_IN_PROGRESS_MESSAGE,
+  holds_qr_payment: HOLDS_QR_PAYMENT_MESSAGE,
+};
 
 export type RefusedClose = Extract<
   CloseLockedCashSessionOutcome,
@@ -82,6 +91,7 @@ export function LockedCashCount({
   const openSaleData = useSessionOpenSaleQuery(sessionId, loadOpenSale);
   const setOpenSale = useSetSessionOpenSale(sessionId);
   const refreshOpenSale = useRefreshSessionOpenSale(sessionId);
+  const readOpenSale = useReadSessionOpenSale(sessionId, loadOpenSale);
   const field = useRef<HTMLDivElement>(null);
   const [failure, setFailure] = useState<string>();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
@@ -149,6 +159,18 @@ export function LockedCashCount({
     await forgetOpenSale();
   }
 
+  async function askToCancelOpenSale() {
+    clearOutcome();
+    const asked = openSale?.cancel_refusal === null ? openSale : await readOpenSale();
+    if (asked === "unavailable") {
+      setFailure(CANCEL_FAILED);
+    } else if (asked !== null && asked.cancel_refusal !== null) {
+      setFailure(CANCEL_REFUSAL_MESSAGES[asked.cancel_refusal]);
+    } else if (asked !== null) {
+      setConfirmingCancel(true);
+    }
+  }
+
   async function cancelOpenSale() {
     if (openSale === null) {
       return;
@@ -167,6 +189,10 @@ export function LockedCashCount({
         break;
       case "not_permitted":
       case "no_open_session":
+        break;
+      case "qr_charge_in_progress":
+      case "holds_qr_payment":
+        setFailure(CANCEL_REFUSAL_MESSAGES[outcome.kind]);
         break;
       case "unavailable":
         setFailure(CANCEL_FAILED);
@@ -204,7 +230,7 @@ export function LockedCashCount({
                 variant="secondary"
                 icon={<X />}
                 disabled={busy}
-                onPress={() => setConfirmingCancel(true)}
+                onPress={() => void askToCancelOpenSale()}
               >
                 Cancelar la venta
               </Button>

@@ -2,6 +2,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   cancellableWithoutAuthorization,
   hasApprovedPayment,
+  holdsApprovedQrPayment,
   type PaymentTransaction,
 } from "./payment.js";
 
@@ -50,11 +51,47 @@ describe("hasApprovedPayment", () => {
   });
 });
 
+describe("holdsApprovedQrPayment", () => {
+  const QR = { state: "APPROVED", method: "QR" } as const;
+
+  it("is false for a sale without payments", () => {
+    expect(holdsApprovedQrPayment([])).toBe(false);
+  });
+
+  it("is true when an approved payment of several is by QR", () => {
+    expect(holdsApprovedQrPayment([APPROVED, QR])).toBe(true);
+  });
+
+  it("is false when only payments of other methods are approved", () => {
+    expect(holdsApprovedQrPayment([APPROVED, { ...APPROVED, method: "TRANSFER" }])).toBe(false);
+  });
+
+  it("is false when the QR payment is not approved", () => {
+    expect(holdsApprovedQrPayment([{ ...QR, state: "PENDING" }])).toBe(false);
+  });
+});
+
 describe("PaymentTransaction", () => {
   it("does not accept a transfer without who confirmed it and when", () => {
     type Transfer = Extract<PaymentTransaction, { method: "TRANSFER" }>;
 
     expectTypeOf<Omit<Transfer, "authorizedBy">>().not.toExtend<PaymentTransaction>();
     expectTypeOf<Omit<Transfer, "confirmedAt">>().not.toExtend<PaymentTransaction>();
+  });
+});
+
+describe("a Mercado Pago QR payment of a sale", () => {
+  type QrPayment = Extract<PaymentTransaction, { method: "QR" }>;
+
+  it("is an approved payment processed by Mercado Pago QR", () => {
+    expectTypeOf<QrPayment>().toExtend<{ provider: "MERCADOPAGO_QR"; state: "APPROVED" }>();
+    expectTypeOf<
+      Omit<QrPayment, "provider"> & { provider: "NONE" }
+    >().not.toExtend<PaymentTransaction>();
+  });
+
+  it("carries no tendered amount nor anyone who confirmed it", () => {
+    expectTypeOf<QrPayment & { tendered: number }>().not.toExtend<PaymentTransaction>();
+    expectTypeOf<QrPayment & { authorizedBy: string }>().not.toExtend<PaymentTransaction>();
   });
 });

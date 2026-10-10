@@ -15,8 +15,8 @@ const SALE_WITH_PAYMENT: OpenSale = {
   ...SALE_OF_YERBA,
   paid: 100_000,
   pending: 376_000,
-  lines_editable: false,
-  cancellable: false,
+  lines_lock: "approved_payment",
+  cancel_refusal: null,
   refunds_on_cancel: [{ payment_id: "p1", method: "CASH", amount: 100_000, state: "APPROVED" }],
 };
 const LOCKED_REASON = "La venta ya no se puede cambiar porque tiene un pago aprobado.";

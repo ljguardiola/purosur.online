@@ -7,11 +7,12 @@ export type Option<V extends string = string> = {
   description?: string;
   icon?: Icon;
   status?: string;
+  disabled?: boolean;
 };
 
 export type Options<O> = readonly [O, ...O[]];
 
-type OptionExtra = "description" | "icon" | "status";
+type OptionExtra = "description" | "icon" | "status" | "disabled";
 
 export type NarrowedOption<
   V extends string,

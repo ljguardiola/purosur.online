@@ -5,7 +5,11 @@ import type {
   IssuerIdentificationInEffect,
   PreEmissionGateOutcome,
 } from "../../fiscal/index.js";
-import type { PaymentTransaction, PlannedRefund } from "../../payments/index.js";
+import type {
+  PaymentTransaction,
+  PendingQrSalePayment,
+  PlannedRefund,
+} from "../../payments/index.js";
 import type { RoleAccess } from "../../permissions/index.js";
 import type { DiscountRecurrence } from "../../pricing/index.js";
 import type { CashMovement } from "../../register/index.js";
@@ -88,6 +92,10 @@ export interface SaleLedgerTransaction {
   saleCashMovements(saleId: string): SaleCashMovement[];
   discardOpenSale(saleId: string): void;
   recordPayment(payment: PaymentTransaction): void;
+  recordPendingQrPayment(payment: PendingQrSalePayment): void;
+  pendingQrPayment(paymentTransactionId: string): PendingQrSalePayment | undefined;
+  pendingQrPaymentsOf(saleId: string): PendingQrSalePayment[];
+  approvePendingQrPayment(paymentTransactionId: string): void;
   recordCashMovement(movement: CashMovement): void;
   recordSaleStockMovement(movement: SaleStockMovement): void;
   addToStockBalance(productId: string, delta: number): void;

@@ -20,6 +20,7 @@ import {
   startRegisterHealthChecks,
 } from "./fiscal/real-time-authorization-wiring";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
+import { createMercadoPagoQrCharging } from "./payments/mercado-pago-qr-charge-wiring";
 import {
   type CloudClientDeps,
   getFromCloud,
@@ -322,6 +323,16 @@ const realTimeAuthorization = createRealTimeAuthorization({
   reportFailure: (error) => reportFailure("the real-time authorization", error),
 });
 
+const mercadoPagoQrCharging = createMercadoPagoQrCharging({
+  database: localDatabase,
+  gate: actionGate,
+  cloudClient,
+  readDeviceToken,
+  readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+  now,
+  ids: uuidV7Ids,
+});
+
 const receiptPrinting = createReceiptPrinting({
   database: localDatabase,
   gate: actionGate,
@@ -534,7 +545,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (countedCash) => cashCountPreviewFor(localDatabase, countedCash),
   sessionOpenSale:
-    localDatabase === undefined ? undefined : () => sessionOpenSaleFor(localDatabase),
+    localDatabase === undefined ? undefined : () => sessionOpenSaleFor(localDatabase, now()),
   cashSession:
     localDatabase === undefined
       ? undefined
@@ -582,7 +593,7 @@ const rendererRequestDeps: RendererRequestDeps = {
   cancelSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : () => cancelSaleFor({ database: localDatabase, gate: actionGate }),
+      : () => cancelSaleFor({ database: localDatabase, gate: actionGate, now }),
   cancelPaidSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -628,6 +639,8 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             request,
           ),
+  startMercadoPagoQrCharge: mercadoPagoQrCharging.start,
+  followMercadoPagoQrCharge: mercadoPagoQrCharging.follow,
   searchProducts:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -669,6 +682,9 @@ const answeredRendererRequestDeps: RendererRequestDeps = {
   ),
   chargeSaleByTransfer: receiptPrinting.afterCompletedSale(
     realTimeAuthorization.afterCompletedSale(rendererRequestDeps.chargeSaleByTransfer),
+  ),
+  followMercadoPagoQrCharge: receiptPrinting.afterCompletedSale(
+    realTimeAuthorization.afterCompletedSale(rendererRequestDeps.followMercadoPagoQrCharge),
   ),
 };
 

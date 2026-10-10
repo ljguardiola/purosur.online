@@ -2,6 +2,7 @@ import type { PaymentTransaction } from "../../payments/index.js";
 import { paymentRecord, plannedRefunds } from "../../payments/index.js";
 import { registerOperationAccess } from "../../register/index.js";
 import type { Clock, OperationAuthority, OutboxEventDraft } from "../../shared/index.js";
+import { saleCancelRefusal } from "../model/open-sale-standing.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { saleTotal } from "../model/sale-line.js";
 import { saleCashMovementRecord, saleLineRecord } from "./sale-event-records.js";
@@ -34,6 +35,8 @@ export interface CancelPaidSalePorts<Grant extends CancelPaidSaleGrant, Refusal>
 export type CancelPaidSaleOutcome<Grant extends CancelPaidSaleGrant> =
   | SellingSessionRefusal
   | { kind: "no_open_sale" }
+  | { kind: "qr_charge_in_progress" }
+  | { kind: "holds_qr_payment" }
   | { kind: "unavailable" }
   | { kind: "cancelled"; refunds: SaleRefund[]; grant: Grant };
 
@@ -58,10 +61,20 @@ export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>
     if (sale?.id !== saleId) {
       return { kind: "no_open_sale" };
     }
+    const pendingQrPayments = tx.pendingQrPaymentsOf(sale.id);
+    const now = clock.now();
     const payments = tx.salePayments(sale.id);
+    const refusal = saleCancelRefusal(payments, pendingQrPayments, now);
+    if (refusal !== null) {
+      return { kind: refusal };
+    }
     const planned = plannedRefunds(payments);
     if (planned.length === 0) {
-      tx.discardOpenSale(sale.id);
+      if (pendingQrPayments.length > 0) {
+        tx.recordCancelledSale(sale.id, now, undefined);
+      } else {
+        tx.discardOpenSale(sale.id);
+      }
       return { kind: "cancelled", refunds: [], grant };
     }
     if (from === "locked_register" && !mayVoidSale(tx, actorId)) {
@@ -71,7 +84,7 @@ export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>
       return { kind: "unavailable" };
     }
 
-    const occurredAt = clock.now();
+    const occurredAt = now;
     tx.recordCancelledSale(sale.id, occurredAt, authorizedBy);
     const refunds: SaleRefund[] = [];
     for (const refund of planned) {

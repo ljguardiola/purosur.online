@@ -14,6 +14,7 @@ import {
   openCashSessionSchema,
   plannedRefundSchema,
   requestIdSchema,
+  saleCancelRefusalSchema,
   signInUserSchema,
 } from "../shared/index.js";
 
@@ -237,6 +238,7 @@ const sessionOpenSaleSchema = z.object({
   total: z.number(),
   paid: z.int().nonnegative(),
   cancellable: z.boolean(),
+  cancel_refusal: saleCancelRefusalSchema.nullable(),
   refunds_on_cancel: z.array(plannedRefundSchema),
 });
 export type SessionOpenSale = z.infer<typeof sessionOpenSaleSchema>;

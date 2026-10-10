@@ -315,6 +315,29 @@ describe("CancelPaidSaleModal", () => {
       expect(onCancelled).not.toHaveBeenCalled();
     });
 
+    it.each<[string, CancelPaidSaleOutcome, string]>([
+      [
+        "a QR charge is still waiting",
+        { kind: "qr_charge_in_progress" },
+        "Hay un cobro con QR en curso. Esperá a que termine para cancelar la venta.",
+      ],
+      [
+        "the sale holds a QR payment",
+        { kind: "holds_qr_payment" },
+        "La venta tiene un pago con QR: todavía no se puede anular desde la caja.",
+      ],
+    ])("keeps the modal open and says why when %s", async (_case, outcome, notice) => {
+      const { screen, onCancelled } = await renderModal({
+        cancelPaidSale: async () => outcome,
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: CANCEL }));
+
+      await expect.element(screen.getByRole("alert")).toHaveTextContent(notice);
+      await expect.element(screen.getByRole("button", { name: CANCEL })).toBeEnabled();
+      expect(onCancelled).not.toHaveBeenCalled();
+    });
+
     it("says the sale was not cancelled when the request fails", async () => {
       const { screen } = await renderModal({
         cancelPaidSale: async () => {

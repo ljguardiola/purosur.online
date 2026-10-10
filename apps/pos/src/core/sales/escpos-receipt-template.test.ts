@@ -163,6 +163,25 @@ describe("the ESC/POS receipt template", () => {
     );
   });
 
+  it("names a payment by Mercado Pago QR, aligned with the other payment lines", () => {
+    const { textLines } = printed(
+      receipt({
+        totals: {
+          subtotal: 1_767_500,
+          total: 1_767_500,
+          payments: [
+            { method: "CASH", amount: 767_500 },
+            { method: "QR", amount: 1_000_000 },
+          ],
+          change: 0,
+        },
+      }),
+    );
+
+    expect(textLines).toContain("Efectivo                              $ 7.675,00");
+    expect(textLines).toContain("QR Mercado Pago                      $ 10.000,00");
+  });
+
   it("wraps a long product name within the columns of the paper", () => {
     const { textLines } = printed(
       singleUnitReceipt(
