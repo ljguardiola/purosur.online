@@ -449,10 +449,10 @@ describe("the Mercado Pago orders client", () => {
       await client.cancelOrder(ORDER_ID, IDEMPOTENCY_KEY);
 
       const { url, init } = sentRequest(fetch);
-      expect(url).toBe(`https://api.mercadopago.com/v1/orders//cancel`);
+      expect(url).toBe(`https://api.mercadopago.com/v1/orders/${ORDER_ID}/cancel`);
       expect(init.method).toBe("POST");
       expect(init.headers).toEqual({
-        Authorization: `Bearer `,
+        Authorization: `Bearer ${ACCESS_TOKEN}`,
         "X-Idempotency-Key": IDEMPOTENCY_KEY,
       });
       expect(init.body).toBeUndefined();
@@ -463,7 +463,7 @@ describe("the Mercado Pago orders client", () => {
 
       await client.cancelOrder(ORDER_ID);
 
-      expect(sentRequest(fetch).init.headers).toEqual({ Authorization: `Bearer ` });
+      expect(sentRequest(fetch).init.headers).toEqual({ Authorization: `Bearer ${ACCESS_TOKEN}` });
     });
 
     it("does not let an identifier change the path it is cancelled at", async () => {
