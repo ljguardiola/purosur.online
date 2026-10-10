@@ -222,6 +222,12 @@ function coreAnswering(
     async changeLineQuantity() {
       return { kind: "unavailable" };
     },
+    async changeLineWeight() {
+      return { kind: "unavailable" };
+    },
+    async addWeighedProduct() {
+      return { kind: "unavailable" };
+    },
     async removeSaleLine() {
       return { kind: "unavailable" };
     },

@@ -730,7 +730,7 @@ describe("the register's local migrations", () => {
       database.close();
     });
 
-    it("hold one line per product with a positive quantity", () => {
+    it("hold one line per position with a positive quantity, a product as many times as it was sold", () => {
       const database = withSession();
       insertSale(database, "a", "OPEN");
       const insertLine = database.prepare(
@@ -740,7 +740,7 @@ describe("the register's local migrations", () => {
       insertLine.run({ id: "l1", position: 1, product_id: "p1", quantity: 1 });
 
       expect(() =>
-        insertLine.run({ id: "l2", position: 2, product_id: "p1", quantity: 1 }),
+        insertLine.run({ id: "l2", position: 1, product_id: "p2", quantity: 1 }),
       ).toThrow(/UNIQUE/);
       expect(() =>
         insertLine.run({ id: "l3", position: 3, product_id: "p2", quantity: 0 }),
@@ -1960,6 +1960,8 @@ describe("the register's local migrations", () => {
          VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 2, 1500, 'list-1', 2700, 'd1', 300);
          INSERT INTO sale_line_promotions (line_id, discount_id, kind, percent)
          VALUES ('line-1', 'd1', 'PERCENT_OFF', 10);
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, sale_unit, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-kg', 'sale-1', 2, 'p2', 'Queso', 'KG', 350, 9000, 'list-1', 3150);
          INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
          VALUES ('movement-1', 'p1', 'sale', 'line-1', -2000, '2026-10-09T12:05:00.000Z');`,
       );
@@ -1967,7 +1969,7 @@ describe("the register's local migrations", () => {
 
       const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
-      expect(after.prepare("SELECT * FROM sale_lines").all()).toEqual([
+      expect(after.prepare("SELECT * FROM sale_lines ORDER BY position").all()).toEqual([
         {
           id: "line-1",
           sale_id: "sale-1",
@@ -1982,6 +1984,21 @@ describe("the register's local migrations", () => {
           discount_amount: 300,
           sale_unit: "UNIT",
           weight_source: null,
+        },
+        {
+          id: "line-kg",
+          sale_id: "sale-1",
+          position: 2,
+          product_id: "p2",
+          product_name: "Queso",
+          quantity: 350,
+          list_unit_price: 9000,
+          price_list_id: "list-1",
+          line_total: 3150,
+          promotion_id: null,
+          discount_amount: 0,
+          sale_unit: "KG",
+          weight_source: "MANUAL",
         },
       ]);
       expect(after.prepare("SELECT line_id, discount_id FROM sale_line_promotions").all()).toEqual([
@@ -2003,15 +2020,15 @@ describe("the register's local migrations", () => {
          VALUES (@id, 'sale-1', @position, 'p1', 'Queso', @sale_unit, @weight_source, 1250, 9000, 'list-1', 11250)`,
       );
       const weighed = { sale_unit: "KG", weight_source: "MANUAL" };
-      expect(() => insert.run({ id: "line-2", position: 2, ...weighed })).not.toThrow();
-      expect(() => insert.run({ id: "line-3", position: 3, ...weighed })).not.toThrow();
+      expect(() => insert.run({ id: "line-2", position: 3, ...weighed })).not.toThrow();
+      expect(() => insert.run({ id: "line-3", position: 4, ...weighed })).not.toThrow();
       expect(() =>
-        insert.run({ id: "line-4", position: 4, sale_unit: "KG", weight_source: "SCALE" }),
+        insert.run({ id: "line-4", position: 5, sale_unit: "KG", weight_source: "SCALE" }),
       ).not.toThrow();
       expect(() =>
-        insert.run({ id: "line-5", position: 5, sale_unit: "UNIT", weight_source: null }),
+        insert.run({ id: "line-5", position: 6, sale_unit: "UNIT", weight_source: null }),
       ).not.toThrow();
-      expect(() => insert.run({ id: "line-6", position: 2, ...weighed })).toThrow(/UNIQUE/);
+      expect(() => insert.run({ id: "line-6", position: 3, ...weighed })).toThrow(/UNIQUE/);
       expect(() =>
         insert.run({ id: "line-7", position: 7, sale_unit: "KG", weight_source: null }),
       ).toThrow(/CHECK/);
