@@ -48,6 +48,7 @@ export {
   fortnightAfter,
   fortnightContaining,
   fortnightsWithinRequestWindowOn,
+  hasFortnightStarted,
   isSecondHalfOfMonth,
   offlineAuthorizationCodeRequestOpensOn,
 } from "./model/offline-authorization-code.js";

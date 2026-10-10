@@ -12,7 +12,8 @@ export type AlertScopeKind =
   | "register"
   | "environment"
   | "event"
-  | "pointOfSaleDocumentType";
+  | "pointOfSaleDocumentType"
+  | "registerFortnight";
 
 type AlertEscalationRule =
   | { kind: "afterOpening"; delayMs: number }
@@ -133,6 +134,14 @@ const ALERT_KIND_POLICIES = {
     escalation: null,
     audience: "all",
     scopeKind: "pointOfSaleDocumentType",
+    deduplicates: true,
+    resolvesAfterStableClear: true,
+  },
+  offline_authorization_code_missing: {
+    level: "informational",
+    escalation: null,
+    audience: "all",
+    scopeKind: "registerFortnight",
     deduplicates: true,
     resolvesAfterStableClear: true,
   },

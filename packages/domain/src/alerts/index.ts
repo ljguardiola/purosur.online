@@ -42,7 +42,7 @@ export {
 export {
   alertActorId,
   alertNamedRecordIds,
-  alertScopeNamesRecord,
+  alertScopeRecordId,
 } from "./model/alert-named-records.js";
 export { showsAlertScope } from "./model/alert-scope-visibility.js";
 export type {
@@ -56,6 +56,7 @@ export {
   alertSightOf,
   canSeeAlert,
 } from "./model/alert-visibility.js";
+export { registerHoldsOfflineAuthorizationCode } from "./model/offline-authorization-code-holding.js";
 export { isOpenAlert } from "./model/open-alert-state.js";
 export type { RegisterOwnCondition } from "./model/register-own-conditions.js";
 export {

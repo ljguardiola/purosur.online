@@ -34,11 +34,17 @@ export type {
   ClosedAlert,
 } from "./close-alert.js";
 export { closeAlert } from "./close-alert.js";
+export type { MissingOfflineAuthorizationCodeDetectionPorts } from "./detect-missing-offline-authorization-codes.js";
+export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
 export type { QuietRegisterDetectionPorts } from "./detect-quiet-registers.js";
 export { detectQuietRegisters } from "./detect-quiet-registers.js";
 export { escalateOverdueAlerts } from "./escalate-overdue-alerts.js";
 export type { ObserveAlertConditionOutcome } from "./observe-alert-condition.js";
 export { observeAlertCondition } from "./observe-alert-condition.js";
+export type {
+  OfflineAuthorizationCodeHoldingReader,
+  RegisterOfflineAuthorizationCodeHolding,
+} from "./offline-authorization-code-holding-reader.js";
 export type { OpenAlertOutcome } from "./open-alert.js";
 export { openAlert } from "./open-alert.js";
 export type { ResolveAlertOutcome } from "./resolve-alert.js";

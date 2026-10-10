@@ -43,6 +43,10 @@ export function fortnightsWithinRequestWindowOn(day: string): Fortnight[] {
   return offlineAuthorizationCodeRequestOpensOn(next) <= day ? [current, next] : [current];
 }
 
+export function hasFortnightStarted({ start }: Fortnight, day: string): boolean {
+  return start <= day;
+}
+
 export function isSecondHalfOfMonth({ start }: Fortnight): boolean {
   return Number(start.slice(8, 10)) === SECOND_HALF_FIRST_DAY;
 }
