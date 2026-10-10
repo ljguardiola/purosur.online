@@ -23,7 +23,7 @@ export const PAID_ORDER = {
   payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 5000 }],
 } as const;
 
-export const CANCELLED_ORDER = {
+const CANCELLED_ORDER = {
   status: "canceled",
   statusDetail: "canceled",
   totalPaidAmount: null,
