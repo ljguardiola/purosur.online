@@ -3,6 +3,7 @@ import type {
   CashCountPreview,
   ListedCashMovement,
   OpenCashSession,
+  ReadReceiptPrinterOutcome,
   RecordableCashMovementKinds,
   RegisterStatus,
   SessionOpenSale,
@@ -26,6 +27,7 @@ import {
   useCashMovementsQuery,
   useCashSessionQuery,
   useLockedClosersQuery,
+  useReceiptPrinterQuery,
   useRegisterNameQuery,
   useRegisterStatusQuery,
   useSessionOpenSaleQuery,
@@ -630,5 +632,49 @@ describe("register status query", () => {
     await queryClient.invalidateQueries({ queryKey: registerKeys.status });
 
     await expect.poll(() => read.mock.calls.length).toBe(2);
+  });
+});
+
+function PrinterProbe({ read }: { read: () => Promise<ReadReceiptPrinterOutcome> }) {
+  const printer = useReceiptPrinterQuery(read);
+  return (
+    <p>
+      {printer.status === "loaded"
+        ? ["printer", JSON.stringify(printer.value)].join(" ")
+        : printer.status}
+    </p>
+  );
+}
+
+describe("receipt printer query", () => {
+  it.each<ReadReceiptPrinterOutcome>([
+    { kind: "configured", address: { host: "10.10.10.2", port: 9100 } },
+    { kind: "not_configured" },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+  ])("holds the outcome %o the core answers", async (outcome) => {
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <PrinterProbe read={async () => outcome} />
+      </QueryClientProvider>,
+    );
+
+    await expect
+      .element(screen.getByText(["printer", JSON.stringify(outcome)].join(" ")))
+      .toBeVisible();
+  });
+
+  it("fails when the core cannot answer", async () => {
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <PrinterProbe read={async () => ({ kind: "unavailable" })} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
+  });
+
+  it("is keyed under the register's root key", () => {
+    expect(registerKeys.receiptPrinter.at(0)).toBe("register");
   });
 });
