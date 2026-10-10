@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const saleUnitSchema = z.enum(SALE_UNITS);
 
-export const purchaseLineSummarySchema = z.object({
+const purchaseLineSummarySchema = z.object({
   id: z.string(),
   product: z.object({ id: z.string(), name: z.string(), saleUnit: saleUnitSchema }),
   packaging: z.object({ id: z.string(), name: z.string() }).nullable(),
