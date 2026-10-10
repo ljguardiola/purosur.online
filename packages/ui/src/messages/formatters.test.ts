@@ -2,11 +2,11 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   formatAmountInput,
+  formatCalendarDay,
+  formatCalendarDayRange,
   formatCents,
   formatClockTime,
   formatCountdown,
-  formatCalendarDay,
-  formatCalendarDayRange,
   formatDate,
   formatInvoiceNumber,
   formatMonthAndYear,
