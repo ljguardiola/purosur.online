@@ -1,4 +1,4 @@
-import { preEmissionGateFailedEvent } from "@purosur/domain";
+import { preEmissionGateFailedEvent, RECEIPT_REPRINT_REASON_MAX_LENGTH } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { syncedEventPayloadKey, syncedEventPayloadSchema } from "./synced-event-payloads.js";
 import { recordedEvents } from "./test-support/recorded-pushes.js";
@@ -127,10 +127,13 @@ describe("synced event payloads", () => {
       "cash_session_closed@1",
       "cash_session_opened@1",
       "fiscal_gate_failed@1",
+      "reprint_recorded@1",
       "sale_cancelled@1",
       "sale_completed@1",
       "sale_completed@2",
       "sale_completed@3",
+      "sale_completed@4",
+      "sale_print_state_changed@1",
     ]);
   });
 
@@ -149,7 +152,7 @@ describe("synced event payloads", () => {
 
   it.each([
     ["an unknown event type", "sale_opened", 1],
-    ["a sale_completed version nobody emitted", "sale_completed", 4],
+    ["a sale_completed version nobody emitted", "sale_completed", 5],
     ["version zero", "sale_completed", 0],
     ["a cash_session_opened version nobody emitted", "cash_session_opened", 2],
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
@@ -312,6 +315,153 @@ describe("synced event payloads", () => {
 
     it("refuses a date that is not ISO", () => {
       expect(accepts("fiscal_gate_failed", 1, { ...failed(), evaluated_at: "now" })).toBe(false);
+    });
+  });
+
+  describe("sale_completed v4", () => {
+    const sale = (): Payload => recordedPayload("sale_completed", 4);
+
+    it("accepts the sale a register numbered", () => {
+      expect(accepts("sale_completed", 4, sale())).toBe(true);
+    });
+
+    it("accepts the number 1 and the highest number a register can count to", () => {
+      expect(accepts("sale_completed", 4, { ...sale(), operation_number: 1 })).toBe(true);
+      expect(accepts("sale_completed", 4, { ...sale(), operation_number: 2_147_483_647 })).toBe(
+        true,
+      );
+    });
+
+    it.each([0, -1, 1.5, "1", null])("refuses the operation number %s", (operationNumber) => {
+      expect(accepts("sale_completed", 4, { ...sale(), operation_number: operationNumber })).toBe(
+        false,
+      );
+    });
+
+    it("refuses a sale without its operation number", () => {
+      const { operation_number: _removed, ...rest } = sale();
+
+      expect(accepts("sale_completed", 4, rest)).toBe(false);
+    });
+
+    it("refuses a sale without its stock movements", () => {
+      const { stock_movements: _removed, ...rest } = sale();
+
+      expect(accepts("sale_completed", 4, rest)).toBe(false);
+    });
+
+    it("keeps reading the sales of version 3, which carry no operation number", () => {
+      const { operation_number: _removed, ...v3 } = sale();
+
+      expect(accepts("sale_completed", 3, v3)).toBe(true);
+    });
+  });
+
+  describe("sale_print_state_changed v1", () => {
+    const state = (): Payload => ({
+      sale_id: "sale-1",
+      print_attempted_at: "2026-10-06T11:21:00.000Z",
+      printed_at: null,
+    });
+
+    it("accepts an attempt that was not printed yet", () => {
+      expect(accepts("sale_print_state_changed", 1, state())).toBe(true);
+    });
+
+    it("accepts the attempt once it was printed", () => {
+      expect(
+        accepts("sale_print_state_changed", 1, {
+          ...state(),
+          printed_at: "2026-10-06T11:21:05.000Z",
+        }),
+      ).toBe(true);
+    });
+
+    it("refuses the state without any one of its fields", () => {
+      for (const field of Object.keys(state())) {
+        const { [field]: _removed, ...rest } = state();
+
+        expect(accepts("sale_print_state_changed", 1, rest), field).toBe(false);
+      }
+    });
+
+    it("refuses an attempt that is not an instant, a printing that is not an instant or null, and an empty sale", () => {
+      expect(accepts("sale_print_state_changed", 1, { ...state(), print_attempted_at: null })).toBe(
+        false,
+      );
+      expect(accepts("sale_print_state_changed", 1, { ...state(), printed_at: "now" })).toBe(false);
+      expect(accepts("sale_print_state_changed", 1, { ...state(), sale_id: "" })).toBe(false);
+    });
+  });
+
+  describe("reprint_recorded v1", () => {
+    const retry = (): Payload => ({
+      sale_id: "sale-1",
+      order_number: 1,
+      requested_by: "cashier",
+      authorized_by: null,
+      reason_kind: "retry",
+      reason_text: null,
+    });
+    const requested = (): Payload => ({
+      ...retry(),
+      order_number: 2,
+      authorized_by: "manager",
+      reason_kind: "requested",
+      reason_text: "El cliente la perdio",
+    });
+
+    it("accepts a retry and a requested copy with its reason", () => {
+      expect(accepts("reprint_recorded", 1, retry())).toBe(true);
+      expect(accepts("reprint_recorded", 1, requested())).toBe(true);
+    });
+
+    it("refuses a retry with a reason text and a requested copy without one", () => {
+      expect(accepts("reprint_recorded", 1, { ...retry(), reason_text: "texto" })).toBe(false);
+      expect(accepts("reprint_recorded", 1, { ...requested(), reason_text: null })).toBe(false);
+      expect(accepts("reprint_recorded", 1, { ...requested(), reason_text: "" })).toBe(false);
+    });
+
+    it("accepts a reason text of the longest length and refuses a longer one", () => {
+      const longest = "a".repeat(RECEIPT_REPRINT_REASON_MAX_LENGTH);
+
+      expect(accepts("reprint_recorded", 1, { ...requested(), reason_text: longest })).toBe(true);
+      expect(accepts("reprint_recorded", 1, { ...requested(), reason_text: `${longest}a` })).toBe(
+        false,
+      );
+    });
+
+    it("refuses a reason text the register would not have kept as typed", () => {
+      expect(accepts("reprint_recorded", 1, { ...requested(), reason_text: " perdida" })).toBe(
+        false,
+      );
+      expect(accepts("reprint_recorded", 1, { ...requested(), reason_text: "   " })).toBe(false);
+    });
+
+    it("counts the longest reason text in characters, not in code units", () => {
+      const longest = "\u{1F600}".repeat(RECEIPT_REPRINT_REASON_MAX_LENGTH);
+
+      expect(accepts("reprint_recorded", 1, { ...requested(), reason_text: longest })).toBe(true);
+    });
+
+    it("refuses a reason kind the register does not have", () => {
+      expect(accepts("reprint_recorded", 1, { ...retry(), reason_kind: "other" })).toBe(false);
+    });
+
+    it("refuses an order number that is not a positive whole number", () => {
+      for (const orderNumber of [0, -1, 1.5, "1"]) {
+        expect(accepts("reprint_recorded", 1, { ...retry(), order_number: orderNumber })).toBe(
+          false,
+        );
+      }
+    });
+
+    it("refuses the copy without any one of its fields", () => {
+      for (const field of Object.keys(retry())) {
+        const { [field]: _removed, ...rest } = retry();
+
+        expect(accepts("reprint_recorded", 1, rest), field).toBe(false);
+      }
     });
   });
 

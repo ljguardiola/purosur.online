@@ -8,12 +8,16 @@ import type {
 import {
   type CancelledSale,
   type CompletedSale,
+  type SalePrintState,
+  type SaleReprint,
   stockMovementsMatchLines,
 } from "../../sales/index.js";
 
 export type SyncedFact =
   | { kind: "sale_completed"; sale: CompletedSale }
   | { kind: "sale_cancelled"; sale: CancelledSale }
+  | { kind: "sale_print_state_changed"; printState: SalePrintState }
+  | { kind: "reprint_recorded"; reprint: SaleReprint }
   | { kind: "cash_session_opened"; session: CashSessionOpenedFact }
   | { kind: "cash_session_closed"; session: CashSessionClosedFact }
   | { kind: "cash_movement_recorded"; movement: CashMovementRecordedFact }

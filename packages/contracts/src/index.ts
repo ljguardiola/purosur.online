@@ -255,12 +255,16 @@ export {
 } from "./register/register-sync-status.js";
 export type {
   CancelLockedSaleOutcome,
+  ReceiptPrintStatusOutcome,
+  ReprintSaleReceiptOutcome,
+  RetryReceiptPrintOutcome,
   SalesCoreToRendererMessage,
   SalesRendererToCoreMessage,
 } from "./sales/core-messages.js";
 export {
   chargeSaleByTransferMessageSchema,
   chargeSaleInCashMessageSchema,
+  reprintSaleReceiptMessageSchema,
   salesCoreToRendererMessageSchema,
   salesRendererToCoreMessageSchema,
 } from "./sales/core-messages.js";
@@ -280,6 +284,11 @@ export type {
   ScanProductOutcome,
   SearchProductsOutcome,
 } from "./sales/sale.js";
+export type {
+  ReceiptCopyShown,
+  SaleHistoryDetailOutcome,
+  SalesHistoryOutcome,
+} from "./sales/sales-history.js";
 export type {
   ReportRegisterListBody,
   SalesReportBody,

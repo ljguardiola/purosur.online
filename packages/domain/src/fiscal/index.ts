@@ -64,6 +64,7 @@ export type {
 } from "./model/real-time-authorization.js";
 export {
   DEFERRAL_REASONS,
+  IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   invoiceDateOf,
   NUMBER_CONSUMING_STATES,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,

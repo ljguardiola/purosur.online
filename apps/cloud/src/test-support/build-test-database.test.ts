@@ -59,6 +59,7 @@ import {
   roles,
   saleLines,
   salePayments,
+  saleReprints,
   sales,
   sessions,
   signInChallenges,
@@ -380,6 +381,13 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       amount: 2400,
       state: "APPROVED",
       occurredAt: new Date("2026-01-05T12:12:00.000Z"),
+    });
+    await db.insert(saleReprints).values({
+      saleId,
+      orderNumber: 1,
+      requestedBy: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e11",
+      reasonKind: "retry",
+      occurredAt: new Date("2026-01-05T12:13:00.000Z"),
     });
     await db.insert(cashMovements).values({
       id: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e25",

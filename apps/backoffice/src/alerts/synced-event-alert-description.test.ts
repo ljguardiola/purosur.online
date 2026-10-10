@@ -46,6 +46,8 @@ describe("the description of a quarantined event", () => {
     ["cash_movement_recorded", "movimiento de caja"],
     ["fiscal_gate_failed", "control fiscal previo a facturar"],
     ["sale_cancelled", "venta cancelada"],
+    ["sale_print_state_changed", "impresión del ticket"],
+    ["reprint_recorded", "reimpresión del ticket"],
   ])("names a %s event as one of %s", (eventType, name) => {
     expect(
       quarantinedEventDescription({

@@ -10,6 +10,7 @@ export function aCompletedSaleFact(overrides: Partial<SaleCompleted["sale"]> = {
       sessionId: "session-1",
       actorId: "cashier-1",
       completedAt: new Date("2026-10-07T10:00:00.000Z"),
+      operationNumber: null,
       total: 1500,
       lines: [
         {
