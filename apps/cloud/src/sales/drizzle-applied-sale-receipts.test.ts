@@ -1,8 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { saleReprints, sales } from "../platform/db/schema.js";
-import { eventApplicationUnderTest } from "../sync/test-support/drizzle-event-application.js";
+import type { AppliedOrigin } from "../register/drizzle-applied-cash-sessions.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import {
+  APPLICATION_NOW,
+  eventApplicationUnderTest,
+} from "../sync/test-support/drizzle-event-application.js";
 import { aReprintFact, aSalePrintStateFact } from "../sync/test-support/synced-facts.js";
 import { recordAppliedPrintState, recordAppliedReprint } from "./drizzle-applied-sale-receipts.js";
 import { applyCompletedSale } from "./test-support/applied-sales.js";
@@ -13,9 +18,24 @@ const ATTEMPTED = new Date("2026-10-06T11:21:00.000Z");
 const PRINTED = new Date("2026-10-06T11:21:05.000Z");
 const LATER = new Date("2026-10-06T11:40:00.000Z");
 
-async function appliedSale(deviceId?: string) {
+let origin: AppliedOrigin;
+
+beforeEach(async () => {
+  const { deviceId, registerId, locationId } = await system.enrollInstallation();
+  origin = { deviceId, registerId, locationId };
+});
+
+async function anotherRegister(): Promise<AppliedOrigin> {
+  const { deviceId, registerId, locationId } = await insertEnrolledInstallation(system.db, {
+    now: APPLICATION_NOW,
+    registerName: "Caja 2",
+  });
+  return { deviceId, registerId, locationId };
+}
+
+function appliedSale() {
   return applyCompletedSale(system.db, {
-    deviceId: deviceId ?? (await system.enrollInstallation()).deviceId,
+    deviceId: origin.deviceId,
     completedAt: new Date("2026-10-06T11:20:00.000Z"),
     total: 4800,
   });
@@ -29,8 +49,13 @@ async function printStateOf(saleId: string) {
   return row;
 }
 
-function recordPrintState(...args: Parameters<typeof aSalePrintStateFact>) {
-  return system.db.transaction((tx) => recordAppliedPrintState(tx, aSalePrintStateFact(...args)));
+function recordPrintState(
+  overrides: Parameters<typeof aSalePrintStateFact>[0],
+  pushedFrom: AppliedOrigin = origin,
+) {
+  return system.db.transaction((tx) =>
+    recordAppliedPrintState(tx, pushedFrom, aSalePrintStateFact(overrides)),
+  );
 }
 
 describe("recording the print state of an applied sale", () => {
@@ -79,9 +104,8 @@ describe("recording the print state of an applied sale", () => {
   });
 
   it("leaves the other sales untouched", async () => {
-    const { deviceId } = await system.enrollInstallation();
-    const saleId = await appliedSale(deviceId);
-    const otherId = await appliedSale(deviceId);
+    const saleId = await appliedSale();
+    const otherId = await appliedSale();
 
     await recordPrintState({ saleId, printAttemptedAt: ATTEMPTED, printedAt: PRINTED });
 
@@ -93,10 +117,28 @@ describe("recording the print state of an applied sale", () => {
       /sale .* is not applied/,
     );
   });
+
+  it("refuses the print state of a sale of another register and leaves it untouched", async () => {
+    const saleId = await appliedSale();
+
+    await expect(
+      recordPrintState(
+        { saleId, printAttemptedAt: ATTEMPTED, printedAt: PRINTED },
+        await anotherRegister(),
+      ),
+    ).rejects.toThrow(/sale .* is not applied/);
+
+    expect(await printStateOf(saleId)).toEqual({ attempted: null, printed: null });
+  });
 });
 
-function recordReprint(...args: Parameters<typeof aReprintFact>) {
-  return system.db.transaction((tx) => recordAppliedReprint(tx, aReprintFact(...args)));
+function recordReprint(
+  overrides: Parameters<typeof aReprintFact>[0],
+  pushedFrom: AppliedOrigin = origin,
+) {
+  return system.db.transaction((tx) =>
+    recordAppliedReprint(tx, pushedFrom, aReprintFact(overrides)),
+  );
 }
 
 describe("recording the reprints of an applied sale", () => {
@@ -166,5 +208,15 @@ describe("recording the reprints of an applied sale", () => {
 
   it("refuses the reprint of a sale that was never applied", async () => {
     await expect(recordReprint({ saleId: randomUUID() })).rejects.toThrow();
+  });
+
+  it("refuses the reprint of a sale of another register and keeps none", async () => {
+    const saleId = await appliedSale();
+
+    await expect(
+      recordReprint({ saleId, orderNumber: 1 }, await anotherRegister()),
+    ).rejects.toThrow(/sale .* is not applied/);
+
+    expect(await system.db.select().from(saleReprints)).toEqual([]);
   });
 });

@@ -104,7 +104,7 @@ describe("ReprintReceiptModal", () => {
     await expect
       .element(screen.getByRole("heading", { name: "Sale como duplicado" }))
       .toBeVisible();
-    await expect.element(screen.getByText("DUPLICADO · REIMPRESIÓN Nº 1")).toBeVisible();
+    await expect.element(screen.getByText("COPIA DUPLICADA Nº 1")).toBeVisible();
     await expect.element(screen.getByText("Factura C · PV 00004 · Nº 00000319")).toBeVisible();
     await expectNoAccessibilityViolations(document.body);
   });
@@ -114,7 +114,7 @@ describe("ReprintReceiptModal", () => {
 
     await expect.element(screen.getByRole("heading", { name: "Sale como original" })).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Imprimir original" })).toBeVisible();
-    await expect.element(screen.getByText(/DUPLICADO/)).not.toBeInTheDocument();
+    await expect.element(screen.getByText(/DUPLICADA/)).not.toBeInTheDocument();
   });
 
   it("names the operation when the sale has no comprobante", async () => {

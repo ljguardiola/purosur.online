@@ -46,7 +46,7 @@ function printingSale({ jobs, printer }: Rig, saleId = "sale-1") {
 
 describe("receipt print jobs", () => {
   it("knows no standing for a sale nothing was printed for", () => {
-    expect(rig().jobs.standing("sale-1")).toBeNull();
+    expect(rig().jobs.standingOf("sale-1")).toBeNull();
   });
 
   it("answers sent as soon as the printer received the receipt, without waiting for its acknowledgment", async () => {
@@ -56,7 +56,7 @@ describe("receipt print jobs", () => {
 
     expect(started).toEqual({ kind: "sent" });
     expect(subject.printer.sent).toHaveLength(1);
-    expect(subject.jobs.standing("sale-1")).toBe("printing");
+    expect(subject.jobs.standingOf("sale-1")).toBe("printing");
   });
 
   it("stands as printed once the printer acknowledges", async () => {
@@ -65,7 +65,7 @@ describe("receipt print jobs", () => {
 
     subject.printer.acknowledge();
 
-    await vi.waitFor(() => expect(subject.jobs.standing("sale-1")).toBe("printed"));
+    await vi.waitFor(() => expect(subject.jobs.standingOf("sale-1")).toBe("printed"));
   });
 
   it.each(["cover_open", "paper_out", "not_responding"] as const)(
@@ -76,7 +76,7 @@ describe("receipt print jobs", () => {
 
       subject.printer.report(status);
 
-      expect(subject.jobs.standing("sale-1")).toBe(status);
+      expect(subject.jobs.standingOf("sale-1")).toBe(status);
     },
   );
 
@@ -86,10 +86,10 @@ describe("receipt print jobs", () => {
     subject.printer.report("ready");
 
     subject.advance(RECEIPT_RETRY_DELAY_MS - 1);
-    expect(subject.jobs.standing("sale-1")).toBe("printing");
+    expect(subject.jobs.standingOf("sale-1")).toBe("printing");
     subject.advance(1);
 
-    expect(subject.jobs.standing("sale-1")).toBe("retry_offered");
+    expect(subject.jobs.standingOf("sale-1")).toBe("retry_offered");
   });
 
   it.each(["printing", "cover_open"] as const)(
@@ -132,10 +132,10 @@ describe("receipt print jobs", () => {
     const subject = rig();
     await printingSale(subject);
     subject.printer.acknowledge();
-    await vi.waitFor(() => expect(subject.jobs.standing("sale-1")).toBe("printed"));
+    await vi.waitFor(() => expect(subject.jobs.standingOf("sale-1")).toBe("printed"));
 
     expect(await printingSale(subject)).toEqual({ kind: "sent" });
-    expect(subject.jobs.standing("sale-1")).toBe("printing");
+    expect(subject.jobs.standingOf("sale-1")).toBe("printing");
   });
 
   it("abandons the previous print when it starts the print that replaces a retry offered", async () => {
@@ -149,7 +149,7 @@ describe("receipt print jobs", () => {
     expect(second).toEqual({ kind: "sent" });
     expect(subject.printer.sent[0]?.watch.signal.aborted).toBe(true);
     expect(subject.printer.sent[1]?.watch.signal.aborted).toBe(false);
-    expect(subject.jobs.standing("sale-1")).toBe("printing");
+    expect(subject.jobs.standingOf("sale-1")).toBe("printing");
   });
 
   it("ignores what the abandoned print still reports", async () => {
@@ -161,7 +161,7 @@ describe("receipt print jobs", () => {
 
     subject.printer.report("paper_out", 0);
 
-    expect(subject.jobs.standing("sale-1")).toBe("printing");
+    expect(subject.jobs.standingOf("sale-1")).toBe("printing");
   });
 
   it("keeps the print it offered a retry for when the new start is answered before sending", async () => {
@@ -174,7 +174,7 @@ describe("receipt print jobs", () => {
 
     expect(refused).toEqual({ kind: "answered", outcome: { kind: "not_permitted" } });
     expect(subject.printer.sent[0]?.watch.signal.aborted).toBe(false);
-    expect(subject.jobs.standing("sale-1")).toBe("retry_offered");
+    expect(subject.jobs.standingOf("sale-1")).toBe("retry_offered");
   });
 
   it("answers with the outcome of a start that ended without sending, leaving no job", async () => {
@@ -183,11 +183,11 @@ describe("receipt print jobs", () => {
     const started = await subject.jobs.start("sale-1", async () => ({ kind: "unavailable" }));
 
     expect(started).toEqual({ kind: "answered", outcome: { kind: "unavailable" } });
-    expect(subject.jobs.standing("sale-1")).toBeNull();
+    expect(subject.jobs.standingOf("sale-1")).toBeNull();
     expect(await printingSale(subject)).toEqual({ kind: "sent" });
   });
 
-  it("reports a failure before sending and leaves the sale free to print", async () => {
+  it("reports a failure before sending, stands as failed and leaves the sale free to print", async () => {
     const subject = rig();
     const failure = new Error("the ledger is damaged");
 
@@ -197,10 +197,26 @@ describe("receipt print jobs", () => {
 
     expect(started).toEqual({ kind: "failed" });
     expect(subject.failures).toEqual([failure]);
+    expect(subject.jobs.standingOf("sale-1")).toBe("failed");
     expect(await printingSale(subject)).toEqual({ kind: "sent" });
+    expect(subject.jobs.standingOf("sale-1")).toBe("printing");
   });
 
-  it("reports a failure after sending and leaves the sale free to print again", async () => {
+  it("stands as failed when the start that replaces a retry offered fails before sending", async () => {
+    const subject = rig();
+    await printingSale(subject);
+    subject.printer.report("ready");
+    subject.advance(RECEIPT_RETRY_DELAY_MS);
+
+    await subject.jobs.start("sale-1", async () => {
+      throw new Error("the ledger is damaged");
+    });
+
+    expect(subject.printer.sent[0]?.watch.signal.aborted).toBe(true);
+    expect(subject.jobs.standingOf("sale-1")).toBe("failed");
+  });
+
+  it("reports a failure after sending, stands as failed and leaves the sale free to print again", async () => {
     const subject = rig();
     const failure = new Error("the printer adapter broke");
     const breaking: ReceiptPrinter = {
@@ -214,6 +230,7 @@ describe("receipt print jobs", () => {
 
     expect(started).toEqual({ kind: "sent" });
     await vi.waitFor(() => expect(subject.failures).toEqual([failure]));
-    expect(subject.jobs.standing("sale-1")).toBeNull();
+    expect(subject.jobs.standingOf("sale-1")).toBe("failed");
+    expect(await printingSale(subject)).toEqual({ kind: "sent" });
   });
 });

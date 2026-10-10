@@ -442,6 +442,33 @@ describe("the sale being built", () => {
     });
   });
 
+  it("keeps with each line the unit its product was sold by", () => {
+    addProduct(undefined, { id: "p-kg", name: "Queso", unit: "KG" });
+    scan("111");
+
+    ledger.transaction((tx) =>
+      tx.recordSaleLine("id-1", {
+        id: "line-kg",
+        productId: "p-kg",
+        productName: "Queso",
+        quantity: 350,
+        listUnitPrice: 1000,
+        priceListId: "list-1",
+        promotions: [],
+        promotionId: null,
+        discountAmount: 0,
+        lineTotal: 350,
+      }),
+    );
+
+    expect(
+      database.prepare("SELECT product_id, sale_unit FROM sale_lines ORDER BY position").all(),
+    ).toEqual([
+      { product_id: "p1", sale_unit: "UNIT" },
+      { product_id: "p-kg", sale_unit: "KG" },
+    ]);
+  });
+
   it("leaves nothing behind when a write fails midway", () => {
     scan("111");
 

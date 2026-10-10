@@ -71,7 +71,7 @@ describe("receiptCopyPresentation", () => {
     expect(receiptCopyPresentation({ kind: "duplicate", order_number: 2 })).toEqual({
       printButton: "Reimprimir duplicado",
       comesOutAs: "Sale como duplicado",
-      legend: "DUPLICADO · REIMPRESIÓN Nº 2",
+      legend: "COPIA DUPLICADA Nº 2",
     });
   });
 });

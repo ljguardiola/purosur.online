@@ -339,6 +339,20 @@ describe("TcpReceiptPrinter reading the printer's byte stream", () => {
     expect(observer.statuses).toEqual(["not_responding", "ready"]);
   });
 
+  it("keeps querying the status of a printer that stopped answering, and recovers when it answers", () => {
+    void printer.print(RECEIPT, observer.watch);
+    const socket = connectedSocket();
+
+    for (let poll = 0; poll < 5; poll += 1) timers.fire(POLL_INTERVAL_MS);
+    expect(observer.statuses).toEqual(["not_responding"]);
+    expect(socket.written.slice(1).map((bytes) => [...bytes])).toEqual(
+      Array.from({ length: 5 }, () => STATUS_QUERY),
+    );
+
+    socket.receive(READY);
+    expect(observer.statuses).toEqual(["not_responding", "ready"]);
+  });
+
   it("reports not responding when the connect limit passes, then connects again at the next poll", () => {
     void printer.print(RECEIPT, observer.watch);
     expect(timers.pending(CONNECT_LIMIT_MS)).toBe(1);

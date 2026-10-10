@@ -149,7 +149,7 @@ function seed(database: ReturnType<typeof openLocalDatabase>): void {
 
 async function untilPrinted(jobs: ReceiptPrintJobs, saleId: string): Promise<void> {
   for (let attempt = 0; attempt < 1000; attempt += 1) {
-    if (jobs.standing(saleId) === "printed") {
+    if (jobs.standingOf(saleId) === "printed") {
       await new Promise((resolve) => setImmediate(resolve));
       return;
     }

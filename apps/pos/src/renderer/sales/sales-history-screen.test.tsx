@@ -139,7 +139,7 @@ describe("SalesHistoryScreen", () => {
     await expect
       .element(screen.getByRole("heading", { name: "Historial de ventas" }))
       .toBeVisible();
-    await expect.element(screen.getByText("Caja 1 · Ventas de esta caja")).toBeVisible();
+    await expect.element(screen.getByText("Caja 1 · Sesión abierta")).toBeVisible();
     const sales = table(screen);
     await expect.element(sales.getByText("11:42")).toBeVisible();
     await expect.element(sales.getByText("Factura C", { exact: true })).toBeVisible();
@@ -270,7 +270,10 @@ describe("SalesHistoryScreen", () => {
   });
 
   it("says there are no sales yet when none was made", async () => {
-    const { screen } = await renderScreen({ salesHistory: async () => pageOf([]) });
+    const { screen } = await renderScreen({
+      sessionOpen: false,
+      salesHistory: async () => pageOf([]),
+    });
 
     await expect.element(screen.getByText("Todavía no hay ventas")).toBeVisible();
   });

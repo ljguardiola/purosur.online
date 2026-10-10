@@ -173,13 +173,13 @@ describe("SaleCompletedModal", () => {
       standing: "paper_out",
       state: "Sin papel",
       title: "La impresora se quedó sin papel",
-      help: "Poné un rollo nuevo y cerrá la tapa. El ticket queda en la impresora y sale solo cuando se resuelve. No hace falta reimprimir.",
+      help: "Poné un rollo nuevo y cerrá la tapa. El ticket ya enviado queda en la impresora y sale solo cuando se resuelve. No hace falta reimprimir.",
     },
     {
       standing: "cover_open",
       state: "Tapa abierta",
       title: "La tapa de la impresora está abierta",
-      help: "Cerrala. El ticket queda en la impresora y sale solo cuando se resuelve. No hace falta reimprimir.",
+      help: "Cerrala. El ticket ya enviado queda en la impresora y sale solo cuando se resuelve. No hace falta reimprimir.",
     },
     {
       standing: "not_responding",
@@ -202,7 +202,7 @@ describe("SaleCompletedModal", () => {
       await expect.element(screen.getByText("Impresora térmica")).toBeVisible();
       await expect.element(screen.getByText(state, { exact: true })).toBeVisible();
       await expect
-        .element(screen.getByText("Pendiente de imprimir · sale como original"))
+        .element(screen.getByText("Pendiente de imprimir", { exact: true }))
         .toBeVisible();
       await expectAlertText(screen, title);
       await expectAlertText(screen, help);
@@ -225,19 +225,47 @@ describe("SaleCompletedModal", () => {
     await expect.element(screen.getByText("$ 240,00")).toBeVisible();
   });
 
-  it("says the pending receipt comes out as a duplicate when the core says the next copy is one", async () => {
-    const { screen } = await renderModal(CASH, {
-      readReceiptStatus: async () => ({
-        kind: "found",
-        next_copy: { kind: "duplicate", order_number: 1 },
-        printed: false,
-        standing: "paper_out",
-      }),
+  it.each(["cover_open", "paper_out", "not_responding"] as const)(
+    "does not call the ticket retained while the printer reports %s a duplicate",
+    async (standing) => {
+      const { screen } = await renderModal(CASH, {
+        readReceiptStatus: async () => ({
+          kind: "found",
+          next_copy: { kind: "duplicate", order_number: 1 },
+          printed: false,
+          standing,
+        }),
+      });
+
+      await expect
+        .element(screen.getByText("Pendiente de imprimir", { exact: true }))
+        .toBeVisible();
+      await expect.element(screen.getByText(/duplicad/i)).not.toBeInTheDocument();
+    },
+  );
+
+  it("tells that the sale stands and that the receipt is printed from the history when the print failed, with no retry", async () => {
+    const { screen, onNewSale } = await renderModal(CASH, {
+      readReceiptStatus: async () => found("failed"),
     });
 
     await expect
-      .element(screen.getByText("Pendiente de imprimir · sale como duplicado"))
+      .element(screen.getByRole("heading", { name: "No se pudo imprimir el ticket" }))
       .toBeVisible();
+    await expect.element(screen.getByText("Confirmada · no se deshace")).toBeVisible();
+    await expect.element(screen.getByText("Pendiente de imprimir", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Impresora térmica")).not.toBeInTheDocument();
+    await expectAlertText(
+      screen,
+      "Se produjo un error al imprimir Imprimilo desde el historial de ventas.",
+    );
+    await expect
+      .element(screen.getByRole("button", { name: "Reintentar impresión" }))
+      .not.toBeInTheDocument();
+    await expectNoAccessibilityViolations(screen.container);
+
+    await userEvent.click(screen.getByRole("button", { name: "Seguir vendiendo" }));
+    expect(onNewSale).toHaveBeenCalledOnce();
   });
 
   it("offers retrying when the printer answers again without confirming the print, and asks the core to retry", async () => {
@@ -253,7 +281,7 @@ describe("SaleCompletedModal", () => {
     await expect.element(screen.getByText("Normal · sin confirmar la impresión")).toBeVisible();
     await expectAlertText(
       screen,
-      "El ticket no salió La impresora volvió a responder pero no confirmó la impresión. Como nunca se llegó a imprimir, el reintento sale como original.",
+      "El ticket no salió La impresora volvió a responder pero no confirmó la impresión. El reintento sale como original.",
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Reintentar impresión" }));
@@ -263,7 +291,7 @@ describe("SaleCompletedModal", () => {
     await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("says the retry comes out as a duplicate when the core says the next copy is one", async () => {
+  it("says the retry comes out as a duplicate with its reprint number, because the ticket was already sent, when the core says the next copy is one", async () => {
     const { screen } = await renderModal(CASH, {
       readReceiptStatus: async () => ({
         kind: "found",
@@ -273,7 +301,10 @@ describe("SaleCompletedModal", () => {
       }),
     });
 
-    await expectAlertText(screen, "el reintento sale como duplicado.");
+    await expectAlertText(
+      screen,
+      "La impresora volvió a responder pero no confirmó la impresión. Como el ticket ya se había enviado, el reintento sale como duplicado, con la reimpresión Nº 2.",
+    );
   });
 
   it("lets the cashier go on selling from the retry layout", async () => {

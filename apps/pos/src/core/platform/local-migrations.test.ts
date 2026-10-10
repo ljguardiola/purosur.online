@@ -1418,7 +1418,7 @@ describe("the register's local migrations", () => {
     }
   });
 
-  it("add the receipt printing beside the completed sales a register already holds", () => {
+  it("add the receipt printing beside the completed sales a register already holds, freezing each sold line's unit from its product", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");
@@ -1429,11 +1429,30 @@ describe("the register's local migrations", () => {
         `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
          VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
          INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
-         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:05:00.000Z');`,
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:05:00.000Z');
+         INSERT INTO products (id, name, category_id, sale_unit, active, version)
+         VALUES ('p-kg', 'Yerba a granel', 'c', 'KG', 1, 1),
+                ('p-unit', 'Alfajor', 'c', 'UNIT', 1, 1);
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-kg', 'sale-1', 1, 'p-kg', 'Yerba a granel', 350, 1890000, 'list-1', 661500),
+                ('line-unit', 'sale-1', 2, 'p-unit', 'Alfajor', 2, 42000, 'list-1', 84000);`,
       );
       before.close();
 
       const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT id, sale_unit FROM sale_lines ORDER BY position").all()).toEqual(
+        [
+          { id: "line-kg", sale_unit: "KG" },
+          { id: "line-unit", sale_unit: "UNIT" },
+        ],
+      );
+      expect(() =>
+        after.exec("UPDATE sale_lines SET sale_unit = 'LITRE' WHERE id = 'line-kg'"),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        after.exec("UPDATE sale_lines SET sale_unit = NULL WHERE id = 'line-kg'"),
+      ).toThrow(/NOT NULL/);
 
       expect(
         after

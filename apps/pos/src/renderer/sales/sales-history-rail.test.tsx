@@ -1,8 +1,8 @@
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { HistoryRail } from "./history-rail";
-import type { SignedInPerson } from "./signed-in-person";
-import { render } from "./test-support/render-with-router";
+import type { SignedInPerson } from "../shell/signed-in-person";
+import { render } from "../shell/test-support/render-with-router";
+import { SalesHistoryRail } from "./sales-history-rail";
 
 const PERSON: SignedInPerson = {
   user_id: "u1",
@@ -15,12 +15,17 @@ async function renderRail(sessionOpen: boolean) {
   onTestFinished(() => page.viewport(414, 896));
   const lock = vi.fn();
   const screen = await render(
-    <HistoryRail person={PERSON} registerName="Caja 1" sessionOpen={sessionOpen} lock={lock} />,
+    <SalesHistoryRail
+      person={PERSON}
+      registerName="Caja 1"
+      sessionOpen={sessionOpen}
+      lock={lock}
+    />,
   );
   return { screen, lock };
 }
 
-describe("HistoryRail", () => {
+describe("SalesHistoryRail", () => {
   it("offers Venta, Historial as current and Caja while a session is open", async () => {
     const { screen } = await renderRail(true);
 

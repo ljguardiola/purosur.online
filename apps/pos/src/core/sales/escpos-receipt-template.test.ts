@@ -107,7 +107,9 @@ const BODY_OF_MIXED_SALE = [
   "Alfajor",
   "  2 x $ 4.200,00                      $ 8.400,00",
   "  10 % de descuento                    -$ 840,00",
-  "Café molido 250 g                     $ 3.500,00",
+  "  Total de la línea                   $ 7.560,00",
+  "Café molido 250 g",
+  "  1 x $ 3.500,00                      $ 3.500,00",
   RULE,
   "Subtotal                             $ 17.675,00",
   RULE,
@@ -147,7 +149,8 @@ describe("the ESC/POS receipt template", () => {
       [
         ...HEAD,
         "PRODUCTO                                 IMPORTE",
-        "Alfajor                               $ 4.200,00",
+        "Alfajor",
+        "  1 x $ 4.200,00                      $ 4.200,00",
         RULE,
         "Subtotal                              $ 4.200,00",
         RULE,
@@ -160,7 +163,7 @@ describe("the ESC/POS receipt template", () => {
     );
   });
 
-  it("wraps a long product name within the columns left beside its amount", () => {
+  it("wraps a long product name within the columns of the paper", () => {
     const { textLines } = printed(
       singleUnitReceipt(
         "Aceite de oliva extra virgen orgánico primera prensada en frío 500 ml",
@@ -168,15 +171,16 @@ describe("the ESC/POS receipt template", () => {
       ),
     );
 
-    expect(textLines).toContain("Aceite de oliva extra virgen orgánico");
-    expect(textLines).toContain("primera prensada en frío 500 ml       $ 9.800,00");
+    expect(textLines).toContain("Aceite de oliva extra virgen orgánico primera");
+    expect(textLines).toContain("prensada en frío 500 ml");
+    expect(textLines).toContain("  1 x $ 9.800,00                      $ 9.800,00");
   });
 
   it("breaks a word longer than the columns left", () => {
     const { textLines } = printed(singleUnitReceipt("A".repeat(60), 980_000));
 
-    expect(textLines).toContain("A".repeat(37));
-    expect(textLines).toContain(`${"A".repeat(23)}               $ 9.800,00`);
+    expect(textLines).toContain("A".repeat(48));
+    expect(textLines).toContain("A".repeat(12));
   });
 
   it("writes the operation number with six digits, however small or large", () => {
@@ -227,6 +231,7 @@ describe("the ESC/POS receipt template", () => {
     );
 
     expect(textLines).toContain("  Lleve 3, pague 2                   -$ 4.200,00");
+    expect(textLines).toContain("  Total de la línea                   $ 8.400,00");
   });
 
   it("prints no line wider than the 48 columns of the paper", () => {

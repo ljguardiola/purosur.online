@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  mayRetryReceiptPrint,
   mayStartReceiptPrint,
   observePrintAcknowledged,
   observePrinterStatus,
+  observePrintFailed,
   RECEIPT_RETRY_DELAY_MS,
   type ReceiptPrintObservation,
   receiptPrintStanding,
@@ -80,12 +82,43 @@ describe("receiptPrintStanding", () => {
     ).toBe("printed");
   });
 
+  it.each([
+    ["no status was seen", startedReceiptPrint()],
+    [
+      "the printer reported paper out",
+      observePrinterStatus(startedReceiptPrint(), "paper_out", T0),
+    ],
+    ["the printer was ready", observePrinterStatus(startedReceiptPrint(), "ready", T0)],
+  ])("is failed once the print failed, after %s", (_case, observed) => {
+    expect(receiptPrintStanding(observePrintFailed(observed), after(60_000))).toBe("failed");
+  });
+
+  it("stays printed when a failure is observed after the acknowledgment", () => {
+    const acknowledged = observePrintAcknowledged(startedReceiptPrint());
+
+    expect(receiptPrintStanding(observePrintFailed(acknowledged), T0)).toBe("printed");
+  });
+
+  it("stays failed when a status arrives after the failure", () => {
+    const failed = observePrintFailed(startedReceiptPrint());
+
+    expect(receiptPrintStanding(observePrinterStatus(failed, "ready", T0), after(60_000))).toBe(
+      "failed",
+    );
+  });
+
   it("does not change the observation it folds into", () => {
     const started = startedReceiptPrint();
     observePrinterStatus(started, "ready", T0);
     observePrintAcknowledged(started);
+    observePrintFailed(started);
 
-    expect(started).toEqual({ acknowledged: false, status: null, readySince: null });
+    expect(started).toEqual({
+      acknowledged: false,
+      failed: false,
+      status: null,
+      readySince: null,
+    });
   });
 });
 
@@ -119,7 +152,28 @@ describe("mayStartReceiptPrint", () => {
     },
   );
 
+  it("allows a print after the previous one failed", () => {
+    expect(mayStartReceiptPrint(observePrintFailed(startedReceiptPrint()), T0)).toBe(true);
+  });
+
   it("allows a print after the previous one was acknowledged", () => {
     expect(mayStartReceiptPrint(observePrintAcknowledged(startedReceiptPrint()), T0)).toBe(true);
+  });
+});
+
+describe("mayRetryReceiptPrint", () => {
+  it("allows the retry only while the print stands as retry offered", () => {
+    expect(mayRetryReceiptPrint("retry_offered")).toBe(true);
+    for (const standing of [
+      null,
+      "printing",
+      "printed",
+      "cover_open",
+      "paper_out",
+      "not_responding",
+      "failed",
+    ] as const) {
+      expect(mayRetryReceiptPrint(standing)).toBe(false);
+    }
   });
 });

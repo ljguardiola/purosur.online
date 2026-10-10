@@ -123,7 +123,7 @@ async function printedAndOffered(saleId = "sale-1"): Promise<void> {
 async function printedAndAcknowledged(saleId = "sale-1"): Promise<void> {
   await printCompletedSaleReceiptFor(deps(), saleId);
   printer.acknowledge();
-  await vi.waitFor(() => expect(jobs.standing(saleId)).toBe("printed"));
+  await vi.waitFor(() => expect(jobs.standingOf(saleId)).toBe("printed"));
 }
 
 beforeEach(() => {
@@ -257,6 +257,20 @@ describe("the print status of a sale's receipt", () => {
     });
   });
 
+  it("answers that the print failed, with the original still next, when its receipt could not be prepared", async () => {
+    database.exec("DELETE FROM branch_settings");
+
+    await printCompletedSaleReceiptFor(deps(), "sale-1");
+
+    expect(printer.sent).toEqual([]);
+    expect(await receiptPrintStatusFor(deps(), "sale-1")).toEqual({
+      kind: "found",
+      next_copy: { kind: "original" },
+      printed: false,
+      standing: "failed",
+    });
+  });
+
   it("answers printed once the printer acknowledged", async () => {
     await printedAndAcknowledged();
 
@@ -273,6 +287,14 @@ describe("retrying a sale's receipt print", () => {
 
     expect(await retryReceiptPrintFor(deps(), "sale-1")).toEqual({ kind: "not_offered" });
     expect(printer.sent).toHaveLength(1);
+  });
+
+  it("is not offered after a print that failed", async () => {
+    database.exec("DELETE FROM branch_settings");
+    await printCompletedSaleReceiptFor(deps(), "sale-1");
+
+    expect(await retryReceiptPrintFor(deps(), "sale-1")).toEqual({ kind: "not_offered" });
+    expect(reprints()).toEqual([]);
   });
 
   it("is not offered for a sale nothing was printed for", async () => {

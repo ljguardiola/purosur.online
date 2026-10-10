@@ -35,8 +35,8 @@ function insertLine(
   database.exec(
     `INSERT OR IGNORE INTO products (id, name, category_id, sale_unit, active, version)
      VALUES ('${product.id}', '${product.name} del catalogo', 'c', '${product.unit}', 1, 1);
-     INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, promotion_id, discount_amount, line_total)
-     VALUES ('${id}', 'sale-1', ${position}, '${product.id}', '${product.name}', ${values.quantity}, ${values.unitPrice}, 'list-1', ${values.discount > 0 ? "'promo-1'" : "NULL"}, ${values.discount}, ${values.total});`,
+     INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, sale_unit, quantity, list_unit_price, price_list_id, promotion_id, discount_amount, line_total)
+     VALUES ('${id}', 'sale-1', ${position}, '${product.id}', '${product.name}', '${product.unit}', ${values.quantity}, ${values.unitPrice}, 'list-1', ${values.discount > 0 ? "'promo-1'" : "NULL"}, ${values.discount}, ${values.total});`,
   );
 }
 
@@ -284,6 +284,19 @@ describe("a receipt ledger's source of a sale", () => {
         { method: "TRANSFER", amount: 237100, tendered: null },
       ],
     });
+  });
+});
+
+describe("a receipt ledger's lines", () => {
+  it("are read with the unit each was sold by, whatever unit the catalog sells the product by now", () => {
+    insertSaleWithEverything();
+    database.exec(
+      "UPDATE products SET sale_unit = CASE sale_unit WHEN 'KG' THEN 'UNIT' ELSE 'KG' END",
+    );
+
+    const source = inTransaction((tx) => tx.receiptSource("sale-1"));
+
+    expect(source.lines.map(({ saleUnit }) => saleUnit)).toEqual(["KG", "UNIT"]);
   });
 });
 

@@ -710,14 +710,20 @@ describe("asking how a sale's receipt print stands", () => {
       printed: true,
       standing: "printed",
     },
-    ...["printing", "cover_open", "paper_out", "not_responding", "retry_offered", "printed"].map(
-      (standing) => ({
-        kind: "found",
-        next_copy: { kind: "original" },
-        printed: false,
-        standing,
-      }),
-    ),
+    ...[
+      "printing",
+      "cover_open",
+      "paper_out",
+      "not_responding",
+      "retry_offered",
+      "failed",
+      "printed",
+    ].map((standing) => ({
+      kind: "found",
+      next_copy: { kind: "original" },
+      printed: false,
+      standing,
+    })),
   ])("accepts the answer %j", (outcome) => {
     const message = { type: "receipt-print-status-result", request_id: REQUEST_ID, outcome };
 

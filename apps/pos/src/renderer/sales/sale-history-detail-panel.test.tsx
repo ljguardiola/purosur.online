@@ -172,4 +172,15 @@ describe("SaleHistoryDetailPanel", () => {
 
     await expect.element(screen.getByText("No tenés permiso para ver esta venta")).toBeVisible();
   });
+
+  it("says the session is over, not that the person lacks permission, when nobody is signed in", async () => {
+    const { screen } = await renderPanel({ read: async () => ({ kind: "not_signed_in" }) });
+
+    await expect
+      .element(screen.getByText("La sesión terminó. Volvé a ingresar para ver la venta"))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText("No tenés permiso para ver esta venta"))
+      .not.toBeInTheDocument();
+  });
 });
