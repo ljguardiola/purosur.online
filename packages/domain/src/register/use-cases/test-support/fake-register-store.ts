@@ -49,6 +49,7 @@ export interface FakeRegisterState {
   enrollmentAlerts: EnrollmentAlert[];
   installationRevocations: InstallationRevocation[];
   installationEnrollments: InstallationEnrollment[];
+  freshTaxAuthorityCountRequiredFor: string[];
   nextId: number;
 }
 
@@ -65,7 +66,8 @@ type WriteOperation =
   | "recordSnapshotKey"
   | "recordContingencyTicketKey"
   | "markEnrollmentCodeRedeemed"
-  | "openEnrollmentAlert";
+  | "openEnrollmentAlert"
+  | "requireFreshTaxAuthorityCount";
 
 function cloneState(state: FakeRegisterState): FakeRegisterState {
   return structuredClone(state);
@@ -247,6 +249,11 @@ class FakeRegisterStoreTransaction implements RegisterStoreTransaction {
     this.state.enrollmentAlerts.push(structuredClone(alert));
   }
 
+  async requireFreshTaxAuthorityCount(registerId: string): Promise<void> {
+    this.beforeWrite("requireFreshTaxAuthorityCount");
+    this.state.freshTaxAuthorityCountRequiredFor.push(registerId);
+  }
+
   private installation(deviceId: string): FakeInstallation {
     const installation = this.state.installations.find((row) => row.deviceId === deviceId);
     if (!installation) {
@@ -273,6 +280,7 @@ export class FakeRegisterStore implements RegisterStore {
     enrollmentAlerts: [],
     installationRevocations: [],
     installationEnrollments: [],
+    freshTaxAuthorityCountRequiredFor: [],
     nextId: 1,
   };
 

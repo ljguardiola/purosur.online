@@ -11,6 +11,7 @@ import {
   type TaxAuthorityInvoicing,
   type WsaaTokenSource,
 } from "../fiscal-document-authorization-ports.js";
+import type { LastAuthorizedCount } from "../tax-authority-count-ports.js";
 import type { WsaaToken } from "../wsaa-token-ports.js";
 
 export class FakePointOfSaleLanes implements PointOfSaleLanes {
@@ -20,6 +21,7 @@ export class FakePointOfSaleLanes implements PointOfSaleLanes {
   readonly lanesEntered: number[] = [];
   readonly invoicingCallsOkAt: Date[] = [];
   readonly rejectionAlertChanges: (RejectionAlertChange | null)[] = [];
+  readonly taxAuthorityCounts: (LastAuthorizedCount | null)[] = [];
   held = false;
   recordingFailure: Error | undefined;
   answerRecordingFailure: Error | undefined;
@@ -108,6 +110,7 @@ class FakeLane implements PointOfSaleLane {
     answer: RealTimeAuthorizationAnswer,
     answeredAt: Date,
     rejectionAlertChange: RejectionAlertChange | null,
+    taxAuthorityCount: LastAuthorizedCount | null,
   ): Promise<void> {
     this.lanes.operations.push(
       `recordTaxAuthorityAnswer:${answer.kind}@${answeredAt.toISOString()}`,
@@ -118,6 +121,7 @@ class FakeLane implements PointOfSaleLane {
     this.lanes.answers.set(fiscalDocumentId, answer);
     this.lanes.invoicingCallsOkAt.push(new Date(answeredAt));
     this.lanes.rejectionAlertChanges.push(rejectionAlertChange);
+    this.lanes.taxAuthorityCounts.push(taxAuthorityCount);
   }
 }
 

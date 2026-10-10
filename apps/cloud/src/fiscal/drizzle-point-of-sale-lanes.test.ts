@@ -6,9 +6,16 @@ import {
 import { eq, sql } from "drizzle-orm";
 import type { PgliteQueryResultHKT } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { alerts, arcaInvoicingEvidence, fiscalRequests } from "../platform/db/schema.js";
+import {
+  alerts,
+  arcaInvoicingEvidence,
+  fiscalRequests,
+  taxAuthorityLastAuthorizedNumbers,
+} from "../platform/db/schema.js";
+import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzlePointOfSaleLanes } from "./drizzle-point-of-sale-lanes.js";
+import { DrizzleTaxAuthorityCounts } from "./drizzle-tax-authority-counts.js";
 import {
   authorizationRequestRecord,
   insertRegisterWithPointOfSale,
@@ -305,6 +312,7 @@ describe("DrizzlePointOfSaleLanes", () => {
           AUTHORIZED,
           ANSWERED_AT,
           null,
+          null,
         );
         return lane.recordedRequest(registerId, request.fiscalDocumentId);
       });
@@ -341,6 +349,7 @@ describe("DrizzlePointOfSaleLanes", () => {
             AUTHORIZED,
             answeredAt,
             null,
+            null,
           );
         }
       });
@@ -358,7 +367,13 @@ describe("DrizzlePointOfSaleLanes", () => {
 
       await withFailingInvoicingEvidence(async () => {
         const recording = lanes.inPointOfSaleLane(7, (lane) =>
-          lane.recordTaxAuthorityAnswer(request.fiscalDocumentId, AUTHORIZED, ANSWERED_AT, null),
+          lane.recordTaxAuthorityAnswer(
+            request.fiscalDocumentId,
+            AUTHORIZED,
+            ANSWERED_AT,
+            null,
+            null,
+          ),
         );
 
         await expect(recording).rejects.toMatchObject({
@@ -370,6 +385,110 @@ describe("DrizzlePointOfSaleLanes", () => {
         answeredAt: null,
       });
       expect(await invoicingEvidenceTimes()).toEqual([]);
+    });
+  });
+
+  describe("the last authorized count", () => {
+    const COUNT = { pointOfSale: 7, lastAuthorized: 42, readAt: ANSWERED_AT };
+
+    async function storedCount() {
+      const [row] = await db
+        .select({ lastAuthorized: taxAuthorityLastAuthorizedNumbers.lastAuthorized })
+        .from(taxAuthorityLastAuthorizedNumbers)
+        .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, 7));
+      return row?.lastAuthorized;
+    }
+
+    it("is stored with the answer, and the register that holds the point of sale is logged as changed", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      const request = authorizationRequestRecord(registerId);
+      await lanes.inPointOfSaleLane(7, (lane) => lane.recordRequest(request));
+      const mark = await lastLoggedChangeSeq(db);
+
+      await lanes.inPointOfSaleLane(7, (lane) =>
+        lane.recordTaxAuthorityAnswer(
+          request.fiscalDocumentId,
+          AUTHORIZED,
+          ANSWERED_AT,
+          null,
+          COUNT,
+        ),
+      );
+
+      expect(await storedCount()).toBe(42);
+      expect(await changesLoggedAfter(db, mark)).toMatchObject([
+        { entity: "register_point_of_sale", entityId: registerId, op: "update" },
+      ]);
+    });
+
+    it("never lowers a higher count already stored", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      const request = authorizationRequestRecord(registerId);
+      await lanes.inPointOfSaleLane(7, (lane) => lane.recordRequest(request));
+      await new DrizzleTaxAuthorityCounts(db).record({ ...COUNT, lastAuthorized: 50 });
+
+      await lanes.inPointOfSaleLane(7, (lane) =>
+        lane.recordTaxAuthorityAnswer(
+          request.fiscalDocumentId,
+          AUTHORIZED,
+          ANSWERED_AT,
+          null,
+          COUNT,
+        ),
+      );
+
+      expect(await storedCount()).toBe(50);
+    });
+
+    it("leaves no answer and no count when recording the evidence fails", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      const request = authorizationRequestRecord(registerId);
+      await lanes.inPointOfSaleLane(7, (lane) => lane.recordRequest(request));
+
+      await withFailingInvoicingEvidence(async () => {
+        const recording = lanes.inPointOfSaleLane(7, (lane) =>
+          lane.recordTaxAuthorityAnswer(
+            request.fiscalDocumentId,
+            AUTHORIZED,
+            ANSWERED_AT,
+            null,
+            COUNT,
+          ),
+        );
+        await expect(recording).rejects.toThrow();
+      });
+
+      expect(await storedCount()).toBeUndefined();
+    });
+
+    it("stores no count when the answer carries none", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      const request = authorizationRequestRecord(registerId);
+      await lanes.inPointOfSaleLane(7, (lane) => lane.recordRequest(request));
+
+      await lanes.inPointOfSaleLane(7, (lane) =>
+        lane.recordTaxAuthorityAnswer(
+          request.fiscalDocumentId,
+          AUTHORIZED,
+          ANSWERED_AT,
+          null,
+          null,
+        ),
+      );
+
+      expect(await storedCount()).toBeUndefined();
     });
   });
 
@@ -388,7 +507,13 @@ describe("DrizzlePointOfSaleLanes", () => {
       const request = await recordedRequest();
 
       await lanes.inPointOfSaleLane(7, (lane) =>
-        lane.recordTaxAuthorityAnswer(request.fiscalDocumentId, REJECTED, ANSWERED_AT, OPEN_ALERT),
+        lane.recordTaxAuthorityAnswer(
+          request.fiscalDocumentId,
+          REJECTED,
+          ANSWERED_AT,
+          OPEN_ALERT,
+          null,
+        ),
       );
 
       expect(await fiscalRejectedAlerts()).toEqual([
@@ -427,12 +552,14 @@ describe("DrizzlePointOfSaleLanes", () => {
           REJECTED,
           ANSWERED_AT,
           OPEN_ALERT,
+          null,
         );
         await lane.recordTaxAuthorityAnswer(
           next.fiscalDocumentId,
           REJECTED,
           LATER_ANSWERED_AT,
           OPEN_ALERT,
+          null,
         );
       });
 
@@ -449,12 +576,14 @@ describe("DrizzlePointOfSaleLanes", () => {
           REJECTED,
           ANSWERED_AT,
           OPEN_ALERT,
+          null,
         );
         await lane.recordTaxAuthorityAnswer(
           next.fiscalDocumentId,
           AUTHORIZED,
           LATER_ANSWERED_AT,
           CLEAR_ALERT,
+          null,
         );
       });
 
@@ -466,7 +595,13 @@ describe("DrizzlePointOfSaleLanes", () => {
       const request = await recordedRequest();
 
       await lanes.inPointOfSaleLane(7, (lane) =>
-        lane.recordTaxAuthorityAnswer(request.fiscalDocumentId, AUTHORIZED, ANSWERED_AT, null),
+        lane.recordTaxAuthorityAnswer(
+          request.fiscalDocumentId,
+          AUTHORIZED,
+          ANSWERED_AT,
+          null,
+          null,
+        ),
       );
 
       expect(await fiscalRejectedAlerts()).toEqual([]);
@@ -482,6 +617,7 @@ describe("DrizzlePointOfSaleLanes", () => {
             REJECTED,
             ANSWERED_AT,
             OPEN_ALERT,
+            null,
           ),
         );
 

@@ -11,8 +11,10 @@ import {
   registerInstallations,
   registerSnapshotKeys,
   registers,
+  taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
 import { hashSecretCode } from "../platform/secret-code.js";
+import { insertRegisterWithPointOfSale } from "../fiscal/test-support/authorization-request-fixtures.js";
 import { registerRouteAccess } from "../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
@@ -28,6 +30,7 @@ const INJECTED_SOURCE_ADDRESS = "127.0.0.1";
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let app: FastifyInstance;
+let enqueuedCountReads: number[];
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -41,11 +44,15 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
+  enqueuedCountReads = [];
   registerRouteAccess(app);
   registerDeviceEnrollmentRoute(app, {
     db,
     keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
     now: () => NOW,
+    enqueueTaxAuthorityCount: async (_transaction, pointOfSale) => {
+      enqueuedCountReads.push(pointOfSale);
+    },
   });
 });
 
@@ -190,6 +197,29 @@ describe("POST /devices", () => {
     ]) {
       expect(stored).not.toContain(handedOver);
     }
+  });
+
+  it("forgets the stored count of the register's point of sale and queues a new read from the tax authority", async () => {
+    const registerId = await insertRegisterWithPointOfSale(db, {
+      pointOfSaleNumber: 7,
+      name: "caja-con-punto",
+    });
+    await db.insert(registerEnrollmentCodes).values({
+      registerId,
+      codeLookup: CODE.slice(0, 4),
+      codeHash: hashSecretCode(CODE),
+      issuedAt: minutesAgo(5),
+      expiresAt: minutesAgo(-10),
+    });
+    await db
+      .insert(taxAuthorityLastAuthorizedNumbers)
+      .values({ pointOfSaleNumber: 7, lastAuthorized: 11, readAt: NOW });
+
+    const response = await enroll();
+
+    expect(response.statusCode).toBe(200);
+    expect(await db.select().from(taxAuthorityLastAuthorizedNumbers)).toEqual([]);
+    expect(enqueuedCountReads).toEqual([7]);
   });
 
   it("revokes the installation that held the register before", async () => {

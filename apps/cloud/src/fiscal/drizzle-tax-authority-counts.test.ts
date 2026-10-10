@@ -48,6 +48,15 @@ describe("DrizzleTaxAuthorityCounts", () => {
     });
   });
 
+  it("never lowers the number already stored, whichever order the reads are recorded in", async () => {
+    const counts = new DrizzleTaxAuthorityCounts(db);
+    await counts.record({ pointOfSale: 7, lastAuthorized: 44, readAt: LATER });
+
+    await counts.record({ pointOfSale: 7, lastAuthorized: 41, readAt: READ_AT });
+
+    expect(await storedCount(7)).toMatchObject({ lastAuthorized: 44 });
+  });
+
   it("replaces the number of an earlier read", async () => {
     const counts = new DrizzleTaxAuthorityCounts(db);
     await counts.record({ pointOfSale: 7, lastAuthorized: 41, readAt: READ_AT });
