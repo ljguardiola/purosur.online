@@ -1,4 +1,8 @@
-import { argentinaInstant } from "@purosur/domain";
+import {
+  argentinaInstant,
+  type SerialDeviceRole,
+  type SerialDeviceStanding,
+} from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -52,13 +56,30 @@ async function acceptedMinutesAgo(minutes: number): Promise<void> {
   );
 }
 
-function status(cloud: CloudReachability = "unknown") {
-  return registerStatusFor({ database, cloud: () => cloud, now: () => NOW });
+const NO_DEVICES: Record<SerialDeviceRole, SerialDeviceStanding> = {
+  scale: { kind: "not_registered" },
+  reader: { kind: "not_registered" },
+};
+
+function status(
+  cloud: CloudReachability = "unknown",
+  serialDevices: Record<SerialDeviceRole, SerialDeviceStanding> = NO_DEVICES,
+) {
+  return registerStatusFor({
+    database,
+    cloud: () => cloud,
+    now: () => NOW,
+    serialDevices: () => serialDevices,
+  });
 }
 
 describe("the register's status", () => {
   it("holds no condition for a register that sells and has never had a push accepted", () => {
-    expect(status()).toEqual({ conditions: [], cloud: "unknown" });
+    expect(status()).toEqual({
+      conditions: [],
+      cloud: "unknown",
+      serial_devices: { scale: "not_registered", reader: "not_registered" },
+    });
   });
 
   it("holds sales_denied once the register stopped opening new sales because its event history broke", () => {
@@ -75,6 +96,7 @@ describe("the register's status", () => {
     expect(status("unreachable")).toEqual({
       conditions: ["installation_revoked"],
       cloud: "unreachable",
+      serial_devices: { scale: "not_registered", reader: "not_registered" },
     });
   });
 
@@ -127,4 +149,31 @@ describe("the register's status", () => {
       expect(status(cloud).cloud).toBe(cloud);
     },
   );
+
+  it("reports the kind of each serial device's standing, without the path it was found on", () => {
+    expect(
+      status("unknown", {
+        scale: { kind: "matching", path: "COM3" },
+        reader: { kind: "not_detected" },
+      }).serial_devices,
+    ).toEqual({ scale: "matching", reader: "not_detected" });
+  });
+
+  it("holds serial_device_missing while a registered device is not detected", () => {
+    expect(
+      status("unknown", {
+        scale: { kind: "matching", path: "COM3" },
+        reader: { kind: "mismatched" },
+      }).conditions,
+    ).toEqual(["serial_device_missing"]);
+  });
+
+  it("holds no serial_device_missing while every registered device is found", () => {
+    expect(
+      status("unknown", {
+        scale: { kind: "matching", path: "COM3" },
+        reader: { kind: "not_registered" },
+      }).conditions,
+    ).toEqual([]);
+  });
 });
