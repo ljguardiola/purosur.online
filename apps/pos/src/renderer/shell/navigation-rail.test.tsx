@@ -55,6 +55,17 @@ describe("NavigationRail", () => {
       .not.toHaveAttribute("aria-current");
   });
 
+  it("marks the entry of the screen it is on as the current one", async () => {
+    const screen = await render(<NavigationRail entries={[HISTORY, CLOCK]} current="/sign-in" />);
+
+    await expect
+      .element(screen.getByRole("link", { name: "Historial" }))
+      .toHaveAttribute("aria-current", "page");
+    await expect
+      .element(screen.getByRole("link", { name: "Reloj" }))
+      .not.toHaveAttribute("aria-current");
+  });
+
   it("links each entry to its route", async () => {
     const screen = await renderRail({ entries: [HISTORY, CLOCK] });
 

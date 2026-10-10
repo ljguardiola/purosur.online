@@ -3,6 +3,7 @@
 const PERMISSION_KEY_LIST = [
   "sell_and_charge",
   "view_sales_history",
+  "read_register_help",
   "close_anothers_register_session",
   "reprint_receipt",
   "record_cash_in",
@@ -102,6 +103,7 @@ export interface PermissionDefinition {
 export const PERMISSION_CATALOG = [
   { key: "sell_and_charge", area: "cashRegister", registerMarker: "register" },
   { key: "view_sales_history", area: "cashRegister", registerMarker: "register" },
+  { key: "read_register_help", area: "cashRegister", registerMarker: "register" },
   {
     key: "close_anothers_register_session",
     area: "cashRegister",

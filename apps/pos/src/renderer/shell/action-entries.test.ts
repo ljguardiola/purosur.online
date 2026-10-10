@@ -1,7 +1,7 @@
 import { House } from "lucide-react";
 import { describe, expect, it } from "vitest";
 import type { ActionEntry } from "./action-entries";
-import { entriesFor } from "./action-entries";
+import { ACTION_ENTRIES, entriesFor } from "./action-entries";
 
 function entry(label: string, ability: ActionEntry["ability"]): ActionEntry {
   return { label, icon: House, ability, to: "/sign-in" };
@@ -28,5 +28,11 @@ describe("entriesFor", () => {
 
   it("offers nothing when there are no entries", () => {
     expect(entriesFor([], ["correct_register_clock"])).toEqual([]);
+  });
+
+  it("offers the help to a person who may read it, opening its screen", () => {
+    expect(entriesFor(ACTION_ENTRIES, ["read_register_help"])).toEqual([
+      expect.objectContaining({ label: "Ayuda", to: "/help" }),
+    ]);
   });
 });
