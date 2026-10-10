@@ -2864,6 +2864,9 @@ describe("wiring the Mercado Pago notification route", () => {
     });
 
     expect(response.statusCode).toBe(401);
-    expect(warn).toHaveBeenCalledExactlyOnceWith(expect.stringContaining("signature"));
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      "discarded a Mercado Pago notification with an invalid signature",
+      { reason: "missing_signature", type: "order" },
+    );
   });
 });
