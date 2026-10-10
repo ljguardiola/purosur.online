@@ -1,3 +1,4 @@
+import type { RegisteredSerialDevices } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -20,43 +21,68 @@ afterEach(() => {
   database.close();
 });
 
+function save(devices: RegisteredSerialDevices): void {
+  registrations.transaction((tx) => tx.saveSerialDevices(devices));
+}
+
 describe("SqliteSerialDeviceRegistrations", () => {
   it("has no device until one is saved", () => {
     expect(registrations.registeredSerialDevices()).toEqual({});
   });
 
   it("reads back the scale and the reader it saved", () => {
-    registrations.saveSerialDevices({ scale: SCALE, reader: READER });
+    save({ scale: SCALE, reader: READER });
 
     expect(registrations.registeredSerialDevices()).toEqual({ scale: SCALE, reader: READER });
   });
 
   it("reads back a register that holds only one of the two", () => {
-    registrations.saveSerialDevices({ reader: READER });
+    save({ reader: READER });
 
     expect(registrations.registeredSerialDevices()).toEqual({ reader: READER });
   });
 
   it("replaces what it held, leaving a role it no longer receives without a device", () => {
-    registrations.saveSerialDevices({ scale: SCALE, reader: READER });
-    registrations.saveSerialDevices({ scale: SCALE });
+    save({ scale: SCALE, reader: READER });
+    save({ scale: SCALE });
 
     expect(registrations.registeredSerialDevices()).toEqual({ scale: SCALE });
   });
 
   it("swaps the scale and the reader without meeting its own uniqueness", () => {
-    registrations.saveSerialDevices({ scale: SCALE, reader: READER });
-    registrations.saveSerialDevices({ scale: READER, reader: SCALE });
+    save({ scale: SCALE, reader: READER });
+    save({ scale: READER, reader: SCALE });
 
     expect(registrations.registeredSerialDevices()).toEqual({ scale: READER, reader: SCALE });
   });
 
   it("keeps what it held when the devices it receives break the database's rules", () => {
-    registrations.saveSerialDevices({ scale: SCALE, reader: READER });
+    save({ scale: SCALE, reader: READER });
 
-    expect(() => registrations.saveSerialDevices({ scale: READER, reader: READER })).toThrow(
-      /UNIQUE/,
-    );
+    expect(() => save({ scale: READER, reader: READER })).toThrow(/UNIQUE/);
     expect(registrations.registeredSerialDevices()).toEqual({ scale: SCALE, reader: READER });
+  });
+
+  it("reads within its transaction what it saved there", () => {
+    save({ scale: SCALE });
+
+    const read = registrations.transaction((tx) => {
+      tx.saveSerialDevices({ scale: SCALE, reader: READER });
+      return tx.registeredSerialDevices();
+    });
+
+    expect(read).toEqual({ scale: SCALE, reader: READER });
+  });
+
+  it("keeps what it held when the work of its transaction fails after saving", () => {
+    save({ scale: SCALE });
+
+    expect(() =>
+      registrations.transaction((tx) => {
+        tx.saveSerialDevices({ reader: READER });
+        throw new Error("the operation failed after saving");
+      }),
+    ).toThrow("the operation failed after saving");
+    expect(registrations.registeredSerialDevices()).toEqual({ scale: SCALE });
   });
 });

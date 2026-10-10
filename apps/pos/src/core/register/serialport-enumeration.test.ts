@@ -4,7 +4,6 @@ import { listSerialPorts, serialportEnumeration } from "./serialport-enumeration
 function enumerationOf(ports: Awaited<ReturnType<typeof listSerialPorts>>) {
   return serialportEnumeration({
     list: async () => ports,
-    reportFailure: () => undefined,
     onListed: () => undefined,
   });
 }
@@ -66,7 +65,6 @@ describe("the serial devices detected through serialport", () => {
     const onListed = vi.fn();
     const enumeration = serialportEnumeration({
       list: async () => [],
-      reportFailure: () => undefined,
       onListed,
     });
 
@@ -76,46 +74,18 @@ describe("the serial devices detected through serialport", () => {
     expect(onListed).toHaveBeenCalledTimes(1);
   });
 
-  it("detects no device and reports the failure when serialport cannot list", async () => {
+  it("fails as serialport failed, without saying serial devices were listed, when it cannot list", async () => {
     const failure = new Error("the binding did not load");
-    const reportFailure = vi.fn();
     const onListed = vi.fn();
     const enumeration = serialportEnumeration({
       list: async () => {
         throw failure;
       },
-      reportFailure,
       onListed,
     });
 
-    expect(await enumeration.detectedSerialDevices()).toEqual([]);
-    expect(reportFailure).toHaveBeenCalledWith(failure);
+    await expect(enumeration.detectedSerialDevices()).rejects.toBe(failure);
     expect(onListed).not.toHaveBeenCalled();
-  });
-
-  it("reports a failure that goes on only once, and reports it again after listing works", async () => {
-    let failing = true;
-    const reportFailure = vi.fn();
-    const enumeration = serialportEnumeration({
-      list: async () => {
-        if (failing) {
-          throw new Error("unplugged adapter");
-        }
-        return [];
-      },
-      reportFailure,
-      onListed: () => undefined,
-    });
-
-    await enumeration.detectedSerialDevices();
-    await enumeration.detectedSerialDevices();
-    expect(reportFailure).toHaveBeenCalledTimes(1);
-
-    failing = false;
-    await enumeration.detectedSerialDevices();
-    failing = true;
-    await enumeration.detectedSerialDevices();
-    expect(reportFailure).toHaveBeenCalledTimes(2);
   });
 
   it("loads the serialport binding of this machine and lists its ports", async () => {

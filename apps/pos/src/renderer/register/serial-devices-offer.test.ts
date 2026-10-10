@@ -1,7 +1,7 @@
 import type { RegisterStatus } from "@purosur/contracts";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { SignedInPerson } from "../shell/signed-in-person";
-import { landsOnSerialDevices } from "./serial-devices-offer";
+import { landsOnSerialDevices, landsOnSerialDevicesAfterSignIn } from "./serial-devices-offer";
 
 const CONFIGURER: SignedInPerson = {
   user_id: "u1",
@@ -41,10 +41,72 @@ describe("landsOnSerialDevices", () => {
   it("does not land anyone while the status is not known", () => {
     expect(landsOnSerialDevices({ person: CONFIGURER, status: undefined })).toBe(false);
   });
+});
 
-  it("does not land a person who chose Ahora no", () => {
-    expect(
-      landsOnSerialDevices({ person: CONFIGURER, status: NEITHER_REGISTERED, dismissed: true }),
-    ).toBe(false);
+describe("landsOnSerialDevicesAfterSignIn", () => {
+  function offer({
+    person = CONFIGURER,
+    offerPending = true,
+    readStatus = async (): Promise<RegisterStatus> => NEITHER_REGISTERED,
+  }: {
+    person?: SignedInPerson;
+    offerPending?: boolean;
+    readStatus?: () => Promise<RegisterStatus>;
+  } = {}) {
+    const settleOffer = vi.fn();
+    const read = vi.fn(readStatus);
+    return {
+      settleOffer,
+      read,
+      taken: landsOnSerialDevicesAfterSignIn({
+        person,
+        offerPending,
+        settleOffer,
+        readStatus: read,
+      }),
+    };
+  }
+
+  it("lands on the devices once, settling the offer made at sign-in", async () => {
+    const { taken, settleOffer } = offer();
+
+    expect(await taken).toBe(true);
+    expect(settleOffer).toHaveBeenCalledOnce();
+  });
+
+  it("lands nowhere and reads nothing when no offer is pending", async () => {
+    const { taken, settleOffer, read } = offer({ offerPending: false });
+
+    expect(await taken).toBe(false);
+    expect(settleOffer).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("settles the offer without reading the status for a person who may not configure the devices", async () => {
+    const { taken, settleOffer, read } = offer({ person: CASHIER });
+
+    expect(await taken).toBe(false);
+    expect(settleOffer).toHaveBeenCalledOnce();
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("settles the offer when the devices need no setup", async () => {
+    const { taken, settleOffer } = offer({
+      readStatus: async () => statusWith({ scale: "matching", reader: "not_registered" }),
+    });
+
+    expect(await taken).toBe(false);
+    expect(settleOffer).toHaveBeenCalledOnce();
+  });
+
+  it("settles the offer when the status cannot be read", async () => {
+    const { taken, settleOffer } = offer({
+      readStatus: async () => {
+        throw new Error("the core did not answer");
+      },
+    });
+
+    expect(await taken).toBe(false);
+    expect(settleOffer).toHaveBeenCalledOnce();
   });
 });

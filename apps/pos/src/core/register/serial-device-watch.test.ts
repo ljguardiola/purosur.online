@@ -63,12 +63,10 @@ describe("watching the registered serial devices", () => {
 
     await watch.start();
 
-    expect(watch.standings()).toEqual({
+    expect(await watch.standings()).toEqual({
       scale: { kind: "matching", path: "COM3" },
       reader: { kind: "matching", path: "COM4" },
     });
-    expect(watch.locate("scale")).toBe("COM3");
-    expect(watch.locate("reader")).toBe("COM4");
   });
 
   it("checks again after the interval", async () => {
@@ -79,7 +77,7 @@ describe("watching the registered serial devices", () => {
     world.detected = [{ path: "COM3", identity: SCALE }];
     await runNextCheck();
 
-    expect(watch.standings().scale).toEqual({ kind: "matching", path: "COM3" });
+    expect((await watch.standings()).scale).toEqual({ kind: "matching", path: "COM3" });
     expect(nextCheck()?.delayMs).toBe(INTERVAL_MS);
   });
 
@@ -91,13 +89,11 @@ describe("watching the registered serial devices", () => {
 
     world.detected = [];
     await runNextCheck();
-    expect(watch.standings().scale).toEqual({ kind: "not_detected" });
-    expect(watch.locate("scale")).toBeUndefined();
+    expect((await watch.standings()).scale).toEqual({ kind: "not_detected" });
 
     world.detected = [{ path: "COM9", identity: SCALE }];
     await runNextCheck();
-    expect(watch.standings().scale).toEqual({ kind: "matching", path: "COM9" });
-    expect(watch.locate("scale")).toBe("COM9");
+    expect((await watch.standings()).scale).toEqual({ kind: "matching", path: "COM9" });
   });
 
   it("tells a registered device apart from an unregistered one that took its place", async () => {
@@ -109,7 +105,7 @@ describe("watching the registered serial devices", () => {
     world.detected = [{ path: "COM3", identity: STRANGER }];
     await runNextCheck();
 
-    expect(watch.standings().scale).toEqual({ kind: "mismatched" });
+    expect((await watch.standings()).scale).toEqual({ kind: "mismatched" });
   });
 
   it("knows a role with no registered device is not registered", async () => {
@@ -117,8 +113,7 @@ describe("watching the registered serial devices", () => {
 
     await watch.start();
 
-    expect(watch.standings().scale).toEqual({ kind: "not_registered" });
-    expect(watch.locate("scale")).toBeUndefined();
+    expect((await watch.standings()).scale).toEqual({ kind: "not_registered" });
   });
 
   it("says something changed only when a standing or a path changes", async () => {
@@ -166,13 +161,13 @@ describe("watching the registered serial devices", () => {
       detected: [{ path: "COM3", identity: SCALE }],
     });
     await watch.start();
-    expect(watch.standings().scale).toEqual({ kind: "not_registered" });
+    expect((await watch.standings()).scale).toEqual({ kind: "not_registered" });
     onChange.mockClear();
 
     world.registered = { scale: SCALE };
     await watch.checkNow();
 
-    expect(watch.standings().scale).toEqual({ kind: "matching", path: "COM3" });
+    expect((await watch.standings()).scale).toEqual({ kind: "matching", path: "COM3" });
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 
@@ -216,7 +211,40 @@ describe("watching the registered serial devices", () => {
     release[1]?.();
     await Promise.all([first, second]);
 
-    expect(watch.standings().scale).toEqual({ kind: "matching", path: "COM3" });
+    expect((await watch.standings()).scale).toEqual({ kind: "matching", path: "COM3" });
+  });
+
+  it("answers its standings only once its first check has ended", async () => {
+    const release: (() => void)[] = [];
+    const watch = createSerialDeviceWatch({
+      registrations: { registeredSerialDevices: () => ({ scale: SCALE }) },
+      enumeration: {
+        detectedSerialDevices: () =>
+          new Promise((resolve) =>
+            release.push(() => resolve([{ path: "COM3", identity: SCALE }])),
+          ),
+      },
+      intervalMs: INTERVAL_MS,
+      scheduleNext: () => () => undefined,
+      onChange: () => undefined,
+      onFailure: () => undefined,
+    });
+    const answered = vi.fn();
+
+    void watch.standings().then(answered);
+    const started = watch.start();
+    await vi.waitFor(() => expect(release).toHaveLength(1));
+    expect(answered).not.toHaveBeenCalled();
+
+    release[0]?.();
+    await started;
+
+    await vi.waitFor(() =>
+      expect(answered).toHaveBeenCalledExactlyOnceWith({
+        scale: { kind: "matching", path: "COM3" },
+        reader: { kind: "not_registered" },
+      }),
+    );
   });
 
   it("reports a check that fails, keeps what it knew and goes on checking", async () => {
@@ -230,13 +258,29 @@ describe("watching the registered serial devices", () => {
     world.enumerationFailure = failure;
     await runNextCheck();
     expect(onFailure).toHaveBeenCalledWith(failure);
-    expect(watch.standings().scale).toEqual({ kind: "matching", path: "COM3" });
+    expect((await watch.standings()).scale).toEqual({ kind: "matching", path: "COM3" });
     expect(nextCheck()?.delayMs).toBe(INTERVAL_MS);
 
     world.enumerationFailure = undefined;
     world.detected = [{ path: "COM8", identity: SCALE }];
     await runNextCheck();
-    expect(watch.standings().scale).toEqual({ kind: "matching", path: "COM8" });
+    expect((await watch.standings()).scale).toEqual({ kind: "matching", path: "COM8" });
     expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a failure that goes on only once, and reports it again after a check works", async () => {
+    const { watch, world, onFailure, runNextCheck } = setup({});
+    await watch.start();
+
+    world.enumerationFailure = new Error("the ports could not be listed");
+    await runNextCheck();
+    await runNextCheck();
+    expect(onFailure).toHaveBeenCalledTimes(1);
+
+    world.enumerationFailure = undefined;
+    await runNextCheck();
+    world.enumerationFailure = new Error("the ports could not be listed again");
+    await runNextCheck();
+    expect(onFailure).toHaveBeenCalledTimes(2);
   });
 });

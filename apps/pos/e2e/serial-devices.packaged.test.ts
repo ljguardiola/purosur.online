@@ -5,8 +5,8 @@ import { describe, expect, it } from "vitest";
 import { serializeChannelFile } from "../src/shared/channel";
 import { APP_DIR, appEnv } from "./launch-app";
 import {
+  SERIAL_DEVICE_WATCH_FAILED,
   SERIAL_DEVICES_LISTED,
-  SERIAL_PORTS_LISTING_FAILED,
 } from "./test-support/serial-device-logs";
 import { untilLogged } from "./test-support/until";
 
@@ -65,7 +65,7 @@ describe("the packaged register's serial devices", () => {
     try {
       await untilLogged({ app, logs }, SERIAL_DEVICES_LISTED);
 
-      expect(logs.join("")).not.toContain(SERIAL_PORTS_LISTING_FAILED);
+      expect(logs.join("")).not.toContain(SERIAL_DEVICE_WATCH_FAILED);
     } finally {
       await app.close();
     }

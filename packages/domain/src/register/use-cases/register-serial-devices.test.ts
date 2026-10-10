@@ -76,6 +76,19 @@ describe("registerSerialDevices", () => {
     expect(outcome).toEqual({ kind: "registered", devices: { scale: SCALE, reader: READER } });
   });
 
+  it("reads the registrations it checks against and saves them in one transaction", async () => {
+    const registrations = new FakeSerialDeviceRegistrations({ scale: SCALE });
+
+    await registerSerialDevices(
+      { registrations, authority: granting(GRANT) },
+      { devices: { reader: READER } },
+    );
+
+    expect(registrations.transactions).toBe(1);
+    expect(registrations.readsOutsideTransactions).toBe(0);
+    expect(registrations.saves).toBe(1);
+  });
+
   it("refuses the same identity for both and saves nothing", async () => {
     const registrations = new FakeSerialDeviceRegistrations();
 
@@ -112,7 +125,6 @@ describe("registerSerialDevices", () => {
 
     expect(outcome).toEqual(LACKS_PERMISSION);
     expect(authority.asked).toBe(1);
-    expect(registrations.reads).toBe(0);
-    expect(registrations.saves).toBe(0);
+    expect(registrations.transactions).toBe(0);
   });
 });

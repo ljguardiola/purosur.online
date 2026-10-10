@@ -69,23 +69,23 @@ function status(
     database,
     cloud: () => cloud,
     now: () => NOW,
-    serialDevices: () => serialDevices,
+    serialDevices: async () => serialDevices,
   });
 }
 
 describe("the register's status", () => {
-  it("holds no condition for a register that sells and has never had a push accepted", () => {
-    expect(status()).toEqual({
+  it("holds no condition for a register that sells and has never had a push accepted", async () => {
+    expect(await status()).toEqual({
       conditions: [],
       cloud: "unknown",
       serial_devices: { scale: "not_registered", reader: "not_registered" },
     });
   });
 
-  it("holds sales_denied once the register stopped opening new sales because its event history broke", () => {
+  it("holds sales_denied once the register stopped opening new sales because its event history broke", async () => {
     stopOpeningNewSales(database, "event_history_broken", NOW);
 
-    expect(status().conditions).toEqual(["sales_denied"]);
+    expect((await status()).conditions).toEqual(["sales_denied"]);
   });
 
   it("holds only installation_revoked once the cloud revoked the installation, with the cloud unreachable", async () => {
@@ -93,7 +93,7 @@ describe("the register's status", () => {
     await acceptedMinutesAgo(30);
     stopOpeningNewSales(database, "installation_revoked", NOW);
 
-    expect(status("unreachable")).toEqual({
+    expect(await status("unreachable")).toEqual({
       conditions: ["installation_revoked"],
       cloud: "unreachable",
       serial_devices: { scale: "not_registered", reader: "not_registered" },
@@ -104,27 +104,27 @@ describe("the register's status", () => {
     holdBranchHours(mondayHours("09:00", "18:00"));
     await acceptedMinutesAgo(30);
 
-    expect(status().conditions).toEqual(["register_silent"]);
+    expect((await status()).conditions).toEqual(["register_silent"]);
   });
 
   it("holds no register_silent while the last accepted push is recent", async () => {
     holdBranchHours(mondayHours("09:00", "18:00"));
     await acceptedMinutesAgo(5);
 
-    expect(status().conditions).toEqual([]);
+    expect((await status()).conditions).toEqual([]);
   });
 
   it("holds no register_silent outside the branch's hours", async () => {
     holdBranchHours(mondayHours("13:00", "18:00"));
     await acceptedMinutesAgo(300);
 
-    expect(status().conditions).toEqual([]);
+    expect((await status()).conditions).toEqual([]);
   });
 
   it("holds no register_silent without the branch's hours", async () => {
     await acceptedMinutesAgo(300);
 
-    expect(status().conditions).toEqual([]);
+    expect((await status()).conditions).toEqual([]);
   });
 
   it("holds both conditions, sales_denied first", async () => {
@@ -132,7 +132,7 @@ describe("the register's status", () => {
     await acceptedMinutesAgo(30);
     stopOpeningNewSales(database, "event_history_broken", NOW);
 
-    expect(status().conditions).toEqual(["sales_denied", "register_silent"]);
+    expect((await status()).conditions).toEqual(["sales_denied", "register_silent"]);
   });
 
   it("drops register_silent as soon as a push is accepted again", async () => {
@@ -140,40 +140,46 @@ describe("the register's status", () => {
     await acceptedMinutesAgo(30);
     await acceptedMinutesAgo(0);
 
-    expect(status().conditions).toEqual([]);
+    expect((await status()).conditions).toEqual([]);
   });
 
   it.each<CloudReachability>(["unknown", "reachable", "unreachable"])(
     "reports the cloud as %s as the holder says at the moment it is asked",
-    (cloud) => {
-      expect(status(cloud).cloud).toBe(cloud);
+    async (cloud) => {
+      expect((await status(cloud)).cloud).toBe(cloud);
     },
   );
 
-  it("reports the kind of each serial device's standing, without the path it was found on", () => {
+  it("reports the kind of each serial device's standing, without the path it was found on", async () => {
     expect(
-      status("unknown", {
-        scale: { kind: "matching", path: "COM3" },
-        reader: { kind: "not_detected" },
-      }).serial_devices,
+      (
+        await status("unknown", {
+          scale: { kind: "matching", path: "COM3" },
+          reader: { kind: "not_detected" },
+        })
+      ).serial_devices,
     ).toEqual({ scale: "matching", reader: "not_detected" });
   });
 
-  it("holds serial_device_missing while a registered device is not detected", () => {
+  it("holds serial_device_missing while a registered device is not detected", async () => {
     expect(
-      status("unknown", {
-        scale: { kind: "matching", path: "COM3" },
-        reader: { kind: "mismatched" },
-      }).conditions,
+      (
+        await status("unknown", {
+          scale: { kind: "matching", path: "COM3" },
+          reader: { kind: "mismatched" },
+        })
+      ).conditions,
     ).toEqual(["serial_device_missing"]);
   });
 
-  it("holds no serial_device_missing while every registered device is found", () => {
+  it("holds no serial_device_missing while every registered device is found", async () => {
     expect(
-      status("unknown", {
-        scale: { kind: "matching", path: "COM3" },
-        reader: { kind: "not_registered" },
-      }).conditions,
+      (
+        await status("unknown", {
+          scale: { kind: "matching", path: "COM3" },
+          reader: { kind: "not_registered" },
+        })
+      ).conditions,
     ).toEqual([]);
   });
 });

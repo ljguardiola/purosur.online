@@ -129,7 +129,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         return { kind: "not_permitted" };
       },
       cashSession: (): OpenCashSession | null => null,
-      registerStatus: (): RegisterStatus => ({
+      registerStatus: async (): Promise<RegisterStatus> => ({
         conditions: [],
         cloud: "unknown",
         serial_devices: { scale: "not_registered", reader: "not_registered" },
@@ -743,7 +743,7 @@ describe("answerRendererRequest", () => {
     };
 
     expect(
-      await answerRendererRequest(deps(true, { registerStatus: () => status }).deps, {
+      await answerRendererRequest(deps(true, { registerStatus: async () => status }).deps, {
         type: "register-status-request",
         request_id: "r30",
       }),
@@ -762,7 +762,7 @@ describe("answerRendererRequest", () => {
   it("answers that the status cannot be read when reading it fails, and reports why", async () => {
     const error = new Error("database is locked");
     const failing = deps(true, {
-      registerStatus: () => {
+      registerStatus: async () => {
         throw error;
       },
     });

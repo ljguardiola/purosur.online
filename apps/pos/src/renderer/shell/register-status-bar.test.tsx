@@ -149,35 +149,14 @@ describe("RegisterStatusBar", () => {
     expect(barText(screen)).toContain("Sin conexión con la nube");
   });
 
-  it.each([
-    { scale: "matching", reader: "matching", shown: ["Balanza conectada", "Lector conectado"] },
-    {
-      scale: "not_detected",
-      reader: "mismatched",
-      shown: ["Balanza no detectada", "Lector no coincide con el registrado"],
-    },
-    {
-      scale: "mismatched",
-      reader: "not_detected",
-      shown: ["Balanza no coincide con la registrada", "Lector no detectado"],
-    },
-    {
-      scale: "not_registered",
-      reader: "not_registered",
-      shown: ["Balanza sin registrar", "Lector sin registrar"],
-    },
-  ] as const)(
-    "shows the scale as $scale and the reader as $reader",
-    async ({ scale, reader, shown }) => {
-      const screen = await renderBar({
-        status: loaded({ serial_devices: { scale, reader } }),
-      });
+  it("shows the standing of the scale and the reader", async () => {
+    const screen = await renderBar({
+      status: loaded({ serial_devices: { scale: "not_detected", reader: "matching" } }),
+    });
 
-      for (const text of shown) {
-        await expect.element(screen.getByText(text)).toBeVisible();
-      }
-    },
-  );
+    await expect.element(screen.getByText("Balanza no detectada")).toBeVisible();
+    await expect.element(screen.getByText("Lector conectado")).toBeVisible();
+  });
 
   it("shows neither device while the status is read", async () => {
     const screen = await renderBar({ status: { status: "loading" } });

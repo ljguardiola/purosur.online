@@ -638,6 +638,25 @@ describe("App", () => {
       await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
     });
 
+    it("goes home through Inicio from the devices the person landed on", async () => {
+      const { core } = coreAnswering(
+        true,
+        undefined,
+        LINUS_SIGNED_IN,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        NEITHER_REGISTERED,
+      );
+      const screen = await signInAsConfigurer(core);
+      await expect.element(screen.getByRole("button", { name: "Ahora no" })).toBeVisible();
+
+      await userEvent.click(screen.getByRole("link", { name: "Inicio" }));
+
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+    });
+
     it("offers the devices again to whoever signs in after the person signed out", async () => {
       const { core } = coreAnswering(
         true,

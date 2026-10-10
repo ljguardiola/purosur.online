@@ -189,8 +189,7 @@ function contextWith(
       standings: { scale: { kind: "not_registered" }, reader: { kind: "not_registered" } },
     }),
     registerSerialDevices: async () => ({ kind: "unavailable" }),
-    serialDevicesOfferDismissed: false,
-    dismissSerialDevicesOffer: () => {},
+    takeSerialDevicesOffer: async () => false,
     refreshCashSession: async () => {},
   };
 }
@@ -959,90 +958,42 @@ describe("the register's router", () => {
   });
 
   describe("the offer to register the scale and reader after signing in", () => {
-    function statusOf(
-      scale: RegisterStatus["serial_devices"]["scale"],
-      reader: RegisterStatus["serial_devices"]["reader"],
-    ): () => Promise<RegisterStatus> {
-      return async () => ({
+    it("lands a person on the devices when the offer made at sign-in says so, offering Ahora no", async () => {
+      const status: RegisterStatus = {
         conditions: [],
         cloud: "reachable",
-        serial_devices: { scale, reader },
-      });
-    }
-
-    function landingWith(
-      person: SignedInPerson,
-      overrides: Partial<RouterContext>,
-      path: RoutePath = "/",
-    ) {
-      return createRegisterRouter(
-        routeTree,
-        { ...contextWith("up", "enrolled", person), ...overrides },
-        path,
+        serial_devices: { scale: "not_registered", reader: "not_registered" },
+      };
+      const takeSerialDevicesOffer = vi.fn(
+        async (_person: SignedInPerson, readStatus: () => Promise<RegisterStatus>) =>
+          (await readStatus()) === status,
       );
-    }
-
-    it("lands a person who may configure the devices on them while neither is registered, offering Ahora no", async () => {
-      const router = landingWith(DEVICES_CONFIGURER, {
-        registerStatus: statusOf("not_registered", "not_registered"),
-      });
+      const router = createRegisterRouter(
+        routeTree,
+        {
+          ...contextWith("up", "enrolled", DEVICES_CONFIGURER),
+          registerStatus: async () => status,
+          takeSerialDevicesOffer,
+        },
+        "/",
+      );
 
       const screen = await render(<RouterProvider router={router} />);
 
       await expect.element(screenFor["/serial-devices"](screen)).toBeVisible();
       await expect.element(screen.getByRole("button", { name: "Ahora no" })).toBeVisible();
+      expect(takeSerialDevicesOffer).toHaveBeenCalledWith(DEVICES_CONFIGURER, expect.any(Function));
     });
 
-    it("dismisses the offer when the person chooses Ahora no", async () => {
-      const dismissSerialDevicesOffer = vi.fn();
-      const router = landingWith(DEVICES_CONFIGURER, {
-        registerStatus: statusOf("not_registered", "not_registered"),
-        dismissSerialDevicesOffer,
-      });
+    it("goes on to the main screen on Ahora no", async () => {
+      const router = createRegisterRouter(
+        routeTree,
+        contextWith("up", "enrolled", DEVICES_CONFIGURER),
+        "/serial-devices?offered=true",
+      );
       const screen = await render(<RouterProvider router={router} />);
 
       await userEvent.click(screen.getByRole("button", { name: "Ahora no" }));
-
-      expect(dismissSerialDevicesOffer).toHaveBeenCalledOnce();
-    });
-
-    it("goes on to the main screen once the offer is dismissed, offering it no more", async () => {
-      const router = landingWith(DEVICES_CONFIGURER, {
-        registerStatus: statusOf("not_registered", "not_registered"),
-        serialDevicesOfferDismissed: true,
-      });
-
-      const screen = await render(<RouterProvider router={router} />);
-
-      await expect.element(screenFor["/"](screen)).toBeVisible();
-      await userEvent.click(screen.getByRole("link", { name: "Balanza y lector" }));
-      await expect.element(screenFor["/serial-devices"](screen)).toBeVisible();
-      await expect
-        .element(screen.getByRole("button", { name: "Ahora no" }))
-        .not.toBeInTheDocument();
-    });
-
-    it.each([
-      { name: "the scale is registered", registerStatus: statusOf("matching", "not_registered") },
-      {
-        name: "the reader is registered",
-        registerStatus: statusOf("not_registered", "not_detected"),
-      },
-      { name: "the status cannot be read", registerStatus: async () => "unavailable" as const },
-    ])("goes on to the main screen when $name", async ({ registerStatus }) => {
-      const router = landingWith(DEVICES_CONFIGURER, { registerStatus });
-
-      const screen = await render(<RouterProvider router={router} />);
-
-      await expect.element(screenFor["/"](screen)).toBeVisible();
-    });
-
-    it("goes on to the main screen for a person who may not configure the devices", async () => {
-      const router = landingWith(PERSON, {
-        registerStatus: statusOf("not_registered", "not_registered"),
-      });
-
-      const screen = await render(<RouterProvider router={router} />);
 
       await expect.element(screenFor["/"](screen)).toBeVisible();
     });

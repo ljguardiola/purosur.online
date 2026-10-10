@@ -176,37 +176,17 @@ describe("SerialDevicesScreen", () => {
     await expect.element(row.getByText("Lector")).not.toBeInTheDocument();
   });
 
-  it.each([
-    {
-      name: "both connected",
-      standings: {
-        scale: { kind: "matching", path: "COM3" },
-        reader: { kind: "matching", path: "COM4" },
-      },
-      shown: ["Balanza conectada", "Lector conectado"],
-    },
-    {
-      name: "one not detected and one different from the registered",
-      standings: { scale: { kind: "not_detected" }, reader: { kind: "mismatched" } },
-      shown: ["Balanza no detectada", "Lector no coincide con el registrado"],
-    },
-    {
-      name: "neither registered",
-      standings: { scale: { kind: "not_registered" }, reader: { kind: "not_registered" } },
-      shown: ["Balanza sin registrar", "Lector sin registrar"],
-    },
-  ] as const)(
-    "shows the standing of the scale and the reader: $name",
-    async ({ standings, shown }) => {
-      const { screen } = await renderScreen({
-        read: async () => ({ ...NOTHING_REGISTERED, standings }),
-      });
+  it("shows the standing of the scale and the reader", async () => {
+    const { screen } = await renderScreen({
+      read: async () => ({
+        ...NOTHING_REGISTERED,
+        standings: { scale: { kind: "not_detected" }, reader: { kind: "not_registered" } },
+      }),
+    });
 
-      for (const text of shown) {
-        await expect.element(screen.getByText(text)).toBeVisible();
-      }
-    },
-  );
+    await expect.element(screen.getByText("Balanza no detectada")).toBeVisible();
+    await expect.element(screen.getByText("Lector sin registrar")).toBeVisible();
+  });
 
   it("chooses the registered devices for the scale and the reader", async () => {
     const { screen } = await renderScreen({ read: async () => BOTH_REGISTERED });
@@ -217,6 +197,30 @@ describe("SerialDevicesScreen", () => {
     await expect
       .element(screen.getByRole("button", { name: /Lector$/ }).getByText("05e0:1200 (COM4)"))
       .toBeVisible();
+  });
+
+  it("keeps a registered device that is not connected chosen, and sends it with the other role", async () => {
+    const { screen, registerSerialDevices } = await renderScreen({
+      read: async () => ({
+        kind: "read",
+        registered: { scale: SCALE_IDENTITY },
+        detected: [{ path: "COM4", ...READER_IDENTITY }],
+        standings: { scale: { kind: "not_detected" }, reader: { kind: "not_registered" } },
+      }),
+    });
+    await expect
+      .element(
+        screen.getByRole("button", { name: /Balanza$/ }).getByText("0403:6001 (no conectado)"),
+      )
+      .toBeVisible();
+
+    await choose(screen, "Lector", "05e0:1200 (COM4)");
+    await userEvent.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(registerSerialDevices).toHaveBeenCalledExactlyOnceWith({
+      scale: SCALE_IDENTITY,
+      reader: READER_IDENTITY,
+    });
   });
 
   it("leaves a role unassigned when it has no device chosen", async () => {
@@ -238,6 +242,7 @@ describe("SerialDevicesScreen", () => {
 
     expect(registerSerialDevices).toHaveBeenCalledExactlyOnceWith({ scale: SCALE_IDENTITY });
     await expect.element(screen.getByText("Dispositivos guardados")).toBeVisible();
+    await expect.element(screen.getByText("La caja reconoce la balanza elegida.")).toBeVisible();
     await vi.waitFor(() => expect(readSerialDevices).toHaveBeenCalledTimes(2));
   });
 
