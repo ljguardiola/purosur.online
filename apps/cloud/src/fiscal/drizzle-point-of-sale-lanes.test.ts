@@ -61,20 +61,24 @@ async function recordedAnswerKind(fiscalDocumentId: string) {
 }
 
 async function withFailingInvoicingEvidence(work: () => Promise<void>) {
-  await db.execute(sql`
-    create function refuse_invoicing_evidence() returns trigger language plpgsql as $$
-    begin
-      raise exception 'the evidence write broke';
-    end;
-    $$`);
-  await db.execute(sql`
-    create trigger refuse_invoicing_evidence before insert on arca_invoicing_evidence
-    for each row execute function refuse_invoicing_evidence()`);
+  await testDatabase.asMigrator(async () => {
+    await db.execute(sql`
+      create function refuse_invoicing_evidence() returns trigger language plpgsql as $$
+      begin
+        raise exception 'the evidence write broke';
+      end;
+      $$`);
+    await db.execute(sql`
+      create trigger refuse_invoicing_evidence before insert on arca_invoicing_evidence
+      for each row execute function refuse_invoicing_evidence()`);
+  });
   try {
     await work();
   } finally {
-    await db.execute(sql`drop trigger refuse_invoicing_evidence on arca_invoicing_evidence`);
-    await db.execute(sql`drop function refuse_invoicing_evidence()`);
+    await testDatabase.asMigrator(async () => {
+      await db.execute(sql`drop trigger refuse_invoicing_evidence on arca_invoicing_evidence`);
+      await db.execute(sql`drop function refuse_invoicing_evidence()`);
+    });
   }
 }
 
@@ -115,20 +119,24 @@ async function fiscalRejectedAlerts() {
 }
 
 async function withFailingAlertInsert(work: () => Promise<void>) {
-  await db.execute(sql`
-    create function refuse_alert() returns trigger language plpgsql as $$
-    begin
-      raise exception 'the alert write broke';
-    end;
-    $$`);
-  await db.execute(sql`
-    create trigger refuse_alert before insert on alerts
-    for each row execute function refuse_alert()`);
+  await testDatabase.asMigrator(async () => {
+    await db.execute(sql`
+      create function refuse_alert() returns trigger language plpgsql as $$
+      begin
+        raise exception 'the alert write broke';
+      end;
+      $$`);
+    await db.execute(sql`
+      create trigger refuse_alert before insert on alerts
+      for each row execute function refuse_alert()`);
+  });
   try {
     await work();
   } finally {
-    await db.execute(sql`drop trigger refuse_alert on alerts`);
-    await db.execute(sql`drop function refuse_alert()`);
+    await testDatabase.asMigrator(async () => {
+      await db.execute(sql`drop trigger refuse_alert on alerts`);
+      await db.execute(sql`drop function refuse_alert()`);
+    });
   }
 }
 
