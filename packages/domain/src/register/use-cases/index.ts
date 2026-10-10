@@ -76,6 +76,7 @@ export type {
   ReadReceiptPrinterAddressPorts,
 } from "./read-receipt-printer-address.js";
 export { readReceiptPrinterAddress } from "./read-receipt-printer-address.js";
+export type { ReceiptPrinterSettings } from "./receipt-printer-settings.js";
 export type {
   RecordCashMovementGrant,
   RecordCashMovementInput,
@@ -83,7 +84,6 @@ export type {
   RecordCashMovementPorts,
 } from "./record-cash-movement.js";
 export { recordCashMovement } from "./record-cash-movement.js";
-export type { ReceiptPrinterSettings } from "./receipt-printer-settings.js";
 export type {
   DeviceTokenIssuer,
   DeviceTokenRotationPorts,

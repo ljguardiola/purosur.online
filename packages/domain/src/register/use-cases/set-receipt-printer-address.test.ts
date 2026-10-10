@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { ReceiptPrinterAddress } from "../model/receipt-printer-address.js";
 import { setReceiptPrinterAddress } from "./set-receipt-printer-address.js";
-import { FakeReceiptPrinterSettings } from "./test-support/fake-receipt-printer-settings.js";
 import { granting, refusing } from "./test-support/fake-operation-authority.js";
+import { FakeReceiptPrinterSettings } from "./test-support/fake-receipt-printer-settings.js";
 
 const ADDRESS: ReceiptPrinterAddress = { host: "192.168.1.50", port: 9100 };
 const OTHER_ADDRESS: ReceiptPrinterAddress = { host: "printer.local", port: null };

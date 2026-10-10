@@ -52,6 +52,10 @@ export interface ReceiptPrinter {
   print(receipt: Uint8Array, watch: ReceiptPrintWatch): Promise<ReceiptPrintEnding>;
 }
 
+export interface ReceiptPrinters {
+  configured(): ReceiptPrinter | undefined;
+}
+
 export interface ReceiptPrintStandings {
   standingOf(saleId: string): ReceiptPrintStanding | null;
 }

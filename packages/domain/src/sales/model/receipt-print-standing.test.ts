@@ -3,8 +3,8 @@ import {
   mayRetryReceiptPrint,
   mayStartReceiptPrint,
   observePrintAcknowledged,
-  observePrinterStatus,
   observePrinterNotConfigured,
+  observePrinterStatus,
   observePrintFailed,
   RECEIPT_RETRY_DELAY_MS,
   type ReceiptPrintObservation,
@@ -148,9 +148,7 @@ describe("receiptPrintStanding", () => {
 
 describe("mayStartReceiptPrint", () => {
   it("allows a print once the previous one found no configured printer", () => {
-    expect(mayStartReceiptPrint(observePrinterNotConfigured(startedReceiptPrint()), T0)).toBe(
-      true,
-    );
+    expect(mayStartReceiptPrint(observePrinterNotConfigured(startedReceiptPrint()), T0)).toBe(true);
   });
 
   const inProgress = (ms: number): [ReceiptPrintObservation, Date] => [

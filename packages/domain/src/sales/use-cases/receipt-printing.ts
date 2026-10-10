@@ -4,7 +4,7 @@ import { nextReceiptCopy, type ReceiptCopy } from "../model/receipt-copy.js";
 import type {
   ReceiptLedger,
   ReceiptLedgerTransaction,
-  ReceiptPrinter,
+  ReceiptPrinters,
   ReceiptPrintWatch,
   ReceiptReason,
   ReceiptTemplate,
@@ -22,13 +22,14 @@ export interface ReceiptPrintingPorts<Grant extends ReceiptPrintGrant, Refusal> 
   clock: Clock;
   ids: IdGenerator;
   template: ReceiptTemplate;
-  printer: ReceiptPrinter;
+  printers: ReceiptPrinters;
   authority: OperationAuthority<Grant, Refusal>;
 }
 
 export type ReceiptPrintOutcome =
   | { kind: "not_found" }
   | { kind: "unavailable" }
+  | { kind: "printer_not_configured" }
   | { kind: "printed"; copy: ReceiptCopy }
   | { kind: "abandoned"; copy: ReceiptCopy };
 
@@ -51,12 +52,16 @@ export async function printReceipt<Grant extends ReceiptPrintGrant, Refusal>(
 }
 
 export async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
-  { ledger, clock, ids, template, printer }: ReceiptPrintingPorts<Grant, Refusal>,
+  { ledger, clock, ids, template, printers }: ReceiptPrintingPorts<Grant, Refusal>,
   grant: Grant,
   saleId: string,
   reasonOfDuplicate: ReceiptReason,
   watch: ReceiptPrintWatch,
 ): Promise<ReceiptPrintOutcome> {
+  const printer = printers.configured();
+  if (printer === undefined) {
+    return { kind: "printer_not_configured" };
+  }
   const recorded = ledger.transaction<Recorded | ReceiptPrintOutcome>((tx) => {
     const delivery = tx.receiptDelivery(saleId);
     if (delivery === undefined) {
