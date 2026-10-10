@@ -43,11 +43,23 @@ export {
   isIssuerIdentificationLegalNameTooLong,
   latestIssuerIdentification,
 } from "./model/issuer-identification.js";
+export type { Fortnight } from "./model/offline-authorization-code.js";
 export {
   fortnightAfter,
+  fortnightContaining,
   fortnightsWithinRequestWindowOn,
   isSecondHalfOfMonth,
 } from "./model/offline-authorization-code.js";
+export type {
+  OfflineNumberBlockRange,
+  OfflineNumberBlockStatus,
+} from "./model/offline-number-block.js";
+export {
+  nextOfflineNumber,
+  nextOfflineNumberBlock,
+  OFFLINE_NUMBER_BLOCK_SIZE,
+  OFFLINE_NUMBER_BLOCK_STATUSES,
+} from "./model/offline-number-block.js";
 export {
   isPointOfSaleNumber,
   POINT_OF_SALE_NUMBER_MAX,
