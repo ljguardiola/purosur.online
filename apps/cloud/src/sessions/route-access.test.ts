@@ -250,7 +250,10 @@ describe("the declared access, enforced before every handler", () => {
 
   it("grants a route declared with several capabilities to a user holding any one of them, and no other", async () => {
     const suppliersSessionId = await insertSession(
-      await insertUser(await insertRole("Proveedores", ["manage_suppliers"]), "suppliers@example.com"),
+      await insertUser(
+        await insertRole("Proveedores", ["manage_suppliers"]),
+        "suppliers@example.com",
+      ),
     );
     const purchasesSessionId = await insertSession(
       await insertUser(await insertRole("Compras", ["record_purchases"]), "purchases@example.com"),
