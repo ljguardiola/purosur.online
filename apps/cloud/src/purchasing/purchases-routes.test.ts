@@ -481,6 +481,24 @@ describe("GET /purchases", () => {
     expect(listed[0]?.lines[0]).toMatchObject({ costPaidCents: 900, unitCostCents: 900 });
   });
 
+  it("lists a purchase's lines in the order they were entered", async () => {
+    const { headers, userId } = await buyer();
+    const supplierId = await storedSupplier(userId);
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const arroz = await insertProduct(db, { name: "Arroz" });
+    await app.inject({
+      method: "POST",
+      url: "/purchases",
+      headers,
+      payload: bodyWith(supplierId, [quantityLine(yerba.productId), quantityLine(arroz.productId)]),
+    });
+
+    const response = await app.inject({ method: "GET", url: "/purchases", headers });
+
+    const [listed] = purchaseListSchema.parse(response.json());
+    expect(listed?.lines.map((line) => line.product.name)).toEqual(["Yerba", "Arroz"]);
+  });
+
   it("lists only the purchases of the session's branch", async () => {
     const { headers, userId } = await buyer();
     const supplierId = await storedSupplier(userId);

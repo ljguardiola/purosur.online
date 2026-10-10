@@ -138,6 +138,7 @@ describe("the purchases a purchasing store keeps", () => {
     const lines = await db.select().from(purchaseLines).orderBy(asc(purchaseLines.quantity));
     expect(lines).toMatchObject([
       {
+        position: 2,
         productId: harina.id,
         packagingId: null,
         packages: null,
@@ -146,6 +147,7 @@ describe("the purchases a purchasing store keeps", () => {
         quantityPerPackage: 1_000,
       },
       {
+        position: 1,
         productId: yerba.id,
         packagingId,
         packages: 2,

@@ -82,8 +82,8 @@ describe("the purchases and lots migration applied over a database that already 
       [supplierId, locationId, userId],
     );
     const purchaseLineId = await first(
-      `insert into purchase_lines (purchase_id, product_id, quantity, cost_paid_cents, quantity_per_package)
-       values ($1, $2, 1000, 500, 1000) returning id`,
+      `insert into purchase_lines (purchase_id, position, product_id, quantity, cost_paid_cents, quantity_per_package)
+       values ($1, 1, $2, 1000, 500, 1000) returning id`,
       [purchaseId, productId],
     );
     const insertReceipt = (reason: string | null, lineId: string | null) =>

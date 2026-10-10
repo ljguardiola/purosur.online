@@ -928,7 +928,7 @@ describe("purchases", () => {
     };
   }
 
-  const LINE = { quantity: 12_000, costPaidCents: 1_500, quantityPerPackage: 1_000 };
+  const LINE = { position: 1, quantity: 12_000, costPaidCents: 1_500, quantityPerPackage: 1_000 };
 
   it("keeps a purchase with no receipt number when it has no receipt", async () => {
     const { purchaseId } = await seedPurchase();
@@ -1004,6 +1004,7 @@ describe("purchases", () => {
       "purchase_lines_quantity_per_package_check",
     ],
     ["a quantity of zero", false, { quantity: 0 }, "purchase_lines_quantity_check"],
+    ["a position of zero", false, { position: 0 }, "purchase_lines_position_check"],
     ["a negative cost", false, { costPaidCents: -1 }, "purchase_lines_cost_paid_check"],
     [
       "packages without a packaging",
@@ -1030,6 +1031,18 @@ describe("purchases", () => {
         ...fields,
       }),
     ).rejects.toMatchObject({ cause: { constraint } });
+  });
+
+  it("keeps one line per position of a purchase", async () => {
+    const { purchaseId, productId } = await seedPurchase();
+    await db.insert(purchaseLines).values({ purchaseId, productId, ...LINE });
+
+    await expect(
+      db.insert(purchaseLines).values({ purchaseId, productId, ...LINE }),
+    ).rejects.toMatchObject({ cause: { constraint: "purchase_lines_purchase_id_position_key" } });
+    await expect(
+      db.insert(purchaseLines).values({ purchaseId, productId, ...LINE, position: 2 }),
+    ).resolves.toBeDefined();
   });
 
   it("rejects a packaging without its packages", async () => {

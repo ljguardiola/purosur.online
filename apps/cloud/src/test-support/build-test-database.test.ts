@@ -604,6 +604,7 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       .insert(purchaseLines)
       .values({
         purchaseId: purchase?.id as string,
+        position: 1,
         productId: product.id,
         quantity: 1000,
         costPaidCents: 500,

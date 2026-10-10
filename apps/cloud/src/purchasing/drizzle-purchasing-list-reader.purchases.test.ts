@@ -75,6 +75,7 @@ describe("DrizzlePurchasingListReader purchases", () => {
     await db.insert(purchaseLines).values([
       {
         purchaseId,
+        position: 1,
         productId: yerba.id,
         packagingId: packaging?.id as string,
         packages: 2,
@@ -86,6 +87,7 @@ describe("DrizzlePurchasingListReader purchases", () => {
       },
       {
         purchaseId,
+        position: 2,
         productId: harina.id,
         quantity: 2_500,
         costPaidCents: 1_000,
@@ -128,6 +130,21 @@ describe("DrizzlePurchasingListReader purchases", () => {
       lotNumber: null,
       expiresOn: null,
     });
+  });
+
+  it("lists the lines of a purchase in the order they were entered, not by product name", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const arroz = await insertProduct(db, { name: "Arroz" });
+    const purchaseId = await storedPurchase();
+    const line = { purchaseId, quantity: 1_000, costPaidCents: 500, quantityPerPackage: 1_000 };
+    await db.insert(purchaseLines).values([
+      { ...line, position: 2, productId: arroz.id },
+      { ...line, position: 1, productId: yerba.id },
+    ]);
+
+    const [listed] = await new DrizzlePurchasingListReader(db).purchases(locationId);
+
+    expect(listed?.lines.map((entry) => entry.product.name)).toEqual(["Yerba", "Arroz"]);
   });
 
   it("lists the most recently recorded purchase first, breaking a tie by id", async () => {
