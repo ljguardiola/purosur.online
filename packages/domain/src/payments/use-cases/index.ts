@@ -51,6 +51,7 @@ export type {
   PendingMercadoPagoQrPayment,
 } from "./mercado-pago-qr-charge-ports.js";
 export type {
+  MercadoPagoOrderCancellation,
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
   MercadoPagoOrders,

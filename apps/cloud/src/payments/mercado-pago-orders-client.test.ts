@@ -5,8 +5,8 @@ import type {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMercadoPagoOrdersClient } from "./mercado-pago-orders-client.js";
 import {
-  cannotCancelOrderError,
   canceledOrder,
+  cannotCancelOrderError,
   createdOrder,
   expiredOrder,
   failedOrder,

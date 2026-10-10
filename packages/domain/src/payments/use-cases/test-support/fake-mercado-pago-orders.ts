@@ -54,7 +54,10 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
     return this.readingsByOrder.get(orderId) ?? this.reading;
   }
 
-  async cancelOrder(orderId: string, idempotencyKey?: string): Promise<MercadoPagoOrderCancellation> {
+  async cancelOrder(
+    orderId: string,
+    idempotencyKey?: string,
+  ): Promise<MercadoPagoOrderCancellation> {
     this.lanes.operations.push("cancelOrder");
     this.cancellations.push({ orderId, idempotencyKey });
     this.observeLane();
