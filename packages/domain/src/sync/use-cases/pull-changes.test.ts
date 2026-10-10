@@ -26,8 +26,8 @@ function fakeChangeLog(changes: FakeLoggedChange[]): FakeChangeLog {
   return new FakeChangeLog(changes, { [DEVICE]: INSTALLED_REGISTER });
 }
 
-function pull(changeLog: FakeChangeLog, since: number) {
-  return pullChanges({ changeLog, clock: { now: () => NOW } }, { deviceId: DEVICE, since });
+function pull(changeLog: FakeChangeLog, since: number, now: Date = NOW) {
+  return pullChanges({ changeLog, clock: { now: () => now } }, { deviceId: DEVICE, since });
 }
 
 describe("pulling changes", () => {
@@ -117,5 +117,61 @@ describe("pulling changes", () => {
 
     await expect(pull(changeLog, 0)).rejects.toThrow("the change log could not be read");
     expect(changeLog.state.observedPulls).toEqual([]);
+  });
+
+  describe("the current fortnight's offline authorization code", () => {
+    const CURRENT_FORTNIGHT = { start: "2026-09-16", end: "2026-09-30" };
+
+    it("is requested when the cloud holds none for the fortnight the register is in", async () => {
+      const changeLog = fakeChangeLog([]);
+
+      await pull(changeLog, 0);
+
+      expect(changeLog.heldCodeQuestions).toEqual([CURRENT_FORTNIGHT]);
+      expect(changeLog.missingCodeRequests).toBe(1);
+    });
+
+    it("is not requested when the cloud holds it, since the same pull delivers it", async () => {
+      const changeLog = fakeChangeLog([]);
+      changeLog.heldOfflineCodeFortnights = [CURRENT_FORTNIGHT];
+
+      await pull(changeLog, 0);
+
+      expect(changeLog.missingCodeRequests).toBe(0);
+    });
+
+    it("is not considered held because the cloud holds another fortnight's code", async () => {
+      const changeLog = fakeChangeLog([]);
+      changeLog.heldOfflineCodeFortnights = [{ start: "2026-10-01", end: "2026-10-15" }];
+
+      await pull(changeLog, 0);
+
+      expect(changeLog.missingCodeRequests).toBe(1);
+    });
+
+    it("is requested first thing on a reconnection, after the pull is observed and before the changes are read", async () => {
+      const changeLog = fakeChangeLog(changesFor(BRANCH, 1, 2));
+
+      await pull(changeLog, 0);
+
+      expect(changeLog.operations).toEqual([
+        "recordObservedPull",
+        "holdsOfflineAuthorizationCodeFor",
+        "requestMissingOfflineAuthorizationCode",
+        "pullingRegister",
+        "changesAfter",
+      ]);
+    });
+
+    it.each([
+      ["2026-10-16T01:00:00.000Z", { start: "2026-10-01", end: "2026-10-15" }],
+      ["2026-10-16T03:00:00.000Z", { start: "2026-10-16", end: "2026-10-31" }],
+    ])("is the one of the Argentina calendar day of %s", async (now, fortnight) => {
+      const changeLog = fakeChangeLog([]);
+
+      await pull(changeLog, 0, new Date(now));
+
+      expect(changeLog.heldCodeQuestions).toEqual([fortnight]);
+    });
   });
 });

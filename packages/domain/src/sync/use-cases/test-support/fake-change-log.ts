@@ -1,3 +1,4 @@
+import type { Fortnight } from "../../../fiscal/index.js";
 import type {
   PullAudience,
   PulledEntity,
@@ -43,6 +44,10 @@ export class FakeChangeLog implements ChangeLog<FakeLoggedChange> {
   state: FakeChangeLogState;
   readRequests: { audience: PullAudience; since: number; limit: number }[] = [];
   failReading = false;
+  heldOfflineCodeFortnights: Fortnight[] = [];
+  heldCodeQuestions: Fortnight[] = [];
+  missingCodeRequests = 0;
+  operations: string[] = [];
   private readonly installedRegisters: Readonly<Record<string, PullingRegister>>;
 
   constructor(
@@ -59,10 +64,21 @@ export class FakeChangeLog implements ChangeLog<FakeLoggedChange> {
     const working = structuredClone(this.state);
     const outcome = await work({
       recordObservedPull: async (deviceId, since, at) => {
+        this.operations.push("recordObservedPull");
         working.observedPulls = working.observedPulls.filter((pull) => pull.deviceId !== deviceId);
         working.observedPulls.push({ deviceId, since, at });
       },
+      holdsOfflineAuthorizationCodeFor: async (fortnight) => {
+        this.operations.push("holdsOfflineAuthorizationCodeFor");
+        this.heldCodeQuestions.push(fortnight);
+        return this.heldOfflineCodeFortnights.some((held) => held.start === fortnight.start);
+      },
+      requestMissingOfflineAuthorizationCode: async () => {
+        this.operations.push("requestMissingOfflineAuthorizationCode");
+        this.missingCodeRequests += 1;
+      },
       pullingRegister: async (deviceId) => {
+        this.operations.push("pullingRegister");
         const register = this.installedRegisters[deviceId];
         if (register === undefined) {
           throw new Error("the device is installed in no register");
@@ -70,6 +86,7 @@ export class FakeChangeLog implements ChangeLog<FakeLoggedChange> {
         return register;
       },
       changesAfter: async (audience, since, limit) => {
+        this.operations.push("changesAfter");
         this.readRequests.push({ audience, since, limit });
         if (this.failReading) {
           throw new Error("the change log could not be read");
