@@ -15,7 +15,7 @@ import {
   LoadFailure,
   LoadingPlaceholder,
   LocalAlertExplanation,
-  localAlertText,
+  localAlertTitle,
   Modal,
   plural,
   StatusIndicator,
@@ -234,14 +234,10 @@ function offlineAuthorizationCodeMissingDescription({
   return `La quincena empieza el ${formatCalendarDay(detail.fortnightStart)}. Sin el CAEA, si ARCA no responde, la caja no puede emitir facturas y las ventas quedan diferidas. Hay que conectarla a internet hoy.`;
 }
 
-function localTextOf(alert: AlertDetail) {
-  return alert.audience === "local" ? localAlertText(alert.kind) : undefined;
-}
-
 function alertTitle(alert: AlertDetail): string {
-  const local = localTextOf(alert);
-  if (local !== undefined) {
-    return local.title;
+  const localTitle = alert.audience === "local" ? localAlertTitle(alert.kind) : undefined;
+  if (localTitle !== undefined) {
+    return localTitle;
   }
   switch (alert.kind) {
     case "backoffice_passkey_changed":
@@ -378,6 +374,9 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
   }
   if (alert.audience !== "local" || !isLocalAlertKind(alert.kind)) {
     return <p className="text-text text-body">{alertDescription(alert)}</p>;
+  }
+  if (alert.kind === "sales_denied") {
+    return <LocalAlertExplanation kind={alert.kind} reason={alert.detail.reason} />;
   }
   return <LocalAlertExplanation kind={alert.kind} />;
 }

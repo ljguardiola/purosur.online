@@ -190,8 +190,13 @@ export type {
 } from "./messages/help";
 export { defineHelp } from "./messages/help";
 export { searchArticles } from "./messages/help-search";
-export type { LocalAlertKind, LocalAlertText } from "./messages/local-alert-texts";
-export { isLocalAlertKind, localAlertText } from "./messages/local-alert-texts";
+export type {
+  LocalAlertKind,
+  LocalAlertSubject,
+  LocalAlertText,
+  LocalSalesDeniedReason,
+} from "./messages/local-alert-texts";
+export { isLocalAlertKind, localAlertText, localAlertTitle } from "./messages/local-alert-texts";
 export type { LocaleProviderProps } from "./messages/locale-provider";
 export { LocaleProvider } from "./messages/locale-provider";
 export { parseAmountCents, parseEsArNumber, parseWeightThousandths } from "./messages/parsers";

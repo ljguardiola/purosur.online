@@ -1,6 +1,6 @@
 import type { AlertsOverview } from "@purosur/contracts";
 import type { AlertLevel } from "@purosur/domain";
-import { CountCard, localAlertText, sortedItems, textOrder } from "@purosur/ui";
+import { CountCard, localAlertTitle, sortedItems, textOrder } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
 import { alertKindLabel } from "./alert-kind-label";
 import { ALERT_LEVEL_TONE } from "./alert-level-tone";
@@ -16,7 +16,7 @@ const LEVEL_CARD_LABELS: Record<AlertLevel, string> = {
 };
 
 function kindsDetail(kinds: readonly string[]): string {
-  const labels = kinds.map((kind) => localAlertText(kind)?.title ?? alertKindLabel(kind));
+  const labels = kinds.map((kind) => localAlertTitle(kind) ?? alertKindLabel(kind));
   return sortedItems(labels, {
     order: textOrder((label) => label),
     direction: "ascending",
