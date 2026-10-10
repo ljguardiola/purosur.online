@@ -139,7 +139,7 @@ describe("QrPaymentWaitModal", () => {
     expect(callbacks.onSaleUnavailable).not.toHaveBeenCalled();
   });
 
-  it("offers only Reintentar when the core cannot tell how the payment goes, since its wait may still run", async () => {
+  it("offers Reintentar and Cobrar con otro medio when the core cannot tell how the payment goes", async () => {
     const { screen } = await renderModal(answering({ kind: "unavailable" }));
 
     await expect.element(screen.getByText("No se pudo consultar el pago del QR")).toBeVisible();
@@ -149,7 +149,19 @@ describe("QrPaymentWaitModal", () => {
         .getByRole("button")
         .elements()
         .map((button) => button.textContent),
-    ).toEqual(["Reintentar"]);
+    ).toEqual(["Reintentar", "Cobrar con otro medio"]);
+  });
+
+  it("abandons the order from Cobrar con otro medio when the core cannot tell how the payment goes", async () => {
+    const { screen, abandonCharge, callbacks } = await renderModal(
+      answering({ kind: "unavailable" }),
+    );
+
+    await expect.element(screen.getByText("No se pudo consultar el pago del QR")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+
+    await expect.poll(() => callbacks.onCancelled.mock.calls.length).toBe(1);
+    expect(abandonCharge).toHaveBeenCalledExactlyOnceWith(PAYMENT_ID);
   });
 
   it("loads the time left again from its placeholder after Reintentar, not from the time the order was shown with", async () => {
@@ -487,6 +499,34 @@ describe("QrPaymentWaitModal", () => {
     expect(callbacks.onCancelled).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+
+    await expect.poll(() => callbacks.onCancelled.mock.calls.length).toBe(1);
+    expect(abandonCharge).toHaveBeenCalledTimes(2);
+  });
+
+  it("says the order could not be cancelled from the Elegir otro medio of a wait that ran out, and lets the cashier try again", async () => {
+    const answers: AbandonMercadoPagoQrChargeOutcome[] = [
+      { kind: "unavailable" },
+      { kind: "cancelled" },
+    ];
+    const { screen, abandonCharge, callbacks } = await renderModal(
+      answering({ kind: "wait_over" }),
+      ORDER,
+      async () => answers.shift() ?? { kind: "cancelled" },
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
+    await expect
+      .element(
+        screen
+          .getByText("No se pudo cancelar la orden QR. Volvé a intentarlo en unos segundos.")
+          .first(),
+      )
+      .toBeVisible();
+    expect(callbacks.onCancelled).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
 
     await expect.poll(() => callbacks.onCancelled.mock.calls.length).toBe(1);
     expect(abandonCharge).toHaveBeenCalledTimes(2);
