@@ -41,7 +41,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
     await expect
       .element(screen.getByText("El cliente escanea el QR · requiere internet"))
       .not.toBeInTheDocument();
-    screen.getByText("QR de Mercado Pago", { exact: true }).element().click();
+    await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }), { force: true });
     await expect
       .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
       .toBeVisible();
