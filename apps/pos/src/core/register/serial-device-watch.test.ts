@@ -7,7 +7,10 @@ const READER = { vendorId: "26f1", productId: "8802" };
 const STRANGER = { vendorId: "0403", productId: "6001" };
 const INTERVAL_MS = 3000;
 
-function setup(initial: { registered?: RegisteredSerialDevices; detected?: DetectedSerialDevice[] }) {
+function setup(initial: {
+  registered?: RegisteredSerialDevices;
+  detected?: DetectedSerialDevice[];
+}) {
   const world = {
     registered: initial.registered ?? { scale: SCALE, reader: READER },
     detected: initial.detected ?? [],

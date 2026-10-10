@@ -77,4 +77,5 @@ export type {
 export {
   isSerialDeviceMissing,
   SERIAL_DEVICE_ROLES,
+  serialDeviceStandings,
 } from "./model/serial-devices.js";

@@ -377,6 +377,7 @@ export {
   registerNameLength,
   registerOperationAccess,
   SERIAL_DEVICE_ROLES,
+  serialDeviceStandings,
 } from "./register/index.js";
 export type {
   LinePromotion,
