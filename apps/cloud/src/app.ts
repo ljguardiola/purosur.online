@@ -75,6 +75,7 @@ import type { EnqueueTaxAuthorityCount } from "./fiscal/graphile-tax-authority-c
 import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identification-edit-route.js";
 import type { IssuerIdentificationRouteOptions } from "./fiscal/issuer-identification-read-route.js";
 import { registerIssuerIdentificationReadRoute } from "./fiscal/issuer-identification-read-route.js";
+import { registerRegisterOfflinePointOfSaleConfigurationRoute } from "./fiscal/register-offline-point-of-sale-configuration-route.js";
 import { registerRegisterPointOfSaleConfigurationRoute } from "./fiscal/register-point-of-sale-configuration-route.js";
 import type { RegistersPointsOfSaleRouteOptions } from "./fiscal/registers-points-of-sale-list-route.js";
 import { registerRegistersPointsOfSaleListRoute } from "./fiscal/registers-points-of-sale-list-route.js";
@@ -521,6 +522,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       if (options.registersPointsOfSale) {
         registerRegistersPointsOfSaleListRoute(api, { ...options.registersPointsOfSale, now });
         registerRegisterPointOfSaleConfigurationRoute(api, {
+          ...options.registersPointsOfSale,
+          now,
+        });
+        registerRegisterOfflinePointOfSaleConfigurationRoute(api, {
           ...options.registersPointsOfSale,
           now,
         });

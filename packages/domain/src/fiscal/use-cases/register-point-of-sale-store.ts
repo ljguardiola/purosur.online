@@ -1,3 +1,7 @@
+import type { PointOfSaleHolder, PointOfSaleMechanism } from "../model/point-of-sale.js";
+
+export type { PointOfSaleHolder };
+
 export interface RegisterPointOfSale {
   pointOfSaleNumber: number | null;
   fiscalAddressId: string | null;
@@ -7,6 +11,8 @@ export interface RegisterPointOfSale {
 export interface BranchRegisterPointOfSale extends RegisterPointOfSale {
   registerId: string;
   registerName: string;
+  offlinePointOfSaleNumber: number | null;
+  offlineVersion: number;
 }
 
 export interface RegisterPointOfSaleReader {
@@ -16,6 +22,7 @@ export interface RegisterPointOfSaleReader {
 export interface PointOfSaleClaim {
   pointOfSaleNumber: number;
   registerId: string;
+  mechanism: PointOfSaleMechanism;
   actorId: string;
 }
 
@@ -42,7 +49,7 @@ export interface RegisterPointOfSaleStoreTransaction {
   lockBranchRegister(locationId: string, registerId: string): Promise<LockBranchRegisterResult>;
   lockRegisterPointOfSale(registerId: string): Promise<RegisterPointOfSale>;
   fiscalAddressExists(fiscalAddressId: string): Promise<boolean>;
-  lockPointOfSaleClaim(pointOfSaleNumber: number): Promise<string | undefined>;
+  lockPointOfSaleClaim(pointOfSaleNumber: number): Promise<PointOfSaleHolder | undefined>;
   claimPointOfSale(claim: PointOfSaleClaim): Promise<void>;
   recordRegisterPointOfSale(record: RegisterPointOfSaleRecord): Promise<void>;
 }

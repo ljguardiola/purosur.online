@@ -72,6 +72,7 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
         this.database.prepare("DELETE FROM remembered_users").run();
         this.database.prepare("DELETE FROM own_register").run();
         this.database.prepare("DELETE FROM register_point_of_sale").run();
+        this.database.prepare("DELETE FROM register_offline_point_of_sale").run();
         this.database.prepare("DELETE FROM branch_settings").run();
       }
     })();
@@ -163,6 +164,9 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
             break;
           case "register_point_of_sale":
             register.pointOfSale(change);
+            break;
+          case "register_offline_point_of_sale":
+            register.offlinePointOfSale(change);
             break;
           case "discount":
             discount.save(change);

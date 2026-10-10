@@ -51,6 +51,7 @@ import {
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
   registerInstallations,
+  registerOfflinePointsOfSale,
   registerPointsOfSale,
   registerSnapshotKeys,
   registers,
@@ -261,13 +262,27 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
     if (!fiscalAddress) {
       throw new Error("seeding fiscal addresses returned no row");
     }
-    await db
-      .insert(pointOfSaleClaims)
-      .values({ pointOfSaleNumber: 3, registerId: register.id, claimedBy: user.id });
+    await db.insert(pointOfSaleClaims).values({
+      pointOfSaleNumber: 3,
+      registerId: register.id,
+      mechanism: "real_time",
+      claimedBy: user.id,
+    });
     await db.insert(registerPointsOfSale).values({
       registerId: register.id,
       pointOfSaleNumber: 3,
       fiscalAddressId: fiscalAddress.id,
+      version: 1,
+    });
+    await db.insert(pointOfSaleClaims).values({
+      pointOfSaleNumber: 4,
+      registerId: register.id,
+      mechanism: "offline",
+      claimedBy: user.id,
+    });
+    await db.insert(registerOfflinePointsOfSale).values({
+      registerId: register.id,
+      pointOfSaleNumber: 4,
       version: 1,
     });
     await db.insert(registerEnrollmentCodes).values({

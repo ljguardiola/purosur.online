@@ -8,9 +8,10 @@ import type { AlertKind } from "./alert-catalog.js";
 import { isRegisterQuiet } from "./quiet-register.js";
 
 export const REGISTER_OWN_CONDITIONS = [
+  "installation_revoked",
   "sales_denied",
   "register_silent",
-] as const satisfies readonly AlertKind[];
+] as const satisfies readonly (AlertKind | "installation_revoked")[];
 
 export type RegisterOwnCondition = (typeof REGISTER_OWN_CONDITIONS)[number];
 
@@ -27,10 +28,12 @@ export function registerOwnConditions({
   hours,
   now,
 }: RegisterOwnStanding): RegisterOwnCondition[] {
+  const revoked = isInstallationRevoked(salesStop);
   const held: Record<RegisterOwnCondition, boolean> = {
+    installation_revoked: revoked,
     sales_denied: salesDeniedReportOf(salesStop).sales_denied === true,
     register_silent:
-      !isInstallationRevoked(salesStop) &&
+      !revoked &&
       lastAcceptedPushAt !== null &&
       isRegisterQuiet({ lastSuccessfulSyncAt: lastAcceptedPushAt, hours, now }),
   };

@@ -132,7 +132,7 @@ export function EditRegisterPointOfSaleModal({
         return;
       }
       if (outcome.kind === "point_of_sale_taken") {
-        showFieldError("pointOfSaleNumber", "Ese punto de venta ya es de otra caja.");
+        showFieldError("pointOfSaleNumber", "Ese punto de venta ya está asignado.");
         return;
       }
       if (outcome.kind === "stale_version") {

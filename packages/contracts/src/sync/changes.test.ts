@@ -81,6 +81,8 @@ const issuerIdentificationRow = {
   version: 2,
 };
 
+const offlinePointOfSaleRow = { point_of_sale_number: 20, version: 1 };
+
 const pointOfSaleRow = {
   point_of_sale_number: 12,
   fiscal_address_id: ENTITY_ID,
@@ -242,6 +244,10 @@ describe("changesPageSchema", () => {
         tax_authority_last_authorized_number: 0,
       }),
     ],
+    [
+      "the offline point of sale of a register",
+      change(1, "register_offline_point_of_sale", offlinePointOfSaleRow),
+    ],
     ["a set of buyer tax statuses", change(1, "buyer_tax_status_set", taxStatusSetRow)],
     ["a discount", change(1, "discount", discountRow)],
     ["a discount that applies every day", change(1, "discount", { ...discountRow, weekdays: [] })],
@@ -354,6 +360,11 @@ describe("changesPageSchema", () => {
     ["a buyer-identification threshold", "buyer_identification_threshold", thresholdRow],
     ["a set of buyer tax statuses", "buyer_tax_status_set", taxStatusSetRow],
     ["the point of sale of a register", "register_point_of_sale", pointOfSaleRow],
+    [
+      "the offline point of sale of a register",
+      "register_offline_point_of_sale",
+      offlinePointOfSaleRow,
+    ],
   ])("keeps nothing of %s but the fields a register may hold", (_case, entity, row) => {
     const page = pageOf(change(1, entity, { ...row, location_id: ENTITY_ID }));
 
@@ -540,6 +551,28 @@ describe("changesPageSchema", () => {
     [
       "a point of sale of version zero",
       pageOf(change(1, "register_point_of_sale", { ...pointOfSaleRow, version: 0 })),
+    ],
+    [
+      "an offline point of sale outside the numbers the tax authority allows",
+      pageOf(
+        change(1, "register_offline_point_of_sale", {
+          ...offlinePointOfSaleRow,
+          point_of_sale_number: 100000,
+        }),
+      ),
+    ],
+    [
+      "an offline point of sale of a register never configured",
+      pageOf(
+        change(1, "register_offline_point_of_sale", {
+          ...offlinePointOfSaleRow,
+          point_of_sale_number: null,
+        }),
+      ),
+    ],
+    [
+      "an offline point of sale of version zero",
+      pageOf(change(1, "register_offline_point_of_sale", { ...offlinePointOfSaleRow, version: 0 })),
     ],
     [
       "a tax-status set without its version",

@@ -49,13 +49,14 @@ export async function configureRegisterPointOfSale(
       }
 
       const holder = await tx.lockPointOfSaleClaim(input.pointOfSaleNumber);
-      if (!mayRegisterClaimPointOfSale(holder, input.registerId)) {
+      if (!mayRegisterClaimPointOfSale(holder, input.registerId, "real_time")) {
         return { kind: "point_of_sale_taken" };
       }
       if (holder === undefined) {
         await tx.claimPointOfSale({
           pointOfSaleNumber: input.pointOfSaleNumber,
           registerId: input.registerId,
+          mechanism: "real_time",
           actorId: input.actorId,
         });
       }

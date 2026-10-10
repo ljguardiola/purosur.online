@@ -26,6 +26,8 @@ function toOverviewWire(setup: BranchRegisterPointOfSale) {
     point_of_sale_number: setup.pointOfSaleNumber,
     fiscal_address_id: setup.fiscalAddressId,
     version: setup.version,
+    offline_point_of_sale_number: setup.offlinePointOfSaleNumber,
+    offline_version: setup.offlineVersion,
   };
 }
 

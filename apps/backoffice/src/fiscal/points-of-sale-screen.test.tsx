@@ -15,6 +15,7 @@ function createServices(
     fetchRegisterPointsOfSale: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     configureRegisterPointOfSale: vi.fn(),
+    configureRegisterOfflinePointOfSale: vi.fn(),
     createFiscalAddress: vi.fn(),
     editFiscalAddress: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
@@ -44,6 +45,8 @@ const configuredRegister: RegisterPointOfSale = {
   pointOfSaleNumber: 12,
   fiscalAddressId: depot.id,
   version: 2,
+  offlinePointOfSaleNumber: 13,
+  offlineVersion: 4,
 };
 
 const pendingRegister: RegisterPointOfSale = {
@@ -52,6 +55,8 @@ const pendingRegister: RegisterPointOfSale = {
   pointOfSaleNumber: null,
   fiscalAddressId: null,
   version: 0,
+  offlinePointOfSaleNumber: null,
+  offlineVersion: 0,
 };
 
 function deferred<T>() {
@@ -94,16 +99,18 @@ test("shows each register with its point of sale padded to five digits and its f
   await expect.element(screen.getByRole("heading", { name: "Caja 1", level: 2 })).toBeVisible();
   await expect.element(screen.getByText("Punto de venta", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("00012")).toBeVisible();
+  await expect.element(screen.getByText("Punto de venta CAEA", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("00013")).toBeVisible();
   await expect.element(screen.getByText("Domicilio fiscal", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Depósito Central").first()).toBeVisible();
 });
 
-test("shows Sin configurar for both values of a register without a point of sale", async () => {
+test("shows Sin configurar for the three values of a register without a point of sale", async () => {
   const screen = await renderScreen(serving([pendingRegister], [depot]));
 
   await expect.element(screen.getByRole("heading", { name: "Caja 2", level: 2 })).toBeVisible();
   await expect.element(screen.getByText("Sin configurar").first()).toBeVisible();
-  expect(screen.getByText("Sin configurar").elements()).toHaveLength(2);
+  expect(screen.getByText("Sin configurar").elements()).toHaveLength(3);
 });
 
 test("shows the empty state when the branch has no registers", async () => {
@@ -124,9 +131,9 @@ test("shows a placeholder while the registers load, with Editar disabled", async
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Cargando…").first()).toBeVisible();
-  expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Editar", exact: true }).query()).toBeNull();
   pending.resolve({ kind: "ok", value: [configuredRegister] });
-  await expect.element(screen.getByRole("button", { name: "Editar" })).toBeEnabled();
+  await expect.element(screen.getByRole("button", { name: "Editar", exact: true })).toBeEnabled();
 });
 
 test("shows a load failure for the registers, and Reintentar loads them again", async () => {
@@ -207,13 +214,41 @@ test("Editar opens the register's modal with its number and fiscal address", asy
   const screen = await renderScreen(serving([configuredRegister], [depot, shop]));
   await expect.element(screen.getByText("00012")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  await userEvent.click(screen.getByRole("button", { name: "Editar", exact: true }));
 
   const dialog = screen.getByRole("dialog", { name: "Caja 1" });
   await expect.element(dialog.getByRole("textbox", { name: /^Punto de venta/ })).toHaveValue("12");
   await expect
     .element(dialog.getByRole("button", { name: /Domicilio fiscal/ }))
     .toHaveTextContent("Depósito Central");
+});
+
+test("Editar CAEA opens the register's offline point of sale modal, and saving reads the lists again and announces it", async () => {
+  const services = serving([configuredRegister], [depot]);
+  vi.mocked(services.fetchRegisterPointsOfSale)
+    .mockResolvedValueOnce({ kind: "ok", value: [configuredRegister] })
+    .mockResolvedValue({
+      kind: "ok",
+      value: [{ ...configuredRegister, offlinePointOfSaleNumber: 8, offlineVersion: 5 }],
+    });
+  vi.mocked(services.configureRegisterOfflinePointOfSale).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar CAEA" }));
+  const dialog = screen.getByRole("dialog", { name: "Caja 1" });
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Punto de venta CAEA/ }))
+    .toHaveValue("13");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Punto de venta CAEA/ }), "8");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  expect(services.configureRegisterOfflinePointOfSale).toHaveBeenCalledWith("register-1", {
+    point_of_sale_number: 8,
+    version: 4,
+  });
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("00008")).toBeVisible();
+  await expect.element(screen.getByText("Punto de venta CAEA guardado")).toBeVisible();
 });
 
 test("saving a register's point of sale reads both lists again and announces it", async () => {
@@ -226,7 +261,7 @@ test("saving a register's point of sale reads both lists again and announces it"
     });
   vi.mocked(services.configureRegisterPointOfSale).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
-  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  await userEvent.click(screen.getByRole("button", { name: "Editar", exact: true }));
   const dialog = screen.getByRole("dialog", { name: "Caja 1" });
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Punto de venta/ }), "7");
 
