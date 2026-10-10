@@ -465,7 +465,7 @@ describe("chargeSaleInCash", () => {
       charge(store, 11250);
 
       expect(store.state.stockMovements).toEqual([
-        { id: "id-5", saleLineId: "line-4", productId: "queso", delta: -1250, occurredAt: NOW },
+        { id: "id-4", saleLineId: "line-4", productId: "queso", delta: -1250, occurredAt: NOW },
       ]);
       expect(store.state.stockBalances).toEqual({ queso: 3750 });
     });
