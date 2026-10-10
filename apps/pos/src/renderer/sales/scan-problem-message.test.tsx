@@ -20,6 +20,11 @@ describe("ScanProblemMessage", () => {
       title: "No se pudo buscar el producto",
       help: "Probá escribirlo de nuevo.",
     },
+    {
+      problem: { kind: "weight_change_failed" },
+      title: "No se pudo cambiar el peso",
+      help: "Probá de nuevo.",
+    },
   ])(
     "tells what failed and how to try again when $problem.kind",
     async ({ problem, title, help }) => {

@@ -268,7 +268,7 @@ describe("SaleScreen changing the weight of a line", () => {
 
     await typeNewWeight(screen, "1");
 
-    await expect.element(screen.getByText("No se pudo cambiar la cantidad")).toBeVisible();
+    await expect.element(screen.getByText("No se pudo cambiar el peso")).toBeVisible();
     await expect
       .element(screen.getByRole("heading", { name: "Cambiar el peso de Queso cremoso" }))
       .not.toBeInTheDocument();
