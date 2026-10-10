@@ -70,6 +70,10 @@ function toPendingQrPayment(row: PendingQrPaymentRow): PendingQrSalePayment {
   return {
     id: row.id,
     saleId: row.sale_id,
+    kind: "SALE",
+    method: "QR",
+    provider: "MERCADOPAGO_QR",
+    state: "PENDING",
     amount: row.amount,
     occurredAt: new Date(row.occurred_at),
     waitEndsAt: new Date(row.wait_ends_at),

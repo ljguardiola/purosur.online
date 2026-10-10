@@ -194,7 +194,7 @@ export {
   thresholdScheduledAfter,
 } from "./fiscal/index.js";
 export type {
-  MercadoPagoQrOrderRecord,
+  MercadoPagoQrOrderTransaction,
   MercadoPagoQrPaymentTransaction,
   PaymentMethod,
   PaymentTransaction,

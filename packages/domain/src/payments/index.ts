@@ -27,7 +27,7 @@ export {
   refundsSettleApprovedPayments,
 } from "./model/payment-refund.js";
 export type {
-  MercadoPagoQrOrderRecord,
+  MercadoPagoQrOrderTransaction,
   MercadoPagoQrPaymentTransaction,
   PaymentTransaction,
   PaymentTransactionState,
