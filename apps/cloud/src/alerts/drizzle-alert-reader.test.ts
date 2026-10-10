@@ -52,6 +52,7 @@ async function insertAlert(
     locationId?: string;
     openedAt?: Date;
     resolvedAt?: Date | null;
+    detail?: Record<string, unknown>;
   } = {},
 ): Promise<string> {
   const audience = input.audience ?? "all";
@@ -64,7 +65,7 @@ async function insertAlert(
       level: input.level ?? "warning",
       audience,
       locationId: audience === "local" ? (input.locationId ?? ownLocationId) : null,
-      detail: {},
+      detail: input.detail ?? {},
       openedAt: input.openedAt ?? NOON,
       resolvedAt: input.resolvedAt ?? null,
     })
@@ -190,6 +191,35 @@ describe("DrizzleAlertReader listVisibleAlerts", () => {
     expect(first.alerts).toHaveLength(25);
     expect(second.alerts).toHaveLength(2);
     expect(first.alerts[0]?.openedAt).toEqual(new Date(NOON.getTime() + 26_000));
+  });
+
+  it("reads the reason a register can't sell from the stored detail, and none for another kind or a stored reason no longer listed", async () => {
+    const damagedId = await insertAlert({
+      kind: "sales_denied",
+      audience: "local",
+      detail: { reason: "local_database_damaged" },
+    });
+    const unlistedId = await insertAlert({
+      kind: "sales_denied",
+      audience: "local",
+      detail: { reason: "something_new" },
+    });
+    const otherId = await insertAlert({
+      kind: "register_silent",
+      audience: "local",
+      detail: { reason: "local_database_damaged" },
+    });
+
+    const { alerts: listed } = await new DrizzleAlertReader(db).listVisibleAlerts(ALL, {}, 1);
+    const reasons = new Map(listed.map((alert) => [alert.id, alert.salesDeniedReason]));
+
+    expect(reasons).toEqual(
+      new Map([
+        [damagedId, "local_database_damaged"],
+        [unlistedId, null],
+        [otherId, null],
+      ]),
+    );
   });
 
   it("filters by level and by open or closed", async () => {

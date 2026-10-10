@@ -101,6 +101,7 @@ async function insertAlert(input: {
   locationId?: string | null;
   resolvedAt?: Date | null;
   openedAt?: Date;
+  detail?: Record<string, unknown>;
 }): Promise<string> {
   const [row] = await db
     .insert(alerts)
@@ -110,7 +111,7 @@ async function insertAlert(input: {
       level: input.level ?? "warning",
       audience: input.audience,
       locationId: input.audience === "local" ? (input.locationId ?? ownLocationId) : null,
-      detail: {},
+      detail: input.detail ?? {},
       openedAt: input.openedAt ?? NOON,
       resolvedAt: input.resolvedAt ?? null,
     })
@@ -140,7 +141,13 @@ function getAlerts(rawSessionId: string | undefined, query = "") {
 }
 
 interface ListBody {
-  alerts: { id: string; kind: string; scope: string | null; scopeDisplay: string | null }[];
+  alerts: {
+    id: string;
+    kind: string;
+    scope: string | null;
+    scopeDisplay: string | null;
+    salesDeniedReason: string | null;
+  }[];
   total: number;
   pageSize: number;
   openCount: number;
@@ -203,6 +210,42 @@ describe("GET /alerts", () => {
     expect(response.statusCode).toBe(200);
     const body = listBody(response).alerts;
     expect(body.map((row) => row.id)).toEqual([ownLocalAlertId]);
+  });
+
+  it("tells why a register can't sell, and nothing for another kind of alert", async () => {
+    const roleId = await insertRole(["view_all_alerts"]);
+    const userId = await insertUserWithRole(roleId);
+    const rawSessionId = await insertSession(userId);
+    const brokenId = await insertAlert({
+      kind: "sales_denied",
+      scope: "register-a",
+      audience: "local",
+      detail: { reason: "event_history_broken" },
+    });
+    const damagedId = await insertAlert({
+      kind: "sales_denied",
+      scope: "register-b",
+      audience: "local",
+      detail: { reason: "local_database_damaged" },
+    });
+    const otherId = await insertAlert({
+      kind: "register_silent",
+      scope: "register-c",
+      audience: "local",
+      detail: { reason: "local_database_damaged" },
+    });
+
+    const response = await getAlerts(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    const reasons = new Map(listBody(response).alerts.map((row) => [row.id, row.salesDeniedReason]));
+    expect(reasons).toEqual(
+      new Map([
+        [brokenId, "event_history_broken"],
+        [damagedId, "local_database_damaged"],
+        [otherId, null],
+      ]),
+    );
   });
 
   it("filters by level", async () => {

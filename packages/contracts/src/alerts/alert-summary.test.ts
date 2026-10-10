@@ -11,6 +11,7 @@ const passkeyChange = {
   openedAt: "2026-05-04T13:10:00.000Z",
   escalatedAt: null,
   resolvedAt: null,
+  salesDeniedReason: null,
 };
 const closedLockout = {
   ...passkeyChange,
@@ -35,6 +36,15 @@ describe("alertSummarySchema", () => {
   it("accepts an open alert and a closed one without a scope", () => {
     expect(alertSummarySchema.safeParse(passkeyChange).data).toEqual(passkeyChange);
     expect(alertSummarySchema.safeParse(closedLockout).data).toEqual(closedLockout);
+  });
+
+  it.each([
+    "event_history_broken",
+    "local_database_damaged",
+  ])("accepts the reason %s of a register that can't sell", (salesDeniedReason) => {
+    const salesDenied = { ...passkeyChange, kind: "sales_denied", salesDeniedReason };
+
+    expect(alertSummarySchema.safeParse(salesDenied).data).toEqual(salesDenied);
   });
 
   it("strips keys it does not define", () => {
@@ -83,6 +93,8 @@ describe("alertSummarySchema", () => {
     ["escalatedAt", undefined],
     ["resolvedAt", 1],
     ["resolvedAt", undefined],
+    ["salesDeniedReason", "unknown_reason"],
+    ["salesDeniedReason", undefined],
   ])("refuses %s as %j", (field, value) => {
     expect(alertSummarySchema.safeParse({ ...passkeyChange, [field]: value }).success).toBe(false);
   });
