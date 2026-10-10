@@ -21,7 +21,6 @@
     "noPropertyAccessFromIndexSignature": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "allowImportingTsExtensions": true,
     "customConditions": ["@purosur/source"]
   },
   "include": [
@@ -29,8 +28,6 @@
     "packages/ui/.storybook",
     "vitest.config.ts",
     "vitest.mutation.config.ts",
-    "vitest.global-setup.playwright-server.ts",
-    ".railway/railway.ts",
-    ".railway/railway.test.ts"
+    "vitest.global-setup.playwright-server.ts"
   ]
 }
