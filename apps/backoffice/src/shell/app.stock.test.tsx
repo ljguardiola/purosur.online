@@ -65,7 +65,7 @@ function stockServices(capabilities: Capability[]) {
   });
   vi.mocked(services.newPurchaseScreen.fetchPurchaseChoices).mockResolvedValue({
     kind: "ok",
-    value: { suppliers: [], products: [], packagings: [] },
+    value: { suppliers: [], products: [], packagings: [], today: "2026-09-16" },
   });
   return services;
 }

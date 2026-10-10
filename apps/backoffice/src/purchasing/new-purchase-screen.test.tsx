@@ -1,4 +1,3 @@
-import { CalendarDate } from "@internationalized/date";
 import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
@@ -13,7 +12,6 @@ import { bolsaDeAvena, cajaDeMiel } from "./test-support/packagings";
 import { compraDeAvena, purchaseChoicesFrom } from "./test-support/purchases";
 import { suppliersWithCuits } from "./test-support/suppliers";
 
-const TODAY = new CalendarDate(2026, 9, 16);
 const { andina, granos } = suppliersWithCuits(FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT);
 const purchaseChoices = purchaseChoicesFrom([andina, granos]);
 
@@ -51,7 +49,6 @@ function renderScreen(
           access={access}
           services={services}
           onSessionEnded={onSessionEnded}
-          today={TODAY}
         />
       </main>
     </FieldSizeProvider>,
@@ -132,6 +129,29 @@ test("shows the breadcrumb, the heading and the header fields, with today as the
       .map((segment) => segment.element().textContent),
   ).toEqual(["16", "9", "2026"]);
   await expect.element(line(screen, 1)).toBeVisible();
+});
+
+test("dates the purchase on the day the cloud answers, whatever day the browser's clock says", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-09-20T15:00:00.000Z"));
+  try {
+    const services = createServices({
+      fetchPurchaseChoices: vi
+        .fn()
+        .mockResolvedValue({ kind: "ok", value: { ...purchaseChoices, today: "2026-03-04" } }),
+    });
+    const screen = await opened(services);
+
+    expect(
+      screen
+        .getByRole("group", { name: /^Fecha de compra/ })
+        .getByRole("spinbutton")
+        .all()
+        .map((segment) => segment.element().textContent),
+    ).toEqual(["4", "3", "2026"]);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test("says there is no supplier to choose, keeping the register action disabled", async () => {

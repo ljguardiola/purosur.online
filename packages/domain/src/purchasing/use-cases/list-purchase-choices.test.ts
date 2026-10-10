@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { listPurchaseChoices } from "./list-purchase-choices.js";
 import { FakePurchasingListReader } from "./test-support/fake-purchasing-list-reader.js";
 
+const CLOCK = { now: () => new Date("2026-09-16T15:00:00.000Z") };
 const YERBA = { id: "p-unit", name: "Yerba", saleUnit: "UNIT", active: true } as const;
 const HARINA = { id: "p-kg", name: "Harina", saleUnit: "KG", active: true } as const;
 
@@ -32,7 +33,7 @@ describe("listPurchaseChoices", () => {
       suppliers: [andina, supplier("s-2", "Cerrada", false)],
     });
 
-    expect((await listPurchaseChoices(reader)).suppliers).toEqual([andina]);
+    expect((await listPurchaseChoices(reader, CLOCK)).suppliers).toEqual([andina]);
   });
 
   it("offers only the packagings a line may be loaded by, with their product", async () => {
@@ -46,8 +47,18 @@ describe("listPurchaseChoices", () => {
       ],
     });
 
-    expect((await listPurchaseChoices(reader)).packagings).toEqual([
+    expect((await listPurchaseChoices(reader, CLOCK)).packagings).toEqual([
       { ...caja, productName: "Yerba", productSaleUnit: "UNIT", saleUnitChanged: false },
     ]);
+  });
+
+  it.each([
+    ["2026-09-16T15:00:00.000Z", "2026-09-16"],
+    ["2026-09-17T01:00:00.000Z", "2026-09-16"],
+    ["2026-09-17T03:00:00.000Z", "2026-09-17"],
+  ])("answers, at %s, that today's purchases are dated %s", async (instant, day) => {
+    const clock = { now: () => new Date(instant) };
+
+    expect((await listPurchaseChoices(new FakePurchasingListReader({}), clock)).today).toBe(day);
   });
 });

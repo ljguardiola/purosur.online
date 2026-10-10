@@ -515,6 +515,15 @@ describe("GET /purchase-choices", () => {
     expect(choices.products).toEqual([{ id: productId, name: "Yerba", saleUnit: "UNIT" }]);
     expect(choices.packagings.map((packaging) => packaging.id)).toEqual([packagingId]);
   });
+
+  it("answers today's day in Argentina, which purchases are dated by", async () => {
+    now = new Date("2026-10-06T01:30:00.000Z");
+    const { headers } = await signedInWith(db, ["record_purchases"], now);
+
+    const response = await app.inject({ method: "GET", url: "/purchase-choices", headers });
+
+    expect(purchaseChoicesSchema.parse(response.json()).today).toBe("2026-10-05");
+  });
 });
 
 describe("GET /purchases", () => {
