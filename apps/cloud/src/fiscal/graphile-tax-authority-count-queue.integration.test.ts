@@ -1,4 +1,7 @@
-import { configureRegisterPointOfSale } from "@purosur/domain/fiscal/use-cases";
+import {
+  configureRegisterOfflinePointOfSale,
+  configureRegisterPointOfSale,
+} from "@purosur/domain/fiscal/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -13,6 +16,7 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
+import { DrizzleRegisterOfflinePointOfSaleStore } from "./drizzle-register-offline-point-of-sale-store.js";
 import { DrizzleRegisterPointOfSaleStore } from "./drizzle-register-point-of-sale-store.js";
 import {
   enqueueMissingTaxAuthorityCounts,
@@ -123,6 +127,7 @@ describe("the tax authority count jobs on a real Postgres", () => {
         await transaction.claimPointOfSale({
           pointOfSaleNumber: 22,
           registerId: registerIds[0] as string,
+          mechanism: "real_time",
           actorId,
         });
         await transaction.recordRegisterPointOfSale({
@@ -177,7 +182,7 @@ describe("the tax authority count jobs on a real Postgres", () => {
     expect((await pendingCountJobs()).map((job) => job.pointOfSale)).toEqual([23, 24]);
   });
 
-  it("enqueues, at startup, the count of every claimed point of sale that has none yet", async () => {
+  it("enqueues, at startup, the count of every claimed real-time point of sale that has none yet", async () => {
     const { locationId, actorId, fiscalAddressId, registerIds } = await seedRegisters(2);
     const store = new DrizzleRegisterPointOfSaleStore(db, () => NOW);
     await configureRegisterPointOfSale(store, {
@@ -196,6 +201,16 @@ describe("the tax authority count jobs on a real Postgres", () => {
       version: 0,
       actorId,
     });
+    await configureRegisterOfflinePointOfSale(
+      new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOW),
+      {
+        locationId,
+        registerId: registerIds[0] as string,
+        pointOfSaleNumber: 33,
+        version: 0,
+        actorId,
+      },
+    );
     await db
       .insert(taxAuthorityLastAuthorizedNumbers)
       .values({ pointOfSaleNumber: 32, lastAuthorized: 5, readAt: NOW });

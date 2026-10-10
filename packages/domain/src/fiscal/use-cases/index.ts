@@ -64,6 +64,11 @@ export { checkArcaCertificateExpiry } from "./check-arca-certificate-expiry.js";
 export type { CheckArcaVitalityOutcome } from "./check-arca-vitality.js";
 export { checkArcaVitality } from "./check-arca-vitality.js";
 export type {
+  ConfigureRegisterOfflinePointOfSaleInput,
+  ConfigureRegisterOfflinePointOfSaleOutcome,
+} from "./configure-register-offline-point-of-sale.js";
+export { configureRegisterOfflinePointOfSale } from "./configure-register-offline-point-of-sale.js";
+export type {
   ConfigureRegisterPointOfSaleInput,
   ConfigureRegisterPointOfSaleOutcome,
 } from "./configure-register-point-of-sale.js";
@@ -168,9 +173,16 @@ export type {
   RegisterHealthChecks,
 } from "./register-health-check-ports.js";
 export type {
+  RegisterOfflinePointOfSale,
+  RegisterOfflinePointOfSaleRecord,
+  RegisterOfflinePointOfSaleStore,
+  RegisterOfflinePointOfSaleStoreTransaction,
+} from "./register-offline-point-of-sale-store.js";
+export type {
   BranchRegisterPointOfSale,
   LockBranchRegisterResult,
   PointOfSaleClaim,
+  PointOfSaleHolder,
   RegisterPointOfSale,
   RegisterPointOfSaleReader,
   RegisterPointOfSaleRecord,

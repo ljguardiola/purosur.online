@@ -1,4 +1,5 @@
 import {
+  type OfflinePointOfSaleConfigurationBody,
   type PointOfSaleConfigurationBody,
   type RegisterPointOfSaleOverviewBody,
   registerPointOfSaleOverviewListSchema,
@@ -19,6 +20,8 @@ export type RegisterPointOfSale = {
   pointOfSaleNumber: number | null;
   fiscalAddressId: string | null;
   version: number;
+  offlinePointOfSaleNumber: number | null;
+  offlineVersion: number;
 };
 
 export type FetchRegisterPointsOfSaleOutcome = CloudReadOutcome<RegisterPointOfSale[]>;
@@ -28,6 +31,7 @@ export type ConfigureRegisterPointOfSaleOutcome =
   | { kind: "validation_failed"; field: string }
   | { kind: "point_of_sale_taken" }
   | { kind: "stale_version" }
+  | { kind: "real_time_point_of_sale_missing" }
   | { kind: "not_found" }
   | WriteFailure;
 
@@ -38,6 +42,8 @@ function registerPointOfSaleFromWire(row: RegisterPointOfSaleOverviewBody): Regi
     pointOfSaleNumber: row.point_of_sale_number,
     fiscalAddressId: row.fiscal_address_id,
     version: row.version,
+    offlinePointOfSaleNumber: row.offline_point_of_sale_number,
+    offlineVersion: row.offline_version,
   };
 }
 
@@ -47,11 +53,11 @@ export function fetchRegisterPointsOfSale(): Promise<FetchRegisterPointsOfSaleOu
   );
 }
 
-export async function configureRegisterPointOfSale(
-  registerId: string,
-  body: PointOfSaleConfigurationBody,
+async function putPointOfSale(
+  path: string,
+  body: unknown,
 ): Promise<ConfigureRegisterPointOfSaleOutcome> {
-  const response = await sendJson("PUT", `/api/registers/${registerId}/point-of-sale`, body);
+  const response = await sendJson("PUT", path, body);
   if (response === undefined) {
     return { kind: "failed" };
   }
@@ -66,9 +72,24 @@ export async function configureRegisterPointOfSale(
     return { kind: "not_found" };
   }
   if (response.status === 409) {
-    return (await errorCodeOf(response)) === "point_of_sale_taken"
-      ? { kind: "point_of_sale_taken" }
+    const code = await errorCodeOf(response);
+    return code === "point_of_sale_taken" || code === "real_time_point_of_sale_missing"
+      ? { kind: code }
       : { kind: "stale_version" };
   }
   return writeFailureOf(response);
+}
+
+export function configureRegisterPointOfSale(
+  registerId: string,
+  body: PointOfSaleConfigurationBody,
+): Promise<ConfigureRegisterPointOfSaleOutcome> {
+  return putPointOfSale(`/api/registers/${registerId}/point-of-sale`, body);
+}
+
+export function configureRegisterOfflinePointOfSale(
+  registerId: string,
+  body: OfflinePointOfSaleConfigurationBody,
+): Promise<ConfigureRegisterPointOfSaleOutcome> {
+  return putPointOfSale(`/api/registers/${registerId}/offline-point-of-sale`, body);
 }

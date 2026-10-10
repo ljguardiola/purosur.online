@@ -14,6 +14,8 @@ const configured = {
   pointOfSaleNumber: 12,
   fiscalAddressId: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
   version: 2,
+  offlinePointOfSaleNumber: 13,
+  offlineVersion: 5,
 };
 
 test("fills the form with the register's number as typed, its fiscal address and its version", () => {

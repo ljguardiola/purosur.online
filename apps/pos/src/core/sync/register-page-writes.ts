@@ -37,6 +37,13 @@ export function prepareRegisterPageWrites(database: LocalDatabase) {
          AND (register_point_of_sale.tax_authority_last_authorized_number IS NULL
            OR excluded.tax_authority_last_authorized_number > register_point_of_sale.tax_authority_last_authorized_number))`,
   );
+  const saveOfflinePointOfSale = database.prepare(
+    `INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, version)
+     VALUES (@register_id, @point_of_sale_number, @version)
+     ON CONFLICT (register_id) DO UPDATE SET
+       point_of_sale_number = excluded.point_of_sale_number, version = excluded.version
+     WHERE excluded.version > register_offline_point_of_sale.version`,
+  );
 
   return {
     save({ entity_id, row }: Extract<SyncChange, { entity: "register" }>): void {
@@ -48,6 +55,13 @@ export function prepareRegisterPageWrites(database: LocalDatabase) {
       row,
     }: Extract<SyncChange, { entity: "register_point_of_sale" }>): void {
       savePointOfSale.run({ register_id: entity_id, ...row });
+    },
+
+    offlinePointOfSale({
+      entity_id,
+      row,
+    }: Extract<SyncChange, { entity: "register_offline_point_of_sale" }>): void {
+      saveOfflinePointOfSale.run({ register_id: entity_id, ...row });
     },
 
     removal({ entity_id, version }: RemovalOf<"register">): void {

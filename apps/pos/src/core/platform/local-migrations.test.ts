@@ -869,6 +869,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -923,6 +924,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -972,6 +974,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1020,6 +1023,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1095,6 +1099,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1162,6 +1167,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1233,6 +1239,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1287,6 +1294,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1333,6 +1341,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1645,6 +1654,45 @@ describe("the register's local migrations", () => {
           superseded_by_count_id: null,
         }),
       ).toThrow(/FOREIGN KEY/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("add the register's offline point of sale beside the data a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0029_register_offline_point_of_sale",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0029_register_offline_point_of_sale",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before
+        .prepare(
+          `INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id, version)
+           VALUES ('r1', 12, 'address-1', 3)`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT * FROM register_offline_point_of_sale").all()).toEqual([]);
+      expect(
+        after
+          .prepare("SELECT register_id, point_of_sale_number, version FROM register_point_of_sale")
+          .all(),
+      ).toEqual([{ register_id: "r1", point_of_sale_number: 12, version: 3 }]);
+      const insert = after.prepare(
+        "INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, version) VALUES (?, ?, 1)",
+      );
+      expect(() => insert.run("r1", 0)).toThrow();
+      expect(() => insert.run("r1", 100000)).toThrow();
+      expect(() => insert.run("r1", 99999)).not.toThrow();
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

@@ -4,7 +4,11 @@ import type {
 } from "@purosur/domain/fiscal/use-cases";
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { registerPointsOfSale, registers } from "../platform/db/schema.js";
+import {
+  registerOfflinePointsOfSale,
+  registerPointsOfSale,
+  registers,
+} from "../platform/db/schema.js";
 import { NEVER_CONFIGURED_VERSION } from "./register-point-of-sale-version.js";
 
 export class DrizzleRegisterPointOfSaleReader<TQueryResult extends PgQueryResultHKT>
@@ -24,14 +28,21 @@ export class DrizzleRegisterPointOfSaleReader<TQueryResult extends PgQueryResult
         pointOfSaleNumber: registerPointsOfSale.pointOfSaleNumber,
         fiscalAddressId: registerPointsOfSale.fiscalAddressId,
         version: registerPointsOfSale.version,
+        offlinePointOfSaleNumber: registerOfflinePointsOfSale.pointOfSaleNumber,
+        offlineVersion: registerOfflinePointsOfSale.version,
       })
       .from(registers)
       .leftJoin(registerPointsOfSale, eq(registerPointsOfSale.registerId, registers.id))
+      .leftJoin(
+        registerOfflinePointsOfSale,
+        eq(registerOfflinePointsOfSale.registerId, registers.id),
+      )
       .where(eq(registers.locationId, locationId))
       .orderBy(asc(registers.name));
-    return rows.map(({ version, ...row }) => ({
+    return rows.map(({ version, offlineVersion, ...row }) => ({
       ...row,
       version: version ?? NEVER_CONFIGURED_VERSION,
+      offlineVersion: offlineVersion ?? NEVER_CONFIGURED_VERSION,
     }));
   }
 }

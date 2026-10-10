@@ -637,7 +637,7 @@ describe("SaleScreen", () => {
         name: "a revoked installation",
         outcome: { kind: "installation_revoked" },
         title: "Esta caja ya no puede empezar ventas",
-        help: "Su instalación fue reemplazada o retirada desde el backoffice.",
+        help: "El motivo y qué hacer se muestran arriba de la pantalla.",
       },
       {
         name: "the core being unable to add it",

@@ -1,7 +1,12 @@
+import { randomUUID } from "node:crypto";
 import { type ChangesPage, changesPageSchema } from "@purosur/contracts";
-import { configureRegisterPointOfSale } from "@purosur/domain/fiscal/use-cases";
+import {
+  configureRegisterOfflinePointOfSale,
+  configureRegisterPointOfSale,
+} from "@purosur/domain/fiscal/use-cases";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
 import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-point-of-sale-store.js";
 import { DrizzleTaxAuthorityCounts } from "../fiscal/drizzle-tax-authority-counts.js";
 import { fiscalAddresses, locations, registers, users } from "../platform/db/schema.js";
@@ -56,10 +61,10 @@ async function pullAfterSeed(deviceToken: string) {
   return page.changes.map(({ change_seq, ...change }) => change);
 }
 
-async function insertActor(locationId: string): Promise<string> {
+async function insertActor(locationId: string, email = "ada@example.com"): Promise<string> {
   const [actor] = await db
     .insert(users)
-    .values({ firstName: "Ada Lucero", email: "ada@example.com", locationId })
+    .values({ firstName: "Ada Lucero", email, locationId })
     .returning({ id: users.id });
   if (!actor) {
     throw new Error("test setup: seeding the actor returned no row");
@@ -78,10 +83,10 @@ async function insertRegister(locationId: string, name: string): Promise<string>
   return register.id;
 }
 
-async function insertFiscalAddress(): Promise<string> {
+async function insertFiscalAddress(name = "Deposito Central"): Promise<string> {
   const [fiscalAddress] = await db
     .insert(fiscalAddresses)
-    .values({ name: "Deposito Central", streetAddress: "Calle Ficticia 123, CABA" })
+    .values({ name, streetAddress: "Calle Ficticia 123, CABA" })
     .returning({ id: fiscalAddresses.id });
   if (!fiscalAddress) {
     throw new Error("test setup: seeding the fiscal address returned no row");
@@ -293,5 +298,113 @@ describe("GET /changes carrying the register's own point of sale", () => {
         }),
       }),
     ]);
+  });
+});
+
+async function configureOffline(input: {
+  locationId: string;
+  registerId: string;
+  pointOfSaleNumber: number;
+  version: number;
+  actorId: string;
+}) {
+  const outcome = await configureRegisterOfflinePointOfSale(
+    new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOW),
+    input,
+  );
+  if (outcome.kind !== "configured") {
+    throw new Error(`test setup: configuring the offline point of sale ended as ${outcome.kind}`);
+  }
+}
+
+async function registerWithRealTime(locationId: string, name: string, number: number) {
+  const registerId = await insertRegister(locationId, name);
+  const actorId = await insertActor(locationId, `${randomUUID()}@example.com`);
+  await configure({
+    locationId,
+    registerId,
+    pointOfSaleNumber: number,
+    fiscalAddressId: await insertFiscalAddress(`Deposito ${name}`),
+    version: 0,
+    actorId,
+  });
+  return { registerId, actorId };
+}
+
+describe("GET /changes carrying the register's own offline point of sale", () => {
+  it("gives a register its own offline point of sale at its version", async () => {
+    const locationId = await seededLocationId(db);
+    const { registerId, actorId } = await registerWithRealTime(locationId, "Caja 1", 7);
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: registerId,
+    });
+    await configureOffline({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+
+    const pulled = await pullAfterSeed(deviceToken);
+
+    expect(pulled.filter(({ entity }) => entity === "register_offline_point_of_sale")).toEqual([
+      {
+        entity: "register_offline_point_of_sale",
+        entity_id: registerId,
+        row: { point_of_sale_number: 8, version: 1 },
+      },
+    ]);
+  });
+
+  it("gives the offline point of sale as it is now for every change logged for it", async () => {
+    const locationId = await seededLocationId(db);
+    const { registerId, actorId } = await registerWithRealTime(locationId, "Caja 1", 7);
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: registerId,
+    });
+    const base = { locationId, registerId, actorId };
+    await configureOffline({ ...base, pointOfSaleNumber: 8, version: 0 });
+    await configureOffline({ ...base, pointOfSaleNumber: 9, version: 1 });
+
+    const pulled = await pullAfterSeed(deviceToken);
+
+    expect(pulled.filter(({ entity }) => entity === "register_offline_point_of_sale")).toEqual(
+      Array(2).fill({
+        entity: "register_offline_point_of_sale",
+        entity_id: registerId,
+        row: { point_of_sale_number: 9, version: 2 },
+      }),
+    );
+  });
+
+  it("gives a register nothing of another register's offline point of sale, in its branch or in another", async () => {
+    const locationId = await seededLocationId(db);
+    const { registerId } = await registerWithRealTime(locationId, "Caja 1", 7);
+    const sameBranch = await registerWithRealTime(locationId, "Caja 2", 9);
+    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!otherLocation) {
+      throw new Error("test setup: seeding the other location returned no row");
+    }
+    const otherLocationId = otherLocation.id;
+    const otherBranch = await registerWithRealTime(otherLocationId, "Caja 3", 11);
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: registerId,
+    });
+    await configureOffline({
+      locationId,
+      registerId: sameBranch.registerId,
+      actorId: sameBranch.actorId,
+      pointOfSaleNumber: 10,
+      version: 0,
+    });
+    await configureOffline({
+      locationId: otherLocationId,
+      registerId: otherBranch.registerId,
+      actorId: otherBranch.actorId,
+      pointOfSaleNumber: 12,
+      version: 0,
+    });
+
+    const pulled = await pullAfterSeed(deviceToken);
+
+    expect(pulled.filter(({ entity }) => entity === "register_offline_point_of_sale")).toEqual([]);
   });
 });

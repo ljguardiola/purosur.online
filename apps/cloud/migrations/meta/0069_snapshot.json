@@ -1,5 +1,5 @@
 {
-  "id": "4ff177a7-4dfb-43a0-af42-5b0ae9fd9d90",
+  "id": "8b6f3278-7c04-4ff7-a1a5-7ff0ae804d7e",
   "prevId": "3b1b52c3-9ea4-47ca-b36b-a28a535d34e6",
   "version": "7",
   "dialect": "postgresql",
@@ -2945,6 +2945,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "mechanism": {
+          "name": "mechanism",
+          "type": "point_of_sale_mechanism",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
         "claimed_at": {
           "name": "claimed_at",
           "type": "timestamp with time zone",
@@ -2982,10 +2989,10 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "point_of_sale_claims_number_register_key": {
-          "name": "point_of_sale_claims_number_register_key",
+        "point_of_sale_claims_number_register_mechanism_key": {
+          "name": "point_of_sale_claims_number_register_mechanism_key",
           "nullsNotDistinct": false,
-          "columns": ["point_of_sale_number", "register_id"]
+          "columns": ["point_of_sale_number", "register_id", "mechanism"]
         }
       },
       "policies": {},
@@ -4416,6 +4423,69 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.register_offline_points_of_sale": {
+      "name": "register_offline_points_of_sale",
+      "schema": "",
+      "columns": {
+        "register_id": {
+          "name": "register_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "point_of_sale_number": {
+          "name": "point_of_sale_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mechanism": {
+          "name": "mechanism",
+          "type": "point_of_sale_mechanism",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'offline'"
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "register_offline_points_of_sale_register_fk": {
+          "name": "register_offline_points_of_sale_register_fk",
+          "tableFrom": "register_offline_points_of_sale",
+          "tableTo": "register_points_of_sale",
+          "columnsFrom": ["register_id"],
+          "columnsTo": ["register_id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "register_offline_points_of_sale_claim_fk": {
+          "name": "register_offline_points_of_sale_claim_fk",
+          "tableFrom": "register_offline_points_of_sale",
+          "tableTo": "point_of_sale_claims",
+          "columnsFrom": ["point_of_sale_number", "register_id", "mechanism"],
+          "columnsTo": ["point_of_sale_number", "register_id", "mechanism"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "register_offline_points_of_sale_mechanism_offline": {
+          "name": "register_offline_points_of_sale_mechanism_offline",
+          "value": "\"register_offline_points_of_sale\".\"mechanism\" = 'offline'"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.register_points_of_sale": {
       "name": "register_points_of_sale",
       "schema": "",
@@ -4431,6 +4501,14 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "mechanism": {
+          "name": "mechanism",
+          "type": "point_of_sale_mechanism",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'real_time'"
         },
         "fiscal_address_id": {
           "name": "fiscal_address_id",
@@ -4469,8 +4547,8 @@
           "name": "register_points_of_sale_claim_fk",
           "tableFrom": "register_points_of_sale",
           "tableTo": "point_of_sale_claims",
-          "columnsFrom": ["point_of_sale_number", "register_id"],
-          "columnsTo": ["point_of_sale_number", "register_id"],
+          "columnsFrom": ["point_of_sale_number", "register_id", "mechanism"],
+          "columnsTo": ["point_of_sale_number", "register_id", "mechanism"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4478,7 +4556,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "register_points_of_sale_mechanism_real_time": {
+          "name": "register_points_of_sale_mechanism_real_time",
+          "value": "\"register_points_of_sale\".\"mechanism\" = 'real_time'"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.register_snapshot_keys": {
@@ -4901,89 +4984,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.sale_reprints": {
-      "name": "sale_reprints",
-      "schema": "",
-      "columns": {
-        "sale_id": {
-          "name": "sale_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "order_number": {
-          "name": "order_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "requested_by": {
-          "name": "requested_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "authorized_by": {
-          "name": "authorized_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reason_kind": {
-          "name": "reason_kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason_text": {
-          "name": "reason_text",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "occurred_at": {
-          "name": "occurred_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "sale_reprints_sale_id_sales_id_fk": {
-          "name": "sale_reprints_sale_id_sales_id_fk",
-          "tableFrom": "sale_reprints",
-          "tableTo": "sales",
-          "columnsFrom": ["sale_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "sale_reprints_sale_id_order_number_pk": {
-          "name": "sale_reprints_sale_id_order_number_pk",
-          "columns": ["sale_id", "order_number"]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "sale_reprints_order_number_positive_check": {
-          "name": "sale_reprints_order_number_positive_check",
-          "value": "\"sale_reprints\".\"order_number\" > 0"
-        },
-        "sale_reprints_reason_kind_check": {
-          "name": "sale_reprints_reason_kind_check",
-          "value": "\"sale_reprints\".\"reason_kind\" in ('retry', 'requested')"
-        },
-        "sale_reprints_reason_matches_kind_check": {
-          "name": "sale_reprints_reason_matches_kind_check",
-          "value": "(\"sale_reprints\".\"reason_kind\" = 'requested') = (\"sale_reprints\".\"reason_text\" is not null)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.sales": {
       "name": "sales",
       "schema": "",
@@ -5054,24 +5054,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "operation_number": {
-          "name": "operation_number",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "print_attempted_at": {
-          "name": "print_attempted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "printed_at": {
-          "name": "printed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "applied_at": {
           "name": "applied_at",
           "type": "timestamp with time zone",
@@ -5122,14 +5104,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "sales_operation_number_positive_check": {
-          "name": "sales_operation_number_positive_check",
-          "value": "\"sales\".\"operation_number\" > 0"
-        },
-        "sales_printed_only_after_attempted_check": {
-          "name": "sales_printed_only_after_attempted_check",
-          "value": "\"sales\".\"printed_at\" is null or \"sales\".\"print_attempted_at\" is not null"
-        },
         "sales_state_check": {
           "name": "sales_state_check",
           "value": "\"sales\".\"state\" in ('COMPLETED', 'CANCELLED')"
@@ -6335,6 +6309,11 @@
       "name": "pin_code_redemption_attempt_key_kind",
       "schema": "public",
       "values": ["source_address", "register"]
+    },
+    "public.point_of_sale_mechanism": {
+      "name": "point_of_sale_mechanism",
+      "schema": "public",
+      "values": ["real_time", "offline"]
     },
     "public.recovery_rate_limit_key_kind": {
       "name": "recovery_rate_limit_key_kind",

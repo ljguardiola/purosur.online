@@ -22,14 +22,21 @@ function conditions(overrides: Partial<Parameters<typeof registerOwnConditions>[
 }
 
 describe("REGISTER_OWN_CONDITIONS", () => {
-  it("names the sales denial first and the silent register second", () => {
-    expect(REGISTER_OWN_CONDITIONS).toEqual(["sales_denied", "register_silent"]);
+  it("names the revoked installation first, the sales denial second and the silent register last", () => {
+    expect(REGISTER_OWN_CONDITIONS).toEqual([
+      "installation_revoked",
+      "sales_denied",
+      "register_silent",
+    ]);
   });
 
-  it("names only alert kinds", () => {
+  it("names alert kinds besides the revoked installation, which the cloud never raises as an alert", () => {
     for (const condition of REGISTER_OWN_CONDITIONS) {
-      expect(ALERT_KINDS).toContain(condition);
+      if (condition !== "installation_revoked") {
+        expect(ALERT_KINDS).toContain(condition);
+      }
     }
+    expect(ALERT_KINDS).not.toContain("installation_revoked");
   });
 });
 
@@ -48,13 +55,19 @@ describe("registerOwnConditions", () => {
     expect(conditions({ salesStop: { stopped: true, reason: undefined } })).toEqual([]);
   });
 
-  it("holds neither condition for a revoked installation, however long since its last accepted push", () => {
+  it("holds only installation_revoked for a revoked installation, however long since its last accepted push", () => {
     expect(
       conditions({
         salesStop: { stopped: true, reason: "installation_revoked" },
         lastAcceptedPushAt: minutesBefore(NOW, 60),
       }),
-    ).toEqual([]);
+    ).toEqual(["installation_revoked"]);
+  });
+
+  it("does not hold installation_revoked for a register that sells", () => {
+    expect(conditions({ lastAcceptedPushAt: minutesBefore(NOW, 60) })).not.toContain(
+      "installation_revoked",
+    );
   });
 
   it("holds register_silent when the last accepted push is 15 minutes old within business hours", () => {
@@ -84,7 +97,7 @@ describe("registerOwnConditions", () => {
     expect(conditions({ lastAcceptedPushAt: minutesBefore(NOW, 600), hours: [] })).toEqual([]);
   });
 
-  it("lists both conditions in catalog order", () => {
+  it("lists sales_denied and register_silent in catalog order", () => {
     expect(
       conditions({
         salesStop: { stopped: true, reason: "event_history_broken" },
