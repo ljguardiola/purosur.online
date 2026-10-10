@@ -1,5 +1,6 @@
 import {
   createMercadoPagoQrOrder,
+  type MercadoPagoOrderCancellation,
   type MercadoPagoOrderCreation,
   type MercadoPagoOrderReading,
   type MercadoPagoOrders,
@@ -67,6 +68,10 @@ class HeldMercadoPago implements MercadoPagoOrders {
 
   async readOrder(): Promise<MercadoPagoOrderReading> {
     return { kind: "read", result: UNPAID_ORDER };
+  }
+
+  async cancelOrder(): Promise<MercadoPagoOrderCancellation> {
+    return { kind: "unavailable" };
   }
 
   release(
