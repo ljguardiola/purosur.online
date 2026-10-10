@@ -136,6 +136,37 @@ test("offers only the active suppliers", async () => {
   expect(screen.getByRole("option", { name: "Cerealera del Norte" }).query()).toBeNull();
 });
 
+test("says there is no supplier to choose when none is active", async () => {
+  const services = createServices({
+    fetchSuppliers: vi.fn().mockResolvedValue({ kind: "ok", value: [cerealera] }),
+  });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No hay proveedores activos")).toBeVisible();
+  expect(screen.getByRole("combobox", { name: /^Proveedor/ }).query()).toBeNull();
+});
+
+test("says there is no product to buy when none is active", async () => {
+  const services = createServices({
+    fetchPackagings: vi.fn().mockResolvedValue({ kind: "ok", value: packagingList([], []) }),
+  });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+});
+
+test("says a product has no active packaging to load a line by", async () => {
+  const screen = await opened();
+  const group = line(screen, 1);
+  await chooseFromComboBox(screen, group, /^Producto/, "Almendras peladas");
+
+  await userEvent.click(group.getByRole("radio", { name: "Presentación" }));
+
+  await expect
+    .element(group.getByText("Este producto no tiene presentaciones activas"))
+    .toBeVisible();
+});
+
 test("offers the receipt types by their Spanish names", async () => {
   const screen = await opened();
 

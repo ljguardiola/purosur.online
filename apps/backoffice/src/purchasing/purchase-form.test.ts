@@ -47,9 +47,13 @@ describe("emptyPurchaseForm", () => {
       receiptType: null,
       receiptNumber: "",
       note: "",
-      lines: [emptyPurchaseLine()],
+      lines: [{ ...emptyPurchaseLine(), id: expect.any(Number) }],
     });
     expect(emptyPurchaseLine().loadedBy).toBe("quantity");
+  });
+
+  it("gives every line its own id", () => {
+    expect(emptyPurchaseLine().id).not.toBe(emptyPurchaseLine().id);
   });
 });
 
@@ -119,13 +123,13 @@ describe("purchaseRegistrationRequestFrom", () => {
     expect(request.lines[0]).toMatchObject({ quantity: 16_000, costPaidCents: 800 });
   });
 
-  it.each([
+  it.each<[string, Partial<PurchaseFormValues>]>([
     ["no supplier", { supplierId: null }],
     ["no date", { purchasedOn: null }],
     ["no receipt type", { receiptType: null }],
     ["a receipt without a number", { receiptNumber: " " }],
     ["no line", { lines: [] }],
-  ] as const)("builds a request the contract refuses with %s", (_name, overrides) => {
+  ])("builds a request the contract refuses with %s", (_name, overrides) => {
     const request = purchaseRegistrationRequestFrom(form(overrides), packagableProducts);
 
     expect(purchaseRegistrationBodySchema.safeParse(request).success).toBe(false);
