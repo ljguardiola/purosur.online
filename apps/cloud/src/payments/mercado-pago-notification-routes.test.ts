@@ -9,7 +9,10 @@ import {
   PAID_ORDER,
   UNPAID_ORDER,
 } from "./test-support/fake-mercado-pago-orders.js";
-import { WEBHOOK_SECRET } from "./test-support/mercado-pago-notification-signing.js";
+import {
+  signatureHeader,
+  WEBHOOK_SECRET,
+} from "./test-support/mercado-pago-notification-signing.js";
 import { mercadoPagoNotificationRoutesUnderTest } from "./test-support/mercado-pago-notifications-under-test.js";
 import { insertRegister, pendingTransaction } from "./test-support/payment-transaction-fixtures.js";
 
@@ -111,7 +114,20 @@ describe("POST /payments/mercado-pago/notifications", () => {
       expect(route.mercadoPago.readings).toEqual([]);
       expect(await stateOf(payment.id)).toBe("PENDING");
       expect(await attemptsOf("203.0.113.50")).toHaveLength(1);
-      expect(warn).toHaveBeenCalledExactlyOnceWith(expect.stringContaining("signature"));
+      expect(warn).toHaveBeenCalledOnce();
+    });
+
+    it("logs why it discarded a notification and the notification's type, and nothing secret", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+      const response = await route.notify({ signature: signatureHeader({ dataId: "ORD99OTHER" }) });
+
+      expect(response.statusCode).toBe(401);
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
+        "discarded a Mercado Pago notification with an invalid signature",
+        { reason: "mismatch", type: "order" },
+      );
+      expect(JSON.stringify(warn.mock.calls)).not.toContain(WEBHOOK_SECRET);
     });
 
     it("refuses a notification with an invalid signature of an origin over the limit, telling when to retry", async () => {
