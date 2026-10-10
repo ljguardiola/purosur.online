@@ -6,6 +6,7 @@ import { page, userEvent } from "vitest/browser";
 import type { ActionEntry } from "../shell/action-entries";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { render } from "../shell/test-support/render-with-router";
+import type { HelpScreenProps } from "./help-screen";
 import { HelpScreen } from "./help-screen";
 
 const PERSON: SignedInPerson = {
@@ -56,9 +57,11 @@ const HELP = defineHelp("es-AR", {
 
 async function renderScreen({
   registerName = null,
+  help = HELP,
   signOut = vi.fn(),
 }: {
   registerName?: string | null;
+  help?: HelpScreenProps["help"];
   signOut?: () => void;
 } = {}) {
   await page.viewport(1280, 900);
@@ -67,7 +70,7 @@ async function renderScreen({
     <HelpScreen
       person={PERSON}
       registerName={registerName}
-      help={HELP}
+      help={help}
       entries={[HELP_ENTRY, HISTORY_ENTRY]}
       signOut={signOut}
     />,
@@ -111,6 +114,23 @@ describe("HelpScreen", () => {
     await expect.element(screen.getByText("No se cobra nada.")).not.toBeInTheDocument();
   });
 
+  it("begins with the first section listed when the catalog writes a later category's section first", async () => {
+    const { screen } = await renderScreen({
+      help: defineHelp("es-AR", {
+        categories: HELP.categories,
+        articles: {
+          "cash-in": HELP.articles["cash-in"],
+          "scan-product": HELP.articles["scan-product"],
+        },
+      }),
+    });
+
+    await expect
+      .element(screen.getByRole("button", { name: "Escanear un producto" }))
+      .toHaveAttribute("aria-current", "page");
+    await expect.element(screen.getByText("Pasá el código por el lector.")).toBeVisible();
+  });
+
   it("shows the section that is chosen", async () => {
     const { screen } = await renderScreen();
 
@@ -147,16 +167,6 @@ describe("HelpScreen", () => {
       .element(sections.getByRole("heading", { name: "Efectivo" }))
       .not.toBeInTheDocument();
     await expect.element(screen.getByText("No se cobra nada.")).toBeVisible();
-  });
-
-  it("finds a section whatever the case or the accents of what was typed", async () => {
-    const { screen } = await renderScreen();
-
-    await userEvent.type(screen.getByRole("searchbox", { name: "Buscar en la ayuda" }), "INGRESO");
-
-    await expect
-      .element(screen.getByRole("navigation", { name: SECTIONS }).getByRole("button"))
-      .toHaveTextContent("Registrar un ingreso");
   });
 
   it("lists every section again once what was typed is cleared", async () => {

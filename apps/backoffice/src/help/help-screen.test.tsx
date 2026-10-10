@@ -320,7 +320,9 @@ test("stretches the article card to the foot of the content area, sizing the rel
     .element()
     .getBoundingClientRect();
   const paragraph = screen.getByText("Configurá tu catálogo antes de abrir la caja.").element();
-  const card = (paragraph.parentElement as HTMLElement).getBoundingClientRect();
+  const card = (
+    (paragraph.parentElement as HTMLElement).parentElement as HTMLElement
+  ).getBoundingClientRect();
 
   expect(main.bottom - card.bottom).toBeCloseTo(24, 0);
   expect(related.width).toBeCloseTo(300, 0);
