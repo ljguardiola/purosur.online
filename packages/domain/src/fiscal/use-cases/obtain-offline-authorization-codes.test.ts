@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Fortnight } from "../model/offline-authorization-code.js";
 import { obtainOfflineAuthorizationCodes } from "./obtain-offline-authorization-codes.js";
-import type { OfflineAuthorizationCode } from "./offline-authorization-code-ports.js";
+import type {
+  OfflineAuthorizationCode,
+  OfflineAuthorizationCodeLookupAnswer,
+} from "./offline-authorization-code-ports.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import {
   FakeOfflineAuthorizationCodeStore,
@@ -170,11 +173,11 @@ describe("obtainOfflineAuthorizationCodes", () => {
     expect(store.kept.map(({ code }) => code)).toEqual([codeFor(FIRST_OCTOBER_HALF)]);
   });
 
-  it.each([
+  it.each<OfflineAuthorizationCodeLookupAnswer>([
     { kind: "not_granted" },
     { kind: "refused", rejections: [{ code: 600, message: "ValidacionDeToken" }] },
     { kind: "no_answer" },
-  ] as const)("keeps nothing when a granted code can't be retrieved ($kind)", async (answer) => {
+  ])("keeps nothing when a granted code can't be retrieved ($kind)", async (answer) => {
     const { store, taxAuthority, obtain } = setUp();
     taxAuthority.requestAnswer = () => ({ kind: "already_granted" });
     taxAuthority.lookUpAnswer = () => answer;
