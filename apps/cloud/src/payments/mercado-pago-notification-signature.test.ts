@@ -44,15 +44,15 @@ describe("verifyMercadoPagoNotificationSignature", () => {
   });
 
   it("refuses a signature made with another secret", () => {
-    expect(verifying({ secret: "another-fake-secret" })).toEqual(refusedFor("mismatch"));
+    expect(verifying({ secret: "another-fake-secret" })).toMatchObject(refusedFor("mismatch"));
   });
 
   it("refuses a signature of another data id", () => {
-    expect(verifying({ dataId: "ORD99OTHER" })).toEqual(refusedFor("mismatch"));
+    expect(verifying({ dataId: "ORD99OTHER" })).toMatchObject(refusedFor("mismatch"));
   });
 
   it("refuses a signature of another request id", () => {
-    expect(verifying({ requestId: "request-2" })).toEqual(refusedFor("mismatch"));
+    expect(verifying({ requestId: "request-2" })).toMatchObject(refusedFor("mismatch"));
   });
 
   it("refuses a signature whose timestamp was changed", () => {
@@ -60,7 +60,19 @@ describe("verifyMercadoPagoNotificationSignature", () => {
 
     expect(
       verifying({ signatureHeader: header.replace("ts=1760011200000", "ts=1760011200001") }),
-    ).toEqual(refusedFor("mismatch"));
+    ).toMatchObject(refusedFor("mismatch"));
+  });
+
+  it("names, on a mismatch, the timestamp it read and every manifest it tried", () => {
+    expect(verifying({ dataId: "ORD99OTHER" })).toEqual({
+      kind: "refused",
+      reason: "mismatch",
+      ts: "1760011200000",
+      manifests: [
+        "id:ORD99OTHER;request-id:request-1;ts:1760011200000;",
+        "id:ord99other;request-id:request-1;ts:1760011200000;",
+      ],
+    });
   });
 
   it("accepts the parts of the header in any order and with spaces after the commas", () => {

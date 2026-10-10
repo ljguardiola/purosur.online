@@ -117,17 +117,70 @@ describe("POST /payments/mercado-pago/notifications", () => {
       expect(warn).toHaveBeenCalledOnce();
     });
 
-    it("logs why it discarded a notification and the notification's type, and nothing secret", async () => {
+    it("logs why it discarded a malformed signature and the notification's type", async () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
-      const response = await route.notify({ signature: signatureHeader({ dataId: "ORD99OTHER" }) });
+      const response = await route.notify({ signature: "garbage" });
 
       expect(response.statusCode).toBe(401);
       expect(warn).toHaveBeenCalledExactlyOnceWith(
         "discarded a Mercado Pago notification with an invalid signature",
-        { reason: "mismatch", type: "order" },
+        { reason: "malformed_signature", type: "order" },
       );
-      expect(JSON.stringify(warn.mock.calls)).not.toContain(WEBHOOK_SECRET);
+    });
+
+    it("logs, on a mismatch, what the manifest was built from and every manifest tried", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+      const response = await route.notify({
+        signature: signatureHeader({ dataId: "ORD99OTHER" }),
+        requestId: "8f2a6c1e-request",
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
+        "discarded a Mercado Pago notification with an invalid signature",
+        {
+          reason: "mismatch",
+          type: "order",
+          dataId: ORDER_ID,
+          dataIdSource: "query",
+          ts: "1760011200000",
+          requestId: "8f2a6c1e-request",
+          manifests: [
+            `id:;request-id:8f2a6c1e-request;ts:1760011200000;`,
+            `id:;request-id:8f2a6c1e-request;ts:1760011200000;`,
+          ],
+        },
+      );
+    });
+
+    it("logs, on a mismatch, the body's data id when it differs from the query's", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+      await route.notify({
+        signature: signatureHeader({ dataId: "ORD99OTHER" }),
+        body: { type: "order", data: { id: "ORD01BODY" } },
+      });
+
+      expect(warn.mock.calls[0]?.[1]).toMatchObject({ dataId: ORDER_ID, bodyDataId: "ORD01BODY" });
+    });
+
+    it("logs, on a mismatch, neither the secret, the received signature nor any computed one", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      const signature = signatureHeader({ dataId: "ORD99OTHER" });
+
+      await route.notify({ signature });
+
+      const logged = JSON.stringify(warn.mock.calls);
+      const received = signature.split("v1=")[1] ?? "";
+      const computed = [ORDER_ID, ORDER_ID.toLowerCase()].map(
+        (dataId) => signatureHeader({ dataId }).split("v1=")[1] ?? "",
+      );
+      expect(received).toHaveLength(64);
+      for (const secretPart of [WEBHOOK_SECRET, received, ...computed]) {
+        expect(logged).not.toContain(secretPart);
+      }
     });
 
     it("refuses a notification with an invalid signature of an origin over the limit, telling when to retry", async () => {
