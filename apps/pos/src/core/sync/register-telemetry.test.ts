@@ -1,6 +1,6 @@
 import type { SalesStopState } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import { registerTelemetryReader } from "./register-telemetry";
+import { damagedRegisterTelemetryReader, registerTelemetryReader } from "./register-telemetry";
 
 const STORAGE = { wal_size_bytes: 8192, disk_free_bytes: 25_000, disk_free_ratio: 0.25 };
 
@@ -43,5 +43,15 @@ describe("the register's telemetry", () => {
 
     expect(before).toMatchObject({ sales_denied: false });
     expect(after).toMatchObject({ sales_denied: true });
+  });
+});
+
+describe("the telemetry of a register whose local database is damaged", () => {
+  it("reports its storage, that it can't sell and that its local database is damaged", async () => {
+    expect(await damagedRegisterTelemetryReader(async () => STORAGE)()).toEqual({
+      ...STORAGE,
+      sales_denied: true,
+      sales_denied_reason: "local_database_damaged",
+    });
   });
 });

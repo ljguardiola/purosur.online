@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isInstallationRevoked,
   isSalesStopReason,
+  SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,
   SALES_STOP_REASONS,
   salesDeniedReportOf,
 } from "./sales-stop.js";
@@ -40,6 +41,15 @@ describe("salesDeniedReportOf", () => {
 
   it("reports nothing of a register stopped for a reason it did not record", () => {
     expect(salesDeniedReportOf({ stopped: true, reason: undefined })).toEqual({});
+  });
+});
+
+describe("SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE", () => {
+  it("reports that a register whose local database is damaged can't sell, and why", () => {
+    expect(SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE).toEqual({
+      sales_denied: true,
+      sales_denied_reason: "local_database_damaged",
+    });
   });
 });
 
