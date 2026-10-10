@@ -28,7 +28,7 @@ export interface RegisterSerialDevicesRequestDeps {
 type Refusal = { kind: "not_signed_in" } | { kind: "lacks_permission" };
 
 type WireIdentity = { vendor_id: string; product_id: string };
-type WireDevices = Extract<
+export type WireSerialDevices = Extract<
   RegisterRendererToCoreMessage,
   { type: "register-serial-devices" }
 >["devices"];
@@ -55,14 +55,14 @@ function identityOf({ vendor_id, product_id }: WireIdentity): SerialDeviceIdenti
   return { vendorId: vendor_id, productId: product_id };
 }
 
-function wireDevicesOf(devices: RegisteredSerialDevices): WireDevices {
+function wireDevicesOf(devices: RegisteredSerialDevices): WireSerialDevices {
   return {
     ...(devices.scale === undefined ? {} : { scale: wireIdentityOf(devices.scale) }),
     ...(devices.reader === undefined ? {} : { reader: wireIdentityOf(devices.reader) }),
   };
 }
 
-function devicesOf(devices: WireDevices): RegisteredSerialDevices {
+function devicesOf(devices: WireSerialDevices): RegisteredSerialDevices {
   return {
     ...(devices.scale === undefined ? {} : { scale: identityOf(devices.scale) }),
     ...(devices.reader === undefined ? {} : { reader: identityOf(devices.reader) }),
@@ -92,7 +92,7 @@ export async function readSerialDevicesFor({
 
 export async function registerSerialDevicesFor(
   { database, gate, recheck }: RegisterSerialDevicesRequestDeps,
-  devices: WireDevices,
+  devices: WireSerialDevices,
 ): Promise<RegisterSerialDevicesOutcome> {
   const outcome = await registerSerialDevices(
     { registrations: new SqliteSerialDeviceRegistrations(database), authority: authorityOf(gate) },
