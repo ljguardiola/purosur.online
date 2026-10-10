@@ -16,7 +16,7 @@ const NOW = new Date("2026-09-30T12:34:56.789Z");
 function pendingQrEndingAt(waitEndsAt: Date) {
   return {
     id: "qr-1",
-    saleId: "sale-1",
+    saleId: "sale-0",
     amount: 1000,
     occurredAt: new Date(waitEndsAt.getTime() - 180_000),
     waitEndsAt,
@@ -274,6 +274,16 @@ describe("add-searched-product on a sale with an approved payment", () => {
 });
 
 describe("add-searched-product while a QR charge of the sale is in its wait", () => {
+  const OPEN_SALE: SaleWithLines = {
+    id: "sale-0",
+    registerId: "register-1",
+    deviceId: "device-1",
+    sessionId: "session-1",
+    actorId: "cashier",
+    state: "OPEN",
+    lines: [],
+  };
+
   it("refuses to add a line, writing nothing", () => {
     const store = ledger({ sales: [OPEN_SALE], pendingQrPayments: [IN_ITS_WAIT] });
     const before = structuredClone(store.state);

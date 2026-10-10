@@ -18,7 +18,7 @@ const NOW = new Date("2026-09-30T12:34:56.789Z");
 function pendingQrEndingAt(waitEndsAt: Date) {
   return {
     id: "qr-1",
-    saleId: "sale-1",
+    saleId: "sale-0",
     amount: 1000,
     occurredAt: new Date(waitEndsAt.getTime() - 180_000),
     waitEndsAt,
