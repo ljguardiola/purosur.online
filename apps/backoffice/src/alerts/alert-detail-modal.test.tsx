@@ -1294,7 +1294,7 @@ test.each([
     "La caja «Caja 1» no tiene el CAEA de la quincena del 16 al 31 de octubre, que ya empezó. Mientras ARCA no responda, sus ventas quedan diferidas. Hay que conectarla a internet.",
   ],
 ] as const)(
-  "tells a register that lacks the fortnight's offline authorization code at level %s once started is %s",
+  "tells a register that lacks the fortnight's offline authorization code, at level %s and with the fortnight started: %s",
   async (level, fortnightStarted, text) => {
     const services = createServices();
     vi.mocked(services.fetchAlert).mockResolvedValue(

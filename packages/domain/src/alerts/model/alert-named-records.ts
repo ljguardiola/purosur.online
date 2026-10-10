@@ -7,15 +7,13 @@ export function alertScopeRecordId(alert: { kind: string; scope: string }): stri
   if (!isAlertKind(alert.kind)) {
     return undefined;
   }
-  switch (alertKindPolicy(alert.kind).scopeKind) {
-    case "user":
-    case "register":
-      return alert.scope;
-    case "registerFortnight":
-      return registerFortnightScopeRegisterId(alert.scope);
-    default:
-      return undefined;
+  const { scopeKind } = alertKindPolicy(alert.kind);
+  if (scopeKind === "user" || scopeKind === "register") {
+    return alert.scope;
   }
+  return scopeKind === "registerFortnight"
+    ? registerFortnightScopeRegisterId(alert.scope)
+    : undefined;
 }
 
 export function alertActorId(detail: Record<string, unknown> | undefined): string | undefined {
