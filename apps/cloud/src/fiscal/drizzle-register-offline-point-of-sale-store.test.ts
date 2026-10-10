@@ -1,14 +1,18 @@
 import {
+  assignOfflineNumberBlock,
   configureRegisterOfflinePointOfSale,
   configureRegisterPointOfSale,
   PointOfSaleClaimConflict,
 } from "@purosur/domain/fiscal/use-cases";
+import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import {
   auditLog,
+  changes,
   fiscalAddresses,
   locations,
+  offlineNumberBlocks,
   pointOfSaleClaims,
   registerOfflinePointsOfSale,
   registers,
@@ -284,7 +288,10 @@ describe("configuring a register's offline point of sale through DrizzleRegister
     await configure({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
     await configure({ locationId, registerId, pointOfSaleNumber: 9, version: 1, actorId });
 
-    expect(await changesLoggedAfter(db, mark)).toEqual([
+    const registerChanges = (await changesLoggedAfter(db, mark)).filter(
+      ({ entity }) => entity === "register_offline_point_of_sale",
+    );
+    expect(registerChanges).toEqual([
       {
         entity: "register_offline_point_of_sale",
         entityId: registerId,
@@ -331,6 +338,158 @@ describe("configuring a register's offline point of sale through DrizzleRegister
     );
 
     await expect(claim).rejects.toBeInstanceOf(PointOfSaleClaimConflict);
+  });
+});
+
+describe("the offline number blocks DrizzleRegisterOfflinePointOfSaleStore records", () => {
+  it("records the first block of a configured point of sale in use, from the first number, at the moment of the assignment", async () => {
+    const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
+
+    await configure({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+
+    expect(await db.select().from(offlineNumberBlocks)).toEqual([
+      {
+        id: expect.any(String),
+        pointOfSaleNumber: 8,
+        documentType: "factura_c",
+        registerId,
+        mechanism: "offline",
+        firstNumber: 1,
+        lastNumber: 1000,
+        status: "in_use",
+        assignedAt: NOON,
+        version: 1,
+      },
+    ]);
+  });
+
+  it("notes the block's change for its register, scoped to no branch", async () => {
+    const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
+    const mark = await lastLoggedChangeSeq(db);
+
+    await configure({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+
+    const [block] = await db.select().from(offlineNumberBlocks);
+    const logged = await db
+      .select({
+        entity: changes.entity,
+        entityId: changes.entityId,
+        version: changes.version,
+        op: changes.op,
+        locationId: changes.locationId,
+        registerId: changes.registerId,
+      })
+      .from(changes)
+      .where(eq(changes.entity, "offline_number_block"));
+    expect(logged).toEqual([
+      {
+        entity: "offline_number_block",
+        entityId: block?.id,
+        version: 1,
+        op: "insert",
+        locationId: null,
+        registerId,
+      },
+    ]);
+    expect(await changesLoggedAfter(db, mark)).toHaveLength(2);
+  });
+
+  it("notes no register on the other changes", async () => {
+    const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
+
+    await configure({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+
+    const [setup] = await db
+      .select({ registerId: changes.registerId })
+      .from(changes)
+      .where(eq(changes.entity, "register_offline_point_of_sale"));
+    expect(setup).toEqual({ registerId: null });
+  });
+
+  it("assigns the next block right after the last one, on demand", async () => {
+    const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
+    await configure({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+    const store = new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOON);
+
+    const second = await store.transaction((tx) =>
+      assignOfflineNumberBlock(tx, {
+        pointOfSaleNumber: 8,
+        documentType: "factura_c",
+        registerId,
+      }),
+    );
+
+    expect(second).toEqual({ kind: "assigned", range: { firstNumber: 1001, lastNumber: 2000 } });
+    const blocks = await db
+      .select()
+      .from(offlineNumberBlocks)
+      .orderBy(offlineNumberBlocks.firstNumber);
+    expect(
+      blocks.map(({ firstNumber, lastNumber, version }) => [firstNumber, lastNumber, version]),
+    ).toEqual([
+      [1, 1000, 1],
+      [1001, 2000, 1],
+    ]);
+  });
+
+  it("keeps the blocks of one point of sale apart from another's", async () => {
+    const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
+    const otherRegisterId = await insertRegister(locationId, "Caja 2");
+    await configureRealTime({
+      locationId,
+      registerId: otherRegisterId,
+      pointOfSaleNumber: 9,
+      fiscalAddressId: await insertFiscalAddress("Sucursal Sur"),
+      version: 0,
+      actorId,
+    });
+
+    await configure({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+    await configure({
+      locationId,
+      registerId: otherRegisterId,
+      pointOfSaleNumber: 10,
+      version: 0,
+      actorId,
+    });
+
+    const blocks = await db.select().from(offlineNumberBlocks);
+    expect(
+      blocks
+        .map(({ pointOfSaleNumber, firstNumber, lastNumber }) => [
+          pointOfSaleNumber,
+          firstNumber,
+          lastNumber,
+        ])
+        .sort(),
+    ).toEqual([
+      [10, 1, 1000],
+      [8, 1, 1000],
+    ]);
+  });
+
+  it("assigns no second first block when the point of sale already has one", async () => {
+    const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
+    await configure({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+    await configure({ locationId, registerId, pointOfSaleNumber: 9, version: 1, actorId });
+    await configure({ locationId, registerId, pointOfSaleNumber: 8, version: 2, actorId });
+
+    const blocks = await db.select().from(offlineNumberBlocks);
+    expect(
+      blocks.map(({ pointOfSaleNumber, firstNumber }) => [pointOfSaleNumber, firstNumber]).sort(),
+    ).toEqual([
+      [8, 1],
+      [9, 1],
+    ]);
+  });
+
+  it("deletes no block when the register moves to another point of sale", async () => {
+    const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
+    await configure({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+
+    await configure({ locationId, registerId, pointOfSaleNumber: 9, version: 1, actorId });
+
+    expect(await db.select().from(offlineNumberBlocks)).toHaveLength(2);
   });
 });
 
