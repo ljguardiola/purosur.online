@@ -7,13 +7,14 @@ import {
   formatNumber,
   InlineNotice,
   LoadFailure,
+  LoadingPlaceholder,
   Modal,
   ProgressSteps,
   plural,
   SummaryRowGroup,
 } from "@purosur/ui";
 import { ArrowRight, CircleX, Info, QrCode, TimerOff, TriangleAlert } from "lucide-react";
-import { useEffect, useEffectEvent } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import type { ShownQrOrder } from "./qr-charge-modal";
 import type { FollowedQrCharge } from "./sales-queries";
 import { useQrChargeQuery } from "./sales-queries";
@@ -50,6 +51,7 @@ export function QrPaymentWaitModal({
 }: QrPaymentWaitModalProps) {
   const charge = useQrChargeQuery({ paymentTransactionId: order.payment_transaction_id, follow });
   const outcome = charge.status === "loaded" ? charge.value : undefined;
+  const [retried, setRetried] = useState(false);
 
   const leaveWhenSettled = useEffectEvent((settled: FollowedQrCharge) => {
     switch (settled.kind) {
@@ -128,19 +130,7 @@ export function QrPaymentWaitModal({
       contextTone="info"
       title="Esperando el pago del cliente"
       closable={false}
-      footer={
-        charge.status === "failed" ? (
-          <Button
-            variant="secondary"
-            size="large"
-            fullWidth
-            icon={<ArrowRight />}
-            onPress={onChooseAnotherMethod}
-          >
-            Elegir otro medio
-          </Button>
-        ) : null
-      }
+      footer={null}
     >
       <div className="flex flex-col gap-5">
         <SummaryRowGroup
@@ -155,8 +145,13 @@ export function QrPaymentWaitModal({
             icon={<TriangleAlert />}
             title="No se pudo consultar el pago del QR"
             description="Volvé a intentarlo en unos segundos."
-            onRetry={charge.retry}
+            onRetry={() => {
+              setRetried(true);
+              charge.retry();
+            }}
           />
+        ) : charge.status === "loading" && retried ? (
+          <LoadingPlaceholder variant="card" lines={2} />
         ) : (
           <div className="flex items-center gap-6">
             <CountdownRing

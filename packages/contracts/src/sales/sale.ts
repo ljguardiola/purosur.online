@@ -13,6 +13,7 @@ import {
   partiallyPaidOutcomeSchema,
   plannedRefundSchema,
   reachesThresholdRefusalSchema,
+  saleCancelRefusalSchema,
 } from "../shared/index.js";
 
 const cents = z.int().nonnegative();
@@ -47,8 +48,7 @@ export const saleSchema = z.object({
   paid: cents,
   pending: cents,
   lines_lock: z.enum(["approved_payment", "qr_charge_in_progress"]).nullable(),
-  cancellable: z.boolean(),
-  cancel_refusal: z.enum(["qr_charge_in_progress", "holds_qr_payment"]).nullable(),
+  cancel_refusal: saleCancelRefusalSchema.nullable(),
   refunds_on_cancel: z.array(plannedRefundSchema),
   cancel_authorization_required: z.boolean(),
   charge_refusal: z

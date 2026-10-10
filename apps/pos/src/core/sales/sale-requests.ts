@@ -90,7 +90,6 @@ interface OpenSaleAnswer {
   chargeRefusal: ChargeRefusal | undefined;
   balance: { paid: number; pending: number };
   linesLock: OpenSale["lines_lock"];
-  cancellable: boolean;
   cancelRefusal: OpenSale["cancel_refusal"];
   refundsOnCancel: readonly PlannedRefund[];
 }
@@ -124,15 +123,7 @@ function asSeller<Outcome>(
 }
 
 function toOpenSale(
-  {
-    sale,
-    chargeRefusal,
-    balance,
-    linesLock,
-    cancellable,
-    cancelRefusal,
-    refundsOnCancel,
-  }: OpenSaleAnswer,
+  { sale, chargeRefusal, balance, linesLock, cancelRefusal, refundsOnCancel }: OpenSaleAnswer,
   cancelAuthorizationRequired: boolean,
 ): OpenSale {
   return {
@@ -151,7 +142,6 @@ function toOpenSale(
     paid: balance.paid,
     pending: balance.pending,
     lines_lock: linesLock,
-    cancellable,
     cancel_refusal: cancelRefusal,
     refunds_on_cancel: refundsOnCancel.map(toWireRefund),
     cancel_authorization_required: cancelAuthorizationRequired,

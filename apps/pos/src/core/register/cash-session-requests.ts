@@ -272,6 +272,7 @@ export function sessionOpenSaleFor(database: LocalDatabase, now: Date): SessionO
     total,
     paid: standing.balance.paid,
     cancellable: standing.cancellable,
+    cancel_refusal: standing.cancelRefusal,
     refunds_on_cancel: standing.refundsOnCancel.map(toWireRefund),
   };
 }

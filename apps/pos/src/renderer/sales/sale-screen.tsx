@@ -37,6 +37,7 @@ import { ProductSearchResults, searchOptionId } from "./product-search-results";
 import { SaleLines } from "./sale-lines";
 import {
   useCurrentSaleQuery,
+  useReadCurrentSale,
   useResetCurrentSale,
   useSearchProducts,
   useTakeSale,
@@ -113,6 +114,7 @@ export function SaleScreen({
   const current = useCurrentSaleQuery({ sessionId, userId: person.user_id, read: currentSale });
   const takeSale = useTakeSale(sessionId, person.user_id);
   const resetCurrentSale = useResetCurrentSale(sessionId, person.user_id);
+  const readCurrentSale = useReadCurrentSale(sessionId, person.user_id, currentSale);
   const search = useSearchProducts(searchProducts);
   const [changed, setChanged] = useState<string>();
   const [code, setCode] = useState("");
@@ -355,13 +357,16 @@ export function SaleScreen({
     answer === "not_permitted" && problem?.kind === "not_permitted" ? undefined : problem;
   const lockedReason = linesLock === null ? undefined : LOCKED_REASONS[linesLock];
   const refundsOnCancel = sale?.refunds_on_cancel ?? [];
-  const cancelWithRefunds = refundsOnCancel.length > 0;
 
-  function askToCancelSale() {
-    const refusal = sale?.cancel_refusal ?? null;
-    if (refusal !== null) {
-      setProblem({ kind: refusal });
-    } else if (cancelWithRefunds) {
+  async function askToCancelSale() {
+    const asked = sale?.cancel_refusal === null ? sale : await readCurrentSale();
+    if (asked === "unavailable") {
+      setProblem({ kind: "cancel_failed" });
+    } else if (asked === null || asked === "not_permitted") {
+      setProblem(undefined);
+    } else if (asked.cancel_refusal !== null) {
+      setProblem({ kind: asked.cancel_refusal });
+    } else if (asked.refunds_on_cancel.length > 0) {
       askToCancelPaid(true);
     } else {
       askToCancel(true);
@@ -453,7 +458,7 @@ export function SaleScreen({
         chargeRefusal={sale?.charge_refusal ?? null}
         canCancel={sale !== null && !editing}
         onCharge={() => void navigate({ to: "/charge" })}
-        onCancel={askToCancelSale}
+        onCancel={() => void askToCancelSale()}
       />
       <CancelSaleModal
         open={confirmingCancel}

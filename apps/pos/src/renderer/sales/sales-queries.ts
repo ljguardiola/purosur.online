@@ -32,7 +32,7 @@ export const salesKeys = {
   saleDetail: (saleId: string) => [...salesKey, "history-detail", saleId] as const,
 };
 
-const QR_CHARGE_FOLLOW_INTERVAL_MS = 1000;
+const QR_WAIT_FOLLOW_INTERVAL_MS = 1000;
 
 export type FollowedQrCharge = Exclude<FollowMercadoPagoQrChargeOutcome, { kind: "unavailable" }>;
 
@@ -56,7 +56,7 @@ export function useQrChargeQuery({
     gcTime: 0,
     refetchInterval: ({ state }) =>
       state.status === "success" && state.data?.kind === "waiting"
-        ? QR_CHARGE_FOLLOW_INTERVAL_MS
+        ? QR_WAIT_FOLLOW_INTERVAL_MS
         : false,
     refetchIntervalInBackground: true,
   });
@@ -152,7 +152,33 @@ export function useCurrentSaleQuery({
   userId: string;
   read: () => Promise<CurrentSaleAnswer>;
 }): CoreData<CurrentSaleAnswer> {
-  return useCoreQuery({ queryKey: salesKeys.currentSale(sessionId, userId), read });
+  return useCoreQuery({
+    queryKey: salesKeys.currentSale(sessionId, userId),
+    read,
+    refetchInterval: (answer) =>
+      answer !== undefined &&
+      answer !== null &&
+      answer !== "not_permitted" &&
+      (answer.lines_lock === "qr_charge_in_progress" ||
+        answer.cancel_refusal === "qr_charge_in_progress")
+        ? QR_WAIT_FOLLOW_INTERVAL_MS
+        : false,
+  });
+}
+
+export function useReadCurrentSale(
+  sessionId: string,
+  userId: string,
+  read: () => Promise<CurrentSaleAnswer>,
+): () => Promise<CurrentSaleAnswer | "unavailable"> {
+  const queryClient = useQueryClient();
+  return () =>
+    queryClient
+      .fetchQuery({
+        ...coreQueryOptions({ queryKey: salesKeys.currentSale(sessionId, userId), read }),
+        staleTime: 0,
+      })
+      .catch((): "unavailable" => "unavailable");
 }
 
 export function useCashChargeQuery({
