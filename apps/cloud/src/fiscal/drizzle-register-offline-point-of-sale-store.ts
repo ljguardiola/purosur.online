@@ -1,4 +1,4 @@
-import type { FiscalDocumentType, OfflineNumberBlockRange } from "@purosur/domain";
+import type { FiscalDocumentType } from "@purosur/domain";
 import type {
   LockBranchRegisterResult,
   OfflineNumberBlockRecord,
@@ -10,7 +10,7 @@ import type {
   RegisterOfflinePointOfSaleStoreTransaction,
   RegisterPointOfSale,
 } from "@purosur/domain/fiscal/use-cases";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   auditLog,
@@ -101,7 +101,7 @@ class DrizzleRegisterOfflinePointOfSaleStoreTransaction<TQueryResult extends PgQ
     await this.tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
   }
 
-  async hasOfflineNumberBlockInUse(
+  async hasOfflineNumberBlock(
     pointOfSaleNumber: number,
     documentType: FiscalDocumentType,
   ): Promise<boolean> {
@@ -112,32 +112,10 @@ class DrizzleRegisterOfflinePointOfSaleStoreTransaction<TQueryResult extends PgQ
         and(
           eq(offlineNumberBlocks.pointOfSaleNumber, pointOfSaleNumber),
           eq(offlineNumberBlocks.documentType, documentType),
-          eq(offlineNumberBlocks.status, "in_use"),
         ),
       )
       .limit(1);
     return block !== undefined;
-  }
-
-  async lastOfflineNumberBlock(
-    pointOfSaleNumber: number,
-    documentType: FiscalDocumentType,
-  ): Promise<OfflineNumberBlockRange | null> {
-    const [block] = await this.tx
-      .select({
-        firstNumber: offlineNumberBlocks.firstNumber,
-        lastNumber: offlineNumberBlocks.lastNumber,
-      })
-      .from(offlineNumberBlocks)
-      .where(
-        and(
-          eq(offlineNumberBlocks.pointOfSaleNumber, pointOfSaleNumber),
-          eq(offlineNumberBlocks.documentType, documentType),
-        ),
-      )
-      .orderBy(desc(offlineNumberBlocks.lastNumber))
-      .limit(1);
-    return block ?? null;
   }
 
   async recordOfflineNumberBlock(record: OfflineNumberBlockRecord): Promise<void> {

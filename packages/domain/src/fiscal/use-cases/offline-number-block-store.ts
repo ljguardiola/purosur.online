@@ -17,13 +17,9 @@ export interface OfflineNumberBlockStore {
     pointOfSaleNumber: number,
     documentType: FiscalDocumentType,
   ): Promise<void>;
-  hasOfflineNumberBlockInUse(
+  hasOfflineNumberBlock(
     pointOfSaleNumber: number,
     documentType: FiscalDocumentType,
   ): Promise<boolean>;
-  lastOfflineNumberBlock(
-    pointOfSaleNumber: number,
-    documentType: FiscalDocumentType,
-  ): Promise<OfflineNumberBlockRange | null>;
   recordOfflineNumberBlock(record: OfflineNumberBlockRecord): Promise<void>;
 }

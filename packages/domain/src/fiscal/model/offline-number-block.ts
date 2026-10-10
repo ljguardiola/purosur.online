@@ -9,11 +9,8 @@ export interface OfflineNumberBlockRange {
   lastNumber: number;
 }
 
-export function nextOfflineNumberBlock(
-  previous: OfflineNumberBlockRange | null,
-): OfflineNumberBlockRange {
-  const firstNumber = previous === null ? 1 : previous.lastNumber + 1;
-  return { firstNumber, lastNumber: firstNumber + OFFLINE_NUMBER_BLOCK_SIZE - 1 };
+export function firstOfflineNumberBlock(): OfflineNumberBlockRange {
+  return { firstNumber: 1, lastNumber: OFFLINE_NUMBER_BLOCK_SIZE };
 }
 
 export function nextOfflineNumber(
