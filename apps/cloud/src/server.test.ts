@@ -1440,9 +1440,9 @@ describe("startServer creating Mercado Pago QR orders", () => {
   it("gives the app the payment route with a dedicated connection per transaction lane and the Mercado Pago orders when both variables are set", async () => {
     const { started, buildApp, recovery } = start({
       ...env,
-      MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token-0001",
+      MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token",
       MERCADOPAGO_QR_EXTERNAL_POS_ID: "STORE01POS01",
-      MERCADOPAGO_WEBHOOK_SECRET: "fictional-webhook-secret-0001",
+      MERCADOPAGO_WEBHOOK_SECRET: "fictional-webhook-secret",
     });
     await started;
 
@@ -1457,16 +1457,16 @@ describe("startServer creating Mercado Pago QR orders", () => {
       db: recovery.db,
       connections: recovery.connections,
       mercadoPago,
-      webhookSecret: "fictional-webhook-secret-0001",
+      webhookSecret: "fictional-webhook-secret",
     });
   });
 
   it("gives the setup of the recovery infrastructure the Mercado Pago orders, so the pending check runs, when all variables are set", async () => {
     const { started, setUp } = start({
       ...env,
-      MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token-0001",
+      MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token",
       MERCADOPAGO_QR_EXTERNAL_POS_ID: "STORE01POS01",
-      MERCADOPAGO_WEBHOOK_SECRET: "fictional-webhook-secret-0001",
+      MERCADOPAGO_WEBHOOK_SECRET: "fictional-webhook-secret",
     });
     await started;
 
@@ -1501,7 +1501,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
   it("does not start with only one of the variables, before anything listens", async () => {
     const { started, buildApp } = start({
       ...env,
-      MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token-0001",
+      MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token",
     });
 
     await expect(started).rejects.toThrow(
