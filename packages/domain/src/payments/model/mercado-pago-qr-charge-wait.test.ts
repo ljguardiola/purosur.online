@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  aQrChargeInItsWait,
   MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS,
   MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES,
   mercadoPagoQrChargeWait,
@@ -69,5 +70,35 @@ describe("mercadoPagoQrChargeWait", () => {
 describe("MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS", () => {
   it("asks the cloud for the order's state every 3 seconds, at most", () => {
     expect(MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS).toBe(3_000);
+  });
+});
+
+describe("aQrChargeInItsWait", () => {
+  const pending = (waitEndsAt: Date) => ({ waitEndsAt });
+
+  it("is false for a sale with no pending QR payment", () => {
+    expect(aQrChargeInItsWait([], STARTED_AT)).toBe(false);
+  });
+
+  it("is true while a pending QR payment's wait has not ended", () => {
+    expect(aQrChargeInItsWait([pending(WAIT_ENDS_AT)], STARTED_AT)).toBe(true);
+  });
+
+  it("is false once every pending QR payment's wait has ended", () => {
+    expect(
+      aQrChargeInItsWait(
+        [pending(new Date("2026-10-09T11:59:00.000Z")), pending(WAIT_ENDS_AT)],
+        WAIT_ENDS_AT,
+      ),
+    ).toBe(false);
+  });
+
+  it("is true when any of several pending QR payments is still in its wait", () => {
+    expect(
+      aQrChargeInItsWait(
+        [pending(new Date("2026-10-09T11:59:00.000Z")), pending(WAIT_ENDS_AT)],
+        STARTED_AT,
+      ),
+    ).toBe(true);
   });
 });
