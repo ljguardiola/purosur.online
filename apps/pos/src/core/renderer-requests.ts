@@ -26,9 +26,11 @@ import type {
   PinCodeRedemptionOutcome,
   PinPolicy,
   ReadReceiptPrinterOutcome,
+  ReadSerialDevicesOutcome,
   ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
+  RegisterSerialDevicesOutcome,
   RegisterStatus,
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
@@ -47,6 +49,7 @@ import type {
 import type { AuthorizablePermissionKey, RegisterService } from "@purosur/domain";
 import { isDatabaseDamage } from "./platform/database-damage";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
+import type { WireSerialDevices } from "./register/serial-devices-requests";
 import type { CoreToRendererMessage, RendererToCoreMessage } from "./renderer-messages";
 import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type {
@@ -73,7 +76,7 @@ export interface RendererRequestDeps {
   requestFirstPinCode: ((userId: string) => Promise<FirstPinCodeRequestOutcome>) | undefined;
   openCashSession: ((openingFloat: number) => Promise<OpenCashSessionOutcome>) | undefined;
   cashSession: (() => OpenCashSession | null) | undefined;
-  registerStatus: (() => RegisterStatus) | undefined;
+  registerStatus: (() => Promise<RegisterStatus>) | undefined;
   recordCashMovement:
     | ((request: CashMovementRequest) => Promise<RecordCashMovementOutcome>)
     | undefined;
@@ -128,6 +131,10 @@ export interface RendererRequestDeps {
   saleHistoryDetail: ((saleId: string) => Promise<SaleHistoryDetailOutcome>) | undefined;
   readReceiptPrinter: (() => Promise<ReadReceiptPrinterOutcome>) | undefined;
   setReceiptPrinter: ((address: string) => Promise<SetReceiptPrinterOutcome>) | undefined;
+  readSerialDevices: (() => Promise<ReadSerialDevicesOutcome>) | undefined;
+  registerSerialDevices:
+    | ((devices: WireSerialDevices) => Promise<RegisterSerialDevicesOutcome>)
+    | undefined;
   closeCashSession:
     | ((sessionId: string, countedCash: number) => Promise<CloseCashSessionOutcome>)
     | undefined;
@@ -375,9 +382,9 @@ function readCashMovementKinds(
   }
 }
 
-function readRegisterStatus(deps: RendererRequestDeps): RegisterStatus | undefined {
+async function readRegisterStatus(deps: RendererRequestDeps): Promise<RegisterStatus | undefined> {
   try {
-    return deps.registerStatus?.();
+    return await deps.registerStatus?.();
   } catch (error) {
     deps.reportFailure("reading the register's status", error);
     return undefined;
@@ -606,7 +613,7 @@ export async function answerRendererRequest(
         : { type: "cash-session", request_id: message.request_id, session };
     }
     case "register-status-request": {
-      const status = readRegisterStatus(deps);
+      const status = await readRegisterStatus(deps);
       return status === undefined
         ? { type: "register-status-unavailable", request_id: message.request_id }
         : { type: "register-status", request_id: message.request_id, status };
@@ -781,6 +788,26 @@ export async function answerRendererRequest(
           deps,
           "setting the receipt printer",
           setReceiptPrinter && (() => setReceiptPrinter(message.address)),
+        ),
+      };
+    }
+    case "read-serial-devices": {
+      const { readSerialDevices } = deps;
+      return {
+        type: "read-serial-devices-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(deps, "reading the serial devices", readSerialDevices),
+      };
+    }
+    case "register-serial-devices": {
+      const { registerSerialDevices } = deps;
+      return {
+        type: "register-serial-devices-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "registering the serial devices",
+          registerSerialDevices && (() => registerSerialDevices(message.devices)),
         ),
       };
     }

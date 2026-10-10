@@ -16,6 +16,7 @@ type SignedInOperation = OperationOf<
   | "close_cash_session"
   | "view_sales_history"
   | "configure_receipt_printer"
+  | "configure_serial_devices"
 >;
 type AuthorizableOperation = OperationOf<
   "record_cash_movement" | "cancel_paid_sale" | "reprint_receipt"

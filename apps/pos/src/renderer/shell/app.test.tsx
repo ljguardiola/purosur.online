@@ -8,6 +8,7 @@ import type {
   OpenCashSessionOutcome,
   OpenSale,
   PinCodeRedemptionOutcome,
+  RegisterStatus,
   SalesHistoryOutcome,
   ScanProductOutcome,
   SignInOutcome,
@@ -58,6 +59,12 @@ const BALANCE: CashBalance = {
 const ADA_SELLS: SignInOutcome = {
   kind: "signed_in",
   person: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
+  cash_session: null,
+};
+
+const LINUS_SIGNED_IN: SignInOutcome = {
+  kind: "signed_in",
+  person: { user_id: "u3", first_name: "Linus", abilities: ["configure_serial_devices"] },
   cash_session: null,
 };
 
@@ -117,6 +124,7 @@ function coreAnswering(
   } = {},
   signOut: () => Promise<void> = async () => {},
   service: "in_service" | "out_of_service" | "unanswered" = "in_service",
+  serialDevices: RegisterStatus["serial_devices"] = { scale: "matching", reader: "matching" },
 ) {
   const cashSessionAsks: string[] = [];
   const statusAsks: string[] = [];
@@ -130,6 +138,7 @@ function coreAnswering(
   let usersLoads = 0;
   let savedName: string | null = null;
   const pulledListeners = new Set<() => void>();
+  const serialDevicesChangedListeners = new Set<() => void>();
   const core: CoreClient = {
     connect() {},
     async enrollmentStatus() {
@@ -201,7 +210,7 @@ function coreAnswering(
     },
     async registerStatus() {
       statusAsks.push("register-status");
-      return { conditions: [], cloud: "reachable" };
+      return { conditions: [], cloud: "reachable", serial_devices: serialDevices };
     },
     async recordCashMovement(input) {
       recorded.push(input);
@@ -269,6 +278,17 @@ function coreAnswering(
       return { kind: "not_configured" };
     },
     async setReceiptPrinter() {
+      return { kind: "unavailable" };
+    },
+    async readSerialDevices() {
+      return {
+        kind: "read",
+        registered: {},
+        detected: [],
+        standings: { scale: { kind: "not_registered" }, reader: { kind: "not_registered" } },
+      };
+    },
+    async registerSerialDevices() {
       return { kind: "unavailable" };
     },
     async searchProducts(query) {
@@ -347,7 +367,18 @@ function coreAnswering(
         pulledListeners.delete(listener);
       };
     },
+    onSerialDevicesChanged(listener) {
+      serialDevicesChangedListeners.add(listener);
+      return () => {
+        serialDevicesChangedListeners.delete(listener);
+      };
+    },
   };
+  function changeSerialDevices() {
+    for (const listener of serialDevicesChangedListeners) {
+      listener();
+    }
+  }
   function finishPull(nameSaved: string | null) {
     savedName = nameSaved;
     for (const listener of pulledListeners) {
@@ -365,6 +396,7 @@ function coreAnswering(
     cancelledLocked,
     recorded,
     finishPull,
+    changeSerialDevices,
     usersLoads: () => usersLoads,
   };
 }
@@ -539,6 +571,162 @@ describe("App", () => {
     finishPull(null);
 
     await expect.poll(() => statusAsks.length).toBeGreaterThan(readsBefore);
+  });
+
+  it("reads the register's status and the serial devices again whenever the serial devices change", async () => {
+    const { core, statusAsks, changeSerialDevices } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    await expect.element(screen.getByText("Nube conectada")).toBeVisible();
+    const readsBefore = statusAsks.length;
+
+    changeSerialDevices();
+
+    await expect.poll(() => statusAsks.length).toBeGreaterThan(readsBefore);
+  });
+
+  describe("the offer to register the scale and reader", () => {
+    const NEITHER_REGISTERED = { scale: "not_registered", reader: "not_registered" } as const;
+
+    async function signInAsConfigurer(core: CoreClient) {
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+      await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+      await userEvent.type(screen.getByLabelText("PIN"), "1234");
+      await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+      return screen;
+    }
+
+    it("lands a person who may configure the devices on them while neither is registered", async () => {
+      const { core } = coreAnswering(
+        true,
+        undefined,
+        LINUS_SIGNED_IN,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        NEITHER_REGISTERED,
+      );
+
+      const screen = await signInAsConfigurer(core);
+
+      await expect
+        .element(screen.getByRole("heading", { level: 1, name: "Balanza y lector" }))
+        .toBeVisible();
+      await expect.element(screen.getByRole("button", { name: "Ahora no" })).toBeVisible();
+    });
+
+    it("lands a person who signs in by redeeming a PIN code on the devices while neither is registered", async () => {
+      const { core } = coreAnswering(
+        true,
+        undefined,
+        LINUS_SIGNED_IN,
+        {
+          redeemOutcome: {
+            kind: "resumed",
+            person: LINUS_SIGNED_IN.person,
+            cash_session: null,
+          },
+        },
+        undefined,
+        undefined,
+        undefined,
+        NEITHER_REGISTERED,
+      );
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+
+      await userEvent.click(
+        screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }),
+      );
+      await userEvent.fill(screen.getByRole("textbox", { name: "Código" }), "K7QM2XPA3DTR4HWN");
+      await userEvent.fill(screen.getByLabelText("PIN nuevo, de al menos 6 dígitos"), "482915");
+      await userEvent.fill(screen.getByLabelText("Repetí el PIN nuevo"), "482915");
+      await userEvent.click(screen.getByRole("button", { name: "Guardar el PIN nuevo" }));
+
+      await expect
+        .element(screen.getByRole("heading", { level: 1, name: "Balanza y lector" }))
+        .toBeVisible();
+    });
+
+    it("goes on to the main screen on Ahora no, and stays there when the person returns to it", async () => {
+      const { core } = coreAnswering(
+        true,
+        undefined,
+        LINUS_SIGNED_IN,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        NEITHER_REGISTERED,
+      );
+      const screen = await signInAsConfigurer(core);
+
+      await userEvent.click(screen.getByRole("button", { name: "Ahora no" }));
+
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+      await userEvent.click(screen.getByRole("link", { name: "Balanza y lector" }));
+      await expect
+        .element(screen.getByRole("heading", { level: 1, name: "Balanza y lector" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Ahora no" }))
+        .not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("link", { name: "Inicio" }));
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+    });
+
+    it("goes home through Inicio from the devices the person landed on", async () => {
+      const { core } = coreAnswering(
+        true,
+        undefined,
+        LINUS_SIGNED_IN,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        NEITHER_REGISTERED,
+      );
+      const screen = await signInAsConfigurer(core);
+      await expect.element(screen.getByRole("button", { name: "Ahora no" })).toBeVisible();
+
+      await userEvent.click(screen.getByRole("link", { name: "Inicio" }));
+
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+    });
+
+    it("offers the devices again to whoever signs in after the person signed out", async () => {
+      const { core } = coreAnswering(
+        true,
+        undefined,
+        LINUS_SIGNED_IN,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        NEITHER_REGISTERED,
+      );
+      const screen = await signInAsConfigurer(core);
+      await userEvent.click(screen.getByRole("button", { name: "Ahora no" }));
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+      await userEvent.click(
+        screen
+          .getByRole("dialog", { name: "¿Salir de la caja?" })
+          .getByRole("button", { name: "Salir" }),
+      );
+      await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+
+      await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+      await userEvent.type(screen.getByLabelText("PIN"), "1234");
+      await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+      await expect.element(screen.getByRole("button", { name: "Ahora no" })).toBeVisible();
+    });
   });
 
   it("keeps the chosen person and the typed PIN when a pull refreshes the sign-in screen", async () => {

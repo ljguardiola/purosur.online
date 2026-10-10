@@ -222,6 +222,41 @@ describe("registerOperationAccess", () => {
     });
   });
 
+  describe("for configuring the serial devices", () => {
+    const operation: RegisterOperation = { kind: "configure_serial_devices" };
+
+    it("permits a person who holds enroll_register_devices", () => {
+      expect(
+        registerOperationAccess(operation, {
+          id: "ana",
+          access: holding("enroll_register_devices"),
+        }),
+      ).toEqual({ kind: "permitted" });
+    });
+
+    it("permits an Administrator", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: ADMINISTRATOR })).toEqual({
+        kind: "permitted",
+      });
+    });
+
+    it("refuses, with nobody able to authorize it, a person who lacks the permission", () => {
+      expect(
+        registerOperationAccess(operation, { id: "ana", access: holding("sell_and_charge") }),
+      ).toEqual({ kind: "refused" });
+    });
+
+    it("answers that a person with no access has none", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: undefined })).toEqual({
+        kind: "no_access",
+      });
+    });
+
+    it("refuses when nobody is signed in", () => {
+      expect(registerOperationAccess(operation, undefined)).toEqual({ kind: "refused" });
+    });
+  });
+
   describe("for closing the open cash session", () => {
     const operation: RegisterOperation = { kind: "close_cash_session", session: SESSION };
 
@@ -360,6 +395,7 @@ describe("mayAuthorize", () => {
     { kind: "open_cash_session" },
     { kind: "sell" },
     { kind: "configure_receipt_printer" },
+    { kind: "configure_serial_devices" },
     { kind: "close_cash_session", session: SESSION },
   ])("lets nobody authorize $kind for someone else", (operation) => {
     expect(mayAuthorize(operation, { id: "bruno", access: ADMINISTRATOR })).toBe(false);
@@ -389,9 +425,10 @@ describe("registerAbilities", () => {
     expect(registerAbilities(holding(key))).toEqual([key]);
   });
 
-  it("gives the configure_receipt_printer ability to a person who holds enroll_register_devices", () => {
+  it("gives the configure_receipt_printer and configure_serial_devices abilities to a person who holds enroll_register_devices", () => {
     expect(registerAbilities(holding("enroll_register_devices"))).toEqual([
       "configure_receipt_printer",
+      "configure_serial_devices",
     ]);
   });
 

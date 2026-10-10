@@ -875,6 +875,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0034_serial_devices",
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
       ]);
@@ -937,6 +938,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0034_serial_devices",
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
       ]);
@@ -994,6 +996,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0034_serial_devices",
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
       ]);
@@ -1050,6 +1053,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0034_serial_devices",
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
       ]);
@@ -1133,6 +1137,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0034_serial_devices",
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
       ]);
@@ -1208,6 +1213,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0034_serial_devices",
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
       ]);
@@ -1287,6 +1293,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0034_serial_devices",
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
       ]);
@@ -1349,6 +1356,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0034_serial_devices",
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
       ]);
@@ -1403,6 +1411,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0034_serial_devices",
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
       ]);
@@ -2089,6 +2098,90 @@ describe("the register's local migrations", () => {
       expect(insert({ port: 65536 }).run).toThrow(/CHECK/);
       expect(insert({ port: 65535 }).run).not.toThrow();
       held.database.close();
+    });
+  });
+
+  it("add the serial devices with none registered over the register that already holds data", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0034_serial_devices",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain("0034_serial_devices");
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.prepare("UPDATE sync_state SET pull_cursor = 11 WHERE id = 1").run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT * FROM serial_devices").all()).toEqual([]);
+      expect(after.prepare("SELECT pull_cursor FROM sync_state").get()).toEqual({
+        pull_cursor: 11,
+      });
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  describe("the registered serial devices", () => {
+    function insert(values: {
+      role?: string | null;
+      vendor_id?: string | null;
+      product_id?: string | null;
+    }) {
+      const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+      const run = () =>
+        database
+          .prepare(
+            "INSERT INTO serial_devices (role, vendor_id, product_id) VALUES (@role, @vendor_id, @product_id)",
+          )
+          .run({ role: "scale", vendor_id: "26f1", product_id: "8802", ...values });
+      return { database, run };
+    }
+
+    it("holds one device for the scale and one for the reader", () => {
+      const held = insert({});
+      held.run();
+
+      expect(() =>
+        held.database.prepare("INSERT INTO serial_devices VALUES ('reader', '1a86', '7523')").run(),
+      ).not.toThrow();
+      held.database.close();
+    });
+
+    it("refuses a role other than scale and reader, a missing role and a second device for one role", () => {
+      const held = insert({});
+      held.run();
+
+      expect(insert({ role: "printer" }).run).toThrow(/CHECK/);
+      expect(insert({ role: null }).run).toThrow(/NOT NULL/);
+      expect(() =>
+        held.database.prepare("INSERT INTO serial_devices VALUES ('scale', '1a86', '7523')").run(),
+      ).toThrow(/UNIQUE|PRIMARY KEY/);
+      held.database.close();
+    });
+
+    it("refuses the same vendor and product for both roles", () => {
+      const held = insert({});
+      held.run();
+
+      expect(() =>
+        held.database.prepare("INSERT INTO serial_devices VALUES ('reader', '26f1', '8802')").run(),
+      ).toThrow(/UNIQUE/);
+      held.database.close();
+    });
+
+    it("refuses a vendor or product that is not four lowercase hexadecimal digits", () => {
+      expect(insert({ vendor_id: "26F1" }).run).toThrow(/CHECK/);
+      expect(insert({ product_id: "880" }).run).toThrow(/CHECK/);
+      expect(insert({ vendor_id: "26f10" }).run).toThrow(/CHECK/);
+      expect(insert({ product_id: "88g2" }).run).toThrow(/CHECK/);
+      expect(insert({ vendor_id: "" }).run).toThrow(/CHECK/);
+      expect(insert({ vendor_id: null }).run).toThrow(/NOT NULL/);
+      expect(insert({ product_id: null }).run).toThrow(/NOT NULL/);
+      expect(insert({ vendor_id: "0000", product_id: "ffff" }).run).not.toThrow();
     });
   });
 

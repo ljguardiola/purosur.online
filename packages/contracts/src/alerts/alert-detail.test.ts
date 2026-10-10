@@ -188,6 +188,15 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"register_silent">>().toEqualTypeOf<AlertDetails["register_silent"]>();
     expectTypeOf<WireDetail<"sales_denied">>().toEqualTypeOf<AlertDetails["sales_denied"]>();
     expectTypeOf<WireDetail<"fiscal_rejected">>().toEqualTypeOf<AlertDetails["fiscal_rejected"]>();
+    expectTypeOf<WireDetail<"offline_authorization_code_missing">>().toExtend<
+      AlertDetails["offline_authorization_code_missing"]
+    >();
+    expectTypeOf<
+      Omit<WireDetail<"offline_authorization_code_missing">, "fortnightStarted">
+    >().toEqualTypeOf<AlertDetails["offline_authorization_code_missing"]>();
+    expectTypeOf<
+      WireDetail<"offline_authorization_code_missing">["fortnightStarted"]
+    >().toBeBoolean();
     expectTypeOf<WireDetail<"backoffice_sign_in_lockout">>().toExtend<
       Omit<AlertDetails["backoffice_sign_in_lockout"], "sourceAddress">
     >();
@@ -309,6 +318,12 @@ describe("alertDetailSchema", () => {
         fiscalDocumentId: "fiscal-document-1",
         saleId: "sale-1",
         rejections: [{ code: 10242, message: "El valor de CondicionIVAReceptorId es invalido." }],
+      },
+      offline_authorization_code_missing: {
+        deviceId: "device-1",
+        fortnightStart: "2026-10-16",
+        fortnightEnd: "2026-10-31",
+        fortnightStarted: false,
       },
     } satisfies Record<AlertKind, unknown>;
 

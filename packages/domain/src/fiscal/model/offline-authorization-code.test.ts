@@ -4,6 +4,7 @@ import {
   fortnightAfter,
   fortnightContaining,
   fortnightsWithinRequestWindowOn,
+  hasFortnightStarted,
   isSameFortnight,
   isSecondHalfOfMonth,
   OFFLINE_AUTHORIZATION_CODE_REQUEST_LEAD_DAYS,
@@ -148,5 +149,20 @@ describe("isSecondHalfOfMonth", () => {
 
   it("is true for the fortnight from the 16th to the last day of the month", () => {
     expect(isSecondHalfOfMonth({ start: "2026-10-16", end: "2026-10-31" })).toBe(true);
+  });
+});
+
+describe("hasFortnightStarted", () => {
+  const fortnight = { start: "2026-10-16", end: "2026-10-31" };
+
+  it("is false up to the day before the fortnight starts", () => {
+    expect(hasFortnightStarted(fortnight, "2026-10-11")).toBe(false);
+    expect(hasFortnightStarted(fortnight, "2026-10-15")).toBe(false);
+  });
+
+  it("is true from the day the fortnight starts, to its end and after", () => {
+    expect(hasFortnightStarted(fortnight, "2026-10-16")).toBe(true);
+    expect(hasFortnightStarted(fortnight, "2026-10-31")).toBe(true);
+    expect(hasFortnightStarted(fortnight, "2026-11-01")).toBe(true);
   });
 });

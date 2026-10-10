@@ -20,9 +20,11 @@ import type {
   OpenCashSessionOutcome,
   OpenSale,
   ReadReceiptPrinterOutcome,
+  ReadSerialDevicesOutcome,
   ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
+  RegisterSerialDevicesOutcome,
   RegisterStatus,
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
@@ -40,6 +42,7 @@ import type { AuthorizablePermissionKey } from "@purosur/domain";
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
+import type { WireSerialDevices } from "./register/serial-devices-requests";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type { CancelPaidSaleRequest } from "./sales/sale-requests";
@@ -130,7 +133,11 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         return { kind: "not_permitted" };
       },
       cashSession: (): OpenCashSession | null => null,
-      registerStatus: (): RegisterStatus => ({ conditions: [], cloud: "unknown" }),
+      registerStatus: async (): Promise<RegisterStatus> => ({
+        conditions: [],
+        cloud: "unknown",
+        serial_devices: { scale: "not_registered", reader: "not_registered" },
+      }),
       recordCashMovement: async (
         request: CashMovementRequest,
       ): Promise<RecordCashMovementOutcome> => {
@@ -210,6 +217,18 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       setReceiptPrinter: async (address: string): Promise<SetReceiptPrinterOutcome> => {
         saleChanges.push(["set-receipt-printer", address].join(" "));
         return { kind: "invalid_address" };
+      },
+      readSerialDevices: async (): Promise<ReadSerialDevicesOutcome> => {
+        saleChanges.push("read-serial-devices");
+        return { kind: "lacks_permission" };
+      },
+      registerSerialDevices: async (
+        devices: WireSerialDevices,
+      ): Promise<RegisterSerialDevicesOutcome> => {
+        saleChanges.push(
+          ["register-serial-devices", devices.scale?.vendor_id ?? "no-scale"].join(" "),
+        );
+        return { kind: "same_identity_for_both" };
       },
       saleHistoryDetail: async (saleId: string): Promise<SaleHistoryDetailOutcome> => {
         saleChanges.push(["sale-history-detail", saleId].join(" "));
@@ -739,10 +758,14 @@ describe("answerRendererRequest", () => {
   });
 
   it("answers the register's status as the core reads it", async () => {
-    const status: RegisterStatus = { conditions: ["sales_denied"], cloud: "unreachable" };
+    const status: RegisterStatus = {
+      conditions: ["sales_denied"],
+      cloud: "unreachable",
+      serial_devices: { scale: "matching", reader: "not_detected" },
+    };
 
     expect(
-      await answerRendererRequest(deps(true, { registerStatus: () => status }).deps, {
+      await answerRendererRequest(deps(true, { registerStatus: async () => status }).deps, {
         type: "register-status-request",
         request_id: "r30",
       }),
@@ -761,7 +784,7 @@ describe("answerRendererRequest", () => {
   it("answers that the status cannot be read when reading it fails, and reports why", async () => {
     const error = new Error("database is locked");
     const failing = deps(true, {
-      registerStatus: () => {
+      registerStatus: async () => {
         throw error;
       },
     });
@@ -2365,6 +2388,25 @@ describe("answerRendererRequest", () => {
         "setting the receipt printer",
         "set-receipt-printer 10.10.10.2:9100",
         "set-receipt-printer-result",
+      ],
+      [
+        "read-serial-devices",
+        { type: "read-serial-devices" } as const,
+        "readSerialDevices",
+        "reading the serial devices",
+        "read-serial-devices",
+        "read-serial-devices-result",
+      ],
+      [
+        "register-serial-devices",
+        {
+          type: "register-serial-devices",
+          devices: { scale: { vendor_id: "1a86", product_id: "7523" } },
+        } as const,
+        "registerSerialDevices",
+        "registering the serial devices",
+        "register-serial-devices 1a86",
+        "register-serial-devices-result",
       ],
       [
         "sale-history-detail",

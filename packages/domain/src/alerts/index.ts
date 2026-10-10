@@ -9,10 +9,13 @@ export {
 export type { AlertConditionObservation } from "./model/alert-condition-observation.js";
 export {
   fiscalRejectionAlertObservation,
+  offlineAuthorizationCodeHeldObservation,
+  offlineAuthorizationCodeMissingObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,
 } from "./model/alert-condition-observation.js";
+export { ALERT_CONDITION_STABLE_CLEAR_MS } from "./model/alert-condition-resolution.js";
 export type {
   AccessIncreasedDetail,
   AlertDetails,
@@ -42,7 +45,7 @@ export {
 export {
   alertActorId,
   alertNamedRecordIds,
-  alertScopeNamesRecord,
+  alertScopeRecordId,
 } from "./model/alert-named-records.js";
 export { showsAlertScope } from "./model/alert-scope-visibility.js";
 export type {
@@ -56,7 +59,12 @@ export {
   alertSightOf,
   canSeeAlert,
 } from "./model/alert-visibility.js";
+export { offlineAuthorizationCodeAcquisitionLevel } from "./model/offline-authorization-code-acquisition.js";
 export { isOpenAlert } from "./model/open-alert-state.js";
+export {
+  REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
+  registerFortnightScope,
+} from "./model/register-fortnight-scope.js";
 export type { RegisterOwnCondition } from "./model/register-own-conditions.js";
 export {
   REGISTER_OWN_CONDITIONS,

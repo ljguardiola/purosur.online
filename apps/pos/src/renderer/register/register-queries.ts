@@ -4,6 +4,7 @@ import type {
   ListedCashMovement,
   OpenCashSession,
   ReadReceiptPrinterOutcome,
+  ReadSerialDevicesOutcome,
   RecordableCashMovementKinds,
   RegisterStatus,
   SessionOpenSale,
@@ -29,6 +30,7 @@ export const registerKeys = {
   registerName: [...registerKey, "register-name"] as const,
   status: [...registerKey, "status"] as const,
   receiptPrinter: [...registerKey, "receipt-printer"] as const,
+  serialDevices: [...registerKey, "serial-devices"] as const,
   lockedClosers: (sessionId: string) => [...lockedClosersKey, sessionId] as const,
   cashBalance: (sessionId: string) => [...cashKey, sessionId, "balance"] as const,
   cashCountPreview: (sessionId: string, countedCash: number | undefined) =>
@@ -99,6 +101,10 @@ export function registerNameQueryOptions(read: () => Promise<string | null>) {
 export function useRegisterNameQuery(read: () => Promise<string | null>): string | null {
   const name = useCoreQuery({ queryKey: registerKeys.registerName, read, staleTime: Infinity });
   return name.status === "loaded" ? name.value : null;
+}
+
+export function registerStatusQueryOptions(read: () => Promise<RegisterStatus | "unavailable">) {
+  return coreQueryOptions({ queryKey: registerKeys.status, read });
 }
 
 export function useRegisterStatusQuery(
@@ -209,4 +215,23 @@ export function useReceiptPrinterQuery(
 export function useRefreshReceiptPrinter(): () => Promise<void> {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: registerKeys.receiptPrinter });
+}
+
+export type ShownSerialDevices = Exclude<ReadSerialDevicesOutcome, { kind: "unavailable" }>;
+
+export function useSerialDevicesQuery(
+  read: () => Promise<ReadSerialDevicesOutcome>,
+): CoreData<ShownSerialDevices> {
+  return useCoreQuery({
+    queryKey: registerKeys.serialDevices,
+    read: async () => {
+      const outcome = await read();
+      return outcome.kind === "unavailable" ? "unavailable" : outcome;
+    },
+  });
+}
+
+export function useRefreshSerialDevices(): () => Promise<void> {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: registerKeys.serialDevices });
 }

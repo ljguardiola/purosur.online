@@ -16,7 +16,12 @@ import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { credentialsKey } from "../credentials/credentials-queries";
-import type { CashMovementInput, CoreClient, SalesHistoryQuery } from "../platform/core-client";
+import type {
+  CashMovementInput,
+  CoreClient,
+  SalesHistoryQuery,
+  SerialDevicesToRegister,
+} from "../platform/core-client";
 import { createQueryClient } from "../platform/query-client";
 import { cancelReads, setQueryAnswer } from "../platform/set-query-answer";
 import { useCoreStatus } from "../platform/use-core-status";
@@ -31,6 +36,7 @@ import {
   useEnrollmentQuery,
   useRegisterServiceQuery,
 } from "../register/register-queries";
+import { useSerialDevicesOffer } from "../register/serial-devices-offer";
 import { salesKeys } from "../sales/sales-queries";
 import { sessionsKey } from "../sessions/sessions-queries";
 import type { Enrollment, RegisterServiceState } from "./router";
@@ -69,6 +75,7 @@ function Register({ core }: { core: CoreClient }) {
     enrollment = enrollmentRead.value ? "enrolled" : "not_enrolled";
   }
   const [signedInPerson, setPerson] = useState<SignedInPerson>();
+  const { offerSerialDevicesAfterSignIn, takeSerialDevicesOffer } = useSerialDevicesOffer();
   const cashSession = useCashSessionQuery({
     read: () => core.cashSession(),
     enabled: enrollment === "enrolled" && registerService === "in_service",
@@ -104,10 +111,15 @@ function Register({ core }: { core: CoreClient }) {
     return outcome;
   }
 
+  async function takePerson(signedIn: SignedInPerson, cashSession: OpenCashSession | null) {
+    offerSerialDevicesAfterSignIn(cashSession);
+    setPerson(signedIn);
+    await takeCashSession(cashSession);
+  }
+
   async function takeSignedInPerson(outcome: SignInOutcome) {
     if (outcome.kind === "signed_in") {
-      setPerson(outcome.person);
-      await takeCashSession(outcome.cash_session);
+      await takePerson(outcome.person, outcome.cash_session);
     }
     if (outcome.kind === "cash_session_opened_by_another") {
       await refreshCashSession();
@@ -272,8 +284,7 @@ function Register({ core }: { core: CoreClient }) {
   async function redeemPinCode(typedCode: string, newPin: string) {
     const outcome = await core.redeemPinCode(typedCode, newPin);
     if (outcome.kind === "resumed") {
-      setPerson(outcome.person);
-      await takeCashSession(outcome.cash_session);
+      await takePerson(outcome.person, outcome.cash_session);
     }
     return outcome;
   }
@@ -358,6 +369,10 @@ function Register({ core }: { core: CoreClient }) {
     saleHistoryDetail: (saleId: string) => core.saleHistoryDetail(saleId),
     readReceiptPrinter: () => core.readReceiptPrinter(),
     setReceiptPrinter: (address: string) => core.setReceiptPrinter(address),
+    readSerialDevices: () => core.readSerialDevices(),
+    registerSerialDevices: (devices: SerialDevicesToRegister) =>
+      core.registerSerialDevices(devices),
+    takeSerialDevicesOffer,
     // A replaced core connection fails this request; the core coming back up asks again.
     refreshCashSession,
   };
@@ -385,6 +400,15 @@ function Register({ core }: { core: CoreClient }) {
         void queryClient.invalidateQueries({ queryKey: registerKeys.registerName });
         void queryClient.invalidateQueries({ queryKey: registerKeys.status });
         void queryClient.invalidateQueries({ queryKey: lockedClosersKey });
+      }),
+    [core, queryClient],
+  );
+
+  useEffect(
+    () =>
+      core.onSerialDevicesChanged(() => {
+        void queryClient.invalidateQueries({ queryKey: registerKeys.status });
+        void queryClient.invalidateQueries({ queryKey: registerKeys.serialDevices });
       }),
     [core, queryClient],
   );

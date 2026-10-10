@@ -29,7 +29,12 @@ const SILENT_TITLE = "La caja no está sincronizando";
 function loaded(status: Partial<RegisterStatus> = {}): CoreData<RegisterStatus> {
   return {
     status: "loaded",
-    value: { conditions: [], cloud: "reachable", ...status },
+    value: {
+      conditions: [],
+      cloud: "reachable",
+      serial_devices: { scale: "matching", reader: "matching" },
+      ...status,
+    },
     refreshing: false,
   };
 }
@@ -142,6 +147,44 @@ describe("RegisterStatusBar", () => {
 
     await expect.element(screen.getByText(SILENT_TITLE)).toBeVisible();
     expect(barText(screen)).toContain("Sin conexión con la nube");
+  });
+
+  it("shows the standing of the scale and the reader", async () => {
+    const screen = await renderBar({
+      status: loaded({ serial_devices: { scale: "not_detected", reader: "matching" } }),
+    });
+
+    await expect.element(screen.getByText("Balanza no detectada")).toBeVisible();
+    await expect.element(screen.getByText("Lector conectado")).toBeVisible();
+  });
+
+  it("shows neither device while the status is read", async () => {
+    const screen = await renderBar({ status: { status: "loading" } });
+
+    expect(barText(screen)).not.toMatch(/Balanza|Lector/);
+  });
+
+  it("shows the missing scale or reader condition with what to do", async () => {
+    const screen = await renderBar({
+      status: loaded({
+        conditions: ["serial_device_missing"],
+        serial_devices: { scale: "not_detected", reader: "matching" },
+      }),
+    });
+
+    await expect.element(screen.getByText("Revisar la balanza o el lector")).toBeVisible();
+    await expect.element(screen.getByText("Qué hacer")).toBeVisible();
+  });
+
+  it("has no accessibility violations with a device not detected", async () => {
+    const screen = await renderBar({
+      status: loaded({
+        conditions: ["serial_device_missing"],
+        serial_devices: { scale: "not_detected", reader: "not_registered" },
+      }),
+    });
+
+    await expectNoAccessibilityViolations(screen.container);
   });
 
   it("says the status could not be read and reads it again on Reintentar", async () => {

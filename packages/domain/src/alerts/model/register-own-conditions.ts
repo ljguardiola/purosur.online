@@ -1,5 +1,10 @@
 import type { BranchWeeklyHoursRange } from "../../branch/index.js";
 import {
+  isSerialDeviceMissing,
+  type SerialDeviceRole,
+  type SerialDeviceStanding,
+} from "../../register/index.js";
+import {
   isInstallationRevoked,
   type SalesStopState,
   salesDeniedReportOf,
@@ -11,7 +16,8 @@ export const REGISTER_OWN_CONDITIONS = [
   "installation_revoked",
   "sales_denied",
   "register_silent",
-] as const satisfies readonly (AlertKind | "installation_revoked")[];
+  "serial_device_missing",
+] as const satisfies readonly (AlertKind | "installation_revoked" | "serial_device_missing")[];
 
 export type RegisterOwnCondition = (typeof REGISTER_OWN_CONDITIONS)[number];
 
@@ -20,6 +26,7 @@ interface RegisterOwnStanding {
   lastAcceptedPushAt: Date | null;
   hours: readonly BranchWeeklyHoursRange[];
   now: Date;
+  serialDevices: Record<SerialDeviceRole, SerialDeviceStanding> | null;
 }
 
 export function registerOwnConditions({
@@ -27,6 +34,7 @@ export function registerOwnConditions({
   lastAcceptedPushAt,
   hours,
   now,
+  serialDevices,
 }: RegisterOwnStanding): RegisterOwnCondition[] {
   const revoked = isInstallationRevoked(salesStop);
   const held: Record<RegisterOwnCondition, boolean> = {
@@ -36,6 +44,7 @@ export function registerOwnConditions({
       !revoked &&
       lastAcceptedPushAt !== null &&
       isRegisterQuiet({ lastSuccessfulSyncAt: lastAcceptedPushAt, hours, now }),
+    serial_device_missing: serialDevices !== null && isSerialDeviceMissing(serialDevices),
   };
   return REGISTER_OWN_CONDITIONS.filter((condition) => held[condition]);
 }
