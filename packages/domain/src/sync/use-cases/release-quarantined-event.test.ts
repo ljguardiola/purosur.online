@@ -236,12 +236,21 @@ describe("what a release does to the events applied after it", () => {
     await releaseWith("stuck");
 
     const attemptsAfterEachRun: number[] = [];
+    const quarantinedAfterEachRun: string[][] = [];
     for (let attempt = 0; attempt < 8; attempt += 1) {
-      await run(application, unreadable, new Date(NOW.getTime() + (attempt + 1) * 3_600_000));
+      const outcome = await run(
+        application,
+        unreadable,
+        new Date(NOW.getTime() + (attempt + 1) * 3_600_000),
+      );
       attemptsAfterEachRun.push(application.event("stuck").attempts);
+      quarantinedAfterEachRun.push(
+        outcome.kind === "processed" ? outcome.quarantined.map((one) => one.eventId) : [],
+      );
     }
 
     expect(attemptsAfterEachRun).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(quarantinedAfterEachRun).toEqual([[], [], [], [], [], [], [], ["stuck"]]);
     expect(application.event("stuck").quarantinedAt).not.toBeNull();
     expect(application.state.quarantineAlerts.map((alert) => alert.eventId)).toEqual(["stuck"]);
     expect(application.appliedEventIds).toEqual([]);
