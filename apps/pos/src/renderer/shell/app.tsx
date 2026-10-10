@@ -16,7 +16,12 @@ import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { credentialsKey } from "../credentials/credentials-queries";
-import type { CashMovementInput, CoreClient, SalesHistoryQuery } from "../platform/core-client";
+import type {
+  CashMovementInput,
+  CoreClient,
+  SalesHistoryQuery,
+  SerialDevicesToRegister,
+} from "../platform/core-client";
 import { createQueryClient } from "../platform/query-client";
 import { cancelReads, setQueryAnswer } from "../platform/set-query-answer";
 import { useCoreStatus } from "../platform/use-core-status";
@@ -68,7 +73,16 @@ function Register({ core }: { core: CoreClient }) {
   if (coreStatus === "up" && enrollmentRead.status === "loaded") {
     enrollment = enrollmentRead.value ? "enrolled" : "not_enrolled";
   }
-  const [signedInPerson, setPerson] = useState<SignedInPerson>();
+  const [signedInPerson, setSignedInPerson] = useState<SignedInPerson>();
+  const [serialDevicesOfferDismissed, setSerialDevicesOfferDismissed] = useState(false);
+
+  function setPerson(next: SignedInPerson | undefined) {
+    setSignedInPerson(next);
+    if (next === undefined) {
+      setSerialDevicesOfferDismissed(false);
+    }
+  }
+
   const cashSession = useCashSessionQuery({
     read: () => core.cashSession(),
     enabled: enrollment === "enrolled" && registerService === "in_service",
@@ -297,6 +311,14 @@ function Register({ core }: { core: CoreClient }) {
     return outcome;
   }
 
+  function dismissSerialDevicesOffer() {
+    setSerialDevicesOfferDismissed(true);
+    router.update({
+      ...router.options,
+      context: { ...router.options.context, serialDevicesOfferDismissed: true },
+    });
+  }
+
   const services = {
     enroll,
     registerName: () => core.registerName(),
@@ -351,6 +373,10 @@ function Register({ core }: { core: CoreClient }) {
     saleHistoryDetail: (saleId: string) => core.saleHistoryDetail(saleId),
     readReceiptPrinter: () => core.readReceiptPrinter(),
     setReceiptPrinter: (address: string) => core.setReceiptPrinter(address),
+    readSerialDevices: () => core.readSerialDevices(),
+    registerSerialDevices: (devices: SerialDevicesToRegister) =>
+      core.registerSerialDevices(devices),
+    dismissSerialDevicesOffer,
     // A replaced core connection fails this request; the core coming back up asks again.
     refreshCashSession,
   };
@@ -359,7 +385,8 @@ function Register({ core }: { core: CoreClient }) {
 
   useEffect(() => {
     if (coreStatus !== "up") {
-      setPerson(undefined);
+      setSignedInPerson(undefined);
+      setSerialDevicesOfferDismissed(false);
       void queryClient.resetQueries({ queryKey: registerKeys.service });
     }
   }, [coreStatus, queryClient]);
@@ -382,6 +409,15 @@ function Register({ core }: { core: CoreClient }) {
     [core, queryClient],
   );
 
+  useEffect(
+    () =>
+      core.onSerialDevicesChanged(() => {
+        void queryClient.invalidateQueries({ queryKey: registerKeys.status });
+        void queryClient.invalidateQueries({ queryKey: registerKeys.serialDevices });
+      }),
+    [core, queryClient],
+  );
+
   useEffect(() => {
     router.update({
       ...router.options,
@@ -392,10 +428,19 @@ function Register({ core }: { core: CoreClient }) {
         enrollment,
         person,
         cashSession,
+        serialDevicesOfferDismissed,
       },
     });
     void router.invalidate();
-  }, [router, coreStatus, registerService, enrollment, person, cashSession]);
+  }, [
+    router,
+    coreStatus,
+    registerService,
+    enrollment,
+    person,
+    cashSession,
+    serialDevicesOfferDismissed,
+  ]);
 
   return <RouterProvider router={router} context={{ queryClient, ...services }} />;
 }

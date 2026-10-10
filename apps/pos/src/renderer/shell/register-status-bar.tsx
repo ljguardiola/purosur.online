@@ -10,6 +10,8 @@ import {
 import { TriangleAlert } from "lucide-react";
 import type { CoreData } from "../platform/use-core-query";
 import type { CashSessionState } from "../register/cash-session-state";
+import type { SerialDeviceRole } from "../register/serial-device-standing";
+import { serialDeviceStandingIndicator } from "../register/serial-device-standing";
 import type { SignedInPerson } from "./signed-in-person";
 
 export type RegisterStatusBarProps = {
@@ -42,6 +44,17 @@ function CloudIndicator({ cloud }: { cloud: RegisterStatus["cloud"] }) {
   );
 }
 
+function SerialDeviceIndicator({
+  device,
+  standing,
+}: {
+  device: SerialDeviceRole;
+  standing: RegisterStatus["serial_devices"][SerialDeviceRole];
+}) {
+  const { tone, text } = serialDeviceStandingIndicator(device, standing);
+  return <StatusIndicator tone={tone}>{text}</StatusIndicator>;
+}
+
 export function RegisterStatusBar({ person, cashSession, status }: RegisterStatusBarProps) {
   const session = sessionText(cashSession);
   return (
@@ -55,6 +68,12 @@ export function RegisterStatusBar({ person, cashSession, status }: RegisterStatu
         )}
         {session === undefined ? null : <p className="text-text-subtle text-detail">{session}</p>}
         {status.status === "loaded" ? <CloudIndicator cloud={status.value.cloud} /> : null}
+        {status.status === "loaded" ? (
+          <>
+            <SerialDeviceIndicator device="scale" standing={status.value.serial_devices.scale} />
+            <SerialDeviceIndicator device="reader" standing={status.value.serial_devices.reader} />
+          </>
+        ) : null}
       </div>
       {status.status === "loading" ? <LoadingPlaceholder variant="card" lines={1} /> : null}
       {status.status === "failed" ? (

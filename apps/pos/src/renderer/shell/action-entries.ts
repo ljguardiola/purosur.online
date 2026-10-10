@@ -1,7 +1,7 @@
 import type { RegisterAbility } from "@purosur/domain";
 import type { RegisteredRouter } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
-import { CircleHelp, History, Printer } from "lucide-react";
+import { CircleHelp, History, Printer, Usb } from "lucide-react";
 
 export type ActionEntry = {
   label: string;
@@ -17,6 +17,12 @@ export const ACTION_ENTRIES: readonly ActionEntry[] = [
     icon: Printer,
     ability: "configure_receipt_printer",
     to: "/receipt-printer",
+  },
+  {
+    label: "Balanza y lector",
+    icon: Usb,
+    ability: "configure_serial_devices",
+    to: "/serial-devices",
   },
   { label: "Ayuda", icon: CircleHelp, ability: "read_register_help", to: "/help" },
 ];
