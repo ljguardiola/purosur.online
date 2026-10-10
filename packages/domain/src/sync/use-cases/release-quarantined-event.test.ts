@@ -140,7 +140,7 @@ describe("releasing a quarantined event", () => {
     ["a pending event that was never quarantined", { quarantinedAt: null, attempts: 2 }],
   ])("refuses %s and changes nothing", async (_name, overrides) => {
     const event = quarantined(overrides);
-    const { application, release, releaseWith } = setup([event]);
+    const { application, release, releaseWith } = setup([structuredClone(event)]);
 
     const outcome = await releaseWith("stuck");
 
@@ -154,7 +154,7 @@ describe("releasing a quarantined event", () => {
 
   it("rolls back everything when recording the release fails", async () => {
     const event = quarantined();
-    const { application, release, releaseWith } = setup([event]);
+    const { application, release, releaseWith } = setup([structuredClone(event)]);
     release.failRecordingRelease = true;
 
     await expect(releaseWith("stuck")).rejects.toThrow("audit log unavailable");
@@ -166,7 +166,7 @@ describe("releasing a quarantined event", () => {
 
   it("rolls back the release when resolving the alert fails", async () => {
     const event = quarantined();
-    const { application, release, releaseWith } = setup([event]);
+    const { application, release, releaseWith } = setup([structuredClone(event)]);
     release.failResolvingAlert = true;
 
     await expect(releaseWith("stuck")).rejects.toThrow("alert store unavailable");
