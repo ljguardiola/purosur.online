@@ -135,6 +135,7 @@ describe("registerPurchase", () => {
       {
         id: "purchase-line-2",
         purchaseId: "purchase-1",
+        position: 1,
         productId: "product-a",
         packagingId: "packaging-a",
         packages: 2,
@@ -146,6 +147,29 @@ describe("registerPurchase", () => {
       },
     ]);
     expect(store.transactionCount).toBe(1);
+  });
+
+  it("stores the lines with positions 1 to n in the order they were entered", async () => {
+    const store = storeWithCatalog();
+
+    await registerPurchase(
+      { store, clock: CLOCK },
+      purchase({
+        lines: [
+          packagedLine(),
+          quantityLine(),
+          quantityLine({ productId: "product-a", quantity: 3_000 }),
+        ],
+      }),
+    );
+
+    expect(
+      store.snapshot().purchaseLines.map(({ position, productId }) => [position, productId]),
+    ).toEqual([
+      [1, "product-a"],
+      [2, "product-b"],
+      [3, "product-a"],
+    ]);
   });
 
   it("registers a line loaded by quantity paid per sale unit, with no packaging", async () => {
