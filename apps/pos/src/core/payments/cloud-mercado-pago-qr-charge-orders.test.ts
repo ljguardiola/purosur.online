@@ -41,8 +41,8 @@ function cloudOrders(answers: CloudResponse[], token: string | null = "prefix.se
   const answerOf = () => answers.shift() ?? { kind: "unreachable" };
   const orders = new CloudMercadoPagoQrChargeOrders({
     readDeviceToken: async () => token ?? undefined,
-    post: async (path, bearerToken, body) => {
-      calls.push({ method: "POST", path, bearerToken, body });
+    post: async (path, bearerToken, body, options) => {
+      calls.push({ method: "POST", path, bearerToken, body, options });
       return answerOf();
     },
     get: async (path, bearerToken, options) => {
@@ -194,6 +194,63 @@ describe("reading a Mercado Pago QR order's state from the cloud", () => {
     const { calls, orders } = cloudOrders([], null);
 
     expect(await orders.readOrder(PAYMENT_ID)).toEqual({ kind: "unreachable" });
+    expect(calls).toEqual([]);
+  });
+});
+
+describe("asking the cloud to cancel a Mercado Pago QR order", () => {
+  it("posts to the payment's cancel path with the device token, no body and one short attempt", async () => {
+    const { calls, orders } = cloudOrders([ok(payment("CANCELLED"))]);
+
+    await orders.cancelOrder(PAYMENT_ID);
+
+    expect(calls).toEqual([
+      {
+        method: "POST",
+        path: `/api/payments/mercado-pago-qr/${PAYMENT_ID}/cancel`,
+        bearerToken: "prefix.secret",
+        body: undefined,
+        options: { timeoutMs: 3000, singleAttempt: true },
+      },
+    ]);
+  });
+
+  it.each([
+    "CANCELLED",
+    "APPROVED",
+    "EXPIRED",
+    "DECLINED",
+    "PENDING",
+  ])("answers the state %s the cloud reports", async (state) => {
+    const { orders } = cloudOrders([ok(payment(state))]);
+
+    expect(await orders.cancelOrder(PAYMENT_ID)).toEqual({ kind: "answered", state });
+  });
+
+  it("encodes the id in the path", async () => {
+    const { calls, orders } = cloudOrders([ok(payment("CANCELLED"))]);
+
+    await orders.cancelOrder("a/b");
+
+    expect(calls[0]?.path).toBe("/api/payments/mercado-pago-qr/a%2Fb/cancel");
+  });
+
+  it.each([
+    ["the cloud cannot be reached", { kind: "unreachable" } as CloudResponse],
+    ["the cloud answers a retryable error", refused("provider-unavailable")],
+    ["the cloud does not know the payment", refused("not_found")],
+    ["the body is not a payment", ok({ state: "CANCELLED" })],
+    ["the body is another payment", ok(payment("CANCELLED", { payment_transaction_id: "other" }))],
+  ])("answers unreachable when %s", async (_name, response) => {
+    const { orders } = cloudOrders([response]);
+
+    expect(await orders.cancelOrder(PAYMENT_ID)).toEqual({ kind: "unreachable" });
+  });
+
+  it("answers unreachable, calling nothing, without a device token", async () => {
+    const { calls, orders } = cloudOrders([], null);
+
+    expect(await orders.cancelOrder(PAYMENT_ID)).toEqual({ kind: "unreachable" });
     expect(calls).toEqual([]);
   });
 });
