@@ -1861,6 +1861,61 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("add the offline authorization codes and number blocks beside the data a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0032_offline_numbering",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0032_offline_numbering",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before
+        .prepare(
+          `INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, version)
+           VALUES ('r1', 31, 2)`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT * FROM offline_authorization_codes").all()).toEqual([]);
+      expect(after.prepare("SELECT * FROM offline_number_blocks").all()).toEqual([]);
+      expect(
+        after
+          .prepare("SELECT register_id, point_of_sale_number FROM register_offline_point_of_sale")
+          .all(),
+      ).toEqual([{ register_id: "r1", point_of_sale_number: 31 }]);
+      const insertBlock = after.prepare(
+        `INSERT INTO offline_number_blocks (
+           id, point_of_sale, document_type, first_number, last_number, status, version
+         ) VALUES (@id, @point_of_sale, @document_type, @first_number, @last_number, @status, 1)`,
+      );
+      const block = {
+        id: "b1",
+        point_of_sale: 31,
+        document_type: "factura_c",
+        first_number: 1,
+        last_number: 1000,
+        status: "in_use",
+      };
+      expect(() => insertBlock.run({ ...block, id: "b2", point_of_sale: 0 })).toThrow();
+      expect(() => insertBlock.run({ ...block, id: "b2", point_of_sale: 100000 })).toThrow();
+      expect(() => insertBlock.run({ ...block, id: "b2", document_type: "FACTURA_C" })).toThrow();
+      expect(() => insertBlock.run({ ...block, id: "b2", status: "closed" })).toThrow();
+      expect(() => insertBlock.run({ ...block, id: "b2", first_number: 0 })).toThrow();
+      expect(() => insertBlock.run({ ...block, id: "b2", last_number: 0 })).toThrow();
+      expect(() => insertBlock.run(block)).not.toThrow();
+      expect(() => insertBlock.run({ ...block, id: "b3", last_number: 2000 })).toThrow();
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("let the stock ledger hold the receipts a register pulls, over the movements it already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
