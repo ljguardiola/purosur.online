@@ -262,6 +262,38 @@ describe("GET /prices", () => {
     expect(await idsFor({ search: "fid" })).toEqual([noodlesId]);
   });
 
+  it("hands the comma-separated product ids to the reader", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const categoryId = await insertCategory("Almacén");
+    const riceId = await insertProduct("Arroz", categoryId);
+    const noodlesId = await insertProduct("Fideos", categoryId);
+    await insertProduct("Harina", categoryId);
+
+    const response = await listPricesRequest(rawSessionId, {
+      productIds: `${riceId},${noodlesId}`,
+    });
+
+    expect(response.json().products.map((product: { id: string }) => product.id)).toEqual([
+      riceId,
+      noodlesId,
+    ]);
+    expect(response.json().pendingCount).toBe(3);
+  });
+
+  it("answers 400 validation_failed naming productIds when one of them is not an id", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await listPricesRequest(rawSessionId, { productIds: "not-an-id" });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "productIds" }],
+    });
+  });
+
   it("ignores a review filter it does not know and a blank search", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);

@@ -39,6 +39,7 @@ import {
   pinCodeRedemptionAttempts,
   pointOfSaleClaims,
   priceLists,
+  priceReviewPostponements,
   priceReviews,
   prices,
   productBarcodes,
@@ -635,6 +636,13 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       quantityReceived: 1000,
       costTotalCents: 500,
       costQuantity: 1000,
+    });
+    await db.insert(priceReviewPostponements).values({
+      productId: product.id,
+      priceListId: await seededPriceListId(db),
+      postponedAt: new Date("2026-01-05T12:00:00.000Z"),
+      actorId: user.id,
+      purchaseId: purchase?.id as string,
     });
     await db.insert(paymentTransactions).values({
       id: "00000000-0000-4000-8000-000000000103",

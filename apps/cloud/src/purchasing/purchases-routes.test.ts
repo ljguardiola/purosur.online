@@ -8,6 +8,8 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   lots,
+  priceReviews,
+  prices,
   productPackagings,
   purchaseLines,
   purchases,
@@ -15,6 +17,7 @@ import {
   stockMovements,
   suppliers,
 } from "../platform/db/schema.js";
+import { DrizzlePriceReviewReader } from "../pricing/drizzle-price-review-reader.js";
 import {
   BACKOFFICE_ORIGIN,
   insertLocation,
@@ -22,6 +25,7 @@ import {
   signedInWith,
 } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerPurchasesRoutes } from "./purchases-routes.js";
 
 const NOW = new Date("2026-10-05T15:00:00.000Z");
@@ -233,6 +237,45 @@ describe("POST /purchases", () => {
     expect(stored).toMatchObject({ locationId, actorId: userId });
     const [balance] = await db.select().from(stockBalances);
     expect(balance).toMatchObject({ productId, locationId, quantity: 24_000 });
+  });
+
+  it("puts the purchased product's price back under review although it was reviewed today", async () => {
+    const { headers, userId, locationId } = await buyer();
+    const supplierId = await storedSupplier(userId);
+    const { productId } = await insertProduct(db, { name: "Yerba" });
+    const priceListId = await seededPriceListId(db);
+    const [price] = await db
+      .insert(prices)
+      .values({ productId, priceListId, unitPrice: 1_500, validFrom: NOW })
+      .returning({ id: prices.id });
+    await db
+      .insert(priceReviews)
+      .values({
+        productId,
+        priceListId,
+        priceId: price?.id as string,
+        actorId: userId,
+        reviewedAt: NOW,
+      });
+    const pendingProductIds = async () =>
+      (
+        await new DrizzlePriceReviewReader(db).pricesUnderReview({
+          locationId,
+          now: NOW,
+          review: "pending",
+        })
+      ).products.map((product) => product.id);
+    expect(await pendingProductIds()).toEqual([]);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/purchases",
+      headers,
+      payload: bodyWith(supplierId, [quantityLine(productId)]),
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(await pendingProductIds()).toEqual([productId]);
   });
 
   it("registers a purchase at the branch of the session, whatever branch the body names", async () => {
