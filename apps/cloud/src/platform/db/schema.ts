@@ -1447,6 +1447,26 @@ export const arcaWsaaTokens = pgTable(
   (table) => [primaryKey({ columns: [table.service, table.certificateFingerprint] })],
 );
 
+export const caeaCodeOrigin = pgEnum("caea_code_origin", ["requested", "recovered"]);
+
+export const caeaCodes = pgTable(
+  "caea_codes",
+  {
+    fortnightStart: date("fortnight_start", { mode: "string" }).primaryKey(),
+    fortnightEnd: date("fortnight_end", { mode: "string" }).notNull(),
+    code: text("code").notNull(),
+    reportDeadline: date("report_deadline", { mode: "string" }).notNull(),
+    obtainedAt: timestamp("obtained_at", { withTimezone: true }).notNull(),
+    obtainedThrough: caeaCodeOrigin("obtained_through").notNull(),
+  },
+  (table) => [
+    check(
+      "caea_codes_fortnight_ends_after_start",
+      sql`${table.fortnightEnd} > ${table.fortnightStart}`,
+    ),
+  ],
+);
+
 // The request is kept, with the sale event it carries, before the tax authority is called, and the
 // answer is added to the same row. A row without an answer is a call that may still be in flight.
 export const fiscalRequests = pgTable(
