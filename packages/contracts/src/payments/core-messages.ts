@@ -51,6 +51,7 @@ export const startMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind"
   }),
   z.object({ kind: z.literal("order_refused") }),
   z.object({ kind: z.literal("unreachable") }),
+  z.object({ kind: z.literal("qr_charge_in_progress") }),
   z.object({ kind: z.literal("invalid_amount") }),
   z.object({ kind: z.literal("exceeds_pending"), pending: z.int().nonnegative() }),
   ...saleChargeRefusals,

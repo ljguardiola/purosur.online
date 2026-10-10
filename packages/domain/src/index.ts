@@ -190,6 +190,7 @@ export type {
   PaymentMethod,
   PaymentTransaction,
   PaymentTransactionState,
+  PendingQrSalePayment,
   PlannedRefund,
   ProviderPaymentTransaction,
   RefundState,

@@ -1,13 +1,13 @@
-import type {
-  MercadoPagoQrChargeOrderAnswer,
-  MercadoPagoQrChargeOrderReading,
-  MercadoPagoQrChargeOrders,
-} from "@purosur/domain/payments/use-cases";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
+import type {
+  MercadoPagoQrChargeOrderAnswer,
+  MercadoPagoQrChargeOrderReading,
+  MercadoPagoQrChargeOrders,
+} from "@purosur/domain/payments/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -108,13 +108,15 @@ async function saleOfTwoYerbas(): Promise<string> {
     database,
     gate: deps(new FakeOrders()).gate,
     now: () => NOW,
-    ids: { next: (() => {
-      let count = 0;
-      return () => {
-        count += 1;
-        return `sale-id-${count}`;
-      };
-    })() },
+    ids: {
+      next: (() => {
+        let count = 0;
+        return () => {
+          count += 1;
+          return `sale-id-${count}`;
+        };
+      })(),
+    },
   };
   await scanProductFor(saleDeps, "111");
   const outcome = await scanProductFor(saleDeps, "111");
@@ -184,16 +186,19 @@ describe("starting a Mercado Pago QR charge at the register", () => {
   it.each([
     ["refused", "order_refused"],
     ["unreachable", "unreachable"],
-  ] as const)("answers %s when the cloud does, keeping the payment pending", async (answer, kind) => {
-    const saleId = await saleOfTwoYerbas();
-    const orders = new FakeOrders();
-    orders.answer = { kind: answer };
+  ] as const)(
+    "answers %s when the cloud does, keeping the payment pending",
+    async (answer, kind) => {
+      const saleId = await saleOfTwoYerbas();
+      const orders = new FakeOrders();
+      orders.answer = { kind: answer };
 
-    expect(await startMercadoPagoQrChargeFor(deps(orders), { saleId, amount: 3000 })).toEqual({
-      kind,
-    });
-    expect(qrRows()).toMatchObject([{ state: "PENDING" }]);
-  });
+      expect(await startMercadoPagoQrChargeFor(deps(orders), { saleId, amount: 3000 })).toEqual({
+        kind,
+      });
+      expect(qrRows()).toMatchObject([{ state: "PENDING" }]);
+    },
+  );
 
   it("refuses a second QR charge of the sale while the first one is in its wait", async () => {
     const saleId = await saleOfTwoYerbas();

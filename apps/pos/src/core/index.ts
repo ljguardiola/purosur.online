@@ -560,7 +560,7 @@ const rendererRequestDeps: RendererRequestDeps = {
   cancelSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : () => cancelSaleFor({ database: localDatabase, gate: actionGate }),
+      : () => cancelSaleFor({ database: localDatabase, gate: actionGate, now }),
   cancelPaidSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined

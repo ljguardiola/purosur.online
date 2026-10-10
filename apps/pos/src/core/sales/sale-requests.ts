@@ -309,9 +309,10 @@ export async function removeSaleLineFor(
 export async function cancelSaleFor({
   database,
   gate,
-}: Pick<SaleRequestDeps, "database" | "gate">): Promise<CancelSaleOutcome> {
+  now,
+}: Pick<SaleRequestDeps, "database" | "gate" | "now">): Promise<CancelSaleOutcome> {
   const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
-    cancelSale({ ledger: saleLedger(database) }, { actorId: signedInUserId }),
+    cancelSale({ ledger: saleLedger(database), clock: { now } }, { actorId: signedInUserId }),
   );
   if (guarded.kind !== "performed") {
     return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
