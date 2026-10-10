@@ -329,6 +329,16 @@ describe("alertDetailSchema", () => {
       expect(alertDetailSchema.safeParse({ ...base, kind, detail }).success).toBe(false);
     });
 
+    it("accepts a sales-denied alert of a register whose local database is damaged", () => {
+      const alert = {
+        ...base,
+        kind: "sales_denied",
+        detail: { deviceId: "device-1", reason: "local_database_damaged" },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+    });
+
     it("refuses a sales-denied alert with a reason the register does not report", () => {
       const alert = {
         ...base,

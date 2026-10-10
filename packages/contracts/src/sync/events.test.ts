@@ -82,6 +82,16 @@ describe("push events request", () => {
     expect(requestWith({ telemetry: reported }).data?.telemetry).toEqual(reported);
   });
 
+  it("accepts a register that reports it can't sell because its local database is damaged", () => {
+    const reported = {
+      ...telemetry,
+      sales_denied: true,
+      sales_denied_reason: "local_database_damaged",
+    };
+
+    expect(requestWith({ telemetry: reported }).data?.telemetry).toEqual(reported);
+  });
+
   it.each([
     ["can't sell with no reason", { sales_denied: true }],
     [

@@ -1,4 +1,4 @@
-export const SALES_DENIED_REASONS = ["event_history_broken"] as const;
+export const SALES_DENIED_REASONS = ["event_history_broken", "local_database_damaged"] as const;
 
 export type SalesDeniedReason = (typeof SALES_DENIED_REASONS)[number];
 
