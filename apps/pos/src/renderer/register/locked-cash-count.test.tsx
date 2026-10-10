@@ -465,6 +465,28 @@ describe("LockedCashCount", () => {
     await expect.element(screen.getByRole("button", { name: "Cerrar caja" })).toBeEnabled();
   });
 
+  it.each<[string, CancelLockedSaleOutcome, string]>([
+    [
+      "a QR charge is still waiting",
+      { kind: "qr_charge_in_progress" },
+      "Hay un cobro con QR en curso. Esperá a que termine para cancelar la venta.",
+    ],
+    [
+      "the sale holds a QR payment",
+      { kind: "holds_qr_payment" },
+      "La venta tiene un pago con QR: todavía no se puede anular desde la caja.",
+    ],
+  ])("keeps the open sale and says why when %s", async (_case, outcome, notice) => {
+    const { screen, refused } = await withOpenSale({ cancelSale: async () => outcome });
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await expect.element(screen.getByRole("alert")).toHaveTextContent(notice);
+    await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
+    expect(refused).toEqual([]);
+  });
+
   it("clears the notice when the core finds no sale left to cancel", async () => {
     const { screen } = await withOpenSale({ cancelSale: async () => ({ kind: "no_open_sale" }) });
     await screen.getByRole("button", { name: "Cancelar la venta" }).click();
