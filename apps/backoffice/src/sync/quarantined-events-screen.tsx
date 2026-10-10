@@ -26,7 +26,7 @@ type ScreenNotice = {
   id: number;
   tone: "success" | "error";
   title: string;
-  description?: string;
+  description: string;
 };
 
 const LOAD_FAILURE_TITLE = "No pudimos cargar los eventos en cuarentena";
@@ -149,10 +149,11 @@ export function QuarantinedEventsScreen({
           setReleaseTarget(null);
           showNotice({
             tone: "error",
-            title:
+            title: "No se liberó el evento",
+            description:
               reason === "not_quarantined"
-                ? "Este evento ya no está en cuarentena"
-                : "No encontramos este evento",
+                ? "Este evento ya no está en cuarentena."
+                : "No encontramos este evento.",
           });
           void refresh();
         }}
@@ -165,7 +166,7 @@ export function QuarantinedEventsScreen({
           tone={notice.tone}
           icon={notice.tone === "success" ? <Check /> : <TriangleAlert />}
           title={notice.title}
-          {...(notice.description === undefined ? {} : { description: notice.description })}
+          description={notice.description}
           onDismiss={() => setNotice(null)}
         />
       ) : null}
