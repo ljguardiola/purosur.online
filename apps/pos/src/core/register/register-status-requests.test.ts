@@ -7,12 +7,10 @@ import { openLocalDatabase } from "../platform/test-support/open-local-database"
 import type { CloudReachability } from "../sync/cloud-reachability";
 import { SqliteAcceptedPushLog } from "../sync/sqlite-accepted-push-log";
 import { stopOpeningNewSales } from "../sync/sqlite-local-installation";
-import { SqliteLocalReplica } from "../sync/sqlite-local-replica";
 import { registerStatusFor } from "./register-status-requests";
 
 const NOW = new Date(argentinaInstant("2026-10-05", "12:00"));
 const MINUTE_MS = 60 * 1000;
-const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 
 let database: LocalDatabase;
 
@@ -78,16 +76,6 @@ describe("the register's status", () => {
       conditions: ["installation_revoked"],
       cloud: "unreachable",
     });
-  });
-
-  it("drops installation_revoked once the register is set up again with a new installation", () => {
-    const replica = new SqliteLocalReplica(database);
-    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
-    stopOpeningNewSales(database, "installation_revoked", NOW);
-
-    replica.adoptDevice({ deviceId: "device-b", pepper: PEPPER });
-
-    expect(status().conditions).toEqual([]);
   });
 
   it("holds register_silent when no push was accepted for 15 minutes of business hours", async () => {

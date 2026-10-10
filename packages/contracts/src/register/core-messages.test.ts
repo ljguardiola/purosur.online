@@ -1212,6 +1212,7 @@ describe("register status messages", () => {
     [[], "unknown"],
     [["sales_denied"], "reachable"],
     [["sales_denied", "register_silent"], "unreachable"],
+    [["installation_revoked"], "unreachable"],
   ])("accepts the status with conditions %j and the cloud %s", (conditions, cloud) => {
     const message = {
       type: "register-status",
