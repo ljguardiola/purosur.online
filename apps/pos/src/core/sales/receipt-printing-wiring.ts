@@ -22,7 +22,11 @@ function savedReceiptPrinters(
       const address = settings.receiptPrinterAddress();
       return address === undefined
         ? undefined
-        : new TcpReceiptPrinter({ host: address.host, port: address.port ?? undefined, connect });
+        : new TcpReceiptPrinter({
+            host: address.host,
+            ...(address.port === null ? {} : { port: address.port }),
+            ...(connect === undefined ? {} : { connect }),
+          });
     },
   };
 }

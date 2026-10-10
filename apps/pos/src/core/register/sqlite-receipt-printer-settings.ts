@@ -8,7 +8,11 @@ interface ReceiptPrinterRow {
 }
 
 export class SqliteReceiptPrinterSettings implements ReceiptPrinterSettings {
-  constructor(private readonly database: LocalDatabase) {}
+  private readonly database: LocalDatabase;
+
+  constructor(database: LocalDatabase) {
+    this.database = database;
+  }
 
   receiptPrinterAddress(): ReceiptPrinterAddress | undefined {
     const row = this.database

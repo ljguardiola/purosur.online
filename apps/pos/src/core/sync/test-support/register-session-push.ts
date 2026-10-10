@@ -163,23 +163,24 @@ async function printAndReprintReceipt({
   saleId,
   nextStep,
 }: {
-  deps: Omit<ReceiptRequestDeps, "printer">;
+  deps: Omit<ReceiptRequestDeps, "printers">;
   saleId: string;
   nextStep: () => void;
 }): Promise<void> {
   const printer = new ControllableReceiptPrinter();
+  const printers = { configured: () => printer };
   nextStep();
-  await printCompletedSaleReceiptFor({ ...deps, printer }, saleId);
+  await printCompletedSaleReceiptFor({ ...deps, printers }, saleId);
   printer.report("ready");
   nextStep();
-  const retry = await retryReceiptPrintFor({ ...deps, printer }, saleId);
+  const retry = await retryReceiptPrintFor({ ...deps, printers }, saleId);
   expectOutcome("retry the receipt print", retry.kind, "started");
   nextStep();
   printer.acknowledge();
   await untilPrinted(deps.jobs, saleId);
   nextStep();
   const reprint = await reprintSaleReceiptFor(
-    { ...deps, printer },
+    { ...deps, printers },
     {
       saleId,
       reason: "El cliente la perdio",
