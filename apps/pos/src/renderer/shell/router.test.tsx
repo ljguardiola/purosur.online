@@ -23,6 +23,7 @@ type RoutePath =
   | "/history"
   | "/help"
   | "/receipt-printer"
+  | "/serial-devices"
   | "/locked"
   | "/locked-close"
   | "/enroll"
@@ -48,6 +49,11 @@ const PRINTER_CONFIGURER: SignedInPerson = {
   user_id: "u4",
   first_name: "Linus",
   abilities: ["configure_receipt_printer"],
+};
+const DEVICES_CONFIGURER: SignedInPerson = {
+  user_id: "u5",
+  first_name: "Linus",
+  abilities: ["configure_serial_devices"],
 };
 const OPENER: SignedInPerson = {
   user_id: "u2",
@@ -93,6 +99,8 @@ const screenFor: Record<
   "/help": (screen) => screen.getByRole("heading", { level: 1, name: "Ayuda" }),
   "/receipt-printer": (screen) =>
     screen.getByRole("heading", { level: 1, name: "Impresora de tickets" }),
+  "/serial-devices": (screen) =>
+    screen.getByRole("heading", { level: 1, name: "Balanza y lector" }),
   "/locked": (screen) => screen.getByRole("heading", { name: "Caja bloqueada" }),
   "/locked-close": (screen) => screen.getByRole("heading", { name: "¿Quién cierra la caja?" }),
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
@@ -134,7 +142,11 @@ function contextWith(
     sessionOpenSale: async () => "unavailable",
     cashMovements: async () => "unavailable",
     cashMovementKinds: async () => "unavailable",
-    registerStatus: async () => ({ conditions: [], cloud: "reachable" }),
+    registerStatus: async () => ({
+      conditions: [],
+      cloud: "reachable",
+      serial_devices: { scale: "matching", reader: "matching" },
+    }),
     recordCashMovement: async () => ({ kind: "unavailable" }),
     enroll: async () => ({ kind: "enrolled" }),
     registerName: async () => null,
@@ -170,6 +182,15 @@ function contextWith(
     saleHistoryDetail: async () => ({ kind: "unavailable" }),
     readReceiptPrinter: async () => ({ kind: "not_configured" }),
     setReceiptPrinter: async () => ({ kind: "unavailable" }),
+    readSerialDevices: async () => ({
+      kind: "read",
+      registered: {},
+      detected: [],
+      standings: { scale: { kind: "not_registered" }, reader: { kind: "not_registered" } },
+    }),
+    registerSerialDevices: async () => ({ kind: "unavailable" }),
+    serialDevicesOfferDismissed: false,
+    dismissSerialDevicesOffer: () => {},
     refreshCashSession: async () => {},
   };
 }
@@ -536,6 +557,21 @@ describe("the register's router", () => {
       person: null,
       redirectedTo: "/sign-in",
     },
+    { path: "/serial-devices", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    {
+      path: "/serial-devices",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      cashSession: OPEN_SESSION,
+      redirectedTo: "/session",
+    },
+    {
+      path: "/serial-devices",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      redirectedTo: "/sign-in",
+    },
     {
       path: "/history",
       coreStatus: "up",
@@ -892,6 +928,124 @@ describe("the register's router", () => {
 
     await expect.element(screenFor["/"](screen)).toBeVisible();
     await expect.element(screen.getByRole("link", { name: "Impresora" })).not.toBeInTheDocument();
+  });
+
+  it("renders the serial devices screen for a person who may configure them", async () => {
+    const router = routerAt("/serial-devices", "up", "enrolled", DEVICES_CONFIGURER);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/serial-devices"](screen)).toBeVisible();
+  });
+
+  it("opens the serial devices from the no-session screen for a person who may configure them", async () => {
+    const router = routerAt("/", "up", "enrolled", DEVICES_CONFIGURER);
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.click(screen.getByRole("link", { name: "Balanza y lector" }));
+
+    await expect.element(screenFor["/serial-devices"](screen)).toBeVisible();
+  });
+
+  it("offers no serial devices on the no-session screen to a person who may not configure them", async () => {
+    const router = routerAt("/", "up");
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/"](screen)).toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: "Balanza y lector" }))
+      .not.toBeInTheDocument();
+  });
+
+  describe("the offer to register the scale and reader after signing in", () => {
+    function statusOf(
+      scale: RegisterStatus["serial_devices"]["scale"],
+      reader: RegisterStatus["serial_devices"]["reader"],
+    ): () => Promise<RegisterStatus> {
+      return async () => ({
+        conditions: [],
+        cloud: "reachable",
+        serial_devices: { scale, reader },
+      });
+    }
+
+    function landingWith(
+      person: SignedInPerson,
+      overrides: Partial<RouterContext>,
+      path: RoutePath = "/",
+    ) {
+      return createRegisterRouter(
+        routeTree,
+        { ...contextWith("up", "enrolled", person), ...overrides },
+        path,
+      );
+    }
+
+    it("lands a person who may configure the devices on them while neither is registered, offering Ahora no", async () => {
+      const router = landingWith(DEVICES_CONFIGURER, {
+        registerStatus: statusOf("not_registered", "not_registered"),
+      });
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect.element(screenFor["/serial-devices"](screen)).toBeVisible();
+      await expect.element(screen.getByRole("button", { name: "Ahora no" })).toBeVisible();
+    });
+
+    it("dismisses the offer when the person chooses Ahora no", async () => {
+      const dismissSerialDevicesOffer = vi.fn();
+      const router = landingWith(DEVICES_CONFIGURER, {
+        registerStatus: statusOf("not_registered", "not_registered"),
+        dismissSerialDevicesOffer,
+      });
+      const screen = await render(<RouterProvider router={router} />);
+
+      await userEvent.click(screen.getByRole("button", { name: "Ahora no" }));
+
+      expect(dismissSerialDevicesOffer).toHaveBeenCalledOnce();
+    });
+
+    it("goes on to the main screen once the offer is dismissed, offering it no more", async () => {
+      const router = landingWith(DEVICES_CONFIGURER, {
+        registerStatus: statusOf("not_registered", "not_registered"),
+        serialDevicesOfferDismissed: true,
+      });
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect.element(screenFor["/"](screen)).toBeVisible();
+      await userEvent.click(screen.getByRole("link", { name: "Balanza y lector" }));
+      await expect.element(screenFor["/serial-devices"](screen)).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Ahora no" }))
+        .not.toBeInTheDocument();
+    });
+
+    it.each([
+      { name: "the scale is registered", registerStatus: statusOf("matching", "not_registered") },
+      {
+        name: "the reader is registered",
+        registerStatus: statusOf("not_registered", "not_detected"),
+      },
+      { name: "the status cannot be read", registerStatus: async () => "unavailable" as const },
+    ])("goes on to the main screen when $name", async ({ registerStatus }) => {
+      const router = landingWith(DEVICES_CONFIGURER, { registerStatus });
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect.element(screenFor["/"](screen)).toBeVisible();
+    });
+
+    it("goes on to the main screen for a person who may not configure the devices", async () => {
+      const router = landingWith(PERSON, {
+        registerStatus: statusOf("not_registered", "not_registered"),
+      });
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect.element(screenFor["/"](screen)).toBeVisible();
+    });
   });
 
   it("renders the open-session screen for the person who opened the session", async () => {
@@ -1828,6 +1982,7 @@ describe("the register's status bar", () => {
       registerStatus: async () => ({
         conditions: ["sales_denied" as const],
         cloud: "unreachable" as const,
+        serial_devices: { scale: "matching" as const, reader: "matching" as const },
       }),
     };
     const router = createRegisterRouter(routeTree, context, "/");
@@ -1879,7 +2034,11 @@ describe("the charge route's Mercado Pago QR", () => {
   }
 
   it("offers the QR once the core answers that it reaches the cloud", async () => {
-    const router = chargeRouterWith(async () => ({ conditions: [], cloud: "reachable" }));
+    const router = chargeRouterWith(async () => ({
+      conditions: [],
+      cloud: "reachable",
+      serial_devices: { scale: "matching", reader: "matching" },
+    }));
 
     const screen = await render(<RouterProvider router={router} />);
 
@@ -1889,7 +2048,11 @@ describe("the charge route's Mercado Pago QR", () => {
   it.each<RegisterStatus["cloud"]>(["unknown", "unreachable"])(
     "shows the QR as unavailable when the core answers %s",
     async (cloud) => {
-      const router = chargeRouterWith(async () => ({ conditions: [], cloud }));
+      const router = chargeRouterWith(async () => ({
+        conditions: [],
+        cloud,
+        serial_devices: { scale: "matching", reader: "matching" },
+      }));
 
       const screen = await render(<RouterProvider router={router} />);
 

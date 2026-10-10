@@ -101,7 +101,11 @@ export const QR_ORDER_SHOWN: StartMercadoPagoQrChargeOutcome = {
 const QR_WAITING: FollowMercadoPagoQrChargeOutcome = { kind: "waiting", remaining_seconds: 170 };
 
 export function registerStatusWithCloud(cloud: RegisterStatus["cloud"]): CoreData<RegisterStatus> {
-  return { status: "loaded", value: { conditions: [], cloud }, refreshing: false };
+  return {
+    status: "loaded",
+    value: { conditions: [], cloud, serial_devices: { scale: "matching", reader: "matching" } },
+    refreshing: false,
+  };
 }
 
 export type Overrides = {
