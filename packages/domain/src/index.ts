@@ -40,6 +40,7 @@ export {
   isAlertLevel,
   isDueForEscalation,
   isOpenAlert,
+  REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
   REGISTER_OWN_CONDITIONS,
   registerHoldsOfflineAuthorizationCode,
   registerOwnConditions,

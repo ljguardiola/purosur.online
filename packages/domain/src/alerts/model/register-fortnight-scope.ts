@@ -1,9 +1,9 @@
-const SEPARATOR = ":";
+export const REGISTER_FORTNIGHT_SCOPE_SEPARATOR = ":";
 
 export function registerFortnightScope(registerId: string, fortnightStart: string): string {
-  return `${registerId}${SEPARATOR}${fortnightStart}`;
+  return `${registerId}${REGISTER_FORTNIGHT_SCOPE_SEPARATOR}${fortnightStart}`;
 }
 
 export function registerFortnightScopeRegisterId(scope: string): string {
-  return scope.split(SEPARATOR)[0] ?? scope;
+  return scope.split(REGISTER_FORTNIGHT_SCOPE_SEPARATOR)[0] ?? scope;
 }
