@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { SerialDeviceStanding } from "../../register/index.js";
 import { argentinaInstant } from "../../shared/index.js";
 import { ALERT_KINDS } from "./alert-catalog.js";
 import { REGISTER_OWN_CONDITIONS, registerOwnConditions } from "./register-own-conditions.js";
@@ -6,6 +7,8 @@ import { REGISTER_OWN_CONDITIONS, registerOwnConditions } from "./register-own-c
 const MINUTE_MS = 60 * 1000;
 const HOURS = [{ dayOfWeek: 1, opensAt: "09:00", closesAt: "18:00" }];
 const NOW = new Date(argentinaInstant("2026-10-05", "12:00"));
+
+const MATCHING: SerialDeviceStanding = { kind: "matching", path: "COM3" };
 
 function minutesBefore(instant: Date, minutes: number): Date {
   return new Date(instant.getTime() - minutes * MINUTE_MS);
@@ -17,22 +20,24 @@ function conditions(overrides: Partial<Parameters<typeof registerOwnConditions>[
     lastAcceptedPushAt: minutesBefore(NOW, 1),
     hours: HOURS,
     now: NOW,
+    serialDevices: { scale: MATCHING, reader: MATCHING },
     ...overrides,
   });
 }
 
 describe("REGISTER_OWN_CONDITIONS", () => {
-  it("names the revoked installation first, the sales denial second and the silent register last", () => {
+  it("names the revoked installation first, then the sales denial, the silent register and the missing serial device", () => {
     expect(REGISTER_OWN_CONDITIONS).toEqual([
       "installation_revoked",
       "sales_denied",
       "register_silent",
+      "serial_device_missing",
     ]);
   });
 
-  it("names alert kinds besides the revoked installation, which the cloud never raises as an alert", () => {
+  it("names alert kinds besides the revoked installation and the missing serial device, which the cloud does not raise as alerts", () => {
     for (const condition of REGISTER_OWN_CONDITIONS) {
-      if (condition !== "installation_revoked") {
+      if (condition !== "installation_revoked" && condition !== "serial_device_missing") {
         expect(ALERT_KINDS).toContain(condition);
       }
     }
@@ -104,5 +109,34 @@ describe("registerOwnConditions", () => {
         lastAcceptedPushAt: minutesBefore(NOW, 60),
       }),
     ).toEqual(["sales_denied", "register_silent"]);
+  });
+
+  it("holds serial_device_missing when the scale is not detected", () => {
+    expect(
+      conditions({ serialDevices: { scale: { kind: "not_detected" }, reader: MATCHING } }),
+    ).toEqual(["serial_device_missing"]);
+  });
+
+  it("holds serial_device_missing when the reader is mismatched", () => {
+    expect(
+      conditions({ serialDevices: { scale: MATCHING, reader: { kind: "mismatched" } } }),
+    ).toEqual(["serial_device_missing"]);
+  });
+
+  it("does not hold serial_device_missing for devices that are not registered", () => {
+    expect(
+      conditions({
+        serialDevices: { scale: { kind: "not_registered" }, reader: { kind: "not_registered" } },
+      }),
+    ).toEqual([]);
+  });
+
+  it("lists serial_device_missing after register_silent", () => {
+    expect(
+      conditions({
+        lastAcceptedPushAt: minutesBefore(NOW, 60),
+        serialDevices: { scale: { kind: "not_detected" }, reader: MATCHING },
+      }),
+    ).toEqual(["register_silent", "serial_device_missing"]);
   });
 });
