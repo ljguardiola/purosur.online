@@ -1,12 +1,8 @@
 import type { PaymentTransaction } from "../../payments/index.js";
-import {
-  aQrChargeInItsWait,
-  holdsApprovedQrPayment,
-  paymentRecord,
-  plannedRefunds,
-} from "../../payments/index.js";
+import { paymentRecord, plannedRefunds } from "../../payments/index.js";
 import { registerOperationAccess } from "../../register/index.js";
 import type { Clock, OperationAuthority, OutboxEventDraft } from "../../shared/index.js";
+import { saleCancelRefusal } from "../model/open-sale-standing.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { saleTotal } from "../model/sale-line.js";
 import { saleCashMovementRecord, saleLineRecord } from "./sale-event-records.js";
@@ -67,12 +63,10 @@ export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>
     }
     const pendingQrPayments = tx.pendingQrPaymentsOf(sale.id);
     const now = clock.now();
-    if (aQrChargeInItsWait(pendingQrPayments, now)) {
-      return { kind: "qr_charge_in_progress" };
-    }
     const payments = tx.salePayments(sale.id);
-    if (holdsApprovedQrPayment(payments)) {
-      return { kind: "holds_qr_payment" };
+    const refusal = saleCancelRefusal(payments, pendingQrPayments, now);
+    if (refusal !== null) {
+      return { kind: refusal };
     }
     const planned = plannedRefunds(payments);
     if (planned.length === 0) {

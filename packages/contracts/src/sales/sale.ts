@@ -46,8 +46,9 @@ export const saleSchema = z.object({
   total: cents,
   paid: cents,
   pending: cents,
-  lines_editable: z.boolean(),
+  lines_lock: z.enum(["approved_payment", "qr_charge_in_progress"]).nullable(),
   cancellable: z.boolean(),
+  cancel_refusal: z.enum(["qr_charge_in_progress", "holds_qr_payment"]).nullable(),
   refunds_on_cancel: z.array(plannedRefundSchema),
   cancel_authorization_required: z.boolean(),
   charge_refusal: z

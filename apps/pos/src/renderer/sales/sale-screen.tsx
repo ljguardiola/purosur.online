@@ -6,6 +6,7 @@ import type {
   ChangeLineQuantityOutcome,
   CurrentSaleAnswer,
   FoundProduct,
+  OpenSale,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
@@ -76,7 +77,10 @@ type SaleEditFailure = Extract<
 
 const LETTER = /\p{L}/u;
 
-const LOCKED_REASON = "La venta ya no se puede cambiar porque tiene un pago aprobado.";
+const LOCKED_REASONS: Record<NonNullable<OpenSale["lines_lock"]>, string> = {
+  approved_payment: "La venta ya no se puede cambiar porque tiene un pago aprobado.",
+  qr_charge_in_progress: "Hay un cobro con QR en curso. Esperá a que termine.",
+};
 
 function focusScanField(form: HTMLFormElement | null) {
   form?.querySelector("input")?.focus();
@@ -344,13 +348,25 @@ export function SaleScreen({
 
   const answer = current.status === "loaded" ? current.value : undefined;
   const sale = answer === undefined || answer === "not_permitted" ? null : answer;
-  const editable = sale?.lines_editable ?? true;
+  const linesLock = sale?.lines_lock ?? null;
+  const editable = linesLock === null;
   const notPermitted = messageFor({ kind: "not_permitted" });
   const shownProblem =
     answer === "not_permitted" && problem?.kind === "not_permitted" ? undefined : problem;
-  const lockedReason = editable ? undefined : LOCKED_REASON;
+  const lockedReason = linesLock === null ? undefined : LOCKED_REASONS[linesLock];
   const refundsOnCancel = sale?.refunds_on_cancel ?? [];
   const cancelWithRefunds = refundsOnCancel.length > 0;
+
+  function askToCancelSale() {
+    const refusal = sale?.cancel_refusal ?? null;
+    if (refusal !== null) {
+      setProblem({ kind: refusal });
+    } else if (cancelWithRefunds) {
+      askToCancelPaid(true);
+    } else {
+      askToCancel(true);
+    }
+  }
 
   return (
     <div className="flex h-full w-full bg-surface-subtle">
@@ -433,13 +449,11 @@ export function SaleScreen({
         total={sale?.total ?? 0}
         paid={sale?.paid ?? 0}
         pending={sale?.pending ?? 0}
-        cancellable={
-          answer !== undefined && (sale === null || sale.cancellable || cancelWithRefunds)
-        }
+        cancellable={answer !== undefined}
         chargeRefusal={sale?.charge_refusal ?? null}
         canCancel={sale !== null && !editing}
         onCharge={() => void navigate({ to: "/charge" })}
-        onCancel={() => (cancelWithRefunds ? askToCancelPaid(true) : askToCancel(true))}
+        onCancel={askToCancelSale}
       />
       <CancelSaleModal
         open={confirmingCancel}

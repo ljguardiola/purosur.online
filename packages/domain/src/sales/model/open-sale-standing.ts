@@ -10,19 +10,38 @@ import {
   saleBalance,
 } from "../../payments/index.js";
 
+export type SaleLinesLock = "approved_payment" | "qr_charge_in_progress";
+
+export type SaleCancelRefusal = "qr_charge_in_progress" | "holds_qr_payment";
+
 export interface OpenSaleStanding {
   balance: SaleBalance;
-  linesEditable: boolean;
+  linesLock: SaleLinesLock | null;
   cancellable: boolean;
+  cancelRefusal: SaleCancelRefusal | null;
   refundsOnCancel: PlannedRefund[];
 }
 
-export function saleLinesLockedBy(
+export function saleLinesLock(
   payments: readonly { state: string }[],
   pendingQrPayments: readonly { waitEndsAt: Date }[],
   now: Date,
-): boolean {
-  return hasApprovedPayment(payments) || aQrChargeInItsWait(pendingQrPayments, now);
+): SaleLinesLock | null {
+  if (hasApprovedPayment(payments)) {
+    return "approved_payment";
+  }
+  return aQrChargeInItsWait(pendingQrPayments, now) ? "qr_charge_in_progress" : null;
+}
+
+export function saleCancelRefusal(
+  payments: readonly { state: string; method: string }[],
+  pendingQrPayments: readonly { waitEndsAt: Date }[],
+  now: Date,
+): SaleCancelRefusal | null {
+  if (aQrChargeInItsWait(pendingQrPayments, now)) {
+    return "qr_charge_in_progress";
+  }
+  return holdsApprovedQrPayment(payments) ? "holds_qr_payment" : null;
 }
 
 export function openSaleStanding(
@@ -31,12 +50,12 @@ export function openSaleStanding(
   pendingQrPayments: readonly { waitEndsAt: Date }[],
   now: Date,
 ): OpenSaleStanding {
-  const qrChargeInItsWait = aQrChargeInItsWait(pendingQrPayments, now);
+  const cancelRefusal = saleCancelRefusal(payments, pendingQrPayments, now);
   return {
     balance: saleBalance(total, payments),
-    linesEditable: !saleLinesLockedBy(payments, pendingQrPayments, now),
-    cancellable: !qrChargeInItsWait && cancellableWithoutAuthorization(payments),
-    refundsOnCancel:
-      qrChargeInItsWait || holdsApprovedQrPayment(payments) ? [] : plannedRefunds(payments),
+    linesLock: saleLinesLock(payments, pendingQrPayments, now),
+    cancellable: cancelRefusal === null && cancellableWithoutAuthorization(payments),
+    cancelRefusal,
+    refundsOnCancel: cancelRefusal === null ? plannedRefunds(payments) : [],
   };
 }
