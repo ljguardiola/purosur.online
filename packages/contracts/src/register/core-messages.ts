@@ -137,7 +137,7 @@ const readReceiptPrinterMessageSchema = z.object({
   request_id: requestId,
 });
 
-const setReceiptPrinterMessageSchema = z.object({
+export const setReceiptPrinterMessageSchema = z.object({
   type: z.literal("set-receipt-printer"),
   request_id: requestId,
   address: z.string(),

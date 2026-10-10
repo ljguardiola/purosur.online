@@ -20,7 +20,6 @@ import { NavigationRail } from "../shell/navigation-rail";
 import { SignOutModal } from "../shell/sign-out-modal";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import {
-  INVALID_RECEIPT_PRINTER_ADDRESS_MESSAGE,
   receiptPrinterAddressText,
   receiptPrinterFormFrom,
   receiptPrinterMessage,
@@ -69,7 +68,7 @@ function ReceiptPrinterForm({
     request: { schema: receiptPrinterRequestSchema, from: receiptPrinterRequestFrom },
     fields: { address: "address" },
     messages: { address: receiptPrinterMessage },
-    onSubmit: async ({ address }, { showFieldError }) => {
+    onSubmit: async ({ address }, { values, showFieldError }) => {
       const outcome = await setReceiptPrinter(address).catch(
         (): SetReceiptPrinterOutcome => ({ kind: "unavailable" }),
       );
@@ -78,7 +77,7 @@ function ReceiptPrinterForm({
           onSaved(outcome.address);
           break;
         case "invalid_address":
-          showFieldError("address", INVALID_RECEIPT_PRINTER_ADDRESS_MESSAGE);
+          showFieldError("address", receiptPrinterMessage(values));
           break;
         case "lacks_permission":
           setNotice(NO_LONGER_PERMITTED);

@@ -1,8 +1,7 @@
-import { receiptPrinterAddressTextSchema } from "@purosur/contracts";
+import { setReceiptPrinterMessageSchema } from "@purosur/contracts";
 import type { ReceiptPrinterAddress } from "@purosur/domain";
-import { z } from "zod";
 
-export const receiptPrinterRequestSchema = z.object({ address: receiptPrinterAddressTextSchema });
+export const receiptPrinterRequestSchema = setReceiptPrinterMessageSchema.pick({ address: true });
 
 const REQUIRED_MESSAGE = "Escribí la dirección de la impresora.";
 
