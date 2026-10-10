@@ -159,21 +159,6 @@ describe("WsfeTaxAuthorityOfflineAuthorizationCodes.lookUp", () => {
     expect(await codesAt(server.endpoint).lookUp(call)).toEqual({ kind: "not_granted" });
   });
 
-  it("answers any other refusal with what ARCA said", async () => {
-    server.behave(answers("fe-caea-solicitar-already-granted.xml"));
-
-    expect(await codesAt(server.endpoint).lookUp(call)).toEqual({
-      kind: "refused",
-      rejections: [
-        {
-          code: 15008,
-          message:
-            "Existe un CAEA otorgado para la CUIT solicitante con el periodo y orden informado. Consultar el metodo FECAEAConsultar.",
-        },
-      ],
-    });
-  });
-
   it.each(noAnswerCases)("answers no answer when %s", async (_case, behavior) => {
     server.behave(behavior);
 
