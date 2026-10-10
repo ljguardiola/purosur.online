@@ -144,6 +144,9 @@ import type { StockRouteOptions } from "./stock/stock-route-options.js";
 import { registerChangesRoute } from "./sync/changes-route.js";
 import { DrizzleRequestAdmission } from "./sync/drizzle-request-admission.js";
 import { registerEventsRoute } from "./sync/events-route.js";
+import { registerQuarantinedEventReleaseRoute } from "./sync/quarantined-event-release-route.js";
+import type { QuarantinedEventsRouteOptions } from "./sync/quarantined-events-list-route.js";
+import { registerQuarantinedEventsListRoute } from "./sync/quarantined-events-list-route.js";
 import { registerUserCreationRoutes } from "./users/user-creation-route.js";
 import { registerUserDeactivationRoutes } from "./users/user-deactivation-route.js";
 import { registerUserEditRoutes } from "./users/user-edit-route.js";
@@ -178,6 +181,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   tags?: WithoutClock<TagsRouteOptions<TQueryResult>>;
   products?: WithoutClock<ProductsRouteOptions<TQueryResult>>;
   alerts?: WithoutClock<AlertsRouteOptions<TQueryResult>>;
+  quarantinedEvents?: WithoutClock<QuarantinedEventsRouteOptions<TQueryResult>>;
   prices?: WithoutClock<PricesRouteOptions<TQueryResult>>;
   discounts?: WithoutClock<DiscountsRouteOptions<TQueryResult>>;
   registers?: WithoutClock<RegistersRouteOptions<TQueryResult>>;
@@ -259,6 +263,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     tags: backoffice,
     products: backoffice,
     alerts: backoffice,
+    quarantinedEvents: backoffice,
     prices: backoffice,
     discounts: backoffice,
     registers: backoffice,
@@ -488,6 +493,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerAlertsOverviewRoute(api, { ...options.alerts, now });
         registerAlertReadRoute(api, { ...options.alerts, now });
         registerAlertCloseRoute(api, { ...options.alerts, now });
+      }
+
+      if (options.quarantinedEvents) {
+        registerQuarantinedEventsListRoute(api, { ...options.quarantinedEvents, now });
+        registerQuarantinedEventReleaseRoute(api, { ...options.quarantinedEvents, now });
       }
 
       if (options.prices) {

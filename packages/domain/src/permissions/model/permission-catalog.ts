@@ -48,6 +48,7 @@ const PERMISSION_KEY_LIST = [
   "enroll_register_devices",
   "revoke_register_devices",
   "view_bitlocker_key",
+  "release_quarantined_events",
   "view_backups_and_rotate_key",
   "recover_contingency_receipts",
   "configure_branch",
@@ -200,6 +201,7 @@ export const PERMISSION_CATALOG = [
   { key: "enroll_register_devices", area: "devices", registerMarker: "register" },
   { key: "revoke_register_devices", area: "devices", registerMarker: "none" },
   { key: "view_bitlocker_key", area: "devices", registerMarker: "none" },
+  { key: "release_quarantined_events", area: "devices", registerMarker: "none" },
 
   { key: "view_backups_and_rotate_key", area: "backups", registerMarker: "none" },
   { key: "recover_contingency_receipts", area: "backups", registerMarker: "none" },

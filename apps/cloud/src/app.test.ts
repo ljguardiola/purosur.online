@@ -2414,6 +2414,16 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/synced-events/quarantined",
+        access: capabilityAccess("quarantined_events"),
+      },
+      {
+        method: "POST",
+        url: "/api/synced-events/:eventId/release",
+        access: capabilityAccess("quarantined_events"),
+      },
+      {
+        method: "GET",
         url: "/api/prices",
         access: capabilityAccess("prices_area"),
       },
@@ -2899,14 +2909,14 @@ describe("wiring the Mercado Pago notification route", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/api/payments/mercado-pago/notifications?type=order&data.id=ORD01",
+      url: "/api/payments/mercado-pago/notifications?type=payment&data.id=123456",
       payload: {},
     });
 
     expect(response.statusCode).toBe(401);
     expect(warn).toHaveBeenCalledExactlyOnceWith(
       "discarded a Mercado Pago notification with an invalid signature",
-      { reason: "missing_signature", type: "order" },
+      { reason: "missing_signature", type: "payment" },
     );
   });
 });

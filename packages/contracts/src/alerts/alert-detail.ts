@@ -6,6 +6,7 @@ import {
   SALES_DENIED_REASONS,
 } from "@purosur/domain";
 import { z } from "zod";
+import { eventQuarantineReasonSchema } from "../shared/index.js";
 import { alertAudienceSchema, alertLevelSchema } from "./alert-summary.js";
 
 const alertDeliverySchema = z.object({
@@ -96,16 +97,6 @@ const registerEnrolledDetailSchema = z.object({
   windowsVersion: z.string(),
   replacedInstallation: z.boolean(),
 });
-
-const eventQuarantineReasonSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("unreadable") }),
-  z.object({
-    kind: z.literal("missing_dependency"),
-    aggregateType: z.string(),
-    aggregateId: z.string(),
-  }),
-  z.object({ kind: z.literal("not_recorded") }),
-]);
 
 const eventsQuarantinedDetailSchema = z.object({
   deviceId: z.string(),

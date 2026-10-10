@@ -17,6 +17,7 @@ const EVERY_CAPABILITY: Record<Capability, true> = {
   alerts_area: true,
   close_alerts_manually: true,
   registers_area: true,
+  quarantined_events: true,
   stock_balances: true,
   stock_counts: true,
   stock_losses: true,

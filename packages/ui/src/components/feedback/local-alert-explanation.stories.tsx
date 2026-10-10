@@ -18,11 +18,19 @@ export default meta;
 type Story = StoryObj<typeof LocalAlertExplanation>;
 
 export const SalesDenied: Story = {
-  args: { kind: "sales_denied" },
+  args: { kind: "sales_denied", reason: "event_history_broken" },
 };
 
 export const SalesDeniedWithTitle: Story = {
-  args: { kind: "sales_denied", title: true },
+  args: { kind: "sales_denied", reason: "event_history_broken", title: true },
+};
+
+export const SalesDeniedDamagedDatabase: Story = {
+  args: { kind: "sales_denied", reason: "local_database_damaged" },
+};
+
+export const SalesDeniedDamagedDatabaseWithTitle: Story = {
+  args: { kind: "sales_denied", reason: "local_database_damaged", title: true },
 };
 
 export const RegisterSilent: Story = {

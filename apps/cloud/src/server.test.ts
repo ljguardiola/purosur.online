@@ -791,6 +791,10 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
       },
+      quarantinedEvents: {
+        db: fakeRecovery.db,
+        backofficeOrigin: fakeRecovery.backofficeOrigin,
+      },
       prices: {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,

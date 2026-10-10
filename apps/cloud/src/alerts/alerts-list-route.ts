@@ -38,6 +38,7 @@ function toAlertSummary(
     openedAt: row.openedAt.toISOString(),
     escalatedAt: row.escalatedAt?.toISOString() ?? null,
     resolvedAt: row.resolvedAt?.toISOString() ?? null,
+    salesDeniedReason: row.salesDeniedReason,
   };
 }
 

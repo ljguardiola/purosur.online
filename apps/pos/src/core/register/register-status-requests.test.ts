@@ -112,7 +112,9 @@ describe("the register's status", () => {
   it("holds sales_denied once the register stopped opening new sales because its event history broke", async () => {
     stopOpeningNewSales(database, "event_history_broken", NOW);
 
-    expect((await status()).conditions).toEqual(["sales_denied"]);
+    expect((await status()).conditions).toEqual([
+      { kind: "sales_denied", reason: "event_history_broken" },
+    ]);
   });
 
   it("holds only installation_revoked once the cloud revoked the installation, with the cloud unreachable", async () => {
@@ -121,7 +123,7 @@ describe("the register's status", () => {
     stopOpeningNewSales(database, "installation_revoked", NOW);
 
     expect(await status("unreachable")).toEqual({
-      conditions: ["installation_revoked"],
+      conditions: [{ kind: "installation_revoked" }],
       cloud: "unreachable",
       serial_devices: { scale: "not_registered", reader: "not_registered" },
     });
@@ -131,7 +133,7 @@ describe("the register's status", () => {
     holdBranchHours(mondayHours("09:00", "18:00"));
     await acceptedMinutesAgo(30);
 
-    expect((await status()).conditions).toEqual(["register_silent"]);
+    expect((await status()).conditions).toEqual([{ kind: "register_silent" }]);
   });
 
   it("holds no register_silent while the last accepted push is recent", async () => {
@@ -159,7 +161,10 @@ describe("the register's status", () => {
     await acceptedMinutesAgo(30);
     stopOpeningNewSales(database, "event_history_broken", NOW);
 
-    expect((await status()).conditions).toEqual(["sales_denied", "register_silent"]);
+    expect((await status()).conditions).toEqual([
+      { kind: "sales_denied", reason: "event_history_broken" },
+      { kind: "register_silent" },
+    ]);
   });
 
   it("drops register_silent as soon as a push is accepted again", async () => {
@@ -196,7 +201,7 @@ describe("the register's status", () => {
           reader: { kind: "mismatched" },
         })
       ).conditions,
-    ).toEqual(["serial_device_missing"]);
+    ).toEqual([{ kind: "serial_device_missing" }]);
   });
 
   it("holds no serial_device_missing while every registered device is found", async () => {
@@ -216,7 +221,7 @@ describe("the register's status", () => {
     void watch.start();
 
     expect(await statusWatchedBy(watch)).toEqual({
-      conditions: ["sales_denied"],
+      conditions: [{ kind: "sales_denied", reason: "event_history_broken" }],
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "not_registered" },
     });
@@ -230,7 +235,7 @@ describe("the register's status", () => {
     await watch.start();
 
     expect(await statusWatchedBy(watch)).toEqual({
-      conditions: ["sales_denied"],
+      conditions: [{ kind: "sales_denied", reason: "event_history_broken" }],
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "not_registered" },
     });
@@ -249,7 +254,7 @@ describe("the register's status", () => {
     await watch.start();
 
     expect(await statusWatchedBy(watch)).toEqual({
-      conditions: ["sales_denied"],
+      conditions: [{ kind: "sales_denied", reason: "event_history_broken" }],
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "unknown" },
     });

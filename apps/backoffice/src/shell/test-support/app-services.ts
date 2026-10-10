@@ -225,6 +225,10 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
         closeAlert: vi.fn(),
       },
     },
+    quarantinedEventsScreen: {
+      fetchQuarantinedEvents: vi.fn().mockReturnValue(new Promise(() => {})),
+      releaseQuarantinedEventModal: { releaseQuarantinedEvent: vi.fn() },
+    },
     ...overrides,
   };
 }
