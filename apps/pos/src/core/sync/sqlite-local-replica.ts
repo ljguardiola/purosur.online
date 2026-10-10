@@ -52,7 +52,7 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
   // as they arrive. Their PIN verifiers were derived with the pepper of the one before, and the PIN
   // hashes they came from are not kept, so they are dropped and derived again, and the wrong PINs
   // counted against them go with them, and so does who the register remembered. The register row,
-  // its point of sale and its branch's settings held are the previous installation's own, so they go too. Its unsent outbox events stay, tagged
+  // its point of sale, its offline number blocks and its branch's settings held are the previous installation's own, so they go too. Its unsent outbox events stay, tagged
   // with its device id: they are the only record of what it did.
   adoptDevice({ deviceId, pepper }: { deviceId: string; pepper: string }): void {
     this.pepper = pepper;
@@ -73,6 +73,7 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
         this.database.prepare("DELETE FROM own_register").run();
         this.database.prepare("DELETE FROM register_point_of_sale").run();
         this.database.prepare("DELETE FROM register_offline_point_of_sale").run();
+        this.database.prepare("DELETE FROM offline_number_blocks").run();
         this.database.prepare("DELETE FROM branch_settings").run();
       }
     })();
@@ -179,6 +180,12 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
             break;
           case "buyer_tax_status_set":
             fiscal.buyerTaxStatusSet(change);
+            break;
+          case "offline_authorization_code":
+            fiscal.offlineAuthorizationCode(change);
+            break;
+          case "offline_number_block":
+            fiscal.offlineNumberBlock(change);
             break;
           case "stock_movement":
             applyPulledStockMovement(stock, {
