@@ -31,9 +31,8 @@ export function serialDeviceStandings(
   registered: RegisteredSerialDevices,
   detected: readonly DetectedSerialDevice[],
 ): Record<SerialDeviceRole, SerialDeviceStanding> {
-  const byPath = [...detected].sort((first, second) => compareText(first.path, second.path));
   const registeredIdentities = SERIAL_DEVICE_ROLES.flatMap((role) => registered[role] ?? []);
-  const hasUnknownDevice = byPath.some(
+  const hasUnknownDevice = detected.some(
     ({ identity }) =>
       !registeredIdentities.some((known) => isSameSerialDeviceIdentity(known, identity)),
   );
@@ -43,9 +42,12 @@ export function serialDeviceStandings(
     if (identity === undefined) {
       return { kind: "not_registered" };
     }
-    const match = byPath.find((device) => isSameSerialDeviceIdentity(device.identity, identity));
-    if (match !== undefined) {
-      return { kind: "matching", path: match.path };
+    const [path] = detected
+      .filter((device) => isSameSerialDeviceIdentity(device.identity, identity))
+      .map((device) => device.path)
+      .sort();
+    if (path !== undefined) {
+      return { kind: "matching", path };
     }
     return hasUnknownDevice ? { kind: "mismatched" } : { kind: "not_detected" };
   }
@@ -59,8 +61,4 @@ export function isSerialDeviceMissing(
   return SERIAL_DEVICE_ROLES.some(
     (role) => standings[role].kind === "not_detected" || standings[role].kind === "mismatched",
   );
-}
-
-function compareText(first: string, second: string): number {
-  return first < second ? -1 : first > second ? 1 : 0;
 }
