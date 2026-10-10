@@ -135,17 +135,20 @@ export async function printCompletedSaleReceiptFor(
 ): Promise<void> {
   const chainKey = await deps.readOutboxChainKey();
   const started: Started = { copy: undefined };
-  await deps.jobs.start(saleId, ({ watch, printer }) =>
-    printSaleReceipt(
-      printingPorts(
-        deps,
-        chainKey,
-        signedSellerAuthority(deps, saleId, started),
-        printer(deps.printer),
+  await deps.jobs.start(
+    saleId,
+    ({ watch, printer }) =>
+      printSaleReceipt(
+        printingPorts(
+          deps,
+          chainKey,
+          signedSellerAuthority(deps, saleId, started),
+          printer(deps.printer),
+        ),
+        { saleId },
+        watch,
       ),
-      { saleId },
-      watch,
-    ),
+    { unattended: true },
   );
 }
 

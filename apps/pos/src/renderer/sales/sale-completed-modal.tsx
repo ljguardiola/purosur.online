@@ -15,7 +15,7 @@ type FailedStanding = "cover_open" | "paper_out" | "not_responding" | "retry_off
 
 type FailurePresentation = {
   printerState: string | undefined;
-  title: string;
+  title?: string;
   help: (copy: ReceiptCopyShown) => string;
 };
 
@@ -30,7 +30,7 @@ function retryCopyText(copy: ReceiptCopyShown): string {
     : `Como el ticket ya se había enviado, el reintento sale como duplicado, con la reimpresión Nº ${copy.order_number}.`;
 }
 
-const FAILURES = {
+const FAILURES: Record<FailedStanding, FailurePresentation> = {
   paper_out: {
     printerState: "Sin papel",
     title: "La impresora se quedó sin papel",
@@ -54,10 +54,9 @@ const FAILURES = {
   },
   failed: {
     printerState: undefined,
-    title: "Se produjo un error al imprimir",
     help: () => "Imprimilo desde el historial de ventas.",
   },
-} as const satisfies Record<FailedStanding, FailurePresentation>;
+};
 
 function failedStandingOf(status: ReceiptPrintStatus): FailedStanding | undefined {
   const { standing, printed } = status;
@@ -167,10 +166,10 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title={failure.title}
             description={failure.help(copy)}
+            {...(failure.title === undefined ? {} : { title: failure.title })}
           />
-          {notice === undefined ? null : (
+          {notice === undefined || failedStanding !== "retry_offered" ? null : (
             <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
           )}
         </div>

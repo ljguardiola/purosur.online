@@ -29,10 +29,15 @@ type ReceiptPrintStart<TOutcome> =
   | { kind: "answered"; outcome: TOutcome }
   | { kind: "failed" };
 
+interface ReceiptPrintStartOptions {
+  unattended: boolean;
+}
+
 export interface ReceiptPrintJobs extends ReceiptPrintStandings {
   start<TOutcome>(
     saleId: string,
     run: (runner: ReceiptPrintRunner) => Promise<TOutcome>,
+    options?: ReceiptPrintStartOptions,
   ): Promise<ReceiptPrintStart<TOutcome>>;
 }
 
@@ -58,7 +63,7 @@ export function createReceiptPrintJobs({
       return job === undefined ? null : receiptPrintStanding(job.observation, now());
     },
 
-    start(saleId, run) {
+    start(saleId, run, { unattended } = { unattended: false }) {
       const entry = entries.get(saleId) ?? { current: undefined, starting: false };
       entries.set(saleId, entry);
       if (entry.starting || !mayStartReceiptPrint(entry.current?.observation, now())) {
@@ -69,6 +74,12 @@ export function createReceiptPrintJobs({
 
       return new Promise((resolve) => {
         let sent = false;
+        const standFailedBeforeSending = (): void => {
+          entry.starting = false;
+          entry.current?.abort.abort();
+          entry.current = job;
+          job.observation = observePrintFailed(job.observation);
+        };
         const markSent = (): void => {
           sent = true;
           entry.current?.abort.abort();
@@ -97,18 +108,20 @@ export function createReceiptPrintJobs({
 
         (async () => run({ watch, printer }))().then(
           (outcome) => {
-            if (!sent) {
-              entry.starting = false;
-              resolve({ kind: "answered", outcome });
+            if (sent) {
+              return;
             }
+            if (unattended) {
+              standFailedBeforeSending();
+            } else {
+              entry.starting = false;
+            }
+            resolve({ kind: "answered", outcome });
           },
           (error: unknown) => {
             reportFailure("printing a receipt", error);
             if (!sent) {
-              entry.starting = false;
-              entry.current?.abort.abort();
-              entry.current = job;
-              job.observation = observePrintFailed(job.observation);
+              standFailedBeforeSending();
               resolve({ kind: "failed" });
             } else if (entry.current === job) {
               job.observation = observePrintFailed(job.observation);
