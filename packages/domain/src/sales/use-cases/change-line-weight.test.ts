@@ -142,6 +142,15 @@ describe("changeLineWeight", () => {
     expect(storedLine(store, "line-1")).toEqual({ ...QUESO_LINE, weightSource: "MANUAL" });
   });
 
+  it("sets the new weight of a line whose weight was typed already", () => {
+    const typed = { ...QUESO_LINE, weightSource: "MANUAL" as const };
+    const store = ledger({ sales: [{ ...OPEN_SALE, lines: [typed] }] });
+
+    retype(store, "line-1", 2500);
+
+    expect(storedLine(store, "line-1")).toEqual({ ...typed, quantity: 2500, lineTotal: 22500 });
+  });
+
   it("writes nothing when a typed weight is typed again unchanged", () => {
     const typed = { ...QUESO_LINE, weightSource: "MANUAL" as const };
     const store = ledger({ sales: [{ ...OPEN_SALE, lines: [typed] }] });
