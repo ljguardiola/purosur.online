@@ -148,8 +148,8 @@ describe("POST /payments/mercado-pago/notifications", () => {
           ts: "1760011200000",
           requestId: "8f2a6c1e-request",
           manifests: [
-            `id:;request-id:8f2a6c1e-request;ts:1760011200000;`,
-            `id:;request-id:8f2a6c1e-request;ts:1760011200000;`,
+            "id:ORD01JQ4S4KY8HWQ6NA5PXB65B3D3;request-id:8f2a6c1e-request;ts:1760011200000;",
+            "id:ord01jq4s4ky8hwq6na5pxb65b3d3;request-id:8f2a6c1e-request;ts:1760011200000;",
           ],
         },
       );
