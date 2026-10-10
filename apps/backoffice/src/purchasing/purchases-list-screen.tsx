@@ -56,8 +56,16 @@ function quantityOf(line: PurchaseLine): string {
     : `${line.packages} × ${line.packaging.name} (${quantity})`;
 }
 
+function saleUnitName(line: PurchaseLine): string {
+  return line.product.saleUnit === "KG" ? "kg" : "u";
+}
+
 function unitCostOf(line: PurchaseLine): string {
-  return `${formatCents(line.unitCostCents)} por ${line.product.saleUnit === "KG" ? "kg" : "u"}`;
+  return `${formatCents(line.unitCostCents)} por ${saleUnitName(line)}`;
+}
+
+function costPaidOf(line: PurchaseLine): string {
+  return `${formatCents(line.costPaidCents)} por ${line.packaging?.name ?? saleUnitName(line)}`;
 }
 
 function ofPurchase(row: PurchaseRow, render: (purchase: PurchaseSummary) => string): string {
@@ -99,7 +107,7 @@ const columns = [
   dataColumn({
     id: "costPaid",
     header: "Costo pagado",
-    render: (row: PurchaseRow) => ofLine(row, (line) => formatCents(line.costPaidCents)),
+    render: (row: PurchaseRow) => ofLine(row, costPaidOf),
   }),
   dataColumn({
     id: "unitCost",

@@ -1,5 +1,6 @@
 import type { CalendarDate } from "@internationalized/date";
 import type { PackagingList, PackagingSummary } from "@purosur/contracts";
+import type { SaleUnit } from "@purosur/domain";
 import {
   Button,
   ComboBox,
@@ -101,6 +102,13 @@ export function PurchaseLinesField({
   );
 }
 
+function costLabel(loadedBy: PurchaseLineValues["loadedBy"], saleUnit: SaleUnit): string {
+  if (loadedBy === "packaging") {
+    return "Costo por presentación ($)";
+  }
+  return saleUnit === "KG" ? "Costo por kg ($)" : "Costo por unidad ($)";
+}
+
 type PurchaseLineFieldsProps = {
   line: PurchaseLineValues;
   number: number;
@@ -200,7 +208,7 @@ function PurchaseLineFields({
         <div className="min-w-0 flex-1">
           <TextField
             kind="plain-text"
-            label="Costo pagado ($)"
+            label={costLabel(line.loadedBy, saleUnit)}
             value={line.cost}
             onChange={(cost) => onChange({ cost })}
             required
