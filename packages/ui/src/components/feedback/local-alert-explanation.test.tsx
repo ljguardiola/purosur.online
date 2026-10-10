@@ -4,7 +4,9 @@ import { expectNoAccessibilityViolations } from "../../test/axe";
 import { LocalAlertExplanation } from "./local-alert-explanation";
 
 test("explains what a register that can't sell means and what to do, with no title by default", async () => {
-  const screen = await render(<LocalAlertExplanation kind="sales_denied" />);
+  const screen = await render(
+    <LocalAlertExplanation kind="sales_denied" reason="event_history_broken" />,
+  );
 
   await expect
     .element(
@@ -22,6 +24,24 @@ test("explains what a register that can't sell means and what to do, with no tit
     )
     .toBeVisible();
   expect(screen.container.textContent).not.toContain("La caja no puede vender");
+});
+
+test("explains a register that can't sell because its database is damaged", async () => {
+  const screen = await render(
+    <LocalAlertExplanation kind="sales_denied" reason="local_database_damaged" />,
+  );
+
+  await expect
+    .element(
+      screen.getByText(
+        "Esta caja dejó de abrir ventas nuevas porque su base de datos está dañada.",
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(screen.getByText(/Restaurar la base de datos de la caja desde su copia de respaldo/))
+    .toBeVisible();
+  expect(screen.container.textContent).not.toContain("registro de operaciones");
 });
 
 test("explains a register that isn't syncing", async () => {
@@ -44,7 +64,9 @@ test("shows the kind's title above its explanation when asked to", async () => {
 });
 
 test("has no accessibility violations, with or without its title", async () => {
-  const withoutTitle = await render(<LocalAlertExplanation kind="sales_denied" />);
+  const withoutTitle = await render(
+    <LocalAlertExplanation kind="sales_denied" reason="event_history_broken" />,
+  );
   await expectNoAccessibilityViolations(withoutTitle.container);
   await withoutTitle.unmount();
 

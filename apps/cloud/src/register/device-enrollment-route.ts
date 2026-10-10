@@ -7,6 +7,7 @@ import {
 import { enrollInstallation } from "@purosur/domain/register/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import type { EnqueueTaxAuthorityCount } from "../fiscal/graphile-tax-authority-count-queue.js";
 import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { resolveSourceAddress } from "../platform/source-address.js";
@@ -23,6 +24,7 @@ export interface DeviceEnrollmentRouteOptions<TQueryResult extends PgQueryResult
   db: PgDatabase<TQueryResult>;
   keysEncryptionKey: Uint8Array;
   now: () => Date;
+  enqueueTaxAuthorityCount?: EnqueueTaxAuthorityCount;
 }
 
 const CODE_REJECTED = cloudError(
@@ -35,7 +37,11 @@ export function registerDeviceEnrollmentRoute<TQueryResult extends PgQueryResult
   options: DeviceEnrollmentRouteOptions<TQueryResult>,
 ): void {
   const ports = {
-    store: new DrizzleRegisterStore(options.db, installationKeyCipher(options.keysEncryptionKey)),
+    store: new DrizzleRegisterStore(
+      options.db,
+      installationKeyCipher(options.keysEncryptionKey),
+      options.enqueueTaxAuthorityCount,
+    ),
     clock: { now: options.now },
     tokens: { issue: issueDeviceToken },
     codes: { matches: registerEnrollmentCodeMatches },

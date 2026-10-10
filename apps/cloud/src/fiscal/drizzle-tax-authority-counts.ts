@@ -1,5 +1,5 @@
 import type { LastAuthorizedCount, TaxAuthorityCounts } from "@purosur/domain/fiscal/use-cases";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { registerPointsOfSale, taxAuthorityLastAuthorizedNumbers } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
@@ -17,14 +17,17 @@ export class DrizzleTaxAuthorityCounts<TQueryResult extends PgQueryResultHKT>
 
   // The count travels with the register's point of sale, so the register's row is logged as
   // changed for the register to pull it again.
-  async record({ pointOfSale, lastAuthorized, readAt }: LastAuthorizedCount): Promise<void> {
+  async advance({ pointOfSale, lastAuthorized, readAt }: LastAuthorizedCount): Promise<void> {
     await withPendingChanges(this.db, this.pending, async (tx, pending) => {
       await tx
         .insert(taxAuthorityLastAuthorizedNumbers)
         .values({ pointOfSaleNumber: pointOfSale, lastAuthorized, readAt })
         .onConflictDoUpdate({
           target: taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber,
-          set: { lastAuthorized, readAt },
+          set: {
+            lastAuthorized: sql`greatest(${taxAuthorityLastAuthorizedNumbers.lastAuthorized}, excluded.last_authorized)`,
+            readAt,
+          },
         });
       const [holder] = await tx
         .select({

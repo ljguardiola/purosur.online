@@ -2,6 +2,7 @@ import { fiscalRejectionAlertObservation } from "@purosur/domain";
 import {
   type AuthorizationRequestRecord,
   FiscalDocumentAlreadyRecorded,
+  type LastAuthorizedCount,
   type PointOfSaleLane,
   type PointOfSaleLanes,
   type RealTimeAuthorizationAnswer,
@@ -18,6 +19,8 @@ import {
   registerPointsOfSale,
 } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
+import { PendingChanges } from "../sync/change-log.js";
+import { DrizzleTaxAuthorityCounts } from "./drizzle-tax-authority-counts.js";
 
 const UNIQUE_VIOLATION = "23505";
 const FISCAL_REQUESTS_PRIMARY_KEY = "fiscal_requests_pkey";
@@ -162,6 +165,7 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
     answer: RealTimeAuthorizationAnswer,
     answeredAt: Date,
     rejectionAlertChange: RejectionAlertChange | null,
+    taxAuthorityCount: LastAuthorizedCount | null,
   ): Promise<void> {
     await this.db.transaction(async (tx) => {
       await tx
@@ -181,6 +185,11 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
         await observeAlertCondition(tx, fiscalRejectionAlertObservation(rejectionAlertChange), {
           now: () => answeredAt,
         });
+      }
+      if (taxAuthorityCount !== null) {
+        const pending = new PendingChanges();
+        await new DrizzleTaxAuthorityCounts(tx, pending).advance(taxAuthorityCount);
+        await pending.log(tx);
       }
     });
   }

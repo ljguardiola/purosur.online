@@ -85,8 +85,8 @@ export function RegisterStatusBar({ person, cashSession, status }: RegisterStatu
       ) : null}
       {status.status === "loaded"
         ? status.value.conditions.map((condition) => (
-            <Card key={condition} variant="subtle">
-              <LocalAlertExplanation kind={condition} title />
+            <Card key={condition.kind} variant="subtle">
+              <LocalAlertExplanation {...condition} title />
             </Card>
           ))
         : null}

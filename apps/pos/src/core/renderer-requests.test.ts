@@ -758,7 +758,7 @@ describe("answerRendererRequest", () => {
 
   it("answers the register's status as the core reads it", async () => {
     const status: RegisterStatus = {
-      conditions: ["sales_denied"],
+      conditions: [{ kind: "sales_denied", reason: "event_history_broken" }],
       cloud: "unreachable",
       serial_devices: { scale: "matching", reader: "not_detected" },
     };

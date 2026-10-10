@@ -98,6 +98,7 @@ export async function enrollInstallation(
       enrolledAt: now,
     });
     await tx.markEnrollmentCodeRedeemed(matched.registerId, now);
+    await tx.requireFreshTaxAuthorityCount(matched.registerId);
     await tx.openEnrollmentAlert({
       registerId: matched.registerId,
       deviceId,

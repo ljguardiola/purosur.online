@@ -191,6 +191,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   refunds?: WithoutClock<RefundRouteOptions<TQueryResult>>;
   devices?: WithoutClock<DeviceTokensOptions<TQueryResult>>;
   enqueueOfflineAuthorizationCodeRequest?: EnqueueOfflineAuthorizationCodeRequest;
+  enqueueTaxAuthorityCountOnEnrollment?: EnqueueTaxAuthorityCount;
   fiscalAuthorization?: WithoutClock<
     Omit<FiscalAuthorizationRouteOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
   >;
@@ -212,6 +213,7 @@ type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
     | "setupFastifyErrorHandler"
     | "staticDir"
     | "enqueueOfflineAuthorizationCodeRequest"
+    | "enqueueTaxAuthorityCountOnEnrollment"
     | "fiscalAuthorization"
     | "mercadoPagoQr"
     | "mercadoPagoNotifications"
@@ -547,7 +549,13 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       }
 
       if (options.devices) {
-        registerDeviceEnrollmentRoute(api, { ...options.devices, now });
+        registerDeviceEnrollmentRoute(api, {
+          ...options.devices,
+          now,
+          ...(options.enqueueTaxAuthorityCountOnEnrollment && {
+            enqueueTaxAuthorityCount: options.enqueueTaxAuthorityCountOnEnrollment,
+          }),
+        });
         registerChangesRoute(api, {
           ...options.devices,
           ...(options.enqueueOfflineAuthorizationCodeRequest && {

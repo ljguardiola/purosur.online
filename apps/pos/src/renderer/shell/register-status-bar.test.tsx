@@ -119,7 +119,9 @@ describe("RegisterStatusBar", () => {
   });
 
   it("shows a condition with its title, what it means and what to do", async () => {
-    const screen = await renderBar({ status: loaded({ conditions: ["sales_denied"] }) });
+    const screen = await renderBar({
+      status: loaded({ conditions: [{ kind: "sales_denied", reason: "event_history_broken" }] }),
+    });
 
     await expect.element(screen.getByText(SALES_DENIED_TITLE)).toBeVisible();
     await expect
@@ -129,9 +131,26 @@ describe("RegisterStatusBar", () => {
     await expect.element(screen.getByText(/Avisar al Administrador de inmediato/)).toBeVisible();
   });
 
+  it("tells why the register can't sell with the reason the core answers", async () => {
+    const screen = await renderBar({
+      status: loaded({ conditions: [{ kind: "sales_denied", reason: "local_database_damaged" }] }),
+    });
+
+    await expect.element(screen.getByText(SALES_DENIED_TITLE)).toBeVisible();
+    await expect.element(screen.getByText(/su base de datos está dañada/)).toBeVisible();
+    await expect
+      .element(screen.getByText(/Restaurar la base de datos de la caja desde su copia de respaldo/))
+      .toBeVisible();
+  });
+
   it("shows every condition it holds, in the order the core gave them", async () => {
     const screen = await renderBar({
-      status: loaded({ conditions: ["sales_denied", "register_silent"] }),
+      status: loaded({
+        conditions: [
+          { kind: "sales_denied", reason: "event_history_broken" },
+          { kind: "register_silent" },
+        ],
+      }),
     });
 
     await expect.element(screen.getByText(SALES_DENIED_TITLE)).toBeVisible();
@@ -142,7 +161,7 @@ describe("RegisterStatusBar", () => {
 
   it("shows a condition even when the cloud can't be reached", async () => {
     const screen = await renderBar({
-      status: loaded({ conditions: ["register_silent"], cloud: "unreachable" }),
+      status: loaded({ conditions: [{ kind: "register_silent" }], cloud: "unreachable" }),
     });
 
     await expect.element(screen.getByText(SILENT_TITLE)).toBeVisible();
@@ -167,7 +186,7 @@ describe("RegisterStatusBar", () => {
   it("shows the missing scale or reader condition with what to do", async () => {
     const screen = await renderBar({
       status: loaded({
-        conditions: ["serial_device_missing"],
+        conditions: [{ kind: "serial_device_missing" }],
         serial_devices: { scale: "not_detected", reader: "matching" },
       }),
     });
@@ -179,7 +198,7 @@ describe("RegisterStatusBar", () => {
   it("has no accessibility violations with a device not detected", async () => {
     const screen = await renderBar({
       status: loaded({
-        conditions: ["serial_device_missing"],
+        conditions: [{ kind: "serial_device_missing" }],
         serial_devices: { scale: "not_detected", reader: "not_registered" },
       }),
     });
@@ -203,7 +222,13 @@ describe("RegisterStatusBar", () => {
   it("has no accessibility violations with conditions, nor when the status failed", async () => {
     const withConditions = await renderBar({
       cashSession: OPEN_SESSION,
-      status: loaded({ conditions: ["sales_denied", "register_silent"], cloud: "unreachable" }),
+      status: loaded({
+        conditions: [
+          { kind: "sales_denied", reason: "event_history_broken" },
+          { kind: "register_silent" },
+        ],
+        cloud: "unreachable",
+      }),
     });
     await expectNoAccessibilityViolations(withConditions.container);
     await withConditions.unmount();
