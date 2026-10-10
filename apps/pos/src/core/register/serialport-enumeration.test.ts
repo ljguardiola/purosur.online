@@ -21,6 +21,18 @@ describe("the serial devices detected through serialport", () => {
     ]);
   });
 
+  it("identifies a port by its vendor and product, never by its USB serial number", async () => {
+    const enumeration = enumerationOf([
+      { path: "COM3", vendorId: "26f1", productId: "8802", serialNumber: "1234567890ABCD" },
+      { path: "COM5", vendorId: "26f1", productId: "8802", serialNumber: "QR200S-0042" },
+    ]);
+
+    expect(await enumeration.detectedSerialDevices()).toEqual([
+      { path: "COM3", identity: { vendorId: "26f1", productId: "8802" } },
+      { path: "COM5", identity: { vendorId: "26f1", productId: "8802" } },
+    ]);
+  });
+
   it("reads an uppercase identity, as Windows reports it, in lowercase", async () => {
     const enumeration = enumerationOf([{ path: "COM3", vendorId: "26F1", productId: "AB0C" }]);
 
