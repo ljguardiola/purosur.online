@@ -42,7 +42,7 @@ export function replacePendingQrPayment(
       return { kind: "unavailable" };
     }
 
-    const waitEndsAt = pending.waitEndsAt < replacedAt ? pending.waitEndsAt : replacedAt;
+    const waitEndsAt = new Date(Math.min(pending.waitEndsAt.getTime(), replacedAt.getTime()));
     tx.markQrPaymentReplaced(paymentTransactionId, waitEndsAt);
     tx.appendOutboxEvent({
       event_id: ids.next(),
