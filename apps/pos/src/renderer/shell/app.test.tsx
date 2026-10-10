@@ -1687,6 +1687,77 @@ describe("App", () => {
     await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
   });
 
+  it("shows no line of the sale the customer had already paid by QR, found when abandoning the order, when a new sale starts", async () => {
+    const yerba = {
+      id: "line-1",
+      product_id: "p1",
+      product_name: "Yerba mate 1 kg",
+      sale_unit: "UNIT" as const,
+      weight_source: null,
+      quantity: 1,
+      list_unit_price: 238_000,
+      discount_amount: 0,
+      promotion: null,
+      line_total: 238_000,
+    };
+    let reads = 0;
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => GRACE_SESSION },
+      {
+        currentSale: () => {
+          reads += 1;
+          return reads <= 2
+            ? Promise.resolve({
+                id: "sale-1",
+                lines: [yerba],
+                total: 238_000,
+                paid: 0,
+                pending: 238_000,
+                lines_lock: null,
+                cancel_refusal: null,
+                charge_refusal: null,
+                refunds_on_cancel: [],
+                cancel_authorization_required: false,
+              })
+            : new Promise(() => {});
+        },
+        startMercadoPagoQrCharge: async (_saleId, amount) => ({
+          kind: "order_shown",
+          payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
+          amount,
+          remaining_seconds: 180,
+          wait_seconds: 180,
+        }),
+        followMercadoPagoQrCharge: async () => ({ kind: "waiting", remaining_seconds: 170 }),
+        abandonMercadoPagoQrCharge: async () => ({
+          kind: "already_paid",
+          settlement: { kind: "completed", sale_id: "sale-1", total: 238_000 },
+        }),
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await resumeLockedRegister(screen);
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+    await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+    await expect
+      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }), {
+        timeout: 5_000,
+      })
+      .toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
+
+    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.poll(() => reads).toBe(3);
+    await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
+  });
+
   it("goes back to the no-session screen, still signed in, when a scan finds that the cash session is no longer open", async () => {
     const sessions: (OpenCashSession | null)[] = [GRACE_SESSION, null];
     const { core } = coreAnswering(
