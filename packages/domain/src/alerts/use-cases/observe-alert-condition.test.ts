@@ -306,7 +306,7 @@ describe("observeAlertCondition when the condition holds at a level", () => {
         scope: "register-1:2026-10-16",
         level,
         escalateAt: null,
-        detail: MISSING_CODE.detail,
+        detail: { ...MISSING_CODE.detail },
         conditionClearedAt,
       }),
     );
