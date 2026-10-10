@@ -48,8 +48,11 @@ export {
   fortnightAfter,
   fortnightContaining,
   fortnightsWithinRequestWindowOn,
+  hasFortnightStarted,
   isSecondHalfOfMonth,
+  offlineAuthorizationCodeRequestOpensOn,
 } from "./model/offline-authorization-code.js";
+export { mustHoldOfflineAuthorizationCode } from "./model/offline-authorization-code-holding.js";
 export type {
   OfflineNumberBlockRange,
   OfflineNumberBlockStatus,

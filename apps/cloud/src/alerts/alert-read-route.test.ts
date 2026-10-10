@@ -4,6 +4,7 @@ import {
   alertDeliveries,
   alerts,
   locations,
+  registers,
   rolePermissions,
   roles,
   sessions,
@@ -355,5 +356,73 @@ describe("GET /alerts/:id", () => {
     };
     expect(body.scopeDisplay).toBe("Lucía");
     expect(body.detail.actorName).toBe("Ada");
+  });
+});
+
+describe("GET /alerts/:id for a register that lacks a fortnight's offline authorization code", () => {
+  async function insertMissingCodeAlert(fortnight: { start: string; end: string }) {
+    const [register] = await db
+      .insert(registers)
+      .values({ locationId: ownLocationId, name: "Caja 1" })
+      .returning({ id: registers.id });
+    if (!register) throw new Error("test setup: inserting the register returned no row");
+    const [alert] = await db
+      .insert(alerts)
+      .values({
+        kind: "offline_authorization_code_missing",
+        scope: `${register.id}:${fortnight.start}`,
+        level: "critical",
+        audience: "all",
+        detail: {
+          deviceId: "device-1",
+          fortnightStart: fortnight.start,
+          fortnightEnd: fortnight.end,
+        },
+        openedAt: NOON,
+      })
+      .returning({ id: alerts.id });
+    if (!alert) throw new Error("test setup: inserting the alert returned no row");
+    return alert.id;
+  }
+
+  async function viewerSession(): Promise<string> {
+    const viewerRoleId = await insertRole("supervisor", ["view_all_alerts"]);
+    return insertSession(await insertUserWithRole("Grace", viewerRoleId));
+  }
+
+  it("names the register and says the fortnight has not started when the cloud's day is before its first day", async () => {
+    const rawSessionId = await viewerSession();
+    const alertId = await insertMissingCodeAlert({ start: "2026-01-16", end: "2026-01-31" });
+
+    const response = await getAlert(rawSessionId, alertId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      scopeDisplay: "Caja 1",
+      detail: {
+        deviceId: "device-1",
+        fortnightStart: "2026-01-16",
+        fortnightEnd: "2026-01-31",
+        fortnightStarted: false,
+      },
+    });
+  });
+
+  it("says the fortnight has started when the cloud's day is within it", async () => {
+    const rawSessionId = await viewerSession();
+    const alertId = await insertMissingCodeAlert({ start: "2026-01-01", end: "2026-01-15" });
+
+    const response = await getAlert(rawSessionId, alertId);
+
+    expect(response.json()).toMatchObject({ detail: { fortnightStarted: true } });
+  });
+
+  it("answers nothing about a fortnight for any other kind of alert", async () => {
+    const rawSessionId = await viewerSession();
+    const alertId = await insertAlert({ audience: "all" });
+
+    const response = await getAlert(rawSessionId, alertId);
+
+    expect(response.json().detail).not.toHaveProperty("fortnightStarted");
   });
 });

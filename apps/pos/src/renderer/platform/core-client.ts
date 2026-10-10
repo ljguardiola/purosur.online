@@ -29,12 +29,14 @@ import type {
   PinCodeRedemptionOutcome,
   PinPolicy,
   ReadReceiptPrinterOutcome,
+  ReadSerialDevicesOutcome,
   ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
   RegisterCoreToRendererMessage,
   RegisterRendererToCoreMessage,
+  RegisterSerialDevicesOutcome,
   RegisterStatus,
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
@@ -104,6 +106,11 @@ export type SalesHistoryQuery = Pick<
   "session" | "state" | "page"
 >;
 
+export type SerialDevicesToRegister = Extract<
+  RegisterRendererToCoreMessage,
+  { type: "register-serial-devices" }
+>["devices"];
+
 export interface CoreClient {
   connect(port: CorePort): void;
   enrollmentStatus(): Promise<boolean>;
@@ -163,6 +170,8 @@ export interface CoreClient {
   saleHistoryDetail(saleId: string): Promise<SaleHistoryDetailOutcome>;
   readReceiptPrinter(): Promise<ReadReceiptPrinterOutcome>;
   setReceiptPrinter(address: string): Promise<SetReceiptPrinterOutcome>;
+  readSerialDevices(): Promise<ReadSerialDevicesOutcome>;
+  registerSerialDevices(devices: SerialDevicesToRegister): Promise<RegisterSerialDevicesOutcome>;
   cashCharge(saleId: string, tendered: number): Promise<CashChargeAnswer>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer(saleId: string, amount: number): Promise<ChargeSaleByTransferOutcome>;
@@ -185,6 +194,7 @@ export interface CoreClient {
   cashCountPreview(countedCash: number): Promise<CashCountPreview | null | "unavailable">;
   sessionOpenSale(): Promise<SessionOpenSale | null | "unavailable">;
   onPulled(listener: () => void): () => void;
+  onSerialDevicesChanged(listener: () => void): () => void;
 }
 
 type CoreRequest = Exclude<RendererToCoreMessage, { type: "ping" }>;
@@ -202,6 +212,7 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
   const unsent: PendingRequest[] = [];
   const sent = new Map<string, PendingRequest>();
   const pulledListeners = new Set<() => void>();
+  const serialDevicesChangedListeners = new Set<() => void>();
 
   function receive(port: CorePort, data: unknown): void {
     if (port !== current) {
@@ -213,6 +224,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     }
     if (answer.data.type === "pulled") {
       for (const listener of pulledListeners) {
+        listener();
+      }
+      return;
+    }
+    if (answer.data.type === "serial-devices-changed") {
+      for (const listener of serialDevicesChangedListeners) {
         listener();
       }
       return;
@@ -536,6 +553,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         (answer) => (answer.type === "set-receipt-printer-result" ? answer.outcome : undefined),
       );
     },
+    readSerialDevices() {
+      return ask({ type: "read-serial-devices", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "read-serial-devices-result" ? answer.outcome : undefined,
+      );
+    },
+    registerSerialDevices(devices) {
+      return ask(
+        { type: "register-serial-devices", request_id: deps.newRequestId(), devices },
+        (answer) => (answer.type === "register-serial-devices-result" ? answer.outcome : undefined),
+      );
+    },
     searchProducts(query) {
       return ask({ type: "search-products", request_id: deps.newRequestId(), query }, (answer) =>
         answer.type === "search-products-result" ? answer.outcome : undefined,
@@ -700,6 +728,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       pulledListeners.add(listener);
       return () => {
         pulledListeners.delete(listener);
+      };
+    },
+    onSerialDevicesChanged(listener) {
+      serialDevicesChangedListeners.add(listener);
+      return () => {
+        serialDevicesChangedListeners.delete(listener);
       };
     },
   };

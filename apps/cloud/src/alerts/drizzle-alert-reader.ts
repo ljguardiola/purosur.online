@@ -1,4 +1,9 @@
-import { type AlertKind, alertKindsWithScope, type VisibleAlertSight } from "@purosur/domain";
+import {
+  type AlertKind,
+  alertKindsWithScope,
+  REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
+  type VisibleAlertSight,
+} from "@purosur/domain";
 import type {
   AlertDelivery,
   AlertDetailView,
@@ -207,6 +212,13 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       and(
         inArray(alerts.kind, alertKindsWithScope("register")),
         inArray(alerts.scope, matchingRegisterIds),
+      ),
+      and(
+        inArray(alerts.kind, alertKindsWithScope("registerFortnight")),
+        inArray(
+          sql`split_part(${alerts.scope}, ${REGISTER_FORTNIGHT_SCOPE_SEPARATOR}, 1)`,
+          matchingRegisterIds,
+        ),
       ),
       and(
         inArray(alerts.kind, alertKindsWithScope("sourceAddress")),

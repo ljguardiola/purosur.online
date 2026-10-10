@@ -160,6 +160,7 @@ class FakeAlertStoreTransaction implements AlertStoreTransaction {
     return (
       alert && {
         alertId: alert.id,
+        level: alert.level,
         detail: structuredClone(alert.detail),
         conditionClearedAt: alert.conditionClearedAt && new Date(alert.conditionClearedAt),
       }

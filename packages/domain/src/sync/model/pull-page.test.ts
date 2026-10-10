@@ -2,6 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   FIRST_PULL_CURSOR,
+  hasPulledChange,
   isPageAfter,
   isPullCursor,
   PULL_PAGE_MAX_CHANGES,
@@ -102,5 +103,25 @@ describe("whether a page follows a cursor", () => {
     expect(isPageAfter(3, { changes: changesFrom(4, 500), cursor: 503, hasMore: false })).toBe(
       true,
     );
+  });
+});
+
+describe("hasPulledChange", () => {
+  it("holds when the register's pull cursor reached the change", () => {
+    expect(hasPulledChange({ cursor: 42, changeSeq: 42 })).toBe(true);
+    expect(hasPulledChange({ cursor: 43, changeSeq: 42 })).toBe(true);
+  });
+
+  it("does not hold when the register's pull cursor stopped before the change", () => {
+    expect(hasPulledChange({ cursor: 41, changeSeq: 42 })).toBe(false);
+  });
+
+  it("does not hold when the register never pulled", () => {
+    expect(hasPulledChange({ cursor: null, changeSeq: 42 })).toBe(false);
+  });
+
+  it("does not hold when there is no change to pull", () => {
+    expect(hasPulledChange({ cursor: 42, changeSeq: null })).toBe(false);
+    expect(hasPulledChange({ cursor: 0, changeSeq: null })).toBe(false);
   });
 });

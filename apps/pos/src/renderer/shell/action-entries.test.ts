@@ -47,6 +47,23 @@ describe("ACTION_ENTRIES", () => {
     ).toEqual([{ label: "Impresora", to: "/receipt-printer" }]);
   });
 
+  it("offers the scale and reader to a person who may configure them, opening their screen", () => {
+    expect(
+      entriesFor(ACTION_ENTRIES, ["configure_serial_devices"]).map(({ label, to }) => ({
+        label,
+        to,
+      })),
+    ).toEqual([{ label: "Balanza y lector", to: "/serial-devices" }]);
+  });
+
+  it("places the scale and reader beside the receipt printer", () => {
+    expect(
+      entriesFor(ACTION_ENTRIES, ["configure_receipt_printer", "configure_serial_devices"]).map(
+        ({ label }) => label,
+      ),
+    ).toEqual(["Impresora", "Balanza y lector"]);
+  });
+
   it("offers the sales history to a person who may view it, opening its screen", () => {
     expect(
       entriesFor(ACTION_ENTRIES, ["view_sales_history"]).map(({ label, to }) => ({ label, to })),

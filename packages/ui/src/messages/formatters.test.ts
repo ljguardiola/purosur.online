@@ -2,6 +2,8 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   formatAmountInput,
+  formatCalendarDay,
+  formatCalendarDayRange,
   formatCents,
   formatClockTime,
   formatCountdown,
@@ -79,6 +81,25 @@ describe("formatDate", () => {
 
   it("passes formatting options through to Intl.DateTimeFormat", () => {
     expect(formatDate(new Date(2026, 0, 5), { month: "long" })).toBe("enero");
+  });
+});
+
+describe("formatCalendarDay", () => {
+  it("writes the day and the month's name the way it reads in Argentina", () => {
+    expect(formatCalendarDay("2026-10-16")).toBe("16 de octubre");
+    expect(formatCalendarDay("2026-03-01")).toBe("1 de marzo");
+  });
+});
+
+describe("formatCalendarDayRange", () => {
+  it("writes a range inside one month with the month once, at its end", () => {
+    expect(formatCalendarDayRange("2026-10-16", "2026-10-31")).toBe("del 16 al 31 de octubre");
+  });
+
+  it("writes both months when the range crosses a month change", () => {
+    expect(formatCalendarDayRange("2026-10-27", "2026-11-02")).toBe(
+      "del 27 de octubre al 2 de noviembre",
+    );
   });
 });
 

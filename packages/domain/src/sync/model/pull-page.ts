@@ -14,6 +14,16 @@ export interface PullPage<TChange extends PulledChange> {
   hasMore: boolean;
 }
 
+export function hasPulledChange({
+  cursor,
+  changeSeq,
+}: {
+  cursor: number | null;
+  changeSeq: number | null;
+}): boolean {
+  return cursor !== null && changeSeq !== null && cursor >= changeSeq;
+}
+
 export function isPullCursor(value: number): boolean {
   return Number.isSafeInteger(value) && value >= 0;
 }

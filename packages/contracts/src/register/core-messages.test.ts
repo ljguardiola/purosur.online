@@ -1202,6 +1202,8 @@ describe("checking typed input", () => {
 });
 
 describe("register status messages", () => {
+  const STANDINGS = { scale: "matching", reader: "not_registered" };
+
   it("accepts a request for the register's status", () => {
     const message = { type: "register-status-request", request_id: REQUEST_ID };
 
@@ -1219,11 +1221,12 @@ describe("register status messages", () => {
     [["sales_denied"], "reachable"],
     [["sales_denied", "register_silent"], "unreachable"],
     [["installation_revoked"], "unreachable"],
+    [["serial_device_missing"], "reachable"],
   ])("accepts the status with conditions %j and the cloud %s", (conditions, cloud) => {
     const message = {
       type: "register-status",
       request_id: REQUEST_ID,
-      status: { conditions, cloud },
+      status: { conditions, cloud, serial_devices: STANDINGS },
     };
 
     expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
@@ -1232,11 +1235,14 @@ describe("register status messages", () => {
   it.each([
     [
       "a condition the register does not detect itself",
-      { conditions: ["stock_low"], cloud: "reachable" },
+      { conditions: ["stock_low"], cloud: "reachable", serial_devices: STANDINGS },
     ],
-    ["a cloud state it does not know", { conditions: [], cloud: "slow" }],
-    ["a status without its cloud", { conditions: [] }],
-    ["a status without its conditions", { cloud: "reachable" }],
+    [
+      "a cloud state it does not know",
+      { conditions: [], cloud: "slow", serial_devices: STANDINGS },
+    ],
+    ["a status without its cloud", { conditions: [], serial_devices: STANDINGS }],
+    ["a status without its conditions", { cloud: "reachable", serial_devices: STANDINGS }],
   ])("rejects the status with %s", (_name, status) => {
     expect(
       registerCoreToRendererMessageSchema.safeParse({
@@ -1251,7 +1257,7 @@ describe("register status messages", () => {
     expect(
       registerCoreToRendererMessageSchema.safeParse({
         type: "register-status",
-        status: { conditions: [], cloud: "unknown" },
+        status: { conditions: [], cloud: "unknown", serial_devices: STANDINGS },
       }).success,
     ).toBe(false);
   });
@@ -1349,5 +1355,187 @@ describe("receipt printer address messages", () => {
     const message = { type: "set-receipt-printer-result", request_id: REQUEST_ID, outcome };
 
     expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("serial device messages", () => {
+  const SCALE = { vendor_id: "0403", product_id: "6001" };
+  const READER = { vendor_id: "05e0", product_id: "1200" };
+
+  it("accepts a request to read the serial devices", () => {
+    const message = { type: "read-serial-devices", request_id: REQUEST_ID };
+
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request to read the serial devices without its request id", () => {
+    expect(
+      registerRendererToCoreMessageSchema.safeParse({ type: "read-serial-devices" }).success,
+    ).toBe(false);
+  });
+
+  it.each([{ scale: SCALE, reader: READER }, { scale: SCALE }, { reader: READER }, {}])(
+    "accepts a request to register the serial devices %j",
+    (devices) => {
+      const message = { type: "register-serial-devices", request_id: REQUEST_ID, devices };
+
+      expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
+    },
+  );
+
+  it.each([
+    { type: "register-serial-devices", devices: {} },
+    { type: "register-serial-devices", request_id: REQUEST_ID },
+    {
+      type: "register-serial-devices",
+      request_id: REQUEST_ID,
+      devices: { scale: { vendor_id: "0403" } },
+    },
+    {
+      type: "register-serial-devices",
+      request_id: REQUEST_ID,
+      devices: { scale: { vendor_id: "0403", product_id: "ZZZZ" } },
+    },
+    { type: "register-serial-devices", request_id: REQUEST_ID, devices: { printer: SCALE } },
+  ])("rejects the request to register the serial devices %j", (message) => {
+    expect(registerRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    {
+      kind: "read",
+      registered: { scale: SCALE, reader: READER },
+      detected: [
+        { path: "COM3", vendor_id: "0403", product_id: "6001" },
+        { path: "COM4", vendor_id: "1a86", product_id: "7523" },
+      ],
+      standings: { scale: { kind: "matching", path: "COM3" }, reader: { kind: "mismatched" } },
+    },
+    {
+      kind: "read",
+      registered: {},
+      detected: [],
+      standings: { scale: { kind: "not_registered" }, reader: { kind: "not_registered" } },
+    },
+    {
+      kind: "read",
+      registered: { scale: SCALE },
+      detected: [],
+      standings: { scale: { kind: "not_detected" }, reader: { kind: "not_registered" } },
+    },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+  ])("accepts the read answer $kind", (outcome) => {
+    const message = { type: "read-serial-devices-result", request_id: REQUEST_ID, outcome };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "read" },
+    {
+      kind: "read",
+      registered: {},
+      detected: [],
+      standings: { scale: { kind: "matching" }, reader: { kind: "not_registered" } },
+    },
+    {
+      kind: "read",
+      registered: {},
+      detected: [],
+      standings: { scale: { kind: "unknown" }, reader: { kind: "not_registered" } },
+    },
+    {
+      kind: "read",
+      registered: {},
+      detected: [],
+      standings: { scale: { kind: "not_registered" } },
+    },
+    {
+      kind: "read",
+      registered: {},
+      detected: [{ path: "COM3", vendor_id: "0403" }],
+      standings: { scale: { kind: "not_registered" }, reader: { kind: "not_registered" } },
+    },
+    { kind: "registered", devices: {} },
+    { kind: "same_identity_for_both" },
+  ])("rejects the read answer %j", (outcome) => {
+    const message = { type: "read-serial-devices-result", request_id: REQUEST_ID, outcome };
+
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    { kind: "registered", devices: { scale: SCALE, reader: READER } },
+    { kind: "registered", devices: { scale: SCALE } },
+    { kind: "registered", devices: {} },
+    { kind: "same_identity_for_both" },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+  ])("accepts the register answer $kind", (outcome) => {
+    const message = { type: "register-serial-devices-result", request_id: REQUEST_ID, outcome };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "registered" },
+    { kind: "registered", devices: { scale: { vendor_id: "0403" } } },
+    { kind: "read", registered: {}, detected: [], standings: {} },
+    { kind: "not_configured" },
+  ])("rejects the register answer %j", (outcome) => {
+    const message = { type: "register-serial-devices-result", request_id: REQUEST_ID, outcome };
+
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts the notice that the connected serial devices changed, which answers no request", () => {
+    const message = { type: "serial-devices-changed" };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([["not_registered"], ["matching"], ["not_detected"], ["mismatched"], ["unknown"]])(
+    "accepts a status whose scale and reader stand as %s",
+    (kind) => {
+      const message = {
+        type: "register-status",
+        request_id: REQUEST_ID,
+        status: {
+          conditions: ["serial_device_missing"],
+          cloud: "reachable",
+          serial_devices: { scale: kind, reader: "not_registered" },
+        },
+      };
+
+      expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+    },
+  );
+
+  it.each([
+    ["a standing it does not know", { scale: "unplugged", reader: "matching" }],
+    ["a standing with its path", { scale: { kind: "matching" }, reader: "matching" }],
+    ["only the scale", { scale: "matching" }],
+    ["only the reader", { reader: "matching" }],
+  ])("rejects a status with %s", (_name, serialDevices) => {
+    expect(
+      registerCoreToRendererMessageSchema.safeParse({
+        type: "register-status",
+        request_id: REQUEST_ID,
+        status: { conditions: [], cloud: "reachable", serial_devices: serialDevices },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a status without its serial devices", () => {
+    expect(
+      registerCoreToRendererMessageSchema.safeParse({
+        type: "register-status",
+        request_id: REQUEST_ID,
+        status: { conditions: [], cloud: "reachable" },
+      }).success,
+    ).toBe(false);
   });
 });

@@ -1,10 +1,11 @@
-import type { FiscalDocumentType, RejectionAlertChange } from "../../fiscal/index.js";
+import type { FiscalDocumentType, Fortnight, RejectionAlertChange } from "../../fiscal/index.js";
 import type { SalesDeniedReport } from "../../shared/index.js";
-import type { AlertKind } from "./alert-catalog.js";
+import type { AlertKind, AlertLevel } from "./alert-catalog.js";
 import type { OpenAlertInput } from "./alert-details.js";
+import { registerFortnightScope } from "./register-fortnight-scope.js";
 
 export type AlertConditionObservation =
-  | { holds: true; alert: OpenAlertInput }
+  | { holds: true; alert: OpenAlertInput; level?: AlertLevel }
   | { holds: false; kind: AlertKind; scope: string };
 
 interface QuietRegister {
@@ -138,4 +139,32 @@ export function fiscalRejectionAlertObservation(
   return change.kind === "open"
     ? fiscalRejectionObservation(change)
     : fiscalDocumentAuthorizedObservation(change);
+}
+
+interface MissingOfflineAuthorizationCode {
+  registerId: string;
+  deviceId: string;
+  fortnight: Fortnight;
+  level: AlertLevel;
+}
+
+export function offlineAuthorizationCodeMissingObservation({
+  registerId,
+  deviceId,
+  fortnight,
+  level,
+}: MissingOfflineAuthorizationCode): AlertConditionObservation {
+  return {
+    holds: true,
+    level,
+    alert: {
+      kind: "offline_authorization_code_missing",
+      scope: registerFortnightScope(registerId, fortnight.start),
+      detail: { deviceId, fortnightStart: fortnight.start, fortnightEnd: fortnight.end },
+    },
+  };
+}
+
+export function offlineAuthorizationCodeHeldObservation(scope: string): AlertConditionObservation {
+  return { holds: false, kind: "offline_authorization_code_missing", scope };
 }

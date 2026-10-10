@@ -366,7 +366,11 @@ describe("createCoreClient", () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
     client.connect(port);
-    const status = { conditions: ["sales_denied", "register_silent"], cloud: "unreachable" };
+    const status = {
+      conditions: ["sales_denied", "register_silent"],
+      cloud: "unreachable",
+      serial_devices: { scale: "matching", reader: "not_registered" },
+    };
 
     const asked = client.registerStatus();
     port.answer({ type: "register-status", request_id: "request-1", status });
@@ -1455,6 +1459,96 @@ describe("createCoreClient", () => {
     expect(port.posted).toEqual([
       { type: "set-receipt-printer", request_id: "request-1", address: " 10.10.10.2:9100 " },
     ]);
+  });
+
+  it("asks the core for the serial devices and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const devices = client.readSerialDevices();
+    port.answer({
+      type: "read-serial-devices-result",
+      request_id: "request-1",
+      outcome: {
+        kind: "read",
+        registered: { scale: { vendor_id: "0403", product_id: "6001" } },
+        detected: [{ path: "COM3", vendor_id: "0403", product_id: "6001" }],
+        standings: {
+          scale: { kind: "matching", path: "COM3" },
+          reader: { kind: "not_registered" },
+        },
+      },
+    });
+
+    expect(await devices).toEqual({
+      kind: "read",
+      registered: { scale: { vendor_id: "0403", product_id: "6001" } },
+      detected: [{ path: "COM3", vendor_id: "0403", product_id: "6001" }],
+      standings: { scale: { kind: "matching", path: "COM3" }, reader: { kind: "not_registered" } },
+    });
+    expect(port.posted).toEqual([{ type: "read-serial-devices", request_id: "request-1" }]);
+  });
+
+  it("registers the serial devices chosen and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const registering = client.registerSerialDevices({
+      reader: { vendor_id: "05e0", product_id: "1200" },
+    });
+    port.answer({
+      type: "register-serial-devices-result",
+      request_id: "request-1",
+      outcome: { kind: "same_identity_for_both" },
+    });
+
+    expect(await registering).toEqual({ kind: "same_identity_for_both" });
+    expect(port.posted).toEqual([
+      {
+        type: "register-serial-devices",
+        request_id: "request-1",
+        devices: { reader: { vendor_id: "05e0", product_id: "1200" } },
+      },
+    ]);
+  });
+
+  it("tells each listener every time the serial devices change, until it stops listening", () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    let first = 0;
+    let second = 0;
+    const stopFirst = client.onSerialDevicesChanged(() => {
+      first += 1;
+    });
+    client.onSerialDevicesChanged(() => {
+      second += 1;
+    });
+
+    port.answer({ type: "serial-devices-changed" });
+    stopFirst();
+    port.answer({ type: "serial-devices-changed" });
+
+    expect(first).toBe(1);
+    expect(second).toBe(2);
+  });
+
+  it("does not take a serial devices change for the answer to a pending request", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const devices = client.readSerialDevices();
+    port.answer({ type: "serial-devices-changed" });
+    port.answer({
+      type: "read-serial-devices-result",
+      request_id: "request-1",
+      outcome: { kind: "unavailable" },
+    });
+
+    expect(await devices).toEqual({ kind: "unavailable" });
   });
 
   it("ignores a pull notice arriving on a replaced port", () => {

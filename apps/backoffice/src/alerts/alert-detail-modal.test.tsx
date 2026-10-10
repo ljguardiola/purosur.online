@@ -1,4 +1,5 @@
 import type { AlertDetail, PermissionCatalogWire } from "@purosur/contracts";
+import { formatCalendarDay, formatCalendarDayRange } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { act } from "react";
 import { expect, test, vi } from "vitest";
@@ -1265,3 +1266,64 @@ test("names the homologation environment of an expiring ARCA certificate", async
     .element(screen.getByText(/El certificado de ARCA de homologación vence el/))
     .toBeVisible();
 });
+
+const MISSING_CODE_DETAIL = {
+  deviceId: "device-1",
+  fortnightStart: "2026-10-16",
+  fortnightEnd: "2026-10-31",
+};
+
+const MISSING_CODE_FORTNIGHT = formatCalendarDayRange(
+  MISSING_CODE_DETAIL.fortnightStart,
+  MISSING_CODE_DETAIL.fortnightEnd,
+);
+const MISSING_CODE_FIRST_DAY = formatCalendarDay(MISSING_CODE_DETAIL.fortnightStart);
+
+test.each([
+  [
+    "informational",
+    false,
+    `El CAEA de la quincena ${MISSING_CODE_FORTNIGHT} ya se puede pedir a ARCA. La caja lo baja sola al sincronizar.`,
+  ],
+  [
+    "warning",
+    false,
+    `Falta que baje el CAEA de la quincena ${MISSING_CODE_FORTNIGHT}. Conviene revisar que la caja esté encendida y con internet.`,
+  ],
+  [
+    "critical",
+    false,
+    `La quincena empieza el ${MISSING_CODE_FIRST_DAY}. Sin el CAEA, si ARCA no responde, la caja no puede emitir facturas y las ventas quedan diferidas. Hay que conectarla a internet hoy.`,
+  ],
+  [
+    "critical",
+    true,
+    `La quincena ${MISSING_CODE_FORTNIGHT} ya empezó. Mientras ARCA no responda, las ventas de la caja quedan diferidas. Hay que conectarla a internet.`,
+  ],
+] as const)(
+  "tells a register that lacks the fortnight's offline authorization code, at level %s and with the fortnight started: %s",
+  async (level, fortnightStarted, text) => {
+    const services = createServices();
+    vi.mocked(services.fetchAlert).mockResolvedValue(
+      ok(
+        baseDetail({
+          kind: "offline_authorization_code_missing",
+          level,
+          audience: "all",
+          scope: "register-1:2026-10-16",
+          scopeDisplay: "Caja 1",
+          resolvesByItself: true,
+          detail: { ...MISSING_CODE_DETAIL, fortnightStarted },
+        }),
+      ),
+    );
+
+    const screen = await renderModal(services);
+
+    await expect
+      .element(screen.getByText("Una caja todavía no bajó el CAEA de la quincena", { exact: true }))
+      .toBeVisible();
+    await expect.element(screen.getByText(text)).toBeVisible();
+    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+  },
+);

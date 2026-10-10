@@ -20,6 +20,12 @@ test("describes an invoice ARCA rejected", () => {
   expect(alertKindDescription("fiscal_rejected")).toBe("ARCA rechazó una factura");
 });
 
+test("describes a register that has not downloaded the fortnight's offline authorization code", () => {
+  expect(alertKindDescription("offline_authorization_code_missing")).toBe(
+    "Una caja todavía no bajó el CAEA de la quincena",
+  );
+});
+
 test("gives no description to a kind this app does not know yet", () => {
   expect(alertKindDescription("register_battery_low")).toBe("");
 });
