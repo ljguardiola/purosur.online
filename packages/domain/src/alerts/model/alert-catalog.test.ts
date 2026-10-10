@@ -24,6 +24,7 @@ describe("ALERT_KINDS", () => {
       "register_silent",
       "sales_denied",
       "fiscal_rejected",
+      "offline_authorization_code_missing",
     ]);
   });
 });
