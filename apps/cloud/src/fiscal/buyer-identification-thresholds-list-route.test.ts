@@ -35,7 +35,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
-  await removeSeededThreshold(testDatabase.db);
+  await testDatabase.asMigrator(() => removeSeededThreshold(testDatabase.db));
   clock = NOON;
   app = Fastify();
   registerBuyerIdentificationThresholdsListRoute(app, {

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, inject, it, onTestFinished, vi } from "vitest";
+import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
   alertDeliveries,
   alerts,
@@ -725,7 +726,7 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       'insert into "seed_b" ("id", "a_id") values (1, 1)',
       'update "seed_a" set "b_id" = 1',
     ]);
-    const ownDatabase = await buildTestDatabase({ migrationsFolder });
+    const ownDatabase = await buildTestDatabase({ migrationsFolder, connectAs: "migrator" });
     onTestFinished(() => ownDatabase.close());
 
     await ownDatabase.clear();
@@ -741,7 +742,7 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       'create table "seed_log" ("seq" bigserial primary key, "note" text not null)',
       `insert into "seed_log" ("note") values ('first'), ('second')`,
     ]);
-    const ownDatabase = await buildTestDatabase({ migrationsFolder });
+    const ownDatabase = await buildTestDatabase({ migrationsFolder, connectAs: "migrator" });
     onTestFinished(() => ownDatabase.close());
 
     await ownDatabase.clear();
@@ -835,7 +836,11 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
 
     vi.mocked(migrateFreshDatabase).mockClear();
 
-    const database = await buildTestDatabase({ migrationsFolder, snapshotPath });
+    const database = await buildTestDatabase({
+      migrationsFolder,
+      snapshotPath,
+      connectAs: "migrator",
+    });
     onTestFinished(() => database.close());
 
     expect(migrateFreshDatabase).toHaveBeenCalledWith(
@@ -852,7 +857,11 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       'create table "only_here" ("id" integer primary key)',
     ]);
 
-    const database = await buildTestDatabase({ migrationsFolder, clusterDumpPath });
+    const database = await buildTestDatabase({
+      migrationsFolder,
+      clusterDumpPath,
+      connectAs: "migrator",
+    });
     onTestFinished(() => database.close());
 
     const { rows } = await database.client.query('select "id" from "cluster_dump_marker"');
@@ -864,5 +873,68 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       inject("testDatabaseClusterDumpPath"),
       "the node project's global setup provided no cluster dump",
     ).toBeDefined();
+  });
+});
+
+async function refusalCodes(statement: Promise<unknown>): Promise<unknown[]> {
+  const error = await statement.then(
+    () => undefined,
+    (refusal: unknown) => refusal,
+  );
+  return postgresErrorChain(error).map(({ code }) => code);
+}
+
+describe("buildTestDatabase's privileges", { timeout: 30_000 }, () => {
+  const INSUFFICIENT_PRIVILEGE = "42501";
+
+  it("refuses, as the deployed cloud does, a statement cloud_app is not granted", async () => {
+    const database = await buildTestDatabase();
+    onTestFinished(() => database.close());
+
+    expect(await refusalCodes(database.db.update(sales).set({ total: 0 }))).toContain(
+      INSUFFICIENT_PRIVILEGE,
+    );
+  });
+
+  it("keeps refusing what cloud_app is not granted after clear()", async () => {
+    const database = await buildTestDatabase();
+    onTestFinished(() => database.close());
+
+    await database.clear();
+
+    expect(await refusalCodes(database.db.delete(sales))).toContain(INSUFFICIENT_PRIVILEGE);
+  });
+
+  it("runs an arrangement as the role that migrated the database, then goes back to cloud_app", async () => {
+    const database = await buildTestDatabase();
+    onTestFinished(() => database.close());
+
+    await expect(
+      database.asMigrator(() => database.db.update(sales).set({ total: 0 })),
+    ).resolves.toBeDefined();
+
+    expect(await refusalCodes(database.db.update(sales).set({ total: 0 }))).toContain(
+      INSUFFICIENT_PRIVILEGE,
+    );
+  });
+
+  it("goes back to cloud_app when an arrangement fails", async () => {
+    const database = await buildTestDatabase();
+    onTestFinished(() => database.close());
+
+    await expect(
+      database.asMigrator(() => database.client.query("select * from missing_table")),
+    ).rejects.toThrow(/missing_table/);
+
+    expect(await refusalCodes(database.db.update(sales).set({ total: 0 }))).toContain(
+      INSUFFICIENT_PRIVILEGE,
+    );
+  });
+
+  it("runs as the role that migrated the database when asked for it", async () => {
+    const database = await buildTestDatabase({ connectAs: "migrator" });
+    onTestFinished(() => database.close());
+
+    await expect(database.db.update(sales).set({ total: 0 })).resolves.toBeDefined();
   });
 });
