@@ -10,6 +10,10 @@ import type { SignedInPerson } from "../shell/signed-in-person";
 import { useAuthorization } from "../shell/use-authorization";
 
 const FAILED_MESSAGE = "No se pudo cancelar la venta. Probá de nuevo.";
+const QR_CHARGE_IN_PROGRESS_MESSAGE =
+  "Hay un cobro con QR en curso. Esperá a que termine para cancelar la venta.";
+const HOLDS_QR_PAYMENT_MESSAGE =
+  "La venta tiene un pago con QR: todavía no se puede anular desde la caja.";
 const AUTHORIZING = "cancelar una venta con pagos";
 
 export type CancelPaidSaleModalProps = {
@@ -93,6 +97,12 @@ export function CancelPaidSaleModal({
         } else {
           setNotice(FAILED_MESSAGE);
         }
+        break;
+      case "qr_charge_in_progress":
+        setNotice(QR_CHARGE_IN_PROGRESS_MESSAGE);
+        break;
+      case "holds_qr_payment":
+        setNotice(HOLDS_QR_PAYMENT_MESSAGE);
         break;
       case "unavailable":
         setNotice(FAILED_MESSAGE);

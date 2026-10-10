@@ -291,6 +291,7 @@ export function SaleScreen({
         break;
       case "not_permitted":
       case "has_approved_payment":
+      case "qr_charge_in_progress":
         setProblem(outcome);
         break;
       case "sale_has_payments":

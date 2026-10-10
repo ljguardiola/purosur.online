@@ -7,6 +7,10 @@ import { RefundLines } from "../shell/refund-lines";
 
 const FAILED_MESSAGE = "No se pudo cancelar la venta. Probá de nuevo.";
 const NOT_PERMITTED_MESSAGE = "No tenés el permiso de anular ventas con pagos.";
+const QR_CHARGE_IN_PROGRESS_MESSAGE =
+  "Hay un cobro con QR en curso. Esperá a que termine para cancelar la venta.";
+const HOLDS_QR_PAYMENT_MESSAGE =
+  "La venta tiene un pago con QR: todavía no se puede anular desde la caja.";
 
 type Refusal = Extract<
   CancelLockedSaleOutcome,
@@ -59,6 +63,12 @@ export function CancelLockedPaidSaleModal({
         break;
       case "not_permitted":
         setNotice(NOT_PERMITTED_MESSAGE);
+        break;
+      case "qr_charge_in_progress":
+        setNotice(QR_CHARGE_IN_PROGRESS_MESSAGE);
+        break;
+      case "holds_qr_payment":
+        setNotice(HOLDS_QR_PAYMENT_MESSAGE);
         break;
       case "unavailable":
         setNotice(FAILED_MESSAGE);

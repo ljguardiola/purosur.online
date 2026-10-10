@@ -23,7 +23,8 @@ export type ScanProblem =
   | { kind: "change_failed" }
   | { kind: "remove_failed" }
   | { kind: "cancel_failed" }
-  | { kind: "has_approved_payment" };
+  | { kind: "has_approved_payment" }
+  | { kind: "qr_charge_in_progress" };
 
 type Message = { icon: LucideIcon; title: string; help: string };
 
@@ -106,6 +107,12 @@ export function messageFor(problem: ScanProblem): Message {
         icon: Ban,
         title: "No se puede cancelar la venta",
         help: "Ya tiene un pago aprobado.",
+      };
+    case "qr_charge_in_progress":
+      return {
+        icon: Ban,
+        title: "Hay un cobro con QR en curso",
+        help: "Esperá a que termine para cancelar la venta.",
       };
     case "search_failed":
       return {

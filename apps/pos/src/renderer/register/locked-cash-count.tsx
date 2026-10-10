@@ -46,6 +46,10 @@ import {
 
 const CLOSE_FAILED = "No se pudo cerrar la caja. Probá de nuevo.";
 const CANCEL_FAILED = "No se pudo cancelar la venta. Probá de nuevo.";
+const QR_CHARGE_IN_PROGRESS_MESSAGE =
+  "Hay un cobro con QR en curso. Esperá a que termine para cancelar la venta.";
+const HOLDS_QR_PAYMENT_MESSAGE =
+  "La venta tiene un pago con QR: todavía no se puede anular desde la caja.";
 
 export type RefusedClose = Extract<
   CloseLockedCashSessionOutcome,
@@ -167,6 +171,12 @@ export function LockedCashCount({
         break;
       case "not_permitted":
       case "no_open_session":
+        break;
+      case "qr_charge_in_progress":
+        setFailure(QR_CHARGE_IN_PROGRESS_MESSAGE);
+        break;
+      case "holds_qr_payment":
+        setFailure(HOLDS_QR_PAYMENT_MESSAGE);
         break;
       case "unavailable":
         setFailure(CANCEL_FAILED);
