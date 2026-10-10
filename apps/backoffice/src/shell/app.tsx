@@ -31,6 +31,7 @@ import type { SignInScreenServices } from "../sessions/sign-in-services";
 import type { StockBalancesScreenServices } from "../stock/stock-balances-services";
 import type { StockCountsScreenServices } from "../stock/stock-counts-services";
 import type { StockMovementsScreenServices } from "../stock/stock-movements-services";
+import type { QuarantinedEventsScreenServices } from "../sync/quarantined-events-services";
 import type { UserCredentialSectionsProps } from "../users/user-detail-screen";
 import type { UserDetailScreenServices } from "../users/user-detail-services";
 import type { UsersListScreenServices } from "../users/users-list-services";
@@ -83,6 +84,7 @@ export type AppServices = {
   screenFailure: ScreenFailureServices;
   homeScreen: HomeScreenServices;
   alertsListScreen: AlertsListScreenServices;
+  quarantinedEventsScreen: QuarantinedEventsScreenServices;
 };
 
 type ShellServiceName =

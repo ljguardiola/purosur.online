@@ -13,6 +13,7 @@ import type {
   FailedAttempt,
   UnappliedEvent,
 } from "../event-application-ports.js";
+import type { QuarantineReleaseRecord } from "../quarantine-release-ports.js";
 
 export interface FakeStoredEvent extends UnappliedEvent {
   appliedAt: Date | null;
@@ -27,6 +28,8 @@ export interface FakeEventApplicationState {
   appliedOrder: string[];
   quarantineAlerts: EventsQuarantinedDetail[];
   invariantAlerts: EventInvariantViolatedDetail[];
+  releases: QuarantineReleaseRecord[];
+  resolvedQuarantineAlerts: string[];
 }
 
 const keyOf = (key: AggregateKey) => `${key.aggregateType}/${key.aggregateId}`;
@@ -63,6 +66,8 @@ export class FakeEventApplication implements EventApplication {
     appliedOrder: [],
     quarantineAlerts: [],
     invariantAlerts: [],
+    releases: [],
+    resolvedQuarantineAlerts: [],
   };
   calls: string[] = [];
   transactions = 0;

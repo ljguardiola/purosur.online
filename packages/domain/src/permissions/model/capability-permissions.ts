@@ -20,6 +20,7 @@ export const CAPABILITY_PERMISSIONS = {
   alerts_area: ["view_branch_alerts", "view_all_alerts"],
   close_alerts_manually: ["dismiss_alerts_manually"],
   registers_area: ["enroll_register_devices"],
+  quarantined_events: ["release_quarantined_events"],
   stock_balances: ["view_stock_balances"],
   stock_counts: ["perform_stock_counts"],
   stock_losses: ["record_stock_losses"],

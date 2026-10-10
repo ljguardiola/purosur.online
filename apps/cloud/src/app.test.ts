@@ -2414,6 +2414,16 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/synced-events/quarantined",
+        access: capabilityAccess("quarantined_events"),
+      },
+      {
+        method: "POST",
+        url: "/api/synced-events/:eventId/release",
+        access: capabilityAccess("quarantined_events"),
+      },
+      {
+        method: "GET",
         url: "/api/prices",
         access: capabilityAccess("prices_area"),
       },
