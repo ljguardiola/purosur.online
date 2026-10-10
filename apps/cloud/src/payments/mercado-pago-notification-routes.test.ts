@@ -9,7 +9,10 @@ import {
   PAID_ORDER,
   UNPAID_ORDER,
 } from "./test-support/fake-mercado-pago-orders.js";
-import { WEBHOOK_SECRET } from "./test-support/mercado-pago-notification-signing.js";
+import {
+  signatureHeader,
+  WEBHOOK_SECRET,
+} from "./test-support/mercado-pago-notification-signing.js";
 import { mercadoPagoNotificationRoutesUnderTest } from "./test-support/mercado-pago-notifications-under-test.js";
 import { insertRegister, pendingTransaction } from "./test-support/payment-transaction-fixtures.js";
 
@@ -111,8 +114,30 @@ describe("POST /payments/mercado-pago/notifications", () => {
       expect(route.mercadoPago.readings).toEqual([]);
       expect(await stateOf(payment.id)).toBe("PENDING");
       expect(await attemptsOf("203.0.113.50")).toHaveLength(1);
-      expect(warn).toHaveBeenCalledExactlyOnceWith(expect.stringContaining("signature"));
+      expect(warn).toHaveBeenCalledOnce();
     });
+
+    it.each([
+      ["missing_signature", { signature: undefined }],
+      ["malformed_signature", { signature: "ts=1,v1=00" }],
+      ["missing_request_id", { requestId: undefined }],
+      ["missing_data_id", { dataId: undefined }],
+      ["mismatch", { signature: signatureHeader({ dataId: "ORD99OTHER" }) }],
+    ])(
+      "logs why it discarded a notification (%s) and the notification's type, and nothing secret",
+      async (reason, request) => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+        const response = await route.notify(request);
+
+        expect(response.statusCode).toBe(401);
+        expect(warn).toHaveBeenCalledExactlyOnceWith(
+          "discarded a Mercado Pago notification with an invalid signature",
+          { reason, type: "order" },
+        );
+        expect(JSON.stringify(warn.mock.calls)).not.toContain(WEBHOOK_SECRET);
+      },
+    );
 
     it("refuses a notification with an invalid signature of an origin over the limit, telling when to retry", async () => {
       await route.db.insert(paymentNotificationAttempts).values(
@@ -130,6 +155,19 @@ describe("POST /payments/mercado-pago/notifications", () => {
   });
 
   describe("a correctly signed notification", () => {
+    it("approves the payment of an order notification signed over its upper-case id as Mercado Pago sends it", async () => {
+      route.mercadoPago.reading = { kind: "read", result: PAID_ORDER };
+      const payment = await pendingPaymentOfOrder();
+
+      const response = await route.notify({
+        dataId: ORDER_ID,
+        signature: signatureHeader({ dataId: ORDER_ID }),
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(await stateOf(payment.id)).toBe("APPROVED");
+    });
+
     it("reads the order from Mercado Pago and approves the payment according to what it returns", async () => {
       route.mercadoPago.reading = { kind: "read", result: PAID_ORDER };
       const payment = await pendingPaymentOfOrder();

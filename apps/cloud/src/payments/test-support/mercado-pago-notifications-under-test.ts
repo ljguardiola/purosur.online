@@ -8,7 +8,8 @@ import { FakeMercadoPagoOrders, NOW, ORDER_ID } from "./fake-mercado-pago-orders
 import { signatureHeader, WEBHOOK_SECRET } from "./mercado-pago-notification-signing.js";
 
 export interface NotificationRequest {
-  dataId?: string;
+  dataId?: string | undefined;
+  requestId?: string | undefined;
   type?: string | undefined;
   signature?: string | undefined;
   sourceAddress?: string;
@@ -77,14 +78,19 @@ export function mercadoPagoNotificationRoutesUnderTest(): MercadoPagoNotificatio
     },
     serveWith: serve,
     notify(request: NotificationRequest = {}) {
-      const dataId = request.dataId ?? ORDER_ID;
-      const requestId = "request-1";
+      const dataId = "dataId" in request ? request.dataId : ORDER_ID;
+      const requestId = "requestId" in request ? request.requestId : "request-1";
       const type = "type" in request ? request.type : "order";
       const signature =
-        "signature" in request ? request.signature : signatureHeader({ dataId, requestId });
+        "signature" in request
+          ? request.signature
+          : signatureHeader({ dataId: dataId ?? ORDER_ID, requestId: requestId ?? "request-1" });
       const sourceAddress = request.sourceAddress ?? "203.0.113.50";
       const body = request.body ?? { type: "order", data: { id: dataId } };
-      const query = new URLSearchParams({ "data.id": dataId });
+      const query = new URLSearchParams();
+      if (dataId !== undefined) {
+        query.set("data.id", dataId);
+      }
       if (type !== undefined) {
         query.set("type", type);
       }
@@ -94,7 +100,7 @@ export function mercadoPagoNotificationRoutesUnderTest(): MercadoPagoNotificatio
         payload: body,
         headers: {
           "x-real-ip": sourceAddress,
-          "x-request-id": requestId,
+          ...(requestId !== undefined ? { "x-request-id": requestId } : {}),
           ...(signature !== undefined ? { "x-signature": signature } : {}),
         },
       });
