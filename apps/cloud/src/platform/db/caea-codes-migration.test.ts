@@ -33,8 +33,8 @@ async function migratedDatabase() {
 const insertCode = (obtainedThrough: string, fortnightEnd = "2026-10-15") =>
   `insert into caea_codes
      (fortnight_start, fortnight_end, code, report_deadline, obtained_at, obtained_through)
-   values ('2026-10-01', '', '21403471111111', '2026-10-30',
-           '2026-09-28T12:00:00Z', '')`;
+   values ('2026-10-01', '${fortnightEnd}', '21403471111111', '2026-10-30',
+           '2026-09-28T12:00:00Z', '${obtainedThrough}')`;
 
 describe("the caea codes migration applied over a database that already holds data", {
   timeout: 30_000,
