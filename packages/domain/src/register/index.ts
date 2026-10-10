@@ -44,6 +44,7 @@ export {
   INSTALLATION_REPORT_MAX_LENGTH,
   isInstallationReportTooLong,
 } from "./model/installation-report.js";
+export type { ReceiptPrinterAddress } from "./model/receipt-printer-address.js";
 export { nextOperationNumber } from "./model/operation-number.js";
 export { isLockedToAnother } from "./model/register-lock.js";
 export {
