@@ -15,6 +15,8 @@ describe("isValidReceiptPrinterHost", () => {
     "a-b",
     "1printer",
     "123.printer",
+    "printer1",
+    "printer.local2",
   ])("accepts %s", (host) => {
     expect(isValidReceiptPrinterHost(host)).toBe(true);
   });
