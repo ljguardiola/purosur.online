@@ -26,6 +26,13 @@ const LOCAL_ALERT_TEXTS = {
     whatToDo:
       "Avisar al Administrador. Para volver a vender, hay que dar de alta la caja de nuevo con un código de alta emitido desde el backoffice, en Cajas registradoras.",
   },
+  serial_device_missing: {
+    title: "Balanza o lector no detectado",
+    meaning:
+      "La balanza o el lector de códigos dejaron de responder en esta caja, o el conectado no es el registrado.",
+    whatToDo:
+      "Revisar que esté conectado y encendido. Mientras tanto, tipear el peso a mano y buscar los productos por nombre. Si sigue sin detectarse, avisar al Administrador.",
+  },
 } satisfies Record<string, LocalAlertText>;
 
 export type LocalAlertKind = keyof typeof LOCAL_ALERT_TEXTS;
