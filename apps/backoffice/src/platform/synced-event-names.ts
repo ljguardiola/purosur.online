@@ -23,8 +23,14 @@ export function syncedEventTypeName(eventType: string): string | undefined {
   return EVENT_TYPE_NAMES.get(eventType);
 }
 
-export function ofSyncedAggregateType(aggregateType: string): string | undefined {
-  return OF_AGGREGATE_TYPE.get(aggregateType);
+export function ofSyncedAggregate({
+  aggregateType,
+  aggregateId,
+}: {
+  aggregateType: string;
+  aggregateId: string;
+}): string {
+  return `${OF_AGGREGATE_TYPE.get(aggregateType) ?? "del registro"} ${aggregateId}`;
 }
 
 export function syncedAggregateTypeName(aggregateType: string): string | undefined {

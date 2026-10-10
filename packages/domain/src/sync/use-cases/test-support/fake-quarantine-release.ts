@@ -61,8 +61,8 @@ export class FakeQuarantineRelease implements QuarantineRelease {
         if (event === undefined) {
           return undefined;
         }
-        const { appliedAt, quarantinedAt, nextAttemptAt, attempts, error } = event;
-        return { appliedAt, quarantinedAt, nextAttemptAt, attempts, lastError: error };
+        const { appliedAt, quarantinedAt, attempts, error } = event;
+        return { appliedAt, quarantinedAt, attempts, lastError: error };
       },
       releaseForNewSeries: async (eventId, released) => {
         this.calls.push(`release ${eventId}`);

@@ -1,10 +1,10 @@
+import type { EventQuarantineReason } from "../../alerts/index.js";
 import type { Clock } from "../../shared/index.js";
 import type { QuarantineState, ReleasedEventState } from "../model/quarantine-release.js";
 import type { AggregateKey } from "../model/synced-fact.js";
 
 export interface HeldEventRecord extends QuarantineState {
   attempts: number;
-  nextAttemptAt: Date | null;
   lastError: string | null;
 }
 
@@ -42,7 +42,7 @@ export interface QuarantinedEventListing {
   eventType: string;
   receivedAt: Date;
   quarantinedAt: Date;
-  lastError: string | null;
+  reason: EventQuarantineReason | null;
 }
 
 export interface QuarantinedEventReader {

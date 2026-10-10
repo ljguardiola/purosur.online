@@ -4,9 +4,9 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchQuarantinedEvents } from "./quarantined-events-api";
 
-const syncKey = ["sync"] as const;
+export const syncKey = ["sync"] as const;
 
-const syncKeys = {
+export const syncKeys = {
   quarantinedEvents: [...syncKey, "quarantined-events"] as const,
 };
 

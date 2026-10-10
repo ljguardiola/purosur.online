@@ -8,6 +8,7 @@ import {
   quarantinedDateTimeText,
   quarantinedEventColumnText,
   quarantinedEventSentenceText,
+  quarantinedReasonText,
   quarantinedRegisterText,
 } from "./quarantined-event-labels";
 import type { QuarantinedEvent } from "./quarantined-events-api";
@@ -28,8 +29,6 @@ type ScreenNotice = {
   title: string;
   description: string;
 };
-
-const LOAD_FAILURE_TITLE = "No pudimos cargar los eventos en cuarentena";
 
 function columnsFor(openRelease: (event: QuarantinedEvent) => void) {
   return [
@@ -59,9 +58,9 @@ function columnsFor(openRelease: (event: QuarantinedEvent) => void) {
       render: (item: QuarantinedEvent) => quarantinedDateTimeText(item.quarantinedAt),
     }),
     dataColumn({
-      id: "lastError",
+      id: "reason",
       header: "Último error",
-      render: (item: QuarantinedEvent) => item.lastError ?? "—",
+      render: (item: QuarantinedEvent) => quarantinedReasonText(item.reason),
     }),
     actionsColumn({
       id: "actions",
@@ -69,7 +68,7 @@ function columnsFor(openRelease: (event: QuarantinedEvent) => void) {
       actions: [
         (item: QuarantinedEvent) => ({
           icon: <LockOpen />,
-          "aria-label": `Liberar el evento de ${quarantinedEventSentenceText(item.eventType)} de la caja ${item.registerName}`,
+          "aria-label": `Liberar el ${quarantinedEventSentenceText(item.eventType)} de la caja ${item.registerName}`,
           onPress: () => openRelease(item),
         }),
       ],
@@ -100,8 +99,6 @@ export function QuarantinedEventsScreen({
     setNotice({ ...shown, id: lastNoticeId.current });
   }
 
-  const tableState = cloudTableState(data, "los eventos en cuarentena");
-
   return (
     <>
       <ScreenLayout
@@ -123,9 +120,7 @@ export function QuarantinedEventsScreen({
         <Table
           aria-label="Eventos en cuarentena"
           table={table}
-          {...("failure" in tableState
-            ? { failure: { ...tableState.failure, title: LOAD_FAILURE_TITLE } }
-            : tableState)}
+          {...cloudTableState(data, "los eventos en cuarentena")}
           empty={{
             icon: <PackageX />,
             title: "No hay eventos en cuarentena",

@@ -351,6 +351,7 @@ export type {
   AuthorizedBy,
   BranchSettingsBody,
   ErrorReportingConfiguration,
+  EventQuarantineReason,
   IssuerIdentificationBody,
   OpenCashSession,
   PinAttemptRefusal,

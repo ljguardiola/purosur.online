@@ -2,9 +2,9 @@ import type {
   QuarantinedEventListing,
   QuarantinedEventReader,
 } from "@purosur/domain/sync/use-cases";
-import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { inbox, registerInstallations, registers } from "../platform/db/schema.js";
+import { alerts, inbox, registerInstallations, registers } from "../platform/db/schema.js";
 
 export class DrizzleQuarantinedEventReader<TQueryResult extends PgQueryResultHKT>
   implements QuarantinedEventReader
@@ -16,6 +16,14 @@ export class DrizzleQuarantinedEventReader<TQueryResult extends PgQueryResultHKT
   }
 
   async quarantinedEventsOfBranch(locationId: string): Promise<QuarantinedEventListing[]> {
+    const latestQuarantineReason = this.db
+      .select({ reason: sql`${alerts.detail} -> 'reason'` })
+      .from(alerts)
+      .where(
+        and(eq(alerts.kind, "events_quarantined"), eq(alerts.scope, sql`${inbox.eventId}::text`)),
+      )
+      .orderBy(desc(alerts.openedAt))
+      .limit(1);
     const rows = await this.db
       .select({
         eventId: inbox.eventId,
@@ -25,7 +33,7 @@ export class DrizzleQuarantinedEventReader<TQueryResult extends PgQueryResultHKT
         eventType: inbox.eventType,
         receivedAt: inbox.receivedAt,
         quarantinedAt: inbox.quarantinedAt,
-        lastError: inbox.lastError,
+        reason: sql<QuarantinedEventListing["reason"]>`(${latestQuarantineReason})`,
       })
       .from(inbox)
       .innerJoin(registerInstallations, eq(registerInstallations.id, inbox.deviceId))

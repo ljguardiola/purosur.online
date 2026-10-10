@@ -1,5 +1,6 @@
-import { quarantinedEventsListSchema } from "@purosur/contracts";
+import { type EventQuarantineReason, quarantinedEventsListSchema } from "@purosur/contracts";
 import { formatDate } from "@purosur/ui";
+import { eventQuarantineReasonText } from "../platform/event-quarantine-reason-text";
 import { schemaText } from "../platform/schema-text";
 import { syncedAggregateTypeName, syncedEventTypeName } from "../platform/synced-event-names";
 import type { QuarantinedEvent } from "./quarantined-events-api";
@@ -10,15 +11,22 @@ const QUARANTINE_TIME_ZONE = schemaText(
   quarantinedEventsListSchema.shape.events.element.shape.quarantinedAt.meta()?.["timeZone"],
 );
 
+function capitalized(text: string): string {
+  return `${text.charAt(0).toLocaleUpperCase("es-AR")}${text.slice(1)}`;
+}
+
 export function quarantinedEventSentenceText(eventType: string): string {
-  return syncedEventTypeName(eventType) ?? eventType;
+  const name = syncedEventTypeName(eventType);
+  return name === undefined ? "evento" : `evento de ${name}`;
 }
 
 export function quarantinedEventColumnText(eventType: string): string {
   const name = syncedEventTypeName(eventType);
-  return name === undefined
-    ? eventType
-    : `${name.charAt(0).toLocaleUpperCase("es-AR")}${name.slice(1)}`;
+  return name === undefined ? "Desconocido" : capitalized(name);
+}
+
+export function quarantinedReasonText(reason: EventQuarantineReason | null): string {
+  return reason === null ? "—" : capitalized(eventQuarantineReasonText(reason));
 }
 
 export function quarantinedRegisterText({
@@ -29,7 +37,7 @@ export function quarantinedRegisterText({
     aggregateId.length > SHORT_ID_LENGTH
       ? `${aggregateId.slice(0, SHORT_ID_LENGTH)}…`
       : aggregateId;
-  return `${syncedAggregateTypeName(aggregateType) ?? aggregateType} ${shortId}`;
+  return `${syncedAggregateTypeName(aggregateType) ?? "Registro"} ${shortId}`;
 }
 
 export function quarantinedDateTimeText(instant: string): string {

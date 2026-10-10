@@ -54,7 +54,6 @@ class DrizzleQuarantineReleaseTransaction<TQueryResult extends PgQueryResultHKT>
       .select({
         appliedAt: inbox.appliedAt,
         quarantinedAt: inbox.quarantinedAt,
-        nextAttemptAt: inbox.nextAttemptAt,
         attempts: inbox.attempts,
         lastError: inbox.lastError,
       })
