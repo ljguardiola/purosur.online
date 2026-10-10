@@ -55,8 +55,8 @@ describe("cancelMercadoPagoQrOrder", () => {
       "enterLane",
       "recordedTransaction",
       "readOrder",
-      "cancelOrder",
       "recordOrderResult",
+      "cancelOrder",
       "recordOrderResult",
       "leaveLane",
     ]);
@@ -92,19 +92,22 @@ describe("cancelMercadoPagoQrOrder", () => {
     ["declined", "DECLINED"],
     ["cancelled", "CANCELLED"],
     ["expired", "EXPIRED"],
-  ] as const)("answers that a %s payment is already closed without calling Mercado Pago", async (_name, state) => {
-    const { lanes, mercadoPago, ports } = mercadoPagoQrOrderWorld();
-    lanes.seed(storedTransaction({ ...WITH_ORDER, state }));
+  ] as const)(
+    "answers that a %s payment is already closed without calling Mercado Pago",
+    async (_name, state) => {
+      const { lanes, mercadoPago, ports } = mercadoPagoQrOrderWorld();
+      lanes.seed(storedTransaction({ ...WITH_ORDER, state }));
 
-    const outcome = await cancelMercadoPagoQrOrder(ports, INPUT);
+      const outcome = await cancelMercadoPagoQrOrder(ports, INPUT);
 
-    expect(outcome).toEqual({
-      kind: "already_closed",
-      transaction: storedTransaction({ ...WITH_ORDER, state }),
-    });
-    expect(mercadoPago.readOrders).toEqual([]);
-    expect(mercadoPago.cancellations).toEqual([]);
-  });
+      expect(outcome).toEqual({
+        kind: "already_closed",
+        transaction: storedTransaction({ ...WITH_ORDER, state }),
+      });
+      expect(mercadoPago.readOrders).toEqual([]);
+      expect(mercadoPago.cancellations).toEqual([]);
+    },
+  );
 
   it("approves a payment that was already approved without calling Mercado Pago", async () => {
     const { lanes, mercadoPago, ports } = mercadoPagoQrOrderWorld();
@@ -221,7 +224,10 @@ describe("cancelMercadoPagoQrOrder", () => {
 
       const outcome = await cancelMercadoPagoQrOrder(ports, INPUT);
 
-      expect(outcome).toMatchObject({ kind: "already_closed", transaction: { state: "CANCELLED" } });
+      expect(outcome).toMatchObject({
+        kind: "already_closed",
+        transaction: { state: "CANCELLED" },
+      });
     });
 
     it("is unavailable and leaves the payment untouched when the order cannot be read again", async () => {
