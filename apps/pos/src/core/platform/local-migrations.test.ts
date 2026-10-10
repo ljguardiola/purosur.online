@@ -1938,6 +1938,8 @@ describe("the register's local migrations", () => {
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }
+  });
+
   it("add the receipt printer's address with no address set over the register that already holds data", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
