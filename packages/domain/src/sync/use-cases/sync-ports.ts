@@ -1,4 +1,5 @@
 import type { AlertConditionObservation } from "../../alerts/index.js";
+import type { Fortnight } from "../../fiscal/index.js";
 import type { Clock } from "../../shared/index.js";
 import type { LimitedEndpoint } from "../model/installation-request-limit.js";
 import type {
@@ -20,6 +21,8 @@ export interface ChangeLog<TChange extends PulledChange> {
 
 export interface ChangeLogTransaction<TChange extends PulledChange> {
   recordObservedPull(deviceId: string, since: number, at: Date): Promise<void>;
+  holdsOfflineAuthorizationCodeFor(fortnight: Fortnight): Promise<boolean>;
+  requestMissingOfflineAuthorizationCode(): Promise<void>;
   pullingRegister(deviceId: string): Promise<PullingRegister>;
   changesAfter(audience: PullAudience, since: number, limit: number): Promise<TChange[]>;
 }
