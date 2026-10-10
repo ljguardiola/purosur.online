@@ -38,10 +38,10 @@ export default defineConfig({
     build: {
       // electron-vite externalizes every package.json dependency by default, which would leave
       // workspace packages as bare imports at runtime; only `electron`, Node built-ins and
-      // better-sqlite3, whose native binding can't be bundled, stay external.
+      // better-sqlite3 and serialport, whose native bindings can't be bundled, stay external.
       externalizeDeps: false,
       rollupOptions: {
-        external: ["better-sqlite3"],
+        external: ["better-sqlite3", "serialport"],
         input: {
           index: r("src/main/index.ts"),
           // Emitted next to index.js, so main finds it with a plain relative path.

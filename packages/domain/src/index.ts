@@ -345,13 +345,18 @@ export type {
   CashSession,
   CashSessionState,
   ClosedCashSession,
+  DetectedSerialDevice,
   OpenedCashSession,
   ReceiptPrinterAddress,
   RegisterAbility,
   RegisterActor,
+  RegisteredSerialDevices,
   RegisterOperation,
   RegisterOperationAccess,
   RegisterService,
+  SerialDeviceIdentity,
+  SerialDeviceRole,
+  SerialDeviceStanding,
   WatchedRegister,
 } from "./register/index.js";
 export {
@@ -387,6 +392,8 @@ export {
   registerAbilities,
   registerNameLength,
   registerOperationAccess,
+  SERIAL_DEVICE_ROLES,
+  serialDeviceStandings,
 } from "./register/index.js";
 export type {
   LinePromotion,

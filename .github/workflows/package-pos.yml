@@ -114,6 +114,11 @@ jobs:
       # reach Sentry.
       - run: pnpm --filter @purosur/pos test:e2e
 
+      # Starts the staging build pack:staging left in release/staging/win-unpacked, so a native
+      # binding the packaged app cannot load fails here and not on a store's register. It rewrites
+      # that folder's channel.json without a DSN or cloud, and runs after every step that reads it.
+      - run: pnpm --filter @purosur/pos test:packaged
+
   independent-build:
     name: independent build of the production app.asar
     if: github.event_name == 'push'
