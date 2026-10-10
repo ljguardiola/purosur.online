@@ -16,6 +16,7 @@ import {
   productRequestFrom,
   reactivationBarcodeTakenError,
   saleUnitHeldByDiscountError,
+  saleUnitHeldByPackagingError,
   saleUnitMessage,
   tagInactiveError,
   tagsMessage,
@@ -259,6 +260,14 @@ describe("saleUnitHeldByDiscountError", () => {
   it("names the discount that keeps the product sold by the unit", () => {
     expect(saleUnitHeldByDiscountError("3x2 Yerba")).toBe(
       'No se puede vender por peso mientras la promoción "3x2 Yerba" no esté desactivada o terminada.',
+    );
+  });
+});
+
+describe("saleUnitHeldByPackagingError", () => {
+  it("names the active purchase packaging that keeps the sale unit", () => {
+    expect(saleUnitHeldByPackagingError("Caja x 12")).toBe(
+      'No se puede cambiar la unidad de venta mientras la presentación de compra "Caja x 12" esté activa.',
     );
   });
 });

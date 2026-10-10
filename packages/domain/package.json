@@ -31,6 +31,11 @@
       "types": "./dist/branch/use-cases/index.d.ts",
       "default": "./dist/branch/use-cases/index.js"
     },
+    "./purchasing/use-cases": {
+      "@purosur/source": "./src/purchasing/use-cases/index.ts",
+      "types": "./dist/purchasing/use-cases/index.d.ts",
+      "default": "./dist/purchasing/use-cases/index.js"
+    },
     "./catalog/use-cases": {
       "@purosur/source": "./src/catalog/use-cases/index.ts",
       "types": "./dist/catalog/use-cases/index.d.ts",

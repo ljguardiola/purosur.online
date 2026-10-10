@@ -21,11 +21,17 @@ import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import {
+  formatStockChange,
+  formatStockQuantity,
+  parseStockQuantity,
+  quantityFieldKind,
+  quantityMessage,
+} from "../platform/stock-quantity";
 import { type CountMoment, type CountStart, countOccurredAt } from "./count-moment";
 import type { RegisterCountOutcome } from "./stock-api";
 import type { StockCountsScreenServices } from "./stock-counts-services";
-import { productOptions, quantityFieldKind, quantityMessage } from "./stock-movement-form";
-import { formatStockChange, formatStockQuantity, parseStockQuantity } from "./stock-quantity";
+import { productOptions } from "./stock-movement-form";
 import { useExpectedBalanceQuery, useRefreshStock, useStockProductsQuery } from "./stock-queries";
 
 type CountFormValues = { productId: string | null; moment: CountMoment; counted: string };

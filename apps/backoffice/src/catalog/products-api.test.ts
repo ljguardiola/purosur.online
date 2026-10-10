@@ -385,6 +385,29 @@ test.each([
   },
 );
 
+test("editProduct returns sale_unit_held_by_packaging with the packaging's name on a 409 carrying that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(409, { code: "sale_unit_held_by_packaging", packagingName: "Caja x 12" }),
+  );
+
+  expect(await editProduct("product-1", editInput)).toEqual({
+    kind: "sale_unit_held_by_packaging",
+    packagingName: "Caja x 12",
+  });
+});
+
+test.each([
+  { code: "sale_unit_held_by_packaging" },
+  { code: "sale_unit_held_by_packaging", packagingName: 2 },
+])(
+  "editProduct fails on a sale_unit_held_by_packaging 409 that does not name the packaging: %o",
+  async (body) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, body));
+
+    expect(await editProduct("product-1", editInput)).toEqual({ kind: "failed" });
+  },
+);
+
 test("editProduct returns category_not_leaf on a 409 carrying that code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "category_not_leaf" }));
 
