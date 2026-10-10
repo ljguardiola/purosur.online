@@ -281,3 +281,137 @@ describe("observeAlertCondition for a kind that does not track an ongoing condit
     expect(store.snapshot().alerts).toEqual([]);
   });
 });
+
+describe("observeAlertCondition when the condition holds at a level", () => {
+  const MISSING_CODE: Extract<OpenAlertInput, { kind: "offline_authorization_code_missing" }> = {
+    kind: "offline_authorization_code_missing",
+    scope: "register-1:2026-10-16",
+    detail: { deviceId: "device-1", fortnightStart: "2026-10-16", fortnightEnd: "2026-10-31" },
+  };
+  const holdsAt = (level: "informational" | "warning" | "critical"): AlertConditionObservation => ({
+    holds: true,
+    alert: MISSING_CODE,
+    level,
+  });
+
+  function seedOpenMissingCode(
+    store: FakeAlertStore,
+    level: "informational" | "warning" | "critical",
+    conditionClearedAt: Date | null = null,
+  ) {
+    return store.seedAlert(
+      seededAlert({
+        id: "alert-9",
+        kind: "offline_authorization_code_missing",
+        scope: "register-1:2026-10-16",
+        level,
+        escalateAt: null,
+        detail: MISSING_CODE.detail,
+        conditionClearedAt,
+      }),
+    );
+  }
+
+  it.each(["informational", "warning", "critical"] as const)(
+    "opens the alert at the level it holds at: %s",
+    async (level) => {
+      const store = storeWithViewer();
+
+      const outcome = await observe(store, holdsAt(level));
+
+      expect(outcome).toEqual({ kind: "opened", alertId: "alert-1" });
+      expect(store.snapshot().alerts[0]).toMatchObject({
+        level,
+        escalatedAt: null,
+        escalateAt: null,
+      });
+    },
+  );
+
+  it("raises the open alert to a higher level, recording when", async () => {
+    const store = storeWithViewer();
+    seedOpenMissingCode(store, "informational");
+
+    const outcome = await observe(store, holdsAt("critical"));
+
+    expect(outcome).toEqual({ kind: "kept_open", alertId: "alert-9" });
+    expect(store.snapshot().alerts).toEqual([
+      expect.objectContaining({ id: "alert-9", level: "critical", escalatedAt: NOW }),
+    ]);
+  });
+
+  it("raises one level at a time as the level it holds at rises", async () => {
+    const store = storeWithViewer();
+    seedOpenMissingCode(store, "informational");
+
+    await observe(store, holdsAt("warning"));
+
+    expect(store.levelOf("alert-9")).toBe("warning");
+  });
+
+  it.each([
+    ["the same level", "warning", "warning"],
+    ["a lower level", "critical", "warning"],
+    ["the lowest level", "warning", "informational"],
+  ] as const)("leaves the open alert as it was when it holds at %s", async (_label, open, held) => {
+    const store = storeWithViewer();
+    seedOpenMissingCode(store, open);
+    const before = store.snapshot();
+
+    await observe(store, holdsAt(held));
+
+    expect(store.snapshot()).toEqual(before);
+    expect(store.operationOrder).toEqual(["lockOpenAlertOfKey"]);
+  });
+
+  it("raises an alert whose clearing began less than 10 minutes ago and takes back the clearing", async () => {
+    const store = storeWithViewer();
+    seedOpenMissingCode(store, "informational", new Date(STABLY_CLEARED_AT.getTime() + 1));
+
+    await observe(store, holdsAt("critical"));
+
+    expect(store.snapshot().alerts).toEqual([
+      expect.objectContaining({ level: "critical", escalatedAt: NOW, conditionClearedAt: null }),
+    ]);
+  });
+
+  it("opens the new alert at the level it holds at once the cleared one resolves", async () => {
+    const store = storeWithViewer();
+    seedOpenMissingCode(store, "critical", STABLY_CLEARED_AT);
+
+    await observe(store, holdsAt("informational"));
+
+    expect(
+      store.snapshot().alerts.map(({ id, level, resolvedAt }) => [id, level, resolvedAt]),
+    ).toEqual([
+      ["alert-9", "critical", NOW],
+      ["alert-1", "informational", null],
+    ]);
+  });
+
+  it("opens an observation that names no level at the level of the kind's policy", async () => {
+    const store = storeWithViewer();
+
+    await observe(store, HOLDS);
+
+    expect(store.snapshot().alerts[0]).toMatchObject({ level: "critical" });
+  });
+
+  it("raises nothing for an observation that names no level", async () => {
+    const store = storeWithViewer();
+    store.seedAlert(
+      seededAlert({
+        id: "alert-9",
+        kind: "update_required",
+        scope: "register-1",
+        level: "informational",
+        escalateAt: null,
+        detail: { deviceId: "device-1", appVersion: "0.9.0" },
+      }),
+    );
+
+    await observe(store, HOLDS);
+
+    expect(store.levelOf("alert-9")).toBe("informational");
+  });
+});
