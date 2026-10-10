@@ -30,6 +30,63 @@ describe("OpenSessionRail", () => {
     expect(venta.element().getAttribute("href")).toBe("/session");
   });
 
+  it("offers the sales history, between Venta and Caja, to a person who may view it", async () => {
+    const screen = await render(
+      <OpenSessionRail
+        registerName="Caja 1"
+        lock={() => {}}
+        current="sale"
+        abilities={["view_sales_history"]}
+      />,
+    );
+
+    const history = screen.getByRole("link", { name: "Historial" });
+    expect(history.element().getAttribute("href")).toBe("/history");
+    const items = screen
+      .getByRole("navigation", { name: "Menú de la caja" })
+      .getByRole("button")
+      .elements()
+      .map((item) => item.textContent);
+    expect(items).toEqual(["Venta", "Salir"]);
+    const links = screen
+      .getByRole("link")
+      .elements()
+      .map((item) => item.textContent);
+    expect(links).toEqual(["Historial", "Caja"]);
+  });
+
+  it("marks Historial as current on the sales history", async () => {
+    const screen = await render(
+      <OpenSessionRail
+        registerName="Caja 1"
+        lock={() => {}}
+        current="history"
+        abilities={["view_sales_history"]}
+      />,
+    );
+
+    await expect
+      .element(screen.getByRole("link", { name: "Historial" }))
+      .toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Venta" }).element().getAttribute("href")).toBe(
+      "/session",
+    );
+  });
+
+  it("offers no sales history to a person who may not view it", async () => {
+    const screen = await render(
+      <OpenSessionRail
+        registerName="Caja 1"
+        lock={() => {}}
+        current="sale"
+        abilities={["reprint_receipt"]}
+      />,
+    );
+
+    await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Historial" })).not.toBeInTheDocument();
+  });
+
   describe("Salir", () => {
     async function renderRail() {
       await page.viewport(1280, 900);

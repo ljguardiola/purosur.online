@@ -130,6 +130,20 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       recordLoss: vi.fn(),
       recordAdjustment: vi.fn(),
     },
+    suppliersListScreen: {
+      fetchSuppliers: vi.fn().mockReturnValue(new Promise(() => {})),
+      createSupplier: vi.fn(),
+      editSupplier: vi.fn(),
+      deactivateSupplier: vi.fn(),
+      reactivateSupplier: vi.fn(),
+    },
+    packagingsListScreen: {
+      fetchPackagings: vi.fn().mockReturnValue(new Promise(() => {})),
+      createPackaging: vi.fn(),
+      editPackaging: vi.fn(),
+      deactivatePackaging: vi.fn(),
+      reactivatePackaging: vi.fn(),
+    },
     salesByDayScreen: {
       fetchSalesReport: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchReportRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -183,6 +197,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchRegisterPointsOfSale: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchFiscalAddresses: vi.fn().mockReturnValue(new Promise(() => {})),
       configureRegisterPointOfSale: vi.fn(),
+      configureRegisterOfflinePointOfSale: vi.fn(),
       createFiscalAddress: vi.fn(),
       editFiscalAddress: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),

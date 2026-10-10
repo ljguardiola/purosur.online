@@ -5,6 +5,7 @@ import {
 } from "@purosur/domain/fiscal/test-support";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  branchSettingsChange,
   buyerIdentificationThresholdChange,
   buyerTaxStatusSetChange,
   categoryChange,
@@ -34,6 +35,12 @@ describe("authorizing a sale's invoice in real time on the register", () => {
     cloud = await startStandInCloud(
       [
         registerChange({ id: "register-1", name: "Caja 1" }),
+        branchSettingsChange({
+          locationId: "location-1",
+          address: "Av. Siempreviva 742",
+          whatsappNumber: "11 5555-0100",
+          instagramHandle: "@puro.sur",
+        }),
         registerPointOfSaleChange({
           registerId: "register-1",
           number: POINT_OF_SALE,
@@ -127,8 +134,9 @@ describe("authorizing a sale's invoice in real time on the register", () => {
       buyer_tax_status_code: 5,
       sale_event: { event_type: "sale_completed" },
     });
-    await page.getByRole("heading", { name: "No hay vuelto para entregar" }).waitFor();
-    await page.getByRole("button", { name: "Nueva venta" }).click();
+    await page.getByRole("heading", { name: "No se pudo imprimir el ticket" }).waitFor();
+    await page.getByText("La impresora no responde", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "Seguir vendiendo" }).click();
     await page.getByText("La venta está vacía").waitFor();
   });
 

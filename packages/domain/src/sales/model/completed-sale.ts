@@ -45,6 +45,7 @@ export interface CompletedSale {
   sessionId: string;
   actorId: string;
   completedAt: Date;
+  operationNumber: number | null;
   total: number;
   lines: CompletedSaleLine[];
   payments: CompletedSalePayment[];

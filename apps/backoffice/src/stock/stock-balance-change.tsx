@@ -1,8 +1,8 @@
 import type { StockProduct } from "@purosur/contracts";
 import { LoadFailure, LoadingPlaceholder, SummaryRowGroup } from "@purosur/ui";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { formatStockChange, formatStockQuantity } from "../platform/stock-quantity";
 import type { StockMovementsScreenServices } from "./stock-movements-services";
-import { formatStockChange, formatStockQuantity } from "./stock-quantity";
 import { useStockBalancesQuery } from "./stock-queries";
 
 export function StockBalanceChange({

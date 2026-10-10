@@ -51,7 +51,7 @@ test("renders the name field and every area with a starting 0 de m count", async
   await expect.element(screen.getByRole("textbox", { name: /^Nombre del rol/ })).toHaveValue("");
   await expect.element(screen.getByRole("button", { name: /^Caja/ })).toBeVisible();
   await expect.element(screen.getByRole("button", { name: /^Sucursal/ })).toBeVisible();
-  expect(screen.getByText("0 de 7").elements().length).toBeGreaterThan(0);
+  expect(screen.getByText("0 de 8").elements().length).toBeGreaterThan(0);
 });
 
 test("the first area (Caja) is selected by default, showing its permissions", async () => {
@@ -62,6 +62,12 @@ test("the first area (Caja) is selected by default, showing its permissions", as
       screen.getByText("Vender y cobrar, incluido pesar a mano y abrir y cerrar su propia sesión"),
     )
     .toBeVisible();
+});
+
+test("the Caja area offers reading the register's help", async () => {
+  const screen = await render(<Harness />);
+
+  await expect.element(screen.getByText("Leer la ayuda de la caja")).toBeVisible();
 });
 
 test("selecting another area on the left shows its own title and permissions on the right", async () => {
@@ -90,10 +96,10 @@ test("groups the area buttons under an accessible name that says what they choos
 test("checking a permission updates its area's n de m count", async () => {
   const screen = await render(<Harness />);
 
-  await expect.element(screen.getByText("0 de 7").first()).toBeVisible();
+  await expect.element(screen.getByText("0 de 8").first()).toBeVisible();
   await userEvent.click(screen.getByText("Reimprimir un ticket").element());
 
-  await expect.element(screen.getByText("1 de 7").first()).toBeVisible();
+  await expect.element(screen.getByText("1 de 8").first()).toBeVisible();
 });
 
 test("a permission used at the register shows a Caja tag, and one not used there shows none", async () => {

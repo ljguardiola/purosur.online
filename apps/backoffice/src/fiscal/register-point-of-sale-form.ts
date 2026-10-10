@@ -14,12 +14,15 @@ export const EMPTY_REGISTER_POINT_OF_SALE_FORM: RegisterPointOfSaleFormValues = 
   version: 0,
 };
 
+export function typedPointOfSaleNumber(number: number | null): string {
+  return number === null ? "" : String(number);
+}
+
 export function registerPointOfSaleFormValuesFrom(
   register: RegisterPointOfSale,
 ): RegisterPointOfSaleFormValues {
   return {
-    pointOfSaleNumber:
-      register.pointOfSaleNumber === null ? "" : String(register.pointOfSaleNumber),
+    pointOfSaleNumber: typedPointOfSaleNumber(register.pointOfSaleNumber),
     fiscalAddressId: register.fiscalAddressId,
     version: register.version,
   };
@@ -39,7 +42,7 @@ export function registerPointOfSaleRequestFrom({
 
 export function pointOfSaleNumberMessage({
   pointOfSaleNumber,
-}: RegisterPointOfSaleFormValues): string {
+}: Pick<RegisterPointOfSaleFormValues, "pointOfSaleNumber">): string {
   return pointOfSaleNumber.trim() === ""
     ? "Ingresá el punto de venta."
     : "Revisá el punto de venta.";

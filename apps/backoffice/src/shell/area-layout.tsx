@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { AccountFooter } from "./account-footer";
 import {
   canManageProductsAndCategories,
+  canManageSuppliers,
   canPerformStockCounts,
   canSeeCashArea,
   canSeeCatalogArea,
@@ -13,6 +14,7 @@ import {
   canSeeReports,
   canSeeStockArea,
   canSeeStockBalances,
+  canSeeStockMovements,
 } from "./backoffice-access";
 import { Shell } from "./shell";
 import { signedInRoute } from "./signed-in-route";
@@ -43,7 +45,11 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
     ? "/inventory"
     : canPerformStockCounts(session)
       ? "/inventory-counts"
-      : "/inventory-adjustments";
+      : canSeeStockMovements(session)
+        ? "/inventory-adjustments"
+        : canManageSuppliers(session)
+          ? "/suppliers"
+          : "/purchase-packagings";
   const cashTarget = canSeeCashArea(session) ? "/points-of-sale" : "/pending-refunds";
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (

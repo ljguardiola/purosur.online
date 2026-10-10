@@ -14,7 +14,7 @@ import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { credentialsKey } from "../credentials/credentials-queries";
-import type { CashMovementInput, CoreClient } from "../platform/core-client";
+import type { CashMovementInput, CoreClient, SalesHistoryQuery } from "../platform/core-client";
 import { createQueryClient } from "../platform/query-client";
 import { cancelReads, setQueryAnswer } from "../platform/set-query-answer";
 import { useCoreStatus } from "../platform/use-core-status";
@@ -319,6 +319,15 @@ function Register({ core }: { core: CoreClient }) {
     cancelSale: () => core.cancelSale(),
     cancelPaidSale: (saleId: string, authorization: Authorization | undefined) =>
       core.cancelPaidSale(saleId, authorization),
+    receiptPrintStatus: (saleId: string) => core.receiptPrintStatus(saleId),
+    retryReceiptPrint: (saleId: string) => core.retryReceiptPrint(saleId),
+    reprintSaleReceipt: (
+      saleId: string,
+      reason: string,
+      authorization: Authorization | undefined,
+    ) => core.reprintSaleReceipt(saleId, reason, authorization),
+    salesHistory: (query: SalesHistoryQuery) => core.salesHistory(query),
+    saleHistoryDetail: (saleId: string) => core.saleHistoryDetail(saleId),
     // A replaced core connection fails this request; the core coming back up asks again.
     refreshCashSession,
   };

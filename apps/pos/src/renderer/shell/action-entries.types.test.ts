@@ -9,6 +9,7 @@ describe("the no-session menu's action entries", () => {
   it.each([
     "view_sales_history",
     "reprint_receipt",
+    "read_register_help",
     "correct_register_clock",
     "record_initial_inventory",
   ] as const)("accepts %s as the ability of an entry", (key) => {

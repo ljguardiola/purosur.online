@@ -5,6 +5,8 @@ export type { CountCardProps } from "./components/data-display/count-card";
 export { CountCard } from "./components/data-display/count-card";
 export type { FigureStatProps } from "./components/data-display/figure-stat";
 export { FigureStat } from "./components/data-display/figure-stat";
+export type { HelpArticleBodyProps } from "./components/data-display/help-article-body";
+export { HelpArticleBody } from "./components/data-display/help-article-body";
 export type { ProportionBarProps } from "./components/data-display/proportion-bar";
 export { ProportionBar } from "./components/data-display/proportion-bar";
 export type { SummaryRowProps } from "./components/data-display/summary-row";
@@ -143,6 +145,8 @@ export type { AreaNavItemProps } from "./components/navigation/area-nav-item";
 export { AreaNavItem } from "./components/navigation/area-nav-item";
 export type { PaginationProps } from "./components/navigation/pagination";
 export { Pagination } from "./components/navigation/pagination";
+export type { SectionNavButtonProps } from "./components/navigation/section-nav-button";
+export { SectionNavButton } from "./components/navigation/section-nav-button";
 export type { SectionNavItemProps } from "./components/navigation/section-nav-item";
 export { SectionNavItem } from "./components/navigation/section-nav-item";
 export type {
@@ -164,7 +168,9 @@ export {
   formatClockTime,
   formatCountdown,
   formatDate,
+  formatInvoiceNumber,
   formatNumber,
+  formatOperationNumber,
   formatPointOfSaleNumber,
   formatTimeAgo,
   parsePointOfSaleNumber,
@@ -179,6 +185,7 @@ export type {
   HelpCatalog,
 } from "./messages/help";
 export { defineHelp } from "./messages/help";
+export { searchArticles } from "./messages/help-search";
 export type { LocalAlertKind, LocalAlertText } from "./messages/local-alert-texts";
 export { isLocalAlertKind, localAlertText } from "./messages/local-alert-texts";
 export type { LocaleProviderProps } from "./messages/locale-provider";

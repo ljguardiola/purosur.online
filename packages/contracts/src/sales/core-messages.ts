@@ -20,6 +20,13 @@ import {
   searchProductsOutcomeSchema,
   shownLineQuantitySchema,
 } from "./sale.js";
+import {
+  receiptCopySchema,
+  saleHistoryDetailOutcomeSchema,
+  salesHistoryOutcomeSchema,
+  salesHistorySessionSchema,
+  salesHistoryStateSchema,
+} from "./sales-history.js";
 
 const requestId = requestIdSchema;
 
@@ -65,6 +72,40 @@ const addProductMessageSchema = z.object({
   type: z.literal("add-product"),
   request_id: requestId,
   product_id: z.string(),
+});
+
+const receiptPrintStatusMessageSchema = z.object({
+  type: z.literal("receipt-print-status"),
+  request_id: requestId,
+  sale_id: z.string(),
+});
+
+const retryReceiptPrintMessageSchema = z.object({
+  type: z.literal("retry-receipt-print"),
+  request_id: requestId,
+  sale_id: z.string(),
+});
+
+export const reprintSaleReceiptMessageSchema = z.object({
+  type: z.literal("reprint-sale-receipt"),
+  request_id: requestId,
+  sale_id: z.string(),
+  reason: z.string(),
+  authorization: authorizationSchema.optional(),
+});
+
+const salesHistoryMessageSchema = z.object({
+  type: z.literal("sales-history"),
+  request_id: requestId,
+  session: salesHistorySessionSchema,
+  state: salesHistoryStateSchema,
+  page: z.int().positive(),
+});
+
+const saleHistoryDetailMessageSchema = z.object({
+  type: z.literal("sale-history-detail"),
+  request_id: requestId,
+  sale_id: z.string(),
 });
 
 const saleRequestMessageSchema = z.object({
@@ -113,6 +154,11 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   chargeSaleByTransferMessageSchema,
   cashChargeRequestMessageSchema,
   cancelLockedSaleMessageSchema,
+  receiptPrintStatusMessageSchema,
+  retryReceiptPrintMessageSchema,
+  reprintSaleReceiptMessageSchema,
+  salesHistoryMessageSchema,
+  saleHistoryDetailMessageSchema,
 ]);
 export type SalesRendererToCoreMessage = z.infer<typeof salesRendererToCoreMessageSchema>;
 
@@ -125,6 +171,49 @@ const cancelLockedSaleOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("not_locked") }),
 ]);
 export type CancelLockedSaleOutcome = z.infer<typeof cancelLockedSaleOutcomeSchema>;
+
+const receiptPrintStatusOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("found"),
+    next_copy: receiptCopySchema,
+    printed: z.boolean(),
+    standing: z
+      .enum([
+        "printing",
+        "cover_open",
+        "paper_out",
+        "not_responding",
+        "retry_offered",
+        "failed",
+        "printed",
+      ])
+      .nullable(),
+  }),
+  z.object({ kind: z.literal("not_found") }),
+  z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type ReceiptPrintStatusOutcome = z.infer<typeof receiptPrintStatusOutcomeSchema>;
+
+const retryReceiptPrintOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("started"), copy: receiptCopySchema }),
+  z.object({ kind: z.literal("not_offered") }),
+  z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("lacks_permission") }),
+  z.object({ kind: z.literal("not_found") }),
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type RetryReceiptPrintOutcome = z.infer<typeof retryReceiptPrintOutcomeSchema>;
+
+const reprintSaleReceiptOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("started"), copy: receiptCopySchema }),
+  z.object({ kind: z.literal("busy") }),
+  z.object({ kind: z.literal("invalid_reason"), max_length: z.number() }),
+  z.object({ kind: z.literal("not_found") }),
+  z.object({ kind: z.literal("not_signed_in") }),
+  ...authorizationRefusalSchema.options,
+]);
+export type ReprintSaleReceiptOutcome = z.infer<typeof reprintSaleReceiptOutcomeSchema>;
 
 export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
   z.object({
@@ -176,6 +265,31 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("cancel-locked-sale-result"),
     request_id: requestId,
     outcome: cancelLockedSaleOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("receipt-print-status-result"),
+    request_id: requestId,
+    outcome: receiptPrintStatusOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("retry-receipt-print-result"),
+    request_id: requestId,
+    outcome: retryReceiptPrintOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("reprint-sale-receipt-result"),
+    request_id: requestId,
+    outcome: reprintSaleReceiptOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("sales-history-result"),
+    request_id: requestId,
+    outcome: salesHistoryOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("sale-history-detail-result"),
+    request_id: requestId,
+    outcome: saleHistoryDetailOutcomeSchema,
   }),
   z.object({ type: z.literal("sale"), request_id: requestId, sale: saleSchema.nullable() }),
   z.object({ type: z.literal("sale-unavailable"), request_id: requestId }),

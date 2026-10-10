@@ -50,6 +50,17 @@ describe("SaleScreen", () => {
     expect(screen.container.textContent).not.toContain("sell_and_charge");
   });
 
+  it("offers Historial between Venta and Caja to a person who may view the sales history", async () => {
+    const { screen } = await renderScreen({
+      person: { user_id: "u1", first_name: "Ada", abilities: ["view_sales_history"] },
+    });
+
+    const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
+
+    const items = Array.from(rail.querySelectorAll("button, a")).map((item) => item.textContent);
+    expect(items).toEqual(["Venta", "Historial", "Caja", "Salir"]);
+  });
+
   it("marks Venta as the current screen", async () => {
     const { screen } = await renderScreen();
 
@@ -626,7 +637,7 @@ describe("SaleScreen", () => {
         name: "a revoked installation",
         outcome: { kind: "installation_revoked" },
         title: "Esta caja ya no puede empezar ventas",
-        help: "Su instalación fue reemplazada o retirada desde el backoffice.",
+        help: "El motivo y qué hacer se muestran arriba de la pantalla.",
       },
       {
         name: "the core being unable to add it",

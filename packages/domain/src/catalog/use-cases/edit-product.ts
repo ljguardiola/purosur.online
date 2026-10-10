@@ -26,6 +26,7 @@ export type EditProductOutcome =
   | { kind: "brand_inactive" }
   | { kind: "tag_not_found" }
   | { kind: "tag_inactive"; tagId: string }
+  | { kind: "sale_unit_held_by_packaging"; packagingName: string }
   | { kind: "sale_unit_held_by_discount"; discountName: string }
   | { kind: "internal_barcode_on_product_with_barcodes" }
   | { kind: "barcode_taken"; codes: string[] }
@@ -49,6 +50,13 @@ export async function editProduct(
 
       if (addsInternalBarcodeToProductWithBarcodes(locked.product.barcodes, input.barcodes)) {
         return { kind: "internal_barcode_on_product_with_barcodes" };
+      }
+
+      if (locked.product.saleUnit !== input.saleUnit) {
+        const [holdingPackaging] = (await tx.activePackagingNamesOf(id)).sort();
+        if (holdingPackaging !== undefined) {
+          return { kind: "sale_unit_held_by_packaging", packagingName: holdingPackaging };
+        }
       }
 
       if (locked.product.saleUnit === "UNIT" && input.saleUnit === "KG") {

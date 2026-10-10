@@ -62,6 +62,7 @@ import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
+import { createReceiptPrinting, installationReceiptPrinter } from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,
   cancelLockedSaleFor,
@@ -76,6 +77,7 @@ import {
   scanProductFor,
   searchProductsFor,
 } from "./sales/sale-requests";
+import { saleHistoryDetailFor, salesHistoryFor } from "./sales/sales-history-requests";
 import { createActionGate } from "./sessions/action-gate";
 import { authorizersOf } from "./sessions/authorizers";
 import { hashPin } from "./sessions/pin-hash";
@@ -296,6 +298,18 @@ const realTimeAuthorization = createRealTimeAuthorization({
   readDeviceToken,
   now,
   reportFailure: (error) => reportFailure("the real-time authorization", error),
+});
+
+const receiptPrinting = createReceiptPrinting({
+  database: localDatabase,
+  gate: actionGate,
+  now,
+  ids: uuidV7Ids,
+  readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+  signedInUserId: () => signedInPerson.userId(),
+  printer: installationReceiptPrinter(),
+  reportFailure,
+  syncNow: () => syncSchedule.syncNow(),
 });
 
 const rendererRequestDeps: RendererRequestDeps = {
@@ -612,14 +626,27 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : (request) => cashChargeFor({ database: localDatabase, gate: actionGate, now }, request),
+  salesHistory:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) => salesHistoryFor({ database: localDatabase, gate: actionGate }, request),
+  saleHistoryDetail:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (saleId) => saleHistoryDetailFor({ database: localDatabase, gate: actionGate }, saleId),
+  receiptPrintStatus: receiptPrinting.receiptPrintStatus,
+  retryReceiptPrint: receiptPrinting.retryReceiptPrint,
+  reprintSaleReceipt: receiptPrinting.reprintSaleReceipt,
   reportFailure,
 };
 
 const answeredRendererRequestDeps: RendererRequestDeps = {
   ...rendererRequestDeps,
-  chargeSaleInCash: realTimeAuthorization.afterCompletedSale(rendererRequestDeps.chargeSaleInCash),
-  chargeSaleByTransfer: realTimeAuthorization.afterCompletedSale(
-    rendererRequestDeps.chargeSaleByTransfer,
+  chargeSaleInCash: receiptPrinting.afterCompletedSale(
+    realTimeAuthorization.afterCompletedSale(rendererRequestDeps.chargeSaleInCash),
+  ),
+  chargeSaleByTransfer: receiptPrinting.afterCompletedSale(
+    realTimeAuthorization.afterCompletedSale(rendererRequestDeps.chargeSaleByTransfer),
   ),
 };
 

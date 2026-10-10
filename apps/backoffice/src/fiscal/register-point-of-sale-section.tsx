@@ -14,7 +14,7 @@ import type { RegisterPointOfSale } from "./register-points-of-sale-api";
 
 type RegisterPointOfSaleSectionProps = {
   data: CloudData<[RegisterPointOfSale[], FiscalAddress[]]>;
-  onEdit: (register: RegisterPointOfSale) => void;
+  onEdit: (register: RegisterPointOfSale, mechanism: "real_time" | "offline") => void;
 };
 
 const MISSING = "Sin configurar";
@@ -24,11 +24,13 @@ function RegisterPointOfSaleCard({
   fiscalAddresses,
   dataStatus,
   onEdit,
+  onEditOffline,
 }: {
   register: RegisterPointOfSale;
   fiscalAddresses: FiscalAddress[];
   dataStatus: "loaded";
   onEdit: () => void;
+  onEditOffline: () => void;
 }) {
   const fiscalAddress = fiscalAddresses.find(({ id }) => id === register.fiscalAddressId);
   return (
@@ -44,6 +46,15 @@ function RegisterPointOfSaleCard({
         >
           Editar
         </Button>
+        <Button
+          variant="secondary"
+          size="small"
+          icon={<Pencil />}
+          dataStatus={dataStatus}
+          onPress={onEditOffline}
+        >
+          Editar CAEA
+        </Button>
       </div>
       <div className="flex gap-8">
         <DataPair
@@ -56,6 +67,15 @@ function RegisterPointOfSaleCard({
           missing={MISSING}
         />
         <DataPair label="Domicilio fiscal" value={fiscalAddress?.name ?? null} missing={MISSING} />
+        <DataPair
+          label="Punto de venta CAEA"
+          value={
+            register.offlinePointOfSaleNumber === null
+              ? null
+              : formatPointOfSaleNumber(register.offlinePointOfSaleNumber)
+          }
+          missing={MISSING}
+        />
       </div>
     </div>
   );
@@ -93,7 +113,8 @@ export function RegisterPointOfSaleSection({ data, onEdit }: RegisterPointOfSale
           register={register}
           fiscalAddresses={fiscalAddresses}
           dataStatus={data.status}
-          onEdit={() => onEdit(register)}
+          onEdit={() => onEdit(register, "real_time")}
+          onEditOffline={() => onEdit(register, "offline")}
         />
       ))}
     </>

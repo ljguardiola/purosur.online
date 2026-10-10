@@ -3,6 +3,7 @@ import {
   directedQuantity,
   formatStockChange,
   formatStockQuantity,
+  formatStockQuantityInput,
   parseStockQuantity,
 } from "./stock-quantity";
 
@@ -61,5 +62,31 @@ test.each([
   "turns a quantity moved in the %s direction, %i, into the change %i",
   (direction, quantity, change) => {
     expect(directedQuantity(direction, quantity)).toBe(change);
+  },
+);
+
+test.each([
+  [25_000, "KG", "25,000"],
+  [2500, "KG", "2,500"],
+  [12_150, "KG", "12,150"],
+  [12_000, "UNIT", "12"],
+  [1_250_000, "UNIT", "1.250"],
+] as const)(
+  "writes %i thousandths of a %s product as the %s a person types",
+  (quantity, saleUnit, text) => {
+    expect(formatStockQuantityInput(quantity, saleUnit)).toBe(text);
+  },
+);
+
+test.each([
+  [25_000, "KG"],
+  [2500, "KG"],
+  [1_250_000, "UNIT"],
+] as const)(
+  "reads back what it writes for %i thousandths of a %s product",
+  (quantity, saleUnit) => {
+    expect(parseStockQuantity(formatStockQuantityInput(quantity, saleUnit), saleUnit)).toBe(
+      quantity,
+    );
   },
 );

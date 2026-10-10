@@ -30,7 +30,8 @@ export function completeSale(
   ids: IdGenerator,
   { sale, total, payments, movements, actorId, completedAt }: SaleCompletion,
 ): void {
-  tx.recordCompletedSale(sale.id, completedAt);
+  const operationNumber = tx.takeOperationNumber();
+  tx.recordCompletedSale(sale.id, completedAt, operationNumber);
   const eventId = ids.next();
   const stockMovements = sale.lines.map(
     (line): SaleStockMovement => ({
@@ -49,6 +50,7 @@ export function completeSale(
     saleCompletedEvent(
       eventId,
       sale,
+      operationNumber,
       total,
       payments,
       movements,
@@ -81,6 +83,7 @@ export function completeSale(
 function saleCompletedEvent(
   eventId: string,
   sale: SaleWithLines,
+  operationNumber: number,
   total: number,
   payments: readonly PaymentTransaction[],
   movements: readonly SaleCashMovement[],
@@ -94,9 +97,10 @@ function saleCompletedEvent(
     aggregate_type: "Sale",
     aggregate_id: sale.id,
     event_type: SALE_COMPLETED_EVENT_TYPE,
-    schema_version: 3,
+    schema_version: 4,
     payload: {
       id: sale.id,
+      operation_number: operationNumber,
       register_id: sale.registerId,
       device_id: sale.deviceId,
       session_id: sale.sessionId,

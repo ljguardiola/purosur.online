@@ -78,6 +78,8 @@ export type FiscalDocumentState = "REQUESTING" | "AUTHORIZED" | "REJECTED" | "UN
 
 export const SERIES_WAITING_STATES: readonly FiscalDocumentState[] = ["REQUESTING", "UNKNOWN"];
 
+export const IN_PROGRESS_FISCAL_DOCUMENT_STATES: readonly FiscalDocumentState[] = ["REQUESTING"];
+
 export const NUMBER_CONSUMING_STATES: readonly FiscalDocumentState[] = ["AUTHORIZED"];
 
 export interface RealTimeSeries {

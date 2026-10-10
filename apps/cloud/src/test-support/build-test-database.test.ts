@@ -40,6 +40,7 @@ import {
   priceReviews,
   prices,
   productBarcodes,
+  productPackagings,
   products,
   productTags,
   recoveryRateLimitAttempts,
@@ -50,6 +51,7 @@ import {
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
   registerInstallations,
+  registerOfflinePointsOfSale,
   registerPointsOfSale,
   registerSnapshotKeys,
   registers,
@@ -57,6 +59,7 @@ import {
   roles,
   saleLines,
   salePayments,
+  saleReprints,
   sales,
   sessions,
   signInChallenges,
@@ -66,6 +69,7 @@ import {
   stockBalances,
   stockCounts,
   stockMovements,
+  suppliers,
   tags,
   taxAuthorityLastAuthorizedNumbers,
   userPinCodes,
@@ -259,13 +263,27 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
     if (!fiscalAddress) {
       throw new Error("seeding fiscal addresses returned no row");
     }
-    await db
-      .insert(pointOfSaleClaims)
-      .values({ pointOfSaleNumber: 3, registerId: register.id, claimedBy: user.id });
+    await db.insert(pointOfSaleClaims).values({
+      pointOfSaleNumber: 3,
+      registerId: register.id,
+      mechanism: "real_time",
+      claimedBy: user.id,
+    });
     await db.insert(registerPointsOfSale).values({
       registerId: register.id,
       pointOfSaleNumber: 3,
       fiscalAddressId: fiscalAddress.id,
+      version: 1,
+    });
+    await db.insert(pointOfSaleClaims).values({
+      pointOfSaleNumber: 4,
+      registerId: register.id,
+      mechanism: "offline",
+      claimedBy: user.id,
+    });
+    await db.insert(registerOfflinePointsOfSale).values({
+      registerId: register.id,
+      pointOfSaleNumber: 4,
       version: 1,
     });
     await db.insert(registerEnrollmentCodes).values({
@@ -363,6 +381,13 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       amount: 2400,
       state: "APPROVED",
       occurredAt: new Date("2026-01-05T12:12:00.000Z"),
+    });
+    await db.insert(saleReprints).values({
+      saleId,
+      orderNumber: 1,
+      requestedBy: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e11",
+      reasonKind: "retry",
+      occurredAt: new Date("2026-01-05T12:13:00.000Z"),
     });
     await db.insert(cashMovements).values({
       id: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e25",
@@ -557,6 +582,14 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       saleEvent: { event_type: "sale_completed" },
       receivedAt: new Date("2026-01-05T12:00:00.000Z"),
       notAfter: new Date("2026-01-05T12:00:04.000Z"),
+    });
+    await db.insert(suppliers).values({ name: "Distribuidora Sur", actorId: user.id });
+    await db.insert(productPackagings).values({
+      productId: product.id,
+      name: "Caja x 12",
+      quantityPerPackage: 12,
+      saleUnit: "UNIT",
+      actorId: user.id,
     });
     await db.insert(paymentTransactions).values({
       id: "00000000-0000-4000-8000-000000000103",

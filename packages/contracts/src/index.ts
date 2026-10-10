@@ -106,6 +106,8 @@ export type { FiscalAddressEditBody } from "./fiscal/fiscal-address-edit.js";
 export { fiscalAddressEditBodySchema } from "./fiscal/fiscal-address-edit.js";
 export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identification-edit.js";
 export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
+export type { OfflinePointOfSaleConfigurationBody } from "./fiscal/offline-point-of-sale-configuration.js";
+export { offlinePointOfSaleConfigurationBodySchema } from "./fiscal/offline-point-of-sale-configuration.js";
 export type { PointOfSaleConfigurationBody } from "./fiscal/point-of-sale-configuration.js";
 export { pointOfSaleConfigurationBodySchema } from "./fiscal/point-of-sale-configuration.js";
 export type {
@@ -116,6 +118,8 @@ export {
   realTimeAuthorizationRequestSchema,
   realTimeAuthorizationResponseSchema,
 } from "./fiscal/real-time-authorization.js";
+export type { RegisterOfflinePointOfSaleBody } from "./fiscal/register-offline-point-of-sale.js";
+export { registerOfflinePointOfSaleSchema } from "./fiscal/register-offline-point-of-sale.js";
 export type {
   RegisterPointOfSaleBody,
   RegisterPointOfSaleOverviewBody,
@@ -183,6 +187,18 @@ export {
 } from "./pricing/price-list.js";
 export type { PriceSetBody } from "./pricing/price-set.js";
 export { priceSetBodySchema } from "./pricing/price-set.js";
+export type { PackagingCreationBody } from "./purchasing/packaging-creation.js";
+export { packagingCreationBodySchema } from "./purchasing/packaging-creation.js";
+export type { PackagingEditBody } from "./purchasing/packaging-edit.js";
+export { packagingEditBodySchema } from "./purchasing/packaging-edit.js";
+export type { PackagingList, PackagingSummary } from "./purchasing/packaging-summary.js";
+export { packagingListSchema, packagingSummarySchema } from "./purchasing/packaging-summary.js";
+export type { SupplierCreationBody } from "./purchasing/supplier-creation.js";
+export { supplierCreationBodySchema } from "./purchasing/supplier-creation.js";
+export type { SupplierEditBody } from "./purchasing/supplier-edit.js";
+export { supplierEditBodySchema } from "./purchasing/supplier-edit.js";
+export type { SupplierSummary } from "./purchasing/supplier-summary.js";
+export { supplierListSchema, supplierSummarySchema } from "./purchasing/supplier-summary.js";
 export type { CloudError, CloudErrorCode } from "./register/cloud-error.js";
 export {
   cloudError,
@@ -252,12 +268,16 @@ export {
 } from "./register/register-sync-status.js";
 export type {
   CancelLockedSaleOutcome,
+  ReceiptPrintStatusOutcome,
+  ReprintSaleReceiptOutcome,
+  RetryReceiptPrintOutcome,
   SalesCoreToRendererMessage,
   SalesRendererToCoreMessage,
 } from "./sales/core-messages.js";
 export {
   chargeSaleByTransferMessageSchema,
   chargeSaleInCashMessageSchema,
+  reprintSaleReceiptMessageSchema,
   salesCoreToRendererMessageSchema,
   salesRendererToCoreMessageSchema,
 } from "./sales/core-messages.js";
@@ -277,6 +297,11 @@ export type {
   ScanProductOutcome,
   SearchProductsOutcome,
 } from "./sales/sale.js";
+export type {
+  ReceiptCopyShown,
+  SaleHistoryDetailOutcome,
+  SalesHistoryOutcome,
+} from "./sales/sales-history.js";
 export type {
   ReportRegisterListBody,
   SalesReportBody,

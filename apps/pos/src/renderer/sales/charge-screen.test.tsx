@@ -4,6 +4,8 @@ import type {
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
   OpenSale,
+  ReceiptPrintStatusOutcome,
+  RetryReceiptPrintOutcome,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -86,10 +88,20 @@ const SALE_WITH_PART_PAID: OpenSale = {
 const COVERED: CashChargeAnswer = { kind: "covered", applied: 476_000, change: 24_000 };
 
 type Overrides = {
+  person?: ChargeScreenProps["person"];
   currentSale?: () => Promise<CurrentSaleAnswer>;
   cashCharge?: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash?: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer?: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
+  receiptPrintStatus?: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+  retryReceiptPrint?: (saleId: string) => Promise<RetryReceiptPrintOutcome>;
+};
+
+const PRINTED: ReceiptPrintStatusOutcome = {
+  kind: "found",
+  next_copy: { kind: "original" },
+  printed: true,
+  standing: "printed",
 };
 
 async function renderScreen(overrides: Overrides = {}) {
@@ -101,17 +113,24 @@ async function renderScreen(overrides: Overrides = {}) {
   const chargeSaleByTransfer = vi.fn(
     overrides.chargeSaleByTransfer ?? (async () => TRANSFER_COMPLETED),
   );
+  const receiptPrintStatus = vi.fn(overrides.receiptPrintStatus ?? (async () => PRINTED));
+  const retryReceiptPrint = vi.fn(
+    overrides.retryReceiptPrint ??
+      (async (): Promise<RetryReceiptPrintOutcome> => ({ kind: "not_offered" })),
+  );
   const onSessionInvalid = vi.fn();
   const screen = await render(
     <ChargeScreen
       sessionId="s1"
-      person={PERSON}
+      person={overrides.person ?? PERSON}
       registerName="Caja 1"
       lock={() => {}}
       currentSale={currentSale}
       cashCharge={cashCharge}
       chargeSaleInCash={chargeSaleInCash}
       chargeSaleByTransfer={chargeSaleByTransfer}
+      receiptPrintStatus={receiptPrintStatus}
+      retryReceiptPrint={retryReceiptPrint}
       onSessionInvalid={onSessionInvalid}
     />,
   );
@@ -121,6 +140,8 @@ async function renderScreen(overrides: Overrides = {}) {
     cashCharge,
     chargeSaleInCash,
     chargeSaleByTransfer,
+    receiptPrintStatus,
+    retryReceiptPrint,
     onSessionInvalid,
   };
 }
@@ -199,6 +220,14 @@ describe("ChargeScreen", () => {
     await expect.element(screen.getByText("Ada")).not.toBeInTheDocument();
   });
 
+  it("offers the sales history in the menu to a person who may view it", async () => {
+    const { screen } = await renderScreen({
+      person: { ...PERSON, abilities: ["open_cash_session", "view_sales_history"] },
+    });
+
+    await expect.element(screen.getByRole("link", { name: "Historial" })).toBeVisible();
+  });
+
   it("goes back to the sale from Volver a la venta", async () => {
     const { screen } = await renderScreen();
 
@@ -272,6 +301,42 @@ describe("ChargeScreen", () => {
     await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
     await expect.element(screen.getByRole("heading", { name: "Entregá el vuelto" })).toBeVisible();
     expect(chargeSaleInCash).toHaveBeenCalledExactlyOnceWith("sale-1", 500_000);
+  });
+
+  it("asks the core for the print status of the sale it completed, after a cash charge", async () => {
+    const { screen, receiptPrintStatus } = await renderScreen();
+
+    await chargeInCash(screen, "5.000,00");
+
+    await expect.element(screen.getByText("Impreso")).toBeVisible();
+    expect(receiptPrintStatus).toHaveBeenCalledWith("sale-1");
+  });
+
+  it("asks the core for the print status of the sale it completed, after a transfer", async () => {
+    const { screen, receiptPrintStatus } = await renderScreen();
+
+    await chooseTransfer(screen);
+    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+
+    await expect.element(screen.getByText("Impreso")).toBeVisible();
+    expect(receiptPrintStatus).toHaveBeenCalledWith("sale-1");
+  });
+
+  it("shows the printer failure of the completed sale and retries it through the core", async () => {
+    const { screen, retryReceiptPrint } = await renderScreen({
+      receiptPrintStatus: async () => ({
+        kind: "found",
+        next_copy: { kind: "original" },
+        printed: false,
+        standing: "retry_offered",
+      }),
+    });
+
+    await chargeInCash(screen, "5.000,00");
+    await expect.element(screen.getByText("El ticket no salió")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar impresión" }));
+
+    expect(retryReceiptPrint).toHaveBeenCalledWith("sale-1");
   });
 
   it("shows the sale as paid behind the completed sale, with no way back to it", async () => {

@@ -39,12 +39,16 @@ describe("registerPointOfSaleOverviewListSchema", () => {
     point_of_sale_number: 12,
     fiscal_address_id: configured.fiscal_address_id,
     version: 1,
+    offline_point_of_sale_number: 20,
+    offline_version: 3,
   };
   const neverConfigured = {
     ...overview,
     point_of_sale_number: null,
     fiscal_address_id: null,
     version: 0,
+    offline_point_of_sale_number: null,
+    offline_version: 0,
   };
 
   it("reads the registers of a branch, configured or not", () => {
@@ -54,15 +58,28 @@ describe("registerPointOfSaleOverviewListSchema", () => {
     expect(registerPointOfSaleOverviewListSchema.parse([])).toEqual([]);
   });
 
-  it.each(["register_id", "register_name", "point_of_sale_number", "fiscal_address_id", "version"])(
-    "refuses a register without its %s",
-    (field) => {
-      expect(
-        registerPointOfSaleOverviewListSchema.safeParse([{ ...overview, [field]: undefined }])
-          .success,
-      ).toBe(false);
-    },
-  );
+  it.each([
+    "register_id",
+    "register_name",
+    "point_of_sale_number",
+    "fiscal_address_id",
+    "version",
+    "offline_point_of_sale_number",
+    "offline_version",
+  ])("refuses a register without its %s", (field) => {
+    expect(
+      registerPointOfSaleOverviewListSchema.safeParse([{ ...overview, [field]: undefined }])
+        .success,
+    ).toBe(false);
+  });
+
+  it("refuses an offline number the tax authority does not allow", () => {
+    expect(
+      registerPointOfSaleOverviewListSchema.safeParse([
+        { ...overview, offline_point_of_sale_number: 100000 },
+      ]).success,
+    ).toBe(false);
+  });
 
   it("refuses a number the tax authority does not allow", () => {
     expect(

@@ -21,6 +21,7 @@ export const AREA_LABELS = {
 export const PERMISSION_LABELS = {
   sell_and_charge: "Vender y cobrar, incluido pesar a mano y abrir y cerrar su propia sesión",
   view_sales_history: "Consultar el historial de ventas",
+  read_register_help: "Leer la ayuda de la caja",
   close_anothers_register_session: "Cerrar la sesión de caja de otra persona",
   reprint_receipt: "Reimprimir un ticket",
   record_cash_in: "Registrar un ingreso de efectivo",

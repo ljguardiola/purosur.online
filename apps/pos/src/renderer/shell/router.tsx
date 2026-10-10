@@ -21,10 +21,15 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RegisterStatus,
   RemoveSaleLineOutcome,
+  ReprintSaleReceiptOutcome,
+  RetryReceiptPrintOutcome,
+  SaleHistoryDetailOutcome,
+  SalesHistoryOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
   SessionOpenSale,
@@ -47,7 +52,9 @@ import { pinPolicyQueryOptions } from "../credentials/credentials-queries";
 import { FirstSignInCodeStep } from "../credentials/first-sign-in-code-step";
 import { FirstSignInNoPin } from "../credentials/first-sign-in-no-pin";
 import { PinCodeRedemptionScreen } from "../credentials/pin-code-redemption-screen";
-import type { CashMovementInput } from "../platform/core-client";
+import { HelpScreen } from "../help/help-screen";
+import { help } from "../help/register-help";
+import type { CashMovementInput, SalesHistoryQuery } from "../platform/core-client";
 import { CashCountScreen } from "../register/cash-count-screen";
 import { CashScreen } from "../register/cash-screen";
 import type { CashSessionState } from "../register/cash-session-state";
@@ -59,6 +66,7 @@ import { OutOfServiceScreen } from "../register/out-of-service-screen";
 import { registerNameQueryOptions, useRegisterNameQuery } from "../register/register-queries";
 import { ChargeScreen } from "../sales/charge-screen";
 import { SaleScreen } from "../sales/sale-screen";
+import { SalesHistoryScreen } from "../sales/sales-history-screen";
 import { FirstSignInScreen } from "../sessions/first-sign-in-screen";
 import { SignInScreen } from "../sessions/sign-in-screen";
 import { ACTION_ENTRIES } from "./action-entries";
@@ -136,6 +144,15 @@ export interface RouterContext {
     saleId: string,
     authorization: Authorization | undefined,
   ) => Promise<CancelPaidSaleOutcome>;
+  receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+  retryReceiptPrint: (saleId: string) => Promise<RetryReceiptPrintOutcome>;
+  reprintSaleReceipt: (
+    saleId: string,
+    reason: string,
+    authorization: Authorization | undefined,
+  ) => Promise<ReprintSaleReceiptOutcome>;
+  salesHistory: (query: SalesHistoryQuery) => Promise<SalesHistoryOutcome>;
+  saleHistoryDetail: (saleId: string) => Promise<SaleHistoryDetailOutcome>;
   refreshCashSession: () => Promise<void>;
 }
 
@@ -143,6 +160,7 @@ type ScreenPath =
   | "/"
   | "/sign-in"
   | "/session"
+  | "/history"
   | "/locked"
   | "/enroll"
   | "/starting"
@@ -201,6 +219,14 @@ function requireSignedInPerson(context: RouterContext): SignedInPerson {
     throw redirect({ to: routeFor(context) });
   }
   return context.person;
+}
+
+function requireSignedInPersonAnywhere(context: RouterContext) {
+  const route = routeFor(context);
+  if (context.person === undefined || (route !== "/" && route !== "/session")) {
+    throw redirect({ to: route });
+  }
+  return { person: context.person, sessionOpen: route === "/session" };
 }
 
 function requireOpenSession(context: RouterContext) {
@@ -279,6 +305,31 @@ const signedInRoute = createRoute({
   },
 });
 
+const helpRoute = createRoute({
+  getParentRoute: () => statusBarRoute,
+  path: "/help",
+  beforeLoad: ({ context }) => {
+    const person = requireSignedInPerson(context);
+    if (!person.abilities.includes("read_register_help")) {
+      throw redirect({ to: "/" });
+    }
+    return { person };
+  },
+  component: function HelpRoute() {
+    const { person, signOut } = helpRoute.useRouteContext();
+    const registerName = useRegisterName();
+    return (
+      <HelpScreen
+        person={person}
+        registerName={registerName}
+        help={help}
+        entries={ACTION_ENTRIES}
+        signOut={signOut}
+      />
+    );
+  },
+});
+
 const openSessionRoute = createRoute({
   getParentRoute: () => statusBarRoute,
   path: "/session",
@@ -340,6 +391,8 @@ const chargeRoute = createRoute({
       cashCharge,
       chargeSaleInCash,
       chargeSaleByTransfer,
+      receiptPrintStatus,
+      retryReceiptPrint,
       refreshCashSession,
     } = chargeRoute.useRouteContext();
     const registerName = useRegisterName();
@@ -353,6 +406,40 @@ const chargeRoute = createRoute({
         cashCharge={cashCharge}
         chargeSaleInCash={chargeSaleInCash}
         chargeSaleByTransfer={chargeSaleByTransfer}
+        receiptPrintStatus={receiptPrintStatus}
+        retryReceiptPrint={retryReceiptPrint}
+        onSessionInvalid={() => void refreshCashSession()}
+      />
+    );
+  },
+});
+
+const historyRoute = createRoute({
+  getParentRoute: () => statusBarRoute,
+  path: "/history",
+  beforeLoad: ({ context }) => requireSignedInPersonAnywhere(context),
+  component: function HistoryRoute() {
+    const {
+      person,
+      sessionOpen,
+      signOut,
+      salesHistory,
+      saleHistoryDetail,
+      reprintSaleReceipt,
+      authorizers,
+      refreshCashSession,
+    } = historyRoute.useRouteContext();
+    const registerName = useRegisterName();
+    return (
+      <SalesHistoryScreen
+        person={person}
+        registerName={registerName}
+        sessionOpen={sessionOpen}
+        lock={signOut}
+        salesHistory={salesHistory}
+        saleHistoryDetail={saleHistoryDetail}
+        reprintSaleReceipt={reprintSaleReceipt}
+        loadAuthorizers={authorizers}
         onSessionInvalid={() => void refreshCashSession()}
       />
     );
@@ -575,8 +662,10 @@ export const routeTree = rootRoute.addChildren([
   sessionEyebrowRoute.addChildren([
     statusBarRoute.addChildren([
       signedInRoute,
+      helpRoute,
       openSessionRoute,
       chargeRoute,
+      historyRoute,
       cashRoute,
       cashCountRoute,
       lockedRoute,
@@ -646,6 +735,11 @@ export function createAppRouter(
     | "removeSaleLine"
     | "cancelSale"
     | "cancelPaidSale"
+    | "receiptPrintStatus"
+    | "retryReceiptPrint"
+    | "reprintSaleReceipt"
+    | "salesHistory"
+    | "saleHistoryDetail"
     | "refreshCashSession"
   >,
 ) {

@@ -1200,6 +1200,44 @@ describe("wiring the brands routes", () => {
   });
 });
 
+describe("wiring the purchasing routes", () => {
+  const ORIGIN = { origin: "https://staging.purosur.online" };
+  const ID = "00000000-0000-0000-0000-000000000000";
+
+  async function purchasingResponses(app: ReturnType<typeof buildApp>): Promise<number[]> {
+    const responses = await Promise.all(
+      ["suppliers", "purchase-packagings"].flatMap((resource) => [
+        app.inject({ method: "GET", url: `/api/${resource}` }),
+        app.inject({ method: "POST", url: `/api/${resource}`, headers: ORIGIN }),
+        app.inject({ method: "PUT", url: `/api/${resource}/${ID}`, headers: ORIGIN }),
+        app.inject({ method: "PUT", url: `/api/${resource}/${ID}/deactivation`, headers: ORIGIN }),
+        app.inject({
+          method: "DELETE",
+          url: `/api/${resource}/${ID}/deactivation`,
+          headers: ORIGIN,
+        }),
+      ]),
+    );
+    return responses.map((response) => response.statusCode);
+  }
+
+  it("does not register the purchasing routes when no purchasing option is given", async () => {
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
+
+    expect(await purchasingResponses(app)).toEqual(Array(10).fill(404));
+  });
+
+  it("registers the purchasing routes when a purchasing option is given", async () => {
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      purchasing: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    expect(await purchasingResponses(app)).toEqual(Array(10).fill(401));
+  });
+});
+
 describe("wiring the tags routes", () => {
   const ORIGIN = { origin: "https://staging.purosur.online" };
   const ID = "00000000-0000-0000-0000-000000000000";
@@ -1573,6 +1611,7 @@ describe("wiring the register point of sale routes", () => {
   it.each([
     ["GET", "/api/registers/points-of-sale"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale"],
+    ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/offline-point-of-sale"],
   ])("%s %s: answers according to the registersPointsOfSale option", async (method, url) => {
     const unwired = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
     const wired = buildApp({
@@ -2192,6 +2231,44 @@ describe("the route access inventory", () => {
         url: "/api/brands/:id/deactivation",
         access: capabilityAccess("products_and_categories"),
       },
+      { method: "GET", url: "/api/suppliers", access: capabilityAccess("suppliers") },
+      { method: "POST", url: "/api/suppliers", access: capabilityAccess("suppliers") },
+      { method: "PUT", url: "/api/suppliers/:id", access: capabilityAccess("suppliers") },
+      {
+        method: "PUT",
+        url: "/api/suppliers/:id/deactivation",
+        access: capabilityAccess("suppliers"),
+      },
+      {
+        method: "DELETE",
+        url: "/api/suppliers/:id/deactivation",
+        access: capabilityAccess("suppliers"),
+      },
+      {
+        method: "GET",
+        url: "/api/purchase-packagings",
+        access: capabilityAccess("purchase_packagings"),
+      },
+      {
+        method: "POST",
+        url: "/api/purchase-packagings",
+        access: capabilityAccess("purchase_packagings"),
+      },
+      {
+        method: "PUT",
+        url: "/api/purchase-packagings/:id",
+        access: capabilityAccess("purchase_packagings"),
+      },
+      {
+        method: "PUT",
+        url: "/api/purchase-packagings/:id/deactivation",
+        access: capabilityAccess("purchase_packagings"),
+      },
+      {
+        method: "DELETE",
+        url: "/api/purchase-packagings/:id/deactivation",
+        access: capabilityAccess("purchase_packagings"),
+      },
       {
         method: "GET",
         url: "/api/tags",
@@ -2393,6 +2470,11 @@ describe("the route access inventory", () => {
       {
         method: "PUT",
         url: "/api/registers/:id/point-of-sale",
+        access: capabilityAccess("cash_area"),
+      },
+      {
+        method: "PUT",
+        url: "/api/registers/:id/offline-point-of-sale",
         access: capabilityAccess("cash_area"),
       },
       { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },

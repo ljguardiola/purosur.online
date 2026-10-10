@@ -4,6 +4,8 @@ import type {
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
   OpenSale,
+  ReceiptPrintStatusOutcome,
+  RetryReceiptPrintOutcome,
 } from "@purosur/contracts";
 import {
   LoadFailure,
@@ -59,6 +61,8 @@ export type ChargeScreenProps = {
   cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
+  receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+  retryReceiptPrint: (saleId: string) => Promise<RetryReceiptPrintOutcome>;
   onSessionInvalid: () => void;
 };
 
@@ -71,6 +75,8 @@ export function ChargeScreen({
   cashCharge,
   chargeSaleInCash,
   chargeSaleByTransfer,
+  receiptPrintStatus,
+  retryReceiptPrint,
   onSessionInvalid,
 }: ChargeScreenProps) {
   const navigate = useNavigate();
@@ -111,7 +117,12 @@ export function ChargeScreen({
 
   return (
     <div className="flex h-full w-full bg-surface-subtle">
-      <OpenSessionRail registerName={registerName} lock={lock} current="sale" />
+      <OpenSessionRail
+        registerName={registerName}
+        lock={lock}
+        current="sale"
+        abilities={person.abilities}
+      />
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
         {current.status === "loading" ? <LoadingPlaceholder variant="list" items={1} /> : null}
         {current.status === "failed" ? (
@@ -181,6 +192,9 @@ export function ChargeScreen({
       ) : null}
       {step.name === "completed" && step.payment.method === "CASH" ? (
         <SaleCompletedModal
+          saleId={step.sale.id}
+          readReceiptStatus={receiptPrintStatus}
+          retryReceiptPrint={retryReceiptPrint}
           total={step.payment.charge.total}
           tendered={step.payment.charge.tendered}
           change={step.payment.charge.change}
@@ -189,6 +203,9 @@ export function ChargeScreen({
       ) : null}
       {step.name === "completed" && step.payment.method === "TRANSFER" ? (
         <SaleCompletedModal
+          saleId={step.sale.id}
+          readReceiptStatus={receiptPrintStatus}
+          retryReceiptPrint={retryReceiptPrint}
           total={step.payment.charge.total}
           method="TRANSFER"
           amount={step.payment.charge.amount}

@@ -1226,6 +1226,145 @@ describe("createCoreClient", () => {
     expect(second).toBe(2);
   });
 
+  it.each([
+    { kind: "found", next_copy: { kind: "original" }, printed: false, standing: "printing" },
+    { kind: "not_found" },
+    { kind: "unavailable" },
+  ])(
+    "asks the core for the print status of a sale's receipt and resolves with the outcome: %j",
+    async (outcome) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const status = client.receiptPrintStatus("sale-1");
+      port.answer({ type: "receipt-print-status-result", request_id: "request-1", outcome });
+
+      expect(await status).toEqual(outcome);
+      expect(port.posted).toEqual([
+        { type: "receipt-print-status", request_id: "request-1", sale_id: "sale-1" },
+      ]);
+    },
+  );
+
+  it.each([
+    { kind: "started", copy: { kind: "duplicate", order_number: 2 } },
+    { kind: "not_offered" },
+    { kind: "lacks_permission" },
+  ])(
+    "asks the core to retry a sale's receipt print and resolves with the outcome: %j",
+    async (outcome) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const retried = client.retryReceiptPrint("sale-1");
+      port.answer({ type: "retry-receipt-print-result", request_id: "request-1", outcome });
+
+      expect(await retried).toEqual(outcome);
+      expect(port.posted).toEqual([
+        { type: "retry-receipt-print", request_id: "request-1", sale_id: "sale-1" },
+      ]);
+    },
+  );
+
+  it("asks the core to reprint a sale's receipt with its reason and the authorization given", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const authorization = { user_id: "u2", pin: "1234" };
+
+    const reprinted = client.reprintSaleReceipt(
+      "sale-1",
+      "El cliente pidió otra copia",
+      authorization,
+    );
+    port.answer({
+      type: "reprint-sale-receipt-result",
+      request_id: "request-1",
+      outcome: { kind: "started", copy: { kind: "duplicate", order_number: 1 } },
+    });
+
+    expect(await reprinted).toEqual({
+      kind: "started",
+      copy: { kind: "duplicate", order_number: 1 },
+    });
+    expect(port.posted).toEqual([
+      {
+        type: "reprint-sale-receipt",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        reason: "El cliente pidió otra copia",
+        authorization,
+      },
+    ]);
+  });
+
+  it("asks the core to reprint a sale's receipt without an authorization when none is given", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const reprinted = client.reprintSaleReceipt("sale-1", "Otra copia", undefined);
+    port.answer({
+      type: "reprint-sale-receipt-result",
+      request_id: "request-1",
+      outcome: { kind: "busy" },
+    });
+
+    expect(await reprinted).toEqual({ kind: "busy" });
+    expect(port.posted).toEqual([
+      {
+        type: "reprint-sale-receipt",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        reason: "Otra copia",
+      },
+    ]);
+  });
+
+  it("asks the core for a page of the sales history and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const history = client.salesHistory({ session: "open", state: "deferred", page: 2 });
+    port.answer({
+      type: "sales-history-result",
+      request_id: "request-1",
+      outcome: { kind: "found", rows: [], total: 0, page_size: 50 },
+    });
+
+    expect(await history).toEqual({ kind: "found", rows: [], total: 0, page_size: 50 });
+    expect(port.posted).toEqual([
+      {
+        type: "sales-history",
+        request_id: "request-1",
+        session: "open",
+        state: "deferred",
+        page: 2,
+      },
+    ]);
+  });
+
+  it("asks the core for one sale's detail and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const detail = client.saleHistoryDetail("sale-1");
+    port.answer({
+      type: "sale-history-detail-result",
+      request_id: "request-1",
+      outcome: { kind: "not_found" },
+    });
+
+    expect(await detail).toEqual({ kind: "not_found" });
+    expect(port.posted).toEqual([
+      { type: "sale-history-detail", request_id: "request-1", sale_id: "sale-1" },
+    ]);
+  });
+
   it("ignores a pull notice arriving on a replaced port", () => {
     const client = clientWithSequentialIds();
     const previous = new FakePort();

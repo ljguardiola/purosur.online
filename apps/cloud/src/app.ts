@@ -75,6 +75,7 @@ import type { EnqueueTaxAuthorityCount } from "./fiscal/graphile-tax-authority-c
 import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identification-edit-route.js";
 import type { IssuerIdentificationRouteOptions } from "./fiscal/issuer-identification-read-route.js";
 import { registerIssuerIdentificationReadRoute } from "./fiscal/issuer-identification-read-route.js";
+import { registerRegisterOfflinePointOfSaleConfigurationRoute } from "./fiscal/register-offline-point-of-sale-configuration-route.js";
 import { registerRegisterPointOfSaleConfigurationRoute } from "./fiscal/register-point-of-sale-configuration-route.js";
 import type { RegistersPointsOfSaleRouteOptions } from "./fiscal/registers-points-of-sale-list-route.js";
 import { registerRegistersPointsOfSaleListRoute } from "./fiscal/registers-points-of-sale-list-route.js";
@@ -104,6 +105,9 @@ import { registerPriceConfirmationRoute } from "./pricing/price-confirmation-rou
 import { registerPriceSetRoute } from "./pricing/price-set-route.js";
 import type { PricesRouteOptions } from "./pricing/prices-list-route.js";
 import { registerPricesListRoute } from "./pricing/prices-list-route.js";
+import { registerPackagingsRoutes } from "./purchasing/packagings-routes.js";
+import type { PurchasingRouteOptions } from "./purchasing/purchasing-route-options.js";
+import { registerSuppliersRoutes } from "./purchasing/suppliers-routes.js";
 import { authenticateDevice } from "./register/device-authentication.js";
 import { registerDeviceEnrollmentRoute } from "./register/device-enrollment-route.js";
 import { registerDeviceTokenRotationRoute } from "./register/device-token-rotation-route.js";
@@ -168,6 +172,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   fiscalAddresses?: WithoutClock<FiscalAddressesRouteOptions<TQueryResult>>;
   categories?: WithoutClock<CategoriesRouteOptions<TQueryResult>>;
   brands?: WithoutClock<BrandsRouteOptions<TQueryResult>>;
+  purchasing?: WithoutClock<PurchasingRouteOptions<TQueryResult>>;
   tags?: WithoutClock<TagsRouteOptions<TQueryResult>>;
   products?: WithoutClock<ProductsRouteOptions<TQueryResult>>;
   alerts?: WithoutClock<AlertsRouteOptions<TQueryResult>>;
@@ -244,6 +249,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     fiscalAddresses: backoffice,
     categories: backoffice,
     brands: backoffice,
+    purchasing: backoffice,
     tags: backoffice,
     products: backoffice,
     alerts: backoffice,
@@ -447,6 +453,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerBrandReactivationRoute(api, { ...options.brands, now });
       }
 
+      if (options.purchasing) {
+        registerSuppliersRoutes(api, { ...options.purchasing, now });
+        registerPackagingsRoutes(api, { ...options.purchasing, now });
+      }
+
       if (options.tags) {
         registerTagsListRoute(api, { ...options.tags, now });
         registerTagCreationRoute(api, { ...options.tags, now });
@@ -511,6 +522,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       if (options.registersPointsOfSale) {
         registerRegistersPointsOfSaleListRoute(api, { ...options.registersPointsOfSale, now });
         registerRegisterPointOfSaleConfigurationRoute(api, {
+          ...options.registersPointsOfSale,
+          now,
+        });
+        registerRegisterOfflinePointOfSaleConfigurationRoute(api, {
           ...options.registersPointsOfSale,
           now,
         });

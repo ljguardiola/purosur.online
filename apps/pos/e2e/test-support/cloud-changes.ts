@@ -15,6 +15,34 @@ export function registerChange(register: { id: string; name: string }): CloudCha
   };
 }
 
+export function branchSettingsChange(branch: {
+  locationId: string;
+  address: string;
+  whatsappNumber: string;
+  instagramHandle: string;
+}): CloudChange {
+  return {
+    entity: "branch_settings",
+    entity_id: branch.locationId,
+    row: {
+      address: branch.address,
+      whatsapp_number: branch.whatsappNumber,
+      instagram_handle: branch.instagramHandle,
+      monday_hours: [],
+      tuesday_hours: [],
+      wednesday_hours: [],
+      thursday_hours: [],
+      friday_hours: [],
+      saturday_hours: [],
+      sunday_hours: [],
+      expiring_lot_alert_days: 30,
+      unreviewed_price_alert_days: 30,
+      good_condition_return_days: 15,
+      version: 1,
+    },
+  };
+}
+
 export function roleChange(role: {
   id: string;
   name: string;

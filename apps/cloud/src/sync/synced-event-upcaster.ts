@@ -14,7 +14,8 @@ import type {
 type CompletedSalePayload = SyncedEventPayloads[
   | "sale_completed@1"
   | "sale_completed@2"
-  | "sale_completed@3"];
+  | "sale_completed@3"
+  | "sale_completed@4"];
 type SalePayment = SyncedEventPayloads["sale_completed@1"]["payments"][number];
 type CancelledSalePayload = SyncedEventPayloads["sale_cancelled@1"];
 
@@ -87,6 +88,7 @@ function completedSale(
   stockMovements:
     | readonly SyncedEventPayloads["sale_completed@3"]["stock_movements"][number][]
     | null,
+  operationNumber: number | null,
 ): SyncedFact {
   return {
     kind: "sale_completed",
@@ -95,6 +97,7 @@ function completedSale(
       sessionId: payload.session_id,
       actorId: payload.actor_id,
       completedAt: new Date(completedAt),
+      operationNumber,
       total: payload.total,
       ...saleParts(payload),
       payments: salePayments(payments),
@@ -118,11 +121,41 @@ const FACT_OF: {
   ) => SyncedFact;
 } = {
   "sale_completed@1": (payload) =>
-    completedSale(payload, payload.completed_at, payload.payments, null),
+    completedSale(payload, payload.completed_at, payload.payments, null, null),
   "sale_completed@2": (payload) =>
-    completedSale(payload, payload.occurred_at, payload.payments, null),
+    completedSale(payload, payload.occurred_at, payload.payments, null, null),
   "sale_completed@3": (payload) =>
-    completedSale(payload, payload.occurred_at, payload.payments, payload.stock_movements),
+    completedSale(payload, payload.occurred_at, payload.payments, payload.stock_movements, null),
+  "sale_completed@4": (payload) =>
+    completedSale(
+      payload,
+      payload.occurred_at,
+      payload.payments,
+      payload.stock_movements,
+      payload.operation_number,
+    ),
+  "sale_print_state_changed@1": (payload) => ({
+    kind: "sale_print_state_changed",
+    printState: {
+      saleId: payload.sale_id,
+      printAttemptedAt: new Date(payload.print_attempted_at),
+      printedAt: payload.printed_at === null ? null : new Date(payload.printed_at),
+    },
+  }),
+  "reprint_recorded@1": (payload, event) => ({
+    kind: "reprint_recorded",
+    reprint: {
+      saleId: payload.sale_id,
+      orderNumber: payload.order_number,
+      requestedBy: payload.requested_by,
+      authorizedBy: payload.authorized_by,
+      reason:
+        payload.reason_kind === "retry"
+          ? { kind: "retry" }
+          : { kind: "requested", text: payload.reason_text },
+      occurredAt: event.occurredAt,
+    },
+  }),
   "sale_cancelled@1": cancelledSale,
   "cash_session_opened@1": (payload, event) => ({
     kind: "cash_session_opened",

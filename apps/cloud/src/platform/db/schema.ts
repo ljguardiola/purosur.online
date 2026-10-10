@@ -492,6 +492,54 @@ export const stockMovements = pgTable(
   ],
 );
 
+export const suppliers = pgTable(
+  "suppliers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    cuit: text("cuit"),
+    contact: text("contact"),
+    note: text("note"),
+    active: boolean("active").notNull().default(true),
+    version: integer("version").notNull().default(1),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("suppliers_name_lower_key").on(sql`lower(${table.name})`),
+    uniqueIndex("suppliers_cuit_key").on(table.cuit),
+  ],
+);
+
+export const productPackagings = pgTable(
+  "product_packagings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    name: text("name").notNull(),
+    quantityPerPackage: bigint("quantity_per_package", { mode: "number" }).notNull(),
+    saleUnit: text("sale_unit").notNull(),
+    active: boolean("active").notNull().default(true),
+    version: integer("version").notNull().default(1),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("product_packagings_product_id_name_lower_key").on(
+      table.productId,
+      sql`lower(${table.name})`,
+    ),
+    check("product_packagings_quantity_check", sql`${table.quantityPerPackage} > 0`),
+    check("product_packagings_sale_unit_check", sql`${table.saleUnit} in ('UNIT', 'KG')`),
+  ],
+);
+
 // Append-only like stock_movements.
 export const stockCounts = pgTable(
   "stock_counts",
@@ -579,6 +627,8 @@ export const fiscalAddresses = pgTable(
   (table) => [uniqueIndex("fiscal_addresses_name_lower_key").on(sql`lower(${table.name})`)],
 );
 
+export const pointOfSaleMechanism = pgEnum("point_of_sale_mechanism", ["real_time", "offline"]);
+
 // Append-only: a number once claimed by a register stays that register's, even after the register
 // is given another one.
 export const pointOfSaleClaims = pgTable(
@@ -588,6 +638,7 @@ export const pointOfSaleClaims = pgTable(
     registerId: uuid("register_id")
       .notNull()
       .references(() => registers.id),
+    mechanism: pointOfSaleMechanism("mechanism").notNull(),
     claimedAt: timestamp("claimed_at", { withTimezone: true }).notNull().defaultNow(),
     claimedBy: uuid("claimed_by")
       .notNull()
@@ -598,15 +649,16 @@ export const pointOfSaleClaims = pgTable(
       "point_of_sale_claims_number_in_range",
       sql`${table.pointOfSaleNumber} between 1 and ${sql.raw(String(POINT_OF_SALE_NUMBER_MAX))}`,
     ),
-    unique("point_of_sale_claims_number_register_key").on(
+    unique("point_of_sale_claims_number_register_mechanism_key").on(
       table.pointOfSaleNumber,
       table.registerId,
+      table.mechanism,
     ),
   ],
 );
 
 // The composite foreign key makes the database itself refuse a register using a number another
-// register claimed.
+// register claimed, or one the same register claimed for the other mechanism.
 export const registerPointsOfSale = pgTable(
   "register_points_of_sale",
   {
@@ -614,16 +666,51 @@ export const registerPointsOfSale = pgTable(
       .primaryKey()
       .references(() => registers.id),
     pointOfSaleNumber: integer("point_of_sale_number").notNull(),
+    mechanism: pointOfSaleMechanism("mechanism").notNull().default("real_time"),
     fiscalAddressId: uuid("fiscal_address_id")
       .notNull()
       .references(() => fiscalAddresses.id),
     version: integer("version").notNull(),
   },
   (table) => [
+    check("register_points_of_sale_mechanism_real_time", sql`${table.mechanism} = 'real_time'`),
     foreignKey({
       name: "register_points_of_sale_claim_fk",
-      columns: [table.pointOfSaleNumber, table.registerId],
-      foreignColumns: [pointOfSaleClaims.pointOfSaleNumber, pointOfSaleClaims.registerId],
+      columns: [table.pointOfSaleNumber, table.registerId, table.mechanism],
+      foreignColumns: [
+        pointOfSaleClaims.pointOfSaleNumber,
+        pointOfSaleClaims.registerId,
+        pointOfSaleClaims.mechanism,
+      ],
+    }),
+  ],
+);
+
+// The offline point of sale operates from its register's real-time point of sale's fiscal address,
+// which is why it carries none and why a register can't have one before the other.
+export const registerOfflinePointsOfSale = pgTable(
+  "register_offline_points_of_sale",
+  {
+    registerId: uuid("register_id").primaryKey(),
+    pointOfSaleNumber: integer("point_of_sale_number").notNull(),
+    mechanism: pointOfSaleMechanism("mechanism").notNull().default("offline"),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    check("register_offline_points_of_sale_mechanism_offline", sql`${table.mechanism} = 'offline'`),
+    foreignKey({
+      name: "register_offline_points_of_sale_register_fk",
+      columns: [table.registerId],
+      foreignColumns: [registerPointsOfSale.registerId],
+    }),
+    foreignKey({
+      name: "register_offline_points_of_sale_claim_fk",
+      columns: [table.pointOfSaleNumber, table.registerId, table.mechanism],
+      foreignColumns: [
+        pointOfSaleClaims.pointOfSaleNumber,
+        pointOfSaleClaims.registerId,
+        pointOfSaleClaims.mechanism,
+      ],
     }),
   ],
 );
@@ -786,9 +873,17 @@ export const sales = pgTable(
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     cancellationAuthorizedBy: text("cancellation_authorized_by"),
     total: bigint("total", { mode: "number" }).notNull(),
+    operationNumber: bigint("operation_number", { mode: "number" }),
+    printAttemptedAt: timestamp("print_attempted_at", { withTimezone: true }),
+    printedAt: timestamp("printed_at", { withTimezone: true }),
     appliedAt: timestamp("applied_at", { withTimezone: true }).notNull(),
   },
   (table) => [
+    check("sales_operation_number_positive_check", sql`${table.operationNumber} > 0`),
+    check(
+      "sales_printed_only_after_attempted_check",
+      sql`${table.printedAt} is null or ${table.printAttemptedAt} is not null`,
+    ),
     check("sales_state_check", sql`${table.state} in ('COMPLETED', 'CANCELLED')`),
     check(
       "sales_state_matches_timestamps_check",
@@ -798,6 +893,30 @@ export const sales = pgTable(
     check(
       "sales_cancellation_authorizer_only_when_cancelled_check",
       sql`${table.cancellationAuthorizedBy} is null or ${table.state} = 'CANCELLED'`,
+    ),
+  ],
+);
+
+export const saleReprints = pgTable(
+  "sale_reprints",
+  {
+    saleId: uuid("sale_id")
+      .notNull()
+      .references(() => sales.id),
+    orderNumber: integer("order_number").notNull(),
+    requestedBy: text("requested_by").notNull(),
+    authorizedBy: text("authorized_by"),
+    reasonKind: text("reason_kind").notNull(),
+    reasonText: text("reason_text"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.saleId, table.orderNumber] }),
+    check("sale_reprints_order_number_positive_check", sql`${table.orderNumber} > 0`),
+    check("sale_reprints_reason_kind_check", sql`${table.reasonKind} in ('retry', 'requested')`),
+    check(
+      "sale_reprints_reason_matches_kind_check",
+      sql`(${table.reasonKind} = 'requested') = (${table.reasonText} is not null)`,
     ),
   ],
 );

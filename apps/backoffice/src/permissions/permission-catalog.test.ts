@@ -5,7 +5,7 @@ import { permissionsOf, withRequiredPermissions } from "./permission-catalog";
 test("permissionsOf lists every permission of every area, in the order the catalog gives them", () => {
   const permissions = permissionsOf(permissionCatalogFixture);
 
-  expect(permissions).toHaveLength(49);
+  expect(permissions).toHaveLength(50);
   expect(permissions.slice(0, 2).map(({ key }) => key)).toEqual([
     "sell_and_charge",
     "view_sales_history",
