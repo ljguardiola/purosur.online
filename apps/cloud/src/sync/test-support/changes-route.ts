@@ -26,10 +26,12 @@ export async function pulledPage(
   app: FastifyInstance,
   since: number,
   deviceToken: string,
+  otherQuery: Record<string, string> = {},
 ): Promise<ChangesPage> {
+  const query = new URLSearchParams({ ...otherQuery, since: String(since) });
   const response = await app.inject({
     method: "GET",
-    url: `/changes?since=${since}`,
+    url: `/changes?${query}`,
     headers: { authorization: `Bearer ${deviceToken}` },
   });
   expect(response.statusCode).toBe(200);

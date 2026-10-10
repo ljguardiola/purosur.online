@@ -1,4 +1,4 @@
-import { changesPageSchema, cloudErrorSchema } from "@purosur/contracts";
+import { cloudErrorSchema } from "@purosur/contracts";
 import { pullAudienceOf } from "@purosur/domain";
 import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import {
@@ -230,13 +230,11 @@ describe("GET /changes", () => {
     const { deviceToken, locationId } = await insertEnrolledInstallation(db, { now: NOW });
     const otherLocationId = await insertOtherBranch();
 
-    const response = await pull(
-      `?since=0&location_id=${otherLocationId}&register_id=${otherLocationId}`,
-      `Bearer ${deviceToken}`,
-    );
+    const page = await pulledPage(app, 0, deviceToken, {
+      location_id: otherLocationId,
+      register_id: otherLocationId,
+    });
 
-    expect(response.statusCode).toBe(200);
-    const page = changesPageSchema.parse(response.json());
     expect(page.changes.map((change) => change.entity_id)).toEqual([
       locationId,
       await seededPriceListId(db),
@@ -340,7 +338,7 @@ describe("GET /changes", () => {
   it("records each admitted pull as a request of its installation", async () => {
     const { deviceId, deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
-    await pull("?since=0", `Bearer ${deviceToken}`);
+    await pulledPage(app, 0, deviceToken);
 
     expect(
       await db
