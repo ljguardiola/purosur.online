@@ -1,5 +1,7 @@
+import type { FiscalDocumentType, OfflineNumberBlockRange } from "@purosur/domain";
 import type {
   LockBranchRegisterResult,
+  OfflineNumberBlockRecord,
   PointOfSaleClaim,
   PointOfSaleHolder,
   RegisterOfflinePointOfSale,
@@ -8,10 +10,11 @@ import type {
   RegisterOfflinePointOfSaleStoreTransaction,
   RegisterPointOfSale,
 } from "@purosur/domain/fiscal/use-cases";
-import { eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   auditLog,
+  offlineNumberBlocks,
   registerOfflinePointsOfSale,
   registerPointsOfSale,
 } from "../platform/db/schema.js";
@@ -22,6 +25,13 @@ import {
   lockPointOfSaleClaim,
 } from "./drizzle-point-of-sale-claims.js";
 import { NEVER_CONFIGURED_VERSION } from "./register-point-of-sale-version.js";
+
+function offlineNumberBlocksLockKey(
+  pointOfSaleNumber: number,
+  documentType: FiscalDocumentType,
+): string {
+  return `offline_number_blocks:${pointOfSaleNumber}:${documentType}`;
+}
 
 function offlineAuditValueOf(setup: { pointOfSaleNumber: number; version: number }) {
   return { point_of_sale_number: setup.pointOfSaleNumber, version: setup.version };
@@ -81,6 +91,80 @@ class DrizzleRegisterOfflinePointOfSaleStoreTransaction<TQueryResult extends PgQ
 
   claimPointOfSale(claim: PointOfSaleClaim): Promise<void> {
     return claimPointOfSale(this.tx, claim);
+  }
+
+  async lockOfflineNumberBlocks(
+    pointOfSaleNumber: number,
+    documentType: FiscalDocumentType,
+  ): Promise<void> {
+    const key = offlineNumberBlocksLockKey(pointOfSaleNumber, documentType);
+    await this.tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
+  }
+
+  async hasOfflineNumberBlockInUse(
+    pointOfSaleNumber: number,
+    documentType: FiscalDocumentType,
+  ): Promise<boolean> {
+    const [block] = await this.tx
+      .select({ id: offlineNumberBlocks.id })
+      .from(offlineNumberBlocks)
+      .where(
+        and(
+          eq(offlineNumberBlocks.pointOfSaleNumber, pointOfSaleNumber),
+          eq(offlineNumberBlocks.documentType, documentType),
+          eq(offlineNumberBlocks.status, "in_use"),
+        ),
+      )
+      .limit(1);
+    return block !== undefined;
+  }
+
+  async lastOfflineNumberBlock(
+    pointOfSaleNumber: number,
+    documentType: FiscalDocumentType,
+  ): Promise<OfflineNumberBlockRange | null> {
+    const [block] = await this.tx
+      .select({
+        firstNumber: offlineNumberBlocks.firstNumber,
+        lastNumber: offlineNumberBlocks.lastNumber,
+      })
+      .from(offlineNumberBlocks)
+      .where(
+        and(
+          eq(offlineNumberBlocks.pointOfSaleNumber, pointOfSaleNumber),
+          eq(offlineNumberBlocks.documentType, documentType),
+        ),
+      )
+      .orderBy(desc(offlineNumberBlocks.lastNumber))
+      .limit(1);
+    return block ?? null;
+  }
+
+  async recordOfflineNumberBlock(record: OfflineNumberBlockRecord): Promise<void> {
+    const version = 1;
+    const [block] = await this.tx
+      .insert(offlineNumberBlocks)
+      .values({
+        pointOfSaleNumber: record.pointOfSaleNumber,
+        documentType: record.documentType,
+        registerId: record.registerId,
+        firstNumber: record.range.firstNumber,
+        lastNumber: record.range.lastNumber,
+        status: record.status,
+        assignedAt: this.now(),
+        version,
+      })
+      .returning({ id: offlineNumberBlocks.id });
+    if (!block) {
+      throw new Error("an inserted offline number block returned no row");
+    }
+    this.pending.note({
+      entity: "offline_number_block",
+      entityId: block.id,
+      version,
+      op: "insert",
+      registerId: record.registerId,
+    });
   }
 
   async recordRegisterOfflinePointOfSale(record: RegisterOfflinePointOfSaleRecord): Promise<void> {

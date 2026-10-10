@@ -140,6 +140,7 @@ export type {
   FiscalDocumentType,
   FiscalOnlineSignalEvidence,
   IssuerIdentificationInEffect,
+  OfflineNumberBlockRange,
   OfflineNumberBlockStatus,
   PreEmissionGateFailureReason,
   PreEmissionGateOutcome,
