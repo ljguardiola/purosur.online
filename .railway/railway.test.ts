@@ -160,6 +160,52 @@ describe("the Cloud Server service's environment", () => {
     });
   });
 
+  describe("Mercado Pago", () => {
+    const MERCADO_PAGO_ENV = {
+      MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token",
+      MERCADOPAGO_QR_EXTERNAL_POS_ID: "STORE01POS01",
+      MERCADOPAGO_WEBHOOK_SECRET: "fictional-webhook-secret",
+    };
+
+    function stubMercadoPagoEnv(names: (keyof typeof MERCADO_PAGO_ENV)[]): void {
+      for (const name of Object.keys(MERCADO_PAGO_ENV) as (keyof typeof MERCADO_PAGO_ENV)[]) {
+        vi.stubEnv(name, names.includes(name) ? MERCADO_PAGO_ENV[name] : "");
+      }
+    }
+
+    it("carries the access token, the QR code's identifier and the webhook secret when all are set", async () => {
+      stubMercadoPagoEnv([
+        "MERCADOPAGO_ACCESS_TOKEN",
+        "MERCADOPAGO_QR_EXTERNAL_POS_ID",
+        "MERCADOPAGO_WEBHOOK_SECRET",
+      ]);
+
+      const cloud = findService(await compile(), "Cloud Server");
+
+      for (const [name, value] of Object.entries(MERCADO_PAGO_ENV)) {
+        expect(cloud.variables?.[name], name).toEqual({ type: "literal", value });
+      }
+    });
+
+    it("leaves Mercado Pago out when none is set", async () => {
+      stubMercadoPagoEnv([]);
+
+      const cloud = findService(await compile(), "Cloud Server");
+
+      for (const name of Object.keys(MERCADO_PAGO_ENV)) {
+        expect(cloud.variables, name).not.toHaveProperty(name);
+      }
+    });
+
+    it("does not compile with only part of them set, naming the missing one", async () => {
+      stubMercadoPagoEnv(["MERCADOPAGO_ACCESS_TOKEN", "MERCADOPAGO_WEBHOOK_SECRET"]);
+
+      await expect(compile()).rejects.toThrow(
+        "MERCADOPAGO_QR_EXTERNAL_POS_ID must be set when MERCADOPAGO_ACCESS_TOKEN is set",
+      );
+    });
+  });
+
   it("waits for the schema to be ready instead of applying any migration itself before deploying", async () => {
     const cloud = findService(await compile(), "Cloud Server");
     expect(cloud.deploy?.preDeployCommand).toEqual(["node dist/wait-for-ready.js"]);
