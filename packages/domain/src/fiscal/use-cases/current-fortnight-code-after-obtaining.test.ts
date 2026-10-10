@@ -28,13 +28,13 @@ describe("currentFortnightCodeAfterObtaining", () => {
     },
   );
 
-  it.each([
+  it.each<FortnightAcquisitionOutcome>([
     { kind: "no_token" },
     { kind: "refused", rejections: [] },
     { kind: "no_answer" },
     { kind: "not_recovered" },
     { kind: "unexpected_fortnight" },
-  ] as const)("is missing when the current fortnight's outcome was $kind", (outcome) => {
+  ])("is missing when the current fortnight's outcome was $kind", (outcome) => {
     expect(
       currentFortnightCodeAfterObtaining(
         attempted({ fortnight: FIRST_HALF, outcome }),
