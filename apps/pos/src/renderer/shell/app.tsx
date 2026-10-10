@@ -281,6 +281,14 @@ function Register({ core }: { core: CoreClient }) {
     return outcome;
   }
 
+  async function abandonMercadoPagoQrCharge(paymentTransactionId: string) {
+    const outcome = await core.abandonMercadoPagoQrCharge(paymentTransactionId);
+    await refreshAfterCharge(
+      outcome.kind === "already_paid" ? outcome.settlement.kind : outcome.kind,
+    );
+    return outcome;
+  }
+
   async function redeemPinCode(typedCode: string, newPin: string) {
     const outcome = await core.redeemPinCode(typedCode, newPin);
     if (outcome.kind === "resumed") {
@@ -343,6 +351,7 @@ function Register({ core }: { core: CoreClient }) {
     chargeSaleByTransfer,
     startMercadoPagoQrCharge,
     followMercadoPagoQrCharge,
+    abandonMercadoPagoQrCharge,
     searchProducts: (query: string) => core.searchProducts(query),
     addProduct: (productId: string) => core.addProduct(productId),
     addWeighedProduct: (productId: string, weightThousandths: number) =>

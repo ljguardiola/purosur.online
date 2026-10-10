@@ -1,4 +1,5 @@
 import type {
+  AbandonMercadoPagoQrChargeOutcome,
   AddProductOutcome,
   AddWeighedProductOutcome,
   Authorization,
@@ -158,6 +159,9 @@ export interface RouterContext {
   followMercadoPagoQrCharge: (
     paymentTransactionId: string,
   ) => Promise<FollowMercadoPagoQrChargeOutcome>;
+  abandonMercadoPagoQrCharge: (
+    paymentTransactionId: string,
+  ) => Promise<AbandonMercadoPagoQrChargeOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
   addWeighedProduct: (
@@ -859,6 +863,7 @@ export function createAppRouter(
     | "chargeSaleByTransfer"
     | "startMercadoPagoQrCharge"
     | "followMercadoPagoQrCharge"
+    | "abandonMercadoPagoQrCharge"
     | "searchProducts"
     | "addProduct"
     | "addWeighedProduct"
