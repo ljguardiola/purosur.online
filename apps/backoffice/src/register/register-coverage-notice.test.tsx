@@ -55,6 +55,7 @@ test("names every register action with its own sentence", async () => {
     "Nadie puede confirmar reembolsos.",
     "Nadie puede cargar el inventario inicial.",
     "Nadie puede corregir el reloj de la caja.",
+    "Nadie puede configurar la impresora de tickets de una caja.",
     HINT,
   ]);
 });
