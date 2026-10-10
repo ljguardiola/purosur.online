@@ -17,6 +17,7 @@ import type {
 import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
+import type { EnqueueTaxAuthorityCount } from "../fiscal/graphile-tax-authority-count-queue.js";
 import {
   auditLog,
   registerContingencyTicketKeys,
@@ -27,7 +28,6 @@ import {
   registerSnapshotKeys,
   taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
-import type { EnqueueTaxAuthorityCount } from "../fiscal/graphile-tax-authority-count-queue.js";
 import type { InstallationKeyCipher } from "./installation-key-cipher.js";
 import { readOutboxChainKey, sealOutboxChainKey } from "./outbox-chain-key.js";
 

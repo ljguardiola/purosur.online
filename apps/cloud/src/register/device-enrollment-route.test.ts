@@ -2,6 +2,7 @@ import { cloudErrorSchema, deviceEnrollmentSchema } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertRegisterWithPointOfSale } from "../fiscal/test-support/authorization-request-fixtures.js";
 import {
   alerts,
   auditLog,
@@ -14,7 +15,6 @@ import {
   taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
 import { hashSecretCode } from "../platform/secret-code.js";
-import { insertRegisterWithPointOfSale } from "../fiscal/test-support/authorization-request-fixtures.js";
 import { registerRouteAccess } from "../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";

@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { escalateAlertsTask } from "../alerts/alert-escalation-task.js";
 import { openAlert } from "../alerts/open-alert.js";
+import { insertRegisterWithPointOfSale } from "../fiscal/test-support/authorization-request-fixtures.js";
 import {
   alerts,
   registerContingencyTicketKeys,
@@ -20,7 +21,6 @@ import { hashSecretCode } from "../platform/secret-code.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { insertRegisterWithPointOfSale } from "../fiscal/test-support/authorization-request-fixtures.js";
 import { issueDeviceToken } from "./device-token.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";
 import { generateInstallationKey } from "./installation-key.js";
