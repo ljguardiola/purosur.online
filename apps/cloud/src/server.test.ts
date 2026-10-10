@@ -7,6 +7,7 @@ import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support"
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { type BuildAppOptions, buildApp as buildRealApp } from "./app.js";
+import { enqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import { enqueueTaxAuthorityCountJob } from "./fiscal/graphile-tax-authority-count-queue.js";
 import { generateArcaTestCredentials } from "./fiscal/test-support/arca-test-credentials.js";
 import { unreachableArcaEndpoints } from "./fiscal/test-support/unreachable-arca-endpoints.js";
@@ -1414,6 +1415,19 @@ describe("startServer authorizing sales in real time", () => {
     });
   });
 
+  it("has a register's pull request the missing offline authorization code", async () => {
+    const { started, buildApp } = start({
+      ...env,
+      ARCA_PRIVATE_KEY: credentials.privateKeyPem,
+    });
+    await started;
+
+    const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
+    expect(options.enqueueOfflineAuthorizationCodeRequest).toBe(
+      enqueueOfflineAuthorizationCodeRequest,
+    );
+  });
+
   it("asks again for the count of every claimed point of sale that has none before it starts listening", async () => {
     const { started, steps, recovery, enqueueMissingTaxAuthorityCounts } = start({
       ...env,
@@ -1435,6 +1449,7 @@ describe("startServer authorizing sales in real time", () => {
     const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
     expect(options).not.toHaveProperty("fiscalAuthorization");
     expect(options.registersPointsOfSale).not.toHaveProperty("enqueueTaxAuthorityCount");
+    expect(options).not.toHaveProperty("enqueueOfflineAuthorizationCodeRequest");
     expect(enqueueMissingTaxAuthorityCounts).not.toHaveBeenCalled();
   });
 });

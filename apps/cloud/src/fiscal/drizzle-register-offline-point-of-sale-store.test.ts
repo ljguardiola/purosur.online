@@ -1,5 +1,4 @@
 import {
-  assignOfflineNumberBlock,
   configureRegisterOfflinePointOfSale,
   configureRegisterPointOfSale,
   PointOfSaleClaimConflict,
@@ -404,32 +403,6 @@ describe("the offline number blocks DrizzleRegisterOfflinePointOfSaleStore recor
       .from(changes)
       .where(eq(changes.entity, "register_offline_point_of_sale"));
     expect(setup).toEqual({ registerId: null });
-  });
-
-  it("assigns the next block right after the last one, on demand", async () => {
-    const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
-    await configure({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
-    const store = new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOON);
-
-    const second = await store.transaction((tx) =>
-      assignOfflineNumberBlock(tx, {
-        pointOfSaleNumber: 8,
-        documentType: "factura_c",
-        registerId,
-      }),
-    );
-
-    expect(second).toEqual({ kind: "assigned", range: { firstNumber: 1001, lastNumber: 2000 } });
-    const blocks = await db
-      .select()
-      .from(offlineNumberBlocks)
-      .orderBy(offlineNumberBlocks.firstNumber);
-    expect(
-      blocks.map(({ firstNumber, lastNumber, version }) => [firstNumber, lastNumber, version]),
-    ).toEqual([
-      [1, 1000, 1],
-      [1001, 2000, 1],
-    ]);
   });
 
   it("keeps the blocks of one point of sale apart from another's", async () => {

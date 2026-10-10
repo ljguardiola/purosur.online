@@ -13,14 +13,17 @@ import { pullChanges } from "@purosur/domain/sync/use-cases";
 import { createUser } from "@purosur/domain/users/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
 import { DrizzleBuyerIdentificationThresholdStore } from "../fiscal/drizzle-buyer-identification-threshold-store.js";
 import { DrizzleFiscalAddressStore } from "../fiscal/drizzle-fiscal-address-store.js";
 import { DrizzleIssuerIdentificationStore } from "../fiscal/drizzle-issuer-identification-store.js";
+import { DrizzleOfflineAuthorizationCodeRequests } from "../fiscal/drizzle-offline-authorization-code-requests.js";
 import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
 import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-point-of-sale-store.js";
+import { enqueueOfflineAuthorizationCodeRequest } from "../fiscal/graphile-offline-authorization-code-queue.js";
+import { OFFLINE_AUTHORIZATION_CODE_REQUEST_TASK_IDENTIFIER } from "../fiscal/offline-authorization-code-task.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import { buyerTaxStatusSets, users } from "../platform/db/schema.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
@@ -53,7 +56,7 @@ afterAll(async () => {
 });
 
 describe("a pull run as the role the deployed cloud connects with", () => {
-  it("gives a page holding every kind of catalog, price, user, role, fiscal configuration and point-of-sale change", async () => {
+  it("gives a page holding every kind of catalog, price, user, role, fiscal configuration and point-of-sale change, after requesting the missing offline authorization code", async () => {
     const { deviceId, locationId, registerId } = await insertEnrolledInstallation(db, { now: NOW });
     const store = new DrizzleCatalogStore(db);
     const category = await createCategory(store, { name: "Almacén", parentId: null });
@@ -172,7 +175,16 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     if (offlinePointOfSale.kind !== "configured") {
       throw new Error("test setup: the offline point of sale was not configured");
     }
-    const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => NOW } };
+    const reportFailure = vi.fn();
+    const ports = {
+      changeLog: new DrizzleChangeLog(db),
+      offlineAuthorizationCodes: new DrizzleOfflineAuthorizationCodeRequests(
+        db,
+        enqueueOfflineAuthorizationCodeRequest,
+        reportFailure,
+      ),
+      clock: { now: () => NOW },
+    };
 
     const page = await pullChanges(ports, { deviceId, since: 0 });
 
@@ -194,5 +206,10 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       "tag",
       "user",
     ]);
+    expect(reportFailure).not.toHaveBeenCalled();
+    expect(
+      await sql`select 1 from graphile_worker.jobs
+        where key = ${OFFLINE_AUTHORIZATION_CODE_REQUEST_TASK_IDENTIFIER}`,
+    ).toHaveLength(1);
   });
 });

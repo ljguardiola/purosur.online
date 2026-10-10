@@ -1,4 +1,3 @@
-import type { Fortnight } from "../../../fiscal/index.js";
 import type {
   PullAudience,
   PulledEntity,
@@ -47,9 +46,6 @@ export class FakeChangeLog implements ChangeLog<FakeLoggedChange> {
   state: FakeChangeLogState;
   readRequests: { audience: PullAudience; since: number; limit: number }[] = [];
   failReading = false;
-  heldOfflineCodeFortnights: Fortnight[] = [];
-  heldCodeQuestions: Fortnight[] = [];
-  missingCodeRequests = 0;
   operations: string[] = [];
   private readonly installedRegisters: Readonly<Record<string, PullingRegister>>;
 
@@ -64,21 +60,13 @@ export class FakeChangeLog implements ChangeLog<FakeLoggedChange> {
   async transaction<TOutcome>(
     work: (tx: ChangeLogTransaction<FakeLoggedChange>) => Promise<TOutcome>,
   ): Promise<TOutcome> {
+    this.operations.push("transaction");
     const working = structuredClone(this.state);
     const outcome = await work({
       recordObservedPull: async (deviceId, since, at) => {
         this.operations.push("recordObservedPull");
         working.observedPulls = working.observedPulls.filter((pull) => pull.deviceId !== deviceId);
         working.observedPulls.push({ deviceId, since, at });
-      },
-      holdsOfflineAuthorizationCodeFor: async (fortnight) => {
-        this.operations.push("holdsOfflineAuthorizationCodeFor");
-        this.heldCodeQuestions.push(fortnight);
-        return this.heldOfflineCodeFortnights.some((held) => held.start === fortnight.start);
-      },
-      requestMissingOfflineAuthorizationCode: async () => {
-        this.operations.push("requestMissingOfflineAuthorizationCode");
-        this.missingCodeRequests += 1;
       },
       pullingRegister: async (deviceId) => {
         this.operations.push("pullingRegister");

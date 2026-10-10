@@ -5,6 +5,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
+import { DrizzleOfflineAuthorizationCodeRequests } from "../fiscal/drizzle-offline-authorization-code-requests.js";
 import {
   branchHours,
   branchSettings,
@@ -42,7 +43,11 @@ afterAll(async () => {
 describe("two pulls of the same device overlapping, on a real Postgres", () => {
   it("answers the later one once the earlier one commits, instead of failing it", async () => {
     const { deviceId } = await insertEnrolledInstallation(db, { now: NOW });
-    const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => NOW } };
+    const ports = {
+      changeLog: new DrizzleChangeLog(db),
+      offlineAuthorizationCodes: new DrizzleOfflineAuthorizationCodeRequests(db),
+      clock: { now: () => NOW },
+    };
     await pullChanges(ports, { deviceId, since: 0 });
 
     let markEarlierRecorded = () => {};
@@ -79,7 +84,11 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
       now: NOW,
       registerName: "Caja 2",
     });
-    const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => NOW } };
+    const ports = {
+      changeLog: new DrizzleChangeLog(db),
+      offlineAuthorizationCodes: new DrizzleOfflineAuthorizationCodeRequests(db),
+      clock: { now: () => NOW },
+    };
 
     let markSaveUnderWay = () => {};
     const saveIsUnderWay = new Promise<void>((resolve) => {
@@ -127,7 +136,11 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
 
   it("waits for a product edit under way, then gives the product edited, with its new barcodes", async () => {
     const { deviceId } = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 3" });
-    const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => NOW } };
+    const ports = {
+      changeLog: new DrizzleChangeLog(db),
+      offlineAuthorizationCodes: new DrizzleOfflineAuthorizationCodeRequests(db),
+      clock: { now: () => NOW },
+    };
     const store = new DrizzleCatalogStore(db);
     const category = await createCategory(store, { name: "Almacén", parentId: null });
     if (category.kind !== "created") {
@@ -194,7 +207,11 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
 
   it("gives a category a writer holds locked as it was, without waiting for the writer", async () => {
     const { deviceId } = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 4" });
-    const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => NOW } };
+    const ports = {
+      changeLog: new DrizzleChangeLog(db),
+      offlineAuthorizationCodes: new DrizzleOfflineAuthorizationCodeRequests(db),
+      clock: { now: () => NOW },
+    };
     const created = await createCategory(new DrizzleCatalogStore(db), {
       name: "Bebidas",
       parentId: null,

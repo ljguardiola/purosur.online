@@ -1,4 +1,4 @@
-import { assignOfflineNumberBlock } from "@purosur/domain/fiscal/use-cases";
+import { assignFirstOfflineNumberBlock } from "@purosur/domain/fiscal/use-cases";
 import { asc } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -38,7 +38,7 @@ afterAll(async () => {
 
 function assignFirstBlock() {
   return new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOON).transaction((tx) =>
-    assignOfflineNumberBlock(tx, {
+    assignFirstOfflineNumberBlock(tx, {
       pointOfSaleNumber: OFFLINE_POINT_OF_SALE,
       documentType: "factura_c",
       registerId,
@@ -47,18 +47,8 @@ function assignFirstBlock() {
 }
 
 describe("the offline number blocks on a real Postgres", () => {
-  it("assigns blocks assigned at the same time to one point of sale as contiguous ranges that never overlap", async () => {
-    const assignments = Array.from({ length: 6 }, () =>
-      new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOON).transaction((tx) =>
-        assignOfflineNumberBlock(tx, {
-          pointOfSaleNumber: OFFLINE_POINT_OF_SALE,
-          documentType: "factura_c",
-          registerId,
-        }),
-      ),
-    );
-
-    await Promise.all(assignments);
+  it("assigns one first block, 1 to 1000, to first blocks asked for one point of sale at the same time", async () => {
+    const outcomes = await Promise.all(Array.from({ length: 6 }, () => assignFirstBlock()));
 
     const blocks = await db
       .select({
@@ -67,14 +57,8 @@ describe("the offline number blocks on a real Postgres", () => {
       })
       .from(offlineNumberBlocks)
       .orderBy(asc(offlineNumberBlocks.firstNumber));
-    expect(blocks).toEqual([
-      { firstNumber: 1, lastNumber: 1000 },
-      { firstNumber: 1001, lastNumber: 2000 },
-      { firstNumber: 2001, lastNumber: 3000 },
-      { firstNumber: 3001, lastNumber: 4000 },
-      { firstNumber: 4001, lastNumber: 5000 },
-      { firstNumber: 5001, lastNumber: 6000 },
-    ]);
+    expect(blocks).toEqual([{ firstNumber: 1, lastNumber: 1000 }]);
+    expect(outcomes.filter(({ kind }) => kind === "assigned")).toHaveLength(1);
   });
 
   it("keeps every block for good: the cloud's own role can neither delete nor truncate them", async () => {

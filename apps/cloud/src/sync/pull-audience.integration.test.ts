@@ -16,6 +16,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { DrizzleBuyerIdentificationThresholdStore } from "../fiscal/drizzle-buyer-identification-threshold-store.js";
 import { DrizzleFiscalAddressStore } from "../fiscal/drizzle-fiscal-address-store.js";
+import { DrizzleOfflineAuthorizationCodeRequests } from "../fiscal/drizzle-offline-authorization-code-requests.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "../fiscal/drizzle-offline-authorization-code-store.js";
 import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
 import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-point-of-sale-store.js";
@@ -81,7 +82,11 @@ function sorted(list: readonly Pulled[]): Pulled[] {
 }
 
 async function pullEverything(installation: Installation): Promise<Pulled[]> {
-  const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => NOW } };
+  const ports = {
+    changeLog: new DrizzleChangeLog(db),
+    offlineAuthorizationCodes: new DrizzleOfflineAuthorizationCodeRequests(db),
+    clock: { now: () => NOW },
+  };
   const received: Pulled[] = [];
   let since = 0;
   for (;;) {

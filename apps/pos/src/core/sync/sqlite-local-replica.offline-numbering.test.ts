@@ -1,13 +1,14 @@
 import type { SyncChange } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
-import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
-import { migrationClock } from "../platform/test-support/migration-clock";
-import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import type { RegisterPulledChange } from "./pulled-change";
-import { SqliteLocalReplica } from "./sqlite-local-replica";
+import type { SqliteLocalReplica } from "./sqlite-local-replica";
+import {
+  openAdoptedReplica,
+  savePulledChanges,
+  TEST_PEPPER,
+} from "./test-support/sqlite-local-replica";
 
-const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 const BLOCK_ID = "9d1f0c52-3a5e-4f7b-8c61-2b7e4a9d0e13";
 const SECOND_BLOCK_ID = "5e2a7c91-0b4d-4e68-9f13-7a6c8d2b1e40";
 
@@ -55,9 +56,8 @@ function blockChange(
   return { changeSeq, change };
 }
 
-async function save(...changes: RegisterPulledChange[]) {
-  const cursor = changes.at(-1)?.changeSeq ?? 0;
-  await replica.savePage({ changes, cursor, hasMore: false });
+function save(...changes: RegisterPulledChange[]) {
+  return savePulledChanges(replica, ...changes);
 }
 
 function savedCodes() {
@@ -102,9 +102,7 @@ let database: LocalDatabase;
 let replica: SqliteLocalReplica;
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
-  replica = new SqliteLocalReplica(database);
-  replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+  ({ database, replica } = openAdoptedReplica());
 });
 
 afterEach(() => {
@@ -151,7 +149,7 @@ describe("the register's local copy of its offline authorization codes", () => {
   it("keeps the codes when another installation takes over, as it keeps the issuer's data", async () => {
     await save(codeChange(1, "CAEA-A", 1));
 
-    replica.adoptDevice({ deviceId: "device-b", pepper: PEPPER });
+    replica.adoptDevice({ deviceId: "device-b", pepper: TEST_PEPPER });
 
     expect(savedCodes()).toHaveLength(1);
   });
@@ -199,7 +197,7 @@ describe("the register's local copy of its offline number blocks", () => {
   it("holds none once another installation takes over, until that one pulls its own", async () => {
     await save(blockChange(1, 1, 1000, 1));
 
-    replica.adoptDevice({ deviceId: "device-b", pepper: PEPPER });
+    replica.adoptDevice({ deviceId: "device-b", pepper: TEST_PEPPER });
 
     expect(savedBlocks()).toEqual([]);
     await save(blockChange(1, 1001, 2000, 1, SECOND_BLOCK_ID));
@@ -209,7 +207,7 @@ describe("the register's local copy of its offline number blocks", () => {
   it("keeps the blocks for the installation that pulled them", async () => {
     await save(blockChange(1, 1, 1000, 1));
 
-    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    replica.adoptDevice({ deviceId: "device-a", pepper: TEST_PEPPER });
 
     expect(savedBlocks()).toHaveLength(1);
   });

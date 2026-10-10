@@ -1,22 +1,18 @@
 import { randomUUID } from "node:crypto";
-import { type ChangesPage, changesPageSchema } from "@purosur/contracts";
 import {
   configureRegisterOfflinePointOfSale,
   configureRegisterPointOfSale,
 } from "@purosur/domain/fiscal/use-cases";
-import Fastify, { type FastifyInstance } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
 import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-point-of-sale-store.js";
 import { DrizzleTaxAuthorityCounts } from "../fiscal/drizzle-tax-authority-counts.js";
 import { fiscalAddresses, locations, registers, users } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
-import { registerRouteAccess } from "../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
-import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
-import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { registerChangesRoute } from "./changes-route.js";
+import { buildChangesRouteApp, pulledPage } from "./test-support/changes-route.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
 const SEEDED_CHANGES = 4;
@@ -36,14 +32,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
-  app = Fastify();
-  registerRouteAccess(app);
-  registerChangesRoute(app, {
-    db,
-    rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
-    keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
-    now: () => NOW,
-  });
+  app = buildChangesRouteApp(db, { now: () => NOW });
 });
 
 afterEach(async () => {
@@ -51,13 +40,7 @@ afterEach(async () => {
 });
 
 async function pullAfterSeed(deviceToken: string) {
-  const response = await app.inject({
-    method: "GET",
-    url: `/changes?since=${SEEDED_CHANGES}`,
-    headers: { authorization: `Bearer ${deviceToken}` },
-  });
-  expect(response.statusCode).toBe(200);
-  const page: ChangesPage = changesPageSchema.parse(response.json());
+  const page = await pulledPage(app, SEEDED_CHANGES, deviceToken);
   return page.changes.map(({ change_seq, ...change }) => change);
 }
 

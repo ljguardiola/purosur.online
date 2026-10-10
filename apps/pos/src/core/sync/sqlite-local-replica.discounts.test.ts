@@ -1,16 +1,17 @@
 import type { SyncChange } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
-import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
-import { migrationClock } from "../platform/test-support/migration-clock";
-import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import type { RegisterPulledChange } from "./pulled-change";
-import { SqliteLocalReplica } from "./sqlite-local-replica";
+import type { SqliteLocalReplica } from "./sqlite-local-replica";
+import {
+  openAdoptedReplica,
+  savePulledChanges,
+  TEST_PEPPER,
+} from "./test-support/sqlite-local-replica";
 
 const DISCOUNT_ID = "5d1f7ec4-96a8-4c5b-8dae-2f4a6c8e0b15";
 const OTHER_DISCOUNT_ID = "6e2a8fd5-a7b9-4d6c-9ebf-3a5b7d9f1c26";
 const TAG_ID = "3d594650-3436-4a2b-9b14-6a1f0f3b9a11";
-const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 
 type DiscountRow = Extract<SyncChange, { entity: "discount" }>["row"];
 
@@ -57,18 +58,15 @@ function discountRemoval(
   return { changeSeq, change };
 }
 
-async function save(...changes: RegisterPulledChange[]) {
-  const cursor = changes.at(-1)?.changeSeq ?? 0;
-  await replica.savePage({ changes, cursor, hasMore: false });
+function save(...changes: RegisterPulledChange[]) {
+  return savePulledChanges(replica, ...changes);
 }
 
 let database: LocalDatabase;
 let replica: SqliteLocalReplica;
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
-  replica = new SqliteLocalReplica(database);
-  replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+  ({ database, replica } = openAdoptedReplica());
 });
 
 afterEach(() => {
@@ -289,7 +287,7 @@ describe("the register's local copy of the discounts it pulls", () => {
   it("keeps the discounts when the register adopts another installation", async () => {
     await save(discountChange(1, discountRow({ version: 2 })));
 
-    replica.adoptDevice({ deviceId: "device-b", pepper: PEPPER });
+    replica.adoptDevice({ deviceId: "device-b", pepper: TEST_PEPPER });
 
     expect(replica.discount(DISCOUNT_ID)).toMatchObject({ removed: false, version: 2 });
   });
