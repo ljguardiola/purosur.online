@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { seedOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
+import { configureOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
 import { alerts, caeaCodes, changes, deviceState, registers } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -47,8 +47,20 @@ async function publishCode(fortnight: { start: string; end: string }): Promise<n
   return change.changeSeq;
 }
 
+let registerCounter = 0;
+
+function withOfflinePointOfSale(): Promise<string> {
+  registerCounter += 1;
+  return configureOfflinePointOfSale(db, {
+    registerName: `Caja ${registerCounter}`,
+    realTimePointOfSale: registerCounter * 2,
+    offlinePointOfSale: registerCounter * 2 + 1,
+    now: NOW,
+  });
+}
+
 async function watchedRegister(lastPullSince: number | null) {
-  const registerId = await seedOfflinePointOfSale(db);
+  const registerId = await withOfflinePointOfSale();
   const installation = await insertEnrolledInstallation(db, {
     now: NOW,
     existingRegisterId: registerId,
@@ -141,7 +153,7 @@ describe("DrizzleOfflineAuthorizationCodeHoldingReader watchedRegisterHoldings",
 
   it("leaves out a register whose only installation was revoked, however far it had pulled", async () => {
     const changeSeq = await publishCode(FIRST_HALF);
-    const registerId = await seedOfflinePointOfSale(db);
+    const registerId = await withOfflinePointOfSale();
     const revoked = await insertEnrolledInstallation(db, {
       now: NOW,
       existingRegisterId: registerId,
@@ -154,7 +166,7 @@ describe("DrizzleOfflineAuthorizationCodeHoldingReader watchedRegisterHoldings",
 
   it("measures a replaced installation by the active one, not by the revoked one that had pulled further", async () => {
     const changeSeq = await publishCode(FIRST_HALF);
-    const registerId = await seedOfflinePointOfSale(db);
+    const registerId = await withOfflinePointOfSale();
     const revoked = await insertEnrolledInstallation(db, {
       now: NOW,
       existingRegisterId: registerId,

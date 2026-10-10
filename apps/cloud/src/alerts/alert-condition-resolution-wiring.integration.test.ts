@@ -4,7 +4,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-server.js";
-import { seedOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
+import { configureOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
 import { alerts, branchHours, deviceState } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { setUpRecovery } from "../server.js";
@@ -142,7 +142,12 @@ describe("the background worker the server sets up on a real Postgres", () => {
   }, 60_000);
 
   it("opens the alert of a register with an offline point of sale that has not downloaded the current fortnight's code", async () => {
-    const registerId = await seedOfflinePointOfSale(db);
+    const registerId = await configureOfflinePointOfSale(db, {
+      registerName: "Caja fiscal",
+      realTimePointOfSale: 2,
+      offlinePointOfSale: 3,
+      now: NOW,
+    });
     const installation = await insertEnrolledInstallation(db, {
       now: NOW,
       existingRegisterId: registerId,

@@ -1,5 +1,12 @@
 import { type AlertDetail, alertDetailSchema } from "@purosur/contracts";
-import { alertActorId, alertKindPolicy, alertNamedRecordIds, isOpenAlert } from "@purosur/domain";
+import {
+  alertActorId,
+  alertKindPolicy,
+  alertNamedRecordIds,
+  argentinaCalendarDay,
+  hasFortnightStarted,
+  isOpenAlert,
+} from "@purosur/domain";
 import type { AlertDelivery, AlertDetailView } from "@purosur/domain/alerts/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -29,6 +36,25 @@ function detailWithActorName(
   const actorId = alertActorId(detail);
   const actorName = actorId === undefined ? undefined : namesById.get(actorId);
   return actorName === undefined ? detail : { ...detail, actorName };
+}
+
+function detailWithFortnightStarted(
+  alert: Pick<AlertDetailView, "kind" | "detail">,
+  detail: Record<string, unknown>,
+  today: string,
+): Record<string, unknown> {
+  const { fortnightStart, fortnightEnd } = alert.detail;
+  if (
+    alert.kind !== "offline_authorization_code_missing" ||
+    typeof fortnightStart !== "string" ||
+    typeof fortnightEnd !== "string"
+  ) {
+    return detail;
+  }
+  return {
+    ...detail,
+    fortnightStarted: hasFortnightStarted({ start: fortnightStart, end: fortnightEnd }, today),
+  };
 }
 
 function toAlertDelivery(row: AlertDelivery): AlertDetail["deliveries"][number] {
@@ -61,6 +87,7 @@ export function toAlertDetailBody(
   alert: AlertDetailView,
   deliveries: AlertDelivery[],
   namesById: ReadonlyMap<string, string>,
+  now: Date,
 ): AlertDetail {
   return alertDetailSchema.parse({
     id: alert.id,
@@ -69,7 +96,11 @@ export function toAlertDetailBody(
     scopeDisplay: scopeDisplay(alert, namesById),
     level: alert.level,
     audience: alert.audience,
-    detail: detailWithActorName(detailWithoutSourceAddressHash(alert), namesById),
+    detail: detailWithFortnightStarted(
+      alert,
+      detailWithActorName(detailWithoutSourceAddressHash(alert), namesById),
+      argentinaCalendarDay(now),
+    ),
     openedAt: alert.openedAt.toISOString(),
     escalatedAt: alert.escalatedAt?.toISOString() ?? null,
     resolvedAt: alert.resolvedAt?.toISOString() ?? null,
@@ -114,7 +145,7 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
 
       const deliveries = await reader.deliveriesOf(alert.id);
       const namesById = await reader.displayNames(alertNamedRecordIds(alert));
-      await reply.code(200).send(toAlertDetailBody(alert, deliveries, namesById));
+      await reply.code(200).send(toAlertDetailBody(alert, deliveries, namesById, now()));
     },
   );
 }

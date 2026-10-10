@@ -201,6 +201,7 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
     const [row] = await this.tx
       .select({
         alertId: alerts.id,
+        level: alerts.level,
         detail: alerts.detail,
         conditionClearedAt: alerts.conditionClearedAt,
       })
