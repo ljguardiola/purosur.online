@@ -1,18 +1,23 @@
 import { History, House } from "lucide-react";
 import { useState } from "react";
-import { NavigationRail } from "./navigation-rail";
-import { OpenSessionRail } from "./open-session-rail";
-import { SignOutModal } from "./sign-out-modal";
-import type { SignedInPerson } from "./signed-in-person";
+import { NavigationRail } from "../shell/navigation-rail";
+import { OpenSessionRail } from "../shell/open-session-rail";
+import { SignOutModal } from "../shell/sign-out-modal";
+import type { SignedInPerson } from "../shell/signed-in-person";
 
-export type HistoryRailProps = {
+export type SalesHistoryRailProps = {
   person: SignedInPerson;
   registerName: string | null;
   sessionOpen: boolean;
   lock: () => void;
 };
 
-export function HistoryRail({ person, registerName, sessionOpen, lock }: HistoryRailProps) {
+export function SalesHistoryRail({
+  person,
+  registerName,
+  sessionOpen,
+  lock,
+}: SalesHistoryRailProps) {
   const [leaving, setLeaving] = useState(false);
 
   if (sessionOpen) {

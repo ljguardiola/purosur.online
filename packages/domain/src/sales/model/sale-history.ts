@@ -32,14 +32,37 @@ export type SaleComprobante =
   | { kind: "deferred_non_fiscal" }
   | { kind: "none" };
 
+interface SaleStandingFacts {
+  deferred: boolean;
+  documentBeingRequested: boolean;
+}
+
+export type SaleStandingDefinition = Pick<SaleStandingFacts, "deferred"> &
+  Partial<Pick<SaleStandingFacts, "documentBeingRequested">>;
+
+export const SALE_STANDING_DEFINITIONS = {
+  deferred: { deferred: true },
+  in_progress: { deferred: false, documentBeingRequested: true },
+} as const satisfies Record<Exclude<SaleStanding, "completed">, SaleStandingDefinition>;
+
+function isDefinedBy(definition: SaleStandingDefinition, facts: SaleStandingFacts): boolean {
+  return (
+    definition.deferred === facts.deferred &&
+    (definition.documentBeingRequested === undefined ||
+      definition.documentBeingRequested === facts.documentBeingRequested)
+  );
+}
+
 export function saleStandingOf({ deferred, fiscalDocument }: SaleFiscalFacts): SaleStanding {
-  if (deferred) {
+  const facts: SaleStandingFacts = {
+    deferred,
+    documentBeingRequested:
+      fiscalDocument !== null && IN_PROGRESS_FISCAL_DOCUMENT_STATES.includes(fiscalDocument.state),
+  };
+  if (isDefinedBy(SALE_STANDING_DEFINITIONS.deferred, facts)) {
     return "deferred";
   }
-  return fiscalDocument !== null &&
-    IN_PROGRESS_FISCAL_DOCUMENT_STATES.includes(fiscalDocument.state)
-    ? "in_progress"
-    : "completed";
+  return isDefinedBy(SALE_STANDING_DEFINITIONS.in_progress, facts) ? "in_progress" : "completed";
 }
 
 export function saleComprobanteOf({ deferred, fiscalDocument }: SaleFiscalFacts): SaleComprobante {

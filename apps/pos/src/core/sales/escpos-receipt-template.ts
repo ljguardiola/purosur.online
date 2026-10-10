@@ -7,13 +7,17 @@ import {
   STOCK_QUANTITY_PER_UNIT,
 } from "@purosur/domain";
 import type { ReceiptTemplate, StoredReceipt } from "@purosur/domain/sales/use-cases";
-import { formatCents, formatDate, formatNumber } from "@purosur/ui/formatters";
+import {
+  formatCents,
+  formatDate,
+  formatNumber,
+  formatOperationNumber,
+} from "@purosur/ui/formatters";
 import { encodePc850 } from "./pc850";
 import { RECEIPT_LOGO } from "./receipt-logo";
 
 const TEMPLATE_VERSION = "1";
 const COLUMNS = 48;
-const OPERATION_NUMBER_DIGITS = 6;
 const RULE = "─".repeat(COLUMNS);
 const FEED_LINES = 5;
 const PC850_TABLE = 2;
@@ -150,13 +154,9 @@ function operation(
     hourCycle: "h23",
     timeZone: ARGENTINA_TIME_ZONE,
   });
-  const number = formatNumber(operationNumber, {
-    minimumIntegerDigits: OPERATION_NUMBER_DIGITS,
-    useGrouping: false,
-  });
   out.lines([
     ...row(`Fecha ${date}`, `Hora ${time}`),
-    ...row(`Operación ${number}`, `Atendió ${servedByFirstName}`),
+    ...row(`Operación ${formatOperationNumber(operationNumber)}`, `Atendió ${servedByFirstName}`),
     RULE,
   ]);
 }
@@ -179,9 +179,6 @@ function weightText(thousandths: number): string {
 
 function saleLine(line: ReceiptContent["lines"][number]): string[] {
   const amount = formatCents(line.lineTotal + line.discountAmount);
-  if (line.saleUnit === "UNIT" && line.quantity === 1 && line.discountAmount === 0) {
-    return row(line.productName, amount);
-  }
   const price = formatCents(line.listUnitPrice);
   const detail =
     line.saleUnit === "KG"
@@ -191,7 +188,10 @@ function saleLine(line: ReceiptContent["lines"][number]): string[] {
     ...wrapped(line.productName, COLUMNS),
     ...row(detail, amount, "  "),
     ...(line.discountAmount > 0
-      ? row(promotionText(line.promotion), `-${formatCents(line.discountAmount)}`, "  ")
+      ? [
+          ...row(promotionText(line.promotion), `-${formatCents(line.discountAmount)}`, "  "),
+          ...row("Total de la línea", formatCents(line.lineTotal), "  "),
+        ]
       : []),
   ];
 }

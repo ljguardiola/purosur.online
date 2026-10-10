@@ -2,12 +2,16 @@ import {
   mayStartReceiptPrint,
   observePrintAcknowledged,
   observePrinterStatus,
+  observePrintFailed,
   type ReceiptPrintObservation,
-  type ReceiptPrintStanding,
   receiptPrintStanding,
   startedReceiptPrint,
 } from "@purosur/domain";
-import type { ReceiptPrinter, ReceiptPrintWatch } from "@purosur/domain/sales/use-cases";
+import type {
+  ReceiptPrinter,
+  ReceiptPrintStandings,
+  ReceiptPrintWatch,
+} from "@purosur/domain/sales/use-cases";
 
 export interface ReceiptPrintJobsDeps {
   now: () => Date;
@@ -25,8 +29,7 @@ type ReceiptPrintStart<TOutcome> =
   | { kind: "answered"; outcome: TOutcome }
   | { kind: "failed" };
 
-export interface ReceiptPrintJobs {
-  standing(saleId: string): ReceiptPrintStanding | null;
+export interface ReceiptPrintJobs extends ReceiptPrintStandings {
   start<TOutcome>(
     saleId: string,
     run: (runner: ReceiptPrintRunner) => Promise<TOutcome>,
@@ -50,7 +53,7 @@ export function createReceiptPrintJobs({
   const entries = new Map<string, Entry>();
 
   return {
-    standing(saleId) {
+    standingOf(saleId) {
       const job = entries.get(saleId)?.current;
       return job === undefined ? null : receiptPrintStanding(job.observation, now());
     },
@@ -103,9 +106,12 @@ export function createReceiptPrintJobs({
             reportFailure("printing a receipt", error);
             if (!sent) {
               entry.starting = false;
+              entry.current?.abort.abort();
+              entry.current = job;
+              job.observation = observePrintFailed(job.observation);
               resolve({ kind: "failed" });
-            } else if (entry.current === job && !job.observation.acknowledged) {
-              entry.current = undefined;
+            } else if (entry.current === job) {
+              job.observation = observePrintFailed(job.observation);
             }
           },
         );

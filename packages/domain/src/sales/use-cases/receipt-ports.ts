@@ -1,7 +1,7 @@
 import type { OutboxEventDraft } from "../../shared/index.js";
 import type { ReceiptContent, ReceiptSource } from "../model/receipt-content.js";
 import type { ReceiptCopy, ReceiptDelivery } from "../model/receipt-copy.js";
-import type { PrinterStatus } from "../model/receipt-print-standing.js";
+import type { PrinterStatus, ReceiptPrintStanding } from "../model/receipt-print-standing.js";
 
 export interface StoredReceipt {
   templateVersion: string;
@@ -50,4 +50,8 @@ export type ReceiptPrintEnding = { kind: "acknowledged" } | { kind: "abandoned" 
 
 export interface ReceiptPrinter {
   print(receipt: Uint8Array, watch: ReceiptPrintWatch): Promise<ReceiptPrintEnding>;
+}
+
+export interface ReceiptPrintStandings {
+  standingOf(saleId: string): ReceiptPrintStanding | null;
 }

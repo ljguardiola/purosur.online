@@ -38,17 +38,25 @@ interface Recorded {
 }
 
 export async function printReceipt<Grant extends ReceiptPrintGrant, Refusal>(
-  { ledger, clock, ids, template, printer, authority }: ReceiptPrintingPorts<Grant, Refusal>,
+  ports: ReceiptPrintingPorts<Grant, Refusal>,
   saleId: string,
   reasonOfDuplicate: ReceiptReason,
   watch: ReceiptPrintWatch,
 ): Promise<ReceiptPrintOutcome | Refusal> {
-  const authorization = await authority.authorize();
+  const authorization = await ports.authority.authorize();
   if (authorization.kind === "refused") {
     return authorization.refusal;
   }
-  const { grant } = authorization;
+  return printGrantedReceipt(ports, authorization.grant, saleId, reasonOfDuplicate, watch);
+}
 
+export async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
+  { ledger, clock, ids, template, printer }: ReceiptPrintingPorts<Grant, Refusal>,
+  grant: Grant,
+  saleId: string,
+  reasonOfDuplicate: ReceiptReason,
+  watch: ReceiptPrintWatch,
+): Promise<ReceiptPrintOutcome> {
   const recorded = ledger.transaction<Recorded | ReceiptPrintOutcome>((tx) => {
     const delivery = tx.receiptDelivery(saleId);
     if (delivery === undefined) {

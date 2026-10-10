@@ -111,9 +111,9 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
       case "sale_cancelled":
         return recordAppliedCancelledSale(this.tx, await this.originOf(event), fact, this.now());
       case "sale_print_state_changed":
-        return recordAppliedPrintState(this.tx, fact);
+        return recordAppliedPrintState(this.tx, await this.originOf(event), fact);
       case "reprint_recorded":
-        return recordAppliedReprint(this.tx, fact);
+        return recordAppliedReprint(this.tx, await this.originOf(event), fact);
       case "fiscal_gate_failed":
         return;
     }

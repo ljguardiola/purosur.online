@@ -16,6 +16,7 @@ import {
   type ReceiptPrintGrant,
   receiptDeliveryOf,
   reprintSaleReceipt,
+  retrySaleReceiptPrint,
 } from "@purosur/domain/sales/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import type { ActionGate } from "../sessions/action-gate";
@@ -53,9 +54,9 @@ type SaleReceiptRefusal = Extract<
   }
 >;
 
-type RetryRefusal = Extract<
+type SellerRefusal = Extract<
   RetryReceiptPrintOutcome,
-  { kind: "not_signed_in" | "lacks_permission" | "not_offered" }
+  { kind: "not_signed_in" | "lacks_permission" }
 >;
 
 function toWireCopy(copy: ReceiptCopy): ReceiptCopyShown {
@@ -76,7 +77,7 @@ export async function receiptPrintStatusFor(
         kind: "found",
         next_copy: toWireCopy(delivery.nextCopy),
         printed: delivery.printedAt !== null,
-        standing: jobs.standing(saleId),
+        standing: jobs.standingOf(saleId),
       };
 }
 
@@ -108,22 +109,16 @@ function copyAfterGrant(deps: ReceiptRequestDeps, saleId: string, started: Start
   started.copy = delivery.kind === "found" ? delivery.nextCopy : undefined;
 }
 
-function signedSellerAuthority<Refusal>(
+function signedSellerAuthority(
   deps: ReceiptRequestDeps,
   saleId: string,
   started: Started,
-  refuse: (refusal: { kind: "not_signed_in" | "lacks_permission" }) => Refusal,
-  extraCheck?: () => Refusal | undefined,
-): OperationAuthority<ReceiptPrintGrant, Refusal> {
+): OperationAuthority<ReceiptPrintGrant, SellerRefusal> {
   return {
-    async authorize(): Promise<OperationAuthorization<ReceiptPrintGrant, Refusal>> {
+    async authorize(): Promise<OperationAuthorization<ReceiptPrintGrant, SellerRefusal>> {
       const guarded = await deps.gate.run({ kind: "sell" }, async (actor) => actor);
       if (guarded.kind !== "performed") {
-        return { kind: "refused", refusal: refuse(guarded) };
-      }
-      const refusal = extraCheck?.();
-      if (refusal !== undefined) {
-        return { kind: "refused", refusal };
+        return { kind: "refused", refusal: guarded };
       }
       copyAfterGrant(deps, saleId, started);
       return {
@@ -145,7 +140,7 @@ export async function printCompletedSaleReceiptFor(
       printingPorts(
         deps,
         chainKey,
-        signedSellerAuthority(deps, saleId, started, (refusal) => refusal),
+        signedSellerAuthority(deps, saleId, started),
         printer(deps.printer),
       ),
       { saleId },
@@ -160,23 +155,17 @@ export async function retryReceiptPrintFor(
 ): Promise<RetryReceiptPrintOutcome> {
   const chainKey = await deps.readOutboxChainKey();
   const started: Started = { copy: undefined };
-  const start = await deps.jobs.start<
-    Awaited<ReturnType<typeof printSaleReceipt<ReceiptPrintGrant, RetryRefusal>>>
-  >(saleId, ({ watch, printer }) =>
-    printSaleReceipt(
-      printingPorts(
-        deps,
-        chainKey,
-        signedSellerAuthority<RetryRefusal>(
+  const start = await deps.jobs.start(saleId, ({ watch, printer }) =>
+    retrySaleReceiptPrint(
+      {
+        ...printingPorts(
           deps,
-          saleId,
-          started,
-          (refusal) => refusal,
-          () =>
-            deps.jobs.standing(saleId) === "retry_offered" ? undefined : { kind: "not_offered" },
+          chainKey,
+          signedSellerAuthority(deps, saleId, started),
+          printer(deps.printer),
         ),
-        printer(deps.printer),
-      ),
+        standings: deps.jobs,
+      },
       { saleId },
       watch,
     ),

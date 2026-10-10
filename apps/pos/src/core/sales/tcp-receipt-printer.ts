@@ -215,10 +215,9 @@ export class TcpReceiptPrinter implements ReceiptPrinter {
         } else if (link.connected) {
           if (link.unansweredPolls >= UNANSWERED_POLLS_BEFORE_SILENCE) {
             report("not_responding");
-          } else {
-            link.unansweredPolls += 1;
-            link.socket.write(STATUS_QUERY);
           }
+          link.unansweredPolls += 1;
+          link.socket.write(STATUS_QUERY);
         }
       };
 

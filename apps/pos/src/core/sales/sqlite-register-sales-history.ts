@@ -2,8 +2,10 @@ import {
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalDocumentState,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
+  SALE_STANDING_DEFINITIONS,
   type SaleFiscalFacts,
   type SaleStanding,
+  type SaleStandingDefinition,
   saleTotal,
 } from "@purosur/domain";
 import type {
@@ -47,25 +49,48 @@ const DOCUMENT_BEING_REQUESTED = `EXISTS (
     AND fiscal_documents.state IN (${IN_PROGRESS_FISCAL_DOCUMENT_STATES.map(() => "?").join(", ")})
 )`;
 
-function standingCondition(standing: SaleStanding | undefined): {
+interface Condition {
   sql: string;
   parameters: string[];
-} {
+}
+
+function factCondition(sql: string, parameters: string[], holds: boolean): Condition {
+  return { sql: holds ? sql : `NOT ${sql}`, parameters };
+}
+
+function definitionCondition({
+  deferred,
+  documentBeingRequested,
+}: SaleStandingDefinition): Condition {
+  const facts = [factCondition(DEFERRED, [], deferred)];
+  if (documentBeingRequested !== undefined) {
+    facts.push(
+      factCondition(
+        DOCUMENT_BEING_REQUESTED,
+        [...IN_PROGRESS_FISCAL_DOCUMENT_STATES],
+        documentBeingRequested,
+      ),
+    );
+  }
+  return {
+    sql: `(${facts.map(({ sql }) => sql).join(" AND ")})`,
+    parameters: facts.flatMap(({ parameters }) => parameters),
+  };
+}
+
+function standingCondition(standing: SaleStanding | undefined): Condition {
   switch (standing) {
     case undefined:
       return { sql: "1 = 1", parameters: [] };
-    case "deferred":
-      return { sql: DEFERRED, parameters: [] };
-    case "in_progress":
+    case "completed": {
+      const others = Object.values(SALE_STANDING_DEFINITIONS).map(definitionCondition);
       return {
-        sql: `NOT ${DEFERRED} AND ${DOCUMENT_BEING_REQUESTED}`,
-        parameters: [...IN_PROGRESS_FISCAL_DOCUMENT_STATES],
+        sql: others.map(({ sql }) => `NOT ${sql}`).join(" AND "),
+        parameters: others.flatMap(({ parameters }) => parameters),
       };
-    case "completed":
-      return {
-        sql: `NOT ${DEFERRED} AND NOT ${DOCUMENT_BEING_REQUESTED}`,
-        parameters: [...IN_PROGRESS_FISCAL_DOCUMENT_STATES],
-      };
+    }
+    default:
+      return definitionCondition(SALE_STANDING_DEFINITIONS[standing]);
   }
 }
 

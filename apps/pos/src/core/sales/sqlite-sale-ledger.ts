@@ -293,12 +293,13 @@ export class SqliteSaleLedger implements SaleLedger {
     this.database
       .prepare(
         `INSERT INTO sale_lines (
-           id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id,
-           promotion_id, discount_amount, line_total
+           id, sale_id, position, product_id, product_name, sale_unit, quantity, list_unit_price,
+           price_list_id, promotion_id, discount_amount, line_total
          ) VALUES (
            @id, @sale_id,
            (SELECT coalesce(max(position), 0) + 1 FROM sale_lines WHERE sale_id = @sale_id),
-           @product_id, @product_name, @quantity, @list_unit_price, @price_list_id,
+           @product_id, @product_name, (SELECT sale_unit FROM products WHERE id = @product_id),
+           @quantity, @list_unit_price, @price_list_id,
            @promotion_id, @discount_amount, @line_total
          )`,
       )

@@ -1,4 +1,4 @@
-import type { TableLoadingState } from "@purosur/ui";
+import type { EmptyStateProps, TableLoadingState } from "@purosur/ui";
 import {
   actionsColumn,
   dataColumn,
@@ -54,6 +54,15 @@ function pageRange(page: number, pageSize: number, total: number): string {
   const first = (page - 1) * pageSize + 1;
   const last = Math.min(page * pageSize, total);
   return `${first} a ${last} de ${total} ${sales}`;
+}
+
+function emptyState(session: SessionFilter, state: StateFilter): EmptyStateProps {
+  if (state !== "all") {
+    return { icon: <ReceiptText />, title: "No hay ventas en ese estado", variant: "filtered" };
+  }
+  return session === "open"
+    ? { icon: <ReceiptText />, title: "No hay ventas en la sesión abierta", variant: "filtered" }
+    : { icon: <ReceiptText />, title: "Todavía no hay ventas", variant: "blank" };
 }
 
 export type SalesHistoryTableProps = {
@@ -180,11 +189,7 @@ export function SalesHistoryTable({
               },
             }
           : { loading: loadingOf(history) })}
-        empty={
-          state === "all"
-            ? { icon: <ReceiptText />, title: "Todavía no hay ventas", variant: "blank" }
-            : { icon: <ReceiptText />, title: "No hay ventas en ese estado", variant: "filtered" }
-        }
+        empty={emptyState(session, state)}
         footer={
           found === undefined || found.rows.length === 0 ? undefined : (
             <div className="flex items-center justify-between gap-4">

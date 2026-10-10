@@ -27,3 +27,9 @@ CREATE TABLE sale_reprints (
   PRIMARY KEY (sale_id, order_number),
   CHECK ((reason_kind = 'requested') = (reason_text IS NOT NULL))
 );
+
+ALTER TABLE sale_lines ADD COLUMN sale_unit TEXT NOT NULL DEFAULT 'UNIT'
+  CHECK (sale_unit IN ('UNIT', 'KG'));
+UPDATE sale_lines
+SET sale_unit = (SELECT products.sale_unit FROM products WHERE products.id = sale_lines.product_id)
+WHERE EXISTS (SELECT 1 FROM products WHERE products.id = sale_lines.product_id);

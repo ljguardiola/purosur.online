@@ -47,7 +47,9 @@ export function useReceiptPrintStatusQuery({
       return outcome.kind === "found" ? outcome : "unavailable";
     },
     refetchInterval: (status) =>
-      status?.printed === true ? false : RECEIPT_PRINT_POLL_MILLISECONDS,
+      status?.printed === true || status?.standing === "failed"
+        ? false
+        : RECEIPT_PRINT_POLL_MILLISECONDS,
   });
 }
 

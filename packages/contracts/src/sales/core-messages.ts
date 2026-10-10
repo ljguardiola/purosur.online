@@ -178,7 +178,15 @@ const receiptPrintStatusOutcomeSchema = z.discriminatedUnion("kind", [
     next_copy: receiptCopySchema,
     printed: z.boolean(),
     standing: z
-      .enum(["printing", "cover_open", "paper_out", "not_responding", "retry_offered", "printed"])
+      .enum([
+        "printing",
+        "cover_open",
+        "paper_out",
+        "not_responding",
+        "retry_offered",
+        "failed",
+        "printed",
+      ])
       .nullable(),
   }),
   z.object({ kind: z.literal("not_found") }),

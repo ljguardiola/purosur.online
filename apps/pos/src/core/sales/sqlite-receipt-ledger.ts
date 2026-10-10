@@ -143,11 +143,11 @@ export class SqliteReceiptLedger implements ReceiptLedger {
     const lines = this.database
       .prepare<[string], LineRow>(
         `SELECT sale_lines.id AS id, sale_lines.product_name AS product_name,
-                products.sale_unit AS sale_unit, sale_lines.quantity AS quantity,
+                sale_lines.sale_unit AS sale_unit, sale_lines.quantity AS quantity,
                 sale_lines.list_unit_price AS list_unit_price,
                 sale_lines.promotion_id AS promotion_id,
                 sale_lines.discount_amount AS discount_amount, sale_lines.line_total AS line_total
-         FROM sale_lines JOIN products ON products.id = sale_lines.product_id
+         FROM sale_lines
          WHERE sale_lines.sale_id = ? ORDER BY sale_lines.position`,
       )
       .all(saleId);

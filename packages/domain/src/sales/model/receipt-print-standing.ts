@@ -4,6 +4,7 @@ export type PrinterStatus = "ready" | "cover_open" | "paper_out" | "not_respondi
 
 export interface ReceiptPrintObservation {
   acknowledged: boolean;
+  failed: boolean;
   status: PrinterStatus | null;
   readySince: Date | null;
 }
@@ -14,10 +15,11 @@ export type ReceiptPrintStanding =
   | "cover_open"
   | "paper_out"
   | "not_responding"
-  | "retry_offered";
+  | "retry_offered"
+  | "failed";
 
 export function startedReceiptPrint(): ReceiptPrintObservation {
-  return { acknowledged: false, status: null, readySince: null };
+  return { acknowledged: false, failed: false, status: null, readySince: null };
 }
 
 export function observePrinterStatus(
@@ -38,12 +40,19 @@ export function observePrintAcknowledged(
   return { ...observation, acknowledged: true };
 }
 
+export function observePrintFailed(observation: ReceiptPrintObservation): ReceiptPrintObservation {
+  return { ...observation, failed: true };
+}
+
 export function receiptPrintStanding(
-  { acknowledged, status, readySince }: ReceiptPrintObservation,
+  { acknowledged, failed, status, readySince }: ReceiptPrintObservation,
   now: Date,
 ): ReceiptPrintStanding {
   if (acknowledged) {
     return "printed";
+  }
+  if (failed) {
+    return "failed";
   }
   if (status === null) {
     return "printing";
@@ -64,5 +73,9 @@ export function mayStartReceiptPrint(
     return true;
   }
   const standing = receiptPrintStanding(observation, now);
-  return standing === "printed" || standing === "retry_offered";
+  return standing === "printed" || standing === "retry_offered" || standing === "failed";
+}
+
+export function mayRetryReceiptPrint(standing: ReceiptPrintStanding | null): boolean {
+  return standing === "retry_offered";
 }

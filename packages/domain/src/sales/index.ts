@@ -14,6 +14,7 @@ export {
   mayStartReceiptPrint,
   observePrintAcknowledged,
   observePrinterStatus,
+  observePrintFailed,
   RECEIPT_RETRY_DELAY_MS,
   receiptPrintStanding,
   startedReceiptPrint,
@@ -28,8 +29,10 @@ export type {
   SaleFiscalDocument,
   SaleFiscalFacts,
   SaleStanding,
+  SaleStandingDefinition,
 } from "./model/sale-history.js";
 export {
+  SALE_STANDING_DEFINITIONS,
   SALE_STANDINGS,
   SALES_HISTORY_PAGE_SIZE,
   saleComprobanteOf,

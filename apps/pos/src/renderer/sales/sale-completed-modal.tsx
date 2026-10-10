@@ -11,19 +11,23 @@ import { useReceiptPrintStatusQuery, useRefreshReceiptPrintStatus } from "./sale
 
 const RETRY_FAILED_MESSAGE = "No se pudo reintentar la impresión. Probá de nuevo.";
 
-type FailedStanding = "cover_open" | "paper_out" | "not_responding" | "retry_offered";
+type FailedStanding = "cover_open" | "paper_out" | "not_responding" | "retry_offered" | "failed";
 
 type FailurePresentation = {
-  printerState: string;
+  printerState: string | undefined;
   title: string;
   help: (copy: ReceiptCopyShown) => string;
 };
 
 const AUTOMATIC_RESOLUTION =
-  "El ticket queda en la impresora y sale solo cuando se resuelve. No hace falta reimprimir.";
+  "El ticket ya enviado queda en la impresora y sale solo cuando se resuelve. No hace falta reimprimir.";
 
-function copyName(copy: ReceiptCopyShown): string {
-  return copy.kind === "original" ? "original" : "duplicado";
+const UNCONFIRMED_PRINT = "La impresora volvió a responder pero no confirmó la impresión.";
+
+function retryCopyText(copy: ReceiptCopyShown): string {
+  return copy.kind === "original"
+    ? "El reintento sale como original."
+    : `Como el ticket ya se había enviado, el reintento sale como duplicado, con la reimpresión Nº ${copy.order_number}.`;
 }
 
 const FAILURES = {
@@ -46,8 +50,12 @@ const FAILURES = {
   retry_offered: {
     printerState: "Normal · sin confirmar la impresión",
     title: "El ticket no salió",
-    help: (copy) =>
-      `La impresora volvió a responder pero no confirmó la impresión. Como nunca se llegó a imprimir, el reintento sale como ${copyName(copy)}.`,
+    help: (copy) => `${UNCONFIRMED_PRINT} ${retryCopyText(copy)}`,
+  },
+  failed: {
+    printerState: undefined,
+    title: "Se produjo un error al imprimir",
+    help: () => "Imprimilo desde el historial de ventas.",
   },
 } as const satisfies Record<FailedStanding, FailurePresentation>;
 
@@ -150,11 +158,10 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
             rows={[
               { label: "Venta", value: "Confirmada · no se deshace" },
               ...(change > 0 ? [{ label: "Vuelto a entregar", value: formatCents(change) }] : []),
-              { label: "Impresora térmica", value: failure.printerState },
-              {
-                label: "Ticket",
-                value: `Pendiente de imprimir · sale como ${copyName(copy)}`,
-              },
+              ...(failure.printerState === undefined
+                ? []
+                : [{ label: "Impresora térmica", value: failure.printerState }]),
+              { label: "Ticket", value: "Pendiente de imprimir" },
             ]}
           />
           <InlineNotice

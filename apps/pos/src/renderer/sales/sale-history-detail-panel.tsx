@@ -131,8 +131,17 @@ function SelectedSale({
           />
         </Message>
       );
-    case "lacks_permission":
     case "not_signed_in":
+      return (
+        <Message>
+          <EmptyState
+            variant="blank"
+            icon={<TriangleAlert />}
+            title="La sesión terminó. Volvé a ingresar para ver la venta"
+          />
+        </Message>
+      );
+    case "lacks_permission":
       return (
         <Message>
           <EmptyState

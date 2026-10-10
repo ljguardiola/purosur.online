@@ -11,12 +11,13 @@ import { EmptyState, FloatingNotification, ScreenHeader } from "@purosur/ui";
 import { Lock, Printer, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import type { SalesHistoryQuery } from "../platform/core-client";
-import { HistoryRail } from "../shell/history-rail";
+import { sessionEyebrow } from "../shell/session-eyebrow";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { ReprintReceiptModal } from "./reprint-receipt-modal";
 import { SaleHistoryDetailPanel } from "./sale-history-detail-panel";
 import type { SaleDetail } from "./sale-history-text";
 import { receiptCopyPresentation } from "./sale-history-text";
+import { SalesHistoryRail } from "./sales-history-rail";
 import type { SessionFilter, StateFilter } from "./sales-history-table";
 import { SalesHistoryTable } from "./sales-history-table";
 import { useRefreshSalesHistory, useSalesHistoryQuery } from "./sales-queries";
@@ -38,11 +39,6 @@ export type SalesHistoryScreenProps = {
 };
 
 type FilterChoice = { session: SessionFilter; state: StateFilter; page: number };
-
-function eyebrowText(registerName: string | null, sessionOpen: boolean): string {
-  const scope = sessionOpen ? "Ventas de esta caja" : "Sin sesión abierta";
-  return registerName === null ? scope : `${registerName} · ${scope}`;
-}
 
 export function SalesHistoryScreen({
   person,
@@ -71,7 +67,7 @@ export function SalesHistoryScreen({
 
   return (
     <div className="flex h-full w-full bg-surface">
-      <HistoryRail
+      <SalesHistoryRail
         person={person}
         registerName={registerName}
         sessionOpen={sessionOpen}
@@ -79,7 +75,7 @@ export function SalesHistoryScreen({
       />
       <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
         <ScreenHeader
-          eyebrow={eyebrowText(registerName, sessionOpen)}
+          eyebrow={sessionEyebrow(registerName, sessionOpen)}
           title="Historial de ventas"
         />
         {refusal?.kind === "lacks_permission" ? (

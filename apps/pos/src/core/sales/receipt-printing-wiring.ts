@@ -1,3 +1,4 @@
+import type { ReceiptPrinter } from "@purosur/domain/sales/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import type { ActionGate } from "../sessions/action-gate";
 import { printingCompletedSales } from "./printing-completed-sales";
@@ -13,6 +14,10 @@ import { TcpReceiptPrinter } from "./tcp-receipt-printer";
 
 const INSTALLATION_PRINTER_HOST = "10.10.10.2";
 
+export function installationReceiptPrinter(): ReceiptPrinter {
+  return new TcpReceiptPrinter({ host: INSTALLATION_PRINTER_HOST });
+}
+
 export interface ReceiptPrintingWiringDeps {
   database: LocalDatabase | undefined;
   gate: ActionGate | undefined;
@@ -20,6 +25,7 @@ export interface ReceiptPrintingWiringDeps {
   ids: ReceiptRequestDeps["ids"];
   readOutboxChainKey: ReceiptRequestDeps["readOutboxChainKey"];
   signedInUserId: ReceiptRequestDeps["signedInUserId"];
+  printer: ReceiptPrinter;
   reportFailure: (context: string, error: unknown) => void;
   syncNow: () => void;
 }
@@ -44,6 +50,7 @@ export function createReceiptPrinting({
   ids,
   readOutboxChainKey,
   signedInUserId,
+  printer,
   reportFailure,
   syncNow,
 }: ReceiptPrintingWiringDeps): ReceiptPrinting {
@@ -62,7 +69,7 @@ export function createReceiptPrinting({
     ids,
     readOutboxChainKey,
     signedInUserId,
-    printer: new TcpReceiptPrinter({ host: INSTALLATION_PRINTER_HOST }),
+    printer,
     jobs: createReceiptPrintJobs({ now, reportFailure }),
   };
   return {

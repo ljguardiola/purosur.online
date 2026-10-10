@@ -1,4 +1,4 @@
-import { completedSaleId } from "../fiscal/authorizing-completed-sales";
+import { completedSaleId } from "../platform/completed-sale-id";
 
 export interface PrintingCompletedSalesDeps {
   print: (saleId: string) => Promise<void>;

@@ -70,7 +70,7 @@ export function receiptCopyPresentation(copy: ReceiptCopyShown): {
     : {
         printButton: "Reimprimir duplicado",
         comesOutAs: "Sale como duplicado",
-        legend: `DUPLICADO · REIMPRESIÓN Nº ${copy.order_number}`,
+        legend: `COPIA DUPLICADA Nº ${copy.order_number}`,
       };
 }
 
