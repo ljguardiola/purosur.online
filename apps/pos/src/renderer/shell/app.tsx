@@ -75,7 +75,7 @@ function Register({ core }: { core: CoreClient }) {
     enrollment = enrollmentRead.value ? "enrolled" : "not_enrolled";
   }
   const [signedInPerson, setPerson] = useState<SignedInPerson>();
-  const { offerSerialDevicesAfter, takeSerialDevicesOffer } = useSerialDevicesOffer();
+  const { offerSerialDevicesAfterSignIn, takeSerialDevicesOffer } = useSerialDevicesOffer();
   const cashSession = useCashSessionQuery({
     read: () => core.cashSession(),
     enabled: enrollment === "enrolled" && registerService === "in_service",
@@ -111,11 +111,15 @@ function Register({ core }: { core: CoreClient }) {
     return outcome;
   }
 
+  async function takePerson(signedIn: SignedInPerson, cashSession: OpenCashSession | null) {
+    offerSerialDevicesAfterSignIn(cashSession);
+    setPerson(signedIn);
+    await takeCashSession(cashSession);
+  }
+
   async function takeSignedInPerson(outcome: SignInOutcome) {
-    offerSerialDevicesAfter(outcome);
     if (outcome.kind === "signed_in") {
-      setPerson(outcome.person);
-      await takeCashSession(outcome.cash_session);
+      await takePerson(outcome.person, outcome.cash_session);
     }
     if (outcome.kind === "cash_session_opened_by_another") {
       await refreshCashSession();
@@ -280,8 +284,7 @@ function Register({ core }: { core: CoreClient }) {
   async function redeemPinCode(typedCode: string, newPin: string) {
     const outcome = await core.redeemPinCode(typedCode, newPin);
     if (outcome.kind === "resumed") {
-      setPerson(outcome.person);
-      await takeCashSession(outcome.cash_session);
+      await takePerson(outcome.person, outcome.cash_session);
     }
     return outcome;
   }

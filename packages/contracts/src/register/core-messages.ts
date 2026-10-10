@@ -315,6 +315,7 @@ const SERIAL_DEVICE_STANDING_KINDS = [
   "not_detected",
   "mismatched",
   "not_registered",
+  "unknown",
 ] as const;
 
 const registerStatusSchema = z.object({

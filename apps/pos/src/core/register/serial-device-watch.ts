@@ -20,52 +20,62 @@ export interface SerialDeviceWatchDeps {
   onFailure: (error: unknown) => void;
 }
 
+export type SerialDeviceReading =
+  | { kind: "listed"; standings: Standings }
+  | { kind: "unknown"; registered: RegisteredSerialDevices };
+
 export interface SerialDeviceWatch {
   start(): Promise<void>;
   checkNow(): Promise<void>;
-  standings(): Promise<Standings>;
+  reading(): SerialDeviceReading;
 }
 
-function standingsKey(standings: Standings): string {
-  return JSON.stringify(SERIAL_DEVICE_ROLES.map((role) => standings[role]));
+export function readStanding(
+  reading: SerialDeviceReading,
+  role: SerialDeviceRole,
+): SerialDeviceStanding | { kind: "unknown" } {
+  if (reading.kind === "listed") {
+    return reading.standings[role];
+  }
+  return reading.registered[role] === undefined ? { kind: "not_registered" } : { kind: "unknown" };
+}
+
+function readingKey(reading: SerialDeviceReading): string {
+  return JSON.stringify(SERIAL_DEVICE_ROLES.map((role) => readStanding(reading, role)));
 }
 
 export function createSerialDeviceWatch(deps: SerialDeviceWatchDeps): SerialDeviceWatch {
-  let latest: Standings | undefined;
+  let current: Standings | undefined;
   let running: Promise<void> | undefined;
   let askedWhileRunning = false;
   let cancelNext: (() => void) | undefined;
   let failing = false;
-  let endFirstCheck: () => void = () => undefined;
-  const firstCheckEnded = new Promise<void>((resolve) => {
-    endFirstCheck = resolve;
-  });
 
-  function registered(): RegisteredSerialDevices {
-    return deps.registrations.registeredSerialDevices();
+  function reading(): SerialDeviceReading {
+    return current === undefined
+      ? { kind: "unknown", registered: deps.registrations.registeredSerialDevices() }
+      : { kind: "listed", standings: current };
   }
 
-  function known(): Standings {
-    return latest ?? serialDeviceStandings(registered(), []);
+  function settle(next: Standings | undefined): void {
+    const before = readingKey(reading());
+    current = next;
+    if (readingKey(reading()) !== before) {
+      deps.onChange();
+    }
   }
 
   async function checkOnce(): Promise<void> {
     try {
       const detected = await deps.enumeration.detectedSerialDevices();
       failing = false;
-      const next = serialDeviceStandings(registered(), detected);
-      const changed = standingsKey(next) !== standingsKey(known());
-      latest = next;
-      if (changed) {
-        deps.onChange();
-      }
+      settle(serialDeviceStandings(deps.registrations.registeredSerialDevices(), detected));
     } catch (error) {
+      settle(undefined);
       if (!failing) {
         failing = true;
         deps.onFailure(error);
       }
-    } finally {
-      endFirstCheck();
     }
   }
 
@@ -90,9 +100,6 @@ export function createSerialDeviceWatch(deps: SerialDeviceWatchDeps): SerialDevi
   return {
     start: check,
     checkNow: check,
-    standings: async () => {
-      await firstCheckEnded;
-      return known();
-    },
+    reading,
   };
 }

@@ -382,7 +382,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             database: localDatabase,
             cloud: () => cloudReachability,
             now,
-            serialDevices: serialDeviceWatch.standings,
+            serialDevices: serialDeviceWatch.reading,
           }),
   registerService: register.service,
   registerName: () => replica?.registerName(),

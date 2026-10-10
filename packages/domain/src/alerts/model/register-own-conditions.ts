@@ -26,7 +26,7 @@ interface RegisterOwnStanding {
   lastAcceptedPushAt: Date | null;
   hours: readonly BranchWeeklyHoursRange[];
   now: Date;
-  serialDevices: Record<SerialDeviceRole, SerialDeviceStanding>;
+  serialDevices: Record<SerialDeviceRole, SerialDeviceStanding> | null;
 }
 
 export function registerOwnConditions({
@@ -44,7 +44,7 @@ export function registerOwnConditions({
       !revoked &&
       lastAcceptedPushAt !== null &&
       isRegisterQuiet({ lastSuccessfulSyncAt: lastAcceptedPushAt, hours, now }),
-    serial_device_missing: isSerialDeviceMissing(serialDevices),
+    serial_device_missing: serialDevices !== null && isSerialDeviceMissing(serialDevices),
   };
   return REGISTER_OWN_CONDITIONS.filter((condition) => held[condition]);
 }

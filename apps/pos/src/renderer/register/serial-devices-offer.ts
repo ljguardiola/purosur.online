@@ -1,5 +1,5 @@
-import type { RegisterStatus, SignInOutcome } from "@purosur/contracts";
-import { useRef } from "react";
+import type { OpenCashSession, RegisterStatus } from "@purosur/contracts";
+import { useState } from "react";
 import type { SignedInPerson } from "../shell/signed-in-person";
 
 export function mayConfigureSerialDevices(person: SignedInPerson): boolean {
@@ -41,20 +41,25 @@ export async function landsOnSerialDevicesAfterSignIn({
   return landsOnSerialDevices({ person, status });
 }
 
-export function useSerialDevicesOffer() {
-  const offerPending = useRef(false);
+export function serialDevicesOffer() {
+  let offerPending = false;
   return {
-    offerSerialDevicesAfter: (outcome: SignInOutcome) => {
-      offerPending.current = outcome.kind === "signed_in" && outcome.cash_session === null;
+    offerSerialDevicesAfterSignIn: (cashSession: OpenCashSession | null) => {
+      offerPending = cashSession === null;
     },
     takeSerialDevicesOffer: (person: SignedInPerson, readStatus: () => Promise<RegisterStatus>) =>
       landsOnSerialDevicesAfterSignIn({
         person,
-        offerPending: offerPending.current,
+        offerPending,
         settleOffer: () => {
-          offerPending.current = false;
+          offerPending = false;
         },
         readStatus,
       }),
   };
+}
+
+export function useSerialDevicesOffer() {
+  const [offer] = useState(serialDevicesOffer);
+  return offer;
 }
