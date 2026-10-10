@@ -1,5 +1,5 @@
 import {
-  FACTURA_C_DOCUMENT_TYPE,
+  type FACTURA_C_DOCUMENT_TYPE,
   nextOfflineNumber,
   type OfflineNumberBlockRange,
 } from "@purosur/domain";
