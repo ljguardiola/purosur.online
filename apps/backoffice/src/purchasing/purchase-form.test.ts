@@ -10,6 +10,7 @@ import {
   PURCHASE_LINE_REFUSALS,
   type PurchaseFormValues,
   type PurchaseLineValues,
+  priceReviewProductIds,
   purchaseLineQuantityRefusal,
   purchaseLinesMessage,
   purchasePackagingOptions,
@@ -342,5 +343,52 @@ describe("purchasePackagingOptions", () => {
 
   it("offers nothing before a product is chosen", () => {
     expect(purchasePackagingOptions([cajaDeMiel], null)).toEqual([]);
+  });
+});
+
+describe("reviewPriceNow", () => {
+  it("starts unchosen on every new line", () => {
+    expect(emptyPurchaseLine(1).reviewPriceNow).toBe(false);
+    expect(emptyPurchaseForm(TODAY).lines[0]?.reviewPriceNow).toBe(false);
+  });
+
+  it("is not part of the registration request", () => {
+    const chosen = line({
+      productId: bolsaDeAvena.productId,
+      quantity: "12,5",
+      cost: "2.000",
+      reviewPriceNow: true,
+    });
+    const unchosen = { ...chosen, reviewPriceNow: false };
+
+    expect(purchaseRegistrationRequestFrom(form({ lines: [chosen] }), packagableProducts)).toEqual(
+      purchaseRegistrationRequestFrom(form({ lines: [unchosen] }), packagableProducts),
+    );
+    expect(
+      JSON.stringify(
+        purchaseRegistrationRequestFrom(form({ lines: [chosen] }), packagableProducts),
+      ),
+    ).not.toContain("reviewPriceNow");
+  });
+});
+
+describe("priceReviewProductIds", () => {
+  it("lists the products of the lines chosen for review, once each and in line order", () => {
+    const lines = [
+      line({ id: 1, productId: "product-b", reviewPriceNow: true }),
+      line({ id: 2, productId: "product-a", reviewPriceNow: false }),
+      line({ id: 3, productId: "product-c", reviewPriceNow: true }),
+      line({ id: 4, productId: "product-b", reviewPriceNow: true }),
+    ];
+
+    expect(priceReviewProductIds(lines)).toEqual(["product-b", "product-c"]);
+  });
+
+  it("skips a chosen line that has no product", () => {
+    expect(priceReviewProductIds([line({ productId: null, reviewPriceNow: true })])).toEqual([]);
+  });
+
+  it("lists nothing when no line is chosen", () => {
+    expect(priceReviewProductIds([line({ productId: "product-a" })])).toEqual([]);
   });
 });

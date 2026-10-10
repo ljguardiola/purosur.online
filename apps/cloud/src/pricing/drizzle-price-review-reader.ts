@@ -7,11 +7,12 @@ import type {
   PricesUnderReviewQuery,
   PriceUnderReview,
 } from "@purosur/domain/pricing/use-cases";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   branchSettings,
   categories,
+  priceReviewPostponements,
   priceReviews,
   prices,
   products,
@@ -105,6 +106,16 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
       .where(eq(priceReviews.priceListId, settings.priceListId))
       .orderBy(priceReviews.productId, desc(priceReviews.reviewedAt));
 
+    const postponedRows = await this.db
+      .selectDistinct({ productId: priceReviewPostponements.productId })
+      .from(priceReviewPostponements)
+      .where(
+        and(
+          eq(priceReviewPostponements.priceListId, settings.priceListId),
+          isNull(priceReviewPostponements.resolvedByReviewId),
+        ),
+      );
+
     const pricesByProductId = new Map<string, typeof priceRows>();
     for (const row of priceRows) {
       const productPrices = pricesByProductId.get(row.productId);
@@ -129,6 +140,8 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
       latestReviewRows.map((row) => [row.productId, row.reviewedAt]),
     );
 
+    const postponedProductIds = new Set(postponedRows.map((row) => row.productId));
+
     const withReview: PriceUnderReview[] = productRows.map((row) => ({
       id: row.id,
       name: row.name,
@@ -137,7 +150,10 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
       saleUnit: row.saleUnit as SaleUnit,
       currentPrice: currentPriceByProductId.get(row.id) ?? null,
       ...priceReviewAt(
-        lastReviewedAtByProductId.get(row.id) ?? null,
+        {
+          lastReviewedAt: lastReviewedAtByProductId.get(row.id) ?? null,
+          reviewPostponed: postponedProductIds.has(row.id),
+        },
         query.now,
         settings.unreviewedPriceAlertDays,
       ),
@@ -149,6 +165,11 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
     const categoryId = query.categoryId;
     if (categoryId !== undefined) {
       filtered = filtered.filter((row) => row.categoryId === categoryId);
+    }
+    const productIds = query.productIds;
+    if (productIds !== undefined) {
+      const wanted = new Set(productIds);
+      filtered = filtered.filter((row) => wanted.has(row.id));
     }
     if (query.search) {
       const needle = query.search.toLowerCase();

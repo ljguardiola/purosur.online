@@ -4,6 +4,8 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { BackofficeAccess } from "../shell/backoffice-access";
+import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { NewPurchaseScreen } from "./new-purchase-screen";
 import type { NewPurchaseScreenServices } from "./new-purchase-services";
@@ -37,11 +39,20 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function renderScreen(services: NewPurchaseScreenServices, onSessionEnded: () => void = () => {}) {
+function renderScreen(
+  services: NewPurchaseScreenServices,
+  onSessionEnded: () => void = () => {},
+  access: BackofficeAccess = ADMINISTRATOR_ACCESS,
+) {
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <NewPurchaseScreen services={services} onSessionEnded={onSessionEnded} today={TODAY} />
+        <NewPurchaseScreen
+          access={access}
+          services={services}
+          onSessionEnded={onSessionEnded}
+          today={TODAY}
+        />
       </main>
     </FieldSizeProvider>,
   );
@@ -49,8 +60,11 @@ function renderScreen(services: NewPurchaseScreenServices, onSessionEnded: () =>
 
 type Screen = Awaited<ReturnType<typeof renderScreen>>;
 
-async function opened(services: NewPurchaseScreenServices = createServices()) {
-  const screen = await renderScreen(services);
+async function opened(
+  services: NewPurchaseScreenServices = createServices(),
+  access: BackofficeAccess = ADMINISTRATOR_ACCESS,
+) {
+  const screen = await renderScreen(services, () => {}, access);
   await expect.element(screen.getByRole("combobox", { name: /^Proveedor/ })).toBeVisible();
   return screen;
 }
@@ -179,6 +193,77 @@ test("registers a purchase with a line loaded by quantity, then goes back to the
   });
   await expect.poll(() => window.location.pathname).toBe("/purchases");
   expect(window.history.state).toMatchObject({ purchaseRegistered: true });
+});
+
+function reviewPriceNow(screen: Screen, number: number) {
+  return line(screen, number).getByRole("checkbox", { name: "Revisar el precio ahora" });
+}
+
+async function chooseReviewPriceNow(screen: Screen, number: number) {
+  await userEvent.click(line(screen, number).getByText("Revisar el precio ahora"));
+}
+
+test("offers each line the choice to review the price now, unchosen, to whoever sees the prices area", async () => {
+  const screen = await opened();
+
+  await expect.element(reviewPriceNow(screen, 1)).toBeVisible();
+  await expect.element(reviewPriceNow(screen, 1)).not.toBeChecked();
+
+  await userEvent.click(screen.getByRole("button", { name: "Agregar línea" }));
+
+  await expect.element(reviewPriceNow(screen, 2)).toBeVisible();
+});
+
+test("does not offer the choice to review the price now without the prices area", async () => {
+  const screen = await opened(createServices(), accessWith("purchases", "stock_area"));
+
+  await expect.element(line(screen, 1)).toBeVisible();
+  expect(screen.getByRole("checkbox", { name: "Revisar el precio ahora" }).query()).toBeNull();
+});
+
+test("goes to the prices to review the products of the lines chosen for it, instead of the list", async () => {
+  window.history.pushState(null, "", "/purchases/new");
+  const services = createServices();
+  vi.mocked(services.registerPurchase).mockResolvedValue({ kind: "ok", purchase: compraDeAvena });
+  const screen = await opened(services);
+  await fillHeader(screen);
+  await fillQuantityLine(screen);
+  await chooseReviewPriceNow(screen, 1);
+  await register(screen);
+
+  await expect.poll(() => window.location.pathname).toBe("/prices");
+  expect(window.location.search).toBe("");
+  expect(window.history.state).toMatchObject({
+    purchasedProductsToReview: [bolsaDeAvena.productId],
+  });
+});
+
+test("goes back to the list with its confirmation when no line was chosen for review", async () => {
+  window.history.pushState(null, "", "/purchases/new");
+  const services = createServices();
+  vi.mocked(services.registerPurchase).mockResolvedValue({ kind: "ok", purchase: compraDeAvena });
+  const screen = await opened(services);
+  await fillHeader(screen);
+  await fillQuantityLine(screen);
+  await register(screen);
+
+  await expect.poll(() => window.location.pathname).toBe("/purchases");
+  expect(window.location.search).toBe("");
+  expect(window.history.state).toMatchObject({ purchaseRegistered: true });
+});
+
+test("stays on the form when the registration is refused, even with lines chosen for review", async () => {
+  window.history.pushState(null, "", "/purchases/new");
+  const services = createServices();
+  vi.mocked(services.registerPurchase).mockResolvedValue({ kind: "failed" });
+  const screen = await opened(services);
+  await fillHeader(screen);
+  await fillQuantityLine(screen);
+  await chooseReviewPriceNow(screen, 1);
+  await register(screen);
+
+  await expect.element(screen.getByText("No se registró la compra")).toBeVisible();
+  expect(window.location.pathname).toBe("/purchases/new");
 });
 
 test("registers a purchase with a line loaded by packaging, the lot and its expiry", async () => {

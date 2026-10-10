@@ -6,8 +6,21 @@ export interface PriceReview {
   secondsSinceReview: number | null;
 }
 
+export interface PriceReviewHistory {
+  lastReviewedAt: Date | null;
+  reviewPostponed: boolean;
+}
+
+export interface PriceReviewPostponement {
+  locationId: string;
+  purchaseId: string;
+  actorId: string;
+  postponedAt: Date;
+  productIds: string[];
+}
+
 export function priceReviewAt(
-  lastReviewedAt: Date | null,
+  { lastReviewedAt, reviewPostponed }: PriceReviewHistory,
   now: Date,
   reviewWindowDays: number,
 ): PriceReview {
@@ -16,7 +29,7 @@ export function priceReviewAt(
   }
   const elapsedMs = now.getTime() - lastReviewedAt.getTime();
   return {
-    pending: elapsedMs > reviewWindowDays * DAY_MS,
+    pending: reviewPostponed || elapsedMs > reviewWindowDays * DAY_MS,
     secondsSinceReview: Math.max(0, Math.floor(elapsedMs / SECOND_MS)),
   };
 }

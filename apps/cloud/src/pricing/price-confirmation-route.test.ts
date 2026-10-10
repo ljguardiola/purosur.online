@@ -20,6 +20,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { DrizzlePriceReviewReader } from "./drizzle-price-review-reader.js";
 import { registerPriceConfirmationRoute } from "./price-confirmation-route.js";
+import { insertPriceReviewPostponement } from "./test-support/price-review-postponements.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -294,6 +295,42 @@ describe("POST /prices/:productId/confirmations", () => {
       .from(auditLog)
       .where(and(eq(auditLog.entity, "product_price_review"), eq(auditLog.entityId, productId)));
     expect(auditRow).toMatchObject({ actorId: userId, at: NOON });
+  });
+
+  it("clears the postponed review of the product whose price is confirmed", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const productId = await insertProduct("Arroz");
+    const reviewedAt = new Date(NOON.getTime() - 60 * 60 * 1000);
+    const priceId = await insertPrice(productId, 1000, reviewedAt);
+    await db.insert(priceReviews).values({
+      productId,
+      priceListId: await seededPriceListId(db),
+      priceId,
+      actorId: userId,
+      reviewedAt,
+    });
+    await insertPriceReviewPostponement(db, {
+      productId,
+      actorId: userId,
+      postponedAt: reviewedAt,
+    });
+    const pendingProductIds = async () =>
+      (
+        await new DrizzlePriceReviewReader(db).pricesUnderReview({
+          locationId: await seededLocationId(db),
+          now: NOON,
+          review: "pending",
+        })
+      ).products.map((product) => product.id);
+    expect(await pendingProductIds()).toEqual([productId]);
+
+    const response = await confirmPriceRequest(rawSessionId, productId, {
+      expectedCurrentPriceId: priceId,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(await pendingProductIds()).toEqual([]);
   });
 
   it("treats as current the same price the prices list shows when several start at the same moment", async () => {

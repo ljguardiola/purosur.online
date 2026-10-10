@@ -14,6 +14,7 @@ export type FetchPricesInput = {
   review: PricesReviewFilter;
   categoryId?: string;
   search?: string;
+  productIds?: readonly string[];
 };
 
 export type FetchPricesOutcome = CloudReadOutcome<PriceList>;
@@ -63,6 +64,10 @@ export async function fetchPrices(input: FetchPricesInput): Promise<FetchPricesO
   }
   if (input.search) {
     query.set("search", input.search);
+  }
+
+  if (input.productIds?.length) {
+    query.set("productIds", input.productIds.join(","));
   }
 
   let response: Response;

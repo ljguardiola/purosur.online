@@ -179,6 +179,50 @@ describe("the cloud_app role runMigrations creates", () => {
     await expectPermissionDenied(cloudApp`delete from price_reviews where id = ${review.id}`);
   });
 
+  it("opens and resolves a price_review_postponements row but cannot delete or truncate it", async () => {
+    const { priceId, priceListId } = await insertPricedRow();
+    const [product] = await cloudApp<{ productId: string }[]>`
+      select product_id as "productId" from prices where id = ${priceId}
+    `;
+    const [location] = await cloudApp<{ id: string }[]>`select id from locations limit 1`;
+    if (!product || !location) {
+      throw new Error("test setup: reading the product or the seeded location returned no row");
+    }
+    const [user] = await cloudApp<{ id: string }[]>`
+      insert into users (first_name, email, location_id)
+      values ('Cloud App Role Test', ${`cloud-app-role-test-${randomUUID()}@example.com`}, ${location.id})
+      returning id
+    `;
+    const [supplier] = await cloudApp<{ id: string }[]>`
+      insert into suppliers (name, actor_id)
+      values (${`cloud_app_role_test_${randomUUID()}`}, ${user?.id as string}) returning id
+    `;
+    const [purchase] = await cloudApp<{ id: string }[]>`
+      insert into purchases (supplier_id, location_id, purchased_on, receipt_type, recorded_at, actor_id)
+      values (${supplier?.id as string}, ${location.id}, '2026-10-01', 'sin_comprobante', now(), ${user?.id as string})
+      returning id
+    `;
+    const [review] = await cloudApp<{ id: string }[]>`
+      insert into price_reviews (product_id, price_list_id, actor_id, price_id)
+      values (${product.productId}, ${priceListId}, ${user?.id as string}, ${priceId}) returning id
+    `;
+    const [postponement] = await cloudApp<{ id: string }[]>`
+      insert into price_review_postponements (product_id, price_list_id, postponed_at, actor_id, purchase_id)
+      values (${product.productId}, ${priceListId}, now(), ${user?.id as string}, ${purchase?.id as string})
+      returning id
+    `;
+
+    await cloudApp`
+      update price_review_postponements set resolved_by_review_id = ${review?.id as string}
+      where id = ${postponement?.id as string}
+    `;
+
+    await expectPermissionDenied(
+      cloudApp`delete from price_review_postponements where id = ${postponement?.id as string}`,
+    );
+    await expectPermissionDenied(cloudApp`truncate price_review_postponements`);
+  });
+
   it("appends fiscal configuration versions but never rewrites, removes or truncates them", async () => {
     const [location] = await cloudApp<{ id: string }[]>`select id from locations limit 1`;
     if (!location) {

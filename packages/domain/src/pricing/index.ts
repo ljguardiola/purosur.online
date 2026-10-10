@@ -38,4 +38,5 @@ export { isValidDiscountWeekdays } from "./model/discount-weekdays.js";
 export type { SoldQuantity } from "./model/discounted-amount.js";
 export { discountedAmount, lineAmount } from "./model/discounted-amount.js";
 export { MAX_UNIT_PRICE_CENTS } from "./model/price.js";
+export type { PriceReviewPostponement } from "./model/price-review.js";
 export { priceReviewAt } from "./model/price-review.js";
