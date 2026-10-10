@@ -25,6 +25,7 @@ export type ScanProblem =
   | { kind: "add_failed" }
   | { kind: "search_failed" }
   | { kind: "change_failed" }
+  | { kind: "weight_change_failed" }
   | { kind: "remove_failed" }
   | { kind: "cancel_failed" }
   | { kind: "has_approved_payment" }
@@ -93,6 +94,12 @@ export function messageFor(problem: ScanProblem): Message {
       return {
         icon: TriangleAlert,
         title: "No se pudo cambiar la cantidad",
+        help: "Probá de nuevo.",
+      };
+    case "weight_change_failed":
+      return {
+        icon: TriangleAlert,
+        title: "No se pudo cambiar el peso",
         help: "Probá de nuevo.",
       };
     case "remove_failed":

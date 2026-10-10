@@ -101,7 +101,7 @@ type TakenOutcome =
 
 type SaleEditFailure = Extract<
   ScanProblem,
-  { kind: "change_failed" | "remove_failed" | "cancel_failed" }
+  { kind: "change_failed" | "weight_change_failed" | "remove_failed" | "cancel_failed" }
 >;
 
 const LETTER = /\p{L}/u;
@@ -393,7 +393,7 @@ export function SaleScreen({
 
   async function changeWeight(line: SaleLine, weight: number): Promise<"invalid_weight" | "done"> {
     const outcome = await edit(() => changeLineWeight(line.id, weight, line.quantity), {
-      kind: "change_failed",
+      kind: "weight_change_failed",
     });
     if (outcome === "invalid_weight") {
       return "invalid_weight";
