@@ -24,7 +24,7 @@ function fileSystemWith(
 }
 
 describe("the register's storage telemetry", () => {
-  it("reads the size of the database's write-ahead log and the free space of its volume", async () => {
+  it("reads the size of the database's write-ahead log and the free space of its folder's volume", async () => {
     const fileSystem = fileSystemWith(
       { "/data/register.sqlite-wal": 8192 },
       { availableBytes: 25_000, totalBytes: 100_000 },
@@ -37,7 +37,7 @@ describe("the register's storage telemetry", () => {
       disk_free_bytes: 25_000,
       disk_free_ratio: 0.25,
     });
-    expect(fileSystem.measured).toEqual(["/data/register.sqlite"]);
+    expect(fileSystem.measured).toEqual(["/data"]);
   });
 
   it("counts a write-ahead log that doesn't exist as empty", async () => {
@@ -81,6 +81,16 @@ describe("the computer's file system", () => {
 
     expect(await nodeStorageFileSystem.sizeOf(join(folder, "register.sqlite-wal"))).toBe(5);
     expect(await nodeStorageFileSystem.sizeOf(join(folder, "missing"))).toBeUndefined();
+  });
+
+  it("reads the storage of a database whose file is missing from its folder", async () => {
+    const telemetry = await storageTelemetryReader(
+      join(folder, "register.sqlite"),
+      nodeStorageFileSystem,
+    )();
+
+    expect(telemetry.wal_size_bytes).toBe(0);
+    expect(telemetry.disk_free_bytes).toBeGreaterThanOrEqual(0);
   });
 
   it("measures the space available to the user on the volume holding a path", async () => {

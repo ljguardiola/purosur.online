@@ -12,6 +12,7 @@ import {
   firstPinCodeBodySchema,
   firstPinCodeSchema,
   healthCheckSchema,
+  type PushEventsRequest,
   pinCodeRedemptionBodySchema,
   pinCodeRedemptionSchema,
   pushEventsRequestSchema,
@@ -32,6 +33,7 @@ export interface StandInCloud {
   readonly feedStored: Promise<void>;
   readonly requests: readonly string[];
   readonly authorizationRequests: readonly RealTimeAuthorizationRequestBody[];
+  readonly eventPushes: readonly PushEventsRequest[];
   dropEveryConnection(): Promise<void>;
   stop(): Promise<void>;
 }
@@ -80,6 +82,7 @@ export async function startStandInCloud(
   const problems: string[] = [];
   const requests: string[] = [];
   const authorizationRequests: RealTimeAuthorizationRequestBody[] = [];
+  const eventPushes: PushEventsRequest[] = [];
   const firstPinCodes: Record<string, string> = { ...options.firstPinCodes };
   let acknowledgedSeq = 0;
   let markFeedStored = () => {};
@@ -179,7 +182,9 @@ export async function startStandInCloud(
     if (!hasDeviceToken(request, response, "an event push")) {
       return;
     }
-    const { events } = pushEventsRequestSchema.parse(await jsonBody(request));
+    const push = pushEventsRequestSchema.parse(await jsonBody(request));
+    eventPushes.push(push);
+    const { events } = push;
     acknowledgedSeq = Math.max(acknowledgedSeq, ...events.map((event) => event.device_seq));
     send(response, 200, pushEventsResponseSchema.parse({ status: "ok", ack_seq: acknowledgedSeq }));
   }
@@ -314,6 +319,7 @@ export async function startStandInCloud(
     feedStored,
     requests,
     authorizationRequests,
+    eventPushes,
     dropEveryConnection: async () => {
       const closed = new Promise<void>((resolve) => server.close(() => resolve()));
       server.closeAllConnections();

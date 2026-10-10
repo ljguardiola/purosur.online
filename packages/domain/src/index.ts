@@ -481,6 +481,7 @@ export {
   PULL_PAGE_MAX_CHANGES,
   PUSH_BATCH_MAX_EVENTS,
   pullAudienceOf,
+  SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,
   salesDeniedReportOf,
 } from "./sync/index.js";
 export {
