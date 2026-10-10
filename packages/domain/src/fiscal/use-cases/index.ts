@@ -35,12 +35,8 @@ export type {
 export type {
   AssignFirstOfflineNumberBlockOutcome,
   AssignOfflineNumberBlockInput,
-  AssignOfflineNumberBlockOutcome,
 } from "./assign-offline-number-block.js";
-export {
-  assignFirstOfflineNumberBlock,
-  assignOfflineNumberBlock,
-} from "./assign-offline-number-block.js";
+export { assignFirstOfflineNumberBlock } from "./assign-offline-number-block.js";
 export type {
   AuthorizeFiscalDocumentInput,
   AuthorizeFiscalDocumentOutcome,

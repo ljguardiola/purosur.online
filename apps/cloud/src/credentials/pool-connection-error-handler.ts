@@ -1,4 +1,4 @@
-import { type ReportRecoveryErrorDeps, reportRecoveryError } from "./recovery-error-reporting.js";
+import { type ReportErrorDeps, reportError } from "../platform/error-reporting.js";
 
 interface PoolConnection {
   on(event: "error", listener: (error: Error) => void): unknown;
@@ -19,12 +19,12 @@ interface ReportingPool {
 export function reportPoolErrors(
   pool: ReportingPool,
   label: string,
-  deps: ReportRecoveryErrorDeps = {},
+  deps: ReportErrorDeps = {},
 ): void {
   const checkedOut = new WeakSet<PoolConnection>();
 
   pool.on("error", (error) => {
-    reportRecoveryError(`${label}: idle database client failed`, error, deps);
+    reportError(`${label}: idle database client failed`, error, deps);
   });
   pool.on("acquire", (client) => {
     checkedOut.add(client);
@@ -42,7 +42,7 @@ export function reportPoolErrors(
         return;
       }
       reported = true;
-      reportRecoveryError(`${label}: active database client failed`, error, deps);
+      reportError(`${label}: active database client failed`, error, deps);
     });
   });
 }

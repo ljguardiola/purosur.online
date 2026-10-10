@@ -61,6 +61,7 @@ export type {
   LocalInstallation,
   LocalOutbox,
   LocalReplica,
+  OfflineAuthorizationCodeRequests,
   OutboxPruning,
   PruneOutboxPorts,
   PullAudience,

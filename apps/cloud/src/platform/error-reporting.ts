@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/node";
 
-export interface ReportRecoveryErrorDeps {
+export interface ReportErrorDeps {
   captureException?: (error: unknown) => unknown;
 }
 
@@ -12,20 +12,8 @@ function withoutThrowing(report: () => void): void {
   } catch {}
 }
 
-export function reportRecoveryError(
-  message: string,
-  error: unknown,
-  deps: ReportRecoveryErrorDeps = {},
-): void {
+export function reportError(message: string, error: unknown, deps: ReportErrorDeps = {}): void {
   const captureException = deps.captureException ?? Sentry.captureException;
   withoutThrowing(() => console.error(message, error));
   withoutThrowing(() => captureException(error));
-}
-
-/** Never let a bookkeeping write failure turn a request's 429/Retry-After response into a 500. */
-export function reportRecoveryBookkeepingError(
-  error: unknown,
-  deps: ReportRecoveryErrorDeps = {},
-): void {
-  reportRecoveryError("recovery: bookkeeping failed", error, deps);
 }

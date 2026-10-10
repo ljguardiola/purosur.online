@@ -11,19 +11,9 @@ export interface AssignOfflineNumberBlockInput {
   registerId: string;
 }
 
-export type AssignOfflineNumberBlockOutcome = { kind: "assigned"; range: OfflineNumberBlockRange };
-
 export type AssignFirstOfflineNumberBlockOutcome =
-  | AssignOfflineNumberBlockOutcome
+  | { kind: "assigned"; range: OfflineNumberBlockRange }
   | { kind: "already_has_block" };
-
-export async function assignOfflineNumberBlock(
-  store: OfflineNumberBlockStore,
-  input: AssignOfflineNumberBlockInput,
-): Promise<AssignOfflineNumberBlockOutcome> {
-  await store.lockOfflineNumberBlocks(input.pointOfSaleNumber, input.documentType);
-  return recordNextBlock(store, input);
-}
 
 export async function assignFirstOfflineNumberBlock(
   store: OfflineNumberBlockStore,
@@ -33,13 +23,6 @@ export async function assignFirstOfflineNumberBlock(
   if (await store.hasOfflineNumberBlockInUse(input.pointOfSaleNumber, input.documentType)) {
     return { kind: "already_has_block" };
   }
-  return recordNextBlock(store, input);
-}
-
-async function recordNextBlock(
-  store: OfflineNumberBlockStore,
-  input: AssignOfflineNumberBlockInput,
-): Promise<AssignOfflineNumberBlockOutcome> {
   const range = nextOfflineNumberBlock(
     await store.lastOfflineNumberBlock(input.pointOfSaleNumber, input.documentType),
   );

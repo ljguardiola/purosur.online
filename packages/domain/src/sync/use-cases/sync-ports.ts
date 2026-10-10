@@ -21,14 +21,20 @@ export interface ChangeLog<TChange extends PulledChange> {
 
 export interface ChangeLogTransaction<TChange extends PulledChange> {
   recordObservedPull(deviceId: string, since: number, at: Date): Promise<void>;
-  holdsOfflineAuthorizationCodeFor(fortnight: Fortnight): Promise<boolean>;
-  requestMissingOfflineAuthorizationCode(): Promise<void>;
   pullingRegister(deviceId: string): Promise<PullingRegister>;
   changesAfter(audience: PullAudience, since: number, limit: number): Promise<TChange[]>;
 }
 
+export interface OfflineAuthorizationCodeRequests {
+  installedRegisterHasOfflinePointOfSale(deviceId: string): Promise<boolean>;
+  holdsOfflineAuthorizationCodeFor(fortnight: Fortnight): Promise<boolean>;
+  // Never fails the pull: a request that cannot be made is reported and dropped.
+  requestOfflineAuthorizationCode(): Promise<void>;
+}
+
 export interface PullPorts<TChange extends PulledChange> {
   changeLog: ChangeLog<TChange>;
+  offlineAuthorizationCodes: OfflineAuthorizationCodeRequests;
   clock: Clock;
 }
 

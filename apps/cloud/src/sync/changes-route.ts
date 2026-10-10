@@ -13,6 +13,7 @@ import {
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { toBranchSettingsWire } from "../branch/branch-settings-wire.js";
+import { DrizzleOfflineAuthorizationCodeRequests } from "../fiscal/drizzle-offline-authorization-code-requests.js";
 import type { EnqueueOfflineAuthorizationCodeRequest } from "../fiscal/graphile-offline-authorization-code-queue.js";
 import { toIssuerIdentificationWire } from "../fiscal/issuer-identification-read-route.js";
 import { sendRateLimited } from "../platform/rate-limited-response.js";
@@ -259,7 +260,8 @@ export function registerChangesRoute<TQueryResult extends PgQueryResultHKT>(
 ): void {
   const tokenPorts = installationTokenPorts(options);
   const ports = {
-    changeLog: new DrizzleChangeLog(
+    changeLog: new DrizzleChangeLog(options.db),
+    offlineAuthorizationCodes: new DrizzleOfflineAuthorizationCodeRequests(
       options.db,
       options.enqueueOfflineAuthorizationCodeRequest,
       options.reportError,

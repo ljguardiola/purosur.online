@@ -1,4 +1,3 @@
-import type { Fortnight } from "@purosur/domain/fiscal/use-cases";
 import type {
   ChangeLog,
   ChangeLogTransaction,
@@ -10,11 +9,8 @@ import type {
 import { and, asc, eq, gt, inArray, max, or, type SQL } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { readBranchSettings } from "../branch/drizzle-branch-settings-reader.js";
-import { reportRecoveryError } from "../credentials/recovery-error-reporting.js";
-import type { EnqueueOfflineAuthorizationCodeRequest } from "../fiscal/graphile-offline-authorization-code-queue.js";
 import {
   branchSettings,
-  caeaCodes,
   changes,
   deviceState,
   registerInstallations,
@@ -58,40 +54,9 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
   implements ChangeLogTransaction<PulledCloudChange>
 {
   private readonly tx: PgDatabase<TQueryResult>;
-  private readonly enqueueOfflineAuthorizationCodeRequest:
-    | EnqueueOfflineAuthorizationCodeRequest
-    | undefined;
 
-  private readonly reportError: (error: unknown) => void;
-
-  constructor(
-    tx: PgDatabase<TQueryResult>,
-    enqueueOfflineAuthorizationCodeRequest: EnqueueOfflineAuthorizationCodeRequest | undefined,
-    reportError: (error: unknown) => void,
-  ) {
+  constructor(tx: PgDatabase<TQueryResult>) {
     this.tx = tx;
-    this.enqueueOfflineAuthorizationCodeRequest = enqueueOfflineAuthorizationCodeRequest;
-    this.reportError = reportError;
-  }
-
-  async holdsOfflineAuthorizationCodeFor(fortnight: Fortnight): Promise<boolean> {
-    const [held] = await this.tx
-      .select({ id: caeaCodes.id })
-      .from(caeaCodes)
-      .where(eq(caeaCodes.fortnightStart, fortnight.start));
-    return held !== undefined;
-  }
-
-  async requestMissingOfflineAuthorizationCode(): Promise<void> {
-    const enqueue = this.enqueueOfflineAuthorizationCodeRequest;
-    if (enqueue === undefined) {
-      return;
-    }
-    try {
-      await this.tx.transaction((savepoint) => enqueue(savepoint));
-    } catch (error) {
-      this.reportError(error);
-    }
   }
 
   async recordObservedPull(deviceId: string, since: number, at: Date): Promise<void> {
@@ -401,28 +366,13 @@ function requiredRow<TRow>(row: TRow | undefined, entity: LoggedEntity): TRow {
   return row;
 }
 
-function reportOfflineAuthorizationCodeRequestFailure(error: unknown): void {
-  reportRecoveryError("pull: requesting the offline authorization code failed", error);
-}
-
 export class DrizzleChangeLog<TQueryResult extends PgQueryResultHKT>
   implements ChangeLog<PulledCloudChange>
 {
   private readonly db: PgDatabase<TQueryResult>;
-  private readonly enqueueOfflineAuthorizationCodeRequest:
-    | EnqueueOfflineAuthorizationCodeRequest
-    | undefined;
 
-  private readonly reportError: (error: unknown) => void;
-
-  constructor(
-    db: PgDatabase<TQueryResult>,
-    enqueueOfflineAuthorizationCodeRequest?: EnqueueOfflineAuthorizationCodeRequest,
-    reportError: (error: unknown) => void = reportOfflineAuthorizationCodeRequestFailure,
-  ) {
+  constructor(db: PgDatabase<TQueryResult>) {
     this.db = db;
-    this.enqueueOfflineAuthorizationCodeRequest = enqueueOfflineAuthorizationCodeRequest;
-    this.reportError = reportError;
   }
 
   // Read committed, so a device's overlapping pulls wait on its state row instead of failing. Only
@@ -433,14 +383,6 @@ export class DrizzleChangeLog<TQueryResult extends PgQueryResultHKT>
   transaction<TOutcome>(
     work: (tx: ChangeLogTransaction<PulledCloudChange>) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) =>
-      work(
-        new DrizzleChangeLogTransaction(
-          tx,
-          this.enqueueOfflineAuthorizationCodeRequest,
-          this.reportError,
-        ),
-      ),
-    );
+    return this.db.transaction((tx) => work(new DrizzleChangeLogTransaction(tx)));
   }
 }
