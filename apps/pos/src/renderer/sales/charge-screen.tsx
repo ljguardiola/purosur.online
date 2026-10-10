@@ -3,9 +3,11 @@ import type {
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
+  FollowMercadoPagoQrChargeOutcome,
   OpenSale,
   ReceiptPrintStatusOutcome,
   RetryReceiptPrintOutcome,
+  StartMercadoPagoQrChargeOutcome,
 } from "@purosur/contracts";
 import {
   LoadFailure,
@@ -15,13 +17,17 @@ import {
   ScreenHeader,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { Banknote, Landmark, TriangleAlert } from "lucide-react";
+import { Banknote, Landmark, QrCode, TriangleAlert, WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import type { CompletedCharge } from "./cash-charge-modal";
 import { CashChargeModal } from "./cash-charge-modal";
 import { ChargePaymentPanel } from "./charge-payment-panel";
+import type { ShownQrOrder } from "./qr-charge-modal";
+import { QrChargeModal } from "./qr-charge-modal";
+import type { CompletedQrPayment } from "./qr-payment-wait-modal";
+import { QrPaymentWaitModal } from "./qr-payment-wait-modal";
 import { SaleCompletedModal } from "./sale-completed-modal";
 import { useCurrentSaleQuery, useRefreshCurrentSale } from "./sales-queries";
 import type { CompletedTransfer } from "./transfer-charge-modal";
@@ -31,26 +37,43 @@ type Step =
   | { name: "methods" }
   | { name: "cash" }
   | { name: "transfer" }
+  | { name: "qr" }
+  | { name: "qr-wait"; order: ShownQrOrder }
   | { name: "completed"; payment: CompletedPayment; sale: OpenSale };
 
 type CompletedPayment =
   | { method: "CASH"; charge: CompletedCharge }
-  | { method: "TRANSFER"; charge: CompletedTransfer };
+  | { method: "TRANSFER"; charge: CompletedTransfer }
+  | { method: "QR"; charge: CompletedQrPayment };
 
-const METHODS = [
-  {
-    value: "CASH",
-    label: "Efectivo",
-    description: "Cargás lo entregado y ves el vuelto",
-    icon: <Banknote />,
-  },
-  {
-    value: "TRANSFER",
-    label: "Transferencia",
-    description: "Confirmás al ver el ingreso en la cuenta del negocio",
-    icon: <Landmark />,
-  },
-] as const;
+const CASH_METHOD = {
+  value: "CASH",
+  label: "Efectivo",
+  description: "Cargás lo entregado y ves el vuelto",
+  icon: <Banknote />,
+} as const;
+
+const QR_METHOD = {
+  value: "QR",
+  label: "QR de Mercado Pago",
+  description: "El cliente escanea el QR · requiere internet",
+  icon: <QrCode />,
+} as const;
+
+const QR_METHOD_UNAVAILABLE = {
+  value: "QR",
+  label: "QR de Mercado Pago",
+  description: "No disponible sin conexión",
+  icon: <WifiOff />,
+  disabled: true,
+} as const;
+
+const TRANSFER_METHOD = {
+  value: "TRANSFER",
+  label: "Transferencia",
+  description: "Confirmás al ver el ingreso en la cuenta del negocio",
+  icon: <Landmark />,
+} as const;
 
 export type ChargeScreenProps = {
   sessionId: string;
@@ -61,6 +84,14 @@ export type ChargeScreenProps = {
   cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
+  mercadoPagoQr: "available" | "unavailable";
+  startMercadoPagoQrCharge: (
+    saleId: string,
+    amount: number,
+  ) => Promise<StartMercadoPagoQrChargeOutcome>;
+  followMercadoPagoQrCharge: (
+    paymentTransactionId: string,
+  ) => Promise<FollowMercadoPagoQrChargeOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
   retryReceiptPrint: (saleId: string) => Promise<RetryReceiptPrintOutcome>;
   onSessionInvalid: () => void;
@@ -75,6 +106,9 @@ export function ChargeScreen({
   cashCharge,
   chargeSaleInCash,
   chargeSaleByTransfer,
+  mercadoPagoQr,
+  startMercadoPagoQrCharge,
+  followMercadoPagoQrCharge,
   receiptPrintStatus,
   retryReceiptPrint,
   onSessionInvalid,
@@ -141,10 +175,20 @@ export function ChargeScreen({
             />
             <OptionCardGroup
               label="Medio de pago"
-              options={METHODS}
+              options={[
+                CASH_METHOD,
+                mercadoPagoQr === "available" ? QR_METHOD : QR_METHOD_UNAVAILABLE,
+                TRANSFER_METHOD,
+              ]}
               value={null}
               onChange={(method) =>
-                setStep(method === "CASH" ? { name: "cash" } : { name: "transfer" })
+                setStep(
+                  method === "CASH"
+                    ? { name: "cash" }
+                    : method === "QR"
+                      ? { name: "qr" }
+                      : { name: "transfer" },
+                )
               }
             />
           </>
@@ -188,6 +232,44 @@ export function ChargeScreen({
           onPartiallyPaid={backToMethodsWithBalance}
           onSaleUnavailable={backToSale}
           onSessionInvalid={onSessionInvalid}
+        />
+      ) : null}
+      {sale !== undefined && step.name === "qr" ? (
+        <QrChargeModal
+          total={sale.total}
+          paid={sale.paid}
+          pending={sale.pending}
+          start={(amount) => startMercadoPagoQrCharge(sale.id, amount)}
+          onChooseAnotherMethod={() => void backToMethodsWithBalance()}
+          onOrderShown={(order) => setStep({ name: "qr-wait", order })}
+          onSaleUnavailable={backToSale}
+          onSessionInvalid={onSessionInvalid}
+        />
+      ) : null}
+      {sale !== undefined && step.name === "qr-wait" ? (
+        <QrPaymentWaitModal
+          total={sale.total}
+          paid={sale.paid}
+          order={step.order}
+          follow={followMercadoPagoQrCharge}
+          onChooseAnotherMethod={() => void backToMethodsWithBalance()}
+          onCompleted={(charge) =>
+            setStep({ name: "completed", payment: { method: "QR", charge }, sale })
+          }
+          onPartiallyPaid={backToMethodsWithBalance}
+          onSaleUnavailable={backToSale}
+          onSessionInvalid={onSessionInvalid}
+        />
+      ) : null}
+      {step.name === "completed" && step.payment.method === "QR" ? (
+        <SaleCompletedModal
+          saleId={step.sale.id}
+          readReceiptStatus={receiptPrintStatus}
+          retryReceiptPrint={retryReceiptPrint}
+          total={step.payment.charge.total}
+          method="QR"
+          amount={step.payment.charge.amount}
+          onNewSale={backToSale}
         />
       ) : null}
       {step.name === "completed" && step.payment.method === "CASH" ? (
