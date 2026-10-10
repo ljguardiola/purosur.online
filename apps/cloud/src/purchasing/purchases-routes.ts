@@ -157,7 +157,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
 
   app.get("/purchase-choices", readGuard, async (_request, reply) => {
     const [choices, products] = await Promise.all([
-      listPurchaseChoices(reader),
+      listPurchaseChoices(reader, ports.clock),
       catalog.products(PRODUCTS_PURCHASES_MAY_BE_REGISTERED_FOR),
     ]);
     await reply.code(200).send(
@@ -165,6 +165,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
         suppliers: choices.suppliers,
         products: products.map(({ id, name, saleUnit }) => ({ id, name, saleUnit })),
         packagings: choices.packagings,
+        today: choices.today,
       }),
     );
   });

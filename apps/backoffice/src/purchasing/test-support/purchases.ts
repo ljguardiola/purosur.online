@@ -58,5 +58,10 @@ export const compraDeAvena: PurchaseSummary = {
 };
 
 export function purchaseChoicesFrom(suppliers: SupplierSummary[]): PurchaseChoices {
-  return { suppliers, products: packagableProducts, packagings: [cajaDeMiel, bolsaDeAvena] };
+  return {
+    suppliers,
+    products: packagableProducts,
+    packagings: [cajaDeMiel, bolsaDeAvena],
+    today: "2026-09-16",
+  };
 }

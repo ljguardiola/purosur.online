@@ -60,6 +60,10 @@ describe("emptyPurchaseForm", () => {
   it("builds the same empty form every time it is asked for one", () => {
     expect(emptyPurchaseForm(TODAY)).toEqual(emptyPurchaseForm(TODAY));
   });
+
+  it("leaves the purchase date empty while today is not known yet", () => {
+    expect(emptyPurchaseForm(null)).toEqual({ ...emptyPurchaseForm(TODAY), purchasedOn: null });
+  });
 });
 
 describe("nextPurchaseLineId", () => {
