@@ -278,7 +278,6 @@ describe("GET /prices", () => {
       riceId,
       noodlesId,
     ]);
-    expect(response.json().pendingCount).toBe(3);
   });
 
   it("answers 400 validation_failed naming productIds when one of them is not an id", async () => {

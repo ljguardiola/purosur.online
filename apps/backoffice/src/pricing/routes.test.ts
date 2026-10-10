@@ -2,28 +2,15 @@ import { expect, test } from "vitest";
 import { discountsListFilters, pricesListFilters } from "./routes";
 
 test("opens the prices list on prices pending review, in every category", () => {
-  expect(pricesListFilters.parse({})).toEqual({
-    search: "",
-    category: "ALL",
-    review: "pending",
-    reviewProducts: [],
-  });
+  expect(pricesListFilters.parse({})).toEqual({ search: "", category: "ALL", review: "pending" });
 });
 
 test("keeps the prices list filters a URL names, falling back for a value it does not offer", () => {
-  const filters = { search: "yerba", category: "category-2", review: "all", reviewProducts: [] };
+  const filters = { search: "yerba", category: "category-2", review: "all" };
   expect(pricesListFilters.parse(filters)).toEqual(filters);
   expect(pricesListFilters.parse({ search: false, category: 3, review: "later" })).toEqual(
     pricesListFilters.parse({}),
   );
-});
-
-test("keeps the products a URL asks to review, falling back to none for a value it does not offer", () => {
-  expect(
-    pricesListFilters.parse({ reviewProducts: ["product-1", "product-2"] }).reviewProducts,
-  ).toEqual(["product-1", "product-2"]);
-  expect(pricesListFilters.parse({ reviewProducts: "product-1" }).reviewProducts).toEqual([]);
-  expect(pricesListFilters.parse({ reviewProducts: [1, 2] }).reviewProducts).toEqual([]);
 });
 
 test("opens the promotions list on current and scheduled promotions of every kind, ordered by name", () => {

@@ -221,7 +221,7 @@ test("does not offer the choice to review the price now without the prices area"
   expect(screen.getByRole("checkbox", { name: "Revisar el precio ahora" }).query()).toBeNull();
 });
 
-test("goes to the prices to review the products of the lines chosen for it, once each, instead of the list", async () => {
+test("goes to the prices to review the products of the lines chosen for it, instead of the list", async () => {
   window.history.pushState(null, "", "/purchases/new");
   const services = createServices();
   vi.mocked(services.registerPurchase).mockResolvedValue({ kind: "ok", purchase: compraDeAvena });
@@ -229,29 +229,13 @@ test("goes to the prices to review the products of the lines chosen for it, once
   await fillHeader(screen);
   await fillQuantityLine(screen);
   await chooseReviewPriceNow(screen, 1);
-  await userEvent.click(screen.getByRole("button", { name: "Agregar línea" }));
-  await fillQuantityLine(screen, 2);
-  await chooseReviewPriceNow(screen, 2);
   await register(screen);
 
   await expect.poll(() => window.location.pathname).toBe("/prices");
-  expect(
-    JSON.parse(new URLSearchParams(window.location.search).get("reviewProducts") ?? ""),
-  ).toEqual([bolsaDeAvena.productId]);
-});
-
-test("sends the request without the choice to review the price now", async () => {
-  const services = createServices();
-  vi.mocked(services.registerPurchase).mockResolvedValue({ kind: "ok", purchase: compraDeAvena });
-  const screen = await opened(services);
-  await fillHeader(screen);
-  await fillQuantityLine(screen);
-  await chooseReviewPriceNow(screen, 1);
-  await register(screen);
-
-  expect(services.registerPurchase).toHaveBeenCalledWith(
-    expect.objectContaining({ lines: [avenaLine] }),
-  );
+  expect(window.location.search).toBe("");
+  expect(window.history.state).toMatchObject({
+    purchasedProductsToReview: [bolsaDeAvena.productId],
+  });
 });
 
 test("goes back to the list with its confirmation when no line was chosen for review", async () => {

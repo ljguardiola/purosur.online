@@ -31,7 +31,7 @@ export interface FakePriceRow {
   validFrom: Date;
 }
 
-export interface FakeReviewRow extends NewPriceReview {
+interface FakeReviewRow extends NewPriceReview {
   id: string;
 }
 
