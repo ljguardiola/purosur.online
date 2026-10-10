@@ -1,4 +1,5 @@
 import {
+  FACTURA_C_DOCUMENT_TYPE,
   isBuyerIdentificationThresholdAmount,
   isCalendarDay,
   isNetContentUnit,
@@ -6,6 +7,7 @@ import {
   isValidBuyerTaxStatusSet,
   isValidDiscountWeekdays,
   type NetContentUnit,
+  OFFLINE_NUMBER_BLOCK_STATUSES,
   PULL_PAGE_MAX_CHANGES,
   SALE_UNITS,
   STOCK_MOVEMENT_KINDS,
@@ -168,6 +170,31 @@ const registerOfflinePointOfSaleChangeSchema = z.object({
   }),
 });
 
+const offlineAuthorizationCodeChangeSchema = z.object({
+  ...pulledChangeShape,
+  entity: z.literal("offline_authorization_code"),
+  row: z.object({
+    fortnight_start: calendarDaySchema,
+    fortnight_end: calendarDaySchema,
+    code: z.string(),
+    report_deadline: calendarDaySchema,
+    version: z.int().positive(),
+  }),
+});
+
+const offlineNumberBlockChangeSchema = z.object({
+  ...pulledChangeShape,
+  entity: z.literal("offline_number_block"),
+  row: z.object({
+    point_of_sale_number: pointOfSaleNumberSchema,
+    document_type: z.literal(FACTURA_C_DOCUMENT_TYPE),
+    first_number: z.int().positive(),
+    last_number: z.int().positive(),
+    status: z.enum(OFFLINE_NUMBER_BLOCK_STATUSES),
+    version: z.int().positive(),
+  }),
+});
+
 const buyerTaxStatusSetChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("buyer_tax_status_set"),
@@ -246,6 +273,8 @@ export const changesPageSchema = z.object({
         buyerIdentificationThresholdChangeSchema,
         registerPointOfSaleChangeSchema,
         registerOfflinePointOfSaleChangeSchema,
+        offlineAuthorizationCodeChangeSchema,
+        offlineNumberBlockChangeSchema,
         buyerTaxStatusSetChangeSchema,
         stockMovementChangeSchema,
         removalChangeSchema,

@@ -1,4 +1,6 @@
+import { FACTURA_C_DOCUMENT_TYPE } from "../model/fiscal-rejection-alert.js";
 import { mayRegisterClaimPointOfSale } from "../model/point-of-sale.js";
+import { assignFirstOfflineNumberBlock } from "./assign-offline-number-block.js";
 import type {
   RegisterOfflinePointOfSale,
   RegisterOfflinePointOfSaleStore,
@@ -63,6 +65,11 @@ export async function configureRegisterOfflinePointOfSale(
         registerId: input.registerId,
         ...setup,
         actorId: input.actorId,
+      });
+      await assignFirstOfflineNumberBlock(tx, {
+        pointOfSaleNumber: input.pointOfSaleNumber,
+        documentType: FACTURA_C_DOCUMENT_TYPE,
+        registerId: input.registerId,
       });
       return { kind: "configured", setup };
     });

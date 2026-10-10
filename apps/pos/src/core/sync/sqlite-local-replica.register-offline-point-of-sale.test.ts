@@ -1,14 +1,15 @@
 import type { SyncChange } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
-import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
-import { migrationClock } from "../platform/test-support/migration-clock";
-import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import type { RegisterPulledChange } from "./pulled-change";
-import { SqliteLocalReplica } from "./sqlite-local-replica";
+import type { SqliteLocalReplica } from "./sqlite-local-replica";
+import {
+  openAdoptedReplica,
+  savePulledChanges,
+  TEST_PEPPER,
+} from "./test-support/sqlite-local-replica";
 
 const REGISTER_ID = "4b0e6dc3-85f7-4a4b-8c9d-1e3f5a7b9c04";
-const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 
 function offlinePointOfSaleChange(
   changeSeq: number,
@@ -24,9 +25,8 @@ function offlinePointOfSaleChange(
   return { changeSeq, change };
 }
 
-async function save(...changes: RegisterPulledChange[]) {
-  const cursor = changes.at(-1)?.changeSeq ?? 0;
-  await replica.savePage({ changes, cursor, hasMore: false });
+function save(...changes: RegisterPulledChange[]) {
+  return savePulledChanges(replica, ...changes);
 }
 
 function savedOfflinePointsOfSale() {
@@ -41,9 +41,7 @@ let database: LocalDatabase;
 let replica: SqliteLocalReplica;
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
-  replica = new SqliteLocalReplica(database);
-  replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+  ({ database, replica } = openAdoptedReplica());
 });
 
 afterEach(() => {
@@ -98,7 +96,7 @@ describe("the register's local copy of its own offline point of sale", () => {
   it("holds none once another installation takes over, until that one pulls its own", async () => {
     await save(offlinePointOfSaleChange(1, 31, 4));
 
-    replica.adoptDevice({ deviceId: "device-b", pepper: PEPPER });
+    replica.adoptDevice({ deviceId: "device-b", pepper: TEST_PEPPER });
     expect(savedOfflinePointsOfSale()).toEqual([]);
     await save(offlinePointOfSaleChange(1, 40, 1));
 
@@ -110,7 +108,7 @@ describe("the register's local copy of its own offline point of sale", () => {
   it("keeps it for the installation that pulled it", async () => {
     await save(offlinePointOfSaleChange(1, 31, 1));
 
-    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    replica.adoptDevice({ deviceId: "device-a", pepper: TEST_PEPPER });
 
     expect(savedOfflinePointsOfSale()).toHaveLength(1);
   });

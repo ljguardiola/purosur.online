@@ -14,8 +14,17 @@ interface LoggedChangeFields {
 type BranchEntity = "user" | "stock_movement";
 
 export type LoggedChange =
-  | (LoggedChangeFields & { entity: BranchEntity; locationId: string })
-  | (LoggedChangeFields & { entity: Exclude<PulledEntity, BranchEntity>; locationId?: never });
+  | (LoggedChangeFields & { entity: BranchEntity; locationId: string; registerId?: never })
+  | (LoggedChangeFields & {
+      entity: "offline_number_block";
+      locationId?: never;
+      registerId: string;
+    })
+  | (LoggedChangeFields & {
+      entity: Exclude<PulledEntity, BranchEntity | "offline_number_block">;
+      locationId?: never;
+      registerId?: never;
+    });
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -44,6 +53,7 @@ export async function logChanges<TQueryResult extends PgQueryResultHKT>(
       originDeviceId: change.originDeviceId ?? null,
       priceListId: change.priceListId ?? null,
       locationId: change.locationId ?? null,
+      registerId: change.registerId ?? null,
     })),
   );
 }

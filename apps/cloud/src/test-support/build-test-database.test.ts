@@ -31,6 +31,7 @@ import {
   issuerIdentificationVersions,
   locations,
   lots,
+  offlineNumberBlocks,
   passkeyChallenges,
   passkeys,
   paymentNotificationAttempts,
@@ -289,6 +290,16 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
     await db.insert(registerOfflinePointsOfSale).values({
       registerId: register.id,
       pointOfSaleNumber: 4,
+      version: 1,
+    });
+    await db.insert(offlineNumberBlocks).values({
+      pointOfSaleNumber: 4,
+      documentType: "factura_c",
+      registerId: register.id,
+      firstNumber: 1,
+      lastNumber: 1000,
+      status: "in_use",
+      assignedAt: new Date("2026-01-05T12:00:00.000Z"),
       version: 1,
     });
     await db.insert(registerEnrollmentCodes).values({

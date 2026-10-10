@@ -1,3 +1,4 @@
+import type { OfflineNumberBlockStore } from "./offline-number-block-store.js";
 import type { RegisterPointOfSaleStoreTransaction } from "./register-point-of-sale-store.js";
 
 export interface RegisterOfflinePointOfSale {
@@ -20,9 +21,10 @@ export interface RegisterOfflinePointOfSaleStore {
 
 export interface RegisterOfflinePointOfSaleStoreTransaction
   extends Pick<
-    RegisterPointOfSaleStoreTransaction,
-    "lockBranchRegister" | "lockRegisterPointOfSale" | "lockPointOfSaleClaim" | "claimPointOfSale"
-  > {
+      RegisterPointOfSaleStoreTransaction,
+      "lockBranchRegister" | "lockRegisterPointOfSale" | "lockPointOfSaleClaim" | "claimPointOfSale"
+    >,
+    OfflineNumberBlockStore {
   lockRegisterOfflinePointOfSale(registerId: string): Promise<RegisterOfflinePointOfSale>;
   recordRegisterOfflinePointOfSale(record: RegisterOfflinePointOfSaleRecord): Promise<void>;
 }

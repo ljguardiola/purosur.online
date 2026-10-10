@@ -1,8 +1,7 @@
-import { type ChangesPage, changesPageSchema } from "@purosur/contracts";
 import { registerPurchase } from "@purosur/domain/purchasing/use-cases";
 import { recordLoss, registerCount } from "@purosur/domain/stock/use-cases";
 import { asc } from "drizzle-orm";
-import Fastify, { type FastifyInstance } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   categories,
@@ -15,13 +14,10 @@ import {
 } from "../platform/db/schema.js";
 import { DrizzlePurchasingStore } from "../purchasing/drizzle-purchasing-store.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
-import { registerRouteAccess } from "../sessions/route-access.js";
 import { DrizzleStockStore } from "../stock/drizzle-stock-store.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
-import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
-import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { registerChangesRoute } from "./changes-route.js";
+import { buildChangesRouteApp, pulledPage } from "./test-support/changes-route.js";
 import { lastLoggedChangeSeq } from "./test-support/logged-changes.js";
 
 const BEFORE_COUNT = new Date("2026-10-09T14:20:00.000Z");
@@ -43,14 +39,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
-  app = Fastify();
-  registerRouteAccess(app);
-  registerChangesRoute(app, {
-    db,
-    rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
-    keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
-    now: () => NOW,
-  });
+  app = buildChangesRouteApp(db, { now: () => NOW });
 });
 
 afterEach(async () => {
@@ -58,13 +47,7 @@ afterEach(async () => {
 });
 
 async function pullAfter(since: number, deviceToken: string) {
-  const response = await app.inject({
-    method: "GET",
-    url: `/changes?since=${since}`,
-    headers: { authorization: `Bearer ${deviceToken}` },
-  });
-  expect(response.statusCode).toBe(200);
-  const page: ChangesPage = changesPageSchema.parse(response.json());
+  const page = await pulledPage(app, since, deviceToken);
   return page.changes.map(({ change_seq, ...change }) => change);
 }
 

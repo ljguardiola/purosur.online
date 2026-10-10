@@ -33,6 +33,11 @@ export type {
   VitalityCheckRecord,
 } from "./arca-vitality-ports.js";
 export type {
+  AssignFirstOfflineNumberBlockOutcome,
+  AssignOfflineNumberBlockInput,
+} from "./assign-offline-number-block.js";
+export { assignFirstOfflineNumberBlock } from "./assign-offline-number-block.js";
+export type {
   AuthorizeFiscalDocumentInput,
   AuthorizeFiscalDocumentOutcome,
   FiscalDocumentAuthorizationRequest,
@@ -79,6 +84,8 @@ export type {
   CreateFiscalAddressOutcome,
 } from "./create-fiscal-address.js";
 export { createFiscalAddress } from "./create-fiscal-address.js";
+export type { CurrentFortnightCodeStanding } from "./current-fortnight-code-after-obtaining.js";
+export { currentFortnightCodeAfterObtaining } from "./current-fortnight-code-after-obtaining.js";
 export type {
   DecideSaleAuthorizationInput,
   DecideSaleAuthorizationOutcome,
@@ -149,6 +156,10 @@ export type {
   OfflineAuthorizationCodeStore,
   TaxAuthorityOfflineAuthorizationCodes,
 } from "./offline-authorization-code-ports.js";
+export type {
+  OfflineNumberBlockRecord,
+  OfflineNumberBlockStore,
+} from "./offline-number-block-store.js";
 export type {
   ArcaOnlineStatus,
   ReadArcaOnlineStatusInput,

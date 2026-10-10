@@ -4,6 +4,7 @@ import type { Runner, RunnerOptions } from "graphile-worker";
 import { consoleLogFactory, Logger, run } from "graphile-worker";
 import pg, { type Pool, type PoolClient } from "pg";
 import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
+import { type ReportErrorDeps, reportError } from "../platform/error-reporting.js";
 import { runShutdownSteps } from "../platform/run-shutdown-steps.js";
 import { reportPoolErrors } from "./pool-connection-error-handler.js";
 import {
@@ -11,7 +12,6 @@ import {
   recordRecoveryLinkSentJob,
 } from "./process-recovery-request-job.js";
 import type { AccessEmailSender } from "./recovery-email-sender.js";
-import { type ReportRecoveryErrorDeps, reportRecoveryError } from "./recovery-error-reporting.js";
 import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-attempt-flush.js";
 import { recoveryRequestJobPayloadSchema } from "./recovery-request-job-payload.js";
 import { findPinCodeByCode, sendFirstPinCodeEmailJob } from "./send-first-pin-code-email-job.js";
@@ -38,7 +38,7 @@ export interface StartRecoveryWorkerOptions {
   jobs?: readonly BackgroundJobs[];
 }
 
-export interface StartRecoveryWorkerDeps extends ReportRecoveryErrorDeps {
+export interface StartRecoveryWorkerDeps extends ReportErrorDeps {
   runWorker?: (options: RunnerOptions) => Promise<Runner>;
   createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
   processJob?: typeof processRecoveryRequestJob;
@@ -52,12 +52,12 @@ export interface StartRecoveryWorkerDeps extends ReportRecoveryErrorDeps {
   createPool?: (connectionString: string) => Pick<Pool, "on" | "end">;
 }
 
-function loggerReportingFatalErrors(deps: ReportRecoveryErrorDeps): Logger {
+function loggerReportingFatalErrors(deps: ReportErrorDeps): Logger {
   return new Logger((scope) => {
     const logToConsole = consoleLogFactory(scope);
     return (level, message, { fatalError }) => {
       if (level === "error" && fatalError !== undefined) {
-        reportRecoveryError(`recovery worker: ${message}`, fatalError, deps);
+        reportError(`recovery worker: ${message}`, fatalError, deps);
       } else {
         logToConsole(level, message, {});
       }
@@ -136,7 +136,7 @@ export async function startRecoveryWorker(
     },
   });
   runner.promise.catch((error: unknown) => {
-    reportRecoveryError("recovery worker: runner exited with an error", error, deps);
+    reportError("recovery worker: runner exited with an error", error, deps);
   });
 
   return {

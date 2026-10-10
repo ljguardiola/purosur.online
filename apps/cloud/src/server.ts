@@ -42,6 +42,7 @@ import {
   enqueueBuyerTaxStatusFetch,
 } from "./fiscal/buyer-tax-status-fetch-task.js";
 import { DrizzleIssuerIdentificationStore } from "./fiscal/drizzle-issuer-identification-store.js";
+import { enqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import {
   enqueueMissingTaxAuthorityCounts,
   enqueueTaxAuthorityCountJob,
@@ -663,6 +664,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           ...(invoicing ? { enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob } : {}),
         })
       : {}),
+    ...(database && invoicing ? { enqueueOfflineAuthorizationCodeRequest } : {}),
     ...(database
       ? {
           mercadoPagoQr: {

@@ -71,6 +71,7 @@ import {
   type FiscalAuthorizationRouteOptions,
   registerFiscalAuthorizationRoute,
 } from "./fiscal/fiscal-authorization-route.js";
+import type { EnqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import type { EnqueueTaxAuthorityCount } from "./fiscal/graphile-tax-authority-count-queue.js";
 import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identification-edit-route.js";
 import type { IssuerIdentificationRouteOptions } from "./fiscal/issuer-identification-read-route.js";
@@ -185,6 +186,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   salesReports?: WithoutClock<SalesReportRouteOptions<TQueryResult>>;
   refunds?: WithoutClock<RefundRouteOptions<TQueryResult>>;
   devices?: WithoutClock<DeviceTokensOptions<TQueryResult>>;
+  enqueueOfflineAuthorizationCodeRequest?: EnqueueOfflineAuthorizationCodeRequest;
   fiscalAuthorization?: WithoutClock<
     Omit<FiscalAuthorizationRouteOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
   >;
@@ -205,6 +207,7 @@ type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
     | "edgeOriginSecret"
     | "setupFastifyErrorHandler"
     | "staticDir"
+    | "enqueueOfflineAuthorizationCodeRequest"
     | "fiscalAuthorization"
     | "mercadoPagoQr"
     | "mercadoPagoNotifications"
@@ -535,7 +538,13 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.devices) {
         registerDeviceEnrollmentRoute(api, { ...options.devices, now });
-        registerChangesRoute(api, { ...options.devices, now });
+        registerChangesRoute(api, {
+          ...options.devices,
+          ...(options.enqueueOfflineAuthorizationCodeRequest && {
+            enqueueOfflineAuthorizationCodeRequest: options.enqueueOfflineAuthorizationCodeRequest,
+          }),
+          now,
+        });
         registerEventsRoute(api, { ...options.devices, now });
         if (options.fiscalAuthorization) {
           registerFiscalAuthorizationRoute(api, {
