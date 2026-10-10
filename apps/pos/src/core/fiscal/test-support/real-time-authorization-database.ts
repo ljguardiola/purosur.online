@@ -122,7 +122,7 @@ export function insertFiscalDocument(
          id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
          authorization_code, authorization_code_due_on, reserved_at, resolved_at
        ) VALUES (
-         @id, @sale_id, @point_of_sale, 'FACTURA_C', @number, '2026-09-30', @document, @state,
+         @id, @sale_id, @point_of_sale, 'factura_c', @number, '2026-09-30', @document, @state,
          @code, @due_on, '2026-09-30T12:05:00.000Z', @resolved_at
        )`,
     )
