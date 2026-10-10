@@ -270,6 +270,8 @@ describe("cancelPaidSaleOutcomeSchema", () => {
     { kind: "unavailable" },
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
     { kind: "locked", consecutive_failures: PIN_SIGN_IN_LOCKOUT_FAILURES },
+    { kind: "qr_charge_in_progress" },
+    { kind: "holds_qr_payment" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(cancelPaidSaleOutcomeSchema.parse(outcome)).toEqual(outcome);
   });
@@ -290,7 +292,12 @@ describe("cancelPaidSaleOutcomeSchema", () => {
 });
 
 describe("cancelSaleOutcomeSchema", () => {
-  it.each([{ kind: "cancelled" }, { kind: "has_approved_payment" }, ...refusals])(
+  it.each([
+    { kind: "cancelled" },
+    { kind: "has_approved_payment" },
+    { kind: "qr_charge_in_progress" },
+    ...refusals,
+  ])(
     "accepts the outcome $kind",
     (outcome) => {
       expect(cancelSaleOutcomeSchema.parse(outcome)).toEqual(outcome);

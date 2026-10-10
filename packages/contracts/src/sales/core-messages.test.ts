@@ -58,6 +58,8 @@ describe("cancelling the open sale of a locked register", () => {
     { kind: "unavailable" },
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
     { kind: "rate_limited", retry_after_seconds: 1, attempts_left: 2 },
+    { kind: "qr_charge_in_progress" },
+    { kind: "holds_qr_payment" },
   ])("accepts the result $kind", (outcome) => {
     const message = { type: "cancel-locked-sale-result", request_id: REQUEST_ID, outcome };
 
