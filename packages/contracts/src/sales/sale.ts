@@ -4,6 +4,7 @@ import {
   mayBeSaleLineQuantity,
   SALE_UNITS,
   SEARCH_RESULT_LIMIT,
+  WEIGHT_SOURCES,
 } from "@purosur/domain";
 import { z } from "zod";
 import {
@@ -34,6 +35,8 @@ const saleLineSchema = z.object({
   id: z.string(),
   product_id: z.string(),
   product_name: z.string(),
+  sale_unit: z.enum(SALE_UNITS),
+  weight_source: z.enum(WEIGHT_SOURCES).nullable(),
   quantity: shownLineQuantitySchema,
   list_unit_price: cents,
   discount_amount: cents,
@@ -68,8 +71,9 @@ export type CashChargeAnswer = CashCharge | null | "not_permitted";
 
 const addedOutcome = z.object({ kind: z.literal("added"), sale: saleSchema });
 const noPriceOutcome = z.object({ kind: z.literal("no_price"), product_name: z.string() });
-const soldByWeightOutcome = z.object({
-  kind: z.literal("sold_by_weight"),
+const weightNeededOutcome = z.object({
+  kind: z.literal("weight_needed"),
+  product_id: z.string(),
   product_name: z.string(),
 });
 const lineQuantityLimitOutcome = z.object({
@@ -89,7 +93,7 @@ export const scanProductOutcomeSchema = z.discriminatedUnion("kind", [
   addedOutcome,
   z.object({ kind: z.literal("unknown_code") }),
   noPriceOutcome,
-  soldByWeightOutcome,
+  weightNeededOutcome,
   lineQuantityLimitOutcome,
   saleHasPaymentsOutcome,
   notPermittedOutcome,
@@ -112,15 +116,29 @@ export const saleLineQuantitySchema = z
   .int()
   .refine((quantity) => mayBeSaleLineQuantity(quantity, "UNIT"));
 
+export const saleLineWeightSchema = z.int().refine((weight) => mayBeSaleLineQuantity(weight, "KG"));
+
 export const changeLineQuantityOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("changed"), sale: saleSchema }),
   z.object({ kind: z.literal("unknown_line") }),
   z.object({ kind: z.literal("stale_quantity") }),
   z.object({ kind: z.literal("invalid_quantity") }),
+  z.object({ kind: z.literal("sold_by_weight") }),
   saleHasPaymentsOutcome,
   ...saleRefusalSchemas,
 ]);
 export type ChangeLineQuantityOutcome = z.infer<typeof changeLineQuantityOutcomeSchema>;
+
+export const changeLineWeightOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("changed"), sale: saleSchema }),
+  z.object({ kind: z.literal("unknown_line") }),
+  z.object({ kind: z.literal("stale_weight") }),
+  z.object({ kind: z.literal("invalid_weight") }),
+  z.object({ kind: z.literal("not_sold_by_weight") }),
+  saleHasPaymentsOutcome,
+  ...saleRefusalSchemas,
+]);
+export type ChangeLineWeightOutcome = z.infer<typeof changeLineWeightOutcomeSchema>;
 
 export const removeSaleLineOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("removed"), sale: saleSchema }),
@@ -158,7 +176,7 @@ export const addProductOutcomeSchema = z.discriminatedUnion("kind", [
   addedOutcome,
   z.object({ kind: z.literal("product_unavailable") }),
   noPriceOutcome,
-  soldByWeightOutcome,
+  weightNeededOutcome,
   lineQuantityLimitOutcome,
   saleHasPaymentsOutcome,
   notPermittedOutcome,
@@ -168,6 +186,21 @@ export const addProductOutcomeSchema = z.discriminatedUnion("kind", [
   unavailableOutcome,
 ]);
 export type AddProductOutcome = z.infer<typeof addProductOutcomeSchema>;
+
+export const addWeighedProductOutcomeSchema = z.discriminatedUnion("kind", [
+  addedOutcome,
+  z.object({ kind: z.literal("product_unavailable") }),
+  z.object({ kind: z.literal("not_sold_by_weight") }),
+  z.object({ kind: z.literal("invalid_weight") }),
+  noPriceOutcome,
+  saleHasPaymentsOutcome,
+  notPermittedOutcome,
+  notSignedInOutcome,
+  noOpenSessionOutcome,
+  installationRevokedOutcome,
+  unavailableOutcome,
+]);
+export type AddWeighedProductOutcome = z.infer<typeof addWeighedProductOutcomeSchema>;
 
 const foundProductSchema = z.object({
   product_id: z.string(),

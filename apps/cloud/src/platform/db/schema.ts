@@ -1025,20 +1025,27 @@ export const saleReprints = pgTable(
   ],
 );
 
-export const saleLines = pgTable("sale_lines", {
-  id: uuid("id").primaryKey(),
-  saleId: uuid("sale_id")
-    .notNull()
-    .references(() => sales.id),
-  productId: uuid("product_id").notNull(),
-  productName: text("product_name").notNull(),
-  quantity: integer("quantity").notNull(),
-  listUnitPrice: bigint("list_unit_price", { mode: "number" }).notNull(),
-  priceListId: uuid("price_list_id").notNull(),
-  promotionId: uuid("promotion_id"),
-  discountAmount: bigint("discount_amount", { mode: "number" }).notNull(),
-  lineTotal: bigint("line_total", { mode: "number" }).notNull(),
-});
+export const saleLines = pgTable(
+  "sale_lines",
+  {
+    id: uuid("id").primaryKey(),
+    saleId: uuid("sale_id")
+      .notNull()
+      .references(() => sales.id),
+    productId: uuid("product_id").notNull(),
+    productName: text("product_name").notNull(),
+    quantity: integer("quantity").notNull(),
+    listUnitPrice: bigint("list_unit_price", { mode: "number" }).notNull(),
+    priceListId: uuid("price_list_id").notNull(),
+    promotionId: uuid("promotion_id"),
+    discountAmount: bigint("discount_amount", { mode: "number" }).notNull(),
+    lineTotal: bigint("line_total", { mode: "number" }).notNull(),
+    weightSource: text("weight_source"),
+  },
+  (table) => [
+    check("sale_lines_weight_source_check", sql`${table.weightSource} IN ('SCALE', 'MANUAL')`),
+  ],
+);
 
 export const salePayments = pgTable(
   "sale_payments",
