@@ -285,6 +285,47 @@ describe("authorizeFiscalDocument", () => {
     expect(lanes.rejectionAlertChanges).toEqual([null]);
   });
 
+  it("hands the lane the number the tax authority just authorized as the point of sale's last authorized count, in the call that records the answer", async () => {
+    const { lanes, outcome } = authorize();
+    await outcome;
+
+    expect(lanes.taxAuthorityCounts).toEqual([
+      {
+        pointOfSale: 12,
+        lastAuthorized: 41,
+        readAt: new Date(RECEIVED_AT.getTime() + ANSWER_DELAY_MS),
+      },
+    ]);
+  });
+
+  it("hands the lane no count when the tax authority rejected the document or the answer is unclear", async () => {
+    const rejected = authorize({
+      solicitation: {
+        kind: "rejected",
+        rejections: [{ code: 10242, message: "El valor de CondicionIVAReceptorId es invalido." }],
+      },
+    });
+    const outOfSequence = authorize({
+      solicitation: {
+        kind: "rejected",
+        rejections: [{ code: 10016, message: "El numero no sigue al ultimo autorizado." }],
+      },
+    });
+    await Promise.all([rejected.outcome, outOfSequence.outcome]);
+
+    expect(rejected.lanes.taxAuthorityCounts).toEqual([null]);
+    expect(outOfSequence.lanes.taxAuthorityCounts).toEqual([null]);
+  });
+
+  it("hands the lane no count when the tax authority gave no answer or none was attempted", async () => {
+    const noAnswer = authorize({ solicitation: { kind: "no_answer" } });
+    const notAttempted = authorize({ token: null });
+    await Promise.all([noAnswer.outcome, notAttempted.outcome]);
+
+    expect(noAnswer.lanes.taxAuthorityCounts).toEqual([]);
+    expect(notAttempted.lanes.taxAuthorityCounts).toEqual([]);
+  });
+
   it("clears the alert of the point of sale and document type when the document is authorized", async () => {
     const { lanes, outcome } = authorize();
     await outcome;

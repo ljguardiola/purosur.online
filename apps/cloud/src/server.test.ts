@@ -23,7 +23,6 @@ import {
   requireCertificateNotAfter,
   requireDeviceTokenRotationKey,
   requireInstallationKeysEncryptionKey,
-  resolveMercadoPagoConfig,
   resolvePort,
   resolveRecoveryEnv,
   resolveStaticDir,
@@ -119,65 +118,6 @@ describe("requireInstallationKeysEncryptionKey", () => {
 });
 
 const VALID_ARCA_CERTIFICATE_NOT_AFTER = new Date("2126-09-01T19:42:17.000Z");
-
-describe("resolveMercadoPagoConfig", () => {
-  const ACCESS_TOKEN = "APP_USR-fictional-access-token-0001";
-  const WEBHOOK_SECRET = "fictional-webhook-secret-0001";
-  const COMPLETE = {
-    MERCADOPAGO_ACCESS_TOKEN: ACCESS_TOKEN,
-    MERCADOPAGO_QR_EXTERNAL_POS_ID: "STORE01POS01",
-    MERCADOPAGO_WEBHOOK_SECRET: WEBHOOK_SECRET,
-  };
-
-  it("is the access token, the QR code's identifier and the notification signing secret when all are set", () => {
-    expect(resolveMercadoPagoConfig(COMPLETE)).toEqual({
-      accessToken: ACCESS_TOKEN,
-      externalPosId: "STORE01POS01",
-      webhookSecret: WEBHOOK_SECRET,
-    });
-  });
-
-  it.each([
-    ["none is set", {}],
-    [
-      "all are empty",
-      {
-        MERCADOPAGO_ACCESS_TOKEN: "",
-        MERCADOPAGO_QR_EXTERNAL_POS_ID: "",
-        MERCADOPAGO_WEBHOOK_SECRET: "",
-      },
-    ],
-  ])("leaves Mercado Pago unconfigured when %s", (_name, env) => {
-    expect(resolveMercadoPagoConfig(env)).toBeUndefined();
-  });
-
-  const TOKEN = "MERCADOPAGO_ACCESS_TOKEN";
-  const POS_ID = "MERCADOPAGO_QR_EXTERNAL_POS_ID";
-  const SECRET = "MERCADOPAGO_WEBHOOK_SECRET";
-
-  it.each([
-    [[TOKEN], `${POS_ID} must be set when ${TOKEN} is set`],
-    [[POS_ID], `${TOKEN} must be set when ${POS_ID} is set`],
-    [[SECRET], `${TOKEN} must be set when ${SECRET} is set`],
-    [[TOKEN, POS_ID], `${SECRET} must be set when ${TOKEN} is set`],
-    [[TOKEN, SECRET], `${POS_ID} must be set when ${TOKEN} is set`],
-    [[POS_ID, SECRET], `${TOKEN} must be set when ${POS_ID} is set`],
-  ] as const)("refuses only %j being set, naming the missing variable", (present, message) => {
-    const env = Object.fromEntries(present.map((name) => [name, COMPLETE[name]]));
-
-    expect(() => resolveMercadoPagoConfig(env)).toThrow(message);
-  });
-
-  it("names the missing variable and never a secret value", () => {
-    const resolve = () =>
-      resolveMercadoPagoConfig({
-        MERCADOPAGO_ACCESS_TOKEN: ACCESS_TOKEN,
-        MERCADOPAGO_QR_EXTERNAL_POS_ID: "STORE01POS01",
-      });
-
-    expect(resolve).not.toThrow(ACCESS_TOKEN);
-  });
-});
 
 describe("requireCertificateNotAfter", () => {
   it("returns the instant the certificate stops being valid", () => {
@@ -1428,6 +1368,17 @@ describe("startServer authorizing sales in real time", () => {
     );
   });
 
+  it("has an installation's enrollment ask the tax authority for its point of sale's count", async () => {
+    const { started, buildApp } = start({
+      ...env,
+      ARCA_PRIVATE_KEY: credentials.privateKeyPem,
+    });
+    await started;
+
+    const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
+    expect(options.enqueueTaxAuthorityCountOnEnrollment).toBe(enqueueTaxAuthorityCountJob);
+  });
+
   it("asks again for the count of every claimed point of sale that has none before it starts listening", async () => {
     const { started, steps, recovery, enqueueMissingTaxAuthorityCounts } = start({
       ...env,
@@ -1450,6 +1401,7 @@ describe("startServer authorizing sales in real time", () => {
     expect(options).not.toHaveProperty("fiscalAuthorization");
     expect(options.registersPointsOfSale).not.toHaveProperty("enqueueTaxAuthorityCount");
     expect(options).not.toHaveProperty("enqueueOfflineAuthorizationCodeRequest");
+    expect(options).not.toHaveProperty("enqueueTaxAuthorityCountOnEnrollment");
     expect(enqueueMissingTaxAuthorityCounts).not.toHaveBeenCalled();
   });
 });
@@ -1500,9 +1452,9 @@ describe("startServer creating Mercado Pago QR orders", () => {
   it("gives the app the payment route with a dedicated connection per transaction lane and the Mercado Pago orders when both variables are set", async () => {
     const { started, buildApp, recovery } = start({
       ...env,
-      MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token-0001",
+      MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token",
       MERCADOPAGO_QR_EXTERNAL_POS_ID: "STORE01POS01",
-      MERCADOPAGO_WEBHOOK_SECRET: "fictional-webhook-secret-0001",
+      MERCADOPAGO_WEBHOOK_SECRET: "fictional-webhook-secret",
     });
     await started;
 
@@ -1517,16 +1469,16 @@ describe("startServer creating Mercado Pago QR orders", () => {
       db: recovery.db,
       connections: recovery.connections,
       mercadoPago,
-      webhookSecret: "fictional-webhook-secret-0001",
+      webhookSecret: "fictional-webhook-secret",
     });
   });
 
   it("gives the setup of the recovery infrastructure the Mercado Pago orders, so the pending check runs, when all variables are set", async () => {
     const { started, setUp } = start({
       ...env,
-      MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token-0001",
+      MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token",
       MERCADOPAGO_QR_EXTERNAL_POS_ID: "STORE01POS01",
-      MERCADOPAGO_WEBHOOK_SECRET: "fictional-webhook-secret-0001",
+      MERCADOPAGO_WEBHOOK_SECRET: "fictional-webhook-secret",
     });
     await started;
 
@@ -1561,7 +1513,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
   it("does not start with only one of the variables, before anything listens", async () => {
     const { started, buildApp } = start({
       ...env,
-      MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token-0001",
+      MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token",
     });
 
     await expect(started).rejects.toThrow(

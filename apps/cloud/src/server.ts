@@ -56,6 +56,7 @@ import { WsfeBuyerTaxStatusSource } from "./fiscal/wsfe-buyer-tax-status-source.
 import { WsfeTaxAuthorityInvoicing } from "./fiscal/wsfe-tax-authority-invoicing.js";
 import { WsfeTaxAuthorityLastAuthorized } from "./fiscal/wsfe-tax-authority-last-authorized.js";
 import { WsfeTaxAuthorityOfflineAuthorizationCodes } from "./fiscal/wsfe-tax-authority-offline-authorization-codes.js";
+import { resolveMercadoPagoConfig } from "./payments/mercado-pago-config.js";
 import { createMercadoPagoOrdersClient } from "./payments/mercado-pago-orders-client.js";
 import { mercadoPagoPendingCheckJobs } from "./payments/mercado-pago-pending-check-task.js";
 import {
@@ -149,35 +150,6 @@ function requireRecoveryEnvVar(env: ServerEnv, name: keyof ServerEnv & string): 
     throw new Error(`${name} must be set once DATABASE_URL is configured (recovery-by-email)`);
   }
   return value;
-}
-
-export interface MercadoPagoConfig {
-  accessToken: string;
-  externalPosId: string;
-  webhookSecret: string;
-}
-
-const MERCADO_PAGO_VARIABLES = [
-  ["MERCADOPAGO_ACCESS_TOKEN", "accessToken"],
-  ["MERCADOPAGO_QR_EXTERNAL_POS_ID", "externalPosId"],
-  ["MERCADOPAGO_WEBHOOK_SECRET", "webhookSecret"],
-] as const;
-
-export function resolveMercadoPagoConfig(env: ServerEnv): MercadoPagoConfig | undefined {
-  const present = MERCADO_PAGO_VARIABLES.filter(([name]) => env[name]);
-  if (present.length === 0) {
-    return undefined;
-  }
-  const missing = MERCADO_PAGO_VARIABLES.find(([name]) => !env[name]);
-  const [firstPresent] = present;
-  if (missing && firstPresent) {
-    throw new Error(`${missing[0]} must be set when ${firstPresent[0]} is set`);
-  }
-  return {
-    accessToken: env.MERCADOPAGO_ACCESS_TOKEN ?? "",
-    externalPosId: env.MERCADOPAGO_QR_EXTERNAL_POS_ID ?? "",
-    webhookSecret: env.MERCADOPAGO_WEBHOOK_SECRET ?? "",
-  };
 }
 
 /** Required unconditionally: the edge guard applies to every route (`GET /api/health` excepted). */
@@ -664,7 +636,12 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           ...(invoicing ? { enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob } : {}),
         })
       : {}),
-    ...(database && invoicing ? { enqueueOfflineAuthorizationCodeRequest } : {}),
+    ...(database && invoicing
+      ? {
+          enqueueOfflineAuthorizationCodeRequest,
+          enqueueTaxAuthorityCountOnEnrollment: enqueueTaxAuthorityCountJob,
+        }
+      : {}),
     ...(database
       ? {
           mercadoPagoQr: {

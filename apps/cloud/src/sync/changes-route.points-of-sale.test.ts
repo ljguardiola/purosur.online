@@ -220,7 +220,7 @@ describe("GET /changes carrying the register's own point of sale", () => {
       actorId: await insertActor(locationId),
     });
 
-    await new DrizzleTaxAuthorityCounts(db).record({
+    await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 7,
       lastAuthorized: 41,
       readAt: NOW,
@@ -266,7 +266,7 @@ describe("GET /changes carrying the register's own point of sale", () => {
       actorId,
     });
 
-    await new DrizzleTaxAuthorityCounts(db).record({
+    await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 8,
       lastAuthorized: 99,
       readAt: NOW,

@@ -11,6 +11,9 @@ import {
   taxAuthorityLastAuthorizedNumbers,
   users,
 } from "../platform/db/schema.js";
+import { DrizzleRegisterStore } from "../register/drizzle-register-store.js";
+import { installationKeyCipher } from "../register/installation-key-cipher.js";
+import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -219,5 +222,55 @@ describe("the tax authority count jobs on a real Postgres", () => {
     await enqueueMissingTaxAuthorityCounts(db);
 
     expect((await pendingCountJobs()).map((job) => job.pointOfSale)).toEqual([31]);
+  });
+
+  describe("when an installation enrolls", () => {
+    async function configuredRegisterWithCount(pointOfSaleNumber: number) {
+      const { locationId, actorId, fiscalAddressId, registerIds } = await seedRegisters(1);
+      const registerId = registerIds[0] as string;
+      await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOW), {
+        locationId,
+        registerId,
+        pointOfSaleNumber,
+        fiscalAddressId,
+        version: 0,
+        actorId,
+      });
+      await db
+        .insert(taxAuthorityLastAuthorizedNumbers)
+        .values({ pointOfSaleNumber, lastAuthorized: 11, readAt: NOW });
+      return registerId;
+    }
+
+    function enrollmentStore() {
+      return new DrizzleRegisterStore(
+        db,
+        installationKeyCipher(TEST_INSTALLATION_KEYS_ENCRYPTION_KEY),
+        enqueueTaxAuthorityCountJob,
+      );
+    }
+
+    it("forgets the count and enqueues its read in the same transaction", async () => {
+      const registerId = await configuredRegisterWithCount(31);
+
+      await enrollmentStore().transaction((tx) => tx.requireFreshTaxAuthorityCount(registerId));
+
+      expect(await db.select().from(taxAuthorityLastAuthorizedNumbers)).toEqual([]);
+      expect(await pendingCountJobs()).toEqual([{ pointOfSale: 31, attempts: 0, maxAttempts: 25 }]);
+    });
+
+    it("keeps the count and enqueues nothing when the enrollment rolls back", async () => {
+      const registerId = await configuredRegisterWithCount(32);
+
+      await expect(
+        enrollmentStore().transaction(async (tx) => {
+          await tx.requireFreshTaxAuthorityCount(registerId);
+          throw new Error("the enrollment failed after requiring the count");
+        }),
+      ).rejects.toThrow("the enrollment failed");
+
+      expect(await db.select().from(taxAuthorityLastAuthorizedNumbers)).toHaveLength(1);
+      expect(await pendingCountJobs()).toEqual([]);
+    });
   });
 });
