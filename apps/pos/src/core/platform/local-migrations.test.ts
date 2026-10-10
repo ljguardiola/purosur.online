@@ -875,6 +875,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0035_domain_fiscal_document_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -935,6 +936,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0035_domain_fiscal_document_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -990,6 +992,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0035_domain_fiscal_document_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1044,6 +1047,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0035_domain_fiscal_document_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1125,6 +1129,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0035_domain_fiscal_document_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1198,6 +1203,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0035_domain_fiscal_document_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1275,6 +1281,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0035_domain_fiscal_document_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1335,6 +1342,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0035_domain_fiscal_document_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1387,6 +1395,7 @@ describe("the register's local migrations", () => {
         "0031_receipt_printer",
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
+        "0035_domain_fiscal_document_type",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -2178,6 +2187,83 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("spell the fiscal documents' type as the domain does, over the documents a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0035_domain_fiscal_document_type",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0035_domain_fiscal_document_type",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z'),
+                ('sale-2', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:06:00.000Z');
+         INSERT INTO fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
+           authorization_code, authorization_code_due_on, reserved_at, resolved_at
+         ) VALUES
+           ('doc-1', 'sale-1', 12, 'FACTURA_C', 41, '2026-10-09', '{"total":1500}', 'AUTHORIZED',
+            '75123456789012', '2026-10-19', '2026-10-09T12:05:00.000Z', '2026-10-09T12:05:01.000Z'),
+           ('doc-2', 'sale-2', 12, 'FACTURA_C', 42, '2026-10-09', '{"total":2500}', 'REQUESTING',
+            NULL, NULL, '2026-10-09T12:06:00.000Z', NULL);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT * FROM fiscal_documents ORDER BY id").all()).toEqual([
+        {
+          id: "doc-1",
+          sale_id: "sale-1",
+          point_of_sale: 12,
+          document_type: "factura_c",
+          number: 41,
+          issued_on: "2026-10-09",
+          document: '{"total":1500}',
+          state: "AUTHORIZED",
+          authorization_code: "75123456789012",
+          authorization_code_due_on: "2026-10-19",
+          reserved_at: "2026-10-09T12:05:00.000Z",
+          resolved_at: "2026-10-09T12:05:01.000Z",
+        },
+        {
+          id: "doc-2",
+          sale_id: "sale-2",
+          point_of_sale: 12,
+          document_type: "factura_c",
+          number: 42,
+          issued_on: "2026-10-09",
+          document: '{"total":2500}',
+          state: "REQUESTING",
+          authorization_code: null,
+          authorization_code_due_on: null,
+          reserved_at: "2026-10-09T12:06:00.000Z",
+          resolved_at: null,
+        },
+      ]);
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      expect(
+        after
+          .prepare(
+            "SELECT name FROM sqlite_schema WHERE type = 'index' AND tbl_name = 'fiscal_documents' AND sql IS NOT NULL ORDER BY name",
+          )
+          .all(),
+      ).toEqual([
+        { name: "fiscal_documents_number_in_use" },
+        { name: "fiscal_documents_one_waiting" },
+      ]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   describe("the real-time authorization", () => {
     function withSales() {
       const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
@@ -2222,7 +2308,7 @@ describe("the register's local migrations", () => {
           id: "doc-1",
           sale_id: "sale-1",
           point_of_sale: 12,
-          document_type: "FACTURA_C",
+          document_type: "factura_c",
           number: 41,
           state,
           authorization_code: state === "AUTHORIZED" ? "75123456789012" : null,
@@ -2277,6 +2363,7 @@ describe("the register's local migrations", () => {
       const database = withSales();
 
       expect(() => insertDocument(database, { document_type: "FACTURA_A" })).toThrow(/CHECK/);
+      expect(() => insertDocument(database, { document_type: "FACTURA_C" })).toThrow(/CHECK/);
       expect(() => insertDocument(database, { state: "PENDING" })).toThrow(/CHECK/);
       expect(() => insertDocument(database, { point_of_sale: 0 })).toThrow(/CHECK/);
       expect(() => insertDocument(database, { number: 0 })).toThrow(/CHECK/);

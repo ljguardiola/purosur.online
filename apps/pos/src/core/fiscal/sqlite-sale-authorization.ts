@@ -1,4 +1,5 @@
 import {
+  FACTURA_C_DOCUMENT_TYPE,
   type FiscalDocumentState,
   type FiscalOnlineSignalEvidence,
   NUMBER_CONSUMING_STATES,
@@ -13,8 +14,6 @@ import {
 } from "@purosur/domain/fiscal/use-cases";
 import type { SaleAuthorizationDecision } from "@purosur/domain/sales/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
-
-const FACTURA_C = "FACTURA_C";
 
 function placeholdersFor(states: readonly FiscalDocumentState[]): string {
   return states.map(() => "?").join(", ");
@@ -73,14 +72,14 @@ function sqliteSaleAuthorizationTransaction(database: LocalDatabase): SaleAuthor
            WHERE point_of_sale = ? AND document_type = ?
              AND state IN (${placeholdersFor(NUMBER_CONSUMING_STATES)})`,
         )
-        .get(pointOfSale.point_of_sale, FACTURA_C, ...NUMBER_CONSUMING_STATES);
+        .get(pointOfSale.point_of_sale, FACTURA_C_DOCUMENT_TYPE, ...NUMBER_CONSUMING_STATES);
       const waiting = database
         .prepare<(number | string)[], { waiting: 1 }>(
           `SELECT 1 AS waiting FROM fiscal_documents
            WHERE point_of_sale = ? AND document_type = ?
              AND state IN (${placeholdersFor(SERIES_WAITING_STATES)})`,
         )
-        .get(pointOfSale.point_of_sale, FACTURA_C, ...SERIES_WAITING_STATES);
+        .get(pointOfSale.point_of_sale, FACTURA_C_DOCUMENT_TYPE, ...SERIES_WAITING_STATES);
       return {
         pointOfSale: pointOfSale.point_of_sale,
         localLastAuthorized: local?.last_authorized ?? null,
@@ -103,7 +102,7 @@ function sqliteSaleAuthorizationTransaction(database: LocalDatabase): SaleAuthor
           id: reservation.id,
           sale_id: reservation.saleId,
           point_of_sale: reservation.pointOfSale,
-          document_type: FACTURA_C,
+          document_type: FACTURA_C_DOCUMENT_TYPE,
           number: reservation.number,
           issued_on: reservation.issuedOn,
           document: JSON.stringify(reservation.document),
