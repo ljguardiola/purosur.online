@@ -2008,6 +2008,8 @@ describe("the register's local migrations", () => {
       expect(insert({ port: 65535 }).run).not.toThrow();
       held.database.close();
     });
+  });
+
   it("let a sale hold a product weighed several times and tell where each weight came from, over the lines it already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
