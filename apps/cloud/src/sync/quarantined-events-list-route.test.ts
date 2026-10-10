@@ -1,6 +1,7 @@
 import { quarantinedEventsListSchema } from "@purosur/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { openAlert } from "../alerts/open-alert.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   BACKOFFICE_ORIGIN,
@@ -13,8 +14,10 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerQuarantinedEventsListRoute } from "./quarantined-events-list-route.js";
 import { insertInboxEvent } from "./test-support/inbox-events.js";
 import {
+  closeQuarantineAlertOf,
   insertInstallationOfAnotherBranch,
   insertQuarantinedEvent,
+  openQuarantineAlertOf,
   QUARANTINED_AT,
 } from "./test-support/quarantined-events.js";
 
@@ -82,7 +85,7 @@ describe("GET /synced-events/quarantined", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it("lists the quarantined events of the branch with their register and last error, oldest quarantine first", async () => {
+  it("lists the quarantined events of the branch with their register and why they were quarantined, oldest quarantine first", async () => {
     const session = await sessionHolding(["release_quarantined_events"]);
     const { deviceId } = await insertEnrolledInstallation(db, {
       now: SESSION_NOON,
@@ -90,13 +93,16 @@ describe("GET /synced-events/quarantined", () => {
     });
     const later = await insertQuarantinedEvent(db, deviceId, {
       quarantinedAt: new Date("2026-10-07T14:00:00.000Z"),
-      lastError: null,
     });
     const earlier = await insertQuarantinedEvent(db, deviceId, {
       aggregateType: "CashSession",
       aggregateId: "0199b7a0-0000-7000-8000-000000000009",
       eventType: "cash_session_opened",
       receivedAt: new Date("2026-10-07T09:00:00.000Z"),
+    });
+    await openQuarantineAlertOf(db, earlier, {
+      reason: { kind: "unreadable" },
+      openedAt: QUARANTINED_AT,
     });
 
     const response = await listRequest(session.headers);
@@ -112,11 +118,51 @@ describe("GET /synced-events/quarantined", () => {
           eventType: "cash_session_opened",
           receivedAt: "2026-10-07T09:00:00.000Z",
           quarantinedAt: QUARANTINED_AT.toISOString(),
-          lastError: "product p-1 is not in the catalog",
+          reason: { kind: "unreadable" },
         },
-        expect.objectContaining({ eventId: later, lastError: null }),
+        expect.objectContaining({ eventId: later, reason: null }),
       ],
     });
+  });
+
+  it("tells why an event was quarantined from its latest quarantine alert, even one already closed", async () => {
+    const session = await sessionHolding(["release_quarantined_events"]);
+    const { deviceId } = await insertEnrolledInstallation(db, { now: SESSION_NOON });
+    const eventId = await insertQuarantinedEvent(db, deviceId);
+    await openQuarantineAlertOf(db, eventId, {
+      reason: { kind: "unreadable" },
+      openedAt: new Date("2026-10-06T12:00:00.000Z"),
+    });
+    await closeQuarantineAlertOf(db, eventId, new Date("2026-10-06T13:00:00.000Z"));
+    await openQuarantineAlertOf(db, eventId, {
+      reason: { kind: "missing_dependency", aggregateType: "CashSession", aggregateId: "s-1" },
+      openedAt: QUARANTINED_AT,
+    });
+    await closeQuarantineAlertOf(db, eventId, new Date("2026-10-07T12:30:00.000Z"));
+    await openAlert(
+      db,
+      {
+        kind: "event_invariant_violated",
+        scope: eventId,
+        detail: {
+          eventId,
+          eventType: "sale_completed",
+          aggregateType: "Sale",
+          aggregateId: "sale-1",
+          breaks: ["approved_payments_below_total"],
+        },
+      },
+      { now: () => new Date("2026-10-07T13:00:00.000Z") },
+    );
+
+    const response = await listRequest(session.headers);
+
+    expect(response.json().events).toEqual([
+      expect.objectContaining({
+        eventId,
+        reason: { kind: "missing_dependency", aggregateType: "CashSession", aggregateId: "s-1" },
+      }),
+    ]);
   });
 
   it("leaves out applied events, events waiting without a quarantine and events of another branch", async () => {

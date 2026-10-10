@@ -13,7 +13,11 @@ const listed = {
   eventType: "sale_completed",
   receivedAt: "2026-10-07T10:00:05.000Z",
   quarantinedAt: "2026-10-07T12:00:00.000Z",
-  lastError: "product p-1 is not in the catalog",
+  reason: {
+    kind: "missing_dependency",
+    aggregateType: "CashSession",
+    aggregateId: "0199b7a0-0000-7000-8000-000000000003",
+  },
 };
 
 describe("the quarantined events list", () => {
@@ -25,14 +29,33 @@ describe("the quarantined events list", () => {
     expect(quarantinedEventsListSchema.parse({ events: [] })).toEqual({ events: [] });
   });
 
-  it("accepts an event whose last error was not kept", () => {
+  it.each([{ kind: "unreadable" }, { kind: "not_recorded" }])(
+    "accepts an event quarantined because %j",
+    (reason) => {
+      expect(
+        quarantinedEventsListSchema.safeParse({ events: [{ ...listed, reason }] }).success,
+      ).toBe(true);
+    },
+  );
+
+  it("accepts an event whose quarantine reason was not kept", () => {
     expect(
-      quarantinedEventsListSchema.safeParse({ events: [{ ...listed, lastError: null }] }).success,
+      quarantinedEventsListSchema.safeParse({ events: [{ ...listed, reason: null }] }).success,
     ).toBe(true);
   });
 
+  it.each([
+    { kind: "teapot" },
+    { kind: "missing_dependency", aggregateType: "CashSession" },
+    "product p-1 is not in the catalog",
+  ])("refuses an event quarantined because %j", (reason) => {
+    expect(quarantinedEventsListSchema.safeParse({ events: [{ ...listed, reason }] }).success).toBe(
+      false,
+    );
+  });
+
   it.each(Object.keys(listed))("refuses an event without its %s", (field) => {
-    const { [field]: _removed, ...incomplete } = listed as Record<string, string>;
+    const { [field]: _removed, ...incomplete } = listed as Record<string, unknown>;
 
     expect(quarantinedEventsListSchema.safeParse({ events: [incomplete] }).success).toBe(false);
   });

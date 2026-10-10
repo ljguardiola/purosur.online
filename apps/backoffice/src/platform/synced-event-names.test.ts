@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
-  ofSyncedAggregateType,
+  ofSyncedAggregate,
   syncedAggregateTypeName,
   syncedEventTypeName,
 } from "./synced-event-names";
@@ -14,12 +14,16 @@ describe("the Spanish names of synced events", () => {
     expect(syncedEventTypeName("something_new")).toBeUndefined();
   });
 
-  test("names a known aggregate type with its preposition", () => {
-    expect(ofSyncedAggregateType("CashSession")).toBe("de la sesión de caja");
+  test("names an aggregate of a known type with its preposition and its id", () => {
+    expect(ofSyncedAggregate({ aggregateType: "CashSession", aggregateId: "session-1" })).toBe(
+      "de la sesión de caja session-1",
+    );
   });
 
-  test("has no name for an unknown aggregate type", () => {
-    expect(ofSyncedAggregateType("Other")).toBeUndefined();
+  test("names an aggregate of an unknown type in general words and its id", () => {
+    expect(ofSyncedAggregate({ aggregateType: "Other", aggregateId: "other-1" })).toBe(
+      "del registro other-1",
+    );
   });
 });
 

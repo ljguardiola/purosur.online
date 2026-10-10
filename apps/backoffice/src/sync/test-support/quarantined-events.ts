@@ -8,7 +8,11 @@ export const quarantinedSale: QuarantinedEvent = {
   eventType: "sale_completed",
   receivedAt: "2026-10-07T12:00:00.000Z",
   quarantinedAt: "2026-10-07T12:30:00.000Z",
-  lastError: "column does not exist",
+  reason: {
+    kind: "missing_dependency",
+    aggregateType: "CashSession",
+    aggregateId: "0192dddd-3333-7000-8000-000000000003",
+  },
 };
 
 export const quarantinedCashClosing: QuarantinedEvent = {
@@ -19,5 +23,5 @@ export const quarantinedCashClosing: QuarantinedEvent = {
   eventType: "cash_session_closed",
   receivedAt: "2026-10-07T13:00:00.000Z",
   quarantinedAt: "2026-10-07T13:30:00.000Z",
-  lastError: null,
+  reason: null,
 };

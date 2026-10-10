@@ -78,7 +78,7 @@ test("shows the columns of the list", async () => {
   ]);
 });
 
-test("shows each quarantined event with its register, event, times and last error", async () => {
+test("shows each quarantined event with its register, event, times and why it was quarantined", async () => {
   const services = createServices();
   vi.mocked(services.fetchQuarantinedEvents).mockResolvedValue({
     kind: "ok",
@@ -90,7 +90,13 @@ test("shows each quarantined event with its register, event, times and last erro
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
   await expect.element(screen.getByText("Venta 0192bbbb…")).toBeVisible();
   await expect.element(screen.getByText("Venta", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("column does not exist")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Depende de la sesión de caja 0192dddd-3333-7000-8000-000000000003, que todavía no se aplicó",
+      ),
+    )
+    .toBeVisible();
   await expect.element(screen.getByText("Caja 2")).toBeVisible();
   await expect.element(screen.getByText("Sesión de caja 0192cccc…")).toBeVisible();
   await expect.element(screen.getByText("Cierre de caja")).toBeVisible();
@@ -138,7 +144,7 @@ test("shows a load error, and Reintentar reads the events again", async () => {
   vi.mocked(services.fetchQuarantinedEvents).mockResolvedValueOnce({ kind: "failed" });
   const screen = await renderScreen(services);
   await expect
-    .element(screen.getByText("No pudimos cargar los eventos en cuarentena"))
+    .element(screen.getByText("No pudimos abrir los eventos en cuarentena"))
     .toBeVisible();
 
   vi.mocked(services.fetchQuarantinedEvents).mockResolvedValueOnce({
@@ -150,6 +156,19 @@ test("shows a load error, and Reintentar reads the events again", async () => {
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
 });
 
+test("shows the rate-limited notice with the time to wait and a retry action", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchQuarantinedEvents).mockResolvedValueOnce({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+});
+
 test("retrying a failed load starts again from the loading placeholder", async () => {
   const services = createServices();
   const retry = deferred<Awaited<ReturnType<typeof services.fetchQuarantinedEvents>>>();
@@ -158,13 +177,13 @@ test("retrying a failed load starts again from the loading placeholder", async (
     .mockReturnValueOnce(retry.promise);
   const screen = await renderScreen(services);
   await expect
-    .element(screen.getByText("No pudimos cargar los eventos en cuarentena"))
+    .element(screen.getByText("No pudimos abrir los eventos en cuarentena"))
     .toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect
-    .element(screen.getByText("No pudimos cargar los eventos en cuarentena"))
+    .element(screen.getByText("No pudimos abrir los eventos en cuarentena"))
     .not.toBeInTheDocument();
   await expect
     .element(screen.getByRole("table", { name: "Eventos en cuarentena" }))
