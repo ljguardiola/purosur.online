@@ -14,6 +14,11 @@
     },
     "./sync/test-support": {
       "@purosur/source": "./src/sync/test-support/recorded-pushes.ts"
+    },
+    "./sync/quarantined-events": {
+      "@purosur/source": "./src/sync/quarantined-events.ts",
+      "types": "./dist/sync/quarantined-events.d.ts",
+      "default": "./dist/sync/quarantined-events.js"
     }
   },
   "files": [
