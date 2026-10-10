@@ -52,6 +52,11 @@ export class FakeQuarantineRelease implements QuarantineRelease {
       },
       lockEvent: async (eventId) => {
         this.calls.push(`lock event ${eventId}`);
+        if (this.eventsGoneBeforeLocking.has(eventId)) {
+          this.application.state.events = this.application.state.events.filter(
+            (one) => one.eventId !== eventId,
+          );
+        }
         const event = this.application.state.events.find((one) => one.eventId === eventId);
         if (event === undefined) {
           return undefined;
