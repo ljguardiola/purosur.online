@@ -524,7 +524,6 @@ describe("the register's router", () => {
       path: "/receipt-printer",
       coreStatus: "up",
       enrollment: "enrolled",
-      person: PRINTER_CONFIGURER,
       cashSession: OPEN_SESSION,
       redirectedTo: "/session",
     },

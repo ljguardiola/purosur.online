@@ -107,7 +107,9 @@ describe("ReceiptPrinterScreen", () => {
   it("warns that the printer is not configured and leaves the address empty", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByText("La impresora no está configurada.")).toBeVisible();
+    await expect
+      .element(screen.getByText("La impresora no está configurada.").first())
+      .toBeVisible();
     await expect.element(screen.getByRole("textbox", { name: "Dirección" })).toHaveValue("");
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -123,7 +125,7 @@ describe("ReceiptPrinterScreen", () => {
 
     await expect.element(screen.getByRole("textbox", { name: "Dirección" })).toHaveValue(shown);
     await expect
-      .element(screen.getByText("La impresora no está configurada."))
+      .element(screen.getByText("La impresora no está configurada.").first())
       .not.toBeInTheDocument();
   });
 
@@ -183,7 +185,7 @@ describe("ReceiptPrinterScreen", () => {
     await save(screen, "10.10.10.9");
 
     await expect
-      .element(screen.getByText("Ya no tenés permiso para configurar la impresora."))
+      .element(screen.getByText("Ya no tenés permiso para configurar la impresora.").first())
       .toBeVisible();
   });
 
@@ -214,7 +216,7 @@ describe("ReceiptPrinterScreen", () => {
     await save(screen, "10.10.10.9");
 
     await expect
-      .element(screen.getByText("No se pudo guardar la dirección. Probá de nuevo."))
+      .element(screen.getByText("No se pudo guardar la dirección. Probá de nuevo.").first())
       .toBeVisible();
   });
 
