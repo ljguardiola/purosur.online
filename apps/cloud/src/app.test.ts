@@ -2233,7 +2233,11 @@ describe("the route access inventory", () => {
         url: "/api/brands/:id/deactivation",
         access: capabilityAccess("products_and_categories"),
       },
-      { method: "GET", url: "/api/suppliers", access: capabilityAccess("suppliers") },
+      {
+        method: "GET",
+        url: "/api/suppliers",
+        access: capabilityAccess("suppliers", "purchases"),
+      },
       { method: "POST", url: "/api/suppliers", access: capabilityAccess("suppliers") },
       { method: "PUT", url: "/api/suppliers/:id", access: capabilityAccess("suppliers") },
       {
@@ -2249,7 +2253,7 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/purchase-packagings",
-        access: capabilityAccess("purchase_packagings"),
+        access: capabilityAccess("purchase_packagings", "purchases"),
       },
       {
         method: "POST",
