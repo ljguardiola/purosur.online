@@ -25,6 +25,7 @@ const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 const PIN_HASH = "argon2id$v=19$m=65536,t=3,p=4$c2FsdA$aGFzaC1vZi10aGUtcGlu";
 const AUTHORIZER_PIN = "1234";
+const NO_PRINTERS = { configured: () => undefined };
 
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
@@ -56,7 +57,7 @@ function deps(overrides: Partial<ReceiptRequestDeps> = {}): ReceiptRequestDeps {
     },
     readOutboxChainKey: async () => CHAIN_KEY,
     signedInUserId: () => signedInPerson.userId(),
-    printer,
+    printers: { configured: () => printer },
     jobs,
     ...overrides,
   };
@@ -212,6 +213,25 @@ describe("printing a completed sale's receipt", () => {
     });
   });
 
+  it("records no print attempt and stands as printer_not_configured when no printer is configured, so the later print is still the original", async () => {
+    await printCompletedSaleReceiptFor(deps({ printers: NO_PRINTERS }), "sale-1");
+
+    expect(deliveryOf("sale-1")).toEqual({ print_attempted_at: null, printed_at: null });
+    expect(reprints()).toEqual([]);
+    expect(await receiptPrintStatusFor(deps(), "sale-1")).toEqual({
+      kind: "found",
+      next_copy: { kind: "original" },
+      printed: false,
+      standing: "printer_not_configured",
+    });
+    await printCompletedSaleReceiptFor(deps(), "sale-1");
+    expect(printer.sent).toHaveLength(1);
+    expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
+      next_copy: { kind: "duplicate", order_number: 1 },
+      standing: "printing",
+    });
+  });
+
   it("reports a failure of the ledger instead of throwing", async () => {
     database.exec("DROP TABLE sale_receipts");
 
@@ -317,6 +337,15 @@ describe("retrying a sale's receipt print", () => {
     expect(await retryReceiptPrintFor(deps(), "sale-1")).toEqual({ kind: "not_offered" });
   });
 
+  it("answers printer_not_configured when the printer is no longer configured", async () => {
+    await printedAndOffered();
+
+    expect(await retryReceiptPrintFor(deps({ printers: NO_PRINTERS }), "sale-1")).toEqual({
+      kind: "printer_not_configured",
+    });
+    expect(reprints()).toEqual([]);
+  });
+
   it("sends the receipt again as a duplicate recorded as a retry, with no PIN and no reprint permission", async () => {
     await printedAndOffered();
 
@@ -364,6 +393,19 @@ describe("reprinting a sale's receipt from the history", () => {
       kind: "started",
       copy: { kind: "original" },
     });
+    expect(reprints()).toEqual([]);
+  });
+
+  it("answers printer_not_configured and records nothing when no printer is configured", async () => {
+    signedInPerson.set("supervisor");
+
+    expect(
+      await reprintSaleReceiptFor(deps({ printers: NO_PRINTERS }), {
+        saleId: "sale-1",
+        reason: REASON,
+      }),
+    ).toEqual({ kind: "printer_not_configured" });
+    expect(deliveryOf("sale-1")).toEqual({ print_attempted_at: null, printed_at: null });
     expect(reprints()).toEqual([]);
   });
 
