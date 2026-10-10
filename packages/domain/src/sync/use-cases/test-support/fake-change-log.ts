@@ -12,6 +12,7 @@ export interface FakeLoggedChange extends PulledChange {
   entityId: string;
   locationId?: string;
   priceListId?: string;
+  registerId?: string;
 }
 
 interface FakeObservedPull {
@@ -35,6 +36,8 @@ function reaches(reach: PullReach, change: FakeLoggedChange): boolean {
       return change.locationId === reach.locationId;
     case "rows_of_price_list":
       return change.priceListId === reach.priceListId;
+    case "rows_of_register":
+      return change.registerId === reach.registerId;
     case "none":
       return false;
   }

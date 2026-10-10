@@ -14,13 +14,16 @@ export type PulledEntity =
   | "issuer_identification"
   | "buyer_identification_threshold"
   | "buyer_tax_status_set"
-  | "stock_movement";
+  | "stock_movement"
+  | "offline_authorization_code"
+  | "offline_number_block";
 
 export type PullReach =
   | { kind: "every_row" }
   | { kind: "row"; id: string }
   | { kind: "rows_of_branch"; locationId: string }
   | { kind: "rows_of_price_list"; priceListId: string }
+  | { kind: "rows_of_register"; registerId: string }
   | { kind: "none" };
 
 export type PullAudience = Readonly<Record<PulledEntity, PullReach>>;
@@ -56,5 +59,7 @@ export function pullAudienceOf({
     buyer_identification_threshold: EVERY_ROW,
     buyer_tax_status_set: EVERY_ROW,
     stock_movement: { kind: "rows_of_branch", locationId },
+    offline_authorization_code: EVERY_ROW,
+    offline_number_block: { kind: "rows_of_register", registerId },
   };
 }
