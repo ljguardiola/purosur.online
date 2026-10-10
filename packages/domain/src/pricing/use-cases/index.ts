@@ -49,9 +49,11 @@ export type {
   NewPriceReview,
   PriceChange,
   PriceConfirmation,
+  PriceReviewPostponementsResolution,
   PricingPorts,
   PricingStore,
   PricingStoreTransaction,
+  RecordedPriceReview,
 } from "./pricing-store.js";
 export type { ReadDiscountOutcome } from "./read-discount.js";
 export { readDiscount } from "./read-discount.js";

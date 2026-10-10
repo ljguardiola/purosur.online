@@ -6,12 +6,21 @@ import type {
   NewPriceReview,
   PriceChange,
   PriceConfirmation,
+  PriceReviewPostponementsResolution,
   PricingStore,
   PricingStoreTransaction,
+  RecordedPriceReview,
 } from "@purosur/domain/pricing/use-cases";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { auditLog, branchSettings, priceReviews, prices, products } from "../platform/db/schema.js";
+import {
+  auditLog,
+  branchSettings,
+  priceReviewPostponements,
+  priceReviews,
+  prices,
+  products,
+} from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { PRICE_VERSION } from "./price-version.js";
 
@@ -84,8 +93,30 @@ class DrizzlePricingStoreTransaction<TQueryResult extends PgQueryResultHKT>
     return recorded;
   }
 
-  async recordPriceReview(review: NewPriceReview): Promise<void> {
-    await this.tx.insert(priceReviews).values(review);
+  async recordPriceReview(review: NewPriceReview): Promise<RecordedPriceReview> {
+    const [recorded] = await this.tx
+      .insert(priceReviews)
+      .values(review)
+      .returning({ id: priceReviews.id });
+    if (!recorded) {
+      throw new Error("inserting the price review returned no row");
+    }
+    return recorded;
+  }
+
+  async resolvePriceReviewPostponements(
+    resolution: PriceReviewPostponementsResolution,
+  ): Promise<void> {
+    await this.tx
+      .update(priceReviewPostponements)
+      .set({ resolvedByReviewId: resolution.reviewId })
+      .where(
+        and(
+          eq(priceReviewPostponements.productId, resolution.productId),
+          eq(priceReviewPostponements.priceListId, resolution.priceListId),
+          isNull(priceReviewPostponements.resolvedByReviewId),
+        ),
+      );
   }
 
   async recordPriceChange(change: PriceChange): Promise<void> {

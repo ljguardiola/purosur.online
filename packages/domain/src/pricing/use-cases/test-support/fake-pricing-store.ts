@@ -7,9 +7,9 @@ import type {
   NewPriceReview,
   PriceChange,
   PriceConfirmation,
+  PriceReviewPostponementsResolution,
   PricingStore,
   PricingStoreTransaction,
-  PriceReviewPostponementsResolution,
   RecordedPriceReview,
 } from "../pricing-store.js";
 

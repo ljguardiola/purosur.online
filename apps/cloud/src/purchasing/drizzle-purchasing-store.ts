@@ -1,4 +1,4 @@
-import type { SaleUnit } from "@purosur/domain";
+import type { PriceReviewPostponement, SaleUnit } from "@purosur/domain";
 import {
   type LockPackagingResult,
   type LockProductResult,
@@ -20,6 +20,8 @@ import { and, eq, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
+  branchSettings,
+  priceReviewPostponements,
   productPackagings,
   products,
   purchaseLines,
@@ -260,6 +262,25 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
       throw new Error("inserting the purchase line returned no row");
     }
     return line;
+  }
+
+  async postponePriceReviews(postponement: PriceReviewPostponement): Promise<void> {
+    const [settings] = await this.tx
+      .select({ priceListId: branchSettings.priceListId })
+      .from(branchSettings)
+      .where(eq(branchSettings.locationId, postponement.locationId));
+    if (!settings) {
+      throw new Error(`branch settings missing for location ${postponement.locationId}`);
+    }
+    await this.tx.insert(priceReviewPostponements).values(
+      postponement.productIds.map((productId) => ({
+        productId,
+        priceListId: settings.priceListId,
+        postponedAt: postponement.postponedAt,
+        actorId: postponement.actorId,
+        purchaseId: postponement.purchaseId,
+      })),
+    );
   }
 
   async receiveStock(receipt: PurchaseReceipt): Promise<void> {

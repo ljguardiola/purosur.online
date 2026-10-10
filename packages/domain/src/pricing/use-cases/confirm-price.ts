@@ -39,12 +39,17 @@ export async function confirmPrice(
       await tx.latestReviewedAt(input.productId, priceListId),
     ]);
 
-    await tx.recordPriceReview({
+    const review = await tx.recordPriceReview({
       productId: input.productId,
       priceListId,
       reviewedAt: moment,
       actorId: input.actorId,
       priceId: current.id,
+    });
+    await tx.resolvePriceReviewPostponements({
+      productId: input.productId,
+      priceListId,
+      reviewId: review.id,
     });
     await tx.recordPriceConfirmation({
       productId: input.productId,
