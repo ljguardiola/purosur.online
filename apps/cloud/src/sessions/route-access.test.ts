@@ -73,11 +73,6 @@ beforeEach(async () => {
     answerWithSession,
   );
   app.get(
-    "/test-only/either-capability",
-    { config: { access: capabilityAccess("suppliers", "purchases"), sessionSource } },
-    answerWithSession,
-  );
-  app.get(
     "/test-only/manage-users-capability",
     { config: { access: capabilityAccess("manage_users"), sessionSource } },
     answerWithSession,
@@ -244,28 +239,6 @@ describe("the declared access, enforced before every handler", () => {
     expect((await callRoute(path, lossesSessionId)).statusCode).toBe(200);
     expect((await callRoute(path, adjustSessionId)).statusCode).toBe(200);
     const refused = await callRoute(path, countsSessionId);
-    expect(refused.statusCode).toBe(403);
-    expect(refused.json()).toMatchObject({ code: "forbidden" });
-  });
-
-  it("grants a route declared with several capabilities to a user holding any one of them, and no other", async () => {
-    const suppliersSessionId = await insertSession(
-      await insertUser(
-        await insertRole("Proveedores", ["manage_suppliers"]),
-        "suppliers@example.com",
-      ),
-    );
-    const purchasesSessionId = await insertSession(
-      await insertUser(await insertRole("Compras", ["record_purchases"]), "purchases@example.com"),
-    );
-    const otherSessionId = await insertSession(
-      await insertUser(await insertRole("Conteos", ["perform_stock_counts"]), "counts@example.com"),
-    );
-    const path = "/test-only/either-capability";
-
-    expect((await callRoute(path, suppliersSessionId)).statusCode).toBe(200);
-    expect((await callRoute(path, purchasesSessionId)).statusCode).toBe(200);
-    const refused = await callRoute(path, otherSessionId);
     expect(refused.statusCode).toBe(403);
     expect(refused.json()).toMatchObject({ code: "forbidden" });
   });
@@ -600,7 +573,7 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/movements",
-        access: { level: "capability", capabilities: ["stock_movements"] },
+        access: { level: "capability", capability: "stock_movements" },
       },
     ]);
 

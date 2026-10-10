@@ -28,7 +28,7 @@ export type RouteAccess =
   | { level: "open_session" }
   | { level: "open_session_peek" }
   | { level: "session_cookie" }
-  | { level: "capability"; capabilities: readonly [Capability, ...Capability[]] }
+  | { level: "capability"; capability: Capability }
   | { level: "record"; recordParam: string; grants: RecordGrants };
 
 export type RecordGrants = (
@@ -41,8 +41,8 @@ export const OPEN_SESSION_ACCESS: RouteAccess = { level: "open_session" };
 export const OPEN_SESSION_PEEK_ACCESS: RouteAccess = { level: "open_session_peek" };
 export const SESSION_COOKIE_ACCESS: RouteAccess = { level: "session_cookie" };
 
-export function capabilityAccess(...capabilities: [Capability, ...Capability[]]): RouteAccess {
-  return { level: "capability", capabilities };
+export function capabilityAccess(capability: Capability): RouteAccess {
+  return { level: "capability", capability };
 }
 
 export function recordAccess(recordParam: string, grants: RecordGrants): RouteAccess {
@@ -137,7 +137,7 @@ function isAccessGranted(
     case "session_cookie":
       return true;
     case "capability":
-      return access.capabilities.some((capability) => grantsCapability(session, capability));
+      return grantsCapability(session, access.capability);
     case "record":
       return true;
   }

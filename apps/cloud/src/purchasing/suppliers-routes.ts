@@ -57,13 +57,9 @@ export function registerSuppliersRoutes<TQueryResult extends PgQueryResultHKT>(
   const store = new DrizzlePurchasingStore(options.db, now);
   const reader = new DrizzlePurchasingListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const readConfig = { access: capabilityAccess("suppliers", "purchases"), sessionSource };
-  const writeConfig = { access: capabilityAccess("suppliers"), sessionSource };
-  const readGuard = { preHandler: sameOriginGuard(options.backofficeOrigin), config: readConfig };
-  const writeGuard = {
-    preHandler: backofficeOriginGuard(options.backofficeOrigin),
-    config: writeConfig,
-  };
+  const config = { access: capabilityAccess("suppliers"), sessionSource };
+  const readGuard = { preHandler: sameOriginGuard(options.backofficeOrigin), config };
+  const writeGuard = { preHandler: backofficeOriginGuard(options.backofficeOrigin), config };
 
   app.get("/suppliers", readGuard, async (_request, reply) => {
     await reply.code(200).send(supplierListSchema.parse(await listSuppliers(reader)));
