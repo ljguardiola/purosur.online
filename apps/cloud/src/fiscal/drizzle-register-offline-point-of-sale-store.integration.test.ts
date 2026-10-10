@@ -66,4 +66,12 @@ describe("the offline number blocks on a real Postgres", () => {
       { firstNumber: 5001, lastNumber: 6000 },
     ]);
   });
+
+  it("keeps every block for good: the cloud's own role can neither delete nor truncate them", async () => {
+    await sql`select 1`;
+
+    await expect(sql`delete from offline_number_blocks`).rejects.toThrow("permission denied");
+    await expect(sql`truncate offline_number_blocks`).rejects.toThrow("permission denied");
+    expect(await db.select().from(offlineNumberBlocks)).not.toEqual([]);
+  });
 });
