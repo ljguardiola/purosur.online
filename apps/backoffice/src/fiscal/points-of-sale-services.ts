@@ -12,6 +12,7 @@ import {
 } from "./fiscal-addresses-api";
 import type { NewFiscalAddressModalServices } from "./new-fiscal-address-modal";
 import {
+  configureRegisterOfflinePointOfSale,
   configureRegisterPointOfSale,
   fetchRegisterPointsOfSale,
 } from "./register-points-of-sale-api";
@@ -27,6 +28,7 @@ export const defaultPointsOfSaleScreenServices: PointsOfSaleScreenServices = {
   fetchRegisterPointsOfSale,
   fetchFiscalAddresses,
   configureRegisterPointOfSale,
+  configureRegisterOfflinePointOfSale,
   createFiscalAddress,
   editFiscalAddress,
   fetchSessionAuthorizationOptions,

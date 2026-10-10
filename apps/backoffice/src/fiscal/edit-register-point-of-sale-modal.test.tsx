@@ -290,7 +290,7 @@ test("reads the data again when the register is gone", async () => {
 function ReloadingModal({
   services,
   changed,
-  mechanism,
+  mechanism = "real_time",
 }: {
   services: EditRegisterPointOfSaleModalServices;
   changed: RegisterPointOfSale;

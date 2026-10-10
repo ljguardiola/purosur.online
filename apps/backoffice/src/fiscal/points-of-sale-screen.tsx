@@ -30,7 +30,10 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
   const fiscalAddresses = useFiscalAddressesQuery({ fetchFiscalAddresses, onSessionEnded });
   const reloadRegisters = useReloadRegisterPointsOfSale({ fetchRegisterPointsOfSale });
   const reloadFiscalAddresses = useReloadFiscalAddresses({ fetchFiscalAddresses });
-  const [editingRegisterId, setEditingRegisterId] = useState<string | null>(null);
+  const [editingRegister, setEditingRegister] = useState<{
+    registerId: string;
+    mechanism: "real_time" | "offline";
+  } | null>(null);
   const [editingFiscalAddressId, setEditingFiscalAddressId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [notice, setNotice] = useState<ScreenNotice | null>(null);
@@ -44,8 +47,8 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
   const registersWithAddresses = combineCloudData(registers, fiscalAddresses);
   const loadedRegisters = registers.status === "loaded" ? registers.value : [];
   const loadedFiscalAddresses = fiscalAddresses.status === "loaded" ? fiscalAddresses.value : [];
-  const editingRegister =
-    loadedRegisters.find(({ registerId }) => registerId === editingRegisterId) ?? null;
+  const registerBeingEdited =
+    loadedRegisters.find(({ registerId }) => registerId === editingRegister?.registerId) ?? null;
   const editingFiscalAddress =
     loadedFiscalAddresses.find(({ id }) => id === editingFiscalAddressId) ?? null;
 
@@ -67,7 +70,7 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
       >
         <RegisterPointOfSaleSection
           data={registersWithAddresses}
-          onEdit={({ registerId }) => setEditingRegisterId(registerId)}
+          onEdit={({ registerId }, mechanism) => setEditingRegister({ registerId, mechanism })}
         />
         <FiscalAddressesSection
           data={fiscalAddresses}
@@ -75,12 +78,18 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
         />
       </ScreenLayout>
       <EditRegisterPointOfSaleModal
-        target={editingRegister}
+        mechanism={editingRegister?.mechanism ?? "real_time"}
+        target={registerBeingEdited}
         fiscalAddresses={loadedFiscalAddresses}
-        onClose={() => setEditingRegisterId(null)}
+        onClose={() => setEditingRegister(null)}
         onSaved={() => {
-          setEditingRegisterId(null);
-          announce("Punto de venta guardado", `${editingRegister?.registerName ?? ""}.`);
+          setEditingRegister(null);
+          announce(
+            editingRegister?.mechanism === "offline"
+              ? "Punto de venta CAEA guardado"
+              : "Punto de venta guardado",
+            `${registerBeingEdited?.registerName ?? ""}.`,
+          );
         }}
         reload={reloadRegisters}
         onSessionEnded={onSessionEnded}

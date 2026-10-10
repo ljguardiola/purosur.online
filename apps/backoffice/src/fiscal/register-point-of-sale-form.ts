@@ -1,4 +1,7 @@
-import type { PointOfSaleConfigurationBody } from "@purosur/contracts";
+import type {
+  OfflinePointOfSaleConfigurationBody,
+  PointOfSaleConfigurationBody,
+} from "@purosur/contracts";
 import { parsePointOfSaleNumber } from "@purosur/ui";
 import type { RegisterPointOfSale } from "./register-points-of-sale-api";
 
@@ -16,12 +19,14 @@ export const EMPTY_REGISTER_POINT_OF_SALE_FORM: RegisterPointOfSaleFormValues = 
 
 export function registerPointOfSaleFormValuesFrom(
   register: RegisterPointOfSale,
+  mechanism: "real_time" | "offline" = "real_time",
 ): RegisterPointOfSaleFormValues {
+  const offline = mechanism === "offline";
+  const number = offline ? register.offlinePointOfSaleNumber : register.pointOfSaleNumber;
   return {
-    pointOfSaleNumber:
-      register.pointOfSaleNumber === null ? "" : String(register.pointOfSaleNumber),
+    pointOfSaleNumber: number === null ? "" : String(number),
     fiscalAddressId: register.fiscalAddressId,
-    version: register.version,
+    version: offline ? register.offlineVersion : register.version,
   };
 }
 
@@ -35,6 +40,13 @@ export function registerPointOfSaleRequestFrom({
     fiscal_address_id: fiscalAddressId ?? "",
     version,
   };
+}
+
+export function offlinePointOfSaleRequestFrom({
+  pointOfSaleNumber,
+  version,
+}: RegisterPointOfSaleFormValues): OfflinePointOfSaleConfigurationBody {
+  return { point_of_sale_number: parsePointOfSaleNumber(pointOfSaleNumber), version };
 }
 
 export function pointOfSaleNumberMessage({
