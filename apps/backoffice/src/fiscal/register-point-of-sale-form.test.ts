@@ -1,8 +1,12 @@
-import { pointOfSaleConfigurationBodySchema } from "@purosur/contracts";
+import {
+  offlinePointOfSaleConfigurationBodySchema,
+  pointOfSaleConfigurationBodySchema,
+} from "@purosur/contracts";
 import { expect, test } from "vitest";
 import {
   EMPTY_REGISTER_POINT_OF_SALE_FORM,
   fiscalAddressMessage,
+  offlinePointOfSaleRequestFrom,
   pointOfSaleNumberMessage,
   registerPointOfSaleFormValuesFrom,
   registerPointOfSaleRequestFrom,
@@ -14,6 +18,8 @@ const configured = {
   pointOfSaleNumber: 12,
   fiscalAddressId: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
   version: 2,
+  offlinePointOfSaleNumber: 13,
+  offlineVersion: 5,
 };
 
 test("fills the form with the register's number as typed, its fiscal address and its version", () => {
@@ -85,4 +91,29 @@ test("asks for the point of sale when it is empty and to review it otherwise", (
 
 test("asks to choose the fiscal address", () => {
   expect(fiscalAddressMessage()).toBe("Elegí el domicilio fiscal.");
+});
+
+test("fills the form with the register's offline number and version when it is the offline point of sale", () => {
+  expect(registerPointOfSaleFormValuesFrom(configured, "offline")).toEqual({
+    pointOfSaleNumber: "13",
+    fiscalAddressId: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    version: 5,
+  });
+  expect(
+    registerPointOfSaleFormValuesFrom(
+      { ...configured, offlinePointOfSaleNumber: null, offlineVersion: 0 },
+      "offline",
+    ).pointOfSaleNumber,
+  ).toBe("");
+});
+
+test("builds the offline request with only the typed number and the version", () => {
+  const request = offlinePointOfSaleRequestFrom({
+    pointOfSaleNumber: " 13 ",
+    fiscalAddressId: null,
+    version: 5,
+  });
+
+  expect(request).toEqual({ point_of_sale_number: 13, version: 5 });
+  expect(offlinePointOfSaleConfigurationBodySchema.safeParse(request).success).toBe(true);
 });

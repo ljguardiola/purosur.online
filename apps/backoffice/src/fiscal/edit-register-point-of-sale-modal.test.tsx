@@ -16,6 +16,7 @@ function createServices(
 ): EditRegisterPointOfSaleModalServices {
   return {
     configureRegisterPointOfSale: vi.fn(),
+    configureRegisterOfflinePointOfSale: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
@@ -43,6 +44,8 @@ const configured: RegisterPointOfSale = {
   pointOfSaleNumber: 12,
   fiscalAddressId: depot.id,
   version: 2,
+  offlinePointOfSaleNumber: 13,
+  offlineVersion: 4,
 };
 
 const neverConfigured: RegisterPointOfSale = {
@@ -50,9 +53,12 @@ const neverConfigured: RegisterPointOfSale = {
   pointOfSaleNumber: null,
   fiscalAddressId: null,
   version: 0,
+  offlinePointOfSaleNumber: null,
+  offlineVersion: 0,
 };
 
 type ModalOptions = {
+  mechanism?: "real_time" | "offline";
   target?: RegisterPointOfSale | null;
   fiscalAddresses?: FiscalAddress[];
   services?: EditRegisterPointOfSaleModalServices;
@@ -67,6 +73,7 @@ function reloaded(...value: RegisterPointOfSale[]) {
 }
 
 function modalElement({
+  mechanism = "real_time",
   target = configured,
   fiscalAddresses = [depot, shop],
   services = createServices(),
@@ -79,6 +86,7 @@ function modalElement({
     <FieldSizeProvider size="backoffice">
       <main>
         <EditRegisterPointOfSaleModal
+          mechanism={mechanism}
           target={target}
           fiscalAddresses={fiscalAddresses}
           services={services}
@@ -206,7 +214,7 @@ test("opens the authorization modal on authorization_required, then authorizes a
   expect(services.configureRegisterPointOfSale).toHaveBeenCalledTimes(2);
 });
 
-test("says another register already has the number, on the number's field", async () => {
+test("says the number is already assigned, on the number's field", async () => {
   const services = createServices();
   vi.mocked(services.configureRegisterPointOfSale).mockResolvedValue({
     kind: "point_of_sale_taken",
@@ -216,7 +224,7 @@ test("says another register already has the number, on the number's field", asyn
 
   await save(dialog);
 
-  await expect.element(dialog.getByText("Ese punto de venta ya es de otra caja.")).toBeVisible();
+  await expect.element(dialog.getByText("Ese punto de venta ya está asignado.")).toBeVisible();
   expect(onSaved).not.toHaveBeenCalled();
 });
 
@@ -282,12 +290,15 @@ test("reads the data again when the register is gone", async () => {
 function ReloadingModal({
   services,
   changed,
+  mechanism,
 }: {
   services: EditRegisterPointOfSaleModalServices;
   changed: RegisterPointOfSale;
+  mechanism?: "real_time" | "offline";
 }) {
   const [target, setTarget] = useState(configured);
   return modalElement({
+    mechanism,
     target,
     services,
     reload: () => {
@@ -331,4 +342,127 @@ test("without fiscal addresses it says to load one first and cannot save", async
 
   await expect.element(dialog.getByText("Todavía no hay domicilios fiscales")).toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
+});
+
+const offline = { mechanism: "offline" } as const;
+
+test("the offline variant is a Punto de venta CAEA with its own number, no fiscal address and its own warning", async () => {
+  const { dialog } = await renderModal(offline);
+
+  await expect
+    .element(dialog.getByText("Punto de venta CAEA", { exact: true }).first())
+    .toBeVisible();
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Punto de venta CAEA/ }))
+    .toHaveValue("13");
+  expect(dialog.getByRole("button", { name: /Domicilio fiscal/ }).query()).toBeNull();
+  await expect
+    .element(
+      dialog
+        .getByText(
+          "Tiene que ser un punto de venta CAEA dado de alta en ARCA solo para esta caja, en el mismo domicilio que su punto de venta CAE.",
+        )
+        .first(),
+    )
+    .toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("saves the offline number with the offline version, reads the data again and reports it saved", async () => {
+  const services = createServices();
+  vi.mocked(services.configureRegisterOfflinePointOfSale).mockResolvedValue({ kind: "ok" });
+  const reload = vi.fn(() => reloaded(configured));
+  const onSaved = vi.fn();
+  const { dialog } = await renderModal({ ...offline, services, reload, onSaved });
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Punto de venta CAEA/ }), "9");
+
+  await save(dialog);
+
+  await expect.poll(() => onSaved.mock.calls.length).toBe(1);
+  expect(services.configureRegisterOfflinePointOfSale).toHaveBeenCalledWith("register-1", {
+    point_of_sale_number: 9,
+    version: 4,
+  });
+  expect(services.configureRegisterPointOfSale).not.toHaveBeenCalled();
+  expect(reload).toHaveBeenCalledTimes(1);
+});
+
+test("requires the offline number, without calling the cloud", async () => {
+  const services = createServices();
+  const { dialog } = await renderModal({ ...offline, target: neverConfigured, services });
+
+  await save(dialog);
+
+  await expect.element(dialog.getByText("Ingresá el punto de venta.")).toBeVisible();
+  expect(services.configureRegisterOfflinePointOfSale).not.toHaveBeenCalled();
+});
+
+test("can save without fiscal addresses, which the offline point of sale does not use", async () => {
+  const { dialog } = await renderModal({ ...offline, fiscalAddresses: [] });
+
+  await expect.element(dialog.getByRole("button", { name: "Guardar los cambios" })).toBeEnabled();
+});
+
+test("says the offline number is already assigned, on the number's field", async () => {
+  const services = createServices();
+  vi.mocked(services.configureRegisterOfflinePointOfSale).mockResolvedValue({
+    kind: "point_of_sale_taken",
+  });
+  const { dialog } = await renderModal({ ...offline, services });
+
+  await save(dialog);
+
+  await expect.element(dialog.getByText("Ese punto de venta ya está asignado.")).toBeVisible();
+});
+
+test("says to configure the CAE point of sale first when the register has none", async () => {
+  const services = createServices();
+  vi.mocked(services.configureRegisterOfflinePointOfSale).mockResolvedValue({
+    kind: "real_time_point_of_sale_missing",
+  });
+  const onSaved = vi.fn();
+  const { dialog } = await renderModal({ ...offline, services, onSaved });
+
+  await save(dialog);
+
+  await expect.element(dialog.getByText("Falta el punto de venta CAE")).toBeVisible();
+  await expect
+    .element(dialog.getByText("Configurá primero el punto de venta CAE de esta caja."))
+    .toBeVisible();
+  expect(onSaved).not.toHaveBeenCalled();
+});
+
+test("the offline variant shows the stale-version notice, and Recargar brings the offline number and version", async () => {
+  const services = createServices();
+  vi.mocked(services.configureRegisterOfflinePointOfSale).mockResolvedValueOnce({
+    kind: "stale_version",
+  });
+  const changed: RegisterPointOfSale = {
+    ...configured,
+    offlinePointOfSaleNumber: 31,
+    offlineVersion: 6,
+  };
+  const screen = await render(
+    <ReloadingModal services={services} changed={changed} mechanism="offline" />,
+  );
+  const dialog = screen.getByRole("dialog", { name: "Caja 1" });
+  await save(dialog);
+  await expect
+    .element(dialog.getByText("El punto de venta cambió mientras lo editabas"))
+    .toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Punto de venta CAEA/ }))
+    .toHaveValue("31");
+  vi.mocked(services.configureRegisterOfflinePointOfSale).mockResolvedValueOnce({ kind: "ok" });
+  await save(dialog);
+  await expect
+    .poll(() => vi.mocked(services.configureRegisterOfflinePointOfSale).mock.calls.length)
+    .toBe(2);
+  expect(services.configureRegisterOfflinePointOfSale).toHaveBeenLastCalledWith("register-1", {
+    point_of_sale_number: 31,
+    version: 6,
+  });
 });
