@@ -296,6 +296,7 @@ describe("enrollInstallation", () => {
       "recordInstallation",
       "recordInstallationEnrollment",
       "markEnrollmentCodeRedeemed",
+      "requireFreshTaxAuthorityCount",
       "openEnrollmentAlert",
     ]);
   });
