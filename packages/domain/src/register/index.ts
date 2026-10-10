@@ -75,8 +75,6 @@ export type {
   SerialDeviceStanding,
 } from "./model/serial-devices.js";
 export {
-  isSameSerialDeviceIdentity,
   isSerialDeviceMissing,
   SERIAL_DEVICE_ROLES,
-  serialDeviceStandings,
 } from "./model/serial-devices.js";
