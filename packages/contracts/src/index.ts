@@ -352,6 +352,7 @@ export type {
   AuthorizedBy,
   BranchSettingsBody,
   ErrorReportingConfiguration,
+  EventQuarantineReason,
   IssuerIdentificationBody,
   OpenCashSession,
   PinAttemptRefusal,
@@ -422,6 +423,14 @@ export {
   pushEventsRequestSchema,
   pushEventsResponseSchema,
 } from "./sync/events.js";
+export type {
+  QuarantinedEventsList,
+  ReleaseQuarantinedEventError,
+} from "./sync/quarantined-events.js";
+export {
+  quarantinedEventsListSchema,
+  releaseQuarantinedEventErrorSchema,
+} from "./sync/quarantined-events.js";
 export type {
   SyncedEventPayloadKey,
   SyncedEventPayloads,

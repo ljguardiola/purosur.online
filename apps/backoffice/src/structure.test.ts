@@ -14,6 +14,7 @@ const CONCEPTS = [
   "register",
   "sales",
   "stock",
+  "sync",
   "users",
   "credentials",
   "sessions",
