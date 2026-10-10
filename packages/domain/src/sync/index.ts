@@ -15,5 +15,6 @@ export type { SalesStopReason, SalesStopState } from "./model/sales-stop.js";
 export {
   isInstallationRevoked,
   isSalesStopReason,
+  SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,
   salesDeniedReportOf,
 } from "./model/sales-stop.js";
