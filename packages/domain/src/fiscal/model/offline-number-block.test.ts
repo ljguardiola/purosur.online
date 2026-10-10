@@ -1,21 +1,18 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  firstOfflineNumberBlock,
   nextOfflineNumber,
-  nextOfflineNumberBlock,
   OFFLINE_NUMBER_BLOCK_SIZE,
   OFFLINE_NUMBER_BLOCK_STATUSES,
   type OfflineNumberBlockRange,
 } from "./offline-number-block.js";
 
-function blocksAssigned(count: number): OfflineNumberBlockRange[] {
-  const blocks: OfflineNumberBlockRange[] = [];
-  let previous: OfflineNumberBlockRange | null = null;
-  for (let index = 0; index < count; index += 1) {
-    previous = nextOfflineNumberBlock(previous);
-    blocks.push(previous);
-  }
-  return blocks;
+function contiguousBlocks(count: number): OfflineNumberBlockRange[] {
+  return Array.from({ length: count }, (_, index) => ({
+    firstNumber: index * 1000 + 1,
+    lastNumber: (index + 1) * 1000,
+  }));
 }
 
 describe("offline number blocks", () => {
@@ -28,37 +25,14 @@ describe("offline number blocks", () => {
   });
 });
 
-describe("nextOfflineNumberBlock", () => {
-  it("starts the series at 1 when no block was ever assigned", () => {
-    expect(nextOfflineNumberBlock(null)).toEqual({ firstNumber: 1, lastNumber: 1000 });
-  });
-
-  it("is the range right after the previous block", () => {
-    expect(nextOfflineNumberBlock({ firstNumber: 1, lastNumber: 1000 })).toEqual({
-      firstNumber: 1001,
-      lastNumber: 2000,
-    });
-  });
-
-  it("always holds the block size and starts right after the previous block, so blocks never overlap", () => {
-    fc.assert(
-      fc.property(fc.integer({ min: 1, max: 200 }), (count) => {
-        const blocks = blocksAssigned(count);
-        expect(blocks[0]?.firstNumber).toBe(1);
-        blocks.forEach((block, index) => {
-          expect(block.lastNumber - block.firstNumber + 1).toBe(OFFLINE_NUMBER_BLOCK_SIZE);
-          const previous = blocks[index - 1];
-          if (previous !== undefined) {
-            expect(block.firstNumber).toBe(previous.lastNumber + 1);
-          }
-        });
-      }),
-    );
+describe("firstOfflineNumberBlock", () => {
+  it("holds the first 1000 numbers of the series, 1 to 1000", () => {
+    expect(firstOfflineNumberBlock()).toEqual({ firstNumber: 1, lastNumber: 1000 });
   });
 });
 
 describe("nextOfflineNumber", () => {
-  const blocks = blocksAssigned(2);
+  const blocks = contiguousBlocks(2);
 
   it("is the first number of the first block when none was used", () => {
     expect(nextOfflineNumber(blocks, null)).toBe(1);
@@ -99,10 +73,10 @@ describe("nextOfflineNumber", () => {
         fc.integer({ min: 1, max: 5 }),
         fc.integer({ min: 0, max: 6000 }),
         (count, lastUsed) => {
-          const held = blocksAssigned(count);
+          const held = contiguousBlocks(count);
           const next = nextOfflineNumber(held, lastUsed);
           if (next === null) {
-            expect(lastUsed).toBeGreaterThanOrEqual(count * OFFLINE_NUMBER_BLOCK_SIZE);
+            expect(lastUsed).toBeGreaterThanOrEqual(count * 1000);
           } else {
             expect(next).toBe(lastUsed + 1);
           }

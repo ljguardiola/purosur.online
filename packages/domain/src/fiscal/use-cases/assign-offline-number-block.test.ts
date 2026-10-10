@@ -33,13 +33,12 @@ describe("assignFirstOfflineNumberBlock", () => {
 
     expect(store.operations).toEqual([
       "lockOfflineNumberBlocks",
-      "hasOfflineNumberBlockInUse",
-      "lastOfflineNumberBlock",
+      "hasOfflineNumberBlock",
       "recordOfflineNumberBlock",
     ]);
   });
 
-  it("assigns nothing when the point of sale already has a block in use, even for another register", async () => {
+  it("assigns nothing when the point of sale already has a block, even for another register", async () => {
     const store = new FakeOfflineNumberBlocks([
       {
         ...input,

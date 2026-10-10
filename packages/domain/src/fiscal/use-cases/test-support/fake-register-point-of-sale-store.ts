@@ -1,5 +1,4 @@
 import type { FiscalDocumentType } from "../../model/fiscal-rejection-alert.js";
-import type { OfflineNumberBlockRange } from "../../model/offline-number-block.js";
 import type { PointOfSaleMechanism } from "../../model/point-of-sale.js";
 import type {
   OfflineNumberBlockRecord,
@@ -161,18 +160,11 @@ class FakeRegisterOfflinePointOfSaleStoreTransaction
     return this.blocks.lockOfflineNumberBlocks(pointOfSaleNumber, documentType);
   }
 
-  hasOfflineNumberBlockInUse(
+  hasOfflineNumberBlock(
     pointOfSaleNumber: number,
     documentType: FiscalDocumentType,
   ): Promise<boolean> {
-    return this.blocks.hasOfflineNumberBlockInUse(pointOfSaleNumber, documentType);
-  }
-
-  lastOfflineNumberBlock(
-    pointOfSaleNumber: number,
-    documentType: FiscalDocumentType,
-  ): Promise<OfflineNumberBlockRange | null> {
-    return this.blocks.lastOfflineNumberBlock(pointOfSaleNumber, documentType);
+    return this.blocks.hasOfflineNumberBlock(pointOfSaleNumber, documentType);
   }
 
   recordOfflineNumberBlock(record: OfflineNumberBlockRecord): Promise<void> {

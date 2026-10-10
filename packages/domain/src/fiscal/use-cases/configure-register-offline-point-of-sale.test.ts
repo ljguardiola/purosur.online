@@ -137,8 +137,7 @@ describe("configureRegisterOfflinePointOfSale", () => {
       "claimPointOfSale",
       "recordRegisterOfflinePointOfSale",
       "lockOfflineNumberBlocks",
-      "hasOfflineNumberBlockInUse",
-      "lastOfflineNumberBlock",
+      "hasOfflineNumberBlock",
       "recordOfflineNumberBlock",
     ]);
     expect(store.transactionCount).toBe(1);

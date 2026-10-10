@@ -1,5 +1,4 @@
 import type { FiscalDocumentType } from "../../model/fiscal-rejection-alert.js";
-import type { OfflineNumberBlockRange } from "../../model/offline-number-block.js";
 import type {
   OfflineNumberBlockRecord,
   OfflineNumberBlockStore,
@@ -27,40 +26,20 @@ export class FakeOfflineNumberBlocks implements OfflineNumberBlockStore {
     this.operations.push("lockOfflineNumberBlocks");
   }
 
-  async hasOfflineNumberBlockInUse(
+  async hasOfflineNumberBlock(
     pointOfSaleNumber: number,
     documentType: FiscalDocumentType,
   ): Promise<boolean> {
-    this.operations.push("hasOfflineNumberBlockInUse");
-    return this.blocksOf(pointOfSaleNumber, documentType).some(
-      (block) => block.status === "in_use",
+    this.operations.push("hasOfflineNumberBlock");
+    return this.blocks.some(
+      (block) =>
+        block.pointOfSaleNumber === pointOfSaleNumber && block.documentType === documentType,
     );
-  }
-
-  async lastOfflineNumberBlock(
-    pointOfSaleNumber: number,
-    documentType: FiscalDocumentType,
-  ): Promise<OfflineNumberBlockRange | null> {
-    this.operations.push("lastOfflineNumberBlock");
-    const last = this.blocksOf(pointOfSaleNumber, documentType)
-      .map((block) => block.range)
-      .sort((a, b) => b.lastNumber - a.lastNumber)[0];
-    return last === undefined ? null : { ...last };
   }
 
   async recordOfflineNumberBlock(record: OfflineNumberBlockRecord): Promise<void> {
     this.operations.push("recordOfflineNumberBlock");
     this.beforeRecord();
     this.blocks.push({ ...record, range: { ...record.range } });
-  }
-
-  private blocksOf(
-    pointOfSaleNumber: number,
-    documentType: FiscalDocumentType,
-  ): OfflineNumberBlockRecord[] {
-    return this.blocks.filter(
-      (block) =>
-        block.pointOfSaleNumber === pointOfSaleNumber && block.documentType === documentType,
-    );
   }
 }
