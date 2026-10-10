@@ -7,7 +7,7 @@ export interface MercadoPagoNotificationSignatureInput {
   dataId: string | undefined;
 }
 
-export type MercadoPagoNotificationRefusal =
+type MercadoPagoNotificationRefusal =
   | "missing_signature"
   | "malformed_signature"
   | "missing_request_id"
