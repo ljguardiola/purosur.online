@@ -45,3 +45,7 @@ export function fortnightsWithinRequestWindowOn(day: string): Fortnight[] {
   const next = fortnightAfter(current);
   return offlineAuthorizationCodeRequestOpensOn(next) <= day ? [current, next] : [current];
 }
+
+export function isSameFortnight(one: Fortnight, other: Fortnight): boolean {
+  return one.start === other.start && one.end === other.end;
+}
