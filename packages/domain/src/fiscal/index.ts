@@ -52,10 +52,6 @@ export {
   isSecondHalfOfMonth,
   offlineAuthorizationCodeRequestOpensOn,
 } from "./model/offline-authorization-code.js";
-export type {
-  OfflineAuthorizationCodeHoldingReader,
-  RegisterOfflineAuthorizationCodeHolding,
-} from "./model/offline-authorization-code-holding.js";
 export { mustHoldOfflineAuthorizationCode } from "./model/offline-authorization-code-holding.js";
 export type {
   OfflineNumberBlockRange,

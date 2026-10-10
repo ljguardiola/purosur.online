@@ -34,8 +34,6 @@ export type {
   ClosedAlert,
 } from "./close-alert.js";
 export { closeAlert } from "./close-alert.js";
-export type { MissingOfflineAuthorizationCodeDetectionPorts } from "./detect-missing-offline-authorization-codes.js";
-export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
 export type { QuietRegisterDetectionPorts } from "./detect-quiet-registers.js";
 export { detectQuietRegisters } from "./detect-quiet-registers.js";
 export { escalateOverdueAlerts } from "./escalate-overdue-alerts.js";

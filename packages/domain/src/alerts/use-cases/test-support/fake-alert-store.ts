@@ -242,12 +242,6 @@ export class FakeAlertStore implements AlertStore {
     return this.state.alerts.find((row) => row.id === alertId)?.level;
   }
 
-  async scopesOfOpenAlerts(kind: AlertKind): Promise<string[]> {
-    return this.state.alerts
-      .filter((alert) => alert.kind === kind && alert.resolvedAt === null)
-      .map(({ scope }) => scope);
-  }
-
   async transaction<TOutcome>(
     work: (tx: AlertStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {

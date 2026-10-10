@@ -7,10 +7,6 @@ export type {
 } from "../model/fiscal-rejection-alert.js";
 export type { Fortnight } from "../model/offline-authorization-code.js";
 export type {
-  OfflineAuthorizationCodeHoldingReader,
-  RegisterOfflineAuthorizationCodeHolding,
-} from "../model/offline-authorization-code-holding.js";
-export type {
   DeferralReason,
   RealTimeAuthorizationAnswer,
   RealTimeAuthorizationResolution,
@@ -95,6 +91,7 @@ export type {
   DecideSaleAuthorizationOutcome,
 } from "./decide-sale-authorization.js";
 export { decideSaleAuthorization } from "./decide-sale-authorization.js";
+export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
 export type {
   EditFiscalAddressInput,
   EditFiscalAddressOutcome,
@@ -143,6 +140,12 @@ export type {
   IssuerIdentificationStoreTransaction,
   NewIssuerIdentificationVersion,
 } from "./issuer-identification-store.js";
+export type {
+  MissingOfflineAuthorizationCodeAlerts,
+  MissingOfflineAuthorizationCodeDetectionPorts,
+  OfflineAuthorizationCodeHoldingReader,
+  RegisterOfflineAuthorizationCodeHolding,
+} from "./missing-offline-authorization-code-ports.js";
 export type {
   FortnightAcquisitionOutcome,
   ObtainOfflineAuthorizationCodesOutcome,

@@ -1,12 +1,10 @@
-import {
-  detectMissingOfflineAuthorizationCodes,
-  detectQuietRegisters,
-  resolveStablyClearedAlerts,
-} from "@purosur/domain/alerts/use-cases";
+import { detectQuietRegisters, resolveStablyClearedAlerts } from "@purosur/domain/alerts/use-cases";
+import { detectMissingOfflineAuthorizationCodes } from "@purosur/domain/fiscal/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
 import { DrizzleBranchHoursReader } from "../branch/drizzle-branch-hours-reader.js";
+import { DrizzleMissingOfflineAuthorizationCodeAlerts } from "../fiscal/drizzle-missing-offline-authorization-code-alerts.js";
 import { DrizzleOfflineAuthorizationCodeHoldingReader } from "../fiscal/drizzle-offline-authorization-code-holding-reader.js";
 import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
 import { DrizzleWatchedRegisterReader } from "../register/drizzle-watched-register-reader.js";
@@ -47,9 +45,8 @@ function detectMissingOfflineAuthorizationCodesTask<TQueryResult extends PgQuery
 ): Promise<number> {
   return detectMissingOfflineAuthorizationCodes({
     holdings: new DrizzleOfflineAuthorizationCodeHoldingReader(db),
-    store: new DrizzleAlertStore(db, deps.now),
+    alerts: new DrizzleMissingOfflineAuthorizationCodeAlerts(db, deps.now),
     clock: { now: deps.now },
-    hasher: { hash: hashSourceAddress },
   });
 }
 
