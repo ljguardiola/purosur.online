@@ -39,12 +39,19 @@ function queryValue(query: unknown, name: string): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
+function bodyDataId(body: unknown): string | undefined {
+  const data = typeof body === "object" && body !== null ? Reflect.get(body, "data") : undefined;
+  const id = typeof data === "object" && data !== null ? Reflect.get(data, "id") : undefined;
+  return typeof id === "string" ? id : undefined;
+}
+
 function headerValue(value: string | string[] | undefined): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
 // Public to the backoffice's session guard: the notification's signature is this route's own
-// authentication. The signature covers the order's id and not the body, so the body is never read.
+// authentication. The signature covers the order's id and not the body, so the body is only read
+// to log a rejected notification.
 export function registerMercadoPagoNotificationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: MercadoPagoNotificationRoutesOptions<TQueryResult>,
@@ -67,11 +74,13 @@ export function registerMercadoPagoNotificationRoutes<TQueryResult extends PgQue
       }
 
       const type = queryValue(request.query, "type");
+      const dataId = queryValue(request.query, "data.id");
+      const requestId = headerValue(request.headers["x-request-id"]);
       const signature = verifyMercadoPagoNotificationSignature({
         secret: webhookSecret,
         signatureHeader: headerValue(request.headers["x-signature"]),
-        requestId: headerValue(request.headers["x-request-id"]),
-        dataId: queryValue(request.query, "data.id"),
+        requestId,
+        dataId,
       });
       const admitted = await admitPaymentNotification(admission, {
         sourceAddress: resolveSourceAddress(request),
@@ -82,10 +91,22 @@ export function registerMercadoPagoNotificationRoutes<TQueryResult extends PgQue
       }
 
       if (signature.kind === "refused") {
-        console.warn("discarded a Mercado Pago notification with an invalid signature", {
-          reason: signature.reason,
-          type,
-        });
+        const sentInBody = bodyDataId(request.body);
+        console.warn(
+          "discarded a Mercado Pago notification with an invalid signature",
+          signature.reason === "mismatch"
+            ? {
+                reason: signature.reason,
+                type,
+                dataId,
+                dataIdSource: "query",
+                ...(sentInBody !== dataId ? { bodyDataId: sentInBody } : {}),
+                ts: signature.ts,
+                requestId,
+                manifests: signature.manifests,
+              }
+            : { reason: signature.reason, type },
+        );
         await reply.code(401).send();
         return;
       }

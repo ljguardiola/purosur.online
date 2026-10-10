@@ -11,12 +11,12 @@ type MercadoPagoNotificationRefusal =
   | "missing_signature"
   | "malformed_signature"
   | "missing_request_id"
-  | "missing_data_id"
-  | "mismatch";
+  | "missing_data_id";
 
 export type MercadoPagoNotificationSignatureCheck =
   | { kind: "signed"; dataId: string }
-  | { kind: "refused"; reason: MercadoPagoNotificationRefusal };
+  | { kind: "refused"; reason: MercadoPagoNotificationRefusal }
+  | { kind: "refused"; reason: "mismatch"; ts: string; manifests: string[] };
 
 const SHA256_HEX = /^[0-9a-f]{64}$/i;
 
@@ -57,13 +57,10 @@ export function verifyMercadoPagoNotificationSignature({
   // Mercado Pago's SDKs sign an alphanumeric data.id exactly as sent, while its notification
   // documentation tells to lowercase it; a signature over either form is Mercado Pago's.
   const hash = Buffer.from(v1, "hex");
-  const signedAsSent = signs(secret, `id:${dataId};request-id:${requestId};ts:${ts};`, hash);
-  const signedLowercased = signs(
-    secret,
-    `id:${dataId.toLowerCase()};request-id:${requestId};ts:${ts};`,
-    hash,
+  const manifests = [dataId, dataId.toLowerCase()].map(
+    (id) => `id:${id};request-id:${requestId};ts:${ts};`,
   );
-  return signedAsSent || signedLowercased
+  return manifests.some((manifest) => signs(secret, manifest, hash))
     ? { kind: "signed", dataId }
-    : { kind: "refused", reason: "mismatch" };
+    : { kind: "refused", reason: "mismatch", ts, manifests };
 }
