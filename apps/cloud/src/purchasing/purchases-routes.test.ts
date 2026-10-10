@@ -26,6 +26,7 @@ const MISSING_ID = "00000000-0000-4000-8000-000000000000";
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let app: FastifyInstance;
+let now = NOW;
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -38,8 +39,9 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
+  now = NOW;
   app = Fastify();
-  registerPurchasesRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => NOW });
+  registerPurchasesRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => now });
 });
 
 afterEach(async () => {
@@ -459,6 +461,7 @@ describe("GET /purchases", () => {
       headers,
       payload: bodyWith(supplierId, [quantityLine(productId)], { purchasedOn: "2026-10-01" }),
     });
+    now = new Date(NOW.getTime() + 60_000);
     await app.inject({
       method: "POST",
       url: "/purchases",
@@ -480,16 +483,14 @@ describe("GET /purchases", () => {
 
   it("lists only the purchases of the session's branch", async () => {
     const { headers, userId } = await buyer();
-    const other = await signedInWith(db, ["record_purchases"], NOW, {
-      locationId: await insertLocation(db),
-    });
     const supplierId = await storedSupplier(userId);
-    const { productId } = await insertProduct(db);
-    await app.inject({
-      method: "POST",
-      url: "/purchases",
-      headers: other.headers,
-      payload: bodyWith(supplierId, [quantityLine(productId)]),
+    await db.insert(purchases).values({
+      supplierId,
+      locationId: await insertLocation(db),
+      purchasedOn: "2026-10-01",
+      receiptType: "sin_comprobante",
+      recordedAt: NOW,
+      actorId: userId,
     });
 
     const response = await app.inject({ method: "GET", url: "/purchases", headers });
