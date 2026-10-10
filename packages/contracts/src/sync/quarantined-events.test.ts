@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   quarantinedEventsListSchema,
@@ -65,3 +66,12 @@ describe("the release refusals", () => {
     expect(releaseQuarantinedEventErrorSchema.safeParse({ code: "not_found" }).success).toBe(false);
   });
 });
+
+it.each(["receivedAt", "quarantinedAt"] as const)(
+  "tells the screens to show %s in Argentina's time zone",
+  (field) => {
+    expect(quarantinedEventsListSchema.shape.events.element.shape[field].meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
+  },
+);

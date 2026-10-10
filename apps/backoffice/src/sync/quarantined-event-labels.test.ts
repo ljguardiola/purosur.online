@@ -31,8 +31,6 @@ test("falls back to the raw aggregate type when it is unknown", () => {
   ).toBe("Other abc");
 });
 
-test("writes a date and time the way es-AR does", () => {
-  expect(quarantinedDateTimeText("2026-10-07T12:00:00.000Z")).toMatch(
-    /^\d{2}\/\d{2}\/\d{4},? \d{2}:\d{2}$/,
-  );
+test("writes a date and time in Argentina's time zone the way es-AR does", () => {
+  expect(quarantinedDateTimeText("2026-10-07T02:30:00.000Z")).toMatch(/^06\/10\/2026,? 23:30$/);
 });
