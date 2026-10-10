@@ -141,6 +141,22 @@ describe("QrChargeModal", () => {
     expect(callbacks.onOrderShown).not.toHaveBeenCalled();
   });
 
+  it("says another QR charge of the sale is still waiting, keeping the way to another method", async () => {
+    const { screen, create, callbacks } = await renderModal(async () => ({
+      kind: "qr_charge_in_progress",
+    }));
+
+    await userEvent.click(create);
+
+    await expect
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent("Ya hay un cobro con QR en curso para esta venta.");
+    await expect.element(create).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
+    expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
+    expect(callbacks.onOrderShown).not.toHaveBeenCalled();
+  });
+
   it("says the order could not be created because the register cannot reach the cloud", async () => {
     const { screen, create } = await renderModal(async () => ({ kind: "unreachable" }));
 

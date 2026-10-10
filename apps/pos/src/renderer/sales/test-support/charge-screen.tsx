@@ -3,9 +3,11 @@ import type {
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
+  FollowMercadoPagoQrChargeOutcome,
   OpenSale,
   ReceiptPrintStatusOutcome,
   RetryReceiptPrintOutcome,
+  StartMercadoPagoQrChargeOutcome,
 } from "@purosur/contracts";
 import { onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -86,7 +88,25 @@ export const SALE_WITH_PART_PAID: OpenSale = {
 
 export const COVERED: CashChargeAnswer = { kind: "covered", applied: 476_000, change: 24_000 };
 
+export const QR_PAYMENT_ID = "019a0000-0000-7000-8000-0000000000a1";
+export const QR_ORDER_SHOWN: StartMercadoPagoQrChargeOutcome = {
+  kind: "order_shown",
+  payment_transaction_id: QR_PAYMENT_ID,
+  amount: 476_000,
+  remaining_seconds: 180,
+  wait_seconds: 180,
+};
+const QR_WAITING: FollowMercadoPagoQrChargeOutcome = { kind: "waiting", remaining_seconds: 170 };
+
 export type Overrides = {
+  mercadoPagoQr?: ChargeScreenProps["mercadoPagoQr"];
+  startMercadoPagoQrCharge?: (
+    saleId: string,
+    amount: number,
+  ) => Promise<StartMercadoPagoQrChargeOutcome>;
+  followMercadoPagoQrCharge?: (
+    paymentTransactionId: string,
+  ) => Promise<FollowMercadoPagoQrChargeOutcome>;
   person?: ChargeScreenProps["person"];
   currentSale?: () => Promise<CurrentSaleAnswer>;
   cashCharge?: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
@@ -112,6 +132,12 @@ export async function renderScreen(overrides: Overrides = {}) {
   const chargeSaleByTransfer = vi.fn(
     overrides.chargeSaleByTransfer ?? (async () => TRANSFER_COMPLETED),
   );
+  const startMercadoPagoQrCharge = vi.fn(
+    overrides.startMercadoPagoQrCharge ?? (async () => QR_ORDER_SHOWN),
+  );
+  const followMercadoPagoQrCharge = vi.fn(
+    overrides.followMercadoPagoQrCharge ?? (async () => QR_WAITING),
+  );
   const receiptPrintStatus = vi.fn(overrides.receiptPrintStatus ?? (async () => PRINTED));
   const retryReceiptPrint = vi.fn(
     overrides.retryReceiptPrint ??
@@ -128,6 +154,9 @@ export async function renderScreen(overrides: Overrides = {}) {
       cashCharge={cashCharge}
       chargeSaleInCash={chargeSaleInCash}
       chargeSaleByTransfer={chargeSaleByTransfer}
+      mercadoPagoQr={overrides.mercadoPagoQr ?? "available"}
+      startMercadoPagoQrCharge={startMercadoPagoQrCharge}
+      followMercadoPagoQrCharge={followMercadoPagoQrCharge}
       receiptPrintStatus={receiptPrintStatus}
       retryReceiptPrint={retryReceiptPrint}
       onSessionInvalid={onSessionInvalid}
@@ -139,6 +168,8 @@ export async function renderScreen(overrides: Overrides = {}) {
     cashCharge,
     chargeSaleInCash,
     chargeSaleByTransfer,
+    startMercadoPagoQrCharge,
+    followMercadoPagoQrCharge,
     receiptPrintStatus,
     retryReceiptPrint,
     onSessionInvalid,
@@ -153,6 +184,10 @@ export async function chooseCash(screen: Screen) {
 
 export async function chooseTransfer(screen: Screen) {
   await userEvent.click(screen.getByText("Transferencia", { exact: true }));
+}
+
+export async function chooseQr(screen: Screen) {
+  await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
 }
 
 export async function chargeInCash(screen: Screen, tendered: string) {
