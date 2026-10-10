@@ -187,13 +187,29 @@ describe("printing a completed sale's receipt", () => {
     expect(deliveryOf("sale-1")).toEqual({ print_attempted_at: null, printed_at: null });
   });
 
-  it("sends nothing when the outbox is not ready", async () => {
+  it("sends nothing and answers that the print failed when the outbox is not ready", async () => {
     await printCompletedSaleReceiptFor(
       deps({ readOutboxChainKey: async () => undefined }),
       "sale-1",
     );
 
     expect(printer.sent).toEqual([]);
+    expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
+      printed: false,
+      standing: "failed",
+    });
+  });
+
+  it("sends nothing and answers that the print failed when the signed-in person may not sell", async () => {
+    signedInPerson.set("clerk");
+
+    await printCompletedSaleReceiptFor(deps(), "sale-1");
+
+    expect(printer.sent).toEqual([]);
+    expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
+      printed: false,
+      standing: "failed",
+    });
   });
 
   it("reports a failure of the ledger instead of throwing", async () => {

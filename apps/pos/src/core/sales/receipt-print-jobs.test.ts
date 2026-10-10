@@ -187,6 +187,18 @@ describe("receipt print jobs", () => {
     expect(await printingSale(subject)).toEqual({ kind: "sent" });
   });
 
+  it("stands as failed when an unattended start ends without sending, leaving the sale free to print", async () => {
+    const subject = rig();
+
+    await subject.jobs.start("sale-1", async () => ({ kind: "unavailable" }), {
+      unattended: true,
+    });
+
+    expect(subject.jobs.standingOf("sale-1")).toBe("failed");
+    expect(subject.failures).toEqual([]);
+    expect(await printingSale(subject)).toEqual({ kind: "sent" });
+  });
+
   it("reports a failure before sending, stands as failed and leaves the sale free to print", async () => {
     const subject = rig();
     const failure = new Error("the ledger is damaged");

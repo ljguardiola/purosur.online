@@ -255,10 +255,9 @@ describe("SaleCompletedModal", () => {
     await expect.element(screen.getByText("Confirmada · no se deshace")).toBeVisible();
     await expect.element(screen.getByText("Pendiente de imprimir", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("Impresora térmica")).not.toBeInTheDocument();
-    await expectAlertText(
-      screen,
-      "Se produjo un error al imprimir Imprimilo desde el historial de ventas.",
-    );
+    await expect
+      .poll(() => screen.getByRole("alert").element().textContent)
+      .toBe("Imprimilo desde el historial de ventas.");
     await expect
       .element(screen.getByRole("button", { name: "Reintentar impresión" }))
       .not.toBeInTheDocument();
@@ -338,6 +337,32 @@ describe("SaleCompletedModal", () => {
     await expect
       .element(screen.getByRole("button", { name: "Reintentar impresión" }))
       .toBeEnabled();
+  });
+
+  it("drops the advice to try again once the retry it refused leaves the print failed, with no retry to try", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    let standing: Standing = "retry_offered";
+    const { screen } = await renderModal(CASH, {
+      readReceiptStatus: async () => found(standing),
+      retryReceiptPrint: async () => {
+        standing = "failed";
+        return { kind: "unavailable" };
+      },
+    });
+    const retryNotice = screen
+      .getByRole("alert")
+      .filter({ hasText: "No se pudo reintentar la impresión. Probá de nuevo." });
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar impresión" }));
+    await expect.element(retryNotice).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(2000);
+
+    await expect
+      .element(
+        screen.getByRole("alert").filter({ hasText: "Imprimilo desde el historial de ventas." }),
+      )
+      .toBeVisible();
+    await expect.element(retryNotice).not.toBeInTheDocument();
   });
 
   it("tells the retry failed when the core cannot be reached", async () => {
