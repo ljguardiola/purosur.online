@@ -41,6 +41,7 @@ test("names every register action with its own sentence", async () => {
   expect(lines).toEqual([
     "Nadie puede vender y cobrar.",
     "Nadie puede consultar el historial de ventas.",
+    "Nadie puede leer la ayuda de la caja.",
     "Nadie puede cerrar la sesión de caja de otra persona.",
     "Nadie puede reimprimir tickets.",
     "Nadie puede registrar ingresos de efectivo.",

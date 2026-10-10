@@ -1,6 +1,6 @@
-import type { HelpArticle } from "@purosur/ui";
 import { expect, test } from "vitest";
-import { articleMatchesQuery, searchArticles } from "./search-help";
+import type { HelpArticle } from "./help";
+import { articleMatchesQuery, searchArticles } from "./help-search";
 
 const intro: HelpArticle<string, string> = {
   category: "getting_started",

@@ -98,6 +98,7 @@ export const REGISTER_ABILITIES = [
   "open_cash_session",
   "view_sales_history",
   "reprint_receipt",
+  "read_register_help",
   "correct_register_clock",
   "record_initial_inventory",
 ] as const;
@@ -108,6 +109,7 @@ const PERMISSION_OF_ABILITY = {
   open_cash_session: SELLING_PERMISSION,
   view_sales_history: "view_sales_history",
   reprint_receipt: "reprint_receipt",
+  read_register_help: "read_register_help",
   correct_register_clock: "correct_register_clock",
   record_initial_inventory: "record_initial_inventory",
 } as const satisfies Record<RegisterAbility, PermissionKey>;
