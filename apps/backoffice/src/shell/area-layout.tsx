@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { AccountFooter } from "./account-footer";
 import {
   canManageProductsAndCategories,
+  canManagePurchasePackagings,
   canManageSuppliers,
   canPerformStockCounts,
   canSeeCashArea,
@@ -49,7 +50,9 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
         ? "/inventory-adjustments"
         : canManageSuppliers(session)
           ? "/suppliers"
-          : "/purchase-packagings";
+          : canManagePurchasePackagings(session)
+            ? "/purchase-packagings"
+            : "/purchases";
   const cashTarget = canSeeCashArea(session) ? "/points-of-sale" : "/pending-refunds";
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (

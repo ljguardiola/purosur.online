@@ -22,6 +22,7 @@ const { receiptNumber: receiptNumberSchema, note: noteSchema } =
 export type PurchaseProducts = PackagingList["products"];
 
 export type PurchaseLineValues = {
+  id: number;
   productId: string | null;
   loadedBy: "packaging" | "quantity";
   packagingId: string | null;
@@ -41,8 +42,12 @@ export type PurchaseFormValues = {
   lines: PurchaseLineValues[];
 };
 
+let nextLineId = 0;
+
 export function emptyPurchaseLine(): PurchaseLineValues {
+  nextLineId += 1;
   return {
+    id: nextLineId,
     productId: null,
     loadedBy: "quantity",
     packagingId: null,

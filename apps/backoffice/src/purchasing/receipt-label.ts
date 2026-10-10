@@ -10,9 +10,18 @@ const RECEIPT_TYPE_LABELS = {
   sin_comprobante: "Sin comprobante",
 } satisfies Record<ReceiptType, string>;
 
-export const RECEIPT_TYPE_OPTIONS = purchaseRegistrationBodySchema.shape.receiptType.options.map(
+const [firstOption, ...otherOptions] = purchaseRegistrationBodySchema.shape.receiptType.options.map(
   (value) => ({ value, label: RECEIPT_TYPE_LABELS[value] }),
 );
+
+if (!firstOption) {
+  throw new Error("The contract declares no receipt type");
+}
+
+export const RECEIPT_TYPE_OPTIONS: [typeof firstOption, ...(typeof firstOption)[]] = [
+  firstOption,
+  ...otherOptions,
+];
 
 export function receiptLabel(type: ReceiptType, number: string | null): string {
   const label = RECEIPT_TYPE_LABELS[type];

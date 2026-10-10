@@ -69,9 +69,17 @@ import {
   type PricesListScreenServices,
 } from "../pricing/prices-list-services";
 import {
+  defaultNewPurchaseScreenServices,
+  type NewPurchaseScreenServices,
+} from "../purchasing/new-purchase-services";
+import {
   defaultPackagingsListScreenServices,
   type PackagingsListScreenServices,
 } from "../purchasing/packagings-list-services";
+import {
+  defaultPurchasesListScreenServices,
+  type PurchasesListScreenServices,
+} from "../purchasing/purchases-list-services";
 import {
   defaultSuppliersListScreenServices,
   type SuppliersListScreenServices,
@@ -149,6 +157,8 @@ export type AppServices = {
   stockMovementsScreen: StockMovementsScreenServices;
   suppliersListScreen: SuppliersListScreenServices;
   packagingsListScreen: PackagingsListScreenServices;
+  purchasesListScreen: PurchasesListScreenServices;
+  newPurchaseScreen: NewPurchaseScreenServices;
   fiscalConfigurationScreen: FiscalConfigurationScreenServices;
   pointsOfSaleScreen: PointsOfSaleScreenServices;
   accountFooter: AccountFooterServices;
@@ -189,6 +199,8 @@ const defaultAppServices: AppServices = {
   stockMovementsScreen: defaultStockMovementsScreenServices,
   suppliersListScreen: defaultSuppliersListScreenServices,
   packagingsListScreen: defaultPackagingsListScreenServices,
+  purchasesListScreen: defaultPurchasesListScreenServices,
+  newPurchaseScreen: defaultNewPurchaseScreenServices,
   fiscalConfigurationScreen: defaultFiscalConfigurationScreenServices,
   pointsOfSaleScreen: defaultPointsOfSaleScreenServices,
   accountFooter: defaultAccountFooterServices,
