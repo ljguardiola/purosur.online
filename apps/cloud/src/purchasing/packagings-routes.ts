@@ -73,9 +73,16 @@ export function registerPackagingsRoutes<TQueryResult extends PgQueryResultHKT>(
   const reader = new DrizzlePurchasingListReader(options.db);
   const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const config = { access: capabilityAccess("purchase_packagings"), sessionSource };
-  const readGuard = { preHandler: sameOriginGuard(options.backofficeOrigin), config };
-  const writeGuard = { preHandler: backofficeOriginGuard(options.backofficeOrigin), config };
+  const readConfig = {
+    access: capabilityAccess("purchase_packagings", "purchases"),
+    sessionSource,
+  };
+  const writeConfig = { access: capabilityAccess("purchase_packagings"), sessionSource };
+  const readGuard = { preHandler: sameOriginGuard(options.backofficeOrigin), config: readConfig };
+  const writeGuard = {
+    preHandler: backofficeOriginGuard(options.backofficeOrigin),
+    config: writeConfig,
+  };
 
   async function summaryOf(packagingId: string) {
     const listing = await findPackagingListing(reader, packagingId);
