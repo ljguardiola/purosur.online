@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  branchSettingsChange,
   buyerIdentificationThresholdChange,
   categoryChange,
   discountChange,
@@ -29,6 +30,12 @@ describe("scanning products into a sale on the register", () => {
     cloud = await startStandInCloud(
       [
         registerChange({ id: "register-1", name: "Caja 1" }),
+        branchSettingsChange({
+          locationId: "location-1",
+          address: "Av. Siempreviva 742",
+          whatsappNumber: "11 5555-0100",
+          instagramHandle: "@puro.sur",
+        }),
         roleChange({ id: "role-cashier", name: "Cajero", permissionKeys: ["sell_and_charge"] }),
         await userChange({ id: ANA_ID, firstName: "Ana", roleId: "role-cashier", pin: "4821" }),
         categoryChange({ id: "category-1", name: "Almacén" }),
@@ -170,9 +177,10 @@ describe("scanning products into a sale on the register", () => {
     await page.getByText("VUELTO A ENTREGAR").waitFor();
     await page.getByRole("button", { name: "Completar venta" }).click();
 
-    await page.getByRole("heading", { name: "Entregá el vuelto" }).waitFor();
+    await page.getByRole("heading", { name: "No se pudo imprimir el ticket" }).waitFor();
+    await page.getByText("La impresora no responde", { exact: true }).waitFor();
     await page.getByText("$ 240,00").waitFor();
-    await page.getByRole("button", { name: "Nueva venta" }).click();
+    await page.getByRole("button", { name: "Seguir vendiendo" }).click();
 
     await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
     await page.getByText("La venta está vacía").waitFor();
@@ -203,8 +211,9 @@ describe("scanning products into a sale on the register", () => {
     await page.getByLabel("Importe a cobrar con este medio").waitFor();
     await page.getByRole("button", { name: "Vi el ingreso" }).click();
 
-    await page.getByRole("heading", { name: "No hay vuelto para entregar" }).waitFor();
-    await page.getByRole("button", { name: "Nueva venta" }).click();
+    await page.getByRole("heading", { name: "No se pudo imprimir el ticket" }).waitFor();
+    await page.getByText("La impresora no responde", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "Seguir vendiendo" }).click();
     await page.getByText("La venta está vacía").waitFor();
   });
 });
