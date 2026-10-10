@@ -144,6 +144,25 @@ describe("RegisterStatusBar", () => {
     expect(barText(screen)).toContain("Sin conexión con la nube");
   });
 
+  it("shows a revoked installation with its title, what it means and what to do, even when the cloud can't be reached", async () => {
+    const screen = await renderBar({
+      status: loaded({ conditions: ["installation_revoked"], cloud: "unreachable" }),
+    });
+
+    await expect
+      .element(screen.getByText("La instalación de esta caja fue revocada"))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText(/ya no abre ventas nuevas porque su instalación se revocó/))
+      .toBeVisible();
+    await expect.element(screen.getByText("Qué hacer")).toBeVisible();
+    await expect
+      .element(screen.getByText(/dar de alta la caja de nuevo con un código de alta/))
+      .toBeVisible();
+    expect(barText(screen)).toContain("Sin conexión con la nube");
+    expect(barText(screen)).not.toContain(SILENT_TITLE);
+  });
+
   it("says the status could not be read and reads it again on Reintentar", async () => {
     const retry = vi.fn();
     const screen = await renderBar({ status: { status: "failed", retry } });

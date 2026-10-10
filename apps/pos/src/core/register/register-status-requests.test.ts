@@ -7,10 +7,12 @@ import { openLocalDatabase } from "../platform/test-support/open-local-database"
 import type { CloudReachability } from "../sync/cloud-reachability";
 import { SqliteAcceptedPushLog } from "../sync/sqlite-accepted-push-log";
 import { stopOpeningNewSales } from "../sync/sqlite-local-installation";
+import { SqliteLocalReplica } from "../sync/sqlite-local-replica";
 import { registerStatusFor } from "./register-status-requests";
 
 const NOW = new Date(argentinaInstant("2026-10-05", "12:00"));
 const MINUTE_MS = 60 * 1000;
+const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 
 let database: LocalDatabase;
 
@@ -67,10 +69,23 @@ describe("the register's status", () => {
     expect(status().conditions).toEqual(["sales_denied"]);
   });
 
-  it("holds neither condition once the cloud revoked the installation", async () => {
+  it("holds only installation_revoked once the cloud revoked the installation, with the cloud unreachable", async () => {
     holdBranchHours(mondayHours("09:00", "18:00"));
     await acceptedMinutesAgo(30);
     stopOpeningNewSales(database, "installation_revoked", NOW);
+
+    expect(status("unreachable")).toEqual({
+      conditions: ["installation_revoked"],
+      cloud: "unreachable",
+    });
+  });
+
+  it("drops installation_revoked once the register is set up again with a new installation", () => {
+    const replica = new SqliteLocalReplica(database);
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    stopOpeningNewSales(database, "installation_revoked", NOW);
+
+    replica.adoptDevice({ deviceId: "device-b", pepper: PEPPER });
 
     expect(status().conditions).toEqual([]);
   });

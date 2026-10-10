@@ -21,6 +21,16 @@ test("gives a register that can't sell its alert's title, what it means and what
   });
 });
 
+test("gives a register whose installation was revoked its condition's title, what it means and what to do", () => {
+  expect(localAlertText("installation_revoked")).toEqual({
+    title: "La instalación de esta caja fue revocada",
+    meaning:
+      "Esta caja ya no abre ventas nuevas porque su instalación se revocó: se dio de alta otra instalación para la misma caja o se la revocó desde el backoffice. Lo que ya está guardado en la caja se conserva.",
+    whatToDo:
+      "Avisar al Administrador. Para volver a vender, hay que dar de alta la caja de nuevo con un código de alta emitido desde el backoffice, en Cajas registradoras.",
+  });
+});
+
 test("gives no fixed text to a kind that has none, nor to one this app does not know yet", () => {
   expect(localAlertText("update_required")).toBeUndefined();
   expect(localAlertText("register_battery_low")).toBeUndefined();
@@ -34,6 +44,7 @@ test("gives no fixed text to a kind that shares its name with a member every obj
 test("knows the kinds that have a fixed text", () => {
   expect(isLocalAlertKind("register_silent")).toBe(true);
   expect(isLocalAlertKind("sales_denied")).toBe(true);
+  expect(isLocalAlertKind("installation_revoked")).toBe(true);
 });
 
 test("does not know a kind that has none, nor a member every object has", () => {
@@ -42,5 +53,7 @@ test("does not know a kind that has none, nor a member every object has", () => 
 });
 
 test("names exactly the kinds that have a fixed text", () => {
-  expectTypeOf<LocalAlertKind>().toEqualTypeOf<"register_silent" | "sales_denied">();
+  expectTypeOf<LocalAlertKind>().toEqualTypeOf<
+    "register_silent" | "sales_denied" | "installation_revoked"
+  >();
 });
