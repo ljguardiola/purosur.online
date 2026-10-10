@@ -9,6 +9,7 @@ export { admitInstallationRequest } from "./admit-installation-request.js";
 export type {
   ApplyPendingEventsInput,
   ApplyPendingEventsOutcome,
+  QuarantinedEvent,
 } from "./apply-pending-events.js";
 export { applyPendingEvents } from "./apply-pending-events.js";
 export type { CatchUpOutcome } from "./catch-up-with-cloud.js";

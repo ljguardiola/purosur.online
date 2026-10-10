@@ -14,6 +14,15 @@ export interface ApplyPendingEventsInput {
   limit: number;
 }
 
+export interface QuarantinedEvent {
+  deviceId: string;
+  eventId: string;
+  eventType: string;
+  aggregateType: string;
+  aggregateId: string;
+  error: string;
+}
+
 export type ApplyPendingEventsOutcome =
   | { kind: "idle" }
   | {
@@ -21,7 +30,7 @@ export type ApplyPendingEventsOutcome =
       applied: number;
       flagged: number;
       retried: number;
-      quarantined: number;
+      quarantined: QuarantinedEvent[];
       busy: number;
       limitReached: boolean;
     };
@@ -31,7 +40,7 @@ type Step =
   | { kind: "nothing_due" }
   | { kind: "applied"; flagged: boolean }
   | { kind: "failed"; event: UnappliedEvent; failure: Failure }
-  | { kind: "failure_recorded"; quarantined: boolean }
+  | { kind: "failure_recorded"; quarantined: QuarantinedEvent | null }
   | { kind: "failure_obsolete" };
 
 interface Failure {
@@ -181,7 +190,7 @@ async function recordFailure(
         quarantinedAt: null,
         error: failure.message,
       });
-      return { kind: "failure_recorded", quarantined: false };
+      return { kind: "failure_recorded", quarantined: null };
     }
     await tx.recordFailedAttempt(event.eventId, {
       attempts,
@@ -197,7 +206,17 @@ async function recordFailure(
       aggregateId: next.event.aggregateId,
       reason: failure.reason,
     });
-    return { kind: "failure_recorded", quarantined: true };
+    return {
+      kind: "failure_recorded",
+      quarantined: {
+        deviceId: next.event.deviceId,
+        eventId: next.event.eventId,
+        eventType: next.event.eventType,
+        aggregateType: next.event.aggregateType,
+        aggregateId: next.event.aggregateId,
+        error: failure.message,
+      },
+    };
   });
 }
 
@@ -209,7 +228,7 @@ export async function applyPendingEvents(
   let applied = 0;
   let flagged = 0;
   let retried = 0;
-  let quarantined = 0;
+  const quarantined: QuarantinedEvent[] = [];
   let busy = 0;
   for (const key of await ports.eventApplication.pendingAggregates()) {
     let aggregateDone = false;
@@ -229,8 +248,11 @@ export async function applyPendingEvents(
         aggregateDone = true;
         const recorded = await recordFailure(ports, key, step);
         if (recorded.kind === "failure_recorded") {
-          retried += recorded.quarantined ? 0 : 1;
-          quarantined += recorded.quarantined ? 1 : 0;
+          if (recorded.quarantined === null) {
+            retried += 1;
+          } else {
+            quarantined.push(recorded.quarantined);
+          }
         }
       }
     }
