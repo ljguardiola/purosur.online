@@ -15,7 +15,9 @@ import {
   retryReceiptPrintFor,
 } from "../../sales/receipt-requests";
 import {
+  addWeighedProductFor,
   cancelPaidSaleFor,
+  changeLineWeightFor,
   chargeSaleByTransferFor,
   chargeSaleInCashFor,
   currentSaleFor,
@@ -42,10 +44,12 @@ const MANAGER_ROLE = "8c2e5a1f-6d93-4b47-a1c8-3f7d2b9e6a14";
 const YERBA = "0b9d4c7e-6a21-4e83-9f5b-3d8e1a2c7b05";
 const SUGAR = "5d1a8f3c-9e47-4b02-8c6d-7a3f2e9b1c06";
 const COOKIES = "2e6b9d3f-7a15-4c80-b4e2-8d1f5a3c9b15";
+const CHEESE = "9f3b6d1a-4c27-4e80-a5b1-2d7c8e0f3a19";
 const PRICE_LIST = "9a6e2b1d-4c78-4f13-b5a0-8e7d3c1f9a07";
 const YERBA_PRICE = "3c8f1d5a-2b96-4e70-a4c9-6f1b8d2e5a08";
 const SUGAR_PRICE = "7e4a9c2f-1d63-4b85-9e0a-2c5f7b8d1309";
 const COOKIES_PRICE = "6a3d8f1c-2e74-4b59-9c0d-5f8a1e3b7c16";
+const CHEESE_PRICE = "1b7e4a9d-3c25-4f68-b0d1-8a2c5e7f9b20";
 const DISCOUNT = "b5d2f7a1-8c40-4e96-a3b7-1f9e6c4d2a10";
 const BUY_THREE_PAY_TWO = "c9f4b2e7-1a58-4d36-8e0b-4a7c3f9d1e17";
 const THRESHOLD = "d3e6a9c1-5f28-4b74-8a0d-9c2e7f1b4a11";
@@ -122,7 +126,13 @@ function seed(database: ReturnType<typeof openLocalDatabase>): void {
       )
       .run(id, code);
   }
+  database
+    .prepare(
+      "INSERT INTO products (id, name, category_id, sale_unit, active, version) VALUES (?, 'Queso cremoso', ?, 'KG', 1, 1)",
+    )
+    .run(CHEESE, CATEGORY);
   for (const [id, product, amount] of [
+    [CHEESE_PRICE, CHEESE, 9000],
     [YERBA_PRICE, YERBA, 1500],
     [SUGAR_PRICE, SUGAR, 2400],
     [COOKIES_PRICE, COOKIES, 900],
@@ -280,6 +290,24 @@ export async function withRegisterSession<TResult>(
       amount: toTransfer.total,
     });
     expectOutcome("charge a sale by transfer", transfer.kind, "completed");
+    nextStep();
+    const weighed = await addWeighedProductFor(deps(), CHEESE, 1250);
+    if (weighed.kind !== "added") {
+      throw new Error(
+        `The register session's "type the weight of a product" ended as "${weighed.kind}"`,
+      );
+    }
+    nextStep();
+    const retyped = await changeLineWeightFor(deps(), weighed.sale.lines[0]?.id ?? "", 1500, 1250);
+    if (retyped.kind !== "changed") {
+      throw new Error(`The register session's "type the weight again" ended as "${retyped.kind}"`);
+    }
+    nextStep();
+    const weighedTransfer = await chargeSaleByTransferFor(deps(), {
+      saleId: weighed.sale.id,
+      amount: retyped.sale.total,
+    });
+    expectOutcome("charge a weighed sale by transfer", weighedTransfer.kind, "completed");
     nextStep();
     const split = await scanProductFor(deps(), "7790001000011");
     if (split.kind !== "added") {
