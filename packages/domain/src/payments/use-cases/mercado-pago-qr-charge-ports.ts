@@ -49,6 +49,7 @@ export interface MercadoPagoQrChargeOrders {
 export interface MercadoPagoQrCharges {
   pendingCharge(paymentTransactionId: string): PendingMercadoPagoQrCharge | null;
   recordEnded(paymentTransactionId: string, state: EndedMercadoPagoQrChargeState): void;
+  endWait(paymentTransactionId: string, endedAt: Date): void;
 }
 
 export interface MercadoPagoQrChargePorts<Refusal, Settlement> {

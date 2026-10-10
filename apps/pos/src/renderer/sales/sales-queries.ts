@@ -12,7 +12,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SalesHistoryQuery } from "../platform/core-client";
 import { setQueryAnswer } from "../platform/set-query-answer";
 import type { CoreData } from "../platform/use-core-query";
-import { useCoreQuery } from "../platform/use-core-query";
+import { coreQueryOptions, useCoreQuery } from "../platform/use-core-query";
 
 const salesKey = ["sales"] as const;
 
@@ -34,30 +34,39 @@ export const salesKeys = {
 
 const QR_CHARGE_FOLLOW_INTERVAL_MS = 1000;
 
+export type FollowedQrCharge = Exclude<FollowMercadoPagoQrChargeOutcome, { kind: "unavailable" }>;
+
 export function useQrChargeQuery({
   paymentTransactionId,
   follow,
 }: {
   paymentTransactionId: string;
   follow: (paymentTransactionId: string) => Promise<FollowMercadoPagoQrChargeOutcome>;
-}): FollowMercadoPagoQrChargeOutcome | undefined {
+}): CoreData<FollowedQrCharge> {
+  const queryClient = useQueryClient();
+  const queryKey = salesKeys.qrCharge(paymentTransactionId);
   const query = useQuery({
-    queryKey: salesKeys.qrCharge(paymentTransactionId),
-    queryFn: async () => {
-      const outcome = await follow(paymentTransactionId);
-      if (outcome.kind === "unavailable") {
-        throw new Error("the core could not follow the QR charge");
-      }
-      return outcome;
-    },
+    ...coreQueryOptions<FollowedQrCharge>({
+      queryKey,
+      read: async () => {
+        const outcome = await follow(paymentTransactionId);
+        return outcome.kind === "unavailable" ? "unavailable" : outcome;
+      },
+    }),
     gcTime: 0,
-    refetchInterval: (current) =>
-      current.state.data === undefined || current.state.data.kind === "waiting"
+    refetchInterval: ({ state }) =>
+      state.status === "success" && state.data?.kind === "waiting"
         ? QR_CHARGE_FOLLOW_INTERVAL_MS
         : false,
     refetchIntervalInBackground: true,
   });
-  return query.data;
+  if (query.isError && !query.isFetching) {
+    return { status: "failed", retry: () => void queryClient.resetQueries({ queryKey }) };
+  }
+  if (query.data !== undefined) {
+    return { status: "loaded", value: query.data, refreshing: query.isFetching };
+  }
+  return { status: "loading" };
 }
 
 const RECEIPT_PRINT_POLL_MILLISECONDS = 1000;

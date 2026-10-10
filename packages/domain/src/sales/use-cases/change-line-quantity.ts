@@ -70,7 +70,12 @@ export function changeLineQuantity(
       kind: "changed",
       sale: changed,
       chargeRefusal: saleChargeRefusal(tx, changed, clock.now()),
-      ...openSaleStanding(saleTotal(changed.lines), tx.salePayments(changed.id)),
+      ...openSaleStanding(
+        saleTotal(changed.lines),
+        tx.salePayments(changed.id),
+        tx.pendingQrPaymentsOf(changed.id),
+        clock.now(),
+      ),
     };
   });
 }

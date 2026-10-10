@@ -47,6 +47,12 @@ export function hasApprovedPayment(payments: readonly { state: string }[]): bool
   return payments.some((payment) => payment.state === "APPROVED");
 }
 
+export function holdsApprovedQrPayment(
+  payments: readonly { state: string; method: string }[],
+): boolean {
+  return payments.some((payment) => payment.state === "APPROVED" && payment.method === "QR");
+}
+
 export function cancellableWithoutAuthorization(payments: readonly { state: string }[]): boolean {
   return !hasApprovedPayment(payments);
 }

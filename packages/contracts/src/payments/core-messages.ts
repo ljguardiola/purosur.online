@@ -41,7 +41,7 @@ const saleChargeRefusals = [
   z.object({ kind: z.literal("unavailable") }),
 ] as const;
 
-export const startMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind", [
+const startMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("order_shown"),
     payment_transaction_id: recordIdSchema(),
@@ -58,7 +58,7 @@ export const startMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind"
 ]);
 export type StartMercadoPagoQrChargeOutcome = z.infer<typeof startMercadoPagoQrChargeOutcomeSchema>;
 
-export const followMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind", [
+const followMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("waiting"), remaining_seconds: z.int().min(1).max(WAIT_SECONDS) }),
   z.object({ kind: z.literal("wait_over") }),
   z.object({ kind: z.literal("declined") }),

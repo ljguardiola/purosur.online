@@ -160,7 +160,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
   private entryOf(row: SaleRow): SalesHistoryEntry {
     const methods = this.database
       .prepare<[string], { method: SalesHistoryEntry["paymentMethods"][number] }>(
-        `SELECT method FROM payment_transactions WHERE sale_id = ?
+        `SELECT method FROM payment_transactions WHERE sale_id = ? AND state = 'APPROVED'
          GROUP BY method ORDER BY min(rowid)`,
       )
       .all(row.id);

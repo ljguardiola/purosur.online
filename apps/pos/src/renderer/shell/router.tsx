@@ -423,11 +423,7 @@ const chargeRoute = createRoute({
         cashCharge={cashCharge}
         chargeSaleInCash={chargeSaleInCash}
         chargeSaleByTransfer={chargeSaleByTransfer}
-        mercadoPagoQr={
-          status.status === "loaded" && status.value.cloud === "reachable"
-            ? "available"
-            : "unavailable"
-        }
+        registerStatus={status}
         startMercadoPagoQrCharge={startMercadoPagoQrCharge}
         followMercadoPagoQrCharge={followMercadoPagoQrCharge}
         receiptPrintStatus={receiptPrintStatus}

@@ -13,12 +13,8 @@ import type {
 import { and, asc, eq, isNull, min, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
-import {
-  inbox,
-  paymentTransactions,
-  registerInstallations,
-  registers,
-} from "../platform/db/schema.js";
+import { providerTransactionOfPayment } from "../payments/drizzle-provider-transactions.js";
+import { inbox, registerInstallations, registers } from "../platform/db/schema.js";
 import {
   type AppliedOrigin,
   closeAppliedCashSession,
@@ -107,15 +103,7 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
   async providerTransactionOfPayment(
     paymentId: string,
   ): Promise<ProviderTransactionOfPayment | null> {
-    const [row] = await this.tx
-      .select({
-        saleId: paymentTransactions.saleId,
-        amount: paymentTransactions.amount,
-        state: paymentTransactions.state,
-      })
-      .from(paymentTransactions)
-      .where(eq(paymentTransactions.id, paymentId));
-    return row ? { ...row, state: row.state as ProviderTransactionOfPayment["state"] } : null;
+    return providerTransactionOfPayment(this.tx, paymentId);
   }
 
   async record(fact: SyncedFact, event: UnappliedEvent): Promise<void> {

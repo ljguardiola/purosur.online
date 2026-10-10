@@ -6,6 +6,7 @@ import type {
   FollowMercadoPagoQrChargeOutcome,
   OpenSale,
   ReceiptPrintStatusOutcome,
+  RegisterStatus,
   RetryReceiptPrintOutcome,
   StartMercadoPagoQrChargeOutcome,
 } from "@purosur/contracts";
@@ -19,6 +20,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { Banknote, Landmark, QrCode, TriangleAlert, WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { CoreData } from "../platform/use-core-query";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import type { CompletedCharge } from "./cash-charge-modal";
@@ -84,7 +86,7 @@ export type ChargeScreenProps = {
   cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
-  mercadoPagoQr: "available" | "unavailable";
+  registerStatus: CoreData<RegisterStatus>;
   startMercadoPagoQrCharge: (
     saleId: string,
     amount: number,
@@ -106,7 +108,7 @@ export function ChargeScreen({
   cashCharge,
   chargeSaleInCash,
   chargeSaleByTransfer,
-  mercadoPagoQr,
+  registerStatus,
   startMercadoPagoQrCharge,
   followMercadoPagoQrCharge,
   receiptPrintStatus,
@@ -146,6 +148,10 @@ export function ChargeScreen({
   }, [nothingToCharge, navigate]);
 
   const sale = saleKept ? step.sale : chargeable;
+  const qrMethod =
+    registerStatus.status !== "loaded"
+      ? []
+      : [registerStatus.value.cloud === "reachable" ? QR_METHOD : QR_METHOD_UNAVAILABLE];
   const lineCount = sale?.lines.length ?? 0;
   const lines = plural(lineCount, { one: "LÍNEA", other: "LÍNEAS" });
 
@@ -175,11 +181,7 @@ export function ChargeScreen({
             />
             <OptionCardGroup
               label="Medio de pago"
-              options={[
-                CASH_METHOD,
-                mercadoPagoQr === "available" ? QR_METHOD : QR_METHOD_UNAVAILABLE,
-                TRANSFER_METHOD,
-              ]}
+              options={[CASH_METHOD, ...qrMethod, TRANSFER_METHOD]}
               value={null}
               onChange={(method) =>
                 setStep(

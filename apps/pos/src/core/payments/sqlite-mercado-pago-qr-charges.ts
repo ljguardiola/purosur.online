@@ -44,4 +44,12 @@ export class SqliteMercadoPagoQrCharges implements MercadoPagoQrCharges {
       )
       .run(state, paymentTransactionId);
   }
+
+  endWait(paymentTransactionId: string, endedAt: Date): void {
+    this.database
+      .prepare(
+        "UPDATE payment_transactions SET wait_ends_at = ? WHERE id = ? AND method = 'QR' AND state = 'PENDING'",
+      )
+      .run(endedAt.toISOString(), paymentTransactionId);
+  }
 }

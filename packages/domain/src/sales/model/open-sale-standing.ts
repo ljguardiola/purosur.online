@@ -1,6 +1,8 @@
 import {
+  aQrChargeInItsWait,
   cancellableWithoutAuthorization,
   hasApprovedPayment,
+  holdsApprovedQrPayment,
   type PlannedRefund,
   plannedRefunds,
   type RefundablePayment,
@@ -15,14 +17,26 @@ export interface OpenSaleStanding {
   refundsOnCancel: PlannedRefund[];
 }
 
+export function saleLinesLockedBy(
+  payments: readonly { state: string }[],
+  pendingQrPayments: readonly { waitEndsAt: Date }[],
+  now: Date,
+): boolean {
+  return hasApprovedPayment(payments) || aQrChargeInItsWait(pendingQrPayments, now);
+}
+
 export function openSaleStanding(
   total: number,
   payments: readonly RefundablePayment[],
+  pendingQrPayments: readonly { waitEndsAt: Date }[],
+  now: Date,
 ): OpenSaleStanding {
+  const qrChargeInItsWait = aQrChargeInItsWait(pendingQrPayments, now);
   return {
     balance: saleBalance(total, payments),
-    linesEditable: !hasApprovedPayment(payments),
-    cancellable: cancellableWithoutAuthorization(payments),
-    refundsOnCancel: plannedRefunds(payments),
+    linesEditable: !saleLinesLockedBy(payments, pendingQrPayments, now),
+    cancellable: !qrChargeInItsWait && cancellableWithoutAuthorization(payments),
+    refundsOnCancel:
+      qrChargeInItsWait || holdsApprovedQrPayment(payments) ? [] : plannedRefunds(payments),
   };
 }

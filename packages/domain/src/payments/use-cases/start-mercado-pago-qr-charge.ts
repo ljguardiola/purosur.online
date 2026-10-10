@@ -27,8 +27,9 @@ export async function startMercadoPagoQrCharge<Refusal, Settlement>(
   {
     sale,
     orders,
+    charges,
     clock,
-  }: Pick<MercadoPagoQrChargePorts<Refusal, Settlement>, "sale" | "orders" | "clock">,
+  }: Pick<MercadoPagoQrChargePorts<Refusal, Settlement>, "sale" | "orders" | "charges" | "clock">,
   { actorId, saleId, amount }: StartMercadoPagoQrChargeInput,
 ): Promise<StartMercadoPagoQrChargeOutcome<Refusal>> {
   const startedAt = clock.now();
@@ -46,11 +47,9 @@ export async function startMercadoPagoQrCharge<Refusal, Settlement>(
 
   const { paymentTransactionId } = recorded;
   const answer = await orders.requestOrder({ paymentTransactionId, saleId, amount });
-  if (answer.kind === "refused") {
-    return { kind: "order_refused" };
-  }
-  if (answer.kind === "unreachable") {
-    return { kind: "unreachable" };
+  if (answer.kind !== "created") {
+    charges.endWait(paymentTransactionId, clock.now());
+    return answer.kind === "refused" ? { kind: "order_refused" } : { kind: "unreachable" };
   }
 
   const wait = mercadoPagoQrChargeWait(waitEndsAt, clock.now());

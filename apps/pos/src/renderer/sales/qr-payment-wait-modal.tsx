@@ -4,14 +4,18 @@ import {
   Button,
   CountdownRing,
   formatCents,
+  formatNumber,
   InlineNotice,
+  LoadFailure,
   Modal,
   ProgressSteps,
+  plural,
   SummaryRowGroup,
 } from "@purosur/ui";
-import { ArrowRight, CircleX, Info, QrCode, TimerOff } from "lucide-react";
+import { ArrowRight, CircleX, Info, QrCode, TimerOff, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent } from "react";
 import type { ShownQrOrder } from "./qr-charge-modal";
+import type { FollowedQrCharge } from "./sales-queries";
 import { useQrChargeQuery } from "./sales-queries";
 
 export type CompletedQrPayment = Extract<
@@ -44,9 +48,10 @@ export function QrPaymentWaitModal({
   onSaleUnavailable,
   onSessionInvalid,
 }: QrPaymentWaitModalProps) {
-  const outcome = useQrChargeQuery({ paymentTransactionId: order.payment_transaction_id, follow });
+  const charge = useQrChargeQuery({ paymentTransactionId: order.payment_transaction_id, follow });
+  const outcome = charge.status === "loaded" ? charge.value : undefined;
 
-  const leaveWhenSettled = useEffectEvent((settled: FollowMercadoPagoQrChargeOutcome) => {
+  const leaveWhenSettled = useEffectEvent((settled: FollowedQrCharge) => {
     switch (settled.kind) {
       case "completed":
         onCompleted({ ...settled, amount: order.amount });
@@ -70,7 +75,6 @@ export function QrPaymentWaitModal({
       case "waiting":
       case "wait_over":
       case "declined":
-      case "unavailable":
         break;
     }
   });
@@ -102,7 +106,7 @@ export function QrPaymentWaitModal({
         icon={<TimerOff />}
         title="Venció la espera del QR"
         lines={[
-          "Pasaron 3 minutos y el cliente no pagó. Para seguir, elegí otro medio.",
+          `${waitPassed(order.wait_seconds)} y el cliente no pagó. Para seguir, elegí otro medio.`,
           "Si el cliente paga el QR después, ese pago se devuelve: se crea una tarea de reembolso.",
         ]}
         onChooseAnotherMethod={onChooseAnotherMethod}
@@ -124,7 +128,19 @@ export function QrPaymentWaitModal({
       contextTone="info"
       title="Esperando el pago del cliente"
       closable={false}
-      footer={null}
+      footer={
+        charge.status === "failed" ? (
+          <Button
+            variant="secondary"
+            size="large"
+            fullWidth
+            icon={<ArrowRight />}
+            onPress={onChooseAnotherMethod}
+          >
+            Elegir otro medio
+          </Button>
+        ) : null
+      }
     >
       <div className="flex flex-col gap-5">
         <SummaryRowGroup
@@ -134,29 +150,38 @@ export function QrPaymentWaitModal({
             { label: "A cobrar ahora", value: formatCents(order.amount) },
           ]}
         />
-        <div className="flex items-center gap-6">
-          <CountdownRing
-            remainingSeconds={remainingSeconds}
-            totalSeconds={order.wait_seconds}
-            label="Tiempo para pagar"
+        {charge.status === "failed" ? (
+          <LoadFailure
+            icon={<TriangleAlert />}
+            title="No se pudo consultar el pago del QR"
+            description="Volvé a intentarlo en unos segundos."
+            onRetry={charge.retry}
           />
-          <ProgressSteps
-            steps={[
-              {
-                id: "order-created",
-                label: `Orden creada por ${formatCents(order.amount)}`,
-                state: "done",
-              },
-              {
-                id: "customer-paying",
-                label: "Esperando que el cliente pague",
-                detail: "Escanea el QR del mostrador con su app",
-                state: "current",
-              },
-              { id: "payment-approved", label: "Pago aprobado", state: "upcoming" },
-            ]}
-          />
-        </div>
+        ) : (
+          <div className="flex items-center gap-6">
+            <CountdownRing
+              remainingSeconds={remainingSeconds}
+              totalSeconds={order.wait_seconds}
+              label="Tiempo para pagar"
+            />
+            <ProgressSteps
+              steps={[
+                {
+                  id: "order-created",
+                  label: `Orden creada por ${formatCents(order.amount)}`,
+                  state: "done",
+                },
+                {
+                  id: "customer-paying",
+                  label: "Esperando que el cliente pague",
+                  detail: "Escanea el QR del mostrador con su app",
+                  state: "current",
+                },
+                { id: "payment-approved", label: "Pago aprobado", state: "upcoming" },
+              ]}
+            />
+          </div>
+        )}
         <InlineNotice
           tone="info"
           icon={<Info />}
@@ -165,6 +190,12 @@ export function QrPaymentWaitModal({
       </div>
     </Modal>
   );
+}
+
+function waitPassed(waitSeconds: number): string {
+  const minutes = waitSeconds / 60;
+  const passed = plural(minutes, { one: "Pasó", other: "Pasaron" });
+  return `${passed} ${formatNumber(minutes, { style: "unit", unit: "minute", unitDisplay: "long" })}`;
 }
 
 function EndedModal({

@@ -153,7 +153,7 @@ export function QrChargeModal({
               kind="amount"
               prefix="$"
               label="Importe a cobrar con este medio"
-              description={`Hasta el saldo pendiente, ${formatCents(pending)}. Si cobrás menos, el resto queda pendiente para otro medio.`}
+              description="Si cobrás menos, el resto queda pendiente para otro medio."
               inputMode="numeric"
               value={field.state.value}
               onChange={field.handleChange}

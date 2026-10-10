@@ -545,7 +545,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (countedCash) => cashCountPreviewFor(localDatabase, countedCash),
   sessionOpenSale:
-    localDatabase === undefined ? undefined : () => sessionOpenSaleFor(localDatabase),
+    localDatabase === undefined ? undefined : () => sessionOpenSaleFor(localDatabase, now()),
   cashSession:
     localDatabase === undefined
       ? undefined

@@ -57,7 +57,12 @@ export function removeSaleLine(
       kind: "removed",
       sale: remaining,
       chargeRefusal: saleChargeRefusal(tx, remaining, clock.now()),
-      ...openSaleStanding(saleTotal(remaining.lines), tx.salePayments(remaining.id)),
+      ...openSaleStanding(
+        saleTotal(remaining.lines),
+        tx.salePayments(remaining.id),
+        tx.pendingQrPaymentsOf(remaining.id),
+        clock.now(),
+      ),
     };
   });
 }

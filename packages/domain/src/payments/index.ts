@@ -17,6 +17,7 @@ export type {
 export {
   cancellableWithoutAuthorization,
   hasApprovedPayment,
+  holdsApprovedQrPayment,
   PAYMENT_METHODS,
 } from "./model/payment.js";
 export { paymentRecord } from "./model/payment-record.js";

@@ -136,11 +136,9 @@ export type {
   StartMercadoPagoQrChargeOutcome,
 } from "./payments/core-messages.js";
 export {
-  followMercadoPagoQrChargeOutcomeSchema,
   paymentsCoreToRendererMessageSchema,
   paymentsRendererToCoreMessageSchema,
   startMercadoPagoQrChargeMessageSchema,
-  startMercadoPagoQrChargeOutcomeSchema,
 } from "./payments/core-messages.js";
 export type {
   MercadoPagoQrOrderRequestBody,

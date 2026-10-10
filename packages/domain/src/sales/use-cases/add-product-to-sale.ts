@@ -109,7 +109,12 @@ function added(
     kind: "added",
     sale,
     chargeRefusal: saleChargeRefusal(tx, sale, moment),
-    ...openSaleStanding(saleTotal(sale.lines), tx.salePayments(sale.id)),
+    ...openSaleStanding(
+      saleTotal(sale.lines),
+      tx.salePayments(sale.id),
+      tx.pendingQrPaymentsOf(sale.id),
+      moment,
+    ),
   };
 }
 
