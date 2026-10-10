@@ -2754,8 +2754,9 @@ describe("every route enforces the access it declares", () => {
 
     for (const route of routesDeclaring(app, ["capability"])) {
       const access = route.access as Extract<RouteAccess, { level: "capability" }>;
-      const capabilityPermissions: readonly PermissionKey[] =
-        CAPABILITY_PERMISSIONS[access.capability];
+      const capabilityPermissions: readonly PermissionKey[] = access.capabilities.flatMap(
+        (capability) => CAPABILITY_PERMISSIONS[capability],
+      );
       const rawSessionId = await signedInWithRole(
         PERMISSION_KEYS.filter((key) => !capabilityPermissions.includes(key)),
       );
