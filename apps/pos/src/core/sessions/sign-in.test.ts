@@ -121,7 +121,7 @@ describe("signing in", () => {
     });
   });
 
-  it("signs in a person who holds only the permission to enroll register devices, with the receipt printer as their only ability", async () => {
+  it("signs in a person who holds only the permission to enroll register devices, with the receipt printer and the serial devices as their only abilities", async () => {
     const holder = {
       ...PIN_HOLDER,
       access: { isAdministrator: false, permissionKeys: ["enroll_register_devices"] },
@@ -130,7 +130,11 @@ describe("signing in", () => {
 
     expect(await signIn(built, "u1", "1234")).toEqual({
       kind: "signed_in",
-      person: { user_id: "u1", first_name: "Ada", abilities: ["configure_receipt_printer"] },
+      person: {
+        user_id: "u1",
+        first_name: "Ada",
+        abilities: ["configure_receipt_printer", "configure_serial_devices"],
+      },
       cash_session: null,
     });
     expect(signedIn.userId()).toBe("u1");
