@@ -160,6 +160,9 @@ jobs:
           CLOUD_APP_DATABASE_PASSWORD: ${{ secrets.CLOUD_APP_DATABASE_PASSWORD }}
           ARCA_CERTIFICATE: ${{ secrets.ARCA_CERTIFICATE }}
           ARCA_PRIVATE_KEY: ${{ secrets.ARCA_PRIVATE_KEY }}
+          MERCADOPAGO_ACCESS_TOKEN: ${{ secrets.MERCADOPAGO_ACCESS_TOKEN }}
+          MERCADOPAGO_QR_EXTERNAL_POS_ID: ${{ vars.MERCADOPAGO_QR_EXTERNAL_POS_ID }}
+          MERCADOPAGO_WEBHOOK_SECRET: ${{ secrets.MERCADOPAGO_WEBHOOK_SECRET }}
         # Without --confirm-destructive, a plan that destroys or replaces a resource fails here.
         run: railway config apply --json --yes
 
