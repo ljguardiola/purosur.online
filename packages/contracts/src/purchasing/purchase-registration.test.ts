@@ -142,7 +142,7 @@ describe("purchaseRegistrationBodySchema", () => {
       firstFailure({ ...purchase, receiptNumber: "1".repeat(RECEIPT_NUMBER_MAX_LENGTH + 1) }),
     ).toEqual({
       path: ["receiptNumber"],
-      message: "receiptNumber is required with a receipt and must be empty without one",
+      message: `receiptNumber must be a string of at most ${RECEIPT_NUMBER_MAX_LENGTH} characters`,
     });
   });
 
