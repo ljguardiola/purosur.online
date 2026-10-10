@@ -66,7 +66,7 @@ describe("deciding how a completed sale is authorized, in the local database", (
           id: "doc-new",
           sale_id: "sale-1",
           point_of_sale: POINT_OF_SALE,
-          document_type: "FACTURA_C",
+          document_type: "factura_c",
           number: 41,
           issued_on: "2026-09-30",
           document: JSON.stringify(FACTURA_C),
