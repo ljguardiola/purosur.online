@@ -5,8 +5,12 @@ import {
   isValidOrderAmount,
   MERCADO_PAGO_ORDER_EXPIRY_MINUTES,
   mercadoPagoOrderExpiresAt,
+  type MercadoPagoQrOrderRecord,
+  type MercadoPagoQrPaymentTransaction,
   PAYMENT_TRANSACTION_STATES,
-  type ProviderPaymentTransaction,
+  type PaymentTransaction,
+  type PendingQrSalePayment,
+  type SalePayment,
 } from "./payment-transaction.js";
 
 describe("PAYMENT_TRANSACTION_STATES", () => {
@@ -21,12 +25,31 @@ describe("PAYMENT_TRANSACTION_STATES", () => {
   });
 });
 
-describe("ProviderPaymentTransaction", () => {
+describe("PaymentTransaction", () => {
   it("is the transaction of a sale and nothing else", () => {
-    type WithoutKind = Omit<ProviderPaymentTransaction, "kind">;
+    type WithoutKind = Omit<PaymentTransaction, "kind">;
 
-    expectTypeOf<WithoutKind>().not.toExtend<ProviderPaymentTransaction>();
-    expectTypeOf<WithoutKind & { kind: "REFUND" }>().not.toExtend<ProviderPaymentTransaction>();
+    expectTypeOf<WithoutKind>().not.toExtend<PaymentTransaction>();
+    expectTypeOf<WithoutKind & { kind: "REFUND" }>().not.toExtend<PaymentTransaction>();
+  });
+
+  it("records what the register and the cloud each know of a Mercado Pago QR transaction under the transaction's own names", () => {
+    expectTypeOf<MercadoPagoQrPaymentTransaction>().toExtend<PendingQrSalePayment>();
+    expectTypeOf<MercadoPagoQrPaymentTransaction>().toExtend<MercadoPagoQrOrderRecord>();
+    expectTypeOf<PaymentTransaction & { state: "APPROVED" }>().toExtend<SalePayment>();
+  });
+
+  it("records only approved payments in a sale", () => {
+    expectTypeOf<
+      Omit<Extract<SalePayment, { method: "QR" }>, "state"> & { state: "PENDING" }
+    >().not.toExtend<SalePayment>();
+  });
+
+  it("records the cloud's Mercado Pago QR transaction as the transaction of a sale and nothing else", () => {
+    type WithoutKind = Omit<MercadoPagoQrOrderRecord, "kind">;
+
+    expectTypeOf<WithoutKind>().not.toExtend<MercadoPagoQrOrderRecord>();
+    expectTypeOf<WithoutKind & { kind: "REFUND" }>().not.toExtend<MercadoPagoQrOrderRecord>();
   });
 });
 
