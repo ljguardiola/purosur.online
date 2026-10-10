@@ -199,6 +199,10 @@ function reviewPriceNow(screen: Screen, number: number) {
   return line(screen, number).getByRole("checkbox", { name: "Revisar el precio ahora" });
 }
 
+async function chooseReviewPriceNow(screen: Screen, number: number) {
+  await userEvent.click(line(screen, number).getByText("Revisar el precio ahora"));
+}
+
 test("offers each line the choice to review the price now, unchosen, to whoever sees the prices area", async () => {
   const screen = await opened();
 
@@ -224,10 +228,10 @@ test("goes to the prices to review the products of the lines chosen for it, once
   const screen = await opened(services);
   await fillHeader(screen);
   await fillQuantityLine(screen);
-  await userEvent.click(reviewPriceNow(screen, 1));
+  await chooseReviewPriceNow(screen, 1);
   await userEvent.click(screen.getByRole("button", { name: "Agregar línea" }));
   await fillQuantityLine(screen, 2);
-  await userEvent.click(reviewPriceNow(screen, 2));
+  await chooseReviewPriceNow(screen, 2);
   await register(screen);
 
   await expect.poll(() => window.location.pathname).toBe("/prices");
@@ -242,7 +246,7 @@ test("sends the request without the choice to review the price now", async () =>
   const screen = await opened(services);
   await fillHeader(screen);
   await fillQuantityLine(screen);
-  await userEvent.click(reviewPriceNow(screen, 1));
+  await chooseReviewPriceNow(screen, 1);
   await register(screen);
 
   expect(services.registerPurchase).toHaveBeenCalledWith(
@@ -271,7 +275,7 @@ test("stays on the form when the registration is refused, even with lines chosen
   const screen = await opened(services);
   await fillHeader(screen);
   await fillQuantityLine(screen);
-  await userEvent.click(reviewPriceNow(screen, 1));
+  await chooseReviewPriceNow(screen, 1);
   await register(screen);
 
   await expect.element(screen.getByText("No se registró la compra")).toBeVisible();

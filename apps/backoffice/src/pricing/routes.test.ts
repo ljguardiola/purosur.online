@@ -11,7 +11,7 @@ test("opens the prices list on prices pending review, in every category", () => 
 });
 
 test("keeps the prices list filters a URL names, falling back for a value it does not offer", () => {
-  const filters = { search: "yerba", category: "category-2", review: "all" };
+  const filters = { search: "yerba", category: "category-2", review: "all", reviewProducts: [] };
   expect(pricesListFilters.parse(filters)).toEqual(filters);
   expect(pricesListFilters.parse({ search: false, category: 3, review: "later" })).toEqual(
     pricesListFilters.parse({}),

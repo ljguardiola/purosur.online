@@ -32,6 +32,7 @@ export type PurchaseLineValues = {
   cost: string;
   lotNumber: string;
   expiresOn: CalendarDate | null;
+  reviewPriceNow: boolean;
 };
 
 export type PurchaseFormValues = {
@@ -54,6 +55,7 @@ export function emptyPurchaseLine(id: number): PurchaseLineValues {
     cost: "",
     lotNumber: "",
     expiresOn: null,
+    reviewPriceNow: false,
   };
 }
 
@@ -66,6 +68,13 @@ export function emptyPurchaseForm(today: CalendarDate): PurchaseFormValues {
     note: "",
     lines: [emptyPurchaseLine(1)],
   };
+}
+
+export function priceReviewProductIds(lines: readonly PurchaseLineValues[]): string[] {
+  const chosen = lines.flatMap((line) =>
+    line.reviewPriceNow && line.productId !== null ? [line.productId] : [],
+  );
+  return [...new Set(chosen)];
 }
 
 export function nextPurchaseLineId(lines: readonly PurchaseLineValues[]): number {

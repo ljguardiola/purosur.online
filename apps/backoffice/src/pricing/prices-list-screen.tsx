@@ -117,7 +117,12 @@ export function PricesListScreen({
   const reportFilters = useEffectEvent(onFiltersChange);
 
   useEffect(() => {
-    const shown: PricesListFilters = { search, category: categoryFilter, review: reviewFilter };
+    const shown: PricesListFilters = {
+      search,
+      category: categoryFilter,
+      review: reviewFilter,
+      reviewProducts: [],
+    };
     if (!deepEqual(shown, filters)) {
       reportFilters(shown);
     }
@@ -219,10 +224,10 @@ export function PricesListScreen({
     };
   }
 
-  async function handleReviewButton() {
+  async function startReview(productIds?: readonly string[]) {
     clearErrorNotice();
     setScreenRequestInFlight(true);
-    handleReviewReadOutcome(await readReviewQueue());
+    handleReviewReadOutcome(await readReviewQueue(productIds));
     setScreenRequestInFlight(false);
   }
 
@@ -381,6 +386,21 @@ export function PricesListScreen({
     showScreenNotice(rowConfirmFailedNotice(item));
   }
 
+  const startPurchaseReview = useEffectEvent((productIds: readonly string[]) => {
+    showScreenNotice({
+      tone: "success",
+      title: "Compra registrada",
+      description: "Revisá el precio de lo que llegó.",
+    });
+    void startReview(productIds);
+  });
+
+  useEffect(() => {
+    if (filters.reviewProducts.length > 0) {
+      startPurchaseReview(filters.reviewProducts);
+    }
+  }, [filters.reviewProducts]);
+
   const columns = [
     dataColumn({
       id: "product",
@@ -458,7 +478,7 @@ export function PricesListScreen({
                 icon={<ListChecks />}
                 dataStatus={data.status}
                 disabled={screenRequestInFlight}
-                onPress={() => void handleReviewButton()}
+                onPress={() => void startReview()}
               >
                 {loaded
                   ? plural(pendingCount, { one: "Revisar 1", other: `Revisar los ${pendingCount}` })
