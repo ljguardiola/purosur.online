@@ -73,7 +73,7 @@ test("shows the columns of the list", async () => {
     "Evento",
     "Recibido",
     "En cuarentena desde",
-    "Último error",
+    "Motivo",
     "Acciones",
   ]);
 });
