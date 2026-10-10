@@ -35,6 +35,7 @@ import {
 const FAILED_MESSAGE = "No se pudo reimprimir. Probá de nuevo.";
 const BUSY_MESSAGE =
   "Todavía puede salir una impresión de esta venta. Esperá a que termine antes de reimprimir.";
+const PRINTER_NOT_CONFIGURED_MESSAGE = "La impresora no está configurada.";
 const REQUIRED_REASON_MESSAGE = "Escribí el motivo de la reimpresión.";
 const AUTHORIZING = "reimprimir comprobantes";
 const PERMISSION: AuthorizablePermissionKey = "reprint_receipt";
@@ -93,6 +94,9 @@ export function ReprintReceiptModal({
           break;
         case "busy":
           setNotice(BUSY_MESSAGE);
+          break;
+        case "printer_not_configured":
+          setNotice(PRINTER_NOT_CONFIGURED_MESSAGE);
           break;
         case "invalid_reason":
           showFieldError("reason", invalidReasonMessage(outcome.max_length));
