@@ -1,0 +1,5 @@
+CREATE TABLE receipt_printer (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  host TEXT NOT NULL,
+  port INTEGER CHECK (port BETWEEN 1 AND 65535)
+);

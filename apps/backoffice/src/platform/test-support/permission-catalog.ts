@@ -58,7 +58,7 @@ const rows: [PermissionArea, PermissionKey, Marker, PermissionKey[]?, Permission
   ["alerts", "view_branch_alerts", NONE],
   ["alerts", "view_all_alerts", NONE],
   ["alerts", "dismiss_alerts_manually", NONE],
-  ["devices", "enroll_register_devices", NONE],
+  ["devices", "enroll_register_devices", REGISTER],
   ["devices", "revoke_register_devices", NONE],
   ["devices", "view_bitlocker_key", NONE],
   ["backups", "view_backups_and_rotate_key", NONE],

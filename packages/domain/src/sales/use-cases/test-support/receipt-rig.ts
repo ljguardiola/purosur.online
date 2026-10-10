@@ -5,6 +5,7 @@ import { AdjustableClock } from "./adjustable-clock.js";
 import { FakeOperationAuthority } from "./fake-operation-authority.js";
 import { FakeReceiptLedger, type FakeReceiptSale } from "./fake-receipt-ledger.js";
 import { FakeReceiptPrinter } from "./fake-receipt-printer.js";
+import { FakeReceiptPrinters } from "./fake-receipt-printers.js";
 import { FakeReceiptTemplate } from "./fake-receipt-template.js";
 import { SequentialIds } from "./fake-sale-ledger.js";
 
@@ -67,6 +68,7 @@ export function receiptRig(
   const clock = new AdjustableClock(FIRST_PRINT_AT);
   const template = new FakeReceiptTemplate();
   const printer = new FakeReceiptPrinter(ledger);
+  const printers = new FakeReceiptPrinters(printer);
   const statuses: PrinterStatus[] = [];
   const watch = {
     onStatus: (status: PrinterStatus) => statuses.push(status),
@@ -77,8 +79,8 @@ export function receiptRig(
     clock,
     ids: new SequentialIds(),
     template,
-    printer,
+    printers,
     authority,
   };
-  return { ledger, clock, template, printer, authority, statuses, watch, ports };
+  return { ledger, clock, template, printer, printers, authority, statuses, watch, ports };
 }

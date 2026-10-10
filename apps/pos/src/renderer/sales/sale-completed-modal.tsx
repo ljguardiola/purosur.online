@@ -11,7 +11,13 @@ import { useReceiptPrintStatusQuery, useRefreshReceiptPrintStatus } from "./sale
 
 const RETRY_FAILED_MESSAGE = "No se pudo reintentar la impresión. Probá de nuevo.";
 
-type FailedStanding = "cover_open" | "paper_out" | "not_responding" | "retry_offered" | "failed";
+type FailedStanding =
+  | "cover_open"
+  | "paper_out"
+  | "not_responding"
+  | "retry_offered"
+  | "printer_not_configured"
+  | "failed";
 
 type FailurePresentation = {
   printerState: string | undefined;
@@ -51,6 +57,12 @@ const FAILURES: Record<FailedStanding, FailurePresentation> = {
     printerState: "Normal · sin confirmar la impresión",
     title: "El ticket no salió",
     help: (copy) => `${UNCONFIRMED_PRINT} ${retryCopyText(copy)}`,
+  },
+  printer_not_configured: {
+    printerState: "Sin configurar",
+    title: "La impresora no está configurada",
+    help: () =>
+      "Cargá su dirección en Impresora y después imprimí el ticket desde el historial de ventas.",
   },
   failed: {
     printerState: undefined,
@@ -114,6 +126,10 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
     }
     if (outcome.kind === "lacks_permission") {
       setNotice("No tenés permiso para reintentar la impresión.");
+      return;
+    }
+    if (outcome.kind === "printer_not_configured") {
+      setNotice("La impresora no está configurada.");
       return;
     }
     await refreshReceipt();

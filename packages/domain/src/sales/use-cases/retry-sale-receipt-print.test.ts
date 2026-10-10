@@ -75,6 +75,22 @@ describe("retrySaleReceiptPrint", () => {
     },
   );
 
+  it("answers printer_not_configured and records nothing when no printer is configured", async () => {
+    const rig = receiptRig([attempted]);
+    rig.printers.unconfigure();
+
+    const outcome = await retrySaleReceiptPrint(
+      { ...rig.ports, standings: standingsOf("retry_offered") },
+      { saleId: "sale-1" },
+      rig.watch,
+    );
+
+    expect(outcome).toEqual({ kind: "printer_not_configured" });
+    expect(rig.ledger.transactions).toBe(0);
+    expect(rig.ledger.state.sales[0]?.reprints).toEqual([]);
+    expect(rig.ledger.state.outbox).toEqual([]);
+  });
+
   it("returns the authority's refusal before asking how the print stands", async () => {
     const refusing = new FakeOperationAuthority<ReceiptPrintGrant, typeof NOT_PERMITTED>({
       kind: "refused",

@@ -82,6 +82,8 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       reprintSaleReceipt: async () => ({ kind: "unavailable" }),
       salesHistory: async () => ({ kind: "unavailable" }),
       saleHistoryDetail: async () => ({ kind: "unavailable" }),
+      readReceiptPrinter: async () => ({ kind: "not_configured" }),
+      setReceiptPrinter: async () => ({ kind: "unavailable" }),
       refreshCashSession: async () => {},
     },
     "/",

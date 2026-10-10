@@ -15,6 +15,7 @@ export type RegisterOperation =
   | { kind: "cancel_paid_sale" }
   | { kind: "reprint_receipt" }
   | { kind: "view_sales_history" }
+  | { kind: "configure_receipt_printer" }
   | { kind: "record_cash_movement"; movement: CashMovementKind }
   | { kind: "close_cash_session"; session: OpenSession }
   | { kind: "close_locked_register"; session: OpenSession | undefined };
@@ -34,6 +35,7 @@ const SELLING_PERMISSION = "sell_and_charge";
 const VOID_SALE_PERMISSION = "void_sale";
 const REPRINT_RECEIPT_PERMISSION = "reprint_receipt";
 const VIEW_SALES_HISTORY_PERMISSION = "view_sales_history";
+const CONFIGURE_RECEIPT_PRINTER_PERMISSION = "enroll_register_devices";
 
 const PERMITTED = { kind: "permitted" } as const;
 const REFUSED = { kind: "refused" } as const;
@@ -79,6 +81,12 @@ export function registerOperationAccess(
         : holdsPermission(actor.access, VIEW_SALES_HISTORY_PERMISSION)
           ? PERMITTED
           : REFUSED;
+    case "configure_receipt_printer":
+      return actor.access === undefined
+        ? NO_ACCESS
+        : holdsPermission(actor.access, CONFIGURE_RECEIPT_PRINTER_PERMISSION)
+          ? PERMITTED
+          : REFUSED;
     case "record_cash_movement": {
       if (actor.access === undefined) {
         return NO_ACCESS;
@@ -119,6 +127,7 @@ export const REGISTER_ABILITIES = [
   "read_register_help",
   "correct_register_clock",
   "record_initial_inventory",
+  "configure_receipt_printer",
 ] as const;
 
 export type RegisterAbility = (typeof REGISTER_ABILITIES)[number];
@@ -130,6 +139,7 @@ const PERMISSION_OF_ABILITY = {
   read_register_help: "read_register_help",
   correct_register_clock: "correct_register_clock",
   record_initial_inventory: "record_initial_inventory",
+  configure_receipt_printer: CONFIGURE_RECEIPT_PRINTER_PERMISSION,
 } as const satisfies Record<RegisterAbility, PermissionKey>;
 
 export function registerAbilities(access: RoleAccess): RegisterAbility[] {

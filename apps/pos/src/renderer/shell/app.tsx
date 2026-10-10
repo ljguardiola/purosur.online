@@ -349,6 +349,8 @@ function Register({ core }: { core: CoreClient }) {
     ) => core.reprintSaleReceipt(saleId, reason, authorization),
     salesHistory: (query: SalesHistoryQuery) => core.salesHistory(query),
     saleHistoryDetail: (saleId: string) => core.saleHistoryDetail(saleId),
+    readReceiptPrinter: () => core.readReceiptPrinter(),
+    setReceiptPrinter: (address: string) => core.setReceiptPrinter(address),
     // A replaced core connection fails this request; the core coming back up asks again.
     refreshCashSession,
   };

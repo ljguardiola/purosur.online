@@ -257,6 +257,57 @@ describe("printSaleReceipt", () => {
       expect(rig.printer.sent).toEqual([]);
     });
 
+    it("answers printer_not_configured and records and sends nothing when no printer is configured", async () => {
+      const rig = receiptRig();
+      rig.printers.unconfigure();
+
+      const outcome = await printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+
+      expect(outcome).toEqual({ kind: "printer_not_configured" });
+      expect(rig.ledger.transactions).toBe(0);
+      expect(rig.ledger.state.sales[0]?.printAttemptedAt).toBeNull();
+      expect(rig.ledger.state.sales[0]?.stored).toBeUndefined();
+      expect(rig.ledger.state.outbox).toEqual([]);
+    });
+
+    it("prints the original once a printer is configured after finding none", async () => {
+      const rig = receiptRig();
+      rig.printers.unconfigure();
+      await printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      rig.printers.configure(rig.printer);
+
+      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      await rig.printer.whenSent();
+      rig.printer.acknowledge();
+
+      expect(await printing).toEqual({ kind: "printed", copy: { kind: "original" } });
+    });
+
+    it("asks for the configured printer once per print", async () => {
+      const rig = receiptRig();
+
+      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      await rig.printer.whenSent();
+      rig.printer.acknowledge();
+      await printing;
+
+      expect(rig.printers.asked).toBe(1);
+    });
+
+    it("asks for the printer only after the authority grants", async () => {
+      const refusing = new FakeOperationAuthority<ReceiptPrintGrant, typeof NOT_PERMITTED>({
+        kind: "refused",
+        refusal: NOT_PERMITTED,
+      });
+      const rig = receiptRig([completedSale()], refusing);
+      rig.printers.unconfigure();
+
+      const outcome = await printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+
+      expect(outcome).toEqual(NOT_PERMITTED);
+      expect(rig.printers.asked).toBe(0);
+    });
+
     it.each([
       ["the sale does not exist", []],
       ["the sale is not completed", [completedSale({ completed: false })]],

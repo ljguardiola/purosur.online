@@ -87,7 +87,9 @@ export function useReceiptPrintStatusQuery({
       return outcome.kind === "found" ? outcome : "unavailable";
     },
     refetchInterval: (status) =>
-      status?.printed === true || status?.standing === "failed"
+      status?.printed === true ||
+      status?.standing === "failed" ||
+      status?.standing === "printer_not_configured"
         ? false
         : RECEIPT_PRINT_POLL_MILLISECONDS,
   });

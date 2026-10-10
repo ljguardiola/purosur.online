@@ -203,6 +203,12 @@ describe("SaleCompletedModal", () => {
       title: "La impresora no responde",
       help: "Revisá que esté encendida y con el cable conectado. Si vuelve a responder y el ticket no sale, se ofrece reintentar.",
     },
+    {
+      standing: "printer_not_configured",
+      state: "Sin configurar",
+      title: "La impresora no está configurada",
+      help: "Cargá su dirección en Impresora y después imprimí el ticket desde el historial de ventas.",
+    },
   ] as const)(
     "tells that the sale stands and what to do when the printer reports $standing, with no retry",
     async ({ standing, state, title, help }) => {
@@ -340,6 +346,10 @@ describe("SaleCompletedModal", () => {
     {
       outcome: { kind: "unavailable" } as const,
       notice: "No se pudo reintentar la impresión. Probá de nuevo.",
+    },
+    {
+      outcome: { kind: "printer_not_configured" } as const,
+      notice: "La impresora no está configurada.",
     },
   ])("tells the retry was refused: $outcome.kind", async ({ outcome, notice }) => {
     const { screen } = await renderModal(CASH, {

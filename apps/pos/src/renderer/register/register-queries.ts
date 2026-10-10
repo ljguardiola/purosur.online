@@ -3,6 +3,7 @@ import type {
   CashCountPreview,
   ListedCashMovement,
   OpenCashSession,
+  ReadReceiptPrinterOutcome,
   RecordableCashMovementKinds,
   RegisterStatus,
   SessionOpenSale,
@@ -27,6 +28,7 @@ export const registerKeys = {
   cashSession: [...registerKey, "cash-session"] as const,
   registerName: [...registerKey, "register-name"] as const,
   status: [...registerKey, "status"] as const,
+  receiptPrinter: [...registerKey, "receipt-printer"] as const,
   lockedClosers: (sessionId: string) => [...lockedClosersKey, sessionId] as const,
   cashBalance: (sessionId: string) => [...cashKey, sessionId, "balance"] as const,
   cashCountPreview: (sessionId: string, countedCash: number | undefined) =>
@@ -188,4 +190,23 @@ export function useSetSessionOpenSale(
 ): (sale: SessionOpenSale | null) => Promise<void> {
   const queryClient = useQueryClient();
   return (sale) => setQueryAnswer(queryClient, registerKeys.openSale(sessionId), sale);
+}
+
+export type ShownReceiptPrinter = Exclude<ReadReceiptPrinterOutcome, { kind: "unavailable" }>;
+
+export function useReceiptPrinterQuery(
+  read: () => Promise<ReadReceiptPrinterOutcome>,
+): CoreData<ShownReceiptPrinter> {
+  return useCoreQuery({
+    queryKey: registerKeys.receiptPrinter,
+    read: async () => {
+      const outcome = await read();
+      return outcome.kind === "unavailable" ? "unavailable" : outcome;
+    },
+  });
+}
+
+export function useRefreshReceiptPrinter(): () => Promise<void> {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: registerKeys.receiptPrinter });
 }
