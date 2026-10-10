@@ -203,6 +203,35 @@ describe("GET /changes asking for the current fortnight's offline authorization 
     expect(enqueueRequest).not.toHaveBeenCalled();
   });
 
+  it("still delivers the page and reports the failure when the request cannot be enqueued", async () => {
+    const failure = new Error("the job queue is down");
+    const reportError = vi.fn();
+    const failing = Fastify();
+    registerRouteAccess(failing);
+    registerChangesRoute(failing, {
+      db,
+      rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+      keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      now: () => NOW,
+      enqueueOfflineAuthorizationCodeRequest: () => Promise.reject(failure),
+      reportError,
+    });
+    const { deviceToken } = await registerWithOfflinePointOfSale("Caja 1", 7, 8);
+
+    const response = await failing.inject({
+      method: "GET",
+      url: "/changes?since=0",
+      headers: { authorization: `Bearer ${deviceToken}` },
+    });
+    await failing.close();
+
+    expect(response.statusCode).toBe(200);
+    expect(changesPageSchema.parse(response.json()).changes.map(({ entity }) => entity)).toContain(
+      "offline_number_block",
+    );
+    expect(reportError).toHaveBeenCalledWith(failure);
+  });
+
   it("still answers when the cloud has no way to request codes", async () => {
     const quiet = Fastify();
     registerRouteAccess(quiet);
