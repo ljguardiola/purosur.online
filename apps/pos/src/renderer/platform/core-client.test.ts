@@ -366,7 +366,11 @@ describe("createCoreClient", () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
     client.connect(port);
-    const status = { conditions: ["sales_denied", "register_silent"], cloud: "unreachable" };
+    const status = {
+      conditions: ["sales_denied", "register_silent"],
+      cloud: "unreachable",
+      serial_devices: { scale: "matching", reader: "not_registered" },
+    };
 
     const asked = client.registerStatus();
     port.answer({ type: "register-status", request_id: "request-1", status });
