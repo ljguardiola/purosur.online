@@ -1,4 +1,9 @@
 export type {
+  AbandonMercadoPagoQrChargeInput,
+  AbandonMercadoPagoQrChargeOutcome,
+} from "./abandon-mercado-pago-qr-charge.js";
+export { abandonMercadoPagoQrCharge } from "./abandon-mercado-pago-qr-charge.js";
+export type {
   AdmitPaymentNotificationInput,
   AdmitPaymentNotificationOutcome,
 } from "./admit-payment-notification.js";
@@ -48,6 +53,7 @@ export type {
 export type {
   EndedMercadoPagoQrChargeState,
   MercadoPagoQrChargeOrderAnswer,
+  MercadoPagoQrChargeOrderCancellation,
   MercadoPagoQrChargeOrderReading,
   MercadoPagoQrChargeOrders,
   MercadoPagoQrChargePorts,
