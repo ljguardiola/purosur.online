@@ -2264,6 +2264,56 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("let a pending QR payment be marked as replaced, none being so over the payments a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0036_replaced_qr_payments",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0036_replaced_qr_payments",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('open', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at, wait_ends_at)
+         VALUES ('pay-cash', 'open', 'SALE', 'CASH', 'NONE', 1000, 1500, NULL, NULL, 'APPROVED', '2026-10-09T12:05:00.000Z', NULL),
+                ('pay-qr', 'open', 'SALE', 'QR', 'MERCADOPAGO_QR', 600, NULL, NULL, NULL, 'PENDING', '2026-10-09T12:06:00.000Z', '2026-10-09T12:09:00.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after.prepare("SELECT id, state, replaced FROM payment_transactions ORDER BY id").all(),
+      ).toEqual([
+        { id: "pay-cash", state: "APPROVED", replaced: 0 },
+        { id: "pay-qr", state: "PENDING", replaced: 0 },
+      ]);
+      after.prepare("UPDATE payment_transactions SET replaced = 1 WHERE id = 'pay-qr'").run();
+      expect(
+        after.prepare("SELECT replaced FROM payment_transactions WHERE id = 'pay-qr'").get(),
+      ).toEqual({ replaced: 1 });
+      expect(() =>
+        after.prepare("UPDATE payment_transactions SET replaced = 1 WHERE id = 'pay-cash'").run(),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        after.prepare("UPDATE payment_transactions SET replaced = 2 WHERE id = 'pay-qr'").run(),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        after.prepare("UPDATE payment_transactions SET replaced = NULL WHERE id = 'pay-qr'").run(),
+      ).toThrow(/NOT NULL/);
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   describe("the real-time authorization", () => {
     function withSales() {
       const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
