@@ -36,3 +36,15 @@ describe("entriesFor", () => {
     ]);
   });
 });
+
+describe("ACTION_ENTRIES", () => {
+  it("offers the sales history to a person who may view it, opening its screen", () => {
+    expect(
+      entriesFor(ACTION_ENTRIES, ["view_sales_history"]).map(({ label, to }) => ({ label, to })),
+    ).toEqual([{ label: "Historial", to: "/history" }]);
+  });
+
+  it("offers nothing to a person who may not view the sales history", () => {
+    expect(entriesFor(ACTION_ENTRIES, ["reprint_receipt"])).toEqual([]);
+  });
+});

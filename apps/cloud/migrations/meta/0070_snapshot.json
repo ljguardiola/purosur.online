@@ -1,5 +1,5 @@
 {
-  "id": "b972cdcb-cf16-4fb3-ad2f-f6b6b4eafcc3",
+  "id": "786814f5-ff2f-4771-a4ed-8986ece7f7d9",
   "prevId": "8b6f3278-7c04-4ff7-a1a5-7ff0ae804d7e",
   "version": "7",
   "dialect": "postgresql",
@@ -934,61 +934,6 @@
         "buyer_tax_status_sets_params_version_positive": {
           "name": "buyer_tax_status_sets_params_version_positive",
           "value": "\"buyer_tax_status_sets\".\"params_version\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.caea_codes": {
-      "name": "caea_codes",
-      "schema": "",
-      "columns": {
-        "fortnight_start": {
-          "name": "fortnight_start",
-          "type": "date",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "fortnight_end": {
-          "name": "fortnight_end",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code": {
-          "name": "code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "report_deadline": {
-          "name": "report_deadline",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "obtained_at": {
-          "name": "obtained_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "obtained_through": {
-          "name": "obtained_through",
-          "type": "caea_code_origin",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "caea_codes_fortnight_ends_after_start": {
-          "name": "caea_codes_fortnight_ends_after_start",
-          "value": "\"caea_codes\".\"fortnight_end\" > \"caea_codes\".\"fortnight_start\""
         }
       },
       "isRLSEnabled": false
@@ -5039,6 +4984,89 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.sale_reprints": {
+      "name": "sale_reprints",
+      "schema": "",
+      "columns": {
+        "sale_id": {
+          "name": "sale_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "order_number": {
+          "name": "order_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requested_by": {
+          "name": "requested_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "authorized_by": {
+          "name": "authorized_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason_kind": {
+          "name": "reason_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason_text": {
+          "name": "reason_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sale_reprints_sale_id_sales_id_fk": {
+          "name": "sale_reprints_sale_id_sales_id_fk",
+          "tableFrom": "sale_reprints",
+          "tableTo": "sales",
+          "columnsFrom": ["sale_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "sale_reprints_sale_id_order_number_pk": {
+          "name": "sale_reprints_sale_id_order_number_pk",
+          "columns": ["sale_id", "order_number"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "sale_reprints_order_number_positive_check": {
+          "name": "sale_reprints_order_number_positive_check",
+          "value": "\"sale_reprints\".\"order_number\" > 0"
+        },
+        "sale_reprints_reason_kind_check": {
+          "name": "sale_reprints_reason_kind_check",
+          "value": "\"sale_reprints\".\"reason_kind\" in ('retry', 'requested')"
+        },
+        "sale_reprints_reason_matches_kind_check": {
+          "name": "sale_reprints_reason_matches_kind_check",
+          "value": "(\"sale_reprints\".\"reason_kind\" = 'requested') = (\"sale_reprints\".\"reason_text\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.sales": {
       "name": "sales",
       "schema": "",
@@ -5109,6 +5137,24 @@
           "primaryKey": false,
           "notNull": true
         },
+        "operation_number": {
+          "name": "operation_number",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "print_attempted_at": {
+          "name": "print_attempted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "printed_at": {
+          "name": "printed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "applied_at": {
           "name": "applied_at",
           "type": "timestamp with time zone",
@@ -5159,6 +5205,14 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
+        "sales_operation_number_positive_check": {
+          "name": "sales_operation_number_positive_check",
+          "value": "\"sales\".\"operation_number\" > 0"
+        },
+        "sales_printed_only_after_attempted_check": {
+          "name": "sales_printed_only_after_attempted_check",
+          "value": "\"sales\".\"printed_at\" is null or \"sales\".\"print_attempted_at\" is not null"
+        },
         "sales_state_check": {
           "name": "sales_state_check",
           "value": "\"sales\".\"state\" in ('COMPLETED', 'CANCELLED')"
@@ -6339,11 +6393,6 @@
       "name": "backoffice_rate_limit_key_kind",
       "schema": "public",
       "values": ["session", "source_address"]
-    },
-    "public.caea_code_origin": {
-      "name": "caea_code_origin",
-      "schema": "public",
-      "values": ["requested", "recovered"]
     },
     "public.change_op": {
       "name": "change_op",

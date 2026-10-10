@@ -353,7 +353,12 @@ export function SaleScreen({
 
   return (
     <div className="flex h-full w-full bg-surface-subtle">
-      <OpenSessionRail registerName={registerName} lock={lock} current="sale" />
+      <OpenSessionRail
+        registerName={registerName}
+        lock={lock}
+        current="sale"
+        abilities={person.abilities}
+      />
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
         <ScreenHeader eyebrow={registerName ?? undefined} title="Venta en curso" />
         <form

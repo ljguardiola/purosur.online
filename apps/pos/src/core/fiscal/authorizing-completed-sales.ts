@@ -1,12 +1,8 @@
+import { completedSaleId } from "../platform/completed-sale-id";
+
 export interface AuthorizingCompletedSalesDeps {
   authorizeSale: (saleId: string) => Promise<unknown>;
   onFailure: (error: unknown) => void;
-}
-
-function completedSaleId(outcome: { kind: string }): string | undefined {
-  return outcome.kind === "completed" && "sale_id" in outcome && typeof outcome.sale_id === "string"
-    ? outcome.sale_id
-    : undefined;
 }
 
 export function authorizingCompletedSales<TRequest, TOutcome extends { kind: string }>(

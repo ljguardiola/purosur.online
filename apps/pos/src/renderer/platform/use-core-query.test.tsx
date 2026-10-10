@@ -1,5 +1,5 @@
 import { focusManager, onlineManager, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { createQueryClient } from "./query-client";
@@ -37,7 +37,42 @@ function renderProbe(read: () => Promise<string | "unavailable">) {
   return { screen, queryClient };
 }
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+function PollingProbe({ read }: { read: () => Promise<string | "unavailable"> }) {
+  const data = useCoreQuery({
+    queryKey: ["polling-probe"],
+    read,
+    refetchInterval: (value) => (value === "done" ? false : 1000),
+  });
+  return <p>{describeData(data)}</p>;
+}
+
 describe("useCoreQuery", () => {
+  it("reads again every interval it is given while the interval says so, and stops once it says not to", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const read = vi
+      .fn<() => Promise<string | "unavailable">>()
+      .mockResolvedValueOnce("working")
+      .mockResolvedValueOnce("working")
+      .mockResolvedValue("done");
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <PollingProbe read={read} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText("loaded working")).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(3000);
+
+    await expect.element(screen.getByText("loaded done")).toBeVisible();
+    const reads = read.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(read).toHaveBeenCalledTimes(reads);
+  });
+
   it("loads while the core reads and then holds what it answered", async () => {
     const { screen } = renderProbe(async () => "first");
 

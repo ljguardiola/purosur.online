@@ -36,7 +36,7 @@ function SignInPanel({ loadUsers, signIn, registerName }: SignInScreenProps) {
   return (
     <main className="flex w-full max-w-110 flex-col gap-6">
       <ScreenHeader
-        eyebrow={sessionEyebrow(registerName)}
+        eyebrow={sessionEyebrow(registerName, false)}
         titleId={headingId}
         titleRef={attempt.heading}
         title={

@@ -19,6 +19,10 @@ import {
   openAppliedCashSession,
   recordAppliedCashMovement,
 } from "../register/drizzle-applied-cash-sessions.js";
+import {
+  recordAppliedPrintState,
+  recordAppliedReprint,
+} from "../sales/drizzle-applied-sale-receipts.js";
 import { recordAppliedCancelledSale, recordAppliedSale } from "../sales/drizzle-applied-sales.js";
 import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
 import { type PendingChanges, withPendingChanges } from "./change-log.js";
@@ -106,6 +110,10 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
         return recordAppliedSale(this.tx, await this.originOf(event), fact, this.now());
       case "sale_cancelled":
         return recordAppliedCancelledSale(this.tx, await this.originOf(event), fact, this.now());
+      case "sale_print_state_changed":
+        return recordAppliedPrintState(this.tx, await this.originOf(event), fact);
+      case "reprint_recorded":
+        return recordAppliedReprint(this.tx, await this.originOf(event), fact);
       case "fiscal_gate_failed":
         return;
     }

@@ -21,10 +21,15 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RegisterStatus,
   RemoveSaleLineOutcome,
+  ReprintSaleReceiptOutcome,
+  RetryReceiptPrintOutcome,
+  SaleHistoryDetailOutcome,
+  SalesHistoryOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
   SessionOpenSale,
@@ -36,12 +41,14 @@ import type { AuthorizablePermissionKey, RegisterService } from "@purosur/domain
 import { isDatabaseDamage } from "./platform/database-damage";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
 import type { CoreToRendererMessage, RendererToCoreMessage } from "./renderer-messages";
+import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type {
   CancelLockedSaleRequest,
   CancelPaidSaleRequest,
   ChargeSaleByTransferRequest,
   ChargeSaleInCashRequest,
 } from "./sales/sale-requests";
+import type { SalesHistoryRequest } from "./sales/sales-history-requests";
 
 export interface RendererRequestDeps {
   credentialsPresent: () => Promise<boolean>;
@@ -86,6 +93,13 @@ export interface RendererRequestDeps {
   removeSaleLine: ((lineId: string) => Promise<RemoveSaleLineOutcome>) | undefined;
   cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
   cancelPaidSale: ((request: CancelPaidSaleRequest) => Promise<CancelPaidSaleOutcome>) | undefined;
+  receiptPrintStatus: ((saleId: string) => Promise<ReceiptPrintStatusOutcome>) | undefined;
+  retryReceiptPrint: ((saleId: string) => Promise<RetryReceiptPrintOutcome>) | undefined;
+  reprintSaleReceipt:
+    | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
+    | undefined;
+  salesHistory: ((request: SalesHistoryRequest) => Promise<SalesHistoryOutcome>) | undefined;
+  saleHistoryDetail: ((saleId: string) => Promise<SaleHistoryDetailOutcome>) | undefined;
   closeCashSession:
     | ((sessionId: string, countedCash: number) => Promise<CloseCashSessionOutcome>)
     | undefined;
@@ -605,6 +619,78 @@ export async function answerRendererRequest(
           cancelPaidSale &&
             (() =>
               cancelPaidSale({ saleId: message.sale_id, authorization: message.authorization })),
+        ),
+      };
+    }
+    case "receipt-print-status": {
+      const { receiptPrintStatus } = deps;
+      return {
+        type: "receipt-print-status-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "reading a receipt's print status",
+          receiptPrintStatus && (() => receiptPrintStatus(message.sale_id)),
+        ),
+      };
+    }
+    case "retry-receipt-print": {
+      const { retryReceiptPrint } = deps;
+      return {
+        type: "retry-receipt-print-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "retrying a receipt print",
+          retryReceiptPrint && (() => retryReceiptPrint(message.sale_id)),
+        ),
+      };
+    }
+    case "reprint-sale-receipt": {
+      const { reprintSaleReceipt } = deps;
+      return {
+        type: "reprint-sale-receipt-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "reprinting a receipt",
+          reprintSaleReceipt &&
+            (() =>
+              reprintSaleReceipt({
+                saleId: message.sale_id,
+                reason: message.reason,
+                authorization: message.authorization,
+              })),
+        ),
+      };
+    }
+    case "sales-history": {
+      const { salesHistory } = deps;
+      return {
+        type: "sales-history-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "reading the sales history",
+          salesHistory &&
+            (() =>
+              salesHistory({
+                session: message.session,
+                state: message.state,
+                page: message.page,
+              })),
+        ),
+      };
+    }
+    case "sale-history-detail": {
+      const { saleHistoryDetail } = deps;
+      return {
+        type: "sale-history-detail-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "reading a sale of the history",
+          saleHistoryDetail && (() => saleHistoryDetail(message.sale_id)),
         ),
       };
     }
