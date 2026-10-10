@@ -23,6 +23,7 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  ReadReceiptPrinterOutcome,
   ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
@@ -40,6 +41,7 @@ import type {
   ScanProductOutcome,
   SearchProductsOutcome,
   SessionOpenSale,
+  SetReceiptPrinterOutcome,
   SessionsCoreToRendererMessage,
   SessionsRendererToCoreMessage,
   SignInLookupOutcome,
@@ -140,6 +142,8 @@ export interface CoreClient {
   ): Promise<ReprintSaleReceiptOutcome>;
   salesHistory(query: SalesHistoryQuery): Promise<SalesHistoryOutcome>;
   saleHistoryDetail(saleId: string): Promise<SaleHistoryDetailOutcome>;
+  readReceiptPrinter(): Promise<ReadReceiptPrinterOutcome>;
+  setReceiptPrinter(address: string): Promise<SetReceiptPrinterOutcome>;
   cashCharge(saleId: string, tendered: number): Promise<CashChargeAnswer>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer(saleId: string, amount: number): Promise<ChargeSaleByTransferOutcome>;
@@ -481,6 +485,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "sale-history-detail", request_id: deps.newRequestId(), sale_id: saleId },
         (answer) => (answer.type === "sale-history-detail-result" ? answer.outcome : undefined),
+      );
+    },
+    readReceiptPrinter() {
+      return ask({ type: "read-receipt-printer", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "read-receipt-printer-result" ? answer.outcome : undefined,
+      );
+    },
+    setReceiptPrinter(address) {
+      return ask(
+        { type: "set-receipt-printer", request_id: deps.newRequestId(), address },
+        (answer) => (answer.type === "set-receipt-printer-result" ? answer.outcome : undefined),
       );
     },
     searchProducts(query) {
