@@ -43,10 +43,6 @@ export {
   isIssuerIdentificationLegalNameTooLong,
   latestIssuerIdentification,
 } from "./model/issuer-identification.js";
-export type {
-  PointOfSaleHolder,
-  PointOfSaleMechanism,
-} from "./model/point-of-sale.js";
 export {
   isPointOfSaleNumber,
   POINT_OF_SALE_NUMBER_MAX,

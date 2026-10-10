@@ -17,16 +17,36 @@ export const EMPTY_REGISTER_POINT_OF_SALE_FORM: RegisterPointOfSaleFormValues = 
   version: 0,
 };
 
+export type OfflinePointOfSaleFormValues = {
+  pointOfSaleNumber: string;
+  version: number;
+};
+
+export const EMPTY_OFFLINE_POINT_OF_SALE_FORM: OfflinePointOfSaleFormValues = {
+  pointOfSaleNumber: "",
+  version: 0,
+};
+
+function typedPointOfSaleNumber(number: number | null): string {
+  return number === null ? "" : String(number);
+}
+
 export function registerPointOfSaleFormValuesFrom(
   register: RegisterPointOfSale,
-  mechanism: "real_time" | "offline" = "real_time",
 ): RegisterPointOfSaleFormValues {
-  const offline = mechanism === "offline";
-  const number = offline ? register.offlinePointOfSaleNumber : register.pointOfSaleNumber;
   return {
-    pointOfSaleNumber: number === null ? "" : String(number),
+    pointOfSaleNumber: typedPointOfSaleNumber(register.pointOfSaleNumber),
     fiscalAddressId: register.fiscalAddressId,
-    version: offline ? register.offlineVersion : register.version,
+    version: register.version,
+  };
+}
+
+export function offlinePointOfSaleFormValuesFrom(
+  register: RegisterPointOfSale,
+): OfflinePointOfSaleFormValues {
+  return {
+    pointOfSaleNumber: typedPointOfSaleNumber(register.offlinePointOfSaleNumber),
+    version: register.offlineVersion,
   };
 }
 
@@ -45,13 +65,13 @@ export function registerPointOfSaleRequestFrom({
 export function offlinePointOfSaleRequestFrom({
   pointOfSaleNumber,
   version,
-}: RegisterPointOfSaleFormValues): OfflinePointOfSaleConfigurationBody {
+}: OfflinePointOfSaleFormValues): OfflinePointOfSaleConfigurationBody {
   return { point_of_sale_number: parsePointOfSaleNumber(pointOfSaleNumber), version };
 }
 
 export function pointOfSaleNumberMessage({
   pointOfSaleNumber,
-}: RegisterPointOfSaleFormValues): string {
+}: Pick<RegisterPointOfSaleFormValues, "pointOfSaleNumber">): string {
   return pointOfSaleNumber.trim() === ""
     ? "Ingresá el punto de venta."
     : "Revisá el punto de venta.";

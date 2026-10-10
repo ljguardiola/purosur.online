@@ -5,7 +5,6 @@ export type {
   RejectionAlertChange,
   TaxAuthorityRejection,
 } from "../model/fiscal-rejection-alert.js";
-export type { PointOfSaleMechanism } from "../model/point-of-sale.js";
 export type {
   DeferralReason,
   RealTimeAuthorizationAnswer,

@@ -4,6 +4,7 @@ import {
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
 import type { EditFiscalAddressModalServices } from "./edit-fiscal-address-modal";
+import type { EditRegisterOfflinePointOfSaleModalServices } from "./edit-register-offline-point-of-sale-modal";
 import type { EditRegisterPointOfSaleModalServices } from "./edit-register-point-of-sale-modal";
 import {
   createFiscalAddress,
@@ -18,6 +19,7 @@ import {
 } from "./register-points-of-sale-api";
 
 export type PointsOfSaleScreenServices = EditRegisterPointOfSaleModalServices &
+  EditRegisterOfflinePointOfSaleModalServices &
   NewFiscalAddressModalServices &
   EditFiscalAddressModalServices & {
     fetchRegisterPointsOfSale: typeof fetchRegisterPointsOfSale;

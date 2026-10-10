@@ -5,6 +5,7 @@ import { combineCloudData } from "../platform/combine-cloud-data";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { EditFiscalAddressModal } from "./edit-fiscal-address-modal";
+import { EditRegisterOfflinePointOfSaleModal } from "./edit-register-offline-point-of-sale-modal";
 import { EditRegisterPointOfSaleModal } from "./edit-register-point-of-sale-modal";
 import { FiscalAddressesSection } from "./fiscal-addresses-section";
 import {
@@ -78,18 +79,23 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
         />
       </ScreenLayout>
       <EditRegisterPointOfSaleModal
-        mechanism={editingRegister?.mechanism ?? "real_time"}
-        target={registerBeingEdited}
+        target={editingRegister?.mechanism === "real_time" ? registerBeingEdited : null}
         fiscalAddresses={loadedFiscalAddresses}
         onClose={() => setEditingRegister(null)}
         onSaved={() => {
           setEditingRegister(null);
-          announce(
-            editingRegister?.mechanism === "offline"
-              ? "Punto de venta CAEA guardado"
-              : "Punto de venta guardado",
-            `${registerBeingEdited?.registerName ?? ""}.`,
-          );
+          announce("Punto de venta guardado", `${registerBeingEdited?.registerName ?? ""}.`);
+        }}
+        reload={reloadRegisters}
+        onSessionEnded={onSessionEnded}
+        services={services}
+      />
+      <EditRegisterOfflinePointOfSaleModal
+        target={editingRegister?.mechanism === "offline" ? registerBeingEdited : null}
+        onClose={() => setEditingRegister(null)}
+        onSaved={() => {
+          setEditingRegister(null);
+          announce("Punto de venta CAEA guardado", `${registerBeingEdited?.registerName ?? ""}.`);
         }}
         reload={reloadRegisters}
         onSessionEnded={onSessionEnded}

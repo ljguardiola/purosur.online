@@ -44,9 +44,6 @@ class DrizzleRegisterOfflinePointOfSaleStoreTransaction<TQueryResult extends PgQ
     return lockBranchRegister(this.tx, locationId, registerId);
   }
 
-  // KEY SHARE is the weakest lock that keeps the row from being deleted or re-keyed while the
-  // offline point of sale that depends on it is written, and it leaves a concurrent change of the
-  // real-time point of sale's number or fiscal address free to proceed.
   async lockRegisterPointOfSale(registerId: string): Promise<RegisterPointOfSale> {
     const [current] = await this.tx
       .select({

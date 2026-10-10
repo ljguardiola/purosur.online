@@ -1,14 +1,5 @@
-import { pointOfSaleConfigurationBodySchema } from "@purosur/contracts";
-import {
-  Button,
-  InlineNotice,
-  Modal,
-  type Option,
-  type Options,
-  sortedItems,
-  textOrder,
-  useRequestForm,
-} from "@purosur/ui";
+import { offlinePointOfSaleConfigurationBodySchema } from "@purosur/contracts";
+import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, Info, Landmark, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -20,22 +11,20 @@ import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
-import type { FiscalAddress } from "./fiscal-addresses-api";
 import {
-  EMPTY_REGISTER_POINT_OF_SALE_FORM,
-  fiscalAddressMessage,
+  EMPTY_OFFLINE_POINT_OF_SALE_FORM,
+  offlinePointOfSaleFormValuesFrom,
+  offlinePointOfSaleRequestFrom,
   pointOfSaleNumberMessage,
-  registerPointOfSaleFormValuesFrom,
-  registerPointOfSaleRequestFrom,
 } from "./register-point-of-sale-form";
 import type {
   ConfigureRegisterPointOfSaleOutcome,
-  configureRegisterPointOfSale,
+  configureRegisterOfflinePointOfSale,
   RegisterPointOfSale,
 } from "./register-points-of-sale-api";
 
-export type EditRegisterPointOfSaleModalServices = {
-  configureRegisterPointOfSale: typeof configureRegisterPointOfSale;
+export type EditRegisterOfflinePointOfSaleModalServices = {
+  configureRegisterOfflinePointOfSale: typeof configureRegisterOfflinePointOfSale;
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
   authorizeSession: typeof authorizeSession;
   startAuthentication: typeof startAuthentication;
@@ -44,44 +33,34 @@ export type EditRegisterPointOfSaleModalServices = {
 type ModalNotice =
   | { kind: "attemptFailed" }
   | { kind: "staleVersion" }
+  | { kind: "realTimeMissing" }
   | { kind: "rateLimited"; retryAfterSeconds: number };
 
-type EditRegisterPointOfSaleModalProps = {
+type EditRegisterOfflinePointOfSaleModalProps = {
   target: RegisterPointOfSale | null;
-  fiscalAddresses: FiscalAddress[];
   onClose: () => void;
   onSaved: () => void;
   reload: () => Promise<CloudReadOutcome<RegisterPointOfSale[]>>;
   onSessionEnded: () => void;
-  services: EditRegisterPointOfSaleModalServices;
+  services: EditRegisterOfflinePointOfSaleModalServices;
 };
 
-function fiscalAddressOptions(addresses: FiscalAddress[]): Options<Option<string>> | undefined {
-  const [first, ...rest] = sortedItems(addresses, {
-    order: textOrder((address) => address.name),
-    direction: "ascending",
-  }).map((address) => ({ value: address.id, label: address.name }));
-  return first && [first, ...rest];
-}
-
-export function EditRegisterPointOfSaleModal({
+export function EditRegisterOfflinePointOfSaleModal({
   target,
-  fiscalAddresses,
   onClose,
   onSaved,
   reload,
   onSessionEnded,
   services,
-}: EditRegisterPointOfSaleModalProps) {
+}: EditRegisterOfflinePointOfSaleModalProps) {
   const sendToMyAccount = useSendToMyAccount();
   const {
-    configureRegisterPointOfSale,
+    configureRegisterOfflinePointOfSale,
     fetchSessionAuthorizationOptions,
     authorizeSession,
     startAuthentication,
   } = services;
   const open = target !== null;
-  const options = fiscalAddressOptions(fiscalAddresses);
   const [seededFrom, setSeededFrom] = useState<RegisterPointOfSale | null>(null);
   const [notice, setNotice] = useState<ModalNotice | null>(null);
   const [reloading, setReloading] = useState(false);
@@ -91,26 +70,26 @@ export function EditRegisterPointOfSaleModal({
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
   const { form, submit, submitting, dirty, reset } = useRequestForm({
-    defaultValues: EMPTY_REGISTER_POINT_OF_SALE_FORM,
+    defaultValues: EMPTY_OFFLINE_POINT_OF_SALE_FORM,
     request: {
-      schema: pointOfSaleConfigurationBodySchema,
-      from: registerPointOfSaleRequestFrom,
+      schema: offlinePointOfSaleConfigurationBodySchema,
+      from: offlinePointOfSaleRequestFrom,
     },
     fields: {
       point_of_sale_number: "pointOfSaleNumber",
-      fiscal_address_id: "fiscalAddressId",
       version: null,
     },
     messages: {
       pointOfSaleNumber: pointOfSaleNumberMessage,
-      fiscalAddressId: fiscalAddressMessage,
     },
     onSubmit: async (request, { showWireFieldError, showFieldError }) => {
       if (target === null) {
         return;
       }
       setNotice(null);
-      const outcome = await run(() => configureRegisterPointOfSale(target.registerId, request));
+      const outcome = await run(() =>
+        configureRegisterOfflinePointOfSale(target.registerId, request),
+      );
       if (outcome.kind === "cancelled") {
         return;
       }
@@ -135,6 +114,10 @@ export function EditRegisterPointOfSaleModal({
         showFieldError("pointOfSaleNumber", "Ese punto de venta ya está asignado.");
         return;
       }
+      if (outcome.kind === "real_time_point_of_sale_missing") {
+        setNotice({ kind: "realTimeMissing" });
+        return;
+      }
       if (outcome.kind === "stale_version") {
         setNotice({ kind: "staleVersion" });
         return;
@@ -157,7 +140,7 @@ export function EditRegisterPointOfSaleModal({
         setSeededFrom(null);
       }
     } else if (target !== seededFrom && !dirty) {
-      reset(registerPointOfSaleFormValuesFrom(target));
+      reset(offlinePointOfSaleFormValuesFrom(target));
       setSeededFrom(target);
       setNotice(null);
     }
@@ -174,7 +157,7 @@ export function EditRegisterPointOfSaleModal({
         ? outcome.value.find(({ registerId }) => registerId === target.registerId)
         : undefined;
     if (reloaded !== undefined) {
-      reset(registerPointOfSaleFormValuesFrom(reloaded));
+      reset(offlinePointOfSaleFormValuesFrom(reloaded));
       setSeededFrom(reloaded);
       setNotice(null);
     }
@@ -195,7 +178,7 @@ export function EditRegisterPointOfSaleModal({
         width="standard"
         tone="info"
         icon={<Landmark />}
-        context="Punto de venta"
+        context="Punto de venta CAEA"
         title={target?.registerName ?? ""}
         closable
         footer={
@@ -220,7 +203,7 @@ export function EditRegisterPointOfSaleModal({
                 size="large"
                 icon={<Check />}
                 fullWidth
-                disabled={busy || options === undefined}
+                disabled={busy}
                 onPress={() => void submit()}
               >
                 Guardar los cambios
@@ -255,25 +238,23 @@ export function EditRegisterPointOfSaleModal({
                 description="Recargá los datos y volvé a hacer el cambio."
               />
             )}
-            <form.AppField name="pointOfSaleNumber">
-              {(field) => <field.TextField kind="plain-text" label="Punto de venta" required />}
-            </form.AppField>
-            {options ? (
-              <form.AppField name="fiscalAddressId">
-                {(field) => <field.Select label="Domicilio fiscal" options={options} required />}
-              </form.AppField>
-            ) : (
+            {notice?.kind === "realTimeMissing" && (
               <InlineNotice
-                tone="warning"
+                tone="error"
                 icon={<TriangleAlert />}
-                title="Todavía no hay domicilios fiscales"
-                description="Creá uno para poder elegirlo acá."
+                title="Falta el punto de venta CAE"
+                description="Configurá primero el punto de venta CAE de esta caja."
               />
             )}
+            <form.AppField name="pointOfSaleNumber">
+              {(field) => (
+                <field.TextField kind="plain-text" label="Punto de venta CAEA" required />
+              )}
+            </form.AppField>
             <InlineNotice
               tone="warning"
               icon={<Info />}
-              description="Tiene que ser un punto de venta dado de alta en ARCA solo para esta caja y que no se use en ningún otro sistema."
+              description="Tiene que ser un punto de venta CAEA dado de alta en ARCA solo para esta caja, en el mismo domicilio que su punto de venta CAE."
             />
           </div>
         ) : null}
