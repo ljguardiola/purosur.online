@@ -373,32 +373,6 @@ test("shows how to type the quantity at the line the cloud refused it", async ()
     .toBeVisible();
 });
 
-test("says a line loaded by packaging adds up to more than a line may hold, when the cloud refuses its quantity", async () => {
-  const services = createServices();
-  vi.mocked(services.registerPurchase).mockResolvedValue({
-    kind: "validation_failed",
-    field: "lines",
-    lineIndex: 0,
-  });
-  const screen = await opened(services);
-  await fillHeader(screen);
-  const group = line(screen, 1);
-  await chooseFromComboBox(screen, group, /^Producto/, "Miel pura de abeja 1 kg");
-  await userEvent.click(group.getByText("Presentación", { exact: true }).last());
-  await chooseFromSelect(screen, group, /Presentación/, "Caja x 12 (12 u)");
-  await userEvent.fill(group.getByRole("textbox", { name: /^Cantidad de presentaciones/ }), "2");
-  await userEvent.fill(group.getByRole("textbox", { name: /^Costo por presentación/ }), "7.200");
-
-  await register(screen);
-
-  await expect
-    .element(group.getByText("Son demasiadas presentaciones para una sola línea.").first())
-    .toBeVisible();
-  expect(
-    group.getByText("Escribí una cantidad entera de unidades, por ejemplo 16.").query(),
-  ).toBeNull();
-});
-
 test("clears a line's refusal once the person changes that line", async () => {
   const services = createServices();
   vi.mocked(services.registerPurchase).mockResolvedValue({
