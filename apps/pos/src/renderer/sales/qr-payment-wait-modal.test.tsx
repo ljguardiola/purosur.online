@@ -207,8 +207,8 @@ describe("QrPaymentWaitModal", () => {
     expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
   });
 
-  it("says the wait ran out and goes back to the methods from Elegir otro medio", async () => {
-    const { screen, callbacks } = await renderModal(answering({ kind: "wait_over" }));
+  it("says the wait ran out and warns about a late payment", async () => {
+    const { screen } = await renderModal(answering({ kind: "wait_over" }));
 
     await expect
       .element(screen.getByRole("heading", { name: "Venció la espera del QR" }))
@@ -226,10 +226,6 @@ describe("QrPaymentWaitModal", () => {
       )
       .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
-
-    await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
-
-    expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
   });
 
   it("says how long the wait the core gave the order was", async () => {
@@ -481,7 +477,13 @@ describe("QrPaymentWaitModal", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
 
-    await expect.element(screen.getByText("No se pudo cancelar la orden QR")).toBeVisible();
+    await expect
+      .element(
+        screen
+          .getByText("No se pudo cancelar la orden QR. Volvé a intentarlo en unos segundos.")
+          .first(),
+      )
+      .toBeVisible();
     expect(callbacks.onCancelled).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));

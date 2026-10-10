@@ -187,13 +187,14 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
   });
 
   describe("abandoning the order to charge another way", () => {
-    async function waitForOrder(overrides: Parameters<typeof renderScreen>[0] = {}) {
+    async function waitForOrder(
+      overrides: Parameters<typeof renderScreen>[0] = {},
+      shown = "Esperando el pago del cliente",
+    ) {
       const rendered = await renderScreen(overrides);
       await chooseQr(rendered.screen);
       await userEvent.click(rendered.screen.getByRole("button", { name: "Crear orden" }));
-      await expect
-        .element(rendered.screen.getByRole("heading", { name: "Esperando el pago del cliente" }))
-        .toBeVisible();
+      await expect.element(rendered.screen.getByRole("heading", { name: shown })).toBeVisible();
       return rendered;
     }
 
@@ -209,20 +210,25 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
       await expect
         .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
         .toBeVisible();
-      await expect.element(screen.getByText("Se canceló la orden QR.")).toBeVisible();
+      await expect
+        .element(screen.getByRole("status").getByText("Se canceló la orden QR."))
+        .toBeVisible();
       expect(abandonMercadoPagoQrCharge).toHaveBeenCalledExactlyOnceWith(QR_PAYMENT_ID);
       expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
       await expectNoAccessibilityViolations(screen.container);
     });
 
     it("abandons the order from Elegir otro medio once the wait ran out", async () => {
-      const { screen, abandonMercadoPagoQrCharge } = await waitForOrder({
-        followMercadoPagoQrCharge: async () => ({ kind: "wait_over" }),
-      });
+      const { screen, abandonMercadoPagoQrCharge } = await waitForOrder(
+        { followMercadoPagoQrCharge: async () => ({ kind: "wait_over" }) },
+        "Venció la espera del QR",
+      );
 
       await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
 
-      await expect.element(screen.getByText("Se canceló la orden QR.")).toBeVisible();
+      await expect
+        .element(screen.getByRole("status").getByText("Se canceló la orden QR."))
+        .toBeVisible();
       expect(abandonMercadoPagoQrCharge).toHaveBeenCalledExactlyOnceWith(QR_PAYMENT_ID);
     });
 
@@ -282,7 +288,9 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
       await expect
         .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
         .toBeVisible();
-      await expect.element(screen.getByText("Se canceló la orden QR.")).not.toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("status").getByText("Se canceló la orden QR."))
+        .not.toBeInTheDocument();
     });
 
     it("warns that the cancellation could not be confirmed before the sale is completed another way", async () => {
@@ -301,7 +309,9 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
       await expect
         .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
         .toBeVisible();
-      await expect.element(screen.getByText("Se canceló la orden QR.")).not.toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("status").getByText("Se canceló la orden QR."))
+        .not.toBeInTheDocument();
     });
 
     it("goes back to the methods to read the sale again when the order is not pending", async () => {

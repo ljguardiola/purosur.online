@@ -1,4 +1,5 @@
 import type {
+  AbandonMercadoPagoQrChargeOutcome,
   Authorization,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
@@ -236,6 +237,7 @@ function Register({ core }: { core: CoreClient }) {
       | ChargeSaleByTransferOutcome
       | StartMercadoPagoQrChargeOutcome
       | FollowMercadoPagoQrChargeOutcome
+      | AbandonMercadoPagoQrChargeOutcome
     )["kind"],
   ) {
     if (kind === "completed") {

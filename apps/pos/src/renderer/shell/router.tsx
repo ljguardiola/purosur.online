@@ -516,6 +516,7 @@ const chargeRoute = createRoute({
       chargeSaleByTransfer,
       startMercadoPagoQrCharge,
       followMercadoPagoQrCharge,
+      abandonMercadoPagoQrCharge,
       registerStatus,
       receiptPrintStatus,
       retryReceiptPrint,
@@ -536,6 +537,7 @@ const chargeRoute = createRoute({
         registerStatus={status}
         startMercadoPagoQrCharge={startMercadoPagoQrCharge}
         followMercadoPagoQrCharge={followMercadoPagoQrCharge}
+        abandonMercadoPagoQrCharge={abandonMercadoPagoQrCharge}
         receiptPrintStatus={receiptPrintStatus}
         retryReceiptPrint={retryReceiptPrint}
         onSessionInvalid={() => void refreshCashSession()}
