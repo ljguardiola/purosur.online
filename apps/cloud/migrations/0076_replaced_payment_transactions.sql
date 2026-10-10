@@ -1,0 +1,1 @@
+ALTER TABLE "payment_transactions" ADD COLUMN "replaced" boolean DEFAULT false NOT NULL;
