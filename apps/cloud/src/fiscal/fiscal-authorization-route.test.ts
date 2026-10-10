@@ -3,6 +3,7 @@ import {
   type RealTimeAuthorizationRequestBody,
   realTimeAuthorizationResponseSchema,
 } from "@purosur/contracts";
+import { FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import {
@@ -359,6 +360,80 @@ describe("POST /fiscal/authorize", () => {
         state: "NOT_ATTEMPTED",
       });
       expect(route.taxAuthority.solicitations).toEqual([]);
+    });
+  });
+
+  describe("what it reports", () => {
+    function reportedText(): string {
+      return JSON.stringify(route.report.mock.calls, (_key, value: unknown) =>
+        value instanceof Error ? value.message : value,
+      );
+    }
+
+    it("reports an unclear outcome with the point of sale, the document type and the number, and nothing of the buyer, the sale or the token", async () => {
+      const { deviceToken } = await enrollRegisterWithPointOfSale();
+      await route.issueWsaaToken();
+      route.taxAuthority.answer = { kind: "no_answer" };
+      const body = requestBody();
+      body.sale_event.payload = {
+        buyer: { cuit: FICTIONAL_CUIT, name: FICTIONAL_LEGAL_NAME, email: "buyer@example.test" },
+      };
+
+      await authorize(body, `Bearer ${deviceToken}`);
+
+      expect(route.report).toHaveBeenCalledExactlyOnceWith(
+        "fiscal: a real-time authorization ended with an unclear outcome",
+        new Error("real-time authorization ended with an unclear outcome"),
+        { context: { pointOfSale: 7, documentType: 11, number: 42 } },
+      );
+      const reported = reportedText();
+      for (const sensitive of [
+        FICTIONAL_CUIT,
+        FICTIONAL_LEGAL_NAME,
+        "buyer@example.test",
+        "FICTIONAL-TOKEN",
+        "FICTIONAL-SIGN",
+        deviceToken,
+        body.sale_id,
+      ]) {
+        expect(reported).not.toContain(sensitive);
+      }
+    });
+
+    it("reports an unclear outcome once, not again when the register asks again for the same document", async () => {
+      const { deviceToken } = await enrollRegisterWithPointOfSale();
+      await route.issueWsaaToken();
+      route.taxAuthority.answer = {
+        kind: "refused_without_result",
+        rejections: [{ code: 600, message: "ValidacionDeToken." }],
+      };
+      const body = requestBody();
+
+      await authorize(body, `Bearer ${deviceToken}`);
+      const again = await authorize(body, `Bearer ${deviceToken}`);
+
+      expect(realTimeAuthorizationResponseSchema.parse(again.json())).toEqual({ state: "UNCLEAR" });
+      expect(route.report).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports an authorized answer, a rejection or a call it did not attempt as nothing", async () => {
+      const { deviceToken } = await enrollRegisterWithPointOfSale();
+      await authorize(requestBody(), `Bearer ${deviceToken}`);
+      await route.issueWsaaToken();
+      route.taxAuthority.answer = {
+        kind: "authorized",
+        authorizationCode: "71000000000000",
+        authorizationCodeDueOn: "2026-10-16",
+      };
+      await authorize(requestBody(), `Bearer ${deviceToken}`);
+      route.taxAuthority.answer = {
+        kind: "rejected",
+        rejections: [{ code: 10242, message: "El campo condicion IVA receptor no es valido." }],
+      };
+      await authorize(requestBody(), `Bearer ${deviceToken}`);
+
+      expect(route.taxAuthority.solicitations).toHaveLength(2);
+      expect(route.report).not.toHaveBeenCalled();
     });
   });
 });
