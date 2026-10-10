@@ -1,4 +1,5 @@
 import {
+  ARGENTINA_TIME_ZONE,
   hasValidReceiptNumber,
   isCalendarDay,
   isCostPaid,
@@ -52,7 +53,10 @@ const quantityLineSchema = z.object({
 export const purchaseRegistrationBodySchema = z
   .object({
     supplierId: recordIdSchema("supplierId must be a supplier's id"),
-    purchasedOn: z.string({ error: `purchasedOn ${CALENDAR_DAY_MESSAGE}` }).refine(isCalendarDay),
+    purchasedOn: z
+      .string({ error: `purchasedOn ${CALENDAR_DAY_MESSAGE}` })
+      .refine(isCalendarDay)
+      .meta({ timeZone: ARGENTINA_TIME_ZONE }),
     receiptType: z.enum(RECEIPT_TYPES, {
       error: `receiptType must be one of ${RECEIPT_TYPES.join(", ")}`,
     }),
