@@ -1,5 +1,4 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
-import { hasApprovedPayment } from "../../payments/index.js";
 import { discountAppliesOn } from "../../pricing/index.js";
 import type { Clock } from "../../shared/index.js";
 import { argentinaCalendarDay } from "../../shared/index.js";
@@ -18,6 +17,7 @@ import type {
   SaleLedgerTransaction,
   SellableProduct,
 } from "./sale-ledger.js";
+import { saleLinesLocked } from "./sale-lines-locked.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
 
 export type AddProductToSaleOutcome =
@@ -53,7 +53,7 @@ export function addProductToSale(
   }
 
   const existing = tx.openSale(session.id);
-  if (existing && hasApprovedPayment(tx.salePayments(existing.id))) {
+  if (existing && saleLinesLocked(tx, existing.id, clock.now())) {
     return { kind: "sale_has_payments" };
   }
   if (!existing && tx.installationRevoked()) {
