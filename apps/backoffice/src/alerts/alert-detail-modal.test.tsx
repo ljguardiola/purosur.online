@@ -1265,3 +1265,58 @@ test("names the homologation environment of an expiring ARCA certificate", async
     .element(screen.getByText(/El certificado de ARCA de homologación vence el/))
     .toBeVisible();
 });
+
+const MISSING_CODE_DETAIL = {
+  deviceId: "device-1",
+  fortnightStart: "2026-10-16",
+  fortnightEnd: "2026-10-31",
+};
+
+test.each([
+  [
+    "informational",
+    false,
+    "La caja «Caja 1» todavía no bajó el CAEA de la quincena del 16 al 31 de octubre. Ya se puede pedir a ARCA y la caja lo baja sola al sincronizar.",
+  ],
+  [
+    "warning",
+    false,
+    "La caja «Caja 1» todavía no bajó el CAEA de la quincena del 16 al 31 de octubre. Conviene revisar que esté encendida y con internet para que lo baje.",
+  ],
+  [
+    "critical",
+    false,
+    "La caja «Caja 1» todavía no bajó el CAEA de la quincena que empieza el 16 de octubre. Sin él, si ARCA no responde, la caja no puede emitir facturas y las ventas quedan diferidas. Hay que conectarla a internet hoy.",
+  ],
+  [
+    "critical",
+    true,
+    "La caja «Caja 1» no tiene el CAEA de la quincena del 16 al 31 de octubre, que ya empezó. Mientras ARCA no responda, sus ventas quedan diferidas. Hay que conectarla a internet.",
+  ],
+] as const)(
+  "tells a register that lacks the fortnight's offline authorization code at level %s once started is %s",
+  async (level, fortnightStarted, text) => {
+    const services = createServices();
+    vi.mocked(services.fetchAlert).mockResolvedValue(
+      ok(
+        baseDetail({
+          kind: "offline_authorization_code_missing",
+          level,
+          audience: "all",
+          scope: "register-1:2026-10-16",
+          scopeDisplay: "Caja 1",
+          resolvesByItself: true,
+          detail: { ...MISSING_CODE_DETAIL, fortnightStarted },
+        }),
+      ),
+    );
+
+    const screen = await renderModal(services);
+
+    await expect
+      .element(screen.getByText("Una caja todavía no bajó el CAEA de la quincena", { exact: true }))
+      .toBeVisible();
+    await expect.element(screen.getByText(text)).toBeVisible();
+    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+  },
+);
