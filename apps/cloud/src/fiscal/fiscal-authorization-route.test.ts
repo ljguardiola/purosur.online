@@ -3,6 +3,7 @@ import {
   type RealTimeAuthorizationRequestBody,
   realTimeAuthorizationResponseSchema,
 } from "@purosur/contracts";
+import { FACTURA_C_DOCUMENT_TYPE } from "@purosur/domain";
 import { FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
@@ -384,7 +385,7 @@ describe("POST /fiscal/authorize", () => {
       expect(route.report).toHaveBeenCalledExactlyOnceWith(
         "fiscal: a real-time authorization ended with an unclear outcome",
         new Error("real-time authorization ended with an unclear outcome"),
-        { context: { pointOfSale: 7, documentType: 11, number: 42 } },
+        { context: { pointOfSale: 7, documentType: FACTURA_C_DOCUMENT_TYPE, number: 42 } },
       );
       const reported = reportedText();
       for (const sensitive of [
