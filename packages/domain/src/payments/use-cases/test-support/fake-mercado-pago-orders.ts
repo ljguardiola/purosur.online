@@ -24,6 +24,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
     result: { status: "canceled", statusDetail: "canceled", totalPaidAmount: null, payments: [] },
   };
   readonly readingsByOrder = new Map<string, MercadoPagoOrderReading>();
+  readonly queuedReadings: MercadoPagoOrderReading[] = [];
   private readonly lanes: FakePaymentTransactionLanes;
 
   constructor(
@@ -51,7 +52,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
     this.lanes.operations.push("readOrder");
     this.readOrders.push(orderId);
     this.observeLane();
-    return this.readingsByOrder.get(orderId) ?? this.reading;
+    return this.queuedReadings.shift() ?? this.readingsByOrder.get(orderId) ?? this.reading;
   }
 
   async cancelOrder(
