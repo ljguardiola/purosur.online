@@ -13,6 +13,7 @@ import type {
 import { and, asc, eq, isNull, min, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
+import { recordAppliedQrPaymentReplacement } from "../payments/drizzle-applied-qr-payment-replacement.js";
 import { providerTransactionOfPayment } from "../payments/drizzle-provider-transactions.js";
 import { inbox, registerInstallations, registers } from "../platform/db/schema.js";
 import {
@@ -122,6 +123,8 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
         return recordAppliedPrintState(this.tx, await this.originOf(event), fact);
       case "reprint_recorded":
         return recordAppliedReprint(this.tx, await this.originOf(event), fact);
+      case "qr_payment_replaced":
+        return recordAppliedQrPaymentReplacement(this.tx, await this.originOf(event), fact);
       case "fiscal_gate_failed":
         return;
     }

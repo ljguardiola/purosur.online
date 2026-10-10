@@ -211,6 +211,10 @@ const FACT_OF: {
       occurredAt: new Date(payload.occurred_at),
     },
   }),
+  "qr_payment_replaced@1": (payload) => ({
+    kind: "qr_payment_replaced",
+    replacement: { paymentTransactionId: payload.payment_transaction_id, saleId: payload.sale_id },
+  }),
   "fiscal_gate_failed@1": (payload) => ({
     kind: "fiscal_gate_failed",
     gateFailure: {
