@@ -110,6 +110,8 @@ describe("addSearchedProduct", () => {
           id: "id-2",
           productId: "yerba",
           productName: "Yerba 1 kg",
+          saleUnit: "UNIT",
+          weightSource: null,
           quantity: 1,
           listUnitPrice: 2500,
           priceListId: "list-1",
@@ -176,9 +178,21 @@ describe("addSearchedProduct", () => {
     expect(add(ledger(), "fideos")).toEqual({ kind: "no_price", productName: "Fideos" });
   });
 
-  it("refuses a product sold by weight, naming it", () => {
-    expect(add(ledger(), "queso")).toEqual({
-      kind: "sold_by_weight",
+  it("asks for the weight of a product sold by weight, naming it, without opening a sale", () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+
+    expect(add(store, "queso")).toEqual({
+      kind: "weight_needed",
+      productId: "queso",
+      productName: "Queso cremoso",
+    });
+    expect(store.state).toEqual(before);
+  });
+
+  it("refuses a product sold by weight without a valid price before asking for its weight", () => {
+    expect(add(ledger({ prices: [] }), "queso")).toEqual({
+      kind: "no_price",
       productName: "Queso cremoso",
     });
   });

@@ -130,6 +130,8 @@ describe("addScannedProduct", () => {
           id: "id-2",
           productId: "yerba",
           productName: "Yerba 1 kg",
+          saleUnit: "UNIT",
+          weightSource: null,
           quantity: 1,
           listUnitPrice: 2500,
           priceListId: "list-1",
@@ -434,7 +436,7 @@ describe("addScannedProduct", () => {
     nothingRecorded(store, before);
   });
 
-  it("refuses a product sold by weight, naming it and changing nothing", () => {
+  it("asks for the weight of a product sold by weight, naming it and changing nothing", () => {
     const store = ledger({
       prices: [
         {
@@ -449,7 +451,8 @@ describe("addScannedProduct", () => {
     const before = structuredClone(store.state);
 
     expect(scan(store, "7790002")).toEqual({
-      kind: "sold_by_weight",
+      kind: "weight_needed",
+      productId: "queso",
       productName: "Queso cremoso",
     });
     nothingRecorded(store, before);
@@ -495,14 +498,11 @@ describe("addScannedProduct", () => {
     expect(scan(ledger({ identity: undefined }), "0000")).toEqual({ kind: "unavailable" });
   });
 
-  it("checks the code before the sale unit and the sale unit before the price", () => {
+  it("checks the code before the price and the price before the weight of a product sold by weight", () => {
     const store = ledger({ prices: [] });
 
     expect(scan(store, "0000")).toEqual({ kind: "unknown_code" });
-    expect(scan(store, "7790002")).toEqual({
-      kind: "sold_by_weight",
-      productName: "Queso cremoso",
-    });
+    expect(scan(store, "7790002")).toEqual({ kind: "no_price", productName: "Queso cremoso" });
     expect(scan(store, "7790001")).toEqual({ kind: "no_price", productName: "Yerba 1 kg" });
   });
 
@@ -538,9 +538,9 @@ describe("addScannedProduct", () => {
     const store = ledger();
     scan(store);
     const before = structuredClone(store.state);
-    store.failOn = "recordLineQuantity";
+    store.failOn = "recordChangedLine";
 
-    expect(() => scan(store)).toThrow("recordLineQuantity failed");
+    expect(() => scan(store)).toThrow("recordChangedLine failed");
     nothingRecorded(store, before);
   });
 

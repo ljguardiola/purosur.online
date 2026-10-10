@@ -144,6 +144,8 @@ describe("searchProductsByName", () => {
           id: `${id}-line`,
           productId,
           productName: productId,
+          saleUnit: "UNIT",
+          weightSource: null,
           quantity: 1,
           listUnitPrice: 100,
           priceListId: "list-1",

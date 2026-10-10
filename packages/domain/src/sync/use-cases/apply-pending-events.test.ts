@@ -734,6 +734,7 @@ describe("an event that breaks an invariant of its own aggregate", () => {
           id: "line-1",
           productId: "product-1",
           productName: "Yerba mate 1 kg",
+          weightSource: null,
           quantity: 1,
           listUnitPrice: 1,
           priceListId: "outdated-price-list",
