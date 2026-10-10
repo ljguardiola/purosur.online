@@ -134,6 +134,17 @@ describe("releasing a quarantined event", () => {
     expect(application.event("stuck").quarantinedAt).toEqual(QUARANTINED_AT);
   });
 
+  it("answers not found for an event that disappears before it is locked, recording nothing", async () => {
+    const { application, release, releaseWith } = setup([quarantined()]);
+    release.eventsGoneBeforeLocking.add("stuck");
+
+    const outcome = await releaseWith("stuck");
+
+    expect(outcome).toEqual({ kind: "not_found" });
+    expect(application.state.releases).toEqual([]);
+    expect(release.calls).not.toContain("release stuck");
+  });
+
   it.each([
     ["an applied event", { appliedAt: QUARANTINED_AT, quarantinedAt: null }],
     ["an applied event once quarantined", { appliedAt: QUARANTINED_AT }],

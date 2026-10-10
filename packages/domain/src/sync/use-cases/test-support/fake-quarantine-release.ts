@@ -13,6 +13,7 @@ export class FakeQuarantineRelease implements QuarantineRelease {
   calls: string[] = [];
   failRecordingRelease = false;
   failResolvingAlert = false;
+  eventsGoneBeforeLocking = new Set<string>();
   private readonly application: FakeEventApplication;
   private readonly registers: readonly FakeRegister[];
 
