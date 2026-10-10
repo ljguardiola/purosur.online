@@ -905,6 +905,32 @@ describe("buildTestDatabase's privileges", { timeout: 30_000 }, () => {
     expect(await refusalCodes(database.db.delete(sales))).toContain(INSUFFICIENT_PRIVILEGE);
   });
 
+  it("runs an arrangement as the role that migrated the database, then goes back to cloud_app", async () => {
+    const database = await buildTestDatabase();
+    onTestFinished(() => database.close());
+
+    await expect(
+      database.asMigrator(() => database.db.update(sales).set({ total: 0 })),
+    ).resolves.toBeDefined();
+
+    expect(await refusalCodes(database.db.update(sales).set({ total: 0 }))).toContain(
+      INSUFFICIENT_PRIVILEGE,
+    );
+  });
+
+  it("goes back to cloud_app when an arrangement fails", async () => {
+    const database = await buildTestDatabase();
+    onTestFinished(() => database.close());
+
+    await expect(
+      database.asMigrator(() => database.client.query("select * from missing_table")),
+    ).rejects.toThrow(/missing_table/);
+
+    expect(await refusalCodes(database.db.update(sales).set({ total: 0 }))).toContain(
+      INSUFFICIENT_PRIVILEGE,
+    );
+  });
+
   it("runs as the role that migrated the database when asked for it", async () => {
     const database = await buildTestDatabase({ connectAs: "migrator" });
     onTestFinished(() => database.close());
