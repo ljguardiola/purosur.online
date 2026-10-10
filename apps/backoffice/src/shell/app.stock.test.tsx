@@ -149,7 +149,11 @@ test("lists only the sections a user holds the permission for", async () => {
 
 test("confirms a purchase just registered on the purchases list, until it is dismissed", async () => {
   const services = stockServices(["purchases", "stock_area"]);
-  window.history.pushState({ purchaseRegistered: true }, "", "/purchases");
+  window.history.pushState(
+    { key: "registered", __TSR_index: 0, purchaseRegistered: true },
+    "",
+    "/purchases",
+  );
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 

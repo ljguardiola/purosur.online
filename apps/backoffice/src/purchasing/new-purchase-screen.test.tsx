@@ -81,7 +81,7 @@ function line(screen: Screen, number: number) {
 
 async function fillHeader(screen: Screen) {
   await chooseFromComboBox(screen, screen, /^Proveedor/, "Granos del Valle");
-  await chooseFromSelect(screen, screen, /^Tipo de comprobante/, "Sin comprobante");
+  await chooseFromSelect(screen, screen, /Tipo de comprobante/, "Sin comprobante");
 }
 
 async function fillQuantityLine(screen: Screen, number = 1) {
@@ -111,7 +111,7 @@ test("shows the breadcrumb, the heading and the header fields, with today as the
   await expect
     .element(screen.getByRole("heading", { name: "Registrar compra", level: 1 }))
     .toBeVisible();
-  await expect.element(screen.getByRole("button", { name: /^Tipo de comprobante/ })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: /Tipo de comprobante/ })).toBeVisible();
   await expect
     .element(screen.getByRole("textbox", { name: /^Número de comprobante/ }))
     .toBeVisible();
@@ -160,17 +160,17 @@ test("says a product has no active packaging to load a line by", async () => {
   const group = line(screen, 1);
   await chooseFromComboBox(screen, group, /^Producto/, "Almendras peladas");
 
-  await userEvent.click(group.getByRole("radio", { name: "Presentación" }));
+  await userEvent.click(group.getByText("Presentación", { exact: true }).last());
 
   await expect
-    .element(group.getByText("Este producto no tiene presentaciones activas"))
+    .element(group.getByText("Este producto no tiene presentaciones activas").first())
     .toBeVisible();
 });
 
 test("offers the receipt types by their Spanish names", async () => {
   const screen = await opened();
 
-  await userEvent.click(screen.getByRole("button", { name: /^Tipo de comprobante/ }));
+  await userEvent.click(screen.getByRole("button", { name: /Tipo de comprobante/ }));
 
   const names = screen
     .getByRole("option")
@@ -207,7 +207,7 @@ test("registers a purchase with a line loaded by packaging, the lot and its expi
   vi.mocked(services.registerPurchase).mockResolvedValue({ kind: "ok", purchase: compraDeAvena });
   const screen = await opened(services);
   await chooseFromComboBox(screen, screen, /^Proveedor/, "Distribuidora Andina");
-  await chooseFromSelect(screen, screen, /^Tipo de comprobante/, "Factura B");
+  await chooseFromSelect(screen, screen, /Tipo de comprobante/, "Factura B");
   await userEvent.fill(
     screen.getByRole("textbox", { name: /^Número de comprobante/ }),
     "0001-00001234",
@@ -215,8 +215,8 @@ test("registers a purchase with a line loaded by packaging, the lot and its expi
   const group = line(screen, 1);
   await chooseFromComboBox(screen, group, /^Producto/, "Miel pura de abeja 1 kg");
 
-  await userEvent.click(group.getByRole("radio", { name: "Presentación" }));
-  await chooseFromSelect(screen, group, /^Presentación/, "Caja x 12 (12 u)");
+  await userEvent.click(group.getByText("Presentación", { exact: true }).last());
+  await chooseFromSelect(screen, group, /Presentación/, "Caja x 12 (12 u)");
   await userEvent.fill(group.getByRole("textbox", { name: /^Cantidad de presentaciones/ }), "2");
   await userEvent.fill(group.getByRole("textbox", { name: /^Costo pagado/ }), "14.400");
   await userEvent.fill(group.getByRole("textbox", { name: /^Lote/ }), "L-17");
@@ -253,9 +253,9 @@ test("offers only the chosen product's active packagings", async () => {
   const screen = await opened();
   const group = line(screen, 1);
   await chooseFromComboBox(screen, group, /^Producto/, "Avena arrollada");
-  await userEvent.click(group.getByRole("radio", { name: "Presentación" }));
+  await userEvent.click(group.getByText("Presentación", { exact: true }).last());
 
-  await userEvent.click(group.getByRole("button", { name: /^Presentación/ }));
+  await userEvent.click(group.getByRole("button", { name: /Presentación/ }));
 
   const names = screen
     .getByRole("option")
@@ -308,12 +308,14 @@ test("says what is missing, at its field, without asking the cloud", async () =>
 
 test("asks for the receipt number of a receipt, and refuses one without a receipt", async () => {
   const screen = await opened();
-  await chooseFromSelect(screen, screen, /^Tipo de comprobante/, "Factura B");
+  await chooseFromComboBox(screen, screen, /^Proveedor/, "Granos del Valle");
+  await fillQuantityLine(screen);
+  await chooseFromSelect(screen, screen, /Tipo de comprobante/, "Factura B");
 
   await register(screen);
   await expect.element(screen.getByText("Ingresá el número del comprobante.")).toBeVisible();
 
-  await chooseFromSelect(screen, screen, /^Tipo de comprobante/, "Sin comprobante");
+  await chooseFromSelect(screen, screen, /Tipo de comprobante/, "Sin comprobante");
   await userEvent.fill(screen.getByRole("textbox", { name: /^Número de comprobante/ }), "1");
   await expect
     .element(screen.getByText("Una compra sin comprobante no lleva número."))
@@ -381,7 +383,7 @@ test.each([
 
   await register(screen);
 
-  await expect.element(line(screen, 2).getByText(message)).toBeVisible();
+  await expect.element(line(screen, 2).getByText(message).first()).toBeVisible();
   expect(line(screen, 1).getByText(message).query()).toBeNull();
 });
 
@@ -400,9 +402,9 @@ test("shows how to type the quantity at the line the cloud refused it", async ()
 
   await expect
     .element(
-      line(screen, 1).getByText(
-        "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
-      ),
+      line(screen, 1)
+        .getByText("Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.")
+        .first(),
     )
     .toBeVisible();
 });
@@ -416,7 +418,7 @@ test("clears a line's refusal when the purchase is submitted again", async () =>
   await fillHeader(screen);
   await fillQuantityLine(screen);
   await register(screen);
-  await expect.element(screen.getByText("Este producto ya no está activo.")).toBeVisible();
+  await expect.element(screen.getByText("Este producto ya no está activo.").first()).toBeVisible();
 
   await register(screen);
 
