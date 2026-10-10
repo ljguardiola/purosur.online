@@ -431,6 +431,7 @@ describe("DrizzleAlertStore lockOpenAlertOfKey", () => {
 
     expect(locked).toEqual({
       alertId: id,
+      level: "warning",
       detail: { previousEmail: "a@example.com", newEmail: "b@example.com", actorId: "actor-1" },
       conditionClearedAt: clearedAt,
     });
@@ -446,9 +447,26 @@ describe("DrizzleAlertStore lockOpenAlertOfKey", () => {
 
     expect(locked).toEqual({
       alertId: id,
+      level: "warning",
       detail: { previousEmail: "a@example.com", newEmail: "b@example.com", actorId: "actor-1" },
       conditionClearedAt: null,
     });
+  });
+
+  it("answers the level the alert has now, after it was raised", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const id = await store.transaction((tx) =>
+      tx.insertAlert(newAlert({ level: "informational" })),
+    );
+    await store.transaction((tx) =>
+      tx.recordEscalation([id], { level: "critical", escalatedAt: NOON }),
+    );
+
+    const locked = await store.transaction((tx) =>
+      tx.lockOpenAlertOfKey("user_email_changed", "user-1"),
+    );
+
+    expect(locked).toMatchObject({ alertId: id, level: "critical" });
   });
 
   it("ignores a closed alert and one of another scope or kind", async () => {
@@ -511,6 +529,26 @@ describe("DrizzleAlertStore lockClearedConditionAlerts", () => {
         conditionClearedAt: NOON,
       },
     ]);
+  });
+});
+
+describe("DrizzleAlertStore scopesOfOpenAlerts", () => {
+  it("lists the scopes of the open alerts of that kind only", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    await store.transaction((tx) => tx.insertAlert(newAlert()));
+    const closed = await store.transaction((tx) => tx.insertAlert(newAlert({ scope: "user-2" })));
+    await db.update(alerts).set({ resolvedAt: NOON }).where(eq(alerts.id, closed));
+    await store.transaction((tx) =>
+      tx.insertAlert(newAlert({ kind: "backoffice_recovery_requested", scope: "user-3" })),
+    );
+
+    await expect(store.scopesOfOpenAlerts("user_email_changed")).resolves.toEqual(["user-1"]);
+  });
+
+  it("lists nothing when no alert of that kind is open", async () => {
+    await expect(
+      new DrizzleAlertStore(db, () => NOON).scopesOfOpenAlerts("user_email_changed"),
+    ).resolves.toEqual([]);
   });
 });
 

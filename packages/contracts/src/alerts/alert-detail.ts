@@ -138,6 +138,13 @@ const registerSilentDetailSchema = z.object({
   lastAcceptedPushAt: z.string(),
 });
 
+const offlineAuthorizationCodeMissingDetailSchema = z.object({
+  deviceId: z.string(),
+  fortnightStart: z.string(),
+  fortnightEnd: z.string(),
+  fortnightStarted: z.boolean(),
+});
+
 const salesDeniedDetailSchema = z.object({
   deviceId: z.string(),
   reason: z.enum(SALES_DENIED_REASONS),
@@ -233,6 +240,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("fiscal_rejected" satisfies AlertKind),
     detail: fiscalRejectedDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("offline_authorization_code_missing" satisfies AlertKind),
+    detail: offlineAuthorizationCodeMissingDetailSchema,
   }),
 ] as const;
 

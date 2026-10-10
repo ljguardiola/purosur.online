@@ -1,3 +1,4 @@
+import type { AlertLevel } from "../model/alert-catalog.js";
 import type { OpenAlertInput } from "../model/alert-details.js";
 import { escalatesAt } from "../model/alert-escalation.js";
 import { alertKindPolicy } from "../model/alert-kind-policy.js";
@@ -25,12 +26,13 @@ export async function openAlertIn(
   tx: AlertStoreTransaction,
   input: OpenAlertInput,
   openedAt: Date,
+  level?: AlertLevel,
 ): Promise<OpenAlertOutcome> {
   const policy = alertKindPolicy(input.kind);
   const alert: NewAlert = {
     kind: input.kind,
     scope: input.scope,
-    level: policy.level,
+    level: level ?? policy.level,
     audience: policy.audience,
     locationId: alertLocationId(policy.audience, input.locationId),
     detail: input.detail,

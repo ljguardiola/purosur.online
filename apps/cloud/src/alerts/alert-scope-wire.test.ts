@@ -20,6 +20,34 @@ describe("scopeDisplay", () => {
     ).toBe("Caja 1");
   });
 
+  it("resolves a register-and-fortnight scope to the name of its register", () => {
+    const names = new Map([["register-1", "Caja 1"]]);
+
+    expect(
+      scopeDisplay(
+        {
+          kind: "offline_authorization_code_missing",
+          scope: "register-1:2026-10-16",
+          resolvedAt: null,
+        },
+        names,
+      ),
+    ).toBe("Caja 1");
+  });
+
+  it("falls back to the register's id when a register-and-fortnight scope's register isn't in the map", () => {
+    expect(
+      scopeDisplay(
+        {
+          kind: "offline_authorization_code_missing",
+          scope: "register-1:2026-10-16",
+          resolvedAt: null,
+        },
+        new Map<string, string>(),
+      ),
+    ).toBe("register-1");
+  });
+
   it("falls back to the raw scope when the id isn't in the map", () => {
     expect(
       scopeDisplay(

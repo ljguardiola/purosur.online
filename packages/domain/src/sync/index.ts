@@ -5,6 +5,7 @@ export { pullAudienceOf } from "./model/pull-audience.js";
 export type { PulledChange, PullPage } from "./model/pull-page.js";
 export {
   FIRST_PULL_CURSOR,
+  hasPulledChange,
   isPageAfter,
   isPullCursor,
   PULL_PAGE_MAX_CHANGES,

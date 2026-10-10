@@ -1,8 +1,11 @@
 import { detectQuietRegisters, resolveStablyClearedAlerts } from "@purosur/domain/alerts/use-cases";
+import { detectMissingOfflineAuthorizationCodes } from "@purosur/domain/fiscal/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
 import { DrizzleBranchHoursReader } from "../branch/drizzle-branch-hours-reader.js";
+import { DrizzleMissingOfflineAuthorizationCodeAlerts } from "../fiscal/drizzle-missing-offline-authorization-code-alerts.js";
+import { DrizzleOfflineAuthorizationCodeHoldingReader } from "../fiscal/drizzle-offline-authorization-code-holding-reader.js";
 import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
 import { DrizzleWatchedRegisterReader } from "../register/drizzle-watched-register-reader.js";
 import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
@@ -36,10 +39,22 @@ function detectQuietRegistersTask<TQueryResult extends PgQueryResultHKT>(
   });
 }
 
+function detectMissingOfflineAuthorizationCodesTask<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  deps: { now: () => Date },
+): Promise<number> {
+  return detectMissingOfflineAuthorizationCodes({
+    holdings: new DrizzleOfflineAuthorizationCodeHoldingReader(db),
+    alerts: new DrizzleMissingOfflineAuthorizationCodeAlerts(db, deps.now),
+    clock: { now: deps.now },
+  });
+}
+
 export interface AlertConditionResolutionJobsDeps {
   createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
   resolve?: typeof resolveClearedConditionAlertsTask;
   detectQuiet?: typeof detectQuietRegistersTask;
+  detectMissingCodes?: typeof detectMissingOfflineAuthorizationCodesTask;
 }
 
 export function alertConditionResolutionJobs(
@@ -49,6 +64,8 @@ export function alertConditionResolutionJobs(
   const doCreateDatabase = deps.createDatabase ?? databaseOfClient;
   const doResolve = deps.resolve ?? resolveClearedConditionAlertsTask;
   const doDetectQuiet = deps.detectQuiet ?? detectQuietRegistersTask;
+  const doDetectMissingCodes =
+    deps.detectMissingCodes ?? detectMissingOfflineAuthorizationCodesTask;
   return {
     taskList: {
       [ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER]: async (_payload, helpers) => {
@@ -56,6 +73,7 @@ export function alertConditionResolutionJobs(
           const db = doCreateDatabase(client);
           await doResolve(db, { now: options.now });
           await doDetectQuiet(db, { now: options.now });
+          await doDetectMissingCodes(db, { now: options.now });
         });
       },
     },

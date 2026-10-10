@@ -106,6 +106,12 @@ interface FiscalRejectedDetail {
   rejections: TaxAuthorityRejection[];
 }
 
+interface OfflineAuthorizationCodeMissingDetail {
+  deviceId: string;
+  fortnightStart: string;
+  fortnightEnd: string;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -120,6 +126,7 @@ export interface AlertDetails {
   register_silent: RegisterSilentDetail;
   sales_denied: SalesDeniedDetail;
   fiscal_rejected: FiscalRejectedDetail;
+  offline_authorization_code_missing: OfflineAuthorizationCodeMissingDetail;
 }
 
 export type OpenAlertInput = {
