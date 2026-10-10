@@ -11,6 +11,7 @@ import {
   FakeSaleLedger,
   type FakeSaleLedgerState,
   FixedClock,
+  PENDING_QR_TRANSACTION,
   SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
 
@@ -56,6 +57,7 @@ const BUYER_TAX_STATUSES = [{ code: 5, description: "Consumidor Final", invoiceC
 
 function pendingQr(amount: number): PendingQrSalePayment {
   return {
+    ...PENDING_QR_TRANSACTION,
     id: "qr-1",
     saleId: "sale-1",
     amount,

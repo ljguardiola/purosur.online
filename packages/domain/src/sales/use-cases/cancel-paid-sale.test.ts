@@ -14,6 +14,7 @@ import {
   type FakeSaleLedgerState,
   type FakeSaleLedgerWrite,
   FixedClock,
+  PENDING_QR_TRANSACTION,
   SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
 
@@ -623,6 +624,7 @@ describe("cancelPaidSale", () => {
 describe("cancelPaidSale with a QR charge", () => {
   function pendingQrEndingAt(waitEndsAt: Date) {
     return {
+      ...PENDING_QR_TRANSACTION,
       id: "qr-9",
       saleId: "sale-1",
       amount: 1000,

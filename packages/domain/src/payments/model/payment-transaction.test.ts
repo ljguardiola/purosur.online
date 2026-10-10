@@ -4,8 +4,7 @@ import {
   expiryWithoutOrder,
   isValidOrderAmount,
   MERCADO_PAGO_ORDER_EXPIRY_MINUTES,
-  type MercadoPagoQrOrderRecord,
-  type MercadoPagoQrPaymentTransaction,
+  type MercadoPagoQrOrderTransaction,
   mercadoPagoOrderExpiresAt,
   PAYMENT_TRANSACTION_STATES,
   type PaymentTransaction,
@@ -27,16 +26,13 @@ describe("PAYMENT_TRANSACTION_STATES", () => {
 
 describe("PaymentTransaction", () => {
   it("is the transaction of a sale and nothing else", () => {
-    type WithoutKind = Omit<PaymentTransaction, "kind">;
-
-    expectTypeOf<WithoutKind>().not.toExtend<PaymentTransaction>();
-    expectTypeOf<WithoutKind & { kind: "REFUND" }>().not.toExtend<PaymentTransaction>();
+    expectTypeOf<PaymentTransaction["kind"]>().toEqualTypeOf<"SALE">();
   });
 
-  it("records what the register and the cloud each know of a Mercado Pago QR transaction under the transaction's own names", () => {
-    expectTypeOf<MercadoPagoQrPaymentTransaction>().toExtend<PendingQrSalePayment>();
-    expectTypeOf<MercadoPagoQrPaymentTransaction>().toExtend<MercadoPagoQrOrderRecord>();
-    expectTypeOf<PaymentTransaction & { state: "APPROVED" }>().toExtend<SalePayment>();
+  it("records what the register and the cloud each know of a transaction as that transaction", () => {
+    expectTypeOf<SalePayment>().toExtend<PaymentTransaction>();
+    expectTypeOf<PendingQrSalePayment>().toExtend<PaymentTransaction>();
+    expectTypeOf<MercadoPagoQrOrderTransaction>().toExtend<PaymentTransaction>();
   });
 
   it("records only approved payments in a sale", () => {
@@ -46,10 +42,10 @@ describe("PaymentTransaction", () => {
   });
 
   it("records the cloud's Mercado Pago QR transaction as the transaction of a sale and nothing else", () => {
-    type WithoutKind = Omit<MercadoPagoQrOrderRecord, "kind">;
+    type WithoutKind = Omit<MercadoPagoQrOrderTransaction, "kind">;
 
-    expectTypeOf<WithoutKind>().not.toExtend<MercadoPagoQrOrderRecord>();
-    expectTypeOf<WithoutKind & { kind: "REFUND" }>().not.toExtend<MercadoPagoQrOrderRecord>();
+    expectTypeOf<WithoutKind>().not.toExtend<MercadoPagoQrOrderTransaction>();
+    expectTypeOf<WithoutKind & { kind: "REFUND" }>().not.toExtend<MercadoPagoQrOrderTransaction>();
   });
 });
 

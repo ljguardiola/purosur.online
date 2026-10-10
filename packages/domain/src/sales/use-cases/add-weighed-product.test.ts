@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PaymentTransaction } from "../../payments/index.js";
+import type { SalePayment } from "../../payments/index.js";
 import { MAX_STOCK_QUANTITY } from "../../stock/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { addWeighedProduct } from "./add-weighed-product.js";
@@ -9,6 +9,7 @@ import {
   type FakeSaleLedgerState,
   type FakeSaleLedgerWrite,
   FixedClock,
+  PENDING_QR_TRANSACTION,
   SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
 
@@ -28,7 +29,7 @@ const OPEN_SALE: SaleWithLines = {
   state: "OPEN",
   lines: [],
 };
-const PAYMENT: PaymentTransaction = {
+const PAYMENT: SalePayment = {
   id: "payment-1",
   saleId: "sale-0",
   kind: "SALE",
@@ -336,6 +337,7 @@ describe("addWeighedProduct on a sale with an approved payment", () => {
 
 describe("addWeighedProduct while a QR charge of the sale is in its wait", () => {
   const pending = (waitEndsAt: Date) => ({
+    ...PENDING_QR_TRANSACTION,
     id: "qr-1",
     saleId: "sale-0",
     amount: 1000,

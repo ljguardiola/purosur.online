@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PaymentTransaction } from "../../payments/index.js";
+import type { SalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { withQuantity } from "../model/sale-line.js";
 import { addSearchedProduct } from "./add-searched-product.js";
@@ -8,6 +8,7 @@ import {
   FakeSaleLedger,
   type FakeSaleLedgerState,
   FixedClock,
+  PENDING_QR_TRANSACTION,
   SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
 
@@ -15,6 +16,7 @@ const NOW = new Date("2026-09-30T12:34:56.789Z");
 
 function pendingQrEndingAt(waitEndsAt: Date) {
   return {
+    ...PENDING_QR_TRANSACTION,
     id: "qr-1",
     saleId: "sale-0",
     amount: 1000,
@@ -30,7 +32,7 @@ const SESSION = { id: "session-1", openedBy: "cashier" };
 const YERBA = { id: "yerba", name: "Yerba 1 kg", saleUnit: "UNIT" as const };
 const QUESO = { id: "queso", name: "Queso cremoso", saleUnit: "KG" as const };
 const FIDEOS = { id: "fideos", name: "Fideos", saleUnit: "UNIT" as const };
-const PAYMENT: PaymentTransaction = {
+const PAYMENT: SalePayment = {
   id: "payment-1",
   saleId: "sale-0",
   kind: "SALE",

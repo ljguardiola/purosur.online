@@ -1,4 +1,4 @@
-import type { MercadoPagoQrOrderRecord } from "../../model/payment-transaction.js";
+import type { MercadoPagoQrOrderTransaction } from "../../model/payment-transaction.js";
 import {
   PaymentTransactionAlreadyRecorded,
   type PaymentTransactionLane,
@@ -26,13 +26,13 @@ class FakeLane implements PaymentTransactionLane {
   async recordedTransaction(
     registerId: string,
     paymentTransactionId: string,
-  ): Promise<MercadoPagoQrOrderRecord | null> {
+  ): Promise<MercadoPagoQrOrderTransaction | null> {
     this.lanes.operations.push("recordedTransaction");
     const stored = this.lanes.transactions.get(paymentTransactionId);
     return stored?.registerId === registerId ? structuredClone(stored) : null;
   }
 
-  async recordPendingTransaction(transaction: MercadoPagoQrOrderRecord): Promise<void> {
+  async recordPendingTransaction(transaction: MercadoPagoQrOrderTransaction): Promise<void> {
     this.lanes.operations.push("recordPendingTransaction");
     this.lanes.failIfAsked("recordPendingTransaction");
     if (this.lanes.racer) {
@@ -119,14 +119,14 @@ class FakeLane implements PaymentTransactionLane {
 
 export class FakePaymentTransactionLanes implements PaymentTransactionLanes {
   readonly operations: string[] = [];
-  readonly transactions = new Map<string, MercadoPagoQrOrderRecord>();
+  readonly transactions = new Map<string, MercadoPagoQrOrderTransaction>();
   readonly resultReadAt = new Map<string, Date>();
   readonly lanesEntered: string[] = [];
   held = false;
   failOn: LaneWrite | undefined;
-  racer: MercadoPagoQrOrderRecord | undefined;
+  racer: MercadoPagoQrOrderTransaction | undefined;
 
-  seed(transaction: MercadoPagoQrOrderRecord) {
+  seed(transaction: MercadoPagoQrOrderTransaction) {
     this.transactions.set(transaction.id, structuredClone(transaction));
   }
 

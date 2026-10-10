@@ -1,4 +1,4 @@
-import type { MercadoPagoQrOrderRecord } from "@purosur/domain";
+import type { MercadoPagoQrOrderTransaction } from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { registers } from "../../platform/db/schema.js";
 import { seededLocationId } from "../../test-support/seeded-location.js";
@@ -8,8 +8,8 @@ const EXPIRES_AT = new Date("2026-10-09T12:05:00.000Z");
 
 export function pendingTransaction(
   registerId: string,
-  overrides: Partial<MercadoPagoQrOrderRecord> = {},
-): MercadoPagoQrOrderRecord {
+  overrides: Partial<MercadoPagoQrOrderTransaction> = {},
+): MercadoPagoQrOrderTransaction {
   return {
     id: crypto.randomUUID(),
     registerId,
