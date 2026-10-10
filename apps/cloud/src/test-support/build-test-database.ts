@@ -5,11 +5,19 @@ import { inject } from "vitest";
 import { MIGRATIONS_FOLDER } from "../platform/db/migrations-folder.js";
 import { migrateFreshDatabase } from "./test-database-snapshot.js";
 
+// The deployed cloud runs as `cloud_app`, which some migrations deny statements on append-only
+// tables; connecting as it makes a statement the cloud may not run fail here instead of only once
+// deployed. Only migrations and the tooling that runs as the database's owner ask for "migrator".
+export type TestDatabaseRole = "cloud_app" | "migrator";
+
 export interface TestDatabase {
   client: PGlite;
   db: PgliteDatabase<Record<string, never>>;
   // Restores the rows the migrations themselves seeded; it does not leave every table empty.
   clear: () => Promise<void>;
+  // For arranging what cloud_app may not do itself, such as a trigger, a sequence's value or a row
+  // of an append-only table; the code under test never runs inside it.
+  asMigrator: <T>(arrange: () => Promise<T>) => Promise<T>;
   close: () => Promise<void>;
 }
 
@@ -75,6 +83,12 @@ async function advanceSequencesPastRestoredRows(client: PGlite): Promise<void> {
   }
 }
 
+async function takeRole(client: PGlite, role: TestDatabaseRole): Promise<void> {
+  if (role === "cloud_app") {
+    await client.query("set role cloud_app");
+  }
+}
+
 // A custom `migrationsFolder` migrates fresh from the run's already-initialized cluster dump,
 // so it never pays for its own initdb.
 export async function buildTestDatabase({
@@ -83,10 +97,12 @@ export async function buildTestDatabase({
     ? inject("testDatabaseSnapshotPath")
     : undefined,
   clusterDumpPath = inject("testDatabaseClusterDumpPath"),
+  connectAs = "cloud_app",
 }: {
   migrationsFolder?: string;
   snapshotPath?: string;
   clusterDumpPath?: string;
+  connectAs?: TestDatabaseRole;
 } = {}): Promise<TestDatabase> {
   const usableSnapshotPath = migrationsFolder === MIGRATIONS_FOLDER ? snapshotPath : undefined;
   const client = usableSnapshotPath
@@ -98,26 +114,39 @@ export async function buildTestDatabase({
     // Captured right after migrating, so only what a migration itself inserted counts as seeded,
     // never anything a test goes on to add.
     migrationSeedRows = await seedRowsByTable(client, await applicationTables(client));
+    await takeRole(client, connectAs);
   } catch (error) {
-    // Swallow a close failure; the capture error above is what's worth reporting.
+    // Swallow a close failure; the error above is what's worth reporting.
     await client.close().catch(() => undefined);
     throw error;
   }
 
-  async function clear(): Promise<void> {
-    const tables = await applicationTables(client);
-    if (tables.length > 0) {
-      const tableList = tables.map((table) => `"${table}"`).join(", ");
-      await client.query(`truncate table ${tableList} restart identity cascade`);
+  async function asMigrator<T>(arrange: () => Promise<T>): Promise<T> {
+    await client.query("reset role");
+    try {
+      return await arrange();
+    } finally {
+      await takeRole(client, connectAs);
     }
-    await restoreSeedRows(client, migrationSeedRows);
-    await advanceSequencesPastRestoredRows(client);
+  }
+
+  async function clear(): Promise<void> {
+    await asMigrator(async () => {
+      const tables = await applicationTables(client);
+      if (tables.length > 0) {
+        const tableList = tables.map((table) => `"${table}"`).join(", ");
+        await client.query(`truncate table ${tableList} restart identity cascade`);
+      }
+      await restoreSeedRows(client, migrationSeedRows);
+      await advanceSequencesPastRestoredRows(client);
+    });
   }
 
   return {
     client,
     db,
     clear,
+    asMigrator,
     close: () => client.close(),
   };
 }
