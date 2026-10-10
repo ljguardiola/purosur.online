@@ -90,26 +90,18 @@
         "alert_deliveries_alert_id_alerts_id_fk": {
           "name": "alert_deliveries_alert_id_alerts_id_fk",
           "tableFrom": "alert_deliveries",
-          "columnsFrom": [
-            "alert_id"
-          ],
+          "columnsFrom": ["alert_id"],
           "tableTo": "alerts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "alert_deliveries_recipient_user_id_users_id_fk": {
           "name": "alert_deliveries_recipient_user_id_users_id_fk",
           "tableFrom": "alert_deliveries",
-          "columnsFrom": [
-            "recipient_user_id"
-          ],
+          "columnsFrom": ["recipient_user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -272,26 +264,18 @@
         "alerts_location_id_locations_id_fk": {
           "name": "alerts_location_id_locations_id_fk",
           "tableFrom": "alerts",
-          "columnsFrom": [
-            "location_id"
-          ],
+          "columnsFrom": ["location_id"],
           "tableTo": "locations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "alerts_resolved_by_users_id_fk": {
           "name": "alerts_resolved_by_users_id_fk",
           "tableFrom": "alerts",
-          "columnsFrom": [
-            "resolved_by"
-          ],
+          "columnsFrom": ["resolved_by"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -432,10 +416,7 @@
       "compositePrimaryKeys": {
         "arca_wsaa_tokens_service_certificate_fingerprint_pk": {
           "name": "arca_wsaa_tokens_service_certificate_fingerprint_pk",
-          "columns": [
-            "service",
-            "certificate_fingerprint"
-          ]
+          "columns": ["service", "certificate_fingerprint"]
         }
       },
       "uniqueConstraints": {},
@@ -497,13 +478,9 @@
         "audit_log_actor_id_users_id_fk": {
           "name": "audit_log_actor_id_users_id_fk",
           "tableFrom": "audit_log",
-          "columnsFrom": [
-            "actor_id"
-          ],
+          "columnsFrom": ["actor_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -636,13 +613,9 @@
         "branch_hours_location_id_locations_id_fk": {
           "name": "branch_hours_location_id_locations_id_fk",
           "tableFrom": "branch_hours",
-          "columnsFrom": [
-            "location_id"
-          ],
+          "columnsFrom": ["location_id"],
           "tableTo": "locations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -650,11 +623,7 @@
       "compositePrimaryKeys": {
         "branch_hours_location_id_day_of_week_position_pk": {
           "name": "branch_hours_location_id_day_of_week_position_pk",
-          "columns": [
-            "location_id",
-            "day_of_week",
-            "position"
-          ]
+          "columns": ["location_id", "day_of_week", "position"]
         }
       },
       "uniqueConstraints": {},
@@ -742,26 +711,18 @@
         "branch_settings_location_id_locations_id_fk": {
           "name": "branch_settings_location_id_locations_id_fk",
           "tableFrom": "branch_settings",
-          "columnsFrom": [
-            "location_id"
-          ],
+          "columnsFrom": ["location_id"],
           "tableTo": "locations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "branch_settings_price_list_id_price_lists_id_fk": {
           "name": "branch_settings_price_list_id_price_lists_id_fk",
           "tableFrom": "branch_settings",
-          "columnsFrom": [
-            "price_list_id"
-          ],
+          "columnsFrom": ["price_list_id"],
           "tableTo": "price_lists",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -899,13 +860,9 @@
         "buyer_identification_thresholds_recorded_by_users_id_fk": {
           "name": "buyer_identification_thresholds_recorded_by_users_id_fk",
           "tableFrom": "buyer_identification_thresholds",
-          "columnsFrom": [
-            "recorded_by"
-          ],
+          "columnsFrom": ["recorded_by"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1036,9 +993,7 @@
       "uniqueConstraints": {
         "caea_codes_id_unique": {
           "name": "caea_codes_id_unique",
-          "columns": [
-            "id"
-          ],
+          "columns": ["id"],
           "nullsNotDistinct": false
         }
       },
@@ -1121,13 +1076,9 @@
         "cash_movements_session_id_cash_sessions_id_fk": {
           "name": "cash_movements_session_id_cash_sessions_id_fk",
           "tableFrom": "cash_movements",
-          "columnsFrom": [
-            "session_id"
-          ],
+          "columnsFrom": ["session_id"],
           "tableTo": "cash_sessions",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1220,39 +1171,27 @@
         "cash_sessions_location_id_locations_id_fk": {
           "name": "cash_sessions_location_id_locations_id_fk",
           "tableFrom": "cash_sessions",
-          "columnsFrom": [
-            "location_id"
-          ],
+          "columnsFrom": ["location_id"],
           "tableTo": "locations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "cash_sessions_register_id_registers_id_fk": {
           "name": "cash_sessions_register_id_registers_id_fk",
           "tableFrom": "cash_sessions",
-          "columnsFrom": [
-            "register_id"
-          ],
+          "columnsFrom": ["register_id"],
           "tableTo": "registers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "cash_sessions_device_id_register_installations_id_fk": {
           "name": "cash_sessions_device_id_register_installations_id_fk",
           "tableFrom": "cash_sessions",
-          "columnsFrom": [
-            "device_id"
-          ],
+          "columnsFrom": ["device_id"],
           "tableTo": "register_installations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1336,13 +1275,9 @@
         "categories_parent_id_categories_id_fk": {
           "name": "categories_parent_id_categories_id_fk",
           "tableFrom": "categories",
-          "columnsFrom": [
-            "parent_id"
-          ],
+          "columnsFrom": ["parent_id"],
           "tableTo": "categories",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1612,13 +1547,9 @@
         "device_state_device_id_register_installations_id_fk": {
           "name": "device_state_device_id_register_installations_id_fk",
           "tableFrom": "device_state",
-          "columnsFrom": [
-            "device_id"
-          ],
+          "columnsFrom": ["device_id"],
           "tableTo": "register_installations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1773,39 +1704,27 @@
         "discounts_product_id_products_id_fk": {
           "name": "discounts_product_id_products_id_fk",
           "tableFrom": "discounts",
-          "columnsFrom": [
-            "product_id"
-          ],
+          "columnsFrom": ["product_id"],
           "tableTo": "products",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "discounts_category_id_categories_id_fk": {
           "name": "discounts_category_id_categories_id_fk",
           "tableFrom": "discounts",
-          "columnsFrom": [
-            "category_id"
-          ],
+          "columnsFrom": ["category_id"],
           "tableTo": "categories",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "discounts_tag_id_tags_id_fk": {
           "name": "discounts_tag_id_tags_id_fk",
           "tableFrom": "discounts",
-          "columnsFrom": [
-            "tag_id"
-          ],
+          "columnsFrom": ["tag_id"],
           "tableTo": "tags",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -2043,13 +1962,9 @@
         "fiscal_requests_register_id_registers_id_fk": {
           "name": "fiscal_requests_register_id_registers_id_fk",
           "tableFrom": "fiscal_requests",
-          "columnsFrom": [
-            "register_id"
-          ],
+          "columnsFrom": ["register_id"],
           "tableTo": "registers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -2245,13 +2160,9 @@
         "inbox_device_id_register_installations_id_fk": {
           "name": "inbox_device_id_register_installations_id_fk",
           "tableFrom": "inbox",
-          "columnsFrom": [
-            "device_id"
-          ],
+          "columnsFrom": ["device_id"],
           "tableTo": "register_installations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -2260,10 +2171,7 @@
       "uniqueConstraints": {
         "inbox_device_id_device_seq_key": {
           "name": "inbox_device_id_device_seq_key",
-          "columns": [
-            "device_id",
-            "device_seq"
-          ],
+          "columns": ["device_id", "device_seq"],
           "nullsNotDistinct": false
         }
       },
@@ -2340,13 +2248,9 @@
         "installation_request_attempts_device_id_register_installations_id_fk": {
           "name": "installation_request_attempts_device_id_register_installations_id_fk",
           "tableFrom": "installation_request_attempts",
-          "columnsFrom": [
-            "device_id"
-          ],
+          "columnsFrom": ["device_id"],
           "tableTo": "register_installations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -2460,13 +2364,9 @@
         "issuer_identification_versions_recorded_by_users_id_fk": {
           "name": "issuer_identification_versions_recorded_by_users_id_fk",
           "tableFrom": "issuer_identification_versions",
-          "columnsFrom": [
-            "recorded_by"
-          ],
+          "columnsFrom": ["recorded_by"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -2569,39 +2469,27 @@
         "lots_product_id_products_id_fk": {
           "name": "lots_product_id_products_id_fk",
           "tableFrom": "lots",
-          "columnsFrom": [
-            "product_id"
-          ],
+          "columnsFrom": ["product_id"],
           "tableTo": "products",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "lots_location_id_locations_id_fk": {
           "name": "lots_location_id_locations_id_fk",
           "tableFrom": "lots",
-          "columnsFrom": [
-            "location_id"
-          ],
+          "columnsFrom": ["location_id"],
           "tableTo": "locations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "lots_purchase_line_id_purchase_lines_id_fk": {
           "name": "lots_purchase_line_id_purchase_lines_id_fk",
           "tableFrom": "lots",
-          "columnsFrom": [
-            "purchase_line_id"
-          ],
+          "columnsFrom": ["purchase_line_id"],
           "tableTo": "purchase_lines",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -2610,9 +2498,7 @@
       "uniqueConstraints": {
         "lots_purchase_line_id_key": {
           "name": "lots_purchase_line_id_key",
-          "columns": [
-            "purchase_line_id"
-          ],
+          "columns": ["purchase_line_id"],
           "nullsNotDistinct": false
         }
       },
@@ -2699,17 +2585,9 @@
         "offline_number_blocks_claim_fk": {
           "name": "offline_number_blocks_claim_fk",
           "tableFrom": "offline_number_blocks",
-          "columnsFrom": [
-            "point_of_sale_number",
-            "register_id",
-            "mechanism"
-          ],
+          "columnsFrom": ["point_of_sale_number", "register_id", "mechanism"],
           "tableTo": "point_of_sale_claims",
-          "columnsTo": [
-            "point_of_sale_number",
-            "register_id",
-            "mechanism"
-          ],
+          "columnsTo": ["point_of_sale_number", "register_id", "mechanism"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -2718,20 +2596,12 @@
       "uniqueConstraints": {
         "offline_number_blocks_first_number_key": {
           "name": "offline_number_blocks_first_number_key",
-          "columns": [
-            "point_of_sale_number",
-            "document_type",
-            "first_number"
-          ],
+          "columns": ["point_of_sale_number", "document_type", "first_number"],
           "nullsNotDistinct": false
         },
         "offline_number_blocks_last_number_key": {
           "name": "offline_number_blocks_last_number_key",
-          "columns": [
-            "point_of_sale_number",
-            "document_type",
-            "last_number"
-          ],
+          "columns": ["point_of_sale_number", "document_type", "last_number"],
           "nullsNotDistinct": false
         }
       },
@@ -2823,13 +2693,9 @@
         "passkey_challenges_session_id_sessions_id_fk": {
           "name": "passkey_challenges_session_id_sessions_id_fk",
           "tableFrom": "passkey_challenges",
-          "columnsFrom": [
-            "session_id"
-          ],
+          "columnsFrom": ["session_id"],
           "tableTo": "sessions",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -2934,13 +2800,9 @@
         "passkeys_user_id_users_id_fk": {
           "name": "passkeys_user_id_users_id_fk",
           "tableFrom": "passkeys",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -3122,15 +2984,9 @@
         "payment_refunds_payment_of_its_sale_fk": {
           "name": "payment_refunds_payment_of_its_sale_fk",
           "tableFrom": "payment_refunds",
-          "columnsFrom": [
-            "payment_id",
-            "sale_id"
-          ],
+          "columnsFrom": ["payment_id", "sale_id"],
           "tableTo": "sale_payments",
-          "columnsTo": [
-            "id",
-            "sale_id"
-          ],
+          "columnsTo": ["id", "sale_id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -3277,13 +3133,9 @@
         "payment_transactions_register_id_registers_id_fk": {
           "name": "payment_transactions_register_id_registers_id_fk",
           "tableFrom": "payment_transactions",
-          "columnsFrom": [
-            "register_id"
-          ],
+          "columnsFrom": ["register_id"],
           "tableTo": "registers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -3292,9 +3144,7 @@
       "uniqueConstraints": {
         "payment_transactions_provider_order_id_unique": {
           "name": "payment_transactions_provider_order_id_unique",
-          "columns": [
-            "provider_order_id"
-          ],
+          "columns": ["provider_order_id"],
           "nullsNotDistinct": false
         }
       },
@@ -3447,26 +3297,18 @@
         "point_of_sale_claims_register_id_registers_id_fk": {
           "name": "point_of_sale_claims_register_id_registers_id_fk",
           "tableFrom": "point_of_sale_claims",
-          "columnsFrom": [
-            "register_id"
-          ],
+          "columnsFrom": ["register_id"],
           "tableTo": "registers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "point_of_sale_claims_claimed_by_users_id_fk": {
           "name": "point_of_sale_claims_claimed_by_users_id_fk",
           "tableFrom": "point_of_sale_claims",
-          "columnsFrom": [
-            "claimed_by"
-          ],
+          "columnsFrom": ["claimed_by"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -3475,11 +3317,7 @@
       "uniqueConstraints": {
         "point_of_sale_claims_number_register_mechanism_key": {
           "name": "point_of_sale_claims_number_register_mechanism_key",
-          "columns": [
-            "point_of_sale_number",
-            "register_id",
-            "mechanism"
-          ],
+          "columns": ["point_of_sale_number", "register_id", "mechanism"],
           "nullsNotDistinct": false
         }
       },
@@ -3601,65 +3439,45 @@
         "price_review_postponements_product_id_products_id_fk": {
           "name": "price_review_postponements_product_id_products_id_fk",
           "tableFrom": "price_review_postponements",
-          "columnsFrom": [
-            "product_id"
-          ],
+          "columnsFrom": ["product_id"],
           "tableTo": "products",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "price_review_postponements_price_list_id_price_lists_id_fk": {
           "name": "price_review_postponements_price_list_id_price_lists_id_fk",
           "tableFrom": "price_review_postponements",
-          "columnsFrom": [
-            "price_list_id"
-          ],
+          "columnsFrom": ["price_list_id"],
           "tableTo": "price_lists",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "price_review_postponements_actor_id_users_id_fk": {
           "name": "price_review_postponements_actor_id_users_id_fk",
           "tableFrom": "price_review_postponements",
-          "columnsFrom": [
-            "actor_id"
-          ],
+          "columnsFrom": ["actor_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "price_review_postponements_purchase_id_purchases_id_fk": {
           "name": "price_review_postponements_purchase_id_purchases_id_fk",
           "tableFrom": "price_review_postponements",
-          "columnsFrom": [
-            "purchase_id"
-          ],
+          "columnsFrom": ["purchase_id"],
           "tableTo": "purchases",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "price_review_postponements_resolved_by_review_fk": {
           "name": "price_review_postponements_resolved_by_review_fk",
           "tableFrom": "price_review_postponements",
-          "columnsFrom": [
-            "resolved_by_review_id"
-          ],
+          "columnsFrom": ["resolved_by_review_id"],
           "tableTo": "price_reviews",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -3746,56 +3564,36 @@
         "price_reviews_product_id_products_id_fk": {
           "name": "price_reviews_product_id_products_id_fk",
           "tableFrom": "price_reviews",
-          "columnsFrom": [
-            "product_id"
-          ],
+          "columnsFrom": ["product_id"],
           "tableTo": "products",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "price_reviews_price_list_id_price_lists_id_fk": {
           "name": "price_reviews_price_list_id_price_lists_id_fk",
           "tableFrom": "price_reviews",
-          "columnsFrom": [
-            "price_list_id"
-          ],
+          "columnsFrom": ["price_list_id"],
           "tableTo": "price_lists",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "price_reviews_actor_id_users_id_fk": {
           "name": "price_reviews_actor_id_users_id_fk",
           "tableFrom": "price_reviews",
-          "columnsFrom": [
-            "actor_id"
-          ],
+          "columnsFrom": ["actor_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "price_reviews_price_product_price_list_fk": {
           "name": "price_reviews_price_product_price_list_fk",
           "tableFrom": "price_reviews",
-          "columnsFrom": [
-            "price_id",
-            "product_id",
-            "price_list_id"
-          ],
+          "columnsFrom": ["price_id", "product_id", "price_list_id"],
           "tableTo": "prices",
-          "columnsTo": [
-            "id",
-            "product_id",
-            "price_list_id"
-          ],
+          "columnsTo": ["id", "product_id", "price_list_id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -3876,26 +3674,18 @@
         "prices_product_id_products_id_fk": {
           "name": "prices_product_id_products_id_fk",
           "tableFrom": "prices",
-          "columnsFrom": [
-            "product_id"
-          ],
+          "columnsFrom": ["product_id"],
           "tableTo": "products",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "prices_price_list_id_price_lists_id_fk": {
           "name": "prices_price_list_id_price_lists_id_fk",
           "tableFrom": "prices",
-          "columnsFrom": [
-            "price_list_id"
-          ],
+          "columnsFrom": ["price_list_id"],
           "tableTo": "price_lists",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -3904,11 +3694,7 @@
       "uniqueConstraints": {
         "prices_id_product_id_price_list_id_key": {
           "name": "prices_id_product_id_price_list_id_key",
-          "columns": [
-            "id",
-            "product_id",
-            "price_list_id"
-          ],
+          "columns": ["id", "product_id", "price_list_id"],
           "nullsNotDistinct": false
         }
       },
@@ -3973,13 +3759,9 @@
         "product_barcodes_product_id_products_id_fk": {
           "name": "product_barcodes_product_id_products_id_fk",
           "tableFrom": "product_barcodes",
-          "columnsFrom": [
-            "product_id"
-          ],
+          "columnsFrom": ["product_id"],
           "tableTo": "products",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -3987,10 +3769,7 @@
       "compositePrimaryKeys": {
         "product_barcodes_product_id_position_pk": {
           "name": "product_barcodes_product_id_position_pk",
-          "columns": [
-            "product_id",
-            "position"
-          ]
+          "columns": ["product_id", "position"]
         }
       },
       "uniqueConstraints": {},
@@ -4088,26 +3867,18 @@
         "product_packagings_product_id_products_id_fk": {
           "name": "product_packagings_product_id_products_id_fk",
           "tableFrom": "product_packagings",
-          "columnsFrom": [
-            "product_id"
-          ],
+          "columnsFrom": ["product_id"],
           "tableTo": "products",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "product_packagings_actor_id_users_id_fk": {
           "name": "product_packagings_actor_id_users_id_fk",
           "tableFrom": "product_packagings",
-          "columnsFrom": [
-            "actor_id"
-          ],
+          "columnsFrom": ["actor_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -4165,26 +3936,18 @@
         "product_tags_product_id_products_id_fk": {
           "name": "product_tags_product_id_products_id_fk",
           "tableFrom": "product_tags",
-          "columnsFrom": [
-            "product_id"
-          ],
+          "columnsFrom": ["product_id"],
           "tableTo": "products",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "product_tags_tag_id_tags_id_fk": {
           "name": "product_tags_tag_id_tags_id_fk",
           "tableFrom": "product_tags",
-          "columnsFrom": [
-            "tag_id"
-          ],
+          "columnsFrom": ["tag_id"],
           "tableTo": "tags",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -4192,10 +3955,7 @@
       "compositePrimaryKeys": {
         "product_tags_product_id_tag_id_pk": {
           "name": "product_tags_product_id_tag_id_pk",
-          "columns": [
-            "product_id",
-            "tag_id"
-          ]
+          "columns": ["product_id", "tag_id"]
         }
       },
       "uniqueConstraints": {},
@@ -4286,26 +4046,18 @@
         "products_category_id_categories_id_fk": {
           "name": "products_category_id_categories_id_fk",
           "tableFrom": "products",
-          "columnsFrom": [
-            "category_id"
-          ],
+          "columnsFrom": ["category_id"],
           "tableTo": "categories",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "products_brand_id_brands_id_fk": {
           "name": "products_brand_id_brands_id_fk",
           "tableFrom": "products",
-          "columnsFrom": [
-            "brand_id"
-          ],
+          "columnsFrom": ["brand_id"],
           "tableTo": "brands",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -4426,39 +4178,27 @@
         "purchase_lines_purchase_id_purchases_id_fk": {
           "name": "purchase_lines_purchase_id_purchases_id_fk",
           "tableFrom": "purchase_lines",
-          "columnsFrom": [
-            "purchase_id"
-          ],
+          "columnsFrom": ["purchase_id"],
           "tableTo": "purchases",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "purchase_lines_product_id_products_id_fk": {
           "name": "purchase_lines_product_id_products_id_fk",
           "tableFrom": "purchase_lines",
-          "columnsFrom": [
-            "product_id"
-          ],
+          "columnsFrom": ["product_id"],
           "tableTo": "products",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "purchase_lines_packaging_id_product_packagings_id_fk": {
           "name": "purchase_lines_packaging_id_product_packagings_id_fk",
           "tableFrom": "purchase_lines",
-          "columnsFrom": [
-            "packaging_id"
-          ],
+          "columnsFrom": ["packaging_id"],
           "tableTo": "product_packagings",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -4467,10 +4207,7 @@
       "uniqueConstraints": {
         "purchase_lines_purchase_id_position_key": {
           "name": "purchase_lines_purchase_id_position_key",
-          "columns": [
-            "purchase_id",
-            "position"
-          ],
+          "columns": ["purchase_id", "position"],
           "nullsNotDistinct": false
         }
       },
@@ -4590,39 +4327,27 @@
         "purchases_supplier_id_suppliers_id_fk": {
           "name": "purchases_supplier_id_suppliers_id_fk",
           "tableFrom": "purchases",
-          "columnsFrom": [
-            "supplier_id"
-          ],
+          "columnsFrom": ["supplier_id"],
           "tableTo": "suppliers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "purchases_location_id_locations_id_fk": {
           "name": "purchases_location_id_locations_id_fk",
           "tableFrom": "purchases",
-          "columnsFrom": [
-            "location_id"
-          ],
+          "columnsFrom": ["location_id"],
           "tableTo": "locations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "purchases_actor_id_users_id_fk": {
           "name": "purchases_actor_id_users_id_fk",
           "tableFrom": "purchases",
-          "columnsFrom": [
-            "actor_id"
-          ],
+          "columnsFrom": ["actor_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -4943,13 +4668,9 @@
         "recovery_tokens_user_id_users_id_fk": {
           "name": "recovery_tokens_user_id_users_id_fk",
           "tableFrom": "recovery_tokens",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5049,13 +4770,9 @@
         "refused_events_device_id_register_installations_id_fk": {
           "name": "refused_events_device_id_register_installations_id_fk",
           "tableFrom": "refused_events",
-          "columnsFrom": [
-            "device_id"
-          ],
+          "columnsFrom": ["device_id"],
           "tableTo": "register_installations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5101,13 +4818,9 @@
         "register_contingency_ticket_keys_register_id_registers_id_fk": {
           "name": "register_contingency_ticket_keys_register_id_registers_id_fk",
           "tableFrom": "register_contingency_ticket_keys",
-          "columnsFrom": [
-            "register_id"
-          ],
+          "columnsFrom": ["register_id"],
           "tableTo": "registers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5115,10 +4828,7 @@
       "compositePrimaryKeys": {
         "register_contingency_ticket_keys_register_id_version_pk": {
           "name": "register_contingency_ticket_keys_register_id_version_pk",
-          "columns": [
-            "register_id",
-            "version"
-          ]
+          "columns": ["register_id", "version"]
         }
       },
       "uniqueConstraints": {},
@@ -5277,13 +4987,9 @@
         "register_enrollment_codes_register_id_registers_id_fk": {
           "name": "register_enrollment_codes_register_id_registers_id_fk",
           "tableFrom": "register_enrollment_codes",
-          "columnsFrom": [
-            "register_id"
-          ],
+          "columnsFrom": ["register_id"],
           "tableTo": "registers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5437,13 +5143,9 @@
         "register_installations_register_id_registers_id_fk": {
           "name": "register_installations_register_id_registers_id_fk",
           "tableFrom": "register_installations",
-          "columnsFrom": [
-            "register_id"
-          ],
+          "columnsFrom": ["register_id"],
           "tableTo": "registers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5490,30 +5192,18 @@
         "register_offline_points_of_sale_register_fk": {
           "name": "register_offline_points_of_sale_register_fk",
           "tableFrom": "register_offline_points_of_sale",
-          "columnsFrom": [
-            "register_id"
-          ],
+          "columnsFrom": ["register_id"],
           "tableTo": "register_points_of_sale",
-          "columnsTo": [
-            "register_id"
-          ],
+          "columnsTo": ["register_id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "register_offline_points_of_sale_claim_fk": {
           "name": "register_offline_points_of_sale_claim_fk",
           "tableFrom": "register_offline_points_of_sale",
-          "columnsFrom": [
-            "point_of_sale_number",
-            "register_id",
-            "mechanism"
-          ],
+          "columnsFrom": ["point_of_sale_number", "register_id", "mechanism"],
           "tableTo": "point_of_sale_claims",
-          "columnsTo": [
-            "point_of_sale_number",
-            "register_id",
-            "mechanism"
-          ],
+          "columnsTo": ["point_of_sale_number", "register_id", "mechanism"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5571,43 +5261,27 @@
         "register_points_of_sale_register_id_registers_id_fk": {
           "name": "register_points_of_sale_register_id_registers_id_fk",
           "tableFrom": "register_points_of_sale",
-          "columnsFrom": [
-            "register_id"
-          ],
+          "columnsFrom": ["register_id"],
           "tableTo": "registers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "register_points_of_sale_fiscal_address_id_fiscal_addresses_id_fk": {
           "name": "register_points_of_sale_fiscal_address_id_fiscal_addresses_id_fk",
           "tableFrom": "register_points_of_sale",
-          "columnsFrom": [
-            "fiscal_address_id"
-          ],
+          "columnsFrom": ["fiscal_address_id"],
           "tableTo": "fiscal_addresses",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "register_points_of_sale_claim_fk": {
           "name": "register_points_of_sale_claim_fk",
           "tableFrom": "register_points_of_sale",
-          "columnsFrom": [
-            "point_of_sale_number",
-            "register_id",
-            "mechanism"
-          ],
+          "columnsFrom": ["point_of_sale_number", "register_id", "mechanism"],
           "tableTo": "point_of_sale_claims",
-          "columnsTo": [
-            "point_of_sale_number",
-            "register_id",
-            "mechanism"
-          ],
+          "columnsTo": ["point_of_sale_number", "register_id", "mechanism"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5658,13 +5332,9 @@
         "register_snapshot_keys_register_id_registers_id_fk": {
           "name": "register_snapshot_keys_register_id_registers_id_fk",
           "tableFrom": "register_snapshot_keys",
-          "columnsFrom": [
-            "register_id"
-          ],
+          "columnsFrom": ["register_id"],
           "tableTo": "registers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5672,10 +5342,7 @@
       "compositePrimaryKeys": {
         "register_snapshot_keys_register_id_version_pk": {
           "name": "register_snapshot_keys_register_id_version_pk",
-          "columns": [
-            "register_id",
-            "version"
-          ]
+          "columns": ["register_id", "version"]
         }
       },
       "uniqueConstraints": {},
@@ -5748,13 +5415,9 @@
         "registers_location_id_locations_id_fk": {
           "name": "registers_location_id_locations_id_fk",
           "tableFrom": "registers",
-          "columnsFrom": [
-            "location_id"
-          ],
+          "columnsFrom": ["location_id"],
           "tableTo": "locations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5787,13 +5450,9 @@
         "role_permissions_role_id_roles_id_fk": {
           "name": "role_permissions_role_id_roles_id_fk",
           "tableFrom": "role_permissions",
-          "columnsFrom": [
-            "role_id"
-          ],
+          "columnsFrom": ["role_id"],
           "tableTo": "roles",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5801,10 +5460,7 @@
       "compositePrimaryKeys": {
         "role_permissions_role_id_permission_key_pk": {
           "name": "role_permissions_role_id_permission_key_pk",
-          "columns": [
-            "role_id",
-            "permission_key"
-          ]
+          "columns": ["role_id", "permission_key"]
         }
       },
       "uniqueConstraints": {},
@@ -5965,13 +5621,9 @@
         "sale_lines_sale_id_sales_id_fk": {
           "name": "sale_lines_sale_id_sales_id_fk",
           "tableFrom": "sale_lines",
-          "columnsFrom": [
-            "sale_id"
-          ],
+          "columnsFrom": ["sale_id"],
           "tableTo": "sales",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -6057,13 +5709,9 @@
         "sale_payments_sale_id_sales_id_fk": {
           "name": "sale_payments_sale_id_sales_id_fk",
           "tableFrom": "sale_payments",
-          "columnsFrom": [
-            "sale_id"
-          ],
+          "columnsFrom": ["sale_id"],
           "tableTo": "sales",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -6072,10 +5720,7 @@
       "uniqueConstraints": {
         "sale_payments_id_sale_id_key": {
           "name": "sale_payments_id_sale_id_key",
-          "columns": [
-            "id",
-            "sale_id"
-          ],
+          "columns": ["id", "sale_id"],
           "nullsNotDistinct": false
         }
       },
@@ -6135,13 +5780,9 @@
         "sale_reprints_sale_id_sales_id_fk": {
           "name": "sale_reprints_sale_id_sales_id_fk",
           "tableFrom": "sale_reprints",
-          "columnsFrom": [
-            "sale_id"
-          ],
+          "columnsFrom": ["sale_id"],
           "tableTo": "sales",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -6149,10 +5790,7 @@
       "compositePrimaryKeys": {
         "sale_reprints_sale_id_order_number_pk": {
           "name": "sale_reprints_sale_id_order_number_pk",
-          "columns": [
-            "sale_id",
-            "order_number"
-          ]
+          "columns": ["sale_id", "order_number"]
         }
       },
       "uniqueConstraints": {},
@@ -6273,52 +5911,36 @@
         "sales_location_id_locations_id_fk": {
           "name": "sales_location_id_locations_id_fk",
           "tableFrom": "sales",
-          "columnsFrom": [
-            "location_id"
-          ],
+          "columnsFrom": ["location_id"],
           "tableTo": "locations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "sales_register_id_registers_id_fk": {
           "name": "sales_register_id_registers_id_fk",
           "tableFrom": "sales",
-          "columnsFrom": [
-            "register_id"
-          ],
+          "columnsFrom": ["register_id"],
           "tableTo": "registers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "sales_device_id_register_installations_id_fk": {
           "name": "sales_device_id_register_installations_id_fk",
           "tableFrom": "sales",
-          "columnsFrom": [
-            "device_id"
-          ],
+          "columnsFrom": ["device_id"],
           "tableTo": "register_installations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "sales_session_id_cash_sessions_id_fk": {
           "name": "sales_session_id_cash_sessions_id_fk",
           "tableFrom": "sales",
-          "columnsFrom": [
-            "session_id"
-          ],
+          "columnsFrom": ["session_id"],
           "tableTo": "cash_sessions",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -6421,13 +6043,9 @@
         "sessions_user_id_users_id_fk": {
           "name": "sessions_user_id_users_id_fk",
           "tableFrom": "sessions",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -6670,13 +6288,9 @@
         "sign_in_lookup_attempts_register_id_registers_id_fk": {
           "name": "sign_in_lookup_attempts_register_id_registers_id_fk",
           "tableFrom": "sign_in_lookup_attempts",
-          "columnsFrom": [
-            "register_id"
-          ],
+          "columnsFrom": ["register_id"],
           "tableTo": "registers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -6716,26 +6330,18 @@
         "stock_balances_product_id_products_id_fk": {
           "name": "stock_balances_product_id_products_id_fk",
           "tableFrom": "stock_balances",
-          "columnsFrom": [
-            "product_id"
-          ],
+          "columnsFrom": ["product_id"],
           "tableTo": "products",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "stock_balances_location_id_locations_id_fk": {
           "name": "stock_balances_location_id_locations_id_fk",
           "tableFrom": "stock_balances",
-          "columnsFrom": [
-            "location_id"
-          ],
+          "columnsFrom": ["location_id"],
           "tableTo": "locations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -6743,10 +6349,7 @@
       "compositePrimaryKeys": {
         "stock_balances_product_id_location_id_pk": {
           "name": "stock_balances_product_id_location_id_pk",
-          "columns": [
-            "product_id",
-            "location_id"
-          ]
+          "columns": ["product_id", "location_id"]
         }
       },
       "uniqueConstraints": {},
@@ -6782,13 +6385,9 @@
         "stock_counts_movement_id_stock_movements_id_fk": {
           "name": "stock_counts_movement_id_stock_movements_id_fk",
           "tableFrom": "stock_counts",
-          "columnsFrom": [
-            "movement_id"
-          ],
+          "columnsFrom": ["movement_id"],
           "tableTo": "stock_movements",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -6937,78 +6536,54 @@
         "stock_movements_product_id_products_id_fk": {
           "name": "stock_movements_product_id_products_id_fk",
           "tableFrom": "stock_movements",
-          "columnsFrom": [
-            "product_id"
-          ],
+          "columnsFrom": ["product_id"],
           "tableTo": "products",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "stock_movements_location_id_locations_id_fk": {
           "name": "stock_movements_location_id_locations_id_fk",
           "tableFrom": "stock_movements",
-          "columnsFrom": [
-            "location_id"
-          ],
+          "columnsFrom": ["location_id"],
           "tableTo": "locations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "stock_movements_sale_line_id_sale_lines_id_fk": {
           "name": "stock_movements_sale_line_id_sale_lines_id_fk",
           "tableFrom": "stock_movements",
-          "columnsFrom": [
-            "sale_line_id"
-          ],
+          "columnsFrom": ["sale_line_id"],
           "tableTo": "sale_lines",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "stock_movements_purchase_line_id_purchase_lines_id_fk": {
           "name": "stock_movements_purchase_line_id_purchase_lines_id_fk",
           "tableFrom": "stock_movements",
-          "columnsFrom": [
-            "purchase_line_id"
-          ],
+          "columnsFrom": ["purchase_line_id"],
           "tableTo": "purchase_lines",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "stock_movements_actor_id_users_id_fk": {
           "name": "stock_movements_actor_id_users_id_fk",
           "tableFrom": "stock_movements",
-          "columnsFrom": [
-            "actor_id"
-          ],
+          "columnsFrom": ["actor_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "stock_movements_superseded_by_count_id_stock_movements_id_fk": {
           "name": "stock_movements_superseded_by_count_id_stock_movements_id_fk",
           "tableFrom": "stock_movements",
-          "columnsFrom": [
-            "superseded_by_count_id"
-          ],
+          "columnsFrom": ["superseded_by_count_id"],
           "tableTo": "stock_movements",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -7135,13 +6710,9 @@
         "suppliers_actor_id_users_id_fk": {
           "name": "suppliers_actor_id_users_id_fk",
           "tableFrom": "suppliers",
-          "columnsFrom": [
-            "actor_id"
-          ],
+          "columnsFrom": ["actor_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -7347,26 +6918,18 @@
         "user_pin_codes_user_id_users_id_fk": {
           "name": "user_pin_codes_user_id_users_id_fk",
           "tableFrom": "user_pin_codes",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "user_pin_codes_issued_by_users_id_fk": {
           "name": "user_pin_codes_issued_by_users_id_fk",
           "tableFrom": "user_pin_codes",
-          "columnsFrom": [
-            "issued_by"
-          ],
+          "columnsFrom": ["issued_by"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -7411,13 +6974,9 @@
         "user_pins_user_id_users_id_fk": {
           "name": "user_pins_user_id_users_id_fk",
           "tableFrom": "user_pins",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -7466,26 +7025,18 @@
         "user_roles_user_id_users_id_fk": {
           "name": "user_roles_user_id_users_id_fk",
           "tableFrom": "user_roles",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "user_roles_role_id_roles_id_fk": {
           "name": "user_roles_role_id_roles_id_fk",
           "tableFrom": "user_roles",
-          "columnsFrom": [
-            "role_id"
-          ],
+          "columnsFrom": ["role_id"],
           "tableTo": "roles",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -7493,10 +7044,7 @@
       "compositePrimaryKeys": {
         "user_roles_user_id_role_id_pk": {
           "name": "user_roles_user_id_role_id_pk",
-          "columns": [
-            "user_id",
-            "role_id"
-          ]
+          "columns": ["user_id", "role_id"]
         }
       },
       "uniqueConstraints": {},
@@ -7569,13 +7117,9 @@
         "users_location_id_locations_id_fk": {
           "name": "users_location_id_locations_id_fk",
           "tableFrom": "users",
-          "columnsFrom": [
-            "location_id"
-          ],
+          "columnsFrom": ["location_id"],
           "tableTo": "locations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -7591,135 +7135,82 @@
     "public.alert_audience": {
       "name": "alert_audience",
       "schema": "public",
-      "values": [
-        "local",
-        "all"
-      ]
+      "values": ["local", "all"]
     },
     "public.alert_delivery_channel": {
       "name": "alert_delivery_channel",
       "schema": "public",
-      "values": [
-        "backoffice"
-      ]
+      "values": ["backoffice"]
     },
     "public.alert_delivery_status": {
       "name": "alert_delivery_status",
       "schema": "public",
-      "values": [
-        "sent",
-        "failed"
-      ]
+      "values": ["sent", "failed"]
     },
     "public.alert_level": {
       "name": "alert_level",
       "schema": "public",
-      "values": [
-        "informational",
-        "warning",
-        "critical"
-      ]
+      "values": ["informational", "warning", "critical"]
     },
     "public.backoffice_rate_limit_key_kind": {
       "name": "backoffice_rate_limit_key_kind",
       "schema": "public",
-      "values": [
-        "session",
-        "source_address"
-      ]
+      "values": ["session", "source_address"]
     },
     "public.caea_code_origin": {
       "name": "caea_code_origin",
       "schema": "public",
-      "values": [
-        "requested",
-        "recovered"
-      ]
+      "values": ["requested", "recovered"]
     },
     "public.change_op": {
       "name": "change_op",
       "schema": "public",
-      "values": [
-        "insert",
-        "update",
-        "delete"
-      ]
+      "values": ["insert", "update", "delete"]
     },
     "public.installation_request_endpoint": {
       "name": "installation_request_endpoint",
       "schema": "public",
-      "values": [
-        "push",
-        "pull",
-        "health_check",
-        "fiscal_authorize",
-        "payment_order"
-      ]
+      "values": ["push", "pull", "health_check", "fiscal_authorize", "payment_order"]
     },
     "public.installation_revocation_reason": {
       "name": "installation_revocation_reason",
       "schema": "public",
-      "values": [
-        "replaced",
-        "outbox_chain_broken"
-      ]
+      "values": ["replaced", "outbox_chain_broken"]
     },
     "public.offline_number_block_status": {
       "name": "offline_number_block_status",
       "schema": "public",
-      "values": [
-        "in_use"
-      ]
+      "values": ["in_use"]
     },
     "public.passkey_management_challenge_kind": {
       "name": "passkey_management_challenge_kind",
       "schema": "public",
-      "values": [
-        "registration",
-        "session_authorization"
-      ]
+      "values": ["registration", "session_authorization"]
     },
     "public.pin_code_redemption_attempt_key_kind": {
       "name": "pin_code_redemption_attempt_key_kind",
       "schema": "public",
-      "values": [
-        "source_address",
-        "register"
-      ]
+      "values": ["source_address", "register"]
     },
     "public.point_of_sale_mechanism": {
       "name": "point_of_sale_mechanism",
       "schema": "public",
-      "values": [
-        "real_time",
-        "offline"
-      ]
+      "values": ["real_time", "offline"]
     },
     "public.recovery_rate_limit_key_kind": {
       "name": "recovery_rate_limit_key_kind",
       "schema": "public",
-      "values": [
-        "destination_address",
-        "source_address",
-        "redemption_source_address"
-      ]
+      "values": ["destination_address", "source_address", "redemption_source_address"]
     },
     "public.recovery_rejected_attempt_kind": {
       "name": "recovery_rejected_attempt_kind",
       "schema": "public",
-      "values": [
-        "request",
-        "registration_options",
-        "redeem"
-      ]
+      "values": ["request", "registration_options", "redeem"]
     },
     "public.register_enrollment_attempt_key_kind": {
       "name": "register_enrollment_attempt_key_kind",
       "schema": "public",
-      "values": [
-        "source_address",
-        "register"
-      ]
+      "values": ["source_address", "register"]
     }
   },
   "schemas": {},
