@@ -13,6 +13,7 @@ export interface ScrubbedRecording {
 export const FICTIONAL_CERTIFICATE_CUIT_DIGITS = "20123456786";
 const FICTIONAL_CERTIFICATE_CUIT_DASHED = `${FICTIONAL_CERTIFICATE_CUIT_DIGITS.slice(0, 2)}-${FICTIONAL_CERTIFICATE_CUIT_DIGITS.slice(2, 10)}-${FICTIONAL_CERTIFICATE_CUIT_DIGITS.slice(10)}`;
 export const FICTIONAL_AUTHORIZATION_CODE = "74123456789012";
+export const FICTIONAL_OFFLINE_AUTHORIZATION_CODE = "36123456789012";
 const FICTIONAL_DESTINATION = `SERIALNUMBER=CUIT ${FICTIONAL_CERTIFICATE_CUIT_DIGITS}, CN=comercio-de-prueba`;
 
 // ARCA answers a ticket as XML escaped inside the loginCmsReturn element, so each pattern reads
@@ -68,6 +69,11 @@ export function scrubArcaRecording(raw: string): ScrubbedRecording {
     "CAE",
     /(<CAE>)\d{14}(<\/CAE>)/g,
     (_all, open = "", close = "") => `${open}${FICTIONAL_AUTHORIZATION_CODE}${close}`,
+  );
+  apply(
+    "CAEA",
+    /(<CAEA>)\d{14}(<\/CAEA>)/g,
+    (_all, open = "", close = "") => `${open}${FICTIONAL_OFFLINE_AUTHORIZATION_CODE}${close}`,
   );
   apply("CUIT", CUIT_PATTERN, (_all, dash = "") =>
     dash ? FICTIONAL_CERTIFICATE_CUIT_DASHED : FICTIONAL_CERTIFICATE_CUIT_DIGITS,
