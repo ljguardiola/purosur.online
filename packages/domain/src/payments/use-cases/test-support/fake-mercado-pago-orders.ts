@@ -1,5 +1,6 @@
 import type { MercadoPagoQrOrderTransaction } from "../../model/payment-transaction.js";
 import type {
+  MercadoPagoOrderCancellation,
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
   MercadoPagoOrders,
@@ -11,12 +12,17 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   readonly longestCallMs = 10_000;
   readonly creationRequests: MercadoPagoQrOrderRequest[] = [];
   readonly readOrders: string[] = [];
+  readonly cancellations: { orderId: string; idempotencyKey: string | undefined }[] = [];
   heldLaneDuringCall: boolean | undefined;
   transactionsRecordedDuringCall: string[] | undefined;
   recordedDuringCreation: MercadoPagoQrOrderTransaction | undefined;
   creationStopsMidway = false;
   creation: MercadoPagoOrderCreation;
   reading: MercadoPagoOrderReading;
+  cancellation: MercadoPagoOrderCancellation = {
+    kind: "cancelled",
+    result: { status: "canceled", statusDetail: "canceled", totalPaidAmount: null, payments: [] },
+  };
   readonly readingsByOrder = new Map<string, MercadoPagoOrderReading>();
   private readonly lanes: FakePaymentTransactionLanes;
 
@@ -46,6 +52,13 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
     this.readOrders.push(orderId);
     this.observeLane();
     return this.readingsByOrder.get(orderId) ?? this.reading;
+  }
+
+  async cancelOrder(orderId: string, idempotencyKey?: string): Promise<MercadoPagoOrderCancellation> {
+    this.lanes.operations.push("cancelOrder");
+    this.cancellations.push({ orderId, idempotencyKey });
+    this.observeLane();
+    return this.cancellation;
   }
 
   private observeLane() {

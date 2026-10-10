@@ -1,4 +1,5 @@
 import type {
+  MercadoPagoOrderCancellation,
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
   MercadoPagoOrders,
@@ -22,12 +23,21 @@ export const PAID_ORDER = {
   payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 5000 }],
 } as const;
 
+export const CANCELLED_ORDER = {
+  status: "canceled",
+  statusDetail: "canceled",
+  totalPaidAmount: null,
+  payments: [{ status: "canceled", statusDetail: "canceled_by_api", paidAmount: null }],
+} as const;
+
 export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   readonly longestCallMs = 10_000;
   readonly creations: MercadoPagoQrOrderRequest[] = [];
   readonly readings: string[] = [];
+  readonly cancellations: { orderId: string; idempotencyKey: string | undefined }[] = [];
   creation: MercadoPagoOrderCreation = { kind: "created", orderId: ORDER_ID, result: UNPAID_ORDER };
   reading: MercadoPagoOrderReading = { kind: "read", result: UNPAID_ORDER };
+  cancellation: MercadoPagoOrderCancellation = { kind: "cancelled", result: CANCELLED_ORDER };
 
   async createQrOrder(request: MercadoPagoQrOrderRequest): Promise<MercadoPagoOrderCreation> {
     this.creations.push(request);
@@ -37,5 +47,10 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   async readOrder(orderId: string): Promise<MercadoPagoOrderReading> {
     this.readings.push(orderId);
     return this.reading;
+  }
+
+  async cancelOrder(orderId: string, idempotencyKey?: string): Promise<MercadoPagoOrderCancellation> {
+    this.cancellations.push({ orderId, idempotencyKey });
+    return this.cancellation;
   }
 }
