@@ -247,6 +247,33 @@ describe("DrizzleAlertReader listVisibleAlerts", () => {
     );
   });
 
+  it("finds a register's fortnight alert by the register's name", async () => {
+    const [register] = await db
+      .insert(registers)
+      .values({ locationId: ownLocationId, name: "Caja Lucía" })
+      .returning({ id: registers.id });
+    if (!register) {
+      throw new Error("test setup: inserting the register returned no row");
+    }
+    const byRegister = await insertAlert({
+      kind: "offline_authorization_code_missing",
+      scope: `${register.id}:2026-01-16`,
+    });
+    await insertAlert({
+      kind: "offline_authorization_code_missing",
+      scope: `${crypto.randomUUID()}:2026-01-16`,
+    });
+    const reader = new DrizzleAlertReader(db);
+
+    const page = await reader.listVisibleAlerts(
+      ALL,
+      { search: { text: "lucía", kindsWithMatchingTitle: [] } },
+      1,
+    );
+
+    expect(page.alerts.map((a) => a.id)).toEqual([byRegister]);
+  });
+
   it("treats the search text literally, not as a pattern", async () => {
     const percent = await insertUser("100% Real");
     await insertUser("Someone else");
