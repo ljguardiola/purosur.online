@@ -23,12 +23,20 @@ function setup(initial: {
     registered: initial.registered ?? { scale: SCALE, reader: READER },
     detected: initial.detected ?? [],
     enumerationFailure: undefined as Error | undefined,
+    registrationsFailure: undefined as Error | undefined,
   };
   const pending: { run: () => Promise<void>; delayMs: number; cancelled: boolean }[] = [];
   const onChange = vi.fn();
   const onFailure = vi.fn();
   const watch = createSerialDeviceWatch({
-    registrations: { registeredSerialDevices: () => world.registered },
+    registrations: {
+      registeredSerialDevices: () => {
+        if (world.registrationsFailure !== undefined) {
+          throw world.registrationsFailure;
+        }
+        return world.registered;
+      },
+    },
     enumeration: {
       detectedSerialDevices: async () => {
         if (world.enumerationFailure !== undefined) {
@@ -308,5 +316,39 @@ describe("watching the registered serial devices", () => {
     world.enumerationFailure = new Error("the ports could not be listed again");
     await runNextCheck();
     expect(onFailure).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports a registrations read that fails once, reads every role as unknown, and goes on checking", async () => {
+    const { watch, world, onFailure, onChange, nextCheck, runNextCheck } = setup({
+      detected: [{ path: "COM3", identity: SCALE }],
+    });
+    await watch.start();
+    onChange.mockClear();
+    const failure = new Error("the registrations could not be read");
+
+    world.registrationsFailure = failure;
+    await runNextCheck();
+    await runNextCheck();
+    expect(onFailure).toHaveBeenCalledExactlyOnceWith(failure);
+    expect(watch.reading()).toEqual({ kind: "unreadable" });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(nextCheck()?.delayMs).toBe(INTERVAL_MS);
+
+    world.registrationsFailure = undefined;
+    world.detected = [{ path: "COM8", identity: SCALE }];
+    await watch.checkNow();
+    expect(standingsOf(watch).scale).toEqual({ kind: "matching", path: "COM8" });
+    expect(onChange).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads every role as unknown, without throwing, while neither a listing nor the registrations could be read", async () => {
+    const { watch, world, onFailure } = setup({});
+    world.registrationsFailure = new Error("the registrations could not be read");
+    world.enumerationFailure = new Error("the ports could not be listed");
+
+    await watch.start();
+
+    expect(onFailure).toHaveBeenCalledTimes(1);
+    expect(watch.reading()).toEqual({ kind: "unreadable" });
   });
 });
