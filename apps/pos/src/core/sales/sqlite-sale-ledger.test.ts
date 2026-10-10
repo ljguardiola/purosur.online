@@ -739,7 +739,7 @@ describe("charging an open sale in cash", () => {
     const stored = database
       .prepare("SELECT id, sale_line_id, product_id, delta FROM stock_movements")
       .all();
-    expect(event.schema_version).toBe(4);
+    expect(event.schema_version).toBe(5);
     expect(JSON.parse(event.payload).stock_movements).toEqual(
       (stored as { id: string; sale_line_id: string; product_id: string; delta: number }[]).map(
         (row) => ({ ...row }),

@@ -287,6 +287,24 @@ describe("a receipt ledger's source of a sale", () => {
   });
 });
 
+describe("a receipt ledger's payments", () => {
+  it("hold a Mercado Pago QR payment with nothing tendered", () => {
+    insertSaleWithEverything();
+    database.exec(
+      `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at)
+       VALUES ('pay-3', 'sale-1', 'SALE', 'QR', 'MERCADOPAGO_QR', 100000, 'APPROVED', '${COMPLETED_AT}', '${COMPLETED_AT}');`,
+    );
+
+    const source = inTransaction((tx) => tx.receiptSource("sale-1"));
+
+    expect(source?.payments).toEqual([
+      { method: "CASH", amount: 500000, tendered: 600000 },
+      { method: "TRANSFER", amount: 237100, tendered: null },
+      { method: "QR", amount: 100000, tendered: null },
+    ]);
+  });
+});
+
 describe("a receipt ledger's lines", () => {
   it("are read with the unit each was sold by, whatever unit the catalog sells the product by now", () => {
     insertSaleWithEverything();

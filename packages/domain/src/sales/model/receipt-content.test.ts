@@ -109,6 +109,15 @@ describe("receiptContent", () => {
     ]);
   });
 
+  it("lists a Mercado Pago QR payment by its method and gives no change for it", () => {
+    const { totals } = receiptContent(
+      source({ payments: [{ method: "QR", amount: 11250, tendered: null }] }),
+    );
+
+    expect(totals.payments).toEqual([{ method: "QR", amount: 11250 }]);
+    expect(totals.change).toBe(0);
+  });
+
   it("gives as change what was tendered in cash beyond the cash payments", () => {
     const { totals } = receiptContent(
       source({

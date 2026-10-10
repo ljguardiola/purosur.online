@@ -209,6 +209,54 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 
+  it("reads a version 5 sale with its Mercado Pago QR payment as an approved payment without a tendered amount or an authorizer", () => {
+    const qrPayment = {
+      ...salePayment,
+      id: "01a1122a-0305-7189-87d0-9a1b2c3d4e60",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      tendered: null,
+      authorized_by: null,
+      confirmed_at: null,
+    };
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          schema_version: 5,
+          payload: {
+            ...saleFields,
+            operation_number: 483,
+            payments: [qrPayment],
+            stock_movements: [],
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toMatchObject({
+      kind: "fact",
+      fact: {
+        kind: "sale_completed",
+        sale: {
+          operationNumber: 483,
+          stockMovements: [],
+          payments: [
+            {
+              id: qrPayment.id,
+              method: "QR",
+              provider: "MERCADOPAGO_QR",
+              amount: 5000,
+              tendered: null,
+              state: "APPROVED",
+              authorizedBy: null,
+              confirmedAt: null,
+            },
+          ],
+        },
+      },
+    });
+  });
+
   it.each([1, 2, 3])("reads a version %s sale as one with no operation number", (version) => {
     const decoded = upcaster.decode(
       unappliedEventOf(
