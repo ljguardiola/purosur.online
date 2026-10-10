@@ -40,6 +40,7 @@ import {
   priceReviews,
   prices,
   productBarcodes,
+  productPackagings,
   products,
   productTags,
   recoveryRateLimitAttempts,
@@ -66,6 +67,7 @@ import {
   stockBalances,
   stockCounts,
   stockMovements,
+  suppliers,
   tags,
   taxAuthorityLastAuthorizedNumbers,
   userPinCodes,
@@ -557,6 +559,14 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       saleEvent: { event_type: "sale_completed" },
       receivedAt: new Date("2026-01-05T12:00:00.000Z"),
       notAfter: new Date("2026-01-05T12:00:04.000Z"),
+    });
+    await db.insert(suppliers).values({ name: "Distribuidora Sur", actorId: user.id });
+    await db.insert(productPackagings).values({
+      productId: product.id,
+      name: "Caja x 12",
+      quantityPerPackage: 12,
+      saleUnit: "UNIT",
+      actorId: user.id,
     });
     await db.insert(paymentTransactions).values({
       id: "00000000-0000-4000-8000-000000000103",

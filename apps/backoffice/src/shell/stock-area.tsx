@@ -1,7 +1,9 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { ArrowDownUp, ClipboardCheck, Scale } from "lucide-react";
+import { ArrowDownUp, ClipboardCheck, Package, Scale, Truck } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import {
+  canManagePurchasePackagings,
+  canManageSuppliers,
   canPerformStockCounts,
   canSeeStockBalances,
   canSeeStockMovements,
@@ -20,6 +22,8 @@ function StockArea() {
   const balancesShown = Boolean(matchRoute({ to: "/inventory" }));
   const countsShown = Boolean(matchRoute({ to: "/inventory-counts" }));
   const movementsShown = Boolean(matchRoute({ to: "/inventory-adjustments" }));
+  const suppliersShown = Boolean(matchRoute({ to: "/suppliers" }));
+  const packagingsShown = Boolean(matchRoute({ to: "/purchase-packagings" }));
   return (
     <AreaLayout
       area="stock"
@@ -59,6 +63,28 @@ function StockArea() {
                   icon={<ArrowDownUp />}
                   search={movementsShown ? true : {}}
                   active={movementsShown}
+                />
+              </li>
+            )}
+            {canManageSuppliers(session) && (
+              <li>
+                <SectionLink
+                  to="/suppliers"
+                  label="Proveedores"
+                  icon={<Truck />}
+                  search={suppliersShown ? true : {}}
+                  active={suppliersShown}
+                />
+              </li>
+            )}
+            {canManagePurchasePackagings(session) && (
+              <li>
+                <SectionLink
+                  to="/purchase-packagings"
+                  label="Presentaciones de compra"
+                  icon={<Package />}
+                  search={packagingsShown ? true : {}}
+                  active={packagingsShown}
                 />
               </li>
             )}

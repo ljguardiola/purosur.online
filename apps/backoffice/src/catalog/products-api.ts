@@ -61,6 +61,7 @@ export type EditProductOutcome =
   | { kind: "brand_inactive" }
   | { kind: "tag_inactive"; tagId: string }
   | { kind: "sale_unit_held_by_discount"; discountName: string }
+  | { kind: "sale_unit_held_by_packaging"; packagingName: string }
   | { kind: "internal_barcode_on_product_with_barcodes" }
   | { kind: "stale_version" }
   | { kind: "not_found" }
@@ -284,7 +285,13 @@ export async function editProduct(
   }
   if (response.status === 409) {
     const body = (await response.json().catch(() => undefined)) as
-      | { code?: string; codes?: unknown; tagId?: unknown; discountName?: unknown }
+      | {
+          code?: string;
+          codes?: unknown;
+          tagId?: unknown;
+          discountName?: unknown;
+          packagingName?: unknown;
+        }
       | undefined;
     if (body?.code === "stale_version") {
       return { kind: "stale_version" };
@@ -306,6 +313,11 @@ export async function editProduct(
     if (body?.code === "sale_unit_held_by_discount") {
       return typeof body.discountName === "string"
         ? { kind: "sale_unit_held_by_discount", discountName: body.discountName }
+        : { kind: "failed" };
+    }
+    if (body?.code === "sale_unit_held_by_packaging") {
+      return typeof body.packagingName === "string"
+        ? { kind: "sale_unit_held_by_packaging", packagingName: body.packagingName }
         : { kind: "failed" };
     }
     const codes = Array.isArray(body?.codes)
