@@ -66,12 +66,12 @@ export function registerMercadoPagoNotificationRoutes<TQueryResult extends PgQue
         return;
       }
 
-      const dataId = queryValue(request.query, "data.id");
-      const signed = verifyMercadoPagoNotificationSignature({
+      const type = queryValue(request.query, "type");
+      const signature = verifyMercadoPagoNotificationSignature({
         secret: webhookSecret,
         signatureHeader: headerValue(request.headers["x-signature"]),
         requestId: headerValue(request.headers["x-request-id"]),
-        dataId,
+        dataId: queryValue(request.query, "data.id"),
       });
       const admitted = await admitPaymentNotification(admission, {
         sourceAddress: resolveSourceAddress(request),
@@ -81,20 +81,23 @@ export function registerMercadoPagoNotificationRoutes<TQueryResult extends PgQue
         return;
       }
 
-      if (!signed || dataId === undefined) {
-        console.warn("discarded a Mercado Pago notification with an invalid signature");
+      if (signature.kind === "refused") {
+        console.warn("discarded a Mercado Pago notification with an invalid signature", {
+          reason: signature.reason,
+          type,
+        });
         await reply.code(401).send();
         return;
       }
 
-      if (queryValue(request.query, "type") !== ORDER_NOTIFICATION_TYPE) {
+      if (type !== ORDER_NOTIFICATION_TYPE) {
         await reply.code(200).send();
         return;
       }
 
       const outcome = await confirmMercadoPagoOrderNotification(
         { directory, lanes, mercadoPago, clock },
-        { providerOrderId: dataId },
+        { providerOrderId: signature.dataId },
       );
       if (outcome.kind === "provider_unavailable") {
         await reply.code(cloudErrorStatus(PROVIDER_UNAVAILABLE.code)).send(PROVIDER_UNAVAILABLE);
