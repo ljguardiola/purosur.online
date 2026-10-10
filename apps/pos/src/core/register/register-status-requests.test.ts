@@ -1,6 +1,7 @@
 import {
   argentinaInstant,
   type DetectedSerialDevice,
+  type RegisteredSerialDevices,
   type SerialDeviceRole,
   type SerialDeviceStanding,
 } from "@purosur/domain";
@@ -76,9 +77,12 @@ function status(
   });
 }
 
-function watchListingWith(detectedSerialDevices: () => Promise<DetectedSerialDevice[]>) {
+function watchListingWith(
+  detectedSerialDevices: () => Promise<DetectedSerialDevice[]>,
+  registeredSerialDevices: () => RegisteredSerialDevices = () => ({ scale: SCALE }),
+) {
   return createSerialDeviceWatch({
-    registrations: { registeredSerialDevices: () => ({ scale: SCALE }) },
+    registrations: { registeredSerialDevices },
     enumeration: { detectedSerialDevices },
     intervalMs: 3000,
     scheduleNext: () => () => undefined,
@@ -229,6 +233,25 @@ describe("the register's status", () => {
       conditions: ["sales_denied"],
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "not_registered" },
+    });
+  });
+
+  it("answers with its other conditions and every device unknown while the registered devices cannot be read", async () => {
+    stopOpeningNewSales(database, "event_history_broken", NOW);
+    const watch = watchListingWith(
+      async () => {
+        throw new Error("the ports could not be listed");
+      },
+      () => {
+        throw new Error("the registrations could not be read");
+      },
+    );
+    await watch.start();
+
+    expect(await statusWatchedBy(watch)).toEqual({
+      conditions: ["sales_denied"],
+      cloud: "unknown",
+      serial_devices: { scale: "unknown", reader: "unknown" },
     });
   });
 });
