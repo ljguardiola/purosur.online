@@ -288,20 +288,6 @@ describe("PUT /registers/:id/offline-point-of-sale", () => {
     );
   });
 
-  it("assigns the first block right after the number the tax authority last authorized", async () => {
-    const registerId = await insertRegister("Caja 1");
-    const session = await sessionWith(["change_fiscal_configuration"]);
-    await giveRealTimePointOfSale(registerId, 7, session.headers);
-    await holdTaxAuthorityCount(8, 37);
-
-    await configureOffline(registerId, bodyFor(), session.headers);
-
-    expect(await db.select().from(offlineNumberBlocks)).toMatchObject([
-      { pointOfSaleNumber: 8, firstNumber: 38, lastNumber: 1037 },
-    ]);
-    expect(enqueuedCounts).toEqual([]);
-  });
-
   it("answers 200 with no block, and asks for the tax authority's count, while the cloud holds none", async () => {
     const registerId = await insertRegister("Caja 1");
     const session = await sessionWith(["change_fiscal_configuration"]);

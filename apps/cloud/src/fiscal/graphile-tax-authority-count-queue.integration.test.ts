@@ -1,4 +1,5 @@
 import {
+  assignAwaitedOfflineNumberBlock,
   configureRegisterOfflinePointOfSale,
   configureRegisterPointOfSale,
 } from "@purosur/domain/fiscal/use-cases";
@@ -222,6 +223,44 @@ describe("the tax authority count jobs on a real Postgres", () => {
     await enqueueMissingTaxAuthorityCounts(db);
 
     expect((await pendingCountJobs()).map((job) => job.pointOfSale)).toEqual([31, 33]);
+  });
+
+  it("enqueues, at startup, the count of every offline point of sale whose count is held but that has no number block", async () => {
+    const { locationId, actorId, fiscalAddressId, registerIds } = await seedRegisters(2);
+    const offlineStore = new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOW);
+    for (const [index, registerId] of registerIds.entries()) {
+      await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOW), {
+        locationId,
+        registerId,
+        pointOfSaleNumber: 51 + index,
+        fiscalAddressId,
+        version: 0,
+        actorId,
+      });
+      await configureRegisterOfflinePointOfSale(offlineStore, {
+        locationId,
+        registerId,
+        pointOfSaleNumber: 53 + index,
+        version: 0,
+        actorId,
+      });
+    }
+    await db.insert(taxAuthorityLastAuthorizedNumbers).values(
+      [51, 52, 53, 54].map((pointOfSaleNumber) => ({
+        pointOfSaleNumber,
+        lastAuthorized: 7,
+        readAt: NOW,
+      })),
+    );
+    const assigned = await assignAwaitedOfflineNumberBlock(offlineStore, {
+      pointOfSaleNumber: 54,
+    });
+
+    await enqueueMissingTaxAuthorityCounts(db);
+    await enqueueMissingTaxAuthorityCounts(db);
+
+    expect(assigned.kind).toBe("assigned");
+    expect((await pendingCountJobs()).map((job) => job.pointOfSale)).toEqual([53]);
   });
 
   describe("when an offline point of sale is configured with no count held", () => {
