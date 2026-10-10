@@ -46,7 +46,9 @@ export function addProductToSale(
       : { kind: "no_price", productName: product.name };
   }
   const { existing } = addition;
-  const line = existing?.lines.find((candidate) => candidate.productId === product.id);
+  const line = existing?.lines.find(
+    (candidate) => candidate.productId === product.id && candidate.saleUnit === "UNIT",
+  );
   if (existing && line) {
     const updated = addUnitToLine(line);
     if (!mayBeSaleLineQuantity(updated.quantity, "UNIT")) {

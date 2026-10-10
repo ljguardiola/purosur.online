@@ -23,7 +23,11 @@ export function formatAmountInput(cents: number): string {
 }
 
 export function formatWeight(thousandths: number): string {
-  return `${formatNumber(thousandths / 1000, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg`;
+  return `${formatWeightInput(thousandths)} kg`;
+}
+
+export function formatWeightInput(thousandths: number): string {
+  return formatNumber(thousandths / 1000, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 }
 
 export function formatPointOfSaleNumber(number: number): string {

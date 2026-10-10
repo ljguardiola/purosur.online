@@ -174,6 +174,7 @@ export {
   formatPointOfSaleNumber,
   formatTimeAgo,
   formatWeight,
+  formatWeightInput,
   parsePointOfSaleNumber,
   plural,
 } from "./messages/formatters";

@@ -52,9 +52,8 @@ function SaleLineRow({
           {line.product_name}
         </span>
         {line.sale_unit === "KG" ? (
-          <span className="flex items-center gap-2 text-detail text-text-subtle">
-            <span>{formatCents(line.list_unit_price)} el kg</span>
-            {line.weight_source === "MANUAL" ? <Tag tone="neutral">Peso tipeado</Tag> : null}
+          <span className="text-detail text-text-subtle">
+            {formatCents(line.list_unit_price)} el kg
           </span>
         ) : null}
         {line.promotion === null ? null : (

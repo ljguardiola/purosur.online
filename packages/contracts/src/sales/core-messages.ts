@@ -49,7 +49,7 @@ const changeLineQuantityMessageSchema = z.object({
   expected_quantity: shownLineQuantitySchema,
 });
 
-const changeLineWeightMessageSchema = z.object({
+export const changeLineWeightMessageSchema = z.object({
   type: z.literal("change-line-weight"),
   request_id: requestId,
   line_id: z.string(),
@@ -87,7 +87,7 @@ const addProductMessageSchema = z.object({
   product_id: z.string(),
 });
 
-const addWeighedProductMessageSchema = z.object({
+export const addWeighedProductMessageSchema = z.object({
   type: z.literal("add-weighed-product"),
   request_id: requestId,
   product_id: z.string(),

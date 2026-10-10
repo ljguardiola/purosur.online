@@ -1,10 +1,13 @@
-import { saleLineWeightSchema } from "@purosur/contracts";
-import { formatNumber, parseWeightThousandths } from "@purosur/ui";
-import { z } from "zod";
+import { addWeighedProductMessageSchema, changeLineWeightMessageSchema } from "@purosur/contracts";
+import { parseWeightThousandths } from "@purosur/ui";
 
-export const weightRequestSchema = z.object({ weight_thousandths: saleLineWeightSchema });
+export const addWeighedProductRequestSchema = addWeighedProductMessageSchema.pick({
+  weight_thousandths: true,
+});
 
-export const INVALID_WEIGHT_MESSAGE = "Ingresá un peso mayor a 0 kg, con hasta 3 decimales.";
+export const changeLineWeightRequestSchema = changeLineWeightMessageSchema.pick({
+  weight_thousandths: true,
+});
 
 export type WeightFormValues = { weight: string };
 
@@ -14,6 +17,13 @@ export function weightRequestFrom({ weight }: WeightFormValues): { weight_thousa
   return { weight_thousandths: parseWeightThousandths(weight) ?? Number.NaN };
 }
 
-export function weightFieldText(thousandths: number): string {
-  return formatNumber(thousandths / 1000, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+type WeightRequestSchema =
+  | typeof addWeighedProductRequestSchema
+  | typeof changeLineWeightRequestSchema;
+
+export function weightMessage(schema: WeightRequestSchema, values: WeightFormValues): string {
+  const request = weightRequestFrom(values);
+  return request.weight_thousandths > 0 && !schema.safeParse(request).success
+    ? "El peso supera el máximo de una línea."
+    : "Ingresá un peso mayor a 0 kg, con hasta 3 decimales.";
 }

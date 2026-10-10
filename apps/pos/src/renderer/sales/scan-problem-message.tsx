@@ -5,7 +5,7 @@ import type {
 } from "@purosur/contracts";
 import { ElevatedNotice } from "@purosur/ui";
 import type { LucideIcon } from "lucide-react";
-import { Ban, Lock, PackageX, ScanBarcode, Tag, TriangleAlert } from "lucide-react";
+import { Ban, Lock, PackageX, Scale, ScanBarcode, Tag, TriangleAlert } from "lucide-react";
 
 export type ScanProblem =
   | Extract<
@@ -20,6 +20,7 @@ export type ScanProblem =
           | "installation_revoked";
       }
     >
+  | { kind: "not_sold_by_weight"; product_name: string }
   | { kind: "scan_failed" }
   | { kind: "add_failed" }
   | { kind: "search_failed" }
@@ -45,6 +46,12 @@ export function messageFor(problem: ScanProblem): Message {
         icon: PackageX,
         title: "Ese producto ya no se vende",
         help: "Buscalo de nuevo por nombre.",
+      };
+    case "not_sold_by_weight":
+      return {
+        icon: Scale,
+        title: `${problem.product_name} ya no se vende por kilo`,
+        help: "Escanealo o buscalo de nuevo para agregarlo.",
       };
     case "no_price":
       return {

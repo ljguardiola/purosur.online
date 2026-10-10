@@ -2,38 +2,39 @@ import { Button, fieldErrorMessage, Modal, TextField, useRequestForm } from "@pu
 import { Check, Scale } from "lucide-react";
 import { useEffect, useRef } from "react";
 import {
+  addWeighedProductRequestSchema,
   EMPTY_WEIGHT_FORM,
-  INVALID_WEIGHT_MESSAGE,
-  weightFieldText,
+  weightMessage,
   weightRequestFrom,
-  weightRequestSchema,
 } from "./weight-form";
 
-export type WeightModalProps = {
+export type AddWeighedProductModalProps = {
   productName: string;
-  currentWeight: number | undefined;
-  confirm: (weightThousandths: number) => Promise<"invalid_weight" | "done">;
+  addWeighedProduct: (weightThousandths: number) => Promise<"invalid_weight" | "done">;
   onClose: () => void;
 };
 
-export function WeightModal({ productName, currentWeight, confirm, onClose }: WeightModalProps) {
+export function AddWeighedProductModal({
+  productName,
+  addWeighedProduct,
+  onClose,
+}: AddWeighedProductModalProps) {
   const content = useRef<HTMLFormElement>(null);
-  const changing = currentWeight !== undefined;
   const { form, submit, submitting } = useRequestForm({
-    defaultValues: changing ? { weight: weightFieldText(currentWeight) } : EMPTY_WEIGHT_FORM,
-    request: { schema: weightRequestSchema, from: weightRequestFrom },
+    defaultValues: EMPTY_WEIGHT_FORM,
+    request: { schema: addWeighedProductRequestSchema, from: weightRequestFrom },
     fields: { weight_thousandths: "weight" },
-    messages: { weight: INVALID_WEIGHT_MESSAGE },
-    onSubmit: async (request, { showFieldError }) => {
-      const answer = await confirm(request.weight_thousandths);
+    messages: { weight: (values) => weightMessage(addWeighedProductRequestSchema, values) },
+    onSubmit: async (request, { values, showFieldError }) => {
+      const answer = await addWeighedProduct(request.weight_thousandths);
       if (answer === "invalid_weight") {
-        showFieldError("weight", INVALID_WEIGHT_MESSAGE);
+        showFieldError("weight", weightMessage(addWeighedProductRequestSchema, values));
       }
     },
   });
 
   useEffect(() => {
-    content.current?.querySelector("input")?.select();
+    content.current?.querySelector("input")?.focus();
   }, []);
 
   return (
@@ -47,7 +48,7 @@ export function WeightModal({ productName, currentWeight, confirm, onClose }: We
       width="standard"
       tone="info"
       icon={<Scale />}
-      title={changing ? `Cambiar el peso de ${productName}` : `Peso de ${productName}`}
+      title={`Peso de ${productName}`}
       closable={!submitting}
       footer={
         <>
@@ -61,7 +62,7 @@ export function WeightModal({ productName, currentWeight, confirm, onClose }: We
             dataStatus={submitting ? "loading" : "loaded"}
             onPress={() => void submit()}
           >
-            {changing ? "Cambiar peso" : "Agregar"}
+            Agregar
           </Button>
         </>
       }

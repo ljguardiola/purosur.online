@@ -30,8 +30,10 @@ import { OpenSessionRail } from "../shell/open-session-rail";
 import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
 import type { Refund } from "../shell/refund-lines";
 import type { SignedInPerson } from "../shell/signed-in-person";
+import { AddWeighedProductModal } from "./add-weighed-product-modal";
 import { CancelPaidSaleModal } from "./cancel-paid-sale-modal";
 import { CancelSaleModal } from "./cancel-sale-modal";
+import { ChangeLineWeightModal } from "./change-line-weight-modal";
 import { changedLineId } from "./changed-line";
 import { PaymentPanel } from "./payment-panel";
 import type { SearchResults } from "./product-search-results";
@@ -46,7 +48,6 @@ import {
 } from "./sales-queries";
 import type { ScanProblem } from "./scan-problem-message";
 import { messageFor, ScanProblemMessage } from "./scan-problem-message";
-import { WeightModal } from "./weight-modal";
 
 export type SaleScreenProps = {
   sessionId: string;
@@ -275,11 +276,11 @@ export function SaleScreen({
       return "invalid_weight";
     }
     askForWeight(undefined);
-    await take(
-      asked.submitted,
-      outcome.kind === "not_sold_by_weight" ? { kind: "product_unavailable" } : outcome,
-      { kind: "add_failed" },
-    );
+    if (outcome.kind === "not_sold_by_weight") {
+      refuse(asked.submitted, { kind: "not_sold_by_weight", product_name: asked.productName });
+    } else {
+      await take(asked.submitted, outcome, { kind: "add_failed" });
+    }
     return "done";
   }
 
@@ -557,18 +558,21 @@ export function SaleScreen({
         onClose={() => askToCancel(false)}
         onCancelSale={() => void edit(cancelSale, { kind: "cancel_failed" })}
       />
-      {weighing === undefined ? null : (
-        <WeightModal
-          productName={weighing.kind === "add" ? weighing.productName : weighing.line.product_name}
-          currentWeight={weighing.kind === "change" ? weighing.line.quantity : undefined}
-          confirm={(weight) =>
-            weighing.kind === "add"
-              ? addWithWeight(weighing, weight)
-              : changeWeight(weighing.line, weight)
-          }
+      {weighing?.kind === "add" ? (
+        <AddWeighedProductModal
+          productName={weighing.productName}
+          addWeighedProduct={(weight) => addWithWeight(weighing, weight)}
           onClose={() => askForWeight(undefined)}
         />
-      )}
+      ) : null}
+      {weighing?.kind === "change" ? (
+        <ChangeLineWeightModal
+          productName={weighing.line.product_name}
+          currentWeight={weighing.line.quantity}
+          changeLineWeight={(weight) => changeWeight(weighing.line, weight)}
+          onClose={() => askForWeight(undefined)}
+        />
+      ) : null}
       {confirmingPaidCancel && sale !== null ? (
         <CancelPaidSaleModal
           saleId={sale.id}
