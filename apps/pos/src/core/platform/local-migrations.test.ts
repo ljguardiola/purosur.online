@@ -870,6 +870,7 @@ describe("the register's local migrations", () => {
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
+        "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -925,6 +926,7 @@ describe("the register's local migrations", () => {
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
+        "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -975,6 +977,7 @@ describe("the register's local migrations", () => {
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
+        "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1024,6 +1027,7 @@ describe("the register's local migrations", () => {
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
+        "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1100,6 +1104,7 @@ describe("the register's local migrations", () => {
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
+        "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1168,6 +1173,7 @@ describe("the register's local migrations", () => {
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
+        "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1240,6 +1246,7 @@ describe("the register's local migrations", () => {
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
+        "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1295,6 +1302,7 @@ describe("the register's local migrations", () => {
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
+        "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1342,6 +1350,7 @@ describe("the register's local migrations", () => {
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
         "0029_register_offline_point_of_sale",
+        "0031_receipt_printer",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1697,6 +1706,67 @@ describe("the register's local migrations", () => {
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }
+  });
+
+  it("add the receipt printer's address with no address set over the register that already holds data", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0031_receipt_printer",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain("0031_receipt_printer");
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.prepare("UPDATE sync_state SET pull_cursor = 9 WHERE id = 1").run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT * FROM receipt_printer").all()).toEqual([]);
+      expect(after.prepare("SELECT pull_cursor FROM sync_state").get()).toEqual({
+        pull_cursor: 9,
+      });
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  describe("the receipt printer's address", () => {
+    function insert(values: { id?: number; host?: string | null; port?: number | null }) {
+      const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+      const run = () =>
+        database
+          .prepare("INSERT INTO receipt_printer (id, host, port) VALUES (@id, @host, @port)")
+          .run({ id: 1, host: "10.10.10.2", port: null, ...values });
+      return { database, run };
+    }
+
+    it("holds one address, with or without a port", () => {
+      const withoutPort = insert({});
+      const withPort = insert({ port: 9100 });
+
+      expect(withoutPort.run).not.toThrow();
+      expect(withPort.run).not.toThrow();
+      withoutPort.database.close();
+      withPort.database.close();
+    });
+
+    it("refuses a second address, a missing host and a port outside 1 to 65535", () => {
+      const held = insert({});
+      held.run();
+
+      expect(() =>
+        held.database
+          .prepare("INSERT INTO receipt_printer (id, host, port) VALUES (2, 'printer', NULL)")
+          .run(),
+      ).toThrow(/CHECK/);
+      expect(insert({ host: null }).run).toThrow(/NOT NULL/);
+      expect(insert({ port: 0 }).run).toThrow(/CHECK/);
+      expect(insert({ port: 65536 }).run).toThrow(/CHECK/);
+      expect(insert({ port: 65535 }).run).not.toThrow();
+      held.database.close();
+    });
   });
 
   describe("the real-time authorization", () => {
