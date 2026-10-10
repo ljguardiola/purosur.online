@@ -23,9 +23,16 @@ const followMercadoPagoQrChargeMessageSchema = z.object({
   payment_transaction_id: z.string(),
 });
 
+const abandonMercadoPagoQrChargeMessageSchema = z.object({
+  type: z.literal("abandon-mercado-pago-qr-charge"),
+  request_id: requestIdSchema,
+  payment_transaction_id: z.string(),
+});
+
 export const paymentsRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   startMercadoPagoQrChargeMessageSchema,
   followMercadoPagoQrChargeMessageSchema,
+  abandonMercadoPagoQrChargeMessageSchema,
 ]);
 export type PaymentsRendererToCoreMessage = z.infer<typeof paymentsRendererToCoreMessageSchema>;
 
@@ -58,17 +65,36 @@ const startMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type StartMercadoPagoQrChargeOutcome = z.infer<typeof startMercadoPagoQrChargeOutcomeSchema>;
 
+const settledQrChargeOutcomes = [
+  z.object({ kind: z.literal("completed"), sale_id: z.string(), total: z.int().nonnegative() }),
+  partiallyPaidOutcomeSchema,
+  ...saleChargeRefusals,
+] as const;
+
 const followMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("waiting"), remaining_seconds: z.int().min(1).max(WAIT_SECONDS) }),
   z.object({ kind: z.literal("wait_over") }),
   z.object({ kind: z.literal("declined") }),
   z.object({ kind: z.literal("not_pending") }),
-  z.object({ kind: z.literal("completed"), sale_id: z.string(), total: z.int().nonnegative() }),
-  partiallyPaidOutcomeSchema,
-  ...saleChargeRefusals,
+  ...settledQrChargeOutcomes,
 ]);
 export type FollowMercadoPagoQrChargeOutcome = z.infer<
   typeof followMercadoPagoQrChargeOutcomeSchema
+>;
+
+const abandonMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("cancelled") }),
+  z.object({ kind: z.literal("closed") }),
+  z.object({ kind: z.literal("replaced") }),
+  z.object({ kind: z.literal("not_pending") }),
+  z.object({
+    kind: z.literal("already_paid"),
+    settlement: z.discriminatedUnion("kind", settledQrChargeOutcomes),
+  }),
+  ...saleChargeRefusals,
+]);
+export type AbandonMercadoPagoQrChargeOutcome = z.infer<
+  typeof abandonMercadoPagoQrChargeOutcomeSchema
 >;
 
 export const paymentsCoreToRendererMessageSchema = z.discriminatedUnion("type", [
@@ -81,6 +107,11 @@ export const paymentsCoreToRendererMessageSchema = z.discriminatedUnion("type", 
     type: z.literal("follow-mercado-pago-qr-charge-result"),
     request_id: requestIdSchema,
     outcome: followMercadoPagoQrChargeOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("abandon-mercado-pago-qr-charge-result"),
+    request_id: requestIdSchema,
+    outcome: abandonMercadoPagoQrChargeOutcomeSchema,
   }),
 ]);
 export type PaymentsCoreToRendererMessage = z.infer<typeof paymentsCoreToRendererMessageSchema>;

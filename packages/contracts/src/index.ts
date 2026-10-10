@@ -130,6 +130,7 @@ export {
   registerPointOfSaleSchema,
 } from "./fiscal/register-point-of-sale.js";
 export type {
+  AbandonMercadoPagoQrChargeOutcome,
   FollowMercadoPagoQrChargeOutcome,
   PaymentsCoreToRendererMessage,
   PaymentsRendererToCoreMessage,
