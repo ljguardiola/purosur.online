@@ -1205,8 +1205,8 @@ describe("wiring the purchasing routes", () => {
   const ID = "00000000-0000-0000-0000-000000000000";
 
   async function purchasingResponses(app: ReturnType<typeof buildApp>): Promise<number[]> {
-    const responses = await Promise.all(
-      ["suppliers", "purchase-packagings"].flatMap((resource) => [
+    const responses = await Promise.all([
+      ...["suppliers", "purchase-packagings"].flatMap((resource) => [
         app.inject({ method: "GET", url: `/api/${resource}` }),
         app.inject({ method: "POST", url: `/api/${resource}`, headers: ORIGIN }),
         app.inject({ method: "PUT", url: `/api/${resource}/${ID}`, headers: ORIGIN }),
@@ -1217,14 +1217,16 @@ describe("wiring the purchasing routes", () => {
           headers: ORIGIN,
         }),
       ]),
-    );
+      app.inject({ method: "GET", url: "/api/purchases" }),
+      app.inject({ method: "POST", url: "/api/purchases", headers: ORIGIN }),
+    ]);
     return responses.map((response) => response.statusCode);
   }
 
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(10).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(12).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1234,7 +1236,7 @@ describe("wiring the purchasing routes", () => {
       purchasing: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(10).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(12).fill(401));
   });
 });
 
@@ -2269,6 +2271,8 @@ describe("the route access inventory", () => {
         url: "/api/purchase-packagings/:id/deactivation",
         access: capabilityAccess("purchase_packagings"),
       },
+      { method: "GET", url: "/api/purchases", access: capabilityAccess("purchases") },
+      { method: "POST", url: "/api/purchases", access: capabilityAccess("purchases") },
       {
         method: "GET",
         url: "/api/tags",
