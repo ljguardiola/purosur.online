@@ -1,5 +1,5 @@
 {
-  "id": "2823d55e-d8fb-47ba-bbce-6f0f71783a08",
+  "id": "3720d428-e702-45c7-96b0-2996a2ba2611",
   "prevId": "8b6f3278-7c04-4ff7-a1a5-7ff0ae804d7e",
   "version": "7",
   "dialect": "postgresql",
@@ -3765,6 +3765,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "product_id": {
           "name": "product_id",
           "type": "uuid",
@@ -3861,12 +3867,22 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "purchase_lines_purchase_id_position_key": {
+          "name": "purchase_lines_purchase_id_position_key",
+          "nullsNotDistinct": false,
+          "columns": ["purchase_id", "position"]
+        }
+      },
       "policies": {},
       "checkConstraints": {
         "purchase_lines_quantity_per_package_check": {
           "name": "purchase_lines_quantity_per_package_check",
           "value": "\"purchase_lines\".\"quantity_per_package\" > 0"
+        },
+        "purchase_lines_position_check": {
+          "name": "purchase_lines_position_check",
+          "value": "\"purchase_lines\".\"position\" > 0"
         },
         "purchase_lines_quantity_check": {
           "name": "purchase_lines_quantity_check",

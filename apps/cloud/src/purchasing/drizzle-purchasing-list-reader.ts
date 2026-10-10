@@ -137,7 +137,7 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
           purchaseRows.map((row) => row.id),
         ),
       )
-      .orderBy(asc(products.name), asc(purchaseLines.id));
+      .orderBy(asc(purchaseLines.position));
     const linesOf = new Map<string, PurchaseLineListing[]>();
     for (const { purchaseId, ...row } of lineRows) {
       const lines = linesOf.get(purchaseId) ?? [];

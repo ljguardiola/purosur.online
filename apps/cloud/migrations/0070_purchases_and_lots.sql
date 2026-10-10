@@ -16,6 +16,7 @@ CREATE TABLE "lots" (
 CREATE TABLE "purchase_lines" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"purchase_id" uuid NOT NULL,
+	"position" integer NOT NULL,
 	"product_id" uuid NOT NULL,
 	"packaging_id" uuid,
 	"packages" integer,
@@ -24,7 +25,9 @@ CREATE TABLE "purchase_lines" (
 	"quantity_per_package" bigint NOT NULL,
 	"lot_number" text,
 	"expires_on" date,
+	CONSTRAINT "purchase_lines_purchase_id_position_key" UNIQUE("purchase_id","position"),
 	CONSTRAINT "purchase_lines_quantity_per_package_check" CHECK ("purchase_lines"."quantity_per_package" > 0),
+	CONSTRAINT "purchase_lines_position_check" CHECK ("purchase_lines"."position" > 0),
 	CONSTRAINT "purchase_lines_quantity_check" CHECK ("purchase_lines"."quantity" > 0),
 	CONSTRAINT "purchase_lines_cost_paid_check" CHECK ("purchase_lines"."cost_paid_cents" >= 0),
 	CONSTRAINT "purchase_lines_packaging_iff_packages_check" CHECK (("purchase_lines"."packaging_id" is null) = ("purchase_lines"."packages" is null)),

@@ -587,6 +587,7 @@ export const purchaseLines = pgTable(
     purchaseId: uuid("purchase_id")
       .notNull()
       .references(() => purchases.id),
+    position: integer("position").notNull(),
     productId: uuid("product_id")
       .notNull()
       .references(() => products.id),
@@ -600,6 +601,7 @@ export const purchaseLines = pgTable(
   },
   (table) => [
     check("purchase_lines_quantity_per_package_check", sql`${table.quantityPerPackage} > 0`),
+    check("purchase_lines_position_check", sql`${table.position} > 0`),
     check("purchase_lines_quantity_check", sql`${table.quantity} > 0`),
     check("purchase_lines_cost_paid_check", sql`${table.costPaidCents} >= 0`),
     check(
@@ -610,6 +612,7 @@ export const purchaseLines = pgTable(
       "purchase_lines_packages_quantity_check",
       sql`${table.packages} is null or (${table.packages} > 0 and ${table.quantity} = ${table.packages} * ${table.quantityPerPackage})`,
     ),
+    unique("purchase_lines_purchase_id_position_key").on(table.purchaseId, table.position),
     index("purchase_lines_purchase_id_idx").on(table.purchaseId),
   ],
 );
