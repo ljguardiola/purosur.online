@@ -16,6 +16,7 @@ import {
   brands,
   buyerIdentificationThresholds,
   buyerTaxStatusSets,
+  caeaCodes,
   cashMovements,
   cashSessions,
   categories,
@@ -582,6 +583,14 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       saleEvent: { event_type: "sale_completed" },
       receivedAt: new Date("2026-01-05T12:00:00.000Z"),
       notAfter: new Date("2026-01-05T12:00:04.000Z"),
+    });
+    await db.insert(caeaCodes).values({
+      fortnightStart: "2026-10-01",
+      fortnightEnd: "2026-10-15",
+      code: "21403471111111",
+      reportDeadline: "2026-10-30",
+      obtainedAt: new Date("2026-09-28T12:00:00.000Z"),
+      obtainedThrough: "requested",
     });
     await db.insert(suppliers).values({ name: "Distribuidora Sur", actorId: user.id });
     await db.insert(productPackagings).values({

@@ -5,6 +5,7 @@ export type {
   RejectionAlertChange,
   TaxAuthorityRejection,
 } from "../model/fiscal-rejection-alert.js";
+export type { Fortnight } from "../model/offline-authorization-code.js";
 export type {
   DeferralReason,
   RealTimeAuthorizationAnswer,
@@ -131,6 +132,23 @@ export type {
   IssuerIdentificationStoreTransaction,
   NewIssuerIdentificationVersion,
 } from "./issuer-identification-store.js";
+export type {
+  FortnightAcquisitionOutcome,
+  ObtainOfflineAuthorizationCodesOutcome,
+} from "./obtain-offline-authorization-codes.js";
+export { obtainOfflineAuthorizationCodes } from "./obtain-offline-authorization-codes.js";
+export type {
+  KeptOfflineAuthorizationCode,
+  OfflineAuthorizationCode,
+  OfflineAuthorizationCodeAcquisition,
+  OfflineAuthorizationCodeCall,
+  OfflineAuthorizationCodeLookupAnswer,
+  OfflineAuthorizationCodeOrigin,
+  OfflineAuthorizationCodePorts,
+  OfflineAuthorizationCodeRequestAnswer,
+  OfflineAuthorizationCodeStore,
+  TaxAuthorityOfflineAuthorizationCodes,
+} from "./offline-authorization-code-ports.js";
 export type {
   ArcaOnlineStatus,
   ReadArcaOnlineStatusInput,

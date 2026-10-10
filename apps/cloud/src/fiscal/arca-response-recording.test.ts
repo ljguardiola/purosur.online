@@ -43,6 +43,24 @@ const ORIGINAL_SIGN = "S1GN-original/with+base64==";
 const POINT_OF_SALE = 7;
 const INVALID_BUYER_TAX_STATUS_CODE = "99999";
 const ORIGINAL_CUIT = FICTIONAL_CUIT.replaceAll("-", "");
+const INVOICING_ANSWERS = [
+  "fe-dummy-all-ok.xml",
+  "fe-param-get-condicion-iva-receptor.xml",
+  "fe-param-get-condicion-iva-receptor-token-error.xml",
+  "fe-comp-ultimo-autorizado.xml",
+  "fe-cae-solicitar-authorized.xml",
+  "fe-cae-solicitar-rejected-content.xml",
+  "fe-cae-solicitar-rejected-out-of-order.xml",
+];
+const OFFLINE_AUTHORIZATION_CODE_ANSWERS = [
+  "fe-caea-consultar-not-granted.xml",
+  "fe-caea-solicitar-granted.xml",
+  "fe-caea-solicitar-already-granted.xml",
+  "fe-caea-consultar-granted.xml",
+  "fe-caea-consultar-token-error.xml",
+  "fe-caea-solicitar-out-of-window.xml",
+];
+const FIRST_OFFLINE_AUTHORIZATION_CODE_CALL = INVOICING_ANSWERS.length;
 
 let wsaa: FakeWsaaServer;
 let wsfe: FakeWsfeServer;
@@ -79,6 +97,7 @@ beforeEach(() => {
       "fe-cae-solicitar-authorized.xml",
       "fe-cae-solicitar-rejected-content.xml",
       "fe-cae-solicitar-rejected-out-of-order.xml",
+      ...OFFLINE_AUTHORIZATION_CODE_ANSWERS,
     ),
   );
 });
@@ -161,10 +180,10 @@ describe("recordArcaResponses", () => {
     }
   });
 
-  it("makes exactly one FEDummy call, two logins, two buyer tax-status calls, one last-authorized call and three invoice calls", async () => {
+  it("makes exactly one FEDummy call, two logins, two buyer tax-status calls, one last-authorized call, three invoice calls and six offline authorization code calls", async () => {
     await record();
 
-    expect(wsfe.requests).toHaveLength(7);
+    expect(wsfe.requests).toHaveLength(13);
     expect(wsfe.requests.map(operationOf)).toEqual([
       "FEDummy",
       "FEParamGetCondicionIvaReceptor",
@@ -173,6 +192,12 @@ describe("recordArcaResponses", () => {
       "FECAESolicitar",
       "FECAESolicitar",
       "FECAESolicitar",
+      "FECAEAConsultar",
+      "FECAEASolicitar",
+      "FECAEASolicitar",
+      "FECAEAConsultar",
+      "FECAEAConsultar",
+      "FECAEASolicitar",
     ]);
     expect(wsaa.requests).toHaveLength(2);
   });
@@ -190,7 +215,7 @@ describe("recordArcaResponses", () => {
   it("invoices the next number to a final consumer, then an invalid buyer tax status for the one after, then the first number again", async () => {
     await record();
 
-    const [authorized, rejected, outOfOrder] = wsfe.requests.slice(4);
+    const [authorized, rejected, outOfOrder] = wsfe.requests.slice(4, 7);
     for (const request of [authorized, rejected, outOfOrder]) {
       expect(request).toContain(ORIGINAL_TOKEN);
       expect(request).toContain(ORIGINAL_SIGN);
@@ -209,7 +234,7 @@ describe("recordArcaResponses", () => {
   it("dates the invoices by the Argentina calendar day of the moment of recording", async () => {
     await record({ now: () => new Date("2026-10-08T01:30:00.000Z") });
 
-    const invoices = wsfe.requests.slice(4);
+    const invoices = wsfe.requests.slice(4, FIRST_OFFLINE_AUTHORIZATION_CODE_CALL);
     expect(invoices.map((request) => sent(request, "CbteFch"))).toEqual([
       "20261007",
       "20261007",
@@ -245,10 +270,11 @@ describe("recordArcaResponses", () => {
 
     const report = await record();
 
-    expect(wsfe.requests.map(operationOf)).toEqual([
+    expect(wsfe.requests.map(operationOf).slice(0, 4)).toEqual([
       "FEDummy",
       "FEParamGetCondicionIvaReceptor",
       "FEParamGetCondicionIvaReceptor",
+      "FECAEAConsultar",
     ]);
     expect(report.invoicesRecorded).toBe(false);
   });
@@ -296,6 +322,18 @@ describe("recordArcaResponses", () => {
       "fe-cae-solicitar-rejected-content.scrubbed.xml",
       "fe-cae-solicitar-rejected-out-of-order.raw.xml",
       "fe-cae-solicitar-rejected-out-of-order.scrubbed.xml",
+      "fe-caea-consultar-granted.raw.xml",
+      "fe-caea-consultar-granted.scrubbed.xml",
+      "fe-caea-consultar-not-granted.raw.xml",
+      "fe-caea-consultar-not-granted.scrubbed.xml",
+      "fe-caea-consultar-token-error.raw.xml",
+      "fe-caea-consultar-token-error.scrubbed.xml",
+      "fe-caea-solicitar-already-granted.raw.xml",
+      "fe-caea-solicitar-already-granted.scrubbed.xml",
+      "fe-caea-solicitar-granted.raw.xml",
+      "fe-caea-solicitar-granted.scrubbed.xml",
+      "fe-caea-solicitar-out-of-window.raw.xml",
+      "fe-caea-solicitar-out-of-window.scrubbed.xml",
       "fe-comp-ultimo-autorizado.raw.xml",
       "fe-comp-ultimo-autorizado.scrubbed.xml",
       "fe-dummy.raw.xml",
@@ -353,6 +391,18 @@ describe("recordArcaResponses", () => {
         file: "fe-cae-solicitar-rejected-out-of-order.scrubbed.xml",
         replacements: [{ field: "CUIT", count: 1 }],
       },
+      { file: "fe-caea-consultar-not-granted.scrubbed.xml", replacements: [] },
+      {
+        file: "fe-caea-solicitar-granted.scrubbed.xml",
+        replacements: [{ field: "CAEA", count: 1 }],
+      },
+      { file: "fe-caea-solicitar-already-granted.scrubbed.xml", replacements: [] },
+      {
+        file: "fe-caea-consultar-granted.scrubbed.xml",
+        replacements: [{ field: "CAEA", count: 1 }],
+      },
+      { file: "fe-caea-consultar-token-error.scrubbed.xml", replacements: [] },
+      { file: "fe-caea-solicitar-out-of-window.scrubbed.xml", replacements: [] },
       { file: "login-cms-already-authenticated.scrubbed.xml", replacements: [] },
     ]);
   });
@@ -429,8 +479,144 @@ describe("recordArcaResponses invoicing calls", () => {
   });
 });
 
+describe("recordArcaResponses offline authorization code calls", () => {
+  const codeCalls = () => wsfe.requests.slice(FIRST_OFFLINE_AUTHORIZATION_CODE_CALL);
+  const periodsOf = (requests: string[]) =>
+    requests.map((request) => `${sent(request, "Periodo")}/${sent(request, "Orden")}`);
+
+  it("looks up the fortnight whose window is open, requests its code twice and looks it up again, all with the issued ticket", async () => {
+    await record();
+
+    const [notGranted, granted, alreadyGranted, lookedUp] = codeCalls();
+    for (const request of [notGranted, granted, alreadyGranted, lookedUp]) {
+      expect(request).toContain(ORIGINAL_TOKEN);
+      expect(request).toContain(ORIGINAL_SIGN);
+      expect(sent(request, "Cuit")).toBe(FICTIONAL_CERTIFICATE_CUIT.replaceAll("-", ""));
+    }
+    expect(periodsOf([notGranted, granted, alreadyGranted, lookedUp] as string[])).toEqual([
+      "202610/1",
+      "202610/1",
+      "202610/1",
+      "202610/1",
+    ]);
+  });
+
+  it("looks the code up once more with a ticket ARCA never issued", async () => {
+    await record();
+
+    const withUnissuedTicket = codeCalls()[4];
+    expect(operationOf(withUnissuedTicket as string)).toBe("FECAEAConsultar");
+    expect(withUnissuedTicket).not.toContain(ORIGINAL_TOKEN);
+    expect(withUnissuedTicket).not.toContain(ORIGINAL_SIGN);
+    expect(periodsOf([withUnissuedTicket as string])).toEqual(["202610/1"]);
+  });
+
+  it("requests last the code of a fortnight whose window has not opened", async () => {
+    await record();
+
+    const outOfWindow = codeCalls()[5];
+    expect(operationOf(outOfWindow as string)).toBe("FECAEASolicitar");
+    expect(periodsOf([outOfWindow as string])).toEqual(["202611/1"]);
+  });
+
+  it("tries the next fortnight first once its window opened in Argentina", async () => {
+    await record({ now: () => new Date("2026-10-11T03:00:00.000Z") });
+
+    expect(periodsOf(codeCalls())).toEqual([
+      "202610/2",
+      "202610/2",
+      "202610/2",
+      "202610/2",
+      "202610/2",
+      "202611/2",
+    ]);
+  });
+
+  it("falls back to the current fortnight when the next one's code is already granted", async () => {
+    wsfe.behave(
+      wsfeAnswersInTurn(
+        ...INVOICING_ANSWERS,
+        "fe-caea-consultar-granted.xml",
+        ...OFFLINE_AUTHORIZATION_CODE_ANSWERS,
+      ),
+    );
+
+    await record({ now: () => new Date("2026-10-11T03:00:00.000Z") });
+
+    expect(codeCalls().map(operationOf)).toEqual([
+      "FECAEAConsultar",
+      "FECAEAConsultar",
+      "FECAEASolicitar",
+      "FECAEASolicitar",
+      "FECAEAConsultar",
+      "FECAEAConsultar",
+      "FECAEASolicitar",
+    ]);
+    expect(periodsOf(codeCalls())).toEqual([
+      "202610/2",
+      "202610/1",
+      "202610/1",
+      "202610/1",
+      "202610/1",
+      "202610/1",
+      "202611/2",
+    ]);
+  });
+
+  it("requests no code when every fortnight whose window is open already holds one", async () => {
+    wsfe.behave(wsfeAnswersInTurn(...INVOICING_ANSWERS, "fe-caea-consultar-granted.xml"));
+
+    const report = await record();
+
+    expect(codeCalls().map(operationOf)).toEqual(["FECAEAConsultar"]);
+    expect(report.offlineAuthorizationCodesRecorded).toBe(false);
+    expect(readdirSync(outDir).filter((file) => file.startsWith("fe-caea"))).toEqual([]);
+  });
+
+  it("saves the raw answer of each offline authorization code call", async () => {
+    const report = await record();
+
+    expect(report.offlineAuthorizationCodesRecorded).toBe(true);
+    for (const [name, served] of [
+      ["fe-caea-consultar-not-granted", "fe-caea-consultar-not-granted"],
+      ["fe-caea-solicitar-granted", "fe-caea-solicitar-granted"],
+      ["fe-caea-solicitar-already-granted", "fe-caea-solicitar-already-granted"],
+      ["fe-caea-consultar-granted", "fe-caea-consultar-granted"],
+      ["fe-caea-consultar-token-error", "fe-caea-consultar-token-error"],
+      ["fe-caea-solicitar-out-of-window", "fe-caea-solicitar-out-of-window"],
+    ]) {
+      expect(readFileSync(join(outDir, `${name}.raw.xml`), "utf8")).toBe(
+        fixture("wsfe-responses", `${served}.xml`),
+      );
+    }
+  });
+
+  it("refuses when ARCA gives no answer to the first lookup, naming it", async () => {
+    wsfe.behave(wsfeAnswersInTurn(...INVOICING_ANSWERS, NO_ANSWER));
+
+    await expect(
+      recordArcaResponses({
+        certificatePem: credentials.certificatePem,
+        privateKeyPem: credentials.privateKeyPem,
+        outDir,
+        wsaaEndpoint: wsaa.endpoint,
+        wsfeEndpoint: wsfe.endpoint,
+        cuit: FICTIONAL_CERTIFICATE_CUIT,
+        pointOfSale: POINT_OF_SALE,
+        now: () => NOW,
+        timeoutMs: 200,
+      }),
+    ).rejects.toThrow("FECAEAConsultar");
+  });
+});
+
 describe("recordingFailure", () => {
-  const RECORDED = { firstLoginIssuedTicket: true, invoicesRecorded: true, scrubbed: [] };
+  const RECORDED = {
+    firstLoginIssuedTicket: true,
+    invoicesRecorded: true,
+    offlineAuthorizationCodesRecorded: true,
+    scrubbed: [],
+  };
 
   it("finds nothing wrong with a recording whose login issued a ticket and that requested invoices", () => {
     expect(recordingFailure(RECORDED)).toBeUndefined();
@@ -445,6 +631,12 @@ describe("recordingFailure", () => {
   it("fails a recording that requested no invoice", () => {
     expect(recordingFailure({ ...RECORDED, invoicesRecorded: false })).toBe(
       "ARCA listed no Consumidor Final for invoice class C or gave no last authorized number, so no invoice was requested",
+    );
+  });
+
+  it("fails a recording that requested no offline authorization code", () => {
+    expect(recordingFailure({ ...RECORDED, offlineAuthorizationCodesRecorded: false })).toBe(
+      "every fortnight whose request window is open already holds a granted offline authorization code, or ARCA did not answer whether it does, so none was requested",
     );
   });
 });
