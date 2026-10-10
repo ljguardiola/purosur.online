@@ -869,6 +869,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -923,6 +924,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -972,6 +974,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1020,6 +1023,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1095,6 +1099,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1162,6 +1167,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1233,6 +1239,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1287,6 +1294,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1333,6 +1341,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1380,6 +1389,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1433,6 +1443,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0029_register_offline_point_of_sale",
+        "0030_stock_receipts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1477,10 +1488,8 @@ describe("the register's local migrations", () => {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 26);
       expect(previous.at(-1)?.name).toBe("0025_last_accepted_push");
-      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
-        "0026_pulled_stock_movements",
-        "0029_register_offline_point_of_sale",
-      ]);
+      const throughRebuild = LOCAL_MIGRATIONS.slice(0, 27);
+      expect(throughRebuild.at(-1)?.name).toBe("0026_pulled_stock_movements");
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
         `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
@@ -1495,7 +1504,7 @@ describe("the register's local migrations", () => {
       );
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      const after = openLocalDatabase(path, throughRebuild, migrationClock);
 
       expect(after.prepare("SELECT * FROM stock_movements").all()).toEqual([
         {
@@ -1592,6 +1601,76 @@ describe("the register's local migrations", () => {
       expect(() => insert.run("r1", 0)).toThrow();
       expect(() => insert.run("r1", 100000)).toThrow();
       expect(() => insert.run("r1", 99999)).not.toThrow();
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("let the stock ledger hold the receipts a register pulls, over the movements it already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0030_stock_receipts",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain("0030_stock_receipts");
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z');
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 1, 1500, 'list-1', 1500);
+         INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at, superseded_by_count_id)
+         VALUES ('own-movement', 'p1', 'sale', 'line-1', -1000, '2026-10-09T12:05:00.000Z', 'pulled-count'),
+                ('pulled-count', 'p1', 'count', NULL, 2000, '2026-10-09T13:00:00.000Z', NULL);
+         INSERT INTO stock_balances (product_id, quantity) VALUES ('p1', 9000);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT * FROM stock_movements ORDER BY id").all()).toEqual([
+        {
+          id: "own-movement",
+          product_id: "p1",
+          kind: "sale",
+          sale_line_id: "line-1",
+          delta: -1000,
+          occurred_at: "2026-10-09T12:05:00.000Z",
+          superseded_by_count_id: "pulled-count",
+        },
+        {
+          id: "pulled-count",
+          product_id: "p1",
+          kind: "count",
+          sale_line_id: null,
+          delta: 2000,
+          occurred_at: "2026-10-09T13:00:00.000Z",
+          superseded_by_count_id: null,
+        },
+      ]);
+      expect(after.prepare("SELECT * FROM stock_balances").all()).toEqual([
+        { product_id: "p1", quantity: 9000 },
+      ]);
+      const insert = after.prepare(
+        `INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
+         VALUES (@id, 'p1', @kind, @sale_line_id, 6000, '2026-10-09T14:00:00.000Z')`,
+      );
+      expect(() =>
+        insert.run({ id: "pulled-receipt", kind: "receipt", sale_line_id: null }),
+      ).not.toThrow();
+      expect(() => insert.run({ id: "unknown-kind", kind: "transfer", sale_line_id: null })).toThrow(
+        /CHECK/,
+      );
+      expect(() =>
+        insert.run({ id: "receipt-of-a-line", kind: "receipt", sale_line_id: "line-1" }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insert.run({ id: "sale-of-a-missing-line", kind: "sale", sale_line_id: "missing" }),
+      ).toThrow(/FOREIGN KEY/);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });
