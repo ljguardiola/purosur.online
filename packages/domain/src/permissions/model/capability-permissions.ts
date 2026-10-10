@@ -30,7 +30,11 @@ export const CAPABILITY_PERMISSIONS = {
     "perform_stock_counts",
     "record_stock_losses",
     "adjust_stock",
+    "manage_suppliers",
+    "manage_purchase_presentations",
   ],
+  suppliers: ["manage_suppliers"],
+  purchase_packagings: ["manage_purchase_presentations"],
   reports_area: ["view_reports"],
   refunds_area: ["confirm_refunds"],
 } as const satisfies Record<string, readonly PermissionKey[]>;

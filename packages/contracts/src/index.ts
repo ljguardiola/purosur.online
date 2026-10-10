@@ -174,6 +174,18 @@ export {
 } from "./pricing/price-list.js";
 export type { PriceSetBody } from "./pricing/price-set.js";
 export { priceSetBodySchema } from "./pricing/price-set.js";
+export type { PackagingCreationBody } from "./purchasing/packaging-creation.js";
+export { packagingCreationBodySchema } from "./purchasing/packaging-creation.js";
+export type { PackagingEditBody } from "./purchasing/packaging-edit.js";
+export { packagingEditBodySchema } from "./purchasing/packaging-edit.js";
+export type { PackagingList, PackagingSummary } from "./purchasing/packaging-summary.js";
+export { packagingListSchema, packagingSummarySchema } from "./purchasing/packaging-summary.js";
+export type { SupplierCreationBody } from "./purchasing/supplier-creation.js";
+export { supplierCreationBodySchema } from "./purchasing/supplier-creation.js";
+export type { SupplierEditBody } from "./purchasing/supplier-edit.js";
+export { supplierEditBodySchema } from "./purchasing/supplier-edit.js";
+export type { SupplierSummary } from "./purchasing/supplier-summary.js";
+export { supplierListSchema, supplierSummarySchema } from "./purchasing/supplier-summary.js";
 export type { CloudError, CloudErrorCode } from "./register/cloud-error.js";
 export {
   cloudError,

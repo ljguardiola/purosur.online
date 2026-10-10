@@ -291,6 +291,10 @@ export function saleUnitHeldByDiscountError(discountName: string): string {
   return `No se puede vender por peso mientras la promoción "${discountName}" no esté desactivada o terminada.`;
 }
 
+export function saleUnitHeldByPackagingError(packagingName: string): string {
+  return `No se puede cambiar la unidad de venta mientras la presentación de compra "${packagingName}" esté activa.`;
+}
+
 export function tagInactiveError(tags: TagSummary[], tagId: string): string {
   const tag = tags.find((candidate) => candidate.id === tagId);
   return tag

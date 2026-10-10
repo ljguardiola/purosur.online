@@ -492,6 +492,54 @@ export const stockMovements = pgTable(
   ],
 );
 
+export const suppliers = pgTable(
+  "suppliers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    cuit: text("cuit"),
+    contact: text("contact"),
+    note: text("note"),
+    active: boolean("active").notNull().default(true),
+    version: integer("version").notNull().default(1),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("suppliers_name_lower_key").on(sql`lower(${table.name})`),
+    uniqueIndex("suppliers_cuit_key").on(table.cuit),
+  ],
+);
+
+export const productPackagings = pgTable(
+  "product_packagings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    name: text("name").notNull(),
+    quantityPerPackage: bigint("quantity_per_package", { mode: "number" }).notNull(),
+    saleUnit: text("sale_unit").notNull(),
+    active: boolean("active").notNull().default(true),
+    version: integer("version").notNull().default(1),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("product_packagings_product_id_name_lower_key").on(
+      table.productId,
+      sql`lower(${table.name})`,
+    ),
+    check("product_packagings_quantity_check", sql`${table.quantityPerPackage} > 0`),
+    check("product_packagings_sale_unit_check", sql`${table.saleUnit} in ('UNIT', 'KG')`),
+  ],
+);
+
 // Append-only like stock_movements.
 export const stockCounts = pgTable(
   "stock_counts",

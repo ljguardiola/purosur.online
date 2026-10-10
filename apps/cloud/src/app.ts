@@ -105,6 +105,9 @@ import { registerPriceConfirmationRoute } from "./pricing/price-confirmation-rou
 import { registerPriceSetRoute } from "./pricing/price-set-route.js";
 import type { PricesRouteOptions } from "./pricing/prices-list-route.js";
 import { registerPricesListRoute } from "./pricing/prices-list-route.js";
+import { registerPackagingsRoutes } from "./purchasing/packagings-routes.js";
+import type { PurchasingRouteOptions } from "./purchasing/purchasing-route-options.js";
+import { registerSuppliersRoutes } from "./purchasing/suppliers-routes.js";
 import { authenticateDevice } from "./register/device-authentication.js";
 import { registerDeviceEnrollmentRoute } from "./register/device-enrollment-route.js";
 import { registerDeviceTokenRotationRoute } from "./register/device-token-rotation-route.js";
@@ -169,6 +172,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   fiscalAddresses?: WithoutClock<FiscalAddressesRouteOptions<TQueryResult>>;
   categories?: WithoutClock<CategoriesRouteOptions<TQueryResult>>;
   brands?: WithoutClock<BrandsRouteOptions<TQueryResult>>;
+  purchasing?: WithoutClock<PurchasingRouteOptions<TQueryResult>>;
   tags?: WithoutClock<TagsRouteOptions<TQueryResult>>;
   products?: WithoutClock<ProductsRouteOptions<TQueryResult>>;
   alerts?: WithoutClock<AlertsRouteOptions<TQueryResult>>;
@@ -245,6 +249,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     fiscalAddresses: backoffice,
     categories: backoffice,
     brands: backoffice,
+    purchasing: backoffice,
     tags: backoffice,
     products: backoffice,
     alerts: backoffice,
@@ -446,6 +451,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerBrandEditRoute(api, { ...options.brands, now });
         registerBrandDeactivationRoute(api, { ...options.brands, now });
         registerBrandReactivationRoute(api, { ...options.brands, now });
+      }
+
+      if (options.purchasing) {
+        registerSuppliersRoutes(api, { ...options.purchasing, now });
+        registerPackagingsRoutes(api, { ...options.purchasing, now });
       }
 
       if (options.tags) {

@@ -481,8 +481,15 @@
     {
       "idx": 68,
       "version": "7",
-      "when": 1791588225546,
-      "tag": "0068_offline_points_of_sale",
+      "when": 1791590880713,
+      "tag": "0068_suppliers_and_product_packagings",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1791597377197,
+      "tag": "0069_offline_points_of_sale",
       "breakpoints": true
     }
   ]

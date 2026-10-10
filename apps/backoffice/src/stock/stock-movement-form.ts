@@ -5,7 +5,7 @@ import {
   stockAdjustmentBodySchema,
   stockLossBodySchema,
 } from "@purosur/contracts";
-import type { AdjustmentReason, LossReason, SaleUnit, StockDirection } from "@purosur/domain";
+import type { AdjustmentReason, LossReason, StockDirection } from "@purosur/domain";
 import { sortedItems, textOrder } from "@purosur/ui";
 import { ADJUSTMENT_REASON_LABELS, LOSS_REASON_LABELS } from "./stock-reason-labels";
 
@@ -34,16 +34,6 @@ export function productOptions(
     ...(product.active ? {} : { status: DEACTIVATED_STATUS }),
   }));
   return first && [first, ...rest];
-}
-
-export function quantityFieldKind(saleUnit: SaleUnit) {
-  return { kind: "plain-text" as const, suffix: saleUnit === "KG" ? "kg" : "u" };
-}
-
-export function quantityMessage(saleUnit: SaleUnit): string {
-  return saleUnit === "KG"
-    ? "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150."
-    : "Escribí una cantidad entera de unidades, por ejemplo 16.";
 }
 
 export type LossValues = { productId: string | null; quantity: string; reason: LossReason | null };
