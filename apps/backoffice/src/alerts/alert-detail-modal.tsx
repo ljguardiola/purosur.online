@@ -6,6 +6,7 @@ import {
 import type { AlertLevel } from "@purosur/domain";
 import {
   Button,
+  ButtonLink,
   EmptyState,
   formatCalendarDay,
   formatCalendarDayRange,
@@ -37,6 +38,7 @@ import {
   TriangleAlert,
   WifiOff,
 } from "lucide-react";
+import { createLink } from "@tanstack/react-router";
 import { type ReactElement, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { fetchPermissionCatalog as fetchPermissionCatalogDefault } from "../platform/permission-catalog-api";
@@ -45,7 +47,11 @@ import { retryAfterDetail } from "../platform/retry-after-detail";
 import { roleDisplayName } from "../platform/role-display-name";
 import { schemaText } from "../platform/schema-text";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { type BackofficeAccess, canCloseAlertsManually } from "../shell/backoffice-access";
+import {
+  type BackofficeAccess,
+  canCloseAlertsManually,
+  canSeeQuarantinedEvents,
+} from "../shell/backoffice-access";
 import { alertKindDescription } from "./alert-kind-description";
 import { ALERT_LEVEL_TONE } from "./alert-level-tone";
 import { alertScopeLabel } from "./alert-scope-label";
@@ -62,6 +68,8 @@ import {
 } from "./synced-event-alert-description";
 
 type Icon = ReactElement<{ className?: string }>;
+
+const ScreenLink = createLink(ButtonLink);
 
 const ALERT_TIME_ZONE = schemaText(
   alertDetailSchema.options[0].shape.openedAt.meta()?.["timeZone"],
@@ -533,6 +541,11 @@ function OpenAlertDetailModal({
             ) : (
               <AlertDescription alert={alert} />
             )}
+            {alert.kind === "events_quarantined" && canSeeQuarantinedEvents(access) ? (
+              <ScreenLink to="/quarantined-events" variant="text">
+                Ver eventos en cuarentena
+              </ScreenLink>
+            ) : null}
             <div className="flex flex-col gap-1 rounded-lg border border-border p-3 text-detail">
               <div className="flex justify-between gap-2">
                 <span className="text-text-subtle">Abierta</span>
