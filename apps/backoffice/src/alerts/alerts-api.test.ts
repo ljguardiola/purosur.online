@@ -27,6 +27,7 @@ const alert: AlertSummary = {
   openedAt: "2026-01-05T12:00:00.000Z",
   escalatedAt: null,
   resolvedAt: null,
+  salesDeniedReason: null,
 };
 
 const emptyListBody = {
@@ -109,8 +110,10 @@ test("fetchAlerts reports failed when the request itself throws", async () => {
   await expect(fetchAlerts()).resolves.toEqual({ kind: "failed" });
 });
 
+const { salesDeniedReason: _notInDetail, ...alertWithoutReason } = alert;
+
 const alertDetail: AlertDetail = {
-  ...alert,
+  ...alertWithoutReason,
   open: true,
   resolvesByItself: false,
   kind: "user_email_changed",

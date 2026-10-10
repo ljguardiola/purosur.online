@@ -50,9 +50,9 @@ describe("registerOwnConditions", () => {
     expect(conditions()).toEqual([]);
   });
 
-  it("holds sales_denied while sales are stopped because the event history broke", () => {
+  it("holds sales_denied, naming the broken event history as its reason, while sales are stopped because it broke", () => {
     expect(conditions({ salesStop: { stopped: true, reason: "event_history_broken" } })).toEqual([
-      "sales_denied",
+      { kind: "sales_denied", reason: "event_history_broken" },
     ]);
   });
 
@@ -66,17 +66,19 @@ describe("registerOwnConditions", () => {
         salesStop: { stopped: true, reason: "installation_revoked" },
         lastAcceptedPushAt: minutesBefore(NOW, 60),
       }),
-    ).toEqual(["installation_revoked"]);
+    ).toEqual([{ kind: "installation_revoked" }]);
   });
 
   it("does not hold installation_revoked for a register that sells", () => {
-    expect(conditions({ lastAcceptedPushAt: minutesBefore(NOW, 60) })).not.toContain(
-      "installation_revoked",
-    );
+    expect(conditions({ lastAcceptedPushAt: minutesBefore(NOW, 60) })).not.toContainEqual({
+      kind: "installation_revoked",
+    });
   });
 
   it("holds register_silent when the last accepted push is 15 minutes old within business hours", () => {
-    expect(conditions({ lastAcceptedPushAt: minutesBefore(NOW, 15) })).toEqual(["register_silent"]);
+    expect(conditions({ lastAcceptedPushAt: minutesBefore(NOW, 15) })).toEqual([
+      { kind: "register_silent" },
+    ]);
   });
 
   it("does not hold register_silent when the last accepted push is under 15 minutes old", () => {
@@ -108,19 +110,22 @@ describe("registerOwnConditions", () => {
         salesStop: { stopped: true, reason: "event_history_broken" },
         lastAcceptedPushAt: minutesBefore(NOW, 60),
       }),
-    ).toEqual(["sales_denied", "register_silent"]);
+    ).toEqual([
+      { kind: "sales_denied", reason: "event_history_broken" },
+      { kind: "register_silent" },
+    ]);
   });
 
   it("holds serial_device_missing when the scale is not detected", () => {
     expect(
       conditions({ serialDevices: { scale: { kind: "not_detected" }, reader: MATCHING } }),
-    ).toEqual(["serial_device_missing"]);
+    ).toEqual([{ kind: "serial_device_missing" }]);
   });
 
   it("holds serial_device_missing when the reader is mismatched", () => {
     expect(
       conditions({ serialDevices: { scale: MATCHING, reader: { kind: "mismatched" } } }),
-    ).toEqual(["serial_device_missing"]);
+    ).toEqual([{ kind: "serial_device_missing" }]);
   });
 
   it("does not hold serial_device_missing for devices that are not registered", () => {
@@ -137,7 +142,7 @@ describe("registerOwnConditions", () => {
         salesStop: { stopped: true, reason: "event_history_broken" },
         serialDevices: null,
       }),
-    ).toEqual(["sales_denied"]);
+    ).toEqual([{ kind: "sales_denied", reason: "event_history_broken" }]);
   });
 
   it("lists serial_device_missing after register_silent", () => {
@@ -146,6 +151,6 @@ describe("registerOwnConditions", () => {
         lastAcceptedPushAt: minutesBefore(NOW, 60),
         serialDevices: { scale: { kind: "not_detected" }, reader: MATCHING },
       }),
-    ).toEqual(["register_silent", "serial_device_missing"]);
+    ).toEqual([{ kind: "register_silent" }, { kind: "serial_device_missing" }]);
   });
 });

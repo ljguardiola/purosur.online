@@ -633,7 +633,7 @@ describe("locked register closers query", () => {
 });
 
 const STATUS: RegisterStatus = {
-  conditions: ["sales_denied"],
+  conditions: [{ kind: "sales_denied", reason: "event_history_broken" }],
   cloud: "reachable",
   serial_devices: { scale: "matching", reader: "matching" },
 };
@@ -642,7 +642,15 @@ type StatusRead = () => Promise<RegisterStatus | "unavailable">;
 
 function StatusProbe({ read }: { read: StatusRead }) {
   const status = useRegisterStatusQuery(read);
-  return <p>{describeData(status, (value) => `${value.cloud} ${value.conditions.join(",")}`)}</p>;
+  return (
+    <p>
+      {describeData(
+        status,
+        (value) =>
+          `${value.cloud} ${value.conditions.map((condition) => condition.kind).join(",")}`,
+      )}
+    </p>
+  );
 }
 
 describe("register status query", () => {

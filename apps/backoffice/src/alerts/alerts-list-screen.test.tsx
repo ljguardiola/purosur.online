@@ -37,6 +37,7 @@ const passkeyAlert: AlertSummary = {
   openedAt: "2026-01-05T12:00:00.000Z",
   escalatedAt: null,
   resolvedAt: null,
+  salesDeniedReason: null,
 };
 
 const lockoutAlert: AlertSummary = {
@@ -49,6 +50,7 @@ const lockoutAlert: AlertSummary = {
   openedAt: "2026-01-05T10:00:00.000Z",
   escalatedAt: "2026-01-06T10:00:00.000Z",
   resolvedAt: null,
+  salesDeniedReason: null,
 };
 
 const closedAlert: AlertSummary = {
@@ -61,6 +63,7 @@ const closedAlert: AlertSummary = {
   openedAt: "2026-01-04T12:00:00.000Z",
   escalatedAt: null,
   resolvedAt: "2026-01-05T09:00:00.000Z",
+  salesDeniedReason: null,
 };
 
 function ok(
@@ -793,6 +796,67 @@ test("names a quiet register's alert by its fixed title, with what it means and 
   await expect.element(row.getByText(/Se puede seguir vendiendo con normalidad/)).toBeVisible();
   await expect
     .element(row.getByRole("button", { name: "Ver la alerta «La caja no está sincronizando»" }))
+    .toBeVisible();
+});
+
+test.each([
+  [
+    "event_history_broken",
+    /encontró un problema en su registro de operaciones/,
+    /Avisar al Administrador de inmediato/,
+  ],
+  [
+    "local_database_damaged",
+    /su base de datos está dañada/,
+    /Restaurar la base de datos de la caja desde su copia de respaldo/,
+  ],
+] as const)(
+  "tells why a register can't sell in its row when the reason is %s",
+  async (salesDeniedReason, meaning, whatToDo) => {
+    const services = createServices();
+    vi.mocked(services.fetchAlerts).mockResolvedValue(
+      ok([
+        {
+          ...passkeyAlert,
+          kind: "sales_denied",
+          level: "critical",
+          audience: "local",
+          scopeDisplay: "Caja 1",
+          salesDeniedReason,
+        },
+      ]),
+    );
+
+    const screen = await renderScreen(services);
+
+    const row = screen.getByRole("row", { name: /Caja 1/ });
+    await expect.element(row.getByText("La caja no puede vender")).toBeVisible();
+    await expect.element(row.getByText(meaning)).toBeVisible();
+    await expect.element(row.getByText(whatToDo)).toBeVisible();
+  },
+);
+
+test("describes a register that can't sell by its kind when the cloud names no reason", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...passkeyAlert,
+        kind: "sales_denied",
+        level: "critical",
+        audience: "local",
+        scopeDisplay: "Caja 1",
+        salesDeniedReason: null,
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Caja 1/ });
+  await expect.element(row.getByText("La caja no puede vender")).toBeVisible();
+  await expect
+    .element(row.getByText("Una caja dejó de abrir ventas nuevas", { exact: true }))
     .toBeVisible();
 });
 
