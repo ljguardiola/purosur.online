@@ -266,7 +266,7 @@ test("an event that is no longer in quarantine is announced and the list refresh
 
   await expect
     .element(screen.getByRole("alert"))
-    .toHaveTextContent(/No se liberó el evento.*Este evento ya no está en cuarentena/);
+    .toHaveTextContent("No se liberó el evento Este evento ya no está en cuarentena.");
   await expect.element(screen.getByText("No hay eventos en cuarentena")).toBeVisible();
   await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
 });
@@ -286,7 +286,7 @@ test("an event the cloud does not find is announced and the list refreshes", asy
 
   await expect
     .element(screen.getByRole("alert"))
-    .toHaveTextContent(/No se liberó el evento.*No encontramos este evento/);
+    .toHaveTextContent("No se liberó el evento No encontramos este evento.");
   await expect.element(screen.getByText("No hay eventos en cuarentena")).toBeVisible();
 });
 
