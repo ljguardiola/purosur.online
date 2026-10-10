@@ -23,7 +23,7 @@ export class SqliteMercadoPagoQrCharges implements MercadoPagoQrCharges {
     const row = this.database
       .prepare<[string], PendingChargeRow>(
         `SELECT id, sale_id, amount, wait_ends_at FROM payment_transactions
-         WHERE id = ? AND method = 'QR' AND state = 'PENDING'`,
+         WHERE id = ? AND method = 'QR' AND state = 'PENDING' AND replaced = 0`,
       )
       .get(paymentTransactionId);
     if (row === undefined) {
