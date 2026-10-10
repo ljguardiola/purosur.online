@@ -18,6 +18,7 @@ import {
   signInUserSchema,
 } from "../shared/index.js";
 import { receiptPrinterAddressSchema } from "./receipt-printer-address.js";
+import { serialDeviceIdentitySchema } from "./serial-device-identity.js";
 
 const requestId = requestIdSchema;
 
@@ -144,6 +145,20 @@ export const setReceiptPrinterMessageSchema = z.object({
   address: z.string(),
 });
 
+const readSerialDevicesMessageSchema = z.object({
+  type: z.literal("read-serial-devices"),
+  request_id: requestId,
+});
+
+export const registerSerialDevicesMessageSchema = z.object({
+  type: z.literal("register-serial-devices"),
+  request_id: requestId,
+  devices: z.strictObject({
+    scale: serialDeviceIdentitySchema.optional(),
+    reader: serialDeviceIdentitySchema.optional(),
+  }),
+});
+
 export const registerRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   rendererPingMessageSchema,
   enrollmentStatusRequestMessageSchema,
@@ -166,6 +181,8 @@ export const registerRendererToCoreMessageSchema = z.discriminatedUnion("type", 
   registerStatusRequestMessageSchema,
   readReceiptPrinterMessageSchema,
   setReceiptPrinterMessageSchema,
+  readSerialDevicesMessageSchema,
+  registerSerialDevicesMessageSchema,
 ]);
 export type RegisterRendererToCoreMessage = z.infer<typeof registerRendererToCoreMessageSchema>;
 
@@ -293,9 +310,20 @@ const recordableCashMovementKindsSchema = z.record(
 );
 export type RecordableCashMovementKinds = z.infer<typeof recordableCashMovementKindsSchema>;
 
+const SERIAL_DEVICE_STANDING_KINDS = [
+  "matching",
+  "not_detected",
+  "mismatched",
+  "not_registered",
+] as const;
+
 const registerStatusSchema = z.object({
   conditions: z.array(z.enum(REGISTER_OWN_CONDITIONS)),
   cloud: z.enum(["unknown", "reachable", "unreachable"]),
+  serial_devices: z.object({
+    scale: z.enum(SERIAL_DEVICE_STANDING_KINDS),
+    reader: z.enum(SERIAL_DEVICE_STANDING_KINDS),
+  }),
 });
 export type RegisterStatus = z.infer<typeof registerStatusSchema>;
 
@@ -316,6 +344,43 @@ const setReceiptPrinterOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unavailable") }),
 ]);
 export type SetReceiptPrinterOutcome = z.infer<typeof setReceiptPrinterOutcomeSchema>;
+
+const registeredSerialDevicesSchema = z.strictObject({
+  scale: serialDeviceIdentitySchema.optional(),
+  reader: serialDeviceIdentitySchema.optional(),
+});
+
+const serialDeviceStandingSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("matching"), path: z.string() }),
+  z.object({ kind: z.literal("not_detected") }),
+  z.object({ kind: z.literal("mismatched") }),
+  z.object({ kind: z.literal("not_registered") }),
+]);
+
+const readSerialDevicesOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("read"),
+    registered: registeredSerialDevicesSchema,
+    detected: z.array(serialDeviceIdentitySchema.extend({ path: z.string() })),
+    standings: z.object({
+      scale: serialDeviceStandingSchema,
+      reader: serialDeviceStandingSchema,
+    }),
+  }),
+  z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("lacks_permission") }),
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type ReadSerialDevicesOutcome = z.infer<typeof readSerialDevicesOutcomeSchema>;
+
+const registerSerialDevicesOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("registered"), devices: registeredSerialDevicesSchema }),
+  z.object({ kind: z.literal("same_identity_for_both") }),
+  z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("lacks_permission") }),
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type RegisterSerialDevicesOutcome = z.infer<typeof registerSerialDevicesOutcomeSchema>;
 
 export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("enrollment-status"), request_id: requestId, enrolled: z.boolean() }),
@@ -422,5 +487,16 @@ export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", 
     request_id: requestId,
     outcome: setReceiptPrinterOutcomeSchema,
   }),
+  z.object({
+    type: z.literal("read-serial-devices-result"),
+    request_id: requestId,
+    outcome: readSerialDevicesOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("register-serial-devices-result"),
+    request_id: requestId,
+    outcome: registerSerialDevicesOutcomeSchema,
+  }),
+  z.object({ type: z.literal("serial-devices-changed") }),
 ]);
 export type RegisterCoreToRendererMessage = z.infer<typeof registerCoreToRendererMessageSchema>;
