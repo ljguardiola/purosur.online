@@ -140,6 +140,8 @@ export type {
   FiscalDocumentType,
   FiscalOnlineSignalEvidence,
   IssuerIdentificationInEffect,
+  OfflineNumberBlockRange,
+  OfflineNumberBlockStatus,
   PreEmissionGateFailureReason,
   PreEmissionGateOutcome,
   RealTimeAuthorizationAnswer,
@@ -178,6 +180,8 @@ export {
   latestIssuerIdentification,
   NUMBER_CONSUMING_STATES,
   nextBuyerTaxStatusFetchAt,
+  nextOfflineNumber,
+  OFFLINE_NUMBER_BLOCK_STATUSES,
   POINT_OF_SALE_NUMBER_MAX,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   preEmissionGateFailedEvent,
@@ -190,13 +194,15 @@ export {
   thresholdScheduledAfter,
 } from "./fiscal/index.js";
 export type {
+  MercadoPagoQrOrderTransaction,
+  MercadoPagoQrPaymentTransaction,
   PaymentMethod,
   PaymentTransaction,
   PaymentTransactionState,
   PendingQrSalePayment,
   PlannedRefund,
-  ProviderPaymentTransaction,
   RefundState,
+  SalePayment,
 } from "./payments/index.js";
 export {
   cancellableWithoutAuthorization,
@@ -402,6 +408,7 @@ export type {
   SalesReportTotals,
   SaleWithLines,
   SoldProduct,
+  WeightSource,
 } from "./sales/index.js";
 export {
   isSalesReportRangeAsked,
@@ -424,6 +431,7 @@ export {
   saleStandingOf,
   saleTotal,
   startedReceiptPrint,
+  WEIGHT_SOURCES,
 } from "./sales/index.js";
 export {
   BACKOFFICE_REQUEST_WINDOW_MS,

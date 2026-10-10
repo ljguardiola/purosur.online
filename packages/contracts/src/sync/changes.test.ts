@@ -83,6 +83,23 @@ const issuerIdentificationRow = {
 
 const offlinePointOfSaleRow = { point_of_sale_number: 20, version: 1 };
 
+const offlineAuthorizationCodeRow = {
+  fortnight_start: "2026-09-16",
+  fortnight_end: "2026-09-30",
+  code: "36401234567890",
+  report_deadline: "2026-10-12",
+  version: 1,
+};
+
+const offlineNumberBlockRow = {
+  point_of_sale_number: 20,
+  document_type: "factura_c",
+  first_number: 1,
+  last_number: 1000,
+  status: "in_use",
+  version: 1,
+};
+
 const pointOfSaleRow = {
   point_of_sale_number: 12,
   fiscal_address_id: ENTITY_ID,
@@ -248,6 +265,22 @@ describe("changesPageSchema", () => {
       "the offline point of sale of a register",
       change(1, "register_offline_point_of_sale", offlinePointOfSaleRow),
     ],
+    [
+      "the offline authorization code of a fortnight",
+      change(1, "offline_authorization_code", offlineAuthorizationCodeRow),
+    ],
+    [
+      "the first offline number block of a point of sale",
+      change(1, "offline_number_block", offlineNumberBlockRow),
+    ],
+    [
+      "a later offline number block",
+      change(2, "offline_number_block", {
+        ...offlineNumberBlockRow,
+        first_number: 1001,
+        last_number: 2000,
+      }),
+    ],
     ["a set of buyer tax statuses", change(1, "buyer_tax_status_set", taxStatusSetRow)],
     ["a discount", change(1, "discount", discountRow)],
     ["a discount that applies every day", change(1, "discount", { ...discountRow, weekdays: [] })],
@@ -365,6 +398,12 @@ describe("changesPageSchema", () => {
       "register_offline_point_of_sale",
       offlinePointOfSaleRow,
     ],
+    [
+      "the offline authorization code of a fortnight",
+      "offline_authorization_code",
+      offlineAuthorizationCodeRow,
+    ],
+    ["an offline number block", "offline_number_block", offlineNumberBlockRow],
   ])("keeps nothing of %s but the fields a register may hold", (_case, entity, row) => {
     const page = pageOf(change(1, entity, { ...row, location_id: ENTITY_ID }));
 
@@ -513,6 +552,74 @@ describe("changesPageSchema", () => {
     [
       "a threshold with a fractional revision",
       pageOf(change(1, "buyer_identification_threshold", { ...thresholdRow, revision: 0.5 })),
+    ],
+    [
+      "an offline authorization code whose fortnight does not start on a calendar day",
+      pageOf(
+        change(1, "offline_authorization_code", {
+          ...offlineAuthorizationCodeRow,
+          fortnight_start: "2026-09-31",
+        }),
+      ),
+    ],
+    [
+      "an offline authorization code whose fortnight does not end on a calendar day",
+      pageOf(
+        change(1, "offline_authorization_code", {
+          ...offlineAuthorizationCodeRow,
+          fortnight_end: "2026-02-30",
+        }),
+      ),
+    ],
+    [
+      "an offline authorization code whose report deadline is not a calendar day",
+      pageOf(
+        change(1, "offline_authorization_code", {
+          ...offlineAuthorizationCodeRow,
+          report_deadline: "soon",
+        }),
+      ),
+    ],
+    [
+      "an offline authorization code without its code",
+      pageOf(
+        change(1, "offline_authorization_code", {
+          ...offlineAuthorizationCodeRow,
+          code: undefined,
+        }),
+      ),
+    ],
+    [
+      "an offline number block of a document type it does not know",
+      pageOf(
+        change(1, "offline_number_block", { ...offlineNumberBlockRow, document_type: "factura_a" }),
+      ),
+    ],
+    [
+      "an offline number block of a status it does not know",
+      pageOf(change(1, "offline_number_block", { ...offlineNumberBlockRow, status: "used_up" })),
+    ],
+    [
+      "an offline number block without its range",
+      pageOf(
+        change(1, "offline_number_block", { ...offlineNumberBlockRow, first_number: undefined }),
+      ),
+    ],
+    [
+      "an offline number block without its last number",
+      pageOf(
+        change(1, "offline_number_block", { ...offlineNumberBlockRow, last_number: undefined }),
+      ),
+    ],
+    [
+      "an offline number block of a point of sale outside the numbers the tax authority allows",
+      pageOf(
+        change(1, "offline_number_block", { ...offlineNumberBlockRow, point_of_sale_number: 0 }),
+      ),
+    ],
+    [
+      "an offline number block starting before the first number",
+      pageOf(change(1, "offline_number_block", { ...offlineNumberBlockRow, first_number: 0 })),
     ],
     [
       "a point of sale outside the numbers the tax authority allows",

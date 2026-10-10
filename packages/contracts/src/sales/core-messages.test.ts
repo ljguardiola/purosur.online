@@ -150,6 +150,57 @@ describe("sale requests", () => {
     expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
+  it("accepts adding a product sold by weight with the weight typed in thousandths of a kilogram", () => {
+    const message = {
+      type: "add-weighed-product",
+      request_id: REQUEST_ID,
+      product_id: "p2",
+      weight_thousandths: 1250,
+    };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([1, 2_147_483_647])("accepts a typed weight of %s thousandths", (weight_thousandths) => {
+    expect(
+      salesRendererToCoreMessageSchema.safeParse({
+        type: "add-weighed-product",
+        request_id: REQUEST_ID,
+        product_id: "p2",
+        weight_thousandths,
+      }).success,
+    ).toBe(true);
+  });
+
+  it.each([
+    { product_id: "p2" },
+    { weight_thousandths: 1000 },
+    { product_id: "p2", weight_thousandths: 0 },
+    { product_id: "p2", weight_thousandths: -1 },
+    { product_id: "p2", weight_thousandths: 1.5 },
+    { product_id: "p2", weight_thousandths: 2_147_483_648 },
+    { product_id: "p2", weight_thousandths: "1000" },
+    { product_id: 2, weight_thousandths: 1000 },
+  ])("rejects an addition by weight that is not well formed: %j", (fields) => {
+    expect(
+      salesRendererToCoreMessageSchema.safeParse({
+        type: "add-weighed-product",
+        request_id: REQUEST_ID,
+        ...fields,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects an addition by weight missing its request id", () => {
+    expect(
+      salesRendererToCoreMessageSchema.safeParse({
+        type: "add-weighed-product",
+        product_id: "p2",
+        weight_thousandths: 1000,
+      }).success,
+    ).toBe(false);
+  });
+
   it("accepts a request for the sale in progress", () => {
     const message = { type: "sale-request", request_id: REQUEST_ID };
 
@@ -214,6 +265,8 @@ describe("sale answers", () => {
         id: "l1",
         product_id: "p1",
         product_name: "Yerba",
+        sale_unit: "UNIT",
+        weight_source: null,
         quantity: 1,
         list_unit_price: 1500,
         discount_amount: 0,
@@ -390,6 +443,63 @@ describe("sale line requests", () => {
     ).toBe(false);
   });
 
+  it("accepts a change of a weighed line's weight", () => {
+    const message = {
+      type: "change-line-weight",
+      request_id: REQUEST_ID,
+      line_id: "l1",
+      weight_thousandths: 1500,
+      expected_weight_thousandths: 1250,
+    };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts retyping a line whose shown weight is more than a line may be changed to", () => {
+    const message = {
+      type: "change-line-weight",
+      request_id: REQUEST_ID,
+      line_id: "l1",
+      weight_thousandths: 1,
+      expected_weight_thousandths: 2_147_483_648,
+    };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { line_id: "l1", weight_thousandths: 1000 },
+    { line_id: "l1", expected_weight_thousandths: 1000 },
+    { weight_thousandths: 1000, expected_weight_thousandths: 1000 },
+    { line_id: "l1", weight_thousandths: 0, expected_weight_thousandths: 1000 },
+    { line_id: "l1", weight_thousandths: -1, expected_weight_thousandths: 1000 },
+    { line_id: "l1", weight_thousandths: 1.5, expected_weight_thousandths: 1000 },
+    { line_id: "l1", weight_thousandths: 2_147_483_648, expected_weight_thousandths: 1000 },
+    { line_id: 7, weight_thousandths: 1000, expected_weight_thousandths: 1000 },
+    { line_id: "l1", weight_thousandths: 1000, expected_weight_thousandths: 0 },
+    { line_id: "l1", weight_thousandths: 1000, expected_weight_thousandths: 1.5 },
+    { line_id: "l1", weight_thousandths: 1000, expected_weight_thousandths: "1000" },
+  ])("rejects a weight change that is not well formed: %j", (fields) => {
+    expect(
+      salesRendererToCoreMessageSchema.safeParse({
+        type: "change-line-weight",
+        request_id: REQUEST_ID,
+        ...fields,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a weight change missing its request id", () => {
+    expect(
+      salesRendererToCoreMessageSchema.safeParse({
+        type: "change-line-weight",
+        line_id: "l1",
+        weight_thousandths: 1000,
+        expected_weight_thousandths: 1000,
+      }).success,
+    ).toBe(false);
+  });
+
   it("accepts the removal of a line", () => {
     const message = { type: "remove-sale-line", request_id: REQUEST_ID, line_id: "l1" };
 
@@ -485,6 +595,17 @@ describe("sale line answers", () => {
     ["change-line-quantity-result", { kind: "unknown_line" }],
     ["change-line-quantity-result", { kind: "stale_quantity" }],
     ["change-line-quantity-result", { kind: "sale_has_payments" }],
+    ["change-line-quantity-result", { kind: "sold_by_weight" }],
+    ["change-line-weight-result", { kind: "changed", sale }],
+    ["change-line-weight-result", { kind: "stale_weight" }],
+    ["change-line-weight-result", { kind: "invalid_weight" }],
+    ["change-line-weight-result", { kind: "not_sold_by_weight" }],
+    ["change-line-weight-result", { kind: "sale_has_payments" }],
+    ["add-weighed-product-result", { kind: "added", sale }],
+    ["add-weighed-product-result", { kind: "invalid_weight" }],
+    ["add-weighed-product-result", { kind: "not_sold_by_weight" }],
+    ["add-weighed-product-result", { kind: "product_unavailable" }],
+    ["add-weighed-product-result", { kind: "no_price", product_name: "Queso" }],
     ["remove-sale-line-result", { kind: "removed", sale }],
     ["remove-sale-line-result", { kind: "no_open_sale" }],
     ["remove-sale-line-result", { kind: "sale_has_payments" }],
@@ -496,28 +617,34 @@ describe("sale line answers", () => {
     expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
-  it.each(["change-line-quantity-result", "remove-sale-line-result", "cancel-sale-result"])(
-    "rejects %s with an outcome it does not know",
-    (type) => {
-      expect(
-        salesCoreToRendererMessageSchema.safeParse({
-          type,
-          request_id: REQUEST_ID,
-          outcome: { kind: "somewhere_else" },
-        }).success,
-      ).toBe(false);
-    },
-  );
+  it.each([
+    "change-line-quantity-result",
+    "change-line-weight-result",
+    "add-weighed-product-result",
+    "remove-sale-line-result",
+    "cancel-sale-result",
+  ])("rejects %s with an outcome it does not know", (type) => {
+    expect(
+      salesCoreToRendererMessageSchema.safeParse({
+        type,
+        request_id: REQUEST_ID,
+        outcome: { kind: "somewhere_else" },
+      }).success,
+    ).toBe(false);
+  });
 
-  it.each(["change-line-quantity-result", "remove-sale-line-result", "cancel-sale-result"])(
-    "rejects %s without its request id",
-    (type) => {
-      expect(
-        salesCoreToRendererMessageSchema.safeParse({ type, outcome: { kind: "unavailable" } })
-          .success,
-      ).toBe(false);
-    },
-  );
+  it.each([
+    "change-line-quantity-result",
+    "change-line-weight-result",
+    "add-weighed-product-result",
+    "remove-sale-line-result",
+    "cancel-sale-result",
+  ])("rejects %s without its request id", (type) => {
+    expect(
+      salesCoreToRendererMessageSchema.safeParse({ type, outcome: { kind: "unavailable" } })
+        .success,
+    ).toBe(false);
+  });
 });
 
 describe("charge sale in cash answer", () => {

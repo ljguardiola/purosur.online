@@ -1,5 +1,5 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
-import type { PaymentTransaction } from "../../payments/index.js";
+import type { SalePayment } from "../../payments/index.js";
 import { nonCashCharge } from "../../payments/index.js";
 import type { Clock } from "../../shared/index.js";
 import { chargeableSale, isSaleRefusal, type PartiallyPaid } from "./chargeable-sale.js";
@@ -46,7 +46,7 @@ export function chargeSaleByTransfer(
       return charge;
     }
 
-    const payment: PaymentTransaction = {
+    const payment: SalePayment = {
       id: ids.next(),
       saleId: sale.id,
       kind: "SALE",

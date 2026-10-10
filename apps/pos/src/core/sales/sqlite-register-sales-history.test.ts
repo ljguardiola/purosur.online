@@ -96,7 +96,7 @@ function addSale({
         `INSERT INTO fiscal_documents (
            id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
            authorization_code, authorization_code_due_on, reserved_at, resolved_at
-         ) VALUES (?, ?, ?, 'FACTURA_C', ?, '2026-10-08', '{}', ?, ?, ?, '2026-10-08T12:00:00.000Z', ?)`,
+         ) VALUES (?, ?, ?, 'factura_c', ?, '2026-10-08', '{}', ?, ?, ?, '2026-10-08T12:00:00.000Z', ?)`,
       )
       .run(
         `doc-${id}`,

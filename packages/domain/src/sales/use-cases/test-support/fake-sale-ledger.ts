@@ -5,7 +5,7 @@ import {
   latestBuyerTaxStatusSet,
   latestIssuerIdentification,
 } from "../../../fiscal/index.js";
-import type { PaymentTransaction, PendingQrSalePayment } from "../../../payments/index.js";
+import type { PendingQrSalePayment, SalePayment } from "../../../payments/index.js";
 import type { RoleAccess } from "../../../permissions/index.js";
 import { priceInEffectAt } from "../../../pricing/index.js";
 import { type CashMovement, nextOperationNumber } from "../../../register/index.js";
@@ -50,7 +50,7 @@ export interface FakeSaleLedgerState {
   thresholds: BuyerIdentificationThreshold[];
   promotionsByProduct: Record<string, CandidatePromotion[]>;
   sales: StoredSale[];
-  payments: PaymentTransaction[];
+  payments: SalePayment[];
   pendingQrPayments: PendingQrSalePayment[];
   refunds: SaleRefund[];
   movements: CashMovement[];
@@ -68,7 +68,7 @@ export interface FakeSaleLedgerState {
 export type FakeSaleLedgerWrite =
   | "recordOpenedSale"
   | "recordSaleLine"
-  | "recordLineQuantity"
+  | "recordChangedLine"
   | "deleteSaleLine"
   | "discardOpenSale"
   | "recordPayment"
@@ -163,14 +163,15 @@ export class FakeSaleLedger implements SaleLedger {
         this.failIfAsked("recordSaleLine");
         working.sales.find((sale) => sale.id === saleId)?.lines.push(line);
       },
-      recordLineQuantity: (line) => {
-        this.failIfAsked("recordLineQuantity");
+      recordChangedLine: (line) => {
+        this.failIfAsked("recordChangedLine");
         for (const sale of working.sales) {
           sale.lines = sale.lines.map((stored) =>
             stored.id === line.id
               ? {
                   ...stored,
                   quantity: line.quantity,
+                  weightSource: line.weightSource,
                   promotionId: line.promotionId,
                   discountAmount: line.discountAmount,
                   lineTotal: line.lineTotal,

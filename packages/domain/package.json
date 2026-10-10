@@ -51,6 +51,9 @@
       "types": "./dist/payments/use-cases/index.d.ts",
       "default": "./dist/payments/use-cases/index.js"
     },
+    "./payments/test-support": {
+      "@purosur/source": "./src/payments/test-support/pending-qr-transaction.ts"
+    },
     "./users/use-cases": {
       "@purosur/source": "./src/users/use-cases/index.ts",
       "types": "./dist/users/use-cases/index.d.ts",

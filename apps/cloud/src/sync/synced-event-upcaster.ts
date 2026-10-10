@@ -16,9 +16,10 @@ type CompletedSalePayload = SyncedEventPayloads[
   | "sale_completed@2"
   | "sale_completed@3"
   | "sale_completed@4"
-  | "sale_completed@5"];
+  | "sale_completed@5"
+  | "sale_completed@6"];
 type SalePayment = SyncedEventPayloads["sale_completed@1" | "sale_completed@5"]["payments"][number];
-type CancelledSalePayload = SyncedEventPayloads["sale_cancelled@1"];
+type CancelledSalePayload = SyncedEventPayloads["sale_cancelled@1" | "sale_cancelled@2"];
 
 function saleParts(payload: CompletedSalePayload | CancelledSalePayload) {
   return {
@@ -31,6 +32,7 @@ function saleParts(payload: CompletedSalePayload | CancelledSalePayload) {
       priceListId: line.price_list_id,
       promotionId: line.promotion_id,
       discountAmount: line.discount_amount,
+      weightSource: "weight_source" in line ? line.weight_source : null,
       lineTotal: line.line_total,
     })),
     cashMovements: payload.cash_movements.map((movement) => ({
@@ -143,6 +145,14 @@ const FACT_OF: {
       payload.stock_movements,
       payload.operation_number,
     ),
+  "sale_completed@6": (payload) =>
+    completedSale(
+      payload,
+      payload.occurred_at,
+      payload.payments,
+      payload.stock_movements,
+      payload.operation_number,
+    ),
   "sale_print_state_changed@1": (payload) => ({
     kind: "sale_print_state_changed",
     printState: {
@@ -166,6 +176,7 @@ const FACT_OF: {
     },
   }),
   "sale_cancelled@1": cancelledSale,
+  "sale_cancelled@2": cancelledSale,
   "cash_session_opened@1": (payload, event) => ({
     kind: "cash_session_opened",
     session: {

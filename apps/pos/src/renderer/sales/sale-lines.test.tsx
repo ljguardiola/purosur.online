@@ -1,6 +1,6 @@
 import type { OpenSale } from "@purosur/contracts";
-import { describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { SaleLineActions } from "./sale-lines";
 import { SaleLines } from "./sale-lines";
@@ -9,6 +9,8 @@ const YERBA: OpenSale["lines"][number] = {
   id: "line-1",
   product_id: "p1",
   product_name: "Yerba mate 1 kg",
+  sale_unit: "UNIT" as const,
+  weight_source: null,
   quantity: 2,
   list_unit_price: 238_000,
   discount_amount: 0,
@@ -22,24 +24,44 @@ const CONTROLS = [
   "Quitar Yerba mate 1 kg",
 ];
 
-async function renderLines(actions: Partial<SaleLineActions> = {}) {
+const QUESO: OpenSale["lines"][number] = {
+  id: "line-3",
+  product_id: "p3",
+  product_name: "Queso cremoso",
+  sale_unit: "KG",
+  weight_source: "MANUAL",
+  quantity: 1250,
+  list_unit_price: 1_250_000,
+  discount_amount: 0,
+  promotion: null,
+  line_total: 1_562_500,
+};
+
+async function renderLines(
+  actions: Partial<SaleLineActions> = {},
+  lines: OpenSale["lines"] = [YERBA],
+) {
+  await page.viewport(1280, 720);
+  onTestFinished(() => page.viewport(414, 896));
   const onChangeQuantity = vi.fn();
+  const onChangeWeight = vi.fn();
   const onRemove = vi.fn();
   const screen = await render(
     <SaleLines
-      lines={[YERBA]}
+      lines={lines}
       changedLineId={undefined}
       actions={{
         busy: false,
         editable: true,
         lockedReason: undefined,
         onChangeQuantity,
+        onChangeWeight,
         onRemove,
         ...actions,
       }}
     />,
   );
-  return { screen, onChangeQuantity, onRemove };
+  return { screen, onChangeQuantity, onChangeWeight, onRemove };
 }
 
 describe("SaleLines", () => {
@@ -90,5 +112,44 @@ describe("SaleLines", () => {
     for (const name of CONTROLS) {
       await expect.element(screen.getByRole("button", { name })).toBeDisabled();
     }
+  });
+
+  describe("a line sold by the kilogram", () => {
+    it("shows its weight and its price per kilogram, with no quantity steppers and nothing about where the weight came from", async () => {
+      const { screen } = await renderLines({}, [QUESO]);
+
+      await expect.element(screen.getByText("1,250 kg")).toBeVisible();
+      await expect.element(screen.getByText("$ 12.500,00 el kg")).toBeVisible();
+      await expect.element(screen.getByText("Peso tipeado")).not.toBeInTheDocument();
+      await expect.element(screen.getByText("$ 15.625,00")).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Subir la cantidad de Queso cremoso" }))
+        .not.toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("button", { name: "Bajar la cantidad de Queso cremoso" }))
+        .not.toBeInTheDocument();
+    });
+
+    it("asks to change the weight of the line", async () => {
+      const { screen, onChangeWeight } = await renderLines({}, [QUESO]);
+
+      await screen.getByRole("button", { name: "Cambiar el peso de Queso cremoso" }).click();
+
+      expect(onChangeWeight).toHaveBeenCalledExactlyOnceWith(QUESO);
+    });
+
+    it("locks the change of weight like the other controls", async () => {
+      const { screen } = await renderLines({ busy: true }, [QUESO]);
+
+      await expect
+        .element(screen.getByRole("button", { name: "Cambiar el peso de Queso cremoso" }))
+        .toBeDisabled();
+    });
+  });
+
+  it("shows a unit line with no price per kilogram", async () => {
+    const { screen } = await renderLines();
+
+    await expect.element(screen.getByText(/el kg/)).not.toBeInTheDocument();
   });
 });

@@ -10,6 +10,7 @@ import {
   saleLines,
   salePayments,
   sales,
+  users,
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertProduct } from "../stock/test-support/stock-route-fixtures.js";
@@ -27,6 +28,7 @@ import {
 
 const route = eventsRouteUnderTest();
 
+const CASHIER = "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03";
 const AN_HOUR_MS = 60 * 60 * 1000;
 
 function applyAt(at: Date) {
@@ -198,6 +200,41 @@ describe("applying what POST /events received", () => {
 
     const [line] = await route.db.select().from(saleLines);
     expect(line).toMatchObject({ listUnitPrice: 2400, productId, priceListId });
+    expect(await route.db.select().from(alerts)).toEqual([]);
+  });
+
+  it("applies a sale with a line sold by weight, keeping its weight and where it came from", async () => {
+    const { installation, device } = await pushingFromARegister();
+    await route.db.insert(users).values({
+      id: CASHIER,
+      firstName: "Ada",
+      email: "ada@example.com",
+      locationId: installation.locationId,
+    });
+    const priceListId = await seededPriceListId(route.db);
+    const { productId } = await insertProduct(route.db, { saleUnit: "KG" });
+    const sessionId = randomUUID();
+    await device.push([
+      cashSessionOpened(sessionId, "2026-10-06T11:00:00.000Z"),
+      saleCompleted({
+        saleId: randomUUID(),
+        sessionId,
+        completedAt: "2026-10-06T11:20:00.000Z",
+        total: 11250,
+        payments: [{ amount: 11250 }],
+        line: {
+          productId,
+          priceListId,
+          listUnitPrice: 9000,
+          weight: { thousandths: 1250, source: "MANUAL" },
+        },
+      }),
+    ]);
+
+    await applyAt(NOW);
+
+    const [line] = await route.db.select().from(saleLines);
+    expect(line).toMatchObject({ quantity: 1250, weightSource: "MANUAL", listUnitPrice: 9000 });
     expect(await route.db.select().from(alerts)).toEqual([]);
   });
 

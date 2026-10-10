@@ -173,6 +173,8 @@ export {
   formatOperationNumber,
   formatPointOfSaleNumber,
   formatTimeAgo,
+  formatWeight,
+  formatWeightInput,
   parsePointOfSaleNumber,
   plural,
 } from "./messages/formatters";
@@ -190,6 +192,6 @@ export type { LocalAlertKind, LocalAlertText } from "./messages/local-alert-text
 export { isLocalAlertKind, localAlertText } from "./messages/local-alert-texts";
 export type { LocaleProviderProps } from "./messages/locale-provider";
 export { LocaleProvider } from "./messages/locale-provider";
-export { parseAmountCents, parseEsArNumber } from "./messages/parsers";
+export { parseAmountCents, parseEsArNumber, parseWeightThousandths } from "./messages/parsers";
 export type { ItemOrder, ItemsSort } from "./ordering/item-ordering";
 export { sortedItems, textOrder } from "./ordering/item-ordering";

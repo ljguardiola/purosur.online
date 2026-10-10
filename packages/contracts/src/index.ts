@@ -287,6 +287,8 @@ export type {
   SalesRendererToCoreMessage,
 } from "./sales/core-messages.js";
 export {
+  addWeighedProductMessageSchema,
+  changeLineWeightMessageSchema,
   chargeSaleByTransferMessageSchema,
   chargeSaleInCashMessageSchema,
   reprintSaleReceiptMessageSchema,
@@ -295,11 +297,13 @@ export {
 } from "./sales/core-messages.js";
 export type {
   AddProductOutcome,
+  AddWeighedProductOutcome,
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashCharge,
   CashChargeAnswer,
   ChangeLineQuantityOutcome,
+  ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,

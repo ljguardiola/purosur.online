@@ -1,26 +1,31 @@
-import type { AddProductOutcome, ScanProductOutcome } from "@purosur/contracts";
+import type {
+  AddProductOutcome,
+  AddWeighedProductOutcome,
+  ScanProductOutcome,
+} from "@purosur/contracts";
 import { ElevatedNotice } from "@purosur/ui";
 import type { LucideIcon } from "lucide-react";
 import { Ban, Lock, PackageX, Scale, ScanBarcode, Tag, TriangleAlert } from "lucide-react";
 
 export type ScanProblem =
   | Extract<
-      ScanProductOutcome | AddProductOutcome,
+      ScanProductOutcome | AddProductOutcome | AddWeighedProductOutcome,
       {
         kind:
           | "unknown_code"
           | "product_unavailable"
           | "no_price"
-          | "sold_by_weight"
           | "line_quantity_limit"
           | "not_permitted"
           | "installation_revoked";
       }
     >
+  | { kind: "not_sold_by_weight"; product_name: string }
   | { kind: "scan_failed" }
   | { kind: "add_failed" }
   | { kind: "search_failed" }
   | { kind: "change_failed" }
+  | { kind: "weight_change_failed" }
   | { kind: "remove_failed" }
   | { kind: "cancel_failed" }
   | { kind: "has_approved_payment" }
@@ -43,17 +48,17 @@ export function messageFor(problem: ScanProblem): Message {
         title: "Ese producto ya no se vende",
         help: "Buscalo de nuevo por nombre.",
       };
+    case "not_sold_by_weight":
+      return {
+        icon: Scale,
+        title: `${problem.product_name} ya no se vende por kilo`,
+        help: "Escanealo o buscalo de nuevo para agregarlo.",
+      };
     case "no_price":
       return {
         icon: Tag,
         title: `${problem.product_name} no tiene precio`,
         help: "No se puede vender hasta que alguien con el permiso de precios se lo ponga en el backoffice.",
-      };
-    case "sold_by_weight":
-      return {
-        icon: Scale,
-        title: `${problem.product_name} se vende por kilo`,
-        help: "Esta caja todavía no vende productos por kilo.",
       };
     case "line_quantity_limit":
       return {
@@ -89,6 +94,12 @@ export function messageFor(problem: ScanProblem): Message {
       return {
         icon: TriangleAlert,
         title: "No se pudo cambiar la cantidad",
+        help: "Probá de nuevo.",
+      };
+    case "weight_change_failed":
+      return {
+        icon: TriangleAlert,
+        title: "No se pudo cambiar el peso",
         help: "Probá de nuevo.",
       };
     case "remove_failed":

@@ -1,4 +1,4 @@
-import type { PaymentTransaction } from "../../payments/index.js";
+import type { SalePayment } from "../../payments/index.js";
 import { paymentRecord, plannedRefunds } from "../../payments/index.js";
 import { registerOperationAccess } from "../../register/index.js";
 import type { Clock, OperationAuthority, OutboxEventDraft } from "../../shared/index.js";
@@ -136,7 +136,7 @@ function refundMovement(
 
 interface Cancellation {
   sale: SaleWithLines;
-  payments: readonly PaymentTransaction[];
+  payments: readonly SalePayment[];
   refunds: readonly SaleRefund[];
   movements: readonly SaleCashMovement[];
   grant: CancelPaidSaleGrant;
@@ -153,7 +153,7 @@ function saleCancelledEvent(
     aggregate_type: "Sale",
     aggregate_id: sale.id,
     event_type: "sale_cancelled",
-    schema_version: 1,
+    schema_version: 2,
     payload: {
       id: sale.id,
       register_id: sale.registerId,

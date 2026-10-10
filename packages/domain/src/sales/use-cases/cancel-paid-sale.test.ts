@@ -1,5 +1,6 @@
+import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
-import type { PaymentTransaction } from "../../payments/index.js";
+import type { SalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import {
   type CancelPaidSaleGrant,
@@ -25,6 +26,8 @@ const YERBA_LINE = {
   id: "line-1",
   productId: "yerba",
   productName: "Yerba 1 kg",
+  saleUnit: "UNIT" as const,
+  weightSource: null,
   quantity: 3,
   listUnitPrice: 2500,
   priceListId: "list-1",
@@ -42,7 +45,7 @@ const OPEN_SALE: SaleWithLines = {
   state: "OPEN",
   lines: [YERBA_LINE],
 };
-const CASH_PAYMENT: PaymentTransaction = {
+const CASH_PAYMENT: SalePayment = {
   id: "payment-1",
   saleId: "sale-1",
   kind: "SALE",
@@ -53,7 +56,7 @@ const CASH_PAYMENT: PaymentTransaction = {
   state: "APPROVED",
   occurredAt: PAID_AT,
 };
-const TRANSFER_PAYMENT: PaymentTransaction = {
+const TRANSFER_PAYMENT: SalePayment = {
   id: "payment-2",
   saleId: "sale-1",
   kind: "SALE",
@@ -65,7 +68,7 @@ const TRANSFER_PAYMENT: PaymentTransaction = {
   authorizedBy: "cashier",
   confirmedAt: PAID_AT,
 };
-const QR_PAYMENT: PaymentTransaction = {
+const QR_PAYMENT: SalePayment = {
   id: "payment-3",
   saleId: "sale-1",
   kind: "SALE",
@@ -176,6 +179,7 @@ const LINE_RECORD = {
   id: "line-1",
   product_id: "yerba",
   product_name: "Yerba 1 kg",
+  weight_source: null,
   quantity: 3,
   list_unit_price: 2500,
   price_list_id: "list-1",
@@ -237,7 +241,7 @@ describe("cancelPaidSale", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "sale_cancelled",
-          schema_version: 1,
+          schema_version: 2,
           payload: {
             id: "sale-1",
             register_id: "register-1",
@@ -620,6 +624,7 @@ describe("cancelPaidSale", () => {
 describe("cancelPaidSale with a QR charge", () => {
   function pendingQrEndingAt(waitEndsAt: Date) {
     return {
+      ...PENDING_QR_TRANSACTION,
       id: "qr-9",
       saleId: "sale-1",
       amount: 1000,

@@ -76,6 +76,7 @@ const decodedLine = {
   id: saleLine.id,
   productId: saleLine.product_id,
   productName: "Azucar",
+  weightSource: null,
   quantity: 2,
   listUnitPrice: 2400,
   priceListId: saleLine.price_list_id,
@@ -277,6 +278,132 @@ describe("decoding the events the registers pushed", () => {
     );
 
     expect(decoded).toMatchObject({ fact: { sale: { operationNumber: null } } });
+  });
+
+  describe("the source of the weight of a line sold by weight", () => {
+    const weighedLine = {
+      ...saleLine,
+      id: "01a1122a-0305-7189-87d0-8256a353fd41",
+      product_name: "Queso cremoso",
+      weight_source: "MANUAL",
+      quantity: 1250,
+      list_unit_price: 9000,
+      line_total: 11250,
+    };
+    const unitLine = { ...saleLine, weight_source: null };
+
+    it("reads a version 6 sale with each line's weight and the source of its weight", () => {
+      const decoded = upcaster.decode(
+        unappliedEventOf(
+          pushed({
+            schema_version: 6,
+            payload: {
+              ...saleFields,
+              lines: [unitLine, weighedLine],
+              operation_number: 484,
+              payments: [{ ...salePayment, authorized_by: null, confirmed_at: null }],
+              stock_movements: [],
+            },
+          }),
+        ),
+      );
+
+      expect(decoded).toMatchObject({
+        kind: "fact",
+        fact: {
+          kind: "sale_completed",
+          sale: {
+            operationNumber: 484,
+            lines: [
+              { id: unitLine.id, quantity: 2, weightSource: null },
+              { id: weighedLine.id, quantity: 1250, weightSource: "MANUAL" },
+            ],
+          },
+        },
+      });
+    });
+
+    it("reads a version 2 cancelled sale with each line's weight and the source of its weight", () => {
+      const decoded = upcaster.decode(
+        unappliedEventOf(
+          pushed({
+            event_type: "sale_cancelled",
+            schema_version: 2,
+            payload: {
+              ...saleFields,
+              lines: [weighedLine],
+              authorized_by: null,
+              payments: [{ ...salePayment, authorized_by: null, confirmed_at: null }],
+              refunds: [
+                {
+                  id: "01a1122a-0308-7000-8000-00000000aaa3",
+                  kind: "REFUND",
+                  parent_id: salePayment.id,
+                  method: "CASH",
+                  provider: "NONE",
+                  amount: 5000,
+                  state: "APPROVED",
+                  occurred_at: "2026-10-06T11:20:00.000Z",
+                },
+              ],
+            },
+          }),
+        ),
+      );
+
+      expect(decoded).toMatchObject({
+        kind: "fact",
+        fact: {
+          kind: "sale_cancelled",
+          sale: { lines: [{ id: weighedLine.id, quantity: 1250, weightSource: "MANUAL" }] },
+        },
+      });
+    });
+
+    it("refuses a version 6 sale whose line has an unknown weight source", () => {
+      const decoded = upcaster.decode(
+        unappliedEventOf(
+          pushed({
+            schema_version: 6,
+            payload: {
+              ...saleFields,
+              lines: [{ ...weighedLine, weight_source: "SENSOR" }],
+              operation_number: 484,
+              payments: [{ ...salePayment, authorized_by: null, confirmed_at: null }],
+              stock_movements: [],
+            },
+          }),
+        ),
+      );
+
+      expect(decoded.kind).toBe("unreadable");
+    });
+
+    it.each([1, 2, 3, 4, 5])(
+      "reads every line of a version %s sale as sold by the unit",
+      (version) => {
+        const decoded = upcaster.decode(
+          unappliedEventOf(
+            pushed({
+              schema_version: version,
+              payload: {
+                ...saleFields,
+                ...(version === 1 ? { completed_at: "2026-10-06T11:20:00.000Z" } : {}),
+                ...(version >= 4 ? { operation_number: 1 } : {}),
+                ...(version >= 3 ? { stock_movements: [] } : {}),
+                payments: [
+                  version === 1
+                    ? salePayment
+                    : { ...salePayment, authorized_by: null, confirmed_at: null },
+                ],
+              },
+            }),
+          ),
+        );
+
+        expect(decoded).toMatchObject({ fact: { sale: { lines: [{ weightSource: null }] } } });
+      },
+    );
   });
 
   it("reads the print state of a sale's receipt", () => {
@@ -722,11 +849,11 @@ describe("decoding the events the registers pushed", () => {
   });
 
   it("cannot read an event type and version no schema describes", () => {
-    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 6 })));
+    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 7 })));
 
     expect(decoded).toEqual({
       kind: "unreadable",
-      reason: "no schema reads sale_completed version 6",
+      reason: "no schema reads sale_completed version 7",
     });
   });
 

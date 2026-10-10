@@ -7,6 +7,8 @@ function line(id: string, quantity: number) {
     id,
     product_id: `product-${id}`,
     product_name: id,
+    sale_unit: "UNIT" as const,
+    weight_source: null,
     quantity,
     list_unit_price: 100,
     discount_amount: 0,

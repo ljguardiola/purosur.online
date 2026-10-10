@@ -434,11 +434,6 @@ describe("SaleScreen searching by name", () => {
         title: "Alfajor triple no tiene precio",
       },
       {
-        name: "a product sold by weight",
-        outcome: { kind: "sold_by_weight", product_name: "Queso cremoso" },
-        title: "Queso cremoso se vende por kilo",
-      },
-      {
         name: "a line that may not carry another unit",
         outcome: { kind: "line_quantity_limit", product_name: "Yerba mate 1 kg" },
         title: "No se pueden sumar más unidades de Yerba mate 1 kg",

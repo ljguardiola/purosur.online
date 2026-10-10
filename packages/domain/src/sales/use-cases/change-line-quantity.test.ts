@@ -1,5 +1,6 @@
+import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
-import type { PaymentTransaction } from "../../payments/index.js";
+import type { SalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { changeLineQuantity } from "./change-line-quantity.js";
 import {
@@ -12,6 +13,7 @@ const NOW = new Date("2026-09-30T12:34:56.789Z");
 
 function pendingQrEndingAt(waitEndsAt: Date) {
   return {
+    ...PENDING_QR_TRANSACTION,
     id: "qr-1",
     saleId: "sale-1",
     amount: 1000,
@@ -27,6 +29,8 @@ const YERBA_LINE = {
   id: "line-1",
   productId: "yerba",
   productName: "Yerba 1 kg",
+  saleUnit: "UNIT" as const,
+  weightSource: null,
   quantity: 3,
   listUnitPrice: 2500,
   priceListId: "list-1",
@@ -40,9 +44,22 @@ const AZUCAR_LINE = {
   id: "line-2",
   productId: "azucar",
   productName: "Azucar",
+  saleUnit: "UNIT" as const,
+  weightSource: null,
   quantity: 1,
   listUnitPrice: 1200,
   lineTotal: 1200,
+};
+const QUESO_LINE = {
+  ...YERBA_LINE,
+  id: "line-3",
+  productId: "queso",
+  productName: "Queso cremoso",
+  saleUnit: "KG" as const,
+  weightSource: "MANUAL" as const,
+  quantity: 1000,
+  listUnitPrice: 9000,
+  lineTotal: 9000,
 };
 const OPEN_SALE: SaleWithLines = {
   id: "sale-1",
@@ -53,7 +70,7 @@ const OPEN_SALE: SaleWithLines = {
   state: "OPEN",
   lines: [YERBA_LINE, AZUCAR_LINE],
 };
-const PAYMENT: PaymentTransaction = {
+const PAYMENT: SalePayment = {
   id: "payment-1",
   saleId: "sale-1",
   kind: "SALE",
@@ -235,7 +252,7 @@ describe("changeLineQuantity", () => {
 
   it("writes nothing at all when the quantity is the same", () => {
     const store = ledger();
-    store.failOn = "recordLineQuantity";
+    store.failOn = "recordChangedLine";
 
     expect(change(store, "line-1", 3)).toEqual(expect.objectContaining({ kind: "changed" }));
   });
@@ -290,6 +307,26 @@ describe("changeLineQuantity", () => {
       expect(store.state).toEqual(before);
     },
   );
+
+  it("refuses a line sold by weight, whose weight is retyped and never stepped, changing nothing", () => {
+    const store = ledger({ sales: [{ ...OPEN_SALE, lines: [QUESO_LINE] }] });
+    const before = structuredClone(store.state);
+
+    expect(change(store, "line-3", 1001)).toEqual({ kind: "sold_by_weight" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("checks the line exists before whether it is sold by weight", () => {
+    const store = ledger({ sales: [{ ...OPEN_SALE, lines: [QUESO_LINE] }] });
+
+    expect(change(store, "line-9", 1001)).toEqual({ kind: "unknown_line" });
+  });
+
+  it("checks whether the line is sold by weight before comparing the shown quantity", () => {
+    const store = ledger({ sales: [{ ...OPEN_SALE, lines: [QUESO_LINE] }] });
+
+    expect(change(store, "line-3", 1001, "cashier", 7)).toEqual({ kind: "sold_by_weight" });
+  });
 
   it("refuses a line that is not in the open sale, changing nothing", () => {
     const store = ledger();
@@ -364,9 +401,9 @@ describe("changeLineQuantity", () => {
   it("leaves the quantity untouched when recording it fails", () => {
     const store = ledger();
     const before = structuredClone(store.state);
-    store.failOn = "recordLineQuantity";
+    store.failOn = "recordChangedLine";
 
-    expect(() => change(store, "line-1", 1)).toThrow("recordLineQuantity failed");
+    expect(() => change(store, "line-1", 1)).toThrow("recordChangedLine failed");
     expect(store.state).toEqual(before);
   });
 });

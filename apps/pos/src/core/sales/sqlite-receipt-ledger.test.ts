@@ -35,8 +35,8 @@ function insertLine(
   database.exec(
     `INSERT OR IGNORE INTO products (id, name, category_id, sale_unit, active, version)
      VALUES ('${product.id}', '${product.name} del catalogo', 'c', '${product.unit}', 1, 1);
-     INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, sale_unit, quantity, list_unit_price, price_list_id, promotion_id, discount_amount, line_total)
-     VALUES ('${id}', 'sale-1', ${position}, '${product.id}', '${product.name}', '${product.unit}', ${values.quantity}, ${values.unitPrice}, 'list-1', ${values.discount > 0 ? "'promo-1'" : "NULL"}, ${values.discount}, ${values.total});`,
+     INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, sale_unit, weight_source, quantity, list_unit_price, price_list_id, promotion_id, discount_amount, line_total)
+     VALUES ('${id}', 'sale-1', ${position}, '${product.id}', '${product.name}', '${product.unit}', ${product.unit === "KG" ? "'MANUAL'" : "NULL"}, ${values.quantity}, ${values.unitPrice}, 'list-1', ${values.discount > 0 ? "'promo-1'" : "NULL"}, ${values.discount}, ${values.total});`,
   );
 }
 

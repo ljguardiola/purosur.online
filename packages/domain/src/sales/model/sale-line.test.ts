@@ -7,9 +7,13 @@ import {
   addUnitToLine,
   mayBeSaleLineQuantity,
   newSaleLine,
+  newWeighedSaleLine,
   saleTotal,
+  saleUnitOfWeightSource,
+  soldLineStockDelta,
   soldQuantity,
   withQuantity,
+  withWeight,
 } from "./sale-line.js";
 
 const PRODUCT = { id: "product-1", name: "Yerba 1 kg" };
@@ -26,6 +30,8 @@ describe("newSaleLine", () => {
       id: "line-1",
       productId: "product-1",
       productName: "Yerba 1 kg",
+      saleUnit: "UNIT",
+      weightSource: null,
       quantity: 1,
       listUnitPrice: 2500,
       priceListId: "list-1",
@@ -226,33 +232,203 @@ describe("saleTotal", () => {
   });
 });
 
+describe("newWeighedSaleLine", () => {
+  const QUESO = { id: "product-2", name: "Queso cremoso" };
+  const PER_KILO = { priceListId: "list-1", unitPrice: 9000 };
+
+  it("holds the weight in thousandths of a kilogram, priced per kilogram, with the source of the weight", () => {
+    expect(newWeighedSaleLine("line-1", QUESO, PER_KILO, [], 1250, "MANUAL")).toEqual({
+      id: "line-1",
+      productId: "product-2",
+      productName: "Queso cremoso",
+      saleUnit: "KG",
+      weightSource: "MANUAL",
+      quantity: 1250,
+      listUnitPrice: 9000,
+      priceListId: "list-1",
+      promotions: [],
+      promotionId: null,
+      discountAmount: 0,
+      lineTotal: 11250,
+    });
+  });
+
+  it("records the scale as the source when the weight came from it", () => {
+    expect(newWeighedSaleLine("line-1", QUESO, PER_KILO, [], 1250, "SCALE").weightSource).toBe(
+      "SCALE",
+    );
+  });
+
+  it("rounds the amount to the cent, half up", () => {
+    expect(newWeighedSaleLine("line-1", QUESO, PER_KILO, [], 1, "MANUAL").lineTotal).toBe(9);
+    expect(
+      newWeighedSaleLine("line-1", QUESO, { ...PER_KILO, unitPrice: 50 }, [], 10, "MANUAL")
+        .lineTotal,
+    ).toBe(1);
+    expect(
+      newWeighedSaleLine("line-1", QUESO, { ...PER_KILO, unitPrice: 49 }, [], 10, "MANUAL")
+        .lineTotal,
+    ).toBe(0);
+  });
+
+  it("applies the promotion giving the larger discount on the weight", () => {
+    const line = newWeighedSaleLine(
+      "line-1",
+      QUESO,
+      PER_KILO,
+      [TEN_PERCENT, THREE_FOR_TWO],
+      2000,
+      "MANUAL",
+    );
+
+    expect(line).toEqual(
+      expect.objectContaining({
+        promotions: [TEN_PERCENT, THREE_FOR_TWO],
+        promotionId: "ten",
+        discountAmount: 1800,
+        lineTotal: 16200,
+      }),
+    );
+  });
+
+  it("totals the price per kilogram applied to the weight for every price and weight", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: MAX_UNIT_PRICE_CENTS }),
+        fc.integer({ min: 1, max: 100_000 }),
+        (unitPrice, thousandths) => {
+          const line = newWeighedSaleLine(
+            "line-1",
+            QUESO,
+            { priceListId: "list-1", unitPrice },
+            [],
+            thousandths,
+            "MANUAL",
+          );
+
+          expect(line.lineTotal).toBe(Math.floor((unitPrice * thousandths + 500) / 1000));
+        },
+      ),
+    );
+  });
+});
+
+describe("withWeight", () => {
+  const WEIGHED = newWeighedSaleLine(
+    "line-1",
+    { id: "product-2", name: "Queso cremoso" },
+    { priceListId: "list-1", unitPrice: 9000 },
+    [TEN_PERCENT],
+    1000,
+    "SCALE",
+  );
+
+  it("sets the weight and its source and prices the new weight from the frozen price", () => {
+    expect(withWeight(WEIGHED, 2500, "MANUAL")).toEqual({
+      ...WEIGHED,
+      quantity: 2500,
+      weightSource: "MANUAL",
+      promotionId: "ten",
+      discountAmount: 2250,
+      lineTotal: 20250,
+    });
+  });
+
+  it("does not modify the line it was given", () => {
+    withWeight(WEIGHED, 2500, "MANUAL");
+
+    expect(WEIGHED.quantity).toBe(1000);
+    expect(WEIGHED.weightSource).toBe("SCALE");
+  });
+});
+
+describe("withQuantity on a weighed line", () => {
+  it("keeps the line sold by the kilogram with the source of its weight", () => {
+    const weighed = newWeighedSaleLine(
+      "line-1",
+      { id: "product-2", name: "Queso cremoso" },
+      { priceListId: "list-1", unitPrice: 9000 },
+      [],
+      1000,
+      "MANUAL",
+    );
+
+    expect(withQuantity(weighed, 500)).toEqual(
+      expect.objectContaining({ saleUnit: "KG", weightSource: "MANUAL", lineTotal: 4500 }),
+    );
+  });
+});
+
 describe("soldQuantity", () => {
-  it("is the units a line carries, since a line is sold by the unit", () => {
+  it("is the units a line sold by the unit carries", () => {
     const line = withQuantity(newSaleLine("line-1", PRODUCT, PRICE, []), 4);
 
     expect(soldQuantity(line)).toEqual({ saleUnit: "UNIT", units: 4 });
+  });
+
+  it("is the thousandths of a kilogram a line sold by the kilogram carries", () => {
+    expect(soldQuantity({ saleUnit: "KG", quantity: 1250 })).toEqual({
+      saleUnit: "KG",
+      thousandths: 1250,
+    });
+  });
+});
+
+describe("saleUnitOfWeightSource", () => {
+  it("is the unit for a line recording no weight source", () => {
+    expect(saleUnitOfWeightSource(null)).toBe("UNIT");
+  });
+
+  it.each(["SCALE", "MANUAL"] as const)("is the kilogram for a weight from %s", (source) => {
+    expect(saleUnitOfWeightSource(source)).toBe("KG");
+  });
+});
+
+describe("soldLineStockDelta", () => {
+  it("takes a thousand thousandths out of stock per unit sold", () => {
+    expect(soldLineStockDelta({ saleUnit: "UNIT", quantity: 3 })).toBe(-3000);
+  });
+
+  it("takes the weight in thousandths out of stock for a line sold by the kilogram", () => {
+    expect(soldLineStockDelta({ saleUnit: "KG", quantity: 1250 })).toBe(-1250);
   });
 });
 
 describe("mayBeSaleLineQuantity", () => {
   it.each([1, 2_147_483])("accepts %s units", (quantity) => {
-    expect(mayBeSaleLineQuantity(quantity)).toBe(true);
+    expect(mayBeSaleLineQuantity(quantity, "UNIT")).toBe(true);
   });
 
   it.each([0, -1, 1.5, Number.NaN, 2_147_484, Number.MAX_SAFE_INTEGER + 1])(
     "refuses %s units",
     (quantity) => {
-      expect(mayBeSaleLineQuantity(quantity)).toBe(false);
+      expect(mayBeSaleLineQuantity(quantity, "UNIT")).toBe(false);
+    },
+  );
+
+  it.each([1, 1250, MAX_STOCK_QUANTITY])("accepts a weight of %s thousandths", (weight) => {
+    expect(mayBeSaleLineQuantity(weight, "KG")).toBe(true);
+  });
+
+  it.each([0, -1, 1.5, Number.NaN, MAX_STOCK_QUANTITY + 1])(
+    "refuses a weight of %s thousandths",
+    (weight) => {
+      expect(mayBeSaleLineQuantity(weight, "KG")).toBe(false);
     },
   );
 
   it("accepts exactly the quantities whose sold stock a single movement may carry", () => {
     fc.assert(
-      fc.property(fc.integer({ min: -10, max: MAX_STOCK_QUANTITY }), (quantity) => {
-        expect(mayBeSaleLineQuantity(quantity)).toBe(
-          quantity > 0 && mayBeMovementQuantity(-soldStockDelta(soldQuantity({ quantity }))),
-        );
-      }),
+      fc.property(
+        fc.constantFrom("UNIT" as const, "KG" as const),
+        fc.integer({ min: -10, max: MAX_STOCK_QUANTITY }),
+        (saleUnit, quantity) => {
+          expect(mayBeSaleLineQuantity(quantity, saleUnit)).toBe(
+            quantity > 0 &&
+              mayBeMovementQuantity(-soldStockDelta(soldQuantity({ saleUnit, quantity }))),
+          );
+        },
+      ),
     );
   });
 });

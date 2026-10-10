@@ -1,5 +1,6 @@
+import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
-import type { PaymentTransaction } from "../../payments/index.js";
+import type { SalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { cancelSale } from "./cancel-sale.js";
 import {
@@ -12,6 +13,7 @@ const NOW = new Date("2026-10-09T12:00:00.000Z");
 
 function pendingQrEndingAt(waitEndsAt: Date) {
   return {
+    ...PENDING_QR_TRANSACTION,
     id: "qr-1",
     saleId: "sale-1",
     amount: 1000,
@@ -26,6 +28,8 @@ const YERBA_LINE = {
   id: "line-1",
   productId: "yerba",
   productName: "Yerba 1 kg",
+  saleUnit: "UNIT" as const,
+  weightSource: null,
   quantity: 3,
   listUnitPrice: 2500,
   priceListId: "list-1",
@@ -43,7 +47,7 @@ const OPEN_SALE: SaleWithLines = {
   state: "OPEN",
   lines: [YERBA_LINE],
 };
-const APPROVED_PAYMENT: PaymentTransaction = {
+const APPROVED_PAYMENT: SalePayment = {
   id: "payment-1",
   saleId: "sale-1",
   kind: "SALE",

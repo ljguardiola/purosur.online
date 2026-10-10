@@ -23,6 +23,8 @@ import {
   readCategories,
   readDiscounts,
   readIssuerIdentificationVersions,
+  readOfflineAuthorizationCodes,
+  readOfflineNumberBlocks,
   readPriceLists,
   readPrices,
   readProducts,
@@ -122,6 +124,14 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
       idsOf(logged, "buyer_tax_status_set"),
     );
     const stockMovementRows = await readStockMovements(this.tx, idsOf(logged, "stock_movement"));
+    const offlineAuthorizationCodeRows = await readOfflineAuthorizationCodes(
+      this.tx,
+      idsOf(logged, "offline_authorization_code"),
+    );
+    const offlineNumberBlockRows = await readOfflineNumberBlocks(
+      this.tx,
+      idsOf(logged, "offline_number_block"),
+    );
     const settingsId = logged.find((row) => row.entity === "branch_settings")?.entityId;
     const settingsRow = settingsId === undefined ? undefined : await this.readSettings(settingsId);
     const removedVersions = {
@@ -253,6 +263,22 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
             row: requiredRow(stockMovementRows.get(entityId), entity),
           });
           break;
+        case "offline_authorization_code":
+          pulled.push({
+            changeSeq,
+            entity,
+            entityId,
+            row: requiredRow(offlineAuthorizationCodeRows.get(entityId), entity),
+          });
+          break;
+        case "offline_number_block":
+          pulled.push({
+            changeSeq,
+            entity,
+            entityId,
+            row: requiredRow(offlineNumberBlockRows.get(entityId), entity),
+          });
+          break;
       }
     }
     return pulled;
@@ -318,6 +344,8 @@ function inReach(entity: LoggedEntity, reach: PullReach): SQL | undefined {
       return and(ofEntity, eq(changes.locationId, reach.locationId));
     case "rows_of_price_list":
       return and(ofEntity, eq(changes.priceListId, reach.priceListId));
+    case "rows_of_register":
+      return and(ofEntity, eq(changes.registerId, reach.registerId));
     case "none":
       return undefined;
   }

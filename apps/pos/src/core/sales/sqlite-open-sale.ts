@@ -1,4 +1,10 @@
-import type { DiscountBenefit, LinePromotion, SaleLine, SaleWithLines } from "@purosur/domain";
+import type {
+  DiscountBenefit,
+  LinePromotion,
+  SaleLine,
+  SaleWithLines,
+  WeightSource,
+} from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
 
 interface SaleRow {
@@ -13,6 +19,8 @@ interface LineRow {
   id: string;
   product_id: string;
   product_name: string;
+  sale_unit: SaleLine["saleUnit"];
+  weight_source: WeightSource | null;
   quantity: number;
   list_unit_price: number;
   price_list_id: string;
@@ -54,7 +62,8 @@ export function readOpenSale(
   }
   const lines = database
     .prepare<[string], LineRow>(
-      `SELECT id, product_id, product_name, quantity, list_unit_price, price_list_id,
+      `SELECT id, product_id, product_name, sale_unit, weight_source, quantity, list_unit_price,
+              price_list_id,
               promotion_id, discount_amount, line_total
        FROM sale_lines WHERE sale_id = ? ORDER BY position`,
     )
@@ -95,6 +104,8 @@ function toSaleLine(row: LineRow, promotions: LinePromotion[]): SaleLine {
     id: row.id,
     productId: row.product_id,
     productName: row.product_name,
+    saleUnit: row.sale_unit,
+    weightSource: row.weight_source,
     quantity: row.quantity,
     listUnitPrice: row.list_unit_price,
     priceListId: row.price_list_id,

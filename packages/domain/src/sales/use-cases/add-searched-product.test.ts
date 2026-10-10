@@ -1,5 +1,6 @@
+import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
-import type { PaymentTransaction } from "../../payments/index.js";
+import type { SalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { withQuantity } from "../model/sale-line.js";
 import { addSearchedProduct } from "./add-searched-product.js";
@@ -15,6 +16,7 @@ const NOW = new Date("2026-09-30T12:34:56.789Z");
 
 function pendingQrEndingAt(waitEndsAt: Date) {
   return {
+    ...PENDING_QR_TRANSACTION,
     id: "qr-1",
     saleId: "sale-0",
     amount: 1000,
@@ -30,7 +32,7 @@ const SESSION = { id: "session-1", openedBy: "cashier" };
 const YERBA = { id: "yerba", name: "Yerba 1 kg", saleUnit: "UNIT" as const };
 const QUESO = { id: "queso", name: "Queso cremoso", saleUnit: "KG" as const };
 const FIDEOS = { id: "fideos", name: "Fideos", saleUnit: "UNIT" as const };
-const PAYMENT: PaymentTransaction = {
+const PAYMENT: SalePayment = {
   id: "payment-1",
   saleId: "sale-0",
   kind: "SALE",
@@ -110,6 +112,8 @@ describe("addSearchedProduct", () => {
           id: "id-2",
           productId: "yerba",
           productName: "Yerba 1 kg",
+          saleUnit: "UNIT",
+          weightSource: null,
           quantity: 1,
           listUnitPrice: 2500,
           priceListId: "list-1",
@@ -176,9 +180,21 @@ describe("addSearchedProduct", () => {
     expect(add(ledger(), "fideos")).toEqual({ kind: "no_price", productName: "Fideos" });
   });
 
-  it("refuses a product sold by weight, naming it", () => {
-    expect(add(ledger(), "queso")).toEqual({
-      kind: "sold_by_weight",
+  it("asks for the weight of a product sold by weight, naming it, without opening a sale", () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+
+    expect(add(store, "queso")).toEqual({
+      kind: "weight_needed",
+      productId: "queso",
+      productName: "Queso cremoso",
+    });
+    expect(store.state).toEqual(before);
+  });
+
+  it("refuses a product sold by weight without a valid price before asking for its weight", () => {
+    expect(add(ledger({ prices: [] }), "queso")).toEqual({
+      kind: "no_price",
       productName: "Queso cremoso",
     });
   });

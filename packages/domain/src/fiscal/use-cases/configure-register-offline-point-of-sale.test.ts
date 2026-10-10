@@ -58,6 +58,63 @@ describe("configureRegisterOfflinePointOfSale", () => {
     });
   });
 
+  it("assigns the configured point of sale its first factura C block, 1 to 1000, for that register", async () => {
+    const store = storeWithRegisters();
+
+    await configure(store);
+
+    expect(store.snapshot().offlineNumberBlocks).toEqual([
+      {
+        pointOfSaleNumber: 12,
+        documentType: "factura_c",
+        registerId: "register-1",
+        range: { firstNumber: 1, lastNumber: 1000 },
+        status: "in_use",
+      },
+    ]);
+  });
+
+  it("assigns no new block to a point of sale that already has one in use, such as one the register used before", async () => {
+    const store = storeWithRegisters();
+    store.seedRegisterOfflinePointOfSale({
+      registerId: "register-1",
+      pointOfSaleNumber: 13,
+      version: 2,
+    });
+    for (const pointOfSaleNumber of [12, 13]) {
+      store.seedPointOfSaleClaim({
+        pointOfSaleNumber,
+        registerId: "register-1",
+        mechanism: "offline",
+      });
+    }
+    const usedBefore = {
+      pointOfSaleNumber: 12,
+      documentType: "factura_c",
+      registerId: "register-1",
+      range: { firstNumber: 1, lastNumber: 1000 },
+      status: "in_use",
+    } as const;
+    store.seedOfflineNumberBlock(usedBefore);
+
+    const outcome = await configure(store, { version: 2 });
+
+    expect(outcome.kind).toBe("configured");
+    expect(store.snapshot().offlineNumberBlocks).toEqual([usedBefore]);
+  });
+
+  it("assigns the blocks of two registers' points of sale each from 1, never overlapping within one", async () => {
+    const store = storeWithRegisters();
+
+    await configure(store);
+    await configure(store, { registerId: "register-2", pointOfSaleNumber: 13 });
+
+    expect(store.snapshot().offlineNumberBlocks.map((block) => block.range)).toEqual([
+      { firstNumber: 1, lastNumber: 1000 },
+      { firstNumber: 1, lastNumber: 1000 },
+    ]);
+  });
+
   it("leaves the real-time point of sale of the register as it was", async () => {
     const store = storeWithRegisters();
     const before = store.snapshot().registerPointsOfSale;
@@ -79,6 +136,9 @@ describe("configureRegisterOfflinePointOfSale", () => {
       "lockPointOfSaleClaim",
       "claimPointOfSale",
       "recordRegisterOfflinePointOfSale",
+      "lockOfflineNumberBlocks",
+      "hasOfflineNumberBlock",
+      "recordOfflineNumberBlock",
     ]);
     expect(store.transactionCount).toBe(1);
   });
@@ -95,6 +155,20 @@ describe("configureRegisterOfflinePointOfSale", () => {
     expect(outcome).toEqual({ kind: "register_not_found" });
     expect(store.snapshot()).toEqual(before);
     expect(store.operationOrder).toEqual(["lockBranchRegister"]);
+  });
+
+  it("assigns no block when the register already has that offline number", async () => {
+    const store = storeWithRegisters();
+    store.seedRegisterOfflinePointOfSale({
+      registerId: "register-1",
+      pointOfSaleNumber: 12,
+      version: 2,
+    });
+
+    await configure(store, { version: 2 });
+
+    expect(store.snapshot().offlineNumberBlocks).toEqual([]);
+    expect(store.operationOrder).not.toContain("lockOfflineNumberBlocks");
   });
 
   it("refuses a register that has no real-time point of sale yet, writing nothing", async () => {
@@ -297,6 +371,16 @@ describe("configureRegisterOfflinePointOfSale", () => {
     const before = store.snapshot();
 
     await expect(configure(store)).rejects.toThrow("recordRegisterOfflinePointOfSale failed");
+
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("leaves no claim, setup or block behind when recording the block fails", async () => {
+    const store = storeWithRegisters();
+    store.failingWrites.add("recordOfflineNumberBlock");
+    const before = store.snapshot();
+
+    await expect(configure(store)).rejects.toThrow("recordOfflineNumberBlock failed");
 
     expect(store.snapshot()).toEqual(before);
   });

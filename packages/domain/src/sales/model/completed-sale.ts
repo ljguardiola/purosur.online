@@ -1,10 +1,12 @@
 import type { CashMovementType } from "../../register/index.js";
-import { soldLineStockDelta } from "./sale-line.js";
+import { saleUnitOfWeightSource, soldLineStockDelta } from "./sale-line.js";
+import type { WeightSource } from "./weight-source.js";
 
 export interface CompletedSaleLine {
   id: string;
   productId: string;
   productName: string;
+  weightSource: WeightSource | null;
   quantity: number;
   listUnitPrice: number;
   priceListId: string;
@@ -65,7 +67,11 @@ export function stockMovementsMatchLines(
           (movement) =>
             movement.saleLineId === line.id &&
             movement.productId === line.productId &&
-            movement.delta === soldLineStockDelta(line),
+            movement.delta ===
+              soldLineStockDelta({
+                quantity: line.quantity,
+                saleUnit: saleUnitOfWeightSource(line.weightSource),
+              }),
         ).length === 1,
     )
   );

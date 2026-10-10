@@ -1,7 +1,7 @@
 import type { JsonValue } from "../../shared/index.js";
-import type { PaymentTransaction } from "./payment.js";
+import type { SalePayment } from "./payment-transaction.js";
 
-export function paymentRecord(payment: PaymentTransaction): JsonValue {
+export function paymentRecord(payment: SalePayment): JsonValue {
   const transfer = payment.method === "TRANSFER" ? payment : undefined;
   return {
     id: payment.id,

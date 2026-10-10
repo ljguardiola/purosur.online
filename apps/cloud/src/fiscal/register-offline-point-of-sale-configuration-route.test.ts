@@ -5,6 +5,7 @@ import {
   auditLog,
   fiscalAddresses,
   locations,
+  offlineNumberBlocks,
   pointOfSaleClaims,
   registerOfflinePointsOfSale,
   registerPointsOfSale,
@@ -240,7 +241,44 @@ describe("PUT /registers/:id/offline-point-of-sale", () => {
     expect(entries).toMatchObject([{ actorId: session.userId, at: SESSION_NOON }]);
     expect(await changesLoggedAfter(db, mark)).toMatchObject([
       { entity: "register_offline_point_of_sale", entityId: registerId, version: 1 },
+      { entity: "offline_number_block", version: 1, op: "insert" },
     ]);
+  });
+
+  it("assigns the offline point of sale its first block of numbers, delivered to the register", async () => {
+    const registerId = await insertRegister("Caja 1");
+    const session = await sessionWith(["change_fiscal_configuration"]);
+    await giveRealTimePointOfSale(registerId, 7, session.headers);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await configureOffline(registerId, bodyFor(), session.headers);
+
+    const blocks = await db.select().from(offlineNumberBlocks);
+    expect(blocks).toMatchObject([
+      {
+        pointOfSaleNumber: 8,
+        documentType: "factura_c",
+        registerId,
+        firstNumber: 1,
+        lastNumber: 1000,
+        status: "in_use",
+        assignedAt: SESSION_NOON,
+        version: 1,
+      },
+    ]);
+    const logged = await changesLoggedAfter(db, mark);
+    expect(logged.find(({ entity }) => entity === "offline_number_block")?.entityId).toBe(
+      blocks[0]?.id,
+    );
+  });
+
+  it("assigns no block when the configuration is refused", async () => {
+    const registerId = await insertRegister("Caja 1");
+    const session = await sessionWith(["change_fiscal_configuration"]);
+
+    await configureOffline(registerId, bodyFor(), session.headers);
+
+    expect(await db.select().from(offlineNumberBlocks)).toEqual([]);
   });
 
   it("answers the current offline point of sale, unchanged, when nothing differs", async () => {

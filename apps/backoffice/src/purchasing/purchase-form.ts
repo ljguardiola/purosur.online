@@ -59,7 +59,7 @@ export function emptyPurchaseLine(id: number): PurchaseLineValues {
   };
 }
 
-export function emptyPurchaseForm(today: CalendarDate): PurchaseFormValues {
+export function emptyPurchaseForm(today: CalendarDate | null): PurchaseFormValues {
   return {
     supplierId: null,
     purchasedOn: today,

@@ -1,4 +1,4 @@
-import type { PaymentTransactionState, ProviderPaymentTransaction } from "@purosur/domain";
+import type { MercadoPagoQrOrderTransaction, PaymentTransactionState } from "@purosur/domain";
 import {
   PaymentTransactionAlreadyRecorded,
   type PaymentTransactionLane,
@@ -31,7 +31,7 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
   async recordedTransaction(
     registerId: string,
     paymentTransactionId: string,
-  ): Promise<ProviderPaymentTransaction | null> {
+  ): Promise<MercadoPagoQrOrderTransaction | null> {
     const [row] = await this.db
       .select()
       .from(paymentTransactions)
@@ -61,7 +61,7 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
     };
   }
 
-  async recordPendingTransaction(transaction: ProviderPaymentTransaction): Promise<void> {
+  async recordPendingTransaction(transaction: MercadoPagoQrOrderTransaction): Promise<void> {
     try {
       await this.db.insert(paymentTransactions).values(transaction);
     } catch (error) {

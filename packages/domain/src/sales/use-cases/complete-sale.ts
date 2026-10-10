@@ -1,5 +1,5 @@
 import { preEmissionGate, preEmissionGateFailedEvent } from "../../fiscal/index.js";
-import type { PaymentTransaction } from "../../payments/index.js";
+import type { SalePayment } from "../../payments/index.js";
 import { paymentRecord } from "../../payments/index.js";
 import { type OutboxEventDraft, SALE_COMPLETED_EVENT_TYPE } from "../../shared/index.js";
 import type { SaleWithLines } from "../model/sale.js";
@@ -19,7 +19,7 @@ import type {
 export interface SaleCompletion {
   sale: SaleWithLines;
   total: number;
-  payments: readonly PaymentTransaction[];
+  payments: readonly SalePayment[];
   movements: readonly SaleCashMovement[];
   actorId: string;
   completedAt: Date;
@@ -85,7 +85,7 @@ function saleCompletedEvent(
   sale: SaleWithLines,
   operationNumber: number,
   total: number,
-  payments: readonly PaymentTransaction[],
+  payments: readonly SalePayment[],
   movements: readonly SaleCashMovement[],
   stockMovements: readonly SaleStockMovement[],
   actorId: string,
@@ -97,7 +97,7 @@ function saleCompletedEvent(
     aggregate_type: "Sale",
     aggregate_id: sale.id,
     event_type: SALE_COMPLETED_EVENT_TYPE,
-    schema_version: 5,
+    schema_version: 6,
     payload: {
       id: sale.id,
       operation_number: operationNumber,

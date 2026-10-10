@@ -122,7 +122,7 @@ export function insertFiscalDocument(
          id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
          authorization_code, authorization_code_due_on, reserved_at, resolved_at
        ) VALUES (
-         @id, @sale_id, @point_of_sale, 'FACTURA_C', @number, '2026-09-30', @document, @state,
+         @id, @sale_id, @point_of_sale, 'factura_c', @number, '2026-09-30', @document, @state,
          @code, @due_on, '2026-09-30T12:05:00.000Z', @resolved_at
        )`,
     )
@@ -137,4 +137,32 @@ export function insertFiscalDocument(
       due_on: state === "AUTHORIZED" ? "2026-10-10" : null,
       resolved_at: state === "REQUESTING" ? null : "2026-09-30T12:05:01.000Z",
     });
+}
+
+export function insertOfflinePointOfSale(
+  database: LocalDatabase,
+  pointOfSale = POINT_OF_SALE,
+): void {
+  database
+    .prepare(
+      `INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, version)
+       VALUES ('register-1', ?, 1)`,
+    )
+    .run(pointOfSale);
+}
+
+export function insertOfflineNumberBlock(
+  database: LocalDatabase,
+  id: string,
+  firstNumber: number,
+  lastNumber: number,
+  pointOfSale = POINT_OF_SALE,
+): void {
+  database
+    .prepare(
+      `INSERT INTO offline_number_blocks (
+         id, point_of_sale, document_type, first_number, last_number, status, version
+       ) VALUES (?, ?, 'factura_c', ?, ?, 'in_use', 1)`,
+    )
+    .run(id, pointOfSale, firstNumber, lastNumber);
 }
