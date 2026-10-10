@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BARCODE_MAX_LENGTH } from "../../catalog/index.js";
 import type { PaymentTransaction } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
-import { withQuantity } from "../model/sale-line.js";
+import { newWeighedSaleLine, withQuantity } from "../model/sale-line.js";
 import { addScannedProduct } from "./add-scanned-product.js";
 import type { CandidatePromotion } from "./sale-ledger.js";
 import {
@@ -239,6 +239,29 @@ describe("addScannedProduct", () => {
       expect.objectContaining({ productName: "Fideos", quantity: 1, lineTotal: 900 }),
     ]);
     expect(store.state.sales[0]?.lines.map((line) => line.quantity)).toEqual([2, 1]);
+  });
+
+  it("adds a unit line for a product now sold by the unit, leaving its weighed line as it was", () => {
+    const weighed = newWeighedSaleLine(
+      "line-0",
+      YERBA,
+      { priceListId: "list-1", unitPrice: 2500 },
+      [],
+      1250,
+      "MANUAL",
+    );
+    const store = ledger({ sales: [{ ...OPEN_SALE, lines: [weighed] }] });
+
+    const outcome = scan(store);
+
+    expect(outcome.kind === "added" && outcome.sale.lines).toEqual([
+      weighed,
+      expect.objectContaining({ productId: "yerba", saleUnit: "UNIT", quantity: 1 }),
+    ]);
+    expect(store.state.sales[0]?.lines).toEqual([
+      weighed,
+      expect.objectContaining({ productId: "yerba", saleUnit: "UNIT", quantity: 1 }),
+    ]);
   });
 
   it("keeps the price a line was added with when the price changes afterwards", () => {

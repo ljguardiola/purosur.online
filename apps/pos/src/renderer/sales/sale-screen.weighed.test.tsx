@@ -89,12 +89,17 @@ describe("SaleScreen adding a product sold by weight", () => {
       }),
     );
     const { screen, field } = await scanning({ currentSale, addWeighedProduct });
+    const lines = screen.getByRole("listitem");
+    await expect.element(lines).toHaveLength(1);
 
     await scan(field, "7790001");
     await typeWeight(screen, "1,25");
 
     expect(addWeighedProduct).toHaveBeenCalledExactlyOnceWith("p-queso", 1250);
     await expect.element(screen.getByText("1,250 kg")).toBeVisible();
+    await expect.element(lines).toHaveLength(2);
+    await expect.element(lines.first()).not.toHaveAttribute("aria-current");
+    await expect.element(lines.last()).toHaveAttribute("aria-current", "true");
     await expect
       .element(screen.getByRole("heading", { name: "Peso de Queso cremoso" }))
       .not.toBeInTheDocument();
@@ -137,7 +142,7 @@ describe("SaleScreen adding a product sold by weight", () => {
   it.each([
     [{ kind: "no_price", product_name: "Queso cremoso" }, "Queso cremoso no tiene precio"],
     [{ kind: "product_unavailable" }, "Ese producto ya no se vende"],
-    [{ kind: "not_sold_by_weight" }, "Ese producto ya no se vende"],
+    [{ kind: "not_sold_by_weight" }, "Queso cremoso ya no se vende por kilo"],
     [{ kind: "not_permitted" }, "No tenés el permiso de vender y cobrar"],
     [{ kind: "installation_revoked" }, "Esta caja ya no puede empezar ventas"],
     [{ kind: "unavailable" }, "No se pudo agregar el producto"],

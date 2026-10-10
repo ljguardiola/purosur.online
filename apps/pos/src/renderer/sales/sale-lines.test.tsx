@@ -1,6 +1,6 @@
 import type { OpenSale } from "@purosur/contracts";
-import { describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { SaleLineActions } from "./sale-lines";
 import { SaleLines } from "./sale-lines";
@@ -41,6 +41,8 @@ async function renderLines(
   actions: Partial<SaleLineActions> = {},
   lines: OpenSale["lines"] = [YERBA],
 ) {
+  await page.viewport(1280, 720);
+  onTestFinished(() => page.viewport(414, 896));
   const onChangeQuantity = vi.fn();
   const onChangeWeight = vi.fn();
   const onRemove = vi.fn();
@@ -113,12 +115,12 @@ describe("SaleLines", () => {
   });
 
   describe("a line sold by the kilogram", () => {
-    it("shows its weight, its price per kilogram and that the weight was typed, with no quantity steppers", async () => {
+    it("shows its weight and its price per kilogram, with no quantity steppers and nothing about where the weight came from", async () => {
       const { screen } = await renderLines({}, [QUESO]);
 
       await expect.element(screen.getByText("1,250 kg")).toBeVisible();
       await expect.element(screen.getByText("$ 12.500,00 el kg")).toBeVisible();
-      await expect.element(screen.getByText("Peso tipeado")).toBeVisible();
+      await expect.element(screen.getByText("Peso tipeado")).not.toBeInTheDocument();
       await expect.element(screen.getByText("$ 15.625,00")).toBeVisible();
       await expect
         .element(screen.getByRole("button", { name: "Subir la cantidad de Queso cremoso" }))
@@ -126,13 +128,6 @@ describe("SaleLines", () => {
       await expect
         .element(screen.getByRole("button", { name: "Bajar la cantidad de Queso cremoso" }))
         .not.toBeInTheDocument();
-    });
-
-    it("does not say the weight was typed when it came from the scale", async () => {
-      const { screen } = await renderLines({}, [{ ...QUESO, weight_source: "SCALE" }]);
-
-      await expect.element(screen.getByText("1,250 kg")).toBeVisible();
-      await expect.element(screen.getByText("Peso tipeado")).not.toBeInTheDocument();
     });
 
     it("asks to change the weight of the line", async () => {
@@ -152,10 +147,9 @@ describe("SaleLines", () => {
     });
   });
 
-  it("shows a unit line with neither a price per kilogram nor a typed weight tag", async () => {
+  it("shows a unit line with no price per kilogram", async () => {
     const { screen } = await renderLines();
 
-    await expect.element(screen.getByText("Peso tipeado")).not.toBeInTheDocument();
     await expect.element(screen.getByText(/el kg/)).not.toBeInTheDocument();
   });
 });

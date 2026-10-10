@@ -14,10 +14,11 @@ import {
   formatPointOfSaleNumber,
   formatTimeAgo,
   formatWeight,
+  formatWeightInput,
   parsePointOfSaleNumber,
   plural,
 } from "./formatters";
-import { parseAmountCents } from "./parsers";
+import { parseAmountCents, parseWeightThousandths } from "./parsers";
 
 describe("plural", () => {
   it("selects the form Argentine Spanish plural rules choose", () => {
@@ -226,5 +227,21 @@ describe("formatWeight", () => {
     expect(formatWeight(2000)).toBe("2,000 kg");
     expect(formatWeight(1)).toBe("0,001 kg");
     expect(formatWeight(1_234_567)).toBe("1.234,567 kg");
+  });
+});
+
+describe("formatWeightInput", () => {
+  it("writes a weight in thousandths of a kilogram as the text a person types, with no unit", () => {
+    expect(formatWeightInput(1250)).toBe("1,250");
+    expect(formatWeightInput(500)).toBe("0,500");
+    expect(formatWeightInput(1_234_567)).toBe("1.234,567");
+  });
+
+  it("reads back as the thousandths it was written from", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 99_999_999_999_999 }), (thousandths) => {
+        expect(parseWeightThousandths(formatWeightInput(thousandths))).toBe(thousandths);
+      }),
+    );
   });
 });

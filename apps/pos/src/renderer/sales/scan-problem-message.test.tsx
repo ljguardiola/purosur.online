@@ -30,4 +30,20 @@ describe("ScanProblemMessage", () => {
       await expect.element(region.getByText(help, { exact: true })).toBeVisible();
     },
   );
+
+  it("tells that a product no longer sold by the kilogram has to be added again", async () => {
+    const screen = await render(
+      <ScanProblemMessage
+        problem={{ kind: "not_sold_by_weight", product_name: "Queso cremoso" }}
+      />,
+    );
+
+    const region = screen.getByRole("status");
+    await expect
+      .element(region.getByText("Queso cremoso ya no se vende por kilo", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(region.getByText("Escanealo o buscalo de nuevo para agregarlo.", { exact: true }))
+      .toBeVisible();
+  });
 });

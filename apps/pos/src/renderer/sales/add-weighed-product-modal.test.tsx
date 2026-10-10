@@ -2,35 +2,35 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import { WeightModal } from "./weight-modal";
+import { AddWeighedProductModal } from "./add-weighed-product-modal";
 
 const INVALID_WEIGHT_MESSAGE = "Ingresá un peso mayor a 0 kg, con hasta 3 decimales.";
+const ABOVE_LINE_LIMIT_MESSAGE = "El peso supera el máximo de una línea.";
 const WEIGHT_FIELD = "Peso en kg";
 
-type Confirm = (weight: number) => Promise<"invalid_weight" | "done">;
+type AddWeighedProduct = (weight: number) => Promise<"invalid_weight" | "done">;
 
-async function renderModal(confirm: Confirm = async () => "done", currentWeight?: number) {
+async function renderModal(addWeighedProduct: AddWeighedProduct = async () => "done") {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
-  const confirmWeight = vi.fn(confirm);
+  const add = vi.fn(addWeighedProduct);
   const onClose = vi.fn();
   const screen = await render(
-    <WeightModal
+    <AddWeighedProductModal
       productName="Queso cremoso"
-      currentWeight={currentWeight}
-      confirm={confirmWeight}
+      addWeighedProduct={add}
       onClose={onClose}
     />,
   );
   return {
     screen,
-    confirmWeight,
+    add,
     onClose,
     field: screen.getByRole("textbox", { name: WEIGHT_FIELD }),
   };
 }
 
-describe("WeightModal", () => {
+describe("AddWeighedProductModal", () => {
   it("asks for the weight of the product being added", async () => {
     const { screen, field } = await renderModal();
 
@@ -44,47 +44,39 @@ describe("WeightModal", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("asks for the new weight of a line, starting from its current weight", async () => {
-    const { screen, field } = await renderModal(undefined, 1250);
-
-    await expect
-      .element(screen.getByRole("heading", { name: "Cambiar el peso de Queso cremoso" }))
-      .toBeVisible();
-    await expect.element(field).toHaveValue("1,250");
-    await expect.element(screen.getByRole("button", { name: "Cambiar peso" })).toBeVisible();
-    await expectNoAccessibilityViolations(screen.container);
-  });
-
-  it("confirms the typed weight in thousandths of a kilogram", async () => {
-    const { screen, field, confirmWeight } = await renderModal();
+  it("adds the product with the typed weight in thousandths of a kilogram", async () => {
+    const { screen, field, add } = await renderModal();
 
     await field.fill("1,25");
     await screen.getByRole("button", { name: "Agregar" }).click();
 
-    await expect.poll(() => confirmWeight.mock.calls).toEqual([[1250]]);
+    await expect.poll(() => add.mock.calls).toEqual([[1250]]);
   });
 
-  it("confirms with Enter", async () => {
-    const { field, confirmWeight } = await renderModal();
+  it("adds with Enter", async () => {
+    const { field, add } = await renderModal();
 
     await field.fill("0,5");
     await userEvent.keyboard("{Enter}");
 
-    await expect.poll(() => confirmWeight.mock.calls).toEqual([[500]]);
+    await expect.poll(() => add.mock.calls).toEqual([[500]]);
   });
 
-  it.each(["", "abc", "0", "1,2345"])(
-    "refuses a typed weight of '%s' without confirming it",
-    async (typed) => {
-      const { screen, field, confirmWeight } = await renderModal();
+  it.each([
+    ["", INVALID_WEIGHT_MESSAGE],
+    ["abc", INVALID_WEIGHT_MESSAGE],
+    ["0", INVALID_WEIGHT_MESSAGE],
+    ["1,2345", INVALID_WEIGHT_MESSAGE],
+    ["3.000.000", ABOVE_LINE_LIMIT_MESSAGE],
+  ])("refuses a typed weight of '%s' without adding it", async (typed, message) => {
+    const { screen, field, add } = await renderModal();
 
-      await field.fill(typed);
-      await screen.getByRole("button", { name: "Agregar" }).click();
+    await field.fill(typed);
+    await screen.getByRole("button", { name: "Agregar" }).click();
 
-      await expect.element(screen.getByText(INVALID_WEIGHT_MESSAGE)).toBeVisible();
-      expect(confirmWeight).not.toHaveBeenCalled();
-    },
-  );
+    await expect.element(screen.getByText(message)).toBeVisible();
+    expect(add).not.toHaveBeenCalled();
+  });
 
   it("shows the field error when the core refuses the weight, and keeps the modal open", async () => {
     const { screen, field, onClose } = await renderModal(async () => "invalid_weight");
@@ -96,13 +88,13 @@ describe("WeightModal", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("closes without confirming when cancelled", async () => {
-    const { screen, field, confirmWeight, onClose } = await renderModal();
+  it("closes without adding when cancelled", async () => {
+    const { screen, field, add, onClose } = await renderModal();
 
     await field.fill("1");
     await screen.getByRole("button", { name: "Cancelar" }).click();
 
     expect(onClose).toHaveBeenCalledOnce();
-    expect(confirmWeight).not.toHaveBeenCalled();
+    expect(add).not.toHaveBeenCalled();
   });
 });
