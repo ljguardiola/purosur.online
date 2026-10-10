@@ -664,7 +664,12 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           ...(invoicing ? { enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob } : {}),
         })
       : {}),
-    ...(database && invoicing ? { enqueueOfflineAuthorizationCodeRequest } : {}),
+    ...(database && invoicing
+      ? {
+          enqueueOfflineAuthorizationCodeRequest,
+          enqueueTaxAuthorityCountOnEnrollment: enqueueTaxAuthorityCountJob,
+        }
+      : {}),
     ...(database
       ? {
           mercadoPagoQr: {

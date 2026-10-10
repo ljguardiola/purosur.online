@@ -1,5 +1,5 @@
 import type { LastAuthorizedCount, TaxAuthorityCounts } from "@purosur/domain/fiscal/use-cases";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { registerPointsOfSale, taxAuthorityLastAuthorizedNumbers } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
@@ -24,7 +24,10 @@ export class DrizzleTaxAuthorityCounts<TQueryResult extends PgQueryResultHKT>
         .values({ pointOfSaleNumber: pointOfSale, lastAuthorized, readAt })
         .onConflictDoUpdate({
           target: taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber,
-          set: { lastAuthorized, readAt },
+          set: {
+            lastAuthorized: sql`greatest(${taxAuthorityLastAuthorizedNumbers.lastAuthorized}, excluded.last_authorized)`,
+            readAt,
+          },
         });
       const [holder] = await tx
         .select({

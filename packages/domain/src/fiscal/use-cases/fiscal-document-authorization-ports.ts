@@ -5,6 +5,7 @@ import type {
   TaxAuthorityRejection,
 } from "../model/fiscal-rejection-alert.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
+import type { LastAuthorizedCount } from "./tax-authority-count-ports.js";
 import type { WsaaToken } from "./wsaa-token-ports.js";
 
 export interface FiscalDocumentData {
@@ -47,6 +48,7 @@ export interface PointOfSaleLane {
     answer: RealTimeAuthorizationAnswer,
     answeredAt: Date,
     rejectionAlertChange: RejectionAlertChange | null,
+    taxAuthorityCount: LastAuthorizedCount | null,
   ): Promise<void>;
 }
 
