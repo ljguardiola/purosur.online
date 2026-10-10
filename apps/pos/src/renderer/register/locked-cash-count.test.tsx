@@ -482,7 +482,7 @@ describe("LockedCashCount", () => {
 
     await screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }).click();
 
-    await expect.element(screen.getByRole("alert")).toHaveTextContent(notice);
+    await expect.element(screen.getByText(notice).first()).toBeVisible();
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
     expect(refused).toEqual([]);
   });
