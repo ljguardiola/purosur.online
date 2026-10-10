@@ -66,6 +66,7 @@ describe("starting a Mercado Pago QR charge", () => {
     },
     { kind: "order_refused" },
     { kind: "unreachable" },
+    { kind: "qr_charge_in_progress" },
     { kind: "invalid_amount" },
     { kind: "exceeds_pending", pending: 1500 },
     { kind: "empty_sale" },
