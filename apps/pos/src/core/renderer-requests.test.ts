@@ -40,6 +40,7 @@ import type { AuthorizablePermissionKey } from "@purosur/domain";
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
+import type { WireSerialDevices } from "./register/serial-devices-requests";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type { CancelPaidSaleRequest } from "./sales/sale-requests";
@@ -207,7 +208,9 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         saleChanges.push("read-serial-devices");
         return { kind: "lacks_permission" };
       },
-      registerSerialDevices: async (devices): Promise<RegisterSerialDevicesOutcome> => {
+      registerSerialDevices: async (
+        devices: WireSerialDevices,
+      ): Promise<RegisterSerialDevicesOutcome> => {
         saleChanges.push(
           ["register-serial-devices", devices.scale?.vendor_id ?? "no-scale"].join(" "),
         );
