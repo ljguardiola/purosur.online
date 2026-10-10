@@ -65,6 +65,7 @@ export interface NewPurchaseFields {
 
 export interface NewPurchaseLineFields {
   purchaseId: string;
+  position: number;
   productId: string;
   packagingId: string | null;
   packages: number | null;

@@ -209,7 +209,8 @@ export async function registerPurchase(
     });
 
     const lines: RegisteredPurchaseLine[] = [];
-    for (const { line, packagingId, packages, quantity, quantityPerPackage } of resolved) {
+    for (const [index, resolvedLine] of resolved.entries()) {
+      const { line, packagingId, packages, quantity, quantityPerPackage } = resolvedLine;
       const registered = {
         productId: line.productId,
         packagingId,
@@ -220,7 +221,11 @@ export async function registerPurchase(
         lotNumber: line.lotNumber,
         expiresOn: line.expiresOn,
       };
-      const { id } = await tx.insertPurchaseLine({ purchaseId, ...registered });
+      const { id } = await tx.insertPurchaseLine({
+        purchaseId,
+        position: index + 1,
+        ...registered,
+      });
 
       const key = { productId: line.productId, locationId: input.locationId };
       const coveringCount = await tx.earliestCountAtOrAfter(key, recordedAt);
