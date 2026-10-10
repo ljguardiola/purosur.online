@@ -1,5 +1,6 @@
+import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
-import type { PaymentTransaction } from "../../payments/index.js";
+import type { SalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import {
   type CancelPaidSaleGrant,
@@ -44,7 +45,7 @@ const OPEN_SALE: SaleWithLines = {
   state: "OPEN",
   lines: [YERBA_LINE],
 };
-const CASH_PAYMENT: PaymentTransaction = {
+const CASH_PAYMENT: SalePayment = {
   id: "payment-1",
   saleId: "sale-1",
   kind: "SALE",
@@ -55,7 +56,7 @@ const CASH_PAYMENT: PaymentTransaction = {
   state: "APPROVED",
   occurredAt: PAID_AT,
 };
-const TRANSFER_PAYMENT: PaymentTransaction = {
+const TRANSFER_PAYMENT: SalePayment = {
   id: "payment-2",
   saleId: "sale-1",
   kind: "SALE",
@@ -67,7 +68,7 @@ const TRANSFER_PAYMENT: PaymentTransaction = {
   authorizedBy: "cashier",
   confirmedAt: PAID_AT,
 };
-const QR_PAYMENT: PaymentTransaction = {
+const QR_PAYMENT: SalePayment = {
   id: "payment-3",
   saleId: "sale-1",
   kind: "SALE",
@@ -623,6 +624,7 @@ describe("cancelPaidSale", () => {
 describe("cancelPaidSale with a QR charge", () => {
   function pendingQrEndingAt(waitEndsAt: Date) {
     return {
+      ...PENDING_QR_TRANSACTION,
       id: "qr-9",
       saleId: "sale-1",
       amount: 1000,

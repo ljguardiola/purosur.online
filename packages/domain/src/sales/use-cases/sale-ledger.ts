@@ -5,11 +5,7 @@ import type {
   IssuerIdentificationInEffect,
   PreEmissionGateOutcome,
 } from "../../fiscal/index.js";
-import type {
-  PaymentTransaction,
-  PendingQrSalePayment,
-  PlannedRefund,
-} from "../../payments/index.js";
+import type { PendingQrSalePayment, PlannedRefund, SalePayment } from "../../payments/index.js";
 import type { RoleAccess } from "../../permissions/index.js";
 import type { DiscountRecurrence } from "../../pricing/index.js";
 import type { CashMovement } from "../../register/index.js";
@@ -88,10 +84,10 @@ export interface SaleLedgerTransaction {
   recordSaleLine(saleId: string, line: SaleLine): void;
   recordChangedLine(line: SaleLine): void;
   deleteSaleLine(lineId: string): void;
-  salePayments(saleId: string): PaymentTransaction[];
+  salePayments(saleId: string): SalePayment[];
   saleCashMovements(saleId: string): SaleCashMovement[];
   discardOpenSale(saleId: string): void;
-  recordPayment(payment: PaymentTransaction): void;
+  recordPayment(payment: SalePayment): void;
   recordPendingQrPayment(payment: PendingQrSalePayment): void;
   pendingQrPayment(paymentTransactionId: string): PendingQrSalePayment | undefined;
   pendingQrPaymentsOf(saleId: string): PendingQrSalePayment[];

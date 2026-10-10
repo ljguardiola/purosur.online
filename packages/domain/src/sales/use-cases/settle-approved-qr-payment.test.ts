@@ -1,10 +1,11 @@
+import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "../../fiscal/test-support/fictional-tax-identities.js";
-import type { PaymentTransaction, PendingQrSalePayment } from "../../payments/index.js";
+import type { PendingQrSalePayment, SalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { settleApprovedQrPayment } from "./settle-approved-qr-payment.js";
 import {
@@ -56,6 +57,7 @@ const BUYER_TAX_STATUSES = [{ code: 5, description: "Consumidor Final", invoiceC
 
 function pendingQr(amount: number): PendingQrSalePayment {
   return {
+    ...PENDING_QR_TRANSACTION,
     id: "qr-1",
     saleId: "sale-1",
     amount,
@@ -64,7 +66,7 @@ function pendingQr(amount: number): PendingQrSalePayment {
   };
 }
 
-const APPROVED_QR: PaymentTransaction = {
+const APPROVED_QR: SalePayment = {
   id: "qr-1",
   saleId: "sale-1",
   kind: "SALE",
@@ -151,7 +153,7 @@ describe("settleApprovedQrPayment", () => {
   });
 
   it("completes the sale when the QR payment covers what an earlier payment left", () => {
-    const cash: PaymentTransaction = {
+    const cash: SalePayment = {
       id: "cash-1",
       saleId: "sale-1",
       kind: "SALE",

@@ -197,13 +197,15 @@ export {
   thresholdScheduledAfter,
 } from "./fiscal/index.js";
 export type {
+  MercadoPagoQrOrderTransaction,
+  MercadoPagoQrPaymentTransaction,
   PaymentMethod,
   PaymentTransaction,
   PaymentTransactionState,
   PendingQrSalePayment,
   PlannedRefund,
-  ProviderPaymentTransaction,
   RefundState,
+  SalePayment,
 } from "./payments/index.js";
 export {
   cancellableWithoutAuthorization,
