@@ -1,17 +1,20 @@
-import type { AddProductOutcome, ScanProductOutcome } from "@purosur/contracts";
+import type {
+  AddProductOutcome,
+  AddWeighedProductOutcome,
+  ScanProductOutcome,
+} from "@purosur/contracts";
 import { ElevatedNotice } from "@purosur/ui";
 import type { LucideIcon } from "lucide-react";
-import { Ban, Lock, PackageX, Scale, ScanBarcode, Tag, TriangleAlert } from "lucide-react";
+import { Ban, Lock, PackageX, ScanBarcode, Tag, TriangleAlert } from "lucide-react";
 
 export type ScanProblem =
   | Extract<
-      ScanProductOutcome | AddProductOutcome,
+      ScanProductOutcome | AddProductOutcome | AddWeighedProductOutcome,
       {
         kind:
           | "unknown_code"
           | "product_unavailable"
           | "no_price"
-          | "weight_needed"
           | "line_quantity_limit"
           | "not_permitted"
           | "installation_revoked";
@@ -48,12 +51,6 @@ export function messageFor(problem: ScanProblem): Message {
         icon: Tag,
         title: `${problem.product_name} no tiene precio`,
         help: "No se puede vender hasta que alguien con el permiso de precios se lo ponga en el backoffice.",
-      };
-    case "weight_needed":
-      return {
-        icon: Scale,
-        title: `${problem.product_name} se vende por kilo`,
-        help: "Esta caja todavía no vende productos por kilo.",
       };
     case "line_quantity_limit":
       return {

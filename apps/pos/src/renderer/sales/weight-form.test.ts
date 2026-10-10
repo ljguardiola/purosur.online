@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { parseWeightThousandths } from "@purosur/ui";
+import { describe, expect, it } from "vitest";
 import { weightFieldText, weightRequestFrom, weightRequestSchema } from "./weight-form";
 
 function accepted(weight: string) {

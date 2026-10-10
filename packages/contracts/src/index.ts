@@ -307,6 +307,7 @@ export type {
   ScanProductOutcome,
   SearchProductsOutcome,
 } from "./sales/sale.js";
+export { saleLineWeightSchema } from "./sales/sale.js";
 export type {
   ReceiptCopyShown,
   SaleHistoryDetailOutcome,

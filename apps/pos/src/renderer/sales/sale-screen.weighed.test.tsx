@@ -5,6 +5,7 @@ import type {
 } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { SaleScreenProps } from "./sale-screen";
 import type { Overrides } from "./test-support/sale-screen";
 import {
   QUESO,
@@ -193,7 +194,7 @@ describe("SaleScreen adding a product sold by weight", () => {
 });
 
 describe("SaleScreen changing the weight of a line", () => {
-  async function renderWithQueso(changeLineWeight: Overrides["changeLineWeight"]) {
+  async function renderWithQueso(changeLineWeight: SaleScreenProps["changeLineWeight"]) {
     const currentSale = vi.fn(async () => SALE_OF_QUESO);
     const rendered = await renderScreen({ currentSale, changeLineWeight });
     await rendered.screen.getByRole("button", { name: "Cambiar el peso de Queso cremoso" }).click();

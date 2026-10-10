@@ -1,9 +1,11 @@
 import type {
   AddProductOutcome,
+  AddWeighedProductOutcome,
   Authorization,
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
   ChangeLineQuantityOutcome,
+  ChangeLineWeightOutcome,
   CurrentSaleAnswer,
   FoundProduct,
   OpenSale,
@@ -44,6 +46,7 @@ import {
 } from "./sales-queries";
 import type { ScanProblem } from "./scan-problem-message";
 import { messageFor, ScanProblemMessage } from "./scan-problem-message";
+import { WeightModal } from "./weight-modal";
 
 export type SaleScreenProps = {
   sessionId: string;
@@ -54,11 +57,20 @@ export type SaleScreenProps = {
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
+  addWeighedProduct: (
+    productId: string,
+    weightThousandths: number,
+  ) => Promise<AddWeighedProductOutcome>;
   changeLineQuantity: (
     lineId: string,
     quantity: number,
     expectedQuantity: number,
   ) => Promise<ChangeLineQuantityOutcome>;
+  changeLineWeight: (
+    lineId: string,
+    weightThousandths: number,
+    expectedWeightThousandths: number,
+  ) => Promise<ChangeLineWeightOutcome>;
   removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
   cancelSale: () => Promise<CancelSaleOutcome>;
   cancelPaidSale: (
@@ -69,7 +81,22 @@ export type SaleScreenProps = {
   onSessionInvalid: () => void;
 };
 
-type SaleEditOutcome = ChangeLineQuantityOutcome | RemoveSaleLineOutcome | CancelSaleOutcome;
+type SaleEditOutcome =
+  | ChangeLineQuantityOutcome
+  | ChangeLineWeightOutcome
+  | RemoveSaleLineOutcome
+  | CancelSaleOutcome;
+
+type SaleLine = OpenSale["lines"][number];
+
+type Weighing =
+  | { kind: "add"; productId: string; productName: string; submitted: string }
+  | { kind: "change"; line: SaleLine };
+
+type TakenOutcome =
+  | ScanProductOutcome
+  | AddProductOutcome
+  | Exclude<AddWeighedProductOutcome, { kind: "invalid_weight" | "not_sold_by_weight" }>;
 
 type SaleEditFailure = Extract<
   ScanProblem,
@@ -102,7 +129,9 @@ export function SaleScreen({
   scanProduct,
   searchProducts,
   addProduct,
+  addWeighedProduct,
   changeLineQuantity,
+  changeLineWeight,
   removeSaleLine,
   cancelSale,
   cancelPaidSale,
@@ -126,13 +155,15 @@ export function SaleScreen({
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [confirmingPaidCancel, setConfirmingPaidCancel] = useState(false);
   const [cancelledRefunds, setCancelledRefunds] = useState<Refund[]>();
+  const [weighing, setWeighing] = useState<Weighing>();
   const editInFlight = useRef(false);
   const confirmingCancelNow = useRef(false);
+  const weighingNow = useRef(false);
   const listboxId = useId();
 
   useEffect(() => {
     function refocusWhenFocusIsLost(event: FocusEvent) {
-      if (event.relatedTarget === null && !confirmingCancelNow.current) {
+      if (event.relatedTarget === null && !confirmingCancelNow.current && !weighingNow.current) {
         focusScanField(field.current);
       }
     }
@@ -186,9 +217,14 @@ export function SaleScreen({
     selectScanField(field.current);
   }
 
+  function askForWeight(asking: Weighing | undefined) {
+    weighingNow.current = asking !== undefined;
+    setWeighing(asking);
+  }
+
   async function take(
     submitted: string,
-    outcome: ScanProductOutcome | AddProductOutcome,
+    outcome: TakenOutcome,
     failure: { kind: "scan_failed" } | { kind: "add_failed" },
   ) {
     switch (outcome.kind) {
@@ -204,11 +240,18 @@ export function SaleScreen({
       case "unknown_code":
       case "product_unavailable":
       case "no_price":
-      case "weight_needed":
       case "line_quantity_limit":
       case "not_permitted":
       case "installation_revoked":
         refuse(submitted, outcome);
+        break;
+      case "weight_needed":
+        askForWeight({
+          kind: "add",
+          productId: outcome.product_id,
+          productName: outcome.product_name,
+          submitted,
+        });
         break;
       case "sale_has_payments":
         setProblem(undefined);
@@ -219,6 +262,25 @@ export function SaleScreen({
         refuse(submitted, failure);
         break;
     }
+  }
+
+  async function addWithWeight(
+    asked: Extract<Weighing, { kind: "add" }>,
+    weight: number,
+  ): Promise<"invalid_weight" | "done"> {
+    const outcome = await addWeighedProduct(asked.productId, weight).catch(
+      (): AddWeighedProductOutcome => ({ kind: "unavailable" }),
+    );
+    if (outcome.kind === "invalid_weight") {
+      return "invalid_weight";
+    }
+    askForWeight(undefined);
+    await take(
+      asked.submitted,
+      outcome.kind === "not_sold_by_weight" ? { kind: "product_unavailable" } : outcome,
+      { kind: "add_failed" },
+    );
+    return "done";
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -270,15 +332,21 @@ export function SaleScreen({
     focusScanField(field.current);
   }
 
-  async function edit(request: () => Promise<SaleEditOutcome>, failure: SaleEditFailure) {
+  async function edit(
+    request: () => Promise<SaleEditOutcome>,
+    failure: SaleEditFailure,
+  ): Promise<SaleEditOutcome["kind"] | undefined> {
     if (editInFlight.current) {
-      return;
+      return undefined;
     }
     editInFlight.current = true;
     setEditing(true);
     const outcome = await request().catch((): SaleEditOutcome => ({ kind: "unavailable" }));
     editInFlight.current = false;
     setEditing(false);
+    if (outcome.kind === "invalid_weight") {
+      return outcome.kind;
+    }
     switch (outcome.kind) {
       case "changed":
       case "removed":
@@ -306,6 +374,9 @@ export function SaleScreen({
         break;
       case "unknown_line":
       case "stale_quantity":
+      case "stale_weight":
+      case "sold_by_weight":
+      case "not_sold_by_weight":
       case "no_open_sale":
         await resetCurrentSale();
         break;
@@ -316,13 +387,30 @@ export function SaleScreen({
     }
     askToCancel(false);
     focusScanField(field.current);
+    return outcome.kind;
+  }
+
+  async function changeWeight(line: SaleLine, weight: number): Promise<"invalid_weight" | "done"> {
+    const outcome = await edit(() => changeLineWeight(line.id, weight, line.quantity), {
+      kind: "change_failed",
+    });
+    if (outcome === "invalid_weight") {
+      return "invalid_weight";
+    }
+    askForWeight(undefined);
+    return "done";
   }
 
   useEffect(() => {
-    if (!confirmingCancel && !confirmingPaidCancel && cancelledRefunds === undefined) {
+    if (
+      !confirmingCancel &&
+      !confirmingPaidCancel &&
+      cancelledRefunds === undefined &&
+      weighing === undefined
+    ) {
       focusScanField(field.current);
     }
-  }, [confirmingCancel, confirmingPaidCancel, cancelledRefunds]);
+  }, [confirmingCancel, confirmingPaidCancel, cancelledRefunds, weighing]);
 
   const found = results?.query === code.trim() && !dismissed ? results : undefined;
   const choosing = found !== undefined && found.products.length > 0;
@@ -443,6 +531,7 @@ export function SaleScreen({
                 void edit(() => changeLineQuantity(line.id, quantity, line.quantity), {
                   kind: "change_failed",
                 }),
+              onChangeWeight: (line) => askForWeight({ kind: "change", line }),
               onRemove: (line) =>
                 void edit(() => removeSaleLine(line.id), { kind: "remove_failed" }),
             }}
@@ -468,6 +557,18 @@ export function SaleScreen({
         onClose={() => askToCancel(false)}
         onCancelSale={() => void edit(cancelSale, { kind: "cancel_failed" })}
       />
+      {weighing === undefined ? null : (
+        <WeightModal
+          productName={weighing.kind === "add" ? weighing.productName : weighing.line.product_name}
+          currentWeight={weighing.kind === "change" ? weighing.line.quantity : undefined}
+          confirm={(weight) =>
+            weighing.kind === "add"
+              ? addWithWeight(weighing, weight)
+              : changeWeight(weighing.line, weight)
+          }
+          onClose={() => askForWeight(undefined)}
+        />
+      )}
       {confirmingPaidCancel && sale !== null ? (
         <CancelPaidSaleModal
           saleId={sale.id}
