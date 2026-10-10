@@ -5,16 +5,16 @@ import {
   WEBHOOK_SECRET,
 } from "./test-support/mercado-pago-notification-signing.js";
 
-const ORDER_ID = "ORD01JQ4S4KY8HWQ6NA5PXB65B3D3";
+const ALPHANUMERIC_ID = "ORD01JQ4S4KY8HWQ6NA5PXB65B3D3";
 
 function verifying(
   overrides: Partial<Parameters<typeof verifyMercadoPagoNotificationSignature>[0]> = {},
 ) {
   return verifyMercadoPagoNotificationSignature({
     secret: WEBHOOK_SECRET,
-    signatureHeader: signatureHeader({ dataId: ORDER_ID }),
+    signatureHeader: signatureHeader({ dataId: ALPHANUMERIC_ID }),
     requestId: "request-1",
-    dataId: ORDER_ID,
+    dataId: ALPHANUMERIC_ID,
     ...overrides,
   });
 }
@@ -24,52 +24,58 @@ function refusedFor(reason: string) {
 }
 
 describe("verifyMercadoPagoNotificationSignature", () => {
-  it("accepts an order notification signed over its id exactly as it carries it", () => {
-    expect(verifying()).toEqual({ kind: "signed", dataId: ORDER_ID });
+  it("accepts a notification signed over its alphanumeric data id exactly as it carries it", () => {
+    expect(verifying()).toEqual({ kind: "signed" });
   });
 
-  it("accepts an order notification signed over its id in lowercase", () => {
-    const header = signatureHeader({ dataId: ORDER_ID.toLowerCase() });
+  it("accepts a notification signed over its alphanumeric data id in lowercase", () => {
+    const header = signatureHeader({ dataId: ALPHANUMERIC_ID.toLowerCase() });
 
-    expect(verifying({ signatureHeader: header })).toEqual({ kind: "signed", dataId: ORDER_ID });
+    expect(verifying({ signatureHeader: header })).toEqual({ kind: "signed" });
   });
 
   it("accepts a notification of a numeric id, such as the panel's simulated one", () => {
     const header = signatureHeader({ dataId: "123456" });
 
-    expect(verifying({ signatureHeader: header, dataId: "123456" })).toEqual({
-      kind: "signed",
-      dataId: "123456",
-    });
+    expect(verifying({ signatureHeader: header, dataId: "123456" })).toEqual({ kind: "signed" });
   });
 
   it("refuses a signature made with another secret", () => {
-    expect(verifying({ secret: "another-fake-secret" })).toEqual(refusedFor("mismatch"));
+    expect(verifying({ secret: "another-fake-secret" })).toMatchObject(refusedFor("mismatch"));
   });
 
   it("refuses a signature of another data id", () => {
-    expect(verifying({ dataId: "ORD99OTHER" })).toEqual(refusedFor("mismatch"));
+    expect(verifying({ dataId: "ORD99OTHER" })).toMatchObject(refusedFor("mismatch"));
   });
 
   it("refuses a signature of another request id", () => {
-    expect(verifying({ requestId: "request-2" })).toEqual(refusedFor("mismatch"));
+    expect(verifying({ requestId: "request-2" })).toMatchObject(refusedFor("mismatch"));
   });
 
   it("refuses a signature whose timestamp was changed", () => {
-    const header = signatureHeader({ dataId: ORDER_ID });
+    const header = signatureHeader({ dataId: ALPHANUMERIC_ID });
 
     expect(
       verifying({ signatureHeader: header.replace("ts=1760011200000", "ts=1760011200001") }),
-    ).toEqual(refusedFor("mismatch"));
+    ).toMatchObject(refusedFor("mismatch"));
+  });
+
+  it("names, on a mismatch, the timestamp it read and every manifest it tried", () => {
+    expect(verifying({ dataId: "ORD99OTHER" })).toEqual({
+      kind: "refused",
+      reason: "mismatch",
+      ts: "1760011200000",
+      manifests: [
+        "id:ORD99OTHER;request-id:request-1;ts:1760011200000;",
+        "id:ord99other;request-id:request-1;ts:1760011200000;",
+      ],
+    });
   });
 
   it("accepts the parts of the header in any order and with spaces after the commas", () => {
-    const [ts, v1] = signatureHeader({ dataId: ORDER_ID }).split(",");
+    const [ts, v1] = signatureHeader({ dataId: ALPHANUMERIC_ID }).split(",");
 
-    expect(verifying({ signatureHeader: `${v1}, ${ts}` })).toEqual({
-      kind: "signed",
-      dataId: ORDER_ID,
-    });
+    expect(verifying({ signatureHeader: `${v1}, ${ts}` })).toEqual({ kind: "signed" });
   });
 
   it.each([
