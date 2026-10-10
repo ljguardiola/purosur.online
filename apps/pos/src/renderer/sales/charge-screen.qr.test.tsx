@@ -19,15 +19,8 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
     await expect
       .element(screen.getByText("El cliente escanea el QR · requiere internet"))
       .toBeVisible();
-    const labels = screen
-      .getByRole("radio")
-      .elements()
-      .map((radio) => radio.textContent);
-    expect(labels).toEqual([
-      expect.stringContaining("Efectivo"),
-      expect.stringContaining("QR de Mercado Pago"),
-      expect.stringContaining("Transferencia"),
-    ]);
+    const methods = screen.getByRole("radiogroup", { name: "Medio de pago" }).element();
+    expect(methods.textContent).toMatch(/Efectivo.*QR de Mercado Pago.*Transferencia/s);
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -103,7 +96,9 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
     await expect
       .element(screen.getByText("VENTA COMPLETADA"), { timeout: NEXT_ASK_TIMEOUT_MS })
       .toBeVisible();
-    await expect.element(screen.getByText("QR de Mercado Pago", { exact: true })).toBeVisible();
+    await expect
+      .element(screen.getByRole("dialog").getByText("QR de Mercado Pago", { exact: true }))
+      .toBeVisible();
     expect(followMercadoPagoQrCharge).toHaveBeenCalledWith(QR_PAYMENT_ID);
     await expect.poll(() => receiptPrintStatus.mock.calls).toEqual([["sale-1"]]);
   });
