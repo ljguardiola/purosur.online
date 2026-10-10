@@ -5,6 +5,7 @@ import {
   CASH_MOVEMENT_TYPES,
   isAuthorizablePermissionKey,
   REGISTER_OWN_CONDITIONS,
+  SALES_DENIED_REASONS,
 } from "@purosur/domain";
 import { z } from "zod";
 import {
@@ -318,8 +319,13 @@ const SERIAL_DEVICE_STANDING_KINDS = [
   "unknown",
 ] as const;
 
+const registerOwnConditionSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("sales_denied"), reason: z.enum(SALES_DENIED_REASONS) }),
+  z.object({ kind: z.enum(REGISTER_OWN_CONDITIONS).exclude(["sales_denied"]) }),
+]);
+
 const registerStatusSchema = z.object({
-  conditions: z.array(z.enum(REGISTER_OWN_CONDITIONS)),
+  conditions: z.array(registerOwnConditionSchema),
   cloud: z.enum(["unknown", "reachable", "unreachable"]),
   serial_devices: z.object({
     scale: z.enum(SERIAL_DEVICE_STANDING_KINDS),

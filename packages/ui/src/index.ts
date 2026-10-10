@@ -194,7 +194,6 @@ export type {
   LocalAlertKind,
   LocalAlertSubject,
   LocalAlertText,
-  LocalSalesDeniedReason,
 } from "./messages/local-alert-texts";
 export { isLocalAlertKind, localAlertText, localAlertTitle } from "./messages/local-alert-texts";
 export type { LocaleProviderProps } from "./messages/locale-provider";

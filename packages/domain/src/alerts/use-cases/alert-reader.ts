@@ -2,7 +2,7 @@ import type { SalesDeniedReason } from "../../shared/index.js";
 import type { AlertAudience, AlertKind, AlertLevel } from "../model/alert-catalog.js";
 import type { VisibleAlertSight } from "../model/alert-visibility.js";
 
-export interface AlertSummary {
+interface AlertRecord {
   id: string;
   kind: AlertKind;
   scope: string;
@@ -13,10 +13,13 @@ export interface AlertSummary {
   escalateAt: Date | null;
   escalatedAt: Date | null;
   resolvedAt: Date | null;
+}
+
+export interface AlertSummary extends AlertRecord {
   salesDeniedReason: SalesDeniedReason | null;
 }
 
-export interface AlertDetailView extends AlertSummary {
+export interface AlertDetailView extends AlertRecord {
   detail: Record<string, unknown>;
   resolvedBy: string | null;
 }

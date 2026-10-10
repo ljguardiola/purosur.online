@@ -22,7 +22,7 @@ const SALES_DENIED_TEXTS = {
   },
 } satisfies Record<string, LocalAlertText>;
 
-export type LocalSalesDeniedReason = keyof typeof SALES_DENIED_TEXTS;
+type LocalSalesDeniedReason = keyof typeof SALES_DENIED_TEXTS;
 
 const FIXED_LOCAL_ALERT_TEXTS = {
   register_silent: {

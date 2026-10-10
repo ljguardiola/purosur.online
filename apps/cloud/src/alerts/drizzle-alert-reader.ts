@@ -42,7 +42,7 @@ function containsPattern(text: string): string {
   return `%${text.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
 }
 
-const SUMMARY_COLUMNS = {
+const ALERT_COLUMNS = {
   id: alerts.id,
   kind: alerts.kind,
   scope: alerts.scope,
@@ -53,6 +53,10 @@ const SUMMARY_COLUMNS = {
   escalateAt: alerts.escalateAt,
   escalatedAt: alerts.escalatedAt,
   resolvedAt: alerts.resolvedAt,
+};
+
+const SUMMARY_COLUMNS = {
+  ...ALERT_COLUMNS,
   storedSalesDeniedReason: sql<
     string | null
   >`case when ${alerts.kind} = 'sales_denied' then ${alerts.detail}->>'reason' end`,
@@ -100,10 +104,10 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
     alertId: string,
   ): Promise<AlertDetailView | undefined> {
     const [row] = await this.db
-      .select({ ...SUMMARY_COLUMNS, detail: alerts.detail, resolvedBy: alerts.resolvedBy })
+      .select({ ...ALERT_COLUMNS, detail: alerts.detail, resolvedBy: alerts.resolvedBy })
       .from(alerts)
       .where(and(eq(alerts.id, alertId), sightCondition(sight)));
-    return row && { ...toSummary(row), detail: row.detail, resolvedBy: row.resolvedBy };
+    return row && { ...row, kind: asAlertKind(row.kind) };
   }
 
   async listVisibleAlerts(
