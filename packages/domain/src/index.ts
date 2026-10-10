@@ -180,6 +180,7 @@ export {
   latestIssuerIdentification,
   NUMBER_CONSUMING_STATES,
   nextBuyerTaxStatusFetchAt,
+  nextOfflineNumber,
   OFFLINE_NUMBER_BLOCK_STATUSES,
   POINT_OF_SALE_NUMBER_MAX,
   PRE_EMISSION_GATE_FAILURE_REASONS,
