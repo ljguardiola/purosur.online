@@ -21,6 +21,7 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  ReadReceiptPrinterOutcome,
   ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
@@ -33,6 +34,7 @@ import type {
   ScanProductOutcome,
   SearchProductsOutcome,
   SessionOpenSale,
+  SetReceiptPrinterOutcome,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -63,6 +65,7 @@ import { LockedCloseScreen } from "../register/locked-close-screen";
 import { LockedRegisterScreen } from "../register/locked-register-screen";
 import { NoSessionScreen } from "../register/no-session-screen";
 import { OutOfServiceScreen } from "../register/out-of-service-screen";
+import { ReceiptPrinterScreen } from "../register/receipt-printer-screen";
 import { registerNameQueryOptions, useRegisterNameQuery } from "../register/register-queries";
 import { ChargeScreen } from "../sales/charge-screen";
 import { SaleScreen } from "../sales/sale-screen";
@@ -153,6 +156,8 @@ export interface RouterContext {
   ) => Promise<ReprintSaleReceiptOutcome>;
   salesHistory: (query: SalesHistoryQuery) => Promise<SalesHistoryOutcome>;
   saleHistoryDetail: (saleId: string) => Promise<SaleHistoryDetailOutcome>;
+  readReceiptPrinter: () => Promise<ReadReceiptPrinterOutcome>;
+  setReceiptPrinter: (address: string) => Promise<SetReceiptPrinterOutcome>;
   refreshCashSession: () => Promise<void>;
 }
 
@@ -325,6 +330,34 @@ const helpRoute = createRoute({
         help={help}
         entries={ACTION_ENTRIES}
         signOut={signOut}
+      />
+    );
+  },
+});
+
+const receiptPrinterRoute = createRoute({
+  getParentRoute: () => statusBarRoute,
+  path: "/receipt-printer",
+  beforeLoad: ({ context }) => {
+    const person = requireSignedInPerson(context);
+    if (!person.abilities.includes("configure_receipt_printer")) {
+      throw redirect({ to: "/" });
+    }
+    return { person };
+  },
+  component: function ReceiptPrinterRoute() {
+    const { person, signOut, readReceiptPrinter, setReceiptPrinter, refreshCashSession } =
+      receiptPrinterRoute.useRouteContext();
+    const registerName = useRegisterName();
+    return (
+      <ReceiptPrinterScreen
+        person={person}
+        registerName={registerName}
+        entries={ACTION_ENTRIES}
+        signOut={signOut}
+        readReceiptPrinter={readReceiptPrinter}
+        setReceiptPrinter={setReceiptPrinter}
+        onSessionInvalid={() => void refreshCashSession()}
       />
     );
   },
@@ -663,6 +696,7 @@ export const routeTree = rootRoute.addChildren([
     statusBarRoute.addChildren([
       signedInRoute,
       helpRoute,
+      receiptPrinterRoute,
       openSessionRoute,
       chargeRoute,
       historyRoute,
@@ -740,6 +774,8 @@ export function createAppRouter(
     | "reprintSaleReceipt"
     | "salesHistory"
     | "saleHistoryDetail"
+    | "readReceiptPrinter"
+    | "setReceiptPrinter"
     | "refreshCashSession"
   >,
 ) {
