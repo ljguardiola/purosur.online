@@ -61,6 +61,7 @@ const rows: [PermissionArea, PermissionKey, Marker, PermissionKey[]?, Permission
   ["devices", "enroll_register_devices", REGISTER],
   ["devices", "revoke_register_devices", NONE],
   ["devices", "view_bitlocker_key", NONE],
+  ["devices", "release_quarantined_events", NONE],
   ["backups", "view_backups_and_rotate_key", NONE],
   ["backups", "recover_contingency_receipts", NONE],
   ["branch", "configure_branch", NONE],

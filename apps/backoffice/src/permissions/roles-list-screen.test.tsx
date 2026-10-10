@@ -98,10 +98,10 @@ test("shows a hand-picked role's name, its permission count out of the full cata
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Depósito")).toBeVisible();
-  await expect.element(screen.getByText("2 de 50 permisos")).toBeVisible();
+  await expect.element(screen.getByText("2 de 51 permisos")).toBeVisible();
   await expect.element(screen.getByText("Sin usuarios")).toBeVisible();
   await expect.element(screen.getByText("Cajera")).toBeVisible();
-  await expect.element(screen.getByText("1 de 50 permisos")).toBeVisible();
+  await expect.element(screen.getByText("1 de 51 permisos")).toBeVisible();
   await expect.element(screen.getByText("3 usuarios")).toBeVisible();
   await expect.element(screen.getByText("3 roles")).toBeVisible();
 });
@@ -121,7 +121,7 @@ test("keeps the table loading until the permission catalog arrives, since each r
   expect(screen.getByText("Depósito").elements()).toHaveLength(0);
 
   catalog.resolve({ kind: "ok", value: permissionCatalogFixture });
-  await expect.element(screen.getByText("2 de 50 permisos")).toBeVisible();
+  await expect.element(screen.getByText("2 de 51 permisos")).toBeVisible();
 });
 
 test("a permission catalog that fails to load fails the table, and Reintentar reads it again", async () => {
@@ -137,7 +137,7 @@ test("a permission catalog that fails to load fails the table, and Reintentar re
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
-  await expect.element(screen.getByText("2 de 50 permisos")).toBeVisible();
+  await expect.element(screen.getByText("2 de 51 permisos")).toBeVisible();
 });
 
 test("shows a duplicate action on every row, including Administrator, opening the editor modal pre-filled from that row", async () => {
