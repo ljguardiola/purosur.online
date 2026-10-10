@@ -1,4 +1,5 @@
 import {
+  ARGENTINA_TIME_ZONE,
   LOT_NUMBER_MAX_LENGTH,
   MAX_CASH_AMOUNT_CENTS,
   MAX_STOCK_QUANTITY,
@@ -171,6 +172,12 @@ describe("purchaseRegistrationBodySchema", () => {
 
   it("needs at least one line", () => {
     expect(firstFailure({ ...purchase, lines: [] })?.path).toEqual(["lines"]);
+  });
+
+  it("declares the time zone the purchase date is a day of", () => {
+    expect(purchaseRegistrationBodySchema.shape.purchasedOn.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
   });
 
   it("declares the maximum lengths and the quantity's units", () => {
