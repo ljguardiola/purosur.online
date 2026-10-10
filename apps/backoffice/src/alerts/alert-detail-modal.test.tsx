@@ -1,4 +1,5 @@
 import type { AlertDetail, PermissionCatalogWire } from "@purosur/contracts";
+import { formatCalendarDay, formatCalendarDayRange } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { act } from "react";
 import { expect, test, vi } from "vitest";
@@ -1272,26 +1273,32 @@ const MISSING_CODE_DETAIL = {
   fortnightEnd: "2026-10-31",
 };
 
+const MISSING_CODE_FORTNIGHT = formatCalendarDayRange(
+  MISSING_CODE_DETAIL.fortnightStart,
+  MISSING_CODE_DETAIL.fortnightEnd,
+);
+const MISSING_CODE_FIRST_DAY = formatCalendarDay(MISSING_CODE_DETAIL.fortnightStart);
+
 test.each([
   [
     "informational",
     false,
-    "La caja «Caja 1» todavía no bajó el CAEA de la quincena del 16 al 31 de octubre. Ya se puede pedir a ARCA y la caja lo baja sola al sincronizar.",
+    `El CAEA de la quincena ${MISSING_CODE_FORTNIGHT} ya se puede pedir a ARCA. La caja lo baja sola al sincronizar.`,
   ],
   [
     "warning",
     false,
-    "La caja «Caja 1» todavía no bajó el CAEA de la quincena del 16 al 31 de octubre. Conviene revisar que esté encendida y con internet para que lo baje.",
+    `Falta que baje el CAEA de la quincena ${MISSING_CODE_FORTNIGHT}. Conviene revisar que la caja esté encendida y con internet.`,
   ],
   [
     "critical",
     false,
-    "La caja «Caja 1» todavía no bajó el CAEA de la quincena que empieza el 16 de octubre. Sin él, si ARCA no responde, la caja no puede emitir facturas y las ventas quedan diferidas. Hay que conectarla a internet hoy.",
+    `La quincena empieza el ${MISSING_CODE_FIRST_DAY}. Sin el CAEA, si ARCA no responde, la caja no puede emitir facturas y las ventas quedan diferidas. Hay que conectarla a internet hoy.`,
   ],
   [
     "critical",
     true,
-    "La caja «Caja 1» no tiene el CAEA de la quincena del 16 al 31 de octubre, que ya empezó. Mientras ARCA no responda, sus ventas quedan diferidas. Hay que conectarla a internet.",
+    `La quincena ${MISSING_CODE_FORTNIGHT} ya empezó. Mientras ARCA no responda, las ventas de la caja quedan diferidas. Hay que conectarla a internet.`,
   ],
 ] as const)(
   "tells a register that lacks the fortnight's offline authorization code, at level %s and with the fortnight started: %s",

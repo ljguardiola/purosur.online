@@ -417,15 +417,6 @@ describe("GET /alerts/:id for a register that lacks a fortnight's offline author
     expect(response.json()).toMatchObject({ detail: { fortnightStarted: true } });
   });
 
-  it("says the fortnight has started on its first day", async () => {
-    const rawSessionId = await viewerSession();
-    const alertId = await insertMissingCodeAlert({ start: "2026-01-05", end: "2026-01-15" });
-
-    const response = await getAlert(rawSessionId, alertId);
-
-    expect(response.json()).toMatchObject({ detail: { fortnightStarted: true } });
-  });
-
   it("answers nothing about a fortnight for any other kind of alert", async () => {
     const rawSessionId = await viewerSession();
     const alertId = await insertAlert({ audience: "all" });

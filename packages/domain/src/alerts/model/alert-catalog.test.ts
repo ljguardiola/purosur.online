@@ -6,6 +6,7 @@ import {
   ALERT_LEVELS,
   isAlertKind,
   isAlertLevel,
+  isHigherAlertLevel,
 } from "./alert-catalog.js";
 
 describe("ALERT_KINDS", () => {
@@ -68,6 +69,23 @@ describe("isAlertLevel", () => {
         expect(isAlertLevel(value)).toBe(false);
       }),
     );
+  });
+});
+
+describe("isHigherAlertLevel", () => {
+  it("ranks a warning above an informational alert and a critical one above a warning", () => {
+    expect(isHigherAlertLevel("warning", "informational")).toBe(true);
+    expect(isHigherAlertLevel("critical", "warning")).toBe(true);
+    expect(isHigherAlertLevel("critical", "informational")).toBe(true);
+  });
+
+  it("does not rank a level above itself or above a more urgent one", () => {
+    for (const level of ALERT_LEVELS) {
+      expect(isHigherAlertLevel(level, level)).toBe(false);
+    }
+    expect(isHigherAlertLevel("informational", "warning")).toBe(false);
+    expect(isHigherAlertLevel("warning", "critical")).toBe(false);
+    expect(isHigherAlertLevel("informational", "critical")).toBe(false);
   });
 });
 

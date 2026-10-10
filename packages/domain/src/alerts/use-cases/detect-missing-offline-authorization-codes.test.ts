@@ -37,7 +37,7 @@ function storeWithViewer(): FakeAlertStore {
 }
 
 function detect(store: FakeAlertStore, registers: FakeWatchedHolding[], moment: Date) {
-  const holdings = new FakeOfflineAuthorizationCodeHoldingReader(registers, store);
+  const holdings = new FakeOfflineAuthorizationCodeHoldingReader(registers);
   const outcome = detectMissingOfflineAuthorizationCodes({
     holdings,
     store,

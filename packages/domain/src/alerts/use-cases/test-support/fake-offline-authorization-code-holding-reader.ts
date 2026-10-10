@@ -1,9 +1,8 @@
-import type { Fortnight } from "../../../fiscal/index.js";
 import type {
+  Fortnight,
   OfflineAuthorizationCodeHoldingReader,
   RegisterOfflineAuthorizationCodeHolding,
-} from "../offline-authorization-code-holding-reader.js";
-import type { FakeAlertStore } from "./fake-alert-store.js";
+} from "../../../fiscal/index.js";
 
 export interface FakeWatchedHolding {
   registerId: string;
@@ -16,14 +15,12 @@ export class FakeOfflineAuthorizationCodeHoldingReader
 {
   readonly requestedFortnights: (readonly Fortnight[])[] = [];
   private readonly watched: readonly FakeWatchedHolding[];
-  private readonly store: FakeAlertStore;
 
-  constructor(watched: readonly FakeWatchedHolding[], store: FakeAlertStore) {
+  constructor(watched: readonly FakeWatchedHolding[]) {
     this.watched = structuredClone(watched);
-    this.store = store;
   }
 
-  async watchedRegisterHoldings(
+  async registerHoldings(
     fortnights: readonly Fortnight[],
   ): Promise<RegisterOfflineAuthorizationCodeHolding[]> {
     this.requestedFortnights.push(structuredClone(fortnights));
@@ -34,14 +31,5 @@ export class FakeOfflineAuthorizationCodeHoldingReader
         .map(({ start }) => start)
         .filter((start) => holdsCodeOf.includes(start)),
     }));
-  }
-
-  async scopesOfOpenMissingCodeAlerts(): Promise<string[]> {
-    return this.store
-      .snapshot()
-      .alerts.filter(
-        (alert) => alert.kind === "offline_authorization_code_missing" && alert.resolvedAt === null,
-      )
-      .map(({ scope }) => scope);
   }
 }

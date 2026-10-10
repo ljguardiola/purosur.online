@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { configureOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
-import { alerts, caeaCodes, changes, deviceState, registers } from "../platform/db/schema.js";
+import { caeaCodes, changes, deviceState, registers } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleOfflineAuthorizationCodeHoldingReader } from "./drizzle-offline-authorization-code-holding-reader.js";
+import { configureOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
 
 const NOW = new Date("2026-10-12T12:00:00.000Z");
 const FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
@@ -72,10 +72,10 @@ async function watchedRegister(lastPullSince: number | null) {
 }
 
 function holdings(fortnights = [FIRST_HALF, SECOND_HALF]) {
-  return new DrizzleOfflineAuthorizationCodeHoldingReader(db).watchedRegisterHoldings(fortnights);
+  return new DrizzleOfflineAuthorizationCodeHoldingReader(db).registerHoldings(fortnights);
 }
 
-describe("DrizzleOfflineAuthorizationCodeHoldingReader watchedRegisterHoldings", () => {
+describe("DrizzleOfflineAuthorizationCodeHoldingReader registerHoldings", () => {
   it("shows the code as held when the register's last pull reached the change that published it", async () => {
     const changeSeq = await publishCode(FIRST_HALF);
     const register = await watchedRegister(changeSeq);
@@ -197,35 +197,5 @@ describe("DrizzleOfflineAuthorizationCodeHoldingReader watchedRegisterHoldings",
         { ...lagging, heldFortnightStarts: [] },
       ]),
     );
-  });
-});
-
-describe("DrizzleOfflineAuthorizationCodeHoldingReader scopesOfOpenMissingCodeAlerts", () => {
-  async function insertAlertOf(kind: string, scope: string, resolvedAt: Date | null) {
-    await db.insert(alerts).values({
-      kind,
-      scope,
-      level: "critical",
-      audience: "all",
-      detail: {},
-      openedAt: NOW,
-      resolvedAt,
-    });
-  }
-
-  it("lists the scopes of the open alerts of that kind only", async () => {
-    await insertAlertOf("offline_authorization_code_missing", "register-1:2026-10-01", null);
-    await insertAlertOf("offline_authorization_code_missing", "register-1:2026-09-16", NOW);
-    await insertAlertOf("register_silent", "register-2", null);
-
-    await expect(
-      new DrizzleOfflineAuthorizationCodeHoldingReader(db).scopesOfOpenMissingCodeAlerts(),
-    ).resolves.toEqual(["register-1:2026-10-01"]);
-  });
-
-  it("lists nothing when no alert of that kind is open", async () => {
-    await expect(
-      new DrizzleOfflineAuthorizationCodeHoldingReader(db).scopesOfOpenMissingCodeAlerts(),
-    ).resolves.toEqual([]);
   });
 });

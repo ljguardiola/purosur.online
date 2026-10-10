@@ -532,6 +532,26 @@ describe("DrizzleAlertStore lockClearedConditionAlerts", () => {
   });
 });
 
+describe("DrizzleAlertStore scopesOfOpenAlerts", () => {
+  it("lists the scopes of the open alerts of that kind only", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    await store.transaction((tx) => tx.insertAlert(newAlert()));
+    const closed = await store.transaction((tx) => tx.insertAlert(newAlert({ scope: "user-2" })));
+    await db.update(alerts).set({ resolvedAt: NOON }).where(eq(alerts.id, closed));
+    await store.transaction((tx) =>
+      tx.insertAlert(newAlert({ kind: "backoffice_recovery_requested", scope: "user-3" })),
+    );
+
+    await expect(store.scopesOfOpenAlerts("user_email_changed")).resolves.toEqual(["user-1"]);
+  });
+
+  it("lists nothing when no alert of that kind is open", async () => {
+    await expect(
+      new DrizzleAlertStore(db, () => NOON).scopesOfOpenAlerts("user_email_changed"),
+    ).resolves.toEqual([]);
+  });
+});
+
 describe("DrizzleAlertStore's clock", () => {
   it("is required to build the store", () => {
     expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
