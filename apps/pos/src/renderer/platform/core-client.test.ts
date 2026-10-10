@@ -643,6 +643,53 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to change a weighed line's weight and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const changed = client.changeLineWeight("line-1", 1500, 1250);
+    port.answer({
+      type: "change-line-weight-result",
+      request_id: "request-1",
+      outcome: { kind: "stale_weight" },
+    });
+
+    expect(await changed).toEqual({ kind: "stale_weight" });
+    expect(port.posted).toEqual([
+      {
+        type: "change-line-weight",
+        request_id: "request-1",
+        line_id: "line-1",
+        weight_thousandths: 1500,
+        expected_weight_thousandths: 1250,
+      },
+    ]);
+  });
+
+  it("asks the core to add a product sold by weight with its typed weight and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const added = client.addWeighedProduct("p2", 1250);
+    port.answer({
+      type: "add-weighed-product-result",
+      request_id: "request-1",
+      outcome: { kind: "invalid_weight" },
+    });
+
+    expect(await added).toEqual({ kind: "invalid_weight" });
+    expect(port.posted).toEqual([
+      {
+        type: "add-weighed-product",
+        request_id: "request-1",
+        product_id: "p2",
+        weight_thousandths: 1250,
+      },
+    ]);
+  });
+
   it("asks the core to remove a line and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
