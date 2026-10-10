@@ -69,6 +69,27 @@ export function formatCountdown(seconds: number): string {
   return `${minutes}:${String(whole % 60).padStart(2, "0")}`;
 }
 
+const CALENDAR_DAY_OPTIONS: Intl.DateTimeFormatOptions = {
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+};
+
+function calendarDayMoment(day: string): number {
+  return Date.parse(`${day}T00:00:00Z`);
+}
+
+export function formatCalendarDay(day: string): string {
+  return formatDate(calendarDayMoment(day), CALENDAR_DAY_OPTIONS);
+}
+
+export function formatCalendarDayRange(first: string, last: string): string {
+  if (first.slice(0, 7) === last.slice(0, 7)) {
+    return `del ${formatDate(calendarDayMoment(first), { day: "numeric", timeZone: "UTC" })} al ${formatCalendarDay(last)}`;
+  }
+  return `del ${formatCalendarDay(first)} al ${formatCalendarDay(last)}`;
+}
+
 export function formatMonthName(month: number): string {
   const name = new Intl.DateTimeFormat(LOCALE, { month: "long", timeZone: "UTC" }).format(
     Date.UTC(2000, month - 1, 1),

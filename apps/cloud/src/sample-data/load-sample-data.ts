@@ -1,10 +1,23 @@
 import {
+  ALERT_CONDITION_STABLE_CLEAR_MS,
   argentinaCalendarDay,
+  argentinaInstant,
+  fortnightContaining,
+  offlineAuthorizationCodeAcquisitionLevel,
+  offlineAuthorizationCodeHeldObservation,
+  offlineAuthorizationCodeMissingObservation,
+  offlineAuthorizationCodeRequestOpensOn,
   RECOVERY_TOKEN_LIFETIME_MS,
+  registerFortnightScope,
   SIGN_IN_BLOCK_DURATION_MS,
   SIGN_IN_FAILURE_LIMIT,
+  shiftCalendarDay,
 } from "@purosur/domain";
-import { closeAlert, escalateOverdueAlerts } from "@purosur/domain/alerts/use-cases";
+import {
+  closeAlert,
+  escalateOverdueAlerts,
+  resolveStablyClearedAlerts,
+} from "@purosur/domain/alerts/use-cases";
 import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import {
   allocateInternalBarcode,
@@ -21,6 +34,7 @@ import { createUser, deactivateUser } from "@purosur/domain/users/use-cases";
 import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { DrizzleAlertStore } from "../alerts/drizzle-alert-store.js";
+import { observeAlertCondition } from "../alerts/observe-alert-condition.js";
 import { openAlert } from "../alerts/open-alert.js";
 import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
@@ -55,6 +69,7 @@ const SAMPLE_DATA_ADVISORY_LOCK_KEY = 875_320;
 
 const OVERDUE_PRICE_REVIEW_AGE_MS = 60 * 24 * 60 * 60 * 1000;
 const ESCALATION_ELIGIBLE_ALERT_AGE_MS = 25 * 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
 
 class SampleDataCollisionError extends Error {}
 
@@ -335,13 +350,15 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       }
 
       const registerStore = new DrizzleBranchRegisterStore(tx, loadClock, pending);
+      const sampleRegisterIdsInOrder: string[] = [];
       for (const registerName of SAMPLE_REGISTER_NAMES) {
         const outcome = await createRegister(registerStore, {
           locationId: location.id,
           name: registerName,
           actorId,
         });
-        expectOutcome(outcome, "created", `register "${registerName}"`);
+        const created = expectOutcome(outcome, "created", `register "${registerName}"`);
+        sampleRegisterIdsInOrder.push(created.register.id);
       }
 
       if (await branchSettingsAreAtDefaults(tx, location.id)) {
@@ -459,6 +476,56 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         closedBy: actorId,
       });
       expectOutcome(closedCriticalOutcome, "closed", "closing the critical alert");
+
+      const [resolvedCodeRegisterId] = sampleRegisterIdsInOrder;
+      if (!resolvedCodeRegisterId) {
+        throw new Error(
+          "sample-data: no sample register available to scope an informational alert to",
+        );
+      }
+      const currentFortnight = fortnightContaining(argentinaCalendarDay(deps.now()));
+      const pastFortnight = fortnightContaining(shiftCalendarDay(currentFortnight.start, -1));
+      const pastRequestWindowOpensOn = offlineAuthorizationCodeRequestOpensOn(pastFortnight);
+      const pastWindowOpeningLevel = offlineAuthorizationCodeAcquisitionLevel(
+        pastFortnight,
+        pastRequestWindowOpensOn,
+      );
+      if (pastWindowOpeningLevel === null) {
+        throw new Error(
+          "sample-data: a fortnight's alert has no level on the day its request window opens",
+        );
+      }
+      const pastWindowOpeningMoment = new Date(argentinaInstant(pastRequestWindowOpensOn, "09:00"));
+      const conditionClearedMoment = new Date(pastWindowOpeningMoment.getTime() + MINUTE_MS);
+      const stablyClearedMoment = new Date(
+        conditionClearedMoment.getTime() + ALERT_CONDITION_STABLE_CLEAR_MS,
+      );
+      const missingCodeObservation = offlineAuthorizationCodeMissingObservation({
+        registerId: resolvedCodeRegisterId,
+        deviceId: crypto.randomUUID(),
+        fortnight: pastFortnight,
+        level: pastWindowOpeningLevel,
+      });
+      const informationalOutcome = await observeAlertCondition(tx, missingCodeObservation, {
+        now: () => pastWindowOpeningMoment,
+      });
+      expectOutcome(informationalOutcome, "opened", "the informational alert to resolve");
+      const codeHeldOutcome = await observeAlertCondition(
+        tx,
+        offlineAuthorizationCodeHeldObservation(
+          registerFortnightScope(resolvedCodeRegisterId, pastFortnight.start),
+        ),
+        { now: () => conditionClearedMoment },
+      );
+      expectOutcome(codeHeldOutcome, "clearing", "clearing the informational alert");
+      const resolvedCount = await resolveStablyClearedAlerts({
+        store: new DrizzleAlertStore(tx, () => stablyClearedMoment),
+        clock: { now: () => stablyClearedMoment },
+        hasher: { hash: hashSourceAddress },
+      });
+      if (resolvedCount < 1) {
+        throw new Error("sample-data: the stably cleared informational alert was not resolved");
+      }
       await pending.log(tx);
 
       return {

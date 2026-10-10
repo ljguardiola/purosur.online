@@ -3,6 +3,8 @@ import {
   fiscalDocumentAuthorizedObservation,
   fiscalRejectionAlertObservation,
   fiscalRejectionObservation,
+  offlineAuthorizationCodeHeldObservation,
+  offlineAuthorizationCodeMissingObservation,
   quietRegisterObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,
@@ -185,5 +187,36 @@ describe("fiscalRejectionAlertObservation", () => {
     expect(fiscalRejectionAlertObservation(change)).toEqual(
       fiscalDocumentAuthorizedObservation(change),
     );
+  });
+});
+
+describe("offlineAuthorizationCodeMissingObservation", () => {
+  it("holds the missing-code condition of the register and fortnight at the given level, naming the device and the fortnight", () => {
+    expect(
+      offlineAuthorizationCodeMissingObservation({
+        registerId: "register-1",
+        deviceId: "device-1",
+        fortnight: { start: "2026-10-16", end: "2026-10-31" },
+        level: "warning",
+      }),
+    ).toEqual({
+      holds: true,
+      level: "warning",
+      alert: {
+        kind: "offline_authorization_code_missing",
+        scope: "register-1:2026-10-16",
+        detail: { deviceId: "device-1", fortnightStart: "2026-10-16", fortnightEnd: "2026-10-31" },
+      },
+    });
+  });
+});
+
+describe("offlineAuthorizationCodeHeldObservation", () => {
+  it("clears the missing-code condition of the scope", () => {
+    expect(offlineAuthorizationCodeHeldObservation("register-1:2026-10-16")).toEqual({
+      holds: false,
+      kind: "offline_authorization_code_missing",
+      scope: "register-1:2026-10-16",
+    });
   });
 });

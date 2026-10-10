@@ -1,3 +1,4 @@
+import { isHigherAlertLevel } from "../model/alert-catalog.js";
 import type { AlertConditionObservation } from "../model/alert-condition-observation.js";
 import { isStablyCleared } from "../model/alert-condition-resolution.js";
 import { alertKindPolicy } from "../model/alert-kind-policy.js";
@@ -26,18 +27,28 @@ export async function observeAlertCondition(
     const open = await tx.lockOpenAlertOfKey(kind, scope);
     if (observation.holds) {
       if (open !== undefined) {
-        if (open.conditionClearedAt === null) {
-          return { kind: "kept_open", alertId: open.alertId };
-        }
-        if (!isStablyCleared(open.conditionClearedAt, now)) {
-          await tx.recordConditionHolding(open.alertId);
+        const stablyCleared =
+          open.conditionClearedAt !== null && isStablyCleared(open.conditionClearedAt, now);
+        if (!stablyCleared) {
+          if (open.conditionClearedAt !== null) {
+            await tx.recordConditionHolding(open.alertId);
+          }
+          if (
+            observation.level !== undefined &&
+            isHigherAlertLevel(observation.level, open.level)
+          ) {
+            await tx.recordEscalation([open.alertId], {
+              level: observation.level,
+              escalatedAt: now,
+            });
+          }
           return { kind: "kept_open", alertId: open.alertId };
         }
         await closeStablyClearedAlert(tx, { ...open, kind, scope }, now, (address) =>
           hasher.hash(address),
         );
       }
-      const opening = await openAlertIn(tx, observation.alert, now);
+      const opening = await openAlertIn(tx, observation.alert, now, observation.level);
       return {
         kind: opening.kind === "opened" ? "opened" : "kept_open",
         alertId: opening.alertId,

@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { isCalendarDay } from "./calendar-day.js";
+import { isCalendarDay, shiftCalendarDay } from "./calendar-day.js";
 
 const dayNumber = fc.integer({ min: 0, max: 60_000 });
 
@@ -70,5 +70,19 @@ describe("isCalendarDay", () => {
         expect(isCalendarDay(day)).toBe(false);
       }),
     );
+  });
+});
+
+describe("shiftCalendarDay", () => {
+  it.each([
+    ["2026-10-16", -5, "2026-10-11"],
+    ["2026-11-01", -5, "2026-10-27"],
+    ["2026-03-01", -5, "2026-02-24"],
+    ["2028-03-01", -5, "2028-02-25"],
+    ["2026-12-31", 1, "2027-01-01"],
+    ["2026-10-16", 0, "2026-10-16"],
+    ["2026-10-16", 2, "2026-10-18"],
+  ])("moves %s by %i days to %s", (day, days, expected) => {
+    expect(shiftCalendarDay(day, days)).toBe(expected);
   });
 });

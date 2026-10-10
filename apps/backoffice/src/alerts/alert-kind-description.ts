@@ -14,6 +14,7 @@ const ALERT_KIND_DESCRIPTIONS = {
   register_silent: "Una caja dejó de sincronizar",
   sales_denied: "Una caja dejó de abrir ventas nuevas",
   fiscal_rejected: "ARCA rechazó una factura",
+  offline_authorization_code_missing: "Una caja todavía no bajó el CAEA de la quincena",
 } satisfies Record<AlertKind, string>;
 
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);

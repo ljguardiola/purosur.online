@@ -201,6 +201,7 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
     const [row] = await this.tx
       .select({
         alertId: alerts.id,
+        level: alerts.level,
         detail: alerts.detail,
         conditionClearedAt: alerts.conditionClearedAt,
       })
@@ -249,6 +250,14 @@ export class DrizzleAlertStore<TQueryResult extends PgQueryResultHKT> implements
   constructor(db: PgDatabase<TQueryResult>, now: () => Date) {
     this.db = db;
     this.now = now;
+  }
+
+  async scopesOfOpenAlerts(kind: AlertKind): Promise<string[]> {
+    const rows = await this.db
+      .select({ scope: alerts.scope })
+      .from(alerts)
+      .where(and(eq(alerts.kind, kind), openAlertCondition()));
+    return rows.map(({ scope }) => scope);
   }
 
   transaction<TOutcome>(work: (tx: AlertStoreTransaction) => Promise<TOutcome>): Promise<TOutcome> {

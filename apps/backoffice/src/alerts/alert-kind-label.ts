@@ -14,6 +14,7 @@ const ALERT_KIND_LABELS = {
   register_silent: "Caja sin sincronizar",
   sales_denied: "Caja sin poder vender",
   fiscal_rejected: "Factura rechazada por ARCA",
+  offline_authorization_code_missing: "CAEA sin bajar a la caja",
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {

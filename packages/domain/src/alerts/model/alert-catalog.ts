@@ -12,6 +12,7 @@ const ALERT_KIND_LIST = [
   "register_silent",
   "sales_denied",
   "fiscal_rejected",
+  "offline_authorization_code_missing",
 ] as const;
 
 export type AlertKind = (typeof ALERT_KIND_LIST)[number];
@@ -29,6 +30,10 @@ export const ALERT_LEVELS = ["informational", "warning", "critical"] as const;
 export type AlertLevel = (typeof ALERT_LEVELS)[number];
 
 const ALERT_LEVEL_SET: ReadonlySet<string> = new Set(ALERT_LEVELS);
+
+export function isHigherAlertLevel(level: AlertLevel, other: AlertLevel): boolean {
+  return ALERT_LEVELS.indexOf(level) > ALERT_LEVELS.indexOf(other);
+}
 
 export function isAlertLevel(value: unknown): value is AlertLevel {
   return typeof value === "string" && ALERT_LEVEL_SET.has(value);

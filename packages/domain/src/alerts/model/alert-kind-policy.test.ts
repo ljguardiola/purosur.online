@@ -35,6 +35,7 @@ describe("alertKindPolicy", () => {
     ["register_silent", "critical", null, "local", "register", true],
     ["sales_denied", "critical", null, "local", "register", true],
     ["fiscal_rejected", "critical", null, "all", "pointOfSaleDocumentType", true],
+    ["offline_authorization_code_missing", "informational", null, "all", "registerFortnight", true],
   ] as const)(
     "%s opens as %s, escalates %o, is shown to %s, is scoped to %s and deduplicates: %s",
     (kind, level, escalation, audience, scopeKind, deduplicates) => {
@@ -56,6 +57,7 @@ describe("alertKindPolicy", () => {
       "register_silent",
       "sales_denied",
       "fiscal_rejected",
+      "offline_authorization_code_missing",
     ]);
   });
 
@@ -87,5 +89,8 @@ describe("alertKindsWithScope", () => {
     ]);
     expect(alertKindsWithScope("pointOfSaleDocumentType")).toEqual(["fiscal_rejected"]);
     expect(alertKindsWithScope("environment")).toEqual(["arca_certificate_expiring"]);
+    expect(alertKindsWithScope("registerFortnight")).toEqual([
+      "offline_authorization_code_missing",
+    ]);
   });
 });

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { ALERT_KINDS } from "./alert-catalog.js";
 import { alertKindPolicy } from "./alert-kind-policy.js";
-import { alertActorId, alertNamedRecordIds, alertScopeNamesRecord } from "./alert-named-records.js";
+import { alertActorId, alertNamedRecordIds, alertScopeRecordId } from "./alert-named-records.js";
+import { registerFortnightScope } from "./register-fortnight-scope.js";
 
 const SCOPE = "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6";
 const ACTOR_ID = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
@@ -69,21 +70,32 @@ describe("alertNamedRecordIds", () => {
   });
 });
 
-describe("alertScopeNamesRecord", () => {
-  it("answers that the scope of a user or register kind names a record", () => {
+describe("a register-and-fortnight scope", () => {
+  const scope = registerFortnightScope(SCOPE, "2026-10-16");
+
+  it("names the register of the scope", () => {
+    expect(alertNamedRecordIds({ kind: "offline_authorization_code_missing", scope })).toEqual([
+      SCOPE,
+    ]);
+  });
+
+  it("answers the register as the record the scope names", () => {
+    expect(alertScopeRecordId({ kind: "offline_authorization_code_missing", scope })).toBe(SCOPE);
+  });
+});
+
+describe("alertScopeRecordId", () => {
+  it("answers the scope itself for a user or register kind", () => {
     for (const kind of [...kindsScopedTo("user"), ...kindsScopedTo("register")]) {
-      expect(alertScopeNamesRecord(kind)).toBe(true);
+      expect(alertScopeRecordId({ kind, scope: SCOPE })).toBe(SCOPE);
     }
   });
 
-  it("answers that the scope of a source-address kind names no record", () => {
-    for (const kind of kindsScopedTo("sourceAddress")) {
-      expect(alertScopeNamesRecord(kind)).toBe(false);
+  it("answers no record for a source address, an event or a kind outside the catalog", () => {
+    for (const kind of [...kindsScopedTo("sourceAddress"), ...kindsScopedTo("event")]) {
+      expect(alertScopeRecordId({ kind, scope: SCOPE })).toBeUndefined();
     }
-  });
-
-  it("answers that the scope of a kind outside the catalog names no record", () => {
-    expect(alertScopeNamesRecord("retired_kind")).toBe(false);
+    expect(alertScopeRecordId({ kind: "retired_kind", scope: SCOPE })).toBeUndefined();
   });
 });
 
