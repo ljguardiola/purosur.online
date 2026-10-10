@@ -14,7 +14,7 @@ type MercadoPagoNotificationRefusal =
   | "missing_data_id";
 
 export type MercadoPagoNotificationSignatureCheck =
-  | { kind: "signed"; dataId: string }
+  | { kind: "signed" }
   | { kind: "refused"; reason: MercadoPagoNotificationRefusal }
   | { kind: "refused"; reason: "mismatch"; ts: string; manifests: string[] };
 
@@ -61,6 +61,6 @@ export function verifyMercadoPagoNotificationSignature({
     (id) => `id:${id};request-id:${requestId};ts:${ts};`,
   );
   return manifests.some((manifest) => signs(secret, manifest, hash))
-    ? { kind: "signed", dataId }
+    ? { kind: "signed" }
     : { kind: "refused", reason: "mismatch", ts, manifests };
 }
