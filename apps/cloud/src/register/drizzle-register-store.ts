@@ -17,13 +17,16 @@ import type {
 import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
+import type { EnqueueTaxAuthorityCount } from "../fiscal/graphile-tax-authority-count-queue.js";
 import {
   auditLog,
   registerContingencyTicketKeys,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
   registerInstallations,
+  registerPointsOfSale,
   registerSnapshotKeys,
+  taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
 import type { InstallationKeyCipher } from "./installation-key-cipher.js";
 import { readOutboxChainKey, sealOutboxChainKey } from "./outbox-chain-key.js";
@@ -51,10 +54,16 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
 {
   private readonly tx: Transaction<TQueryResult>;
   private readonly cipher: InstallationKeyCipher;
+  private readonly enqueueTaxAuthorityCount: EnqueueTaxAuthorityCount | undefined;
 
-  constructor(tx: Transaction<TQueryResult>, cipher: InstallationKeyCipher) {
+  constructor(
+    tx: Transaction<TQueryResult>,
+    cipher: InstallationKeyCipher,
+    enqueueTaxAuthorityCount: EnqueueTaxAuthorityCount | undefined,
+  ) {
     this.tx = tx;
     this.cipher = cipher;
+    this.enqueueTaxAuthorityCount = enqueueTaxAuthorityCount;
   }
 
   async lockEnrollmentCodes(lookup: string): Promise<LockedEnrollmentCode[]> {
@@ -313,6 +322,23 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .where(eq(registerEnrollmentCodes.registerId, registerId));
   }
 
+  async requireFreshTaxAuthorityCount(registerId: string): Promise<void> {
+    if (this.enqueueTaxAuthorityCount === undefined) {
+      return;
+    }
+    const [held] = await this.tx
+      .select({ pointOfSale: registerPointsOfSale.pointOfSaleNumber })
+      .from(registerPointsOfSale)
+      .where(eq(registerPointsOfSale.registerId, registerId));
+    if (held === undefined) {
+      return;
+    }
+    await this.tx
+      .delete(taxAuthorityLastAuthorizedNumbers)
+      .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, held.pointOfSale));
+    await this.enqueueTaxAuthorityCount(this.tx, held.pointOfSale);
+  }
+
   async openEnrollmentAlert(alert: EnrollmentAlert): Promise<void> {
     await openAlert(
       this.tx,
@@ -334,15 +360,23 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
 export class DrizzleRegisterStore<TQueryResult extends PgQueryResultHKT> implements RegisterStore {
   private readonly db: PgDatabase<TQueryResult>;
   private readonly cipher: InstallationKeyCipher;
+  private readonly enqueueTaxAuthorityCount: EnqueueTaxAuthorityCount | undefined;
 
-  constructor(db: PgDatabase<TQueryResult>, cipher: InstallationKeyCipher) {
+  constructor(
+    db: PgDatabase<TQueryResult>,
+    cipher: InstallationKeyCipher,
+    enqueueTaxAuthorityCount?: EnqueueTaxAuthorityCount,
+  ) {
     this.db = db;
     this.cipher = cipher;
+    this.enqueueTaxAuthorityCount = enqueueTaxAuthorityCount;
   }
 
   transaction<TOutcome>(
     work: (tx: RegisterStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleRegisterStoreTransaction(tx, this.cipher)));
+    return this.db.transaction((tx) =>
+      work(new DrizzleRegisterStoreTransaction(tx, this.cipher, this.enqueueTaxAuthorityCount)),
+    );
   }
 }

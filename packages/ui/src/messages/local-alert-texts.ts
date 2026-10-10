@@ -4,20 +4,33 @@ export interface LocalAlertText {
   whatToDo: string;
 }
 
-const LOCAL_ALERT_TEXTS = {
+const SALES_DENIED_TITLE = "La caja no puede vender";
+
+const SALES_DENIED_TEXTS = {
+  event_history_broken: {
+    title: SALES_DENIED_TITLE,
+    meaning:
+      "Esta caja dejó de abrir ventas nuevas porque encontró un problema en su registro de operaciones.",
+    whatToDo:
+      "Avisar al Administrador de inmediato; ya fue notificado, pero conviene confirmarle la situación.",
+  },
+  local_database_damaged: {
+    title: SALES_DENIED_TITLE,
+    meaning: "Esta caja dejó de abrir ventas nuevas porque su base de datos está dañada.",
+    whatToDo:
+      "Restaurar la base de datos de la caja desde su copia de respaldo. No hace falta dar de alta la caja de nuevo: cuando vuelva a vender, esta alerta se cierra sola.",
+  },
+} satisfies Record<string, LocalAlertText>;
+
+type LocalSalesDeniedReason = keyof typeof SALES_DENIED_TEXTS;
+
+const FIXED_LOCAL_ALERT_TEXTS = {
   register_silent: {
     title: "La caja no está sincronizando",
     meaning:
       "Hace rato que esta caja no logra mandar nada a la nube durante el horario de atención.",
     whatToDo:
       "Se puede seguir vendiendo con normalidad. Revisar la conexión a internet del local; en cuanto vuelva, la caja se pone al día sola. El Administrador ya fue avisado.",
-  },
-  sales_denied: {
-    title: "La caja no puede vender",
-    meaning:
-      "Esta caja dejó de abrir ventas nuevas porque encontró un problema en su registro de operaciones.",
-    whatToDo:
-      "Avisar al Administrador de inmediato; ya fue notificado, pero conviene confirmarle la situación.",
   },
   installation_revoked: {
     title: "La instalación de esta caja fue revocada",
@@ -35,12 +48,25 @@ const LOCAL_ALERT_TEXTS = {
   },
 } satisfies Record<string, LocalAlertText>;
 
-export type LocalAlertKind = keyof typeof LOCAL_ALERT_TEXTS;
+export type LocalAlertKind = keyof typeof FIXED_LOCAL_ALERT_TEXTS | "sales_denied";
+
+export type LocalAlertSubject =
+  | { kind: "sales_denied"; reason: LocalSalesDeniedReason }
+  | { kind: Exclude<LocalAlertKind, "sales_denied">; reason?: undefined };
 
 export function isLocalAlertKind(value: string): value is LocalAlertKind {
-  return Object.hasOwn(LOCAL_ALERT_TEXTS, value);
+  return value === "sales_denied" || Object.hasOwn(FIXED_LOCAL_ALERT_TEXTS, value);
 }
 
-export function localAlertText(kind: string): LocalAlertText | undefined {
-  return isLocalAlertKind(kind) ? LOCAL_ALERT_TEXTS[kind] : undefined;
+export function localAlertTitle(kind: string): string | undefined {
+  if (!isLocalAlertKind(kind)) {
+    return undefined;
+  }
+  return kind === "sales_denied" ? SALES_DENIED_TITLE : FIXED_LOCAL_ALERT_TEXTS[kind].title;
+}
+
+export function localAlertText(subject: LocalAlertSubject): LocalAlertText {
+  return subject.kind === "sales_denied"
+    ? SALES_DENIED_TEXTS[subject.reason]
+    : FIXED_LOCAL_ALERT_TEXTS[subject.kind];
 }

@@ -367,7 +367,10 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
     const status = {
-      conditions: ["sales_denied", "register_silent"],
+      conditions: [
+        { kind: "sales_denied", reason: "event_history_broken" },
+        { kind: "register_silent" },
+      ],
       cloud: "unreachable",
       serial_devices: { scale: "matching", reader: "not_registered" },
     };

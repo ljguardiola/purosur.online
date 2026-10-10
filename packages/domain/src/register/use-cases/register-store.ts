@@ -142,4 +142,5 @@ export interface RegisterStoreTransaction {
   recordContingencyTicketKey(registerId: string, key: VersionedKey): Promise<void>;
   markEnrollmentCodeRedeemed(registerId: string, redeemedAt: Date): Promise<void>;
   openEnrollmentAlert(alert: EnrollmentAlert): Promise<void>;
+  requireFreshTaxAuthorityCount(registerId: string): Promise<void>;
 }

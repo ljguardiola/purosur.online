@@ -4,6 +4,7 @@ import {
   type SerialDeviceRole,
   type SerialDeviceStanding,
 } from "../../register/index.js";
+import type { SalesDeniedReason } from "../../shared/index.js";
 import {
   isInstallationRevoked,
   type SalesStopState,
@@ -21,6 +22,12 @@ export const REGISTER_OWN_CONDITIONS = [
 
 export type RegisterOwnCondition = (typeof REGISTER_OWN_CONDITIONS)[number];
 
+type HeldRegisterOwnCondition = {
+  [Kind in RegisterOwnCondition]: Kind extends "sales_denied"
+    ? { kind: Kind; reason: SalesDeniedReason }
+    : { kind: Kind };
+}[RegisterOwnCondition];
+
 interface RegisterOwnStanding {
   salesStop: SalesStopState;
   lastAcceptedPushAt: Date | null;
@@ -35,16 +42,27 @@ export function registerOwnConditions({
   hours,
   now,
   serialDevices,
-}: RegisterOwnStanding): RegisterOwnCondition[] {
+}: RegisterOwnStanding): HeldRegisterOwnCondition[] {
   const revoked = isInstallationRevoked(salesStop);
-  const held: Record<RegisterOwnCondition, boolean> = {
-    installation_revoked: revoked,
-    sales_denied: salesDeniedReportOf(salesStop).sales_denied === true,
+  const salesDenied = salesDeniedReportOf(salesStop);
+  const held: {
+    [Kind in RegisterOwnCondition]: Extract<HeldRegisterOwnCondition, { kind: Kind }> | null;
+  } = {
+    installation_revoked: revoked ? { kind: "installation_revoked" } : null,
+    sales_denied:
+      salesDenied.sales_denied === true
+        ? { kind: "sales_denied", reason: salesDenied.sales_denied_reason }
+        : null,
     register_silent:
       !revoked &&
       lastAcceptedPushAt !== null &&
-      isRegisterQuiet({ lastSuccessfulSyncAt: lastAcceptedPushAt, hours, now }),
-    serial_device_missing: serialDevices !== null && isSerialDeviceMissing(serialDevices),
+      isRegisterQuiet({ lastSuccessfulSyncAt: lastAcceptedPushAt, hours, now })
+        ? { kind: "register_silent" }
+        : null,
+    serial_device_missing:
+      serialDevices !== null && isSerialDeviceMissing(serialDevices)
+        ? { kind: "serial_device_missing" }
+        : null,
   };
-  return REGISTER_OWN_CONDITIONS.filter((condition) => held[condition]);
+  return REGISTER_OWN_CONDITIONS.flatMap((condition) => held[condition] ?? []);
 }

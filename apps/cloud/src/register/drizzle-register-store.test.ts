@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { escalateAlertsTask } from "../alerts/alert-escalation-task.js";
 import { openAlert } from "../alerts/open-alert.js";
+import { insertRegisterWithPointOfSale } from "../fiscal/test-support/authorization-request-fixtures.js";
 import {
   alerts,
   registerContingencyTicketKeys,
@@ -14,6 +15,7 @@ import {
   registerInstallations,
   registerSnapshotKeys,
   registers,
+  taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
 import { hashSecretCode } from "../platform/secret-code.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -565,5 +567,97 @@ describe("DrizzleRegisterStore", () => {
       { kind: "backoffice_passkey_changed", level: "critical", resolvedAt: null },
       { kind: "register_enrolled", level: "critical", resolvedAt: null },
     ]);
+  });
+
+  describe("requiring a fresh tax authority count", () => {
+    const READ_AT = new Date("2026-10-06T15:00:00.000Z");
+
+    async function storedCountPointsOfSale() {
+      const rows = await db
+        .select({ pointOfSale: taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber })
+        .from(taxAuthorityLastAuthorizedNumbers);
+      return rows.map((row) => row.pointOfSale).sort();
+    }
+
+    function storeEnqueueingInto(enqueued: number[]) {
+      return new DrizzleRegisterStore(
+        db,
+        installationKeyCipher(TEST_INSTALLATION_KEYS_ENCRYPTION_KEY),
+        async (_transaction, pointOfSale) => {
+          enqueued.push(pointOfSale);
+        },
+      );
+    }
+
+    async function seedCounts(...pointsOfSale: number[]) {
+      for (const pointOfSaleNumber of pointsOfSale) {
+        await db
+          .insert(taxAuthorityLastAuthorizedNumbers)
+          .values({ pointOfSaleNumber, lastAuthorized: 11, readAt: READ_AT });
+      }
+    }
+
+    it("deletes the count of the register's point of sale, leaves the others, and enqueues its read", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      await insertRegisterWithPointOfSale(db, { pointOfSaleNumber: 8, name: "caja-2" });
+      await seedCounts(7, 8);
+      const enqueued: number[] = [];
+
+      await storeEnqueueingInto(enqueued).transaction((tx) =>
+        tx.requireFreshTaxAuthorityCount(registerId),
+      );
+
+      expect(await storedCountPointsOfSale()).toEqual([8]);
+      expect(enqueued).toEqual([7]);
+    });
+
+    it("does nothing for a register with no point of sale", async () => {
+      const registerId = await insertRegister("Caja sin punto de venta");
+      await seedCounts(7);
+      const enqueued: number[] = [];
+
+      await storeEnqueueingInto(enqueued).transaction((tx) =>
+        tx.requireFreshTaxAuthorityCount(registerId),
+      );
+
+      expect(await storedCountPointsOfSale()).toEqual([7]);
+      expect(enqueued).toEqual([]);
+    });
+
+    it("keeps the count when no read can be enqueued because invoicing is not configured", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      await seedCounts(7);
+
+      await adapterStore().transaction((tx) => tx.requireFreshTaxAuthorityCount(registerId));
+
+      expect(await storedCountPointsOfSale()).toEqual([7]);
+    });
+
+    it("keeps the count when the transaction rolls back after the enqueue fails", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      await seedCounts(7);
+      const store = new DrizzleRegisterStore(
+        db,
+        installationKeyCipher(TEST_INSTALLATION_KEYS_ENCRYPTION_KEY),
+        async () => {
+          throw new Error("the queue is down");
+        },
+      );
+
+      await expect(
+        store.transaction((tx) => tx.requireFreshTaxAuthorityCount(registerId)),
+      ).rejects.toThrow("the queue is down");
+
+      expect(await storedCountPointsOfSale()).toEqual([7]);
+    });
   });
 });

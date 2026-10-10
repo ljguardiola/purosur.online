@@ -35,7 +35,7 @@ async function storedCount(pointOfSale: number) {
 
 describe("DrizzleTaxAuthorityCounts", () => {
   it("keeps the number the tax authority last authorized for a point of sale, and when it was read", async () => {
-    await new DrizzleTaxAuthorityCounts(db).record({
+    await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 7,
       lastAuthorized: 41,
       readAt: READ_AT,
@@ -48,11 +48,20 @@ describe("DrizzleTaxAuthorityCounts", () => {
     });
   });
 
+  it("never lowers the number already stored, whichever order the reads are recorded in", async () => {
+    const counts = new DrizzleTaxAuthorityCounts(db);
+    await counts.advance({ pointOfSale: 7, lastAuthorized: 44, readAt: LATER });
+
+    await counts.advance({ pointOfSale: 7, lastAuthorized: 41, readAt: READ_AT });
+
+    expect(await storedCount(7)).toMatchObject({ lastAuthorized: 44 });
+  });
+
   it("replaces the number of an earlier read", async () => {
     const counts = new DrizzleTaxAuthorityCounts(db);
-    await counts.record({ pointOfSale: 7, lastAuthorized: 41, readAt: READ_AT });
+    await counts.advance({ pointOfSale: 7, lastAuthorized: 41, readAt: READ_AT });
 
-    await counts.record({ pointOfSale: 7, lastAuthorized: 44, readAt: LATER });
+    await counts.advance({ pointOfSale: 7, lastAuthorized: 44, readAt: LATER });
 
     expect(await storedCount(7)).toEqual({
       pointOfSaleNumber: 7,
@@ -68,7 +77,7 @@ describe("DrizzleTaxAuthorityCounts", () => {
     });
     const mark = await lastLoggedChangeSeq(db);
 
-    await new DrizzleTaxAuthorityCounts(db).record({
+    await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 7,
       lastAuthorized: 41,
       readAt: READ_AT,
@@ -83,7 +92,7 @@ describe("DrizzleTaxAuthorityCounts", () => {
     await insertRegisterWithPointOfSale(db, { pointOfSaleNumber: 7, name: "caja-1" });
     const mark = await lastLoggedChangeSeq(db);
 
-    await new DrizzleTaxAuthorityCounts(db).record({
+    await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 9,
       lastAuthorized: 5,
       readAt: READ_AT,

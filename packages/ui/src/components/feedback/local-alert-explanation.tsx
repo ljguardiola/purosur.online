@@ -1,15 +1,12 @@
-import { type LocalAlertKind, localAlertText } from "../../messages/local-alert-texts";
+import { type LocalAlertSubject, localAlertText } from "../../messages/local-alert-texts";
 
-export type LocalAlertExplanationProps = {
-  kind: LocalAlertKind;
+export type LocalAlertExplanationProps = LocalAlertSubject & {
   title?: boolean;
 };
 
-export function LocalAlertExplanation({ kind, title = false }: LocalAlertExplanationProps) {
-  const text = localAlertText(kind);
-  if (text === undefined) {
-    return null;
-  }
+export function LocalAlertExplanation(props: LocalAlertExplanationProps) {
+  const { title = false } = props;
+  const text = localAlertText(props);
   return (
     <>
       {title ? <p className="font-bold text-text text-subheading">{text.title}</p> : null}
