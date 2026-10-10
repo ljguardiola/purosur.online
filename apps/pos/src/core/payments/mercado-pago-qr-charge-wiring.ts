@@ -53,8 +53,8 @@ export function createMercadoPagoQrCharging({
     gate,
     orders: new CloudMercadoPagoQrChargeOrders({
       readDeviceToken,
-      post: (path, bearerToken, body) =>
-        postToCloudWithBearer(cloudClient, path, bearerToken, body),
+      post: (path, bearerToken, body, options) =>
+        postToCloudWithBearer(cloudClient, path, bearerToken, body, options),
       get: (path, bearerToken, options) =>
         getFromCloud(cloudClient, path, { authorization: `Bearer ${bearerToken}` }, options),
       now,

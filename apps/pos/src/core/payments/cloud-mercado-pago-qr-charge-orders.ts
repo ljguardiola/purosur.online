@@ -6,6 +6,7 @@ import {
 import { MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS } from "@purosur/domain";
 import type {
   MercadoPagoQrChargeOrderAnswer,
+  MercadoPagoQrChargeOrderCancellation,
   MercadoPagoQrChargeOrderReading,
   MercadoPagoQrChargeOrders,
 } from "@purosur/domain/payments/use-cases";
@@ -13,7 +14,12 @@ import type { CloudCallOptions, CloudResponse } from "../platform/cloud-client";
 
 export interface CloudMercadoPagoQrChargeOrdersDeps {
   readDeviceToken: () => Promise<string | undefined>;
-  post: (path: string, bearerToken: string, body: unknown) => Promise<CloudResponse>;
+  post: (
+    path: string,
+    bearerToken: string,
+    body: unknown,
+    options?: CloudCallOptions,
+  ) => Promise<CloudResponse>;
   get: (path: string, bearerToken: string, options: CloudCallOptions) => Promise<CloudResponse>;
   now: () => Date;
 }
@@ -45,6 +51,14 @@ function orderReadingOf(
     return UNREACHABLE;
   }
   return { kind: "read", state: payment.data.state };
+}
+
+function orderCancellationOf(
+  response: CloudResponse,
+  paymentTransactionId: string,
+): MercadoPagoQrChargeOrderCancellation {
+  const reading = orderReadingOf(response, paymentTransactionId);
+  return reading.kind === "read" ? { kind: "answered", state: reading.state } : UNREACHABLE;
 }
 
 export class CloudMercadoPagoQrChargeOrders implements MercadoPagoQrChargeOrders {
@@ -94,5 +108,19 @@ export class CloudMercadoPagoQrChargeOrders implements MercadoPagoQrChargeOrders
     const reading = orderReadingOf(response, paymentTransactionId);
     this.lastCheck = { paymentTransactionId, at: now, reading };
     return reading;
+  }
+
+  async cancelOrder(paymentTransactionId: string): Promise<MercadoPagoQrChargeOrderCancellation> {
+    const deviceToken = await this.deps.readDeviceToken();
+    if (deviceToken === undefined) {
+      return UNREACHABLE;
+    }
+    const response = await this.deps.post(
+      `/api/payments/mercado-pago-qr/${encodeURIComponent(paymentTransactionId)}/cancel`,
+      deviceToken,
+      undefined,
+      { timeoutMs: MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS, singleAttempt: true },
+    );
+    return orderCancellationOf(response, paymentTransactionId);
   }
 }

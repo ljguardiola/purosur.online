@@ -237,7 +237,7 @@ describe("asking the cloud to cancel a Mercado Pago QR order", () => {
 
   it.each([
     ["the cloud cannot be reached", { kind: "unreachable" } as CloudResponse],
-    ["the cloud answers a retryable error", refused("provider-unavailable")],
+    ["the cloud answers a retryable error", refused("payment_provider_unavailable")],
     ["the cloud does not know the payment", refused("not_found")],
     ["the body is not a payment", ok({ state: "CANCELLED" })],
     ["the body is another payment", ok(payment("CANCELLED", { payment_transaction_id: "other" }))],
