@@ -235,6 +235,7 @@ describe("abandoning a Mercado Pago QR charge", () => {
       settlement: { kind: "partially_paid", sale_id: "s1", total: 3000, paid: 2000, pending: 1000 },
     },
     { kind: "already_paid", settlement: { kind: "no_open_sale" } },
+    { kind: "already_paid", settlement: { kind: "not_pending" } },
     { kind: "already_paid", settlement: { kind: "unavailable" } },
     { kind: "empty_sale" },
     { kind: "zero_total" },
