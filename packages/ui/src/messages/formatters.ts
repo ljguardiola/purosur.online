@@ -22,6 +22,10 @@ export function formatAmountInput(cents: number): string {
   return formatNumber(cents / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+export function formatWeight(thousandths: number): string {
+  return `${formatNumber(thousandths / 1000, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg`;
+}
+
 export function formatPointOfSaleNumber(number: number): string {
   return String(number).padStart(5, "0");
 }

@@ -24,3 +24,11 @@ export function parseAmountCents(value: string): number | undefined {
   }
   return Number(digits.whole) * 100 + Number(digits.fraction.padEnd(2, "0"));
 }
+
+export function parseWeightThousandths(value: string): number | undefined {
+  const digits = parseEsArNumber(value, 3);
+  if (!digits) {
+    return undefined;
+  }
+  return Number(digits.whole) * 1000 + Number(digits.fraction.padEnd(3, "0"));
+}
