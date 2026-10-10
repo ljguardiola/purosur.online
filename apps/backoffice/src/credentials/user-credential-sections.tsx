@@ -13,7 +13,10 @@ import { useRefreshCredentials, useUserPasskeysQuery } from "./credentials-queri
 import type { Passkey } from "./passkey-list";
 import { passkeyRowDetail } from "./passkey-row-detail";
 import { RemoveUserPasskeyModal } from "./remove-user-passkey-modal";
-import type { UserCredentialSectionsServices } from "./user-credential-sections-services";
+import {
+  defaultUserCredentialSectionsServices,
+  type UserCredentialSectionsServices,
+} from "./user-credential-sections-services";
 import { UserPinSection } from "./user-pin-section";
 
 const route = getRouteApi("/signed-in/settings-area/users/$userId");
@@ -31,19 +34,18 @@ export type UserCredentialSectionsProps = {
 
 export function UserCredentialSections(props: UserCredentialSectionsProps) {
   const { services } = route.useRouteContext();
+  const sectionsServices = services.userCredentialSections ?? defaultUserCredentialSectionsServices;
   const { user, dataStatus, showsPasskeys, showsPin, onSessionEnded, onUserOutdated } = props;
   return (
     <>
-      {showsPasskeys ? (
-        <UserPasskeysSection {...props} services={services.userCredentialSections} />
-      ) : null}
+      {showsPasskeys ? <UserPasskeysSection {...props} services={sectionsServices} /> : null}
       {showsPin ? (
         <UserPinSection
           user={user}
           dataStatus={dataStatus}
           onSessionEnded={onSessionEnded}
           onUserOutdated={onUserOutdated}
-          services={services.userCredentialSections}
+          services={sectionsServices}
         />
       ) : null}
     </>

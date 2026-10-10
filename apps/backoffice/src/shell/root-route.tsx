@@ -3,7 +3,7 @@ import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { createContext, useContext, useEffect, useRef } from "react";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
 import type { SignInOpeningNotice } from "../sessions/sign-in-screen";
-import type { AppServices } from "./app";
+import type { RouteServices } from "./app";
 import { focusScreenTitle } from "./screen-title";
 
 export type SignedInSession = {
@@ -29,7 +29,7 @@ type SessionActions = {
 export type RouterContext = {
   session: SettledSession;
   help: BackofficeHelpCatalog;
-  services: AppServices;
+  services: RouteServices;
   sessionActions: SessionActions;
   reportError: (error: unknown) => void;
 };

@@ -2,6 +2,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { TagsListScreen } from "./tags-list-screen";
+import { defaultTagsListScreenServices } from "./tags-list-services";
 
 const route = getRouteApi("/signed-in/catalog-area/tags");
 
@@ -15,7 +16,7 @@ export function TagsListPage(): ReactElement {
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.tagsListScreen}
+      services={services.tagsListScreen ?? defaultTagsListScreenServices}
     />
   );
 }

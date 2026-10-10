@@ -2,6 +2,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { StockCountsScreen } from "./stock-counts-screen";
+import { defaultStockCountsScreenServices } from "./stock-counts-services";
 
 const route = getRouteApi("/signed-in/stock-area/inventory-counts");
 
@@ -16,7 +17,7 @@ export function StockCountsPage(): ReactElement {
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.stockCountsScreen}
+      services={services.stockCountsScreen ?? defaultStockCountsScreenServices}
     />
   );
 }
