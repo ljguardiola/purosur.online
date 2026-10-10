@@ -205,6 +205,8 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         transferCharges.push(request);
         return { kind: "no_open_sale" };
       },
+      startMercadoPagoQrCharge: undefined,
+      followMercadoPagoQrCharge: undefined,
       searchProducts: async (query: string): Promise<SearchProductsOutcome> => {
         searches.push(query);
         return { kind: "results", products: [], more: false };
@@ -1074,6 +1076,124 @@ describe("answerRendererRequest", () => {
     ).toEqual({
       type: "charge-sale-by-transfer-result",
       request_id: "r37",
+      outcome: { kind: "unavailable" },
+    });
+  });
+
+  it("starts a Mercado Pago QR charge of an amount of a sale and answers the outcome", async () => {
+    const requests: { saleId: string; amount: number }[] = [];
+    const outcome = {
+      kind: "order_shown",
+      payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
+      amount: 1200,
+      wait_seconds: 180,
+      remaining_seconds: 180,
+    } as const;
+    const { deps: withQr } = deps(true, {
+      startMercadoPagoQrCharge: async (request) => {
+        requests.push(request);
+        return outcome;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(withQr, {
+        type: "start-mercado-pago-qr-charge",
+        request_id: "r60",
+        sale_id: "s1",
+        amount: 1200,
+      }),
+    ).toEqual({ type: "start-mercado-pago-qr-charge-result", request_id: "r60", outcome });
+    expect(requests).toEqual([{ saleId: "s1", amount: 1200 }]);
+  });
+
+  it("follows a Mercado Pago QR charge and answers the outcome", async () => {
+    const requests: { paymentTransactionId: string }[] = [];
+    const { deps: withQr } = deps(true, {
+      followMercadoPagoQrCharge: async (request) => {
+        requests.push(request);
+        return { kind: "waiting", remaining_seconds: 100 };
+      },
+    });
+
+    expect(
+      await answerRendererRequest(withQr, {
+        type: "follow-mercado-pago-qr-charge",
+        request_id: "r61",
+        payment_transaction_id: "qr-1",
+      }),
+    ).toEqual({
+      type: "follow-mercado-pago-qr-charge-result",
+      request_id: "r61",
+      outcome: { kind: "waiting", remaining_seconds: 100 },
+    });
+    expect(requests).toEqual([{ paymentTransactionId: "qr-1" }]);
+  });
+
+  it("answers that a QR charge is unavailable when it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      startMercadoPagoQrCharge: async () => {
+        throw error;
+      },
+      followMercadoPagoQrCharge: async () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "start-mercado-pago-qr-charge",
+        request_id: "r62",
+        sale_id: "s1",
+        amount: 1200,
+      }),
+    ).toEqual({
+      type: "start-mercado-pago-qr-charge-result",
+      request_id: "r62",
+      outcome: { kind: "unavailable" },
+    });
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "follow-mercado-pago-qr-charge",
+        request_id: "r63",
+        payment_transaction_id: "qr-1",
+      }),
+    ).toEqual({
+      type: "follow-mercado-pago-qr-charge-result",
+      request_id: "r63",
+      outcome: { kind: "unavailable" },
+    });
+    expect(failing.failures).toEqual([
+      { context: "starting a Mercado Pago QR charge", error },
+      { context: "following a Mercado Pago QR charge", error },
+    ]);
+  });
+
+  it("answers that a QR charge is unavailable when the register has no database", async () => {
+    const { deps: withoutDatabase } = deps(true);
+
+    expect(
+      await answerRendererRequest(withoutDatabase, {
+        type: "start-mercado-pago-qr-charge",
+        request_id: "r64",
+        sale_id: "s1",
+        amount: 1200,
+      }),
+    ).toEqual({
+      type: "start-mercado-pago-qr-charge-result",
+      request_id: "r64",
+      outcome: { kind: "unavailable" },
+    });
+    expect(
+      await answerRendererRequest(withoutDatabase, {
+        type: "follow-mercado-pago-qr-charge",
+        request_id: "r65",
+        payment_transaction_id: "qr-1",
+      }),
+    ).toEqual({
+      type: "follow-mercado-pago-qr-charge-result",
+      request_id: "r65",
       outcome: { kind: "unavailable" },
     });
   });
