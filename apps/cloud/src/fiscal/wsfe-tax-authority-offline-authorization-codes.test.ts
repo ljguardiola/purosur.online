@@ -159,6 +159,21 @@ describe("WsfeTaxAuthorityOfflineAuthorizationCodes.lookUp", () => {
     expect(await codesAt(server.endpoint).lookUp(call)).toEqual({ kind: "not_granted" });
   });
 
+  it("answers any other refusal with what ARCA said", async () => {
+    server.behave(answers("fe-caea-consultar-token-error.xml"));
+
+    expect(await codesAt(server.endpoint).lookUp(call)).toEqual({
+      kind: "refused",
+      rejections: [
+        {
+          code: 600,
+          message:
+            "ValidacionDeToken: No valido token. Excepcion: CargarStringBase64Token: Excepción: The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or an illegal character among the padding characters.",
+        },
+      ],
+    });
+  });
+
   it.each(noAnswerCases)("answers no answer when %s", async (_case, behavior) => {
     server.behave(behavior);
 

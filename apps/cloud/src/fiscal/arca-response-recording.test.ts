@@ -57,7 +57,7 @@ const OFFLINE_AUTHORIZATION_CODE_ANSWERS = [
   "fe-caea-solicitar-granted.xml",
   "fe-caea-solicitar-already-granted.xml",
   "fe-caea-consultar-granted.xml",
-  "fe-caea-consultar-not-granted.xml",
+  "fe-caea-consultar-token-error.xml",
   "fe-caea-solicitar-out-of-window.xml",
 ];
 const FIRST_OFFLINE_AUTHORIZATION_CODE_CALL = INVOICING_ANSWERS.length;
@@ -582,7 +582,7 @@ describe("recordArcaResponses offline authorization code calls", () => {
       ["fe-caea-solicitar-granted", "fe-caea-solicitar-granted"],
       ["fe-caea-solicitar-already-granted", "fe-caea-solicitar-already-granted"],
       ["fe-caea-consultar-granted", "fe-caea-consultar-granted"],
-      ["fe-caea-consultar-token-error", "fe-caea-consultar-not-granted"],
+      ["fe-caea-consultar-token-error", "fe-caea-consultar-token-error"],
       ["fe-caea-solicitar-out-of-window", "fe-caea-solicitar-out-of-window"],
     ]) {
       expect(readFileSync(join(outDir, `${name}.raw.xml`), "utf8")).toBe(
