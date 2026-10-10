@@ -15,7 +15,7 @@ export interface LastAuthorizedCount {
 }
 
 export interface TaxAuthorityCounts {
-  record(count: LastAuthorizedCount): Promise<void>;
+  advance(count: LastAuthorizedCount): Promise<void>;
 }
 
 export interface TaxAuthorityCountPorts {

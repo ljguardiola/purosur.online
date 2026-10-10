@@ -17,7 +17,7 @@ export class DrizzleTaxAuthorityCounts<TQueryResult extends PgQueryResultHKT>
 
   // The count travels with the register's point of sale, so the register's row is logged as
   // changed for the register to pull it again.
-  async record({ pointOfSale, lastAuthorized, readAt }: LastAuthorizedCount): Promise<void> {
+  async advance({ pointOfSale, lastAuthorized, readAt }: LastAuthorizedCount): Promise<void> {
     await withPendingChanges(this.db, this.pending, async (tx, pending) => {
       await tx
         .insert(taxAuthorityLastAuthorizedNumbers)

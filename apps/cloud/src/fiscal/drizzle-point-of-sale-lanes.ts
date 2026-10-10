@@ -188,7 +188,7 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
       }
       if (taxAuthorityCount !== null) {
         const pending = new PendingChanges();
-        await new DrizzleTaxAuthorityCounts(tx, pending).record(taxAuthorityCount);
+        await new DrizzleTaxAuthorityCounts(tx, pending).advance(taxAuthorityCount);
         await pending.log(tx);
       }
     });
