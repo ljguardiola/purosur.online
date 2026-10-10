@@ -1,6 +1,8 @@
 import {
   argentinaCalendarDay,
+  fortnightsWithinRequestWindowOn,
   RECOVERY_TOKEN_LIFETIME_MS,
+  registerFortnightScope,
   SIGN_IN_BLOCK_DURATION_MS,
   SIGN_IN_FAILURE_LIMIT,
 } from "@purosur/domain";
@@ -335,13 +337,15 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       }
 
       const registerStore = new DrizzleBranchRegisterStore(tx, loadClock, pending);
+      const sampleRegisterIdsInOrder: string[] = [];
       for (const registerName of SAMPLE_REGISTER_NAMES) {
         const outcome = await createRegister(registerStore, {
           locationId: location.id,
           name: registerName,
           actorId,
         });
-        expectOutcome(outcome, "created", `register "${registerName}"`);
+        const created = expectOutcome(outcome, "created", `register "${registerName}"`);
+        sampleRegisterIdsInOrder.push(created.register.id);
       }
 
       if (await branchSettingsAreAtDefaults(tx, location.id)) {
@@ -459,6 +463,46 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         closedBy: actorId,
       });
       expectOutcome(closedCriticalOutcome, "closed", "closing the critical alert");
+
+      const [currentFortnight] = fortnightsWithinRequestWindowOn(argentinaCalendarDay(deps.now()));
+      const [keptOpenCodeRegisterId, closedCodeRegisterId] = sampleRegisterIdsInOrder;
+      if (!currentFortnight || !keptOpenCodeRegisterId || !closedCodeRegisterId) {
+        throw new Error(
+          "sample-data: no sample register available to scope an informational alert to",
+        );
+      }
+      const missingCodeAlert = (registerId: string) => ({
+        kind: "offline_authorization_code_missing" as const,
+        scope: registerFortnightScope(registerId, currentFortnight.start),
+        detail: {
+          deviceId: crypto.randomUUID(),
+          fortnightStart: currentFortnight.start,
+          fortnightEnd: currentFortnight.end,
+        },
+      });
+      const informationalOpenOutcome = await openAlert(
+        tx,
+        missingCodeAlert(keptOpenCodeRegisterId),
+        {
+          now: deps.now,
+        },
+      );
+      expectOutcome(informationalOpenOutcome, "opened", "the open informational alert");
+      const informationalToCloseOutcome = await openAlert(
+        tx,
+        missingCodeAlert(closedCodeRegisterId),
+        { now: deps.now },
+      );
+      const informationalToClose = expectOutcome(
+        informationalToCloseOutcome,
+        "opened",
+        "the informational alert to close",
+      );
+      const closedInformationalOutcome = await closeAlert(closingPorts, {
+        alertId: informationalToClose.alertId,
+        closedBy: actorId,
+      });
+      expectOutcome(closedInformationalOutcome, "closed", "closing the informational alert");
       await pending.log(tx);
 
       return {

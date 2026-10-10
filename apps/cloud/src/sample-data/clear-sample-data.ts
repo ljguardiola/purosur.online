@@ -1,3 +1,4 @@
+import { alertKindsWithScope, alertScopeRecordId } from "@purosur/domain";
 import { and, asc, eq, gte, inArray, like, ne, notInArray, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
@@ -233,11 +234,24 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
       hashSourceAddress(SAMPLE_LOCKOUT_SOURCE_ADDRESSES.keptOpen),
       hashSourceAddress(SAMPLE_LOCKOUT_SOURCE_ADDRESSES.closed),
     ];
-    const sampleAlerts = await tx
+    const sampleRegisters = await tx
+      .select({ id: registers.id })
+      .from(registers)
+      .where(inArray(registers.name, [...SAMPLE_REGISTER_NAMES]));
+    const sampleRegisterIds = sampleRegisters.map((row) => row.id);
+    const sampleScopedAlerts = await tx
       .select({ id: alerts.id })
       .from(alerts)
       .where(or(inArray(alerts.scope, sampleUserIds), inArray(alerts.scope, sampleLockoutScopes)));
-    const sampleAlertIds = sampleAlerts.map((row) => row.id);
+    const registerFortnightAlerts = await tx
+      .select({ id: alerts.id, kind: alerts.kind, scope: alerts.scope })
+      .from(alerts)
+      .where(inArray(alerts.kind, alertKindsWithScope("registerFortnight")));
+    const sampleRegisterAlerts = registerFortnightAlerts.filter((alert) => {
+      const registerId = alertScopeRecordId(alert);
+      return registerId !== undefined && sampleRegisterIds.includes(registerId);
+    });
+    const sampleAlertIds = [...sampleScopedAlerts, ...sampleRegisterAlerts].map((row) => row.id);
 
     const sampleRoles = await tx
       .select({ id: roles.id })
@@ -249,12 +263,6 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
         ),
       );
     const sampleRoleIds = sampleRoles.map((row) => row.id);
-
-    const sampleRegisters = await tx
-      .select({ id: registers.id })
-      .from(registers)
-      .where(inArray(registers.name, [...SAMPLE_REGISTER_NAMES]));
-    const sampleRegisterIds = sampleRegisters.map((row) => row.id);
 
     const sampleSessionIds = (
       await tx
