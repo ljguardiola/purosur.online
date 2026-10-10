@@ -4,11 +4,12 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { SqliteReceiptPrinterSettings } from "../register/sqlite-receipt-printer-settings";
 import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { createReceiptPrinting } from "./receipt-printing-wiring";
-import { ControllableReceiptPrinter } from "./test-support/controllable-receipt-printer";
+import { ScriptedSocket } from "./test-support/scripted-socket";
 
 const NOW = new Date("2026-10-08T12:00:00.000Z");
 const COMPLETED_AT = "2026-10-08T11:59:00.000Z";
@@ -22,7 +23,6 @@ describe("the register's receipt printing without a local database", () => {
     ids: { next: () => "id" },
     readOutboxChainKey: async () => undefined,
     signedInUserId: () => undefined,
-    printer: new ControllableReceiptPrinter(),
     reportFailure: () => {},
     syncNow: () => {},
   });
@@ -42,7 +42,7 @@ describe("the register's receipt printing without a local database", () => {
 
 describe("the register's receipt printing over its local database", () => {
   let database: LocalDatabase;
-  let printer: ControllableReceiptPrinter;
+  let connections: { port: number; host: string; socket: ScriptedSocket }[];
   let syncs: number;
   let idCount: number;
 
@@ -67,12 +67,20 @@ describe("the register's receipt printing over its local database", () => {
       },
       readOutboxChainKey: async () => CHAIN_KEY,
       signedInUserId: () => signedInPerson.userId(),
-      printer,
+      connectPrinter: (port, host) => {
+        const socket = new ScriptedSocket();
+        connections.push({ port, host, socket });
+        return socket;
+      },
       reportFailure: () => {},
       syncNow: () => {
         syncs += 1;
       },
     });
+  }
+
+  function saveAddress(host: string, port: number | null): void {
+    new SqliteReceiptPrinterSettings(database).saveReceiptPrinterAddress({ host, port });
   }
 
   beforeEach(() => {
@@ -100,7 +108,7 @@ describe("the register's receipt printing over its local database", () => {
         "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES ('cashier', 'Ada', 'role-cashier', ?, 1, 1)",
       )
       .run(encodePinHash(new Uint8Array(16).fill(1)));
-    printer = new ControllableReceiptPrinter();
+    connections = [];
     syncs = 0;
     idCount = 0;
   });
@@ -110,14 +118,62 @@ describe("the register's receipt printing over its local database", () => {
   });
 
   it("prints the receipt of the sale a charge completed, after answering it, and then syncs", async () => {
+    saveAddress("10.10.10.2", null);
     const charge = vi.fn(async () => ({ kind: "completed", sale_id: "sale-1" }));
     const charging = printingOverDatabase().afterCompletedSale(charge);
 
     expect(await charging?.({})).toEqual({ kind: "completed", sale_id: "sale-1" });
 
-    await printer.whenSent();
-    expect(printer.sent).toHaveLength(1);
+    await vi.waitFor(() => expect(connections).toHaveLength(1));
     await vi.waitFor(() => expect(syncs).toBe(1));
+  });
+
+  it("connects to the saved address, on the printer's default port when it has none", async () => {
+    saveAddress("10.10.10.2", null);
+    const charging = printingOverDatabase().afterCompletedSale(async () => ({
+      kind: "completed",
+      sale_id: "sale-1",
+    }));
+
+    await charging?.({});
+
+    await vi.waitFor(() => expect(connections).toHaveLength(1));
+    expect(connections[0]).toMatchObject({ host: "10.10.10.2", port: 9100 });
+  });
+
+  it("connects to nothing and says the printer is not configured while no address is saved, leaving the sale as it is", async () => {
+    const printing = printingOverDatabase();
+    const charging = printing.afterCompletedSale(async () => ({
+      kind: "completed",
+      sale_id: "sale-1",
+    }));
+
+    expect(await charging?.({})).toEqual({ kind: "completed", sale_id: "sale-1" });
+
+    await vi.waitFor(() => expect(syncs).toBe(1));
+    expect(connections).toEqual([]);
+    expect(await printing.receiptPrintStatus?.("sale-1")).toMatchObject({
+      printed: false,
+      standing: "printer_not_configured",
+    });
+    expect(database.prepare("SELECT state FROM sales WHERE id = 'sale-1'").get()).toEqual({
+      state: "COMPLETED",
+    });
+  });
+
+  it("prints the next receipt to the address saved after the register started, without restarting it", async () => {
+    const charging = printingOverDatabase().afterCompletedSale(async () => ({
+      kind: "completed",
+      sale_id: "sale-1",
+    }));
+    await charging?.({});
+    await vi.waitFor(() => expect(syncs).toBe(1));
+
+    saveAddress("10.10.10.9", 9101);
+    await charging?.({});
+
+    await vi.waitFor(() => expect(connections).toHaveLength(1));
+    expect(connections[0]).toMatchObject({ host: "10.10.10.9", port: 9101 });
   });
 
   it("prints nothing for a charge that completed no sale", async () => {
@@ -126,7 +182,7 @@ describe("the register's receipt printing over its local database", () => {
     }));
 
     expect(await charging?.({})).toEqual({ kind: "partially_paid" });
-    expect(printer.sent).toEqual([]);
+    expect(connections).toEqual([]);
     expect(syncs).toBe(0);
   });
 
