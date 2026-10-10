@@ -3,7 +3,6 @@ export {
   MERCADO_PAGO_PENDING_CHECK_INTERVAL_MS,
   PAYMENT_NOTIFICATION_LIMIT,
 } from "./model/mercado-pago-notifications.js";
-export type { MercadoPagoQrChargeWait } from "./model/mercado-pago-qr-charge-wait.js";
 export {
   aQrChargeInItsWait,
   MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS,

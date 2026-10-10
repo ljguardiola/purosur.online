@@ -20,7 +20,7 @@ export const PERSON: ChargeScreenProps["person"] = {
   first_name: "Ada",
   abilities: ["open_cash_session"],
 };
-export const YERBA = {
+const YERBA = {
   id: "line-1",
   product_id: "p1",
   product_name: "Yerba mate 1 kg",
@@ -30,7 +30,7 @@ export const YERBA = {
   promotion: null,
   line_total: 476_000,
 };
-export const ALFAJOR = {
+const ALFAJOR = {
   id: "line-2",
   product_id: "p2",
   product_name: "Alfajor triple",
@@ -64,7 +64,7 @@ export const SALE_OF_TWO_LINES: OpenSale = {
   refunds_on_cancel: [],
   cancel_authorization_required: false,
 };
-export const COMPLETED: ChargeSaleInCashOutcome = {
+const COMPLETED: ChargeSaleInCashOutcome = {
   kind: "completed",
   sale_id: "sale-1",
   total: 476_000,
@@ -72,7 +72,7 @@ export const COMPLETED: ChargeSaleInCashOutcome = {
   change: 24_000,
 };
 
-export const TRANSFER_COMPLETED: ChargeSaleByTransferOutcome = {
+const TRANSFER_COMPLETED: ChargeSaleByTransferOutcome = {
   kind: "completed",
   sale_id: "sale-1",
   total: 476_000,
@@ -86,7 +86,7 @@ export const SALE_WITH_PART_PAID: OpenSale = {
   cancellable: false,
 };
 
-export const COVERED: CashChargeAnswer = { kind: "covered", applied: 476_000, change: 24_000 };
+const COVERED: CashChargeAnswer = { kind: "covered", applied: 476_000, change: 24_000 };
 
 export const QR_PAYMENT_ID = "019a0000-0000-7000-8000-0000000000a1";
 export const QR_ORDER_SHOWN: StartMercadoPagoQrChargeOutcome = {
@@ -116,7 +116,7 @@ export type Overrides = {
   retryReceiptPrint?: (saleId: string) => Promise<RetryReceiptPrintOutcome>;
 };
 
-export const PRINTED: ReceiptPrintStatusOutcome = {
+const PRINTED: ReceiptPrintStatusOutcome = {
   kind: "found",
   next_copy: { kind: "original" },
   printed: true,
