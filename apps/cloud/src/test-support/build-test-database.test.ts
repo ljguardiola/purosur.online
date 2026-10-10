@@ -29,6 +29,7 @@ import {
   issuerIdentification,
   issuerIdentificationVersions,
   locations,
+  lots,
   passkeyChallenges,
   passkeys,
   paymentNotificationAttempts,
@@ -43,6 +44,8 @@ import {
   productPackagings,
   products,
   productTags,
+  purchaseLines,
+  purchases,
   recoveryRateLimitAttempts,
   recoveryRejectedAttemptAccumulator,
   recoveryTokens,
@@ -575,13 +578,45 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       receivedAt: new Date("2026-01-05T12:00:00.000Z"),
       notAfter: new Date("2026-01-05T12:00:04.000Z"),
     });
-    await db.insert(suppliers).values({ name: "Distribuidora Sur", actorId: user.id });
+    const [supplier] = await db
+      .insert(suppliers)
+      .values({ name: "Distribuidora Sur", actorId: user.id })
+      .returning({ id: suppliers.id });
     await db.insert(productPackagings).values({
       productId: product.id,
       name: "Caja x 12",
       quantityPerPackage: 12,
       saleUnit: "UNIT",
       actorId: user.id,
+    });
+    const [purchase] = await db
+      .insert(purchases)
+      .values({
+        supplierId: supplier?.id as string,
+        locationId: await seededLocationId(db),
+        purchasedOn: "2026-01-05",
+        receiptType: "sin_comprobante",
+        recordedAt: new Date("2026-01-05T12:00:00.000Z"),
+        actorId: user.id,
+      })
+      .returning({ id: purchases.id });
+    const [purchaseLine] = await db
+      .insert(purchaseLines)
+      .values({
+        purchaseId: purchase?.id as string,
+        productId: product.id,
+        quantity: 1000,
+        costPaidCents: 500,
+        quantityPerPackage: 1000,
+      })
+      .returning({ id: purchaseLines.id });
+    await db.insert(lots).values({
+      productId: product.id,
+      locationId: await seededLocationId(db),
+      purchaseLineId: purchaseLine?.id as string,
+      quantityReceived: 1000,
+      costTotalCents: 500,
+      costQuantity: 1000,
     });
     await db.insert(paymentTransactions).values({
       id: "00000000-0000-4000-8000-000000000103",

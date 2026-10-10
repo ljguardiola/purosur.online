@@ -945,7 +945,7 @@ describe("purchases", () => {
   it.each([
     [
       "a receipt type outside the catalog",
-      { receiptType: "boleta" },
+      { receiptType: "boleta", receiptNumber: "0001-00000042" },
       "purchases_receipt_type_check",
     ],
     [
