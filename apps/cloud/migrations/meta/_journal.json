@@ -533,6 +533,13 @@
       "when": 1791638178223,
       "tag": "0075_weighed_sale_lines",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1791653651348,
+      "tag": "0076_sale_print_state_updatable",
+      "breakpoints": true
     }
   ]
 }
