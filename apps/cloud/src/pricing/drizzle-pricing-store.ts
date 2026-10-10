@@ -1,4 +1,4 @@
-import { newestPrice } from "@purosur/domain";
+import { newestPrice, type PriceReviewPostponement } from "@purosur/domain";
 import type {
   CurrentPrice,
   LockActiveProductResult,
@@ -24,7 +24,7 @@ import {
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { PRICE_VERSION } from "./price-version.js";
 
-class DrizzlePricingStoreTransaction<TQueryResult extends PgQueryResultHKT>
+export class DrizzlePricingStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements PricingStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
@@ -117,6 +117,19 @@ class DrizzlePricingStoreTransaction<TQueryResult extends PgQueryResultHKT>
           isNull(priceReviewPostponements.resolvedByReviewId),
         ),
       );
+  }
+
+  async postponePriceReviews(postponement: PriceReviewPostponement): Promise<void> {
+    const priceListId = await this.branchPriceList(postponement.locationId);
+    await this.tx.insert(priceReviewPostponements).values(
+      postponement.productIds.map((productId) => ({
+        productId,
+        priceListId,
+        postponedAt: postponement.postponedAt,
+        actorId: postponement.actorId,
+        purchaseId: postponement.purchaseId,
+      })),
+    );
   }
 
   async recordPriceChange(change: PriceChange): Promise<void> {

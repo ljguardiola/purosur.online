@@ -9,7 +9,6 @@ export const pricesListFilters = z.object({
   search: z.string().default("").catch(""),
   category: z.string().default("ALL").catch("ALL"),
   review: z.enum(["pending", "all"]).default("pending").catch("pending"),
-  reviewProducts: z.array(z.string()).default([]).catch([]),
 });
 
 export type PricesListFilters = z.output<typeof pricesListFilters>;

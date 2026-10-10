@@ -20,14 +20,13 @@ import { and, eq, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
-  branchSettings,
-  priceReviewPostponements,
   productPackagings,
   products,
   purchaseLines,
   purchases,
   suppliers,
 } from "../platform/db/schema.js";
+import { DrizzlePricingStoreTransaction } from "../pricing/drizzle-pricing-store.js";
 import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 
@@ -64,11 +63,13 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
   private readonly tx: PgDatabase<TQueryResult>;
   private readonly now: () => Date;
   private readonly stock: DrizzleStockStoreTransaction<TQueryResult>;
+  private readonly pricing: DrizzlePricingStoreTransaction<TQueryResult>;
 
   constructor(tx: PgDatabase<TQueryResult>, now: () => Date, pending: PendingChanges) {
     this.tx = tx;
     this.now = now;
     this.stock = new DrizzleStockStoreTransaction(tx, pending);
+    this.pricing = new DrizzlePricingStoreTransaction(tx, now, pending);
   }
 
   async lockSupplier(supplierId: string): Promise<LockSupplierResult> {
@@ -264,23 +265,8 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
     return line;
   }
 
-  async postponePriceReviews(postponement: PriceReviewPostponement): Promise<void> {
-    const [settings] = await this.tx
-      .select({ priceListId: branchSettings.priceListId })
-      .from(branchSettings)
-      .where(eq(branchSettings.locationId, postponement.locationId));
-    if (!settings) {
-      throw new Error(`branch settings missing for location ${postponement.locationId}`);
-    }
-    await this.tx.insert(priceReviewPostponements).values(
-      postponement.productIds.map((productId) => ({
-        productId,
-        priceListId: settings.priceListId,
-        postponedAt: postponement.postponedAt,
-        actorId: postponement.actorId,
-        purchaseId: postponement.purchaseId,
-      })),
-    );
+  postponePriceReviews(postponement: PriceReviewPostponement): Promise<void> {
+    return this.pricing.postponePriceReviews(postponement);
   }
 
   async receiveStock(receipt: PurchaseReceipt): Promise<void> {

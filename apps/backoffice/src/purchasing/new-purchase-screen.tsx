@@ -13,6 +13,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Check, ShieldX, TriangleAlert, Truck, X } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { purchasedProductsToReviewState } from "../platform/purchased-products-to-review";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { BackofficeAccess } from "../shell/backoffice-access";
@@ -96,7 +97,13 @@ export function NewPurchaseScreen({
         void refreshPurchasing();
         const reviewProducts = priceReviewProductIds(values.lines);
         if (reviewProducts.length > 0) {
-          void navigate({ to: "/prices", search: { reviewProducts } });
+          void navigate({
+            to: "/prices",
+            state: (previous) => ({
+              ...previous,
+              ...purchasedProductsToReviewState(reviewProducts),
+            }),
+          });
           return;
         }
         void navigate({
