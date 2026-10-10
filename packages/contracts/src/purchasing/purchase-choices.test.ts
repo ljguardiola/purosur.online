@@ -23,19 +23,24 @@ const packaging = {
   active: true,
   version: 1,
 };
-const choices = { suppliers: [supplier], products: [product], packagings: [packaging] };
+const choices = {
+  suppliers: [supplier],
+  products: [product],
+  packagings: [packaging],
+  today: "2026-09-16",
+};
 
 describe("purchaseChoicesSchema", () => {
-  it("accepts the suppliers, products and packagings a purchase may be registered with", () => {
+  it("accepts the suppliers, products and packagings a purchase may be registered with, and today", () => {
     expect(purchaseChoicesSchema.safeParse(choices).data).toEqual(choices);
   });
 
   it("accepts nothing to choose", () => {
-    const none = { suppliers: [], products: [], packagings: [] };
+    const none = { suppliers: [], products: [], packagings: [], today: "2026-09-16" };
     expect(purchaseChoicesSchema.safeParse(none).data).toEqual(none);
   });
 
-  it.each(["suppliers", "products", "packagings"])("refuses choices without %s", (key) => {
+  it.each(["suppliers", "products", "packagings", "today"])("refuses choices without %s", (key) => {
     const { [key as keyof typeof choices]: _missing, ...rest } = choices;
     expect(purchaseChoicesSchema.safeParse(rest).success).toBe(false);
   });
@@ -46,5 +51,9 @@ describe("purchaseChoicesSchema", () => {
     ["a packaging", { packagings: [{ ...packaging, quantityPerPackage: 1.5 }] }],
   ])("refuses %s that does not match its shape", (_name, broken) => {
     expect(purchaseChoicesSchema.safeParse({ ...choices, ...broken }).success).toBe(false);
+  });
+
+  it.each(["2026-02-30", "16/09/2026", "", 20260916])("refuses %j as today", (today) => {
+    expect(purchaseChoicesSchema.safeParse({ ...choices, today }).success).toBe(false);
   });
 });
