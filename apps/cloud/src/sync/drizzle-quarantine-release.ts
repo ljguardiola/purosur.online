@@ -9,7 +9,13 @@ import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlertCondition } from "../alerts/open-alert-condition.js";
 import { resolveAlert } from "../alerts/resolve-alert.js";
-import { alerts, auditLog, inbox, registerInstallations, registers } from "../platform/db/schema.js";
+import {
+  alerts,
+  auditLog,
+  inbox,
+  registerInstallations,
+  registers,
+} from "../platform/db/schema.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -84,11 +90,7 @@ class DrizzleQuarantineReleaseTransaction<TQueryResult extends PgQueryResultHKT>
       .select({ id: alerts.id })
       .from(alerts)
       .where(
-        and(
-          eq(alerts.kind, "events_quarantined"),
-          eq(alerts.scope, eventId),
-          openAlertCondition(),
-        ),
+        and(eq(alerts.kind, "events_quarantined"), eq(alerts.scope, eventId), openAlertCondition()),
       )
       .for("update");
     if (alert) {
