@@ -39,7 +39,12 @@ export async function editPackaging(
         return { kind: "invalid_quantity" };
       }
 
-      if (current.name === input.name && current.quantityPerPackage === input.quantityPerPackage) {
+      const saleUnit = product.product.saleUnit;
+      if (
+        current.name === input.name &&
+        current.quantityPerPackage === input.quantityPerPackage &&
+        current.saleUnit === saleUnit
+      ) {
         return { kind: "applied", packaging: current };
       }
 
@@ -51,11 +56,13 @@ export async function editPackaging(
         ...current,
         name: input.name,
         quantityPerPackage: input.quantityPerPackage,
+        saleUnit,
         version: current.version + 1,
       };
       await tx.updatePackaging(current.id, {
         name: next.name,
         quantityPerPackage: next.quantityPerPackage,
+        saleUnit: next.saleUnit,
         active: next.active,
         version: next.version,
         actorId: input.actorId,

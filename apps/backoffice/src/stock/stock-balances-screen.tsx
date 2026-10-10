@@ -15,10 +15,11 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
 import { ScreenLayout } from "../shell/screen-layout";
+import { StockTopBar } from "../shell/stock-top-bar";
 import type { StockBalancesFilters } from "./routes";
 import type { StockBalancesScreenServices } from "./stock-balances-services";
 import { useStockBalancesQuery } from "./stock-queries";
-import { categoryFilterOptions, StockTopBar } from "./stock-screen-parts";
+import { categoryFilterOptions } from "./stock-screen-parts";
 
 export type StockBalancesScreenProps = {
   filters: StockBalancesFilters;

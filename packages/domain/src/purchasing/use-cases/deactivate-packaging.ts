@@ -21,6 +21,7 @@ export async function deactivatePackaging(
     await tx.updatePackaging(input.id, {
       name: locked.packaging.name,
       quantityPerPackage: locked.packaging.quantityPerPackage,
+      saleUnit: locked.packaging.saleUnit,
       active: false,
       version: locked.packaging.version + 1,
       actorId: input.actorId,

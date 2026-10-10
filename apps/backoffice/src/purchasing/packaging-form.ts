@@ -108,7 +108,10 @@ export function packagingFormValuesOf(packaging: PackagingSummary): PackagingFor
   return {
     productId: packaging.productId,
     name: packaging.name,
-    quantity: formatStockQuantityInput(packaging.quantityPerPackage, packaging.saleUnit),
+    quantity:
+      packaging.saleUnit === packaging.productSaleUnit
+        ? formatStockQuantityInput(packaging.quantityPerPackage, packaging.saleUnit)
+        : "",
     version: packaging.version,
   };
 }

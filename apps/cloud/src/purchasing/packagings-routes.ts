@@ -4,6 +4,7 @@ import {
   packagingListSchema,
   packagingSummarySchema,
 } from "@purosur/contracts";
+import { PRODUCTS_PACKAGINGS_MAY_BE_DEFINED_FOR } from "@purosur/domain";
 import {
   createPackaging,
   deactivatePackaging,
@@ -14,6 +15,7 @@ import {
 } from "@purosur/domain/purchasing/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { DrizzleCatalogListReader } from "../catalog/drizzle-catalog-list-reader.js";
 import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard, sameOriginGuard } from "../sessions/backoffice-origin.js";
@@ -56,6 +58,10 @@ const ALREADY_ACTIVE_RESPONSE = {
   code: "packaging_already_active",
   message: "the purchase packaging is already active",
 } as const;
+const SALE_UNIT_CHANGED_RESPONSE = {
+  code: "packaging_sale_unit_changed",
+  message: "the product's sale unit changed since the packaging's quantity was stated",
+} as const;
 
 export function registerPackagingsRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -65,6 +71,7 @@ export function registerPackagingsRoutes<TQueryResult extends PgQueryResultHKT>(
   registerRouteAccess(app);
   const store = new DrizzlePurchasingStore(options.db, now);
   const reader = new DrizzlePurchasingListReader(options.db);
+  const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const config = { access: capabilityAccess("purchase_packagings"), sessionSource };
   const readGuard = { preHandler: sameOriginGuard(options.backofficeOrigin), config };
@@ -79,7 +86,16 @@ export function registerPackagingsRoutes<TQueryResult extends PgQueryResultHKT>(
   }
 
   app.get("/purchase-packagings", readGuard, async (_request, reply) => {
-    await reply.code(200).send(packagingListSchema.parse(await listPackagings(reader)));
+    const [packagings, products] = await Promise.all([
+      listPackagings(reader),
+      catalog.products(PRODUCTS_PACKAGINGS_MAY_BE_DEFINED_FOR),
+    ]);
+    await reply.code(200).send(
+      packagingListSchema.parse({
+        packagings,
+        products: products.map(({ id, name, saleUnit }) => ({ id, name, saleUnit })),
+      }),
+    );
   });
 
   app.post("/purchase-packagings", writeGuard, async (request, reply) => {
@@ -182,6 +198,10 @@ export function registerPackagingsRoutes<TQueryResult extends PgQueryResultHKT>(
     }
     if (outcome.kind === "already_active") {
       await reply.code(409).send(ALREADY_ACTIVE_RESPONSE);
+      return;
+    }
+    if (outcome.kind === "sale_unit_changed") {
+      await reply.code(409).send(SALE_UNIT_CHANGED_RESPONSE);
       return;
     }
     await reply.code(200).send();

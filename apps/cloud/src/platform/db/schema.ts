@@ -522,6 +522,7 @@ export const productPackagings = pgTable(
       .references(() => products.id),
     name: text("name").notNull(),
     quantityPerPackage: bigint("quantity_per_package", { mode: "number" }).notNull(),
+    saleUnit: text("sale_unit").notNull(),
     active: boolean("active").notNull().default(true),
     version: integer("version").notNull().default(1),
     actorId: uuid("actor_id")
@@ -535,6 +536,7 @@ export const productPackagings = pgTable(
       sql`lower(${table.name})`,
     ),
     check("product_packagings_quantity_check", sql`${table.quantityPerPackage} > 0`),
+    check("product_packagings_sale_unit_check", sql`${table.saleUnit} in ('UNIT', 'KG')`),
   ],
 );
 

@@ -15,6 +15,7 @@ export interface Packaging {
   productId: string;
   name: string;
   quantityPerPackage: number;
+  saleUnit: SaleUnit;
   active: boolean;
   version: number;
 }
@@ -36,12 +37,14 @@ export interface NewPackagingFields {
   productId: string;
   name: string;
   quantityPerPackage: number;
+  saleUnit: SaleUnit;
   actorId: string;
 }
 
 export interface PackagingFields {
   name: string;
   quantityPerPackage: number;
+  saleUnit: SaleUnit;
   active: boolean;
   version: number;
   actorId: string;
@@ -53,7 +56,7 @@ export type LockPackagingResult = { kind: "not_found" } | { kind: "locked"; pack
 
 export type LockProductResult =
   | { kind: "not_found" }
-  | { kind: "locked"; product: { id: string; saleUnit: SaleUnit } };
+  | { kind: "locked"; product: { id: string; saleUnit: SaleUnit; active: boolean } };
 
 // Raised by a write that loses the supplier name uniqueness to a concurrent write.
 export class SupplierNameConflict extends Error {}

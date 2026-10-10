@@ -18,6 +18,7 @@ import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockChange, formatStockQuantity } from "../platform/stock-quantity";
 import { type BackofficeAccess, canSeeStockBalances } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
+import { StockTopBar } from "../shell/stock-top-bar";
 import { countMomentNow } from "./count-moment";
 import { NewCountModal } from "./new-count-modal";
 import type { StockCountsFilters } from "./routes";
@@ -30,7 +31,7 @@ import {
   type StockPeriod,
 } from "./stock-period";
 import { useRefreshStock, useStockCountsQuery } from "./stock-queries";
-import { categoryFilterOptions, StockTopBar } from "./stock-screen-parts";
+import { categoryFilterOptions } from "./stock-screen-parts";
 
 export type StockCountsScreenProps = {
   access: BackofficeAccess;

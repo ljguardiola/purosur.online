@@ -1,7 +1,7 @@
 export {
   isPackagingNameTooLong,
-  isQuantityPerPackage,
   PACKAGING_NAME_MAX_LENGTH,
+  PRODUCTS_PACKAGINGS_MAY_BE_DEFINED_FOR,
 } from "./model/packaging.js";
 export {
   isSupplierContactTooLong,

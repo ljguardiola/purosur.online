@@ -1,5 +1,5 @@
 {
-  "id": "eed90073-5d21-4c1b-a1c2-abfa83e2afcd",
+  "id": "3b1b52c3-9ea4-47ca-b36b-a28a535d34e6",
   "prevId": "1dbf62b2-45a1-4e1b-bd89-feb16d7715a8",
   "version": "7",
   "dialect": "postgresql",
@@ -3348,6 +3348,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "sale_unit": {
+          "name": "sale_unit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "active": {
           "name": "active",
           "type": "boolean",
@@ -3426,6 +3432,10 @@
         "product_packagings_quantity_check": {
           "name": "product_packagings_quantity_check",
           "value": "\"product_packagings\".\"quantity_per_package\" > 0"
+        },
+        "product_packagings_sale_unit_check": {
+          "name": "product_packagings_sale_unit_check",
+          "value": "\"product_packagings\".\"sale_unit\" in ('UNIT', 'KG')"
         }
       },
       "isRLSEnabled": false

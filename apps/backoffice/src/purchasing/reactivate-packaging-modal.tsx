@@ -22,6 +22,7 @@ type ReactivateNotice =
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "alreadyChanged" }
+  | { kind: "saleUnitChanged" }
   | { kind: "notFound" };
 
 export function ReactivatePackagingModal({
@@ -72,6 +73,10 @@ export function ReactivatePackagingModal({
     }
     if (outcome.kind === "not_found") {
       setNotice({ kind: "notFound" });
+      return;
+    }
+    if (outcome.kind === "sale_unit_changed") {
+      setNotice({ kind: "saleUnitChanged" });
       return;
     }
     if (outcome.kind === "rate_limited") {
@@ -145,6 +150,14 @@ export function ReactivatePackagingModal({
         )}
         {notice?.kind === "alreadyChanged" && (
           <InlineNotice tone="error" icon={<TriangleAlert />} title="Ya estaba activa" />
+        )}
+        {notice?.kind === "saleUnitChanged" && (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title="La unidad de venta del producto cambió desde que se definió esta presentación"
+            description="Editá su cantidad antes de reactivarla."
+          />
         )}
         {notice?.kind === "notFound" && (
           <InlineNotice

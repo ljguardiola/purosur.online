@@ -129,7 +129,7 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
   async lockProduct(productId: string): Promise<LockProductResult> {
     const [product] = await this.tx
-      .select({ id: products.id, saleUnit: products.saleUnit })
+      .select({ id: products.id, saleUnit: products.saleUnit, active: products.active })
       .from(products)
       .where(eq(products.id, productId))
       .for("update");
@@ -140,7 +140,7 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
   async lockProductOfPackaging(packagingId: string): Promise<LockProductResult> {
     const [product] = await this.tx
-      .select({ id: products.id, saleUnit: products.saleUnit })
+      .select({ id: products.id, saleUnit: products.saleUnit, active: products.active })
       .from(products)
       .innerJoin(productPackagings, eq(productPackagings.productId, products.id))
       .where(eq(productPackagings.id, packagingId))
@@ -157,13 +157,16 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
         productId: productPackagings.productId,
         name: productPackagings.name,
         quantityPerPackage: productPackagings.quantityPerPackage,
+        saleUnit: productPackagings.saleUnit,
         active: productPackagings.active,
         version: productPackagings.version,
       })
       .from(productPackagings)
       .where(eq(productPackagings.id, packagingId))
       .for("update");
-    return packaging ? { kind: "locked", packaging } : { kind: "not_found" };
+    return packaging
+      ? { kind: "locked", packaging: { ...packaging, saleUnit: packaging.saleUnit as SaleUnit } }
+      : { kind: "not_found" };
   }
 
   async packagingNameTaken(

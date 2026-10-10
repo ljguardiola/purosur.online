@@ -4,7 +4,7 @@ import {
   packagingCreationBodySchema,
 } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
-import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
+import { Button, EmptyState, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, Package, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -138,7 +138,7 @@ export function NewPackagingModal({
             size="large"
             icon={<Check />}
             fullWidth
-            disabled={submitting}
+            disabled={submitting || !options}
             onPress={() => void submit()}
           >
             Crear la presentación
@@ -164,29 +164,38 @@ export function NewPackagingModal({
           />
         )}
         {options ? (
-          <form.AppField name="productId">
-            {(field) => (
-              <field.ComboBox
-                label="Producto"
-                placeholder="Elegí un producto"
-                options={options}
-                required
-              />
-            )}
-          </form.AppField>
-        ) : null}
-        <form.AppField name="name">
-          {(field) => <field.TextField kind="plain-text" label="Nombre" required />}
-        </form.AppField>
-        <form.AppField name="quantity">
-          {(field) => (
-            <field.TextField
-              {...quantityFieldKind(unitOf(values.productId))}
-              label="Cantidad por presentación"
-              required
-            />
-          )}
-        </form.AppField>
+          <>
+            <form.AppField name="productId">
+              {(field) => (
+                <field.ComboBox
+                  label="Producto"
+                  placeholder="Elegí un producto"
+                  options={options}
+                  required
+                />
+              )}
+            </form.AppField>
+            <form.AppField name="name">
+              {(field) => <field.TextField kind="plain-text" label="Nombre" required />}
+            </form.AppField>
+            <form.AppField name="quantity">
+              {(field) => (
+                <field.TextField
+                  {...quantityFieldKind(unitOf(values.productId))}
+                  label="Cantidad por presentación"
+                  required
+                />
+              )}
+            </form.AppField>
+          </>
+        ) : (
+          <EmptyState
+            icon={<Package />}
+            title="No hay productos activos"
+            description="Creá uno en Productos para definir sus presentaciones."
+            variant="blank"
+          />
+        )}
       </div>
     </Modal>
   );

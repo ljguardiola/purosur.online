@@ -18,7 +18,7 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
+import { StockTopBar } from "../shell/stock-top-bar";
 import { DeactivatePackagingModal } from "./deactivate-packaging-modal";
 import { EditPackagingModal } from "./edit-packaging-modal";
 import { NewPackagingModal } from "./new-packaging-modal";
@@ -165,20 +165,19 @@ export function PackagingsListScreen({
     <>
       <ScreenLayout
         topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-            <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-detail">Stock</p>
-              <ScreenTitle>Presentaciones de compra</ScreenTitle>
-            </div>
-            <Button
-              variant="primary"
-              icon={<Plus />}
-              dataStatus={data.status}
-              onPress={() => setNewModalOpen(true)}
-            >
-              Nueva presentación
-            </Button>
-          </div>
+          <StockTopBar
+            title="Presentaciones de compra"
+            action={
+              <Button
+                variant="primary"
+                icon={<Plus />}
+                dataStatus={data.status}
+                onPress={() => setNewModalOpen(true)}
+              >
+                Nueva presentación
+              </Button>
+            }
+          />
         }
         bodyClassName="gap-4 p-6"
       >

@@ -16,7 +16,7 @@ import { Ban, Pencil, Plus, RotateCcw, Search, SearchX, Truck } from "lucide-rea
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
+import { StockTopBar } from "../shell/stock-top-bar";
 import { DeactivateSupplierModal } from "./deactivate-supplier-modal";
 import { EditSupplierModal } from "./edit-supplier-modal";
 import { NewSupplierModal } from "./new-supplier-modal";
@@ -165,15 +165,14 @@ export function SuppliersListScreen({
     <>
       <ScreenLayout
         topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-            <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-detail">Stock</p>
-              <ScreenTitle>Proveedores</ScreenTitle>
-            </div>
-            <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
-              Nuevo proveedor
-            </Button>
-          </div>
+          <StockTopBar
+            title="Proveedores"
+            action={
+              <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
+                Nuevo proveedor
+              </Button>
+            }
+          />
         }
         bodyClassName="gap-4 p-6"
       >

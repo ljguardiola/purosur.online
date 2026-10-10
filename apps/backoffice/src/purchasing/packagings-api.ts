@@ -39,6 +39,10 @@ export type ChangePackagingActivationOutcome =
   | { kind: "already_changed" }
   | RequestRefusal;
 
+export type ReactivatePackagingOutcome =
+  | ChangePackagingActivationOutcome
+  | { kind: "sale_unit_changed" };
+
 function sendJson(method: "POST" | "PUT", path: string, body: unknown): Promise<Response> {
   return fetch(path, {
     method,
@@ -147,11 +151,11 @@ export async function editPackaging(
   return refusal(response);
 }
 
-async function changePackagingActivation(
+async function changePackagingActivation<TConflict extends { kind: string }>(
   id: string,
   method: "PUT" | "DELETE",
-  alreadyChangedCode: string,
-): Promise<ChangePackagingActivationOutcome> {
+  conflictOf: (code: string | undefined) => TConflict | { kind: "failed" },
+): Promise<{ kind: "ok" } | { kind: "not_found" } | TConflict | RequestRefusal> {
   let response: Response;
   try {
     response = await fetch(`/api/purchase-packagings/${id}/deactivation`, { method });
@@ -165,17 +169,26 @@ async function changePackagingActivation(
     return { kind: "not_found" };
   }
   if (response.status === 409) {
-    return (await readCode(response)) === alreadyChangedCode
-      ? { kind: "already_changed" }
-      : { kind: "failed" };
+    return conflictOf(await readCode(response));
   }
   return refusal(response);
 }
 
 export function deactivatePackaging(id: string): Promise<ChangePackagingActivationOutcome> {
-  return changePackagingActivation(id, "PUT", "packaging_already_inactive");
+  return changePackagingActivation(id, "PUT", (code) =>
+    code === "packaging_already_inactive"
+      ? { kind: "already_changed" as const }
+      : { kind: "failed" as const },
+  );
 }
 
-export function reactivatePackaging(id: string): Promise<ChangePackagingActivationOutcome> {
-  return changePackagingActivation(id, "DELETE", "packaging_already_active");
+export function reactivatePackaging(id: string): Promise<ReactivatePackagingOutcome> {
+  return changePackagingActivation(id, "DELETE", (code) => {
+    if (code === "packaging_already_active") {
+      return { kind: "already_changed" as const };
+    }
+    return code === "packaging_sale_unit_changed"
+      ? { kind: "sale_unit_changed" as const }
+      : { kind: "failed" as const };
+  });
 }

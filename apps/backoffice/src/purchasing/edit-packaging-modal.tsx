@@ -50,7 +50,7 @@ export function EditPackagingModal({
   const [loaded, setLoaded] = useState<PackagingSummary | null>(null);
   const [notice, setNotice] = useState<EditNotice | null>(null);
   const [reloading, setReloading] = useState(false);
-  const saleUnit = (loaded ?? target)?.saleUnit ?? "UNIT";
+  const saleUnit = (loaded ?? target)?.productSaleUnit ?? "UNIT";
   const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: EMPTY_PACKAGING_FORM,
     request: {

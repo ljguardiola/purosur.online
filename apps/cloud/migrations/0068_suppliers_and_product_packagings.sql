@@ -3,11 +3,13 @@ CREATE TABLE "product_packagings" (
 	"product_id" uuid NOT NULL,
 	"name" text NOT NULL,
 	"quantity_per_package" bigint NOT NULL,
+	"sale_unit" text NOT NULL,
 	"active" boolean DEFAULT true NOT NULL,
 	"version" integer DEFAULT 1 NOT NULL,
 	"actor_id" uuid NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "product_packagings_quantity_check" CHECK ("product_packagings"."quantity_per_package" > 0)
+	CONSTRAINT "product_packagings_quantity_check" CHECK ("product_packagings"."quantity_per_package" > 0),
+	CONSTRAINT "product_packagings_sale_unit_check" CHECK ("product_packagings"."sale_unit" in ('UNIT', 'KG'))
 );
 --> statement-breakpoint
 CREATE TABLE "suppliers" (

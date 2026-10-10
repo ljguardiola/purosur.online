@@ -18,6 +18,7 @@ import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockChange, formatStockQuantity } from "../platform/stock-quantity";
 import { type BackofficeAccess, canSeeStockBalances } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
+import { StockTopBar } from "../shell/stock-top-bar";
 import type { StockMovementsFilters } from "./routes";
 import { type MovementKind, REASONS_OF_KIND } from "./stock-movement-form";
 import { StockMovementModal } from "./stock-movement-modal";
@@ -31,7 +32,6 @@ import {
 } from "./stock-period";
 import { useRefreshStock, useStockMovementsQuery } from "./stock-queries";
 import { REASON_LABELS } from "./stock-reason-labels";
-import { StockTopBar } from "./stock-screen-parts";
 
 export type StockMovementsScreenProps = {
   access: BackofficeAccess;

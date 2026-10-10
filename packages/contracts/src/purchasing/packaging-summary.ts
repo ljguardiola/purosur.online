@@ -7,6 +7,7 @@ export const packagingSummarySchema = z.object({
   id: z.string(),
   productId: z.string(),
   productName: z.string(),
+  productSaleUnit: saleUnitSchema,
   saleUnit: saleUnitSchema,
   name: z.string(),
   quantityPerPackage: z.int(),
