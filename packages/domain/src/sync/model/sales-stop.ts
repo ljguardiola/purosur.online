@@ -24,6 +24,11 @@ export function salesDeniedReportOf(state: SalesStopState): SalesDeniedReport {
   return {};
 }
 
+export const SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE: SalesDeniedReport = {
+  sales_denied: true,
+  sales_denied_reason: "local_database_damaged",
+};
+
 export function isInstallationRevoked(state: SalesStopState): boolean {
   return state.stopped && state.reason === "installation_revoked";
 }
