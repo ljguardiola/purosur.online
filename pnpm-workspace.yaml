@@ -7,7 +7,9 @@ allowBuilds:
   # Ships prebuilt binaries for every platform the register runs on; its install build compiles
   # nothing then and only leaves files recording the build machine's toolchain.
   better-sqlite3: false
-  "@serialport/bindings-cpp": true
+  # Ships prebuilt binaries for every platform the register runs on; its install step
+  # (node-gyp-build) compiles nothing when one is there.
+  "@serialport/bindings-cpp": false
   esbuild: false
   electron-winstaller: true
   # Build scripts of testcontainers' Docker client dependencies, which it runs without.

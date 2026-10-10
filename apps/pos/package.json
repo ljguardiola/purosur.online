@@ -47,6 +47,7 @@
     "zod": "^4.6.5"
   },
   "dependencies": {
-    "better-sqlite3": "^13.0.3"
+    "better-sqlite3": "^13.0.3",
+    "serialport": "^13.0.0"
   }
 }
