@@ -29,8 +29,9 @@ const sale = {
   total: 3000,
   paid: 1000,
   pending: 2000,
-  lines_editable: false,
+  lines_lock: "approved_payment",
   cancellable: false,
+  cancel_refusal: null,
   charge_refusal: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
@@ -50,6 +51,29 @@ describe("saleSchema", () => {
     expect(saleSchema.parse({ ...sale, lines: [promoted] }).lines).toEqual([promoted]);
   });
 
+  it.each([null, "approved_payment", "qr_charge_in_progress"] as const)(
+    "accepts a sale whose lines are locked by %s",
+    (lines_lock) => {
+      expect(saleSchema.parse({ ...sale, lines_lock }).lines_lock).toBe(lines_lock);
+    },
+  );
+
+  it.each([null, "qr_charge_in_progress", "holds_qr_payment"] as const)(
+    "accepts a sale whose cancellation is refused by %s",
+    (cancel_refusal) => {
+      expect(saleSchema.parse({ ...sale, cancel_refusal }).cancel_refusal).toBe(cancel_refusal);
+    },
+  );
+
+  it.each([
+    ["its lines locked for an unknown reason", { ...sale, lines_lock: "closed" }],
+    ["its lines locked by a boolean", { ...sale, lines_lock: true }],
+    ["its cancellation refused for an unknown reason", { ...sale, cancel_refusal: "closed" }],
+    ["its cancellation refused by a boolean", { ...sale, cancel_refusal: true }],
+  ])("rejects a sale with %s", (_case, value) => {
+    expect(saleSchema.safeParse(value).success).toBe(false);
+  });
+
   it.each([
     ["without lines", { ...sale, lines: [] }],
     ["at a price of zero", { ...sale, lines: [{ ...line, list_unit_price: 0, line_total: 0 }] }],
@@ -63,8 +87,9 @@ describe("saleSchema", () => {
     ["total", { ...sale, total: undefined }],
     ["paid amount", { ...sale, paid: undefined }],
     ["pending amount", { ...sale, pending: undefined }],
-    ["answer on editing its lines", { ...sale, lines_editable: undefined }],
+    ["answer on what locks its lines", { ...sale, lines_lock: undefined }],
     ["answer on cancelling it", { ...sale, cancellable: undefined }],
+    ["answer on why cancelling it is refused", { ...sale, cancel_refusal: undefined }],
     ["refunds on cancelling it", { ...sale, refunds_on_cancel: undefined }],
     [
       "answer on cancelling it needing authorization",

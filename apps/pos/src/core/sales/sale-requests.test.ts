@@ -200,8 +200,9 @@ describe("scanning a product on the register", () => {
         total: 3000,
         paid: 0,
         pending: 3000,
-        lines_editable: true,
+        lines_lock: null,
         cancellable: true,
+        cancel_refusal: null,
         charge_refusal: null,
         refunds_on_cancel: [],
         cancel_authorization_required: true,
@@ -378,8 +379,9 @@ describe("adding a searched product on the register", () => {
         total: 1500,
         paid: 0,
         pending: 1500,
-        lines_editable: true,
+        lines_lock: null,
         cancellable: true,
+        cancel_refusal: null,
         charge_refusal: null,
         refunds_on_cancel: [],
         cancel_authorization_required: true,
@@ -485,8 +487,9 @@ describe("the sale in progress", () => {
       total: 3000,
       paid: 0,
       pending: 3000,
-      lines_editable: true,
+      lines_lock: null,
       cancellable: true,
+      cancel_refusal: null,
       charge_refusal: null,
       refunds_on_cancel: [],
       cancel_authorization_required: true,
@@ -501,8 +504,41 @@ describe("the sale in progress", () => {
       total: 3000,
       paid: 1000,
       pending: 2000,
-      lines_editable: false,
+      lines_lock: "approved_payment",
       cancellable: false,
+      cancel_refusal: null,
+    });
+  });
+
+  function addQrPayment(saleId: string, state: "PENDING" | "APPROVED", waitEndsAt: Date): void {
+    database
+      .prepare(
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES ('qr-1', ?, 'SALE', 'QR', 'MERCADOPAGO_QR', 1000, ?, ?, ?)",
+      )
+      .run(saleId, state, NOW.toISOString(), waitEndsAt.toISOString());
+  }
+
+  it("says that a QR charge in its wait locks the lines and refuses the cancellation", async () => {
+    const saleId = await sellTwoForPayments();
+    addQrPayment(saleId, "PENDING", new Date(NOW.getTime() + 60_000));
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      lines_lock: "qr_charge_in_progress",
+      cancellable: false,
+      cancel_refusal: "qr_charge_in_progress",
+      refunds_on_cancel: [],
+    });
+  });
+
+  it("says that an approved QR payment refuses the cancellation", async () => {
+    const saleId = await sellTwoForPayments();
+    addQrPayment(saleId, "APPROVED", NOW);
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      lines_lock: "approved_payment",
+      cancellable: false,
+      cancel_refusal: "holds_qr_payment",
+      refunds_on_cancel: [],
     });
   });
 
@@ -673,8 +709,9 @@ describe("removing a line", () => {
         total: 0,
         paid: 0,
         pending: 0,
-        lines_editable: true,
+        lines_lock: null,
         cancellable: true,
+        cancel_refusal: null,
         charge_refusal: null,
         refunds_on_cancel: [],
         cancel_authorization_required: true,

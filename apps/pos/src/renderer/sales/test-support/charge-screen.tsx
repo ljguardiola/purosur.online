@@ -48,8 +48,9 @@ export const SALE_OF_ONE_LINE: OpenSale = {
   total: 476_000,
   paid: 0,
   pending: 476_000,
-  lines_editable: true,
+  lines_lock: null,
   cancellable: true,
+  cancel_refusal: null,
   charge_refusal: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
@@ -60,8 +61,9 @@ export const SALE_OF_TWO_LINES: OpenSale = {
   total: 626_000,
   paid: 0,
   pending: 626_000,
-  lines_editable: true,
+  lines_lock: null,
   cancellable: true,
+  cancel_refusal: null,
   charge_refusal: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
@@ -84,8 +86,9 @@ export const SALE_WITH_PART_PAID: OpenSale = {
   ...SALE_OF_ONE_LINE,
   paid: 100_000,
   pending: 376_000,
-  lines_editable: false,
+  lines_lock: "approved_payment",
   cancellable: false,
+  cancel_refusal: null,
 };
 
 const COVERED: CashChargeAnswer = { kind: "covered", applied: 476_000, change: 24_000 };

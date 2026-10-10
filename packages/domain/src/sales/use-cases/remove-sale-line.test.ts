@@ -95,8 +95,9 @@ describe("removeSaleLine", () => {
       kind: "removed",
       sale: { ...OPEN_SALE, lines: [AZUCAR_LINE] },
       balance: { paid: 0, pending: 1200 },
-      linesEditable: true,
+      linesLock: null,
       cancellable: true,
+      cancelRefusal: null,
       refundsOnCancel: [],
     });
     expect(store.state).toEqual({ ...before, sales: [{ ...OPEN_SALE, lines: [AZUCAR_LINE] }] });
@@ -112,8 +113,9 @@ describe("removeSaleLine", () => {
       kind: "removed",
       sale: { ...OPEN_SALE, lines: [] },
       balance: { paid: 0, pending: 0 },
-      linesEditable: true,
+      linesLock: null,
       cancellable: true,
+      cancelRefusal: null,
       refundsOnCancel: [],
     });
     expect(store.state.sales[0]?.state).toBe("OPEN");

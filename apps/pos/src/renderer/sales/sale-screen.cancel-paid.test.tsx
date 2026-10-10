@@ -13,8 +13,9 @@ const PAID_SALE: OpenSale = {
   ...SALE_OF_YERBA,
   paid: 100_000,
   pending: 376_000,
-  lines_editable: false,
+  lines_lock: "approved_payment",
   cancellable: false,
+  cancel_refusal: null,
   refunds_on_cancel: [CASH_REFUND],
 };
 const CANCELLED: CancelPaidSaleOutcome = {

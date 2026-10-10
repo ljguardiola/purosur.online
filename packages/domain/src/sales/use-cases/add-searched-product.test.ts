@@ -124,8 +124,9 @@ describe("addSearchedProduct", () => {
       kind: "added",
       sale,
       balance: { paid: 0, pending: 2500 },
-      linesEditable: true,
+      linesLock: null,
       cancellable: true,
+      cancelRefusal: null,
       refundsOnCancel: [],
     });
     expect(store.state.sales).toEqual([sale]);
