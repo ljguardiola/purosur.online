@@ -20,6 +20,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { DrizzlePriceReviewReader } from "./drizzle-price-review-reader.js";
 import { registerPriceSetRoute } from "./price-set-route.js";
+import { insertPriceReviewPostponement } from "./test-support/price-review-postponements.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -278,6 +279,43 @@ describe("PUT /prices/:productId", () => {
       .from(auditLog)
       .where(and(eq(auditLog.entity, "product_price"), eq(auditLog.entityId, productId)));
     expect(auditRow).toMatchObject({ actorId: userId, previousValue: null, at: NOON });
+  });
+
+  it("clears the postponed review of the product whose price is set", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const productId = await insertProduct("Arroz");
+    const reviewedAt = new Date(NOON.getTime() - 60 * 60 * 1000);
+    const priceId = await insertPrice(productId, 1000, reviewedAt);
+    await db.insert(priceReviews).values({
+      productId,
+      priceListId: await seededPriceListId(db),
+      priceId,
+      actorId: userId,
+      reviewedAt,
+    });
+    await insertPriceReviewPostponement(db, {
+      productId,
+      actorId: userId,
+      postponedAt: reviewedAt,
+    });
+    const pendingProductIds = async () =>
+      (
+        await new DrizzlePriceReviewReader(db).pricesUnderReview({
+          locationId: await seededLocationId(db),
+          now: NOON,
+          review: "pending",
+        })
+      ).products.map((product) => product.id);
+    expect(await pendingProductIds()).toEqual([productId]);
+
+    const response = await setPriceRequest(rawSessionId, productId, {
+      unitPrice: 1200,
+      expectedCurrentPriceId: priceId,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(await pendingProductIds()).toEqual([]);
   });
 
   it("changing a price inserts a new row and leaves the previous one exactly as it was", async () => {

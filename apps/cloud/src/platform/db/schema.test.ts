@@ -34,6 +34,7 @@ import {
   lots,
   passkeyChallenges,
   priceLists,
+  priceReviewPostponements,
   priceReviews,
   prices,
   productPackagings,
@@ -52,6 +53,8 @@ import {
   findMigrationEntry,
   migrationsFolderBefore,
 } from "./test-support/migration-journal-test-helpers.js";
+
+const MISSING_ID = "0d9c4f6e-2b1a-4c3d-8e5f-6a7b8c9d0e1f";
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -1095,5 +1098,80 @@ describe("purchases", () => {
         costQuantity: 0,
       }),
     ).rejects.toMatchObject({ cause: { constraint: "lots_cost_quantity_check" } });
+  });
+});
+
+describe("price_review_postponements", () => {
+  async function seedPostponement(
+    fields: Partial<typeof priceReviewPostponements.$inferInsert> = {},
+  ) {
+    const actor = await insertUser("ada@example.com");
+    const [location] = await db.select({ id: locations.id }).from(locations);
+    const [priceList] = await db.select({ id: priceLists.id }).from(priceLists);
+    const [supplier] = await db
+      .insert(suppliers)
+      .values({ name: "Distribuidora Sur", actorId: actor.id })
+      .returning({ id: suppliers.id });
+    const [category] = await db
+      .insert(categories)
+      .values({ name: "Almacén" })
+      .returning({ id: categories.id });
+    const [product] = await db
+      .insert(products)
+      .values({ name: "Arroz", categoryId: category?.id as string, saleUnit: "UNIT" })
+      .returning({ id: products.id });
+    const [purchase] = await db
+      .insert(purchases)
+      .values({
+        supplierId: supplier?.id as string,
+        locationId: location?.id as string,
+        purchasedOn: "2026-10-01",
+        receiptType: "sin_comprobante",
+        recordedAt: new Date("2026-10-02T12:00:00.000Z"),
+        actorId: actor.id,
+      })
+      .returning({ id: purchases.id });
+    const values = {
+      productId: product?.id as string,
+      priceListId: priceList?.id as string,
+      postponedAt: new Date("2026-10-02T12:00:00.000Z"),
+      actorId: actor.id,
+      purchaseId: purchase?.id as string,
+      ...fields,
+    };
+    const [postponement] = await db.insert(priceReviewPostponements).values(values).returning();
+    return { postponement, values };
+  }
+
+  it("opens a postponement unresolved", async () => {
+    const { postponement, values } = await seedPostponement();
+
+    expect(postponement).toMatchObject({ ...values, resolvedByReviewId: null });
+  });
+
+  it.each([
+    [
+      "a product",
+      { productId: MISSING_ID },
+      "price_review_postponements_product_id_products_id_fk",
+    ],
+    [
+      "a price list",
+      { priceListId: MISSING_ID },
+      "price_review_postponements_price_list_id_price_lists_id_fk",
+    ],
+    ["a user", { actorId: MISSING_ID }, "price_review_postponements_actor_id_users_id_fk"],
+    [
+      "a purchase",
+      { purchaseId: MISSING_ID },
+      "price_review_postponements_purchase_id_purchases_id_fk",
+    ],
+    [
+      "a price review",
+      { resolvedByReviewId: MISSING_ID },
+      "price_review_postponements_resolved_by_review_fk",
+    ],
+  ])("refuses a postponement of %s that does not exist", async (_label, fields, constraint) => {
+    await expect(seedPostponement(fields)).rejects.toMatchObject({ cause: { constraint } });
   });
 });

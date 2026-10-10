@@ -512,6 +512,13 @@
       "when": 1791619540473,
       "tag": "0072_purchases_and_lots",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1791622724772,
+      "tag": "0073_price_review_postponements",
+      "breakpoints": true
     }
   ]
 }

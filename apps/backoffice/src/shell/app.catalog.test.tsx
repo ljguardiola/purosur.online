@@ -304,6 +304,48 @@ test("shows the Precios section, and only it, for a user holding only manage_pri
   await expect.element(screen.getByRole("link", { name: "Precios" })).toBeVisible();
 });
 
+test("walks the prices of a purchase just registered, taking them from the page so a reload does not walk them again", async () => {
+  const services = createAppServices();
+  vi.mocked(services.pricesListScreen.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [
+        {
+          id: "product-1",
+          name: "Fideos",
+          categoryId: "category-1",
+          categoryName: "Almacén",
+          saleUnit: "UNIT",
+          currentPrice: null,
+          secondsSinceReview: null,
+          pending: true,
+        },
+      ],
+      pendingCount: 1,
+      activeProductCount: 1,
+      reviewWindowDays: 30,
+      categories: [],
+    },
+  });
+  window.history.pushState(
+    { key: "purchased", __TSR_index: 0, purchasedProductsToReview: ["product-1"] },
+    "",
+    "/prices",
+  );
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Fideos" })).toBeVisible();
+  expect(services.pricesListScreen.fetchPrices).toHaveBeenCalledWith({
+    review: "pending",
+    productIds: ["product-1"],
+  });
+  await expect
+    .poll(() => window.history.state)
+    .not.toMatchObject({ purchasedProductsToReview: ["product-1"] });
+  expect(window.location.pathname).toBe("/prices");
+});
+
 test("hides the Precios section item for a user holding only manage_products_and_categories", async () => {
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(

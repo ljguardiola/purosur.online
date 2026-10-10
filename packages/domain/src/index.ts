@@ -261,6 +261,7 @@ export type {
   DiscountStatus,
   DiscountTarget,
   DiscountTargetKind,
+  PriceReviewPostponement,
   ProductTagLink,
   TargetedProduct,
 } from "./pricing/index.js";

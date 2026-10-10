@@ -14,6 +14,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { DrizzlePriceReviewReader } from "./drizzle-price-review-reader.js";
+import { insertPriceReviewPostponement } from "./test-support/price-review-postponements.js";
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -108,7 +109,13 @@ async function setReviewWindow(days: number): Promise<void> {
 }
 
 async function pricesUnderReview(
-  query: { review?: "pending" | "all"; categoryId?: string; search?: string; now?: Date } = {},
+  query: {
+    review?: "pending" | "all";
+    categoryId?: string;
+    productIds?: string[];
+    search?: string;
+    now?: Date;
+  } = {},
 ) {
   return new DrizzlePriceReviewReader(db).pricesUnderReview({
     locationId: await seededLocationId(db),
@@ -477,5 +484,116 @@ describe("DrizzlePriceReviewReader", () => {
     expect((await pricesUnderReview()).products).toMatchObject([
       { currentPrice: null, pending: true, secondsSinceReview: null },
     ]);
+  });
+});
+
+describe("DrizzlePriceReviewReader and the reviews a purchase postponed", () => {
+  async function reviewedToday(name: string, categoryId: string, userId: string) {
+    const priceListId = await seededPriceListId(db);
+    const productId = await insertProduct(name, categoryId);
+    const priceId = await insertPrice(productId, priceListId, 500, NOON);
+    await insertReview(productId, priceListId, priceId, userId, NOON);
+    return productId;
+  }
+
+  it("lists a product with an open postponement as pending although its review is recent, and counts it", async () => {
+    const userId = await insertUser();
+    const categoryId = await insertCategory("Almacén");
+    const postponedId = await reviewedToday("Arroz", categoryId, userId);
+    await reviewedToday("Fideos", categoryId, userId);
+    await insertPriceReviewPostponement(db, {
+      productId: postponedId,
+      actorId: userId,
+      postponedAt: NOON,
+    });
+
+    const result = await pricesUnderReview({ review: "pending" });
+
+    expect(result.products).toMatchObject([
+      { id: postponedId, pending: true, secondsSinceReview: 0 },
+    ]);
+    expect(result.pendingCount).toBe(1);
+  });
+
+  it("does not list a product whose postponement a review resolved", async () => {
+    const userId = await insertUser();
+    const categoryId = await insertCategory("Almacén");
+    const productId = await reviewedToday("Arroz", categoryId, userId);
+    const [review] = await db.select({ id: priceReviews.id }).from(priceReviews);
+    await insertPriceReviewPostponement(db, {
+      productId,
+      actorId: userId,
+      postponedAt: NOON,
+      resolvedByReviewId: review?.id as string,
+    });
+
+    const result = await pricesUnderReview({ review: "pending" });
+
+    expect(result.products).toEqual([]);
+    expect(result.pendingCount).toBe(0);
+  });
+
+  it("ignores a postponement on another price list", async () => {
+    const userId = await insertUser();
+    const categoryId = await insertCategory("Almacén");
+    const productId = await reviewedToday("Arroz", categoryId, userId);
+    const [otherPriceList] = await db
+      .insert(priceLists)
+      .values({ name: "Lista mayorista" })
+      .returning({ id: priceLists.id });
+    await insertPriceReviewPostponement(db, {
+      productId,
+      actorId: userId,
+      postponedAt: NOON,
+      priceListId: otherPriceList?.id as string,
+    });
+
+    const result = await pricesUnderReview({ review: "pending" });
+
+    expect(result.products).toEqual([]);
+    expect(result.pendingCount).toBe(0);
+  });
+
+  it("keeps listing the pending products oldest review first", async () => {
+    const userId = await insertUser();
+    const categoryId = await insertCategory("Almacén");
+    const priceListId = await seededPriceListId(db);
+    const postponedId = await reviewedToday("Arroz", categoryId, userId);
+    const staleId = await insertProduct("Zapallo", categoryId);
+    await insertReview(
+      staleId,
+      priceListId,
+      await insertPrice(staleId, priceListId, 300, NOON),
+      userId,
+      new Date(NOON.getTime() - 60 * DAY_MS),
+    );
+    await insertPriceReviewPostponement(db, {
+      productId: postponedId,
+      actorId: userId,
+      postponedAt: NOON,
+    });
+
+    expect(ids(await pricesUnderReview({ review: "pending" }))).toEqual([staleId, postponedId]);
+  });
+});
+
+describe("DrizzlePriceReviewReader's product filter", () => {
+  it("lists only the given products, without changing the pending count", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const riceId = await insertProduct("Arroz", categoryId);
+    const noodlesId = await insertProduct("Fideos", categoryId);
+    await insertProduct("Harina", categoryId);
+
+    const result = await pricesUnderReview({ review: "pending", productIds: [riceId, noodlesId] });
+
+    expect(ids(result)).toEqual([riceId, noodlesId]);
+    expect(result.pendingCount).toBe(3);
+  });
+
+  it("lists nothing for an empty list of products", async () => {
+    const categoryId = await insertCategory("Almacén");
+    await insertProduct("Arroz", categoryId);
+
+    expect(ids(await pricesUnderReview({ productIds: [] }))).toEqual([]);
   });
 });

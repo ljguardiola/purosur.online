@@ -102,6 +102,7 @@ describe("confirmPrice", () => {
       "currentPrice",
       "latestReviewedAt",
       "recordPriceReview",
+      "resolvePriceReviewPostponements",
       "recordPriceConfirmation",
     ]);
   });
@@ -171,6 +172,7 @@ describe("confirmPrice", () => {
     expect(after.prices).toHaveLength(2);
     expect(after.reviews).toEqual([
       {
+        id: "review-1",
         productId: "product-1",
         priceListId: "list-1",
         reviewedAt: NOON,
@@ -236,17 +238,62 @@ describe("confirmPrice", () => {
     expect(outcome).toEqual({ kind: "confirmed", lastReviewedAt: NOON });
   });
 
-  it.each(["recordPriceReview", "recordPriceConfirmation"] as const)(
-    "leaves nothing behind when %s fails",
-    async (failing) => {
-      const store = storeWithProduct();
-      seedPrice(store);
-      const before = store.snapshot();
-      store.failingWrites.add(failing);
+  it.each([
+    "recordPriceReview",
+    "resolvePriceReviewPostponements",
+    "recordPriceConfirmation",
+  ] as const)("leaves nothing behind when %s fails", async (failing) => {
+    const store = storeWithProduct();
+    seedPrice(store);
+    const before = store.snapshot();
+    store.failingWrites.add(failing);
 
-      await expect(confirm(store)).rejects.toThrow(`${failing} failed`);
+    await expect(confirm(store)).rejects.toThrow(`${failing} failed`);
 
-      expect(store.snapshot()).toEqual(before);
-    },
-  );
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("resolves, with its review, every open postponement of the product's review in that price list", async () => {
+    const store = storeWithProduct();
+    seedPrice(store);
+    store.seedPostponement({ id: "postponement-a", productId: "product-1", priceListId: "list-1" });
+    store.seedPostponement({ id: "postponement-b", productId: "product-1", priceListId: "list-1" });
+
+    await confirm(store);
+
+    const after = store.snapshot();
+    const [review] = after.reviews;
+    expect(after.postponements).toEqual([
+      {
+        id: "postponement-a",
+        productId: "product-1",
+        priceListId: "list-1",
+        resolvedByReviewId: review?.id,
+      },
+      {
+        id: "postponement-b",
+        productId: "product-1",
+        priceListId: "list-1",
+        resolvedByReviewId: review?.id,
+      },
+    ]);
+  });
+
+  it("leaves the postponements of other products, other price lists and earlier reviews as they were", async () => {
+    const store = storeWithProduct();
+    seedPrice(store);
+    store.seedPostponement({ id: "other-product", productId: "decoy", priceListId: "list-1" });
+    store.seedPostponement({ id: "other-list", productId: "product-1", priceListId: "list-2" });
+    store.seedPostponement({
+      id: "already-resolved",
+      productId: "product-1",
+      priceListId: "list-1",
+      resolvedByReviewId: "review-earlier",
+    });
+    const before = store.snapshot().postponements;
+
+    await confirm(store);
+
+    expect(store.snapshot().postponements).toEqual(before);
+  });
 });

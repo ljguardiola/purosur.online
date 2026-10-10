@@ -51,12 +51,17 @@ export async function setPrice(
       unitPrice: input.unitPrice,
       validFrom: moment,
     });
-    await tx.recordPriceReview({
+    const review = await tx.recordPriceReview({
       productId: input.productId,
       priceListId,
       reviewedAt: moment,
       actorId: input.actorId,
       priceId: price.id,
+    });
+    await tx.resolvePriceReviewPostponements({
+      productId: input.productId,
+      priceListId,
+      reviewId: review.id,
     });
     await tx.recordPriceChange({
       productId: input.productId,
