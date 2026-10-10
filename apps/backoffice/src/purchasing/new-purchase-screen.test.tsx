@@ -88,7 +88,7 @@ async function fillQuantityLine(screen: Screen, number = 1) {
   const group = line(screen, number);
   await chooseFromComboBox(screen, group, /^Producto/, "Avena arrollada");
   await userEvent.fill(group.getByRole("textbox", { name: /^Cantidad/ }), "12,5");
-  await userEvent.fill(group.getByRole("textbox", { name: /^Costo pagado/ }), "25.000");
+  await userEvent.fill(group.getByRole("textbox", { name: /^Costo por kg/ }), "2.000");
 }
 
 async function register(screen: Screen) {
@@ -99,7 +99,7 @@ const avenaLine = {
   loadedBy: "quantity",
   productId: bolsaDeAvena.productId,
   quantity: 12_500,
-  costPaidCents: 2_500_000,
+  costPaidCents: 200_000,
   lotNumber: "",
   expiresOn: "",
 } as const;
@@ -218,7 +218,7 @@ test("registers a purchase with a line loaded by packaging, the lot and its expi
   await userEvent.click(group.getByText("Presentación", { exact: true }).last());
   await chooseFromSelect(screen, group, /Presentación/, "Caja x 12 (12 u)");
   await userEvent.fill(group.getByRole("textbox", { name: /^Cantidad de presentaciones/ }), "2");
-  await userEvent.fill(group.getByRole("textbox", { name: /^Costo pagado/ }), "14.400");
+  await userEvent.fill(group.getByRole("textbox", { name: /^Costo por presentación/ }), "7.200");
   await userEvent.fill(group.getByRole("textbox", { name: /^Lote/ }), "L-17");
   await userEvent.click(
     group
@@ -241,7 +241,7 @@ test("registers a purchase with a line loaded by packaging, the lot and its expi
         productId: cajaDeMiel.productId,
         packagingId: cajaDeMiel.id,
         packages: 2,
-        costPaidCents: 1_440_000,
+        costPaidCents: 720_000,
         lotNumber: "L-17",
         expiresOn: "2027-01-31",
       },

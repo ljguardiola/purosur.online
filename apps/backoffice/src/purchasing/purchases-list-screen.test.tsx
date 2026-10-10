@@ -88,9 +88,9 @@ test("lists each purchase with its date, supplier and receipt, followed by its l
     .poll(() => rowTexts(screen))
     .toEqual([
       "14/09/2026Distribuidora AndinaFactura B 0001-00001234",
-      "Miel pura de abeja 1 kg2 × Caja x 12 (24 u)$ 14.400,00$ 600,00 por uL-1731/01/2027",
+      "Miel pura de abeja 1 kg2 × Caja x 12 (24 u)$ 7.200,00 por Caja x 12$ 600,00 por uL-1731/01/2027",
       "10/09/2026Granos del ValleSin comprobante",
-      "Avena arrollada12,500 kg$ 25.000,00$ 2.000,00 por kg",
+      "Avena arrollada12,500 kg$ 2.000,00 por kg$ 2.000,00 por kg",
     ]);
 });
 
