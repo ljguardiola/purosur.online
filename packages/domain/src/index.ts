@@ -335,8 +335,6 @@ export {
   isLockedToAnother,
   isRegisterNameTooLong,
   isValidCashMovementAmount,
-  isValidReceiptPrinterHost,
-  isValidReceiptPrinterPort,
   isWatchedForQuietness,
   isWellFormedEnrollmentCode,
   isWellFormedInstallationKey,

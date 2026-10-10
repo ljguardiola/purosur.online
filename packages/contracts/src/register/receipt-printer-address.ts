@@ -1,9 +1,6 @@
-import {
-  isValidReceiptPrinterHost,
-  isValidReceiptPrinterPort,
-  type ReceiptPrinterAddress,
-} from "@purosur/domain";
+import type { ReceiptPrinterAddress } from "@purosur/domain";
 import { z } from "zod";
+import { isValidReceiptPrinterHost, isValidReceiptPrinterPort } from "./receipt-printer-host.js";
 
 const PORT_DIGITS = /^[1-9][0-9]*$/;
 const HOST_AND_PORT_SEPARATOR = ":";

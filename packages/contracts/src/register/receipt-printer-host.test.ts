@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { isValidReceiptPrinterHost, isValidReceiptPrinterPort } from "./receipt-printer-address.js";
+import { isValidReceiptPrinterHost, isValidReceiptPrinterPort } from "./receipt-printer-host.js";
 
 describe("isValidReceiptPrinterHost", () => {
   it.each([
