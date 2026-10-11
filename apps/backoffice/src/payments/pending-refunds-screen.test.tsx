@@ -7,6 +7,7 @@ import { createQueryClient } from "../platform/query-client";
 import { render } from "../shell/test-support/render-with-router";
 import { PendingRefundsScreen } from "./pending-refunds-screen";
 import type { PendingRefundsScreenServices } from "./pending-refunds-services";
+import { type PendingRefundsFilters, pendingRefundsFilters } from "./routes";
 import {
   LATE_PAYMENT_REFUND_ID,
   noPendingRefunds,
@@ -28,11 +29,26 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function renderScreen(services: PendingRefundsScreenServices, onSessionEnded = () => {}) {
+function renderScreen(
+  services: PendingRefundsScreenServices,
+  onSessionEnded = () => {},
+  {
+    filters = pendingRefundsFilters.parse({}),
+    onFiltersChange = () => {},
+  }: {
+    filters?: PendingRefundsFilters;
+    onFiltersChange?: (filters: PendingRefundsFilters) => void;
+  } = {},
+) {
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <PendingRefundsScreen services={services} onSessionEnded={onSessionEnded} />
+        <PendingRefundsScreen
+          services={services}
+          onSessionEnded={onSessionEnded}
+          filters={filters}
+          onFiltersChange={onFiltersChange}
+        />
       </main>
     </FieldSizeProvider>,
   );
@@ -45,7 +61,7 @@ async function loaded(services: PendingRefundsScreenServices) {
   return screen;
 }
 
-test("shows the breadcrumb, the heading and each pending refund with when, where, how, how much and who cancelled", async () => {
+test("shows the breadcrumb, the heading and each pending refund with since when, why, how, how much", async () => {
   const services = createServices();
   const screen = await loaded(services);
 
@@ -61,35 +77,41 @@ test("shows the breadcrumb, the heading and each pending refund with when, where
       .map((row) => row.element().textContent ?? "");
   await expect.poll(() => rowTexts().length).toBe(2);
   const rows = rowTexts();
-  expect(rows[0]).toContain("07/10/2026 12:30");
-  expect(rows[0]).toContain("Caja principal");
+  expect(rows[0]).toContain("07/10/2026");
+  expect(rows[0]).toContain("hace 3 horas");
+  expect(rows[0]).toContain("Venta cancelada");
+  expect(rows[0]).toContain("La venta del 07/10 12:30 se canceló · la canceló Lucía");
   expect(rows[0]).toContain("Transferencia");
   expect(rows[0]).toContain("$ 2.500,00");
-  expect(rows[0]).toContain("Lucía");
-  expect(rows[1]).toContain("07/10/2026 15:05");
-  expect(rows[1]).toContain("Caja del fondo");
+  expect(rows[1]).toContain("hace 20 minutos");
+  expect(rows[1]).toContain("la canceló Sin dato");
+  expect(rows[1]).toContain("$ 980,00");
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("heads the list by a neutral date and the origin of each refund", async () => {
+test("heads the list by since when, why, how and how much, with no column for the register or the canceller", async () => {
   const services = createServices();
   const screen = await loaded(services);
 
-  await expect.element(screen.getByRole("columnheader", { name: "Fecha" })).toBeVisible();
-  await expect.element(screen.getByRole("columnheader", { name: "Origen" })).toBeVisible();
+  const headers = screen
+    .getByRole("columnheader")
+    .all()
+    .map((header) => header.element().textContent?.trim());
+  expect(headers.slice(0, 4)).toEqual(["Pendiente desde", "Por qué", "Medio", "Importe"]);
   await expect
-    .element(screen.getByRole("columnheader", { name: "Cancelada" }))
+    .element(screen.getByRole("columnheader", { name: "Cancelada por" }))
     .not.toBeInTheDocument();
+  await expect.element(screen.getByRole("columnheader", { name: "Caja" })).not.toBeInTheDocument();
 });
 
-test("lists a cancelled sale's refund and a late QR payment's refund together, each with its origin, its original channel and, for the late payment, no canceller", async () => {
+test("lists a cancelled sale's refund and a late QR payment's refund together, each with its reason, its original channel and, for the late payment, how the sale was charged", async () => {
   const services = createServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsWithLatePayment,
   });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Caja del frente")).toBeVisible();
+  await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
 
   const rows = screen
     .getByRole("row")
@@ -99,15 +121,80 @@ test("lists a cancelled sale's refund and a late QR payment's refund together, e
   expect(rows).toHaveLength(2);
   expect(rows[0]).toContain("Venta cancelada");
   expect(rows[0]).toContain("Transferencia");
-  expect(rows[0]).toContain("Lucía");
-  expect(rows[1]).toContain("08/10/2026 10:10");
-  expect(rows[1]).toContain("Pago QR tardío");
+  expect(rows[1]).toContain("08/10/2026");
+  expect(rows[1]).toContain("hace 27 horas");
+  expect(rows[1]).toContain("Aprobación tardía");
+  expect(rows[1]).toContain(
+    "El QR de la venta del 08/10 09:37 se pagó después de cobrarla con transferencia",
+  );
   expect(rows[1]).toContain("QR de Mercado Pago");
-  expect(rows[1]).toContain("$ 1.250,00");
   expect(rows[1]).not.toContain("Efectivo");
   expect(rows[1]).not.toContain("Sin dato");
-  expect(rows[1]).toContain("—");
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("explains under the table that refunds are made outside the system and marked as done here", async () => {
+  const services = createServices();
+  const screen = await loaded(services);
+
+  await expect
+    .element(screen.getByText("Se hacen fuera del sistema y acá se marcan como hechos"))
+    .toBeVisible();
+});
+
+test("filters the loaded refunds by the register that took them, offering every register in the list", async () => {
+  const services = createServices();
+  const onFiltersChange = vi.fn();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: pendingRefundsWithLatePayment,
+  });
+  const screen = await renderScreen(services, () => {}, { onFiltersChange });
+  await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
+
+  await screen.getByRole("button", { name: /Caja/ }).click();
+  const options = screen
+    .getByRole("option")
+    .all()
+    .map((option) => option.element().textContent?.trim());
+  expect(options).toEqual(["Todas", "Caja del frente", "Caja principal"]);
+  await userEvent.click(screen.getByRole("option", { name: "Caja del frente" }));
+
+  await expect.poll(() => screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
+  await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
+  expect(services.fetchPendingRefunds).toHaveBeenCalledTimes(1);
+  expect(onFiltersChange).toHaveBeenLastCalledWith({
+    register: "33333333-3333-4333-8333-333333333333",
+  });
+});
+
+test("opens on the register the address carries", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: pendingRefundsWithLatePayment,
+  });
+
+  const screen = await renderScreen(services, () => {}, {
+    filters: { register: "33333333-3333-4333-8333-333333333333" },
+  });
+
+  await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
+  expect(screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
+  await expect.element(screen.getByRole("button", { name: /Caja del frente/ })).toBeVisible();
+});
+
+test("shows every refund when the address carries a register the list has none for", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({ kind: "ok", value: pendingRefunds });
+
+  const screen = await renderScreen(services, () => {}, {
+    filters: { register: "99999999-0000-4000-8000-000000000000" },
+  });
+
+  await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("$ 980,00", { exact: true })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: /Caja.*Todas/ })).toBeVisible();
 });
 
 test("shows the empty state when no refund is pending", async () => {
@@ -119,7 +206,10 @@ test("shows the empty state when no refund is pending", async () => {
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("No hay reembolsos pendientes")).toBeVisible();
+  await expect.element(screen.getByText("Sin reembolsos pendientes")).toBeVisible();
+  await expect
+    .element(screen.getByText("Todos los reembolsos hechos fuera del sistema están marcados."))
+    .toBeVisible();
 });
 
 test("shows the table loading while the refunds load", async () => {
@@ -151,7 +241,7 @@ test("shows a load error with a retry action that starts again from the loading 
     .element(screen.getByRole("table", { name: "Reembolsos pendientes" }))
     .toHaveAttribute("aria-busy", "true");
   retry.resolve({ kind: "ok", value: pendingRefunds });
-  await expect.element(screen.getByText("Caja principal")).toBeVisible();
+  await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
 });
 
 test("shows the rate-limited notice with the time to wait", async () => {
@@ -210,8 +300,8 @@ test("marking a refund as done asks first, then marks it and the refund leaves t
 
   expect(services.markRefundDone).toHaveBeenCalledWith(TRANSFER_REFUND_ID);
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.poll(() => screen.getByText("Caja principal").query()).toBeNull();
-  await expect.element(screen.getByText("Caja del fondo")).toBeVisible();
+  await expect.poll(() => screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
+  await expect.element(screen.getByText("$ 980,00", { exact: true })).toBeVisible();
 });
 
 test("marking a refund as done reads the pending refunds again and leaves other concepts' data as it was", async () => {
@@ -225,7 +315,12 @@ test("marking a refund as done reads the pending refunds again and leaves other 
     <QueryClientProvider client={queryClient}>
       <FieldSizeProvider size="backoffice">
         <main>
-          <PendingRefundsScreen services={services} onSessionEnded={() => {}} />
+          <PendingRefundsScreen
+            services={services}
+            onSessionEnded={() => {}}
+            filters={pendingRefundsFilters.parse({})}
+            onFiltersChange={() => {}}
+          />
         </main>
       </FieldSizeProvider>
     </QueryClientProvider>,
@@ -260,7 +355,7 @@ test("a refund another person already marked as done leaves the list once the li
   await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.poll(() => screen.getByText("Caja principal").query()).toBeNull();
+  await expect.poll(() => screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
 });
 
 test("cancel closes the question and the refund stays listed", async () => {
@@ -273,7 +368,7 @@ test("cancel closes the question and the refund stays listed", async () => {
   await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.element(screen.getByText("Caja principal")).toBeVisible();
+  await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
   expect(services.markRefundDone).not.toHaveBeenCalled();
 });
 
@@ -283,7 +378,7 @@ async function loadedWithLatePayment(services: PendingRefundsScreenServices) {
     value: pendingRefundsWithLatePayment,
   });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Caja del frente")).toBeVisible();
+  await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
   return screen;
 }
 
@@ -322,8 +417,8 @@ test("discarding a refund asks first, then discards it and the refund leaves the
 
   expect(services.discardRefund).toHaveBeenCalledWith(LATE_PAYMENT_REFUND_ID);
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.poll(() => screen.getByText("Caja del frente").query()).toBeNull();
-  await expect.element(screen.getByText("Caja principal")).toBeVisible();
+  await expect.poll(() => screen.getByText("$ 1.250,00", { exact: true }).query()).toBeNull();
+  await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
 });
 
 test("a refund another person already discarded leaves the list once the list is updated", async () => {
@@ -341,7 +436,7 @@ test("a refund another person already discarded leaves the list once the list is
   await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.poll(() => screen.getByText("Caja del frente").query()).toBeNull();
+  await expect.poll(() => screen.getByText("$ 1.250,00", { exact: true }).query()).toBeNull();
 });
 
 test("cancel closes the discard question and the refund stays listed", async () => {
@@ -354,6 +449,6 @@ test("cancel closes the discard question and the refund stays listed", async () 
   await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.element(screen.getByText("Caja del frente")).toBeVisible();
+  await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
   expect(services.discardRefund).not.toHaveBeenCalled();
 });
