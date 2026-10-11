@@ -5,7 +5,7 @@ import type {
 } from "@purosur/contracts";
 import { ElevatedNotice } from "@purosur/ui";
 import type { LucideIcon } from "lucide-react";
-import { Ban, Lock, PackageX, Scale, ScanBarcode, Tag, TriangleAlert } from "lucide-react";
+import { Ban, Lock, PackageX, Percent, Scale, ScanBarcode, Tag, TriangleAlert } from "lucide-react";
 
 export type ScanProblem =
   | Extract<
@@ -21,6 +21,7 @@ export type ScanProblem =
       }
     >
   | { kind: "not_sold_by_weight"; product_name: string }
+  | { kind: "manual_discount_removed"; product_name: string }
   | { kind: "scan_failed" }
   | { kind: "add_failed" }
   | { kind: "search_failed" }
@@ -77,6 +78,12 @@ export function messageFor(problem: ScanProblem): Message {
         icon: Ban,
         title: "Esta caja ya no puede empezar ventas",
         help: "El motivo y qué hacer se muestran arriba de la pantalla.",
+      };
+    case "manual_discount_removed":
+      return {
+        icon: Percent,
+        title: `Se quitó el descuento manual de ${problem.product_name} porque cambió la cantidad`,
+        help: "Volvé a aplicarlo si corresponde.",
       };
     case "scan_failed":
       return {

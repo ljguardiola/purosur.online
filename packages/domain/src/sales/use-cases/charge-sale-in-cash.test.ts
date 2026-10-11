@@ -7,7 +7,8 @@ import {
 } from "../../fiscal/test-support/fictional-tax-identities.js";
 import { type CashMovement, expectedCash } from "../../register/index.js";
 import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
-import type { SaleWithLines } from "../model/sale.js";
+import type { ManualAdjustment } from "../model/manual-adjustment.js";
+import type { SaleLine, SaleWithLines } from "../model/sale.js";
 import { chargeSaleInCash } from "./charge-sale-in-cash.js";
 import {
   FakeSaleLedger,
@@ -48,6 +49,7 @@ const OPEN_SALE: SaleWithLines = {
       listUnitPrice: 2500,
       priceListId: "list-1",
       promotions: [],
+      manualAdjustment: null,
       promotionId: null,
       discountAmount: 0,
       lineTotal: 5000,
@@ -62,6 +64,7 @@ const OPEN_SALE: SaleWithLines = {
       listUnitPrice: 900,
       priceListId: "list-1",
       promotions: [],
+      manualAdjustment: null,
       promotionId: null,
       discountAmount: 0,
       lineTotal: 900,
@@ -97,6 +100,7 @@ const DISCOUNTED_SALE: SaleWithLines = {
         { id: "d-percent", benefit: { kind: "PERCENT_OFF", percent: 10 } },
         { id: "d-3x2", benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
       ],
+      manualAdjustment: null,
       promotionId: "d-3x2",
       discountAmount: 1000,
       lineTotal: 2000,
@@ -370,7 +374,7 @@ describe("chargeSaleInCash", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "sale_completed",
-        schema_version: 6,
+        schema_version: 7,
         occurred_at: NOW.toISOString(),
         actor_id: "cashier",
         payload: {
@@ -388,6 +392,7 @@ describe("chargeSaleInCash", () => {
               product_id: "yerba",
               product_name: "Yerba 1 kg",
               weight_source: null,
+              manual_adjustment: null,
               quantity: 2,
               list_unit_price: 2500,
               price_list_id: "list-1",
@@ -401,6 +406,7 @@ describe("chargeSaleInCash", () => {
               product_id: "fideos",
               product_name: "Fideos",
               weight_source: null,
+              manual_adjustment: null,
               quantity: 1,
               list_unit_price: 900,
               price_list_id: "list-1",
@@ -453,6 +459,102 @@ describe("chargeSaleInCash", () => {
     ]);
   });
 
+  describe("a sale with adjusted lines", () => {
+    const adjusted = (
+      id: string,
+      manualAdjustment: ManualAdjustment,
+      discountAmount: number,
+      lineTotal: number,
+    ): SaleLine => ({
+      id,
+      productId: "yerba",
+      productName: "Yerba 1 kg",
+      saleUnit: "UNIT",
+      weightSource: null,
+      quantity: 2,
+      listUnitPrice: 2500,
+      priceListId: "list-1",
+      promotions: [],
+      manualAdjustment,
+      promotionId: null,
+      discountAmount,
+      lineTotal,
+    });
+    const ADJUSTED_SALE: SaleWithLines = {
+      ...OPEN_SALE,
+      lines: [
+        adjusted(
+          "line-5",
+          { kind: "PRICE", unitPrice: 2000, reason: "Caja abierta", authorizedBy: null },
+          0,
+          4000,
+        ),
+        adjusted(
+          "line-6",
+          { kind: "PERCENT", percent: 10, reason: "Cliente frecuente", authorizedBy: "supervisor" },
+          500,
+          4500,
+        ),
+        adjusted(
+          "line-7",
+          { kind: "AMOUNT", amount: 300, reason: "Envase danado", authorizedBy: null },
+          300,
+          4700,
+        ),
+      ],
+    };
+
+    it("authorizes a document, and reports a total, that include the adjustments", () => {
+      const store = ledger({ sales: [ADJUSTED_SALE] });
+
+      charge(store, 13200);
+
+      expect(store.state.outbox[0]?.payload).toMatchObject({ total: 13200 });
+      expect(store.state.preEmissionGates[0]?.outcome).toMatchObject({
+        kind: "passed",
+        document: { total: 13200, netAmount: 13200 },
+      });
+    });
+
+    it("records each line's manual adjustment, with its reason and who authorized it, in the sale_completed event", () => {
+      const store = ledger({ sales: [ADJUSTED_SALE] });
+
+      charge(store, 13200);
+
+      expect(store.state.outbox[0]?.payload).toMatchObject({
+        lines: [
+          {
+            id: "line-5",
+            manual_adjustment: {
+              kind: "PRICE",
+              value: 2000,
+              reason: "Caja abierta",
+              authorized_by: null,
+            },
+          },
+          {
+            id: "line-6",
+            manual_adjustment: {
+              kind: "PERCENT",
+              value: 10,
+              reason: "Cliente frecuente",
+              authorized_by: "supervisor",
+            },
+          },
+          {
+            id: "line-7",
+            manual_adjustment: {
+              kind: "AMOUNT",
+              value: 300,
+              reason: "Envase danado",
+              authorized_by: null,
+            },
+          },
+        ],
+      });
+    });
+  });
+
   describe("a sale with a line sold by weight", () => {
     const WEIGHED_SALE: SaleWithLines = {
       ...OPEN_SALE,
@@ -467,6 +569,7 @@ describe("chargeSaleInCash", () => {
           listUnitPrice: 9000,
           priceListId: "list-1",
           promotions: [],
+          manualAdjustment: null,
           promotionId: null,
           discountAmount: 0,
           lineTotal: 11250,

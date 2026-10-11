@@ -99,6 +99,7 @@ describe("ChargeScreen", () => {
         charge_refusal: null,
         refunds_on_cancel: [],
         cancel_authorization_required: false,
+        adjust_authorization_required: false,
       },
     ],
     ["the person may not sell", "not_permitted"],

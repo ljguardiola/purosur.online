@@ -426,6 +426,8 @@ export {
 export type {
   LinePromotion,
   ListPrice,
+  ManualAdjustment,
+  ManualAdjustmentValue,
   PrinterStatus,
   ReceiptContent,
   ReceiptCopy,
@@ -450,6 +452,10 @@ export type {
 } from "./sales/index.js";
 export {
   isSalesReportRangeAsked,
+  manualAdjustmentReason,
+  mayBeManualDiscountAmount,
+  mayBeManualDiscountPercent,
+  mayBeOverriddenUnitPrice,
   mayBeSaleLineQuantity,
   mayStartReceiptPrint,
   observePrintAcknowledged,

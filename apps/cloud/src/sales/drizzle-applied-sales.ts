@@ -1,3 +1,4 @@
+import type { ManualAdjustment } from "@purosur/domain";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
@@ -11,6 +12,30 @@ import type { AppliedOrigin } from "../register/drizzle-applied-cash-sessions.js
 
 type AppliedSale = Extract<SyncedFact, { kind: "sale_completed" | "sale_cancelled" }>["sale"];
 
+function manualAdjustmentColumns(adjustment: ManualAdjustment | null) {
+  if (adjustment === null) {
+    return {
+      manualAdjustmentKind: null,
+      manualAdjustmentValue: null,
+      manualAdjustmentReason: null,
+      manualAdjustmentAuthorizedBy: null,
+    };
+  }
+  const columns = {
+    manualAdjustmentKind: adjustment.kind,
+    manualAdjustmentReason: adjustment.reason,
+    manualAdjustmentAuthorizedBy: adjustment.authorizedBy,
+  };
+  switch (adjustment.kind) {
+    case "PRICE":
+      return { ...columns, manualAdjustmentValue: adjustment.unitPrice };
+    case "PERCENT":
+      return { ...columns, manualAdjustmentValue: adjustment.percent };
+    case "AMOUNT":
+      return { ...columns, manualAdjustmentValue: adjustment.amount };
+  }
+}
+
 async function recordSaleParts<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
   sale: AppliedSale,
@@ -18,7 +43,13 @@ async function recordSaleParts<TQueryResult extends PgQueryResultHKT>(
 ): Promise<void> {
   const { lines, payments, cashMovements: movements } = sale;
   if (lines.length > 0) {
-    await tx.insert(saleLines).values(lines.map((line) => ({ ...line, saleId: sale.id })));
+    await tx.insert(saleLines).values(
+      lines.map(({ manualAdjustment, ...line }) => ({
+        ...line,
+        ...manualAdjustmentColumns(manualAdjustment),
+        saleId: sale.id,
+      })),
+    );
   }
   await tx
     .insert(salePayments)

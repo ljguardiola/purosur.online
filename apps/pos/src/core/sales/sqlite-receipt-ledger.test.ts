@@ -266,6 +266,7 @@ describe("a receipt ledger's source of a sale", () => {
           listUnitPrice: 1890000,
           promotions: [],
           promotionId: null,
+          manualAdjustment: null,
           discountAmount: 0,
           lineTotal: 661500,
         },
@@ -279,6 +280,7 @@ describe("a receipt ledger's source of a sale", () => {
             { id: "promo-1", benefit: { kind: "PERCENT_OFF", percent: 10 } },
           ],
           promotionId: "promo-1",
+          manualAdjustment: null,
           discountAmount: 8400,
           lineTotal: 75600,
         },
@@ -334,6 +336,40 @@ describe("a receipt ledger's lines", () => {
     const source = inTransaction((tx) => tx.receiptSource("sale-1"));
 
     expect(source.lines.map(({ saleUnit }) => saleUnit)).toEqual(["KG", "UNIT"]);
+  });
+});
+
+describe("a receipt ledger's adjusted lines", () => {
+  it("carry the kind and value of their manual adjustment, and no other detail", () => {
+    insertSaleWithEverything();
+    database.exec(
+      `UPDATE sale_lines SET manual_adjustment_kind = 'PRICE', manual_adjustment_value = 1500000,
+         manual_adjustment_reason = 'Caja abierta', manual_adjustment_authorized_by = 'u1'
+       WHERE id = 'line-1';
+       UPDATE sale_lines SET manual_adjustment_kind = 'PERCENT', manual_adjustment_value = 10,
+         manual_adjustment_reason = 'Cliente frecuente'
+       WHERE id = 'line-2'`,
+    );
+
+    const source = inTransaction((tx) => tx.receiptSource("sale-1"));
+
+    expect(source.lines.map(({ manualAdjustment }) => manualAdjustment)).toEqual([
+      { kind: "PRICE", unitPrice: 1500000 },
+      { kind: "PERCENT", percent: 10 },
+    ]);
+  });
+
+  it("carry the amount of an amount discount", () => {
+    insertSaleWithEverything();
+    database.exec(
+      `UPDATE sale_lines SET manual_adjustment_kind = 'AMOUNT', manual_adjustment_value = 300,
+         manual_adjustment_reason = 'Envase danado'
+       WHERE id = 'line-2'`,
+    );
+
+    const source = inTransaction((tx) => tx.receiptSource("sale-1"));
+
+    expect(source.lines[1]?.manualAdjustment).toEqual({ kind: "AMOUNT", amount: 300 });
   });
 });
 

@@ -93,20 +93,51 @@ jobs:
         env:
           CHANGE_BASE_REF: ${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}
 
-  # vitest run, sharded four ways so a slow shard - not the ever-growing total test count - bounds
-  # this job's wall time.
+  # The newest successful Verify run that kept its tests' durations, on main or on the head branch
+  # under review, for the shards below.
+  # Finding none, or failing to look, must not fail the run: the shards then split by file count.
+  test-durations-source:
+    name: test durations source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      run_id: ${{ steps.source.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+
+      - id: source
+        run: node .github/scripts/test-durations-source.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          HEAD_BRANCH: ${{ github.head_ref }}
+
+  # vitest run, sharded six ways, each shard given an even share of every project's files by their
+  # durations measured on the run test-durations-source picked, so a slow shard - not the
+  # ever-growing total test count - bounds this job's wall time.
   tests:
-    name: tests (${{ matrix.shard }}/4)
-    needs: [scope]
+    name: tests (${{ matrix.shard }}/6)
+    needs: [scope, test-durations-source]
     # Skipped on `pull_request` only when scope positively decided the shards read no changed path;
     # a failed or missing decision runs them, like static above.
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.tests_needed != 'false') }}
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -120,6 +151,13 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Download the test durations
+        if: ${{ needs.test-durations-source.outputs.run_id != '' }}
+        run: gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'test-durations-shard-*' --dir "$RUNNER_TEMP/test-durations"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ needs.test-durations-source.outputs.run_id }}
 
       - name: Pull the cloud's Postgres image
         timeout-minutes: 10
@@ -143,9 +181,19 @@ jobs:
         env:
           PLAYWRIGHT_SERVER_IMAGE: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
 
-      - run: pnpm verify:tests --shard=${{ matrix.shard }}/4
+      - run: pnpm verify:tests --shard=${{ matrix.shard }}/6
         env:
           TESTCONTAINERS_RYUK_DISABLED: "true"
+          TEST_DURATIONS_DIR: ${{ runner.temp }}/test-durations
+          TEST_DURATIONS_FILE: ${{ runner.temp }}/test-durations-out/shard-${{ matrix.shard }}.json
+
+      - name: Keep this shard's test durations
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-durations-shard-${{ matrix.shard }}
+          path: ${{ runner.temp }}/test-durations-out/shard-${{ matrix.shard }}.json
+          retention-days: 14
+          if-no-files-found: error
 
   visual:
     name: visual

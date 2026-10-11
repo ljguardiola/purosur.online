@@ -2,6 +2,7 @@ import type {
   AbandonMercadoPagoQrChargeOutcome,
   AddProductOutcome,
   AddWeighedProductOutcome,
+  AdjustSaleLineOutcome,
   Authorization,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
@@ -22,9 +23,11 @@ import type {
   FollowMercadoPagoQrChargeOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
+  ManualAdjustmentRequest,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  PreviewSaleLineAdjustmentOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
   ReceiptPrintStatusOutcome,
@@ -180,6 +183,16 @@ export interface RouterContext {
     weightThousandths: number,
     expectedWeightThousandths: number,
   ) => Promise<ChangeLineWeightOutcome>;
+  adjustSaleLine: (
+    lineId: string,
+    adjustment: ManualAdjustmentRequest,
+    reason: string,
+    authorization: Authorization | undefined,
+  ) => Promise<AdjustSaleLineOutcome>;
+  previewSaleLineAdjustment: (
+    lineId: string,
+    adjustment: ManualAdjustmentRequest,
+  ) => Promise<PreviewSaleLineAdjustmentOutcome>;
   removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
   cancelSale: () => Promise<CancelSaleOutcome>;
   cancelPaidSale: (
@@ -471,6 +484,8 @@ const openSessionRoute = createRoute({
       weighProduct,
       changeLineQuantity,
       changeLineWeight,
+      adjustSaleLine,
+      previewSaleLineAdjustment,
       removeSaleLine,
       cancelSale,
       cancelPaidSale,
@@ -492,6 +507,8 @@ const openSessionRoute = createRoute({
         weighProduct={weighProduct}
         changeLineQuantity={changeLineQuantity}
         changeLineWeight={changeLineWeight}
+        adjustSaleLine={adjustSaleLine}
+        previewSaleLineAdjustment={previewSaleLineAdjustment}
         removeSaleLine={removeSaleLine}
         cancelSale={cancelSale}
         cancelPaidSale={cancelPaidSale}
@@ -876,6 +893,8 @@ export function createAppRouter(
     | "weighProduct"
     | "changeLineQuantity"
     | "changeLineWeight"
+    | "adjustSaleLine"
+    | "previewSaleLineAdjustment"
     | "removeSaleLine"
     | "cancelSale"
     | "cancelPaidSale"

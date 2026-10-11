@@ -37,6 +37,7 @@ const SOURCE: ReceiptSource = {
       listUnitPrice: 2500,
       promotions: [],
       promotionId: null,
+      manualAdjustment: null,
       discountAmount: 0,
       lineTotal: 7500,
     },

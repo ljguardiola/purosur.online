@@ -1182,9 +1182,36 @@ export const saleLines = pgTable(
     discountAmount: bigint("discount_amount", { mode: "number" }).notNull(),
     lineTotal: bigint("line_total", { mode: "number" }).notNull(),
     weightSource: text("weight_source"),
+    manualAdjustmentKind: text("manual_adjustment_kind"),
+    manualAdjustmentValue: bigint("manual_adjustment_value", { mode: "number" }),
+    manualAdjustmentReason: text("manual_adjustment_reason"),
+    manualAdjustmentAuthorizedBy: text("manual_adjustment_authorized_by"),
   },
   (table) => [
     check("sale_lines_weight_source_check", sql`${table.weightSource} IN ('SCALE', 'MANUAL')`),
+    check(
+      "sale_lines_manual_adjustment_kind_check",
+      sql`${table.manualAdjustmentKind} IN ('PRICE', 'PERCENT', 'AMOUNT')`,
+    ),
+    check(
+      "sale_lines_manual_adjustment_value_check",
+      sql`(${table.manualAdjustmentValue} IS NULL) = (${table.manualAdjustmentKind} IS NULL)
+        AND (
+          ${table.manualAdjustmentKind} IS NULL
+          OR (${table.manualAdjustmentKind} = 'PRICE' AND ${table.manualAdjustmentValue} >= 0)
+          OR (${table.manualAdjustmentKind} = 'PERCENT' AND ${table.manualAdjustmentValue} BETWEEN 1 AND 100)
+          OR (${table.manualAdjustmentKind} = 'AMOUNT' AND ${table.manualAdjustmentValue} > 0)
+        )`,
+    ),
+    check(
+      "sale_lines_manual_adjustment_reason_check",
+      sql`(${table.manualAdjustmentReason} IS NULL) = (${table.manualAdjustmentKind} IS NULL)
+        AND (${table.manualAdjustmentReason} IS NULL OR btrim(${table.manualAdjustmentReason}) <> '')`,
+    ),
+    check(
+      "sale_lines_manual_adjustment_authorized_by_check",
+      sql`${table.manualAdjustmentAuthorizedBy} IS NULL OR ${table.manualAdjustmentKind} IS NOT NULL`,
+    ),
   ],
 );
 

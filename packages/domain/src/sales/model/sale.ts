@@ -1,5 +1,6 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import type { DiscountBenefit } from "../../pricing/index.js";
+import type { ManualAdjustment } from "./manual-adjustment.js";
 import type { WeightSource } from "./weight-source.js";
 
 export type SaleState = "OPEN" | "COMPLETED" | "VOIDED" | "CANCELLED";
@@ -28,6 +29,7 @@ export interface SaleLine {
   listUnitPrice: number;
   priceListId: string;
   promotions: LinePromotion[];
+  manualAdjustment: ManualAdjustment | null;
   promotionId: string | null;
   discountAmount: number;
   lineTotal: number;

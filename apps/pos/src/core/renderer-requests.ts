@@ -2,6 +2,7 @@ import type {
   AbandonMercadoPagoQrChargeOutcome,
   AddProductOutcome,
   AddWeighedProductOutcome,
+  AdjustSaleLineOutcome,
   Authorization,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
@@ -25,6 +26,7 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  PreviewSaleLineAdjustmentOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
   ReceiptPrintStatusOutcome,
@@ -54,10 +56,12 @@ import type { WireSerialDevices } from "./register/serial-devices-requests";
 import type { CoreToRendererMessage, RendererToCoreMessage } from "./renderer-messages";
 import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type {
+  AdjustSaleLineRequest,
   CancelLockedSaleRequest,
   CancelPaidSaleRequest,
   ChargeSaleByTransferRequest,
   ChargeSaleInCashRequest,
+  PreviewSaleLineAdjustmentRequest,
 } from "./sales/sale-requests";
 import type { SalesHistoryRequest } from "./sales/sales-history-requests";
 
@@ -120,6 +124,10 @@ export interface RendererRequestDeps {
         weightThousandths: number,
         expectedWeightThousandths: number,
       ) => Promise<ChangeLineWeightOutcome>)
+    | undefined;
+  adjustSaleLine: ((request: AdjustSaleLineRequest) => Promise<AdjustSaleLineOutcome>) | undefined;
+  previewSaleLineAdjustment:
+    | ((request: PreviewSaleLineAdjustmentRequest) => Promise<PreviewSaleLineAdjustmentOutcome>)
     | undefined;
   removeSaleLine: ((lineId: string) => Promise<RemoveSaleLineOutcome>) | undefined;
   cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
@@ -678,6 +686,42 @@ export async function answerRendererRequest(
                 message.weight_thousandths,
                 message.expected_weight_thousandths,
               )),
+        ),
+      };
+    }
+    case "adjust-sale-line": {
+      const { adjustSaleLine } = deps;
+      return {
+        type: "adjust-sale-line-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "adjusting a sale line",
+          adjustSaleLine &&
+            (() =>
+              adjustSaleLine({
+                lineId: message.line_id,
+                adjustment: message.adjustment,
+                reason: message.reason,
+                authorization: message.authorization,
+              })),
+        ),
+      };
+    }
+    case "preview-sale-line-adjustment": {
+      const { previewSaleLineAdjustment } = deps;
+      return {
+        type: "preview-sale-line-adjustment-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "previewing a sale line adjustment",
+          previewSaleLineAdjustment &&
+            (() =>
+              previewSaleLineAdjustment({
+                lineId: message.line_id,
+                adjustment: message.adjustment,
+              })),
         ),
       };
     }

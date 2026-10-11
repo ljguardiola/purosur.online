@@ -274,6 +274,7 @@ describe("SaleScreen searching by name", () => {
     it("adds the active product on Enter, without scanning the text", async () => {
       const addProduct = vi.fn<SaleScreenProps["addProduct"]>(async () => ({
         kind: "added",
+        removed_manual_discount: false,
         sale: SALE_OF_YERBA_AND_ALFAJOR,
       }));
       const scanProduct = vi.fn<SaleScreenProps["scanProduct"]>();
@@ -351,7 +352,11 @@ describe("SaleScreen searching by name", () => {
 
     it("scans the text on Enter when nothing matches it, as a code with letters would need", async () => {
       const scanProduct = vi.fn<SaleScreenProps["scanProduct"]>(
-        async (): Promise<ScanProductOutcome> => ({ kind: "added", sale: SALE_OF_YERBA }),
+        async (): Promise<ScanProductOutcome> => ({
+          kind: "added",
+          removed_manual_discount: false,
+          sale: SALE_OF_YERBA,
+        }),
       );
       const { screen, field } = await renderScreen({
         searchProducts: answering(results([])),
@@ -370,6 +375,7 @@ describe("SaleScreen searching by name", () => {
     it("shows the sale it returns, marks the line that changed and clears the field, closing the list", async () => {
       const addProduct = vi.fn<SaleScreenProps["addProduct"]>(async () => ({
         kind: "added",
+        removed_manual_discount: false,
         sale: SALE_OF_YERBA_AND_ALFAJOR,
       }));
       const { screen, field } = await renderScreen({
@@ -393,7 +399,11 @@ describe("SaleScreen searching by name", () => {
     it("clears the field and closes the list even when the text had blanks around it", async () => {
       const { screen, field } = await renderScreen({
         searchProducts: answering(results([YERBA_FOUND])),
-        addProduct: async () => ({ kind: "added", sale: SALE_OF_YERBA }),
+        addProduct: async () => ({
+          kind: "added",
+          removed_manual_discount: false,
+          sale: SALE_OF_YERBA,
+        }),
       });
       await field.fill("yer ");
       await expect.element(screen.getByRole("listbox")).toBeVisible();
@@ -407,6 +417,7 @@ describe("SaleScreen searching by name", () => {
     it("adds the product of the option that is clicked, keeping the focus in the field", async () => {
       const addProduct = vi.fn<SaleScreenProps["addProduct"]>(async () => ({
         kind: "added",
+        removed_manual_discount: false,
         sale: SALE_OF_YERBA,
       }));
       const { screen, field } = await renderScreen({

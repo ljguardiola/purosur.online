@@ -32,6 +32,7 @@ const YERBA_LINE = {
   listUnitPrice: 2500,
   priceListId: "list-1",
   promotions: [{ id: "ten", benefit: { kind: "PERCENT_OFF" as const, percent: 10 } }],
+  manualAdjustment: null,
   promotionId: "ten",
   discountAmount: 750,
   lineTotal: 6750,
@@ -180,6 +181,7 @@ const LINE_RECORD = {
   product_id: "yerba",
   product_name: "Yerba 1 kg",
   weight_source: null,
+  manual_adjustment: null,
   quantity: 3,
   list_unit_price: 2500,
   price_list_id: "list-1",
@@ -241,7 +243,7 @@ describe("cancelPaidSale", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "sale_cancelled",
-          schema_version: 2,
+          schema_version: 3,
           payload: {
             id: "sale-1",
             register_id: "register-1",
@@ -282,6 +284,37 @@ describe("cancelPaidSale", () => {
           actor_id: "cashier",
         },
       ]);
+    });
+
+    it("records a line's manual adjustment in the event", async () => {
+      const adjustedLine = {
+        ...YERBA_LINE,
+        promotions: [],
+        promotionId: null,
+        manualAdjustment: {
+          kind: "PERCENT" as const,
+          percent: 10,
+          reason: "Cliente frecuente",
+          authorizedBy: "supervisor",
+        },
+      };
+      const store = ledger({ sales: [{ ...OPEN_SALE, lines: [adjustedLine] }] });
+
+      await cancel(store);
+
+      expect(store.state.outbox[0]?.payload).toMatchObject({
+        lines: [
+          {
+            id: "line-1",
+            manual_adjustment: {
+              kind: "PERCENT",
+              value: 10,
+              reason: "Cliente frecuente",
+              authorized_by: "supervisor",
+            },
+          },
+        ],
+      });
     });
 
     it("names the person who authorized it in the event", async () => {

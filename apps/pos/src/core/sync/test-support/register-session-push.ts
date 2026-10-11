@@ -21,6 +21,7 @@ import {
 } from "../../sales/receipt-requests";
 import {
   addWeighedProductFor,
+  adjustSaleLineFor,
   cancelPaidSaleFor,
   changeLineWeightFor,
   chargeSaleByTransferFor,
@@ -81,7 +82,14 @@ function seed(database: ReturnType<typeof openLocalDatabase>): void {
     [
       MANAGER_ROLE,
       "Encargada",
-      ["sell_and_charge", "record_cash_expense", "withdraw_cash", "void_sale", "reprint_receipt"],
+      [
+        "sell_and_charge",
+        "record_cash_expense",
+        "withdraw_cash",
+        "void_sale",
+        "reprint_receipt",
+        "override_line_price_or_discount",
+      ],
     ],
   ] as const) {
     database
@@ -320,6 +328,56 @@ export async function withRegisterSession<TResult>(
       amount: retyped.sale.total,
     });
     expectOutcome("charge a weighed sale by transfer", weighedTransfer.kind, "completed");
+    for (const code of ["7790001000011", "7790001000028", "7790001000035"]) {
+      nextStep();
+      const toAdjust = await scanProductFor(deps(), code);
+      expectOutcome("scan a product to adjust", toAdjust.kind, "added");
+    }
+    nextStep();
+    const toAdjustSale = await currentSaleFor(deps());
+    if (toAdjustSale === null || toAdjustSale === "not_permitted") {
+      throw new Error(`The register session's "read the sale to adjust" found no sale`);
+    }
+    const [yerbaLine, sugarLine, cookiesLine] = toAdjustSale.lines;
+    nextStep();
+    const overridden = await adjustSaleLineFor(deps(), {
+      lineId: yerbaLine?.id ?? "",
+      adjustment: { kind: "PRICE", value: 1200 },
+      reason: "Caja abierta",
+      authorization: { user_id: GRACE, pin: PIN },
+    });
+    expectOutcome("override a line's price authorized by PIN", overridden.kind, "changed");
+    database
+      .prepare(
+        "INSERT INTO role_permissions (role_id, permission_key, active) VALUES (?, 'override_line_price_or_discount', 1)",
+      )
+      .run(ROLE);
+    nextStep();
+    const percentOff = await adjustSaleLineFor(deps(), {
+      lineId: sugarLine?.id ?? "",
+      adjustment: { kind: "PERCENT", value: 10 },
+      reason: "Cliente frecuente",
+      authorization: undefined,
+    });
+    expectOutcome("give a line a percent discount", percentOff.kind, "changed");
+    nextStep();
+    const amountOff = await adjustSaleLineFor(deps(), {
+      lineId: cookiesLine?.id ?? "",
+      adjustment: { kind: "AMOUNT", value: 100 },
+      reason: "Envase danado",
+      authorization: undefined,
+    });
+    if (amountOff.kind !== "changed") {
+      throw new Error(
+        `The register session's "give a line an amount discount" ended as "${amountOff.kind}"`,
+      );
+    }
+    nextStep();
+    const adjustedCash = await chargeSaleInCashFor(deps(), {
+      saleId: amountOff.sale.id,
+      tendered: amountOff.sale.total,
+    });
+    expectOutcome("charge the sale with adjusted lines", adjustedCash.kind, "completed");
     nextStep();
     const split = await scanProductFor(deps(), "7790001000011");
     if (split.kind !== "added") {
@@ -343,6 +401,14 @@ export async function withRegisterSession<TResult>(
         `The register session's "scan a product to abandon" ended as "${abandoned.kind}"`,
       );
     }
+    nextStep();
+    const abandonedDiscount = await adjustSaleLineFor(deps(), {
+      lineId: abandoned.sale.lines[0]?.id ?? "",
+      adjustment: { kind: "PERCENT", value: 5 },
+      reason: "Cliente frecuente",
+      authorization: undefined,
+    });
+    expectOutcome("discount the sale to abandon", abandonedDiscount.kind, "changed");
     nextStep();
     const deposit = await chargeSaleInCashFor(deps(), { saleId: abandoned.sale.id, tendered: 500 });
     expectOutcome(

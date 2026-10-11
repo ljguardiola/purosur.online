@@ -1,6 +1,6 @@
 {
-  "id": "7828d9d6-5163-4eab-94bb-a53f04aa8919",
-  "prevId": "078d443b-438f-47be-a645-651b34d1b98f",
+  "id": "d0c60c76-4a4e-4cda-bc72-caaf38f2fee1",
+  "prevId": "967a99d6-ea0b-4256-98cd-646eb2a7bcc8",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -5912,6 +5912,30 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "manual_adjustment_kind": {
+          "name": "manual_adjustment_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manual_adjustment_value": {
+          "name": "manual_adjustment_value",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manual_adjustment_reason": {
+          "name": "manual_adjustment_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manual_adjustment_authorized_by": {
+          "name": "manual_adjustment_authorized_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -5933,6 +5957,22 @@
         "sale_lines_weight_source_check": {
           "name": "sale_lines_weight_source_check",
           "value": "\"sale_lines\".\"weight_source\" IN ('SCALE', 'MANUAL')"
+        },
+        "sale_lines_manual_adjustment_kind_check": {
+          "name": "sale_lines_manual_adjustment_kind_check",
+          "value": "\"sale_lines\".\"manual_adjustment_kind\" IN ('PRICE', 'PERCENT', 'AMOUNT')"
+        },
+        "sale_lines_manual_adjustment_value_check": {
+          "name": "sale_lines_manual_adjustment_value_check",
+          "value": "(\"sale_lines\".\"manual_adjustment_value\" IS NULL) = (\"sale_lines\".\"manual_adjustment_kind\" IS NULL)\n        AND (\n          \"sale_lines\".\"manual_adjustment_kind\" IS NULL\n          OR (\"sale_lines\".\"manual_adjustment_kind\" = 'PRICE' AND \"sale_lines\".\"manual_adjustment_value\" >= 0)\n          OR (\"sale_lines\".\"manual_adjustment_kind\" = 'PERCENT' AND \"sale_lines\".\"manual_adjustment_value\" BETWEEN 1 AND 100)\n          OR (\"sale_lines\".\"manual_adjustment_kind\" = 'AMOUNT' AND \"sale_lines\".\"manual_adjustment_value\" > 0)\n        )"
+        },
+        "sale_lines_manual_adjustment_reason_check": {
+          "name": "sale_lines_manual_adjustment_reason_check",
+          "value": "(\"sale_lines\".\"manual_adjustment_reason\" IS NULL) = (\"sale_lines\".\"manual_adjustment_kind\" IS NULL)\n        AND (\"sale_lines\".\"manual_adjustment_reason\" IS NULL OR btrim(\"sale_lines\".\"manual_adjustment_reason\") <> '')"
+        },
+        "sale_lines_manual_adjustment_authorized_by_check": {
+          "name": "sale_lines_manual_adjustment_authorized_by_check",
+          "value": "\"sale_lines\".\"manual_adjustment_authorized_by\" IS NULL OR \"sale_lines\".\"manual_adjustment_kind\" IS NOT NULL"
         }
       },
       "isRLSEnabled": false

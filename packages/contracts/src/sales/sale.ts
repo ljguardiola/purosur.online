@@ -1,6 +1,10 @@
 import {
   isValidDiscountBuyNPayM,
   isValidDiscountPercent,
+  manualAdjustmentReason,
+  mayBeManualDiscountAmount,
+  mayBeManualDiscountPercent,
+  mayBeOverriddenUnitPrice,
   mayBeSaleLineQuantity,
   SALE_UNITS,
   SEARCH_RESULT_LIMIT,
@@ -31,6 +35,19 @@ const linePromotionSchema = z.discriminatedUnion("kind", [
 
 export const shownLineQuantitySchema = z.int().positive();
 
+export const manualAdjustmentValueSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("PRICE"), value: z.int().refine(mayBeOverriddenUnitPrice) }),
+  z.object({ kind: z.literal("PERCENT"), value: z.int().refine(mayBeManualDiscountPercent) }),
+  z.object({ kind: z.literal("AMOUNT"), value: z.int().refine(mayBeManualDiscountAmount) }),
+]);
+
+export type ManualAdjustmentRequest = z.infer<typeof manualAdjustmentValueSchema>;
+
+export const manualAdjustmentReasonSchema = z
+  .string()
+  .transform(manualAdjustmentReason)
+  .pipe(z.string());
+
 const saleLineSchema = z.object({
   id: z.string(),
   product_id: z.string(),
@@ -41,6 +58,7 @@ const saleLineSchema = z.object({
   list_unit_price: cents,
   discount_amount: cents,
   promotion: linePromotionSchema.nullable(),
+  manual_adjustment: manualAdjustmentValueSchema.nullable(),
   line_total: cents,
 });
 
@@ -54,6 +72,7 @@ export const saleSchema = z.object({
   cancel_refusal: saleCancelRefusalSchema.nullable(),
   refunds_on_cancel: z.array(plannedRefundSchema),
   cancel_authorization_required: z.boolean(),
+  adjust_authorization_required: z.boolean(),
   charge_refusal: z
     .discriminatedUnion("kind", [reachesThresholdRefusalSchema, noThresholdRefusalSchema])
     .nullable(),
@@ -69,7 +88,11 @@ export const cashChargeSchema = z.discriminatedUnion("kind", [
 export type CashCharge = z.infer<typeof cashChargeSchema>;
 export type CashChargeAnswer = CashCharge | null | "not_permitted";
 
-const addedOutcome = z.object({ kind: z.literal("added"), sale: saleSchema });
+const addedOutcome = z.object({
+  kind: z.literal("added"),
+  sale: saleSchema,
+  removed_manual_discount: z.boolean(),
+});
 const noPriceOutcome = z.object({ kind: z.literal("no_price"), product_name: z.string() });
 const weightNeededOutcome = z.object({
   kind: z.literal("weight_needed"),
@@ -119,7 +142,7 @@ export const saleLineQuantitySchema = z
 export const saleLineWeightSchema = z.int().refine((weight) => mayBeSaleLineQuantity(weight, "KG"));
 
 export const changeLineQuantityOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("changed"), sale: saleSchema }),
+  z.object({ kind: z.literal("changed"), sale: saleSchema, removed_manual_discount: z.boolean() }),
   z.object({ kind: z.literal("unknown_line") }),
   z.object({ kind: z.literal("stale_quantity") }),
   z.object({ kind: z.literal("invalid_quantity") }),
@@ -130,7 +153,7 @@ export const changeLineQuantityOutcomeSchema = z.discriminatedUnion("kind", [
 export type ChangeLineQuantityOutcome = z.infer<typeof changeLineQuantityOutcomeSchema>;
 
 export const changeLineWeightOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("changed"), sale: saleSchema }),
+  z.object({ kind: z.literal("changed"), sale: saleSchema, removed_manual_discount: z.boolean() }),
   z.object({ kind: z.literal("unknown_line") }),
   z.object({ kind: z.literal("stale_weight") }),
   z.object({ kind: z.literal("invalid_weight") }),
@@ -139,6 +162,40 @@ export const changeLineWeightOutcomeSchema = z.discriminatedUnion("kind", [
   ...saleRefusalSchemas,
 ]);
 export type ChangeLineWeightOutcome = z.infer<typeof changeLineWeightOutcomeSchema>;
+
+export const adjustSaleLineOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("changed"), sale: saleSchema }),
+  z.object({ kind: z.literal("unknown_line") }),
+  z.object({ kind: z.literal("same_as_list_price") }),
+  z.object({ kind: z.literal("discount_exceeds_line") }),
+  z.object({ kind: z.literal("no_open_sale") }),
+  z.object({ kind: z.literal("no_open_session") }),
+  saleHasPaymentsOutcome,
+  notPermittedOutcome,
+  notSignedInOutcome,
+  ...authorizationRefusalSchema.options,
+]);
+export type AdjustSaleLineOutcome = z.infer<typeof adjustSaleLineOutcomeSchema>;
+
+export const previewSaleLineAdjustmentOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("preview"),
+    discount_amount: z.int().nonnegative(),
+    line_total: z.int().nonnegative(),
+  }),
+  z.object({ kind: z.literal("unknown_line") }),
+  z.object({ kind: z.literal("same_as_list_price") }),
+  z.object({ kind: z.literal("discount_exceeds_line") }),
+  z.object({ kind: z.literal("no_open_sale") }),
+  z.object({ kind: z.literal("no_open_session") }),
+  saleHasPaymentsOutcome,
+  notPermittedOutcome,
+  notSignedInOutcome,
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type PreviewSaleLineAdjustmentOutcome = z.infer<
+  typeof previewSaleLineAdjustmentOutcomeSchema
+>;
 
 export const removeSaleLineOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("removed"), sale: saleSchema }),
