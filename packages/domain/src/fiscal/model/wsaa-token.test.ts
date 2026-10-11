@@ -56,9 +56,9 @@ describe("isWsaaTokenRetryDue", () => {
   });
 
   it("is not due just before the retry interval has passed", () => {
-    expect(
-      isWsaaTokenRetryDue(refusedAgo(WSAA_ALREADY_AUTHENTICATED_RETRY_MS - 1), NOW),
-    ).toBe(false);
+    expect(isWsaaTokenRetryDue(refusedAgo(WSAA_ALREADY_AUTHENTICATED_RETRY_MS - 1), NOW)).toBe(
+      false,
+    );
   });
 
   it("is due exactly when the retry interval has passed", () => {

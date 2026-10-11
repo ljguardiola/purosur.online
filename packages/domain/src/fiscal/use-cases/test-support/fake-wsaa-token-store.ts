@@ -1,8 +1,8 @@
 import type {
-  WsaaTokenAnswer,
   WsaaAuthentication,
   WsaaAuthenticationResult,
   WsaaToken,
+  WsaaTokenAnswer,
   WsaaTokenRenewal,
   WsaaTokenStore,
 } from "../wsaa-token-ports.js";
@@ -121,10 +121,14 @@ class FakeRenewal implements WsaaTokenRenewal {
     return this.store.refusedAt ? new Date(this.store.refusedAt) : null;
   }
 
-  async recordAnswer<TOutcome>(work: (answer: WsaaTokenAnswer) => Promise<TOutcome>): Promise<TOutcome> {
+  async recordAnswer<TOutcome>(
+    work: (answer: WsaaTokenAnswer) => Promise<TOutcome>,
+  ): Promise<TOutcome> {
     const before = this.store.snapshot();
     try {
-      const outcome = await work(new FakeAnswer(this.store, this.service, this.certificateFingerprint));
+      const outcome = await work(
+        new FakeAnswer(this.store, this.service, this.certificateFingerprint),
+      );
       this.store.operations.push("commitAnswer");
       return outcome;
     } catch (error) {
