@@ -10,6 +10,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import type { CloudReachability } from "../sync/cloud-reachability";
 import { SqliteAcceptedPushLog } from "../sync/sqlite-accepted-push-log";
 import { stopOpeningNewSales } from "../sync/sqlite-local-installation";
@@ -21,9 +22,27 @@ const MINUTE_MS = 60 * 1000;
 const SCALE = { vendorId: "1a86", productId: "7523" };
 
 let database: LocalDatabase;
+let signedInPerson: SignedInPerson;
+
+function addPerson(id: string, permissions: string[]): void {
+  database
+    .prepare("INSERT INTO roles (id, name, is_administrator, version) VALUES (?, ?, 0, 1)")
+    .run(`role-`, `role-`);
+  for (const key of permissions) {
+    database
+      .prepare("INSERT INTO role_permissions (role_id, permission_key, active) VALUES (?, ?, 1)")
+      .run(`role-`, key);
+  }
+  database
+    .prepare(
+      "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES (?, ?, ?, 'salt', 1, 1)",
+    )
+    .run(id, id, `role-`);
+}
 
 beforeEach(() => {
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+  signedInPerson = createSignedInPerson();
 });
 
 afterEach(() => {
@@ -73,6 +92,7 @@ function status(
     database,
     cloud: () => cloud,
     now: () => NOW,
+    signedInPerson,
     serialDevices: () => ({ kind: "listed", standings: serialDevices }),
   });
 }
@@ -96,6 +116,7 @@ function statusWatchedBy(watch: SerialDeviceWatch) {
     database,
     cloud: () => "unknown",
     now: () => NOW,
+    signedInPerson,
     serialDevices: watch.reading,
   });
 }
@@ -106,6 +127,7 @@ describe("the register's status", () => {
       conditions: [],
       cloud: "unknown",
       serial_devices: { scale: "not_registered", reader: "not_registered" },
+      serial_devices_setup_offered: false,
     });
   });
 
@@ -126,6 +148,7 @@ describe("the register's status", () => {
       conditions: [{ kind: "installation_revoked" }],
       cloud: "unreachable",
       serial_devices: { scale: "not_registered", reader: "not_registered" },
+      serial_devices_setup_offered: false,
     });
   });
 
@@ -224,6 +247,7 @@ describe("the register's status", () => {
       conditions: [{ kind: "sales_denied", reason: "event_history_broken" }],
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "not_registered" },
+      serial_devices_setup_offered: false,
     });
   });
 
@@ -238,6 +262,7 @@ describe("the register's status", () => {
       conditions: [{ kind: "sales_denied", reason: "event_history_broken" }],
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "not_registered" },
+      serial_devices_setup_offered: false,
     });
   });
 
@@ -257,6 +282,49 @@ describe("the register's status", () => {
       conditions: [{ kind: "sales_denied", reason: "event_history_broken" }],
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "unknown" },
+      serial_devices_setup_offered: false,
     });
+  });
+});
+
+describe("whether the register offers the serial devices setup", () => {
+  it("offers it to a signed-in person who may configure serial devices while neither device is registered", async () => {
+    addPerson("u1", ["enroll_register_devices"]);
+    signedInPerson.set("u1");
+
+    expect((await status()).serial_devices_setup_offered).toBe(true);
+  });
+
+  it("does not offer it to a signed-in person who may not configure serial devices", async () => {
+    addPerson("u1", ["sell_and_charge"]);
+    signedInPerson.set("u1");
+
+    expect((await status()).serial_devices_setup_offered).toBe(false);
+  });
+
+  it("does not offer it while nobody is signed in", async () => {
+    addPerson("u1", ["enroll_register_devices"]);
+
+    expect((await status()).serial_devices_setup_offered).toBe(false);
+  });
+
+  it("does not offer it when the signed-in person is not an active person of the register", async () => {
+    signedInPerson.set("ghost");
+
+    expect((await status()).serial_devices_setup_offered).toBe(false);
+  });
+
+  it("does not offer it once a device is registered", async () => {
+    addPerson("u1", ["enroll_register_devices"]);
+    signedInPerson.set("u1");
+
+    expect(
+      (
+        await status("unknown", {
+          scale: { kind: "matching", path: "COM3" },
+          reader: { kind: "not_registered" },
+        })
+      ).serial_devices_setup_offered,
+    ).toBe(false);
   });
 });

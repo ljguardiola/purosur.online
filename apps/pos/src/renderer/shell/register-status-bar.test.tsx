@@ -33,6 +33,7 @@ function loaded(status: Partial<RegisterStatus> = {}): CoreData<RegisterStatus> 
       conditions: [],
       cloud: "reachable",
       serial_devices: { scale: "matching", reader: "matching" },
+      serial_devices_setup_offered: false,
       ...status,
     },
     refreshing: false,

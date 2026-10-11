@@ -76,6 +76,7 @@ export type {
 } from "./model/serial-devices.js";
 export {
   isSerialDeviceMissing,
+  offersSerialDevicesSetup,
   SERIAL_DEVICE_ROLES,
   serialDeviceStandings,
 } from "./model/serial-devices.js";
