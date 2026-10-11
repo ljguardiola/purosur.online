@@ -21,9 +21,11 @@ beforeEach(async () => {
 
 // `setval(..., false)` makes the very next `nextval` return exactly `value`.
 async function setNextSequenceValue(value: bigint): Promise<void> {
-  await testDatabase.client.query("select setval('internal_barcode_sequence', $1, false)", [
-    value.toString(),
-  ]);
+  await testDatabase.asMigrator(() =>
+    testDatabase.client.query("select setval('internal_barcode_sequence', $1, false)", [
+      value.toString(),
+    ]),
+  );
 }
 
 async function insertProductWithBarcode(code: string, active: boolean): Promise<void> {

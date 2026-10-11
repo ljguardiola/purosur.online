@@ -660,11 +660,13 @@ describe("GET /changes carrying the catalog and the prices", () => {
     const emptyCategoryId = await newCategory("Vacía");
     const product = await newProduct(categoryId, ["7790001000011"]);
     const price = await newPrice(product.id, locationId, 1000);
-    await db.execute(sql`alter table products disable trigger products_reject_deletion`);
-    await db.delete(priceReviews).where(eq(priceReviews.priceId, price.id));
-    await db.delete(prices).where(eq(prices.id, price.id));
-    await db.delete(productBarcodes).where(eq(productBarcodes.productId, product.id));
-    await db.delete(products).where(eq(products.id, product.id));
+    await testDatabase.asMigrator(async () => {
+      await db.execute(sql`alter table products disable trigger products_reject_deletion`);
+      await db.delete(priceReviews).where(eq(priceReviews.priceId, price.id));
+      await db.delete(prices).where(eq(prices.id, price.id));
+      await db.delete(productBarcodes).where(eq(productBarcodes.productId, product.id));
+      await db.delete(products).where(eq(products.id, product.id));
+    });
     await db.delete(categories).where(eq(categories.id, emptyCategoryId));
     await db.insert(changes).values([
       { entity: "price", entityId: price.id, version: 2, op: "delete", priceListId },
