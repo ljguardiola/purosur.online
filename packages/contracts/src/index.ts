@@ -320,6 +320,7 @@ export type {
   FoundProduct,
   ManualAdjustmentRequest,
   OpenSale,
+  PreviewSaleLineAdjustmentOutcome,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,

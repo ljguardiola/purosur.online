@@ -185,6 +185,25 @@ export const adjustSaleLineOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type AdjustSaleLineOutcome = z.infer<typeof adjustSaleLineOutcomeSchema>;
 
+export const previewSaleLineAdjustmentOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("preview"),
+    discount_amount: z.int().nonnegative(),
+    line_total: z.int().nonnegative(),
+  }),
+  z.object({ kind: z.literal("unknown_line") }),
+  z.object({ kind: z.literal("same_as_list_price") }),
+  z.object({ kind: z.literal("discount_exceeds_line") }),
+  z.object({ kind: z.literal("no_open_sale") }),
+  z.object({ kind: z.literal("no_open_session") }),
+  saleHasPaymentsOutcome,
+  notPermittedOutcome,
+  notSignedInOutcome,
+]);
+export type PreviewSaleLineAdjustmentOutcome = z.infer<
+  typeof previewSaleLineAdjustmentOutcomeSchema
+>;
+
 export const removeSaleLineOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("removed"), sale: saleSchema }),
   z.object({ kind: z.literal("unknown_line") }),

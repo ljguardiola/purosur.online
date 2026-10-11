@@ -19,6 +19,7 @@ import {
   holdsQrPaymentOutcome,
   manualAdjustmentReasonSchema,
   manualAdjustmentValueSchema,
+  previewSaleLineAdjustmentOutcomeSchema,
   qrChargeInProgressOutcome,
   removeSaleLineOutcomeSchema,
   saleLineQuantitySchema,
@@ -68,6 +69,13 @@ export const adjustSaleLineMessageSchema = z.object({
   adjustment: manualAdjustmentValueSchema,
   reason: manualAdjustmentReasonSchema,
   authorization: authorizationSchema.optional(),
+});
+
+export const previewSaleLineAdjustmentMessageSchema = z.object({
+  type: z.literal("preview-sale-line-adjustment"),
+  request_id: requestId,
+  line_id: z.string(),
+  adjustment: manualAdjustmentValueSchema,
 });
 
 const removeSaleLineMessageSchema = z.object({
@@ -185,6 +193,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   changeLineQuantityMessageSchema,
   changeLineWeightMessageSchema,
   adjustSaleLineMessageSchema,
+  previewSaleLineAdjustmentMessageSchema,
   removeSaleLineMessageSchema,
   cancelSaleMessageSchema,
   cancelPaidSaleMessageSchema,
@@ -284,6 +293,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("adjust-sale-line-result"),
     request_id: requestId,
     outcome: adjustSaleLineOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("preview-sale-line-adjustment-result"),
+    request_id: requestId,
+    outcome: previewSaleLineAdjustmentOutcomeSchema,
   }),
   z.object({
     type: z.literal("remove-sale-line-result"),
