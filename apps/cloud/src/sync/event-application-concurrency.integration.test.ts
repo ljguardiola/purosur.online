@@ -38,6 +38,7 @@ function applier() {
       eventApplication: new DrizzleEventApplication(db, () => NOW),
       upcaster: syncedEventUpcaster,
       clock: { now: () => NOW },
+      quarantineNotices: { quarantined: () => {} },
     },
     { limit: 10 },
   );
