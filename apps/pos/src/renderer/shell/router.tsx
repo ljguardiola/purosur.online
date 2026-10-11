@@ -2,6 +2,7 @@ import type {
   AbandonMercadoPagoQrChargeOutcome,
   AddProductOutcome,
   AddWeighedProductOutcome,
+  AdjustSaleLineOutcome,
   Authorization,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
@@ -22,6 +23,7 @@ import type {
   FollowMercadoPagoQrChargeOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
+  ManualAdjustmentRequest,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   PinPolicy,
@@ -180,6 +182,12 @@ export interface RouterContext {
     weightThousandths: number,
     expectedWeightThousandths: number,
   ) => Promise<ChangeLineWeightOutcome>;
+  adjustSaleLine: (
+    lineId: string,
+    adjustment: ManualAdjustmentRequest,
+    reason: string,
+    authorization: Authorization | undefined,
+  ) => Promise<AdjustSaleLineOutcome>;
   removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
   cancelSale: () => Promise<CancelSaleOutcome>;
   cancelPaidSale: (
@@ -471,6 +479,7 @@ const openSessionRoute = createRoute({
       weighProduct,
       changeLineQuantity,
       changeLineWeight,
+      adjustSaleLine,
       removeSaleLine,
       cancelSale,
       cancelPaidSale,
@@ -492,6 +501,7 @@ const openSessionRoute = createRoute({
         weighProduct={weighProduct}
         changeLineQuantity={changeLineQuantity}
         changeLineWeight={changeLineWeight}
+        adjustSaleLine={adjustSaleLine}
         removeSaleLine={removeSaleLine}
         cancelSale={cancelSale}
         cancelPaidSale={cancelPaidSale}
@@ -876,6 +886,7 @@ export function createAppRouter(
     | "weighProduct"
     | "changeLineQuantity"
     | "changeLineWeight"
+    | "adjustSaleLine"
     | "removeSaleLine"
     | "cancelSale"
     | "cancelPaidSale"

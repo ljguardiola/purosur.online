@@ -1,6 +1,7 @@
 import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
+  AdjustSaleLineOutcome,
   Authorization,
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
@@ -8,6 +9,7 @@ import type {
   ChangeLineWeightOutcome,
   CurrentSaleAnswer,
   FoundProduct,
+  ManualAdjustmentRequest,
   OpenSale,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
@@ -33,6 +35,7 @@ import { OpenSessionRail } from "../shell/open-session-rail";
 import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
 import type { Refund } from "../shell/refund-lines";
 import type { SignedInPerson } from "../shell/signed-in-person";
+import { AdjustLineModal } from "./adjust-line-modal";
 import { CancelPaidSaleModal } from "./cancel-paid-sale-modal";
 import { CancelSaleModal } from "./cancel-sale-modal";
 import { ChangeLineWeightModal } from "./change-line-weight-modal";
@@ -77,6 +80,12 @@ export type SaleScreenProps = {
     weightThousandths: number,
     expectedWeightThousandths: number,
   ) => Promise<ChangeLineWeightOutcome>;
+  adjustSaleLine: (
+    lineId: string,
+    adjustment: ManualAdjustmentRequest,
+    reason: string,
+    authorization: Authorization | undefined,
+  ) => Promise<AdjustSaleLineOutcome>;
   removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
   cancelSale: () => Promise<CancelSaleOutcome>;
   cancelPaidSale: (
@@ -147,6 +156,7 @@ export function SaleScreen({
   weighProduct,
   changeLineQuantity,
   changeLineWeight,
+  adjustSaleLine,
   removeSaleLine,
   cancelSale,
   cancelPaidSale,
@@ -171,9 +181,11 @@ export function SaleScreen({
   const [confirmingPaidCancel, setConfirmingPaidCancel] = useState(false);
   const [cancelledRefunds, setCancelledRefunds] = useState<Refund[]>();
   const [weighing, setWeighing] = useState<Weighing>();
+  const [adjusting, setAdjusting] = useState<SaleLine>();
   const editInFlight = useRef(false);
   const confirmingCancelNow = useRef(false);
   const weighingNow = useRef<Weighing>(undefined);
+  const adjustingNow = useRef(false);
   const listboxId = useId();
 
   useEffect(() => {
@@ -181,6 +193,7 @@ export function SaleScreen({
       if (
         event.relatedTarget === null &&
         !confirmingCancelNow.current &&
+        !adjustingNow.current &&
         weighingNow.current === undefined
       ) {
         focusScanField(field.current);
@@ -365,6 +378,23 @@ export function SaleScreen({
     await take(submitted, outcome, { kind: "add_failed" });
   }
 
+  function askToAdjust(line: SaleLine | undefined) {
+    adjustingNow.current = line !== undefined;
+    setAdjusting(line);
+  }
+
+  async function takeAdjustedSale(adjusted: OpenSale) {
+    askToAdjust(undefined);
+    setProblem(undefined);
+    setChanged(undefined);
+    await takeSale(adjusted);
+  }
+
+  async function readSaleAgainAfterAdjusting() {
+    askToAdjust(undefined);
+    await resetCurrentSale();
+  }
+
   function askToCancel(asking: boolean) {
     confirmingCancelNow.current = asking;
     setConfirmingCancel(asking);
@@ -468,11 +498,12 @@ export function SaleScreen({
       !confirmingCancel &&
       !confirmingPaidCancel &&
       cancelledRefunds === undefined &&
-      weighing === undefined
+      weighing === undefined &&
+      adjusting === undefined
     ) {
       focusScanField(field.current);
     }
-  }, [confirmingCancel, confirmingPaidCancel, cancelledRefunds, weighing]);
+  }, [confirmingCancel, confirmingPaidCancel, cancelledRefunds, weighing, adjusting]);
 
   const found = results?.query === code.trim() && !dismissed ? results : undefined;
   const choosing = found !== undefined && found.products.length > 0;
@@ -595,6 +626,7 @@ export function SaleScreen({
                   kind: "change_failed",
                 }),
               onChangeWeight: (line) => askForWeight({ kind: "change", line }),
+              onAdjust: askToAdjust,
               onRemove: (line) =>
                 void edit(() => removeSaleLine(line.id), { kind: "remove_failed" }),
             }}
@@ -634,6 +666,23 @@ export function SaleScreen({
           currentWeight={weighing.line.quantity}
           changeLineWeight={(weight) => changeWeight(weighing.line, weight)}
           onClose={() => askForWeight(undefined)}
+        />
+      ) : null}
+      {adjusting !== undefined && sale !== null ? (
+        <AdjustLineModal
+          lineId={adjusting.id}
+          productName={adjusting.product_name}
+          listUnitPrice={adjusting.list_unit_price}
+          quantity={adjusting.quantity}
+          saleUnit={adjusting.sale_unit}
+          authorizationRequired={sale.adjust_authorization_required}
+          person={person}
+          loadAuthorizers={loadAuthorizers}
+          adjustSaleLine={adjustSaleLine}
+          onAdjusted={(adjusted) => void takeAdjustedSale(adjusted)}
+          onSaleGone={() => void readSaleAgainAfterAdjusting()}
+          onSessionInvalid={onSessionInvalid}
+          onClose={() => askToAdjust(undefined)}
         />
       ) : null}
       {confirmingPaidCancel && sale !== null ? (
