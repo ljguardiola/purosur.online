@@ -24,12 +24,14 @@ export const LATE_PAYMENT_REFUND_ORIGIN = "late_payment";
 export const REFUND_ORIGINS = [SALE_CANCELLED_REFUND_ORIGIN, LATE_PAYMENT_REFUND_ORIGIN] as const;
 export type RefundOrigin = (typeof REFUND_ORIGINS)[number];
 
+export type PlannedRefundState = typeof REFUND_DONE_STATE | typeof REFUND_PENDING_STATE;
+
 export interface PlannedRefund {
   paymentId: string;
   method: PaymentMethod;
   provider: string;
   amount: number;
-  state: RefundState;
+  state: PlannedRefundState;
 }
 
 export function plannedRefunds(payments: readonly RefundablePayment[]): PlannedRefund[] {
