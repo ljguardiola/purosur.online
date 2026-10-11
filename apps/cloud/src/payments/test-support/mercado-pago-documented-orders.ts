@@ -158,5 +158,25 @@ export function cannotCancelOrderError(): Record<string, unknown> {
 }
 
 export function orderAlreadyCanceledError(): Record<string, unknown> {
-  return documentedError("order_already_canceled", "The order is already canceled.", 409);
+  return documentedError(
+    "order_already_canceled",
+    "The order status does not allow the cancellation.",
+    409,
+  );
+}
+
+export function instoreOrderLockedError(): Record<string, unknown> {
+  return documentedError(
+    "instore_order_locked_error",
+    "The order is being processed and cannot be modified.",
+    409,
+  );
+}
+
+export function idempotencyKeyAlreadyUsedError(): Record<string, unknown> {
+  return documentedError(
+    "idempotency_key_already_used",
+    "The idempotency key was already used in another request.",
+    409,
+  );
 }
