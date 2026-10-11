@@ -32,6 +32,7 @@ const passkeyAlert: AlertSummary = {
   kind: "backoffice_passkey_changed",
   scope: "user-1",
   scopeDisplay: "Lucía Pérez",
+  scopeKind: "user",
   level: "warning",
   audience: "all",
   openedAt: "2026-01-05T12:00:00.000Z",
@@ -45,6 +46,7 @@ const lockoutAlert: AlertSummary = {
   kind: "backoffice_sign_in_lockout",
   scope: "203.0.113.5",
   scopeDisplay: "203.0.113.5",
+  scopeKind: "sourceAddress",
   level: "critical",
   audience: "all",
   openedAt: "2026-01-05T10:00:00.000Z",
@@ -58,6 +60,7 @@ const closedAlert: AlertSummary = {
   kind: "backoffice_passkey_changed",
   scope: "user-3",
   scopeDisplay: "Marta Ruiz",
+  scopeKind: "user",
   level: "warning",
   audience: "all",
   openedAt: "2026-01-04T12:00:00.000Z",
@@ -362,6 +365,7 @@ const passkeyDetail: AlertDetail = {
   kind: "backoffice_passkey_changed",
   scope: "user-1",
   scopeDisplay: "Lucía Pérez",
+  scopeKind: "user",
   level: "warning",
   audience: "all",
   detail: {
@@ -764,7 +768,14 @@ test("names an alert for an event applied with an inconsistency by its kind and 
 test("names an alert for an expiring ARCA certificate by its kind and what happened", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(
-    ok([{ ...passkeyAlert, kind: "arca_certificate_expiring", scopeDisplay: "production" }]),
+    ok([
+      {
+        ...passkeyAlert,
+        kind: "arca_certificate_expiring",
+        scopeDisplay: "production",
+        scopeKind: "environment",
+      },
+    ]),
   );
 
   const screen = await renderScreen(services);

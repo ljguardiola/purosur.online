@@ -10,6 +10,7 @@ const ALERT_KIND_LABELS = {
   events_quarantined: "Cuarentena de eventos",
   event_invariant_violated: "Inconsistencia en un evento",
   arca_certificate_expiring: "Certificado de ARCA por vencer",
+  arca_wsaa_ticket_held: "ARCA conserva un ticket de acceso anterior",
   update_required: "Versión de caja no aceptada",
   register_silent: "Caja sin sincronizar",
   sales_denied: "Caja sin poder vender",

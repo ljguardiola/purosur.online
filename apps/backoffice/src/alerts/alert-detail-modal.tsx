@@ -11,6 +11,7 @@ import {
   formatCalendarDay,
   formatCalendarDayRange,
   formatDate,
+  formatNumber,
   InlineNotice,
   isLocalAlertKind,
   LoadFailure,
@@ -218,11 +219,21 @@ function registerEnrollmentDescription(
   return `La caja «${registerName}» se dio de alta en el equipo «${hostname}» (${windowsVersion}).${replaced} Si no se reconoce esta alta, conviene revisarla desde Cajas registradoras.`;
 }
 
-function arcaCertificateExpiringDescription(notAfter: string, environment: string): string {
-  const label = alertScopeLabel("arca_certificate_expiring", environment).toLocaleLowerCase(
-    "es-AR",
-  );
+function arcaCertificateExpiringDescription(
+  notAfter: string,
+  scopeKind: string,
+  environment: string,
+): string {
+  const label = alertScopeLabel(scopeKind, environment).toLocaleLowerCase("es-AR");
   return `El certificado de ARCA de ${label} vence el ${alertDateTime(new Date(notAfter))}. Conviene cargar uno nuevo antes de esa fecha.`;
+}
+
+function arcaWsaaTicketHeldDescription(retryIntervalMinutes: number): string {
+  const interval = plural(retryIntervalMinutes, {
+    one: "cada minuto",
+    other: `cada ${formatNumber(retryIntervalMinutes)} minutos`,
+  });
+  return `La nube no tiene ticket de acceso a ARCA y ARCA no emite uno nuevo mientras siga vigente el anterior, que puede durar hasta 12 horas. La nube lo vuelve a pedir ${interval} y retoma la autorización en línea en cuanto lo obtiene. No hay que reemplazar el certificado ni cambiar la configuración. Mientras tanto la caja vende con el CAEA que ya tenga o en venta diferida.`;
 }
 
 function offlineAuthorizationCodeMissingDescription({
@@ -268,6 +279,8 @@ function alertTitle(alert: AlertDetail): string {
       return "Evento aplicado con una inconsistencia";
     case "arca_certificate_expiring":
       return "El certificado de ARCA está por vencer";
+    case "arca_wsaa_ticket_held":
+      return "ARCA conserva un ticket de acceso anterior";
     case "update_required":
       return "La nube no acepta la versión de una caja";
     case "register_silent":
@@ -327,7 +340,9 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "register_enrolled":
       return registerEnrollmentDescription(alert.detail, targetName);
     case "arca_certificate_expiring":
-      return arcaCertificateExpiringDescription(alert.detail.notAfter, targetName);
+      return arcaCertificateExpiringDescription(alert.detail.notAfter, alert.scopeKind, targetName);
+    case "arca_wsaa_ticket_held":
+      return arcaWsaaTicketHeldDescription(alert.detail.retryIntervalMinutes);
     case "update_required":
       return `La caja «${targetName}» usa la versión ${alert.detail.appVersion}, que la nube ya no acepta. Hay que actualizarla para que vuelva a sincronizar.`;
     case "offline_authorization_code_missing":
@@ -560,7 +575,7 @@ function OpenAlertDetailModal({
               {alert.scopeDisplay !== null && (
                 <div className="flex justify-between gap-2">
                   <span className="text-text-subtle">Alcance</span>
-                  <span>{alertScopeLabel(alert.kind, alert.scopeDisplay)}</span>
+                  <span>{alertScopeLabel(alert.scopeKind, alert.scopeDisplay)}</span>
                 </div>
               )}
             </div>

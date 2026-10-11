@@ -10,6 +10,8 @@ const ALERT_KIND_DESCRIPTIONS = {
   events_quarantined: "Evento de una caja en cuarentena",
   event_invariant_violated: "Evento aplicado con una inconsistencia",
   arca_certificate_expiring: "El certificado de ARCA está por vencer",
+  arca_wsaa_ticket_held:
+    "La emisión fiscal en línea espera a que venza el ticket de acceso que ARCA todavía tiene vigente.",
   update_required: "La nube ya no acepta la versión de esta caja",
   register_silent: "Una caja dejó de sincronizar",
   sales_denied: "Una caja dejó de abrir ventas nuevas",

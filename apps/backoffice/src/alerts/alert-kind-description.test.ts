@@ -8,6 +8,12 @@ test("describes a kind of the catalog by what happened", () => {
   );
 });
 
+test("describes the wait for the authentication ticket ARCA still holds", () => {
+  expect(alertKindDescription("arca_wsaa_ticket_held")).toBe(
+    "La emisión fiscal en línea espera a que venza el ticket de acceso que ARCA todavía tiene vigente.",
+  );
+});
+
 test("describes a register that stopped syncing", () => {
   expect(alertKindDescription("register_silent")).toBe("Una caja dejó de sincronizar");
 });

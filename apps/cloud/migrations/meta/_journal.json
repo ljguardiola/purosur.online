@@ -547,6 +547,13 @@
       "when": 1791656367097,
       "tag": "0077_replaced_payment_transactions",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1791680401040,
+      "tag": "0078_wsaa_ticket_refusals",
+      "breakpoints": true
     }
   ]
 }

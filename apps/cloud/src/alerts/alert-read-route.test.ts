@@ -390,7 +390,7 @@ describe("GET /alerts/:id for a register that lacks a fortnight's offline author
     return insertSession(await insertUserWithRole("Grace", viewerRoleId));
   }
 
-  it("names the register and says the fortnight has not started when the cloud's day is before its first day", async () => {
+  it("names the register, with the kind of scope, and says the fortnight has not started when the cloud's day is before its first day", async () => {
     const rawSessionId = await viewerSession();
     const alertId = await insertMissingCodeAlert({ start: "2026-01-16", end: "2026-01-31" });
 
@@ -399,6 +399,7 @@ describe("GET /alerts/:id for a register that lacks a fortnight's offline author
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       scopeDisplay: "Caja 1",
+      scopeKind: "registerFortnight",
       detail: {
         deviceId: "device-1",
         fortnightStart: "2026-01-16",
