@@ -554,6 +554,13 @@
       "when": 1791680401040,
       "tag": "0078_wsaa_ticket_refusals",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1791715206512,
+      "tag": "0081_lot_allocations",
+      "breakpoints": true
     }
   ]
 }

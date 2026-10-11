@@ -10,10 +10,11 @@ const LINE = {
   quantityPerPackage: 12_000,
   lotNumber: "L-2026-17",
   expiresOn: "2027-01-31",
+  purchasedOn: "2026-03-09",
 };
 
 describe("lotOfPurchaseLine", () => {
-  it("copies the line's exact cost pair, lot number and expiry, and the quantity received", () => {
+  it("copies the line's exact cost pair, lot number, expiry and purchase date, and the quantity received", () => {
     expect(lotOfPurchaseLine(LINE)).toEqual({
       productId: "yerba",
       locationId: "branch-1",
@@ -23,6 +24,7 @@ describe("lotOfPurchaseLine", () => {
       costQuantity: 12_000,
       lotNumber: "L-2026-17",
       expiresOn: "2027-01-31",
+      purchasedOn: "2026-03-09",
     });
   });
 

@@ -1,9 +1,10 @@
 import { manualStockMovementReasons } from "@purosur/domain";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { stockBalances, stockMovements } from "../platform/db/schema.js";
+import { lotAllocations, lots, stockBalances, stockMovements } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerStockMovementsRoutes } from "./stock-movements-route.js";
+import { insertPurchasedLot } from "./test-support/lot-fixtures.js";
 import {
   BACKOFFICE_ORIGIN,
   insertBalance,
@@ -111,6 +112,31 @@ describe("POST /inventory-losses", () => {
       occurredAt: NOW,
       actorId: userId,
     });
+  });
+
+  it("takes the loss out of the product's lot, leaving an allocation against it", async () => {
+    const { headers, locationId, userId } = await signedInWith(db, ["record_stock_losses"], NOW);
+    const { productId } = await insertProduct(db);
+    await insertBalance(db, { productId, locationId, quantity: 24_000 });
+    const lotId = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      remaining: 24_000,
+    });
+
+    await post("/inventory-losses", headers, {
+      productId,
+      reason: "broken_or_spilled",
+      quantity: 1000,
+    });
+
+    const [movement] = await db.select({ id: stockMovements.id }).from(stockMovements);
+    expect(await db.select().from(lotAllocations)).toEqual([
+      { movementId: movement?.id, lotId, quantity: -1000 },
+    ]);
+    const [lot] = await db.select({ remaining: lots.remaining }).from(lots);
+    expect(lot).toEqual({ remaining: 23_000 });
   });
 
   it("answers 404 for an unknown product", async () => {
