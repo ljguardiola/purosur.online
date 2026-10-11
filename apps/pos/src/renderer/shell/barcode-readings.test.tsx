@@ -1,13 +1,12 @@
 import { Modal } from "@purosur/ui";
 import { CircleX } from "lucide-react";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
-import { page } from "vitest/browser";
+import { describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { BarcodeReadings, useBarcodeReadings } from "./barcode-readings";
 
 const NOTICE_TITLE = "No se agregó el producto escaneado";
 const NOTICE_DESCRIPTION =
-  "Escaneá el código de nuevo cuando estés en la venta, sin ventanas abiertas.";
+  "Escaneá de nuevo en una venta que se pueda cambiar, sin ventanas abiertas.";
 
 function fakeCore() {
   const listeners = new Set<(code: string) => void>();
@@ -132,40 +131,54 @@ describe("BarcodeReadings", () => {
     expect(document.body.textContent?.split(NOTICE_TITLE)).toHaveLength(2);
   });
 
-  it("shows the warning, readable by assistive technology, while a modal is open", async () => {
-    await page.viewport(1280, 900);
-    onTestFinished(() => page.viewport(414, 896));
-    const core = fakeCore();
-    const screen = await render(
-      <BarcodeReadings onBarcodeRead={core.onBarcodeRead}>
-        <Modal
-          open
-          onOpenChange={() => {}}
-          width="confirmation"
-          tone="error"
-          icon={<CircleX />}
-          context="Venta en curso"
-          title="Una ventana"
-          closable
-          footer={null}
-        >
-          <p>Contenido</p>
-        </Modal>
-      </BarcodeReadings>,
-    );
+  describe("while a modal window is open", () => {
+    function WithWindow({ open, take }: { open: boolean; take: (code: string) => void }) {
+      return (
+        <>
+          <Taker take={take} />
+          <Modal
+            open={open}
+            onOpenChange={() => {}}
+            width="confirmation"
+            tone="error"
+            icon={<CircleX />}
+            context="Venta en curso"
+            title="Una ventana"
+            closable
+            footer={null}
+          >
+            <p>Contenido</p>
+          </Modal>
+        </>
+      );
+    }
 
-    core.read("7790001234567");
+    it("warns that the product was not added instead of handing the reading to the taker", async () => {
+      const take = vi.fn();
+      const { core, screen } = await renderReadings(<WithWindow open take={take} />);
+      await expect.element(screen.getByRole("dialog", { name: "Una ventana" })).toBeVisible();
 
-    await expect.element(screen.getByRole("dialog", { name: "Una ventana" })).toBeVisible();
-    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
-    await expect
-      .poll(() =>
-        Array.from(document.body.children).some(
-          (child) => child.hasAttribute("inert") && !child.hasAttribute("hidden"),
-        ),
-      )
-      .toBe(true);
-    expect(screen.getByRole("status").elements()).toHaveLength(1);
+      core.read("7790001234567");
+
+      await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+      expect(take).not.toHaveBeenCalled();
+    });
+
+    it("hands readings to the taker again once the window is closed", async () => {
+      const take = vi.fn();
+      const { core, screen } = await renderReadings(<WithWindow open take={take} />);
+      await expect.element(screen.getByRole("dialog", { name: "Una ventana" })).toBeVisible();
+
+      await screen.rerender(
+        <BarcodeReadings onBarcodeRead={core.onBarcodeRead}>
+          <WithWindow open={false} take={take} />
+        </BarcodeReadings>,
+      );
+      await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+      core.read("7790001234567");
+
+      expect(take).toHaveBeenCalledExactlyOnceWith("7790001234567");
+    });
   });
 
   it("stops listening to the core once it is gone", async () => {
