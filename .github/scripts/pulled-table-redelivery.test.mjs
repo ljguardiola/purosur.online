@@ -70,7 +70,7 @@ test("accepts a column added to a table the same migration declares", () => {
   assert.deepEqual(after(sql), []);
 });
 
-test("accepts a column added to a table only another table was declared for", () => {
+test("flags a column added to a table when only another pulled table is declared", () => {
   const sql = [
     "ALTER TABLE products ADD COLUMN barcode TEXT;",
     "INSERT INTO pulled_table_redeliveries (table_name) VALUES ('tags');",
