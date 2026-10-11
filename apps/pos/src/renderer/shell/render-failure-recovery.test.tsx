@@ -56,6 +56,7 @@ function buildFailingRouter(shouldThrow: () => boolean) {
         conditions: [],
         cloud: "reachable",
         serial_devices: { scale: "matching", reader: "matching" },
+        serial_devices_setup_offered: false,
       }),
       recordCashMovement: async () => ({ kind: "unavailable" }),
       signIn: async () => ({ kind: "unavailable" }),

@@ -3,6 +3,7 @@ import {
   type DetectedSerialDevice,
   isSameSerialDeviceIdentity,
   isSerialDeviceMissing,
+  offersSerialDevicesSetup,
   SERIAL_DEVICE_ROLES,
   type SerialDeviceIdentity,
   type SerialDeviceStanding,
@@ -161,4 +162,30 @@ describe("isSerialDeviceMissing", () => {
   it("is true when the reader is mismatched", () => {
     expect(isSerialDeviceMissing(standings(MATCHING, { kind: "mismatched" }))).toBe(true);
   });
+});
+
+describe("offersSerialDevicesSetup", () => {
+  const kinds = ["matching", "not_detected", "mismatched", "not_registered", "unknown"] as const;
+  const cases = [true, false].flatMap((mayConfigure) =>
+    kinds.flatMap((scale) =>
+      kinds.map((reader) => ({
+        mayConfigure,
+        scale,
+        reader,
+        offered: mayConfigure && scale === "not_registered" && reader === "not_registered",
+      })),
+    ),
+  );
+
+  it.each(cases)(
+    "is $offered when mayConfigure is $mayConfigure, the scale is $scale and the reader is $reader",
+    ({ mayConfigure, scale, reader, offered }) => {
+      expect(
+        offersSerialDevicesSetup({
+          mayConfigure,
+          standings: { scale: { kind: scale }, reader: { kind: reader } },
+        }),
+      ).toBe(offered);
+    },
+  );
 });

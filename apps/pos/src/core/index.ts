@@ -420,6 +420,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             database: localDatabase,
             cloud: () => cloudReachability,
             now,
+            signedInPerson,
             serialDevices: serialDeviceWatch.reading,
           }),
   registerService: register.service,

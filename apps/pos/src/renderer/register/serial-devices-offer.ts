@@ -6,27 +6,11 @@ export function mayConfigureSerialDevices(person: SignedInPerson): boolean {
   return person.abilities.includes("configure_serial_devices");
 }
 
-export function landsOnSerialDevices({
-  person,
-  status,
-}: {
-  person: SignedInPerson;
-  status: RegisterStatus | undefined;
-}): boolean {
-  return (
-    mayConfigureSerialDevices(person) &&
-    status?.serial_devices.scale === "not_registered" &&
-    status.serial_devices.reader === "not_registered"
-  );
-}
-
 export async function landsOnSerialDevicesAfterSignIn({
-  person,
   offerPending,
   settleOffer,
   readStatus,
 }: {
-  person: SignedInPerson;
   offerPending: boolean;
   settleOffer: () => void;
   readStatus: () => Promise<RegisterStatus>;
@@ -34,11 +18,9 @@ export async function landsOnSerialDevicesAfterSignIn({
   if (!offerPending) {
     return false;
   }
-  const status = mayConfigureSerialDevices(person)
-    ? await readStatus().catch(() => undefined)
-    : undefined;
+  const status = await readStatus().catch(() => undefined);
   settleOffer();
-  return landsOnSerialDevices({ person, status });
+  return status?.serial_devices_setup_offered === true;
 }
 
 export function serialDevicesOffer() {
@@ -47,9 +29,8 @@ export function serialDevicesOffer() {
     offerSerialDevicesAfterSignIn: (cashSession: OpenCashSession | null) => {
       offerPending = cashSession === null;
     },
-    takeSerialDevicesOffer: (person: SignedInPerson, readStatus: () => Promise<RegisterStatus>) =>
+    takeSerialDevicesOffer: (readStatus: () => Promise<RegisterStatus>) =>
       landsOnSerialDevicesAfterSignIn({
-        person,
         offerPending,
         settleOffer: () => {
           offerPending = false;
