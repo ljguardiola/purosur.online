@@ -18,7 +18,7 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
-function keepCode(connection: postgres.Sql) {
+function keepCode(connection: postgres.Sql | postgres.TransactionSql) {
   return connection<{ id: string }[]>`
     insert into caea_codes
       (fortnight_start, fortnight_end, code, report_deadline, obtained_at, obtained_through)
