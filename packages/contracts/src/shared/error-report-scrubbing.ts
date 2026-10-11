@@ -5,7 +5,7 @@ const SENSITIVE_KEY_PATTERN =
   /token|key|secret|password|authorization|cookie|credential|query|fragment/i;
 // Matched only at the start of a word, since these are short enough to appear inside an unrelated
 // word (`circuit`, `midnight`).
-const SENSITIVE_KEY_WORD_PATTERN = /(?:^|_)(?:session|cuit|dni|documento)/;
+const SENSITIVE_KEY_WORD_PATTERN = /(?:^|_)(?:session|cuit|dni|documento|params)/;
 // Dropped entirely rather than redacted field-by-field: a request/response body can carry an
 // arbitrary business payload, which no key-based scrub can enumerate safely.
 const DROPPED_SECTIONS = new Set(["request", "response"]);
@@ -117,8 +117,28 @@ function redactUrl(url: string): string {
   return `${path}?${REDACTED}${framePosition(path, url)}`;
 }
 
+// Drizzle writes a failed query as its statement followed by a line listing the values it was
+// given, which can carry anything a request sent. The statement only holds placeholders.
+const FAILED_QUERY = "Failed query: ";
+const QUERY_PARAMETERS = "\nparams: ";
+
+export function withoutQueryParameters(text: string): string {
+  const queryStart = text.indexOf(FAILED_QUERY);
+  const parametersStart = queryStart === -1 ? -1 : text.indexOf(QUERY_PARAMETERS, queryStart);
+  return parametersStart === -1 ? text : text.slice(0, parametersStart);
+}
+
+// The error that made a query fail comes from Postgres, which echoes the value it refused between
+// double quotes without escaping a quote inside it, so everything from the first quote to the last
+// one is hidden.
+const ECHOED_VALUES_PATTERN = /"[\s\S]*"/;
+
+function withoutEchoedValues(text: string): string {
+  return text.replace(ECHOED_VALUES_PATTERN, `"${REDACTED}"`);
+}
+
 function redactString(value: string): string {
-  return value
+  return withoutQueryParameters(value)
     .replace(URL_PATTERN, redactUrl)
     .replace(/\S+/g, redactPathToken)
     .replace(BEARER_TOKEN_PATTERN, REDACTED)
@@ -137,14 +157,27 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function readableError(error: Error): Record<string, unknown> {
-  return {
-    ...error,
-    name: error.name,
-    message: error.message,
-    stack: error.stack,
-    ...(error.cause instanceof Error && { cause: error.cause }),
-  };
+function redactError(
+  error: Error,
+  enclosing: ReadonlySet<object>,
+  echoesQueryValues: boolean,
+): Record<string, unknown> {
+  const readable = { name: error.name, message: error.message, stack: error.stack };
+  // A driver error also carries what it refused in fields such as postgres.js's `detail`
+  // ("Key (legal_name)=(...) already exists"), unquoted, so only its code is kept beside the text.
+  const fields = redactRecord(
+    echoesQueryValues
+      ? { ...readable, ...("code" in error && { code: error.code }) }
+      : { ...error, ...readable },
+    NO_DIAGNOSTICS,
+    enclosing,
+    echoesQueryValues,
+  );
+  if (!(error.cause instanceof Error)) {
+    return fields;
+  }
+  const causeEchoesQueryValues = echoesQueryValues || error.message.includes(FAILED_QUERY);
+  return { ...fields, cause: redactValue(error.cause, enclosing, causeEchoesQueryValues) };
 }
 
 function readableDate(date: Date): string {
@@ -155,28 +188,32 @@ function withEnclosing(enclosing: ReadonlySet<object>, value: object): ReadonlyS
   return new Set(enclosing).add(value);
 }
 
-function redactValue(value: unknown, enclosing: ReadonlySet<object>): unknown {
+function redactValue(
+  value: unknown,
+  enclosing: ReadonlySet<object>,
+  echoesQueryValues = false,
+): unknown {
   if (typeof value === "object" && value !== null && enclosing.has(value)) {
     return CIRCULAR;
   }
   if (value instanceof Error) {
-    return redactRecord(readableError(value), NO_DIAGNOSTICS, withEnclosing(enclosing, value));
+    return redactError(value, withEnclosing(enclosing, value), echoesQueryValues);
   }
   if (value instanceof Date) {
     return readableDate(value);
   }
   if (typeof value === "string") {
-    return redactString(value);
+    return redactString(echoesQueryValues ? withoutEchoedValues(value) : value);
   }
   if (typeof value === "number" && isIdentifierNumber(value)) {
     return REDACTED;
   }
   if (Array.isArray(value)) {
     const itemEnclosing = withEnclosing(enclosing, value);
-    return value.map((item) => redactValue(item, itemEnclosing));
+    return value.map((item) => redactValue(item, itemEnclosing, echoesQueryValues));
   }
   if (isPlainObject(value)) {
-    return redactRecord(value, NO_DIAGNOSTICS, enclosing);
+    return redactRecord(value, NO_DIAGNOSTICS, enclosing, echoesQueryValues);
   }
   return value;
 }
@@ -185,6 +222,7 @@ function redactRecord(
   record: Record<string, unknown>,
   numericDiagnostics: ReadonlySet<string> = NO_DIAGNOSTICS,
   enclosing: ReadonlySet<object> = NO_ENCLOSING,
+  echoesQueryValues = false,
 ): Record<string, unknown> {
   const fieldEnclosing = withEnclosing(enclosing, record);
   const result: Record<string, unknown> = {};
@@ -194,7 +232,7 @@ function redactRecord(
     } else if (typeof value === "number" && numericDiagnostics.has(key)) {
       result[key] = value;
     } else {
-      result[key] = redactValue(value, fieldEnclosing);
+      result[key] = redactValue(value, fieldEnclosing, echoesQueryValues);
     }
   }
   return result;
@@ -217,6 +255,37 @@ function redactSections(sections: Record<string, unknown>): Record<string, unkno
 
 interface ExceptionValueLike {
   value?: string;
+  mechanism?: { exception_id?: number; parent_id?: number };
+}
+
+function causesFailedQuery(
+  exceptionValue: ExceptionValueLike,
+  byId: ReadonlyMap<number | undefined, ExceptionValueLike>,
+): boolean {
+  const visited = new Set<ExceptionValueLike>();
+  let parent = byId.get(exceptionValue.mechanism?.parent_id);
+  while (parent !== undefined && !visited.has(parent)) {
+    if (parent.value?.includes(FAILED_QUERY)) {
+      return true;
+    }
+    visited.add(parent);
+    parent = byId.get(parent.mechanism?.parent_id);
+  }
+  return false;
+}
+
+function scrubExceptionValues(values: ExceptionValueLike[]): ExceptionValueLike[] {
+  const byId = new Map(values.map((value) => [value.mechanism?.exception_id, value]));
+  byId.delete(undefined);
+  return values.map((exceptionValue) => {
+    if (exceptionValue.value === undefined) {
+      return exceptionValue;
+    }
+    const text = causesFailedQuery(exceptionValue, byId)
+      ? withoutEchoedValues(exceptionValue.value)
+      : exceptionValue.value;
+    return { ...exceptionValue, value: redactString(text) };
+  });
 }
 
 interface BreadcrumbLike {
@@ -249,11 +318,7 @@ export function scrubErrorReport<E extends EventLike>(event: E): E {
     exception: rest.exception?.values
       ? {
           ...rest.exception,
-          values: rest.exception.values.map((exceptionValue) =>
-            exceptionValue.value === undefined
-              ? exceptionValue
-              : { ...exceptionValue, value: redactString(exceptionValue.value) },
-          ),
+          values: scrubExceptionValues(rest.exception.values),
         }
       : rest.exception,
     extra: rest.extra ? redactRecord(rest.extra) : rest.extra,

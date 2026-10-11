@@ -313,6 +313,7 @@ export type {
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
+  WeighProductOutcome,
 } from "./sales/sale.js";
 export type {
   ReceiptCopyShown,
@@ -376,6 +377,7 @@ export {
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
+  withoutQueryParameters,
 } from "./shared/index.js";
 export type {
   StockBalance,

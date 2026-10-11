@@ -719,6 +719,24 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to weigh a product on the scale and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const weighed = client.weighProduct("p2");
+    port.answer({
+      type: "weigh-product-result",
+      request_id: "request-1",
+      outcome: { kind: "weighing" },
+    });
+
+    expect(await weighed).toEqual({ kind: "weighing" });
+    expect(port.posted).toEqual([
+      { type: "weigh-product", request_id: "request-1", product_id: "p2" },
+    ]);
+  });
+
   it("asks the core to remove a line and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

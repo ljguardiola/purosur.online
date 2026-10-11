@@ -6,6 +6,7 @@ const passkeyChange = {
   kind: "backoffice_passkey_changed",
   scope: "user-1",
   scopeDisplay: "Marcela",
+  scopeKind: "user",
   level: "warning",
   audience: "all",
   openedAt: "2026-05-04T13:10:00.000Z",
@@ -19,6 +20,7 @@ const closedLockout = {
   kind: "backoffice_sign_in_lockout",
   scope: null,
   scopeDisplay: null,
+  scopeKind: "sourceAddress",
   level: "critical",
   audience: "local",
   escalatedAt: "2026-05-04T14:10:00.000Z",
@@ -60,6 +62,12 @@ describe("alertSummarySchema", () => {
     });
   });
 
+  it("accepts an alert whose kind has no kind of scope the cloud knows", () => {
+    const unscoped = { ...passkeyChange, kind: "kind_a", scopeKind: null };
+
+    expect(alertSummarySchema.safeParse(unscoped).data).toEqual(unscoped);
+  });
+
   it.each(["informational", "warning", "critical"])("accepts the level %s", (level) => {
     expect(alertSummarySchema.safeParse({ ...passkeyChange, level }).success).toBe(true);
   });
@@ -87,6 +95,8 @@ describe("alertSummarySchema", () => {
     ["scope", undefined],
     ["scopeDisplay", 1],
     ["scopeDisplay", undefined],
+    ["scopeKind", 1],
+    ["scopeKind", undefined],
     ["openedAt", 1],
     ["openedAt", null],
     ["escalatedAt", 1],

@@ -415,7 +415,10 @@ describe("the Mercado Pago QR routes", () => {
         state: "CANCELLED",
         needs_review: false,
       });
-      expect(route.mercadoPago.cancellations).toEqual([{ orderId: ORDER_ID, idempotencyKey: id }]);
+      const [cancellation] = route.mercadoPago.cancellations;
+      expect(cancellation?.orderId).toBe(ORDER_ID);
+      expect(cancellation?.idempotencyKey).toHaveLength(36);
+      expect(cancellation?.idempotencyKey).not.toBe(id);
       expect(await transactions()).toMatchObject([{ state: "CANCELLED" }]);
     });
 
@@ -431,19 +434,6 @@ describe("the Mercado Pago QR routes", () => {
         state: "APPROVED",
       });
       expect(route.mercadoPago.cancellations).toEqual([]);
-    });
-
-    it("answers the closed payment as it is when the order was already cancelled", async () => {
-      const { deviceToken } = await enroll();
-      const id = await pendingPayment(deviceToken);
-      route.mercadoPago.cancellation = { kind: "already_cancelled" };
-
-      const response = await cancelPayment(id, `Bearer ${deviceToken}`);
-
-      expect(response.statusCode).toBe(200);
-      expect(mercadoPagoQrPaymentSchema.parse(response.json())).toMatchObject({
-        state: "CANCELLED",
-      });
     });
 
     it("answers that the provider is unavailable, leaving the payment pending to ask again", async () => {

@@ -211,6 +211,7 @@ export {
   TAX_AUTHORITY_QR_URL,
   thresholdInEffectOn,
   thresholdScheduledAfter,
+  WSAA_ALREADY_AUTHENTICATED_RETRY_MS,
 } from "./fiscal/index.js";
 export type {
   MercadoPagoQrOrderTransaction,

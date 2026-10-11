@@ -105,6 +105,14 @@ const ALERT_KIND_POLICIES = {
     deduplicates: true,
     resolvesAfterStableClear: false,
   },
+  arca_wsaa_ticket_held: {
+    level: "warning",
+    escalation: null,
+    audience: "all",
+    scopeKind: "environment",
+    deduplicates: true,
+    resolvesAfterStableClear: false,
+  },
   update_required: {
     level: "critical",
     escalation: null,

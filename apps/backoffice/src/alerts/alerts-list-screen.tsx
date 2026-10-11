@@ -190,7 +190,7 @@ export function AlertsListScreen({
       id: "scope",
       header: "Alcance",
       render: (item: AlertSummary) =>
-        item.scopeDisplay === null ? "—" : alertScopeLabel(item.kind, item.scopeDisplay),
+        item.scopeDisplay === null ? "—" : alertScopeLabel(item.scopeKind, item.scopeDisplay),
     }),
     dataColumn({
       id: "openedAt",

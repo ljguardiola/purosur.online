@@ -28,6 +28,7 @@ import {
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
 import { DrizzlePaymentTransactionLanes } from "./drizzle-payment-transaction-lanes.js";
+import { randomMercadoPagoCancellationKeys } from "./mercado-pago-cancellation-keys.js";
 
 export type MercadoPagoQrRoutesOptions<TQueryResult extends PgQueryResultHKT> =
   DeviceTokensOptions<TQueryResult> & {
@@ -227,7 +228,7 @@ export function registerMercadoPagoQrRoutes<TQueryResult extends PgQueryResultHK
         }
 
         const outcome = await cancelMercadoPagoQrOrder(
-          { lanes, mercadoPago, clock },
+          { lanes, mercadoPago, cancellationKeys: randomMercadoPagoCancellationKeys, clock },
           { registerId, paymentTransactionId: ids.id },
         );
 

@@ -34,7 +34,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   readonly longestCallMs = 10_000;
   readonly creations: MercadoPagoQrOrderRequest[] = [];
   readonly readings: string[] = [];
-  readonly cancellations: { orderId: string; idempotencyKey: string | undefined }[] = [];
+  readonly cancellations: { orderId: string; idempotencyKey: string }[] = [];
   creation: MercadoPagoOrderCreation = { kind: "created", orderId: ORDER_ID, result: UNPAID_ORDER };
   reading: MercadoPagoOrderReading = { kind: "read", result: UNPAID_ORDER };
   cancellation: MercadoPagoOrderCancellation = { kind: "cancelled", result: CANCELLED_ORDER };
@@ -51,7 +51,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
 
   async cancelOrder(
     orderId: string,
-    idempotencyKey?: string,
+    idempotencyKey: string,
   ): Promise<MercadoPagoOrderCancellation> {
     this.cancellations.push({ orderId, idempotencyKey });
     return this.cancellation;

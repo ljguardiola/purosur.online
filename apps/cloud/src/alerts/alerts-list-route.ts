@@ -1,5 +1,5 @@
 import { type AlertSummary, alertListPageSchema } from "@purosur/contracts";
-import { alertNamedRecordIds, isAlertKind, isAlertLevel } from "@purosur/domain";
+import { alertKindPolicy, alertNamedRecordIds, isAlertKind, isAlertLevel } from "@purosur/domain";
 import type {
   AlertSearch,
   AlertSummary as AlertSummaryRow,
@@ -33,6 +33,7 @@ function toAlertSummary(
     kind: row.kind,
     scope: wireScope(row),
     scopeDisplay: scopeDisplay(row, namesById),
+    scopeKind: isAlertKind(row.kind) ? alertKindPolicy(row.kind).scopeKind : null,
     level: row.level,
     audience: row.audience,
     openedAt: row.openedAt.toISOString(),

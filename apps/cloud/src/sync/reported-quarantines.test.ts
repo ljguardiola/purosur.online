@@ -54,4 +54,18 @@ describe("reportedQuarantines", () => {
     expect(reported).not.toContain(FICTIONAL_CUIT);
     expect(reported).not.toContain(FICTIONAL_LEGAL_NAME);
   });
+
+  it("reports an error that only has a line starting with params, from no failed query, unchanged", () => {
+    const report = vi.fn();
+
+    reportedQuarantines(report).quarantined(
+      quarantinedEvent({ error: "the event's payload was refused\nparams: missing aggregate id" }),
+    );
+
+    expect(report).toHaveBeenCalledExactlyOnceWith(
+      "sync: a synced event was quarantined",
+      new Error("the event's payload was refused\nparams: missing aggregate id"),
+      expect.anything(),
+    );
+  });
 });

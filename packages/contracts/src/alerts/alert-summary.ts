@@ -9,6 +9,7 @@ export const alertSummarySchema = z.object({
   kind: z.string(),
   scope: z.string().nullable(),
   scopeDisplay: z.string().nullable(),
+  scopeKind: z.string().nullable(),
   level: alertLevelSchema,
   audience: alertAudienceSchema,
   openedAt: z.string(),

@@ -57,6 +57,7 @@ import type {
   SignInUser,
   StartMercadoPagoQrChargeOutcome,
   SyncCoreToRendererMessage,
+  WeighProductOutcome,
 } from "@purosur/contracts";
 import {
   credentialsCoreToRendererMessageSchema,
@@ -143,6 +144,7 @@ export interface CoreClient {
     productId: string,
     weightThousandths: number,
   ): Promise<AddWeighedProductOutcome>;
+  weighProduct(productId: string): Promise<WeighProductOutcome>;
   currentSale(): Promise<CurrentSaleAnswer>;
   changeLineQuantity(
     lineId: string,
@@ -588,6 +590,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           weight_thousandths: weightThousandths,
         },
         (answer) => (answer.type === "add-weighed-product-result" ? answer.outcome : undefined),
+      );
+    },
+    weighProduct(productId) {
+      return ask(
+        { type: "weigh-product", request_id: deps.newRequestId(), product_id: productId },
+        (answer) => (answer.type === "weigh-product-result" ? answer.outcome : undefined),
       );
     },
     currentSale() {

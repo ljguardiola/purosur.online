@@ -103,4 +103,4 @@ export {
   REJECTION_CLASSES,
   SERIES_WAITING_STATES,
 } from "./model/real-time-authorization.js";
-export { isWsaaTokenValid } from "./model/wsaa-token.js";
+export { isWsaaTokenValid, WSAA_ALREADY_AUTHENTICATED_RETRY_MS } from "./model/wsaa-token.js";

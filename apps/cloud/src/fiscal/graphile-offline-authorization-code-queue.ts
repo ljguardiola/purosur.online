@@ -1,5 +1,8 @@
 import { type SQL, sql } from "drizzle-orm";
-import { OFFLINE_AUTHORIZATION_CODE_REQUEST_TASK_IDENTIFIER } from "./offline-authorization-code-task.js";
+import {
+  OFFLINE_AUTHORIZATION_CODE_REQUEST_TASK_IDENTIFIER,
+  OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER,
+} from "./offline-authorization-code-task.js";
 
 interface SqlExecutor {
   execute(query: SQL): PromiseLike<unknown>;
@@ -36,3 +39,15 @@ export const enqueueOfflineAuthorizationCodeRequest: EnqueueOfflineAuthorization
       )`,
     );
   };
+
+export async function enqueueOfflineAuthorizationCodeAcquisition(
+  transaction: SqlExecutor,
+): Promise<void> {
+  await transaction.execute(
+    sql`select graphile_worker.add_job(
+      ${OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER}::text,
+      '{}'::json,
+      job_key => ${OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER}::text
+    )`,
+  );
+}
