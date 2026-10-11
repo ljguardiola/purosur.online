@@ -4,6 +4,7 @@ import {
   stockBalanceListSchema,
   stockBalanceSchema,
   stockCountListSchema,
+  stockLotBreakdownSchema,
   stockMovementListSchema,
   stockMovementReasonListSchema,
   stockPeriodDaysSchema,
@@ -212,4 +213,57 @@ describe("stockPeriodSchema", () => {
       expect(stockPeriodSchema.parse(value)).toBe(String(DEFAULT_STOCK_PERIOD_DAYS));
     },
   );
+});
+
+const lotInBreakdown = {
+  id: "lot-1",
+  lotNumber: "L-77",
+  expiresOn: "2027-03-01",
+  purchasedOn: "2026-10-01",
+  technical: false,
+  remaining: 4_000,
+  valueCents: 20_000,
+  costIncomplete: false,
+};
+
+describe("stockLotBreakdownSchema", () => {
+  it("accepts the lots of a product, a technical one in debt without value included", () => {
+    const breakdown = {
+      lots: [
+        lotInBreakdown,
+        {
+          ...lotInBreakdown,
+          id: "lot-2",
+          lotNumber: null,
+          expiresOn: null,
+          purchasedOn: null,
+          technical: true,
+          remaining: -2_000,
+          valueCents: null,
+          costIncomplete: true,
+        },
+      ],
+    };
+
+    expect(stockLotBreakdownSchema.safeParse(breakdown).data).toEqual(breakdown);
+  });
+
+  it("accepts a product without lots", () => {
+    expect(stockLotBreakdownSchema.safeParse({ lots: [] }).data).toEqual({ lots: [] });
+  });
+
+  it.each([
+    ["remaining", 0.5],
+    ["valueCents", 1.5],
+    ["valueCents", undefined],
+    ["expiresOn", "2027-02-30"],
+    ["purchasedOn", "yesterday"],
+    ["technical", "no"],
+    ["costIncomplete", undefined],
+    ["id", null],
+  ])("refuses %s as %j", (field, value) => {
+    expect(
+      stockLotBreakdownSchema.safeParse({ lots: [{ ...lotInBreakdown, [field]: value }] }).success,
+    ).toBe(false);
+  });
 });

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleStockReader } from "./drizzle-stock-reader.js";
+import { insertPurchasedLot, insertTechnicalLot } from "./test-support/lot-fixtures.js";
 import {
   insertBalance,
   insertLocation,
@@ -439,5 +440,75 @@ describe("DrizzleStockReader.movements", () => {
     });
 
     expect(movements.map((row) => row.id)).toEqual([...ids].sort().reverse());
+  });
+});
+
+describe("DrizzleStockReader.lotsInStock", () => {
+  it("answers the lots still in stock of the product at the location with their cost", async () => {
+    const { actorId, locationId } = await seededActor();
+    const { productId } = await insertProduct(db);
+    const lotId = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId,
+      purchasedOn: "2026-10-01",
+      expiresOn: "2027-03-01",
+      lotNumber: "L-77",
+      remaining: 4_000,
+    });
+
+    expect(await new DrizzleStockReader(db).lotsInStock({ productId, locationId })).toEqual([
+      {
+        id: lotId,
+        lotNumber: "L-77",
+        expiresOn: "2027-03-01",
+        purchasedOn: "2026-10-01",
+        technical: false,
+        remaining: 4_000,
+        costIncomplete: false,
+        cost: { totalCents: 5_000, quantity: 1_000 },
+      },
+    ]);
+  });
+
+  it("answers a technical lot in debt with no cost", async () => {
+    const { locationId } = await seededActor();
+    const { productId } = await insertProduct(db);
+    const lotId = await insertTechnicalLot(db, { productId, locationId, remaining: -2_000 });
+
+    expect(await new DrizzleStockReader(db).lotsInStock({ productId, locationId })).toEqual([
+      {
+        id: lotId,
+        lotNumber: null,
+        expiresOn: null,
+        purchasedOn: null,
+        technical: true,
+        remaining: -2_000,
+        costIncomplete: true,
+        cost: null,
+      },
+    ]);
+  });
+
+  it("leaves out the lots with nothing remaining and those of other products or locations", async () => {
+    const { actorId, locationId } = await seededActor();
+    const otherLocationId = await insertLocation(db);
+    const { productId } = await insertProduct(db);
+    const { productId: otherProductId } = await insertProduct(db, { name: "Nueces" });
+    const inStock = await insertPurchasedLot(db, { productId, locationId, actorId });
+    await insertPurchasedLot(db, { productId, locationId, actorId, remaining: 0 });
+    await insertPurchasedLot(db, { productId, locationId: otherLocationId, actorId });
+    await insertPurchasedLot(db, { productId: otherProductId, locationId, actorId });
+
+    const found = await new DrizzleStockReader(db).lotsInStock({ productId, locationId });
+
+    expect(found.map((lot) => lot.id)).toEqual([inStock]);
+  });
+
+  it("answers nothing for a product without lots", async () => {
+    const { locationId } = await seededActor();
+    const { productId } = await insertProduct(db);
+
+    expect(await new DrizzleStockReader(db).lotsInStock({ productId, locationId })).toEqual([]);
   });
 });

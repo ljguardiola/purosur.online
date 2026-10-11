@@ -9,6 +9,7 @@ export async function insertPurchasedLot<TQueryResult extends PgQueryResultHKT>(
     actorId: string;
     purchasedOn?: string;
     expiresOn?: string | null;
+    lotNumber?: string | null;
     remaining?: number;
     createdAt?: Date;
   },
@@ -57,6 +58,7 @@ export async function insertPurchasedLot<TQueryResult extends PgQueryResultHKT>(
       purchaseLineId: line.id,
       purchasedOn,
       expiresOn: input.expiresOn ?? null,
+      lotNumber: input.lotNumber ?? null,
       costTotalCents: 5_000,
       costQuantity: 1_000,
       quantityReceived: 10_000,
@@ -66,6 +68,27 @@ export async function insertPurchasedLot<TQueryResult extends PgQueryResultHKT>(
     .returning({ id: lots.id });
   if (!lot) {
     throw new Error("test setup: seeding the lot returned no row");
+  }
+  return lot.id;
+}
+
+export async function insertTechnicalLot<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  input: { productId: string; locationId: string; remaining: number },
+): Promise<string> {
+  const [lot] = await db
+    .insert(lots)
+    .values({
+      productId: input.productId,
+      locationId: input.locationId,
+      technical: true,
+      costIncomplete: true,
+      quantityReceived: 0,
+      remaining: input.remaining,
+    })
+    .returning({ id: lots.id });
+  if (!lot) {
+    throw new Error("test setup: seeding the technical lot returned no row");
   }
   return lot.id;
 }
