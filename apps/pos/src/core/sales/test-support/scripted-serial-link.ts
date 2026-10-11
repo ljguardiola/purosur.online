@@ -1,4 +1,4 @@
-import type { SerialLink } from "../systel-scale.js";
+import type { SerialLink } from "../open-serial-link.js";
 
 export class ScriptedSerialLink implements SerialLink {
   readonly written: number[][] = [];
