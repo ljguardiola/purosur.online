@@ -1,4 +1,3 @@
-import { applyMercadoPagoOrderResult } from "../model/mercado-pago-order-result.js";
 import { MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES } from "../model/mercado-pago-qr-charge-wait.js";
 import {
   isValidOrderAmount,
@@ -11,7 +10,7 @@ import {
 } from "./mercado-pago-qr-order-ports.js";
 import { recordExpiryWithoutOrder } from "./record-expiry-without-order.js";
 import {
-  openLatePaymentRefundIfLate,
+  recordCreatedMercadoPagoOrder,
   recordMercadoPagoOrderResult,
 } from "./record-mercado-pago-order-result.js";
 
@@ -117,19 +116,15 @@ export async function createMercadoPagoQrOrder(
         transaction = { ...transaction, providerOrderId: createdOrderId };
 
         if (recorded === null) {
-          const outcome = applyMercadoPagoOrderResult(transaction, creation.result);
-          const readAt = clock.now();
-          const state = await lane.inOneTransaction(async (atomic) => {
-            const created = await atomic.recordOrderCreated(paymentTransactionId, createdOrderId, {
-              outcome,
-              readAt,
-            });
-            await openLatePaymentRefundIfLate(atomic, transaction, created, readAt);
-            return created;
-          });
           return {
             kind: "recorded",
-            transaction: { ...transaction, ...outcome, replaced: state.replaced },
+            transaction: await recordCreatedMercadoPagoOrder(
+              lane,
+              transaction,
+              createdOrderId,
+              creation.result,
+              clock.now(),
+            ),
           };
         }
         await lane.recordOrderCreated(paymentTransactionId, orderId, null);

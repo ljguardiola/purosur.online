@@ -34,3 +34,23 @@ export async function recordMercadoPagoOrderResult(
   });
   return { ...transaction, ...outcome, replaced: recorded.replaced };
 }
+
+export async function recordCreatedMercadoPagoOrder(
+  lane: PaymentTransactionLane,
+  transaction: MercadoPagoQrOrderTransaction,
+  providerOrderId: string,
+  result: MercadoPagoOrderResult,
+  readAt: Date,
+): Promise<MercadoPagoQrOrderTransaction> {
+  const withOrder = { ...transaction, providerOrderId };
+  const outcome = applyMercadoPagoOrderResult(withOrder, result);
+  const recorded = await lane.inOneTransaction(async (atomic) => {
+    const state = await atomic.recordOrderCreated(transaction.id, providerOrderId, {
+      outcome,
+      readAt,
+    });
+    await openLatePaymentRefundIfLate(atomic, withOrder, state, readAt);
+    return state;
+  });
+  return { ...withOrder, ...outcome, replaced: recorded.replaced };
+}

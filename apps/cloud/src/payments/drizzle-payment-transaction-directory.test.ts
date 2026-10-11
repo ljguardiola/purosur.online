@@ -80,3 +80,48 @@ describe("DrizzlePaymentTransactionDirectory.pendingPaymentTransactions", () => 
     );
   });
 });
+
+describe("DrizzlePaymentTransactionDirectory.anyPaymentTransactionMayHaveUnrecordedOrder", () => {
+  it("holds when a pending transaction without an order has an unknown creation outcome", async () => {
+    const registerId = await insertRegister(db, "Caja 1");
+    await db
+      .insert(paymentTransactions)
+      .values(pendingTransaction(registerId, { creationOutcomeUnknown: true }));
+
+    expect(await directory().anyPaymentTransactionMayHaveUnrecordedOrder()).toBe(true);
+  });
+
+  it("does not hold for a transaction with an order, a settled one or one whose creation outcome is known", async () => {
+    const registerId = await insertRegister(db, "Caja 1");
+    await db
+      .insert(paymentTransactions)
+      .values([
+        pendingTransaction(registerId, { creationOutcomeUnknown: true, providerOrderId: "ORD01" }),
+        pendingTransaction(registerId, { creationOutcomeUnknown: true, state: "EXPIRED" }),
+        pendingTransaction(registerId, { creationOutcomeUnknown: false }),
+      ]);
+
+    expect(await directory().anyPaymentTransactionMayHaveUnrecordedOrder()).toBe(false);
+  });
+});
+
+describe("DrizzlePaymentTransactionDirectory.paymentTransactionOfExternalReference", () => {
+  it("finds the payment transaction whose id is the external reference", async () => {
+    const registerId = await insertRegister(db, "Caja 1");
+    const transaction = pendingTransaction(registerId);
+    await db.insert(paymentTransactions).values([transaction, pendingTransaction(registerId)]);
+
+    expect(await directory().paymentTransactionOfExternalReference(transaction.id)).toEqual({
+      id: transaction.id,
+      registerId,
+    });
+  });
+
+  it("answers nothing for a reference that is no transaction's id, even one that is not an id at all", async () => {
+    const registerId = await insertRegister(db, "Caja 1");
+    await db.insert(paymentTransactions).values(pendingTransaction(registerId));
+
+    expect(await directory().paymentTransactionOfExternalReference(crypto.randomUUID())).toBeNull();
+    expect(await directory().paymentTransactionOfExternalReference("not-an-id")).toBeNull();
+  });
+});
