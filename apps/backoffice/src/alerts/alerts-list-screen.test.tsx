@@ -32,6 +32,7 @@ const passkeyAlert: AlertSummary = {
   kind: "backoffice_passkey_changed",
   scope: "user-1",
   scopeDisplay: "Lucía Pérez",
+  scopeKind: "user",
   level: "warning",
   audience: "all",
   openedAt: "2026-01-05T12:00:00.000Z",
@@ -45,6 +46,7 @@ const lockoutAlert: AlertSummary = {
   kind: "backoffice_sign_in_lockout",
   scope: "203.0.113.5",
   scopeDisplay: "203.0.113.5",
+  scopeKind: "sourceAddress",
   level: "critical",
   audience: "all",
   openedAt: "2026-01-05T10:00:00.000Z",
@@ -58,6 +60,7 @@ const closedAlert: AlertSummary = {
   kind: "backoffice_passkey_changed",
   scope: "user-3",
   scopeDisplay: "Marta Ruiz",
+  scopeKind: "user",
   level: "warning",
   audience: "all",
   openedAt: "2026-01-04T12:00:00.000Z",
@@ -362,6 +365,7 @@ const passkeyDetail: AlertDetail = {
   kind: "backoffice_passkey_changed",
   scope: "user-1",
   scopeDisplay: "Lucía Pérez",
+  scopeKind: "user",
   level: "warning",
   audience: "all",
   detail: {
@@ -764,7 +768,14 @@ test("names an alert for an event applied with an inconsistency by its kind and 
 test("names an alert for an expiring ARCA certificate by its kind and what happened", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(
-    ok([{ ...passkeyAlert, kind: "arca_certificate_expiring", scopeDisplay: "production" }]),
+    ok([
+      {
+        ...passkeyAlert,
+        kind: "arca_certificate_expiring",
+        scopeDisplay: "production",
+        scopeKind: "environment",
+      },
+    ]),
   );
 
   const screen = await renderScreen(services);
@@ -772,25 +783,6 @@ test("names an alert for an expiring ARCA certificate by its kind and what happe
   const row = screen.getByRole("row", { name: /Producción/ });
   await expect.element(row.getByText("Certificado de ARCA por vencer")).toBeVisible();
   await expect.element(row.getByText("El certificado de ARCA está por vencer")).toBeVisible();
-});
-
-test("names an alert for an authentication ticket ARCA still holds by its kind and what is waiting", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchAlerts).mockResolvedValue(
-    ok([{ ...passkeyAlert, kind: "arca_wsaa_ticket_held", scopeDisplay: "production" }]),
-  );
-
-  const screen = await renderScreen(services);
-
-  const row = screen.getByRole("row", { name: /Producción/ });
-  await expect.element(row.getByText("ARCA conserva un ticket de acceso anterior")).toBeVisible();
-  await expect
-    .element(
-      row.getByText(
-        "La emisión fiscal en línea espera a que venza el ticket de acceso que ARCA todavía tiene vigente.",
-      ),
-    )
-    .toBeVisible();
 });
 
 test("names a quiet register's alert by its fixed title, with what it means and what to do", async () => {

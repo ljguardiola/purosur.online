@@ -23,6 +23,7 @@ const emailChange = {
   kind: "user_email_changed",
   scope: "user-1",
   scopeDisplay: "Marcela",
+  scopeKind: "user",
   level: "warning",
   audience: "all",
   detail: {
@@ -66,6 +67,12 @@ describe("alertDetailSchema", () => {
     };
 
     expect(alertDetailSchema.safeParse(closed).data).toEqual(closed);
+  });
+
+  it("requires the kind of scope the alert's kind has", () => {
+    const { scopeKind: _omitted, ...withoutScopeKind } = emailChange;
+
+    expect(alertDetailSchema.safeParse(withoutScopeKind).success).toBe(false);
   });
 
   it("strips from a kind's detail the keys that kind does not define", () => {
@@ -311,7 +318,7 @@ describe("alertDetailSchema", () => {
         breaks: ["approved_payments_below_total"],
       },
       arca_certificate_expiring: { notAfter: "2026-11-20T15:30:00.000Z" },
-      arca_wsaa_ticket_held: {},
+      arca_wsaa_ticket_held: { retryIntervalMinutes: 10 },
       update_required: { deviceId: "device-1", appVersion: "0.9.0" },
       register_silent: { deviceId: "device-1", lastAcceptedPushAt: "2026-10-05T14:30:00.000Z" },
       sales_denied: { deviceId: "device-1", reason: "event_history_broken" },

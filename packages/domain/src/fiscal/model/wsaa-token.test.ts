@@ -3,6 +3,7 @@ import {
   isWsaaTokenDueForRenewal,
   isWsaaTokenRetryDue,
   isWsaaTokenValid,
+  WSAA_ALREADY_AUTHENTICATED_RETRY_MINUTES,
   WSAA_ALREADY_AUTHENTICATED_RETRY_MS,
 } from "./wsaa-token.js";
 
@@ -45,6 +46,12 @@ describe("isWsaaTokenDueForRenewal", () => {
 describe("WSAA_ALREADY_AUTHENTICATED_RETRY_MS", () => {
   it("is ten minutes", () => {
     expect(WSAA_ALREADY_AUTHENTICATED_RETRY_MS).toBe(10 * 60 * 1000);
+  });
+
+  it("is the retry interval in minutes, in milliseconds", () => {
+    expect(WSAA_ALREADY_AUTHENTICATED_RETRY_MS).toBe(
+      WSAA_ALREADY_AUTHENTICATED_RETRY_MINUTES * 60 * 1000,
+    );
   });
 });
 

@@ -1,3 +1,4 @@
+import { WSAA_ALREADY_AUTHENTICATED_RETRY_MS } from "@purosur/domain";
 import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -25,8 +26,6 @@ const UNUSED_EMAIL_SENDER: AccessEmailSender = {
 };
 
 const NOW = new Date("2026-10-01T16:00:00.000Z");
-const MINUTE_MS = 60 * 1000;
-const RETRY_MS = 10 * MINUTE_MS;
 const ACQUISITION_TASK_IDENTIFIER = "offline-authorization-code-acquisition";
 
 let integrationDb: IntegrationDatabase;
@@ -151,13 +150,13 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
         ]);
         expect(await sql`select 1 from arca_wsaa_tokens`).toHaveLength(0);
 
-        current = new Date(NOW.getTime() + RETRY_MS - 1);
+        current = new Date(NOW.getTime() + WSAA_ALREADY_AUTHENTICATED_RETRY_MS - 1);
         await runRenewal(recovery);
 
         expect(fakeWsaa.requests).toHaveLength(1);
         expect(await heldTicketAlerts(true)).toHaveLength(1);
 
-        current = new Date(NOW.getTime() + RETRY_MS);
+        current = new Date(NOW.getTime() + WSAA_ALREADY_AUTHENTICATED_RETRY_MS);
         fakeWsaa.behave(answers("login-cms-issued.xml"));
         await runRenewal(recovery);
 
@@ -178,7 +177,7 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
       const recovery = await setUp(() => current);
       try {
         await runRenewal(recovery);
-        current = new Date(NOW.getTime() + RETRY_MS);
+        current = new Date(NOW.getTime() + WSAA_ALREADY_AUTHENTICATED_RETRY_MS);
         await runRenewal(recovery);
 
         expect(fakeWsaa.requests).toHaveLength(2);
@@ -215,14 +214,14 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
       async function recordJobsAdded() {
         const admin = postgres(integrationDb.adminDatabaseUrl, { max: 1 });
         try {
-          await admin`create table if not exists added_jobs (task text not null, job_key text)`;
+          await admin`create table if not exists added_jobs (task text not null, job_key text, job_id bigint not null, revision int not null)`;
           await admin`grant all on added_jobs to cloud_app`;
           await admin`delete from added_jobs`;
           await admin.unsafe(`
             create or replace function record_added_job() returns trigger language plpgsql as $body$
             begin
               insert into added_jobs
-              select identifier, new.key from graphile_worker._private_tasks where id = new.task_id;
+              select identifier, new.key, new.id, new.revision from graphile_worker._private_tasks where id = new.task_id;
               return new;
             end $body$`);
           await admin`drop trigger if exists record_added_job on graphile_worker._private_jobs`;
@@ -235,7 +234,7 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
       }
 
       async function acquisitionsAddedByTheTicket() {
-        return sql`select 1 from added_jobs where task = ${ACQUISITION_TASK_IDENTIFIER} and job_key = ${ACQUISITION_TASK_IDENTIFIER}`;
+        return sql`select distinct job_id, revision from added_jobs where task = ${ACQUISITION_TASK_IDENTIFIER} and job_key = ${ACQUISITION_TASK_IDENTIFIER}`;
       }
 
       it("is asked to run again once the ticket is recorded when the cloud issues documents", async () => {
@@ -244,11 +243,11 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
         try {
           await runRenewal(recovery);
           await recordJobsAdded();
-          current = new Date(NOW.getTime() + RETRY_MS);
+          current = new Date(NOW.getTime() + WSAA_ALREADY_AUTHENTICATED_RETRY_MS);
           fakeWsaa.behave(answers("login-cms-issued.xml"));
           await runRenewal(recovery);
 
-          expect((await acquisitionsAddedByTheTicket()).length).toBeGreaterThan(0);
+          expect(await acquisitionsAddedByTheTicket()).toHaveLength(1);
         } finally {
           await recovery.close();
         }
@@ -260,7 +259,7 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
         try {
           await runRenewal(recovery);
           await recordJobsAdded();
-          current = new Date(NOW.getTime() + RETRY_MS);
+          current = new Date(NOW.getTime() + WSAA_ALREADY_AUTHENTICATED_RETRY_MS);
           fakeWsaa.behave(answers("login-cms-issued.xml"));
           await runRenewal(recovery);
 

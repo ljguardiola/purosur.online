@@ -44,6 +44,7 @@ function baseDetail(overrides: DetailOverrides = {}): AlertDetail {
     kind: "backoffice_passkey_changed",
     scope: "user-1",
     scopeDisplay: "Lucía Pérez",
+    scopeKind: "user",
     level: "warning",
     audience: "all",
     detail: {
@@ -299,6 +300,7 @@ test("shows the sign-in lockout description, scoped to the source address", asyn
         kind: "backoffice_sign_in_lockout",
         scope: "203.0.113.5",
         scopeDisplay: "203.0.113.5",
+        scopeKind: "sourceAddress",
         detail: {
           sourceAddress: "203.0.113.5",
           failureCount: 6,
@@ -973,6 +975,7 @@ const quarantinedEventAlert = baseDetail({
   kind: "events_quarantined",
   scope: "event-1",
   scopeDisplay: "event-1",
+  scopeKind: "event",
   detail: {
     deviceId: "device-1",
     eventId: "event-1",
@@ -1054,6 +1057,7 @@ test("shows an expiring ARCA certificate with the environment it is for and the 
         kind: "arca_certificate_expiring",
         scope: "production",
         scopeDisplay: "production",
+        scopeKind: "environment",
         detail: { notAfter: "2026-11-20T15:30:00.000Z" },
       }),
     ),
@@ -1072,7 +1076,7 @@ test("shows an expiring ARCA certificate with the environment it is for and the 
   await expect.element(screen.getByText("Producción", { exact: true })).toBeVisible();
 });
 
-test("explains that ARCA still holds an earlier authentication ticket and that nothing has to be replaced", async () => {
+test("explains that ARCA still holds an earlier authentication ticket, how often the cloud asks again and that nothing has to be replaced", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
     ok(
@@ -1080,7 +1084,8 @@ test("explains that ARCA still holds an earlier authentication ticket and that n
         kind: "arca_wsaa_ticket_held",
         scope: "production",
         scopeDisplay: "production",
-        detail: {},
+        scopeKind: "environment",
+        detail: { retryIntervalMinutes: 15 },
       }),
     ),
   );
@@ -1093,11 +1098,30 @@ test("explains that ARCA still holds an earlier authentication ticket and that n
   await expect
     .element(
       screen.getByText(
-        "La nube no tiene ticket de acceso a ARCA y ARCA no emite uno nuevo mientras siga vigente el anterior, que puede durar hasta 12 horas. La nube lo vuelve a pedir cada 10 minutos y retoma la autorización en línea en cuanto lo obtiene. No hay que reemplazar el certificado ni cambiar la configuración. Mientras tanto la caja vende con el CAEA que ya tenga o en venta diferida.",
+        "La nube no tiene ticket de acceso a ARCA y ARCA no emite uno nuevo mientras siga vigente el anterior, que puede durar hasta 12 horas. La nube lo vuelve a pedir cada 15 minutos y retoma la autorización en línea en cuanto lo obtiene. No hay que reemplazar el certificado ni cambiar la configuración. Mientras tanto la caja vende con el CAEA que ya tenga o en venta diferida.",
       ),
     )
     .toBeVisible();
   await expect.element(screen.getByText("Producción", { exact: true })).toBeVisible();
+});
+
+test("says the cloud asks ARCA again every minute when that is its interval", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "arca_wsaa_ticket_held",
+        scope: "production",
+        scopeDisplay: "production",
+        scopeKind: "environment",
+        detail: { retryIntervalMinutes: 1 },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText(/La nube lo vuelve a pedir cada minuto y/)).toBeVisible();
 });
 
 test("tells which register runs a version the cloud no longer accepts, and which version", async () => {
@@ -1270,6 +1294,7 @@ test.each([
           audience: "all",
           scope: "12:factura_c",
           scopeDisplay: "12:factura_c",
+          scopeKind: "pointOfSaleDocumentType",
           detail: {
             pointOfSale: 12,
             documentType: "factura_c",
@@ -1361,6 +1386,7 @@ test("names the homologation environment of an expiring ARCA certificate", async
         kind: "arca_certificate_expiring",
         scope: "homologation",
         scopeDisplay: "homologation",
+        scopeKind: "environment",
         detail: { notAfter: "2026-11-20T15:30:00.000Z" },
       }),
     ),

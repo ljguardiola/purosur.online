@@ -37,6 +37,7 @@ interface FakeWsaaState {
   refusedAt: Date | null;
   heldTicketAlertOpen: boolean;
   heldTicketAlertChangedAt: Date | null;
+  heldTicketAlertRetryIntervalMinutes: number | null;
   resumeCount: number;
 }
 
@@ -88,10 +89,11 @@ class FakeAnswer implements WsaaTokenAnswer {
     this.store.refusedAt = new Date(refusedAt);
   }
 
-  async openHeldTicketAlert(openedAt: Date): Promise<void> {
+  async openHeldTicketAlert(openedAt: Date, retryIntervalMinutes: number): Promise<void> {
     this.store.perform("openHeldTicketAlert");
     this.store.heldTicketAlertOpen = true;
     this.store.heldTicketAlertChangedAt = new Date(openedAt);
+    this.store.heldTicketAlertRetryIntervalMinutes = retryIntervalMinutes;
   }
 }
 
@@ -144,6 +146,7 @@ export class FakeWsaaTokenStore implements WsaaTokenStore {
   refusedAt: Date | null = null;
   heldTicketAlertOpen = false;
   heldTicketAlertChangedAt: Date | null = null;
+  heldTicketAlertRetryIntervalMinutes: number | null = null;
   resumeCount = 0;
   operations: WsaaTokenOperation[] = [];
   failingOperation: WsaaTokenOperation | undefined;
@@ -167,6 +170,7 @@ export class FakeWsaaTokenStore implements WsaaTokenStore {
       refusedAt: this.refusedAt ? new Date(this.refusedAt) : null,
       heldTicketAlertOpen: this.heldTicketAlertOpen,
       heldTicketAlertChangedAt: this.heldTicketAlertChangedAt,
+      heldTicketAlertRetryIntervalMinutes: this.heldTicketAlertRetryIntervalMinutes,
       resumeCount: this.resumeCount,
     };
   }
@@ -176,6 +180,7 @@ export class FakeWsaaTokenStore implements WsaaTokenStore {
     this.refusedAt = state.refusedAt;
     this.heldTicketAlertOpen = state.heldTicketAlertOpen;
     this.heldTicketAlertChangedAt = state.heldTicketAlertChangedAt;
+    this.heldTicketAlertRetryIntervalMinutes = state.heldTicketAlertRetryIntervalMinutes;
     this.resumeCount = state.resumeCount;
   }
 

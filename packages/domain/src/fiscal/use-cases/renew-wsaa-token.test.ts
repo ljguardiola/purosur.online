@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { WSAA_ALREADY_AUTHENTICATED_RETRY_MS } from "../model/wsaa-token.js";
+import {
+  WSAA_ALREADY_AUTHENTICATED_RETRY_MINUTES,
+  WSAA_ALREADY_AUTHENTICATED_RETRY_MS,
+} from "../model/wsaa-token.js";
 import { renewWsaaToken } from "./renew-wsaa-token.js";
 import { FixedClock } from "./test-support/fake-arca-certificate-expiry-store.js";
 import {
@@ -135,6 +138,9 @@ describe("renewWsaaToken", () => {
       expect(store.refusedAt).toEqual(NOW);
       expect(store.heldTicketAlertOpen).toBe(true);
       expect(store.heldTicketAlertChangedAt).toEqual(NOW);
+      expect(store.heldTicketAlertRetryIntervalMinutes).toBe(
+        WSAA_ALREADY_AUTHENTICATED_RETRY_MINUTES,
+      );
       expect(store.rows).toEqual([]);
       expect(store.resumeCount).toBe(0);
       expect(store.operations).toEqual([
@@ -203,33 +209,37 @@ describe("renewWsaaToken", () => {
       expect(store.resumeCount).toBe(1);
     });
 
-    it("keeps the expired ticket and opens no alert when WSAA refuses while a ticket is stored", async () => {
+    it("records the refusal and opens the alert when WSAA refuses while only an expired ticket is stored", async () => {
       const store = new FakeWsaaTokenStore();
       store.seed(SERVICE, FINGERPRINT, persisted(0));
       const { outcome } = renew(store, { kind: "already_authenticated" });
 
       await expect(outcome).resolves.toEqual({ kind: "already_authenticated" });
 
-      expect(store.heldTicketAlertOpen).toBe(false);
-      expect(store.refusedAt).toBeNull();
+      expect(store.refusedAt).toEqual(NOW);
+      expect(store.heldTicketAlertOpen).toBe(true);
       expect(store.rows[0]?.token.token).toBe("old-token");
       expect(store.operations).toEqual([
         "holdRenewal",
         "persistedToken",
+        "lastRefusal",
         "requestToken",
+        "recordRefusal",
+        "openHeldTicketAlert",
+        "commitAnswer",
         "releaseRenewal",
       ]);
     });
 
-    it("ignores a refusal on record when a ticket is stored", async () => {
+    it("does not call WSAA again before the retry interval has passed while only an expired ticket is stored", async () => {
       const store = new FakeWsaaTokenStore();
       store.seed(SERVICE, FINGERPRINT, persisted(0));
-      store.refusedAt = refusedAgo(1);
+      store.refusedAt = refusedAgo(WSAA_ALREADY_AUTHENTICATED_RETRY_MS - 1);
       const { authentication, outcome } = renew(store, { kind: "issued", token: ISSUED });
 
-      await expect(outcome).resolves.toEqual({ kind: "renewed" });
+      await expect(outcome).resolves.toEqual({ kind: "waiting" });
 
-      expect(authentication.requestedServices).toEqual([SERVICE]);
+      expect(authentication.requestedServices).toEqual([]);
     });
   });
 

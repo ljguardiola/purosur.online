@@ -75,6 +75,7 @@ const quarantinedEventAlert: AlertDetail = {
   kind: "events_quarantined",
   scope: "event-1",
   scopeDisplay: "event-1",
+  scopeKind: "event",
   level: "critical",
   audience: "all",
   detail: {

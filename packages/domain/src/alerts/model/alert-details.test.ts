@@ -17,11 +17,11 @@ describe("OpenAlertInput", () => {
     }>().toExtend<OpenAlertInput>();
   });
 
-  it("accepts no detail for a held-ticket alert", () => {
+  it("accepts the interval the cloud asks for a ticket again for a held-ticket alert", () => {
     expectTypeOf<{
       kind: "arca_wsaa_ticket_held";
       scope: string;
-      detail: Record<string, never>;
+      detail: { retryIntervalMinutes: number };
     }>().toExtend<OpenAlertInput>();
   });
 
