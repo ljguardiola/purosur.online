@@ -1,7 +1,13 @@
 import * as Sentry from "@sentry/node";
 import { initSentry } from "../sentry.js";
 
-export function startRecordingSentry(): () => Promise<string[]> {
+export interface SentEnvelopes {
+  events: string[];
+  everything: string;
+}
+
+export function startRecordingSentry(): () => Promise<SentEnvelopes> {
+  const events: string[] = [];
   const sent: string[] = [];
   initSentry(
     { dsn: "https://public@errors.example.test/1" },
@@ -11,7 +17,11 @@ export function startRecordingSentry(): () => Promise<string[]> {
           ...options,
           transport: () => ({
             send: (envelope) => {
-              sent.push(JSON.stringify(envelope));
+              const serialized = JSON.stringify(envelope);
+              sent.push(serialized);
+              if (envelope[1].some(([header]) => header.type === "event")) {
+                events.push(serialized);
+              }
               return Promise.resolve({});
             },
             flush: () => Promise.resolve(true),
@@ -21,6 +31,6 @@ export function startRecordingSentry(): () => Promise<string[]> {
   );
   return async () => {
     await Sentry.flush();
-    return sent;
+    return { events, everything: sent.join("\n") };
   };
 }

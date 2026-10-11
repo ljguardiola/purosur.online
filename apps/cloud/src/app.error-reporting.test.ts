@@ -32,13 +32,14 @@ describe("an unhandled route error caused by a failed query", () => {
     const response = await app.inject({ method: "GET", url: "/customers" });
 
     expect(response.statusCode).toBe(500);
-    const [report, ...others] = await sentEnvelopes();
-    expect(others).toHaveLength(0);
+    const { events, everything } = await sentEnvelopes();
+    expect(events).toHaveLength(1);
+    const [report] = events;
     expect(report).toContain("saving the customer failed");
     expect(report).toContain(`Failed query: ${STATEMENT}`.replaceAll('"', '\\"'));
     expect(report).toContain("connection reset");
-    expect(report).not.toContain(FICTIONAL_CUIT);
-    expect(report).not.toContain(FICTIONAL_LEGAL_NAME);
+    expect(everything).not.toContain(FICTIONAL_CUIT);
+    expect(everything).not.toContain(FICTIONAL_LEGAL_NAME);
   });
 
   it("reaches the error report without a value the database echoed in the error that failed the query", async () => {
@@ -60,9 +61,11 @@ describe("an unhandled route error caused by a failed query", () => {
     const response = await app.inject({ method: "GET", url: "/customers" });
 
     expect(response.statusCode).toBe(500);
-    const [report] = await sentEnvelopes();
+    const { events, everything } = await sentEnvelopes();
+    expect(events).toHaveLength(1);
+    const [report] = events;
     expect(report).toContain(`Failed query: ${STATEMENT}`.replaceAll('"', '\\"'));
     expect(report).toContain("invalid input syntax for type uuid");
-    expect(report).not.toContain(FICTIONAL_LEGAL_NAME);
+    expect(everything).not.toContain(FICTIONAL_LEGAL_NAME);
   });
 });

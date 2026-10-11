@@ -28,13 +28,14 @@ describe("reportError with a failed query", () => {
       ),
     );
 
-    const [report, ...others] = await sentEnvelopes();
-    expect(others).toHaveLength(0);
+    const { events, everything } = await sentEnvelopes();
+    expect(events).toHaveLength(1);
+    const [report] = events;
     expect(report).toContain('"category":"console"');
     expect(report).toContain(
       '"message":"recovery: bookkeeping failed Error: Failed query: insert into',
     );
-    expect(report).not.toContain(FICTIONAL_CUIT);
-    expect(report).not.toContain(FICTIONAL_LEGAL_NAME);
+    expect(everything).not.toContain(FICTIONAL_CUIT);
+    expect(everything).not.toContain(FICTIONAL_LEGAL_NAME);
   });
 });
