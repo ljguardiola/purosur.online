@@ -165,6 +165,7 @@ export type { Locale, PluralForms } from "./messages/formatters";
 export {
   formatAmountInput,
   formatCalendarDay,
+  formatCalendarDayNumeric,
   formatCalendarDayRange,
   formatCents,
   formatClockTime,

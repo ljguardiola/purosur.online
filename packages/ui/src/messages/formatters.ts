@@ -87,6 +87,15 @@ export function formatCalendarDay(day: string): string {
   return formatDate(calendarDayMoment(day), CALENDAR_DAY_OPTIONS);
 }
 
+export function formatCalendarDayNumeric(day: string): string {
+  return formatDate(calendarDayMoment(day), {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export function formatCalendarDayRange(first: string, last: string): string {
   if (first.slice(0, 7) === last.slice(0, 7)) {
     return `del ${formatDate(calendarDayMoment(first), { day: "numeric", timeZone: "UTC" })} al ${formatCalendarDay(last)}`;
