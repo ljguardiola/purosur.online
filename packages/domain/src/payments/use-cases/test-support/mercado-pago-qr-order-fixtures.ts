@@ -4,6 +4,7 @@ import type {
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
 } from "../mercado-pago-qr-order-ports.js";
+import { FakeMercadoPagoCancellationKeys } from "./fake-mercado-pago-cancellation-keys.js";
 import { FakeMercadoPagoOrders } from "./fake-mercado-pago-orders.js";
 import { FakePaymentTransactionDirectory } from "./fake-payment-transaction-directory.js";
 import { FakePaymentTransactionLanes } from "./fake-payment-transaction-lanes.js";
@@ -68,11 +69,19 @@ export function mercadoPagoQrOrderWorld(
     reading: answers.reading ?? { kind: "read", result: orderResult() },
   });
   const directory = new FakePaymentTransactionDirectory(lanes);
+  const cancellationKeys = new FakeMercadoPagoCancellationKeys();
   return {
     lanes,
     mercadoPago,
     directory,
-    ports: { lanes, mercadoPago, clock: new FixedClock(now) },
-    notificationPorts: { directory, lanes, mercadoPago, clock: new FixedClock(now) },
+    cancellationKeys,
+    ports: { lanes, mercadoPago, cancellationKeys, clock: new FixedClock(now) },
+    notificationPorts: {
+      directory,
+      lanes,
+      mercadoPago,
+      cancellationKeys,
+      clock: new FixedClock(now),
+    },
   };
 }

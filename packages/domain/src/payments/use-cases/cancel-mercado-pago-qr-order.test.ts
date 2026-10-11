@@ -35,7 +35,7 @@ describe("cancelMercadoPagoQrOrder", () => {
     expect(lanes.transactions.get(TRANSACTION_ID)?.state).toBe("PENDING");
   });
 
-  it("reads the order, cancels it keyed by the payment transaction and records it cancelled, all in the payment's lane", async () => {
+  it("reads the order, cancels it with a key from the key port and records it cancelled, all in the payment's lane", async () => {
     const { lanes, mercadoPago, ports } = mercadoPagoQrOrderWorld({ reading: UNPAID });
     mercadoPago.cancellation = { kind: "cancelled", result: CANCELLED_ORDER };
     lanes.seed(storedTransaction(WITH_ORDER));
@@ -47,7 +47,7 @@ describe("cancelMercadoPagoQrOrder", () => {
     expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(expected);
     expect(lanes.resultReadAt.get(TRANSACTION_ID)).toEqual(NOW);
     expect(mercadoPago.cancellations).toEqual([
-      { orderId: "order-1", idempotencyKey: TRANSACTION_ID },
+      { orderId: "order-1", idempotencyKey: "cancellation-key-1" },
     ]);
     expect(mercadoPago.heldLaneDuringCall).toBe(true);
     expect(lanes.lanesEntered).toEqual([TRANSACTION_ID]);
@@ -176,17 +176,31 @@ describe("cancelMercadoPagoQrOrder", () => {
     expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(storedTransaction(WITH_ORDER));
   });
 
-  it("records the order cancelled and answers already closed when Mercado Pago says it was already cancelled", async () => {
+  it("never sends the key the order was created with", async () => {
     const { lanes, mercadoPago, ports } = mercadoPagoQrOrderWorld({ reading: UNPAID });
-    mercadoPago.cancellation = { kind: "already_cancelled" };
     lanes.seed(storedTransaction(WITH_ORDER));
 
-    const outcome = await cancelMercadoPagoQrOrder(ports, INPUT);
+    await cancelMercadoPagoQrOrder(ports, INPUT);
 
-    const expected = storedTransaction({ ...WITH_ORDER, state: "CANCELLED" });
-    expect(outcome).toEqual({ kind: "already_closed", transaction: expected });
-    expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(expected);
-    expect(lanes.resultReadAt.get(TRANSACTION_ID)).toEqual(NOW);
+    expect(mercadoPago.cancellations.map((c) => c.idempotencyKey)).not.toContain(TRANSACTION_ID);
+  });
+
+  it("sends a new key on every attempt to cancel the same order", async () => {
+    const { lanes, mercadoPago, cancellationKeys, ports } = mercadoPagoQrOrderWorld({
+      reading: UNPAID,
+    });
+    mercadoPago.cancellation = { kind: "unavailable" };
+    lanes.seed(storedTransaction(WITH_ORDER));
+    await cancelMercadoPagoQrOrder(ports, INPUT);
+    mercadoPago.cancellation = { kind: "cancelled", result: CANCELLED_ORDER };
+
+    await cancelMercadoPagoQrOrder(ports, INPUT);
+
+    expect(mercadoPago.cancellations.map((c) => c.idempotencyKey)).toEqual([
+      "cancellation-key-1",
+      "cancellation-key-2",
+    ]);
+    expect(cancellationKeys.issued).toHaveLength(2);
   });
 
   describe("when Mercado Pago says the order cannot be cancelled", () => {
