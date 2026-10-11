@@ -45,22 +45,30 @@ export interface RecordedRequestOutcome {
   decision: UnclearOutcomeDecision | null;
 }
 
-export function decisionToldToAskingRegister({
+export type ClearAuthorizationAnswer = Extract<
+  RealTimeAuthorizationAnswer,
+  { kind: "authorized" | "rejected" }
+>;
+
+function isClearAuthorizationAnswer(
+  answer: RealTimeAuthorizationAnswer | null,
+): answer is ClearAuthorizationAnswer {
+  return !awaitsUnclearOutcomeDecision(answer);
+}
+
+export type OutcomeToldToAskingRegister =
+  | { kind: "answered"; answer: ClearAuthorizationAnswer }
+  | { kind: "decided"; decision: UnclearOutcomeDecision }
+  | { kind: "pending" };
+
+export function outcomeToldToAskingRegister({
   answer,
   decision,
-}: RecordedRequestOutcome): UnclearOutcomeDecision | null {
-  switch (answer?.kind) {
-    case "authorized":
-      return {
-        kind: "adopted",
-        authorizationCode: answer.authorizationCode,
-        authorizationCodeDueOn: answer.authorizationCodeDueOn,
-      };
-    case "rejected":
-      return { kind: "released" };
-    default:
-      return decision;
+}: RecordedRequestOutcome): OutcomeToldToAskingRegister {
+  if (isClearAuthorizationAnswer(answer)) {
+    return { kind: "answered", answer };
   }
+  return decision === null ? { kind: "pending" } : { kind: "decided", decision };
 }
 
 export type UnclearOutcomeVerdict = UnclearOutcomeDecision | { kind: "pending"; askAgainAt: Date };

@@ -23,6 +23,7 @@ import {
 } from "../register/installation-token-ports.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
+import { clearAuthorizationAnswerToWire } from "./clear-authorization-answer-wire.js";
 import { DrizzleUnclearOutcomeLanes } from "./drizzle-unclear-outcome-lanes.js";
 import type { EnqueueUnclearOutcome } from "./enqueue-unclear-outcome.js";
 
@@ -54,11 +55,17 @@ const SALE_EVENT_MISMATCH = cloudError(
   "sale_event must be the completion of sale_id",
 );
 
-type AnsweredOutcome = Extract<AskAboutUnclearOutcomeOutcome, { kind: "pending" | "decided" }>;
+type ToldOutcome = Extract<
+  AskAboutUnclearOutcomeOutcome,
+  { kind: "answered" | "decided" | "pending" }
+>;
 
-function toWire(outcome: AnsweredOutcome): UnclearOutcomeAnswerBody {
+function toWire(outcome: ToldOutcome): UnclearOutcomeAnswerBody {
   if (outcome.kind === "pending") {
     return { state: "PENDING" };
+  }
+  if (outcome.kind === "answered") {
+    return clearAuthorizationAnswerToWire(outcome.answer);
   }
   const { decision } = outcome;
   switch (decision.kind) {

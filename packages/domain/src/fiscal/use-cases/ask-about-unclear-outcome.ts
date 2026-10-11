@@ -1,7 +1,7 @@
 import { isCompletionEventOfSale } from "../model/real-time-authorization.js";
 import {
-  decisionToldToAskingRegister,
-  type UnclearOutcomeDecision,
+  type OutcomeToldToAskingRegister,
+  outcomeToldToAskingRegister,
 } from "../model/unclear-outcome-decision.js";
 import { FiscalDocumentAlreadyRecorded } from "./fiscal-document-authorization-ports.js";
 import type {
@@ -15,8 +15,7 @@ export interface AskAboutUnclearOutcomeInput {
 }
 
 export type AskAboutUnclearOutcomeOutcome =
-  | { kind: "pending" }
-  | { kind: "decided"; decision: UnclearOutcomeDecision }
+  | OutcomeToldToAskingRegister
   | { kind: "point_of_sale_not_owned" }
   | { kind: "fiscal_document_not_owned" }
   | { kind: "sale_event_mismatch" };
@@ -38,8 +37,7 @@ export async function askAboutUnclearOutcome(
 
       const recorded = await lane.recordedRequest(registerId, request.fiscalDocumentId);
       if (recorded !== null) {
-        const decision = decisionToldToAskingRegister(recorded);
-        return decision === null ? { kind: "pending" } : { kind: "decided", decision };
+        return outcomeToldToAskingRegister(recorded);
       }
 
       try {

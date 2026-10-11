@@ -14,6 +14,7 @@ export type {
   RejectionClass,
 } from "../model/real-time-authorization.js";
 export type {
+  ClearAuthorizationAnswer,
   RecordedRequestOutcome,
   UnclearOutcomeDecision,
 } from "../model/unclear-outcome-decision.js";

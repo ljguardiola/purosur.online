@@ -1,6 +1,10 @@
 import { isCalendarDay } from "@purosur/domain";
 import { z } from "zod";
-import { realTimeAuthorizationRequestSchema } from "./real-time-authorization.js";
+import {
+  authorizedResponseSchema,
+  realTimeAuthorizationRequestSchema,
+  rejectedResponseSchema,
+} from "./real-time-authorization.js";
 
 export const unclearOutcomeQuestionSchema = realTimeAuthorizationRequestSchema.omit({
   timeout_ms: true,
@@ -18,6 +22,8 @@ export const unclearOutcomeAnswerSchema = z.discriminatedUnion("state", [
     authorization_code_due_on: z.string().refine(isCalendarDay),
   }),
   z.object({ state: z.literal("CONFLICTING") }),
+  authorizedResponseSchema,
+  rejectedResponseSchema,
 ]);
 
 export type UnclearOutcomeAnswerBody = z.output<typeof unclearOutcomeAnswerSchema>;

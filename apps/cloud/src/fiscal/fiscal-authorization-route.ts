@@ -26,6 +26,7 @@ import {
 } from "../register/installation-token-ports.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
+import { clearAuthorizationAnswerToWire } from "./clear-authorization-answer-wire.js";
 import { DrizzlePointOfSaleLanes } from "./drizzle-point-of-sale-lanes.js";
 import { DrizzleWsaaTokenSource } from "./drizzle-wsaa-token-source.js";
 import type { EnqueueUnclearOutcome, WithdrawUnclearOutcome } from "./enqueue-unclear-outcome.js";
@@ -66,17 +67,8 @@ const SALE_EVENT_MISMATCH = cloudError(
 function toWire(answer: RealTimeAuthorizationAnswer): RealTimeAuthorizationResponseBody {
   switch (answer.kind) {
     case "authorized":
-      return {
-        state: "AUTHORIZED",
-        authorization_code: answer.authorizationCode,
-        authorization_code_due_on: answer.authorizationCodeDueOn,
-      };
     case "rejected":
-      return {
-        state: "REJECTED",
-        rejection_codes: [...answer.codes],
-        rejection_class: answer.rejectionClass,
-      };
+      return clearAuthorizationAnswerToWire(answer);
     case "not_attempted":
       return { state: "NOT_ATTEMPTED" };
     case "unclear":
