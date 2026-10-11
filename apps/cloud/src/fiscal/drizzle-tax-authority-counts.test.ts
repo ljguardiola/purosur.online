@@ -5,6 +5,7 @@ import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/lo
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleTaxAuthorityCounts } from "./drizzle-tax-authority-counts.js";
 import { insertRegisterWithPointOfSale } from "./test-support/authorization-request-fixtures.js";
+import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
 
 const READ_AT = new Date("2026-10-06T15:00:00.000Z");
 const LATER = new Date("2026-10-06T16:00:00.000Z");
@@ -75,6 +76,36 @@ describe("DrizzleTaxAuthorityCounts", () => {
       pointOfSaleNumber: 7,
       name: "caja-1",
     });
+    const mark = await lastLoggedChangeSeq(db);
+
+    await new DrizzleTaxAuthorityCounts(db).advance({
+      pointOfSale: 7,
+      lastAuthorized: 41,
+      readAt: READ_AT,
+    });
+
+    expect(await changesLoggedAfter(db, mark)).toMatchObject([
+      { entity: "register_point_of_sale", entityId: registerId, version: 1, op: "update" },
+    ]);
+  });
+
+  it("logs a change of the offline point of sale of the register that holds it, at its current version, so the register pulls it again", async () => {
+    const registerId = await seedOfflinePointOfSale(db);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await new DrizzleTaxAuthorityCounts(db).advance({
+      pointOfSale: 8,
+      lastAuthorized: 41,
+      readAt: READ_AT,
+    });
+
+    expect(await changesLoggedAfter(db, mark)).toMatchObject([
+      { entity: "register_offline_point_of_sale", entityId: registerId, version: 1, op: "update" },
+    ]);
+  });
+
+  it("logs only the point of sale, not the offline one, when the count is of the real-time number", async () => {
+    const registerId = await seedOfflinePointOfSale(db);
     const mark = await lastLoggedChangeSeq(db);
 
     await new DrizzleTaxAuthorityCounts(db).advance({

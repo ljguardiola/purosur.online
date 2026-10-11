@@ -330,9 +330,42 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
       {
         entity: "register_offline_point_of_sale",
         entity_id: registerId,
-        row: { point_of_sale_number: 8, version: 1 },
+        row: {
+          point_of_sale_number: 8,
+          tax_authority_last_authorized_number: null,
+          version: 1,
+        },
       },
     ]);
+  });
+
+  it("gives the tax authority's last authorized number with the offline point of sale once it is recorded, at the same version", async () => {
+    const locationId = await seededLocationId(db);
+    const { registerId, actorId } = await registerWithRealTime(locationId, "Caja 1", 7);
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: registerId,
+    });
+    await configureOffline({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+
+    await new DrizzleTaxAuthorityCounts(db).advance({
+      pointOfSale: 8,
+      lastAuthorized: 41,
+      readAt: NOW,
+    });
+
+    const pulled = await pullAfterSeed(deviceToken);
+    expect(
+      pulled.filter(({ entity }) => entity === "register_offline_point_of_sale").at(-1),
+    ).toEqual({
+      entity: "register_offline_point_of_sale",
+      entity_id: registerId,
+      row: {
+        point_of_sale_number: 8,
+        tax_authority_last_authorized_number: 41,
+        version: 1,
+      },
+    });
   });
 
   it("gives the offline point of sale as it is now for every change logged for it", async () => {
@@ -352,7 +385,11 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
       Array(2).fill({
         entity: "register_offline_point_of_sale",
         entity_id: registerId,
-        row: { point_of_sale_number: 9, version: 2 },
+        row: {
+          point_of_sale_number: 9,
+          tax_authority_last_authorized_number: null,
+          version: 2,
+        },
       }),
     );
   });
