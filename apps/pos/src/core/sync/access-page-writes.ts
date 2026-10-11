@@ -8,12 +8,13 @@ import type { RemovalOf } from "./pulled-change";
 
 type ChangeOf<TEntity extends SyncChange["entity"]> = Extract<SyncChange, { entity: TEntity }>;
 
-// Every save is guarded by the row's version, so a version the register already has, or an older
-// one delivered late, never overwrites it, and nothing is ever deleted. A user left behind by a
-// change of installation is brought back only by its own version, which the cloud never serves
-// again once it removed that user. The PIN hash is turned into a verifier on its way in and is not
-// kept. The wrong PINs counted against a user are cleared only by a verifier that differs from the
-// one held, so a version that changes just a role or a name does not lift a lockout.
+// Every save is guarded by the row's version, as far as the write mode accepts it, so an older
+// version delivered late never overwrites the one held, and nothing is ever deleted. A user left
+// behind by a change of installation is brought back only by its own version, which the cloud
+// never serves again once it removed that user. The PIN hash is turned into a verifier on its way
+// in and is not kept. The wrong PINs counted against a user are cleared only by a verifier that
+// differs from the one held, so a version that changes just a role or a name does not lift a
+// lockout.
 export function prepareAccessPageWrites(
   database: LocalDatabase,
   pepper: string | undefined,

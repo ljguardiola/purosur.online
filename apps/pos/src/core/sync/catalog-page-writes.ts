@@ -8,8 +8,8 @@ type ChangeOf<TEntity extends SyncChange["entity"]> = Extract<SyncChange, { enti
 
 type CatalogEntity = "category" | "product" | "tag" | "price";
 
-// Every save is guarded by the row's version, so a version the register already has, or an older
-// one delivered late, never overwrites it, and nothing is ever deleted.
+// Every save is guarded by the row's version, as far as the write mode accepts it, so an older
+// version delivered late never overwrites the one held, and nothing is ever deleted.
 export function prepareCatalogPageWrites(database: LocalDatabase, mode: PageWriteMode) {
   const accepts = versionAccepted(mode);
   const saveCategory = database.prepare(

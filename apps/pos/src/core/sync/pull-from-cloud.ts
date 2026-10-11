@@ -60,6 +60,25 @@ export async function pullFromCloud(deps: PullFromCloudDeps): Promise<PullAttemp
   }
 }
 
+export function pullWarningOf(attempt: PullAttempt): string | undefined {
+  switch (attempt.kind) {
+    case "page_out_of_order":
+      return "core: the pull stopped before catching up";
+    case "failed":
+      return attempt.failure.kind === "unreachable"
+        ? undefined
+        : "core: the pull stopped before catching up";
+    case "redelivery_page_out_of_order":
+      return "core: the pull stopped before redelivering the tables a migration declared";
+    case "redelivery_failed":
+      return attempt.failure.kind === "unreachable"
+        ? undefined
+        : "core: the pull stopped before redelivering the tables a migration declared";
+    default:
+      return undefined;
+  }
+}
+
 export function pullResultOf(attempt: PullAttempt): SyncResult {
   if (attempt.kind === "page_out_of_order" || attempt.kind === "redelivery_page_out_of_order") {
     return { kind: "failed" };

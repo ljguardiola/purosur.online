@@ -24,15 +24,27 @@ function columnsOfTables(database) {
   return columns;
 }
 
-function declaresTable(database, table) {
+const CURSOR_UNDER_WAY = 1;
+
+function redeliversFromFirstChange(database, table) {
   return (
-    database.prepare(`SELECT 1 FROM ${DECLARATION_TABLE} WHERE table_name = ?`).get(table) !==
-    undefined
+    database.prepare(`SELECT cursor FROM ${DECLARATION_TABLE} WHERE table_name = ?`).get(table)
+      ?.cursor === 0
   );
 }
 
-// Each migration starts from a register that already finished every redelivery, so only what the
-// migration itself declares counts.
+function startEveryRedelivery(database, tables) {
+  database.exec(`DELETE FROM ${DECLARATION_TABLE}`);
+  const declare = database.prepare(
+    `INSERT INTO ${DECLARATION_TABLE} (table_name, cursor) VALUES (?, ${CURSOR_UNDER_WAY})`,
+  );
+  for (const table of tables) {
+    declare.run(table);
+  }
+}
+
+// Each migration starts from a register still redelivering every pulled table, which a register
+// applying several migrations at once, or one that has not finished a redelivery, can be.
 export function findUndeclaredRedeliveries({ migrations, pulledTables }) {
   const database = new DatabaseSync(":memory:");
   const violations = [];
@@ -41,9 +53,14 @@ export function findUndeclaredRedeliveries({ migrations, pulledTables }) {
     for (const migration of ordered) {
       const before = columnsOfTables(database);
       if (before.has(DECLARATION_TABLE)) {
-        database.exec(`DELETE FROM ${DECLARATION_TABLE}`);
+        startEveryRedelivery(database, Object.keys(pulledTables));
       }
-      database.exec(migration.sql);
+      try {
+        database.exec(migration.sql);
+      } catch (error) {
+        violations.push({ migration: migration.name, failure: error.message });
+        continue;
+      }
       const now = columnsOfTables(database);
       if (!now.has(DECLARATION_TABLE)) {
         continue;
@@ -51,7 +68,11 @@ export function findUndeclaredRedeliveries({ migrations, pulledTables }) {
       for (const table of Object.keys(pulledTables)) {
         const columnsBefore = before.get(table);
         const added = (now.get(table) ?? []).filter((column) => !columnsBefore?.includes(column));
-        if (columnsBefore !== undefined && added.length > 0 && !declaresTable(database, table)) {
+        if (
+          columnsBefore !== undefined &&
+          added.length > 0 &&
+          !redeliversFromFirstChange(database, table)
+        ) {
           violations.push({ migration: migration.name, table, columns: added });
         }
       }
@@ -62,8 +83,12 @@ export function findUndeclaredRedeliveries({ migrations, pulledTables }) {
   return violations;
 }
 
-export function describeViolation({ migration, table, columns }) {
-  return `${migration}: ${table} gained ${columns.join(", ")} without being declared in ${DECLARATION_TABLE}`;
+export function describeViolation(violation) {
+  if ("failure" in violation) {
+    return `${violation.migration}: fails on a register redelivering every pulled table: ${violation.failure}`;
+  }
+  const { migration, table, columns } = violation;
+  return `${migration}: ${table} gained ${columns.join(", ")} without its redelivery being declared from the first change in ${DECLARATION_TABLE}`;
 }
 
 export function readMigrations(folder = MIGRATIONS_FOLDER) {
