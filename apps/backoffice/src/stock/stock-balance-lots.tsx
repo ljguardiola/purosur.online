@@ -29,7 +29,9 @@ export function StockBalanceLots({ product }: { product: StockBalance }) {
         lot.technical ? (
           <TableCellText strong>Técnico</TableCellText>
         ) : (
-          <span className="font-bold font-mono text-body">{lot.lotNumber ?? "—"}</span>
+          <TableCellText strong monospace>
+            {lot.lotNumber ?? "—"}
+          </TableCellText>
         ),
     }),
     dataColumn({
@@ -47,11 +49,11 @@ export function StockBalanceLots({ product }: { product: StockBalance }) {
       id: "origin",
       header: "Origen",
       render: (lot: StockLot) => (
-        <span className="text-detail text-text-subtle">
+        <TableCellText size="detail" tone="subtle">
           {lot.origin.kind === "purchase"
             ? `Compra del ${formatCalendarDayNumeric(lot.origin.purchasedOn)} · ${lot.origin.supplierName}`
             : "Ventas sin lotes del producto"}
-        </span>
+        </TableCellText>
       ),
     }),
     dataColumn({

@@ -9,11 +9,12 @@ export interface StockBalancesSummary {
 }
 
 export function stockBalancesSummary(
-  products: readonly { valueCents: number | null }[],
+  products: readonly { hasMoved: boolean; valueCents: number | null }[],
 ): StockBalancesSummary {
+  const moved = products.filter(({ hasMoved }) => hasMoved);
   return {
-    productCount: products.length,
-    valueCents: products.reduce((sum, { valueCents }) => sum + (valueCents ?? 0), 0),
-    withoutCostCount: products.filter(({ valueCents }) => valueCents === null).length,
+    productCount: moved.length,
+    valueCents: moved.reduce((sum, { valueCents }) => sum + (valueCents ?? 0), 0),
+    withoutCostCount: moved.filter(({ valueCents }) => valueCents === null).length,
   };
 }

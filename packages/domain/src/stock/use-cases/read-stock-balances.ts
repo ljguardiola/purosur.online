@@ -8,7 +8,7 @@ import {
 } from "../model/product-valuation.js";
 import { type StockBalancesSummary, stockBalancesSummary } from "../model/stock-balance.js";
 import { lotUnitCostCents } from "../model/unit-cost.js";
-import type { LotInStock, StockListReader, StockProduct } from "./stock-reader.js";
+import type { LotInStock, StockLevel, StockListReader, StockProduct } from "./stock-reader.js";
 
 export interface ReadStockBalancesInput {
   locationId: string;
@@ -62,31 +62,38 @@ function lotView(lot: LotInStock): StockLotView {
   };
 }
 
+function balanceView({ lots, hasMoved: _, ...level }: StockLevel): StockBalanceView {
+  const inConsumptionOrder = [...lots].sort((a, b) =>
+    compareFirstToConsume(
+      { id: a.id, expiresOn: a.expiresOn, purchasedOn: purchasedOn(a) },
+      { id: b.id, expiresOn: b.expiresOn, purchasedOn: purchasedOn(b) },
+    ),
+  );
+  const lotViews = inConsumptionOrder.map(lotView);
+  const valueCents = productValueCents(lotViews.map((lot) => lot.valueCents));
+  return {
+    ...level,
+    valueCents,
+    unitCostCents: productUnitCostCents({ valueCents, balance: level.balance }),
+    lotCount: lotViews.length,
+    correction: stockCorrection({
+      balance: level.balance,
+      hasPurchasedLot: lotViews.some((lot) => !lot.technical),
+    }),
+    lots: lotViews,
+  };
+}
+
 export async function readStockBalances(
   { stockList }: { stockList: Pick<StockListReader, "stockLevels"> },
   { locationId }: ReadStockBalancesInput,
 ): Promise<StockBalancesView> {
   const levels = await stockList.stockLevels(locationId);
-  const products = levels.map(({ lots, ...level }): StockBalanceView => {
-    const inConsumptionOrder = [...lots].sort((a, b) =>
-      compareFirstToConsume(
-        { id: a.id, expiresOn: a.expiresOn, purchasedOn: purchasedOn(a) },
-        { id: b.id, expiresOn: b.expiresOn, purchasedOn: purchasedOn(b) },
-      ),
-    );
-    const lotViews = inConsumptionOrder.map(lotView);
-    const valueCents = productValueCents(lotViews.map((lot) => lot.valueCents));
-    return {
-      ...level,
-      valueCents,
-      unitCostCents: productUnitCostCents({ valueCents, balance: level.balance }),
-      lotCount: lotViews.length,
-      correction: stockCorrection({
-        balance: level.balance,
-        hasPurchasedLot: lotViews.some((lot) => !lot.technical),
-      }),
-      lots: lotViews,
-    };
-  });
-  return { products, summary: stockBalancesSummary(products) };
+  const balances = levels.map((level) => ({ hasMoved: level.hasMoved, view: balanceView(level) }));
+  return {
+    products: balances.map(({ view }) => view),
+    summary: stockBalancesSummary(
+      balances.map(({ hasMoved, view }) => ({ hasMoved, valueCents: view.valueCents })),
+    ),
+  };
 }

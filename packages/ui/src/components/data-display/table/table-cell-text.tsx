@@ -5,10 +5,14 @@ export type TableCellTextProps = {
   description?: ReactNode;
   tone?: "subtle" | "error" | undefined;
   strong?: boolean;
+  monospace?: boolean;
+  size?: "body" | "detail";
   descriptionTone?: "error" | undefined;
 };
 
 const TEXT_TONE_CLASS_NAME = { subtle: "text-text-subtle", error: "text-error-strong" } as const;
+
+const TEXT_SIZE_CLASS_NAME = { body: "text-body", detail: "text-detail" } as const;
 
 // The fixed line heights and gap land a two-line row exactly at 64px; the cell's own height floor
 // only matters for the single-line case, which would otherwise land under it.
@@ -22,6 +26,8 @@ export function TableCellText({
   description,
   tone,
   strong = false,
+  monospace = false,
+  size = "body",
   descriptionTone,
 }: TableCellTextProps) {
   const hasDescription =
@@ -30,9 +36,10 @@ export function TableCellText({
     <div className="flex flex-col gap-1">
       <span
         className={[
-          "text-body",
+          TEXT_SIZE_CLASS_NAME[size],
           tone === undefined ? "" : TEXT_TONE_CLASS_NAME[tone],
           strong ? "font-bold" : "",
+          monospace ? "font-mono" : "",
         ].join(" ")}
       >
         {children}

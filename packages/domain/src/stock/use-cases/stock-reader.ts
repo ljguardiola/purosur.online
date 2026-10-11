@@ -24,6 +24,7 @@ export interface LotInStock {
 }
 
 export interface StockLevel extends StockProduct {
+  hasMoved: boolean;
   balance: number;
   lots: LotInStock[];
 }

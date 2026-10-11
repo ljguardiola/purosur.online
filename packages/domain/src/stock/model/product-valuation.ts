@@ -1,5 +1,4 @@
-import { roundHalfUp } from "../../shared/index.js";
-import { STOCK_QUANTITY_PER_UNIT } from "./stock-quantity.js";
+import { unitCostCents } from "./unit-cost.js";
 
 export const STOCK_CORRECTIONS = ["count", "purchase_or_count"] as const;
 
@@ -22,10 +21,7 @@ export function productUnitCostCents({
   if (valueCents === null || balance === 0) {
     return null;
   }
-  const magnitude = roundHalfUp({
-    numerator: BigInt(Math.abs(valueCents)) * BigInt(STOCK_QUANTITY_PER_UNIT),
-    denominator: BigInt(Math.abs(balance)),
-  });
+  const magnitude = unitCostCents(Math.abs(valueCents), Math.abs(balance));
   // Adding zero turns the negative zero of a cost that rounds to nothing into a plain zero.
   return Math.sign(valueCents) === Math.sign(balance) ? magnitude : -magnitude + 0;
 }
