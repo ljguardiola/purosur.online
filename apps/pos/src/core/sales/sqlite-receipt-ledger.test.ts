@@ -1,6 +1,10 @@
 import type { ReceiptDelivery, ReceiptSource } from "@purosur/domain";
 import type { ReceiptLedgerTransaction } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  FACTURA_C,
+  insertFiscalDocument,
+} from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
@@ -283,7 +287,45 @@ describe("a receipt ledger's source of a sale", () => {
         { method: "CASH", amount: 500000, tendered: 600000 },
         { method: "TRANSFER", amount: 237100, tendered: null },
       ],
+      fiscal: { kind: "none" },
     });
+  });
+});
+
+describe("a receipt ledger's fiscal document of a sale", () => {
+  it("holds the authorized factura C with its number, date and authorization code", () => {
+    insertSaleWithEverything();
+    insertFiscalDocument(database, { state: "AUTHORIZED", pointOfSale: 12, number: 41 });
+
+    const { fiscal } = inTransaction((tx) => tx.receiptSource("sale-1"));
+
+    expect(fiscal).toEqual({
+      kind: "authorized",
+      authorized: {
+        pointOfSale: 12,
+        number: 41,
+        issuedOn: "2026-09-30",
+        document: FACTURA_C,
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-10",
+      },
+    });
+  });
+
+  it("is awaiting while the tax authority has not answered", () => {
+    insertSaleWithEverything();
+    insertFiscalDocument(database, { state: "REQUESTING" });
+
+    expect(inTransaction((tx) => tx.receiptSource("sale-1")).fiscal).toEqual({
+      kind: "awaiting",
+    });
+  });
+
+  it.each(["REJECTED", "UNKNOWN"] as const)("is none when the document is %s", (state) => {
+    insertSaleWithEverything();
+    insertFiscalDocument(database, { state });
+
+    expect(inTransaction((tx) => tx.receiptSource("sale-1")).fiscal).toEqual({ kind: "none" });
   });
 });
 
