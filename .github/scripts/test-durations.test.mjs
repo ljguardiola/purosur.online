@@ -71,10 +71,7 @@ test("evens out the load where splitting by count would not", () => {
 test("gives every shard a share of each project, whatever another project weighs", () => {
   const heavy = entry("browser", "screen.test.tsx");
   const light = ["a", "b", "c"].map((f) => entry("node", `${f}.test.ts`));
-  const durations = Object.fromEntries([
-    [heavy.key, 300],
-    ...light.map((e) => [e.key, 100]),
-  ]);
+  const durations = Object.fromEntries([[heavy.key, 300], ...light.map((e) => [e.key, 100])]);
 
   const nodeFilesPerShard = [1, 2].map(
     (index) =>

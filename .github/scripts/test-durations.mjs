@@ -31,14 +31,23 @@ export function shardPlan(entries, durations, { index, count }) {
   const weighed = weigh(entries, durations).sort(
     (a, b) => b.weight - a.weight || (a.entry.key < b.entry.key ? -1 : 1),
   );
+  const projects = [...new Set(weighed.map((file) => file.entry.project))].sort();
   const shards = Array.from({ length: count }, () => ({ load: 0, files: [] }));
-  for (const file of weighed) {
-    let target = shards[0];
-    for (const shard of shards) {
-      if (shard.load < target.load) target = shard;
+  for (const project of projects) {
+    const projectLoads = shards.map(() => 0);
+    for (const file of weighed.filter((f) => f.entry.project === project)) {
+      let target = 0;
+      for (let i = 1; i < count; i++) {
+        const lighter = projectLoads[i] < projectLoads[target];
+        const asLightWithFewerFiles =
+          projectLoads[i] === projectLoads[target] &&
+          shards[i].files.length < shards[target].files.length;
+        if (lighter || asLightWithFewerFiles) target = i;
+      }
+      projectLoads[target] += file.weight;
+      shards[target].load += file.weight;
+      shards[target].files.push(file);
     }
-    target.load += file.weight;
-    target.files.push(file);
   }
   const mine = shards[index - 1];
   return {

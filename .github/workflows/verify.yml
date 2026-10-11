@@ -120,9 +120,9 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           HEAD_BRANCH: ${{ github.head_ref }}
 
-  # vitest run, sharded four ways, each shard given the files whose durations, measured on the run
-  # test-durations-source picked, add up evenly, so a slow shard - not the ever-growing total test
-  # count - bounds this job's wall time.
+  # vitest run, sharded four ways, each shard given an even share of every project's files by their
+  # durations measured on the run test-durations-source picked, so a slow shard - not the
+  # ever-growing total test count - bounds this job's wall time.
   tests:
     name: tests (${{ matrix.shard }}/4)
     needs: [scope, test-durations-source]
