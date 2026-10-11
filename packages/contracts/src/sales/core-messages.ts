@@ -71,7 +71,7 @@ export const adjustSaleLineMessageSchema = z.object({
   authorization: authorizationSchema.optional(),
 });
 
-export const previewSaleLineAdjustmentMessageSchema = z.object({
+const previewSaleLineAdjustmentMessageSchema = z.object({
   type: z.literal("preview-sale-line-adjustment"),
   request_id: requestId,
   line_id: z.string(),
