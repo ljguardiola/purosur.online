@@ -14,6 +14,11 @@ export type {
   RejectionClass,
 } from "../model/real-time-authorization.js";
 export type {
+  ClearAuthorizationAnswer,
+  RecordedRequestOutcome,
+  UnclearOutcomeDecision,
+} from "../model/unclear-outcome-decision.js";
+export type {
   ArcaCertificateExpiryPorts,
   ArcaCertificateExpiryStore,
   ArcaCertificateExpiryStoreTransaction,
@@ -32,6 +37,11 @@ export type {
   ArcaVitalityStore,
   VitalityCheckRecord,
 } from "./arca-vitality-ports.js";
+export type {
+  AskAboutUnclearOutcomeInput,
+  AskAboutUnclearOutcomeOutcome,
+} from "./ask-about-unclear-outcome.js";
+export { askAboutUnclearOutcome } from "./ask-about-unclear-outcome.js";
 export type {
   AssignAwaitedOfflineNumberBlockInput,
   AssignAwaitedOfflineNumberBlockOutcome,
@@ -96,6 +106,11 @@ export type {
   DecideSaleAuthorizationOutcome,
 } from "./decide-sale-authorization.js";
 export { decideSaleAuthorization } from "./decide-sale-authorization.js";
+export type {
+  DecideUnclearRealTimeOutcomeInput,
+  DecideUnclearRealTimeOutcomeOutcome,
+} from "./decide-unclear-real-time-outcome.js";
+export { decideUnclearRealTimeOutcome } from "./decide-unclear-real-time-outcome.js";
 export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
 export type {
   EditFiscalAddressInput,
@@ -262,6 +277,18 @@ export type {
   TaxAuthorityCounts,
   TaxAuthorityLastAuthorizedLookup,
 } from "./tax-authority-count-ports.js";
+export type {
+  AbandonedRequestRecord,
+  AskAboutUnclearOutcomePorts,
+  DecideUnclearRealTimeOutcomePorts,
+  TaxAuthorityVoucherLookup,
+  UnclearOutcomeLane,
+  UnclearOutcomeLanes,
+  UnclearOutcomeRequests,
+  UnclearRequest,
+  UnclearRequestProgress,
+  VoucherAnswer,
+} from "./unclear-outcome-ports.js";
 export type {
   WsaaAuthentication,
   WsaaAuthenticationResult,

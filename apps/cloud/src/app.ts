@@ -80,6 +80,7 @@ import { registerRegisterOfflinePointOfSaleConfigurationRoute } from "./fiscal/r
 import { registerRegisterPointOfSaleConfigurationRoute } from "./fiscal/register-point-of-sale-configuration-route.js";
 import type { RegistersPointsOfSaleRouteOptions } from "./fiscal/registers-points-of-sale-list-route.js";
 import { registerRegistersPointsOfSaleListRoute } from "./fiscal/registers-points-of-sale-list-route.js";
+import { registerUnclearOutcomeRoute } from "./fiscal/unclear-outcome-route.js";
 import {
   type MercadoPagoNotificationRoutesOptions,
   registerMercadoPagoNotificationRoutes,
@@ -566,6 +567,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerEventsRoute(api, { ...options.devices, now });
         if (options.fiscalAuthorization) {
           registerFiscalAuthorizationRoute(api, {
+            ...options.devices,
+            ...options.fiscalAuthorization,
+            now,
+          });
+          registerUnclearOutcomeRoute(api, {
             ...options.devices,
             ...options.fiscalAuthorization,
             now,

@@ -9,6 +9,7 @@ export type LimitedEndpoint =
   | "pull"
   | "health_check"
   | "fiscal_authorize"
+  | "fiscal_unclear_outcome"
   | "payment_order";
 
 export const INSTALLATION_REQUEST_WINDOW_MS = 60 * 60 * 1000;
@@ -18,6 +19,7 @@ export const INSTALLATION_REQUEST_LIMITS: Record<LimitedEndpoint, number> = {
   pull: 3600,
   health_check: 3600,
   fiscal_authorize: 3600,
+  fiscal_unclear_outcome: 3600,
   payment_order: 3600,
 };
 
