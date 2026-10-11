@@ -24,6 +24,13 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 process.env["TZ"] = "UTC";
 
+// Vitest's own default leaves out `module`, which some dependencies point at ES modules Node
+// cannot load (extensionless relative imports); replacing the conditions must keep that out.
+const SERVER_CONDITIONS = [
+  "@purosur/source",
+  ...defaultServerConditions.filter((condition) => condition !== "module"),
+];
+
 function compiledReactProject() {
   return {
     plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss()],
@@ -62,14 +69,11 @@ export default defineConfig({
     conditions: ["@purosur/source", ...defaultClientConditions],
   },
   ssr: {
-    resolve: {
-      // Vitest's own default leaves out `module`, which some dependencies point at ES modules Node
-      // cannot load (extensionless relative imports); replacing the conditions must keep that out.
-      conditions: [
-        "@purosur/source",
-        ...defaultServerConditions.filter((condition) => condition !== "module"),
-      ],
-    },
+    resolve: { conditions: SERVER_CONDITIONS },
+  },
+  // Vitest loads each project's globalSetup in this environment, not in `ssr`.
+  environments: {
+    __vitest__: { resolve: { conditions: SERVER_CONDITIONS } },
   },
   test: {
     passWithNoTests: true,
