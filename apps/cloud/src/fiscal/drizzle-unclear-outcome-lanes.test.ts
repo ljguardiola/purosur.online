@@ -41,7 +41,11 @@ beforeAll(async () => {
     enqueued.push(id);
   });
   requests = new DrizzleUnclearOutcomeRequests(db);
-  authorizationLanes = new DrizzlePointOfSaleLanes(connections, async () => {});
+  authorizationLanes = new DrizzlePointOfSaleLanes(
+    connections,
+    async () => {},
+    async () => {},
+  );
 });
 
 afterAll(async () => {

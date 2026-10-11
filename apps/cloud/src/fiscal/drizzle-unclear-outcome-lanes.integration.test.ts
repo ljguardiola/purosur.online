@@ -71,7 +71,11 @@ function unclearLanes() {
 
 function authorizationPorts(taxAuthority: TaxAuthorityInvoicing): AuthorizeFiscalDocumentPorts {
   return {
-    lanes: new DrizzlePointOfSaleLanes(postgresDedicatedConnections(sql), async () => {}),
+    lanes: new DrizzlePointOfSaleLanes(
+      postgresDedicatedConnections(sql),
+      async () => {},
+      async () => {},
+    ),
     clock: { now: () => RECEIVED_AT },
     tokens: { validToken: async () => TOKEN },
     taxAuthority,
@@ -183,6 +187,7 @@ describe("the unclear outcome lanes on a real Postgres", () => {
     const request = authorizationRequestRecord(registerId, { pointOfSale: 35, number: 1 });
     await new DrizzlePointOfSaleLanes(
       postgresDedicatedConnections(sql),
+      async () => {},
       async () => {},
     ).inPointOfSaleLane(35, (lane) => lane.recordRequest(request));
     const { notAfter: _notAfter, receivedAt: _receivedAt, ...record } = request;

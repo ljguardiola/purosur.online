@@ -9,11 +9,9 @@ import {
   insertRegisterWithPointOfSale,
 } from "./test-support/authorization-request-fixtures.js";
 import {
-  answers,
   answersInTurn,
   type FakeWsfeServer,
   startFakeWsfeServer,
-  UNREACHABLE_WSFE_ENDPOINT,
 } from "./test-support/fake-wsfe-server.js";
 import { UNCLEAR_OUTCOME_TASK_IDENTIFIER, unclearOutcomeJobs } from "./unclear-outcome-task.js";
 import { WsfeTaxAuthorityLastAuthorized } from "./wsfe-tax-authority-last-authorized.js";
@@ -43,11 +41,11 @@ beforeEach(async () => {
   now = SETTLED_NOW;
 });
 
-function taskUnderTest(vouchersEndpoint = server.endpoint) {
+function taskUnderTest() {
   const jobs = unclearOutcomeJobs({
     now: () => now,
     vouchers: new WsfeTaxAuthorityVouchers({
-      endpoint: vouchersEndpoint,
+      endpoint: server.endpoint,
       cuit: FICTIONAL_CERTIFICATE_CUIT,
       timeoutMs: 2_000,
     }),
@@ -113,7 +111,7 @@ describe("unclearOutcomeJobs", () => {
     expect(jobs.crontab).toEqual([]);
   });
 
-  it("releases the number when ARCA holds no voucher at it and has authorized fewer", async () => {
+  it("records the decision ARCA's answers lead to, and asks nothing again", async () => {
     await issueWsaaToken();
     const fiscalDocumentId = await unclearRequest();
     server.behave(
@@ -131,46 +129,10 @@ describe("unclearOutcomeJobs", () => {
     expect(addJob).not.toHaveBeenCalled();
   });
 
-  it("adopts the voucher ARCA holds when it matches the document", async () => {
+  it("asks again with the document's key and top priority at the time a pending decision names", async () => {
     await issueWsaaToken();
     const fiscalDocumentId = await unclearRequest();
-    server.behave(answers("fe-comp-consultar-found.xml"));
-    const { task } = taskUnderTest();
-    const { helpers, addJob } = buildJobHelpers();
-
-    await task({ fiscalDocumentId }, helpers);
-
-    expect(await storedRow(fiscalDocumentId)).toMatchObject({
-      decision: "adopted",
-      decidedAt: SETTLED_NOW,
-      adoptedAuthorizationCode: "74123456789012",
-      adoptedAuthorizationCodeDueOn: "2026-10-16",
-    });
-    expect(addJob).not.toHaveBeenCalled();
-  });
-
-  it("records a conflict when the voucher ARCA holds differs from the document", async () => {
-    await issueWsaaToken();
-    const fiscalDocumentId = await unclearRequest({ total: 2000 });
-    server.behave(answers("fe-comp-consultar-found.xml"));
-    const { task } = taskUnderTest();
-    const { helpers, addJob } = buildJobHelpers();
-
-    await task({ fiscalDocumentId }, helpers);
-
-    expect(await storedRow(fiscalDocumentId)).toMatchObject({
-      decision: "conflicting",
-      adoptedAuthorizationCode: null,
-    });
-    expect(addJob).not.toHaveBeenCalled();
-  });
-
-  it("asks again at the fixed interval, deciding nothing, when ARCA has authorized the number or more without holding a voucher", async () => {
-    await issueWsaaToken();
-    const fiscalDocumentId = await unclearRequest({ number: 1 });
-    server.behave(
-      answersInTurn("fe-comp-consultar-not-found.xml", "fe-comp-ultimo-autorizado.xml"),
-    );
+    now = new Date(ANSWERED_AT.getTime() + 10_000);
     const { task } = taskUnderTest();
     const { helpers, addJob } = buildJobHelpers();
 
@@ -185,93 +147,13 @@ describe("unclearOutcomeJobs", () => {
           jobKey: `${UNCLEAR_OUTCOME_TASK_IDENTIFIER}:${fiscalDocumentId}`,
           jobKeyMode: "replace",
           priority: -20,
-          runAt: new Date(SETTLED_NOW.getTime() + 30_000),
+          runAt: new Date(ANSWERED_AT.getTime() + 60_000),
         },
       },
     ]);
   });
 
-  it.each([
-    ["cannot be reached", UNREACHABLE_WSFE_ENDPOINT],
-    ["refuses the lookup", undefined],
-  ])("asks again, deciding nothing, when ARCA %s", async (_case, vouchersEndpoint) => {
-    await issueWsaaToken();
-    const fiscalDocumentId = await unclearRequest();
-    server.behave(answers("fe-comp-consultar-token-error.xml"));
-    const { task } = taskUnderTest(vouchersEndpoint);
-    const { helpers, addJob } = buildJobHelpers();
-
-    await task({ fiscalDocumentId }, helpers);
-
-    expect((await storedRow(fiscalDocumentId))?.decision).toBeNull();
-    expect(requeuedAt(addJob)).toMatchObject([
-      { spec: { runAt: new Date(SETTLED_NOW.getTime() + 30_000) } },
-    ]);
-  });
-
-  it("asks again, deciding nothing, when the cloud holds no valid WSAA token", async () => {
-    const fiscalDocumentId = await unclearRequest();
-    const { task } = taskUnderTest();
-    const { helpers, addJob } = buildJobHelpers();
-
-    await task({ fiscalDocumentId }, helpers);
-
-    expect(server.requests).toEqual([]);
-    expect((await storedRow(fiscalDocumentId))?.decision).toBeNull();
-    expect(addJob).toHaveBeenCalledTimes(1);
-  });
-
-  it("asks ARCA nothing until the outcome has settled, and comes back when it does", async () => {
-    await issueWsaaToken();
-    const fiscalDocumentId = await unclearRequest();
-    now = new Date(ANSWERED_AT.getTime() + 10_000);
-    const { task } = taskUnderTest();
-    const { helpers, addJob } = buildJobHelpers();
-
-    await task({ fiscalDocumentId }, helpers);
-
-    expect(server.requests).toEqual([]);
-    expect(requeuedAt(addJob)).toMatchObject([
-      { spec: { runAt: new Date(ANSWERED_AT.getTime() + 60_000) } },
-    ]);
-  });
-
-  it("abandons a request that still has no answer, then waits for the outcome to settle", async () => {
-    await issueWsaaToken();
-    const fiscalDocumentId = await recordRequest();
-    const { task } = taskUnderTest();
-    const { helpers, addJob } = buildJobHelpers();
-
-    await task({ fiscalDocumentId }, helpers);
-
-    expect(await storedRow(fiscalDocumentId)).toMatchObject({
-      answerKind: "unclear",
-      answeredAt: SETTLED_NOW,
-      decision: null,
-    });
-    expect(server.requests).toEqual([]);
-    expect(requeuedAt(addJob)).toMatchObject([
-      { spec: { runAt: new Date(SETTLED_NOW.getTime() + 60_000) } },
-    ]);
-  });
-
-  it("releases at once a document the cloud never attempted", async () => {
-    const fiscalDocumentId = await recordRequest({
-      answerKind: "not_attempted",
-      answeredAt: ANSWERED_AT,
-    });
-    now = new Date(ANSWERED_AT.getTime() + 1_000);
-    const { task } = taskUnderTest();
-    const { helpers, addJob } = buildJobHelpers();
-
-    await task({ fiscalDocumentId }, helpers);
-
-    expect((await storedRow(fiscalDocumentId))?.decision).toBe("released");
-    expect(server.requests).toEqual([]);
-    expect(addJob).not.toHaveBeenCalled();
-  });
-
-  it("ends without asking ARCA when the document was authorized, was decided already, or is unknown", async () => {
+  it("ends without asking again when the document was authorized or is unknown", async () => {
     await issueWsaaToken();
     const authorized = await recordRequest({
       answerKind: "authorized",
@@ -284,18 +166,6 @@ describe("unclearOutcomeJobs", () => {
 
     await task({ fiscalDocumentId: authorized }, helpers);
     await task({ fiscalDocumentId: crypto.randomUUID() }, helpers);
-
-    expect(server.requests).toEqual([]);
-    expect(addJob).not.toHaveBeenCalled();
-  });
-
-  it("ends without asking ARCA when the document was decided already", async () => {
-    await issueWsaaToken();
-    const fiscalDocumentId = await unclearRequest({ decision: "released", decidedAt: ANSWERED_AT });
-    const { task } = taskUnderTest();
-    const { helpers, addJob } = buildJobHelpers();
-
-    await task({ fiscalDocumentId }, helpers);
 
     expect(server.requests).toEqual([]);
     expect(addJob).not.toHaveBeenCalled();

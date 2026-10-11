@@ -5,7 +5,9 @@ import {
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
 } from "./factura-c-fiscal-block.js";
+import type { RealTimeAuthorizationAnswer } from "./real-time-authorization.js";
 import {
+  awaitsUnclearOutcomeDecision,
   decideUnclearOutcome,
   type TaxAuthorityEvidence,
   type TaxAuthorityVoucher,
@@ -43,6 +45,33 @@ describe("unclear outcome policy", () => {
 
   it("settles one settling delay after the abandonment", () => {
     expect(unclearOutcomeSettlesAt(ABANDONED_AT)).toEqual(SETTLED_AT);
+  });
+});
+
+describe("awaitsUnclearOutcomeDecision", () => {
+  it("awaits a decision for a request still without an answer", () => {
+    expect(awaitsUnclearOutcomeDecision(null)).toBe(true);
+  });
+
+  it.each([
+    ["unclear", { kind: "unclear" }],
+    ["not attempted", { kind: "not_attempted" }],
+  ] as const)("awaits a decision for a request answered %s", (_name, answer) => {
+    expect(awaitsUnclearOutcomeDecision(answer)).toBe(true);
+  });
+
+  it.each<[string, RealTimeAuthorizationAnswer]>([
+    [
+      "authorized",
+      {
+        kind: "authorized",
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-11",
+      },
+    ],
+    ["rejected", { kind: "rejected", codes: [10015], rejectionClass: "content" }],
+  ])("awaits no decision for a request answered %s", (_name, answer) => {
+    expect(awaitsUnclearOutcomeDecision(answer)).toBe(false);
   });
 });
 

@@ -9,7 +9,10 @@ import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { type BuildAppOptions, buildApp as buildRealApp } from "./app.js";
 import { enqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import { enqueueTaxAuthorityCountJob } from "./fiscal/graphile-tax-authority-count-queue.js";
-import { enqueueUnclearOutcomeJob } from "./fiscal/graphile-unclear-outcome-queue.js";
+import {
+  enqueueUnclearOutcomeJob,
+  withdrawUnclearOutcomeJob,
+} from "./fiscal/graphile-unclear-outcome-queue.js";
 import { generateArcaTestCredentials } from "./fiscal/test-support/arca-test-credentials.js";
 import { unreachableArcaEndpoints } from "./fiscal/test-support/unreachable-arca-endpoints.js";
 import { WsfeTaxAuthorityInvoicing } from "./fiscal/wsfe-tax-authority-invoicing.js";
@@ -1359,6 +1362,7 @@ describe("startServer authorizing sales in real time", () => {
       taxAuthority: expect.any(WsfeTaxAuthorityInvoicing),
       certificateFingerprint: credentials.fingerprint,
       enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
+      withdrawUnclearOutcome: withdrawUnclearOutcomeJob,
     });
   });
 

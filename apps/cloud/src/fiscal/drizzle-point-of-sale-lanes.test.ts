@@ -32,19 +32,29 @@ const AUTHORIZED: RealTimeAuthorizationAnswer = {
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let lanes: DrizzlePointOfSaleLanes<PgliteQueryResultHKT>;
-let enqueuedUnclearOutcomes: string[];
+let queuedUnclearOutcomes: Map<string, Date | undefined>;
 let enqueueFailure: Error | undefined;
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
   db = testDatabase.db;
-  lanes = new DrizzlePointOfSaleLanes({ withConnection: (work) => work(db) }, async (_, id) => {
-    if (enqueueFailure) {
-      throw enqueueFailure;
-    }
-    enqueuedUnclearOutcomes.push(id);
-  });
+  lanes = new DrizzlePointOfSaleLanes(
+    { withConnection: (work) => work(db) },
+    async (_, id, runAt) => {
+      if (enqueueFailure) {
+        throw enqueueFailure;
+      }
+      queuedUnclearOutcomes.set(id, runAt);
+    },
+    async (_, id) => {
+      queuedUnclearOutcomes.delete(id);
+    },
+  );
 });
+
+function queuedDecisions() {
+  return [...queuedUnclearOutcomes.keys()];
+}
 
 afterAll(async () => {
   await testDatabase.close();
@@ -52,7 +62,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
-  enqueuedUnclearOutcomes = [];
+  queuedUnclearOutcomes = new Map();
   enqueueFailure = undefined;
 });
 
@@ -661,11 +671,40 @@ describe("DrizzlePointOfSaleLanes", () => {
       return request.fiscalDocumentId;
     }
 
+    it("enqueues the decision of a recorded request for when its call may no longer start", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      const request = authorizationRequestRecord(registerId);
+
+      await lanes.inPointOfSaleLane(7, (lane) => lane.recordRequest(request));
+
+      expect(queuedUnclearOutcomes).toEqual(
+        new Map([[request.fiscalDocumentId, request.notAfter]]),
+      );
+    });
+
+    it("records no request when enqueueing its decision fails", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      const request = authorizationRequestRecord(registerId);
+      enqueueFailure = new Error("the queue is down");
+
+      await expect(
+        lanes.inPointOfSaleLane(7, (lane) => lane.recordRequest(request)),
+      ).rejects.toThrow("the queue is down");
+
+      expect(await recordedAnswerKind(request.fiscalDocumentId)).toBeUndefined();
+    });
+
     it.each([
       ["unclear", { kind: "unclear" }],
       ["not attempted", { kind: "not_attempted" }],
     ] as const)(
-      "enqueues the decision of a document answered %s, when recording the answer",
+      "enqueues the decision of a document answered %s to run now, when recording the answer",
       async (_name, answer) => {
         const fiscalDocumentId = await recordRequest(1);
 
@@ -673,23 +712,39 @@ describe("DrizzlePointOfSaleLanes", () => {
           lane.recordAnswer(fiscalDocumentId, answer, ANSWERED_AT),
         );
 
-        expect(enqueuedUnclearOutcomes).toEqual([fiscalDocumentId]);
+        expect(queuedUnclearOutcomes).toEqual(new Map([[fiscalDocumentId, undefined]]));
       },
     );
 
     it.each([
       ["authorized", AUTHORIZED],
       ["rejected", REJECTED],
-    ])("enqueues nothing for a document answered %s", async (_name, answer) => {
-      const fiscalDocumentId = await recordRequest(1);
+    ])(
+      "withdraws the decision of a document answered %s, whichever way the answer is recorded",
+      async (_name, answer) => {
+        const registerId = await insertRegisterWithPointOfSale(db, {
+          pointOfSaleNumber: 7,
+          name: "caja-1",
+        });
+        const plainlyAnswered = authorizationRequestRecord(registerId, { number: 1 });
+        const answeredByTheTaxAuthority = authorizationRequestRecord(registerId, { number: 2 });
 
-      await lanes.inPointOfSaleLane(7, async (lane) => {
-        await lane.recordAnswer(fiscalDocumentId, answer, ANSWERED_AT);
-        await lane.recordTaxAuthorityAnswer(fiscalDocumentId, answer, ANSWERED_AT, null, null);
-      });
+        await lanes.inPointOfSaleLane(7, async (lane) => {
+          await lane.recordRequest(plainlyAnswered);
+          await lane.recordRequest(answeredByTheTaxAuthority);
+          await lane.recordAnswer(plainlyAnswered.fiscalDocumentId, answer, ANSWERED_AT);
+          await lane.recordTaxAuthorityAnswer(
+            answeredByTheTaxAuthority.fiscalDocumentId,
+            answer,
+            ANSWERED_AT,
+            null,
+            null,
+          );
+        });
 
-      expect(enqueuedUnclearOutcomes).toEqual([]);
-    });
+        expect(queuedDecisions()).toEqual([]);
+      },
+    );
 
     it("enqueues the decision of a document the tax authority left unclear, when recording that answer", async () => {
       const fiscalDocumentId = await recordRequest(1);
@@ -704,7 +759,7 @@ describe("DrizzlePointOfSaleLanes", () => {
         ),
       );
 
-      expect(enqueuedUnclearOutcomes).toEqual([fiscalDocumentId]);
+      expect(queuedDecisions()).toEqual([fiscalDocumentId]);
     });
 
     it("keeps the answer unrecorded when enqueueing the decision fails", async () => {

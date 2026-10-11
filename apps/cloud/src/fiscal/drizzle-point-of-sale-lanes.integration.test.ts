@@ -83,7 +83,11 @@ class HeldTaxAuthority implements TaxAuthorityInvoicing {
 
 function portsOf(taxAuthority: TaxAuthorityInvoicing): AuthorizeFiscalDocumentPorts {
   return {
-    lanes: new DrizzlePointOfSaleLanes(postgresDedicatedConnections(sql), async () => {}),
+    lanes: new DrizzlePointOfSaleLanes(
+      postgresDedicatedConnections(sql),
+      async () => {},
+      async () => {},
+    ),
     clock: { now: () => RECEIVED_AT },
     tokens: { validToken: async () => TOKEN },
     taxAuthority,

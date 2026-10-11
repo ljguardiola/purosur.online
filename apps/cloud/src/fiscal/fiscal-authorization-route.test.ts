@@ -7,7 +7,7 @@ import {
 import { FACTURA_C_DOCUMENT_TYPE } from "@purosur/domain";
 import { FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   alerts,
   arcaInvoicingEvidence,
@@ -358,6 +358,20 @@ describe("POST /fiscal/authorize", () => {
 
       await authorize(body, `Bearer ${deviceToken}`);
 
+      expect(route.enqueuedUnclearOutcomes).toEqual([body.fiscal_document_id]);
+    });
+
+    it("keeps the decision of the document enqueued when its request fails after it was recorded", async () => {
+      const { deviceToken } = await enrollRegisterWithPointOfSale();
+      await route.issueWsaaToken();
+      vi.spyOn(route.taxAuthority, "solicit").mockRejectedValue(new Error("the call broke"));
+      const body = requestBody();
+
+      const failed = await authorize(body, `Bearer ${deviceToken}`);
+      const again = await authorize(body, `Bearer ${deviceToken}`);
+
+      expect(failed.statusCode).toBe(500);
+      expect(realTimeAuthorizationResponseSchema.parse(again.json())).toEqual({ state: "UNCLEAR" });
       expect(route.enqueuedUnclearOutcomes).toEqual([body.fiscal_document_id]);
     });
 
