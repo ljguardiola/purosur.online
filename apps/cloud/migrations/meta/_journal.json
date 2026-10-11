@@ -589,6 +589,13 @@
       "when": 1791732816684,
       "tag": "0087_late_payment_refunds",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1791747780690,
+      "tag": "0090_stock_count_lots",
+      "breakpoints": true
     }
   ]
 }
