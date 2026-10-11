@@ -252,7 +252,7 @@ describe("registerPurchase", () => {
     ]);
   });
 
-  it("receives every line's stock at the recording instant, not the purchase date, with its purchase line, cost pair, lot number and expiry", async () => {
+  it("receives every line's stock at the recording instant, with the purchase date, its purchase line, cost pair, lot number and expiry", async () => {
     const store = storeWithCatalog();
 
     await registerPurchase(
@@ -270,6 +270,7 @@ describe("registerPurchase", () => {
       {
         locationId: BRANCH,
         occurredAt: NOW,
+        purchasedOn: "2026-01-02",
         actorId: ACTOR,
         lines: [
           {

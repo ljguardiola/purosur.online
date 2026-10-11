@@ -1,3 +1,4 @@
+import type { SerialDevicesReport } from "../../register/index.js";
 import type { OutboxEvent, SalesDeniedReport } from "../../shared/index.js";
 
 export const PUSH_BATCH_MAX_EVENTS = 200;
@@ -10,4 +11,5 @@ export interface StorageTelemetry {
   disk_free_ratio: number;
 }
 
-export type RegisterTelemetry = StorageTelemetry & SalesDeniedReport;
+export type RegisterTelemetry = StorageTelemetry &
+  SalesDeniedReport & { serial_devices?: SerialDevicesReport | undefined };

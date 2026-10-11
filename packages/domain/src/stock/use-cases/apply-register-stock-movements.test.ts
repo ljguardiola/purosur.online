@@ -221,9 +221,15 @@ describe("applyRegisterStockMovements", () => {
       "earliestCountAtOrAfter",
       "recordMovement",
       "addToBalance",
+      "productLots",
+      "openTechnicalLot",
+      "allocateToLot",
       "earliestCountAtOrAfter",
       "recordMovement",
       "addToBalance",
+      "productLots",
+      "openTechnicalLot",
+      "allocateToLot",
     ]);
   });
 
@@ -279,5 +285,121 @@ describe("applyRegisterStockMovements", () => {
 
     expect(outcome).toEqual({ kind: "invalid_quantity", productId });
     expect(store.snapshot()).toEqual(before);
+  });
+  describe("lot allocation", () => {
+    function breadSale(id: string, delta: number): ApplyRegisterStockMovementsInput["movements"] {
+      return [{ id, saleLineId: `line-${id}`, productId: "product-bread", kind: "sale", delta }];
+    }
+
+    function remainingByLot(store: FakeStockStore): Record<string, number> {
+      return Object.fromEntries(store.snapshot().lots.map((lot) => [lot.id, lot.remaining]));
+    }
+
+    it("takes a sale from the lots that expire soonest first, recording a portion for each", async () => {
+      const store = storeWithProducts();
+      store.seedLot({ ...BREAD, id: "late", expiresOn: "2027-06-01", remaining: 4000 });
+      store.seedLot({ ...BREAD, id: "soon", expiresOn: "2027-01-01", remaining: 2000 });
+      store.seedLot({ ...BREAD, id: "never", expiresOn: null, remaining: 4000 });
+
+      await apply(store, sale(breadSale("sale-1", -7000)));
+
+      expect(store.snapshot().allocations).toEqual([
+        { movementId: "sale-1", lotId: "soon", quantity: -2000 },
+        { movementId: "sale-1", lotId: "late", quantity: -4000 },
+        { movementId: "sale-1", lotId: "never", quantity: -1000 },
+      ]);
+      expect(remainingByLot(store)).toEqual({ soon: 0, late: 0, never: 3000 });
+    });
+
+    it("leaves the lots of another branch and of another product alone", async () => {
+      const store = storeWithProducts();
+      store.seedLot({ ...BREAD, id: "here", remaining: 5000 });
+      store.seedLot({ ...BREAD, locationId: "branch-2", id: "elsewhere", remaining: 5000 });
+      store.seedLot({ ...CHEESE, id: "other-product", remaining: 5000 });
+
+      await apply(store, sale(breadSale("sale-1", -3000)));
+
+      expect(remainingByLot(store)).toEqual({ here: 2000, elsewhere: 5000, "other-product": 5000 });
+    });
+
+    it("accumulates the sale of a product with no lot in a technical lot with no cost nor expiry", async () => {
+      const store = storeWithProducts();
+
+      await apply(store, sale(breadSale("sale-1", -3000)));
+
+      const { lots, allocations } = store.snapshot();
+      expect(lots).toHaveLength(1);
+      expect(lots[0]).toMatchObject({
+        ...BREAD,
+        technical: true,
+        expiresOn: null,
+        costTotalCents: null,
+        costComplete: false,
+        remaining: -3000,
+      });
+      expect(allocations).toEqual([{ movementId: "sale-1", lotId: lots[0]?.id, quantity: -3000 }]);
+    });
+
+    it("reuses a product's technical lot instead of opening a second one", async () => {
+      const store = storeWithProducts();
+
+      await apply(store, sale(breadSale("sale-1", -3000)));
+      await apply(store, sale(breadSale("sale-2", -1000)));
+
+      const { lots } = store.snapshot();
+      expect(lots).toHaveLength(1);
+      expect(lots[0]?.remaining).toBe(-4000);
+      expect(store.operationOrder.filter((name) => name === "openTechnicalLot")).toHaveLength(1);
+    });
+
+    it("allocates two movements of the same product in the order they are applied", async () => {
+      const store = storeWithProducts();
+      store.seedLot({ ...BREAD, id: "first", expiresOn: "2027-01-01", remaining: 2000 });
+      store.seedLot({ ...BREAD, id: "second", expiresOn: "2027-02-01", remaining: 5000 });
+
+      await apply(store, sale([...breadSale("sale-1", -1000), ...breadSale("sale-2", -2000)]));
+
+      expect(store.snapshot().allocations).toEqual([
+        { movementId: "sale-1", lotId: "first", quantity: -1000 },
+        { movementId: "sale-2", lotId: "first", quantity: -1000 },
+        { movementId: "sale-2", lotId: "second", quantity: -1000 },
+      ]);
+    });
+
+    it("records no allocation for a sale a count already supersedes", async () => {
+      const store = storeWithProducts();
+      store.seedLot({ ...BREAD, id: "stocked", remaining: 5000 });
+      seedCount(store, AFTER_SALE);
+
+      await apply(store, sale(breadSale("sale-1", -3000)));
+
+      expect(store.snapshot().allocations).toEqual([]);
+      expect(remainingByLot(store)).toEqual({ stocked: 5000 });
+      expect(store.operationOrder).not.toContain("productLots");
+    });
+
+    it.each(["openTechnicalLot", "allocateToLot"] as const)(
+      "leaves nothing behind when %s fails",
+      async (operation) => {
+        const store = storeWithProducts();
+        const before = store.snapshot();
+        store.failingWrites.add(operation);
+
+        await expect(apply(store, sale(breadSale("sale-1", -3000)))).rejects.toThrow(operation);
+
+        expect(store.snapshot()).toEqual(before);
+      },
+    );
+
+    it("leaves nothing behind when allocating to an existing lot fails", async () => {
+      const store = storeWithProducts();
+      store.seedLot({ ...BREAD, id: "stocked", remaining: 5000 });
+      const before = store.snapshot();
+      store.failingWrites.add("allocateToLot");
+
+      await expect(apply(store, sale(breadSale("sale-1", -3000)))).rejects.toThrow("allocateToLot");
+
+      expect(store.snapshot()).toEqual(before);
+    });
   });
 });

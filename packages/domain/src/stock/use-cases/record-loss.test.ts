@@ -110,6 +110,9 @@ describe("recordLoss", () => {
       "earliestCountAtOrAfter",
       "recordMovement",
       "addToBalance",
+      "productLots",
+      "openTechnicalLot",
+      "allocateToLot",
     ]);
   });
 
@@ -167,4 +170,67 @@ describe("recordLoss", () => {
       expect(store.snapshot()).toEqual(before);
     },
   );
+
+  describe("lot allocation", () => {
+    it("takes the loss from the lots that expire soonest first", async () => {
+      const store = storeWithProduct();
+      store.seedLot({ ...KEY, id: "late", expiresOn: "2027-06-01", remaining: 4000 });
+      store.seedLot({ ...KEY, id: "soon", expiresOn: "2027-01-01", remaining: 1500 });
+
+      await lose(store, { quantity: 3000 });
+
+      expect(store.snapshot().allocations).toEqual([
+        { movementId: "movement-1", lotId: "soon", quantity: -1500 },
+        { movementId: "movement-1", lotId: "late", quantity: -1500 },
+      ]);
+      expect(store.snapshot().lots.map((lot) => [lot.id, lot.remaining])).toEqual([
+        ["late", 2500],
+        ["soon", 0],
+      ]);
+    });
+
+    it("accumulates a loss of a product with no lot in its technical lot", async () => {
+      const store = storeWithProduct();
+
+      await lose(store, { quantity: 2000 });
+
+      const { lots, allocations } = store.snapshot();
+      expect(lots).toMatchObject([{ technical: true, remaining: -2000 }]);
+      expect(allocations).toEqual([
+        { movementId: "movement-1", lotId: lots[0]?.id, quantity: -2000 },
+      ]);
+    });
+
+    it("records no allocation for a loss a count already supersedes", async () => {
+      const store = storeWithProduct();
+      store.seedLot({ ...KEY, id: "stocked", remaining: 5000 });
+      store.seedMovement({
+        ...KEY,
+        kind: "count",
+        reason: null,
+        delta: 0,
+        occurredAt: new Date(NOON.getTime() + 1),
+        actorId: "actor-2",
+        supersededByCountId: null,
+      });
+
+      await lose(store);
+
+      expect(store.snapshot().allocations).toEqual([]);
+      expect(store.snapshot().lots[0]?.remaining).toBe(5000);
+    });
+
+    it.each(["openTechnicalLot", "allocateToLot"] as const)(
+      "leaves nothing behind when %s fails",
+      async (operation) => {
+        const store = storeWithProduct();
+        const before = store.snapshot();
+        store.failingWrites.add(operation);
+
+        await expect(lose(store)).rejects.toThrow(`${operation} failed`);
+
+        expect(store.snapshot()).toEqual(before);
+      },
+    );
+  });
 });

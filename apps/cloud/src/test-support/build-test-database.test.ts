@@ -32,6 +32,7 @@ import {
   issuerIdentification,
   issuerIdentificationVersions,
   locations,
+  lotAllocations,
   lots,
   offlineNumberBlocks,
   passkeyChallenges,
@@ -69,6 +70,7 @@ import {
   salePayments,
   saleReprints,
   sales,
+  serialDeviceState,
   sessions,
   signInChallenges,
   signInFailures,
@@ -330,6 +332,14 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       deviceId: installation.id,
       lastPullSince: 0,
       lastPulledAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(serialDeviceState).values({
+      deviceId: installation.id,
+      role: "scale",
+      standing: "matching",
+      vendorId: "1a86",
+      productId: "7523",
+      reportedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db.insert(inbox).values({
       eventId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e0f",
@@ -647,14 +657,20 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
         quantityPerPackage: 1000,
       })
       .returning({ id: purchaseLines.id });
-    await db.insert(lots).values({
-      productId: product.id,
-      locationId: await seededLocationId(db),
-      purchaseLineId: purchaseLine?.id as string,
-      quantityReceived: 1000,
-      costTotalCents: 500,
-      costQuantity: 1000,
-    });
+    const [lot] = await db
+      .insert(lots)
+      .values({
+        productId: product.id,
+        locationId: await seededLocationId(db),
+        purchaseLineId: purchaseLine?.id as string,
+        quantityReceived: 1000,
+        costTotalCents: 500,
+        costQuantity: 1000,
+      })
+      .returning({ id: lots.id });
+    await db
+      .insert(lotAllocations)
+      .values({ movementId: countMovement.id, lotId: lot?.id as string, quantity: 1000 });
     await db.insert(priceReviewPostponements).values({
       productId: product.id,
       priceListId: await seededPriceListId(db),

@@ -9,6 +9,10 @@ import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { type BuildAppOptions, buildApp as buildRealApp } from "./app.js";
 import { enqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import { enqueueTaxAuthorityCountJob } from "./fiscal/graphile-tax-authority-count-queue.js";
+import {
+  enqueueUnclearOutcomeJob,
+  withdrawUnclearOutcomeJob,
+} from "./fiscal/graphile-unclear-outcome-queue.js";
 import { generateArcaTestCredentials } from "./fiscal/test-support/arca-test-credentials.js";
 import { unreachableArcaEndpoints } from "./fiscal/test-support/unreachable-arca-endpoints.js";
 import { WsfeTaxAuthorityInvoicing } from "./fiscal/wsfe-tax-authority-invoicing.js";
@@ -706,6 +710,7 @@ describe("startServer", () => {
       setUpRecovery,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       now,
     });
 
@@ -950,6 +955,7 @@ describe("startServer checking the certificate's expiry", () => {
       setUpRecovery: vi.fn().mockResolvedValue(recovery),
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       enqueueArcaCertificateExpiryCheck,
     });
 
@@ -1020,6 +1026,7 @@ describe("startServer with the ARCA private key", () => {
       setUpRecovery,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
     });
     return { started, setUpRecovery };
   }
@@ -1208,6 +1215,7 @@ describe("startServer fetching the buyer tax-status values", () => {
       setUpRecovery,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch,
     });
     return { started, steps, recovery, setUpRecovery, enqueueBuyerTaxStatusFetch };
@@ -1294,6 +1302,9 @@ describe("startServer authorizing sales in real time", () => {
     const enqueueMissingTaxAuthorityCounts = vi.fn(async () => {
       steps.push("enqueueMissingTaxAuthorityCounts");
     });
+    const enqueueMissingUnclearOutcomes = vi.fn(async () => {
+      steps.push("enqueueMissingUnclearOutcomes");
+    });
     const started = startServer(startEnv, {
       arcaEndpoints: arcaEndpointsOf,
       initSentry: vi.fn(),
@@ -1302,8 +1313,17 @@ describe("startServer authorizing sales in real time", () => {
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts,
+      enqueueMissingUnclearOutcomes,
     });
-    return { started, steps, recovery, setUpRecovery, buildApp, enqueueMissingTaxAuthorityCounts };
+    return {
+      started,
+      steps,
+      recovery,
+      setUpRecovery,
+      buildApp,
+      enqueueMissingTaxAuthorityCounts,
+      enqueueMissingUnclearOutcomes,
+    };
   }
 
   afterEach(() => {
@@ -1341,6 +1361,8 @@ describe("startServer authorizing sales in real time", () => {
       connections: recovery.connections,
       taxAuthority: expect.any(WsfeTaxAuthorityInvoicing),
       certificateFingerprint: credentials.fingerprint,
+      enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
+      withdrawUnclearOutcome: withdrawUnclearOutcomeJob,
     });
   });
 
@@ -1391,12 +1413,32 @@ describe("startServer authorizing sales in real time", () => {
     await started;
 
     expect(enqueueMissingTaxAuthorityCounts).toHaveBeenCalledWith(recovery.db);
-    expect(steps).toEqual(["enqueueMissingTaxAuthorityCounts", "listen"]);
+    expect(steps).toEqual([
+      "enqueueMissingTaxAuthorityCounts",
+      "enqueueMissingUnclearOutcomes",
+      "listen",
+    ]);
+  });
+
+  it("asks again for the decision of every unclear document that is still undecided", async () => {
+    const { started, recovery, enqueueMissingUnclearOutcomes } = start({
+      ...env,
+      ARCA_PRIVATE_KEY: credentials.privateKeyPem,
+    });
+    await started;
+
+    expect(enqueueMissingUnclearOutcomes).toHaveBeenCalledWith(recovery.db);
   });
 
   it("wires none of it without the key, as no WSAA token is ever renewed to ask with", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const { started, setUpRecovery, buildApp, enqueueMissingTaxAuthorityCounts } = start(env);
+    const {
+      started,
+      setUpRecovery,
+      buildApp,
+      enqueueMissingTaxAuthorityCounts,
+      enqueueMissingUnclearOutcomes,
+    } = start(env);
     await started;
 
     const [recoveryEnv] = setUpRecovery.mock.calls[0] as [Record<string, unknown>];
@@ -1407,6 +1449,7 @@ describe("startServer authorizing sales in real time", () => {
     expect(options).not.toHaveProperty("enqueueOfflineAuthorizationCodeRequest");
     expect(options).not.toHaveProperty("enqueueTaxAuthorityCountOnEnrollment");
     expect(enqueueMissingTaxAuthorityCounts).not.toHaveBeenCalled();
+    expect(enqueueMissingUnclearOutcomes).not.toHaveBeenCalled();
   });
 });
 
@@ -1445,6 +1488,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
     });
     return { started, buildApp, recovery, setUp };
   }
@@ -1579,6 +1623,7 @@ describe("startServer with the real app", () => {
         setUpRecovery,
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       },
     );
 
@@ -1837,6 +1882,7 @@ describe("startServer ARCA endpoints", () => {
         setUpRecovery,
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
         arcaEndpoints,
       },
     );

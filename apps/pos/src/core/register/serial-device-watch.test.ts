@@ -204,6 +204,21 @@ describe("watching the registered serial devices", () => {
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 
+  it("reads the registrations its standings were found with until it checks again", async () => {
+    const { watch, world } = setup({ detected: [{ path: "COM3", identity: SCALE }] });
+    await watch.start();
+
+    world.registered = { scale: STRANGER };
+    expect(watch.reading()).toEqual({
+      kind: "listed",
+      standings: { scale: { kind: "matching", path: "COM3" }, reader: { kind: "not_detected" } },
+      registered: { scale: SCALE, reader: READER },
+    });
+
+    world.registrationsFailure = new Error("the registrations could not be read");
+    expect(watch.reading()).toMatchObject({ registered: { scale: SCALE, reader: READER } });
+  });
+
   it("replaces the check it had planned when it is asked to check now", async () => {
     const { watch, nextCheck } = setup({});
     await watch.start();
@@ -364,7 +379,11 @@ describe("watching the registered serial devices", () => {
 
 describe("the path of a registered device to talk to", () => {
   function listed(scale: SerialDeviceStanding): SerialDeviceReading {
-    return { kind: "listed", standings: { scale, reader: { kind: "matching", path: "COM4" } } };
+    return {
+      kind: "listed",
+      standings: { scale, reader: { kind: "matching", path: "COM4" } },
+      registered: { scale: SCALE, reader: READER },
+    };
   }
 
   it("is the path where the registered device was found", () => {

@@ -93,7 +93,7 @@ function status(
     cloud: () => cloud,
     now: () => NOW,
     signedInPerson,
-    serialDevices: () => ({ kind: "listed", standings: serialDevices }),
+    serialDevices: () => ({ kind: "listed", standings: serialDevices, registered: {} }),
   });
 }
 

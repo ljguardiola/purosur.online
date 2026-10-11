@@ -619,7 +619,8 @@ export const purchaseLines = pgTable(
   ],
 );
 
-// The stock a purchase line brought in, with the line's exact cost pair.
+// The stock a purchase line brought in, with the line's exact cost pair; a product's technical lot
+// instead gathers what was consumed before any purchase, with no cost.
 export const lots = pgTable(
   "lots",
   {
@@ -630,19 +631,60 @@ export const lots = pgTable(
     locationId: uuid("location_id")
       .notNull()
       .references(() => locations.id),
-    purchaseLineId: uuid("purchase_line_id")
-      .notNull()
-      .references(() => purchaseLines.id),
+    purchaseLineId: uuid("purchase_line_id").references(() => purchaseLines.id),
     lotNumber: text("lot_number"),
     expiresOn: date("expires_on", { mode: "string" }),
-    costTotalCents: bigint("cost_total_cents", { mode: "number" }).notNull(),
-    costQuantity: bigint("cost_quantity", { mode: "number" }).notNull(),
+    purchasedOn: date("purchased_on", { mode: "string" }),
+    technical: boolean("technical").notNull().default(false),
+    costIncomplete: boolean("cost_incomplete").notNull().default(false),
+    costTotalCents: bigint("cost_total_cents", { mode: "number" }),
+    costQuantity: bigint("cost_quantity", { mode: "number" }),
     quantityReceived: bigint("quantity_received", { mode: "number" }).notNull(),
+    remaining: bigint("remaining", { mode: "number" }).notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     unique("lots_purchase_line_id_key").on(table.purchaseLineId),
     check("lots_cost_quantity_check", sql`${table.costQuantity} > 0`),
+    check(
+      "lots_technical_iff_no_purchase_line_check",
+      sql`${table.technical} = (${table.purchaseLineId} is null)`,
+    ),
+    check(
+      "lots_cost_pair_check",
+      sql`(${table.costTotalCents} is null) = (${table.costQuantity} is null)`,
+    ),
+    check(
+      "lots_cost_known_or_incomplete_check",
+      sql`${table.costTotalCents} is not null or ${table.costIncomplete}`,
+    ),
+    check(
+      "lots_technical_has_no_expiry_or_purchase_date_check",
+      sql`not ${table.technical} or (${table.expiresOn} is null and ${table.purchasedOn} is null)`,
+    ),
+    uniqueIndex("lots_one_technical_per_product_branch")
+      .on(table.productId, table.locationId)
+      .where(sql`${table.technical}`),
+    index("lots_product_id_location_id_idx").on(table.productId, table.locationId),
+  ],
+);
+
+// Append-only: what each stock movement took from, or returned to, each lot.
+export const lotAllocations = pgTable(
+  "lot_allocations",
+  {
+    movementId: uuid("movement_id")
+      .notNull()
+      .references(() => stockMovements.id),
+    lotId: uuid("lot_id")
+      .notNull()
+      .references(() => lots.id),
+    quantity: bigint("quantity", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.movementId, table.lotId] }),
+    check("lot_allocations_quantity_check", sql`${table.quantity} <> 0`),
+    index("lot_allocations_lot_id_idx").on(table.lotId),
   ],
 );
 
@@ -947,6 +989,32 @@ export const deviceState = pgTable("device_state", {
   diskFreeRatio: doublePrecision("disk_free_ratio"),
 });
 
+export const serialDeviceState = pgTable(
+  "serial_device_state",
+  {
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => registerInstallations.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    standing: text("standing").notNull(),
+    vendorId: text("vendor_id"),
+    productId: text("product_id"),
+    reportedAt: timestamp("reported_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.deviceId, table.role] }),
+    check("serial_device_state_role_check", sql`${table.role} in ('scale', 'reader')`),
+    check(
+      "serial_device_state_standing_check",
+      sql`${table.standing} in ('matching', 'not_detected', 'mismatched', 'not_registered', 'unknown')`,
+    ),
+    check(
+      "serial_device_state_identity_check",
+      sql`(${table.vendorId} is null) = (${table.productId} is null)`,
+    ),
+  ],
+);
+
 export const inbox = pgTable(
   "inbox",
   {
@@ -1196,6 +1264,7 @@ export const installationRequestEndpoint = pgEnum("installation_request_endpoint
   "health_check",
   "fiscal_authorize",
   "payment_order",
+  "fiscal_unclear_outcome",
 ]);
 
 // The limiter's own bookkeeping, not business data: what left the limit's window is deleted.
@@ -1703,6 +1772,10 @@ export const fiscalRequests = pgTable(
     rejectionCodes: integer("rejection_codes").array(),
     rejectionClass: text("rejection_class"),
     answeredAt: timestamp("answered_at", { withTimezone: true }),
+    decision: text("decision"),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    adoptedAuthorizationCode: text("adopted_authorization_code"),
+    adoptedAuthorizationCodeDueOn: date("adopted_authorization_code_due_on", { mode: "string" }),
   },
   (table) => [
     index("fiscal_requests_point_of_sale_idx").on(table.pointOfSale),
@@ -1727,6 +1800,23 @@ export const fiscalRequests = pgTable(
       "fiscal_requests_rejection_class_check",
       sql`coalesce(${table.answerKind} = 'rejected', false) = (${table.rejectionClass} is not null)
         and ${table.rejectionClass} in ('content', 'standing')`,
+    ),
+    check(
+      "fiscal_requests_decision_check",
+      sql`${table.decision} in ('released', 'adopted', 'conflicting')`,
+    ),
+    check(
+      "fiscal_requests_decision_time_check",
+      sql`(${table.decision} is null) = (${table.decidedAt} is null)`,
+    ),
+    check(
+      "fiscal_requests_adoption_check",
+      sql`coalesce(${table.decision} = 'adopted', false) = (${table.adoptedAuthorizationCode} is not null)
+        and (${table.adoptedAuthorizationCode} is null) = (${table.adoptedAuthorizationCodeDueOn} is null)`,
+    ),
+    check(
+      "fiscal_requests_decision_answer_check",
+      sql`${table.decision} is null or coalesce(${table.answerKind} in ('unclear', 'not_attempted'), false)`,
     ),
   ],
 );

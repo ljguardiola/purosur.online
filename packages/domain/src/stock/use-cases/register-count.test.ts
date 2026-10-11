@@ -241,4 +241,15 @@ describe("registerCount", () => {
       expect(store.snapshot()).toEqual(before);
     },
   );
+
+  it("records no lot allocation for a count", async () => {
+    const store = storeWithProduct({ balance: 12_400 });
+    store.seedLot({ ...KEY, id: "stocked", remaining: 12_400 });
+
+    await count(store, { counted: 12_150 });
+
+    expect(store.snapshot().allocations).toEqual([]);
+    expect(store.snapshot().lots[0]?.remaining).toBe(12_400);
+    expect(store.operationOrder).not.toContain("productLots");
+  });
 });

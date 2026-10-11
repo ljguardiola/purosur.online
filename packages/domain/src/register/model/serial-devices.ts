@@ -20,6 +20,20 @@ export type SerialDeviceStanding =
   | { kind: "mismatched" }
   | { kind: "not_registered" };
 
+export const SERIAL_DEVICE_REPORT_STANDINGS = [
+  "matching",
+  "not_detected",
+  "mismatched",
+  "not_registered",
+  "unknown",
+] as const satisfies readonly (SerialDeviceStanding["kind"] | "unknown")[];
+
+export type SerialDeviceReport = {
+  standing: (typeof SERIAL_DEVICE_REPORT_STANDINGS)[number];
+} & ({ vendor_id: string; product_id: string } | { vendor_id?: undefined; product_id?: undefined });
+
+export type SerialDevicesReport = Record<SerialDeviceRole, SerialDeviceReport>;
+
 export function isSameSerialDeviceIdentity(
   first: SerialDeviceIdentity,
   second: SerialDeviceIdentity,

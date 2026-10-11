@@ -1,5 +1,10 @@
+import {
+  allocatesToLots,
+  movementAllocations,
+  type PlannedLotAllocation,
+} from "../model/lot-allocation.js";
 import { movesBalance } from "../model/stock-receipt.js";
-import type { NewStockMovement, StockStoreTransaction } from "./stock-store.js";
+import type { NewStockMovement, ProductStockKey, StockStoreTransaction } from "./stock-store.js";
 
 export interface AppliedStockMovement {
   movementId: string;
@@ -27,6 +32,25 @@ export async function recordStockMovement(
   movement: NewStockMovement,
 ): Promise<{ movementId: string; balance: number | null }> {
   const movementId = await tx.recordMovement(movement);
-  const balance = movesBalance(movement) ? await tx.addToBalance(movement, movement.delta) : null;
+  if (!movesBalance(movement)) {
+    return { movementId, balance: null };
+  }
+  const balance = await tx.addToBalance(movement, movement.delta);
+  if (allocatesToLots(movement.kind)) {
+    const lots = await tx.productLots(movement);
+    await allocateToLots(tx, movement, movementId, movementAllocations(lots, movement.delta));
+  }
   return { movementId, balance };
+}
+
+export async function allocateToLots(
+  tx: StockStoreTransaction,
+  key: ProductStockKey,
+  movementId: string,
+  planned: readonly PlannedLotAllocation[],
+): Promise<void> {
+  for (const { target, quantity } of planned) {
+    const lotId = target.kind === "lot" ? target.lotId : await tx.openTechnicalLot(key);
+    await tx.allocateToLot({ movementId, lotId, quantity });
+  }
 }

@@ -19,7 +19,7 @@ async function nextIoTurn(): Promise<void> {
 }
 
 function listed(scale: SerialDeviceStanding, reader: SerialDeviceStanding): SerialDeviceReading {
-  return { kind: "listed", standings: { scale, reader } };
+  return { kind: "listed", standings: { scale, reader }, registered: {} };
 }
 
 describe("the register's barcode reader wiring", () => {
