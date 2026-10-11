@@ -677,6 +677,96 @@ describe("adjusting a sale line", () => {
   });
 });
 
+describe("previewing a sale line adjustment", () => {
+  const preview = {
+    type: "preview-sale-line-adjustment",
+    request_id: REQUEST_ID,
+    line_id: "l1",
+    adjustment: { kind: "PERCENT", value: 15 },
+  };
+
+  it.each([
+    { kind: "PRICE", value: 0 },
+    { kind: "PRICE", value: MAX_UNIT_PRICE_CENTS },
+    { kind: "PERCENT", value: 1 },
+    { kind: "PERCENT", value: 100 },
+    { kind: "AMOUNT", value: 1 },
+    { kind: "AMOUNT", value: 25_000 },
+  ])("accepts the adjustment $kind of $value", (adjustment) => {
+    const message = { ...preview, adjustment };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    ["a percent of zero", { adjustment: { kind: "PERCENT", value: 0 } }],
+    ["a percent above 100", { adjustment: { kind: "PERCENT", value: 101 } }],
+    ["an amount of zero", { adjustment: { kind: "AMOUNT", value: 0 } }],
+    ["a negative price", { adjustment: { kind: "PRICE", value: -1 } }],
+    [
+      "a price above the maximum",
+      { adjustment: { kind: "PRICE", value: MAX_UNIT_PRICE_CENTS + 1 } },
+    ],
+    ["a kind it does not know", { adjustment: { kind: "FREE", value: 10 } }],
+    ["no adjustment", { adjustment: undefined }],
+    ["no line", { line_id: undefined }],
+    ["no request id", { request_id: undefined }],
+  ])("rejects a preview with %s", (_case, change) => {
+    expect(salesRendererToCoreMessageSchema.safeParse({ ...preview, ...change }).success).toBe(
+      false,
+    );
+  });
+
+  it("asks for no reason and no authorization", () => {
+    const message = {
+      ...preview,
+      reason: "Producto golpeado",
+      authorization: { user_id: "u2", pin: "1234" },
+    };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(preview);
+  });
+
+  it.each([
+    { kind: "preview", discount_amount: 840, line_total: 7560 },
+    { kind: "preview", discount_amount: 0, line_total: 0 },
+    { kind: "unknown_line" },
+    { kind: "same_as_list_price" },
+    { kind: "discount_exceeds_line" },
+    { kind: "no_open_sale" },
+    { kind: "no_open_session" },
+    { kind: "sale_has_payments" },
+    { kind: "not_permitted" },
+    { kind: "not_signed_in" },
+  ])("accepts the answer $kind", (outcome) => {
+    const message = {
+      type: "preview-sale-line-adjustment-result",
+      request_id: REQUEST_ID,
+      outcome,
+    };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    ["an outcome it does not know", { kind: "somewhere_else" }],
+    ["a preview without the line total", { kind: "preview", discount_amount: 840 }],
+    ["a preview without the discount", { kind: "preview", line_total: 7560 }],
+    ["a fractional discount", { kind: "preview", discount_amount: 8.5, line_total: 7560 }],
+    ["a negative line total", { kind: "preview", discount_amount: 0, line_total: -1 }],
+    ["a negative discount", { kind: "preview", discount_amount: -1, line_total: 100 }],
+    ["an authorization refusal", { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 }],
+  ])("rejects an answer with %s", (_case, outcome) => {
+    expect(
+      salesCoreToRendererMessageSchema.safeParse({
+        type: "preview-sale-line-adjustment-result",
+        request_id: REQUEST_ID,
+        outcome,
+      }).success,
+    ).toBe(false);
+  });
+});
+
 describe("sale line answers", () => {
   const sale = {
     id: "s1",
