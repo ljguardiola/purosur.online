@@ -427,3 +427,38 @@ describe("GET /alerts/:id for a register that lacks a fortnight's offline author
     expect(response.json().detail).not.toHaveProperty("fortnightStarted");
   });
 });
+
+describe("GET /alerts/:id for the refund of a late payment", () => {
+  it("answers the warning of the branch with the refund as its scope and the sale and amount to give back", async () => {
+    const viewerRoleId = await insertRole("supervisor", ["view_all_alerts"]);
+    const rawSessionId = await insertSession(await insertUserWithRole("Grace", viewerRoleId));
+    const refundId = "4b0d2c1e-7f3a-4e58-9a61-0c5d8e2f1a77";
+    const [alert] = await db
+      .insert(alerts)
+      .values({
+        kind: "late_payment_refund",
+        scope: refundId,
+        level: "warning",
+        audience: "local",
+        locationId: ownLocationId,
+        detail: { saleId: "9d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10", amount: 250000 },
+        openedAt: NOON,
+      })
+      .returning({ id: alerts.id });
+    if (!alert) throw new Error("test setup: inserting the alert returned no row");
+
+    const response = await getAlert(rawSessionId, alert.id);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      kind: "late_payment_refund",
+      scope: refundId,
+      scopeKind: "refund",
+      level: "warning",
+      audience: "local",
+      open: true,
+      resolvesByItself: false,
+      detail: { saleId: "9d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10", amount: 250000 },
+    });
+  });
+});
