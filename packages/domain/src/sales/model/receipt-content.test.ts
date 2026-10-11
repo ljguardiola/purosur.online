@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { facturaCFiscalBlock } from "../../fiscal/index.js";
 import { type ReceiptSource, receiptContent } from "./receipt-content.js";
+import { authorizedFacturaC } from "./test-support/authorized-factura-c.js";
 
 const OCCURRED_AT = new Date("2026-10-07T15:30:00.000Z");
 const HEADER = {
@@ -40,6 +42,7 @@ function source(overrides: Partial<ReceiptSource> = {}): ReceiptSource {
     total: 11250,
     lines: [YERBA, QUESO],
     payments: [{ method: "CASH", amount: 11250, tendered: 12000 }],
+    fiscal: { kind: "none" },
     ...overrides,
   };
 }
@@ -151,5 +154,24 @@ describe("receiptContent", () => {
       receiptContent(source({ payments: [{ method: "CASH", amount: 11250, tendered: null }] }))
         .totals.change,
     ).toBe(0);
+  });
+
+  describe("the fiscal block", () => {
+    const AUTHORIZED = authorizedFacturaC(11250);
+
+    it("is the fiscal block of the authorized factura C of the sale", () => {
+      const content = receiptContent(
+        source({ fiscal: { kind: "authorized", authorized: AUTHORIZED } }),
+      );
+
+      expect(content.fiscal).toEqual(facturaCFiscalBlock(AUTHORIZED));
+    });
+
+    it.each([
+      ["has no fiscal document", { kind: "none" }],
+      ["awaits the tax authority's answer", { kind: "awaiting" }],
+    ] as const)("is absent when the sale %s", (_name, fiscal) => {
+      expect(receiptContent(source({ fiscal })).fiscal).toBeNull();
+    });
   });
 });
