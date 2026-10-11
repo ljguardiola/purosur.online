@@ -1,18 +1,20 @@
 import { randomUUID } from "node:crypto";
-import {
-  configureRegisterOfflinePointOfSale,
-  configureRegisterPointOfSale,
-} from "@purosur/domain/fiscal/use-cases";
+import { configureRegisterOfflinePointOfSale } from "@purosur/domain/fiscal/use-cases";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
-import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-point-of-sale-store.js";
 import { DrizzleTaxAuthorityCounts } from "../fiscal/drizzle-tax-authority-counts.js";
-import { fiscalAddresses, locations, registers, users } from "../platform/db/schema.js";
+import { locations } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { buildChangesRouteApp, pulledPage } from "./test-support/changes-route.js";
+import {
+  configurePointOfSale,
+  insertActor,
+  insertFiscalAddress,
+  insertRegister,
+} from "./test-support/configured-point-of-sale.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
 const SEEDED_CHANGES = 4;
@@ -44,80 +46,30 @@ async function pullAfterSeed(deviceToken: string) {
   return page.changes.map(({ change_seq, ...change }) => change);
 }
 
-async function insertActor(locationId: string, email = "ada@example.com"): Promise<string> {
-  const [actor] = await db
-    .insert(users)
-    .values({ firstName: "Ada Lucero", email, locationId })
-    .returning({ id: users.id });
-  if (!actor) {
-    throw new Error("test setup: seeding the actor returned no row");
-  }
-  return actor.id;
-}
-
-async function insertRegister(locationId: string, name: string): Promise<string> {
-  const [register] = await db
-    .insert(registers)
-    .values({ locationId, name })
-    .returning({ id: registers.id });
-  if (!register) {
-    throw new Error("test setup: seeding the register returned no row");
-  }
-  return register.id;
-}
-
-async function insertFiscalAddress(name = "Deposito Central"): Promise<string> {
-  const [fiscalAddress] = await db
-    .insert(fiscalAddresses)
-    .values({ name, streetAddress: "Calle Ficticia 123, CABA" })
-    .returning({ id: fiscalAddresses.id });
-  if (!fiscalAddress) {
-    throw new Error("test setup: seeding the fiscal address returned no row");
-  }
-  return fiscalAddress.id;
-}
-
-async function configure(input: {
-  locationId: string;
-  registerId: string;
-  pointOfSaleNumber: number;
-  fiscalAddressId: string;
-  version: number;
-  actorId: string;
-}) {
-  const outcome = await configureRegisterPointOfSale(
-    new DrizzleRegisterPointOfSaleStore(db, () => NOW),
-    input,
-  );
-  if (outcome.kind !== "configured") {
-    throw new Error(`test setup: configuring ended as ${outcome.kind}`);
-  }
-}
-
 async function otherBranchRegister(): Promise<{ locationId: string; registerId: string }> {
   const [location] = await db.insert(locations).values({}).returning({ id: locations.id });
   if (!location) {
     throw new Error("test setup: seeding the other location returned no row");
   }
-  return { locationId: location.id, registerId: await insertRegister(location.id, "Caja 3") };
+  return { locationId: location.id, registerId: await insertRegister(db, location.id, "Caja 3") };
 }
 
 describe("GET /changes carrying the register's own point of sale", () => {
   it("gives a register its own point of sale and fiscal address, at its version", async () => {
     const locationId = await seededLocationId(db);
-    const registerId = await insertRegister(locationId, "Caja 1");
-    const fiscalAddressId = await insertFiscalAddress();
+    const registerId = await insertRegister(db, locationId, "Caja 1");
+    const fiscalAddressId = await insertFiscalAddress(db);
     const { deviceToken } = await insertEnrolledInstallation(db, {
       now: NOW,
       existingRegisterId: registerId,
     });
-    await configure({
+    await configurePointOfSale(db, NOW, {
       locationId,
       registerId,
       pointOfSaleNumber: 7,
       fiscalAddressId,
       version: 0,
-      actorId: await insertActor(locationId),
+      actorId: await insertActor(db, locationId),
     });
 
     expect(await pullAfterSeed(deviceToken)).toEqual([
@@ -136,16 +88,16 @@ describe("GET /changes carrying the register's own point of sale", () => {
 
   it("gives a register nothing of another register's point of sale, in its branch or in another", async () => {
     const locationId = await seededLocationId(db);
-    const registerId = await insertRegister(locationId, "Caja 1");
-    const sameBranchRegisterId = await insertRegister(locationId, "Caja 2");
+    const registerId = await insertRegister(db, locationId, "Caja 1");
+    const sameBranchRegisterId = await insertRegister(db, locationId, "Caja 2");
     const otherBranch = await otherBranchRegister();
-    const fiscalAddressId = await insertFiscalAddress();
-    const actorId = await insertActor(locationId);
+    const fiscalAddressId = await insertFiscalAddress(db);
+    const actorId = await insertActor(db, locationId);
     const { deviceToken } = await insertEnrolledInstallation(db, {
       now: NOW,
       existingRegisterId: registerId,
     });
-    await configure({
+    await configurePointOfSale(db, NOW, {
       locationId,
       registerId: sameBranchRegisterId,
       pointOfSaleNumber: 8,
@@ -153,7 +105,7 @@ describe("GET /changes carrying the register's own point of sale", () => {
       version: 0,
       actorId,
     });
-    await configure({
+    await configurePointOfSale(db, NOW, {
       ...otherBranch,
       pointOfSaleNumber: 9,
       fiscalAddressId,
@@ -166,16 +118,16 @@ describe("GET /changes carrying the register's own point of sale", () => {
 
   it("gives the point of sale as it is now for every change logged for it", async () => {
     const locationId = await seededLocationId(db);
-    const registerId = await insertRegister(locationId, "Caja 1");
-    const fiscalAddressId = await insertFiscalAddress();
-    const actorId = await insertActor(locationId);
+    const registerId = await insertRegister(db, locationId, "Caja 1");
+    const fiscalAddressId = await insertFiscalAddress(db);
+    const actorId = await insertActor(db, locationId);
     const { deviceToken } = await insertEnrolledInstallation(db, {
       now: NOW,
       existingRegisterId: registerId,
     });
     const base = { locationId, registerId, fiscalAddressId, actorId };
-    await configure({ ...base, pointOfSaleNumber: 7, version: 0 });
-    await configure({ ...base, pointOfSaleNumber: 8, version: 1 });
+    await configurePointOfSale(db, NOW, { ...base, pointOfSaleNumber: 7, version: 0 });
+    await configurePointOfSale(db, NOW, { ...base, pointOfSaleNumber: 8, version: 1 });
 
     const pulled = await pullAfterSeed(deviceToken);
 
@@ -205,19 +157,19 @@ describe("GET /changes carrying the register's own point of sale", () => {
 
   it("gives the tax authority's last authorized number with the point of sale once it is recorded, at the same version", async () => {
     const locationId = await seededLocationId(db);
-    const registerId = await insertRegister(locationId, "Caja 1");
-    const fiscalAddressId = await insertFiscalAddress();
+    const registerId = await insertRegister(db, locationId, "Caja 1");
+    const fiscalAddressId = await insertFiscalAddress(db);
     const { deviceToken } = await insertEnrolledInstallation(db, {
       now: NOW,
       existingRegisterId: registerId,
     });
-    await configure({
+    await configurePointOfSale(db, NOW, {
       locationId,
       registerId,
       pointOfSaleNumber: 7,
       fiscalAddressId,
       version: 0,
-      actorId: await insertActor(locationId),
+      actorId: await insertActor(db, locationId),
     });
 
     await new DrizzleTaxAuthorityCounts(db).advance({
@@ -241,15 +193,15 @@ describe("GET /changes carrying the register's own point of sale", () => {
 
   it("gives a register the count of its own point of sale only", async () => {
     const locationId = await seededLocationId(db);
-    const registerId = await insertRegister(locationId, "Caja 1");
-    const otherRegisterId = await insertRegister(locationId, "Caja 2");
-    const fiscalAddressId = await insertFiscalAddress();
-    const actorId = await insertActor(locationId);
+    const registerId = await insertRegister(db, locationId, "Caja 1");
+    const otherRegisterId = await insertRegister(db, locationId, "Caja 2");
+    const fiscalAddressId = await insertFiscalAddress(db);
+    const actorId = await insertActor(db, locationId);
     const { deviceToken } = await insertEnrolledInstallation(db, {
       now: NOW,
       existingRegisterId: registerId,
     });
-    await configure({
+    await configurePointOfSale(db, NOW, {
       locationId,
       registerId,
       pointOfSaleNumber: 7,
@@ -257,7 +209,7 @@ describe("GET /changes carrying the register's own point of sale", () => {
       version: 0,
       actorId,
     });
-    await configure({
+    await configurePointOfSale(db, NOW, {
       locationId,
       registerId: otherRegisterId,
       pointOfSaleNumber: 8,
@@ -301,13 +253,13 @@ async function configureOffline(input: {
 }
 
 async function registerWithRealTime(locationId: string, name: string, number: number) {
-  const registerId = await insertRegister(locationId, name);
-  const actorId = await insertActor(locationId, `${randomUUID()}@example.com`);
-  await configure({
+  const registerId = await insertRegister(db, locationId, name);
+  const actorId = await insertActor(db, locationId, `${randomUUID()}@example.com`);
+  await configurePointOfSale(db, NOW, {
     locationId,
     registerId,
     pointOfSaleNumber: number,
-    fiscalAddressId: await insertFiscalAddress(`Deposito ${name}`),
+    fiscalAddressId: await insertFiscalAddress(db, `Deposito ${name}`),
     version: 0,
     actorId,
   });

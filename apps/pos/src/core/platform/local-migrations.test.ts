@@ -879,6 +879,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -944,6 +945,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1004,6 +1006,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1063,6 +1066,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1149,6 +1153,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1227,6 +1232,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1309,6 +1315,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1374,6 +1381,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1431,6 +1439,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -2493,6 +2502,81 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("declare the point of sale for redelivery over the one received before it held the tax authority's count, leaving the pull cursor as it is", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0021_real_time_authorization",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `UPDATE sync_state SET pull_cursor = 9, device_id = 'device-a' WHERE id = 1;
+         INSERT INTO own_register (id, name, version, removed) VALUES ('r1', 'Caja 1', 1, 0);
+         INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id, version)
+         VALUES ('r1', 12, 'address-1', 2);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare("SELECT table_name, cursor FROM pulled_table_redeliveries ORDER BY table_name")
+          .all(),
+      ).toContainEqual({ table_name: "register_point_of_sale", cursor: 0 });
+      expect(after.prepare("SELECT pull_cursor FROM sync_state").all()).toEqual([
+        { pull_cursor: 9 },
+      ]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("declare the offline point of sale for redelivery over the one received before it held the tax authority's count, leaving the pull cursor as it is", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0037_offline_point_of_sale_tax_authority_count",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `UPDATE sync_state SET pull_cursor = 9, device_id = 'device-a' WHERE id = 1;
+         INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, version)
+         VALUES ('r1', 31, 2);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare("SELECT table_name, cursor FROM pulled_table_redeliveries ORDER BY table_name")
+          .all(),
+      ).toEqual([
+        { table_name: "register_offline_point_of_sale", cursor: 0 },
+        { table_name: "register_point_of_sale", cursor: 0 },
+      ]);
+      expect(after.prepare("SELECT pull_cursor FROM sync_state").all()).toEqual([
+        { pull_cursor: 9 },
+      ]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("refuse a redelivery cursor below zero", () => {
+    const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+
+    expect(() =>
+      database
+        .prepare("INSERT INTO pulled_table_redeliveries (table_name, cursor) VALUES ('users', -1)")
+        .run(),
+    ).toThrow(/CHECK/);
+    database.close();
   it("let a sale line carry a manual adjustment of its price or a manual discount, none over the lines it already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {

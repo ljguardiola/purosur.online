@@ -57,7 +57,7 @@ function baseDetail(overrides: DetailOverrides = {}): AlertDetail {
     escalatedAt: null,
     resolvedAt: null,
     open: true,
-    resolvesByItself: false,
+    closing: "by_hand",
     deliveries: [],
   };
   return { ...passkeyAlert, ...overrides };
@@ -1366,7 +1366,7 @@ test("says nothing about closing by hand for an open alert the cloud says resolv
         audience: "local",
         scope: "register-1",
         scopeDisplay: "Caja 1",
-        resolvesByItself: true,
+        closing: "by_itself",
         detail: { deviceId: "device-1", lastAcceptedPushAt: "2026-01-05T11:30:00.000Z" },
       }),
     ),
@@ -1444,7 +1444,7 @@ test.each([
           audience: "all",
           scope: "register-1:2026-10-16",
           scopeDisplay: "Caja 1",
-          resolvesByItself: true,
+          closing: "by_itself",
           detail: { ...MISSING_CODE_DETAIL, fortnightStarted },
         }),
       ),
@@ -1459,3 +1459,54 @@ test.each([
     await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
   },
 );
+
+test("tells a refund owed for a QR payment that arrived late: what it means, what to do and that its scope is a refund task", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "late_payment_refund",
+        level: "warning",
+        audience: "local",
+        scope: "refund-1",
+        scopeDisplay: "refund-1",
+        scopeKind: "refund",
+        closing: "with_its_refund",
+        detail: { saleId: "sale-1", amount: 250_000 },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Reembolso pendiente por un pago tardío", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText("Se cierra cuando su reembolso se marca como hecho o se descarta.", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
+  await expect
+    .element(
+      screen.getByText(
+        "Mercado Pago cobró un QR de una venta que ya se había cobrado por otro medio.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Qué hacer", { exact: true })).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Si ese reembolso ya se hizo desde Mercado Pago, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes por el mismo medio, o descartarlo si no corresponde. El Administrador ya fue avisado.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Tarea de reembolso", { exact: true })).toBeVisible();
+  expect(screen.getByText(/refund-1/).query()).toBeNull();
+});

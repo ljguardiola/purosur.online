@@ -1224,7 +1224,11 @@ export const paymentRefunds = pgTable(
   {
     id: uuid("id").primaryKey(),
     saleId: uuid("sale_id").notNull(),
-    paymentId: uuid("payment_id").notNull(),
+    paymentId: uuid("payment_id"),
+    paymentTransactionId: uuid("payment_transaction_id")
+      .unique()
+      .references(() => paymentTransactions.id),
+    origin: text("origin").notNull().default("sale_cancelled"),
     method: text("method").notNull(),
     provider: text("provider").notNull(),
     amount: bigint("amount", { mode: "number" }).notNull(),
@@ -1232,6 +1236,8 @@ export const paymentRefunds = pgTable(
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
     doneBy: text("done_by"),
     doneAt: timestamp("done_at", { withTimezone: true }),
+    discardedBy: text("discarded_by"),
+    discardedAt: timestamp("discarded_at", { withTimezone: true }),
   },
   (table) => [
     foreignKey({
@@ -1239,10 +1245,25 @@ export const paymentRefunds = pgTable(
       columns: [table.paymentId, table.saleId],
       foreignColumns: [salePayments.id, salePayments.saleId],
     }),
-    check("payment_refunds_state_check", sql`${table.state} in ('PENDING', 'APPROVED')`),
+    check(
+      "payment_refunds_state_check",
+      sql`${table.state} in ('PENDING', 'APPROVED', 'DISCARDED')`,
+    ),
+    check(
+      "payment_refunds_origin_check",
+      sql`${table.origin} in ('sale_cancelled', 'late_payment')`,
+    ),
+    check(
+      "payment_refunds_one_source_check",
+      sql`(${table.paymentId} is null) <> (${table.paymentTransactionId} is null)`,
+    ),
     check(
       "payment_refunds_done_check",
       sql`(${table.doneBy} is null) = (${table.doneAt} is null) and (${table.state} = 'APPROVED' or ${table.doneBy} is null)`,
+    ),
+    check(
+      "payment_refunds_discarded_check",
+      sql`(${table.discardedBy} is null) = (${table.discardedAt} is null) and (${table.state} = 'DISCARDED' or ${table.discardedBy} is null)`,
     ),
     index("payment_refunds_pending_idx")
       .on(table.occurredAt)

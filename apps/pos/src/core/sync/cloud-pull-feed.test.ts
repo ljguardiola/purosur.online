@@ -100,3 +100,46 @@ describe("the cloud's pull, as the register reads it", () => {
     expect(await feed.pageAfter(4)).toEqual({ kind: "failed", failure: { kind: "unreachable" } });
   });
 });
+
+describe("the cloud's pull of one entity, as the register reads it", () => {
+  it("asks for the page of that entity after the cursor with the device token", async () => {
+    const { feed, requests } = feedAnswering({
+      kind: "ok",
+      body: { changes: [], cursor: 4, has_more: false },
+    });
+
+    await feed.pageOfEntityAfter("register_point_of_sale", 4);
+
+    expect(requests).toEqual([
+      {
+        path: "/api/changes?since=4&entity=register_point_of_sale",
+        headers: { authorization: "Bearer prefix.secret" },
+      },
+    ]);
+  });
+
+  it("reads a page with each change, its cursor and whether more wait", async () => {
+    const { feed } = feedAnswering({
+      kind: "ok",
+      body: { changes: [change], cursor: 5, has_more: true },
+    });
+
+    expect(await feed.pageOfEntityAfter("branch_settings", 4)).toEqual({
+      kind: "page",
+      page: { changes: [{ changeSeq: 5, change }], cursor: 5, hasMore: true },
+    });
+  });
+
+  it("fails on a body that is not a page, and when the cloud can't be reached", async () => {
+    expect(
+      await feedAnswering({ kind: "ok", body: { changes: "nope" } }).feed.pageOfEntityAfter(
+        "tag",
+        4,
+      ),
+    ).toEqual({ kind: "failed", failure: { kind: "unreadable" } });
+    expect(await feedAnswering({ kind: "unreachable" }).feed.pageOfEntityAfter("tag", 4)).toEqual({
+      kind: "failed",
+      failure: { kind: "unreachable" },
+    });
+  });
+});

@@ -157,8 +157,16 @@ export {
   mercadoPagoQrOrderRequestSchema,
   mercadoPagoQrPaymentSchema,
 } from "./payments/mercado-pago-qr-order.js";
-export type { MarkedRefundDoneBody, PendingRefundsBody } from "./payments/pending-refunds.js";
-export { markedRefundDoneSchema, pendingRefundsSchema } from "./payments/pending-refunds.js";
+export type {
+  DiscardedRefundBody,
+  MarkedRefundDoneBody,
+  PendingRefundsBody,
+} from "./payments/pending-refunds.js";
+export {
+  discardedRefundSchema,
+  markedRefundDoneSchema,
+  pendingRefundsSchema,
+} from "./payments/pending-refunds.js";
 export type { PermissionCatalogWire } from "./permissions/permission-catalog.js";
 export { permissionCatalogSchema } from "./permissions/permission-catalog.js";
 export type { RegisterCoverageWire } from "./permissions/register-coverage.js";

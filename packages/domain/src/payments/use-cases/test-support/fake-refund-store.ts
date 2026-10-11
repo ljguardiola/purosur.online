@@ -1,7 +1,7 @@
 import type { Clock } from "../../../shared/index.js";
 import type {
   LockedRefund,
-  PendingRefund,
+  PendingRefundRecord,
   PendingRefundsReader,
   RefundStore,
   RefundStoreTransaction,
@@ -11,9 +11,20 @@ export interface FakeStoredRefund extends LockedRefund {
   locationId: string;
   doneBy?: string;
   doneAt?: Date;
+  discardedBy?: string;
+  discardedAt?: Date;
 }
 
-type RefundStoreWrite = "recordRefundDone";
+export interface ResolvedRefundAlert {
+  refundId: string;
+  resolvedBy: string;
+  resolvedAt: Date;
+}
+
+type RefundStoreWrite =
+  | "recordRefundDone"
+  | "recordRefundDiscarded"
+  | "resolveLatePaymentRefundAlert";
 
 class FakeRefundStoreTransaction implements RefundStoreTransaction {
   private readonly refunds: FakeStoredRefund[];
@@ -29,7 +40,7 @@ class FakeRefundStoreTransaction implements RefundStoreTransaction {
     const refund = this.refunds.find(
       (stored) => stored.id === refundId && stored.locationId === locationId,
     );
-    return refund && { id: refund.id, state: refund.state };
+    return refund && { id: refund.id, state: refund.state, origin: refund.origin };
   }
 
   async recordRefundDone(refundId: string, doneBy: string, doneAt: Date): Promise<void> {
@@ -45,9 +56,39 @@ class FakeRefundStoreTransaction implements RefundStoreTransaction {
       }
     }
   }
+
+  async recordRefundDiscarded(
+    refundId: string,
+    discardedBy: string,
+    discardedAt: Date,
+  ): Promise<void> {
+    this.store.operationOrder.push("recordRefundDiscarded");
+    if (this.store.failOn === "recordRefundDiscarded") {
+      throw new Error("recordRefundDiscarded failed");
+    }
+    for (const refund of this.refunds) {
+      if (refund.id === refundId) {
+        refund.state = "DISCARDED";
+        refund.discardedBy = discardedBy;
+        refund.discardedAt = discardedAt;
+      }
+    }
+  }
+
+  async resolveLatePaymentRefundAlert(
+    refundId: string,
+    resolvedBy: string,
+    resolvedAt: Date,
+  ): Promise<void> {
+    this.store.operationOrder.push("resolveLatePaymentRefundAlert");
+    if (this.store.failOn === "resolveLatePaymentRefundAlert") {
+      throw new Error("resolveLatePaymentRefundAlert failed");
+    }
+    this.store.resolvedAlerts.push({ refundId, resolvedBy, resolvedAt });
+  }
 }
 
-export interface FakePendingRefund extends PendingRefund {
+export interface FakePendingRefund extends PendingRefundRecord {
   locationId: string;
 }
 
@@ -56,6 +97,7 @@ export class FakeRefundStore implements RefundStore, PendingRefundsReader {
   pending: FakePendingRefund[];
   failOn: RefundStoreWrite | undefined;
   operationOrder: string[] = [];
+  resolvedAlerts: ResolvedRefundAlert[] = [];
   transactions = 0;
   pendingReads: string[] = [];
 
@@ -64,7 +106,7 @@ export class FakeRefundStore implements RefundStore, PendingRefundsReader {
     this.pending = pending;
   }
 
-  async pendingRefunds(locationId: string): Promise<PendingRefund[]> {
+  async pendingRefunds(locationId: string): Promise<PendingRefundRecord[]> {
     this.pendingReads.push(locationId);
     return this.pending
       .filter((refund) => refund.locationId === locationId)
@@ -76,10 +118,12 @@ export class FakeRefundStore implements RefundStore, PendingRefundsReader {
   ): Promise<TOutcome> {
     this.transactions += 1;
     const before = structuredClone(this.refunds);
+    const alertsBefore = [...this.resolvedAlerts];
     try {
       return await work(new FakeRefundStoreTransaction(this.refunds, this));
     } catch (error) {
       this.refunds = before;
+      this.resolvedAlerts = alertsBefore;
       throw error;
     }
   }

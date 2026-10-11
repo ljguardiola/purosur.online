@@ -9,6 +9,11 @@ export type {
 } from "./admit-payment-notification.js";
 export { admitPaymentNotification } from "./admit-payment-notification.js";
 export type {
+  ApplyQrPaymentReplacementOutcome,
+  ApplyQrPaymentReplacementPorts,
+} from "./apply-qr-payment-replacement.js";
+export { applyQrPaymentReplacement } from "./apply-qr-payment-replacement.js";
+export type {
   CancelMercadoPagoQrOrderInput,
   CancelMercadoPagoQrOrderOutcome,
   CancelMercadoPagoQrOrderPorts,
@@ -30,6 +35,12 @@ export type {
   CreateMercadoPagoQrOrderOutcome,
 } from "./create-mercado-pago-qr-order.js";
 export { createMercadoPagoQrOrder } from "./create-mercado-pago-qr-order.js";
+export type {
+  DiscardRefundInput,
+  DiscardRefundOutcome,
+  DiscardRefundPorts,
+} from "./discard-refund.js";
+export { discardRefund } from "./discard-refund.js";
 export type {
   FollowMercadoPagoQrChargeInput,
   FollowMercadoPagoQrChargeOutcome,
@@ -67,6 +78,7 @@ export type {
   PendingMercadoPagoQrPayment,
 } from "./mercado-pago-qr-charge-ports.js";
 export type {
+  LatePaymentRefundOpening,
   MercadoPagoCancellationKeys,
   MercadoPagoOrderCancellation,
   MercadoPagoOrderCreation,
@@ -78,8 +90,15 @@ export type {
   PaymentTransactionLanes,
   PaymentTransactionOutcome,
   PaymentTransactionReading,
+  RecordedOrderState,
 } from "./mercado-pago-qr-order-ports.js";
 export { PaymentTransactionAlreadyRecorded } from "./mercado-pago-qr-order-ports.js";
+export type {
+  QrPaymentReplacement,
+  QrPaymentReplacementStore,
+  QrPaymentReplacementTransaction,
+  ReplacedQrPayment,
+} from "./qr-payment-replacement-store.js";
 export type {
   ReadMercadoPagoQrPaymentInput,
   ReadMercadoPagoQrPaymentOutcome,
@@ -88,6 +107,7 @@ export { readMercadoPagoQrPayment } from "./read-mercado-pago-qr-payment.js";
 export type {
   LockedRefund,
   PendingRefund,
+  PendingRefundRecord,
   PendingRefundsReader,
   RefundStore,
   RefundStoreTransaction,

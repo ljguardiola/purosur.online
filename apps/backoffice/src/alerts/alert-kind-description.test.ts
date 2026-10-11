@@ -32,6 +32,12 @@ test("describes a register that has not downloaded the fortnight's offline autho
   );
 });
 
+test("describes a QR payment Mercado Pago charged for a sale already paid another way", () => {
+  expect(alertKindDescription("late_payment_refund")).toBe(
+    "Mercado Pago cobró un pago QR de una venta que ya se había cobrado por otro medio",
+  );
+});
+
 test("gives no description to a kind this app does not know yet", () => {
   expect(alertKindDescription("register_battery_low")).toBe("");
 });

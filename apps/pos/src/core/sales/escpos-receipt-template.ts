@@ -21,6 +21,7 @@ import { RECEIPT_LOGO } from "./receipt-logo";
 
 const TEMPLATE_VERSION = "1";
 const COLUMNS = 48;
+const SMALL_COLUMNS = 64;
 const RULE = "─".repeat(COLUMNS);
 const FEED_LINES = 5;
 const PC850_TABLE = 2;
@@ -61,6 +62,15 @@ class Output {
       this.command(ESC, 0x45, 1);
       this.chunks.push(encodePc850(line));
       this.command(ESC, 0x45, 0);
+      this.chunks.push(Uint8Array.of(LINE_FEED));
+    }
+  }
+
+  small(lines: readonly string[]): void {
+    for (const line of lines) {
+      this.command(ESC, 0x4d, 1);
+      this.chunks.push(encodePc850(line));
+      this.command(ESC, 0x4d, 0);
       this.chunks.push(Uint8Array.of(LINE_FEED));
     }
   }
@@ -118,17 +128,27 @@ function wrapped(text: string, width: number): string[] {
   return lines;
 }
 
-function centered(text: string): string[] {
-  return wrapped(text, COLUMNS).map(
-    (line) => " ".repeat(Math.floor((COLUMNS - line.length) / 2)) + line,
+function centered(text: string, width = COLUMNS): string[] {
+  return wrapped(text, width).map(
+    (line) => " ".repeat(Math.floor((width - line.length) / 2)) + line,
   );
 }
 
-function row(left: string, right: string, indent = ""): string[] {
-  const room = Math.max(1, COLUMNS - indent.length - right.length - 1);
+function row(left: string, right: string, indent = "", width = COLUMNS): string[] {
+  const room = width - indent.length - right.length - 1;
+  if (room < width / 2) {
+    return [
+      ...wrapped(left, width - indent.length).map((line) => indent + line),
+      ...wrapped(right, width).map((line) => line.padStart(width)),
+    ];
+  }
   const lines = wrapped(left, room).map((line) => indent + line);
   const last = lines.pop() ?? indent;
-  return [...lines, last + " ".repeat(Math.max(1, COLUMNS - last.length - right.length)) + right];
+  return [...lines, last + " ".repeat(width - last.length - right.length) + right];
+}
+
+function smallRow(left: string, right: string): string[] {
+  return row(left, right, "", SMALL_COLUMNS);
 }
 
 function initialization(out: Output): void {
@@ -156,16 +176,24 @@ function branch(
   out: Output,
   { address, whatsappNumber, instagramHandle }: ReceiptContent["header"],
 ): void {
-  out.lines([
-    ...centered(address),
-    ...centered(`WhatsApp ${whatsappNumber}  ·  ${instagramHandle}`),
-    RULE,
+  out.small([
+    ...centered(address, SMALL_COLUMNS),
+    ...centered(`WhatsApp ${whatsappNumber}  ·  ${instagramHandle}`, SMALL_COLUMNS),
   ]);
+}
+
+function voucherType(out: Output, block: FacturaCFiscalBlock): void {
+  const code = String(block.voucherTypeCode).padStart(VOUCHER_CODE_DIGITS, "0");
+  const buyer = block.buyerTaxStatusDescription.toLocaleLowerCase("es-AR");
+  out.lines([RULE]);
+  out.bold(centered(`FACTURA ${block.invoiceClass}`));
+  out.small(centered(`Cód. ${code}  ·  A ${buyer}`, SMALL_COLUMNS));
 }
 
 function operation(
   out: Output,
   { occurredAt, servedByFirstName, operationNumber }: ReceiptContent["operation"],
+  block: FacturaCFiscalBlock | null,
 ): void {
   const date = formatDate(occurredAt, {
     day: "2-digit",
@@ -180,10 +208,26 @@ function operation(
     timeZone: ARGENTINA_TIME_ZONE,
   });
   out.lines([
+    RULE,
+    ...(block === null
+      ? []
+      : row(
+          `Punto de venta ${formatPointOfSaleNumber(block.pointOfSale)}`,
+          `Nº ${formatInvoiceNumber(block.number)}`,
+        )),
     ...row(`Fecha ${date}`, `Hora ${time}`),
     ...row(`Operación ${formatOperationNumber(operationNumber)}`, `Atendió ${servedByFirstName}`),
     RULE,
   ]);
+}
+
+function issuer(out: Output, { issuer }: FacturaCFiscalBlock): void {
+  out.small([
+    ...smallRow(issuer.legalName, issuer.taxStatus),
+    ...smallRow(`CUIT ${issuer.cuit}`, `IIBB ${issuer.grossIncomeRegistration}`),
+    ...wrapped(`Inicio de actividades ${calendarDay(issuer.activityStartDate)}`, SMALL_COLUMNS),
+  ]);
+  out.lines([RULE]);
 }
 
 function promotionText(promotion: DiscountBenefit | null): string {
@@ -210,20 +254,18 @@ function saleLine(line: ReceiptContent["lines"][number]): string[] {
       ? `${weightText(line.quantity)} kg x ${price} el kg`
       : `${formatNumber(line.quantity)} x ${price}`;
   return [
-    ...wrapped(line.productName, COLUMNS),
-    ...row(detail, amount, "  "),
+    ...(line.saleUnit === "UNIT" && line.quantity === 1
+      ? row(line.productName, amount)
+      : [...wrapped(line.productName, COLUMNS), ...row(detail, amount, "  ")]),
     ...(line.discountAmount > 0
-      ? [
-          ...row(promotionText(line.promotion), `-${formatCents(line.discountAmount)}`, "  "),
-          ...row("Total de la línea", formatCents(line.lineTotal), "  "),
-        ]
+      ? row(promotionText(line.promotion), `-${formatCents(line.discountAmount)}`, "  ")
       : []),
   ];
 }
 
 function sale(out: Output, { lines, totals }: Pick<ReceiptContent, "lines" | "totals">): void {
+  out.bold(row("PRODUCTO", "IMPORTE"));
   out.lines([
-    ...row("PRODUCTO", "IMPORTE"),
     ...lines.flatMap(saleLine),
     RULE,
     ...row("Subtotal", formatCents(totals.subtotal)),
@@ -236,7 +278,6 @@ function sale(out: Output, { lines, totals }: Pick<ReceiptContent, "lines" | "to
       row(PAYMENT_NAMES[method], formatCents(amount)),
     ),
     ...(totals.change > 0 ? row("Vuelto", formatCents(totals.change)) : []),
-    RULE,
   ]);
 }
 
@@ -249,41 +290,21 @@ function calendarDay(day: string): string {
   });
 }
 
-function fiscal(out: Output, block: FacturaCFiscalBlock): void {
-  const { issuer } = block;
-  out.bold(centered(`FACTURA ${block.invoiceClass}`));
-  out.lines([
-    ...centered(`Cód. ${String(block.voucherTypeCode).padStart(VOUCHER_CODE_DIGITS, "0")}`),
-    ...centered(issuer.legalName),
-    ...centered(`CUIT ${issuer.cuit}`),
-    ...centered(issuer.taxStatus),
-    ...centered(`Ingresos Brutos ${issuer.grossIncomeRegistration}`),
-    ...centered(`Inicio de actividades ${calendarDay(issuer.activityStartDate)}`),
-    RULE,
-    ...row(
-      `Punto de venta ${formatPointOfSaleNumber(block.pointOfSale)}`,
-      `Comp. Nro ${formatInvoiceNumber(block.number)}`,
-    ),
-    `Fecha de emisión ${calendarDay(block.issuedOn)}`,
-    ...wrapped(`Receptor: ${block.buyerTaxStatusDescription}`, COLUMNS),
-    RULE,
-    ...row("Importe neto", formatCents(block.netAmount)),
-    ...row("IVA", formatCents(block.vatAmount)),
-    RULE,
-  ]);
+function authorization(out: Output, block: FacturaCFiscalBlock): void {
   out.qr(block.qrText);
-  out.lines([
-    ...centered("Comprobante Autorizado"),
-    ...centered(`CAE N° ${block.authorizationCode}`),
-    ...centered(`Fecha de Vto. de CAE ${calendarDay(block.authorizationCodeDueOn)}`),
+  out.small([
+    ...centered("Comprobante autorizado", SMALL_COLUMNS),
+    ...centered(
+      `CAE ${block.authorizationCode}  ·  Vto. ${calendarDay(block.authorizationCodeDueOn)}`,
+      SMALL_COLUMNS,
+    ),
   ]);
 }
 
 function closing(out: Output): void {
-  out.lines([
-    ...centered("Gracias por tu compra"),
-    ...centered("Cambios y devoluciones solo con este ticket."),
-  ]);
+  out.lines([RULE]);
+  out.bold(centered("Gracias por tu compra"));
+  out.small(centered("Cambios y devoluciones solo con este ticket.", SMALL_COLUMNS));
   out.command(ESC, 0x64, FEED_LINES);
   out.command(GS, 0x56, 1);
 }
@@ -301,11 +322,17 @@ function render(content: ReceiptContent): StoredReceipt {
   initialization(head);
   logo(head);
   branch(head, content.header);
-  operation(head, content.operation);
+  if (content.fiscal !== null) {
+    voucherType(head, content.fiscal);
+  }
   const body = new Output();
+  operation(body, content.operation, content.fiscal);
+  if (content.fiscal !== null) {
+    issuer(body, content.fiscal);
+  }
   sale(body, content);
   if (content.fiscal !== null) {
-    fiscal(body, content.fiscal);
+    authorization(body, content.fiscal);
   }
   closing(body);
   return { templateVersion: TEMPLATE_VERSION, head: head.bytes(), body: body.bytes() };

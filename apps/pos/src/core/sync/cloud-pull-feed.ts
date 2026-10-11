@@ -1,5 +1,10 @@
 import { changesPageSchema } from "@purosur/contracts";
-import type { CloudChangeFeed, CloudChangeFeedAnswer } from "@purosur/domain/sync/use-cases";
+import type {
+  CloudChangeFeed,
+  CloudChangeFeedAnswer,
+  EntityChangeFeed,
+  PulledEntity,
+} from "@purosur/domain/sync/use-cases";
 import type { CloudResponse } from "../platform/cloud-client";
 import { type CloudFailure, failureOf } from "./cloud-failure";
 import type { RegisterPulledChange } from "./pulled-change";
@@ -11,7 +16,11 @@ export type GetFromCloud = (
 
 type Answer = CloudChangeFeedAnswer<RegisterPulledChange, CloudFailure>;
 
-export class CloudPullFeed implements CloudChangeFeed<RegisterPulledChange, CloudFailure> {
+export class CloudPullFeed
+  implements
+    CloudChangeFeed<RegisterPulledChange, CloudFailure>,
+    EntityChangeFeed<RegisterPulledChange, CloudFailure>
+{
   private readonly get: GetFromCloud;
   private readonly deviceToken: string;
 
@@ -20,8 +29,16 @@ export class CloudPullFeed implements CloudChangeFeed<RegisterPulledChange, Clou
     this.deviceToken = deviceToken;
   }
 
-  async pageAfter(since: number): Promise<Answer> {
-    const response = await this.get(`/api/changes?since=${since}`, {
+  pageAfter(since: number): Promise<Answer> {
+    return this.read(`/api/changes?since=${since}`);
+  }
+
+  pageOfEntityAfter(entity: PulledEntity, since: number): Promise<Answer> {
+    return this.read(`/api/changes?since=${since}&entity=${entity}`);
+  }
+
+  private async read(path: string): Promise<Answer> {
+    const response = await this.get(path, {
       authorization: `Bearer ${this.deviceToken}`,
     });
     if (response.kind !== "ok") {

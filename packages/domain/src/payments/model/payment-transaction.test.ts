@@ -2,6 +2,7 @@ import fc from "fast-check";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   expiryWithoutOrder,
+  isLateApproval,
   isValidOrderAmount,
   type MercadoPagoQrOrderTransaction,
   mercadoPagoOrderExpiresAt,
@@ -140,4 +141,21 @@ describe("isValidOrderAmount", () => {
       ),
     );
   });
+});
+
+describe("isLateApproval", () => {
+  it("holds for a payment approved after the register replaced it", () => {
+    expect(isLateApproval({ state: "APPROVED", replaced: true })).toBe(true);
+  });
+
+  it("does not hold for an approved payment the register still waited on", () => {
+    expect(isLateApproval({ state: "APPROVED", replaced: false })).toBe(false);
+  });
+
+  it.each(PAYMENT_TRANSACTION_STATES.filter((state) => state !== "APPROVED"))(
+    "does not hold for a replaced payment that is %s",
+    (state) => {
+      expect(isLateApproval({ state, replaced: true })).toBe(false);
+    },
+  );
 });
