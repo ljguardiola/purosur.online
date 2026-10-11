@@ -6,6 +6,7 @@ import {
   FICTIONAL_CUIT,
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
+import type { OfflineAuthorizationCodeRequestAnswer } from "@purosur/domain/fiscal/use-cases";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   ARCA_CERTIFICATE_WITH_WRONG_CHECK_DIGIT,
@@ -13,6 +14,7 @@ import {
   VALID_ARCA_CERTIFICATE,
 } from "../test-support/arca-certificate-fixtures.js";
 import {
+  type ArcaRecordingReport,
   recordArcaResponses,
   recordingFailure,
   recordingSettingsOf,
@@ -569,14 +571,14 @@ describe("recordArcaResponses offline authorization code calls", () => {
     const report = await record();
 
     expect(codeCalls().map(operationOf)).toEqual(["FECAEAConsultar"]);
-    expect(report.offlineAuthorizationCodesRecorded).toBe(false);
+    expect(report.offlineAuthorizationCodeRequests).toBeUndefined();
     expect(readdirSync(outDir).filter((file) => file.startsWith("fe-caea"))).toEqual([]);
   });
 
   it("saves the raw answer of each offline authorization code call", async () => {
     const report = await record();
 
-    expect(report.offlineAuthorizationCodesRecorded).toBe(true);
+    expect(report.offlineAuthorizationCodeRequests).toBeDefined();
     for (const [name, served] of [
       ["fe-caea-consultar-not-granted", "fe-caea-consultar-not-granted"],
       ["fe-caea-solicitar-granted", "fe-caea-solicitar-granted"],
@@ -589,6 +591,49 @@ describe("recordArcaResponses offline authorization code calls", () => {
         fixture("wsfe-responses", `${served}.xml`),
       );
     }
+  });
+
+  const OUT_OF_WINDOW_REFUSAL =
+    "15006: Fecha de envío podrá ser desde 5 días corridos anteriores al inicio hasta el último dia de cada quincena. Del 26/11/2026 hasta 15/12/2026";
+
+  it("fails the recording, naming what ARCA answered, when the first code request is refused", async () => {
+    wsfe.behave(
+      wsfeAnswersInTurn(
+        ...INVOICING_ANSWERS,
+        "fe-caea-consultar-not-granted.xml",
+        "fe-caea-solicitar-out-of-window.xml",
+        "fe-caea-solicitar-out-of-window.xml",
+        "fe-caea-consultar-granted.xml",
+        "fe-caea-consultar-token-error.xml",
+        "fe-caea-solicitar-out-of-window.xml",
+      ),
+    );
+
+    expect(recordingFailure(await record())).toBe(
+      `the first FECAEASolicitar granted no offline authorization code; ARCA answered ${OUT_OF_WINDOW_REFUSAL}`,
+    );
+  });
+
+  it("fails the recording, naming what ARCA answered, when the second code request is refused for another reason than the code being already granted", async () => {
+    wsfe.behave(
+      wsfeAnswersInTurn(
+        ...INVOICING_ANSWERS,
+        "fe-caea-consultar-not-granted.xml",
+        "fe-caea-solicitar-granted.xml",
+        "fe-caea-solicitar-out-of-window.xml",
+        "fe-caea-consultar-granted.xml",
+        "fe-caea-consultar-token-error.xml",
+        "fe-caea-solicitar-out-of-window.xml",
+      ),
+    );
+
+    expect(recordingFailure(await record())).toBe(
+      `the second FECAEASolicitar did not answer that the code was already granted; ARCA answered ${OUT_OF_WINDOW_REFUSAL}`,
+    );
+  });
+
+  it("finds nothing wrong when the first code request is granted and the second answers that it already was", async () => {
+    expect(recordingFailure(await record())).toBeUndefined();
   });
 
   it("refuses when ARCA gives no answer to the first lookup, naming it", async () => {
@@ -614,9 +659,19 @@ describe("recordingFailure", () => {
   const RECORDED = {
     firstLoginIssuedTicket: true,
     invoicesRecorded: true,
-    offlineAuthorizationCodesRecorded: true,
+    offlineAuthorizationCodeRequests: {
+      first: {
+        kind: "granted",
+        code: {
+          code: "36123456789012",
+          fortnight: { start: "2026-10-01", end: "2026-10-15" },
+          reportDeadline: "2026-10-23",
+        },
+      },
+      second: { kind: "already_granted" },
+    },
     scrubbed: [],
-  };
+  } satisfies ArcaRecordingReport;
 
   it("finds nothing wrong with a recording whose login issued a ticket and that requested invoices", () => {
     expect(recordingFailure(RECORDED)).toBeUndefined();
@@ -635,8 +690,59 @@ describe("recordingFailure", () => {
   });
 
   it("fails a recording that requested no offline authorization code", () => {
-    expect(recordingFailure({ ...RECORDED, offlineAuthorizationCodesRecorded: false })).toBe(
+    expect(recordingFailure({ ...RECORDED, offlineAuthorizationCodeRequests: undefined })).toBe(
       "every fortnight whose request window is open already holds a granted offline authorization code, or ARCA did not answer whether it does, so none was requested",
+    );
+  });
+
+  it.each([
+    [
+      { kind: "granted", code: RECORDED.offlineAuthorizationCodeRequests.first.code },
+      "a granted code",
+    ],
+    [{ kind: "no_answer" }, "nothing it could read"],
+    [
+      {
+        kind: "refused",
+        rejections: [
+          { code: 15006, message: "Fuera de plazo" },
+          { code: 10, message: "Otro motivo" },
+        ],
+      },
+      "15006: Fuera de plazo; 10: Otro motivo",
+    ],
+  ] satisfies [OfflineAuthorizationCodeRequestAnswer, string][])(
+    "fails a recording whose second code request answered %j instead of the code being already granted",
+    (second, answered) => {
+      expect(
+        recordingFailure({
+          ...RECORDED,
+          offlineAuthorizationCodeRequests: {
+            ...RECORDED.offlineAuthorizationCodeRequests,
+            second,
+          },
+        }),
+      ).toBe(
+        `the second FECAEASolicitar did not answer that the code was already granted; ARCA answered ${answered}`,
+      );
+    },
+  );
+
+  it("names a CUIT ARCA wrote in a refusal only as the fictional one", () => {
+    const failure = recordingFailure({
+      ...RECORDED,
+      offlineAuthorizationCodeRequests: {
+        ...RECORDED.offlineAuthorizationCodeRequests,
+        first: {
+          kind: "refused",
+          rejections: [{ code: 15006, message: `No autorizado para la CUIT ${ORIGINAL_CUIT}` }],
+        },
+      },
+    });
+
+    expect(failure).not.toContain(ORIGINAL_CUIT);
+    expect(failure).toContain(
+      `15006: No autorizado para la CUIT ${FICTIONAL_CERTIFICATE_CUIT.replaceAll("-", "")}`,
     );
   });
 });
