@@ -152,6 +152,47 @@ describe("askAboutUnclearOutcome", () => {
     expect(documents.operations).not.toContain("recordAbandonedRequest@2026-10-01T12:00:00.000Z");
   });
 
+  it("answers a document the tax authority authorized with that authorization, recording nothing more", async () => {
+    const { documents, store, ports } = setup();
+    store.seed(
+      { ...REQUEST, registerId: REGISTER_ID, notAfter: NOW, receivedAt: NOW },
+      {
+        kind: "authorized",
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-11",
+      },
+      NOW,
+    );
+
+    expect(
+      await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
+    ).toEqual({
+      kind: "decided",
+      decision: {
+        kind: "adopted",
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-11",
+      },
+    });
+    expect(documents.operations).not.toContain("recordAbandonedRequest@2026-10-01T12:00:00.000Z");
+    expect(store.decisions.size).toBe(0);
+  });
+
+  it("answers a document the tax authority rejected as released, recording nothing more", async () => {
+    const { documents, store, ports } = setup();
+    store.seed(
+      { ...REQUEST, registerId: REGISTER_ID, notAfter: NOW, receivedAt: NOW },
+      { kind: "rejected", codes: [10015], rejectionClass: "content" },
+      NOW,
+    );
+
+    expect(
+      await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
+    ).toEqual({ kind: "decided", decision: { kind: "released" } });
+    expect(documents.operations).not.toContain("recordAbandonedRequest@2026-10-01T12:00:00.000Z");
+    expect(store.decisions.size).toBe(0);
+  });
+
   it("answers an already recorded document that is still undecided as pending", async () => {
     const { store, ports } = setup();
     store.seed({ ...REQUEST, registerId: REGISTER_ID, notAfter: NOW, receivedAt: NOW }, null);

@@ -304,7 +304,31 @@ describe("DrizzleUnclearOutcomeLanes", () => {
         return [before, after];
       });
 
-      expect(recorded).toEqual([{ decision: null }, { decision: { kind: "released" } }]);
+      expect(recorded).toEqual([
+        { answer: { kind: "unclear" }, decision: null },
+        { answer: { kind: "unclear" }, decision: { kind: "released" } },
+      ]);
+    });
+
+    it.each<[string, RealTimeAuthorizationAnswer | undefined]>([
+      ["no answer", undefined],
+      [
+        "the authorization",
+        {
+          kind: "authorized",
+          authorizationCode: "74123456789012",
+          authorizationCodeDueOn: "2026-10-16",
+        },
+      ],
+      ["the rejection", { kind: "rejected", codes: [10015], rejectionClass: "content" }],
+    ])("carries %s the tax authority answered", async (_name, answer) => {
+      const request = await recordedRequest(42, answer);
+
+      const recorded = await unclearLanes.inPointOfSaleLane(7, (lane) =>
+        lane.recordedRequest(request.registerId, request.fiscalDocumentId),
+      );
+
+      expect(recorded).toEqual({ answer: answer ?? null, decision: null });
     });
   });
 

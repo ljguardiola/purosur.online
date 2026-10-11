@@ -1,12 +1,14 @@
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
-import type { UnclearOutcomeDecision } from "../../model/unclear-outcome-decision.js";
+import type {
+  RecordedRequestOutcome,
+  UnclearOutcomeDecision,
+} from "../../model/unclear-outcome-decision.js";
 import {
   type AuthorizationRequestRecord,
   FiscalDocumentAlreadyRecorded,
 } from "../fiscal-document-authorization-ports.js";
 import type {
   AbandonedRequestRecord,
-  RecordedUnclearRequest,
   TaxAuthorityVoucherLookup,
   UnclearOutcomeLane,
   UnclearOutcomeLanes,
@@ -122,13 +124,16 @@ class FakeUnclearOutcomeLane implements UnclearOutcomeLane {
   async recordedRequest(
     registerId: string,
     fiscalDocumentId: string,
-  ): Promise<RecordedUnclearRequest | null> {
+  ): Promise<RecordedRequestOutcome | null> {
     this.store.documents.operations.push("recordedRequest");
     const request = this.store.documents.requests.get(fiscalDocumentId);
     if (request?.registerId !== registerId) {
       return null;
     }
-    return { decision: this.store.decisions.get(fiscalDocumentId)?.decision ?? null };
+    return {
+      answer: this.store.documents.answers.get(fiscalDocumentId) ?? null,
+      decision: this.store.decisions.get(fiscalDocumentId)?.decision ?? null,
+    };
   }
 
   async recordAbandonedRequest(request: AbandonedRequestRecord, abandonedAt: Date): Promise<void> {
