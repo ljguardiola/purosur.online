@@ -1,11 +1,14 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
 const MIGRATIONS_DIR_SEGMENT = "migrations";
 const META_DIR_SEGMENT = "meta";
 const JOURNAL_FILE_NAME = "_journal.json";
 const REGENERATE_ON_MAIN = "regenerate the migration on top of the current main";
+const REGISTER_MIGRATIONS_DIR = "apps/pos/src/core/migrations";
+const REGISTER_MIGRATION_NUMBER = /^(\d+)_[^/]*\.sql$/;
 
 export function isProtectedMigrationFile(path) {
   const segments = path.split("/");
@@ -109,6 +112,42 @@ export function findMigrationViolations({ basePaths, readBase, readCurrent }) {
   return violations;
 }
 
+function isRegisterMigrationFile(path) {
+  return (
+    path.startsWith(`${REGISTER_MIGRATIONS_DIR}/`) &&
+    path.endsWith(".sql") &&
+    !path.slice(REGISTER_MIGRATIONS_DIR.length + 1).includes("/")
+  );
+}
+
+function registerMigrationNumber(path) {
+  const match = REGISTER_MIGRATION_NUMBER.exec(path.slice(REGISTER_MIGRATIONS_DIR.length + 1));
+  return match ? { digits: match[1], value: Number(match[1]) } : undefined;
+}
+
+// The register applies every migration it has not applied yet in name order, so a new migration
+// numbered at or below one a register already applied runs after it there but before it on a fresh
+// install.
+export function findMisnumberedRegisterMigrations({ basePaths, currentPaths }) {
+  const baseMigrations = basePaths.filter(isRegisterMigrationFile);
+  const highestOnMain = baseMigrations
+    .map(registerMigrationNumber)
+    .filter((number) => number !== undefined)
+    .reduce(
+      (highest, number) => (highest && highest.value >= number.value ? highest : number),
+      undefined,
+    );
+  if (highestOnMain === undefined) return [];
+  const onMain = new Set(baseMigrations);
+  return currentPaths
+    .filter((path) => isRegisterMigrationFile(path) && !onMain.has(path))
+    .filter((path) => !(registerMigrationNumber(path)?.value > highestOnMain.value))
+    .map((path) => ({
+      path,
+      reason: `new register migration not numbered above ${highestOnMain.digits}, the highest one already on main — renumber it above ${highestOnMain.digits}`,
+    }));
+}
+
 export function describeViolation({ path, reason }) {
   return `${path}: ${reason}`;
 }
@@ -131,6 +170,12 @@ export function readWorkingTreeFile(path) {
     if (error.code === "ENOENT") return undefined;
     throw error;
   }
+}
+
+export function listWorkingTreeRegisterMigrations(root = ".") {
+  return readdirSync(join(root, REGISTER_MIGRATIONS_DIR)).map(
+    (name) => `${REGISTER_MIGRATIONS_DIR}/${name}`,
+  );
 }
 
 export function runGitSync(args) {
