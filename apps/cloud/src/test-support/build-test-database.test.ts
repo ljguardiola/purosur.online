@@ -616,13 +616,24 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       receivedAt: new Date("2026-01-05T12:00:00.000Z"),
       notAfter: new Date("2026-01-05T12:00:04.000Z"),
     });
-    await db.insert(caeaCodes).values({
-      fortnightStart: "2026-10-01",
-      fortnightEnd: "2026-10-15",
-      code: "21403471111111",
-      reportDeadline: "2026-10-30",
-      obtainedAt: new Date("2026-09-28T12:00:00.000Z"),
-      obtainedThrough: "requested",
+    await db.transaction(async (tx) => {
+      const [code] = await tx
+        .insert(caeaCodes)
+        .values({
+          fortnightStart: "2026-10-01",
+          fortnightEnd: "2026-10-15",
+          code: "21403471111111",
+          reportDeadline: "2026-10-30",
+          obtainedAt: new Date("2026-09-28T12:00:00.000Z"),
+          obtainedThrough: "requested",
+        })
+        .returning({ id: caeaCodes.id });
+      await tx.insert(changes).values({
+        entity: "offline_authorization_code",
+        entityId: (code as { id: string }).id,
+        version: 1,
+        op: "insert",
+      });
     });
     const [supplier] = await db
       .insert(suppliers)
