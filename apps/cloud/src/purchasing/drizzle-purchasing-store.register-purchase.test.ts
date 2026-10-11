@@ -172,6 +172,9 @@ describe("the purchases a purchasing store keeps", () => {
         costQuantity: 1_000,
         lotNumber: null,
         expiresOn: null,
+        purchasedOn: "2026-10-01",
+        technical: false,
+        remaining: 2_500,
       },
       {
         productId: yerba.id,
@@ -182,6 +185,9 @@ describe("the purchases a purchasing store keeps", () => {
         costQuantity: 12_000,
         lotNumber: "L-77",
         expiresOn: "2027-03-01",
+        purchasedOn: "2026-10-01",
+        technical: false,
+        remaining: 24_000,
       },
     ]);
   });

@@ -6,6 +6,8 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   categories,
+  lotAllocations,
+  lots,
   products,
   stockBalances,
   stockMovements,
@@ -18,6 +20,7 @@ import {
 import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleStockStore } from "./drizzle-stock-store.js";
+import { insertPurchasedLot } from "./test-support/lot-fixtures.js";
 
 // PGlite serializes all transactions on one connection, so only a real Postgres pool can interleave
 // two movements of the same product; the ordered tests hold the balance row's lock and queue both.
@@ -113,6 +116,41 @@ describe("stock movements of one product committed at the same time, on a real P
       .from(stockMovements)
       .where(eq(stockMovements.productId, productId));
     expect(movements).toHaveLength(12);
+  });
+});
+
+describe("stock movements consuming the same lot committed at the same time, on a real Postgres", () => {
+  it("each lower the lot's remaining, none overwriting another", async () => {
+    const { actorId, productId, locationId } = await seedStockedProduct();
+    const lotId = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId,
+      remaining: START_BALANCE,
+    });
+
+    await Promise.all(
+      Array.from({ length: 8 }, () =>
+        recordLoss(portsAt(NOW), {
+          productId,
+          locationId,
+          reason: "theft",
+          quantity: 1000,
+          actorId,
+        }),
+      ),
+    );
+
+    const [lot] = await db
+      .select({ remaining: lots.remaining })
+      .from(lots)
+      .where(eq(lots.id, lotId));
+    expect(lot?.remaining).toBe(START_BALANCE - 8000);
+    const allocations = await db
+      .select({ quantity: lotAllocations.quantity })
+      .from(lotAllocations)
+      .where(eq(lotAllocations.lotId, lotId));
+    expect(allocations).toEqual(Array.from({ length: 8 }, () => ({ quantity: -1000 })));
   });
 });
 
