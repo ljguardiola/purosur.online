@@ -1,11 +1,13 @@
-import { recordRegisterHealthCheck } from "@purosur/domain/fiscal/use-cases";
+import {
+  type RealTimeTaxAuthority,
+  recordRegisterHealthCheck,
+} from "@purosur/domain/fiscal/use-cases";
 import {
   type CloudClientDeps,
   getFromCloud,
   postToCloudWithBearer,
 } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
-import { authorizingCompletedSales } from "./authorizing-completed-sales";
 import { checkRegisterHealth } from "./check-register-health";
 import { CloudRealTimeTaxAuthority } from "./cloud-real-time-tax-authority";
 import { authorizeSaleInRealTime } from "./real-time-sale-authorization";
@@ -21,10 +23,12 @@ export interface RealTimeAuthorizationWiringDeps {
 }
 
 interface RealTimeAuthorization {
-  afterCompletedSale<TRequest, TOutcome extends { kind: string }>(
-    charge: ((request: TRequest) => Promise<TOutcome>) | undefined,
-  ): ((request: TRequest) => Promise<TOutcome>) | undefined;
+  authorizeSale(saleId: string): Promise<void>;
 }
+
+const UNABLE_TO_ASK: RealTimeTaxAuthority = {
+  authorize: async () => ({ kind: "unclear" }),
+};
 
 export function createRealTimeAuthorization({
   database,
@@ -33,25 +37,28 @@ export function createRealTimeAuthorization({
   now,
   reportFailure,
 }: RealTimeAuthorizationWiringDeps): RealTimeAuthorization {
-  if (database === undefined || cloudClient === undefined) {
-    return { afterCompletedSale: (charge) => charge };
+  if (database === undefined) {
+    return { authorizeSale: async () => undefined };
   }
-  const taxAuthority = new CloudRealTimeTaxAuthority({
-    readDeviceToken,
-    post: (path, bearerToken, body, options) =>
-      postToCloudWithBearer(cloudClient, path, bearerToken, body, options),
-  });
+  const taxAuthority =
+    cloudClient === undefined
+      ? UNABLE_TO_ASK
+      : new CloudRealTimeTaxAuthority({
+          readDeviceToken,
+          post: (path, bearerToken, body, options) =>
+            postToCloudWithBearer(cloudClient, path, bearerToken, body, options),
+        });
   return {
-    afterCompletedSale: (charge) =>
-      charge &&
-      authorizingCompletedSales(
-        {
-          authorizeSale: (saleId) =>
-            authorizeSaleInRealTime({ database, taxAuthority, now }, saleId),
-          onFailure: reportFailure,
-        },
-        charge,
-      ),
+    authorizeSale: async (saleId) => {
+      try {
+        await authorizeSaleInRealTime({ database, taxAuthority, now }, saleId);
+      } catch (error) {
+        reportFailure(error);
+        await authorizeSaleInRealTime({ database, taxAuthority: UNABLE_TO_ASK, now }, saleId).catch(
+          reportFailure,
+        );
+      }
+    },
   };
 }
 
