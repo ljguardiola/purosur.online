@@ -9,7 +9,7 @@ export interface StockLot {
   remaining: number;
 }
 
-export type LotAllocationTarget = { kind: "lot"; lotId: string } | { kind: "new_technical_lot" };
+type LotAllocationTarget = { kind: "lot"; lotId: string } | { kind: "new_technical_lot" };
 
 export interface PlannedLotAllocation {
   target: LotAllocationTarget;
