@@ -1,5 +1,6 @@
 import type { Clock } from "../../shared/index.js";
 import type { MercadoPagoOrderResult } from "../model/mercado-pago-order-result.js";
+import type { LatePaymentRefund } from "../model/payment-refund.js";
 import type {
   MercadoPagoQrOrderTransaction,
   PaymentTransactionState,
@@ -17,6 +18,13 @@ export interface PaymentTransactionReading {
   readAt: Date;
 }
 
+export interface RecordedOrderState {
+  state: PaymentTransactionState;
+  replaced: boolean;
+}
+
+export type LatePaymentRefundOpening = "opened" | "already_open";
+
 export interface PaymentTransactionLane {
   recordedTransaction(
     registerId: string,
@@ -31,12 +39,16 @@ export interface PaymentTransactionLane {
     paymentTransactionId: string,
     providerOrderId: string,
     reading: PaymentTransactionReading | null,
-  ): Promise<void>;
+  ): Promise<RecordedOrderState>;
   recordOrderResult(
     paymentTransactionId: string,
     outcome: PaymentTransactionOutcome,
     readAt: Date,
-  ): Promise<void>;
+  ): Promise<RecordedOrderState>;
+  openLatePaymentRefund(refund: LatePaymentRefund, openedAt: Date): Promise<LatePaymentRefundOpening>;
+  inOneTransaction<TOutcome>(
+    work: (lane: PaymentTransactionLane) => Promise<TOutcome>,
+  ): Promise<TOutcome>;
 }
 
 export interface PaymentTransactionLanes {

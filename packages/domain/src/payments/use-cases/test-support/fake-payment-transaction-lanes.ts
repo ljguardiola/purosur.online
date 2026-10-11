@@ -94,7 +94,7 @@ class FakeLane implements PaymentTransactionLane {
     paymentTransactionId: string,
     providerOrderId: string,
     reading: PaymentTransactionReading | null,
-  ): Promise<RecordedOrderState | null> {
+  ): Promise<RecordedOrderState> {
     this.lanes.operations.push("recordOrderCreated");
     this.lanes.failIfAsked("recordOrderCreated");
     const stored = this.lanes.transactions.get(paymentTransactionId);
@@ -102,7 +102,7 @@ class FakeLane implements PaymentTransactionLane {
       stored.providerOrderId = providerOrderId;
     }
     if (reading === null) {
-      return null;
+      return { state: stored?.state ?? "PENDING", replaced: stored?.replaced ?? false };
     }
     return this.store(paymentTransactionId, reading.outcome, reading.readAt);
   }

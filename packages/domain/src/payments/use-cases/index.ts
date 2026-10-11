@@ -67,6 +67,7 @@ export type {
   PendingMercadoPagoQrPayment,
 } from "./mercado-pago-qr-charge-ports.js";
 export type {
+  LatePaymentRefundOpening,
   MercadoPagoCancellationKeys,
   MercadoPagoOrderCancellation,
   MercadoPagoOrderCreation,
@@ -78,6 +79,7 @@ export type {
   PaymentTransactionLanes,
   PaymentTransactionOutcome,
   PaymentTransactionReading,
+  RecordedOrderState,
 } from "./mercado-pago-qr-order-ports.js";
 export { PaymentTransactionAlreadyRecorded } from "./mercado-pago-qr-order-ports.js";
 export type {
