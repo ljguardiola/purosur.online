@@ -268,6 +268,8 @@ function alertTitle(alert: AlertDetail): string {
       return "Evento aplicado con una inconsistencia";
     case "arca_certificate_expiring":
       return "El certificado de ARCA está por vencer";
+    case "arca_wsaa_ticket_held":
+      return "ARCA conserva un ticket de acceso anterior";
     case "update_required":
       return "La nube no acepta la versión de una caja";
     case "register_silent":
@@ -328,6 +330,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return registerEnrollmentDescription(alert.detail, targetName);
     case "arca_certificate_expiring":
       return arcaCertificateExpiringDescription(alert.detail.notAfter, targetName);
+    case "arca_wsaa_ticket_held":
+      return "La nube no tiene ticket de acceso a ARCA y ARCA no emite uno nuevo mientras siga vigente el anterior, que puede durar hasta 12 horas. La nube lo vuelve a pedir cada 10 minutos y retoma la autorización en línea en cuanto lo obtiene. No hay que reemplazar el certificado ni cambiar la configuración. Mientras tanto la caja vende con el CAEA que ya tenga o en venta diferida.";
     case "update_required":
       return `La caja «${targetName}» usa la versión ${alert.detail.appVersion}, que la nube ya no acepta. Hay que actualizarla para que vuelva a sincronizar.`;
     case "offline_authorization_code_missing":

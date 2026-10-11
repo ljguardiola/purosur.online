@@ -17,7 +17,7 @@ export function alertScopeLabel(kind: string, scopeDisplay: string): string {
   if (kind === "fiscal_rejected") {
     return fiscalDocumentScopeLabel(scopeDisplay);
   }
-  return kind === "arca_certificate_expiring"
+  return kind === "arca_certificate_expiring" || kind === "arca_wsaa_ticket_held"
     ? (ARCA_ENVIRONMENT_LABELS.get(scopeDisplay) ?? scopeDisplay)
     : scopeDisplay;
 }
