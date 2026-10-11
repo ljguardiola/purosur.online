@@ -4,10 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import {
-  balancedShard,
   durationBalancedSequencer,
   durationKey,
   readDurations,
+  shardPlan,
   TestDurationsReporter,
 } from "./test-durations.mjs";
 
@@ -24,13 +24,17 @@ function entry(project, file) {
   return { key: durationKey(project, file), project };
 }
 
+function shardEntries(entries, durations, position) {
+  return shardPlan(entries, durations, position).entries;
+}
+
 function keysOf(entries) {
   return entries.map((e) => e.key);
 }
 
 function shardLoads(entries, durations, count) {
   return Array.from({ length: count }, (_, i) =>
-    balancedShard(entries, durations, { index: i + 1, count }).reduce(
+    shardEntries(entries, durations, { index: i + 1, count }).reduce(
       (sum, e) => sum + durations[e.key],
       0,
     ),
@@ -47,7 +51,7 @@ test("puts every entry in exactly one shard", () => {
   const durations = { [entries[0].key]: 900, [entries[3].key]: 40 };
 
   const all = [1, 2, 3, 4].flatMap((index) =>
-    keysOf(balancedShard(entries, durations, { index, count: 4 })),
+    keysOf(shardEntries(entries, durations, { index, count: 4 })),
   );
 
   assert.deepEqual(all.sort(), keysOf(entries).sort());
@@ -69,8 +73,8 @@ test("gives the same shards whatever the order of the entries", () => {
   const durations = Object.fromEntries(entries.map((e, i) => [e.key, (i % 3) * 10 + 5]));
 
   for (const index of [1, 2, 3]) {
-    const forward = balancedShard(entries, durations, { index, count: 3 });
-    const backward = balancedShard([...entries].reverse(), durations, { index, count: 3 });
+    const forward = shardEntries(entries, durations, { index, count: 3 });
+    const backward = shardEntries([...entries].reverse(), durations, { index, count: 3 });
     assert.deepEqual(keysOf(backward), keysOf(forward));
   }
 });
@@ -80,38 +84,31 @@ test("weighs a file with no duration as the mean of its own project", () => {
     entry("slow", "a.test.ts"),
     entry("slow", "b.test.ts"),
     entry("fast", "c.test.ts"),
+    entry("fast", "d.test.ts"),
+    entry("fast", "e.test.ts"),
   ];
   const unknownSlow = entry("slow", "new.test.ts");
-  const durations = { [known[0].key]: 1000, [known[1].key]: 1000, [known[2].key]: 10 };
+  const durations = Object.fromEntries(known.map((e, i) => [e.key, [1000, 600, 20, 20, 20][i]]));
 
-  const shards = [1, 2].map((index) =>
-    keysOf(balancedShard([...known, unknownSlow], durations, { index, count: 2 })),
-  );
+  const plan = shardPlan([...known, unknownSlow], durations, { index: 1, count: 1 });
 
-  const shardWithNew = shards.find((s) => s.includes(unknownSlow.key));
-  assert.deepEqual(shardWithNew.length, 2);
-  assert.ok(!shardWithNew.includes(known[2].key));
+  assert.equal(plan.estimatedMs, 1660 + 800);
 });
 
 test("weighs a file whose project has no duration as the mean of all known durations", () => {
-  const a = entry("one", "a.test.ts");
-  const b = entry("one", "b.test.ts");
+  const known = [entry("one", "a.test.ts"), entry("one", "b.test.ts"), entry("three", "c.test.ts")];
   const stranger = entry("two", "x.test.ts");
-  const durations = { [a.key]: 300, [b.key]: 100 };
+  const durations = Object.fromEntries(known.map((e, i) => [e.key, [300, 100, 500][i]]));
 
-  const shards = [1, 2].map((index) =>
-    keysOf(balancedShard([a, b, stranger], durations, { index, count: 2 })),
-  );
+  const plan = shardPlan([...known, stranger], durations, { index: 1, count: 1 });
 
-  assert.deepEqual(shards.map((s) => s.length).sort(), [1, 2]);
-  const alone = shards.find((s) => s.length === 1);
-  assert.deepEqual(alone, [a.key]);
+  assert.equal(plan.estimatedMs, 900 + 300);
 });
 
 test("balances by count when no duration is known at all", () => {
   const entries = Array.from({ length: 10 }, (_, i) => entry("node", `f${i}.test.ts`));
 
-  const sizes = [1, 2, 3].map((index) => balancedShard(entries, {}, { index, count: 3 }).length);
+  const sizes = [1, 2, 3].map((index) => shardEntries(entries, {}, { index, count: 3 }).length);
 
   assert.deepEqual(sizes.sort(), [3, 3, 4]);
 });
