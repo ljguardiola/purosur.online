@@ -27,6 +27,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { ScanBarcode, TriangleAlert } from "lucide-react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import { useBarcodeReadings } from "../shell/barcode-readings";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
 import type { Refund } from "../shell/refund-lines";
@@ -328,16 +330,31 @@ export function SaleScreen({
     return { kind: "closed" };
   }
 
+  async function scan(submitted: string) {
+    const outcome = await scanProduct(submitted).catch(
+      (): ScanProductOutcome => ({ kind: "unavailable" }),
+    );
+    await take(submitted, outcome, { kind: "scan_failed" });
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const submitted = code.trim();
     if (submitted === "") {
       return;
     }
-    const outcome = await scanProduct(submitted).catch(
-      (): ScanProductOutcome => ({ kind: "unavailable" }),
-    );
-    await take(submitted, outcome, { kind: "scan_failed" });
+    await scan(submitted);
+  }
+
+  async function takeReading(reading: string) {
+    const submitted = reading.trim();
+    flushSync(() => {
+      setCode(submitted);
+      setProblem(undefined);
+      setResults(undefined);
+      setDismissed(false);
+    });
+    await scan(submitted);
   }
 
   async function add(product: FoundProduct) {
@@ -485,6 +502,7 @@ export function SaleScreen({
   const sale = answer === undefined || answer === "not_permitted" ? null : answer;
   const linesLock = sale?.lines_lock ?? null;
   const editable = linesLock === null;
+  useBarcodeReadings(editable ? (reading) => void takeReading(reading) : undefined);
   const notPermitted = messageFor({ kind: "not_permitted" });
   const shownProblem =
     answer === "not_permitted" && problem?.kind === "not_permitted" ? undefined : problem;
