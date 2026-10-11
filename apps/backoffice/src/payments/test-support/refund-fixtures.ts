@@ -59,9 +59,9 @@ export const latePaymentRefund: PendingRefundsBody["refunds"][number] = {
   cancelled_by_name: null,
 };
 
-export const OTHER_ORDER_REFUND_ID = "77777777-7777-4777-8777-777777777777";
+const OTHER_ORDER_REFUND_ID = "77777777-7777-4777-8777-777777777777";
 
-export const latePaymentOfOtherOrderRefund: PendingRefundsBody["refunds"][number] = {
+const latePaymentOfOtherOrderRefund: PendingRefundsBody["refunds"][number] = {
   ...latePaymentRefund,
   id: OTHER_ORDER_REFUND_ID,
   amount: 118_000,

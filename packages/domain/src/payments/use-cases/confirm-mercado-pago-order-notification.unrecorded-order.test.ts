@@ -121,11 +121,8 @@ describe("confirmMercadoPagoOrderNotification of an order no payment has recorde
     ],
   ] as const)("matches no payment when the order %s", async (_name, result, named) => {
     const { lanes, notificationPorts } = worldReading(result);
-    lanes.seed(storedTransaction(AWAITING_ORDER));
-    lanes.seed(storedTransaction({ id: "transaction-2", ...named }));
-    if (result.externalReference === TRANSACTION_ID) {
-      lanes.seed(storedTransaction({ id: TRANSACTION_ID, ...named }));
-    }
+    lanes.seed(storedTransaction({ id: "transaction-2", ...AWAITING_ORDER }));
+    lanes.seed(storedTransaction(named));
     const before = structuredClone([...lanes.transactions.values()]);
 
     expect(await confirmMercadoPagoOrderNotification(notificationPorts, INPUT)).toEqual({

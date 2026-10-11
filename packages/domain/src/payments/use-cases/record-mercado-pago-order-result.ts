@@ -9,7 +9,7 @@ import {
 } from "../model/payment-transaction.js";
 import type { PaymentTransactionLane, RecordedOrderState } from "./mercado-pago-qr-order-ports.js";
 
-export async function openLatePaymentRefundIfLate(
+async function openLatePaymentRefundIfLate(
   lane: PaymentTransactionLane,
   transaction: MercadoPagoQrOrderTransaction,
   recorded: RecordedOrderState,
