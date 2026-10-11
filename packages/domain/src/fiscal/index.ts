@@ -54,7 +54,6 @@ export {
 } from "./model/offline-authorization-code.js";
 export { mustHoldOfflineAuthorizationCode } from "./model/offline-authorization-code-holding.js";
 export type {
-  NextOfflineNumberInput,
   OfflineNumberBlockRange,
   OfflineNumberBlockStatus,
 } from "./model/offline-number-block.js";
