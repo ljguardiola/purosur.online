@@ -9,8 +9,13 @@ export interface OfflineNumberBlockRange {
   lastNumber: number;
 }
 
-export function firstOfflineNumberBlock(): OfflineNumberBlockRange {
-  return { firstNumber: 1, lastNumber: OFFLINE_NUMBER_BLOCK_SIZE };
+export function firstOfflineNumberBlock(
+  taxAuthorityLastAuthorized: number,
+): OfflineNumberBlockRange {
+  return {
+    firstNumber: taxAuthorityLastAuthorized + 1,
+    lastNumber: taxAuthorityLastAuthorized + OFFLINE_NUMBER_BLOCK_SIZE,
+  };
 }
 
 export function nextOfflineNumber(

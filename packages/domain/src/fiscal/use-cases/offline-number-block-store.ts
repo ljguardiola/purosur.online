@@ -21,5 +21,7 @@ export interface OfflineNumberBlockStore {
     pointOfSaleNumber: number,
     documentType: FiscalDocumentType,
   ): Promise<boolean>;
+  taxAuthorityLastAuthorized(pointOfSaleNumber: number): Promise<number | null>;
+  requireTaxAuthorityCount(pointOfSaleNumber: number): Promise<void>;
   recordOfflineNumberBlock(record: OfflineNumberBlockRecord): Promise<void>;
 }

@@ -23,6 +23,8 @@ function storeWithRegisters(): FakeRegisterPointOfSaleStore {
     });
     store.seedPointOfSaleClaim({ pointOfSaleNumber, registerId, mechanism: "real_time" });
   }
+  store.seedTaxAuthorityCount(12, 0);
+  store.seedTaxAuthorityCount(13, 0);
   return store;
 }
 
@@ -103,6 +105,31 @@ describe("configureRegisterOfflinePointOfSale", () => {
     expect(store.snapshot().offlineNumberBlocks).toEqual([usedBefore]);
   });
 
+  it("assigns the block right after the number the tax authority last authorized in that point of sale", async () => {
+    const store = storeWithRegisters();
+    store.seedTaxAuthorityCount(14, 37);
+
+    await configure(store, { pointOfSaleNumber: 14 });
+
+    expect(store.snapshot().offlineNumberBlocks.map((block) => block.range)).toEqual([
+      { firstNumber: 38, lastNumber: 1037 },
+    ]);
+  });
+
+  it("is configured with no block, and asks for the tax authority's count, while that count is unknown", async () => {
+    const store = storeWithRegisters();
+
+    const outcome = await configure(store, { pointOfSaleNumber: 14 });
+
+    expect(outcome).toEqual({ kind: "configured", setup: { pointOfSaleNumber: 14, version: 1 } });
+    const state = store.snapshot();
+    expect(state.registerOfflinePointsOfSale).toEqual([
+      { registerId: "register-1", pointOfSaleNumber: 14, version: 1, recordedBy: ACTOR },
+    ]);
+    expect(state.offlineNumberBlocks).toEqual([]);
+    expect(state.requiredTaxAuthorityCounts).toEqual([14]);
+  });
+
   it("assigns the blocks of two registers' points of sale each from 1, never overlapping within one", async () => {
     const store = storeWithRegisters();
 
@@ -138,6 +165,7 @@ describe("configureRegisterOfflinePointOfSale", () => {
       "recordRegisterOfflinePointOfSale",
       "lockOfflineNumberBlocks",
       "hasOfflineNumberBlock",
+      "taxAuthorityLastAuthorized",
       "recordOfflineNumberBlock",
     ]);
     expect(store.transactionCount).toBe(1);

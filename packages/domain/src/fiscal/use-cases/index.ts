@@ -33,6 +33,11 @@ export type {
   VitalityCheckRecord,
 } from "./arca-vitality-ports.js";
 export type {
+  AssignAwaitedOfflineNumberBlockInput,
+  AssignAwaitedOfflineNumberBlockOutcome,
+} from "./assign-awaited-offline-number-block.js";
+export { assignAwaitedOfflineNumberBlock } from "./assign-awaited-offline-number-block.js";
+export type {
   AssignFirstOfflineNumberBlockOutcome,
   AssignOfflineNumberBlockInput,
 } from "./assign-offline-number-block.js";

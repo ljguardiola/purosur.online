@@ -17,6 +17,7 @@ import {
   offlineNumberBlocks,
   registerOfflinePointsOfSale,
   registerPointsOfSale,
+  taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import {
@@ -24,6 +25,7 @@ import {
   lockBranchRegister,
   lockPointOfSaleClaim,
 } from "./drizzle-point-of-sale-claims.js";
+import type { EnqueueTaxAuthorityCount } from "./graphile-tax-authority-count-queue.js";
 import { NEVER_CONFIGURED_VERSION } from "./register-point-of-sale-version.js";
 
 function offlineNumberBlocksLockKey(
@@ -43,11 +45,38 @@ class DrizzleRegisterOfflinePointOfSaleStoreTransaction<TQueryResult extends PgQ
   private readonly tx: PgDatabase<TQueryResult>;
   private readonly now: () => Date;
   private readonly pending: PendingChanges;
+  private readonly enqueueTaxAuthorityCount: EnqueueTaxAuthorityCount | undefined;
 
-  constructor(tx: PgDatabase<TQueryResult>, now: () => Date, pending: PendingChanges) {
+  constructor(
+    tx: PgDatabase<TQueryResult>,
+    now: () => Date,
+    pending: PendingChanges,
+    enqueueTaxAuthorityCount: EnqueueTaxAuthorityCount | undefined,
+  ) {
     this.tx = tx;
     this.now = now;
     this.pending = pending;
+    this.enqueueTaxAuthorityCount = enqueueTaxAuthorityCount;
+  }
+
+  async taxAuthorityLastAuthorized(pointOfSaleNumber: number): Promise<number | null> {
+    const [count] = await this.tx
+      .select({ lastAuthorized: taxAuthorityLastAuthorizedNumbers.lastAuthorized })
+      .from(taxAuthorityLastAuthorizedNumbers)
+      .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, pointOfSaleNumber));
+    return count?.lastAuthorized ?? null;
+  }
+
+  async requireTaxAuthorityCount(pointOfSaleNumber: number): Promise<void> {
+    await this.enqueueTaxAuthorityCount?.(this.tx, pointOfSaleNumber);
+  }
+
+  async offlineRegisterOf(pointOfSaleNumber: number): Promise<string | null> {
+    const [holder] = await this.tx
+      .select({ registerId: registerOfflinePointsOfSale.registerId })
+      .from(registerOfflinePointsOfSale)
+      .where(eq(registerOfflinePointsOfSale.pointOfSaleNumber, pointOfSaleNumber));
+    return holder?.registerId ?? null;
   }
 
   lockBranchRegister(locationId: string, registerId: string): Promise<LockBranchRegisterResult> {
@@ -182,18 +211,32 @@ export class DrizzleRegisterOfflinePointOfSaleStore<TQueryResult extends PgQuery
   private readonly db: PgDatabase<TQueryResult>;
   private readonly now: () => Date;
   private readonly pending: PendingChanges | undefined;
+  private readonly enqueueTaxAuthorityCount: EnqueueTaxAuthorityCount | undefined;
 
-  constructor(db: PgDatabase<TQueryResult>, now: () => Date, pending?: PendingChanges) {
+  constructor(
+    db: PgDatabase<TQueryResult>,
+    now: () => Date,
+    pending?: PendingChanges,
+    enqueueTaxAuthorityCount?: EnqueueTaxAuthorityCount,
+  ) {
     this.db = db;
     this.now = now;
     this.pending = pending;
+    this.enqueueTaxAuthorityCount = enqueueTaxAuthorityCount;
   }
 
   transaction<TOutcome>(
     work: (tx: RegisterOfflinePointOfSaleStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPendingChanges(this.db, this.pending, (tx, pending) =>
-      work(new DrizzleRegisterOfflinePointOfSaleStoreTransaction(tx, this.now, pending)),
+      work(
+        new DrizzleRegisterOfflinePointOfSaleStoreTransaction(
+          tx,
+          this.now,
+          pending,
+          this.enqueueTaxAuthorityCount,
+        ),
+      ),
     );
   }
 }
