@@ -38,28 +38,40 @@ describe("firstOfflineNumberBlock", () => {
 describe("nextOfflineNumber", () => {
   const blocks = contiguousBlocks(2);
 
+  function next(
+    localLastUsed: number | null,
+    taxAuthorityLastAuthorized: number | null = 0,
+    held: readonly OfflineNumberBlockRange[] = blocks,
+  ): number | null {
+    return nextOfflineNumber({
+      blocksInAssignmentOrder: held,
+      localLastUsed,
+      taxAuthorityLastAuthorized,
+    });
+  }
+
   it("is the first number of the first block when none was used", () => {
-    expect(nextOfflineNumber(blocks, null)).toBe(1);
+    expect(next(null)).toBe(1);
   });
 
   it("is the number right after the last one used", () => {
-    expect(nextOfflineNumber(blocks, 41)).toBe(42);
+    expect(next(41)).toBe(42);
   });
 
   it("moves to the first number of the next block when a block is used up", () => {
-    expect(nextOfflineNumber(blocks, 1000)).toBe(1001);
+    expect(next(1000)).toBe(1001);
   });
 
   it("is the last number of a block still having one", () => {
-    expect(nextOfflineNumber(blocks, 999)).toBe(1000);
+    expect(next(999)).toBe(1000);
   });
 
   it("is nothing when every number of every block was used", () => {
-    expect(nextOfflineNumber(blocks, 2000)).toBeNull();
+    expect(next(2000)).toBeNull();
   });
 
   it("is nothing when the register holds no block", () => {
-    expect(nextOfflineNumber([], null)).toBeNull();
+    expect(next(null, 0, [])).toBeNull();
   });
 
   it("takes blocks in the order they were assigned", () => {
@@ -67,22 +79,45 @@ describe("nextOfflineNumber", () => {
     if (first === undefined || second === undefined) {
       throw new Error("two blocks were assigned");
     }
-    expect(nextOfflineNumber([second, first], 1000)).toBe(1001);
-    expect(nextOfflineNumber([second, first], null)).toBe(1001);
+    expect(next(1000, 0, [second, first])).toBe(1001);
+    expect(next(null, 0, [second, first])).toBe(1001);
   });
 
-  it("never returns a number at or below the last one used, and returns one the blocks hold", () => {
+  it("is nothing while the tax authority's last authorized number is unknown", () => {
+    expect(next(null, null)).toBeNull();
+    expect(next(41, null)).toBeNull();
+  });
+
+  it("continues after the tax authority's last authorized number when no local number was used", () => {
+    expect(next(null, 41)).toBe(42);
+  });
+
+  it("continues after the tax authority's last authorized number when it is above the local one", () => {
+    expect(next(10, 41)).toBe(42);
+  });
+
+  it("continues after the local number when it is above the tax authority's", () => {
+    expect(next(41, 10)).toBe(42);
+  });
+
+  it("is nothing when the tax authority already holds every number of every block", () => {
+    expect(next(null, 2000)).toBeNull();
+  });
+
+  it("never returns a number at or below one already used or authorized, and returns one the blocks hold", () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 1, max: 5 }),
+        fc.option(fc.integer({ min: 0, max: 6000 })),
         fc.integer({ min: 0, max: 6000 }),
-        (count, lastUsed) => {
+        (count, localLastUsed, taxAuthorityLastAuthorized) => {
           const held = contiguousBlocks(count);
-          const next = nextOfflineNumber(held, lastUsed);
-          if (next === null) {
-            expect(lastUsed).toBeGreaterThanOrEqual(count * 1000);
+          const result = next(localLastUsed, taxAuthorityLastAuthorized, held);
+          const highestUsed = Math.max(localLastUsed ?? 0, taxAuthorityLastAuthorized);
+          if (result === null) {
+            expect(highestUsed).toBeGreaterThanOrEqual(count * 1000);
           } else {
-            expect(next).toBe(lastUsed + 1);
+            expect(result).toBe(highestUsed + 1);
           }
         },
       ),
