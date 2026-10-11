@@ -30,6 +30,7 @@ const DOCUMENT: FacturaC = {
     version: 3,
   },
   buyerTaxStatusCode: 5,
+  buyerTaxStatusDescription: "Consumidor Final",
 };
 
 const ONLINE: FiscalOnlineSignalEvidence = {

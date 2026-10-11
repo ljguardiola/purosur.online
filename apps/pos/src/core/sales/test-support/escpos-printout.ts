@@ -4,6 +4,8 @@ const ESC = 0x1b;
 const GS = 0x1d;
 const LINE_FEED = 0x0a;
 const PC850_TABLE = 2;
+const ALIGNMENTS = ["left", "center", "right"];
+const QR_CORRECTION_LEVELS = ["L", "M", "Q", "H"];
 const BOLD_MARKER = /\[\/?bold\]/g;
 
 interface Printout {
@@ -53,6 +55,9 @@ export function printoutOf(bytes: Uint8Array): Printout {
         marker(table === PC850_TABLE ? "[codepage PC850]" : `[codepage ${table}]`);
       } else if (command === 0x45) {
         pending += take() === 0 ? "[/bold]" : "[bold]";
+      } else if (command === 0x61) {
+        const alignment = take();
+        marker(`[align ${ALIGNMENTS[alignment] ?? alignment}]`);
       } else if (command === 0x64) {
         marker(`[feed ${take()}]`);
       } else {
@@ -69,6 +74,13 @@ export function printoutOf(bytes: Uint8Array): Printout {
         }
         position += widthBytes * height;
         marker(`[logo ${widthBytes * 8}x${height}]`);
+      } else if (command === 0x28 && take() === 0x6b) {
+        const length = take() + take() * 256;
+        if (take() !== 0x31) {
+          throw new Error("unknown symbol function");
+        }
+        const parameters = Array.from({ length: length - 1 }, take);
+        marker(qrMarker(parameters));
       } else if (command === 0x56) {
         const mode = take();
         if (mode !== 0 && mode !== 1) {
@@ -84,4 +96,24 @@ export function printoutOf(bytes: Uint8Array): Printout {
   }
   flushPending();
   return { text: lines.join("\n"), textLines };
+}
+
+function qrMarker([fn = 0, ...data]: number[]): string {
+  const value = data[data.length - 1] ?? 0;
+  if (fn === 0x41) {
+    return `[qr model ${data[0] === 0x32 ? 2 : data[0]}]`;
+  }
+  if (fn === 0x43) {
+    return `[qr module ${value}]`;
+  }
+  if (fn === 0x45) {
+    return `[qr correction ${QR_CORRECTION_LEVELS[value - 0x30] ?? value}]`;
+  }
+  if (fn === 0x50) {
+    return `[qr store ${decodePc850(Uint8Array.from(data.slice(1)))}]`;
+  }
+  if (fn === 0x51) {
+    return "[qr print]";
+  }
+  throw new Error(`unknown symbol function 0x${fn.toString(16)}`);
 }

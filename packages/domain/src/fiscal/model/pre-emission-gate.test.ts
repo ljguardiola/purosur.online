@@ -51,6 +51,7 @@ describe("preEmissionGate", () => {
           version: 3,
         },
         buyerTaxStatusCode: 5,
+        buyerTaxStatusDescription: "Consumidor Final",
       },
     });
   });
@@ -60,7 +61,10 @@ describe("preEmissionGate", () => {
       ...INPUT,
       buyerTaxStatuses: [{ ...CONSUMIDOR_FINAL, description: "Condicion de prueba" }],
     });
-    expect(outcome).toMatchObject({ kind: "passed", document: { buyerTaxStatusCode: 5 } });
+    expect(outcome).toMatchObject({
+      kind: "passed",
+      document: { buyerTaxStatusCode: 5, buyerTaxStatusDescription: "Condicion de prueba" },
+    });
   });
 
   it("fails when no issuer identification has been delivered", () => {

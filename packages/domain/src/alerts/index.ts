@@ -15,7 +15,10 @@ export {
   registerSyncedObservation,
   registerVersionObservation,
 } from "./model/alert-condition-observation.js";
-export { ALERT_CONDITION_STABLE_CLEAR_MS } from "./model/alert-condition-resolution.js";
+export {
+  ALERT_CONDITION_EVALUATION_INTERVAL_MS,
+  ALERT_CONDITION_STABLE_CLEAR_MS,
+} from "./model/alert-condition-resolution.js";
 export type {
   AccessIncreasedDetail,
   AlertDetails,

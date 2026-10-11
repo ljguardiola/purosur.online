@@ -1,5 +1,13 @@
-import { type FacturaC, type PushedEvent, SALE_COMPLETED_EVENT_TYPE } from "@purosur/domain";
+import {
+  type FacturaC,
+  IN_PROGRESS_FISCAL_DOCUMENT_STATES,
+  type PushedEvent,
+  SALE_COMPLETED_EVENT_TYPE,
+} from "@purosur/domain";
 import type {
+  InterruptedRealTimeAuthorization,
+  InterruptedRealTimeAuthorizations,
+  InterruptedRealTimeAuthorizationsTransaction,
   RealTimeAuthorizationResolved,
   RealTimeFiscalDocuments,
   WaitingFiscalDocument,
@@ -19,7 +27,14 @@ interface SaleEventRow extends Omit<PushedEvent, "payload"> {
   payload: string;
 }
 
-export class SqliteRealTimeFiscalDocuments implements RealTimeFiscalDocuments {
+interface RequestingDocumentRow {
+  id: string;
+  sale_id: string;
+}
+
+export class SqliteRealTimeFiscalDocuments
+  implements RealTimeFiscalDocuments, InterruptedRealTimeAuthorizations
+{
   private readonly database: LocalDatabase;
 
   constructor(database: LocalDatabase) {
@@ -47,44 +62,67 @@ export class SqliteRealTimeFiscalDocuments implements RealTimeFiscalDocuments {
     };
   }
 
-  async resolve({
+  transaction<TOutcome>(
+    work: (tx: InterruptedRealTimeAuthorizationsTransaction) => TOutcome,
+  ): TOutcome {
+    return this.database.transaction(() =>
+      work({
+        requestingDocuments: () => this.requestingDocuments(),
+        resolve: (resolved) => this.recordResolution(resolved),
+      }),
+    )();
+  }
+
+  async resolve(resolved: RealTimeAuthorizationResolved): Promise<void> {
+    this.database.transaction(() => this.recordResolution(resolved))();
+  }
+
+  private requestingDocuments(): readonly InterruptedRealTimeAuthorization[] {
+    return this.database
+      .prepare<string[], RequestingDocumentRow>(
+        `SELECT id, sale_id FROM fiscal_documents
+         WHERE state IN (${IN_PROGRESS_FISCAL_DOCUMENT_STATES.map(() => "?").join(", ")})
+         ORDER BY reserved_at, id`,
+      )
+      .all(...IN_PROGRESS_FISCAL_DOCUMENT_STATES)
+      .map((row) => ({ fiscalDocumentId: row.id, saleId: row.sale_id }));
+  }
+
+  private recordResolution({
     fiscalDocumentId,
     saleId,
     resolution,
     resolvedAt,
-  }: RealTimeAuthorizationResolved): Promise<void> {
-    this.database.transaction(() => {
-      const { changes } = this.database
+  }: RealTimeAuthorizationResolved): void {
+    const { changes } = this.database
+      .prepare(
+        `UPDATE fiscal_documents
+         SET state = @state, authorization_code = @authorization_code,
+             authorization_code_due_on = @authorization_code_due_on, resolved_at = @resolved_at
+         WHERE id = @id AND state = 'REQUESTING'`,
+      )
+      .run({
+        id: fiscalDocumentId,
+        state: resolution.state,
+        authorization_code: resolution.state === "AUTHORIZED" ? resolution.authorizationCode : null,
+        authorization_code_due_on:
+          resolution.state === "AUTHORIZED" ? resolution.authorizationCodeDueOn : null,
+        resolved_at: resolvedAt.toISOString(),
+      });
+    if (changes !== 1) {
+      throw new Error("the fiscal document is not waiting for an answer");
+    }
+    if (resolution.state !== "AUTHORIZED") {
+      this.database
         .prepare(
-          `UPDATE fiscal_documents
-           SET state = @state, authorization_code = @authorization_code,
-               authorization_code_due_on = @authorization_code_due_on, resolved_at = @resolved_at
-           WHERE id = @id AND state = 'REQUESTING'`,
+          "INSERT INTO deferred_sales (sale_id, reason, routed_at) VALUES (@sale_id, @reason, @routed_at)",
         )
         .run({
-          id: fiscalDocumentId,
-          state: resolution.state,
-          authorization_code:
-            resolution.state === "AUTHORIZED" ? resolution.authorizationCode : null,
-          authorization_code_due_on:
-            resolution.state === "AUTHORIZED" ? resolution.authorizationCodeDueOn : null,
-          resolved_at: resolvedAt.toISOString(),
+          sale_id: saleId,
+          reason: resolution.deferralReason,
+          routed_at: resolvedAt.toISOString(),
         });
-      if (changes !== 1) {
-        throw new Error("the fiscal document is not waiting for an answer");
-      }
-      if (resolution.state !== "AUTHORIZED") {
-        this.database
-          .prepare(
-            "INSERT INTO deferred_sales (sale_id, reason, routed_at) VALUES (@sale_id, @reason, @routed_at)",
-          )
-          .run({
-            sale_id: saleId,
-            reason: resolution.deferralReason,
-            routed_at: resolvedAt.toISOString(),
-          });
-      }
-    })();
+    }
   }
 
   private saleCompletedEvent(saleId: string): PushedEvent | null {

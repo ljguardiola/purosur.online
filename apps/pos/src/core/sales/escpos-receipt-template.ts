@@ -1,6 +1,7 @@
 import {
   ARGENTINA_TIME_ZONE,
   type DiscountBenefit,
+  type FacturaCFiscalBlock,
   type ReceiptContent,
   type ReceiptCopy,
   STOCK_QUANTITY_DECIMALS,
@@ -10,8 +11,10 @@ import type { ReceiptTemplate, StoredReceipt } from "@purosur/domain/sales/use-c
 import {
   formatCents,
   formatDate,
+  formatInvoiceNumber,
   formatNumber,
   formatOperationNumber,
+  formatPointOfSaleNumber,
 } from "@purosur/ui/formatters";
 import { encodePc850 } from "./pc850";
 import { RECEIPT_LOGO } from "./receipt-logo";
@@ -24,6 +27,11 @@ const PC850_TABLE = 2;
 const ESC = 0x1b;
 const GS = 0x1d;
 const LINE_FEED = 0x0a;
+const QR_MODULE_DOTS = 4;
+const QR_STORE_OVERHEAD = 3;
+const CENTER_ALIGNMENT = 1;
+const LEFT_ALIGNMENT = 0;
+const VOUCHER_CODE_DIGITS = 3;
 
 const PAYMENT_NAMES = {
   CASH: "Efectivo",
@@ -55,6 +63,19 @@ class Output {
       this.command(ESC, 0x45, 0);
       this.chunks.push(Uint8Array.of(LINE_FEED));
     }
+  }
+
+  qr(text: string): void {
+    const data = encodePc850(text);
+    const stored = data.length + QR_STORE_OVERHEAD;
+    this.command(ESC, 0x61, CENTER_ALIGNMENT);
+    this.command(GS, 0x28, 0x6b, 4, 0, 0x31, 0x41, 0x32, 0);
+    this.command(GS, 0x28, 0x6b, 3, 0, 0x31, 0x43, QR_MODULE_DOTS);
+    this.command(GS, 0x28, 0x6b, 3, 0, 0x31, 0x45, 0x31);
+    this.command(GS, 0x28, 0x6b, stored & 0xff, stored >> 8, 0x31, 0x50, 0x30);
+    this.chunks.push(data);
+    this.command(GS, 0x28, 0x6b, 3, 0, 0x31, 0x51, 0x30);
+    this.command(ESC, 0x61, LEFT_ALIGNMENT);
   }
 
   bytes(): Uint8Array {
@@ -219,6 +240,45 @@ function sale(out: Output, { lines, totals }: Pick<ReceiptContent, "lines" | "to
   ]);
 }
 
+function calendarDay(day: string): string {
+  return formatDate(new Date(`${day}T00:00:00Z`), {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function fiscal(out: Output, block: FacturaCFiscalBlock): void {
+  const { issuer } = block;
+  out.bold(centered(`FACTURA ${block.invoiceClass}`));
+  out.lines([
+    ...centered(`Cód. ${String(block.voucherTypeCode).padStart(VOUCHER_CODE_DIGITS, "0")}`),
+    ...centered(issuer.legalName),
+    ...centered(`CUIT ${issuer.cuit}`),
+    ...centered(issuer.taxStatus),
+    ...centered(`Ingresos Brutos ${issuer.grossIncomeRegistration}`),
+    ...centered(`Inicio de actividades ${calendarDay(issuer.activityStartDate)}`),
+    RULE,
+    ...row(
+      `Punto de venta ${formatPointOfSaleNumber(block.pointOfSale)}`,
+      `Comp. Nro ${formatInvoiceNumber(block.number)}`,
+    ),
+    `Fecha de emisión ${calendarDay(block.issuedOn)}`,
+    ...wrapped(`Receptor: ${block.buyerTaxStatusDescription}`, COLUMNS),
+    RULE,
+    ...row("Importe neto", formatCents(block.netAmount)),
+    ...row("IVA", formatCents(block.vatAmount)),
+    RULE,
+  ]);
+  out.qr(block.qrText);
+  out.lines([
+    ...centered("Comprobante Autorizado"),
+    ...centered(`CAE N° ${block.authorizationCode}`),
+    ...centered(`Fecha de Vto. de CAE ${calendarDay(block.authorizationCodeDueOn)}`),
+  ]);
+}
+
 function closing(out: Output): void {
   out.lines([
     ...centered("Gracias por tu compra"),
@@ -244,6 +304,9 @@ function render(content: ReceiptContent): StoredReceipt {
   operation(head, content.operation);
   const body = new Output();
   sale(body, content);
+  if (content.fiscal !== null) {
+    fiscal(body, content.fiscal);
+  }
   closing(body);
   return { templateVersion: TEMPLATE_VERSION, head: head.bytes(), body: body.bytes() };
 }

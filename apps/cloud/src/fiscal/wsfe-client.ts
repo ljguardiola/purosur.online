@@ -9,8 +9,6 @@ export function createWsfeClient(endpoint: string): Promise<Client> {
   return createClientAsync(WSFE_WSDL_PATH, { endpoint });
 }
 
-export const FACTURA_C_VOUCHER_TYPE = 11;
-
 export function rejectionsOf(list: unknown, element: string): TaxAuthorityRejection[] {
   const listed = (list as Record<string, unknown> | undefined)?.[element];
   const entries = Array.isArray(listed) ? listed : listed === undefined ? [] : [listed];

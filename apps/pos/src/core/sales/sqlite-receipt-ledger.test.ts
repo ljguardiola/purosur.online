@@ -1,6 +1,10 @@
 import type { ReceiptDelivery, ReceiptSource } from "@purosur/domain";
 import type { ReceiptLedgerTransaction } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  FACTURA_C,
+  insertFiscalDocument,
+} from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
@@ -283,6 +287,21 @@ describe("a receipt ledger's source of a sale", () => {
         { method: "CASH", amount: 500000, tendered: 600000 },
         { method: "TRANSFER", amount: 237100, tendered: null },
       ],
+      fiscal: { kind: "none" },
+    });
+  });
+});
+
+describe("a receipt ledger's fiscal document of a sale", () => {
+  it("is the one the fiscal records hold for the sale", () => {
+    insertSaleWithEverything();
+    insertFiscalDocument(database, { state: "AUTHORIZED", pointOfSale: 12, number: 41 });
+
+    const { fiscal } = inTransaction((tx) => tx.receiptSource("sale-1"));
+
+    expect(fiscal).toMatchObject({
+      kind: "authorized",
+      authorized: { pointOfSale: 12, number: 41, document: FACTURA_C },
     });
   });
 });
