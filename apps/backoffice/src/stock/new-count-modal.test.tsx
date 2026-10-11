@@ -2,11 +2,20 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { radioLabel } from "../platform/test-support/radio-label";
 import { render } from "../shell/test-support/render-with-router";
 import { countMomentNow } from "./count-moment";
 import { NewCountModal } from "./new-count-modal";
 import type { StockCountsScreenServices } from "./stock-counts-services";
-import { almonds, honey, oats, tea, withoutBalance } from "./test-support/stock-fixtures";
+import {
+  almonds,
+  almondsExpectedByLot,
+  expectedBalance,
+  honey,
+  oats,
+  tea,
+  withoutBalance,
+} from "./test-support/stock-fixtures";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
@@ -21,7 +30,7 @@ function createServices(): StockCountsScreenServices {
     }),
     fetchExpectedBalance: vi.fn().mockResolvedValue({
       kind: "ok",
-      value: { ...tea, balance: 17_000 },
+      value: expectedBalance(tea, 17_000),
     }),
     registerCount: vi.fn(),
   };
@@ -99,7 +108,10 @@ test("offers a deactivated product in the selector marked as deactivated", async
 
 test("keeps the modal open and says the product no longer exists when the cloud cannot find it", async () => {
   const services = createServices();
-  vi.mocked(services.fetchExpectedBalance).mockResolvedValue({ kind: "ok", value: almonds });
+  vi.mocked(services.fetchExpectedBalance).mockResolvedValue({
+    kind: "ok",
+    value: expectedBalance(almonds, 12_400),
+  });
   vi.mocked(services.registerCount).mockResolvedValue({ kind: "not_found" });
   const { screen, dialog } = await renderModal(services);
   await userEvent.click(dialog.getByRole("button", { name: /Producto/ }));
@@ -379,4 +391,158 @@ test("disables registering and cancelling while the request is in flight", async
   await expect.element(rendered.dialog.getByRole("button", { name: "Cancelar" })).toBeDisabled();
   finish({ kind: "failed" });
   await expect.element(rendered.dialog.getByRole("button", { name: "Cancelar" })).toBeEnabled();
+});
+
+async function countByLot(rendered: Rendered, services: StockCountsScreenServices) {
+  vi.mocked(services.fetchExpectedBalance).mockResolvedValue({
+    kind: "ok",
+    value: almondsExpectedByLot,
+  });
+  await chooseProduct(rendered, "Almendras peladas");
+  await expect.element(rendered.dialog.getByText("Saldo esperado")).toBeVisible();
+  await userEvent.click(radioLabel(rendered.dialog, "Por lote"));
+}
+
+const FIRST_LOT = /^Cantidad contada del lote L-2312/;
+const SECOND_LOT = /^Cantidad contada del lote sin número/;
+
+test("offers counting by product and by lot, by product chosen at first", async () => {
+  const { dialog } = await renderModal(createServices());
+
+  await expect.element(dialog.getByRole("radio", { name: "Por producto" })).toBeChecked();
+  await expect.element(dialog.getByText("La cantidad total del producto")).toBeVisible();
+  await expect.element(dialog.getByText("La cantidad de cada lote")).toBeVisible();
+});
+
+test("offers counting by lot only for a product whose expected balance has lots", async () => {
+  const services = createServices();
+  const rendered = await renderModal(services);
+  await chooseProduct(rendered, "Té verde en hebras 100 g");
+  await expect.element(rendered.dialog.getByText("Saldo esperado")).toBeVisible();
+
+  await expect.element(rendered.dialog.getByRole("radio", { name: "Por lote" })).toBeDisabled();
+
+  vi.mocked(services.fetchExpectedBalance).mockResolvedValue({
+    kind: "ok",
+    value: almondsExpectedByLot,
+  });
+  await chooseProduct(rendered, "Almendras peladas");
+  await expect.element(rendered.dialog.getByRole("radio", { name: "Por lote" })).toBeEnabled();
+});
+
+test("does not offer counting by lot to a user who may not view balances", async () => {
+  const services = createServices();
+  const rendered = await renderModal(services, { showsBalance: false });
+
+  await chooseProduct(rendered, "Almendras peladas");
+
+  await expect.element(rendered.dialog.getByRole("radio", { name: "Por lote" })).toBeDisabled();
+});
+
+test("lists each lot in the order the cloud answers with its expiry and expected balance", async () => {
+  const services = createServices();
+  const rendered = await renderModal(services);
+  await countByLot(rendered, services);
+  const { dialog, screen } = rendered;
+
+  await expect.element(dialog.getByText("Cantidad contada de cada lote")).toBeVisible();
+  await expect.element(dialog.getByText("L-2312")).toBeVisible();
+  await expect.element(dialog.getByText("Vence el 14/10/2026 · saldo 4,400 kg")).toBeVisible();
+  await expect.element(dialog.getByText("—", { exact: true })).toBeVisible();
+  await expect.element(dialog.getByText("Sin vencimiento · saldo 8,000 kg")).toBeVisible();
+  await expect.element(dialog.getByText("Un lote sin cantidad queda en cero.")).toBeVisible();
+  expect(dialog.getByRole("textbox", { name: /^Cantidad contada/ }).all()).toHaveLength(2);
+  await expect.element(dialog.getByRole("textbox", { name: FIRST_LOT })).toBeVisible();
+  await expect.element(dialog.getByRole("textbox", { name: SECOND_LOT })).toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows the total counted, the expected balance and the difference as quantities are typed", async () => {
+  const services = createServices();
+  const rendered = await renderModal(services);
+  await countByLot(rendered, services);
+  const { dialog } = rendered;
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: FIRST_LOT }), "4,300");
+  await userEvent.fill(dialog.getByRole("textbox", { name: SECOND_LOT }), "7,850");
+
+  await expect.element(dialog.getByText("Total contado")).toBeVisible();
+  await expect.element(dialog.getByText("12,150 kg")).toBeVisible();
+  await expect.element(dialog.getByText("12,400 kg")).toBeVisible();
+  await expect.element(dialog.getByText("− 0,250 kg")).toBeVisible();
+});
+
+test("registers the quantity of every lot, a lot left empty as zero", async () => {
+  const services = createServices();
+  const result = { expected: 12_400, delta: -8_100, balance: 4_300, superseded: false };
+  vi.mocked(services.registerCount).mockResolvedValue({ kind: "ok", value: result });
+  const onRegistered = vi.fn();
+  const rendered = await renderModal(services, { onRegistered });
+  await countByLot(rendered, services);
+  await userEvent.fill(rendered.dialog.getByRole("textbox", { name: FIRST_LOT }), "4,300");
+
+  await userEvent.click(rendered.dialog.getByRole("button", { name: REGISTER }));
+
+  await expect.poll(() => onRegistered.mock.calls.length).toBe(1);
+  expect(services.registerCount).toHaveBeenCalledWith({
+    productId: almonds.id,
+    lots: [
+      { lotId: "lot-1", counted: 4_300 },
+      { lotId: "lot-2", counted: 0 },
+    ],
+    occurredAt: "2026-09-15T21:40:30.000Z",
+  });
+  expect(onRegistered).toHaveBeenCalledWith(withoutBalance(almonds), result);
+});
+
+test("goes back to counting by product when the product chosen has no lots", async () => {
+  const services = createServices();
+  const rendered = await renderModal(services);
+  await countByLot(rendered, services);
+  vi.mocked(services.fetchExpectedBalance).mockResolvedValue({
+    kind: "ok",
+    value: expectedBalance(tea, 17_000),
+  });
+
+  await chooseProduct(rendered, "Té verde en hebras 100 g");
+
+  await expect
+    .element(rendered.dialog.getByRole("textbox", { name: /^Cantidad contada/ }))
+    .toBeVisible();
+  await expect.element(rendered.dialog.getByRole("radio", { name: "Por producto" })).toBeChecked();
+});
+
+test("asks for a quantity of a lot written the way it expects, registering nothing", async () => {
+  const services = createServices();
+  const rendered = await renderModal(services);
+  await countByLot(rendered, services);
+  await userEvent.fill(rendered.dialog.getByRole("textbox", { name: FIRST_LOT }), "mucho");
+
+  await userEvent.click(rendered.dialog.getByRole("button", { name: REGISTER }));
+
+  await expect
+    .element(
+      rendered.dialog.getByText(
+        "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
+      ),
+    )
+    .toBeVisible();
+  expect(services.registerCount).not.toHaveBeenCalled();
+});
+
+test("shows the refusal of the lots the cloud reports, keeping the modal open", async () => {
+  const services = createServices();
+  vi.mocked(services.registerCount).mockResolvedValue({ kind: "validation_failed", field: "lots" });
+  const onRegistered = vi.fn();
+  const rendered = await renderModal(services, { onRegistered });
+  await countByLot(rendered, services);
+
+  await userEvent.click(rendered.dialog.getByRole("button", { name: REGISTER }));
+
+  await expect
+    .element(
+      rendered.dialog.getByText("Los lotes del producto cambiaron. Elegí el producto de nuevo."),
+    )
+    .toBeVisible();
+  expect(onRegistered).not.toHaveBeenCalled();
 });
