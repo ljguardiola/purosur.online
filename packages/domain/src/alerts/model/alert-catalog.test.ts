@@ -21,6 +21,7 @@ describe("ALERT_KINDS", () => {
       "events_quarantined",
       "event_invariant_violated",
       "arca_certificate_expiring",
+      "arca_wsaa_ticket_held",
       "update_required",
       "register_silent",
       "sales_denied",

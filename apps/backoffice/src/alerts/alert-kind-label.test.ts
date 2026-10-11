@@ -5,6 +5,9 @@ test("names a kind of the catalog by its title", () => {
   expect(alertKindLabel("backoffice_passkey_changed")).toBe("Passkey");
   expect(alertKindLabel("user_access_increased")).toBe("Acceso ampliado");
   expect(alertKindLabel("arca_certificate_expiring")).toBe("Certificado de ARCA por vencer");
+  expect(alertKindLabel("arca_wsaa_ticket_held")).toBe(
+    "ARCA conserva un ticket de acceso anterior",
+  );
   expect(alertKindLabel("update_required")).toBe("Versión de caja no aceptada");
   expect(alertKindLabel("register_silent")).toBe("Caja sin sincronizar");
   expect(alertKindLabel("sales_denied")).toBe("Caja sin poder vender");

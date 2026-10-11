@@ -9,6 +9,7 @@ import {
   alerts,
   arcaInvoicingEvidence,
   arcaVitalityChecks,
+  arcaWsaaTicketRefusals,
   arcaWsaaTokens,
   auditLog,
   backofficeRateLimitAttempts,
@@ -578,6 +579,11 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       sign: "FICTIONAL-SIGN-0001",
       issuedAt: new Date("2026-01-05T12:00:00.000Z"),
       expiresAt: new Date("2026-01-06T00:00:00.000Z"),
+    });
+    await db.insert(arcaWsaaTicketRefusals).values({
+      service: "wsfe",
+      certificateFingerprint: "AB:CD:EF",
+      refusedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db
       .insert(arcaInvoicingEvidence)
