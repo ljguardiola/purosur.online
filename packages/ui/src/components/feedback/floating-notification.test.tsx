@@ -360,7 +360,7 @@ test("stays readable by assistive technology when it is shown as a modal opens",
     </>,
   );
 
-  await expect.element(screen.getByRole("status")).toHaveTextContent("Price saved");
+  await expect.element(screen.getByRole("status")).toHaveTextContent(/Price saved/);
 });
 
 test("stays readable by assistive technology when it appears while a modal is open", async () => {
@@ -373,7 +373,7 @@ test("stays readable by assistive technology when it appears while a modal is op
     </>,
   );
 
-  await expect.element(screen.getByRole("status")).toHaveTextContent("Price saved");
+  await expect.element(screen.getByRole("status")).toHaveTextContent(/Price saved/);
 });
 
 test("has no accessibility violations", async () => {
