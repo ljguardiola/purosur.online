@@ -96,6 +96,11 @@ export type {
   DecideSaleAuthorizationOutcome,
 } from "./decide-sale-authorization.js";
 export { decideSaleAuthorization } from "./decide-sale-authorization.js";
+export type {
+  DecideUnclearRealTimeOutcomeInput,
+  DecideUnclearRealTimeOutcomeOutcome,
+} from "./decide-unclear-real-time-outcome.js";
+export { decideUnclearRealTimeOutcome } from "./decide-unclear-real-time-outcome.js";
 export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
 export type {
   EditFiscalAddressInput,
@@ -215,6 +220,11 @@ export type {
 } from "./record-tax-authority-last-authorized.js";
 export { recordTaxAuthorityLastAuthorized } from "./record-tax-authority-last-authorized.js";
 export type {
+  RecordUnrecordedUnclearOutcomeInput,
+  RecordUnrecordedUnclearOutcomeOutcome,
+} from "./record-unrecorded-unclear-outcome.js";
+export { recordUnrecordedUnclearOutcome } from "./record-unrecorded-unclear-outcome.js";
+export type {
   RegisterHealthCheck,
   RegisterHealthCheckPorts,
   RegisterHealthChecks,
@@ -262,6 +272,19 @@ export type {
   TaxAuthorityCounts,
   TaxAuthorityLastAuthorizedLookup,
 } from "./tax-authority-count-ports.js";
+export type {
+  AbandonedRequestRecord,
+  DecideUnclearRealTimeOutcomePorts,
+  RecordedUnclearRequest,
+  RecordUnrecordedUnclearOutcomePorts,
+  TaxAuthorityVoucherLookup,
+  UnclearOutcomeLane,
+  UnclearOutcomeLanes,
+  UnclearOutcomeRequests,
+  UnclearRequest,
+  UnclearRequestProgress,
+  VoucherAnswer,
+} from "./unclear-outcome-ports.js";
 export type {
   WsaaAuthentication,
   WsaaAuthenticationResult,
