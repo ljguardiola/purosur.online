@@ -339,10 +339,10 @@ test("announces an error notice right away, as an alert", async () => {
   await expect.poll(() => region.textContent).toContain("Could not save");
 });
 
-test("stays readable by assistive technology when it appears while a modal is open", async () => {
-  const modal = (
+function modalOpen(open: boolean): ReactElement {
+  return (
     <Modal
-      open
+      open={open}
       onOpenChange={() => {}}
       tone="error"
       icon={<CircleX />}
@@ -350,17 +350,30 @@ test("stays readable by assistive technology when it appears while a modal is op
       footer={null}
     />
   );
-  const screen = await render(modal);
+}
 
-  await screen.rerender(
+test("stays readable by assistive technology when it is shown as a modal opens", async () => {
+  const screen = await render(
     <>
-      {modal}
+      {modalOpen(true)}
       {notification({ onDismiss: () => {} })}
     </>,
   );
 
-  const region = screen.getByRole("status").element();
-  await expect.poll(() => region.textContent).toContain("Price saved");
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Price saved");
+});
+
+test("stays readable by assistive technology when it appears while a modal is open", async () => {
+  const screen = await render(modalOpen(true));
+
+  await screen.rerender(
+    <>
+      {modalOpen(true)}
+      {notification({ onDismiss: () => {} })}
+    </>,
+  );
+
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Price saved");
 });
 
 test("has no accessibility violations", async () => {
