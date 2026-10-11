@@ -1,4 +1,4 @@
-import type { PushedEvent } from "@purosur/domain";
+import { type PushedEvent, SERIAL_DEVICE_ROLES, type SerialDevicesReport } from "@purosur/domain";
 import type { AlertConditionObservation } from "@purosur/domain/alerts/use-cases";
 import type {
   HeldEvent,
@@ -8,7 +8,7 @@ import type {
   InstallationRegister,
   PushReport,
 } from "@purosur/domain/sync/use-cases";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { observeAlertCondition } from "../alerts/observe-alert-condition.js";
 import {
@@ -17,6 +17,7 @@ import {
   refusedEvents,
   registerInstallations,
   registers,
+  serialDeviceState,
 } from "../platform/db/schema.js";
 import type { InstallationKeyCipher } from "../register/installation-key-cipher.js";
 import { readOutboxChainKey } from "../register/outbox-chain-key.js";
@@ -128,6 +129,37 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
       .insert(deviceState)
       .values({ deviceId, ...pushed })
       .onConflictDoUpdate({ target: deviceState.deviceId, set: pushed });
+    if (telemetry.serial_devices !== undefined) {
+      await this.recordSerialDevices(deviceId, telemetry.serial_devices, at);
+    }
+  }
+
+  private async recordSerialDevices(
+    deviceId: string,
+    report: SerialDevicesReport,
+    at: Date,
+  ): Promise<void> {
+    await this.tx
+      .insert(serialDeviceState)
+      .values(
+        SERIAL_DEVICE_ROLES.map((role) => ({
+          deviceId,
+          role,
+          standing: report[role].standing,
+          vendorId: report[role].vendor_id ?? null,
+          productId: report[role].product_id ?? null,
+          reportedAt: at,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: [serialDeviceState.deviceId, serialDeviceState.role],
+        set: {
+          standing: sql`excluded.standing`,
+          vendorId: sql`excluded.vendor_id`,
+          productId: sql`excluded.product_id`,
+          reportedAt: sql`excluded.reported_at`,
+        },
+      });
   }
 
   async installationRegister(deviceId: string): Promise<InstallationRegister> {

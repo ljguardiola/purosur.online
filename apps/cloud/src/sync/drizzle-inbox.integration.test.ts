@@ -1,6 +1,6 @@
 import { canonicalOutboxEvent, type PushedEvent, type RegisterTelemetry } from "@purosur/domain";
 import { receivePushedEvents } from "@purosur/domain/sync/use-cases";
-import { count, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -10,6 +10,7 @@ import {
   inbox,
   refusedEvents,
   registerInstallations,
+  serialDeviceState,
 } from "../platform/db/schema.js";
 import { installationKeyCipher } from "../register/installation-key-cipher.js";
 import { insertEnrolledInstallation as enrollInstallation } from "../register/test-support/enrolled-installation.js";
@@ -378,9 +379,10 @@ describe("the inbox keeping the state of a register's serial devices, on a real 
   }
 
   async function reportedAtOf(deviceId: string, role: string) {
-    const [row] = await sql<
-      { reportedAt: Date }[]
-    >`select reported_at as "reportedAt" from serial_device_state where device_id = ${deviceId} and role = ${role}`;
+    const [row] = await db
+      .select({ reportedAt: serialDeviceState.reportedAt })
+      .from(serialDeviceState)
+      .where(and(eq(serialDeviceState.deviceId, deviceId), eq(serialDeviceState.role, role)));
     return row?.reportedAt;
   }
 
