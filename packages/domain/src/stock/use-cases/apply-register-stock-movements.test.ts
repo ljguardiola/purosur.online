@@ -395,12 +395,12 @@ describe("applyRegisterStockMovements", () => {
       store.seedLot({ ...BREAD, id: "first", expiresOn: "2027-01-01", remaining: 2000 });
       store.seedLot({ ...BREAD, id: "second", expiresOn: "2027-02-01", remaining: 5000 });
 
-      await apply(store, sale([...breadSale("sale-1", -1500), ...breadSale("sale-2", -1000)]));
+      await apply(store, sale([...breadSale("sale-1", -1000), ...breadSale("sale-2", -2000)]));
 
       expect(store.snapshot().allocations).toEqual([
-        { movementId: "sale-1", lotId: "first", quantity: -1500 },
-        { movementId: "sale-2", lotId: "first", quantity: -500 },
-        { movementId: "sale-2", lotId: "second", quantity: -500 },
+        { movementId: "sale-1", lotId: "first", quantity: -1000 },
+        { movementId: "sale-2", lotId: "first", quantity: -1000 },
+        { movementId: "sale-2", lotId: "second", quantity: -1000 },
       ]);
     });
 

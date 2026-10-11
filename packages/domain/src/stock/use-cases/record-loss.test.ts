@@ -110,6 +110,9 @@ describe("recordLoss", () => {
       "earliestCountAtOrAfter",
       "recordMovement",
       "addToBalance",
+      "productLots",
+      "openTechnicalLot",
+      "allocateToLot",
     ]);
   });
 
