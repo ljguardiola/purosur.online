@@ -135,22 +135,24 @@ export function findMisnumberedRegisterMigrations({ basePaths, currentPaths }) {
       undefined,
     );
   if (lastOnMain === undefined) return [];
-  const lastNumberOnMain = /^\d*/.exec(lastOnMain)[0];
-  const sharesLastNumberOnMain = (name) =>
-    lastNumberOnMain !== "" &&
-    name.startsWith(lastNumberOnMain) &&
-    !/^\d/.test(name.slice(lastNumberOnMain.length));
+  const lastNumberOnMain = leadingNumber(lastOnMain);
+  const nextNumber = String(Number(lastNumberOnMain) + 1).padStart(lastNumberOnMain.length, "0");
   const onMain = new Set(baseMigrations);
   return currentPaths
     .filter((path) => isRegisterMigrationFile(path) && !onMain.has(path))
     .filter((path) => {
       const name = registerMigrationName(path);
-      return name.localeCompare(lastOnMain) <= 0 || sharesLastNumberOnMain(name);
+      const number = leadingNumber(name);
+      return number === "" || number === lastNumberOnMain || name.localeCompare(lastOnMain) <= 0;
     })
     .map((path) => ({
       path,
-      reason: `new register migration does not sort after ${lastOnMain}, the last one already on main — renumber it above ${lastOnMain}`,
+      reason: `new register migration must start with a number above ${lastNumberOnMain} and sort after ${lastOnMain}, the last one already on main — renumber it ${nextNumber}`,
     }));
+}
+
+function leadingNumber(name) {
+  return /^\d*/.exec(name)[0];
 }
 
 export function describeViolation({ path, reason }) {
