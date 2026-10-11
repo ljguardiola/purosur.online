@@ -176,15 +176,17 @@ describe("DrizzleStockReader.stockLevels", () => {
     expect(await new DrizzleStockReader(db).stockLevels(locationId)).toEqual([]);
   });
 
-  it("answers each listed product with its balance at the location, zero when it has none", async () => {
+  it("answers each listed product with its balance at the location and whether it ever moved there, zero when it never did", async () => {
     const locationId = await insertLocation(db);
     const otherLocationId = await insertLocation(db);
     const honey = await insertProduct(db, { name: "Miel" });
+    const peanuts = await insertProduct(db, { name: "Maní" });
     const nuts = await insertProduct(db, { name: "Nueces", categoryName: "Frutos secos" });
     const oats = await insertProduct(db, { name: "Avena", active: false });
     const rice = await insertProduct(db, { name: "Arroz", active: false });
     const flour = await insertProduct(db, { name: "Harina", active: false });
     await insertBalance(db, { productId: honey.productId, locationId, quantity: 12 });
+    await insertBalance(db, { productId: peanuts.productId, locationId, quantity: 0 });
     await insertBalance(db, { productId: rice.productId, locationId, quantity: 0 });
     await insertBalance(db, {
       productId: flour.productId,
@@ -206,7 +208,19 @@ describe("DrizzleStockReader.stockLevels", () => {
         categoryName: "Almacén",
         saleUnit: "UNIT",
         active: false,
+        hasMoved: true,
         balance: 3,
+        lots: [],
+      },
+      {
+        id: peanuts.productId,
+        name: "Maní",
+        categoryId: peanuts.categoryId,
+        categoryName: "Almacén",
+        saleUnit: "UNIT",
+        active: true,
+        hasMoved: true,
+        balance: 0,
         lots: [],
       },
       {
@@ -216,6 +230,7 @@ describe("DrizzleStockReader.stockLevels", () => {
         categoryName: "Almacén",
         saleUnit: "UNIT",
         active: true,
+        hasMoved: true,
         balance: 12,
         lots: [],
       },
@@ -226,6 +241,7 @@ describe("DrizzleStockReader.stockLevels", () => {
         categoryName: "Frutos secos",
         saleUnit: "UNIT",
         active: true,
+        hasMoved: false,
         balance: 0,
         lots: [],
       },

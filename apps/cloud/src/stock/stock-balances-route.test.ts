@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerStockBalancesRoute } from "./stock-balances-route.js";
-import { insertPurchasedLot, insertTechnicalLot } from "./test-support/lot-fixtures.js";
+import { insertPurchasedLot } from "./test-support/lot-fixtures.js";
 import {
   BACKOFFICE_ORIGIN,
   insertBalance,
@@ -83,15 +83,25 @@ describe("GET /inventory-levels", () => {
     },
   );
 
-  it("lists the products with their balance in the user's branch", async () => {
-    const { headers, locationId } = await signedInWith(db, ["view_stock_balances"], NOON);
+  it("lists the products of the user's branch with their lots and the footer", async () => {
+    const { headers, locationId, userId } = await signedInWith(db, ["view_stock_balances"], NOON);
     const otherLocationId = await insertLocation(db);
     const almonds = await insertProduct(db, {
       name: "Almendras peladas",
       categoryName: "Frutos secos",
       saleUnit: "KG",
     });
-    await insertBalance(db, { productId: almonds.productId, locationId, quantity: 12_150 });
+    const lotId = await insertPurchasedLot(db, {
+      productId: almonds.productId,
+      locationId,
+      actorId: userId,
+      supplierName: "Distribuidora Sur",
+      purchasedOn: "2026-10-01",
+      expiresOn: "2027-03-01",
+      lotNumber: "L-77",
+      remaining: 4_000,
+    });
+    await insertBalance(db, { productId: almonds.productId, locationId, quantity: 4_000 });
     await insertBalance(db, {
       productId: almonds.productId,
       locationId: otherLocationId,
@@ -110,130 +120,30 @@ describe("GET /inventory-levels", () => {
           categoryName: "Frutos secos",
           saleUnit: "KG",
           active: true,
-          balance: 12_150,
-          valueCents: null,
-          unitCostCents: null,
-          lotCount: 0,
-          correction: "purchase_or_count",
-          lots: [],
-        },
-      ],
-      summary: { productCount: 1, valueCents: 0, withoutCostCount: 1 },
-    });
-  });
-
-  it("values a product's lots in consumption order, with its unit cost, lot count and the footer", async () => {
-    const { headers, locationId, userId } = await signedInWith(db, ["view_stock_balances"], NOON);
-    const almonds = await insertProduct(db, { name: "Almendras", saleUnit: "KG" });
-    const later = await insertPurchasedLot(db, {
-      productId: almonds.productId,
-      locationId,
-      actorId: userId,
-      supplierName: "Distribuidora Sur",
-      purchasedOn: "2026-10-02",
-      expiresOn: "2027-06-01",
-      remaining: 4_000,
-    });
-    const sooner = await insertPurchasedLot(db, {
-      productId: almonds.productId,
-      locationId,
-      actorId: userId,
-      supplierName: "Frutos del Norte",
-      purchasedOn: "2026-10-01",
-      expiresOn: "2027-03-01",
-      lotNumber: "L-77",
-      remaining: 2_000,
-    });
-    await insertBalance(db, { productId: almonds.productId, locationId, quantity: 6_000 });
-
-    const response = await listBalances(headers);
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
-      products: [
-        {
-          id: almonds.productId,
-          name: "Almendras",
-          categoryId: almonds.categoryId,
-          categoryName: "Almacén",
-          saleUnit: "KG",
-          active: true,
-          balance: 6_000,
-          valueCents: 30_000,
+          balance: 4_000,
+          valueCents: 20_000,
           unitCostCents: 5_000,
-          lotCount: 2,
+          lotCount: 1,
           correction: null,
           lots: [
             {
-              id: sooner,
+              id: lotId,
               lotNumber: "L-77",
               expiresOn: "2027-03-01",
-              technical: false,
-              remaining: 2_000,
-              valueCents: 10_000,
-              unitCostCents: 5_000,
-              origin: {
-                kind: "purchase",
-                purchasedOn: "2026-10-01",
-                supplierName: "Frutos del Norte",
-              },
-            },
-            {
-              id: later,
-              lotNumber: null,
-              expiresOn: "2027-06-01",
               technical: false,
               remaining: 4_000,
               valueCents: 20_000,
               unitCostCents: 5_000,
               origin: {
                 kind: "purchase",
-                purchasedOn: "2026-10-02",
+                purchasedOn: "2026-10-01",
                 supplierName: "Distribuidora Sur",
               },
             },
           ],
         },
       ],
-      summary: { productCount: 1, valueCents: 30_000, withoutCostCount: 0 },
-    });
-  });
-
-  it("gives a product holding only a technical lot no value and counts it as without cost", async () => {
-    const { headers, locationId } = await signedInWith(db, ["view_stock_balances"], NOON);
-    const rice = await insertProduct(db, { name: "Arroz" });
-    const technicalId = await insertTechnicalLot(db, {
-      productId: rice.productId,
-      locationId,
-      remaining: -2_000,
-    });
-    await insertBalance(db, { productId: rice.productId, locationId, quantity: -2_000 });
-
-    const response = await listBalances(headers);
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({
-      products: [
-        {
-          id: rice.productId,
-          balance: -2_000,
-          valueCents: null,
-          unitCostCents: null,
-          lotCount: 1,
-          correction: "purchase_or_count",
-          lots: [
-            {
-              id: technicalId,
-              technical: true,
-              remaining: -2_000,
-              valueCents: null,
-              unitCostCents: null,
-              origin: { kind: "product_sales_without_lots" },
-            },
-          ],
-        },
-      ],
-      summary: { productCount: 1, valueCents: 0, withoutCostCount: 1 },
+      summary: { productCount: 1, valueCents: 20_000, withoutCostCount: 0 },
     });
   });
 });

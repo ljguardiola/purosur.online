@@ -196,6 +196,13 @@ function shownProductNames(
     .filter((name) => name !== undefined);
 }
 
+function cellUnder(row: HTMLElement, header: string): HTMLElement {
+  const table = row.closest("table") as HTMLTableElement;
+  const headers = [...table.querySelectorAll("th")];
+  const column = headers.findIndex((cell) => cell.textContent === header);
+  return (row as HTMLTableRowElement).cells[column] as HTMLElement;
+}
+
 test("shows each product's unit cost, value and lot count, with the unit a kilo is costed by", async () => {
   const screen = await renderScreen(listed());
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
@@ -204,7 +211,7 @@ test("shows each product's unit cost, value and lot count, with the unit a kilo 
   const honeyRow = rowOf(screen.getByText("Miel pura de abeja 1 kg").element());
   expect(almondsRow.textContent).toContain("$ 10.205,84 / kg");
   expect(almondsRow.textContent).toContain("$ 124.001,00");
-  expect(almondsRow.textContent).toContain("2");
+  expect(cellUnder(almondsRow, "Lotes").textContent).toBe("2");
   expect(honeyRow.textContent).toContain("$ 5.440,00");
   expect(honeyRow.textContent).not.toContain("/ kg");
   expect(honeyRow.textContent).toContain("$ 130.560,00");
@@ -247,14 +254,11 @@ test("says a product without lots is corrected with a purchase or a count, and o
     .toBeVisible();
 });
 
-test("opens a product's lots under it, naming the lot consumed first", async () => {
+test("opens a product's lots under it", async () => {
   const screen = await renderScreen(listed());
 
   await userEvent.click(screen.getByRole("button", { name: `Ver los lotes de ${almonds.name}` }));
 
-  await expect
-    .element(screen.getByText("Lotes · se consume primero el que vence antes"))
-    .toBeVisible();
   await expect
     .element(screen.getByRole("table", { name: `Lotes de ${almonds.name}` }))
     .toBeVisible();

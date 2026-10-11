@@ -11,6 +11,7 @@ function level(id: string, overrides: Partial<StockLevel> = {}): StockLevel {
     categoryName: "Almacén",
     saleUnit: "KG",
     active: true,
+    hasMoved: true,
     balance: 0,
     lots: [],
     ...overrides,
@@ -77,6 +78,7 @@ describe("readStockBalances", () => {
       active: false,
       balance: 4_000,
     });
+    expect(products[0]).not.toHaveProperty("hasMoved");
   });
 
   it("values a product as the sum of its lots, with its unit cost and lot count", async () => {
@@ -215,14 +217,16 @@ describe("readStockBalances", () => {
     });
   });
 
-  it("sums the footer over the listed products", async () => {
-    const { summary } = await read([
+  it("sums the footer over the listed products that had a movement", async () => {
+    const { products, summary } = await read([
       level("p1", { balance: 4_000, lots: [purchasedLot("l1")] }),
       level("p2", { balance: 2_000, lots: [technicalLot("t", 2_000)] }),
       level("p3", { balance: 0 }),
       level("p4", { balance: 1_000, lots: [purchasedLot("l4", { remaining: 1_000 })] }),
+      level("p5", { hasMoved: false }),
     ]);
 
+    expect(products.map((product) => product.id)).toEqual(["p1", "p2", "p3", "p4", "p5"]);
     expect(summary).toEqual({ productCount: 4, valueCents: 25_000, withoutCostCount: 2 });
   });
 });
