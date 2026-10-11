@@ -59,7 +59,9 @@ export function useQrChargeQuery({
     gcTime: 0,
     enabled: following,
     refetchInterval: ({ state }) =>
-      following && state.status === "success" && state.data?.kind === "waiting"
+      following &&
+      state.status === "success" &&
+      (state.data?.kind === "waiting" || state.data?.kind === "expiry_unconfirmed")
         ? QR_WAIT_FOLLOW_INTERVAL_MS
         : false,
     refetchIntervalInBackground: true,

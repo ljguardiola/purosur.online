@@ -33,7 +33,10 @@ let signedInPerson: SignedInPerson;
 
 class FakeOrders implements MercadoPagoQrChargeOrders {
   readonly requested: { paymentTransactionId: string; saleId: string; amount: number }[] = [];
-  answer: MercadoPagoQrChargeOrderAnswer = { kind: "created" };
+  answer: MercadoPagoQrChargeOrderAnswer = {
+    kind: "created",
+    expiresAt: new Date("2026-10-09T12:03:00.000Z"),
+  };
   reading: MercadoPagoQrChargeOrderReading = { kind: "read", state: "PENDING" };
   cancellation: MercadoPagoQrChargeOrderCancellation = { kind: "answered", state: "CANCELLED" };
   cancelled: string[] = [];
@@ -165,7 +168,6 @@ describe("starting a Mercado Pago QR charge at the register", () => {
       kind: "order_shown",
       payment_transaction_id: "qr-1",
       amount: 2000,
-      wait_seconds: 180,
       remaining_seconds: 180,
     });
     expect(orders.pendingRowsWhenAsked).toEqual([{ id: "qr-1", state: "PENDING" }]);
@@ -179,6 +181,17 @@ describe("starting a Mercado Pago QR charge at the register", () => {
         wait_ends_at: "2026-10-09T12:03:00.000Z",
       },
     ]);
+  });
+
+  it("keeps the wait ending at the expiry the cloud recorded for the order", async () => {
+    const saleId = await saleOfTwoYerbas();
+    const orders = new FakeOrders();
+    orders.answer = { kind: "created", expiresAt: new Date("2026-10-09T12:03:10.000Z") };
+
+    expect(await startMercadoPagoQrChargeFor(deps(orders), { saleId, amount: 2000 })).toMatchObject(
+      { kind: "order_shown", remaining_seconds: 190 },
+    );
+    expect(qrRows()).toMatchObject([{ wait_ends_at: "2026-10-09T12:03:10.000Z" }]);
   });
 
   it("answers that the amount is more than is left to pay, asking the cloud nothing", async () => {
@@ -278,18 +291,29 @@ describe("following a Mercado Pago QR charge at the register", () => {
     ).toEqual({ kind: "partially_paid", sale_id: saleId, total: 3000, paid: 1000, pending: 2000 });
   });
 
-  it("declines the payment when the order ends another way", async () => {
+  it("answers the wait is over, recording the payment expired, when Mercado Pago expires the order", async () => {
     await chargeStarted();
     const orders = new FakeOrders();
     orders.reading = { kind: "read", state: "EXPIRED" };
 
     expect(
       await followMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
-    ).toEqual({ kind: "declined" });
+    ).toEqual({ kind: "wait_over" });
     expect(qrRows()).toMatchObject([{ state: "EXPIRED" }]);
   });
 
-  it("answers the wait is over once 3 minutes pass, leaving the payment pending", async () => {
+  it("declines the payment when the order ends another way", async () => {
+    await chargeStarted();
+    const orders = new FakeOrders();
+    orders.reading = { kind: "read", state: "CANCELLED" };
+
+    expect(
+      await followMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+    ).toEqual({ kind: "declined" });
+    expect(qrRows()).toMatchObject([{ state: "CANCELLED" }]);
+  });
+
+  it("keeps waiting with no seconds left once 3 minutes pass while the order is pending, leaving the payment pending", async () => {
     await chargeStarted();
 
     expect(
@@ -297,7 +321,21 @@ describe("following a Mercado Pago QR charge at the register", () => {
         deps(new FakeOrders(), { now: () => new Date("2026-10-09T12:03:00.000Z") }),
         { paymentTransactionId: "qr-1" },
       ),
-    ).toEqual({ kind: "wait_over" });
+    ).toEqual({ kind: "waiting", remaining_seconds: 0 });
+    expect(qrRows()).toMatchObject([{ state: "PENDING" }]);
+  });
+
+  it("answers it cannot confirm the expiry when the order cannot be read after 3 minutes, leaving the payment pending", async () => {
+    await chargeStarted();
+    const orders = new FakeOrders();
+    orders.reading = { kind: "unreachable" };
+
+    expect(
+      await followMercadoPagoQrChargeFor(
+        deps(orders, { now: () => new Date("2026-10-09T12:03:00.000Z") }),
+        { paymentTransactionId: "qr-1" },
+      ),
+    ).toEqual({ kind: "expiry_unconfirmed" });
     expect(qrRows()).toMatchObject([{ state: "PENDING" }]);
   });
 
@@ -318,7 +356,7 @@ describe("following a Mercado Pago QR charge at the register", () => {
       { kind: "waiting", remaining_seconds: 161 },
     ],
     [{ kind: "read", state: "DECLINED" }, "2026-10-09T12:00:19.000Z", { kind: "declined" }],
-    [{ kind: "read", state: "APPROVED" }, "2026-10-09T12:03:00.000Z", { kind: "wait_over" }],
+    [{ kind: "read", state: "EXPIRED" }, "2026-10-09T12:03:00.000Z", { kind: "wait_over" }],
   ] as const)(
     "answers the charge's progress while the outbox cannot sign events (%o at %s)",
     async (reading, now, outcome) => {

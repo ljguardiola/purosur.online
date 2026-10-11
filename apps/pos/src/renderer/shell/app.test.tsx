@@ -1662,7 +1662,6 @@ describe("App", () => {
           payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
           amount,
           remaining_seconds: 180,
-          wait_seconds: 180,
         }),
         followMercadoPagoQrCharge: async () => ({
           kind: "completed",
@@ -1677,6 +1676,7 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
     await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
+    await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await expect
       .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }), {
         timeout: 5_000,
@@ -1732,7 +1732,6 @@ describe("App", () => {
           payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
           amount,
           remaining_seconds: 180,
-          wait_seconds: 180,
         }),
         followMercadoPagoQrCharge: async () => ({ kind: "waiting", remaining_seconds: 170 }),
         abandonMercadoPagoQrCharge: async () => ({
@@ -1748,6 +1747,7 @@ describe("App", () => {
     await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
     await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+    await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await expect
       .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }), {
         timeout: 5_000,
