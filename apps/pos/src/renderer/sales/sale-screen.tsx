@@ -163,12 +163,16 @@ export function SaleScreen({
   const [weighing, setWeighing] = useState<Weighing>();
   const editInFlight = useRef(false);
   const confirmingCancelNow = useRef(false);
-  const weighingNow = useRef(false);
+  const weighingNow = useRef<Weighing>(undefined);
   const listboxId = useId();
 
   useEffect(() => {
     function refocusWhenFocusIsLost(event: FocusEvent) {
-      if (event.relatedTarget === null && !confirmingCancelNow.current && !weighingNow.current) {
+      if (
+        event.relatedTarget === null &&
+        !confirmingCancelNow.current &&
+        weighingNow.current === undefined
+      ) {
         focusScanField(field.current);
       }
     }
@@ -223,7 +227,7 @@ export function SaleScreen({
   }
 
   function askForWeight(asking: Weighing | undefined) {
-    weighingNow.current = asking !== undefined;
+    weighingNow.current = asking;
     setWeighing(asking);
   }
 
@@ -294,6 +298,9 @@ export function SaleScreen({
     );
     if (outcome.kind === "weighing" || outcome.kind === "scale_unavailable") {
       return outcome;
+    }
+    if (outcome.kind !== "added" && weighingNow.current !== asked) {
+      return { kind: "closed" };
     }
     if (outcome.kind === "not_sold_by_weight") {
       askForWeight(undefined);

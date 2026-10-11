@@ -59,7 +59,7 @@ import { type StartedLocalDatabase, startLocalDatabase } from "./register/local-
 import { readReceiptPrinterFor, setReceiptPrinterFor } from "./register/receipt-printer-requests";
 import { registerServiceOf } from "./register/register-service-of-database";
 import { registerStatusFor } from "./register/register-status-requests";
-import { createSerialDeviceWatch, readStanding } from "./register/serial-device-watch";
+import { createSerialDeviceWatch, pathOfMatchingDevice } from "./register/serial-device-watch";
 import { readSerialDevicesFor, registerSerialDevicesFor } from "./register/serial-devices-requests";
 import { listSerialPorts, serialportEnumeration } from "./register/serialport-enumeration";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
@@ -242,10 +242,7 @@ const serialDeviceWatch =
       });
 
 const systelScale = createSystelScale({
-  path: () => {
-    const standing = serialDeviceWatch && readStanding(serialDeviceWatch.reading(), "scale");
-    return standing?.kind === "matching" ? standing.path : undefined;
-  },
+  path: () => serialDeviceWatch && pathOfMatchingDevice(serialDeviceWatch.reading(), "scale"),
   openLink: openSerialLink,
 });
 
