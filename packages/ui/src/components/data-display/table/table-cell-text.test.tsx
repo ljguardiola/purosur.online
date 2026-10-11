@@ -85,3 +85,11 @@ test("writes an error description in bold, in the error tone", async () => {
   expect(getComputedStyle(description).fontWeight).toBe("700");
   await expectNoAccessibilityViolations(screen.container);
 });
+
+test("accepts an undefined tone and description tone, for a caller that picks them from a condition", () => {
+  expectTypeOf<{
+    tone: undefined;
+    descriptionTone: undefined;
+    children: string;
+  }>().toExtend<TableCellTextProps>();
+});
