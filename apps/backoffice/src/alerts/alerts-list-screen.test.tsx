@@ -877,6 +877,31 @@ test("summarizes the refund owed for a late QR payment by its amount, under its 
   expect(row.getByText(/3f2b8c1e/).query()).toBeNull();
 });
 
+test("summarizes a closed refund alert for a late QR payment by its amount alone", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...closedAlert,
+        kind: "late_payment_refund",
+        audience: "local",
+        scope: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        scopeDisplay: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        scopeKind: "refund",
+        refundAmount: 1_240_000,
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Reembolso pendiente por un pago tardío/ });
+  await expect
+    .element(row.getByText("QR de Mercado Pago de $ 12.400,00", { exact: true }))
+    .toBeVisible();
+  expect(row.getByText(/sin marcar como hecho/).query()).toBeNull();
+});
+
 test("describes a register that can't sell by its kind when the cloud names no reason", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(

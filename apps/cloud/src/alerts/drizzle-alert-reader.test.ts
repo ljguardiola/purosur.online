@@ -242,6 +242,20 @@ describe("DrizzleAlertReader listVisibleAlerts", () => {
     );
   });
 
+  it("reads a late-payment refund amount larger than a 32-bit integer holds", async () => {
+    const alertId = await insertAlert({
+      kind: "late_payment_refund",
+      audience: "local",
+      detail: { saleId: "sale-1", amount: 3_000_000_000 },
+    });
+
+    const { alerts: listed } = await new DrizzleAlertReader(db).listVisibleAlerts(ALL, {}, 1);
+
+    expect(listed.map((alert) => [alert.id, alert.refundAmount])).toEqual([
+      [alertId, 3_000_000_000],
+    ]);
+  });
+
   it("filters by level and by open or closed", async () => {
     const openCritical = await insertAlert({ level: "critical" });
     await insertAlert({ level: "warning" });

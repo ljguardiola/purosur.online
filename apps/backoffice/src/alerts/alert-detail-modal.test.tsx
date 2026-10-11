@@ -1493,7 +1493,7 @@ test("tells a refund owed for a QR payment that arrived late: what it means, wha
   await expect
     .element(
       screen.getByText(
-        "Mercado Pago cobró un QR de una venta que ya se había cobrado por otro medio, y su reembolso todavía no quedó marcado como hecho en el sistema.",
+        "Mercado Pago cobró un QR de una venta que ya se había cobrado por otro medio.",
         { exact: true },
       ),
     )

@@ -184,17 +184,23 @@ test("opens on the register the address carries", async () => {
   await expect.element(screen.getByRole("button", { name: /Caja del frente/ })).toBeVisible();
 });
 
-test("shows every refund when the address carries a register the list has none for", async () => {
+test("shows every refund and reports every register when the address carries a register the list has none for", async () => {
   const services = createServices();
-  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({ kind: "ok", value: pendingRefunds });
+  const onFiltersChange = vi.fn();
+  const { promise, resolve } = deferred<Awaited<ReturnType<typeof services.fetchPendingRefunds>>>();
+  vi.mocked(services.fetchPendingRefunds).mockReturnValue(promise);
 
   const screen = await renderScreen(services, () => {}, {
     filters: { register: "99999999-0000-4000-8000-000000000000" },
+    onFiltersChange,
   });
+  expect(onFiltersChange).not.toHaveBeenCalled();
+  resolve({ kind: "ok", value: pendingRefunds });
 
   await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("$ 980,00", { exact: true })).toBeVisible();
   await expect.element(screen.getByRole("button", { name: /Caja.*Todas/ })).toBeVisible();
+  await expect.poll(() => onFiltersChange.mock.lastCall).toEqual([{ register: "all" }]);
 });
 
 test("shows the empty state when no refund is pending", async () => {

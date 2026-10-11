@@ -6,6 +6,7 @@ import {
   isRefundPending,
   LATE_PAYMENT_REFUND_ORIGIN,
   latePaymentRefund,
+  methodsCoveringRefundedSale,
   PLANNED_REFUND_STATES,
   type PlannedRefund,
   type PlannedRefundState,
@@ -252,5 +253,40 @@ describe("latePaymentRefund", () => {
         expect(refund.amount).toBe(amount);
       }),
     );
+  });
+});
+
+describe("methodsCoveringRefundedSale", () => {
+  it("names each method an approved payment of a late payment's sale used, once, in the catalog's order", () => {
+    expect(
+      methodsCoveringRefundedSale(LATE_PAYMENT_REFUND_ORIGIN, [
+        { method: "TRANSFER", state: "APPROVED" },
+        { method: "CASH", state: "APPROVED" },
+        { method: "TRANSFER", state: "APPROVED" },
+      ]),
+    ).toEqual(["CASH", "TRANSFER"]);
+  });
+
+  it("leaves out the methods of payments that were not approved", () => {
+    expect(
+      methodsCoveringRefundedSale(LATE_PAYMENT_REFUND_ORIGIN, [
+        { method: "QR", state: "DECLINED" },
+        { method: "CASH", state: "APPROVED" },
+        { method: "TRANSFER", state: "PENDING" },
+      ]),
+    ).toEqual(["CASH"]);
+  });
+
+  it("names none while the late payment's sale has no payment", () => {
+    expect(methodsCoveringRefundedSale(LATE_PAYMENT_REFUND_ORIGIN, [])).toEqual([]);
+  });
+
+  it("names none for the refund of a cancelled sale, whatever paid it", () => {
+    expect(
+      methodsCoveringRefundedSale(SALE_CANCELLED_REFUND_ORIGIN, [
+        { method: "CASH", state: "APPROVED" },
+        { method: "TRANSFER", state: "APPROVED" },
+      ]),
+    ).toEqual([]);
   });
 });

@@ -66,8 +66,7 @@ test("gives every kind that has a fixed text its title, whatever the reason", ()
 test("gives the refund owed for a late QR payment its title, what it means and what to do", () => {
   expect(localAlertText({ kind: "late_payment_refund" })).toEqual({
     title: "Reembolso pendiente por un pago tardío",
-    meaning:
-      "Mercado Pago cobró un QR de una venta que ya se había cobrado por otro medio, y su reembolso todavía no quedó marcado como hecho en el sistema.",
+    meaning: "Mercado Pago cobró un QR de una venta que ya se había cobrado por otro medio.",
     whatToDo:
       "Si ese reembolso ya se hizo desde Mercado Pago, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes por el mismo medio, o descartarlo si no corresponde. El Administrador ya fue avisado.",
   });
