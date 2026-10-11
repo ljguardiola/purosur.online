@@ -281,7 +281,6 @@ describe("the log of an offline authorization code acquisition run", () => {
 
 describe("the report of an offline authorization code acquisition failure", () => {
   const OCTOBER_13 = new Date("2026-10-13T15:00:00.000Z");
-  const OCTOBER_12 = new Date("2026-10-12T15:00:00.000Z");
   const REJECTION = { code: 15006, message: "Fictional rejection" };
 
   async function holdFirstHalf() {
@@ -307,10 +306,11 @@ describe("the report of an offline authorization code acquisition failure", () =
       { createDatabase: () => testDatabase.db, report },
     );
     const task = jobs.taskList[OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER];
-    if (!task) {
-      throw new Error("test setup: expected the registered offline authorization code task");
+    const requestTask = jobs.taskList[OFFLINE_AUTHORIZATION_CODE_REQUEST_TASK_IDENTIFIER];
+    if (!task || !requestTask) {
+      throw new Error("test setup: expected the registered offline authorization code tasks");
     }
-    return { task, report };
+    return { task, requestTask, report };
   }
 
   async function setUp(now: Date, answer: OfflineAuthorizationCodeRequestAnswer) {
@@ -363,11 +363,13 @@ describe("the report of an offline authorization code acquisition failure", () =
     });
   });
 
-  it("does not report a failure while the fortnight's alert is only informational", async () => {
-    const { task, report } = await setUp(OCTOBER_12, { kind: "no_answer" });
+  it("logs and reports a failure obtained through the on-demand request too", async () => {
+    const { requestTask, report } = await setUp(OCTOBER_13, { kind: "no_answer" });
+    const { helpers, logs } = buildJobHelpers();
 
-    await task({}, buildJobHelpers().helpers);
+    await requestTask({}, helpers);
 
-    expect(report).not.toHaveBeenCalled();
+    expect(logs).toContainEqual({ level: "info", message: `${SECOND_HALF_LINE}: no_answer` });
+    expect(report).toHaveBeenCalledTimes(1);
   });
 });

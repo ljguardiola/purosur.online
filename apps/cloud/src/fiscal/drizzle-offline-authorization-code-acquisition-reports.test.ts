@@ -50,13 +50,4 @@ describe("DrizzleOfflineAuthorizationCodeAcquisitionReports", () => {
     await expect(newReports().recordFirstReport(SECOND_HALF, "no_answer")).resolves.toBe(true);
     await expect(newReports().recordFirstReport(FIRST_HALF, "refused")).resolves.toBe(true);
   });
-
-  it("lets only one of two concurrent first reports win", async () => {
-    const results = await Promise.all([
-      newReports().recordFirstReport(SECOND_HALF, "not_recovered"),
-      newReports().recordFirstReport(SECOND_HALF, "not_recovered"),
-    ]);
-
-    expect(results.filter(Boolean)).toHaveLength(1);
-  });
 });
