@@ -774,6 +774,25 @@ test("names an alert for an expiring ARCA certificate by its kind and what happe
   await expect.element(row.getByText("El certificado de ARCA está por vencer")).toBeVisible();
 });
 
+test("names an alert for an authentication ticket ARCA still holds by its kind and what is waiting", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([{ ...passkeyAlert, kind: "arca_wsaa_ticket_held", scopeDisplay: "production" }]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Producción/ });
+  await expect.element(row.getByText("ARCA conserva un ticket de acceso anterior")).toBeVisible();
+  await expect
+    .element(
+      row.getByText(
+        "La emisión fiscal en línea espera a que venza el ticket de acceso que ARCA todavía tiene vigente.",
+      ),
+    )
+    .toBeVisible();
+});
+
 test("names a quiet register's alert by its fixed title, with what it means and what to do", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(

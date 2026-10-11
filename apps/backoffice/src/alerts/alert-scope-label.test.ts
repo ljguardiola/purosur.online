@@ -6,6 +6,10 @@ test("names the ARCA environment of an expiring certificate in Spanish", () => {
   expect(alertScopeLabel("arca_certificate_expiring", "homologation")).toBe("Homologación");
 });
 
+test("names the ARCA environment an authentication ticket is held for", () => {
+  expect(alertScopeLabel("arca_wsaa_ticket_held", "production")).toBe("Producción");
+});
+
 test("shows an ARCA environment this app does not know yet, such as one a later cloud adds, as it comes", () => {
   expect(alertScopeLabel("arca_certificate_expiring", "staging")).toBe("staging");
 });

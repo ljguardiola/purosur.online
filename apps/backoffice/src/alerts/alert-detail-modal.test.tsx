@@ -1072,6 +1072,34 @@ test("shows an expiring ARCA certificate with the environment it is for and the 
   await expect.element(screen.getByText("Producción", { exact: true })).toBeVisible();
 });
 
+test("explains that ARCA still holds an earlier authentication ticket and that nothing has to be replaced", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "arca_wsaa_ticket_held",
+        scope: "production",
+        scopeDisplay: "production",
+        detail: {},
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("ARCA conserva un ticket de acceso anterior"))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "La nube no tiene ticket de acceso a ARCA y ARCA no emite uno nuevo mientras siga vigente el anterior, que puede durar hasta 12 horas. La nube lo vuelve a pedir cada 10 minutos y retoma la autorización en línea en cuanto lo obtiene. No hay que reemplazar el certificado ni cambiar la configuración. Mientras tanto la caja vende con el CAEA que ya tenga o en venta diferida.",
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Producción", { exact: true })).toBeVisible();
+});
+
 test("tells which register runs a version the cloud no longer accepts, and which version", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
