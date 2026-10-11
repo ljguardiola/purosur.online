@@ -1,4 +1,5 @@
 import type {
+  AbandonMercadoPagoQrChargeOutcome,
   CashChargeAnswer,
   CurrentSaleAnswer,
   FollowMercadoPagoQrChargeOutcome,
@@ -8,7 +9,7 @@ import type {
   SalesHistoryOutcome,
   SearchProductsOutcome,
 } from "@purosur/contracts";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SalesHistoryQuery } from "../platform/core-client";
 import { setQueryAnswer } from "../platform/set-query-answer";
 import type { CoreData } from "../platform/use-core-query";
@@ -39,9 +40,11 @@ export type FollowedQrCharge = Exclude<FollowMercadoPagoQrChargeOutcome, { kind:
 export function useQrChargeQuery({
   paymentTransactionId,
   follow,
+  following = true,
 }: {
   paymentTransactionId: string;
   follow: (paymentTransactionId: string) => Promise<FollowMercadoPagoQrChargeOutcome>;
+  following?: boolean;
 }): CoreData<FollowedQrCharge> {
   const queryClient = useQueryClient();
   const queryKey = salesKeys.qrCharge(paymentTransactionId);
@@ -54,8 +57,9 @@ export function useQrChargeQuery({
       },
     }),
     gcTime: 0,
+    enabled: following,
     refetchInterval: ({ state }) =>
-      state.status === "success" && state.data?.kind === "waiting"
+      following && state.status === "success" && state.data?.kind === "waiting"
         ? QR_WAIT_FOLLOW_INTERVAL_MS
         : false,
     refetchIntervalInBackground: true,
@@ -67,6 +71,14 @@ export function useQrChargeQuery({
     return { status: "loaded", value: query.data, refreshing: query.isFetching };
   }
   return { status: "loading" };
+}
+
+export function useAbandonQrChargeMutation(
+  abandon: (paymentTransactionId: string) => Promise<AbandonMercadoPagoQrChargeOutcome>,
+) {
+  return useMutation({
+    mutationFn: (paymentTransactionId: string) => abandon(paymentTransactionId),
+  });
 }
 
 const RECEIPT_PRINT_POLL_MILLISECONDS = 1000;

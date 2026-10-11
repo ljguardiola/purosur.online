@@ -514,6 +514,28 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to abandon a Mercado Pago QR charge and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.abandonMercadoPagoQrCharge("019a0000-0000-7000-8000-0000000000a1");
+    port.answer({
+      type: "abandon-mercado-pago-qr-charge-result",
+      request_id: "request-1",
+      outcome: { kind: "cancelled" },
+    });
+
+    expect(await outcome).toEqual({ kind: "cancelled" });
+    expect(port.posted).toEqual([
+      {
+        type: "abandon-mercado-pago-qr-charge",
+        request_id: "request-1",
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
+      },
+    ]);
+  });
+
   it("asks the core how a Mercado Pago QR charge is going and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

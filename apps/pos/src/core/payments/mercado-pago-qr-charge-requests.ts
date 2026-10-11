@@ -1,8 +1,10 @@
 import type {
+  AbandonMercadoPagoQrChargeOutcome,
   FollowMercadoPagoQrChargeOutcome,
   StartMercadoPagoQrChargeOutcome,
 } from "@purosur/contracts";
 import {
+  abandonMercadoPagoQrCharge,
   followMercadoPagoQrCharge,
   type MercadoPagoQrChargeOrders,
   type MercadoPagoQrChargeSale,
@@ -11,7 +13,9 @@ import {
 import {
   type IdGenerator,
   type PendingQrPaymentRefusal,
+  type PendingQrPaymentReplacementRefusal,
   recordPendingQrPayment,
+  replacePendingQrPayment,
   type SettleApprovedQrPaymentOutcome,
   settleApprovedQrPayment,
 } from "@purosur/domain/sales/use-cases";
@@ -35,7 +39,11 @@ type QrChargeSettlement = SettleApprovedQrPaymentOutcome | { kind: "unavailable"
 function qrChargeSale(
   { database, now, ids }: MercadoPagoQrChargeRequestDeps,
   outboxChainKey: string | undefined,
-): MercadoPagoQrChargeSale<PendingQrPaymentRefusal, QrChargeSettlement> {
+): MercadoPagoQrChargeSale<
+  PendingQrPaymentRefusal,
+  QrChargeSettlement,
+  PendingQrPaymentReplacementRefusal
+> {
   const ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), outboxChainKey);
   return {
     recordPendingPayment: (payment) => {
@@ -46,6 +54,10 @@ function qrChargeSale(
       outboxChainKey === undefined
         ? { kind: "unavailable" }
         : settleApprovedQrPayment({ ledger, clock: { now }, ids }, payment),
+    replacePendingPayment: (payment) => {
+      const outcome = replacePendingQrPayment({ ledger, ids }, payment);
+      return outcome.kind === "replaced" ? outcome : { kind: "refused", refusal: outcome };
+    },
   };
 }
 
@@ -120,7 +132,12 @@ export async function followMercadoPagoQrChargeFor(
   }
 }
 
-function settledOutcome(settlement: QrChargeSettlement): FollowMercadoPagoQrChargeOutcome {
+type SettledQrCharge = Extract<
+  AbandonMercadoPagoQrChargeOutcome,
+  { kind: "already_paid" }
+>["settlement"];
+
+function settledOutcome(settlement: QrChargeSettlement): SettledQrCharge {
   switch (settlement.kind) {
     case "completed":
       return { kind: "completed", sale_id: settlement.saleId, total: settlement.total };
@@ -137,4 +154,30 @@ function settledOutcome(settlement: QrChargeSettlement): FollowMercadoPagoQrChar
     default:
       return { kind: settlement.kind };
   }
+}
+
+export async function abandonMercadoPagoQrChargeFor(
+  deps: MercadoPagoQrChargeRequestDeps,
+  { paymentTransactionId }: { paymentTransactionId: string },
+): Promise<AbandonMercadoPagoQrChargeOutcome> {
+  const outboxChainKey = await deps.readOutboxChainKey();
+  const guarded = await deps.gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
+    abandonMercadoPagoQrCharge(
+      {
+        sale: qrChargeSale(deps, outboxChainKey),
+        orders: deps.orders,
+        charges: new SqliteMercadoPagoQrCharges(deps.database),
+        clock: { now: deps.now },
+      },
+      { actorId: signedInUserId, paymentTransactionId },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return notPerformed(guarded.kind);
+  }
+  const outcome = guarded.result;
+  if (outcome.kind === "already_paid") {
+    return { kind: "already_paid", settlement: settledOutcome(outcome.settlement) };
+  }
+  return { kind: outcome.kind };
 }

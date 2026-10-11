@@ -10,6 +10,10 @@ describe("the Spanish names of synced events", () => {
     expect(syncedEventTypeName("cash_session_closed")).toBe("cierre de caja");
   });
 
+  test("names the replacement of a QR payment", () => {
+    expect(syncedEventTypeName("qr_payment_replaced")).toBe("reemplazo de pago QR");
+  });
+
   test("has no name for an unknown event type", () => {
     expect(syncedEventTypeName("something_new")).toBeUndefined();
   });

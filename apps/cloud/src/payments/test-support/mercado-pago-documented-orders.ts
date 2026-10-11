@@ -144,3 +144,19 @@ export function paidWithCardOrder(amount = "50.00"): Record<string, unknown> {
     ],
   });
 }
+
+function documentedError(code: string, message: string, status: number): Record<string, unknown> {
+  return { errors: [{ code, message, details: [] }], status };
+}
+
+export function cannotCancelOrderError(): Record<string, unknown> {
+  return documentedError(
+    "cannot_cancel_order",
+    "The following order cannot be canceled. Only orders with status created can be canceled.",
+    409,
+  );
+}
+
+export function orderAlreadyCanceledError(): Record<string, unknown> {
+  return documentedError("order_already_canceled", "The order is already canceled.", 409);
+}

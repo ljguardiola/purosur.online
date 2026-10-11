@@ -62,6 +62,7 @@ interface MercadoPagoQrOrder {
   needsReview: boolean;
   providerOrderId: string | null;
   creationOutcomeUnknown: boolean;
+  replaced: boolean;
   createdAt: Date;
   expiresAt: Date;
 }

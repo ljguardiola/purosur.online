@@ -240,6 +240,11 @@ const fiscalGateFailedSchema = z.object({
   evaluated_at: instant,
 });
 
+const qrPaymentReplacedSchema = z.object({
+  payment_transaction_id: text,
+  sale_id: text,
+});
+
 const PAYLOAD_SCHEMAS = {
   "sale_completed@1": saleCompletedV1Schema,
   "sale_completed@2": saleCompletedV2Schema,
@@ -255,6 +260,7 @@ const PAYLOAD_SCHEMAS = {
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,
   "fiscal_gate_failed@1": fiscalGateFailedSchema,
+  "qr_payment_replaced@1": qrPaymentReplacedSchema,
 };
 
 export type SyncedEventPayloads = {

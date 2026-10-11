@@ -52,12 +52,24 @@ function readPayment(id: string, authorization?: string) {
   });
 }
 
+function cancelPayment(id: string, authorization?: string) {
+  return route.app.inject({
+    method: "POST",
+    url: `/payments/mercado-pago-qr/${id}/cancel`,
+    ...(authorization !== undefined && { headers: { authorization } }),
+  });
+}
+
 function transactions() {
   return route.db.select().from(paymentTransactions);
 }
 
 const asks = [
   ["creating an order", (authorization?: string) => createOrder(orderRequest(), authorization)],
+  [
+    "cancelling a payment",
+    (authorization?: string) => cancelPayment(crypto.randomUUID(), authorization),
+  ],
   [
     "reading a payment",
     (authorization?: string) => readPayment(crypto.randomUUID(), authorization),
@@ -351,6 +363,99 @@ describe("the Mercado Pago QR routes", () => {
 
       expect(response.statusCode).toBe(503);
       expect(cloudErrorSchema.parse(response.json()).code).toBe("payment_provider_unavailable");
+    });
+  });
+
+  describe("POST /payments/mercado-pago-qr/:id/cancel", () => {
+    async function pendingPayment(deviceToken: string) {
+      const body = orderRequest();
+      await createOrder(body, `Bearer ${deviceToken}`);
+      return body.payment_transaction_id;
+    }
+
+    it("refuses an identifier that is not a record id", async () => {
+      const { deviceToken } = await enroll();
+
+      const response = await cancelPayment("not-an-id", `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(400);
+      expect(cloudErrorSchema.parse(response.json()).code).toBe("validation_failed");
+    });
+
+    it("answers not found for a payment that was never recorded", async () => {
+      const { deviceToken } = await enroll();
+
+      const response = await cancelPayment(crypto.randomUUID(), `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(404);
+      expect(cloudErrorSchema.parse(response.json()).code).toBe("not_found");
+    });
+
+    it("answers not found for a payment another register recorded, without cancelling its order", async () => {
+      const owner = await enroll("Caja 1");
+      const other = await enroll("Caja 2");
+      const id = await pendingPayment(owner.deviceToken);
+
+      const response = await cancelPayment(id, `Bearer ${other.deviceToken}`);
+
+      expect(response.statusCode).toBe(404);
+      expect(route.mercadoPago.cancellations).toEqual([]);
+      expect(await transactions()).toMatchObject([{ state: "PENDING" }]);
+    });
+
+    it("cancels the order and answers the cancelled payment", async () => {
+      const { deviceToken } = await enroll();
+      const id = await pendingPayment(deviceToken);
+
+      const response = await cancelPayment(id, `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(200);
+      expect(mercadoPagoQrPaymentSchema.parse(response.json())).toMatchObject({
+        payment_transaction_id: id,
+        state: "CANCELLED",
+        needs_review: false,
+      });
+      expect(route.mercadoPago.cancellations).toEqual([{ orderId: ORDER_ID, idempotencyKey: id }]);
+      expect(await transactions()).toMatchObject([{ state: "CANCELLED" }]);
+    });
+
+    it("answers the approved payment when the customer already paid", async () => {
+      const { deviceToken } = await enroll();
+      const id = await pendingPayment(deviceToken);
+      route.mercadoPago.reading = { kind: "read", result: PAID_ORDER };
+
+      const response = await cancelPayment(id, `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(200);
+      expect(mercadoPagoQrPaymentSchema.parse(response.json())).toMatchObject({
+        state: "APPROVED",
+      });
+      expect(route.mercadoPago.cancellations).toEqual([]);
+    });
+
+    it("answers the closed payment as it is when the order was already cancelled", async () => {
+      const { deviceToken } = await enroll();
+      const id = await pendingPayment(deviceToken);
+      route.mercadoPago.cancellation = { kind: "already_cancelled" };
+
+      const response = await cancelPayment(id, `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(200);
+      expect(mercadoPagoQrPaymentSchema.parse(response.json())).toMatchObject({
+        state: "CANCELLED",
+      });
+    });
+
+    it("answers that the provider is unavailable, leaving the payment pending to ask again", async () => {
+      const { deviceToken } = await enroll();
+      const id = await pendingPayment(deviceToken);
+      route.mercadoPago.cancellation = { kind: "unavailable" };
+
+      const response = await cancelPayment(id, `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(503);
+      expect(cloudErrorSchema.parse(response.json()).code).toBe("payment_provider_unavailable");
+      expect(await transactions()).toMatchObject([{ state: "PENDING" }]);
     });
   });
 

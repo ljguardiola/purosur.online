@@ -1,4 +1,7 @@
-import type { FollowMercadoPagoQrChargeOutcome } from "@purosur/contracts";
+import type {
+  AbandonMercadoPagoQrChargeOutcome,
+  FollowMercadoPagoQrChargeOutcome,
+} from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -25,11 +28,20 @@ function answering(...outcomes: FollowMercadoPagoQrChargeOutcome[]): Follow {
   return async () => (outcomes.length > 1 ? outcomes.shift() : outcomes[0]) ?? WAITING;
 }
 
-async function renderModal(follow: Follow = answering(WAITING), order: ShownQrOrder = ORDER) {
+type Abandon = (paymentTransactionId: string) => Promise<AbandonMercadoPagoQrChargeOutcome>;
+
+async function renderModal(
+  follow: Follow = answering(WAITING),
+  order: ShownQrOrder = ORDER,
+  abandon: Abandon = async () => ({ kind: "cancelled" }),
+) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
   const followCharge = vi.fn(follow);
+  const abandonCharge = vi.fn(abandon);
   const callbacks = {
+    onAlreadyPaid: vi.fn(),
+    onCancelled: vi.fn(),
     onChooseAnotherMethod: vi.fn(),
     onCompleted: vi.fn(),
     onPartiallyPaid: vi.fn(),
@@ -42,10 +54,11 @@ async function renderModal(follow: Follow = answering(WAITING), order: ShownQrOr
       paid={1_000_000}
       order={order}
       follow={followCharge}
+      abandon={abandonCharge}
       {...callbacks}
     />,
   );
-  return { screen, followCharge, callbacks };
+  return { screen, followCharge, abandonCharge, callbacks };
 }
 
 describe("QrPaymentWaitModal", () => {
@@ -81,11 +94,16 @@ describe("QrPaymentWaitModal", () => {
     await expect.element(screen.getByText("3:00").first()).toBeVisible();
   });
 
-  it("offers no way to leave the payment while waiting", async () => {
+  it("offers only Cobrar con otro medio while waiting", async () => {
     const { screen } = await renderModal();
 
     await expect.element(screen.getByText("2:41")).toBeVisible();
-    expect(screen.getByRole("button").elements()).toEqual([]);
+    expect(
+      screen
+        .getByRole("button")
+        .elements()
+        .map((button) => button.textContent),
+    ).toEqual(["Cobrar con otro medio"]);
   });
 
   it("keeps asking the core about the payment while it waits", async () => {
@@ -121,7 +139,7 @@ describe("QrPaymentWaitModal", () => {
     expect(callbacks.onSaleUnavailable).not.toHaveBeenCalled();
   });
 
-  it("offers only Reintentar when the core cannot tell how the payment goes, since its wait may still run", async () => {
+  it("offers Reintentar and Cobrar con otro medio when the core cannot tell how the payment goes", async () => {
     const { screen } = await renderModal(answering({ kind: "unavailable" }));
 
     await expect.element(screen.getByText("No se pudo consultar el pago del QR")).toBeVisible();
@@ -131,7 +149,19 @@ describe("QrPaymentWaitModal", () => {
         .getByRole("button")
         .elements()
         .map((button) => button.textContent),
-    ).toEqual(["Reintentar"]);
+    ).toEqual(["Reintentar", "Cobrar con otro medio"]);
+  });
+
+  it("abandons the order from Cobrar con otro medio when the core cannot tell how the payment goes", async () => {
+    const { screen, abandonCharge, callbacks } = await renderModal(
+      answering({ kind: "unavailable" }),
+    );
+
+    await expect.element(screen.getByText("No se pudo consultar el pago del QR")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+
+    await expect.poll(() => callbacks.onCancelled.mock.calls.length).toBe(1);
+    expect(abandonCharge).toHaveBeenCalledExactlyOnceWith(PAYMENT_ID);
   });
 
   it("loads the time left again from its placeholder after Reintentar, not from the time the order was shown with", async () => {
@@ -189,8 +219,8 @@ describe("QrPaymentWaitModal", () => {
     expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
   });
 
-  it("says the wait ran out and goes back to the methods from Elegir otro medio", async () => {
-    const { screen, callbacks } = await renderModal(answering({ kind: "wait_over" }));
+  it("says the wait ran out and warns about a late payment", async () => {
+    const { screen } = await renderModal(answering({ kind: "wait_over" }));
 
     await expect
       .element(screen.getByRole("heading", { name: "Venció la espera del QR" }))
@@ -208,10 +238,6 @@ describe("QrPaymentWaitModal", () => {
       )
       .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
-
-    await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
-
-    expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
   });
 
   it("says how long the wait the core gave the order was", async () => {
@@ -252,4 +278,257 @@ describe("QrPaymentWaitModal", () => {
       await expect.poll(() => callbacks.onSessionInvalid.mock.calls.length).toBe(1);
     },
   );
+
+  it("abandons the order from Cobrar con otro medio and leaves the charge once it is cancelled", async () => {
+    const { screen, abandonCharge, callbacks } = await renderModal();
+
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+
+    await expect.poll(() => callbacks.onCancelled.mock.calls.length).toBe(1);
+    expect(abandonCharge).toHaveBeenCalledExactlyOnceWith(PAYMENT_ID);
+    expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
+  });
+
+  it("disables Cobrar con otro medio while the core abandons the order, and stops asking about the payment", async () => {
+    let answer: (outcome: AbandonMercadoPagoQrChargeOutcome) => void = () => undefined;
+    const { screen, followCharge, abandonCharge } = await renderModal(
+      answering(WAITING),
+      ORDER,
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+
+    await expect
+      .element(screen.getByRole("button", { name: "Cobrar con otro medio" }))
+      .toBeDisabled();
+    const asked = followCharge.mock.calls.length;
+    await expect.poll(() => abandonCharge.mock.calls.length).toBe(1);
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }), {
+      force: true,
+    });
+    expect(abandonCharge).toHaveBeenCalledOnce();
+    expect(followCharge.mock.calls.length).toBe(asked);
+    answer({ kind: "cancelled" });
+  });
+
+  it("abandons the order from the Elegir otro medio of a wait that ran out, instead of just leaving", async () => {
+    const { screen, abandonCharge, callbacks } = await renderModal(
+      answering({ kind: "wait_over" }),
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
+    await expect.poll(() => callbacks.onCancelled.mock.calls.length).toBe(1);
+    expect(abandonCharge).toHaveBeenCalledExactlyOnceWith(PAYMENT_ID);
+    expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
+  });
+
+  it("does not abandon anything from the Elegir otro medio of a declined order", async () => {
+    const { screen, abandonCharge, callbacks } = await renderModal(answering({ kind: "declined" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
+    expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
+    expect(abandonCharge).not.toHaveBeenCalled();
+  });
+
+  it("tells the customer already paid and reports the completed sale with the amount charged", async () => {
+    const completed = { kind: "completed", sale_id: "sale-1", total: TOTAL } as const;
+    const { screen, callbacks } = await renderModal(answering(WAITING), ORDER, async () => ({
+      kind: "already_paid",
+      settlement: completed,
+    }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+
+    await expect
+      .poll(() => callbacks.onCompleted.mock.calls)
+      .toEqual([[{ ...completed, amount: 3_000_000 }]]);
+    expect(callbacks.onAlreadyPaid).toHaveBeenCalledOnce();
+  });
+
+  it("tells the customer already paid and goes back to the methods when the payment paid part of the sale", async () => {
+    const { screen, callbacks } = await renderModal(answering(WAITING), ORDER, async () => ({
+      kind: "already_paid",
+      settlement: {
+        kind: "partially_paid",
+        sale_id: "sale-1",
+        total: TOTAL,
+        paid: 4_000_000,
+        pending: 1_070_000,
+      },
+    }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+
+    await expect.poll(() => callbacks.onPartiallyPaid.mock.calls.length).toBe(1);
+    expect(callbacks.onAlreadyPaid).toHaveBeenCalledOnce();
+    expect(callbacks.onCompleted).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["not pending", { kind: "not_pending" }],
+    [
+      "already paid with a settlement that is not pending",
+      { kind: "already_paid", settlement: { kind: "not_pending" } },
+    ],
+  ] as const)(
+    "goes back to the methods to read the sale again when the order is %s",
+    async (_name, outcome) => {
+      const { screen, callbacks } = await renderModal(
+        answering(WAITING),
+        ORDER,
+        async () => outcome,
+      );
+
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+
+      await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
+      expect(callbacks.onAlreadyPaid).not.toHaveBeenCalled();
+    },
+  );
+
+  it("says the order was already closed and nothing was charged, and goes back to the methods", async () => {
+    const { screen, callbacks } = await renderModal(answering(WAITING), ORDER, async () => ({
+      kind: "closed",
+    }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+
+    await expect
+      .element(screen.getByRole("heading", { name: "La orden QR ya estaba cerrada" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText("No se cobró nada con el QR. Elegí otro medio."))
+      .toBeVisible();
+    await expectNoAccessibilityViolations(screen.container);
+
+    await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
+    expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
+  });
+
+  it("warns that the cancellation could not be confirmed and that a late payment opens a refund task", async () => {
+    const { screen, callbacks } = await renderModal(answering(WAITING), ORDER, async () => ({
+      kind: "replaced",
+    }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+
+    await expect
+      .element(screen.getByRole("heading", { name: "No se pudo confirmar la cancelación del QR" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText("Podés cobrar con otro medio y completar la venta."))
+      .toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "Si el cliente paga el QR después, se crea una tarea de reembolso para confirmar.",
+        ),
+      )
+      .toBeVisible();
+    await expectNoAccessibilityViolations(screen.container);
+
+    await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
+    expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    { kind: "empty_sale" },
+    { kind: "zero_total" },
+    { kind: "no_open_sale" },
+    { kind: "not_permitted" },
+    { kind: "no_buyer_identification_threshold" },
+    { kind: "reaches_buyer_identification_threshold", threshold: 1_000_000 },
+  ] as const)(
+    "leaves the charge when abandoning finds the sale can no longer be charged ($kind)",
+    async (outcome) => {
+      const { screen, callbacks } = await renderModal(
+        answering(WAITING),
+        ORDER,
+        async () => outcome,
+      );
+
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+
+      await expect.poll(() => callbacks.onSaleUnavailable.mock.calls.length).toBe(1);
+    },
+  );
+
+  it.each([{ kind: "not_signed_in" }, { kind: "no_open_session" }] as const)(
+    "leaves the charge when abandoning finds the session is no longer valid ($kind)",
+    async (outcome) => {
+      const { screen, callbacks } = await renderModal(
+        answering(WAITING),
+        ORDER,
+        async () => outcome,
+      );
+
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+
+      await expect.poll(() => callbacks.onSessionInvalid.mock.calls.length).toBe(1);
+    },
+  );
+
+  it("says the order could not be cancelled when the core cannot answer, and lets the cashier try again", async () => {
+    const answers: AbandonMercadoPagoQrChargeOutcome[] = [
+      { kind: "unavailable" },
+      { kind: "cancelled" },
+    ];
+    const { screen, abandonCharge, callbacks } = await renderModal(
+      answering(WAITING),
+      ORDER,
+      async () => answers.shift() ?? { kind: "cancelled" },
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+
+    await expect
+      .element(
+        screen
+          .getByText("No se pudo cancelar la orden QR. Volvé a intentarlo en unos segundos.")
+          .first(),
+      )
+      .toBeVisible();
+    expect(callbacks.onCancelled).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+
+    await expect.poll(() => callbacks.onCancelled.mock.calls.length).toBe(1);
+    expect(abandonCharge).toHaveBeenCalledTimes(2);
+  });
+
+  it("says the order could not be cancelled from the Elegir otro medio of a wait that ran out, and lets the cashier try again", async () => {
+    const answers: AbandonMercadoPagoQrChargeOutcome[] = [
+      { kind: "unavailable" },
+      { kind: "cancelled" },
+    ];
+    const { screen, abandonCharge, callbacks } = await renderModal(
+      answering({ kind: "wait_over" }),
+      ORDER,
+      async () => answers.shift() ?? { kind: "cancelled" },
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
+    await expect
+      .element(
+        screen
+          .getByText("No se pudo cancelar la orden QR. Volvé a intentarlo en unos segundos.")
+          .first(),
+      )
+      .toBeVisible();
+    expect(callbacks.onCancelled).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
+    await expect.poll(() => callbacks.onCancelled.mock.calls.length).toBe(1);
+    expect(abandonCharge).toHaveBeenCalledTimes(2);
+  });
 });

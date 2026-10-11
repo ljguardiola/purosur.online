@@ -52,6 +52,7 @@ export interface FakeSaleLedgerState {
   sales: StoredSale[];
   payments: SalePayment[];
   pendingQrPayments: PendingQrSalePayment[];
+  replacedQrPaymentIds: string[];
   refunds: SaleRefund[];
   movements: CashMovement[];
   stockMovements: SaleStockMovement[];
@@ -74,6 +75,7 @@ export type FakeSaleLedgerWrite =
   | "recordPayment"
   | "recordPendingQrPayment"
   | "approvePendingQrPayment"
+  | "markQrPaymentReplaced"
   | "recordCashMovement"
   | "recordSaleStockMovement"
   | "addToStockBalance"
@@ -107,6 +109,7 @@ export class FakeSaleLedger implements SaleLedger {
       sales: [],
       payments: [],
       pendingQrPayments: [],
+      replacedQrPaymentIds: [],
       refunds: [],
       movements: [],
       stockMovements: [],
@@ -208,8 +211,19 @@ export class FakeSaleLedger implements SaleLedger {
         working.pendingQrPayments.push(payment);
       },
       pendingQrPayment: (paymentTransactionId) => {
-        const pending = working.pendingQrPayments.find(({ id }) => id === paymentTransactionId);
+        const pending = working.pendingQrPayments.find(
+          ({ id }) => id === paymentTransactionId && !working.replacedQrPaymentIds.includes(id),
+        );
         return pending && structuredClone(pending);
+      },
+      markQrPaymentReplaced: (paymentTransactionId, waitEndsAt) => {
+        this.failIfAsked("markQrPaymentReplaced");
+        const pending = working.pendingQrPayments.find(({ id }) => id === paymentTransactionId);
+        if (pending === undefined) {
+          return;
+        }
+        pending.waitEndsAt = waitEndsAt;
+        working.replacedQrPaymentIds.push(paymentTransactionId);
       },
       pendingQrPaymentsOf: (saleId) =>
         structuredClone(working.pendingQrPayments.filter((pending) => pending.saleId === saleId)),

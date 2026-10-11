@@ -106,6 +106,18 @@ const DISCOUNTED_SALE: SaleWithLines = {
 
 const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01", revision: 0 };
 
+const REPLACED_QR = {
+  id: "qr-1",
+  saleId: "sale-1",
+  kind: "SALE",
+  method: "QR",
+  provider: "MERCADOPAGO_QR",
+  state: "PENDING",
+  amount: 2000,
+  occurredAt: new Date(NOW.getTime() - 120_000),
+  waitEndsAt: new Date(NOW.getTime() - 30_000),
+} as const;
+
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   return new FakeSaleLedger({
     thresholds: [THRESHOLD],
@@ -147,6 +159,20 @@ describe("chargeSaleInCash", () => {
       change: 4100,
     });
     expect(store.state.sales[0]?.state).toBe("COMPLETED");
+  });
+
+  it("completes the sale beside a pending QR payment marked as replaced, sending only the approved payments", () => {
+    const store = ledger({
+      pendingQrPayments: [REPLACED_QR],
+      replacedQrPaymentIds: ["qr-1"],
+    });
+
+    expect(charge(store, 10000)).toMatchObject({ kind: "completed", saleId: "sale-1" });
+    expect(store.state.sales[0]?.state).toBe("COMPLETED");
+    expect(store.state.payments.map(({ method }) => method)).toEqual(["CASH"]);
+    expect(store.state.outbox[0]?.payload).toMatchObject({
+      payments: [{ id: "id-1", method: "CASH" }],
+    });
   });
 
   it("dates the sale with the moment it is charged, not with the moment its first product was added", () => {

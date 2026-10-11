@@ -23,6 +23,18 @@ describe("followMercadoPagoQrCharge", () => {
     expect(world.readOrders).toEqual([]);
   });
 
+  it("answers that no charge is pending for a payment marked as replaced, asking the cloud nothing", async () => {
+    const world = followingWorld();
+    world.replacePendingPayment({
+      actorId: QR_ACTOR_ID,
+      paymentTransactionId: QR_PAYMENT_ID,
+      replacedAt: world.now,
+    });
+
+    expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "not_pending" });
+    expect(world.readOrders).toEqual([]);
+  });
+
   it("keeps waiting, with the seconds left, while the cloud reports the order pending", async () => {
     const world = followingWorld();
     world.now = new Date("2026-10-09T12:00:19.000Z");

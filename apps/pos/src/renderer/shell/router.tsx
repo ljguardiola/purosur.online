@@ -1,4 +1,5 @@
 import type {
+  AbandonMercadoPagoQrChargeOutcome,
   AddProductOutcome,
   AddWeighedProductOutcome,
   Authorization,
@@ -158,6 +159,9 @@ export interface RouterContext {
   followMercadoPagoQrCharge: (
     paymentTransactionId: string,
   ) => Promise<FollowMercadoPagoQrChargeOutcome>;
+  abandonMercadoPagoQrCharge: (
+    paymentTransactionId: string,
+  ) => Promise<AbandonMercadoPagoQrChargeOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
   addWeighedProduct: (
@@ -512,6 +516,7 @@ const chargeRoute = createRoute({
       chargeSaleByTransfer,
       startMercadoPagoQrCharge,
       followMercadoPagoQrCharge,
+      abandonMercadoPagoQrCharge,
       registerStatus,
       receiptPrintStatus,
       retryReceiptPrint,
@@ -532,6 +537,7 @@ const chargeRoute = createRoute({
         registerStatus={status}
         startMercadoPagoQrCharge={startMercadoPagoQrCharge}
         followMercadoPagoQrCharge={followMercadoPagoQrCharge}
+        abandonMercadoPagoQrCharge={abandonMercadoPagoQrCharge}
         receiptPrintStatus={receiptPrintStatus}
         retryReceiptPrint={retryReceiptPrint}
         onSessionInvalid={() => void refreshCashSession()}
@@ -859,6 +865,7 @@ export function createAppRouter(
     | "chargeSaleByTransfer"
     | "startMercadoPagoQrCharge"
     | "followMercadoPagoQrCharge"
+    | "abandonMercadoPagoQrCharge"
     | "searchProducts"
     | "addProduct"
     | "addWeighedProduct"

@@ -848,6 +848,26 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 
+  it("reads the replacement of a pending QR payment", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "qr_payment_replaced",
+          schema_version: 1,
+          payload: { payment_transaction_id: "transaction-1", sale_id: SALE },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "qr_payment_replaced",
+        replacement: { paymentTransactionId: "transaction-1", saleId: SALE },
+      },
+    });
+  });
+
   it("cannot read an event type and version no schema describes", () => {
     const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 7 })));
 

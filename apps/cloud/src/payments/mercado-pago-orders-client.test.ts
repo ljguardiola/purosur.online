@@ -6,12 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMercadoPagoOrdersClient } from "./mercado-pago-orders-client.js";
 import {
   canceledOrder,
+  cannotCancelOrderError,
   createdOrder,
   expiredOrder,
   failedOrder,
   ORDER_CARD_FIRST_SIX,
   ORDER_CARD_LAST_FOUR,
   ORDER_ID,
+  orderAlreadyCanceledError,
   paidOrder,
   paidWithCardOrder,
   paidWithDiscountOrder,
@@ -438,6 +440,105 @@ describe("the Mercado Pago orders client", () => {
     });
   });
 
+  describe("cancelling an order", () => {
+    const IDEMPOTENCY_KEY = "0b0a5a42-1f9a-4a53-9f55-3e1c1c0d7a10";
+
+    it("posts the cancellation of the order with the idempotency key and the access token", async () => {
+      const { client, fetch } = clientAnswering(answer(200, canceledOrder()));
+
+      await client.cancelOrder(ORDER_ID, IDEMPOTENCY_KEY);
+
+      const { url, init } = sentRequest(fetch);
+      expect(url).toBe(`https://api.mercadopago.com/v1/orders/${ORDER_ID}/cancel`);
+      expect(init.method).toBe("POST");
+      expect(init.headers).toEqual({
+        Authorization: `Bearer ${ACCESS_TOKEN}`,
+        "X-Idempotency-Key": IDEMPOTENCY_KEY,
+      });
+      expect(init.body).toBeUndefined();
+    });
+
+    it("posts the cancellation without an idempotency key when none is given", async () => {
+      const { client, fetch } = clientAnswering(answer(200, canceledOrder()));
+
+      await client.cancelOrder(ORDER_ID);
+
+      expect(sentRequest(fetch).init.headers).toEqual({ Authorization: `Bearer ${ACCESS_TOKEN}` });
+    });
+
+    it("does not let an identifier change the path it is cancelled at", async () => {
+      const { client, fetch } = clientAnswering(answer(200, canceledOrder()));
+
+      await client.cancelOrder("../payments/1?x=y");
+
+      expect(sentRequest(fetch).url).toBe(
+        "https://api.mercadopago.com/v1/orders/..%2Fpayments%2F1%3Fx%3Dy/cancel",
+      );
+    });
+
+    it("answers the cancelled order in the payment vocabulary", async () => {
+      const { client } = clientAnswering(answer(200, canceledOrder()));
+
+      expect(await client.cancelOrder(ORDER_ID)).toStrictEqual({
+        kind: "cancelled",
+        result: {
+          status: "canceled",
+          statusDetail: "canceled",
+          totalPaidAmount: null,
+          payments: [{ status: "canceled", statusDetail: "canceled_by_api", paidAmount: null }],
+        },
+      });
+    });
+
+    it("answers that the order cannot be cancelled when Mercado Pago answers 409 cannot_cancel_order", async () => {
+      const { client } = clientAnswering(answer(409, cannotCancelOrderError()));
+
+      expect(await client.cancelOrder(ORDER_ID)).toStrictEqual({ kind: "cannot_cancel" });
+    });
+
+    it("answers that the order was already cancelled when Mercado Pago answers 409 order_already_canceled", async () => {
+      const { client } = clientAnswering(answer(409, orderAlreadyCanceledError()));
+
+      expect(await client.cancelOrder(ORDER_ID)).toStrictEqual({ kind: "already_cancelled" });
+    });
+
+    it.each([
+      ["a 409 with another code", () => answer(409, { errors: [{ code: "other" }], status: 409 })],
+      ["a 409 that is not JSON", () => answer(409, "conflict")],
+      ["a 404", () => answer(404, { errors: [{ code: "order_not_found" }] })],
+      ["a 401", () => answer(401, { message: "unauthorized" })],
+      ["a server error", () => answer(500, { message: "oops" })],
+      ["a request timeout", () => answer(408, {})],
+      ["a success that is not JSON", () => answer(200, "not json")],
+      ["a success missing its fields", () => answer(200, { id: ORDER_ID })],
+      ["a network failure", () => new TypeError("fetch failed")],
+    ])("is unavailable on %s", async (_name, failure) => {
+      const { client } = clientAnswering(failure());
+
+      expect(await client.cancelOrder(ORDER_ID)).toStrictEqual({ kind: "unavailable" });
+    });
+
+    it("is unavailable when Mercado Pago does not answer within 10 seconds", async () => {
+      vi.useFakeTimers();
+      const fetch = vi.fn<typeof globalThis.fetch>(
+        (_url, init) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+          }),
+      );
+      const client = createMercadoPagoOrdersClient({
+        accessToken: ACCESS_TOKEN,
+        externalPosId: EXTERNAL_POS_ID,
+        fetch,
+      });
+
+      const cancellation = client.cancelOrder(ORDER_ID);
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      expect(await cancellation).toStrictEqual({ kind: "unavailable" });
+    });
+  });
+
   describe("the access token", () => {
     const failures: [string, () => Response | Error][] = [
       ["a refusal that echoes the token", () => answer(401, { code: ACCESS_TOKEN })],
@@ -474,6 +575,18 @@ describe("the Mercado Pago orders client", () => {
         const reading = await client.readOrder(ORDER_ID);
 
         expect(JSON.stringify(reading)).not.toContain(ACCESS_TOKEN);
+        expect(JSON.stringify(consoleCalls)).not.toContain(ACCESS_TOKEN);
+      },
+    );
+
+    it.each(failures)(
+      "is never logged and never returned on %s, cancelling",
+      async (_name, failure) => {
+        const { client } = clientAnswering(failure());
+
+        const cancellation = await client.cancelOrder(ORDER_ID);
+
+        expect(JSON.stringify(cancellation)).not.toContain(ACCESS_TOKEN);
         expect(JSON.stringify(consoleCalls)).not.toContain(ACCESS_TOKEN);
       },
     );

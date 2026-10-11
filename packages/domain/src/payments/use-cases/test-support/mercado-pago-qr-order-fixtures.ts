@@ -51,6 +51,7 @@ export function storedTransaction(
     needsReview: false,
     providerOrderId: null,
     creationOutcomeUnknown: false,
+    replaced: false,
     createdAt: new Date("2026-10-09T11:59:00.000Z"),
     expiresAt: new Date("2026-10-09T12:04:00.000Z"),
     ...overrides,

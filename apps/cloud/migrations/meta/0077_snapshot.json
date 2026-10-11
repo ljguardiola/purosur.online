@@ -1,5 +1,5 @@
 {
-  "id": "3f7053d9-63b4-4f0c-8ff3-a54e326ee9ac",
+  "id": "26a62723-cda7-469e-ac17-8f115e8beb2d",
   "prevId": "1927c003-3d75-4c93-8333-634e1d44a1c2",
   "version": "7",
   "dialect": "postgresql",
@@ -365,42 +365,6 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.arca_wsaa_ticket_refusals": {
-      "name": "arca_wsaa_ticket_refusals",
-      "schema": "",
-      "columns": {
-        "service": {
-          "name": "service",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "certificate_fingerprint": {
-          "name": "certificate_fingerprint",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "refused_at": {
-          "name": "refused_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "arca_wsaa_ticket_refusals_service_certificate_fingerprint_pk": {
-          "name": "arca_wsaa_ticket_refusals_service_certificate_fingerprint_pk",
-          "columns": ["service", "certificate_fingerprint"]
-        }
-      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -3109,6 +3073,13 @@
         },
         "creation_outcome_unknown": {
           "name": "creation_outcome_unknown",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "replaced": {
+          "name": "replaced",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,

@@ -65,6 +65,7 @@ interface PendingQrPaymentRow {
 
 const PENDING_QR_PAYMENTS = `SELECT id, sale_id, amount, occurred_at, wait_ends_at FROM payment_transactions
   WHERE method = 'QR' AND state = 'PENDING'`;
+const FOLLOWED_QR_PAYMENTS = `${PENDING_QR_PAYMENTS} AND replaced = 0`;
 
 function toPendingQrPayment(row: PendingQrPaymentRow): PendingQrSalePayment {
   return {
@@ -106,7 +107,7 @@ export function readPendingQrPayment(
   paymentTransactionId: string,
 ): PendingQrSalePayment | undefined {
   const row = database
-    .prepare<[string], PendingQrPaymentRow>(`${PENDING_QR_PAYMENTS} AND id = ?`)
+    .prepare<[string], PendingQrPaymentRow>(`${FOLLOWED_QR_PAYMENTS} AND id = ?`)
     .get(paymentTransactionId);
   return row === undefined ? undefined : toPendingQrPayment(row);
 }
@@ -130,4 +131,16 @@ export function approvePendingQrPayment(
       "UPDATE payment_transactions SET state = 'APPROVED' WHERE id = ? AND method = 'QR' AND state = 'PENDING'",
     )
     .run(paymentTransactionId);
+}
+
+export function markQrPaymentReplaced(
+  database: LocalDatabase,
+  paymentTransactionId: string,
+  waitEndsAt: Date,
+): void {
+  database
+    .prepare(
+      "UPDATE payment_transactions SET replaced = 1, wait_ends_at = ? WHERE id = ? AND method = 'QR' AND state = 'PENDING'",
+    )
+    .run(waitEndsAt.toISOString(), paymentTransactionId);
 }

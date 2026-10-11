@@ -58,6 +58,7 @@ export async function createMercadoPagoQrOrder(
           needsReview: false,
           providerOrderId: null,
           creationOutcomeUnknown: true,
+          replaced: false,
           createdAt,
           expiresAt: mercadoPagoOrderExpiresAt(createdAt, mercadoPago.longestCallMs),
         };

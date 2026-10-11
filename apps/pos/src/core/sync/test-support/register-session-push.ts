@@ -1,5 +1,10 @@
 import { encodePinHash } from "@purosur/contracts";
+import type { MercadoPagoQrChargeOrders } from "@purosur/domain/payments/use-cases";
 import { derivePinVerifier } from "../../credentials/pin-verifier";
+import {
+  abandonMercadoPagoQrChargeFor,
+  startMercadoPagoQrChargeFor,
+} from "../../payments/mercado-pago-qr-charge-requests";
 import type { LocalDatabase } from "../../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../../platform/local-migrations";
 import { migrationClock } from "../../platform/test-support/migration-clock";
@@ -57,6 +62,12 @@ const CATEGORY = "f1a7c3e9-4b52-4d68-9e01-7a3c5b8d2f12";
 const PEPPER = Buffer.alloc(32, 9).toString("base64url");
 const PIN = "4826";
 const PIN_HASH = "hash-of-the-pin";
+
+const OFFLINE_QR_ORDERS: MercadoPagoQrChargeOrders = {
+  requestOrder: async () => ({ kind: "created" }),
+  readOrder: async () => ({ kind: "unreachable" }),
+  cancelOrder: async () => ({ kind: "unreachable" }),
+};
 
 function expectOutcome(step: string, actual: string, expected: string): void {
   if (actual !== expected) {
@@ -356,6 +367,33 @@ export async function withRegisterSession<TResult>(
     });
     expectOutcome("cancel the part-paid sale authorized by PIN", cancelled.kind, "cancelled");
     nextStep();
+    const replacedScan = await scanProductFor(deps(), "7790001000028");
+    if (replacedScan.kind !== "added") {
+      throw new Error(
+        `The register session's "scan a product to pay by QR" ended as "${replacedScan.kind}"`,
+      );
+    }
+    nextStep();
+    const qr = await startMercadoPagoQrChargeFor(
+      { ...deps(), orders: OFFLINE_QR_ORDERS },
+      { saleId: replacedScan.sale.id, amount: 500 },
+    );
+    if (qr.kind !== "order_shown") {
+      throw new Error(`The register session's "start a QR charge" ended as "${qr.kind}"`);
+    }
+    nextStep();
+    const replaced = await abandonMercadoPagoQrChargeFor(
+      { ...deps(), orders: OFFLINE_QR_ORDERS },
+      { paymentTransactionId: qr.payment_transaction_id },
+    );
+    expectOutcome("abandon the QR charge without reaching the cloud", replaced.kind, "replaced");
+    nextStep();
+    const replacedCash = await chargeSaleInCashFor(deps(), {
+      saleId: replacedScan.sale.id,
+      tendered: replacedScan.sale.total,
+    });
+    expectOutcome("pay in cash beside the replaced QR payment", replacedCash.kind, "completed");
+    nextStep();
     const receiptScan = await scanProductFor(deps(), "7790001000028");
     if (receiptScan.kind !== "added") {
       throw new Error(
@@ -387,7 +425,7 @@ export async function withRegisterSession<TResult>(
     nextStep();
     const closed = await closeCashSessionFor(deps(), {
       sessionId: opened.cash_session.id,
-      countedCash: 10_400,
+      countedCash: 12_800,
     });
     expectOutcome("close the cash session", closed.kind, "closed");
 

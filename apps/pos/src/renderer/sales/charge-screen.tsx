@@ -1,4 +1,5 @@
 import type {
+  AbandonMercadoPagoQrChargeOutcome,
   CashChargeAnswer,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
@@ -11,6 +12,8 @@ import type {
   StartMercadoPagoQrChargeOutcome,
 } from "@purosur/contracts";
 import {
+  FloatingNotification,
+  InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
   OptionCardGroup,
@@ -18,7 +21,15 @@ import {
   ScreenHeader,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { Banknote, Landmark, QrCode, TriangleAlert, WifiOff } from "lucide-react";
+import {
+  Banknote,
+  CircleCheck,
+  Info,
+  Landmark,
+  QrCode,
+  TriangleAlert,
+  WifiOff,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import type { CoreData } from "../platform/use-core-query";
 import { OpenSessionRail } from "../shell/open-session-rail";
@@ -94,6 +105,9 @@ export type ChargeScreenProps = {
   followMercadoPagoQrCharge: (
     paymentTransactionId: string,
   ) => Promise<FollowMercadoPagoQrChargeOutcome>;
+  abandonMercadoPagoQrCharge: (
+    paymentTransactionId: string,
+  ) => Promise<AbandonMercadoPagoQrChargeOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
   retryReceiptPrint: (saleId: string) => Promise<RetryReceiptPrintOutcome>;
   onSessionInvalid: () => void;
@@ -111,6 +125,7 @@ export function ChargeScreen({
   registerStatus,
   startMercadoPagoQrCharge,
   followMercadoPagoQrCharge,
+  abandonMercadoPagoQrCharge,
   receiptPrintStatus,
   retryReceiptPrint,
   onSessionInvalid,
@@ -119,6 +134,7 @@ export function ChargeScreen({
   const current = useCurrentSaleQuery({ sessionId, userId: person.user_id, read: currentSale });
   const refreshCurrentSale = useRefreshCurrentSale(sessionId, person.user_id);
   const [step, setStep] = useState<Step>({ name: "methods" });
+  const [notice, setNotice] = useState<"cancelled" | "already-paid">();
 
   function backToSale() {
     void navigate({ to: "/session" });
@@ -179,19 +195,23 @@ export function ChargeScreen({
               eyebrow={`COBRO · VENTA DE ${lineCount} ${lines}`}
               title="Elegí el medio de pago"
             />
+            {notice === "cancelled" && step.name === "methods" ? (
+              <InlineNotice tone="info" icon={<Info />} title="Se canceló la orden QR." />
+            ) : null}
             <OptionCardGroup
               label="Medio de pago"
               options={[CASH_METHOD, ...qrMethod, TRANSFER_METHOD]}
               value={null}
-              onChange={(method) =>
+              onChange={(method) => {
+                setNotice(undefined);
                 setStep(
                   method === "CASH"
                     ? { name: "cash" }
                     : method === "QR"
                       ? { name: "qr" }
                       : { name: "transfer" },
-                )
-              }
+                );
+              }}
             />
           </>
         )}
@@ -254,6 +274,12 @@ export function ChargeScreen({
           paid={step.sale.paid}
           order={step.order}
           follow={followMercadoPagoQrCharge}
+          abandon={abandonMercadoPagoQrCharge}
+          onAlreadyPaid={() => setNotice("already-paid")}
+          onCancelled={() => {
+            setNotice("cancelled");
+            void backToMethodsWithBalance();
+          }}
           onChooseAnotherMethod={() => void backToMethodsWithBalance()}
           onCompleted={(charge) =>
             setStep({ name: "completed", payment: { method: "QR", charge }, sale: step.sale })
@@ -294,6 +320,15 @@ export function ChargeScreen({
           method="TRANSFER"
           amount={step.payment.charge.amount}
           onNewSale={backToSale}
+        />
+      ) : null}
+      {notice === "already-paid" ? (
+        <FloatingNotification
+          tone="success"
+          icon={<CircleCheck />}
+          title="El cliente ya pagó"
+          description="Mercado Pago confirmó el pago del QR."
+          onDismiss={() => setNotice(undefined)}
         />
       ) : null}
     </div>

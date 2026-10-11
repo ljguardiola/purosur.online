@@ -1,8 +1,19 @@
 export type {
+  AbandonMercadoPagoQrChargeInput,
+  AbandonMercadoPagoQrChargeOutcome,
+} from "./abandon-mercado-pago-qr-charge.js";
+export { abandonMercadoPagoQrCharge } from "./abandon-mercado-pago-qr-charge.js";
+export type {
   AdmitPaymentNotificationInput,
   AdmitPaymentNotificationOutcome,
 } from "./admit-payment-notification.js";
 export { admitPaymentNotification } from "./admit-payment-notification.js";
+export type {
+  CancelMercadoPagoQrOrderInput,
+  CancelMercadoPagoQrOrderOutcome,
+  MercadoPagoQrOrderCancellationOutcome,
+} from "./cancel-mercado-pago-qr-order.js";
+export { cancelMercadoPagoQrOrder } from "./cancel-mercado-pago-qr-order.js";
 export type { CheckPendingMercadoPagoPaymentsOutcome } from "./check-pending-mercado-pago-payments.js";
 export { checkPendingMercadoPagoPayments } from "./check-pending-mercado-pago-payments.js";
 export type {
@@ -42,6 +53,7 @@ export type {
 export type {
   EndedMercadoPagoQrChargeState,
   MercadoPagoQrChargeOrderAnswer,
+  MercadoPagoQrChargeOrderCancellation,
   MercadoPagoQrChargeOrderReading,
   MercadoPagoQrChargeOrders,
   MercadoPagoQrChargePorts,
@@ -51,6 +63,7 @@ export type {
   PendingMercadoPagoQrPayment,
 } from "./mercado-pago-qr-charge-ports.js";
 export type {
+  MercadoPagoOrderCancellation,
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
   MercadoPagoOrders,

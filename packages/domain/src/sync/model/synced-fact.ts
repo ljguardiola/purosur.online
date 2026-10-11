@@ -22,6 +22,10 @@ export type SyncedFact =
   | { kind: "cash_session_closed"; session: CashSessionClosedFact }
   | { kind: "cash_movement_recorded"; movement: CashMovementRecordedFact }
   | {
+      kind: "qr_payment_replaced";
+      replacement: { paymentTransactionId: string; saleId: string };
+    }
+  | {
       kind: "fiscal_gate_failed";
       gateFailure: { saleId: string; reason: PreEmissionGateFailureReason; evaluatedAt: Date };
     };
