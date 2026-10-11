@@ -25,5 +25,6 @@ export function lotValueCents({
     numerator: BigInt(Math.abs(remaining)) * BigInt(cost.totalCents),
     denominator: BigInt(cost.quantity),
   });
-  return remaining < 0 && value !== 0 ? -value : value;
+  // Adding zero turns the negative zero of a debt that rounds to nothing into a plain zero.
+  return Math.sign(remaining) * value + 0;
 }
