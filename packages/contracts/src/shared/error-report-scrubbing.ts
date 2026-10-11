@@ -5,7 +5,7 @@ const SENSITIVE_KEY_PATTERN =
   /token|key|secret|password|authorization|cookie|credential|query|fragment/i;
 // Matched only at the start of a word, since these are short enough to appear inside an unrelated
 // word (`circuit`, `midnight`).
-const SENSITIVE_KEY_WORD_PATTERN = /(?:^|_)(?:session|cuit|dni|documento)/;
+const SENSITIVE_KEY_WORD_PATTERN = /(?:^|_)(?:session|cuit|dni|documento|params)/;
 // Dropped entirely rather than redacted field-by-field: a request/response body can carry an
 // arbitrary business payload, which no key-based scrub can enumerate safely.
 const DROPPED_SECTIONS = new Set(["request", "response"]);
@@ -117,8 +117,19 @@ function redactUrl(url: string): string {
   return `${path}?${REDACTED}${framePosition(path, url)}`;
 }
 
+// Drizzle writes a failed query as its statement followed by a line listing the values it was
+// given, which can carry anything a request sent. The statement only holds placeholders.
+const FAILED_QUERY = "Failed query: ";
+const QUERY_PARAMETERS = "\nparams: ";
+
+function withoutQueryParameters(text: string): string {
+  const queryStart = text.indexOf(FAILED_QUERY);
+  const parametersStart = queryStart === -1 ? -1 : text.indexOf(QUERY_PARAMETERS, queryStart);
+  return parametersStart === -1 ? text : text.slice(0, parametersStart);
+}
+
 function redactString(value: string): string {
-  return value
+  return withoutQueryParameters(value)
     .replace(URL_PATTERN, redactUrl)
     .replace(/\S+/g, redactPathToken)
     .replace(BEARER_TOKEN_PATTERN, REDACTED)
