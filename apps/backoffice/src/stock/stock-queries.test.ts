@@ -11,6 +11,7 @@ test("invalidating the stock key marks every stock read stale", async () => {
     stockKeys.movements(90),
     stockKeys.movementReasons,
     stockKeys.expectedBalance("product-1", "2026-09-15T21:32:00.000Z"),
+    stockKeys.productLots("product-1"),
   ];
   for (const key of keys) {
     client.setQueryData(key, []);
@@ -34,6 +35,8 @@ test("each period, product and moment has its own key", () => {
     stockKeys.expectedBalance("product-1", "2026-09-15T21:32:00.000Z"),
     stockKeys.expectedBalance("product-2", "2026-09-15T21:32:00.000Z"),
     stockKeys.expectedBalance("product-1", "2026-09-15T21:33:00.000Z"),
+    stockKeys.productLots("product-1"),
+    stockKeys.productLots("product-2"),
   ];
 
   expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(keys.length);
