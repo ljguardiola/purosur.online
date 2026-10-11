@@ -13,6 +13,15 @@ export async function findRunWithDurations({ runs, listArtifacts }) {
   return null;
 }
 
+function newestRun(runs) {
+  return runs
+    .filter((run) => run !== null)
+    .reduce(
+      (newest, run) => (newest === null || run.created_at > newest.created_at ? run : newest),
+      null,
+    );
+}
+
 function apiGetter({ token, fetchImpl }) {
   return async (url) => {
     const response = await fetchImpl(url, {
@@ -36,7 +45,7 @@ export async function runCli({
   log = console.log,
   logError = console.error,
 } = {}) {
-  const { GITHUB_TOKEN, GITHUB_REPOSITORY, GITHUB_OUTPUT } = env;
+  const { GITHUB_TOKEN, GITHUB_REPOSITORY, GITHUB_OUTPUT, HEAD_BRANCH } = env;
   if (!GITHUB_TOKEN || !GITHUB_REPOSITORY || !GITHUB_OUTPUT) {
     logError(`${LOG_PREFIX}: GITHUB_TOKEN, GITHUB_REPOSITORY and GITHUB_OUTPUT are required`);
     return 1;
@@ -46,18 +55,26 @@ export async function runCli({
   const base = `https://api.github.com/repos/${GITHUB_REPOSITORY}/actions`;
   let runId = null;
   try {
-    const runsUrl = new URL(`${base}/workflows/verify.yml/runs`);
-    runsUrl.search = new URLSearchParams({
-      branch: "main",
-      event: "push",
-      status: "success",
-      per_page: "10",
-    }).toString();
-    const body = await get(runsUrl.toString());
-    runId = await findRunWithDurations({
-      runs: Array.isArray(body?.workflow_runs) ? body.workflow_runs : [],
-      listArtifacts: async (id) => (await get(`${base}/runs/${id}/artifacts`)).artifacts ?? [],
-    });
+    const sources = [{ branch: "main", event: "push" }];
+    if (HEAD_BRANCH) {
+      sources.push({ branch: HEAD_BRANCH, event: "pull_request" });
+    }
+    const listArtifacts = async (id) => (await get(`${base}/runs/${id}/artifacts`)).artifacts ?? [];
+    const found = [];
+    for (const { branch, event } of sources) {
+      const runsUrl = new URL(`${base}/workflows/verify.yml/runs`);
+      runsUrl.search = new URLSearchParams({
+        branch,
+        event,
+        status: "success",
+        per_page: "10",
+      }).toString();
+      const body = await get(runsUrl.toString());
+      const runs = Array.isArray(body?.workflow_runs) ? body.workflow_runs : [];
+      const id = await findRunWithDurations({ runs, listArtifacts });
+      found.push(runs.find((run) => run.id === id) ?? null);
+    }
+    runId = newestRun(found)?.id ?? null;
   } catch (error) {
     logError(`${LOG_PREFIX}: warning, shards fall back to even counts: ${error.message}`);
   }
