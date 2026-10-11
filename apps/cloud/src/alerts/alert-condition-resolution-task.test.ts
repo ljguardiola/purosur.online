@@ -1,4 +1,4 @@
-import { ALERT_CONDITION_EVALUATION_INTERVAL_MS } from "@purosur/domain/alerts";
+import { ALERT_CONDITION_EVALUATION_INTERVAL_MS } from "@purosur/domain";
 import type { JobHelpers } from "graphile-worker";
 import type { PoolClient } from "pg";
 import { describe, expect, it, vi } from "vitest";
