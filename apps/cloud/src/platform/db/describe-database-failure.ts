@@ -17,9 +17,10 @@ function describeFailure(error: unknown, behindFailedQuery: boolean): string {
   if (!(error instanceof Error)) {
     return code;
   }
+  const withoutParameters = withoutQueryParameters(error.message);
   const message = behindFailedQuery
-    ? withoutEchoedQueryValues(error.message)
-    : withoutQueryParameters(error.message);
+    ? withoutEchoedQueryValues(withoutParameters)
+    : withoutParameters;
   const description = `${code}: ${message}`;
   return error.cause === undefined
     ? description
