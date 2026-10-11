@@ -16,10 +16,10 @@ import {
   plannedRefundSchema,
   requestIdSchema,
   saleCancelRefusalSchema,
+  serialDeviceIdentitySchema,
   signInUserSchema,
 } from "../shared/index.js";
 import { receiptPrinterAddressSchema } from "./receipt-printer-address.js";
-import { serialDeviceIdentitySchema } from "./serial-device-identity.js";
 
 const requestId = requestIdSchema;
 

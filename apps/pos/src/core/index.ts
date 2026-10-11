@@ -61,6 +61,7 @@ import { readReceiptPrinterFor, setReceiptPrinterFor } from "./register/receipt-
 import { registerServiceOf } from "./register/register-service-of-database";
 import { registerStatusFor } from "./register/register-status-requests";
 import { createSerialDeviceWatch, pathOfMatchingDevice } from "./register/serial-device-watch";
+import { serialDevicesReportOf } from "./register/serial-devices-report";
 import { readSerialDevicesFor, registerSerialDevicesFor } from "./register/serial-devices-requests";
 import { listSerialPorts, serialportEnumeration } from "./register/serialport-enumeration";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
@@ -310,11 +311,12 @@ const syncSchedule = createSyncSchedule({
               post,
               appVersion: appVersionFromCoreArguments(process.argv),
               readTelemetry:
-                localDatabase === undefined
+                localDatabase === undefined || serialDeviceWatch === undefined
                   ? undefined
                   : registerTelemetryReader(
                       storageTelemetryReader(localDatabase.name, nodeStorageFileSystem),
                       () => salesStopOf(localDatabase),
+                      () => serialDevicesReportOf(serialDeviceWatch.reading()),
                     ),
               acceptedPush:
                 localDatabase === undefined

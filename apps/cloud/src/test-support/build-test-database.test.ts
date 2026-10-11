@@ -70,6 +70,7 @@ import {
   salePayments,
   saleReprints,
   sales,
+  serialDeviceState,
   sessions,
   signInChallenges,
   signInFailures,
@@ -331,6 +332,14 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       deviceId: installation.id,
       lastPullSince: 0,
       lastPulledAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(serialDeviceState).values({
+      deviceId: installation.id,
+      role: "scale",
+      standing: "matching",
+      vendorId: "1a86",
+      productId: "7523",
+      reportedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db.insert(inbox).values({
       eventId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e0f",
