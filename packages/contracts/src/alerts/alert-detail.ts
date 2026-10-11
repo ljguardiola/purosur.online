@@ -150,6 +150,11 @@ const fiscalRejectedDetailSchema = z.object({
   rejections: z.array(z.object({ code: z.int(), message: z.string() })),
 });
 
+const latePaymentRefundDetailSchema = z.object({
+  saleId: z.string(),
+  amount: z.int(),
+});
+
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
 
 const alertBase = {
@@ -242,6 +247,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("offline_authorization_code_missing" satisfies AlertKind),
     detail: offlineAuthorizationCodeMissingDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("late_payment_refund" satisfies AlertKind),
+    detail: latePaymentRefundDetailSchema,
   }),
 ] as const;
 
