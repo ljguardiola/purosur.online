@@ -5,8 +5,6 @@ import { refundOriginLabel } from "./refund-origin-label";
 type Refund = PendingRefundsBody["refunds"][number];
 type CoveringMethod = Refund["covered_by"][number];
 
-const NO_NAME = "Sin dato";
-
 const COVERING_METHOD_WORDS = {
   CASH: "en efectivo",
   TRANSFER: "con transferencia",
@@ -30,9 +28,9 @@ function reasonDetail(
     return `El QR de la venta del ${saleMoment} se pagó después de cobrarla ${coveringWords(refund.covered_by)}`;
   }
   const cancelled = `La venta del ${saleMoment} se canceló`;
-  return refund.cancelled_by === null
+  return refund.cancelled_by === null || refund.cancelled_by_name === null
     ? cancelled
-    : `${cancelled} · la canceló ${refund.cancelled_by_name ?? NO_NAME}`;
+    : `${cancelled} · la canceló ${refund.cancelled_by_name}`;
 }
 
 export function refundReason(
