@@ -1153,14 +1153,14 @@ describe("asking for the detail of one sale of the history", () => {
 });
 
 describe("the notice that the barcode reader read a code", () => {
-  it.each([
-    "7790001234567",
-    "https://www.afip.gob.ar/fe/qr/?p=eyJ2ZXIiOjE=",
-  ])("accepts the code %s, which answers no request", (code) => {
-    const message = { type: "barcode-read", code };
+  it.each(["7790001234567", "https://www.afip.gob.ar/fe/qr/?p=eyJ2ZXIiOjE="])(
+    "accepts the code %s, which answers no request",
+    (code) => {
+      const message = { type: "barcode-read", code };
 
-    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
+      expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+    },
+  );
 
   it.each([
     ["an empty code", { type: "barcode-read", code: "" }],
