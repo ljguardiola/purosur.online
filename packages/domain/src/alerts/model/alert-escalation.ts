@@ -3,6 +3,8 @@ import type { OpenAlertInput } from "./alert-details.js";
 import { alertKindPolicy } from "./alert-kind-policy.js";
 import { isOpenAlert } from "./open-alert-state.js";
 
+export const ALERT_ESCALATION_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+
 export const ESCALATED_LEVEL = "critical" as const satisfies AlertLevel;
 
 export function escalatesAt({ kind, detail }: OpenAlertInput, openedAt: Date): Date | null {
