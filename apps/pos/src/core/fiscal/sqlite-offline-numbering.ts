@@ -37,6 +37,10 @@ export class SqliteOfflineNumbering {
          WHERE point_of_sale = ? AND document_type = ?`,
       )
       .get(pointOfSale, documentType);
-    return nextOfflineNumber(blocks, lastUsed?.last_number ?? null);
+    return nextOfflineNumber({
+      blocksInAssignmentOrder: blocks,
+      localLastUsed: lastUsed?.last_number ?? null,
+      taxAuthorityLastAuthorized: 0,
+    });
   }
 }

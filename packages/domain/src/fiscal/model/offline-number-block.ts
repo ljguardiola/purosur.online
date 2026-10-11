@@ -18,14 +18,22 @@ export function firstOfflineNumberBlock(
   };
 }
 
-export function nextOfflineNumber(
-  blocksInAssignmentOrder: readonly OfflineNumberBlockRange[],
-  lastUsedNumber: number | null,
-): number | null {
+export interface NextOfflineNumberInput {
+  blocksInAssignmentOrder: readonly OfflineNumberBlockRange[];
+  localLastUsed: number | null;
+  taxAuthorityLastAuthorized: number | null;
+}
+
+export function nextOfflineNumber({
+  blocksInAssignmentOrder,
+  localLastUsed,
+  taxAuthorityLastAuthorized,
+}: NextOfflineNumberInput): number | null {
+  if (taxAuthorityLastAuthorized === null) {
+    return null;
+  }
+  const lastUsedNumber = Math.max(localLastUsed ?? 0, taxAuthorityLastAuthorized);
   for (const block of blocksInAssignmentOrder) {
-    if (lastUsedNumber === null) {
-      return block.firstNumber;
-    }
     if (lastUsedNumber < block.lastNumber) {
       return Math.max(block.firstNumber, lastUsedNumber + 1);
     }
