@@ -340,6 +340,41 @@ describe("POST /fiscal/authorize", () => {
       });
     });
 
+    it("enqueues the decision of the document when the tax authority left the outcome unclear", async () => {
+      const { deviceToken } = await enrollRegisterWithPointOfSale();
+      await route.issueWsaaToken();
+      route.taxAuthority.answer = { kind: "no_answer" };
+      const body = requestBody();
+
+      await authorize(body, `Bearer ${deviceToken}`);
+
+      expect(route.enqueuedUnclearOutcomes).toEqual([body.fiscal_document_id]);
+    });
+
+    it("enqueues the decision of the document when the budget ran out before the tax authority was called", async () => {
+      const { deviceToken } = await enrollRegisterWithPointOfSale();
+      await route.issueWsaaToken();
+      const body = requestBody({ timeout_ms: 100 });
+
+      await authorize(body, `Bearer ${deviceToken}`);
+
+      expect(route.enqueuedUnclearOutcomes).toEqual([body.fiscal_document_id]);
+    });
+
+    it("enqueues nothing when the tax authority authorized the document", async () => {
+      const { deviceToken } = await enrollRegisterWithPointOfSale();
+      await route.issueWsaaToken();
+      route.taxAuthority.answer = {
+        kind: "authorized",
+        authorizationCode: "74123456789012",
+        authorizationCodeDueOn: "2026-10-16",
+      };
+
+      await authorize(requestBody(), `Bearer ${deviceToken}`);
+
+      expect(route.enqueuedUnclearOutcomes).toEqual([]);
+    });
+
     it("answers NOT_ATTEMPTED without calling the tax authority when the budget already ran out", async () => {
       const { deviceToken } = await enrollRegisterWithPointOfSale();
       await route.issueWsaaToken();

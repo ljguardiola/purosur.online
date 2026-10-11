@@ -32,11 +32,18 @@ const AUTHORIZED: RealTimeAuthorizationAnswer = {
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let lanes: DrizzlePointOfSaleLanes<PgliteQueryResultHKT>;
+let enqueuedUnclearOutcomes: string[];
+let enqueueFailure: Error | undefined;
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
   db = testDatabase.db;
-  lanes = new DrizzlePointOfSaleLanes({ withConnection: (work) => work(db) });
+  lanes = new DrizzlePointOfSaleLanes({ withConnection: (work) => work(db) }, async (_, id) => {
+    if (enqueueFailure) {
+      throw enqueueFailure;
+    }
+    enqueuedUnclearOutcomes.push(id);
+  });
 });
 
 afterAll(async () => {
@@ -45,6 +52,8 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
+  enqueuedUnclearOutcomes = [];
+  enqueueFailure = undefined;
 });
 
 async function invoicingEvidenceTimes() {
@@ -218,6 +227,10 @@ describe("DrizzlePointOfSaleLanes", () => {
         rejectionCodes: null,
         rejectionClass: null,
         answeredAt: null,
+        decision: null,
+        decidedAt: null,
+        adoptedAuthorizationCode: null,
+        adoptedAuthorizationCodeDueOn: null,
       });
     });
 
@@ -635,6 +648,103 @@ describe("DrizzlePointOfSaleLanes", () => {
       answeredAt: ANSWERED_AT,
     });
     expect(await invoicingEvidenceTimes()).toEqual([]);
+  });
+
+  describe("the unclear outcomes the cloud decides afterwards", () => {
+    async function recordRequest(number: number) {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: `caja-${number}`,
+      });
+      const request = authorizationRequestRecord(registerId, { number });
+      await lanes.inPointOfSaleLane(7, (lane) => lane.recordRequest(request));
+      return request.fiscalDocumentId;
+    }
+
+    it.each([
+      ["unclear", { kind: "unclear" }],
+      ["not attempted", { kind: "not_attempted" }],
+    ] as const)(
+      "enqueues the decision of a document answered %s, when recording the answer",
+      async (_name, answer) => {
+        const fiscalDocumentId = await recordRequest(1);
+
+        await lanes.inPointOfSaleLane(7, (lane) =>
+          lane.recordAnswer(fiscalDocumentId, answer, ANSWERED_AT),
+        );
+
+        expect(enqueuedUnclearOutcomes).toEqual([fiscalDocumentId]);
+      },
+    );
+
+    it.each([
+      ["authorized", AUTHORIZED],
+      ["rejected", REJECTED],
+    ])("enqueues nothing for a document answered %s", async (_name, answer) => {
+      const fiscalDocumentId = await recordRequest(1);
+
+      await lanes.inPointOfSaleLane(7, async (lane) => {
+        await lane.recordAnswer(fiscalDocumentId, answer, ANSWERED_AT);
+        await lane.recordTaxAuthorityAnswer(fiscalDocumentId, answer, ANSWERED_AT, null, null);
+      });
+
+      expect(enqueuedUnclearOutcomes).toEqual([]);
+    });
+
+    it("enqueues the decision of a document the tax authority left unclear, when recording that answer", async () => {
+      const fiscalDocumentId = await recordRequest(1);
+
+      await lanes.inPointOfSaleLane(7, (lane) =>
+        lane.recordTaxAuthorityAnswer(
+          fiscalDocumentId,
+          { kind: "unclear" },
+          ANSWERED_AT,
+          null,
+          null,
+        ),
+      );
+
+      expect(enqueuedUnclearOutcomes).toEqual([fiscalDocumentId]);
+    });
+
+    it("keeps the answer unrecorded when enqueueing the decision fails", async () => {
+      const fiscalDocumentId = await recordRequest(1);
+      enqueueFailure = new Error("the queue is down");
+
+      await expect(
+        lanes.inPointOfSaleLane(7, (lane) =>
+          lane.recordTaxAuthorityAnswer(
+            fiscalDocumentId,
+            { kind: "unclear" },
+            ANSWERED_AT,
+            null,
+            null,
+          ),
+        ),
+      ).rejects.toThrow("the queue is down");
+
+      expect(await recordedAnswerKind(fiscalDocumentId)).toEqual({
+        answerKind: null,
+        answeredAt: null,
+      });
+      expect(await invoicingEvidenceTimes()).toEqual([]);
+    });
+
+    it("keeps the answer unrecorded when enqueueing the decision of a plainly recorded answer fails", async () => {
+      const fiscalDocumentId = await recordRequest(1);
+      enqueueFailure = new Error("the queue is down");
+
+      await expect(
+        lanes.inPointOfSaleLane(7, (lane) =>
+          lane.recordAnswer(fiscalDocumentId, { kind: "not_attempted" }, ANSWERED_AT),
+        ),
+      ).rejects.toThrow("the queue is down");
+
+      expect(await recordedAnswerKind(fiscalDocumentId)).toEqual({
+        answerKind: null,
+        answeredAt: null,
+      });
+    });
   });
 
   it("returns what the work returns and does not swallow what it throws", async () => {
