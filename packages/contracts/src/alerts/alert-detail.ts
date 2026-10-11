@@ -214,6 +214,11 @@ const alertDetailKinds = [
   }),
   z.object({
     ...alertBase,
+    kind: z.literal("arca_wsaa_ticket_held" satisfies AlertKind),
+    detail: z.strictObject({}),
+  }),
+  z.object({
+    ...alertBase,
     kind: z.literal("update_required" satisfies AlertKind),
     detail: updateRequiredDetailSchema,
   }),

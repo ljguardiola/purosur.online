@@ -122,6 +122,7 @@ export interface AlertDetails {
   events_quarantined: EventsQuarantinedDetail;
   event_invariant_violated: EventInvariantViolatedDetail;
   arca_certificate_expiring: ArcaCertificateExpiringDetail;
+  arca_wsaa_ticket_held: Record<string, never>;
   update_required: UpdateRequiredDetail;
   register_silent: RegisterSilentDetail;
   sales_denied: SalesDeniedDetail;
