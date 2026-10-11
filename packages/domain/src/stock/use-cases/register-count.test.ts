@@ -257,6 +257,8 @@ describe("registerCount", () => {
       "recordMovement",
       "addToBalance",
       "recordCount",
+      "openTechnicalLot",
+      "allocateToLot",
     ]);
   });
 
