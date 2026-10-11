@@ -36,7 +36,7 @@ const DOCUMENT: FacturaC = {
 
 function saleEvent(saleId: string): PushedEvent {
   return {
-    event_id: `event-of-`,
+    event_id: `event-of-${saleId}`,
     device_seq: 17,
     aggregate_type: "sale",
     aggregate_id: saleId,
@@ -51,13 +51,13 @@ function saleEvent(saleId: string): PushedEvent {
 
 function unclear(index: number, withEvent = true): WaitingFiscalDocument {
   return {
-    fiscalDocumentId: `doc-`,
-    saleId: `sale-`,
+    fiscalDocumentId: `doc-${index}`,
+    saleId: `sale-${index}`,
     pointOfSale: 12,
     number: 40 + index,
     issuedOn: "2026-10-01",
     document: DOCUMENT,
-    saleEvent: withEvent ? saleEvent(`sale-`) : null,
+    saleEvent: withEvent ? saleEvent(`sale-${index}`) : null,
   };
 }
 

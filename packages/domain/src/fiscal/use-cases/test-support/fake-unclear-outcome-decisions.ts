@@ -22,7 +22,7 @@ export class FakeUnclearFiscalDocuments implements UnclearFiscalDocuments {
 
   async settle(settled: UnclearDocumentSettled): Promise<void> {
     if (settled.fiscalDocumentId === this.failOnDocument) {
-      throw new Error(`settling  failed`);
+      throw new Error(`settling ${settled.fiscalDocumentId} failed`);
     }
     this.settlements = [...this.settlements, settled];
   }
