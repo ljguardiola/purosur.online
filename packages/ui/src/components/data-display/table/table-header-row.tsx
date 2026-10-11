@@ -1,5 +1,5 @@
 import type { RowData } from "@tanstack/react-table";
-import { headerColumnWidthStyle } from "./table-actions";
+import { actionsContentWidth, headerColumnWidthStyle } from "./table-actions";
 import { columnActionCount, columnAlign, columnTitle } from "./table-column";
 import { SortableColumnHeader } from "./table-sort-header";
 import { alignClassName, cellHorizontalPaddingClassName } from "./table-styles";
@@ -31,7 +31,14 @@ export function TableHeaderRow<T extends RowData>({
             key={id}
             scope="col"
             aria-sort={sortable ? (direction ?? "none") : undefined}
-            style={headerColumnWidthStyle(actionCount, first, last)}
+            style={headerColumnWidthStyle(
+              actionCount === undefined
+                ? column.columnDef.meta?.width
+                : actionsContentWidth(actionCount),
+              first,
+              last,
+              variant,
+            )}
             className={[
               // A cell's explicit height is a floor, not a cap, so h-full on a sortable
               // header's button always has an actual, resolved height to track.

@@ -14,6 +14,7 @@ export type TableSort<K extends string = string> = { column: K; direction: Table
 export type TableColumnMeta = {
   align?: TableColumnAlign;
   actionCount?: 1 | 2;
+  width?: number;
 };
 
 type TableModelFeatures = typeof tableModelFeatures;
