@@ -8,7 +8,11 @@ import {
   isPointOfSaleNumber,
   selectConsumerBuyerTaxStatus,
 } from "@purosur/domain";
-import type { Fortnight, WsaaToken } from "@purosur/domain/fiscal/use-cases";
+import type {
+  Fortnight,
+  OfflineAuthorizationCodeRequestAnswer,
+  WsaaToken,
+} from "@purosur/domain/fiscal/use-cases";
 import { requireAuthorizedCuit } from "../server.js";
 import { arcaCredentialsOf } from "./arca-credentials.js";
 import { type ScrubReplacement, scrubArcaRecording } from "./scrub-arca-recording.js";
@@ -96,14 +100,34 @@ export interface RecordArcaResponsesOptions {
 export interface ArcaRecordingReport {
   firstLoginIssuedTicket: boolean;
   invoicesRecorded: boolean;
-  offlineAuthorizationCodesRecorded: boolean;
+  offlineAuthorizationCodeRequests:
+    | {
+        first: OfflineAuthorizationCodeRequestAnswer;
+        second: OfflineAuthorizationCodeRequestAnswer;
+      }
+    | undefined;
   scrubbed: { file: string; replacements: ScrubReplacement[] }[];
+}
+
+function answeredBy(answer: OfflineAuthorizationCodeRequestAnswer): string {
+  switch (answer.kind) {
+    case "granted":
+      return "a granted code";
+    case "already_granted":
+      return "that the code was already granted";
+    case "no_answer":
+      return "nothing it could read";
+    case "refused":
+      return scrubArcaRecording(
+        answer.rejections.map(({ code, message }) => `${code}: ${message}`).join("; "),
+      ).text;
+  }
 }
 
 export function recordingFailure({
   firstLoginIssuedTicket,
   invoicesRecorded,
-  offlineAuthorizationCodesRecorded,
+  offlineAuthorizationCodeRequests,
 }: ArcaRecordingReport): string | undefined {
   if (!firstLoginIssuedTicket) {
     return "the first login did not issue a ticket (ARCA may still hold a valid one for this certificate); login-cms-issued is not a ticket answer";
@@ -111,8 +135,15 @@ export function recordingFailure({
   if (!invoicesRecorded) {
     return "ARCA listed no Consumidor Final for invoice class C or gave no last authorized number, so no invoice was requested";
   }
-  if (!offlineAuthorizationCodesRecorded) {
+  if (offlineAuthorizationCodeRequests === undefined) {
     return "every fortnight whose request window is open already holds a granted offline authorization code, or ARCA did not answer whether it does, so none was requested";
+  }
+  const { first, second } = offlineAuthorizationCodeRequests;
+  if (first.kind !== "granted") {
+    return `the first FECAEASolicitar granted no offline authorization code; ARCA answered ${answeredBy(first)}`;
+  }
+  if (second.kind !== "already_granted") {
+    return `the second FECAEASolicitar did not answer that the code was already granted; ARCA answered ${answeredBy(second)}`;
   }
   return undefined;
 }
@@ -227,8 +258,10 @@ export async function recordArcaResponses(
       }
     }
   }
-  const offlineAuthorizationCodeRecordings =
-    first.kind === "issued" ? await recordOfflineAuthorizationCodes(options, first.token) : [];
+  const offlineAuthorizationCodes =
+    first.kind === "issued"
+      ? await recordOfflineAuthorizationCodes(options, first.token)
+      : { recordings: [], requests: undefined };
   logins += 1;
   current = secondLogin;
   await authentication.requestToken(WSAA_SERVICE);
@@ -241,7 +274,7 @@ export async function recordArcaResponses(
     ["login-cms-issued", issued],
     ...buyerTaxStatusRecordings,
     ...invoicingRecordings,
-    ...offlineAuthorizationCodeRecordings,
+    ...offlineAuthorizationCodes.recordings,
     ["login-cms-already-authenticated", alreadyAuthenticated],
   ] as const;
   for (const [name, raw] of recordings) {
@@ -254,7 +287,7 @@ export async function recordArcaResponses(
   return {
     firstLoginIssuedTicket: first.kind === "issued",
     invoicesRecorded,
-    offlineAuthorizationCodesRecorded: offlineAuthorizationCodeRecordings.length > 0,
+    offlineAuthorizationCodeRequests: offlineAuthorizationCodes.requests,
     scrubbed,
   };
 }
@@ -262,7 +295,10 @@ export async function recordArcaResponses(
 async function recordOfflineAuthorizationCodes(
   options: RecordArcaResponsesOptions,
   token: WsaaToken,
-): Promise<[string, string][]> {
+): Promise<{
+  recordings: [string, string][];
+  requests: ArcaRecordingReport["offlineAuthorizationCodeRequests"];
+}> {
   const { timeoutMs } = options;
   const codesCapturedBy = (call: ReturnType<typeof capturedBy>) =>
     new WsfeTaxAuthorityOfflineAuthorizationCodes({
@@ -283,15 +319,24 @@ async function recordOfflineAuthorizationCodes(
     }
   }
   if (target === undefined) {
-    return [];
+    return { recordings: [], requests: undefined };
   }
 
   const { fortnight } = target;
   const lastWithinWindow = withinWindow[withinWindow.length - 1] as Fortnight;
+  const recordings: [string, string][] = [["fe-caea-consultar-not-granted", target.notGranted]];
+  const requestCapturedBy = async (name: string) => {
+    const call = capturedBy(`FECAEA (${name})`);
+    const answer = await codesCapturedBy(call).request({ token, fortnight });
+    recordings.push([name, call.raw()]);
+    return answer;
+  };
+  const requests = {
+    first: await requestCapturedBy("fe-caea-solicitar-granted"),
+    second: await requestCapturedBy("fe-caea-solicitar-already-granted"),
+  };
   const calls: [string, (codes: WsfeTaxAuthorityOfflineAuthorizationCodes) => Promise<unknown>][] =
     [
-      ["fe-caea-solicitar-granted", (codes) => codes.request({ token, fortnight })],
-      ["fe-caea-solicitar-already-granted", (codes) => codes.request({ token, fortnight })],
       ["fe-caea-consultar-granted", (codes) => codes.lookUp({ token, fortnight })],
       [
         "fe-caea-consultar-token-error",
@@ -307,11 +352,10 @@ async function recordOfflineAuthorizationCodes(
           codes.request({ token, fortnight: fortnightAfter(fortnightAfter(lastWithinWindow)) }),
       ],
     ];
-  const recordings: [string, string][] = [["fe-caea-consultar-not-granted", target.notGranted]];
   for (const [name, make] of calls) {
     const call = capturedBy(`FECAEA (${name})`);
     await make(codesCapturedBy(call));
     recordings.push([name, call.raw()]);
   }
-  return recordings;
+  return { recordings, requests };
 }
