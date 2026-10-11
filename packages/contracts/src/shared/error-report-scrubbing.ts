@@ -128,6 +128,15 @@ export function withoutQueryParameters(text: string): string {
   return parametersStart === -1 ? text : text.slice(0, parametersStart);
 }
 
+// The error that made a query fail comes from Postgres, which echoes the value it refused between
+// double quotes without escaping a quote inside it, so everything from the first quote to the last
+// one is hidden.
+const ECHOED_VALUES_PATTERN = /"[\s\S]*"/;
+
+function withoutEchoedValues(text: string): string {
+  return text.replace(ECHOED_VALUES_PATTERN, `"${REDACTED}"`);
+}
+
 function redactString(value: string): string {
   return withoutQueryParameters(value)
     .replace(URL_PATTERN, redactUrl)
@@ -148,14 +157,22 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function readableError(error: Error): Record<string, unknown> {
-  return {
-    ...error,
-    name: error.name,
-    message: error.message,
-    stack: error.stack,
-    ...(error.cause instanceof Error && { cause: error.cause }),
-  };
+function redactError(
+  error: Error,
+  enclosing: ReadonlySet<object>,
+  echoesQueryValues: boolean,
+): Record<string, unknown> {
+  const fields = redactRecord(
+    { ...error, name: error.name, message: error.message, stack: error.stack },
+    NO_DIAGNOSTICS,
+    enclosing,
+    echoesQueryValues,
+  );
+  if (!(error.cause instanceof Error)) {
+    return fields;
+  }
+  const causeEchoesQueryValues = echoesQueryValues || error.message.includes(FAILED_QUERY);
+  return { ...fields, cause: redactValue(error.cause, enclosing, causeEchoesQueryValues) };
 }
 
 function readableDate(date: Date): string {
@@ -166,28 +183,32 @@ function withEnclosing(enclosing: ReadonlySet<object>, value: object): ReadonlyS
   return new Set(enclosing).add(value);
 }
 
-function redactValue(value: unknown, enclosing: ReadonlySet<object>): unknown {
+function redactValue(
+  value: unknown,
+  enclosing: ReadonlySet<object>,
+  echoesQueryValues = false,
+): unknown {
   if (typeof value === "object" && value !== null && enclosing.has(value)) {
     return CIRCULAR;
   }
   if (value instanceof Error) {
-    return redactRecord(readableError(value), NO_DIAGNOSTICS, withEnclosing(enclosing, value));
+    return redactError(value, withEnclosing(enclosing, value), echoesQueryValues);
   }
   if (value instanceof Date) {
     return readableDate(value);
   }
   if (typeof value === "string") {
-    return redactString(value);
+    return redactString(echoesQueryValues ? withoutEchoedValues(value) : value);
   }
   if (typeof value === "number" && isIdentifierNumber(value)) {
     return REDACTED;
   }
   if (Array.isArray(value)) {
     const itemEnclosing = withEnclosing(enclosing, value);
-    return value.map((item) => redactValue(item, itemEnclosing));
+    return value.map((item) => redactValue(item, itemEnclosing, echoesQueryValues));
   }
   if (isPlainObject(value)) {
-    return redactRecord(value, NO_DIAGNOSTICS, enclosing);
+    return redactRecord(value, NO_DIAGNOSTICS, enclosing, echoesQueryValues);
   }
   return value;
 }
@@ -196,6 +217,7 @@ function redactRecord(
   record: Record<string, unknown>,
   numericDiagnostics: ReadonlySet<string> = NO_DIAGNOSTICS,
   enclosing: ReadonlySet<object> = NO_ENCLOSING,
+  echoesQueryValues = false,
 ): Record<string, unknown> {
   const fieldEnclosing = withEnclosing(enclosing, record);
   const result: Record<string, unknown> = {};
@@ -205,7 +227,7 @@ function redactRecord(
     } else if (typeof value === "number" && numericDiagnostics.has(key)) {
       result[key] = value;
     } else {
-      result[key] = redactValue(value, fieldEnclosing);
+      result[key] = redactValue(value, fieldEnclosing, echoesQueryValues);
     }
   }
   return result;
@@ -228,6 +250,37 @@ function redactSections(sections: Record<string, unknown>): Record<string, unkno
 
 interface ExceptionValueLike {
   value?: string;
+  mechanism?: { exception_id?: number; parent_id?: number };
+}
+
+function causesFailedQuery(
+  exceptionValue: ExceptionValueLike,
+  byId: ReadonlyMap<number | undefined, ExceptionValueLike>,
+): boolean {
+  const visited = new Set<ExceptionValueLike>();
+  let parent = byId.get(exceptionValue.mechanism?.parent_id);
+  while (parent !== undefined && !visited.has(parent)) {
+    if (parent.value?.includes(FAILED_QUERY)) {
+      return true;
+    }
+    visited.add(parent);
+    parent = byId.get(parent.mechanism?.parent_id);
+  }
+  return false;
+}
+
+function scrubExceptionValues(values: ExceptionValueLike[]): ExceptionValueLike[] {
+  const byId = new Map(values.map((value) => [value.mechanism?.exception_id, value]));
+  byId.delete(undefined);
+  return values.map((exceptionValue) => {
+    if (exceptionValue.value === undefined) {
+      return exceptionValue;
+    }
+    const text = causesFailedQuery(exceptionValue, byId)
+      ? withoutEchoedValues(exceptionValue.value)
+      : exceptionValue.value;
+    return { ...exceptionValue, value: redactString(text) };
+  });
 }
 
 interface BreadcrumbLike {
@@ -260,11 +313,7 @@ export function scrubErrorReport<E extends EventLike>(event: E): E {
     exception: rest.exception?.values
       ? {
           ...rest.exception,
-          values: rest.exception.values.map((exceptionValue) =>
-            exceptionValue.value === undefined
-              ? exceptionValue
-              : { ...exceptionValue, value: redactString(exceptionValue.value) },
-          ),
+          values: scrubExceptionValues(rest.exception.values),
         }
       : rest.exception,
     extra: rest.extra ? redactRecord(rest.extra) : rest.extra,
