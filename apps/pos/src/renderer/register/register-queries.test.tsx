@@ -636,6 +636,7 @@ const STATUS: RegisterStatus = {
   conditions: [{ kind: "sales_denied", reason: "event_history_broken" }],
   cloud: "reachable",
   serial_devices: { scale: "matching", reader: "matching" },
+  serial_devices_setup_offered: false,
 };
 
 type StatusRead = () => Promise<RegisterStatus | "unavailable">;

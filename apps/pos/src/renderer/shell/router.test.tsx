@@ -8,6 +8,8 @@ import { page, userEvent } from "vitest/browser";
 import { render as renderInPage } from "vitest-browser-react";
 import { createQueryClient } from "../platform/query-client";
 import type { CashSessionState } from "../register/cash-session-state";
+import { registerStatusQueryOptions } from "../register/register-queries";
+import { serialDevicesOffer } from "../register/serial-devices-offer";
 import type { CoreStatus, Enrollment, RegisterServiceState, RouterContext } from "./router";
 import { createRegisterRouter, routeFor, routeTree } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
@@ -146,6 +148,7 @@ function contextWith(
       conditions: [],
       cloud: "reachable",
       serial_devices: { scale: "matching", reader: "matching" },
+      serial_devices_setup_offered: false,
     }),
     recordCashMovement: async () => ({ kind: "unavailable" }),
     enroll: async () => ({ kind: "enrolled" }),
@@ -967,10 +970,10 @@ describe("the register's router", () => {
         conditions: [],
         cloud: "reachable",
         serial_devices: { scale: "not_registered", reader: "not_registered" },
+        serial_devices_setup_offered: true,
       };
       const takeSerialDevicesOffer = vi.fn(
-        async (_person: SignedInPerson, readStatus: () => Promise<RegisterStatus>) =>
-          (await readStatus()) === status,
+        async (readStatus: () => Promise<RegisterStatus>) => (await readStatus()) === status,
       );
       const router = createRegisterRouter(
         routeTree,
@@ -986,7 +989,37 @@ describe("the register's router", () => {
 
       await expect.element(screenFor["/serial-devices"](screen)).toBeVisible();
       await expect.element(screen.getByRole("button", { name: "Ahora no" })).toBeVisible();
-      expect(takeSerialDevicesOffer).toHaveBeenCalledWith(DEVICES_CONFIGURER, expect.any(Function));
+      expect(takeSerialDevicesOffer).toHaveBeenCalledWith(expect.any(Function));
+    });
+
+    it("lands on the devices from a fresh read of the status when a cached one says they are not offered", async () => {
+      const offered: RegisterStatus = {
+        conditions: [],
+        cloud: "reachable",
+        serial_devices: { scale: "not_registered", reader: "not_registered" },
+        serial_devices_setup_offered: true,
+      };
+      const context = contextWith("up", "enrolled", DEVICES_CONFIGURER);
+      const offer = serialDevicesOffer();
+      offer.offerSerialDevicesAfterSignIn(null);
+      queryClient.setQueryData(registerStatusQueryOptions(context.registerStatus).queryKey, {
+        ...offered,
+        serial_devices: { scale: "matching", reader: "matching" },
+        serial_devices_setup_offered: false,
+      });
+      const router = createRegisterRouter(
+        routeTree,
+        {
+          ...context,
+          registerStatus: async () => offered,
+          takeSerialDevicesOffer: offer.takeSerialDevicesOffer,
+        },
+        "/",
+      );
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect.element(screenFor["/serial-devices"](screen)).toBeVisible();
     });
 
     it("goes on to the main screen on Ahora no", async () => {
@@ -1944,6 +1977,7 @@ describe("the register's status bar", () => {
         conditions: [{ kind: "sales_denied" as const, reason: "event_history_broken" as const }],
         cloud: "unreachable" as const,
         serial_devices: { scale: "matching" as const, reader: "matching" as const },
+        serial_devices_setup_offered: false,
       }),
     };
     const router = createRegisterRouter(routeTree, context, "/");
@@ -2001,6 +2035,7 @@ describe("the charge route's Mercado Pago QR", () => {
       conditions: [],
       cloud: "reachable",
       serial_devices: { scale: "matching", reader: "matching" },
+      serial_devices_setup_offered: false,
     }));
 
     const screen = await render(<RouterProvider router={router} />);
@@ -2015,6 +2050,7 @@ describe("the charge route's Mercado Pago QR", () => {
         conditions: [],
         cloud,
         serial_devices: { scale: "matching", reader: "matching" },
+        serial_devices_setup_offered: false,
       }));
 
       const screen = await render(<RouterProvider router={router} />);

@@ -140,6 +140,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         conditions: [],
         cloud: "unknown",
         serial_devices: { scale: "not_registered", reader: "not_registered" },
+        serial_devices_setup_offered: false,
       }),
       recordCashMovement: async (
         request: CashMovementRequest,
@@ -769,6 +770,7 @@ describe("answerRendererRequest", () => {
       conditions: [{ kind: "sales_denied", reason: "event_history_broken" }],
       cloud: "unreachable",
       serial_devices: { scale: "matching", reader: "not_detected" },
+      serial_devices_setup_offered: false,
     };
 
     expect(
