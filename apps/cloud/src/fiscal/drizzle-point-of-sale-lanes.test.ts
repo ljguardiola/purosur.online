@@ -704,7 +704,7 @@ describe("DrizzlePointOfSaleLanes", () => {
       ["unclear", { kind: "unclear" }],
       ["not attempted", { kind: "not_attempted" }],
     ] as const)(
-      "enqueues the decision of a document answered %s to run now, when recording the answer",
+      "enqueues the decision of a document answered %s to run when the answer was recorded",
       async (_name, answer) => {
         const fiscalDocumentId = await recordRequest(1);
 
@@ -712,7 +712,7 @@ describe("DrizzlePointOfSaleLanes", () => {
           lane.recordAnswer(fiscalDocumentId, answer, ANSWERED_AT),
         );
 
-        expect(queuedUnclearOutcomes).toEqual(new Map([[fiscalDocumentId, undefined]]));
+        expect(queuedUnclearOutcomes).toEqual(new Map([[fiscalDocumentId, ANSWERED_AT]]));
       },
     );
 
@@ -759,7 +759,7 @@ describe("DrizzlePointOfSaleLanes", () => {
         ),
       );
 
-      expect(queuedDecisions()).toEqual([fiscalDocumentId]);
+      expect(queuedUnclearOutcomes).toEqual(new Map([[fiscalDocumentId, ANSWERED_AT]]));
     });
 
     it("keeps the answer unrecorded when enqueueing the decision fails", async () => {

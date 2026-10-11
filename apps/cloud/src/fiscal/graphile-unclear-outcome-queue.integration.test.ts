@@ -65,11 +65,13 @@ async function recordRequest(
   return request.fiscalDocumentId;
 }
 
+const RUN_AT = new Date("2126-01-01T00:00:00.000Z");
+
 describe("the unclear outcome jobs on a real Postgres", () => {
   it("enqueues the decision of a document with the key of the document and a priority above every other job", async () => {
     const fiscalDocumentId = crypto.randomUUID();
 
-    await enqueueUnclearOutcomeJob(db, fiscalDocumentId);
+    await enqueueUnclearOutcomeJob(db, fiscalDocumentId, RUN_AT);
 
     const [job, ...others] = await pendingJobs();
     expect(others).toEqual([]);
@@ -82,7 +84,7 @@ describe("the unclear outcome jobs on a real Postgres", () => {
 
   it("outranks the highest priority any other job of the cloud has", async () => {
     await sql`select graphile_worker.add_job('other-task', '{}'::json, priority => -10)`;
-    await enqueueUnclearOutcomeJob(db, crypto.randomUUID());
+    await enqueueUnclearOutcomeJob(db, crypto.randomUUID(), RUN_AT);
 
     const [first] = await sql<{ identifier: string }[]>`
       select t.identifier from graphile_worker._private_jobs j
@@ -95,8 +97,8 @@ describe("the unclear outcome jobs on a real Postgres", () => {
   it("keeps a single job per document when it is enqueued again", async () => {
     const fiscalDocumentId = crypto.randomUUID();
 
-    await enqueueUnclearOutcomeJob(db, fiscalDocumentId);
-    await enqueueUnclearOutcomeJob(db, fiscalDocumentId);
+    await enqueueUnclearOutcomeJob(db, fiscalDocumentId, RUN_AT);
+    await enqueueUnclearOutcomeJob(db, fiscalDocumentId, RUN_AT);
 
     expect(await pendingJobs()).toHaveLength(1);
   });
@@ -110,22 +112,24 @@ describe("the unclear outcome jobs on a real Postgres", () => {
     expect(new Date(job?.run_at ?? 0)).toEqual(runAt);
   });
 
-  it("runs the decision of a document now when it is enqueued again without a time", async () => {
+  it("moves the decision of a document to the new time when it is enqueued again", async () => {
     const fiscalDocumentId = crypto.randomUUID();
-    await enqueueUnclearOutcomeJob(db, fiscalDocumentId, new Date("2126-01-01T00:00:00.000Z"));
+    const later = new Date("2126-01-01T00:00:00.000Z");
+    const sooner = new Date("2125-06-01T00:00:00.000Z");
+    await enqueueUnclearOutcomeJob(db, fiscalDocumentId, later);
 
-    await enqueueUnclearOutcomeJob(db, fiscalDocumentId);
+    await enqueueUnclearOutcomeJob(db, fiscalDocumentId, sooner);
 
-    const [due] = await sql<{ due: boolean }[]>`
-      select run_at <= now() as due from graphile_worker._private_jobs`;
-    expect(due).toEqual({ due: true });
+    const [job, ...others] = await pendingJobs();
+    expect(others).toEqual([]);
+    expect(new Date(job?.run_at ?? 0)).toEqual(sooner);
   });
 
   it("withdraws the decision of a document and only that one", async () => {
     const withdrawn = crypto.randomUUID();
     const kept = crypto.randomUUID();
-    await enqueueUnclearOutcomeJob(db, withdrawn);
-    await enqueueUnclearOutcomeJob(db, kept);
+    await enqueueUnclearOutcomeJob(db, withdrawn, RUN_AT);
+    await enqueueUnclearOutcomeJob(db, kept, RUN_AT);
 
     await withdrawUnclearOutcomeJob(db, withdrawn);
     await withdrawUnclearOutcomeJob(db, crypto.randomUUID());
@@ -136,7 +140,7 @@ describe("the unclear outcome jobs on a real Postgres", () => {
   it("enqueues nothing when the transaction that enqueues it rolls back", async () => {
     await expect(
       db.transaction(async (transaction) => {
-        await enqueueUnclearOutcomeJob(transaction, crypto.randomUUID());
+        await enqueueUnclearOutcomeJob(transaction, crypto.randomUUID(), RUN_AT);
         throw new Error("the transaction failed after enqueueing");
       }),
     ).rejects.toThrow("the transaction failed");

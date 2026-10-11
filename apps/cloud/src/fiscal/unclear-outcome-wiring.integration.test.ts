@@ -85,7 +85,7 @@ describe("the unclear outcome decisions the server sets up on a real Postgres", 
     });
     try {
       await recovery.db.transaction((transaction) =>
-        enqueueUnclearOutcomeJob(transaction, request.fiscalDocumentId),
+        enqueueUnclearOutcomeJob(transaction, request.fiscalDocumentId, NOW),
       );
 
       await vi.waitFor(

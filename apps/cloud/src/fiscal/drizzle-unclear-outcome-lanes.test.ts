@@ -28,17 +28,19 @@ let unclearLanes: DrizzleUnclearOutcomeLanes<PgliteQueryResultHKT>;
 let requests: DrizzleUnclearOutcomeRequests<PgliteQueryResultHKT>;
 let authorizationLanes: DrizzlePointOfSaleLanes<PgliteQueryResultHKT>;
 let enqueued: string[];
+let enqueuedAt: Date[];
 let enqueueFailure: Error | undefined;
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
   db = testDatabase.db;
   const connections = { withConnection: <T>(work: (db_: typeof db) => Promise<T>) => work(db) };
-  unclearLanes = new DrizzleUnclearOutcomeLanes(connections, async (_, id) => {
+  unclearLanes = new DrizzleUnclearOutcomeLanes(connections, async (_, id, runAt) => {
     if (enqueueFailure) {
       throw enqueueFailure;
     }
     enqueued.push(id);
+    enqueuedAt.push(runAt);
   });
   requests = new DrizzleUnclearOutcomeRequests(db);
   authorizationLanes = new DrizzlePointOfSaleLanes(
@@ -55,6 +57,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   enqueued = [];
+  enqueuedAt = [];
   enqueueFailure = undefined;
 });
 
@@ -71,6 +74,7 @@ async function recordedRequest(number = 42, answer?: RealTimeAuthorizationAnswer
     }
   });
   enqueued = [];
+  enqueuedAt = [];
   return request;
 }
 
@@ -382,6 +386,7 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       );
 
       expect(enqueued).toEqual([record.fiscalDocumentId]);
+      expect(enqueuedAt).toEqual([ABANDONED_AT]);
     });
 
     it("is not recorded when enqueueing its decision fails", async () => {
