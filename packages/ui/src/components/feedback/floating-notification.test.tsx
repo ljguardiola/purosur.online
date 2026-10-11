@@ -1,9 +1,10 @@
-import { Info } from "lucide-react";
+import { CircleX, Info } from "lucide-react";
 import { type ReactElement, useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
+import { Modal } from "../overlays/modal";
 import type { NoticeTone } from "../shared/tone";
 import { FloatingNotification, type FloatingNotificationProps } from "./floating-notification";
 
@@ -336,6 +337,30 @@ test("announces an error notice right away, as an alert", async () => {
   const region = screen.getByRole("alert").element();
 
   await expect.poll(() => region.textContent).toContain("Could not save");
+});
+
+test("stays readable by assistive technology when it appears while a modal is open", async () => {
+  const modal = (
+    <Modal
+      open
+      onOpenChange={() => {}}
+      tone="error"
+      icon={<CircleX />}
+      title="Cancel the sale"
+      footer={null}
+    />
+  );
+  const screen = await render(modal);
+
+  await screen.rerender(
+    <>
+      {modal}
+      {notification({ onDismiss: () => {} })}
+    </>,
+  );
+
+  const region = screen.getByRole("status").element();
+  await expect.poll(() => region.textContent).toContain("Price saved");
 });
 
 test("has no accessibility violations", async () => {
