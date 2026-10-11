@@ -1,23 +1,30 @@
-import type { StockBalance } from "@purosur/contracts";
+import type { StockBalance, StockBalanceList } from "@purosur/contracts";
 import {
+  actionsColumn,
   dataColumn,
+  formatSignedCents,
+  type ItemOrder,
   ListFilter,
   plural,
   SearchField,
   Table,
   TableCellText,
+  type TableSort,
   Tag,
+  textOrder,
   useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
-import { Package, Search } from "lucide-react";
+import { ChevronDown, ChevronUp, Package, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
 import { ScreenLayout } from "../shell/screen-layout";
 import { StockTopBar } from "../shell/stock-top-bar";
 import type { StockBalancesFilters } from "./routes";
+import { StockBalanceLots } from "./stock-balance-lots";
 import type { StockBalancesScreenServices } from "./stock-balances-services";
+import { formatStockUnitCost, formatStockValue } from "./stock-cost";
 import { useStockBalancesQuery } from "./stock-queries";
 import { categoryFilterOptions } from "./stock-screen-parts";
 
@@ -29,6 +36,25 @@ export type StockBalancesScreenProps = {
 };
 
 type BalanceFilter = StockBalancesFilters["balance"];
+type BalanceSortColumn = StockBalancesFilters["sortBy"];
+
+const CORRECTION_NOTES = {
+  count: "Saldo negativo · se corrige con un recuento",
+  purchase_or_count: "Sin lotes · se corrige con una compra o un recuento",
+} as const;
+
+const productOrder = textOrder((product: StockBalance) => product.name);
+
+function numberOrder(value: (product: StockBalance) => number | null): ItemOrder<StockBalance> {
+  return (a, b) => (value(a) ?? Number.NEGATIVE_INFINITY) - (value(b) ?? Number.NEGATIVE_INFINITY);
+}
+
+function figureTone(amount: number | null, otherwise: "subtle" | undefined) {
+  if (amount === null) {
+    return "subtle";
+  }
+  return amount < 0 ? "error" : otherwise;
+}
 
 const NO_PRODUCTS: StockBalance[] = [];
 
@@ -52,6 +78,17 @@ function matchesBalance(balance: number, filter: BalanceFilter): boolean {
   return true;
 }
 
+function summaryText({ productCount, valueCents, withoutCostCount }: StockBalanceList["summary"]) {
+  const products = plural(productCount, {
+    one: "1 producto con movimiento",
+    other: `${productCount} productos con movimiento`,
+  });
+  const value = `valorizado ${formatSignedCents(valueCents)}`;
+  return withoutCostCount === 0
+    ? `${products} · ${value}`
+    : `${products} · ${value} · ${withoutCostCount} sin costo`;
+}
+
 export function StockBalancesScreen({
   filters,
   onFiltersChange,
@@ -61,31 +98,108 @@ export function StockBalancesScreen({
   const [search, setSearch] = useState(filters.search);
   const [category, setCategory] = useState(filters.category);
   const [balance, setBalance] = useState<BalanceFilter>(filters.balance);
+  const [sort, setSort] = useState<TableSort<BalanceSortColumn>>({
+    column: filters.sortBy,
+    direction: filters.sort,
+  });
+  const [opened, setOpened] = useState<readonly string[]>([]);
   const reportFilters = useEffectEvent(onFiltersChange);
 
   useEffect(() => {
-    const shown: StockBalancesFilters = { search, category, balance };
+    const shown: StockBalancesFilters = {
+      search,
+      category,
+      balance,
+      sortBy: sort.column,
+      sort: sort.direction,
+    };
     if (!deepEqual(shown, filters)) {
       reportFilters(shown);
     }
-  }, [search, category, balance, filters]);
+  }, [search, category, balance, sort.column, sort.direction, filters]);
 
   const columns = [
     dataColumn({
       id: "product",
       header: "Producto",
+      sort: { order: productOrder, firstDirection: "ascending" },
       render: (item: StockBalance) => (
         <div className="flex items-center gap-2">
-          <TableCellText description={item.categoryName}>{item.name}</TableCellText>
+          <TableCellText
+            description={
+              item.correction === null ? item.categoryName : CORRECTION_NOTES[item.correction]
+            }
+            descriptionTone={item.correction === null ? undefined : "error"}
+          >
+            {item.name}
+          </TableCellText>
           {item.active ? null : <Tag tone="neutral">Desactivado</Tag>}
         </div>
       ),
     }),
     dataColumn({
       id: "balance",
+      width: 150,
       header: "Saldo",
       align: "end",
-      render: (item: StockBalance) => formatStockQuantity(item.balance, item.saleUnit),
+      sort: { order: numberOrder((item) => item.balance), firstDirection: "descending" },
+      render: (item: StockBalance) => (
+        <TableCellText strong tone={figureTone(item.balance, undefined)}>
+          {formatStockQuantity(item.balance, item.saleUnit)}
+        </TableCellText>
+      ),
+    }),
+    dataColumn({
+      id: "unitCost",
+      width: 160,
+      header: "Costo unitario",
+      align: "end",
+      sort: { order: numberOrder((item) => item.unitCostCents), firstDirection: "descending" },
+      render: (item: StockBalance) => (
+        <TableCellText tone="subtle">
+          {formatStockUnitCost(item.unitCostCents, item.saleUnit)}
+        </TableCellText>
+      ),
+    }),
+    dataColumn({
+      id: "value",
+      width: 170,
+      header: "Valorizado",
+      align: "end",
+      sort: { order: numberOrder((item) => item.valueCents), firstDirection: "descending" },
+      render: (item: StockBalance) => (
+        <TableCellText strong tone={figureTone(item.valueCents, undefined)}>
+          {formatStockValue(item.valueCents)}
+        </TableCellText>
+      ),
+    }),
+    dataColumn({
+      id: "lots",
+      width: 110,
+      header: "Lotes",
+      align: "end",
+      sort: { order: numberOrder((item) => item.lotCount), firstDirection: "descending" },
+      render: (item: StockBalance) => <TableCellText tone="subtle">{item.lotCount}</TableCellText>,
+    }),
+    actionsColumn({
+      id: "actions",
+      header: "Acciones del saldo",
+      actions: [
+        (item: StockBalance) =>
+          item.lotCount === 0
+            ? undefined
+            : opened.includes(item.id)
+              ? {
+                  icon: <ChevronUp />,
+                  "aria-label": `Ocultar los lotes de ${item.name}`,
+                  onPress: () => setOpened(opened.filter((id) => id !== item.id)),
+                }
+              : {
+                  icon: <ChevronDown />,
+                  "aria-label": `Ver los lotes de ${item.name}`,
+                  onPress: () => setOpened([...opened, item.id]),
+                },
+      ],
     }),
   ] as const;
 
@@ -111,8 +225,9 @@ export function StockBalancesScreen({
       (category === "ALL" || product.categoryId === category) &&
       matchesBalance(product.balance, balance),
     columns,
+    sort,
+    onSortChange: setSort,
   });
-  const matchCount = table.getRowModel().rows.length;
 
   return (
     <ScreenLayout topBar={<StockTopBar title="Saldos" />} bodyClassName="gap-4 p-6">
@@ -143,6 +258,12 @@ export function StockBalancesScreen({
       <Table
         aria-label="Saldos"
         table={table}
+        rowState={(item) =>
+          opened.includes(item.id) ? "selected" : item.correction === null ? undefined : "error"
+        }
+        rowDetail={(item) =>
+          opened.includes(item.id) ? <StockBalanceLots product={item} /> : undefined
+        }
         {...cloudTableState(data, "los saldos")}
         empty={
           products.length === 0
@@ -160,11 +281,9 @@ export function StockBalancesScreen({
               }
         }
         footer={
-          matchCount === 0 ? undefined : (
-            <p className="text-text-subtle text-detail">
-              {plural(matchCount, { one: "1 producto", other: `${matchCount} productos` })}
-            </p>
-          )
+          data.status === "loaded" ? (
+            <p className="text-text-subtle text-detail">{summaryText(data.value.summary)}</p>
+          ) : undefined
         }
       />
     </ScreenLayout>

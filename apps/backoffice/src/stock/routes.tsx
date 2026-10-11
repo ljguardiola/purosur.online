@@ -16,6 +16,11 @@ export const stockBalancesFilters = z.object({
   search: z.string().default("").catch(""),
   category: z.string().default("ALL").catch("ALL"),
   balance: z.enum(["all", "positive", "zero", "negative"]).default("all").catch("all"),
+  sortBy: z
+    .enum(["product", "balance", "unitCost", "value", "lots"])
+    .default("product")
+    .catch("product"),
+  sort: z.enum(["ascending", "descending"]).default("ascending").catch("ascending"),
 });
 
 export type StockBalancesFilters = z.output<typeof stockBalancesFilters>;
