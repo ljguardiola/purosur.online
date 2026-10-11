@@ -12,6 +12,7 @@ function artifact(name, expired = false) {
 
 function fakeCli({
   runs = [{ id: 3 }, { id: 2 }, { id: 1 }],
+  runsByBranch = {},
   artifactsByRun = {},
   failOn,
   env = {},
@@ -31,7 +32,8 @@ function fakeCli({
         const id = Number(url.match(/runs\/(\d+)\/artifacts/)[1]);
         return jsonResponse({ artifacts: artifactsByRun[id] ?? [] });
       }
-      return jsonResponse({ workflow_runs: runs });
+      const branch = new URL(url).searchParams.get("branch");
+      return jsonResponse({ workflow_runs: runsByBranch[branch] ?? runs });
     },
     appendOutput: async (path, line) => calls.outputs.push({ path, line }),
     log: (message) => calls.logs.push(message),
@@ -122,4 +124,70 @@ test("finds the first run with a live durations artifact", async () => {
   });
 
   assert.equal(id, 4);
+});
+
+test("on a pull request, also lists successful pull_request runs of its own head branch", async () => {
+  const { deps, calls } = fakeCli({ env: { HEAD_BRANCH: "ci/1-some-work" } });
+
+  await runCli(deps);
+
+  const runLists = calls.fetch
+    .map((f) => new URL(f.url))
+    .filter((url) => url.pathname.endsWith("/workflows/verify.yml/runs"));
+  const branchList = runLists.find((url) => url.searchParams.get("branch") === "ci/1-some-work");
+  assert.equal(branchList.searchParams.get("event"), "pull_request");
+  assert.equal(branchList.searchParams.get("status"), "success");
+  assert.ok(runLists.some((url) => url.searchParams.get("branch") === "main"));
+});
+
+test("without a head branch lists only main's runs", async () => {
+  const { deps, calls } = fakeCli();
+
+  await runCli(deps);
+
+  const branches = calls.fetch
+    .map((f) => new URL(f.url))
+    .filter((url) => url.pathname.endsWith("/workflows/verify.yml/runs"))
+    .map((url) => url.searchParams.get("branch"));
+  assert.deepEqual(branches, ["main"]);
+});
+
+for (const [newer, expected] of [
+  ["head branch", "run_id=20\n"],
+  ["main", "run_id=10\n"],
+]) {
+  test(`takes the newer qualifying run when the ${newer}'s is newer`, async () => {
+    const mainCreated = newer === "main" ? "2026-01-02T00:00:00Z" : "2026-01-01T00:00:00Z";
+    const branchCreated = newer === "main" ? "2026-01-01T00:00:00Z" : "2026-01-02T00:00:00Z";
+    const { deps, calls } = fakeCli({
+      env: { HEAD_BRANCH: "ci/1-some-work" },
+      runsByBranch: {
+        main: [{ id: 10, created_at: mainCreated }],
+        "ci/1-some-work": [{ id: 20, created_at: branchCreated }],
+      },
+      artifactsByRun: {
+        10: [artifact("test-durations-shard-1")],
+        20: [artifact("test-durations-shard-1")],
+      },
+    });
+
+    await runCli(deps);
+
+    assert.deepEqual(calls.outputs, [{ path: "/output", line: expected }]);
+  });
+}
+
+test("takes main's run when the head branch has none that qualifies", async () => {
+  const { deps, calls } = fakeCli({
+    env: { HEAD_BRANCH: "ci/1-some-work" },
+    runsByBranch: {
+      main: [{ id: 10, created_at: "2026-01-01T00:00:00Z" }],
+      "ci/1-some-work": [{ id: 20, created_at: "2026-01-02T00:00:00Z" }],
+    },
+    artifactsByRun: { 10: [artifact("test-durations-shard-1")] },
+  });
+
+  await runCli(deps);
+
+  assert.deepEqual(calls.outputs, [{ path: "/output", line: "run_id=10\n" }]);
 });
