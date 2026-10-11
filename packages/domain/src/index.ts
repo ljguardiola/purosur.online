@@ -162,6 +162,7 @@ export type {
 export {
   ARCA_VITALITY_CHECK_INTERVAL_MS,
   AUTHORIZATION_CODE_TYPE_CAE,
+  awaitsUnclearOutcomeDecision,
   CURRENCY_PESOS,
   chargeRefusal,
   DEFERRAL_REASONS,
@@ -214,6 +215,7 @@ export {
   TAX_AUTHORITY_QR_URL,
   thresholdInEffectOn,
   thresholdScheduledAfter,
+  UNCLEAR_ANSWER_KINDS,
   WSAA_ALREADY_AUTHENTICATED_RETRY_MS,
 } from "./fiscal/index.js";
 export type {
@@ -367,8 +369,10 @@ export type {
   RegisterOperationAccess,
   RegisterService,
   SerialDeviceIdentity,
+  SerialDeviceReport,
   SerialDeviceRole,
   SerialDeviceStanding,
+  SerialDevicesReport,
   WatchedRegister,
 } from "./register/index.js";
 export {
@@ -405,6 +409,7 @@ export {
   registerAbilities,
   registerNameLength,
   registerOperationAccess,
+  SERIAL_DEVICE_REPORT_STANDINGS,
   SERIAL_DEVICE_ROLES,
   serialDeviceStandings,
 } from "./register/index.js";

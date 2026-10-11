@@ -27,24 +27,26 @@ beforeEach(async () => {
 });
 
 async function publishCode(fortnight: { start: string; end: string }): Promise<number> {
-  const [code] = await db
-    .insert(caeaCodes)
-    .values({
-      fortnightStart: fortnight.start,
-      fortnightEnd: fortnight.end,
-      code: "21423901234567",
-      reportDeadline: "2026-11-05",
-      obtainedAt: NOW,
-      obtainedThrough: "requested",
-    })
-    .returning({ id: caeaCodes.id });
-  if (!code) throw new Error("test setup: inserting the code returned no row");
-  const [change] = await db
-    .insert(changes)
-    .values({ entity: "offline_authorization_code", entityId: code.id, version: 1, op: "insert" })
-    .returning({ changeSeq: changes.changeSeq });
-  if (!change) throw new Error("test setup: inserting the change returned no row");
-  return change.changeSeq;
+  return db.transaction(async (tx) => {
+    const [code] = await tx
+      .insert(caeaCodes)
+      .values({
+        fortnightStart: fortnight.start,
+        fortnightEnd: fortnight.end,
+        code: "21423901234567",
+        reportDeadline: "2026-11-05",
+        obtainedAt: NOW,
+        obtainedThrough: "requested",
+      })
+      .returning({ id: caeaCodes.id });
+    if (!code) throw new Error("test setup: inserting the code returned no row");
+    const [change] = await tx
+      .insert(changes)
+      .values({ entity: "offline_authorization_code", entityId: code.id, version: 1, op: "insert" })
+      .returning({ changeSeq: changes.changeSeq });
+    if (!change) throw new Error("test setup: inserting the change returned no row");
+    return change.changeSeq;
+  });
 }
 
 let registerCounter = 0;

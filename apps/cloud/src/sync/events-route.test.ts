@@ -5,7 +5,7 @@ import {
   pushEventsResponseSchema,
 } from "@purosur/contracts";
 import { canonicalOutboxEvent } from "@purosur/domain";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
 import {
@@ -175,6 +175,45 @@ describe("POST /events", () => {
         diskFreeRatio: 0.42,
       },
     ]);
+  });
+
+  describe("the state of the register's serial devices", () => {
+    async function serialDevicesOf(deviceId: string) {
+      const result = await route.db.execute(
+        sql`select role, standing, vendor_id, product_id from serial_device_state
+          where device_id = ${deviceId} order by role`,
+      );
+      return result.rows;
+    }
+
+    function pushDevices(
+      serial_devices: NonNullable<PushEventsRequest["telemetry"]["serial_devices"]>,
+      deviceToken: string,
+    ) {
+      const { telemetry, ...rest } = body();
+      return push(
+        { ...rest, telemetry: { ...telemetry, serial_devices } },
+        `Bearer ${deviceToken}`,
+      );
+    }
+
+    it("holds the scale as detected with its identity and the reader as not detected", async () => {
+      const { deviceId, deviceToken } = await enroll();
+
+      const response = await pushDevices(
+        {
+          scale: { standing: "matching", vendor_id: "1a86", product_id: "7523" },
+          reader: { standing: "not_detected", vendor_id: "26f1", product_id: "8802" },
+        },
+        deviceToken,
+      );
+
+      expect(response.statusCode).toBe(200);
+      expect(await serialDevicesOf(deviceId)).toEqual([
+        { role: "reader", standing: "not_detected", vendor_id: "26f1", product_id: "8802" },
+        { role: "scale", standing: "matching", vendor_id: "1a86", product_id: "7523" },
+      ]);
+    });
   });
 
   it("accepts a push of no events as a sync, answering the ack of what it holds, recording the report and that the installation reports on every sync cycle", async () => {

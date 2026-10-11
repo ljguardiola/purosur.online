@@ -31,6 +31,7 @@ export interface FiscalAuthorizationRouteUnderTest {
   readonly app: FastifyInstance;
   readonly taxAuthority: FakeTaxAuthority;
   readonly report: Mock<typeof reportError>;
+  readonly enqueuedUnclearOutcomes: readonly string[];
   issueWsaaToken(): Promise<void>;
   readClockWith(now: () => Date): void;
 }
@@ -40,6 +41,7 @@ export function fiscalAuthorizationRouteUnderTest(): FiscalAuthorizationRouteUnd
   let app: FastifyInstance;
   let taxAuthority: FakeTaxAuthority;
   let report: Mock<typeof reportError>;
+  let queuedUnclearOutcomes: Set<string>;
   let now: () => Date;
 
   beforeAll(async () => {
@@ -54,6 +56,7 @@ export function fiscalAuthorizationRouteUnderTest(): FiscalAuthorizationRouteUnd
     await testDatabase.clear();
     taxAuthority = new FakeTaxAuthority();
     report = vi.fn<typeof reportError>();
+    queuedUnclearOutcomes = new Set();
     now = () => NOW;
     app = Fastify();
     registerRouteAccess(app);
@@ -66,6 +69,12 @@ export function fiscalAuthorizationRouteUnderTest(): FiscalAuthorizationRouteUnd
       taxAuthority,
       certificateFingerprint: CERTIFICATE_FINGERPRINT,
       report,
+      enqueueUnclearOutcome: async (_, fiscalDocumentId) => {
+        queuedUnclearOutcomes.add(fiscalDocumentId);
+      },
+      withdrawUnclearOutcome: async (_, fiscalDocumentId) => {
+        queuedUnclearOutcomes.delete(fiscalDocumentId);
+      },
     });
   });
 
@@ -85,6 +94,9 @@ export function fiscalAuthorizationRouteUnderTest(): FiscalAuthorizationRouteUnd
     },
     get report() {
       return report;
+    },
+    get enqueuedUnclearOutcomes() {
+      return [...queuedUnclearOutcomes];
     },
     readClockWith(clock) {
       now = clock;
