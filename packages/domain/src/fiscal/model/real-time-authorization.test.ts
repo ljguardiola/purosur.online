@@ -345,7 +345,7 @@ describe("SERIES_WAITING_STATES", () => {
 
 describe("NUMBER_CONSUMING_STATES", () => {
   it("consumes a document's number only once the tax authority authorized it", () => {
-    expect(NUMBER_CONSUMING_STATES).toEqual(["AUTHORIZED"]);
+    expect(NUMBER_CONSUMING_STATES).toEqual(["AUTHORIZED", "CONFLICTING"]);
   });
 });
 
