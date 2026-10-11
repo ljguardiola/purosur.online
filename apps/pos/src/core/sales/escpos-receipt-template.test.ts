@@ -164,6 +164,15 @@ const QR_DATA = {
 };
 const QR_URL = "https://www.arca.gob.ar/fe/qr/?p=";
 const QR_TEXT = QR_URL + btoa(JSON.stringify(QR_DATA));
+const LONGEST_VERSION_11_VOUCHER = {
+  ...QR_DATA,
+  ptoVta: 12345,
+  nroCmp: 123456,
+  importe: 12345.67,
+  tipoDocRec: 80,
+  nroDocRec: 20000000001,
+};
+const VERSION_12_VOUCHER = { ...LONGEST_VERSION_11_VOUCHER, nroCmp: 12345678, importe: 1234567.89 };
 const FISCAL_BLOCK: FacturaCFiscalBlock = {
   invoiceClass: "C",
   voucherTypeCode: 11,
@@ -203,7 +212,7 @@ const FISCAL_BODY = [
   "[align center]",
   "[qr model 2]",
   "[qr module 4]",
-  "[qr correction M]",
+  "[qr correction L]",
   `[qr store ${QR_TEXT}]`,
   "[qr print]",
   "[align left]",
@@ -632,6 +641,7 @@ describe("the ESC/POS receipt template", () => {
 
     it.each([
       { text: "x".repeat(10), module: 12 },
+      { text: "x".repeat(200), module: 5 },
       { text: QR_TEXT, module: 4 },
       { text: "x".repeat(600), module: 3 },
     ])(
@@ -640,6 +650,22 @@ describe("the ESC/POS receipt template", () => {
         const printout = printed(receipt({ fiscal: { ...FISCAL_BLOCK, qrText: text } })).text;
 
         expect(printout).toContain(`[qr module ${module}]`);
+      },
+    );
+
+    it.each([
+      { voucher: LONGEST_VERSION_11_VOUCHER, symbolModules: 61, side: 244 },
+      { voucher: VERSION_12_VOUCHER, symbolModules: 65, side: 260 },
+    ])(
+      "prints a real-length tax authority QR at low error correction, $symbolModules modules of 4 dots, $side dots wide",
+      ({ voucher, symbolModules, side }) => {
+        const qrText = QR_URL + btoa(JSON.stringify(voucher));
+        const printout = printed(receipt({ fiscal: { ...FISCAL_BLOCK, qrText } })).text;
+        const module = Number(printout.match(/\[qr module (\d+)\]/)?.[1]);
+
+        expect(printout).toContain("[qr correction L]");
+        expect(module).toBe(4);
+        expect(module * symbolModules).toBe(side);
       },
     );
 
