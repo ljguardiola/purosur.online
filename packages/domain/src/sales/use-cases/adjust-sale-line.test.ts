@@ -66,6 +66,7 @@ const PAYMENT: SalePayment = {
   state: "APPROVED",
   occurredAt: NOW,
 };
+const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01", revision: 0 };
 const OWN_GRANT: AdjustSaleLineGrant = { actorId: "cashier", authorizedBy: undefined };
 const AUTHORIZED_GRANT: AdjustSaleLineGrant = { actorId: "cashier", authorizedBy: "supervisor" };
 const NOT_SIGNED_IN = { kind: "not_signed_in" } as const;
@@ -73,6 +74,7 @@ const REASON = "caja golpeada";
 
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   return new FakeSaleLedger({
+    thresholds: [THRESHOLD],
     accesses: { cashier: CASHIER },
     session: SESSION,
     sales: [OPEN_SALE],

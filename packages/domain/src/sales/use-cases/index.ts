@@ -18,6 +18,13 @@ export type {
 } from "./add-weighed-product.js";
 export { addWeighedProduct } from "./add-weighed-product.js";
 export type {
+  AdjustSaleLineGrant,
+  AdjustSaleLineInput,
+  AdjustSaleLineOutcome,
+  AdjustSaleLinePorts,
+} from "./adjust-sale-line.js";
+export { adjustSaleLine } from "./adjust-sale-line.js";
+export type {
   CancelPaidSaleGrant,
   CancelPaidSaleInput,
   CancelPaidSaleOutcome,
