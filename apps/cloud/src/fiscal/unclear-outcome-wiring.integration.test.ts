@@ -28,6 +28,8 @@ const UNUSED_EMAIL_SENDER: AccessEmailSender = {
 
 const FINGERPRINT = "AA:BB:CC";
 const NOW = new Date("2126-01-01T00:00:00.000Z");
+const ANSWERED_AT = new Date(NOW.getTime() - 61_000);
+const ALREADY_DUE = new Date(0);
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
@@ -78,14 +80,14 @@ describe("the unclear outcome decisions the server sets up on a real Postgres", 
     await db.insert(fiscalRequests).values({
       ...request,
       answerKind: "unclear",
-      answeredAt: new Date(NOW.getTime() - 61_000),
+      answeredAt: ANSWERED_AT,
     });
     const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
       emailSender: UNUSED_EMAIL_SENDER,
     });
     try {
       await recovery.db.transaction((transaction) =>
-        enqueueUnclearOutcomeJob(transaction, request.fiscalDocumentId, NOW),
+        enqueueUnclearOutcomeJob(transaction, request.fiscalDocumentId, ALREADY_DUE),
       );
 
       await vi.waitFor(
