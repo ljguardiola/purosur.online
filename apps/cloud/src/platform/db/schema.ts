@@ -1796,6 +1796,21 @@ export const caeaCodes = pgTable(
   ],
 );
 
+export const offlineAuthorizationCodeAcquisitionReports = pgTable(
+  "offline_authorization_code_acquisition_reports",
+  {
+    fortnightStart: date("fortnight_start", { mode: "string" }).notNull(),
+    outcomeKind: text("outcome_kind").notNull(),
+    reportedAt: timestamp("reported_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "offline_authorization_code_acquisition_reports_pk",
+      columns: [table.fortnightStart, table.outcomeKind],
+    }),
+  ],
+);
+
 // The request is kept, with the sale event it carries, before the tax authority is called, and the
 // answer is added to the same row. A row without an answer is a call that may still be in flight.
 export const fiscalRequests = pgTable(

@@ -34,6 +34,7 @@ import {
   locations,
   lotAllocations,
   lots,
+  offlineAuthorizationCodeAcquisitionReports,
   offlineNumberBlocks,
   passkeyChallenges,
   passkeys,
@@ -716,6 +717,11 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       options: [{ code: 901, description: "Condicion de prueba A", invoiceClass: "A" }],
     });
     await db.insert(issuerIdentificationVersions).values({ version: 2 });
+    await db.insert(offlineAuthorizationCodeAcquisitionReports).values({
+      fortnightStart: "2026-10-16",
+      outcomeKind: "no_answer",
+      reportedAt: new Date("2026-10-13T15:00:00.000Z"),
+    });
 
     const afterSeeding = await countsByTable(client);
     for (const [tablename, count] of afterSeeding) {
