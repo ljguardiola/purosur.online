@@ -209,7 +209,7 @@ describe("movementAllocations when stock grows", () => {
 });
 
 describe("receiptAllocations", () => {
-  it("allocates the whole quantity to the new lot when the product has no technical lot", () => {
+  it("allocates the whole quantity to the new lot when no lot of the product is in debt", () => {
     expect(receiptAllocations("new", [lot("old")], 6_000)).toEqual([
       { target: target("new"), quantity: 6_000 },
     ]);
@@ -240,11 +240,17 @@ describe("receiptAllocations", () => {
     ]);
   });
 
-  it("does not regularize a debt of a lot that was bought", () => {
-    const lots = [lot("bought", { remaining: -2_000 })];
+  it("carries the debt of every lot in debt, bought or technical, into the new lot and brings each to zero", () => {
+    const lots = [
+      lot("bought-in-debt", { remaining: -2_000 }),
+      lot("stocked", { remaining: 3_000 }),
+      lot("technical", { technical: true, remaining: -1_000 }),
+    ];
 
     expect(receiptAllocations("new", lots, 6_000)).toEqual([
-      { target: target("new"), quantity: 6_000 },
+      { target: target("new"), quantity: 3_000 },
+      { target: target("bought-in-debt"), quantity: 2_000 },
+      { target: target("technical"), quantity: 1_000 },
     ]);
   });
 
@@ -389,6 +395,21 @@ describe("receiptAllocations for any lots and any quantity", () => {
         expect(total(allocations)).toBe(quantity);
         expect(new Set(targetKeys(allocations)).size).toBe(allocations.length);
         expect(allocations.every((allocation) => allocation.quantity !== 0)).toBe(true);
+      }),
+    );
+  });
+
+  it("brings every lot in debt to zero and leaves every other lot as it is", () => {
+    fc.assert(
+      fc.property(lotsArbitrary, fc.integer({ min: 1, max: 60 }), (lots, quantity) => {
+        const allocations = receiptAllocations("new", lots, quantity);
+
+        for (const row of lots) {
+          const allocated = allocations.find(
+            (allocation) => allocation.target.kind === "lot" && allocation.target.lotId === row.id,
+          );
+          expect(row.remaining + (allocated?.quantity ?? 0)).toBe(Math.max(row.remaining, 0));
+        }
       }),
     );
   });

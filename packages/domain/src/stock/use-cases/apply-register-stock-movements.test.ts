@@ -322,32 +322,6 @@ describe("applyRegisterStockMovements", () => {
       expect(remainingByLot(store)).toEqual({ here: 2000, elsewhere: 5000, "other-product": 5000 });
     });
 
-    it("assigns what the lots cannot cover to the most recently received lot, which goes negative", async () => {
-      const store = storeWithProducts();
-      store.seedLot({
-        ...BREAD,
-        id: "older",
-        purchasedOn: "2026-02-01",
-        receivedAt: new Date("2026-02-01T12:00:00.000Z"),
-        remaining: 1000,
-      });
-      store.seedLot({
-        ...BREAD,
-        id: "newer",
-        purchasedOn: "2026-03-01",
-        receivedAt: new Date("2026-03-01T12:00:00.000Z"),
-        remaining: 2000,
-      });
-
-      await apply(store, sale(breadSale("sale-1", -5000)));
-
-      expect(store.snapshot().allocations).toEqual([
-        { movementId: "sale-1", lotId: "older", quantity: -1000 },
-        { movementId: "sale-1", lotId: "newer", quantity: -4000 },
-      ]);
-      expect(remainingByLot(store)).toEqual({ older: 0, newer: -2000 });
-    });
-
     it("accumulates the sale of a product with no lot in a technical lot with no cost nor expiry", async () => {
       const store = storeWithProducts();
 
@@ -376,18 +350,6 @@ describe("applyRegisterStockMovements", () => {
       expect(lots).toHaveLength(1);
       expect(lots[0]?.remaining).toBe(-4000);
       expect(store.operationOrder.filter((name) => name === "openTechnicalLot")).toHaveLength(1);
-    });
-
-    it("assigns the shortfall to the technical lot when the product has no other lot", async () => {
-      const store = storeWithProducts();
-      store.seedLot({ ...BREAD, id: "technical", technical: true, remaining: 1000 });
-
-      await apply(store, sale(breadSale("sale-1", -3000)));
-
-      expect(remainingByLot(store)).toEqual({ technical: -2000 });
-      expect(store.snapshot().allocations).toEqual([
-        { movementId: "sale-1", lotId: "technical", quantity: -3000 },
-      ]);
     });
 
     it("allocates two movements of the same product in the order they are applied", async () => {

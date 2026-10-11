@@ -270,16 +270,7 @@ describe("receivePurchasedStock", () => {
       ]);
     });
 
-    it("leaves a positive technical lot as its own lot", async () => {
-      const lotsStore = storeWithTechnicalLot(3_000);
-
-      await receive(lotsStore, receipt([yerbaLine()]));
-
-      expect(technicalRemaining(lotsStore)).toBe(3_000);
-      expect(lotsStore.snapshot().lots.find((lot) => !lot.technical)?.remaining).toBe(24_000);
-    });
-
-    it("regularizes the technical lot once for two lines of the same product", async () => {
+    it("carries the debt one line leaves on its lot into the next line of the same product", async () => {
       const lotsStore = storeWithTechnicalLot(-30_000);
 
       await receive(
@@ -289,8 +280,8 @@ describe("receivePurchasedStock", () => {
 
       const [first, second] = lotsStore.snapshot().lots.filter((lot) => !lot.technical);
       expect(technicalRemaining(lotsStore)).toBe(0);
-      expect(first?.remaining).toBe(-6_000);
-      expect(second?.remaining).toBe(12_000);
+      expect(first?.remaining).toBe(0);
+      expect(second?.remaining).toBe(6_000);
     });
 
     it("records no allocation for a receipt a count already supersedes", async () => {

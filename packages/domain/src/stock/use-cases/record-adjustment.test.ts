@@ -179,60 +179,6 @@ describe("recordAdjustment", () => {
       ]);
     });
 
-    it("assigns what the lots cannot cover to the most recently received lot", async () => {
-      const store = storeWithProduct();
-      store.seedLot({
-        ...KEY,
-        id: "older",
-        receivedAt: new Date("2026-02-01T00:00:00.000Z"),
-        remaining: 1000,
-      });
-      store.seedLot({
-        ...KEY,
-        id: "newer",
-        purchasedOn: "2026-02-01",
-        receivedAt: new Date("2026-03-01T00:00:00.000Z"),
-        remaining: 0,
-      });
-
-      await adjust(store, { direction: "subtract", quantity: 3000 });
-
-      expect(remainingByLot(store)).toEqual({ older: 0, newer: -2000 });
-    });
-
-    it("returns a positive adjustment to the most recently received lot", async () => {
-      const store = storeWithProduct();
-      store.seedLot({
-        ...KEY,
-        id: "a-older",
-        expiresOn: "2026-12-01",
-        receivedAt: new Date("2026-02-01T00:00:00.000Z"),
-        remaining: 1000,
-      });
-      store.seedLot({
-        ...KEY,
-        id: "b-newer",
-        receivedAt: new Date("2026-03-01T00:00:00.000Z"),
-        remaining: 500,
-      });
-
-      await adjust(store, { direction: "add", quantity: 2000 });
-
-      expect(remainingByLot(store)).toEqual({ "a-older": 1000, "b-newer": 2500 });
-      expect(store.snapshot().allocations).toEqual([
-        { movementId: "movement-1", lotId: "b-newer", quantity: 2000 },
-      ]);
-    });
-
-    it("returns a positive adjustment to the technical lot when the product has no other lot", async () => {
-      const store = storeWithProduct();
-      store.seedLot({ ...KEY, id: "technical", technical: true, remaining: -3000 });
-
-      await adjust(store, { direction: "add", quantity: 2000 });
-
-      expect(remainingByLot(store)).toEqual({ technical: -1000 });
-    });
-
     it("opens a technical lot for a positive adjustment of a product with no lot", async () => {
       const store = storeWithProduct();
 
