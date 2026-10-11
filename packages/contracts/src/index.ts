@@ -289,6 +289,7 @@ export type {
 } from "./sales/core-messages.js";
 export {
   addWeighedProductMessageSchema,
+  adjustSaleLineMessageSchema,
   changeLineWeightMessageSchema,
   chargeSaleByTransferMessageSchema,
   chargeSaleInCashMessageSchema,
@@ -299,6 +300,7 @@ export {
 export type {
   AddProductOutcome,
   AddWeighedProductOutcome,
+  AdjustSaleLineOutcome,
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashCharge,
@@ -309,6 +311,7 @@ export type {
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
   FoundProduct,
+  ManualAdjustmentRequest,
   OpenSale,
   RemoveSaleLineOutcome,
   ScanProductOutcome,

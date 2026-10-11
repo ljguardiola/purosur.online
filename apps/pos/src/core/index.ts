@@ -75,6 +75,7 @@ import { createReceiptPrinting } from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,
   addWeighedProductFor,
+  adjustSaleLineFor,
   cancelLockedSaleFor,
   cancelPaidSaleFor,
   cancelSaleFor,
@@ -659,6 +660,10 @@ const rendererRequestDeps: RendererRequestDeps = {
             weightThousandths,
             expectedWeightThousandths,
           ),
+  adjustSaleLine:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) => adjustSaleLineFor({ database: localDatabase, gate: actionGate, now }, request),
   removeSaleLine:
     localDatabase === undefined || actionGate === undefined
       ? undefined

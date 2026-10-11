@@ -8,6 +8,7 @@ import {
 import {
   addProductOutcomeSchema,
   addWeighedProductOutcomeSchema,
+  adjustSaleLineOutcomeSchema,
   cancelPaidSaleOutcomeSchema,
   cancelSaleOutcomeSchema,
   cashChargeSchema,
@@ -16,6 +17,8 @@ import {
   chargeSaleByTransferOutcomeSchema,
   chargeSaleInCashOutcomeSchema,
   holdsQrPaymentOutcome,
+  manualAdjustmentReasonSchema,
+  manualAdjustmentValueSchema,
   qrChargeInProgressOutcome,
   removeSaleLineOutcomeSchema,
   saleLineQuantitySchema,
@@ -56,6 +59,15 @@ export const changeLineWeightMessageSchema = z.object({
   line_id: z.string(),
   weight_thousandths: saleLineWeightSchema,
   expected_weight_thousandths: shownLineQuantitySchema,
+});
+
+export const adjustSaleLineMessageSchema = z.object({
+  type: z.literal("adjust-sale-line"),
+  request_id: requestId,
+  line_id: z.string(),
+  adjustment: manualAdjustmentValueSchema,
+  reason: manualAdjustmentReasonSchema,
+  authorization: authorizationSchema.optional(),
 });
 
 const removeSaleLineMessageSchema = z.object({
@@ -172,6 +184,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   scanProductMessageSchema,
   changeLineQuantityMessageSchema,
   changeLineWeightMessageSchema,
+  adjustSaleLineMessageSchema,
   removeSaleLineMessageSchema,
   cancelSaleMessageSchema,
   cancelPaidSaleMessageSchema,
@@ -266,6 +279,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("change-line-weight-result"),
     request_id: requestId,
     outcome: changeLineWeightOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("adjust-sale-line-result"),
+    request_id: requestId,
+    outcome: adjustSaleLineOutcomeSchema,
   }),
   z.object({
     type: z.literal("remove-sale-line-result"),

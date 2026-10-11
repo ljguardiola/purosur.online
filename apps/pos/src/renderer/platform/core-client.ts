@@ -2,6 +2,7 @@ import type {
   AbandonMercadoPagoQrChargeOutcome,
   AddProductOutcome,
   AddWeighedProductOutcome,
+  AdjustSaleLineOutcome,
   Authorization,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
@@ -23,6 +24,7 @@ import type {
   FollowMercadoPagoQrChargeOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
+  ManualAdjustmentRequest,
   OpenCashSession,
   OpenCashSessionOutcome,
   PaymentsCoreToRendererMessage,
@@ -156,6 +158,12 @@ export interface CoreClient {
     weightThousandths: number,
     expectedWeightThousandths: number,
   ): Promise<ChangeLineWeightOutcome>;
+  adjustSaleLine(
+    lineId: string,
+    adjustment: ManualAdjustmentRequest,
+    reason: string,
+    authorization: Authorization | undefined,
+  ): Promise<AdjustSaleLineOutcome>;
   removeSaleLine(lineId: string): Promise<RemoveSaleLineOutcome>;
   cancelSale(): Promise<CancelSaleOutcome>;
   cancelPaidSale(
@@ -496,6 +504,19 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           expected_weight_thousandths: expectedWeightThousandths,
         },
         (answer) => (answer.type === "change-line-weight-result" ? answer.outcome : undefined),
+      );
+    },
+    adjustSaleLine(lineId, adjustment, reason, authorization) {
+      return ask(
+        {
+          type: "adjust-sale-line",
+          request_id: deps.newRequestId(),
+          line_id: lineId,
+          adjustment,
+          reason,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) => (answer.type === "adjust-sale-line-result" ? answer.outcome : undefined),
       );
     },
     removeSaleLine(lineId) {

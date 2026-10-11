@@ -2,6 +2,7 @@ import type {
   AbandonMercadoPagoQrChargeOutcome,
   AddProductOutcome,
   AddWeighedProductOutcome,
+  AdjustSaleLineOutcome,
   Authorization,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
@@ -54,6 +55,7 @@ import type { WireSerialDevices } from "./register/serial-devices-requests";
 import type { CoreToRendererMessage, RendererToCoreMessage } from "./renderer-messages";
 import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type {
+  AdjustSaleLineRequest,
   CancelLockedSaleRequest,
   CancelPaidSaleRequest,
   ChargeSaleByTransferRequest,
@@ -121,6 +123,7 @@ export interface RendererRequestDeps {
         expectedWeightThousandths: number,
       ) => Promise<ChangeLineWeightOutcome>)
     | undefined;
+  adjustSaleLine: ((request: AdjustSaleLineRequest) => Promise<AdjustSaleLineOutcome>) | undefined;
   removeSaleLine: ((lineId: string) => Promise<RemoveSaleLineOutcome>) | undefined;
   cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
   cancelPaidSale: ((request: CancelPaidSaleRequest) => Promise<CancelPaidSaleOutcome>) | undefined;
@@ -678,6 +681,25 @@ export async function answerRendererRequest(
                 message.weight_thousandths,
                 message.expected_weight_thousandths,
               )),
+        ),
+      };
+    }
+    case "adjust-sale-line": {
+      const { adjustSaleLine } = deps;
+      return {
+        type: "adjust-sale-line-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "adjusting a sale line",
+          adjustSaleLine &&
+            (() =>
+              adjustSaleLine({
+                lineId: message.line_id,
+                adjustment: message.adjustment,
+                reason: message.reason,
+                authorization: message.authorization,
+              })),
         ),
       };
     }
