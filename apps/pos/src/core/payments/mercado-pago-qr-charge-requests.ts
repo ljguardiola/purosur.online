@@ -90,7 +90,6 @@ export async function startMercadoPagoQrChargeFor(
         kind: "order_shown",
         payment_transaction_id: outcome.paymentTransactionId,
         amount: outcome.amount,
-        wait_seconds: outcome.waitSeconds,
         remaining_seconds: outcome.remainingSeconds,
       };
     case "exceeds_pending":

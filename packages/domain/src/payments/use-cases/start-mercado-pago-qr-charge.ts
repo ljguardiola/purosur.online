@@ -1,6 +1,5 @@
 import {
-  MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES,
-  mercadoPagoQrChargeWait,
+  mercadoPagoQrChargeRemainingSeconds,
   mercadoPagoQrChargeWaitEndsAt,
 } from "../model/mercado-pago-qr-charge-wait.js";
 import type { MercadoPagoQrChargePorts } from "./mercado-pago-qr-charge-ports.js";
@@ -16,7 +15,6 @@ export type StartMercadoPagoQrChargeOutcome<Refusal> =
       kind: "order_shown";
       paymentTransactionId: string;
       amount: number;
-      waitSeconds: number;
       remainingSeconds: number;
     }
   | { kind: "order_refused" }
@@ -48,16 +46,15 @@ export async function startMercadoPagoQrCharge<Refusal, Settlement>(
   const { paymentTransactionId } = recorded;
   const answer = await orders.requestOrder({ paymentTransactionId, saleId, amount });
   if (answer.kind !== "created") {
-    charges.endWait(paymentTransactionId, clock.now());
+    charges.recordWaitEnd(paymentTransactionId, clock.now());
     return answer.kind === "refused" ? { kind: "order_refused" } : { kind: "unreachable" };
   }
 
-  const wait = mercadoPagoQrChargeWait(waitEndsAt, clock.now());
+  charges.recordWaitEnd(paymentTransactionId, answer.expiresAt);
   return {
     kind: "order_shown",
     paymentTransactionId,
     amount,
-    waitSeconds: MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES * 60,
-    remainingSeconds: wait.kind === "waiting" ? wait.remainingSeconds : 0,
+    remainingSeconds: mercadoPagoQrChargeRemainingSeconds(answer.expiresAt, clock.now()),
   };
 }

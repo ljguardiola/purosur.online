@@ -22,7 +22,7 @@ function payment(state: string, overrides: Record<string, unknown> = {}) {
     state,
     needs_review: false,
     amount: 5000,
-    expires_at: "2026-10-09T12:05:10.000Z",
+    expires_at: "2026-10-09T12:03:10.000Z",
     ...overrides,
   };
 }
@@ -76,10 +76,13 @@ describe("asking the cloud for a Mercado Pago QR order", () => {
     ]);
   });
 
-  it("answers created when the cloud answers with the payment", async () => {
+  it("answers created, with the expiry the cloud recorded, when the cloud answers with the payment", async () => {
     const { orders } = cloudOrders([ok(payment("PENDING"))]);
 
-    expect(await orders.requestOrder(ORDER)).toEqual({ kind: "created" });
+    expect(await orders.requestOrder(ORDER)).toEqual({
+      kind: "created",
+      expiresAt: new Date("2026-10-09T12:03:10.000Z"),
+    });
   });
 
   it.each([

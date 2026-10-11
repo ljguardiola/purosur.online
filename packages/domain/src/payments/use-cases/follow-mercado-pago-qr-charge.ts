@@ -1,4 +1,7 @@
-import { mercadoPagoQrChargeWait } from "../model/mercado-pago-qr-charge-wait.js";
+import {
+  mercadoPagoQrChargeRemainingSeconds,
+  mercadoPagoQrChargeWait,
+} from "../model/mercado-pago-qr-charge-wait.js";
 import type { MercadoPagoQrChargePorts } from "./mercado-pago-qr-charge-ports.js";
 
 export interface FollowMercadoPagoQrChargeInput {
@@ -10,6 +13,7 @@ export type FollowMercadoPagoQrChargeOutcome<Settlement> =
   | { kind: "not_pending" }
   | { kind: "waiting"; remainingSeconds: number }
   | { kind: "wait_over" }
+  | { kind: "expiry_unconfirmed" }
   | { kind: "declined" }
   | { kind: "approved"; settlement: Settlement };
 
@@ -22,11 +26,6 @@ export async function followMercadoPagoQrCharge<Refusal, Settlement>(
     return { kind: "not_pending" };
   }
 
-  const waitBeforeReading = mercadoPagoQrChargeWait(charge.waitEndsAt, clock.now());
-  if (waitBeforeReading.kind === "over") {
-    return { kind: "wait_over" };
-  }
-
   const reading = await orders.readOrder(paymentTransactionId);
   if (reading.kind === "read") {
     const { state } = reading;
@@ -36,14 +35,25 @@ export async function followMercadoPagoQrCharge<Refusal, Settlement>(
         settlement: sale.settleApprovedPayment({ actorId, paymentTransactionId }),
       };
     }
+    if (state === "EXPIRED") {
+      charges.recordEnded(paymentTransactionId, state);
+      return { kind: "wait_over" };
+    }
     if (state !== "PENDING") {
       charges.recordEnded(paymentTransactionId, state);
       return { kind: "declined" };
     }
   }
 
-  const wait = mercadoPagoQrChargeWait(charge.waitEndsAt, clock.now());
-  return wait.kind === "over"
-    ? { kind: "wait_over" }
-    : { kind: "waiting", remainingSeconds: wait.remainingSeconds };
+  const now = clock.now();
+  if (
+    reading.kind === "unreachable" &&
+    mercadoPagoQrChargeWait(charge.waitEndsAt, now).kind === "over"
+  ) {
+    return { kind: "expiry_unconfirmed" };
+  }
+  return {
+    kind: "waiting",
+    remainingSeconds: mercadoPagoQrChargeRemainingSeconds(charge.waitEndsAt, now),
+  };
 }
