@@ -2416,6 +2416,57 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("add the tax authority's last authorized number to the offline point of sale, unknown over the one a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0037_offline_point_of_sale_tax_authority_count",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0037_offline_point_of_sale_tax_authority_count",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before
+        .prepare(
+          `INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, version)
+           VALUES ('r1', 31, 2)`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            `SELECT register_id, point_of_sale_number, version, tax_authority_last_authorized_number
+             FROM register_offline_point_of_sale`,
+          )
+          .all(),
+      ).toEqual([
+        {
+          register_id: "r1",
+          point_of_sale_number: 31,
+          version: 2,
+          tax_authority_last_authorized_number: null,
+        },
+      ]);
+      const setCount = (count: number | null) =>
+        after
+          .prepare(
+            "UPDATE register_offline_point_of_sale SET tax_authority_last_authorized_number = ?",
+          )
+          .run(count);
+      expect(() => setCount(0)).not.toThrow();
+      expect(() => setCount(null)).not.toThrow();
+      expect(() => setCount(-1)).toThrow(/CHECK/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   describe("the real-time authorization", () => {
     function withSales() {
       const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
