@@ -1,5 +1,4 @@
 import type { PaymentMethod } from "./payment.js";
-import type { MercadoPagoQrPaymentTransaction } from "./payment-transaction.js";
 
 export interface RefundablePayment {
   id: string;
@@ -12,11 +11,8 @@ export interface RefundablePayment {
 export const REFUND_DONE_STATE = "APPROVED";
 export const REFUND_PENDING_STATE = "PENDING";
 export const REFUND_DISCARDED_STATE = "DISCARDED";
-export const REFUND_STATES = [
-  REFUND_DONE_STATE,
-  REFUND_PENDING_STATE,
-  REFUND_DISCARDED_STATE,
-] as const;
+export const PLANNED_REFUND_STATES = [REFUND_DONE_STATE, REFUND_PENDING_STATE] as const;
+export const REFUND_STATES = [...PLANNED_REFUND_STATES, REFUND_DISCARDED_STATE] as const;
 export type RefundState = (typeof REFUND_STATES)[number];
 
 export const SALE_CANCELLED_REFUND_ORIGIN = "sale_cancelled";
@@ -24,7 +20,7 @@ export const LATE_PAYMENT_REFUND_ORIGIN = "late_payment";
 export const REFUND_ORIGINS = [SALE_CANCELLED_REFUND_ORIGIN, LATE_PAYMENT_REFUND_ORIGIN] as const;
 export type RefundOrigin = (typeof REFUND_ORIGINS)[number];
 
-export type PlannedRefundState = typeof REFUND_DONE_STATE | typeof REFUND_PENDING_STATE;
+export type PlannedRefundState = (typeof PLANNED_REFUND_STATES)[number];
 
 export interface PlannedRefund {
   paymentId: string;
@@ -88,7 +84,7 @@ export interface LatePaymentRefund extends PlannedRefund {
 }
 
 export function latePaymentRefund(
-  payment: Pick<MercadoPagoQrPaymentTransaction, "id" | "method" | "provider" | "amount">,
+  payment: Pick<RefundablePayment, "id" | "method" | "provider" | "amount">,
 ): LatePaymentRefund {
   return {
     paymentId: payment.id,

@@ -42,7 +42,9 @@ export {
 } from "./model/alert-escalation.js";
 export type { AlertKindPolicy, AlertScopeKind } from "./model/alert-kind-policy.js";
 export {
+  ALERT_CLOSINGS,
   ALERT_ESCALATION_DELAY_MS,
+  alertClosing,
   alertKindPolicy,
   alertKindsWithScope,
 } from "./model/alert-kind-policy.js";

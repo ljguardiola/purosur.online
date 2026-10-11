@@ -9,6 +9,11 @@ export type {
 } from "./admit-payment-notification.js";
 export { admitPaymentNotification } from "./admit-payment-notification.js";
 export type {
+  ApplyQrPaymentReplacementOutcome,
+  ApplyQrPaymentReplacementPorts,
+} from "./apply-qr-payment-replacement.js";
+export { applyQrPaymentReplacement } from "./apply-qr-payment-replacement.js";
+export type {
   CancelMercadoPagoQrOrderInput,
   CancelMercadoPagoQrOrderOutcome,
   CancelMercadoPagoQrOrderPorts,
@@ -88,6 +93,12 @@ export type {
   RecordedOrderState,
 } from "./mercado-pago-qr-order-ports.js";
 export { PaymentTransactionAlreadyRecorded } from "./mercado-pago-qr-order-ports.js";
+export type {
+  QrPaymentReplacement,
+  QrPaymentReplacementStore,
+  QrPaymentReplacementTransaction,
+  ReplacedQrPayment,
+} from "./qr-payment-replacement-store.js";
 export type {
   ReadMercadoPagoQrPaymentInput,
   ReadMercadoPagoQrPaymentOutcome,

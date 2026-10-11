@@ -1,6 +1,7 @@
 import { type AlertDetail, alertDetailSchema } from "@purosur/contracts";
 import {
   alertActorId,
+  alertClosing,
   alertKindPolicy,
   alertNamedRecordIds,
   argentinaCalendarDay,
@@ -106,7 +107,7 @@ export function toAlertDetailBody(
     escalatedAt: alert.escalatedAt?.toISOString() ?? null,
     resolvedAt: alert.resolvedAt?.toISOString() ?? null,
     open: isOpenAlert(alert),
-    resolvesByItself: alertKindPolicy(alert.kind).resolvesAfterStableClear,
+    closing: alertClosing(alert.kind),
     deliveries: deliveries.map(toAlertDelivery),
   });
 }

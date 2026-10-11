@@ -172,3 +172,14 @@ export function alertKindPolicy(kind: AlertKind): AlertKindPolicy {
 export function alertKindsWithScope(scopeKind: AlertScopeKind): AlertKind[] {
   return ALERT_KINDS.filter((kind) => ALERT_KIND_POLICIES[kind].scopeKind === scopeKind);
 }
+
+export const ALERT_CLOSINGS = ["by_itself", "with_its_refund", "by_hand"] as const;
+export type AlertClosing = (typeof ALERT_CLOSINGS)[number];
+
+export function alertClosing(kind: AlertKind): AlertClosing {
+  const policy = ALERT_KIND_POLICIES[kind];
+  if (policy.resolvesAfterStableClear) {
+    return "by_itself";
+  }
+  return policy.scopeKind === "refund" ? "with_its_refund" : "by_hand";
+}

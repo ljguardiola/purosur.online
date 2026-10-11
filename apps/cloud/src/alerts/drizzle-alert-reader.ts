@@ -22,6 +22,8 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   alertDeliveries,
   alerts,
+  paymentRefunds,
+  paymentTransactions,
   registers,
   roles,
   userRoles,
@@ -207,7 +209,16 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       .select({ id: registers.id, name: registers.name })
       .from(registers)
       .where(inArray(sql`${registers.id}::text`, [...ids]));
-    return new Map([...userRows, ...registerRows].map((row) => [row.id, row.name]));
+    const refundRows = await this.db
+      .select({ id: paymentRefunds.id, name: registers.name })
+      .from(paymentRefunds)
+      .innerJoin(
+        paymentTransactions,
+        eq(paymentTransactions.id, paymentRefunds.paymentTransactionId),
+      )
+      .innerJoin(registers, eq(registers.id, paymentTransactions.registerId))
+      .where(inArray(sql`${paymentRefunds.id}::text`, [...ids]));
+    return new Map([...userRows, ...registerRows, ...refundRows].map((row) => [row.id, row.name]));
   }
 
   private searchCondition(search: AlertSearch): SQL | undefined {

@@ -1,4 +1,5 @@
 import {
+  ALERT_CLOSINGS,
   type AlertKind,
   ARGENTINA_TIME_ZONE,
   FACTURA_C_DOCUMENT_TYPE,
@@ -168,7 +169,7 @@ const alertBase = {
   escalatedAt: z.string().nullable().meta(ALERT_INSTANT),
   resolvedAt: z.string().nullable().meta(ALERT_INSTANT),
   open: z.boolean(),
-  resolvesByItself: z.boolean(),
+  closing: z.enum(ALERT_CLOSINGS),
   deliveries: z.array(alertDeliverySchema),
 };
 
