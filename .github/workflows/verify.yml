@@ -120,11 +120,11 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           HEAD_BRANCH: ${{ github.head_ref }}
 
-  # vitest run, sharded four ways, each shard given an even share of every project's files by their
+  # vitest run, sharded six ways, each shard given an even share of every project's files by their
   # durations measured on the run test-durations-source picked, so a slow shard - not the
   # ever-growing total test count - bounds this job's wall time.
   tests:
-    name: tests (${{ matrix.shard }}/4)
+    name: tests (${{ matrix.shard }}/6)
     needs: [scope, test-durations-source]
     # Skipped on `pull_request` only when scope positively decided the shards read no changed path;
     # a failed or missing decision runs them, like static above.
@@ -132,7 +132,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -181,7 +181,7 @@ jobs:
         env:
           PLAYWRIGHT_SERVER_IMAGE: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
 
-      - run: pnpm verify:tests --shard=${{ matrix.shard }}/4
+      - run: pnpm verify:tests --shard=${{ matrix.shard }}/6
         env:
           TESTCONTAINERS_RYUK_DISABLED: "true"
           TEST_DURATIONS_DIR: ${{ runner.temp }}/test-durations
