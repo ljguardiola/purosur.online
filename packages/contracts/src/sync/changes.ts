@@ -9,6 +9,7 @@ import {
   type NetContentUnit,
   OFFLINE_NUMBER_BLOCK_STATUSES,
   PULL_PAGE_MAX_CHANGES,
+  PULLED_ENTITIES,
   SALE_UNITS,
   STOCK_MOVEMENT_KINDS,
 } from "@purosur/domain";
@@ -29,6 +30,7 @@ export const changesQuerySchema = z.object({
     .regex(/^(?:0|[1-9][0-9]*)$/, SINCE_MESSAGE)
     .transform(Number)
     .refine(isPullCursor, SINCE_MESSAGE),
+  entity: z.enum(PULLED_ENTITIES).optional(),
 });
 
 export type ChangesQuery = z.input<typeof changesQuerySchema>;
