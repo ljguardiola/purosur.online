@@ -1,6 +1,6 @@
 {
-  "id": "dc9532e0-87fb-4ac4-a052-383c817e5f2d",
-  "prevId": "450a6618-d870-4108-9717-0e0abb53e267",
+  "id": "781525aa-0c49-4eb6-8ee8-5e0b3993acab",
+  "prevId": "bf39aeff-b2ed-4ea4-8384-d113a626c88c",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2433,6 +2433,82 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.lot_allocations": {
+      "name": "lot_allocations",
+      "schema": "",
+      "columns": {
+        "movement_id": {
+          "name": "movement_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lot_id": {
+          "name": "lot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "lot_allocations_lot_id_idx": {
+          "name": "lot_allocations_lot_id_idx",
+          "columns": [
+            {
+              "expression": "lot_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "lot_allocations_movement_id_stock_movements_id_fk": {
+          "name": "lot_allocations_movement_id_stock_movements_id_fk",
+          "tableFrom": "lot_allocations",
+          "tableTo": "stock_movements",
+          "columnsFrom": ["movement_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "lot_allocations_lot_id_lots_id_fk": {
+          "name": "lot_allocations_lot_id_lots_id_fk",
+          "tableFrom": "lot_allocations",
+          "tableTo": "lots",
+          "columnsFrom": ["lot_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "lot_allocations_movement_id_lot_id_pk": {
+          "name": "lot_allocations_movement_id_lot_id_pk",
+          "columns": ["movement_id", "lot_id"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "lot_allocations_quantity_check": {
+          "name": "lot_allocations_quantity_check",
+          "value": "\"lot_allocations\".\"quantity\" <> 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.lots": {
       "name": "lots",
       "schema": "",
@@ -2460,7 +2536,7 @@
           "name": "purchase_line_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "lot_number": {
           "name": "lot_number",
@@ -2474,23 +2550,50 @@
           "primaryKey": false,
           "notNull": false
         },
+        "purchased_on": {
+          "name": "purchased_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "technical": {
+          "name": "technical",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "cost_incomplete": {
+          "name": "cost_incomplete",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "cost_total_cents": {
           "name": "cost_total_cents",
           "type": "bigint",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "cost_quantity": {
           "name": "cost_quantity",
           "type": "bigint",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "quantity_received": {
           "name": "quantity_received",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true
+        },
+        "remaining": {
+          "name": "remaining",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "created_at": {
           "name": "created_at",
@@ -2500,7 +2603,51 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "lots_one_technical_per_product_branch": {
+          "name": "lots_one_technical_per_product_branch",
+          "columns": [
+            {
+              "expression": "product_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "location_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"lots\".\"technical\"",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "lots_product_id_location_id_idx": {
+          "name": "lots_product_id_location_id_idx",
+          "columns": [
+            {
+              "expression": "product_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "location_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "lots_product_id_products_id_fk": {
           "name": "lots_product_id_products_id_fk",
@@ -2543,6 +2690,22 @@
         "lots_cost_quantity_check": {
           "name": "lots_cost_quantity_check",
           "value": "\"lots\".\"cost_quantity\" > 0"
+        },
+        "lots_technical_iff_no_purchase_line_check": {
+          "name": "lots_technical_iff_no_purchase_line_check",
+          "value": "\"lots\".\"technical\" = (\"lots\".\"purchase_line_id\" is null)"
+        },
+        "lots_cost_pair_check": {
+          "name": "lots_cost_pair_check",
+          "value": "(\"lots\".\"cost_total_cents\" is null) = (\"lots\".\"cost_quantity\" is null)"
+        },
+        "lots_cost_known_or_incomplete_check": {
+          "name": "lots_cost_known_or_incomplete_check",
+          "value": "\"lots\".\"cost_total_cents\" is not null or \"lots\".\"cost_incomplete\""
+        },
+        "lots_technical_has_no_expiry_or_purchase_date_check": {
+          "name": "lots_technical_has_no_expiry_or_purchase_date_check",
+          "value": "not \"lots\".\"technical\" or (\"lots\".\"expires_on\" is null and \"lots\".\"purchased_on\" is null)"
         }
       },
       "isRLSEnabled": false
