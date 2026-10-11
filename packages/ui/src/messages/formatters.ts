@@ -18,6 +18,10 @@ export function formatCents(cents: number): string {
   return `$ ${formatAmountInput(cents)}`;
 }
 
+export function formatSignedCents(cents: number): string {
+  return cents < 0 ? `− ${formatCents(-cents)}` : formatCents(cents);
+}
+
 export function formatAmountInput(cents: number): string {
   return formatNumber(cents / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }

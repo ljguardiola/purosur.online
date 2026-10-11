@@ -174,6 +174,7 @@ export {
   formatNumber,
   formatOperationNumber,
   formatPointOfSaleNumber,
+  formatSignedCents,
   formatTimeAgo,
   formatWeight,
   formatWeightInput,
