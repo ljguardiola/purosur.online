@@ -113,6 +113,21 @@ describe("describeDatabaseFailure", () => {
     );
   });
 
+  it("drops the values listed by a failed query's message repeated in an error below another failed query", () => {
+    const failedQuery = new DrizzleQueryError(
+      "insert into suppliers (cuit) values ($1)",
+      [FICTIONAL_CUIT],
+      new Error("connection terminated unexpectedly"),
+    );
+    const wrapper = new Error(`could not store the supplier: ${failedQuery.message}`, {
+      cause: failedQuery,
+    });
+
+    expect(describeDatabaseFailure(wrapper)).toBe(
+      "unknown error: could not store the supplier: Failed query: insert into suppliers (cuit) values ($1) (caused by unknown error: Failed query: insert into suppliers (cuit) values ($1) (caused by unknown error: connection terminated unexpectedly))",
+    );
+  });
+
   it("keeps the quoted text of an error no failed query is behind", () => {
     const error = Object.assign(new Error('password authentication failed for user "cloud_app"'), {
       code: "28P01",
