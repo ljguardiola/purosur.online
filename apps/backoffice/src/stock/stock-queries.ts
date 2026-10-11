@@ -2,6 +2,7 @@ import type {
   StockBalance,
   StockBalanceList,
   StockCountList,
+  StockLotBreakdown,
   StockMovementList,
   StockMovementReasonList,
   StockPeriodDays,
@@ -12,6 +13,7 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
 import type {
   fetchExpectedBalance,
+  fetchProductLots,
   fetchStockBalances,
   fetchStockCounts,
   fetchStockMovementReasons,
@@ -27,6 +29,7 @@ export const stockKeys = {
   counts: (days: StockPeriodDays) => [...stockKey, "counts", days] as const,
   movements: (days: StockPeriodDays) => [...stockKey, "movements", days] as const,
   movementReasons: [...stockKey, "movement-reasons"] as const,
+  productLots: (productId: string) => [...stockKey, "product-lots", productId] as const,
   expectedBalance: (productId: string, at: string) =>
     [...stockKey, "expected-balance", productId, at] as const,
 };
@@ -109,6 +112,28 @@ export function useExpectedBalanceQuery(
     read: async () => {
       const outcome = await params.fetchExpectedBalance(params.productId, params.at);
       return outcome.kind === "not_found" ? { kind: "failed" } : outcome;
+    },
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export type ProductLots = { found: true; lots: StockLotBreakdown["lots"] } | { found: false };
+
+export function useProductLotsQuery(
+  params: ReadParams & { productId: string; fetchProductLots: typeof fetchProductLots },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<ProductLots>({
+    queryKey: stockKeys.productLots(params.productId),
+    read: async () => {
+      const outcome = await params.fetchProductLots(params.productId);
+      if (outcome.kind === "not_found") {
+        return { kind: "ok", value: { found: false } };
+      }
+      return outcome.kind === "ok"
+        ? { kind: "ok", value: { found: true, lots: outcome.value.lots } }
+        : outcome;
     },
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,

@@ -1,5 +1,6 @@
 import type { StockBalance } from "@purosur/contracts";
 import {
+  actionsColumn,
   dataColumn,
   ListFilter,
   plural,
@@ -10,7 +11,7 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
-import { Package, Search } from "lucide-react";
+import { Eye, Package, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
@@ -18,6 +19,7 @@ import { ScreenLayout } from "../shell/screen-layout";
 import { StockTopBar } from "../shell/stock-top-bar";
 import type { StockBalancesFilters } from "./routes";
 import type { StockBalancesScreenServices } from "./stock-balances-services";
+import { StockLotsModal } from "./stock-lots-modal";
 import { useStockBalancesQuery } from "./stock-queries";
 import { categoryFilterOptions } from "./stock-screen-parts";
 
@@ -52,25 +54,6 @@ function matchesBalance(balance: number, filter: BalanceFilter): boolean {
   return true;
 }
 
-const columns = [
-  dataColumn({
-    id: "product",
-    header: "Producto",
-    render: (item: StockBalance) => (
-      <div className="flex items-center gap-2">
-        <TableCellText description={item.categoryName}>{item.name}</TableCellText>
-        {item.active ? null : <Tag tone="neutral">Desactivado</Tag>}
-      </div>
-    ),
-  }),
-  dataColumn({
-    id: "balance",
-    header: "Saldo",
-    align: "end",
-    render: (item: StockBalance) => formatStockQuantity(item.balance, item.saleUnit),
-  }),
-] as const;
-
 export function StockBalancesScreen({
   filters,
   onFiltersChange,
@@ -88,6 +71,37 @@ export function StockBalancesScreen({
       reportFilters(shown);
     }
   }, [search, category, balance, filters]);
+
+  const [lotsOf, setLotsOf] = useState<StockBalance | null>(null);
+  const columns = [
+    dataColumn({
+      id: "product",
+      header: "Producto",
+      render: (item: StockBalance) => (
+        <div className="flex items-center gap-2">
+          <TableCellText description={item.categoryName}>{item.name}</TableCellText>
+          {item.active ? null : <Tag tone="neutral">Desactivado</Tag>}
+        </div>
+      ),
+    }),
+    dataColumn({
+      id: "balance",
+      header: "Saldo",
+      align: "end",
+      render: (item: StockBalance) => formatStockQuantity(item.balance, item.saleUnit),
+    }),
+    actionsColumn({
+      id: "actions",
+      header: "Acciones del saldo",
+      actions: [
+        (item: StockBalance) => ({
+          icon: <Eye />,
+          "aria-label": `Ver los lotes de ${item.name}`,
+          onPress: () => setLotsOf(item),
+        }),
+      ],
+    }),
+  ] as const;
 
   const data = useStockBalancesQuery({
     fetchStockBalances: services.fetchStockBalances,
@@ -167,6 +181,14 @@ export function StockBalancesScreen({
           )
         }
       />
+      {lotsOf === null ? null : (
+        <StockLotsModal
+          product={lotsOf}
+          services={services}
+          onClose={() => setLotsOf(null)}
+          onSessionEnded={onSessionEnded}
+        />
+      )}
     </ScreenLayout>
   );
 }
