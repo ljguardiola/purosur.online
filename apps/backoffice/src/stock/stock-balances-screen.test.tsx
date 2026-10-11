@@ -198,6 +198,7 @@ function shownProductNames(
 
 test("shows each product's unit cost, value and lot count, with the unit a kilo is costed by", async () => {
   const screen = await renderScreen(listed());
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
 
   const almondsRow = rowOf(screen.getByText("Almendras peladas").element());
   const honeyRow = rowOf(screen.getByText("Miel pura de abeja 1 kg").element());
@@ -212,13 +213,14 @@ test("shows each product's unit cost, value and lot count, with the unit a kilo 
 test("says a product has no cost and no value when the cloud answers none", async () => {
   const screen = await renderScreen(listed([crackers]));
 
-  const row = rowOf(screen.getByText("Galletas de arroz integrales").element());
   await expect.element(screen.getByText("Sin costo", { exact: true })).toBeVisible();
+  const row = rowOf(screen.getByText("Galletas de arroz integrales").element());
   expect(row.textContent).toContain("—");
 });
 
 test("says how a negative balance is corrected, writes its amounts negative and tints its row", async () => {
   const screen = await renderScreen(listed([yerba, honey]));
+  await expect.element(screen.getByText("Yerba mate orgánica 500 g")).toBeVisible();
 
   const row = rowOf(screen.getByText("Yerba mate orgánica 500 g").element());
   const otherRow = rowOf(screen.getByText("Miel pura de abeja 1 kg").element());
