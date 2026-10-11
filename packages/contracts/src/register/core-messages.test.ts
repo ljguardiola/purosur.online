@@ -1606,7 +1606,7 @@ describe("serial device messages", () => {
         status: {
           conditions: [],
           cloud: "reachable",
-          serial_devices: STANDINGS,
+          serial_devices: { scale: "matching", reader: "matching" },
           serial_devices_setup_offered: offered,
         },
       };
@@ -1624,7 +1624,12 @@ describe("serial device messages", () => {
       registerCoreToRendererMessageSchema.safeParse({
         type: "register-status",
         request_id: REQUEST_ID,
-        status: { conditions: [], cloud: "reachable", serial_devices: STANDINGS, ...offered },
+        status: {
+          conditions: [],
+          cloud: "reachable",
+          serial_devices: { scale: "matching", reader: "matching" },
+          ...offered,
+        },
       }).success,
     ).toBe(false);
   });
