@@ -15,19 +15,30 @@ describe("adjustLineRequestFrom", () => {
       reason: "Vence pronto",
     });
 
-    expect(request).toEqual({ adjustment: { kind: "PRICE", value: 150_050 }, reason: "Vence pronto" });
+    expect(request).toEqual({
+      adjustment: { kind: "PRICE", value: 150_050 },
+      reason: "Vence pronto",
+    });
     expect(adjustLineFormRequestSchema.safeParse(request).success).toBe(true);
   });
 
   it("reads a typed discount amount as cents", () => {
-    const request = adjustLineRequestFrom({ kind: "AMOUNT", value: "500", reason: "Envase dañado" });
+    const request = adjustLineRequestFrom({
+      kind: "AMOUNT",
+      value: "500",
+      reason: "Envase dañado",
+    });
 
     expect(request.adjustment).toEqual({ kind: "AMOUNT", value: 50_000 });
     expect(adjustLineFormRequestSchema.safeParse(request).success).toBe(true);
   });
 
   it("reads a typed percentage as a whole number", () => {
-    const request = adjustLineRequestFrom({ kind: "PERCENT", value: "10", reason: "Cliente frecuente" });
+    const request = adjustLineRequestFrom({
+      kind: "PERCENT",
+      value: "10",
+      reason: "Cliente frecuente",
+    });
 
     expect(request.adjustment).toEqual({ kind: "PERCENT", value: 10 });
     expect(adjustLineFormRequestSchema.safeParse(request).success).toBe(true);
@@ -56,7 +67,11 @@ describe("adjustLineRequestFrom", () => {
   });
 
   it("has the shape refuse a reason with only blanks", () => {
-    const request = adjustLineRequestFrom({ ...EMPTY_ADJUST_LINE_FORM, value: "100", reason: "   " });
+    const request = adjustLineRequestFrom({
+      ...EMPTY_ADJUST_LINE_FORM,
+      value: "100",
+      reason: "   ",
+    });
 
     expect(adjustLineFormRequestSchema.safeParse(request).success).toBe(false);
   });
@@ -72,9 +87,7 @@ describe("adjustLineValueMessage", () => {
     expect(adjustLineValueMessage("AMOUNT")).toBe(
       "Ingresá un descuento mayor a 0, por ejemplo 500,00.",
     );
-    expect(adjustLineValueMessage("PERCENT")).toBe(
-      "Ingresá un porcentaje entero, por ejemplo 10.",
-    );
+    expect(adjustLineValueMessage("PERCENT")).toBe("Ingresá un porcentaje entero, por ejemplo 10.");
   });
 
   it("asks for the reason", () => {

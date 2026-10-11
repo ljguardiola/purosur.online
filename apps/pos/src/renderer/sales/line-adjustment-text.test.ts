@@ -13,9 +13,7 @@ describe("lineAdjustmentText", () => {
   });
 
   it("writes a fixed amount discount as money", () => {
-    expect(lineAdjustmentText({ kind: "AMOUNT", value: 50_000 })).toBe(
-      "Descuento manual $ 500,00",
-    );
+    expect(lineAdjustmentText({ kind: "AMOUNT", value: 50_000 })).toBe("Descuento manual $ 500,00");
   });
 });
 

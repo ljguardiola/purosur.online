@@ -107,13 +107,17 @@ describe("AdjustLineModal", () => {
     const { screen } = await renderModal();
 
     await expect.element(screen.getByRole("radio", { name: "Precio nuevo" })).toBeChecked();
-    await expect.element(screen.getByRole("textbox", { name: "Precio nuevo por unidad" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("textbox", { name: "Precio nuevo por unidad" }))
+      .toBeVisible();
   });
 
   it("asks the price per kg for a product sold by weight", async () => {
     const { screen } = await renderModal({ saleUnit: "KG" });
 
-    await expect.element(screen.getByRole("textbox", { name: "Precio nuevo por kg" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("textbox", { name: "Precio nuevo por kg" }))
+      .toBeVisible();
   });
 
   it("sends a typed price in cents with its reason and tells the screen the sale it returns", async () => {
@@ -170,12 +174,19 @@ describe("AdjustLineModal", () => {
 
     await userEvent.click(screen.getByRole("radio", { name: "Descuento en %" }));
 
-    await expect.element(screen.getByRole("textbox", { name: "Porcentaje de descuento" })).toHaveValue("");
+    await expect
+      .element(screen.getByRole("textbox", { name: "Porcentaje de descuento" }))
+      .toHaveValue("");
   });
 
   describe("before asking the core", () => {
     it.each([
-      ["Precio nuevo", "Precio nuevo por unidad", "", "Ingresá un precio válido, por ejemplo 1.500,00."],
+      [
+        "Precio nuevo",
+        "Precio nuevo por unidad",
+        "",
+        "Ingresá un precio válido, por ejemplo 1.500,00.",
+      ],
       [
         "Descuento en $",
         "Monto de descuento",
@@ -254,7 +265,9 @@ describe("AdjustLineModal", () => {
     it("asks for no authorization when the sale does not require it", async () => {
       const { screen, requested } = await renderModal();
 
-      await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).not.toBeInTheDocument();
+      await expect
+        .element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO"))
+        .not.toBeInTheDocument();
       expect(requested).toEqual([]);
     });
 
@@ -277,7 +290,11 @@ describe("AdjustLineModal", () => {
     it("shows a refused PIN and stays open", async () => {
       const { screen, onAdjusted } = await renderModal({
         authorizationRequired: true,
-        adjustSaleLine: async () => ({ kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 6 }),
+        adjustSaleLine: async () => ({
+          kind: "wrong_pin",
+          retry_after_seconds: 0,
+          attempts_left: 6,
+        }),
       });
       await typeValue(screen, "Precio nuevo por unidad", "1.500");
       await typeReason(screen, "Vence pronto");
@@ -365,23 +382,25 @@ describe("AdjustLineModal", () => {
       await expect.poll(() => onSaleGone.mock.calls.length).toBe(1);
     });
 
-    it.each([
-      { kind: "not_signed_in" },
-      { kind: "no_open_session" },
-    ] as const)("tells the screen nobody is signed in: $kind", async (outcome) => {
-      const { screen, onSessionInvalid } = await renderModal({
-        adjustSaleLine: async () => outcome,
-      });
-      await typeValue(screen, "Precio nuevo por unidad", "1.500");
-      await typeReason(screen, "Motivo");
+    it.each([{ kind: "not_signed_in" }, { kind: "no_open_session" }] as const)(
+      "tells the screen nobody is signed in: $kind",
+      async (outcome) => {
+        const { screen, onSessionInvalid } = await renderModal({
+          adjustSaleLine: async () => outcome,
+        });
+        await typeValue(screen, "Precio nuevo por unidad", "1.500");
+        await typeReason(screen, "Motivo");
 
-      await apply(screen);
+        await apply(screen);
 
-      await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
-    });
+        await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
+      },
+    );
 
     it("says the person may not sell", async () => {
-      const { screen } = await renderModal({ adjustSaleLine: async () => ({ kind: "not_permitted" }) });
+      const { screen } = await renderModal({
+        adjustSaleLine: async () => ({ kind: "not_permitted" }),
+      });
       await typeValue(screen, "Precio nuevo por unidad", "1.500");
       await typeReason(screen, "Motivo");
 
@@ -393,7 +412,9 @@ describe("AdjustLineModal", () => {
     });
 
     it("says the person no longer may change prices, when nobody was asked to authorize", async () => {
-      const { screen } = await renderModal({ adjustSaleLine: async () => ({ kind: "lacks_permission" }) });
+      const { screen } = await renderModal({
+        adjustSaleLine: async () => ({ kind: "lacks_permission" }),
+      });
       await typeValue(screen, "Precio nuevo por unidad", "1.500");
       await typeReason(screen, "Motivo");
 
@@ -405,7 +426,9 @@ describe("AdjustLineModal", () => {
     });
 
     it("says the change failed and keeps the button enabled", async () => {
-      const { screen } = await renderModal({ adjustSaleLine: async () => ({ kind: "unavailable" }) });
+      const { screen } = await renderModal({
+        adjustSaleLine: async () => ({ kind: "unavailable" }),
+      });
       await typeValue(screen, "Precio nuevo por unidad", "1.500");
       await typeReason(screen, "Motivo");
 
