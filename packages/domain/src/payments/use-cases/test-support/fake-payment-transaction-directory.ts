@@ -1,3 +1,4 @@
+import { mayHaveUnrecordedOrder } from "../../model/payment-transaction.js";
 import type {
   PaymentTransactionDirectory,
   PaymentTransactionReference,
@@ -7,6 +8,7 @@ import type { FakePaymentTransactionLanes } from "./fake-payment-transaction-lan
 export class FakePaymentTransactionDirectory implements PaymentTransactionDirectory {
   staleReferenceOfOrder: PaymentTransactionReference | undefined;
   staleListing: PaymentTransactionReference[] | undefined;
+  orderRecordedMeanwhile: string | undefined;
   private readonly lanes: FakePaymentTransactionLanes;
 
   constructor(lanes: FakePaymentTransactionLanes) {
@@ -34,5 +36,21 @@ export class FakePaymentTransactionDirectory implements PaymentTransactionDirect
     return [...this.lanes.transactions.values()]
       .filter((transaction) => transaction.state === "PENDING")
       .map(({ id, registerId }) => ({ id, registerId }));
+  }
+
+  async anyPaymentTransactionMayHaveUnrecordedOrder(): Promise<boolean> {
+    this.lanes.operations.push("anyPaymentTransactionMayHaveUnrecordedOrder");
+    return [...this.lanes.transactions.values()].some(mayHaveUnrecordedOrder);
+  }
+
+  async paymentTransactionOfExternalReference(
+    externalReference: string,
+  ): Promise<PaymentTransactionReference | null> {
+    this.lanes.operations.push(`paymentTransactionOfExternalReference `);
+    const found = this.lanes.transactions.get(externalReference);
+    if (found && this.orderRecordedMeanwhile !== undefined) {
+      found.providerOrderId = this.orderRecordedMeanwhile;
+    }
+    return found ? { id: found.id, registerId: found.registerId } : null;
   }
 }
