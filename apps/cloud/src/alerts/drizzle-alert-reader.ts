@@ -231,6 +231,15 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       .select({ id: sql<string>`${registers.id}::text` })
       .from(registers)
       .where(ilike(registers.name, pattern));
+    const matchingRefundIds = this.db
+      .select({ id: sql<string>`${paymentRefunds.id}::text` })
+      .from(paymentRefunds)
+      .innerJoin(
+        paymentTransactions,
+        eq(paymentTransactions.id, paymentRefunds.paymentTransactionId),
+      )
+      .innerJoin(registers, eq(registers.id, paymentTransactions.registerId))
+      .where(ilike(registers.name, pattern));
     return or(
       search.kindsWithMatchingTitle.length > 0
         ? inArray(alerts.kind, [...search.kindsWithMatchingTitle])
@@ -249,6 +258,10 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
           sql`split_part(${alerts.scope}, ${REGISTER_FORTNIGHT_SCOPE_SEPARATOR}, 1)`,
           matchingRegisterIds,
         ),
+      ),
+      and(
+        inArray(alerts.kind, alertKindsWithScope("refund")),
+        inArray(alerts.scope, matchingRefundIds),
       ),
       and(
         inArray(alerts.kind, alertKindsWithScope("sourceAddress")),
