@@ -346,7 +346,6 @@ export {
   SUPPLIER_CONTACT_MAX_LENGTH,
   SUPPLIER_NAME_MAX_LENGTH,
   SUPPLIER_NOTE_MAX_LENGTH,
-  unitCostCents,
 } from "./purchasing/index.js";
 export type {
   CashBreakdown,
