@@ -81,7 +81,11 @@ const issuerIdentificationRow = {
   version: 2,
 };
 
-const offlinePointOfSaleRow = { point_of_sale_number: 20, version: 1 };
+const offlinePointOfSaleRow = {
+  point_of_sale_number: 20,
+  tax_authority_last_authorized_number: 38,
+  version: 1,
+};
 
 const offlineAuthorizationCodeRow = {
   fortnight_start: "2026-09-16",
@@ -266,6 +270,20 @@ describe("changesPageSchema", () => {
       change(1, "register_offline_point_of_sale", offlinePointOfSaleRow),
     ],
     [
+      "the offline point of sale of a register whose tax authority count is not known yet",
+      change(1, "register_offline_point_of_sale", {
+        ...offlinePointOfSaleRow,
+        tax_authority_last_authorized_number: null,
+      }),
+    ],
+    [
+      "the offline point of sale of a register whose tax authority never authorized anything",
+      change(1, "register_offline_point_of_sale", {
+        ...offlinePointOfSaleRow,
+        tax_authority_last_authorized_number: 0,
+      }),
+    ],
+    [
       "the offline authorization code of a fortnight",
       change(1, "offline_authorization_code", offlineAuthorizationCodeRow),
     ],
@@ -417,6 +435,20 @@ describe("changesPageSchema", () => {
       changesPageSchema.parse(pageOf(change(1, "register_point_of_sale", legacyRow))).changes[0],
     ).toEqual(
       change(1, "register_point_of_sale", {
+        ...legacyRow,
+        tax_authority_last_authorized_number: null,
+      }),
+    );
+  });
+
+  it("reads the offline point of sale of a cloud that does not send the tax authority count yet as not known", () => {
+    const { tax_authority_last_authorized_number: _count, ...legacyRow } = offlinePointOfSaleRow;
+
+    expect(
+      changesPageSchema.parse(pageOf(change(1, "register_offline_point_of_sale", legacyRow)))
+        .changes[0],
+    ).toEqual(
+      change(1, "register_offline_point_of_sale", {
         ...legacyRow,
         tax_authority_last_authorized_number: null,
       }),
@@ -674,6 +706,24 @@ describe("changesPageSchema", () => {
         change(1, "register_offline_point_of_sale", {
           ...offlinePointOfSaleRow,
           point_of_sale_number: null,
+        }),
+      ),
+    ],
+    [
+      "an offline point of sale with a negative tax authority count",
+      pageOf(
+        change(1, "register_offline_point_of_sale", {
+          ...offlinePointOfSaleRow,
+          tax_authority_last_authorized_number: -1,
+        }),
+      ),
+    ],
+    [
+      "an offline point of sale with a fractional tax authority count",
+      pageOf(
+        change(1, "register_offline_point_of_sale", {
+          ...offlinePointOfSaleRow,
+          tax_authority_last_authorized_number: 1.5,
         }),
       ),
     ],
