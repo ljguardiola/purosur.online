@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { paymentTransactions } from "../platform/db/schema.js";
+import { alerts, paymentRefunds, paymentTransactions } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
 import {
@@ -75,6 +75,30 @@ describe("mercadoPagoPendingCheckJobs", () => {
     expect(mercadoPago.readings).toEqual([ORDER_ID]);
     const [row] = await testDatabase.db.select().from(paymentTransactions);
     expect(row?.state).toBe("APPROVED");
+  });
+
+  it("opens the refund task of a replaced payment whose order turns out paid, once however many checks read it", async () => {
+    const registerId = await insertRegister(testDatabase.db, "Caja 1");
+    const payment = pendingTransaction(registerId, { providerOrderId: ORDER_ID, replaced: true });
+    await testDatabase.db.insert(paymentTransactions).values(payment);
+    const mercadoPago = new FakeMercadoPagoOrders();
+    mercadoPago.reading = { kind: "read", result: PAID_ORDER };
+    const check = taskOf(jobsOf(mercadoPago), MERCADO_PAGO_PENDING_CHECK_TASK_IDENTIFIER);
+
+    await check({}, buildJobHelpers().helpers);
+    await check({}, buildJobHelpers().helpers);
+
+    expect(await testDatabase.db.select().from(paymentRefunds)).toEqual([
+      expect.objectContaining({
+        paymentTransactionId: payment.id,
+        origin: "late_payment",
+        state: "PENDING",
+        occurredAt: NOW,
+      }),
+    ]);
+    expect(await testDatabase.db.select().from(alerts)).toEqual([
+      expect.objectContaining({ kind: "late_payment_refund", audience: "local" }),
+    ]);
   });
 
   it("cancels the order of a replaced pending payment with a new key on every check, never the payment's own identifier", async () => {
