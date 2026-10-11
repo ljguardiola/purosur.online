@@ -51,9 +51,9 @@ test("tells a cancelled sale and who cancelled it", () => {
   });
 });
 
-test("says there is no data when the canceller is not a known person", () => {
+test("tells a cancelled sale alone when its canceller is not a known person", () => {
   expect(refundReason({ ...cancelledSale, cancelled_by_name: null }).detail).toBe(
-    "La venta del 16/09 09:37 se canceló · la canceló Sin dato",
+    "La venta del 16/09 09:37 se canceló",
   );
 });
 

@@ -84,7 +84,7 @@ test("shows the breadcrumb, the heading and each pending refund with since when,
   expect(rows[0]).toContain("Transferencia");
   expect(rows[0]).toContain("$ 2.500,00");
   expect(rows[1]).toContain("hace 20 minutos");
-  expect(rows[1]).toContain("la canceló Sin dato");
+  expect(rows[1]).not.toContain("la canceló");
   expect(rows[1]).toContain("$ 980,00");
   await expectNoAccessibilityViolations(screen.container);
 });
