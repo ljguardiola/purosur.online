@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
+import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { migrationClock } from "../platform/test-support/migration-clock";
+import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import type { RegisterPulledChange } from "./pulled-change";
 import type { PULLED_TABLES } from "./pulled-tables";
-import type { SqliteLocalReplica } from "./sqlite-local-replica";
+import { SqliteLocalReplica } from "./sqlite-local-replica";
 import { changesOfEntity } from "./test-support/pulled-changes-of-every-entity";
 import {
   openAdoptedReplica,
@@ -86,10 +89,13 @@ function column(table: string, name: string): unknown {
 }
 
 describe("the redeliveries a register is waiting for", () => {
-  it("holds the point of sale's, declared by the migration that added its count", async () => {
-    expect(await replica.pendingRedeliveries()).toEqual([
+  it("holds the point of sale's in a register whose installation the migrations found already adopted", async () => {
+    const migrated = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+
+    expect(await new SqliteLocalReplica(migrated).pendingRedeliveries()).toEqual([
       { entity: "register_point_of_sale", cursor: 0 },
     ]);
+    migrated.close();
   });
 
   it("names an entity once however many of its tables are declared, from the lowest cursor of them", async () => {

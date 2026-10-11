@@ -1,14 +1,22 @@
 import type { BranchSettingsBody } from "@purosur/contracts";
 import type { BranchWeeklyHoursRange, NetContentUnit, SaleUnit } from "@purosur/domain";
 import { applyPulledStockMovement } from "@purosur/domain/stock/use-cases";
-import type { LocalReplica, PullPage } from "@purosur/domain/sync/use-cases";
+import type {
+  LocalReplica,
+  PendingRedelivery,
+  PulledEntity,
+  PullPage,
+  RedeliveryReplica,
+} from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import { SqliteReplicatedStockLedger } from "../stock/sqlite-stock-ledger";
 import { prepareAccessPageWrites } from "./access-page-writes";
 import { prepareCatalogPageWrites } from "./catalog-page-writes";
 import { prepareDiscountPageWrites } from "./discount-page-writes";
 import { prepareFiscalPageWrites } from "./fiscal-page-writes";
+import { type PageWriteMode, versionAccepted } from "./page-write-mode";
 import type { RegisterPulledChange } from "./pulled-change";
+import { PULLED_TABLES } from "./pulled-tables";
 import { prepareRegisterPageWrites } from "./register-page-writes";
 
 const DAY_FIELDS = [
@@ -38,7 +46,15 @@ function weeklyHoursOf(row: BranchSettingsBody): WeeklyHours {
   return Object.fromEntries(DAY_FIELDS.map((field) => [field, row[field]])) as WeeklyHours;
 }
 
-export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
+const ENTITY_OF_TABLE: ReadonlyMap<string, PulledEntity> = new Map(Object.entries(PULLED_TABLES));
+
+function tablesOf(entity: PulledEntity): string[] {
+  return [...ENTITY_OF_TABLE].filter(([, pulled]) => pulled === entity).map(([table]) => table);
+}
+
+export class SqliteLocalReplica
+  implements LocalReplica<RegisterPulledChange>, RedeliveryReplica<RegisterPulledChange>
+{
   private readonly database: LocalDatabase;
   private pepper: string | undefined;
 
@@ -75,6 +91,7 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
         this.database.prepare("DELETE FROM register_offline_point_of_sale").run();
         this.database.prepare("DELETE FROM offline_number_blocks").run();
         this.database.prepare("DELETE FROM branch_settings").run();
+        this.database.prepare("DELETE FROM pulled_table_redeliveries").run();
       }
     })();
   }
@@ -91,11 +108,67 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
 
   // A version the register already has, or an older one delivered late, never overwrites it.
   async savePage(page: PullPage<RegisterPulledChange>): Promise<void> {
-    const catalog = prepareCatalogPageWrites(this.database);
-    const access = prepareAccessPageWrites(this.database, this.pepper);
-    const register = prepareRegisterPageWrites(this.database);
-    const discount = prepareDiscountPageWrites(this.database);
-    const fiscal = prepareFiscalPageWrites(this.database);
+    const saveCursor = this.database.prepare<[number]>(
+      "UPDATE sync_state SET pull_cursor = ? WHERE id = 1",
+    );
+    this.database.transaction(() => {
+      this.writeChanges(page.changes, "pull");
+      saveCursor.run(page.cursor);
+    })();
+  }
+
+  async pendingRedeliveries(): Promise<PendingRedelivery[]> {
+    const cursors = new Map<PulledEntity, number>();
+    const declared = this.database
+      .prepare<[], { table_name: string; cursor: number }>(
+        "SELECT table_name, cursor FROM pulled_table_redeliveries",
+      )
+      .all();
+    for (const { table_name, cursor } of declared) {
+      const entity = ENTITY_OF_TABLE.get(table_name);
+      if (entity !== undefined) {
+        cursors.set(entity, Math.min(cursors.get(entity) ?? cursor, cursor));
+      }
+    }
+    return [...cursors]
+      .map(([entity, cursor]) => ({ entity, cursor }))
+      .sort((a, b) => a.entity.localeCompare(b.entity));
+  }
+
+  // A row of a version the register already has is rewritten with what the cloud holds now, except
+  // what only the register knows.
+  async saveRedeliveredPage(
+    entity: PulledEntity,
+    page: PullPage<RegisterPulledChange>,
+  ): Promise<void> {
+    const saveCursor = this.database.prepare<[number, string]>(
+      "UPDATE pulled_table_redeliveries SET cursor = ? WHERE table_name = ?",
+    );
+    this.database.transaction(() => {
+      this.writeChanges(page.changes, "redelivery");
+      for (const table of tablesOf(entity)) {
+        saveCursor.run(page.cursor, table);
+      }
+    })();
+  }
+
+  async finishRedelivery(entity: PulledEntity): Promise<void> {
+    const forget = this.database.prepare<[string]>(
+      "DELETE FROM pulled_table_redeliveries WHERE table_name = ?",
+    );
+    this.database.transaction(() => {
+      for (const table of tablesOf(entity)) {
+        forget.run(table);
+      }
+    })();
+  }
+
+  private writeChanges(changes: readonly RegisterPulledChange[], mode: PageWriteMode): void {
+    const catalog = prepareCatalogPageWrites(this.database, mode);
+    const access = prepareAccessPageWrites(this.database, this.pepper, mode);
+    const register = prepareRegisterPageWrites(this.database, mode);
+    const discount = prepareDiscountPageWrites(this.database, mode);
+    const fiscal = prepareFiscalPageWrites(this.database, mode);
     const stock = new SqliteReplicatedStockLedger(this.database);
     const saveBranchSettings = this.database.prepare(
       `INSERT INTO branch_settings (
@@ -115,105 +188,99 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
          unreviewed_price_alert_days = excluded.unreviewed_price_alert_days,
          good_condition_return_days = excluded.good_condition_return_days,
          version = excluded.version
-       WHERE excluded.version > branch_settings.version`,
-    );
-    const saveCursor = this.database.prepare<[number]>(
-      "UPDATE sync_state SET pull_cursor = ? WHERE id = 1",
+       WHERE excluded.version ${versionAccepted(mode)} branch_settings.version`,
     );
 
-    this.database.transaction(() => {
-      for (const { change } of page.changes) {
-        switch (change.entity) {
-          case "branch_settings": {
-            const { row } = change;
-            saveBranchSettings.run({
-              location_id: change.entity_id,
-              address: row.address,
-              whatsapp_number: row.whatsapp_number,
-              instagram_handle: row.instagram_handle,
-              weekly_hours: JSON.stringify(weeklyHoursOf(row)),
-              expiring_lot_alert_days: row.expiring_lot_alert_days,
-              unreviewed_price_alert_days: row.unreviewed_price_alert_days,
-              good_condition_return_days: row.good_condition_return_days,
-              version: row.version,
-            });
-            break;
+    for (const { change } of changes) {
+      switch (change.entity) {
+        case "branch_settings": {
+          const { row } = change;
+          saveBranchSettings.run({
+            location_id: change.entity_id,
+            address: row.address,
+            whatsapp_number: row.whatsapp_number,
+            instagram_handle: row.instagram_handle,
+            weekly_hours: JSON.stringify(weeklyHoursOf(row)),
+            expiring_lot_alert_days: row.expiring_lot_alert_days,
+            unreviewed_price_alert_days: row.unreviewed_price_alert_days,
+            good_condition_return_days: row.good_condition_return_days,
+            version: row.version,
+          });
+          break;
+        }
+        case "category":
+          catalog.category(change);
+          break;
+        case "product":
+          catalog.product(change);
+          break;
+        case "tag":
+          catalog.tag(change);
+          break;
+        case "price_list":
+          catalog.priceList(change);
+          break;
+        case "price":
+          catalog.price(change);
+          break;
+        case "user":
+          access.user(change);
+          break;
+        case "role":
+          access.role(change);
+          break;
+        case "register":
+          register.save(change);
+          break;
+        case "register_point_of_sale":
+          register.pointOfSale(change);
+          break;
+        case "register_offline_point_of_sale":
+          register.offlinePointOfSale(change);
+          break;
+        case "discount":
+          discount.save(change);
+          break;
+        case "issuer_identification":
+          fiscal.issuerIdentification(change);
+          break;
+        case "buyer_identification_threshold":
+          fiscal.buyerIdentificationThreshold(change);
+          break;
+        case "buyer_tax_status_set":
+          fiscal.buyerTaxStatusSet(change);
+          break;
+        case "offline_authorization_code":
+          fiscal.offlineAuthorizationCode(change);
+          break;
+        case "offline_number_block":
+          fiscal.offlineNumberBlock(change);
+          break;
+        case "stock_movement":
+          applyPulledStockMovement(stock, {
+            id: change.entity_id,
+            productId: change.row.product_id,
+            kind: change.row.kind,
+            delta: change.row.delta,
+            occurredAt: new Date(change.row.occurred_at),
+            supersededByCountId: change.row.superseded_by_count_id,
+          });
+          break;
+        case "removal": {
+          const { removed_entity } = change;
+          if (removed_entity === "register") {
+            register.removal({ ...change, removed_entity });
+          } else if (removed_entity === "discount") {
+            discount.removal({ ...change, removed_entity });
+          } else if (removed_entity === "user" || removed_entity === "role") {
+            access.removal({ ...change, removed_entity });
+          } else {
+            catalog.removal({ ...change, removed_entity });
           }
-          case "category":
-            catalog.category(change);
-            break;
-          case "product":
-            catalog.product(change);
-            break;
-          case "tag":
-            catalog.tag(change);
-            break;
-          case "price_list":
-            catalog.priceList(change);
-            break;
-          case "price":
-            catalog.price(change);
-            break;
-          case "user":
-            access.user(change);
-            break;
-          case "role":
-            access.role(change);
-            break;
-          case "register":
-            register.save(change);
-            break;
-          case "register_point_of_sale":
-            register.pointOfSale(change);
-            break;
-          case "register_offline_point_of_sale":
-            register.offlinePointOfSale(change);
-            break;
-          case "discount":
-            discount.save(change);
-            break;
-          case "issuer_identification":
-            fiscal.issuerIdentification(change);
-            break;
-          case "buyer_identification_threshold":
-            fiscal.buyerIdentificationThreshold(change);
-            break;
-          case "buyer_tax_status_set":
-            fiscal.buyerTaxStatusSet(change);
-            break;
-          case "offline_authorization_code":
-            fiscal.offlineAuthorizationCode(change);
-            break;
-          case "offline_number_block":
-            fiscal.offlineNumberBlock(change);
-            break;
-          case "stock_movement":
-            applyPulledStockMovement(stock, {
-              id: change.entity_id,
-              productId: change.row.product_id,
-              kind: change.row.kind,
-              delta: change.row.delta,
-              occurredAt: new Date(change.row.occurred_at),
-              supersededByCountId: change.row.superseded_by_count_id,
-            });
-            break;
-          case "removal": {
-            const { removed_entity } = change;
-            if (removed_entity === "register") {
-              register.removal({ ...change, removed_entity });
-            } else if (removed_entity === "discount") {
-              discount.removal({ ...change, removed_entity });
-            } else if (removed_entity === "user" || removed_entity === "role") {
-              access.removal({ ...change, removed_entity });
-            } else {
-              catalog.removal({ ...change, removed_entity });
-            }
-            break;
-          }
+          break;
         }
       }
-      saveCursor.run(page.cursor);
-    })();
+    }
   }
 
   registerName(): string | undefined {

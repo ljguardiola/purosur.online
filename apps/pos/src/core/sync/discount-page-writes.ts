@@ -1,5 +1,6 @@
 import type { SyncChange } from "@purosur/contracts";
 import type { LocalDatabase } from "../platform/local-database";
+import { type PageWriteMode, versionAccepted } from "./page-write-mode";
 import type { RemovalOf } from "./pulled-change";
 
 type DiscountBenefit = Extract<SyncChange, { entity: "discount" }>["row"]["benefit"];
@@ -18,7 +19,8 @@ function benefitColumns(benefit: DiscountBenefit) {
   }
 }
 
-export function prepareDiscountPageWrites(database: LocalDatabase) {
+export function prepareDiscountPageWrites(database: LocalDatabase, mode: PageWriteMode) {
+  const accepts = versionAccepted(mode);
   const saveDiscount = database.prepare(
     `INSERT INTO discounts (
        id, name, kind, percent, buy_qty, pay_qty, target_kind, target_id, valid_from, valid_to,
@@ -41,7 +43,7 @@ export function prepareDiscountPageWrites(database: LocalDatabase) {
        active = excluded.active,
        version = excluded.version,
        removed = 0
-     WHERE excluded.version > discounts.version`,
+     WHERE excluded.version ${accepts} discounts.version`,
   );
   const removeDiscount = database.prepare(
     "UPDATE discounts SET removed = 1, version = @version WHERE id = @id AND version < @version",
