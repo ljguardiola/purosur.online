@@ -24,6 +24,8 @@ export type {
   EventUpcaster,
   FailedAttempt,
   ProviderTransactionOfPayment,
+  QuarantinedEvent,
+  QuarantineNotices,
   SaleStockApplication,
   UnappliedEvent,
 } from "./event-application-ports.js";

@@ -375,7 +375,7 @@ describe("authorizeFiscalDocument", () => {
       seeded: { answer: AUTHORIZED_ANSWER },
     });
 
-    await expect(outcome).resolves.toEqual({ kind: "answered", answer: AUTHORIZED_ANSWER });
+    await expect(outcome).resolves.toEqual({ kind: "already_answered", answer: AUTHORIZED_ANSWER });
     expect(lanes.operations).toEqual([
       "enterLane",
       "registerOwnsPointOfSale",
@@ -390,7 +390,7 @@ describe("authorizeFiscalDocument", () => {
     const rejected = { kind: "rejected", codes: [10242], rejectionClass: "content" } as const;
     const { lanes, outcome } = authorize({ seeded: { answer: rejected } });
 
-    await expect(outcome).resolves.toEqual({ kind: "answered", answer: rejected });
+    await expect(outcome).resolves.toEqual({ kind: "already_answered", answer: rejected });
     expect(lanes.rejectionAlertChanges).toEqual([]);
   });
 
@@ -424,7 +424,10 @@ describe("authorizeFiscalDocument", () => {
   it("answers unclear for a document whose earlier request has no answer, without calling the tax authority", async () => {
     const { lanes, taxAuthority, outcome } = authorize({ seeded: { answer: null } });
 
-    await expect(outcome).resolves.toEqual({ kind: "answered", answer: { kind: "unclear" } });
+    await expect(outcome).resolves.toEqual({
+      kind: "already_answered",
+      answer: { kind: "unclear" },
+    });
     expect(lanes.operations).not.toContain("recordRequest");
     expect(lanes.answers.has(FISCAL_DOCUMENT_ID)).toBe(false);
     expect(taxAuthority.solicitations).toEqual([]);

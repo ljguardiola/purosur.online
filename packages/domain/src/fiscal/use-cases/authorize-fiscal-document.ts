@@ -35,6 +35,7 @@ export interface AuthorizeFiscalDocumentInput {
 
 export type AuthorizeFiscalDocumentOutcome =
   | { kind: "answered"; answer: RealTimeAuthorizationAnswer }
+  | { kind: "already_answered"; answer: RealTimeAuthorizationAnswer }
   | { kind: "point_of_sale_not_owned" }
   | { kind: "fiscal_document_not_owned" }
   | { kind: "sale_event_mismatch" };
@@ -86,7 +87,7 @@ export async function authorizeFiscalDocument(
 
       const recorded = await lane.recordedRequest(registerId, request.fiscalDocumentId);
       if (recorded !== null) {
-        return { kind: "answered", answer: recorded.answer ?? { kind: "unclear" } };
+        return { kind: "already_answered", answer: recorded.answer ?? { kind: "unclear" } };
       }
 
       const notAfter = authorizationCallDeadline({

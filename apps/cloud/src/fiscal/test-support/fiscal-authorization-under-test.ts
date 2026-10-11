@@ -4,8 +4,9 @@ import type {
   TaxAuthorityInvoicing,
 } from "@purosur/domain/fiscal/use-cases";
 import Fastify, { type FastifyInstance } from "fastify";
-import { afterAll, afterEach, beforeAll, beforeEach } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, type Mock, vi } from "vitest";
 import { arcaWsaaTokens } from "../../platform/db/schema.js";
+import type { reportError } from "../../platform/error-reporting.js";
 import { registerRouteAccess } from "../../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../../test-support/device-token-rotation-key.js";
@@ -29,6 +30,7 @@ export interface FiscalAuthorizationRouteUnderTest {
   readonly db: TestDatabase["db"];
   readonly app: FastifyInstance;
   readonly taxAuthority: FakeTaxAuthority;
+  readonly report: Mock<typeof reportError>;
   issueWsaaToken(): Promise<void>;
   readClockWith(now: () => Date): void;
 }
@@ -37,6 +39,7 @@ export function fiscalAuthorizationRouteUnderTest(): FiscalAuthorizationRouteUnd
   let testDatabase: TestDatabase;
   let app: FastifyInstance;
   let taxAuthority: FakeTaxAuthority;
+  let report: Mock<typeof reportError>;
   let now: () => Date;
 
   beforeAll(async () => {
@@ -50,6 +53,7 @@ export function fiscalAuthorizationRouteUnderTest(): FiscalAuthorizationRouteUnd
   beforeEach(async () => {
     await testDatabase.clear();
     taxAuthority = new FakeTaxAuthority();
+    report = vi.fn<typeof reportError>();
     now = () => NOW;
     app = Fastify();
     registerRouteAccess(app);
@@ -61,6 +65,7 @@ export function fiscalAuthorizationRouteUnderTest(): FiscalAuthorizationRouteUnd
       connections: { withConnection: (work) => work(testDatabase.db) },
       taxAuthority,
       certificateFingerprint: CERTIFICATE_FINGERPRINT,
+      report,
     });
   });
 
@@ -77,6 +82,9 @@ export function fiscalAuthorizationRouteUnderTest(): FiscalAuthorizationRouteUnd
     },
     get taxAuthority() {
       return taxAuthority;
+    },
+    get report() {
+      return report;
     },
     readClockWith(clock) {
       now = clock;

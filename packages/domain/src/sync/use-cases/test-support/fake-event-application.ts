@@ -11,6 +11,8 @@ import type {
   EventApplicationTransaction,
   EventUpcaster,
   FailedAttempt,
+  QuarantinedEvent,
+  QuarantineNotices,
   UnappliedEvent,
 } from "../event-application-ports.js";
 import type { QuarantineReleaseRecord } from "../quarantine-release-ports.js";
@@ -184,6 +186,20 @@ export class FakeEventApplication implements EventApplication {
         this.state.invariantAlerts.push(details);
       },
     };
+  }
+}
+
+export class FakeQuarantineNotices implements QuarantineNotices {
+  readonly named: QuarantinedEvent[] = [];
+  private readonly calls: string[];
+
+  constructor(calls: string[] = []) {
+    this.calls = calls;
+  }
+
+  quarantined(event: QuarantinedEvent): void {
+    this.named.push(event);
+    this.calls.push(`notice ${event.eventId}`);
   }
 }
 

@@ -7,6 +7,7 @@ import { type AggregateKey, dependenciesOf, invariantBreaksOf } from "../model/s
 import type {
   ApplyPendingEventsPorts,
   EventApplicationTransaction,
+  QuarantinedEvent,
   UnappliedEvent,
 } from "./event-application-ports.js";
 
@@ -31,7 +32,7 @@ type Step =
   | { kind: "nothing_due" }
   | { kind: "applied"; flagged: boolean }
   | { kind: "failed"; event: UnappliedEvent; failure: Failure }
-  | { kind: "failure_recorded"; quarantined: boolean }
+  | { kind: "failure_recorded"; quarantined: QuarantinedEvent | null }
   | { kind: "failure_obsolete" };
 
 interface Failure {
@@ -181,7 +182,7 @@ async function recordFailure(
         quarantinedAt: null,
         error: failure.message,
       });
-      return { kind: "failure_recorded", quarantined: false };
+      return { kind: "failure_recorded", quarantined: null };
     }
     await tx.recordFailedAttempt(event.eventId, {
       attempts,
@@ -197,7 +198,17 @@ async function recordFailure(
       aggregateId: next.event.aggregateId,
       reason: failure.reason,
     });
-    return { kind: "failure_recorded", quarantined: true };
+    return {
+      kind: "failure_recorded",
+      quarantined: {
+        deviceId: next.event.deviceId,
+        eventId: next.event.eventId,
+        eventType: next.event.eventType,
+        aggregateType: next.event.aggregateType,
+        aggregateId: next.event.aggregateId,
+        error: failure.message,
+      },
+    };
   });
 }
 
@@ -229,8 +240,12 @@ export async function applyPendingEvents(
         aggregateDone = true;
         const recorded = await recordFailure(ports, key, step);
         if (recorded.kind === "failure_recorded") {
-          retried += recorded.quarantined ? 0 : 1;
-          quarantined += recorded.quarantined ? 1 : 0;
+          if (recorded.quarantined === null) {
+            retried += 1;
+          } else {
+            quarantined += 1;
+            ports.quarantineNotices.quarantined(recorded.quarantined);
+          }
         }
       }
     }

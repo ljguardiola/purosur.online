@@ -5,6 +5,7 @@ import {
   realTimeAuthorizationRequestSchema,
   realTimeAuthorizationResponseSchema,
 } from "@purosur/contracts";
+import { FACTURA_C_DOCUMENT_TYPE } from "@purosur/domain";
 import {
   authorizeFiscalDocument,
   type RealTimeAuthorizationAnswer,
@@ -14,6 +15,7 @@ import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
+import { reportError } from "../platform/error-reporting.js";
 import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
@@ -33,6 +35,7 @@ export type FiscalAuthorizationRouteOptions<TQueryResult extends PgQueryResultHK
     connections: DedicatedConnections<TQueryResult>;
     taxAuthority: TaxAuthorityInvoicing;
     certificateFingerprint: string;
+    report?: typeof reportError;
   };
 
 const DEVICE_TOKEN_REJECTED = cloudError(
@@ -78,12 +81,17 @@ function toWire(answer: RealTimeAuthorizationAnswer): RealTimeAuthorizationRespo
   }
 }
 
+function voucherIdentifier(pointOfSale: number, number: number): string {
+  return `${String(pointOfSale).padStart(5, "0")}-${String(number).padStart(8, "0")}`;
+}
+
 // Public to the backoffice's session guard: the device token is this route's own authentication.
 export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: FiscalAuthorizationRouteOptions<TQueryResult>,
 ): void {
   const tokenPorts = installationTokenPorts(options);
+  const report = options.report ?? reportError;
   const clock = { now: options.now };
   const ports = {
     lanes: new DrizzlePointOfSaleLanes(options.connections),
@@ -170,6 +178,19 @@ export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryRes
         if (outcome.kind === "sale_event_mismatch") {
           await reply.code(cloudErrorStatus(SALE_EVENT_MISMATCH.code)).send(SALE_EVENT_MISMATCH);
           return;
+        }
+        if (outcome.kind === "answered" && outcome.answer.kind === "unclear") {
+          report(
+            "fiscal: a real-time authorization ended with an unclear outcome",
+            new Error("real-time authorization ended with an unclear outcome"),
+            {
+              context: {
+                pointOfSale: body.point_of_sale,
+                documentType: FACTURA_C_DOCUMENT_TYPE,
+                document: voucherIdentifier(body.point_of_sale, body.number),
+              },
+            },
+          );
         }
         await reply
           .code(200)

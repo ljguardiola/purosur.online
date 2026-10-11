@@ -1,6 +1,7 @@
 import type { MercadoPagoOrders } from "@purosur/domain/payments/use-cases";
 import Fastify, { type FastifyInstance, type LightMyRequestResponse } from "fastify";
-import { afterAll, afterEach, beforeAll, beforeEach } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, type Mock, vi } from "vitest";
+import type { reportError } from "../../platform/error-reporting.js";
 import { registerRouteAccess } from "../../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../../test-support/build-test-database.js";
 import { registerMercadoPagoNotificationRoutes } from "../mercado-pago-notification-routes.js";
@@ -20,6 +21,7 @@ export interface MercadoPagoNotificationRoutesUnderTest {
   readonly db: TestDatabase["db"];
   readonly app: FastifyInstance;
   readonly mercadoPago: FakeMercadoPagoOrders;
+  readonly report: Mock<typeof reportError>;
   serveWith(configuration: {
     mercadoPago?: MercadoPagoOrders | undefined;
     webhookSecret?: string | undefined;
@@ -31,6 +33,7 @@ export function mercadoPagoNotificationRoutesUnderTest(): MercadoPagoNotificatio
   let testDatabase: TestDatabase;
   let app: FastifyInstance;
   let mercadoPago: FakeMercadoPagoOrders;
+  let report: Mock<typeof reportError>;
 
   async function serve(configuration: {
     mercadoPago?: MercadoPagoOrders | undefined;
@@ -43,6 +46,7 @@ export function mercadoPagoNotificationRoutesUnderTest(): MercadoPagoNotificatio
       db: testDatabase.db,
       now: () => NOW,
       connections: { withConnection: (work) => work(testDatabase.db) },
+      report,
       ...(configuration.mercadoPago ? { mercadoPago: configuration.mercadoPago } : {}),
       ...(configuration.webhookSecret ? { webhookSecret: configuration.webhookSecret } : {}),
     });
@@ -59,6 +63,7 @@ export function mercadoPagoNotificationRoutesUnderTest(): MercadoPagoNotificatio
   beforeEach(async () => {
     await testDatabase.clear();
     mercadoPago = new FakeMercadoPagoOrders();
+    report = vi.fn<typeof reportError>();
     await serve({ mercadoPago, webhookSecret: WEBHOOK_SECRET });
   });
 
@@ -75,6 +80,9 @@ export function mercadoPagoNotificationRoutesUnderTest(): MercadoPagoNotificatio
     },
     get mercadoPago() {
       return mercadoPago;
+    },
+    get report() {
+      return report;
     },
     serveWith: serve,
     notify(request: NotificationRequest = {}) {

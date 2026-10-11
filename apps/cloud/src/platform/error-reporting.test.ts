@@ -32,6 +32,22 @@ describe("reportError", () => {
     expect(captureException).toHaveBeenCalledExactlyOnceWith(error);
   });
 
+  it("logs and reports the context it is given beside the error", () => {
+    const captureException = vi.fn().mockReturnValue("event-id");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const error = new Error("synced event quarantined");
+    const context = { eventType: "sale_completed", eventId: "event-1" };
+
+    reportError("sync: an event was quarantined", error, { captureException, context });
+
+    expect(consoleError).toHaveBeenCalledExactlyOnceWith(
+      "sync: an event was quarantined",
+      error,
+      context,
+    );
+    expect(captureException).toHaveBeenCalledExactlyOnceWith(error, { extra: context });
+  });
+
   it("swallows a capture that throws, since it reports from inside pg's own error listeners", () => {
     const captureException = vi.fn(() => {
       throw new Error("sentry: transport unavailable");

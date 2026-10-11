@@ -1,5 +1,6 @@
 import { cloudErrorSchema } from "@purosur/contracts";
 import { PAYMENT_NOTIFICATION_LIMIT } from "@purosur/domain";
+import { FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { paymentNotificationAttempts, paymentTransactions } from "../platform/db/schema.js";
@@ -35,6 +36,12 @@ function attemptsOf(sourceAddress: string) {
     .select()
     .from(paymentNotificationAttempts)
     .where(eq(paymentNotificationAttempts.sourceAddress, sourceAddress));
+}
+
+function reportedText(): string {
+  return JSON.stringify(route.report.mock.calls, (_key, value: unknown) =>
+    value instanceof Error ? value.message : value,
+  );
 }
 
 async function stateOf(id: string) {
@@ -190,6 +197,55 @@ describe("POST /payments/mercado-pago/notifications", () => {
       }
     });
 
+    it("reports a discarded notification with its type and why, and nothing it was signed with or sent", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      const signature = signatureHeader({ dataId: "ORD99OTHER" });
+
+      await route.notify({
+        type: NOT_AN_ORDER,
+        signature,
+        body: {
+          type: NOT_AN_ORDER,
+          data: { id: ORDER_ID },
+          payer: { email: "payer@example.test", name: FICTIONAL_LEGAL_NAME, cuit: FICTIONAL_CUIT },
+        },
+      });
+
+      expect(route.report).toHaveBeenCalledExactlyOnceWith(
+        "payments: discarded a Mercado Pago notification with an invalid signature",
+        new Error("discarded a Mercado Pago notification with an invalid signature"),
+        { context: { type: NOT_AN_ORDER, reason: "mismatch" } },
+      );
+      const reported = reportedText();
+      const [ts = "", received = ""] = signature.replace("ts=", "").split(",v1=");
+      for (const sensitive of [
+        WEBHOOK_SECRET,
+        received,
+        ts,
+        ORDER_ID,
+        "request-1",
+        "payer@example.test",
+        FICTIONAL_LEGAL_NAME,
+        FICTIONAL_CUIT,
+      ]) {
+        expect(reported).not.toContain(sensitive);
+      }
+    });
+
+    it("reports a discarded notification only the first time Mercado Pago sends it", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+      await route.notify({ type: NOT_AN_ORDER, signature: "garbage" });
+      await route.notify({ type: NOT_AN_ORDER, signature: "garbage" });
+      await route.notify({ type: NOT_AN_ORDER, dataId: "ORD99OTHER", signature: "garbage" });
+
+      expect(route.report).toHaveBeenCalledTimes(2);
+      expect(route.report.mock.calls.map(([, , options]) => options?.context)).toEqual([
+        { type: NOT_AN_ORDER, reason: "malformed_signature" },
+        { type: NOT_AN_ORDER, reason: "malformed_signature" },
+      ]);
+    });
+
     it("refuses a notification with an invalid signature of an origin over the limit, telling when to retry", async () => {
       await route.db.insert(paymentNotificationAttempts).values(
         Array.from({ length: PAYMENT_NOTIFICATION_LIMIT }, () => ({
@@ -218,6 +274,7 @@ describe("POST /payments/mercado-pago/notifications", () => {
       expect(response.statusCode).toBe(200);
       expect(route.mercadoPago.readings).toEqual([ORDER_ID]);
       expect(await stateOf(payment.id)).toBe("APPROVED");
+      expect(route.report).not.toHaveBeenCalled();
     });
 
     it("leaves the payment pending when it claims the order was paid and Mercado Pago says it was not", async () => {
@@ -333,6 +390,32 @@ describe("POST /payments/mercado-pago/notifications", () => {
       expect(response.statusCode).toBe(503);
       expect(cloudErrorSchema.parse(response.json()).code).toBe("payment_provider_unavailable");
       expect(await stateOf(payment.id)).toBe("PENDING");
+    });
+  });
+
+  describe("an order it cannot read", () => {
+    it("reports the order once, however many times Mercado Pago sends its notification again", async () => {
+      route.mercadoPago.reading = { kind: "unavailable" };
+      await pendingPaymentOfOrder();
+
+      await route.notify();
+      await route.notify();
+
+      expect(route.report).toHaveBeenCalledExactlyOnceWith(
+        "payments: a Mercado Pago order its notification named could not be read",
+        new Error("a Mercado Pago order its notification named could not be read"),
+        { context: { providerOrderId: ORDER_ID } },
+      );
+    });
+
+    it("reports nothing for an order it read or no payment of ours has", async () => {
+      route.mercadoPago.reading = { kind: "read", result: UNPAID_ORDER };
+      await pendingPaymentOfOrder();
+
+      await route.notify();
+      await route.notify({ dataId: "ORD99UNKNOWN" });
+
+      expect(route.report).not.toHaveBeenCalled();
     });
   });
 });
