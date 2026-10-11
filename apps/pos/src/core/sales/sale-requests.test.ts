@@ -4,6 +4,7 @@ import {
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
+import type { Scale, ScaleReading } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import type { LocalDatabase } from "../platform/local-database";
@@ -30,6 +31,7 @@ import {
   removeSaleLineFor,
   scanProductFor,
   searchProductsFor,
+  weighProductFor,
 } from "./sale-requests";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
@@ -570,6 +572,91 @@ describe("adding a product sold by weight on the register", () => {
     database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
 
     expect(await addWeighedProductFor(deps(), "p2", 1000)).toEqual({ kind: "no_open_session" });
+  });
+});
+
+describe("weighing a product on the scale on the register", () => {
+  beforeEach(priceCheese);
+
+  function scaleReading(reading: ScaleReading): Scale {
+    return { read: async () => reading };
+  }
+
+  function weigh(reading: ScaleReading, productId = "p2") {
+    return weighProductFor({ ...deps(), scale: scaleReading(reading) }, productId);
+  }
+
+  it("answers the sale with the line holding the stable weight and records the scale as its source", async () => {
+    const outcome = await weigh({ kind: "stable", weightThousandths: 1250 });
+
+    expect(outcome).toMatchObject({
+      kind: "added",
+      sale: {
+        lines: [
+          {
+            product_id: "p2",
+            sale_unit: "KG",
+            weight_source: "SCALE",
+            quantity: 1250,
+            line_total: 11250,
+          },
+        ],
+        total: 11250,
+      },
+    });
+    expect(database.prepare("SELECT weight_source, quantity FROM sale_lines").all()).toEqual([
+      { weight_source: "SCALE", quantity: 1250 },
+    ]);
+  });
+
+  it("answers weighing and adds no line while the scale is not stable", async () => {
+    expect(await weigh({ kind: "not_stable" })).toEqual({ kind: "weighing" });
+    expect(database.prepare("SELECT id FROM sale_lines").all()).toEqual([]);
+  });
+
+  it("answers that the scale is unavailable", async () => {
+    expect(await weigh({ kind: "unavailable" })).toEqual({ kind: "scale_unavailable" });
+  });
+
+  it.each([
+    ["a product sold by the unit", "p1", { kind: "not_sold_by_weight" }],
+    ["a product that does not exist", "other", { kind: "product_unavailable" }],
+  ])("answers the domain's refusal of %s", async (_case, productId, expected) => {
+    expect(await weigh({ kind: "stable", weightThousandths: 1000 }, productId)).toEqual(expected);
+  });
+
+  it("answers the name of a product that has no price", async () => {
+    database.prepare("DELETE FROM prices").run();
+
+    expect(await weigh({ kind: "stable", weightThousandths: 1000 })).toEqual({
+      kind: "no_price",
+      product_name: "Queso",
+    });
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    signedInPerson.clear();
+
+    expect(await weigh({ kind: "stable", weightThousandths: 1000 })).toEqual({
+      kind: "not_signed_in",
+    });
+  });
+
+  it("answers not permitted to a signed-in person without the permission to sell", async () => {
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(await weigh({ kind: "stable", weightThousandths: 1000 })).toEqual({
+      kind: "not_permitted",
+    });
+  });
+
+  it("answers the refusal of a session that is not open", async () => {
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await weigh({ kind: "stable", weightThousandths: 1000 })).toEqual({
+      kind: "no_open_session",
+    });
   });
 });
 
