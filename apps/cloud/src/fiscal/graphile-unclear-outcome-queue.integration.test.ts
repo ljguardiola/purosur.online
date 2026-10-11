@@ -35,7 +35,12 @@ afterEach(async () => {
 
 async function pendingJobs() {
   const rows = await sql<
-    { payload: { fiscalDocumentId: string }; key: string; priority: number; run_at: Date }[]
+    {
+      payload: { fiscalDocumentId: string };
+      key: string;
+      priority: number;
+      run_at: Date | string;
+    }[]
   >`
     select j.payload, j.key, j.priority, j.run_at
     from graphile_worker._private_jobs j
@@ -186,7 +191,7 @@ describe("the unclear outcome jobs on a real Postgres", () => {
       await enqueueMissingUnclearOutcomes(db);
 
       const [job] = await pendingJobs();
-      expect(job?.run_at.getTime()).toBe(dueAt.getTime());
+      expect(new Date(job?.run_at ?? 0)).toEqual(dueAt);
     });
   });
 });
