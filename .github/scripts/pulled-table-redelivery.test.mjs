@@ -150,7 +150,7 @@ test("the register's migrations declare every pulled table they add a column to"
   const migrations = readMigrations();
   const pulledTables = await readPulledTables();
 
-  assert.ok(migrations.some(({ name }) => name === "0041_pulled_table_redeliveries"));
+  assert.ok(migrations.some(({ sql }) => /CREATE TABLE pulled_table_redeliveries\b/.test(sql)));
   assert.ok("register_point_of_sale" in pulledTables);
   assert.deepEqual(
     findUndeclaredRedeliveries({ migrations, pulledTables }).map(describeViolation),

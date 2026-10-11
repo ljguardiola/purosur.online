@@ -364,6 +364,39 @@ describe("what a register owns, kept by a redelivered page", () => {
     expect(database.prepare("SELECT * FROM stock_movements").all()).toEqual(movements);
   });
 
+  it("rewrites the kind and moment of a pulled stock movement it holds, leaving its product, delta and the balance", async () => {
+    await savePulledChanges(replica, upsertOf("stock_movement"));
+    const balance = database.prepare("SELECT * FROM stock_balances").all();
+    database.exec(
+      "UPDATE stock_movements SET kind = 'loss', occurred_at = '2020-01-01T00:00:00.000Z'",
+    );
+
+    await redeliver("stock_movement", upsertOf("stock_movement"));
+
+    expect(database.prepare("SELECT kind, occurred_at, delta FROM stock_movements").all()).toEqual([
+      { kind: "adjustment", occurred_at: "2026-10-09T15:00:00.000Z", delta: 4000 },
+    ]);
+    expect(database.prepare("SELECT * FROM stock_balances").all()).toEqual(balance);
+  });
+
+  it("never touches a stock movement the register recorded from its own sale", async () => {
+    database.exec(
+      `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+       VALUES ('session-1', 'register-1', 'device-a', 'u1', '2026-10-09T08:00:00.000Z', 0, 'OPEN');
+       INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+       VALUES ('sale-1', 'register-1', 'device-a', 'session-1', 'u1', 'COMPLETED', '2026-10-09T14:20:00.000Z');
+       INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+       VALUES ('line-1', 'sale-1', 1, 'product-1', 'Yerba', 3, 1500, 'list-1', 4500);
+       INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
+       VALUES ('7c9e6679-7425-40de-944b-e07fc1f90ae7', 'product-1', 'sale', 'line-1', -3000, '2026-10-09T14:20:00.000Z');`,
+    );
+    const movements = database.prepare("SELECT * FROM stock_movements").all();
+
+    await redeliver("stock_movement", upsertOf("stock_movement"));
+
+    expect(database.prepare("SELECT * FROM stock_movements").all()).toEqual(movements);
+  });
+
   it("counts a stock movement the register never received once", async () => {
     await redeliver("stock_movement", upsertOf("stock_movement"));
     await redeliver("stock_movement", upsertOf("stock_movement"));
