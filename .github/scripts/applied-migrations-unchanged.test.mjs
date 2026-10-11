@@ -424,7 +424,7 @@ test("refuses a new register migration numbered below the highest one on main", 
     {
       path: registerMigration("0001_b.sql"),
       reason:
-        "new register migration must start with a number above 0002 and sort after 0002_c, the last one already on main — renumber it 0003",
+        "new register migration must start with a 4-digit number above 0002, the number of 0002_c, the last one already on main — renumber it 0003",
     },
   ]);
 });
@@ -439,7 +439,7 @@ test("refuses a new register migration numbered the same as the highest one on m
     {
       path: registerMigration("0002_other.sql"),
       reason:
-        "new register migration must start with a number above 0002 and sort after 0002_c, the last one already on main — renumber it 0003",
+        "new register migration must start with a 4-digit number above 0002, the number of 0002_c, the last one already on main — renumber it 0003",
     },
   ]);
 });
@@ -463,7 +463,7 @@ test("refuses a new register migration whose name does not start with a number, 
     {
       path: registerMigration("late_fix.sql"),
       reason:
-        "new register migration must start with a number above 0002 and sort after 0002_c, the last one already on main — renumber it 0003",
+        "new register migration must start with a 4-digit number above 0002, the number of 0002_c, the last one already on main — renumber it 0003",
     },
   ]);
 });
@@ -495,7 +495,55 @@ test("refuses a new register migration whose number is higher but whose name sor
     {
       path: registerMigration("00003_d.sql"),
       reason:
-        "new register migration must start with a number above 0002 and sort after 0002_c, the last one already on main — renumber it 0003",
+        "new register migration must start with a 4-digit number above 0002, the number of 0002_c, the last one already on main — renumber it 0003",
+    },
+  ]);
+});
+
+test("refuses a new register migration numbered the same as the highest one on main with fewer digits", () => {
+  const onMain = [registerMigration("0038_a.sql"), registerMigration("0039_b.sql")];
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: onMain,
+    currentPaths: [...onMain, registerMigration("039_other.sql")],
+  });
+
+  assert.deepEqual(violations, [
+    {
+      path: registerMigration("039_other.sql"),
+      reason:
+        "new register migration must start with a 4-digit number above 0039, the number of 0039_b, the last one already on main — renumber it 0040",
+    },
+  ]);
+});
+
+test("refuses a new register migration numbered with fewer digits than the last one on main even when its name sorts after it", () => {
+  const onMain = [registerMigration("0038_a.sql"), registerMigration("0039_b.sql")];
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: onMain,
+    currentPaths: [...onMain, registerMigration("1_late_fix.sql")],
+  });
+
+  assert.deepEqual(violations, [
+    {
+      path: registerMigration("1_late_fix.sql"),
+      reason:
+        "new register migration must start with a 4-digit number above 0039, the number of 0039_b, the last one already on main — renumber it 0040",
+    },
+  ]);
+});
+
+test("refuses a new register migration after the last number of its width without suggesting a wider one", () => {
+  const onMain = [registerMigration("9998_a.sql"), registerMigration("9999_a.sql")];
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: onMain,
+    currentPaths: [...onMain, registerMigration("10000_b.sql")],
+  });
+
+  assert.deepEqual(violations, [
+    {
+      path: registerMigration("10000_b.sql"),
+      reason:
+        "new register migration must start with a 4-digit number above 9999, the number of 9999_a, the last one already on main — no 4-digit number is left above 9999",
     },
   ]);
 });
