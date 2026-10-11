@@ -265,7 +265,7 @@ function fiscal(out: Output, block: FacturaCFiscalBlock): void {
       `Comp. Nro ${formatInvoiceNumber(block.number)}`,
     ),
     `Fecha de emisión ${calendarDay(block.issuedOn)}`,
-    `Receptor: ${block.buyerTaxStatusDescription}`,
+    ...wrapped(`Receptor: ${block.buyerTaxStatusDescription}`, COLUMNS),
     RULE,
     ...row("Importe neto", formatCents(block.netAmount)),
     ...row("IVA", formatCents(block.vatAmount)),

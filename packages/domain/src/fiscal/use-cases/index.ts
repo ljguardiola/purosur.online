@@ -139,6 +139,7 @@ export type {
   InterruptedRealTimeAuthorization,
   InterruptedRealTimeAuthorizationPorts,
   InterruptedRealTimeAuthorizations,
+  InterruptedRealTimeAuthorizationsTransaction,
 } from "./interrupted-real-time-authorization-ports.js";
 export type {
   AuthorizedIssuerIdentification,

@@ -7,8 +7,14 @@ export interface InterruptedRealTimeAuthorization {
 }
 
 export interface InterruptedRealTimeAuthorizations {
-  requestingDocuments(): Promise<readonly InterruptedRealTimeAuthorization[]>;
-  resolve(resolved: RealTimeAuthorizationResolved): Promise<void>;
+  transaction<TOutcome>(
+    work: (tx: InterruptedRealTimeAuthorizationsTransaction) => TOutcome,
+  ): TOutcome;
+}
+
+export interface InterruptedRealTimeAuthorizationsTransaction {
+  requestingDocuments(): readonly InterruptedRealTimeAuthorization[];
+  resolve(resolved: RealTimeAuthorizationResolved): void;
 }
 
 export interface InterruptedRealTimeAuthorizationPorts {
