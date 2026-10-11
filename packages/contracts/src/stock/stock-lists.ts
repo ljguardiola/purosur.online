@@ -1,9 +1,11 @@
 import {
   ADJUSTMENT_REASONS,
   DEFAULT_STOCK_PERIOD_DAYS,
+  isCalendarDay,
   LOSS_REASONS,
   MANUAL_STOCK_MOVEMENT_KINDS,
   SALE_UNITS,
+  STOCK_CORRECTIONS,
   STOCK_DIRECTIONS,
   STOCK_PERIOD_DAYS,
 } from "@purosur/domain";
@@ -33,9 +35,46 @@ export const stockProductListSchema = z.object({ products: z.array(stockProductS
 export type StockProduct = z.output<typeof stockProductSchema>;
 export type StockProductList = z.output<typeof stockProductListSchema>;
 
-export const stockBalanceSchema = stockProductSchema.extend({ balance: z.int() });
+const calendarDay = z.string().refine(isCalendarDay);
 
-export const stockBalanceListSchema = z.object({ products: z.array(stockBalanceSchema) });
+const stockLotSchema = z.object({
+  id: z.string(),
+  lotNumber: z.string().nullable(),
+  expiresOn: calendarDay.nullable(),
+  technical: z.boolean(),
+  remaining: z.int(),
+  valueCents: z.int().nullable(),
+  unitCostCents: z.int().nullable(),
+  origin: z.discriminatedUnion("kind", [
+    z.object({
+      kind: z.literal("purchase"),
+      purchasedOn: calendarDay,
+      supplierName: z.string(),
+    }),
+    z.object({ kind: z.literal("product_sales_without_lots") }),
+  ]),
+});
+
+export const stockProductBalanceSchema = stockProductSchema.extend({ balance: z.int() });
+
+export type StockProductBalance = z.output<typeof stockProductBalanceSchema>;
+
+export const stockBalanceSchema = stockProductBalanceSchema.extend({
+  valueCents: z.int().nullable(),
+  unitCostCents: z.int().nullable(),
+  lotCount: z.int(),
+  correction: z.enum(STOCK_CORRECTIONS).nullable(),
+  lots: z.array(stockLotSchema),
+});
+
+export const stockBalanceListSchema = z.object({
+  products: z.array(stockBalanceSchema),
+  summary: z.object({
+    productCount: z.int(),
+    valueCents: z.int(),
+    withoutCostCount: z.int(),
+  }),
+});
 
 export type StockBalance = z.output<typeof stockBalanceSchema>;
 export type StockBalanceList = z.output<typeof stockBalanceListSchema>;

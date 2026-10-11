@@ -1,4 +1,4 @@
-import { unitCostCents } from "../model/purchase-line.js";
+import { unitCostCents } from "../../stock/index.js";
 import type {
   PurchaseLineListing,
   PurchaseListing,

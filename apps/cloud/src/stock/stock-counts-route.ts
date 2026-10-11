@@ -1,8 +1,8 @@
 import {
-  stockBalanceSchema,
   stockCountBodySchema,
   stockCountListSchema,
   stockCountResultSchema,
+  stockProductBalanceSchema,
 } from "@purosur/contracts";
 import { expectedBalanceAt, registerCount } from "@purosur/domain/stock/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -148,7 +148,7 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
       }
       await reply
         .code(200)
-        .send(stockBalanceSchema.parse({ ...outcome.product, balance: outcome.balance }));
+        .send(stockProductBalanceSchema.parse({ ...outcome.product, balance: outcome.balance }));
     },
   );
 }

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleStockReader } from "./drizzle-stock-reader.js";
+import { insertPurchasedLot, insertTechnicalLot } from "./test-support/lot-fixtures.js";
 import {
   insertBalance,
   insertLocation,
@@ -175,15 +176,17 @@ describe("DrizzleStockReader.stockLevels", () => {
     expect(await new DrizzleStockReader(db).stockLevels(locationId)).toEqual([]);
   });
 
-  it("answers each listed product with its balance at the location, zero when it has none", async () => {
+  it("answers each listed product with its balance at the location and whether it ever moved there, zero when it never did", async () => {
     const locationId = await insertLocation(db);
     const otherLocationId = await insertLocation(db);
     const honey = await insertProduct(db, { name: "Miel" });
+    const peanuts = await insertProduct(db, { name: "Maní" });
     const nuts = await insertProduct(db, { name: "Nueces", categoryName: "Frutos secos" });
     const oats = await insertProduct(db, { name: "Avena", active: false });
     const rice = await insertProduct(db, { name: "Arroz", active: false });
     const flour = await insertProduct(db, { name: "Harina", active: false });
     await insertBalance(db, { productId: honey.productId, locationId, quantity: 12 });
+    await insertBalance(db, { productId: peanuts.productId, locationId, quantity: 0 });
     await insertBalance(db, { productId: rice.productId, locationId, quantity: 0 });
     await insertBalance(db, {
       productId: flour.productId,
@@ -205,7 +208,20 @@ describe("DrizzleStockReader.stockLevels", () => {
         categoryName: "Almacén",
         saleUnit: "UNIT",
         active: false,
+        hasMoved: true,
         balance: 3,
+        lots: [],
+      },
+      {
+        id: peanuts.productId,
+        name: "Maní",
+        categoryId: peanuts.categoryId,
+        categoryName: "Almacén",
+        saleUnit: "UNIT",
+        active: true,
+        hasMoved: true,
+        balance: 0,
+        lots: [],
       },
       {
         id: honey.productId,
@@ -214,7 +230,9 @@ describe("DrizzleStockReader.stockLevels", () => {
         categoryName: "Almacén",
         saleUnit: "UNIT",
         active: true,
+        hasMoved: true,
         balance: 12,
+        lots: [],
       },
       {
         id: nuts.productId,
@@ -223,8 +241,82 @@ describe("DrizzleStockReader.stockLevels", () => {
         categoryName: "Frutos secos",
         saleUnit: "UNIT",
         active: true,
+        hasMoved: false,
         balance: 0,
+        lots: [],
       },
+    ]);
+  });
+
+  it("answers each product's lots still in stock with their cost and the purchase they came from", async () => {
+    const { actorId, locationId } = await seededActor();
+    const { productId } = await insertProduct(db);
+    const lotId = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId,
+      purchasedOn: "2026-10-01",
+      supplierName: "Distribuidora Sur",
+      expiresOn: "2027-03-01",
+      lotNumber: "L-77",
+      remaining: 4_000,
+    });
+    await insertBalance(db, { productId, locationId, quantity: 4_000 });
+
+    const [level] = await new DrizzleStockReader(db).stockLevels(locationId);
+
+    expect(level?.lots).toEqual([
+      {
+        id: lotId,
+        lotNumber: "L-77",
+        expiresOn: "2027-03-01",
+        purchase: { purchasedOn: "2026-10-01", supplierName: "Distribuidora Sur" },
+        remaining: 4_000,
+        costIncomplete: false,
+        cost: { totalCents: 5_000, quantity: 1_000 },
+      },
+    ]);
+  });
+
+  it("answers a technical lot in debt with no cost and no purchase", async () => {
+    const { locationId } = await seededActor();
+    const { productId } = await insertProduct(db);
+    const lotId = await insertTechnicalLot(db, { productId, locationId, remaining: -2_000 });
+
+    const [level] = await new DrizzleStockReader(db).stockLevels(locationId);
+
+    expect(level?.lots).toEqual([
+      {
+        id: lotId,
+        lotNumber: null,
+        expiresOn: null,
+        purchase: null,
+        remaining: -2_000,
+        costIncomplete: true,
+        cost: null,
+      },
+    ]);
+  });
+
+  it("leaves out the lots with nothing remaining and those of other locations, keeping each product's own", async () => {
+    const { actorId, locationId } = await seededActor();
+    const otherLocationId = await insertLocation(db);
+    const { productId } = await insertProduct(db, { name: "Almendras" });
+    const { productId: otherProductId } = await insertProduct(db, { name: "Nueces" });
+    const inStock = await insertPurchasedLot(db, { productId, locationId, actorId });
+    await insertPurchasedLot(db, { productId, locationId, actorId, remaining: 0 });
+    await insertPurchasedLot(db, { productId, locationId: otherLocationId, actorId });
+    const otherInStock = await insertPurchasedLot(db, {
+      productId: otherProductId,
+      locationId,
+      actorId,
+    });
+
+    const levels = await new DrizzleStockReader(db).stockLevels(locationId);
+
+    expect(levels.map((level) => level.lots.map((lot) => lot.id))).toEqual([
+      [inStock],
+      [otherInStock],
     ]);
   });
 });

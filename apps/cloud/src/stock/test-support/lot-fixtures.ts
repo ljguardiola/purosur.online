@@ -8,14 +8,19 @@ export async function insertPurchasedLot<TQueryResult extends PgQueryResultHKT>(
     locationId: string;
     actorId: string;
     purchasedOn?: string;
+    supplierName?: string;
     expiresOn?: string | null;
+    lotNumber?: string | null;
     remaining?: number;
     createdAt?: Date;
   },
 ): Promise<string> {
   const [supplier] = await db
     .insert(suppliers)
-    .values({ name: `Distribuidora Sur ${crypto.randomUUID()}`, actorId: input.actorId })
+    .values({
+      name: input.supplierName ?? `Distribuidora Sur ${crypto.randomUUID()}`,
+      actorId: input.actorId,
+    })
     .returning({ id: suppliers.id });
   if (!supplier) {
     throw new Error("test setup: seeding the supplier returned no row");
@@ -57,6 +62,7 @@ export async function insertPurchasedLot<TQueryResult extends PgQueryResultHKT>(
       purchaseLineId: line.id,
       purchasedOn,
       expiresOn: input.expiresOn ?? null,
+      lotNumber: input.lotNumber ?? null,
       costTotalCents: 5_000,
       costQuantity: 1_000,
       quantityReceived: 10_000,
@@ -66,6 +72,27 @@ export async function insertPurchasedLot<TQueryResult extends PgQueryResultHKT>(
     .returning({ id: lots.id });
   if (!lot) {
     throw new Error("test setup: seeding the lot returned no row");
+  }
+  return lot.id;
+}
+
+export async function insertTechnicalLot<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  input: { productId: string; locationId: string; remaining: number },
+): Promise<string> {
+  const [lot] = await db
+    .insert(lots)
+    .values({
+      productId: input.productId,
+      locationId: input.locationId,
+      technical: true,
+      costIncomplete: true,
+      quantityReceived: 0,
+      remaining: input.remaining,
+    })
+    .returning({ id: lots.id });
+  if (!lot) {
+    throw new Error("test setup: seeding the technical lot returned no row");
   }
   return lot.id;
 }

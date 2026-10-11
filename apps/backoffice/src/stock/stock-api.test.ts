@@ -38,8 +38,25 @@ const balances = {
       saleUnit: "KG",
       active: true,
       balance: 12_150,
+      valueCents: 12_400_100,
+      unitCostCents: 1_020_584,
+      lotCount: 1,
+      correction: null,
+      lots: [
+        {
+          id: "lot-1",
+          lotNumber: "L-2312",
+          expiresOn: "2026-10-14",
+          technical: false,
+          remaining: 12_150,
+          valueCents: 12_400_100,
+          unitCostCents: 1_020_584,
+          origin: { kind: "purchase", purchasedOn: "2026-08-05", supplierName: "Distribuidora" },
+        },
+      ],
     },
   ],
+  summary: { productCount: 1, valueCents: 12_400_100, withoutCostCount: 0 },
 };
 
 test("fetchStockBalances reads the balances list", async () => {
@@ -47,6 +64,12 @@ test("fetchStockBalances reads the balances list", async () => {
 
   expect(await fetchStockBalances()).toEqual({ kind: "ok", value: balances });
   expect(fetch).toHaveBeenCalledWith("/api/inventory-levels");
+});
+
+test("fetchStockBalances treats a body without the summary as failed", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { products: balances.products }));
+
+  expect(await fetchStockBalances()).toEqual({ kind: "failed" });
 });
 
 test.each([

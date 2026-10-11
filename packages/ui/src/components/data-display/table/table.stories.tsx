@@ -8,6 +8,7 @@ import {
   playTabReachesFocusVisible,
 } from "../../../test-support/story-interactions";
 import { Button } from "../../forms/button";
+import { Eyebrow } from "../../layout/eyebrow";
 import { Table } from "./table";
 import { actionsColumn, dataColumn } from "./table-columns";
 import { TablePagination } from "./table-pagination";
@@ -359,6 +360,38 @@ export const LoadFailed: Story = {
         description: "Probá de nuevo en unos minutos.",
         onRetry: () => {},
       }}
+    />
+  ),
+};
+
+const productDetailColumns = [
+  dataColumn({ id: "sku", header: "Código", render: (item: Product) => item.sku }),
+  dataColumn({ id: "stock", header: "Stock", align: "end", render: (item: Product) => item.stock }),
+] as const;
+
+function ProductDetail({ product }: { product: Product }) {
+  const table = useTableModel({
+    items: [product],
+    id: (item) => item.id,
+    columns: productDetailColumns,
+  });
+  return (
+    <div className="flex flex-col gap-2">
+      <Eyebrow text="Detalle" />
+      <Table table={table} aria-label={`Detalle de ${product.name}`} variant="nested" />
+    </div>
+  );
+}
+
+export const RowDetail: Story = {
+  render: () => (
+    <ProductsTable
+      aria-label="Productos"
+      columns={baseColumns}
+      sort={sort}
+      onSortChange={onSortChange}
+      rowState={(item) => (item.id === "1" ? "selected" : undefined)}
+      rowDetail={(item) => (item.id === "1" ? <ProductDetail product={item} /> : undefined)}
     />
   ),
 };
