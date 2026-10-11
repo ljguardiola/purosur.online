@@ -1,6 +1,8 @@
+import { ALERT_CONDITION_EVALUATION_INTERVAL_MS } from "@purosur/domain";
 import type { JobHelpers } from "graphile-worker";
 import type { PoolClient } from "pg";
 import { describe, expect, it, vi } from "vitest";
+import { scheduleOfCrontabLine } from "../platform/test-support/crontab-schedule.js";
 import {
   ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER,
   alertConditionResolutionJobs,
@@ -16,11 +18,17 @@ function jobHelpers(client: PoolClient, borrowed: () => void): JobHelpers {
 }
 
 describe("alertConditionResolutionJobs", () => {
-  it("registers the alert condition resolution task and schedules it every minute", () => {
+  it("registers the alert condition resolution task and schedules it at the domain's evaluation interval", () => {
     const jobs = alertConditionResolutionJobs({ now: () => new Date() });
 
     expect(jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER]).toBeInstanceOf(Function);
-    expect(jobs.crontab).toContain("* * * * * alert-condition-resolution");
+    const schedules = jobs.crontab.map(scheduleOfCrontabLine);
+    expect(schedules.map((schedule) => schedule.task)).toEqual([
+      ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER,
+    ]);
+    expect(new Set(schedules[0]?.gapsMs)).toEqual(
+      new Set([ALERT_CONDITION_EVALUATION_INTERVAL_MS]),
+    );
   });
 
   it("processes the task through a client borrowed from graphile-worker's own pool", async () => {
