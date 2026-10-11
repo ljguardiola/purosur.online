@@ -3,6 +3,7 @@ import type { AlertLevel } from "@purosur/domain";
 import {
   actionsColumn,
   dataColumn,
+  formatCents,
   isLocalAlertKind,
   ListFilter,
   type LocalAlertSubject,
@@ -83,6 +84,9 @@ function localSubjectOf(alert: AlertSummary): LocalAlertSubject | undefined {
 }
 
 function alertRowDescription(alert: AlertSummary): string {
+  if (alert.kind === "late_payment_refund" && alert.refundAmount !== null) {
+    return `QR de Mercado Pago de ${formatCents(alert.refundAmount)} sin marcar como hecho`;
+  }
   const subject = localSubjectOf(alert);
   if (subject === undefined) {
     return alertKindDescription(alert.kind);

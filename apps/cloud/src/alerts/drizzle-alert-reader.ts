@@ -60,6 +60,9 @@ const SUMMARY_COLUMNS = {
   storedSalesDeniedReason: sql<
     string | null
   >`case when ${alerts.kind} = 'sales_denied' then ${alerts.detail}->>'reason' end`,
+  refundAmount: sql<
+    number | null
+  >`case when ${alerts.kind} = 'late_payment_refund' then (${alerts.detail}->>'amount')::int end`,
 };
 
 // Storage keeps the kind as free text, so a row can carry a kind the catalog no longer lists.
@@ -83,6 +86,7 @@ function toSummary(row: {
   escalatedAt: Date | null;
   resolvedAt: Date | null;
   storedSalesDeniedReason: string | null;
+  refundAmount: number | null;
 }): AlertSummary {
   const { storedSalesDeniedReason, ...summary } = row;
   return {

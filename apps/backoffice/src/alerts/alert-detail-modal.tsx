@@ -10,7 +10,6 @@ import {
   EmptyState,
   formatCalendarDay,
   formatCalendarDayRange,
-  formatCents,
   formatDate,
   formatNumber,
   InlineNotice,
@@ -311,9 +310,6 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
   if (alert.kind === "event_invariant_violated") {
     return invariantViolationDescription(alert.detail);
   }
-  if (alert.kind === "late_payment_refund") {
-    return `Mercado Pago cobró ${formatCents(alert.detail.amount)} por un pago QR de una venta que ya se había cobrado por otro medio. Hay que devolverle ese pago al cliente por el mismo medio, nunca en efectivo. Hacé el reembolso desde Mercado Pago y marcalo como hecho en Reembolsos pendientes, o descartalo si no corresponde.`;
-  }
   const targetName = alert.scopeDisplay;
   if (targetName === null) {
     return "";
@@ -357,6 +353,7 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return "Cada venta de este punto de venta queda diferida hasta corregir la causa que indica ARCA.";
     case "register_silent":
     case "sales_denied":
+    case "late_payment_refund":
       return "";
   }
 }
