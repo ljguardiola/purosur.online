@@ -29,10 +29,11 @@ const GS = 0x1d;
 const LINE_FEED = 0x0a;
 const QR_SIDE_DOTS = 244;
 const QR_MAX_MODULE_DOTS = 16;
-const QR_BYTE_CAPACITY_AT_LEVEL_M = [
-  14, 26, 42, 62, 84, 106, 122, 152, 180, 213, 251, 287, 331, 362, 412, 450, 504, 560, 624, 666,
-  711, 779, 857, 911, 997, 1059, 1125, 1190, 1264, 1370, 1452, 1538, 1628, 1722, 1809, 1911, 1989,
-  2099, 2213, 2331,
+const QR_CORRECTION_LEVEL_L = 0x30;
+const QR_BYTE_CAPACITY_AT_LEVEL_L = [
+  17, 32, 53, 78, 106, 134, 154, 192, 230, 271, 321, 367, 425, 458, 520, 586, 644, 718, 792, 858,
+  929, 1003, 1091, 1171, 1273, 1367, 1465, 1528, 1628, 1732, 1840, 1952, 2068, 2188, 2303, 2431,
+  2563, 2699, 2809, 2953,
 ];
 const QR_TOP_MARGIN_DOTS = 16;
 const QR_BOTTOM_MARGIN_DOTS = 8;
@@ -90,7 +91,7 @@ class Output {
     this.command(ESC, 0x61, CENTER_ALIGNMENT);
     this.command(GS, 0x28, 0x6b, 4, 0, 0x31, 0x41, 0x32, 0);
     this.command(GS, 0x28, 0x6b, 3, 0, 0x31, 0x43, qrModuleDots(data.length));
-    this.command(GS, 0x28, 0x6b, 3, 0, 0x31, 0x45, 0x31);
+    this.command(GS, 0x28, 0x6b, 3, 0, 0x31, 0x45, QR_CORRECTION_LEVEL_L);
     this.command(GS, 0x28, 0x6b, stored & 0xff, stored >> 8, 0x31, 0x50, 0x30);
     this.chunks.push(data);
     this.command(GS, 0x28, 0x6b, 3, 0, 0x31, 0x51, 0x30);
@@ -107,8 +108,8 @@ class Output {
 }
 
 function qrModuleDots(bytes: number): number {
-  const version = QR_BYTE_CAPACITY_AT_LEVEL_M.findIndex((capacity) => bytes <= capacity) + 1;
-  const modules = 17 + 4 * (version === 0 ? QR_BYTE_CAPACITY_AT_LEVEL_M.length : version);
+  const version = QR_BYTE_CAPACITY_AT_LEVEL_L.findIndex((capacity) => bytes <= capacity) + 1;
+  const modules = 17 + 4 * (version === 0 ? QR_BYTE_CAPACITY_AT_LEVEL_L.length : version);
   const nearest = Math.round(QR_SIDE_DOTS / modules);
   return Math.min(Math.max(nearest, 1), QR_MAX_MODULE_DOTS);
 }
