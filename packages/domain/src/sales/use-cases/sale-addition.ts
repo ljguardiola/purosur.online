@@ -24,6 +24,7 @@ export type SaleAdditionRefusal =
 
 export type AddedLineOutcome = {
   kind: "added";
+  removedManualDiscount: boolean;
   sale: SaleWithLines;
   chargeRefusal: ChargeRefusal | undefined;
 } & OpenSaleStanding;
@@ -76,16 +77,18 @@ export function addLineToSale(
   const sale = isOpenSale(target) ? target : startSale(tx, ids.next(), target, session.id, actorId);
   const line = newLine(ids.next());
   tx.recordSaleLine(sale.id, line);
-  return added(tx, moment, { ...sale, lines: [...sale.lines, line] });
+  return added(tx, moment, { ...sale, lines: [...sale.lines, line] }, false);
 }
 
 export function added(
   tx: SaleLedgerTransaction,
   moment: Date,
   sale: SaleWithLines,
+  removedManualDiscount: boolean,
 ): AddedLineOutcome {
   return {
     kind: "added",
+    removedManualDiscount,
     sale,
     chargeRefusal: saleChargeRefusal(tx, sale, moment),
     ...openSaleStanding(
