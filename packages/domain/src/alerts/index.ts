@@ -41,6 +41,7 @@ export {
   ALERT_ESCALATION_DELAY_MS,
   alertKindPolicy,
   alertKindsWithScope,
+  LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS,
 } from "./model/alert-kind-policy.js";
 export {
   alertActorId,
