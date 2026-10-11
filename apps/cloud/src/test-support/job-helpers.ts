@@ -37,7 +37,7 @@ function buildJob(): Job {
   };
 }
 
-export interface LoggedLine {
+interface LoggedLine {
   level: LogLevel;
   message: string;
 }
