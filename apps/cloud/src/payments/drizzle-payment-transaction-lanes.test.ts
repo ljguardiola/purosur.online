@@ -337,6 +337,19 @@ describe("DrizzlePaymentTransactionLanes", () => {
 
       expect(recorded).toEqual({ state: "PENDING", replaced: true });
     });
+
+    it("refuses to answer for a transaction nobody recorded", async () => {
+      const id = crypto.randomUUID();
+
+      await expect(
+        lanes.inPaymentTransactionLane(id, (lane) =>
+          lane.recordOrderResult(id, { state: "APPROVED", needsReview: false }, READ_AT),
+        ),
+      ).rejects.toThrow(`payment transaction ${id} is not recorded`);
+      await expect(
+        lanes.inPaymentTransactionLane(id, (lane) => lane.recordOrderCreated(id, "ORD01", null)),
+      ).rejects.toThrow(`payment transaction ${id} is not recorded`);
+    });
   });
 
   describe("the refund task of a late payment", () => {
@@ -414,6 +427,19 @@ describe("DrizzlePaymentTransactionLanes", () => {
 
       expect(await db.select().from(paymentRefunds)).toHaveLength(1);
       expect(await db.select().from(alerts)).toHaveLength(1);
+    });
+
+    it("refuses to open a task for a payment nobody recorded, opening nothing", async () => {
+      const unrecorded = pendingTransaction(crypto.randomUUID(), { state: "APPROVED" });
+
+      await expect(
+        lanes.inPaymentTransactionLane(unrecorded.id, (lane) =>
+          lane.openLatePaymentRefund(latePaymentRefund(unrecorded), READ_AT),
+        ),
+      ).rejects.toThrow(`payment transaction ${unrecorded.id} is not recorded`);
+
+      expect(await db.select().from(paymentRefunds)).toEqual([]);
+      expect(await db.select().from(alerts)).toEqual([]);
     });
 
     it("leaves neither the task nor the alert behind when the work it was part of fails", async () => {

@@ -6,6 +6,7 @@ import {
   isRefundPending,
   LATE_PAYMENT_REFUND_ORIGIN,
   latePaymentRefund,
+  PLANNED_REFUND_STATES,
   type PlannedRefund,
   type PlannedRefundState,
   plannedRefunds,
@@ -169,6 +170,13 @@ describe("isRefundPending", () => {
 describe("REFUND_STATES", () => {
   it("lists a refund as done, pending or discarded", () => {
     expect(REFUND_STATES).toEqual(["APPROVED", "PENDING", "DISCARDED"]);
+  });
+});
+
+describe("PLANNED_REFUND_STATES", () => {
+  it("lists a planned refund as done or pending, never discarded", () => {
+    expect(PLANNED_REFUND_STATES).toEqual(["APPROVED", "PENDING"]);
+    expectTypeOf<(typeof PLANNED_REFUND_STATES)[number]>().toEqualTypeOf<PlannedRefundState>();
   });
 });
 

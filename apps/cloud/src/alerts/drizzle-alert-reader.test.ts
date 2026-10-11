@@ -1,6 +1,7 @@
 import type { AlertKind, VisibleAlertSight } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { aPendingLatePaymentRefund } from "../payments/test-support/late-payment-refund-fixtures.js";
 import {
   alertDeliveries,
   alerts,
@@ -374,6 +375,17 @@ describe("DrizzleAlertReader displayNames", () => {
 
     expect(names.get(userId)).toBe("Lucía Pérez");
     expect(names.get(register.id)).toBe("Caja 1");
+  });
+
+  it("maps a refund id to the name of the register that took the payment it gives back", async () => {
+    const { refundId } = await aPendingLatePaymentRefund(db, {
+      openedAt: NOON,
+      registerName: "Caja 3",
+    });
+
+    const names = await new DrizzleAlertReader(db).displayNames([refundId]);
+
+    expect(names).toEqual(new Map([[refundId, "Caja 3"]]));
   });
 
   it("answers an empty map for an empty list", async () => {

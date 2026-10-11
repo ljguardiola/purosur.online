@@ -7,7 +7,7 @@ import { registerFortnightScope } from "./register-fortnight-scope.js";
 const SCOPE = "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6";
 const ACTOR_ID = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
 
-const kindsScopedTo = (scopeKind: "user" | "register" | "sourceAddress" | "event") =>
+const kindsScopedTo = (scopeKind: "user" | "register" | "sourceAddress" | "event" | "refund") =>
   ALERT_KINDS.filter((kind) => alertKindPolicy(kind).scopeKind === scopeKind);
 
 describe("alertNamedRecordIds", () => {
@@ -96,6 +96,16 @@ describe("alertScopeRecordId", () => {
       expect(alertScopeRecordId({ kind, scope: SCOPE })).toBeUndefined();
     }
     expect(alertScopeRecordId({ kind: "retired_kind", scope: SCOPE })).toBeUndefined();
+  });
+});
+
+describe("a refund scope", () => {
+  it("answers the refund as the record the scope names", () => {
+    for (const kind of kindsScopedTo("refund")) {
+      expect(alertScopeRecordId({ kind, scope: SCOPE })).toBe(SCOPE);
+      expect(alertNamedRecordIds({ kind, scope: SCOPE })).toEqual([SCOPE]);
+    }
+    expect(kindsScopedTo("refund")).toEqual(["late_payment_refund"]);
   });
 });
 

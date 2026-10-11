@@ -378,7 +378,7 @@ const passkeyDetail: AlertDetail = {
   escalatedAt: null,
   resolvedAt: null,
   open: true,
-  resolvesByItself: false,
+  closing: "by_hand",
   deliveries: [],
 };
 

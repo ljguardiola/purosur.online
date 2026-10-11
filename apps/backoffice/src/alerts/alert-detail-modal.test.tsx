@@ -57,7 +57,7 @@ function baseDetail(overrides: DetailOverrides = {}): AlertDetail {
     escalatedAt: null,
     resolvedAt: null,
     open: true,
-    resolvesByItself: false,
+    closing: "by_hand",
     deliveries: [],
   };
   return { ...passkeyAlert, ...overrides };
@@ -1366,7 +1366,7 @@ test("says nothing about closing by hand for an open alert the cloud says resolv
         audience: "local",
         scope: "register-1",
         scopeDisplay: "Caja 1",
-        resolvesByItself: true,
+        closing: "by_itself",
         detail: { deviceId: "device-1", lastAcceptedPushAt: "2026-01-05T11:30:00.000Z" },
       }),
     ),
@@ -1444,7 +1444,7 @@ test.each([
           audience: "all",
           scope: "register-1:2026-10-16",
           scopeDisplay: "Caja 1",
-          resolvesByItself: true,
+          closing: "by_itself",
           detail: { ...MISSING_CODE_DETAIL, fortnightStarted },
         }),
       ),
@@ -1471,6 +1471,7 @@ test("tells a refund owed for a QR payment that arrived late: the amount, that i
         scope: "refund-1",
         scopeDisplay: null,
         scopeKind: "refund",
+        closing: "with_its_refund",
         detail: { saleId: "sale-1", amount: 250_000 },
       }),
     ),
@@ -1481,6 +1482,14 @@ test("tells a refund owed for a QR payment that arrived late: the amount, that i
   await expect
     .element(screen.getByText("Reembolso pendiente por un pago tardío", { exact: true }))
     .toBeVisible();
+  await expect
+    .element(
+      screen.getByText("Se cierra cuando su reembolso se marca como hecho o se descarta.", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
   await expect
     .element(
       screen.getByText(

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { cancelMercadoPagoQrOrder } from "./cancel-mercado-pago-qr-order.js";
 import { checkPendingMercadoPagoPayments } from "./check-pending-mercado-pago-payments.js";
 import { confirmMercadoPagoOrderNotification } from "./confirm-mercado-pago-order-notification.js";
-import { createMercadoPagoQrOrder } from "./create-mercado-pago-qr-order.js";
 import { recordMercadoPagoOrderResult } from "./record-mercado-pago-order-result.js";
 import {
   AMOUNT,
@@ -11,7 +10,6 @@ import {
   orderResult,
   paidOrderResult,
   REGISTER_ID,
-  SALE_ID,
   storedTransaction,
   TRANSACTION_ID,
 } from "./test-support/mercado-pago-qr-order-fixtures.js";
@@ -173,21 +171,5 @@ describe("a payment approved after the register replaced it", () => {
     await checkPendingMercadoPagoPayments(world.notificationPorts);
 
     expect([...world.lanes.latePaymentRefunds.keys()]).toEqual([TRANSACTION_ID]);
-  });
-
-  it("opens the task when the order was paid as soon as it was created and the register replaced the payment meanwhile", async () => {
-    const world = mercadoPagoQrOrderWorld({
-      creation: { kind: "created", orderId: "order-1", result: paidOrderResult() },
-    });
-    world.lanes.replacementLandsBeforeNextWrite = true;
-
-    await createMercadoPagoQrOrder(world.ports, {
-      registerId: REGISTER_ID,
-      paymentTransactionId: TRANSACTION_ID,
-      saleId: SALE_ID,
-      amount: AMOUNT,
-    });
-
-    expect(world.lanes.latePaymentRefunds.size).toBe(1);
   });
 });

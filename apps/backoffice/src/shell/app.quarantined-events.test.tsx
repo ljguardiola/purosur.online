@@ -90,13 +90,13 @@ const quarantinedEventAlert: AlertDetail = {
   escalatedAt: null,
   resolvedAt: null,
   open: true,
-  resolvesByItself: false,
+  closing: "by_hand",
   deliveries: [],
 };
 
 test("follows a quarantined event's alert to the quarantined events list", async () => {
   window.history.pushState(null, "", "/alerts");
-  const { open, resolvesByItself, deliveries, detail, ...summary } = quarantinedEventAlert;
+  const { open, closing, deliveries, detail, ...summary } = quarantinedEventAlert;
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(sessionHolding(["alerts_area", "quarantined_events"])),
     alertsListScreen: {

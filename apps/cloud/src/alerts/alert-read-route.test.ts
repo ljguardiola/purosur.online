@@ -227,7 +227,7 @@ describe("GET /alerts/:id", () => {
     ]);
   });
 
-  it("answers whether the alert's kind resolves by itself", async () => {
+  it("answers how the alert's kind closes", async () => {
     const viewerRoleId = await insertRole("supervisor", ["view_all_alerts"]);
     const viewerId = await insertUserWithRole("Grace", viewerRoleId);
     const rawSessionId = await insertSession(viewerId);
@@ -247,10 +247,10 @@ describe("GET /alerts/:id", () => {
     if (!quiet) throw new Error("test setup: inserting the alert returned no row");
 
     const closedByHand = await getAlert(rawSessionId, closedByHandId);
-    const resolvesByItself = await getAlert(rawSessionId, quiet.id);
+    const closesByItself = await getAlert(rawSessionId, quiet.id);
 
-    expect(closedByHand.json()).toMatchObject({ resolvesByItself: false });
-    expect(resolvesByItself.json()).toMatchObject({ resolvesByItself: true });
+    expect(closedByHand.json()).toMatchObject({ closing: "by_hand" });
+    expect(closesByItself.json()).toMatchObject({ closing: "by_itself" });
   });
 
   it("lists the deliveries by when they were written, ties in a stable order", async () => {
@@ -457,7 +457,7 @@ describe("GET /alerts/:id for the refund of a late payment", () => {
       level: "warning",
       audience: "local",
       open: true,
-      resolvesByItself: false,
+      closing: "with_its_refund",
       detail: { saleId: "9d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10", amount: 250000 },
     });
   });

@@ -36,7 +36,7 @@ const emailChange = {
   escalatedAt: null,
   resolvedAt: null,
   open: true,
-  resolvesByItself: false,
+  closing: "by_hand",
   deliveries: [delivery],
 };
 
@@ -123,8 +123,9 @@ describe("alertDetailSchema", () => {
     ["resolvedAt", undefined],
     ["open", "true"],
     ["open", null],
-    ["resolvesByItself", "false"],
-    ["resolvesByItself", null],
+    ["closing", false],
+    ["closing", "by_the_register"],
+    ["closing", null],
     ["deliveries", null],
     ["deliveries", {}],
   ])("refuses %s as %j", (field, value) => {

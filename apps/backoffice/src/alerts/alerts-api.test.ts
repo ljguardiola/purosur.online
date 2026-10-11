@@ -117,7 +117,7 @@ const alertDetail: AlertDetail = {
   ...alertWithoutReason,
   scopeKind: "user",
   open: true,
-  resolvesByItself: false,
+  closing: "by_hand",
   kind: "user_email_changed",
   detail: {
     previousEmail: "old@example.com",
