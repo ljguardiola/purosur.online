@@ -133,6 +133,13 @@ function reportsCoreState(outcome: TakenOutcome): boolean {
   );
 }
 
+function discountRemovedFrom(sale: OpenSale, lineId: string | undefined): ScanProblem | undefined {
+  const line = sale.lines.find(({ id }) => id === lineId);
+  return line === undefined
+    ? undefined
+    : { kind: "manual_discount_removed", product_name: line.product_name };
+}
+
 function focusScanField(form: HTMLFormElement | null) {
   form?.querySelector("input")?.focus();
 }
@@ -260,11 +267,17 @@ export function SaleScreen({
     failure: { kind: "scan_failed" } | { kind: "add_failed" },
   ) {
     switch (outcome.kind) {
-      case "added":
-        setProblem(undefined);
-        setChanged(changedLineId(await takeSale(outcome.sale), outcome.sale));
+      case "added": {
+        const addedLineId = changedLineId(await takeSale(outcome.sale), outcome.sale);
+        setProblem(
+          outcome.removed_manual_discount
+            ? discountRemovedFrom(outcome.sale, addedLineId)
+            : undefined,
+        );
+        setChanged(addedLineId);
         setCode((typed) => (typed.trim() === submitted ? "" : typed));
         break;
+      }
       case "not_signed_in":
       case "no_open_session":
         onSessionInvalid();
@@ -427,6 +440,7 @@ export function SaleScreen({
   async function edit(
     request: () => Promise<SaleEditOutcome>,
     failure: SaleEditFailure,
+    line?: SaleLine,
   ): Promise<SaleEditOutcome["kind"] | undefined> {
     if (editInFlight.current) {
       return undefined;
@@ -441,6 +455,12 @@ export function SaleScreen({
     }
     switch (outcome.kind) {
       case "changed":
+        setProblem(
+          outcome.removed_manual_discount ? discountRemovedFrom(outcome.sale, line?.id) : undefined,
+        );
+        setChanged(undefined);
+        await takeSale(outcome.sale);
+        break;
       case "removed":
         setProblem(undefined);
         setChanged(undefined);
@@ -483,9 +503,11 @@ export function SaleScreen({
   }
 
   async function changeWeight(line: SaleLine, weight: number): Promise<"invalid_weight" | "done"> {
-    const outcome = await edit(() => changeLineWeight(line.id, weight, line.quantity), {
-      kind: "weight_change_failed",
-    });
+    const outcome = await edit(
+      () => changeLineWeight(line.id, weight, line.quantity),
+      { kind: "weight_change_failed" },
+      line,
+    );
     if (outcome === "invalid_weight") {
       return "invalid_weight";
     }
@@ -622,9 +644,11 @@ export function SaleScreen({
               editable,
               lockedReason,
               onChangeQuantity: (line, quantity) =>
-                void edit(() => changeLineQuantity(line.id, quantity, line.quantity), {
-                  kind: "change_failed",
-                }),
+                void edit(
+                  () => changeLineQuantity(line.id, quantity, line.quantity),
+                  { kind: "change_failed" },
+                  line,
+                ),
               onChangeWeight: (line) => askForWeight({ kind: "change", line }),
               onAdjust: askToAdjust,
               onRemove: (line) =>
