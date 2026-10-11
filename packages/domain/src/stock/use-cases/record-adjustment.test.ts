@@ -204,22 +204,23 @@ describe("recordAdjustment", () => {
       const store = storeWithProduct();
       store.seedLot({
         ...KEY,
-        id: "older",
+        id: "a-older",
+        expiresOn: "2026-12-01",
         receivedAt: new Date("2026-02-01T00:00:00.000Z"),
         remaining: 1000,
       });
       store.seedLot({
         ...KEY,
-        id: "newer",
+        id: "b-newer",
         receivedAt: new Date("2026-03-01T00:00:00.000Z"),
         remaining: 500,
       });
 
       await adjust(store, { direction: "add", quantity: 2000 });
 
-      expect(remainingByLot(store)).toEqual({ older: 1000, newer: 2500 });
+      expect(remainingByLot(store)).toEqual({ "a-older": 1000, "b-newer": 2500 });
       expect(store.snapshot().allocations).toEqual([
-        { movementId: "movement-1", lotId: "newer", quantity: 2000 },
+        { movementId: "movement-1", lotId: "b-newer", quantity: 2000 },
       ]);
     });
 

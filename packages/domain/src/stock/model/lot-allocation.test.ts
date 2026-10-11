@@ -180,12 +180,12 @@ describe("movementAllocations when stock is reduced", () => {
 describe("movementAllocations when stock grows", () => {
   it("returns the quantity to the most recently received lot", () => {
     const lots = [
-      lot("older", { receivedAt: new Date("2026-02-01T00:00:00.000Z") }),
-      lot("newer", { receivedAt: new Date("2026-03-01T00:00:00.000Z") }),
+      lot("a-older", { expiresOn: "2026-12-01", receivedAt: new Date("2026-02-01T00:00:00.000Z") }),
+      lot("b-newer", { expiresOn: "2027-12-01", receivedAt: new Date("2026-03-01T00:00:00.000Z") }),
     ];
 
     expect(movementAllocations(lots, 2_000)).toEqual([
-      { target: target("newer"), quantity: 2_000 },
+      { target: target("b-newer"), quantity: 2_000 },
     ]);
   });
 
