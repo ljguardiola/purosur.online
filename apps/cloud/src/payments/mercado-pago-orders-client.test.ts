@@ -10,6 +10,8 @@ import {
   createdOrder,
   expiredOrder,
   failedOrder,
+  idempotencyKeyAlreadyUsedError,
+  instoreOrderLockedError,
   ORDER_CARD_FIRST_SIX,
   ORDER_CARD_LAST_FOUR,
   ORDER_ID,
@@ -458,64 +460,165 @@ describe("the Mercado Pago orders client", () => {
       expect(init.body).toBeUndefined();
     });
 
-    it("posts the cancellation without an idempotency key when none is given", async () => {
-      const { client, fetch } = clientAnswering(answer(200, canceledOrder()));
+    it("does not let an identifier change the path it is read from", async () => {
+      const { client, fetch } = clientAnswering(answer(200, createdOrder()));
 
-      await client.cancelOrder(ORDER_ID);
-
-      expect(sentRequest(fetch).init.headers).toEqual({ Authorization: `Bearer ${ACCESS_TOKEN}` });
-    });
-
-    it("does not let an identifier change the path it is cancelled at", async () => {
-      const { client, fetch } = clientAnswering(answer(200, canceledOrder()));
-
-      await client.cancelOrder("../payments/1?x=y");
+      await client.readOrder("../payments/1?x=y");
 
       expect(sentRequest(fetch).url).toBe(
-        "https://api.mercadopago.com/v1/orders/..%2Fpayments%2F1%3Fx%3Dy/cancel",
+        "https://api.mercadopago.com/v1/orders/..%2Fpayments%2F1%3Fx%3Dy",
       );
     });
 
-    it("answers the cancelled order in the payment vocabulary", async () => {
-      const { client } = clientAnswering(answer(200, canceledOrder()));
-
-      expect(await client.cancelOrder(ORDER_ID)).toStrictEqual({
-        kind: "cancelled",
-        result: {
+    it.each([
+      ["created", createdOrder(), createdResult()],
+      [
+        "paid exactly",
+        paidOrder(),
+        {
+          status: "processed",
+          statusDetail: "accredited",
+          totalPaidAmount: 5000,
+          payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 5000 }],
+        },
+      ],
+      [
+        "paid with a discount",
+        paidWithDiscountOrder(),
+        {
+          status: "processed",
+          statusDetail: "accredited",
+          totalPaidAmount: 4728,
+          payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 4728 }],
+        },
+      ],
+      [
+        "canceled",
+        canceledOrder(),
+        createdResult({
           status: "canceled",
           statusDetail: "canceled",
-          totalPaidAmount: null,
           payments: [{ status: "canceled", statusDetail: "canceled_by_api", paidAmount: null }],
+        }),
+      ],
+      [
+        "expired",
+        expiredOrder(),
+        createdResult({
+          status: "expired",
+          statusDetail: "expired",
+          payments: [{ status: "expired", statusDetail: "expired", paidAmount: null }],
+        }),
+      ],
+      [
+        "failed",
+        failedOrder(),
+        createdResult({
+          status: "failed",
+          statusDetail: "failed",
+          payments: [{ status: "failed", statusDetail: "rejected_by_issuer", paidAmount: null }],
+        }),
+      ],
+    ])(
+      "translates an order that is %s into the payment vocabulary",
+      async (_name, body, result) => {
+        const { client } = clientAnswering(answer(200, body));
+
+        expect(await client.readOrder(ORDER_ID)).toStrictEqual({ kind: "read", result });
+      },
+    );
+
+    it("reads the amounts in cents without the drift of floating point numbers", async () => {
+      const { client } = clientAnswering(
+        answer(200, paidWithDiscountOrder("50.00", "4.35")),
+        answer(200, paidWithDiscountOrder("50.00", "0.29")),
+      );
+
+      expect(await client.readOrder(ORDER_ID)).toMatchObject({
+        result: { totalPaidAmount: 435, payments: [{ paidAmount: 435 }] },
+      });
+      expect(await client.readOrder(ORDER_ID)).toMatchObject({
+        result: { totalPaidAmount: 29, payments: [{ paidAmount: 29 }] },
+      });
+    });
+
+    it("reads an amount with one decimal and an amount without decimals", async () => {
+      const { client } = clientAnswering(
+        answer(200, paidWithDiscountOrder("50.00", "47.5")),
+        answer(200, paidWithDiscountOrder("50.00", "50")),
+      );
+
+      expect(await client.readOrder(ORDER_ID)).toMatchObject({
+        result: { totalPaidAmount: 4750 },
+      });
+      expect(await client.readOrder(ORDER_ID)).toMatchObject({
+        result: { totalPaidAmount: 5000 },
+      });
+    });
+
+    it("reads an answer that does not state the order's total amount", async () => {
+      const { client } = clientAnswering(
+        answer(200, { ...createdOrder(), total_amount: undefined }),
+      );
+
+      expect(await client.readOrder(ORDER_ID)).toStrictEqual({
+        kind: "read",
+        result: createdResult(),
+      });
+    });
+
+    it("keeps nothing the payment says about the payer or the card", async () => {
+      const { client } = clientAnswering(answer(200, paidWithCardOrder()));
+
+      const reading = await client.readOrder(ORDER_ID);
+
+      const serialized = JSON.stringify(reading);
+      expect(serialized).not.toContain(ORDER_CARD_FIRST_SIX);
+      expect(serialized).not.toContain(ORDER_CARD_LAST_FOUR);
+      expect(serialized).not.toContain("credit_card");
+      expect(reading).toStrictEqual({
+        kind: "read",
+        result: {
+          status: "processed",
+          statusDetail: "accredited",
+          totalPaidAmount: 5000,
+          payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 5000 }],
         },
       });
     });
 
-    it("answers that the order cannot be cancelled when Mercado Pago answers 409 cannot_cancel_order", async () => {
-      const { client } = clientAnswering(answer(409, cannotCancelOrderError()));
-
-      expect(await client.cancelOrder(ORDER_ID)).toStrictEqual({ kind: "cannot_cancel" });
-    });
-
-    it("answers that the order was already cancelled when Mercado Pago answers 409 order_already_canceled", async () => {
-      const { client } = clientAnswering(answer(409, orderAlreadyCanceledError()));
-
-      expect(await client.cancelOrder(ORDER_ID)).toStrictEqual({ kind: "already_cancelled" });
-    });
-
     it.each([
-      ["a 409 with another code", () => answer(409, { errors: [{ code: "other" }], status: 409 })],
-      ["a 409 that is not JSON", () => answer(409, "conflict")],
-      ["a 404", () => answer(404, { errors: [{ code: "order_not_found" }] })],
-      ["a 401", () => answer(401, { message: "unauthorized" })],
-      ["a server error", () => answer(500, { message: "oops" })],
-      ["a request timeout", () => answer(408, {})],
-      ["a success that is not JSON", () => answer(200, "not json")],
-      ["a success missing its fields", () => answer(200, { id: ORDER_ID })],
-      ["a network failure", () => new TypeError("fetch failed")],
-    ])("is unavailable on %s", async (_name, failure) => {
-      const { client } = clientAnswering(failure());
+      ["a missing status detail", { ...createdOrder(), status_detail: undefined }],
+      ["a payment without its status", { ...createdOrder(), transactions: { payments: [{}] } }],
+      [
+        "a payment amount paid that is not a decimal number",
+        {
+          ...createdOrder(),
+          transactions: {
+            payments: [{ status: "processed", status_detail: "accredited", paid_amount: "1,5" }],
+          },
+        },
+      ],
+    ])("is unavailable when the answer has %s", async (_name, body) => {
+      const { client } = clientAnswering(answer(200, body));
 
-      expect(await client.cancelOrder(ORDER_ID)).toStrictEqual({ kind: "unavailable" });
+      expect(await client.readOrder(ORDER_ID)).toStrictEqual({ kind: "unavailable" });
+    });
+
+    it.each([400, 401, 404, 429, 500, 503])(
+      "is unavailable when Mercado Pago answers %i",
+      async (status) => {
+        const { client } = clientAnswering(answer(status, { errors: [{ code: "nope" }] }));
+
+        expect(await client.readOrder(ORDER_ID)).toStrictEqual({ kind: "unavailable" });
+      },
+    );
+
+    it("is unavailable when the network fails or the answer is not JSON", async () => {
+      const { client } = clientAnswering(new TypeError("fetch failed"), answer(200, "not json"));
+
+      expect(await client.readOrder(ORDER_ID)).toStrictEqual({ kind: "unavailable" });
+      expect(await client.readOrder(ORDER_ID)).toStrictEqual({ kind: "unavailable" });
     });
 
     it("is unavailable when Mercado Pago does not answer within 10 seconds", async () => {
@@ -532,7 +635,186 @@ describe("the Mercado Pago orders client", () => {
         fetch,
       });
 
-      const cancellation = client.cancelOrder(ORDER_ID);
+      const reading = client.readOrder(ORDER_ID);
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      expect(await reading).toStrictEqual({ kind: "unavailable" });
+    });
+  });
+
+  describe("cancelling an order", () => {
+    const IDEMPOTENCY_KEY = "0b0a5a42-1f9a-4a53-9f55-3e1c1c0d7a10";
+
+    it("posts the cancellation of the order with the idempotency key and the access token", async () => {
+      const { client, fetch } = clientAnswering(answer(200, canceledOrder()));
+
+      await client.cancelOrder(ORDER_ID, IDEMPOTENCY_KEY);
+
+      const { url, init } = sentRequest(fetch);
+      expect(url).toBe(`https://api.mercadopago.com/v1/orders/${ORDER_ID}/cancel`);
+      expect(init.method).toBe("POST");
+      expect(init.headers).toEqual({
+        Authorization: `Bearer ${ACCESS_TOKEN}`,
+        "X-Idempotency-Key": IDEMPOTENCY_KEY,
+      });
+      expect(init.body).toBeUndefined();
+    });
+
+    it("posts the cancellation without an idempotency key when none is given", async () => {
+      const { client, fetch } = clientAnswering(answer(200, canceledOrder()));
+
+      await client.cancelOrder(ORDER_ID, IDEMPOTENCY_KEY);
+
+      expect(sentRequest(fetch).init.headers).toEqual({ Authorization: `Bearer ${ACCESS_TOKEN}` });
+    });
+
+    it("does not let an identifier change the path it is cancelled at", async () => {
+      const { client, fetch } = clientAnswering(answer(200, canceledOrder()));
+
+      await client.cancelOrder("../payments/1?x=y", IDEMPOTENCY_KEY);
+
+      expect(sentRequest(fetch).url).toBe(
+        "https://api.mercadopago.com/v1/orders/..%2Fpayments%2F1%3Fx%3Dy/cancel",
+      );
+    });
+
+    it("answers the cancelled order in the payment vocabulary", async () => {
+      const { client } = clientAnswering(answer(200, canceledOrder()));
+
+      expect(await client.cancelOrder(ORDER_ID, IDEMPOTENCY_KEY)).toStrictEqual({
+        kind: "cancelled",
+        result: {
+          status: "canceled",
+          statusDetail: "canceled",
+          totalPaidAmount: null,
+          payments: [{ status: "canceled", statusDetail: "canceled_by_api", paidAmount: null }],
+        },
+      });
+    });
+
+    it("answers that the order cannot be cancelled when Mercado Pago answers 409 cannot_cancel_order", async () => {
+      const { client } = clientAnswering(answer(409, cannotCancelOrderError()));
+
+      expect(await client.cancelOrder(ORDER_ID, IDEMPOTENCY_KEY)).toStrictEqual({
+        kind: "cannot_cancel",
+      });
+    });
+
+    it.each([
+      ["order_already_canceled", orderAlreadyCanceledError],
+      ["instore_order_locked_error", instoreOrderLockedError],
+    ])(
+      "answers that the order cannot be cancelled when Mercado Pago answers 409 %s",
+      async (_code, error) => {
+        const { client } = clientAnswering(answer(409, error()));
+
+        expect(await client.cancelOrder(ORDER_ID, IDEMPOTENCY_KEY)).toStrictEqual({
+          kind: "cannot_cancel",
+        });
+      },
+    );
+
+    it("is unavailable when Mercado Pago answers 409 idempotency_key_already_used", async () => {
+      const { client } = clientAnswering(answer(409, idempotencyKeyAlreadyUsedError()));
+
+      expect(await client.cancelOrder(ORDER_ID, IDEMPOTENCY_KEY)).toStrictEqual({
+        kind: "unavailable",
+      });
+    });
+
+    it.each([
+      ["a cancelled order", () => answer(200, canceledOrder())],
+      ["an order that cannot be cancelled", () => answer(409, cannotCancelOrderError())],
+      ["an order already cancelled", () => answer(409, orderAlreadyCanceledError())],
+      ["an order locked in store", () => answer(409, instoreOrderLockedError())],
+    ])("logs nothing for %s", async (_name, response) => {
+      const { client } = clientAnswering(response());
+
+      await client.cancelOrder(ORDER_ID, IDEMPOTENCY_KEY);
+
+      expect(consoleCalls).toEqual([]);
+    });
+
+    it.each([
+      [
+        "idempotency_key_already_used",
+        () => answer(409, idempotencyKeyAlreadyUsedError()),
+        { status: 409, code: "idempotency_key_already_used" },
+      ],
+      [
+        "another 409 code",
+        () => answer(409, { errors: [{ code: "other" }], status: 409 }),
+        { status: 409, code: "other" },
+      ],
+      ["a 409 that is not JSON", () => answer(409, "conflict"), { status: 409, code: null }],
+      [
+        "a 404",
+        () => answer(404, { errors: [{ code: "order_not_found" }] }),
+        { status: 404, code: "order_not_found" },
+      ],
+      ["a 401", () => answer(401, { message: "unauthorized" }), { status: 401, code: null }],
+      ["a server error", () => answer(500, { message: "oops" }), { status: 500, code: null }],
+      [
+        "a success missing its fields",
+        () => answer(200, { id: ORDER_ID }),
+        { status: 200, code: null },
+      ],
+      [
+        "a network failure",
+        () => new TypeError("fetch failed"),
+        { status: "unreachable", code: null },
+      ],
+      [
+        "a code that is not an error code",
+        () => answer(400, { errors: [{ code: ACCESS_TOKEN }] }),
+        { status: 400, code: null },
+      ],
+    ])(
+      "logs the status and code of %s without the key or the body",
+      async (_name, response, logged) => {
+        const { client } = clientAnswering(response());
+
+        await client.cancelOrder(ORDER_ID, IDEMPOTENCY_KEY);
+
+        expect(consoleCalls).toEqual([["Mercado Pago did not cancel the order", logged]]);
+        expect(JSON.stringify(consoleCalls)).not.toContain(IDEMPOTENCY_KEY);
+        expect(JSON.stringify(consoleCalls)).not.toContain(ACCESS_TOKEN);
+      },
+    );
+
+    it.each([
+      ["a 409 with another code", () => answer(409, { errors: [{ code: "other" }], status: 409 })],
+      ["a 409 that is not JSON", () => answer(409, "conflict")],
+      ["a 404", () => answer(404, { errors: [{ code: "order_not_found" }] })],
+      ["a 401", () => answer(401, { message: "unauthorized" })],
+      ["a server error", () => answer(500, { message: "oops" })],
+      ["a request timeout", () => answer(408, {})],
+      ["a success that is not JSON", () => answer(200, "not json")],
+      ["a success missing its fields", () => answer(200, { id: ORDER_ID })],
+      ["a network failure", () => new TypeError("fetch failed")],
+    ])("is unavailable on %s", async (_name, failure) => {
+      const { client } = clientAnswering(failure());
+
+      expect(await client.cancelOrder(ORDER_ID, IDEMPOTENCY_KEY)).toStrictEqual({
+        kind: "unavailable",
+      });
+    });
+
+    it("is unavailable when Mercado Pago does not answer within 10 seconds", async () => {
+      vi.useFakeTimers();
+      const fetch = vi.fn<typeof globalThis.fetch>(
+        (_url, init) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+          }),
+      );
+      const client = createMercadoPagoOrdersClient({
+        accessToken: ACCESS_TOKEN,
+        externalPosId: EXTERNAL_POS_ID,
+        fetch,
+      });
+
+      const cancellation = client.cancelOrder(ORDER_ID, IDEMPOTENCY_KEY);
       await vi.advanceTimersByTimeAsync(10_000);
 
       expect(await cancellation).toStrictEqual({ kind: "unavailable" });
@@ -584,7 +866,7 @@ describe("the Mercado Pago orders client", () => {
       async (_name, failure) => {
         const { client } = clientAnswering(failure());
 
-        const cancellation = await client.cancelOrder(ORDER_ID);
+        const cancellation = await client.cancelOrder(ORDER_ID, "key-1");
 
         expect(JSON.stringify(cancellation)).not.toContain(ACCESS_TOKEN);
         expect(JSON.stringify(consoleCalls)).not.toContain(ACCESS_TOKEN);
