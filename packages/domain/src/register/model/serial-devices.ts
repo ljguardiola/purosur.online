@@ -62,3 +62,15 @@ export function isSerialDeviceMissing(
     (role) => standings[role].kind === "not_detected" || standings[role].kind === "mismatched",
   );
 }
+
+export function offersSerialDevicesSetup({
+  mayConfigure,
+  standings,
+}: {
+  mayConfigure: boolean;
+  standings: Record<SerialDeviceRole, { kind: SerialDeviceStanding["kind"] | "unknown" }>;
+}): boolean {
+  return (
+    mayConfigure && SERIAL_DEVICE_ROLES.every((role) => standings[role].kind === "not_registered")
+  );
+}
