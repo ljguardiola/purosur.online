@@ -5,6 +5,7 @@ import {
 } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import { installationRequestAttempts, paymentTransactions } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";
@@ -79,8 +80,6 @@ const asks = [
 afterEach(() => {
   vi.restoreAllMocks();
 });
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 describe("the Mercado Pago QR routes", () => {
   describe.each(asks)("who may ask, %s", (_name, ask) => {
@@ -417,10 +416,10 @@ describe("the Mercado Pago QR routes", () => {
         state: "CANCELLED",
         needs_review: false,
       });
-      expect(route.mercadoPago.cancellations).toEqual([
-        { orderId: ORDER_ID, idempotencyKey: expect.stringMatching(UUID) },
-      ]);
-      expect(route.mercadoPago.cancellations[0]?.idempotencyKey).not.toBe(id);
+      const [cancellation] = route.mercadoPago.cancellations;
+      expect(cancellation?.orderId).toBe(ORDER_ID);
+      expect(z.uuid().safeParse(cancellation?.idempotencyKey).success).toBe(true);
+      expect(cancellation?.idempotencyKey).not.toBe(id);
       expect(await transactions()).toMatchObject([{ state: "CANCELLED" }]);
     });
 
