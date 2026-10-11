@@ -32,6 +32,8 @@ const QR_STORE_OVERHEAD = 3;
 const CENTER_ALIGNMENT = 1;
 const LEFT_ALIGNMENT = 0;
 const VOUCHER_CODE_DIGITS = 3;
+const LOGO_TOP_MARGIN_DOTS = 24;
+const LOGO_BOTTOM_MARGIN_DOTS = 16;
 
 const PAYMENT_NAMES = {
   CASH: "Efectivo",
@@ -85,6 +87,10 @@ class Output {
     this.chunks.push(data);
     this.command(GS, 0x28, 0x6b, 3, 0, 0x31, 0x51, 0x30);
     this.command(ESC, 0x61, LEFT_ALIGNMENT);
+  }
+
+  feed(dots: number): void {
+    this.command(ESC, 0x4a, dots);
   }
 
   bytes(): Uint8Array {
@@ -158,6 +164,7 @@ function initialization(out: Output): void {
 function logo(out: Output): void {
   const { widthDots, heightDots, rows } = RECEIPT_LOGO;
   const widthBytes = widthDots / 8;
+  out.feed(LOGO_TOP_MARGIN_DOTS);
   out.command(
     GS,
     0x76,
@@ -169,6 +176,7 @@ function logo(out: Output): void {
     heightDots >> 8,
   );
   out.raw(concatenated(rows.map((encoded) => Uint8Array.from(Buffer.from(encoded, "base64")))));
+  out.feed(LOGO_BOTTOM_MARGIN_DOTS);
 }
 
 function branch(
