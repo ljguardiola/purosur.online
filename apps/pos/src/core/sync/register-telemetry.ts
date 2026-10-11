@@ -2,6 +2,7 @@ import {
   type RegisterTelemetry,
   SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,
   type SalesStopState,
+  type SerialDevicesReport,
   type StorageTelemetry,
   salesDeniedReportOf,
 } from "@purosur/domain";
@@ -9,10 +10,12 @@ import {
 export function registerTelemetryReader(
   readStorage: () => Promise<StorageTelemetry>,
   readSalesStop: () => SalesStopState,
+  readSerialDevices: () => SerialDevicesReport,
 ): () => Promise<RegisterTelemetry> {
   return async () => ({
     ...(await readStorage()),
     ...salesDeniedReportOf(readSalesStop()),
+    serial_devices: readSerialDevices(),
   });
 }
 

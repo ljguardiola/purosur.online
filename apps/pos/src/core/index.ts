@@ -61,6 +61,7 @@ import { readReceiptPrinterFor, setReceiptPrinterFor } from "./register/receipt-
 import { registerServiceOf } from "./register/register-service-of-database";
 import { registerStatusFor } from "./register/register-status-requests";
 import { createSerialDeviceWatch, pathOfMatchingDevice } from "./register/serial-device-watch";
+import { serialDevicesReportOf } from "./register/serial-devices-report";
 import { readSerialDevicesFor, registerSerialDevicesFor } from "./register/serial-devices-requests";
 import { listSerialPorts, serialportEnumeration } from "./register/serialport-enumeration";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
@@ -229,11 +230,13 @@ const serialDeviceEnumeration = serialportEnumeration({
   list: listSerialPorts,
   onListed: () => console.info("core: serial devices listed"),
 });
+const serialDeviceRegistrations =
+  localDatabase === undefined ? undefined : new SqliteSerialDeviceRegistrations(localDatabase);
 const serialDeviceWatch =
-  localDatabase === undefined
+  serialDeviceRegistrations === undefined
     ? undefined
     : createSerialDeviceWatch({
-        registrations: new SqliteSerialDeviceRegistrations(localDatabase),
+        registrations: serialDeviceRegistrations,
         enumeration: serialDeviceEnumeration,
         intervalMs: SERIAL_DEVICE_CHECK_INTERVAL_MS,
         scheduleNext: (run, delayMs) => {
@@ -310,11 +313,17 @@ const syncSchedule = createSyncSchedule({
               post,
               appVersion: appVersionFromCoreArguments(process.argv),
               readTelemetry:
-                localDatabase === undefined
+                localDatabase === undefined ||
+                serialDeviceWatch === undefined ||
+                serialDeviceRegistrations === undefined
                   ? undefined
                   : registerTelemetryReader(
                       storageTelemetryReader(localDatabase.name, nodeStorageFileSystem),
                       () => salesStopOf(localDatabase),
+                      () =>
+                        serialDevicesReportOf(serialDeviceWatch.reading(), () =>
+                          serialDeviceRegistrations.registeredSerialDevices(),
+                        ),
                     ),
               acceptedPush:
                 localDatabase === undefined
