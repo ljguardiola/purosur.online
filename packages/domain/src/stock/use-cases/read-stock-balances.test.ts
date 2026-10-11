@@ -126,7 +126,9 @@ describe("readStockBalances", () => {
   });
 
   it("gives a technical lot no value and the product's sales without lots as origin", async () => {
-    const { products } = await read([level("p1", { balance: -2_000, lots: [technicalLot("t", -2_000)] })]);
+    const { products } = await read([
+      level("p1", { balance: -2_000, lots: [technicalLot("t", -2_000)] }),
+    ]);
 
     expect(products[0]?.lots).toEqual([
       {
@@ -206,7 +208,11 @@ describe("readStockBalances", () => {
       level("p1", { balance: -1_000, lots: [purchasedLot("l1", { remaining: -1_000 })] }),
     ]);
 
-    expect(products[0]).toMatchObject({ valueCents: -5_000, unitCostCents: 5_000, correction: "count" });
+    expect(products[0]).toMatchObject({
+      valueCents: -5_000,
+      unitCostCents: 5_000,
+      correction: "count",
+    });
   });
 
   it("sums the footer over the listed products", async () => {

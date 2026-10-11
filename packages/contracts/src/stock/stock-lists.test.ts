@@ -8,6 +8,7 @@ import {
   stockMovementReasonListSchema,
   stockPeriodDaysSchema,
   stockPeriodSchema,
+  stockProductBalanceSchema,
   stockProductListSchema,
 } from "./stock-lists.js";
 
@@ -136,8 +137,10 @@ describe("stockBalanceListSchema", () => {
     ["withoutCostCount", "2"],
   ])("refuses a summary with %s as %j", (field, value) => {
     expect(
-      stockBalanceListSchema.safeParse({ products: [balance], summary: { ...summary, [field]: value } })
-        .success,
+      stockBalanceListSchema.safeParse({
+        products: [balance],
+        summary: { ...summary, [field]: value },
+      }).success,
     ).toBe(false);
   });
 });
@@ -196,6 +199,26 @@ describe("stockBalanceSchema", () => {
     expect(
       stockBalanceSchema.safeParse({ ...balance, lots: [{ ...purchasedLot, [field]: value }] })
         .success,
+    ).toBe(false);
+  });
+});
+
+describe("stockProductBalanceSchema", () => {
+  const { valueCents, unitCostCents, lotCount, correction, lots, ...productWithBalance } = balance;
+
+  it("accepts a product with the balance it holds, without its valuation or lots", () => {
+    expect(stockProductBalanceSchema.safeParse(productWithBalance).data).toEqual(
+      productWithBalance,
+    );
+  });
+
+  it.each([
+    ["balance", 0.5],
+    ["balance", undefined],
+    ["active", undefined],
+  ])("refuses %s as %j", (field, value) => {
+    expect(
+      stockProductBalanceSchema.safeParse({ ...productWithBalance, [field]: value }).success,
     ).toBe(false);
   });
 });
