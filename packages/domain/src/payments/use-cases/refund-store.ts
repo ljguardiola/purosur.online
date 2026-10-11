@@ -1,22 +1,30 @@
+import type { RefundOrigin } from "../model/payment-refund.js";
+
 export interface LockedRefund {
   id: string;
   state: string;
+  origin: string;
 }
 
-export interface PendingRefund {
+export interface PendingRefundRecord {
   id: string;
   saleId: string;
   registerId: string;
   registerName: string;
   method: string;
+  origin: RefundOrigin;
   amount: number;
   occurredAt: Date;
-  cancelledBy: string;
+  cancelledBy: string | null;
   cancelledByName: string | null;
 }
 
+export interface PendingRefund extends PendingRefundRecord {
+  discardable: boolean;
+}
+
 export interface PendingRefundsReader {
-  pendingRefunds(locationId: string): Promise<PendingRefund[]>;
+  pendingRefunds(locationId: string): Promise<PendingRefundRecord[]>;
 }
 
 export interface RefundStore {
@@ -26,4 +34,10 @@ export interface RefundStore {
 export interface RefundStoreTransaction {
   lockRefund(refundId: string, locationId: string): Promise<LockedRefund | undefined>;
   recordRefundDone(refundId: string, doneBy: string, doneAt: Date): Promise<void>;
+  recordRefundDiscarded(refundId: string, discardedBy: string, discardedAt: Date): Promise<void>;
+  resolveLatePaymentRefundAlert(
+    refundId: string,
+    resolvedBy: string,
+    resolvedAt: Date,
+  ): Promise<void>;
 }

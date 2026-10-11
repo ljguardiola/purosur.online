@@ -31,6 +31,12 @@ export type {
 } from "./create-mercado-pago-qr-order.js";
 export { createMercadoPagoQrOrder } from "./create-mercado-pago-qr-order.js";
 export type {
+  DiscardRefundInput,
+  DiscardRefundOutcome,
+  DiscardRefundPorts,
+} from "./discard-refund.js";
+export { discardRefund } from "./discard-refund.js";
+export type {
   FollowMercadoPagoQrChargeInput,
   FollowMercadoPagoQrChargeOutcome,
 } from "./follow-mercado-pago-qr-charge.js";
@@ -90,6 +96,7 @@ export { readMercadoPagoQrPayment } from "./read-mercado-pago-qr-payment.js";
 export type {
   LockedRefund,
   PendingRefund,
+  PendingRefundRecord,
   PendingRefundsReader,
   RefundStore,
   RefundStoreTransaction,
