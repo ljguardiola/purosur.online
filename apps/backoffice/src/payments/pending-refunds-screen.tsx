@@ -17,6 +17,7 @@ import { MarkRefundDoneModal } from "./mark-refund-done-modal";
 import { usePendingRefundsQuery, useRefreshPayments } from "./payments-queries";
 import type { PendingRefundsScreenServices } from "./pending-refunds-services";
 import { refundMethodLabel } from "./refund-method-label";
+import { refundOriginLabel } from "./refund-origin-label";
 
 export type PendingRefundsScreenProps = {
   onSessionEnded: () => void;
@@ -32,6 +33,7 @@ const REFUND_TIME_ZONE = schemaText(
 );
 
 const NO_NAME = "Sin dato";
+const NO_CANCELLER = "—";
 
 function refundMoment(refund: PendingRefund): string {
   const moment = new Date(refund.occurred_at);
@@ -60,7 +62,12 @@ export function PendingRefundsScreen({ onSessionEnded, services }: PendingRefund
   const refunds = data.status === "loaded" ? data.value.refunds : NO_REFUNDS;
 
   const columns = [
-    dataColumn({ id: "moment", header: "Cancelada", render: refundMoment }),
+    dataColumn({ id: "moment", header: "Fecha", render: refundMoment }),
+    dataColumn({
+      id: "origin",
+      header: "Origen",
+      render: (refund: PendingRefund) => refundOriginLabel(refund.origin),
+    }),
     dataColumn({
       id: "register",
       header: "Caja",
@@ -80,7 +87,8 @@ export function PendingRefundsScreen({ onSessionEnded, services }: PendingRefund
     dataColumn({
       id: "cancelledBy",
       header: "Cancelada por",
-      render: (refund: PendingRefund) => refund.cancelled_by_name ?? NO_NAME,
+      render: (refund: PendingRefund) =>
+        refund.cancelled_by === null ? NO_CANCELLER : (refund.cancelled_by_name ?? NO_NAME),
     }),
     actionsColumn({
       id: "actions",
