@@ -6,6 +6,8 @@ function jsonResponse(body, status = 200) {
   return { ok: status >= 200 && status < 300, status, json: async () => body };
 }
 
+const ownRepository = { full_name: "owner/repo" };
+
 function artifact(name, expired = false) {
   return { name, expired };
 }
@@ -163,7 +165,7 @@ for (const [newer, expected] of [
       env: { HEAD_BRANCH: "ci/1-some-work" },
       runsByBranch: {
         main: [{ id: 10, created_at: mainCreated }],
-        "ci/1-some-work": [{ id: 20, created_at: branchCreated }],
+        "ci/1-some-work": [{ id: 20, created_at: branchCreated, head_repository: ownRepository }],
       },
       artifactsByRun: {
         10: [artifact("test-durations-shard-1")],
@@ -182,7 +184,9 @@ test("takes main's run when the head branch has none that qualifies", async () =
     env: { HEAD_BRANCH: "ci/1-some-work" },
     runsByBranch: {
       main: [{ id: 10, created_at: "2026-01-01T00:00:00Z" }],
-      "ci/1-some-work": [{ id: 20, created_at: "2026-01-02T00:00:00Z" }],
+      "ci/1-some-work": [
+        { id: 20, created_at: "2026-01-02T00:00:00Z", head_repository: ownRepository },
+      ],
     },
     artifactsByRun: { 10: [artifact("test-durations-shard-1")] },
   });
@@ -190,4 +194,31 @@ test("takes main's run when the head branch has none that qualifies", async () =
   await runCli(deps);
 
   assert.deepEqual(calls.outputs, [{ path: "/output", line: "run_id=10\n" }]);
+});
+
+test("never takes a run of a same-named branch from another repository", async () => {
+  const { deps, calls } = fakeCli({
+    env: { HEAD_BRANCH: "ci/1-some-work" },
+    runsByBranch: {
+      main: [{ id: 10, created_at: "2026-01-01T00:00:00Z" }],
+      "ci/1-some-work": [
+        {
+          id: 30,
+          created_at: "2026-01-03T00:00:00Z",
+          head_repository: { full_name: "someone/repo" },
+        },
+        { id: 20, created_at: "2026-01-02T00:00:00Z", head_repository: ownRepository },
+      ],
+    },
+    artifactsByRun: {
+      10: [artifact("test-durations-shard-1")],
+      20: [artifact("test-durations-shard-1")],
+      30: [artifact("test-durations-shard-1")],
+    },
+  });
+
+  await runCli(deps);
+
+  assert.deepEqual(calls.outputs, [{ path: "/output", line: "run_id=20\n" }]);
+  assert.ok(!calls.fetch.some((f) => f.url.includes("runs/30/artifacts")));
 });
