@@ -1,10 +1,35 @@
 import type {
   StockBalance,
+  StockBalanceList,
   StockCount,
   StockMovement,
   StockMovementReasonList,
   StockProduct,
 } from "@purosur/contracts";
+
+type StockLot = StockBalance["lots"][number];
+
+export const almondsFirstLot: StockLot = {
+  id: "lot-1",
+  lotNumber: "L-2312",
+  expiresOn: "2026-10-14",
+  technical: false,
+  remaining: 4_300,
+  valueCents: 4_377_400,
+  unitCostCents: 1_018_000,
+  origin: { kind: "purchase", purchasedOn: "2026-08-05", supplierName: "Distribuidora del Sur" },
+};
+
+export const almondsSecondLot: StockLot = {
+  id: "lot-2",
+  lotNumber: "L-2409",
+  expiresOn: "2027-02-28",
+  technical: false,
+  remaining: 7_850,
+  valueCents: 8_022_700,
+  unitCostCents: 1_022_000,
+  origin: { kind: "purchase", purchasedOn: "2026-09-12", supplierName: "Distribuidora del Sur" },
+};
 
 export const almonds: StockBalance = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -14,6 +39,22 @@ export const almonds: StockBalance = {
   saleUnit: "KG",
   active: true,
   balance: 12_150,
+  valueCents: 12_400_100,
+  unitCostCents: 1_020_584,
+  lotCount: 2,
+  correction: null,
+  lots: [almondsFirstLot, almondsSecondLot],
+};
+
+export const honeyLot: StockLot = {
+  id: "lot-3",
+  lotNumber: null,
+  expiresOn: null,
+  technical: false,
+  remaining: 24_000,
+  valueCents: 13_056_000,
+  unitCostCents: 544_000,
+  origin: { kind: "purchase", purchasedOn: "2026-09-20", supplierName: "Apícola Los Álamos" },
 };
 
 export const honey: StockBalance = {
@@ -24,6 +65,22 @@ export const honey: StockBalance = {
   saleUnit: "UNIT",
   active: true,
   balance: 24_000,
+  valueCents: 13_056_000,
+  unitCostCents: 544_000,
+  lotCount: 1,
+  correction: null,
+  lots: [honeyLot],
+};
+
+export const crackersTechnicalLot: StockLot = {
+  id: "lot-4",
+  lotNumber: null,
+  expiresOn: null,
+  technical: true,
+  remaining: -4000,
+  valueCents: null,
+  unitCostCents: null,
+  origin: { kind: "product_sales_without_lots" },
 };
 
 export const crackers: StockBalance = {
@@ -34,6 +91,11 @@ export const crackers: StockBalance = {
   saleUnit: "UNIT",
   active: true,
   balance: -4000,
+  valueCents: null,
+  unitCostCents: null,
+  lotCount: 1,
+  correction: "purchase_or_count",
+  lots: [crackersTechnicalLot],
 };
 
 export const tea: StockBalance = {
@@ -44,6 +106,22 @@ export const tea: StockBalance = {
   saleUnit: "UNIT",
   active: true,
   balance: 0,
+  valueCents: null,
+  unitCostCents: null,
+  lotCount: 0,
+  correction: "purchase_or_count",
+  lots: [],
+};
+
+export const oatsLot: StockLot = {
+  id: "lot-5",
+  lotNumber: "L-1807",
+  expiresOn: "2027-01-10",
+  technical: false,
+  remaining: 3000,
+  valueCents: 270_000,
+  unitCostCents: 90_000,
+  origin: { kind: "purchase", purchasedOn: "2026-07-01", supplierName: "Molinos del Valle" },
 };
 
 export const oats: StockBalance = {
@@ -54,7 +132,59 @@ export const oats: StockBalance = {
   saleUnit: "UNIT",
   active: false,
   balance: 3000,
+  valueCents: 270_000,
+  unitCostCents: 90_000,
+  lotCount: 1,
+  correction: null,
+  lots: [oatsLot],
 };
+
+export const yerba: StockBalance = {
+  id: "66666666-6666-4666-8666-666666666666",
+  name: "Yerba mate orgánica 500 g",
+  categoryId: "category-grocery",
+  categoryName: "Almacén",
+  saleUnit: "UNIT",
+  active: true,
+  balance: -3000,
+  valueCents: -915_000,
+  unitCostCents: 305_000,
+  lotCount: 2,
+  correction: "count",
+  lots: [
+    {
+      id: "lot-6",
+      lotNumber: "L-3001",
+      expiresOn: "2027-03-01",
+      technical: false,
+      remaining: 2000,
+      valueCents: 610_000,
+      unitCostCents: 305_000,
+      origin: { kind: "purchase", purchasedOn: "2026-08-20", supplierName: "Molinos del Valle" },
+    },
+    {
+      id: "lot-7",
+      lotNumber: "L-3002",
+      expiresOn: "2027-04-01",
+      technical: false,
+      remaining: -5000,
+      valueCents: -1_525_000,
+      unitCostCents: 305_000,
+      origin: { kind: "purchase", purchasedOn: "2026-09-02", supplierName: "Molinos del Valle" },
+    },
+  ],
+};
+
+export function stockBalanceList(
+  products: StockBalance[],
+  summary: StockBalanceList["summary"] = {
+    productCount: products.length,
+    valueCents: 0,
+    withoutCostCount: 0,
+  },
+): StockBalanceList {
+  return { products, summary };
+}
 
 export const almondsCount: StockCount = {
   id: "count-1",
