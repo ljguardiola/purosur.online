@@ -313,6 +313,7 @@ export type {
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
+  WeighProductOutcome,
 } from "./sales/sale.js";
 export type {
   ReceiptCopyShown,
