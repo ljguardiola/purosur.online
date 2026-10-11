@@ -212,6 +212,13 @@ describe("addScannedProduct", () => {
     expect(store.state.sales[0]?.lines).toHaveLength(1);
   });
 
+  it("tells no manual discount was removed when the line had none", () => {
+    const store = ledger();
+    scan(store);
+
+    expect(scan(store)).toEqual(expect.objectContaining({ removedManualDiscount: false }));
+  });
+
   it("adding a unit to one line leaves the other lines as they were", () => {
     const store = ledger({
       products: [YERBA, { id: "fideos", name: "Fideos", saleUnit: "UNIT" }],
