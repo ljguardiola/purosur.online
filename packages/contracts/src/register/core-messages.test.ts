@@ -1230,7 +1230,7 @@ describe("register status messages", () => {
     const message = {
       type: "register-status",
       request_id: REQUEST_ID,
-      status: { conditions, cloud, serial_devices: STANDINGS },
+      status: { conditions, cloud, serial_devices: STANDINGS, serial_devices_setup_offered: false },
     };
 
     expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
@@ -1239,15 +1239,30 @@ describe("register status messages", () => {
   it.each([
     [
       "a condition the register does not detect itself",
-      { conditions: [{ kind: "stock_low" }], cloud: "reachable", serial_devices: STANDINGS },
+      {
+        conditions: [{ kind: "stock_low" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
     ],
     [
       "a condition named without its kind",
-      { conditions: ["register_silent"], cloud: "reachable", serial_devices: STANDINGS },
+      {
+        conditions: ["register_silent"],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
     ],
     [
       "a sales denial without its reason",
-      { conditions: [{ kind: "sales_denied" }], cloud: "reachable", serial_devices: STANDINGS },
+      {
+        conditions: [{ kind: "sales_denied" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
     ],
     [
       "a sales denial with a reason it does not know",
@@ -1255,14 +1270,26 @@ describe("register status messages", () => {
         conditions: [{ kind: "sales_denied", reason: "installation_revoked" }],
         cloud: "reachable",
         serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
       },
     ],
     [
       "a cloud state it does not know",
-      { conditions: [], cloud: "slow", serial_devices: STANDINGS },
+      {
+        conditions: [],
+        cloud: "slow",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
     ],
-    ["a status without its cloud", { conditions: [], serial_devices: STANDINGS }],
-    ["a status without its conditions", { cloud: "reachable", serial_devices: STANDINGS }],
+    [
+      "a status without its cloud",
+      { conditions: [], serial_devices: STANDINGS, serial_devices_setup_offered: false },
+    ],
+    [
+      "a status without its conditions",
+      { cloud: "reachable", serial_devices: STANDINGS, serial_devices_setup_offered: false },
+    ],
   ])("rejects the status with %s", (_name, status) => {
     expect(
       registerCoreToRendererMessageSchema.safeParse({
@@ -1277,7 +1304,12 @@ describe("register status messages", () => {
     expect(
       registerCoreToRendererMessageSchema.safeParse({
         type: "register-status",
-        status: { conditions: [], cloud: "unknown", serial_devices: STANDINGS },
+        status: {
+          conditions: [],
+          cloud: "unknown",
+          serial_devices: STANDINGS,
+          serial_devices_setup_offered: false,
+        },
       }).success,
     ).toBe(false);
   });
@@ -1527,6 +1559,7 @@ describe("serial device messages", () => {
           conditions: [{ kind: "serial_device_missing" }],
           cloud: "reachable",
           serial_devices: { scale: kind, reader: "not_registered" },
+          serial_devices_setup_offered: false,
         },
       };
 
@@ -1544,7 +1577,12 @@ describe("serial device messages", () => {
       registerCoreToRendererMessageSchema.safeParse({
         type: "register-status",
         request_id: REQUEST_ID,
-        status: { conditions: [], cloud: "reachable", serial_devices: serialDevices },
+        status: {
+          conditions: [],
+          cloud: "reachable",
+          serial_devices: serialDevices,
+          serial_devices_setup_offered: false,
+        },
       }).success,
     ).toBe(false);
   });
@@ -1554,7 +1592,39 @@ describe("serial device messages", () => {
       registerCoreToRendererMessageSchema.safeParse({
         type: "register-status",
         request_id: REQUEST_ID,
-        status: { conditions: [], cloud: "reachable" },
+        status: { conditions: [], cloud: "reachable", serial_devices_setup_offered: false },
+      }).success,
+    ).toBe(false);
+  });
+
+  it.each([true, false])(
+    "accepts a status that says serial devices setup offered is %s",
+    (offered) => {
+      const message = {
+        type: "register-status",
+        request_id: REQUEST_ID,
+        status: {
+          conditions: [],
+          cloud: "reachable",
+          serial_devices: STANDINGS,
+          serial_devices_setup_offered: offered,
+        },
+      };
+
+      expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+    },
+  );
+
+  it.each([
+    ["missing", {}],
+    ["a string", { serial_devices_setup_offered: "true" }],
+    ["null", { serial_devices_setup_offered: null }],
+  ])("rejects a status whose serial devices setup offered is %s", (_name, offered) => {
+    expect(
+      registerCoreToRendererMessageSchema.safeParse({
+        type: "register-status",
+        request_id: REQUEST_ID,
+        status: { conditions: [], cloud: "reachable", serial_devices: STANDINGS, ...offered },
       }).success,
     ).toBe(false);
   });
