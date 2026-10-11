@@ -305,6 +305,22 @@ describe("DrizzleAlertReader listVisibleAlerts", () => {
     expect(page.alerts.map((a) => a.id)).toEqual([byRegister]);
   });
 
+  it("finds a late payment refund alert by the name of the register that took the payment", async () => {
+    const { alertId } = await aPendingLatePaymentRefund(db, {
+      openedAt: NOON,
+      registerName: "Caja Lucía",
+    });
+    await aPendingLatePaymentRefund(db, { openedAt: NOON, registerName: "Caja Norte" });
+
+    const page = await new DrizzleAlertReader(db).listVisibleAlerts(
+      ALL,
+      { search: { text: "lucía", kindsWithMatchingTitle: [] } },
+      1,
+    );
+
+    expect(page.alerts.map((a) => a.id)).toEqual([alertId]);
+  });
+
   it("treats the search text literally, not as a pattern", async () => {
     const percent = await insertUser("100% Real");
     await insertUser("Someone else");
