@@ -46,7 +46,7 @@ export class FakePaymentTransactionDirectory implements PaymentTransactionDirect
   async paymentTransactionOfExternalReference(
     externalReference: string,
   ): Promise<PaymentTransactionReference | null> {
-    this.lanes.operations.push(`paymentTransactionOfExternalReference `);
+    this.lanes.operations.push(`paymentTransactionOfExternalReference ${externalReference}`);
     const found = this.lanes.transactions.get(externalReference);
     if (found && this.orderRecordedMeanwhile !== undefined) {
       found.providerOrderId = this.orderRecordedMeanwhile;

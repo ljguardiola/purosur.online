@@ -163,7 +163,7 @@ describe("confirmMercadoPagoOrderNotification of an order no payment has recorde
       "paymentTransactionOfOrder order-1",
       "anyPaymentTransactionMayHaveUnrecordedOrder",
       "readOrder",
-      `paymentTransactionOfExternalReference `,
+      `paymentTransactionOfExternalReference ${TRANSACTION_ID}`,
       "enterLane",
       "recordedTransaction",
       "recordOrderCreated",
