@@ -18,8 +18,8 @@ const AUTHORIZERS: SignInUser[] = [
   { id: "u3", first_name: "Sofía" },
   { id: "u2", first_name: "Grace" },
 ];
-const APPLY = "Aplicar ajuste";
-const REASON = "Motivo del ajuste";
+const APPLY = /^Aplicar el (descuento|precio)$/;
+const REASON = "Motivo";
 const CHANGED: AdjustSaleLineOutcome = {
   kind: "changed",
   sale: SALE_OF_YERBA,
@@ -29,6 +29,7 @@ const CHANGED: AdjustSaleLineOutcome = {
 type Props = {
   authorizationRequired?: boolean;
   saleUnit?: "UNIT" | "KG";
+  quantity?: number;
   adjustSaleLine?: (
     lineId: string,
     adjustment: ManualAdjustmentRequest,
@@ -40,6 +41,7 @@ type Props = {
 async function renderModal({
   authorizationRequired = false,
   saleUnit = "UNIT",
+  quantity = 2,
   adjustSaleLine = async () => CHANGED,
 }: Props = {}) {
   await page.viewport(1280, 1000);
@@ -61,6 +63,7 @@ async function renderModal({
       lineId="line-1"
       productName="Yerba mate 1 kg"
       listUnitPrice={238_000}
+      quantity={quantity}
       saleUnit={saleUnit}
       authorizationRequired={authorizationRequired}
       person={PERSON}
@@ -88,6 +91,20 @@ async function authorizeAs(screen: Screen, firstName: string, pin: string) {
   await userEvent.type(screen.getByLabelText("PIN"), pin);
 }
 
+async function typePrice(screen: Screen, value: string) {
+  await chooseKind(screen, "Precio nuevo");
+  await typeValue(screen, "Precio nuevo", value);
+}
+
+async function chooseKind(screen: Screen, name: string) {
+  const input = screen.getByRole("radio", { name }).element();
+  const label = input.closest("label");
+  if (label === null) {
+    throw new Error(`no label found for the option `);
+  }
+  await userEvent.click(label);
+}
+
 async function apply(screen: Screen) {
   await userEvent.click(screen.getByRole("button", { name: APPLY }));
 }
@@ -97,32 +114,46 @@ describe("AdjustLineModal", () => {
     const { screen } = await renderModal();
 
     await expect
-      .element(screen.getByRole("heading", { name: "Precio o descuento de Yerba mate 1 kg" }))
+      .element(screen.getByRole("heading", { name: "Cambiar el precio de la línea" }))
       .toBeVisible();
+    await expect.element(screen.getByText("YERBA MATE 1 KG · 2 U")).toBeVisible();
     await expect.element(screen.getByText("$ 2.380,00")).toBeVisible();
     await expectNoAccessibilityViolations(document.body);
   });
 
-  it("starts on a new price per unit", async () => {
+  it("starts on a percentage discount, saying it replaces the line's promotion", async () => {
     const { screen } = await renderModal();
 
-    await expect.element(screen.getByRole("radio", { name: "Precio nuevo" })).toBeChecked();
+    await expect.element(screen.getByRole("radio", { name: "Descuento" })).toBeChecked();
+    await expect.element(screen.getByRole("radio", { name: "%" })).toBeChecked();
     await expect
-      .element(screen.getByRole("textbox", { name: "Precio nuevo por unidad" }))
+      .element(screen.getByRole("textbox", { name: "Porcentaje de descuento" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText("Reemplaza la promoción de la línea, si tiene."))
       .toBeVisible();
   });
 
-  it("asks the price per kg for a product sold by weight", async () => {
-    const { screen } = await renderModal({ saleUnit: "KG" });
+  it("offers only the price when choosing a new price, with no promotion hint", async () => {
+    const { screen } = await renderModal();
 
-    await expect
-      .element(screen.getByRole("textbox", { name: "Precio nuevo por kg" }))
-      .toBeVisible();
+    await chooseKind(screen, "Precio nuevo");
+
+    await expect.element(screen.getByRole("textbox", { name: "Precio nuevo" })).toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: "%" })).not.toBeInTheDocument();
+    await expect.element(screen.getByText(/Reemplaza la promoción/)).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("button", { name: "Aplicar el precio" })).toBeVisible();
+  });
+
+  it("names a line sold by weight with its weight", async () => {
+    const { screen } = await renderModal({ saleUnit: "KG", quantity: 1250 });
+
+    await expect.element(screen.getByText("YERBA MATE 1 KG · 1,250 kg")).toBeVisible();
   });
 
   it("sends a typed price in cents with its reason and tells the screen the sale it returns", async () => {
     const { screen, adjust, onAdjusted } = await renderModal();
-    await typeValue(screen, "Precio nuevo por unidad", "1.500,50");
+    await typePrice(screen, "1.500,50");
     await typeReason(screen, "Vence pronto");
 
     await apply(screen);
@@ -138,7 +169,7 @@ describe("AdjustLineModal", () => {
 
   it("sends a percentage discount", async () => {
     const { screen, adjust } = await renderModal();
-    await userEvent.click(screen.getByRole("radio", { name: "Descuento en %" }));
+    await chooseKind(screen, "%");
     await typeValue(screen, "Porcentaje de descuento", "10");
     await typeReason(screen, "Cliente frecuente");
 
@@ -154,7 +185,7 @@ describe("AdjustLineModal", () => {
 
   it("sends a fixed amount discount in cents", async () => {
     const { screen, adjust } = await renderModal();
-    await userEvent.click(screen.getByRole("radio", { name: "Descuento en $" }));
+    await chooseKind(screen, "$");
     await typeValue(screen, "Monto de descuento", "500");
     await typeReason(screen, "Envase dañado");
 
@@ -170,9 +201,9 @@ describe("AdjustLineModal", () => {
 
   it("empties the value when the kind of adjustment changes", async () => {
     const { screen } = await renderModal();
-    await typeValue(screen, "Precio nuevo por unidad", "1.500");
+    await typePrice(screen, "1.500");
 
-    await userEvent.click(screen.getByRole("radio", { name: "Descuento en %" }));
+    await chooseKind(screen, "Descuento");
 
     await expect
       .element(screen.getByRole("textbox", { name: "Porcentaje de descuento" }))
@@ -181,33 +212,13 @@ describe("AdjustLineModal", () => {
 
   describe("before asking the core", () => {
     it.each([
-      [
-        "Precio nuevo",
-        "Precio nuevo por unidad",
-        "",
-        "Ingresá un precio válido, por ejemplo 1.500,00.",
-      ],
-      [
-        "Descuento en $",
-        "Monto de descuento",
-        "0",
-        "Ingresá un descuento mayor a 0, por ejemplo 500,00.",
-      ],
-      [
-        "Descuento en %",
-        "Porcentaje de descuento",
-        "10,5",
-        "Ingresá un porcentaje entero, por ejemplo 10.",
-      ],
-      [
-        "Descuento en %",
-        "Porcentaje de descuento",
-        "101",
-        "Ingresá un porcentaje entero, por ejemplo 10.",
-      ],
+      ["Precio nuevo", "Precio nuevo", "", "Ingresá un precio válido, por ejemplo 1.500,00."],
+      ["$", "Monto de descuento", "0", "Ingresá un descuento mayor a 0, por ejemplo 500,00."],
+      ["%", "Porcentaje de descuento", "10,5", "Ingresá un porcentaje entero, por ejemplo 10."],
+      ["%", "Porcentaje de descuento", "101", "Ingresá un porcentaje entero, por ejemplo 10."],
     ])("refuses a value that is not valid for %s", async (kind, field, value, message) => {
       const { screen, adjust } = await renderModal();
-      await userEvent.click(screen.getByRole("radio", { name: kind }));
+      await chooseKind(screen, kind);
       await typeValue(screen, field, value);
       await typeReason(screen, "Motivo");
 
@@ -219,12 +230,12 @@ describe("AdjustLineModal", () => {
 
     it("asks for the reason", async () => {
       const { screen, adjust } = await renderModal();
-      await typeValue(screen, "Precio nuevo por unidad", "1.500");
+      await typePrice(screen, "1.500");
       await typeReason(screen, "   ");
 
       await apply(screen);
 
-      await expect.element(screen.getByText("Escribí el motivo del ajuste.")).toBeVisible();
+      await expect.element(screen.getByText("Escribí un motivo.")).toBeVisible();
       expect(adjust).not.toHaveBeenCalled();
     });
   });
@@ -232,7 +243,7 @@ describe("AdjustLineModal", () => {
   it("keeps the button disabled while the core is answering, so it is asked once", async () => {
     const answer = deferred<AdjustSaleLineOutcome>();
     const { screen, adjust } = await renderModal({ adjustSaleLine: () => answer.promise });
-    await typeValue(screen, "Precio nuevo por unidad", "1.500");
+    await typePrice(screen, "1.500");
     await typeReason(screen, "Vence pronto");
 
     await apply(screen);
@@ -241,10 +252,10 @@ describe("AdjustLineModal", () => {
     expect(adjust).toHaveBeenCalledOnce();
   });
 
-  it("closes from Cancelar without asking the core", async () => {
+  it("closes from Volver without asking the core", async () => {
     const { screen, adjust, onClose } = await renderModal();
 
-    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Volver" }));
 
     expect(onClose).toHaveBeenCalledOnce();
     expect(adjust).not.toHaveBeenCalled();
@@ -273,7 +284,7 @@ describe("AdjustLineModal", () => {
 
     it("sends who authorizes and their PIN", async () => {
       const { screen, adjust } = await renderModal({ authorizationRequired: true });
-      await typeValue(screen, "Precio nuevo por unidad", "1.500");
+      await typePrice(screen, "1.500");
       await typeReason(screen, "Vence pronto");
       await authorizeAs(screen, "Sofía", "1234");
 
@@ -296,7 +307,7 @@ describe("AdjustLineModal", () => {
           attempts_left: 6,
         }),
       });
-      await typeValue(screen, "Precio nuevo por unidad", "1.500");
+      await typePrice(screen, "1.500");
       await typeReason(screen, "Vence pronto");
       await authorizeAs(screen, "Sofía", "1234");
 
@@ -311,7 +322,7 @@ describe("AdjustLineModal", () => {
         authorizationRequired: true,
         adjustSaleLine: async () => ({ kind: "lacks_permission" }),
       });
-      await typeValue(screen, "Precio nuevo por unidad", "1.500");
+      await typePrice(screen, "1.500");
       await typeReason(screen, "Vence pronto");
       await authorizeAs(screen, "Sofía", "1234");
 
@@ -327,7 +338,7 @@ describe("AdjustLineModal", () => {
         authorizationRequired: true,
         adjustSaleLine: async () => ({ kind: "locked", consecutive_failures: 8 }),
       });
-      await typeValue(screen, "Precio nuevo por unidad", "1.500");
+      await typePrice(screen, "1.500");
       await typeReason(screen, "Vence pronto");
       await authorizeAs(screen, "Sofía", "1234");
 
@@ -342,7 +353,7 @@ describe("AdjustLineModal", () => {
       const { screen, onAdjusted } = await renderModal({
         adjustSaleLine: async () => ({ kind: "same_as_list_price" }),
       });
-      await typeValue(screen, "Precio nuevo por unidad", "2.380");
+      await typePrice(screen, "2.380");
       await typeReason(screen, "Motivo");
 
       await apply(screen);
@@ -357,7 +368,7 @@ describe("AdjustLineModal", () => {
       const { screen } = await renderModal({
         adjustSaleLine: async () => ({ kind: "discount_exceeds_line" }),
       });
-      await userEvent.click(screen.getByRole("radio", { name: "Descuento en $" }));
+      await chooseKind(screen, "$");
       await typeValue(screen, "Monto de descuento", "99999");
       await typeReason(screen, "Motivo");
 
@@ -374,7 +385,7 @@ describe("AdjustLineModal", () => {
       { kind: "sale_has_payments" },
     ] as const)("tells the screen the line is gone: $kind", async (outcome) => {
       const { screen, onSaleGone } = await renderModal({ adjustSaleLine: async () => outcome });
-      await typeValue(screen, "Precio nuevo por unidad", "1.500");
+      await typePrice(screen, "1.500");
       await typeReason(screen, "Motivo");
 
       await apply(screen);
@@ -388,7 +399,7 @@ describe("AdjustLineModal", () => {
         const { screen, onSessionInvalid } = await renderModal({
           adjustSaleLine: async () => outcome,
         });
-        await typeValue(screen, "Precio nuevo por unidad", "1.500");
+        await typePrice(screen, "1.500");
         await typeReason(screen, "Motivo");
 
         await apply(screen);
@@ -401,7 +412,7 @@ describe("AdjustLineModal", () => {
       const { screen } = await renderModal({
         adjustSaleLine: async () => ({ kind: "not_permitted" }),
       });
-      await typeValue(screen, "Precio nuevo por unidad", "1.500");
+      await typePrice(screen, "1.500");
       await typeReason(screen, "Motivo");
 
       await apply(screen);
@@ -415,7 +426,7 @@ describe("AdjustLineModal", () => {
       const { screen } = await renderModal({
         adjustSaleLine: async () => ({ kind: "lacks_permission" }),
       });
-      await typeValue(screen, "Precio nuevo por unidad", "1.500");
+      await typePrice(screen, "1.500");
       await typeReason(screen, "Motivo");
 
       await apply(screen);
@@ -429,7 +440,7 @@ describe("AdjustLineModal", () => {
       const { screen } = await renderModal({
         adjustSaleLine: async () => ({ kind: "unavailable" }),
       });
-      await typeValue(screen, "Precio nuevo por unidad", "1.500");
+      await typePrice(screen, "1.500");
       await typeReason(screen, "Motivo");
 
       await apply(screen);
@@ -444,7 +455,7 @@ describe("AdjustLineModal", () => {
       const { screen } = await renderModal({
         adjustSaleLine: () => Promise.reject(new Error("the connection was replaced")),
       });
-      await typeValue(screen, "Precio nuevo por unidad", "1.500");
+      await typePrice(screen, "1.500");
       await typeReason(screen, "Motivo");
 
       await apply(screen);

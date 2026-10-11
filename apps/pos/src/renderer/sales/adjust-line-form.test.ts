@@ -76,8 +76,8 @@ describe("adjustLineRequestFrom", () => {
     expect(adjustLineFormRequestSchema.safeParse(request).success).toBe(false);
   });
 
-  it("starts as a price change with nothing typed", () => {
-    expect(EMPTY_ADJUST_LINE_FORM).toEqual({ kind: "PRICE", value: "", reason: "" });
+  it("starts as a percentage discount with nothing typed", () => {
+    expect(EMPTY_ADJUST_LINE_FORM).toEqual({ kind: "PERCENT", value: "", reason: "" });
   });
 });
 
@@ -91,6 +91,6 @@ describe("adjustLineValueMessage", () => {
   });
 
   it("asks for the reason", () => {
-    expect(REQUIRED_REASON_MESSAGE).toBe("Escribí el motivo del ajuste.");
+    expect(REQUIRED_REASON_MESSAGE).toBe("Escribí un motivo.");
   });
 });
