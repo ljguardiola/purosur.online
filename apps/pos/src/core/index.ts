@@ -59,7 +59,7 @@ import { type StartedLocalDatabase, startLocalDatabase } from "./register/local-
 import { readReceiptPrinterFor, setReceiptPrinterFor } from "./register/receipt-printer-requests";
 import { registerServiceOf } from "./register/register-service-of-database";
 import { registerStatusFor } from "./register/register-status-requests";
-import { createSerialDeviceWatch } from "./register/serial-device-watch";
+import { createSerialDeviceWatch, readStanding } from "./register/serial-device-watch";
 import { readSerialDevicesFor, registerSerialDevicesFor } from "./register/serial-devices-requests";
 import { listSerialPorts, serialportEnumeration } from "./register/serialport-enumeration";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
@@ -68,6 +68,7 @@ import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
+import { openSerialLink } from "./sales/open-serial-link";
 import { createReceiptPrinting } from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,
@@ -84,8 +85,10 @@ import {
   removeSaleLineFor,
   scanProductFor,
   searchProductsFor,
+  weighProductFor,
 } from "./sales/sale-requests";
 import { saleHistoryDetailFor, salesHistoryFor } from "./sales/sales-history-requests";
+import { createSystelScale } from "./sales/systel-scale";
 import { createActionGate } from "./sessions/action-gate";
 import { authorizersOf } from "./sessions/authorizers";
 import { hashPin } from "./sessions/pin-hash";
@@ -237,6 +240,14 @@ const serialDeviceWatch =
         onChange: () => rendererConnection.tell(SERIAL_DEVICES_CHANGED_NOTICE),
         onFailure: (error) => reportFailure("watching the serial devices", error),
       });
+
+const systelScale = createSystelScale({
+  path: () => {
+    const standing = serialDeviceWatch && readStanding(serialDeviceWatch.reading(), "scale");
+    return standing?.kind === "matching" ? standing.path : undefined;
+  },
+  openLink: openSerialLink,
+});
 
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next cycle resumes from the cursor and the outbox already saved either way.
@@ -705,6 +716,14 @@ const rendererRequestDeps: RendererRequestDeps = {
             { database: localDatabase, gate: actionGate, now, ids: uuidV7Ids },
             productId,
             weightThousandths,
+          ),
+  weighProduct:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (productId) =>
+          weighProductFor(
+            { database: localDatabase, gate: actionGate, now, ids: uuidV7Ids, scale: systelScale },
+            productId,
           ),
   currentSale:
     localDatabase === undefined || actionGate === undefined
