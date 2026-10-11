@@ -370,8 +370,10 @@ export type {
   RegisterOperationAccess,
   RegisterService,
   SerialDeviceIdentity,
+  SerialDeviceReport,
   SerialDeviceRole,
   SerialDeviceStanding,
+  SerialDevicesReport,
   WatchedRegister,
 } from "./register/index.js";
 export {
@@ -408,6 +410,7 @@ export {
   registerAbilities,
   registerNameLength,
   registerOperationAccess,
+  SERIAL_DEVICE_REPORT_STANDINGS,
   SERIAL_DEVICE_ROLES,
   serialDeviceStandings,
 } from "./register/index.js";

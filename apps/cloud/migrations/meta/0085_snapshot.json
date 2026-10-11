@@ -1,6 +1,6 @@
 {
-  "id": "c3e7a25a-ccea-438f-b99b-95c4e3723d28",
-  "prevId": "bf39aeff-b2ed-4ea4-8384-d113a626c88c",
+  "id": "3320c089-f991-4a3f-9f68-fc1afbc3fd9c",
+  "prevId": "7826a493-39ef-4612-a68a-e4914f780763",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -6214,6 +6214,83 @@
         "sales_cancellation_authorizer_only_when_cancelled_check": {
           "name": "sales_cancellation_authorizer_only_when_cancelled_check",
           "value": "\"sales\".\"cancellation_authorized_by\" is null or \"sales\".\"state\" = 'CANCELLED'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.serial_device_state": {
+      "name": "serial_device_state",
+      "schema": "",
+      "columns": {
+        "device_id": {
+          "name": "device_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "standing": {
+          "name": "standing",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vendor_id": {
+          "name": "vendor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reported_at": {
+          "name": "reported_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "serial_device_state_device_id_register_installations_id_fk": {
+          "name": "serial_device_state_device_id_register_installations_id_fk",
+          "tableFrom": "serial_device_state",
+          "tableTo": "register_installations",
+          "columnsFrom": ["device_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "serial_device_state_device_id_role_pk": {
+          "name": "serial_device_state_device_id_role_pk",
+          "columns": ["device_id", "role"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "serial_device_state_role_check": {
+          "name": "serial_device_state_role_check",
+          "value": "\"serial_device_state\".\"role\" in ('scale', 'reader')"
+        },
+        "serial_device_state_standing_check": {
+          "name": "serial_device_state_standing_check",
+          "value": "\"serial_device_state\".\"standing\" in ('matching', 'not_detected', 'mismatched', 'not_registered', 'unknown')"
+        },
+        "serial_device_state_identity_check": {
+          "name": "serial_device_state_identity_check",
+          "value": "(\"serial_device_state\".\"vendor_id\" is null) = (\"serial_device_state\".\"product_id\" is null)"
         }
       },
       "isRLSEnabled": false
