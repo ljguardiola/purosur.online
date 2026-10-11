@@ -4,7 +4,7 @@ type RefundOrigin = PendingRefundsBody["refunds"][number]["origin"];
 
 const REFUND_ORIGIN_LABELS = {
   sale_cancelled: "Venta cancelada",
-  late_payment: "Pago QR tardío",
+  late_payment: "Aprobación tardía",
 } satisfies Record<RefundOrigin, string>;
 
 export function refundOriginLabel(origin: RefundOrigin): string {

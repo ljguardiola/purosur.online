@@ -108,6 +108,16 @@ const SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE;
 const SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR;
 const DAYS_PER_MONTH = 30;
 
+export function formatTimeAgoInHours(seconds: number): string {
+  if (seconds >= SECONDS_PER_HOUR) {
+    return relativeTime.format(-Math.floor(seconds / SECONDS_PER_HOUR), "hour");
+  }
+  if (seconds >= SECONDS_PER_MINUTE) {
+    return relativeTime.format(-Math.floor(seconds / SECONDS_PER_MINUTE), "minute");
+  }
+  return "hace un momento";
+}
+
 export function formatTimeAgo(seconds: number): string {
   const days = Math.floor(seconds / SECONDS_PER_DAY);
   if (days >= DAYS_PER_MONTH) {

@@ -175,6 +175,7 @@ export {
   formatOperationNumber,
   formatPointOfSaleNumber,
   formatTimeAgo,
+  formatTimeAgoInHours,
   formatWeight,
   formatWeightInput,
   parsePointOfSaleNumber,
