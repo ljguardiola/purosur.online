@@ -5,6 +5,7 @@ import {
   isLateApproval,
   isValidOrderAmount,
   type MercadoPagoQrOrderTransaction,
+  mayHaveUnrecordedOrder,
   mercadoPagoOrderExpiresAt,
   PAYMENT_TRANSACTION_STATES,
   type PaymentTransaction,
@@ -117,6 +118,35 @@ describe("expiryWithoutOrder", () => {
     (state) => {
       expect(expiryWithoutOrder({ ...WITHOUT_ORDER, state }, LATER)).toBeNull();
       expect(expiryWithoutOrder({ ...UNKNOWN_CREATION, state }, LATER)).toBeNull();
+    },
+  );
+});
+
+describe("mayHaveUnrecordedOrder", () => {
+  const AWAITING_ORDER = {
+    state: "PENDING",
+    providerOrderId: null,
+    creationOutcomeUnknown: true,
+  } as const;
+
+  it("holds for a pending transaction without an order whose creation outcome is unknown", () => {
+    expect(mayHaveUnrecordedOrder(AWAITING_ORDER)).toBe(true);
+  });
+
+  it("does not hold when the creation is known to have created nothing", () => {
+    expect(mayHaveUnrecordedOrder({ ...AWAITING_ORDER, creationOutcomeUnknown: false })).toBe(
+      false,
+    );
+  });
+
+  it("does not hold once an order is recorded", () => {
+    expect(mayHaveUnrecordedOrder({ ...AWAITING_ORDER, providerOrderId: "order-1" })).toBe(false);
+  });
+
+  it.each(PAYMENT_TRANSACTION_STATES.filter((state) => state !== "PENDING"))(
+    "does not hold for a %s transaction",
+    (state) => {
+      expect(mayHaveUnrecordedOrder({ ...AWAITING_ORDER, state })).toBe(false);
     },
   );
 });
