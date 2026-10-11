@@ -305,12 +305,8 @@ describe("DrizzleAlertReader listVisibleAlerts", () => {
     expect(page.alerts.map((a) => a.id)).toEqual([byRegister]);
   });
 
-  it("finds a late payment refund alert by the name of the register that took the payment", async () => {
-    const { alertId } = await aPendingLatePaymentRefund(db, {
-      openedAt: NOON,
-      registerName: "Caja Lucía",
-    });
-    await aPendingLatePaymentRefund(db, { openedAt: NOON, registerName: "Caja Norte" });
+  it("does not find a late payment refund alert by the name of the register that took the payment", async () => {
+    await aPendingLatePaymentRefund(db, { openedAt: NOON, registerName: "Caja Lucía" });
 
     const page = await new DrizzleAlertReader(db).listVisibleAlerts(
       ALL,
@@ -318,7 +314,7 @@ describe("DrizzleAlertReader listVisibleAlerts", () => {
       1,
     );
 
-    expect(page.alerts.map((a) => a.id)).toEqual([alertId]);
+    expect(page.alerts).toEqual([]);
   });
 
   it("treats the search text literally, not as a pattern", async () => {
@@ -393,7 +389,7 @@ describe("DrizzleAlertReader displayNames", () => {
     expect(names.get(register.id)).toBe("Caja 1");
   });
 
-  it("maps a refund id to the name of the register that took the payment it gives back", async () => {
+  it("names no register for a refund id", async () => {
     const { refundId } = await aPendingLatePaymentRefund(db, {
       openedAt: NOON,
       registerName: "Caja 3",
@@ -401,7 +397,7 @@ describe("DrizzleAlertReader displayNames", () => {
 
     const names = await new DrizzleAlertReader(db).displayNames([refundId]);
 
-    expect(names).toEqual(new Map([[refundId, "Caja 3"]]));
+    expect(names.size).toBe(0);
   });
 
   it("answers an empty map for an empty list", async () => {

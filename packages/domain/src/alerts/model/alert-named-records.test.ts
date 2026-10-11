@@ -100,10 +100,10 @@ describe("alertScopeRecordId", () => {
 });
 
 describe("a refund scope", () => {
-  it("answers the refund as the record the scope names", () => {
+  it("names no record, since the refund task is no record a person knows by name", () => {
     for (const kind of kindsScopedTo("refund")) {
-      expect(alertScopeRecordId({ kind, scope: SCOPE })).toBe(SCOPE);
-      expect(alertNamedRecordIds({ kind, scope: SCOPE })).toEqual([SCOPE]);
+      expect(alertScopeRecordId({ kind, scope: SCOPE })).toBeUndefined();
+      expect(alertNamedRecordIds({ kind, scope: SCOPE })).toEqual([]);
     }
     expect(kindsScopedTo("refund")).toEqual(["late_payment_refund"]);
   });
