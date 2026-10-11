@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isWsaaTokenDueForRenewal, isWsaaTokenValid } from "./wsaa-token.js";
+import {
+  isWsaaTokenDueForRenewal,
+  isWsaaTokenRetryDue,
+  isWsaaTokenValid,
+  WSAA_ALREADY_AUTHENTICATED_RETRY_MS,
+} from "./wsaa-token.js";
 
 const HOUR_MS = 60 * 60 * 1000;
 const NOW = new Date("2026-10-01T12:00:00.000Z");
@@ -34,5 +39,33 @@ describe("isWsaaTokenDueForRenewal", () => {
 
   it("is due once the token expired", () => {
     expect(isWsaaTokenDueForRenewal(expiringIn(-HOUR_MS), NOW)).toBe(true);
+  });
+});
+
+describe("WSAA_ALREADY_AUTHENTICATED_RETRY_MS", () => {
+  it("is ten minutes", () => {
+    expect(WSAA_ALREADY_AUTHENTICATED_RETRY_MS).toBe(10 * 60 * 1000);
+  });
+});
+
+describe("isWsaaTokenRetryDue", () => {
+  const refusedAgo = (ms: number) => new Date(NOW.getTime() - ms);
+
+  it("is due when WSAA never refused", () => {
+    expect(isWsaaTokenRetryDue(null, NOW)).toBe(true);
+  });
+
+  it("is not due just before the retry interval has passed", () => {
+    expect(
+      isWsaaTokenRetryDue(refusedAgo(WSAA_ALREADY_AUTHENTICATED_RETRY_MS - 1), NOW),
+    ).toBe(false);
+  });
+
+  it("is due exactly when the retry interval has passed", () => {
+    expect(isWsaaTokenRetryDue(refusedAgo(WSAA_ALREADY_AUTHENTICATED_RETRY_MS), NOW)).toBe(true);
+  });
+
+  it("is due long after the refusal", () => {
+    expect(isWsaaTokenRetryDue(refusedAgo(HOUR_MS), NOW)).toBe(true);
   });
 });
