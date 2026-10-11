@@ -453,7 +453,11 @@ describe("the ESC/POS receipt template", () => {
             "Responsable Monotributo del Régimen Simplificado para Pequeños Contribuyentes",
         },
       };
-      for (const fiscal of [FISCAL_BLOCK, longTaxStatus]) {
+      const longBuyerTaxStatus = {
+        ...FISCAL_BLOCK,
+        buyerTaxStatusDescription: "Monotributista Trabajador Independiente Promovido",
+      };
+      for (const fiscal of [FISCAL_BLOCK, longTaxStatus, longBuyerTaxStatus]) {
         for (const line of printed(receipt({ fiscal })).textLines) {
           expect(line.length).toBeLessThanOrEqual(48);
         }

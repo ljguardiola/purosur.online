@@ -191,6 +191,33 @@ describe("settling, as the register starts, the authorizations its last run left
     expect(storedState()).toEqual({ state: "REQUESTING" });
   });
 
+  it("settles none of them and reports it when settling one of them fails", async () => {
+    insertCompletedSale(database, "sale-2");
+    insertFiscalDocument(database, { id: "doc-2", saleId: "sale-2", pointOfSale: 13 });
+    database
+      .prepare(
+        `INSERT INTO deferred_sales (sale_id, reason, routed_at)
+         VALUES ('sale-2', 'unclear_outcome', '2026-09-30T12:05:01.000Z')`,
+      )
+      .run();
+    const failures: unknown[] = [];
+
+    await settleInterruptedAuthorizations({
+      database,
+      now: () => NOW,
+      reportFailure: (error) => failures.push(error),
+    });
+
+    expect(failures).toHaveLength(1);
+    expect(database.prepare("SELECT id, state FROM fiscal_documents ORDER BY id").all()).toEqual([
+      { id: "doc-1", state: "REQUESTING" },
+      { id: "doc-2", state: "REQUESTING" },
+    ]);
+    expect(database.prepare("SELECT sale_id FROM deferred_sales").all()).toEqual([
+      { sale_id: "sale-2" },
+    ]);
+  });
+
   it("resolves at once for a register with no local database", async () => {
     await expect(
       settleInterruptedAuthorizations({

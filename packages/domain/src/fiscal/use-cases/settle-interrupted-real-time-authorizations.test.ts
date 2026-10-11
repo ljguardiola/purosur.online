@@ -5,8 +5,12 @@ import { FakeInterruptedRealTimeAuthorizations } from "./test-support/fake-inter
 
 const STARTED_AT = new Date("2026-10-01T08:00:00.000Z");
 
-function settle(requesting: { fiscalDocumentId: string; saleId: string }[]) {
+function settle(
+  requesting: { fiscalDocumentId: string; saleId: string }[],
+  failOnDocument?: string,
+) {
   const documents = new FakeInterruptedRealTimeAuthorizations(requesting);
+  documents.failOnDocument = failOnDocument;
   const outcome = settleInterruptedRealTimeAuthorizations({
     documents,
     clock: new ManualClock(STARTED_AT),
@@ -36,6 +40,19 @@ describe("settling the real-time authorizations a stopped register left requesti
         resolvedAt: STARTED_AT,
       },
     ]);
+  });
+
+  it("settles none of them when settling one of them fails", async () => {
+    const { documents, outcome } = settle(
+      [
+        { fiscalDocumentId: "doc-1", saleId: "sale-1" },
+        { fiscalDocumentId: "doc-2", saleId: "sale-2" },
+      ],
+      "doc-2",
+    );
+
+    await expect(outcome).rejects.toThrow("resolving doc-2 failed");
+    expect(documents.resolutions).toEqual([]);
   });
 
   it("settles nothing when no authorization was left requesting", async () => {

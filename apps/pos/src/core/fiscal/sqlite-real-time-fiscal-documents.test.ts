@@ -119,7 +119,7 @@ describe("the documents still requesting their answer", () => {
       state: "UNKNOWN",
     });
 
-    await expect(documents.requestingDocuments()).resolves.toEqual([
+    expect(documents.transaction((tx) => tx.requestingDocuments())).toEqual([
       { fiscalDocumentId: "doc-1", saleId: "sale-1" },
       { fiscalDocumentId: "doc-2", saleId: "sale-2" },
     ]);
@@ -129,7 +129,7 @@ describe("the documents still requesting their answer", () => {
     database.prepare("DELETE FROM fiscal_documents").run();
     insertFiscalDocument(database, { state: "AUTHORIZED" });
 
-    await expect(documents.requestingDocuments()).resolves.toEqual([]);
+    expect(documents.transaction((tx) => tx.requestingDocuments())).toEqual([]);
   });
 });
 
