@@ -424,21 +424,48 @@ test("refuses a new register migration numbered below the highest one on main", 
     {
       path: registerMigration("0001_b.sql"),
       reason:
-        "new register migration does not sort after 0002_c, the last one already on main — renumber it above 0002_c",
+        "new register migration must start with a number above 0002 and sort after 0002_c, the last one already on main — renumber it 0003",
     },
   ]);
 });
 
-test("refuses a new register migration numbered the same as the highest one on main", () => {
+test("refuses a new register migration numbered the same as the highest one on main even when its name sorts after it", () => {
   const violations = findMisnumberedRegisterMigrations({
     basePaths: registerMigrationsOnMain,
     currentPaths: [...registerMigrationsOnMain, registerMigration("0002_other.sql")],
   });
 
-  assert.deepEqual(
-    violations.map((violation) => violation.path),
-    [registerMigration("0002_other.sql")],
-  );
+  assert.deepEqual(violations, [
+    {
+      path: registerMigration("0002_other.sql"),
+      reason:
+        "new register migration must start with a number above 0002 and sort after 0002_c, the last one already on main — renumber it 0003",
+    },
+  ]);
+});
+
+test("accepts a refused register migration once renumbered as its refusal suggests", () => {
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: registerMigrationsOnMain,
+    currentPaths: [...registerMigrationsOnMain, registerMigration("0003_other.sql")],
+  });
+
+  assert.deepEqual(violations, []);
+});
+
+test("refuses a new register migration whose name does not start with a number, even one sorting after every one on main", () => {
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: registerMigrationsOnMain,
+    currentPaths: [...registerMigrationsOnMain, registerMigration("late_fix.sql")],
+  });
+
+  assert.deepEqual(violations, [
+    {
+      path: registerMigration("late_fix.sql"),
+      reason:
+        "new register migration must start with a number above 0002 and sort after 0002_c, the last one already on main — renumber it 0003",
+    },
+  ]);
 });
 
 test("refuses every misnumbered new register migration, not only the first", () => {
@@ -468,7 +495,7 @@ test("refuses a new register migration whose number is higher but whose name sor
     {
       path: registerMigration("00003_d.sql"),
       reason:
-        "new register migration does not sort after 0002_c, the last one already on main — renumber it above 0002_c",
+        "new register migration must start with a number above 0002 and sort after 0002_c, the last one already on main — renumber it 0003",
     },
   ]);
 });
