@@ -10,6 +10,7 @@ import type { PendingRefundsScreenServices } from "./pending-refunds-services";
 import {
   noPendingRefunds,
   pendingRefunds,
+  pendingRefundsWithLatePayment,
   SECOND_REFUND_ID,
   TRANSFER_REFUND_ID,
 } from "./test-support/refund-fixtures";
@@ -66,6 +67,45 @@ test("shows the breadcrumb, the heading and each pending refund with when, where
   expect(rows[0]).toContain("Lucía");
   expect(rows[1]).toContain("07/10/2026 15:05");
   expect(rows[1]).toContain("Caja del fondo");
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("heads the list by a neutral date and the origin of each refund", async () => {
+  const services = createServices();
+  const screen = await loaded(services);
+
+  await expect.element(screen.getByRole("columnheader", { name: "Fecha" })).toBeVisible();
+  await expect.element(screen.getByRole("columnheader", { name: "Origen" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("columnheader", { name: "Cancelada" }))
+    .not.toBeInTheDocument();
+});
+
+test("lists a cancelled sale's refund and a late QR payment's refund together, each with its origin, its original channel and, for the late payment, no canceller", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: pendingRefundsWithLatePayment,
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja del frente")).toBeVisible();
+
+  const rows = screen
+    .getByRole("row")
+    .all()
+    .slice(1)
+    .map((row) => row.element().textContent ?? "");
+  expect(rows).toHaveLength(2);
+  expect(rows[0]).toContain("Venta cancelada");
+  expect(rows[0]).toContain("Transferencia");
+  expect(rows[0]).toContain("Lucía");
+  expect(rows[1]).toContain("08/10/2026 10:10");
+  expect(rows[1]).toContain("Pago QR tardío");
+  expect(rows[1]).toContain("QR de Mercado Pago");
+  expect(rows[1]).toContain("$ 1.250,00");
+  expect(rows[1]).not.toContain("Efectivo");
+  expect(rows[1]).not.toContain("Sin dato");
+  expect(rows[1]).toContain("—");
   await expectNoAccessibilityViolations(screen.container);
 });
 
