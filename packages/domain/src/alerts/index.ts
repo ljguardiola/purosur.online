@@ -35,6 +35,7 @@ export type {
   SignInLockoutDetail,
 } from "./model/alert-details.js";
 export {
+  ALERT_ESCALATION_CHECK_INTERVAL_MS,
   ESCALATED_LEVEL,
   escalatesAt,
   isDueForEscalation,

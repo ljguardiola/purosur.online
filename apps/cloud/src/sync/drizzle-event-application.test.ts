@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { alerts, inbox } from "../platform/db/schema.js";
@@ -198,6 +199,42 @@ describe("recording what happened to an event", () => {
 
     const [row] = await system.db.select().from(inbox).where(eq(inbox.eventId, eventId));
     expect(row?.appliedAt).toBeNull();
+  });
+});
+
+describe("the reason of a failure that applying an event did not expect", () => {
+  it("is the database's code and message for a failed statement, with none of the values it was given", async () => {
+    const failure: unknown = await system.db
+      .select()
+      .from(inbox)
+      .where(eq(inbox.eventId, FICTIONAL_CUIT))
+      .then(
+        () => {
+          throw new Error("test setup: expected the statement to fail");
+        },
+        (error: unknown) => error,
+      );
+
+    const reason = system.application.reasonOf(failure);
+
+    expect(reason).toContain("22P02: invalid input syntax for type uuid");
+    expect(reason).not.toContain(FICTIONAL_CUIT);
+  });
+
+  it("is the database's code and message for a failure the database gave outside a statement", () => {
+    const failure = Object.assign(new Error("could not serialize access"), { code: "40001" });
+
+    expect(system.application.reasonOf(failure)).toBe("40001: could not serialize access");
+  });
+
+  it("is the message of an error that is not the database's", () => {
+    expect(system.application.reasonOf(new Error("installation d-1 is not a known register"))).toBe(
+      "installation d-1 is not a known register",
+    );
+  });
+
+  it("is the text of a failure that is not an error", () => {
+    expect(system.application.reasonOf("just a string")).toBe("just a string");
   });
 });
 

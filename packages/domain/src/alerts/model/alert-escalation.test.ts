@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS } from "../../fiscal/index.js";
-import { ESCALATED_LEVEL, escalatesAt, isDueForEscalation } from "./alert-escalation.js";
+import {
+  ALERT_ESCALATION_CHECK_INTERVAL_MS,
+  ESCALATED_LEVEL,
+  escalatesAt,
+  isDueForEscalation,
+} from "./alert-escalation.js";
 import {
   ALERT_ESCALATION_DELAY_MS,
   LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS,
@@ -96,5 +101,11 @@ describe("isDueForEscalation", () => {
 describe("ESCALATED_LEVEL", () => {
   it("is critical", () => {
     expect(ESCALATED_LEVEL).toBe("critical");
+  });
+});
+
+describe("ALERT_ESCALATION_CHECK_INTERVAL_MS", () => {
+  it("is 5 minutes", () => {
+    expect(ALERT_ESCALATION_CHECK_INTERVAL_MS).toBe(5 * 60 * 1000);
   });
 });

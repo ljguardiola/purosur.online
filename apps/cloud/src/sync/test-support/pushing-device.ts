@@ -84,6 +84,7 @@ export function saleCompleted(options: {
   total: number;
   payments: { amount: number }[];
   line?: {
+    id?: string;
     productId: string;
     priceListId: string;
     listUnitPrice: number;
@@ -91,7 +92,7 @@ export function saleCompleted(options: {
   };
 }): PushedEventDraft {
   const { line } = options;
-  const lineId = randomUUID();
+  const lineId = line?.id ?? randomUUID();
   const weighed = line?.weight !== undefined;
   return {
     aggregate_type: "Sale",

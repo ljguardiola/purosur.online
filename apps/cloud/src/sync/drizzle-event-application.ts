@@ -1,3 +1,4 @@
+import { reportsFailedQuery } from "@purosur/contracts";
 import type { AlertDetails } from "@purosur/domain";
 import { applyRegisterStockMovements } from "@purosur/domain/stock/use-cases";
 import type {
@@ -15,6 +16,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { recordAppliedQrPaymentReplacement } from "../payments/drizzle-applied-qr-payment-replacement.js";
 import { providerTransactionOfPayment } from "../payments/drizzle-provider-transactions.js";
+import { describeDatabaseFailure, errorCode } from "../platform/db/describe-database-failure.js";
 import { inbox, registerInstallations, registers } from "../platform/db/schema.js";
 import {
   type AppliedOrigin,
@@ -223,6 +225,15 @@ export class DrizzleEventApplication<TQueryResult extends PgQueryResultHKT>
       .where(and(isNull(inbox.appliedAt), isNull(inbox.quarantinedAt)))
       .groupBy(inbox.aggregateType, inbox.aggregateId)
       .orderBy(asc(firstReceivedAt), asc(inbox.aggregateType), asc(inbox.aggregateId));
+  }
+
+  reasonOf(error: unknown): string {
+    if (!(error instanceof Error)) {
+      return String(error);
+    }
+    return reportsFailedQuery(error.message) || errorCode(error) !== undefined
+      ? describeDatabaseFailure(error)
+      : error.message;
   }
 
   transaction<T>(work: (tx: EventApplicationTransaction) => Promise<T>): Promise<T> {
