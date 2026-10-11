@@ -696,6 +696,30 @@ describe("recordingFailure", () => {
   });
 
   it.each([
+    [{ kind: "already_granted" }, "that the code was already granted"],
+    [{ kind: "no_answer" }, "nothing it could read"],
+    [
+      { kind: "refused", rejections: [{ code: 15006, message: "Fuera de plazo" }] },
+      "15006: Fuera de plazo",
+    ],
+  ] satisfies [OfflineAuthorizationCodeRequestAnswer, string][])(
+    "fails a recording whose first code request answered %j instead of granting a code",
+    (first, answered) => {
+      expect(
+        recordingFailure({
+          ...RECORDED,
+          offlineAuthorizationCodeRequests: {
+            ...RECORDED.offlineAuthorizationCodeRequests,
+            first,
+          },
+        }),
+      ).toBe(
+        `the first FECAEASolicitar granted no offline authorization code; ARCA answered ${answered}`,
+      );
+    },
+  );
+
+  it.each([
     [
       { kind: "granted", code: RECORDED.offlineAuthorizationCodeRequests.first.code },
       "a granted code",
