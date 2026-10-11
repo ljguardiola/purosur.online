@@ -103,7 +103,7 @@ test("follows a quarantined event's alert to the quarantined events list", async
       fetchAlerts: vi.fn().mockResolvedValue({
         kind: "ok",
         value: {
-          alerts: [{ ...summary, salesDeniedReason: null }],
+          alerts: [{ ...summary, salesDeniedReason: null, refundAmount: null }],
           total: 1,
           pageSize: 25,
           openCount: 1,

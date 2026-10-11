@@ -223,6 +223,25 @@ describe("DrizzleAlertReader listVisibleAlerts", () => {
     );
   });
 
+  it("reads the amount owed from the stored detail of a late-payment refund, and none for another kind", async () => {
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOON });
+    const otherId = await insertAlert({
+      kind: "register_silent",
+      audience: "local",
+      detail: { amount: 999 },
+    });
+
+    const { alerts: listed } = await new DrizzleAlertReader(db).listVisibleAlerts(ALL, {}, 1);
+    const amounts = new Map(listed.map((alert) => [alert.id, alert.refundAmount]));
+
+    expect(amounts).toEqual(
+      new Map([
+        [late.alertId, late.amount],
+        [otherId, null],
+      ]),
+    );
+  });
+
   it("filters by level and by open or closed", async () => {
     const openCritical = await insertAlert({ level: "critical" });
     await insertAlert({ level: "warning" });

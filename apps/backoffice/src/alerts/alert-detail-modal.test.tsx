@@ -1,5 +1,5 @@
 import type { AlertDetail, PermissionCatalogWire } from "@purosur/contracts";
-import { formatCalendarDay, formatCalendarDayRange, formatCents } from "@purosur/ui";
+import { formatCalendarDay, formatCalendarDayRange } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { act } from "react";
 import { expect, test, vi } from "vitest";
@@ -1460,7 +1460,7 @@ test.each([
   },
 );
 
-test("tells a refund owed for a QR payment that arrived late: the amount, that it goes back by the same channel and never in cash, and what to do", async () => {
+test("tells a refund owed for a QR payment that arrived late: what it means, what to do and that its scope is a refund task", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
     ok(
@@ -1469,7 +1469,7 @@ test("tells a refund owed for a QR payment that arrived late: the amount, that i
         level: "warning",
         audience: "local",
         scope: "refund-1",
-        scopeDisplay: null,
+        scopeDisplay: "refund-1",
         scopeKind: "refund",
         closing: "with_its_refund",
         detail: { saleId: "sale-1", amount: 250_000 },
@@ -1493,9 +1493,20 @@ test("tells a refund owed for a QR payment that arrived late: the amount, that i
   await expect
     .element(
       screen.getByText(
-        `Mercado Pago cobró ${formatCents(250_000)} por un pago QR de una venta que ya se había cobrado por otro medio. Hay que devolverle ese pago al cliente por el mismo medio, nunca en efectivo. Hacé el reembolso desde Mercado Pago y marcalo como hecho en Reembolsos pendientes, o descartalo si no corresponde.`,
+        "Mercado Pago cobró un QR de una venta que ya se había cobrado por otro medio, y su reembolso todavía no quedó marcado como hecho en el sistema.",
         { exact: true },
       ),
     )
     .toBeVisible();
+  await expect.element(screen.getByText("Qué hacer", { exact: true })).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Si ese reembolso ya se hizo desde Mercado Pago, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes por el mismo medio, o descartarlo si no corresponde. El Administrador ya fue avisado.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Tarea de reembolso", { exact: true })).toBeVisible();
+  expect(screen.getByText(/refund-1/).query()).toBeNull();
 });

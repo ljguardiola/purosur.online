@@ -20,6 +20,12 @@ test("shows the scope of a rejected invoice of a document type this app does not
   expect(alertScopeLabel("pointOfSaleDocumentType", "12:factura_z")).toBe("12:factura_z");
 });
 
+test("names the task of a refund instead of showing its id", () => {
+  expect(alertScopeLabel("refund", "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6")).toBe(
+    "Tarea de reembolso",
+  );
+});
+
 test("shows any other kind of scope as the cloud displays it", () => {
   expect(alertScopeLabel("register", "production")).toBe("production");
 });

@@ -29,6 +29,7 @@ const alert: AlertSummary = {
   escalatedAt: null,
   resolvedAt: null,
   salesDeniedReason: null,
+  refundAmount: null,
 };
 
 const emptyListBody = {
@@ -111,7 +112,11 @@ test("fetchAlerts reports failed when the request itself throws", async () => {
   await expect(fetchAlerts()).resolves.toEqual({ kind: "failed" });
 });
 
-const { salesDeniedReason: _notInDetail, ...alertWithoutReason } = alert;
+const {
+  salesDeniedReason: _reasonNotInDetail,
+  refundAmount: _amountNotInDetail,
+  ...alertWithoutReason
+} = alert;
 
 const alertDetail: AlertDetail = {
   ...alertWithoutReason,

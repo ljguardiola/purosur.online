@@ -147,6 +147,7 @@ interface ListBody {
     scope: string | null;
     scopeDisplay: string | null;
     salesDeniedReason: string | null;
+    refundAmount: number | null;
   }[];
   total: number;
   pageSize: number;
@@ -229,6 +230,23 @@ describe("GET /alerts", () => {
     expect(listBody(response).alerts.map((row) => row.salesDeniedReason)).toEqual([
       "local_database_damaged",
     ]);
+  });
+
+  it("tells the amount owed by a late-payment refund", async () => {
+    const roleId = await insertRole(["view_all_alerts"]);
+    const userId = await insertUserWithRole(roleId);
+    const rawSessionId = await insertSession(userId);
+    await insertAlert({
+      kind: "late_payment_refund",
+      scope: "refund-a",
+      audience: "local",
+      detail: { saleId: "sale-a", amount: 250_000 },
+    });
+
+    const response = await getAlerts(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(listBody(response).alerts.map((row) => row.refundAmount)).toEqual([250_000]);
   });
 
   it("filters by level", async () => {
