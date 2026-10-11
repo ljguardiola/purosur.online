@@ -8,14 +8,13 @@ import { locations } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
+import { buildChangesRouteApp, pulledPage } from "./test-support/changes-route.js";
 import {
-  buildChangesRouteApp,
   configurePointOfSale,
   insertActor,
   insertFiscalAddress,
   insertRegister,
-  pulledPage,
-} from "./test-support/changes-route.js";
+} from "./test-support/configured-point-of-sale.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
 const SEEDED_CHANGES = 4;
