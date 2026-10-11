@@ -114,6 +114,10 @@ export class FakeEventApplication implements EventApplication {
     return [...seen.values()];
   }
 
+  reasonOf(error: unknown): string {
+    return `reason of ${String(error)}`;
+  }
+
   async transaction<T>(work: (tx: EventApplicationTransaction) => Promise<T>): Promise<T> {
     this.transactions += 1;
     this.beforeTransaction(this.transactions);

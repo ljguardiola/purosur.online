@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -322,6 +323,57 @@ describe("applying what POST /events received", () => {
           aggregateId: saleId,
         },
       },
+    );
+  });
+
+  it("quarantines a sale the database refuses, keeping and reporting the database's code and message without the sale's values", async () => {
+    const { device } = await pushingFromARegister();
+    const priceListId = await seededPriceListId(route.db);
+    const { productId } = await insertProduct(route.db);
+    const sessionId = randomUUID();
+    const lineId = randomUUID();
+    const refusedSaleId = randomUUID();
+    await device.push([
+      cashSessionOpened(sessionId, "2026-10-06T11:00:00.000Z"),
+      saleCompleted({
+        saleId: randomUUID(),
+        sessionId,
+        completedAt: "2026-10-06T11:20:00.000Z",
+        total: 2400,
+        payments: [{ amount: 2400 }],
+        line: { id: lineId, productId, priceListId, listUnitPrice: 2400 },
+      }),
+      saleCompleted({
+        saleId: refusedSaleId,
+        sessionId,
+        completedAt: "2026-10-06T11:30:00.000Z",
+        total: 2400,
+        payments: [{ amount: 2400 }],
+        line: {
+          id: lineId,
+          productName: FICTIONAL_LEGAL_NAME,
+          productId,
+          priceListId,
+          listUnitPrice: 2400,
+        },
+      }),
+    ]);
+    const report = vi.fn();
+    for (let run = 0; run < 12; run += 1) {
+      await applyAt(new Date(NOW.getTime() + run * 2 * AN_HOUR_MS), report);
+    }
+
+    const [refused] = await route.db
+      .select()
+      .from(inbox)
+      .where(eq(inbox.aggregateId, refusedSaleId));
+    expect(refused?.quarantinedAt).not.toBeNull();
+    expect(refused?.lastError).toContain("23505: duplicate key value violates unique constraint");
+    expect(refused?.lastError).not.toContain(FICTIONAL_LEGAL_NAME);
+    expect(report).toHaveBeenCalledExactlyOnceWith(
+      "sync: a synced event was quarantined",
+      new Error(refused?.lastError ?? ""),
+      expect.anything(),
     );
   });
 });
