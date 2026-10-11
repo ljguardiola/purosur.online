@@ -397,6 +397,19 @@ test("accepts a new register migration numbered above every one on main", () => 
   assert.deepEqual(violations, []);
 });
 
+test("accepts a new register migration whose name sorts after every one on main without an underscore after its number", () => {
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: registerMigrationsOnMain,
+    currentPaths: [
+      ...registerMigrationsOnMain,
+      registerMigration("0003-manual-line-fix.sql"),
+      registerMigration("0004.sql"),
+    ],
+  });
+
+  assert.deepEqual(violations, []);
+});
+
 test("refuses a new register migration numbered below the highest one on main", () => {
   const violations = findMisnumberedRegisterMigrations({
     basePaths: [registerMigration("0000_a.sql"), registerMigration("0002_c.sql")],
@@ -411,7 +424,7 @@ test("refuses a new register migration numbered below the highest one on main", 
     {
       path: registerMigration("0001_b.sql"),
       reason:
-        "new register migration not numbered above 0002, the highest one already on main — renumber it above 0002",
+        "new register migration does not sort after 0002_c, the last one already on main — renumber it above 0002_c",
     },
   ]);
 });
@@ -445,17 +458,17 @@ test("refuses every misnumbered new register migration, not only the first", () 
   );
 });
 
-test("refuses a new register migration whose name does not start with a number", () => {
+test("refuses a new register migration whose number is higher but whose name sorts before the last one on main", () => {
   const violations = findMisnumberedRegisterMigrations({
     basePaths: registerMigrationsOnMain,
-    currentPaths: [...registerMigrationsOnMain, registerMigration("late_fix.sql")],
+    currentPaths: [...registerMigrationsOnMain, registerMigration("00003_d.sql")],
   });
 
   assert.deepEqual(violations, [
     {
-      path: registerMigration("late_fix.sql"),
+      path: registerMigration("00003_d.sql"),
       reason:
-        "new register migration not numbered above 0002, the highest one already on main — renumber it above 0002",
+        "new register migration does not sort after 0002_c, the last one already on main — renumber it above 0002_c",
     },
   ]);
 });
