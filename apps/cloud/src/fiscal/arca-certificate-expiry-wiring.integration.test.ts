@@ -9,7 +9,10 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { enqueueArcaCertificateExpiryCheck } from "./arca-certificate-expiry-task.js";
+import {
+  ARCA_CERTIFICATE_EXPIRY_CHECK_TASK_IDENTIFIER,
+  enqueueArcaCertificateExpiryCheck,
+} from "./arca-certificate-expiry-task.js";
 import { ARCA_VITALITY_CHECK_TASK_IDENTIFIER } from "./arca-vitality-task.js";
 import { UNREACHABLE_WSFE_ENDPOINT } from "./test-support/fake-wsfe-server.js";
 
@@ -39,6 +42,15 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
+async function pendingCertificateExpiryChecks() {
+  return sql`
+    select 1
+    from graphile_worker._private_jobs j
+    join graphile_worker._private_tasks t on t.id = j.task_id
+    where t.identifier = ${ARCA_CERTIFICATE_EXPIRY_CHECK_TASK_IDENTIFIER}
+  `;
+}
+
 async function runCheckOfCertificateExpiringAt(notAfter: Date): Promise<void> {
   const recovery = await setUpRecovery(
     {
@@ -62,8 +74,7 @@ async function runCheckOfCertificateExpiringAt(notAfter: Date): Promise<void> {
     await enqueueArcaCertificateExpiryCheck(recovery.workerUtils);
     await vi.waitFor(
       async () => {
-        const jobs = await sql`select 1 from graphile_worker._private_jobs`;
-        expect(jobs).toHaveLength(0);
+        expect(await pendingCertificateExpiryChecks()).toHaveLength(0);
       },
       { timeout: 20_000, interval: 100 },
     );
