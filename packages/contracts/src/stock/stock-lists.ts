@@ -1,6 +1,7 @@
 import {
   ADJUSTMENT_REASONS,
   DEFAULT_STOCK_PERIOD_DAYS,
+  isCalendarDay,
   LOSS_REASONS,
   MANUAL_STOCK_MOVEMENT_KINDS,
   SALE_UNITS,
@@ -39,6 +40,23 @@ export const stockBalanceListSchema = z.object({ products: z.array(stockBalanceS
 
 export type StockBalance = z.output<typeof stockBalanceSchema>;
 export type StockBalanceList = z.output<typeof stockBalanceListSchema>;
+
+const calendarDay = z.string().refine(isCalendarDay);
+
+const stockLotSchema = z.object({
+  id: z.string(),
+  lotNumber: z.string().nullable(),
+  expiresOn: calendarDay.nullable(),
+  purchasedOn: calendarDay.nullable(),
+  technical: z.boolean(),
+  remaining: z.int(),
+  valueCents: z.int().nullable(),
+  costIncomplete: z.boolean(),
+});
+
+export const stockLotBreakdownSchema = z.object({ lots: z.array(stockLotSchema) });
+
+export type StockLotBreakdown = z.output<typeof stockLotBreakdownSchema>;
 
 const stockCountSchema = z.object({
   id: z.string(),

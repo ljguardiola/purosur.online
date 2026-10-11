@@ -508,6 +508,7 @@ export {
   expectedBalance,
   isCountedQuantity,
   isListedInStockBalances,
+  isLotInStock,
   isMovementQuantity,
   LOSS_REASONS,
   lossDelta,

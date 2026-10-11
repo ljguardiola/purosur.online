@@ -1,12 +1,14 @@
 import {
   type AdjustmentReason,
   isListedInStockBalances,
+  isLotInStock,
   type LossReason,
   type ManualStockMovementKind,
   type SaleUnit,
 } from "@purosur/domain";
 import type {
   LedgerAtMoment,
+  LotInStock,
   ProductStockKey,
   RecordedStockCount,
   RecordedStockMovement,
@@ -21,6 +23,7 @@ import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   categories,
+  lots,
   products,
   stockBalances,
   stockCounts,
@@ -76,6 +79,30 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
       }),
       { isolationLevel: "repeatable read", accessMode: "read only" },
     );
+  }
+
+  async lotsInStock(key: ProductStockKey): Promise<LotInStock[]> {
+    const rows = await this.db
+      .select({
+        id: lots.id,
+        lotNumber: lots.lotNumber,
+        expiresOn: lots.expiresOn,
+        purchasedOn: lots.purchasedOn,
+        technical: lots.technical,
+        remaining: lots.remaining,
+        costIncomplete: lots.costIncomplete,
+        costTotalCents: lots.costTotalCents,
+        costQuantity: lots.costQuantity,
+      })
+      .from(lots)
+      .where(and(eq(lots.productId, key.productId), eq(lots.locationId, key.locationId)));
+    return rows.filter(isLotInStock).map(({ costTotalCents, costQuantity, ...lot }) => ({
+      ...lot,
+      cost:
+        costTotalCents === null || costQuantity === null
+          ? null
+          : { totalCents: costTotalCents, quantity: costQuantity },
+    }));
   }
 
   async products(): Promise<StockProduct[]> {

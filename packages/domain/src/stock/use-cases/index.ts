@@ -13,6 +13,12 @@ export { applyRegisterStockMovements } from "./apply-register-stock-movements.js
 export type { AppliedStockMovement } from "./apply-stock-movement.js";
 export type { ExpectedBalanceAtInput, ExpectedBalanceAtOutcome } from "./expected-balance-at.js";
 export { expectedBalanceAt } from "./expected-balance-at.js";
+export type {
+  ProductLot,
+  ReadProductLotsInput,
+  ReadProductLotsOutcome,
+} from "./read-product-lots.js";
+export { readProductLots } from "./read-product-lots.js";
 export type { ReceivePurchasedStockOutcome } from "./receive-purchased-stock.js";
 export { receivePurchasedStock } from "./receive-purchased-stock.js";
 export type { RecordAdjustmentInput, RecordAdjustmentOutcome } from "./record-adjustment.js";
@@ -28,6 +34,7 @@ export type {
 } from "./replicated-stock-ledger.js";
 export type {
   LedgerAtMoment,
+  LotInStock,
   RecordedStockCount,
   RecordedStockMovement,
   StockLedgerReader,
