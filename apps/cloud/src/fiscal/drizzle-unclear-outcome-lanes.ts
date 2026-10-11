@@ -163,7 +163,7 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
         }
         throw error;
       }
-      await this.enqueueUnclearOutcome(tx, request.fiscalDocumentId);
+      await this.enqueueUnclearOutcome(tx, request.fiscalDocumentId, abandonedAt);
     });
   }
 }

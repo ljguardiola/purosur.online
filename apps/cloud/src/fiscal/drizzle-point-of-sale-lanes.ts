@@ -51,9 +51,10 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
     transaction: SqlExecutor,
     fiscalDocumentId: string,
     answer: RealTimeAuthorizationAnswer,
+    answeredAt: Date,
   ): Promise<void> {
     if (awaitsUnclearOutcomeDecision(answer)) {
-      await this.enqueueUnclearOutcome(transaction, fiscalDocumentId);
+      await this.enqueueUnclearOutcome(transaction, fiscalDocumentId, answeredAt);
     } else {
       await this.withdrawUnclearOutcome(transaction, fiscalDocumentId);
     }
@@ -123,7 +124,7 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
         .update(fiscalRequests)
         .set({ ...answerColumnsOf(answer), answeredAt })
         .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
-      await this.scheduleUnclearOutcome(tx, fiscalDocumentId, answer);
+      await this.scheduleUnclearOutcome(tx, fiscalDocumentId, answer, answeredAt);
     });
   }
 
@@ -158,7 +159,7 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
         await new DrizzleTaxAuthorityCounts(tx, pending).advance(taxAuthorityCount);
         await pending.log(tx);
       }
-      await this.scheduleUnclearOutcome(tx, fiscalDocumentId, answer);
+      await this.scheduleUnclearOutcome(tx, fiscalDocumentId, answer, answeredAt);
     });
   }
 }

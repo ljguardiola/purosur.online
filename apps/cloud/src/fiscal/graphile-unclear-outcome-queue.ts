@@ -23,7 +23,7 @@ export const enqueueUnclearOutcomeJob: EnqueueUnclearOutcome = async (
       ${UNCLEAR_OUTCOME_TASK_IDENTIFIER}::text,
       ${JSON.stringify({ fiscalDocumentId })}::json,
       job_key => ${unclearOutcomeJobKey(fiscalDocumentId)}::text,
-      run_at => coalesce(${runAt?.toISOString() ?? null}::timestamptz, now()),
+      run_at => ${runAt.toISOString()}::timestamptz,
       priority => ${UNCLEAR_OUTCOME_PRIORITY}::int
     )`,
   );

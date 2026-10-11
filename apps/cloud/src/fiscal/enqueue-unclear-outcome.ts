@@ -7,7 +7,7 @@ export interface SqlExecutor {
 export type EnqueueUnclearOutcome = (
   transaction: SqlExecutor,
   fiscalDocumentId: string,
-  runAt?: Date,
+  runAt: Date,
 ) => Promise<void>;
 
 export type WithdrawUnclearOutcome = (
