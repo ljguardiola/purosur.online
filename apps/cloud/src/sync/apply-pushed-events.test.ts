@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -326,7 +325,7 @@ describe("applying what POST /events received", () => {
     );
   });
 
-  it("quarantines a sale the database refuses, keeping and reporting the database's code and message without the sale's values", async () => {
+  it("quarantines a sale the database refuses, keeping and reporting the database's code and message", async () => {
     const { device } = await pushingFromARegister();
     const priceListId = await seededPriceListId(route.db);
     const { productId } = await insertProduct(route.db);
@@ -343,19 +342,16 @@ describe("applying what POST /events received", () => {
         payments: [{ amount: 2400 }],
         line: { id: lineId, productId, priceListId, listUnitPrice: 2400 },
       }),
+    ]);
+    await applyAt(NOW);
+    await device.push([
       saleCompleted({
         saleId: refusedSaleId,
         sessionId,
         completedAt: "2026-10-06T11:30:00.000Z",
         total: 2400,
         payments: [{ amount: 2400 }],
-        line: {
-          id: lineId,
-          productName: FICTIONAL_LEGAL_NAME,
-          productId,
-          priceListId,
-          listUnitPrice: 2400,
-        },
+        line: { id: lineId, productId, priceListId, listUnitPrice: 2400 },
       }),
     ]);
     const report = vi.fn();
@@ -369,7 +365,6 @@ describe("applying what POST /events received", () => {
       .where(eq(inbox.aggregateId, refusedSaleId));
     expect(refused?.quarantinedAt).not.toBeNull();
     expect(refused?.lastError).toContain("23505: duplicate key value violates unique constraint");
-    expect(refused?.lastError).not.toContain(FICTIONAL_LEGAL_NAME);
     expect(report).toHaveBeenCalledExactlyOnceWith(
       "sync: a synced event was quarantined",
       new Error(refused?.lastError ?? ""),

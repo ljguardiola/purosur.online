@@ -220,6 +220,22 @@ describe("the reason of a failure that applying an event did not expect", () => 
     expect(reason).toContain("22P02: invalid input syntax for type uuid");
     expect(reason).not.toContain(FICTIONAL_CUIT);
   });
+
+  it("is the database's code and message for a failure the database gave outside a statement", () => {
+    const failure = Object.assign(new Error("could not serialize access"), { code: "40001" });
+
+    expect(system.application.reasonOf(failure)).toBe("40001: could not serialize access");
+  });
+
+  it("is the message of an error that is not the database's", () => {
+    expect(system.application.reasonOf(new Error("installation d-1 is not a known register"))).toBe(
+      "installation d-1 is not a known register",
+    );
+  });
+
+  it("is the text of a failure that is not an error", () => {
+    expect(system.application.reasonOf("just a string")).toBe("just a string");
+  });
 });
 
 describe("locking an aggregate", () => {

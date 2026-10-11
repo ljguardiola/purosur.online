@@ -85,7 +85,6 @@ export function saleCompleted(options: {
   payments: { amount: number }[];
   line?: {
     id?: string;
-    productName?: string;
     productId: string;
     priceListId: string;
     listUnitPrice: number;
@@ -114,7 +113,7 @@ export function saleCompleted(options: {
             {
               id: lineId,
               product_id: line.productId,
-              product_name: line.productName ?? "Miel pura de abeja 1 kg",
+              product_name: "Miel pura de abeja 1 kg",
               ...(line.weight ? { weight_source: line.weight.source } : {}),
               quantity: line.weight?.thousandths ?? 1,
               list_unit_price: line.listUnitPrice,
