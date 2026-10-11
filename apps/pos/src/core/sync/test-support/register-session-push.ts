@@ -64,7 +64,7 @@ const PIN = "4826";
 const PIN_HASH = "hash-of-the-pin";
 
 const OFFLINE_QR_ORDERS: MercadoPagoQrChargeOrders = {
-  requestOrder: async () => ({ kind: "created" }),
+  requestOrder: async () => ({ kind: "created", expiresAt: new Date("2026-10-09T12:03:00.000Z") }),
   readOrder: async () => ({ kind: "unreachable" }),
   cancelOrder: async () => ({ kind: "unreachable" }),
 };

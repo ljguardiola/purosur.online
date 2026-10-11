@@ -20,7 +20,7 @@ describe("startMercadoPagoQrCharge", () => {
     expect(world.recordedPayments).toEqual([
       { ...INPUT, occurredAt: QR_CHARGE_NOW, waitEndsAt: QR_CHARGE_WAIT_ENDS_AT },
     ]);
-    expect(world.operations).toEqual(["recordPendingPayment", "requestOrder"]);
+    expect(world.operations).toEqual(["recordPendingPayment", "requestOrder", `recordWaitEnd:`]);
   });
 
   it("asks the cloud for an order of the pending payment's id, sale and amount", async () => {
