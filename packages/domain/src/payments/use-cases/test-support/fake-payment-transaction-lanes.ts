@@ -1,5 +1,5 @@
-import type { MercadoPagoQrOrderTransaction } from "../../model/payment-transaction.js";
 import type { LatePaymentRefund } from "../../model/payment-refund.js";
+import type { MercadoPagoQrOrderTransaction } from "../../model/payment-transaction.js";
 import {
   type LatePaymentRefundOpening,
   PaymentTransactionAlreadyRecorded,

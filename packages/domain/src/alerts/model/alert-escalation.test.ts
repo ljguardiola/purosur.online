@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS } from "../../fiscal/index.js";
 import { ESCALATED_LEVEL, escalatesAt, isDueForEscalation } from "./alert-escalation.js";
-import { ALERT_ESCALATION_DELAY_MS, LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS } from "./alert-kind-policy.js";
+import {
+  ALERT_ESCALATION_DELAY_MS,
+  LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS,
+} from "./alert-kind-policy.js";
 
 const OPENED = new Date("2026-10-01T08:00:00.000Z");
 const DUE = new Date(OPENED.getTime() + ALERT_ESCALATION_DELAY_MS);
@@ -31,7 +34,9 @@ describe("escalatesAt", () => {
       OPENED,
     );
 
-    expect(escalation).toEqual(new Date(OPENED.getTime() + LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS));
+    expect(escalation).toEqual(
+      new Date(OPENED.getTime() + LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS),
+    );
     expect(escalation).not.toEqual(DUE);
   });
 

@@ -45,7 +45,10 @@ export interface PaymentTransactionLane {
     outcome: PaymentTransactionOutcome,
     readAt: Date,
   ): Promise<RecordedOrderState>;
-  openLatePaymentRefund(refund: LatePaymentRefund, openedAt: Date): Promise<LatePaymentRefundOpening>;
+  openLatePaymentRefund(
+    refund: LatePaymentRefund,
+    openedAt: Date,
+  ): Promise<LatePaymentRefundOpening>;
   inOneTransaction<TOutcome>(
     work: (lane: PaymentTransactionLane) => Promise<TOutcome>,
   ): Promise<TOutcome>;

@@ -122,9 +122,9 @@ describe("recordMercadoPagoOrderResult", () => {
     world.lanes.seed(storedTransaction({ ...WITH_ORDER, replaced: true }));
     world.lanes.failOn = "openLatePaymentRefund";
 
-    await expect(record(world, storedTransaction({ ...WITH_ORDER, replaced: true }))).rejects.toThrow(
-      "openLatePaymentRefund failed",
-    );
+    await expect(
+      record(world, storedTransaction({ ...WITH_ORDER, replaced: true })),
+    ).rejects.toThrow("openLatePaymentRefund failed");
 
     expect(world.lanes.transactions.get(TRANSACTION_ID)?.state).toBe("PENDING");
     expect(world.lanes.resultReadAt.has(TRANSACTION_ID)).toBe(false);

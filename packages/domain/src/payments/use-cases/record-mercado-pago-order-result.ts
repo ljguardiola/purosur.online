@@ -3,7 +3,10 @@ import {
   type MercadoPagoOrderResult,
 } from "../model/mercado-pago-order-result.js";
 import { latePaymentRefund } from "../model/payment-refund.js";
-import { isLateApproval, type MercadoPagoQrOrderTransaction } from "../model/payment-transaction.js";
+import {
+  isLateApproval,
+  type MercadoPagoQrOrderTransaction,
+} from "../model/payment-transaction.js";
 import type { PaymentTransactionLane, RecordedOrderState } from "./mercado-pago-qr-order-ports.js";
 
 export async function openLatePaymentRefundIfLate(

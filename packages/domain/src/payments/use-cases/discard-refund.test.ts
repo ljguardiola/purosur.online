@@ -96,16 +96,16 @@ describe("discardRefund", () => {
     expect(store.operationOrder).toEqual(["lockRefund"]);
   });
 
-  it.each([
-    "recordRefundDiscarded",
-    "resolveLatePaymentRefundAlert",
-  ] as const)("leaves the refund pending, with its alert open, if %s fails", async (step) => {
-    const store = new FakeRefundStore([{ ...LATE_PAYMENT }]);
-    store.failOn = step;
+  it.each(["recordRefundDiscarded", "resolveLatePaymentRefundAlert"] as const)(
+    "leaves the refund pending, with its alert open, if %s fails",
+    async (step) => {
+      const store = new FakeRefundStore([{ ...LATE_PAYMENT }]);
+      store.failOn = step;
 
-    await expect(discard(store)).rejects.toThrow(step);
+      await expect(discard(store)).rejects.toThrow(step);
 
-    expect(store.refunds).toEqual([LATE_PAYMENT]);
-    expect(store.resolvedAlerts).toEqual([]);
-  });
+      expect(store.refunds).toEqual([LATE_PAYMENT]);
+      expect(store.resolvedAlerts).toEqual([]);
+    },
+  );
 });
