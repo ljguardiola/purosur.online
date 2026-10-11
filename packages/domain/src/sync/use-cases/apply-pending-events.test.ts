@@ -9,6 +9,7 @@ import {
   aStoredEvent,
   FakeEventApplication,
   FakeEventUpcaster,
+  FakeQuarantineNotices,
   type FakeStoredEvent,
 } from "./test-support/fake-event-application.js";
 
@@ -17,10 +18,15 @@ const NOW = new Date("2026-10-07T12:00:00.000Z");
 function run(
   eventApplication: FakeEventApplication,
   upcaster: FakeEventUpcaster,
-  options: { limit?: number; now?: Date } = {},
+  options: { limit?: number; now?: Date; notices?: FakeQuarantineNotices } = {},
 ) {
   return applyPendingEvents(
-    { eventApplication, upcaster, clock: { now: () => options.now ?? NOW } },
+    {
+      eventApplication,
+      upcaster,
+      clock: { now: () => options.now ?? NOW },
+      quarantineNotices: options.notices ?? new FakeQuarantineNotices(),
+    },
     { limit: options.limit ?? 100 },
   );
 }
@@ -85,7 +91,7 @@ describe("applying the events the cloud holds", () => {
       applied: 3,
       flagged: 0,
       retried: 0,
-      quarantined: [],
+      quarantined: 0,
       busy: 0,
       limitReached: false,
     });
@@ -201,7 +207,7 @@ describe("an event that cannot be applied yet", () => {
     });
     expect(application.state.recorded).toEqual([]);
     expect(application.state.quarantineAlerts).toEqual([]);
-    expect(outcome).toMatchObject({ applied: 0, retried: 1, quarantined: [] });
+    expect(outcome).toMatchObject({ applied: 0, retried: 1, quarantined: 0 });
   });
 
   it("is applied once the cash session it depends on is applied", async () => {
@@ -272,37 +278,71 @@ describe("an event that cannot be applied yet", () => {
         },
       },
     ]);
-    expect(outcome).toMatchObject({
-      applied: 0,
-      retried: 0,
-      quarantined: [
-        {
-          deviceId: "device-4",
-          eventId: "sale-event",
-          eventType: "sale_completed",
-          aggregateType: "Sale",
-          aggregateId: "sale-9",
-          error: "depends on CashSession session-1 not applied yet",
-        },
-      ],
-    });
+    expect(outcome).toMatchObject({ applied: 0, retried: 0, quarantined: 1 });
+  });
+
+  it("names the quarantined event, with its last error, once its quarantine is committed", async () => {
+    const application = new FakeEventApplication([
+      saleEvent({ attempts: 7, deviceId: "device-4", aggregateId: "sale-9" }),
+    ]);
+    const notices = new FakeQuarantineNotices(application.calls);
+
+    await run(
+      application,
+      new FakeEventUpcaster({ "sale-event": aCompletedSaleFact({ id: "sale-9" }) }),
+      { notices },
+    );
+
+    expect(notices.named).toEqual([
+      {
+        deviceId: "device-4",
+        eventId: "sale-event",
+        eventType: "sale_completed",
+        aggregateType: "Sale",
+        aggregateId: "sale-9",
+        error: "depends on CashSession session-1 not applied yet",
+      },
+    ]);
+    expect(application.calls.slice(-2)).toEqual(["commit", "notice sale-event"]);
   });
 
   it("names no quarantined event while its failures are still retried, and names it once on the attempt that quarantines it", async () => {
     const application = new FakeEventApplication([saleEvent()]);
     const upcaster = new FakeEventUpcaster({ "sale-event": aCompletedSaleFact() });
 
-    const quarantinedAfterEachRun: string[][] = [];
+    const namedAfterEachRun: string[][] = [];
     for (let attempt = 0; attempt < 9; attempt += 1) {
-      const outcome = await run(application, upcaster, {
+      const notices = new FakeQuarantineNotices();
+      await run(application, upcaster, {
         now: new Date(NOW.getTime() + attempt * 3_600_000),
+        notices,
       });
-      quarantinedAfterEachRun.push(
-        outcome.kind === "processed" ? outcome.quarantined.map((one) => one.eventId) : [],
-      );
+      namedAfterEachRun.push(notices.named.map((one) => one.eventId));
     }
 
-    expect(quarantinedAfterEachRun).toEqual([[], [], [], [], [], [], [], ["sale-event"], []]);
+    expect(namedAfterEachRun).toEqual([[], [], [], [], [], [], [], ["sale-event"], []]);
+  });
+
+  it("names a quarantine it committed even when a later aggregate of the same run fails", async () => {
+    const application = new FakeEventApplication([
+      saleEvent({ attempts: 7 }),
+      saleEvent({ eventId: "later-aggregate", aggregateId: "sale-2" }),
+    ]);
+    application.beforeTransaction = (number) => {
+      if (number === 3) {
+        throw new Error("connection lost");
+      }
+    };
+    const notices = new FakeQuarantineNotices();
+
+    await expect(
+      run(application, new FakeEventUpcaster({ "later-aggregate": aCompletedSaleFact() }), {
+        notices,
+      }),
+    ).rejects.toThrow("connection lost");
+
+    expect(application.event("sale-event").quarantinedAt).toEqual(NOW);
+    expect(notices.named.map((one) => one.eventId)).toEqual(["sale-event"]);
   });
 
   it("is flagged as unreadable when no schema reads its payload on its last allowed attempt", async () => {
@@ -555,7 +595,7 @@ describe("an event that cannot be applied yet", () => {
     );
 
     expect(application.event("sale-event").attempts).toBe(0);
-    expect(outcome).toMatchObject({ retried: 0, quarantined: [] });
+    expect(outcome).toMatchObject({ retried: 0, quarantined: 0 });
   });
 
   it("does not record a failed attempt for an event that is no longer the earliest of its aggregate", async () => {
@@ -618,7 +658,7 @@ describe("an aggregate another run is applying", () => {
       applied: 0,
       flagged: 0,
       retried: 0,
-      quarantined: [],
+      quarantined: 0,
       busy: 1,
       limitReached: false,
     });
@@ -638,7 +678,7 @@ describe("an aggregate another run is applying", () => {
     );
 
     expect(application.event("sale-event")).toMatchObject({ attempts: 0, error: null });
-    expect(outcome).toMatchObject({ retried: 0, quarantined: [] });
+    expect(outcome).toMatchObject({ retried: 0, quarantined: 0 });
   });
 });
 
@@ -732,7 +772,7 @@ describe("an event that breaks an invariant of its own aggregate", () => {
       },
     ]);
     expect(application.state.quarantineAlerts).toEqual([]);
-    expect(outcome).toMatchObject({ applied: 1, flagged: 1, quarantined: [] });
+    expect(outcome).toMatchObject({ applied: 1, flagged: 1, quarantined: 0 });
   });
 
   it("applies the stock of a sale whose stock movements do not match its lines, flagging it", async () => {
@@ -752,7 +792,7 @@ describe("an event that breaks an invariant of its own aggregate", () => {
         breaks: ["stock_movements_do_not_match_lines"],
       }),
     ]);
-    expect(outcome).toMatchObject({ applied: 1, flagged: 1, quarantined: [] });
+    expect(outcome).toMatchObject({ applied: 1, flagged: 1, quarantined: 0 });
   });
 
   it("is applied without any alert when its lines' frozen prices differ from the current prices", async () => {

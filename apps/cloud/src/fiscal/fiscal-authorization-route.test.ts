@@ -2,6 +2,7 @@ import {
   cloudErrorSchema,
   type RealTimeAuthorizationRequestBody,
   realTimeAuthorizationResponseSchema,
+  scrubErrorReport,
 } from "@purosur/contracts";
 import { FACTURA_C_DOCUMENT_TYPE } from "@purosur/domain";
 import { FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
@@ -375,7 +376,7 @@ describe("POST /fiscal/authorize", () => {
       const { deviceToken } = await enrollRegisterWithPointOfSale();
       await route.issueWsaaToken();
       route.taxAuthority.answer = { kind: "no_answer" };
-      const body = requestBody();
+      const body = requestBody({ number: 1234567 });
       body.sale_event.payload = {
         buyer: { cuit: FICTIONAL_CUIT, name: FICTIONAL_LEGAL_NAME, email: "buyer@example.test" },
       };
@@ -385,7 +386,13 @@ describe("POST /fiscal/authorize", () => {
       expect(route.report).toHaveBeenCalledExactlyOnceWith(
         "fiscal: a real-time authorization ended with an unclear outcome",
         new Error("real-time authorization ended with an unclear outcome"),
-        { context: { pointOfSale: 7, documentType: FACTURA_C_DOCUMENT_TYPE, number: 42 } },
+        {
+          context: {
+            pointOfSale: 7,
+            documentType: FACTURA_C_DOCUMENT_TYPE,
+            document: "00007-01234567",
+          },
+        },
       );
       const reported = reportedText();
       for (const sensitive of [
@@ -399,6 +406,18 @@ describe("POST /fiscal/authorize", () => {
       ]) {
         expect(reported).not.toContain(sensitive);
       }
+    });
+
+    it("reports the number of an unclear outcome in a form the reports' scrubbing keeps", async () => {
+      const { deviceToken } = await enrollRegisterWithPointOfSale();
+      await route.issueWsaaToken();
+      route.taxAuthority.answer = { kind: "no_answer" };
+
+      await authorize(requestBody({ number: 12345678 }), `Bearer ${deviceToken}`);
+
+      const context = route.report.mock.calls[0]?.[2]?.context ?? {};
+      expect(scrubErrorReport({ extra: context }).extra).toEqual(context);
+      expect(context).toMatchObject({ document: "00007-12345678" });
     });
 
     it("reports an unclear outcome once, not again when the register asks again for the same document", async () => {
