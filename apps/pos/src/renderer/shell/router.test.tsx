@@ -146,6 +146,7 @@ function contextWith(
       conditions: [],
       cloud: "reachable",
       serial_devices: { scale: "matching", reader: "matching" },
+      serial_devices_setup_offered: false,
     }),
     recordCashMovement: async () => ({ kind: "unavailable" }),
     enroll: async () => ({ kind: "enrolled" }),
@@ -967,6 +968,7 @@ describe("the register's router", () => {
         conditions: [],
         cloud: "reachable",
         serial_devices: { scale: "not_registered", reader: "not_registered" },
+        serial_devices_setup_offered: false,
       };
       const takeSerialDevicesOffer = vi.fn(
         async (_person: SignedInPerson, readStatus: () => Promise<RegisterStatus>) =>
@@ -1944,6 +1946,7 @@ describe("the register's status bar", () => {
         conditions: [{ kind: "sales_denied" as const, reason: "event_history_broken" as const }],
         cloud: "unreachable" as const,
         serial_devices: { scale: "matching" as const, reader: "matching" as const },
+        serial_devices_setup_offered: false,
       }),
     };
     const router = createRegisterRouter(routeTree, context, "/");
@@ -2001,6 +2004,7 @@ describe("the charge route's Mercado Pago QR", () => {
       conditions: [],
       cloud: "reachable",
       serial_devices: { scale: "matching", reader: "matching" },
+      serial_devices_setup_offered: false,
     }));
 
     const screen = await render(<RouterProvider router={router} />);
@@ -2015,6 +2019,7 @@ describe("the charge route's Mercado Pago QR", () => {
         conditions: [],
         cloud,
         serial_devices: { scale: "matching", reader: "matching" },
+        serial_devices_setup_offered: false,
       }));
 
       const screen = await render(<RouterProvider router={router} />);

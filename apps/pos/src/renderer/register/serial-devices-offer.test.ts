@@ -19,7 +19,12 @@ const CASHIER: SignedInPerson = {
 };
 
 function statusWith(serial_devices: RegisterStatus["serial_devices"]): RegisterStatus {
-  return { conditions: [], cloud: "reachable", serial_devices };
+  return {
+    conditions: [],
+    cloud: "reachable",
+    serial_devices,
+    serial_devices_setup_offered: false,
+  };
 }
 
 const NEITHER_REGISTERED = statusWith({ scale: "not_registered", reader: "not_registered" });

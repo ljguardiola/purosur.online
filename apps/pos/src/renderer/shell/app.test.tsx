@@ -211,7 +211,12 @@ function coreAnswering(
     },
     async registerStatus() {
       statusAsks.push("register-status");
-      return { conditions: [], cloud: "reachable", serial_devices: serialDevices };
+      return {
+        conditions: [],
+        cloud: "reachable",
+        serial_devices: serialDevices,
+        serial_devices_setup_offered: false,
+      };
     },
     async recordCashMovement(input) {
       recorded.push(input);
