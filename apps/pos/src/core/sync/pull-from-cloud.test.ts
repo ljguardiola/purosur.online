@@ -91,6 +91,51 @@ function cloudAnswering(...answers: CloudResponse[]) {
   return { getFromCloud, requests };
 }
 
+const POINT_OF_SALE_ID = "4b0e6dc3-85f7-4a4b-8c9d-1e3f5a7b9c04";
+
+function pointOfSalePage(
+  changeSeqs: number[],
+  taxAuthorityLastAuthorizedNumber: number | null,
+  hasMore = false,
+): CloudResponse {
+  return {
+    kind: "ok",
+    body: {
+      changes: changeSeqs.map((changeSeq) => ({
+        change_seq: changeSeq,
+        entity: "register_point_of_sale",
+        entity_id: POINT_OF_SALE_ID,
+        row: {
+          point_of_sale_number: 12,
+          fiscal_address_id: "0b7c6f5e-2d4a-4e8b-9c1d-3a5f7e9b1d02",
+          tax_authority_last_authorized_number: taxAuthorityLastAuthorizedNumber,
+          version: 1,
+        },
+      })),
+      cursor: changeSeqs.at(-1) ?? 0,
+      has_more: hasMore,
+    },
+  };
+}
+
+function replicaWaitingForPointOfSaleRedelivery() {
+  const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+  const replica = new SqliteLocalReplica(database);
+  replica.adoptDevice({ deviceId: CREDENTIALS.device_id, pepper: CREDENTIALS.pepper });
+  database.exec(
+    `INSERT INTO pulled_table_redeliveries (table_name) VALUES ('register_point_of_sale');
+     INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id, version)
+     VALUES ('${POINT_OF_SALE_ID}', 12, '0b7c6f5e-2d4a-4e8b-9c1d-3a5f7e9b1d02', 1);`,
+  );
+  return { database, replica };
+}
+
+function heldCount(database: ReturnType<typeof openLocalDatabase>) {
+  return database
+    .prepare("SELECT tax_authority_last_authorized_number AS count FROM register_point_of_sale")
+    .get();
+}
+
 function freshReplica() {
   return new SqliteLocalReplica(openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock));
 }
@@ -223,6 +268,93 @@ describe("a pull from the cloud", () => {
   });
 });
 
+describe("a pull of a register waiting for a redelivery", () => {
+  it("redelivers the entity from its cursor once it has caught up, then forgets the wait", async () => {
+    const { database, replica } = replicaWaitingForPointOfSaleRedelivery();
+    const { getFromCloud, requests } = cloudAnswering(page([], false), pointOfSalePage([5], 12));
+
+    const attempt = await pullFromCloud({
+      readCredentials: async () => CREDENTIALS,
+      replica,
+      getFromCloud,
+    });
+
+    expect(attempt).toEqual({ kind: "caught_up", cursor: 0 });
+    expect(requests.map((request) => request.path)).toEqual([
+      "/api/changes?since=0",
+      "/api/changes?since=0&entity=register_point_of_sale",
+    ]);
+    expect(requests[1]?.headers).toEqual({ authorization: "Bearer prefix.secret" });
+    expect(heldCount(database)).toEqual({ count: 12 });
+    expect(database.prepare("SELECT * FROM pulled_table_redeliveries").all()).toEqual([]);
+    expect(await replica.savedCursor()).toBe(0);
+  });
+
+  it("asks for nothing of an entity when it was not caught up", async () => {
+    const { database, replica } = replicaWaitingForPointOfSaleRedelivery();
+    const { getFromCloud, requests } = cloudAnswering({ kind: "unreachable" });
+
+    const attempt = await pullFromCloud({
+      readCredentials: async () => CREDENTIALS,
+      replica,
+      getFromCloud,
+    });
+
+    expect(attempt).toMatchObject({ kind: "failed" });
+    expect(requests).toHaveLength(1);
+    expect(database.prepare("SELECT cursor FROM pulled_table_redeliveries").all()).toEqual([
+      { cursor: 0 },
+    ]);
+  });
+
+  it("keeps the wait, from the page it saved, when the cloud fails halfway", async () => {
+    const { database, replica } = replicaWaitingForPointOfSaleRedelivery();
+    const { getFromCloud } = cloudAnswering(page([], false), pointOfSalePage([5], 12, true), {
+      kind: "unreachable",
+    });
+
+    const attempt = await pullFromCloud({
+      readCredentials: async () => CREDENTIALS,
+      replica,
+      getFromCloud,
+    });
+
+    expect(attempt).toEqual({
+      kind: "redelivery_failed",
+      entity: "register_point_of_sale",
+      failure: { kind: "unreachable" },
+      cursor: 5,
+    });
+    expect(database.prepare("SELECT cursor FROM pulled_table_redeliveries").all()).toEqual([
+      { cursor: 5 },
+    ]);
+    expect(heldCount(database)).toEqual({ count: 12 });
+  });
+
+  it("keeps the wait when the cloud answers a page out of order", async () => {
+    const { database, replica } = replicaWaitingForPointOfSaleRedelivery();
+    const { getFromCloud } = cloudAnswering(page([], false), {
+      kind: "ok",
+      body: { changes: [], cursor: 3, has_more: true },
+    });
+
+    const attempt = await pullFromCloud({
+      readCredentials: async () => CREDENTIALS,
+      replica,
+      getFromCloud,
+    });
+
+    expect(attempt).toEqual({
+      kind: "redelivery_page_out_of_order",
+      entity: "register_point_of_sale",
+      cursor: 0,
+    });
+    expect(database.prepare("SELECT cursor FROM pulled_table_redeliveries").all()).toEqual([
+      { cursor: 0 },
+    ]);
+  });
+});
+
 describe("what a pull attempt means for the schedule", () => {
   it("counts a register that has nothing to pull yet, or is caught up, as succeeded", () => {
     for (const attempt of [
@@ -241,9 +373,27 @@ describe("what a pull attempt means for the schedule", () => {
       { kind: "failed", cursor: 3, failure: { kind: "unreadable" } },
       { kind: "failed", cursor: 3, failure: { kind: "refused", code: "server_unavailable" } },
       { kind: "page_out_of_order", cursor: 3 },
+      {
+        kind: "redelivery_failed",
+        entity: "product",
+        cursor: 3,
+        failure: { kind: "unreachable" },
+      },
+      { kind: "redelivery_page_out_of_order", entity: "product", cursor: 3 },
     ] as const) {
       expect(pullResultOf(attempt)).toEqual({ kind: "failed" });
     }
+  });
+
+  it("carries the wait the cloud asked for while redelivering, in milliseconds", () => {
+    expect(
+      pullResultOf({
+        kind: "redelivery_failed",
+        entity: "product",
+        cursor: 3,
+        failure: { kind: "refused", code: "rate_limited", retryAfterSeconds: 45 },
+      }),
+    ).toEqual({ kind: "failed", retryAfterMs: 45_000 });
   });
 
   it("carries the wait the cloud asked for, in milliseconds", () => {
