@@ -2206,3 +2206,111 @@ test("keeps showing the footer alongside the empty state", async () => {
 
   await expectNoAccessibilityViolations(screen.container);
 });
+
+test("shows the detail a row asks for right under it, across every column, and none under the others", async () => {
+  const screen = await render(
+    <TestTable
+      {...commonProps}
+      columns={columns}
+      rowDetail={(item) => (item.id === "1" ? <p>Detail of Coffee</p> : undefined)}
+    />,
+  );
+
+  const detailCell = screen.getByRole("cell", { name: "Detail of Coffee" }).element();
+  const coffeeRow = screen.getByRole("cell", { name: "Coffee" }).element().parentElement;
+  const teaRow = screen.getByRole("cell", { name: "Tea" }).element().parentElement;
+
+  expect(detailCell.getAttribute("colspan")).toBe("2");
+  expect(detailCell.parentElement?.previousElementSibling).toBe(coffeeRow);
+  expect(detailCell.parentElement?.nextElementSibling).toBe(teaRow);
+  expect(teaRow?.nextElementSibling).toBeNull();
+});
+
+test("paints a row's detail on the subtle surface, closed by the row divider", async () => {
+  const screen = await render(
+    <TestTable
+      {...commonProps}
+      columns={columns}
+      rowDetail={(item) => (item.id === "1" ? <p>Detail of Coffee</p> : undefined)}
+    />,
+  );
+  const detailRow = screen.getByRole("cell", { name: "Detail of Coffee" }).element()
+    .parentElement as HTMLElement;
+  const detailCell = detailRow.firstElementChild as HTMLElement;
+
+  expect(getComputedStyle(detailCell).backgroundColor).toBe(tokenRgb("surface-subtle"));
+  expect(paintedBoxShadowLayers(detailCell)).toEqual([
+    `${tokenRgb("border")} 0px -1px 0px 0px inset`,
+  ]);
+});
+
+test("skips the divider of the last row's detail, since the container's own border closes it", async () => {
+  const screen = await render(
+    <TestTable
+      {...commonProps}
+      columns={columns}
+      items={[coffee]}
+      rowDetail={() => <p>Detail of Coffee</p>}
+    />,
+  );
+  const coffeeRow = screen.getByRole("cell", { name: "Coffee" }).element()
+    .parentElement as HTMLElement;
+  const detailCell = screen
+    .getByRole("cell", { name: "Detail of Coffee" })
+    .element() as HTMLElement;
+
+  expect(paintedBoxShadowLayers(coffeeRow)).toEqual([
+    `${tokenRgb("border")} 0px -1px 0px 0px inset`,
+  ]);
+  expect(paintedBoxShadowLayers(detailCell)).toEqual([]);
+});
+
+test("draws a nested table with no frame of its own, on its container's background", async () => {
+  const screen = await render(
+    <TestTable {...commonProps} columns={columns} variant="nested" sort={NO_SORT} />,
+  );
+  const container = screen.getByRole("table").element().parentElement as HTMLElement;
+  const style = getComputedStyle(container);
+  const header = screen.getByRole("columnheader", { name: "Producto" }).element()
+    .parentElement as HTMLElement;
+  const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
+
+  expect(style.borderWidth).toBe("0px");
+  expect(style.borderRadius).toBe("0px");
+  expect(style.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(getComputedStyle(header).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(getComputedStyle(row).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+});
+
+test("shows a nested table inside a row's detail without accessibility violations", async () => {
+  const screen = await render(
+    <TestTable
+      {...commonProps}
+      aria-label="Products"
+      columns={columns}
+      rowDetail={(item) =>
+        item.id === "1" ? (
+          <TestTable aria-label="Lots" items={[tea]} columns={columns} variant="nested" />
+        ) : undefined
+      }
+    />,
+  );
+
+  await expect.element(screen.getByRole("table", { name: "Lots" })).toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("lines a nested table's cells up with the edges of its container, with no padding of their own", async () => {
+  const screen = await render(
+    <TestTable {...commonProps} columns={columns} variant="nested" sort={NO_SORT} />,
+  );
+  const container = screen.getByRole("table").element().parentElement as HTMLElement;
+  const firstCell = screen.getByRole("cell", { name: "Coffee" }).element();
+  const lastCell = screen.getByRole("cell", { name: "12" }).element();
+  const firstHeader = screen.getByRole("columnheader", { name: "Producto" }).element();
+
+  const edges = container.getBoundingClientRect();
+  expect(firstCell.getBoundingClientRect().left).toBe(edges.left);
+  expect(firstHeader.getBoundingClientRect().left).toBe(edges.left);
+  expect(lastCell.getBoundingClientRect().right).toBe(edges.right);
+});
