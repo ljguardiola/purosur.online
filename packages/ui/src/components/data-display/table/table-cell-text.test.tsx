@@ -47,3 +47,41 @@ test("renders no description line for a boolean description, like the common ite
 test("does not name its secondary text detail", () => {
   expectTypeOf<TableCellTextProps>().not.toHaveProperty("detail");
 });
+
+test("leaves its text color and weight to the row unless it is asked for a tone or to be strong", async () => {
+  const screen = await render(<TableCellText>Coffee</TableCellText>);
+  const text = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
+
+  expect(text.className).not.toMatch(/text-text|text-error|font-bold/);
+});
+
+test.each([
+  ["subtle", "text-subtle"],
+  ["error", "error-strong"],
+] as const)("writes its text in the %s tone", async (tone, token) => {
+  const screen = await render(<TableCellText tone={tone}>Coffee</TableCellText>);
+  const text = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
+
+  expect(getComputedStyle(text).color).toBe(tokenRgb(token));
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("writes its text in bold when it is strong", async () => {
+  const screen = await render(<TableCellText strong>Coffee</TableCellText>);
+  const text = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
+
+  expect(getComputedStyle(text).fontWeight).toBe("700");
+});
+
+test("writes an error description in bold, in the error tone", async () => {
+  const screen = await render(
+    <TableCellText description="Saldo negativo" descriptionTone="error">
+      Coffee
+    </TableCellText>,
+  );
+  const description = screen.getByText("Saldo negativo", { exact: true }).element() as HTMLElement;
+
+  expect(getComputedStyle(description).color).toBe(tokenRgb("error-strong"));
+  expect(getComputedStyle(description).fontWeight).toBe("700");
+  await expectNoAccessibilityViolations(screen.container);
+});

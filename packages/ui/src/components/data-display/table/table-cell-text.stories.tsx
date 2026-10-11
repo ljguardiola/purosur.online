@@ -32,3 +32,23 @@ export const LongContent: Story = {
     ),
   ],
 };
+
+export const StrongText: Story = {
+  args: { children: "12 u", strong: true },
+};
+
+export const SubtleText: Story = {
+  args: { children: "$ 5.440,00", tone: "subtle" },
+};
+
+export const ErrorText: Story = {
+  args: { children: "− 3 u", tone: "error", strong: true },
+};
+
+export const ErrorDescription: Story = {
+  args: {
+    children: "Yerba mate orgánica 500 g",
+    description: "Saldo negativo · se corrige con un recuento",
+    descriptionTone: "error",
+  },
+};
