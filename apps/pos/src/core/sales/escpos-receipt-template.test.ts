@@ -197,9 +197,9 @@ const FISCAL_LINES = [
   "[qr store " + QR_TEXT + "]",
   "[qr print]",
   "[align left]",
-  "         Comprobante Autorizado",
-  "       CAE N° 71234567890123",
-  "     Fecha de Vto. de CAE 10/10/2026",
+  "              Comprobante Autorizado",
+  "              CAE N° 71234567890123",
+  "         Fecha de Vto. de CAE 10/10/2026",
 ];
 
 describe("the ESC/POS receipt template", () => {
