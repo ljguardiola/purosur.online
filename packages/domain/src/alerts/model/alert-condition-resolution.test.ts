@@ -1,8 +1,18 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { ALERT_CONDITION_STABLE_CLEAR_MS, isStablyCleared } from "./alert-condition-resolution.js";
+import {
+  ALERT_CONDITION_EVALUATION_INTERVAL_MS,
+  ALERT_CONDITION_STABLE_CLEAR_MS,
+  isStablyCleared,
+} from "./alert-condition-resolution.js";
 
 const CLEARED_AT = new Date("2026-10-01T08:00:00.000Z");
+
+describe("ALERT_CONDITION_EVALUATION_INTERVAL_MS", () => {
+  it("is 1 minute", () => {
+    expect(ALERT_CONDITION_EVALUATION_INTERVAL_MS).toBe(60 * 1000);
+  });
+});
 
 describe("ALERT_CONDITION_STABLE_CLEAR_MS", () => {
   it("is 10 minutes", () => {
