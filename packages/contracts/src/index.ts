@@ -130,6 +130,14 @@ export {
   registerPointOfSaleSchema,
 } from "./fiscal/register-point-of-sale.js";
 export type {
+  UnclearOutcomeAnswerBody,
+  UnclearOutcomeQuestionBody,
+} from "./fiscal/unclear-outcome-question.js";
+export {
+  unclearOutcomeAnswerSchema,
+  unclearOutcomeQuestionSchema,
+} from "./fiscal/unclear-outcome-question.js";
+export type {
   AbandonMercadoPagoQrChargeOutcome,
   FollowMercadoPagoQrChargeOutcome,
   PaymentsCoreToRendererMessage,

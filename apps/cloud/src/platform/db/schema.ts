@@ -1196,6 +1196,7 @@ export const installationRequestEndpoint = pgEnum("installation_request_endpoint
   "health_check",
   "fiscal_authorize",
   "payment_order",
+  "fiscal_unclear_outcome",
 ]);
 
 // The limiter's own bookkeeping, not business data: what left the limit's window is deleted.

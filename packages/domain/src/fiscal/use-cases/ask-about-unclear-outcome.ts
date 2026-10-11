@@ -3,30 +3,30 @@ import type { UnclearOutcomeDecision } from "../model/unclear-outcome-decision.j
 import { FiscalDocumentAlreadyRecorded } from "./fiscal-document-authorization-ports.js";
 import type {
   AbandonedRequestRecord,
-  RecordUnrecordedUnclearOutcomePorts,
+  AskAboutUnclearOutcomePorts,
 } from "./unclear-outcome-ports.js";
 
-export interface RecordUnrecordedUnclearOutcomeInput {
+export interface AskAboutUnclearOutcomeInput {
   registerId: string;
   request: Omit<AbandonedRequestRecord, "registerId">;
 }
 
-export type RecordUnrecordedUnclearOutcomeOutcome =
-  | { kind: "recorded" }
-  | { kind: "already_recorded"; decision: UnclearOutcomeDecision | null }
+export type AskAboutUnclearOutcomeOutcome =
+  | { kind: "pending" }
+  | { kind: "decided"; decision: UnclearOutcomeDecision }
   | { kind: "point_of_sale_not_owned" }
   | { kind: "fiscal_document_not_owned" }
   | { kind: "sale_event_mismatch" };
 
-export async function recordUnrecordedUnclearOutcome(
-  { lanes, clock }: RecordUnrecordedUnclearOutcomePorts,
-  { registerId, request }: RecordUnrecordedUnclearOutcomeInput,
-): Promise<RecordUnrecordedUnclearOutcomeOutcome> {
+export async function askAboutUnclearOutcome(
+  { lanes, clock }: AskAboutUnclearOutcomePorts,
+  { registerId, request }: AskAboutUnclearOutcomeInput,
+): Promise<AskAboutUnclearOutcomeOutcome> {
   if (!isCompletionEventOfSale(request.saleEvent, request.saleId)) {
     return { kind: "sale_event_mismatch" };
   }
 
-  return lanes.inPointOfSaleLane<RecordUnrecordedUnclearOutcomeOutcome>(
+  return lanes.inPointOfSaleLane<AskAboutUnclearOutcomeOutcome>(
     request.pointOfSale,
     async (lane) => {
       if (!(await lane.registerOwnsPointOfSale(registerId, request.pointOfSale))) {
@@ -35,7 +35,9 @@ export async function recordUnrecordedUnclearOutcome(
 
       const recorded = await lane.recordedRequest(registerId, request.fiscalDocumentId);
       if (recorded !== null) {
-        return { kind: "already_recorded", decision: recorded.decision };
+        return recorded.decision === null
+          ? { kind: "pending" }
+          : { kind: "decided", decision: recorded.decision };
       }
 
       try {
@@ -46,7 +48,7 @@ export async function recordUnrecordedUnclearOutcome(
         }
         throw error;
       }
-      return { kind: "recorded" };
+      return { kind: "pending" };
     },
   );
 }

@@ -7253,7 +7253,14 @@
     "public.installation_request_endpoint": {
       "name": "installation_request_endpoint",
       "schema": "public",
-      "values": ["push", "pull", "health_check", "fiscal_authorize", "payment_order"]
+      "values": [
+        "push",
+        "pull",
+        "health_check",
+        "fiscal_authorize",
+        "payment_order",
+        "fiscal_unclear_outcome"
+      ]
     },
     "public.installation_revocation_reason": {
       "name": "installation_revocation_reason",

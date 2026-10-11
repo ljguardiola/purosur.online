@@ -77,7 +77,7 @@ export interface DecideUnclearRealTimeOutcomePorts {
   taxAuthority: TaxAuthorityLastAuthorizedLookup;
 }
 
-export interface RecordUnrecordedUnclearOutcomePorts {
+export interface AskAboutUnclearOutcomePorts {
   lanes: UnclearOutcomeLanes;
   clock: Clock;
 }

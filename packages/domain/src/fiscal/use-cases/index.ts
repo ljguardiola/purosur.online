@@ -34,6 +34,11 @@ export type {
   VitalityCheckRecord,
 } from "./arca-vitality-ports.js";
 export type {
+  AskAboutUnclearOutcomeInput,
+  AskAboutUnclearOutcomeOutcome,
+} from "./ask-about-unclear-outcome.js";
+export { askAboutUnclearOutcome } from "./ask-about-unclear-outcome.js";
+export type {
   AssignAwaitedOfflineNumberBlockInput,
   AssignAwaitedOfflineNumberBlockOutcome,
 } from "./assign-awaited-offline-number-block.js";
@@ -221,11 +226,6 @@ export type {
 } from "./record-tax-authority-last-authorized.js";
 export { recordTaxAuthorityLastAuthorized } from "./record-tax-authority-last-authorized.js";
 export type {
-  RecordUnrecordedUnclearOutcomeInput,
-  RecordUnrecordedUnclearOutcomeOutcome,
-} from "./record-unrecorded-unclear-outcome.js";
-export { recordUnrecordedUnclearOutcome } from "./record-unrecorded-unclear-outcome.js";
-export type {
   RegisterHealthCheck,
   RegisterHealthCheckPorts,
   RegisterHealthChecks,
@@ -275,9 +275,9 @@ export type {
 } from "./tax-authority-count-ports.js";
 export type {
   AbandonedRequestRecord,
+  AskAboutUnclearOutcomePorts,
   DecideUnclearRealTimeOutcomePorts,
   RecordedUnclearRequest,
-  RecordUnrecordedUnclearOutcomePorts,
   TaxAuthorityVoucherLookup,
   UnclearOutcomeLane,
   UnclearOutcomeLanes,

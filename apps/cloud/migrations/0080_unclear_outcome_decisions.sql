@@ -1,3 +1,4 @@
+ALTER TYPE "public"."installation_request_endpoint" ADD VALUE 'fiscal_unclear_outcome';--> statement-breakpoint
 ALTER TABLE "fiscal_requests" ADD COLUMN "decision" text;--> statement-breakpoint
 ALTER TABLE "fiscal_requests" ADD COLUMN "decided_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "fiscal_requests" ADD COLUMN "adopted_authorization_code" text;--> statement-breakpoint
