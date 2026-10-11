@@ -1,4 +1,4 @@
-import type { PaymentMethod } from "./payment.js";
+import { hasApprovedPayment, PAYMENT_METHODS, type PaymentMethod } from "./payment.js";
 
 export interface RefundablePayment {
   id: string;
@@ -94,4 +94,16 @@ export function latePaymentRefund(
     state: REFUND_PENDING_STATE,
     origin: LATE_PAYMENT_REFUND_ORIGIN,
   };
+}
+
+export function methodsCoveringRefundedSale(
+  origin: RefundOrigin,
+  salePayments: readonly { method: string; state: string }[],
+): PaymentMethod[] {
+  if (origin !== LATE_PAYMENT_REFUND_ORIGIN) {
+    return [];
+  }
+  return PAYMENT_METHODS.filter((method) =>
+    hasApprovedPayment(salePayments.filter((payment) => payment.method === method)),
+  );
 }

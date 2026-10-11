@@ -75,7 +75,14 @@ export function PendingRefundsScreen({
       },
     ),
   ];
-  const shownRegister = registers.has(registerFilter) ? registerFilter : ALL_REGISTERS;
+  const registerIsOffered = registers.has(registerFilter);
+  const shownRegister = registerIsOffered ? registerFilter : ALL_REGISTERS;
+
+  useEffect(() => {
+    if (data.status === "loaded" && !registerIsOffered) {
+      setRegisterFilter(ALL_REGISTERS);
+    }
+  }, [data.status, registerIsOffered]);
 
   const columns = [
     dataColumn({

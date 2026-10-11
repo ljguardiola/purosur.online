@@ -1,6 +1,5 @@
 import {
-  PAYMENT_METHODS,
-  type PaymentMethod,
+  methodsCoveringRefundedSale,
   REFUND_ORIGINS,
   REFUND_PENDING_STATE,
   type RefundOrigin,
@@ -16,8 +15,6 @@ import {
   sales,
   users,
 } from "../platform/db/schema.js";
-
-const LATE_PAYMENT_ORIGIN = "late_payment" satisfies RefundOrigin;
 
 function isRefundOrigin(origin: string): origin is RefundOrigin {
   return REFUND_ORIGINS.some((known) => known === origin);
@@ -68,16 +65,16 @@ export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
         ),
       )
       .orderBy(asc(paymentRefunds.occurredAt), asc(paymentRefunds.id));
-    const coveredBySale = await this.methodsCoveringSales(
-      rows.filter((row) => row.origin === LATE_PAYMENT_ORIGIN).map((row) => row.saleId),
-    );
+    const payments = await this.paymentsOfSales(rows.map((row) => row.saleId));
     return rows.map(
       ({ origin, saleCancelledAt, saleCompletedAt, transactionCreatedAt, ...row }) => {
         if (!isRefundOrigin(origin)) {
           throw new Error(`refund ${row.id} has an origin outside the catalog: ${origin}`);
         }
-        const coveredBy =
-          origin === LATE_PAYMENT_ORIGIN ? (coveredBySale.get(row.saleId) ?? []) : [];
+        const coveredBy = methodsCoveringRefundedSale(
+          origin,
+          payments.filter((payment) => payment.saleId === row.saleId),
+        );
         const saleOccurredAt = saleCancelledAt ?? saleCompletedAt ?? transactionCreatedAt;
         if (!saleOccurredAt) {
           throw new Error(`refund ${row.id} has no sale or payment transaction to date it by`);
@@ -87,21 +84,17 @@ export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
     );
   }
 
-  private async methodsCoveringSales(saleIds: string[]): Promise<Map<string, PaymentMethod[]>> {
+  private async paymentsOfSales(saleIds: string[]) {
     if (saleIds.length === 0) {
-      return new Map();
+      return [];
     }
-    const payments = await this.db
-      .select({ saleId: salePayments.saleId, method: salePayments.method })
+    return this.db
+      .select({
+        saleId: salePayments.saleId,
+        method: salePayments.method,
+        state: salePayments.state,
+      })
       .from(salePayments)
-      .where(and(inArray(salePayments.saleId, saleIds), eq(salePayments.state, "APPROVED")));
-    return new Map(
-      saleIds.map((saleId) => {
-        const methods = new Set(
-          payments.filter((payment) => payment.saleId === saleId).map((payment) => payment.method),
-        );
-        return [saleId, PAYMENT_METHODS.filter((method) => methods.has(method))];
-      }),
-    );
+      .where(inArray(salePayments.saleId, saleIds));
   }
 }

@@ -62,7 +62,9 @@ const SUMMARY_COLUMNS = {
   >`case when ${alerts.kind} = 'sales_denied' then ${alerts.detail}->>'reason' end`,
   refundAmount: sql<
     number | null
-  >`case when ${alerts.kind} = 'late_payment_refund' then (${alerts.detail}->>'amount')::int end`,
+  >`case when ${alerts.kind} = 'late_payment_refund' then (${alerts.detail}->>'amount')::bigint end`.mapWith(
+    Number,
+  ),
 };
 
 // Storage keeps the kind as free text, so a row can carry a kind the catalog no longer lists.

@@ -85,7 +85,8 @@ function localSubjectOf(alert: AlertSummary): LocalAlertSubject | undefined {
 
 function alertRowDescription(alert: AlertSummary): string {
   if (alert.kind === "late_payment_refund" && alert.refundAmount !== null) {
-    return `QR de Mercado Pago de ${formatCents(alert.refundAmount)} sin marcar como hecho`;
+    const payment = `QR de Mercado Pago de ${formatCents(alert.refundAmount)}`;
+    return alert.resolvedAt === null ? `${payment} sin marcar como hecho` : payment;
   }
   const subject = localSubjectOf(alert);
   if (subject === undefined) {
