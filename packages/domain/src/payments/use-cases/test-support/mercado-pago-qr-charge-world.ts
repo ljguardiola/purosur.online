@@ -2,6 +2,7 @@ import type { PaymentTransactionState } from "../../model/payment-transaction.js
 import type {
   EndedMercadoPagoQrChargeState,
   MercadoPagoQrChargeOrderAnswer,
+  MercadoPagoQrChargeOrderCancellation,
   MercadoPagoQrChargeOrderReading,
   MercadoPagoQrChargeOrders,
   MercadoPagoQrChargeSale,
@@ -25,22 +26,30 @@ export class FakeMercadoPagoQrChargeWorld
   implements
     MercadoPagoQrChargeOrders,
     MercadoPagoQrCharges,
-    MercadoPagoQrChargeSale<SaleRefusal, SaleSettlement>
+    MercadoPagoQrChargeSale<SaleRefusal, SaleSettlement, SaleRefusal>
 {
   readonly operations: string[] = [];
   readonly charges = new Map<
     string,
-    PendingMercadoPagoQrCharge & { state: PaymentTransactionState }
+    PendingMercadoPagoQrCharge & { state: PaymentTransactionState; replaced: boolean }
   >();
   readonly recordedPayments: PendingMercadoPagoQrPayment[] = [];
   readonly settledPayments: { actorId: string; paymentTransactionId: string }[] = [];
   readonly requestedOrders: { paymentTransactionId: string; saleId: string; amount: number }[] = [];
   readonly readOrders: string[] = [];
+  readonly cancelledOrders: string[] = [];
+  readonly replacedPayments: { actorId: string; paymentTransactionId: string; replacedAt: Date }[] =
+    [];
   now = QR_CHARGE_NOW;
   saleRefusal: SaleRefusal | undefined;
+  replacementRefusal: SaleRefusal | undefined;
   settlement: SaleSettlement = { kind: "completed", saleId: QR_SALE_ID, total: 5000 };
   orderAnswer: MercadoPagoQrChargeOrderAnswer = { kind: "created" };
   orderReading: MercadoPagoQrChargeOrderReading = { kind: "read", state: "PENDING" };
+  orderCancellation: MercadoPagoQrChargeOrderCancellation = {
+    kind: "answered",
+    state: "CANCELLED",
+  };
 
   readonly clock = { now: () => this.now };
 
@@ -52,7 +61,11 @@ export class FakeMercadoPagoQrChargeWorld
       waitEndsAt: QR_CHARGE_WAIT_ENDS_AT,
       ...charge,
     };
-    this.charges.set(pending.paymentTransactionId, { ...pending, state: "PENDING" });
+    this.charges.set(pending.paymentTransactionId, {
+      ...pending,
+      state: "PENDING",
+      replaced: false,
+    });
   }
 
   recordPendingPayment(
@@ -82,6 +95,24 @@ export class FakeMercadoPagoQrChargeWorld
     return this.settlement;
   }
 
+  replacePendingPayment(replaced: {
+    actorId: string;
+    paymentTransactionId: string;
+    replacedAt: Date;
+  }): { kind: "replaced" } | { kind: "refused"; refusal: SaleRefusal } {
+    this.operations.push("replacePendingPayment");
+    if (this.replacementRefusal !== undefined) {
+      return { kind: "refused", refusal: this.replacementRefusal };
+    }
+    this.replacedPayments.push(replaced);
+    const charge = this.charges.get(replaced.paymentTransactionId);
+    if (charge !== undefined) {
+      charge.replaced = true;
+      charge.waitEndsAt = replaced.replacedAt;
+    }
+    return { kind: "replaced" };
+  }
+
   async requestOrder(order: {
     paymentTransactionId: string;
     saleId: string;
@@ -98,12 +129,18 @@ export class FakeMercadoPagoQrChargeWorld
     return this.orderReading;
   }
 
+  async cancelOrder(paymentTransactionId: string): Promise<MercadoPagoQrChargeOrderCancellation> {
+    this.operations.push("cancelOrder");
+    this.cancelledOrders.push(paymentTransactionId);
+    return this.orderCancellation;
+  }
+
   pendingCharge(paymentTransactionId: string): PendingMercadoPagoQrCharge | null {
     const charge = this.charges.get(paymentTransactionId);
-    if (charge === undefined || charge.state !== "PENDING") {
+    if (charge === undefined || charge.state !== "PENDING" || charge.replaced) {
       return null;
     }
-    const { state: _state, ...pending } = charge;
+    const { state: _state, replaced: _replaced, ...pending } = charge;
     return pending;
   }
 

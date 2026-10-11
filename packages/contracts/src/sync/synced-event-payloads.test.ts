@@ -127,6 +127,7 @@ describe("synced event payloads", () => {
       "cash_session_closed@1",
       "cash_session_opened@1",
       "fiscal_gate_failed@1",
+      "qr_payment_replaced@1",
       "reprint_recorded@1",
       "sale_cancelled@1",
       "sale_cancelled@2",
@@ -162,6 +163,7 @@ describe("synced event payloads", () => {
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
     ["a cash_movement_recorded version nobody emitted", "cash_movement_recorded", 2],
     ["a fiscal_gate_failed version nobody emitted", "fiscal_gate_failed", 2],
+    ["a qr_payment_replaced version nobody emitted", "qr_payment_replaced", 2],
     ["a prototype property name", "constructor", 1],
     ["a prototype property name as the version", "sale_completed", Number.NaN],
   ])("has no schema for %s", (_case, eventType, schemaVersion) => {
@@ -173,6 +175,7 @@ describe("synced event payloads", () => {
     ["cash_session_closed", 1],
     ["cash_movement_recorded", 1],
     ["fiscal_gate_failed", 1],
+    ["qr_payment_replaced", 1],
     ["sale_completed", 1],
     ["sale_completed", 2],
     ["sale_completed", 3],
@@ -192,6 +195,7 @@ describe("synced event payloads", () => {
     ["cash_session_closed", 1],
     ["cash_movement_recorded", 1],
     ["fiscal_gate_failed", 1],
+    ["qr_payment_replaced", 1],
     ["sale_completed", 1],
     ["sale_completed", 2],
     ["sale_completed", 3],
@@ -210,6 +214,7 @@ describe("synced event payloads", () => {
     ["cash_session_closed", 1],
     ["cash_movement_recorded", 1],
     ["fiscal_gate_failed", 1],
+    ["qr_payment_replaced", 1],
     ["sale_completed", 1],
     ["sale_completed", 2],
     ["sale_completed", 3],
@@ -319,6 +324,17 @@ describe("synced event payloads", () => {
 
     it("refuses a date that is not ISO", () => {
       expect(accepts("fiscal_gate_failed", 1, { ...failed(), evaluated_at: "now" })).toBe(false);
+    });
+  });
+
+  describe("qr_payment_replaced v1", () => {
+    const replaced = () => recordedPayload("qr_payment_replaced", 1);
+
+    it("refuses an empty payment transaction id or sale id", () => {
+      expect(accepts("qr_payment_replaced", 1, { ...replaced(), payment_transaction_id: "" })).toBe(
+        false,
+      );
+      expect(accepts("qr_payment_replaced", 1, { ...replaced(), sale_id: "" })).toBe(false);
     });
   });
 

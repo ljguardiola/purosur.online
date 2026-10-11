@@ -56,6 +56,7 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
       needsReview: row.needsReview,
       providerOrderId: row.providerOrderId,
       creationOutcomeUnknown: row.creationOutcomeUnknown,
+      replaced: row.replaced,
       createdAt: row.createdAt,
       expiresAt: row.expiresAt,
     };

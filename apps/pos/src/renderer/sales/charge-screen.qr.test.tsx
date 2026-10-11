@@ -1,6 +1,6 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import {
   chooseQr,
   QR_ORDER_SHOWN,
@@ -184,5 +184,174 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
       })
       .toBeVisible();
     await expect.element(screen.getByText("$ 1.760,00").first()).toBeVisible();
+  });
+
+  describe("abandoning the order to charge another way", () => {
+    async function waitForOrder(
+      overrides: Parameters<typeof renderScreen>[0] = {},
+      shown = "Esperando el pago del cliente",
+    ) {
+      const rendered = await renderScreen(overrides);
+      await chooseQr(rendered.screen);
+      await userEvent.click(rendered.screen.getByRole("button", { name: "Crear orden" }));
+      await expect.element(rendered.screen.getByRole("heading", { name: shown })).toBeVisible();
+      return rendered;
+    }
+
+    const abandon = () =>
+      userEvent.click(page.getByRole("button", { name: "Cobrar con otro medio" }));
+
+    it("asks the core to abandon the order and goes back to the methods with a notice once it is cancelled", async () => {
+      const { screen, abandonMercadoPagoQrCharge, currentSale } = await waitForOrder();
+      const readsBefore = currentSale.mock.calls.length;
+
+      await abandon();
+
+      await expect
+        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("status").getByText("Se canceló la orden QR."))
+        .toBeVisible();
+      expect(abandonMercadoPagoQrCharge).toHaveBeenCalledExactlyOnceWith(QR_PAYMENT_ID);
+      expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("abandons the order from Elegir otro medio once the wait ran out", async () => {
+      const { screen, abandonMercadoPagoQrCharge } = await waitForOrder(
+        { followMercadoPagoQrCharge: async () => ({ kind: "wait_over" }) },
+        "Venció la espera del QR",
+      );
+
+      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
+      await expect
+        .element(screen.getByRole("status").getByText("Se canceló la orden QR."))
+        .toBeVisible();
+      expect(abandonMercadoPagoQrCharge).toHaveBeenCalledExactlyOnceWith(QR_PAYMENT_ID);
+    });
+
+    it("tells the customer already paid and shows the sale as completed with the QR charge", async () => {
+      const { screen, receiptPrintStatus } = await waitForOrder({
+        abandonMercadoPagoQrCharge: async () => ({
+          kind: "already_paid",
+          settlement: { kind: "completed", sale_id: "sale-1", total: 476_000 },
+        }),
+      });
+
+      await abandon();
+
+      await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+      await expect.element(screen.getByText("El cliente ya pagó")).toBeVisible();
+      await expect
+        .poll(() =>
+          screen
+            .getByRole("status")
+            .elements()
+            .map((status) => status.textContent),
+        )
+        .toContainEqual(expect.stringContaining("El cliente ya pagó"));
+      await expect.element(screen.getByText("Mercado Pago confirmó el pago del QR.")).toBeVisible();
+      await expect.poll(() => receiptPrintStatus.mock.calls).toEqual([["sale-1"]]);
+    });
+
+    it("tells the customer already paid and goes back to the methods with the balance after a partial payment", async () => {
+      const reads = [SALE_OF_ONE_LINE, { ...SALE_OF_ONE_LINE, paid: 300_000, pending: 176_000 }];
+      const { screen } = await waitForOrder({
+        currentSale: async () =>
+          reads.shift() ?? { ...SALE_OF_ONE_LINE, paid: 300_000, pending: 176_000 },
+        abandonMercadoPagoQrCharge: async () => ({
+          kind: "already_paid",
+          settlement: {
+            kind: "partially_paid",
+            sale_id: "sale-1",
+            total: 476_000,
+            paid: 300_000,
+            pending: 176_000,
+          },
+        }),
+      });
+
+      await abandon();
+
+      await expect
+        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
+        .toBeVisible();
+      await expect.element(screen.getByText("El cliente ya pagó")).toBeVisible();
+      await expect
+        .poll(() =>
+          screen
+            .getByRole("status")
+            .elements()
+            .map((status) => status.textContent),
+        )
+        .toContainEqual(expect.stringContaining("El cliente ya pagó"));
+      await expect.element(screen.getByText("$ 1.760,00").first()).toBeVisible();
+    });
+
+    it("says the order was already closed and goes back to the methods from Elegir otro medio", async () => {
+      const { screen } = await waitForOrder({
+        abandonMercadoPagoQrCharge: async () => ({ kind: "closed" }),
+      });
+
+      await abandon();
+      await expect
+        .element(screen.getByRole("heading", { name: "La orden QR ya estaba cerrada" }))
+        .toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
+      await expect
+        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("status").getByText("Se canceló la orden QR."))
+        .not.toBeInTheDocument();
+    });
+
+    it("warns that the cancellation could not be confirmed before the sale is completed another way", async () => {
+      const { screen } = await waitForOrder({
+        abandonMercadoPagoQrCharge: async () => ({ kind: "replaced" }),
+      });
+
+      await abandon();
+      await expect
+        .element(
+          screen.getByRole("heading", { name: "No se pudo confirmar la cancelación del QR" }),
+        )
+        .toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
+      await expect
+        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("status").getByText("Se canceló la orden QR."))
+        .not.toBeInTheDocument();
+    });
+
+    it("goes back to the methods to read the sale again when the order is not pending", async () => {
+      const { screen, currentSale } = await waitForOrder({
+        abandonMercadoPagoQrCharge: async () => ({ kind: "not_pending" }),
+      });
+      const readsBefore = currentSale.mock.calls.length;
+
+      await abandon();
+
+      await expect
+        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
+        .toBeVisible();
+      expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
+    });
+
+    it("asks the application to check the session when abandoning finds it is no longer valid", async () => {
+      const { onSessionInvalid } = await waitForOrder({
+        abandonMercadoPagoQrCharge: async () => ({ kind: "not_signed_in" }),
+      });
+
+      await abandon();
+
+      await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
+    });
   });
 });

@@ -63,10 +63,17 @@ export type MercadoPagoOrderReading =
   | { kind: "read"; result: MercadoPagoOrderResult }
   | { kind: "unavailable" };
 
+export type MercadoPagoOrderCancellation =
+  | { kind: "cancelled"; result: MercadoPagoOrderResult }
+  | { kind: "cannot_cancel" }
+  | { kind: "already_cancelled" }
+  | { kind: "unavailable" };
+
 export interface MercadoPagoOrders {
   readonly longestCallMs: number;
   createQrOrder(request: MercadoPagoQrOrderRequest): Promise<MercadoPagoOrderCreation>;
   readOrder(orderId: string): Promise<MercadoPagoOrderReading>;
+  cancelOrder(orderId: string, idempotencyKey?: string): Promise<MercadoPagoOrderCancellation>;
 }
 
 export interface MercadoPagoQrOrderPorts {

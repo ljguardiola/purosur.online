@@ -1,4 +1,5 @@
 import type {
+  AbandonMercadoPagoQrChargeOutcome,
   AddProductOutcome,
   AddWeighedProductOutcome,
   Authorization,
@@ -182,6 +183,9 @@ export interface CoreClient {
   followMercadoPagoQrCharge(
     paymentTransactionId: string,
   ): Promise<FollowMercadoPagoQrChargeOutcome>;
+  abandonMercadoPagoQrCharge(
+    paymentTransactionId: string,
+  ): Promise<AbandonMercadoPagoQrChargeOutcome>;
   closeCashSession(sessionId: string, countedCash: number): Promise<CloseCashSessionOutcome>;
   closeLockedCashSession(
     sessionId: string,
@@ -649,6 +653,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         },
         (answer) =>
           answer.type === "follow-mercado-pago-qr-charge-result" ? answer.outcome : undefined,
+      );
+    },
+    abandonMercadoPagoQrCharge(paymentTransactionId) {
+      return ask(
+        {
+          type: "abandon-mercado-pago-qr-charge",
+          request_id: deps.newRequestId(),
+          payment_transaction_id: paymentTransactionId,
+        },
+        (answer) =>
+          answer.type === "abandon-mercado-pago-qr-charge-result" ? answer.outcome : undefined,
       );
     },
     closeCashSession(sessionId, countedCash) {

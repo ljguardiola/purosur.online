@@ -22,6 +22,7 @@ export function pendingTransaction(
     needsReview: false,
     providerOrderId: null,
     creationOutcomeUnknown: false,
+    replaced: false,
     createdAt: CREATED_AT,
     expiresAt: EXPIRES_AT,
     ...overrides,

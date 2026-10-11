@@ -540,6 +540,13 @@
       "when": 1791653651348,
       "tag": "0076_sale_print_state_updatable",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1791656367097,
+      "tag": "0077_replaced_payment_transactions",
+      "breakpoints": true
     }
   ]
 }

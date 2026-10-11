@@ -7,6 +7,7 @@ import {
 } from "@purosur/contracts";
 import type { MercadoPagoQrOrderTransaction } from "@purosur/domain";
 import {
+  cancelMercadoPagoQrOrder,
   createMercadoPagoQrOrder,
   type MercadoPagoOrders,
   readMercadoPagoQrPayment,
@@ -193,6 +194,47 @@ export function registerMercadoPagoQrRoutes<TQueryResult extends PgQueryResultHK
 
         switch (outcome.kind) {
           case "read":
+            await reply
+              .code(200)
+              .send(mercadoPagoQrPaymentSchema.parse(toWire(outcome.transaction)));
+            return;
+          case "not_found":
+            await sendError(reply, PAYMENT_NOT_OWNED);
+            return;
+          case "provider_unavailable":
+            await sendError(reply, PROVIDER_UNAVAILABLE);
+            return;
+        }
+      },
+    );
+
+    scope.post(
+      "/payments/mercado-pago-qr/:id/cancel",
+      { config: { access: PUBLIC_ACCESS } },
+      async (request, reply) => {
+        const registerId = await installationRegisterId(request.headers.authorization, reply);
+        if (registerId === undefined) {
+          return;
+        }
+        const { mercadoPago } = options;
+        if (mercadoPago === undefined) {
+          await sendError(reply, PROVIDER_NOT_CONFIGURED);
+          return;
+        }
+        const ids = await readRecordIds(reply, request.params, ["id"]);
+        if (!ids) {
+          return;
+        }
+
+        const outcome = await cancelMercadoPagoQrOrder(
+          { lanes, mercadoPago, clock },
+          { registerId, paymentTransactionId: ids.id },
+        );
+
+        switch (outcome.kind) {
+          case "cancelled":
+          case "approved":
+          case "already_closed":
             await reply
               .code(200)
               .send(mercadoPagoQrPaymentSchema.parse(toWire(outcome.transaction)));

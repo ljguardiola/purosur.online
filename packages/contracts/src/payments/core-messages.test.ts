@@ -200,3 +200,84 @@ describe("following a Mercado Pago QR charge", () => {
     expect(paymentsCoreToRendererMessageSchema.safeParse(result).success).toBe(false);
   });
 });
+
+describe("abandoning a Mercado Pago QR charge", () => {
+  const message = {
+    type: "abandon-mercado-pago-qr-charge",
+    request_id: REQUEST_ID,
+    payment_transaction_id: PAYMENT_ID,
+  };
+
+  it("accepts a request naming the payment being abandoned", () => {
+    expect(paymentsRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request without the payment or its request id", () => {
+    expect(
+      paymentsRendererToCoreMessageSchema.safeParse({
+        ...message,
+        payment_transaction_id: undefined,
+      }).success,
+    ).toBe(false);
+    expect(
+      paymentsRendererToCoreMessageSchema.safeParse({ ...message, request_id: undefined }).success,
+    ).toBe(false);
+  });
+
+  it.each([
+    { kind: "cancelled" },
+    { kind: "closed" },
+    { kind: "replaced" },
+    { kind: "not_pending" },
+    { kind: "already_paid", settlement: { kind: "completed", sale_id: "s1", total: 3000 } },
+    {
+      kind: "already_paid",
+      settlement: { kind: "partially_paid", sale_id: "s1", total: 3000, paid: 2000, pending: 1000 },
+    },
+    { kind: "already_paid", settlement: { kind: "no_open_sale" } },
+    { kind: "already_paid", settlement: { kind: "not_pending" } },
+    { kind: "already_paid", settlement: { kind: "unavailable" } },
+    { kind: "empty_sale" },
+    { kind: "zero_total" },
+    { kind: "reaches_buyer_identification_threshold", threshold: 1_000_000 },
+    { kind: "no_buyer_identification_threshold" },
+    { kind: "no_open_sale" },
+    { kind: "not_permitted" },
+    { kind: "not_signed_in" },
+    { kind: "no_open_session" },
+    { kind: "unavailable" },
+  ])("accepts the result $kind", (outcome) => {
+    const result = {
+      type: "abandon-mercado-pago-qr-charge-result",
+      request_id: REQUEST_ID,
+      outcome,
+    };
+
+    expect(paymentsCoreToRendererMessageSchema.parse(result)).toEqual(result);
+  });
+
+  it.each([
+    { kind: "already_paid" },
+    { kind: "already_paid", settlement: { kind: "replaced" } },
+    { kind: "already_paid", settlement: { kind: "completed", sale_id: "s1" } },
+    { kind: "waiting", remaining_seconds: 10 },
+    { kind: "completed", sale_id: "s1", total: 3000 },
+  ])("rejects the result %j", (outcome) => {
+    const result = {
+      type: "abandon-mercado-pago-qr-charge-result",
+      request_id: REQUEST_ID,
+      outcome,
+    };
+
+    expect(paymentsCoreToRendererMessageSchema.safeParse(result).success).toBe(false);
+  });
+
+  it("rejects a result without its request id", () => {
+    const result = {
+      type: "abandon-mercado-pago-qr-charge-result",
+      outcome: { kind: "cancelled" },
+    };
+
+    expect(paymentsCoreToRendererMessageSchema.safeParse(result).success).toBe(false);
+  });
+});

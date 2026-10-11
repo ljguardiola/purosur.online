@@ -1,4 +1,5 @@
 import type {
+  MercadoPagoOrderCancellation,
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
   MercadoPagoOrders,
@@ -18,6 +19,7 @@ const CENTS_PER_PESO = 100;
 const DECIMAL_AMOUNT = /^(\d+)(?:\.(\d{1,2}))?$/;
 const REQUEST_TIMEOUT = 408;
 const TOO_MANY_REQUESTS = 429;
+const CONFLICT = 409;
 
 function pesosOfCents(cents: number): string {
   const pesos = Math.floor(cents / CENTS_PER_PESO);
@@ -80,6 +82,13 @@ function parsedOrder(body: unknown) {
       })),
     },
   };
+}
+
+const conflictAnswerSchema = z.object({ errors: z.array(z.object({ code: z.string() })).min(1) });
+
+function conflictCode(body: unknown): string | null {
+  const parsed = conflictAnswerSchema.safeParse(body);
+  return parsed.success ? (parsed.data.errors[0]?.code ?? null) : null;
 }
 
 type ProviderAnswer = { kind: "answered"; status: number; body: unknown } | { kind: "unreachable" };
@@ -153,6 +162,38 @@ export function createMercadoPagoOrdersClient(
       }
       const order = parsedOrder(answer.body);
       return order === null ? { kind: "unavailable" } : { kind: "read", result: order.result };
+    },
+
+    async cancelOrder(
+      orderId: string,
+      idempotencyKey?: string,
+    ): Promise<MercadoPagoOrderCancellation> {
+      const answer = await call(`/v1/orders/${encodeURIComponent(orderId)}/cancel`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${options.accessToken}`,
+          ...(idempotencyKey === undefined ? {} : { "X-Idempotency-Key": idempotencyKey }),
+        },
+      });
+      if (answer.kind === "unreachable") {
+        return { kind: "unavailable" };
+      }
+      if (answer.status >= 200 && answer.status < 300) {
+        const order = parsedOrder(answer.body);
+        return order === null
+          ? { kind: "unavailable" }
+          : { kind: "cancelled", result: order.result };
+      }
+      if (answer.status === CONFLICT) {
+        const code = conflictCode(answer.body);
+        if (code === "cannot_cancel_order") {
+          return { kind: "cannot_cancel" };
+        }
+        if (code === "order_already_canceled") {
+          return { kind: "already_cancelled" };
+        }
+      }
+      return { kind: "unavailable" };
     },
   };
 }

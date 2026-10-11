@@ -30,6 +30,7 @@ import { decideSaleAuthorizationIn } from "../fiscal/sqlite-sale-authorization";
 import {
   approvePendingQrPayment,
   insertPendingQrPayment,
+  markQrPaymentReplaced,
   readPendingQrPayment,
   readPendingQrPaymentsOf,
   readSalePayments,
@@ -109,6 +110,8 @@ export class SqliteSaleLedger implements SaleLedger {
       pendingQrPaymentsOf: (saleId) => readPendingQrPaymentsOf(this.database, saleId),
       approvePendingQrPayment: (paymentTransactionId) =>
         approvePendingQrPayment(this.database, paymentTransactionId),
+      markQrPaymentReplaced: (paymentTransactionId, waitEndsAt) =>
+        markQrPaymentReplaced(this.database, paymentTransactionId, waitEndsAt),
       saleCashMovements: (saleId) => readMovementsOf(this.database, { type: "sale", id: saleId }),
       recordCashMovement: (movement) => insertCashMovement(this.database, movement),
       recordSaleStockMovement: (movement) => insertSaleStockMovement(this.database, movement),

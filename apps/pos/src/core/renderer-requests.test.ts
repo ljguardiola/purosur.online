@@ -250,6 +250,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       },
       startMercadoPagoQrCharge: undefined,
       followMercadoPagoQrCharge: undefined,
+      abandonMercadoPagoQrCharge: undefined,
       searchProducts: async (query: string): Promise<SearchProductsOutcome> => {
         searches.push(query);
         return { kind: "results", products: [], more: false };
@@ -1182,6 +1183,52 @@ describe("answerRendererRequest", () => {
       outcome: { kind: "waiting", remaining_seconds: 100 },
     });
     expect(requests).toEqual([{ paymentTransactionId: "qr-1" }]);
+  });
+
+  it("abandons a Mercado Pago QR charge and answers the outcome", async () => {
+    const requests: { paymentTransactionId: string }[] = [];
+    const { deps: withQr } = deps(true, {
+      abandonMercadoPagoQrCharge: async (request) => {
+        requests.push(request);
+        return { kind: "replaced" };
+      },
+    });
+
+    expect(
+      await answerRendererRequest(withQr, {
+        type: "abandon-mercado-pago-qr-charge",
+        request_id: "r66",
+        payment_transaction_id: "qr-1",
+      }),
+    ).toEqual({
+      type: "abandon-mercado-pago-qr-charge-result",
+      request_id: "r66",
+      outcome: { kind: "replaced" },
+    });
+    expect(requests).toEqual([{ paymentTransactionId: "qr-1" }]);
+  });
+
+  it("answers that abandoning a QR charge is unavailable when it fails or the register has no database, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      abandonMercadoPagoQrCharge: async () => {
+        throw error;
+      },
+    });
+    const message = {
+      type: "abandon-mercado-pago-qr-charge",
+      request_id: "r67",
+      payment_transaction_id: "qr-1",
+    } as const;
+    const unavailable = {
+      type: "abandon-mercado-pago-qr-charge-result",
+      request_id: "r67",
+      outcome: { kind: "unavailable" },
+    };
+
+    expect(await answerRendererRequest(failing.deps, message)).toEqual(unavailable);
+    expect(failing.failures).toEqual([{ context: "abandoning a Mercado Pago QR charge", error }]);
+    expect(await answerRendererRequest(deps(true).deps, message)).toEqual(unavailable);
   });
 
   it("answers that a QR charge is unavailable when it fails, and reports why", async () => {
