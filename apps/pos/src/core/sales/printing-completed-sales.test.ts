@@ -39,7 +39,9 @@ describe("printing the receipt of a sale just completed", () => {
     )({ saleId: "sale-1" });
 
     expect(outcome).toEqual(COMPLETED);
-    expect(subject.events).toEqual(["charge sale-1", "before printing sale-1", "print sale-1"]);
+    await vi.waitFor(() =>
+      expect(subject.events).toEqual(["charge sale-1", "before printing sale-1", "print sale-1"]),
+    );
   });
 
   it("syncs once the print was started", async () => {
