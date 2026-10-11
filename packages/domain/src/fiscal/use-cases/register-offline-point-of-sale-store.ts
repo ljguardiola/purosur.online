@@ -27,4 +27,5 @@ export interface RegisterOfflinePointOfSaleStoreTransaction
     OfflineNumberBlockStore {
   lockRegisterOfflinePointOfSale(registerId: string): Promise<RegisterOfflinePointOfSale>;
   recordRegisterOfflinePointOfSale(record: RegisterOfflinePointOfSaleRecord): Promise<void>;
+  offlineRegisterOf(pointOfSaleNumber: number): Promise<string | null>;
 }

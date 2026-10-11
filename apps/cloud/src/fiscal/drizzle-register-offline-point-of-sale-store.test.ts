@@ -1,4 +1,5 @@
 import {
+  assignAwaitedOfflineNumberBlock,
   configureRegisterOfflinePointOfSale,
   configureRegisterPointOfSale,
   PointOfSaleClaimConflict,
@@ -15,6 +16,7 @@ import {
   pointOfSaleClaims,
   registerOfflinePointsOfSale,
   registers,
+  taxAuthorityLastAuthorizedNumbers,
   users,
 } from "../platform/db/schema.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
@@ -39,6 +41,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
+  enqueuedCounts = [];
 });
 
 async function insertActor(locationId: string): Promise<string> {
@@ -93,6 +96,19 @@ async function configureRealTime(input: {
   return configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOON), input);
 }
 
+let enqueuedCounts: number[];
+
+function offlineStore() {
+  return new DrizzleRegisterOfflinePointOfSaleStore(
+    db,
+    () => NOON,
+    undefined,
+    async (_tx, pos) => {
+      enqueuedCounts.push(pos);
+    },
+  );
+}
+
 function configure(input: {
   locationId: string;
   registerId: string;
@@ -100,10 +116,13 @@ function configure(input: {
   version: number;
   actorId: string;
 }) {
-  return configureRegisterOfflinePointOfSale(
-    new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOON),
-    input,
-  );
+  return configureRegisterOfflinePointOfSale(offlineStore(), input);
+}
+
+async function seedTaxAuthorityCount(pointOfSaleNumber: number, lastAuthorized: number) {
+  await db
+    .insert(taxAuthorityLastAuthorizedNumbers)
+    .values({ pointOfSaleNumber, lastAuthorized, readAt: NOON });
 }
 
 async function seedRegisterWithRealTime(number = 7) {
@@ -341,6 +360,12 @@ describe("configuring a register's offline point of sale through DrizzleRegister
 });
 
 describe("the offline number blocks DrizzleRegisterOfflinePointOfSaleStore records", () => {
+  beforeEach(async () => {
+    for (const pointOfSaleNumber of [8, 9, 10]) {
+      await seedTaxAuthorityCount(pointOfSaleNumber, 0);
+    }
+  });
+
   it("records the first block of a configured point of sale in use, from the first number, at the moment of the assignment", async () => {
     const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
 
@@ -463,6 +488,86 @@ describe("the offline number blocks DrizzleRegisterOfflinePointOfSaleStore recor
     await configure({ locationId, registerId, pointOfSaleNumber: 9, version: 1, actorId });
 
     expect(await db.select().from(offlineNumberBlocks)).toHaveLength(2);
+  });
+});
+
+describe("the tax authority's count behind the offline number blocks", () => {
+  it("starts the first block of a configured point of sale right after the count the cloud holds", async () => {
+    const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
+    await seedTaxAuthorityCount(8, 37);
+
+    await configure({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+
+    const [block] = await db.select().from(offlineNumberBlocks);
+    expect([block?.firstNumber, block?.lastNumber]).toEqual([38, 1037]);
+    expect(enqueuedCounts).toEqual([]);
+  });
+
+  it("configures the point of sale with no block, and asks in the same transaction for the count to be read, while the cloud holds none", async () => {
+    const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
+
+    const outcome = await configure({
+      locationId,
+      registerId,
+      pointOfSaleNumber: 8,
+      version: 0,
+      actorId,
+    });
+
+    expect(outcome.kind).toBe("configured");
+    expect(await db.select().from(registerOfflinePointsOfSale)).toHaveLength(1);
+    expect(await db.select().from(offlineNumberBlocks)).toEqual([]);
+    expect(enqueuedCounts).toEqual([8]);
+  });
+
+  it("reads the count the cloud holds, and none for a point of sale without one", async () => {
+    await seedTaxAuthorityCount(8, 37);
+
+    const [held, missing] = await offlineStore().transaction(async (tx) => [
+      await tx.taxAuthorityLastAuthorized(8),
+      await tx.taxAuthorityLastAuthorized(9),
+    ]);
+
+    expect([held, missing]).toEqual([37, null]);
+  });
+
+  it("asks for nothing, and still assigns no block, when the store has nowhere to ask for the count", async () => {
+    const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
+
+    const outcome = await configureRegisterOfflinePointOfSale(
+      new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOON),
+      { locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId },
+    );
+
+    expect(outcome.kind).toBe("configured");
+    expect(await db.select().from(offlineNumberBlocks)).toEqual([]);
+    expect(enqueuedCounts).toEqual([]);
+  });
+
+  it("finds the register whose offline point of sale is the number, and none for a number nobody holds", async () => {
+    const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
+    await configure({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+
+    const [holder, nobody] = await offlineStore().transaction(async (tx) => [
+      await tx.offlineRegisterOf(8),
+      await tx.offlineRegisterOf(9),
+    ]);
+
+    expect([holder, nobody]).toEqual([registerId, null]);
+  });
+
+  it("assigns the awaited block to the register once the count is known, and a second run assigns none", async () => {
+    const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
+    await configure({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+    await seedTaxAuthorityCount(8, 37);
+
+    const first = await assignAwaitedOfflineNumberBlock(offlineStore(), { pointOfSaleNumber: 8 });
+    const second = await assignAwaitedOfflineNumberBlock(offlineStore(), { pointOfSaleNumber: 8 });
+
+    expect([first.kind, second.kind]).toEqual(["assigned", "already_has_block"]);
+    expect(await db.select().from(offlineNumberBlocks)).toMatchObject([
+      { pointOfSaleNumber: 8, registerId, firstNumber: 38, lastNumber: 1037, assignedAt: NOON },
+    ]);
   });
 });
 

@@ -7,16 +7,32 @@ import type {
 export class FakeOfflineNumberBlocks implements OfflineNumberBlockStore {
   readonly blocks: OfflineNumberBlockRecord[];
   readonly operations: string[];
+  readonly taxAuthorityCounts: Map<number, number>;
+  readonly requiredTaxAuthorityCounts: number[];
   private readonly beforeRecord: () => void;
 
   constructor(
     blocks: OfflineNumberBlockRecord[] = [],
     operations: string[] = [],
     beforeRecord: () => void = () => {},
+    taxAuthorityCounts: Map<number, number> = new Map(),
+    requiredTaxAuthorityCounts: number[] = [],
   ) {
     this.blocks = blocks;
     this.operations = operations;
     this.beforeRecord = beforeRecord;
+    this.taxAuthorityCounts = taxAuthorityCounts;
+    this.requiredTaxAuthorityCounts = requiredTaxAuthorityCounts;
+  }
+
+  async taxAuthorityLastAuthorized(pointOfSaleNumber: number): Promise<number | null> {
+    this.operations.push("taxAuthorityLastAuthorized");
+    return this.taxAuthorityCounts.get(pointOfSaleNumber) ?? null;
+  }
+
+  async requireTaxAuthorityCount(pointOfSaleNumber: number): Promise<void> {
+    this.operations.push("requireTaxAuthorityCount");
+    this.requiredTaxAuthorityCounts.push(pointOfSaleNumber);
   }
 
   async lockOfflineNumberBlocks(

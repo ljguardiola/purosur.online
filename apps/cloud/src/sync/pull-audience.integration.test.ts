@@ -30,6 +30,7 @@ import {
   prices,
   registers,
   tags,
+  taxAuthorityLastAuthorizedNumbers,
   userRoles,
   users,
 } from "../platform/db/schema.js";
@@ -377,6 +378,13 @@ beforeAll(async () => {
     );
   }
 
+  await db.insert(taxAuthorityLastAuthorizedNumbers).values(
+    [17, 18, 19].map((pointOfSaleNumber) => ({
+      pointOfSaleNumber,
+      lastAuthorized: 0,
+      readAt: NOW,
+    })),
+  );
   const offlinePointsOfSale = new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOW);
   for (const [number, installation] of [
     [17, registerA1],

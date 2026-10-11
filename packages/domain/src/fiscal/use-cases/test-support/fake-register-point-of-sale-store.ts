@@ -51,6 +51,8 @@ export interface FakeRegisterPointOfSaleState {
   registerOfflinePointsOfSale: FakeRegisterOfflinePointOfSale[];
   pointOfSaleClaims: FakePointOfSaleClaim[];
   offlineNumberBlocks: OfflineNumberBlockRecord[];
+  taxAuthorityCounts: [pointOfSaleNumber: number, lastAuthorized: number][];
+  requiredTaxAuthorityCounts: number[];
 }
 
 type WriteOperation =
@@ -150,7 +152,25 @@ class FakeRegisterOfflinePointOfSaleStoreTransaction
           throw new Error("recordOfflineNumberBlock failed");
         }
       },
+      new Map(state.taxAuthorityCounts),
+      state.requiredTaxAuthorityCounts,
     );
+  }
+
+  taxAuthorityLastAuthorized(pointOfSaleNumber: number): Promise<number | null> {
+    return this.blocks.taxAuthorityLastAuthorized(pointOfSaleNumber);
+  }
+
+  requireTaxAuthorityCount(pointOfSaleNumber: number): Promise<void> {
+    return this.blocks.requireTaxAuthorityCount(pointOfSaleNumber);
+  }
+
+  async offlineRegisterOf(pointOfSaleNumber: number): Promise<string | null> {
+    this.store.operationOrder.push("offlineRegisterOf");
+    const row = this.state.registerOfflinePointsOfSale.find(
+      (candidate) => candidate.pointOfSaleNumber === pointOfSaleNumber,
+    );
+    return row?.registerId ?? null;
   }
 
   lockOfflineNumberBlocks(
@@ -199,6 +219,8 @@ export class FakeRegisterPointOfSaleStore
     registerOfflinePointsOfSale: [],
     pointOfSaleClaims: [],
     offlineNumberBlocks: [],
+    taxAuthorityCounts: [],
+    requiredTaxAuthorityCounts: [],
   };
 
   failingWrites = new Set<WriteOperation>();
@@ -228,6 +250,10 @@ export class FakeRegisterPointOfSaleStore
 
   seedOfflineNumberBlock(block: OfflineNumberBlockRecord): void {
     this.state.offlineNumberBlocks.push(structuredClone(block));
+  }
+
+  seedTaxAuthorityCount(pointOfSaleNumber: number, lastAuthorized: number): void {
+    this.state.taxAuthorityCounts.push([pointOfSaleNumber, lastAuthorized]);
   }
 
   snapshot(): FakeRegisterPointOfSaleState {

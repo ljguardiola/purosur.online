@@ -25,7 +25,11 @@ import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-poin
 import { enqueueOfflineAuthorizationCodeRequest } from "../fiscal/graphile-offline-authorization-code-queue.js";
 import { OFFLINE_AUTHORIZATION_CODE_REQUEST_TASK_IDENTIFIER } from "../fiscal/offline-authorization-code-task.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
-import { buyerTaxStatusSets, users } from "../platform/db/schema.js";
+import {
+  buyerTaxStatusSets,
+  taxAuthorityLastAuthorizedNumbers,
+  users,
+} from "../platform/db/schema.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
@@ -168,6 +172,9 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     if (pointOfSale.kind !== "configured") {
       throw new Error("test setup: the point of sale was not configured");
     }
+    await db
+      .insert(taxAuthorityLastAuthorizedNumbers)
+      .values({ pointOfSaleNumber: 8, lastAuthorized: 0, readAt: NOW });
     const offlinePointOfSale = await configureRegisterOfflinePointOfSale(
       new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOW),
       { locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId: actor.id },
