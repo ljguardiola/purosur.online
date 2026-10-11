@@ -3,9 +3,9 @@ import type { ReactNode } from "react";
 export type TableCellTextProps = {
   children: ReactNode;
   description?: ReactNode;
-  tone?: "subtle" | "error";
+  tone?: "subtle" | "error" | undefined;
   strong?: boolean;
-  descriptionTone?: "error";
+  descriptionTone?: "error" | undefined;
 };
 
 const TEXT_TONE_CLASS_NAME = { subtle: "text-text-subtle", error: "text-error-strong" } as const;
