@@ -879,6 +879,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0041_pulled_table_redeliveries",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -943,6 +944,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0041_pulled_table_redeliveries",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1002,6 +1004,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0041_pulled_table_redeliveries",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1060,6 +1063,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0041_pulled_table_redeliveries",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1145,6 +1149,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0041_pulled_table_redeliveries",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1222,6 +1227,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0041_pulled_table_redeliveries",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1303,6 +1309,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0041_pulled_table_redeliveries",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1367,6 +1374,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0041_pulled_table_redeliveries",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1423,6 +1431,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0041_pulled_table_redeliveries",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -2434,6 +2443,7 @@ describe("the register's local migrations", () => {
       );
       expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
         "0037_offline_point_of_sale_tax_authority_count",
+        "0041_pulled_table_redeliveries",
       );
       const before = openLocalDatabase(path, previous, migrationClock);
       before
