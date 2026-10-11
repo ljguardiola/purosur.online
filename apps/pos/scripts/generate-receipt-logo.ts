@@ -8,7 +8,10 @@ const LOGO_FILE = new URL("../../../packages/ui/src/assets/puro-sur-logo.svg", i
 const SVG = readFileSync(LOGO_FILE, "utf8");
 
 function render(width: number) {
-  return new Resvg(SVG, { fitTo: { mode: "width", value: width }, font: { loadSystemFonts: false } }).render();
+  return new Resvg(SVG, {
+    fitTo: { mode: "width", value: width },
+    font: { loadSystemFonts: false },
+  }).render();
 }
 
 function inkedBounds(image: ReturnType<typeof render>) {
@@ -37,10 +40,7 @@ const image = render(Math.round(source.width * scale));
 const { pixels, width: renderedWidth } = image;
 const inkedLeft = Math.round(bounds.left * scale);
 const inkedTop = Math.round(bounds.top * scale);
-const inkedWidth = Math.min(
-  Math.round((bounds.right - bounds.left + 1) * scale),
-  LOGO_WIDTH_DOTS,
-);
+const inkedWidth = Math.min(Math.round((bounds.right - bounds.left + 1) * scale), LOGO_WIDTH_DOTS);
 const offsetX = Math.floor((LOGO_WIDTH_DOTS - inkedWidth) / 2);
 
 const rows: string[] = [];
