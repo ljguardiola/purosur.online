@@ -33,6 +33,7 @@ const OPEN_SALE: SaleWithLines = {
       listUnitPrice: 2500,
       priceListId: "list-1",
       promotions: [],
+      manualAdjustment: null,
       promotionId: null,
       discountAmount: 0,
       lineTotal: 5000,

@@ -2,15 +2,33 @@ import { expect, test } from "vitest";
 import { stockBalancesFilters, stockCountsFilters, stockMovementsFilters } from "./routes";
 
 test("opens the balances on every product of every category", () => {
-  expect(stockBalancesFilters.parse({})).toEqual({ search: "", category: "ALL", balance: "all" });
+  expect(stockBalancesFilters.parse({})).toEqual({
+    search: "",
+    category: "ALL",
+    balance: "all",
+    sortBy: "product",
+    sort: "ascending",
+  });
 });
 
 test("keeps the balances filters a URL names, falling back for a value it does not offer", () => {
-  const filters = { search: "miel", category: "category-2", balance: "negative" };
+  const filters = {
+    search: "miel",
+    category: "category-2",
+    balance: "negative",
+    sortBy: "value",
+    sort: "descending",
+  };
   expect(stockBalancesFilters.parse(filters)).toEqual(filters);
-  expect(stockBalancesFilters.parse({ search: 1, category: false, balance: "some" })).toEqual(
-    stockBalancesFilters.parse({}),
-  );
+  expect(
+    stockBalancesFilters.parse({
+      search: 1,
+      category: false,
+      balance: "some",
+      sortBy: "price",
+      sort: "up",
+    }),
+  ).toEqual(stockBalancesFilters.parse({}));
 });
 
 test("opens the counts of the last 30 days in every category", () => {

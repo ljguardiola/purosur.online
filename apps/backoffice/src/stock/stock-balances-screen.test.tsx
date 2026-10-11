@@ -1,12 +1,25 @@
+import type { StockBalanceList } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { beforeEach, expect, test, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { type StockBalancesFilters, stockBalancesFilters } from "./routes";
 import { StockBalancesScreen } from "./stock-balances-screen";
 import type { StockBalancesScreenServices } from "./stock-balances-services";
-import { almonds, crackers, honey, oats, tea } from "./test-support/stock-fixtures";
+import {
+  almonds,
+  crackers,
+  honey,
+  oats,
+  stockBalanceList,
+  tea,
+  yerba,
+} from "./test-support/stock-fixtures";
+
+beforeEach(async () => {
+  await page.viewport(1280, 900);
+});
 
 function createServices(): StockBalancesScreenServices {
   return { fetchStockBalances: vi.fn() };
@@ -38,9 +51,12 @@ function renderScreen(
   );
 }
 
-function listed(products = [almonds, honey, crackers, tea]) {
+function listed(products = [almonds, honey, crackers, tea], summary?: StockBalanceList["summary"]) {
   const services = createServices();
-  vi.mocked(services.fetchStockBalances).mockResolvedValue({ kind: "ok", value: { products } });
+  vi.mocked(services.fetchStockBalances).mockResolvedValue({
+    kind: "ok",
+    value: stockBalanceList(products, summary),
+  });
   return services;
 }
 
@@ -56,7 +72,6 @@ test("shows each product with its category and its balance in its own unit, a ne
   await expect.element(table.getByText("24 u")).toBeVisible();
   await expect.element(table.getByText("− 4 u")).toBeVisible();
   await expect.element(table.getByText("0 u")).toBeVisible();
-  await expect.element(screen.getByText("4 productos")).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -97,7 +112,6 @@ test("filters by the category and the name typed, and reports each change", asyn
 
   await expect.element(table.getByText("Galletas de arroz integrales")).not.toBeInTheDocument();
   await expect.element(table.getByText("Miel pura de abeja 1 kg")).toBeVisible();
-  await expect.element(screen.getByText("1 producto", { exact: true })).toBeVisible();
 });
 
 test("offers the categories of the listed products, by name", async () => {
@@ -131,7 +145,7 @@ test("shows a failed load with a retry that loads the balances again", async () 
   const services = createServices();
   vi.mocked(services.fetchStockBalances)
     .mockResolvedValueOnce({ kind: "failed" })
-    .mockResolvedValueOnce({ kind: "ok", value: { products: [almonds] } });
+    .mockResolvedValueOnce({ kind: "ok", value: stockBalanceList([almonds]) });
   const screen = await renderScreen(services);
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
@@ -157,7 +171,6 @@ test("marks a deactivated product that still holds stock", async () => {
   await expect.element(table.getByText("Avena arrollada")).toBeVisible();
   await expect.element(table.getByText("Desactivado")).toBeVisible();
   await expect.element(table.getByText("3 u")).toBeVisible();
-  await expect.element(screen.getByText("2 productos")).toBeVisible();
 });
 
 test("marks no active product as deactivated", async () => {
@@ -166,3 +179,185 @@ test("marks no active product as deactivated", async () => {
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
   expect(screen.getByText("Desactivado").query()).toBeNull();
 });
+
+function rowOf(element: Element): HTMLElement {
+  return element.closest("tr") as HTMLElement;
+}
+
+function shownProductNames(
+  screen: Awaited<ReturnType<typeof renderScreen>>,
+  names: readonly string[],
+) {
+  const table = screen.getByRole("table", { name: "Saldos" });
+  return table
+    .getByRole("row")
+    .elements()
+    .map((row) => names.find((name) => row.textContent?.includes(name)))
+    .filter((name) => name !== undefined);
+}
+
+function cellUnder(row: HTMLElement, header: string): HTMLElement {
+  const table = row.closest("table") as HTMLTableElement;
+  const headers = [...table.querySelectorAll("th")];
+  const column = headers.findIndex((cell) => cell.textContent === header);
+  return (row as HTMLTableRowElement).cells[column] as HTMLElement;
+}
+
+test("shows each product's unit cost, value and lot count, with the unit a kilo is costed by", async () => {
+  const screen = await renderScreen(listed());
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+
+  const almondsRow = rowOf(screen.getByText("Almendras peladas").element());
+  const honeyRow = rowOf(screen.getByText("Miel pura de abeja 1 kg").element());
+  expect(almondsRow.textContent).toContain("$ 10.205,84 / kg");
+  expect(almondsRow.textContent).toContain("$ 124.001,00");
+  expect(cellUnder(almondsRow, "Lotes").textContent).toBe("2");
+  expect(honeyRow.textContent).toContain("$ 5.440,00");
+  expect(honeyRow.textContent).not.toContain("/ kg");
+  expect(honeyRow.textContent).toContain("$ 130.560,00");
+});
+
+test("says a product has no cost and no value when the cloud answers none", async () => {
+  const screen = await renderScreen(listed([crackers]));
+
+  await expect.element(screen.getByText("Sin costo", { exact: true })).toBeVisible();
+  const row = rowOf(screen.getByText("Galletas de arroz integrales").element());
+  expect(row.textContent).toContain("—");
+});
+
+test("says how a negative balance is corrected, writes its amounts negative and tints its row", async () => {
+  const screen = await renderScreen(listed([yerba, honey]));
+  await expect.element(screen.getByText("Yerba mate orgánica 500 g")).toBeVisible();
+
+  const row = rowOf(screen.getByText("Yerba mate orgánica 500 g").element());
+  const otherRow = rowOf(screen.getByText("Miel pura de abeja 1 kg").element());
+  await expect
+    .element(screen.getByText("Saldo negativo · se corrige con un recuento"))
+    .toBeVisible();
+  expect(row.textContent).toContain("− 3 u");
+  expect(row.textContent).toContain("− $ 9.150,00");
+  expect(row.textContent).not.toContain("Almacén");
+  expect(getComputedStyle(row).backgroundColor).not.toBe(
+    getComputedStyle(otherRow).backgroundColor,
+  );
+});
+
+test("says a product without lots is corrected with a purchase or a count, and offers no lots to open", async () => {
+  const screen = await renderScreen(listed([tea, honey]));
+
+  await expect
+    .element(screen.getByText("Sin lotes · se corrige con una compra o un recuento"))
+    .toBeVisible();
+  expect(screen.getByRole("button", { name: `Ver los lotes de ${tea.name}` }).query()).toBeNull();
+  await expect
+    .element(screen.getByRole("button", { name: `Ver los lotes de ${honey.name}` }))
+    .toBeVisible();
+});
+
+test("opens a product's lots under it", async () => {
+  const screen = await renderScreen(listed());
+
+  await userEvent.click(screen.getByRole("button", { name: `Ver los lotes de ${almonds.name}` }));
+
+  await expect
+    .element(screen.getByRole("table", { name: `Lotes de ${almonds.name}` }))
+    .toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("closes a product's lots when its button is pressed again", async () => {
+  const screen = await renderScreen(listed());
+  await userEvent.click(screen.getByRole("button", { name: `Ver los lotes de ${almonds.name}` }));
+  await expect.element(screen.getByText("L-2409")).toBeVisible();
+
+  await userEvent.click(
+    screen.getByRole("button", { name: `Ocultar los lotes de ${almonds.name}` }),
+  );
+
+  await expect.element(screen.getByText("L-2409")).not.toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("button", { name: `Ver los lotes de ${almonds.name}` }))
+    .toBeVisible();
+});
+
+test("keeps the lots of every product opened open at once", async () => {
+  const screen = await renderScreen(listed());
+
+  await userEvent.click(screen.getByRole("button", { name: `Ver los lotes de ${almonds.name}` }));
+  await userEvent.click(screen.getByRole("button", { name: `Ver los lotes de ${honey.name}` }));
+
+  await expect
+    .element(screen.getByRole("table", { name: `Lotes de ${almonds.name}` }))
+    .toBeVisible();
+  await expect.element(screen.getByRole("table", { name: `Lotes de ${honey.name}` })).toBeVisible();
+});
+
+test("writes the footer from the cloud's summary", async () => {
+  const screen = await renderScreen(
+    listed([almonds], { productCount: 7, valueCents: 38_336_900, withoutCostCount: 3 }),
+  );
+
+  await expect
+    .element(screen.getByText("7 productos con movimiento · valorizado $ 383.369,00 · 3 sin costo"))
+    .toBeVisible();
+});
+
+test("writes the footer for a single product and leaves out the count of those without cost when there is none", async () => {
+  const screen = await renderScreen(
+    listed([almonds], { productCount: 1, valueCents: 12_400_100, withoutCostCount: 0 }),
+  );
+
+  await expect
+    .element(screen.getByText("1 producto con movimiento · valorizado $ 124.001,00"))
+    .toBeVisible();
+});
+
+const ORDERED_NAMES = [almonds.name, honey.name, crackers.name, tea.name];
+
+test("opens on the products by name, the order a header leaves them in until another is pressed", async () => {
+  const screen = await renderScreen(listed());
+  await expect.element(screen.getByText(honey.name)).toBeVisible();
+
+  expect(shownProductNames(screen, ORDERED_NAMES)).toEqual([
+    almonds.name,
+    crackers.name,
+    honey.name,
+    tea.name,
+  ]);
+});
+
+test.each([
+  [{ sortBy: "value", sort: "descending" }, [honey, almonds, crackers, tea]],
+  [{ sortBy: "balance", sort: "ascending" }, [crackers, tea, almonds, honey]],
+  [{ sortBy: "unitCost", sort: "ascending" }, [crackers, tea, honey, almonds]],
+  [{ sortBy: "lots", sort: "descending" }, [almonds, honey, crackers, tea]],
+  [{ sortBy: "product", sort: "descending" }, [tea, honey, crackers, almonds]],
+] as const)(
+  "opens on the order the URL asks for, %j, reading the values the cloud answered",
+  async (order, products) => {
+    const screen = await renderScreen(listed(), { filters: stockBalancesFilters.parse(order) });
+    await expect.element(screen.getByText(honey.name)).toBeVisible();
+
+    expect(shownProductNames(screen, ORDERED_NAMES)).toEqual(
+      products.map((product) => product.name),
+    );
+  },
+);
+
+test.each([
+  ["Saldo", "balance"],
+  ["Costo unitario", "unitCost"],
+  ["Valorizado", "value"],
+  ["Lotes", "lots"],
+] as const)(
+  "reports the %s column as the order when its header is pressed",
+  async (header, sortBy) => {
+    const onFiltersChange = vi.fn();
+    const screen = await renderScreen(listed(), { onFiltersChange });
+    await expect.element(screen.getByText(almonds.name)).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: header }));
+
+    await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ sortBy });
+  },
+);

@@ -142,6 +142,7 @@ for (const path of [
   ".github/workflows/verify.yml",
   ".github/scripts/slow-tests-reporter.mjs",
   ".github/scripts/without-package-output.mjs",
+  ".github/scripts/test-durations.mjs",
 ]) {
   test(`treats ${path} as a catalog input`, () => {
     assert.equal(isCatalogInput(path), true);

@@ -1,3 +1,6 @@
+export { isLotInStock } from "./model/lot-value.js";
+export type { StockCorrection } from "./model/product-valuation.js";
+export { STOCK_CORRECTIONS } from "./model/product-valuation.js";
 export { soldStockDelta } from "./model/sold-stock-delta.js";
 export { isListedInStockBalances } from "./model/stock-balance.js";
 export { countResult, expectedBalance } from "./model/stock-count.js";
@@ -36,3 +39,4 @@ export {
   STOCK_QUANTITY_PER_UNIT,
 } from "./model/stock-quantity.js";
 export type { PurchaseReceipt } from "./model/stock-receipt.js";
+export { unitCostCents } from "./model/unit-cost.js";

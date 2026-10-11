@@ -16,6 +16,7 @@ export type SaleLineChangeRefusal =
 
 export type ChangedLineOutcome = {
   kind: "changed";
+  removedManualDiscount: boolean;
   sale: SaleWithLines;
   chargeRefusal: ChargeRefusal | undefined;
 } & OpenSaleStanding;
@@ -55,6 +56,7 @@ export function changedLine(
   const changed = { ...sale, lines: sale.lines.map((each) => (each === line ? updated : each)) };
   return {
     kind: "changed",
+    removedManualDiscount: line.manualAdjustment !== null && updated.manualAdjustment === null,
     sale: changed,
     chargeRefusal: saleChargeRefusal(tx, changed, moment),
     ...openSaleStanding(

@@ -2,7 +2,9 @@ import type {
   CashChargeAnswer,
   CurrentSaleAnswer,
   FollowMercadoPagoQrChargeOutcome,
+  ManualAdjustmentRequest,
   OpenSale,
+  PreviewSaleLineAdjustmentOutcome,
   ReceiptPrintStatusOutcome,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
@@ -15,6 +17,7 @@ import { render } from "vitest-browser-react";
 import type { SalesHistoryQuery } from "../platform/core-client";
 import { createQueryClient } from "../platform/query-client";
 import {
+  useAdjustmentPreviewQuery,
   useCashChargeQuery,
   useCurrentSaleQuery,
   useQrChargeQuery,
@@ -43,6 +46,7 @@ const SALE: OpenSale = {
       list_unit_price: 238_000,
       discount_amount: 0,
       promotion: null,
+      manual_adjustment: null,
       line_total: 238_000,
     },
   ],
@@ -54,6 +58,7 @@ const SALE: OpenSale = {
   charge_refusal: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
+  adjust_authorization_required: false,
 };
 
 function CurrentSaleProbe({
@@ -427,6 +432,56 @@ describe("cash charge query", () => {
     );
 
     await expect.element(screen.getByText("failed")).toBeVisible();
+  });
+});
+
+function AdjustmentPreviewProbe({
+  read,
+  lineId = "line-1",
+  quantity = 2,
+  adjustment = { kind: "PERCENT", value: 10 },
+}: {
+  read: () => Promise<PreviewSaleLineAdjustmentOutcome>;
+  lineId?: string;
+  quantity?: number;
+  adjustment?: ManualAdjustmentRequest;
+}) {
+  const preview = useAdjustmentPreviewQuery({ lineId, quantity, adjustment, read });
+  return <p>{preview.status === "loaded" ? JSON.stringify(preview.value) : preview.status}</p>;
+}
+
+describe("adjustment preview query", () => {
+  const PREVIEW: PreviewSaleLineAdjustmentOutcome = {
+    kind: "preview",
+    discount_amount: 47_600,
+    line_total: 428_400,
+  };
+
+  it.each<[string, string, number, ManualAdjustmentRequest]>([
+    ["another line", "line-2", 2, { kind: "PERCENT", value: 10 }],
+    ["another quantity of the line", "line-1", 3, { kind: "PERCENT", value: 10 }],
+    ["another adjustment", "line-1", 2, { kind: "PERCENT", value: 20 }],
+  ])("never shows the preview given for %s", async (_what, lineId, quantity, adjustment) => {
+    const queryClient = createQueryClient();
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <AdjustmentPreviewProbe read={async () => PREVIEW} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText(JSON.stringify(PREVIEW))).toBeVisible();
+
+    await screen.rerender(
+      <QueryClientProvider client={queryClient}>
+        <AdjustmentPreviewProbe
+          read={() => new Promise(() => {})}
+          lineId={lineId}
+          quantity={quantity}
+          adjustment={adjustment}
+        />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
   });
 });
 

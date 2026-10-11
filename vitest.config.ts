@@ -11,6 +11,10 @@ import {
   ROOT_SLOW_TEST_THRESHOLD,
   SlowTestsReporter,
 } from "./.github/scripts/slow-tests-reporter.mjs";
+import {
+  durationBalancedSequencer,
+  TestDurationsReporter,
+} from "./.github/scripts/test-durations.mjs";
 import { withoutPackageOutput } from "./.github/scripts/without-package-output.mjs";
 import {
   recordedRequests,
@@ -78,6 +82,7 @@ export default defineConfig({
   test: {
     passWithNoTests: true,
     slowTestThreshold: ROOT_SLOW_TEST_THRESHOLD,
+    sequence: { sequencer: durationBalancedSequencer(process.env["TEST_DURATIONS_DIR"]) },
     reporters: [
       ...configDefaults.reporters,
       new SlowTestsReporter({
@@ -90,6 +95,7 @@ export default defineConfig({
         browser: 2000,
         "catalog-visual": 4000,
       }),
+      new TestDurationsReporter({ outputFile: process.env["TEST_DURATIONS_FILE"] }),
     ],
     projects: [
       {

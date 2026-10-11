@@ -6,6 +6,7 @@ import type {
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   FollowMercadoPagoQrChargeOutcome,
+  ManualAdjustmentRequest,
   OpenCashSession,
   OpenCashSessionOutcome,
   SignInOutcome,
@@ -369,6 +370,14 @@ function Register({ core }: { core: CoreClient }) {
       weightThousandths: number,
       expectedWeightThousandths: number,
     ) => core.changeLineWeight(lineId, weightThousandths, expectedWeightThousandths),
+    adjustSaleLine: (
+      lineId: string,
+      adjustment: ManualAdjustmentRequest,
+      reason: string,
+      authorization: Authorization | undefined,
+    ) => core.adjustSaleLine(lineId, adjustment, reason, authorization),
+    previewSaleLineAdjustment: (lineId: string, adjustment: ManualAdjustmentRequest) =>
+      core.previewSaleLineAdjustment(lineId, adjustment),
     removeSaleLine: (lineId: string) => core.removeSaleLine(lineId),
     cancelSale: () => core.cancelSale(),
     cancelPaidSale: (saleId: string, authorization: Authorization | undefined) =>

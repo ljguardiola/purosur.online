@@ -13,6 +13,7 @@ export type RegisterOperation =
   | { kind: "open_cash_session" }
   | { kind: "sell" }
   | { kind: "cancel_paid_sale" }
+  | { kind: "adjust_sale_line" }
   | { kind: "reprint_receipt" }
   | { kind: "view_sales_history" }
   | { kind: "configure_receipt_printer" }
@@ -34,6 +35,7 @@ export type RegisterOperationAccess =
 
 const SELLING_PERMISSION = "sell_and_charge";
 const VOID_SALE_PERMISSION = "void_sale";
+const OVERRIDE_LINE_PERMISSION = "override_line_price_or_discount";
 const REPRINT_RECEIPT_PERMISSION = "reprint_receipt";
 const VIEW_SALES_HISTORY_PERMISSION = "view_sales_history";
 const ENROLL_REGISTER_DEVICES_PERMISSION = "enroll_register_devices";
@@ -70,6 +72,12 @@ export function registerOperationAccess(
         : holdsPermission(actor.access, VOID_SALE_PERMISSION)
           ? PERMITTED
           : { kind: "needs_authorization", permission: VOID_SALE_PERMISSION };
+    case "adjust_sale_line":
+      return actor.access === undefined
+        ? NO_ACCESS
+        : holdsPermission(actor.access, OVERRIDE_LINE_PERMISSION)
+          ? PERMITTED
+          : { kind: "needs_authorization", permission: OVERRIDE_LINE_PERMISSION };
     case "reprint_receipt":
       return actor.access === undefined
         ? NO_ACCESS
@@ -108,6 +116,8 @@ export function mayAuthorize(
   switch (operation.kind) {
     case "cancel_paid_sale":
       return holdsPermission(authorizer.access, VOID_SALE_PERMISSION);
+    case "adjust_sale_line":
+      return holdsPermission(authorizer.access, OVERRIDE_LINE_PERMISSION);
     case "reprint_receipt":
       return holdsPermission(authorizer.access, REPRINT_RECEIPT_PERMISSION);
     case "record_cash_movement":

@@ -11,6 +11,7 @@ import {
   honey,
   movementReasons,
   oats,
+  stockBalanceList,
   withoutBalance,
 } from "./test-support/stock-fixtures";
 
@@ -28,7 +29,7 @@ function createServices(): StockMovementsScreenServices {
     }),
     fetchStockBalances: vi.fn().mockResolvedValue({
       kind: "ok",
-      value: { products: [almonds, honey] },
+      value: stockBalanceList([almonds, honey]),
     }),
     recordLoss: vi.fn(),
     recordAdjustment: vi.fn(),
@@ -176,7 +177,7 @@ test("shows a failed load of the balance with a retry that loads the balance aga
   const services = createServices();
   vi.mocked(services.fetchStockBalances)
     .mockResolvedValueOnce({ kind: "failed" })
-    .mockResolvedValueOnce({ kind: "ok", value: { products: [almonds, honey] } });
+    .mockResolvedValueOnce({ kind: "ok", value: stockBalanceList([almonds, honey]) });
   const rendered = await renderForm(services, { kinds: ["loss"] });
   const { dialog } = rendered;
   await chooseProduct(rendered, "Miel pura de abeja 1 kg");

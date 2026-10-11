@@ -1,10 +1,10 @@
 import type {
-  StockBalance,
   StockBalanceList,
   StockCountList,
   StockMovementList,
   StockMovementReasonList,
   StockPeriodDays,
+  StockProductBalance,
   StockProductList,
 } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
@@ -103,7 +103,7 @@ export function useExpectedBalanceQuery(
   },
 ) {
   const sendToMyAccount = useSendToMyAccount();
-  return useCloudQuery<StockBalance>({
+  return useCloudQuery<StockProductBalance>({
     queryKey: stockKeys.expectedBalance(params.productId, params.at),
     keepPreviousData: true,
     read: async () => {

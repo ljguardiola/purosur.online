@@ -358,7 +358,6 @@ export {
   SUPPLIER_CONTACT_MAX_LENGTH,
   SUPPLIER_NAME_MAX_LENGTH,
   SUPPLIER_NOTE_MAX_LENGTH,
-  unitCostCents,
 } from "./purchasing/index.js";
 export type {
   CashBreakdown,
@@ -427,6 +426,8 @@ export {
 export type {
   LinePromotion,
   ListPrice,
+  ManualAdjustment,
+  ManualAdjustmentValue,
   PrinterStatus,
   ReceiptContent,
   ReceiptCopy,
@@ -451,6 +452,10 @@ export type {
 } from "./sales/index.js";
 export {
   isSalesReportRangeAsked,
+  manualAdjustmentReason,
+  mayBeManualDiscountAmount,
+  mayBeManualDiscountPercent,
+  mayBeOverriddenUnitPrice,
   mayBeSaleLineQuantity,
   mayStartReceiptPrint,
   observePrintAcknowledged,
@@ -511,6 +516,7 @@ export type {
   AdjustmentReason,
   LossReason,
   ManualStockMovementKind,
+  StockCorrection,
   StockDirection,
   StockMovementKind,
   StockPeriodDays,
@@ -523,6 +529,7 @@ export {
   expectedBalance,
   isCountedQuantity,
   isListedInStockBalances,
+  isLotInStock,
   isMovementQuantity,
   LOSS_REASONS,
   lossDelta,
@@ -532,6 +539,7 @@ export {
   manualStockMovementReasons,
   mayBeCountedQuantity,
   mayBeMovementQuantity,
+  STOCK_CORRECTIONS,
   STOCK_DIRECTIONS,
   STOCK_MOVEMENT_KINDS,
   STOCK_PERIOD_DAYS,

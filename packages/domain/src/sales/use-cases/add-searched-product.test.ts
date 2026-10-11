@@ -118,6 +118,7 @@ describe("addSearchedProduct", () => {
           listUnitPrice: 2500,
           priceListId: "list-1",
           promotions: [],
+          manualAdjustment: null,
           promotionId: null,
           discountAmount: 0,
           lineTotal: 2500,
@@ -126,6 +127,7 @@ describe("addSearchedProduct", () => {
     };
     expect(outcome).toEqual({
       kind: "added",
+      removedManualDiscount: false,
       sale,
       balance: { paid: 0, pending: 2500 },
       linesLock: null,
@@ -160,6 +162,7 @@ describe("addSearchedProduct", () => {
           { id: "ten", benefit: { kind: "PERCENT_OFF", percent: 10 } },
           { id: "three-for-two", benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
         ],
+        manualAdjustment: null,
         promotionId: "ten",
         lineTotal: 2250,
       }),

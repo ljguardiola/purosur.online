@@ -3,7 +3,9 @@ import type {
   CashChargeAnswer,
   CurrentSaleAnswer,
   FollowMercadoPagoQrChargeOutcome,
+  ManualAdjustmentRequest,
   OpenSale,
+  PreviewSaleLineAdjustmentOutcome,
   ReceiptPrintStatusOutcome,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
@@ -23,6 +25,15 @@ export const salesKeys = {
     [...salesKey, "current-sale", sessionId, userId] as const,
   cashCharge: (saleId: string, pending: number, tendered: number | undefined) =>
     [...salesKey, "cash-charge", saleId, pending, tendered ?? null] as const,
+  adjustmentPreview: (lineId: string, quantity: number, adjustment: ManualAdjustmentRequest) =>
+    [
+      ...salesKey,
+      "adjustment-preview",
+      lineId,
+      quantity,
+      adjustment.kind,
+      adjustment.value,
+    ] as const,
   search: (query: string) => [...salesKey, "search", query] as const,
   qrCharge: (paymentTransactionId: string) =>
     [...salesKey, "qr-charge", paymentTransactionId] as const,
@@ -212,6 +223,40 @@ export function useCashChargeQuery({
     queryKey: salesKeys.cashCharge(saleId, pending, tendered),
     read: async () => (tendered === undefined ? "unavailable" : read(tendered)),
     enabled: tendered !== undefined,
+  });
+}
+
+export type ShownAdjustmentPreview = Exclude<
+  PreviewSaleLineAdjustmentOutcome,
+  { kind: "unavailable" }
+>;
+
+export function useAdjustmentPreviewQuery({
+  lineId,
+  quantity,
+  adjustment,
+  read,
+}: {
+  lineId: string;
+  quantity: number;
+  adjustment: ManualAdjustmentRequest | undefined;
+  read: (
+    lineId: string,
+    adjustment: ManualAdjustmentRequest,
+  ) => Promise<PreviewSaleLineAdjustmentOutcome>;
+}): CoreData<ShownAdjustmentPreview> {
+  return useCoreQuery({
+    queryKey: salesKeys.adjustmentPreview(
+      lineId,
+      quantity,
+      adjustment ?? { kind: "PERCENT", value: 0 },
+    ),
+    read: async () => {
+      const outcome = adjustment === undefined ? undefined : await read(lineId, adjustment);
+      return outcome === undefined || outcome.kind === "unavailable" ? "unavailable" : outcome;
+    },
+    enabled: adjustment !== undefined,
+    staleTime: 0,
   });
 }
 

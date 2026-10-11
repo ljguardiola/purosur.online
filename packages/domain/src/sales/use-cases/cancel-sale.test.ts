@@ -34,6 +34,7 @@ const YERBA_LINE = {
   listUnitPrice: 2500,
   priceListId: "list-1",
   promotions: [{ id: "ten", benefit: { kind: "PERCENT_OFF" as const, percent: 10 } }],
+  manualAdjustment: null,
   promotionId: "ten",
   discountAmount: 750,
   lineTotal: 6750,

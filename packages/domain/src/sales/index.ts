@@ -1,6 +1,13 @@
 export type { CancelledSale } from "./model/cancelled-sale.js";
 export type { CompletedSale } from "./model/completed-sale.js";
 export { stockMovementsMatchLines } from "./model/completed-sale.js";
+export type { ManualAdjustment, ManualAdjustmentValue } from "./model/manual-adjustment.js";
+export {
+  manualAdjustmentReason,
+  mayBeManualDiscountAmount,
+  mayBeManualDiscountPercent,
+  mayBeOverriddenUnitPrice,
+} from "./model/manual-adjustment.js";
 export { openSaleStanding } from "./model/open-sale-standing.js";
 export type { ReceiptContent, ReceiptSource } from "./model/receipt-content.js";
 export type { ReceiptCopy, ReceiptDelivery } from "./model/receipt-copy.js";

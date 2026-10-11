@@ -119,6 +119,41 @@ describe("registerOperationAccess", () => {
     });
   });
 
+  describe("for adjusting a sale line", () => {
+    const operation: RegisterOperation = { kind: "adjust_sale_line" };
+
+    it("permits a person who holds override_line_price_or_discount", () => {
+      expect(
+        registerOperationAccess(operation, {
+          id: "ana",
+          access: holding("override_line_price_or_discount"),
+        }),
+      ).toEqual({ kind: "permitted" });
+    });
+
+    it("permits an Administrator", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: ADMINISTRATOR })).toEqual({
+        kind: "permitted",
+      });
+    });
+
+    it("asks another person's authorization from a cashier who lacks the permission", () => {
+      expect(
+        registerOperationAccess(operation, { id: "ana", access: holding("sell_and_charge") }),
+      ).toEqual({ kind: "needs_authorization", permission: "override_line_price_or_discount" });
+    });
+
+    it("answers that a person with no access has none", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: undefined })).toEqual({
+        kind: "no_access",
+      });
+    });
+
+    it("refuses when nobody is signed in", () => {
+      expect(registerOperationAccess(operation, undefined)).toEqual({ kind: "refused" });
+    });
+  });
+
   describe("for viewing the sales history", () => {
     const operation: RegisterOperation = { kind: "view_sales_history" };
 
@@ -333,6 +368,29 @@ describe("mayAuthorize", () => {
       expect(mayAuthorize(operation, { id: "bruno", access: holding("reprint_receipt") })).toBe(
         true,
       );
+    });
+
+    it("refuses a person who may only sell and charge", () => {
+      expect(mayAuthorize(operation, { id: "bruno", access: holding("sell_and_charge") })).toBe(
+        false,
+      );
+    });
+  });
+
+  describe("adjusting a sale line", () => {
+    const operation: RegisterOperation = { kind: "adjust_sale_line" };
+
+    it("accepts a person who holds override_line_price_or_discount", () => {
+      expect(
+        mayAuthorize(operation, {
+          id: "bruno",
+          access: holding("override_line_price_or_discount"),
+        }),
+      ).toBe(true);
+    });
+
+    it("accepts an Administrator", () => {
+      expect(mayAuthorize(operation, { id: "bruno", access: ADMINISTRATOR })).toBe(true);
     });
 
     it("refuses a person who may only sell and charge", () => {

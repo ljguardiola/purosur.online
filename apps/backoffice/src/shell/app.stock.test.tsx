@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { openSession } from "../sessions/test-support/open-session";
+import { stockBalanceList } from "../stock/test-support/stock-fixtures";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
@@ -41,7 +42,7 @@ function stockServices(capabilities: Capability[]) {
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.stockBalancesScreen.fetchStockBalances).mockResolvedValue({
     kind: "ok",
-    value: { products: [] },
+    value: stockBalanceList([]),
   });
   vi.mocked(services.stockCountsScreen.fetchStockCounts).mockResolvedValue({
     kind: "ok",

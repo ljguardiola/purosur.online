@@ -1,5 +1,5 @@
 {
-  "id": "77684616-02e2-4dd3-93e4-5e96797cea7a",
+  "id": "967a99d6-ea0b-4256-98cd-646eb2a7bcc8",
   "prevId": "078d443b-438f-47be-a645-651b34d1b98f",
   "version": "7",
   "dialect": "postgresql",
@@ -2748,42 +2748,6 @@
           "value": "not \"lots\".\"technical\" or (\"lots\".\"expires_on\" is null and \"lots\".\"purchased_on\" is null)"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.offline_authorization_code_acquisition_reports": {
-      "name": "offline_authorization_code_acquisition_reports",
-      "schema": "",
-      "columns": {
-        "fortnight_start": {
-          "name": "fortnight_start",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "outcome_kind": {
-          "name": "outcome_kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reported_at": {
-          "name": "reported_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "offline_authorization_code_acquisition_reports_pk": {
-          "name": "offline_authorization_code_acquisition_reports_pk",
-          "columns": ["fortnight_start", "outcome_kind"]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.offline_number_blocks": {
@@ -5948,6 +5912,30 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "manual_adjustment_kind": {
+          "name": "manual_adjustment_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manual_adjustment_value": {
+          "name": "manual_adjustment_value",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manual_adjustment_reason": {
+          "name": "manual_adjustment_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manual_adjustment_authorized_by": {
+          "name": "manual_adjustment_authorized_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -5969,6 +5957,22 @@
         "sale_lines_weight_source_check": {
           "name": "sale_lines_weight_source_check",
           "value": "\"sale_lines\".\"weight_source\" IN ('SCALE', 'MANUAL')"
+        },
+        "sale_lines_manual_adjustment_kind_check": {
+          "name": "sale_lines_manual_adjustment_kind_check",
+          "value": "\"sale_lines\".\"manual_adjustment_kind\" IN ('PRICE', 'PERCENT', 'AMOUNT')"
+        },
+        "sale_lines_manual_adjustment_value_check": {
+          "name": "sale_lines_manual_adjustment_value_check",
+          "value": "(\"sale_lines\".\"manual_adjustment_value\" IS NULL) = (\"sale_lines\".\"manual_adjustment_kind\" IS NULL)\n        AND (\n          \"sale_lines\".\"manual_adjustment_kind\" IS NULL\n          OR (\"sale_lines\".\"manual_adjustment_kind\" = 'PRICE' AND \"sale_lines\".\"manual_adjustment_value\" >= 0)\n          OR (\"sale_lines\".\"manual_adjustment_kind\" = 'PERCENT' AND \"sale_lines\".\"manual_adjustment_value\" BETWEEN 1 AND 100)\n          OR (\"sale_lines\".\"manual_adjustment_kind\" = 'AMOUNT' AND \"sale_lines\".\"manual_adjustment_value\" > 0)\n        )"
+        },
+        "sale_lines_manual_adjustment_reason_check": {
+          "name": "sale_lines_manual_adjustment_reason_check",
+          "value": "(\"sale_lines\".\"manual_adjustment_reason\" IS NULL) = (\"sale_lines\".\"manual_adjustment_kind\" IS NULL)\n        AND (\"sale_lines\".\"manual_adjustment_reason\" IS NULL OR btrim(\"sale_lines\".\"manual_adjustment_reason\") <> '')"
+        },
+        "sale_lines_manual_adjustment_authorized_by_check": {
+          "name": "sale_lines_manual_adjustment_authorized_by_check",
+          "value": "\"sale_lines\".\"manual_adjustment_authorized_by\" IS NULL OR \"sale_lines\".\"manual_adjustment_kind\" IS NOT NULL"
         }
       },
       "isRLSEnabled": false

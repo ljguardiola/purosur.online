@@ -87,6 +87,7 @@ describe("SaleScreen adding a product sold by weight", () => {
     const addWeighedProduct = vi.fn(
       async (): Promise<AddWeighedProductOutcome> => ({
         kind: "added",
+        removed_manual_discount: false,
         sale: { ...SALE_OF_QUESO, lines: [...SALE_OF_YERBA.lines, QUESO] },
       }),
     );
@@ -226,6 +227,7 @@ describe("SaleScreen weighing a product on the scale", () => {
     const weighProduct = vi.fn(
       async (): Promise<WeighProductOutcome> => ({
         kind: "added",
+        removed_manual_discount: false,
         sale: {
           ...SALE_OF_QUESO,
           lines: [...SALE_OF_YERBA.lines, { ...QUESO, weight_source: "SCALE" }],
@@ -247,7 +249,11 @@ describe("SaleScreen weighing a product on the scale", () => {
 
   it("closes the modal with Listo, leaving the line in the sale", async () => {
     const weighProduct = vi.fn(
-      async (): Promise<WeighProductOutcome> => ({ kind: "added", sale: SALE_OF_QUESO }),
+      async (): Promise<WeighProductOutcome> => ({
+        kind: "added",
+        removed_manual_discount: false,
+        sale: SALE_OF_QUESO,
+      }),
     );
     const { screen, field } = await scanning({ weighProduct });
 
@@ -262,7 +268,11 @@ describe("SaleScreen weighing a product on the scale", () => {
 
   it("adds the typed weight when the cashier types instead of weighing", async () => {
     const addWeighedProduct = vi.fn(
-      async (): Promise<AddWeighedProductOutcome> => ({ kind: "added", sale: SALE_OF_QUESO }),
+      async (): Promise<AddWeighedProductOutcome> => ({
+        kind: "added",
+        removed_manual_discount: false,
+        sale: SALE_OF_QUESO,
+      }),
     );
     const { screen, field } = await scanning({
       weighProduct: vi.fn(async () => WEIGHING_OUTCOME),
@@ -351,7 +361,11 @@ describe("SaleScreen weighing a product on the scale", () => {
       .mockReturnValueOnce(answer.promise)
       .mockResolvedValue(WEIGHING_OUTCOME);
     const addWeighedProduct = vi.fn(
-      async (): Promise<AddWeighedProductOutcome> => ({ kind: "added", sale: SALE_OF_QUESO }),
+      async (): Promise<AddWeighedProductOutcome> => ({
+        kind: "added",
+        removed_manual_discount: false,
+        sale: SALE_OF_QUESO,
+      }),
     );
     const { screen, field } = await scanning({
       addWeighedProduct,
@@ -387,7 +401,7 @@ describe("SaleScreen weighing a product on the scale", () => {
 
     await scan(field, "7790001");
     await screen.getByRole("button", { name: "Cancelar" }).click();
-    answer.resolve({ kind: "added", sale: SALE_OF_QUESO });
+    answer.resolve({ kind: "added", removed_manual_discount: false, sale: SALE_OF_QUESO });
 
     await expect.element(lines).toHaveLength(1);
     await expect.element(lines.first()).toHaveAttribute("aria-current", "true");
@@ -482,6 +496,7 @@ describe("SaleScreen changing the weight of a line", () => {
     const changeLineWeight = vi.fn(
       async (): Promise<ChangeLineWeightOutcome> => ({
         kind: "changed",
+        removed_manual_discount: false,
         sale: { ...SALE_OF_QUESO, lines: [changed], total: 1_000_000, pending: 1_000_000 },
       }),
     );

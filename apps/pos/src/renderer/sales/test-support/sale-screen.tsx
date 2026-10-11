@@ -1,11 +1,13 @@
 import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
+  AdjustSaleLineOutcome,
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
   ChangeLineQuantityOutcome,
   ChangeLineWeightOutcome,
   OpenSale,
+  PreviewSaleLineAdjustmentOutcome,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
@@ -38,6 +40,7 @@ export const YERBA = {
   list_unit_price: 238_000,
   discount_amount: 0,
   promotion: null,
+  manual_adjustment: null,
   line_total: 476_000,
 };
 export const ALFAJOR = {
@@ -50,6 +53,7 @@ export const ALFAJOR = {
   list_unit_price: 150_000,
   discount_amount: 0,
   promotion: null,
+  manual_adjustment: null,
   line_total: 150_000,
 };
 export const QUESO = {
@@ -62,6 +66,7 @@ export const QUESO = {
   list_unit_price: 1_250_000,
   discount_amount: 0,
   promotion: null,
+  manual_adjustment: null,
   line_total: 1_562_500,
 };
 export const SALE_OF_QUESO: OpenSale = {
@@ -75,6 +80,7 @@ export const SALE_OF_QUESO: OpenSale = {
   charge_refusal: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
+  adjust_authorization_required: false,
 };
 export const SALE_OF_YERBA: OpenSale = {
   id: "sale-1",
@@ -87,6 +93,7 @@ export const SALE_OF_YERBA: OpenSale = {
   charge_refusal: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
+  adjust_authorization_required: false,
 };
 export const SALE_OF_YERBA_AND_ALFAJOR: OpenSale = {
   id: "sale-1",
@@ -99,6 +106,7 @@ export const SALE_OF_YERBA_AND_ALFAJOR: OpenSale = {
   charge_refusal: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
+  adjust_authorization_required: false,
 };
 
 export type Overrides = Partial<SaleScreenProps> & { registerName?: string | null };
@@ -130,6 +138,12 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
   const changeLineWeight =
     overrides.changeLineWeight ??
     vi.fn(async (): Promise<ChangeLineWeightOutcome> => ({ kind: "unavailable" }));
+  const adjustSaleLine =
+    overrides.adjustSaleLine ??
+    vi.fn(async (): Promise<AdjustSaleLineOutcome> => ({ kind: "unavailable" }));
+  const previewSaleLineAdjustment =
+    overrides.previewSaleLineAdjustment ??
+    vi.fn(async (): Promise<PreviewSaleLineAdjustmentOutcome> => ({ kind: "unavailable" }));
   const removeSaleLine =
     overrides.removeSaleLine ??
     vi.fn(async (): Promise<RemoveSaleLineOutcome> => ({ kind: "unavailable" }));
@@ -164,6 +178,8 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
         weighProduct={weighProduct}
         changeLineQuantity={changeLineQuantity}
         changeLineWeight={changeLineWeight}
+        adjustSaleLine={adjustSaleLine}
+        previewSaleLineAdjustment={previewSaleLineAdjustment}
         removeSaleLine={removeSaleLine}
         cancelSale={cancelSale}
         cancelPaidSale={cancelPaidSale}
