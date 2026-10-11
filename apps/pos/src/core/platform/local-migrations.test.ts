@@ -879,6 +879,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -943,6 +944,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1002,6 +1004,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1060,6 +1063,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1145,6 +1149,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1222,6 +1227,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1303,6 +1309,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1367,6 +1374,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1423,6 +1431,7 @@ describe("the register's local migrations", () => {
         "0035_domain_fiscal_document_type",
         "0036_replaced_qr_payments",
         "0037_offline_point_of_sale_tax_authority_count",
+        "0039_manual_line_adjustments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -2223,7 +2232,15 @@ describe("the register's local migrations", () => {
 
       const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
-      expect(after.prepare("SELECT * FROM sale_lines ORDER BY position").all()).toEqual([
+      expect(
+        after
+          .prepare(
+            `SELECT id, sale_id, position, product_id, product_name, quantity, list_unit_price,
+                    price_list_id, line_total, promotion_id, discount_amount, sale_unit, weight_source
+             FROM sale_lines ORDER BY position`,
+          )
+          .all(),
+      ).toEqual([
         {
           id: "line-1",
           sale_id: "sale-1",
@@ -2470,6 +2487,99 @@ describe("the register's local migrations", () => {
       expect(() => setCount(0)).not.toThrow();
       expect(() => setCount(null)).not.toThrow();
       expect(() => setCount(-1)).toThrow(/CHECK/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("let a sale line carry a manual adjustment of its price or a manual discount, none over the lines it already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0039_manual_line_adjustments",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0039_manual_line_adjustments",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 2, 1500, 'list-1', 3000);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            `SELECT id, line_total, manual_adjustment_kind, manual_adjustment_value,
+                    manual_adjustment_reason, manual_adjustment_authorized_by
+             FROM sale_lines`,
+          )
+          .all(),
+      ).toEqual([
+        {
+          id: "line-1",
+          line_total: 3000,
+          manual_adjustment_kind: null,
+          manual_adjustment_value: null,
+          manual_adjustment_reason: null,
+          manual_adjustment_authorized_by: null,
+        },
+      ]);
+      const adjust = (values: {
+        kind: string | null;
+        value: number | null;
+        reason: string | null;
+        authorized_by: string | null;
+      }) =>
+        after
+          .prepare(
+            `UPDATE sale_lines
+             SET manual_adjustment_kind = @kind, manual_adjustment_value = @value,
+                 manual_adjustment_reason = @reason, manual_adjustment_authorized_by = @authorized_by`,
+          )
+          .run(values);
+      const set = { reason: "Producto golpeado", authorized_by: null };
+      expect(() => adjust({ kind: "PRICE", value: 0, ...set })).not.toThrow();
+      expect(() => adjust({ kind: "PRICE", value: 1200, ...set })).not.toThrow();
+      expect(() => adjust({ kind: "PERCENT", value: 1, ...set })).not.toThrow();
+      expect(() => adjust({ kind: "PERCENT", value: 100, ...set })).not.toThrow();
+      expect(() => adjust({ kind: "AMOUNT", value: 1, ...set })).not.toThrow();
+      expect(() =>
+        adjust({ kind: "AMOUNT", value: 300, ...set, authorized_by: "u2" }),
+      ).not.toThrow();
+      expect(() =>
+        adjust({ kind: null, value: null, reason: null, authorized_by: null }),
+      ).not.toThrow();
+      expect(() => adjust({ kind: "FREE", value: 1, ...set })).toThrow(/CHECK/);
+      expect(() => adjust({ kind: "PRICE", value: -1, ...set })).toThrow(/CHECK/);
+      expect(() => adjust({ kind: "PERCENT", value: 0, ...set })).toThrow(/CHECK/);
+      expect(() => adjust({ kind: "PERCENT", value: 101, ...set })).toThrow(/CHECK/);
+      expect(() => adjust({ kind: "AMOUNT", value: 0, ...set })).toThrow(/CHECK/);
+      expect(() => adjust({ kind: "PRICE", value: null, ...set })).toThrow(/CHECK/);
+      expect(() => adjust({ kind: null, value: 100, reason: null, authorized_by: null })).toThrow(
+        /CHECK/,
+      );
+      expect(() =>
+        adjust({ kind: "PRICE", value: 100, reason: null, authorized_by: null }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        adjust({ kind: "PRICE", value: 100, reason: "  ", authorized_by: null }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        adjust({ kind: null, value: null, reason: "Motivo", authorized_by: null }),
+      ).toThrow(/CHECK/);
+      expect(() => adjust({ kind: null, value: null, reason: null, authorized_by: "u2" })).toThrow(
+        /CHECK/,
+      );
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });
