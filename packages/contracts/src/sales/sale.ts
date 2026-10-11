@@ -199,6 +199,7 @@ export const previewSaleLineAdjustmentOutcomeSchema = z.discriminatedUnion("kind
   saleHasPaymentsOutcome,
   notPermittedOutcome,
   notSignedInOutcome,
+  z.object({ kind: z.literal("unavailable") }),
 ]);
 export type PreviewSaleLineAdjustmentOutcome = z.infer<
   typeof previewSaleLineAdjustmentOutcomeSchema
