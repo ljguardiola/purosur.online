@@ -15,7 +15,9 @@ export type {
 } from "../model/real-time-authorization.js";
 export type {
   ClearAuthorizationAnswer,
+  OutcomeToldToAskingRegister,
   RecordedRequestOutcome,
+  UnclearDocumentSettlement,
   UnclearOutcomeDecision,
 } from "../model/unclear-outcome-decision.js";
 export type {
@@ -37,6 +39,16 @@ export type {
   ArcaVitalityStore,
   VitalityCheckRecord,
 } from "./arca-vitality-ports.js";
+export type {
+  ApplyUnclearOutcomeDecisionsPorts,
+  UnclearDocumentSettled,
+  UnclearFiscalDocuments,
+  UnclearOutcomeAnswer,
+  UnclearOutcomeCloud,
+  UnclearOutcomeQuestion,
+} from "./apply-unclear-outcome-decision-ports.js";
+export type { ApplyUnclearOutcomeDecisionsOutcome } from "./apply-unclear-outcome-decisions.js";
+export { applyUnclearOutcomeDecisions } from "./apply-unclear-outcome-decisions.js";
 export type {
   AskAboutUnclearOutcomeInput,
   AskAboutUnclearOutcomeOutcome,
