@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatAmountInput,
   formatCalendarDay,
+  formatCalendarDayNumeric,
   formatCalendarDayRange,
   formatCents,
   formatClockTime,
@@ -41,6 +42,13 @@ describe("formatNumber", () => {
 
   it("passes formatting options through to Intl.NumberFormat", () => {
     expect(formatNumber(1234.5, { minimumFractionDigits: 2 })).toBe("1.234,50");
+  });
+});
+
+describe("formatCalendarDayNumeric", () => {
+  it("writes a calendar day as day, month and year, each day and month with two digits", () => {
+    expect(formatCalendarDayNumeric("2026-10-14")).toBe("14/10/2026");
+    expect(formatCalendarDayNumeric("2027-02-05")).toBe("05/02/2027");
   });
 });
 
