@@ -8,6 +8,7 @@ export async function insertPurchasedLot<TQueryResult extends PgQueryResultHKT>(
     locationId: string;
     actorId: string;
     purchasedOn?: string;
+    supplierName?: string;
     expiresOn?: string | null;
     lotNumber?: string | null;
     remaining?: number;
@@ -16,7 +17,7 @@ export async function insertPurchasedLot<TQueryResult extends PgQueryResultHKT>(
 ): Promise<string> {
   const [supplier] = await db
     .insert(suppliers)
-    .values({ name: `Distribuidora Sur ${crypto.randomUUID()}`, actorId: input.actorId })
+    .values({ name: input.supplierName ?? `Distribuidora Sur ${crypto.randomUUID()}`, actorId: input.actorId })
     .returning({ id: suppliers.id });
   if (!supplier) {
     throw new Error("test setup: seeding the supplier returned no row");

@@ -13,6 +13,30 @@ import {
 
 const at = "2026-09-15T21:32:00.000Z";
 
+const purchasedLot = {
+  id: "lot-1",
+  lotNumber: "L-77",
+  expiresOn: "2027-03-01",
+  technical: false,
+  remaining: 12_150,
+  valueCents: 60_750,
+  unitCostCents: 5_000,
+  origin: { kind: "purchase", purchasedOn: "2026-10-01", supplierName: "Distribuidora Sur" },
+};
+
+const technicalLot = {
+  id: "lot-2",
+  lotNumber: null,
+  expiresOn: null,
+  technical: true,
+  remaining: -4_000,
+  valueCents: null,
+  unitCostCents: null,
+  origin: { kind: "product_sales_without_lots" },
+};
+
+const summary = { productCount: 3, valueCents: 60_750, withoutCostCount: 2 };
+
 const balance = {
   id: "product-1",
   name: "Almendras peladas",
@@ -21,6 +45,11 @@ const balance = {
   saleUnit: "KG",
   active: true,
   balance: 12_150,
+  valueCents: 60_750,
+  unitCostCents: 5_000,
+  lotCount: 1,
+  correction: null,
+  lots: [purchasedLot],
 };
 
 const count = {
@@ -51,13 +80,31 @@ const movement = {
 };
 
 describe("stockBalanceListSchema", () => {
-  it("accepts products with their balance, a negative one included", () => {
+  it("accepts products with their balance, valuation and lots, and the footer summary", () => {
     const list = {
       products: [
         balance,
-        { ...balance, id: "product-2", balance: -4000 },
-        { ...balance, id: "product-3", active: false },
+        {
+          ...balance,
+          id: "product-2",
+          balance: -4000,
+          valueCents: null,
+          unitCostCents: null,
+          lotCount: 1,
+          correction: "purchase_or_count",
+          lots: [technicalLot],
+        },
+        { ...balance, id: "product-3", active: false, correction: "count" },
+        {
+          ...balance,
+          id: "product-4",
+          valueCents: null,
+          unitCostCents: null,
+          lotCount: 0,
+          lots: [],
+        },
       ],
+      summary,
     };
 
     expect(stockBalanceListSchema.safeParse(list).data).toEqual(list);
@@ -72,7 +119,25 @@ describe("stockBalanceListSchema", () => {
     ["active", "false"],
   ])("refuses %s as %j", (field, value) => {
     expect(
-      stockBalanceListSchema.safeParse({ products: [{ ...balance, [field]: value }] }).success,
+      stockBalanceListSchema.safeParse({ products: [{ ...balance, [field]: value }], summary })
+        .success,
+    ).toBe(false);
+  });
+
+  it("refuses a list without its summary", () => {
+    expect(stockBalanceListSchema.safeParse({ products: [balance] }).success).toBe(false);
+  });
+
+  it.each([
+    ["productCount", 1.5],
+    ["productCount", undefined],
+    ["valueCents", 1.5],
+    ["valueCents", null],
+    ["withoutCostCount", "2"],
+  ])("refuses a summary with %s as %j", (field, value) => {
+    expect(
+      stockBalanceListSchema.safeParse({ products: [balance], summary: { ...summary, [field]: value } })
+        .success,
     ).toBe(false);
   });
 });
@@ -86,8 +151,52 @@ describe("stockBalanceSchema", () => {
     ["balance", 0.5],
     ["balance", undefined],
     ["active", undefined],
+    ["valueCents", 1.5],
+    ["valueCents", undefined],
+    ["unitCostCents", 1.5],
+    ["unitCostCents", undefined],
+    ["lotCount", 1.5],
+    ["lotCount", undefined],
+    ["correction", "recount"],
+    ["correction", undefined],
+    ["lots", undefined],
+    ["lots", [{ ...purchasedLot, remaining: 0.5 }]],
   ])("refuses %s as %j", (field, value) => {
     expect(stockBalanceSchema.safeParse({ ...balance, [field]: value }).success).toBe(false);
+  });
+
+  it.each(["count", "purchase_or_count", null])("accepts %j as the correction", (correction) => {
+    expect(stockBalanceSchema.safeParse({ ...balance, correction }).data).toEqual({
+      ...balance,
+      correction,
+    });
+  });
+
+  it("accepts a technical lot without a value or a unit cost", () => {
+    expect(stockBalanceSchema.safeParse({ ...balance, lots: [technicalLot] }).data).toEqual({
+      ...balance,
+      lots: [technicalLot],
+    });
+  });
+
+  it.each([
+    ["remaining", 0.5],
+    ["valueCents", 1.5],
+    ["valueCents", undefined],
+    ["unitCostCents", 1.5],
+    ["unitCostCents", undefined],
+    ["expiresOn", "2027-02-30"],
+    ["technical", "no"],
+    ["id", null],
+    ["origin", { kind: "gift" }],
+    ["origin", { kind: "purchase", purchasedOn: "yesterday", supplierName: "Distribuidora Sur" }],
+    ["origin", { kind: "purchase", purchasedOn: "2026-10-01" }],
+    ["origin", undefined],
+  ])("refuses a lot with %s as %j", (field, value) => {
+    expect(
+      stockBalanceSchema.safeParse({ ...balance, lots: [{ ...purchasedLot, [field]: value }] })
+        .success,
+    ).toBe(false);
   });
 });
 

@@ -2,7 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
 import { MAX_STOCK_QUANTITY, STOCK_QUANTITY_PER_UNIT } from "./stock-quantity.js";
-import { unitCostCents } from "./unit-cost.js";
+import { lotUnitCostCents, unitCostCents } from "./unit-cost.js";
 
 describe("unitCostCents", () => {
   it("is the amount paid when a line is loaded by sale unit", () => {
@@ -40,5 +40,24 @@ describe("unitCostCents", () => {
         },
       ),
     );
+  });
+});
+
+describe("lotUnitCostCents", () => {
+  const cost = { totalCents: 5_000, quantity: 1_000 };
+
+  it("is the unit cost of the lot's cost pair", () => {
+    expect(lotUnitCostCents({ cost, costIncomplete: false })).toBe(5_000);
+    expect(
+      lotUnitCostCents({ cost: { totalCents: 1_000, quantity: 3_000 }, costIncomplete: false }),
+    ).toBe(333);
+  });
+
+  it("has none without a cost", () => {
+    expect(lotUnitCostCents({ cost: null, costIncomplete: true })).toBeNull();
+  });
+
+  it("has none when the cost is flagged incomplete", () => {
+    expect(lotUnitCostCents({ cost, costIncomplete: true })).toBeNull();
   });
 });
