@@ -3,7 +3,11 @@ import {
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
 } from "./factura-c-fiscal-block.js";
-import type { RealTimeAuthorizationAnswer } from "./real-time-authorization.js";
+import {
+  type RealTimeAuthorizationAnswer,
+  type RealTimeAuthorizationResolution,
+  realTimeAuthorizationResolution,
+} from "./real-time-authorization.js";
 
 export const UNCLEAR_OUTCOME_SETTLING_DELAY_MS = 60_000;
 export const UNCLEAR_OUTCOME_REASK_INTERVAL_MS = 30_000;
@@ -69,6 +73,31 @@ export function outcomeToldToAskingRegister({
     return { kind: "answered", answer };
   }
   return decision === null ? { kind: "pending" } : { kind: "decided", decision };
+}
+
+export type UnclearDocumentSettlement =
+  | RealTimeAuthorizationResolution
+  | { state: "RELEASED" }
+  | { state: "CONFLICTING" };
+
+export function unclearDocumentSettlement(
+  told: Exclude<OutcomeToldToAskingRegister, { kind: "pending" }>,
+): UnclearDocumentSettlement {
+  if (told.kind === "answered") {
+    return realTimeAuthorizationResolution(told.answer);
+  }
+  switch (told.decision.kind) {
+    case "released":
+      return { state: "RELEASED" };
+    case "conflicting":
+      return { state: "CONFLICTING" };
+    case "adopted":
+      return {
+        state: "AUTHORIZED",
+        authorizationCode: told.decision.authorizationCode,
+        authorizationCodeDueOn: told.decision.authorizationCodeDueOn,
+      };
+  }
 }
 
 export type UnclearOutcomeVerdict = UnclearOutcomeDecision | { kind: "pending"; askAgainAt: Date };
