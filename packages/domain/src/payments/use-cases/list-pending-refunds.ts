@@ -1,8 +1,10 @@
+import type { Clock } from "../../shared/index.js";
 import { isRefundDiscardable } from "../model/payment-refund.js";
 import type { PendingRefund, PendingRefundsReader } from "./refund-store.js";
 
 export interface ListPendingRefundsPorts {
   reader: PendingRefundsReader;
+  clock: Clock;
 }
 
 export interface ListPendingRefundsInput {
@@ -10,9 +12,14 @@ export interface ListPendingRefundsInput {
 }
 
 export async function listPendingRefunds(
-  { reader }: ListPendingRefundsPorts,
+  { reader, clock }: ListPendingRefundsPorts,
   { locationId }: ListPendingRefundsInput,
 ): Promise<PendingRefund[]> {
   const refunds = await reader.pendingRefunds(locationId);
-  return refunds.map((refund) => ({ ...refund, discardable: isRefundDiscardable(refund.origin) }));
+  const now = clock.now().getTime();
+  return refunds.map((refund) => ({
+    ...refund,
+    discardable: isRefundDiscardable(refund.origin),
+    secondsPending: Math.max(0, Math.floor((now - refund.occurredAt.getTime()) / 1000)),
+  }));
 }

@@ -58,7 +58,7 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         origin: "sale_cancelled",
         amount: 2_000,
         occurredAt: refund?.occurredAt,
-        saleOccurredAt: new Date("2026-10-07T14:00:00.000Z"),
+        saleOccurredAt: cancelled.cancelledAt,
         coveredBy: [],
         cancelledBy: userId,
         cancelledByName: "Ada Lucero",

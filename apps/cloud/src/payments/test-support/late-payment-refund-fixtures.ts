@@ -30,7 +30,7 @@ export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResu
           id: crypto.randomUUID(),
           method,
           provider: "NONE",
-          amount: 5000 / coveredBy.length,
+          amount: 1000,
           tendered: null,
           state: "APPROVED",
           occurredAt: transaction.createdAt,

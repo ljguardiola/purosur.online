@@ -1,3 +1,4 @@
+import type { PaymentMethod } from "../model/payment.js";
 import type { RefundOrigin } from "../model/payment-refund.js";
 
 export interface LockedRefund {
@@ -15,12 +16,15 @@ export interface PendingRefundRecord {
   origin: RefundOrigin;
   amount: number;
   occurredAt: Date;
+  saleOccurredAt: Date;
+  coveredBy: PaymentMethod[];
   cancelledBy: string | null;
   cancelledByName: string | null;
 }
 
 export interface PendingRefund extends PendingRefundRecord {
   discardable: boolean;
+  secondsPending: number;
 }
 
 export interface PendingRefundsReader {

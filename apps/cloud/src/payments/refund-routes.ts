@@ -68,7 +68,7 @@ export function registerRefundRoutes<TQueryResult extends PgQueryResultHKT>(
     { preHandler: sameOriginGuard(options.backofficeOrigin), config },
     async (request, reply) => {
       const refunds = await listPendingRefunds(
-        { reader },
+        { reader, clock: { now } },
         { locationId: openSessionOf(request).locationId },
       );
       await reply.code(200).send(
@@ -83,6 +83,9 @@ export function registerRefundRoutes<TQueryResult extends PgQueryResultHKT>(
             discardable: refund.discardable,
             amount: refund.amount,
             occurred_at: refund.occurredAt.toISOString(),
+            seconds_pending: refund.secondsPending,
+            sale_occurred_at: refund.saleOccurredAt.toISOString(),
+            covered_by: refund.coveredBy,
             cancelled_by: refund.cancelledBy,
             cancelled_by_name: refund.cancelledByName,
           })),

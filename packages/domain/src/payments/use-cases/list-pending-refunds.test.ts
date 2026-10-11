@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { listPendingRefunds } from "./list-pending-refunds.js";
-import { type FakePendingRefund, FakeRefundStore, FixedClock } from "./test-support/fake-refund-store.js";
+import {
+  type FakePendingRefund,
+  FakeRefundStore,
+  FixedClock,
+} from "./test-support/fake-refund-store.js";
 
 const TRANSFER_REFUND: FakePendingRefund = {
   id: "refund-1",
@@ -56,7 +60,9 @@ describe("listPendingRefunds", () => {
   it("lists nothing when the branch has no pending refund", async () => {
     const store = new FakeRefundStore();
 
-    expect(await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" })).toEqual([]);
+    expect(await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" })).toEqual(
+      [],
+    );
   });
 
   it("counts the whole seconds a refund has been pending", async () => {
@@ -65,10 +71,7 @@ describe("listPendingRefunds", () => {
       [{ ...TRANSFER_REFUND, occurredAt: new Date("2026-10-07T18:45:28.500Z") }],
     );
 
-    const [refund] = await listPendingRefunds(
-      { reader: store, clock },
-      { locationId: "branch-1" },
-    );
+    const [refund] = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
 
     expect(refund?.secondsPending).toBe(1);
   });
@@ -79,10 +82,7 @@ describe("listPendingRefunds", () => {
       [{ ...TRANSFER_REFUND, occurredAt: new Date("2026-10-07T18:46:00.000Z") }],
     );
 
-    const [refund] = await listPendingRefunds(
-      { reader: store, clock },
-      { locationId: "branch-1" },
-    );
+    const [refund] = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
 
     expect(refund?.secondsPending).toBe(0);
   });
@@ -99,10 +99,7 @@ describe("listPendingRefunds", () => {
       ],
     );
 
-    const [refund] = await listPendingRefunds(
-      { reader: store, clock },
-      { locationId: "branch-1" },
-    );
+    const [refund] = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
 
     expect(refund).toMatchObject({
       saleOccurredAt: new Date("2026-10-07T12:00:00.000Z"),
