@@ -9,6 +9,7 @@ import { userEvent } from "vitest/browser";
 import type { SaleScreenProps } from "./sale-screen";
 import type { Overrides } from "./test-support/sale-screen";
 import {
+  deferred,
   QUESO,
   renderScreen,
   SALE_OF_QUESO,
@@ -324,6 +325,73 @@ describe("SaleScreen weighing a product on the scale", () => {
     await scan(field, "7790001");
 
     await expect.element(screen.getByText("No se pudo agregar el producto")).toBeVisible();
+  });
+
+  it("shows no refusal when the answer of a cancelled weighing arrives late", async () => {
+    const answer = deferred<WeighProductOutcome>();
+    const { screen, field } = await scanning({
+      weighProduct: vi.fn(() => answer.promise),
+    });
+
+    await scan(field, "7790001");
+    await screen.getByRole("button", { name: "Cancelar" }).click();
+    answer.resolve({ kind: "not_sold_by_weight" });
+    await field.click();
+
+    await expect.element(field).toHaveValue("7790001");
+    await expect
+      .element(screen.getByText("Queso cremoso ya no se vende por kilo"))
+      .not.toBeInTheDocument();
+  });
+
+  it("keeps weighing another product when the answer of a cancelled weighing arrives late", async () => {
+    const answer = deferred<WeighProductOutcome>();
+    const weighProduct = vi
+      .fn<SaleScreenProps["weighProduct"]>()
+      .mockReturnValueOnce(answer.promise)
+      .mockResolvedValue(WEIGHING_OUTCOME);
+    const addWeighedProduct = vi.fn(
+      async (): Promise<AddWeighedProductOutcome> => ({ kind: "added", sale: SALE_OF_QUESO }),
+    );
+    const { screen, field } = await scanning({
+      addWeighedProduct,
+      scanProduct: vi
+        .fn<SaleScreenProps["scanProduct"]>()
+        .mockResolvedValueOnce(WEIGHT_NEEDED)
+        .mockResolvedValue({
+          kind: "weight_needed",
+          product_id: "p-salame",
+          product_name: "Salame",
+        }),
+      weighProduct,
+    });
+
+    await scan(field, "7790001");
+    await screen.getByRole("button", { name: "Cancelar" }).click();
+    await scan(field, "7790002");
+    await expect.element(screen.getByRole("heading", { name: "Peso de Salame" })).toBeVisible();
+    answer.resolve({ kind: "not_sold_by_weight" });
+    await screen.getByRole("button", { name: "Tipear peso" }).click();
+    await typeWeight(screen, "0,3");
+
+    expect(addWeighedProduct).toHaveBeenCalledExactlyOnceWith("p-salame", 300);
+    await expect
+      .element(screen.getByText("Queso cremoso ya no se vende por kilo"))
+      .not.toBeInTheDocument();
+  });
+
+  it("highlights the line of a cancelled weighing whose stable reading arrives late", async () => {
+    const answer = deferred<WeighProductOutcome>();
+    const { screen, field } = await scanning({ weighProduct: vi.fn(() => answer.promise) });
+    const lines = screen.getByRole("listitem");
+
+    await scan(field, "7790001");
+    await screen.getByRole("button", { name: "Cancelar" }).click();
+    answer.resolve({ kind: "added", sale: SALE_OF_QUESO });
+
+    await expect.element(lines).toHaveLength(1);
+    await expect.element(lines.first()).toHaveAttribute("aria-current", "true");
+    await expect.element(field).toHaveValue("");
   });
 
   it.each(["not_signed_in", "no_open_session"] as const)(

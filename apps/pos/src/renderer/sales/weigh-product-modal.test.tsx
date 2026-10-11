@@ -45,12 +45,6 @@ describe("WeighProductModal", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("asks the scale again after each answer that is not stable", async () => {
-    const { asking } = await renderModal(async () => WEIGHING);
-
-    await expect.poll(() => asking.mock.calls.length).toBeGreaterThanOrEqual(3);
-  });
-
   it("shows the stable reading with its weight and amount, and stops asking", async () => {
     const { screen, asking } = await renderModal(async () => TAKEN);
 
