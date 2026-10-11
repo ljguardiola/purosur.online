@@ -1,12 +1,14 @@
 import {
   type AdjustmentReason,
   isListedInStockBalances,
+  isLotInStock,
   type LossReason,
   type ManualStockMovementKind,
   type SaleUnit,
 } from "@purosur/domain";
 import type {
   LedgerAtMoment,
+  LotInStock,
   ProductStockKey,
   RecordedStockCount,
   RecordedStockMovement,
@@ -21,10 +23,14 @@ import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   categories,
+  lots,
   products,
+  purchaseLines,
+  purchases,
   stockBalances,
   stockCounts,
   stockMovements,
+  suppliers,
 } from "../platform/db/schema.js";
 import { appliedDeltaAfter } from "./stock-ledger-queries.js";
 
@@ -100,9 +106,47 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
         and(eq(stockBalances.productId, products.id), eq(stockBalances.locationId, locationId)),
       )
       .orderBy(asc(products.name), asc(products.id));
+    const lotsByProduct = new Map<string, LotInStock[]>();
+    for (const { productId, ...lot } of await this.lotsInStockAt(locationId)) {
+      lotsByProduct.set(productId, [...(lotsByProduct.get(productId) ?? []), lot]);
+    }
+    return rows.filter(isListedInStockBalances).map((row) => ({
+      ...row,
+      saleUnit: row.saleUnit as SaleUnit,
+      lots: lotsByProduct.get(row.id) ?? [],
+    }));
+  }
+
+  private async lotsInStockAt(locationId: string): Promise<(LotInStock & { productId: string })[]> {
+    const rows = await this.db
+      .select({
+        id: lots.id,
+        productId: lots.productId,
+        lotNumber: lots.lotNumber,
+        expiresOn: lots.expiresOn,
+        purchasedOn: lots.purchasedOn,
+        supplierName: suppliers.name,
+        remaining: lots.remaining,
+        costIncomplete: lots.costIncomplete,
+        costTotalCents: lots.costTotalCents,
+        costQuantity: lots.costQuantity,
+      })
+      .from(lots)
+      .leftJoin(purchaseLines, eq(purchaseLines.id, lots.purchaseLineId))
+      .leftJoin(purchases, eq(purchases.id, purchaseLines.purchaseId))
+      .leftJoin(suppliers, eq(suppliers.id, purchases.supplierId))
+      .where(eq(lots.locationId, locationId));
     return rows
-      .filter(isListedInStockBalances)
-      .map((row) => ({ ...row, saleUnit: row.saleUnit as SaleUnit }));
+      .filter(isLotInStock)
+      .map(({ purchasedOn, supplierName, costTotalCents, costQuantity, ...lot }) => ({
+        ...lot,
+        purchase:
+          purchasedOn === null || supplierName === null ? null : { purchasedOn, supplierName },
+        cost:
+          costTotalCents === null || costQuantity === null
+            ? null
+            : { totalCents: costTotalCents, quantity: costQuantity },
+      }));
   }
 
   async counts(query: StockPeriodQuery): Promise<RecordedStockCount[]> {

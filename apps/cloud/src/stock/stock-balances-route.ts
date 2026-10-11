@@ -1,4 +1,5 @@
 import { stockBalanceListSchema } from "@purosur/contracts";
+import { readStockBalances } from "@purosur/domain/stock/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
@@ -28,8 +29,8 @@ export function registerStockBalancesRoute<TQueryResult extends PgQueryResultHKT
     },
     async (request, reply) => {
       const { locationId } = openSessionOf(request);
-      const products = await reader.stockLevels(locationId);
-      await reply.code(200).send(stockBalanceListSchema.parse({ products }));
+      const balances = await readStockBalances({ stockList: reader }, { locationId });
+      await reply.code(200).send(stockBalanceListSchema.parse(balances));
     },
   );
 }
