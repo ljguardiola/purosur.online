@@ -128,12 +128,16 @@ export function withoutQueryParameters(text: string): string {
   return parametersStart === -1 ? text : text.slice(0, parametersStart);
 }
 
+export function reportsFailedQuery(text: string): boolean {
+  return text.includes(FAILED_QUERY);
+}
+
 // The error that made a query fail comes from Postgres, which echoes the value it refused between
 // double quotes without escaping a quote inside it, so everything from the first quote to the last
 // one is hidden.
 const ECHOED_VALUES_PATTERN = /"[\s\S]*"/;
 
-function withoutEchoedValues(text: string): string {
+export function withoutEchoedQueryValues(text: string): string {
   return text.replace(ECHOED_VALUES_PATTERN, `"${REDACTED}"`);
 }
 
@@ -176,7 +180,7 @@ function redactError(
   if (!(error.cause instanceof Error)) {
     return fields;
   }
-  const causeEchoesQueryValues = echoesQueryValues || error.message.includes(FAILED_QUERY);
+  const causeEchoesQueryValues = echoesQueryValues || reportsFailedQuery(error.message);
   return { ...fields, cause: redactValue(error.cause, enclosing, causeEchoesQueryValues) };
 }
 
@@ -203,7 +207,7 @@ function redactValue(
     return readableDate(value);
   }
   if (typeof value === "string") {
-    return redactString(echoesQueryValues ? withoutEchoedValues(value) : value);
+    return redactString(echoesQueryValues ? withoutEchoedQueryValues(value) : value);
   }
   if (typeof value === "number" && isIdentifierNumber(value)) {
     return REDACTED;
@@ -265,7 +269,7 @@ function causesFailedQuery(
   const visited = new Set<ExceptionValueLike>();
   let parent = byId.get(exceptionValue.mechanism?.parent_id);
   while (parent !== undefined && !visited.has(parent)) {
-    if (parent.value?.includes(FAILED_QUERY)) {
+    if (parent.value !== undefined && reportsFailedQuery(parent.value)) {
       return true;
     }
     visited.add(parent);
@@ -282,7 +286,7 @@ function scrubExceptionValues(values: ExceptionValueLike[]): ExceptionValueLike[
       return exceptionValue;
     }
     const text = causesFailedQuery(exceptionValue, byId)
-      ? withoutEchoedValues(exceptionValue.value)
+      ? withoutEchoedQueryValues(exceptionValue.value)
       : exceptionValue.value;
     return { ...exceptionValue, value: redactString(text) };
   });
