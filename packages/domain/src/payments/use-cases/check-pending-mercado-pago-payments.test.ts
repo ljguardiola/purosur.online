@@ -176,9 +176,9 @@ describe("checkPendingMercadoPagoPayments", () => {
 
       await checkPendingMercadoPagoPayments(notificationPorts);
 
-      const [{ idempotencyKey }] = mercadoPago.cancellations;
-      expect(idempotencyKey).toBe("cancellation-key-1");
-      expect(idempotencyKey).not.toBe(TRANSACTION_ID);
+      const keys = mercadoPago.cancellations.map((c) => c.idempotencyKey);
+      expect(keys).toEqual(["cancellation-key-1"]);
+      expect(keys).not.toContain(TRANSACTION_ID);
     });
 
     it("cancels with its own key after the route's cancellation failed", async () => {
