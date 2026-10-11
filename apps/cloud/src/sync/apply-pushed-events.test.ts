@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   alerts,
   cashSessions,
@@ -31,8 +31,8 @@ const route = eventsRouteUnderTest();
 const CASHIER = "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03";
 const AN_HOUR_MS = 60 * 60 * 1000;
 
-function applyAt(at: Date) {
-  return applySyncedEventsTask(route.db, { now: () => at });
+function applyAt(at: Date, report = vi.fn()) {
+  return applySyncedEventsTask(route.db, { now: () => at, report });
 }
 
 async function pushingFromARegister() {
@@ -271,17 +271,19 @@ describe("applying what POST /events received", () => {
   it("quarantines a sale whose cash session never arrives, flags it, and keeps applying other aggregates", async () => {
     const { installation, device } = await pushingFromARegister();
     const saleId = randomUUID();
+    const missingSession = randomUUID();
     await device.push([
       saleCompleted({
         saleId,
-        sessionId: randomUUID(),
+        sessionId: missingSession,
         completedAt: "2026-10-06T11:20:00.000Z",
         total: 2400,
         payments: [{ amount: 2400 }],
       }),
     ]);
+    const report = vi.fn();
     for (let run = 0; run < 12; run += 1) {
-      await applyAt(new Date(NOW.getTime() + run * 2 * AN_HOUR_MS));
+      await applyAt(new Date(NOW.getTime() + run * 2 * AN_HOUR_MS), report);
     }
     const independentSession = randomUUID();
     await device.push([cashSessionOpened(independentSession, "2026-10-06T12:00:00.000Z")]);
@@ -308,5 +310,18 @@ describe("applying what POST /events received", () => {
       .from(cashSessions)
       .where(eq(cashSessions.id, independentSession));
     expect(other?.id).toBe(independentSession);
+    expect(report).toHaveBeenCalledExactlyOnceWith(
+      "sync: a synced event was quarantined",
+      new Error(`depends on CashSession ${missingSession} not applied yet`),
+      {
+        context: {
+          deviceId: installation.deviceId,
+          eventId: quarantined?.eventId,
+          eventType: "sale_completed",
+          aggregateType: "Sale",
+          aggregateId: saleId,
+        },
+      },
+    );
   });
 });

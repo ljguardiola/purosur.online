@@ -7,6 +7,7 @@ import {
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
+import { reportError } from "../platform/error-reporting.js";
 import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { resolveSourceAddress } from "../platform/source-address.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
@@ -14,6 +15,7 @@ import { DrizzlePaymentNotificationAdmission } from "./drizzle-payment-notificat
 import { DrizzlePaymentTransactionDirectory } from "./drizzle-payment-transaction-directory.js";
 import { DrizzlePaymentTransactionLanes } from "./drizzle-payment-transaction-lanes.js";
 import { verifyMercadoPagoNotificationSignature } from "./mercado-pago-notification-signature.js";
+import { ReportedNotifications } from "./reported-notifications.js";
 
 export interface MercadoPagoNotificationRoutesOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -21,9 +23,13 @@ export interface MercadoPagoNotificationRoutesOptions<TQueryResult extends PgQue
   connections: DedicatedConnections<TQueryResult>;
   mercadoPago?: MercadoPagoOrders;
   webhookSecret?: string;
+  report?: typeof reportError;
 }
 
 const ORDER_NOTIFICATION_TYPE = "order";
+
+// Mercado Pago sends a notification again until it is answered 200, and each time it fails alike.
+const NOTIFICATIONS_REMEMBERED_AS_REPORTED = 1000;
 
 const PROVIDER_NOT_CONFIGURED = cloudError(
   "payment_provider_not_configured",
@@ -61,6 +67,8 @@ export function registerMercadoPagoNotificationRoutes<TQueryResult extends PgQue
   const admission = { admission: new DrizzlePaymentNotificationAdmission(options.db), clock };
   const directory = new DrizzlePaymentTransactionDirectory(options.db);
   const lanes = new DrizzlePaymentTransactionLanes(options.connections);
+  const report = options.report ?? reportError;
+  const reported = new ReportedNotifications(NOTIFICATIONS_REMEMBERED_AS_REPORTED);
 
   app.post(
     "/payments/mercado-pago/notifications",
@@ -93,6 +101,13 @@ export function registerMercadoPagoNotificationRoutes<TQueryResult extends PgQue
                 { providerOrderId: dataId },
               );
         if (outcome?.kind === "provider_unavailable") {
+          if (dataId !== undefined && reported.firstReport(`order:${dataId}`)) {
+            report(
+              "payments: a Mercado Pago order its notification named could not be read",
+              new Error("a Mercado Pago order its notification named could not be read"),
+              { context: { providerOrderId: dataId } },
+            );
+          }
           await reply.code(cloudErrorStatus(PROVIDER_UNAVAILABLE.code)).send(PROVIDER_UNAVAILABLE);
           return;
         }
@@ -124,6 +139,13 @@ export function registerMercadoPagoNotificationRoutes<TQueryResult extends PgQue
               }
             : { reason: signature.reason, type },
         );
+        if (reported.firstReport(JSON.stringify(["refused", type, dataId]))) {
+          report(
+            "payments: discarded a Mercado Pago notification with an invalid signature",
+            new Error("discarded a Mercado Pago notification with an invalid signature"),
+            { context: { reason: signature.reason, ...(type !== undefined && { type }) } },
+          );
+        }
         await reply.code(401).send();
         return;
       }

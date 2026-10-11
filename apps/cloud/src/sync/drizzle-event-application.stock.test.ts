@@ -293,6 +293,7 @@ describe("applying a pushed sale that moved stock", () => {
         eventApplication: system.application,
         upcaster: syncedEventUpcaster,
         clock: { now: () => new Date("2026-10-06T15:00:00.000Z") },
+        quarantineNotices: { quarantined: () => {} },
       },
       { limit: 10 },
     );

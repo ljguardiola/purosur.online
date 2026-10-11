@@ -50,6 +50,18 @@ describe("applySyncedEventsJobs", () => {
     expect(depsArgument.now()).toEqual(NOW);
   });
 
+  it("hands the run its error reporting, so each quarantine is reported as soon as it is committed", async () => {
+    const apply = vi.fn().mockResolvedValue({ kind: "idle" });
+    const report = vi.fn();
+    const { helpers } = buildJobHelpers();
+
+    await taskOf(
+      applySyncedEventsJobs({ now: () => NOW }, { createDatabase: vi.fn(), apply, report }),
+    )({}, helpers);
+
+    expect(apply.mock.calls[0]?.[1]).toMatchObject({ report });
+  });
+
   it("queues itself again when the batch ended with events left to apply", async () => {
     const apply = vi.fn().mockResolvedValue(processed(true));
     const { addJob, helpers } = buildJobHelpers();

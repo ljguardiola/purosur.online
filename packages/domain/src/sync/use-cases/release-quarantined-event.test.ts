@@ -6,6 +6,7 @@ import {
   aStoredEvent,
   FakeEventApplication,
   FakeEventUpcaster,
+  FakeQuarantineNotices,
   type FakeStoredEvent,
 } from "./test-support/fake-event-application.js";
 import { FakeQuarantineRelease } from "./test-support/fake-quarantine-release.js";
@@ -204,9 +205,19 @@ describe("what a release does to the events applied after it", () => {
     third: A_CASH_MOVEMENT_FACT,
   };
 
-  const run = (application: FakeEventApplication, upcaster: FakeEventUpcaster, now = NOW) =>
+  const run = (
+    application: FakeEventApplication,
+    upcaster: FakeEventUpcaster,
+    now = NOW,
+    notices = new FakeQuarantineNotices(),
+  ) =>
     applyPendingEvents(
-      { eventApplication: application, upcaster, clock: { now: () => now } },
+      {
+        eventApplication: application,
+        upcaster,
+        clock: { now: () => now },
+        quarantineNotices: notices,
+      },
       { limit: 100 },
     );
 
@@ -236,12 +247,21 @@ describe("what a release does to the events applied after it", () => {
     await releaseWith("stuck");
 
     const attemptsAfterEachRun: number[] = [];
+    const namedAfterEachRun: string[][] = [];
     for (let attempt = 0; attempt < 8; attempt += 1) {
-      await run(application, unreadable, new Date(NOW.getTime() + (attempt + 1) * 3_600_000));
+      const notices = new FakeQuarantineNotices();
+      await run(
+        application,
+        unreadable,
+        new Date(NOW.getTime() + (attempt + 1) * 3_600_000),
+        notices,
+      );
       attemptsAfterEachRun.push(application.event("stuck").attempts);
+      namedAfterEachRun.push(notices.named.map((one) => one.eventId));
     }
 
     expect(attemptsAfterEachRun).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(namedAfterEachRun).toEqual([[], [], [], [], [], [], [], ["stuck"]]);
     expect(application.event("stuck").quarantinedAt).not.toBeNull();
     expect(application.state.quarantineAlerts.map((alert) => alert.eventId)).toEqual(["stuck"]);
     expect(application.appliedEventIds).toEqual([]);
