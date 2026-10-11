@@ -1,4 +1,5 @@
 import { Modal } from "@purosur/ui";
+import { CircleX } from "lucide-react";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -137,7 +138,17 @@ describe("BarcodeReadings", () => {
     const core = fakeCore();
     const screen = await render(
       <BarcodeReadings onBarcodeRead={core.onBarcodeRead}>
-        <Modal open onOpenChange={() => {}} width="confirmation" title="Una ventana">
+        <Modal
+          open
+          onOpenChange={() => {}}
+          width="confirmation"
+          tone="error"
+          icon={<CircleX />}
+          context="Venta en curso"
+          title="Una ventana"
+          closable
+          footer={null}
+        >
           <p>Contenido</p>
         </Modal>
       </BarcodeReadings>,
@@ -148,9 +159,13 @@ describe("BarcodeReadings", () => {
     await expect.element(screen.getByRole("dialog", { name: "Una ventana" })).toBeVisible();
     await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
     await expect
-      .element(screen.getByRole("button", { name: "Cerrar" }).first())
-      .toBeInTheDocument();
-    await expect.element(screen.getByRole("status")).toHaveTextContent(NOTICE_TITLE);
+      .poll(() =>
+        Array.from(document.body.children).some(
+          (child) => child.hasAttribute("inert") && !child.hasAttribute("hidden"),
+        ),
+      )
+      .toBe(true);
+    expect(screen.getByRole("status").elements()).toHaveLength(1);
   });
 
   it("stops listening to the core once it is gone", async () => {
