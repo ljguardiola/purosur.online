@@ -282,8 +282,10 @@ describe("the register's receipt printing over its local database", () => {
       const papers = await printedPapers();
 
       expect(papers).toHaveLength(1);
-      expect(papers[0]?.textLines).toContain("               Comercio de Prueba");
-      expect(papers[0]?.textLines).toContain("             CAE N° 75123456789012");
+      expect(papers[0]?.textLines.some((line) => line.startsWith("Comercio de Prueba "))).toBe(
+        true,
+      );
+      expect(papers[0]?.textLines).toContain("             CAE 75123456789012  ·  Vto. 10/10/2026");
       const store = papers[0]?.text.match(/\[qr store (.*)\]/)?.[1] ?? "";
       expect(JSON.parse(atob(store.slice(QR_URL.length)))).toMatchObject({
         cuit: 20000000001,
@@ -314,7 +316,7 @@ describe("the register's receipt printing over its local database", () => {
       pendingAnswers[0]?.(json(AUTHORIZED_ANSWER));
       const papers = await printedPapers();
       expect(papers).toHaveLength(1);
-      expect(papers[0]?.textLines).toContain("             CAE N° 75123456789012");
+      expect(papers[0]?.textLines).toContain("             CAE 75123456789012  ·  Vto. 10/10/2026");
     });
 
     it.each([
