@@ -29,6 +29,7 @@ import {
   chargeSaleInCashFor,
   currentSaleFor,
   type OutboxSaleRequestDeps,
+  previewSaleLineAdjustmentFor,
   removeSaleLineFor,
   scanProductFor,
   searchProductsFor,
@@ -1400,6 +1401,110 @@ describe("changing the quantity of a line", () => {
     database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
 
     expect(await changeLineQuantityFor(deps(), lineId, 1, 2)).toEqual({ kind: "no_open_session" });
+  });
+});
+
+describe("previewing an adjustment of a line", () => {
+  function preview(
+    lineId: string,
+    adjustment: Parameters<typeof previewSaleLineAdjustmentFor>[1]["adjustment"],
+  ) {
+    return previewSaleLineAdjustmentFor(deps(), { lineId, adjustment });
+  }
+
+  it.each([
+    ["a percentage off", { kind: "PERCENT", value: 10 }, 300, 2700],
+    ["an amount off", { kind: "AMOUNT", value: 500 }, 500, 2500],
+    ["an overridden price", { kind: "PRICE", value: 1200 }, 0, 2400],
+  ] as const)(
+    "answers what %s would leave the line at, to a cashier without the permission to adjust",
+    async (_case, adjustment, discountAmount, lineTotal) => {
+      const lineId = await sellTwoYerbas();
+
+      expect(await preview(lineId, adjustment)).toEqual({
+        kind: "preview",
+        discount_amount: discountAmount,
+        line_total: lineTotal,
+      });
+    },
+  );
+
+  it("leaves the line and the events as they were", async () => {
+    const lineId = await sellTwoYerbas();
+    const lines = () =>
+      database
+        .prepare("SELECT manual_adjustment_kind, discount_amount, line_total FROM sale_lines")
+        .all();
+    const events = () => database.prepare("SELECT COUNT(*) AS total FROM outbox").all();
+    const before = { lines: lines(), events: events() };
+
+    await preview(lineId, { kind: "PERCENT", value: 10 });
+
+    expect({ lines: lines(), events: events() }).toEqual(before);
+  });
+
+  it.each([
+    ["a price equal to the list price", { kind: "PRICE", value: 1500 }, "same_as_list_price"],
+    [
+      "a discount above the line's gross amount",
+      { kind: "AMOUNT", value: 3001 },
+      "discount_exceeds_line",
+    ],
+  ] as const)("answers the domain's refusal of %s", async (_case, adjustment, kind) => {
+    const lineId = await sellTwoYerbas();
+
+    expect(await preview(lineId, adjustment)).toEqual({ kind });
+  });
+
+  it("answers the domain's refusal of a line the sale does not have", async () => {
+    await sellTwoYerbas();
+
+    expect(await preview("other-line", { kind: "PERCENT", value: 10 })).toEqual({
+      kind: "unknown_line",
+    });
+  });
+
+  it("answers that there is no sale to change", async () => {
+    expect(await preview("id-2", { kind: "PERCENT", value: 10 })).toEqual({
+      kind: "no_open_sale",
+    });
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    const lineId = await sellTwoYerbas();
+    signedInPerson.clear();
+
+    expect(await preview(lineId, { kind: "PERCENT", value: 10 })).toEqual({
+      kind: "not_signed_in",
+    });
+  });
+
+  it("answers not permitted to a person who sells but did not open the session", async () => {
+    const lineId = await sellTwoYerbas();
+    addPerson("u3", "cashier");
+    signedInPerson.set("u3");
+
+    expect(await preview(lineId, { kind: "PERCENT", value: 10 })).toEqual({
+      kind: "not_permitted",
+    });
+  });
+
+  it("answers that no session is open", async () => {
+    const lineId = await sellTwoYerbas();
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await preview(lineId, { kind: "PERCENT", value: 10 })).toEqual({
+      kind: "no_open_session",
+    });
+  });
+
+  it("answers that the lines cannot change once a payment was approved", async () => {
+    const saleId = await sellTwoForPayments();
+    await chargeSaleInCashFor(deps(), { saleId, tendered: 1000 });
+
+    expect(await preview("id-2", { kind: "PERCENT", value: 10 })).toEqual({
+      kind: "sale_has_payments",
+    });
   });
 });
 

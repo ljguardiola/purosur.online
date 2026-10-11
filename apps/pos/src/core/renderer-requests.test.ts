@@ -2,6 +2,7 @@ import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
+  PreviewSaleLineAdjustmentOutcome,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
@@ -47,7 +48,11 @@ import type { CashMovementRequest } from "./register/cash-movement-requests";
 import type { WireSerialDevices } from "./register/serial-devices-requests";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
-import type { AdjustSaleLineRequest, CancelPaidSaleRequest } from "./sales/sale-requests";
+import type {
+  AdjustSaleLineRequest,
+  CancelPaidSaleRequest,
+  PreviewSaleLineAdjustmentRequest,
+} from "./sales/sale-requests";
 import type { SalesHistoryRequest } from "./sales/sales-history-requests";
 
 function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
@@ -173,6 +178,14 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       ): Promise<ChangeLineWeightOutcome> => {
         saleChanges.push(
           ["weight", lineId, weightThousandths, expectedWeightThousandths].join(" "),
+        );
+        return { kind: "unknown_line" };
+      },
+      previewSaleLineAdjustment: async (
+        request: PreviewSaleLineAdjustmentRequest,
+      ): Promise<PreviewSaleLineAdjustmentOutcome> => {
+        saleChanges.push(
+          ["preview", request.lineId, request.adjustment.kind, request.adjustment.value].join(" "),
         );
         return { kind: "unknown_line" };
       },
@@ -2378,6 +2391,18 @@ describe("answerRendererRequest", () => {
         "adjusting a sale line",
         "adjust l1 PERCENT 10 Producto golpeado u2",
         "adjust-sale-line-result",
+      ],
+      [
+        "preview-sale-line-adjustment",
+        {
+          type: "preview-sale-line-adjustment",
+          line_id: "l1",
+          adjustment: { kind: "AMOUNT", value: 500 },
+        } as const,
+        "previewSaleLineAdjustment",
+        "previewing a sale line adjustment",
+        "preview l1 AMOUNT 500",
+        "preview-sale-line-adjustment-result",
       ],
       [
         "remove-sale-line",
