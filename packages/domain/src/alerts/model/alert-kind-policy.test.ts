@@ -29,6 +29,7 @@ describe("alertKindPolicy", () => {
       "environment",
       true,
     ],
+    ["arca_wsaa_ticket_held", "warning", null, "all", "environment", true],
     ["events_quarantined", "warning", afterOpening, "all", "event", true],
     ["event_invariant_violated", "warning", afterOpening, "all", "event", true],
     ["update_required", "critical", null, "all", "register", true],
@@ -88,7 +89,10 @@ describe("alertKindsWithScope", () => {
       "event_invariant_violated",
     ]);
     expect(alertKindsWithScope("pointOfSaleDocumentType")).toEqual(["fiscal_rejected"]);
-    expect(alertKindsWithScope("environment")).toEqual(["arca_certificate_expiring"]);
+    expect(alertKindsWithScope("environment")).toEqual([
+      "arca_certificate_expiring",
+      "arca_wsaa_ticket_held",
+    ]);
     expect(alertKindsWithScope("registerFortnight")).toEqual([
       "offline_authorization_code_missing",
     ]);

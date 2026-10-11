@@ -184,6 +184,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"arca_certificate_expiring">>().toEqualTypeOf<
       AlertDetails["arca_certificate_expiring"]
     >();
+    expectTypeOf<WireDetail<"arca_wsaa_ticket_held">>().toEqualTypeOf<
+      AlertDetails["arca_wsaa_ticket_held"]
+    >();
     expectTypeOf<WireDetail<"update_required">>().toEqualTypeOf<AlertDetails["update_required"]>();
     expectTypeOf<WireDetail<"register_silent">>().toEqualTypeOf<AlertDetails["register_silent"]>();
     expectTypeOf<WireDetail<"sales_denied">>().toEqualTypeOf<AlertDetails["sales_denied"]>();
@@ -308,6 +311,7 @@ describe("alertDetailSchema", () => {
         breaks: ["approved_payments_below_total"],
       },
       arca_certificate_expiring: { notAfter: "2026-11-20T15:30:00.000Z" },
+      arca_wsaa_ticket_held: {},
       update_required: { deviceId: "device-1", appVersion: "0.9.0" },
       register_silent: { deviceId: "device-1", lastAcceptedPushAt: "2026-10-05T14:30:00.000Z" },
       sales_denied: { deviceId: "device-1", reason: "event_history_broken" },

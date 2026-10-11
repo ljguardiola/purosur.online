@@ -17,6 +17,14 @@ describe("OpenAlertInput", () => {
     }>().toExtend<OpenAlertInput>();
   });
 
+  it("accepts no detail for a held-ticket alert", () => {
+    expectTypeOf<{
+      kind: "arca_wsaa_ticket_held";
+      scope: string;
+      detail: Record<string, never>;
+    }>().toExtend<OpenAlertInput>();
+  });
+
   it("accepts the device and the version that is no longer accepted for an update-required alert", () => {
     expectTypeOf<{
       kind: "update_required";
