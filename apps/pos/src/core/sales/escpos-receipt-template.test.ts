@@ -106,7 +106,9 @@ function printed(content: ReceiptContent, copy: ReceiptCopy = ORIGINAL) {
 const HEAD = [
   "[init]",
   "[codepage PC850]",
-  "[logo 384x200]",
+  "[feed dots 24]",
+  "[logo 576x280]",
+  "[feed dots 16]",
   "[small]                       Av. Belgrano 1450[/small]",
   "[small]              WhatsApp 11 5555-0100  ·  @puro.sur[/small]",
 ];
