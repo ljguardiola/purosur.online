@@ -374,8 +374,6 @@ function ProductDetail({ product }: { product: Product }) {
     items: [product],
     id: (item) => item.id,
     columns: productDetailColumns,
-    sort: { column: "none", direction: "ascending" },
-    onSortChange: () => {},
   });
   return (
     <div className="flex flex-col gap-2">

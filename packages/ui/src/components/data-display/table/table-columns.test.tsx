@@ -126,6 +126,7 @@ describe("actionsColumn", () => {
     expectTypeOf<TableColumnMeta>().toEqualTypeOf<{
       align?: "start" | "end";
       actionCount?: 1 | 2;
+      width?: number;
     }>();
   });
 });
