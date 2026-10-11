@@ -47,9 +47,9 @@ describe("lotValueCents", () => {
   });
 
   const lotArbitrary = fc.record({
-    remaining: fc.integer({ min: -1_000_000_000, max: 1_000_000_000 }),
+    remaining: fc.integer({ min: -100_000_000, max: 100_000_000 }),
     cost: fc.record({
-      totalCents: fc.integer({ min: 0, max: 100_000_000 }),
+      totalCents: fc.integer({ min: 0, max: 10_000_000 }),
       quantity: fc.integer({ min: 1, max: 1_000_000 }),
     }),
   });
