@@ -1,12 +1,16 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { beforeEach, expect, test, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { type StockBalancesFilters, stockBalancesFilters } from "./routes";
 import { StockBalancesScreen } from "./stock-balances-screen";
 import type { StockBalancesScreenServices } from "./stock-balances-services";
 import { almonds, crackers, expiringLot, honey, oats, tea } from "./test-support/stock-fixtures";
+
+beforeEach(async () => {
+  await page.viewport(1280, 900);
+});
 
 function createServices(): StockBalancesScreenServices {
   return { fetchStockBalances: vi.fn(), fetchProductLots: vi.fn() };
