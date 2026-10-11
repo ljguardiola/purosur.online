@@ -114,7 +114,7 @@ describe("discardRefund", () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, discarded));
 
     expect(await discardRefund(LATE_PAYMENT_REFUND_ID)).toEqual({ kind: "ok" });
-    expect(fetch).toHaveBeenCalledWith(`/api/refunds//discard`, {
+    expect(fetch).toHaveBeenCalledWith(`/api/refunds/${LATE_PAYMENT_REFUND_ID}/discard`, {
       method: "POST",
     });
   });
