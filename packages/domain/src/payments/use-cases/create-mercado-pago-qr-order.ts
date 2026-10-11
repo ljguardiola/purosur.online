@@ -112,14 +112,15 @@ export async function createMercadoPagoQrOrder(
         if (creation.kind === "unavailable") {
           return { kind: "provider_unavailable" };
         }
-        orderId = creation.orderId;
-        transaction = { ...transaction, providerOrderId: orderId };
+        const createdOrderId = creation.orderId;
+        orderId = createdOrderId;
+        transaction = { ...transaction, providerOrderId: createdOrderId };
 
         if (recorded === null) {
           const outcome = applyMercadoPagoOrderResult(transaction, creation.result);
           const readAt = clock.now();
           const state = await lane.inOneTransaction(async (atomic) => {
-            const created = await atomic.recordOrderCreated(paymentTransactionId, orderId, {
+            const created = await atomic.recordOrderCreated(paymentTransactionId, createdOrderId, {
               outcome,
               readAt,
             });
