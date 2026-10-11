@@ -28,6 +28,7 @@ export const FACTURA_C: FacturaC = {
     version: 3,
   },
   buyerTaxStatusCode: 5,
+  buyerTaxStatusDescription: "Consumidor Final",
 };
 
 export function openFiscalDatabase(): LocalDatabase {
