@@ -1,6 +1,10 @@
 import type { Clock, OperationAuthority } from "../../shared/index.js";
 import type { ManualAdjustmentValue } from "../model/manual-adjustment.js";
-import { grossLineTotal, withManualAdjustment } from "../model/sale-line.js";
+import {
+  type ManualAdjustmentRefusal,
+  manualAdjustmentRefusal,
+  withManualAdjustment,
+} from "../model/sale-line.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import {
   type ChangedLineOutcome,
@@ -30,8 +34,7 @@ export interface AdjustSaleLinePorts<Grant extends AdjustSaleLineGrant, Refusal>
 export type AdjustSaleLineOutcome =
   | SaleLineChangeRefusal
   | { kind: "unknown_line" }
-  | { kind: "same_as_list_price" }
-  | { kind: "discount_exceeds_line" }
+  | ManualAdjustmentRefusal
   | ChangedLineOutcome;
 
 export async function adjustSaleLine<Grant extends AdjustSaleLineGrant, Refusal>(
@@ -53,11 +56,9 @@ export async function adjustSaleLine<Grant extends AdjustSaleLineGrant, Refusal>
     if (!line) {
       return { kind: "unknown_line" };
     }
-    if (adjustment.kind === "PRICE" && adjustment.unitPrice === line.listUnitPrice) {
-      return { kind: "same_as_list_price" };
-    }
-    if (adjustment.kind === "AMOUNT" && adjustment.amount > grossLineTotal(line)) {
-      return { kind: "discount_exceeds_line" };
+    const refusal = manualAdjustmentRefusal(line, adjustment);
+    if (refusal) {
+      return refusal;
     }
 
     const updated = withManualAdjustment(line, {

@@ -2,7 +2,7 @@ import type { SaleUnit } from "../../catalog/index.js";
 import type { SoldQuantity } from "../../pricing/index.js";
 import { mayBeMovementQuantity, soldStockDelta } from "../../stock/index.js";
 import { chargeLine, listLineTotal } from "./line-pricing.js";
-import type { ManualAdjustment } from "./manual-adjustment.js";
+import type { ManualAdjustment, ManualAdjustmentValue } from "./manual-adjustment.js";
 import type { LinePromotion, SaleLine } from "./sale.js";
 import type { WeightSource } from "./weight-source.js";
 
@@ -87,6 +87,23 @@ export function withManualAdjustment(
   manualAdjustment: ManualAdjustment | null,
 ): SaleLine {
   return priced({ ...line, manualAdjustment }, line.quantity);
+}
+
+export type ManualAdjustmentRefusal =
+  | { kind: "same_as_list_price" }
+  | { kind: "discount_exceeds_line" };
+
+export function manualAdjustmentRefusal(
+  line: Pick<SaleLine, "quantity" | "saleUnit" | "listUnitPrice">,
+  adjustment: ManualAdjustmentValue,
+): ManualAdjustmentRefusal | undefined {
+  if (adjustment.kind === "PRICE" && adjustment.unitPrice === line.listUnitPrice) {
+    return { kind: "same_as_list_price" };
+  }
+  if (adjustment.kind === "AMOUNT" && adjustment.amount > grossLineTotal(line)) {
+    return { kind: "discount_exceeds_line" };
+  }
+  return undefined;
 }
 
 export function grossLineTotal(

@@ -68,6 +68,12 @@ export type {
 } from "./current-sale.js";
 export { currentSale } from "./current-sale.js";
 export type {
+  PreviewSaleLineAdjustmentInput,
+  PreviewSaleLineAdjustmentOutcome,
+  PreviewSaleLineAdjustmentPorts,
+} from "./preview-sale-line-adjustment.js";
+export { previewSaleLineAdjustment } from "./preview-sale-line-adjustment.js";
+export type {
   PrintSaleReceiptInput,
   PrintSaleReceiptOutcome,
   PrintSaleReceiptPorts,
