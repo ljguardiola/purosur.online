@@ -202,6 +202,22 @@ export const addWeighedProductOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type AddWeighedProductOutcome = z.infer<typeof addWeighedProductOutcomeSchema>;
 
+export const weighProductOutcomeSchema = z.discriminatedUnion("kind", [
+  addedOutcome,
+  z.object({ kind: z.literal("weighing") }),
+  z.object({ kind: z.literal("scale_unavailable") }),
+  z.object({ kind: z.literal("product_unavailable") }),
+  z.object({ kind: z.literal("not_sold_by_weight") }),
+  noPriceOutcome,
+  saleHasPaymentsOutcome,
+  notPermittedOutcome,
+  notSignedInOutcome,
+  noOpenSessionOutcome,
+  installationRevokedOutcome,
+  unavailableOutcome,
+]);
+export type WeighProductOutcome = z.infer<typeof weighProductOutcomeSchema>;
+
 const foundProductSchema = z.object({
   product_id: z.string(),
   name: z.string(),

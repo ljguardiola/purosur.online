@@ -1,6 +1,15 @@
-import type { DetectedSerialDevice, RegisteredSerialDevices } from "@purosur/domain";
+import type {
+  DetectedSerialDevice,
+  RegisteredSerialDevices,
+  SerialDeviceStanding,
+} from "@purosur/domain";
 import { describe, expect, it, vi } from "vitest";
-import { createSerialDeviceWatch, type SerialDeviceWatch } from "./serial-device-watch";
+import {
+  createSerialDeviceWatch,
+  pathOfMatchingDevice,
+  type SerialDeviceReading,
+  type SerialDeviceWatch,
+} from "./serial-device-watch";
 
 const SCALE = { vendorId: "1a86", productId: "7523" };
 const READER = { vendorId: "26f1", productId: "8802" };
@@ -350,5 +359,30 @@ describe("watching the registered serial devices", () => {
 
     expect(onFailure).toHaveBeenCalledTimes(1);
     expect(watch.reading()).toEqual({ kind: "unreadable" });
+  });
+});
+
+describe("the path of a registered device to talk to", () => {
+  function listed(scale: SerialDeviceStanding): SerialDeviceReading {
+    return { kind: "listed", standings: { scale, reader: { kind: "matching", path: "COM4" } } };
+  }
+
+  it("is the path where the registered device was found", () => {
+    expect(pathOfMatchingDevice(listed({ kind: "matching", path: "COM3" }), "scale")).toBe("COM3");
+  });
+
+  it.each([
+    { kind: "not_detected" },
+    { kind: "mismatched" },
+    { kind: "not_registered" },
+  ] satisfies SerialDeviceStanding[])("is none when the device is %j", (standing) => {
+    expect(pathOfMatchingDevice(listed(standing), "scale")).toBeUndefined();
+  });
+
+  it.each([
+    { kind: "unknown", registered: { scale: SCALE, reader: READER } },
+    { kind: "unreadable" },
+  ] satisfies SerialDeviceReading[])("is none while the devices are %j", (reading) => {
+    expect(pathOfMatchingDevice(reading, "scale")).toBeUndefined();
   });
 });

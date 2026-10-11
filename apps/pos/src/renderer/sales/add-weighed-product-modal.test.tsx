@@ -10,7 +10,10 @@ const WEIGHT_FIELD = "Peso en kg";
 
 type AddWeighedProduct = (weight: number) => Promise<"invalid_weight" | "done">;
 
-async function renderModal(addWeighedProduct: AddWeighedProduct = async () => "done") {
+async function renderModal(
+  addWeighedProduct: AddWeighedProduct = async () => "done",
+  notice?: string,
+) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
   const add = vi.fn(addWeighedProduct);
@@ -19,6 +22,7 @@ async function renderModal(addWeighedProduct: AddWeighedProduct = async () => "d
     <AddWeighedProductModal
       productName="Queso cremoso"
       addWeighedProduct={add}
+      notice={notice}
       onClose={onClose}
     />,
   );
@@ -96,5 +100,12 @@ describe("AddWeighedProductModal", () => {
 
     expect(onClose).toHaveBeenCalledOnce();
     expect(add).not.toHaveBeenCalled();
+  });
+
+  it("shows the notice it is given above the weight field", async () => {
+    const { screen } = await renderModal(async () => "done", "Un aviso");
+
+    await expect.element(screen.getByText("Un aviso").first()).toBeVisible();
+    await expect.element(screen.getByRole("textbox", { name: WEIGHT_FIELD })).toHaveFocus();
   });
 });

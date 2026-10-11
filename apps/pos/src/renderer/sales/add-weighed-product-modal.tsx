@@ -1,5 +1,12 @@
-import { Button, fieldErrorMessage, Modal, TextField, useRequestForm } from "@purosur/ui";
-import { Check, Scale } from "lucide-react";
+import {
+  Button,
+  fieldErrorMessage,
+  InlineNotice,
+  Modal,
+  TextField,
+  useRequestForm,
+} from "@purosur/ui";
+import { Check, Info, Scale } from "lucide-react";
 import { useEffect, useRef } from "react";
 import {
   addWeighedProductRequestSchema,
@@ -10,12 +17,14 @@ import {
 
 export type AddWeighedProductModalProps = {
   productName: string;
+  notice?: string | undefined;
   addWeighedProduct: (weightThousandths: number) => Promise<"invalid_weight" | "done">;
   onClose: () => void;
 };
 
 export function AddWeighedProductModal({
   productName,
+  notice,
   addWeighedProduct,
   onClose,
 }: AddWeighedProductModalProps) {
@@ -75,6 +84,9 @@ export function AddWeighedProductModal({
           void submit();
         }}
       >
+        {notice === undefined ? null : (
+          <InlineNotice tone="info" icon={<Info />} description={notice} />
+        )}
         <form.AppField name="weight">
           {(field) => (
             <TextField
