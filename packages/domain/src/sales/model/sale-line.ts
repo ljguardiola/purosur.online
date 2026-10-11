@@ -1,7 +1,8 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import type { SoldQuantity } from "../../pricing/index.js";
 import { mayBeMovementQuantity, soldStockDelta } from "../../stock/index.js";
-import { chargeLine } from "./line-pricing.js";
+import { chargeLine, listLineTotal } from "./line-pricing.js";
+import type { ManualAdjustment } from "./manual-adjustment.js";
 import type { LinePromotion, SaleLine } from "./sale.js";
 import type { WeightSource } from "./weight-source.js";
 
@@ -31,6 +32,7 @@ export function newSaleLine(
       promotions: [...promotions],
       saleUnit: "UNIT",
       weightSource: null,
+      manualAdjustment: null,
     },
     1,
   );
@@ -54,6 +56,7 @@ export function newWeighedSaleLine(
       promotions: [...promotions],
       saleUnit: "KG",
       weightSource,
+      manualAdjustment: null,
     },
     thousandths,
   );
@@ -64,7 +67,7 @@ export function withWeight(
   thousandths: number,
   weightSource: WeightSource,
 ): SaleLine {
-  return priced({ ...line, weightSource }, thousandths);
+  return priced({ ...withoutAmountDiscountOnChange(line, thousandths), weightSource }, thousandths);
 }
 
 export function saleUnitOfWeightSource(weightSource: WeightSource | null): SaleUnit {
@@ -76,7 +79,26 @@ export function addUnitToLine(line: SaleLine): SaleLine {
 }
 
 export function withQuantity(line: SaleLine, quantity: number): SaleLine {
-  return priced(line, quantity);
+  return priced(withoutAmountDiscountOnChange(line, quantity), quantity);
+}
+
+export function withManualAdjustment(
+  line: SaleLine,
+  manualAdjustment: ManualAdjustment | null,
+): SaleLine {
+  return priced({ ...line, manualAdjustment }, line.quantity);
+}
+
+export function grossLineTotal(
+  line: Pick<SaleLine, "quantity" | "saleUnit" | "listUnitPrice">,
+): number {
+  return listLineTotal(soldQuantity(line), line.listUnitPrice);
+}
+
+function withoutAmountDiscountOnChange(line: SaleLine, quantity: number): SaleLine {
+  return line.manualAdjustment?.kind === "AMOUNT" && quantity !== line.quantity
+    ? { ...line, manualAdjustment: null }
+    : line;
 }
 
 export function soldQuantity(line: Pick<SaleLine, "quantity" | "saleUnit">): SoldQuantity {
@@ -103,6 +125,7 @@ function priced(
     soldQuantity({ quantity, saleUnit: line.saleUnit }),
     line.listUnitPrice,
     line.promotions,
+    line.manualAdjustment,
   );
   return { ...line, quantity, promotionId, discountAmount, lineTotal };
 }

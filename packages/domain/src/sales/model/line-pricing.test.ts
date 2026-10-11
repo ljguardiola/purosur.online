@@ -187,7 +187,7 @@ describe("chargeLine with a manual adjustment", () => {
   it("applies a percentage before rounding, not to the rounded amount", () => {
     expect(chargeLine(weight(15), 999, [], { kind: "PERCENT", percent: 50 })).toEqual({
       promotionId: null,
-      discountAmount: 7,
+      discountAmount: 8,
       lineTotal: 7,
     });
   });

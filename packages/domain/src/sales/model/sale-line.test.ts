@@ -250,6 +250,7 @@ describe("newWeighedSaleLine", () => {
       listUnitPrice: 9000,
       priceListId: "list-1",
       promotions: [],
+      manualAdjustment: null,
       promotionId: null,
       discountAmount: 0,
       lineTotal: 11250,
