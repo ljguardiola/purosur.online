@@ -11,6 +11,7 @@ export interface ReceivedPurchaseLine {
 export interface PurchaseReceipt {
   locationId: string;
   occurredAt: Date;
+  purchasedOn: string;
   actorId: string;
   lines: readonly ReceivedPurchaseLine[];
 }
