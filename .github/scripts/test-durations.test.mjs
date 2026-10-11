@@ -100,6 +100,35 @@ test("spreads projects of a single file over different shards", () => {
   assert.deepEqual(buildsPerShard, [1, 1, 1]);
 });
 
+function estimatedLoads(entries, durations, count) {
+  return Array.from(
+    { length: count },
+    (_, i) => shardPlan(entries, durations, { index: i + 1, count }).estimatedMs,
+  );
+}
+
+test("evens out the total load when each project splits evenly", () => {
+  const cloud = ["a", "b"].map((f) => entry("cloud-integration", `${f}.test.ts`));
+  const node = ["c", "d"].map((f) => entry("node", `${f}.test.ts`));
+  const durations = Object.fromEntries(
+    [...cloud, ...node].map((e, i) => [e.key, [100, 1, 100, 1][i]]),
+  );
+
+  assert.deepEqual(estimatedLoads([...cloud, ...node], durations, 2), [101, 101]);
+});
+
+test("puts the second single-file project on the shard the first one left lighter", () => {
+  const first = entry("a-build", "a-build.test.ts");
+  const node = ["c", "d", "e"].map((f) => entry("node", `${f}.test.ts`));
+  const last = entry("z-build", "z-build.test.ts");
+  const entries = [first, ...node, last];
+  const durations = Object.fromEntries(
+    entries.map((e, i) => [e.key, [28_000, 100, 100, 1, 27_000][i]]),
+  );
+
+  assert.deepEqual(estimatedLoads(entries, durations, 2), [28_100, 27_101]);
+});
+
 test("gives the same shards whatever the order of the entries", () => {
   const entries = Array.from({ length: 9 }, (_, i) => entry("node", `f${i}.test.ts`));
   const durations = Object.fromEntries(entries.map((e, i) => [e.key, (i % 3) * 10 + 5]));
