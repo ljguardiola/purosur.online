@@ -8,6 +8,7 @@ import {
 } from "../model/unclear-outcome-decision.js";
 import { decideUnclearRealTimeOutcome } from "./decide-unclear-real-time-outcome.js";
 import type { AuthorizationRequestRecord } from "./fiscal-document-authorization-ports.js";
+import type { LastAuthorizedAnswer } from "./tax-authority-count-ports.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import {
   FakePointOfSaleLanes,
@@ -18,7 +19,6 @@ import {
   FakeTaxAuthorityVouchers,
   FakeUnclearOutcomeStore,
 } from "./test-support/fake-unclear-outcome.js";
-import type { LastAuthorizedAnswer } from "./tax-authority-count-ports.js";
 import type { VoucherAnswer } from "./unclear-outcome-ports.js";
 
 const FISCAL_DOCUMENT_ID = "fiscal-document-1";
@@ -106,7 +106,10 @@ function scenario({
   return { documents, store, clock, vouchers, lastAuthorizedLookup, ports };
 }
 
-function decide(ports: ReturnType<typeof scenario>["ports"], fiscalDocumentId = FISCAL_DOCUMENT_ID) {
+function decide(
+  ports: ReturnType<typeof scenario>["ports"],
+  fiscalDocumentId = FISCAL_DOCUMENT_ID,
+) {
   return decideUnclearRealTimeOutcome(ports, { fiscalDocumentId });
 }
 
@@ -128,7 +131,11 @@ describe("decideUnclearRealTimeOutcome", () => {
   it.each<[string, RealTimeAuthorizationAnswer]>([
     [
       "authorized",
-      { kind: "authorized", authorizationCode: "75123456789012", authorizationCodeDueOn: "2026-10-11" },
+      {
+        kind: "authorized",
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-11",
+      },
     ],
     ["rejected", { kind: "rejected", codes: [10015], rejectionClass: "content" }],
   ])("does nothing for a request the tax authority %s", async (_name, answer) => {
@@ -259,7 +266,10 @@ describe("decideUnclearRealTimeOutcome", () => {
   });
 
   it.each<[string, Scenario]>([
-    ["no voucher but the last authorized number reached the number", { lastAuthorized: { kind: "read", number: 41 } }],
+    [
+      "no voucher but the last authorized number reached the number",
+      { lastAuthorized: { kind: "read", number: 41 } },
+    ],
     ["the last authorized number unread", { lastAuthorized: { kind: "no_answer" } }],
     ["the voucher lookup unanswered", { voucher: { kind: "no_answer" } }],
     ["no valid token", { token: null }],

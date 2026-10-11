@@ -5,10 +5,7 @@ import {
   type UnclearOutcomeDecision,
   unclearOutcomeSettlesAt,
 } from "../model/unclear-outcome-decision.js";
-import type {
-  DecideUnclearRealTimeOutcomePorts,
-  UnclearRequest,
-} from "./unclear-outcome-ports.js";
+import type { DecideUnclearRealTimeOutcomePorts, UnclearRequest } from "./unclear-outcome-ports.js";
 
 export interface DecideUnclearRealTimeOutcomeInput {
   fiscalDocumentId: string;

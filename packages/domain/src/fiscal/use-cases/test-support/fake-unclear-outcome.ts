@@ -131,10 +131,7 @@ class FakeUnclearOutcomeLane implements UnclearOutcomeLane {
     return { decision: this.store.decisions.get(fiscalDocumentId)?.decision ?? null };
   }
 
-  async recordAbandonedRequest(
-    request: AbandonedRequestRecord,
-    abandonedAt: Date,
-  ): Promise<void> {
+  async recordAbandonedRequest(request: AbandonedRequestRecord, abandonedAt: Date): Promise<void> {
     this.store.documents.operations.push(`recordAbandonedRequest@${abandonedAt.toISOString()}`);
     if (this.store.recordingFailure !== undefined) {
       throw this.store.recordingFailure;

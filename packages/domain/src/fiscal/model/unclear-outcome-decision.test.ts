@@ -130,9 +130,9 @@ describe("decideUnclearOutcome", () => {
     });
 
     it("reports a voucher with other content as conflicting", () => {
-      expect(
-        decide({ kind: "voucher", voucher: { ...MATCHING_VOUCHER, total: 99_999 } }),
-      ).toEqual({ kind: "conflicting" });
+      expect(decide({ kind: "voucher", voucher: { ...MATCHING_VOUCHER, total: 99_999 } })).toEqual({
+        kind: "conflicting",
+      });
     });
 
     it("releases the number when there is no voucher and the last authorized number is below it", () => {
