@@ -1,6 +1,7 @@
 import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
+  AdjustSaleLineOutcome,
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
   ChangeLineQuantityOutcome,
@@ -136,6 +137,9 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
   const changeLineWeight =
     overrides.changeLineWeight ??
     vi.fn(async (): Promise<ChangeLineWeightOutcome> => ({ kind: "unavailable" }));
+  const adjustSaleLine =
+    overrides.adjustSaleLine ??
+    vi.fn(async (): Promise<AdjustSaleLineOutcome> => ({ kind: "unavailable" }));
   const removeSaleLine =
     overrides.removeSaleLine ??
     vi.fn(async (): Promise<RemoveSaleLineOutcome> => ({ kind: "unavailable" }));
@@ -170,6 +174,7 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
         weighProduct={weighProduct}
         changeLineQuantity={changeLineQuantity}
         changeLineWeight={changeLineWeight}
+        adjustSaleLine={adjustSaleLine}
         removeSaleLine={removeSaleLine}
         cancelSale={cancelSale}
         cancelPaidSale={cancelPaidSale}
