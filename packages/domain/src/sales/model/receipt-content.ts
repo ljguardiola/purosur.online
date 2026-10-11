@@ -1,6 +1,6 @@
+import type { SaleUnit } from "../../catalog/index.js";
 import type { AuthorizedFacturaC, FacturaCFiscalBlock } from "../../fiscal/index.js";
 import { facturaCFiscalBlock } from "../../fiscal/index.js";
-import type { SaleUnit } from "../../catalog/index.js";
 import type { DiscountBenefit } from "../../pricing/index.js";
 import type { CompletedSalePayment } from "./completed-sale.js";
 import type { LinePromotion } from "./sale.js";
@@ -94,6 +94,7 @@ export function receiptContent(source: ReceiptSource): ReceiptContent {
         0,
       ),
     },
-    fiscal: source.fiscal.kind === "authorized" ? facturaCFiscalBlock(source.fiscal.authorized) : null,
+    fiscal:
+      source.fiscal.kind === "authorized" ? facturaCFiscalBlock(source.fiscal.authorized) : null,
   };
 }
