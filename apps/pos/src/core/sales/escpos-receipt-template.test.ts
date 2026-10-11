@@ -199,6 +199,7 @@ const FISCAL_BODY = [
   "[small]Inicio de actividades 15/01/2020[/small]",
   RULE,
   ...SALE_OF_MIXED_SALE,
+  "[feed dots 16]",
   "[align center]",
   "[qr model 2]",
   "[qr module 4]",
@@ -206,6 +207,7 @@ const FISCAL_BODY = [
   `[qr store ${QR_TEXT}]`,
   "[qr print]",
   "[align left]",
+  "[feed dots 8]",
   "[small]                     Comprobante autorizado[/small]",
   "[small]             CAE 71234567890123  ·  Vto. 10/10/2026[/small]",
   ...CLOSING,
@@ -382,6 +384,23 @@ describe("the ESC/POS receipt template", () => {
     expect(written(1)).toContain("Operación 000001                     Atendió Ada");
     expect(written(1_234_567)).toContain("Operación 1234567                    Atendió Ada");
   });
+
+  it.each(["Ana María", "  Ana María López ", "Ana"])(
+    "names who served the sale %j by the first word of their name",
+    (name) => {
+      const { textLines } = printed(
+        receipt({
+          operation: {
+            occurredAt: new Date("2026-09-30T15:05:00.000Z"),
+            servedByFirstName: name,
+            operationNumber: 482,
+          },
+        }),
+      );
+
+      expect(textLines).toContain("Operación 000482                     Atendió Ana");
+    },
+  );
 
   it("writes the moment of the sale in Argentina's time", () => {
     const { textLines } = printed(
@@ -610,6 +629,19 @@ describe("the ESC/POS receipt template", () => {
 
       expect(textLines.some((line) => /Importe neto|IVA/.test(line))).toBe(false);
     });
+
+    it.each([
+      { text: "x".repeat(10), module: 12 },
+      { text: QR_TEXT, module: 4 },
+      { text: "x".repeat(600), module: 3 },
+    ])(
+      "prints a QR of $text.length characters with modules of $module dots, the side nearest to 244 dots",
+      ({ text, module }) => {
+        const printout = printed(receipt({ fiscal: { ...FISCAL_BLOCK, qrText: text } })).text;
+
+        expect(printout).toContain(`[qr module ${module}]`);
+      },
+    );
 
     it("prints a QR whose text carries the voucher's data as the tax authority defines", () => {
       const store = printed(fiscalReceipt()).text.match(/\[qr store (.*)\]/)?.[1] ?? "";
