@@ -35,6 +35,7 @@ const YERBA_LINE = {
   listUnitPrice: 2500,
   priceListId: "list-1",
   promotions: [],
+  manualAdjustment: null,
   promotionId: null,
   discountAmount: 0,
   lineTotal: 7500,
@@ -168,6 +169,7 @@ describe("changeLineQuantity", () => {
     const promoted = {
       ...YERBA_LINE,
       promotions: [TEN_PERCENT, THREE_FOR_TWO],
+      manualAdjustment: null,
       promotionId: "three-for-two",
       discountAmount: 2500,
       lineTotal: 5000,
@@ -179,6 +181,7 @@ describe("changeLineQuantity", () => {
     expect(storedLine(store, "line-1")).toEqual({
       ...promoted,
       quantity: 2,
+      manualAdjustment: null,
       promotionId: "ten",
       discountAmount: 500,
       lineTotal: 4500,
@@ -193,6 +196,7 @@ describe("changeLineQuantity", () => {
     const promoted = {
       ...YERBA_LINE,
       promotions: [threeForOne],
+      manualAdjustment: null,
       promotionId: "three-for-one",
       discountAmount: 5000,
       lineTotal: 2500,
@@ -204,6 +208,7 @@ describe("changeLineQuantity", () => {
     expect(storedLine(store, "line-1")).toEqual({
       ...promoted,
       quantity: 2,
+      manualAdjustment: null,
       promotionId: null,
       discountAmount: 0,
       lineTotal: 5000,
@@ -215,6 +220,7 @@ describe("changeLineQuantity", () => {
       ...YERBA_LINE,
       quantity: 2,
       promotions: [TEN_PERCENT, THREE_FOR_TWO],
+      manualAdjustment: null,
       promotionId: "ten",
       discountAmount: 500,
       lineTotal: 4500,
@@ -226,6 +232,7 @@ describe("changeLineQuantity", () => {
     expect(storedLine(store, "line-1")).toEqual({
       ...tenPercent,
       quantity: 3,
+      manualAdjustment: null,
       promotionId: "three-for-two",
       discountAmount: 2500,
       lineTotal: 5000,

@@ -5,6 +5,7 @@ import { MAX_STOCK_QUANTITY, mayBeMovementQuantity, soldStockDelta } from "../..
 import type { LinePromotion } from "./sale.js";
 import {
   addUnitToLine,
+  grossLineTotal,
   mayBeSaleLineQuantity,
   newSaleLine,
   newWeighedSaleLine,
@@ -12,6 +13,7 @@ import {
   saleUnitOfWeightSource,
   soldLineStockDelta,
   soldQuantity,
+  withManualAdjustment,
   withQuantity,
   withWeight,
 } from "./sale-line.js";
@@ -39,6 +41,7 @@ describe("newSaleLine", () => {
       promotionId: null,
       discountAmount: 0,
       lineTotal: 2500,
+      manualAdjustment: null,
     });
   });
 
@@ -429,6 +432,154 @@ describe("mayBeSaleLineQuantity", () => {
           );
         },
       ),
+    );
+  });
+});
+
+const PRICE_OVERRIDE = {
+  kind: "PRICE",
+  unitPrice: 2000,
+  reason: "damaged box",
+  authorizedBy: null,
+} as const;
+const PERCENT_DISCOUNT = {
+  kind: "PERCENT",
+  percent: 20,
+  reason: "regular",
+  authorizedBy: "ana",
+} as const;
+const AMOUNT_DISCOUNT = {
+  kind: "AMOUNT",
+  amount: 300,
+  reason: "regular",
+  authorizedBy: null,
+} as const;
+
+describe("withManualAdjustment", () => {
+  it("prices the line with the adjustment, keeping its list price and frozen promotions", () => {
+    const line = newSaleLine("line-1", PRODUCT, PRICE, [TEN_PERCENT]);
+
+    expect(withManualAdjustment(withQuantity(line, 2), PERCENT_DISCOUNT)).toEqual({
+      ...line,
+      quantity: 2,
+      manualAdjustment: PERCENT_DISCOUNT,
+      promotionId: null,
+      discountAmount: 1000,
+      lineTotal: 4000,
+    });
+  });
+
+  it("replaces the promotion the line had", () => {
+    const line = newSaleLine("line-1", PRODUCT, PRICE, [TEN_PERCENT]);
+
+    expect(line.promotionId).toBe("ten");
+    expect(withManualAdjustment(line, AMOUNT_DISCOUNT)).toEqual(
+      expect.objectContaining({ promotionId: null, discountAmount: 300, lineTotal: 2200 }),
+    );
+  });
+
+  it("replaces the adjustment the line had", () => {
+    const line = newSaleLine("line-1", PRODUCT, PRICE, []);
+    const overridden = withManualAdjustment(line, PRICE_OVERRIDE);
+
+    expect(overridden.lineTotal).toBe(2000);
+    expect(withManualAdjustment(overridden, PERCENT_DISCOUNT)).toEqual(
+      expect.objectContaining({
+        manualAdjustment: PERCENT_DISCOUNT,
+        discountAmount: 500,
+        lineTotal: 2000,
+      }),
+    );
+    expect(withManualAdjustment(overridden, PERCENT_DISCOUNT).listUnitPrice).toBe(2500);
+  });
+
+  it("returns the line to its best promotion when the adjustment is removed", () => {
+    const line = newSaleLine("line-1", PRODUCT, PRICE, [TEN_PERCENT]);
+    const adjusted = withManualAdjustment(line, PRICE_OVERRIDE);
+
+    expect(adjusted.promotionId).toBeNull();
+    expect(withManualAdjustment(adjusted, null)).toEqual(line);
+  });
+
+  it("does not modify the line it was given", () => {
+    const line = newSaleLine("line-1", PRODUCT, PRICE, []);
+
+    withManualAdjustment(line, PRICE_OVERRIDE);
+
+    expect(line.manualAdjustment).toBeNull();
+    expect(line.lineTotal).toBe(2500);
+  });
+});
+
+describe("grossLineTotal", () => {
+  it("is the rounded list amount of the line whatever its promotion or adjustment", () => {
+    const weighed = newWeighedSaleLine("line-1", PRODUCT, PRICE, [TEN_PERCENT], 1500, "MANUAL");
+
+    expect(grossLineTotal(weighed)).toBe(3750);
+    expect(grossLineTotal(withManualAdjustment(weighed, PRICE_OVERRIDE))).toBe(3750);
+    expect(grossLineTotal(withQuantity(newSaleLine("line-1", PRODUCT, PRICE, []), 3))).toBe(7500);
+  });
+});
+
+describe("changing the quantity of a line with a manual adjustment", () => {
+  const base = newSaleLine("line-1", PRODUCT, PRICE, [TEN_PERCENT, THREE_FOR_TWO]);
+
+  it("removes a discount by amount and goes back to the best promotion", () => {
+    const adjusted = withManualAdjustment(base, AMOUNT_DISCOUNT);
+
+    expect(withQuantity(adjusted, 3)).toEqual(withQuantity(base, 3));
+    expect(addUnitToLine(adjusted)).toEqual(addUnitToLine(base));
+  });
+
+  it("keeps a discount by percentage and recomputes it", () => {
+    const adjusted = withManualAdjustment(base, PERCENT_DISCOUNT);
+
+    expect(withQuantity(adjusted, 3)).toEqual(
+      expect.objectContaining({
+        manualAdjustment: PERCENT_DISCOUNT,
+        promotionId: null,
+        discountAmount: 1500,
+        lineTotal: 6000,
+      }),
+    );
+  });
+
+  it("keeps an overridden price and recomputes it", () => {
+    const adjusted = withManualAdjustment(base, PRICE_OVERRIDE);
+
+    expect(addUnitToLine(adjusted)).toEqual(
+      expect.objectContaining({ manualAdjustment: PRICE_OVERRIDE, lineTotal: 4000 }),
+    );
+  });
+
+  it("keeps a discount by amount when the quantity is the same", () => {
+    const adjusted = withManualAdjustment(base, AMOUNT_DISCOUNT);
+
+    expect(withQuantity(adjusted, 1)).toEqual(adjusted);
+  });
+});
+
+describe("changing the weight of a line with a manual adjustment", () => {
+  const base = newWeighedSaleLine("line-1", PRODUCT, PRICE, [TEN_PERCENT], 1000, "SCALE");
+
+  it("removes a discount by amount", () => {
+    const adjusted = withManualAdjustment(base, AMOUNT_DISCOUNT);
+
+    expect(withWeight(adjusted, 2000, "MANUAL")).toEqual(withWeight(base, 2000, "MANUAL"));
+  });
+
+  it("keeps a discount by amount when only the weight source changes", () => {
+    const adjusted = withManualAdjustment(base, AMOUNT_DISCOUNT);
+
+    expect(withWeight(adjusted, 1000, "MANUAL")).toEqual({ ...adjusted, weightSource: "MANUAL" });
+  });
+
+  it("keeps a discount by percentage and an overridden price", () => {
+    expect(withWeight(withManualAdjustment(base, PERCENT_DISCOUNT), 2000, "MANUAL")).toEqual(
+      expect.objectContaining({ manualAdjustment: PERCENT_DISCOUNT, lineTotal: 4000 }),
+    );
+    expect(withWeight(withManualAdjustment(base, PRICE_OVERRIDE), 2000, "MANUAL")).toEqual(
+      expect.objectContaining({ manualAdjustment: PRICE_OVERRIDE, lineTotal: 4000 }),
     );
   });
 });

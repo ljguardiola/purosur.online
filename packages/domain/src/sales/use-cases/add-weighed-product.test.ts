@@ -108,6 +108,7 @@ describe("addWeighedProduct", () => {
           listUnitPrice: 9000,
           priceListId: "list-1",
           promotions: [],
+          manualAdjustment: null,
           promotionId: null,
           discountAmount: 0,
           lineTotal: 11250,
@@ -160,6 +161,7 @@ describe("addWeighedProduct", () => {
       listUnitPrice: 2500,
       priceListId: "list-1",
       promotions: [],
+      manualAdjustment: null,
       promotionId: null,
       discountAmount: 0,
       lineTotal: 5000,
@@ -183,6 +185,7 @@ describe("addWeighedProduct", () => {
     expect(outcome.kind === "added" && outcome.sale.lines).toEqual([
       expect.objectContaining({
         promotions: [{ id: "ten", benefit: TEN_PERCENT.benefit }],
+        manualAdjustment: null,
         promotionId: "ten",
         discountAmount: 1800,
         lineTotal: 16200,

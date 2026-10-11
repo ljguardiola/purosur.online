@@ -175,6 +175,7 @@ export class FakeSaleLedger implements SaleLedger {
                   ...stored,
                   quantity: line.quantity,
                   weightSource: line.weightSource,
+                  manualAdjustment: line.manualAdjustment,
                   promotionId: line.promotionId,
                   discountAmount: line.discountAmount,
                   lineTotal: line.lineTotal,

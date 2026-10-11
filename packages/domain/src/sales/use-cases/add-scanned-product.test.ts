@@ -138,6 +138,7 @@ describe("addScannedProduct", () => {
           listUnitPrice: 2500,
           priceListId: "list-1",
           promotions: [],
+          manualAdjustment: null,
           promotionId: null,
           discountAmount: 0,
           lineTotal: 2500,
@@ -580,6 +581,7 @@ describe("addScannedProduct", () => {
           { id: "ten", benefit: { kind: "PERCENT_OFF", percent: 10 } },
           { id: "three-for-two", benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
         ],
+        manualAdjustment: null,
         promotionId: "ten",
         discountAmount: 250,
         lineTotal: 2250,
@@ -598,6 +600,7 @@ describe("addScannedProduct", () => {
       expect(applied).toEqual(["ten", "ten", "three-for-two"]);
       expect(store.state.sales[0]?.lines[0]).toEqual(
         expect.objectContaining({
+          manualAdjustment: null,
           promotionId: "three-for-two",
           discountAmount: 2500,
           lineTotal: 5000,
@@ -618,6 +621,7 @@ describe("addScannedProduct", () => {
       expect(outcome.kind === "added" && outcome.sale.lines).toEqual([
         expect.objectContaining({
           promotions: [],
+          manualAdjustment: null,
           promotionId: null,
           discountAmount: 0,
           lineTotal: 2500,
