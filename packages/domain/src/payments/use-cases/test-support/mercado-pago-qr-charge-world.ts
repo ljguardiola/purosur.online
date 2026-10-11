@@ -44,7 +44,11 @@ export class FakeMercadoPagoQrChargeWorld
   saleRefusal: SaleRefusal | undefined;
   replacementRefusal: SaleRefusal | undefined;
   settlement: SaleSettlement = { kind: "completed", saleId: QR_SALE_ID, total: 5000 };
-  orderAnswer: MercadoPagoQrChargeOrderAnswer = { kind: "created" };
+  orderAnswer: MercadoPagoQrChargeOrderAnswer = {
+    kind: "created",
+    expiresAt: QR_CHARGE_WAIT_ENDS_AT,
+  };
+  readonly scriptedReadings: MercadoPagoQrChargeOrderReading[] = [];
   orderReading: MercadoPagoQrChargeOrderReading = { kind: "read", state: "PENDING" };
   orderCancellation: MercadoPagoQrChargeOrderCancellation = {
     kind: "answered",
@@ -126,7 +130,7 @@ export class FakeMercadoPagoQrChargeWorld
   async readOrder(paymentTransactionId: string): Promise<MercadoPagoQrChargeOrderReading> {
     this.operations.push("readOrder");
     this.readOrders.push(paymentTransactionId);
-    return this.orderReading;
+    return this.scriptedReadings.shift() ?? this.orderReading;
   }
 
   async cancelOrder(paymentTransactionId: string): Promise<MercadoPagoQrChargeOrderCancellation> {
@@ -152,11 +156,11 @@ export class FakeMercadoPagoQrChargeWorld
     }
   }
 
-  endWait(paymentTransactionId: string, endedAt: Date): void {
-    this.operations.push(`endWait:${endedAt.toISOString()}`);
+  recordWaitEnd(paymentTransactionId: string, waitEndsAt: Date): void {
+    this.operations.push(`recordWaitEnd:${waitEndsAt.toISOString()}`);
     const charge = this.charges.get(paymentTransactionId);
     if (charge !== undefined && charge.state === "PENDING") {
-      charge.waitEndsAt = endedAt;
+      charge.waitEndsAt = waitEndsAt;
     }
   }
 
