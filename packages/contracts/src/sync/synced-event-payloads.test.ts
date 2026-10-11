@@ -1130,7 +1130,7 @@ describe("sale_cancelled v1", () => {
   });
 
   it("refuses a version nobody emitted", () => {
-    expect(syncedEventPayloadKey("sale_cancelled", 3)).toBeUndefined();
+    expect(syncedEventPayloadKey("sale_cancelled", 4)).toBeUndefined();
   });
 
   it("refuses a cancelled sale without payments", () => {
