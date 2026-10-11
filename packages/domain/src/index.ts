@@ -200,6 +200,7 @@ export {
   NUMBER_CONSUMING_STATES,
   nextBuyerTaxStatusFetchAt,
   nextOfflineNumber,
+  OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS,
   OFFLINE_NUMBER_BLOCK_STATUSES,
   offlineAuthorizationCodeRequestOpensOn,
   POINT_OF_SALE_NUMBER_MAX,

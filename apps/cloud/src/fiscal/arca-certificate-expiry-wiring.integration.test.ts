@@ -9,7 +9,11 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { enqueueArcaCertificateExpiryCheck } from "./arca-certificate-expiry-task.js";
+import {
+  ARCA_CERTIFICATE_EXPIRY_CHECK_TASK_IDENTIFIER,
+  enqueueArcaCertificateExpiryCheck,
+} from "./arca-certificate-expiry-task.js";
+import { ARCA_VITALITY_CHECK_TASK_IDENTIFIER } from "./arca-vitality-task.js";
 import { UNREACHABLE_WSFE_ENDPOINT } from "./test-support/fake-wsfe-server.js";
 
 const UNUSED_EMAIL_SENDER: AccessEmailSender = {
@@ -21,6 +25,7 @@ const NOW = new Date("2026-06-01T12:00:00.000Z");
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EXPIRING = new Date(NOW.getTime() + 20 * DAY_MS);
 const RENEWED = new Date(NOW.getTime() + 400 * DAY_MS);
+const NEXT_VITALITY_CHECK_AT = new Date("2126-01-01T00:00:00.000Z");
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
@@ -37,6 +42,15 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
+async function pendingCertificateExpiryChecks() {
+  return sql`
+    select 1
+    from graphile_worker._private_jobs j
+    join graphile_worker._private_tasks t on t.id = j.task_id
+    where t.identifier = ${ARCA_CERTIFICATE_EXPIRY_CHECK_TASK_IDENTIFIER}
+  `;
+}
+
 async function runCheckOfCertificateExpiringAt(notAfter: Date): Promise<void> {
   const recovery = await setUpRecovery(
     {
@@ -52,11 +66,15 @@ async function runCheckOfCertificateExpiringAt(notAfter: Date): Promise<void> {
     { emailSender: UNUSED_EMAIL_SENDER },
   );
   try {
+    await recovery.workerUtils.addJob(
+      ARCA_VITALITY_CHECK_TASK_IDENTIFIER,
+      {},
+      { jobKey: ARCA_VITALITY_CHECK_TASK_IDENTIFIER, runAt: NEXT_VITALITY_CHECK_AT },
+    );
     await enqueueArcaCertificateExpiryCheck(recovery.workerUtils);
     await vi.waitFor(
       async () => {
-        const jobs = await sql`select 1 from graphile_worker._private_jobs`;
-        expect(jobs).toHaveLength(0);
+        expect(await pendingCertificateExpiryChecks()).toHaveLength(0);
       },
       { timeout: 20_000, interval: 100 },
     );
@@ -79,7 +97,7 @@ function openAlerts() {
 }
 
 describe("the certificate expiry check the server sets up on a real Postgres", () => {
-  it("opens the alert for an expiring certificate and resolves it once a certificate with a later expiry is loaded", async () => {
+  it("opens the alert for an expiring certificate and resolves it once a certificate with a later expiry is loaded, while the next vitality check waits in the queue", async () => {
     await runCheckOfCertificateExpiringAt(EXPIRING);
 
     const [opened] = await openAlerts();

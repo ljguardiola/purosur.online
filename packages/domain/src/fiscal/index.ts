@@ -64,6 +64,7 @@ export {
   fortnightsWithinRequestWindowOn,
   hasFortnightStarted,
   isSecondHalfOfMonth,
+  OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS,
   offlineAuthorizationCodeRequestOpensOn,
 } from "./model/offline-authorization-code.js";
 export { mustHoldOfflineAuthorizationCode } from "./model/offline-authorization-code-holding.js";
