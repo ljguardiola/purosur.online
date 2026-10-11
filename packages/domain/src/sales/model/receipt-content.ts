@@ -30,7 +30,7 @@ interface ReceiptSourcePayment {
   tendered: number | null;
 }
 
-export type ReceiptSourceFiscalDocument =
+type ReceiptSourceFiscalDocument =
   | { kind: "none" }
   | { kind: "awaiting" }
   | { kind: "authorized"; authorized: AuthorizedFacturaC };
