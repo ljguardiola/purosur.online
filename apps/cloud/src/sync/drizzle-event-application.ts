@@ -124,7 +124,12 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
       case "reprint_recorded":
         return recordAppliedReprint(this.tx, await this.originOf(event), fact);
       case "qr_payment_replaced":
-        return recordAppliedQrPaymentReplacement(this.tx, await this.originOf(event), fact);
+        return recordAppliedQrPaymentReplacement(
+          this.tx,
+          await this.originOf(event),
+          fact,
+          this.now(),
+        );
       case "fiscal_gate_failed":
         return;
     }

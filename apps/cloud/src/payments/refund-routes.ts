@@ -1,5 +1,13 @@
-import { markedRefundDoneSchema, pendingRefundsSchema } from "@purosur/contracts";
-import { listPendingRefunds, markRefundDone } from "@purosur/domain/payments/use-cases";
+import {
+  discardedRefundSchema,
+  markedRefundDoneSchema,
+  pendingRefundsSchema,
+} from "@purosur/contracts";
+import {
+  discardRefund,
+  listPendingRefunds,
+  markRefundDone,
+} from "@purosur/domain/payments/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readRecordIds } from "../platform/record-id-params.js";
@@ -21,6 +29,21 @@ const REFUND_NOT_FOUND_RESPONSE = {
 const ALREADY_DONE_RESPONSE = {
   code: "already_done",
   message: "this refund was already marked as done",
+} as const;
+
+const REFUND_DISCARDED_RESPONSE = {
+  code: "refund_discarded",
+  message: "this refund was discarded",
+} as const;
+
+const REFUND_NOT_DISCARDABLE_RESPONSE = {
+  code: "refund_not_discardable",
+  message: "only the refund of a late payment can be discarded",
+} as const;
+
+const ALREADY_DISCARDED_RESPONSE = {
+  code: "already_discarded",
+  message: "this refund was already discarded",
 } as const;
 
 export interface RefundRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -56,6 +79,8 @@ export function registerRefundRoutes<TQueryResult extends PgQueryResultHKT>(
             register_id: refund.registerId,
             register_name: refund.registerName,
             method: refund.method,
+            origin: refund.origin,
+            discardable: refund.discardable,
             amount: refund.amount,
             occurred_at: refund.occurredAt.toISOString(),
             cancelled_by: refund.cancelledBy,
@@ -83,6 +108,10 @@ export function registerRefundRoutes<TQueryResult extends PgQueryResultHKT>(
         await reply.code(404).send(REFUND_NOT_FOUND_RESPONSE);
         return;
       }
+      if (outcome.kind === "discarded") {
+        await reply.code(409).send(REFUND_DISCARDED_RESPONSE);
+        return;
+      }
       if (outcome.kind === "already_done") {
         await reply.code(409).send(ALREADY_DONE_RESPONSE);
         return;
@@ -91,6 +120,44 @@ export function registerRefundRoutes<TQueryResult extends PgQueryResultHKT>(
         markedRefundDoneSchema.parse({
           refund_id: outcome.refundId,
           done_at: outcome.doneAt.toISOString(),
+        }),
+      );
+    },
+  );
+
+  app.post(
+    "/refunds/:id/discard",
+    { preHandler: backofficeOriginGuard(options.backofficeOrigin), config },
+    async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
+      const { locationId, userId } = openSessionOf(request);
+      const outcome = await discardRefund(
+        { store, clock: { now } },
+        { refundId: ids.id, locationId, actorId: userId },
+      );
+      if (outcome.kind === "not_found") {
+        await reply.code(404).send(REFUND_NOT_FOUND_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "not_discardable") {
+        await reply.code(409).send(REFUND_NOT_DISCARDABLE_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "already_done") {
+        await reply.code(409).send(ALREADY_DONE_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "already_discarded") {
+        await reply.code(409).send(ALREADY_DISCARDED_RESPONSE);
+        return;
+      }
+      await reply.code(200).send(
+        discardedRefundSchema.parse({
+          refund_id: outcome.refundId,
+          discarded_at: outcome.discardedAt.toISOString(),
         }),
       );
     },

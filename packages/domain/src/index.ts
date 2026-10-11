@@ -215,13 +215,13 @@ export {
   WSAA_ALREADY_AUTHENTICATED_RETRY_MS,
 } from "./fiscal/index.js";
 export type {
+  LatePaymentRefund,
   MercadoPagoQrOrderTransaction,
   MercadoPagoQrPaymentTransaction,
   PaymentMethod,
   PaymentTransaction,
   PaymentTransactionState,
   PendingQrSalePayment,
-  LatePaymentRefund,
   PlannedRefund,
   RefundOrigin,
   RefundState,
