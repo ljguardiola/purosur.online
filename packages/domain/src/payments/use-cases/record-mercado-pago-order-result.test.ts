@@ -170,7 +170,8 @@ describe("a payment approved after the register replaced it", () => {
 
     await checkPendingMercadoPagoPayments(world.notificationPorts);
     await checkPendingMercadoPagoPayments(world.notificationPorts);
-
-    expect([...world.lanes.latePaymentRefunds.keys()]).toEqual([TRANSACTION_ID]);
+    expect(
+      [...world.lanes.latePaymentRefunds.values()].map(({ refund }) => refund.paymentId),
+    ).toEqual([TRANSACTION_ID]);
   });
 });

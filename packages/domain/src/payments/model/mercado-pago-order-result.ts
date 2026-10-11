@@ -47,6 +47,14 @@ function isFullyAccredited(result: MercadoPagoOrderResult): boolean {
   );
 }
 
+export function paidAmountOfMercadoPagoOrder(result: MercadoPagoOrderResult): number | null {
+  if (result.status !== PROCESSED || !isFullyAccredited(result)) {
+    return null;
+  }
+  const paid = amountPaid(result);
+  return paid !== null && paid > 0 ? paid : null;
+}
+
 export function paymentStateOfMercadoPagoOrder(
   result: MercadoPagoOrderResult,
   orderAmount: number,

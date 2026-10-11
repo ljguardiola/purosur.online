@@ -1,8 +1,14 @@
 import {
+  type MercadoPagoOrderResult,
+  paidAmountOfMercadoPagoOrder,
+} from "../model/mercado-pago-order-result.js";
+import { latePaymentRefundOfUnrecordedOrder } from "../model/payment-refund.js";
+import {
   type MercadoPagoQrOrderTransaction,
   mayHaveUnrecordedOrder,
 } from "../model/payment-transaction.js";
 import type { MercadoPagoNotificationPorts } from "./mercado-pago-notification-ports.js";
+import type { PaymentTransactionLane } from "./mercado-pago-qr-order-ports.js";
 import { recordCreatedMercadoPagoOrder } from "./record-mercado-pago-order-result.js";
 import { refreshMercadoPagoTransaction } from "./refresh-mercado-pago-transaction.js";
 
@@ -12,6 +18,7 @@ export interface ConfirmMercadoPagoOrderNotificationInput {
 
 export type ConfirmMercadoPagoOrderNotificationOutcome =
   | { kind: "refreshed"; transaction: MercadoPagoQrOrderTransaction }
+  | { kind: "late_payment_of_other_order" }
   | { kind: "unknown_order" }
   | { kind: "provider_unavailable" };
 
@@ -67,6 +74,15 @@ async function confirmOrderOfUnrecordedCreation(
       if (transaction.providerOrderId === providerOrderId) {
         return refreshMercadoPagoTransaction(lane, { mercadoPago, clock }, transaction);
       }
+      if (transaction.providerOrderId !== null) {
+        return openLatePaymentRefundOfOtherOrder(
+          lane,
+          transaction,
+          providerOrderId,
+          reading.result,
+          clock.now(),
+        );
+      }
       if (!mayHaveUnrecordedOrder(transaction)) {
         return { kind: "unknown_order" };
       }
@@ -82,4 +98,22 @@ async function confirmOrderOfUnrecordedCreation(
       };
     },
   );
+}
+
+async function openLatePaymentRefundOfOtherOrder(
+  lane: PaymentTransactionLane,
+  transaction: MercadoPagoQrOrderTransaction,
+  providerOrderId: string,
+  result: MercadoPagoOrderResult,
+  openedAt: Date,
+): Promise<ConfirmMercadoPagoOrderNotificationOutcome> {
+  const paidAmount = paidAmountOfMercadoPagoOrder(result);
+  if (paidAmount === null) {
+    return { kind: "unknown_order" };
+  }
+  await lane.openLatePaymentRefund(
+    latePaymentRefundOfUnrecordedOrder(transaction, providerOrderId, paidAmount),
+    openedAt,
+  );
+  return { kind: "late_payment_of_other_order" };
 }

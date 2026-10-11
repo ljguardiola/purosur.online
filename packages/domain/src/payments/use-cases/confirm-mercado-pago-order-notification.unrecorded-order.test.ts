@@ -113,11 +113,6 @@ describe("confirmMercadoPagoOrderNotification of an order no payment has recorde
   it.each([
     ["has no external reference", paidOrderOf(null), AWAITING_ORDER],
     ["names no payment", paidOrderOf("transaction-9"), AWAITING_ORDER],
-    [
-      "names a payment that has another order",
-      paidOrderOf(TRANSACTION_ID),
-      { providerOrderId: "order-2" },
-    ],
     ["names a payment that is not pending", paidOrderOf(TRANSACTION_ID), { state: "EXPIRED" }],
     [
       "names a payment whose creation created nothing",

@@ -16,6 +16,7 @@ const HOLDING_ANOTHER_ORDER = { providerOrderId: "order-1", creationOutcomeUnkno
 function worldReading(result: ReturnType<typeof orderResult>) {
   const world = mercadoPagoQrOrderWorld({ reading: { kind: "read", result } });
   world.lanes.seed(storedTransaction(HOLDING_ANOTHER_ORDER));
+  world.lanes.seed(storedTransaction({ id: "transaction-2", creationOutcomeUnknown: true }));
   return world;
 }
 
