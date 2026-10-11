@@ -34,6 +34,7 @@ const DOCUMENT: FacturaC = {
     version: 3,
   },
   buyerTaxStatusCode: 5,
+  buyerTaxStatusDescription: "Consumidor Final",
 };
 
 const SALE_EVENT: PushedEvent = {

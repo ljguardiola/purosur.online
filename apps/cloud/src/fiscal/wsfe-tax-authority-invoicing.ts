@@ -1,15 +1,20 @@
-import { REAL_TIME_AUTHORIZATION_TIMEOUT_MS } from "@purosur/domain";
+import {
+  CURRENCY_PESOS,
+  EXCHANGE_RATE_PESOS,
+  FACTURA_C_VOUCHER_TYPE,
+  FINAL_CONSUMER_DOCUMENT_NUMBER,
+  FINAL_CONSUMER_DOCUMENT_TYPE,
+  REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
+} from "@purosur/domain";
 import type {
   FiscalDocumentSolicitation,
   SolicitationAnswer,
   TaxAuthorityInvoicing,
 } from "@purosur/domain/fiscal/use-cases";
 import type { Client } from "soap";
-import { createWsfeClient, FACTURA_C_VOUCHER_TYPE, rejectionsOf } from "./wsfe-client.js";
+import { createWsfeClient, rejectionsOf } from "./wsfe-client.js";
 
 const PRODUCTS = 1;
-const FINAL_CONSUMER_DOCUMENT_TYPE = 99;
-const PESOS = "PES";
 const CENTS_PER_PESO = 100;
 
 export interface WsfeTaxAuthorityInvoicingOptions {
@@ -122,7 +127,7 @@ export class WsfeTaxAuthorityInvoicing implements TaxAuthorityInvoicing {
                 FECAEDetRequest: {
                   Concepto: PRODUCTS,
                   DocTipo: FINAL_CONSUMER_DOCUMENT_TYPE,
-                  DocNro: 0,
+                  DocNro: FINAL_CONSUMER_DOCUMENT_NUMBER,
                   CbteDesde: number,
                   CbteHasta: number,
                   CbteFch: yyyymmdd(issuedOn),
@@ -132,8 +137,8 @@ export class WsfeTaxAuthorityInvoicing implements TaxAuthorityInvoicing {
                   ImpOpEx: 0,
                   ImpTrib: 0,
                   ImpIVA: 0,
-                  MonId: PESOS,
-                  MonCotiz: 1,
+                  MonId: CURRENCY_PESOS,
+                  MonCotiz: EXCHANGE_RATE_PESOS,
                   CondicionIVAReceptorId: buyerTaxStatusCode,
                 },
               },

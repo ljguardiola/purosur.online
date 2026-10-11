@@ -17,6 +17,7 @@ import { pinPolicy } from "./credentials/pin-policy";
 import { applyRedeemedPin } from "./credentials/redeemed-pin";
 import {
   createRealTimeAuthorization,
+  settleInterruptedAuthorizations,
   startRegisterHealthChecks,
 } from "./fiscal/real-time-authorization-wiring";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
@@ -358,6 +359,12 @@ const realTimeAuthorization = createRealTimeAuthorization({
   now,
   reportFailure: (error) => reportFailure("the real-time authorization", error),
 });
+await settleInterruptedAuthorizations({
+  database: localDatabase,
+  now,
+  reportFailure: (error) =>
+    reportFailure("settling the interrupted real-time authorizations", error),
+});
 
 const mercadoPagoQrCharging = createMercadoPagoQrCharging({
   database: localDatabase,
@@ -376,6 +383,7 @@ const receiptPrinting = createReceiptPrinting({
   ids: uuidV7Ids,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
   signedInUserId: () => signedInPerson.userId(),
+  beforePrinting: realTimeAuthorization.authorizeSale,
   reportFailure,
   syncNow: () => syncSchedule.syncNow(),
 });
@@ -775,17 +783,15 @@ const rendererRequestDeps: RendererRequestDeps = {
 
 const answeredRendererRequestDeps: RendererRequestDeps = {
   ...rendererRequestDeps,
-  chargeSaleInCash: receiptPrinting.afterCompletedSale(
-    realTimeAuthorization.afterCompletedSale(rendererRequestDeps.chargeSaleInCash),
-  ),
+  chargeSaleInCash: receiptPrinting.afterCompletedSale(rendererRequestDeps.chargeSaleInCash),
   chargeSaleByTransfer: receiptPrinting.afterCompletedSale(
-    realTimeAuthorization.afterCompletedSale(rendererRequestDeps.chargeSaleByTransfer),
+    rendererRequestDeps.chargeSaleByTransfer,
   ),
   followMercadoPagoQrCharge: receiptPrinting.afterCompletedSale(
-    realTimeAuthorization.afterCompletedSale(rendererRequestDeps.followMercadoPagoQrCharge),
+    rendererRequestDeps.followMercadoPagoQrCharge,
   ),
   abandonMercadoPagoQrCharge: receiptPrinting.afterCompletedSale(
-    realTimeAuthorization.afterCompletedSale(rendererRequestDeps.abandonMercadoPagoQrCharge),
+    rendererRequestDeps.abandonMercadoPagoQrCharge,
   ),
 };
 

@@ -1,3 +1,4 @@
+import { ALERT_CONDITION_EVALUATION_INTERVAL_MS } from "@purosur/domain";
 import { detectQuietRegisters, resolveStablyClearedAlerts } from "@purosur/domain/alerts/use-cases";
 import { detectMissingOfflineAuthorizationCodes } from "@purosur/domain/fiscal/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
@@ -6,14 +7,16 @@ import type { PoolClient } from "pg";
 import { DrizzleBranchHoursReader } from "../branch/drizzle-branch-hours-reader.js";
 import { DrizzleMissingOfflineAuthorizationCodeAlerts } from "../fiscal/drizzle-missing-offline-authorization-code-alerts.js";
 import { DrizzleOfflineAuthorizationCodeHoldingReader } from "../fiscal/drizzle-offline-authorization-code-holding-reader.js";
-import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
+import {
+  type BackgroundJobs,
+  crontabLineEvery,
+  databaseOfClient,
+} from "../platform/background-jobs.js";
 import { DrizzleWatchedRegisterReader } from "../register/drizzle-watched-register-reader.js";
 import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
 import { DrizzleAlertStore } from "./drizzle-alert-store.js";
 
 export const ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER = "alert-condition-resolution";
-
-const ALERT_CONDITION_RESOLUTION_CRONTAB_LINE = `* * * * * ${ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER}`;
 
 function resolveClearedConditionAlertsTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -77,6 +80,11 @@ export function alertConditionResolutionJobs(
         });
       },
     },
-    crontab: [ALERT_CONDITION_RESOLUTION_CRONTAB_LINE],
+    crontab: [
+      crontabLineEvery(
+        ALERT_CONDITION_EVALUATION_INTERVAL_MS,
+        ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER,
+      ),
+    ],
   };
 }

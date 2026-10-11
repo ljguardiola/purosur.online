@@ -22,7 +22,9 @@ export type {
 } from "./alerts/index.js";
 export {
   ALERT_AUDIENCES,
+  ALERT_CONDITION_EVALUATION_INTERVAL_MS,
   ALERT_CONDITION_STABLE_CLEAR_MS,
+  ALERT_ESCALATION_CHECK_INTERVAL_MS,
   ALERT_ESCALATION_DELAY_MS,
   ALERT_KINDS,
   ALERT_LEVELS,
@@ -137,11 +139,13 @@ export {
   recoveryRateLimitWindowStart,
 } from "./credentials/index.js";
 export type {
+  AuthorizedFacturaC,
   BuyerIdentificationThreshold,
   BuyerTaxStatusOption,
   ChargeRefusal,
   DeferralReason,
   FacturaC,
+  FacturaCFiscalBlock,
   FiscalDocumentState,
   FiscalDocumentType,
   FiscalOnlineSignalEvidence,
@@ -157,10 +161,16 @@ export type {
 } from "./fiscal/index.js";
 export {
   ARCA_VITALITY_CHECK_INTERVAL_MS,
+  AUTHORIZATION_CODE_TYPE_CAE,
+  CURRENCY_PESOS,
   chargeRefusal,
   DEFERRAL_REASONS,
+  EXCHANGE_RATE_PESOS,
   earliestThresholdStartDay,
   FACTURA_C_DOCUMENT_TYPE,
+  FACTURA_C_VOUCHER_TYPE,
+  FINAL_CONSUMER_DOCUMENT_NUMBER,
+  FINAL_CONSUMER_DOCUMENT_TYPE,
   FISCAL_ADDRESS_NAME_MAX_LENGTH,
   FISCAL_ADDRESS_STREET_ADDRESS_MAX_LENGTH,
   fortnightAfter,
@@ -200,6 +210,7 @@ export {
   REJECTION_CLASSES,
   SERIES_WAITING_STATES,
   selectConsumerBuyerTaxStatus,
+  TAX_AUTHORITY_QR_URL,
   thresholdInEffectOn,
   thresholdScheduledAfter,
   WSAA_ALREADY_AUTHENTICATED_RETRY_MS,

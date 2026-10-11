@@ -1,13 +1,16 @@
+import { ALERT_ESCALATION_CHECK_INTERVAL_MS } from "@purosur/domain";
 import { escalateOverdueAlerts } from "@purosur/domain/alerts/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
-import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
+import {
+  type BackgroundJobs,
+  crontabLineEvery,
+  databaseOfClient,
+} from "../platform/background-jobs.js";
 import { DrizzleAlertStore } from "./drizzle-alert-store.js";
 
 export const ALERT_ESCALATION_TASK_IDENTIFIER = "alert-escalation";
-
-const ALERT_ESCALATION_CRONTAB_LINE = `*/5 * * * * ${ALERT_ESCALATION_TASK_IDENTIFIER}`;
 
 export function escalateAlertsTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -38,6 +41,8 @@ export function alertEscalationJobs(
         );
       },
     },
-    crontab: [ALERT_ESCALATION_CRONTAB_LINE],
+    crontab: [
+      crontabLineEvery(ALERT_ESCALATION_CHECK_INTERVAL_MS, ALERT_ESCALATION_TASK_IDENTIFIER),
+    ],
   };
 }
