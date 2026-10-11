@@ -1,0 +1,27 @@
+import type { PulledEntity } from "@purosur/domain/sync/use-cases";
+
+export const PULLED_TABLES = {
+  branch_settings: "branch_settings",
+  categories: "category",
+  products: "product",
+  product_barcodes: "product",
+  product_tags: "product",
+  tags: "tag",
+  price_lists: "price_list",
+  prices: "price",
+  users: "user",
+  pin_verifiers: "user",
+  roles: "role",
+  role_permissions: "role",
+  own_register: "register",
+  register_point_of_sale: "register_point_of_sale",
+  register_offline_point_of_sale: "register_offline_point_of_sale",
+  discounts: "discount",
+  issuer_identification_versions: "issuer_identification",
+  buyer_identification_thresholds: "buyer_identification_threshold",
+  buyer_tax_status_sets: "buyer_tax_status_set",
+  stock_movements: "stock_movement",
+  stock_balances: "stock_movement",
+  offline_authorization_codes: "offline_authorization_code",
+  offline_number_blocks: "offline_number_block",
+} as const satisfies Record<string, PulledEntity>;

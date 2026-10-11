@@ -551,6 +551,7 @@ export {
   isPullCursor,
   isSalesStopReason,
   PULL_PAGE_MAX_CHANGES,
+  PULLED_ENTITIES,
   PUSH_BATCH_MAX_EVENTS,
   pullAudienceOf,
   SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,

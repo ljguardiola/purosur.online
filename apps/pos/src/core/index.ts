@@ -111,7 +111,7 @@ import {
   nextCloudReachability,
 } from "./sync/cloud-reachability";
 import { pruneLocalOutbox } from "./sync/prune-local-outbox";
-import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
+import { pullFromCloud, pullResultOf, pullWarningOf } from "./sync/pull-from-cloud";
 import { pushDamagedRegisterReport } from "./sync/push-damaged-register-report";
 import { pushForRegisterService } from "./sync/push-for-register-service";
 import { pushResultOf, pushToCloud, pushWarningOf } from "./sync/push-to-cloud";
@@ -343,11 +343,9 @@ const syncSchedule = createSyncSchedule({
               ? undefined
               : (path, headers) => getFromCloud(cloudClient, path, headers),
         });
-        if (
-          attempt.kind === "page_out_of_order" ||
-          (attempt.kind === "failed" && attempt.failure.kind !== "unreachable")
-        ) {
-          console.warn("core: the pull stopped before catching up", attempt);
+        const warning = pullWarningOf(attempt);
+        if (warning !== undefined) {
+          console.warn(warning, attempt);
         }
         return pullResultOf(attempt);
       },

@@ -51,11 +51,15 @@ export type {
 export { receivePushedEvents } from "./receive-pushed-events.js";
 export type { AcceptedPushLog, RecordAcceptedPushPorts } from "./record-accepted-push.js";
 export { recordAcceptedPush } from "./record-accepted-push.js";
+export type { RedeliveryOutcome } from "./redeliver-pulled-entities.js";
+export { redeliverPulledEntities } from "./redeliver-pulled-entities.js";
 export type {
   ReleaseQuarantinedEventInput,
   ReleaseQuarantinedEventOutcome,
 } from "./release-quarantined-event.js";
 export { releaseQuarantinedEvent } from "./release-quarantined-event.js";
+export type { ResendPulledEntityInput } from "./resend-pulled-entity.js";
+export { resendPulledEntity } from "./resend-pulled-entity.js";
 export type {
   AdmissionPorts,
   CatchUpPorts,
@@ -68,6 +72,7 @@ export type {
   CloudEventInboxAnswer,
   CloudInstallationCheck,
   CloudInstallationStanding,
+  EntityChangeFeed,
   EventChain,
   HeldEvent,
   HeldEventPosition,
@@ -79,6 +84,7 @@ export type {
   LocalReplica,
   OfflineAuthorizationCodeRequests,
   OutboxPruning,
+  PendingRedelivery,
   PruneOutboxPorts,
   PullAudience,
   PulledChange,
@@ -90,6 +96,9 @@ export type {
   PushOutboxPorts,
   PushReport,
   ReceivePorts,
+  RedeliveryPorts,
+  RedeliveryReplica,
   RequestAdmission,
   RequestAdmissionTransaction,
+  ResendPorts,
 } from "./sync-ports.js";

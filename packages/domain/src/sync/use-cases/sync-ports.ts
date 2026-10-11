@@ -57,6 +57,34 @@ export interface CatchUpPorts<TChange extends PulledChange, TFailure> {
   feed: CloudChangeFeed<TChange, TFailure>;
 }
 
+export interface PendingRedelivery {
+  entity: PulledEntity;
+  cursor: number;
+}
+
+export interface RedeliveryReplica<TChange extends PulledChange> {
+  pendingRedeliveries(): Promise<PendingRedelivery[]>;
+  // Saves the page's changes and that entity's redelivery cursor together, or neither.
+  saveRedeliveredPage(entity: PulledEntity, page: PullPage<TChange>): Promise<void>;
+  finishRedelivery(entity: PulledEntity): Promise<void>;
+}
+
+export interface EntityChangeFeed<TChange extends PulledChange, TFailure> {
+  pageOfEntityAfter(
+    entity: PulledEntity,
+    since: number,
+  ): Promise<CloudChangeFeedAnswer<TChange, TFailure>>;
+}
+
+export interface RedeliveryPorts<TChange extends PulledChange, TFailure> {
+  replica: RedeliveryReplica<TChange>;
+  feed: EntityChangeFeed<TChange, TFailure>;
+}
+
+export interface ResendPorts<TChange extends PulledChange> {
+  changeLog: ChangeLog<TChange>;
+}
+
 export interface PushReport {
   appVersion: string;
   telemetry: RegisterTelemetry;

@@ -1,7 +1,9 @@
 import type { SyncChange } from "@purosur/contracts";
 import type { LocalDatabase } from "../platform/local-database";
+import { type PageWriteMode, versionAccepted } from "./page-write-mode";
 
-export function prepareFiscalPageWrites(database: LocalDatabase) {
+export function prepareFiscalPageWrites(database: LocalDatabase, mode: PageWriteMode) {
+  const accepts = versionAccepted(mode);
   const saveIssuerVersion = database.prepare(
     `INSERT INTO issuer_identification_versions (
        version, legal_name, gross_income_registration, activity_start_date, authorized_cuit,
@@ -10,17 +12,34 @@ export function prepareFiscalPageWrites(database: LocalDatabase) {
        @version, @legal_name, @gross_income_registration, @activity_start_date, @authorized_cuit,
        @tax_status
      )
-     ON CONFLICT (version) DO NOTHING`,
+     ON CONFLICT (version) DO ${
+       mode === "pull"
+         ? "NOTHING"
+         : `UPDATE SET legal_name = excluded.legal_name,
+           gross_income_registration = excluded.gross_income_registration,
+           activity_start_date = excluded.activity_start_date,
+           authorized_cuit = excluded.authorized_cuit,
+           tax_status = excluded.tax_status`
+     }`,
   );
   const saveThreshold = database.prepare(
     `INSERT INTO buyer_identification_thresholds (id, amount, valid_from, revision)
      VALUES (@id, @amount, @valid_from, @revision)
-     ON CONFLICT (id) DO NOTHING`,
+     ON CONFLICT (id) DO ${
+       mode === "pull"
+         ? "NOTHING"
+         : `UPDATE SET amount = excluded.amount, valid_from = excluded.valid_from, revision = excluded.revision
+           WHERE excluded.revision >= buyer_identification_thresholds.revision`
+     }`,
   );
   const saveTaxStatusSet = database.prepare(
     `INSERT INTO buyer_tax_status_sets (params_version, set_id, options)
      VALUES (@params_version, @set_id, @options)
-     ON CONFLICT (params_version) DO NOTHING`,
+     ON CONFLICT (params_version) DO ${
+       mode === "pull"
+         ? "NOTHING"
+         : "UPDATE SET set_id = excluded.set_id, options = excluded.options"
+     }`,
   );
   const saveOfflineAuthorizationCode = database.prepare(
     `INSERT INTO offline_authorization_codes (
@@ -31,7 +50,7 @@ export function prepareFiscalPageWrites(database: LocalDatabase) {
        code = excluded.code,
        report_deadline = excluded.report_deadline,
        version = excluded.version
-     WHERE excluded.version > offline_authorization_codes.version`,
+     WHERE excluded.version ${accepts} offline_authorization_codes.version`,
   );
   const saveOfflineNumberBlock = database.prepare(
     `INSERT INTO offline_number_blocks (
@@ -46,7 +65,7 @@ export function prepareFiscalPageWrites(database: LocalDatabase) {
        last_number = excluded.last_number,
        status = excluded.status,
        version = excluded.version
-     WHERE excluded.version > offline_number_blocks.version`,
+     WHERE excluded.version ${accepts} offline_number_blocks.version`,
   );
 
   return {
