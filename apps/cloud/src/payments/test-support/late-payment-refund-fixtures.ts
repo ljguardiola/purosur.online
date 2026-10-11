@@ -1,8 +1,8 @@
 import type { PaymentMethod } from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { alerts, paymentRefunds, paymentTransactions } from "../../platform/db/schema.js";
-import { applyCompletedSale } from "../../sales/test-support/applied-sales.js";
 import { insertEnrolledInstallation } from "../../register/test-support/enrolled-installation.js";
+import { applyCompletedSale } from "../../sales/test-support/applied-sales.js";
 import { pendingTransaction } from "./payment-transaction-fixtures.js";
 
 export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResultHKT>(
