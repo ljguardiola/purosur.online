@@ -1,4 +1,9 @@
-import type { ReceiptContent, ReceiptCopy } from "@purosur/domain";
+import type { FacturaCFiscalBlock, ReceiptContent, ReceiptCopy } from "@purosur/domain";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import type { StoredReceipt } from "@purosur/domain/sales/use-cases";
 import { describe, expect, it } from "vitest";
 import { escPosReceiptTemplate } from "./escpos-receipt-template";
@@ -57,6 +62,7 @@ function receipt(overrides: Partial<ReceiptContent> = {}): ReceiptContent {
       ],
       change: 500_000,
     },
+    fiscal: null,
     ...overrides,
   };
 }
@@ -80,6 +86,7 @@ function singleUnitReceipt(productName: string, price: number): ReceiptContent {
       payments: [{ method: "TRANSFER", amount: price }],
       change: 0,
     },
+    fiscal: null,
   });
 }
 
@@ -126,6 +133,73 @@ const CLOSING = [
   "  Cambios y devoluciones solo con este ticket.",
   "[feed 5]",
   "[cut partial]",
+];
+
+const QR_DATA = {
+  ver: 1,
+  fecha: "2026-09-30",
+  cuit: 20000000001,
+  ptoVta: 1,
+  tipoCmp: 11,
+  nroCmp: 123,
+  importe: 17675,
+  moneda: "PES",
+  ctz: 1,
+  tipoDocRec: 99,
+  nroDocRec: 0,
+  tipoCodAut: "E",
+  codAut: 71234567890123,
+};
+const QR_URL = "https://www.arca.gob.ar/fe/qr/?p=";
+const QR_TEXT = QR_URL + btoa(JSON.stringify(QR_DATA));
+const FISCAL_BLOCK: FacturaCFiscalBlock = {
+  invoiceClass: "C",
+  voucherTypeCode: 11,
+  issuer: {
+    legalName: FICTIONAL_LEGAL_NAME,
+    cuit: FICTIONAL_CUIT,
+    taxStatus: "Responsable Monotributo",
+    grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+    activityStartDate: "2020-01-15",
+  },
+  buyerTaxStatusDescription: "Consumidor Final",
+  pointOfSale: 1,
+  number: 123,
+  issuedOn: "2026-09-30",
+  netAmount: 1_767_500,
+  vatAmount: 0,
+  total: 1_767_500,
+  authorizationCode: "71234567890123",
+  authorizationCodeDueOn: "2026-10-10",
+  qrText: QR_TEXT,
+};
+
+const FISCAL_LINES = [
+  "[bold]                   FACTURA C[/bold]",
+  "                    Cód. 011",
+  "               Comercio de Prueba",
+  "               CUIT 20-00000000-1",
+  "            Responsable Monotributo",
+  "         Ingresos Brutos CM 000-000000-0",
+  "        Inicio de actividades 15/01/2020",
+  RULE,
+  "Punto de venta 00001            Comp. Nro 00000123",
+  "Fecha de emisión 30/09/2026",
+  "Receptor: Consumidor Final",
+  RULE,
+  "Importe neto                         $ 17.675,00",
+  "IVA                                       $ 0,00",
+  RULE,
+  "[align center]",
+  "[qr model 2]",
+  "[qr module 4]",
+  "[qr correction M]",
+  "[qr store " + QR_TEXT + "]",
+  "[qr print]",
+  "[align left]",
+  "         Comprobante Autorizado",
+  "       CAE N° 71234567890123",
+  "     Fecha de Vto. de CAE 10/10/2026",
 ];
 
 describe("the ESC/POS receipt template", () => {
@@ -336,5 +410,57 @@ describe("the ESC/POS receipt template", () => {
     expect(() =>
       escPosReceiptTemplate.printable(stored, { kind: "duplicate", orderNumber: 1 }),
     ).toThrow(/2/);
+  });
+
+  describe("the fiscal block of an authorized factura C", () => {
+    const fiscalReceipt = () => receipt({ fiscal: FISCAL_BLOCK });
+    const WITH_FISCAL_BLOCK = [...HEAD, ...BODY_OF_MIXED_SALE, ...FISCAL_LINES, ...CLOSING];
+
+    it("lays out the voucher after the payments and before the closing", () => {
+      expect(printed(fiscalReceipt()).text).toBe(WITH_FISCAL_BLOCK.join("\n"));
+    });
+
+    it("prints a QR whose text carries the voucher's data as the tax authority defines", () => {
+      const store = printed(fiscalReceipt()).text.match(/\[qr store (.*)\]/)?.[1] ?? "";
+
+      expect(store.startsWith(QR_URL)).toBe(true);
+      expect(JSON.parse(atob(store.slice(QR_URL.length)))).toEqual(QR_DATA);
+    });
+
+    it("keeps the block in the stored body so a duplicate reproduces it with the legend", () => {
+      const stored = escPosReceiptTemplate.render(fiscalReceipt());
+
+      expect(printoutOf(stored.body).text).toBe(
+        [...BODY_OF_MIXED_SALE, ...FISCAL_LINES, ...CLOSING].join("\n"),
+      );
+      expect(printed(fiscalReceipt(), { kind: "duplicate", orderNumber: 2 }).text).toBe(
+        [
+          ...HEAD,
+          "[bold]              COPIA DUPLICADA Nº 2[/bold]",
+          ...BODY_OF_MIXED_SALE,
+          ...FISCAL_LINES,
+          ...CLOSING,
+        ].join("\n"),
+      );
+    });
+
+    it("prints no line wider than the 48 columns of the paper", () => {
+      const longIssuer = {
+        ...FISCAL_BLOCK,
+        issuer: {
+          ...FISCAL_BLOCK.issuer,
+          legalName: "Comercializadora de Productos Naturales y Regionales del Sur Argentino",
+        },
+      };
+      for (const fiscal of [FISCAL_BLOCK, longIssuer]) {
+        for (const line of printed(receipt({ fiscal })).textLines) {
+          expect(line.length).toBeLessThanOrEqual(48);
+        }
+      }
+    });
+
+    it("leaves a receipt without a fiscal document as it was", () => {
+      expect(printed(receipt()).text).toBe([...HEAD, ...BODY_OF_MIXED_SALE, ...CLOSING].join("\n"));
+    });
   });
 });

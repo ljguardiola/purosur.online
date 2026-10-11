@@ -55,6 +55,41 @@ describe("a readable printout of ESC/POS bytes", () => {
     expect(printout.text).toBe("[logo 16x3]");
   });
 
+  it("shows the alignment the printer is set to", () => {
+    const printout = printoutOf(
+      Uint8Array.from([ESC, 0x61, 1, ...ascii("Hola"), 0x0a, ESC, 0x61, 0, ESC, 0x61, 2]),
+    );
+
+    expect(printout.text).toBe(
+      ["[align center]", "Hola", "[align left]", "[align right]"].join("\n"),
+    );
+    expect(printout.textLines).toEqual(["Hola"]);
+  });
+
+  it("shows a QR code's settings, the text it stores and its printing", () => {
+    const text = ascii("https://example.test/?p=abc");
+    const storedLength = text.length + 3;
+    const printout = printoutOf(
+      Uint8Array.from([
+        ...[GS, 0x28, 0x6b, 4, 0, 0x31, 0x41, 0x32, 0],
+        ...[GS, 0x28, 0x6b, 3, 0, 0x31, 0x43, 6],
+        ...[GS, 0x28, 0x6b, 3, 0, 0x31, 0x45, 0x31],
+        ...[GS, 0x28, 0x6b, storedLength & 0xff, storedLength >> 8, 0x31, 0x50, 0x30, ...text],
+        ...[GS, 0x28, 0x6b, 3, 0, 0x31, 0x51, 0x30],
+      ]),
+    );
+
+    expect(printout.text).toBe(
+      [
+        "[qr model 2]",
+        "[qr module 6]",
+        "[qr correction M]",
+        "[qr store https://example.test/?p=abc]",
+        "[qr print]",
+      ].join("\n"),
+    );
+  });
+
   it("refuses a command it does not know", () => {
     expect(() => printoutOf(Uint8Array.from([ESC, 0x21, 0]))).toThrow();
   });
