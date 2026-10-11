@@ -317,9 +317,17 @@ export async function readRegisterOfflinePointsOfSale<TQueryResult extends PgQue
     .select({
       registerId: registerOfflinePointsOfSale.registerId,
       pointOfSaleNumber: registerOfflinePointsOfSale.pointOfSaleNumber,
+      taxAuthorityLastAuthorizedNumber: taxAuthorityLastAuthorizedNumbers.lastAuthorized,
       version: registerOfflinePointsOfSale.version,
     })
     .from(registerOfflinePointsOfSale)
+    .leftJoin(
+      taxAuthorityLastAuthorizedNumbers,
+      eq(
+        taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber,
+        registerOfflinePointsOfSale.pointOfSaleNumber,
+      ),
+    )
     .where(inArray(registerOfflinePointsOfSale.registerId, [...registerIds]))
     .orderBy(asc(registerOfflinePointsOfSale.registerId));
   return new Map(rows.map(({ registerId, ...row }) => [registerId, row]));
