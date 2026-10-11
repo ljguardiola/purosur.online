@@ -1,3 +1,4 @@
+import { OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS } from "@purosur/domain";
 import type {
   OfflineAuthorizationCodeCall,
   OfflineAuthorizationCodeLookupAnswer,
@@ -6,6 +7,7 @@ import type {
 } from "@purosur/domain/fiscal/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { arcaWsaaTokens, caeaCodes } from "../platform/db/schema.js";
+import { scheduleOfCrontabLine } from "../platform/test-support/crontab-schedule.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
 import {
@@ -78,10 +80,16 @@ function taskUnderTest(taxAuthority: TaxAuthorityOfflineAuthorizationCodes) {
 }
 
 describe("offlineAuthorizationCodeJobs", () => {
-  it("registers the acquisition task and schedules it every ten minutes", () => {
+  it("registers the acquisition task and schedules it at the domain's acquisition retry interval", () => {
     const { jobs } = taskUnderTest(new FakeOfflineAuthorizationCodes());
 
-    expect(jobs.crontab).toEqual(["*/10 * * * * offline-authorization-code-acquisition"]);
+    const schedules = jobs.crontab.map(scheduleOfCrontabLine);
+    expect(schedules.map((schedule) => schedule.task)).toEqual([
+      OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER,
+    ]);
+    expect(new Set(schedules[0]?.gapsMs)).toEqual(
+      new Set([OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS]),
+    );
   });
 
   it("requests the current fortnight's code through a client borrowed from the worker and keeps it", async () => {
