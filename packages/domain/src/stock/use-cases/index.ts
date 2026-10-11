@@ -1,5 +1,6 @@
 export type { Clock } from "../../shared/index.js";
 export type { NewLot } from "../model/lot.js";
+export type { StockLot } from "../model/lot-allocation.js";
 export type { PurchaseReceipt } from "../model/stock-receipt.js";
 export type { ApplyPulledStockMovementOutcome } from "./apply-pulled-stock-movement.js";
 export { applyPulledStockMovement } from "./apply-pulled-stock-movement.js";
@@ -39,6 +40,7 @@ export type {
 export type {
   CoveringCount,
   LockProductStockResult,
+  LotAllocation,
   NewStockCount,
   NewStockMovement,
   ProductStockKey,

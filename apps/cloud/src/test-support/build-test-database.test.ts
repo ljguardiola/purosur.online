@@ -32,6 +32,7 @@ import {
   issuerIdentification,
   issuerIdentificationVersions,
   locations,
+  lotAllocations,
   lots,
   offlineNumberBlocks,
   passkeyChallenges,
@@ -656,14 +657,20 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
         quantityPerPackage: 1000,
       })
       .returning({ id: purchaseLines.id });
-    await db.insert(lots).values({
-      productId: product.id,
-      locationId: await seededLocationId(db),
-      purchaseLineId: purchaseLine?.id as string,
-      quantityReceived: 1000,
-      costTotalCents: 500,
-      costQuantity: 1000,
-    });
+    const [lot] = await db
+      .insert(lots)
+      .values({
+        productId: product.id,
+        locationId: await seededLocationId(db),
+        purchaseLineId: purchaseLine?.id as string,
+        quantityReceived: 1000,
+        costTotalCents: 500,
+        costQuantity: 1000,
+      })
+      .returning({ id: lots.id });
+    await db
+      .insert(lotAllocations)
+      .values({ movementId: countMovement.id, lotId: lot?.id as string, quantity: 1000 });
     await db.insert(priceReviewPostponements).values({
       productId: product.id,
       priceListId: await seededPriceListId(db),
