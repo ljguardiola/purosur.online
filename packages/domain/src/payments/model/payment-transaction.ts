@@ -1,3 +1,5 @@
+import { MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES } from "./mercado-pago-qr-charge-wait.js";
+
 export const PAYMENT_TRANSACTION_STATES = [
   "PENDING",
   "APPROVED",
@@ -9,8 +11,6 @@ export const PAYMENT_TRANSACTION_STATES = [
 export type PaymentTransactionState = (typeof PAYMENT_TRANSACTION_STATES)[number];
 
 export const PENDING_PAYMENT_TRANSACTION_STATE: PaymentTransactionState = "PENDING";
-
-export const MERCADO_PAGO_ORDER_EXPIRY_MINUTES = 5;
 
 interface SalePaymentTransaction {
   id: string;
@@ -71,7 +71,7 @@ export type MercadoPagoQrOrderTransaction = MercadoPagoQrPaymentTransaction & Me
 
 export function mercadoPagoOrderExpiresAt(attemptStartedAt: Date, longestCallMs: number): Date {
   return new Date(
-    attemptStartedAt.getTime() + MERCADO_PAGO_ORDER_EXPIRY_MINUTES * 60 * 1000 + longestCallMs,
+    attemptStartedAt.getTime() + MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES * 60 * 1000 + longestCallMs,
   );
 }
 

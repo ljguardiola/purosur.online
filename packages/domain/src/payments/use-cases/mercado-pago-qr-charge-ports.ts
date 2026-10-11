@@ -34,7 +34,7 @@ export interface MercadoPagoQrChargeSale<Refusal, Settlement, ReplacementRefusal
 }
 
 export type MercadoPagoQrChargeOrderAnswer =
-  | { kind: "created" }
+  | { kind: "created"; expiresAt: Date }
   | { kind: "refused" }
   | { kind: "unreachable" };
 
@@ -59,7 +59,7 @@ export interface MercadoPagoQrChargeOrders {
 export interface MercadoPagoQrCharges {
   pendingCharge(paymentTransactionId: string): PendingMercadoPagoQrCharge | null;
   recordEnded(paymentTransactionId: string, state: EndedMercadoPagoQrChargeState): void;
-  endWait(paymentTransactionId: string, endedAt: Date): void;
+  recordWaitEnd(paymentTransactionId: string, waitEndsAt: Date): void;
 }
 
 export interface MercadoPagoQrChargePorts<Refusal, Settlement, ReplacementRefusal = unknown> {
