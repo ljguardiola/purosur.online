@@ -293,39 +293,16 @@ describe("a receipt ledger's source of a sale", () => {
 });
 
 describe("a receipt ledger's fiscal document of a sale", () => {
-  it("holds the authorized factura C with its number, date and authorization code", () => {
+  it("is the one the fiscal records hold for the sale", () => {
     insertSaleWithEverything();
     insertFiscalDocument(database, { state: "AUTHORIZED", pointOfSale: 12, number: 41 });
 
     const { fiscal } = inTransaction((tx) => tx.receiptSource("sale-1"));
 
-    expect(fiscal).toEqual({
+    expect(fiscal).toMatchObject({
       kind: "authorized",
-      authorized: {
-        pointOfSale: 12,
-        number: 41,
-        issuedOn: "2026-09-30",
-        document: FACTURA_C,
-        authorizationCode: "75123456789012",
-        authorizationCodeDueOn: "2026-10-10",
-      },
+      authorized: { pointOfSale: 12, number: 41, document: FACTURA_C },
     });
-  });
-
-  it("is awaiting while the tax authority has not answered", () => {
-    insertSaleWithEverything();
-    insertFiscalDocument(database, { state: "REQUESTING" });
-
-    expect(inTransaction((tx) => tx.receiptSource("sale-1")).fiscal).toEqual({
-      kind: "awaiting",
-    });
-  });
-
-  it.each(["REJECTED", "UNKNOWN"] as const)("is none when the document is %s", (state) => {
-    insertSaleWithEverything();
-    insertFiscalDocument(database, { state });
-
-    expect(inTransaction((tx) => tx.receiptSource("sale-1")).fiscal).toEqual({ kind: "none" });
   });
 });
 

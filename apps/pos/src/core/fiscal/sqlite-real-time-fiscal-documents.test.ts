@@ -107,6 +107,32 @@ describe("the document waiting on a real-time answer", () => {
   });
 });
 
+describe("the documents still requesting their answer", () => {
+  it("are every document waiting on a real-time answer, of whatever sale, and no settled one", async () => {
+    insertCompletedSale(database, "sale-2");
+    insertFiscalDocument(database, { id: "doc-2", saleId: "sale-2", pointOfSale: 13 });
+    insertCompletedSale(database, "sale-3");
+    insertFiscalDocument(database, {
+      id: "doc-3",
+      saleId: "sale-3",
+      pointOfSale: 14,
+      state: "UNKNOWN",
+    });
+
+    await expect(documents.requestingDocuments()).resolves.toEqual([
+      { fiscalDocumentId: "doc-1", saleId: "sale-1" },
+      { fiscalDocumentId: "doc-2", saleId: "sale-2" },
+    ]);
+  });
+
+  it("are none once every document was answered", async () => {
+    database.prepare("DELETE FROM fiscal_documents").run();
+    insertFiscalDocument(database, { state: "AUTHORIZED" });
+
+    await expect(documents.requestingDocuments()).resolves.toEqual([]);
+  });
+});
+
 describe("resolving a waiting document", () => {
   it("authorizes it with its code and expiry, consuming the number, and routes nothing", async () => {
     await documents.resolve(

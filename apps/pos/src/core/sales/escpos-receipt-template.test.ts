@@ -445,14 +445,15 @@ describe("the ESC/POS receipt template", () => {
     });
 
     it("prints no line wider than the 48 columns of the paper", () => {
-      const longIssuer = {
+      const longTaxStatus = {
         ...FISCAL_BLOCK,
         issuer: {
           ...FISCAL_BLOCK.issuer,
-          legalName: "Comercializadora de Productos Naturales y Regionales del Sur Argentino",
+          taxStatus:
+            "Responsable Monotributo del Régimen Simplificado para Pequeños Contribuyentes",
         },
       };
-      for (const fiscal of [FISCAL_BLOCK, longIssuer]) {
+      for (const fiscal of [FISCAL_BLOCK, longTaxStatus]) {
         for (const line of printed(receipt({ fiscal })).textLines) {
           expect(line.length).toBeLessThanOrEqual(48);
         }

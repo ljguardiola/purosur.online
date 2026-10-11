@@ -1,6 +1,9 @@
 import { encodePinHash } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createRealTimeAuthorization } from "../fiscal/real-time-authorization-wiring";
+import {
+  createRealTimeAuthorization,
+  settleInterruptedAuthorizations,
+} from "../fiscal/real-time-authorization-wiring";
 import {
   FACTURA_C,
   insertFiscalDocument,
@@ -293,24 +296,25 @@ describe("the register's receipt printing over its local database", () => {
 
     it("answers the cashier before the tax authority answers, and prints only after it did", async () => {
       insertDocumentWaiting();
-      let answer: (response: Response) => void = () => undefined;
+      const pendingAnswers: ((response: Response) => void)[] = [];
       const cloud = cloudAnswering(
         () =>
           new Promise<Response>((resolve) => {
-            answer = resolve;
+            pendingAnswers.push(resolve);
           }),
       );
 
       const outcome = await chargingWith(cloud)?.({});
-      await vi.waitFor(() => expect(answer).not.toBe(undefined));
-      await Promise.resolve();
+      await vi.waitFor(() => expect(pendingAnswers).toHaveLength(1));
 
       expect(outcome).toEqual({ kind: "completed", sale_id: "sale-1" });
       expect(connections).toEqual([]);
+      expect(syncs).toBe(0);
 
-      answer(json(AUTHORIZED_ANSWER));
-      await vi.waitFor(() => expect(syncs).toBe(1));
-      expect(connections).toHaveLength(1);
+      pendingAnswers[0]?.(json(AUTHORIZED_ANSWER));
+      const papers = await printedPapers();
+      expect(papers).toHaveLength(1);
+      expect(papers[0]?.textLines).toContain("             CAE N° 75123456789012");
     });
 
     it.each([
@@ -350,6 +354,30 @@ describe("the register's receipt printing over its local database", () => {
       expect(papers[0]?.textLines).toContain("Yerba");
       expect(papers[0]?.text).not.toContain("FACTURA C");
       expect(papers[0]?.text).not.toContain("[qr");
+    });
+
+    it("prints the receipt as before on a reprint once the register restarts after stopping while the tax authority was asked", async () => {
+      insertDocumentWaiting();
+      database
+        .prepare(
+          "INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('role-cashier', 'reprint_receipt', 1)",
+        )
+        .run();
+      await settleInterruptedAuthorizations({ database, now: () => NOW, reportFailure: () => {} });
+
+      const reprinted = printingOverDatabase().reprintSaleReceipt?.({
+        saleId: "sale-1",
+        reason: "Se perdió",
+      });
+      await vi.waitFor(() => expect(connections).toHaveLength(1));
+      const [connection] = connections;
+      connection?.socket.connected();
+
+      expect(await reprinted).toEqual({ kind: "started", copy: { kind: "original" } });
+      const [written] = connection?.socket.written ?? [];
+      const paper = printoutOf((written ?? new Uint8Array()).slice(0, -TRANSMIT_RESPONSE_LENGTH));
+      expect(paper.textLines).toContain("Yerba");
+      expect(paper.text).not.toContain("FACTURA C");
     });
 
     it("still prints the receipt as before, once, when asking the tax authority fails", async () => {

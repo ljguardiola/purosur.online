@@ -4,6 +4,7 @@ import type { CloudClientDeps } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
 import {
   createRealTimeAuthorization,
+  settleInterruptedAuthorizations,
   startRegisterHealthChecks,
 } from "./real-time-authorization-wiring";
 import {
@@ -156,6 +157,48 @@ describe("authorizing a completed sale in real time", () => {
     });
 
     await expect(withoutDatabase.authorizeSale("sale-1")).resolves.toBeUndefined();
+  });
+});
+
+describe("settling, as the register starts, the authorizations its last run left requesting", () => {
+  beforeEach(() => {
+    insertCompletedSale(database, "sale-1");
+    insertFiscalDocument(database);
+  });
+
+  it("leaves the document unknown and routes its sale to the deferred flow for an unclear outcome", async () => {
+    await settleInterruptedAuthorizations({ database, now: () => NOW, reportFailure: () => {} });
+
+    expect(storedState()).toEqual({ state: "UNKNOWN" });
+    expect(database.prepare("SELECT sale_id, reason, routed_at FROM deferred_sales").all()).toEqual(
+      [{ sale_id: "sale-1", reason: "unclear_outcome", routed_at: NOW.toISOString() }],
+    );
+  });
+
+  it("reports a failure without rejecting", async () => {
+    const failures: unknown[] = [];
+    database.prepare("DROP TABLE deferred_sales").run();
+
+    await expect(
+      settleInterruptedAuthorizations({
+        database,
+        now: () => NOW,
+        reportFailure: (error) => failures.push(error),
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(failures).toHaveLength(1);
+    expect(storedState()).toEqual({ state: "REQUESTING" });
+  });
+
+  it("resolves at once for a register with no local database", async () => {
+    await expect(
+      settleInterruptedAuthorizations({
+        database: undefined,
+        now: () => NOW,
+        reportFailure: () => {},
+      }),
+    ).resolves.toBeUndefined();
   });
 });
 
