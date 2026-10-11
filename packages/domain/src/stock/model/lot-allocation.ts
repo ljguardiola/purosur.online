@@ -27,7 +27,10 @@ function compareNullsLast(a: string | null, b: string | null): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-function compareFirstToConsume(a: StockLot, b: StockLot): number {
+export function compareFirstToConsume(
+  a: Pick<StockLot, "id" | "expiresOn" | "purchasedOn">,
+  b: Pick<StockLot, "id" | "expiresOn" | "purchasedOn">,
+): number {
   return (
     compareNullsLast(a.expiresOn, b.expiresOn) ||
     compareNullsLast(a.purchasedOn, b.purchasedOn) ||

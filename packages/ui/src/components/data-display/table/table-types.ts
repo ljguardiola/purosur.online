@@ -7,12 +7,14 @@ import type { tableModelFeatures } from "./table-features";
 
 export type TableColumnAlign = "start" | "end";
 export type TableRowState = "selected" | "warning" | "error" | "muted";
+export type TableVariant = "framed" | "nested";
 export type TableSortDirection = "ascending" | "descending";
 export type TableSort<K extends string = string> = { column: K; direction: TableSortDirection };
 
 export type TableColumnMeta = {
   align?: TableColumnAlign;
   actionCount?: 1 | 2;
+  width?: number;
 };
 
 type TableModelFeatures = typeof tableModelFeatures;
@@ -62,7 +64,9 @@ type TableLoadProps =
 export type TableProps<T extends RowData> = {
   table: TableModel<T>;
   "aria-label": string;
+  variant?: TableVariant;
   rowState?: (item: T) => TableRowState | undefined;
+  rowDetail?: (item: T) => ReactNode;
   empty?: EmptyStateProps;
   footer?: ReactNode;
 } & TableLoadProps;

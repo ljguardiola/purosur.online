@@ -1,11 +1,11 @@
 import type { RowData } from "@tanstack/react-table";
-import type { ReactElement } from "react";
+import { Fragment, type ReactElement } from "react";
 import { EmptyState } from "../../feedback/empty-state";
 import { LoadFailure } from "../../feedback/load-failure";
 import { TableCell } from "./table-cell";
 import { TableHeaderRow } from "./table-header-row";
 import { TablePlaceholderRows } from "./table-placeholder-rows";
-import { rowBoxShadowClassName, rowStateClassName } from "./table-styles";
+import { rowBoxShadowClassName, rowStateClassName, tableContainerClassName } from "./table-styles";
 import type { TableLoadingState, TableProps } from "./table-types";
 import { TableUpdatingBar } from "./table-updating-bar";
 
@@ -32,7 +32,9 @@ function tableDisplayMode(
 export function Table<T extends RowData>({
   table,
   "aria-label": ariaLabel,
+  variant = "framed",
   rowState,
+  rowDetail,
   loading = false,
   failure,
   empty,
@@ -51,7 +53,7 @@ export function Table<T extends RowData>({
 
   return (
     <>
-      <div className="relative isolate overflow-clip rounded-lg border border-border bg-surface">
+      <div className={tableContainerClassName(variant)}>
         {loading === "updating" && <TableUpdatingBar />}
         {/* table/thead/tbody/tr/th/td keep their native CSS display: overriding it away from
             table-shaped drops these tags' implicit ARIA roles in some engines. */}
@@ -61,7 +63,7 @@ export function Table<T extends RowData>({
           className="w-full table-fixed"
         >
           <thead>
-            <TableHeaderRow table={table} />
+            <TableHeaderRow table={table} variant={variant} />
           </thead>
           <tbody aria-hidden={showingPlaceholders ? true : undefined}>
             {showingPlaceholders && <TablePlaceholderRows columns={columns} />}
@@ -82,23 +84,41 @@ export function Table<T extends RowData>({
             {displayMode === "rows" &&
               rows.map((row, rowIndex) => {
                 const state = rowState?.(row.original);
+                const detail = rowDetail?.(row.original);
+                const hasDetail = detail !== undefined && detail !== null;
+                const last = rowIndex === rows.length - 1;
                 return (
-                  <tr
-                    key={row.id}
-                    className={[
-                      rowBoxShadowClassName(state, rowIndex === rows.length - 1),
-                      rowStateClassName(state),
-                    ].join(" ")}
-                  >
-                    {row.getAllCells().map((cell, index, cells) => (
-                      <TableCell
-                        key={cell.id}
-                        cell={cell}
-                        first={index === 0}
-                        last={index === cells.length - 1}
-                      />
-                    ))}
-                  </tr>
+                  <Fragment key={row.id}>
+                    <tr
+                      className={[
+                        rowBoxShadowClassName(state, last && !hasDetail),
+                        rowStateClassName(state, variant),
+                      ].join(" ")}
+                    >
+                      {row.getAllCells().map((cell, index, cells) => (
+                        <TableCell
+                          key={cell.id}
+                          cell={cell}
+                          first={index === 0}
+                          last={index === cells.length - 1}
+                          variant={variant}
+                        />
+                      ))}
+                    </tr>
+                    {hasDetail ? (
+                      <tr>
+                        <td
+                          colSpan={columns.length}
+                          className={[
+                            "bg-surface-subtle px-4 pt-3 pb-4",
+                            rowBoxShadowClassName(undefined, last),
+                          ].join(" ")}
+                        >
+                          {detail}
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
                 );
               })}
           </tbody>
