@@ -142,6 +142,7 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
         entity_id,
         row: {
           point_of_sale_number: change.row.pointOfSaleNumber,
+          tax_authority_last_authorized_number: change.row.taxAuthorityLastAuthorizedNumber,
           version: change.row.version,
         },
       };
