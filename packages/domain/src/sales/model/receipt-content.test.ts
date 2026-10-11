@@ -29,6 +29,7 @@ const YERBA = {
     { id: "ten", benefit: { kind: "PERCENT_OFF" as const, percent: 10 } },
   ],
   promotionId: "ten",
+  manualAdjustment: null,
   discountAmount: 750,
   lineTotal: 6750,
 };
@@ -39,6 +40,7 @@ const QUESO = {
   listUnitPrice: 9000,
   promotions: [],
   promotionId: null,
+  manualAdjustment: null,
   discountAmount: 0,
   lineTotal: 4500,
 };
@@ -77,6 +79,8 @@ describe("receiptContent", () => {
         saleUnit: "UNIT",
         quantity: 3,
         listUnitPrice: 2500,
+        chargedUnitPrice: 2500,
+        manualAdjustment: null,
         promotion: { kind: "PERCENT_OFF", percent: 10 },
         discountAmount: 750,
         lineTotal: 6750,
@@ -86,11 +90,48 @@ describe("receiptContent", () => {
         saleUnit: "KG",
         quantity: 0.5,
         listUnitPrice: 9000,
+        chargedUnitPrice: 9000,
+        manualAdjustment: null,
         promotion: null,
         discountAmount: 0,
         lineTotal: 4500,
       },
     ]);
+  });
+
+  describe("a line with a manual adjustment", () => {
+    const adjusted = (manualAdjustment: ReceiptSource["lines"][number]["manualAdjustment"]) =>
+      receiptContent(
+        source({ lines: [{ ...YERBA, promotions: [], promotionId: null, manualAdjustment }] }),
+      ).lines[0];
+
+    it("charges the overridden unit price, whatever the list price is", () => {
+      expect(adjusted({ kind: "PRICE", unitPrice: 2000 })).toMatchObject({
+        listUnitPrice: 2500,
+        chargedUnitPrice: 2000,
+        manualAdjustment: { kind: "PRICE", unitPrice: 2000 },
+      });
+    });
+
+    it("charges the list unit price when the adjustment is a percent discount", () => {
+      expect(adjusted({ kind: "PERCENT", percent: 10 })).toMatchObject({
+        listUnitPrice: 2500,
+        chargedUnitPrice: 2500,
+        manualAdjustment: { kind: "PERCENT", percent: 10 },
+      });
+    });
+
+    it("charges the list unit price when the adjustment is an amount discount", () => {
+      expect(adjusted({ kind: "AMOUNT", amount: 300 })).toMatchObject({
+        listUnitPrice: 2500,
+        chargedUnitPrice: 2500,
+        manualAdjustment: { kind: "AMOUNT", amount: 300 },
+      });
+    });
+
+    it("charges a price of zero as zero", () => {
+      expect(adjusted({ kind: "PRICE", unitPrice: 0 })?.chargedUnitPrice).toBe(0);
+    });
   });
 
   it("shows no promotion when the applied one is not among the line's", () => {

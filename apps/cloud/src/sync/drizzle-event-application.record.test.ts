@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { ManualAdjustment } from "@purosur/domain";
 import type { SyncedFact, UnappliedEvent } from "@purosur/domain/sync/use-cases";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
@@ -206,6 +207,10 @@ describe("recording the sales of applied events", () => {
         productId: line.productId,
         productName: line.productName,
         weightSource: null,
+        manualAdjustmentKind: null,
+        manualAdjustmentValue: null,
+        manualAdjustmentReason: null,
+        manualAdjustmentAuthorizedBy: null,
         quantity: line.quantity,
         listUnitPrice: line.listUnitPrice,
         priceListId: line.priceListId,
@@ -263,6 +268,108 @@ describe("recording the sales of applied events", () => {
 
     const [row] = await system.db.select().from(saleLines);
     expect(row).toMatchObject({ quantity: 800, weightSource: "SCALE" });
+  });
+
+  it("keeps each line's manual adjustment, its reason and who authorized it", async () => {
+    const { deviceId } = await system.enrollInstallation();
+    const sessionId = randomUUID();
+    await openSession(deviceId, sessionId);
+    const base = aCompletedSale({ sessionId });
+    const [unit] = base.lines;
+    if (!unit) {
+      throw new Error("test setup: the sale has no line");
+    }
+    const adjusted = (manualAdjustment: ManualAdjustment) => ({
+      ...unit,
+      id: randomUUID(),
+      manualAdjustment,
+    });
+    const priced = adjusted({
+      kind: "PRICE",
+      unitPrice: 2000,
+      reason: "Caja abierta",
+      authorizedBy: null,
+    });
+    const percent = adjusted({
+      kind: "PERCENT",
+      percent: 10,
+      reason: "Cliente frecuente",
+      authorizedBy: "supervisor",
+    });
+    const amount = adjusted({
+      kind: "AMOUNT",
+      amount: 300,
+      reason: "Envase danado",
+      authorizedBy: null,
+    });
+    const completed = { ...base, lines: [unit, priced, percent, amount] };
+
+    await record({ kind: "sale_completed", sale: completed }, { deviceId });
+
+    const rows = await system.db.select().from(saleLines);
+    const columnsOf = (id: string) => {
+      const row = rows.find((candidate) => candidate.id === id);
+      return {
+        kind: row?.manualAdjustmentKind,
+        value: row?.manualAdjustmentValue,
+        reason: row?.manualAdjustmentReason,
+        authorizedBy: row?.manualAdjustmentAuthorizedBy,
+      };
+    };
+    expect(columnsOf(unit.id)).toEqual({
+      kind: null,
+      value: null,
+      reason: null,
+      authorizedBy: null,
+    });
+    expect(columnsOf(priced.id)).toEqual({
+      kind: "PRICE",
+      value: 2000,
+      reason: "Caja abierta",
+      authorizedBy: null,
+    });
+    expect(columnsOf(percent.id)).toEqual({
+      kind: "PERCENT",
+      value: 10,
+      reason: "Cliente frecuente",
+      authorizedBy: "supervisor",
+    });
+    expect(columnsOf(amount.id)).toEqual({
+      kind: "AMOUNT",
+      value: 300,
+      reason: "Envase danado",
+      authorizedBy: null,
+    });
+  });
+
+  it("keeps the manual adjustment of a line of a cancelled sale too", async () => {
+    const { deviceId } = await system.enrollInstallation();
+    const sessionId = randomUUID();
+    await openSession(deviceId, sessionId);
+    const base = aCancelledSale({ sessionId });
+    const [unit] = base.lines;
+    if (!unit) {
+      throw new Error("test setup: the sale has no line");
+    }
+    const manualAdjustment: ManualAdjustment = {
+      kind: "PERCENT",
+      percent: 5,
+      reason: "Cliente frecuente",
+      authorizedBy: "supervisor",
+    };
+
+    await record(
+      { kind: "sale_cancelled", sale: { ...base, lines: [{ ...unit, manualAdjustment }] } },
+      { deviceId },
+    );
+
+    const [row] = await system.db.select().from(saleLines);
+    expect(row).toMatchObject({
+      manualAdjustmentKind: "PERCENT",
+      manualAdjustmentValue: 5,
+      manualAdjustmentReason: "Cliente frecuente",
+      manualAdjustmentAuthorizedBy: "supervisor",
+    });
   });
 
   it("keeps a sale that has no line", async () => {

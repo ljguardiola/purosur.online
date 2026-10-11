@@ -30,6 +30,8 @@ function receipt(overrides: Partial<ReceiptContent> = {}): ReceiptContent {
         saleUnit: "KG",
         quantity: 350,
         listUnitPrice: 1_890_000,
+        chargedUnitPrice: 1_890_000,
+        manualAdjustment: null,
         promotion: null,
         discountAmount: 0,
         lineTotal: 661_500,
@@ -39,6 +41,8 @@ function receipt(overrides: Partial<ReceiptContent> = {}): ReceiptContent {
         saleUnit: "UNIT",
         quantity: 2,
         listUnitPrice: 420_000,
+        chargedUnitPrice: 420_000,
+        manualAdjustment: null,
         promotion: { kind: "PERCENT_OFF", percent: 10 },
         discountAmount: 84_000,
         lineTotal: 756_000,
@@ -48,6 +52,8 @@ function receipt(overrides: Partial<ReceiptContent> = {}): ReceiptContent {
         saleUnit: "UNIT",
         quantity: 1,
         listUnitPrice: 350_000,
+        chargedUnitPrice: 350_000,
+        manualAdjustment: null,
         promotion: null,
         discountAmount: 0,
         lineTotal: 350_000,
@@ -75,6 +81,8 @@ function singleUnitReceipt(productName: string, price: number): ReceiptContent {
         saleUnit: "UNIT",
         quantity: 1,
         listUnitPrice: price,
+        chargedUnitPrice: price,
+        manualAdjustment: null,
         promotion: null,
         discountAmount: 0,
         lineTotal: price,
@@ -315,6 +323,8 @@ describe("the ESC/POS receipt template", () => {
             saleUnit: "UNIT",
             quantity: 3,
             listUnitPrice: 420_000,
+            chargedUnitPrice: 420_000,
+            manualAdjustment: null,
             promotion: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
             discountAmount: 420_000,
             lineTotal: 840_000,
@@ -325,6 +335,50 @@ describe("the ESC/POS receipt template", () => {
 
     expect(textLines).toContain("  Lleve 3, pague 2                   -$ 4.200,00");
     expect(textLines).toContain("  Total de la línea                   $ 8.400,00");
+  });
+
+  it("shows the unit price charged, not the list price, for a line whose price was overridden", () => {
+    const { textLines } = printed(
+      receipt({
+        lines: [
+          {
+            productName: "Alfajor",
+            saleUnit: "UNIT",
+            quantity: 3,
+            listUnitPrice: 420_000,
+            chargedUnitPrice: 300_000,
+            manualAdjustment: { kind: "PRICE", unitPrice: 300_000 },
+            promotion: null,
+            discountAmount: 0,
+            lineTotal: 900_000,
+          },
+        ],
+      }),
+    );
+
+    expect(textLines).toContain("  3 x $ 3.000,00                      $ 9.000,00");
+  });
+
+  it("shows the weight at the unit price charged for a line sold by weight whose price was overridden", () => {
+    const { textLines } = printed(
+      receipt({
+        lines: [
+          {
+            productName: "Yerba a granel",
+            saleUnit: "KG",
+            quantity: 500,
+            listUnitPrice: 1_890_000,
+            chargedUnitPrice: 1_600_000,
+            manualAdjustment: { kind: "PRICE", unitPrice: 1_600_000 },
+            promotion: null,
+            discountAmount: 0,
+            lineTotal: 800_000,
+          },
+        ],
+      }),
+    );
+
+    expect(textLines).toContain("  0,500 kg x $ 16.000,00 el kg        $ 8.000,00");
   });
 
   it("prints no line wider than the 48 columns of the paper", () => {
