@@ -156,6 +156,24 @@ describe("GET /refunds/pending", () => {
     ]);
   });
 
+  it("tells how long each refund has been pending, when its sale happened and which methods covered it", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const late = await aPendingLatePaymentRefund(db, {
+      openedAt: new Date(NOW.getTime() - 2 * 3_600_000),
+      coveredBy: ["TRANSFER"],
+    });
+
+    const response = await pendingRefunds(headers);
+
+    const [refund] = pendingRefundsSchema.parse(response.json()).refunds;
+    expect(refund).toMatchObject({
+      id: late.refundId,
+      seconds_pending: 7_200,
+      sale_occurred_at: late.saleOccurredAt.toISOString(),
+      covered_by: ["TRANSFER"],
+    });
+  });
+
   it("lists nothing to a session of another branch", async () => {
     const otherLocationId = await insertLocation(db);
     const { headers } = await signedInWith(db, ["confirm_refunds"], NOW, {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { listPendingRefunds } from "./list-pending-refunds.js";
-import { type FakePendingRefund, FakeRefundStore } from "./test-support/fake-refund-store.js";
+import { type FakePendingRefund, FakeRefundStore, FixedClock } from "./test-support/fake-refund-store.js";
 
 const TRANSFER_REFUND: FakePendingRefund = {
   id: "refund-1",
@@ -11,20 +11,25 @@ const TRANSFER_REFUND: FakePendingRefund = {
   origin: "sale_cancelled",
   amount: 2000,
   occurredAt: new Date("2026-10-07T15:30:00.000Z"),
+  saleOccurredAt: new Date("2026-10-07T15:30:00.000Z"),
+  coveredBy: [],
   cancelledBy: "cashier",
   cancelledByName: "Lucia",
   locationId: "branch-1",
 };
+
+const NOW = new Date("2026-10-07T18:45:30.000Z");
+const clock = new FixedClock(NOW);
 
 describe("listPendingRefunds", () => {
   it("lists the pending refunds of the branch", async () => {
     const elsewhere = { ...TRANSFER_REFUND, id: "refund-2", locationId: "branch-2" };
     const store = new FakeRefundStore([], [TRANSFER_REFUND, elsewhere]);
 
-    const refunds = await listPendingRefunds({ reader: store }, { locationId: "branch-1" });
+    const refunds = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
 
     const { locationId: _branch, ...listed } = TRANSFER_REFUND;
-    expect(refunds).toEqual([{ ...listed, discardable: false }]);
+    expect(refunds).toEqual([{ ...listed, discardable: false, secondsPending: 11_730 }]);
     expect(store.pendingReads).toEqual(["branch-1"]);
   });
 
@@ -39,7 +44,7 @@ describe("listPendingRefunds", () => {
     };
     const store = new FakeRefundStore([], [TRANSFER_REFUND, late]);
 
-    const refunds = await listPendingRefunds({ reader: store }, { locationId: "branch-1" });
+    const refunds = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
 
     expect(refunds.map(({ id, origin, discardable }) => [id, origin, discardable])).toEqual([
       ["refund-1", "sale_cancelled", false],
@@ -51,6 +56,57 @@ describe("listPendingRefunds", () => {
   it("lists nothing when the branch has no pending refund", async () => {
     const store = new FakeRefundStore();
 
-    expect(await listPendingRefunds({ reader: store }, { locationId: "branch-1" })).toEqual([]);
+    expect(await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" })).toEqual([]);
+  });
+
+  it("counts the whole seconds a refund has been pending", async () => {
+    const store = new FakeRefundStore(
+      [],
+      [{ ...TRANSFER_REFUND, occurredAt: new Date("2026-10-07T18:45:28.500Z") }],
+    );
+
+    const [refund] = await listPendingRefunds(
+      { reader: store, clock },
+      { locationId: "branch-1" },
+    );
+
+    expect(refund?.secondsPending).toBe(1);
+  });
+
+  it("never counts a negative time for a refund opened after the clock", async () => {
+    const store = new FakeRefundStore(
+      [],
+      [{ ...TRANSFER_REFUND, occurredAt: new Date("2026-10-07T18:46:00.000Z") }],
+    );
+
+    const [refund] = await listPendingRefunds(
+      { reader: store, clock },
+      { locationId: "branch-1" },
+    );
+
+    expect(refund?.secondsPending).toBe(0);
+  });
+
+  it("hands on the sale's moment and the methods that covered it", async () => {
+    const store = new FakeRefundStore(
+      [],
+      [
+        {
+          ...TRANSFER_REFUND,
+          saleOccurredAt: new Date("2026-10-07T12:00:00.000Z"),
+          coveredBy: ["CASH", "TRANSFER"],
+        },
+      ],
+    );
+
+    const [refund] = await listPendingRefunds(
+      { reader: store, clock },
+      { locationId: "branch-1" },
+    );
+
+    expect(refund).toMatchObject({
+      saleOccurredAt: new Date("2026-10-07T12:00:00.000Z"),
+      coveredBy: ["CASH", "TRANSFER"],
+    });
   });
 });

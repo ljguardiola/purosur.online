@@ -20,6 +20,9 @@ const refund: Record<string, unknown> = {
   discardable: false,
   amount: 2000,
   occurred_at: "2026-10-07T15:30:00.000Z",
+  seconds_pending: 3600,
+  sale_occurred_at: "2026-10-07T15:30:00.000Z",
+  covered_by: [],
   cancelled_by: "u1",
   cancelled_by_name: "Lucia",
 };
@@ -47,6 +50,14 @@ describe("pendingRefundsSchema", () => {
           cancelled_by_name: null,
         },
       ],
+    };
+
+    expect(pendingRefundsSchema.parse(list)).toEqual(list);
+  });
+
+  it("accepts the methods that already covered the sale of a late payment", () => {
+    const list = {
+      refunds: [{ ...refund, origin: "late_payment", covered_by: ["CASH", "TRANSFER"] }],
     };
 
     expect(pendingRefundsSchema.parse(list)).toEqual(list);
@@ -80,6 +91,11 @@ describe("pendingRefundsSchema", () => {
     ["a fractional amount", { amount: 10.5 }],
     ["a negative amount", { amount: -1 }],
     ["a date that is not ISO", { occurred_at: "ayer" }],
+    ["a sale date that is not ISO", { sale_occurred_at: "ayer" }],
+    ["a method that covered the sale and no payment has", { covered_by: ["CARD"] }],
+    ["covering methods that are not a list", { covered_by: "CASH" }],
+    ["a fractional time pending", { seconds_pending: 1.5 }],
+    ["a negative time pending", { seconds_pending: -1 }],
   ])("refuses a refund with %s", (_case, change) => {
     expect(pendingRefundsSchema.safeParse({ refunds: [{ ...refund, ...change }] }).success).toBe(
       false,
@@ -88,6 +104,12 @@ describe("pendingRefundsSchema", () => {
 });
 
 describe("pendingRefundsSchema, declared time zone", () => {
+  it("declares the same zone for the moment of the sale", () => {
+    expect(pendingRefundsSchema.shape.refunds.element.shape.sale_occurred_at.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
+  });
+
   it("declares the zone the moment of a refund is shown in", () => {
     expect(pendingRefundsSchema.shape.refunds.element.shape.occurred_at.meta()).toEqual({
       timeZone: ARGENTINA_TIME_ZONE,

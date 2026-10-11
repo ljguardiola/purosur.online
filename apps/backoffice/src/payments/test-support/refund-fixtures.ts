@@ -13,6 +13,9 @@ export const transferRefund: PendingRefundsBody["refunds"][number] = {
   discardable: false,
   amount: 250_000,
   occurred_at: "2026-10-07T15:30:00.000Z",
+  seconds_pending: 3 * 3600,
+  sale_occurred_at: "2026-10-07T15:30:00.000Z",
+  covered_by: [],
   cancelled_by: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
   cancelled_by_name: "Lucía",
 };
@@ -27,6 +30,9 @@ const secondRefund: PendingRefundsBody["refunds"][number] = {
   discardable: false,
   amount: 98_000,
   occurred_at: "2026-10-07T18:05:00.000Z",
+  seconds_pending: 20 * 60,
+  sale_occurred_at: "2026-10-07T18:05:00.000Z",
+  covered_by: [],
   cancelled_by: "ffffffff-ffff-4fff-8fff-ffffffffffff",
   cancelled_by_name: null,
 };
@@ -43,6 +49,9 @@ export const latePaymentRefund: PendingRefundsBody["refunds"][number] = {
   discardable: true,
   amount: 125_000,
   occurred_at: "2026-10-08T13:10:00.000Z",
+  seconds_pending: 27 * 3600,
+  sale_occurred_at: "2026-10-08T12:37:00.000Z",
+  covered_by: ["TRANSFER"],
   cancelled_by: null,
   cancelled_by_name: null,
 };

@@ -58,6 +58,8 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         origin: "sale_cancelled",
         amount: 2_000,
         occurredAt: refund?.occurredAt,
+        saleOccurredAt: new Date("2026-10-07T14:00:00.000Z"),
+        coveredBy: [],
         cancelledBy: userId,
         cancelledByName: "Ada Lucero",
       },
@@ -139,10 +141,31 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
           origin: "late_payment",
           amount: late.amount,
           occurredAt: NOW,
+          saleOccurredAt: late.saleOccurredAt,
+          coveredBy: [],
           cancelledBy: null,
           cancelledByName: null,
         },
       ]);
+    });
+
+    it("lists the methods that covered its sale once the sale reached the cloud, each once", async () => {
+      const late = await aPendingLatePaymentRefund(db, {
+        openedAt: NOW,
+        coveredBy: ["TRANSFER", "CASH", "TRANSFER"],
+      });
+
+      const [refund] = await reader().pendingRefunds(late.locationId);
+
+      expect(refund?.coveredBy).toEqual(["CASH", "TRANSFER"]);
+    });
+
+    it("lists no covering method while its sale has not reached the cloud", async () => {
+      const late = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+
+      const [refund] = await reader().pendingRefunds(late.locationId);
+
+      expect(refund?.coveredBy).toEqual([]);
     });
 
     it("lists it in the same order as the refunds of cancelled sales, oldest first", async () => {
