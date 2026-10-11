@@ -4,10 +4,11 @@ import {
   aQrChargeInItsWait,
   MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS,
   MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES,
+  mercadoPagoQrChargeRemainingSeconds,
   mercadoPagoQrChargeWait,
   mercadoPagoQrChargeWaitEndsAt,
 } from "./mercado-pago-qr-charge-wait.js";
-import { MERCADO_PAGO_ORDER_EXPIRY_MINUTES } from "./payment-transaction.js";
+import { mercadoPagoOrderExpiresAt } from "./payment-transaction.js";
 
 const STARTED_AT = new Date("2026-10-09T12:00:00.000Z");
 const WAIT_ENDS_AT = new Date("2026-10-09T12:03:00.000Z");
@@ -18,8 +19,29 @@ describe("mercadoPagoQrChargeWaitEndsAt", () => {
     expect(mercadoPagoQrChargeWaitEndsAt(STARTED_AT)).toEqual(WAIT_ENDS_AT);
   });
 
-  it("ends the wait 2 minutes before the order expires, so a payment made at its end still comes in", () => {
-    expect(MERCADO_PAGO_ORDER_EXPIRY_MINUTES - MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES).toBe(2);
+  it("asks Mercado Pago to expire the order exactly when the wait ends", () => {
+    const attemptStartedAt = new Date("2026-10-09T12:00:00.000Z");
+
+    expect(
+      mercadoPagoOrderExpiresAt(attemptStartedAt, 0).getTime() -
+        mercadoPagoQrChargeWaitEndsAt(attemptStartedAt).getTime(),
+    ).toBe(0);
+    expect(MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES).toBe(3);
+  });
+});
+
+describe("mercadoPagoQrChargeRemainingSeconds", () => {
+  it("counts a started second as a second still left", () => {
+    expect(
+      mercadoPagoQrChargeRemainingSeconds(WAIT_ENDS_AT, new Date("2026-10-09T12:02:59.001Z")),
+    ).toBe(1);
+  });
+
+  it("is 0 the moment the wait ends and after it", () => {
+    expect(mercadoPagoQrChargeRemainingSeconds(WAIT_ENDS_AT, WAIT_ENDS_AT)).toBe(0);
+    expect(
+      mercadoPagoQrChargeRemainingSeconds(WAIT_ENDS_AT, new Date("2026-10-09T12:10:00.000Z")),
+    ).toBe(0);
   });
 });
 

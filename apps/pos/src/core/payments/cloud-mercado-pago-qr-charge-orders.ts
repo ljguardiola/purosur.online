@@ -34,8 +34,9 @@ function orderAnswerOf(response: CloudResponse): MercadoPagoQrChargeOrderAnswer 
   if (response.kind === "error") {
     return isRetryableCloudError(response.error.code) ? UNREACHABLE : { kind: "refused" };
   }
-  return mercadoPagoQrPaymentSchema.safeParse(response.body).success
-    ? { kind: "created" }
+  const payment = mercadoPagoQrPaymentSchema.safeParse(response.body);
+  return payment.success
+    ? { kind: "created", expiresAt: new Date(payment.data.expires_at) }
     : UNREACHABLE;
 }
 
