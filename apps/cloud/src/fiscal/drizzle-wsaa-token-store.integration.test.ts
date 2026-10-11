@@ -52,7 +52,7 @@ async function renewOnOwnConnection(authentication: WsaaAuthentication) {
   try {
     return await renewWsaaToken(
       {
-        store: new DrizzleWsaaTokenStore(drizzle(connection)),
+        store: new DrizzleWsaaTokenStore(drizzle(connection), { environment: "production" }),
         authentication,
         clock: { now: () => NOW },
       },
@@ -88,16 +88,16 @@ describe("the WSAA token store on a real Postgres", () => {
     expect(authentication.requests).toBe(1);
   });
 
-  it("keeps the token WSAA issued when the renewal fails after recording it", async () => {
+  it("keeps the token WSAA issued when the renewal fails after its answer was recorded", async () => {
     await sql`delete from arca_wsaa_tokens`;
     const connection = postgres(integrationDb.databaseUrl, { max: 1 });
     try {
       await expect(
-        new DrizzleWsaaTokenStore(drizzle(connection)).holdRenewal(
+        new DrizzleWsaaTokenStore(drizzle(connection), { environment: "production" }).holdRenewal(
           SERVICE,
           FINGERPRINT,
           async (renewal) => {
-            await renewal.recordIssuedToken(ISSUED);
+            await renewal.recordAnswer((answer) => answer.recordIssuedToken(ISSUED));
             throw new Error("the renewal failed after recording");
           },
         ),
@@ -108,6 +108,32 @@ describe("the WSAA token store on a real Postgres", () => {
 
     const rows = await sql`select token from arca_wsaa_tokens where service = ${SERVICE}`;
     expect(rows).toEqual([{ token: ISSUED.token }]);
+  });
+
+  it("records nothing of an answer that fails, and still releases the renewal", async () => {
+    await sql`delete from arca_wsaa_tokens`;
+    const connection = postgres(integrationDb.databaseUrl, { max: 1 });
+    try {
+      const store = new DrizzleWsaaTokenStore(drizzle(connection), { environment: "production" });
+      await expect(
+        store.holdRenewal(SERVICE, FINGERPRINT, (renewal) =>
+          renewal.recordAnswer(async (answer) => {
+            await answer.recordIssuedToken(ISSUED);
+            await answer.recordRefusal(NOW);
+            throw new Error("the answer failed");
+          }),
+        ),
+      ).rejects.toThrow("the answer failed");
+
+      expect(await store.holdRenewal(SERVICE, FINGERPRINT, async () => "held again")).toBe(
+        "held again",
+      );
+    } finally {
+      await connection.end({ timeout: 1 });
+    }
+
+    expect(await sql`select token from arca_wsaa_tokens`).toEqual([]);
+    expect(await sql`select 1 from arca_wsaa_ticket_refusals`).toEqual([]);
   });
 
   it("lets the next renewal run once one failed, so a failure never leaves the lock held", async () => {

@@ -377,6 +377,7 @@ export {
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
+  withoutQueryParameters,
 } from "./shared/index.js";
 export type {
   StockBalance,

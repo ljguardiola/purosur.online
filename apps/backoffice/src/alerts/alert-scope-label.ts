@@ -1,3 +1,5 @@
+import type { AlertScopeKind } from "@purosur/domain";
+
 const ARCA_ENVIRONMENT_LABELS: ReadonlyMap<string, string> = new Map([
   ["production", "Producción"],
   ["homologation", "Homologación"],
@@ -13,11 +15,11 @@ function fiscalDocumentScopeLabel(scopeDisplay: string): string {
   return label === undefined ? scopeDisplay : `Punto de venta ${pointOfSale} · ${label}`;
 }
 
-export function alertScopeLabel(kind: string, scopeDisplay: string): string {
-  if (kind === "fiscal_rejected") {
+export function alertScopeLabel(scopeKind: string | null, scopeDisplay: string): string {
+  if (scopeKind === ("pointOfSaleDocumentType" satisfies AlertScopeKind)) {
     return fiscalDocumentScopeLabel(scopeDisplay);
   }
-  return kind === "arca_certificate_expiring"
+  return scopeKind === ("environment" satisfies AlertScopeKind)
     ? (ARCA_ENVIRONMENT_LABELS.get(scopeDisplay) ?? scopeDisplay)
     : scopeDisplay;
 }

@@ -7,6 +7,7 @@ import {
 
 const NOW = new Date("2026-10-01T12:00:00.000Z");
 const FINGERPRINT = "AB:CD:EF";
+const ENVIRONMENT = "production";
 
 describe("wsaaTokenRenewalJobs", () => {
   const authentication = { requestToken: vi.fn() };
@@ -16,6 +17,7 @@ describe("wsaaTokenRenewalJobs", () => {
       now: () => NOW,
       authentication,
       certificateFingerprint: FINGERPRINT,
+      environment: ENVIRONMENT,
     });
 
     expect(jobs.taskList[WSAA_TOKEN_RENEWAL_TASK_IDENTIFIER]).toBeInstanceOf(Function);
@@ -27,9 +29,16 @@ describe("wsaaTokenRenewalJobs", () => {
     const fakeDb = { marker: "fake-db" };
     const createDatabase = vi.fn().mockReturnValue(fakeDb);
     const renew = vi.fn().mockResolvedValue({ kind: "kept" });
+    const resumeWorkWaitingOnToken = vi.fn();
 
     const jobs = wsaaTokenRenewalJobs(
-      { now: () => NOW, authentication, certificateFingerprint: FINGERPRINT },
+      {
+        now: () => NOW,
+        authentication,
+        certificateFingerprint: FINGERPRINT,
+        environment: ENVIRONMENT,
+        resumeWorkWaitingOnToken,
+      },
       { createDatabase, renew },
     );
     const task = jobs.taskList[WSAA_TOKEN_RENEWAL_TASK_IDENTIFIER];
@@ -48,11 +57,15 @@ describe("wsaaTokenRenewalJobs", () => {
         authentication: unknown;
         service: string;
         certificateFingerprint: string;
+        environment: string;
+        resumeWorkWaitingOnToken: unknown;
       },
     ];
     expect(dbArgument).toBe(fakeDb);
     expect(inputArgument.service).toBe("wsfe");
     expect(inputArgument.certificateFingerprint).toBe(FINGERPRINT);
+    expect(inputArgument.environment).toBe(ENVIRONMENT);
+    expect(inputArgument.resumeWorkWaitingOnToken).toBe(resumeWorkWaitingOnToken);
     expect(inputArgument.authentication).toBe(authentication);
     expect(inputArgument.now()).toEqual(NOW);
   });

@@ -1,4 +1,8 @@
-import { ANOTHER_FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
+import {
+  ANOTHER_FICTIONAL_CUIT,
+  FICTIONAL_CUIT,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
@@ -1137,5 +1141,298 @@ describe("identifiers stored as numbers", () => {
     };
 
     expect(scrubErrorReport({ extra }).extra).toEqual(extra);
+  });
+});
+
+describe("a failed query's parameters", () => {
+  const statement = 'insert into "customers" ("cuit", "legal_name") values ($1, $2)';
+  const failedQuery = `Failed query: ${statement}\nparams: ${FICTIONAL_CUIT},${FICTIONAL_LEGAL_NAME}`;
+
+  it("removes the values a failed query was given from the message and every exception value, keeping its statement", () => {
+    const event = {
+      message: failedQuery,
+      exception: {
+        values: [
+          { type: "Error", value: failedQuery },
+          { type: "Error", value: `closing the sale failed: ${failedQuery}` },
+        ],
+      },
+    };
+
+    const scrubbed = scrubErrorReport(event);
+
+    expect(scrubbed.message).toBe(`Failed query: ${statement}`);
+    expect(scrubbed.exception?.values).toEqual([
+      { type: "Error", value: `Failed query: ${statement}` },
+      { type: "Error", value: `closing the sale failed: Failed query: ${statement}` },
+    ]);
+  });
+
+  it("removes them when a value spans several lines", () => {
+    const event = {
+      message: `Failed query: ${statement}\nparams: x,${FICTIONAL_LEGAL_NAME}\nS.A.`,
+    };
+
+    expect(scrubErrorReport(event).message).toBe(`Failed query: ${statement}`);
+  });
+
+  it("removes them from a breadcrumb's and a log's text", () => {
+    const breadcrumb = { message: `sync failed ${failedQuery}\n    at apply (sync.js:1:2)` };
+    const log = { message: failedQuery };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).message).toBe(
+      `sync failed Failed query: ${statement}`,
+    );
+    expect(scrubErrorReportLog(log).message).toBe(`Failed query: ${statement}`);
+  });
+
+  it("removes them from an error's message, stack and fields, along its whole cause chain", () => {
+    const queryError = Object.assign(new Error(failedQuery), {
+      query: statement,
+      params: [FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME],
+    });
+    queryError.stack = `Error: ${failedQuery}\n    at query (session.js:1:2)`;
+    const error = new Error("closing the sale failed", { cause: queryError });
+    error.stack = "Error: closing the sale failed";
+
+    const scrubbed = scrubErrorReport({ extra: { error } });
+
+    expect(scrubbed.extra).toStrictEqual({
+      error: {
+        name: "Error",
+        message: "closing the sale failed",
+        stack: "Error: closing the sale failed",
+        cause: {
+          query: "[redacted]",
+          params: "[redacted]",
+          name: "Error",
+          message: `Failed query: ${statement}`,
+          stack: `Error: Failed query: ${statement}`,
+        },
+      },
+    });
+    expect(JSON.stringify(scrubbed)).not.toContain(FICTIONAL_LEGAL_NAME);
+  });
+
+  it("keeps a line starting with params when no failed query precedes it", () => {
+    const event = {
+      message: "payload refused\nparams: missing id",
+      exception: {
+        values: [{ type: "Error", value: `payload refused\nparams: missing id\n${failedQuery}` }],
+      },
+    };
+
+    const scrubbed = scrubErrorReport(event);
+
+    expect(scrubbed.message).toBe("payload refused\nparams: missing id");
+    expect(scrubbed.exception?.values?.[0]?.value).toBe(
+      `payload refused\nparams: missing id\nFailed query: ${statement}`,
+    );
+  });
+
+  it("keeps text that only mentions params inside a line", () => {
+    const event = { message: "refused the route's params: missing id" };
+
+    expect(scrubErrorReport(event).message).toBe("refused the route's params: missing id");
+  });
+
+  it("hides every quoted value in the linked errors that caused a failed query, at any depth", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            type: "Error",
+            value: `socket closed reading "${FICTIONAL_LEGAL_NAME}"`,
+            mechanism: { exception_id: 3, parent_id: 2 },
+          },
+          {
+            type: "Error",
+            value: `invalid input syntax for type uuid: "${FICTIONAL_LEGAL_NAME}"`,
+            mechanism: { exception_id: 2, parent_id: 1 },
+          },
+          { type: "Error", value: failedQuery, mechanism: { exception_id: 1, parent_id: 0 } },
+          {
+            type: "Error",
+            value: 'saving "the customer" failed',
+            mechanism: { exception_id: 0 },
+          },
+        ],
+      },
+    };
+
+    expect(scrubErrorReport(event).exception?.values?.map(({ value }) => value)).toEqual([
+      'socket closed reading "[redacted]"',
+      'invalid input syntax for type uuid: "[redacted]"',
+      `Failed query: ${statement}`,
+      'saving "the customer" failed',
+    ]);
+  });
+
+  it("finds the failed query a linked error caused whatever order the errors come in", () => {
+    const event = {
+      exception: {
+        values: [
+          { type: "Error", value: failedQuery, mechanism: { exception_id: 1, parent_id: 0 } },
+          {
+            type: "Error",
+            value: `invalid input syntax for type uuid: "${FICTIONAL_LEGAL_NAME}"`,
+            mechanism: { exception_id: 2, parent_id: 1 },
+          },
+        ],
+      },
+    };
+
+    expect(scrubErrorReport(event).exception?.values?.[1]?.value).toBe(
+      'invalid input syntax for type uuid: "[redacted]"',
+    );
+  });
+
+  it("keeps the quoted text of linked errors that caused no failed query, even when their links loop", () => {
+    const values = [
+      {
+        type: "Error",
+        value: 'relation "customers" does not exist',
+        mechanism: { exception_id: 1, parent_id: 2 },
+      },
+      {
+        type: "Error",
+        value: 'saving "the customer" failed',
+        mechanism: { exception_id: 2, parent_id: 1 },
+      },
+      { type: "Error", value: 'column "cuit" is missing' },
+      { type: "Error", value: `Failed query: ${statement}` },
+    ];
+
+    expect(scrubErrorReport({ exception: { values } }).exception?.values).toEqual(values);
+  });
+
+  it("hides a quoted value whole, from its first quote to its last, keeping the unquoted text", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            type: "Error",
+            value: `value "${FICTIONAL_LEGAL_NAME}" or "a"b" is out of range for type integer`,
+            mechanism: { exception_id: 1, parent_id: 0 },
+          },
+          { type: "Error", value: failedQuery, mechanism: { exception_id: 0 } },
+        ],
+      },
+    };
+
+    expect(scrubErrorReport(event).exception?.values?.[0]?.value).toBe(
+      'value "[redacted]" is out of range for type integer',
+    );
+  });
+
+  it("hides every quoted value in the errors that caused an error of a failed query, at any depth", () => {
+    const echoingCause = new Error(`socket closed reading "${FICTIONAL_LEGAL_NAME}"`);
+    echoingCause.stack = `Error: socket closed reading "${FICTIONAL_LEGAL_NAME}"`;
+    const driverError = new Error(`invalid input syntax for type uuid: "${FICTIONAL_LEGAL_NAME}"`, {
+      cause: echoingCause,
+    });
+    driverError.stack = `Error: invalid input syntax for type uuid: "${FICTIONAL_LEGAL_NAME}"`;
+    const queryError = new Error(failedQuery, { cause: driverError });
+    queryError.stack = `Error: ${failedQuery}`;
+    const error = new Error('saving "the customer" failed', { cause: queryError });
+    error.stack = 'Error: saving "the customer" failed';
+
+    const scrubbed = scrubErrorReportBreadcrumb({ data: { error } });
+
+    expect(scrubbed.data).toStrictEqual({
+      error: {
+        name: "Error",
+        message: 'saving "the customer" failed',
+        stack: 'Error: saving "the customer" failed',
+        cause: {
+          name: "Error",
+          message: `Failed query: ${statement}`,
+          stack: `Error: Failed query: ${statement}`,
+          cause: {
+            name: "Error",
+            message: 'invalid input syntax for type uuid: "[redacted]"',
+            stack: 'Error: invalid input syntax for type uuid: "[redacted]"',
+            cause: {
+              name: "Error",
+              message: 'socket closed reading "[redacted]"',
+              stack: 'Error: socket closed reading "[redacted]"',
+            },
+          },
+        },
+      },
+    });
+  });
+
+  it("keeps only the name, message, stack and code of the errors that caused a failed query", () => {
+    const socketError = Object.assign(new Error("socket closed"), {
+      detail: `while sending ${FICTIONAL_LEGAL_NAME}`,
+    });
+    socketError.stack = "Error: socket closed";
+    const driverError = Object.assign(
+      new Error('duplicate key value violates unique constraint "customers_legal_name_key"', {
+        cause: socketError,
+      }),
+      {
+        code: "23505",
+        detail: `Key (legal_name)=(${FICTIONAL_LEGAL_NAME}) already exists.`,
+        table_name: "customers",
+      },
+    );
+    driverError.stack =
+      'Error: duplicate key value violates unique constraint "customers_legal_name_key"';
+    const queryError = Object.assign(new Error(failedQuery, { cause: driverError }), {
+      code: "query_failed",
+    });
+    queryError.stack = `Error: ${failedQuery}`;
+
+    const scrubbed = scrubErrorReportBreadcrumb({
+      data: { logger: "console", arguments: ["saving the customer failed", queryError] },
+    });
+
+    expect(scrubbed.data).toStrictEqual({
+      logger: "console",
+      arguments: [
+        "saving the customer failed",
+        {
+          code: "query_failed",
+          name: "Error",
+          message: `Failed query: ${statement}`,
+          stack: `Error: Failed query: ${statement}`,
+          cause: {
+            name: "Error",
+            message: 'duplicate key value violates unique constraint "[redacted]"',
+            stack: 'Error: duplicate key value violates unique constraint "[redacted]"',
+            code: "23505",
+            cause: { name: "Error", message: "socket closed", stack: "Error: socket closed" },
+          },
+        },
+      ],
+    });
+  });
+
+  it("keeps the quoted text of a report's contexts", () => {
+    const contexts = { sale: { refusal: 'price list "Mayorista" is closed' } };
+
+    expect(scrubErrorReport({ contexts }).contexts).toEqual(contexts);
+  });
+
+  it("keeps the quoted text of an error's cause when the error is no failed query", () => {
+    const cause = new Error('relation "customers" does not exist');
+    cause.stack = 'Error: relation "customers" does not exist';
+    const error = new Error("saving the customer failed", { cause });
+    error.stack = "Error: saving the customer failed";
+
+    expect(scrubErrorReport({ extra: { error } }).extra).toStrictEqual({
+      error: {
+        name: "Error",
+        message: "saving the customer failed",
+        stack: "Error: saving the customer failed",
+        cause: {
+          name: "Error",
+          message: 'relation "customers" does not exist',
+          stack: 'Error: relation "customers" does not exist',
+        },
+      },
+    });
   });
 });

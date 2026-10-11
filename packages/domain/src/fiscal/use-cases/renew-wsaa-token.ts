@@ -1,4 +1,8 @@
-import { isWsaaTokenDueForRenewal } from "../model/wsaa-token.js";
+import {
+  isWsaaTokenDueForRenewal,
+  isWsaaTokenRetryDue,
+  WSAA_ALREADY_AUTHENTICATED_RETRY_MINUTES,
+} from "../model/wsaa-token.js";
 import type { WsaaTokenPorts } from "./wsaa-token-ports.js";
 
 export interface RenewWsaaTokenInput {
@@ -9,6 +13,7 @@ export interface RenewWsaaTokenInput {
 export type RenewWsaaTokenOutcome =
   | { kind: "kept" }
   | { kind: "renewed" }
+  | { kind: "waiting" }
   | { kind: "already_authenticated" }
   | { kind: "failed" };
 
@@ -24,13 +29,29 @@ export async function renewWsaaToken(
       if (!isWsaaTokenDueForRenewal(persisted, clock.now())) {
         return { kind: "kept" };
       }
+      if (!isWsaaTokenRetryDue(await renewal.lastRefusal(), clock.now())) {
+        return { kind: "waiting" };
+      }
 
       const result = await authentication.requestToken(service);
-      if (result.kind !== "issued") {
-        return { kind: result.kind };
+      const answeredAt = clock.now();
+      if (result.kind === "issued") {
+        return renewal.recordAnswer<RenewWsaaTokenOutcome>(async (answer) => {
+          await answer.recordIssuedToken(result.token);
+          await answer.clearRefusal();
+          await answer.resolveHeldTicketAlert(answeredAt);
+          await answer.resumeWorkWaitingOnToken();
+          return { kind: "renewed" };
+        });
       }
-      await renewal.recordIssuedToken(result.token);
-      return { kind: "renewed" };
+      if (result.kind === "already_authenticated") {
+        return renewal.recordAnswer<RenewWsaaTokenOutcome>(async (answer) => {
+          await answer.recordRefusal(answeredAt);
+          await answer.openHeldTicketAlert(answeredAt, WSAA_ALREADY_AUTHENTICATED_RETRY_MINUTES);
+          return { kind: "already_authenticated" };
+        });
+      }
+      return { kind: result.kind };
     },
   );
 }
