@@ -14,6 +14,7 @@ import {
 import { scheduleOfCrontabLine } from "../platform/test-support/crontab-schedule.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
+import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import {
   OFFLINE_AUTHORIZATION_CODE_REQUEST_TASK_IDENTIFIER,
   OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER,
@@ -284,14 +285,19 @@ describe("the report of an offline authorization code acquisition failure", () =
   const REJECTION = { code: 15006, message: "Fictional rejection" };
 
   async function holdFirstHalf() {
-    await testDatabase.db.insert(caeaCodes).values({
-      fortnightStart: "2026-10-01",
-      fortnightEnd: "2026-10-15",
-      code: "36123456789012",
-      reportDeadline: "2026-10-20",
-      obtainedAt: new Date("2026-09-28T12:00:00.000Z"),
-      obtainedThrough: "requested",
-    });
+    await new DrizzleOfflineAuthorizationCodeStore(testDatabase.db).holdAcquisition(
+      OCTOBER_FIRST_HALF,
+      (acquisition) =>
+        acquisition.keep({
+          code: {
+            code: "36123456789012",
+            fortnight: OCTOBER_FIRST_HALF,
+            reportDeadline: "2026-10-20",
+          },
+          obtainedAt: new Date("2026-09-28T12:00:00.000Z"),
+          obtainedThrough: "requested",
+        }),
+    );
   }
 
   function taskAt(now: Date, taxAuthority: TaxAuthorityOfflineAuthorizationCodes) {
