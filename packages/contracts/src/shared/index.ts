@@ -18,6 +18,7 @@ export {
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
+  withoutQueryParameters,
 } from "./error-report-scrubbing.js";
 export type { ErrorReportingConfiguration } from "./error-reporting-configuration.js";
 export { errorReportingOptions } from "./error-reporting-options.js";
