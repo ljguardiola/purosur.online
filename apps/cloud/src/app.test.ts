@@ -1525,6 +1525,7 @@ describe("wiring the refund routes", () => {
   const refundRequests = [
     { method: "GET", url: "/api/refunds/pending" },
     { method: "POST", url: "/api/refunds/00000000-0000-4000-8000-000000000000/completion" },
+    { method: "POST", url: "/api/refunds/00000000-0000-4000-8000-000000000000/discard" },
   ] as const;
 
   async function statusCodes(app: ReturnType<typeof buildApp>): Promise<number[]> {
@@ -2520,6 +2521,11 @@ describe("the route access inventory", () => {
       {
         method: "POST",
         url: "/api/refunds/:id/completion",
+        access: capabilityAccess("refunds_area"),
+      },
+      {
+        method: "POST",
+        url: "/api/refunds/:id/discard",
         access: capabilityAccess("refunds_area"),
       },
       {
