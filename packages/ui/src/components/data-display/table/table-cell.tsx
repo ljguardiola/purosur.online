@@ -2,15 +2,18 @@ import type { Cell, RowData } from "@tanstack/react-table";
 import { columnActionCount, columnAlign, renderCell } from "./table-column";
 import type { tableModelFeatures } from "./table-features";
 import { alignClassName, cellHorizontalPaddingClassName } from "./table-styles";
+import type { TableVariant } from "./table-types";
 
 export function TableCell<T extends RowData>({
   cell,
   first,
   last,
+  variant,
 }: {
   cell: Cell<typeof tableModelFeatures, T, unknown>;
   first: boolean;
   last: boolean;
+  variant: TableVariant;
 }) {
   const actionsColumn = columnActionCount(cell.column) !== undefined;
   const align = actionsColumn ? "start" : columnAlign(cell.column);
@@ -19,7 +22,7 @@ export function TableCell<T extends RowData>({
     <td
       className={[
         "h-control-4xl break-words align-middle py-2",
-        cellHorizontalPaddingClassName(first, last),
+        cellHorizontalPaddingClassName(first, last, variant),
         alignClassName(align),
         align === "end" ? "tabular-nums" : "",
       ].join(" ")}

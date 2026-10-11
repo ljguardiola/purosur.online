@@ -18,6 +18,10 @@ export function formatCents(cents: number): string {
   return `$ ${formatAmountInput(cents)}`;
 }
 
+export function formatSignedCents(cents: number): string {
+  return cents < 0 ? `− ${formatCents(-cents)}` : formatCents(cents);
+}
+
 export function formatAmountInput(cents: number): string {
   return formatNumber(cents / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -81,6 +85,15 @@ function calendarDayMoment(day: string): number {
 
 export function formatCalendarDay(day: string): string {
   return formatDate(calendarDayMoment(day), CALENDAR_DAY_OPTIONS);
+}
+
+export function formatCalendarDayNumeric(day: string): string {
+  return formatDate(calendarDayMoment(day), {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 export function formatCalendarDayRange(first: string, last: string): string {

@@ -1,6 +1,5 @@
 import {
   type StockAdjustmentBody,
-  type StockBalance,
   type StockBalanceList,
   type StockCountBody,
   type StockCountList,
@@ -10,14 +9,15 @@ import {
   type StockMovementReasonList,
   type StockMovementResult,
   type StockPeriodDays,
+  type StockProductBalance,
   type StockProductList,
   stockBalanceListSchema,
-  stockBalanceSchema,
   stockCountListSchema,
   stockCountResultSchema,
   stockMovementListSchema,
   stockMovementReasonListSchema,
   stockMovementResultSchema,
+  stockProductBalanceSchema,
   stockProductListSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
@@ -97,14 +97,16 @@ export function fetchStockMovementReasons(): Promise<CloudReadOutcome<StockMovem
   return readList("/api/inventory-movement-reasons", stockMovementReasonListSchema);
 }
 
-export type FetchExpectedBalanceOutcome = CloudReadOutcome<StockBalance> | { kind: "not_found" };
+export type FetchExpectedBalanceOutcome =
+  | CloudReadOutcome<StockProductBalance>
+  | { kind: "not_found" };
 
 export function fetchExpectedBalance(
   productId: string,
   at: string,
 ): Promise<FetchExpectedBalanceOutcome> {
   const query = new URLSearchParams({ at });
-  return read(`/api/inventory-levels/${productId}?${query.toString()}`, stockBalanceSchema);
+  return read(`/api/inventory-levels/${productId}?${query.toString()}`, stockProductBalanceSchema);
 }
 
 type WriteOutcome<T, Refusal> =
