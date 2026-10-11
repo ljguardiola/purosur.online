@@ -1,6 +1,5 @@
 import {
   ARGENTINA_TIME_ZONE,
-  type DiscountBenefit,
   type FacturaCFiscalBlock,
   type ReceiptContent,
   type ReceiptCopy,
@@ -230,7 +229,13 @@ function issuer(out: Output, { issuer }: FacturaCFiscalBlock): void {
   out.lines([RULE]);
 }
 
-function promotionText(promotion: DiscountBenefit | null): string {
+function discountText({ manualAdjustment, promotion }: ReceiptContent["lines"][number]): string {
+  if (manualAdjustment?.kind === "PERCENT") {
+    return `Descuento manual ${formatNumber(manualAdjustment.percent)} %`;
+  }
+  if (manualAdjustment?.kind === "AMOUNT") {
+    return "Descuento manual";
+  }
   if (promotion === null) {
     return "Descuento";
   }
@@ -248,7 +253,7 @@ function weightText(thousandths: number): string {
 
 function saleLine(line: ReceiptContent["lines"][number]): string[] {
   const amount = formatCents(line.lineTotal + line.discountAmount);
-  const price = formatCents(line.listUnitPrice);
+  const price = formatCents(line.chargedUnitPrice);
   const detail =
     line.saleUnit === "KG"
       ? `${weightText(line.quantity)} kg x ${price} el kg`
@@ -257,8 +262,9 @@ function saleLine(line: ReceiptContent["lines"][number]): string[] {
     ...(line.saleUnit === "UNIT" && line.quantity === 1
       ? row(line.productName, amount)
       : [...wrapped(line.productName, COLUMNS), ...row(detail, amount, "  ")]),
+    ...(line.manualAdjustment?.kind === "PRICE" ? ["  Precio modificado"] : []),
     ...(line.discountAmount > 0
-      ? row(promotionText(line.promotion), `-${formatCents(line.discountAmount)}`, "  ")
+      ? row(discountText(line), `-${formatCents(line.discountAmount)}`, "  ")
       : []),
   ];
 }

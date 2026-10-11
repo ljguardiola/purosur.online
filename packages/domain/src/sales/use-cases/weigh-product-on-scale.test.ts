@@ -101,6 +101,7 @@ describe("weighProductOnScale", () => {
           listUnitPrice: 9000,
           priceListId: "list-1",
           promotions: [],
+          manualAdjustment: null,
           promotionId: null,
           discountAmount: 0,
           lineTotal: 11250,
@@ -109,6 +110,7 @@ describe("weighProductOnScale", () => {
     };
     expect(outcome).toEqual({
       kind: "added",
+      removedManualDiscount: false,
       sale,
       balance: { paid: 0, pending: 11250 },
       linesLock: null,

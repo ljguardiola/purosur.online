@@ -238,6 +238,48 @@ describe("applying what POST /events received", () => {
     expect(await route.db.select().from(alerts)).toEqual([]);
   });
 
+  it("applies a sale with an adjusted line, keeping the adjustment, its reason and who authorized it", async () => {
+    const { installation, device } = await pushingFromARegister();
+    await route.db.insert(users).values({
+      id: CASHIER,
+      firstName: "Ada",
+      email: "ada@example.com",
+      locationId: installation.locationId,
+    });
+    const priceListId = await seededPriceListId(route.db);
+    const { productId } = await insertProduct(route.db);
+    const sessionId = randomUUID();
+    await device.push([
+      cashSessionOpened(sessionId, "2026-10-06T11:00:00.000Z"),
+      saleCompleted({
+        saleId: randomUUID(),
+        sessionId,
+        completedAt: "2026-10-06T11:20:00.000Z",
+        total: 2000,
+        payments: [{ amount: 2000 }],
+        line: {
+          productId,
+          priceListId,
+          listUnitPrice: 2400,
+          adjustment: { kind: "PRICE", value: 2000, reason: "Caja abierta", authorizedBy: CASHIER },
+        },
+      }),
+    ]);
+
+    await applyAt(NOW);
+
+    const [line] = await route.db.select().from(saleLines);
+    expect(line).toMatchObject({
+      listUnitPrice: 2400,
+      lineTotal: 2000,
+      manualAdjustmentKind: "PRICE",
+      manualAdjustmentValue: 2000,
+      manualAdjustmentReason: "Caja abierta",
+      manualAdjustmentAuthorizedBy: CASHIER,
+    });
+    expect(await route.db.select().from(alerts)).toEqual([]);
+  });
+
   it("retries a sale whose cash session arrives later, and applies it once the session is applied", async () => {
     const { device } = await pushingFromARegister();
     const sessionId = randomUUID();

@@ -89,16 +89,23 @@ export function saleCompleted(options: {
     priceListId: string;
     listUnitPrice: number;
     weight?: { thousandths: number; source: "SCALE" | "MANUAL" };
+    adjustment?: {
+      kind: "PRICE" | "PERCENT" | "AMOUNT";
+      value: number;
+      reason: string;
+      authorizedBy: string | null;
+    };
   };
 }): PushedEventDraft {
   const { line } = options;
   const lineId = line?.id ?? randomUUID();
-  const weighed = line?.weight !== undefined;
+  const adjusted = line?.adjustment !== undefined;
+  const withStock = line?.weight !== undefined || adjusted;
   return {
     aggregate_type: "Sale",
     aggregate_id: options.saleId,
     event_type: "sale_completed",
-    schema_version: weighed ? 6 : 2,
+    schema_version: adjusted ? 7 : line?.weight ? 6 : 2,
     occurred_at: options.completedAt,
     payload: {
       id: options.saleId,
@@ -114,7 +121,7 @@ export function saleCompleted(options: {
               id: lineId,
               product_id: line.productId,
               product_name: "Miel pura de abeja 1 kg",
-              ...(line.weight ? { weight_source: line.weight.source } : {}),
+              ...(line.weight || adjusted ? { weight_source: line.weight?.source ?? null } : {}),
               quantity: line.weight?.thousandths ?? 1,
               list_unit_price: line.listUnitPrice,
               price_list_id: line.priceListId,
@@ -122,11 +129,21 @@ export function saleCompleted(options: {
               discount_amount: 0,
               promotions: [],
               line_total: options.total,
+              ...(line.adjustment
+                ? {
+                    manual_adjustment: {
+                      kind: line.adjustment.kind,
+                      value: line.adjustment.value,
+                      reason: line.adjustment.reason,
+                      authorized_by: line.adjustment.authorizedBy,
+                    },
+                  }
+                : {}),
             },
           ]
         : [],
       cash_movements: [],
-      ...(weighed && line
+      ...(withStock && line
         ? {
             operation_number: 1,
             stock_movements: [
@@ -134,7 +151,7 @@ export function saleCompleted(options: {
                 id: randomUUID(),
                 sale_line_id: lineId,
                 product_id: line.productId,
-                delta: -(line.weight?.thousandths ?? 0),
+                delta: -(line.weight?.thousandths ?? 1000),
               },
             ],
           }

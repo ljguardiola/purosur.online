@@ -1,8 +1,13 @@
-import { PIN_SIGN_IN_LOCKOUT_FAILURES, SEARCH_RESULT_LIMIT } from "@purosur/domain";
+import {
+  MAX_UNIT_PRICE_CENTS,
+  PIN_SIGN_IN_LOCKOUT_FAILURES,
+  SEARCH_RESULT_LIMIT,
+} from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   addProductOutcomeSchema,
   addWeighedProductOutcomeSchema,
+  adjustSaleLineOutcomeSchema,
   cancelPaidSaleOutcomeSchema,
   cancelSaleOutcomeSchema,
   changeLineQuantityOutcomeSchema,
@@ -26,6 +31,7 @@ const line = {
   list_unit_price: 1500,
   discount_amount: 0,
   promotion: null,
+  manual_adjustment: null,
   line_total: 3000,
 };
 const sale = {
@@ -39,6 +45,7 @@ const sale = {
   charge_refusal: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
+  adjust_authorization_required: false,
 };
 
 describe("saleSchema", () => {
@@ -127,6 +134,11 @@ describe("saleSchema", () => {
     ["line total", { ...sale, lines: [{ ...line, line_total: undefined }] }],
     ["line discount amount", { ...sale, lines: [{ ...line, discount_amount: undefined }] }],
     ["line promotion", { ...sale, lines: [{ ...line, promotion: undefined }] }],
+    ["line manual adjustment", { ...sale, lines: [{ ...line, manual_adjustment: undefined }] }],
+    [
+      "answer on adjusting a line needing authorization",
+      { ...sale, adjust_authorization_required: undefined },
+    ],
   ])("rejects a sale without its %s", (_field, value) => {
     expect(saleSchema.safeParse(value).success).toBe(false);
   });
@@ -199,9 +211,56 @@ describe("saleSchema", () => {
   });
 });
 
+describe("a sale line's manual adjustment", () => {
+  const adjusted = (manual_adjustment: unknown) => ({
+    ...sale,
+    lines: [{ ...line, manual_adjustment }],
+  });
+
+  it.each([
+    { kind: "PRICE", value: 0 },
+    { kind: "PRICE", value: 1200 },
+    { kind: "PERCENT", value: 1 },
+    { kind: "PERCENT", value: 100 },
+    { kind: "AMOUNT", value: 1 },
+    { kind: "AMOUNT", value: 450 },
+  ])("accepts $kind of $value", (value) => {
+    expect(saleSchema.parse(adjusted(value)).lines[0]?.manual_adjustment).toEqual(value);
+  });
+
+  it("carries neither the reason nor who authorized the adjustment", () => {
+    const manual_adjustment = {
+      kind: "PERCENT",
+      value: 10,
+      reason: "Cliente frecuente",
+      authorized_by: { user_id: "u2", first_name: "Ana" },
+    };
+
+    expect(saleSchema.parse(adjusted(manual_adjustment)).lines[0]?.manual_adjustment).toEqual({
+      kind: "PERCENT",
+      value: 10,
+    });
+  });
+
+  it.each([
+    ["a kind it does not know", { kind: "FREE", value: 1 }],
+    ["a percent of zero", { kind: "PERCENT", value: 0 }],
+    ["a percent above 100", { kind: "PERCENT", value: 101 }],
+    ["a fractional percent", { kind: "PERCENT", value: 12.5 }],
+    ["an amount of zero", { kind: "AMOUNT", value: 0 }],
+    ["a fractional amount", { kind: "AMOUNT", value: 1.5 }],
+    ["a negative price", { kind: "PRICE", value: -1 }],
+    ["a price above the maximum", { kind: "PRICE", value: MAX_UNIT_PRICE_CENTS + 1 }],
+    ["a fractional price", { kind: "PRICE", value: 1.5 }],
+    ["no value", { kind: "PRICE" }],
+  ])("rejects an adjustment with %s", (_case, value) => {
+    expect(saleSchema.safeParse(adjusted(value)).success).toBe(false);
+  });
+});
+
 describe("scanProductOutcomeSchema", () => {
   it.each([
-    { kind: "added", sale },
+    { kind: "added", sale, removed_manual_discount: false },
     { kind: "unknown_code" },
     { kind: "no_price", product_name: "Yerba" },
     { kind: "weight_needed", product_id: "p2", product_name: "Queso" },
@@ -240,7 +299,7 @@ const refusals = [
 
 describe("changeLineQuantityOutcomeSchema", () => {
   it.each([
-    { kind: "changed", sale },
+    { kind: "changed", sale, removed_manual_discount: false },
     { kind: "unknown_line" },
     { kind: "stale_quantity" },
     { kind: "invalid_quantity" },
@@ -261,7 +320,7 @@ describe("changeLineQuantityOutcomeSchema", () => {
 
 describe("changeLineWeightOutcomeSchema", () => {
   it.each([
-    { kind: "changed", sale },
+    { kind: "changed", sale, removed_manual_discount: false },
     { kind: "unknown_line" },
     { kind: "stale_weight" },
     { kind: "invalid_weight" },
@@ -285,7 +344,7 @@ describe("changeLineWeightOutcomeSchema", () => {
 
 describe("addWeighedProductOutcomeSchema", () => {
   it.each([
-    { kind: "added", sale },
+    { kind: "added", sale, removed_manual_discount: false },
     { kind: "product_unavailable" },
     { kind: "not_sold_by_weight" },
     { kind: "invalid_weight" },
@@ -314,7 +373,7 @@ describe("addWeighedProductOutcomeSchema", () => {
 
 describe("weighProductOutcomeSchema", () => {
   it.each([
-    { kind: "added", sale },
+    { kind: "added", sale, removed_manual_discount: false },
     { kind: "weighing" },
     { kind: "scale_unavailable" },
     { kind: "product_unavailable" },
@@ -353,7 +412,7 @@ describe("removeSaleLineOutcomeSchema", () => {
 
   it.each([
     { kind: "removed" },
-    { kind: "changed", sale },
+    { kind: "changed", sale, removed_manual_discount: false },
     { kind: "invalid_quantity" },
     { kind: "somewhere_else" },
     {},
@@ -422,6 +481,53 @@ describe("cancelPaidSaleOutcomeSchema", () => {
     {},
   ])("rejects the outcome %j", (outcome) => {
     expect(cancelPaidSaleOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
+});
+
+describe("adjustSaleLineOutcomeSchema", () => {
+  it.each([
+    { kind: "changed", sale },
+    { kind: "unknown_line" },
+    { kind: "same_as_list_price" },
+    { kind: "discount_exceeds_line" },
+    { kind: "sale_has_payments" },
+    ...refusals,
+    { kind: "lacks_permission" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+    { kind: "locked", consecutive_failures: PIN_SIGN_IN_LOCKOUT_FAILURES },
+  ])("accepts the outcome $kind", (outcome) => {
+    expect(adjustSaleLineOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it("carries no authorizer of the change", () => {
+    const changed = { kind: "changed", sale, authorized_by: { user_id: "u2", first_name: "Ana" } };
+
+    expect(adjustSaleLineOutcomeSchema.parse(changed)).toEqual({ kind: "changed", sale });
+  });
+
+  it.each([
+    { kind: "changed" },
+    { kind: "removed", sale },
+    { kind: "stale_quantity" },
+    { kind: "somewhere_else" },
+    {},
+  ])("rejects the outcome %j", (outcome) => {
+    expect(adjustSaleLineOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
+});
+
+describe("the outcomes that say a manual discount was removed", () => {
+  it.each([
+    ["scanning a product", scanProductOutcomeSchema, "added"],
+    ["adding a product", addProductOutcomeSchema, "added"],
+    ["adding a weighed product", addWeighedProductOutcomeSchema, "added"],
+    ["weighing a product", weighProductOutcomeSchema, "added"],
+    ["changing a line's quantity", changeLineQuantityOutcomeSchema, "changed"],
+    ["changing a line's weight", changeLineWeightOutcomeSchema, "changed"],
+  ] as const)("require it when %s changes the sale", (_case, schema, kind) => {
+    expect(schema.safeParse({ kind, sale, removed_manual_discount: true }).success).toBe(true);
+    expect(schema.safeParse({ kind, sale }).success).toBe(false);
+    expect(schema.safeParse({ kind, sale, removed_manual_discount: "yes" }).success).toBe(false);
   });
 });
 
@@ -647,7 +753,7 @@ describe("searchProductsOutcomeSchema", () => {
 
 describe("addProductOutcomeSchema", () => {
   it.each([
-    { kind: "added", sale },
+    { kind: "added", sale, removed_manual_discount: false },
     { kind: "no_price", product_name: "Yerba" },
     { kind: "weight_needed", product_id: "p2", product_name: "Queso" },
     { kind: "line_quantity_limit", product_name: "Yerba" },

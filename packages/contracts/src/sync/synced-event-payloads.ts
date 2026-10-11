@@ -4,7 +4,11 @@ import {
   cashMovementReason,
   isValidCashAmount,
   isValidCashMovementAmount,
+  manualAdjustmentReason,
+  mayBeManualDiscountAmount,
+  mayBeManualDiscountPercent,
   mayBeMovementQuantity,
+  mayBeOverriddenUnitPrice,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   receiptReprintReason,
   WEIGHT_SOURCES,
@@ -48,6 +52,33 @@ const saleLineSchema = z.object({
 
 const weighedSaleLineSchema = saleLineSchema.extend({
   weight_source: z.enum(WEIGHT_SOURCES).nullable(),
+});
+
+const manualAdjustmentFields = {
+  reason: z.string().refine((reason) => manualAdjustmentReason(reason) === reason),
+  authorized_by: text.nullable(),
+};
+
+const manualAdjustmentSchema = z.discriminatedUnion("kind", [
+  z.object({
+    ...manualAdjustmentFields,
+    kind: z.literal("PRICE"),
+    value: z.int().refine(mayBeOverriddenUnitPrice),
+  }),
+  z.object({
+    ...manualAdjustmentFields,
+    kind: z.literal("PERCENT"),
+    value: z.int().refine(mayBeManualDiscountPercent),
+  }),
+  z.object({
+    ...manualAdjustmentFields,
+    kind: z.literal("AMOUNT"),
+    value: z.int().refine(mayBeManualDiscountAmount),
+  }),
+]);
+
+const adjustedSaleLineSchema = weighedSaleLineSchema.extend({
+  manual_adjustment: manualAdjustmentSchema.nullable(),
 });
 
 const saleCashMovementSchema = z.object({
@@ -157,6 +188,10 @@ const saleCompletedV6Schema = saleCompletedV5Schema.extend({
   lines: z.array(weighedSaleLineSchema),
 });
 
+const saleCompletedV7Schema = saleCompletedV6Schema.extend({
+  lines: z.array(adjustedSaleLineSchema),
+});
+
 const salePrintStateChangedSchema = z.object({
   sale_id: text,
   print_attempted_at: instant,
@@ -208,6 +243,10 @@ const saleCancelledV2Schema = saleCancelledV1Schema.extend({
   lines: z.array(weighedSaleLineSchema),
 });
 
+const saleCancelledV3Schema = saleCancelledV2Schema.extend({
+  lines: z.array(adjustedSaleLineSchema),
+});
+
 const cashSessionOpenedSchema = z.object({
   opened_by: text,
   opened_at: instant,
@@ -252,10 +291,12 @@ const PAYLOAD_SCHEMAS = {
   "sale_completed@4": saleCompletedV4Schema,
   "sale_completed@5": saleCompletedV5Schema,
   "sale_completed@6": saleCompletedV6Schema,
+  "sale_completed@7": saleCompletedV7Schema,
   "sale_print_state_changed@1": salePrintStateChangedSchema,
   "reprint_recorded@1": reprintRecordedSchema,
   "sale_cancelled@1": saleCancelledV1Schema,
   "sale_cancelled@2": saleCancelledV2Schema,
+  "sale_cancelled@3": saleCancelledV3Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,

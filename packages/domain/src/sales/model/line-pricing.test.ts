@@ -1,3 +1,4 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { MAX_UNIT_PRICE_CENTS } from "../../pricing/index.js";
 import { chargeLine } from "./line-pricing.js";
@@ -149,5 +150,146 @@ describe("chargeLine choosing among promotions", () => {
 
   it("ignores a buy N, pay M offer beside a percentage on a weight line", () => {
     expect(chargeLine(weight(3000), 1000, [THREE_FOR_TWO, TEN_PERCENT]).promotionId).toBe("ten");
+  });
+});
+
+describe("chargeLine with a manual adjustment", () => {
+  it("charges an overridden price below the list price with no discount of its own", () => {
+    expect(chargeLine(units(2), 2500, [], { kind: "PRICE", unitPrice: 2000 })).toEqual({
+      promotionId: null,
+      discountAmount: 0,
+      lineTotal: 4000,
+    });
+  });
+
+  it("charges an overridden price above the list price with no discount", () => {
+    expect(chargeLine(units(2), 2500, [], { kind: "PRICE", unitPrice: 3000 })).toEqual({
+      promotionId: null,
+      discountAmount: 0,
+      lineTotal: 6000,
+    });
+  });
+
+  it("charges nothing for an overridden price of zero", () => {
+    expect(chargeLine(units(3), 2500, [], { kind: "PRICE", unitPrice: 0 })).toEqual({
+      promotionId: null,
+      discountAmount: 0,
+      lineTotal: 0,
+    });
+  });
+
+  it("rounds an overridden price on a weighed line half up", () => {
+    expect(chargeLine(weight(1500), 999, [], { kind: "PRICE", unitPrice: 333 }).lineTotal).toBe(
+      500,
+    );
+  });
+
+  it("applies a percentage before rounding, not to the rounded amount", () => {
+    expect(chargeLine(weight(15), 999, [], { kind: "PERCENT", percent: 50 })).toEqual({
+      promotionId: null,
+      discountAmount: 8,
+      lineTotal: 7,
+    });
+  });
+
+  it("takes a percentage off the list amount of a unit line", () => {
+    expect(chargeLine(units(3), 2500, [], { kind: "PERCENT", percent: 15 })).toEqual({
+      promotionId: null,
+      discountAmount: 1125,
+      lineTotal: 6375,
+    });
+  });
+
+  it("charges nothing for a percentage of 100", () => {
+    expect(chargeLine(units(3), 2500, [], { kind: "PERCENT", percent: 100 })).toEqual({
+      promotionId: null,
+      discountAmount: 7500,
+      lineTotal: 0,
+    });
+  });
+
+  it("takes a fixed amount off the gross amount", () => {
+    expect(chargeLine(units(3), 2500, [], { kind: "AMOUNT", amount: 1000 })).toEqual({
+      promotionId: null,
+      discountAmount: 1000,
+      lineTotal: 6500,
+    });
+  });
+
+  it("charges nothing for an amount equal to the gross amount", () => {
+    expect(chargeLine(units(3), 2500, [], { kind: "AMOUNT", amount: 7500 })).toEqual({
+      promotionId: null,
+      discountAmount: 7500,
+      lineTotal: 0,
+    });
+  });
+
+  it.each([
+    { kind: "PRICE", unitPrice: 2400 },
+    { kind: "PERCENT", percent: 5 },
+    { kind: "AMOUNT", amount: 10 },
+  ] as const)(
+    "replaces the promotion with a $kind adjustment instead of adding to it",
+    (adjustment) => {
+      const withPromotion = chargeLine(units(3), 2500, [HALF, TEN_PERCENT]);
+      const adjusted = chargeLine(units(3), 2500, [HALF, TEN_PERCENT], adjustment);
+
+      expect(withPromotion.promotionId).toBe("half");
+      expect(adjusted).toEqual(chargeLine(units(3), 2500, [], adjustment));
+      expect(adjusted.promotionId).toBeNull();
+    },
+  );
+
+  it("never charges a negative total nor a negative discount, whatever the adjustment", () => {
+    const quantity = fc.oneof(
+      fc.integer({ min: 1, max: 100_000 }).map(units),
+      fc.integer({ min: 1, max: 100_000_000 }).map(weight),
+    );
+    const adjustment = fc.oneof(
+      fc
+        .integer({ min: 0, max: MAX_UNIT_PRICE_CENTS })
+        .map((unitPrice) => ({ kind: "PRICE" as const, unitPrice })),
+      fc.integer({ min: 1, max: 100 }).map((percent) => ({ kind: "PERCENT" as const, percent })),
+    );
+    fc.assert(
+      fc.property(
+        quantity,
+        fc.integer({ min: 0, max: MAX_UNIT_PRICE_CENTS }),
+        adjustment,
+        (sold, unitPrice, chosen) => {
+          const charge = chargeLine(sold, unitPrice, [], chosen);
+
+          expect(charge.lineTotal).toBeGreaterThanOrEqual(0);
+          expect(charge.discountAmount).toBeGreaterThanOrEqual(0);
+          if (chosen.kind === "PRICE") {
+            expect(charge.discountAmount).toBe(0);
+          } else {
+            const gross = chargeLine(sold, unitPrice, []).lineTotal;
+            expect(charge.lineTotal).toBeLessThanOrEqual(gross);
+            expect(charge.discountAmount + charge.lineTotal).toBe(gross);
+          }
+        },
+      ),
+    );
+  });
+
+  it("charges the gross amount less a fixed amount up to the gross, for every amount", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 100_000 }),
+        fc.integer({ min: 1, max: MAX_UNIT_PRICE_CENTS }),
+        fc.double({ min: 0, max: 1, noNaN: true }),
+        (count, unitPrice, share) => {
+          const gross = chargeLine(units(count), unitPrice, []).lineTotal;
+          const amount = Math.max(1, Math.floor(gross * share));
+
+          const charge = chargeLine(units(count), unitPrice, [], { kind: "AMOUNT", amount });
+
+          expect(charge.discountAmount).toBe(amount);
+          expect(charge.lineTotal).toBe(gross - amount);
+          expect(charge.lineTotal).toBeGreaterThanOrEqual(0);
+        },
+      ),
+    );
   });
 });

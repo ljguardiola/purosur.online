@@ -9,6 +9,7 @@ function line(
 ): CompletedSaleLine {
   return {
     weightSource,
+    manualAdjustment: null,
     id,
     productId,
     productName: "Yerba mate 1 kg",
