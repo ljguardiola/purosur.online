@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { BARCODE_MAX_LENGTH } from "../../catalog/index.js";
 import type { SalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
-import { newWeighedSaleLine, withQuantity } from "../model/sale-line.js";
+import { newWeighedSaleLine, withManualAdjustment, withQuantity } from "../model/sale-line.js";
 import { addScannedProduct } from "./add-scanned-product.js";
 import type { CandidatePromotion } from "./sale-ledger.js";
 import {
@@ -147,6 +147,7 @@ describe("addScannedProduct", () => {
     };
     expect(outcome).toEqual({
       kind: "added",
+      removedManualDiscount: false,
       sale,
       balance: { paid: 0, pending: 2500 },
       linesLock: null,
@@ -696,6 +697,50 @@ describe("addScannedProduct", () => {
         { id: "three-for-two", benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
       ]);
     });
+  });
+});
+
+describe("add-scanned-product on a line with a manual adjustment", () => {
+  const AMOUNT = { kind: "AMOUNT" as const, amount: 500, reason: "bruised", authorizedBy: null };
+  const PERCENT = { kind: "PERCENT" as const, percent: 20, reason: "regular", authorizedBy: "ana" };
+
+  function storeWith(manualAdjustment: typeof AMOUNT | typeof PERCENT): FakeSaleLedger {
+    const store = ledger({ promotionsByProduct: { yerba: [TEN_PERCENT] } });
+    scan(store);
+    const [sale] = store.state.sales;
+    if (sale) {
+      sale.lines = sale.lines.map((line) => withManualAdjustment(line, manualAdjustment));
+    }
+    return store;
+  }
+
+  it("removes a discount by amount, tells so and goes back to the best promotion", () => {
+    const store = storeWith(AMOUNT);
+
+    const outcome = scan(store);
+
+    expect(store.state.sales[0]?.lines[0]).toEqual(
+      expect.objectContaining({
+        quantity: 2,
+        manualAdjustment: null,
+        promotionId: "ten",
+        lineTotal: 4500,
+      }),
+    );
+    expect(outcome).toEqual(
+      expect.objectContaining({ kind: "added", removedManualDiscount: true }),
+    );
+  });
+
+  it("keeps a discount by percentage and tells nothing was removed", () => {
+    const store = storeWith(PERCENT);
+
+    const outcome = scan(store);
+
+    expect(store.state.sales[0]?.lines[0]).toEqual(
+      expect.objectContaining({ quantity: 2, manualAdjustment: PERCENT, lineTotal: 4000 }),
+    );
+    expect(outcome).toEqual(expect.objectContaining({ removedManualDiscount: false }));
   });
 });
 

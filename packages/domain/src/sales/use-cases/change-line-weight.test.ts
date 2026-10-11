@@ -99,6 +99,7 @@ describe("changeLineWeight", () => {
     expect(storedLine(store, "line-1")).toEqual(changed);
     expect(outcome).toEqual({
       kind: "changed",
+      removedManualDiscount: false,
       sale: { ...OPEN_SALE, lines: [changed, YERBA_LINE] },
       balance: { paid: 0, pending: 30000 },
       linesLock: null,
@@ -322,5 +323,58 @@ describe("change-line-weight charge refusal", () => {
     const store = ledger({ thresholds: [{ ...THRESHOLD, amount: 30001 }] });
 
     expect(retype(store, "line-1", 2500)).toHaveProperty("chargeRefusal", undefined);
+  });
+});
+
+describe("change-line-weight on a line with a manual adjustment", () => {
+  const AMOUNT = { kind: "AMOUNT" as const, amount: 500, reason: "bruised", authorizedBy: null };
+  const PERCENT = { kind: "PERCENT" as const, percent: 20, reason: "regular", authorizedBy: "ana" };
+  const withAmount: SaleLine = {
+    ...QUESO_LINE,
+    promotions: [TEN_PERCENT],
+    manualAdjustment: AMOUNT,
+    discountAmount: 500,
+    lineTotal: 8500,
+  };
+
+  it("removes a discount by amount, tells so and goes back to the best promotion", () => {
+    const store = ledger({ sales: [{ ...OPEN_SALE, lines: [withAmount] }] });
+
+    const outcome = retype(store, "line-1", 2000);
+
+    expect(storedLine(store, "line-1")).toEqual({
+      ...withAmount,
+      quantity: 2000,
+      weightSource: "MANUAL",
+      manualAdjustment: null,
+      promotionId: "ten",
+      discountAmount: 1800,
+      lineTotal: 16200,
+    });
+    expect(outcome).toEqual(
+      expect.objectContaining({ kind: "changed", removedManualDiscount: true }),
+    );
+  });
+
+  it("keeps a discount by percentage and tells nothing was removed", () => {
+    const store = ledger({
+      sales: [{ ...OPEN_SALE, lines: [{ ...QUESO_LINE, manualAdjustment: PERCENT }] }],
+    });
+
+    const outcome = retype(store, "line-1", 2000);
+
+    expect(storedLine(store, "line-1")).toEqual(
+      expect.objectContaining({ manualAdjustment: PERCENT, lineTotal: 14400 }),
+    );
+    expect(outcome).toEqual(expect.objectContaining({ removedManualDiscount: false }));
+  });
+
+  it("keeps a discount by amount when the weight is the same", () => {
+    const store = ledger({ sales: [{ ...OPEN_SALE, lines: [withAmount] }] });
+
+    const outcome = retype(store, "line-1", 1000);
+
+    expect(storedLine(store, "line-1")).toEqual({ ...withAmount, weightSource: "MANUAL" });
+    expect(outcome).toEqual(expect.objectContaining({ removedManualDiscount: false }));
   });
 });

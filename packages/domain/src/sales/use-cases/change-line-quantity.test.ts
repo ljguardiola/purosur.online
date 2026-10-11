@@ -127,6 +127,7 @@ describe("changeLineQuantity", () => {
     expect(storedLine(store, "line-1")).toEqual({ ...YERBA_LINE, quantity: 5, lineTotal: 12500 });
     expect(outcome).toEqual({
       kind: "changed",
+      removedManualDiscount: false,
       sale: {
         ...OPEN_SALE,
         lines: [{ ...YERBA_LINE, quantity: 5, lineTotal: 12500 }, AZUCAR_LINE],
@@ -149,6 +150,7 @@ describe("changeLineQuantity", () => {
     expect(storedLine(store, "line-1")).toEqual({ ...YERBA_LINE, quantity: 1, lineTotal: 2500 });
     expect(outcome).toEqual({
       kind: "changed",
+      removedManualDiscount: false,
       sale: { ...OPEN_SALE, lines: [{ ...YERBA_LINE, quantity: 1, lineTotal: 2500 }, AZUCAR_LINE] },
       balance: { paid: 0, pending: 3700 },
       linesLock: null,
@@ -247,6 +249,7 @@ describe("changeLineQuantity", () => {
 
     expect(outcome).toEqual({
       kind: "changed",
+      removedManualDiscount: false,
       sale: OPEN_SALE,
       balance: { paid: 0, pending: 8700 },
       linesLock: null,
@@ -477,5 +480,68 @@ describe("changeLineQuantity while a QR charge of the sale is in its wait", () =
     const store = ledger({ pendingQrPayments: [WAIT_ENDED] });
 
     expect(change(store, "line-1", 5)).toMatchObject({ kind: "changed" });
+  });
+});
+
+describe("change-line-quantity on a line with a manual adjustment", () => {
+  const AMOUNT = {
+    kind: "AMOUNT" as const,
+    amount: 500,
+    reason: "bruised",
+    authorizedBy: null,
+  };
+  const PERCENT = { kind: "PERCENT" as const, percent: 20, reason: "regular", authorizedBy: "ana" };
+  const PRICE = {
+    kind: "PRICE" as const,
+    unitPrice: 2000,
+    reason: "bruised",
+    authorizedBy: null,
+  };
+  const withAmount = {
+    ...YERBA_LINE,
+    promotions: [TEN_PERCENT],
+    manualAdjustment: AMOUNT,
+    discountAmount: 500,
+    lineTotal: 7000,
+  };
+
+  it("removes a discount by amount, tells so and goes back to the best promotion", () => {
+    const store = ledger({ sales: [{ ...OPEN_SALE, lines: [withAmount] }] });
+
+    const outcome = change(store, "line-1", 4);
+
+    expect(storedLine(store, "line-1")).toEqual({
+      ...withAmount,
+      quantity: 4,
+      manualAdjustment: null,
+      promotionId: "ten",
+      discountAmount: 1000,
+      lineTotal: 9000,
+    });
+    expect(outcome).toEqual(
+      expect.objectContaining({ kind: "changed", removedManualDiscount: true }),
+    );
+  });
+
+  it("keeps a discount by percentage and an overridden price, and tells nothing was removed", () => {
+    for (const manualAdjustment of [PERCENT, PRICE]) {
+      const store = ledger({
+        sales: [{ ...OPEN_SALE, lines: [{ ...YERBA_LINE, manualAdjustment }] }],
+      });
+
+      const outcome = change(store, "line-1", 4);
+
+      expect(storedLine(store, "line-1")?.manualAdjustment).toEqual(manualAdjustment);
+      expect(outcome).toEqual(expect.objectContaining({ removedManualDiscount: false }));
+    }
+  });
+
+  it("keeps a discount by amount when the quantity is the same", () => {
+    const store = ledger({ sales: [{ ...OPEN_SALE, lines: [withAmount] }] });
+
+    const outcome = change(store, "line-1", 3);
+
+    expect(storedLine(store, "line-1")).toEqual(withAmount);
+    expect(outcome).toEqual(expect.objectContaining({ removedManualDiscount: false }));
   });
 });

@@ -127,6 +127,7 @@ describe("addSearchedProduct", () => {
     };
     expect(outcome).toEqual({
       kind: "added",
+      removedManualDiscount: false,
       sale,
       balance: { paid: 0, pending: 2500 },
       linesLock: null,

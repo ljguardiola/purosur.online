@@ -117,6 +117,7 @@ describe("addWeighedProduct", () => {
     };
     expect(outcome).toEqual({
       kind: "added",
+      removedManualDiscount: false,
       sale,
       balance: { paid: 0, pending: 11250 },
       linesLock: null,
