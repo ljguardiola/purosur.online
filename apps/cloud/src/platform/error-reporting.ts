@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/node";
 
-export type ErrorReportContext = Record<string, string | number>;
+type ErrorReportContext = Record<string, string | number>;
 
 export interface ReportErrorDeps {
   captureException?: (error: unknown, hint?: { extra: ErrorReportContext }) => unknown;
