@@ -27,7 +27,11 @@ export class FakeAcquisitionFailureReportStore implements AcquisitionFailureRepo
 export class FakeAcquisitionFailureNotifier implements AcquisitionFailureNotifier {
   readonly notices: AcquisitionFailureNotice[] = [];
 
-  constructor(private readonly events: string[] = []) {}
+  private readonly events: string[];
+
+  constructor(events: string[] = []) {
+    this.events = events;
+  }
 
   async failureNeedsAttention(notice: AcquisitionFailureNotice): Promise<void> {
     this.events.push(`notify ${notice.fortnight.start}:${notice.outcome.kind}`);
