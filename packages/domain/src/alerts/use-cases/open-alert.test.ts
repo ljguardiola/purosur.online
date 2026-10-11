@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { OpenAlertInput } from "../model/alert-details.js";
-import { ALERT_ESCALATION_DELAY_MS } from "../model/alert-kind-policy.js";
+import {
+  ALERT_ESCALATION_DELAY_MS,
+  LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS,
+} from "../model/alert-kind-policy.js";
 import { openAlert } from "./open-alert.js";
 import { NOW } from "./test-support/alert-fixtures.js";
 import { FakeAlertStore, FixedClock } from "./test-support/fake-alert-store.js";
@@ -54,6 +57,28 @@ describe("openAlert", () => {
     });
 
     expect(store.snapshot().alerts[0]?.escalateAt).toEqual(new Date("2026-10-13T00:00:00.000Z"));
+  });
+
+  it("opens a late-payment refund alert as a warning for its branch, to escalate 72 hours later", async () => {
+    const store = storeWithViewers();
+
+    await open(store, {
+      kind: "late_payment_refund",
+      scope: "refund-1",
+      locationId: HERE,
+      detail: { saleId: "sale-1", amount: 2500 },
+    });
+
+    expect(store.snapshot().alerts[0]).toMatchObject({
+      kind: "late_payment_refund",
+      level: "warning",
+      audience: "local",
+      locationId: HERE,
+      escalateAt: new Date(NOW.getTime() + LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS),
+    });
+    const recipients = store.snapshot().deliveries.map(({ recipientUserId }) => recipientUserId);
+    expect(recipients).toContain("branch-same-location");
+    expect(recipients).not.toContain("branch-other-location");
   });
 
   it("opens the alert and delivers it to the active users who may see it", async () => {

@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { fetchPendingRefunds, markRefundDone } from "./refunds-api";
-import { pendingRefunds, TRANSFER_REFUND_ID } from "./test-support/refund-fixtures";
+import { discardRefund, fetchPendingRefunds, markRefundDone } from "./refunds-api";
+import {
+  LATE_PAYMENT_REFUND_ID,
+  pendingRefunds,
+  TRANSFER_REFUND_ID,
+} from "./test-support/refund-fixtures";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
   return new Response(
@@ -73,13 +77,16 @@ describe("markRefundDone", () => {
   });
 
   test.each([
-    [404, { kind: "not_found" }],
-    [409, { kind: "already_done" }],
-    [401, { kind: "unauthenticated" }],
-    [403, { kind: "forbidden" }],
-    [500, { kind: "failed" }],
-  ])("answers %i as %j", async (status, outcome) => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+    [404, undefined, { kind: "not_found" }],
+    [409, { code: "already_done" }, { kind: "already_done" }],
+    [409, { code: "refund_discarded" }, { kind: "discarded" }],
+    [409, { code: "something_else" }, { kind: "failed" }],
+    [409, undefined, { kind: "failed" }],
+    [401, undefined, { kind: "unauthenticated" }],
+    [403, undefined, { kind: "forbidden" }],
+    [500, undefined, { kind: "failed" }],
+  ])("answers %i with %j as %j", async (status, body, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status, body));
 
     expect(await markRefundDone(TRANSFER_REFUND_ID)).toEqual(outcome);
   });
@@ -97,5 +104,55 @@ describe("markRefundDone", () => {
     vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
     expect(await markRefundDone(TRANSFER_REFUND_ID)).toEqual({ kind: "failed" });
+  });
+});
+
+describe("discardRefund", () => {
+  const discarded = { refund_id: LATE_PAYMENT_REFUND_ID, discarded_at: "2026-10-08T14:00:00.000Z" };
+
+  test("posts the discard of the refund and answers ok", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, discarded));
+
+    expect(await discardRefund(LATE_PAYMENT_REFUND_ID)).toEqual({ kind: "ok" });
+    expect(fetch).toHaveBeenCalledWith(`/api/refunds/${LATE_PAYMENT_REFUND_ID}/discard`, {
+      method: "POST",
+    });
+  });
+
+  test("treats a success body that does not match as failed", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { refund_id: "refund-1" }));
+
+    expect(await discardRefund(LATE_PAYMENT_REFUND_ID)).toEqual({ kind: "failed" });
+  });
+
+  test.each([
+    [404, undefined, { kind: "not_found" }],
+    [409, { code: "refund_not_discardable" }, { kind: "not_discardable" }],
+    [409, { code: "already_done" }, { kind: "already_done" }],
+    [409, { code: "already_discarded" }, { kind: "already_discarded" }],
+    [409, { code: "something_else" }, { kind: "failed" }],
+    [409, undefined, { kind: "failed" }],
+    [401, undefined, { kind: "unauthenticated" }],
+    [403, undefined, { kind: "forbidden" }],
+    [500, undefined, { kind: "failed" }],
+  ])("answers %i with %j as %j", async (status, body, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status, body));
+
+    expect(await discardRefund(LATE_PAYMENT_REFUND_ID)).toEqual(outcome);
+  });
+
+  test("reads the retry time of a rate-limited response", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "30" }));
+
+    expect(await discardRefund(LATE_PAYMENT_REFUND_ID)).toEqual({
+      kind: "rate_limited",
+      retryAfterSeconds: 30,
+    });
+  });
+
+  test("answers failed when the request cannot be sent", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    expect(await discardRefund(LATE_PAYMENT_REFUND_ID)).toEqual({ kind: "failed" });
   });
 });

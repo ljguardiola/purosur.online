@@ -1,8 +1,9 @@
+import { latePaymentRefund } from "@purosur/domain";
 import { PaymentTransactionAlreadyRecorded } from "@purosur/domain/payments/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgliteQueryResultHKT } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { paymentTransactions } from "../platform/db/schema.js";
+import { alerts, paymentRefunds, paymentTransactions, registers } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzlePaymentTransactionLanes } from "./drizzle-payment-transaction-lanes.js";
 import { insertRegister, pendingTransaction } from "./test-support/payment-transaction-fixtures.js";
@@ -270,6 +271,210 @@ describe("DrizzlePaymentTransactionLanes", () => {
       });
 
       expect(await storedRow(other.id)).toMatchObject({ state: "PENDING", stateReadAt: null });
+    });
+  });
+
+  describe("the state an order's record left the transaction in", () => {
+    it("answers the state and replaced mark the result left, whichever side wrote them", async () => {
+      const registerId = await insertRegister(db, "caja-1");
+      const transaction = pendingTransaction(registerId, { replaced: true });
+
+      const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
+        await lane.recordPendingTransaction(transaction);
+        return lane.recordOrderResult(
+          transaction.id,
+          { state: "APPROVED", needsReview: false },
+          READ_AT,
+        );
+      });
+
+      expect(recorded).toEqual({ state: "APPROVED", replaced: true });
+    });
+
+    it("answers a replacement that landed after the lane last read the transaction", async () => {
+      const registerId = await insertRegister(db, "caja-1");
+      const transaction = pendingTransaction(registerId);
+
+      const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
+        await lane.recordPendingTransaction(transaction);
+        await db
+          .update(paymentTransactions)
+          .set({ replaced: true })
+          .where(eq(paymentTransactions.id, transaction.id));
+        return lane.recordOrderResult(
+          transaction.id,
+          { state: "APPROVED", needsReview: false },
+          READ_AT,
+        );
+      });
+
+      expect(recorded).toEqual({ state: "APPROVED", replaced: true });
+    });
+
+    it("answers what the creation answer left when it carried a reading", async () => {
+      const registerId = await insertRegister(db, "caja-1");
+      const transaction = pendingTransaction(registerId, { replaced: true });
+
+      const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
+        await lane.recordPendingTransaction(transaction);
+        return lane.recordOrderCreated(transaction.id, "ORD01", {
+          outcome: { state: "APPROVED", needsReview: false },
+          readAt: READ_AT,
+        });
+      });
+
+      expect(recorded).toEqual({ state: "APPROVED", replaced: true });
+    });
+
+    it("answers what the transaction already holds when the creation answer carried no reading", async () => {
+      const registerId = await insertRegister(db, "caja-1");
+      const transaction = pendingTransaction(registerId, { replaced: true });
+
+      const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
+        await lane.recordPendingTransaction(transaction);
+        return lane.recordOrderCreated(transaction.id, "ORD01", null);
+      });
+
+      expect(recorded).toEqual({ state: "PENDING", replaced: true });
+    });
+
+    it("refuses to answer for a transaction nobody recorded", async () => {
+      const id = crypto.randomUUID();
+
+      await expect(
+        lanes.inPaymentTransactionLane(id, (lane) =>
+          lane.recordOrderResult(id, { state: "APPROVED", needsReview: false }, READ_AT),
+        ),
+      ).rejects.toThrow(`payment transaction ${id} is not recorded`);
+      await expect(
+        lanes.inPaymentTransactionLane(id, (lane) => lane.recordOrderCreated(id, "ORD01", null)),
+      ).rejects.toThrow(`payment transaction ${id} is not recorded`);
+    });
+  });
+
+  describe("the refund task of a late payment", () => {
+    async function lateTransaction() {
+      const registerId = await insertRegister(db, "caja-1");
+      const transaction = pendingTransaction(registerId, { state: "APPROVED", replaced: true });
+      await lanes.inPaymentTransactionLane(transaction.id, (lane) =>
+        lane.recordPendingTransaction(transaction),
+      );
+      const [register] = await db
+        .select({ locationId: registers.locationId })
+        .from(registers)
+        .where(eq(registers.id, registerId));
+      return { transaction, locationId: register?.locationId };
+    }
+
+    it("opens one pending refund task of the transaction's sale and amount, by its channel, at the moment it is told", async () => {
+      const { transaction } = await lateTransaction();
+
+      const opening = await lanes.inPaymentTransactionLane(transaction.id, (lane) =>
+        lane.openLatePaymentRefund(latePaymentRefund(transaction), READ_AT),
+      );
+
+      expect(opening).toBe("opened");
+      expect(await db.select().from(paymentRefunds)).toEqual([
+        {
+          id: expect.any(String),
+          saleId: transaction.saleId,
+          paymentId: null,
+          paymentTransactionId: transaction.id,
+          origin: "late_payment",
+          method: "QR",
+          provider: "MERCADOPAGO_QR",
+          amount: transaction.amount,
+          state: "PENDING",
+          occurredAt: READ_AT,
+          doneBy: null,
+          doneAt: null,
+          discardedBy: null,
+          discardedAt: null,
+        },
+      ]);
+    });
+
+    it("opens, with the task, a warning for the register's branch scoped to the task", async () => {
+      const { transaction, locationId } = await lateTransaction();
+
+      await lanes.inPaymentTransactionLane(transaction.id, (lane) =>
+        lane.openLatePaymentRefund(latePaymentRefund(transaction), READ_AT),
+      );
+
+      const [refund] = await db.select().from(paymentRefunds);
+      expect(await db.select().from(alerts)).toEqual([
+        expect.objectContaining({
+          kind: "late_payment_refund",
+          scope: refund?.id,
+          level: "warning",
+          audience: "local",
+          locationId,
+          detail: { saleId: transaction.saleId, amount: transaction.amount },
+          openedAt: READ_AT,
+        }),
+      ]);
+    });
+
+    it("opens nothing more when the same payment is reported again", async () => {
+      const { transaction } = await lateTransaction();
+      const open = () =>
+        lanes.inPaymentTransactionLane(transaction.id, (lane) =>
+          lane.openLatePaymentRefund(latePaymentRefund(transaction), READ_AT),
+        );
+      await open();
+
+      expect(await open()).toBe("already_open");
+
+      expect(await db.select().from(paymentRefunds)).toHaveLength(1);
+      expect(await db.select().from(alerts)).toHaveLength(1);
+    });
+
+    it("refuses to open a task for a payment nobody recorded, opening nothing", async () => {
+      const unrecorded = pendingTransaction(crypto.randomUUID(), { state: "APPROVED" });
+
+      await expect(
+        lanes.inPaymentTransactionLane(unrecorded.id, (lane) =>
+          lane.openLatePaymentRefund(latePaymentRefund(unrecorded), READ_AT),
+        ),
+      ).rejects.toThrow(`payment transaction ${unrecorded.id} is not recorded`);
+
+      expect(await db.select().from(paymentRefunds)).toEqual([]);
+      expect(await db.select().from(alerts)).toEqual([]);
+    });
+
+    it("leaves neither the task nor the alert behind when the work it was part of fails", async () => {
+      const { transaction } = await lateTransaction();
+
+      const failure = lanes.inPaymentTransactionLane(transaction.id, (lane) =>
+        lane.inOneTransaction(async (atomic) => {
+          await atomic.openLatePaymentRefund(latePaymentRefund(transaction), READ_AT);
+          throw new Error("the work broke");
+        }),
+      );
+
+      await expect(failure).rejects.toThrow("the work broke");
+      expect(await db.select().from(paymentRefunds)).toEqual([]);
+      expect(await db.select().from(alerts)).toEqual([]);
+    });
+
+    it("leaves the recorded result behind too when the work fails after it", async () => {
+      const registerId = await insertRegister(db, "caja-1");
+      const transaction = pendingTransaction(registerId);
+
+      const failure = lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
+        await lane.recordPendingTransaction(transaction);
+        await lane.inOneTransaction(async (atomic) => {
+          await atomic.recordOrderResult(
+            transaction.id,
+            { state: "APPROVED", needsReview: false },
+            READ_AT,
+          );
+          throw new Error("the work broke");
+        });
+      });
+
+      await expect(failure).rejects.toThrow("the work broke");
+      expect(await storedRow(transaction.id)).toMatchObject({ state: "PENDING" });
     });
   });
 });

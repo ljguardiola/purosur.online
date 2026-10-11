@@ -27,6 +27,7 @@ describe("ALERT_KINDS", () => {
       "sales_denied",
       "fiscal_rejected",
       "offline_authorization_code_missing",
+      "late_payment_refund",
     ]);
   });
 });

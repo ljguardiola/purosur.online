@@ -97,3 +97,9 @@ export function expiryWithoutOrder(
 export function isValidOrderAmount(cents: number): boolean {
   return Number.isSafeInteger(cents) && cents > 0;
 }
+
+export function isLateApproval(
+  transaction: Pick<MercadoPagoQrOrderTransaction, "state" | "replaced">,
+): boolean {
+  return transaction.state === "APPROVED" && transaction.replaced;
+}

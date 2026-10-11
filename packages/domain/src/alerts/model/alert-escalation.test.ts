@@ -6,7 +6,10 @@ import {
   escalatesAt,
   isDueForEscalation,
 } from "./alert-escalation.js";
-import { ALERT_ESCALATION_DELAY_MS } from "./alert-kind-policy.js";
+import {
+  ALERT_ESCALATION_DELAY_MS,
+  LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS,
+} from "./alert-kind-policy.js";
 
 const OPENED = new Date("2026-10-01T08:00:00.000Z");
 const DUE = new Date(OPENED.getTime() + ALERT_ESCALATION_DELAY_MS);
@@ -23,6 +26,23 @@ describe("escalatesAt", () => {
         OPENED,
       ),
     ).toEqual(DUE);
+  });
+
+  it("is 72 hours after a late-payment refund alert opened, not 24", () => {
+    const escalation = escalatesAt(
+      {
+        kind: "late_payment_refund",
+        scope: "refund-1",
+        locationId: "branch-1",
+        detail: { saleId: "sale-1", amount: 2500 },
+      },
+      OPENED,
+    );
+
+    expect(escalation).toEqual(
+      new Date(OPENED.getTime() + LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS),
+    );
+    expect(escalation).not.toEqual(DUE);
   });
 
   it("is never, for a kind that opens already critical", () => {

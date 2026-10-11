@@ -22,6 +22,7 @@ export type {
 } from "./alerts/index.js";
 export {
   ALERT_AUDIENCES,
+  ALERT_CLOSINGS,
   ALERT_CONDITION_EVALUATION_INTERVAL_MS,
   ALERT_CONDITION_STABLE_CLEAR_MS,
   ALERT_ESCALATION_CHECK_INTERVAL_MS,
@@ -29,6 +30,7 @@ export {
   ALERT_KINDS,
   ALERT_LEVELS,
   alertActorId,
+  alertClosing,
   alertKindPolicy,
   alertKindsWithScope,
   alertLocationId,
@@ -219,6 +221,7 @@ export {
   WSAA_ALREADY_AUTHENTICATED_RETRY_MS,
 } from "./fiscal/index.js";
 export type {
+  LatePaymentRefund,
   MercadoPagoQrOrderTransaction,
   MercadoPagoQrPaymentTransaction,
   PaymentMethod,
@@ -226,22 +229,29 @@ export type {
   PaymentTransactionState,
   PendingQrSalePayment,
   PlannedRefund,
+  RefundOrigin,
   RefundState,
   SalePayment,
 } from "./payments/index.js";
 export {
   cancellableWithoutAuthorization,
   cashCharge,
+  isLateApproval,
   isRefundPending,
   isValidOrderAmount,
+  latePaymentRefund,
   MERCADO_PAGO_PENDING_CHECK_INTERVAL_MS,
   MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS,
   MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES,
+  methodsCoveringRefundedSale,
   PAYMENT_METHODS,
   PAYMENT_NOTIFICATION_LIMIT,
   PAYMENT_TRANSACTION_STATES,
   PENDING_PAYMENT_TRANSACTION_STATE,
+  PLANNED_REFUND_STATES,
+  REFUND_DISCARDED_STATE,
   REFUND_DONE_STATE,
+  REFUND_ORIGINS,
   REFUND_PENDING_STATE,
   REFUND_STATES,
 } from "./payments/index.js";
