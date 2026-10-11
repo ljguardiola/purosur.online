@@ -5,8 +5,12 @@ import type {
   OfflineAuthorizationCodeRequestAnswer,
   TaxAuthorityOfflineAuthorizationCodes,
 } from "@purosur/domain/fiscal/use-cases";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { arcaWsaaTokens, caeaCodes } from "../platform/db/schema.js";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  arcaWsaaTokens,
+  caeaCodes,
+  offlineAuthorizationCodeAcquisitionReports,
+} from "../platform/db/schema.js";
 import { scheduleOfCrontabLine } from "../platform/test-support/crontab-schedule.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
@@ -56,21 +60,21 @@ class FakeOfflineAuthorizationCodes implements TaxAuthorityOfflineAuthorizationC
   }
 }
 
-async function issueWsaaToken() {
+async function issueWsaaToken(at: Date = NOW) {
   await testDatabase.db.insert(arcaWsaaTokens).values({
     service: "wsfe",
     certificateFingerprint: FINGERPRINT,
     token: "FICTIONAL-TOKEN",
     sign: "FICTIONAL-SIGN",
-    issuedAt: new Date(NOW.getTime() - 60_000),
-    expiresAt: new Date(NOW.getTime() + 60 * 60_000),
+    issuedAt: new Date(at.getTime() - 60_000),
+    expiresAt: new Date(at.getTime() + 60 * 60_000),
   });
 }
 
 function taskUnderTest(taxAuthority: TaxAuthorityOfflineAuthorizationCodes) {
   const jobs = offlineAuthorizationCodeJobs(
     { now: () => NOW, taxAuthority, certificateFingerprint: FINGERPRINT },
-    { createDatabase: () => testDatabase.db },
+    { createDatabase: () => testDatabase.db, report: vi.fn() },
   );
   const task = jobs.taskList[OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER];
   if (!task) {
@@ -132,7 +136,7 @@ describe("the on-demand request for the current fortnight's offline authorizatio
   function requestUnderTest(taxAuthority: TaxAuthorityOfflineAuthorizationCodes) {
     const jobs = offlineAuthorizationCodeJobs(
       { now: () => NOW, taxAuthority, certificateFingerprint: FINGERPRINT },
-      { createDatabase: () => testDatabase.db },
+      { createDatabase: () => testDatabase.db, report: vi.fn() },
     );
     const task = jobs.taskList[OFFLINE_AUTHORIZATION_CODE_REQUEST_TASK_IDENTIFIER];
     if (!task) {
@@ -197,5 +201,167 @@ describe("the on-demand request for the current fortnight's offline authorizatio
     await requestUnderTest(taxAuthority)({}, helpers);
 
     expect(taxAuthority.requests).toEqual([]);
+  });
+});
+
+const FIRST_HALF_LINE =
+  "offline authorization code acquisition for fortnight 2026-10-01..2026-10-15";
+const SECOND_HALF_LINE =
+  "offline authorization code acquisition for fortnight 2026-10-16..2026-10-31";
+
+describe("the log of an offline authorization code acquisition run", () => {
+  async function run(taxAuthority: TaxAuthorityOfflineAuthorizationCodes) {
+    await seedOfflinePointOfSale(testDatabase.db);
+    await issueWsaaToken();
+    return runAgain(taxAuthority);
+  }
+
+  async function runAgain(taxAuthority: TaxAuthorityOfflineAuthorizationCodes) {
+    const { task } = taskUnderTest(taxAuthority);
+    const job = buildJobHelpers();
+    await task({}, job.helpers);
+    return job;
+  }
+
+  it("names the fortnight, the refusal and each rejection's code and message, and never the credentials", async () => {
+    const taxAuthority = new FakeOfflineAuthorizationCodes();
+    taxAuthority.requestAnswer = {
+      kind: "refused",
+      rejections: [
+        { code: 15006, message: "Fictional rejection one" },
+        { code: 15007, message: "Fictional rejection two" },
+      ],
+    };
+
+    const { logs } = await run(taxAuthority);
+
+    expect(logs).toEqual([
+      {
+        level: "info",
+        message: `${FIRST_HALF_LINE}: refused (15006: Fictional rejection one; 15007: Fictional rejection two)`,
+      },
+    ]);
+    expect(JSON.stringify(logs)).not.toMatch(/FICTIONAL-(TOKEN|SIGN)/);
+  });
+
+  it("names a request the tax authority did not answer", async () => {
+    const taxAuthority = new FakeOfflineAuthorizationCodes();
+    taxAuthority.requestAnswer = { kind: "no_answer" };
+
+    const { logs } = await run(taxAuthority);
+
+    expect(logs).toEqual([{ level: "info", message: `${FIRST_HALF_LINE}: no_answer` }]);
+  });
+
+  it("names a code that was obtained", async () => {
+    const { logs } = await run(new FakeOfflineAuthorizationCodes());
+
+    expect(logs).toEqual([{ level: "info", message: `${FIRST_HALF_LINE}: obtained` }]);
+  });
+
+  it("logs a fortnight whose code is already held at debug level only", async () => {
+    const taxAuthority = new FakeOfflineAuthorizationCodes();
+    await run(taxAuthority);
+
+    const { logs } = await runAgain(taxAuthority);
+
+    expect(logs).toEqual([{ level: "debug", message: `${FIRST_HALF_LINE}: held` }]);
+  });
+
+  it("logs a run with no offline point of sale at debug level only", async () => {
+    const { task } = taskUnderTest(new FakeOfflineAuthorizationCodes());
+    const { helpers, logs } = buildJobHelpers();
+
+    await task({}, helpers);
+
+    expect(logs.map(({ level }) => level)).toEqual(["debug"]);
+  });
+});
+
+describe("the report of an offline authorization code acquisition failure", () => {
+  const OCTOBER_13 = new Date("2026-10-13T15:00:00.000Z");
+  const OCTOBER_12 = new Date("2026-10-12T15:00:00.000Z");
+  const REJECTION = { code: 15006, message: "Fictional rejection" };
+
+  async function holdFirstHalf() {
+    await testDatabase.db.insert(caeaCodes).values({
+      fortnightStart: "2026-10-01",
+      fortnightEnd: "2026-10-15",
+      code: "36123456789012",
+      reportDeadline: "2026-10-20",
+      obtainedAt: new Date("2026-09-28T12:00:00.000Z"),
+      obtainedThrough: "requested",
+    });
+  }
+
+  function taskAt(now: Date, taxAuthority: TaxAuthorityOfflineAuthorizationCodes) {
+    const report = vi.fn();
+    const jobs = offlineAuthorizationCodeJobs(
+      { now: () => now, taxAuthority, certificateFingerprint: FINGERPRINT },
+      { createDatabase: () => testDatabase.db, report },
+    );
+    const task = jobs.taskList[OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER];
+    if (!task) {
+      throw new Error("test setup: expected the registered offline authorization code task");
+    }
+    return { task, report };
+  }
+
+  async function setUp(now: Date, answer: OfflineAuthorizationCodeRequestAnswer) {
+    await seedOfflinePointOfSale(testDatabase.db);
+    await issueWsaaToken(now);
+    await holdFirstHalf();
+    const taxAuthority = new FakeOfflineAuthorizationCodes();
+    taxAuthority.requestAnswer = answer;
+    return taskAt(now, taxAuthority);
+  }
+
+  it("reaches the error reporter once across repeated runs, naming the fortnight, the outcome, the level and the rejections", async () => {
+    const { task, report } = await setUp(OCTOBER_13, { kind: "refused", rejections: [REJECTION] });
+    const { helpers } = buildJobHelpers();
+
+    await task({}, helpers);
+    await task({}, helpers);
+
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(report).toHaveBeenCalledWith(
+      expect.any(String),
+      new Error(`${SECOND_HALF_LINE}: refused (15006: Fictional rejection)`),
+      {
+        context: {
+          fortnightStart: "2026-10-16",
+          fortnightEnd: "2026-10-31",
+          outcome: "refused",
+          level: "warning",
+          rejections: "15006: Fictional rejection",
+        },
+      },
+    );
+    expect(await testDatabase.db.select().from(offlineAuthorizationCodeAcquisitionReports)).toEqual(
+      [{ fortnightStart: "2026-10-16", outcomeKind: "refused", reportedAt: OCTOBER_13 }],
+    );
+  });
+
+  it("reports an unanswered request without rejections in its context", async () => {
+    const { task, report } = await setUp(OCTOBER_13, { kind: "no_answer" });
+
+    await task({}, buildJobHelpers().helpers);
+
+    expect(report).toHaveBeenCalledWith(expect.any(String), expect.any(Error), {
+      context: {
+        fortnightStart: "2026-10-16",
+        fortnightEnd: "2026-10-31",
+        outcome: "no_answer",
+        level: "warning",
+      },
+    });
+  });
+
+  it("does not report a failure while the fortnight's alert is only informational", async () => {
+    const { task, report } = await setUp(OCTOBER_12, { kind: "no_answer" });
+
+    await task({}, buildJobHelpers().helpers);
+
+    expect(report).not.toHaveBeenCalled();
   });
 });

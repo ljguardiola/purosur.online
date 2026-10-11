@@ -3,6 +3,7 @@ import {
   type Job,
   type JobHelpers,
   Logger,
+  type LogLevel,
   type WithPgClient,
 } from "graphile-worker";
 import pg, { type PoolClient } from "pg";
@@ -36,7 +37,13 @@ function buildJob(): Job {
   };
 }
 
+export interface LoggedLine {
+  level: LogLevel;
+  message: string;
+}
+
 export function buildJobHelpers() {
+  const logs: LoggedLine[] = [];
   const client = buildPoolClient();
   const borrowClient = vi.fn<(borrowed: PoolClient) => void>();
   const withPgClient: WithPgClient = async (callback) => {
@@ -45,7 +52,9 @@ export function buildJobHelpers() {
   };
   const addJob = vi.fn<AddJobFunction>(async () => buildJob());
   const helpers: JobHelpers = {
-    logger: new Logger(() => () => {}),
+    logger: new Logger(() => (level, message) => {
+      logs.push({ level, message });
+    }),
     job: buildJob(),
     withPgClient,
     addJob,
@@ -55,5 +64,5 @@ export function buildJobHelpers() {
     abortSignal: new AbortController().signal,
     abortPromise: new Promise<void>(() => {}),
   };
-  return { helpers, borrowClient, addJob, client };
+  return { helpers, borrowClient, addJob, client, logs };
 }
