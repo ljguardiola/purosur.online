@@ -201,6 +201,22 @@ describe("sale requests", () => {
     ).toBe(false);
   });
 
+  it("accepts a request to weigh a product on the scale, carrying no weight", () => {
+    const message = { type: "weigh-product", request_id: REQUEST_ID, product_id: "p2" };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { request_id: REQUEST_ID },
+    { product_id: "p2" },
+    { request_id: REQUEST_ID, product_id: 2 },
+  ])("rejects a request to weigh that is not well formed: %j", (fields) => {
+    expect(
+      salesRendererToCoreMessageSchema.safeParse({ type: "weigh-product", ...fields }).success,
+    ).toBe(false);
+  });
+
   it("accepts a request for the sale in progress", () => {
     const message = { type: "sale-request", request_id: REQUEST_ID };
 
@@ -606,6 +622,10 @@ describe("sale line answers", () => {
     ["add-weighed-product-result", { kind: "not_sold_by_weight" }],
     ["add-weighed-product-result", { kind: "product_unavailable" }],
     ["add-weighed-product-result", { kind: "no_price", product_name: "Queso" }],
+    ["weigh-product-result", { kind: "added", sale }],
+    ["weigh-product-result", { kind: "weighing" }],
+    ["weigh-product-result", { kind: "scale_unavailable" }],
+    ["weigh-product-result", { kind: "not_sold_by_weight" }],
     ["remove-sale-line-result", { kind: "removed", sale }],
     ["remove-sale-line-result", { kind: "no_open_sale" }],
     ["remove-sale-line-result", { kind: "sale_has_payments" }],
@@ -621,6 +641,7 @@ describe("sale line answers", () => {
     "change-line-quantity-result",
     "change-line-weight-result",
     "add-weighed-product-result",
+    "weigh-product-result",
     "remove-sale-line-result",
     "cancel-sale-result",
   ])("rejects %s with an outcome it does not know", (type) => {
@@ -637,6 +658,7 @@ describe("sale line answers", () => {
     "change-line-quantity-result",
     "change-line-weight-result",
     "add-weighed-product-result",
+    "weigh-product-result",
     "remove-sale-line-result",
     "cancel-sale-result",
   ])("rejects %s without its request id", (type) => {
