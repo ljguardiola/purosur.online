@@ -98,6 +98,13 @@ describe("QrPaymentWaitModal", () => {
     await expect.element(screen.getByText("3:00").first()).toBeVisible();
   });
 
+  it("counts the time left out of the whole wait the order was shown with", async () => {
+    const { screen } = await renderModal(answering(WAITING), { ...ORDER, remaining_seconds: 190 });
+
+    await expect.element(screen.getByText("2:41")).toBeVisible();
+    await expect.element(screen.getByText("de 3:10")).toBeVisible();
+  });
+
   it("offers only Cobrar con otro medio while waiting", async () => {
     const { screen } = await renderModal();
 
@@ -564,6 +571,47 @@ describe("QrPaymentWaitModal", () => {
       await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
 
       await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
+    },
+  );
+
+  it.each([
+    ["not pending", { kind: "not_pending" }],
+    [
+      "already paid with a settlement that is not pending",
+      { kind: "already_paid", settlement: { kind: "not_pending" } },
+    ],
+  ] as const)(
+    "keeps showing the customer paid until Continuar when the payment was seen before the cancellation answers the order is %s",
+    async (_name, outcome) => {
+      let settleFollow: (outcome: FollowMercadoPagoQrChargeOutcome) => void = () => undefined;
+      let answerAbandon: (outcome: AbandonMercadoPagoQrChargeOutcome) => void = () => undefined;
+      const { screen, abandonCharge, callbacks } = await renderModal(
+        () =>
+          new Promise((resolve) => {
+            settleFollow = resolve;
+          }),
+        ORDER,
+        () =>
+          new Promise((resolve) => {
+            answerAbandon = resolve;
+          }),
+      );
+
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+      settleFollow(COMPLETED);
+      await expect
+        .element(screen.getByRole("heading", { name: "El cliente pagó el QR" }))
+        .toBeVisible();
+      answerAbandon(outcome);
+      await abandonCharge.mock.results[0]?.value;
+
+      await expect
+        .element(screen.getByRole("heading", { name: "El cliente pagó el QR" }))
+        .toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      expect(callbacks.onCompleted.mock.calls).toEqual([[{ ...COMPLETED, amount: 3_000_000 }]]);
+      expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
     },
   );
 
