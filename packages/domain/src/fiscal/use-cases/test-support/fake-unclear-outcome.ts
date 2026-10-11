@@ -22,6 +22,7 @@ export class FakeUnclearOutcomeStore implements UnclearOutcomeLanes, UnclearOutc
   readonly answeredAt = new Map<string, Date>();
   readonly decisions = new Map<string, { decision: UnclearOutcomeDecision; decidedAt: Date }>();
   vanishAfterLookup = false;
+  recordingFailure: Error | undefined;
 
   constructor(documents: FakePointOfSaleLanes) {
     this.documents = documents;
@@ -135,6 +136,9 @@ class FakeUnclearOutcomeLane implements UnclearOutcomeLane {
     abandonedAt: Date,
   ): Promise<void> {
     this.store.documents.operations.push(`recordAbandonedRequest@${abandonedAt.toISOString()}`);
+    if (this.store.recordingFailure !== undefined) {
+      throw this.store.recordingFailure;
+    }
     if (this.store.documents.requests.has(request.fiscalDocumentId)) {
       throw new FiscalDocumentAlreadyRecorded();
     }
