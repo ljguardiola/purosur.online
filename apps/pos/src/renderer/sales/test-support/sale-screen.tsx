@@ -13,6 +13,7 @@ import type {
 } from "@purosur/contracts";
 import { onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { BarcodeReadings } from "../../shell/barcode-readings";
 import { render } from "../../shell/test-support/render-with-router";
 import type { SaleScreenProps } from "../sale-screen";
 import { SaleScreen } from "../sale-screen";
@@ -140,28 +141,44 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
     vi.fn(async (): Promise<CancelPaidSaleOutcome> => ({ kind: "unavailable" }));
   const loadAuthorizers = overrides.loadAuthorizers ?? vi.fn(async () => []);
   const onSessionInvalid = overrides.onSessionInvalid ?? vi.fn();
+  const readers = new Set<(code: string) => void>();
   const screen = await render(
-    <SaleScreen
-      sessionId="s1"
-      person={overrides.person ?? PERSON}
-      registerName={registerName}
-      lock={() => {}}
-      currentSale={currentSale}
-      scanProduct={scanProduct}
-      searchProducts={searchProducts}
-      addProduct={addProduct}
-      addWeighedProduct={addWeighedProduct}
-      weighProduct={weighProduct}
-      changeLineQuantity={changeLineQuantity}
-      changeLineWeight={changeLineWeight}
-      removeSaleLine={removeSaleLine}
-      cancelSale={cancelSale}
-      cancelPaidSale={cancelPaidSale}
-      loadAuthorizers={loadAuthorizers}
-      onSessionInvalid={onSessionInvalid}
-    />,
+    <BarcodeReadings
+      onBarcodeRead={(listener) => {
+        readers.add(listener);
+        return () => {
+          readers.delete(listener);
+        };
+      }}
+    >
+      <SaleScreen
+        sessionId="s1"
+        person={overrides.person ?? PERSON}
+        registerName={registerName}
+        lock={() => {}}
+        currentSale={currentSale}
+        scanProduct={scanProduct}
+        searchProducts={searchProducts}
+        addProduct={addProduct}
+        addWeighedProduct={addWeighedProduct}
+        weighProduct={weighProduct}
+        changeLineQuantity={changeLineQuantity}
+        changeLineWeight={changeLineWeight}
+        removeSaleLine={removeSaleLine}
+        cancelSale={cancelSale}
+        cancelPaidSale={cancelPaidSale}
+        loadAuthorizers={loadAuthorizers}
+        onSessionInvalid={onSessionInvalid}
+      />
+    </BarcodeReadings>,
   );
-  return { screen, field: screen.getByRole("combobox", { name: FIELD_NAME }) };
+  return {
+    screen,
+    field: screen.getByRole("combobox", { name: FIELD_NAME }),
+    readBarcode(code: string) {
+      for (const listener of readers) listener(code);
+    },
+  };
 }
 
 export function deferred<T>() {
