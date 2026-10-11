@@ -69,6 +69,7 @@ import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
+import { createBarcodeReaderWiring } from "./sales/barcode-reader-wiring";
 import { openSerialLink } from "./sales/open-serial-link";
 import { createReceiptPrinting } from "./sales/receipt-printing-wiring";
 import {
@@ -163,6 +164,7 @@ const SYNC_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
 const PULLED_NOTICE: CoreToRendererMessage = { type: "pulled" };
 const SERIAL_DEVICES_CHANGED_NOTICE: CoreToRendererMessage = { type: "serial-devices-changed" };
 const SERIAL_DEVICE_CHECK_INTERVAL_MS = 3_000;
+const BARCODE_READER_RETRY_MS = 3_000;
 
 const localDataFolder = localDataFolderFromCoreArguments(process.argv);
 const localDatabasePath =
@@ -238,13 +240,24 @@ const serialDeviceWatch =
           const timer = setTimeout(run, delayMs);
           return () => clearTimeout(timer);
         },
-        onChange: () => rendererConnection.tell(SERIAL_DEVICES_CHANGED_NOTICE),
+        onChange: () => {
+          rendererConnection.tell(SERIAL_DEVICES_CHANGED_NOTICE);
+          void barcodeReaderWiring.onDevicesChanged();
+        },
         onFailure: (error) => reportFailure("watching the serial devices", error),
       });
 
 const systelScale = createSystelScale({
   path: () => serialDeviceWatch && pathOfMatchingDevice(serialDeviceWatch.reading(), "scale"),
   openLink: openSerialLink,
+});
+
+const barcodeReaderWiring = createBarcodeReaderWiring({
+  watch: serialDeviceWatch,
+  openLink: openSerialLink,
+  tell: (message) => rendererConnection.tell(message),
+  reportFailure,
+  retryMs: BARCODE_READER_RETRY_MS,
 });
 
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
@@ -848,4 +861,4 @@ process.parentPort.on("message", (event) => {
 
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
 syncSchedule.start();
-void serialDeviceWatch?.start();
+void barcodeReaderWiring.startWatch();

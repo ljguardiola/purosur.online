@@ -140,6 +140,7 @@ function coreAnswering(
   let savedName: string | null = null;
   const pulledListeners = new Set<() => void>();
   const serialDevicesChangedListeners = new Set<() => void>();
+  const barcodeReadListeners = new Set<(code: string) => void>();
   const core: CoreClient = {
     connect() {},
     async enrollmentStatus() {
@@ -382,7 +383,18 @@ function coreAnswering(
         serialDevicesChangedListeners.delete(listener);
       };
     },
+    onBarcodeRead(listener) {
+      barcodeReadListeners.add(listener);
+      return () => {
+        barcodeReadListeners.delete(listener);
+      };
+    },
   };
+  function readBarcode(code: string) {
+    for (const listener of barcodeReadListeners) {
+      listener(code);
+    }
+  }
   function changeSerialDevices() {
     for (const listener of serialDevicesChangedListeners) {
       listener();
@@ -406,6 +418,7 @@ function coreAnswering(
     recorded,
     finishPull,
     changeSerialDevices,
+    readBarcode,
     usersLoads: () => usersLoads,
   };
 }
@@ -595,6 +608,17 @@ describe("App", () => {
     changeSerialDevices();
 
     await expect.poll(() => statusAsks.length).toBeGreaterThan(readsBefore);
+  });
+
+  it("warns that a scanned product was not added when a reader reads a code outside the sale", async () => {
+    const { core, readBarcode } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+
+    readBarcode("7790001234567");
+
+    await expect.element(screen.getByText("No se agregó el producto escaneado")).toBeVisible();
   });
 
   describe("the offer to register the scale and reader", () => {

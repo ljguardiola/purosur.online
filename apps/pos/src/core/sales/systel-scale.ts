@@ -1,4 +1,5 @@
 import type { Scale, ScaleReading } from "@purosur/domain/sales/use-cases";
+import type { SerialLink } from "./open-serial-link.js";
 
 const REQUEST_WEIGHT = 0x05;
 const FRAME_START = 0x02;
@@ -41,13 +42,6 @@ export function decodeScaleAnswer(bytes: Uint8Array): ScaleAnswer {
     kind: "stable",
     weightThousandths: digits.reduce((weight, byte) => weight * 10 + (byte - ASCII_ZERO), 0),
   };
-}
-
-export interface SerialLink {
-  write(data: Uint8Array): void;
-  on(event: "data", listener: (chunk: Uint8Array) => void): unknown;
-  on(event: "error" | "close", listener: () => void): unknown;
-  close(): void;
 }
 
 interface ScaleTimers {

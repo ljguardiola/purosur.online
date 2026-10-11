@@ -251,6 +251,7 @@ const reprintSaleReceiptOutcomeSchema = z.discriminatedUnion("kind", [
 export type ReprintSaleReceiptOutcome = z.infer<typeof reprintSaleReceiptOutcomeSchema>;
 
 export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("barcode-read"), code: z.string().min(1) }),
   z.object({
     type: z.literal("scan-product-result"),
     request_id: requestId,
