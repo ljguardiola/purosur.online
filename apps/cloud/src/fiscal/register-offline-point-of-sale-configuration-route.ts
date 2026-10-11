@@ -45,7 +45,12 @@ export function registerRegisterOfflinePointOfSaleConfigurationRoute<
   const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const store = new DrizzleRegisterOfflinePointOfSaleStore(options.db, now);
+  const store = new DrizzleRegisterOfflinePointOfSaleStore(
+    options.db,
+    now,
+    undefined,
+    options.enqueueTaxAuthorityCount,
+  );
 
   app.put(
     "/registers/:id/offline-point-of-sale",

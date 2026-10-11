@@ -1,3 +1,4 @@
+import { FACTURA_C_DOCUMENT_TYPE } from "@purosur/domain";
 import { type SQL, sql } from "drizzle-orm";
 import { TAX_AUTHORITY_COUNT_TASK_IDENTIFIER } from "./tax-authority-count-task.js";
 
@@ -28,7 +29,8 @@ export const enqueueTaxAuthorityCountJob: EnqueueTaxAuthorityCount = async (
 };
 
 // A job that used up its attempts is not retried by the worker, so startup asks again for every
-// claimed real-time point of sale whose count was never read.
+// claimed point of sale, real-time or offline, whose count was never read, and for every register's
+// offline point of sale still waiting for its first number block.
 export async function enqueueMissingTaxAuthorityCounts(transaction: SqlExecutor): Promise<void> {
   await transaction.execute(
     sql`select graphile_worker.add_job(
@@ -37,10 +39,20 @@ export async function enqueueMissingTaxAuthorityCounts(transaction: SqlExecutor)
       job_key => ${TAX_AUTHORITY_COUNT_TASK_IDENTIFIER}::text || ':' || claim.point_of_sale_number
     )
     from point_of_sale_claims claim
-    where claim.mechanism = 'real_time'
-    and not exists (
+    where not exists (
       select 1 from tax_authority_last_authorized_numbers count
       where count.point_of_sale_number = claim.point_of_sale_number
+    )
+    or (
+      exists (
+        select 1 from register_offline_points_of_sale offline
+        where offline.point_of_sale_number = claim.point_of_sale_number
+      )
+      and not exists (
+        select 1 from offline_number_blocks block
+        where block.point_of_sale_number = claim.point_of_sale_number
+          and block.document_type = ${FACTURA_C_DOCUMENT_TYPE}
+      )
     )`,
   );
 }

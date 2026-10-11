@@ -26,8 +26,12 @@ describe("offline number blocks", () => {
 });
 
 describe("firstOfflineNumberBlock", () => {
-  it("holds the first 1000 numbers of the series, 1 to 1000", () => {
-    expect(firstOfflineNumberBlock()).toEqual({ firstNumber: 1, lastNumber: 1000 });
+  it.each([
+    [0, { firstNumber: 1, lastNumber: 1000 }],
+    [37, { firstNumber: 38, lastNumber: 1037 }],
+    [1000, { firstNumber: 1001, lastNumber: 2000 }],
+  ])("starts right after the %i numbers the tax authority has authorized", (authorized, block) => {
+    expect(firstOfflineNumberBlock(authorized)).toEqual(block);
   });
 });
 

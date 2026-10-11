@@ -168,6 +168,7 @@ function contextWith(
     chargeSaleByTransfer: async () => ({ kind: "unavailable" }),
     startMercadoPagoQrCharge: async () => ({ kind: "unavailable" }),
     followMercadoPagoQrCharge: async () => ({ kind: "unavailable" }),
+    abandonMercadoPagoQrCharge: async () => ({ kind: "unavailable" }),
     scanProduct: async () => ({ kind: "unknown_code" }),
     searchProducts: async () => ({ kind: "results", products: [], more: false }),
     addProduct: async () => ({ kind: "product_unavailable" }),

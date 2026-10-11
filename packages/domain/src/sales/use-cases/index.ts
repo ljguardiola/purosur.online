@@ -122,6 +122,13 @@ export type {
 } from "./remove-sale-line.js";
 export { removeSaleLine } from "./remove-sale-line.js";
 export type {
+  PendingQrPaymentReplacementRefusal,
+  ReplacePendingQrPaymentInput,
+  ReplacePendingQrPaymentOutcome,
+  ReplacePendingQrPaymentPorts,
+} from "./replace-pending-qr-payment.js";
+export { replacePendingQrPayment } from "./replace-pending-qr-payment.js";
+export type {
   ReprintSaleReceiptInput,
   ReprintSaleReceiptOutcome,
   ReprintSaleReceiptPorts,

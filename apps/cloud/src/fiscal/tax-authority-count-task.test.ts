@@ -1,11 +1,23 @@
-import type {
-  LastAuthorizedAnswer,
-  TaxAuthorityLastAuthorizedLookup,
+import {
+  configureRegisterOfflinePointOfSale,
+  configureRegisterPointOfSale,
+  type LastAuthorizedAnswer,
+  type TaxAuthorityLastAuthorizedLookup,
 } from "@purosur/domain/fiscal/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { arcaWsaaTokens, taxAuthorityLastAuthorizedNumbers } from "../platform/db/schema.js";
+import {
+  arcaWsaaTokens,
+  fiscalAddresses,
+  offlineNumberBlocks,
+  registers,
+  taxAuthorityLastAuthorizedNumbers,
+  users,
+} from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
+import { DrizzleRegisterOfflinePointOfSaleStore } from "./drizzle-register-offline-point-of-sale-store.js";
+import { DrizzleRegisterPointOfSaleStore } from "./drizzle-register-point-of-sale-store.js";
 import {
   TAX_AUTHORITY_COUNT_TASK_IDENTIFIER,
   taxAuthorityCountJobs,
@@ -65,6 +77,45 @@ async function storedCounts() {
   return testDatabase.db.select().from(taxAuthorityLastAuthorizedNumbers);
 }
 
+async function configureRegisterWithOfflinePointOfSale(enqueuedCounts: number[]) {
+  const locationId = await seededLocationId(testDatabase.db);
+  const [actor] = await testDatabase.db
+    .insert(users)
+    .values({ firstName: "Ada Lucero", email: "ada@example.com", locationId })
+    .returning({ id: users.id });
+  const [register] = await testDatabase.db
+    .insert(registers)
+    .values({ locationId, name: "Caja 1" })
+    .returning({ id: registers.id });
+  const [fiscalAddress] = await testDatabase.db
+    .insert(fiscalAddresses)
+    .values({ name: "Deposito Central", streetAddress: "Calle Ficticia 123, CABA" })
+    .returning({ id: fiscalAddresses.id });
+  if (!actor || !register || !fiscalAddress) {
+    throw new Error("test setup: seeding the register returned no row");
+  }
+  const base = { locationId, registerId: register.id, actorId: actor.id };
+  await configureRegisterPointOfSale(
+    new DrizzleRegisterPointOfSaleStore(testDatabase.db, () => NOW),
+    { ...base, pointOfSaleNumber: 7, fiscalAddressId: fiscalAddress.id, version: 0 },
+  );
+  const outcome = await configureRegisterOfflinePointOfSale(
+    new DrizzleRegisterOfflinePointOfSaleStore(
+      testDatabase.db,
+      () => NOW,
+      undefined,
+      async (_transaction, pointOfSale) => {
+        enqueuedCounts.push(pointOfSale);
+      },
+    ),
+    { ...base, pointOfSaleNumber: 8, version: 0 },
+  );
+  if (outcome.kind !== "configured") {
+    throw new Error("test setup: the offline point of sale was not configured");
+  }
+  return register.id;
+}
+
 describe("taxAuthorityCountJobs", () => {
   it("registers the count task and schedules nothing, since it runs when a point of sale is configured", () => {
     const { jobs } = taskUnderTest(new FakeLastAuthorizedLookup());
@@ -120,4 +171,57 @@ describe("taxAuthorityCountJobs", () => {
       expect(taxAuthority.lookups).toEqual([]);
     },
   );
+
+  describe("the offline number block that waits for the count", () => {
+    it("starts right after the number ARCA last authorized, once the count of an offline point of sale configured with no count is read", async () => {
+      const enqueuedCounts: number[] = [];
+      const registerId = await configureRegisterWithOfflinePointOfSale(enqueuedCounts);
+      expect(enqueuedCounts).toEqual([8]);
+      expect(await storedCounts()).toEqual([]);
+      expect(await testDatabase.db.select().from(offlineNumberBlocks)).toEqual([]);
+      await issueWsaaToken();
+      const taxAuthority = new FakeLastAuthorizedLookup();
+      taxAuthority.answer = { kind: "read", number: 37 };
+      const { task } = taskUnderTest(taxAuthority);
+
+      await task({ pointOfSale: 8 }, buildJobHelpers().helpers);
+
+      expect(await storedCounts()).toEqual([
+        { pointOfSaleNumber: 8, lastAuthorized: 37, readAt: NOW },
+      ]);
+      expect(await testDatabase.db.select().from(offlineNumberBlocks)).toMatchObject([
+        { pointOfSaleNumber: 8, registerId, firstNumber: 38, lastNumber: 1037, assignedAt: NOW },
+      ]);
+    });
+
+    it("assigns no second block when the job runs again", async () => {
+      await configureRegisterWithOfflinePointOfSale([]);
+      await issueWsaaToken();
+      const { task } = taskUnderTest(new FakeLastAuthorizedLookup());
+
+      await task({ pointOfSale: 8 }, buildJobHelpers().helpers);
+      await task({ pointOfSale: 8 }, buildJobHelpers().helpers);
+
+      expect(await testDatabase.db.select().from(offlineNumberBlocks)).toHaveLength(1);
+    });
+
+    it("assigns no block when the count read is of a point of sale no register holds as its offline one", async () => {
+      await configureRegisterWithOfflinePointOfSale([]);
+      await issueWsaaToken();
+      const { task } = taskUnderTest(new FakeLastAuthorizedLookup());
+
+      await task({ pointOfSale: 7 }, buildJobHelpers().helpers);
+
+      expect(await testDatabase.db.select().from(offlineNumberBlocks)).toEqual([]);
+    });
+
+    it("assigns no block when the count is not read", async () => {
+      await configureRegisterWithOfflinePointOfSale([]);
+      const { task } = taskUnderTest(new FakeLastAuthorizedLookup());
+
+      await expect(task({ pointOfSale: 8 }, buildJobHelpers().helpers)).rejects.toThrow();
+
+      expect(await testDatabase.db.select().from(offlineNumberBlocks)).toEqual([]);
+    });
+  });
 });

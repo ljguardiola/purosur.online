@@ -1,4 +1,7 @@
-import type { FollowMercadoPagoQrChargeOutcome } from "@purosur/contracts";
+import type {
+  AbandonMercadoPagoQrChargeOutcome,
+  FollowMercadoPagoQrChargeOutcome,
+} from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
 import {
   Button,
@@ -13,11 +16,11 @@ import {
   plural,
   SummaryRowGroup,
 } from "@purosur/ui";
-import { ArrowRight, CircleX, Info, QrCode, TimerOff, TriangleAlert } from "lucide-react";
+import { ArrowRight, CircleX, Info, Lock, QrCode, TimerOff, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import type { ShownQrOrder } from "./qr-charge-modal";
 import type { FollowedQrCharge } from "./sales-queries";
-import { useQrChargeQuery } from "./sales-queries";
+import { useAbandonQrChargeMutation, useQrChargeQuery } from "./sales-queries";
 
 export type CompletedQrPayment = Extract<
   FollowMercadoPagoQrChargeOutcome,
@@ -31,6 +34,9 @@ export type QrPaymentWaitModalProps = {
   paid: number;
   order: ShownQrOrder;
   follow: (paymentTransactionId: string) => Promise<FollowMercadoPagoQrChargeOutcome>;
+  abandon: (paymentTransactionId: string) => Promise<AbandonMercadoPagoQrChargeOutcome>;
+  onAlreadyPaid: () => void;
+  onCancelled: () => void;
   onChooseAnotherMethod: () => void;
   onCompleted: (payment: CompletedQrPayment) => void;
   onPartiallyPaid: () => Promise<void>;
@@ -43,25 +49,55 @@ export function QrPaymentWaitModal({
   paid,
   order,
   follow,
+  abandon,
+  onAlreadyPaid,
+  onCancelled,
   onChooseAnotherMethod,
   onCompleted,
   onPartiallyPaid,
   onSaleUnavailable,
   onSessionInvalid,
 }: QrPaymentWaitModalProps) {
-  const charge = useQrChargeQuery({ paymentTransactionId: order.payment_transaction_id, follow });
+  const abandonment = useAbandonQrChargeMutation(abandon);
+  const unanswered =
+    abandonment.data?.kind === "unavailable" ||
+    (abandonment.data?.kind === "already_paid" &&
+      abandonment.data.settlement.kind === "unavailable");
+  const abandoned = unanswered ? undefined : abandonment.data;
+  const abandonFailed = abandonment.isError || unanswered;
+  const charge = useQrChargeQuery({
+    paymentTransactionId: order.payment_transaction_id,
+    follow,
+    following: !abandonment.isPending && abandoned === undefined,
+  });
   const outcome = charge.status === "loaded" ? charge.value : undefined;
   const [retried, setRetried] = useState(false);
 
-  const leaveWhenSettled = useEffectEvent((settled: FollowedQrCharge) => {
+  function abandonOrder() {
+    abandonment.mutate(order.payment_transaction_id);
+  }
+
+  const leaveWhenSettled = useEffectEvent((settled: FollowedQrCharge, alreadyPaid: boolean) => {
     switch (settled.kind) {
       case "completed":
+        if (alreadyPaid) {
+          onAlreadyPaid();
+        }
         onCompleted({ ...settled, amount: order.amount });
         break;
       case "partially_paid":
+        if (alreadyPaid) {
+          onAlreadyPaid();
+        }
         void onPartiallyPaid();
         break;
       case "not_pending":
+        if (alreadyPaid) {
+          onChooseAnotherMethod();
+        } else {
+          onSaleUnavailable();
+        }
+        break;
       case "empty_sale":
       case "zero_total":
       case "reaches_buyer_identification_threshold":
@@ -81,11 +117,65 @@ export function QrPaymentWaitModal({
     }
   });
 
+  const leaveWhenAbandoned = useEffectEvent((answer: AbandonMercadoPagoQrChargeOutcome) => {
+    switch (answer.kind) {
+      case "cancelled":
+        onCancelled();
+        break;
+      case "already_paid":
+        if (answer.settlement.kind !== "unavailable") {
+          leaveWhenSettled(answer.settlement, true);
+        }
+        break;
+      case "not_pending":
+        onChooseAnotherMethod();
+        break;
+      case "closed":
+      case "replaced":
+      case "unavailable":
+        break;
+      default:
+        leaveWhenSettled(answer, false);
+    }
+  });
+
   useEffect(() => {
     if (outcome !== undefined) {
-      leaveWhenSettled(outcome);
+      leaveWhenSettled(outcome, false);
     }
   }, [outcome]);
+
+  useEffect(() => {
+    if (abandonment.data !== undefined) {
+      leaveWhenAbandoned(abandonment.data);
+    }
+  }, [abandonment.data]);
+
+  if (abandoned?.kind === "closed") {
+    return (
+      <EndedModal
+        tone="info"
+        icon={<Lock />}
+        title="La orden QR ya estaba cerrada"
+        lines={["No se cobró nada con el QR. Elegí otro medio."]}
+        onChooseAnotherMethod={onChooseAnotherMethod}
+      />
+    );
+  }
+  if (abandoned?.kind === "replaced") {
+    return (
+      <EndedModal
+        tone="warning"
+        icon={<TriangleAlert />}
+        title="No se pudo confirmar la cancelación del QR"
+        lines={[
+          "Podés cobrar con otro medio y completar la venta.",
+          "Si el cliente paga el QR después, se crea una tarea de reembolso para confirmar.",
+        ]}
+        onChooseAnotherMethod={onChooseAnotherMethod}
+      />
+    );
+  }
 
   if (outcome?.kind === "declined") {
     return (
@@ -111,7 +201,9 @@ export function QrPaymentWaitModal({
           `${waitPassed(order.wait_seconds)} y el cliente no pagó. Para seguir, elegí otro medio.`,
           "Si el cliente paga el QR después, ese pago se devuelve: se crea una tarea de reembolso.",
         ]}
-        onChooseAnotherMethod={onChooseAnotherMethod}
+        onChooseAnotherMethod={abandonOrder}
+        abandoning={abandonment.isPending}
+        abandonFailed={abandonFailed}
       />
     );
   }
@@ -130,7 +222,18 @@ export function QrPaymentWaitModal({
       contextTone="info"
       title="Esperando el pago del cliente"
       closable={false}
-      footer={null}
+      footer={
+        <Button
+          size="large"
+          variant="secondary"
+          fullWidth
+          icon={<ArrowRight />}
+          dataStatus={abandonment.isPending ? "loading" : "loaded"}
+          onPress={abandonOrder}
+        >
+          Cobrar con otro medio
+        </Button>
+      }
     >
       <div className="flex flex-col gap-5">
         <SummaryRowGroup
@@ -177,6 +280,7 @@ export function QrPaymentWaitModal({
             />
           </div>
         )}
+        {abandonFailed ? <AbandonFailedNotice /> : null}
         <InlineNotice
           tone="info"
           icon={<Info />}
@@ -193,24 +297,38 @@ function waitPassed(waitSeconds: number): string {
   return `${passed} ${formatNumber(minutes, { style: "unit", unit: "minute", unitDisplay: "long" })}`;
 }
 
+function AbandonFailedNotice() {
+  return (
+    <InlineNotice
+      tone="error"
+      icon={<TriangleAlert />}
+      title="No se pudo cancelar la orden QR. Volvé a intentarlo en unos segundos."
+    />
+  );
+}
+
 function EndedModal({
   tone,
   icon,
   title,
   lines,
   onChooseAnotherMethod,
+  abandoning = false,
+  abandonFailed = false,
 }: {
-  tone: "error" | "warning";
+  tone: "error" | "warning" | "info";
   icon: Icon;
   title: string;
-  lines: readonly [string, string];
+  lines: readonly [string] | readonly [string, string];
   onChooseAnotherMethod: () => void;
+  abandoning?: boolean;
+  abandonFailed?: boolean;
 }) {
   return (
     <Modal
       open
       onOpenChange={(next) => {
-        if (!next) {
+        if (!next && !abandoning) {
           onChooseAnotherMethod();
         }
       }}
@@ -222,14 +340,21 @@ function EndedModal({
       title={title}
       closable={false}
       footer={
-        <Button size="large" fullWidth icon={<ArrowRight />} onPress={onChooseAnotherMethod}>
+        <Button
+          size="large"
+          fullWidth
+          icon={<ArrowRight />}
+          dataStatus={abandoning ? "loading" : "loaded"}
+          onPress={onChooseAnotherMethod}
+        >
           Elegir otro medio
         </Button>
       }
     >
       <div className="flex flex-col gap-3">
         <p className="text-body text-text">{lines[0]}</p>
-        <p className="text-detail text-text-subtle">{lines[1]}</p>
+        {lines[1] === undefined ? null : <p className="text-detail text-text-subtle">{lines[1]}</p>}
+        {abandonFailed ? <AbandonFailedNotice /> : null}
       </div>
     </Modal>
   );

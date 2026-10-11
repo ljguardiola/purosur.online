@@ -92,6 +92,7 @@ export interface SaleLedgerTransaction {
   pendingQrPayment(paymentTransactionId: string): PendingQrSalePayment | undefined;
   pendingQrPaymentsOf(saleId: string): PendingQrSalePayment[];
   approvePendingQrPayment(paymentTransactionId: string): void;
+  markQrPaymentReplaced(paymentTransactionId: string, waitEndsAt: Date): void;
   recordCashMovement(movement: CashMovement): void;
   recordSaleStockMovement(movement: SaleStockMovement): void;
   addToStockBalance(productId: string, delta: number): void;

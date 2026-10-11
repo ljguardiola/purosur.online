@@ -1,4 +1,5 @@
 import type {
+  AbandonMercadoPagoQrChargeOutcome,
   AddProductOutcome,
   AddWeighedProductOutcome,
   Authorization,
@@ -93,6 +94,9 @@ export interface RendererRequestDeps {
     | undefined;
   followMercadoPagoQrCharge:
     | ((request: { paymentTransactionId: string }) => Promise<FollowMercadoPagoQrChargeOutcome>)
+    | undefined;
+  abandonMercadoPagoQrCharge:
+    | ((request: { paymentTransactionId: string }) => Promise<AbandonMercadoPagoQrChargeOutcome>)
     | undefined;
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
@@ -444,6 +448,18 @@ async function attemptFollowMercadoPagoQrCharge(
     return (await deps.followMercadoPagoQrCharge?.(request)) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure("following a Mercado Pago QR charge", error);
+    return { kind: "unavailable" };
+  }
+}
+
+async function attemptAbandonMercadoPagoQrCharge(
+  deps: RendererRequestDeps,
+  request: { paymentTransactionId: string },
+): Promise<AbandonMercadoPagoQrChargeOutcome> {
+  try {
+    return (await deps.abandonMercadoPagoQrCharge?.(request)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("abandoning a Mercado Pago QR charge", error);
     return { kind: "unavailable" };
   }
 }
@@ -839,6 +855,14 @@ export async function answerRendererRequest(
         type: "follow-mercado-pago-qr-charge-result",
         request_id: message.request_id,
         outcome: await attemptFollowMercadoPagoQrCharge(deps, {
+          paymentTransactionId: message.payment_transaction_id,
+        }),
+      };
+    case "abandon-mercado-pago-qr-charge":
+      return {
+        type: "abandon-mercado-pago-qr-charge-result",
+        request_id: message.request_id,
+        outcome: await attemptAbandonMercadoPagoQrCharge(deps, {
           paymentTransactionId: message.payment_transaction_id,
         }),
       };

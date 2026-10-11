@@ -1739,6 +1739,7 @@ export const paymentTransactions = pgTable(
     needsReview: boolean("needs_review").notNull().default(false),
     providerOrderId: text("provider_order_id").unique(),
     creationOutcomeUnknown: boolean("creation_outcome_unknown").notNull().default(false),
+    replaced: boolean("replaced").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     stateReadAt: timestamp("state_read_at", { withTimezone: true }),

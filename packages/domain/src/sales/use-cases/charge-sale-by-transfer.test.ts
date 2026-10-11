@@ -78,6 +78,18 @@ const OPENING: CashMovement = {
 const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01", revision: 0 };
 const BUYER_TAX_STATUSES = [{ code: 5, description: "Consumidor Final", invoiceClass: "A/M/C" }];
 
+const REPLACED_QR = {
+  id: "qr-1",
+  saleId: "sale-1",
+  kind: "SALE",
+  method: "QR",
+  provider: "MERCADOPAGO_QR",
+  state: "PENDING",
+  amount: 2000,
+  occurredAt: new Date(NOW.getTime() - 120_000),
+  waitEndsAt: new Date(NOW.getTime() - 30_000),
+} as const;
+
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   return new FakeSaleLedger({
     accesses: { cashier: CASHIER },
@@ -111,6 +123,20 @@ describe("chargeSaleByTransfer", () => {
     expect(charge(store)).toEqual({ kind: "completed", saleId: "sale-1", total: TOTAL });
     expect(store.state.sales[0]?.state).toBe("COMPLETED");
     expect(store.transactions).toBe(1);
+  });
+
+  it("completes the sale beside a pending QR payment marked as replaced, sending only the approved payments", () => {
+    const store = ledger({
+      pendingQrPayments: [REPLACED_QR],
+      replacedQrPaymentIds: ["qr-1"],
+    });
+
+    expect(charge(store)).toMatchObject({ kind: "completed", saleId: "sale-1" });
+    expect(store.state.sales[0]?.state).toBe("COMPLETED");
+    expect(store.state.payments.map(({ method }) => method)).toEqual(["TRANSFER"]);
+    expect(store.state.outbox[0]?.payload).toMatchObject({
+      payments: [{ id: "id-1", method: "TRANSFER" }],
+    });
   });
 
   it("dates the sale with the moment it is charged, not with the moment its first product was added", () => {

@@ -1,4 +1,5 @@
 import type {
+  AbandonMercadoPagoQrChargeOutcome,
   FollowMercadoPagoQrChargeOutcome,
   StartMercadoPagoQrChargeOutcome,
 } from "@purosur/contracts";
@@ -12,6 +13,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import type { ActionGate } from "../sessions/action-gate";
 import { CloudMercadoPagoQrChargeOrders } from "./cloud-mercado-pago-qr-charge-orders";
 import {
+  abandonMercadoPagoQrChargeFor,
   followMercadoPagoQrChargeFor,
   type MercadoPagoQrChargeRequestDeps,
   startMercadoPagoQrChargeFor,
@@ -34,6 +36,9 @@ interface MercadoPagoQrCharging {
   follow:
     | ((request: { paymentTransactionId: string }) => Promise<FollowMercadoPagoQrChargeOutcome>)
     | undefined;
+  abandon:
+    | ((request: { paymentTransactionId: string }) => Promise<AbandonMercadoPagoQrChargeOutcome>)
+    | undefined;
 }
 
 export function createMercadoPagoQrCharging({
@@ -46,15 +51,15 @@ export function createMercadoPagoQrCharging({
   ids,
 }: MercadoPagoQrChargingWiringDeps): MercadoPagoQrCharging {
   if (database === undefined || gate === undefined || cloudClient === undefined) {
-    return { start: undefined, follow: undefined };
+    return { start: undefined, follow: undefined, abandon: undefined };
   }
   const deps: MercadoPagoQrChargeRequestDeps = {
     database,
     gate,
     orders: new CloudMercadoPagoQrChargeOrders({
       readDeviceToken,
-      post: (path, bearerToken, body) =>
-        postToCloudWithBearer(cloudClient, path, bearerToken, body),
+      post: (path, bearerToken, body, options) =>
+        postToCloudWithBearer(cloudClient, path, bearerToken, body, options),
       get: (path, bearerToken, options) =>
         getFromCloud(cloudClient, path, { authorization: `Bearer ${bearerToken}` }, options),
       now,
@@ -66,5 +71,6 @@ export function createMercadoPagoQrCharging({
   return {
     start: (request) => startMercadoPagoQrChargeFor(deps, request),
     follow: (request) => followMercadoPagoQrChargeFor(deps, request),
+    abandon: (request) => abandonMercadoPagoQrChargeFor(deps, request),
   };
 }

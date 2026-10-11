@@ -1,4 +1,5 @@
 import type {
+  AbandonMercadoPagoQrChargeOutcome,
   Authorization,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
@@ -236,6 +237,7 @@ function Register({ core }: { core: CoreClient }) {
       | ChargeSaleByTransferOutcome
       | StartMercadoPagoQrChargeOutcome
       | FollowMercadoPagoQrChargeOutcome
+      | AbandonMercadoPagoQrChargeOutcome
     )["kind"],
   ) {
     if (kind === "completed") {
@@ -278,6 +280,14 @@ function Register({ core }: { core: CoreClient }) {
   async function followMercadoPagoQrCharge(paymentTransactionId: string) {
     const outcome = await core.followMercadoPagoQrCharge(paymentTransactionId);
     await refreshAfterCharge(outcome.kind);
+    return outcome;
+  }
+
+  async function abandonMercadoPagoQrCharge(paymentTransactionId: string) {
+    const outcome = await core.abandonMercadoPagoQrCharge(paymentTransactionId);
+    await refreshAfterCharge(
+      outcome.kind === "already_paid" ? outcome.settlement.kind : outcome.kind,
+    );
     return outcome;
   }
 
@@ -343,6 +353,7 @@ function Register({ core }: { core: CoreClient }) {
     chargeSaleByTransfer,
     startMercadoPagoQrCharge,
     followMercadoPagoQrCharge,
+    abandonMercadoPagoQrCharge,
     searchProducts: (query: string) => core.searchProducts(query),
     addProduct: (productId: string) => core.addProduct(productId),
     addWeighedProduct: (productId: string, weightThousandths: number) =>

@@ -87,4 +87,117 @@ describe("checkPendingMercadoPagoPayments", () => {
       unavailable: 0,
     });
   });
+
+  describe("a payment replaced by another method", () => {
+    const REPLACED = { providerOrderId: "order-1", replaced: true };
+
+    it("cancels its order instead of only reading it", async () => {
+      const { lanes, mercadoPago, notificationPorts } = mercadoPagoQrOrderWorld();
+      lanes.seed(storedTransaction(REPLACED));
+
+      const outcome = await checkPendingMercadoPagoPayments(notificationPorts);
+
+      expect(outcome).toEqual({ kind: "checked", refreshed: 1, unavailable: 0 });
+      expect(mercadoPago.cancellations).toEqual([
+        { orderId: "order-1", idempotencyKey: "transaction-1" },
+      ]);
+      expect(lanes.transactions.get("transaction-1")).toMatchObject({
+        state: "CANCELLED",
+        replaced: true,
+      });
+    });
+
+    it("approves it, still marked replaced, when the customer paid in the meantime", async () => {
+      const { lanes, mercadoPago, notificationPorts } = mercadoPagoQrOrderWorld({
+        reading: { kind: "read", result: paidOrderResult() },
+      });
+      lanes.seed(storedTransaction(REPLACED));
+
+      const outcome = await checkPendingMercadoPagoPayments(notificationPorts);
+
+      expect(outcome).toEqual({ kind: "checked", refreshed: 1, unavailable: 0 });
+      expect(mercadoPago.cancellations).toEqual([]);
+      expect(lanes.transactions.get("transaction-1")).toMatchObject({
+        state: "APPROVED",
+        replaced: true,
+      });
+    });
+
+    it("stays pending and is counted unavailable when Mercado Pago cannot cancel it now", async () => {
+      const { lanes, mercadoPago, notificationPorts } = mercadoPagoQrOrderWorld();
+      mercadoPago.cancellation = { kind: "unavailable" };
+      lanes.seed(storedTransaction(REPLACED));
+
+      const outcome = await checkPendingMercadoPagoPayments(notificationPorts);
+
+      expect(outcome).toEqual({ kind: "checked", refreshed: 0, unavailable: 1 });
+      expect(lanes.transactions.get("transaction-1")?.state).toBe("PENDING");
+    });
+
+    it("is tried again on the next cycle after Mercado Pago was unavailable", async () => {
+      const { lanes, mercadoPago, notificationPorts } = mercadoPagoQrOrderWorld();
+      mercadoPago.cancellation = { kind: "unavailable" };
+      lanes.seed(storedTransaction(REPLACED));
+      await checkPendingMercadoPagoPayments(notificationPorts);
+      mercadoPago.cancellation = {
+        kind: "cancelled",
+        result: orderResult({ status: "canceled", statusDetail: "canceled" }),
+      };
+
+      await checkPendingMercadoPagoPayments(notificationPorts);
+
+      expect(mercadoPago.cancellations).toHaveLength(2);
+      expect(lanes.transactions.get("transaction-1")?.state).toBe("CANCELLED");
+    });
+
+    it("is final, and not tried again, once Mercado Pago says the order was already cancelled", async () => {
+      const { lanes, mercadoPago, notificationPorts } = mercadoPagoQrOrderWorld();
+      mercadoPago.cancellation = { kind: "already_cancelled" };
+      lanes.seed(storedTransaction(REPLACED));
+      await checkPendingMercadoPagoPayments(notificationPorts);
+
+      const second = await checkPendingMercadoPagoPayments(notificationPorts);
+
+      expect(second).toEqual({ kind: "checked", refreshed: 0, unavailable: 0 });
+      expect(mercadoPago.cancellations).toHaveLength(1);
+      expect(lanes.transactions.get("transaction-1")?.state).toBe("CANCELLED");
+    });
+
+    it("is final when its order expired and cannot be cancelled", async () => {
+      const { lanes, mercadoPago, notificationPorts } = mercadoPagoQrOrderWorld();
+      mercadoPago.cancellation = { kind: "cannot_cancel" };
+      mercadoPago.queuedReadings.push(
+        { kind: "read", result: orderResult() },
+        { kind: "read", result: orderResult({ status: "expired", statusDetail: "expired" }) },
+      );
+      lanes.seed(storedTransaction(REPLACED));
+
+      const outcome = await checkPendingMercadoPagoPayments(notificationPorts);
+
+      expect(outcome).toEqual({ kind: "checked", refreshed: 1, unavailable: 0 });
+      expect(lanes.transactions.get("transaction-1")?.state).toBe("EXPIRED");
+    });
+
+    it("does not cancel a payment that is not replaced", async () => {
+      const { lanes, mercadoPago, notificationPorts } = mercadoPagoQrOrderWorld();
+      lanes.seed(storedTransaction({ providerOrderId: "order-1" }));
+
+      await checkPendingMercadoPagoPayments(notificationPorts);
+
+      expect(mercadoPago.cancellations).toEqual([]);
+    });
+
+    it("ends one that never got an order once its time is over", async () => {
+      const { lanes, mercadoPago, notificationPorts } = mercadoPagoQrOrderWorld();
+      lanes.seed(
+        storedTransaction({ replaced: true, expiresAt: new Date("2026-10-09T11:59:59.000Z") }),
+      );
+
+      const outcome = await checkPendingMercadoPagoPayments(notificationPorts);
+
+      expect(outcome).toEqual({ kind: "checked", refreshed: 1, unavailable: 0 });
+      expect(mercadoPago.cancellations).toEqual([]);
+      expect(lanes.transactions.get("transaction-1")?.state).toBe("EXPIRED");
+    });
+  });
 });
