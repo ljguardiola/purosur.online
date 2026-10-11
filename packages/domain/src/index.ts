@@ -368,8 +368,10 @@ export type {
   RegisterOperationAccess,
   RegisterService,
   SerialDeviceIdentity,
+  SerialDeviceReport,
   SerialDeviceRole,
   SerialDeviceStanding,
+  SerialDevicesReport,
   WatchedRegister,
 } from "./register/index.js";
 export {
@@ -406,6 +408,7 @@ export {
   registerAbilities,
   registerNameLength,
   registerOperationAccess,
+  SERIAL_DEVICE_REPORT_STANDINGS,
   SERIAL_DEVICE_ROLES,
   serialDeviceStandings,
 } from "./register/index.js";
@@ -534,8 +537,6 @@ export type {
   RegisterTelemetry,
   SalesStopReason,
   SalesStopState,
-  SerialDeviceReport,
-  SerialDevicesReport,
   StorageTelemetry,
 } from "./sync/index.js";
 export {
@@ -551,7 +552,6 @@ export {
   PUSH_BATCH_MAX_EVENTS,
   pullAudienceOf,
   SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,
-  SERIAL_DEVICE_REPORT_STANDINGS,
   salesDeniedReportOf,
 } from "./sync/index.js";
 export {

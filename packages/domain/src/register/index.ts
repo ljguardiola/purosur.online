@@ -71,12 +71,15 @@ export type {
   DetectedSerialDevice,
   RegisteredSerialDevices,
   SerialDeviceIdentity,
+  SerialDeviceReport,
   SerialDeviceRole,
   SerialDeviceStanding,
+  SerialDevicesReport,
 } from "./model/serial-devices.js";
 export {
   isSerialDeviceMissing,
   offersSerialDevicesSetup,
+  SERIAL_DEVICE_REPORT_STANDINGS,
   SERIAL_DEVICE_ROLES,
   serialDeviceStandings,
 } from "./model/serial-devices.js";

@@ -4,15 +4,14 @@ import {
   SERIAL_DEVICE_REPORT_STANDINGS,
 } from "@purosur/domain";
 import { z } from "zod";
-import { pushedEventSchema } from "../shared/index.js";
+import { pushedEventSchema, serialDeviceIdentitySchema } from "../shared/index.js";
 
 const absent = z.undefined().optional();
 
 const serialDeviceReportSchema = z.union([
   z.strictObject({
     standing: z.enum(SERIAL_DEVICE_REPORT_STANDINGS),
-    vendor_id: z.string().min(1),
-    product_id: z.string().min(1),
+    ...serialDeviceIdentitySchema.shape,
   }),
   z.strictObject({
     standing: z.enum(SERIAL_DEVICE_REPORT_STANDINGS),

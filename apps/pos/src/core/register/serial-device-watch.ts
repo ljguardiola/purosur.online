@@ -21,7 +21,7 @@ export interface SerialDeviceWatchDeps {
 }
 
 export type SerialDeviceReading =
-  | { kind: "listed"; standings: Standings }
+  | { kind: "listed"; standings: Standings; registered: RegisteredSerialDevices }
   | { kind: "unknown"; registered: RegisteredSerialDevices }
   | { kind: "unreadable" };
 
@@ -57,7 +57,7 @@ function readingKey(reading: SerialDeviceReading): string {
 }
 
 export function createSerialDeviceWatch(deps: SerialDeviceWatchDeps): SerialDeviceWatch {
-  let current: Standings | undefined;
+  let current: { standings: Standings; registered: RegisteredSerialDevices } | undefined;
   let running: Promise<void> | undefined;
   let askedWhileRunning = false;
   let cancelNext: (() => void) | undefined;
@@ -65,7 +65,7 @@ export function createSerialDeviceWatch(deps: SerialDeviceWatchDeps): SerialDevi
 
   function reading(): SerialDeviceReading {
     if (current !== undefined) {
-      return { kind: "listed", standings: current };
+      return { kind: "listed", ...current };
     }
     try {
       return { kind: "unknown", registered: deps.registrations.registeredSerialDevices() };
@@ -74,7 +74,7 @@ export function createSerialDeviceWatch(deps: SerialDeviceWatchDeps): SerialDevi
     }
   }
 
-  function settle(next: Standings | undefined): void {
+  function settle(next: typeof current): void {
     const before = readingKey(reading());
     current = next;
     if (readingKey(reading()) !== before) {
@@ -85,9 +85,9 @@ export function createSerialDeviceWatch(deps: SerialDeviceWatchDeps): SerialDevi
   async function checkOnce(): Promise<void> {
     try {
       const detected = await deps.enumeration.detectedSerialDevices();
-      const next = serialDeviceStandings(deps.registrations.registeredSerialDevices(), detected);
+      const registered = deps.registrations.registeredSerialDevices();
       failing = false;
-      settle(next);
+      settle({ standings: serialDeviceStandings(registered, detected), registered });
     } catch (error) {
       settle(undefined);
       if (!failing) {

@@ -230,13 +230,11 @@ const serialDeviceEnumeration = serialportEnumeration({
   list: listSerialPorts,
   onListed: () => console.info("core: serial devices listed"),
 });
-const serialDeviceRegistrations =
-  localDatabase === undefined ? undefined : new SqliteSerialDeviceRegistrations(localDatabase);
 const serialDeviceWatch =
-  serialDeviceRegistrations === undefined
+  localDatabase === undefined
     ? undefined
     : createSerialDeviceWatch({
-        registrations: serialDeviceRegistrations,
+        registrations: new SqliteSerialDeviceRegistrations(localDatabase),
         enumeration: serialDeviceEnumeration,
         intervalMs: SERIAL_DEVICE_CHECK_INTERVAL_MS,
         scheduleNext: (run, delayMs) => {
@@ -313,17 +311,12 @@ const syncSchedule = createSyncSchedule({
               post,
               appVersion: appVersionFromCoreArguments(process.argv),
               readTelemetry:
-                localDatabase === undefined ||
-                serialDeviceWatch === undefined ||
-                serialDeviceRegistrations === undefined
+                localDatabase === undefined || serialDeviceWatch === undefined
                   ? undefined
                   : registerTelemetryReader(
                       storageTelemetryReader(localDatabase.name, nodeStorageFileSystem),
                       () => salesStopOf(localDatabase),
-                      () =>
-                        serialDevicesReportOf(serialDeviceWatch.reading(), () =>
-                          serialDeviceRegistrations.registeredSerialDevices(),
-                        ),
+                      () => serialDevicesReportOf(serialDeviceWatch.reading()),
                     ),
               acceptedPush:
                 localDatabase === undefined

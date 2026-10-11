@@ -7,19 +7,12 @@ import type {
 import { SERIAL_DEVICE_ROLES } from "@purosur/domain";
 import { readStanding, type SerialDeviceReading } from "./serial-device-watch";
 
-function registrationsOrNone(readRegistrations: () => RegisteredSerialDevices) {
-  try {
-    return readRegistrations();
-  } catch {
-    return {};
-  }
+function registeredIn(reading: SerialDeviceReading): RegisteredSerialDevices {
+  return reading.kind === "unreadable" ? {} : reading.registered;
 }
 
-export function serialDevicesReportOf(
-  reading: SerialDeviceReading,
-  readRegistrations: () => RegisteredSerialDevices,
-): SerialDevicesReport {
-  const registered = registrationsOrNone(readRegistrations);
+export function serialDevicesReportOf(reading: SerialDeviceReading): SerialDevicesReport {
+  const registered = registeredIn(reading);
 
   function reportOf(role: SerialDeviceRole): SerialDeviceReport {
     const standing = readStanding(reading, role).kind;
