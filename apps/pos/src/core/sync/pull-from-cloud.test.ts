@@ -1,4 +1,7 @@
 import { createHmac } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { cloudError } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import type { CloudResponse } from "../platform/cloud-client";
@@ -352,6 +355,51 @@ describe("a pull of a register waiting for a redelivery", () => {
     expect(database.prepare("SELECT cursor FROM pulled_table_redeliveries").all()).toEqual([
       { cursor: 0 },
     ]);
+  });
+});
+
+describe("a register migrated past a column its pulled rows lack", () => {
+  it("fills the column from the cloud's current row at the version held, leaving the pull cursor and the declaration cleared", async () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-redelivery-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const before = openLocalDatabase(
+        path,
+        LOCAL_MIGRATIONS.filter((migration) => migration.name < "0021_real_time_authorization"),
+        migrationClock,
+      );
+      before.exec(
+        `UPDATE sync_state SET pull_cursor = 9, device_id = '${CREDENTIALS.device_id}' WHERE id = 1;
+         INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id, version)
+         VALUES ('${POINT_OF_SALE_ID}', 12, '0b7c6f5e-2d4a-4e8b-9c1d-3a5f7e9b1d02', 1);`,
+      );
+      before.close();
+      const database = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      const { getFromCloud, requests } = cloudAnswering(
+        { kind: "ok", body: { changes: [], cursor: 9, has_more: false } },
+        pointOfSalePage([6], 12),
+      );
+
+      const attempt = await pullFromCloud({
+        readCredentials: async () => CREDENTIALS,
+        replica: new SqliteLocalReplica(database),
+        getFromCloud,
+      });
+
+      expect(attempt).toEqual({ kind: "caught_up", cursor: 9 });
+      expect(requests.map((request) => request.path)).toEqual([
+        "/api/changes?since=9",
+        "/api/changes?since=0&entity=register_point_of_sale",
+      ]);
+      expect(heldCount(database)).toEqual({ count: 12 });
+      expect(database.prepare("SELECT * FROM pulled_table_redeliveries").all()).toEqual([]);
+      expect(database.prepare("SELECT pull_cursor FROM sync_state").all()).toEqual([
+        { pull_cursor: 9 },
+      ]);
+      database.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
   });
 });
 
