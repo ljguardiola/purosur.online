@@ -1,4 +1,7 @@
-import { argentinaCalendarDay } from "@purosur/domain";
+import {
+  argentinaCalendarDay,
+  OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS,
+} from "@purosur/domain";
 import {
   currentFortnightCodeAfterObtaining,
   obtainOfflineAuthorizationCodes,
@@ -6,7 +9,11 @@ import {
 } from "@purosur/domain/fiscal/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
-import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
+import {
+  type BackgroundJobs,
+  crontabLineEvery,
+  databaseOfClient,
+} from "../platform/background-jobs.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { DrizzleWsaaTokenSource } from "./drizzle-wsaa-token-source.js";
 import { WSFE_SERVICE } from "./wsaa-token-renewal-task.js";
@@ -15,8 +22,6 @@ export const OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER = "offline-authorization
 
 export const OFFLINE_AUTHORIZATION_CODE_REQUEST_TASK_IDENTIFIER =
   "offline-authorization-code-request";
-
-const OFFLINE_AUTHORIZATION_CODE_CRONTAB_LINE = `*/10 * * * * ${OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER}`;
 
 export interface OfflineAuthorizationCodeInput {
   now: () => Date;
@@ -57,6 +62,11 @@ export function offlineAuthorizationCodeJobs(
         }
       },
     },
-    crontab: [OFFLINE_AUTHORIZATION_CODE_CRONTAB_LINE],
+    crontab: [
+      crontabLineEvery(
+        OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS,
+        OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER,
+      ),
+    ],
   };
 }

@@ -7,6 +7,7 @@ import {
   hasFortnightStarted,
   isSameFortnight,
   isSecondHalfOfMonth,
+  OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS,
   OFFLINE_AUTHORIZATION_CODE_REQUEST_LEAD_DAYS,
   offlineAuthorizationCodeRequestOpensOn,
 } from "./offline-authorization-code.js";
@@ -164,5 +165,11 @@ describe("hasFortnightStarted", () => {
     expect(hasFortnightStarted(fortnight, "2026-10-16")).toBe(true);
     expect(hasFortnightStarted(fortnight, "2026-10-31")).toBe(true);
     expect(hasFortnightStarted(fortnight, "2026-11-01")).toBe(true);
+  });
+});
+
+describe("OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS", () => {
+  it("is ten minutes", () => {
+    expect(OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS).toBe(10 * 60 * 1000);
   });
 });
