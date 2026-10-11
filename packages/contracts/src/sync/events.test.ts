@@ -172,6 +172,17 @@ describe("push events request", () => {
         "an empty vendor id",
         { ...serialDevices, scale: { standing: "matching", vendor_id: "", product_id: "6001" } },
       ],
+      [
+        "a vendor id that is not four lowercase hex digits",
+        {
+          ...serialDevices,
+          scale: { standing: "matching", vendor_id: "0X03", product_id: "6001" },
+        },
+      ],
+      [
+        "a product id that is not four lowercase hex digits",
+        { ...serialDevices, reader: { standing: "matching", vendor_id: "05e0", product_id: "12" } },
+      ],
     ])("refuses a report with %s", (_name, report) => {
       expect(withSerialDevices(report).success).toBe(false);
     });

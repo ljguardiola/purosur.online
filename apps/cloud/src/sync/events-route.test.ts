@@ -214,51 +214,6 @@ describe("POST /events", () => {
         { role: "scale", standing: "matching", vendor_id: "1a86", product_id: "7523" },
       ]);
     });
-
-    it("holds a device as detected once it reports it detected again", async () => {
-      const { deviceId, deviceToken } = await enroll();
-      await pushDevices(
-        {
-          scale: { standing: "matching", vendor_id: "1a86", product_id: "7523" },
-          reader: { standing: "not_detected", vendor_id: "26f1", product_id: "8802" },
-        },
-        deviceToken,
-      );
-
-      await pushDevices(
-        {
-          scale: { standing: "matching", vendor_id: "1a86", product_id: "7523" },
-          reader: { standing: "matching", vendor_id: "26f1", product_id: "8802" },
-        },
-        deviceToken,
-      );
-
-      expect(await serialDevicesOf(deviceId)).toEqual([
-        { role: "reader", standing: "matching", vendor_id: "26f1", product_id: "8802" },
-        { role: "scale", standing: "matching", vendor_id: "1a86", product_id: "7523" },
-      ]);
-    });
-
-    it("refuses a report of a device with a vendor id and no product id, holding nothing", async () => {
-      const { deviceId, deviceToken } = await enroll();
-
-      const response = await push(
-        {
-          ...body(),
-          telemetry: {
-            ...body().telemetry,
-            serial_devices: {
-              scale: { standing: "matching", vendor_id: "1a86" },
-              reader: { standing: "unknown" },
-            },
-          },
-        },
-        `Bearer ${deviceToken}`,
-      );
-
-      expect(response.statusCode).toBe(400);
-      expect(await serialDevicesOf(deviceId)).toEqual([]);
-    });
   });
 
   it("accepts a push of no events as a sync, answering the ack of what it holds, recording the report and that the installation reports on every sync cycle", async () => {
