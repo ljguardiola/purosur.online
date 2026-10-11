@@ -1,4 +1,4 @@
-import { fiscalRejectionAlertObservation } from "@purosur/domain";
+import { awaitsUnclearOutcomeDecision, fiscalRejectionAlertObservation } from "@purosur/domain";
 import {
   type AuthorizationRequestRecord,
   FiscalDocumentAlreadyRecorded,
@@ -21,81 +21,43 @@ import {
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import { PendingChanges } from "../sync/change-log.js";
 import { DrizzleTaxAuthorityCounts } from "./drizzle-tax-authority-counts.js";
+import type {
+  EnqueueUnclearOutcome,
+  SqlExecutor,
+  WithdrawUnclearOutcome,
+} from "./enqueue-unclear-outcome.js";
+import { answerColumnsOf, answerOf } from "./fiscal-request-answer.js";
+import { withPointOfSaleLaneLock } from "./point-of-sale-lane-lock.js";
 
 const UNIQUE_VIOLATION = "23505";
 const FISCAL_REQUESTS_PRIMARY_KEY = "fiscal_requests_pkey";
 
-function pointOfSaleLaneLockKey(pointOfSale: number): string {
-  return `fiscal_point_of_sale_lane:${pointOfSale}`;
-}
-
-type RecordedAnswerColumns = Pick<
-  typeof fiscalRequests.$inferSelect,
-  | "answerKind"
-  | "authorizationCode"
-  | "authorizationCodeDueOn"
-  | "rejectionCodes"
-  | "rejectionClass"
->;
-
-function answerOf(row: RecordedAnswerColumns): RealTimeAuthorizationAnswer | null {
-  switch (row.answerKind) {
-    case "authorized":
-      return {
-        kind: "authorized",
-        authorizationCode: row.authorizationCode ?? "",
-        authorizationCodeDueOn: row.authorizationCodeDueOn ?? "",
-      };
-    case "rejected":
-      return {
-        kind: "rejected",
-        codes: row.rejectionCodes ?? [],
-        rejectionClass: row.rejectionClass === "standing" ? "standing" : "content",
-      };
-    case "not_attempted":
-      return { kind: "not_attempted" };
-    case "unclear":
-      return { kind: "unclear" };
-    default:
-      return null;
-  }
-}
-
-function answerColumnsOf(answer: RealTimeAuthorizationAnswer) {
-  switch (answer.kind) {
-    case "authorized":
-      return {
-        answerKind: answer.kind,
-        authorizationCode: answer.authorizationCode,
-        authorizationCodeDueOn: answer.authorizationCodeDueOn,
-        rejectionCodes: null,
-        rejectionClass: null,
-      };
-    case "rejected":
-      return {
-        answerKind: answer.kind,
-        authorizationCode: null,
-        authorizationCodeDueOn: null,
-        rejectionCodes: [...answer.codes],
-        rejectionClass: answer.rejectionClass,
-      };
-    case "not_attempted":
-    case "unclear":
-      return {
-        answerKind: answer.kind,
-        authorizationCode: null,
-        authorizationCodeDueOn: null,
-        rejectionCodes: null,
-        rejectionClass: null,
-      };
-  }
-}
-
 class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements PointOfSaleLane {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly enqueueUnclearOutcome: EnqueueUnclearOutcome;
+  private readonly withdrawUnclearOutcome: WithdrawUnclearOutcome;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(
+    db: PgDatabase<TQueryResult>,
+    enqueueUnclearOutcome: EnqueueUnclearOutcome,
+    withdrawUnclearOutcome: WithdrawUnclearOutcome,
+  ) {
     this.db = db;
+    this.enqueueUnclearOutcome = enqueueUnclearOutcome;
+    this.withdrawUnclearOutcome = withdrawUnclearOutcome;
+  }
+
+  private async scheduleUnclearOutcome(
+    transaction: SqlExecutor,
+    fiscalDocumentId: string,
+    answer: RealTimeAuthorizationAnswer,
+    answeredAt: Date,
+  ): Promise<void> {
+    if (awaitsUnclearOutcomeDecision(answer)) {
+      await this.enqueueUnclearOutcome(transaction, fiscalDocumentId, answeredAt);
+    } else {
+      await this.withdrawUnclearOutcome(transaction, fiscalDocumentId);
+    }
   }
 
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
@@ -134,19 +96,22 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
   }
 
   async recordRequest(request: AuthorizationRequestRecord): Promise<void> {
-    try {
-      await this.db.insert(fiscalRequests).values(request);
-    } catch (error) {
-      if (
-        postgresErrorChain(error).some(
-          (link) =>
-            link.code === UNIQUE_VIOLATION && link.constraint === FISCAL_REQUESTS_PRIMARY_KEY,
-        )
-      ) {
-        throw new FiscalDocumentAlreadyRecorded();
+    await this.db.transaction(async (tx) => {
+      try {
+        await tx.insert(fiscalRequests).values(request);
+      } catch (error) {
+        if (
+          postgresErrorChain(error).some(
+            (link) =>
+              link.code === UNIQUE_VIOLATION && link.constraint === FISCAL_REQUESTS_PRIMARY_KEY,
+          )
+        ) {
+          throw new FiscalDocumentAlreadyRecorded();
+        }
+        throw error;
       }
-      throw error;
-    }
+      await this.enqueueUnclearOutcome(tx, request.fiscalDocumentId, request.notAfter);
+    });
   }
 
   async recordAnswer(
@@ -154,10 +119,13 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
     answer: RealTimeAuthorizationAnswer,
     answeredAt: Date,
   ): Promise<void> {
-    await this.db
-      .update(fiscalRequests)
-      .set({ ...answerColumnsOf(answer), answeredAt })
-      .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(fiscalRequests)
+        .set({ ...answerColumnsOf(answer), answeredAt })
+        .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
+      await this.scheduleUnclearOutcome(tx, fiscalDocumentId, answer, answeredAt);
+    });
   }
 
   async recordTaxAuthorityAnswer(
@@ -191,6 +159,7 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
         await new DrizzleTaxAuthorityCounts(tx, pending).advance(taxAuthorityCount);
         await pending.log(tx);
       }
+      await this.scheduleUnclearOutcome(tx, fiscalDocumentId, answer, answeredAt);
     });
   }
 }
@@ -199,23 +168,25 @@ export class DrizzlePointOfSaleLanes<TQueryResult extends PgQueryResultHKT>
   implements PointOfSaleLanes
 {
   private readonly connections: DedicatedConnections<TQueryResult>;
+  private readonly enqueueUnclearOutcome: EnqueueUnclearOutcome;
+  private readonly withdrawUnclearOutcome: WithdrawUnclearOutcome;
 
-  constructor(connections: DedicatedConnections<TQueryResult>) {
+  constructor(
+    connections: DedicatedConnections<TQueryResult>,
+    enqueueUnclearOutcome: EnqueueUnclearOutcome,
+    withdrawUnclearOutcome: WithdrawUnclearOutcome,
+  ) {
     this.connections = connections;
+    this.enqueueUnclearOutcome = enqueueUnclearOutcome;
+    this.withdrawUnclearOutcome = withdrawUnclearOutcome;
   }
 
   inPointOfSaleLane<TOutcome>(
     pointOfSale: number,
     work: (lane: PointOfSaleLane) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.connections.withConnection(async (db) => {
-      const key = sql`hashtextextended(${pointOfSaleLaneLockKey(pointOfSale)}, 0)`;
-      await db.execute(sql`select pg_advisory_lock(${key})`);
-      try {
-        return await work(new DrizzlePointOfSaleLane(db));
-      } finally {
-        await db.execute(sql`select pg_advisory_unlock(${key})`);
-      }
-    });
+    return withPointOfSaleLaneLock(this.connections, pointOfSale, (db) =>
+      work(new DrizzlePointOfSaleLane(db, this.enqueueUnclearOutcome, this.withdrawUnclearOutcome)),
+    );
   }
 }

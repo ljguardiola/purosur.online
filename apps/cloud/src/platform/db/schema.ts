@@ -1285,6 +1285,7 @@ export const installationRequestEndpoint = pgEnum("installation_request_endpoint
   "health_check",
   "fiscal_authorize",
   "payment_order",
+  "fiscal_unclear_outcome",
 ]);
 
 // The limiter's own bookkeeping, not business data: what left the limit's window is deleted.
@@ -1792,6 +1793,10 @@ export const fiscalRequests = pgTable(
     rejectionCodes: integer("rejection_codes").array(),
     rejectionClass: text("rejection_class"),
     answeredAt: timestamp("answered_at", { withTimezone: true }),
+    decision: text("decision"),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    adoptedAuthorizationCode: text("adopted_authorization_code"),
+    adoptedAuthorizationCodeDueOn: date("adopted_authorization_code_due_on", { mode: "string" }),
   },
   (table) => [
     index("fiscal_requests_point_of_sale_idx").on(table.pointOfSale),
@@ -1816,6 +1821,23 @@ export const fiscalRequests = pgTable(
       "fiscal_requests_rejection_class_check",
       sql`coalesce(${table.answerKind} = 'rejected', false) = (${table.rejectionClass} is not null)
         and ${table.rejectionClass} in ('content', 'standing')`,
+    ),
+    check(
+      "fiscal_requests_decision_check",
+      sql`${table.decision} in ('released', 'adopted', 'conflicting')`,
+    ),
+    check(
+      "fiscal_requests_decision_time_check",
+      sql`(${table.decision} is null) = (${table.decidedAt} is null)`,
+    ),
+    check(
+      "fiscal_requests_adoption_check",
+      sql`coalesce(${table.decision} = 'adopted', false) = (${table.adoptedAuthorizationCode} is not null)
+        and (${table.adoptedAuthorizationCode} is null) = (${table.adoptedAuthorizationCodeDueOn} is null)`,
+    ),
+    check(
+      "fiscal_requests_decision_answer_check",
+      sql`${table.decision} is null or coalesce(${table.answerKind} in ('unclear', 'not_attempted'), false)`,
     ),
   ],
 );

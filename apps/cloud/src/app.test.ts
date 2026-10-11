@@ -1822,6 +1822,60 @@ describe("wiring the Mercado Pago QR routes", () => {
   );
 });
 
+describe("wiring the unclear outcome route", () => {
+  function devicesOptions() {
+    return {
+      db: testDatabase.db,
+      rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+      keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+    };
+  }
+
+  function fiscalAuthorizationOptions() {
+    return {
+      connections: {
+        withConnection: (work) => work(testDatabase.db),
+      } satisfies DedicatedConnections<PgliteQueryResultHKT>,
+      taxAuthority: {
+        solicit: async () => ({ kind: "no_answer" as const }),
+      },
+      certificateFingerprint: "AA:BB",
+      enqueueUnclearOutcome: async () => {},
+      withdrawUnclearOutcome: async () => {},
+    };
+  }
+
+  it("does not register POST /api/fiscal/unclear-outcomes when no fiscalAuthorization option is given", async () => {
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234", devices: devicesOptions() });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/fiscal/unclear-outcomes",
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers POST /api/fiscal/unclear-outcomes, refusing a request without a device token, when a devices and a fiscalAuthorization option are given", async () => {
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      devices: devicesOptions(),
+      fiscalAuthorization: fiscalAuthorizationOptions(),
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/fiscal/unclear-outcomes",
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "device_token_rejected" });
+  });
+});
+
 describe("wiring the device token rotation route", () => {
   it("does not register POST /api/devices/current/tokens when no devices option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });

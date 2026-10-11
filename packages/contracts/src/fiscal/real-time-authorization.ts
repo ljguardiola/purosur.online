@@ -17,17 +17,21 @@ export const realTimeAuthorizationRequestSchema = z.object({
 
 export type RealTimeAuthorizationRequestBody = z.output<typeof realTimeAuthorizationRequestSchema>;
 
+export const authorizedResponseSchema = z.object({
+  state: z.literal("AUTHORIZED"),
+  authorization_code: z.string().min(1),
+  authorization_code_due_on: z.string().refine(isCalendarDay),
+});
+
+export const rejectedResponseSchema = z.object({
+  state: z.literal("REJECTED"),
+  rejection_codes: z.array(z.int()),
+  rejection_class: z.enum(REJECTION_CLASSES),
+});
+
 export const realTimeAuthorizationResponseSchema = z.discriminatedUnion("state", [
-  z.object({
-    state: z.literal("AUTHORIZED"),
-    authorization_code: z.string().min(1),
-    authorization_code_due_on: z.string().refine(isCalendarDay),
-  }),
-  z.object({
-    state: z.literal("REJECTED"),
-    rejection_codes: z.array(z.int()),
-    rejection_class: z.enum(REJECTION_CLASSES),
-  }),
+  authorizedResponseSchema,
+  rejectedResponseSchema,
   z.object({ state: z.literal("NOT_ATTEMPTED") }),
   z.object({ state: z.literal("UNCLEAR") }),
 ]);

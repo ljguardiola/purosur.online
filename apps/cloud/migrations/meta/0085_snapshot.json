@@ -1,5 +1,5 @@
 {
-  "id": "34bb29a1-f901-4812-b523-d0a6ffbb3dc9",
+  "id": "3320c089-f991-4a3f-9f68-fc1afbc3fd9c",
   "prevId": "7826a493-39ef-4612-a68a-e4914f780763",
   "version": "7",
   "dialect": "postgresql",
@@ -1975,6 +1975,30 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "decision": {
+          "name": "decision",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "adopted_authorization_code": {
+          "name": "adopted_authorization_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "adopted_authorization_code_due_on": {
+          "name": "adopted_authorization_code_due_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -2028,6 +2052,22 @@
         "fiscal_requests_rejection_class_check": {
           "name": "fiscal_requests_rejection_class_check",
           "value": "coalesce(\"fiscal_requests\".\"answer_kind\" = 'rejected', false) = (\"fiscal_requests\".\"rejection_class\" is not null)\n        and \"fiscal_requests\".\"rejection_class\" in ('content', 'standing')"
+        },
+        "fiscal_requests_decision_check": {
+          "name": "fiscal_requests_decision_check",
+          "value": "\"fiscal_requests\".\"decision\" in ('released', 'adopted', 'conflicting')"
+        },
+        "fiscal_requests_decision_time_check": {
+          "name": "fiscal_requests_decision_time_check",
+          "value": "(\"fiscal_requests\".\"decision\" is null) = (\"fiscal_requests\".\"decided_at\" is null)"
+        },
+        "fiscal_requests_adoption_check": {
+          "name": "fiscal_requests_adoption_check",
+          "value": "coalesce(\"fiscal_requests\".\"decision\" = 'adopted', false) = (\"fiscal_requests\".\"adopted_authorization_code\" is not null)\n        and (\"fiscal_requests\".\"adopted_authorization_code\" is null) = (\"fiscal_requests\".\"adopted_authorization_code_due_on\" is null)"
+        },
+        "fiscal_requests_decision_answer_check": {
+          "name": "fiscal_requests_decision_answer_check",
+          "value": "\"fiscal_requests\".\"decision\" is null or coalesce(\"fiscal_requests\".\"answer_kind\" in ('unclear', 'not_attempted'), false)"
         }
       },
       "isRLSEnabled": false
@@ -3101,20 +3141,7 @@
           "name": "payment_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
-        },
-        "payment_transaction_id": {
-          "name": "payment_transaction_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "origin": {
-          "name": "origin",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'sale_cancelled'"
+          "notNull": true
         },
         "method": {
           "name": "method",
@@ -3157,18 +3184,6 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
-        },
-        "discarded_by": {
-          "name": "discarded_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "discarded_at": {
-          "name": "discarded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -3205,15 +3220,6 @@
         }
       },
       "foreignKeys": {
-        "payment_refunds_payment_transaction_id_payment_transactions_id_fk": {
-          "name": "payment_refunds_payment_transaction_id_payment_transactions_id_fk",
-          "tableFrom": "payment_refunds",
-          "tableTo": "payment_transactions",
-          "columnsFrom": ["payment_transaction_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "payment_refunds_payment_of_its_sale_fk": {
           "name": "payment_refunds_payment_of_its_sale_fk",
           "tableFrom": "payment_refunds",
@@ -3225,34 +3231,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "payment_refunds_payment_transaction_id_unique": {
-          "name": "payment_refunds_payment_transaction_id_unique",
-          "nullsNotDistinct": false,
-          "columns": ["payment_transaction_id"]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
         "payment_refunds_state_check": {
           "name": "payment_refunds_state_check",
-          "value": "\"payment_refunds\".\"state\" in ('PENDING', 'APPROVED', 'DISCARDED')"
-        },
-        "payment_refunds_origin_check": {
-          "name": "payment_refunds_origin_check",
-          "value": "\"payment_refunds\".\"origin\" in ('sale_cancelled', 'late_payment')"
-        },
-        "payment_refunds_one_source_check": {
-          "name": "payment_refunds_one_source_check",
-          "value": "(\"payment_refunds\".\"payment_id\" is null) <> (\"payment_refunds\".\"payment_transaction_id\" is null)"
+          "value": "\"payment_refunds\".\"state\" in ('PENDING', 'APPROVED')"
         },
         "payment_refunds_done_check": {
           "name": "payment_refunds_done_check",
           "value": "(\"payment_refunds\".\"done_by\" is null) = (\"payment_refunds\".\"done_at\" is null) and (\"payment_refunds\".\"state\" = 'APPROVED' or \"payment_refunds\".\"done_by\" is null)"
-        },
-        "payment_refunds_discarded_check": {
-          "name": "payment_refunds_discarded_check",
-          "value": "(\"payment_refunds\".\"discarded_by\" is null) = (\"payment_refunds\".\"discarded_at\" is null) and (\"payment_refunds\".\"state\" = 'DISCARDED' or \"payment_refunds\".\"discarded_by\" is null)"
         }
       },
       "isRLSEnabled": false
@@ -7505,7 +7493,14 @@
     "public.installation_request_endpoint": {
       "name": "installation_request_endpoint",
       "schema": "public",
-      "values": ["push", "pull", "health_check", "fiscal_authorize", "payment_order"]
+      "values": [
+        "push",
+        "pull",
+        "health_check",
+        "fiscal_authorize",
+        "payment_order",
+        "fiscal_unclear_outcome"
+      ]
     },
     "public.installation_revocation_reason": {
       "name": "installation_revocation_reason",
