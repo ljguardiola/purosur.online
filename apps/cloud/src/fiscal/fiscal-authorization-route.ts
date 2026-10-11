@@ -81,6 +81,10 @@ function toWire(answer: RealTimeAuthorizationAnswer): RealTimeAuthorizationRespo
   }
 }
 
+function voucherIdentifier(pointOfSale: number, number: number): string {
+  return `${String(pointOfSale).padStart(5, "0")}-${String(number).padStart(8, "0")}`;
+}
+
 // Public to the backoffice's session guard: the device token is this route's own authentication.
 export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -183,7 +187,7 @@ export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryRes
               context: {
                 pointOfSale: body.point_of_sale,
                 documentType: FACTURA_C_DOCUMENT_TYPE,
-                number: body.number,
+                document: voucherIdentifier(body.point_of_sale, body.number),
               },
             },
           );

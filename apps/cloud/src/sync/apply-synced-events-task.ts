@@ -1,14 +1,11 @@
-import {
-  type ApplyPendingEventsOutcome,
-  applyPendingEvents,
-  type QuarantinedEvent,
-} from "@purosur/domain/sync/use-cases";
+import { type ApplyPendingEventsOutcome, applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
 import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
 import { reportError } from "../platform/error-reporting.js";
 import { DrizzleEventApplication } from "./drizzle-event-application.js";
+import { reportedQuarantines } from "./reported-quarantines.js";
 import { syncedEventUpcaster } from "./synced-event-upcaster.js";
 
 export const APPLY_SYNCED_EVENTS_TASK_IDENTIFIER = "apply-synced-events";
@@ -17,29 +14,16 @@ const APPLY_SYNCED_EVENTS_CRONTAB_LINE = `* * * * * ${APPLY_SYNCED_EVENTS_TASK_I
 
 const EVENTS_PER_RUN = 200;
 
-// Drizzle appends the values a failed query was given, which can carry a sale's buyer.
-const QUERY_PARAMETERS_PATTERN = /\nparams: [\s\S]*$/;
-
-function reportQuarantine(
-  report: typeof reportError,
-  { error, ...context }: QuarantinedEvent,
-): void {
-  report(
-    "sync: a synced event was quarantined",
-    new Error(error.replace(QUERY_PARAMETERS_PATTERN, "")),
-    { context: { ...context } },
-  );
-}
-
 export function applySyncedEventsTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  deps: { now: () => Date },
+  deps: { now: () => Date; report?: typeof reportError },
 ): Promise<ApplyPendingEventsOutcome> {
   return applyPendingEvents(
     {
       eventApplication: new DrizzleEventApplication(db, deps.now),
       upcaster: syncedEventUpcaster,
       clock: { now: deps.now },
+      quarantineNotices: reportedQuarantines(deps.report ?? reportError),
     },
     { limit: EVENTS_PER_RUN },
   );
@@ -62,13 +46,8 @@ export function applySyncedEventsJobs(
     taskList: {
       [APPLY_SYNCED_EVENTS_TASK_IDENTIFIER]: async (_payload, helpers) => {
         const outcome = await helpers.withPgClient((client) =>
-          doApply(doCreateDatabase(client), { now: options.now }),
+          doApply(doCreateDatabase(client), { now: options.now, report: doReport }),
         );
-        if (outcome.kind === "processed") {
-          for (const quarantined of outcome.quarantined) {
-            reportQuarantine(doReport, quarantined);
-          }
-        }
         if (outcome.kind === "processed" && outcome.limitReached) {
           await helpers.addJob(
             APPLY_SYNCED_EVENTS_TASK_IDENTIFIER,

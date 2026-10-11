@@ -7,20 +7,12 @@ import { type AggregateKey, dependenciesOf, invariantBreaksOf } from "../model/s
 import type {
   ApplyPendingEventsPorts,
   EventApplicationTransaction,
+  QuarantinedEvent,
   UnappliedEvent,
 } from "./event-application-ports.js";
 
 export interface ApplyPendingEventsInput {
   limit: number;
-}
-
-export interface QuarantinedEvent {
-  deviceId: string;
-  eventId: string;
-  eventType: string;
-  aggregateType: string;
-  aggregateId: string;
-  error: string;
 }
 
 export type ApplyPendingEventsOutcome =
@@ -30,7 +22,7 @@ export type ApplyPendingEventsOutcome =
       applied: number;
       flagged: number;
       retried: number;
-      quarantined: QuarantinedEvent[];
+      quarantined: number;
       busy: number;
       limitReached: boolean;
     };
@@ -228,7 +220,7 @@ export async function applyPendingEvents(
   let applied = 0;
   let flagged = 0;
   let retried = 0;
-  const quarantined: QuarantinedEvent[] = [];
+  let quarantined = 0;
   let busy = 0;
   for (const key of await ports.eventApplication.pendingAggregates()) {
     let aggregateDone = false;
@@ -251,7 +243,8 @@ export async function applyPendingEvents(
           if (recorded.quarantined === null) {
             retried += 1;
           } else {
-            quarantined.push(recorded.quarantined);
+            quarantined += 1;
+            ports.quarantineNotices.quarantined(recorded.quarantined);
           }
         }
       }

@@ -61,8 +61,22 @@ export interface EventUpcaster {
   decode(event: UnappliedEvent): DecodedEvent;
 }
 
+export interface QuarantinedEvent {
+  deviceId: string;
+  eventId: string;
+  eventType: string;
+  aggregateType: string;
+  aggregateId: string;
+  error: string;
+}
+
+export interface QuarantineNotices {
+  quarantined(event: QuarantinedEvent): void;
+}
+
 export interface ApplyPendingEventsPorts {
   eventApplication: EventApplication;
   upcaster: EventUpcaster;
   clock: Clock;
+  quarantineNotices: QuarantineNotices;
 }
