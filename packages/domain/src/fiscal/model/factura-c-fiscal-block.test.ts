@@ -6,12 +6,12 @@ import {
 } from "../test-support/fictional-tax-identities.js";
 import {
   AUTHORIZATION_CODE_TYPE_CAE,
+  type AuthorizedFacturaC,
   CURRENCY_PESOS,
   EXCHANGE_RATE_PESOS,
   FACTURA_C_VOUCHER_TYPE,
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
-  type AuthorizedFacturaC,
   facturaCFiscalBlock,
   TAX_AUTHORITY_QR_URL,
 } from "./factura-c-fiscal-block.js";

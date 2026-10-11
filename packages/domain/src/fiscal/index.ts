@@ -19,6 +19,20 @@ export {
 } from "./model/buyer-tax-status-set.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export { isValidCuit } from "./model/cuit.js";
+export type {
+  AuthorizedFacturaC,
+  FacturaCFiscalBlock,
+} from "./model/factura-c-fiscal-block.js";
+export {
+  AUTHORIZATION_CODE_TYPE_CAE,
+  CURRENCY_PESOS,
+  EXCHANGE_RATE_PESOS,
+  FACTURA_C_VOUCHER_TYPE,
+  FINAL_CONSUMER_DOCUMENT_NUMBER,
+  FINAL_CONSUMER_DOCUMENT_TYPE,
+  facturaCFiscalBlock,
+  TAX_AUTHORITY_QR_URL,
+} from "./model/factura-c-fiscal-block.js";
 export {
   FISCAL_ADDRESS_NAME_MAX_LENGTH,
   FISCAL_ADDRESS_STREET_ADDRESS_MAX_LENGTH,
