@@ -88,6 +88,7 @@ import {
   weighProductFor,
 } from "./sales/sale-requests";
 import { saleHistoryDetailFor, salesHistoryFor } from "./sales/sales-history-requests";
+import { createSerialBarcodeReader } from "./sales/serial-barcode-reader";
 import { createSystelScale } from "./sales/systel-scale";
 import { createActionGate } from "./sessions/action-gate";
 import { authorizersOf } from "./sessions/authorizers";
@@ -162,6 +163,7 @@ const SYNC_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
 const PULLED_NOTICE: CoreToRendererMessage = { type: "pulled" };
 const SERIAL_DEVICES_CHANGED_NOTICE: CoreToRendererMessage = { type: "serial-devices-changed" };
 const SERIAL_DEVICE_CHECK_INTERVAL_MS = 3_000;
+const BARCODE_READER_RETRY_MS = 3_000;
 
 const localDataFolder = localDataFolderFromCoreArguments(process.argv);
 const localDatabasePath =
@@ -237,13 +239,24 @@ const serialDeviceWatch =
           const timer = setTimeout(run, delayMs);
           return () => clearTimeout(timer);
         },
-        onChange: () => rendererConnection.tell(SERIAL_DEVICES_CHANGED_NOTICE),
+        onChange: () => {
+          rendererConnection.tell(SERIAL_DEVICES_CHANGED_NOTICE);
+          void serialBarcodeReader.sync();
+        },
         onFailure: (error) => reportFailure("watching the serial devices", error),
       });
 
 const systelScale = createSystelScale({
   path: () => serialDeviceWatch && pathOfMatchingDevice(serialDeviceWatch.reading(), "scale"),
   openLink: openSerialLink,
+});
+
+const serialBarcodeReader = createSerialBarcodeReader({
+  path: () => serialDeviceWatch && pathOfMatchingDevice(serialDeviceWatch.reading(), "reader"),
+  openLink: openSerialLink,
+  onCode: (code) => rendererConnection.tell({ type: "barcode-read", code }),
+  onFailure: (error) => reportFailure("reading the barcode reader", error),
+  retryMs: BARCODE_READER_RETRY_MS,
 });
 
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
@@ -842,4 +855,4 @@ process.parentPort.on("message", (event) => {
 
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
 syncSchedule.start();
-void serialDeviceWatch?.start();
+void serialDeviceWatch?.start().then(() => serialBarcodeReader.sync());
