@@ -1,3 +1,4 @@
+import type { AlertDetail } from "@purosur/contracts";
 import type { Capability } from "@purosur/domain";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -8,7 +9,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/account", "/help", "/quarantined-events"]);
+opensOnlyScreens(["/", "/account", "/alerts", "/help", "/quarantined-events"]);
 
 beforeEach(resetPageState);
 
@@ -67,4 +68,68 @@ test("redirects a typed /quarantined-events to Mi cuenta for a user without quar
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/account");
   expect(services.quarantinedEventsScreen.fetchQuarantinedEvents).not.toHaveBeenCalled();
+});
+
+const quarantinedEventAlert: AlertDetail = {
+  id: "alert-1",
+  kind: "events_quarantined",
+  scope: "event-1",
+  scopeDisplay: "event-1",
+  level: "critical",
+  audience: "all",
+  detail: {
+    deviceId: "device-1",
+    eventId: "event-1",
+    eventType: "sale_completed",
+    aggregateType: "Sale",
+    aggregateId: "sale-1",
+    reason: { kind: "missing_dependency", aggregateType: "CashSession", aggregateId: "session-1" },
+  },
+  openedAt: "2026-01-05T12:00:00.000Z",
+  escalatedAt: null,
+  resolvedAt: null,
+  open: true,
+  resolvesByItself: false,
+  deliveries: [],
+};
+
+test("follows a quarantined event's alert to the quarantined events list", async () => {
+  window.history.pushState(null, "", "/alerts");
+  const { open, resolvesByItself, deliveries, detail, ...summary } = quarantinedEventAlert;
+  const services = createAppServices({
+    fetchSession: vi.fn().mockResolvedValue(sessionHolding(["alerts_area", "quarantined_events"])),
+    alertsListScreen: {
+      fetchAlerts: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: {
+          alerts: [{ ...summary, salesDeniedReason: null }],
+          total: 1,
+          pageSize: 25,
+          openCount: 1,
+          openCriticalCount: 1,
+        },
+      }),
+      alertDetailModal: {
+        fetchAlert: vi.fn().mockResolvedValue({ kind: "ok", value: quarantinedEventAlert }),
+        fetchPermissionCatalog: vi.fn(),
+        closeAlert: vi.fn(),
+      },
+    },
+  });
+  vi.mocked(services.quarantinedEventsScreen.fetchQuarantinedEvents).mockResolvedValue({
+    kind: "ok",
+    value: { events: [] },
+  });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Ver la alerta «Cuarentena de eventos»" }),
+  );
+  await userEvent.click(screen.getByRole("link", { name: "Ver eventos en cuarentena" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Eventos en cuarentena", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/quarantined-events");
+  await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
 });

@@ -9,6 +9,7 @@ import { permissionCatalogFixture } from "../platform/test-support/permission-ca
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import {
   ADMINISTRATOR_ACCESS,
+  accessWith,
   NO_CAPABILITIES_ACCESS,
 } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -966,6 +967,52 @@ test("tells which event of a register was quarantined and why", async () => {
       ),
     )
     .toBeVisible();
+});
+
+const quarantinedEventAlert = baseDetail({
+  kind: "events_quarantined",
+  scope: "event-1",
+  scopeDisplay: "event-1",
+  detail: {
+    deviceId: "device-1",
+    eventId: "event-1",
+    eventType: "sale_completed",
+    aggregateType: "Sale",
+    aggregateId: "sale-1",
+    reason: { kind: "missing_dependency", aggregateType: "CashSession", aggregateId: "session-1" },
+  },
+});
+
+test("links a quarantined event's alert to the quarantined events screen for a person who may release them", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(quarantinedEventAlert));
+
+  const screen = await renderModal(services, { access: accessWith("quarantined_events") });
+
+  const link = screen.getByRole("link", { name: "Ver eventos en cuarentena" });
+  await expect.element(link).toBeVisible();
+  await expect.element(link).toHaveAttribute("href", "/quarantined-events");
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("does not link a quarantined event's alert to the quarantined events screen for a person who may not release them", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(quarantinedEventAlert));
+
+  const screen = await renderModal(services, { access: accessWith("alerts_area") });
+
+  await expect.element(screen.getByText("Evento de una caja en cuarentena")).toBeVisible();
+  expect(screen.getByRole("link", { name: "Ver eventos en cuarentena" }).query()).toBeNull();
+});
+
+test("does not link an alert of another kind to the quarantined events screen", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(baseDetail()));
+
+  const screen = await renderModal(services, { access: accessWith("quarantined_events") });
+
+  await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
+  expect(screen.getByRole("link", { name: "Ver eventos en cuarentena" }).query()).toBeNull();
 });
 
 test("tells which event was applied with an inconsistency and what it breaks", async () => {
