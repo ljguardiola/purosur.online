@@ -12,6 +12,7 @@ import type {
   ReceiptReprint,
   StoredReceipt,
 } from "@purosur/domain/sales/use-cases";
+import { readSaleFiscalDocument } from "../fiscal/sqlite-sale-fiscal-document";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
@@ -136,6 +137,7 @@ export class SqliteReceiptLedger implements ReceiptLedger {
         amount: payment.amount,
         tendered: payment.method === "CASH" ? (payment.tendered ?? null) : null,
       })),
+      fiscal: readSaleFiscalDocument(this.database, saleId),
     };
   }
 

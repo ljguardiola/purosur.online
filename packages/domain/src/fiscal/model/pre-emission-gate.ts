@@ -26,6 +26,7 @@ export interface FacturaC {
   vatAmount: 0;
   issuer: FacturaCIssuer;
   buyerTaxStatusCode: number;
+  buyerTaxStatusDescription: string;
 }
 
 export const PRE_EMISSION_GATE_FAILURE_REASONS = [
@@ -94,6 +95,7 @@ export function preEmissionGate({
         version: issuer.version,
       },
       buyerTaxStatusCode: buyerTaxStatus.code,
+      buyerTaxStatusDescription: buyerTaxStatus.description,
     },
   };
 }

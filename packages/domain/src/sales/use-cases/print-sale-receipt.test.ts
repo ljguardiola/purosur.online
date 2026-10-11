@@ -1,4 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { facturaCFiscalBlock } from "../../fiscal/index.js";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../../fiscal/test-support/fictional-tax-identities.js";
+import type { ReceiptSource } from "../model/receipt-content.js";
+import { authorizedFacturaC } from "../model/test-support/authorized-factura-c.js";
 import { printSaleReceipt } from "./print-sale-receipt.js";
 import type { ReceiptPrintGrant } from "./receipt-printing.js";
 import { FakeOperationAuthority } from "./test-support/fake-operation-authority.js";
@@ -11,6 +19,12 @@ import {
   NOT_PERMITTED,
   receiptRig,
 } from "./test-support/receipt-rig.js";
+
+const ISSUER_IDENTITY = {
+  legalName: FICTIONAL_LEGAL_NAME,
+  cuit: FICTIONAL_CUIT,
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+};
 
 function printStateEvent(id: string, printAttemptedAt: Date, printedAt: Date | null, at: Date) {
   return {
@@ -30,6 +44,39 @@ function printStateEvent(id: string, printAttemptedAt: Date, printedAt: Date | n
 }
 
 describe("printSaleReceipt", () => {
+  describe("a sale with a fiscal document", () => {
+    function saleWithFiscal(fiscal: ReceiptSource["fiscal"]) {
+      return completedSale({ source: { ...completedSale().source, fiscal } });
+    }
+
+    it("answers unavailable, recording, rendering and sending nothing while the tax authority has not answered", async () => {
+      const rig = receiptRig([saleWithFiscal({ kind: "awaiting" })]);
+
+      expect(await printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch)).toEqual({
+        kind: "unavailable",
+      });
+      expect(rig.template.renders).toEqual([]);
+      expect(rig.printer.sent).toEqual([]);
+      expect(rig.ledger.state.sales[0]).toMatchObject({
+        printAttemptedAt: null,
+        stored: undefined,
+      });
+      expect(rig.ledger.state.outbox).toEqual([]);
+    });
+
+    it("renders the receipt with the fiscal block of the authorized document", async () => {
+      const authorized = authorizedFacturaC(7500, ISSUER_IDENTITY);
+      const rig = receiptRig([saleWithFiscal({ kind: "authorized", authorized })]);
+
+      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      await rig.printer.whenSent();
+      rig.printer.acknowledge();
+      await printing;
+
+      expect(rig.template.renders[0]?.fiscal).toEqual(facturaCFiscalBlock(authorized));
+    });
+  });
+
   describe("the first print of a sale", () => {
     it("records the attempt and its event, and stores the receipt, before anything is sent", async () => {
       const rig = receiptRig();

@@ -1,4 +1,6 @@
 import type { SaleUnit } from "../../catalog/index.js";
+import type { AuthorizedFacturaC, FacturaCFiscalBlock } from "../../fiscal/index.js";
+import { facturaCFiscalBlock } from "../../fiscal/index.js";
 import type { DiscountBenefit } from "../../pricing/index.js";
 import type { CompletedSalePayment } from "./completed-sale.js";
 import type { LinePromotion } from "./sale.js";
@@ -28,6 +30,11 @@ interface ReceiptSourcePayment {
   tendered: number | null;
 }
 
+type ReceiptSourceFiscalDocument =
+  | { kind: "none" }
+  | { kind: "awaiting" }
+  | { kind: "authorized"; authorized: AuthorizedFacturaC };
+
 export interface ReceiptSource {
   header: ReceiptHeader;
   occurredAt: Date;
@@ -36,6 +43,7 @@ export interface ReceiptSource {
   total: number;
   lines: ReceiptSourceLine[];
   payments: ReceiptSourcePayment[];
+  fiscal: ReceiptSourceFiscalDocument;
 }
 
 interface ReceiptContentLine {
@@ -58,6 +66,7 @@ export interface ReceiptContent {
     payments: { method: PaymentMethod; amount: number }[];
     change: number;
   };
+  fiscal: FacturaCFiscalBlock | null;
 }
 
 export function receiptContent(source: ReceiptSource): ReceiptContent {
@@ -85,5 +94,7 @@ export function receiptContent(source: ReceiptSource): ReceiptContent {
         0,
       ),
     },
+    fiscal:
+      source.fiscal.kind === "authorized" ? facturaCFiscalBlock(source.fiscal.authorized) : null,
   };
 }
