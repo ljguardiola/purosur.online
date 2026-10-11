@@ -93,8 +93,8 @@ jobs:
         env:
           CHANGE_BASE_REF: ${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}
 
-  # The newest successful Verify run that kept its tests' durations, on main or, for a pull request,
-  # on its own head branch, for the shards below.
+  # The newest successful Verify run that kept its tests' durations, on main or on the head branch
+  # under review, for the shards below.
   # Finding none, or failing to look, must not fail the run: the shards then split by file count.
   test-durations-source:
     name: test durations source
