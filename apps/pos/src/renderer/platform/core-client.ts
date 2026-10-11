@@ -201,6 +201,7 @@ export interface CoreClient {
   sessionOpenSale(): Promise<SessionOpenSale | null | "unavailable">;
   onPulled(listener: () => void): () => void;
   onSerialDevicesChanged(listener: () => void): () => void;
+  onBarcodeRead(listener: (code: string) => void): () => void;
 }
 
 type CoreRequest = Exclude<RendererToCoreMessage, { type: "ping" }>;
@@ -219,6 +220,7 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
   const sent = new Map<string, PendingRequest>();
   const pulledListeners = new Set<() => void>();
   const serialDevicesChangedListeners = new Set<() => void>();
+  const barcodeReadListeners = new Set<(code: string) => void>();
 
   function receive(port: CorePort, data: unknown): void {
     if (port !== current) {
@@ -237,6 +239,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     if (answer.data.type === "serial-devices-changed") {
       for (const listener of serialDevicesChangedListeners) {
         listener();
+      }
+      return;
+    }
+    if (answer.data.type === "barcode-read") {
+      for (const listener of barcodeReadListeners) {
+        listener(answer.data.code);
       }
       return;
     }
@@ -757,6 +765,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       serialDevicesChangedListeners.add(listener);
       return () => {
         serialDevicesChangedListeners.delete(listener);
+      };
+    },
+    onBarcodeRead(listener) {
+      barcodeReadListeners.add(listener);
+      return () => {
+        barcodeReadListeners.delete(listener);
       };
     },
   };
