@@ -2504,8 +2504,44 @@ describe("the register's local migrations", () => {
       const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(
-        after.prepare("SELECT table_name, cursor FROM pulled_table_redeliveries").all(),
-      ).toEqual([{ table_name: "register_point_of_sale", cursor: 0 }]);
+        after
+          .prepare("SELECT table_name, cursor FROM pulled_table_redeliveries ORDER BY table_name")
+          .all(),
+      ).toContainEqual({ table_name: "register_point_of_sale", cursor: 0 });
+      expect(after.prepare("SELECT pull_cursor FROM sync_state").all()).toEqual([
+        { pull_cursor: 9 },
+      ]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("declare the offline point of sale for redelivery over the one received before it held the tax authority's count, leaving the pull cursor as it is", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0037_offline_point_of_sale_tax_authority_count",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `UPDATE sync_state SET pull_cursor = 9, device_id = 'device-a' WHERE id = 1;
+         INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, version)
+         VALUES ('r1', 31, 2);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare("SELECT table_name, cursor FROM pulled_table_redeliveries ORDER BY table_name")
+          .all(),
+      ).toEqual([
+        { table_name: "register_offline_point_of_sale", cursor: 0 },
+        { table_name: "register_point_of_sale", cursor: 0 },
+      ]);
       expect(after.prepare("SELECT pull_cursor FROM sync_state").all()).toEqual([
         { pull_cursor: 9 },
       ]);

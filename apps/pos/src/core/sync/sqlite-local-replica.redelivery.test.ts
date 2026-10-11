@@ -89,10 +89,11 @@ function column(table: string, name: string): unknown {
 }
 
 describe("the redeliveries a register is waiting for", () => {
-  it("holds the point of sale's in a register whose installation the migrations found already adopted", async () => {
+  it("holds the points of sale's in a register whose installation the migrations found already adopted", async () => {
     const migrated = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
 
     expect(await new SqliteLocalReplica(migrated).pendingRedeliveries()).toEqual([
+      { entity: "register_offline_point_of_sale", cursor: 0 },
       { entity: "register_point_of_sale", cursor: 0 },
     ]);
     migrated.close();

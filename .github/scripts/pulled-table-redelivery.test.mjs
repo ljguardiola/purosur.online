@@ -29,6 +29,10 @@ function after(sql, name = "0003_change") {
 
 const MISSING_BARCODE = [{ migration: "0003_change", table: "products", columns: ["barcode"] }];
 
+function declaring(table) {
+  return `INSERT INTO pulled_table_redeliveries (table_name) VALUES ('${table}') ON CONFLICT (table_name) DO UPDATE SET cursor = 0;`;
+}
+
 test("flags a column added to a pulled table without declaring the table", () => {
   assert.deepEqual(after("ALTER TABLE products ADD COLUMN barcode TEXT;"), MISSING_BARCODE);
 });
@@ -61,28 +65,45 @@ test("names every column a migration added to the same table", () => {
   );
 });
 
-test("accepts a column added to a table the same migration declares", () => {
-  const sql = [
-    "ALTER TABLE products ADD COLUMN barcode TEXT;",
-    "INSERT INTO pulled_table_redeliveries (table_name) VALUES ('products');",
-  ].join("\n");
+test("accepts a column added to a table the same migration declares from the first change", () => {
+  const sql = ["ALTER TABLE products ADD COLUMN barcode TEXT;", declaring("products")].join("\n");
 
   assert.deepEqual(after(sql), []);
 });
 
 test("flags a column added to a table when only another pulled table is declared", () => {
+  const sql = ["ALTER TABLE products ADD COLUMN barcode TEXT;", declaring("tags")].join("\n");
+
+  assert.deepEqual(after(sql), MISSING_BARCODE);
+});
+
+test("flags a declaration that keeps the cursor of a redelivery the register has under way", () => {
   const sql = [
     "ALTER TABLE products ADD COLUMN barcode TEXT;",
-    "INSERT INTO pulled_table_redeliveries (table_name) VALUES ('tags');",
+    "INSERT OR IGNORE INTO pulled_table_redeliveries (table_name) VALUES ('products');",
   ].join("\n");
 
   assert.deepEqual(after(sql), MISSING_BARCODE);
 });
 
+test("flags a declaration that fails on a register still redelivering the table", () => {
+  const sql = [
+    "ALTER TABLE products ADD COLUMN barcode TEXT;",
+    "INSERT INTO pulled_table_redeliveries (table_name) VALUES ('products');",
+  ].join("\n");
+
+  assert.deepEqual(after(sql), [
+    {
+      migration: "0003_change",
+      failure: "UNIQUE constraint failed: pulled_table_redeliveries.table_name",
+    },
+  ]);
+});
+
 test("does not let a declaration of an earlier migration cover a later migration's column", () => {
   const declared = {
     name: "0003_declared",
-    sql: "ALTER TABLE products ADD COLUMN barcode TEXT; INSERT INTO pulled_table_redeliveries (table_name) VALUES ('products');",
+    sql: `ALTER TABLE products ADD COLUMN barcode TEXT; ${declaring("products")}`,
   };
   const later = { name: "0004_later", sql: "ALTER TABLE products ADD COLUMN brand TEXT;" };
 
@@ -142,7 +163,17 @@ test("describes a violation by migration, table and columns", () => {
       table: "products",
       columns: ["barcode", "brand"],
     }),
-    "0003_change: products gained barcode, brand without being declared in pulled_table_redeliveries",
+    "0003_change: products gained barcode, brand without its redelivery being declared from the first change in pulled_table_redeliveries",
+  );
+});
+
+test("describes a failed migration by migration and failure", () => {
+  assert.equal(
+    describeViolation({
+      migration: "0003_change",
+      failure: "UNIQUE constraint failed: pulled_table_redeliveries.table_name",
+    }),
+    "0003_change: fails on a register redelivering every pulled table: UNIQUE constraint failed: pulled_table_redeliveries.table_name",
   );
 });
 
@@ -155,6 +186,6 @@ test("the register's migrations declare every pulled table they add a column to"
   assert.deepEqual(
     findUndeclaredRedeliveries({ migrations, pulledTables }).map(describeViolation),
     [],
-    "declare the table in the migration: INSERT INTO pulled_table_redeliveries (table_name) VALUES ('<table>')",
+    "declare the table in the migration: INSERT INTO pulled_table_redeliveries (table_name) VALUES ('<table>') ON CONFLICT (table_name) DO UPDATE SET cursor = 0",
   );
 });

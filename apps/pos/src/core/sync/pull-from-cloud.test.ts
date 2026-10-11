@@ -8,7 +8,7 @@ import type { CloudResponse } from "../platform/cloud-client";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
-import { pullFromCloud, pullResultOf } from "./pull-from-cloud";
+import { pullFromCloud, pullResultOf, pullWarningOf } from "./pull-from-cloud";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
 
 const CREDENTIALS = { device_id: "a4b1", device_token: "prefix.secret", pepper: "cGVwcGVy" };
@@ -117,6 +117,29 @@ function pointOfSalePage(
       })),
       cursor: changeSeqs.at(-1) ?? 0,
       has_more: hasMore,
+    },
+  };
+}
+
+function offlinePointOfSalePage(
+  changeSeqs: number[],
+  taxAuthorityLastAuthorizedNumber: number | null,
+): CloudResponse {
+  return {
+    kind: "ok",
+    body: {
+      changes: changeSeqs.map((changeSeq) => ({
+        change_seq: changeSeq,
+        entity: "register_offline_point_of_sale",
+        entity_id: POINT_OF_SALE_ID,
+        row: {
+          point_of_sale_number: 31,
+          tax_authority_last_authorized_number: taxAuthorityLastAuthorizedNumber,
+          version: 1,
+        },
+      })),
+      cursor: changeSeqs.at(-1) ?? 0,
+      has_more: false,
     },
   };
 }
@@ -377,6 +400,7 @@ describe("a register migrated past a column its pulled rows lack", () => {
       const database = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
       const { getFromCloud, requests } = cloudAnswering(
         { kind: "ok", body: { changes: [], cursor: 9, has_more: false } },
+        offlinePointOfSalePage([], null),
         pointOfSalePage([6], 12),
       );
 
@@ -389,9 +413,65 @@ describe("a register migrated past a column its pulled rows lack", () => {
       expect(attempt).toEqual({ kind: "caught_up", cursor: 9 });
       expect(requests.map((request) => request.path)).toEqual([
         "/api/changes?since=9",
+        "/api/changes?since=0&entity=register_offline_point_of_sale",
         "/api/changes?since=0&entity=register_point_of_sale",
       ]);
       expect(heldCount(database)).toEqual({ count: 12 });
+      expect(database.prepare("SELECT * FROM pulled_table_redeliveries").all()).toEqual([]);
+      expect(database.prepare("SELECT pull_cursor FROM sync_state").all()).toEqual([
+        { pull_cursor: 9 },
+      ]);
+      database.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("a register migrated past the offline point of sale's tax authority count", () => {
+  it("fills the count from the cloud's current row at the version held, leaving the pull cursor and the declaration cleared", async () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-redelivery-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const before = openLocalDatabase(
+        path,
+        LOCAL_MIGRATIONS.filter(
+          (migration) => migration.name < "0037_offline_point_of_sale_tax_authority_count",
+        ),
+        migrationClock,
+      );
+      before.exec(
+        `UPDATE sync_state SET pull_cursor = 9, device_id = '${CREDENTIALS.device_id}' WHERE id = 1;
+         INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, version)
+         VALUES ('${POINT_OF_SALE_ID}', 31, 1);`,
+      );
+      before.close();
+      const database = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      const { getFromCloud, requests } = cloudAnswering(
+        { kind: "ok", body: { changes: [], cursor: 9, has_more: false } },
+        offlinePointOfSalePage([7], 40),
+        pointOfSalePage([], null),
+      );
+
+      const attempt = await pullFromCloud({
+        readCredentials: async () => CREDENTIALS,
+        replica: new SqliteLocalReplica(database),
+        getFromCloud,
+      });
+
+      expect(attempt).toEqual({ kind: "caught_up", cursor: 9 });
+      expect(requests.map((request) => request.path)).toEqual([
+        "/api/changes?since=9",
+        "/api/changes?since=0&entity=register_offline_point_of_sale",
+        "/api/changes?since=0&entity=register_point_of_sale",
+      ]);
+      expect(
+        database
+          .prepare(
+            "SELECT tax_authority_last_authorized_number AS count FROM register_offline_point_of_sale",
+          )
+          .all(),
+      ).toEqual([{ count: 40 }]);
       expect(database.prepare("SELECT * FROM pulled_table_redeliveries").all()).toEqual([]);
       expect(database.prepare("SELECT pull_cursor FROM sync_state").all()).toEqual([
         { pull_cursor: 9 },
@@ -452,6 +532,53 @@ describe("what a pull attempt means for the schedule", () => {
         failure: { kind: "refused", code: "rate_limited", retryAfterSeconds: 45 },
       }),
     ).toEqual({ kind: "failed", retryAfterMs: 45_000 });
+  });
+});
+
+describe("the warning a pull attempt leaves", () => {
+  it("warns when the pull stopped before catching up for a reason other than an unreachable cloud", () => {
+    for (const attempt of [
+      { kind: "page_out_of_order", cursor: 3 },
+      { kind: "failed", cursor: 3, failure: { kind: "unreadable" } },
+      { kind: "failed", cursor: 3, failure: { kind: "refused", code: "server_unavailable" } },
+    ] as const) {
+      expect(pullWarningOf(attempt)).toBe("core: the pull stopped before catching up");
+    }
+  });
+
+  it("warns when the pull stopped redelivering for a reason other than an unreachable cloud", () => {
+    for (const attempt of [
+      { kind: "redelivery_page_out_of_order", entity: "product", cursor: 3 },
+      { kind: "redelivery_failed", entity: "product", cursor: 3, failure: { kind: "unreadable" } },
+      {
+        kind: "redelivery_failed",
+        entity: "product",
+        cursor: 3,
+        failure: { kind: "refused", code: "server_unavailable" },
+      },
+    ] as const) {
+      expect(pullWarningOf(attempt)).toBe(
+        "core: the pull stopped before redelivering the tables a migration declared",
+      );
+    }
+  });
+
+  it("stays quiet when the cloud was unreachable or there was nothing to stop", () => {
+    for (const attempt of [
+      { kind: "failed", cursor: 3, failure: { kind: "unreachable" } },
+      {
+        kind: "redelivery_failed",
+        entity: "product",
+        cursor: 3,
+        failure: { kind: "unreachable" },
+      },
+      { kind: "caught_up", cursor: 3 },
+      { kind: "not_enrolled" },
+      { kind: "no_cloud" },
+      { kind: "no_local_database" },
+    ] as const) {
+      expect(pullWarningOf(attempt)).toBeUndefined();
+    }
   });
 });
 

@@ -1,14 +1,19 @@
 import { cloudErrorSchema } from "@purosur/contracts";
-import { configureRegisterPointOfSale } from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-point-of-sale-store.js";
-import { deviceState, fiscalAddresses, registers, users } from "../platform/db/schema.js";
+import { deviceState } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { buildChangesRouteApp, pulledPage } from "./test-support/changes-route.js";
+import {
+  buildChangesRouteApp,
+  configurePointOfSale,
+  insertActor,
+  insertFiscalAddress,
+  insertRegister,
+  pulledPage,
+} from "./test-support/changes-route.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
 const LATER = new Date("2026-09-29T13:00:00.000Z");
@@ -37,57 +42,29 @@ afterEach(async () => {
   await app.close();
 });
 
-async function insertRegister(locationId: string, name: string): Promise<string> {
-  const [register] = await db
-    .insert(registers)
-    .values({ locationId, name })
-    .returning({ id: registers.id });
-  if (!register) {
-    throw new Error("test setup: seeding the register returned no row");
-  }
-  return register.id;
-}
-
-async function configurePointOfSale(
+async function configureNumberedPointOfSale(
   locationId: string,
   registerId: string,
   pointOfSaleNumber: number,
 ) {
-  const [fiscalAddress] = await db
-    .insert(fiscalAddresses)
-    .values({ name: `Deposito ${pointOfSaleNumber}`, streetAddress: "Calle Ficticia 123, CABA" })
-    .returning({ id: fiscalAddresses.id });
-  const [actor] = await db
-    .insert(users)
-    .values({ firstName: "Ada Lucero", email: `ada-${pointOfSaleNumber}@example.com`, locationId })
-    .returning({ id: users.id });
-  if (!fiscalAddress || !actor) {
-    throw new Error("test setup: seeding the point of sale's references returned no row");
-  }
-  const outcome = await configureRegisterPointOfSale(
-    new DrizzleRegisterPointOfSaleStore(db, () => NOW),
-    {
-      locationId,
-      registerId,
-      pointOfSaleNumber,
-      fiscalAddressId: fiscalAddress.id,
-      version: 0,
-      actorId: actor.id,
-    },
-  );
-  if (outcome.kind !== "configured") {
-    throw new Error(`test setup: configuring ended as ${outcome.kind}`);
-  }
+  await configurePointOfSale(db, NOW, {
+    locationId,
+    registerId,
+    pointOfSaleNumber,
+    fiscalAddressId: await insertFiscalAddress(db, `Deposito ${pointOfSaleNumber}`),
+    version: 0,
+    actorId: await insertActor(db, locationId, `ada-${pointOfSaleNumber}@example.com`),
+  });
 }
 
 async function registerWithPointOfSale() {
   const locationId = await seededLocationId(db);
-  const registerId = await insertRegister(locationId, "Caja 1");
+  const registerId = await insertRegister(db, locationId, "Caja 1");
   const { deviceId, deviceToken } = await insertEnrolledInstallation(db, {
     now: NOW,
     existingRegisterId: registerId,
   });
-  await configurePointOfSale(locationId, registerId, 7);
+  await configureNumberedPointOfSale(locationId, registerId, 7);
   return { locationId, registerId, deviceId, deviceToken };
 }
 
@@ -119,7 +96,11 @@ describe("GET /changes asking for one entity", () => {
 
   it("gives nothing of another register's changes of that entity", async () => {
     const { locationId, deviceToken } = await registerWithPointOfSale();
-    await configurePointOfSale(locationId, await insertRegister(locationId, "Caja 2"), 8);
+    await configureNumberedPointOfSale(
+      locationId,
+      await insertRegister(db, locationId, "Caja 2"),
+      8,
+    );
 
     const page = await pulledPage(app, 0, deviceToken, { entity: "register_point_of_sale" });
 
