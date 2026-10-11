@@ -122,7 +122,7 @@ function redactUrl(url: string): string {
 const FAILED_QUERY = "Failed query: ";
 const QUERY_PARAMETERS = "\nparams: ";
 
-function withoutQueryParameters(text: string): string {
+export function withoutQueryParameters(text: string): string {
   const queryStart = text.indexOf(FAILED_QUERY);
   const parametersStart = queryStart === -1 ? -1 : text.indexOf(QUERY_PARAMETERS, queryStart);
   return parametersStart === -1 ? text : text.slice(0, parametersStart);
