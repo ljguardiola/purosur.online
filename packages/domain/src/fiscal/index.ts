@@ -104,4 +104,8 @@ export {
   REJECTION_CLASSES,
   SERIES_WAITING_STATES,
 } from "./model/real-time-authorization.js";
+export {
+  awaitsUnclearOutcomeDecision,
+  UNCLEAR_ANSWER_KINDS,
+} from "./model/unclear-outcome-decision.js";
 export { isWsaaTokenValid, WSAA_ALREADY_AUTHENTICATED_RETRY_MS } from "./model/wsaa-token.js";

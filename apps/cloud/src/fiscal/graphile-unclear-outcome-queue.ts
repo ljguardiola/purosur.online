@@ -1,5 +1,10 @@
+import { UNCLEAR_ANSWER_KINDS } from "@purosur/domain";
 import { sql } from "drizzle-orm";
-import type { EnqueueUnclearOutcome, SqlExecutor } from "./enqueue-unclear-outcome.js";
+import type {
+  EnqueueUnclearOutcome,
+  SqlExecutor,
+  WithdrawUnclearOutcome,
+} from "./enqueue-unclear-outcome.js";
 import {
   UNCLEAR_OUTCOME_PRIORITY,
   UNCLEAR_OUTCOME_TASK_IDENTIFIER,
@@ -11,14 +16,25 @@ import {
 export const enqueueUnclearOutcomeJob: EnqueueUnclearOutcome = async (
   transaction,
   fiscalDocumentId,
+  runAt,
 ) => {
   await transaction.execute(
     sql`select graphile_worker.add_job(
       ${UNCLEAR_OUTCOME_TASK_IDENTIFIER}::text,
       ${JSON.stringify({ fiscalDocumentId })}::json,
       job_key => ${unclearOutcomeJobKey(fiscalDocumentId)}::text,
+      run_at => coalesce(${runAt?.toISOString() ?? null}::timestamptz, now()),
       priority => ${UNCLEAR_OUTCOME_PRIORITY}::int
     )`,
+  );
+};
+
+export const withdrawUnclearOutcomeJob: WithdrawUnclearOutcome = async (
+  transaction,
+  fiscalDocumentId,
+) => {
+  await transaction.execute(
+    sql`select graphile_worker.remove_job(${unclearOutcomeJobKey(fiscalDocumentId)}::text)`,
   );
 };
 
@@ -36,6 +52,9 @@ export async function enqueueMissingUnclearOutcomes(transaction: SqlExecutor): P
     )
     from fiscal_requests request
     where request.decision is null
-      and (request.answer_kind is null or request.answer_kind in ('unclear', 'not_attempted'))`,
+      and (request.answer_kind is null or request.answer_kind in (${sql.join(
+        UNCLEAR_ANSWER_KINDS.map((kind) => sql`${kind}`),
+        sql`, `,
+      )}))`,
   );
 }

@@ -28,7 +28,7 @@ import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
 import { DrizzlePointOfSaleLanes } from "./drizzle-point-of-sale-lanes.js";
 import { DrizzleWsaaTokenSource } from "./drizzle-wsaa-token-source.js";
-import type { EnqueueUnclearOutcome } from "./enqueue-unclear-outcome.js";
+import type { EnqueueUnclearOutcome, WithdrawUnclearOutcome } from "./enqueue-unclear-outcome.js";
 import { WSFE_SERVICE } from "./wsaa-token-renewal-task.js";
 
 export type FiscalAuthorizationRouteOptions<TQueryResult extends PgQueryResultHKT> =
@@ -37,6 +37,7 @@ export type FiscalAuthorizationRouteOptions<TQueryResult extends PgQueryResultHK
     taxAuthority: TaxAuthorityInvoicing;
     certificateFingerprint: string;
     enqueueUnclearOutcome: EnqueueUnclearOutcome;
+    withdrawUnclearOutcome: WithdrawUnclearOutcome;
     report?: typeof reportError;
   };
 
@@ -96,7 +97,11 @@ export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryRes
   const report = options.report ?? reportError;
   const clock = { now: options.now };
   const ports = {
-    lanes: new DrizzlePointOfSaleLanes(options.connections, options.enqueueUnclearOutcome),
+    lanes: new DrizzlePointOfSaleLanes(
+      options.connections,
+      options.enqueueUnclearOutcome,
+      options.withdrawUnclearOutcome,
+    ),
     clock,
     tokens: new DrizzleWsaaTokenSource(
       options.db,

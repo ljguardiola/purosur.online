@@ -3,9 +3,19 @@ import {
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
 } from "./factura-c-fiscal-block.js";
+import type { RealTimeAuthorizationAnswer } from "./real-time-authorization.js";
 
 export const UNCLEAR_OUTCOME_SETTLING_DELAY_MS = 60_000;
 export const UNCLEAR_OUTCOME_REASK_INTERVAL_MS = 30_000;
+
+export const UNCLEAR_ANSWER_KINDS: readonly RealTimeAuthorizationAnswer["kind"][] = [
+  "unclear",
+  "not_attempted",
+];
+
+export function awaitsUnclearOutcomeDecision(answer: RealTimeAuthorizationAnswer | null): boolean {
+  return answer === null || UNCLEAR_ANSWER_KINDS.includes(answer.kind);
+}
 
 export interface TaxAuthorityVoucher {
   issuedOn: string;

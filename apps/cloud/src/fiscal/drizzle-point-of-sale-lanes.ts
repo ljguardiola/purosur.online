@@ -1,4 +1,4 @@
-import { fiscalRejectionAlertObservation } from "@purosur/domain";
+import { awaitsUnclearOutcomeDecision, fiscalRejectionAlertObservation } from "@purosur/domain";
 import {
   type AuthorizationRequestRecord,
   FiscalDocumentAlreadyRecorded,
@@ -21,24 +21,42 @@ import {
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import { PendingChanges } from "../sync/change-log.js";
 import { DrizzleTaxAuthorityCounts } from "./drizzle-tax-authority-counts.js";
-import type { EnqueueUnclearOutcome } from "./enqueue-unclear-outcome.js";
+import type {
+  EnqueueUnclearOutcome,
+  SqlExecutor,
+  WithdrawUnclearOutcome,
+} from "./enqueue-unclear-outcome.js";
 import { answerColumnsOf, answerOf } from "./fiscal-request-answer.js";
 import { withPointOfSaleLaneLock } from "./point-of-sale-lane-lock.js";
 
 const UNIQUE_VIOLATION = "23505";
 const FISCAL_REQUESTS_PRIMARY_KEY = "fiscal_requests_pkey";
 
-function needsDecision(answer: RealTimeAuthorizationAnswer): boolean {
-  return answer.kind === "unclear" || answer.kind === "not_attempted";
-}
-
 class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements PointOfSaleLane {
   private readonly db: PgDatabase<TQueryResult>;
   private readonly enqueueUnclearOutcome: EnqueueUnclearOutcome;
+  private readonly withdrawUnclearOutcome: WithdrawUnclearOutcome;
 
-  constructor(db: PgDatabase<TQueryResult>, enqueueUnclearOutcome: EnqueueUnclearOutcome) {
+  constructor(
+    db: PgDatabase<TQueryResult>,
+    enqueueUnclearOutcome: EnqueueUnclearOutcome,
+    withdrawUnclearOutcome: WithdrawUnclearOutcome,
+  ) {
     this.db = db;
     this.enqueueUnclearOutcome = enqueueUnclearOutcome;
+    this.withdrawUnclearOutcome = withdrawUnclearOutcome;
+  }
+
+  private async scheduleUnclearOutcome(
+    transaction: SqlExecutor,
+    fiscalDocumentId: string,
+    answer: RealTimeAuthorizationAnswer,
+  ): Promise<void> {
+    if (awaitsUnclearOutcomeDecision(answer)) {
+      await this.enqueueUnclearOutcome(transaction, fiscalDocumentId);
+    } else {
+      await this.withdrawUnclearOutcome(transaction, fiscalDocumentId);
+    }
   }
 
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
@@ -77,19 +95,22 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
   }
 
   async recordRequest(request: AuthorizationRequestRecord): Promise<void> {
-    try {
-      await this.db.insert(fiscalRequests).values(request);
-    } catch (error) {
-      if (
-        postgresErrorChain(error).some(
-          (link) =>
-            link.code === UNIQUE_VIOLATION && link.constraint === FISCAL_REQUESTS_PRIMARY_KEY,
-        )
-      ) {
-        throw new FiscalDocumentAlreadyRecorded();
+    await this.db.transaction(async (tx) => {
+      try {
+        await tx.insert(fiscalRequests).values(request);
+      } catch (error) {
+        if (
+          postgresErrorChain(error).some(
+            (link) =>
+              link.code === UNIQUE_VIOLATION && link.constraint === FISCAL_REQUESTS_PRIMARY_KEY,
+          )
+        ) {
+          throw new FiscalDocumentAlreadyRecorded();
+        }
+        throw error;
       }
-      throw error;
-    }
+      await this.enqueueUnclearOutcome(tx, request.fiscalDocumentId, request.notAfter);
+    });
   }
 
   async recordAnswer(
@@ -102,9 +123,7 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
         .update(fiscalRequests)
         .set({ ...answerColumnsOf(answer), answeredAt })
         .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
-      if (needsDecision(answer)) {
-        await this.enqueueUnclearOutcome(tx, fiscalDocumentId);
-      }
+      await this.scheduleUnclearOutcome(tx, fiscalDocumentId, answer);
     });
   }
 
@@ -139,9 +158,7 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
         await new DrizzleTaxAuthorityCounts(tx, pending).advance(taxAuthorityCount);
         await pending.log(tx);
       }
-      if (needsDecision(answer)) {
-        await this.enqueueUnclearOutcome(tx, fiscalDocumentId);
-      }
+      await this.scheduleUnclearOutcome(tx, fiscalDocumentId, answer);
     });
   }
 }
@@ -151,13 +168,16 @@ export class DrizzlePointOfSaleLanes<TQueryResult extends PgQueryResultHKT>
 {
   private readonly connections: DedicatedConnections<TQueryResult>;
   private readonly enqueueUnclearOutcome: EnqueueUnclearOutcome;
+  private readonly withdrawUnclearOutcome: WithdrawUnclearOutcome;
 
   constructor(
     connections: DedicatedConnections<TQueryResult>,
     enqueueUnclearOutcome: EnqueueUnclearOutcome,
+    withdrawUnclearOutcome: WithdrawUnclearOutcome,
   ) {
     this.connections = connections;
     this.enqueueUnclearOutcome = enqueueUnclearOutcome;
+    this.withdrawUnclearOutcome = withdrawUnclearOutcome;
   }
 
   inPointOfSaleLane<TOutcome>(
@@ -165,7 +185,7 @@ export class DrizzlePointOfSaleLanes<TQueryResult extends PgQueryResultHKT>
     work: (lane: PointOfSaleLane) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPointOfSaleLaneLock(this.connections, pointOfSale, (db) =>
-      work(new DrizzlePointOfSaleLane(db, this.enqueueUnclearOutcome)),
+      work(new DrizzlePointOfSaleLane(db, this.enqueueUnclearOutcome, this.withdrawUnclearOutcome)),
     );
   }
 }

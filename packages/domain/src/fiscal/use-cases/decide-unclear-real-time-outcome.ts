@@ -1,4 +1,5 @@
 import {
+  awaitsUnclearOutcomeDecision,
   decideUnclearOutcome,
   hasUnclearOutcomeSettled,
   type TaxAuthorityEvidence,
@@ -59,19 +60,24 @@ export async function decideUnclearRealTimeOutcome(
       return { kind: "already_decided", decision: request.decision };
     }
 
+    if (
+      request.progress.kind === "answered" &&
+      !awaitsUnclearOutcomeDecision(request.progress.answer)
+    ) {
+      return { kind: "not_unclear" };
+    }
+
     const now = clock.now();
     let abandonedAt: Date;
     if (request.progress.kind === "no_answer") {
       await lane.recordAbandonment(fiscalDocumentId, now);
       abandonedAt = now;
-    } else if (request.progress.answer.kind === "unclear") {
-      abandonedAt = request.progress.answeredAt;
     } else if (request.progress.answer.kind === "not_attempted") {
       const decision: UnclearOutcomeDecision = { kind: "released" };
       await lane.recordDecision(fiscalDocumentId, decision, now);
       return { kind: "decided", decision };
     } else {
-      return { kind: "not_unclear" };
+      abandonedAt = request.progress.answeredAt;
     }
 
     if (!hasUnclearOutcomeSettled(abandonedAt, now)) {

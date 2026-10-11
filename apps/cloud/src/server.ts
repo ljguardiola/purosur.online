@@ -50,6 +50,7 @@ import {
 import {
   enqueueMissingUnclearOutcomes,
   enqueueUnclearOutcomeJob,
+  withdrawUnclearOutcomeJob,
 } from "./fiscal/graphile-unclear-outcome-queue.js";
 import { offlineAuthorizationCodeJobs } from "./fiscal/offline-authorization-code-task.js";
 import { resumeWorkWaitingOnWsaaToken } from "./fiscal/resume-work-waiting-on-wsaa-token.js";
@@ -698,6 +699,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
             taxAuthority: new WsfeTaxAuthorityInvoicing(invoicing),
             certificateFingerprint: invoicing.certificateFingerprint,
             enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
+            withdrawUnclearOutcome: withdrawUnclearOutcomeJob,
           },
         }
       : {}),
