@@ -162,8 +162,13 @@ function redactError(
   enclosing: ReadonlySet<object>,
   echoesQueryValues: boolean,
 ): Record<string, unknown> {
+  const readable = { name: error.name, message: error.message, stack: error.stack };
+  // A driver error also carries what it refused in fields such as postgres.js's `detail`
+  // ("Key (legal_name)=(...) already exists"), unquoted, so only its code is kept beside the text.
   const fields = redactRecord(
-    { ...error, name: error.name, message: error.message, stack: error.stack },
+    echoesQueryValues
+      ? { ...readable, ...("code" in error && { code: error.code }) }
+      : { ...error, ...readable },
     NO_DIAGNOSTICS,
     enclosing,
     echoesQueryValues,
