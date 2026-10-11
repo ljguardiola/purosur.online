@@ -152,7 +152,7 @@ test("writes each module's total duration, rounded, under its key", async () => 
     const outputFile = join(dir, "nested", "out", "shard-1.json");
     const reporter = new TestDurationsReporter({ outputFile });
 
-    reporter.onTestRunEnd([
+    await reporter.onTestRunEnd([
       moduleWith("node", "a.test.ts", {
         duration: 100.4,
         collectDuration: 200,
@@ -179,7 +179,7 @@ test("writes each module's total duration, rounded, under its key", async () => 
 test("writes nothing without an output file", async () => {
   const reporter = new TestDurationsReporter({ outputFile: undefined });
 
-  assert.doesNotThrow(() => reporter.onTestRunEnd([moduleWith("node", "a.test.ts", undefined)]));
+  await assert.doesNotReject(reporter.onTestRunEnd([moduleWith("node", "a.test.ts", undefined)]));
 });
 
 function fakeContext(shard, root = "/repo") {
