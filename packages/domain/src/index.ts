@@ -231,11 +231,8 @@ export {
   cancellableWithoutAuthorization,
   cashCharge,
   isLateApproval,
-  isRefundDiscardable,
-  isRefundDiscarded,
   isRefundPending,
   isValidOrderAmount,
-  LATE_PAYMENT_REFUND_ORIGIN,
   latePaymentRefund,
   MERCADO_PAGO_PENDING_CHECK_INTERVAL_MS,
   MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS,
@@ -249,7 +246,6 @@ export {
   REFUND_ORIGINS,
   REFUND_PENDING_STATE,
   REFUND_STATES,
-  SALE_CANCELLED_REFUND_ORIGIN,
 } from "./payments/index.js";
 export type {
   AuthorizablePermissionKey,
