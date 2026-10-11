@@ -1235,4 +1235,157 @@ describe("a failed query's parameters", () => {
 
     expect(scrubErrorReport(event).message).toBe("refused the route's params: missing id");
   });
+
+  it("hides every quoted value in the linked errors that caused a failed query, at any depth", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            type: "Error",
+            value: `socket closed reading "${FICTIONAL_LEGAL_NAME}"`,
+            mechanism: { exception_id: 3, parent_id: 2 },
+          },
+          {
+            type: "Error",
+            value: `invalid input syntax for type uuid: "${FICTIONAL_LEGAL_NAME}"`,
+            mechanism: { exception_id: 2, parent_id: 1 },
+          },
+          { type: "Error", value: failedQuery, mechanism: { exception_id: 1, parent_id: 0 } },
+          {
+            type: "Error",
+            value: 'saving "the customer" failed',
+            mechanism: { exception_id: 0 },
+          },
+        ],
+      },
+    };
+
+    expect(scrubErrorReport(event).exception?.values?.map(({ value }) => value)).toEqual([
+      'socket closed reading "[redacted]"',
+      'invalid input syntax for type uuid: "[redacted]"',
+      `Failed query: ${statement}`,
+      'saving "the customer" failed',
+    ]);
+  });
+
+  it("finds the failed query a linked error caused whatever order the errors come in", () => {
+    const event = {
+      exception: {
+        values: [
+          { type: "Error", value: failedQuery, mechanism: { exception_id: 1, parent_id: 0 } },
+          {
+            type: "Error",
+            value: `invalid input syntax for type uuid: "${FICTIONAL_LEGAL_NAME}"`,
+            mechanism: { exception_id: 2, parent_id: 1 },
+          },
+        ],
+      },
+    };
+
+    expect(scrubErrorReport(event).exception?.values?.[1]?.value).toBe(
+      'invalid input syntax for type uuid: "[redacted]"',
+    );
+  });
+
+  it("keeps the quoted text of linked errors that caused no failed query, even when their links loop", () => {
+    const values = [
+      {
+        type: "Error",
+        value: 'relation "customers" does not exist',
+        mechanism: { exception_id: 1, parent_id: 2 },
+      },
+      {
+        type: "Error",
+        value: 'saving "the customer" failed',
+        mechanism: { exception_id: 2, parent_id: 1 },
+      },
+      { type: "Error", value: 'column "cuit" is missing' },
+      { type: "Error", value: `Failed query: ${statement}` },
+    ];
+
+    expect(scrubErrorReport({ exception: { values } }).exception?.values).toEqual(values);
+  });
+
+  it("hides a quoted value whole, from its first quote to its last, keeping the unquoted text", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            type: "Error",
+            value: `value "${FICTIONAL_LEGAL_NAME}" or "a"b" is out of range for type integer`,
+            mechanism: { exception_id: 1, parent_id: 0 },
+          },
+          { type: "Error", value: failedQuery, mechanism: { exception_id: 0 } },
+        ],
+      },
+    };
+
+    expect(scrubErrorReport(event).exception?.values?.[0]?.value).toBe(
+      'value "[redacted]" is out of range for type integer',
+    );
+  });
+
+  it("hides every quoted value in the errors that caused an error of a failed query, at any depth", () => {
+    const echoingCause = new Error(`socket closed reading "${FICTIONAL_LEGAL_NAME}"`);
+    echoingCause.stack = `Error: socket closed reading "${FICTIONAL_LEGAL_NAME}"`;
+    const driverError = new Error(`invalid input syntax for type uuid: "${FICTIONAL_LEGAL_NAME}"`, {
+      cause: echoingCause,
+    });
+    driverError.stack = `Error: invalid input syntax for type uuid: "${FICTIONAL_LEGAL_NAME}"`;
+    const queryError = new Error(failedQuery, { cause: driverError });
+    queryError.stack = `Error: ${failedQuery}`;
+    const error = new Error('saving "the customer" failed', { cause: queryError });
+    error.stack = 'Error: saving "the customer" failed';
+
+    const scrubbed = scrubErrorReportBreadcrumb({ data: { error } });
+
+    expect(scrubbed.data).toStrictEqual({
+      error: {
+        name: "Error",
+        message: 'saving "the customer" failed',
+        stack: 'Error: saving "the customer" failed',
+        cause: {
+          name: "Error",
+          message: `Failed query: ${statement}`,
+          stack: `Error: Failed query: ${statement}`,
+          cause: {
+            name: "Error",
+            message: 'invalid input syntax for type uuid: "[redacted]"',
+            stack: 'Error: invalid input syntax for type uuid: "[redacted]"',
+            cause: {
+              name: "Error",
+              message: 'socket closed reading "[redacted]"',
+              stack: 'Error: socket closed reading "[redacted]"',
+            },
+          },
+        },
+      },
+    });
+  });
+
+  it("keeps the quoted text of a report's contexts", () => {
+    const contexts = { sale: { refusal: 'price list "Mayorista" is closed' } };
+
+    expect(scrubErrorReport({ contexts }).contexts).toEqual(contexts);
+  });
+
+  it("keeps the quoted text of an error's cause when the error is no failed query", () => {
+    const cause = new Error('relation "customers" does not exist');
+    cause.stack = 'Error: relation "customers" does not exist';
+    const error = new Error("saving the customer failed", { cause });
+    error.stack = "Error: saving the customer failed";
+
+    expect(scrubErrorReport({ extra: { error } }).extra).toStrictEqual({
+      error: {
+        name: "Error",
+        message: "saving the customer failed",
+        stack: "Error: saving the customer failed",
+        cause: {
+          name: "Error",
+          message: 'relation "customers" does not exist',
+          stack: 'Error: relation "customers" does not exist',
+        },
+      },
+    });
+  });
 });
