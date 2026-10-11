@@ -154,7 +154,7 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         deviceId,
         cancelledAt: new Date("2026-10-07T14:00:00.000Z"),
         total: 2_000,
-        overrides: aTransferCancelledSale(),
+        overrides: aTransferCancelledSale({ cancelledAt: new Date("2026-10-07T14:00:00.000Z") }),
       });
       const late = await aPendingLatePaymentRefund(db, {
         openedAt: new Date("2026-10-07T13:00:00.000Z"),

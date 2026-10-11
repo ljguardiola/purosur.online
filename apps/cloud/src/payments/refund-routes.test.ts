@@ -123,7 +123,7 @@ describe("GET /refunds/pending", () => {
     const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
     const cancelledId = await aPendingRefund();
     const late = await aPendingLatePaymentRefund(db, {
-      openedAt: new Date("2026-10-07T14:00:00.000Z"),
+      openedAt: new Date("2026-10-06T10:00:00.000Z"),
       registerName: "Caja 2",
     });
 
