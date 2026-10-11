@@ -6,16 +6,22 @@ const LINE_FEED = 0x0a;
 const PC850_TABLE = 2;
 const ALIGNMENTS = ["left", "center", "right"];
 const QR_CORRECTION_LEVELS = ["L", "M", "Q", "H"];
-const BOLD_MARKER = /\[\/?bold\]/g;
+const STYLE_MARKER = /\[\/?(bold|small)\]/g;
+
+interface PrintedRow {
+  text: string;
+  small: boolean;
+}
 
 interface Printout {
   text: string;
   textLines: string[];
+  rows: PrintedRow[];
 }
 
 export function printoutOf(bytes: Uint8Array): Printout {
   const lines: string[] = [];
-  const textLines: string[] = [];
+  const rows: PrintedRow[] = [];
   let pending = "";
   let position = 0;
 
@@ -44,7 +50,7 @@ export function printoutOf(bytes: Uint8Array): Printout {
     const byte = take();
     if (byte === LINE_FEED) {
       lines.push(pending);
-      textLines.push(pending.replace(BOLD_MARKER, ""));
+      rows.push({ text: pending.replace(STYLE_MARKER, ""), small: pending.includes("[small]") });
       pending = "";
     } else if (byte === ESC) {
       const command = take();
@@ -55,6 +61,8 @@ export function printoutOf(bytes: Uint8Array): Printout {
         marker(table === PC850_TABLE ? "[codepage PC850]" : `[codepage ${table}]`);
       } else if (command === 0x45) {
         pending += take() === 0 ? "[/bold]" : "[bold]";
+      } else if (command === 0x4d) {
+        pending += take() === 0 ? "[/small]" : "[small]";
       } else if (command === 0x61) {
         const alignment = take();
         marker(`[align ${ALIGNMENTS[alignment] ?? alignment}]`);
@@ -95,7 +103,7 @@ export function printoutOf(bytes: Uint8Array): Printout {
     }
   }
   flushPending();
-  return { text: lines.join("\n"), textLines };
+  return { text: lines.join("\n"), textLines: rows.map(({ text }) => text), rows };
 }
 
 function qrMarker([fn = 0, ...data]: number[]): string {

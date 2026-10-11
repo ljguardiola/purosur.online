@@ -99,24 +99,24 @@ const HEAD = [
   "[init]",
   "[codepage PC850]",
   "[logo 384x200]",
-  "               Av. Belgrano 1450",
-  "      WhatsApp 11 5555-0100  ·  @puro.sur",
-  RULE,
+  "[small]                       Av. Belgrano 1450[/small]",
+  "[small]              WhatsApp 11 5555-0100  ·  @puro.sur[/small]",
+];
+
+const OPERATION = [
   "Fecha 30/09/2026                      Hora 12:05",
   "Operación 000482                     Atendió Ada",
   RULE,
 ];
 
-const BODY_OF_MIXED_SALE = [
-  "PRODUCTO                                 IMPORTE",
+const SALE_OF_MIXED_SALE = [
+  "[bold]PRODUCTO                                 IMPORTE[/bold]",
   "Yerba a granel",
   "  0,350 kg x $ 18.900,00 el kg        $ 6.615,00",
   "Alfajor",
   "  2 x $ 4.200,00                      $ 8.400,00",
   "  10 % de descuento                    -$ 840,00",
-  "  Total de la línea                   $ 7.560,00",
-  "Café molido 250 g",
-  "  1 x $ 3.500,00                      $ 3.500,00",
+  "Café molido 250 g                     $ 3.500,00",
   RULE,
   "Subtotal                             $ 17.675,00",
   RULE,
@@ -125,15 +125,17 @@ const BODY_OF_MIXED_SALE = [
   "Efectivo                             $ 10.000,00",
   "Transferencia                         $ 7.675,00",
   "Vuelto                                $ 5.000,00",
-  RULE,
 ];
 
 const CLOSING = [
-  "             Gracias por tu compra",
-  "  Cambios y devoluciones solo con este ticket.",
+  RULE,
+  "[bold]             Gracias por tu compra[/bold]",
+  "[small]          Cambios y devoluciones solo con este ticket.[/small]",
   "[feed 5]",
   "[cut partial]",
 ];
+
+const BODY_OF_MIXED_SALE = [RULE, ...OPERATION, ...SALE_OF_MIXED_SALE, ...CLOSING];
 
 const QR_DATA = {
   ver: 1,
@@ -174,22 +176,22 @@ const FISCAL_BLOCK: FacturaCFiscalBlock = {
   qrText: QR_TEXT,
 };
 
-const FISCAL_LINES = [
+const FISCAL_HEAD = [
+  ...HEAD,
+  RULE,
   "[bold]                   FACTURA C[/bold]",
-  "                    Cód. 011",
-  "               Comercio de Prueba",
-  "               CUIT 20-00000000-1",
-  "            Responsable Monotributo",
-  "        Ingresos Brutos CM 000-000000-0",
-  "        Inicio de actividades 15/01/2020",
+  "[small]                Cód. 011  ·  A consumidor final[/small]",
+];
+
+const FISCAL_BODY = [
   RULE,
-  "Punto de venta 00001          Comp. Nro 00000123",
-  "Fecha de emisión 30/09/2026",
-  "Receptor: Consumidor Final",
+  "Punto de venta 00001                 Nº 00000123",
+  ...OPERATION,
+  "[small]Comercio de Prueba                       Responsable Monotributo[/small]",
+  "[small]CUIT 20-00000000-1                          IIBB CM 000-000000-0[/small]",
+  "[small]Inicio de actividades 15/01/2020[/small]",
   RULE,
-  "Importe neto                         $ 17.675,00",
-  "IVA                                       $ 0,00",
-  RULE,
+  ...SALE_OF_MIXED_SALE,
   "[align center]",
   "[qr model 2]",
   "[qr module 4]",
@@ -197,44 +199,87 @@ const FISCAL_LINES = [
   `[qr store ${QR_TEXT}]`,
   "[qr print]",
   "[align left]",
-  "             Comprobante Autorizado",
-  "             CAE N° 71234567890123",
-  "        Fecha de Vto. de CAE 10/10/2026",
+  "[small]                     Comprobante autorizado[/small]",
+  "[small]             CAE 71234567890123  ·  Vto. 10/10/2026[/small]",
+  ...CLOSING,
 ];
+
+function rowsWithinThePaper(content: ReceiptContent, copy: ReceiptCopy = ORIGINAL): boolean {
+  return printed(content, copy).rows.every(({ text, small }) => text.length <= (small ? 64 : 48));
+}
 
 describe("the ESC/POS receipt template", () => {
   it("renders the original receipt of a sale with a weighed line, a promotion and two payments", () => {
-    expect(printed(receipt()).text).toBe([...HEAD, ...BODY_OF_MIXED_SALE, ...CLOSING].join("\n"));
+    expect(printed(receipt()).text).toBe([...HEAD, ...BODY_OF_MIXED_SALE].join("\n"));
   });
 
-  it("puts the duplicate legend between the head and the body of a duplicate", () => {
+  it("puts the duplicate legend right below the store's header", () => {
     expect(printed(receipt(), { kind: "duplicate", orderNumber: 2 }).text).toBe(
-      [
-        ...HEAD,
-        "[bold]              COPIA DUPLICADA Nº 2[/bold]",
-        ...BODY_OF_MIXED_SALE,
-        ...CLOSING,
-      ].join("\n"),
+      [...HEAD, "[bold]              COPIA DUPLICADA Nº 2[/bold]", ...BODY_OF_MIXED_SALE].join(
+        "\n",
+      ),
     );
   });
 
-  it("leaves out the change of a sale paid by transfer only", () => {
+  it("prints a unit line of quantity one on a single row and leaves out the change of a sale paid by transfer only", () => {
     expect(printed(singleUnitReceipt("Alfajor", 420_000)).text).toBe(
       [
         ...HEAD,
-        "PRODUCTO                                 IMPORTE",
-        "Alfajor",
-        "  1 x $ 4.200,00                      $ 4.200,00",
+        RULE,
+        ...OPERATION,
+        "[bold]PRODUCTO                                 IMPORTE[/bold]",
+        "Alfajor                               $ 4.200,00",
         RULE,
         "Subtotal                              $ 4.200,00",
         RULE,
         "[bold]TOTAL                                 $ 4.200,00[/bold]",
         RULE,
         "Transferencia                         $ 4.200,00",
-        RULE,
         ...CLOSING,
       ].join("\n"),
     );
+  });
+
+  it("adds the promotion of a unit line of quantity one on its own row", () => {
+    const { textLines } = printed(
+      receipt({
+        lines: [
+          {
+            productName: "Café molido 250 g",
+            saleUnit: "UNIT",
+            quantity: 1,
+            listUnitPrice: 350_000,
+            promotion: { kind: "PERCENT_OFF", percent: 10 },
+            discountAmount: 35_000,
+            lineTotal: 315_000,
+          },
+        ],
+      }),
+    );
+
+    expect(textLines).toContain("Café molido 250 g                     $ 3.500,00");
+    expect(textLines).toContain("  10 % de descuento                    -$ 350,00");
+  });
+
+  it("prints the weight and the price per kilo of a weighed line, even of one kilo", () => {
+    const { textLines } = printed(
+      receipt({
+        lines: [
+          {
+            productName: "Yerba a granel",
+            saleUnit: "KG",
+            quantity: 1_000,
+            listUnitPrice: 1_890_000,
+            promotion: null,
+            discountAmount: 0,
+            lineTotal: 1_890_000,
+          },
+        ],
+      }),
+    );
+
+    expect(textLines).toContain("Yerba a granel");
+    expect(textLines).toContain("  1,000 kg x $ 18.900,00 el kg       $ 18.900,00");
   });
 
   it("names a payment by Mercado Pago QR, aligned with the other payment lines", () => {
@@ -256,7 +301,7 @@ describe("the ESC/POS receipt template", () => {
     expect(textLines).toContain("QR Mercado Pago                      $ 10.000,00");
   });
 
-  it("wraps a long product name within the columns of the paper", () => {
+  it("wraps a long product name beside its amount within the columns of the paper", () => {
     const { textLines } = printed(
       singleUnitReceipt(
         "Aceite de oliva extra virgen orgánico primera prensada en frío 500 ml",
@@ -264,16 +309,15 @@ describe("the ESC/POS receipt template", () => {
       ),
     );
 
-    expect(textLines).toContain("Aceite de oliva extra virgen orgánico primera");
-    expect(textLines).toContain("prensada en frío 500 ml");
-    expect(textLines).toContain("  1 x $ 9.800,00                      $ 9.800,00");
+    expect(textLines).toContain("Aceite de oliva extra virgen orgánico");
+    expect(textLines).toContain("primera prensada en frío 500 ml       $ 9.800,00");
   });
 
   it("breaks a word longer than the columns left", () => {
     const { textLines } = printed(singleUnitReceipt("A".repeat(60), 980_000));
 
-    expect(textLines).toContain("A".repeat(48));
-    expect(textLines).toContain("A".repeat(12));
+    expect(textLines).toContain("A".repeat(37));
+    expect(textLines).toContain("AAAAAAAAAAAAAAAAAAAAAAA               $ 9.800,00");
   });
 
   it("writes the operation number with six digits, however small or large", () => {
@@ -306,7 +350,7 @@ describe("the ESC/POS receipt template", () => {
     expect(textLines).toContain("Fecha 30/09/2026                      Hora 23:30");
   });
 
-  it("shows a buy-and-pay promotion by what it asks and what it charges", () => {
+  it("shows a buy-and-pay promotion by what it asks and what it charges, with no line total", () => {
     const { textLines } = printed(
       receipt({
         lines: [
@@ -323,21 +367,33 @@ describe("the ESC/POS receipt template", () => {
       }),
     );
 
-    expect(textLines).toContain("  Lleve 3, pague 2                   -$ 4.200,00");
-    expect(textLines).toContain("  Total de la línea                   $ 8.400,00");
+    expect(textLines).toEqual(
+      expect.arrayContaining([
+        "Alfajor",
+        "  3 x $ 4.200,00                     $ 12.600,00",
+        "  Lleve 3, pague 2                   -$ 4.200,00",
+        RULE,
+      ]),
+    );
+    expect(textLines.join("\n")).not.toContain("Total de la línea");
   });
 
-  it("prints no line wider than the 48 columns of the paper", () => {
+  it("prints no row wider than the paper, 48 columns in the regular font and 64 in the small one", () => {
     const sales = [
       receipt(),
+      receipt({
+        header: {
+          address: "Avenida Presidente Hipólito Yrigoyen 14500, Carmen de Patagones, Buenos Aires",
+          whatsappNumber: "+54 9 2920 55-0100",
+          instagramHandle: "@puro.sur.almacen.natural",
+        },
+      }),
       singleUnitReceipt("A".repeat(60), 980_000),
       singleUnitReceipt("Aceite de oliva extra virgen orgánico primera prensada en frío", 980_000),
     ];
     for (const sale of sales) {
       for (const copy of [ORIGINAL, { kind: "duplicate", orderNumber: 12 } as const]) {
-        for (const line of printed(sale, copy).textLines) {
-          expect(line.length).toBeLessThanOrEqual(48);
-        }
+        expect(rowsWithinThePaper(sale, copy)).toBe(true);
       }
     }
   });
@@ -360,6 +416,15 @@ describe("the ESC/POS receipt template", () => {
     expect(Array.from(head.slice(0, 5))).toEqual([0x1b, 0x40, 0x1b, 0x74, 0x02]);
   });
 
+  it("prints the small rows in the printer's second font and goes back to the first one", () => {
+    const { head } = escPosReceiptTemplate.render(receipt());
+    const bytes = Array.from(head);
+    const small = bytes.indexOf(0x4d);
+
+    expect(bytes.slice(small - 1, small + 2)).toEqual([0x1b, 0x4d, 0x01]);
+    expect(bytes.slice(-4)).toEqual([0x1b, 0x4d, 0x00, 0x0a]);
+  });
+
   it("feeds blank paper past the cutter before cutting at the end of the body", () => {
     const { body } = escPosReceiptTemplate.render(receipt());
 
@@ -371,7 +436,7 @@ describe("the ESC/POS receipt template", () => {
 
     expect(stored.templateVersion).toBe("1");
     expect(printoutOf(stored.head).text).toBe(HEAD.join("\n"));
-    expect(printoutOf(stored.body).text).toBe([...BODY_OF_MIXED_SALE, ...CLOSING].join("\n"));
+    expect(printoutOf(stored.body).text).toBe(BODY_OF_MIXED_SALE.join("\n"));
   });
 
   it("prints an original as exactly its head followed by its body", () => {
@@ -412,12 +477,17 @@ describe("the ESC/POS receipt template", () => {
     ).toThrow(/2/);
   });
 
-  describe("the fiscal block of an authorized factura C", () => {
+  describe("an authorized factura C", () => {
     const fiscalReceipt = () => receipt({ fiscal: FISCAL_BLOCK });
-    const WITH_FISCAL_BLOCK = [...HEAD, ...BODY_OF_MIXED_SALE, ...FISCAL_LINES, ...CLOSING];
 
-    it("lays out the voucher after the payments and before the closing", () => {
-      expect(printed(fiscalReceipt()).text).toBe(WITH_FISCAL_BLOCK.join("\n"));
+    it("lays out the voucher's type at the top, its number and issuer before the products, and its authorization after the payments", () => {
+      expect(printed(fiscalReceipt()).text).toBe([...FISCAL_HEAD, ...FISCAL_BODY].join("\n"));
+    });
+
+    it("prints neither a net amount nor an IVA row", () => {
+      const { textLines } = printed(fiscalReceipt());
+
+      expect(textLines.some((line) => /Importe neto|IVA/.test(line))).toBe(false);
     });
 
     it("prints a QR whose text carries the voucher's data as the tax authority defines", () => {
@@ -427,24 +497,19 @@ describe("the ESC/POS receipt template", () => {
       expect(JSON.parse(atob(store.slice(QR_URL.length)))).toEqual(QR_DATA);
     });
 
-    it("keeps the block in the stored body so a duplicate reproduces it with the legend", () => {
+    it("puts the duplicate legend right below the voucher's type", () => {
       const stored = escPosReceiptTemplate.render(fiscalReceipt());
 
-      expect(printoutOf(stored.body).text).toBe(
-        [...BODY_OF_MIXED_SALE, ...FISCAL_LINES, ...CLOSING].join("\n"),
-      );
-      expect(printed(fiscalReceipt(), { kind: "duplicate", orderNumber: 2 }).text).toBe(
-        [
-          ...HEAD,
-          "[bold]              COPIA DUPLICADA Nº 2[/bold]",
-          ...BODY_OF_MIXED_SALE,
-          ...FISCAL_LINES,
-          ...CLOSING,
-        ].join("\n"),
+      expect(printoutOf(stored.head).text).toBe(FISCAL_HEAD.join("\n"));
+      expect(printoutOf(stored.body).text).toBe(FISCAL_BODY.join("\n"));
+      expect(printed(fiscalReceipt(), { kind: "duplicate", orderNumber: 1 }).text).toBe(
+        [...FISCAL_HEAD, "[bold]              COPIA DUPLICADA Nº 1[/bold]", ...FISCAL_BODY].join(
+          "\n",
+        ),
       );
     });
 
-    it("prints no line wider than the 48 columns of the paper", () => {
+    it("prints no row wider than the paper, however long the issuer's and the buyer's data", () => {
       const longTaxStatus = {
         ...FISCAL_BLOCK,
         issuer: {
@@ -453,19 +518,31 @@ describe("the ESC/POS receipt template", () => {
             "Responsable Monotributo del Régimen Simplificado para Pequeños Contribuyentes",
         },
       };
+      const longLegalName = {
+        ...FISCAL_BLOCK,
+        issuer: {
+          ...FISCAL_BLOCK.issuer,
+          legalName: `${FICTIONAL_LEGAL_NAME} Sociedad de Responsabilidad Limitada del Sur`,
+        },
+      };
       const longBuyerTaxStatus = {
         ...FISCAL_BLOCK,
-        buyerTaxStatusDescription: "Monotributista Trabajador Independiente Promovido",
+        buyerTaxStatusDescription:
+          "Monotributista Trabajador Independiente Promovido del Régimen Simplificado",
       };
-      for (const fiscal of [FISCAL_BLOCK, longTaxStatus, longBuyerTaxStatus]) {
-        for (const line of printed(receipt({ fiscal })).textLines) {
-          expect(line.length).toBeLessThanOrEqual(48);
+      for (const fiscal of [FISCAL_BLOCK, longTaxStatus, longLegalName, longBuyerTaxStatus]) {
+        for (const copy of [ORIGINAL, { kind: "duplicate", orderNumber: 12 } as const]) {
+          expect(rowsWithinThePaper(receipt({ fiscal }), copy)).toBe(true);
         }
       }
     });
 
-    it("leaves a receipt without a fiscal document as it was", () => {
-      expect(printed(receipt()).text).toBe([...HEAD, ...BODY_OF_MIXED_SALE, ...CLOSING].join("\n"));
+    it("keeps the issuer's tax status beside its legal name when both fit", () => {
+      const { textLines } = printed(fiscalReceipt());
+
+      expect(textLines).toContain(
+        "Comercio de Prueba                       Responsable Monotributo",
+      );
     });
   });
 });
