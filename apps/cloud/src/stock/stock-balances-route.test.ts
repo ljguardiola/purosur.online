@@ -2,7 +2,6 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerStockBalancesRoute } from "./stock-balances-route.js";
-import { insertPurchasedLot, insertTechnicalLot } from "./test-support/lot-fixtures.js";
 import {
   BACKOFFICE_ORIGIN,
   insertBalance,
@@ -111,100 +110,6 @@ describe("GET /inventory-levels", () => {
           saleUnit: "KG",
           active: true,
           balance: 12_150,
-        },
-      ],
-    });
-  });
-});
-
-function listLots(productId: string, headers: Record<string, string>) {
-  return app.inject({ method: "GET", url: `/inventory-levels/${productId}/lots`, headers });
-}
-
-describe("GET /inventory-levels/:productId/lots", () => {
-  it("returns 401 when no session cookie was sent", async () => {
-    const { productId } = await insertProduct(db);
-
-    const response = await listLots(productId, { origin: BACKOFFICE_ORIGIN });
-
-    expect(response.statusCode).toBe(401);
-  });
-
-  it("rejects a user holding no stock balances permission", async () => {
-    const { headers } = await signedInWith(db, ["adjust_stock"], NOON);
-    const { productId } = await insertProduct(db);
-
-    const response = await listLots(productId, headers);
-
-    expect(response.statusCode).toBe(403);
-  });
-
-  it("answers 404 for a product that does not exist", async () => {
-    const { headers } = await signedInWith(db, ["view_stock_balances"], NOON);
-
-    const response = await listLots("00000000-0000-4000-8000-000000000000", headers);
-
-    expect(response.statusCode).toBe(404);
-    expect(response.json()).toMatchObject({ code: "not_found" });
-  });
-
-  it("answers 400 for an id that is not a record id", async () => {
-    const { headers } = await signedInWith(db, ["view_stock_balances"], NOON);
-
-    const response = await listLots("not-an-id", headers);
-
-    expect(response.statusCode).toBe(400);
-  });
-
-  it("answers no lots for a product without any", async () => {
-    const { headers } = await signedInWith(db, ["view_stock_balances"], NOON);
-    const { productId } = await insertProduct(db);
-
-    const response = await listLots(productId, headers);
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ lots: [] });
-  });
-
-  it("lists the lots of the user's branch, valued, with the technical one unvalued", async () => {
-    const { headers, locationId, userId } = await signedInWith(db, ["view_stock_balances"], NOON);
-    const otherLocationId = await insertLocation(db);
-    const { productId } = await insertProduct(db);
-    const lotId = await insertPurchasedLot(db, {
-      productId,
-      locationId,
-      actorId: userId,
-      expiresOn: "2027-03-01",
-      lotNumber: "L-77",
-      remaining: 4_000,
-    });
-    const technicalId = await insertTechnicalLot(db, { productId, locationId, remaining: -2_000 });
-    await insertPurchasedLot(db, { productId, locationId: otherLocationId, actorId: userId });
-
-    const response = await listLots(productId, headers);
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
-      lots: [
-        {
-          id: lotId,
-          lotNumber: "L-77",
-          expiresOn: "2027-03-01",
-          purchasedOn: "2026-10-01",
-          technical: false,
-          remaining: 4_000,
-          valueCents: 20_000,
-          costIncomplete: false,
-        },
-        {
-          id: technicalId,
-          lotNumber: null,
-          expiresOn: null,
-          purchasedOn: null,
-          technical: true,
-          remaining: -2_000,
-          valueCents: null,
-          costIncomplete: true,
         },
       ],
     });

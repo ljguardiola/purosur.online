@@ -1,5 +1,4 @@
 import type { SaleUnit } from "../../catalog/index.js";
-import type { LotCost } from "../model/lot-value.js";
 import type { ManualStockMovementKind } from "../model/stock-movement-kind.js";
 import type { AdjustmentReason, LossReason } from "../model/stock-movement-reason.js";
 import type { ProductStockKey } from "./stock-store.js";
@@ -58,21 +57,9 @@ export interface StockMovementsQuery extends StockPeriodQuery {
   kinds: readonly ManualStockMovementKind[];
 }
 
-export interface LotInStock {
-  id: string;
-  lotNumber: string | null;
-  expiresOn: string | null;
-  purchasedOn: string | null;
-  technical: boolean;
-  remaining: number;
-  costIncomplete: boolean;
-  cost: LotCost | null;
-}
-
 export interface StockLedgerReader {
   product(productId: string): Promise<StockProduct | undefined>;
   ledgerAt(key: ProductStockKey, at: Date): Promise<LedgerAtMoment>;
-  lotsInStock(key: ProductStockKey): Promise<LotInStock[]>;
 }
 
 export interface StockListReader {
