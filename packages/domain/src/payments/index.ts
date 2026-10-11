@@ -17,14 +17,27 @@ export {
   PAYMENT_METHODS,
 } from "./model/payment.js";
 export { paymentRecord } from "./model/payment-record.js";
-export type { PlannedRefund, RefundablePayment, RefundState } from "./model/payment-refund.js";
+export type {
+  LatePaymentRefund,
+  PlannedRefund,
+  RefundablePayment,
+  RefundOrigin,
+  RefundState,
+} from "./model/payment-refund.js";
 export {
+  isRefundDiscardable,
+  isRefundDiscarded,
   isRefundPending,
+  LATE_PAYMENT_REFUND_ORIGIN,
+  latePaymentRefund,
   plannedRefunds,
+  REFUND_DISCARDED_STATE,
   REFUND_DONE_STATE,
+  REFUND_ORIGINS,
   REFUND_PENDING_STATE,
   REFUND_STATES,
   refundsSettleApprovedPayments,
+  SALE_CANCELLED_REFUND_ORIGIN,
 } from "./model/payment-refund.js";
 export type {
   MercadoPagoQrOrderTransaction,
@@ -35,6 +48,7 @@ export type {
   SalePayment,
 } from "./model/payment-transaction.js";
 export {
+  isLateApproval,
   isValidOrderAmount,
   PAYMENT_TRANSACTION_STATES,
   PENDING_PAYMENT_TRANSACTION_STATE,
