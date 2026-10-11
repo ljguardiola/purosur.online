@@ -1,4 +1,4 @@
-export class RecentlySeen {
+export class ReportedNotifications {
   private readonly capacity: number;
   private readonly keys = new Set<string>();
 
@@ -6,7 +6,7 @@ export class RecentlySeen {
     this.capacity = capacity;
   }
 
-  firstSighting(key: string): boolean {
+  firstReport(key: string): boolean {
     if (this.keys.has(key)) {
       return false;
     }

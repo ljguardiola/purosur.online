@@ -9,13 +9,13 @@ import type { FastifyInstance } from "fastify";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import { reportError } from "../platform/error-reporting.js";
 import { sendRateLimited } from "../platform/rate-limited-response.js";
-import { RecentlySeen } from "../platform/recently-seen.js";
 import { resolveSourceAddress } from "../platform/source-address.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzlePaymentNotificationAdmission } from "./drizzle-payment-notification-admission.js";
 import { DrizzlePaymentTransactionDirectory } from "./drizzle-payment-transaction-directory.js";
 import { DrizzlePaymentTransactionLanes } from "./drizzle-payment-transaction-lanes.js";
 import { verifyMercadoPagoNotificationSignature } from "./mercado-pago-notification-signature.js";
+import { ReportedNotifications } from "./reported-notifications.js";
 
 export interface MercadoPagoNotificationRoutesOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -68,7 +68,7 @@ export function registerMercadoPagoNotificationRoutes<TQueryResult extends PgQue
   const directory = new DrizzlePaymentTransactionDirectory(options.db);
   const lanes = new DrizzlePaymentTransactionLanes(options.connections);
   const report = options.report ?? reportError;
-  const reported = new RecentlySeen(NOTIFICATIONS_REMEMBERED_AS_REPORTED);
+  const reported = new ReportedNotifications(NOTIFICATIONS_REMEMBERED_AS_REPORTED);
 
   app.post(
     "/payments/mercado-pago/notifications",
@@ -101,7 +101,7 @@ export function registerMercadoPagoNotificationRoutes<TQueryResult extends PgQue
                 { providerOrderId: dataId },
               );
         if (outcome?.kind === "provider_unavailable") {
-          if (dataId !== undefined && reported.firstSighting(`order:${dataId}`)) {
+          if (dataId !== undefined && reported.firstReport(`order:${dataId}`)) {
             report(
               "payments: a Mercado Pago order its notification named could not be read",
               new Error("a Mercado Pago order its notification named could not be read"),
@@ -139,7 +139,7 @@ export function registerMercadoPagoNotificationRoutes<TQueryResult extends PgQue
               }
             : { reason: signature.reason, type },
         );
-        if (reported.firstSighting(JSON.stringify(["refused", type, dataId]))) {
+        if (reported.firstReport(JSON.stringify(["refused", type, dataId]))) {
           report(
             "payments: discarded a Mercado Pago notification with an invalid signature",
             new Error("discarded a Mercado Pago notification with an invalid signature"),
