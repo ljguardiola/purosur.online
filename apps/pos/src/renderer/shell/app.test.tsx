@@ -241,6 +241,9 @@ function coreAnswering(
         ? { kind: "unavailable" }
         : sales.addWeighedProduct(productId, weightThousandths);
     },
+    async weighProduct() {
+      return { kind: "scale_unavailable" };
+    },
     async removeSaleLine() {
       return { kind: "unavailable" };
     },

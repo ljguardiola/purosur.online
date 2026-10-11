@@ -13,6 +13,7 @@ import type {
   ScanProductOutcome,
   SearchProductsOutcome,
   SignInUser,
+  WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import {
@@ -30,7 +31,6 @@ import { OpenSessionRail } from "../shell/open-session-rail";
 import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
 import type { Refund } from "../shell/refund-lines";
 import type { SignedInPerson } from "../shell/signed-in-person";
-import { AddWeighedProductModal } from "./add-weighed-product-modal";
 import { CancelPaidSaleModal } from "./cancel-paid-sale-modal";
 import { CancelSaleModal } from "./cancel-sale-modal";
 import { ChangeLineWeightModal } from "./change-line-weight-modal";
@@ -48,6 +48,8 @@ import {
 } from "./sales-queries";
 import type { ScanProblem } from "./scan-problem-message";
 import { messageFor, ScanProblemMessage } from "./scan-problem-message";
+import type { ScaleWeighing } from "./use-scale-weighing";
+import { WeighProductModal } from "./weigh-product-modal";
 
 export type SaleScreenProps = {
   sessionId: string;
@@ -62,6 +64,7 @@ export type SaleScreenProps = {
     productId: string,
     weightThousandths: number,
   ) => Promise<AddWeighedProductOutcome>;
+  weighProduct: (productId: string) => Promise<WeighProductOutcome>;
   changeLineQuantity: (
     lineId: string,
     quantity: number,
@@ -111,6 +114,14 @@ const LOCKED_REASONS: Record<NonNullable<OpenSale["lines_lock"]>, string> = {
   qr_charge_in_progress: "Hay un cobro con QR en curso. Esperá a que termine.",
 };
 
+function reportsCoreState(outcome: TakenOutcome): boolean {
+  return (
+    outcome.kind === "not_signed_in" ||
+    outcome.kind === "no_open_session" ||
+    outcome.kind === "sale_has_payments"
+  );
+}
+
 function focusScanField(form: HTMLFormElement | null) {
   form?.querySelector("input")?.focus();
 }
@@ -131,6 +142,7 @@ export function SaleScreen({
   searchProducts,
   addProduct,
   addWeighedProduct,
+  weighProduct,
   changeLineQuantity,
   changeLineWeight,
   removeSaleLine,
@@ -159,12 +171,16 @@ export function SaleScreen({
   const [weighing, setWeighing] = useState<Weighing>();
   const editInFlight = useRef(false);
   const confirmingCancelNow = useRef(false);
-  const weighingNow = useRef(false);
+  const weighingNow = useRef<Weighing>(undefined);
   const listboxId = useId();
 
   useEffect(() => {
     function refocusWhenFocusIsLost(event: FocusEvent) {
-      if (event.relatedTarget === null && !confirmingCancelNow.current && !weighingNow.current) {
+      if (
+        event.relatedTarget === null &&
+        !confirmingCancelNow.current &&
+        weighingNow.current === undefined
+      ) {
         focusScanField(field.current);
       }
     }
@@ -219,7 +235,7 @@ export function SaleScreen({
   }
 
   function askForWeight(asking: Weighing | undefined) {
-    weighingNow.current = asking !== undefined;
+    weighingNow.current = asking;
     setWeighing(asking);
   }
 
@@ -282,6 +298,34 @@ export function SaleScreen({
       await take(asked.submitted, outcome, { kind: "add_failed" });
     }
     return "done";
+  }
+
+  async function weighOnScale(asked: Extract<Weighing, { kind: "add" }>): Promise<ScaleWeighing> {
+    const outcome = await weighProduct(asked.productId).catch(
+      (): WeighProductOutcome => ({ kind: "unavailable" }),
+    );
+    if (outcome.kind === "weighing" || outcome.kind === "scale_unavailable") {
+      return outcome;
+    }
+    if (outcome.kind === "added") {
+      await take(asked.submitted, outcome, { kind: "add_failed" });
+      const line = outcome.sale.lines.at(-1);
+      return line === undefined
+        ? { kind: "closed" }
+        : { kind: "taken", weightThousandths: line.quantity, amount: line.line_total };
+    }
+    const stillAsked = weighingNow.current === asked;
+    if (stillAsked) {
+      askForWeight(undefined);
+    }
+    if (outcome.kind === "not_sold_by_weight") {
+      if (stillAsked) {
+        refuse(asked.submitted, { kind: "not_sold_by_weight", product_name: asked.productName });
+      }
+    } else if (stillAsked || reportsCoreState(outcome)) {
+      await take(asked.submitted, outcome, { kind: "add_failed" });
+    }
+    return { kind: "closed" };
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -559,8 +603,9 @@ export function SaleScreen({
         onCancelSale={() => void edit(cancelSale, { kind: "cancel_failed" })}
       />
       {weighing?.kind === "add" ? (
-        <AddWeighedProductModal
+        <WeighProductModal
           productName={weighing.productName}
+          weigh={() => weighOnScale(weighing)}
           addWeighedProduct={(weight) => addWithWeight(weighing, weight)}
           onClose={() => askForWeight(undefined)}
         />

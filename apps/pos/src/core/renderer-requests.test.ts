@@ -37,6 +37,7 @@ import type {
   SetReceiptPrinterOutcome,
   SignInLookupOutcome,
   SignInOutcome,
+  WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import Database from "better-sqlite3";
@@ -65,6 +66,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const searches: string[] = [];
   const additions: string[] = [];
   const weighedAdditions: string[] = [];
+  const weighings: string[] = [];
   const kindLookups: string[] = [];
   const saleLookups: string[] = [];
   const chargeReads: { saleId: string; tendered: number }[] = [];
@@ -89,6 +91,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     searches,
     additions,
     weighedAdditions,
+    weighings,
     kindLookups,
     saleLookups,
     chargeReads,
@@ -265,6 +268,10 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       ): Promise<AddWeighedProductOutcome> => {
         weighedAdditions.push([productId, weightThousandths].join(" "));
         return { kind: "product_unavailable" };
+      },
+      weighProduct: async (productId: string): Promise<WeighProductOutcome> => {
+        weighings.push(productId);
+        return { kind: "weighing" };
       },
       currentSale: async (): Promise<OpenSale | null> => {
         saleLookups.push("read");
@@ -1449,6 +1456,39 @@ describe("answerRendererRequest", () => {
 
     expect(await answerRendererRequest(failing.deps, request)).toEqual(unavailable);
     expect(failing.failures).toEqual([{ context: "adding a product sold by weight", error }]);
+    expect(await answerRendererRequest(withoutDatabase.deps, request)).toEqual(unavailable);
+  });
+
+  it("weighs the product on the scale and answers the outcome", async () => {
+    const { deps: withScale, weighings } = deps(true);
+
+    expect(
+      await answerRendererRequest(withScale, {
+        type: "weigh-product",
+        request_id: "r90",
+        product_id: "p7",
+      }),
+    ).toEqual({ type: "weigh-product-result", request_id: "r90", outcome: { kind: "weighing" } });
+    expect(weighings).toEqual(["p7"]);
+  });
+
+  it("answers that weighing a product is unavailable when it fails or is not possible, and reports why", async () => {
+    const error = new Error("serial port busy");
+    const failing = deps(true, {
+      weighProduct: async () => {
+        throw error;
+      },
+    });
+    const withoutDatabase = deps(true, { weighProduct: undefined });
+    const unavailable = {
+      type: "weigh-product-result",
+      request_id: "r91",
+      outcome: { kind: "unavailable" },
+    };
+    const request = { type: "weigh-product", request_id: "r91", product_id: "p2" } as const;
+
+    expect(await answerRendererRequest(failing.deps, request)).toEqual(unavailable);
+    expect(failing.failures).toEqual([{ context: "weighing a product on the scale", error }]);
     expect(await answerRendererRequest(withoutDatabase.deps, request)).toEqual(unavailable);
   });
 

@@ -45,6 +45,7 @@ import type {
   SignInOutcome,
   SignInUser,
   StartMercadoPagoQrChargeOutcome,
+  WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import type { QueryClient } from "@tanstack/react-query";
@@ -168,6 +169,7 @@ export interface RouterContext {
     productId: string,
     weightThousandths: number,
   ) => Promise<AddWeighedProductOutcome>;
+  weighProduct: (productId: string) => Promise<WeighProductOutcome>;
   changeLineQuantity: (
     lineId: string,
     quantity: number,
@@ -466,6 +468,7 @@ const openSessionRoute = createRoute({
       searchProducts,
       addProduct,
       addWeighedProduct,
+      weighProduct,
       changeLineQuantity,
       changeLineWeight,
       removeSaleLine,
@@ -486,6 +489,7 @@ const openSessionRoute = createRoute({
         searchProducts={searchProducts}
         addProduct={addProduct}
         addWeighedProduct={addWeighedProduct}
+        weighProduct={weighProduct}
         changeLineQuantity={changeLineQuantity}
         changeLineWeight={changeLineWeight}
         removeSaleLine={removeSaleLine}
@@ -869,6 +873,7 @@ export function createAppRouter(
     | "searchProducts"
     | "addProduct"
     | "addWeighedProduct"
+    | "weighProduct"
     | "changeLineQuantity"
     | "changeLineWeight"
     | "removeSaleLine"
