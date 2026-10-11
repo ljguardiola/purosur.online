@@ -65,6 +65,7 @@ const CATALOG_INPUT_FILES = new Set([
   ".github/workflows/verify.yml",
   ".github/scripts/slow-tests-reporter.mjs",
   ".github/scripts/without-package-output.mjs",
+  ".github/scripts/test-durations.mjs",
 ]);
 
 export function isCatalogInput(path) {

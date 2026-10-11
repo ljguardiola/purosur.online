@@ -1,4 +1,8 @@
-import { preEmissionGateFailedEvent, RECEIPT_REPRINT_REASON_MAX_LENGTH } from "@purosur/domain";
+import {
+  MAX_UNIT_PRICE_CENTS,
+  preEmissionGateFailedEvent,
+  RECEIPT_REPRINT_REASON_MAX_LENGTH,
+} from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { syncedEventPayloadKey, syncedEventPayloadSchema } from "./synced-event-payloads.js";
 import { recordedEvents } from "./test-support/recorded-pushes.js";
@@ -131,12 +135,14 @@ describe("synced event payloads", () => {
       "reprint_recorded@1",
       "sale_cancelled@1",
       "sale_cancelled@2",
+      "sale_cancelled@3",
       "sale_completed@1",
       "sale_completed@2",
       "sale_completed@3",
       "sale_completed@4",
       "sale_completed@5",
       "sale_completed@6",
+      "sale_completed@7",
       "sale_print_state_changed@1",
     ]);
   });
@@ -156,8 +162,8 @@ describe("synced event payloads", () => {
 
   it.each([
     ["an unknown event type", "sale_opened", 1],
-    ["a sale_completed version nobody emitted", "sale_completed", 7],
-    ["a sale_cancelled version nobody emitted", "sale_cancelled", 3],
+    ["a sale_completed version nobody emitted", "sale_completed", 8],
+    ["a sale_cancelled version nobody emitted", "sale_cancelled", 4],
     ["version zero", "sale_completed", 0],
     ["a cash_session_opened version nobody emitted", "cash_session_opened", 2],
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
@@ -520,6 +526,127 @@ describe("synced event payloads", () => {
       );
       expect(accepts(eventType, version, sale)).toBe(true);
       expect(accepts(eventType, version, withLines(sale, [unit]))).toBe(true);
+    });
+  });
+
+  describe("a sale's lines recording their manual adjustment", () => {
+    const ADJUSTED_LINE = {
+      id: "line-3",
+      product_id: "yerba",
+      product_name: "Yerba 1 kg",
+      weight_source: null,
+      quantity: 2,
+      list_unit_price: 2500,
+      price_list_id: "list-1",
+      promotion_id: null,
+      discount_amount: 500,
+      promotions: [],
+      line_total: 4500,
+      manual_adjustment: {
+        kind: "PERCENT",
+        value: 10,
+        reason: "Cliente frecuente",
+        authorized_by: null,
+      },
+    };
+    const unadjusted = (line: Payload): Payload => ({ ...line, manual_adjustment: null });
+    const completed = (): Payload => {
+      const sale = recordedPayload("sale_completed", 6);
+      return { ...sale, lines: (sale["lines"] as Payload[]).map(unadjusted) };
+    };
+    const cancelled = (): Payload => {
+      const sale = structuredClone(CANCELLED_SALE_V1);
+      return {
+        ...sale,
+        lines: (sale["lines"] as Payload[]).map((line) =>
+          unadjusted({ ...line, weight_source: null }),
+        ),
+      };
+    };
+    const withLines = (sale: Payload, lines: Payload[]): Payload => ({
+      ...sale,
+      lines: [...(sale["lines"] as Payload[]), ...lines],
+    });
+    const adjustedWith = (change: Payload): Payload => ({
+      ...ADJUSTED_LINE,
+      manual_adjustment: { ...ADJUSTED_LINE.manual_adjustment, ...change },
+    });
+
+    it.each([
+      ["sale_completed", 7, completed],
+      ["sale_cancelled", 3, cancelled],
+    ])("accepts a %s v%i whose lines have no manual adjustment", (eventType, version, sale) => {
+      expect(accepts(eventType, version, sale())).toBe(true);
+    });
+
+    it.each([
+      ["a price", { kind: "PRICE", value: 2000 }],
+      ["a price of zero", { kind: "PRICE", value: 0 }],
+      ["a percent", { kind: "PERCENT", value: 100 }],
+      ["an amount", { kind: "AMOUNT", value: 300 }],
+      ["an authorizer", { authorized_by: "user-2" }],
+    ])("accepts a line adjusted with %s", (_case, change) => {
+      const line = adjustedWith(change);
+
+      expect(accepts("sale_completed", 7, withLines(completed(), [line]))).toBe(true);
+      expect(accepts("sale_cancelled", 3, withLines(cancelled(), [line]))).toBe(true);
+    });
+
+    it.each([
+      ["a kind nobody records", { kind: "BONUS" }],
+      ["a lowercase kind", { kind: "percent" }],
+      ["a percent of zero", { kind: "PERCENT", value: 0 }],
+      ["a percent over one hundred", { kind: "PERCENT", value: 101 }],
+      ["a fractional percent", { kind: "PERCENT", value: 10.5 }],
+      ["an amount of zero", { kind: "AMOUNT", value: 0 }],
+      ["a negative amount", { kind: "AMOUNT", value: -300 }],
+      ["a negative price", { kind: "PRICE", value: -1 }],
+      ["a fractional price", { kind: "PRICE", value: 20.5 }],
+      ["a price above the maximum", { kind: "PRICE", value: MAX_UNIT_PRICE_CENTS + 1 }],
+      ["an empty reason", { reason: "" }],
+      ["a reason with surrounding spaces", { reason: " Cliente frecuente " }],
+      ["an empty authorizer", { authorized_by: "" }],
+    ])("refuses a line adjusted with %s", (_case, change) => {
+      const line = adjustedWith(change);
+
+      expect(accepts("sale_completed", 7, withLines(completed(), [line]))).toBe(false);
+      expect(accepts("sale_cancelled", 3, withLines(cancelled(), [line]))).toBe(false);
+    });
+
+    it.each(["kind", "value", "reason", "authorized_by"])(
+      "refuses an adjustment without its %s",
+      (field) => {
+        const { [field]: _removed, ...adjustment } = ADJUSTED_LINE.manual_adjustment as Payload;
+        const line = { ...ADJUSTED_LINE, manual_adjustment: adjustment };
+
+        expect(accepts("sale_completed", 7, withLines(completed(), [line]))).toBe(false);
+        expect(accepts("sale_cancelled", 3, withLines(cancelled(), [line]))).toBe(false);
+      },
+    );
+
+    it("refuses a line without the field", () => {
+      const { manual_adjustment: _removed, ...line } = ADJUSTED_LINE;
+
+      expect(accepts("sale_completed", 7, withLines(completed(), [line]))).toBe(false);
+      expect(accepts("sale_cancelled", 3, withLines(cancelled(), [line]))).toBe(false);
+    });
+
+    it.each([
+      ["sale_completed", 6],
+      ["sale_cancelled", 2],
+    ])("keeps reading a %s v%i, whose lines carry no manual adjustment", (eventType, version) => {
+      const sale =
+        eventType === "sale_completed"
+          ? recordedPayload("sale_completed", 6)
+          : {
+              ...structuredClone(CANCELLED_SALE_V1),
+              lines: (CANCELLED_SALE_V1["lines"] as Payload[]).map((line) => ({
+                ...line,
+                weight_source: null,
+              })),
+            };
+
+      expect(accepts(eventType, version, sale)).toBe(true);
     });
   });
 
@@ -1003,7 +1130,7 @@ describe("sale_cancelled v1", () => {
   });
 
   it("refuses a version nobody emitted", () => {
-    expect(syncedEventPayloadKey("sale_cancelled", 3)).toBeUndefined();
+    expect(syncedEventPayloadKey("sale_cancelled", 4)).toBeUndefined();
   });
 
   it("refuses a cancelled sale without payments", () => {

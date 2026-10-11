@@ -55,10 +55,12 @@ export function addProductToSale(
       return { kind: "line_quantity_limit", productName: product.name };
     }
     tx.recordChangedLine(updated);
-    return added(tx, moment, {
-      ...existing,
-      lines: existing.lines.map((each) => (each === line ? updated : each)),
-    });
+    return added(
+      tx,
+      moment,
+      { ...existing, lines: existing.lines.map((each) => (each === line ? updated : each)) },
+      line.manualAdjustment !== null && updated.manualAdjustment === null,
+    );
   }
   const price = tx.priceAt(product.id, moment);
   if (!price) {

@@ -92,7 +92,11 @@ describe("SaleScreen", () => {
     const read = deferred<OpenSale | null>();
     const { screen, field } = await renderScreen({
       currentSale: () => read.promise,
-      scanProduct: async () => ({ kind: "added", sale: SALE_OF_YERBA }),
+      scanProduct: async () => ({
+        kind: "added",
+        removed_manual_discount: false,
+        sale: SALE_OF_YERBA,
+      }),
     });
 
     await scan(field, "7790001");
@@ -125,7 +129,11 @@ describe("SaleScreen", () => {
       ],
     ])("takes a scan typed after clicking %s", async (_place, target) => {
       const scanProduct = vi.fn(
-        async (): Promise<ScanProductOutcome> => ({ kind: "added", sale: SALE_OF_YERBA }),
+        async (): Promise<ScanProductOutcome> => ({
+          kind: "added",
+          removed_manual_discount: false,
+          sale: SALE_OF_YERBA,
+        }),
       );
       const { screen, field } = await renderScreen({
         currentSale: async () => SALE_OF_YERBA,
@@ -245,6 +253,7 @@ describe("SaleScreen", () => {
           charge_refusal: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
+          adjust_authorization_required: false,
         }),
       });
 
@@ -277,6 +286,7 @@ describe("SaleScreen", () => {
           charge_refusal: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
+          adjust_authorization_required: false,
         }),
       });
       const reference = await render(<Tag tone="success">Referencia</Tag>);
@@ -311,6 +321,7 @@ describe("SaleScreen", () => {
           charge_refusal: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
+          adjust_authorization_required: false,
         }),
       });
 
@@ -355,6 +366,7 @@ describe("SaleScreen", () => {
           charge_refusal: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
+          adjust_authorization_required: false,
         }),
       });
 
@@ -373,6 +385,7 @@ describe("SaleScreen", () => {
           charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 476_000 },
           refunds_on_cancel: [],
           cancel_authorization_required: false,
+          adjust_authorization_required: false,
         }),
       });
 
@@ -399,6 +412,7 @@ describe("SaleScreen", () => {
           charge_refusal: { kind: "no_buyer_identification_threshold" },
           refunds_on_cancel: [],
           cancel_authorization_required: false,
+          adjust_authorization_required: false,
         }),
       });
 
@@ -427,7 +441,11 @@ describe("SaleScreen", () => {
 
     it("enables Cobrar once a product is scanned into the sale", async () => {
       const { screen, field } = await renderScreen({
-        scanProduct: async () => ({ kind: "added", sale: SALE_OF_YERBA }),
+        scanProduct: async () => ({
+          kind: "added",
+          removed_manual_discount: false,
+          sale: SALE_OF_YERBA,
+        }),
       });
 
       await scan(field, "7790001");
@@ -462,7 +480,11 @@ describe("SaleScreen", () => {
     it("keeps a sale a scan already returned when the slower first read answers afterwards", async () => {
       const read = deferred<OpenSale | null>();
       const scanProduct = vi.fn(
-        async (): Promise<ScanProductOutcome> => ({ kind: "added", sale: SALE_OF_YERBA }),
+        async (): Promise<ScanProductOutcome> => ({
+          kind: "added",
+          removed_manual_discount: false,
+          sale: SALE_OF_YERBA,
+        }),
       );
       const { screen, field } = await renderScreen({
         currentSale: () => read.promise,
@@ -505,8 +527,16 @@ describe("SaleScreen", () => {
     it("shows the sale it returns, marks the line that changed and clears the field", async () => {
       const scanProduct = vi
         .fn<SaleScreenProps["scanProduct"]>()
-        .mockResolvedValueOnce({ kind: "added", sale: SALE_OF_YERBA })
-        .mockResolvedValueOnce({ kind: "added", sale: SALE_OF_YERBA_AND_ALFAJOR });
+        .mockResolvedValueOnce({
+          kind: "added",
+          removed_manual_discount: false,
+          sale: SALE_OF_YERBA,
+        })
+        .mockResolvedValueOnce({
+          kind: "added",
+          removed_manual_discount: false,
+          sale: SALE_OF_YERBA_AND_ALFAJOR,
+        });
       const { screen, field } = await renderScreen({ scanProduct });
       const lines = screen.getByRole("listitem");
 
@@ -534,7 +564,11 @@ describe("SaleScreen", () => {
 
     it("clears the field when the code had blanks around it", async () => {
       const { field } = await renderScreen({
-        scanProduct: async () => ({ kind: "added", sale: SALE_OF_YERBA }),
+        scanProduct: async () => ({
+          kind: "added",
+          removed_manual_discount: false,
+          sale: SALE_OF_YERBA,
+        }),
       });
 
       await scan(field, "7790001 ");
@@ -554,9 +588,14 @@ describe("SaleScreen", () => {
         charge_refusal: null,
         refunds_on_cancel: [],
         cancel_authorization_required: false,
+        adjust_authorization_required: false,
       };
       const scanProduct = vi.fn(
-        async (): Promise<ScanProductOutcome> => ({ kind: "added", sale: again }),
+        async (): Promise<ScanProductOutcome> => ({
+          kind: "added",
+          removed_manual_discount: false,
+          sale: again,
+        }),
       );
       const { screen, field } = await renderScreen({
         currentSale: async () => SALE_OF_YERBA_AND_ALFAJOR,
@@ -577,7 +616,7 @@ describe("SaleScreen", () => {
 
       await scan(field, "7790001");
       await field.fill("77900");
-      answer.resolve({ kind: "added", sale: SALE_OF_YERBA });
+      answer.resolve({ kind: "added", removed_manual_discount: false, sale: SALE_OF_YERBA });
 
       await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
       await expect.element(field).toHaveValue("77900");
@@ -588,7 +627,11 @@ describe("SaleScreen", () => {
       const scanProduct = vi
         .fn<SaleScreenProps["scanProduct"]>()
         .mockReturnValueOnce(answer.promise)
-        .mockResolvedValueOnce({ kind: "added", sale: SALE_OF_YERBA });
+        .mockResolvedValueOnce({
+          kind: "added",
+          removed_manual_discount: false,
+          sale: SALE_OF_YERBA,
+        });
       const { screen, field } = await renderScreen({ scanProduct });
 
       await scan(field, "7790009");
@@ -680,7 +723,11 @@ describe("SaleScreen", () => {
       const scanProduct = vi
         .fn<SaleScreenProps["scanProduct"]>()
         .mockResolvedValueOnce(outcome)
-        .mockResolvedValueOnce({ kind: "added", sale: SALE_OF_YERBA });
+        .mockResolvedValueOnce({
+          kind: "added",
+          removed_manual_discount: false,
+          sale: SALE_OF_YERBA,
+        });
       const { screen, field } = await renderScreen({ scanProduct });
       await expect.element(field).toHaveFocus();
 
@@ -785,7 +832,11 @@ describe("SaleScreen", () => {
       const scanProduct = vi
         .fn<SaleScreenProps["scanProduct"]>()
         .mockResolvedValueOnce({ kind: "unknown_code" })
-        .mockResolvedValueOnce({ kind: "added", sale: SALE_OF_YERBA });
+        .mockResolvedValueOnce({
+          kind: "added",
+          removed_manual_discount: false,
+          sale: SALE_OF_YERBA,
+        });
       const { screen, field } = await renderScreen({ scanProduct });
       await scan(field, "7790009");
       await expect.element(screen.getByText("No hay ningún producto con ese código")).toBeVisible();

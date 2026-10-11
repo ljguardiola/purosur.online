@@ -1,5 +1,5 @@
 import { IconButton } from "../../forms/icon-button";
-import type { TableAction, TableActions } from "./table-types";
+import type { TableAction, TableActions, TableVariant } from "./table-types";
 
 // 60px for one 38px IconButton, 104px for two with an 8px gap between them.
 const ACTIONS_CONTENT_WIDTH_PX: Record<1 | 2, number> = {
@@ -13,18 +13,22 @@ const CELL_INNER_PADDING_PX = 6;
 // table-fixed reads a column's width only from its header cell, whose padding shares the same
 // border-box as the declared width, so it has to be added on top of the content width here.
 export function headerColumnWidthStyle(
-  actionCount: 1 | 2 | undefined,
+  contentWidth: number | undefined,
   first: boolean,
   last: boolean,
+  variant: TableVariant,
 ): { width: string } | undefined {
-  if (actionCount === undefined) {
+  if (contentWidth === undefined) {
     return undefined;
   }
-  const leftPadding = first ? CELL_EDGE_PADDING_PX : CELL_INNER_PADDING_PX;
-  const rightPadding = last ? CELL_EDGE_PADDING_PX : CELL_INNER_PADDING_PX;
-  return {
-    width: `${ACTIONS_CONTENT_WIDTH_PX[actionCount] + leftPadding + rightPadding}px`,
-  };
+  const edgePadding = variant === "nested" ? 0 : CELL_EDGE_PADDING_PX;
+  const leftPadding = first ? edgePadding : CELL_INNER_PADDING_PX;
+  const rightPadding = last ? edgePadding : CELL_INNER_PADDING_PX;
+  return { width: `${contentWidth + leftPadding + rightPadding}px` };
+}
+
+export function actionsContentWidth(actionCount: 1 | 2): number {
+  return ACTIONS_CONTENT_WIDTH_PX[actionCount];
 }
 
 // No key: never in a `.map()`, so React tracks it by JSX position, updating this same button in

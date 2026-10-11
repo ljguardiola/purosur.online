@@ -1,5 +1,5 @@
 {
-  "id": "ce005343-16fe-48ee-8e82-c8058a159c77",
+  "id": "967a99d6-ea0b-4256-98cd-646eb2a7bcc8",
   "prevId": "078d443b-438f-47be-a645-651b34d1b98f",
   "version": "7",
   "dialect": "postgresql",
@@ -3149,12 +3149,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "provider_order_id": {
-          "name": "provider_order_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "origin": {
           "name": "origin",
           "type": "text",
@@ -3218,44 +3212,6 @@
         }
       },
       "indexes": {
-        "payment_refunds_transaction_without_order_unique": {
-          "name": "payment_refunds_transaction_without_order_unique",
-          "columns": [
-            {
-              "expression": "payment_transaction_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"payment_refunds\".\"provider_order_id\" is null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payment_refunds_transaction_order_unique": {
-          "name": "payment_refunds_transaction_order_unique",
-          "columns": [
-            {
-              "expression": "payment_transaction_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "provider_order_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"payment_refunds\".\"provider_order_id\" is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "payment_refunds_pending_idx": {
           "name": "payment_refunds_pending_idx",
           "columns": [
@@ -3309,7 +3265,13 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "payment_refunds_payment_transaction_id_unique": {
+          "name": "payment_refunds_payment_transaction_id_unique",
+          "nullsNotDistinct": false,
+          "columns": ["payment_transaction_id"]
+        }
+      },
       "policies": {},
       "checkConstraints": {
         "payment_refunds_state_check": {
@@ -5950,6 +5912,30 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "manual_adjustment_kind": {
+          "name": "manual_adjustment_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manual_adjustment_value": {
+          "name": "manual_adjustment_value",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manual_adjustment_reason": {
+          "name": "manual_adjustment_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manual_adjustment_authorized_by": {
+          "name": "manual_adjustment_authorized_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -5971,6 +5957,22 @@
         "sale_lines_weight_source_check": {
           "name": "sale_lines_weight_source_check",
           "value": "\"sale_lines\".\"weight_source\" IN ('SCALE', 'MANUAL')"
+        },
+        "sale_lines_manual_adjustment_kind_check": {
+          "name": "sale_lines_manual_adjustment_kind_check",
+          "value": "\"sale_lines\".\"manual_adjustment_kind\" IN ('PRICE', 'PERCENT', 'AMOUNT')"
+        },
+        "sale_lines_manual_adjustment_value_check": {
+          "name": "sale_lines_manual_adjustment_value_check",
+          "value": "(\"sale_lines\".\"manual_adjustment_value\" IS NULL) = (\"sale_lines\".\"manual_adjustment_kind\" IS NULL)\n        AND (\n          \"sale_lines\".\"manual_adjustment_kind\" IS NULL\n          OR (\"sale_lines\".\"manual_adjustment_kind\" = 'PRICE' AND \"sale_lines\".\"manual_adjustment_value\" >= 0)\n          OR (\"sale_lines\".\"manual_adjustment_kind\" = 'PERCENT' AND \"sale_lines\".\"manual_adjustment_value\" BETWEEN 1 AND 100)\n          OR (\"sale_lines\".\"manual_adjustment_kind\" = 'AMOUNT' AND \"sale_lines\".\"manual_adjustment_value\" > 0)\n        )"
+        },
+        "sale_lines_manual_adjustment_reason_check": {
+          "name": "sale_lines_manual_adjustment_reason_check",
+          "value": "(\"sale_lines\".\"manual_adjustment_reason\" IS NULL) = (\"sale_lines\".\"manual_adjustment_kind\" IS NULL)\n        AND (\"sale_lines\".\"manual_adjustment_reason\" IS NULL OR btrim(\"sale_lines\".\"manual_adjustment_reason\") <> '')"
+        },
+        "sale_lines_manual_adjustment_authorized_by_check": {
+          "name": "sale_lines_manual_adjustment_authorized_by_check",
+          "value": "\"sale_lines\".\"manual_adjustment_authorized_by\" IS NULL OR \"sale_lines\".\"manual_adjustment_kind\" IS NOT NULL"
         }
       },
       "isRLSEnabled": false

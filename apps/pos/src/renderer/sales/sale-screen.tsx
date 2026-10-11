@@ -1,6 +1,7 @@
 import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
+  AdjustSaleLineOutcome,
   Authorization,
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
@@ -8,7 +9,9 @@ import type {
   ChangeLineWeightOutcome,
   CurrentSaleAnswer,
   FoundProduct,
+  ManualAdjustmentRequest,
   OpenSale,
+  PreviewSaleLineAdjustmentOutcome,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
@@ -33,6 +36,7 @@ import { OpenSessionRail } from "../shell/open-session-rail";
 import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
 import type { Refund } from "../shell/refund-lines";
 import type { SignedInPerson } from "../shell/signed-in-person";
+import { AdjustLineModal } from "./adjust-line-modal";
 import { CancelPaidSaleModal } from "./cancel-paid-sale-modal";
 import { CancelSaleModal } from "./cancel-sale-modal";
 import { ChangeLineWeightModal } from "./change-line-weight-modal";
@@ -77,6 +81,16 @@ export type SaleScreenProps = {
     weightThousandths: number,
     expectedWeightThousandths: number,
   ) => Promise<ChangeLineWeightOutcome>;
+  adjustSaleLine: (
+    lineId: string,
+    adjustment: ManualAdjustmentRequest,
+    reason: string,
+    authorization: Authorization | undefined,
+  ) => Promise<AdjustSaleLineOutcome>;
+  previewSaleLineAdjustment: (
+    lineId: string,
+    adjustment: ManualAdjustmentRequest,
+  ) => Promise<PreviewSaleLineAdjustmentOutcome>;
   removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
   cancelSale: () => Promise<CancelSaleOutcome>;
   cancelPaidSale: (
@@ -124,6 +138,13 @@ function reportsCoreState(outcome: TakenOutcome): boolean {
   );
 }
 
+function discountRemovedFrom(sale: OpenSale, lineId: string | undefined): ScanProblem | undefined {
+  const line = sale.lines.find(({ id }) => id === lineId);
+  return line === undefined
+    ? undefined
+    : { kind: "manual_discount_removed", product_name: line.product_name };
+}
+
 function focusScanField(form: HTMLFormElement | null) {
   form?.querySelector("input")?.focus();
 }
@@ -147,6 +168,8 @@ export function SaleScreen({
   weighProduct,
   changeLineQuantity,
   changeLineWeight,
+  adjustSaleLine,
+  previewSaleLineAdjustment,
   removeSaleLine,
   cancelSale,
   cancelPaidSale,
@@ -171,9 +194,11 @@ export function SaleScreen({
   const [confirmingPaidCancel, setConfirmingPaidCancel] = useState(false);
   const [cancelledRefunds, setCancelledRefunds] = useState<Refund[]>();
   const [weighing, setWeighing] = useState<Weighing>();
+  const [adjusting, setAdjusting] = useState<SaleLine>();
   const editInFlight = useRef(false);
   const confirmingCancelNow = useRef(false);
   const weighingNow = useRef<Weighing>(undefined);
+  const adjustingNow = useRef(false);
   const listboxId = useId();
 
   useEffect(() => {
@@ -181,6 +206,7 @@ export function SaleScreen({
       if (
         event.relatedTarget === null &&
         !confirmingCancelNow.current &&
+        !adjustingNow.current &&
         weighingNow.current === undefined
       ) {
         focusScanField(field.current);
@@ -247,11 +273,17 @@ export function SaleScreen({
     failure: { kind: "scan_failed" } | { kind: "add_failed" },
   ) {
     switch (outcome.kind) {
-      case "added":
-        setProblem(undefined);
-        setChanged(changedLineId(await takeSale(outcome.sale), outcome.sale));
+      case "added": {
+        const addedLineId = changedLineId(await takeSale(outcome.sale), outcome.sale);
+        setProblem(
+          outcome.removed_manual_discount
+            ? discountRemovedFrom(outcome.sale, addedLineId)
+            : undefined,
+        );
+        setChanged(addedLineId);
         setCode((typed) => (typed.trim() === submitted ? "" : typed));
         break;
+      }
       case "not_signed_in":
       case "no_open_session":
         onSessionInvalid();
@@ -365,6 +397,23 @@ export function SaleScreen({
     await take(submitted, outcome, { kind: "add_failed" });
   }
 
+  function askToAdjust(line: SaleLine | undefined) {
+    adjustingNow.current = line !== undefined;
+    setAdjusting(line);
+  }
+
+  async function takeAdjustedSale(adjusted: OpenSale) {
+    askToAdjust(undefined);
+    setProblem(undefined);
+    setChanged(undefined);
+    await takeSale(adjusted);
+  }
+
+  async function readSaleAgainAfterAdjusting() {
+    askToAdjust(undefined);
+    await resetCurrentSale();
+  }
+
   function askToCancel(asking: boolean) {
     confirmingCancelNow.current = asking;
     setConfirmingCancel(asking);
@@ -397,6 +446,7 @@ export function SaleScreen({
   async function edit(
     request: () => Promise<SaleEditOutcome>,
     failure: SaleEditFailure,
+    line?: SaleLine,
   ): Promise<SaleEditOutcome["kind"] | undefined> {
     if (editInFlight.current) {
       return undefined;
@@ -411,6 +461,12 @@ export function SaleScreen({
     }
     switch (outcome.kind) {
       case "changed":
+        setProblem(
+          outcome.removed_manual_discount ? discountRemovedFrom(outcome.sale, line?.id) : undefined,
+        );
+        setChanged(undefined);
+        await takeSale(outcome.sale);
+        break;
       case "removed":
         setProblem(undefined);
         setChanged(undefined);
@@ -453,9 +509,11 @@ export function SaleScreen({
   }
 
   async function changeWeight(line: SaleLine, weight: number): Promise<"invalid_weight" | "done"> {
-    const outcome = await edit(() => changeLineWeight(line.id, weight, line.quantity), {
-      kind: "weight_change_failed",
-    });
+    const outcome = await edit(
+      () => changeLineWeight(line.id, weight, line.quantity),
+      { kind: "weight_change_failed" },
+      line,
+    );
     if (outcome === "invalid_weight") {
       return "invalid_weight";
     }
@@ -468,11 +526,12 @@ export function SaleScreen({
       !confirmingCancel &&
       !confirmingPaidCancel &&
       cancelledRefunds === undefined &&
-      weighing === undefined
+      weighing === undefined &&
+      adjusting === undefined
     ) {
       focusScanField(field.current);
     }
-  }, [confirmingCancel, confirmingPaidCancel, cancelledRefunds, weighing]);
+  }, [confirmingCancel, confirmingPaidCancel, cancelledRefunds, weighing, adjusting]);
 
   const found = results?.query === code.trim() && !dismissed ? results : undefined;
   const choosing = found !== undefined && found.products.length > 0;
@@ -591,10 +650,13 @@ export function SaleScreen({
               editable,
               lockedReason,
               onChangeQuantity: (line, quantity) =>
-                void edit(() => changeLineQuantity(line.id, quantity, line.quantity), {
-                  kind: "change_failed",
-                }),
+                void edit(
+                  () => changeLineQuantity(line.id, quantity, line.quantity),
+                  { kind: "change_failed" },
+                  line,
+                ),
               onChangeWeight: (line) => askForWeight({ kind: "change", line }),
+              onAdjust: askToAdjust,
               onRemove: (line) =>
                 void edit(() => removeSaleLine(line.id), { kind: "remove_failed" }),
             }}
@@ -634,6 +696,24 @@ export function SaleScreen({
           currentWeight={weighing.line.quantity}
           changeLineWeight={(weight) => changeWeight(weighing.line, weight)}
           onClose={() => askForWeight(undefined)}
+        />
+      ) : null}
+      {adjusting !== undefined && sale !== null ? (
+        <AdjustLineModal
+          lineId={adjusting.id}
+          productName={adjusting.product_name}
+          listUnitPrice={adjusting.list_unit_price}
+          quantity={adjusting.quantity}
+          saleUnit={adjusting.sale_unit}
+          authorizationRequired={sale.adjust_authorization_required}
+          person={person}
+          loadAuthorizers={loadAuthorizers}
+          adjustSaleLine={adjustSaleLine}
+          previewAdjustment={previewSaleLineAdjustment}
+          onAdjusted={(adjusted) => void takeAdjustedSale(adjusted)}
+          onSaleGone={() => void readSaleAgainAfterAdjusting()}
+          onSessionInvalid={onSessionInvalid}
+          onClose={() => askToAdjust(undefined)}
         />
       ) : null}
       {confirmingPaidCancel && sale !== null ? (

@@ -271,10 +271,11 @@ describe("running an operation that may take another person's authorization", ()
     expect(hashed).toEqual([]);
   });
 
-  it("takes only a cash movement, the cancellation of a paid sale and the reprint of a receipt", () => {
+  it("takes only a cash movement, the cancellation of a paid sale, the adjustment of a sale line and the reprint of a receipt", () => {
     type RunAuthorized = Parameters<ActionGate["runAuthorized"]>[0];
     expectTypeOf<{ kind: "record_cash_movement"; movement: "CASH_IN" }>().toExtend<RunAuthorized>();
     expectTypeOf<{ kind: "cancel_paid_sale" }>().toExtend<RunAuthorized>();
+    expectTypeOf<{ kind: "adjust_sale_line" }>().toExtend<RunAuthorized>();
     expectTypeOf<{ kind: "reprint_receipt" }>().toExtend<RunAuthorized>();
     expectTypeOf<{ kind: "sell" }>().not.toExtend<RunAuthorized>();
   });

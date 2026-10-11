@@ -150,6 +150,7 @@ describe("searchProductsByName", () => {
           listUnitPrice: 100,
           priceListId: "list-1",
           promotions: [],
+          manualAdjustment: null,
           promotionId: null,
           discountAmount: 0,
           lineTotal: 100,

@@ -30,6 +30,8 @@ function receipt(overrides: Partial<ReceiptContent> = {}): ReceiptContent {
         saleUnit: "KG",
         quantity: 350,
         listUnitPrice: 1_890_000,
+        chargedUnitPrice: 1_890_000,
+        manualAdjustment: null,
         promotion: null,
         discountAmount: 0,
         lineTotal: 661_500,
@@ -39,6 +41,8 @@ function receipt(overrides: Partial<ReceiptContent> = {}): ReceiptContent {
         saleUnit: "UNIT",
         quantity: 2,
         listUnitPrice: 420_000,
+        chargedUnitPrice: 420_000,
+        manualAdjustment: null,
         promotion: { kind: "PERCENT_OFF", percent: 10 },
         discountAmount: 84_000,
         lineTotal: 756_000,
@@ -48,6 +52,8 @@ function receipt(overrides: Partial<ReceiptContent> = {}): ReceiptContent {
         saleUnit: "UNIT",
         quantity: 1,
         listUnitPrice: 350_000,
+        chargedUnitPrice: 350_000,
+        manualAdjustment: null,
         promotion: null,
         discountAmount: 0,
         lineTotal: 350_000,
@@ -75,6 +81,8 @@ function singleUnitReceipt(productName: string, price: number): ReceiptContent {
         saleUnit: "UNIT",
         quantity: 1,
         listUnitPrice: price,
+        chargedUnitPrice: price,
+        manualAdjustment: null,
         promotion: null,
         discountAmount: 0,
         lineTotal: price,
@@ -201,6 +209,42 @@ const FISCAL_BODY = [
   ...CLOSING,
 ];
 
+const MANUAL_PRICE_LINE: ReceiptContent["lines"][number] = {
+  productName: "Yerba a granel",
+  saleUnit: "KG",
+  quantity: 500,
+  listUnitPrice: 1_890_000,
+  chargedUnitPrice: 1_600_000,
+  manualAdjustment: { kind: "PRICE", unitPrice: 1_600_000 },
+  promotion: null,
+  discountAmount: 0,
+  lineTotal: 800_000,
+};
+
+const MANUAL_PERCENT_LINE: ReceiptContent["lines"][number] = {
+  productName: "Alfajor",
+  saleUnit: "UNIT",
+  quantity: 2,
+  listUnitPrice: 420_000,
+  chargedUnitPrice: 420_000,
+  manualAdjustment: { kind: "PERCENT", percent: 10 },
+  promotion: null,
+  discountAmount: 84_000,
+  lineTotal: 756_000,
+};
+
+const MANUAL_AMOUNT_LINE: ReceiptContent["lines"][number] = {
+  productName: "Café molido 250 g",
+  saleUnit: "UNIT",
+  quantity: 1,
+  listUnitPrice: 350_000,
+  chargedUnitPrice: 350_000,
+  manualAdjustment: { kind: "AMOUNT", amount: 50_000 },
+  promotion: null,
+  discountAmount: 50_000,
+  lineTotal: 300_000,
+};
+
 function rowsWithinThePaper(content: ReceiptContent, copy: ReceiptCopy = ORIGINAL): boolean {
   return printed(content, copy).rows.every(({ text, small }) => text.length <= (small ? 64 : 48));
 }
@@ -246,6 +290,8 @@ describe("the ESC/POS receipt template", () => {
             saleUnit: "UNIT",
             quantity: 1,
             listUnitPrice: 350_000,
+            chargedUnitPrice: 350_000,
+            manualAdjustment: null,
             promotion: { kind: "PERCENT_OFF", percent: 10 },
             discountAmount: 35_000,
             lineTotal: 315_000,
@@ -267,6 +313,8 @@ describe("the ESC/POS receipt template", () => {
             saleUnit: "KG",
             quantity: 1_000,
             listUnitPrice: 1_890_000,
+            chargedUnitPrice: 1_890_000,
+            manualAdjustment: null,
             promotion: null,
             discountAmount: 0,
             lineTotal: 1_890_000,
@@ -356,6 +404,8 @@ describe("the ESC/POS receipt template", () => {
             saleUnit: "UNIT",
             quantity: 3,
             listUnitPrice: 420_000,
+            chargedUnitPrice: 420_000,
+            manualAdjustment: null,
             promotion: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
             discountAmount: 420_000,
             lineTotal: 840_000,
@@ -375,6 +425,77 @@ describe("the ESC/POS receipt template", () => {
     expect(textLines.join("\n")).not.toContain("Total de la línea");
   });
 
+  it("shows the unit price charged, not the list price, for a line whose price was overridden", () => {
+    const { textLines } = printed(
+      receipt({
+        lines: [
+          {
+            productName: "Alfajor",
+            saleUnit: "UNIT",
+            quantity: 3,
+            listUnitPrice: 420_000,
+            chargedUnitPrice: 300_000,
+            manualAdjustment: { kind: "PRICE", unitPrice: 300_000 },
+            promotion: null,
+            discountAmount: 0,
+            lineTotal: 900_000,
+          },
+        ],
+      }),
+    );
+
+    expect(textLines.join("\n")).toContain(
+      ["Alfajor", "  3 x $ 3.000,00                      $ 9.000,00", "  Precio modificado"].join(
+        "\n",
+      ),
+    );
+  });
+
+  it("shows the weight at the unit price charged for a line sold by weight whose price was overridden", () => {
+    const { textLines } = printed(
+      receipt({
+        lines: [
+          {
+            productName: "Yerba a granel",
+            saleUnit: "KG",
+            quantity: 500,
+            listUnitPrice: 1_890_000,
+            chargedUnitPrice: 1_600_000,
+            manualAdjustment: { kind: "PRICE", unitPrice: 1_600_000 },
+            promotion: null,
+            discountAmount: 0,
+            lineTotal: 800_000,
+          },
+        ],
+      }),
+    );
+
+    expect(textLines).toContain("  0,500 kg x $ 16.000,00 el kg        $ 8.000,00");
+  });
+
+  it("shows a manual discount by percentage below its line, as a negative amount", () => {
+    const { textLines } = printed(receipt({ lines: [MANUAL_PERCENT_LINE] }));
+
+    expect(textLines.join("\n")).toContain(
+      [
+        "Alfajor",
+        "  2 x $ 4.200,00                      $ 8.400,00",
+        "  Descuento manual 10 %                -$ 840,00",
+      ].join("\n"),
+    );
+  });
+
+  it("shows a manual discount of a fixed amount below its line, as a negative amount", () => {
+    const { textLines } = printed(receipt({ lines: [MANUAL_AMOUNT_LINE] }));
+
+    expect(textLines.join("\n")).toContain(
+      [
+        "Café molido 250 g                     $ 3.500,00",
+        "  Descuento manual                     -$ 500,00",
+      ].join("\n"),
+    );
+  });
+
   it("prints no row wider than the paper, 48 columns in the regular font and 64 in the small one", () => {
     const sales = [
       receipt(),
@@ -387,6 +508,7 @@ describe("the ESC/POS receipt template", () => {
       }),
       singleUnitReceipt("A".repeat(60), 980_000),
       singleUnitReceipt("Aceite de oliva extra virgen orgánico primera prensada en frío", 980_000),
+      receipt({ lines: [MANUAL_PRICE_LINE, MANUAL_PERCENT_LINE, MANUAL_AMOUNT_LINE] }),
     ];
     for (const sale of sales) {
       for (const copy of [ORIGINAL, { kind: "duplicate", orderNumber: 12 } as const]) {

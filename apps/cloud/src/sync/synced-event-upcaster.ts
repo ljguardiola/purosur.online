@@ -4,6 +4,7 @@ import {
   syncedEventPayloadKey,
   syncedEventPayloadSchema,
 } from "@purosur/contracts";
+import type { ManualAdjustment } from "@purosur/domain";
 import type {
   DecodedEvent,
   EventUpcaster,
@@ -17,9 +18,32 @@ type CompletedSalePayload = SyncedEventPayloads[
   | "sale_completed@3"
   | "sale_completed@4"
   | "sale_completed@5"
-  | "sale_completed@6"];
+  | "sale_completed@6"
+  | "sale_completed@7"];
 type SalePayment = SyncedEventPayloads["sale_completed@1" | "sale_completed@5"]["payments"][number];
-type CancelledSalePayload = SyncedEventPayloads["sale_cancelled@1" | "sale_cancelled@2"];
+type CancelledSalePayload = SyncedEventPayloads[
+  | "sale_cancelled@1"
+  | "sale_cancelled@2"
+  | "sale_cancelled@3"];
+
+type ManualAdjustmentPayload = NonNullable<
+  SyncedEventPayloads["sale_completed@7"]["lines"][number]["manual_adjustment"]
+>;
+
+function manualAdjustment(adjustment: ManualAdjustmentPayload | null): ManualAdjustment | null {
+  if (adjustment === null) {
+    return null;
+  }
+  const { reason, authorized_by: authorizedBy } = adjustment;
+  switch (adjustment.kind) {
+    case "PRICE":
+      return { kind: "PRICE", unitPrice: adjustment.value, reason, authorizedBy };
+    case "PERCENT":
+      return { kind: "PERCENT", percent: adjustment.value, reason, authorizedBy };
+    case "AMOUNT":
+      return { kind: "AMOUNT", amount: adjustment.value, reason, authorizedBy };
+  }
+}
 
 function saleParts(payload: CompletedSalePayload | CancelledSalePayload) {
   return {
@@ -33,6 +57,8 @@ function saleParts(payload: CompletedSalePayload | CancelledSalePayload) {
       promotionId: line.promotion_id,
       discountAmount: line.discount_amount,
       weightSource: "weight_source" in line ? line.weight_source : null,
+      manualAdjustment:
+        "manual_adjustment" in line ? manualAdjustment(line.manual_adjustment) : null,
       lineTotal: line.line_total,
     })),
     cashMovements: payload.cash_movements.map((movement) => ({
@@ -153,6 +179,14 @@ const FACT_OF: {
       payload.stock_movements,
       payload.operation_number,
     ),
+  "sale_completed@7": (payload) =>
+    completedSale(
+      payload,
+      payload.occurred_at,
+      payload.payments,
+      payload.stock_movements,
+      payload.operation_number,
+    ),
   "sale_print_state_changed@1": (payload) => ({
     kind: "sale_print_state_changed",
     printState: {
@@ -177,6 +211,7 @@ const FACT_OF: {
   }),
   "sale_cancelled@1": cancelledSale,
   "sale_cancelled@2": cancelledSale,
+  "sale_cancelled@3": cancelledSale,
   "cash_session_opened@1": (payload, event) => ({
     kind: "cash_session_opened",
     session: {

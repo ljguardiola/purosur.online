@@ -13,6 +13,7 @@ function line(id: string, quantity: number) {
     list_unit_price: 100,
     discount_amount: 0,
     promotion: null,
+    manual_adjustment: null,
     line_total: 100 * quantity,
   };
 }
@@ -29,6 +30,7 @@ function sale(...lines: ReturnType<typeof line>[]): OpenSale {
     charge_refusal: null,
     refunds_on_cancel: [],
     cancel_authorization_required: false,
+    adjust_authorization_required: false,
   };
 }
 

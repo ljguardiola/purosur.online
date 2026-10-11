@@ -1,6 +1,16 @@
 import type { OpenSale } from "@purosur/contracts";
 import { EmptyState, formatCents, formatWeight, IconButton, Tag } from "@purosur/ui";
-import { Minus, Package, Plus, Scale, ShoppingBasket, TagIcon, Trash2 } from "lucide-react";
+import {
+  Minus,
+  Package,
+  Percent,
+  Plus,
+  Scale,
+  ShoppingBasket,
+  TagIcon,
+  Trash2,
+} from "lucide-react";
+import { lineAdjustmentText } from "./line-adjustment-text";
 import { linePromotionText } from "./line-promotion-text";
 
 type SaleLine = OpenSale["lines"][number];
@@ -11,6 +21,7 @@ export type SaleLineActions = {
   lockedReason: string | undefined;
   onChangeQuantity: (line: SaleLine, quantity: number) => void;
   onChangeWeight: (line: SaleLine) => void;
+  onAdjust: (line: SaleLine) => void;
   onRemove: (line: SaleLine) => void;
 };
 
@@ -24,6 +35,13 @@ function availability(
   return { disabled: actions.busy || !actions.editable || unavailable };
 }
 
+function lineMark(line: SaleLine): string | undefined {
+  if (line.manual_adjustment !== null) {
+    return lineAdjustmentText(line.manual_adjustment);
+  }
+  return line.promotion === null ? undefined : linePromotionText(line.promotion);
+}
+
 function SaleLineRow({
   line,
   changed,
@@ -33,6 +51,7 @@ function SaleLineRow({
   changed: boolean;
   actions: SaleLineActions;
 }) {
+  const mark = lineMark(line);
   return (
     <li
       aria-current={changed ? "true" : undefined}
@@ -56,10 +75,10 @@ function SaleLineRow({
             {formatCents(line.list_unit_price)} el kg
           </span>
         ) : null}
-        {line.promotion === null ? null : (
+        {mark === undefined ? null : (
           <span>
             <Tag tone="success" icon={<TagIcon />}>
-              {linePromotionText(line.promotion)}
+              {mark}
             </Tag>
           </span>
         )}
@@ -92,13 +111,19 @@ function SaleLineRow({
         </span>
       )}
       <span className="flex w-37.5 shrink-0 flex-col text-right">
-        {line.promotion === null ? null : (
+        {line.discount_amount === 0 ? null : (
           <s className="text-detail text-text-subtle">
             {formatCents(line.line_total + line.discount_amount)}
           </s>
         )}
         <span className="text-heading text-text">{formatCents(line.line_total)}</span>
       </span>
+      <IconButton
+        aria-label={`Cambiar el precio de ${line.product_name}`}
+        icon={<Percent />}
+        {...availability(actions, false)}
+        onPress={() => actions.onAdjust(line)}
+      />
       <IconButton
         variant="subtle"
         aria-label={`Quitar ${line.product_name}`}

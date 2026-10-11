@@ -77,6 +77,7 @@ const decodedLine = {
   productId: saleLine.product_id,
   productName: "Azucar",
   weightSource: null,
+  manualAdjustment: null,
   quantity: 2,
   listUnitPrice: 2400,
   priceListId: saleLine.price_list_id,
@@ -404,6 +405,218 @@ describe("decoding the events the registers pushed", () => {
         expect(decoded).toMatchObject({ fact: { sale: { lines: [{ weightSource: null }] } } });
       },
     );
+  });
+
+  describe("the manual adjustment of a sale's line", () => {
+    const adjustedLine = {
+      ...saleLine,
+      weight_source: null,
+      discount_amount: 480,
+      line_total: 4320,
+      manual_adjustment: {
+        kind: "PERCENT",
+        value: 10,
+        reason: "Cliente frecuente",
+        authorized_by: "6f0c2a1e-3b54-4d7a-9c10-5e8a7b2d4f09",
+      },
+    };
+    const priceLine = {
+      ...saleLine,
+      id: "01a1122a-0305-7189-87d0-8256a353fd41",
+      weight_source: null,
+      line_total: 4000,
+      manual_adjustment: {
+        kind: "PRICE",
+        value: 2000,
+        reason: "Caja abierta",
+        authorized_by: null,
+      },
+    };
+    const amountLine = {
+      ...saleLine,
+      id: "01a1122a-0305-7189-87d0-8256a353fd42",
+      weight_source: null,
+      discount_amount: 300,
+      line_total: 4500,
+      manual_adjustment: {
+        kind: "AMOUNT",
+        value: 300,
+        reason: "Envase danado",
+        authorized_by: null,
+      },
+    };
+    const lines = [adjustedLine, priceLine, amountLine];
+    const decodedAdjustments = [
+      {
+        id: adjustedLine.id,
+        manualAdjustment: {
+          kind: "PERCENT",
+          percent: 10,
+          reason: "Cliente frecuente",
+          authorizedBy: "6f0c2a1e-3b54-4d7a-9c10-5e8a7b2d4f09",
+        },
+      },
+      {
+        id: priceLine.id,
+        manualAdjustment: {
+          kind: "PRICE",
+          unitPrice: 2000,
+          reason: "Caja abierta",
+          authorizedBy: null,
+        },
+      },
+      {
+        id: amountLine.id,
+        manualAdjustment: {
+          kind: "AMOUNT",
+          amount: 300,
+          reason: "Envase danado",
+          authorizedBy: null,
+        },
+      },
+    ];
+
+    it("reads a version 7 sale with each line's manual adjustment, its reason and who authorized it", () => {
+      const decoded = upcaster.decode(
+        unappliedEventOf(
+          pushed({
+            schema_version: 7,
+            payload: {
+              ...saleFields,
+              lines,
+              operation_number: 484,
+              payments: [{ ...salePayment, authorized_by: null, confirmed_at: null }],
+              stock_movements: [],
+            },
+          }),
+        ),
+      );
+
+      expect(decoded).toMatchObject({
+        kind: "fact",
+        fact: { kind: "sale_completed", sale: { lines: decodedAdjustments } },
+      });
+    });
+
+    it("reads a version 3 cancelled sale with each line's manual adjustment", () => {
+      const decoded = upcaster.decode(
+        unappliedEventOf(
+          pushed({
+            event_type: "sale_cancelled",
+            schema_version: 3,
+            payload: {
+              ...saleFields,
+              lines,
+              authorized_by: null,
+              payments: [{ ...salePayment, authorized_by: null, confirmed_at: null }],
+              refunds: [
+                {
+                  id: "01a1122a-0308-7000-8000-00000000aaa3",
+                  kind: "REFUND",
+                  parent_id: salePayment.id,
+                  method: "CASH",
+                  provider: "NONE",
+                  amount: 5000,
+                  state: "APPROVED",
+                  occurred_at: "2026-10-06T11:20:00.000Z",
+                },
+              ],
+            },
+          }),
+        ),
+      );
+
+      expect(decoded).toMatchObject({
+        kind: "fact",
+        fact: { kind: "sale_cancelled", sale: { lines: decodedAdjustments } },
+      });
+    });
+
+    it("refuses a version 7 sale whose line has an adjustment of an unknown kind", () => {
+      const decoded = upcaster.decode(
+        unappliedEventOf(
+          pushed({
+            schema_version: 7,
+            payload: {
+              ...saleFields,
+              lines: [
+                {
+                  ...adjustedLine,
+                  manual_adjustment: { ...adjustedLine.manual_adjustment, kind: "BONUS" },
+                },
+              ],
+              operation_number: 484,
+              payments: [{ ...salePayment, authorized_by: null, confirmed_at: null }],
+              stock_movements: [],
+            },
+          }),
+        ),
+      );
+
+      expect(decoded.kind).toBe("unreadable");
+    });
+
+    it.each([1, 2, 3, 4, 5, 6])(
+      "reads every line of a version %s sale as having no manual adjustment",
+      (version) => {
+        const decoded = upcaster.decode(
+          unappliedEventOf(
+            pushed({
+              schema_version: version,
+              payload: {
+                ...saleFields,
+                ...(version === 1 ? { completed_at: "2026-10-06T11:20:00.000Z" } : {}),
+                ...(version >= 4 ? { operation_number: 1 } : {}),
+                ...(version >= 3 ? { stock_movements: [] } : {}),
+                ...(version >= 6 ? { lines: [{ ...saleLine, weight_source: null }] } : {}),
+                payments: [
+                  version === 1
+                    ? salePayment
+                    : { ...salePayment, authorized_by: null, confirmed_at: null },
+                ],
+              },
+            }),
+          ),
+        );
+
+        expect(decoded).toMatchObject({
+          fact: { sale: { lines: [{ manualAdjustment: null }] } },
+        });
+      },
+    );
+
+    it("reads every line of a version 2 cancelled sale as having no manual adjustment", () => {
+      const decoded = upcaster.decode(
+        unappliedEventOf(
+          pushed({
+            event_type: "sale_cancelled",
+            schema_version: 2,
+            payload: {
+              ...saleFields,
+              lines: [{ ...saleLine, weight_source: null }],
+              authorized_by: null,
+              payments: [{ ...salePayment, authorized_by: null, confirmed_at: null }],
+              refunds: [
+                {
+                  id: "01a1122a-0308-7000-8000-00000000aaa3",
+                  kind: "REFUND",
+                  parent_id: salePayment.id,
+                  method: "CASH",
+                  provider: "NONE",
+                  amount: 5000,
+                  state: "APPROVED",
+                  occurred_at: "2026-10-06T11:20:00.000Z",
+                },
+              ],
+            },
+          }),
+        ),
+      );
+
+      expect(decoded).toMatchObject({
+        fact: { sale: { lines: [{ manualAdjustment: null }] } },
+      });
+    });
   });
 
   it("reads the print state of a sale's receipt", () => {
@@ -869,11 +1082,11 @@ describe("decoding the events the registers pushed", () => {
   });
 
   it("cannot read an event type and version no schema describes", () => {
-    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 7 })));
+    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 8 })));
 
     expect(decoded).toEqual({
       kind: "unreadable",
-      reason: "no schema reads sale_completed version 7",
+      reason: "no schema reads sale_completed version 8",
     });
   });
 

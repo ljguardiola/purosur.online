@@ -3,6 +3,7 @@ import type { AuthorizedFacturaC, FacturaCFiscalBlock } from "../../fiscal/index
 import { facturaCFiscalBlock } from "../../fiscal/index.js";
 import type { DiscountBenefit } from "../../pricing/index.js";
 import type { CompletedSalePayment } from "./completed-sale.js";
+import type { ManualAdjustmentValue } from "./manual-adjustment.js";
 import type { LinePromotion } from "./sale.js";
 
 type PaymentMethod = CompletedSalePayment["method"];
@@ -20,6 +21,7 @@ interface ReceiptSourceLine {
   listUnitPrice: number;
   promotions: LinePromotion[];
   promotionId: string | null;
+  manualAdjustment: ManualAdjustmentValue | null;
   discountAmount: number;
   lineTotal: number;
 }
@@ -51,6 +53,8 @@ interface ReceiptContentLine {
   saleUnit: SaleUnit;
   quantity: number;
   listUnitPrice: number;
+  chargedUnitPrice: number;
+  manualAdjustment: ManualAdjustmentValue | null;
   promotion: DiscountBenefit | null;
   discountAmount: number;
   lineTotal: number;
@@ -73,6 +77,10 @@ export function receiptContent(source: ReceiptSource): ReceiptContent {
   const lines = source.lines.map(
     ({ promotions, promotionId, ...line }): ReceiptContentLine => ({
       ...line,
+      chargedUnitPrice:
+        line.manualAdjustment?.kind === "PRICE"
+          ? line.manualAdjustment.unitPrice
+          : line.listUnitPrice,
       promotion: promotions.find(({ id }) => id === promotionId)?.benefit ?? null,
     }),
   );

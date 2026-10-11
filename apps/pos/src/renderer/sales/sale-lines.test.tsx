@@ -15,12 +15,14 @@ const YERBA: OpenSale["lines"][number] = {
   list_unit_price: 238_000,
   discount_amount: 0,
   promotion: null,
+  manual_adjustment: null,
   line_total: 476_000,
 };
 const LOCKED_REASON = "La venta ya no se puede cambiar porque tiene un pago aprobado.";
 const CONTROLS = [
   "Bajar la cantidad de Yerba mate 1 kg",
   "Subir la cantidad de Yerba mate 1 kg",
+  "Cambiar el precio de Yerba mate 1 kg",
   "Quitar Yerba mate 1 kg",
 ];
 
@@ -34,6 +36,7 @@ const QUESO: OpenSale["lines"][number] = {
   list_unit_price: 1_250_000,
   discount_amount: 0,
   promotion: null,
+  manual_adjustment: null,
   line_total: 1_562_500,
 };
 
@@ -45,6 +48,7 @@ async function renderLines(
   onTestFinished(() => page.viewport(414, 896));
   const onChangeQuantity = vi.fn();
   const onChangeWeight = vi.fn();
+  const onAdjust = vi.fn();
   const onRemove = vi.fn();
   const screen = await render(
     <SaleLines
@@ -56,12 +60,13 @@ async function renderLines(
         lockedReason: undefined,
         onChangeQuantity,
         onChangeWeight,
+        onAdjust,
         onRemove,
         ...actions,
       }}
     />,
   );
-  return { screen, onChangeQuantity, onChangeWeight, onRemove };
+  return { screen, onChangeQuantity, onChangeWeight, onAdjust, onRemove };
 }
 
 describe("SaleLines", () => {
@@ -77,6 +82,65 @@ describe("SaleLines", () => {
       [YERBA, 1],
     ]);
     expect(onRemove).toHaveBeenCalledExactlyOnceWith(YERBA);
+  });
+
+  it("asks to change the price of the line", async () => {
+    const { screen, onAdjust } = await renderLines();
+
+    await screen.getByRole("button", { name: "Cambiar el precio de Yerba mate 1 kg" }).click();
+
+    expect(onAdjust).toHaveBeenCalledExactlyOnceWith(YERBA);
+  });
+
+  describe("a line with a manual adjustment", () => {
+    it("shows the percentage discount in place of a promotion, with the price before it struck out", async () => {
+      const discounted: OpenSale["lines"][number] = {
+        ...YERBA,
+        discount_amount: 47_600,
+        manual_adjustment: {
+          kind: "PERCENT",
+          value: 10,
+        },
+        line_total: 428_400,
+      };
+      const { screen } = await renderLines({}, [discounted]);
+
+      await expect.element(screen.getByText("Descuento manual 10 %")).toBeVisible();
+      const before = screen.getByText("$ 4.760,00");
+      expect(before.element().tagName).toBe("S");
+      await expect.element(screen.getByText("$ 4.284,00")).toBeVisible();
+    });
+
+    it("shows a fixed amount discount as money", async () => {
+      const discounted: OpenSale["lines"][number] = {
+        ...YERBA,
+        discount_amount: 50_000,
+        manual_adjustment: {
+          kind: "AMOUNT",
+          value: 50_000,
+        },
+        line_total: 426_000,
+      };
+      const { screen } = await renderLines({}, [discounted]);
+
+      await expect.element(screen.getByText("Descuento manual $ 500,00")).toBeVisible();
+    });
+
+    it("shows a new price as modified, with nothing struck out", async () => {
+      const repriced: OpenSale["lines"][number] = {
+        ...YERBA,
+        manual_adjustment: {
+          kind: "PRICE",
+          value: 200_000,
+        },
+        line_total: 400_000,
+      };
+      const { screen } = await renderLines({}, [repriced]);
+
+      await expect.element(screen.getByText("Precio modificado: $ 2.000,00")).toBeVisible();
+      await expect.element(screen.getByText("$ 4.000,00")).toBeVisible();
+      expect(document.querySelector("s")).toBeNull();
+    });
   });
 
   it("locks every control of a line while a change is answering", async () => {

@@ -1,5 +1,7 @@
 import {
   type LinePromotion,
+  type ManualAdjustment,
+  type ManualAdjustmentValue,
   type OutboxEventDraft,
   type ReceiptDelivery,
   type ReceiptSource,
@@ -16,6 +18,7 @@ import { readSaleFiscalDocument } from "../fiscal/sqlite-sale-fiscal-document";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
+import { type ManualAdjustmentColumns, toManualAdjustment } from "./sqlite-manual-adjustment";
 import { type BenefitColumns, toBenefit } from "./sqlite-open-sale";
 
 interface DeliveryRow {
@@ -36,7 +39,7 @@ interface BranchRow {
   instagram_handle: string;
 }
 
-interface LineRow {
+interface LineRow extends ManualAdjustmentColumns {
   id: string;
   product_name: string;
   sale_unit: string;
@@ -56,6 +59,20 @@ interface StoredReceiptRow {
   template_version: string;
   head: Buffer;
   body: Buffer;
+}
+
+function adjustmentValue(adjustment: ManualAdjustment | null): ManualAdjustmentValue | null {
+  if (adjustment === null) {
+    return null;
+  }
+  switch (adjustment.kind) {
+    case "PRICE":
+      return { kind: "PRICE", unitPrice: adjustment.unitPrice };
+    case "PERCENT":
+      return { kind: "PERCENT", percent: adjustment.percent };
+    case "AMOUNT":
+      return { kind: "AMOUNT", amount: adjustment.amount };
+  }
 }
 
 export class SqliteReceiptLedger implements ReceiptLedger {
@@ -148,6 +165,10 @@ export class SqliteReceiptLedger implements ReceiptLedger {
                 sale_lines.sale_unit AS sale_unit, sale_lines.quantity AS quantity,
                 sale_lines.list_unit_price AS list_unit_price,
                 sale_lines.promotion_id AS promotion_id,
+                sale_lines.manual_adjustment_kind AS manual_adjustment_kind,
+                sale_lines.manual_adjustment_value AS manual_adjustment_value,
+                sale_lines.manual_adjustment_reason AS manual_adjustment_reason,
+                sale_lines.manual_adjustment_authorized_by AS manual_adjustment_authorized_by,
                 sale_lines.discount_amount AS discount_amount, sale_lines.line_total AS line_total
          FROM sale_lines
          WHERE sale_lines.sale_id = ? ORDER BY sale_lines.position`,
@@ -178,6 +199,7 @@ export class SqliteReceiptLedger implements ReceiptLedger {
           }),
         ),
       promotionId: line.promotion_id,
+      manualAdjustment: adjustmentValue(toManualAdjustment(line)),
       discountAmount: line.discount_amount,
       lineTotal: line.line_total,
     }));

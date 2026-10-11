@@ -304,6 +304,7 @@ export type {
 } from "./sales/core-messages.js";
 export {
   addWeighedProductMessageSchema,
+  adjustSaleLineMessageSchema,
   changeLineWeightMessageSchema,
   chargeSaleByTransferMessageSchema,
   chargeSaleInCashMessageSchema,
@@ -314,6 +315,7 @@ export {
 export type {
   AddProductOutcome,
   AddWeighedProductOutcome,
+  AdjustSaleLineOutcome,
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashCharge,
@@ -324,7 +326,9 @@ export type {
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
   FoundProduct,
+  ManualAdjustmentRequest,
   OpenSale,
+  PreviewSaleLineAdjustmentOutcome,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
@@ -408,6 +412,7 @@ export type {
   StockPeriod,
   StockPeriodDays,
   StockProduct,
+  StockProductBalance,
   StockProductList,
 } from "./stock/stock-lists.js";
 export {
@@ -418,6 +423,7 @@ export {
   stockMovementReasonListSchema,
   stockPeriodDaysSchema,
   stockPeriodSchema,
+  stockProductBalanceSchema,
   stockProductListSchema,
 } from "./stock/stock-lists.js";
 export type {

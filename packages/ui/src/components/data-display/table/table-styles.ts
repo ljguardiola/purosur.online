@@ -1,4 +1,4 @@
-import type { TableColumnAlign, TableRowState } from "./table-types";
+import type { TableColumnAlign, TableRowState, TableVariant } from "./table-types";
 
 export function alignClassName(align: TableColumnAlign | undefined): string {
   return align === "end" ? "text-right" : "text-left";
@@ -6,13 +6,21 @@ export function alignClassName(align: TableColumnAlign | undefined): string {
 
 // <tr> can't carry padding under table layout, so the row's own edge padding lives on the first
 // and last cell instead.
-export function cellHorizontalPaddingClassName(first: boolean, last: boolean): string {
-  return [first ? "pl-4" : "pl-1.5", last ? "pr-4" : "pr-1.5"].join(" ");
+export function cellHorizontalPaddingClassName(
+  first: boolean,
+  last: boolean,
+  variant: TableVariant = "framed",
+): string {
+  const edge = variant === "nested" ? ["pl-0", "pr-0"] : ["pl-4", "pr-4"];
+  return [first ? edge[0] : "pl-1.5", last ? edge[1] : "pr-1.5"].join(" ");
 }
 
 // A muted row's subtle text applies to every cell at once, so a column's own render() should
 // leave its text color unset to inherit it.
-export function rowStateClassName(state: TableRowState | undefined): string {
+export function rowStateClassName(
+  state: TableRowState | undefined,
+  variant: TableVariant = "framed",
+): string {
   switch (state) {
     case "selected":
       return "bg-action-subtle";
@@ -23,8 +31,14 @@ export function rowStateClassName(state: TableRowState | undefined): string {
     case "muted":
       return "bg-surface text-text-subtle";
     default:
-      return "bg-surface";
+      return variant === "nested" ? "" : "bg-surface";
   }
+}
+
+export function tableContainerClassName(variant: TableVariant): string {
+  return variant === "nested"
+    ? "relative isolate overflow-clip"
+    : "relative isolate overflow-clip rounded-lg border border-border bg-surface";
 }
 
 // An inset shadow, not a real border, so it never adds width to a row whose height is otherwise

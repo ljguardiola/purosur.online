@@ -1,4 +1,5 @@
 import type { CashMovementType } from "../../register/index.js";
+import type { ManualAdjustment } from "./manual-adjustment.js";
 import { saleUnitOfWeightSource, soldLineStockDelta } from "./sale-line.js";
 import type { WeightSource } from "./weight-source.js";
 
@@ -7,6 +8,7 @@ export interface CompletedSaleLine {
   productId: string;
   productName: string;
   weightSource: WeightSource | null;
+  manualAdjustment: ManualAdjustment | null;
   quantity: number;
   listUnitPrice: number;
   priceListId: string;
