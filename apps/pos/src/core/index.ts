@@ -86,6 +86,7 @@ import {
   chargeSaleByTransferFor,
   chargeSaleInCashFor,
   currentSaleFor,
+  previewSaleLineAdjustmentFor,
   removeSaleLineFor,
   scanProductFor,
   searchProductsFor,
@@ -666,6 +667,11 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : (request) => adjustSaleLineFor({ database: localDatabase, gate: actionGate, now }, request),
+  previewSaleLineAdjustment:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) =>
+          previewSaleLineAdjustmentFor({ database: localDatabase, gate: actionGate, now }, request),
   removeSaleLine:
     localDatabase === undefined || actionGate === undefined
       ? undefined

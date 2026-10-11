@@ -16,6 +16,7 @@ import type {
   CurrentSaleAnswer,
   ManualAdjustmentRequest,
   OpenSale,
+  PreviewSaleLineAdjustmentOutcome,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
@@ -52,6 +53,7 @@ import {
   currentSale,
   type IdGenerator,
   type OperationAuthorization,
+  previewSaleLineAdjustment,
   removeSaleLine,
   type Scale,
   searchProductsByName,
@@ -504,6 +506,34 @@ export async function adjustSaleLineFor(
     authorized_by:
       sale.lines.find(({ id }) => id === lineId)?.manual_adjustment?.authorized_by ?? null,
   };
+}
+
+export interface PreviewSaleLineAdjustmentRequest {
+  lineId: string;
+  adjustment: ManualAdjustmentRequest;
+}
+
+export async function previewSaleLineAdjustmentFor(
+  { database, gate, now }: Pick<SaleRequestDeps, "database" | "gate" | "now">,
+  { lineId, adjustment }: PreviewSaleLineAdjustmentRequest,
+): Promise<PreviewSaleLineAdjustmentOutcome> {
+  const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
+    previewSaleLineAdjustment(
+      { ledger: saleLedger(database), clock: { now } },
+      { actorId: signedInUserId, lineId, adjustment: toManualAdjustmentValue(adjustment) },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const outcome = guarded.result;
+  return outcome.kind === "preview"
+    ? {
+        kind: "preview",
+        discount_amount: outcome.discountAmount,
+        line_total: outcome.lineTotal,
+      }
+    : outcome;
 }
 
 export async function removeSaleLineFor(

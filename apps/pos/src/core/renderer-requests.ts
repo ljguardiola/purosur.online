@@ -26,6 +26,7 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  PreviewSaleLineAdjustmentOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
   ReceiptPrintStatusOutcome,
@@ -60,6 +61,7 @@ import type {
   CancelPaidSaleRequest,
   ChargeSaleByTransferRequest,
   ChargeSaleInCashRequest,
+  PreviewSaleLineAdjustmentRequest,
 } from "./sales/sale-requests";
 import type { SalesHistoryRequest } from "./sales/sales-history-requests";
 
@@ -124,6 +126,9 @@ export interface RendererRequestDeps {
       ) => Promise<ChangeLineWeightOutcome>)
     | undefined;
   adjustSaleLine: ((request: AdjustSaleLineRequest) => Promise<AdjustSaleLineOutcome>) | undefined;
+  previewSaleLineAdjustment:
+    | ((request: PreviewSaleLineAdjustmentRequest) => Promise<PreviewSaleLineAdjustmentOutcome>)
+    | undefined;
   removeSaleLine: ((lineId: string) => Promise<RemoveSaleLineOutcome>) | undefined;
   cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
   cancelPaidSale: ((request: CancelPaidSaleRequest) => Promise<CancelPaidSaleOutcome>) | undefined;
@@ -699,6 +704,23 @@ export async function answerRendererRequest(
                 adjustment: message.adjustment,
                 reason: message.reason,
                 authorization: message.authorization,
+              })),
+        ),
+      };
+    }
+    case "preview-sale-line-adjustment": {
+      const { previewSaleLineAdjustment } = deps;
+      return {
+        type: "preview-sale-line-adjustment-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "previewing a sale line adjustment",
+          previewSaleLineAdjustment &&
+            (() =>
+              previewSaleLineAdjustment({
+                lineId: message.line_id,
+                adjustment: message.adjustment,
               })),
         ),
       };
