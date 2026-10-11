@@ -3,6 +3,7 @@ import type {
   Authorization,
   ManualAdjustmentRequest,
   OpenSale,
+  PreviewSaleLineAdjustmentOutcome,
   SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
@@ -29,8 +30,10 @@ import {
   adjustLineRequestFrom,
   adjustLineValueMessage,
   EMPTY_ADJUST_LINE_FORM,
+  previewAdjustmentFrom,
   REQUIRED_REASON_MESSAGE,
 } from "./adjust-line-form";
+import { useAdjustmentPreviewQuery } from "./sales-queries";
 
 const FAILED_MESSAGE = "No se pudo aplicar el ajuste. Probá de nuevo.";
 const SAME_AS_LIST_PRICE_MESSAGE = "Ese es el precio de lista. Ingresá otro precio.";
@@ -48,6 +51,7 @@ const DISCOUNT_UNIT_OPTIONS = [
   { value: "AMOUNT", label: "$" },
 ] as const;
 
+const NOT_PREVIEWED = "—";
 const REPLACES_PROMOTION_HINT = "Reemplaza la promoción de la línea, si tiene.";
 
 export type AdjustLineModalProps = {
@@ -65,11 +69,28 @@ export type AdjustLineModalProps = {
     reason: string,
     authorization: Authorization | undefined,
   ) => Promise<AdjustSaleLineOutcome>;
+  previewAdjustment: (
+    lineId: string,
+    adjustment: ManualAdjustmentRequest,
+  ) => Promise<PreviewSaleLineAdjustmentOutcome>;
   onAdjusted: (sale: OpenSale) => void;
   onSaleGone: () => void;
   onSessionInvalid: () => void;
   onClose: () => void;
 };
+
+function previewRefusalMessage(
+  previewed: PreviewSaleLineAdjustmentOutcome | undefined,
+): string | undefined {
+  switch (previewed?.kind) {
+    case "same_as_list_price":
+      return SAME_AS_LIST_PRICE_MESSAGE;
+    case "discount_exceeds_line":
+      return DISCOUNT_EXCEEDS_LINE_MESSAGE;
+    default:
+      return undefined;
+  }
+}
 
 function valueLabel(kind: AdjustmentKind): string {
   switch (kind) {
@@ -92,6 +113,7 @@ export function AdjustLineModal({
   person,
   loadAuthorizers,
   adjustSaleLine,
+  previewAdjustment,
   onAdjusted,
   onSaleGone,
   onSessionInvalid,
@@ -104,7 +126,13 @@ export function AdjustLineModal({
     required: authorizationRequired,
     loadAuthorizers,
   });
-  const { form, submit, submitting, clearFieldError } = useRequestForm({
+  const {
+    form,
+    submit,
+    submitting,
+    clearFieldError,
+    values: typed,
+  } = useRequestForm({
     defaultValues: EMPTY_ADJUST_LINE_FORM,
     request: { schema: adjustLineFormRequestSchema, from: adjustLineRequestFrom },
     fields: { adjustment: "value", reason: "reason" },
@@ -162,6 +190,13 @@ export function AdjustLineModal({
     },
   });
 
+  const preview = useAdjustmentPreviewQuery({
+    lineId,
+    adjustment: previewAdjustmentFrom(typed),
+    read: previewAdjustment,
+  });
+  const previewed = preview.status === "loaded" ? preview.value : undefined;
+
   function changeKind(kind: AdjustmentKind) {
     form.setFieldValue("kind", kind);
     form.setFieldValue("value", "");
@@ -218,7 +253,6 @@ export function AdjustLineModal({
       }
     >
       <div className="flex flex-col gap-5">
-        <SummaryRowGroup rows={[{ label: "Precio de lista", value: formatCents(listUnitPrice) }]} />
         <form.Subscribe selector={(state) => state.values.kind}>
           {(kind) => (
             <div className="flex items-center justify-between gap-4">
@@ -254,12 +288,36 @@ export function AdjustLineModal({
                   value={field.state.value}
                   onChange={field.handleChange}
                   disabled={submitting}
-                  errorMessage={fieldErrorMessage(field.state.meta.errors)}
+                  errorMessage={
+                    fieldErrorMessage(field.state.meta.errors) ?? previewRefusalMessage(previewed)
+                  }
                 />
               )}
             </form.AppField>
           )}
         </form.Subscribe>
+        <SummaryRowGroup
+          rows={[
+            { label: "Precio de lista", value: formatCents(listUnitPrice) },
+            ...(typed.kind === "PRICE"
+              ? []
+              : [
+                  {
+                    label: "Descuento",
+                    value:
+                      previewed?.kind === "preview"
+                        ? `− ${formatCents(previewed.discount_amount)}`
+                        : NOT_PREVIEWED,
+                  },
+                ]),
+            {
+              label: "Queda la línea en",
+              value:
+                previewed?.kind === "preview" ? formatCents(previewed.line_total) : NOT_PREVIEWED,
+              strong: true,
+            },
+          ]}
+        />
         <form.AppField name="reason" listeners={{ onChange: () => setNotice(undefined) }}>
           {(field) => <field.TextField kind="plain-text" label="Motivo" disabled={submitting} />}
         </form.AppField>

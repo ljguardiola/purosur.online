@@ -34,6 +34,16 @@ export function adjustLineRequestFrom({ kind, value, reason }: AdjustLineFormVal
   return { adjustment: { kind, value: parsedValue(kind, value) }, reason };
 }
 
+export function previewAdjustmentFrom({
+  kind,
+  value,
+}: Pick<AdjustLineFormValues, "kind" | "value">): ManualAdjustmentRequest | undefined {
+  const parsed = adjustLineFormRequestSchema.shape.adjustment.safeParse(
+    adjustLineRequestFrom({ kind, value, reason: "" }).adjustment,
+  );
+  return parsed.success ? parsed.data : undefined;
+}
+
 export function adjustLineValueMessage(kind: AdjustmentKind): string {
   switch (kind) {
     case "PRICE":

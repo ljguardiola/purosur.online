@@ -27,6 +27,7 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  PreviewSaleLineAdjustmentOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
   ReceiptPrintStatusOutcome,
@@ -188,6 +189,10 @@ export interface RouterContext {
     reason: string,
     authorization: Authorization | undefined,
   ) => Promise<AdjustSaleLineOutcome>;
+  previewSaleLineAdjustment: (
+    lineId: string,
+    adjustment: ManualAdjustmentRequest,
+  ) => Promise<PreviewSaleLineAdjustmentOutcome>;
   removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
   cancelSale: () => Promise<CancelSaleOutcome>;
   cancelPaidSale: (
@@ -480,6 +485,7 @@ const openSessionRoute = createRoute({
       changeLineQuantity,
       changeLineWeight,
       adjustSaleLine,
+      previewSaleLineAdjustment,
       removeSaleLine,
       cancelSale,
       cancelPaidSale,
@@ -502,6 +508,7 @@ const openSessionRoute = createRoute({
         changeLineQuantity={changeLineQuantity}
         changeLineWeight={changeLineWeight}
         adjustSaleLine={adjustSaleLine}
+        previewSaleLineAdjustment={previewSaleLineAdjustment}
         removeSaleLine={removeSaleLine}
         cancelSale={cancelSale}
         cancelPaidSale={cancelPaidSale}
@@ -887,6 +894,7 @@ export function createAppRouter(
     | "changeLineQuantity"
     | "changeLineWeight"
     | "adjustSaleLine"
+    | "previewSaleLineAdjustment"
     | "removeSaleLine"
     | "cancelSale"
     | "cancelPaidSale"

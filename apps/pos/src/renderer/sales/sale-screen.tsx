@@ -11,6 +11,7 @@ import type {
   FoundProduct,
   ManualAdjustmentRequest,
   OpenSale,
+  PreviewSaleLineAdjustmentOutcome,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
@@ -86,6 +87,10 @@ export type SaleScreenProps = {
     reason: string,
     authorization: Authorization | undefined,
   ) => Promise<AdjustSaleLineOutcome>;
+  previewSaleLineAdjustment: (
+    lineId: string,
+    adjustment: ManualAdjustmentRequest,
+  ) => Promise<PreviewSaleLineAdjustmentOutcome>;
   removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
   cancelSale: () => Promise<CancelSaleOutcome>;
   cancelPaidSale: (
@@ -164,6 +169,7 @@ export function SaleScreen({
   changeLineQuantity,
   changeLineWeight,
   adjustSaleLine,
+  previewSaleLineAdjustment,
   removeSaleLine,
   cancelSale,
   cancelPaidSale,
@@ -703,6 +709,7 @@ export function SaleScreen({
           person={person}
           loadAuthorizers={loadAuthorizers}
           adjustSaleLine={adjustSaleLine}
+          previewAdjustment={previewSaleLineAdjustment}
           onAdjusted={(adjusted) => void takeAdjustedSale(adjusted)}
           onSaleGone={() => void readSaleAgainAfterAdjusting()}
           onSessionInvalid={onSessionInvalid}

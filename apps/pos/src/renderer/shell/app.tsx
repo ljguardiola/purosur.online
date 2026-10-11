@@ -376,6 +376,8 @@ function Register({ core }: { core: CoreClient }) {
       reason: string,
       authorization: Authorization | undefined,
     ) => core.adjustSaleLine(lineId, adjustment, reason, authorization),
+    previewSaleLineAdjustment: (lineId: string, adjustment: ManualAdjustmentRequest) =>
+      core.previewSaleLineAdjustment(lineId, adjustment),
     removeSaleLine: (lineId: string) => core.removeSaleLine(lineId),
     cancelSale: () => core.cancelSale(),
     cancelPaidSale: (saleId: string, authorization: Authorization | undefined) =>

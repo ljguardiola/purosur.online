@@ -31,6 +31,7 @@ import type {
   PaymentsRendererToCoreMessage,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  PreviewSaleLineAdjustmentOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
   ReceiptPrintStatusOutcome,
@@ -164,6 +165,10 @@ export interface CoreClient {
     reason: string,
     authorization: Authorization | undefined,
   ): Promise<AdjustSaleLineOutcome>;
+  previewSaleLineAdjustment(
+    lineId: string,
+    adjustment: ManualAdjustmentRequest,
+  ): Promise<PreviewSaleLineAdjustmentOutcome>;
   removeSaleLine(lineId: string): Promise<RemoveSaleLineOutcome>;
   cancelSale(): Promise<CancelSaleOutcome>;
   cancelPaidSale(
@@ -517,6 +522,18 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           ...(authorization === undefined ? {} : { authorization }),
         },
         (answer) => (answer.type === "adjust-sale-line-result" ? answer.outcome : undefined),
+      );
+    },
+    previewSaleLineAdjustment(lineId, adjustment) {
+      return ask(
+        {
+          type: "preview-sale-line-adjustment",
+          request_id: deps.newRequestId(),
+          line_id: lineId,
+          adjustment,
+        },
+        (answer) =>
+          answer.type === "preview-sale-line-adjustment-result" ? answer.outcome : undefined,
       );
     },
     removeSaleLine(lineId) {
