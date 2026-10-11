@@ -3,7 +3,10 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
 import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
-import { DrizzleWsaaTokenStore } from "./drizzle-wsaa-token-store.js";
+import {
+  DrizzleWsaaTokenStore,
+  type ResumeWorkWaitingOnToken,
+} from "./drizzle-wsaa-token-store.js";
 
 export const WSAA_TOKEN_RENEWAL_TASK_IDENTIFIER = "wsaa-token-renewal";
 
@@ -15,6 +18,8 @@ export interface WsaaTokenRenewalInput {
   now: () => Date;
   authentication: WsaaAuthentication;
   certificateFingerprint: string;
+  environment: string;
+  resumeWorkWaitingOnToken?: ResumeWorkWaitingOnToken;
 }
 
 interface WsaaTokenRenewalTaskInput extends WsaaTokenRenewalInput {
@@ -23,10 +28,24 @@ interface WsaaTokenRenewalTaskInput extends WsaaTokenRenewalInput {
 
 function renewWsaaTokenTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  { now, authentication, service, certificateFingerprint }: WsaaTokenRenewalTaskInput,
+  {
+    now,
+    authentication,
+    service,
+    certificateFingerprint,
+    environment,
+    resumeWorkWaitingOnToken,
+  }: WsaaTokenRenewalTaskInput,
 ) {
   return renewWsaaToken(
-    { store: new DrizzleWsaaTokenStore(db), authentication, clock: { now } },
+    {
+      store: new DrizzleWsaaTokenStore(db, {
+        environment,
+        ...(resumeWorkWaitingOnToken ? { resumeWorkWaitingOnToken } : {}),
+      }),
+      authentication,
+      clock: { now },
+    },
     { service, certificateFingerprint },
   );
 }

@@ -48,6 +48,7 @@ import {
   enqueueTaxAuthorityCountJob,
 } from "./fiscal/graphile-tax-authority-count-queue.js";
 import { offlineAuthorizationCodeJobs } from "./fiscal/offline-authorization-code-task.js";
+import { resumeWorkWaitingOnWsaaToken } from "./fiscal/resume-work-waiting-on-wsaa-token.js";
 import { taxAuthorityCountJobs } from "./fiscal/tax-authority-count-task.js";
 import { ArcaWsaaAuthentication, wsaaEndpointOf } from "./fiscal/wsaa-authentication.js";
 import { wsaaTokenRenewalJobs } from "./fiscal/wsaa-token-renewal-task.js";
@@ -375,12 +376,18 @@ function wsaaRenewalInput(
     privateKeyPem,
     certificateFingerprint,
   }: NonNullable<SetUpRecoveryEnv["arcaWsaa"]>,
+  environment: string,
+  resumesWorkWaitingOnToken: boolean,
   now: () => Date,
 ) {
   return {
     now,
     certificateFingerprint,
+    environment,
     authentication: new ArcaWsaaAuthentication({ endpoint, certificatePem, privateKeyPem, now }),
+    ...(resumesWorkWaitingOnToken
+      ? { resumeWorkWaitingOnToken: resumeWorkWaitingOnWsaaToken }
+      : {}),
   };
 }
 
@@ -487,7 +494,16 @@ export async function setUpRecovery(
           ]
         : []),
       ...(recoveryEnv.arcaWsaa
-        ? [wsaaTokenRenewalJobs(wsaaRenewalInput(recoveryEnv.arcaWsaa, now))]
+        ? [
+            wsaaTokenRenewalJobs(
+              wsaaRenewalInput(
+                recoveryEnv.arcaWsaa,
+                recoveryEnv.arcaCertificate.environment,
+                recoveryEnv.arcaInvoicing !== undefined,
+                now,
+              ),
+            ),
+          ]
         : []),
       ...(recoveryEnv.arcaBuyerTaxStatus
         ? [

@@ -1648,6 +1648,16 @@ export const arcaWsaaTokens = pgTable(
   (table) => [primaryKey({ columns: [table.service, table.certificateFingerprint] })],
 );
 
+export const arcaWsaaTicketRefusals = pgTable(
+  "arca_wsaa_ticket_refusals",
+  {
+    service: text("service").notNull(),
+    certificateFingerprint: text("certificate_fingerprint").notNull(),
+    refusedAt: timestamp("refused_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.service, table.certificateFingerprint] })],
+);
+
 export const caeaCodeOrigin = pgEnum("caea_code_origin", ["requested", "recovered"]);
 
 export const caeaCodes = pgTable(
