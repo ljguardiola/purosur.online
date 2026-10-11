@@ -278,13 +278,17 @@ describe("POST /sessions", () => {
     const first = await postAuthenticate({ assertion: await getAuthenticationAssertion(emulator) });
     const firstRawId = String(first.headers["set-cookie"]).split(";")[0]?.split("=")[1];
     onTestFinished(async () => {
-      await client.exec("alter table sessions drop column if exists injected_failure");
+      await testDatabase.asMigrator(() =>
+        client.exec("alter table sessions drop column if exists injected_failure"),
+      );
     });
     // A column with no default fails exactly the INSERT of the new session, while the revoke of
     // the incoming one (an UPDATE of an already-stored row) still goes through on its own.
-    await client.exec(
-      "alter table sessions add column injected_failure text not null default 'x';" +
-        "alter table sessions alter column injected_failure drop default;",
+    await testDatabase.asMigrator(() =>
+      client.exec(
+        "alter table sessions add column injected_failure text not null default 'x';" +
+          "alter table sessions alter column injected_failure drop default;",
+      ),
     );
 
     const response = await postAuthenticate(
