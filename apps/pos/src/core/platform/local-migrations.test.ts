@@ -2577,6 +2577,8 @@ describe("the register's local migrations", () => {
         .run(),
     ).toThrow(/CHECK/);
     database.close();
+  });
+
   it("let a sale line carry a manual adjustment of its price or a manual discount, none over the lines it already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
