@@ -522,9 +522,29 @@ describe("an event that cannot be applied yet", () => {
 
     await run(application, new FakeEventUpcaster({ "sale-event": aCompletedSaleFact() }));
 
-    expect(application.event("sale-event").error).toBe("deadlock detected");
+    expect(application.event("sale-event").error).toBe("reason of Error: deadlock detected");
     expect(application.state.quarantineAlerts).toEqual([
       expect.objectContaining({ eventId: "sale-event", reason: { kind: "not_recorded" } }),
+    ]);
+  });
+
+  it("names the quarantined event with the reason the event application gives a failure it did not expect", async () => {
+    const application = new FakeEventApplication([
+      appliedSessionOpening(),
+      saleEvent({ attempts: 7 }),
+    ]);
+    application.failRecording.set("sale-event", new Error("deadlock detected"));
+    const notices = new FakeQuarantineNotices();
+
+    await run(application, new FakeEventUpcaster({ "sale-event": aCompletedSaleFact() }), {
+      notices,
+    });
+
+    expect(notices.named).toEqual([
+      expect.objectContaining({
+        eventId: "sale-event",
+        error: "reason of Error: deadlock detected",
+      }),
     ]);
   });
 
@@ -549,7 +569,7 @@ describe("an event that cannot be applied yet", () => {
     expect(application.event("sale-event")).toMatchObject({
       appliedAt: null,
       attempts: 1,
-      error: "deadlock detected",
+      error: "reason of Error: deadlock detected",
     });
     expect(application.state.recorded).toEqual([]);
     expect(application.calls).toContain("rollback");
@@ -567,18 +587,18 @@ describe("an event that cannot be applied yet", () => {
     expect(application.event("sale-event")).toMatchObject({
       appliedAt: null,
       attempts: 1,
-      error: "alert store unavailable",
+      error: "reason of Error: alert store unavailable",
     });
     expect(application.state.recorded).toEqual([]);
   });
 
-  it("describes a failure that is not an error with its text", async () => {
+  it("asks the event application for the reason of a failure that is not an error", async () => {
     const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
     application.failRecording.set("sale-event", "just a string");
 
     await run(application, new FakeEventUpcaster({ "sale-event": aCompletedSaleFact() }));
 
-    expect(application.event("sale-event").error).toBe("just a string");
+    expect(application.event("sale-event").error).toBe("reason of just a string");
   });
 
   it("does not record a failed attempt for an event another worker applied meanwhile", async () => {

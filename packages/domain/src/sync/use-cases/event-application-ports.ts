@@ -50,6 +50,7 @@ export interface EventApplicationTransaction {
 
 export interface EventApplication {
   pendingAggregates(): Promise<AggregateKey[]>;
+  reasonOf(error: unknown): string;
   transaction<T>(work: (tx: EventApplicationTransaction) => Promise<T>): Promise<T>;
 }
 
