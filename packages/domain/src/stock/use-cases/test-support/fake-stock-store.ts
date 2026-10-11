@@ -36,7 +36,7 @@ export interface FakeStockLot extends ProductStockKey, StockLot {
   costComplete: boolean;
 }
 
-export interface FakeCountedLots {
+interface FakeCountedLots {
   movementId: string;
   lots: CountedLot[];
 }
