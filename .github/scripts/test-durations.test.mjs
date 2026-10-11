@@ -68,6 +68,41 @@ test("evens out the load where splitting by count would not", () => {
   assert.deepEqual(loads.sort(), [100, 100, 100]);
 });
 
+test("gives every shard a share of each project, whatever another project weighs", () => {
+  const heavy = entry("browser", "screen.test.tsx");
+  const light = ["a", "b", "c"].map((f) => entry("node", `${f}.test.ts`));
+  const durations = Object.fromEntries([
+    [heavy.key, 300],
+    ...light.map((e) => [e.key, 100]),
+  ]);
+
+  const nodeFilesPerShard = [1, 2].map(
+    (index) =>
+      shardEntries([heavy, ...light], durations, { index, count: 2 }).filter(
+        (e) => e.project === "node",
+      ).length,
+  );
+
+  assert.deepEqual(nodeFilesPerShard.sort(), [1, 2]);
+});
+
+test("spreads projects of a single file over different shards", () => {
+  const builds = ["backoffice-build", "register-build", "served-backoffice"].map((project) =>
+    entry(project, `${project}.test.ts`),
+  );
+  const durations = Object.fromEntries(builds.map((e, i) => [e.key, [28_000, 15_000, 9_000][i]]));
+  const node = Array.from({ length: 6 }, (_, i) => entry("node", `f${i}.test.ts`));
+
+  const buildsPerShard = [1, 2, 3].map(
+    (index) =>
+      shardEntries([...builds, ...node], durations, { index, count: 3 }).filter(
+        (e) => e.project !== "node",
+      ).length,
+  );
+
+  assert.deepEqual(buildsPerShard, [1, 1, 1]);
+});
+
 test("gives the same shards whatever the order of the entries", () => {
   const entries = Array.from({ length: 9 }, (_, i) => entry("node", `f${i}.test.ts`));
   const durations = Object.fromEntries(entries.map((e, i) => [e.key, (i % 3) * 10 + 5]));
