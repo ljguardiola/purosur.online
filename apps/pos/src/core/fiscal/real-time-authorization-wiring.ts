@@ -1,6 +1,7 @@
 import {
   type RealTimeTaxAuthority,
   recordRegisterHealthCheck,
+  settleInterruptedRealTimeAuthorizations,
 } from "@purosur/domain/fiscal/use-cases";
 import {
   type CloudClientDeps,
@@ -12,6 +13,7 @@ import { checkRegisterHealth } from "./check-register-health";
 import { CloudRealTimeTaxAuthority } from "./cloud-real-time-tax-authority";
 import { authorizeSaleInRealTime } from "./real-time-sale-authorization";
 import { startRegisterHealthMonitor } from "./register-health-monitor";
+import { SqliteRealTimeFiscalDocuments } from "./sqlite-real-time-fiscal-documents";
 import { SqliteRegisterHealthChecks } from "./sqlite-register-health-checks";
 
 export interface RealTimeAuthorizationWiringDeps {
@@ -60,6 +62,20 @@ export function createRealTimeAuthorization({
       }
     },
   };
+}
+
+export async function settleInterruptedAuthorizations({
+  database,
+  now,
+  reportFailure,
+}: Pick<RealTimeAuthorizationWiringDeps, "database" | "now" | "reportFailure">): Promise<void> {
+  if (database === undefined) {
+    return;
+  }
+  await settleInterruptedRealTimeAuthorizations({
+    documents: new SqliteRealTimeFiscalDocuments(database),
+    clock: { now },
+  }).catch(reportFailure);
 }
 
 export function startRegisterHealthChecks({

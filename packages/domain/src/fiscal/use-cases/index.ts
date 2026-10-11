@@ -136,6 +136,11 @@ export type {
 } from "./fiscal-document-authorization-ports.js";
 export { FiscalDocumentAlreadyRecorded } from "./fiscal-document-authorization-ports.js";
 export type {
+  InterruptedRealTimeAuthorization,
+  InterruptedRealTimeAuthorizationPorts,
+  InterruptedRealTimeAuthorizations,
+} from "./interrupted-real-time-authorization-ports.js";
+export type {
   AuthorizedIssuerIdentification,
   EditableIssuerIdentification,
   IssuerIdentification,
@@ -247,6 +252,8 @@ export type {
   SaleAuthorizationTransaction,
   SaleRoutedToDeferred,
 } from "./sale-authorization-ports.js";
+export type { SettleInterruptedRealTimeAuthorizationsOutcome } from "./settle-interrupted-real-time-authorizations.js";
+export { settleInterruptedRealTimeAuthorizations } from "./settle-interrupted-real-time-authorizations.js";
 export type {
   LastAuthorizedAnswer,
   LastAuthorizedCount,

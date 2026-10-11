@@ -17,6 +17,7 @@ import { pinPolicy } from "./credentials/pin-policy";
 import { applyRedeemedPin } from "./credentials/redeemed-pin";
 import {
   createRealTimeAuthorization,
+  settleInterruptedAuthorizations,
   startRegisterHealthChecks,
 } from "./fiscal/real-time-authorization-wiring";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
@@ -349,6 +350,12 @@ const realTimeAuthorization = createRealTimeAuthorization({
   readDeviceToken,
   now,
   reportFailure: (error) => reportFailure("the real-time authorization", error),
+});
+await settleInterruptedAuthorizations({
+  database: localDatabase,
+  now,
+  reportFailure: (error) =>
+    reportFailure("settling the interrupted real-time authorizations", error),
 });
 
 const mercadoPagoQrCharging = createMercadoPagoQrCharging({

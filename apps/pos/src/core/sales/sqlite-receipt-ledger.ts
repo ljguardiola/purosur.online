@@ -1,5 +1,4 @@
 import {
-  type FacturaC,
   type LinePromotion,
   type OutboxEventDraft,
   type ReceiptDelivery,
@@ -13,6 +12,7 @@ import type {
   ReceiptReprint,
   StoredReceipt,
 } from "@purosur/domain/sales/use-cases";
+import { readSaleFiscalDocument } from "../fiscal/sqlite-sale-fiscal-document";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
@@ -50,16 +50,6 @@ interface LineRow {
 interface FrozenPromotionRow extends BenefitColumns {
   line_id: string;
   discount_id: string;
-}
-
-interface FiscalDocumentRow {
-  state: string;
-  point_of_sale: number;
-  number: number;
-  issued_on: string;
-  document: string;
-  authorization_code: string | null;
-  authorization_code_due_on: string | null;
 }
 
 interface StoredReceiptRow {
@@ -147,37 +137,7 @@ export class SqliteReceiptLedger implements ReceiptLedger {
         amount: payment.amount,
         tendered: payment.method === "CASH" ? (payment.tendered ?? null) : null,
       })),
-      fiscal: this.receiptFiscalDocument(saleId),
-    };
-  }
-
-  private receiptFiscalDocument(saleId: string): ReceiptSource["fiscal"] {
-    const row = this.database
-      .prepare<[string], FiscalDocumentRow>(
-        `SELECT state, point_of_sale, number, issued_on, document, authorization_code,
-                authorization_code_due_on
-         FROM fiscal_documents WHERE sale_id = ? AND state IN ('REQUESTING', 'AUTHORIZED')`,
-      )
-      .get(saleId);
-    if (row === undefined) {
-      return { kind: "none" };
-    }
-    if (row.state === "REQUESTING") {
-      return { kind: "awaiting" };
-    }
-    if (row.authorization_code === null || row.authorization_code_due_on === null) {
-      throw new Error("the authorized fiscal document has no authorization code");
-    }
-    return {
-      kind: "authorized",
-      authorized: {
-        pointOfSale: row.point_of_sale,
-        number: row.number,
-        issuedOn: row.issued_on,
-        document: JSON.parse(row.document) as FacturaC,
-        authorizationCode: row.authorization_code,
-        authorizationCodeDueOn: row.authorization_code_due_on,
-      },
+      fiscal: readSaleFiscalDocument(this.database, saleId),
     };
   }
 

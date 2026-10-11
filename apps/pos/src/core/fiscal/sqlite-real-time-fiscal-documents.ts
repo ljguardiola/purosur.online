@@ -1,5 +1,12 @@
-import { type FacturaC, type PushedEvent, SALE_COMPLETED_EVENT_TYPE } from "@purosur/domain";
+import {
+  type FacturaC,
+  IN_PROGRESS_FISCAL_DOCUMENT_STATES,
+  type PushedEvent,
+  SALE_COMPLETED_EVENT_TYPE,
+} from "@purosur/domain";
 import type {
+  InterruptedRealTimeAuthorization,
+  InterruptedRealTimeAuthorizations,
   RealTimeAuthorizationResolved,
   RealTimeFiscalDocuments,
   WaitingFiscalDocument,
@@ -19,7 +26,14 @@ interface SaleEventRow extends Omit<PushedEvent, "payload"> {
   payload: string;
 }
 
-export class SqliteRealTimeFiscalDocuments implements RealTimeFiscalDocuments {
+interface RequestingDocumentRow {
+  id: string;
+  sale_id: string;
+}
+
+export class SqliteRealTimeFiscalDocuments
+  implements RealTimeFiscalDocuments, InterruptedRealTimeAuthorizations
+{
   private readonly database: LocalDatabase;
 
   constructor(database: LocalDatabase) {
@@ -45,6 +59,17 @@ export class SqliteRealTimeFiscalDocuments implements RealTimeFiscalDocuments {
       document: JSON.parse(row.document) as FacturaC,
       saleEvent: this.saleCompletedEvent(row.sale_id),
     };
+  }
+
+  async requestingDocuments(): Promise<readonly InterruptedRealTimeAuthorization[]> {
+    return this.database
+      .prepare<string[], RequestingDocumentRow>(
+        `SELECT id, sale_id FROM fiscal_documents
+         WHERE state IN (${IN_PROGRESS_FISCAL_DOCUMENT_STATES.map(() => "?").join(", ")})
+         ORDER BY reserved_at, id`,
+      )
+      .all(...IN_PROGRESS_FISCAL_DOCUMENT_STATES)
+      .map((row) => ({ fiscalDocumentId: row.id, saleId: row.sale_id }));
   }
 
   async resolve({
