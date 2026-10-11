@@ -2443,7 +2443,6 @@ describe("the register's local migrations", () => {
       );
       expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
         "0037_offline_point_of_sale_tax_authority_count",
-        "0041_pulled_table_redeliveries",
       );
       const before = openLocalDatabase(path, previous, migrationClock);
       before
