@@ -21,6 +21,16 @@ export type {
   UnclearOutcomeDecision,
 } from "../model/unclear-outcome-decision.js";
 export type {
+  ApplyUnclearOutcomeDecisionsPorts,
+  UnclearDocumentSettled,
+  UnclearFiscalDocuments,
+  UnclearOutcomeAnswer,
+  UnclearOutcomeCloud,
+  UnclearOutcomeQuestion,
+} from "./apply-unclear-outcome-decision-ports.js";
+export type { ApplyUnclearOutcomeDecisionsOutcome } from "./apply-unclear-outcome-decisions.js";
+export { applyUnclearOutcomeDecisions } from "./apply-unclear-outcome-decisions.js";
+export type {
   ArcaCertificateExpiryPorts,
   ArcaCertificateExpiryStore,
   ArcaCertificateExpiryStoreTransaction,
@@ -39,16 +49,6 @@ export type {
   ArcaVitalityStore,
   VitalityCheckRecord,
 } from "./arca-vitality-ports.js";
-export type {
-  ApplyUnclearOutcomeDecisionsPorts,
-  UnclearDocumentSettled,
-  UnclearFiscalDocuments,
-  UnclearOutcomeAnswer,
-  UnclearOutcomeCloud,
-  UnclearOutcomeQuestion,
-} from "./apply-unclear-outcome-decision-ports.js";
-export type { ApplyUnclearOutcomeDecisionsOutcome } from "./apply-unclear-outcome-decisions.js";
-export { applyUnclearOutcomeDecisions } from "./apply-unclear-outcome-decisions.js";
 export type {
   AskAboutUnclearOutcomeInput,
   AskAboutUnclearOutcomeOutcome,

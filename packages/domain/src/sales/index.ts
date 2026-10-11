@@ -33,6 +33,7 @@ export {
 } from "./model/receipt-reprint-reason.js";
 export type { LinePromotion, Sale, SaleLine, SaleState, SaleWithLines } from "./model/sale.js";
 export type {
+  DeferredSaleRecord,
   SaleComprobante,
   SaleFiscalDocument,
   SaleFiscalFacts,
@@ -40,6 +41,7 @@ export type {
   SaleStandingDefinition,
 } from "./model/sale-history.js";
 export {
+  isDeferralPending,
   SALE_STANDING_DEFINITIONS,
   SALE_STANDINGS,
   SALES_HISTORY_PAGE_SIZE,

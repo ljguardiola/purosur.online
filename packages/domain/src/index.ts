@@ -424,6 +424,7 @@ export {
   serialDeviceStandings,
 } from "./register/index.js";
 export type {
+  DeferredSaleRecord,
   LinePromotion,
   ListPrice,
   ManualAdjustment,
@@ -451,6 +452,7 @@ export type {
   WeightSource,
 } from "./sales/index.js";
 export {
+  isDeferralPending,
   isSalesReportRangeAsked,
   manualAdjustmentReason,
   mayBeManualDiscountAmount,

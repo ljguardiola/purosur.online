@@ -17,6 +17,14 @@ export interface SaleFiscalDocument {
   number: number;
 }
 
+export interface DeferredSaleRecord {
+  satisfied: boolean;
+}
+
+export function isDeferralPending(record: DeferredSaleRecord | null): boolean {
+  return record !== null && !record.satisfied;
+}
+
 export interface SaleFiscalFacts {
   deferred: boolean;
   fiscalDocument: SaleFiscalDocument | null;
