@@ -8,11 +8,6 @@ const CONFIGURER: SignedInPerson = {
   first_name: "Linus",
   abilities: ["configure_serial_devices"],
 };
-const CASHIER: SignedInPerson = {
-  user_id: "u2",
-  first_name: "Ada",
-  abilities: ["open_cash_session"],
-};
 
 function statusOffering(serial_devices_setup_offered: boolean): RegisterStatus {
   return {
@@ -34,11 +29,9 @@ const OPEN_CASH_SESSION: OpenCashSession = {
 
 describe("landsOnSerialDevicesAfterSignIn", () => {
   function offer({
-    person = CONFIGURER,
     offerPending = true,
     readStatus = async (): Promise<RegisterStatus> => OFFERED,
   }: {
-    person?: SignedInPerson;
     offerPending?: boolean;
     readStatus?: () => Promise<RegisterStatus>;
   } = {}) {
@@ -48,7 +41,6 @@ describe("landsOnSerialDevicesAfterSignIn", () => {
       settleOffer,
       read,
       taken: landsOnSerialDevicesAfterSignIn({
-        person,
         offerPending,
         settleOffer,
         readStatus: read,
@@ -69,17 +61,6 @@ describe("landsOnSerialDevicesAfterSignIn", () => {
     expect(await taken).toBe(false);
     expect(settleOffer).not.toHaveBeenCalled();
     expect(read).not.toHaveBeenCalled();
-  });
-
-  it("follows the core's answer for a person who may not configure the devices", async () => {
-    const { taken, settleOffer, read } = offer({
-      person: CASHIER,
-      readStatus: async () => NOT_OFFERED,
-    });
-
-    expect(await taken).toBe(false);
-    expect(settleOffer).toHaveBeenCalledOnce();
-    expect(read).toHaveBeenCalledOnce();
   });
 
   it("settles the offer when the core does not offer the devices setup", async () => {
