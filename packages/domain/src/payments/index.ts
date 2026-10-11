@@ -48,6 +48,7 @@ export type {
 export {
   isLateApproval,
   isValidOrderAmount,
+  mayHaveUnrecordedOrder,
   PAYMENT_TRANSACTION_STATES,
   PENDING_PAYMENT_TRANSACTION_STATE,
 } from "./model/payment-transaction.js";

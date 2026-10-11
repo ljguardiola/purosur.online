@@ -94,6 +94,19 @@ export function expiryWithoutOrder(
   return transaction.creationOutcomeUnknown ? "needs_review" : "expired";
 }
 
+export function mayHaveUnrecordedOrder(
+  transaction: Pick<
+    MercadoPagoQrOrderTransaction,
+    "state" | "providerOrderId" | "creationOutcomeUnknown"
+  >,
+): boolean {
+  return (
+    transaction.state === PENDING_PAYMENT_TRANSACTION_STATE &&
+    transaction.providerOrderId === null &&
+    transaction.creationOutcomeUnknown
+  );
+}
+
 export function isValidOrderAmount(cents: number): boolean {
   return Number.isSafeInteger(cents) && cents > 0;
 }
