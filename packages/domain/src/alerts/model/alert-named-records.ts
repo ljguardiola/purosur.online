@@ -8,7 +8,7 @@ export function alertScopeRecordId(alert: { kind: string; scope: string }): stri
     return undefined;
   }
   const { scopeKind } = alertKindPolicy(alert.kind);
-  if (scopeKind === "user" || scopeKind === "register" || scopeKind === "refund") {
+  if (scopeKind === "user" || scopeKind === "register") {
     return alert.scope;
   }
   return scopeKind === "registerFortnight"

@@ -22,8 +22,6 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   alertDeliveries,
   alerts,
-  paymentRefunds,
-  paymentTransactions,
   registers,
   roles,
   userRoles,
@@ -209,16 +207,7 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       .select({ id: registers.id, name: registers.name })
       .from(registers)
       .where(inArray(sql`${registers.id}::text`, [...ids]));
-    const refundRows = await this.db
-      .select({ id: paymentRefunds.id, name: registers.name })
-      .from(paymentRefunds)
-      .innerJoin(
-        paymentTransactions,
-        eq(paymentTransactions.id, paymentRefunds.paymentTransactionId),
-      )
-      .innerJoin(registers, eq(registers.id, paymentTransactions.registerId))
-      .where(inArray(sql`${paymentRefunds.id}::text`, [...ids]));
-    return new Map([...userRows, ...registerRows, ...refundRows].map((row) => [row.id, row.name]));
+    return new Map([...userRows, ...registerRows].map((row) => [row.id, row.name]));
   }
 
   private searchCondition(search: AlertSearch): SQL | undefined {
@@ -230,15 +219,6 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
     const matchingRegisterIds = this.db
       .select({ id: sql<string>`${registers.id}::text` })
       .from(registers)
-      .where(ilike(registers.name, pattern));
-    const matchingRefundIds = this.db
-      .select({ id: sql<string>`${paymentRefunds.id}::text` })
-      .from(paymentRefunds)
-      .innerJoin(
-        paymentTransactions,
-        eq(paymentTransactions.id, paymentRefunds.paymentTransactionId),
-      )
-      .innerJoin(registers, eq(registers.id, paymentTransactions.registerId))
       .where(ilike(registers.name, pattern));
     return or(
       search.kindsWithMatchingTitle.length > 0
@@ -258,10 +238,6 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
           sql`split_part(${alerts.scope}, ${REGISTER_FORTNIGHT_SCOPE_SEPARATOR}, 1)`,
           matchingRegisterIds,
         ),
-      ),
-      and(
-        inArray(alerts.kind, alertKindsWithScope("refund")),
-        inArray(alerts.scope, matchingRefundIds),
       ),
       and(
         inArray(alerts.kind, alertKindsWithScope("sourceAddress")),
