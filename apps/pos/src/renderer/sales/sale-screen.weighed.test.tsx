@@ -395,6 +395,55 @@ describe("SaleScreen weighing a product on the scale", () => {
   });
 
   it.each(["not_signed_in", "no_open_session"] as const)(
+    "reports the session as invalid when a cancelled weighing answers %s late",
+    async (kind) => {
+      const answer = deferred<WeighProductOutcome>();
+      const onSessionInvalid = vi.fn();
+      const { screen, field } = await scanning({
+        onSessionInvalid,
+        weighProduct: vi.fn(() => answer.promise),
+      });
+
+      await scan(field, "7790001");
+      await screen.getByRole("button", { name: "Cancelar" }).click();
+      answer.resolve({ kind });
+
+      await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
+    },
+  );
+
+  it("reads the sale again, keeping another product's weighing open, when a cancelled weighing answers late that the sale has payments", async () => {
+    const answer = deferred<WeighProductOutcome>();
+    const currentSale = vi.fn(async () => SALE_OF_YERBA);
+    const { screen, field } = await scanning({
+      currentSale,
+      scanProduct: vi
+        .fn<SaleScreenProps["scanProduct"]>()
+        .mockResolvedValueOnce(WEIGHT_NEEDED)
+        .mockResolvedValue({
+          kind: "weight_needed",
+          product_id: "p-salame",
+          product_name: "Salame",
+        }),
+      weighProduct: vi
+        .fn<SaleScreenProps["weighProduct"]>()
+        .mockReturnValueOnce(answer.promise)
+        .mockResolvedValue(WEIGHING_OUTCOME),
+    });
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+
+    await scan(field, "7790001");
+    await screen.getByRole("button", { name: "Cancelar" }).click();
+    await scan(field, "7790002");
+    await expect.element(screen.getByRole("heading", { name: "Peso de Salame" })).toBeVisible();
+    const readsBefore = currentSale.mock.calls.length;
+    answer.resolve({ kind: "sale_has_payments" });
+
+    await expect.poll(() => currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
+    await expect.element(screen.getByRole("heading", { name: "Peso de Salame" })).toBeVisible();
+  });
+
+  it.each(["not_signed_in", "no_open_session"] as const)(
     "reports the session as invalid on %s",
     async (kind) => {
       const onSessionInvalid = vi.fn();
