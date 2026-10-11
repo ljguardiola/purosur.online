@@ -13,6 +13,7 @@ export type {
   RealTimeSeries,
   RejectionClass,
 } from "../model/real-time-authorization.js";
+export type { UnclearOutcomeDecision } from "../model/unclear-outcome-decision.js";
 export type {
   ArcaCertificateExpiryPorts,
   ArcaCertificateExpiryStore,

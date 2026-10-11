@@ -47,9 +47,14 @@ import {
   enqueueMissingTaxAuthorityCounts,
   enqueueTaxAuthorityCountJob,
 } from "./fiscal/graphile-tax-authority-count-queue.js";
+import {
+  enqueueMissingUnclearOutcomes,
+  enqueueUnclearOutcomeJob,
+} from "./fiscal/graphile-unclear-outcome-queue.js";
 import { offlineAuthorizationCodeJobs } from "./fiscal/offline-authorization-code-task.js";
 import { resumeWorkWaitingOnWsaaToken } from "./fiscal/resume-work-waiting-on-wsaa-token.js";
 import { taxAuthorityCountJobs } from "./fiscal/tax-authority-count-task.js";
+import { unclearOutcomeJobs } from "./fiscal/unclear-outcome-task.js";
 import { ArcaWsaaAuthentication, wsaaEndpointOf } from "./fiscal/wsaa-authentication.js";
 import { wsaaTokenRenewalJobs } from "./fiscal/wsaa-token-renewal-task.js";
 import { WsfeArcaVitalityService, wsfeEndpointOf } from "./fiscal/wsfe-arca-vitality-service.js";
@@ -57,6 +62,7 @@ import { WsfeBuyerTaxStatusSource } from "./fiscal/wsfe-buyer-tax-status-source.
 import { WsfeTaxAuthorityInvoicing } from "./fiscal/wsfe-tax-authority-invoicing.js";
 import { WsfeTaxAuthorityLastAuthorized } from "./fiscal/wsfe-tax-authority-last-authorized.js";
 import { WsfeTaxAuthorityOfflineAuthorizationCodes } from "./fiscal/wsfe-tax-authority-offline-authorization-codes.js";
+import { WsfeTaxAuthorityVouchers } from "./fiscal/wsfe-tax-authority-vouchers.js";
 import { resolveMercadoPagoConfig } from "./payments/mercado-pago-config.js";
 import { createMercadoPagoOrdersClient } from "./payments/mercado-pago-orders-client.js";
 import { mercadoPagoPendingCheckJobs } from "./payments/mercado-pago-pending-check-task.js";
@@ -521,6 +527,15 @@ export async function setUpRecovery(
               taxAuthority: new WsfeTaxAuthorityLastAuthorized(recoveryEnv.arcaInvoicing),
               certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
             }),
+            unclearOutcomeJobs({
+              now,
+              vouchers: new WsfeTaxAuthorityVouchers(recoveryEnv.arcaInvoicing),
+              taxAuthority: new WsfeTaxAuthorityLastAuthorized(recoveryEnv.arcaInvoicing),
+              certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
+              db,
+              connections,
+              enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
+            }),
             offlineAuthorizationCodeJobs({
               now,
               taxAuthority: new WsfeTaxAuthorityOfflineAuthorizationCodes(
@@ -564,6 +579,7 @@ export interface StartServerDeps {
     workerUtils: RecoveryInfrastructure["workerUtils"],
   ) => Promise<unknown>;
   enqueueMissingTaxAuthorityCounts?: (db: RecoveryInfrastructure["db"]) => Promise<unknown>;
+  enqueueMissingUnclearOutcomes?: (db: RecoveryInfrastructure["db"]) => Promise<unknown>;
   now?: () => Date;
   arcaEndpoints: (environment: string) => ArcaEndpoints;
   recordAuthorizedCuit?: (
@@ -595,6 +611,8 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
     deps.enqueueBuyerTaxStatusFetch ?? enqueueBuyerTaxStatusFetch;
   const doEnqueueMissingTaxAuthorityCounts =
     deps.enqueueMissingTaxAuthorityCounts ?? enqueueMissingTaxAuthorityCounts;
+  const doEnqueueMissingUnclearOutcomes =
+    deps.enqueueMissingUnclearOutcomes ?? enqueueMissingUnclearOutcomes;
   const doRecordAuthorizedCuit =
     deps.recordAuthorizedCuit ??
     ((db: RecoveryInfrastructure["db"], authorizedCuit: string) =>
@@ -679,6 +697,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
             connections: database.recovery.connections,
             taxAuthority: new WsfeTaxAuthorityInvoicing(invoicing),
             certificateFingerprint: invoicing.certificateFingerprint,
+            enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
           },
         }
       : {}),
@@ -692,6 +711,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
     }
     if (invoicing) {
       await doEnqueueMissingTaxAuthorityCounts(database.recovery.db);
+      await doEnqueueMissingUnclearOutcomes(database.recovery.db);
     }
   }
   await app.listen({ port: resolvePort(env), host: "0.0.0.0" });
