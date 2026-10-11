@@ -48,6 +48,10 @@ export function unclearOutcomeSettlesAt(abandonedAt: Date): Date {
   return new Date(abandonedAt.getTime() + UNCLEAR_OUTCOME_SETTLING_DELAY_MS);
 }
 
+export function hasUnclearOutcomeSettled(abandonedAt: Date, now: Date): boolean {
+  return now.getTime() >= unclearOutcomeSettlesAt(abandonedAt).getTime();
+}
+
 export function voucherMatchesDocument(
   voucher: TaxAuthorityVoucher,
   document: Omit<UnclearDocument, "number">,
@@ -68,9 +72,8 @@ export function decideUnclearOutcome({
   document,
   evidence,
 }: DecideUnclearOutcomeInput): UnclearOutcomeVerdict {
-  const settlesAt = unclearOutcomeSettlesAt(abandonedAt);
-  if (now.getTime() < settlesAt.getTime()) {
-    return { kind: "pending", askAgainAt: settlesAt };
+  if (!hasUnclearOutcomeSettled(abandonedAt, now)) {
+    return { kind: "pending", askAgainAt: unclearOutcomeSettlesAt(abandonedAt) };
   }
   if (evidence.kind === "voucher") {
     return voucherMatchesDocument(evidence.voucher, document)
