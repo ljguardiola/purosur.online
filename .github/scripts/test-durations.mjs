@@ -48,10 +48,6 @@ export function shardPlan(entries, durations, { index, count }) {
   };
 }
 
-export function balancedShard(entries, durations, position) {
-  return shardPlan(entries, durations, position).entries;
-}
-
 async function jsonFilesUnder(dir) {
   const found = [];
   for (const dirent of await readdir(dir, { withFileTypes: true })) {
