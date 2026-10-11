@@ -575,6 +575,13 @@
       "when": 1791723567499,
       "tag": "0085_unclear_outcome_decisions",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1791728491457,
+      "tag": "0086_manual_line_adjustments",
+      "breakpoints": true
     }
   ]
 }

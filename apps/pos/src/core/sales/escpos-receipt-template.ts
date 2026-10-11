@@ -204,7 +204,7 @@ function weightText(thousandths: number): string {
 
 function saleLine(line: ReceiptContent["lines"][number]): string[] {
   const amount = formatCents(line.lineTotal + line.discountAmount);
-  const price = formatCents(line.listUnitPrice);
+  const price = formatCents(line.chargedUnitPrice);
   const detail =
     line.saleUnit === "KG"
       ? `${weightText(line.quantity)} kg x ${price} el kg`
