@@ -114,6 +114,14 @@ const LOCKED_REASONS: Record<NonNullable<OpenSale["lines_lock"]>, string> = {
   qr_charge_in_progress: "Hay un cobro con QR en curso. Esperá a que termine.",
 };
 
+function reportsCoreState(outcome: TakenOutcome): boolean {
+  return (
+    outcome.kind === "not_signed_in" ||
+    outcome.kind === "no_open_session" ||
+    outcome.kind === "sale_has_payments"
+  );
+}
+
 function focusScanField(form: HTMLFormElement | null) {
   form?.querySelector("input")?.focus();
 }
@@ -299,24 +307,25 @@ export function SaleScreen({
     if (outcome.kind === "weighing" || outcome.kind === "scale_unavailable") {
       return outcome;
     }
-    if (outcome.kind !== "added" && weighingNow.current !== asked) {
-      return { kind: "closed" };
+    if (outcome.kind === "added") {
+      await take(asked.submitted, outcome, { kind: "add_failed" });
+      const line = outcome.sale.lines.at(-1);
+      return line === undefined
+        ? { kind: "closed" }
+        : { kind: "taken", weightThousandths: line.quantity, amount: line.line_total };
+    }
+    const stillAsked = weighingNow.current === asked;
+    if (stillAsked) {
+      askForWeight(undefined);
     }
     if (outcome.kind === "not_sold_by_weight") {
-      askForWeight(undefined);
-      refuse(asked.submitted, { kind: "not_sold_by_weight", product_name: asked.productName });
-      return { kind: "closed" };
-    }
-    if (outcome.kind !== "added") {
-      askForWeight(undefined);
+      if (stillAsked) {
+        refuse(asked.submitted, { kind: "not_sold_by_weight", product_name: asked.productName });
+      }
+    } else if (stillAsked || reportsCoreState(outcome)) {
       await take(asked.submitted, outcome, { kind: "add_failed" });
-      return { kind: "closed" };
     }
-    await take(asked.submitted, outcome, { kind: "add_failed" });
-    const line = outcome.sale.lines.at(-1);
-    return line === undefined
-      ? { kind: "closed" }
-      : { kind: "taken", weightThousandths: line.quantity, amount: line.line_total };
+    return { kind: "closed" };
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
