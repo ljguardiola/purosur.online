@@ -10,7 +10,10 @@ export function isWsaaTokenDueForRenewal(token: WsaaTokenExpiry | null, now: Dat
   return token === null || !isWsaaTokenValid(token, now);
 }
 
-export const WSAA_ALREADY_AUTHENTICATED_RETRY_MS = 10 * 60 * 1000;
+export const WSAA_ALREADY_AUTHENTICATED_RETRY_MINUTES = 10;
+
+export const WSAA_ALREADY_AUTHENTICATED_RETRY_MS =
+  WSAA_ALREADY_AUTHENTICATED_RETRY_MINUTES * 60 * 1000;
 
 export function isWsaaTokenRetryDue(lastRefusedAt: Date | null, now: Date): boolean {
   return (

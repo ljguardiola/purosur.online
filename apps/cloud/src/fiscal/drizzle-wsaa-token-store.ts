@@ -105,10 +105,14 @@ class DrizzleWsaaTokenAnswer<TQueryResult extends PgQueryResultHKT> implements W
       });
   }
 
-  async openHeldTicketAlert(openedAt: Date): Promise<void> {
+  async openHeldTicketAlert(openedAt: Date, retryIntervalMinutes: number): Promise<void> {
     await openAlert(
       this.tx,
-      { kind: "arca_wsaa_ticket_held", scope: this.options.environment, detail: {} },
+      {
+        kind: "arca_wsaa_ticket_held",
+        scope: this.options.environment,
+        detail: { retryIntervalMinutes },
+      },
       { now: () => openedAt },
     );
   }

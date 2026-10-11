@@ -156,6 +156,7 @@ const alertBase = {
   id: z.string(),
   scope: z.string().nullable(),
   scopeDisplay: z.string().nullable(),
+  scopeKind: z.string(),
   level: alertLevelSchema,
   audience: alertAudienceSchema,
   openedAt: z.string().meta(ALERT_INSTANT),
@@ -215,7 +216,7 @@ const alertDetailKinds = [
   z.object({
     ...alertBase,
     kind: z.literal("arca_wsaa_ticket_held" satisfies AlertKind),
-    detail: z.strictObject({}),
+    detail: z.object({ retryIntervalMinutes: z.number() }),
   }),
   z.object({
     ...alertBase,

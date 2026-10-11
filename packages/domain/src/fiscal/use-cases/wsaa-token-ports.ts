@@ -22,7 +22,7 @@ export interface WsaaTokenAnswer {
   resolveHeldTicketAlert(resolvedAt: Date): Promise<void>;
   resumeWorkWaitingOnToken(): Promise<void>;
   recordRefusal(refusedAt: Date): Promise<void>;
-  openHeldTicketAlert(openedAt: Date): Promise<void>;
+  openHeldTicketAlert(openedAt: Date, retryIntervalMinutes: number): Promise<void>;
 }
 
 export interface WsaaTokenRenewal {

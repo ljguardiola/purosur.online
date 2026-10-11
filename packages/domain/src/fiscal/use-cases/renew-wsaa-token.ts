@@ -1,4 +1,8 @@
-import { isWsaaTokenDueForRenewal, isWsaaTokenRetryDue } from "../model/wsaa-token.js";
+import {
+  isWsaaTokenDueForRenewal,
+  isWsaaTokenRetryDue,
+  WSAA_ALREADY_AUTHENTICATED_RETRY_MINUTES,
+} from "../model/wsaa-token.js";
 import type { WsaaTokenPorts } from "./wsaa-token-ports.js";
 
 export interface RenewWsaaTokenInput {
@@ -25,7 +29,7 @@ export async function renewWsaaToken(
       if (!isWsaaTokenDueForRenewal(persisted, clock.now())) {
         return { kind: "kept" };
       }
-      if (persisted === null && !isWsaaTokenRetryDue(await renewal.lastRefusal(), clock.now())) {
+      if (!isWsaaTokenRetryDue(await renewal.lastRefusal(), clock.now())) {
         return { kind: "waiting" };
       }
 
@@ -40,10 +44,10 @@ export async function renewWsaaToken(
           return { kind: "renewed" };
         });
       }
-      if (result.kind === "already_authenticated" && persisted === null) {
+      if (result.kind === "already_authenticated") {
         return renewal.recordAnswer<RenewWsaaTokenOutcome>(async (answer) => {
           await answer.recordRefusal(answeredAt);
-          await answer.openHeldTicketAlert(answeredAt);
+          await answer.openHeldTicketAlert(answeredAt, WSAA_ALREADY_AUTHENTICATED_RETRY_MINUTES);
           return { kind: "already_authenticated" };
         });
       }
