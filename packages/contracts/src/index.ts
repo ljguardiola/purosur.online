@@ -373,9 +373,11 @@ export {
   PIN_HASH_SCHEME,
   pinAttemptRefusalSchema,
   recordIdSchema,
+  reportsFailedQuery,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
+  withoutEchoedQueryValues,
   withoutQueryParameters,
 } from "./shared/index.js";
 export type {

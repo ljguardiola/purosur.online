@@ -15,9 +15,11 @@ export {
 export { discountTargetSchema } from "./discount-target.js";
 export { emailAddressSchema } from "./email-address.js";
 export {
+  reportsFailedQuery,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
+  withoutEchoedQueryValues,
   withoutQueryParameters,
 } from "./error-report-scrubbing.js";
 export type { ErrorReportingConfiguration } from "./error-reporting-configuration.js";
