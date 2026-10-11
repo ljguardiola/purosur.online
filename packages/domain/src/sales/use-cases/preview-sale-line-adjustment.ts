@@ -1,9 +1,10 @@
 import type { Clock } from "../../shared/index.js";
+import { chargeLine } from "../model/line-pricing.js";
 import type { ManualAdjustmentValue } from "../model/manual-adjustment.js";
 import {
   type ManualAdjustmentRefusal,
   manualAdjustmentRefusal,
-  withManualAdjustment,
+  soldQuantity,
 } from "../model/sale-line.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import {
@@ -46,11 +47,12 @@ export function previewSaleLineAdjustment(
     if (refusal) {
       return refusal;
     }
-    const { discountAmount, lineTotal } = withManualAdjustment(line, {
-      ...adjustment,
-      reason: "",
-      authorizedBy: null,
-    });
+    const { discountAmount, lineTotal } = chargeLine(
+      soldQuantity(line),
+      line.listUnitPrice,
+      line.promotions,
+      adjustment,
+    );
     return { kind: "preview", discountAmount, lineTotal };
   });
 }
