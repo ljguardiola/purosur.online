@@ -475,6 +475,8 @@ describe("recording the cancelled sales of applied events", () => {
       id: transferRefund.id,
       saleId: cancelled.id,
       paymentId: transfer.id,
+      paymentTransactionId: null,
+      origin: "sale_cancelled",
       method: "TRANSFER",
       provider: "NONE",
       amount: 2000,
@@ -482,6 +484,8 @@ describe("recording the cancelled sales of applied events", () => {
       occurredAt: new Date("2026-10-06T11:25:00.000Z"),
       doneBy: null,
       doneAt: null,
+      discardedBy: null,
+      discardedAt: null,
     });
     expect(rows.find((row) => row.id === cashRefund.id)).toMatchObject({
       method: "CASH",
