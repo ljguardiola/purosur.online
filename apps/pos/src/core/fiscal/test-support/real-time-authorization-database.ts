@@ -142,13 +142,15 @@ export function insertFiscalDocument(
 export function insertOfflinePointOfSale(
   database: LocalDatabase,
   pointOfSale = POINT_OF_SALE,
+  taxAuthorityLastAuthorizedNumber: number | null = 0,
 ): void {
   database
     .prepare(
-      `INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, version)
-       VALUES ('register-1', ?, 1)`,
+      `INSERT INTO register_offline_point_of_sale (
+         register_id, point_of_sale_number, tax_authority_last_authorized_number, version
+       ) VALUES ('register-1', ?, ?, 1)`,
     )
-    .run(pointOfSale);
+    .run(pointOfSale, taxAuthorityLastAuthorizedNumber);
 }
 
 export function insertOfflineNumberBlock(

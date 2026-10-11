@@ -75,6 +75,7 @@ export interface RegisterPointOfSaleRow {
 
 export interface RegisterOfflinePointOfSaleRow {
   pointOfSaleNumber: number;
+  taxAuthorityLastAuthorizedNumber: number | null;
   version: number;
 }
 

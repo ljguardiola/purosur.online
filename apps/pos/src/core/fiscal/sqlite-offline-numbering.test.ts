@@ -54,6 +54,29 @@ describe("the next offline number of a document type", () => {
     await expect(numbering.nextNumber("factura_c")).resolves.toBe(3);
   });
 
+  it("is none while the tax authority's last authorized number is not known", async () => {
+    insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE, null);
+    insertOfflineNumberBlock(database, "first", 1, 1000, OFFLINE_POINT_OF_SALE);
+
+    await expect(numbering.nextNumber("factura_c")).resolves.toBeNull();
+  });
+
+  it("continues after the tax authority's last authorized number when it is above the local documents", async () => {
+    insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE, 40);
+    insertOfflineNumberBlock(database, "first", 1, 1000, OFFLINE_POINT_OF_SALE);
+    issue(1);
+    issue(2);
+
+    await expect(numbering.nextNumber("factura_c")).resolves.toBe(41);
+  });
+
+  it("continues after the tax authority's last authorized number on a new installation with no local documents", async () => {
+    insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE, 500);
+    insertOfflineNumberBlock(database, "first", 501, 1500, OFFLINE_POINT_OF_SALE);
+
+    await expect(numbering.nextNumber("factura_c")).resolves.toBe(501);
+  });
+
   it("moves to the next block once the first is used up", async () => {
     insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE);
     insertOfflineNumberBlock(database, "second", 1001, 2000, OFFLINE_POINT_OF_SALE);
