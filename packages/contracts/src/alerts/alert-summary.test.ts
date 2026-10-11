@@ -13,6 +13,7 @@ const passkeyChange = {
   escalatedAt: null,
   resolvedAt: null,
   salesDeniedReason: null,
+  refundAmount: null,
 };
 const closedLockout = {
   ...passkeyChange,
@@ -48,6 +49,12 @@ describe("alertSummarySchema", () => {
       expect(alertSummarySchema.safeParse(salesDenied).data).toEqual(salesDenied);
     },
   );
+
+  it("accepts the amount of a refund owed for a late payment", () => {
+    const owed = { ...passkeyChange, kind: "late_payment_refund", refundAmount: 250_000 };
+
+    expect(alertSummarySchema.safeParse(owed).data).toEqual(owed);
+  });
 
   it("strips keys it does not define", () => {
     expect(alertSummarySchema.safeParse({ ...passkeyChange, detail: {} }).data).toEqual(
@@ -105,6 +112,10 @@ describe("alertSummarySchema", () => {
     ["resolvedAt", undefined],
     ["salesDeniedReason", "unknown_reason"],
     ["salesDeniedReason", undefined],
+    ["refundAmount", 12.5],
+    ["refundAmount", -1],
+    ["refundAmount", "100"],
+    ["refundAmount", undefined],
   ])("refuses %s as %j", (field, value) => {
     expect(alertSummarySchema.safeParse({ ...passkeyChange, [field]: value }).success).toBe(false);
   });

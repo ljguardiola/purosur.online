@@ -3,7 +3,13 @@ import { PAYMENT_NOTIFICATION_LIMIT } from "@purosur/domain";
 import { FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { paymentNotificationAttempts, paymentTransactions } from "../platform/db/schema.js";
+import {
+  alerts,
+  paymentNotificationAttempts,
+  paymentRefunds,
+  paymentTransactions,
+  registers,
+} from "../platform/db/schema.js";
 import {
   NOW,
   ORDER_ID,
@@ -345,6 +351,51 @@ describe("POST /payments/mercado-pago/notifications", () => {
       expect(response.statusCode).toBe(200);
       expect(route.mercadoPago.readings).toEqual([ORDER_ID]);
       expect(await stateOf(payment.id)).toBe("APPROVED");
+    });
+
+    it("opens one pending refund task, with a warning for the register's branch, when the order of a replaced payment turns out paid", async () => {
+      route.mercadoPago.reading = { kind: "read", result: PAID_ORDER };
+      const payment = await pendingPaymentOfOrder(ORDER_ID, { replaced: true });
+      const [register] = await route.db
+        .select({ locationId: registers.locationId })
+        .from(registers)
+        .where(eq(registers.id, payment.registerId));
+
+      await route.notify();
+      await route.notify();
+
+      const refunds = await route.db.select().from(paymentRefunds);
+      expect(refunds).toEqual([
+        expect.objectContaining({
+          saleId: payment.saleId,
+          paymentTransactionId: payment.id,
+          origin: "late_payment",
+          method: "QR",
+          provider: "MERCADOPAGO_QR",
+          amount: payment.amount,
+          state: "PENDING",
+        }),
+      ]);
+      expect(await route.db.select().from(alerts)).toEqual([
+        expect.objectContaining({
+          kind: "late_payment_refund",
+          scope: refunds[0]?.id,
+          level: "warning",
+          audience: "local",
+          locationId: register?.locationId,
+          detail: { saleId: payment.saleId, amount: payment.amount },
+        }),
+      ]);
+    });
+
+    it("opens no refund task when the order of a payment that was not replaced turns out paid", async () => {
+      route.mercadoPago.reading = { kind: "read", result: PAID_ORDER };
+      await pendingPaymentOfOrder();
+
+      await route.notify();
+
+      expect(await route.db.select().from(paymentRefunds)).toEqual([]);
+      expect(await route.db.select().from(alerts)).toEqual([]);
     });
 
     it("leaves the payment pending when the body claims it was paid and Mercado Pago says it was not", async () => {

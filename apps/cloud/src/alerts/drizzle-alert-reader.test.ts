@@ -1,6 +1,7 @@
 import type { AlertKind, VisibleAlertSight } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { aPendingLatePaymentRefund } from "../payments/test-support/late-payment-refund-fixtures.js";
 import {
   alertDeliveries,
   alerts,
@@ -222,6 +223,39 @@ describe("DrizzleAlertReader listVisibleAlerts", () => {
     );
   });
 
+  it("reads the amount owed from the stored detail of a late-payment refund, and none for another kind", async () => {
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOON });
+    const otherId = await insertAlert({
+      kind: "register_silent",
+      audience: "local",
+      detail: { amount: 999 },
+    });
+
+    const { alerts: listed } = await new DrizzleAlertReader(db).listVisibleAlerts(ALL, {}, 1);
+    const amounts = new Map(listed.map((alert) => [alert.id, alert.refundAmount]));
+
+    expect(amounts).toEqual(
+      new Map([
+        [late.alertId, late.amount],
+        [otherId, null],
+      ]),
+    );
+  });
+
+  it("reads a late-payment refund amount larger than a 32-bit integer holds", async () => {
+    const alertId = await insertAlert({
+      kind: "late_payment_refund",
+      audience: "local",
+      detail: { saleId: "sale-1", amount: 3_000_000_000 },
+    });
+
+    const { alerts: listed } = await new DrizzleAlertReader(db).listVisibleAlerts(ALL, {}, 1);
+
+    expect(listed.map((alert) => [alert.id, alert.refundAmount])).toEqual([
+      [alertId, 3_000_000_000],
+    ]);
+  });
+
   it("filters by level and by open or closed", async () => {
     const openCritical = await insertAlert({ level: "critical" });
     await insertAlert({ level: "warning" });
@@ -304,6 +338,18 @@ describe("DrizzleAlertReader listVisibleAlerts", () => {
     expect(page.alerts.map((a) => a.id)).toEqual([byRegister]);
   });
 
+  it("does not find a late payment refund alert by the name of the register that took the payment", async () => {
+    await aPendingLatePaymentRefund(db, { openedAt: NOON, registerName: "Caja Lucía" });
+
+    const page = await new DrizzleAlertReader(db).listVisibleAlerts(
+      ALL,
+      { search: { text: "lucía", kindsWithMatchingTitle: [] } },
+      1,
+    );
+
+    expect(page.alerts).toEqual([]);
+  });
+
   it("treats the search text literally, not as a pattern", async () => {
     const percent = await insertUser("100% Real");
     await insertUser("Someone else");
@@ -374,6 +420,17 @@ describe("DrizzleAlertReader displayNames", () => {
 
     expect(names.get(userId)).toBe("Lucía Pérez");
     expect(names.get(register.id)).toBe("Caja 1");
+  });
+
+  it("names no register for a refund id", async () => {
+    const { refundId } = await aPendingLatePaymentRefund(db, {
+      openedAt: NOON,
+      registerName: "Caja 3",
+    });
+
+    const names = await new DrizzleAlertReader(db).displayNames([refundId]);
+
+    expect(names.size).toBe(0);
   });
 
   it("answers an empty map for an empty list", async () => {

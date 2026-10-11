@@ -158,6 +158,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     pendingRefundsScreen: {
       fetchPendingRefunds: vi.fn().mockReturnValue(new Promise(() => {})),
       markRefundDone: vi.fn(),
+      discardRefund: vi.fn(),
     },
     userDetailScreen: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),

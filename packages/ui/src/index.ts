@@ -177,6 +177,7 @@ export {
   formatPointOfSaleNumber,
   formatSignedCents,
   formatTimeAgo,
+  formatTimeAgoInHours,
   formatWeight,
   formatWeightInput,
   parsePointOfSaleNumber,

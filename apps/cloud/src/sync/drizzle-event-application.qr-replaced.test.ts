@@ -3,7 +3,7 @@ import { applyPendingEvents, type SyncedFact } from "@purosur/domain/sync/use-ca
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { pendingTransaction } from "../payments/test-support/payment-transaction-fixtures.js";
-import { inbox, paymentTransactions } from "../platform/db/schema.js";
+import { alerts, inbox, paymentRefunds, paymentTransactions } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { syncedEventUpcaster } from "./synced-event-upcaster.js";
 import {
@@ -65,6 +65,58 @@ describe("recording the replacement of a pending QR payment", () => {
     await record(replacementFact(transaction.id, transaction.saleId), transaction.saleId, deviceId);
 
     expect(await replacedOf(transaction.id)).toEqual({ replaced: true, state: "APPROVED" });
+  });
+
+  it("opens one pending refund task, with a warning for the register's branch, for a payment the provider had already approved", async () => {
+    const { deviceId, registerId } = await system.enrollInstallation();
+    const transaction = pendingTransaction(registerId, { state: "APPROVED" });
+    await system.db.insert(paymentTransactions).values(transaction);
+
+    await record(replacementFact(transaction.id, transaction.saleId), transaction.saleId, deviceId);
+
+    const [refund] = await system.db.select().from(paymentRefunds);
+    expect(refund).toMatchObject({
+      saleId: transaction.saleId,
+      paymentTransactionId: transaction.id,
+      origin: "late_payment",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      amount: transaction.amount,
+      state: "PENDING",
+      occurredAt: APPLICATION_NOW,
+    });
+    expect(await system.db.select().from(alerts)).toEqual([
+      expect.objectContaining({
+        kind: "late_payment_refund",
+        scope: refund?.id,
+        level: "warning",
+        audience: "local",
+        detail: { saleId: transaction.saleId, amount: transaction.amount },
+      }),
+    ]);
+  });
+
+  it("opens no refund task for a payment the provider has not approved", async () => {
+    const { deviceId, registerId } = await system.enrollInstallation();
+    const transaction = pendingTransaction(registerId, { state: "PENDING" });
+    await system.db.insert(paymentTransactions).values(transaction);
+
+    await record(replacementFact(transaction.id, transaction.saleId), transaction.saleId, deviceId);
+
+    expect(await system.db.select().from(paymentRefunds)).toEqual([]);
+    expect(await system.db.select().from(alerts)).toEqual([]);
+  });
+
+  it("opens the refund task once when the replacement is applied twice", async () => {
+    const { deviceId, registerId } = await system.enrollInstallation();
+    const transaction = pendingTransaction(registerId, { state: "APPROVED" });
+    await system.db.insert(paymentTransactions).values(transaction);
+
+    await record(replacementFact(transaction.id, transaction.saleId), transaction.saleId, deviceId);
+    await record(replacementFact(transaction.id, transaction.saleId), transaction.saleId, deviceId);
+
+    expect(await system.db.select().from(paymentRefunds)).toHaveLength(1);
+    expect(await system.db.select().from(alerts)).toHaveLength(1);
   });
 
   it("does not mark the transaction of another register and refuses the event", async () => {

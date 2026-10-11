@@ -85,15 +85,14 @@ describe("facturaCFiscalBlock", () => {
       buyerTaxStatusDescription: "Consumidor Final",
       pointOfSale: 1,
       number: 123,
-      issuedOn: "2026-10-01",
       authorizationCode: "71234567890123",
       authorizationCodeDueOn: "2026-10-11",
     });
   });
 
-  it("prints a net amount equal to the total and no VAT", () => {
+  it("carries the voucher's total", () => {
     const block = facturaCFiscalBlock(authorized(5900));
-    expect(block).toMatchObject({ netAmount: 5900, vatAmount: 0, total: 5900 });
+    expect(block).toMatchObject({ total: 5900 });
   });
 
   it("encodes the voucher's data in the QR as the tax authority defines", () => {

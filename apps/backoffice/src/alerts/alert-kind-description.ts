@@ -17,6 +17,8 @@ const ALERT_KIND_DESCRIPTIONS = {
   sales_denied: "Una caja dejó de abrir ventas nuevas",
   fiscal_rejected: "ARCA rechazó una factura",
   offline_authorization_code_missing: "Una caja todavía no bajó el CAEA de la quincena",
+  late_payment_refund:
+    "Mercado Pago cobró un pago QR de una venta que ya se había cobrado por otro medio",
 } satisfies Record<AlertKind, string>;
 
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);

@@ -25,6 +25,7 @@ type MarkDoneNotice =
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "alreadyDone" }
+  | { kind: "discarded" }
   | { kind: "notFound" };
 
 export function MarkRefundDoneModal({
@@ -73,6 +74,10 @@ export function MarkRefundDoneModal({
       setNotice({ kind: "alreadyDone" });
       return;
     }
+    if (outcome.kind === "discarded") {
+      setNotice({ kind: "discarded" });
+      return;
+    }
     if (outcome.kind === "not_found") {
       setNotice({ kind: "notFound" });
       return;
@@ -84,7 +89,8 @@ export function MarkRefundDoneModal({
     setNotice({ kind: "attemptFailed" });
   }
 
-  const listOutdated = notice?.kind === "alreadyDone" || notice?.kind === "notFound";
+  const listOutdated =
+    notice?.kind === "alreadyDone" || notice?.kind === "discarded" || notice?.kind === "notFound";
 
   return (
     <Modal
@@ -157,6 +163,9 @@ export function MarkRefundDoneModal({
             icon={<TriangleAlert />}
             title="Ya estaba marcado como hecho"
           />
+        )}
+        {notice?.kind === "discarded" && (
+          <InlineNotice tone="error" icon={<TriangleAlert />} title="Este reembolso se descartó" />
         )}
         {notice?.kind === "notFound" && (
           <InlineNotice tone="error" icon={<TriangleAlert />} title="Este reembolso ya no existe" />

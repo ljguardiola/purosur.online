@@ -1,23 +1,37 @@
 import type { SyncChange } from "@purosur/contracts";
 import type { LocalDatabase } from "../platform/local-database";
+import { type PageWriteMode, versionAccepted } from "./page-write-mode";
 import type { RemovalOf } from "./pulled-change";
 
-export function prepareRegisterPageWrites(database: LocalDatabase) {
+function redeliveredPointOfSale(table: string, fiscalAddress: boolean): string {
+  const keysCount = `tax_authority_last_authorized_number = CASE
+         WHEN excluded.point_of_sale_number = ${table}.point_of_sale_number
+           AND ${table}.tax_authority_last_authorized_number IS NOT NULL
+           AND (excluded.tax_authority_last_authorized_number IS NULL
+             OR excluded.tax_authority_last_authorized_number < ${table}.tax_authority_last_authorized_number)
+         THEN ${table}.tax_authority_last_authorized_number
+         ELSE excluded.tax_authority_last_authorized_number END`;
+  return `ON CONFLICT (register_id) DO UPDATE SET
+       point_of_sale_number = excluded.point_of_sale_number,
+       ${fiscalAddress ? "fiscal_address_id = excluded.fiscal_address_id," : ""}
+       ${keysCount},
+       version = excluded.version
+     WHERE excluded.version >= ${table}.version`;
+}
+
+export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWriteMode) {
+  const accepts = versionAccepted(mode);
   const saveRegister = database.prepare(
     `INSERT INTO own_register (id, name, version, removed) VALUES (@id, @name, @version, 0)
      ON CONFLICT (id) DO UPDATE SET name = excluded.name, version = excluded.version, removed = 0
-     WHERE excluded.version > own_register.version`,
+     WHERE excluded.version ${accepts} own_register.version`,
   );
   const removeRegister = database.prepare(
     "UPDATE own_register SET removed = 1, version = @version WHERE id = @id AND version < @version",
   );
-  const savePointOfSale = database.prepare(
-    `INSERT INTO register_point_of_sale (
-       register_id, point_of_sale_number, fiscal_address_id, tax_authority_last_authorized_number, version
-     ) VALUES (
-       @register_id, @point_of_sale_number, @fiscal_address_id, @tax_authority_last_authorized_number, @version
-     )
-     ON CONFLICT (register_id) DO UPDATE SET
+  const savePointOfSaleConflict =
+    mode === "pull"
+      ? `ON CONFLICT (register_id) DO UPDATE SET
        point_of_sale_number = CASE WHEN excluded.version > register_point_of_sale.version
          THEN excluded.point_of_sale_number ELSE register_point_of_sale.point_of_sale_number END,
        fiscal_address_id = CASE WHEN excluded.version > register_point_of_sale.version
@@ -35,15 +49,19 @@ export function prepareRegisterPageWrites(database: LocalDatabase) {
        OR (excluded.version = register_point_of_sale.version
          AND excluded.tax_authority_last_authorized_number IS NOT NULL
          AND (register_point_of_sale.tax_authority_last_authorized_number IS NULL
-           OR excluded.tax_authority_last_authorized_number > register_point_of_sale.tax_authority_last_authorized_number))`,
-  );
-  const saveOfflinePointOfSale = database.prepare(
-    `INSERT INTO register_offline_point_of_sale (
-       register_id, point_of_sale_number, tax_authority_last_authorized_number, version
+           OR excluded.tax_authority_last_authorized_number > register_point_of_sale.tax_authority_last_authorized_number))`
+      : redeliveredPointOfSale("register_point_of_sale", true);
+  const savePointOfSale = database.prepare(
+    `INSERT INTO register_point_of_sale (
+       register_id, point_of_sale_number, fiscal_address_id, tax_authority_last_authorized_number, version
      ) VALUES (
-       @register_id, @point_of_sale_number, @tax_authority_last_authorized_number, @version
+       @register_id, @point_of_sale_number, @fiscal_address_id, @tax_authority_last_authorized_number, @version
      )
-     ON CONFLICT (register_id) DO UPDATE SET
+     ${savePointOfSaleConflict}`,
+  );
+  const saveOfflinePointOfSaleConflict =
+    mode === "pull"
+      ? `ON CONFLICT (register_id) DO UPDATE SET
        point_of_sale_number = CASE WHEN excluded.version > register_offline_point_of_sale.version
          THEN excluded.point_of_sale_number ELSE register_offline_point_of_sale.point_of_sale_number END,
        tax_authority_last_authorized_number = CASE
@@ -59,7 +77,15 @@ export function prepareRegisterPageWrites(database: LocalDatabase) {
        OR (excluded.version = register_offline_point_of_sale.version
          AND excluded.tax_authority_last_authorized_number IS NOT NULL
          AND (register_offline_point_of_sale.tax_authority_last_authorized_number IS NULL
-           OR excluded.tax_authority_last_authorized_number > register_offline_point_of_sale.tax_authority_last_authorized_number))`,
+           OR excluded.tax_authority_last_authorized_number > register_offline_point_of_sale.tax_authority_last_authorized_number))`
+      : redeliveredPointOfSale("register_offline_point_of_sale", false);
+  const saveOfflinePointOfSale = database.prepare(
+    `INSERT INTO register_offline_point_of_sale (
+       register_id, point_of_sale_number, tax_authority_last_authorized_number, version
+     ) VALUES (
+       @register_id, @point_of_sale_number, @tax_authority_last_authorized_number, @version
+     )
+     ${saveOfflinePointOfSaleConflict}`,
   );
 
   return {

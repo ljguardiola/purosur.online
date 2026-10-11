@@ -288,6 +288,8 @@ function alertTitle(alert: AlertDetail): string {
     case "fiscal_rejected":
     case "offline_authorization_code_missing":
       return alertKindDescription(alert.kind);
+    case "late_payment_refund":
+      return "Reembolso pendiente por un pago tardío";
   }
 }
 
@@ -351,6 +353,7 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return "Cada venta de este punto de venta queda diferida hasta corregir la causa que indica ARCA.";
     case "register_silent":
     case "sales_denied":
+    case "late_payment_refund":
       return "";
   }
 }
@@ -377,6 +380,12 @@ function PermissionsAddedDescription({
 const REJECTION_CLASS_LABELS = {
   content: "Contenido del comprobante",
   standing: "Situación ante ARCA",
+};
+
+const CLOSING_NOTES: Record<AlertDetail["closing"], string | null> = {
+  by_itself: null,
+  with_its_refund: "Se cierra cuando su reembolso se marca como hecho o se descarta.",
+  by_hand: "No se cierra sola: se cierra a mano después de revisarla.",
 };
 
 function AlertDescription({ alert }: { alert: AlertDetail }) {
@@ -600,10 +609,8 @@ function OpenAlertDetailModal({
                 ))}
               </div>
             </div>
-            {alert.open && !alert.resolvesByItself ? (
-              <p className="text-text-subtle text-detail">
-                No se cierra sola: se cierra a mano después de revisarla.
-              </p>
+            {alert.open && CLOSING_NOTES[alert.closing] !== null ? (
+              <p className="text-text-subtle text-detail">{CLOSING_NOTES[alert.closing]}</p>
             ) : null}
           </>
         ) : null}

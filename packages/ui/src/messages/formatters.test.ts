@@ -17,6 +17,7 @@ import {
   formatPointOfSaleNumber,
   formatSignedCents,
   formatTimeAgo,
+  formatTimeAgoInHours,
   formatWeight,
   formatWeightInput,
   parsePointOfSaleNumber,
@@ -215,6 +216,25 @@ describe("formatTimeAgo", () => {
     [64 * DAY, "hace 2 meses"],
   ])("writes %i seconds as %s", (seconds, text) => {
     expect(formatTimeAgo(seconds)).toBe(text);
+  });
+});
+
+describe("formatTimeAgoInHours", () => {
+  const MINUTE = 60;
+  const HOUR = 60 * MINUTE;
+
+  it.each([
+    [0, "hace un momento"],
+    [59, "hace un momento"],
+    [MINUTE, "hace 1 minuto"],
+    [20 * MINUTE, "hace 20 minutos"],
+    [HOUR - 1, "hace 59 minutos"],
+    [HOUR, "hace 1 hora"],
+    [3 * HOUR + 59 * MINUTE, "hace 3 horas"],
+    [27 * HOUR, "hace 27 horas"],
+    [100 * HOUR, "hace 100 horas"],
+  ])("writes %i seconds as %s", (seconds, text) => {
+    expect(formatTimeAgoInHours(seconds)).toBe(text);
   });
 });
 

@@ -46,6 +46,12 @@ const FIXED_LOCAL_ALERT_TEXTS = {
     whatToDo:
       "Revisar que esté conectado y encendido. Mientras tanto, tipear el peso a mano y buscar los productos por nombre. Si el problema sigue, avisar al Administrador.",
   },
+  late_payment_refund: {
+    title: "Reembolso pendiente por un pago tardío",
+    meaning: "Mercado Pago cobró un QR de una venta que ya se había cobrado por otro medio.",
+    whatToDo:
+      "Si ese reembolso ya se hizo desde Mercado Pago, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes por el mismo medio, o descartarlo si no corresponde. El Administrador ya fue avisado.",
+  },
 } satisfies Record<string, LocalAlertText>;
 
 export type LocalAlertKind = keyof typeof FIXED_LOCAL_ALERT_TEXTS | "sales_denied";

@@ -1,9 +1,20 @@
 import fc from "fast-check";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
+  isRefundDiscardable,
+  isRefundDiscarded,
   isRefundPending,
+  LATE_PAYMENT_REFUND_ORIGIN,
+  latePaymentRefund,
+  methodsCoveringRefundedSale,
+  PLANNED_REFUND_STATES,
+  type PlannedRefund,
+  type PlannedRefundState,
   plannedRefunds,
+  REFUND_ORIGINS,
+  REFUND_STATES,
   refundsSettleApprovedPayments,
+  SALE_CANCELLED_REFUND_ORIGIN,
 } from "./payment-refund.js";
 
 const CASH = {
@@ -154,5 +165,128 @@ describe("isRefundPending", () => {
 
   it.each(["APPROVED", "pending", ""])("is false for the state %j", (state) => {
     expect(isRefundPending(state)).toBe(false);
+  });
+});
+
+describe("REFUND_STATES", () => {
+  it("lists a refund as done, pending or discarded", () => {
+    expect(REFUND_STATES).toEqual(["APPROVED", "PENDING", "DISCARDED"]);
+  });
+});
+
+describe("PLANNED_REFUND_STATES", () => {
+  it("lists a planned refund as done or pending, never discarded", () => {
+    expect(PLANNED_REFUND_STATES).toEqual(["APPROVED", "PENDING"]);
+    expectTypeOf<(typeof PLANNED_REFUND_STATES)[number]>().toEqualTypeOf<PlannedRefundState>();
+  });
+});
+
+describe("PlannedRefundState", () => {
+  it("is the state of a planned refund, which is done or pending and never discarded", () => {
+    expectTypeOf<PlannedRefund["state"]>().toEqualTypeOf<PlannedRefundState>();
+    expectTypeOf<"APPROVED">().toExtend<PlannedRefundState>();
+    expectTypeOf<"PENDING">().toExtend<PlannedRefundState>();
+    expectTypeOf<"DISCARDED">().not.toExtend<PlannedRefundState>();
+  });
+});
+
+describe("REFUND_ORIGINS", () => {
+  it("tells a refund of a cancelled sale from one of a payment that arrived late", () => {
+    expect(REFUND_ORIGINS).toEqual(["sale_cancelled", "late_payment"]);
+    expect(SALE_CANCELLED_REFUND_ORIGIN).toBe("sale_cancelled");
+    expect(LATE_PAYMENT_REFUND_ORIGIN).toBe("late_payment");
+  });
+});
+
+describe("isRefundDiscarded", () => {
+  it("is true only for a refund a person set aside", () => {
+    expect(isRefundDiscarded("DISCARDED")).toBe(true);
+    expect(isRefundPending("DISCARDED")).toBe(false);
+  });
+
+  it.each(["APPROVED", "PENDING", "discarded", ""])("is false for the state %j", (state) => {
+    expect(isRefundDiscarded(state)).toBe(false);
+  });
+});
+
+describe("isRefundDiscardable", () => {
+  it("is true for the refund of a payment that arrived late", () => {
+    expect(isRefundDiscardable("late_payment")).toBe(true);
+  });
+
+  it.each(["sale_cancelled", "", "other"])("is false for the origin %j", (origin) => {
+    expect(isRefundDiscardable(origin)).toBe(false);
+  });
+});
+
+describe("latePaymentRefund", () => {
+  it("gives the payment back by the channel it came in, for its full amount, until a person carries it out", () => {
+    expect(
+      latePaymentRefund({
+        id: "pay-3",
+        method: "QR",
+        provider: "MERCADOPAGO_QR",
+        amount: 2500,
+      }),
+    ).toEqual({
+      paymentId: "pay-3",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      amount: 2500,
+      state: "PENDING",
+      origin: "late_payment",
+    });
+  });
+
+  it("is never settled in cash", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 1_000_000 }), (amount) => {
+        const refund = latePaymentRefund({
+          id: "pay-3",
+          method: "QR",
+          provider: "MERCADOPAGO_QR",
+          amount,
+        });
+
+        expect(refund.method).not.toBe("CASH");
+        expect(refund.state).toBe("PENDING");
+        expect(refund.amount).toBe(amount);
+      }),
+    );
+  });
+});
+
+describe("methodsCoveringRefundedSale", () => {
+  it("names each method an approved payment of a late payment's sale used, once, in the catalog's order", () => {
+    expect(
+      methodsCoveringRefundedSale(LATE_PAYMENT_REFUND_ORIGIN, [
+        { method: "TRANSFER", state: "APPROVED" },
+        { method: "CASH", state: "APPROVED" },
+        { method: "TRANSFER", state: "APPROVED" },
+      ]),
+    ).toEqual(["CASH", "TRANSFER"]);
+  });
+
+  it("leaves out the methods of payments that were not approved", () => {
+    expect(
+      methodsCoveringRefundedSale(LATE_PAYMENT_REFUND_ORIGIN, [
+        { method: "QR", state: "DECLINED" },
+        { method: "CASH", state: "APPROVED" },
+        { method: "TRANSFER", state: "PENDING" },
+      ]),
+    ).toEqual(["CASH"]);
+  });
+
+  it("names none while the late payment's sale has no payment", () => {
+    expect(methodsCoveringRefundedSale(LATE_PAYMENT_REFUND_ORIGIN, [])).toEqual([]);
+  });
+
+  it("names none for the refund of a cancelled sale, whatever paid it", () => {
+    expect(
+      methodsCoveringRefundedSale(SALE_CANCELLED_REFUND_ORIGIN, [
+        { method: "CASH", state: "APPROVED" },
+        { method: "TRANSFER", state: "APPROVED" },
+      ]),
+    ).toEqual([]);
   });
 });
