@@ -13,6 +13,7 @@ import type {
   ScanProductOutcome,
   SearchProductsOutcome,
   SignInUser,
+  WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import {
@@ -30,7 +31,6 @@ import { OpenSessionRail } from "../shell/open-session-rail";
 import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
 import type { Refund } from "../shell/refund-lines";
 import type { SignedInPerson } from "../shell/signed-in-person";
-import { AddWeighedProductModal } from "./add-weighed-product-modal";
 import { CancelPaidSaleModal } from "./cancel-paid-sale-modal";
 import { CancelSaleModal } from "./cancel-sale-modal";
 import { ChangeLineWeightModal } from "./change-line-weight-modal";
@@ -48,6 +48,8 @@ import {
 } from "./sales-queries";
 import type { ScanProblem } from "./scan-problem-message";
 import { messageFor, ScanProblemMessage } from "./scan-problem-message";
+import type { ScaleWeighing } from "./use-scale-weighing";
+import { WeighProductModal } from "./weigh-product-modal";
 
 export type SaleScreenProps = {
   sessionId: string;
@@ -62,6 +64,7 @@ export type SaleScreenProps = {
     productId: string,
     weightThousandths: number,
   ) => Promise<AddWeighedProductOutcome>;
+  weighProduct: (productId: string) => Promise<WeighProductOutcome>;
   changeLineQuantity: (
     lineId: string,
     quantity: number,
@@ -131,6 +134,7 @@ export function SaleScreen({
   searchProducts,
   addProduct,
   addWeighedProduct,
+  weighProduct,
   changeLineQuantity,
   changeLineWeight,
   removeSaleLine,
@@ -282,6 +286,30 @@ export function SaleScreen({
       await take(asked.submitted, outcome, { kind: "add_failed" });
     }
     return "done";
+  }
+
+  async function weighOnScale(asked: Extract<Weighing, { kind: "add" }>): Promise<ScaleWeighing> {
+    const outcome = await weighProduct(asked.productId).catch(
+      (): WeighProductOutcome => ({ kind: "unavailable" }),
+    );
+    if (outcome.kind === "weighing" || outcome.kind === "scale_unavailable") {
+      return outcome;
+    }
+    if (outcome.kind === "not_sold_by_weight") {
+      askForWeight(undefined);
+      refuse(asked.submitted, { kind: "not_sold_by_weight", product_name: asked.productName });
+      return { kind: "closed" };
+    }
+    if (outcome.kind !== "added") {
+      askForWeight(undefined);
+      await take(asked.submitted, outcome, { kind: "add_failed" });
+      return { kind: "closed" };
+    }
+    await take(asked.submitted, outcome, { kind: "add_failed" });
+    const line = outcome.sale.lines.at(-1);
+    return line === undefined
+      ? { kind: "closed" }
+      : { kind: "taken", weightThousandths: line.quantity, amount: line.line_total };
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -559,8 +587,9 @@ export function SaleScreen({
         onCancelSale={() => void edit(cancelSale, { kind: "cancel_failed" })}
       />
       {weighing?.kind === "add" ? (
-        <AddWeighedProductModal
+        <WeighProductModal
           productName={weighing.productName}
+          weigh={() => weighOnScale(weighing)}
           addWeighedProduct={(weight) => addWithWeight(weighing, weight)}
           onClose={() => askForWeight(undefined)}
         />

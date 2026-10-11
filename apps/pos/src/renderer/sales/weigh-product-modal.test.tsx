@@ -88,13 +88,13 @@ describe("WeighProductModal", () => {
     await screen.getByRole("button", { name: "Agregar" }).click();
 
     await expect.poll(() => add.mock.calls).toEqual([[500]]);
-    await expect.element(screen.getByText(UNAVAILABLE_NOTE)).not.toBeInTheDocument();
+    await expect.element(screen.getByText(UNAVAILABLE_NOTE).first()).not.toBeInTheDocument();
   });
 
   it("shows the typed weight form with a note when the scale is not available", async () => {
     const { screen } = await renderModal(async () => ({ kind: "scale_unavailable" }));
 
-    await expect.element(screen.getByText(UNAVAILABLE_NOTE)).toBeVisible();
+    await expect.element(screen.getByText(UNAVAILABLE_NOTE).first()).toBeVisible();
     await expect.element(screen.getByRole("textbox", { name: "Peso en kg" })).toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: "Tipear peso" }))

@@ -211,9 +211,10 @@ describe("SaleScreen weighing a product on the scale", () => {
 
     await scan(field, "7790001");
 
-    await expect.element(screen.getByText("Pesando…")).toBeVisible();
-    await expect.element(screen.getByText("0,000 kg")).toBeVisible();
-    await expect.element(screen.getByText("$ 0,00")).toBeVisible();
+    const dialog = screen.getByRole("dialog");
+    await expect.element(dialog.getByText("Pesando…")).toBeVisible();
+    await expect.element(dialog.getByText("0,000 kg")).toBeVisible();
+    await expect.element(dialog.getByText("$ 0,00")).toBeVisible();
     expect(weighProduct).toHaveBeenCalledWith("p-queso");
     expect(addWeighedProduct).not.toHaveBeenCalled();
     await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
@@ -287,7 +288,7 @@ describe("SaleScreen weighing a product on the scale", () => {
     await scan(field, "7790001");
 
     await expect
-      .element(screen.getByText("La balanza no está disponible. Tipeá el peso."))
+      .element(screen.getByText("La balanza no está disponible. Tipeá el peso.").first())
       .toBeVisible();
     await expect.element(screen.getByRole("textbox", { name: "Peso en kg" })).toBeVisible();
   });

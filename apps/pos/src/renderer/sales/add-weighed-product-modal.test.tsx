@@ -105,7 +105,7 @@ describe("AddWeighedProductModal", () => {
   it("shows the notice it is given above the weight field", async () => {
     const { screen } = await renderModal(async () => "done", "Un aviso");
 
-    await expect.element(screen.getByText("Un aviso")).toBeVisible();
+    await expect.element(screen.getByText("Un aviso").first()).toBeVisible();
     await expect.element(screen.getByRole("textbox", { name: WEIGHT_FIELD })).toHaveFocus();
   });
 });
