@@ -1050,32 +1050,26 @@ describe("adjusting a line of the sale in progress", () => {
     },
   ];
 
-  it("answers the sale with the line carrying the discount, its reason and nobody else's authorization, to a cashier who holds the permission", async () => {
+  it("answers the sale with the line carrying the discount to a cashier who holds the permission, recording its reason and nobody else's authorization", async () => {
     grantOverride();
     const lineId = await sellTwoYerbas();
 
     const outcome = await adjustSaleLineFor(withPins(), request({ lineId }));
 
-    expect(outcome).toMatchObject({
+    expect(outcome).toEqual({
       kind: "changed",
-      authorized_by: null,
-      sale: {
+      sale: expect.objectContaining({
         total: 2700,
         lines: [
-          {
+          expect.objectContaining({
             id: lineId,
             discount_amount: 300,
             line_total: 2700,
             promotion: null,
-            manual_adjustment: {
-              kind: "PERCENT",
-              value: 10,
-              reason: "Producto golpeado",
-              authorized_by: null,
-            },
-          },
+            manual_adjustment: { kind: "PERCENT", value: 10 },
+          }),
         ],
-      },
+      }),
     });
     expect(adjustmentColumns()).toEqual([
       {
@@ -1105,7 +1099,7 @@ describe("adjusting a line of the sale in progress", () => {
     });
   });
 
-  it("answers the sale with the adjustment authorized by another person's PIN, naming who", async () => {
+  it("records who authorized the adjustment with their PIN, answering the sale with the adjustment alone", async () => {
     addPersonWithPin("u2", "Grace", [OVERRIDE]);
     const lineId = await sellTwoYerbas();
 
@@ -1114,24 +1108,16 @@ describe("adjusting a line of the sale in progress", () => {
       authorization: { user_id: "u2", pin: CLOSER_PIN },
     });
 
-    expect(outcome).toMatchObject({
+    expect(outcome).toEqual({
       kind: "changed",
-      authorized_by: { user_id: "u2", first_name: "Grace" },
-      sale: {
-        lines: [
-          {
-            manual_adjustment: {
-              kind: "PERCENT",
-              authorized_by: { user_id: "u2", first_name: "Grace" },
-            },
-          },
-        ],
-      },
+      sale: expect.objectContaining({
+        lines: [expect.objectContaining({ manual_adjustment: { kind: "PERCENT", value: 10 } })],
+      }),
     });
     expect(adjustmentColumns()).toMatchObject([{ authorized_by: "u2" }]);
   });
 
-  it("keeps naming who authorized the adjustment in the sale in progress afterwards", async () => {
+  it("shows the sale in progress afterwards with the adjustment alone", async () => {
     addPersonWithPin("u2", "Grace", [OVERRIDE]);
     await sellTwoYerbas();
     await adjustSaleLineFor(withPins(), {
@@ -1140,16 +1126,7 @@ describe("adjusting a line of the sale in progress", () => {
     });
 
     expect(await currentSaleFor(deps())).toMatchObject({
-      lines: [
-        {
-          manual_adjustment: {
-            kind: "PERCENT",
-            value: 10,
-            reason: "Producto golpeado",
-            authorized_by: { user_id: "u2", first_name: "Grace" },
-          },
-        },
-      ],
+      lines: [expect.objectContaining({ manual_adjustment: { kind: "PERCENT", value: 10 } })],
     });
   });
 

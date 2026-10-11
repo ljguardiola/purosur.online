@@ -6,6 +6,7 @@ import type { LinePromotion } from "./sale.js";
 import {
   addUnitToLine,
   grossLineTotal,
+  manualAdjustmentRefusal,
   mayBeSaleLineQuantity,
   newSaleLine,
   newWeighedSaleLine,
@@ -519,6 +520,51 @@ describe("grossLineTotal", () => {
     expect(grossLineTotal(weighed)).toBe(3750);
     expect(grossLineTotal(withManualAdjustment(weighed, PRICE_OVERRIDE))).toBe(3750);
     expect(grossLineTotal(withQuantity(newSaleLine("line-1", PRODUCT, PRICE, []), 3))).toBe(7500);
+  });
+});
+
+describe("manualAdjustmentRefusal", () => {
+  const line = withQuantity(newSaleLine("line-1", PRODUCT, PRICE, [TEN_PERCENT]), 2);
+  const weighed = newWeighedSaleLine("line-1", PRODUCT, PRICE, [], 1500, "SCALE");
+
+  it("refuses a new price equal to the list price", () => {
+    expect(manualAdjustmentRefusal(line, { kind: "PRICE", unitPrice: 2500 })).toEqual({
+      kind: "same_as_list_price",
+    });
+  });
+
+  it.each([0, 2499, 2501])(
+    "accepts a new price of %s, which is not the list price",
+    (unitPrice) => {
+      expect(manualAdjustmentRefusal(line, { kind: "PRICE", unitPrice })).toBeUndefined();
+    },
+  );
+
+  it.each([
+    ["the line's gross amount", line, 5000],
+    ["a weighed line's rounded gross amount", weighed, 3750],
+  ])("accepts a discount by amount up to %s", (_what, adjusted, amount) => {
+    expect(manualAdjustmentRefusal(adjusted, { kind: "AMOUNT", amount })).toBeUndefined();
+  });
+
+  it.each([
+    ["the line's gross amount", line, 5001],
+    ["a weighed line's rounded gross amount", weighed, 3751],
+  ])("refuses a discount by amount above %s", (_what, adjusted, amount) => {
+    expect(manualAdjustmentRefusal(adjusted, { kind: "AMOUNT", amount })).toEqual({
+      kind: "discount_exceeds_line",
+    });
+  });
+
+  it.each([1, 100])("accepts a discount of %s percent", (percent) => {
+    expect(manualAdjustmentRefusal(line, { kind: "PERCENT", percent })).toBeUndefined();
+  });
+
+  it("accepts a discount by amount or percentage numerically equal to the list price", () => {
+    const cheap = newSaleLine("line-1", PRODUCT, { priceListId: "list-1", unitPrice: 50 }, []);
+
+    expect(manualAdjustmentRefusal(cheap, { kind: "AMOUNT", amount: 50 })).toBeUndefined();
+    expect(manualAdjustmentRefusal(cheap, { kind: "PERCENT", percent: 50 })).toBeUndefined();
   });
 });
 

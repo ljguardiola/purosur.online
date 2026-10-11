@@ -100,8 +100,6 @@ describe("SaleLines", () => {
         manual_adjustment: {
           kind: "PERCENT",
           value: 10,
-          reason: "Envase dañado",
-          authorized_by: null,
         },
         line_total: 428_400,
       };
@@ -120,8 +118,6 @@ describe("SaleLines", () => {
         manual_adjustment: {
           kind: "AMOUNT",
           value: 50_000,
-          reason: "Envase dañado",
-          authorized_by: null,
         },
         line_total: 426_000,
       };
@@ -136,8 +132,6 @@ describe("SaleLines", () => {
         manual_adjustment: {
           kind: "PRICE",
           value: 200_000,
-          reason: "Vence pronto",
-          authorized_by: { user_id: "u3", first_name: "Sofía" },
         },
         line_total: 400_000,
       };

@@ -21,8 +21,6 @@ const DISCOUNTED_YERBA = {
   manual_adjustment: {
     kind: "AMOUNT" as const,
     value: 47_600,
-    reason: "Envase dañado",
-    authorized_by: null,
   },
   line_total: 428_400,
 };
@@ -127,8 +125,6 @@ describe("SaleScreen telling the manual discount was removed", () => {
           manual_adjustment: {
             kind: "AMOUNT",
             value: 100_000,
-            reason: "Corte irregular",
-            authorized_by: null,
           },
           line_total: 1_462_500,
         },

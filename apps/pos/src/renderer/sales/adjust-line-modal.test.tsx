@@ -21,11 +21,7 @@ const AUTHORIZERS: SignInUser[] = [
 ];
 const APPLY = /^Aplicar el (descuento|precio)$/;
 const REASON = "Motivo";
-const CHANGED: AdjustSaleLineOutcome = {
-  kind: "changed",
-  sale: SALE_OF_YERBA,
-  authorized_by: null,
-};
+const CHANGED: AdjustSaleLineOutcome = { kind: "changed", sale: SALE_OF_YERBA };
 
 type Props = {
   previewAdjustment?: (
@@ -592,7 +588,6 @@ describe("AdjustLineModal previewing the adjustment", () => {
     { kind: "sale_has_payments" },
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
-    { kind: "unavailable" },
   ])("keeps the placeholders when the core answers $kind", async (outcome) => {
     const { screen, preview } = await renderModal({ previewAdjustment: async () => outcome });
 
@@ -602,15 +597,59 @@ describe("AdjustLineModal previewing the adjustment", () => {
     await expect.element(screen.getByText("—")).toHaveLength(2);
   });
 
-  it("keeps the placeholders when the core cannot be reached", async () => {
-    const { screen, preview } = await renderModal({
-      previewAdjustment: () => Promise.reject(new Error("the connection was replaced")),
-    });
+  it("shows the preview loading in place of the discount and the total until the core answers", async () => {
+    const answer = deferred<PreviewSaleLineAdjustmentOutcome>();
+    const { screen } = await renderModal({ previewAdjustment: () => answer.promise });
 
     await typeValue(screen, "Porcentaje de descuento", "10");
 
-    await expect.poll(() => preview.mock.calls.length).toBe(1);
-    await expect.element(screen.getByText("—")).toHaveLength(2);
+    await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
+    await expect.element(screen.getByText("—")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Queda la línea en")).not.toBeInTheDocument();
+    answer.resolve(TEN_PERCENT);
+    await expect.element(screen.getByText("$ 4.284,00")).toBeVisible();
+    await expect.element(screen.getByText("Cargando…")).not.toBeInTheDocument();
+  });
+
+  it.each<[string, () => Promise<PreviewSaleLineAdjustmentOutcome>]>([
+    ["cannot be reached", () => Promise.reject(new Error("the connection was replaced"))],
+    ["answers it is unavailable", async () => ({ kind: "unavailable" })],
+  ])("says the preview could not be calculated when the core %s", async (_what, failing) => {
+    const { screen } = await renderModal({ previewAdjustment: failing });
+
+    await typeValue(screen, "Porcentaje de descuento", "10");
+
+    await expect.element(screen.getByText("No se pudo calcular cómo queda la línea")).toBeVisible();
+    await expect.element(screen.getByText("—")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Queda la línea en")).not.toBeInTheDocument();
+  });
+
+  it("shows the preview loading again after Reintentar, until the core answers", async () => {
+    const retried = deferred<PreviewSaleLineAdjustmentOutcome>();
+    const answers = [
+      () => Promise.reject(new Error("the connection was replaced")),
+      () => retried.promise,
+    ];
+    const { screen } = await renderModal({
+      previewAdjustment: () => {
+        const next = answers.shift();
+        if (next === undefined) {
+          throw new Error("no answer left");
+        }
+        return next();
+      },
+    });
+    await typeValue(screen, "Porcentaje de descuento", "10");
+    await expect.element(screen.getByText("No se pudo calcular cómo queda la línea")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
+    await expect
+      .element(screen.getByText("No se pudo calcular cómo queda la línea"))
+      .not.toBeInTheDocument();
+    retried.resolve(TEN_PERCENT);
+    await expect.element(screen.getByText("$ 4.284,00")).toBeVisible();
   });
 
   it("passes the accessibility checks with the core's answer shown", async () => {

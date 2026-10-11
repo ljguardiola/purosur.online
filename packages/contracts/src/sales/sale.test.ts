@@ -224,15 +224,11 @@ describe("a sale line's manual adjustment", () => {
     { kind: "PERCENT", value: 100 },
     { kind: "AMOUNT", value: 1 },
     { kind: "AMOUNT", value: 450 },
-  ])("accepts $kind of $value with its reason, authorized by nobody else", (value) => {
-    const manual_adjustment = { ...value, reason: "Producto golpeado", authorized_by: null };
-
-    expect(saleSchema.parse(adjusted(manual_adjustment)).lines[0]?.manual_adjustment).toEqual(
-      manual_adjustment,
-    );
+  ])("accepts $kind of $value", (value) => {
+    expect(saleSchema.parse(adjusted(value)).lines[0]?.manual_adjustment).toEqual(value);
   });
 
-  it("accepts an adjustment with the person who authorized it", () => {
+  it("carries neither the reason nor who authorized the adjustment", () => {
     const manual_adjustment = {
       kind: "PERCENT",
       value: 10,
@@ -240,9 +236,10 @@ describe("a sale line's manual adjustment", () => {
       authorized_by: { user_id: "u2", first_name: "Ana" },
     };
 
-    expect(saleSchema.parse(adjusted(manual_adjustment)).lines[0]?.manual_adjustment).toEqual(
-      manual_adjustment,
-    );
+    expect(saleSchema.parse(adjusted(manual_adjustment)).lines[0]?.manual_adjustment).toEqual({
+      kind: "PERCENT",
+      value: 10,
+    });
   });
 
   it.each([
@@ -257,16 +254,7 @@ describe("a sale line's manual adjustment", () => {
     ["a fractional price", { kind: "PRICE", value: 1.5 }],
     ["no value", { kind: "PRICE" }],
   ])("rejects an adjustment with %s", (_case, value) => {
-    const manual_adjustment = { reason: "Motivo", authorized_by: null, ...value };
-
-    expect(saleSchema.safeParse(adjusted(manual_adjustment)).success).toBe(false);
-  });
-
-  it.each([
-    ["reason", { kind: "PRICE", value: 10, authorized_by: null }],
-    ["authorizer answer", { kind: "PRICE", value: 10, reason: "Motivo" }],
-  ])("rejects an adjustment without its %s", (_field, manual_adjustment) => {
-    expect(saleSchema.safeParse(adjusted(manual_adjustment)).success).toBe(false);
+    expect(saleSchema.safeParse(adjusted(value)).success).toBe(false);
   });
 });
 
@@ -497,11 +485,8 @@ describe("cancelPaidSaleOutcomeSchema", () => {
 });
 
 describe("adjustSaleLineOutcomeSchema", () => {
-  const changed = { kind: "changed", sale, authorized_by: { user_id: "u2", first_name: "Ana" } };
-
   it.each([
-    changed,
-    { ...changed, authorized_by: null },
+    { kind: "changed", sale },
     { kind: "unknown_line" },
     { kind: "same_as_list_price" },
     { kind: "discount_exceeds_line" },
@@ -514,9 +499,14 @@ describe("adjustSaleLineOutcomeSchema", () => {
     expect(adjustSaleLineOutcomeSchema.parse(outcome)).toEqual(outcome);
   });
 
+  it("carries no authorizer of the change", () => {
+    const changed = { kind: "changed", sale, authorized_by: { user_id: "u2", first_name: "Ana" } };
+
+    expect(adjustSaleLineOutcomeSchema.parse(changed)).toEqual({ kind: "changed", sale });
+  });
+
   it.each([
-    { kind: "changed", sale },
-    { kind: "changed", authorized_by: null },
+    { kind: "changed" },
     { kind: "removed", sale },
     { kind: "stale_quantity" },
     { kind: "somewhere_else" },
