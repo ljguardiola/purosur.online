@@ -1,19 +1,29 @@
-import type { SalesStopState } from "@purosur/domain";
+import type { SalesStopState, SerialDevicesReport } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { damagedRegisterTelemetryReader, registerTelemetryReader } from "./register-telemetry";
 
 const STORAGE = { wal_size_bytes: 8192, disk_free_bytes: 25_000, disk_free_ratio: 0.25 };
 
+const SERIAL_DEVICES: SerialDevicesReport = {
+  scale: { standing: "matching", vendor_id: "1a86", product_id: "7523" },
+  reader: { standing: "not_detected", vendor_id: "26f1", product_id: "8802" },
+};
+
 function readerStopped(stop: SalesStopState) {
   return registerTelemetryReader(
     async () => STORAGE,
     () => stop,
+    () => SERIAL_DEVICES,
   );
 }
 
 describe("the register's telemetry", () => {
   it("reports its storage and that it can sell while it still opens new sales", async () => {
-    expect(await readerStopped({ stopped: false })()).toEqual({ ...STORAGE, sales_denied: false });
+    expect(await readerStopped({ stopped: false })()).toEqual({
+      ...STORAGE,
+      sales_denied: false,
+      serial_devices: SERIAL_DEVICES,
+    });
   });
 
   it("reports its storage, that it can't sell and why when its event history broke", async () => {
@@ -21,13 +31,34 @@ describe("the register's telemetry", () => {
       ...STORAGE,
       sales_denied: true,
       sales_denied_reason: "event_history_broken",
+      serial_devices: SERIAL_DEVICES,
     });
   });
 
-  it("reports only its storage once the cloud revoked its installation", async () => {
-    expect(await readerStopped({ stopped: true, reason: "installation_revoked" })()).toEqual(
-      STORAGE,
+  it("reports only its storage and serial devices once the cloud revoked its installation", async () => {
+    expect(await readerStopped({ stopped: true, reason: "installation_revoked" })()).toEqual({
+      ...STORAGE,
+      serial_devices: SERIAL_DEVICES,
+    });
+  });
+
+  it("reads the serial devices each time it reports", async () => {
+    let devices = SERIAL_DEVICES;
+    const read = registerTelemetryReader(
+      async () => STORAGE,
+      () => ({ stopped: false }),
+      () => devices,
     );
+
+    const before = await read();
+    devices = {
+      ...SERIAL_DEVICES,
+      reader: { standing: "matching", vendor_id: "26f1", product_id: "8802" },
+    };
+    const after = await read();
+
+    expect(before.serial_devices?.reader.standing).toBe("not_detected");
+    expect(after.serial_devices?.reader.standing).toBe("matching");
   });
 
   it("reads what it is stopped for each time it reports", async () => {
@@ -35,6 +66,7 @@ describe("the register's telemetry", () => {
     const read = registerTelemetryReader(
       async () => STORAGE,
       () => stop,
+      () => SERIAL_DEVICES,
     );
 
     const before = await read();
@@ -53,5 +85,8 @@ describe("the telemetry of a register whose local database is damaged", () => {
       sales_denied: true,
       sales_denied_reason: "local_database_damaged",
     });
+    expect(await damagedRegisterTelemetryReader(async () => STORAGE)()).not.toHaveProperty(
+      "serial_devices",
+    );
   });
 });
