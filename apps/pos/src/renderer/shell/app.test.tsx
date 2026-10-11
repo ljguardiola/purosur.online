@@ -215,7 +215,8 @@ function coreAnswering(
         conditions: [],
         cloud: "reachable",
         serial_devices: serialDevices,
-        serial_devices_setup_offered: false,
+        serial_devices_setup_offered:
+          serialDevices.scale === "not_registered" && serialDevices.reader === "not_registered",
       };
     },
     async recordCashMovement(input) {

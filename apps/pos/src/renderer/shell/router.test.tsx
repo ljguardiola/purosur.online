@@ -973,8 +973,7 @@ describe("the register's router", () => {
         serial_devices_setup_offered: true,
       };
       const takeSerialDevicesOffer = vi.fn(
-        async (_person: SignedInPerson, readStatus: () => Promise<RegisterStatus>) =>
-          (await readStatus()) === status,
+        async (readStatus: () => Promise<RegisterStatus>) => (await readStatus()) === status,
       );
       const router = createRegisterRouter(
         routeTree,
@@ -990,7 +989,7 @@ describe("the register's router", () => {
 
       await expect.element(screenFor["/serial-devices"](screen)).toBeVisible();
       await expect.element(screen.getByRole("button", { name: "Ahora no" })).toBeVisible();
-      expect(takeSerialDevicesOffer).toHaveBeenCalledWith(DEVICES_CONFIGURER, expect.any(Function));
+      expect(takeSerialDevicesOffer).toHaveBeenCalledWith(expect.any(Function));
     });
 
     it("lands on the devices from a fresh read of the status when a cached one says they are not offered", async () => {

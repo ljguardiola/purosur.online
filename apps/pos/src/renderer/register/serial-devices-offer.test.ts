@@ -109,8 +109,8 @@ describe("serialDevicesOffer", () => {
 
     offer.offerSerialDevicesAfterSignIn(null);
 
-    expect(await offer.takeSerialDevicesOffer(CONFIGURER, readNeitherRegistered)).toBe(true);
-    expect(await offer.takeSerialDevicesOffer(CONFIGURER, readNeitherRegistered)).toBe(false);
+    expect(await offer.takeSerialDevicesOffer(readNeitherRegistered)).toBe(true);
+    expect(await offer.takeSerialDevicesOffer(readNeitherRegistered)).toBe(false);
   });
 
   it("does not land on the devices after a sign-in into an open cash session, even once it is closed", async () => {
@@ -118,12 +118,10 @@ describe("serialDevicesOffer", () => {
 
     offer.offerSerialDevicesAfterSignIn(OPEN_CASH_SESSION);
 
-    expect(await offer.takeSerialDevicesOffer(CONFIGURER, readNeitherRegistered)).toBe(false);
+    expect(await offer.takeSerialDevicesOffer(readNeitherRegistered)).toBe(false);
   });
 
   it("lands nowhere before anyone signed in", async () => {
-    expect(
-      await serialDevicesOffer().takeSerialDevicesOffer(CONFIGURER, readNeitherRegistered),
-    ).toBe(false);
+    expect(await serialDevicesOffer().takeSerialDevicesOffer(readNeitherRegistered)).toBe(false);
   });
 });
