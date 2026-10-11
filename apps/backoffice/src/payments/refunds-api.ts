@@ -87,7 +87,7 @@ export async function markRefundDone(refundId: string): Promise<MarkRefundDoneOu
 export async function discardRefund(refundId: string): Promise<DiscardRefundOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/refunds//discard`, { method: "POST" });
+    response = await fetch(`/api/refunds/${refundId}/discard`, { method: "POST" });
   } catch {
     return { kind: "failed" };
   }
