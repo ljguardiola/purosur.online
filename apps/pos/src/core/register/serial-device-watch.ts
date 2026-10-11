@@ -44,6 +44,14 @@ export function readStanding(
   return reading.registered[role] === undefined ? { kind: "not_registered" } : { kind: "unknown" };
 }
 
+export function pathOfMatchingDevice(
+  reading: SerialDeviceReading,
+  role: SerialDeviceRole,
+): string | undefined {
+  const standing = readStanding(reading, role);
+  return standing.kind === "matching" ? standing.path : undefined;
+}
+
 function readingKey(reading: SerialDeviceReading): string {
   return JSON.stringify(SERIAL_DEVICE_ROLES.map((role) => readStanding(reading, role)));
 }

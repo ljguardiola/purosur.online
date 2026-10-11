@@ -153,6 +153,7 @@ export type {
   SellingSession,
 } from "./sale-ledger.js";
 export type { SalesByDayQuery, SalesReportReader } from "./sales-report-reader.js";
+export type { Scale, ScaleReading } from "./scale.js";
 export type {
   FoundProduct,
   SearchProductsByNameInput,
@@ -165,3 +166,9 @@ export type {
   SettleApprovedQrPaymentOutcome,
 } from "./settle-approved-qr-payment.js";
 export { settleApprovedQrPayment } from "./settle-approved-qr-payment.js";
+export type {
+  WeighProductOnScaleInput,
+  WeighProductOnScaleOutcome,
+  WeighProductOnScalePorts,
+} from "./weigh-product-on-scale.js";
+export { weighProductOnScale } from "./weigh-product-on-scale.js";

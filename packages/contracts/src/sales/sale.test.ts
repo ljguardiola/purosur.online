@@ -13,6 +13,7 @@ import {
   saleSchema,
   scanProductOutcomeSchema,
   searchProductsOutcomeSchema,
+  weighProductOutcomeSchema,
 } from "./sale.js";
 
 const line = {
@@ -308,6 +309,35 @@ describe("addWeighedProductOutcomeSchema", () => {
     {},
   ])("rejects the outcome %j", (outcome) => {
     expect(addWeighedProductOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
+});
+
+describe("weighProductOutcomeSchema", () => {
+  it.each([
+    { kind: "added", sale },
+    { kind: "weighing" },
+    { kind: "scale_unavailable" },
+    { kind: "product_unavailable" },
+    { kind: "not_sold_by_weight" },
+    { kind: "no_price", product_name: "Queso" },
+    { kind: "sale_has_payments" },
+    { kind: "not_permitted" },
+    { kind: "not_signed_in" },
+    { kind: "no_open_session" },
+    { kind: "installation_revoked" },
+    { kind: "unavailable" },
+  ])("accepts the outcome $kind", (outcome) => {
+    expect(weighProductOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it.each([
+    { kind: "added" },
+    { kind: "invalid_weight" },
+    { kind: "no_price" },
+    { kind: "somewhere_else" },
+    {},
+  ])("rejects the outcome %j", (outcome) => {
+    expect(weighProductOutcomeSchema.safeParse(outcome).success).toBe(false);
   });
 });
 
