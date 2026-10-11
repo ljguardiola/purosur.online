@@ -1,14 +1,34 @@
-import { PUSH_BATCH_MAX_EVENTS, SALES_DENIED_REASONS } from "@purosur/domain";
+import {
+  PUSH_BATCH_MAX_EVENTS,
+  SALES_DENIED_REASONS,
+  SERIAL_DEVICE_REPORT_STANDINGS,
+} from "@purosur/domain";
 import { z } from "zod";
 import { pushedEventSchema } from "../shared/index.js";
+
+const absent = z.undefined().optional();
+
+const serialDeviceReportSchema = z.union([
+  z.strictObject({
+    standing: z.enum(SERIAL_DEVICE_REPORT_STANDINGS),
+    vendor_id: z.string().min(1),
+    product_id: z.string().min(1),
+  }),
+  z.strictObject({
+    standing: z.enum(SERIAL_DEVICE_REPORT_STANDINGS),
+    vendor_id: absent,
+    product_id: absent,
+  }),
+]);
 
 const storageTelemetrySchema = z.object({
   wal_size_bytes: z.int().nonnegative(),
   disk_free_bytes: z.int().nonnegative(),
   disk_free_ratio: z.number().min(0).max(1),
+  serial_devices: z
+    .strictObject({ scale: serialDeviceReportSchema, reader: serialDeviceReportSchema })
+    .optional(),
 });
-
-const absent = z.undefined().optional();
 
 const registerTelemetrySchema = z.union([
   storageTelemetrySchema.extend({
