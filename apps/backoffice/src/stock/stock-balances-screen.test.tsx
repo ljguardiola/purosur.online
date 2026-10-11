@@ -6,14 +6,14 @@ import { render } from "../shell/test-support/render-with-router";
 import { type StockBalancesFilters, stockBalancesFilters } from "./routes";
 import { StockBalancesScreen } from "./stock-balances-screen";
 import type { StockBalancesScreenServices } from "./stock-balances-services";
-import { almonds, crackers, expiringLot, honey, oats, tea } from "./test-support/stock-fixtures";
+import { almonds, crackers, honey, oats, tea } from "./test-support/stock-fixtures";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
 });
 
 function createServices(): StockBalancesScreenServices {
-  return { fetchStockBalances: vi.fn(), fetchProductLots: vi.fn() };
+  return { fetchStockBalances: vi.fn() };
 }
 
 function renderScreen(
@@ -169,35 +169,4 @@ test("marks no active product as deactivated", async () => {
 
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
   expect(screen.getByText("Desactivado").query()).toBeNull();
-});
-
-test("opens the lots of the product whose action was pressed, titled with its name", async () => {
-  const services = listed();
-  vi.mocked(services.fetchProductLots).mockResolvedValue({
-    kind: "ok",
-    value: { lots: [expiringLot] },
-  });
-  const screen = await renderScreen(services);
-
-  await userEvent.click(screen.getByRole("button", { name: `Ver los lotes de ${honey.name}` }));
-
-  await expect.element(screen.getByRole("heading", { name: honey.name, level: 2 })).toBeVisible();
-  await expect.element(screen.getByText("L-2041")).toBeVisible();
-  expect(services.fetchProductLots).toHaveBeenCalledOnce();
-  expect(services.fetchProductLots).toHaveBeenCalledWith(honey.id);
-});
-
-test("closes the lots and goes back to the balances", async () => {
-  const services = listed();
-  vi.mocked(services.fetchProductLots).mockResolvedValue({
-    kind: "ok",
-    value: { lots: [expiringLot] },
-  });
-  const screen = await renderScreen(services);
-  await userEvent.click(screen.getByRole("button", { name: `Ver los lotes de ${honey.name}` }));
-  await expect.element(screen.getByText("L-2041")).toBeVisible();
-
-  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
-
-  await expect.element(screen.getByText("L-2041")).not.toBeInTheDocument();
 });

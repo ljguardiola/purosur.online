@@ -1,6 +1,5 @@
 import type { StockBalance } from "@purosur/contracts";
 import {
-  actionsColumn,
   dataColumn,
   ListFilter,
   plural,
@@ -11,7 +10,7 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
-import { Eye, Package, Search } from "lucide-react";
+import { Package, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
@@ -19,7 +18,6 @@ import { ScreenLayout } from "../shell/screen-layout";
 import { StockTopBar } from "../shell/stock-top-bar";
 import type { StockBalancesFilters } from "./routes";
 import type { StockBalancesScreenServices } from "./stock-balances-services";
-import { StockLotsModal } from "./stock-lots-modal";
 import { useStockBalancesQuery } from "./stock-queries";
 import { categoryFilterOptions } from "./stock-screen-parts";
 
@@ -72,7 +70,6 @@ export function StockBalancesScreen({
     }
   }, [search, category, balance, filters]);
 
-  const [lotsOf, setLotsOf] = useState<StockBalance | null>(null);
   const columns = [
     dataColumn({
       id: "product",
@@ -89,17 +86,6 @@ export function StockBalancesScreen({
       header: "Saldo",
       align: "end",
       render: (item: StockBalance) => formatStockQuantity(item.balance, item.saleUnit),
-    }),
-    actionsColumn({
-      id: "actions",
-      header: "Acciones del saldo",
-      actions: [
-        (item: StockBalance) => ({
-          icon: <Eye />,
-          "aria-label": `Ver los lotes de ${item.name}`,
-          onPress: () => setLotsOf(item),
-        }),
-      ],
     }),
   ] as const;
 
@@ -181,14 +167,6 @@ export function StockBalancesScreen({
           )
         }
       />
-      {lotsOf === null ? null : (
-        <StockLotsModal
-          product={lotsOf}
-          services={services}
-          onClose={() => setLotsOf(null)}
-          onSessionEnded={onSessionEnded}
-        />
-      )}
     </ScreenLayout>
   );
 }

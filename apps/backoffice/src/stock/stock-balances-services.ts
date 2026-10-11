@@ -1,11 +1,9 @@
-import { fetchProductLots, fetchStockBalances } from "./stock-api";
-import type { StockLotsModalServices } from "./stock-lots-modal";
+import { fetchStockBalances } from "./stock-api";
 
-export type StockBalancesScreenServices = StockLotsModalServices & {
+export type StockBalancesScreenServices = {
   fetchStockBalances: typeof fetchStockBalances;
 };
 
 export const defaultStockBalancesScreenServices: StockBalancesScreenServices = {
   fetchStockBalances,
-  fetchProductLots,
 };

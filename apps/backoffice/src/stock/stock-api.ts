@@ -6,7 +6,6 @@ import {
   type StockCountList,
   type StockCountResult,
   type StockLossBody,
-  type StockLotBreakdown,
   type StockMovementList,
   type StockMovementReasonList,
   type StockMovementResult,
@@ -16,7 +15,6 @@ import {
   stockBalanceSchema,
   stockCountListSchema,
   stockCountResultSchema,
-  stockLotBreakdownSchema,
   stockMovementListSchema,
   stockMovementReasonListSchema,
   stockMovementResultSchema,
@@ -107,12 +105,6 @@ export function fetchExpectedBalance(
 ): Promise<FetchExpectedBalanceOutcome> {
   const query = new URLSearchParams({ at });
   return read(`/api/inventory-levels/${productId}?${query.toString()}`, stockBalanceSchema);
-}
-
-export type FetchProductLotsOutcome = CloudReadOutcome<StockLotBreakdown> | { kind: "not_found" };
-
-export function fetchProductLots(productId: string): Promise<FetchProductLotsOutcome> {
-  return read(`/api/inventory-levels/${productId}/lots`, stockLotBreakdownSchema);
 }
 
 type WriteOutcome<T, Refusal> =

@@ -1,7 +1,6 @@
 import type {
   StockBalance,
   StockCount,
-  StockLotBreakdown,
   StockMovement,
   StockMovementReasonList,
   StockProduct,
@@ -138,49 +137,3 @@ export const movementReasons: StockMovementReasonList = {
 export function withoutBalance({ balance: _balance, ...product }: StockBalance): StockProduct {
   return product;
 }
-
-type StockLot = StockLotBreakdown["lots"][number];
-
-export const expiringLot: StockLot = {
-  id: "lot-1",
-  lotNumber: "L-2041",
-  expiresOn: "2026-12-05",
-  purchasedOn: "2026-09-10",
-  technical: false,
-  remaining: 8_000,
-  valueCents: 1_250_000,
-  costIncomplete: false,
-};
-
-export const lotWithoutNumber: StockLot = {
-  id: "lot-2",
-  lotNumber: null,
-  expiresOn: null,
-  purchasedOn: "2026-10-01",
-  technical: false,
-  remaining: 4_150,
-  valueCents: 640_000,
-  costIncomplete: false,
-};
-
-export const negativeLot: StockLot = {
-  id: "lot-3",
-  lotNumber: "L-1900",
-  expiresOn: "2026-11-20",
-  purchasedOn: "2026-08-15",
-  technical: false,
-  remaining: -2_000,
-  valueCents: -310_000,
-  costIncomplete: false,
-};
-
-export const technicalLot: StockLot = {
-  id: "lot-4",
-  lotNumber: null,
-  expiresOn: null,
-  purchasedOn: null,
-  technical: true,
-  remaining: 1_000,
-  valueCents: null,
-  costIncomplete: true,
-};

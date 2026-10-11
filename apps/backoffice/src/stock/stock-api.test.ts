@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   fetchExpectedBalance,
-  fetchProductLots,
   fetchStockBalances,
   fetchStockCounts,
   fetchStockMovementReasons,
@@ -130,51 +129,6 @@ test("fetchExpectedBalance answers not_found on 404", async () => {
   expect(await fetchExpectedBalance(PRODUCT_ID, "2026-09-15T21:32:00.000Z")).toEqual({
     kind: "not_found",
   });
-});
-
-test("fetchProductLots asks for the product's lots and reads them", async () => {
-  const breakdown = {
-    lots: [
-      {
-        id: "lot-1",
-        lotNumber: "L-2041",
-        expiresOn: "2026-12-05",
-        purchasedOn: "2026-09-10",
-        technical: false,
-        remaining: 8000,
-        valueCents: 1_250_000,
-        costIncomplete: false,
-      },
-    ],
-  };
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, breakdown));
-
-  const outcome = await fetchProductLots(PRODUCT_ID);
-
-  expect(outcome).toEqual({ kind: "ok", value: breakdown });
-  expect(fetch).toHaveBeenCalledWith(`/api/inventory-levels/${PRODUCT_ID}/lots`);
-});
-
-test("fetchProductLots answers not_found on 404", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
-
-  expect(await fetchProductLots(PRODUCT_ID)).toEqual({ kind: "not_found" });
-});
-
-test.each([
-  [401, { kind: "unauthenticated" }],
-  [403, { kind: "forbidden" }],
-  [500, { kind: "failed" }],
-] as const)("fetchProductLots answers %s as a refusal", async (status, expected) => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
-
-  expect(await fetchProductLots(PRODUCT_ID)).toEqual(expected);
-});
-
-test("fetchProductLots treats a body that is not a lot breakdown as failed", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { lots: [{ id: "lot-1" }] }));
-
-  expect(await fetchProductLots(PRODUCT_ID)).toEqual({ kind: "failed" });
 });
 
 const lossBody = { productId: PRODUCT_ID, reason: "theft", quantity: 1000 } as const;
