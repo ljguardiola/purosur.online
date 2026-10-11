@@ -55,13 +55,17 @@ export async function runCli({
   const base = `https://api.github.com/repos/${GITHUB_REPOSITORY}/actions`;
   let runId = null;
   try {
-    const sources = [{ branch: "main", event: "push" }];
+    const sources = [{ branch: "main", event: "push", keep: () => true }];
     if (HEAD_BRANCH) {
-      sources.push({ branch: HEAD_BRANCH, event: "pull_request" });
+      sources.push({
+        branch: HEAD_BRANCH,
+        event: "pull_request",
+        keep: (run) => run.head_repository?.full_name === GITHUB_REPOSITORY,
+      });
     }
     const listArtifacts = async (id) => (await get(`${base}/runs/${id}/artifacts`)).artifacts ?? [];
     const found = [];
-    for (const { branch, event } of sources) {
+    for (const { branch, event, keep } of sources) {
       const runsUrl = new URL(`${base}/workflows/verify.yml/runs`);
       runsUrl.search = new URLSearchParams({
         branch,
@@ -70,7 +74,7 @@ export async function runCli({
         per_page: "10",
       }).toString();
       const body = await get(runsUrl.toString());
-      const runs = Array.isArray(body?.workflow_runs) ? body.workflow_runs : [];
+      const runs = (Array.isArray(body?.workflow_runs) ? body.workflow_runs : []).filter(keep);
       const id = await findRunWithDurations({ runs, listArtifacts });
       found.push(runs.find((run) => run.id === id) ?? null);
     }
