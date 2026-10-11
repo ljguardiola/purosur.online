@@ -36,6 +36,17 @@ describe("dataColumn", () => {
     expect(column.sortDescFirst).toBe(true);
   });
 
+  it("carries the width of its content", () => {
+    const column = dataColumn({
+      id: "stock",
+      header: "Stock",
+      width: 150,
+      render: (product: Product) => product.name,
+    });
+
+    expect(column.meta).toEqual({ width: 150 });
+  });
+
   it("is sortable only when it has an order, and says so in its type", () => {
     const plain = dataColumn({ id: "a", header: "A", render: (p: Product) => p.name });
     const sortable = dataColumn({

@@ -2314,3 +2314,41 @@ test("lines a nested table's cells up with the edges of its container, with no p
   expect(firstHeader.getBoundingClientRect().left).toBe(edges.left);
   expect(lastCell.getBoundingClientRect().right).toBe(edges.right);
 });
+
+test("sizes a column given a width to that content width plus the header's own padding, leaving the rest to the others", async () => {
+  const widthColumns = [
+    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+    dataColumn({
+      id: "stock",
+      header: "Stock",
+      align: "end",
+      width: 150,
+      render: (p: Product) => p.stock,
+    }),
+  ] as const;
+  const screen = await render(<TestTable {...commonProps} columns={widthColumns} />);
+  const header = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
+
+  expect(getComputedStyle(header).width).toBe(`${150 + 6 + 16}px`);
+  expect(
+    getComputedStyle(screen.getByRole("columnheader", { name: "Producto" }).element()).width,
+  ).not.toBe(getComputedStyle(header).width);
+});
+
+test("sizes a nested table's column to its content width plus the padding between columns only", async () => {
+  const widthColumns = [
+    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+    dataColumn({
+      id: "stock",
+      header: "Stock",
+      width: 150,
+      render: (p: Product) => p.stock,
+    }),
+  ] as const;
+  const screen = await render(
+    <TestTable {...commonProps} columns={widthColumns} variant="nested" />,
+  );
+  const header = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
+
+  expect(getComputedStyle(header).width).toBe(`${150 + 6}px`);
+});
