@@ -9,7 +9,7 @@ import type {
 
 type StockLot = StockBalance["lots"][number];
 
-export const almondsFirstLot: StockLot = {
+const almondsFirstLot: StockLot = {
   id: "lot-1",
   lotNumber: "L-2312",
   expiresOn: "2026-10-14",
@@ -20,7 +20,7 @@ export const almondsFirstLot: StockLot = {
   origin: { kind: "purchase", purchasedOn: "2026-08-05", supplierName: "Distribuidora del Sur" },
 };
 
-export const almondsSecondLot: StockLot = {
+const almondsSecondLot: StockLot = {
   id: "lot-2",
   lotNumber: "L-2409",
   expiresOn: "2027-02-28",
@@ -46,7 +46,7 @@ export const almonds: StockBalance = {
   lots: [almondsFirstLot, almondsSecondLot],
 };
 
-export const honeyLot: StockLot = {
+const honeyLot: StockLot = {
   id: "lot-3",
   lotNumber: null,
   expiresOn: null,
@@ -72,7 +72,7 @@ export const honey: StockBalance = {
   lots: [honeyLot],
 };
 
-export const crackersTechnicalLot: StockLot = {
+const crackersTechnicalLot: StockLot = {
   id: "lot-4",
   lotNumber: null,
   expiresOn: null,
@@ -113,7 +113,7 @@ export const tea: StockBalance = {
   lots: [],
 };
 
-export const oatsLot: StockLot = {
+const oatsLot: StockLot = {
   id: "lot-5",
   lotNumber: "L-1807",
   expiresOn: "2027-01-10",
