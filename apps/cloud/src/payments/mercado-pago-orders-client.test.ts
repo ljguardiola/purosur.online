@@ -421,6 +421,52 @@ describe("the Mercado Pago orders client", () => {
       expect(await client.readOrder(ORDER_ID)).toStrictEqual({ kind: "unavailable" });
     });
 
+    it.each([
+      ["a created order", () => answer(200, createdOrder())],
+      ["a paid order", () => answer(200, paidWithCardOrder())],
+      ["a cancelled order", () => answer(200, canceledOrder())],
+      ["an expired order", () => answer(200, expiredOrder())],
+    ])("logs nothing for %s", async (_name, response) => {
+      const { client } = clientAnswering(response());
+
+      await client.readOrder(ORDER_ID);
+
+      expect(consoleCalls).toEqual([]);
+    });
+
+    it.each([
+      [
+        "a 404",
+        () => answer(404, { errors: [{ code: "order_not_found" }] }),
+        { status: 404, code: "order_not_found" },
+      ],
+      ["a 401", () => answer(401, { message: "unauthorized" }), { status: 401, code: null }],
+      ["a server error", () => answer(500, { message: "oops" }), { status: 500, code: null }],
+      ["a success that is not JSON", () => answer(200, "not json"), { status: 200, code: null }],
+      [
+        "a success missing its fields",
+        () => answer(200, { id: ORDER_ID }),
+        { status: 200, code: null },
+      ],
+      [
+        "a network failure",
+        () => new TypeError("fetch failed"),
+        { status: "unreachable", code: null },
+      ],
+      [
+        "a code that is not an error code",
+        () => answer(400, { errors: [{ code: ACCESS_TOKEN }] }),
+        { status: 400, code: null },
+      ],
+    ])("logs the status and code of %s without the body", async (_name, response, logged) => {
+      const { client } = clientAnswering(response());
+
+      await client.readOrder(ORDER_ID);
+
+      expect(consoleCalls).toEqual([["Mercado Pago did not answer the order", logged]]);
+      expect(JSON.stringify(consoleCalls)).not.toContain(ACCESS_TOKEN);
+    });
+
     it("is unavailable when Mercado Pago does not answer within 10 seconds", async () => {
       vi.useFakeTimers();
       const fetch = vi.fn<typeof globalThis.fetch>(

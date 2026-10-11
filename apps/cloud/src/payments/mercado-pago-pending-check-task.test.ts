@@ -77,6 +77,26 @@ describe("mercadoPagoPendingCheckJobs", () => {
     expect(row?.state).toBe("APPROVED");
   });
 
+  it("cancels the order of a replaced pending payment with a new key on every check, never the payment's own identifier", async () => {
+    const registerId = await insertRegister(testDatabase.db, "Caja 1");
+    const payment = pendingTransaction(registerId, { providerOrderId: ORDER_ID, replaced: true });
+    await testDatabase.db.insert(paymentTransactions).values(payment);
+    const mercadoPago = new FakeMercadoPagoOrders();
+    mercadoPago.cancellation = { kind: "unavailable" };
+    const check = taskOf(jobsOf(mercadoPago), MERCADO_PAGO_PENDING_CHECK_TASK_IDENTIFIER);
+
+    await check({}, buildJobHelpers().helpers);
+    await check({}, buildJobHelpers().helpers);
+
+    const keys = mercadoPago.cancellations.map((cancellation) => cancellation.idempotencyKey);
+    expect(mercadoPago.cancellations.map((cancellation) => cancellation.orderId)).toEqual([
+      ORDER_ID,
+      ORDER_ID,
+    ]);
+    expect(keys).not.toContain(payment.id);
+    expect(new Set(keys).size).toBe(2);
+  });
+
   it("schedules the next check 30 seconds on, replacing any check already scheduled under its key", async () => {
     const { helpers, addJob } = buildJobHelpers();
 
