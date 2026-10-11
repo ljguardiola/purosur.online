@@ -1141,7 +1141,6 @@ describe("answerRendererRequest", () => {
       kind: "order_shown",
       payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
       amount: 1200,
-      wait_seconds: 180,
       remaining_seconds: 180,
     } as const;
     const { deps: withQr } = deps(true, {

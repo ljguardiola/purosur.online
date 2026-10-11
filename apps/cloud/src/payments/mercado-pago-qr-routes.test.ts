@@ -211,14 +211,14 @@ describe("the Mercado Pago QR routes", () => {
         state: "PENDING",
         needs_review: false,
         amount: 5000,
-        expires_at: "2026-10-09T12:05:10.000Z",
+        expires_at: "2026-10-09T12:03:10.000Z",
       });
       expect(route.mercadoPago.creations).toEqual([
         {
           idempotencyKey: body.payment_transaction_id,
           externalReference: body.payment_transaction_id,
           amount: 5000,
-          expiresAfterMinutes: 5,
+          expiresAfterMinutes: 3,
         },
       ]);
       expect(await transactions()).toMatchObject([

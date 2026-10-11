@@ -3,7 +3,6 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   expiryWithoutOrder,
   isValidOrderAmount,
-  MERCADO_PAGO_ORDER_EXPIRY_MINUTES,
   type MercadoPagoQrOrderTransaction,
   mercadoPagoOrderExpiresAt,
   PAYMENT_TRANSACTION_STATES,
@@ -50,21 +49,20 @@ describe("PaymentTransaction", () => {
 });
 
 describe("mercadoPagoOrderExpiresAt", () => {
-  it("expires 5 minutes after the creation attempt starts, plus the longest the creation call can take", () => {
-    expect(MERCADO_PAGO_ORDER_EXPIRY_MINUTES).toBe(5);
+  it("expires when the register's 3-minute wait ends, plus the longest the creation call can take", () => {
     expect(mercadoPagoOrderExpiresAt(new Date("2026-10-09T12:00:00.000Z"), 10_000)).toEqual(
-      new Date("2026-10-09T12:05:10.000Z"),
+      new Date("2026-10-09T12:03:10.000Z"),
     );
   });
 
-  it("is never earlier than the attempt's start plus 5 minutes plus the longest call", () => {
+  it("is never earlier than the attempt's start plus the wait plus the longest call", () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 0, max: 4_000_000_000_000 }),
         fc.integer({ min: 0, max: 600_000 }),
         (attemptStartedAt, longestCallMs) =>
           mercadoPagoOrderExpiresAt(new Date(attemptStartedAt), longestCallMs).getTime() ===
-          attemptStartedAt + 5 * 60 * 1000 + longestCallMs,
+          attemptStartedAt + 3 * 60 * 1000 + longestCallMs,
       ),
     );
   });
