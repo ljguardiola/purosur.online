@@ -194,7 +194,7 @@ const FISCAL_LINES = [
   "[qr model 2]",
   "[qr module 4]",
   "[qr correction M]",
-  "[qr store " + QR_TEXT + "]",
+  `[qr store ${QR_TEXT}]`,
   "[qr print]",
   "[align left]",
   "             Comprobante Autorizado",
