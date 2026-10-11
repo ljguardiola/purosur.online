@@ -110,6 +110,7 @@ function toSaleLine(row: LineRow, promotions: LinePromotion[]): SaleLine {
     listUnitPrice: row.list_unit_price,
     priceListId: row.price_list_id,
     promotions,
+    manualAdjustment: null,
     promotionId: row.promotion_id,
     discountAmount: row.discount_amount,
     lineTotal: row.line_total,
