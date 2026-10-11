@@ -92,11 +92,17 @@ export function QrPaymentWaitModal({
     abandonment.mutate(order.payment_transaction_id);
   }
 
+  function chooseAnotherMethodUnlessPaid() {
+    if (paidByFollowing === undefined) {
+      onChooseAnotherMethod();
+    }
+  }
+
   const leaveWhenSettled = useEffectEvent((settled: FollowedQrCharge, alreadyPaid: boolean) => {
     switch (settled.kind) {
       case "not_pending":
         if (alreadyPaid) {
-          onChooseAnotherMethod();
+          chooseAnotherMethodUnlessPaid();
         } else {
           onSaleUnavailable();
         }
@@ -134,7 +140,7 @@ export function QrPaymentWaitModal({
         }
         break;
       case "not_pending":
-        onChooseAnotherMethod();
+        chooseAnotherMethodUnlessPaid();
         break;
       case "closed":
       case "replaced":
