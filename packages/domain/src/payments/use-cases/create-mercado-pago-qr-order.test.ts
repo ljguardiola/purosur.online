@@ -555,6 +555,54 @@ describe("createMercadoPagoQrOrder", () => {
     expect(mercadoPago.readOrders).toEqual(["order-1"]);
   });
 
+  describe("an order paid as soon as it was created, after the register replaced the payment", () => {
+    it("records the approval and opens the payment's pending refund task in one transaction", async () => {
+      const { lanes, ports } = mercadoPagoQrOrderWorld({
+        creation: { kind: "created", orderId: "order-1", result: paidOrderResult() },
+      });
+      lanes.replacementLandsBeforeNextWrite = true;
+
+      const outcome = await createMercadoPagoQrOrder(ports, INPUT);
+
+      expect(outcome).toMatchObject({
+        kind: "recorded",
+        transaction: { state: "APPROVED", replaced: true },
+      });
+      expect([...lanes.latePaymentRefunds.values()]).toEqual([
+        {
+          refund: {
+            paymentId: TRANSACTION_ID,
+            method: "QR",
+            provider: "MERCADOPAGO_QR",
+            amount: AMOUNT,
+            state: "PENDING",
+            origin: "late_payment",
+          },
+          openedAt: NOW,
+        },
+      ]);
+    });
+
+    it("keeps nothing of the creation answer when the refund task cannot be opened", async () => {
+      const { lanes, ports } = mercadoPagoQrOrderWorld({
+        creation: { kind: "created", orderId: "order-1", result: paidOrderResult() },
+      });
+      lanes.replacementLandsBeforeNextWrite = true;
+      lanes.failOn = "openLatePaymentRefund";
+
+      await expect(createMercadoPagoQrOrder(ports, INPUT)).rejects.toThrow(
+        "openLatePaymentRefund failed",
+      );
+
+      expect(lanes.resultReadAt.size).toBe(0);
+      expect(lanes.transactions.get(TRANSACTION_ID)).toMatchObject({
+        state: "PENDING",
+        providerOrderId: null,
+      });
+      expect(lanes.latePaymentRefunds.size).toBe(0);
+    });
+  });
+
   it("leaves nothing recorded when recording the pending payment fails", async () => {
     const { lanes, mercadoPago, ports } = mercadoPagoQrOrderWorld();
     lanes.failOn = "recordPendingTransaction";

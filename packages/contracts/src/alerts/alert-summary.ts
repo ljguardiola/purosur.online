@@ -16,6 +16,7 @@ export const alertSummarySchema = z.object({
   escalatedAt: z.string().nullable(),
   resolvedAt: z.string().nullable(),
   salesDeniedReason: z.enum(SALES_DENIED_REASONS).nullable(),
+  refundAmount: z.int().nonnegative().nullable(),
 });
 
 export const alertListPageSchema = z.object({

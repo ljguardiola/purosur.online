@@ -91,6 +91,21 @@ test("tells when the refund was already marked as done, and updating the list re
   expect(onDone).toHaveBeenCalledTimes(1);
 });
 
+test("tells when the refund was discarded in the meantime, and updating the list reports it", async () => {
+  const markRefundDone = vi
+    .fn<MarkRefundDoneModalServices["markRefundDone"]>()
+    .mockResolvedValue({ kind: "discarded" });
+  const onDone = vi.fn();
+  const screen = await renderModal({ markRefundDone, onDone });
+  const dialog = await confirm(screen);
+
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Este reembolso se descartó");
+  expect(dialog.getByRole("button", { name: "Marcar como hecho" }).query()).toBeNull();
+  await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
+
+  expect(onDone).toHaveBeenCalledTimes(1);
+});
+
 test("tells when the refund no longer exists", async () => {
   const markRefundDone = vi
     .fn<MarkRefundDoneModalServices["markRefundDone"]>()

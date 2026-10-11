@@ -39,6 +39,7 @@ const passkeyAlert: AlertSummary = {
   escalatedAt: null,
   resolvedAt: null,
   salesDeniedReason: null,
+  refundAmount: null,
 };
 
 const lockoutAlert: AlertSummary = {
@@ -53,6 +54,7 @@ const lockoutAlert: AlertSummary = {
   escalatedAt: "2026-01-06T10:00:00.000Z",
   resolvedAt: null,
   salesDeniedReason: null,
+  refundAmount: null,
 };
 
 const closedAlert: AlertSummary = {
@@ -67,6 +69,7 @@ const closedAlert: AlertSummary = {
   escalatedAt: null,
   resolvedAt: "2026-01-05T09:00:00.000Z",
   salesDeniedReason: null,
+  refundAmount: null,
 };
 
 function ok(
@@ -378,7 +381,7 @@ const passkeyDetail: AlertDetail = {
   escalatedAt: null,
   resolvedAt: null,
   open: true,
-  resolvesByItself: false,
+  closing: "by_hand",
   deliveries: [],
 };
 
@@ -847,6 +850,58 @@ test.each([
   },
 );
 
+test("summarizes the refund owed for a late QR payment by its amount, under its title, with no id as its scope", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...passkeyAlert,
+        kind: "late_payment_refund",
+        level: "warning",
+        audience: "local",
+        scope: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        scopeDisplay: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        scopeKind: "refund",
+        refundAmount: 1_240_000,
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Reembolso pendiente por un pago tardío/ });
+  await expect
+    .element(row.getByText("QR de Mercado Pago de $ 12.400,00 sin marcar como hecho"))
+    .toBeVisible();
+  await expect.element(row.getByText("Tarea de reembolso")).toBeVisible();
+  expect(row.getByText(/3f2b8c1e/).query()).toBeNull();
+});
+
+test("summarizes a closed refund alert for a late QR payment by its amount alone", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...closedAlert,
+        kind: "late_payment_refund",
+        audience: "local",
+        scope: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        scopeDisplay: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        scopeKind: "refund",
+        refundAmount: 1_240_000,
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Reembolso pendiente por un pago tardío/ });
+  await expect
+    .element(row.getByText("QR de Mercado Pago de $ 12.400,00", { exact: true }))
+    .toBeVisible();
+  expect(row.getByText(/sin marcar como hecho/).query()).toBeNull();
+});
+
 test("describes a register that can't sell by its kind when the cloud names no reason", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(
@@ -858,6 +913,7 @@ test("describes a register that can't sell by its kind when the cloud names no r
         audience: "local",
         scopeDisplay: "Caja 1",
         salesDeniedReason: null,
+        refundAmount: null,
       },
     ]),
   );

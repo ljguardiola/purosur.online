@@ -1,4 +1,5 @@
 import {
+  ALERT_CLOSINGS,
   type AlertKind,
   ARGENTINA_TIME_ZONE,
   FACTURA_C_DOCUMENT_TYPE,
@@ -150,6 +151,11 @@ const fiscalRejectedDetailSchema = z.object({
   rejections: z.array(z.object({ code: z.int(), message: z.string() })),
 });
 
+const latePaymentRefundDetailSchema = z.object({
+  saleId: z.string(),
+  amount: z.int(),
+});
+
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
 
 const alertBase = {
@@ -163,7 +169,7 @@ const alertBase = {
   escalatedAt: z.string().nullable().meta(ALERT_INSTANT),
   resolvedAt: z.string().nullable().meta(ALERT_INSTANT),
   open: z.boolean(),
-  resolvesByItself: z.boolean(),
+  closing: z.enum(ALERT_CLOSINGS),
   deliveries: z.array(alertDeliverySchema),
 };
 
@@ -242,6 +248,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("offline_authorization_code_missing" satisfies AlertKind),
     detail: offlineAuthorizationCodeMissingDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("late_payment_refund" satisfies AlertKind),
+    detail: latePaymentRefundDetailSchema,
   }),
 ] as const;
 

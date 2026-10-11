@@ -1,10 +1,13 @@
+import type { LatePaymentRefund } from "../../model/payment-refund.js";
 import type { MercadoPagoQrOrderTransaction } from "../../model/payment-transaction.js";
 import {
+  type LatePaymentRefundOpening,
   PaymentTransactionAlreadyRecorded,
   type PaymentTransactionLane,
   type PaymentTransactionLanes,
   type PaymentTransactionOutcome,
   type PaymentTransactionReading,
+  type RecordedOrderState,
 } from "../mercado-pago-qr-order-ports.js";
 
 type LaneWrite =
@@ -14,7 +17,13 @@ type LaneWrite =
   | "recordNeedsReview"
   | "recordExpired"
   | "recordOrderCreated"
-  | "recordOrderResult";
+  | "recordOrderResult"
+  | "openLatePaymentRefund";
+
+export interface OpenedLatePaymentRefund {
+  refund: LatePaymentRefund;
+  openedAt: Date;
+}
 
 class FakeLane implements PaymentTransactionLane {
   private readonly lanes: FakePaymentTransactionLanes;
@@ -85,35 +94,87 @@ class FakeLane implements PaymentTransactionLane {
     paymentTransactionId: string,
     providerOrderId: string,
     reading: PaymentTransactionReading | null,
-  ): Promise<void> {
+  ): Promise<RecordedOrderState> {
     this.lanes.operations.push("recordOrderCreated");
     this.lanes.failIfAsked("recordOrderCreated");
     const stored = this.lanes.transactions.get(paymentTransactionId);
     if (stored) {
       stored.providerOrderId = providerOrderId;
     }
-    if (reading !== null) {
-      this.store(paymentTransactionId, reading.outcome, reading.readAt);
+    if (reading === null) {
+      return { state: stored?.state ?? "PENDING", replaced: stored?.replaced ?? false };
     }
+    return this.store(paymentTransactionId, reading.outcome, reading.readAt);
   }
 
   async recordOrderResult(
     paymentTransactionId: string,
     outcome: PaymentTransactionOutcome,
     readAt: Date,
-  ): Promise<void> {
+  ): Promise<RecordedOrderState> {
     this.lanes.operations.push("recordOrderResult");
     this.lanes.failIfAsked("recordOrderResult");
-    this.store(paymentTransactionId, outcome, readAt);
+    return this.store(paymentTransactionId, outcome, readAt);
   }
 
-  private store(paymentTransactionId: string, outcome: PaymentTransactionOutcome, readAt: Date) {
+  async openLatePaymentRefund(
+    refund: LatePaymentRefund,
+    openedAt: Date,
+  ): Promise<LatePaymentRefundOpening> {
+    this.lanes.operations.push("openLatePaymentRefund");
+    this.lanes.failIfAsked("openLatePaymentRefund");
+    if (this.lanes.latePaymentRefunds.has(refund.paymentId)) {
+      return "already_open";
+    }
+    this.lanes.latePaymentRefunds.set(refund.paymentId, {
+      refund: structuredClone(refund),
+      openedAt: new Date(openedAt),
+    });
+    return "opened";
+  }
+
+  async inOneTransaction<TOutcome>(
+    work: (lane: PaymentTransactionLane) => Promise<TOutcome>,
+  ): Promise<TOutcome> {
+    const before = {
+      transactions: structuredClone(this.lanes.transactions),
+      resultReadAt: structuredClone(this.lanes.resultReadAt),
+      latePaymentRefunds: structuredClone(this.lanes.latePaymentRefunds),
+    };
+    try {
+      return await work(this);
+    } catch (error) {
+      this.lanes.restore(before);
+      throw error;
+    }
+  }
+
+  private store(
+    paymentTransactionId: string,
+    outcome: PaymentTransactionOutcome,
+    readAt: Date,
+  ): RecordedOrderState {
+    if (this.lanes.replacementLandsBeforeNextWrite) {
+      this.lanes.replacementLandsBeforeNextWrite = false;
+      const racing = this.lanes.transactions.get(paymentTransactionId);
+      if (racing) {
+        racing.replaced = true;
+      }
+    }
     const stored = this.lanes.transactions.get(paymentTransactionId);
     if (stored) {
       stored.state = outcome.state;
       stored.needsReview = outcome.needsReview;
     }
     this.lanes.resultReadAt.set(paymentTransactionId, new Date(readAt));
+    return { state: outcome.state, replaced: stored?.replaced ?? false };
+  }
+}
+
+function replaceContents<TValue>(live: Map<string, TValue>, saved: Map<string, TValue>) {
+  live.clear();
+  for (const [key, value] of saved) {
+    live.set(key, value);
   }
 }
 
@@ -121,6 +182,8 @@ export class FakePaymentTransactionLanes implements PaymentTransactionLanes {
   readonly operations: string[] = [];
   readonly transactions = new Map<string, MercadoPagoQrOrderTransaction>();
   readonly resultReadAt = new Map<string, Date>();
+  readonly latePaymentRefunds = new Map<string, OpenedLatePaymentRefund>();
+  replacementLandsBeforeNextWrite = false;
   readonly lanesEntered: string[] = [];
   held = false;
   failOn: LaneWrite | undefined;
@@ -128,6 +191,16 @@ export class FakePaymentTransactionLanes implements PaymentTransactionLanes {
 
   seed(transaction: MercadoPagoQrOrderTransaction) {
     this.transactions.set(transaction.id, structuredClone(transaction));
+  }
+
+  restore(before: {
+    transactions: Map<string, MercadoPagoQrOrderTransaction>;
+    resultReadAt: Map<string, Date>;
+    latePaymentRefunds: Map<string, OpenedLatePaymentRefund>;
+  }) {
+    replaceContents(this.transactions, before.transactions);
+    replaceContents(this.resultReadAt, before.resultReadAt);
+    replaceContents(this.latePaymentRefunds, before.latePaymentRefunds);
   }
 
   failIfAsked(write: LaneWrite) {

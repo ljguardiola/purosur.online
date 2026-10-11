@@ -1,12 +1,24 @@
-import { REFUND_DONE_STATE, REFUND_PENDING_STATE } from "@purosur/domain";
+import { REFUND_DISCARDED_STATE, REFUND_DONE_STATE, REFUND_PENDING_STATE } from "@purosur/domain";
+import { closeAlert } from "@purosur/domain/alerts/use-cases";
 import type {
   LockedRefund,
   RefundStore,
   RefundStoreTransaction,
 } from "@purosur/domain/payments/use-cases";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { auditLog, paymentRefunds, salePayments, sales } from "../platform/db/schema.js";
+import { DrizzleAlertStore } from "../alerts/drizzle-alert-store.js";
+import { openAlertCondition } from "../alerts/open-alert-condition.js";
+import {
+  alerts,
+  auditLog,
+  paymentRefunds,
+  paymentTransactions,
+  registers,
+  salePayments,
+  sales,
+} from "../platform/db/schema.js";
+import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -23,11 +35,28 @@ class DrizzleRefundStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
   async lockRefund(refundId: string, locationId: string): Promise<LockedRefund | undefined> {
     const [row] = await this.tx
-      .select({ id: paymentRefunds.id, state: paymentRefunds.state })
+      .select({
+        id: paymentRefunds.id,
+        state: paymentRefunds.state,
+        origin: paymentRefunds.origin,
+      })
       .from(paymentRefunds)
-      .innerJoin(salePayments, eq(salePayments.id, paymentRefunds.paymentId))
-      .innerJoin(sales, eq(sales.id, salePayments.saleId))
-      .where(and(eq(paymentRefunds.id, refundId), eq(sales.locationId, locationId)))
+      .leftJoin(salePayments, eq(salePayments.id, paymentRefunds.paymentId))
+      .leftJoin(sales, eq(sales.id, salePayments.saleId))
+      .leftJoin(
+        paymentTransactions,
+        eq(paymentTransactions.id, paymentRefunds.paymentTransactionId),
+      )
+      .innerJoin(
+        registers,
+        eq(registers.id, sql`coalesce(${sales.registerId}, ${paymentTransactions.registerId})`),
+      )
+      .where(
+        and(
+          eq(paymentRefunds.id, refundId),
+          eq(sql`coalesce(${sales.locationId}, ${registers.locationId})`, locationId),
+        ),
+      )
       .for("update", { of: paymentRefunds });
     return row;
   }
@@ -45,6 +74,52 @@ class DrizzleRefundStoreTransaction<TQueryResult extends PgQueryResultHKT>
       newValue: { state: REFUND_DONE_STATE, doneAt: doneAt.toISOString() },
       at: doneAt,
     });
+  }
+
+  async recordRefundDiscarded(
+    refundId: string,
+    discardedBy: string,
+    discardedAt: Date,
+  ): Promise<void> {
+    await this.tx
+      .update(paymentRefunds)
+      .set({ state: REFUND_DISCARDED_STATE, discardedBy, discardedAt })
+      .where(eq(paymentRefunds.id, refundId));
+    await this.tx.insert(auditLog).values({
+      entity: "payment_refund",
+      entityId: refundId,
+      actorId: discardedBy,
+      previousValue: { state: REFUND_PENDING_STATE },
+      newValue: { state: REFUND_DISCARDED_STATE, discardedAt: discardedAt.toISOString() },
+      at: discardedAt,
+    });
+  }
+
+  async resolveLatePaymentRefundAlert(
+    refundId: string,
+    resolvedBy: string,
+    resolvedAt: Date,
+  ): Promise<void> {
+    const [alert] = await this.tx
+      .select({ id: alerts.id })
+      .from(alerts)
+      .where(
+        and(
+          eq(alerts.kind, "late_payment_refund"),
+          eq(alerts.scope, refundId),
+          openAlertCondition(),
+        ),
+      );
+    if (alert) {
+      await closeAlert(
+        {
+          store: new DrizzleAlertStore(this.tx, () => resolvedAt),
+          clock: { now: () => resolvedAt },
+          hasher: { hash: hashSourceAddress },
+        },
+        { alertId: alert.id, closedBy: resolvedBy },
+      );
+    }
   }
 }
 

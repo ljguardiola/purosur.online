@@ -10,7 +10,10 @@ import {
   PaymentTransactionAlreadyRecorded,
 } from "./mercado-pago-qr-order-ports.js";
 import { recordExpiryWithoutOrder } from "./record-expiry-without-order.js";
-import { recordMercadoPagoOrderResult } from "./record-mercado-pago-order-result.js";
+import {
+  openLatePaymentRefundIfLate,
+  recordMercadoPagoOrderResult,
+} from "./record-mercado-pago-order-result.js";
 
 export interface CreateMercadoPagoQrOrderInput {
   registerId: string;
@@ -109,16 +112,25 @@ export async function createMercadoPagoQrOrder(
         if (creation.kind === "unavailable") {
           return { kind: "provider_unavailable" };
         }
-        orderId = creation.orderId;
-        transaction = { ...transaction, providerOrderId: orderId };
+        const createdOrderId = creation.orderId;
+        orderId = createdOrderId;
+        transaction = { ...transaction, providerOrderId: createdOrderId };
 
         if (recorded === null) {
           const outcome = applyMercadoPagoOrderResult(transaction, creation.result);
-          await lane.recordOrderCreated(paymentTransactionId, orderId, {
-            outcome,
-            readAt: clock.now(),
+          const readAt = clock.now();
+          const state = await lane.inOneTransaction(async (atomic) => {
+            const created = await atomic.recordOrderCreated(paymentTransactionId, createdOrderId, {
+              outcome,
+              readAt,
+            });
+            await openLatePaymentRefundIfLate(atomic, transaction, created, readAt);
+            return created;
           });
-          return { kind: "recorded", transaction: { ...transaction, ...outcome } };
+          return {
+            kind: "recorded",
+            transaction: { ...transaction, ...outcome, replaced: state.replaced },
+          };
         }
         await lane.recordOrderCreated(paymentTransactionId, orderId, null);
       }

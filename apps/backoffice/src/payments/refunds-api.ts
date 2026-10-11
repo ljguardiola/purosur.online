@@ -1,4 +1,5 @@
 import {
+  discardedRefundSchema,
   markedRefundDoneSchema,
   type PendingRefundsBody,
   pendingRefundsSchema,
@@ -16,7 +17,21 @@ export type MarkRefundDoneOutcome =
   | { kind: "ok" }
   | { kind: "not_found" }
   | { kind: "already_done" }
+  | { kind: "discarded" }
   | RequestRefusal;
+
+export type DiscardRefundOutcome =
+  | { kind: "ok" }
+  | { kind: "not_found" }
+  | { kind: "not_discardable" }
+  | { kind: "already_done" }
+  | { kind: "already_discarded" }
+  | RequestRefusal;
+
+async function conflictCode(response: Response): Promise<string | undefined> {
+  const body = (await response.json().catch(() => undefined)) as { code?: unknown } | undefined;
+  return typeof body?.code === "string" ? body.code : undefined;
+}
 
 function refusal(response: Response): RequestRefusal {
   if (response.status === 401) {
@@ -60,7 +75,38 @@ export async function markRefundDone(refundId: string): Promise<MarkRefundDoneOu
     return { kind: "not_found" };
   }
   if (response.status === 409) {
-    return { kind: "already_done" };
+    const code = await conflictCode(response);
+    if (code === "already_done") {
+      return { kind: "already_done" };
+    }
+    return code === "refund_discarded" ? { kind: "discarded" } : { kind: "failed" };
+  }
+  return refusal(response);
+}
+
+export async function discardRefund(refundId: string): Promise<DiscardRefundOutcome> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/refunds/${refundId}/discard`, { method: "POST" });
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const parsed = discardedRefundSchema.safeParse(await response.json().catch(() => undefined));
+    return parsed.success ? { kind: "ok" } : { kind: "failed" };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 409) {
+    const code = await conflictCode(response);
+    if (code === "refund_not_discardable") {
+      return { kind: "not_discardable" };
+    }
+    if (code === "already_done" || code === "already_discarded") {
+      return { kind: code };
+    }
+    return { kind: "failed" };
   }
   return refusal(response);
 }
