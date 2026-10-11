@@ -85,10 +85,32 @@ function parsedOrder(body: unknown) {
 }
 
 const conflictAnswerSchema = z.object({ errors: z.array(z.object({ code: z.string() })).min(1) });
+const ERROR_CODE_SHAPE = /^[a-z][a-z0-9_]{0,63}$/;
 
 function conflictCode(body: unknown): string | null {
   const parsed = conflictAnswerSchema.safeParse(body);
   return parsed.success ? (parsed.data.errors[0]?.code ?? null) : null;
+}
+
+function loggableErrorCode(body: unknown): string | null {
+  const code = conflictCode(body);
+  return code !== null && ERROR_CODE_SHAPE.test(code) ? code : null;
+}
+
+type AnswerStatus = number | "unreachable";
+
+function warnOfAnswer(message: string, status: AnswerStatus, body: unknown): void {
+  console.warn(message, { status, code: loggableErrorCode(body) });
+}
+
+function notCancelled(status: AnswerStatus, body: unknown): MercadoPagoOrderCancellation {
+  warnOfAnswer("Mercado Pago did not cancel the order", status, body);
+  return { kind: "unavailable" };
+}
+
+function notRead(status: AnswerStatus, body: unknown): MercadoPagoOrderReading {
+  warnOfAnswer("Mercado Pago did not answer the order", status, body);
+  return { kind: "unavailable" };
 }
 
 type ProviderAnswer = { kind: "answered"; status: number; body: unknown } | { kind: "unreachable" };
@@ -157,43 +179,49 @@ export function createMercadoPagoOrdersClient(
         method: "GET",
         headers: { Authorization: `Bearer ${options.accessToken}` },
       });
-      if (answer.kind === "unreachable" || answer.status < 200 || answer.status >= 300) {
-        return { kind: "unavailable" };
+      if (answer.kind === "unreachable") {
+        return notRead("unreachable", null);
+      }
+      if (answer.status < 200 || answer.status >= 300) {
+        return notRead(answer.status, answer.body);
       }
       const order = parsedOrder(answer.body);
-      return order === null ? { kind: "unavailable" } : { kind: "read", result: order.result };
+      return order === null
+        ? notRead(answer.status, answer.body)
+        : { kind: "read", result: order.result };
     },
 
     async cancelOrder(
       orderId: string,
-      idempotencyKey?: string,
+      idempotencyKey: string,
     ): Promise<MercadoPagoOrderCancellation> {
       const answer = await call(`/v1/orders/${encodeURIComponent(orderId)}/cancel`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${options.accessToken}`,
-          ...(idempotencyKey === undefined ? {} : { "X-Idempotency-Key": idempotencyKey }),
+          "X-Idempotency-Key": idempotencyKey,
         },
       });
       if (answer.kind === "unreachable") {
-        return { kind: "unavailable" };
+        return notCancelled("unreachable", null);
       }
       if (answer.status >= 200 && answer.status < 300) {
         const order = parsedOrder(answer.body);
         return order === null
-          ? { kind: "unavailable" }
+          ? notCancelled(answer.status, answer.body)
           : { kind: "cancelled", result: order.result };
       }
       if (answer.status === CONFLICT) {
         const code = conflictCode(answer.body);
-        if (code === "cannot_cancel_order") {
+        if (
+          code === "cannot_cancel_order" ||
+          code === "order_already_canceled" ||
+          code === "instore_order_locked_error"
+        ) {
           return { kind: "cannot_cancel" };
         }
-        if (code === "order_already_canceled") {
-          return { kind: "already_cancelled" };
-        }
       }
-      return { kind: "unavailable" };
+      return notCancelled(answer.status, answer.body);
     },
   };
 }

@@ -12,7 +12,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   readonly longestCallMs = 10_000;
   readonly creationRequests: MercadoPagoQrOrderRequest[] = [];
   readonly readOrders: string[] = [];
-  readonly cancellations: { orderId: string; idempotencyKey: string | undefined }[] = [];
+  readonly cancellations: { orderId: string; idempotencyKey: string }[] = [];
   heldLaneDuringCall: boolean | undefined;
   transactionsRecordedDuringCall: string[] | undefined;
   recordedDuringCreation: MercadoPagoQrOrderTransaction | undefined;
@@ -57,7 +57,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
 
   async cancelOrder(
     orderId: string,
-    idempotencyKey?: string,
+    idempotencyKey: string,
   ): Promise<MercadoPagoOrderCancellation> {
     this.lanes.operations.push("cancelOrder");
     this.cancellations.push({ orderId, idempotencyKey });

@@ -3,7 +3,7 @@ import {
   PENDING_PAYMENT_TRANSACTION_STATE,
 } from "../model/payment-transaction.js";
 import type {
-  MercadoPagoOrders,
+  MercadoPagoCancellationKeys,
   MercadoPagoQrOrderPorts,
   PaymentTransactionLane,
 } from "./mercado-pago-qr-order-ports.js";
@@ -27,6 +27,12 @@ export type CancelMercadoPagoQrOrderOutcome =
 
 type Ports = Pick<MercadoPagoQrOrderPorts, "mercadoPago" | "clock">;
 
+export type CancelMercadoPagoQrOrderPorts = MercadoPagoQrOrderPorts & {
+  cancellationKeys: MercadoPagoCancellationKeys;
+};
+
+type LanePorts = Ports & { cancellationKeys: MercadoPagoCancellationKeys };
+
 function outcomeOfClosed(
   transaction: MercadoPagoQrOrderTransaction,
   cancelledNow: boolean,
@@ -45,30 +51,22 @@ function outcomeOfClosed(
   }
 }
 
-async function recordCancelled(
-  lane: PaymentTransactionLane,
-  transaction: MercadoPagoQrOrderTransaction,
-  readAt: Date,
-): Promise<MercadoPagoQrOrderTransaction> {
-  await lane.recordOrderResult(transaction.id, { state: "CANCELLED", needsReview: false }, readAt);
-  return { ...transaction, state: "CANCELLED", needsReview: false };
-}
-
 async function cancelOrder(
   lane: PaymentTransactionLane,
-  { mercadoPago, clock }: { mercadoPago: MercadoPagoOrders; clock: Ports["clock"] },
+  { mercadoPago, clock, cancellationKeys }: LanePorts,
   transaction: MercadoPagoQrOrderTransaction,
   providerOrderId: string,
 ): Promise<MercadoPagoQrOrderCancellationOutcome> {
-  const cancellation = await mercadoPago.cancelOrder(providerOrderId, transaction.id);
+  const cancellation = await mercadoPago.cancelOrder(
+    providerOrderId,
+    cancellationKeys.newCancellationKey(),
+  );
   switch (cancellation.kind) {
     case "cancelled":
       return outcomeOfClosed(
         await recordMercadoPagoOrderResult(lane, transaction, cancellation.result, clock.now()),
         true,
       );
-    case "already_cancelled":
-      return outcomeOfClosed(await recordCancelled(lane, transaction, clock.now()), false);
     case "cannot_cancel": {
       const reading = await mercadoPago.readOrder(providerOrderId);
       if (reading.kind === "unavailable") {
@@ -86,7 +84,7 @@ async function cancelOrder(
 
 export async function cancelMercadoPagoQrOrderInLane(
   lane: PaymentTransactionLane,
-  ports: { mercadoPago: MercadoPagoOrders; clock: Ports["clock"] },
+  ports: LanePorts,
   recorded: MercadoPagoQrOrderTransaction,
 ): Promise<MercadoPagoQrOrderCancellationOutcome> {
   const refresh = await refreshMercadoPagoTransaction(lane, ports, recorded);
@@ -104,7 +102,7 @@ export async function cancelMercadoPagoQrOrderInLane(
 }
 
 export async function cancelMercadoPagoQrOrder(
-  { lanes, mercadoPago, clock }: MercadoPagoQrOrderPorts,
+  { lanes, mercadoPago, clock, cancellationKeys }: CancelMercadoPagoQrOrderPorts,
   { registerId, paymentTransactionId }: CancelMercadoPagoQrOrderInput,
 ): Promise<CancelMercadoPagoQrOrderOutcome> {
   return lanes.inPaymentTransactionLane<CancelMercadoPagoQrOrderOutcome>(
@@ -114,7 +112,11 @@ export async function cancelMercadoPagoQrOrder(
       if (transaction === null) {
         return { kind: "not_found" };
       }
-      return cancelMercadoPagoQrOrderInLane(lane, { mercadoPago, clock }, transaction);
+      return cancelMercadoPagoQrOrderInLane(
+        lane,
+        { mercadoPago, clock, cancellationKeys },
+        transaction,
+      );
     },
   );
 }

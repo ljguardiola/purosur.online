@@ -8,6 +8,7 @@ import type { BackgroundJobs } from "../platform/background-jobs.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import { DrizzlePaymentTransactionDirectory } from "./drizzle-payment-transaction-directory.js";
 import { DrizzlePaymentTransactionLanes } from "./drizzle-payment-transaction-lanes.js";
+import { randomMercadoPagoCancellationKeys } from "./mercado-pago-cancellation-keys.js";
 
 export const MERCADO_PAGO_PENDING_CHECK_TASK_IDENTIFIER = "mercado-pago-pending-check";
 export const MERCADO_PAGO_PENDING_CHECK_WATCHDOG_TASK_IDENTIFIER =
@@ -32,6 +33,7 @@ function checkPendingPayments<TQueryResult extends PgQueryResultHKT>({
     directory: new DrizzlePaymentTransactionDirectory(db),
     lanes: new DrizzlePaymentTransactionLanes(connections),
     mercadoPago,
+    cancellationKeys: randomMercadoPagoCancellationKeys,
     clock: { now },
   });
 }
