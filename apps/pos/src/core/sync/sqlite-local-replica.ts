@@ -170,6 +170,9 @@ export class SqliteLocalReplica
     const discount = prepareDiscountPageWrites(this.database, mode);
     const fiscal = prepareFiscalPageWrites(this.database, mode);
     const stock = new SqliteReplicatedStockLedger(this.database);
+    const rewritePulledMovement = this.database.prepare(
+      "UPDATE stock_movements SET kind = @kind, occurred_at = @occurred_at WHERE id = @id AND sale_line_id IS NULL",
+    );
     const saveBranchSettings = this.database.prepare(
       `INSERT INTO branch_settings (
          location_id, address, whatsapp_number, instagram_handle, weekly_hours,
@@ -265,6 +268,13 @@ export class SqliteLocalReplica
             occurredAt: new Date(change.row.occurred_at),
             supersededByCountId: change.row.superseded_by_count_id,
           });
+          if (mode === "redelivery") {
+            rewritePulledMovement.run({
+              id: change.entity_id,
+              kind: change.row.kind,
+              occurred_at: change.row.occurred_at,
+            });
+          }
           break;
         case "removal": {
           const { removed_entity } = change;
