@@ -9,6 +9,7 @@ import {
   admitInstallationRequest,
   type PullPage,
   pullChanges,
+  resendPulledEntity,
 } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -298,10 +299,11 @@ export function registerChangesRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const page = await pullChanges(ports, {
-        deviceId: authentication.installation.deviceId,
-        since: query.since,
-      });
+      const { deviceId } = authentication.installation;
+      const page =
+        query.entity === undefined
+          ? await pullChanges(ports, { deviceId, since: query.since })
+          : await resendPulledEntity(ports, { deviceId, since: query.since, entity: query.entity });
       await reply.code(200).send(changesPageSchema.parse(toChangesPageWire(page)));
     });
   });
