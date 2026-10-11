@@ -117,6 +117,24 @@ describe("the unclear-outcome-decisions migration applied over a database that a
     ]);
   });
 
+  it("counts a question about an unclear outcome of an installation against the limiter", async () => {
+    const { client, registerId } = await databaseAfter();
+    const { rows: installationRows } = await client.query<{ id: string }>(
+      `insert into register_installations
+         (register_id, token_lookup_prefix, token_hash, token_issued_at, hostname, windows_version, enrolled_at)
+       values ($1, 'prefix', 'hash', now(), 'caja-1', 'Windows 11', now()) returning id`,
+      [registerId],
+    );
+
+    await client.query(
+      "insert into installation_request_attempts (device_id, endpoint, attempted_at) values ($1, 'fiscal_unclear_outcome', now())",
+      [installationRows[0]?.id],
+    );
+
+    const { rows } = await client.query("select endpoint from installation_request_attempts");
+    expect(rows).toEqual([{ endpoint: "fiscal_unclear_outcome" }]);
+  });
+
   it.each(["unclear", "not_attempted"])("accepts a release of a %s request", async (answerKind) => {
     const { client, registerId } = await databaseAfter();
 

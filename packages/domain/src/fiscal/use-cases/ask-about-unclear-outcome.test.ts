@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PushedEvent } from "../../sync/index.js";
+import { askAboutUnclearOutcome } from "./ask-about-unclear-outcome.js";
 import { authorizeFiscalDocument } from "./authorize-fiscal-document.js";
-import { recordUnrecordedUnclearOutcome } from "./record-unrecorded-unclear-outcome.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import {
   FakePointOfSaleLanes,
@@ -52,13 +52,13 @@ function setup() {
   return { documents, store, ports };
 }
 
-describe("recordUnrecordedUnclearOutcome", () => {
-  it("records a document the cloud has no record of as abandoned, in the point of sale's lane", async () => {
+describe("askAboutUnclearOutcome", () => {
+  it("records a document the cloud has no record of as abandoned, in the point of sale's lane, and answers it is pending", async () => {
     const { documents, store, ports } = setup();
 
     expect(
-      await recordUnrecordedUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
-    ).toEqual({ kind: "recorded" });
+      await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
+    ).toEqual({ kind: "pending" });
     expect(documents.lanesEntered).toEqual([12]);
     expect(documents.operations).toEqual([
       "enterLane",
@@ -83,7 +83,7 @@ describe("recordUnrecordedUnclearOutcome", () => {
 
   it("never lets a later authorization request for the recorded document reach the tax authority", async () => {
     const { documents, ports } = setup();
-    await recordUnrecordedUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST });
+    await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST });
     const taxAuthority = new FakeTaxAuthorityInvoicing(documents, {
       kind: "authorized",
       authorizationCode: "75123456789012",
@@ -112,7 +112,7 @@ describe("recordUnrecordedUnclearOutcome", () => {
     const { documents, ports } = setup();
 
     expect(
-      await recordUnrecordedUnclearOutcome(ports, {
+      await askAboutUnclearOutcome(ports, {
         registerId: "register-2",
         request: REQUEST,
       }),
@@ -124,7 +124,7 @@ describe("recordUnrecordedUnclearOutcome", () => {
     const { documents, ports } = setup();
 
     expect(
-      await recordUnrecordedUnclearOutcome(ports, {
+      await askAboutUnclearOutcome(ports, {
         registerId: REGISTER_ID,
         request: { ...REQUEST, saleId: "sale-2" },
       }),
@@ -132,7 +132,7 @@ describe("recordUnrecordedUnclearOutcome", () => {
     expect(documents.lanesEntered).toEqual([]);
   });
 
-  it("answers an already recorded document with its decision state and records nothing more", async () => {
+  it("answers an already recorded document with the decision recorded for it and records nothing more", async () => {
     const { documents, store, ports } = setup();
     store.seed(
       {
@@ -147,18 +147,18 @@ describe("recordUnrecordedUnclearOutcome", () => {
     );
 
     expect(
-      await recordUnrecordedUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
-    ).toEqual({ kind: "already_recorded", decision: { kind: "released" } });
+      await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
+    ).toEqual({ kind: "decided", decision: { kind: "released" } });
     expect(documents.operations).not.toContain("recordAbandonedRequest@2026-10-01T12:00:00.000Z");
   });
 
-  it("answers an already recorded document that is still undecided with no decision", async () => {
+  it("answers an already recorded document that is still undecided as pending", async () => {
     const { store, ports } = setup();
     store.seed({ ...REQUEST, registerId: REGISTER_ID, notAfter: NOW, receivedAt: NOW }, null);
 
     expect(
-      await recordUnrecordedUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
-    ).toEqual({ kind: "already_recorded", decision: null });
+      await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
+    ).toEqual({ kind: "pending" });
   });
 
   it("refuses a document recorded for another register, leaving it untouched", async () => {
@@ -166,7 +166,7 @@ describe("recordUnrecordedUnclearOutcome", () => {
     store.seed({ ...REQUEST, registerId: "register-2", notAfter: NOW, receivedAt: NOW }, null);
 
     expect(
-      await recordUnrecordedUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
+      await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
     ).toEqual({ kind: "fiscal_document_not_owned" });
     expect(documents.requests.get(FISCAL_DOCUMENT_ID)?.registerId).toBe("register-2");
   });
@@ -177,7 +177,7 @@ describe("recordUnrecordedUnclearOutcome", () => {
     store.recordingFailure = failure;
 
     await expect(
-      recordUnrecordedUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
+      askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
     ).rejects.toBe(failure);
   });
 });
