@@ -179,6 +179,7 @@ describe("GET /refunds/pending", () => {
     const cancelledId = await aPendingRefund();
     const late = await aPendingLatePaymentRefund(db, {
       openedAt: new Date("2026-10-06T10:00:00.000Z"),
+      registerName: "Caja 2",
       providerOrderId: "ORD01SECOND",
     });
 

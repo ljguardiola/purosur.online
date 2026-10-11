@@ -33,7 +33,7 @@ async function aPayment() {
     now: NOW,
     registerName: `Caja ${randomUUID()}`,
   });
-  const transaction = pendingTransaction(registerId, { providerOrderId: "order-1" });
+  const transaction = pendingTransaction(registerId, { providerOrderId: randomUUID() });
   await db.insert(paymentTransactions).values(transaction);
   return transaction;
 }
