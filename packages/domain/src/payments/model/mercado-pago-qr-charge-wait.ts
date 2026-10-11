@@ -18,6 +18,11 @@ export function mercadoPagoQrChargeWait(waitEndsAt: Date, now: Date): MercadoPag
   return { kind: "waiting", remainingSeconds: Math.ceil(remainingMs / 1000) };
 }
 
+export function mercadoPagoQrChargeRemainingSeconds(waitEndsAt: Date, now: Date): number {
+  const wait = mercadoPagoQrChargeWait(waitEndsAt, now);
+  return wait.kind === "waiting" ? wait.remainingSeconds : 0;
+}
+
 export function aQrChargeInItsWait(
   pendingQrPayments: readonly { waitEndsAt: Date }[],
   now: Date,

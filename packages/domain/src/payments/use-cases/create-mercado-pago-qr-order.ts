@@ -1,7 +1,7 @@
 import { applyMercadoPagoOrderResult } from "../model/mercado-pago-order-result.js";
+import { MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES } from "../model/mercado-pago-qr-charge-wait.js";
 import {
   isValidOrderAmount,
-  MERCADO_PAGO_ORDER_EXPIRY_MINUTES,
   type MercadoPagoQrOrderTransaction,
   mercadoPagoOrderExpiresAt,
 } from "../model/payment-transaction.js";
@@ -95,7 +95,7 @@ export async function createMercadoPagoQrOrder(
           idempotencyKey: paymentTransactionId,
           externalReference: paymentTransactionId,
           amount,
-          expiresAfterMinutes: MERCADO_PAGO_ORDER_EXPIRY_MINUTES,
+          expiresAfterMinutes: MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES,
         });
         if (creation.kind === "refused" || creation.kind === "throttled") {
           const earlierAttemptMayHaveCreatedOrder = recorded?.creationOutcomeUnknown === true;

@@ -47,7 +47,7 @@ describe("createMercadoPagoQrOrder", () => {
     expect(mercadoPago.transactionsRecordedDuringCall).toEqual([TRANSACTION_ID]);
   });
 
-  it("creates the order for the exact amount, identified by the payment transaction, expiring in 5 minutes", async () => {
+  it("creates the order for the exact amount, identified by the payment transaction, expiring in the 3 minutes of the register's wait", async () => {
     const { mercadoPago, ports } = mercadoPagoQrOrderWorld();
 
     await createMercadoPagoQrOrder(ports, INPUT);
@@ -57,12 +57,12 @@ describe("createMercadoPagoQrOrder", () => {
         idempotencyKey: TRANSACTION_ID,
         externalReference: TRANSACTION_ID,
         amount: AMOUNT,
-        expiresAfterMinutes: 5,
+        expiresAfterMinutes: 3,
       },
     ]);
   });
 
-  it("reports a new order as a pending payment that expires 5 minutes after it was asked for, plus the longest the creation call can take", async () => {
+  it("reports a new order as a pending payment that expires 3 minutes after it was asked for, plus the longest the creation call can take", async () => {
     const { lanes, ports } = mercadoPagoQrOrderWorld();
 
     const outcome = await createMercadoPagoQrOrder(ports, INPUT);
@@ -71,7 +71,7 @@ describe("createMercadoPagoQrOrder", () => {
       providerOrderId: "order-1",
       creationOutcomeUnknown: true,
       createdAt: NOW,
-      expiresAt: new Date("2026-10-09T12:05:10.000Z"),
+      expiresAt: new Date("2026-10-09T12:03:10.000Z"),
     });
     expect(outcome).toEqual({ kind: "recorded", transaction: expected });
     expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(expected);
@@ -275,13 +275,13 @@ describe("createMercadoPagoQrOrder", () => {
       expect(second.mercadoPago.creationRequests).toEqual(first.mercadoPago.creationRequests);
     });
 
-    it("records the new attempt's expiry, 5 minutes plus the longest call after it starts, before calling Mercado Pago", async () => {
+    it("records the new attempt's expiry, 3 minutes plus the longest call after it starts, before calling Mercado Pago", async () => {
       const { lanes, ports } = mercadoPagoQrOrderWorld();
       lanes.seed(storedTransaction());
 
       const outcome = await createMercadoPagoQrOrder(ports, INPUT);
 
-      const expiresAt = new Date("2026-10-09T12:05:10.000Z");
+      const expiresAt = new Date("2026-10-09T12:03:10.000Z");
       expect(lanes.operations.slice(0, 4)).toEqual([
         "enterLane",
         "recordedTransaction",
@@ -302,7 +302,7 @@ describe("createMercadoPagoQrOrder", () => {
       await createMercadoPagoQrOrder(ports, INPUT);
 
       expect(lanes.transactions.get(TRANSACTION_ID)?.expiresAt).toEqual(
-        new Date("2026-10-09T12:05:10.000Z"),
+        new Date("2026-10-09T12:03:10.000Z"),
       );
     });
 

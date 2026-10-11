@@ -101,7 +101,6 @@ export const QR_ORDER_SHOWN: StartMercadoPagoQrChargeOutcome = {
   payment_transaction_id: QR_PAYMENT_ID,
   amount: 476_000,
   remaining_seconds: 180,
-  wait_seconds: 180,
 };
 const QR_WAITING: FollowMercadoPagoQrChargeOutcome = { kind: "waiting", remaining_seconds: 170 };
 

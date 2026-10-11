@@ -39,6 +39,7 @@ export interface ReceiptPrintingWiringDeps {
   readOutboxChainKey: ReceiptRequestDeps["readOutboxChainKey"];
   signedInUserId: ReceiptRequestDeps["signedInUserId"];
   connectPrinter?: TcpReceiptPrinterOptions["connect"];
+  beforePrinting: (saleId: string) => Promise<void>;
   reportFailure: (context: string, error: unknown) => void;
   syncNow: () => void;
 }
@@ -64,6 +65,7 @@ export function createReceiptPrinting({
   readOutboxChainKey,
   signedInUserId,
   connectPrinter,
+  beforePrinting,
   reportFailure,
   syncNow,
 }: ReceiptPrintingWiringDeps): ReceiptPrinting {
@@ -90,6 +92,7 @@ export function createReceiptPrinting({
       charge &&
       printingCompletedSales(
         {
+          beforePrinting,
           print: (saleId) => printCompletedSaleReceiptFor(deps, saleId),
           syncNow,
           onFailure: (error) => reportFailure("printing a completed sale's receipt", error),

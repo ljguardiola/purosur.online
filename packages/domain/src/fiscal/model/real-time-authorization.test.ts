@@ -228,6 +228,7 @@ const DOCUMENT = {
     version: 3,
   },
   buyerTaxStatusCode: 5,
+  buyerTaxStatusDescription: "Consumidor Final",
 } as const;
 
 const PASSED: PreEmissionGateOutcome = { kind: "passed", document: DOCUMENT };

@@ -42,6 +42,7 @@ const SOURCE: ReceiptSource = {
     },
   ],
   payments: [{ method: "CASH", amount: 7500, tendered: 8000 }],
+  fiscal: { kind: "none" },
 };
 
 export function completedSale(overrides: Partial<FakeReceiptSale> = {}): FakeReceiptSale {

@@ -1,4 +1,3 @@
-import { MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES } from "@purosur/domain";
 import { z } from "zod";
 import {
   noThresholdRefusalSchema,
@@ -7,8 +6,6 @@ import {
   recordIdSchema,
   requestIdSchema,
 } from "../shared/index.js";
-
-const WAIT_SECONDS = MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES * 60;
 
 export const startMercadoPagoQrChargeMessageSchema = z.object({
   type: z.literal("start-mercado-pago-qr-charge"),
@@ -53,8 +50,7 @@ const startMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind", [
     kind: z.literal("order_shown"),
     payment_transaction_id: recordIdSchema(),
     amount: z.int().positive(),
-    remaining_seconds: z.int().min(0).max(WAIT_SECONDS),
-    wait_seconds: z.literal(WAIT_SECONDS),
+    remaining_seconds: z.int().min(0),
   }),
   z.object({ kind: z.literal("order_refused") }),
   z.object({ kind: z.literal("unreachable") }),
@@ -77,8 +73,9 @@ const settledQrChargeOutcomes = [
 ] as const;
 
 const followMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("waiting"), remaining_seconds: z.int().min(1).max(WAIT_SECONDS) }),
+  z.object({ kind: z.literal("waiting"), remaining_seconds: z.int().min(0) }),
   z.object({ kind: z.literal("wait_over") }),
+  z.object({ kind: z.literal("expiry_unconfirmed") }),
   z.object({ kind: z.literal("declined") }),
   ...settledQrChargeOutcomes,
 ]);

@@ -70,6 +70,10 @@ export async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refus
     if (!tx.outboxReady()) {
       return { kind: "unavailable" };
     }
+    const existing = tx.storedReceipt(saleId);
+    if (existing === undefined && tx.receiptSource(saleId).fiscal.kind === "awaiting") {
+      return { kind: "unavailable" };
+    }
     const copy = nextReceiptCopy(delivery);
     const at = clock.now();
     if (copy.kind === "original") {
