@@ -6,6 +6,7 @@ import type {
   WeightSource,
 } from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
+import { type ManualAdjustmentColumns, toManualAdjustment } from "./sqlite-manual-adjustment";
 
 interface SaleRow {
   id: string;
@@ -15,7 +16,7 @@ interface SaleRow {
   actor_id: string;
 }
 
-interface LineRow {
+interface LineRow extends ManualAdjustmentColumns {
   id: string;
   product_id: string;
   product_name: string;
@@ -64,7 +65,9 @@ export function readOpenSale(
     .prepare<[string], LineRow>(
       `SELECT id, product_id, product_name, sale_unit, weight_source, quantity, list_unit_price,
               price_list_id,
-              promotion_id, discount_amount, line_total
+              promotion_id, discount_amount, line_total,
+              manual_adjustment_kind, manual_adjustment_value, manual_adjustment_reason,
+              manual_adjustment_authorized_by
        FROM sale_lines WHERE sale_id = ? ORDER BY position`,
     )
     .all(sale.id);
@@ -110,7 +113,7 @@ function toSaleLine(row: LineRow, promotions: LinePromotion[]): SaleLine {
     listUnitPrice: row.list_unit_price,
     priceListId: row.price_list_id,
     promotions,
-    manualAdjustment: null,
+    manualAdjustment: toManualAdjustment(row),
     promotionId: row.promotion_id,
     discountAmount: row.discount_amount,
     lineTotal: row.line_total,
