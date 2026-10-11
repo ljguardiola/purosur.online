@@ -989,6 +989,32 @@ export const deviceState = pgTable("device_state", {
   diskFreeRatio: doublePrecision("disk_free_ratio"),
 });
 
+export const serialDeviceState = pgTable(
+  "serial_device_state",
+  {
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => registerInstallations.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    standing: text("standing").notNull(),
+    vendorId: text("vendor_id"),
+    productId: text("product_id"),
+    reportedAt: timestamp("reported_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.deviceId, table.role] }),
+    check("serial_device_state_role_check", sql`${table.role} in ('scale', 'reader')`),
+    check(
+      "serial_device_state_standing_check",
+      sql`${table.standing} in ('matching', 'not_detected', 'mismatched', 'not_registered', 'unknown')`,
+    ),
+    check(
+      "serial_device_state_identity_check",
+      sql`(${table.vendorId} is null) = (${table.productId} is null)`,
+    ),
+  ],
+);
+
 export const inbox = pgTable(
   "inbox",
   {

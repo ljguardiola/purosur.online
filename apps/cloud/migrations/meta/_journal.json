@@ -561,6 +561,13 @@
       "when": 1791715206512,
       "tag": "0081_lot_allocations",
       "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1791720946682,
+      "tag": "0082_serial_device_state",
+      "breakpoints": true
     }
   ]
 }

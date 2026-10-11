@@ -278,7 +278,6 @@ export {
   registerSyncStatusListSchema,
   registerSyncStatusSchema,
 } from "./register/register-sync-status.js";
-export { serialDeviceIdentitySchema } from "./register/serial-device-identity.js";
 export type {
   CancelLockedSaleOutcome,
   ReceiptPrintStatusOutcome,
@@ -378,6 +377,7 @@ export {
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
+  serialDeviceIdentitySchema,
   withoutEchoedQueryValues,
   withoutQueryParameters,
 } from "./shared/index.js";

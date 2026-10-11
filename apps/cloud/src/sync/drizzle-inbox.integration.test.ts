@@ -1,6 +1,6 @@
 import { canonicalOutboxEvent, type PushedEvent, type RegisterTelemetry } from "@purosur/domain";
 import { receivePushedEvents } from "@purosur/domain/sync/use-cases";
-import { count, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -10,6 +10,7 @@ import {
   inbox,
   refusedEvents,
   registerInstallations,
+  serialDeviceState,
 } from "../platform/db/schema.js";
 import { installationKeyCipher } from "../register/installation-key-cipher.js";
 import { insertEnrolledInstallation as enrollInstallation } from "../register/test-support/enrolled-installation.js";
@@ -360,6 +361,104 @@ function storedRow(deviceId: string, pushed: PushedEvent): typeof inbox.$inferIn
     receivedAt: NOW,
   };
 }
+
+describe("the inbox keeping the state of a register's serial devices, on a real Postgres", () => {
+  const WITH_DEVICES: RegisterTelemetry = {
+    ...TELEMETRY,
+    serial_devices: {
+      scale: { standing: "matching", vendor_id: "1a86", product_id: "7523" },
+      reader: { standing: "not_detected", vendor_id: "26f1", product_id: "8802" },
+    },
+  };
+
+  async function serialDevicesOf(deviceId: string) {
+    return sql<
+      { role: string; standing: string; vendorId: string | null; productId: string | null }[]
+    >`select role, standing, vendor_id as "vendorId", product_id as "productId"
+      from serial_device_state where device_id = ${deviceId} order by role`;
+  }
+
+  async function reportedAtOf(deviceId: string, role: string) {
+    const [row] = await db
+      .select({ reportedAt: serialDeviceState.reportedAt })
+      .from(serialDeviceState)
+      .where(and(eq(serialDeviceState.deviceId, deviceId), eq(serialDeviceState.role, role)));
+    return row?.reportedAt;
+  }
+
+  it("keeps the standing and identity each device was reported with", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+
+    await push(deviceId, linked(event(1)), "1.4.0", WITH_DEVICES);
+
+    expect(await serialDevicesOf(deviceId)).toEqual([
+      { role: "reader", standing: "not_detected", vendorId: "26f1", productId: "8802" },
+      { role: "scale", standing: "matching", vendorId: "1a86", productId: "7523" },
+    ]);
+    expect(await reportedAtOf(deviceId, "scale")).toEqual(NOW);
+  });
+
+  it("keeps a device reported without an identity with none", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+
+    await push(deviceId, linked(event(1)), "1.4.0", {
+      ...TELEMETRY,
+      serial_devices: { scale: { standing: "not_registered" }, reader: { standing: "unknown" } },
+    });
+
+    expect(await serialDevicesOf(deviceId)).toEqual([
+      { role: "reader", standing: "unknown", vendorId: null, productId: null },
+      { role: "scale", standing: "not_registered", vendorId: null, productId: null },
+    ]);
+  });
+
+  it("replaces what an earlier report said with what the latest says", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+    await push(deviceId, linked(event(1)), "1.4.0", WITH_DEVICES);
+
+    await push(deviceId, [], "1.4.0", {
+      ...TELEMETRY,
+      serial_devices: {
+        scale: { standing: "not_detected", vendor_id: "1a86", product_id: "7523" },
+        reader: { standing: "matching", vendor_id: "26f1", product_id: "8802" },
+      },
+    });
+
+    expect(await serialDevicesOf(deviceId)).toEqual([
+      { role: "reader", standing: "matching", vendorId: "26f1", productId: "8802" },
+      { role: "scale", standing: "not_detected", vendorId: "1a86", productId: "7523" },
+    ]);
+  });
+
+  it("keeps the devices of each installation apart", async () => {
+    const first = await insertEnrolledInstallation();
+    const second = await insertEnrolledInstallation();
+
+    await push(first.deviceId, linked(event(1)), "1.4.0", WITH_DEVICES);
+
+    expect(await serialDevicesOf(second.deviceId)).toEqual([]);
+  });
+
+  it("leaves what it holds alone when a report carries no serial devices", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+    await push(deviceId, linked(event(1)), "1.4.0", WITH_DEVICES);
+
+    await push(deviceId, [], "1.4.0", TELEMETRY);
+
+    expect(await serialDevicesOf(deviceId)).toEqual([
+      { role: "reader", standing: "not_detected", vendorId: "26f1", productId: "8802" },
+      { role: "scale", standing: "matching", vendorId: "1a86", productId: "7523" },
+    ]);
+  });
+
+  it("holds no serial device for an installation that never reported one", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+
+    await push(deviceId, linked(event(1)));
+
+    expect(await serialDevicesOf(deviceId)).toEqual([]);
+  });
+});
 
 describe("the inbox reporting how a register stands, on a real Postgres", () => {
   async function deviceStateOf(deviceId: string) {
