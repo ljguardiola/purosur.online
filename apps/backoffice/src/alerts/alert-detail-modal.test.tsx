@@ -1,5 +1,5 @@
 import type { AlertDetail, PermissionCatalogWire } from "@purosur/contracts";
-import { formatCalendarDay, formatCalendarDayRange } from "@purosur/ui";
+import { formatCalendarDay, formatCalendarDayRange, formatCents } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { act } from "react";
 import { expect, test, vi } from "vitest";
@@ -1459,3 +1459,34 @@ test.each([
     await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
   },
 );
+
+test("tells a refund owed for a QR payment that arrived late: the amount, that it goes back by the same channel and never in cash, and what to do", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "late_payment_refund",
+        level: "warning",
+        audience: "local",
+        scope: "refund-1",
+        scopeDisplay: null,
+        scopeKind: "refund",
+        detail: { saleId: "sale-1", amount: 250_000 },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Reembolso pendiente por un pago tardío", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        `Mercado Pago cobró ${formatCents(250_000)} por un pago QR de una venta que ya se había cobrado por otro medio. Hay que devolverle ese pago al cliente por el mismo medio, nunca en efectivo. Hacé el reembolso desde Mercado Pago y marcalo como hecho en Reembolsos pendientes, o descartalo si no corresponde.`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+});

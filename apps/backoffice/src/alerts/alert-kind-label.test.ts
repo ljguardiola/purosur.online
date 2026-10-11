@@ -13,6 +13,7 @@ test("names a kind of the catalog by its title", () => {
   expect(alertKindLabel("sales_denied")).toBe("Caja sin poder vender");
   expect(alertKindLabel("fiscal_rejected")).toBe("Factura rechazada por ARCA");
   expect(alertKindLabel("offline_authorization_code_missing")).toBe("CAEA sin bajar a la caja");
+  expect(alertKindLabel("late_payment_refund")).toBe("Reembolso pendiente por un pago tardío");
 });
 
 test("names a kind this app does not know yet, such as one a later cloud adds, by the kind itself", () => {
