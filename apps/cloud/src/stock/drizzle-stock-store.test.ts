@@ -4,6 +4,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   categories,
   locations,
+  lotAllocations,
+  lots,
   products,
   stockBalances,
   stockCounts,
@@ -14,6 +16,7 @@ import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/lo
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleStockStore } from "./drizzle-stock-store.js";
+import { insertPurchasedLot } from "./test-support/lot-fixtures.js";
 
 const COUNTED_AT = new Date("2026-09-15T21:32:00.000Z");
 const BEFORE_COUNT = new Date("2026-09-15T20:00:00.000Z");
@@ -374,5 +377,146 @@ describe("DrizzleStockStore", () => {
     });
 
     expect(outcome).toEqual({ kind: "count_at_same_moment" });
+  });
+});
+
+describe("DrizzleStockStore lots", () => {
+  it("lists the lots of the product in the branch with what the allocation rule reads", async () => {
+    const locationId = await seededLocationId(db);
+    const otherLocationId = await insertLocation();
+    const productId = await insertProduct();
+    const actorId = await insertUser(locationId);
+    const receivedAt = new Date("2026-10-01T12:00:00.000Z");
+    const lotId = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId,
+      purchasedOn: "2026-10-01",
+      expiresOn: "2027-03-01",
+      remaining: 4000,
+      createdAt: receivedAt,
+    });
+    await insertPurchasedLot(db, { productId, locationId: otherLocationId, actorId });
+    const store = new DrizzleStockStore(db);
+
+    const found = await store.transaction((tx) => tx.productLots({ productId, locationId }));
+
+    expect(found).toEqual([
+      {
+        id: lotId,
+        technical: false,
+        expiresOn: "2027-03-01",
+        purchasedOn: "2026-10-01",
+        receivedAt,
+        remaining: 4000,
+      },
+    ]);
+  });
+
+  it("opens the product's technical lot with no cost, no expiry and incomplete cost", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct();
+    const store = new DrizzleStockStore(db);
+
+    const lotId = await store.transaction((tx) => tx.openTechnicalLot({ productId, locationId }));
+
+    const [stored] = await db.select().from(lots);
+    expect(stored).toMatchObject({
+      id: lotId,
+      productId,
+      locationId,
+      technical: true,
+      purchaseLineId: null,
+      purchasedOn: null,
+      expiresOn: null,
+      costTotalCents: null,
+      costQuantity: null,
+      costIncomplete: true,
+      quantityReceived: 0,
+      remaining: 0,
+    });
+    const found = await store.transaction((tx) => tx.productLots({ productId, locationId }));
+    expect(found).toMatchObject([{ id: lotId, technical: true, purchasedOn: null }]);
+  });
+
+  it("refuses a second technical lot for the same product in the same branch", async () => {
+    const locationId = await seededLocationId(db);
+    const otherLocationId = await insertLocation();
+    const productId = await insertProduct();
+    const store = new DrizzleStockStore(db);
+    await store.transaction((tx) => tx.openTechnicalLot({ productId, locationId }));
+
+    await expect(
+      store.transaction((tx) => tx.openTechnicalLot({ productId, locationId })),
+    ).rejects.toMatchObject({ cause: { constraint: "lots_one_technical_per_product_branch" } });
+    await expect(
+      store.transaction((tx) => tx.openTechnicalLot({ productId, locationId: otherLocationId })),
+    ).resolves.toEqual(expect.any(String));
+  });
+
+  it("records each allocation against its movement and adds its signed quantity to the lot's remaining", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct();
+    const actorId = await insertUser(locationId);
+    const lotId = await insertPurchasedLot(db, { productId, locationId, actorId, remaining: 5000 });
+    const first = await seedMovement({
+      productId,
+      locationId,
+      actorId,
+      kind: "loss",
+      delta: -1500,
+      occurredAt: NOW,
+    });
+    const second = await seedMovement({
+      productId,
+      locationId,
+      actorId,
+      kind: "loss",
+      delta: -500,
+      occurredAt: NOW,
+    });
+    const store = new DrizzleStockStore(db);
+
+    await store.transaction(async (tx) => {
+      await tx.allocateToLot({ movementId: first, lotId, quantity: -1500 });
+      await tx.allocateToLot({ movementId: second, lotId, quantity: -500 });
+    });
+
+    const [lot] = await db.select({ remaining: lots.remaining }).from(lots);
+    expect(lot).toEqual({ remaining: 3000 });
+    const allocations = await db.select().from(lotAllocations);
+    expect(allocations).toEqual(
+      expect.arrayContaining([
+        { movementId: first, lotId, quantity: -1500 },
+        { movementId: second, lotId, quantity: -500 },
+      ]),
+    );
+    expect(allocations).toHaveLength(2);
+  });
+
+  it("refuses an allocation to a lot that does not exist, leaving no allocation", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct();
+    const actorId = await insertUser(locationId);
+    const movementId = await seedMovement({
+      productId,
+      locationId,
+      actorId,
+      kind: "loss",
+      delta: -100,
+      occurredAt: NOW,
+    });
+    const store = new DrizzleStockStore(db);
+
+    await expect(
+      store.transaction((tx) =>
+        tx.allocateToLot({
+          movementId,
+          lotId: "00000000-0000-4000-8000-000000000000",
+          quantity: -100,
+        }),
+      ),
+    ).rejects.toThrow();
+    expect(await db.select().from(lotAllocations)).toEqual([]);
   });
 });

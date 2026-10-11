@@ -1,6 +1,7 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import type { Clock } from "../../shared/index.js";
 import type { NewLot } from "../model/lot.js";
+import type { StockLot } from "../model/lot-allocation.js";
 import type { StockMovementKind } from "../model/stock-movement-kind.js";
 import type { AdjustmentReason, LossReason } from "../model/stock-movement-reason.js";
 
@@ -41,6 +42,12 @@ export interface NewStockCount {
   expected: number;
 }
 
+export interface LotAllocation {
+  movementId: string;
+  lotId: string;
+  quantity: number;
+}
+
 export interface StockStore {
   transaction<TOutcome>(work: (tx: StockStoreTransaction) => Promise<TOutcome>): Promise<TOutcome>;
 }
@@ -51,6 +58,9 @@ export interface StockStoreTransaction {
   appliedDeltaAfter(key: ProductStockKey, at: Date): Promise<number>;
   recordMovement(movement: NewStockMovement): Promise<string>;
   recordCount(count: NewStockCount): Promise<void>;
-  recordLot(lot: NewLot): Promise<void>;
+  productLots(key: ProductStockKey): Promise<StockLot[]>;
+  openTechnicalLot(key: ProductStockKey): Promise<string>;
+  recordLot(lot: NewLot): Promise<string>;
+  allocateToLot(allocation: LotAllocation): Promise<void>;
   addToBalance(key: ProductStockKey, delta: number): Promise<number>;
 }

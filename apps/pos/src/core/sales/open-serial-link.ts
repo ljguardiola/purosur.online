@@ -1,6 +1,11 @@
-import type { SerialLink } from "./systel-scale.js";
+export interface SerialLink {
+  write(data: Uint8Array): void;
+  on(event: "data", listener: (chunk: Uint8Array) => void): unknown;
+  on(event: "error" | "close", listener: () => void): unknown;
+  close(): void;
+}
 
-const SCALE_BAUD_RATE = 9600;
+const SERIAL_BAUD_RATE = 9600;
 
 interface SerialPortOptions {
   path: string;
@@ -30,7 +35,7 @@ export async function openSerialLink(
 ): Promise<SerialLink> {
   const port = await createPort({
     path,
-    baudRate: SCALE_BAUD_RATE,
+    baudRate: SERIAL_BAUD_RATE,
     dataBits: 8,
     parity: "none",
     stopBits: 1,

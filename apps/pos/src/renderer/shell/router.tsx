@@ -201,10 +201,7 @@ export interface RouterContext {
   registerSerialDevices: (
     devices: SerialDevicesToRegister,
   ) => Promise<RegisterSerialDevicesOutcome>;
-  takeSerialDevicesOffer: (
-    person: SignedInPerson,
-    readStatus: () => Promise<RegisterStatus>,
-  ) => Promise<boolean>;
+  takeSerialDevicesOffer: (readStatus: () => Promise<RegisterStatus>) => Promise<boolean>;
   refreshCashSession: () => Promise<void>;
 }
 
@@ -343,8 +340,11 @@ const signedInRoute = createRoute({
   path: "/",
   beforeLoad: async ({ context }) => {
     const person = requireSignedInPerson(context);
-    const landsOnSerialDevices = await context.takeSerialDevicesOffer(person, () =>
-      context.queryClient.ensureQueryData(registerStatusQueryOptions(context.registerStatus)),
+    const landsOnSerialDevices = await context.takeSerialDevicesOffer(() =>
+      context.queryClient.fetchQuery({
+        ...registerStatusQueryOptions(context.registerStatus),
+        staleTime: 0,
+      }),
     );
     if (landsOnSerialDevices) {
       throw redirect({ to: "/serial-devices", search: { offered: true } });

@@ -1,9 +1,11 @@
 import type { SaleUnit } from "../../../catalog/index.js";
 import type { Clock } from "../../../shared/index.js";
 import type { NewLot } from "../../model/lot.js";
+import type { StockLot } from "../../model/lot-allocation.js";
 import type {
   CoveringCount,
   LockProductStockResult,
+  LotAllocation,
   NewStockCount,
   NewStockMovement,
   ProductStockKey,
@@ -24,16 +26,32 @@ export interface FakeStockBalance extends ProductStockKey {
   quantity: number;
 }
 
+export interface FakeStockLot extends ProductStockKey, StockLot {
+  purchaseLineId: string | null;
+  quantityReceived: number;
+  costTotalCents: number | null;
+  costQuantity: number | null;
+  lotNumber: string | null;
+  costComplete: boolean;
+}
+
 export interface FakeStockState {
   products: FakeStockProduct[];
   balances: FakeStockBalance[];
   movements: FakeStockMovement[];
   counts: NewStockCount[];
-  lots: NewLot[];
+  lots: FakeStockLot[];
+  allocations: LotAllocation[];
   nextId: number;
 }
 
-type WriteOperation = "recordMovement" | "recordCount" | "addToBalance" | "recordLot";
+type WriteOperation =
+  | "recordMovement"
+  | "recordCount"
+  | "addToBalance"
+  | "recordLot"
+  | "openTechnicalLot"
+  | "allocateToLot";
 
 function cloneState(state: FakeStockState): FakeStockState {
   return {
@@ -41,7 +59,8 @@ function cloneState(state: FakeStockState): FakeStockState {
     balances: state.balances.map((row) => ({ ...row })),
     movements: state.movements.map((row) => ({ ...row, occurredAt: new Date(row.occurredAt) })),
     counts: state.counts.map((row) => ({ ...row })),
-    lots: state.lots.map((row) => ({ ...row })),
+    lots: state.lots.map((row) => ({ ...row, receivedAt: new Date(row.receivedAt) })),
+    allocations: state.allocations.map((row) => ({ ...row })),
     nextId: state.nextId,
   };
 }
@@ -105,9 +124,72 @@ class FakeStockStoreTransaction implements StockStoreTransaction {
     this.state.counts.push({ ...count });
   }
 
-  async recordLot(lot: NewLot): Promise<void> {
+  async productLots(key: ProductStockKey): Promise<StockLot[]> {
+    this.store.operationOrder.push("productLots");
+    return this.state.lots
+      .filter((row) => sameKey(row, key))
+      .map(({ id, technical, expiresOn, purchasedOn, receivedAt, remaining }) => ({
+        id,
+        technical,
+        expiresOn,
+        purchasedOn,
+        receivedAt: new Date(receivedAt),
+        remaining,
+      }));
+  }
+
+  async openTechnicalLot(key: ProductStockKey): Promise<string> {
+    this.beforeWrite("openTechnicalLot");
+    const id = `lot-${this.state.lots.length + 1}`;
+    this.state.lots.push({
+      id,
+      productId: key.productId,
+      locationId: key.locationId,
+      technical: true,
+      expiresOn: null,
+      purchasedOn: null,
+      receivedAt: this.receptionMoment(),
+      remaining: 0,
+      purchaseLineId: null,
+      quantityReceived: 0,
+      costTotalCents: null,
+      costQuantity: null,
+      lotNumber: null,
+      costComplete: false,
+    });
+    return id;
+  }
+
+  async recordLot(lot: NewLot): Promise<string> {
     this.beforeWrite("recordLot");
-    this.state.lots.push({ ...lot });
+    const id = `lot-${this.state.lots.length + 1}`;
+    this.state.lots.push({
+      id,
+      productId: lot.productId,
+      locationId: lot.locationId,
+      technical: false,
+      expiresOn: lot.expiresOn,
+      purchasedOn: lot.purchasedOn,
+      receivedAt: this.receptionMoment(),
+      remaining: 0,
+      purchaseLineId: lot.purchaseLineId,
+      quantityReceived: lot.quantityReceived,
+      costTotalCents: lot.costTotalCents,
+      costQuantity: lot.costQuantity,
+      lotNumber: lot.lotNumber,
+      costComplete: true,
+    });
+    return id;
+  }
+
+  async allocateToLot(allocation: LotAllocation): Promise<void> {
+    this.beforeWrite("allocateToLot");
+    const lot = this.state.lots.find((row) => row.id === allocation.lotId);
+    if (!lot) {
+      throw new Error(`lot ${allocation.lotId} does not exist`);
+    }
+    lot.remaining += allocation.quantity;
+    this.state.allocations.push({ ...allocation });
   }
 
   async addToBalance(key: ProductStockKey, delta: number): Promise<number> {
@@ -119,6 +201,10 @@ class FakeStockStoreTransaction implements StockStoreTransaction {
     }
     this.state.balances.push({ ...key, quantity: delta });
     return delta;
+  }
+
+  private receptionMoment(): Date {
+    return new Date(Date.UTC(2026, 0, 1) + this.state.lots.length * 1_000);
   }
 
   private beforeWrite(operation: WriteOperation): void {
@@ -136,6 +222,7 @@ export class FakeStockStore implements StockStore {
     movements: [],
     counts: [],
     lots: [],
+    allocations: [],
     nextId: 1,
   };
 
@@ -149,6 +236,25 @@ export class FakeStockStore implements StockStore {
 
   seedBalance(balance: FakeStockBalance): void {
     this.state.balances.push({ ...balance });
+  }
+
+  seedLot(
+    lot: Partial<FakeStockLot> & Pick<FakeStockLot, "id" | "productId" | "locationId">,
+  ): void {
+    this.state.lots.push({
+      technical: false,
+      expiresOn: null,
+      purchasedOn: "2026-01-01",
+      receivedAt: new Date("2026-01-01T12:00:00.000Z"),
+      remaining: 0,
+      purchaseLineId: null,
+      quantityReceived: 0,
+      costTotalCents: null,
+      costQuantity: null,
+      lotNumber: null,
+      costComplete: !lot.technical,
+      ...lot,
+    });
   }
 
   seedMovement(movement: Omit<FakeStockMovement, "id">): string {

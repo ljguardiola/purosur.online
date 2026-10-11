@@ -40,6 +40,7 @@ import {
 import { useSerialDevicesOffer } from "../register/serial-devices-offer";
 import { salesKeys } from "../sales/sales-queries";
 import { sessionsKey } from "../sessions/sessions-queries";
+import { BarcodeReadings } from "./barcode-readings";
 import type { Enrollment, RegisterServiceState } from "./router";
 import { createAppRouter } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
@@ -50,7 +51,9 @@ export function App({ core }: { core: CoreClient }) {
   return (
     <LocaleProvider>
       <QueryClientProvider client={queryClient}>
-        <Register core={core} />
+        <BarcodeReadings onBarcodeRead={core.onBarcodeRead}>
+          <Register core={core} />
+        </BarcodeReadings>
       </QueryClientProvider>
     </LocaleProvider>
   );

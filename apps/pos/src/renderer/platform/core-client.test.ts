@@ -373,6 +373,7 @@ describe("createCoreClient", () => {
       ],
       cloud: "unreachable",
       serial_devices: { scale: "matching", reader: "not_registered" },
+      serial_devices_setup_offered: false,
     };
 
     const asked = client.registerStatus();
@@ -1575,6 +1576,39 @@ describe("createCoreClient", () => {
 
     expect(first).toBe(1);
     expect(second).toBe(2);
+  });
+
+  it("hands each listener every code the barcode reader reads, until it stops listening", () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const first: string[] = [];
+    const second: string[] = [];
+    const stopFirst = client.onBarcodeRead((code) => first.push(code));
+    client.onBarcodeRead((code) => second.push(code));
+
+    port.answer({ type: "barcode-read", code: "7790001234567" });
+    stopFirst();
+    port.answer({ type: "barcode-read", code: "7790001234567" });
+
+    expect(first).toEqual(["7790001234567"]);
+    expect(second).toEqual(["7790001234567", "7790001234567"]);
+  });
+
+  it("does not take a barcode reading for the answer to a pending request", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const devices = client.readSerialDevices();
+    port.answer({ type: "barcode-read", code: "7790001234567" });
+    port.answer({
+      type: "read-serial-devices-result",
+      request_id: "request-1",
+      outcome: { kind: "unavailable" },
+    });
+
+    expect(await devices).toEqual({ kind: "unavailable" });
   });
 
   it("does not take a serial devices change for the answer to a pending request", async () => {

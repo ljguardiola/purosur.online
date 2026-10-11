@@ -7,6 +7,7 @@ export interface PurchasedLine {
   quantityPerPackage: number;
   lotNumber: string | null;
   expiresOn: string | null;
+  purchasedOn: string;
 }
 
 export interface NewLot {
@@ -18,6 +19,7 @@ export interface NewLot {
   costQuantity: number;
   lotNumber: string | null;
   expiresOn: string | null;
+  purchasedOn: string;
 }
 
 export function lotOfPurchaseLine(line: PurchasedLine): NewLot {
@@ -30,5 +32,6 @@ export function lotOfPurchaseLine(line: PurchasedLine): NewLot {
     costQuantity: line.quantityPerPackage,
     lotNumber: line.lotNumber,
     expiresOn: line.expiresOn,
+    purchasedOn: line.purchasedOn,
   };
 }

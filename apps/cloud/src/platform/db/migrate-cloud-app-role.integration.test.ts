@@ -308,7 +308,11 @@ describe("the cloud_app role runMigrations creates", () => {
     await expectPermissionDenied(cloudApp`truncate point_of_sale_claims`);
   });
 
-  async function insertCountedMovement(): Promise<{ movementId: string }> {
+  async function insertCountedMovement(): Promise<{
+    movementId: string;
+    productId: string;
+    locationId: string;
+  }> {
     const { priceId } = await insertPricedRow();
     const [product] = await cloudApp<{ productId: string }[]>`
       select product_id as "productId" from prices where id = ${priceId}
@@ -335,7 +339,7 @@ describe("the cloud_app role runMigrations creates", () => {
     await cloudApp`
       insert into stock_counts (movement_id, counted, expected) values (${movement.id}, 0, 0)
     `;
-    return { movementId: movement.id };
+    return { movementId: movement.id, productId: product.productId, locationId: location.id };
   }
 
   it("cannot update, delete or truncate a stock movement", async () => {
@@ -356,6 +360,28 @@ describe("the cloud_app role runMigrations creates", () => {
       cloudApp`delete from stock_counts where movement_id = ${movementId}`,
     );
     await expectPermissionDenied(cloudApp`truncate stock_counts`);
+  });
+
+  it("cannot update, delete or truncate a lot allocation", async () => {
+    const { movementId, productId, locationId } = await insertCountedMovement();
+    const [lot] = await cloudApp<{ id: string }[]>`
+      insert into lots (product_id, location_id, quantity_received, technical, cost_incomplete)
+      values (${productId}, ${locationId}, 0, true, true) returning id
+    `;
+    if (!lot) {
+      throw new Error("test setup: seeding the technical lot returned no row");
+    }
+    await cloudApp`
+      insert into lot_allocations (movement_id, lot_id, quantity) values (${movementId}, ${lot.id}, -1)
+    `;
+
+    await expectPermissionDenied(
+      cloudApp`update lot_allocations set quantity = -999 where movement_id = ${movementId}`,
+    );
+    await expectPermissionDenied(
+      cloudApp`delete from lot_allocations where movement_id = ${movementId}`,
+    );
+    await expectPermissionDenied(cloudApp`truncate lot_allocations`);
   });
 
   it("updates and deletes a row of a table whose write privileges are not revoked", async () => {

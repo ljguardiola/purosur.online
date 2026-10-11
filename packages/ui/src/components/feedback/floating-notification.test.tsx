@@ -1,9 +1,10 @@
-import { Info } from "lucide-react";
+import { CircleX, Info } from "lucide-react";
 import { type ReactElement, useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
+import { Modal } from "../overlays/modal";
 import type { NoticeTone } from "../shared/tone";
 import { FloatingNotification, type FloatingNotificationProps } from "./floating-notification";
 
@@ -336,6 +337,55 @@ test("announces an error notice right away, as an alert", async () => {
   const region = screen.getByRole("alert").element();
 
   await expect.poll(() => region.textContent).toContain("Could not save");
+});
+
+async function untilModalHidesThePage(): Promise<void> {
+  await expect
+    .poll(() =>
+      Array.from(document.body.children).some(
+        (child) => child.hasAttribute("inert") && !child.hasAttribute("hidden"),
+      ),
+    )
+    .toBe(true);
+}
+
+function modalOpen(open: boolean): ReactElement {
+  return (
+    <Modal
+      open={open}
+      onOpenChange={() => {}}
+      tone="error"
+      icon={<CircleX />}
+      title="Cancel the sale"
+      footer={null}
+    />
+  );
+}
+
+test("stays readable by assistive technology when it is shown as a modal opens", async () => {
+  const screen = await render(
+    <>
+      {modalOpen(true)}
+      {notification({ onDismiss: () => {} })}
+    </>,
+  );
+
+  await untilModalHidesThePage();
+  expect(screen.getByRole("status").elements()).toHaveLength(1);
+});
+
+test("stays readable by assistive technology when it appears while a modal is open", async () => {
+  const screen = await render(modalOpen(true));
+
+  await screen.rerender(
+    <>
+      {modalOpen(true)}
+      {notification({ onDismiss: () => {} })}
+    </>,
+  );
+
+  await untilModalHidesThePage();
+  expect(screen.getByRole("status").elements()).toHaveLength(1);
 });
 
 test("has no accessibility violations", async () => {

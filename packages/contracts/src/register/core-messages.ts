@@ -331,6 +331,7 @@ const registerStatusSchema = z.object({
     scale: z.enum(SERIAL_DEVICE_STANDING_KINDS),
     reader: z.enum(SERIAL_DEVICE_STANDING_KINDS),
   }),
+  serial_devices_setup_offered: z.boolean(),
 });
 export type RegisterStatus = z.infer<typeof registerStatusSchema>;
 

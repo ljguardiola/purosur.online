@@ -8,7 +8,6 @@ import type {
   OpenCashSessionOutcome,
   OpenSale,
   PinCodeRedemptionOutcome,
-  RegisterStatus,
   SalesHistoryOutcome,
   ScanProductOutcome,
   SignInOutcome,
@@ -125,7 +124,7 @@ function coreAnswering(
   } = {},
   signOut: () => Promise<void> = async () => {},
   service: "in_service" | "out_of_service" | "unanswered" = "in_service",
-  serialDevices: RegisterStatus["serial_devices"] = { scale: "matching", reader: "matching" },
+  serialDevicesSetupOffered = false,
 ) {
   const cashSessionAsks: string[] = [];
   const statusAsks: string[] = [];
@@ -140,6 +139,7 @@ function coreAnswering(
   let savedName: string | null = null;
   const pulledListeners = new Set<() => void>();
   const serialDevicesChangedListeners = new Set<() => void>();
+  const barcodeReadListeners = new Set<(code: string) => void>();
   const core: CoreClient = {
     connect() {},
     async enrollmentStatus() {
@@ -211,7 +211,12 @@ function coreAnswering(
     },
     async registerStatus() {
       statusAsks.push("register-status");
-      return { conditions: [], cloud: "reachable", serial_devices: serialDevices };
+      return {
+        conditions: [],
+        cloud: "reachable",
+        serial_devices: { scale: "matching", reader: "matching" },
+        serial_devices_setup_offered: serialDevicesSetupOffered,
+      };
     },
     async recordCashMovement(input) {
       recorded.push(input);
@@ -382,7 +387,18 @@ function coreAnswering(
         serialDevicesChangedListeners.delete(listener);
       };
     },
+    onBarcodeRead(listener) {
+      barcodeReadListeners.add(listener);
+      return () => {
+        barcodeReadListeners.delete(listener);
+      };
+    },
   };
+  function readBarcode(code: string) {
+    for (const listener of barcodeReadListeners) {
+      listener(code);
+    }
+  }
   function changeSerialDevices() {
     for (const listener of serialDevicesChangedListeners) {
       listener();
@@ -406,6 +422,7 @@ function coreAnswering(
     recorded,
     finishPull,
     changeSerialDevices,
+    readBarcode,
     usersLoads: () => usersLoads,
   };
 }
@@ -597,9 +614,18 @@ describe("App", () => {
     await expect.poll(() => statusAsks.length).toBeGreaterThan(readsBefore);
   });
 
-  describe("the offer to register the scale and reader", () => {
-    const NEITHER_REGISTERED = { scale: "not_registered", reader: "not_registered" } as const;
+  it("warns that a scanned product was not added when a reader reads a code outside the sale", async () => {
+    const { core, readBarcode } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
 
+    readBarcode("7790001234567");
+
+    await expect.element(screen.getByText("No se agregó el producto escaneado")).toBeVisible();
+  });
+
+  describe("the offer to register the scale and reader", () => {
     async function signInAsConfigurer(core: CoreClient) {
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
@@ -609,7 +635,7 @@ describe("App", () => {
       return screen;
     }
 
-    it("lands a person who may configure the devices on them while neither is registered", async () => {
+    it("lands a person on the devices when the core offers their setup", async () => {
       const { core } = coreAnswering(
         true,
         undefined,
@@ -618,7 +644,7 @@ describe("App", () => {
         undefined,
         undefined,
         undefined,
-        NEITHER_REGISTERED,
+        true,
       );
 
       const screen = await signInAsConfigurer(core);
@@ -629,7 +655,7 @@ describe("App", () => {
       await expect.element(screen.getByRole("button", { name: "Ahora no" })).toBeVisible();
     });
 
-    it("lands a person who signs in by redeeming a PIN code on the devices while neither is registered", async () => {
+    it("lands a person on the devices after redeeming a PIN code when the core offers their setup", async () => {
       const { core } = coreAnswering(
         true,
         undefined,
@@ -644,7 +670,7 @@ describe("App", () => {
         undefined,
         undefined,
         undefined,
-        NEITHER_REGISTERED,
+        true,
       );
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
@@ -662,6 +688,23 @@ describe("App", () => {
         .toBeVisible();
     });
 
+    it("lands a person on the main screen when the core does not offer the devices' setup", async () => {
+      const { core } = coreAnswering(
+        true,
+        undefined,
+        LINUS_SIGNED_IN,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        false,
+      );
+
+      const screen = await signInAsConfigurer(core);
+
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+    });
+
     it("goes on to the main screen on Ahora no, and stays there when the person returns to it", async () => {
       const { core } = coreAnswering(
         true,
@@ -671,7 +714,7 @@ describe("App", () => {
         undefined,
         undefined,
         undefined,
-        NEITHER_REGISTERED,
+        true,
       );
       const screen = await signInAsConfigurer(core);
 
@@ -698,7 +741,7 @@ describe("App", () => {
         undefined,
         undefined,
         undefined,
-        NEITHER_REGISTERED,
+        true,
       );
       const screen = await signInAsConfigurer(core);
       await expect.element(screen.getByRole("button", { name: "Ahora no" })).toBeVisible();
@@ -717,7 +760,7 @@ describe("App", () => {
         undefined,
         undefined,
         undefined,
-        NEITHER_REGISTERED,
+        true,
       );
       const screen = await signInAsConfigurer(core);
       await userEvent.click(screen.getByRole("button", { name: "Ahora no" }));
