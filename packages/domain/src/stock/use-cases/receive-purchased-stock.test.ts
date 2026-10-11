@@ -44,7 +44,13 @@ function harinaLine(overrides: Partial<ReceivedPurchaseLine> = {}): ReceivedPurc
 }
 
 function receipt(lines: ReceivedPurchaseLine[]): PurchaseReceipt {
-  return { locationId: BRANCH, occurredAt: RECEIVED_AT, actorId: "person-1", lines };
+  return {
+    locationId: BRANCH,
+    occurredAt: RECEIVED_AT,
+    purchasedOn: "2026-03-09",
+    actorId: "person-1",
+    lines,
+  };
 }
 
 function receive(store: FakeStockStore, received: PurchaseReceipt) {
@@ -111,24 +117,30 @@ describe("receivePurchasedStock", () => {
 
     await receive(store, receipt([yerbaLine(), harinaLine()]));
 
-    expect(store.snapshot().lots).toEqual([
+    expect(store.snapshot().lots).toMatchObject([
       {
         ...YERBA,
+        technical: false,
         purchaseLineId: "purchase-line-1",
         quantityReceived: 24_000,
         costTotalCents: 1_450_050,
         costQuantity: 12_000,
         lotNumber: "L-17",
         expiresOn: "2027-01-31",
+        purchasedOn: "2026-03-09",
+        remaining: 24_000,
       },
       {
         ...HARINA,
+        technical: false,
         purchaseLineId: "purchase-line-2",
         quantityReceived: 2_500,
         costTotalCents: 90_000,
         costQuantity: 1_000,
         lotNumber: null,
         expiresOn: null,
+        purchasedOn: "2026-03-09",
+        remaining: 2_500,
       },
     ]);
   });
@@ -159,6 +171,8 @@ describe("receivePurchasedStock", () => {
     ]);
     expect(store.balanceOf(YERBA)).toBe(5_000);
     expect(state.lots).toHaveLength(1);
+    expect(state.lots[0]?.remaining).toBe(0);
+    expect(state.allocations).toEqual([]);
   });
 
   it("ignores a count taken before the receipt and a count of another branch", async () => {
@@ -206,7 +220,7 @@ describe("receivePurchasedStock", () => {
     expect(store.operationOrder).toEqual(["lockProductStock", "lockProductStock"]);
   });
 
-  it.each(["recordMovement", "addToBalance", "recordLot"] as const)(
+  it.each(["recordMovement", "addToBalance", "recordLot", "allocateToLot"] as const)(
     "leaves nothing behind when %s fails",
     async (operation) => {
       const store = storeWithProducts();
@@ -218,4 +232,75 @@ describe("receivePurchasedStock", () => {
       expect(store.snapshot()).toEqual(before);
     },
   );
+
+  describe("lot allocation", () => {
+    function storeWithTechnicalLot(remaining: number | null): FakeStockStore {
+      const store = storeWithProducts();
+      if (remaining !== null) {
+        store.seedLot({ ...YERBA, id: "technical", technical: true, remaining });
+      }
+      return store;
+    }
+
+    function technicalRemaining(store: FakeStockStore): number | undefined {
+      return store.snapshot().lots.find((lot) => lot.technical)?.remaining;
+    }
+
+    it("allocates what was received to the new lot, against the receipt's movement", async () => {
+      const lotsStore = storeWithTechnicalLot(null);
+      await receive(lotsStore, receipt([yerbaLine()]));
+
+      const { lots, allocations } = lotsStore.snapshot();
+      expect(allocations).toEqual([
+        { movementId: "movement-1", lotId: lots[0]?.id, quantity: 24_000 },
+      ]);
+    });
+
+    it("carries a technical lot's debt into the new lot and brings the technical lot to zero", async () => {
+      const lotsStore = storeWithTechnicalLot(-5_000);
+
+      await receive(lotsStore, receipt([yerbaLine({ quantity: 24_000 })]));
+
+      const newLot = lotsStore.snapshot().lots.find((lot) => !lot.technical);
+      expect(newLot?.remaining).toBe(19_000);
+      expect(technicalRemaining(lotsStore)).toBe(0);
+      expect(lotsStore.snapshot().allocations).toEqual([
+        { movementId: "movement-1", lotId: newLot?.id, quantity: 19_000 },
+        { movementId: "movement-1", lotId: "technical", quantity: 5_000 },
+      ]);
+    });
+
+    it("leaves a positive technical lot as its own lot", async () => {
+      const lotsStore = storeWithTechnicalLot(3_000);
+
+      await receive(lotsStore, receipt([yerbaLine()]));
+
+      expect(technicalRemaining(lotsStore)).toBe(3_000);
+      expect(lotsStore.snapshot().lots.find((lot) => !lot.technical)?.remaining).toBe(24_000);
+    });
+
+    it("regularizes the technical lot once for two lines of the same product", async () => {
+      const lotsStore = storeWithTechnicalLot(-30_000);
+
+      await receive(
+        lotsStore,
+        receipt([yerbaLine(), yerbaLine({ purchaseLineId: "purchase-line-3", quantity: 12_000 })]),
+      );
+
+      const [first, second] = lotsStore.snapshot().lots.filter((lot) => !lot.technical);
+      expect(technicalRemaining(lotsStore)).toBe(0);
+      expect(first?.remaining).toBe(-6_000);
+      expect(second?.remaining).toBe(12_000);
+    });
+
+    it("records no allocation for a receipt a count already supersedes", async () => {
+      const lotsStore = storeWithTechnicalLot(-5_000);
+      seedCount(lotsStore, YERBA, RECEIVED_AT);
+
+      await receive(lotsStore, receipt([yerbaLine()]));
+
+      expect(lotsStore.snapshot().allocations).toEqual([]);
+      expect(technicalRemaining(lotsStore)).toBe(-5_000);
+    });
+  });
 });

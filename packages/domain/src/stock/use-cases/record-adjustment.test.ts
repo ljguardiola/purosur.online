@@ -127,6 +127,9 @@ describe("recordAdjustment", () => {
       "earliestCountAtOrAfter",
       "recordMovement",
       "addToBalance",
+      "productLots",
+      "openTechnicalLot",
+      "allocateToLot",
     ]);
   });
 
@@ -156,5 +159,117 @@ describe("recordAdjustment", () => {
     await expect(adjust(store)).rejects.toThrow("addToBalance failed");
 
     expect(store.snapshot()).toEqual(before);
+  });
+
+  describe("lot allocation", () => {
+    function remainingByLot(store: FakeStockStore): Record<string, number> {
+      return Object.fromEntries(store.snapshot().lots.map((lot) => [lot.id, lot.remaining]));
+    }
+
+    it("takes a negative adjustment from the lots that expire soonest first", async () => {
+      const store = storeWithProduct();
+      store.seedLot({ ...KEY, id: "late", expiresOn: "2027-06-01", remaining: 4000 });
+      store.seedLot({ ...KEY, id: "soon", expiresOn: "2027-01-01", remaining: 1000 });
+
+      await adjust(store, { direction: "subtract", quantity: 2000 });
+
+      expect(store.snapshot().allocations).toEqual([
+        { movementId: "movement-1", lotId: "soon", quantity: -1000 },
+        { movementId: "movement-1", lotId: "late", quantity: -1000 },
+      ]);
+    });
+
+    it("assigns what the lots cannot cover to the most recently received lot", async () => {
+      const store = storeWithProduct();
+      store.seedLot({
+        ...KEY,
+        id: "older",
+        receivedAt: new Date("2026-02-01T00:00:00.000Z"),
+        remaining: 1000,
+      });
+      store.seedLot({
+        ...KEY,
+        id: "newer",
+        purchasedOn: "2026-02-01",
+        receivedAt: new Date("2026-03-01T00:00:00.000Z"),
+        remaining: 0,
+      });
+
+      await adjust(store, { direction: "subtract", quantity: 3000 });
+
+      expect(remainingByLot(store)).toEqual({ older: 0, newer: -2000 });
+    });
+
+    it("returns a positive adjustment to the most recently received lot", async () => {
+      const store = storeWithProduct();
+      store.seedLot({
+        ...KEY,
+        id: "older",
+        receivedAt: new Date("2026-02-01T00:00:00.000Z"),
+        remaining: 1000,
+      });
+      store.seedLot({
+        ...KEY,
+        id: "newer",
+        receivedAt: new Date("2026-03-01T00:00:00.000Z"),
+        remaining: 500,
+      });
+
+      await adjust(store, { direction: "add", quantity: 2000 });
+
+      expect(remainingByLot(store)).toEqual({ older: 1000, newer: 2500 });
+      expect(store.snapshot().allocations).toEqual([
+        { movementId: "movement-1", lotId: "newer", quantity: 2000 },
+      ]);
+    });
+
+    it("returns a positive adjustment to the technical lot when the product has no other lot", async () => {
+      const store = storeWithProduct();
+      store.seedLot({ ...KEY, id: "technical", technical: true, remaining: -3000 });
+
+      await adjust(store, { direction: "add", quantity: 2000 });
+
+      expect(remainingByLot(store)).toEqual({ technical: -1000 });
+    });
+
+    it("opens a technical lot for a positive adjustment of a product with no lot", async () => {
+      const store = storeWithProduct();
+
+      await adjust(store, { direction: "add", quantity: 2000 });
+
+      expect(store.snapshot().lots).toMatchObject([{ technical: true, remaining: 2000 }]);
+    });
+
+    it("records no allocation for an adjustment a count already supersedes", async () => {
+      const store = storeWithProduct();
+      store.seedLot({ ...KEY, id: "stocked", remaining: 5000 });
+      store.seedMovement({
+        ...KEY,
+        kind: "count",
+        reason: null,
+        delta: 0,
+        occurredAt: LATER,
+        actorId: "actor-2",
+        supersededByCountId: null,
+      });
+
+      await adjust(store);
+
+      expect(store.snapshot().allocations).toEqual([]);
+      expect(remainingByLot(store)).toEqual({ stocked: 5000 });
+    });
+
+    it.each(["openTechnicalLot", "allocateToLot"] as const)(
+      "leaves nothing behind when %s fails",
+      async (operation) => {
+        const store = storeWithProduct();
+        const before = store.snapshot();
+        store.failingWrites.add(operation);
+
+        await expect(adjust(store)).rejects.toThrow(`${operation} failed`);
+
+        expect(store.snapshot()).toEqual(before);
+      },
+    );
   });
 });
