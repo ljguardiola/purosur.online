@@ -1214,6 +1214,22 @@ describe("a failed query's parameters", () => {
     expect(JSON.stringify(scrubbed)).not.toContain(FICTIONAL_LEGAL_NAME);
   });
 
+  it("keeps a line starting with params when no failed query precedes it", () => {
+    const event = {
+      message: "payload refused\nparams: missing id",
+      exception: {
+        values: [{ type: "Error", value: `payload refused\nparams: missing id\n${failedQuery}` }],
+      },
+    };
+
+    const scrubbed = scrubErrorReport(event);
+
+    expect(scrubbed.message).toBe("payload refused\nparams: missing id");
+    expect(scrubbed.exception?.values?.[0]?.value).toBe(
+      `payload refused\nparams: missing id\nFailed query: ${statement}`,
+    );
+  });
+
   it("keeps text that only mentions params inside a line", () => {
     const event = { message: "refused the route's params: missing id" };
 
