@@ -60,13 +60,13 @@ class EventApplicationFailure extends Error {
   }
 }
 
-function failureOf(error: unknown): Failure {
+function failureOf(ports: ApplyPendingEventsPorts, error: unknown): Failure {
   if (error instanceof EventRefused) {
     return { reason: error.reason, message: error.message };
   }
   return {
     reason: { kind: "not_recorded" },
-    message: error instanceof Error ? error.message : String(error),
+    message: ports.eventApplication.reasonOf(error),
   };
 }
 
@@ -148,7 +148,7 @@ async function applyNextEvent(ports: ApplyPendingEventsPorts, key: AggregateKey)
       try {
         return { kind: "applied", flagged: await applyEvent(ports, tx, next.event, now) };
       } catch (error) {
-        throw new EventApplicationFailure(next.event, failureOf(error));
+        throw new EventApplicationFailure(next.event, failureOf(ports, error));
       }
     });
   } catch (error) {

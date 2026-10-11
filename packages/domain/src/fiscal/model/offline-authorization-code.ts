@@ -7,6 +7,8 @@ export interface Fortnight {
 
 export const OFFLINE_AUTHORIZATION_CODE_REQUEST_LEAD_DAYS = 5;
 
+export const OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS = 10 * 60 * 1000;
+
 const SECOND_HALF_FIRST_DAY = 16;
 
 function dayOf(year: number, monthIndex: number, day: number): string {
