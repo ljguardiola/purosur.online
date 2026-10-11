@@ -7,16 +7,23 @@ import {
   Button,
   CountdownRing,
   formatCents,
-  formatNumber,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
   Modal,
   ProgressSteps,
-  plural,
   SummaryRowGroup,
 } from "@purosur/ui";
-import { ArrowRight, CircleX, Info, Lock, QrCode, TimerOff, TriangleAlert } from "lucide-react";
+import {
+  ArrowRight,
+  CircleCheck,
+  CircleX,
+  Info,
+  Lock,
+  QrCode,
+  TimerOff,
+  TriangleAlert,
+} from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import type { ShownQrOrder } from "./qr-charge-modal";
 import type { FollowedQrCharge } from "./sales-queries";
@@ -29,13 +36,14 @@ export type CompletedQrPayment = Extract<
   amount: number;
 };
 
+type PaidQrCharge = Extract<FollowedQrCharge, { kind: "completed" | "partially_paid" }>;
+
 export type QrPaymentWaitModalProps = {
   total: number;
   paid: number;
   order: ShownQrOrder;
   follow: (paymentTransactionId: string) => Promise<FollowMercadoPagoQrChargeOutcome>;
   abandon: (paymentTransactionId: string) => Promise<AbandonMercadoPagoQrChargeOutcome>;
-  onAlreadyPaid: () => void;
   onCancelled: () => void;
   onChooseAnotherMethod: () => void;
   onCompleted: (payment: CompletedQrPayment) => void;
@@ -50,7 +58,6 @@ export function QrPaymentWaitModal({
   order,
   follow,
   abandon,
-  onAlreadyPaid,
   onCancelled,
   onChooseAnotherMethod,
   onCompleted,
@@ -71,6 +78,14 @@ export function QrPaymentWaitModal({
     following: !abandonment.isPending && abandoned === undefined,
   });
   const outcome = charge.status === "loaded" ? charge.value : undefined;
+  const paidByAbandonment =
+    abandoned?.kind === "already_paid" &&
+    (abandoned.settlement.kind === "completed" || abandoned.settlement.kind === "partially_paid")
+      ? abandoned.settlement
+      : undefined;
+  const paidByFollowing =
+    outcome?.kind === "completed" || outcome?.kind === "partially_paid" ? outcome : undefined;
+  const paidCharge: PaidQrCharge | undefined = paidByAbandonment ?? paidByFollowing;
   const [retried, setRetried] = useState(false);
 
   function abandonOrder() {
@@ -79,18 +94,6 @@ export function QrPaymentWaitModal({
 
   const leaveWhenSettled = useEffectEvent((settled: FollowedQrCharge, alreadyPaid: boolean) => {
     switch (settled.kind) {
-      case "completed":
-        if (alreadyPaid) {
-          onAlreadyPaid();
-        }
-        onCompleted({ ...settled, amount: order.amount });
-        break;
-      case "partially_paid":
-        if (alreadyPaid) {
-          onAlreadyPaid();
-        }
-        void onPartiallyPaid();
-        break;
       case "not_pending":
         if (alreadyPaid) {
           onChooseAnotherMethod();
@@ -110,8 +113,11 @@ export function QrPaymentWaitModal({
       case "no_open_session":
         onSessionInvalid();
         break;
+      case "completed":
+      case "partially_paid":
       case "waiting":
       case "wait_over":
+      case "expiry_unconfirmed":
       case "declined":
         break;
     }
@@ -177,6 +183,20 @@ export function QrPaymentWaitModal({
     );
   }
 
+  if (paidCharge !== undefined) {
+    return (
+      <PaidModal
+        amount={order.amount}
+        pending={paidCharge.kind === "partially_paid" ? paidCharge.pending : undefined}
+        onContinue={() =>
+          paidCharge.kind === "completed"
+            ? onCompleted({ ...paidCharge, amount: order.amount })
+            : void onPartiallyPaid()
+        }
+      />
+    );
+  }
+
   if (outcome?.kind === "declined") {
     return (
       <EndedModal
@@ -197,9 +217,20 @@ export function QrPaymentWaitModal({
         tone="warning"
         icon={<TimerOff />}
         title="Venció la espera del QR"
+        lines={["El cliente no pagó a tiempo y Mercado Pago ya no acepta pagos de esta orden."]}
+        onChooseAnotherMethod={onChooseAnotherMethod}
+      />
+    );
+  }
+  if (outcome?.kind === "expiry_unconfirmed") {
+    return (
+      <EndedModal
+        tone="warning"
+        icon={<TriangleAlert />}
+        title="No se pudo confirmar el vencimiento del QR"
         lines={[
-          `${waitPassed(order.wait_seconds)} y el cliente no pagó. Para seguir, elegí otro medio.`,
-          "Si el cliente paga el QR después, ese pago se devuelve: se crea una tarea de reembolso.",
+          "No se pudo leer la orden en Mercado Pago, así que no se sabe si el cliente pagó.",
+          "Al elegir otro medio, primero se cancela la orden QR.",
         ]}
         onChooseAnotherMethod={abandonOrder}
         abandoning={abandonment.isPending}
@@ -259,7 +290,7 @@ export function QrPaymentWaitModal({
           <div className="flex items-center gap-6">
             <CountdownRing
               remainingSeconds={remainingSeconds}
-              totalSeconds={order.wait_seconds}
+              totalSeconds={order.remaining_seconds}
               label="Tiempo para pagar"
             />
             <ProgressSteps
@@ -272,7 +303,10 @@ export function QrPaymentWaitModal({
                 {
                   id: "customer-paying",
                   label: "Esperando que el cliente pague",
-                  detail: "Escanea el QR del mostrador con su app",
+                  detail:
+                    remainingSeconds === 0
+                      ? "Confirmando con Mercado Pago que la orden venció"
+                      : "Escanea el QR del mostrador con su app",
                   state: "current",
                 },
                 { id: "payment-approved", label: "Pago aprobado", state: "upcoming" },
@@ -284,17 +318,49 @@ export function QrPaymentWaitModal({
         <InlineNotice
           tone="info"
           icon={<Info />}
-          title="Al llegar a cero, volvés a elegir medio. Si el cliente paga después, queda una tarea de reembolso para confirmar."
+          title="Al llegar a cero, la orden vence y el cliente ya no puede pagarla."
         />
       </div>
     </Modal>
   );
 }
 
-function waitPassed(waitSeconds: number): string {
-  const minutes = waitSeconds / 60;
-  const passed = plural(minutes, { one: "Pasó", other: "Pasaron" });
-  return `${passed} ${formatNumber(minutes, { style: "unit", unit: "minute", unitDisplay: "long" })}`;
+function PaidModal({
+  amount,
+  pending,
+  onContinue,
+}: {
+  amount: number;
+  pending: number | undefined;
+  onContinue: () => void;
+}) {
+  return (
+    <Modal
+      open
+      onOpenChange={() => undefined}
+      width="standard"
+      tone="success"
+      icon={<CircleCheck />}
+      context="QR DE MERCADO PAGO"
+      contextTone="success"
+      title="El cliente pagó el QR"
+      closable={false}
+      footer={
+        <Button size="large" fullWidth icon={<ArrowRight />} onPress={onContinue}>
+          Continuar
+        </Button>
+      }
+    >
+      <SummaryRowGroup
+        rows={[
+          { label: "Pagado con QR", value: formatCents(amount) },
+          ...(pending === undefined
+            ? []
+            : [{ label: "Falta cobrar", value: formatCents(pending) }]),
+        ]}
+      />
+    </Modal>
+  );
 }
 
 function AbandonFailedNotice() {

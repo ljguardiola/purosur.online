@@ -12,7 +12,6 @@ import type {
   StartMercadoPagoQrChargeOutcome,
 } from "@purosur/contracts";
 import {
-  FloatingNotification,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
@@ -21,15 +20,7 @@ import {
   ScreenHeader,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  Banknote,
-  CircleCheck,
-  Info,
-  Landmark,
-  QrCode,
-  TriangleAlert,
-  WifiOff,
-} from "lucide-react";
+import { Banknote, Info, Landmark, QrCode, TriangleAlert, WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { CoreData } from "../platform/use-core-query";
 import { OpenSessionRail } from "../shell/open-session-rail";
@@ -134,7 +125,7 @@ export function ChargeScreen({
   const current = useCurrentSaleQuery({ sessionId, userId: person.user_id, read: currentSale });
   const refreshCurrentSale = useRefreshCurrentSale(sessionId, person.user_id);
   const [step, setStep] = useState<Step>({ name: "methods" });
-  const [notice, setNotice] = useState<"cancelled" | "already-paid">();
+  const [notice, setNotice] = useState<"cancelled">();
 
   function backToSale() {
     void navigate({ to: "/session" });
@@ -275,7 +266,6 @@ export function ChargeScreen({
           order={step.order}
           follow={followMercadoPagoQrCharge}
           abandon={abandonMercadoPagoQrCharge}
-          onAlreadyPaid={() => setNotice("already-paid")}
           onCancelled={() => {
             setNotice("cancelled");
             void backToMethodsWithBalance();
@@ -320,15 +310,6 @@ export function ChargeScreen({
           method="TRANSFER"
           amount={step.payment.charge.amount}
           onNewSale={backToSale}
-        />
-      ) : null}
-      {notice === "already-paid" ? (
-        <FloatingNotification
-          tone="success"
-          icon={<CircleCheck />}
-          title="El cliente ya pagó"
-          description="Mercado Pago confirmó el pago del QR."
-          onDismiss={() => setNotice(undefined)}
         />
       ) : null}
     </div>

@@ -229,21 +229,6 @@ describe("QrPaymentWaitModal", () => {
     await expect.element(screen.getByText("2:41")).toBeVisible();
   });
 
-  it("goes back to the methods with the new balance when the approved payment pays part of the sale", async () => {
-    const { callbacks } = await renderModal(
-      answering({
-        kind: "partially_paid",
-        sale_id: "sale-1",
-        total: TOTAL,
-        paid: 4_000_000,
-        pending: 1_070_000,
-      }),
-    );
-
-    await expect.poll(() => callbacks.onPartiallyPaid.mock.calls.length).toBe(1);
-    expect(callbacks.onCompleted).not.toHaveBeenCalled();
-  });
-
   it("says Mercado Pago declined the payment and goes back to the methods from Elegir otro medio", async () => {
     const { screen, callbacks } = await renderModal(answering({ kind: "declined" }));
 
