@@ -25,7 +25,6 @@ import type {
 import {
   type ChargeRefusal,
   cashCharge,
-  type ManualAdjustment,
   type ManualAdjustmentValue,
   type PlannedRefund,
   type RegisterActor,
@@ -102,22 +101,18 @@ function appliedPromotion(line: SaleLine): OpenSale["lines"][number]["promotion"
 }
 
 function toManualAdjustmentRequest(
-  adjustment: ManualAdjustment | null,
-  firstNameOf: SaleView["firstNameOf"],
+  adjustment: ManualAdjustmentValue | null,
 ): OpenSale["lines"][number]["manual_adjustment"] {
   if (adjustment === null) {
     return null;
   }
-  const { reason, authorizedBy } = adjustment;
-  const authorized_by =
-    authorizedBy === null ? null : { user_id: authorizedBy, first_name: firstNameOf(authorizedBy) };
   switch (adjustment.kind) {
     case "PRICE":
-      return { kind: "PRICE", value: adjustment.unitPrice, reason, authorized_by };
+      return { kind: "PRICE", value: adjustment.unitPrice };
     case "PERCENT":
-      return { kind: "PERCENT", value: adjustment.percent, reason, authorized_by };
+      return { kind: "PERCENT", value: adjustment.percent };
     case "AMOUNT":
-      return { kind: "AMOUNT", value: adjustment.amount, reason, authorized_by };
+      return { kind: "AMOUNT", value: adjustment.amount };
   }
 }
 
@@ -133,7 +128,6 @@ interface OpenSaleAnswer {
 interface SaleView {
   cancelAuthorizationRequired: boolean;
   adjustAuthorizationRequired: boolean;
-  firstNameOf: (userId: string) => string;
 }
 
 interface SellerAnswer<Outcome> {
@@ -151,10 +145,6 @@ function saleView(database: LocalDatabase, userId: string): SaleView {
   return {
     cancelAuthorizationRequired: needsAuthorization({ kind: "cancel_paid_sale" }),
     adjustAuthorizationRequired: needsAuthorization({ kind: "adjust_sale_line" }),
-    firstNameOf: (id) =>
-      database
-        .prepare<[string], { first_name: string }>("SELECT first_name FROM users WHERE id = ?")
-        .get(id)?.first_name ?? "",
   };
 }
 
@@ -187,7 +177,7 @@ function toOpenSale(
       list_unit_price: line.listUnitPrice,
       discount_amount: line.discountAmount,
       promotion: appliedPromotion(line),
-      manual_adjustment: toManualAdjustmentRequest(line.manualAdjustment, view.firstNameOf),
+      manual_adjustment: toManualAdjustmentRequest(line.manualAdjustment),
       line_total: line.lineTotal,
     })),
     total: saleTotal(sale.lines),
@@ -499,13 +489,7 @@ export async function adjustSaleLineFor(
   if (outcome.kind !== "changed") {
     return outcome;
   }
-  const sale = toOpenSale(outcome, saleView(database, outcome.sale.actorId));
-  return {
-    kind: "changed",
-    sale,
-    authorized_by:
-      sale.lines.find(({ id }) => id === lineId)?.manual_adjustment?.authorized_by ?? null,
-  };
+  return { kind: "changed", sale: toOpenSale(outcome, saleView(database, outcome.sale.actorId)) };
 }
 
 export interface PreviewSaleLineAdjustmentRequest {

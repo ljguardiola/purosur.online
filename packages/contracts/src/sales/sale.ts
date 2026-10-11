@@ -48,10 +48,6 @@ export const manualAdjustmentReasonSchema = z
   .transform(manualAdjustmentReason)
   .pipe(z.string());
 
-const lineManualAdjustmentSchema = manualAdjustmentValueSchema.and(
-  z.object({ reason: z.string(), authorized_by: authorizedBySchema.nullable() }),
-);
-
 const saleLineSchema = z.object({
   id: z.string(),
   product_id: z.string(),
@@ -62,7 +58,7 @@ const saleLineSchema = z.object({
   list_unit_price: cents,
   discount_amount: cents,
   promotion: linePromotionSchema.nullable(),
-  manual_adjustment: lineManualAdjustmentSchema.nullable(),
+  manual_adjustment: manualAdjustmentValueSchema.nullable(),
   line_total: cents,
 });
 
@@ -168,11 +164,7 @@ export const changeLineWeightOutcomeSchema = z.discriminatedUnion("kind", [
 export type ChangeLineWeightOutcome = z.infer<typeof changeLineWeightOutcomeSchema>;
 
 export const adjustSaleLineOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("changed"),
-    sale: saleSchema,
-    authorized_by: authorizedBySchema.nullable(),
-  }),
+  z.object({ kind: z.literal("changed"), sale: saleSchema }),
   z.object({ kind: z.literal("unknown_line") }),
   z.object({ kind: z.literal("same_as_list_price") }),
   z.object({ kind: z.literal("discount_exceeds_line") }),

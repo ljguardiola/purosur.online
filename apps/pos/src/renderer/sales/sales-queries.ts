@@ -25,8 +25,15 @@ export const salesKeys = {
     [...salesKey, "current-sale", sessionId, userId] as const,
   cashCharge: (saleId: string, pending: number, tendered: number | undefined) =>
     [...salesKey, "cash-charge", saleId, pending, tendered ?? null] as const,
-  adjustmentPreview: (lineId: string, adjustment: ManualAdjustmentRequest) =>
-    [...salesKey, "adjustment-preview", lineId, adjustment.kind, adjustment.value] as const,
+  adjustmentPreview: (lineId: string, quantity: number, adjustment: ManualAdjustmentRequest) =>
+    [
+      ...salesKey,
+      "adjustment-preview",
+      lineId,
+      quantity,
+      adjustment.kind,
+      adjustment.value,
+    ] as const,
   search: (query: string) => [...salesKey, "search", query] as const,
   qrCharge: (paymentTransactionId: string) =>
     [...salesKey, "qr-charge", paymentTransactionId] as const,
@@ -226,10 +233,12 @@ export type ShownAdjustmentPreview = Exclude<
 
 export function useAdjustmentPreviewQuery({
   lineId,
+  quantity,
   adjustment,
   read,
 }: {
   lineId: string;
+  quantity: number;
   adjustment: ManualAdjustmentRequest | undefined;
   read: (
     lineId: string,
@@ -237,7 +246,11 @@ export function useAdjustmentPreviewQuery({
   ) => Promise<PreviewSaleLineAdjustmentOutcome>;
 }): CoreData<ShownAdjustmentPreview> {
   return useCoreQuery({
-    queryKey: salesKeys.adjustmentPreview(lineId, adjustment ?? { kind: "PERCENT", value: 0 }),
+    queryKey: salesKeys.adjustmentPreview(
+      lineId,
+      quantity,
+      adjustment ?? { kind: "PERCENT", value: 0 },
+    ),
     read: async () => {
       const outcome = adjustment === undefined ? undefined : await read(lineId, adjustment);
       return outcome === undefined || outcome.kind === "unavailable" ? "unavailable" : outcome;

@@ -13,6 +13,8 @@ import {
   formatCents,
   formatWeight,
   InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
   Modal,
   SegmentedControl,
   SummaryRowGroup,
@@ -190,12 +192,16 @@ export function AdjustLineModal({
     },
   });
 
+  const previewedAdjustment = previewAdjustmentFrom(typed);
   const preview = useAdjustmentPreviewQuery({
     lineId,
-    adjustment: previewAdjustmentFrom(typed),
+    quantity,
+    adjustment: previewedAdjustment,
     read: previewAdjustment,
   });
   const previewed = preview.status === "loaded" ? preview.value : undefined;
+  const previewLoading = previewedAdjustment !== undefined && preview.status === "loading";
+  const previewRowsShown = !previewLoading && preview.status !== "failed";
 
   function changeKind(kind: AdjustmentKind) {
     form.setFieldValue("kind", kind);
@@ -299,7 +305,7 @@ export function AdjustLineModal({
         <SummaryRowGroup
           rows={[
             { label: "Precio de lista", value: formatCents(listUnitPrice) },
-            ...(typed.kind === "PRICE"
+            ...(!previewRowsShown || typed.kind === "PRICE"
               ? []
               : [
                   {
@@ -310,14 +316,31 @@ export function AdjustLineModal({
                         : NOT_PREVIEWED,
                   },
                 ]),
-            {
-              label: "Queda la línea en",
-              value:
-                previewed?.kind === "preview" ? formatCents(previewed.line_total) : NOT_PREVIEWED,
-              strong: true,
-            },
+            ...(previewRowsShown
+              ? [
+                  {
+                    label: "Queda la línea en",
+                    value:
+                      previewed?.kind === "preview"
+                        ? formatCents(previewed.line_total)
+                        : NOT_PREVIEWED,
+                    strong: true,
+                  },
+                ]
+              : []),
           ]}
         />
+        {previewLoading ? (
+          <LoadingPlaceholder variant="card" lines={typed.kind === "PRICE" ? 1 : 2} />
+        ) : null}
+        {preview.status === "failed" ? (
+          <LoadFailure
+            icon={<TriangleAlert />}
+            title="No se pudo calcular cómo queda la línea"
+            description="Volvé a intentarlo en unos segundos."
+            onRetry={preview.retry}
+          />
+        ) : null}
         <form.AppField name="reason" listeners={{ onChange: () => setNotice(undefined) }}>
           {(field) => <field.TextField kind="plain-text" label="Motivo" disabled={submitting} />}
         </form.AppField>
