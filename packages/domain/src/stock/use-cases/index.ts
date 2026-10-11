@@ -11,7 +11,11 @@ export type {
 } from "./apply-register-stock-movements.js";
 export { applyRegisterStockMovements } from "./apply-register-stock-movements.js";
 export type { AppliedStockMovement } from "./apply-stock-movement.js";
-export type { ExpectedBalanceAtInput, ExpectedBalanceAtOutcome } from "./expected-balance-at.js";
+export type {
+  CountableLot,
+  ExpectedBalanceAtInput,
+  ExpectedBalanceAtOutcome,
+} from "./expected-balance-at.js";
 export { expectedBalanceAt } from "./expected-balance-at.js";
 export type {
   LotOrigin,
@@ -36,6 +40,7 @@ export type {
 } from "./replicated-stock-ledger.js";
 export type {
   LedgerAtMoment,
+  LedgerLot,
   LotInStock,
   RecordedStockCount,
   RecordedStockMovement,
@@ -47,6 +52,7 @@ export type {
   StockProduct,
 } from "./stock-reader.js";
 export type {
+  CountedLot,
   CoveringCount,
   LockProductStockResult,
   LotAllocation,
