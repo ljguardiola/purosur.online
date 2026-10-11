@@ -38,11 +38,10 @@ export function shardPlan(entries, durations, { index, count }) {
     for (const file of weighed.filter((f) => f.entry.project === project)) {
       let target = 0;
       for (let i = 1; i < count; i++) {
-        const lighter = projectLoads[i] < projectLoads[target];
-        const asLightWithFewerFiles =
-          projectLoads[i] === projectLoads[target] &&
-          shards[i].files.length < shards[target].files.length;
-        if (lighter || asLightWithFewerFiles) target = i;
+        const byProject = projectLoads[i] - projectLoads[target];
+        const byTotal = shards[i].load - shards[target].load;
+        const byFiles = shards[i].files.length - shards[target].files.length;
+        if ((byProject || byTotal || byFiles) < 0) target = i;
       }
       projectLoads[target] += file.weight;
       shards[target].load += file.weight;
