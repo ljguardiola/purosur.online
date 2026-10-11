@@ -25,10 +25,7 @@ export type {
   RefundState,
 } from "./model/payment-refund.js";
 export {
-  isRefundDiscardable,
-  isRefundDiscarded,
   isRefundPending,
-  LATE_PAYMENT_REFUND_ORIGIN,
   latePaymentRefund,
   plannedRefunds,
   REFUND_DISCARDED_STATE,
@@ -37,7 +34,6 @@ export {
   REFUND_PENDING_STATE,
   REFUND_STATES,
   refundsSettleApprovedPayments,
-  SALE_CANCELLED_REFUND_ORIGIN,
 } from "./model/payment-refund.js";
 export type {
   MercadoPagoQrOrderTransaction,
