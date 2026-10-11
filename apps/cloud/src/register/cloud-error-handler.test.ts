@@ -1,6 +1,10 @@
 import { cloudErrorSchema } from "@purosur/contracts";
+import { FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
+import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { locations, suppliers, users } from "../platform/db/schema.js";
+import { buildTestDatabase } from "../test-support/build-test-database.js";
 import { answerErrorsWithCloudEnvelope } from "./cloud-error-handler.js";
 
 let app: FastifyInstance;
@@ -100,5 +104,45 @@ describe("answerErrorsWithCloudEnvelope", () => {
 
     expect(response.statusCode).toBe(500);
     expect(response.json()).not.toHaveProperty("details");
+  });
+
+  it("writes a failed query to the cloud's output by its code and statement, without the values the request carried", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { db, close } = await buildTestDatabase();
+    onTestFinished(close);
+    const [location] = await db.select({ id: locations.id }).from(locations);
+    const [actor] = await db
+      .insert(users)
+      .values({ firstName: "Ada", email: "ada@example.com", locationId: location?.id ?? "" })
+      .returning({ id: users.id });
+    const actorId = actor?.id ?? "";
+    await db
+      .insert(suppliers)
+      .values({ name: FICTIONAL_LEGAL_NAME, cuit: FICTIONAL_CUIT, actorId });
+    await app.close();
+    app = Fastify();
+    await app.register(async (scope) => {
+      answerErrorsWithCloudEnvelope(scope);
+      scope.post("/contract/suppliers/:id", async (request) => {
+        const { id } = request.params as { id: string };
+        return db.select().from(suppliers).where(eq(suppliers.id, id));
+      });
+      scope.post("/contract/suppliers", async () =>
+        db.insert(suppliers).values({ name: FICTIONAL_LEGAL_NAME, cuit: FICTIONAL_CUIT, actorId }),
+      );
+    });
+
+    await app.inject({ method: "POST", url: `/contract/suppliers/${FICTIONAL_CUIT}` });
+    await app.inject({ method: "POST", url: "/contract/suppliers" });
+
+    const lines = consoleError.mock.calls.map(([line]) => String(line));
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain("22P02");
+    expect(lines[1]).toContain("23505");
+    for (const line of lines) {
+      expect(line).toContain("$1");
+      expect(line).not.toContain(FICTIONAL_CUIT);
+      expect(line).not.toContain(FICTIONAL_LEGAL_NAME);
+    }
   });
 });

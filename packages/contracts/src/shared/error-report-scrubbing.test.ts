@@ -6,9 +6,11 @@ import {
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  reportsFailedQuery,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
+  withoutEchoedQueryValues,
 } from "./error-report-scrubbing.js";
 
 describe("scrubErrorReport", () => {
@@ -1434,5 +1436,29 @@ describe("a failed query's parameters", () => {
         },
       },
     });
+  });
+});
+
+describe("reportsFailedQuery", () => {
+  it("recognizes the text of a failed query", () => {
+    expect(reportsFailedQuery("Failed query: select 1\nparams: ")).toBe(true);
+  });
+
+  it("does not recognize any other text", () => {
+    expect(reportsFailedQuery("connection terminated unexpectedly")).toBe(false);
+  });
+});
+
+describe("withoutEchoedQueryValues", () => {
+  it("hides everything Postgres quoted, from the first quote to the last", () => {
+    expect(
+      withoutEchoedQueryValues(
+        `invalid input syntax for type uuid: "${FICTIONAL_LEGAL_NAME} "x" "`,
+      ),
+    ).toBe('invalid input syntax for type uuid: "[redacted]"');
+  });
+
+  it("leaves a text without quotes as it is", () => {
+    expect(withoutEchoedQueryValues("numeric field overflow")).toBe("numeric field overflow");
   });
 });
