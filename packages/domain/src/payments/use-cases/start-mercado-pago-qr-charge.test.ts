@@ -9,6 +9,10 @@ import {
   QR_SALE_ID,
 } from "./test-support/mercado-pago-qr-charge-world.js";
 
+function recordedWaitEnd(waitEndsAt: Date): string {
+  return ["recordWaitEnd", waitEndsAt.toISOString()].join(":");
+}
+
 const INPUT = { actorId: QR_ACTOR_ID, saleId: QR_SALE_ID, amount: 5000 };
 
 describe("startMercadoPagoQrCharge", () => {
@@ -20,7 +24,11 @@ describe("startMercadoPagoQrCharge", () => {
     expect(world.recordedPayments).toEqual([
       { ...INPUT, occurredAt: QR_CHARGE_NOW, waitEndsAt: QR_CHARGE_WAIT_ENDS_AT },
     ]);
-    expect(world.operations).toEqual(["recordPendingPayment", "requestOrder", `recordWaitEnd:`]);
+    expect(world.operations).toEqual([
+      "recordPendingPayment",
+      "requestOrder",
+      recordedWaitEnd(QR_CHARGE_WAIT_ENDS_AT),
+    ]);
   });
 
   it("asks the cloud for an order of the pending payment's id, sale and amount", async () => {
