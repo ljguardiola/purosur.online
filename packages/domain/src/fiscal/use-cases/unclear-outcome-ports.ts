@@ -1,6 +1,7 @@
 import type { Clock } from "../../shared/index.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
 import type {
+  RecordedRequestOutcome,
   TaxAuthorityVoucher,
   UnclearOutcomeDecision,
 } from "../model/unclear-outcome-decision.js";
@@ -22,10 +23,6 @@ export interface UnclearRequest extends FiscalDocumentData {
   decision: UnclearOutcomeDecision | null;
 }
 
-export interface RecordedUnclearRequest {
-  decision: UnclearOutcomeDecision | null;
-}
-
 export type AbandonedRequestRecord = Omit<AuthorizationRequestRecord, "notAfter" | "receivedAt">;
 
 export interface UnclearOutcomeLane {
@@ -40,7 +37,7 @@ export interface UnclearOutcomeLane {
   recordedRequest(
     registerId: string,
     fiscalDocumentId: string,
-  ): Promise<RecordedUnclearRequest | null>;
+  ): Promise<RecordedRequestOutcome | null>;
   recordAbandonedRequest(request: AbandonedRequestRecord, abandonedAt: Date): Promise<void>;
 }
 

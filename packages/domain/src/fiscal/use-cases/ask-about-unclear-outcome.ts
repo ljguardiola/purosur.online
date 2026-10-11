@@ -1,5 +1,8 @@
 import { isCompletionEventOfSale } from "../model/real-time-authorization.js";
-import type { UnclearOutcomeDecision } from "../model/unclear-outcome-decision.js";
+import {
+  decisionToldToAskingRegister,
+  type UnclearOutcomeDecision,
+} from "../model/unclear-outcome-decision.js";
 import { FiscalDocumentAlreadyRecorded } from "./fiscal-document-authorization-ports.js";
 import type {
   AbandonedRequestRecord,
@@ -35,9 +38,8 @@ export async function askAboutUnclearOutcome(
 
       const recorded = await lane.recordedRequest(registerId, request.fiscalDocumentId);
       if (recorded !== null) {
-        return recorded.decision === null
-          ? { kind: "pending" }
-          : { kind: "decided", decision: recorded.decision };
+        const decision = decisionToldToAskingRegister(recorded);
+        return decision === null ? { kind: "pending" } : { kind: "decided", decision };
       }
 
       try {

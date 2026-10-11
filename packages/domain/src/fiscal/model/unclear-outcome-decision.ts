@@ -40,6 +40,29 @@ export type UnclearOutcomeDecision =
   | { kind: "adopted"; authorizationCode: string; authorizationCodeDueOn: string }
   | { kind: "conflicting" };
 
+export interface RecordedRequestOutcome {
+  answer: RealTimeAuthorizationAnswer | null;
+  decision: UnclearOutcomeDecision | null;
+}
+
+export function decisionToldToAskingRegister({
+  answer,
+  decision,
+}: RecordedRequestOutcome): UnclearOutcomeDecision | null {
+  switch (answer?.kind) {
+    case "authorized":
+      return {
+        kind: "adopted",
+        authorizationCode: answer.authorizationCode,
+        authorizationCodeDueOn: answer.authorizationCodeDueOn,
+      };
+    case "rejected":
+      return { kind: "released" };
+    default:
+      return decision;
+  }
+}
+
 export type UnclearOutcomeVerdict = UnclearOutcomeDecision | { kind: "pending"; askAgainAt: Date };
 
 export type TaxAuthorityEvidence =

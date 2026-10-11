@@ -1,7 +1,7 @@
 import {
   type AbandonedRequestRecord,
   FiscalDocumentAlreadyRecorded,
-  type RecordedUnclearRequest,
+  type RecordedRequestOutcome,
   type UnclearOutcomeDecision,
   type UnclearOutcomeLane,
   type UnclearOutcomeLanes,
@@ -120,9 +120,14 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
   async recordedRequest(
     registerId: string,
     fiscalDocumentId: string,
-  ): Promise<RecordedUnclearRequest | null> {
+  ): Promise<RecordedRequestOutcome | null> {
     const [row] = await this.db
       .select({
+        answerKind: fiscalRequests.answerKind,
+        authorizationCode: fiscalRequests.authorizationCode,
+        authorizationCodeDueOn: fiscalRequests.authorizationCodeDueOn,
+        rejectionCodes: fiscalRequests.rejectionCodes,
+        rejectionClass: fiscalRequests.rejectionClass,
         decision: fiscalRequests.decision,
         adoptedAuthorizationCode: fiscalRequests.adoptedAuthorizationCode,
         adoptedAuthorizationCodeDueOn: fiscalRequests.adoptedAuthorizationCodeDueOn,
@@ -134,7 +139,7 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
           eq(fiscalRequests.registerId, registerId),
         ),
       );
-    return row === undefined ? null : { decision: decisionOf(row) };
+    return row === undefined ? null : { answer: answerOf(row), decision: decisionOf(row) };
   }
 
   async recordAbandonedRequest(request: AbandonedRequestRecord, abandonedAt: Date): Promise<void> {
