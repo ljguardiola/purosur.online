@@ -27,7 +27,7 @@ export function productUnitCostCents({
     denominator: BigInt(Math.abs(balance)),
   });
   // Adding zero turns the negative zero of a cost that rounds to nothing into a plain zero.
-  return Math.sign(valueCents) * Math.sign(balance) * magnitude + 0;
+  return Math.sign(valueCents) === Math.sign(balance) ? magnitude : -magnitude + 0;
 }
 
 export function stockCorrection({
