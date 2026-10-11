@@ -3,14 +3,20 @@ import { headerColumnWidthStyle } from "./table-actions";
 import { columnActionCount, columnAlign, columnTitle } from "./table-column";
 import { SortableColumnHeader } from "./table-sort-header";
 import { alignClassName, cellHorizontalPaddingClassName } from "./table-styles";
-import type { TableModel, TableSortDirection } from "./table-types";
+import type { TableModel, TableSortDirection, TableVariant } from "./table-types";
 
 const SORT_DIRECTIONS = { asc: "ascending", desc: "descending" } as const;
 
-export function TableHeaderRow<T extends RowData>({ table }: { table: TableModel<T> }) {
+export function TableHeaderRow<T extends RowData>({
+  table,
+  variant,
+}: {
+  table: TableModel<T>;
+  variant: TableVariant;
+}) {
   const headers = table.getLeafHeaders();
   return (
-    <tr className="h-control-xl bg-surface-subtle">
+    <tr className={variant === "nested" ? "h-control-sm" : "h-control-xl bg-surface-subtle"}>
       {headers.map(({ id, column }, index) => {
         const actionCount = columnActionCount(column);
         const sortable = column.getCanSort();
@@ -29,10 +35,11 @@ export function TableHeaderRow<T extends RowData>({ table }: { table: TableModel
             className={[
               // A cell's explicit height is a floor, not a cap, so h-full on a sortable
               // header's button always has an actual, resolved height to track.
-              "h-control-xl break-words align-middle",
+              variant === "nested" ? "h-control-sm" : "h-control-xl",
+              "break-words align-middle",
               // A sortable header's hit area needs the cell's full box, so its padding
               // lives on the button instead.
-              sortable ? "" : cellHorizontalPaddingClassName(first, last),
+              sortable ? "" : cellHorizontalPaddingClassName(first, last, variant),
               "text-caption font-bold uppercase",
               alignClassName(actionCount === undefined ? columnAlign(column) : "start"),
             ].join(" ")}
