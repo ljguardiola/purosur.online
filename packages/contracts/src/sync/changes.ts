@@ -166,6 +166,7 @@ const registerOfflinePointOfSaleChangeSchema = z.object({
   entity: z.literal("register_offline_point_of_sale"),
   row: z.object({
     point_of_sale_number: pointOfSaleNumberSchema,
+    tax_authority_last_authorized_number: z.int().nonnegative().nullable().default(null),
     version: z.int().positive(),
   }),
 });
