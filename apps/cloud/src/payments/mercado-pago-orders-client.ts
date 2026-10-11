@@ -97,11 +97,19 @@ function loggableErrorCode(body: unknown): string | null {
   return code !== null && ERROR_CODE_SHAPE.test(code) ? code : null;
 }
 
-function notCancelled(status: number | "unreachable", body: unknown): MercadoPagoOrderCancellation {
-  console.warn("Mercado Pago did not cancel the order", {
-    status,
-    code: loggableErrorCode(body),
-  });
+type AnswerStatus = number | "unreachable";
+
+function warnOfAnswer(message: string, status: AnswerStatus, body: unknown): void {
+  console.warn(message, { status, code: loggableErrorCode(body) });
+}
+
+function notCancelled(status: AnswerStatus, body: unknown): MercadoPagoOrderCancellation {
+  warnOfAnswer("Mercado Pago did not cancel the order", status, body);
+  return { kind: "unavailable" };
+}
+
+function notRead(status: AnswerStatus, body: unknown): MercadoPagoOrderReading {
+  warnOfAnswer("Mercado Pago did not answer the order", status, body);
   return { kind: "unavailable" };
 }
 
@@ -171,11 +179,16 @@ export function createMercadoPagoOrdersClient(
         method: "GET",
         headers: { Authorization: `Bearer ${options.accessToken}` },
       });
-      if (answer.kind === "unreachable" || answer.status < 200 || answer.status >= 300) {
-        return { kind: "unavailable" };
+      if (answer.kind === "unreachable") {
+        return notRead("unreachable", null);
+      }
+      if (answer.status < 200 || answer.status >= 300) {
+        return notRead(answer.status, answer.body);
       }
       const order = parsedOrder(answer.body);
-      return order === null ? { kind: "unavailable" } : { kind: "read", result: order.result };
+      return order === null
+        ? notRead(answer.status, answer.body)
+        : { kind: "read", result: order.result };
     },
 
     async cancelOrder(
