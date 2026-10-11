@@ -175,12 +175,12 @@ describe("the unclear outcome jobs on a real Postgres", () => {
         answerKind: "unclear",
         answeredAt: ANSWERED_AT,
       });
-      const dueAt = new Date(Date.now() + 3_600_000);
+      const dueAt = new Date("2126-01-01T00:00:00.000Z");
       await sql`select graphile_worker.add_job(
         ${UNCLEAR_OUTCOME_TASK_IDENTIFIER}::text,
         ${JSON.stringify({ fiscalDocumentId })}::json,
         job_key => ${`${UNCLEAR_OUTCOME_TASK_IDENTIFIER}:${fiscalDocumentId}`}::text,
-        run_at => ${dueAt}::timestamptz
+        run_at => ${dueAt.toISOString()}::timestamptz
       )`;
 
       await enqueueMissingUnclearOutcomes(db);

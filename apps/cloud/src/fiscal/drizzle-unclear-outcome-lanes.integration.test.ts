@@ -103,6 +103,21 @@ function authorize(
   });
 }
 
+function holdLane(pointOfSale: number) {
+  let leaveLane: () => void = () => {};
+  let entered: () => void = () => {};
+  const inLane = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const finished = unclearLanes().inPointOfSaleLane(pointOfSale, async () => {
+    entered();
+    await new Promise<void>((resolve) => {
+      leaveLane = resolve;
+    });
+  });
+  return { inLane, finished, leave: () => leaveLane() };
+}
+
 describe("the unclear outcome lanes on a real Postgres", () => {
   it("waits for a call in flight at the point of sale, and enters the lane once it ends", async () => {
     const registerId = await insertRegisterWithPointOfSale(db, {
@@ -131,43 +146,29 @@ describe("the unclear outcome lanes on a real Postgres", () => {
       name: "caja-deciding",
     });
     const taxAuthority = new HeldTaxAuthority();
-    let leaveLane: () => void = () => {};
-    const inLane = Promise.withResolvers<void>();
-    const decision = unclearLanes().inPointOfSaleLane(32, async () => {
-      inLane.resolve();
-      await new Promise<void>((resolve) => {
-        leaveLane = resolve;
-      });
-    });
-    await inLane.promise;
+    const decision = holdLane(32);
+    await decision.inLane;
 
     const authorization = authorize(authorizationPorts(taxAuthority), registerId, 32, 200);
     await waitForLockWaiters(sql, 1);
 
     expect(taxAuthority.started).toEqual([]);
 
-    leaveLane();
-    await decision;
+    decision.leave();
+    await decision.finished;
     await taxAuthority.untilStarted(1);
     taxAuthority.release(200);
     await authorization;
   });
 
   it("lets lanes of different points of sale work together", async () => {
-    let leaveFirst: () => void = () => {};
-    const inFirst = Promise.withResolvers<void>();
-    const first = unclearLanes().inPointOfSaleLane(33, async () => {
-      inFirst.resolve();
-      await new Promise<void>((resolve) => {
-        leaveFirst = resolve;
-      });
-    });
-    await inFirst.promise;
+    const first = holdLane(33);
+    await first.inLane;
 
     await expect(unclearLanes().inPointOfSaleLane(34, async () => "other")).resolves.toBe("other");
 
-    leaveFirst();
-    await first;
+    first.leave();
+    await first.finished;
   });
 
   it("refuses to record an abandoned document another register already recorded", async () => {
