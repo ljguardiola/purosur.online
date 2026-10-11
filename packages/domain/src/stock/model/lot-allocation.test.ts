@@ -107,8 +107,16 @@ describe("movementAllocations when stock is reduced", () => {
 
   it("assigns the shortfall to the most recently received lot, which goes negative", () => {
     const lots = [
-      lot("older", { receivedAt: new Date("2026-02-01T00:00:00.000Z"), remaining: 1_000 }),
-      lot("newer", { receivedAt: new Date("2026-03-01T00:00:00.000Z"), remaining: 2_000 }),
+      lot("older", {
+        purchasedOn: "2026-02-01",
+        receivedAt: new Date("2026-02-01T00:00:00.000Z"),
+        remaining: 1_000,
+      }),
+      lot("newer", {
+        purchasedOn: "2026-03-01",
+        receivedAt: new Date("2026-03-01T00:00:00.000Z"),
+        remaining: 2_000,
+      }),
     ];
 
     expect(movementAllocations(lots, -5_000)).toEqual([
