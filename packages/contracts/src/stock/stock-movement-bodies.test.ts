@@ -197,7 +197,19 @@ describe("stockCountBodySchema", () => {
   });
 
   it("refuses a count by lot that lists no lot", () => {
-    expect(firstIssue(stockCountBodySchema, { ...count, lots: [] })?.field).toBe("lots");
+    expect(firstIssue(stockCountBodySchema, { ...count, lots: [] })).toEqual({
+      field: "lots",
+      message: "lots must list at least one lot",
+    });
+  });
+
+  it("refuses a lot that is not a lot's id", () => {
+    const result = stockCountBodySchema.safeParse({
+      ...count,
+      lots: [{ lotId: "x", counted: 1_000 }],
+    });
+
+    expect(result.error?.issues[0]?.message).toBe("lotId must be a lot's id");
   });
 
   it.each([

@@ -107,6 +107,17 @@ describe("countByProductAllocations", () => {
     ]);
   });
 
+  it("fills from the latest expiry whatever order the lots are listed in", () => {
+    const lots = [
+      lot("late", { expiresOn: "2027-06-01", remaining: 5_000 }),
+      lot("soon", { expiresOn: "2027-01-01", remaining: 4_000 }),
+    ];
+
+    expect(countByProductAllocations(lots, 6_000)).toEqual([
+      { target: target("soon"), quantity: -3_000 },
+    ]);
+  });
+
   it("fills a lot with no expiry before any lot that expires", () => {
     const lots = [
       lot("dated", { expiresOn: "2027-01-01", remaining: 4_000 }),
