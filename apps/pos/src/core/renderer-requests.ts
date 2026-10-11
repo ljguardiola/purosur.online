@@ -45,6 +45,7 @@ import type {
   SignInOutcome,
   SignInUser,
   StartMercadoPagoQrChargeOutcome,
+  WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, RegisterService } from "@purosur/domain";
 import { isDatabaseDamage } from "./platform/database-damage";
@@ -103,6 +104,7 @@ export interface RendererRequestDeps {
   addWeighedProduct:
     | ((productId: string, weightThousandths: number) => Promise<AddWeighedProductOutcome>)
     | undefined;
+  weighProduct: ((productId: string) => Promise<WeighProductOutcome>) | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
   cashCharge: ((request: ChargeSaleInCashRequest) => Promise<CashChargeAnswer>) | undefined;
   changeLineQuantity:
@@ -888,6 +890,18 @@ export async function answerRendererRequest(
           "adding a product sold by weight",
           addWeighedProduct &&
             (() => addWeighedProduct(message.product_id, message.weight_thousandths)),
+        ),
+      };
+    }
+    case "weigh-product": {
+      const { weighProduct } = deps;
+      return {
+        type: "weigh-product-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "weighing a product on the scale",
+          weighProduct && (() => weighProduct(message.product_id)),
         ),
       };
     }

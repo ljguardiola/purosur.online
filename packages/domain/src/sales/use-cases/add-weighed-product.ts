@@ -1,14 +1,20 @@
 import type { Clock } from "../../shared/index.js";
-import { mayBeSaleLineQuantity, newWeighedSaleLine } from "../model/sale-line.js";
+import { mayBeSaleLineQuantity } from "../model/sale-line.js";
 import {
   type AddedLineOutcome,
-  addLineToSale,
   isSaleAdditionRefusal,
   type SaleAdditionRefusal,
   saleToAddTo,
-  validPromotions,
 } from "./sale-addition.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
+import {
+  addWeighedLine,
+  isNoPrice,
+  isWeighedProductRefusal,
+  pricedWeighedProduct,
+  type WeighedProductRefusal,
+  weighedProductToAdd,
+} from "./weighed-line-addition.js";
 
 export interface AddWeighedProductInput {
   actorId: string;
@@ -24,8 +30,7 @@ export interface AddWeighedProductPorts {
 
 export type AddWeighedProductOutcome =
   | SaleAdditionRefusal
-  | { kind: "product_unavailable" }
-  | { kind: "not_sold_by_weight" }
+  | WeighedProductRefusal
   | { kind: "invalid_weight" }
   | { kind: "no_price"; productName: string }
   | AddedLineOutcome;
@@ -40,30 +45,17 @@ export function addWeighedProduct(
       return addition;
     }
 
-    const product = tx.activeProductById(productId);
-    if (!product) {
-      return { kind: "product_unavailable" };
-    }
-    if (product.saleUnit !== "KG") {
-      return { kind: "not_sold_by_weight" };
+    const product = weighedProductToAdd(tx, productId);
+    if (isWeighedProductRefusal(product)) {
+      return product;
     }
     if (!mayBeSaleLineQuantity(weightThousandths, "KG")) {
       return { kind: "invalid_weight" };
     }
-    const moment = clock.now();
-    const price = tx.priceAt(product.id, moment);
-    if (!price) {
-      return { kind: "no_price", productName: product.name };
+    const priced = pricedWeighedProduct(tx, clock, product);
+    if (isNoPrice(priced)) {
+      return priced;
     }
-    return addLineToSale(tx, addition, ids, moment, (lineId) =>
-      newWeighedSaleLine(
-        lineId,
-        product,
-        price,
-        validPromotions(tx, product.id, moment),
-        weightThousandths,
-        "MANUAL",
-      ),
-    );
+    return addWeighedLine(tx, addition, ids, priced, weightThousandths, "MANUAL");
   });
 }

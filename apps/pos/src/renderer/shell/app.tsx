@@ -358,6 +358,7 @@ function Register({ core }: { core: CoreClient }) {
     addProduct: (productId: string) => core.addProduct(productId),
     addWeighedProduct: (productId: string, weightThousandths: number) =>
       core.addWeighedProduct(productId, weightThousandths),
+    weighProduct: (productId: string) => core.weighProduct(productId),
     changeLineQuantity: (lineId: string, quantity: number, expectedQuantity: number) =>
       core.changeLineQuantity(lineId, quantity, expectedQuantity),
     changeLineWeight: (

@@ -17,6 +17,7 @@ import type {
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
+  WeighProductOutcome,
 } from "@purosur/contracts";
 import {
   type ChargeRefusal,
@@ -45,7 +46,9 @@ import {
   type IdGenerator,
   type OperationAuthorization,
   removeSaleLine,
+  type Scale,
   searchProductsByName,
+  weighProductOnScale,
 } from "@purosur/domain/sales/use-cases";
 import { toWireRefund } from "../payments/wire-refund";
 import type { LocalDatabase } from "../platform/local-database";
@@ -264,6 +267,30 @@ export async function addWeighedProductFor(
     addWeighedProduct(
       { ledger: saleLedger(database), clock: { now }, ids },
       { actorId, productId, weightThousandths },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const { outcome, cancelAuthorizationRequired } = guarded.result;
+  switch (outcome.kind) {
+    case "added":
+      return { kind: "added", sale: toOpenSale(outcome, cancelAuthorizationRequired) };
+    case "no_price":
+      return { kind: "no_price", product_name: outcome.productName };
+    default:
+      return { kind: outcome.kind };
+  }
+}
+
+export async function weighProductFor(
+  { database, gate, now, ids, scale }: SaleRequestDeps & { scale: Scale },
+  productId: string,
+): Promise<WeighProductOutcome> {
+  const guarded = await asSeller({ database, gate }, (actorId) =>
+    weighProductOnScale(
+      { ledger: saleLedger(database), clock: { now }, ids, scale },
+      { actorId, productId },
     ),
   );
   if (guarded.kind !== "performed") {
