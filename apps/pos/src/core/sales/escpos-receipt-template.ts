@@ -27,7 +27,15 @@ const PC850_TABLE = 2;
 const ESC = 0x1b;
 const GS = 0x1d;
 const LINE_FEED = 0x0a;
-const QR_MODULE_DOTS = 4;
+const QR_SIDE_DOTS = 244;
+const QR_MAX_MODULE_DOTS = 16;
+const QR_BYTE_CAPACITY_AT_LEVEL_M = [
+  14, 26, 42, 62, 84, 106, 122, 152, 180, 213, 251, 287, 331, 362, 412, 450, 504, 560, 624, 666,
+  711, 779, 857, 911, 997, 1059, 1125, 1190, 1264, 1370, 1452, 1538, 1628, 1722, 1809, 1911, 1989,
+  2099, 2213, 2331,
+];
+const QR_TOP_MARGIN_DOTS = 16;
+const QR_BOTTOM_MARGIN_DOTS = 8;
 const QR_STORE_OVERHEAD = 3;
 const CENTER_ALIGNMENT = 1;
 const LEFT_ALIGNMENT = 0;
@@ -81,7 +89,7 @@ class Output {
     const stored = data.length + QR_STORE_OVERHEAD;
     this.command(ESC, 0x61, CENTER_ALIGNMENT);
     this.command(GS, 0x28, 0x6b, 4, 0, 0x31, 0x41, 0x32, 0);
-    this.command(GS, 0x28, 0x6b, 3, 0, 0x31, 0x43, QR_MODULE_DOTS);
+    this.command(GS, 0x28, 0x6b, 3, 0, 0x31, 0x43, qrModuleDots(data.length));
     this.command(GS, 0x28, 0x6b, 3, 0, 0x31, 0x45, 0x31);
     this.command(GS, 0x28, 0x6b, stored & 0xff, stored >> 8, 0x31, 0x50, 0x30);
     this.chunks.push(data);
@@ -96,6 +104,13 @@ class Output {
   bytes(): Uint8Array {
     return concatenated(this.chunks);
   }
+}
+
+function qrModuleDots(bytes: number): number {
+  const version = QR_BYTE_CAPACITY_AT_LEVEL_M.findIndex((capacity) => bytes <= capacity) + 1;
+  const modules = 17 + 4 * (version === 0 ? QR_BYTE_CAPACITY_AT_LEVEL_M.length : version);
+  const nearest = Math.round(QR_SIDE_DOTS / modules);
+  return Math.min(Math.max(nearest, 1), QR_MAX_MODULE_DOTS);
 }
 
 function concatenated(chunks: readonly Uint8Array[]): Uint8Array {
@@ -223,7 +238,10 @@ function operation(
           `Nº ${formatInvoiceNumber(block.number)}`,
         )),
     ...row(`Fecha ${date}`, `Hora ${time}`),
-    ...row(`Operación ${formatOperationNumber(operationNumber)}`, `Atendió ${servedByFirstName}`),
+    ...row(
+      `Operación ${formatOperationNumber(operationNumber)}`,
+      `Atendió ${servedByFirstName.trim().split(/\s+/)[0]}`,
+    ),
     RULE,
   ]);
 }
@@ -305,7 +323,9 @@ function calendarDay(day: string): string {
 }
 
 function authorization(out: Output, block: FacturaCFiscalBlock): void {
+  out.feed(QR_TOP_MARGIN_DOTS);
   out.qr(block.qrText);
+  out.feed(QR_BOTTOM_MARGIN_DOTS);
   out.small([
     ...centered("Comprobante autorizado", SMALL_COLUMNS),
     ...centered(
