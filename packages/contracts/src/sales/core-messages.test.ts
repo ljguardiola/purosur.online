@@ -738,6 +738,7 @@ describe("previewing a sale line adjustment", () => {
     { kind: "sale_has_payments" },
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
+    { kind: "unavailable" },
   ])("accepts the answer $kind", (outcome) => {
     const message = {
       type: "preview-sale-line-adjustment-result",
