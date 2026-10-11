@@ -77,6 +77,7 @@ import {
   signInLockouts,
   signInLookupAttempts,
   stockBalances,
+  stockCountLots,
   stockCounts,
   stockMovements,
   suppliers,
@@ -682,6 +683,9 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
     await db
       .insert(lotAllocations)
       .values({ movementId: countMovement.id, lotId: lot?.id as string, quantity: 1000 });
+    await db
+      .insert(stockCountLots)
+      .values({ movementId: countMovement.id, lotId: lot?.id as string, counted: 1000 });
     await db.insert(priceReviewPostponements).values({
       productId: product.id,
       priceListId: await seededPriceListId(db),

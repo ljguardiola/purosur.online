@@ -8,6 +8,7 @@ import {
   roles,
   sessions,
   stockBalances,
+  stockCountLots,
   stockCounts,
   stockMovements,
   userRoles,
@@ -140,7 +141,7 @@ export async function insertMovement(
     delta: number;
     occurredAt: Date;
     supersededByCountId?: string | null;
-    count?: { counted: number; expected: number };
+    count?: { counted: number; expected: number; lots?: { lotId: string; counted: number }[] };
   },
 ): Promise<string> {
   const { count, ...movement } = row;
@@ -152,7 +153,13 @@ export async function insertMovement(
     throw new Error("test setup: seeding the movement returned no row");
   }
   if (count) {
-    await db.insert(stockCounts).values({ movementId: inserted.id, ...count });
+    const { lots, ...stored } = count;
+    await db.insert(stockCounts).values({ movementId: inserted.id, ...stored });
+    if (lots && lots.length > 0) {
+      await db
+        .insert(stockCountLots)
+        .values(lots.map((lot) => ({ movementId: inserted.id, ...lot })));
+    }
   }
   return inserted.id;
 }

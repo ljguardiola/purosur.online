@@ -1,9 +1,17 @@
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { stockBalances, stockCounts, stockMovements } from "../platform/db/schema.js";
+import {
+  lotAllocations,
+  lots,
+  stockBalances,
+  stockCountLots,
+  stockCounts,
+  stockMovements,
+} from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerStockCountsRoutes } from "./stock-counts-route.js";
+import { insertPurchasedLot, insertTechnicalLot } from "./test-support/lot-fixtures.js";
 import {
   BACKOFFICE_ORIGIN,
   insertBalance,
@@ -129,6 +137,112 @@ describe("POST /inventory-counts", () => {
       .from(stockMovements)
       .where(eq(stockMovements.kind, "count"));
     expect(movements).toEqual([{ actorId: userId }]);
+  });
+
+  it("registers a count by lot, setting the lots and recording what was counted of each", async () => {
+    const { headers, locationId, userId } = await signedInWith(db, ["perform_stock_counts"], NOW);
+    const { productId } = await insertProduct(db, { saleUnit: "KG" });
+    const counted = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      remaining: 4000,
+    });
+    const left = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      remaining: 6000,
+    });
+    await insertBalance(db, { productId, locationId, quantity: 10_000 });
+
+    const response = await registerCountRequest(headers, {
+      productId,
+      lots: [{ lotId: counted, counted: 1000 }],
+      occurredAt: COUNTED_AT.toISOString(),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      expected: 10_000,
+      delta: -9000,
+      balance: 1000,
+      superseded: false,
+    });
+    const stored = await db.select({ id: lots.id, remaining: lots.remaining }).from(lots);
+    expect(stored).toEqual(
+      expect.arrayContaining([
+        { id: counted, remaining: 1000 },
+        { id: left, remaining: 0 },
+      ]),
+    );
+    expect(await db.select({ lotId: stockCountLots.lotId }).from(stockCountLots)).toEqual([
+      { lotId: counted },
+    ]);
+  });
+
+  it.each([
+    [
+      "a lot that cannot be counted",
+      () => [{ lotId: "00000000-0000-4000-8000-000000000000", counted: 1000 }],
+      "lots",
+    ],
+    [
+      "a lot listed twice",
+      (lotId: string) => [
+        { lotId, counted: 1000 },
+        { lotId, counted: 2000 },
+      ],
+      "lots",
+    ],
+    ["a quantity that is part of a unit", (lotId: string) => [{ lotId, counted: 1500 }], "lots"],
+  ])("refuses a count by lot with %s on the lots", async (_case, lotsOf, field) => {
+    const { headers, locationId, userId } = await signedInWith(db, ["perform_stock_counts"], NOW);
+    const { productId } = await insertProduct(db, { saleUnit: "UNIT" });
+    const lotId = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      remaining: 4000,
+    });
+
+    const response = await registerCountRequest(headers, {
+      productId,
+      lots: lotsOf(lotId),
+      occurredAt: COUNTED_AT.toISOString(),
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field }],
+    });
+  });
+
+  it.each([
+    ["neither a counted quantity nor lots", {}],
+    [
+      "both a counted quantity and lots",
+      {
+        counted: 1000,
+        lots: [{ lotId: "00000000-0000-4000-8000-000000000000", counted: 1000 }],
+      },
+    ],
+  ])("refuses a count with %s", async (_case, body) => {
+    const { headers } = await signedInWith(db, ["perform_stock_counts"], NOW);
+    const { productId } = await insertProduct(db);
+
+    const response = await registerCountRequest(headers, {
+      productId,
+      ...body,
+      occurredAt: COUNTED_AT.toISOString(),
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "counted" }],
+    });
   });
 
   it("answers a count dated before an already registered count as superseded", async () => {
@@ -321,6 +435,7 @@ describe("GET /inventory-counts", () => {
           counted: 12_150,
           delta: -250,
           superseded: false,
+          lotCount: null,
         },
         {
           id: older,
@@ -334,6 +449,7 @@ describe("GET /inventory-counts", () => {
           counted: 24_000,
           delta: 0,
           superseded: true,
+          lotCount: null,
         },
       ],
     });
@@ -421,7 +537,47 @@ describe("GET /inventory-levels/:productId", () => {
       saleUnit: "KG",
       active: true,
       balance: 17_000,
+      lots: [],
     });
+  });
+
+  it("answers the lots that can be counted by lot at the moment, in the order they are consumed", async () => {
+    const { headers, locationId, userId } = await signedInWith(db, ["view_stock_balances"], NOW);
+    const { productId } = await insertProduct(db, { saleUnit: "KG" });
+    const late = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      lotNumber: "L-2",
+      expiresOn: "2027-09-01",
+      remaining: 4000,
+    });
+    const soon = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      lotNumber: "L-1",
+      expiresOn: "2027-06-01",
+      remaining: 1000,
+    });
+    await insertTechnicalLot(db, { productId, locationId, remaining: 500 });
+    const sale = await insertMovement(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      kind: "loss",
+      reason: "theft",
+      delta: -2000,
+      occurredAt: AFTER_COUNT,
+    });
+    await db.insert(lotAllocations).values({ movementId: sale, lotId: soon, quantity: -2000 });
+
+    const response = await expectedBalanceRequest(headers, productId, COUNTED_AT.toISOString());
+
+    expect(response.json().lots).toEqual([
+      { id: soon, lotNumber: "L-1", expiresOn: "2027-06-01", expected: 3000 },
+      { id: late, lotNumber: "L-2", expiresOn: "2027-09-01", expected: 4000 },
+    ]);
   });
 
   it("answers 404 for an unknown product", async () => {
