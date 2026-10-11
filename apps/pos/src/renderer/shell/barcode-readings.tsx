@@ -23,6 +23,10 @@ function createTakers(): Takers {
   };
 }
 
+function aWindowIsOpen() {
+  return document.querySelector('[role="dialog"]') !== null;
+}
+
 const BarcodeReadingsContext = createContext<Takers["register"]>(() => () => {});
 
 export function BarcodeReadings({
@@ -39,7 +43,7 @@ export function BarcodeReadings({
     () =>
       onBarcodeRead((code) => {
         const taker = takers.last();
-        if (taker === undefined) {
+        if (taker === undefined || aWindowIsOpen()) {
           setUntaken((count) => (count ?? 0) + 1);
         } else {
           taker(code);
@@ -57,7 +61,7 @@ export function BarcodeReadings({
           tone="warning"
           icon={<ScanBarcode />}
           title="No se agregó el producto escaneado"
-          description="Escaneá el código de nuevo cuando estés en la venta, sin ventanas abiertas."
+          description="Escaneá de nuevo en una venta que se pueda cambiar, sin ventanas abiertas."
           onDismiss={() => setUntaken(undefined)}
         />
       )}

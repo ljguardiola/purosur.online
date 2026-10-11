@@ -225,34 +225,4 @@ describe("createSerialBarcodeReader", () => {
 
     expect(timers.pending(RETRY_MS)).toBe(1);
   });
-
-  it("closes the port and stops retrying when stopped", async () => {
-    const barcodeReader = reader();
-    await barcodeReader.sync();
-    (links[0] as ScriptedSerialLink).fail();
-
-    barcodeReader.stop();
-    await barcodeReader.sync();
-
-    expect(timers.pending(RETRY_MS)).toBe(0);
-    expect(opened).toEqual(["/dev/ttyACM0"]);
-  });
-
-  it("closes the port it was opening when stopped meanwhile", async () => {
-    let finishOpening = (): void => {};
-    openGate = new Promise<void>((resolve) => {
-      finishOpening = resolve;
-    });
-    const barcodeReader = reader();
-
-    const syncing = barcodeReader.sync();
-    await nextIoTurn();
-    barcodeReader.stop();
-    finishOpening();
-    await syncing;
-
-    expect((links[0] as ScriptedSerialLink).closed).toBe(true);
-    (links[0] as ScriptedSerialLink).receive(...bytesOf("late"), CARRIAGE_RETURN);
-    expect(codes).toEqual([]);
-  });
 });

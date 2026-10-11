@@ -16,7 +16,6 @@ export interface SerialBarcodeReaderDeps {
 
 export interface SerialBarcodeReader {
   sync(): Promise<void>;
-  stop(): void;
 }
 
 const realTimers: ReaderTimers = {
@@ -44,7 +43,6 @@ export function createSerialBarcodeReader({
   let queue: Promise<unknown> = Promise.resolve();
   let cancelRetry: (() => void) | undefined;
   let failing = false;
-  let stopped = false;
 
   function drop(): void {
     if (open !== undefined) {
@@ -60,7 +58,7 @@ export function createSerialBarcodeReader({
   }
 
   function scheduleRetry(): void {
-    if (stopped || cancelRetry !== undefined) return;
+    if (cancelRetry !== undefined) return;
     cancelRetry = timers.after(retryMs, () => {
       cancelRetry = undefined;
       void run();
@@ -70,10 +68,6 @@ export function createSerialBarcodeReader({
   async function connect(wanted: string): Promise<void> {
     try {
       const link = await openLink(wanted);
-      if (stopped) {
-        link.close();
-        return;
-      }
       const opened: OpenLink = { path: wanted, link, lost: false };
       const lines = createBarcodeReaderLines();
       const lose = (): void => {
@@ -99,7 +93,6 @@ export function createSerialBarcodeReader({
   }
 
   async function runOnce(): Promise<void> {
-    if (stopped) return;
     const wanted = path();
     if (wanted === undefined) {
       drop();
@@ -124,10 +117,5 @@ export function createSerialBarcodeReader({
 
   return {
     sync: run,
-    stop() {
-      stopped = true;
-      clearRetry();
-      drop();
-    },
   };
 }

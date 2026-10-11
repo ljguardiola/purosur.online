@@ -69,6 +69,7 @@ import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
+import { createBarcodeReaderWiring } from "./sales/barcode-reader-wiring";
 import { openSerialLink } from "./sales/open-serial-link";
 import { createReceiptPrinting } from "./sales/receipt-printing-wiring";
 import {
@@ -89,7 +90,6 @@ import {
   weighProductFor,
 } from "./sales/sale-requests";
 import { saleHistoryDetailFor, salesHistoryFor } from "./sales/sales-history-requests";
-import { createSerialBarcodeReader } from "./sales/serial-barcode-reader";
 import { createSystelScale } from "./sales/systel-scale";
 import { createActionGate } from "./sessions/action-gate";
 import { authorizersOf } from "./sessions/authorizers";
@@ -242,7 +242,7 @@ const serialDeviceWatch =
         },
         onChange: () => {
           rendererConnection.tell(SERIAL_DEVICES_CHANGED_NOTICE);
-          void serialBarcodeReader.sync();
+          void barcodeReaderWiring.onDevicesChanged();
         },
         onFailure: (error) => reportFailure("watching the serial devices", error),
       });
@@ -252,11 +252,11 @@ const systelScale = createSystelScale({
   openLink: openSerialLink,
 });
 
-const serialBarcodeReader = createSerialBarcodeReader({
-  path: () => serialDeviceWatch && pathOfMatchingDevice(serialDeviceWatch.reading(), "reader"),
+const barcodeReaderWiring = createBarcodeReaderWiring({
+  watch: serialDeviceWatch,
   openLink: openSerialLink,
-  onCode: (code) => rendererConnection.tell({ type: "barcode-read", code }),
-  onFailure: (error) => reportFailure("reading the barcode reader", error),
+  tell: (message) => rendererConnection.tell(message),
+  reportFailure,
   retryMs: BARCODE_READER_RETRY_MS,
 });
 
@@ -861,4 +861,4 @@ process.parentPort.on("message", (event) => {
 
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
 syncSchedule.start();
-void serialDeviceWatch?.start().then(() => serialBarcodeReader.sync());
+void barcodeReaderWiring.startWatch();

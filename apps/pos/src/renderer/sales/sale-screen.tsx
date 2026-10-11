@@ -474,15 +474,6 @@ export function SaleScreen({
     }
   }, [confirmingCancel, confirmingPaidCancel, cancelledRefunds, weighing]);
 
-  useBarcodeReadings(
-    confirmingCancel ||
-      confirmingPaidCancel ||
-      cancelledRefunds !== undefined ||
-      weighing !== undefined
-      ? undefined
-      : (reading) => void takeReading(reading),
-  );
-
   const found = results?.query === code.trim() && !dismissed ? results : undefined;
   const choosing = found !== undefined && found.products.length > 0;
   const chosen = choosing ? found.products[activeIndex] : undefined;
@@ -511,6 +502,7 @@ export function SaleScreen({
   const sale = answer === undefined || answer === "not_permitted" ? null : answer;
   const linesLock = sale?.lines_lock ?? null;
   const editable = linesLock === null;
+  useBarcodeReadings(editable ? (reading) => void takeReading(reading) : undefined);
   const notPermitted = messageFor({ kind: "not_permitted" });
   const shownProblem =
     answer === "not_permitted" && problem?.kind === "not_permitted" ? undefined : problem;
