@@ -258,6 +258,7 @@ export type {
   WsaaAuthentication,
   WsaaAuthenticationResult,
   WsaaToken,
+  WsaaTokenAnswer,
   WsaaTokenPorts,
   WsaaTokenRenewal,
   WsaaTokenStore,
