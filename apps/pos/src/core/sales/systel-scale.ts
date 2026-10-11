@@ -50,7 +50,7 @@ export interface SerialLink {
   close(): void;
 }
 
-export interface ScaleTimers {
+interface ScaleTimers {
   after(delayMs: number, run: () => void): () => void;
 }
 
