@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { countBody, countedMode, lotsMessage, lotsTotal } from "./stock-count-form";
-import { almondsExpectedByLot } from "./test-support/stock-fixtures";
+import {
+  ALMONDS_FIRST_LOT_ID,
+  ALMONDS_SECOND_LOT_ID,
+  almondsExpectedByLot,
+} from "./test-support/stock-fixtures";
 
 const { lots } = almondsExpectedByLot;
 const AT = "2026-09-15T21:40:30.000Z";
@@ -32,15 +36,19 @@ describe("countBody", () => {
 
   it("asks for the quantity of every lot in the order given, a lot left empty counting as zero", () => {
     const body = countBody(
-      { ...values, mode: "lots", lots: { "lot-1": "4,300", "lot-2": "  " } },
+      {
+        ...values,
+        mode: "lots",
+        lots: { [ALMONDS_FIRST_LOT_ID]: "4,300", [ALMONDS_SECOND_LOT_ID]: "  " },
+      },
       { saleUnit: "KG", lots, at: AT },
     );
 
     expect(body).toEqual({
       productId: "product-1",
       lots: [
-        { lotId: "lot-1", counted: 4_300 },
-        { lotId: "lot-2", counted: 0 },
+        { lotId: ALMONDS_FIRST_LOT_ID, counted: 4_300 },
+        { lotId: ALMONDS_SECOND_LOT_ID, counted: 0 },
       ],
       occurredAt: AT,
     });
@@ -48,7 +56,7 @@ describe("countBody", () => {
 
   it("marks a lot quantity that cannot be read as not a number", () => {
     const body = countBody(
-      { ...values, mode: "lots", lots: { "lot-1": "mucho" } },
+      { ...values, mode: "lots", lots: { [ALMONDS_FIRST_LOT_ID]: "mucho" } },
       { saleUnit: "KG", lots, at: AT },
     );
 
@@ -72,24 +80,28 @@ describe("countBody", () => {
 
 describe("lotsTotal", () => {
   it("adds the quantities typed, a lot left empty adding nothing", () => {
-    expect(lotsTotal({ "lot-1": "4,300", "lot-2": "7,850" }, lots, "KG")).toBe(12_150);
-    expect(lotsTotal({ "lot-1": "4,300" }, lots, "KG")).toBe(4_300);
+    expect(
+      lotsTotal({ [ALMONDS_FIRST_LOT_ID]: "4,300", [ALMONDS_SECOND_LOT_ID]: "7,850" }, lots, "KG"),
+    ).toBe(12_150);
+    expect(lotsTotal({ [ALMONDS_FIRST_LOT_ID]: "4,300" }, lots, "KG")).toBe(4_300);
   });
 
   it("has no total while a quantity cannot be read", () => {
-    expect(lotsTotal({ "lot-1": "4,300", "lot-2": "x" }, lots, "KG")).toBeUndefined();
+    expect(
+      lotsTotal({ [ALMONDS_FIRST_LOT_ID]: "4,300", [ALMONDS_SECOND_LOT_ID]: "x" }, lots, "KG"),
+    ).toBeUndefined();
   });
 });
 
 describe("lotsMessage", () => {
   it("explains how to write the quantity when one cannot be read", () => {
-    expect(lotsMessage({ "lot-1": "x" }, lots, "KG")).toBe(
+    expect(lotsMessage({ [ALMONDS_FIRST_LOT_ID]: "x" }, lots, "KG")).toBe(
       "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
     );
   });
 
   it("says the lots changed when every quantity can be read", () => {
-    expect(lotsMessage({ "lot-1": "4,300" }, lots, "KG")).toBe(
+    expect(lotsMessage({ [ALMONDS_FIRST_LOT_ID]: "4,300" }, lots, "KG")).toBe(
       "Los lotes del producto cambiaron. Elegí el producto de nuevo.",
     );
   });

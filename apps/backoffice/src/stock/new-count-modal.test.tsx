@@ -8,6 +8,8 @@ import { countMomentNow } from "./count-moment";
 import { NewCountModal } from "./new-count-modal";
 import type { StockCountsScreenServices } from "./stock-counts-services";
 import {
+  ALMONDS_FIRST_LOT_ID,
+  ALMONDS_SECOND_LOT_ID,
   almonds,
   almondsExpectedByLot,
   expectedBalance,
@@ -487,8 +489,8 @@ test("registers the quantity of every lot, a lot left empty as zero", async () =
   expect(services.registerCount).toHaveBeenCalledWith({
     productId: almonds.id,
     lots: [
-      { lotId: "lot-1", counted: 4_300 },
-      { lotId: "lot-2", counted: 0 },
+      { lotId: ALMONDS_FIRST_LOT_ID, counted: 4_300 },
+      { lotId: ALMONDS_SECOND_LOT_ID, counted: 0 },
     ],
     occurredAt: "2026-09-15T21:40:30.000Z",
   });

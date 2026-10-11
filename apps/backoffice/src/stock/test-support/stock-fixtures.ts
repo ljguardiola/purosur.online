@@ -235,9 +235,12 @@ export function expectedBalance(
   return { ...withoutBalance(product), balance, lots };
 }
 
+export const ALMONDS_FIRST_LOT_ID = "00000000-0000-4000-8000-0000000000a1";
+export const ALMONDS_SECOND_LOT_ID = "00000000-0000-4000-8000-0000000000a2";
+
 export const almondsExpectedByLot = expectedBalance(almonds, 12_400, [
-  { id: "lot-1", lotNumber: "L-2312", expiresOn: "2026-10-14", expected: 4_400 },
-  { id: "lot-2", lotNumber: null, expiresOn: null, expected: 8_000 },
+  { id: ALMONDS_FIRST_LOT_ID, lotNumber: "L-2312", expiresOn: "2026-10-14", expected: 4_400 },
+  { id: ALMONDS_SECOND_LOT_ID, lotNumber: null, expiresOn: null, expected: 8_000 },
 ]);
 
 export const honeyLoss: StockMovement = {
