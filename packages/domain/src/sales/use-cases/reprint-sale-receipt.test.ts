@@ -50,6 +50,28 @@ describe("reprintSaleReceipt", () => {
     },
   );
 
+  it("reprints the stored receipt of a sale even if its fiscal document is awaiting an answer again", async () => {
+    const encoder = new TextEncoder();
+    const sale = completedSale({
+      printAttemptedAt: FIRST_PRINT_AT,
+      stored: {
+        templateVersion: "v1",
+        head: encoder.encode("HEAD\n"),
+        body: encoder.encode("BODY\n"),
+      },
+    });
+    const rig = receiptRig([{ ...sale, source: { ...sale.source, fiscal: { kind: "awaiting" } } }]);
+
+    const printing = reprintSaleReceipt(rig.ports, INPUT, rig.watch);
+    await rig.printer.whenSent();
+    rig.printer.acknowledge();
+
+    expect(await printing).toEqual({
+      kind: "printed",
+      copy: { kind: "duplicate", orderNumber: 1 },
+    });
+  });
+
   it("records the reason without the spaces around it", async () => {
     const rig = receiptRig([completedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
 
