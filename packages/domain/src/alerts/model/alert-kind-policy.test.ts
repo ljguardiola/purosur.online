@@ -5,11 +5,16 @@ import {
   ALERT_ESCALATION_DELAY_MS,
   alertKindPolicy,
   alertKindsWithScope,
+  LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS,
 } from "./alert-kind-policy.js";
 
 describe("alertKindPolicy", () => {
   it("escalates after 24 hours", () => {
     expect(ALERT_ESCALATION_DELAY_MS).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it("escalates a late-payment refund after 72 hours", () => {
+    expect(LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS).toBe(72 * 60 * 60 * 1000);
   });
 
   const afterOpening = { kind: "afterOpening", delayMs: ALERT_ESCALATION_DELAY_MS } as const;
@@ -37,6 +42,14 @@ describe("alertKindPolicy", () => {
     ["sales_denied", "critical", null, "local", "register", true],
     ["fiscal_rejected", "critical", null, "all", "pointOfSaleDocumentType", true],
     ["offline_authorization_code_missing", "informational", null, "all", "registerFortnight", true],
+    [
+      "late_payment_refund",
+      "warning",
+      { kind: "afterOpening", delayMs: LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS },
+      "local",
+      "refund",
+      true,
+    ],
   ] as const)(
     "%s opens as %s, escalates %o, is shown to %s, is scoped to %s and deduplicates: %s",
     (kind, level, escalation, audience, scopeKind, deduplicates) => {
@@ -96,5 +109,6 @@ describe("alertKindsWithScope", () => {
     expect(alertKindsWithScope("registerFortnight")).toEqual([
       "offline_authorization_code_missing",
     ]);
+    expect(alertKindsWithScope("refund")).toEqual(["late_payment_refund"]);
   });
 });
