@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { facturaCFiscalBlock } from "../../fiscal/index.js";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../../fiscal/test-support/fictional-tax-identities.js";
 import type { ReceiptSource } from "../model/receipt-content.js";
 import { authorizedFacturaC } from "../model/test-support/authorized-factura-c.js";
 import { printSaleReceipt } from "./print-sale-receipt.js";
@@ -14,6 +19,12 @@ import {
   NOT_PERMITTED,
   receiptRig,
 } from "./test-support/receipt-rig.js";
+
+const ISSUER_IDENTITY = {
+  legalName: FICTIONAL_LEGAL_NAME,
+  cuit: FICTIONAL_CUIT,
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+};
 
 function printStateEvent(id: string, printAttemptedAt: Date, printedAt: Date | null, at: Date) {
   return {
@@ -54,7 +65,7 @@ describe("printSaleReceipt", () => {
     });
 
     it("renders the receipt with the fiscal block of the authorized document", async () => {
-      const authorized = authorizedFacturaC(7500);
+      const authorized = authorizedFacturaC(7500, ISSUER_IDENTITY);
       const rig = receiptRig([saleWithFiscal({ kind: "authorized", authorized })]);
 
       const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);

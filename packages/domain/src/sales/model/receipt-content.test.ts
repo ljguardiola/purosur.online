@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { facturaCFiscalBlock } from "../../fiscal/index.js";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../../fiscal/test-support/fictional-tax-identities.js";
 import { type ReceiptSource, receiptContent } from "./receipt-content.js";
 import { authorizedFacturaC } from "./test-support/authorized-factura-c.js";
 
+const ISSUER_IDENTITY = {
+  legalName: FICTIONAL_LEGAL_NAME,
+  cuit: FICTIONAL_CUIT,
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+};
 const OCCURRED_AT = new Date("2026-10-07T15:30:00.000Z");
 const HEADER = {
   address: "Av. Siempreviva 742",
@@ -157,7 +167,7 @@ describe("receiptContent", () => {
   });
 
   describe("the fiscal block", () => {
-    const AUTHORIZED = authorizedFacturaC(11250);
+    const AUTHORIZED = authorizedFacturaC(11250, ISSUER_IDENTITY);
 
     it("is the fiscal block of the authorized factura C of the sale", () => {
       const content = receiptContent(

@@ -1,11 +1,12 @@
 import type { AuthorizedFacturaC } from "../../../fiscal/index.js";
-import {
-  FICTIONAL_CUIT,
-  FICTIONAL_GROSS_INCOME_REGISTRATION,
-  FICTIONAL_LEGAL_NAME,
-} from "../../../fiscal/test-support/fictional-tax-identities.js";
 
-export function authorizedFacturaC(total: number): AuthorizedFacturaC {
+export interface IssuerIdentity {
+  legalName: string;
+  cuit: string;
+  grossIncomeRegistration: string;
+}
+
+export function authorizedFacturaC(total: number, identity: IssuerIdentity): AuthorizedFacturaC {
   return {
     pointOfSale: 1,
     number: 123,
@@ -18,10 +19,8 @@ export function authorizedFacturaC(total: number): AuthorizedFacturaC {
       netAmount: total,
       vatAmount: 0,
       issuer: {
-        legalName: FICTIONAL_LEGAL_NAME,
-        cuit: FICTIONAL_CUIT,
+        ...identity,
         taxStatus: "Responsable Monotributo",
-        grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
         activityStartDate: "2020-01-15",
         version: 3,
       },
