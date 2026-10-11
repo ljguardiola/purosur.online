@@ -49,6 +49,29 @@ describe("a readable printout of ESC/POS bytes", () => {
     expect(printout.textLines).toEqual(["Hola", "TOTAL"]);
   });
 
+  it("marks the text printed in the small font and tells its rows apart", () => {
+    const printout = printoutOf(
+      Uint8Array.from([
+        ESC,
+        0x4d,
+        1,
+        ...ascii("chica"),
+        ESC,
+        0x4d,
+        0,
+        0x0a,
+        ...ascii("normal"),
+        0x0a,
+      ]),
+    );
+
+    expect(printout.text).toBe(["[small]chica[/small]", "normal"].join("\n"));
+    expect(printout.rows).toEqual([
+      { text: "chica", small: true },
+      { text: "normal", small: false },
+    ]);
+  });
+
   it("shows a raster image as its size", () => {
     const printout = printoutOf(Uint8Array.from([GS, 0x76, 0x30, 0, 2, 0, 3, 0, 1, 2, 3, 4, 5, 6]));
 

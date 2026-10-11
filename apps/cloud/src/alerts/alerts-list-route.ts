@@ -40,6 +40,7 @@ function toAlertSummary(
     escalatedAt: row.escalatedAt?.toISOString() ?? null,
     resolvedAt: row.resolvedAt?.toISOString() ?? null,
     salesDeniedReason: row.salesDeniedReason,
+    refundAmount: row.refundAmount,
   };
 }
 

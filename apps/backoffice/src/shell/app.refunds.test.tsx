@@ -45,7 +45,7 @@ test("opens the pending refunds from the rail's Caja item for a user who only co
     .element(screen.getByRole("heading", { name: "Reembolsos pendientes", level: 1 }))
     .toBeVisible();
   expect(window.location.pathname).toBe("/pending-refunds");
-  await expect.element(screen.getByText("Caja principal")).toBeVisible();
+  await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
   expect(document.title).toBe("Reembolsos pendientes · Puro Sur");
   const sections = screen.getByRole("navigation", { name: "Caja y fiscal" });
   await expect
@@ -109,4 +109,34 @@ test("sends a user who only confirms refunds and opens the points of sale to Mi 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+});
+
+test("keeps the register chosen in the address of the pending refunds", async () => {
+  const services = refundsServices(["refunds_area"]);
+  window.history.pushState(null, "", "/pending-refunds");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
+  await screen.getByRole("button", { name: /Caja/ }).click();
+  await userEvent.click(screen.getByRole("option", { name: "Caja del fondo" }));
+
+  await expect
+    .poll(() => window.location.search)
+    .toBe("?register=22222222-2222-4222-8222-222222222222");
+  await expect.poll(() => screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
+  await expect.element(screen.getByText("$ 980,00", { exact: true })).toBeVisible();
+});
+
+test("opens the pending refunds on the register the address carries", async () => {
+  const services = refundsServices(["refunds_area"]);
+  window.history.pushState(
+    null,
+    "",
+    "/pending-refunds?register=22222222-2222-4222-8222-222222222222",
+  );
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("$ 980,00", { exact: true })).toBeVisible();
+  expect(screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
 });

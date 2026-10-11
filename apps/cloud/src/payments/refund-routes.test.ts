@@ -1,8 +1,12 @@
-import { markedRefundDoneSchema, pendingRefundsSchema } from "@purosur/contracts";
+import {
+  discardedRefundSchema,
+  markedRefundDoneSchema,
+  pendingRefundsSchema,
+} from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { paymentRefunds } from "../platform/db/schema.js";
+import { alerts, auditLog, paymentRefunds } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applyCancelledSale } from "../sales/test-support/applied-sales.js";
 import {
@@ -13,6 +17,7 @@ import {
 import { aTransferCancelledSale } from "../sync/test-support/synced-facts.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerRefundRoutes } from "./refund-routes.js";
+import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fixtures.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 const UNKNOWN_REFUND = "00000000-0000-4000-8000-000000000000";
@@ -48,6 +53,10 @@ function markDone(headers: Record<string, string>, refundId: string) {
   return app.inject({ method: "POST", url: `/refunds/${refundId}/completion`, headers });
 }
 
+function discard(headers: Record<string, string>, refundId: string) {
+  return app.inject({ method: "POST", url: `/refunds/${refundId}/discard`, headers });
+}
+
 async function aPendingRefund(): Promise<string> {
   const { deviceId } = await insertEnrolledInstallation(db, { now: NOW });
   const cancelled = await applyCancelledSale(db, {
@@ -68,6 +77,10 @@ describe.each([
   [
     "POST /refunds/:id/completion",
     (headers: Record<string, string>) => markDone(headers, UNKNOWN_REFUND),
+  ],
+  [
+    "POST /refunds/:id/discard",
+    (headers: Record<string, string>) => discard(headers, UNKNOWN_REFUND),
   ],
 ])("%s access", (_name, request) => {
   it("returns 401 when no session cookie was sent", async () => {
@@ -106,6 +119,61 @@ describe("GET /refunds/pending", () => {
     expect(body.refunds.map((refund) => refund.id)).toEqual([refundId]);
   });
 
+  it("lists the refund of a late payment beside the refunds of cancelled sales, each with its origin and whether it can be discarded", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const cancelledId = await aPendingRefund();
+    const late = await aPendingLatePaymentRefund(db, {
+      openedAt: new Date("2026-10-06T10:00:00.000Z"),
+      registerName: "Caja 2",
+    });
+
+    const response = await pendingRefunds(headers);
+
+    const body = pendingRefundsSchema.parse(response.json());
+    expect(
+      body.refunds.map(({ id, origin, discardable, method, cancelled_by }) => ({
+        id,
+        origin,
+        discardable,
+        method,
+        cancelled_by,
+      })),
+    ).toEqual([
+      {
+        id: late.refundId,
+        origin: "late_payment",
+        discardable: true,
+        method: "QR",
+        cancelled_by: null,
+      },
+      {
+        id: cancelledId,
+        origin: "sale_cancelled",
+        discardable: false,
+        method: "TRANSFER",
+        cancelled_by: expect.any(String),
+      },
+    ]);
+  });
+
+  it("tells how long each refund has been pending, when its sale happened and which methods covered it", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const late = await aPendingLatePaymentRefund(db, {
+      openedAt: new Date(NOW.getTime() - 2 * 3_600_000),
+      coveredBy: ["TRANSFER"],
+    });
+
+    const response = await pendingRefunds(headers);
+
+    const [refund] = pendingRefundsSchema.parse(response.json()).refunds;
+    expect(refund).toMatchObject({
+      id: late.refundId,
+      seconds_pending: 7_200,
+      sale_occurred_at: late.saleOccurredAt.toISOString(),
+      covered_by: ["TRANSFER"],
+    });
+  });
+
   it("lists nothing to a session of another branch", async () => {
     const otherLocationId = await insertLocation(db);
     const { headers } = await signedInWith(db, ["confirm_refunds"], NOW, {
@@ -135,6 +203,28 @@ describe("POST /refunds/:id/completion", () => {
     expect(refund).toMatchObject({ state: "APPROVED", doneBy: userId, doneAt: NOW });
   });
 
+  it("resolves the alert of a late-payment refund when it is marked as done", async () => {
+    const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+
+    const response = await markDone(headers, late.refundId);
+
+    expect(response.statusCode).toBe(200);
+    const [alert] = await db.select().from(alerts).where(eq(alerts.id, late.alertId));
+    expect(alert).toMatchObject({ resolvedAt: NOW, resolvedBy: userId });
+  });
+
+  it("answers 409 to a refund that was discarded", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+    await discard(headers, late.refundId);
+
+    const response = await markDone(headers, late.refundId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "refund_discarded" });
+  });
+
   it("answers 409 to a refund that was already marked as done", async () => {
     const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
     const refundId = await aPendingRefund();
@@ -159,6 +249,117 @@ describe("POST /refunds/:id/completion", () => {
     const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
 
     const response = await markDone(headers, "refund-1");
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+});
+
+describe("POST /refunds/:id/discard", () => {
+  it("discards the pending refund of a late payment, on behalf of the person of the session", async () => {
+    const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+
+    const response = await discard(headers, late.refundId);
+
+    expect(response.statusCode).toBe(200);
+    expect(discardedRefundSchema.parse(response.json())).toEqual({
+      refund_id: late.refundId,
+      discarded_at: NOW.toISOString(),
+    });
+    const [refund] = await db
+      .select()
+      .from(paymentRefunds)
+      .where(eq(paymentRefunds.id, late.refundId));
+    expect(refund).toMatchObject({ state: "DISCARDED", discardedBy: userId, discardedAt: NOW });
+  });
+
+  it("writes the same kind of audit row as marking a refund as done, and resolves the alert", async () => {
+    const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+
+    await discard(headers, late.refundId);
+
+    const [audit] = await db.select().from(auditLog).where(eq(auditLog.entityId, late.refundId));
+    expect(audit).toMatchObject({
+      entity: "payment_refund",
+      actorId: userId,
+      previousValue: { state: "PENDING" },
+      newValue: { state: "DISCARDED", discardedAt: NOW.toISOString() },
+    });
+    const [alert] = await db.select().from(alerts).where(eq(alerts.id, late.alertId));
+    expect(alert).toMatchObject({ resolvedAt: NOW, resolvedBy: userId });
+  });
+
+  it("no longer lists the refund once discarded", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+    await discard(headers, late.refundId);
+
+    const response = await pendingRefunds(headers);
+
+    expect(response.json()).toEqual({ refunds: [] });
+  });
+
+  it("answers 409 to the refund of a cancelled sale, which cannot be discarded", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const refundId = await aPendingRefund();
+
+    const response = await discard(headers, refundId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "refund_not_discardable" });
+    const [refund] = await db.select().from(paymentRefunds).where(eq(paymentRefunds.id, refundId));
+    expect(refund).toMatchObject({ state: "PENDING" });
+  });
+
+  it("answers 409 to a refund that was already marked as done", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+    await markDone(headers, late.refundId);
+
+    const response = await discard(headers, late.refundId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "already_done" });
+  });
+
+  it("answers 409 to a refund that was already discarded", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+    await discard(headers, late.refundId);
+
+    const response = await discard(headers, late.refundId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "already_discarded" });
+  });
+
+  it("answers 404 to a refund that does not exist", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+
+    const response = await discard(headers, UNKNOWN_REFUND);
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "refund_not_found" });
+  });
+
+  it("answers 404 to a refund of another branch", async () => {
+    const otherLocationId = await insertLocation(db);
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW, {
+      locationId: otherLocationId,
+    });
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+
+    const response = await discard(headers, late.refundId);
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("answers 400 to an id that is not a record id", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+
+    const response = await discard(headers, "refund-1");
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "validation_failed" });

@@ -36,7 +36,7 @@ const emailChange = {
   escalatedAt: null,
   resolvedAt: null,
   open: true,
-  resolvesByItself: false,
+  closing: "by_hand",
   deliveries: [delivery],
 };
 
@@ -123,8 +123,9 @@ describe("alertDetailSchema", () => {
     ["resolvedAt", undefined],
     ["open", "true"],
     ["open", null],
-    ["resolvesByItself", "false"],
-    ["resolvesByItself", null],
+    ["closing", false],
+    ["closing", "by_the_register"],
+    ["closing", null],
     ["deliveries", null],
     ["deliveries", {}],
   ])("refuses %s as %j", (field, value) => {
@@ -198,6 +199,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"register_silent">>().toEqualTypeOf<AlertDetails["register_silent"]>();
     expectTypeOf<WireDetail<"sales_denied">>().toEqualTypeOf<AlertDetails["sales_denied"]>();
     expectTypeOf<WireDetail<"fiscal_rejected">>().toEqualTypeOf<AlertDetails["fiscal_rejected"]>();
+    expectTypeOf<WireDetail<"late_payment_refund">>().toEqualTypeOf<
+      AlertDetails["late_payment_refund"]
+    >();
     expectTypeOf<WireDetail<"offline_authorization_code_missing">>().toExtend<
       AlertDetails["offline_authorization_code_missing"]
     >();
@@ -336,6 +340,7 @@ describe("alertDetailSchema", () => {
         fortnightEnd: "2026-10-31",
         fortnightStarted: false,
       },
+      late_payment_refund: { saleId: "sale-1", amount: 250000 },
     } satisfies Record<AlertKind, unknown>;
 
     it.each(ALERT_KINDS)("accepts the detail of %s", (kind) => {

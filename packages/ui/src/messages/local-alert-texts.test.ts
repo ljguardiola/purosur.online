@@ -63,6 +63,15 @@ test("gives every kind that has a fixed text its title, whatever the reason", ()
   expect(localAlertTitle("serial_device_missing")).toBe("Revisar la balanza o el lector");
 });
 
+test("gives the refund owed for a late QR payment its title, what it means and what to do", () => {
+  expect(localAlertText({ kind: "late_payment_refund" })).toEqual({
+    title: "Reembolso pendiente por un pago tardío",
+    meaning: "Mercado Pago cobró un QR de una venta que ya se había cobrado por otro medio.",
+    whatToDo:
+      "Si ese reembolso ya se hizo desde Mercado Pago, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes por el mismo medio, o descartarlo si no corresponde. El Administrador ya fue avisado.",
+  });
+});
+
 test("gives no title to a kind that has none, nor to one this app does not know yet", () => {
   expect(localAlertTitle("update_required")).toBeUndefined();
   expect(localAlertTitle("register_battery_low")).toBeUndefined();
@@ -88,6 +97,7 @@ test("knows the kinds that have a fixed text", () => {
   expect(isLocalAlertKind("sales_denied")).toBe(true);
   expect(isLocalAlertKind("installation_revoked")).toBe(true);
   expect(isLocalAlertKind("serial_device_missing")).toBe(true);
+  expect(isLocalAlertKind("late_payment_refund")).toBe(true);
 });
 
 test("does not know a kind that has none, nor a member every object has", () => {
@@ -97,6 +107,10 @@ test("does not know a kind that has none, nor a member every object has", () => 
 
 test("names exactly the kinds that have a fixed text", () => {
   expectTypeOf<LocalAlertKind>().toEqualTypeOf<
-    "register_silent" | "sales_denied" | "installation_revoked" | "serial_device_missing"
+    | "register_silent"
+    | "sales_denied"
+    | "installation_revoked"
+    | "serial_device_missing"
+    | "late_payment_refund"
   >();
 });

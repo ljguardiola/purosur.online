@@ -1,16 +1,23 @@
-import type { MercadoPagoQrOrderTransaction, PaymentTransactionState } from "@purosur/domain";
+import type {
+  LatePaymentRefund,
+  MercadoPagoQrOrderTransaction,
+  PaymentTransactionState,
+} from "@purosur/domain";
 import {
+  type LatePaymentRefundOpening,
   PaymentTransactionAlreadyRecorded,
   type PaymentTransactionLane,
   type PaymentTransactionLanes,
   type PaymentTransactionOutcome,
   type PaymentTransactionReading,
+  type RecordedOrderState,
 } from "@purosur/domain/payments/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import { paymentTransactions } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
+import { openLatePaymentRefund } from "./open-late-payment-refund.js";
 
 const UNIQUE_VIOLATION = "23505";
 const PAYMENT_TRANSACTIONS_PRIMARY_KEY = "payment_transactions_pkey";
@@ -110,31 +117,58 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
     paymentTransactionId: string,
     providerOrderId: string,
     reading: PaymentTransactionReading | null,
-  ): Promise<void> {
-    await this.db
-      .update(paymentTransactions)
-      .set(
-        reading === null
-          ? { providerOrderId }
-          : {
-              providerOrderId,
-              state: reading.outcome.state,
-              needsReview: reading.outcome.needsReview,
-              stateReadAt: reading.readAt,
-            },
-      )
-      .where(eq(paymentTransactions.id, paymentTransactionId));
+  ): Promise<RecordedOrderState> {
+    return this.recordedOrderState(
+      paymentTransactionId,
+      reading === null
+        ? { providerOrderId }
+        : {
+            providerOrderId,
+            state: reading.outcome.state,
+            needsReview: reading.outcome.needsReview,
+            stateReadAt: reading.readAt,
+          },
+    );
   }
 
   async recordOrderResult(
     paymentTransactionId: string,
     { state, needsReview }: PaymentTransactionOutcome,
     readAt: Date,
-  ): Promise<void> {
-    await this.db
+  ): Promise<RecordedOrderState> {
+    return this.recordedOrderState(paymentTransactionId, {
+      state,
+      needsReview,
+      stateReadAt: readAt,
+    });
+  }
+
+  openLatePaymentRefund(
+    refund: LatePaymentRefund,
+    openedAt: Date,
+  ): Promise<LatePaymentRefundOpening> {
+    return openLatePaymentRefund(this.db, refund, openedAt);
+  }
+
+  inOneTransaction<TOutcome>(
+    work: (lane: PaymentTransactionLane) => Promise<TOutcome>,
+  ): Promise<TOutcome> {
+    return this.db.transaction((tx) => work(new DrizzlePaymentTransactionLane(tx)));
+  }
+
+  private async recordedOrderState(
+    paymentTransactionId: string,
+    changes: Partial<typeof paymentTransactions.$inferInsert>,
+  ): Promise<RecordedOrderState> {
+    const [row] = await this.db
       .update(paymentTransactions)
-      .set({ state, needsReview, stateReadAt: readAt })
-      .where(eq(paymentTransactions.id, paymentTransactionId));
+      .set(changes)
+      .where(eq(paymentTransactions.id, paymentTransactionId))
+      .returning({ state: paymentTransactions.state, replaced: paymentTransactions.replaced });
+    if (!row) {
+      throw new Error(`payment transaction ${paymentTransactionId} is not recorded`);
+    }
+    return { state: row.state as PaymentTransactionState, replaced: row.replaced };
   }
 }
 

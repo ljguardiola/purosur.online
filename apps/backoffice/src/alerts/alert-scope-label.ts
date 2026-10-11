@@ -19,6 +19,9 @@ export function alertScopeLabel(scopeKind: string | null, scopeDisplay: string):
   if (scopeKind === ("pointOfSaleDocumentType" satisfies AlertScopeKind)) {
     return fiscalDocumentScopeLabel(scopeDisplay);
   }
+  if (scopeKind === ("refund" satisfies AlertScopeKind)) {
+    return "Tarea de reembolso";
+  }
   return scopeKind === ("environment" satisfies AlertScopeKind)
     ? (ARCA_ENVIRONMENT_LABELS.get(scopeDisplay) ?? scopeDisplay)
     : scopeDisplay;
