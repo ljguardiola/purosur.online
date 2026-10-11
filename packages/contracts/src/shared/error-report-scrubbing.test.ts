@@ -1363,6 +1363,53 @@ describe("a failed query's parameters", () => {
     });
   });
 
+  it("keeps only the name, message, stack and code of the errors that caused a failed query", () => {
+    const socketError = Object.assign(new Error("socket closed"), {
+      detail: `while sending ${FICTIONAL_LEGAL_NAME}`,
+    });
+    socketError.stack = "Error: socket closed";
+    const driverError = Object.assign(
+      new Error('duplicate key value violates unique constraint "customers_legal_name_key"', {
+        cause: socketError,
+      }),
+      {
+        code: "23505",
+        detail: `Key (legal_name)=(${FICTIONAL_LEGAL_NAME}) already exists.`,
+        table_name: "customers",
+      },
+    );
+    driverError.stack =
+      'Error: duplicate key value violates unique constraint "customers_legal_name_key"';
+    const queryError = Object.assign(new Error(failedQuery, { cause: driverError }), {
+      code: "query_failed",
+    });
+    queryError.stack = `Error: ${failedQuery}`;
+
+    const scrubbed = scrubErrorReportBreadcrumb({
+      data: { logger: "console", arguments: ["saving the customer failed", queryError] },
+    });
+
+    expect(scrubbed.data).toStrictEqual({
+      logger: "console",
+      arguments: [
+        "saving the customer failed",
+        {
+          code: "query_failed",
+          name: "Error",
+          message: `Failed query: ${statement}`,
+          stack: `Error: Failed query: ${statement}`,
+          cause: {
+            name: "Error",
+            message: 'duplicate key value violates unique constraint "[redacted]"',
+            stack: 'Error: duplicate key value violates unique constraint "[redacted]"',
+            code: "23505",
+            cause: { name: "Error", message: "socket closed", stack: "Error: socket closed" },
+          },
+        },
+      ],
+    });
+  });
+
   it("keeps the quoted text of a report's contexts", () => {
     const contexts = { sale: { refusal: 'price list "Mayorista" is closed' } };
 

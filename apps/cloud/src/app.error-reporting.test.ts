@@ -2,35 +2,11 @@ import { FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/tes
 import * as Sentry from "@sentry/node";
 import { DrizzleQueryError } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
-import { initSentry } from "./platform/sentry.js";
+import { startRecordingSentry } from "./platform/test-support/recording-sentry.js";
 import { PUBLIC_ACCESS } from "./sessions/route-access.js";
 import { buildTestApp } from "./test-support/build-test-app.js";
 
 const STATEMENT = 'insert into "customers" ("cuit", "legal_name") values ($1, $2)';
-
-function startRecordingSentry(): () => Promise<string[]> {
-  const sent: string[] = [];
-  initSentry(
-    { dsn: "https://public@errors.example.test/1" },
-    {
-      init: (options) =>
-        Sentry.init({
-          ...options,
-          transport: () => ({
-            send: (envelope) => {
-              sent.push(JSON.stringify(envelope));
-              return Promise.resolve({});
-            },
-            flush: () => Promise.resolve(true),
-          }),
-        }),
-    },
-  );
-  return async () => {
-    await Sentry.flush();
-    return sent;
-  };
-}
 
 afterEach(async () => {
   await Sentry.close();
