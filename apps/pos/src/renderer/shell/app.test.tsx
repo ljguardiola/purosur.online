@@ -249,6 +249,9 @@ function coreAnswering(
     async weighProduct() {
       return { kind: "scale_unavailable" };
     },
+    async adjustSaleLine() {
+      return { kind: "unavailable" };
+    },
     async removeSaleLine() {
       return { kind: "unavailable" };
     },
@@ -1403,6 +1406,7 @@ describe("App", () => {
                 list_unit_price: 238_000,
                 discount_amount: 0,
                 promotion: null,
+                manual_adjustment: null,
                 line_total: 238_000,
               },
             ],
@@ -1414,6 +1418,7 @@ describe("App", () => {
             charge_refusal: null,
             refunds_on_cancel: [],
             cancel_authorization_required: false,
+            adjust_authorization_required: false,
           };
         },
       },
@@ -1448,6 +1453,7 @@ describe("App", () => {
               list_unit_price: 238_000,
               discount_amount: 0,
               promotion: null,
+              manual_adjustment: null,
               line_total: 238_000,
             },
           ],
@@ -1459,6 +1465,7 @@ describe("App", () => {
           charge_refusal: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
+          adjust_authorization_required: false,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
         chargeSaleInCash: async (saleId, tendered) => {
@@ -1494,6 +1501,7 @@ describe("App", () => {
       list_unit_price: 238_000,
       discount_amount: 0,
       promotion: null,
+      manual_adjustment: null,
       line_total: 238_000,
     };
     let reads = 0;
@@ -1517,6 +1525,7 @@ describe("App", () => {
                 charge_refusal: null,
                 refunds_on_cancel: [],
                 cancel_authorization_required: false,
+                adjust_authorization_required: false,
               })
             : new Promise(() => {});
         },
@@ -1570,6 +1579,7 @@ describe("App", () => {
               list_unit_price: 238_000,
               discount_amount: 0,
               promotion: null,
+              manual_adjustment: null,
               line_total: 238_000,
             },
           ],
@@ -1581,6 +1591,7 @@ describe("App", () => {
           charge_refusal: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
+          adjust_authorization_required: false,
         }),
         chargeSaleByTransfer: async (saleId, amount) => {
           charges.push([saleId, amount]);
@@ -1613,6 +1624,7 @@ describe("App", () => {
       list_unit_price: 238_000,
       discount_amount: 0,
       promotion: null,
+      manual_adjustment: null,
       line_total: 238_000,
     };
     let reads = 0;
@@ -1636,6 +1648,7 @@ describe("App", () => {
                 charge_refusal: null,
                 refunds_on_cancel: [],
                 cancel_authorization_required: false,
+                adjust_authorization_required: false,
               })
             : new Promise(() => {});
         },
@@ -1674,6 +1687,7 @@ describe("App", () => {
       list_unit_price: 238_000,
       discount_amount: 0,
       promotion: null,
+      manual_adjustment: null,
       line_total: 238_000,
     };
     let reads = 0;
@@ -1697,6 +1711,7 @@ describe("App", () => {
                 charge_refusal: null,
                 refunds_on_cancel: [],
                 cancel_authorization_required: false,
+                adjust_authorization_required: false,
               })
             : new Promise(() => {});
         },
@@ -1744,6 +1759,7 @@ describe("App", () => {
       list_unit_price: 238_000,
       discount_amount: 0,
       promotion: null,
+      manual_adjustment: null,
       line_total: 238_000,
     };
     let reads = 0;
@@ -1767,6 +1783,7 @@ describe("App", () => {
                 charge_refusal: null,
                 refunds_on_cancel: [],
                 cancel_authorization_required: false,
+                adjust_authorization_required: false,
               })
             : new Promise(() => {});
         },
@@ -2779,6 +2796,7 @@ describe("App", () => {
                 list_unit_price: 238_000,
                 discount_amount: 0,
                 promotion: null,
+                manual_adjustment: null,
                 line_total: 238_000,
               },
             ],
@@ -2790,6 +2808,7 @@ describe("App", () => {
             charge_refusal: null,
             refunds_on_cancel: [],
             cancel_authorization_required: false,
+            adjust_authorization_required: false,
           }),
           cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
           chargeSaleInCash: async (saleId, tendered) => ({

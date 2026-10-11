@@ -16,7 +16,11 @@ const FISCAL_QR_ADDRESS =
 describe("SaleScreen reading a barcode reader's codes", () => {
   it("adds the product of a code the reader reads, as a typed scan does", async () => {
     const scanProduct = vi.fn(
-      async (): Promise<ScanProductOutcome> => ({ kind: "added", sale: SALE_OF_YERBA }),
+      async (): Promise<ScanProductOutcome> => ({
+        kind: "added",
+        removed_manual_discount: false,
+        sale: SALE_OF_YERBA,
+      }),
     );
     const { screen, field, readBarcode } = await renderScreen({ scanProduct });
 
@@ -30,8 +34,12 @@ describe("SaleScreen reading a barcode reader's codes", () => {
   it("scans the same code each time the reader reads it", async () => {
     const scanProduct = vi
       .fn<SaleScreenProps["scanProduct"]>()
-      .mockResolvedValueOnce({ kind: "added", sale: SALE_OF_YERBA })
-      .mockResolvedValueOnce({ kind: "added", sale: SALE_OF_YERBA_AND_ALFAJOR });
+      .mockResolvedValueOnce({ kind: "added", removed_manual_discount: false, sale: SALE_OF_YERBA })
+      .mockResolvedValueOnce({
+        kind: "added",
+        removed_manual_discount: false,
+        sale: SALE_OF_YERBA_AND_ALFAJOR,
+      });
     const { screen, readBarcode } = await renderScreen({ scanProduct });
 
     readBarcode("7790001");
@@ -44,7 +52,11 @@ describe("SaleScreen reading a barcode reader's codes", () => {
 
   it("scans a fiscal QR address whole, without searching products by name", async () => {
     const scanProduct = vi.fn(
-      async (): Promise<ScanProductOutcome> => ({ kind: "added", sale: SALE_OF_YERBA }),
+      async (): Promise<ScanProductOutcome> => ({
+        kind: "added",
+        removed_manual_discount: false,
+        sale: SALE_OF_YERBA,
+      }),
     );
     const searchProducts = vi.fn(async () => ({
       kind: "results" as const,
@@ -75,7 +87,11 @@ describe("SaleScreen reading a barcode reader's codes", () => {
     const scanProduct = vi
       .fn<SaleScreenProps["scanProduct"]>()
       .mockResolvedValueOnce({ kind: "unknown_code" })
-      .mockResolvedValueOnce({ kind: "added", sale: SALE_OF_YERBA });
+      .mockResolvedValueOnce({
+        kind: "added",
+        removed_manual_discount: false,
+        sale: SALE_OF_YERBA,
+      });
     const { screen, readBarcode } = await renderScreen({ scanProduct });
     readBarcode("111");
     await expect.element(screen.getByText("No hay ningún producto con ese código")).toBeVisible();
@@ -90,7 +106,11 @@ describe("SaleScreen reading a barcode reader's codes", () => {
 
   it("still scans a code typed in the field", async () => {
     const scanProduct = vi.fn(
-      async (): Promise<ScanProductOutcome> => ({ kind: "added", sale: SALE_OF_YERBA }),
+      async (): Promise<ScanProductOutcome> => ({
+        kind: "added",
+        removed_manual_discount: false,
+        sale: SALE_OF_YERBA,
+      }),
     );
     const { screen, field } = await renderScreen({ scanProduct });
 
@@ -104,7 +124,11 @@ describe("SaleScreen reading a barcode reader's codes", () => {
     "does not scan the code and warns that the product was not added while the sale's lines are locked by %s",
     async (linesLock) => {
       const scanProduct = vi.fn(
-        async (): Promise<ScanProductOutcome> => ({ kind: "added", sale: SALE_OF_YERBA }),
+        async (): Promise<ScanProductOutcome> => ({
+          kind: "added",
+          removed_manual_discount: false,
+          sale: SALE_OF_YERBA,
+        }),
       );
       const { screen, readBarcode } = await renderScreen({
         scanProduct,
@@ -122,7 +146,11 @@ describe("SaleScreen reading a barcode reader's codes", () => {
   describe("while a window is open", () => {
     async function withCancelWindowOpen() {
       const scanProduct = vi.fn(
-        async (): Promise<ScanProductOutcome> => ({ kind: "added", sale: SALE_OF_YERBA }),
+        async (): Promise<ScanProductOutcome> => ({
+          kind: "added",
+          removed_manual_discount: false,
+          sale: SALE_OF_YERBA,
+        }),
       );
       const rendered = await renderScreen({
         scanProduct,
@@ -176,7 +204,11 @@ describe("SaleScreen reading a barcode reader's codes", () => {
 
     it("does not scan the code while the window to leave the register is open", async () => {
       const scanProduct = vi.fn(
-        async (): Promise<ScanProductOutcome> => ({ kind: "added", sale: SALE_OF_YERBA }),
+        async (): Promise<ScanProductOutcome> => ({
+          kind: "added",
+          removed_manual_discount: false,
+          sale: SALE_OF_YERBA,
+        }),
       );
       const { screen, readBarcode } = await renderScreen({ scanProduct });
       await userEvent.click(screen.getByRole("navigation").getByRole("button", { name: "Salir" }));

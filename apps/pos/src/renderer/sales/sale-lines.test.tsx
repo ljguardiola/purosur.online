@@ -15,6 +15,7 @@ const YERBA: OpenSale["lines"][number] = {
   list_unit_price: 238_000,
   discount_amount: 0,
   promotion: null,
+  manual_adjustment: null,
   line_total: 476_000,
 };
 const LOCKED_REASON = "La venta ya no se puede cambiar porque tiene un pago aprobado.";
@@ -34,6 +35,7 @@ const QUESO: OpenSale["lines"][number] = {
   list_unit_price: 1_250_000,
   discount_amount: 0,
   promotion: null,
+  manual_adjustment: null,
   line_total: 1_562_500,
 };
 

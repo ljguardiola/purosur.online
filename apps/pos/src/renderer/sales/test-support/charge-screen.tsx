@@ -33,6 +33,7 @@ const YERBA = {
   list_unit_price: 238_000,
   discount_amount: 0,
   promotion: null,
+  manual_adjustment: null,
   line_total: 476_000,
 };
 const ALFAJOR = {
@@ -45,6 +46,7 @@ const ALFAJOR = {
   list_unit_price: 150_000,
   discount_amount: 0,
   promotion: null,
+  manual_adjustment: null,
   line_total: 150_000,
 };
 export const SALE_OF_ONE_LINE: OpenSale = {
@@ -58,6 +60,7 @@ export const SALE_OF_ONE_LINE: OpenSale = {
   charge_refusal: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
+  adjust_authorization_required: false,
 };
 export const SALE_OF_TWO_LINES: OpenSale = {
   id: "sale-1",
@@ -70,6 +73,7 @@ export const SALE_OF_TWO_LINES: OpenSale = {
   charge_refusal: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
+  adjust_authorization_required: false,
 };
 const COMPLETED: ChargeSaleInCashOutcome = {
   kind: "completed",

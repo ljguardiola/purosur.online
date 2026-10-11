@@ -1,6 +1,7 @@
 import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
+  AdjustSaleLineOutcome,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
@@ -46,7 +47,7 @@ import type { CashMovementRequest } from "./register/cash-movement-requests";
 import type { WireSerialDevices } from "./register/serial-devices-requests";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
-import type { CancelPaidSaleRequest } from "./sales/sale-requests";
+import type { AdjustSaleLineRequest, CancelPaidSaleRequest } from "./sales/sale-requests";
 import type { SalesHistoryRequest } from "./sales/sales-history-requests";
 
 function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
@@ -172,6 +173,19 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       ): Promise<ChangeLineWeightOutcome> => {
         saleChanges.push(
           ["weight", lineId, weightThousandths, expectedWeightThousandths].join(" "),
+        );
+        return { kind: "unknown_line" };
+      },
+      adjustSaleLine: async (request: AdjustSaleLineRequest): Promise<AdjustSaleLineOutcome> => {
+        saleChanges.push(
+          [
+            "adjust",
+            request.lineId,
+            request.adjustment.kind,
+            request.adjustment.value,
+            request.reason,
+            request.authorization?.user_id ?? "alone",
+          ].join(" "),
         );
         return { kind: "unknown_line" };
       },
@@ -1508,6 +1522,7 @@ describe("answerRendererRequest", () => {
           list_unit_price: 1500,
           discount_amount: 0,
           promotion: null,
+          manual_adjustment: null,
           line_total: 1500,
         },
       ],
@@ -1519,6 +1534,7 @@ describe("answerRendererRequest", () => {
       charge_refusal: null,
       refunds_on_cancel: [],
       cancel_authorization_required: false,
+      adjust_authorization_required: false,
     };
     const { deps: withSale, saleLookups } = deps(true, { currentSale: async () => sale });
     const recording = deps(true);
@@ -2348,6 +2364,20 @@ describe("answerRendererRequest", () => {
         "changing a line's weight",
         "weight l1 2000 1500",
         "change-line-weight-result",
+      ],
+      [
+        "adjust-sale-line",
+        {
+          type: "adjust-sale-line",
+          line_id: "l1",
+          adjustment: { kind: "PERCENT", value: 10 },
+          reason: "Producto golpeado",
+          authorization: { user_id: "u2", pin: "1234" },
+        } as const,
+        "adjustSaleLine",
+        "adjusting a sale line",
+        "adjust l1 PERCENT 10 Producto golpeado u2",
+        "adjust-sale-line-result",
       ],
       [
         "remove-sale-line",

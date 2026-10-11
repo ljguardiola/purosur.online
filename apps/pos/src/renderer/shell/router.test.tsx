@@ -1094,6 +1094,7 @@ describe("the register's router", () => {
               list_unit_price: 238_000,
               discount_amount: 0,
               promotion: null,
+              manual_adjustment: null,
               line_total: 238_000,
             },
           ],
@@ -1105,6 +1106,7 @@ describe("the register's router", () => {
           charge_refusal: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
+          adjust_authorization_required: false,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
         chargeSaleInCash: async (saleId, tendered) => {
@@ -1146,6 +1148,7 @@ describe("the register's router", () => {
               list_unit_price: 238_000,
               discount_amount: 0,
               promotion: null,
+              manual_adjustment: null,
               line_total: 238_000,
             },
           ],
@@ -1157,6 +1160,7 @@ describe("the register's router", () => {
           charge_refusal: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
+          adjust_authorization_required: false,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
         chargeSaleInCash: async () => ({ kind: "no_open_session" }),
@@ -1895,6 +1899,7 @@ describe("the register's status bar", () => {
           list_unit_price: 238_000,
           discount_amount: 0,
           promotion: null,
+          manual_adjustment: null,
           line_total: 238_000,
         },
       ],
@@ -1906,6 +1911,7 @@ describe("the register's status bar", () => {
       charge_refusal: null,
       refunds_on_cancel: [],
       cancel_authorization_required: false,
+      adjust_authorization_required: false,
     }),
   };
 
@@ -2004,6 +2010,7 @@ describe("the charge route's Mercado Pago QR", () => {
           list_unit_price: 238_000,
           discount_amount: 0,
           promotion: null,
+          manual_adjustment: null,
           line_total: 238_000,
         },
       ],
@@ -2015,6 +2022,7 @@ describe("the charge route's Mercado Pago QR", () => {
       charge_refusal: null,
       refunds_on_cancel: [],
       cancel_authorization_required: false,
+      adjust_authorization_required: false,
     }),
   };
 

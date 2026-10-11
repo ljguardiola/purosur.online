@@ -771,6 +771,66 @@ describe("createCoreClient", () => {
     expect(port.posted).toEqual([{ type: "cancel-sale", request_id: "request-1" }]);
   });
 
+  it("asks the core to adjust a line, with the PIN of the person who authorizes it, and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const authorization = { user_id: "u2", pin: "1234" };
+
+    const adjusted = client.adjustSaleLine(
+      "line-1",
+      { kind: "PERCENT", value: 15 },
+      "Producto golpeado",
+      authorization,
+    );
+    port.answer({
+      type: "adjust-sale-line-result",
+      request_id: "request-1",
+      outcome: { kind: "same_as_list_price" },
+    });
+
+    expect(await adjusted).toEqual({ kind: "same_as_list_price" });
+    expect(port.posted).toEqual([
+      {
+        type: "adjust-sale-line",
+        request_id: "request-1",
+        line_id: "line-1",
+        adjustment: { kind: "PERCENT", value: 15 },
+        reason: "Producto golpeado",
+        authorization,
+      },
+    ]);
+  });
+
+  it("asks the core to adjust a line without an authorization when none is given", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const adjusted = client.adjustSaleLine(
+      "line-1",
+      { kind: "PRICE", value: 1200 },
+      "Muestra",
+      undefined,
+    );
+    port.answer({
+      type: "adjust-sale-line-result",
+      request_id: "request-1",
+      outcome: { kind: "lacks_permission" },
+    });
+
+    expect(await adjusted).toEqual({ kind: "lacks_permission" });
+    expect(port.posted).toEqual([
+      {
+        type: "adjust-sale-line",
+        request_id: "request-1",
+        line_id: "line-1",
+        adjustment: { kind: "PRICE", value: 1200 },
+        reason: "Muestra",
+      },
+    ]);
+  });
+
   it("asks the core to cancel a sale with approved payments and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -865,6 +925,7 @@ describe("createCoreClient", () => {
           list_unit_price: 2_380,
           discount_amount: 0,
           promotion: null,
+          manual_adjustment: null,
           line_total: 4_760,
         },
       ],
@@ -876,6 +937,7 @@ describe("createCoreClient", () => {
       charge_refusal: null,
       refunds_on_cancel: [],
       cancel_authorization_required: false,
+      adjust_authorization_required: false,
     },
     {
       id: "sale-2",
@@ -890,6 +952,7 @@ describe("createCoreClient", () => {
           list_unit_price: 1_000_000_000,
           discount_amount: 0,
           promotion: null,
+          manual_adjustment: null,
           line_total: 1_000_000_000,
         },
       ],
@@ -901,6 +964,7 @@ describe("createCoreClient", () => {
       charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 1_000_000_000 },
       refunds_on_cancel: [],
       cancel_authorization_required: false,
+      adjust_authorization_required: false,
     },
   ])(
     "asks the core for the sale in progress of the person and resolves with it: %j",

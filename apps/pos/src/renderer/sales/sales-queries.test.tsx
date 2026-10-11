@@ -43,6 +43,7 @@ const SALE: OpenSale = {
       list_unit_price: 238_000,
       discount_amount: 0,
       promotion: null,
+      manual_adjustment: null,
       line_total: 238_000,
     },
   ],
@@ -54,6 +55,7 @@ const SALE: OpenSale = {
   charge_refusal: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
+  adjust_authorization_required: false,
 };
 
 function CurrentSaleProbe({
