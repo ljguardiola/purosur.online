@@ -22,6 +22,7 @@ const alert: AlertSummary = {
   kind: "user_email_changed",
   scope: "user-1",
   scopeDisplay: "Lucía Pérez",
+  scopeKind: "user",
   level: "warning",
   audience: "all",
   openedAt: "2026-01-05T12:00:00.000Z",
@@ -114,6 +115,7 @@ const { salesDeniedReason: _notInDetail, ...alertWithoutReason } = alert;
 
 const alertDetail: AlertDetail = {
   ...alertWithoutReason,
+  scopeKind: "user",
   open: true,
   resolvesByItself: false,
   kind: "user_email_changed",

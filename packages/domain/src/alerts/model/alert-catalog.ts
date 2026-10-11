@@ -8,6 +8,7 @@ const ALERT_KIND_LIST = [
   "events_quarantined",
   "event_invariant_violated",
   "arca_certificate_expiring",
+  "arca_wsaa_ticket_held",
   "update_required",
   "register_silent",
   "sales_denied",

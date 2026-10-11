@@ -82,6 +82,10 @@ export interface ArcaCertificateExpiringDetail {
   notAfter: string;
 }
 
+interface ArcaWsaaTicketHeldDetail {
+  retryIntervalMinutes: number;
+}
+
 interface UpdateRequiredDetail {
   deviceId: string;
   appVersion: string;
@@ -122,6 +126,7 @@ export interface AlertDetails {
   events_quarantined: EventsQuarantinedDetail;
   event_invariant_violated: EventInvariantViolatedDetail;
   arca_certificate_expiring: ArcaCertificateExpiringDetail;
+  arca_wsaa_ticket_held: ArcaWsaaTicketHeldDetail;
   update_required: UpdateRequiredDetail;
   register_silent: RegisterSilentDetail;
   sales_denied: SalesDeniedDetail;

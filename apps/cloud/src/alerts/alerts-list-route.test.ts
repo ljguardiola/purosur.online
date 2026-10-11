@@ -290,7 +290,7 @@ describe("GET /alerts", () => {
     ]);
   });
 
-  it("shows a register-scoped alert's scopeDisplay as that register's name", async () => {
+  it("shows a register-scoped alert's scopeDisplay as that register's name, with the kind of its scope", async () => {
     const rawSessionId = await signedInViewer();
     const registerId = await insertRegister("Caja 1");
     await insertAlert({ kind: "register_enrolled", scope: registerId, audience: "all" });
@@ -302,8 +302,18 @@ describe("GET /alerts", () => {
         kind: "register_enrolled",
         scope: registerId,
         scopeDisplay: "Caja 1",
+        scopeKind: "register",
       }),
     ]);
+  });
+
+  it("sends no kind of scope for a kind outside the catalog", async () => {
+    const rawSessionId = await signedInViewer();
+    await insertAlert({ kind: "kind_a", scope: "scope_a", audience: "all" });
+
+    const body = listBody(await getAlerts(rawSessionId)).alerts;
+
+    expect(body).toEqual([expect.objectContaining({ kind: "kind_a", scopeKind: null })]);
   });
 
   it("falls back to the raw scope for a kind outside the catalog, e.g. a source address", async () => {

@@ -94,6 +94,7 @@ export function toAlertDetailBody(
     kind: alert.kind,
     scope: wireScope(alert),
     scopeDisplay: scopeDisplay(alert, namesById),
+    scopeKind: alertKindPolicy(alert.kind).scopeKind,
     level: alert.level,
     audience: alert.audience,
     detail: detailWithFortnightStarted(
