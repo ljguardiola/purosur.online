@@ -9,7 +9,7 @@ import type { RealTimeAuthorizationAnswer } from "./real-time-authorization.js";
 import {
   awaitsUnclearOutcomeDecision,
   decideUnclearOutcome,
-  decisionToldToAskingRegister,
+  outcomeToldToAskingRegister,
   type TaxAuthorityEvidence,
   type TaxAuthorityVoucher,
   UNCLEAR_OUTCOME_REASK_INTERVAL_MS,
@@ -201,41 +201,53 @@ describe("decideUnclearOutcome", () => {
   });
 });
 
-describe("decisionToldToAskingRegister", () => {
-  it("adopts the authorization the tax authority answered, with its code and due date", () => {
-    expect(
-      decisionToldToAskingRegister({
-        answer: {
-          kind: "authorized",
-          authorizationCode: "75123456789012",
-          authorizationCodeDueOn: "2026-10-11",
-        },
-        decision: null,
-      }),
-    ).toEqual({
-      kind: "adopted",
+describe("outcomeToldToAskingRegister", () => {
+  it("tells the authorization the tax authority answered, with its code and due date, whatever was decided", () => {
+    const answer: RealTimeAuthorizationAnswer = {
+      kind: "authorized",
       authorizationCode: "75123456789012",
       authorizationCodeDueOn: "2026-10-11",
+    };
+
+    expect(outcomeToldToAskingRegister({ answer, decision: null })).toEqual({
+      kind: "answered",
+      answer,
+    });
+    expect(outcomeToldToAskingRegister({ answer, decision: { kind: "released" } })).toEqual({
+      kind: "answered",
+      answer,
     });
   });
 
-  it("releases the number of a request the tax authority rejected", () => {
-    expect(
-      decisionToldToAskingRegister({
-        answer: { kind: "rejected", codes: [10015], rejectionClass: "content" },
-        decision: null,
-      }),
-    ).toEqual({ kind: "released" });
+  it("tells the rejection the tax authority answered, with its codes and class, whatever was decided", () => {
+    const answer: RealTimeAuthorizationAnswer = {
+      kind: "rejected",
+      codes: [10015],
+      rejectionClass: "content",
+    };
+
+    expect(outcomeToldToAskingRegister({ answer, decision: null })).toEqual({
+      kind: "answered",
+      answer,
+    });
+    expect(outcomeToldToAskingRegister({ answer, decision: { kind: "conflicting" } })).toEqual({
+      kind: "answered",
+      answer,
+    });
   });
 
   it.each<[string, RealTimeAuthorizationAnswer | null]>([
     ["no answer", null],
     ["an unclear answer", { kind: "unclear" }],
     ["a call never attempted", { kind: "not_attempted" }],
-  ])("tells the recorded decision of a request with %s", (_name, answer) => {
-    expect(decisionToldToAskingRegister({ answer, decision: { kind: "conflicting" } })).toEqual({
-      kind: "conflicting",
-    });
-    expect(decisionToldToAskingRegister({ answer, decision: null })).toBeNull();
-  });
+  ])(
+    "tells the recorded decision of a request with %s, and pending while it has none",
+    (_name, answer) => {
+      expect(outcomeToldToAskingRegister({ answer, decision: { kind: "conflicting" } })).toEqual({
+        kind: "decided",
+        decision: { kind: "conflicting" },
+      });
+      expect(outcomeToldToAskingRegister({ answer, decision: null })).toEqual({ kind: "pending" });
+    },
+  );
 });

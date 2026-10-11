@@ -167,9 +167,9 @@ describe("askAboutUnclearOutcome", () => {
     expect(
       await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
     ).toEqual({
-      kind: "decided",
-      decision: {
-        kind: "adopted",
+      kind: "answered",
+      answer: {
+        kind: "authorized",
         authorizationCode: "75123456789012",
         authorizationCodeDueOn: "2026-10-11",
       },
@@ -178,7 +178,7 @@ describe("askAboutUnclearOutcome", () => {
     expect(store.decisions.size).toBe(0);
   });
 
-  it("answers a document the tax authority rejected as released, recording nothing more", async () => {
+  it("answers a document the tax authority rejected with that rejection, recording nothing more", async () => {
     const { documents, store, ports } = setup();
     store.seed(
       { ...REQUEST, registerId: REGISTER_ID, notAfter: NOW, receivedAt: NOW },
@@ -188,7 +188,10 @@ describe("askAboutUnclearOutcome", () => {
 
     expect(
       await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST }),
-    ).toEqual({ kind: "decided", decision: { kind: "released" } });
+    ).toEqual({
+      kind: "answered",
+      answer: { kind: "rejected", codes: [10015], rejectionClass: "content" },
+    });
     expect(documents.operations).not.toContain("recordAbandonedRequest@2026-10-01T12:00:00.000Z");
     expect(store.decisions.size).toBe(0);
   });

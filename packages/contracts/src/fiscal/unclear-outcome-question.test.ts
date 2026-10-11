@@ -72,6 +72,18 @@ describe("unclearOutcomeAnswerSchema", () => {
       },
     ],
     ["a conflicting voucher", { state: "CONFLICTING" }],
+    [
+      "the authorization the tax authority answered, with its code",
+      {
+        state: "AUTHORIZED",
+        authorization_code: "75123456789012",
+        authorization_code_due_on: "2026-10-11",
+      },
+    ],
+    [
+      "the rejection the tax authority answered, with its codes and class",
+      { state: "REJECTED", rejection_codes: [10015], rejection_class: "content" },
+    ],
   ])("reads %s", (_case, answer) => {
     expect(unclearOutcomeAnswerSchema.parse(answer)).toEqual(answer);
   });
@@ -90,6 +102,15 @@ describe("unclearOutcomeAnswerSchema", () => {
         authorization_code: "75123456789012",
         authorization_code_due_on: "2026-13-01",
       },
+    ],
+    [
+      "an authorization without its code",
+      { state: "AUTHORIZED", authorization_code_due_on: "2026-10-11" },
+    ],
+    ["a rejection without its codes", { state: "REJECTED", rejection_class: "content" }],
+    [
+      "a rejection of a class nobody knows",
+      { state: "REJECTED", rejection_codes: [10015], rejection_class: "temporary" },
     ],
     ["a state nobody knows", { state: "UNCLEAR" }],
     ["no state", {}],

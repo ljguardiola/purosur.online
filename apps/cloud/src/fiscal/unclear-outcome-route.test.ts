@@ -263,5 +263,41 @@ describe("POST /fiscal/unclear-outcomes", () => {
       expect(response.statusCode).toBe(200);
       expect(unclearOutcomeAnswerSchema.parse(response.json())).toEqual(answer);
     });
+
+    it.each([
+      [
+        {
+          answerKind: "authorized" as const,
+          authorizationCode: "74123456789012",
+          authorizationCodeDueOn: "2026-10-16",
+        },
+        {
+          state: "AUTHORIZED",
+          authorization_code: "74123456789012",
+          authorization_code_due_on: "2026-10-16",
+        },
+      ],
+      [
+        {
+          answerKind: "rejected" as const,
+          rejectionCodes: [10015],
+          rejectionClass: "content" as const,
+        },
+        { state: "REJECTED", rejection_codes: [10015], rejection_class: "content" },
+      ],
+    ])(
+      "answers the tax authority's clear answer the register missed: %o",
+      async (clearAnswer, answer) => {
+        const { deviceToken, registerId } = await enrollRegisterWithPointOfSale();
+        const body = questionBody();
+        await seedUnclearRequest(registerId, body.fiscal_document_id, clearAnswer);
+
+        const response = await ask(body, `Bearer ${deviceToken}`);
+
+        expect(response.statusCode).toBe(200);
+        expect(unclearOutcomeAnswerSchema.parse(response.json())).toEqual(answer);
+        expect(await requests()).toEqual([expect.objectContaining({ decision: null })]);
+      },
+    );
   });
 });
