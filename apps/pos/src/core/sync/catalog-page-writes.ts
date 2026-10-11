@@ -1,21 +1,23 @@
 import type { SyncChange } from "@purosur/contracts";
 import type { Statement } from "better-sqlite3";
 import type { LocalDatabase } from "../platform/local-database";
+import { type PageWriteMode, versionAccepted } from "./page-write-mode";
 import type { RemovalOf } from "./pulled-change";
 
 type ChangeOf<TEntity extends SyncChange["entity"]> = Extract<SyncChange, { entity: TEntity }>;
 
 type CatalogEntity = "category" | "product" | "tag" | "price";
 
-// Every save is guarded by the row's version, so a version the register already has, or an older
-// one delivered late, never overwrites it, and nothing is ever deleted.
-export function prepareCatalogPageWrites(database: LocalDatabase) {
+// Every save is guarded by the row's version, as far as the write mode accepts it, so an older
+// version delivered late never overwrites the one held, and nothing is ever deleted.
+export function prepareCatalogPageWrites(database: LocalDatabase, mode: PageWriteMode) {
+  const accepts = versionAccepted(mode);
   const saveCategory = database.prepare(
     `INSERT INTO categories (id, name, parent_id, version, removed)
      VALUES (@id, @name, @parent_id, @version, 0)
      ON CONFLICT (id) DO UPDATE SET
        name = excluded.name, parent_id = excluded.parent_id, version = excluded.version, removed = 0
-     WHERE excluded.version > categories.version`,
+     WHERE excluded.version ${accepts} categories.version`,
   );
   const saveProduct = database.prepare(
     `INSERT INTO products (
@@ -35,7 +37,7 @@ export function prepareCatalogPageWrites(database: LocalDatabase) {
        net_content_unit = excluded.net_content_unit,
        version = excluded.version,
        removed = 0
-     WHERE excluded.version > products.version`,
+     WHERE excluded.version ${accepts} products.version`,
   );
   const saveBarcode = database.prepare(
     `INSERT INTO product_barcodes (product_id, position, code, active)
@@ -60,12 +62,12 @@ export function prepareCatalogPageWrites(database: LocalDatabase) {
      VALUES (@id, @name, @active, @version, 0)
      ON CONFLICT (id) DO UPDATE SET
        name = excluded.name, active = excluded.active, version = excluded.version, removed = 0
-     WHERE excluded.version > tags.version`,
+     WHERE excluded.version ${accepts} tags.version`,
   );
   const savePriceList = database.prepare(
     `INSERT INTO price_lists (id, name, version) VALUES (@id, @name, @version)
      ON CONFLICT (id) DO UPDATE SET name = excluded.name, version = excluded.version
-     WHERE excluded.version > price_lists.version`,
+     WHERE excluded.version ${accepts} price_lists.version`,
   );
   const savePrice = database.prepare(
     `INSERT INTO prices (id, product_id, price_list_id, unit_price, valid_from, version, removed)
@@ -77,7 +79,7 @@ export function prepareCatalogPageWrites(database: LocalDatabase) {
        valid_from = excluded.valid_from,
        version = excluded.version,
        removed = 0
-     WHERE excluded.version > prices.version`,
+     WHERE excluded.version ${accepts} prices.version`,
   );
   const removals: Record<CatalogEntity, Statement> = {
     category: database.prepare(

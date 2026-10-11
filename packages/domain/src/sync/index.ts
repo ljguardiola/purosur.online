@@ -1,7 +1,7 @@
 export type { JsonValue, OutboxEvent, OutboxEventDraft } from "../shared/index.js";
 export { canonicalOutboxEvent, canonicalOutboxPayload } from "../shared/index.js";
 export { INSTALLATION_REQUEST_LIMITS } from "./model/installation-request-limit.js";
-export { pullAudienceOf } from "./model/pull-audience.js";
+export { PULLED_ENTITIES, pullAudienceOf } from "./model/pull-audience.js";
 export type { PulledChange, PullPage } from "./model/pull-page.js";
 export {
   FIRST_PULL_CURSOR,

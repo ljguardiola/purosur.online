@@ -1,3 +1,4 @@
+import { PULLED_ENTITIES } from "@purosur/domain";
 import {
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
@@ -194,6 +195,28 @@ describe("changesQuerySchema", () => {
     expect(result.error?.issues[0]?.message).toBe(
       "since must be the cursor of the last page already pulled, 0 the first time",
     );
+  });
+});
+
+describe("changesQuerySchema entity", () => {
+  it("is absent when the register asks for every change it may pull", () => {
+    expect(changesQuerySchema.parse({ since: "4" })).toEqual({ since: 4 });
+  });
+
+  it.each(PULLED_ENTITIES)("reads entity=%s as the one entity asked for", (entity) => {
+    expect(changesQuerySchema.parse({ since: "4", entity })).toEqual({ since: 4, entity });
+  });
+
+  it.each([
+    ["an unknown entity", { since: "4", entity: "warehouse" }],
+    ["the removal of an entity", { since: "4", entity: "removal" }],
+    ["an empty entity", { since: "4", entity: "" }],
+    ["several entities", { since: "4", entity: ["product", "user"] }],
+  ])("refuses %s, naming the field", (_case, query) => {
+    const result = changesQuerySchema.safeParse(query);
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(["entity"]);
   });
 });
 

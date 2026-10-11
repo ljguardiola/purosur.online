@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { type PullAudience, pullAudienceOf } from "./pull-audience.js";
+import {
+  PULLED_ENTITIES,
+  type PullAudience,
+  pullAudienceOf,
+  pullAudienceOfEntity,
+} from "./pull-audience.js";
 
 const REGISTER = "register-1";
 const BRANCH = "branch-a";
@@ -40,5 +45,31 @@ describe("what a register may pull", () => {
 
     expect(audience.price_list).toEqual({ kind: "none" });
     expect(audience.price).toEqual({ kind: "none" });
+  });
+});
+
+describe("what a register may pull of one entity", () => {
+  const register = { registerId: REGISTER, locationId: BRANCH, priceListId: PRICE_LIST };
+
+  it("is the register's reach of that entity and nothing of every other", () => {
+    const whole = pullAudienceOf(register);
+
+    for (const entity of PULLED_ENTITIES) {
+      const audience = pullAudienceOfEntity(register, entity);
+
+      for (const other of PULLED_ENTITIES) {
+        expect(audience[other]).toEqual(other === entity ? whole[other] : { kind: "none" });
+      }
+    }
+  });
+
+  it("is nothing at all of an entity the register has no reach of", () => {
+    const audience = pullAudienceOfEntity({ ...register, priceListId: null }, "price");
+
+    expect(Object.values(audience)).toEqual(PULLED_ENTITIES.map(() => ({ kind: "none" })));
+  });
+
+  it("lists every entity the register may pull once", () => {
+    expect([...PULLED_ENTITIES].sort()).toEqual(Object.keys(pullAudienceOf(register)).sort());
   });
 });
