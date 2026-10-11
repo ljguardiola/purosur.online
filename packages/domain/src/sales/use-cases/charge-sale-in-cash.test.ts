@@ -569,6 +569,7 @@ describe("chargeSaleInCash", () => {
               version: 2,
             },
             buyerTaxStatusCode: 5,
+            buyerTaxStatusDescription: "Consumidor Final",
           },
         },
       },

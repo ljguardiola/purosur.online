@@ -1,5 +1,16 @@
 import { encodePinHash } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  createRealTimeAuthorization,
+  settleInterruptedAuthorizations,
+} from "../fiscal/real-time-authorization-wiring";
+import {
+  FACTURA_C,
+  insertFiscalDocument,
+  insertHealthCheck,
+  insertSaleCompletedEvent,
+} from "../fiscal/test-support/real-time-authorization-database";
+import type { CloudClientDeps } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
@@ -9,6 +20,7 @@ import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { createReceiptPrinting } from "./receipt-printing-wiring";
+import { printoutOf } from "./test-support/escpos-printout";
 import { ScriptedSocket } from "./test-support/scripted-socket";
 
 const NOW = new Date("2026-10-08T12:00:00.000Z");
@@ -23,6 +35,7 @@ describe("the register's receipt printing without a local database", () => {
     ids: { next: () => "id" },
     readOutboxChainKey: async () => undefined,
     signedInUserId: () => undefined,
+    beforePrinting: async () => undefined,
     reportFailure: () => {},
     syncNow: () => {},
   });
@@ -46,7 +59,7 @@ describe("the register's receipt printing over its local database", () => {
   let syncs: number;
   let idCount: number;
 
-  function printingOverDatabase() {
+  function printingOverDatabase(beforePrinting?: (saleId: string) => Promise<void>) {
     const signedInPerson = createSignedInPerson();
     signedInPerson.set("cashier");
     return createReceiptPrinting({
@@ -72,6 +85,7 @@ describe("the register's receipt printing over its local database", () => {
         connections.push({ port, host, socket });
         return socket;
       },
+      beforePrinting: beforePrinting ?? (async () => undefined),
       reportFailure: () => {},
       syncNow: () => {
         syncs += 1;
@@ -198,6 +212,187 @@ describe("the register's receipt printing over its local database", () => {
     expect(await printing.retryReceiptPrint?.("sale-1")).toEqual({ kind: "not_offered" });
     expect(await printing.reprintSaleReceipt?.({ saleId: "sale-1", reason: "Se perdió" })).toEqual({
       kind: "lacks_permission",
+    });
+  });
+
+  describe("a charge whose sale has a fiscal document", () => {
+    const TRANSMIT_RESPONSE_LENGTH = 11;
+    const QR_URL = "https://www.arca.gob.ar/fe/qr/?p=";
+    const AUTHORIZED_ANSWER = {
+      state: "AUTHORIZED",
+      authorization_code: "75123456789012",
+      authorization_code_due_on: "2026-10-10",
+    };
+
+    function json(body: unknown): Response {
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+
+    function cloudAnswering(answer: () => Promise<Response>): CloudClientDeps {
+      return {
+        cloudUrl: "https://staging.purosur.online",
+        fetch: async () => answer(),
+        sleep: async () => undefined,
+      };
+    }
+
+    function insertDocumentWaiting(): void {
+      insertSaleCompletedEvent(database, "sale-1");
+      insertFiscalDocument(database);
+      insertHealthCheck(database);
+    }
+
+    function chargingWith(
+      cloud: CloudClientDeps | undefined,
+      readDeviceToken: () => Promise<string | undefined> = async () => "prefix.secret",
+    ) {
+      const authorization = createRealTimeAuthorization({
+        database,
+        cloudClient: cloud,
+        readDeviceToken,
+        now: () => NOW,
+        reportFailure: () => {},
+      });
+      return printingOverDatabase(authorization.authorizeSale).afterCompletedSale(async () => ({
+        kind: "completed",
+        sale_id: "sale-1",
+      }));
+    }
+
+    async function printedPapers() {
+      await vi.waitFor(() => expect(syncs).toBe(1));
+      return connections.map(({ socket }) => {
+        socket.connected();
+        const [written] = socket.written;
+        return printoutOf((written ?? new Uint8Array()).slice(0, -TRANSMIT_RESPONSE_LENGTH));
+      });
+    }
+
+    beforeEach(() => {
+      saveAddress("10.10.10.2", null);
+    });
+
+    it("prints exactly one paper, the factura C with its authorization code and its QR, once the tax authority authorizes it", async () => {
+      insertDocumentWaiting();
+
+      await chargingWith(cloudAnswering(async () => json(AUTHORIZED_ANSWER)))?.({});
+      const papers = await printedPapers();
+
+      expect(papers).toHaveLength(1);
+      expect(papers[0]?.textLines).toContain("               Comercio de Prueba");
+      expect(papers[0]?.textLines).toContain("             CAE N° 75123456789012");
+      const store = papers[0]?.text.match(/\[qr store (.*)\]/)?.[1] ?? "";
+      expect(JSON.parse(atob(store.slice(QR_URL.length)))).toMatchObject({
+        cuit: 20000000001,
+        tipoCmp: 11,
+        nroCmp: 41,
+        importe: FACTURA_C.total / 100,
+        codAut: 75123456789012,
+      });
+    });
+
+    it("answers the cashier before the tax authority answers, and prints only after it did", async () => {
+      insertDocumentWaiting();
+      const pendingAnswers: ((response: Response) => void)[] = [];
+      const cloud = cloudAnswering(
+        () =>
+          new Promise<Response>((resolve) => {
+            pendingAnswers.push(resolve);
+          }),
+      );
+
+      const outcome = await chargingWith(cloud)?.({});
+      await vi.waitFor(() => expect(pendingAnswers).toHaveLength(1));
+
+      expect(outcome).toEqual({ kind: "completed", sale_id: "sale-1" });
+      expect(connections).toEqual([]);
+      expect(syncs).toBe(0);
+
+      pendingAnswers[0]?.(json(AUTHORIZED_ANSWER));
+      const papers = await printedPapers();
+      expect(papers).toHaveLength(1);
+      expect(papers[0]?.textLines).toContain("             CAE N° 75123456789012");
+    });
+
+    it.each([
+      [
+        "the tax authority rejects it",
+        () =>
+          cloudAnswering(async () =>
+            json({ state: "REJECTED", rejection_codes: [10015], rejection_class: "content" }),
+          ),
+        true,
+      ],
+      ["the answer is unclear", () => cloudAnswering(async () => json({ state: "UNCLEAR" })), true],
+      [
+        "the tax authority is not asked",
+        () => cloudAnswering(async () => json({ state: "NOT_ATTEMPTED" })),
+        true,
+      ],
+      [
+        "the cloud cannot be reached",
+        () =>
+          cloudAnswering(async () => {
+            throw new TypeError("fetch failed");
+          }),
+        true,
+      ],
+      ["the register has no cloud", () => undefined, true],
+      ["the sale has no fiscal document", () => cloudAnswering(async () => json({})), false],
+    ])("still prints the receipt as before, once, when %s", async (_case, cloud, hasDocument) => {
+      if (hasDocument) {
+        insertDocumentWaiting();
+      }
+
+      await chargingWith(cloud())?.({});
+      const papers = await printedPapers();
+
+      expect(papers).toHaveLength(1);
+      expect(papers[0]?.textLines).toContain("Yerba");
+      expect(papers[0]?.text).not.toContain("FACTURA C");
+      expect(papers[0]?.text).not.toContain("[qr");
+    });
+
+    it("prints the receipt as before on a reprint once the register restarts after stopping while the tax authority was asked", async () => {
+      insertDocumentWaiting();
+      database
+        .prepare(
+          "INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('role-cashier', 'reprint_receipt', 1)",
+        )
+        .run();
+      await settleInterruptedAuthorizations({ database, now: () => NOW, reportFailure: () => {} });
+
+      const reprinted = printingOverDatabase().reprintSaleReceipt?.({
+        saleId: "sale-1",
+        reason: "Se perdió",
+      });
+      await vi.waitFor(() => expect(connections).toHaveLength(1));
+      const [connection] = connections;
+      connection?.socket.connected();
+
+      expect(await reprinted).toEqual({ kind: "started", copy: { kind: "original" } });
+      const [written] = connection?.socket.written ?? [];
+      const paper = printoutOf((written ?? new Uint8Array()).slice(0, -TRANSMIT_RESPONSE_LENGTH));
+      expect(paper.textLines).toContain("Yerba");
+      expect(paper.text).not.toContain("FACTURA C");
+    });
+
+    it("still prints the receipt as before, once, when asking the tax authority fails", async () => {
+      insertDocumentWaiting();
+
+      await chargingWith(
+        cloudAnswering(async () => json(AUTHORIZED_ANSWER)),
+        async () => {
+          throw new Error("the credentials cannot be read");
+        },
+      )?.({});
+      const papers = await printedPapers();
+
+      expect(papers).toHaveLength(1);
+      expect(papers[0]?.text).not.toContain("FACTURA C");
     });
   });
 });

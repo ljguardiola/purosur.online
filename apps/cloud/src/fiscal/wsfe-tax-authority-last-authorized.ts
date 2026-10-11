@@ -1,10 +1,11 @@
+import { FACTURA_C_VOUCHER_TYPE } from "@purosur/domain";
 import type {
   LastAuthorizedAnswer,
   TaxAuthorityLastAuthorizedLookup,
   WsaaToken,
 } from "@purosur/domain/fiscal/use-cases";
 import type { Client } from "soap";
-import { codesOf, createWsfeClient, FACTURA_C_VOUCHER_TYPE } from "./wsfe-client.js";
+import { codesOf, createWsfeClient } from "./wsfe-client.js";
 
 const LAST_AUTHORIZED_TIMEOUT_MS = 10_000;
 

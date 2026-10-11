@@ -31,6 +31,7 @@ const DOCUMENT: FacturaC = {
     version: 2,
   },
   buyerTaxStatusCode: 90,
+  buyerTaxStatusDescription: "Condicion de prueba",
 };
 
 let database: LocalDatabase;

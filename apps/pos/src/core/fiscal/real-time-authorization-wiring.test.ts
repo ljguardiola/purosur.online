@@ -4,6 +4,7 @@ import type { CloudClientDeps } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
 import {
   createRealTimeAuthorization,
+  settleInterruptedAuthorizations,
   startRegisterHealthChecks,
 } from "./real-time-authorization-wiring";
 import {
@@ -60,14 +61,16 @@ afterEach(() => {
   database.close();
 });
 
-describe("authorizing the sales a charge completes", () => {
-  const charge = async () => ({ kind: "completed" as const, sale_id: "sale-1", total: 12_500 });
-
-  function authorization(cloud: CloudClientDeps | undefined, failures: unknown[] = []) {
+describe("authorizing a completed sale in real time", () => {
+  function authorization(
+    cloud: CloudClientDeps | undefined,
+    failures: unknown[] = [],
+    readDeviceToken: () => Promise<string | undefined> = async () => "prefix.secret",
+  ) {
     return createRealTimeAuthorization({
       database,
       cloudClient: cloud,
-      readDeviceToken: async () => "prefix.secret",
+      readDeviceToken,
       now: () => NOW,
       reportFailure: (error) => failures.push(error),
     });
@@ -80,7 +83,7 @@ describe("authorizing the sales a charge completes", () => {
     insertHealthCheck(database);
   });
 
-  it("asks the cloud to authorize the document of the sale a charge completed, with the device token", async () => {
+  it("asks the cloud to authorize the document of the sale, with the device token, and settles it before resolving", async () => {
     const { cloud, sent } = cloudAnswering(async () =>
       json({
         state: "AUTHORIZED",
@@ -89,30 +92,12 @@ describe("authorizing the sales a charge completes", () => {
       }),
     );
 
-    await authorization(cloud).afterCompletedSale(charge)?.({});
+    await authorization(cloud).authorizeSale("sale-1");
 
-    await vi.waitFor(() => expect(storedState()).toEqual({ state: "AUTHORIZED" }));
+    expect(storedState()).toEqual({ state: "AUTHORIZED" });
     expect(sent).toEqual([
       { path: "/api/fiscal/authorize", authorization: "Bearer prefix.secret" },
     ]);
-  });
-
-  it("answers the cashier before the cloud answers", async () => {
-    let answer: (response: Response) => void = () => undefined;
-    const { cloud } = cloudAnswering(
-      () =>
-        new Promise<Response>((resolve) => {
-          answer = resolve;
-        }),
-    );
-
-    await expect(authorization(cloud).afterCompletedSale(charge)?.({})).resolves.toMatchObject({
-      kind: "completed",
-    });
-    expect(storedState()).toEqual({ state: "REQUESTING" });
-
-    answer(json({ state: "UNCLEAR" }));
-    await vi.waitFor(() => expect(storedState()).toEqual({ state: "UNKNOWN" }));
   });
 
   it("leaves the document unclear when the cloud cannot be reached", async () => {
@@ -120,26 +105,127 @@ describe("authorizing the sales a charge completes", () => {
       throw new TypeError("fetch failed");
     });
 
-    await authorization(cloud).afterCompletedSale(charge)?.({});
+    await authorization(cloud).authorizeSale("sale-1");
 
-    await vi.waitFor(() => expect(storedState()).toEqual({ state: "UNKNOWN" }));
+    expect(storedState()).toEqual({ state: "UNKNOWN" });
   });
 
-  it("reports a failure of the authorization without failing the charge", async () => {
+  it("settles the document as unclear and reports it when asking the cloud fails", async () => {
+    const { cloud } = cloudAnswering(async () => json({ state: "UNCLEAR" }));
+    const failure = new Error("the credentials cannot be read");
+    const failures: unknown[] = [];
+
+    await authorization(cloud, failures, async () => {
+      throw failure;
+    }).authorizeSale("sale-1");
+
+    expect(failures).toEqual([failure]);
+    expect(storedState()).toEqual({ state: "UNKNOWN" });
+  });
+
+  it("reports a failure of the authorization without rejecting", async () => {
     const { cloud } = cloudAnswering(async () => json({ state: "UNCLEAR" }));
     const failures: unknown[] = [];
     database.prepare("DROP TABLE register_health_checks").run();
 
-    await expect(
-      authorization(cloud, failures).afterCompletedSale(charge)?.({}),
-    ).resolves.toMatchObject({ kind: "completed" });
+    await expect(authorization(cloud, failures).authorizeSale("sale-1")).resolves.toBeUndefined();
 
-    await vi.waitFor(() => expect(failures).toHaveLength(1));
+    expect(failures.length).toBeGreaterThan(0);
   });
 
-  it("leaves a charge as it is when the register cannot reach a cloud", () => {
-    expect(authorization(undefined).afterCompletedSale(charge)).toBe(charge);
-    expect(authorization(undefined).afterCompletedSale(undefined)).toBeUndefined();
+  it("settles the document as unclear when the register cannot reach a cloud", async () => {
+    await expect(authorization(undefined).authorizeSale("sale-1")).resolves.toBeUndefined();
+
+    expect(storedState()).toEqual({ state: "UNKNOWN" });
+  });
+
+  it("resolves for a sale with no document waiting", async () => {
+    const { cloud, sent } = cloudAnswering(async () => json({ state: "UNCLEAR" }));
+
+    await expect(authorization(cloud).authorizeSale("another-sale")).resolves.toBeUndefined();
+
+    expect(sent).toEqual([]);
+  });
+
+  it("resolves at once for a register with no local database", async () => {
+    const withoutDatabase = createRealTimeAuthorization({
+      database: undefined,
+      cloudClient: undefined,
+      readDeviceToken: async () => undefined,
+      now: () => NOW,
+      reportFailure: () => undefined,
+    });
+
+    await expect(withoutDatabase.authorizeSale("sale-1")).resolves.toBeUndefined();
+  });
+});
+
+describe("settling, as the register starts, the authorizations its last run left requesting", () => {
+  beforeEach(() => {
+    insertCompletedSale(database, "sale-1");
+    insertFiscalDocument(database);
+  });
+
+  it("leaves the document unknown and routes its sale to the deferred flow for an unclear outcome", async () => {
+    await settleInterruptedAuthorizations({ database, now: () => NOW, reportFailure: () => {} });
+
+    expect(storedState()).toEqual({ state: "UNKNOWN" });
+    expect(database.prepare("SELECT sale_id, reason, routed_at FROM deferred_sales").all()).toEqual(
+      [{ sale_id: "sale-1", reason: "unclear_outcome", routed_at: NOW.toISOString() }],
+    );
+  });
+
+  it("reports a failure without rejecting", async () => {
+    const failures: unknown[] = [];
+    database.prepare("DROP TABLE deferred_sales").run();
+
+    await expect(
+      settleInterruptedAuthorizations({
+        database,
+        now: () => NOW,
+        reportFailure: (error) => failures.push(error),
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(failures).toHaveLength(1);
+    expect(storedState()).toEqual({ state: "REQUESTING" });
+  });
+
+  it("settles none of them and reports it when settling one of them fails", async () => {
+    insertCompletedSale(database, "sale-2");
+    insertFiscalDocument(database, { id: "doc-2", saleId: "sale-2", pointOfSale: 13 });
+    database
+      .prepare(
+        `INSERT INTO deferred_sales (sale_id, reason, routed_at)
+         VALUES ('sale-2', 'unclear_outcome', '2026-09-30T12:05:01.000Z')`,
+      )
+      .run();
+    const failures: unknown[] = [];
+
+    await settleInterruptedAuthorizations({
+      database,
+      now: () => NOW,
+      reportFailure: (error) => failures.push(error),
+    });
+
+    expect(failures).toHaveLength(1);
+    expect(database.prepare("SELECT id, state FROM fiscal_documents ORDER BY id").all()).toEqual([
+      { id: "doc-1", state: "REQUESTING" },
+      { id: "doc-2", state: "REQUESTING" },
+    ]);
+    expect(database.prepare("SELECT sale_id FROM deferred_sales").all()).toEqual([
+      { sale_id: "sale-2" },
+    ]);
+  });
+
+  it("resolves at once for a register with no local database", async () => {
+    await expect(
+      settleInterruptedAuthorizations({
+        database: undefined,
+        now: () => NOW,
+        reportFailure: () => {},
+      }),
+    ).resolves.toBeUndefined();
   });
 });
 
