@@ -409,6 +409,7 @@ export {
   mayAuthorize,
   nextOperationNumber,
   normalizeEnrollmentCode,
+  offersSerialDevicesSetup,
   REGISTER_ABILITIES,
   REGISTER_NAME_MAX_LENGTH,
   registerAbilities,

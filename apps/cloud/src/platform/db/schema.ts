@@ -619,7 +619,8 @@ export const purchaseLines = pgTable(
   ],
 );
 
-// The stock a purchase line brought in, with the line's exact cost pair.
+// The stock a purchase line brought in, with the line's exact cost pair; a product's technical lot
+// instead gathers what was consumed before any purchase, with no cost.
 export const lots = pgTable(
   "lots",
   {
@@ -630,19 +631,60 @@ export const lots = pgTable(
     locationId: uuid("location_id")
       .notNull()
       .references(() => locations.id),
-    purchaseLineId: uuid("purchase_line_id")
-      .notNull()
-      .references(() => purchaseLines.id),
+    purchaseLineId: uuid("purchase_line_id").references(() => purchaseLines.id),
     lotNumber: text("lot_number"),
     expiresOn: date("expires_on", { mode: "string" }),
-    costTotalCents: bigint("cost_total_cents", { mode: "number" }).notNull(),
-    costQuantity: bigint("cost_quantity", { mode: "number" }).notNull(),
+    purchasedOn: date("purchased_on", { mode: "string" }),
+    technical: boolean("technical").notNull().default(false),
+    costIncomplete: boolean("cost_incomplete").notNull().default(false),
+    costTotalCents: bigint("cost_total_cents", { mode: "number" }),
+    costQuantity: bigint("cost_quantity", { mode: "number" }),
     quantityReceived: bigint("quantity_received", { mode: "number" }).notNull(),
+    remaining: bigint("remaining", { mode: "number" }).notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     unique("lots_purchase_line_id_key").on(table.purchaseLineId),
     check("lots_cost_quantity_check", sql`${table.costQuantity} > 0`),
+    check(
+      "lots_technical_iff_no_purchase_line_check",
+      sql`${table.technical} = (${table.purchaseLineId} is null)`,
+    ),
+    check(
+      "lots_cost_pair_check",
+      sql`(${table.costTotalCents} is null) = (${table.costQuantity} is null)`,
+    ),
+    check(
+      "lots_cost_known_or_incomplete_check",
+      sql`${table.costTotalCents} is not null or ${table.costIncomplete}`,
+    ),
+    check(
+      "lots_technical_has_no_expiry_or_purchase_date_check",
+      sql`not ${table.technical} or (${table.expiresOn} is null and ${table.purchasedOn} is null)`,
+    ),
+    uniqueIndex("lots_one_technical_per_product_branch")
+      .on(table.productId, table.locationId)
+      .where(sql`${table.technical}`),
+    index("lots_product_id_location_id_idx").on(table.productId, table.locationId),
+  ],
+);
+
+// Append-only: what each stock movement took from, or returned to, each lot.
+export const lotAllocations = pgTable(
+  "lot_allocations",
+  {
+    movementId: uuid("movement_id")
+      .notNull()
+      .references(() => stockMovements.id),
+    lotId: uuid("lot_id")
+      .notNull()
+      .references(() => lots.id),
+    quantity: bigint("quantity", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.movementId, table.lotId] }),
+    check("lot_allocations_quantity_check", sql`${table.quantity} <> 0`),
+    index("lot_allocations_lot_id_idx").on(table.lotId),
   ],
 );
 

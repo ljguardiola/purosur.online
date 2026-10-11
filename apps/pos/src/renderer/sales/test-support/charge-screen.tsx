@@ -107,7 +107,12 @@ const QR_WAITING: FollowMercadoPagoQrChargeOutcome = { kind: "waiting", remainin
 export function registerStatusWithCloud(cloud: RegisterStatus["cloud"]): CoreData<RegisterStatus> {
   return {
     status: "loaded",
-    value: { conditions: [], cloud, serial_devices: { scale: "matching", reader: "matching" } },
+    value: {
+      conditions: [],
+      cloud,
+      serial_devices: { scale: "matching", reader: "matching" },
+      serial_devices_setup_offered: false,
+    },
     refreshing: false,
   };
 }

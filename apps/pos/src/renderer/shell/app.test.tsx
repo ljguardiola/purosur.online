@@ -8,7 +8,6 @@ import type {
   OpenCashSessionOutcome,
   OpenSale,
   PinCodeRedemptionOutcome,
-  RegisterStatus,
   SalesHistoryOutcome,
   ScanProductOutcome,
   SignInOutcome,
@@ -125,7 +124,7 @@ function coreAnswering(
   } = {},
   signOut: () => Promise<void> = async () => {},
   service: "in_service" | "out_of_service" | "unanswered" = "in_service",
-  serialDevices: RegisterStatus["serial_devices"] = { scale: "matching", reader: "matching" },
+  serialDevicesSetupOffered = false,
 ) {
   const cashSessionAsks: string[] = [];
   const statusAsks: string[] = [];
@@ -212,7 +211,12 @@ function coreAnswering(
     },
     async registerStatus() {
       statusAsks.push("register-status");
-      return { conditions: [], cloud: "reachable", serial_devices: serialDevices };
+      return {
+        conditions: [],
+        cloud: "reachable",
+        serial_devices: { scale: "matching", reader: "matching" },
+        serial_devices_setup_offered: serialDevicesSetupOffered,
+      };
     },
     async recordCashMovement(input) {
       recorded.push(input);
@@ -622,8 +626,6 @@ describe("App", () => {
   });
 
   describe("the offer to register the scale and reader", () => {
-    const NEITHER_REGISTERED = { scale: "not_registered", reader: "not_registered" } as const;
-
     async function signInAsConfigurer(core: CoreClient) {
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
@@ -633,7 +635,7 @@ describe("App", () => {
       return screen;
     }
 
-    it("lands a person who may configure the devices on them while neither is registered", async () => {
+    it("lands a person on the devices when the core offers their setup", async () => {
       const { core } = coreAnswering(
         true,
         undefined,
@@ -642,7 +644,7 @@ describe("App", () => {
         undefined,
         undefined,
         undefined,
-        NEITHER_REGISTERED,
+        true,
       );
 
       const screen = await signInAsConfigurer(core);
@@ -653,7 +655,7 @@ describe("App", () => {
       await expect.element(screen.getByRole("button", { name: "Ahora no" })).toBeVisible();
     });
 
-    it("lands a person who signs in by redeeming a PIN code on the devices while neither is registered", async () => {
+    it("lands a person on the devices after redeeming a PIN code when the core offers their setup", async () => {
       const { core } = coreAnswering(
         true,
         undefined,
@@ -668,7 +670,7 @@ describe("App", () => {
         undefined,
         undefined,
         undefined,
-        NEITHER_REGISTERED,
+        true,
       );
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
@@ -686,6 +688,23 @@ describe("App", () => {
         .toBeVisible();
     });
 
+    it("lands a person on the main screen when the core does not offer the devices' setup", async () => {
+      const { core } = coreAnswering(
+        true,
+        undefined,
+        LINUS_SIGNED_IN,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        false,
+      );
+
+      const screen = await signInAsConfigurer(core);
+
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+    });
+
     it("goes on to the main screen on Ahora no, and stays there when the person returns to it", async () => {
       const { core } = coreAnswering(
         true,
@@ -695,7 +714,7 @@ describe("App", () => {
         undefined,
         undefined,
         undefined,
-        NEITHER_REGISTERED,
+        true,
       );
       const screen = await signInAsConfigurer(core);
 
@@ -722,7 +741,7 @@ describe("App", () => {
         undefined,
         undefined,
         undefined,
-        NEITHER_REGISTERED,
+        true,
       );
       const screen = await signInAsConfigurer(core);
       await expect.element(screen.getByRole("button", { name: "Ahora no" })).toBeVisible();
@@ -741,7 +760,7 @@ describe("App", () => {
         undefined,
         undefined,
         undefined,
-        NEITHER_REGISTERED,
+        true,
       );
       const screen = await signInAsConfigurer(core);
       await userEvent.click(screen.getByRole("button", { name: "Ahora no" }));

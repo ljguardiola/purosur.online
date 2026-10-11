@@ -238,6 +238,7 @@ export async function registerPurchase(
     await tx.receiveStock({
       locationId: input.locationId,
       occurredAt: recordedAt,
+      purchasedOn: input.purchasedOn,
       actorId: input.actorId,
       lines: lines.map(
         ({ id, productId, quantity, costPaidCents, quantityPerPackage, lotNumber, expiresOn }) => ({

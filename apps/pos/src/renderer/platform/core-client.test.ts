@@ -373,6 +373,7 @@ describe("createCoreClient", () => {
       ],
       cloud: "unreachable",
       serial_devices: { scale: "matching", reader: "not_registered" },
+      serial_devices_setup_offered: false,
     };
 
     const asked = client.registerStatus();

@@ -2,16 +2,19 @@ import type { SaleUnit } from "@purosur/domain";
 import type {
   CoveringCount,
   LockProductStockResult,
+  LotAllocation,
   NewLot,
   NewStockCount,
   NewStockMovement,
   ProductStockKey,
+  StockLot,
   StockStore,
   StockStoreTransaction,
 } from "@purosur/domain/stock/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
+  lotAllocations,
   lots,
   products,
   stockBalances,
@@ -94,8 +97,50 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
     await this.tx.insert(stockCounts).values(count);
   }
 
-  async recordLot(lot: NewLot): Promise<void> {
-    await this.tx.insert(lots).values(lot);
+  async recordLot(lot: NewLot): Promise<string> {
+    const [recorded] = await this.tx.insert(lots).values(lot).returning({ id: lots.id });
+    if (!recorded) {
+      throw new Error("inserting the lot returned no row");
+    }
+    return recorded.id;
+  }
+
+  async productLots(key: ProductStockKey): Promise<StockLot[]> {
+    const found = await this.tx
+      .select({
+        id: lots.id,
+        technical: lots.technical,
+        expiresOn: lots.expiresOn,
+        purchasedOn: lots.purchasedOn,
+        receivedAt: lots.createdAt,
+        remaining: lots.remaining,
+      })
+      .from(lots)
+      .where(and(eq(lots.productId, key.productId), eq(lots.locationId, key.locationId)));
+    return found;
+  }
+
+  async openTechnicalLot(key: ProductStockKey): Promise<string> {
+    const [opened] = await this.tx
+      .insert(lots)
+      .values({ ...key, technical: true, costIncomplete: true, quantityReceived: 0 })
+      .returning({ id: lots.id });
+    if (!opened) {
+      throw new Error("inserting the technical lot returned no row");
+    }
+    return opened.id;
+  }
+
+  async allocateToLot(allocation: LotAllocation): Promise<void> {
+    const [updated] = await this.tx
+      .update(lots)
+      .set({ remaining: sql`${lots.remaining} + ${allocation.quantity}` })
+      .where(eq(lots.id, allocation.lotId))
+      .returning({ id: lots.id });
+    if (!updated) {
+      throw new Error("adding to the lot's remaining quantity updated no row");
+    }
+    await this.tx.insert(lotAllocations).values(allocation);
   }
 
   async addToBalance(key: ProductStockKey, delta: number): Promise<number> {
