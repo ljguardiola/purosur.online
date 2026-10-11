@@ -13,6 +13,7 @@ import {
   noPendingRefunds,
   pendingRefunds,
   pendingRefundsWithLatePayment,
+  pendingRefundsWithLatePaymentOfOtherOrder,
   SECOND_REFUND_ID,
   TRANSFER_REFUND_ID,
 } from "./test-support/refund-fixtures";
@@ -102,6 +103,29 @@ test("heads the list by since when, why, how and how much, with no column for th
     .element(screen.getByRole("columnheader", { name: "Cancelada por" }))
     .not.toBeInTheDocument();
   await expect.element(screen.getByRole("columnheader", { name: "Caja" })).not.toBeInTheDocument();
+});
+
+test("tells, in the method cell of a refund for a second paid order, the order Mercado Pago gave, and in no other row", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: pendingRefundsWithLatePaymentOfOtherOrder,
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("$ 1.180,00", { exact: true })).toBeVisible();
+
+  const rows = screen
+    .getByRole("row")
+    .all()
+    .slice(1)
+    .map((row) => row.element().textContent ?? "");
+  expect(rows).toHaveLength(2);
+  expect(rows[0]).not.toContain("Orden");
+  expect(rows[1]).toContain("Aprobación tardía");
+  expect(rows[1]).toContain("El QR de la venta del 08/10 09:37 se pagó dos veces");
+  expect(rows[1]).toContain("QR de Mercado Pago");
+  expect(rows[1]).toContain("Orden ORD01JQ4S4KY8HWQ6NA5PXB65B3D3");
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("lists a cancelled sale's refund and a late QR payment's refund together, each with its reason, its original channel and, for the late payment, how the sale was charged", async () => {
