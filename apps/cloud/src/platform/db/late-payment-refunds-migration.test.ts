@@ -198,7 +198,9 @@ describe("the late payment refunds migration applied over a database that alread
         [saleId, await newTransaction(), state, discardedBy, discardedAt, doneBy, doneAt],
       );
 
-    await expect(insertRefund("DISCARDED", "user-3", "2026-10-07T10:00:00Z")).resolves.toBeDefined();
+    await expect(
+      insertRefund("DISCARDED", "user-3", "2026-10-07T10:00:00Z"),
+    ).resolves.toBeDefined();
     await expect(insertRefund("PENDING", null, null)).resolves.toBeDefined();
     await expect(insertRefund("PENDING", "user-3", "2026-10-07T10:00:00Z")).rejects.toThrow();
     await expect(insertRefund("APPROVED", "user-3", "2026-10-07T10:00:00Z")).rejects.toThrow();

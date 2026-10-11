@@ -54,7 +54,7 @@ function markDone(headers: Record<string, string>, refundId: string) {
 }
 
 function discard(headers: Record<string, string>, refundId: string) {
-  return app.inject({ method: "POST", url: `/refunds//discard`, headers });
+  return app.inject({ method: "POST", url: `/refunds/${refundId}/discard`, headers });
 }
 
 async function aPendingRefund(): Promise<string> {
@@ -139,7 +139,13 @@ describe("GET /refunds/pending", () => {
         cancelled_by,
       })),
     ).toEqual([
-      { id: late.refundId, origin: "late_payment", discardable: true, method: "QR", cancelled_by: null },
+      {
+        id: late.refundId,
+        origin: "late_payment",
+        discardable: true,
+        method: "QR",
+        cancelled_by: null,
+      },
       {
         id: cancelledId,
         origin: "sale_cancelled",

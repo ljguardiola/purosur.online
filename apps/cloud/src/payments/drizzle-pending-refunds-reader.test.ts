@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { paymentRefunds, registers } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applyCancelledSale, applyCompletedSale } from "../sales/test-support/applied-sales.js";
@@ -146,7 +146,10 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
     });
 
     it("lists it in the same order as the refunds of cancelled sales, oldest first", async () => {
-      const { deviceId } = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 1" });
+      const { deviceId } = await insertEnrolledInstallation(db, {
+        now: NOW,
+        registerName: "Caja 1",
+      });
       const cancelled = await applyCancelledSale(db, {
         deviceId,
         cancelledAt: new Date("2026-10-07T14:00:00.000Z"),
@@ -168,7 +171,10 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
 
     it("leaves it out once it was marked as done or discarded", async () => {
       const done = await aPendingLatePaymentRefund(db, { openedAt: NOW, registerName: "Caja 1" });
-      const discarded = await aPendingLatePaymentRefund(db, { openedAt: NOW, registerName: "Caja 2" });
+      const discarded = await aPendingLatePaymentRefund(db, {
+        openedAt: NOW,
+        registerName: "Caja 2",
+      });
       await db
         .update(paymentRefunds)
         .set({ state: "APPROVED", doneBy: "user-1", doneAt: NOW })
