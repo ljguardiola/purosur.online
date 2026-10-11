@@ -21,4 +21,5 @@ CREATE INDEX "lots_product_id_location_id_idx" ON "lots" USING btree ("product_i
 ALTER TABLE "lots" ADD CONSTRAINT "lots_technical_iff_no_purchase_line_check" CHECK ("lots"."technical" = ("lots"."purchase_line_id" is null));--> statement-breakpoint
 ALTER TABLE "lots" ADD CONSTRAINT "lots_cost_pair_check" CHECK (("lots"."cost_total_cents" is null) = ("lots"."cost_quantity" is null));--> statement-breakpoint
 ALTER TABLE "lots" ADD CONSTRAINT "lots_cost_known_or_incomplete_check" CHECK ("lots"."cost_total_cents" is not null or "lots"."cost_incomplete");--> statement-breakpoint
-ALTER TABLE "lots" ADD CONSTRAINT "lots_technical_has_no_expiry_or_purchase_date_check" CHECK (not "lots"."technical" or ("lots"."expires_on" is null and "lots"."purchased_on" is null));
+ALTER TABLE "lots" ADD CONSTRAINT "lots_technical_has_no_expiry_or_purchase_date_check" CHECK (not "lots"."technical" or ("lots"."expires_on" is null and "lots"."purchased_on" is null));--> statement-breakpoint
+REVOKE UPDATE, DELETE, TRUNCATE ON "lot_allocations" FROM cloud_app;

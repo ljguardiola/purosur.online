@@ -92,13 +92,10 @@ export function receiptAllocations(
   lots: readonly StockLot[],
   quantity: number,
 ): PlannedLotAllocation[] {
-  const technical = lots.find((lot) => lot.technical);
-  if (!technical || technical.remaining >= 0) {
-    return [{ target: lotTarget(newLotId), quantity }];
-  }
-  const carried = quantity + technical.remaining;
+  const inDebt = lots.filter((lot) => lot.remaining < 0);
+  const carried = inDebt.reduce((sum, lot) => sum + lot.remaining, quantity);
   return [
     ...(carried === 0 ? [] : [{ target: lotTarget(newLotId), quantity: carried }]),
-    { target: lotTarget(technical.id), quantity: -technical.remaining },
+    ...inDebt.map((lot) => ({ target: lotTarget(lot.id), quantity: -lot.remaining })),
   ];
 }

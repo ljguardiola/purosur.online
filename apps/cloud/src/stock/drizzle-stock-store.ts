@@ -2,6 +2,7 @@ import type { SaleUnit } from "@purosur/domain";
 import type {
   CoveringCount,
   LockProductStockResult,
+  LotAllocation,
   NewLot,
   NewStockCount,
   NewStockMovement,
@@ -130,11 +131,7 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
     return opened.id;
   }
 
-  async allocateToLot(allocation: {
-    movementId: string;
-    lotId: string;
-    quantity: number;
-  }): Promise<void> {
+  async allocateToLot(allocation: LotAllocation): Promise<void> {
     const [updated] = await this.tx
       .update(lots)
       .set({ remaining: sql`${lots.remaining} + ${allocation.quantity}` })
