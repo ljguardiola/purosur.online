@@ -14,6 +14,7 @@ import {
   formatNumber,
   formatOperationNumber,
   formatPointOfSaleNumber,
+  formatSignedCents,
   formatTimeAgo,
   formatWeight,
   formatWeightInput,
@@ -40,6 +41,18 @@ describe("formatNumber", () => {
 
   it("passes formatting options through to Intl.NumberFormat", () => {
     expect(formatNumber(1234.5, { minimumFractionDigits: 2 })).toBe("1.234,50");
+  });
+});
+
+describe("formatSignedCents", () => {
+  it("writes a negative amount with a minus sign and a space before the currency", () => {
+    expect(formatSignedCents(-915_000)).toBe("− $ 9.150,00");
+    expect(formatSignedCents(-5)).toBe("− $ 0,05");
+  });
+
+  it("writes a positive amount and zero as formatCents does", () => {
+    expect(formatSignedCents(5_070_000)).toBe("$ 50.700,00");
+    expect(formatSignedCents(0)).toBe("$ 0,00");
   });
 });
 
