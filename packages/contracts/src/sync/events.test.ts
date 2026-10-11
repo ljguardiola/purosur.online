@@ -116,6 +116,67 @@ describe("push events request", () => {
     expect(requestWith({ telemetry: full }).success).toBe(true);
   });
 
+  describe("serial devices report", () => {
+    const serialDevices = {
+      scale: { standing: "matching", vendor_id: "0403", product_id: "6001" },
+      reader: { standing: "not_detected", vendor_id: "05e0", product_id: "1200" },
+    };
+
+    function withSerialDevices(serial_devices: unknown, extra: Record<string, unknown> = {}) {
+      return requestWith({ telemetry: { ...telemetry, ...extra, serial_devices } });
+    }
+
+    it("accepts a report of both devices alongside every kind of sales state", () => {
+      const states = [
+        {},
+        { sales_denied: false },
+        { sales_denied: true, sales_denied_reason: "event_history_broken" },
+      ];
+
+      for (const state of states) {
+        expect(withSerialDevices(serialDevices, state).data?.telemetry.serial_devices).toEqual(
+          serialDevices,
+        );
+      }
+    });
+
+    it("accepts a device without an identity when it is not registered or unknown", () => {
+      const report = {
+        scale: { standing: "not_registered" },
+        reader: { standing: "unknown" },
+      };
+
+      expect(withSerialDevices(report).data?.telemetry.serial_devices).toEqual(report);
+    });
+
+    it("still accepts telemetry without a serial devices report", () => {
+      expect(requestWith({}).success).toBe(true);
+    });
+
+    it.each([
+      [
+        "a standing it does not know",
+        { scale: { standing: "plugged" }, reader: serialDevices.reader },
+      ],
+      ["a missing role", { scale: serialDevices.scale }],
+      ["a role it does not know", { ...serialDevices, printer: { standing: "unknown" } }],
+      [
+        "a vendor id without a product id",
+        { ...serialDevices, scale: { standing: "matching", vendor_id: "0403" } },
+      ],
+      [
+        "a product id without a vendor id",
+        { ...serialDevices, scale: { standing: "matching", product_id: "6001" } },
+      ],
+      [
+        "an empty vendor id",
+        { ...serialDevices, scale: { standing: "matching", vendor_id: "", product_id: "6001" } },
+      ],
+    ])("refuses a report with %s", (_name, report) => {
+      expect(withSerialDevices(report).success).toBe(false);
+    });
+  });
+
   it.each([
     ["an event_id that is not a uuid", { event_id: "not-a-uuid" }],
     ["a zero device_seq", { device_seq: 0 }],
