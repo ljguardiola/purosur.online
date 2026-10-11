@@ -13,6 +13,7 @@ function order(overrides: Partial<MercadoPagoOrderResult> = {}): MercadoPagoOrde
   return {
     status: "processed",
     statusDetail: "accredited",
+    externalReference: null,
     totalPaidAmount: 2500,
     payments: [ACCREDITED],
     ...overrides,
@@ -31,6 +32,7 @@ const orderResultArbitrary = fc.record({
     "something_new",
   ),
   statusDetail: fc.constantFrom("accredited", "partially_refunded", "other"),
+  externalReference: fc.constant(null),
   totalPaidAmount: fc.option(fc.integer({ min: 0, max: 1_000_000 }), { nil: null }),
   payments: fc.array(
     fc.record({

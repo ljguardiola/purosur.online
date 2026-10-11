@@ -9,6 +9,7 @@ interface MercadoPagoOrderPayment {
 export interface MercadoPagoOrderResult {
   status: string;
   statusDetail: string;
+  externalReference: string | null;
   totalPaidAmount: number | null;
   payments: readonly MercadoPagoOrderPayment[];
 }
