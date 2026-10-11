@@ -125,7 +125,7 @@ function registerMigrationName(path) {
 
 // The register applies every migration it has not applied yet in the order of their names, so a new
 // migration whose name sorts before one a register already applied runs after it there but before it
-// on a fresh install.
+// on a fresh install. Numbers of the same width sort by name in their numeric order.
 export function findMisnumberedRegisterMigrations({ basePaths, currentPaths }) {
   const baseMigrations = basePaths.filter(isRegisterMigrationFile);
   const lastOnMain = baseMigrations
@@ -136,18 +136,22 @@ export function findMisnumberedRegisterMigrations({ basePaths, currentPaths }) {
     );
   if (lastOnMain === undefined) return [];
   const lastNumberOnMain = leadingNumber(lastOnMain);
-  const nextNumber = String(Number(lastNumberOnMain) + 1).padStart(lastNumberOnMain.length, "0");
+  const width = lastNumberOnMain.length;
+  const nextNumber = String(Number(lastNumberOnMain) + 1).padStart(width, "0");
+  const fix =
+    nextNumber.length === width
+      ? `renumber it ${nextNumber}`
+      : `no ${width}-digit number is left above ${lastNumberOnMain}`;
   const onMain = new Set(baseMigrations);
   return currentPaths
     .filter((path) => isRegisterMigrationFile(path) && !onMain.has(path))
     .filter((path) => {
-      const name = registerMigrationName(path);
-      const number = leadingNumber(name);
-      return number === "" || number === lastNumberOnMain || name.localeCompare(lastOnMain) <= 0;
+      const number = leadingNumber(registerMigrationName(path));
+      return number.length !== width || Number(number) <= Number(lastNumberOnMain);
     })
     .map((path) => ({
       path,
-      reason: `new register migration must start with a number above ${lastNumberOnMain} and sort after ${lastOnMain}, the last one already on main — renumber it ${nextNumber}`,
+      reason: `new register migration must start with a ${width}-digit number above ${lastNumberOnMain}, the number of ${lastOnMain}, the last one already on main — ${fix}`,
     }));
 }
 
