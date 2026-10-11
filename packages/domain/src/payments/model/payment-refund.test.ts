@@ -1,11 +1,13 @@
 import fc from "fast-check";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   isRefundDiscardable,
   isRefundDiscarded,
   isRefundPending,
   LATE_PAYMENT_REFUND_ORIGIN,
   latePaymentRefund,
+  type PlannedRefund,
+  type PlannedRefundState,
   plannedRefunds,
   REFUND_ORIGINS,
   REFUND_STATES,
@@ -167,6 +169,15 @@ describe("isRefundPending", () => {
 describe("REFUND_STATES", () => {
   it("lists a refund as done, pending or discarded", () => {
     expect(REFUND_STATES).toEqual(["APPROVED", "PENDING", "DISCARDED"]);
+  });
+});
+
+describe("PlannedRefundState", () => {
+  it("is the state of a planned refund, which is done or pending and never discarded", () => {
+    expectTypeOf<PlannedRefund["state"]>().toEqualTypeOf<PlannedRefundState>();
+    expectTypeOf<"APPROVED">().toExtend<PlannedRefundState>();
+    expectTypeOf<"PENDING">().toExtend<PlannedRefundState>();
+    expectTypeOf<"DISCARDED">().not.toExtend<PlannedRefundState>();
   });
 });
 
