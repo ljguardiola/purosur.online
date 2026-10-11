@@ -20,10 +20,18 @@ function coveringWords(methods: readonly CoveringMethod[]): string {
 function reasonDetail(
   refund: Pick<
     Refund,
-    "origin" | "sale_occurred_at" | "covered_by" | "cancelled_by" | "cancelled_by_name"
+    | "origin"
+    | "sale_occurred_at"
+    | "covered_by"
+    | "provider_order_id"
+    | "cancelled_by"
+    | "cancelled_by_name"
   >,
 ): string {
   const saleMoment = refundDayAndTime(refund.sale_occurred_at);
+  if (refund.origin === "late_payment" && refund.provider_order_id !== null) {
+    return `El QR de la venta del ${saleMoment} se pagó dos veces`;
+  }
   if (refund.origin === "late_payment") {
     return `El QR de la venta del ${saleMoment} se pagó después de cobrarla ${coveringWords(refund.covered_by)}`;
   }
@@ -36,7 +44,12 @@ function reasonDetail(
 export function refundReason(
   refund: Pick<
     Refund,
-    "origin" | "sale_occurred_at" | "covered_by" | "cancelled_by" | "cancelled_by_name"
+    | "origin"
+    | "sale_occurred_at"
+    | "covered_by"
+    | "provider_order_id"
+    | "cancelled_by"
+    | "cancelled_by_name"
   >,
 ): { title: string; detail: string } {
   return { title: refundOriginLabel(refund.origin), detail: reasonDetail(refund) };
