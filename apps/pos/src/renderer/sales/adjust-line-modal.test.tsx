@@ -6,10 +6,13 @@ import type {
   PreviewSaleLineAdjustmentOutcome,
   SignInUser,
 } from "@purosur/contracts";
+import { SummaryRow } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { render as renderReference } from "vitest-browser-react";
 import type { SignedInPerson } from "../shell/signed-in-person";
+import { expectDrawnLike } from "../shell/test-support/drawn-like";
 import { render } from "../shell/test-support/render-with-router";
 import { AdjustLineModal } from "./adjust-line-modal";
 import { deferred, SALE_OF_YERBA } from "./test-support/sale-screen";
@@ -494,6 +497,47 @@ describe("AdjustLineModal previewing the adjustment", () => {
     await expect.element(screen.getByText("− $ 476,00")).toBeVisible();
     await expect.element(screen.getByText("$ 4.284,00")).toBeVisible();
     expect(preview).toHaveBeenLastCalledWith("line-1", { kind: "PERCENT", value: 10 });
+  });
+
+  it("shows the discount in the summary's danger tone and what the line is left at in its accent tone", async () => {
+    const { screen } = await renderModal({ previewAdjustment: async () => TEN_PERCENT });
+    const reference = await renderReference(
+      <>
+        <SummaryRow label="Referencia de descuento" value="− $ 1,00" tone="danger" />
+        <SummaryRow label="Referencia de total" value="$ 2,00" strong tone="accent" />
+        <SummaryRow label="Referencia sin tono" value="$ 3,00" strong />
+      </>,
+    );
+
+    await typeValue(screen, "Porcentaje de descuento", "10");
+
+    await expect.element(screen.getByText("− $ 476,00")).toBeVisible();
+    expectDrawnLike(
+      screen.getByText("− $ 476,00").element(),
+      reference.getByText("− $ 1,00").element(),
+      ["color", "fontSize", "fontWeight"],
+      "discount",
+    );
+    expectDrawnLike(
+      screen.getByText("$ 4.284,00").element(),
+      reference.getByText("$ 2,00").element(),
+      ["color", "fontSize", "fontWeight"],
+      "line total",
+    );
+    expectDrawnLike(
+      screen.getByText("Queda la línea en").element(),
+      reference.getByText("Referencia de total").element(),
+      ["color", "fontSize", "fontWeight"],
+      "line total label",
+    );
+    const untoned = getComputedStyle(reference.getByText("$ 3,00").element());
+    expect(getComputedStyle(screen.getByText("− $ 476,00").element()).color).not.toBe(
+      untoned.color,
+    );
+    expect(getComputedStyle(screen.getByText("$ 4.284,00").element()).color).not.toBe(
+      untoned.color,
+    );
+    await reference.unmount();
   });
 
   it("asks again, in cents, when the amount of the discount is typed", async () => {

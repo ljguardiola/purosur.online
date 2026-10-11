@@ -105,6 +105,25 @@ test("renders a row it is given as strong or as a saving, not in the plain form"
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("renders a row it is given with a danger or an accent tone in that tone", async () => {
+  const screen = await render(
+    <SummaryRowGroup
+      rows={[
+        { label: "Discount", value: "− $10.00", tone: "danger" },
+        { label: "Line total", value: "$90.00", strong: true, tone: "accent" },
+      ]}
+    />,
+  );
+  const dangerValue = screen.getByText("− $10.00", { exact: true }).element() as HTMLElement;
+  const accentValue = screen.getByText("$90.00", { exact: true }).element() as HTMLElement;
+
+  expect(getComputedStyle(dangerValue).color).toBe(tokenRgb("error"));
+  expect(getComputedStyle(accentValue).color).toBe(tokenRgb("text-accent"));
+  expect(getComputedStyle(accentValue).fontSize).toBe("20px");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("does not accept a group without rows to hold", () => {
   expectTypeOf<Record<string, never>>().not.toExtend<SummaryRowGroupProps>();
   expectTypeOf<{ rows: undefined }>().not.toExtend<SummaryRowGroupProps>();

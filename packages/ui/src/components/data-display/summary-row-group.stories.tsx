@@ -30,6 +30,16 @@ export const WithSaving: Story = {
   },
 };
 
+export const WithTones: Story = {
+  args: {
+    rows: [
+      { label: "Precio de lista", value: "$ 2.380,00" },
+      { label: "Descuento", value: "− $ 476,00", tone: "danger" },
+      { label: "Queda la línea en", value: "$ 4.284,00", strong: true, tone: "accent" },
+    ],
+  },
+};
+
 export const SingleRow: Story = {
   args: {
     rows: [{ label: "Total", value: "$120.000", strong: true }],

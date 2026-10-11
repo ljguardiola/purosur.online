@@ -86,6 +86,64 @@ test("keeps the label in its own color when only the value is a saving", async (
   expect(getComputedStyle(strongLabel).color).toBe(tokenRgb("text"));
 });
 
+test("renders the value in red UI for a danger tone, in both the regular and the strong form", async () => {
+  const regularScreen = await render(
+    <SummaryRow label="Discount" value="− $10.00" tone="danger" />,
+  );
+  const regularValue = regularScreen
+    .getByText("− $10.00", { exact: true })
+    .element() as HTMLElement;
+  expect(getComputedStyle(regularValue).color).toBe(tokenRgb("error"));
+  expect(getComputedStyle(regularValue).fontSize).toBe("16px");
+  expect(getComputedStyle(regularValue).fontWeight).toBe("600");
+
+  const strongScreen = await render(
+    <SummaryRow label="Total discount" value="− $25.00" strong tone="danger" />,
+  );
+  const strongValue = strongScreen.getByText("− $25.00", { exact: true }).element() as HTMLElement;
+  expect(getComputedStyle(strongValue).color).toBe(tokenRgb("error"));
+  expect(getComputedStyle(strongValue).fontSize).toBe("18px");
+  expect(getComputedStyle(strongValue).fontWeight).toBe("700");
+});
+
+test("renders the value at 20px bold in accent text for an accent tone, in both the regular and the strong form", async () => {
+  const regularScreen = await render(
+    <SummaryRow label="Line total" value="$90.00" tone="accent" />,
+  );
+  const regularValue = regularScreen.getByText("$90.00", { exact: true }).element() as HTMLElement;
+  expect(getComputedStyle(regularValue).color).toBe(tokenRgb("text-accent"));
+  expect(getComputedStyle(regularValue).fontSize).toBe("20px");
+  expect(getComputedStyle(regularValue).fontWeight).toBe("700");
+
+  const strongScreen = await render(
+    <SummaryRow label="Line total" value="$90.00" strong tone="accent" />,
+  );
+  const strongValue = strongScreen.getByText("$90.00", { exact: true }).element() as HTMLElement;
+  expect(getComputedStyle(strongValue).color).toBe(tokenRgb("text-accent"));
+  expect(getComputedStyle(strongValue).fontSize).toBe("20px");
+  expect(getComputedStyle(strongValue).fontWeight).toBe("700");
+});
+
+test("keeps the label in its own form and color when only the value carries a tone", async () => {
+  const dangerScreen = await render(<SummaryRow label="Discount" value="− $10.00" tone="danger" />);
+  const dangerLabel = dangerScreen.getByText("Discount", { exact: true }).element() as HTMLElement;
+  expect(getComputedStyle(dangerLabel).color).toBe(tokenRgb("text-subtle"));
+  expect(getComputedStyle(dangerLabel).fontSize).toBe("16px");
+  expect(getComputedStyle(dangerLabel).fontWeight).toBe("400");
+
+  const accentScreen = await render(
+    <SummaryRow label="Line total" value="$90.00" strong tone="accent" />,
+  );
+  const accentLabel = accentScreen
+    .getByText("Line total", { exact: true })
+    .element() as HTMLElement;
+  expect(getComputedStyle(accentLabel).color).toBe(tokenRgb("text"));
+  expect(getComputedStyle(accentLabel).fontSize).toBe("18px");
+  expect(getComputedStyle(accentLabel).fontWeight).toBe("700");
+
+  await expectNoAccessibilityViolations(accentScreen.container);
+});
+
 test("grows with a long label instead of keeping a fixed height", async () => {
   const longLabel =
     "A very long label that does not fit on a single line inside this narrow row at all";
@@ -206,4 +264,25 @@ test("keeps the value inside the row when the label is a single unbreakable word
 test("does not accept a summary row without a label or a value", () => {
   expectTypeOf<{ value: string }>().not.toExtend<SummaryRowProps>();
   expectTypeOf<{ label: string }>().not.toExtend<SummaryRowProps>();
+});
+
+test("does not accept a row that is both a saving and carries a tone", () => {
+  expectTypeOf<{
+    label: string;
+    value: string;
+    saving: true;
+    tone: "danger";
+  }>().not.toExtend<SummaryRowProps>();
+  expectTypeOf<{
+    label: string;
+    value: string;
+    saving: true;
+    tone: "accent";
+  }>().not.toExtend<SummaryRowProps>();
+});
+
+test("accepts only the danger and accent tones", () => {
+  expectTypeOf<{ label: string; value: string; tone: "danger" }>().toExtend<SummaryRowProps>();
+  expectTypeOf<{ label: string; value: string; tone: "accent" }>().toExtend<SummaryRowProps>();
+  expectTypeOf<{ label: string; value: string; tone: "success" }>().not.toExtend<SummaryRowProps>();
 });
