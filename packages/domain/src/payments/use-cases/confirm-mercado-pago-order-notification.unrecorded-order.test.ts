@@ -69,6 +69,7 @@ describe("confirmMercadoPagoOrderNotification of an order no payment has recorde
         amount: AMOUNT,
         state: "PENDING",
         origin: "late_payment",
+        providerOrderId: null,
       },
     ]);
     expect(mercadoPago.cancellations).toEqual([]);

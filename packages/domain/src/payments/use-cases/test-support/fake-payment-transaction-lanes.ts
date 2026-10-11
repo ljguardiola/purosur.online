@@ -123,10 +123,11 @@ class FakeLane implements PaymentTransactionLane {
   ): Promise<LatePaymentRefundOpening> {
     this.lanes.operations.push("openLatePaymentRefund");
     this.lanes.failIfAsked("openLatePaymentRefund");
-    if (this.lanes.latePaymentRefunds.has(refund.paymentId)) {
+    const key = `${refund.paymentId}|${refund.providerOrderId ?? ""}`;
+    if (this.lanes.latePaymentRefunds.has(key)) {
       return "already_open";
     }
-    this.lanes.latePaymentRefunds.set(refund.paymentId, {
+    this.lanes.latePaymentRefunds.set(key, {
       refund: structuredClone(refund),
       openedAt: new Date(openedAt),
     });

@@ -6,6 +6,7 @@ import {
   isRefundPending,
   LATE_PAYMENT_REFUND_ORIGIN,
   latePaymentRefund,
+  latePaymentRefundOfUnrecordedOrder,
   methodsCoveringRefundedSale,
   PLANNED_REFUND_STATES,
   type PlannedRefund,
@@ -235,6 +236,7 @@ describe("latePaymentRefund", () => {
       amount: 2500,
       state: "PENDING",
       origin: "late_payment",
+      providerOrderId: null,
     });
   });
 
@@ -288,5 +290,25 @@ describe("methodsCoveringRefundedSale", () => {
         { method: "TRANSFER", state: "APPROVED" },
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("latePaymentRefundOfUnrecordedOrder", () => {
+  it("gives back what the order was paid, naming the order the payment did not record", () => {
+    expect(
+      latePaymentRefundOfUnrecordedOrder(
+        { id: "pay-3", method: "QR", provider: "MERCADOPAGO_QR", amount: 2500 },
+        "order-2",
+        2300,
+      ),
+    ).toEqual({
+      paymentId: "pay-3",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      amount: 2300,
+      state: "PENDING",
+      origin: "late_payment",
+      providerOrderId: "order-2",
+    });
   });
 });

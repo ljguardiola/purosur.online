@@ -22,6 +22,7 @@ const LATE_PAYMENT_REFUND = {
   amount: AMOUNT,
   state: "PENDING",
   origin: "late_payment",
+  providerOrderId: null,
 };
 
 function record(

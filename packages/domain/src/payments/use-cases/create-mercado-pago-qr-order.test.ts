@@ -577,6 +577,7 @@ describe("createMercadoPagoQrOrder", () => {
             amount: AMOUNT,
             state: "PENDING",
             origin: "late_payment",
+            providerOrderId: null,
           },
           openedAt: NOW,
         },
