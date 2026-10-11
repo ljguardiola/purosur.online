@@ -1,12 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { registers } from "../platform/db/schema.js";
+import { eq } from "drizzle-orm";
+import { paymentRefunds, registers } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applyCancelledSale, applyCompletedSale } from "../sales/test-support/applied-sales.js";
 import { insertLocation, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { aTransferCancelledSale } from "../sync/test-support/synced-facts.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzlePendingRefundsReader } from "./drizzle-pending-refunds-reader.js";
+import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fixtures.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 
@@ -53,6 +55,7 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         registerId,
         registerName: "Caja 1",
         method: "TRANSFER",
+        origin: "sale_cancelled",
         amount: 2_000,
         occurredAt: refund?.occurredAt,
         cancelledBy: userId,
@@ -120,5 +123,74 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
 
     expect(await reader().pendingRefunds(own.locationId)).toEqual([]);
     expect(await reader().pendingRefunds(otherLocationId)).toHaveLength(1);
+  });
+
+  describe("the refund of a late payment", () => {
+    it("lists it with the channel it was paid by, its sale and register, and nobody who cancelled it", async () => {
+      const late = await aPendingLatePaymentRefund(db, { openedAt: NOW, registerName: "Caja 7" });
+
+      expect(await reader().pendingRefunds(late.locationId)).toEqual([
+        {
+          id: late.refundId,
+          saleId: late.saleId,
+          registerId: late.registerId,
+          registerName: "Caja 7",
+          method: "QR",
+          origin: "late_payment",
+          amount: late.amount,
+          occurredAt: NOW,
+          cancelledBy: null,
+          cancelledByName: null,
+        },
+      ]);
+    });
+
+    it("lists it in the same order as the refunds of cancelled sales, oldest first", async () => {
+      const { deviceId } = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 1" });
+      const cancelled = await applyCancelledSale(db, {
+        deviceId,
+        cancelledAt: new Date("2026-10-07T14:00:00.000Z"),
+        total: 2_000,
+        overrides: aTransferCancelledSale(),
+      });
+      const late = await aPendingLatePaymentRefund(db, {
+        openedAt: new Date("2026-10-07T13:00:00.000Z"),
+        registerName: "Caja 2",
+      });
+
+      const pending = await reader().pendingRefunds(late.locationId);
+
+      expect(pending.map((refund) => [refund.saleId, refund.origin])).toEqual([
+        [late.saleId, "late_payment"],
+        [cancelled.id, "sale_cancelled"],
+      ]);
+    });
+
+    it("leaves it out once it was marked as done or discarded", async () => {
+      const done = await aPendingLatePaymentRefund(db, { openedAt: NOW, registerName: "Caja 1" });
+      const discarded = await aPendingLatePaymentRefund(db, { openedAt: NOW, registerName: "Caja 2" });
+      await db
+        .update(paymentRefunds)
+        .set({ state: "APPROVED", doneBy: "user-1", doneAt: NOW })
+        .where(eq(paymentRefunds.id, done.refundId));
+      await db
+        .update(paymentRefunds)
+        .set({ state: "DISCARDED", discardedBy: "user-1", discardedAt: NOW })
+        .where(eq(paymentRefunds.id, discarded.refundId));
+
+      expect(await reader().pendingRefunds(done.locationId)).toEqual([]);
+    });
+
+    it("never lists it for another branch", async () => {
+      const late = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+      const otherLocationId = await insertLocation(db);
+      await db
+        .update(registers)
+        .set({ locationId: otherLocationId })
+        .where(eq(registers.id, late.registerId));
+
+      expect(await reader().pendingRefunds(late.locationId)).toEqual([]);
+      expect(await reader().pendingRefunds(otherLocationId)).toHaveLength(1);
+    });
   });
 });

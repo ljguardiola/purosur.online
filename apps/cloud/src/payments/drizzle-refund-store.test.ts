@@ -1,12 +1,13 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { auditLog, paymentRefunds } from "../platform/db/schema.js";
+import { alerts, auditLog, paymentRefunds, registers } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applyCancelledSale } from "../sales/test-support/applied-sales.js";
 import { insertLocation, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { aTransferCancelledSale } from "../sync/test-support/synced-facts.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleRefundStore } from "./drizzle-refund-store.js";
+import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fixtures.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 
@@ -49,7 +50,7 @@ describe("DrizzleRefundStore", () => {
 
     const locked = await store().transaction((tx) => tx.lockRefund(refundId, locationId));
 
-    expect(locked).toEqual({ id: refundId, state: "PENDING" });
+    expect(locked).toEqual({ id: refundId, state: "PENDING", origin: "sale_cancelled" });
   });
 
   it("finds no refund that belongs to another branch, nor one that does not exist", async () => {
@@ -86,6 +87,87 @@ describe("DrizzleRefundStore", () => {
       at: doneAt,
       previousValue: { state: "PENDING" },
       newValue: { state: "APPROVED", doneAt: doneAt.toISOString() },
+    });
+  });
+
+  describe("the refund of a late payment", () => {
+    it("locks it for the branch of its register and tells its origin", async () => {
+      const { refundId, locationId } = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+
+      const locked = await store().transaction((tx) => tx.lockRefund(refundId, locationId));
+
+      expect(locked).toEqual({ id: refundId, state: "PENDING", origin: "late_payment" });
+    });
+
+    it("finds none that belongs to another branch", async () => {
+      const { refundId, registerId } = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+      const otherLocationId = await insertLocation(db);
+      await db
+        .update(registers)
+        .set({ locationId: otherLocationId })
+        .where(eq(registers.id, registerId));
+      const firstLocationId = (await db.select().from(alerts))[0]?.locationId ?? "";
+
+      const ofAnotherBranch = await store().transaction((tx) =>
+        tx.lockRefund(refundId, firstLocationId),
+      );
+
+      expect(ofAnotherBranch).toBeUndefined();
+    });
+
+    it("records who discarded it and when, and leaves an audit entry", async () => {
+      const { refundId, locationId } = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+      const { userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+      const discardedAt = new Date("2026-10-08T09:00:00.000Z");
+
+      await store().transaction(async (tx) => {
+        await tx.lockRefund(refundId, locationId);
+        await tx.recordRefundDiscarded(refundId, userId, discardedAt);
+      });
+
+      const [refund] = await db
+        .select()
+        .from(paymentRefunds)
+        .where(eq(paymentRefunds.id, refundId));
+      expect(refund).toMatchObject({ state: "DISCARDED", discardedBy: userId, discardedAt });
+      const [audit] = await db.select().from(auditLog).where(eq(auditLog.entityId, refundId));
+      expect(audit).toMatchObject({
+        entity: "payment_refund",
+        actorId: userId,
+        at: discardedAt,
+        previousValue: { state: "PENDING" },
+        newValue: { state: "DISCARDED", discardedAt: discardedAt.toISOString() },
+      });
+    });
+
+    it("resolves its open alert on behalf of the person who closed the task, leaving other tasks' alerts open", async () => {
+      const task = await aPendingLatePaymentRefund(db, { openedAt: NOW, registerName: "Caja 1" });
+      const other = await aPendingLatePaymentRefund(db, { openedAt: NOW, registerName: "Caja 2" });
+      const { userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+      const resolvedAt = new Date("2026-10-08T09:00:00.000Z");
+
+      await store().transaction((tx) =>
+        tx.resolveLatePaymentRefundAlert(task.refundId, userId, resolvedAt),
+      );
+
+      const rows = await db.select().from(alerts);
+      expect(rows.find((alert) => alert.id === task.alertId)).toMatchObject({
+        resolvedAt,
+        resolvedBy: userId,
+      });
+      expect(rows.find((alert) => alert.id === other.alertId)).toMatchObject({ resolvedAt: null });
+    });
+
+    it("resolves nothing, and fails nothing, when no alert is open for the task", async () => {
+      const { refundId } = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+      const { userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+      const resolve = () =>
+        store().transaction((tx) =>
+          tx.resolveLatePaymentRefundAlert(refundId, userId, new Date("2026-10-08T09:00:00.000Z")),
+        );
+      await resolve();
+
+      await expect(resolve()).resolves.toBeUndefined();
     });
   });
 });
