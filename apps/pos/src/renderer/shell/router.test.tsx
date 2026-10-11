@@ -180,6 +180,7 @@ function contextWith(
     weighProduct: async () => ({ kind: "scale_unavailable" }),
     changeLineWeight: async () => ({ kind: "unavailable" }),
     adjustSaleLine: async () => ({ kind: "unavailable" }),
+    previewSaleLineAdjustment: async () => ({ kind: "unavailable" }),
     removeSaleLine: async () => ({ kind: "unavailable" }),
     cancelSale: async () => ({ kind: "unavailable" }),
     cancelPaidSale: async () => ({ kind: "unavailable" }),

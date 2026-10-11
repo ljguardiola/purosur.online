@@ -7,6 +7,7 @@ import type {
   ChangeLineQuantityOutcome,
   ChangeLineWeightOutcome,
   OpenSale,
+  PreviewSaleLineAdjustmentOutcome,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
@@ -140,6 +141,9 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
   const adjustSaleLine =
     overrides.adjustSaleLine ??
     vi.fn(async (): Promise<AdjustSaleLineOutcome> => ({ kind: "unavailable" }));
+  const previewSaleLineAdjustment =
+    overrides.previewSaleLineAdjustment ??
+    vi.fn(async (): Promise<PreviewSaleLineAdjustmentOutcome> => ({ kind: "unavailable" }));
   const removeSaleLine =
     overrides.removeSaleLine ??
     vi.fn(async (): Promise<RemoveSaleLineOutcome> => ({ kind: "unavailable" }));
@@ -175,6 +179,7 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
         changeLineQuantity={changeLineQuantity}
         changeLineWeight={changeLineWeight}
         adjustSaleLine={adjustSaleLine}
+        previewSaleLineAdjustment={previewSaleLineAdjustment}
         removeSaleLine={removeSaleLine}
         cancelSale={cancelSale}
         cancelPaidSale={cancelPaidSale}

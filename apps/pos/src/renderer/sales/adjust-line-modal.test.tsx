@@ -3,6 +3,7 @@ import type {
   Authorization,
   ManualAdjustmentRequest,
   OpenSale,
+  PreviewSaleLineAdjustmentOutcome,
   SignInUser,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
@@ -27,6 +28,10 @@ const CHANGED: AdjustSaleLineOutcome = {
 };
 
 type Props = {
+  previewAdjustment?: (
+    lineId: string,
+    adjustment: ManualAdjustmentRequest,
+  ) => Promise<PreviewSaleLineAdjustmentOutcome>;
   authorizationRequired?: boolean;
   saleUnit?: "UNIT" | "KG";
   quantity?: number;
@@ -43,10 +48,12 @@ async function renderModal({
   saleUnit = "UNIT",
   quantity = 2,
   adjustSaleLine = async () => CHANGED,
+  previewAdjustment = async () => ({ kind: "unknown_line" }),
 }: Props = {}) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
   const adjust = vi.fn(adjustSaleLine);
+  const preview = vi.fn(previewAdjustment);
   const requested: string[] = [];
   const loadAuthorizers = async (permission: string) => {
     requested.push(permission);
@@ -69,10 +76,11 @@ async function renderModal({
       person={PERSON}
       loadAuthorizers={loadAuthorizers}
       adjustSaleLine={adjust}
+      previewAdjustment={preview}
       {...handlers}
     />,
   );
-  return { screen, adjust, requested, ...handlers };
+  return { screen, adjust, preview, requested, ...handlers };
 }
 
 type Screen = Awaited<ReturnType<typeof renderModal>>["screen"];
@@ -464,5 +472,152 @@ describe("AdjustLineModal", () => {
         .element(screen.getByRole("alert"))
         .toHaveTextContent("No se pudo aplicar el ajuste. Probá de nuevo.");
     });
+  });
+});
+
+describe("AdjustLineModal previewing the adjustment", () => {
+  const TEN_PERCENT: PreviewSaleLineAdjustmentOutcome = {
+    kind: "preview",
+    discount_amount: 47_600,
+    line_total: 428_400,
+  };
+
+  it("shows no discount and no remaining total before anything is typed", async () => {
+    const { screen, preview } = await renderModal();
+
+    await expect.element(screen.getByText("Queda la línea en")).toBeVisible();
+    await expect.element(screen.getByText("—")).toHaveLength(2);
+    expect(preview).not.toHaveBeenCalled();
+  });
+
+  it("shows exactly the discount and the total the core answers for a typed percentage", async () => {
+    const { screen, preview } = await renderModal({ previewAdjustment: async () => TEN_PERCENT });
+
+    await typeValue(screen, "Porcentaje de descuento", "10");
+
+    await expect.element(screen.getByText("− $ 476,00")).toBeVisible();
+    await expect.element(screen.getByText("$ 4.284,00")).toBeVisible();
+    expect(preview).toHaveBeenLastCalledWith("line-1", { kind: "PERCENT", value: 10 });
+  });
+
+  it("asks again, in cents, when the amount of the discount is typed", async () => {
+    const { screen, preview } = await renderModal({
+      previewAdjustment: async () => ({
+        kind: "preview",
+        discount_amount: 50_000,
+        line_total: 426_000,
+      }),
+    });
+    await chooseKind(screen, "$");
+
+    await typeValue(screen, "Monto de descuento", "500");
+
+    await expect.element(screen.getByText("− $ 500,00")).toBeVisible();
+    await expect.element(screen.getByText("$ 4.260,00")).toBeVisible();
+    expect(preview).toHaveBeenLastCalledWith("line-1", { kind: "AMOUNT", value: 50_000 });
+  });
+
+  it("shows only what the line is left at when choosing a new price", async () => {
+    const { screen, preview } = await renderModal({
+      previewAdjustment: async () => ({ kind: "preview", discount_amount: 0, line_total: 600_000 }),
+    });
+
+    await typePrice(screen, "3.000");
+
+    await expect.element(screen.getByText("$ 6.000,00")).toBeVisible();
+    await expect.element(screen.getByText("Queda la línea en")).toBeVisible();
+    await expect.element(screen.getByText("− $", { exact: false })).not.toBeInTheDocument();
+    expect(preview).toHaveBeenLastCalledWith("line-1", { kind: "PRICE", value: 300_000 });
+  });
+
+  it("shows a placeholder for the total alone when a new price is not typed yet", async () => {
+    const { screen } = await renderModal();
+
+    await chooseKind(screen, "Precio nuevo");
+
+    await expect.element(screen.getByText("—")).toHaveLength(1);
+  });
+
+  it("does not ask the core while the value is not valid", async () => {
+    const { screen, preview } = await renderModal({ previewAdjustment: async () => TEN_PERCENT });
+
+    await typeValue(screen, "Porcentaje de descuento", "10,5");
+
+    await expect.element(screen.getByText("—")).toHaveLength(2);
+    expect(preview).not.toHaveBeenCalled();
+  });
+
+  it("goes back to the placeholders when the value is cleared", async () => {
+    const { screen } = await renderModal({ previewAdjustment: async () => TEN_PERCENT });
+    await typeValue(screen, "Porcentaje de descuento", "10");
+    await expect.element(screen.getByText("− $ 476,00")).toBeVisible();
+
+    await typeValue(screen, "Porcentaje de descuento", "");
+
+    await expect.element(screen.getByText("− $ 476,00")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("—")).toHaveLength(2);
+  });
+
+  it("says the price is the list price when the core refuses it", async () => {
+    const { screen } = await renderModal({
+      previewAdjustment: async () => ({ kind: "same_as_list_price" }),
+    });
+
+    await typePrice(screen, "2.380");
+
+    await expect
+      .element(screen.getByText("Ese es el precio de lista. Ingresá otro precio."))
+      .toBeVisible();
+    await expect.element(screen.getByText("—")).toHaveLength(1);
+  });
+
+  it("says the discount is above the line's total when the core refuses it", async () => {
+    const { screen } = await renderModal({
+      previewAdjustment: async () => ({ kind: "discount_exceeds_line" }),
+    });
+    await chooseKind(screen, "$");
+
+    await typeValue(screen, "Monto de descuento", "9.999");
+
+    await expect
+      .element(screen.getByText("El descuento no puede ser mayor al total de la línea."))
+      .toBeVisible();
+    await expect.element(screen.getByText("—")).toHaveLength(2);
+  });
+
+  it.each<PreviewSaleLineAdjustmentOutcome>([
+    { kind: "unknown_line" },
+    { kind: "no_open_sale" },
+    { kind: "no_open_session" },
+    { kind: "sale_has_payments" },
+    { kind: "not_permitted" },
+    { kind: "not_signed_in" },
+    { kind: "unavailable" },
+  ])("keeps the placeholders when the core answers $kind", async (outcome) => {
+    const { screen, preview } = await renderModal({ previewAdjustment: async () => outcome });
+
+    await typeValue(screen, "Porcentaje de descuento", "10");
+
+    await expect.poll(() => preview.mock.calls.length).toBe(1);
+    await expect.element(screen.getByText("—")).toHaveLength(2);
+  });
+
+  it("keeps the placeholders when the core cannot be reached", async () => {
+    const { screen, preview } = await renderModal({
+      previewAdjustment: () => Promise.reject(new Error("the connection was replaced")),
+    });
+
+    await typeValue(screen, "Porcentaje de descuento", "10");
+
+    await expect.poll(() => preview.mock.calls.length).toBe(1);
+    await expect.element(screen.getByText("—")).toHaveLength(2);
+  });
+
+  it("passes the accessibility checks with the core's answer shown", async () => {
+    const { screen } = await renderModal({ previewAdjustment: async () => TEN_PERCENT });
+    await typeValue(screen, "Porcentaje de descuento", "10");
+    await expect.element(screen.getByText("− $ 476,00")).toBeVisible();
+
+    await expectNoAccessibilityViolations(document.body);
   });
 });

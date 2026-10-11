@@ -4,6 +4,7 @@ import {
   adjustLineRequestFrom,
   adjustLineValueMessage,
   EMPTY_ADJUST_LINE_FORM,
+  previewAdjustmentFrom,
   REQUIRED_REASON_MESSAGE,
 } from "./adjust-line-form";
 
@@ -92,5 +93,30 @@ describe("adjustLineValueMessage", () => {
 
   it("asks for the reason", () => {
     expect(REQUIRED_REASON_MESSAGE).toBe("Escribí un motivo.");
+  });
+});
+
+describe("previewAdjustmentFrom", () => {
+  it.each([
+    ["PRICE", "1.500,50", { kind: "PRICE", value: 150_050 }],
+    ["PRICE", "0", { kind: "PRICE", value: 0 }],
+    ["AMOUNT", "500", { kind: "AMOUNT", value: 50_000 }],
+    ["PERCENT", "10", { kind: "PERCENT", value: 10 }],
+    ["PERCENT", "100", { kind: "PERCENT", value: 100 }],
+  ] as const)("reads %s %j as the adjustment to preview", (kind, value, expected) => {
+    expect(previewAdjustmentFrom({ kind, value })).toEqual(expected);
+  });
+
+  it.each([
+    ["PRICE", ""],
+    ["PRICE", "mil"],
+    ["AMOUNT", "5,"],
+    ["AMOUNT", "0"],
+    ["PERCENT", ""],
+    ["PERCENT", "10,5"],
+    ["PERCENT", "0"],
+    ["PERCENT", "101"],
+  ] as const)("previews nothing for %s %j", (kind, value) => {
+    expect(previewAdjustmentFrom({ kind, value })).toBeUndefined();
   });
 });

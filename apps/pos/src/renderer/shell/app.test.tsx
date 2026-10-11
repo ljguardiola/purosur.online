@@ -252,6 +252,9 @@ function coreAnswering(
     async adjustSaleLine() {
       return { kind: "unavailable" };
     },
+    async previewSaleLineAdjustment() {
+      return { kind: "unavailable" };
+    },
     async removeSaleLine() {
       return { kind: "unavailable" };
     },

@@ -802,6 +802,29 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to preview an adjustment of a line, with no reason and no authorization, and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const previewed = client.previewSaleLineAdjustment("line-1", { kind: "PERCENT", value: 15 });
+    port.answer({
+      type: "preview-sale-line-adjustment-result",
+      request_id: "request-1",
+      outcome: { kind: "preview", discount_amount: 840, line_total: 7560 },
+    });
+
+    expect(await previewed).toEqual({ kind: "preview", discount_amount: 840, line_total: 7560 });
+    expect(port.posted).toEqual([
+      {
+        type: "preview-sale-line-adjustment",
+        request_id: "request-1",
+        line_id: "line-1",
+        adjustment: { kind: "PERCENT", value: 15 },
+      },
+    ]);
+  });
+
   it("asks the core to adjust a line without an authorization when none is given", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

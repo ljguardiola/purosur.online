@@ -1,4 +1,8 @@
-import type { AdjustSaleLineOutcome, OpenSale } from "@purosur/contracts";
+import type {
+  AdjustSaleLineOutcome,
+  OpenSale,
+  PreviewSaleLineAdjustmentOutcome,
+} from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { renderScreen, SALE_OF_YERBA, YERBA } from "./test-support/sale-screen";
@@ -64,6 +68,30 @@ describe("SaleScreen adjusting a line's price or discount", () => {
     );
     await expect.element(screen.getByText("Descuento manual 10 %")).toBeVisible();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("asks the core what the typed discount would leave the line at and shows its answer", async () => {
+    const previewSaleLineAdjustment = vi.fn(
+      async (): Promise<PreviewSaleLineAdjustmentOutcome> => ({
+        kind: "preview",
+        discount_amount: 47_600,
+        line_total: 428_400,
+      }),
+    );
+    const { screen } = await renderScreen({
+      currentSale: async () => SALE_OF_YERBA,
+      previewSaleLineAdjustment,
+    });
+    await screen.getByRole("button", { name: OPEN_ADJUSTMENT }).click();
+
+    await userEvent.fill(screen.getByRole("textbox", { name: "Porcentaje de descuento" }), "10");
+
+    expect(previewSaleLineAdjustment).toHaveBeenLastCalledWith(YERBA.id, {
+      kind: "PERCENT",
+      value: 10,
+    });
+    await expect.element(screen.getByText("− $ 476,00")).toBeVisible();
+    await expect.element(screen.getByText("$ 4.284,00")).toBeVisible();
   });
 
   it("asks nobody to authorize it when the sale does not require it", async () => {
