@@ -1,9 +1,10 @@
+type SummaryRowTone = "danger" | "accent";
+
 export type SummaryRowProps = {
   label: string;
   value: string;
   strong?: boolean;
-  saving?: boolean;
-};
+} & ({ saving?: boolean; tone?: undefined } | { saving?: false; tone: SummaryRowTone });
 
 type SummaryRowForm = "regular" | "strong";
 
@@ -33,7 +34,27 @@ const textColorClassName: Record<SummaryRowForm, string> = {
 
 const savingColorClassName = "text-success";
 
-export function SummaryRow({ label, value, strong = false, saving = false }: SummaryRowProps) {
+const toneColorClassName: Record<SummaryRowTone, string> = {
+  danger: "text-error",
+  accent: "text-text-accent",
+};
+
+const accentTypeClassName = "text-heading";
+
+function valueColorClassName(form: SummaryRowForm, saving: boolean, tone?: SummaryRowTone) {
+  if (tone !== undefined) {
+    return toneColorClassName[tone];
+  }
+  return saving ? savingColorClassName : textColorClassName[form];
+}
+
+export function SummaryRow({
+  label,
+  value,
+  strong = false,
+  saving = false,
+  tone,
+}: SummaryRowProps) {
   const form: SummaryRowForm = strong ? "strong" : "regular";
   const labelClassName = [
     labelBaseClassName,
@@ -42,8 +63,8 @@ export function SummaryRow({ label, value, strong = false, saving = false }: Sum
   ].join(" ");
   const valueClassName = [
     valueBaseClassName,
-    valueTypeClassName[form],
-    saving ? savingColorClassName : textColorClassName[form],
+    tone === "accent" ? accentTypeClassName : valueTypeClassName[form],
+    valueColorClassName(form, saving, tone),
   ].join(" ");
 
   return (

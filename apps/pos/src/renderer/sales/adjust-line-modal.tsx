@@ -314,6 +314,7 @@ export function AdjustLineModal({
                       previewed?.kind === "preview"
                         ? `− ${formatCents(previewed.discount_amount)}`
                         : NOT_PREVIEWED,
+                    tone: "danger" as const,
                   },
                 ]),
             ...(previewRowsShown
@@ -325,6 +326,7 @@ export function AdjustLineModal({
                         ? formatCents(previewed.line_total)
                         : NOT_PREVIEWED,
                     strong: true,
+                    tone: "accent" as const,
                   },
                 ]
               : []),
