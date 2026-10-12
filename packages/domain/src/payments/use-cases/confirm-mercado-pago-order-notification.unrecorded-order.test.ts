@@ -118,6 +118,29 @@ describe("confirmMercadoPagoOrderNotification of an order no payment has recorde
     expect(world.mercadoPago.readOrders).toEqual([]);
   });
 
+  it.each(["refused", "throttled"] as const)(
+    "asks Mercado Pago nothing about an unknown order once a retry after a %s order creation created the payment's order",
+    async (kind) => {
+      const world = mercadoPagoQrOrderWorld({ creation: { kind } });
+      const order = {
+        registerId: REGISTER_ID,
+        paymentTransactionId: TRANSACTION_ID,
+        saleId: SALE_ID,
+        amount: AMOUNT,
+      };
+      await createMercadoPagoQrOrder(world.ports, order);
+      world.mercadoPago.creation = { kind: "created", orderId: "order-1", result: orderResult() };
+      await createMercadoPagoQrOrder(world.ports, order);
+
+      expect(
+        await confirmMercadoPagoOrderNotification(world.notificationPorts, {
+          providerOrderId: "order-unrelated",
+        }),
+      ).toEqual({ kind: "unknown_order" });
+      expect(world.mercadoPago.readOrders).toEqual(["order-1"]);
+    },
+  );
+
   it("answers provider unavailable and records nothing when the order cannot be read", async () => {
     const { lanes, notificationPorts } = mercadoPagoQrOrderWorld({
       reading: { kind: "unavailable" },
