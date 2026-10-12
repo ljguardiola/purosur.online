@@ -2,7 +2,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { paymentTransactions } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { providerTransactionOfPayment } from "./drizzle-provider-transactions.js";
-import { insertRegister, pendingTransaction } from "./test-support/payment-transaction-fixtures.js";
+import {
+  insertRegister,
+  pendingPointTransaction,
+  pendingTransaction,
+} from "./test-support/payment-transaction-fixtures.js";
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -31,6 +35,19 @@ describe("providerTransactionOfPayment", () => {
       amount: 30_700,
       state: "APPROVED",
       method: "QR",
+    });
+  });
+
+  it("tells a payment made on the integrated terminal by its method", async () => {
+    const registerId = await insertRegister(db, "Caja 1");
+    const transaction = pendingPointTransaction(registerId, { state: "APPROVED", amount: 30_700 });
+    await db.insert(paymentTransactions).values(transaction);
+
+    expect(await providerTransactionOfPayment(db, transaction.id)).toEqual({
+      saleId: transaction.saleId,
+      amount: 30_700,
+      state: "APPROVED",
+      method: "POINT",
     });
   });
 

@@ -31,6 +31,20 @@ export function pendingTransaction(
   };
 }
 
+type PointOrderTransaction = Extract<MercadoPagoOrderTransaction, { method: "POINT" }>;
+
+export function pendingPointTransaction(
+  registerId: string,
+  overrides: Partial<PointOrderTransaction> = {},
+): PointOrderTransaction {
+  return {
+    ...pendingTransaction(registerId),
+    method: "POINT",
+    provider: "MERCADOPAGO_POINT",
+    ...overrides,
+  };
+}
+
 export async function insertRegister<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   name: string,

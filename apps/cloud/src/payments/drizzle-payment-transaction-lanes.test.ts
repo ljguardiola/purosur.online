@@ -6,7 +6,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { alerts, paymentRefunds, paymentTransactions, registers } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzlePaymentTransactionLanes } from "./drizzle-payment-transaction-lanes.js";
-import { insertRegister, pendingTransaction } from "./test-support/payment-transaction-fixtures.js";
+import {
+  insertRegister,
+  pendingPointTransaction,
+  pendingTransaction,
+} from "./test-support/payment-transaction-fixtures.js";
 
 const READ_AT = new Date("2026-10-09T12:01:00.000Z");
 
@@ -55,6 +59,19 @@ describe("DrizzlePaymentTransactionLanes", () => {
       });
 
       expect(recorded).toEqual(transaction);
+    });
+
+    it("keeps a pending transaction on the integrated terminal with its method and provider", async () => {
+      const registerId = await insertRegister(db, "caja-1");
+      const transaction = pendingPointTransaction(registerId);
+
+      const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
+        await lane.recordPendingTransaction(transaction);
+        return lane.recordedTransaction(registerId, transaction.id);
+      });
+
+      expect(recorded).toEqual(transaction);
+      expect(recorded).toMatchObject({ method: "POINT", provider: "MERCADOPAGO_POINT" });
     });
 
     it("keeps a transaction marked as replaced", async () => {
