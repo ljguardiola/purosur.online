@@ -1547,6 +1547,7 @@ describe("App", () => {
           sale_discount_refusal: null,
           sale_discount: null,
           subtotal: 238_000,
+          mercado_pago_charge_in_progress: null,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
         chargeSaleInCash: async (saleId, tendered) => {
