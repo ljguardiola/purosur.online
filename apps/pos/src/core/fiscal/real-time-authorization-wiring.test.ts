@@ -312,13 +312,9 @@ describe("applying the decisions of the documents left with an unclear outcome, 
       arca: { token_valid: true, probe_ok_at: "2026-09-30T12:05:00.000Z", reachable: true },
     });
 
-  function ticking(
-    unclearOutcome: () => Promise<Response>,
-    failures: unknown[] = [],
-    health: () => Promise<Response> = async () => healthy(),
-  ) {
+  function ticking(unclearOutcome: () => Promise<Response>, failures: unknown[] = []) {
     const { cloud, sent } = cloudAnswering(async (path) =>
-      path === UNCLEAR_PATH ? unclearOutcome() : health(),
+      path === UNCLEAR_PATH ? unclearOutcome() : healthy(),
     );
     const scheduled: { run: () => void; delayMs: number }[] = [];
     startRegisterHealthChecks({
@@ -503,14 +499,10 @@ describe("applying the decisions of the documents left with an unclear outcome, 
     ]);
   });
 
-  it("applies the decisions even when the health check failed, reporting its failure", async () => {
+  it("applies the decisions even when recording the health check failed, reporting its failure", async () => {
     leaveUnclear(1);
     const failures: unknown[] = [];
-    const { tick } = ticking(
-      async () => json({ state: "RELEASED" }),
-      failures,
-      async () => json({ unexpected: true }),
-    );
+    const { tick } = ticking(async () => json({ state: "RELEASED" }), failures);
     database.prepare("DROP TABLE register_health_checks").run();
 
     await tick();
@@ -523,7 +515,15 @@ describe("applying the decisions of the documents left with an unclear outcome, 
     leaveUnclear(1);
     database.prepare("DROP TABLE deferred_sales").run();
     const failures: unknown[] = [];
-    const { tick } = ticking(async () => json({ state: "RELEASED" }), failures);
+    const { tick } = ticking(
+      async () =>
+        json({
+          state: "ADOPTED",
+          authorization_code: "75123456789012",
+          authorization_code_due_on: "2026-10-10",
+        }),
+      failures,
+    );
 
     await tick();
 
