@@ -37,6 +37,7 @@ export function CountLotsField({
           const shared = errorMessageId === undefined ? {} : { errorMessageId };
           return (
             <LabelledFieldList
+              monospaceTitles
               items={lots.map((lot) => ({
                 id: lot.id,
                 title: lot.lotNumber ?? "—",

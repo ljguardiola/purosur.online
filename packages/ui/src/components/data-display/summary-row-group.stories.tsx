@@ -68,6 +68,35 @@ export const Filled: Story = {
   },
 };
 
+export const Plain: Story = {
+  args: {
+    variant: "plain",
+    rows: [
+      { label: "Saldo esperado", value: "12 u", detail: true },
+      { label: "Diferencia", value: "− 2 u", detail: true, tone: "error" },
+    ],
+  },
+};
+
+export const FilledHorizontal: Story = {
+  decorators: [
+    (Story) => (
+      <div className="bg-surface p-6">
+        <Story />
+      </div>
+    ),
+  ],
+  args: {
+    variant: "filled",
+    orientation: "horizontal",
+    rows: [
+      { label: "Total contado", value: "10 u" },
+      { label: "Saldo esperado", value: "12 u", subtle: true },
+      { label: "Diferencia", value: "− 2 u", tone: "error" },
+    ],
+  },
+};
+
 export const SingleRow: Story = {
   args: {
     rows: [{ label: "Total", value: "$120.000", strong: true }],

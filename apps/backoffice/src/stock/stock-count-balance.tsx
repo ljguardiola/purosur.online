@@ -8,41 +8,64 @@ export function CountBalance({
   product,
   balance,
   counted,
-  countedLabel,
+  mode,
 }: {
   product: StockProduct;
   balance: CloudData<StockProductBalance>;
   counted: number | undefined;
-  countedLabel: string | null;
+  mode: "product" | "lots";
 }) {
   if (balance.status === "loading") {
-    return <LoadingPlaceholder variant="card" lines={2} />;
+    return mode === "lots" ? (
+      <LoadingPlaceholder variant="card" lines={2} />
+    ) : (
+      <LoadingPlaceholder variant="rows" rows={2} />
+    );
   }
   if (balance.status === "failed") {
     return <LoadFailure {...cloudLoadFailure(balance, "el saldo esperado")} />;
   }
   const { balance: expected } = balance.value;
   const { saleUnit } = product;
-  const expectedRow = { label: "Saldo esperado", value: formatStockQuantity(expected, saleUnit) };
-  if (counted === undefined) {
-    return <SummaryRowGroup rows={[expectedRow]} />;
+  const expectedValue = formatStockQuantity(expected, saleUnit);
+
+  if (mode === "lots") {
+    const expectedRow = { label: "Saldo esperado", value: expectedValue, subtle: true } as const;
+    if (counted === undefined) {
+      return <SummaryRowGroup variant="filled" orientation="horizontal" rows={[expectedRow]} />;
+    }
+    const delta = counted - expected;
+    const difference =
+      delta === 0
+        ? { label: "Diferencia", value: "Sin diferencia" }
+        : { label: "Diferencia", value: formatStockChange(delta, saleUnit) };
+    return (
+      <SummaryRowGroup
+        variant="filled"
+        orientation="horizontal"
+        rows={[
+          { label: "Total contado", value: formatStockQuantity(counted, saleUnit) },
+          expectedRow,
+          delta < 0 ? { ...difference, tone: "error" } : difference,
+        ]}
+      />
+    );
   }
+
+  const expectedRow = { label: "Saldo esperado", value: expectedValue, detail: true } as const;
+  if (counted === undefined) {
+    return <SummaryRowGroup variant="plain" rows={[expectedRow]} />;
+  }
+  const delta = counted - expected;
   const difference = {
     label: "Diferencia",
-    value:
-      counted === expected ? "Sin diferencia" : formatStockChange(counted - expected, saleUnit),
-  };
+    value: delta === 0 ? "Sin diferencia" : formatStockChange(delta, saleUnit),
+    detail: true,
+  } as const;
   return (
     <SummaryRowGroup
-      rows={
-        countedLabel === null
-          ? [expectedRow, difference]
-          : [
-              { label: countedLabel, value: formatStockQuantity(counted, saleUnit) },
-              expectedRow,
-              difference,
-            ]
-      }
+      variant="plain"
+      rows={[expectedRow, delta < 0 ? { ...difference, tone: "error" } : difference]}
     />
   );
 }
