@@ -131,6 +131,12 @@ function recordGateOutcome(saleId: string, minutesAgo: number, passed: boolean):
   const occurredAt = new Date(NOW.getTime() - minutesAgo * MINUTE_MS);
   database
     .prepare(
+      `INSERT OR IGNORE INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+       VALUES ('session-1', 'register-1', 'device-1', 'cashier', ?, 0, 'OPEN')`,
+    )
+    .run(new Date(NOW.getTime() - 60 * MINUTE_MS).toISOString());
+  database
+    .prepare(
       "INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at) VALUES (?, 'register-1', 'device-1', 'session-1', 'cashier', 'COMPLETED', ?)",
     )
     .run(saleId, occurredAt.toISOString());
