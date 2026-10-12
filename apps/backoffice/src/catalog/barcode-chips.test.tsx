@@ -1,6 +1,6 @@
 import { productCreationBodySchema } from "@purosur/contracts";
 import { FieldSizeProvider, useRequestForm } from "@purosur/ui";
-import { afterEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import {
@@ -87,7 +87,7 @@ async function renderChips({
   return screen.locator;
 }
 
-afterEach(() => {
+beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 

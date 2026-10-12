@@ -20,6 +20,7 @@ import {
 } from "./test-support/stock-fixtures";
 
 beforeEach(async () => {
+  window.history.pushState(null, "", "/");
   await page.viewport(1280, 900);
 });
 
@@ -359,18 +360,14 @@ test("ends the session when registering finds it over", async () => {
 
 test("navigates to Mi cuenta when registering comes back forbidden", async () => {
   window.history.pushState(null, "", "/stock/counts");
-  try {
-    const services = createServices();
-    vi.mocked(services.registerCount).mockResolvedValue({ kind: "forbidden" });
-    const rendered = await renderModal(services);
-    await count(rendered, "Almendras peladas", "1");
+  const services = createServices();
+  vi.mocked(services.registerCount).mockResolvedValue({ kind: "forbidden" });
+  const rendered = await renderModal(services);
+  await count(rendered, "Almendras peladas", "1");
 
-    await userEvent.click(rendered.dialog.getByRole("button", { name: REGISTER }));
+  await userEvent.click(rendered.dialog.getByRole("button", { name: REGISTER }));
 
-    await expect.poll(() => window.location.pathname).toBe("/account");
-  } finally {
-    window.history.pushState(null, "", "/");
-  }
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test("shows no expected balance and asks for none when the user may not view balances", async () => {

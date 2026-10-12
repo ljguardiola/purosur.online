@@ -1,11 +1,11 @@
 import type { TagSummary } from "@purosur/contracts";
-import { afterEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { ReactivateTagModal, type ReactivateTagModalServices } from "./reactivate-tag-modal";
 import { sinColorantes } from "./test-support/tags";
 
-afterEach(() => {
+beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 

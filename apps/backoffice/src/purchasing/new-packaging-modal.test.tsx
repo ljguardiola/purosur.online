@@ -1,12 +1,12 @@
 import type { PackagingList, PackagingSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
-import { afterEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { NewPackagingModal, type NewPackagingModalServices } from "./new-packaging-modal";
 import { bolsaDeAvena, cajaDeMiel, packagableProducts } from "./test-support/packagings";
 
-afterEach(() => {
+beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
