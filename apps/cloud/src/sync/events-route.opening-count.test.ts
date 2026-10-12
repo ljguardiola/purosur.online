@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import {
   categories,
+  inbox,
   lots,
   products,
   stockBalances,
@@ -119,5 +120,39 @@ describe("an opening count and its withdrawal pushed through POST /events", () =
       await route.db.select().from(stockMovements).where(eq(stockMovements.id, WITHDRAWAL_ID)),
     ).toEqual([expect.objectContaining({ kind: "opening_count_withdrawal", delta: -6_000 })]);
     expect((await route.db.select().from(stockBalances))[0]?.quantity).toBe(0);
+  });
+
+  it("is retried with the reason, and creates no lot, when the counted product is not in the catalog", async () => {
+    const { deviceToken } = await seededRegister();
+    const unknownProductId = "8f3b9e5c-7d4a-4b0c-9e6f-3a4b5c6d7e8f";
+    const count = pushOf(1, null, {
+      aggregateId: COUNT_ID,
+      eventType: "opening_count_recorded",
+      payload: {
+        movement_id: COUNT_ID,
+        product_id: unknownProductId,
+        counted: 6_000,
+        expires_on: null,
+      },
+    });
+    const pushed = await route.app.inject({
+      method: "POST",
+      url: "/events",
+      payload: count.body,
+      headers: { authorization: `Bearer ${deviceToken}` },
+    });
+    expect(pushed.json()).toMatchObject({ status: "ok", ack_seq: 1 });
+
+    await applySyncedEventsTask(route.db, { now: () => NOW });
+
+    expect(await route.db.select().from(lots)).toEqual([]);
+    expect(await route.db.select().from(inbox)).toEqual([
+      expect.objectContaining({
+        appliedAt: null,
+        attempts: 1,
+        quarantinedAt: null,
+        lastError: `product ${unknownProductId} is not in the catalog`,
+      }),
+    ]);
   });
 });
