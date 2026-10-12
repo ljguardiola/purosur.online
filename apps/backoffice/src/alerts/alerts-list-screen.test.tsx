@@ -1059,3 +1059,29 @@ test("searches a quiet register's alert by its fixed title", async () => {
       },
     ]);
 });
+
+test("summarizes a document left without a clear answer from ARCA under its title, with no id as its scope", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...passkeyAlert,
+        kind: "fiscal_unknown",
+        level: "warning",
+        audience: "all",
+        scope: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        scopeDisplay: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        scopeKind: "fiscalDocument",
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Resultado fiscal incierto/ });
+  await expect
+    .element(row.getByText("Un comprobante quedó sin respuesta clara de ARCA", { exact: true }))
+    .toBeVisible();
+  await expect.element(row.getByText("Comprobante", { exact: true })).toBeVisible();
+  expect(row.getByText(/3f2b8c1e/).query()).toBeNull();
+});
