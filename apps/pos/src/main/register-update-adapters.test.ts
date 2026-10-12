@@ -39,6 +39,13 @@ async function collect(body: AsyncIterable<Uint8Array>): Promise<Uint8Array[]> {
   return chunks;
 }
 
+function bodyOf(response: { body: AsyncIterable<Uint8Array> | null }): AsyncIterable<Uint8Array> {
+  if (response.body === null) {
+    throw new Error("the response has no body");
+  }
+  return response.body;
+}
+
 describe("updateFetch", () => {
   it("passes the status and the parsed body through", async () => {
     const fetchUpdate = updateFetch(async () => Response.json({ status: "up_to_date" }));
@@ -73,15 +80,14 @@ describe("updateFetch", () => {
     const chunks = [encoder.encode("one"), encoder.encode("two"), encoder.encode("three")];
     const response = await updateFetch(async () => new Response(streamOf(chunks)))("u");
 
-    expect(response.body).not.toBeNull();
-    expect(await collect(response.body ?? [])).toEqual(chunks);
+    expect(await collect(bodyOf(response))).toEqual(chunks);
   });
 
   it("releases the body's reader once it is read through", async () => {
     const stream = streamOf([encoder.encode("one")]);
     const response = await updateFetch(async () => new Response(stream))("u");
 
-    await collect(response.body ?? []);
+    await collect(bodyOf(response));
 
     expect(stream.locked).toBe(false);
   });
@@ -90,7 +96,7 @@ describe("updateFetch", () => {
     const stream = streamOf([encoder.encode("one"), encoder.encode("two")]);
     const response = await updateFetch(async () => new Response(stream))("u");
 
-    for await (const _chunk of response.body ?? []) {
+    for await (const _chunk of bodyOf(response)) {
       break;
     }
 
