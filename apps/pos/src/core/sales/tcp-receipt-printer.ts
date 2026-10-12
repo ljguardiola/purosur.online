@@ -78,6 +78,14 @@ export class TcpReceiptPrinter implements ReceiptPrinter {
     this.connect = options.connect ?? ((port, host) => createConnection({ port, host }));
   }
 
+  private configuredAddress(): ReceiptPrinterAddress | undefined {
+    try {
+      return this.address();
+    } catch {
+      return undefined;
+    }
+  }
+
   print(watch: ReceiptPrintWatch, sending: () => Uint8Array): Promise<ReceiptPrintEnding> {
     if (watch.signal.aborted) return Promise.resolve({ kind: "abandoned" });
     return new Promise((resolve, reject) => {
@@ -135,7 +143,7 @@ export class TcpReceiptPrinter implements ReceiptPrinter {
       };
 
       const open = (): void => {
-        const target = this.address();
+        const target = this.configuredAddress();
         if (target === undefined) {
           report("not_responding");
           return;
@@ -167,7 +175,7 @@ export class TcpReceiptPrinter implements ReceiptPrinter {
 
       const poll = (): void => {
         cancelTick = this.timers.after(POLL_INTERVAL_MS, poll);
-        const wanted = this.address();
+        const wanted = this.configuredAddress();
         if (
           link !== undefined &&
           wanted !== undefined &&
