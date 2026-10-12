@@ -3,6 +3,7 @@ import type { MercadoPagoOrderTransaction } from "../../model/payment-transactio
 import type {
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
+  MercadoPagoPointOrderCreation,
 } from "../mercado-pago-order-ports.js";
 import { FakeMercadoPagoCancellationKeys } from "./fake-mercado-pago-cancellation-keys.js";
 import { FakeMercadoPagoOrders } from "./fake-mercado-pago-orders.js";
@@ -74,12 +75,18 @@ export function storedTransaction(overrides: Partial<QrOrderTransaction> = {}): 
 }
 
 export function mercadoPagoOrderWorld(
-  answers: { creation?: MercadoPagoOrderCreation; reading?: MercadoPagoOrderReading } = {},
+  answers: {
+    creation?: MercadoPagoOrderCreation;
+    pointCreation?: MercadoPagoPointOrderCreation;
+    reading?: MercadoPagoOrderReading;
+  } = {},
   now: Date = NOW,
 ) {
   const lanes = new FakePaymentTransactionLanes();
   const mercadoPago = new FakeMercadoPagoOrders(lanes, {
     creation: answers.creation ?? { kind: "created", orderId: "order-1", result: orderResult() },
+    pointCreation: answers.pointCreation ??
+      answers.creation ?? { kind: "created", orderId: "order-1", result: orderResult() },
     reading: answers.reading ?? { kind: "read", result: orderResult() },
   });
   const directory = new FakePaymentTransactionDirectory(lanes);

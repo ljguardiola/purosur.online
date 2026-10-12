@@ -4,6 +4,8 @@ import type {
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
   MercadoPagoOrders,
+  MercadoPagoPointOrderCreation,
+  MercadoPagoPointOrderRequest,
   MercadoPagoQrOrderRequest,
 } from "../mercado-pago-order-ports.js";
 import type { FakePaymentTransactionLanes } from "./fake-payment-transaction-lanes.js";
@@ -11,6 +13,7 @@ import type { FakePaymentTransactionLanes } from "./fake-payment-transaction-lan
 export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   readonly longestCallMs = 10_000;
   readonly creationRequests: MercadoPagoQrOrderRequest[] = [];
+  readonly pointCreationRequests: MercadoPagoPointOrderRequest[] = [];
   readonly readOrders: string[] = [];
   readonly cancellations: { orderId: string; idempotencyKey: string }[] = [];
   heldLaneDuringCall: boolean | undefined;
@@ -18,6 +21,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   recordedDuringCreation: MercadoPagoOrderTransaction | undefined;
   creationStopsMidway = false;
   creation: MercadoPagoOrderCreation;
+  pointCreation: MercadoPagoPointOrderCreation;
   reading: MercadoPagoOrderReading;
   cancellation: MercadoPagoOrderCancellation = {
     kind: "cancelled",
@@ -35,10 +39,15 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
 
   constructor(
     lanes: FakePaymentTransactionLanes,
-    answers: { creation: MercadoPagoOrderCreation; reading: MercadoPagoOrderReading },
+    answers: {
+      creation: MercadoPagoOrderCreation;
+      pointCreation: MercadoPagoPointOrderCreation;
+      reading: MercadoPagoOrderReading;
+    },
   ) {
     this.lanes = lanes;
     this.creation = answers.creation;
+    this.pointCreation = answers.pointCreation;
     this.reading = answers.reading;
   }
 
@@ -52,6 +61,20 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
       throw new Error("createQrOrder stopped midway");
     }
     return this.creation;
+  }
+
+  async createPointOrder(
+    request: MercadoPagoPointOrderRequest,
+  ): Promise<MercadoPagoPointOrderCreation> {
+    this.lanes.operations.push("createPointOrder");
+    this.pointCreationRequests.push(request);
+    this.observeLane();
+    const recorded = this.lanes.transactions.get(request.externalReference);
+    this.recordedDuringCreation = recorded && structuredClone(recorded);
+    if (this.creationStopsMidway) {
+      throw new Error("createPointOrder stopped midway");
+    }
+    return this.pointCreation;
   }
 
   async readOrder(orderId: string): Promise<MercadoPagoOrderReading> {
