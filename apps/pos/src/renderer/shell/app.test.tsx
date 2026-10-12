@@ -110,6 +110,7 @@ function coreAnswering(
     cashCharge?: CoreClient["cashCharge"];
     chargeSaleInCash?: CoreClient["chargeSaleInCash"];
     chargeSaleByTransfer?: CoreClient["chargeSaleByTransfer"];
+    paymentMethodAvailability?: CoreClient["paymentMethodAvailability"];
     startMercadoPagoCharge?: CoreClient["startMercadoPagoCharge"];
     followMercadoPagoCharge?: CoreClient["followMercadoPagoCharge"];
     abandonMercadoPagoCharge?: CoreClient["abandonMercadoPagoCharge"];
@@ -340,10 +341,15 @@ function coreAnswering(
         ? { kind: "unavailable" }
         : sales.chargeSaleByTransfer(saleId, amount);
     },
-    async startMercadoPagoCharge(saleId, amount) {
+    async paymentMethodAvailability() {
+      return sales.paymentMethodAvailability === undefined
+        ? { qr: "available", point: "available", point_minimum: 1500 }
+        : sales.paymentMethodAvailability();
+    },
+    async startMercadoPagoCharge(saleId, method, amount) {
       return sales.startMercadoPagoCharge === undefined
         ? { kind: "unavailable" }
-        : sales.startMercadoPagoCharge(saleId, amount);
+        : sales.startMercadoPagoCharge(saleId, method, amount);
     },
     async followMercadoPagoCharge(paymentTransactionId) {
       return sales.followMercadoPagoCharge === undefined
@@ -1705,6 +1711,62 @@ describe("App", () => {
     await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
   });
 
+  it("reads which payment methods are available again whenever a pull finishes while the sale is charged", async () => {
+    const yerba = {
+      id: "line-1",
+      product_id: "p1",
+      product_name: "Yerba mate 1 kg",
+      sale_unit: "UNIT" as const,
+      weight_source: null,
+      quantity: 1,
+      list_unit_price: 238_000,
+      discount_amount: 0,
+      promotion: null,
+      manual_adjustment: null,
+      line_total: 238_000,
+    };
+    let availabilityReads = 0;
+    const { core, finishPull } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => GRACE_SESSION },
+      {
+        currentSale: async () => ({
+          id: "sale-1",
+          lines: [yerba],
+          total: 238_000,
+          paid: 0,
+          pending: 238_000,
+          lines_lock: null,
+          cancel_refusal: null,
+          charge_refusal: null,
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
+          adjust_authorization_required: false,
+          sale_discount_authorization_required: false,
+          sale_discount_refusal: null,
+          sale_discount: null,
+          subtotal: 238_000,
+        }),
+        paymentMethodAvailability: async () => {
+          availabilityReads += 1;
+          return { qr: "available", point: "available", point_minimum: 1500 };
+        },
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await resumeLockedRegister(screen);
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+    await expect.poll(() => availabilityReads).toBeGreaterThan(0);
+    const readsBefore = availabilityReads;
+
+    finishPull(null);
+
+    await expect.poll(() => availabilityReads).toBeGreaterThan(readsBefore);
+  });
+
   it("shows no line of the sale that was just charged by QR when a new sale starts", async () => {
     const yerba = {
       id: "line-1",
@@ -1748,7 +1810,7 @@ describe("App", () => {
               })
             : new Promise(() => {});
         },
-        startMercadoPagoCharge: async (_saleId, amount) => ({
+        startMercadoPagoCharge: async (_saleId, _method, amount) => ({
           kind: "order_shown",
           payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
           amount,
@@ -1824,7 +1886,7 @@ describe("App", () => {
               })
             : new Promise(() => {});
         },
-        startMercadoPagoCharge: async (_saleId, amount) => ({
+        startMercadoPagoCharge: async (_saleId, _method, amount) => ({
           kind: "order_shown",
           payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
           amount,
