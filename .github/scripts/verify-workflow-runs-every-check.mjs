@@ -17,8 +17,6 @@ const SIGN_IN_TO_GHCR_COMMAND =
 const SKOPEO_SIGN_IN_TO_GHCR =
   'echo "$GITHUB_TOKEN" | skopeo login ghcr.io --username "$GITHUB_ACTOR" --password-stdin';
 const COPY_RETRY_DELAYS_SECONDS = [0, 15, 30, 60];
-const PULL_ATTEMPT_SECONDS = 120;
-const PULL_RETRY_SECONDS = retrySeconds(PULL_ATTEMPT_SECONDS);
 const EXPECTED_MIRROR_OUTPUT = `\${{ steps.mirror.outputs.mirrored }}`;
 const CLOUD_POSTGRES_IMAGE = {
   label: "the cloud's Postgres image",
@@ -30,6 +28,7 @@ const CLOUD_POSTGRES_IMAGE = {
   lookupJob: "postgres-image",
   copyJob: "postgres-image-copy",
   copyAttemptSeconds: 300,
+  pullAttemptSeconds: 120,
 };
 const PLAYWRIGHT_IMAGE = {
   label: "the Playwright image",
@@ -39,11 +38,14 @@ const PLAYWRIGHT_IMAGE = {
   lookupJob: "playwright-image",
   copyJob: "playwright-image-copy",
   copyAttemptSeconds: 600,
+  // The runner's image store restarts every layer on each attempt, and this image is large.
+  pullAttemptSeconds: 300,
 };
 const PLAYWRIGHT_IMAGE_JOBS = {
   tests: { ...PLAYWRIGHT_IMAGE, job: "tests", testsScript: "verify:tests" },
   visual: { ...PLAYWRIGHT_IMAGE, job: "visual", testsScript: "verify:visual" },
 };
+const PRE_PULLED_IMAGES = [CLOUD_POSTGRES_IMAGE, ...Object.values(PLAYWRIGHT_IMAGE_JOBS)];
 
 function retrySeconds(attemptSeconds) {
   return COPY_RETRY_DELAYS_SECONDS.reduce((total, delay) => total + delay + attemptSeconds, 0);
@@ -75,11 +77,11 @@ function expectedCopyCondition(spec) {
   return `\${{ needs.${spec.lookupJob}.outputs.mirrored == 'false' }}`;
 }
 
-function pullWithRetriesCommand(imageEnv) {
+function pullWithRetriesCommand(spec) {
   return [
     "for delay in 0 15 30 60; do",
     '  sleep "$delay"',
-    `  timeout 120 docker pull "$${imageEnv}" && exit 0`,
+    `  timeout ${spec.pullAttemptSeconds} docker pull "$${spec.constant}" && exit 0`,
     "done",
     "exit 1",
   ].join("\n");
@@ -472,6 +474,18 @@ function declaredImage(setupSource, spec) {
   return new RegExp(`const ${spec.constant} =\\s*"([^"]+)";`).exec(setupSource)?.[1];
 }
 
+function testsStepIndex(doc, jobSteps, spec) {
+  return jobSteps.findIndex((step) => {
+    const run = resolveScalar(doc, mapGet(doc, step, "run"));
+    return typeof run === "string" && run.trim().startsWith(`pnpm ${spec.testsScript}`);
+  });
+}
+
+function isPullStepOf(doc, step, spec) {
+  const run = resolveScalar(doc, mapGet(doc, step, "run"));
+  return typeof run === "string" && run.trim() === pullWithRetriesCommand(spec);
+}
+
 // Testcontainers pulls an image the runner does not have yet with a single attempt, so a slow
 // registry would fail the whole job; the job pulls it first, retrying.
 function findPrePulledImageViolations(workflowSource, setupSource, spec) {
@@ -492,14 +506,10 @@ function findPrePulledImageViolations(workflowSource, setupSource, spec) {
 
   const doc = parseDocument(workflowSource);
   const jobSteps = steps(doc, jobNode(doc, spec.job));
-  const testsIndex = jobSteps.findIndex((step) => {
-    const run = resolveScalar(doc, mapGet(doc, step, "run"));
-    return typeof run === "string" && run.trim().startsWith(`pnpm ${spec.testsScript}`);
-  });
-  const pullStep = jobSteps.slice(0, Math.max(testsIndex, 0)).find((step) => {
-    const run = resolveScalar(doc, mapGet(doc, step, "run"));
-    return typeof run === "string" && run.trim() === pullWithRetriesCommand(spec.constant);
-  });
+  const testsIndex = testsStepIndex(doc, jobSteps, spec);
+  const pullStep = jobSteps
+    .slice(0, Math.max(testsIndex, 0))
+    .find((step) => isPullStepOf(doc, step, spec));
 
   const pullStepName = `verify.yml's ${spec.job} job pulls ${spec.label} in a step that`;
   if (pullStep === undefined) {
@@ -527,9 +537,9 @@ function findPrePulledImageViolations(workflowSource, setupSource, spec) {
       violations.push(
         `verify.yml's ${spec.job} job's pull step of ${spec.label} sets no timeout-minutes`,
       );
-    } else if (!(Number(pullMinutes) * 60 >= PULL_RETRY_SECONDS)) {
+    } else if (!(Number(pullMinutes) * 60 >= retrySeconds(spec.pullAttemptSeconds))) {
       violations.push(
-        `verify.yml's ${spec.job} job's pull step of ${spec.label} allows ${pullMinutes} minutes, less than the ${PULL_RETRY_SECONDS} seconds its pull attempts and their delays can take`,
+        `verify.yml's ${spec.job} job's pull step of ${spec.label} allows ${pullMinutes} minutes, less than the ${retrySeconds(spec.pullAttemptSeconds)} seconds its pull attempts and their delays can take`,
       );
     }
   }
@@ -726,6 +736,37 @@ export function findPlaywrightImageViolations(
   return violations;
 }
 
+export function findPrePulledJobTimeoutViolations(workflowSource) {
+  const doc = parseDocument(workflowSource);
+  const violations = [];
+  for (const jobId of new Set(PRE_PULLED_IMAGES.map((spec) => spec.job))) {
+    const job = jobNode(doc, jobId);
+    const pulled = PRE_PULLED_IMAGES.filter((spec) => spec.job === jobId);
+    const jobSteps = steps(doc, job);
+    const testsIndex = testsStepIndex(doc, jobSteps, pulled[0]);
+    if (testsIndex === -1) continue;
+    const testsStep = jobSteps[testsIndex];
+    const testsScript = pulled[0].testsScript;
+    if (!mapHas(doc, testsStep, "timeout-minutes")) {
+      violations.push(`verify.yml's ${jobId} job's ${testsScript} step sets no timeout-minutes`);
+      continue;
+    }
+    if (!mapHas(doc, job, "timeout-minutes")) continue;
+    const pullSeconds = pulled
+      .filter((spec) => jobSteps.some((step) => isPullStepOf(doc, step, spec)))
+      .reduce((total, spec) => total + retrySeconds(spec.pullAttemptSeconds), 0);
+    const neededSeconds =
+      pullSeconds + Number(resolveScalar(doc, mapGet(doc, testsStep, "timeout-minutes"))) * 60;
+    const jobMinutes = resolveScalar(doc, mapGet(doc, job, "timeout-minutes"));
+    if (!(Number(jobMinutes) * 60 >= neededSeconds)) {
+      violations.push(
+        `verify.yml's ${jobId} job allows ${jobMinutes} minutes, less than the ${neededSeconds} seconds its image pulls and its ${testsScript} step can take`,
+      );
+    }
+  }
+  return violations;
+}
+
 export function findPlaywrightInstallViolations(workflowSource) {
   const doc = parseDocument(workflowSource);
   const jobsNode = resolveNode(doc, doc.get("jobs", true));
@@ -769,6 +810,7 @@ export function checkRepository({
         job,
       ),
     ),
+    ...findPrePulledJobTimeoutViolations(workflowSource),
     ...findPlaywrightInstallViolations(workflowSource),
   ];
 }

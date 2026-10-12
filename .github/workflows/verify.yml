@@ -236,7 +236,7 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4, 5, 6]
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 47
     permissions:
       contents: read
       actions: read
@@ -280,17 +280,18 @@ jobs:
           POSTGRES_IMAGE: ghcr.io/ljguardiola/postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
 
       - name: Pull the Playwright image
-        timeout-minutes: 10
+        timeout-minutes: 22
         run: |
           for delay in 0 15 30 60; do
             sleep "$delay"
-            timeout 120 docker pull "$PLAYWRIGHT_SERVER_IMAGE" && exit 0
+            timeout 300 docker pull "$PLAYWRIGHT_SERVER_IMAGE" && exit 0
           done
           exit 1
         env:
           PLAYWRIGHT_SERVER_IMAGE: ghcr.io/ljguardiola/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
 
       - run: pnpm verify:tests --shard=${{ matrix.shard }}/6
+        timeout-minutes: 15
         env:
           TESTCONTAINERS_RYUK_DISABLED: "true"
           TEST_DURATIONS_DIR: ${{ runner.temp }}/test-durations
@@ -309,7 +310,7 @@ jobs:
     needs: [scope, playwright-image, playwright-image-copy]
     if: ${{ !cancelled() && needs.scope.outputs.catalog_changed != 'false' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 37
     permissions:
       contents: read
       packages: read
@@ -334,17 +335,18 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Pull the Playwright image
-        timeout-minutes: 10
+        timeout-minutes: 22
         run: |
           for delay in 0 15 30 60; do
             sleep "$delay"
-            timeout 120 docker pull "$PLAYWRIGHT_SERVER_IMAGE" && exit 0
+            timeout 300 docker pull "$PLAYWRIGHT_SERVER_IMAGE" && exit 0
           done
           exit 1
         env:
           PLAYWRIGHT_SERVER_IMAGE: ghcr.io/ljguardiola/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
 
       - run: pnpm verify:visual
+        timeout-minutes: 15
         env:
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
