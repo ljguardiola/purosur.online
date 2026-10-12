@@ -1976,8 +1976,10 @@ export const paymentTransactions = pgTable(
       sql`lower(${table.providerOrderId})`,
     ),
     check("payment_transactions_kind_check", sql`${table.kind} = 'SALE'`),
-    check("payment_transactions_method_check", sql`${table.method} = 'QR'`),
-    check("payment_transactions_provider_check", sql`${table.provider} = 'MERCADOPAGO_QR'`),
+    check(
+      "payment_transactions_method_provider_check",
+      sql`(${table.method} = 'QR' and ${table.provider} = 'MERCADOPAGO_QR') or (${table.method} = 'POINT' and ${table.provider} = 'MERCADOPAGO_POINT')`,
+    ),
     check("payment_transactions_amount_check", sql`${table.amount} > 0`),
     check(
       "payment_transactions_state_check",

@@ -631,6 +631,13 @@
       "when": 1791787270366,
       "tag": "0093_unclear_authorization_codes",
       "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1791802308627,
+      "tag": "0094_point_payment_transactions",
+      "breakpoints": true
     }
   ]
 }

@@ -51,13 +51,11 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
     if (row === undefined) {
       return null;
     }
-    return {
+    const transaction = {
       id: row.id,
       registerId: row.registerId,
       saleId: row.saleId,
       kind: "SALE",
-      method: "QR",
-      provider: "MERCADOPAGO_QR",
       amount: row.amount,
       state: row.state as PaymentTransactionState,
       needsReview: row.needsReview,
@@ -66,7 +64,10 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
       replaced: row.replaced,
       createdAt: row.createdAt,
       expiresAt: row.expiresAt,
-    };
+    } as const;
+    return row.method === "POINT"
+      ? { ...transaction, method: "POINT", provider: "MERCADOPAGO_POINT" }
+      : { ...transaction, method: "QR", provider: "MERCADOPAGO_QR" };
   }
 
   async recordPendingTransaction(transaction: MercadoPagoOrderTransaction): Promise<void> {
