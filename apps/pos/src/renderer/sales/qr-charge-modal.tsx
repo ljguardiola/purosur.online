@@ -17,16 +17,14 @@ import {
   mercadoPagoChargeRequestFrom,
   mercadoPagoChargeRequestSchema,
 } from "./mercado-pago-charge-form";
+import {
+  CHARGE_IN_PROGRESS_MESSAGE,
+  exceedsPendingMessage,
+  ORDER_FAILED_MESSAGE,
+  ORDER_UNREACHABLE_MESSAGE,
+} from "./mercado-pago-charge-messages";
 
 const REFUSED_MESSAGE = "Mercado Pago no pudo crear la orden. Cobrá con otro medio.";
-const UNREACHABLE_MESSAGE =
-  "No se pudo crear la orden porque la caja no llega a la nube. Cobrá con otro medio.";
-const IN_PROGRESS_MESSAGE = "Ya hay un cobro con Mercado Pago en curso para esta venta.";
-const FAILED_MESSAGE = "No se pudo crear la orden. Probá de nuevo.";
-
-function exceedsPendingMessage(pending: number): string {
-  return `No puede superar el saldo pendiente de ${formatCents(pending)}.`;
-}
 
 export type ShownQrOrder = Extract<StartMercadoPagoChargeOutcome, { kind: "order_shown" }>;
 
@@ -75,10 +73,10 @@ export function QrChargeModal({
           setNotice(REFUSED_MESSAGE);
           break;
         case "unreachable":
-          setNotice(UNREACHABLE_MESSAGE);
+          setNotice(ORDER_UNREACHABLE_MESSAGE);
           break;
         case "mercado_pago_charge_in_progress":
-          setNotice(IN_PROGRESS_MESSAGE);
+          setNotice(CHARGE_IN_PROGRESS_MESSAGE);
           break;
         case "empty_sale":
         case "zero_total":
@@ -93,7 +91,7 @@ export function QrChargeModal({
           onSessionInvalid();
           break;
         case "unavailable":
-          setNotice(FAILED_MESSAGE);
+          setNotice(ORDER_FAILED_MESSAGE);
           break;
       }
     },
