@@ -191,7 +191,12 @@ describe("SaleScreen editing the lines", () => {
     await expect.element(raise).toBeDisabled();
     await expect.element(screen.getByRole("button", { name: REMOVE_YERBA })).toBeDisabled();
     await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeDisabled();
-    answer.resolve({ kind: "changed", removed_manual_discount: false, removed_sale_discount: false, sale: SALE_OF_THREE_YERBAS });
+    answer.resolve({
+      kind: "changed",
+      removed_manual_discount: false,
+      removed_sale_discount: false,
+      sale: SALE_OF_THREE_YERBAS,
+    });
     await expect.element(raise).toBeEnabled();
     expect(changeLineQuantity).toHaveBeenCalledOnce();
   });

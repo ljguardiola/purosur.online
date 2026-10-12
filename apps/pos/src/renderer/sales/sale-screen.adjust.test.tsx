@@ -24,7 +24,11 @@ const DISCOUNTED_SALE: OpenSale = {
   total: 428_400,
   pending: 428_400,
 };
-const CHANGED: AdjustSaleLineOutcome = { kind: "changed", sale: DISCOUNTED_SALE, removed_sale_discount: false };
+const CHANGED: AdjustSaleLineOutcome = {
+  kind: "changed",
+  sale: DISCOUNTED_SALE,
+  removed_sale_discount: false,
+};
 
 async function applyTenPercent(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
   await userEvent.fill(screen.getByRole("textbox", { name: "Porcentaje de descuento" }), "10");

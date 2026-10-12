@@ -406,7 +406,12 @@ describe("SaleScreen weighing a product on the scale", () => {
 
     await scan(field, "7790001");
     await screen.getByRole("button", { name: "Cancelar" }).click();
-    answer.resolve({ kind: "added", removed_manual_discount: false, removed_sale_discount: false, sale: SALE_OF_QUESO });
+    answer.resolve({
+      kind: "added",
+      removed_manual_discount: false,
+      removed_sale_discount: false,
+      sale: SALE_OF_QUESO,
+    });
 
     await expect.element(lines).toHaveLength(1);
     await expect.element(lines.first()).toHaveAttribute("aria-current", "true");

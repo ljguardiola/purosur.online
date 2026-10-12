@@ -35,7 +35,12 @@ describe("SaleScreen reading a barcode reader's codes", () => {
   it("scans the same code each time the reader reads it", async () => {
     const scanProduct = vi
       .fn<SaleScreenProps["scanProduct"]>()
-      .mockResolvedValueOnce({ kind: "added", removed_manual_discount: false, removed_sale_discount: false, sale: SALE_OF_YERBA })
+      .mockResolvedValueOnce({
+        kind: "added",
+        removed_manual_discount: false,
+        removed_sale_discount: false,
+        sale: SALE_OF_YERBA,
+      })
       .mockResolvedValueOnce({
         kind: "added",
         removed_manual_discount: false,

@@ -639,7 +639,12 @@ describe("SaleScreen", () => {
 
       await scan(field, "7790001");
       await field.fill("77900");
-      answer.resolve({ kind: "added", removed_manual_discount: false, removed_sale_discount: false, sale: SALE_OF_YERBA });
+      answer.resolve({
+        kind: "added",
+        removed_manual_discount: false,
+        removed_sale_discount: false,
+        sale: SALE_OF_YERBA,
+      });
 
       await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
       await expect.element(field).toHaveValue("77900");
