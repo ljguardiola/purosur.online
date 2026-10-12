@@ -89,7 +89,7 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
   async recordAbandonment(fiscalDocumentId: string, abandonedAt: Date): Promise<void> {
     await this.db
       .update(fiscalRequests)
-      .set({ answerKind: "unclear", answeredAt: abandonedAt })
+      .set({ answerKind: "unclear", unclearCodes: [], answeredAt: abandonedAt })
       .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
   }
 
@@ -150,6 +150,7 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
           receivedAt: abandonedAt,
           notAfter: abandonedAt,
           answerKind: "unclear",
+          unclearCodes: [],
           answeredAt: abandonedAt,
         });
       } catch (error) {

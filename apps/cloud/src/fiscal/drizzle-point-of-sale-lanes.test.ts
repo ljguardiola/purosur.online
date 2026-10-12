@@ -52,6 +52,14 @@ beforeAll(async () => {
   );
 });
 
+async function storedUnclearCodes(fiscalDocumentId: string) {
+  const [row] = await db
+    .select({ unclearCodes: fiscalRequests.unclearCodes })
+    .from(fiscalRequests)
+    .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
+  return row?.unclearCodes;
+}
+
 function queuedDecisions() {
   return [...queuedUnclearOutcomes.keys()];
 }
@@ -236,6 +244,7 @@ describe("DrizzlePointOfSaleLanes", () => {
         authorizationCodeDueOn: null,
         rejectionCodes: null,
         rejectionClass: null,
+        unclearCodes: null,
         answeredAt: null,
         decision: null,
         decidedAt: null,
@@ -257,7 +266,7 @@ describe("DrizzlePointOfSaleLanes", () => {
 
       const recorded = await lanes.inPointOfSaleLane(7, async (lane) => {
         await lane.recordRequest(request);
-        await lane.recordAnswer(request.fiscalDocumentId, { kind: "unclear" }, ANSWERED_AT);
+        await lane.recordAnswer(request.fiscalDocumentId, { kind: "unclear" }, ANSWERED_AT, []);
         return lane.recordedRequest(otherRegisterId, request.fiscalDocumentId);
       });
 
@@ -313,7 +322,7 @@ describe("DrizzlePointOfSaleLanes", () => {
 
         const recorded = await lanes.inPointOfSaleLane(7, async (lane) => {
           await lane.recordRequest(request);
-          await lane.recordAnswer(request.fiscalDocumentId, answer, ANSWERED_AT);
+          await lane.recordAnswer(request.fiscalDocumentId, answer, ANSWERED_AT, []);
           return lane.recordedRequest(registerId, request.fiscalDocumentId);
         });
 
@@ -325,6 +334,83 @@ describe("DrizzlePointOfSaleLanes", () => {
         expect(row?.answeredAt).toEqual(ANSWERED_AT);
       },
     );
+
+    it("keeps the codes the tax authority gave with an unclear answer, recorded without a tax authority answer", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      const request = authorizationRequestRecord(registerId);
+
+      await lanes.inPointOfSaleLane(7, async (lane) => {
+        await lane.recordRequest(request);
+        await lane.recordAnswer(
+          request.fiscalDocumentId,
+          { kind: "unclear" },
+          ANSWERED_AT,
+          [600, 10016],
+        );
+      });
+
+      expect(await storedUnclearCodes(request.fiscalDocumentId)).toEqual([600, 10016]);
+    });
+
+    it("keeps the codes the tax authority gave with an unclear answer that counts as evidence", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      const request = authorizationRequestRecord(registerId);
+
+      await lanes.inPointOfSaleLane(7, async (lane) => {
+        await lane.recordRequest(request);
+        await lane.recordTaxAuthorityAnswer(
+          request.fiscalDocumentId,
+          { kind: "unclear" },
+          ANSWERED_AT,
+          null,
+          null,
+          [10016],
+        );
+      });
+
+      expect(await storedUnclearCodes(request.fiscalDocumentId)).toEqual([10016]);
+    });
+
+    it("keeps no codes for an unclear answer the tax authority gave none for", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      const request = authorizationRequestRecord(registerId);
+
+      await lanes.inPointOfSaleLane(7, async (lane) => {
+        await lane.recordRequest(request);
+        await lane.recordAnswer(request.fiscalDocumentId, { kind: "unclear" }, ANSWERED_AT, []);
+      });
+
+      expect(await storedUnclearCodes(request.fiscalDocumentId)).toEqual([]);
+    });
+
+    it("keeps no unclear codes for an answer that is not unclear", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      const request = authorizationRequestRecord(registerId);
+
+      await lanes.inPointOfSaleLane(7, async (lane) => {
+        await lane.recordRequest(request);
+        await lane.recordAnswer(
+          request.fiscalDocumentId,
+          { kind: "not_attempted" },
+          ANSWERED_AT,
+          [600],
+        );
+      });
+
+      expect(await storedUnclearCodes(request.fiscalDocumentId)).toBeNull();
+    });
   });
 
   describe("the answer the tax authority gave", () => {
@@ -343,6 +429,7 @@ describe("DrizzlePointOfSaleLanes", () => {
           ANSWERED_AT,
           null,
           null,
+          [],
         );
         return lane.recordedRequest(registerId, request.fiscalDocumentId);
       });
@@ -380,6 +467,7 @@ describe("DrizzlePointOfSaleLanes", () => {
             answeredAt,
             null,
             null,
+            [],
           );
         }
       });
@@ -403,6 +491,7 @@ describe("DrizzlePointOfSaleLanes", () => {
             ANSWERED_AT,
             null,
             null,
+            [],
           ),
         );
 
@@ -445,6 +534,7 @@ describe("DrizzlePointOfSaleLanes", () => {
           ANSWERED_AT,
           null,
           COUNT,
+          [],
         ),
       );
 
@@ -470,6 +560,7 @@ describe("DrizzlePointOfSaleLanes", () => {
             ANSWERED_AT,
             null,
             COUNT,
+            [],
           ),
         );
         await expect(recording).rejects.toThrow();
@@ -493,6 +584,7 @@ describe("DrizzlePointOfSaleLanes", () => {
           ANSWERED_AT,
           null,
           null,
+          [],
         ),
       );
 
@@ -521,6 +613,7 @@ describe("DrizzlePointOfSaleLanes", () => {
           ANSWERED_AT,
           OPEN_ALERT,
           null,
+          [],
         ),
       );
 
@@ -561,6 +654,7 @@ describe("DrizzlePointOfSaleLanes", () => {
           ANSWERED_AT,
           OPEN_ALERT,
           null,
+          [],
         );
         await lane.recordTaxAuthorityAnswer(
           next.fiscalDocumentId,
@@ -568,6 +662,7 @@ describe("DrizzlePointOfSaleLanes", () => {
           LATER_ANSWERED_AT,
           OPEN_ALERT,
           null,
+          [],
         );
       });
 
@@ -585,6 +680,7 @@ describe("DrizzlePointOfSaleLanes", () => {
           ANSWERED_AT,
           OPEN_ALERT,
           null,
+          [],
         );
         await lane.recordTaxAuthorityAnswer(
           next.fiscalDocumentId,
@@ -592,6 +688,7 @@ describe("DrizzlePointOfSaleLanes", () => {
           LATER_ANSWERED_AT,
           CLEAR_ALERT,
           null,
+          [],
         );
       });
 
@@ -609,6 +706,7 @@ describe("DrizzlePointOfSaleLanes", () => {
           ANSWERED_AT,
           null,
           null,
+          [],
         ),
       );
 
@@ -626,6 +724,7 @@ describe("DrizzlePointOfSaleLanes", () => {
             ANSWERED_AT,
             OPEN_ALERT,
             null,
+            [],
           ),
         );
 
@@ -650,7 +749,7 @@ describe("DrizzlePointOfSaleLanes", () => {
 
     await lanes.inPointOfSaleLane(7, async (lane) => {
       await lane.recordRequest(request);
-      await lane.recordAnswer(request.fiscalDocumentId, { kind: "unclear" }, ANSWERED_AT);
+      await lane.recordAnswer(request.fiscalDocumentId, { kind: "unclear" }, ANSWERED_AT, []);
     });
 
     expect(await recordedAnswerKind(request.fiscalDocumentId)).toEqual({
@@ -709,7 +808,7 @@ describe("DrizzlePointOfSaleLanes", () => {
         const fiscalDocumentId = await recordRequest(1);
 
         await lanes.inPointOfSaleLane(7, (lane) =>
-          lane.recordAnswer(fiscalDocumentId, answer, ANSWERED_AT),
+          lane.recordAnswer(fiscalDocumentId, answer, ANSWERED_AT, []),
         );
 
         expect(queuedUnclearOutcomes).toEqual(new Map([[fiscalDocumentId, ANSWERED_AT]]));
@@ -732,13 +831,14 @@ describe("DrizzlePointOfSaleLanes", () => {
         await lanes.inPointOfSaleLane(7, async (lane) => {
           await lane.recordRequest(plainlyAnswered);
           await lane.recordRequest(answeredByTheTaxAuthority);
-          await lane.recordAnswer(plainlyAnswered.fiscalDocumentId, answer, ANSWERED_AT);
+          await lane.recordAnswer(plainlyAnswered.fiscalDocumentId, answer, ANSWERED_AT, []);
           await lane.recordTaxAuthorityAnswer(
             answeredByTheTaxAuthority.fiscalDocumentId,
             answer,
             ANSWERED_AT,
             null,
             null,
+            [],
           );
         });
 
@@ -756,6 +856,7 @@ describe("DrizzlePointOfSaleLanes", () => {
           ANSWERED_AT,
           null,
           null,
+          [],
         ),
       );
 
@@ -774,6 +875,7 @@ describe("DrizzlePointOfSaleLanes", () => {
             ANSWERED_AT,
             null,
             null,
+            [],
           ),
         ),
       ).rejects.toThrow("the queue is down");
@@ -791,7 +893,7 @@ describe("DrizzlePointOfSaleLanes", () => {
 
       await expect(
         lanes.inPointOfSaleLane(7, (lane) =>
-          lane.recordAnswer(fiscalDocumentId, { kind: "not_attempted" }, ANSWERED_AT),
+          lane.recordAnswer(fiscalDocumentId, { kind: "not_attempted" }, ANSWERED_AT, []),
         ),
       ).rejects.toThrow("the queue is down");
 
