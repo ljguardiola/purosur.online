@@ -1,4 +1,5 @@
 import {
+  applyUnclearOutcomeDecisions,
   type RealTimeTaxAuthority,
   recordRegisterHealthCheck,
   settleInterruptedRealTimeAuthorizations,
@@ -11,6 +12,7 @@ import {
 import type { LocalDatabase } from "../platform/local-database";
 import { checkRegisterHealth } from "./check-register-health";
 import { CloudRealTimeTaxAuthority } from "./cloud-real-time-tax-authority";
+import { CloudUnclearOutcomeDecisions } from "./cloud-unclear-outcome-decisions";
 import { authorizeSaleInRealTime } from "./real-time-sale-authorization";
 import { startRegisterHealthMonitor } from "./register-health-monitor";
 import { SqliteRealTimeFiscalDocuments } from "./sqlite-real-time-fiscal-documents";
@@ -92,14 +94,29 @@ export function startRegisterHealthChecks({
     return undefined;
   }
   const healthChecks = new SqliteRegisterHealthChecks(database);
+  const documents = new SqliteRealTimeFiscalDocuments(database);
+  const cloud = new CloudUnclearOutcomeDecisions({
+    readDeviceToken,
+    post: (path, bearerToken, body, options) =>
+      postToCloudWithBearer(cloudClient, path, bearerToken, body, options),
+  });
   return startRegisterHealthMonitor({
-    check: () =>
-      checkRegisterHealth({
+    check: async () => {
+      await checkRegisterHealth({
         readDeviceToken,
         get: (path, headers, options) => getFromCloud(cloudClient, path, headers, options),
         record: (check) => recordRegisterHealthCheck({ healthChecks }, check),
         now,
-      }),
+      }).catch(reportFailure);
+      const { failed } = await applyUnclearOutcomeDecisions({
+        documents,
+        cloud,
+        clock: { now },
+      });
+      for (const { error } of failed) {
+        reportFailure(error);
+      }
+    },
     scheduleNext,
     onFailure: reportFailure,
   });

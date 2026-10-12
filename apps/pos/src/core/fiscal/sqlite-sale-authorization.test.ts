@@ -94,6 +94,42 @@ describe("deciding how a completed sale is authorized, in the local database", (
       expect(documents().map((row) => (row as { number: number }).number)).toEqual([45, 46]);
     });
 
+    it("reserves again the number of a released document", () => {
+      insertCompletedSale(database, "sale-0");
+      insertFiscalDocument(database, {
+        id: "doc-0",
+        saleId: "sale-0",
+        number: 41,
+        state: "RELEASED",
+      });
+
+      decide();
+
+      expect(
+        documents().map((row) => ({
+          id: (row as { id: string }).id,
+          number: (row as { number: number }).number,
+        })),
+      ).toEqual([
+        { id: "doc-0", number: 41 },
+        { id: "doc-new", number: 41 },
+      ]);
+    });
+
+    it("never reserves again the number of a conflicting document", () => {
+      insertCompletedSale(database, "sale-0");
+      insertFiscalDocument(database, {
+        id: "doc-0",
+        saleId: "sale-0",
+        number: 41,
+        state: "CONFLICTING",
+      });
+
+      decide();
+
+      expect(documents().map((row) => (row as { number: number }).number)).toEqual([41, 42]);
+    });
+
     it("leaves a rejected number out of the register's own count", () => {
       insertCompletedSale(database, "sale-0");
       insertFiscalDocument(database, {
