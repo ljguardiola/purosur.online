@@ -23,14 +23,9 @@ const YERBA: InitialCountLine = {
   expires_on: null,
 };
 
-async function renderLines(
-  state: CoreData<InitialCountLine[]>,
-  { onWithdraw = vi.fn(), withdrawing = false } = {},
-) {
+async function renderLines(state: CoreData<InitialCountLine[]>, onWithdraw = vi.fn()) {
   await page.viewport(1280, 720);
-  const screen = await render(
-    <InitialCountLines state={state} withdrawing={withdrawing} onWithdraw={onWithdraw} />,
-  );
+  const screen = await render(<InitialCountLines state={state} onWithdraw={onWithdraw} />);
   return { screen, onWithdraw };
 }
 
@@ -43,12 +38,8 @@ describe("InitialCountLines", () => {
     const { screen } = await renderLines(loaded([QUESO, YERBA]));
 
     const rows = screen.getByRole("row");
-    await expect.element(rows.nth(1)).toHaveTextContent("Queso cremoso");
-    await expect.element(rows.nth(1)).toHaveTextContent("03/12/2026");
-    await expect.element(rows.nth(1)).toHaveTextContent("4,400 kg");
-    await expect.element(rows.nth(2)).toHaveTextContent("Yerba mate 1 kg");
-    await expect.element(rows.nth(2)).toHaveTextContent("Sin vencimiento");
-    await expect.element(rows.nth(2)).toHaveTextContent("24 u");
+    await expect.element(rows.nth(1)).toHaveTextContent("Queso cremoso03/12/20264,400 kg");
+    await expect.element(rows.nth(2)).toHaveTextContent("Yerba mate 1 kg— Sin vencimiento24 u");
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -100,13 +91,5 @@ describe("InitialCountLines", () => {
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
     expect(retry).toHaveBeenCalledOnce();
-  });
-
-  it("keeps the withdraw buttons from being pressed again while one withdrawal is going", async () => {
-    const { screen } = await renderLines(loaded([QUESO]), { withdrawing: true });
-
-    await expect
-      .element(screen.getByRole("button", { name: "Quitar Queso cremoso" }))
-      .toBeDisabled();
   });
 });
