@@ -81,7 +81,6 @@ export type {
   ReadSerialDevicesPorts,
 } from "./read-serial-devices.js";
 export { readSerialDevices } from "./read-serial-devices.js";
-export type { ReceiptPrinterReplacement } from "./receipt-printer-replacement.js";
 export type { ReceiptPrinterSettings } from "./receipt-printer-settings.js";
 export type {
   RecordCashMovementGrant,

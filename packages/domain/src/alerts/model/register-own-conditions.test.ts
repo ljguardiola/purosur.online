@@ -17,6 +17,7 @@ function minutesBefore(instant: Date, minutes: number): Date {
 function conditions(overrides: Partial<Parameters<typeof registerOwnConditions>[0]> = {}) {
   return registerOwnConditions({
     salesStop: { stopped: false },
+    latestPreEmissionGate: { kind: "passed" },
     lastAcceptedPushAt: minutesBefore(NOW, 1),
     hours: HOURS,
     now: NOW,
@@ -26,10 +27,11 @@ function conditions(overrides: Partial<Parameters<typeof registerOwnConditions>[
 }
 
 describe("REGISTER_OWN_CONDITIONS", () => {
-  it("names the revoked installation first, then the sales denial, the silent register and the missing serial device", () => {
+  it("names the revoked installation first, then the sales denial, the stopped fiscal emission, the silent register and the missing serial device", () => {
     expect(REGISTER_OWN_CONDITIONS).toEqual([
       "installation_revoked",
       "sales_denied",
+      "fiscal_emission_stopped",
       "register_silent",
       "serial_device_missing",
     ]);
@@ -58,6 +60,52 @@ describe("registerOwnConditions", () => {
 
   it("does not hold sales_denied for a register stopped for a reason it did not record", () => {
     expect(conditions({ salesStop: { stopped: true, reason: undefined } })).toEqual([]);
+  });
+
+  it("holds fiscal_emission_stopped while the latest pre-emission check failed", () => {
+    expect(
+      conditions({ latestPreEmissionGate: { kind: "failed", reason: "legal_name_missing" } }),
+    ).toEqual([{ kind: "fiscal_emission_stopped" }]);
+  });
+
+  it("does not hold fiscal_emission_stopped for a register that never evaluated the pre-emission check", () => {
+    expect(conditions({ latestPreEmissionGate: undefined })).toEqual([]);
+  });
+
+  it("lists fiscal_emission_stopped before register_silent", () => {
+    expect(
+      conditions({
+        latestPreEmissionGate: { kind: "failed", reason: "legal_name_missing" },
+        lastAcceptedPushAt: minutesBefore(NOW, 60),
+      }),
+    ).toEqual([{ kind: "fiscal_emission_stopped" }, { kind: "register_silent" }]);
+  });
+
+  it("does not hold fiscal_emission_stopped while sales are denied, whatever the latest pre-emission check", () => {
+    expect(
+      conditions({
+        salesStop: { stopped: true, reason: "event_history_broken" },
+        latestPreEmissionGate: { kind: "failed", reason: "legal_name_missing" },
+      }),
+    ).toEqual([{ kind: "sales_denied", reason: "event_history_broken" }]);
+  });
+
+  it("does not hold fiscal_emission_stopped for a revoked installation, whatever the latest pre-emission check", () => {
+    expect(
+      conditions({
+        salesStop: { stopped: true, reason: "installation_revoked" },
+        latestPreEmissionGate: { kind: "failed", reason: "legal_name_missing" },
+      }),
+    ).toEqual([{ kind: "installation_revoked" }]);
+  });
+
+  it("does not hold fiscal_emission_stopped while sales are stopped for a reason it did not record", () => {
+    expect(
+      conditions({
+        salesStop: { stopped: true, reason: undefined },
+        latestPreEmissionGate: { kind: "failed", reason: "legal_name_missing" },
+      }),
+    ).toEqual([]);
   });
 
   it("holds only installation_revoked for a revoked installation, however long since its last accepted push", () => {

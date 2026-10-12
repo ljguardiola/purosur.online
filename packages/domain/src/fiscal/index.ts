@@ -40,6 +40,14 @@ export {
   isFiscalAddressStreetAddressTooLong,
   isSameFiscalAddressName,
 } from "./model/fiscal-address.js";
+export type {
+  FiscalEmissionStoppedReport,
+  LatestPreEmissionGateOutcome,
+} from "./model/fiscal-emission-stop.js";
+export {
+  fiscalEmissionStoppedReportOf,
+  fiscalEmissionStopReasonOf,
+} from "./model/fiscal-emission-stop.js";
 export type { FiscalOnlineSignalEvidence } from "./model/fiscal-online-signal.js";
 export { REGISTER_HEALTH_CHECK_INTERVAL_MS } from "./model/fiscal-online-signal.js";
 export type {

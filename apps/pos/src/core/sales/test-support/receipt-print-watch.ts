@@ -5,7 +5,6 @@ type Status = Parameters<ReceiptPrintWatch["onStatus"]>[0];
 export class ReceiptPrintObserver {
   readonly statuses: Status[] = [];
   readonly abort = new AbortController();
-  readonly withdraw = new AbortController();
   private waiters: Array<() => void> = [];
 
   readonly watch: ReceiptPrintWatch = {
@@ -16,7 +15,6 @@ export class ReceiptPrintObserver {
       for (const wake of waiters) wake();
     },
     signal: this.abort.signal,
-    withdrawal: this.withdraw.signal,
   };
 
   async whenStatusCount(count: number): Promise<void> {

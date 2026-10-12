@@ -5,12 +5,12 @@ import { reprintSaleReceipt } from "./reprint-sale-receipt.js";
 import { FakeOperationAuthority } from "./test-support/fake-operation-authority.js";
 import { textOf } from "./test-support/fake-receipt-template.js";
 import {
-  ACKNOWLEDGED_AT,
   AUTHORIZED_GRANT,
   completedSale,
   FIRST_PRINT_AT,
   NOT_PERMITTED,
   receiptRig,
+  SENT_AT,
 } from "./test-support/receipt-rig.js";
 
 const INPUT = { saleId: "sale-1", reason: "el cliente la perdió" };
@@ -63,8 +63,8 @@ describe("reprintSaleReceipt", () => {
     const rig = receiptRig([{ ...sale, source: { ...sale.source, fiscal: { kind: "awaiting" } } }]);
 
     const printing = reprintSaleReceipt(rig.ports, INPUT, rig.watch);
-    await rig.printer.whenSent();
-    rig.printer.acknowledge();
+    await rig.printer.whenWaiting();
+    rig.printer.becomeReady();
 
     expect(await printing).toEqual({
       kind: "printed",
@@ -80,13 +80,13 @@ describe("reprintSaleReceipt", () => {
       { saleId: "sale-1", reason: "  se mojó \n" },
       rig.watch,
     );
-    await rig.printer.whenSent();
+    await rig.printer.whenWaiting();
+    rig.printer.becomeReady();
 
     expect(rig.printer.sent[0]?.ledgerStateWhenSent.sales[0]?.reprints[0]?.reason).toEqual({
       kind: "requested",
       text: "se mojó",
     });
-    rig.printer.acknowledge();
     await printing;
   });
 
@@ -94,7 +94,8 @@ describe("reprintSaleReceipt", () => {
     const rig = receiptRig();
 
     const printing = reprintSaleReceipt(rig.ports, INPUT, rig.watch);
-    await rig.printer.whenSent();
+    await rig.printer.whenWaiting();
+    rig.printer.becomeReady();
 
     const atSend = rig.printer.sent[0]?.ledgerStateWhenSent;
     expect(atSend?.sales[0]?.printAttemptedAt).toEqual(FIRST_PRINT_AT);
@@ -105,11 +106,10 @@ describe("reprintSaleReceipt", () => {
     expect(textOf(rig.printer.sent[0]?.bytes ?? new Uint8Array())).toBe(
       "HEAD[v1] total 6750\nBODY 1 lines\n",
     );
-    rig.printer.acknowledge();
     expect(await printing).toEqual({ kind: "printed", copy: { kind: "original" } });
   });
 
-  it("records the reprint with the typed reason and who authorized it before sending the duplicate", async () => {
+  it("records the reprint with the typed reason and who authorized it as it sends the duplicate", async () => {
     const authority = new FakeOperationAuthority<ReceiptPrintGrant, typeof NOT_PERMITTED>({
       kind: "granted",
       grant: AUTHORIZED_GRANT,
@@ -118,10 +118,11 @@ describe("reprintSaleReceipt", () => {
       [completedSale({ printAttemptedAt: FIRST_PRINT_AT, printedAt: FIRST_PRINT_AT })],
       authority,
     );
-    rig.clock.set(ACKNOWLEDGED_AT);
+    rig.clock.set(SENT_AT);
 
     const printing = reprintSaleReceipt(rig.ports, INPUT, rig.watch);
-    await rig.printer.whenSent();
+    await rig.printer.whenWaiting();
+    rig.printer.becomeReady();
 
     const atSend = rig.printer.sent[0]?.ledgerStateWhenSent;
     expect(atSend?.sales[0]?.reprints).toEqual([
@@ -131,7 +132,7 @@ describe("reprintSaleReceipt", () => {
         requestedBy: "cashier",
         authorizedBy: "supervisor",
         reason: { kind: "requested", text: "el cliente la perdió" },
-        occurredAt: ACKNOWLEDGED_AT,
+        occurredAt: SENT_AT,
       },
     ]);
     expect(atSend?.outbox).toEqual([
@@ -149,14 +150,13 @@ describe("reprintSaleReceipt", () => {
           reason_kind: "requested",
           reason_text: "el cliente la perdió",
         },
-        occurred_at: ACKNOWLEDGED_AT.toISOString(),
+        occurred_at: SENT_AT.toISOString(),
         actor_id: "cashier",
       },
     ]);
     expect(textOf(rig.printer.sent[0]?.bytes ?? new Uint8Array())).toBe(
       "HEAD[v1] total 6750\nDUPLICATE 1\nBODY 1 lines\n",
     );
-    rig.printer.acknowledge();
     expect(await printing).toEqual({
       kind: "printed",
       copy: { kind: "duplicate", orderNumber: 1 },
@@ -165,19 +165,19 @@ describe("reprintSaleReceipt", () => {
     expect(rig.ledger.state.outbox).toHaveLength(1);
   });
 
-  it("answers withdrawn and keeps the printed time unset when the printer withdraws the reprint", async () => {
+  it("answers abandoned and records nothing when the print is abandoned before the printer was ready", async () => {
     const rig = receiptRig([completedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
 
     const printing = reprintSaleReceipt(rig.ports, INPUT, rig.watch);
-    await rig.printer.whenSent();
-    rig.printer.withdraw();
+    await rig.printer.whenWaiting();
+    rig.printer.abandon();
 
     expect(await printing).toEqual({
-      kind: "withdrawn",
+      kind: "abandoned",
       copy: { kind: "duplicate", orderNumber: 1 },
     });
-    expect(rig.ledger.state.sales[0]?.printedAt).toBeNull();
-    expect(rig.ledger.state.sales[0]?.reprints).toHaveLength(1);
+    expect(rig.ledger.state.sales[0]?.reprints).toEqual([]);
+    expect(rig.ledger.state.outbox).toEqual([]);
   });
 
   it("numbers successive reprints 1, 2 and 3", async () => {
@@ -185,10 +185,10 @@ describe("reprintSaleReceipt", () => {
 
     for (let round = 1; round <= 3; round += 1) {
       const printing = reprintSaleReceipt(rig.ports, INPUT, rig.watch);
-      await rig.printer.whenSent(round);
-      rig.printer.abandon();
+      await rig.printer.whenWaiting(round);
+      rig.printer.becomeReady();
       expect(await printing).toEqual({
-        kind: "abandoned",
+        kind: "printed",
         copy: { kind: "duplicate", orderNumber: round },
       });
     }

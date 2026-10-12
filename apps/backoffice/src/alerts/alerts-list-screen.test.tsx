@@ -816,6 +816,30 @@ test("names a quiet register's alert by its fixed title, with what it means and 
     .toBeVisible();
 });
 
+test("names a register's stopped fiscal emission by its fixed title, with what it means and what to do", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...passkeyAlert,
+        kind: "fiscal_emission_stopped",
+        level: "critical",
+        audience: "local",
+        scopeDisplay: "Caja 1",
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Caja 1/ });
+  await expect.element(row.getByText("Emisión de facturas detenida")).toBeVisible();
+  await expect
+    .element(row.getByText(/Esta caja no puede emitir ningún comprobante fiscal/))
+    .toBeVisible();
+  await expect.element(row.getByText(/Seguir vendiendo igual/)).toBeVisible();
+});
+
 test.each([
   [
     "event_history_broken",

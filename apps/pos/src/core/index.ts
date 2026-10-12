@@ -20,6 +20,7 @@ import {
   settleInterruptedAuthorizations,
   startRegisterHealthChecks,
 } from "./fiscal/real-time-authorization-wiring";
+import { readLatestPreEmissionGateOutcome } from "./fiscal/sqlite-pre-emission-gate";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
 import { createMercadoPagoQrCharging } from "./payments/mercado-pago-qr-charge-wiring";
 import {
@@ -321,6 +322,7 @@ const syncSchedule = createSyncSchedule({
                       storageTelemetryReader(localDatabase.name, nodeStorageFileSystem),
                       () => salesStopOf(localDatabase),
                       () => serialDevicesReportOf(serialDeviceWatch.reading()),
+                      () => readLatestPreEmissionGateOutcome(localDatabase),
                     ),
               acceptedPush:
                 localDatabase === undefined
@@ -790,17 +792,7 @@ const rendererRequestDeps: RendererRequestDeps = {
   setReceiptPrinter:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (address) =>
-          setReceiptPrinterFor(
-            {
-              database: localDatabase,
-              gate: actionGate,
-              replacement: {
-                receiptPrinterReplaced: () => receiptPrinting.withdrawHeldReceipts?.(),
-              },
-            },
-            address,
-          ),
+      : (address) => setReceiptPrinterFor({ database: localDatabase, gate: actionGate }, address),
   readSerialDevices:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -823,7 +815,6 @@ const rendererRequestDeps: RendererRequestDeps = {
             devices,
           ),
   receiptPrintStatus: receiptPrinting.receiptPrintStatus,
-  retryReceiptPrint: receiptPrinting.retryReceiptPrint,
   reprintSaleReceipt: receiptPrinting.reprintSaleReceipt,
   reportFailure,
 };

@@ -1,5 +1,6 @@
 import type {
   FiscalDocumentType,
+  PreEmissionGateFailureReason,
   RejectionClass,
   TaxAuthorityRejection,
 } from "../../fiscal/index.js";
@@ -138,6 +139,11 @@ interface FiscalUnknownDetail {
   unclearSince: string;
 }
 
+interface FiscalEmissionStoppedDetail {
+  deviceId: string;
+  reason: PreEmissionGateFailureReason;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -157,6 +163,7 @@ export interface AlertDetails {
   late_payment_refund: LatePaymentRefundDetail;
   refund_task: RefundTaskDetail;
   fiscal_unknown: FiscalUnknownDetail;
+  fiscal_emission_stopped: FiscalEmissionStoppedDetail;
 }
 
 export type OpenAlertInput = {

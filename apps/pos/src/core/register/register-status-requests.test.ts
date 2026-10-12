@@ -5,7 +5,13 @@ import {
   type SerialDeviceRole,
   type SerialDeviceStanding,
 } from "@purosur/domain";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { insertPreEmissionGateOutcome } from "../fiscal/sqlite-pre-emission-gate";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
@@ -121,6 +127,46 @@ function statusWatchedBy(watch: SerialDeviceWatch) {
   });
 }
 
+function recordGateOutcome(saleId: string, minutesAgo: number, passed: boolean): void {
+  const occurredAt = new Date(NOW.getTime() - minutesAgo * MINUTE_MS);
+  database
+    .prepare(
+      `INSERT OR IGNORE INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+       VALUES ('session-1', 'register-1', 'device-1', 'cashier', ?, 0, 'OPEN')`,
+    )
+    .run(new Date(NOW.getTime() - 60 * MINUTE_MS).toISOString());
+  database
+    .prepare(
+      "INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at) VALUES (?, 'register-1', 'device-1', 'session-1', 'cashier', 'COMPLETED', ?)",
+    )
+    .run(saleId, occurredAt.toISOString());
+  insertPreEmissionGateOutcome(database, {
+    saleId,
+    evaluatedAt: occurredAt,
+    outcome: passed
+      ? {
+          kind: "passed",
+          document: {
+            invoiceClass: "C",
+            total: 5900,
+            netAmount: 5900,
+            vatAmount: 0,
+            issuer: {
+              legalName: FICTIONAL_LEGAL_NAME,
+              cuit: FICTIONAL_CUIT,
+              taxStatus: "Condicion de prueba",
+              grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+              activityStartDate: "2020-01-15",
+              version: 1,
+            },
+            buyerTaxStatusCode: 5,
+            buyerTaxStatusDescription: "Consumidor Final",
+          },
+        }
+      : { kind: "failed", reason: "legal_name_missing" },
+  });
+}
+
 describe("the register's status", () => {
   it("holds no condition for a register that sells and has never had a push accepted", async () => {
     expect(await status()).toEqual({
@@ -137,6 +183,22 @@ describe("the register's status", () => {
     expect((await status()).conditions).toEqual([
       { kind: "sales_denied", reason: "event_history_broken" },
     ]);
+  });
+
+  it("holds fiscal_emission_stopped, with the cloud unreachable, while the latest sale failed the pre-emission check", async () => {
+    recordGateOutcome("sale-1", 10, false);
+
+    expect(await status("unreachable")).toMatchObject({
+      conditions: [{ kind: "fiscal_emission_stopped" }],
+      cloud: "unreachable",
+    });
+  });
+
+  it("drops fiscal_emission_stopped as soon as a later sale passes the pre-emission check", async () => {
+    recordGateOutcome("sale-1", 10, false);
+    recordGateOutcome("sale-2", 5, true);
+
+    expect((await status()).conditions).toEqual([]);
   });
 
   it("holds only installation_revoked once the cloud revoked the installation, with the cloud unreachable", async () => {

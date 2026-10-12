@@ -92,6 +92,17 @@ test("gives the refund of a cancelled sale left pending its title, what it means
   expect(localAlertTitle("refund_task")).toBe("Reembolso pendiente de confirmar");
 });
 
+test("gives a register whose fiscal emission is stopped its title, what it means and what to do", () => {
+  expect(localAlertText({ kind: "fiscal_emission_stopped" })).toEqual({
+    title: "Emisión de facturas detenida",
+    meaning:
+      "Esta caja no puede emitir ningún comprobante fiscal por ahora, ni siquiera el de contingencia.",
+    whatToDo:
+      "Seguir vendiendo igual: se cobra la venta, se entrega al cliente el papel que indica que todavía no es la factura y que debe conservarlo, y la factura se emite sola más adelante. El Administrador ya fue avisado.",
+  });
+  expect(localAlertTitle("fiscal_emission_stopped")).toBe("Emisión de facturas detenida");
+});
+
 test("gives no title to a kind that has none, nor to one this app does not know yet", () => {
   expect(localAlertTitle("update_required")).toBeUndefined();
   expect(localAlertTitle("register_battery_low")).toBeUndefined();
@@ -119,6 +130,7 @@ test("knows the kinds that have a fixed text", () => {
   expect(isLocalAlertKind("serial_device_missing")).toBe(true);
   expect(isLocalAlertKind("late_payment_refund")).toBe(true);
   expect(isLocalAlertKind("refund_task")).toBe(true);
+  expect(isLocalAlertKind("fiscal_emission_stopped")).toBe(true);
 });
 
 test("does not know a kind that has none, nor a member every object has", () => {
@@ -134,5 +146,6 @@ test("names exactly the kinds that have a fixed text", () => {
     | "serial_device_missing"
     | "late_payment_refund"
     | "refund_task"
+    | "fiscal_emission_stopped"
   >();
 });

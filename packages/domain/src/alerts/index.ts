@@ -11,6 +11,7 @@ export {
   fiscalRejectionAlertObservation,
   offlineAuthorizationCodeHeldObservation,
   offlineAuthorizationCodeMissingObservation,
+  registerFiscalEmissionObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,

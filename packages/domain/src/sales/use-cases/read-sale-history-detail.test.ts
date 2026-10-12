@@ -5,7 +5,7 @@ import {
   type FakeHistorySale,
   FakeRegisterSalesHistory,
 } from "./test-support/fake-register-sales-history.js";
-import { ACKNOWLEDGED_AT, completedSale, FIRST_PRINT_AT } from "./test-support/receipt-rig.js";
+import { completedSale, FIRST_PRINT_AT, SENT_AT } from "./test-support/receipt-rig.js";
 
 function historySale(
   overrides: Partial<NonNullable<FakeHistorySale["record"]>> = {},
@@ -76,7 +76,7 @@ describe("readSaleHistoryDetail", () => {
       sales: [
         completedSale({
           printAttemptedAt: FIRST_PRINT_AT,
-          printedAt: ACKNOWLEDGED_AT,
+          printedAt: SENT_AT,
           reprints: [
             {
               saleId: "sale-1",
@@ -84,7 +84,7 @@ describe("readSaleHistoryDetail", () => {
               requestedBy: "cashier",
               authorizedBy: null,
               reason: { kind: "retry" },
-              occurredAt: ACKNOWLEDGED_AT,
+              occurredAt: SENT_AT,
             },
           ],
         }),

@@ -90,6 +90,7 @@ export interface AlertStoreTransaction {
   lockOpenAlertOfKey(kind: AlertKind, scope: string): Promise<LockedConditionAlert | undefined>;
   recordConditionCleared(alertId: string, clearedAt: Date): Promise<void>;
   recordConditionHolding(alertId: string): Promise<void>;
+  recordConditionDetail(alertId: string, detail: Record<string, unknown>): Promise<void>;
   lockClearedConditionAlerts(): Promise<ClearedConditionAlert[]>;
 }
 

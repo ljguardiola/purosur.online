@@ -65,6 +65,7 @@ import {
   useRefreshAlerts,
   useRefreshAlertsAfterClosing,
 } from "./alerts-queries";
+import { preEmissionCheckReasonLabel } from "./pre-emission-check-reason-label";
 import {
   invariantViolationDescription,
   quarantinedEventDescription,
@@ -299,6 +300,7 @@ function alertTitle(alert: AlertDetail): string {
     case "fiscal_rejected":
     case "offline_authorization_code_missing":
     case "fiscal_unknown":
+    case "fiscal_emission_stopped":
       return alertKindDescription(alert.kind);
     case "late_payment_refund":
       return "Reembolso pendiente por un pago tardío";
@@ -369,6 +371,7 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return "Cada venta de este punto de venta queda diferida hasta corregir la causa que indica ARCA.";
     case "register_silent":
     case "sales_denied":
+    case "fiscal_emission_stopped":
     case "late_payment_refund":
     case "refund_task":
       return "";
@@ -432,6 +435,16 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
   if (alert.kind === "late_payment_refund") {
     return (
       <LocalAlertExplanation kind={alert.kind} providerOrderId={alert.detail.providerOrderId} />
+    );
+  }
+  if (alert.kind === "fiscal_emission_stopped") {
+    return (
+      <>
+        <LocalAlertExplanation kind={alert.kind} />
+        <p className="text-text text-detail">
+          Motivo: {preEmissionCheckReasonLabel(alert.detail.reason)}
+        </p>
+      </>
     );
   }
   return <LocalAlertExplanation kind={alert.kind} />;
