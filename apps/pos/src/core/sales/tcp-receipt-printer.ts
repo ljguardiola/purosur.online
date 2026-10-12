@@ -13,13 +13,15 @@ const POLL_INTERVAL_MS = 500;
 const CONNECT_LIMIT_MS = 3000;
 const UNANSWERED_POLLS_BEFORE_SILENCE = 2;
 
-// DLE EOT 2: real-time transmit of the paper sensor status.
+// DLE EOT 2: real-time transmit of the offline cause status.
 const STATUS_QUERY = Uint8Array.of(0x10, 0x04, 0x02);
 // A status byte always has bit0=0, bit1=1, bit4=1 and bit7=0.
 const STATUS_FIXED_BITS_MASK = 0x93;
 const STATUS_FIXED_BITS = 0x12;
 const COVER_OPEN_BIT = 0x04;
 const PAPER_END_BIT = 0x20;
+const FEED_BUTTON_BIT = 0x08;
+const ERROR_BIT = 0x40;
 
 export interface PrinterSocket {
   on(event: "connect", listener: () => void): unknown;
@@ -50,6 +52,7 @@ const realTimers: PrinterTimers = {
 function statusOf(byte: number): PrinterStatus {
   if ((byte & COVER_OPEN_BIT) !== 0) return "cover_open";
   if ((byte & PAPER_END_BIT) !== 0) return "paper_out";
+  if ((byte & (FEED_BUTTON_BIT | ERROR_BIT)) !== 0) return "not_responding";
   return "ready";
 }
 
