@@ -681,7 +681,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
       : {}),
     ...(database
       ? {
-          mercadoPagoQr: {
+          mercadoPagoOrders: {
             connections: database.recovery.connections,
             ...(mercadoPago ? { mercadoPago } : {}),
           },

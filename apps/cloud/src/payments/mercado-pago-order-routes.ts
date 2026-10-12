@@ -1,13 +1,16 @@
 import {
   cloudError,
   cloudErrorStatus,
+  type MercadoPagoCancellationBody,
   type MercadoPagoPaymentBody,
+  mercadoPagoCancellationSchema,
   mercadoPagoOrderRequestSchema,
   mercadoPagoPaymentSchema,
 } from "@purosur/contracts";
 import type { MercadoPagoOrderTransaction } from "@purosur/domain";
 import {
   cancelMercadoPagoOrder,
+  createMercadoPagoPointOrder,
   createMercadoPagoQrOrder,
   type MercadoPagoOrders,
   readMercadoPagoOrderPayment,
@@ -30,7 +33,7 @@ import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
 import { DrizzlePaymentTransactionLanes } from "./drizzle-payment-transaction-lanes.js";
 import { randomMercadoPagoCancellationKeys } from "./mercado-pago-cancellation-keys.js";
 
-export type MercadoPagoQrRoutesOptions<TQueryResult extends PgQueryResultHKT> =
+export type MercadoPagoOrderRoutesOptions<TQueryResult extends PgQueryResultHKT> =
   DeviceTokensOptions<TQueryResult> & {
     connections: DedicatedConnections<TQueryResult>;
     mercadoPago?: MercadoPagoOrders;
@@ -59,6 +62,10 @@ const REQUEST_MISMATCH = cloudError(
 );
 const PAYMENT_NOT_OWNED = cloudError("not_found", "that payment is not this register's");
 const INVALID_AMOUNT = cloudError("validation_failed", "amount must be a positive number of cents");
+const BELOW_MINIMUM = cloudError(
+  "validation_failed",
+  "amount is below the minimum the integrated terminal charges",
+);
 
 type CloudErrorBody = ReturnType<typeof cloudError>;
 
@@ -77,10 +84,17 @@ function toWire(transaction: MercadoPagoOrderTransaction): MercadoPagoPaymentBod
   };
 }
 
+function toCancellationWire(
+  transaction: MercadoPagoOrderTransaction,
+  cancelOnTerminal: boolean,
+): MercadoPagoCancellationBody {
+  return { ...toWire(transaction), cancel_on_terminal: cancelOnTerminal };
+}
+
 // Public to the backoffice's session guard: the device token is these routes' own authentication.
-export function registerMercadoPagoQrRoutes<TQueryResult extends PgQueryResultHKT>(
+export function registerMercadoPagoOrderRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
-  options: MercadoPagoQrRoutesOptions<TQueryResult>,
+  options: MercadoPagoOrderRoutesOptions<TQueryResult>,
 ): void {
   const tokenPorts = installationTokenPorts(options);
   const clock = { now: options.now };
@@ -119,7 +133,7 @@ export function registerMercadoPagoQrRoutes<TQueryResult extends PgQueryResultHK
     answerErrorsWithCloudEnvelope(scope);
 
     scope.post(
-      "/payments/mercado-pago-qr/orders",
+      "/payments/mercado-pago/orders",
       { config: { access: PUBLIC_ACCESS } },
       async (request, reply) => {
         const registerId = await installationRegisterId(request.headers.authorization, reply);
@@ -135,20 +149,16 @@ export function registerMercadoPagoQrRoutes<TQueryResult extends PgQueryResultHK
         if (!body) {
           return;
         }
-        if (body.provider !== "MERCADOPAGO_QR") {
-          await sendError(reply, PROVIDER_NOT_CONFIGURED);
-          return;
-        }
-
-        const outcome = await createMercadoPagoQrOrder(
-          { lanes, mercadoPago, clock },
-          {
-            registerId,
-            paymentTransactionId: body.payment_transaction_id,
-            saleId: body.sale_id,
-            amount: body.amount,
-          },
-        );
+        const input = {
+          registerId,
+          paymentTransactionId: body.payment_transaction_id,
+          saleId: body.sale_id,
+          amount: body.amount,
+        };
+        const outcome =
+          body.provider === "MERCADOPAGO_POINT"
+            ? await createMercadoPagoPointOrder({ lanes, mercadoPago, clock }, input)
+            : await createMercadoPagoQrOrder({ lanes, mercadoPago, clock }, input);
 
         switch (outcome.kind) {
           case "recorded":
@@ -157,11 +167,17 @@ export function registerMercadoPagoQrRoutes<TQueryResult extends PgQueryResultHK
           case "invalid_amount":
             await sendError(reply, INVALID_AMOUNT);
             return;
+          case "below_minimum":
+            await sendError(reply, BELOW_MINIMUM);
+            return;
           case "request_mismatch":
             await sendError(reply, REQUEST_MISMATCH);
             return;
           case "not_owned":
             await sendError(reply, PAYMENT_NOT_OWNED);
+            return;
+          case "not_configured":
+            await sendError(reply, PROVIDER_NOT_CONFIGURED);
             return;
           case "provider_refused":
             await sendError(reply, PROVIDER_REFUSED);
@@ -174,7 +190,7 @@ export function registerMercadoPagoQrRoutes<TQueryResult extends PgQueryResultHK
     );
 
     scope.get(
-      "/payments/mercado-pago-qr/:id",
+      "/payments/mercado-pago/:id",
       { config: { access: PUBLIC_ACCESS } },
       async (request, reply) => {
         const registerId = await installationRegisterId(request.headers.authorization, reply);
@@ -211,7 +227,7 @@ export function registerMercadoPagoQrRoutes<TQueryResult extends PgQueryResultHK
     );
 
     scope.post(
-      "/payments/mercado-pago-qr/:id/cancel",
+      "/payments/mercado-pago/:id/cancel",
       { config: { access: PUBLIC_ACCESS } },
       async (request, reply) => {
         const registerId = await installationRegisterId(request.headers.authorization, reply);
@@ -237,7 +253,18 @@ export function registerMercadoPagoQrRoutes<TQueryResult extends PgQueryResultHK
           case "cancelled":
           case "approved":
           case "already_closed":
-            await reply.code(200).send(mercadoPagoPaymentSchema.parse(toWire(outcome.transaction)));
+            await reply
+              .code(200)
+              .send(
+                mercadoPagoCancellationSchema.parse(toCancellationWire(outcome.transaction, false)),
+              );
+            return;
+          case "cancel_on_terminal":
+            await reply
+              .code(200)
+              .send(
+                mercadoPagoCancellationSchema.parse(toCancellationWire(outcome.transaction, true)),
+              );
             return;
           case "not_found":
             await sendError(reply, PAYMENT_NOT_OWNED);
