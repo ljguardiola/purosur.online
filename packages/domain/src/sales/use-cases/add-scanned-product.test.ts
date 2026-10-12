@@ -309,7 +309,7 @@ describe("addScannedProduct", () => {
     ]);
   });
 
-  it("uses the latest price already valid at the clock's moment", () => {
+  it("uses the newest synced price, with its price list, over the older ones", () => {
     const store = ledger({
       prices: [
         {
@@ -339,7 +339,7 @@ describe("addScannedProduct", () => {
     const outcome = scan(store);
 
     expect(outcome.kind === "added" && outcome.sale.lines).toEqual([
-      expect.objectContaining({ priceListId: "list-2", listUnitPrice: 2800 }),
+      expect.objectContaining({ priceListId: "list-3", listUnitPrice: 9999 }),
     ]);
   });
 
