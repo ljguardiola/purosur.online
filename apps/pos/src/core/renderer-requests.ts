@@ -38,7 +38,6 @@ import type {
   RegisterStatus,
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
-  RetryReceiptPrintOutcome,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
   ScanProductOutcome,
@@ -148,7 +147,6 @@ export interface RendererRequestDeps {
   cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
   cancelPaidSale: ((request: CancelPaidSaleRequest) => Promise<CancelPaidSaleOutcome>) | undefined;
   receiptPrintStatus: ((saleId: string) => Promise<ReceiptPrintStatusOutcome>) | undefined;
-  retryReceiptPrint: ((saleId: string) => Promise<RetryReceiptPrintOutcome>) | undefined;
   reprintSaleReceipt:
     | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
     | undefined;
@@ -811,18 +809,6 @@ export async function answerRendererRequest(
           deps,
           "reading a receipt's print status",
           receiptPrintStatus && (() => receiptPrintStatus(message.sale_id)),
-        ),
-      };
-    }
-    case "retry-receipt-print": {
-      const { retryReceiptPrint } = deps;
-      return {
-        type: "retry-receipt-print-result",
-        request_id: message.request_id,
-        outcome: await attemptSaleChange(
-          deps,
-          "retrying a receipt print",
-          retryReceiptPrint && (() => retryReceiptPrint(message.sale_id)),
         ),
       };
     }

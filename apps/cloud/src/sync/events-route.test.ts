@@ -307,6 +307,32 @@ describe("POST /events", () => {
     expect(rows.map(({ kind }) => kind)).toContain("sales_denied");
   });
 
+  it("opens the fiscal-emission-stopped alert of a register that reports its emission stopped, with no event pushed", async () => {
+    const { deviceId, deviceToken, registerId } = await enroll();
+    const body = bodyOf([]);
+
+    await push(
+      {
+        ...body,
+        telemetry: {
+          ...body.telemetry,
+          fiscal_emission_stopped: true,
+          fiscal_emission_stopped_reason: "legal_name_missing",
+        },
+      },
+      `Bearer ${deviceToken}`,
+    );
+
+    const rows = await route.db.select().from(alerts).where(eq(alerts.scope, registerId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      kind: "fiscal_emission_stopped",
+      level: "critical",
+      audience: "local",
+      detail: { deviceId, reason: "legal_name_missing" },
+    });
+  });
+
   it("records each admitted push as a request of its installation", async () => {
     const { deviceId, deviceToken } = await enroll();
 

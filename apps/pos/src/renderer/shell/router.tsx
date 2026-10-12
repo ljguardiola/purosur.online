@@ -42,7 +42,6 @@ import type {
   RegisterStatus,
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
-  RetryReceiptPrintOutcome,
   SaleDiscountRequest,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
@@ -217,7 +216,6 @@ export interface RouterContext {
     authorization: Authorization | undefined,
   ) => Promise<CancelPaidSaleOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
-  retryReceiptPrint: (saleId: string) => Promise<RetryReceiptPrintOutcome>;
   reprintSaleReceipt: (
     saleId: string,
     reason: string,
@@ -627,7 +625,6 @@ const chargeRoute = createRoute({
       abandonMercadoPagoQrCharge,
       registerStatus,
       receiptPrintStatus,
-      retryReceiptPrint,
       refreshCashSession,
     } = chargeRoute.useRouteContext();
     const registerName = useRegisterName();
@@ -647,7 +644,6 @@ const chargeRoute = createRoute({
         followMercadoPagoQrCharge={followMercadoPagoQrCharge}
         abandonMercadoPagoQrCharge={abandonMercadoPagoQrCharge}
         receiptPrintStatus={receiptPrintStatus}
-        retryReceiptPrint={retryReceiptPrint}
         onSessionInvalid={() => void refreshCashSession()}
       />
     );
@@ -990,7 +986,6 @@ export function createAppRouter(
     | "cancelSale"
     | "cancelPaidSale"
     | "receiptPrintStatus"
-    | "retryReceiptPrint"
     | "reprintSaleReceipt"
     | "salesHistory"
     | "saleHistoryDetail"

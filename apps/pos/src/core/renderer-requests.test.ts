@@ -33,7 +33,6 @@ import type {
   RegisterStatus,
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
-  RetryReceiptPrintOutcome,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
   ScanProductOutcome,
@@ -246,10 +245,6 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       receiptPrintStatus: async (saleId: string): Promise<ReceiptPrintStatusOutcome> => {
         saleChanges.push(["receipt-status", saleId].join(" "));
         return { kind: "not_found" };
-      },
-      retryReceiptPrint: async (saleId: string): Promise<RetryReceiptPrintOutcome> => {
-        saleChanges.push(["receipt-retry", saleId].join(" "));
-        return { kind: "not_offered" };
       },
       reprintSaleReceipt: async (
         request: ReprintSaleReceiptRequest,
@@ -2513,14 +2508,6 @@ describe("answerRendererRequest", () => {
         "reading a receipt's print status",
         "receipt-status s1",
         "receipt-print-status-result",
-      ],
-      [
-        "retry-receipt-print",
-        { type: "retry-receipt-print", sale_id: "s1" } as const,
-        "retryReceiptPrint",
-        "retrying a receipt print",
-        "receipt-retry s1",
-        "retry-receipt-print-result",
       ],
       [
         "reprint-sale-receipt",

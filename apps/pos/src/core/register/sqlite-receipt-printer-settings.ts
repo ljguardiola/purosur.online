@@ -1,7 +1,6 @@
 import type { ReceiptPrinterAddress } from "@purosur/domain";
 import type { ReceiptPrinterSettings } from "@purosur/domain/register/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
-import { reachSameReceiptPrinter } from "./receipt-printer-endpoint";
 
 interface ReceiptPrinterRow {
   host: string;
@@ -20,11 +19,6 @@ export class SqliteReceiptPrinterSettings implements ReceiptPrinterSettings {
       .prepare<[], ReceiptPrinterRow>("SELECT host, port FROM receipt_printer WHERE id = 1")
       .get();
     return row === undefined ? undefined : { host: row.host, port: row.port };
-  }
-
-  isCurrentReceiptPrinter(address: ReceiptPrinterAddress): boolean {
-    const current = this.receiptPrinterAddress();
-    return current !== undefined && reachSameReceiptPrinter(current, address);
   }
 
   saveReceiptPrinterAddress({ host, port }: ReceiptPrinterAddress): void {

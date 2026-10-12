@@ -8,7 +8,6 @@ import type {
   OpenSale,
   ReceiptPrintStatusOutcome,
   RegisterStatus,
-  RetryReceiptPrintOutcome,
   StartMercadoPagoQrChargeOutcome,
 } from "@purosur/contracts";
 import { onTestFinished, vi } from "vitest";
@@ -147,7 +146,6 @@ export type Overrides = {
   chargeSaleInCash?: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer?: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
   receiptPrintStatus?: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
-  retryReceiptPrint?: (saleId: string) => Promise<RetryReceiptPrintOutcome>;
 };
 
 const PRINTED: ReceiptPrintStatusOutcome = {
@@ -177,10 +175,6 @@ export async function renderScreen(overrides: Overrides = {}) {
       (async (): Promise<AbandonMercadoPagoQrChargeOutcome> => ({ kind: "cancelled" })),
   );
   const receiptPrintStatus = vi.fn(overrides.receiptPrintStatus ?? (async () => PRINTED));
-  const retryReceiptPrint = vi.fn(
-    overrides.retryReceiptPrint ??
-      (async (): Promise<RetryReceiptPrintOutcome> => ({ kind: "not_offered" })),
-  );
   const onSessionInvalid = vi.fn();
   const screen = await render(
     <ChargeScreen
@@ -197,7 +191,6 @@ export async function renderScreen(overrides: Overrides = {}) {
       followMercadoPagoQrCharge={followMercadoPagoQrCharge}
       abandonMercadoPagoQrCharge={abandonMercadoPagoQrCharge}
       receiptPrintStatus={receiptPrintStatus}
-      retryReceiptPrint={retryReceiptPrint}
       onSessionInvalid={onSessionInvalid}
     />,
   );
@@ -211,7 +204,6 @@ export async function renderScreen(overrides: Overrides = {}) {
     followMercadoPagoQrCharge,
     abandonMercadoPagoQrCharge,
     receiptPrintStatus,
-    retryReceiptPrint,
     onSessionInvalid,
   };
 }

@@ -17,7 +17,6 @@ import {
   printCompletedSaleReceiptFor,
   type ReceiptRequestDeps,
   reprintSaleReceiptFor,
-  retryReceiptPrintFor,
 } from "../../sales/receipt-requests";
 import {
   addWeighedProductFor,
@@ -206,12 +205,8 @@ async function printAndReprintReceipt({
   const printers = { configured: () => printer };
   nextStep();
   await printCompletedSaleReceiptFor({ ...deps, printers }, saleId);
-  printer.report("ready");
   nextStep();
-  const retry = await retryReceiptPrintFor({ ...deps, printers }, saleId);
-  expectOutcome("retry the receipt print", retry.kind, "started");
-  nextStep();
-  printer.acknowledge();
+  printer.becomeReady();
   await untilPrinted(deps.jobs, saleId);
   nextStep();
   const reprint = await reprintSaleReceiptFor(
@@ -223,7 +218,7 @@ async function printAndReprintReceipt({
     },
   );
   expectOutcome("reprint the receipt from the history", reprint.kind, "started");
-  printer.acknowledge();
+  printer.becomeReady();
   await untilPrinted(deps.jobs, saleId);
 }
 
@@ -538,7 +533,6 @@ export async function withRegisterSession<TResult>(
         ...deps(),
         signedInUserId: () => signedInPerson.userId(),
         jobs: createReceiptPrintJobs({
-          now,
           reportFailure: (context, error) => {
             throw new Error(`The register session's receipt print failed: ${context}`, {
               cause: error,

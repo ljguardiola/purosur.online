@@ -255,6 +255,7 @@ function Register({ core }: { core: CoreClient }) {
         );
       }
       void queryClient.invalidateQueries({ queryKey: cashKey });
+      void queryClient.invalidateQueries({ queryKey: registerKeys.status });
     } else if (
       kind === "empty_sale" ||
       kind === "zero_total" ||
@@ -391,7 +392,6 @@ function Register({ core }: { core: CoreClient }) {
     cancelPaidSale: (saleId: string, authorization: Authorization | undefined) =>
       core.cancelPaidSale(saleId, authorization),
     receiptPrintStatus: (saleId: string) => core.receiptPrintStatus(saleId),
-    retryReceiptPrint: (saleId: string) => core.retryReceiptPrint(saleId),
     reprintSaleReceipt: (
       saleId: string,
       reason: string,

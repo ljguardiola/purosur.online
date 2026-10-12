@@ -6,6 +6,7 @@ import {
   offlineAuthorizationCodeHeldObservation,
   offlineAuthorizationCodeMissingObservation,
   quietRegisterObservation,
+  registerFiscalEmissionObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,
@@ -105,6 +106,43 @@ describe("registerSalesDeniedObservation", () => {
 
   it("observes nothing of a register that reports nothing about selling", () => {
     expect(registerSalesDeniedObservation({ ...register, report: {} })).toBeUndefined();
+  });
+});
+
+describe("registerFiscalEmissionObservation", () => {
+  const register = { registerId: "register-1", deviceId: "device-1", locationId: "location-1" };
+
+  it("holds the fiscal-emission-stopped condition of the register, in its branch, naming the device and the failed check, for a register that reports its emission stopped", () => {
+    expect(
+      registerFiscalEmissionObservation({
+        ...register,
+        report: {
+          fiscal_emission_stopped: true,
+          fiscal_emission_stopped_reason: "issuer_identification_missing",
+        },
+      }),
+    ).toEqual({
+      holds: true,
+      alert: {
+        kind: "fiscal_emission_stopped",
+        scope: "register-1",
+        locationId: "location-1",
+        detail: { deviceId: "device-1", reason: "issuer_identification_missing" },
+      },
+    });
+  });
+
+  it("clears the fiscal-emission-stopped condition of the register for a register that reports its emission available", () => {
+    expect(
+      registerFiscalEmissionObservation({
+        ...register,
+        report: { fiscal_emission_stopped: false },
+      }),
+    ).toEqual({ holds: false, kind: "fiscal_emission_stopped", scope: "register-1" });
+  });
+
+  it("observes nothing of a register that reports nothing about its emission", () => {
+    expect(registerFiscalEmissionObservation({ ...register, report: {} })).toBeUndefined();
   });
 });
 

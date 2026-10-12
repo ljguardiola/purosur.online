@@ -9,7 +9,6 @@ import {
   type ReceiptRequestDeps,
   receiptPrintStatusFor,
   reprintSaleReceiptFor,
-  retryReceiptPrintFor,
 } from "./receipt-requests";
 import { TcpReceiptPrinter, type TcpReceiptPrinterOptions } from "./tcp-receipt-printer";
 
@@ -19,12 +18,10 @@ function savedReceiptPrinters(
 ): ReceiptPrinters {
   return {
     configured() {
-      const address = settings.receiptPrinterAddress();
-      return address === undefined
+      return settings.receiptPrinterAddress() === undefined
         ? undefined
         : new TcpReceiptPrinter({
-            host: address.host,
-            ...(address.port === null ? {} : { port: address.port }),
+            address: () => settings.receiptPrinterAddress(),
             ...(connect === undefined ? {} : { connect }),
           });
     },
@@ -49,13 +46,11 @@ interface ReceiptPrinting {
     charge: ((request: TRequest) => Promise<TOutcome>) | undefined,
   ): ((request: TRequest) => Promise<TOutcome>) | undefined;
   receiptPrintStatus: ((saleId: string) => ReturnType<typeof receiptPrintStatusFor>) | undefined;
-  retryReceiptPrint: ((saleId: string) => ReturnType<typeof retryReceiptPrintFor>) | undefined;
   reprintSaleReceipt:
     | ((
         request: Parameters<typeof reprintSaleReceiptFor>[1],
       ) => ReturnType<typeof reprintSaleReceiptFor>)
     | undefined;
-  withdrawHeldReceipts: (() => void) | undefined;
 }
 
 export function createReceiptPrinting({
@@ -74,12 +69,10 @@ export function createReceiptPrinting({
     return {
       afterCompletedSale: (charge) => charge,
       receiptPrintStatus: undefined,
-      retryReceiptPrint: undefined,
       reprintSaleReceipt: undefined,
-      withdrawHeldReceipts: undefined,
     };
   }
-  const jobs = createReceiptPrintJobs({ now, reportFailure });
+  const jobs = createReceiptPrintJobs({ reportFailure });
   const deps: ReceiptRequestDeps = {
     database,
     gate,
@@ -103,8 +96,6 @@ export function createReceiptPrinting({
         charge,
       ),
     receiptPrintStatus: (saleId) => receiptPrintStatusFor(deps, saleId),
-    retryReceiptPrint: (saleId) => retryReceiptPrintFor(deps, saleId),
     reprintSaleReceipt: (request) => reprintSaleReceiptFor(deps, request),
-    withdrawHeldReceipts: jobs.withdrawHeld,
   };
 }

@@ -49,7 +49,6 @@ import type {
   RegisterStatus,
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
-  RetryReceiptPrintOutcome,
   SaleDiscountRequest,
   SaleHistoryDetailOutcome,
   SalesCoreToRendererMessage,
@@ -207,7 +206,6 @@ export interface CoreClient {
     authorization: Authorization | undefined,
   ): Promise<CancelPaidSaleOutcome>;
   receiptPrintStatus(saleId: string): Promise<ReceiptPrintStatusOutcome>;
-  retryReceiptPrint(saleId: string): Promise<RetryReceiptPrintOutcome>;
   reprintSaleReceipt(
     saleId: string,
     reason: string,
@@ -611,12 +609,6 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "receipt-print-status", request_id: deps.newRequestId(), sale_id: saleId },
         (answer) => (answer.type === "receipt-print-status-result" ? answer.outcome : undefined),
-      );
-    },
-    retryReceiptPrint(saleId) {
-      return ask(
-        { type: "retry-receipt-print", request_id: deps.newRequestId(), sale_id: saleId },
-        (answer) => (answer.type === "retry-receipt-print-result" ? answer.outcome : undefined),
       );
     },
     reprintSaleReceipt(saleId, reason, authorization) {
