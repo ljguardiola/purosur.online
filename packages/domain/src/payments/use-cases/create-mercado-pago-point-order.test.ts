@@ -134,6 +134,27 @@ describe("createMercadoPagoPointOrder", () => {
     });
   });
 
+  it("records that a retry created nothing when no terminal is configured and no earlier attempt may have created an order", async () => {
+    const { lanes, ports } = mercadoPagoOrderWorld({ pointCreation: { kind: "not_configured" } });
+    lanes.seed(storedPointTransaction({ amount: AMOUNT, creationOutcomeUnknown: false }));
+
+    const outcome = await createMercadoPagoPointOrder(ports, INPUT);
+
+    expect(outcome).toEqual({ kind: "not_configured" });
+    expect(lanes.operations).toContain("recordCreationCreatedNothing");
+  });
+
+  it("still remembers that an earlier attempt's order may exist when a retry finds no terminal configured", async () => {
+    const { lanes, ports } = mercadoPagoOrderWorld({ pointCreation: { kind: "not_configured" } });
+    lanes.seed(storedPointTransaction({ amount: AMOUNT, creationOutcomeUnknown: true }));
+
+    const outcome = await createMercadoPagoPointOrder(ports, INPUT);
+
+    expect(outcome).toEqual({ kind: "not_configured" });
+    expect(lanes.operations).not.toContain("recordCreationCreatedNothing");
+    expect(lanes.transactions.get(TRANSACTION_ID)?.creationOutcomeUnknown).toBe(true);
+  });
+
   it("answers refused when Mercado Pago refuses the order", async () => {
     const { lanes, ports } = mercadoPagoOrderWorld({ pointCreation: { kind: "refused" } });
 
