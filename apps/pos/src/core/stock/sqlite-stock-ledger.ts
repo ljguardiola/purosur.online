@@ -42,11 +42,11 @@ export class SqliteReplicatedStockLedger implements ReplicatedStockLedger {
 
   movement(id: string): ReplicatedStockMovement | undefined {
     const row = this.database
-      .prepare<[string], { superseded_by_count_id: string | null }>(
-        "SELECT superseded_by_count_id FROM stock_movements WHERE id = ?",
+      .prepare<[string], { superseded_by_count_id: string | null; delta: number }>(
+        "SELECT superseded_by_count_id, delta FROM stock_movements WHERE id = ?",
       )
       .get(id);
-    return row && { supersededByCountId: row.superseded_by_count_id };
+    return row && { supersededByCountId: row.superseded_by_count_id, delta: row.delta };
   }
 
   recordMovement(movement: PulledStockMovement): void {
@@ -63,6 +63,10 @@ export class SqliteReplicatedStockLedger implements ReplicatedStockLedger {
         occurred_at: movement.occurredAt.toISOString(),
         superseded_by_count_id: movement.supersededByCountId,
       });
+  }
+
+  adoptMovementDelta(id: string, delta: number): void {
+    this.database.prepare("UPDATE stock_movements SET delta = ? WHERE id = ?").run(delta, id);
   }
 
   markSuperseded(id: string, countId: string): void {
