@@ -17,7 +17,33 @@ const CLOUD_POSTGRES_IMAGE = {
   constant: "POSTGRES_IMAGE",
   job: "tests",
   testsScript: "verify:tests",
+  registry: "ghcr.io",
 };
+const POSTGRES_LOOKUP_JOB = "postgres-image";
+const POSTGRES_COPY_JOB = "postgres-image-copy";
+const GITHUB_TOKEN_EXPRESSION = `\${{ github.token }}`;
+const SIGN_IN_TO_GHCR_COMMAND =
+  'echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin';
+const SKOPEO_SIGN_IN_TO_GHCR =
+  'echo "$GITHUB_TOKEN" | skopeo login ghcr.io --username "$GITHUB_ACTOR" --password-stdin';
+const LOOK_UP_MIRROR_COMMAND = [
+  SKOPEO_SIGN_IN_TO_GHCR,
+  `if timeout 60 skopeo inspect --raw "docker://\${POSTGRES_IMAGE%%:*}@\${POSTGRES_IMAGE#*@}" > /dev/null; then`,
+  '  echo "mirrored=true" >> "$GITHUB_OUTPUT"',
+  "else",
+  '  echo "mirrored=false" >> "$GITHUB_OUTPUT"',
+  "fi",
+].join("\n");
+const COPY_MIRROR_COMMAND = [
+  SKOPEO_SIGN_IN_TO_GHCR,
+  "for delay in 0 15 30 60; do",
+  '  sleep "$delay"',
+  `  timeout 300 skopeo copy --all --preserve-digests "docker://\${SOURCE_IMAGE%%:*}@\${SOURCE_IMAGE#*@}" "docker://\${POSTGRES_IMAGE%@*}" && exit 0`,
+  "done",
+  "exit 1",
+].join("\n");
+const EXPECTED_MIRROR_OUTPUT = `\${{ steps.mirror.outputs.mirrored }}`;
+const EXPECTED_COPY_CONDITION = `\${{ needs.${POSTGRES_LOOKUP_JOB}.outputs.mirrored == 'false' }}`;
 const PLAYWRIGHT_IMAGE = {
   label: "the Playwright image",
   setupPath: "vitest.global-setup.playwright-server.ts",
@@ -437,8 +463,14 @@ function findPrePulledImageViolations(workflowSource, setupSource, spec) {
   if (!/@sha256:[0-9a-f]{64}$/.test(image)) {
     violations.push(`${spec.label} \`${image}\` is not pinned by digest`);
   }
-  // Docker Hub limits unauthenticated pulls per address, and shared runners share that limit.
-  if (comesFromDockerHub(image)) {
+  if (spec.registry !== undefined) {
+    if (!image.startsWith(`${spec.registry}/`)) {
+      violations.push(
+        `${spec.label} \`${image}\` is not on ${spec.registry}, the registry verify.yml signs in to with its own token`,
+      );
+    }
+    // Docker Hub limits unauthenticated pulls per address, and shared runners share that limit.
+  } else if (comesFromDockerHub(image)) {
     violations.push(
       `${spec.label} \`${image}\` comes from Docker Hub, whose unauthenticated pulls a shared runner can exhaust`,
     );
@@ -489,12 +521,131 @@ function findPrePulledImageViolations(workflowSource, setupSource, spec) {
       `verify.yml's ${spec.job} job's ${spec.testsScript} step does not set TESTCONTAINERS_RYUK_DISABLED to true`,
     );
   }
-  return { image, violations };
+  return { image, violations, doc, jobSteps, pullStep };
+}
+
+function permissionsOf(doc, job) {
+  const permissions = resolveNode(doc, mapGet(doc, job, "permissions"));
+  if (!isMap(permissions)) return {};
+  return Object.fromEntries(
+    permissions.items.map((pair) => [
+      String(resolveScalar(doc, pair.key)),
+      resolveScalar(doc, pair.value),
+    ]),
+  );
+}
+
+function stepEnv(doc, step, name) {
+  return resolveScalar(doc, mapGet(doc, mapGet(doc, step, "env"), name));
+}
+
+function digestOf(image) {
+  return /@(sha256:[0-9a-f]{64})$/.exec(image)?.[1];
+}
+
+// ECR Public, like Docker Hub, caps what one address pulls without credentials, and shared runners
+// share that cap: the tests pull from a copy on ghcr.io with the run's own token, and only a missing
+// copy is ever pulled from the public registry, once.
+function postgresMirrorViolations({ image, doc, jobSteps, pullStep }) {
+  const violations = [];
+  const testsJob = jobNode(doc, CLOUD_POSTGRES_IMAGE.job);
+
+  if (permissionsOf(doc, testsJob).packages !== "read") {
+    violations.push(
+      "verify.yml's tests job is not granted packages: read, which signing in to ghcr.io needs",
+    );
+  }
+  const pullIndex = pullStep === undefined ? jobSteps.length : jobSteps.indexOf(pullStep);
+  const signsIn = jobSteps.slice(0, pullIndex).some((step) => {
+    const run = resolveScalar(doc, mapGet(doc, step, "run"));
+    return (
+      typeof run === "string" &&
+      run.trim() === SIGN_IN_TO_GHCR_COMMAND &&
+      stepEnv(doc, step, "GITHUB_TOKEN") === GITHUB_TOKEN_EXPRESSION
+    );
+  });
+  if (!signsIn) {
+    violations.push(
+      `verify.yml's tests job does not sign in to ghcr.io with its own token before pulling ${CLOUD_POSTGRES_IMAGE.label}`,
+    );
+  }
+  const testsNeeds = neededJobs(doc, testsJob);
+  if (!testsNeeds.includes(POSTGRES_LOOKUP_JOB) || !testsNeeds.includes(POSTGRES_COPY_JOB)) {
+    violations.push(
+      `verify.yml's tests job does not wait for the ${POSTGRES_LOOKUP_JOB} and ${POSTGRES_COPY_JOB} jobs that put ${CLOUD_POSTGRES_IMAGE.label} on ghcr.io`,
+    );
+  }
+
+  // A Dependabot run gets a read-only token whatever the workflow asks for, so the lookup must
+  // need nothing more.
+  const lookupJob = jobNode(doc, POSTGRES_LOOKUP_JOB);
+  const lookupPermissions = permissionsOf(doc, lookupJob);
+  if (Object.keys(lookupPermissions).length !== 1 || lookupPermissions.packages !== "read") {
+    violations.push(
+      `verify.yml's ${POSTGRES_LOOKUP_JOB} job must be granted only packages: read, so that a read-only token can look the copy up`,
+    );
+  }
+  const lookupStep = stepRunningExactly(doc, lookupJob, LOOK_UP_MIRROR_COMMAND);
+  if (
+    lookupStep === undefined ||
+    resolveScalar(doc, mapGet(doc, lookupStep, "id")) !== "mirror" ||
+    stepEnv(doc, lookupStep, "POSTGRES_IMAGE") !== image ||
+    stepEnv(doc, lookupStep, "GITHUB_TOKEN") !== GITHUB_TOKEN_EXPRESSION ||
+    resolveScalar(doc, mapGet(doc, mapGet(doc, lookupJob, "outputs"), "mirrored")) !==
+      EXPECTED_MIRROR_OUTPUT
+  ) {
+    violations.push(
+      `verify.yml's ${POSTGRES_LOOKUP_JOB} job does not look up \`${image}\` on ghcr.io and output whether it found it as mirrored`,
+    );
+  }
+
+  const copyJob = jobNode(doc, POSTGRES_COPY_JOB);
+  if (
+    !neededJobs(doc, copyJob).includes(POSTGRES_LOOKUP_JOB) ||
+    resolveScalar(doc, mapGet(doc, copyJob, "if")) !== EXPECTED_COPY_CONDITION
+  ) {
+    violations.push(
+      `verify.yml's ${POSTGRES_COPY_JOB} job does not run only when ${POSTGRES_LOOKUP_JOB} did not find the copy (\`if: ${EXPECTED_COPY_CONDITION}\`)`,
+    );
+  }
+  if (permissionsOf(doc, copyJob).packages !== "write") {
+    violations.push(
+      `verify.yml's ${POSTGRES_COPY_JOB} job is not granted packages: write, which copying to ghcr.io needs`,
+    );
+  }
+  const copyStep = stepRunningExactly(doc, copyJob, COPY_MIRROR_COMMAND);
+  if (
+    copyStep === undefined ||
+    stepEnv(doc, copyStep, "POSTGRES_IMAGE") !== image ||
+    stepEnv(doc, copyStep, "GITHUB_TOKEN") !== GITHUB_TOKEN_EXPRESSION
+  ) {
+    violations.push(
+      `verify.yml's ${POSTGRES_COPY_JOB} job does not copy to \`${image}\` with its own token, retrying`,
+    );
+    return violations;
+  }
+  const source = String(stepEnv(doc, copyStep, "SOURCE_IMAGE"));
+  if (digestOf(image) !== undefined && digestOf(source) !== digestOf(image)) {
+    violations.push(
+      `verify.yml's ${POSTGRES_COPY_JOB} job copies \`${source}\`, not the digest of \`${image}\``,
+    );
+  }
+  if (comesFromDockerHub(source)) {
+    violations.push(
+      `verify.yml's ${POSTGRES_COPY_JOB} job copies \`${source}\` from Docker Hub, whose unauthenticated pulls a shared runner can exhaust`,
+    );
+  }
+  return violations;
 }
 
 export function findCloudPostgresImageViolations(workflowSource, postgresSetupSource) {
-  return findPrePulledImageViolations(workflowSource, postgresSetupSource, CLOUD_POSTGRES_IMAGE)
-    .violations;
+  const found = findPrePulledImageViolations(
+    workflowSource,
+    postgresSetupSource,
+    CLOUD_POSTGRES_IMAGE,
+  );
+  if (found.image === undefined) return found.violations;
+  return [...found.violations, ...postgresMirrorViolations(found)];
 }
 
 export function findLocalPostgresImageViolations(composeSource, postgresSetupSource) {
