@@ -1,7 +1,11 @@
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { NewRegisterModal, type NewRegisterModalServices } from "./new-register-modal";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 function createServices(
   overrides: Partial<NewRegisterModalServices> = {},
@@ -185,17 +189,13 @@ test("shows the attempt-failed notice in the create modal", async () => {
 
 test("navigates to Mi cuenta when creating a register comes back forbidden", async () => {
   window.history.pushState(null, "", "/registers");
-  try {
-    const services = createServices();
-    vi.mocked(services.createRegister).mockResolvedValue({ kind: "forbidden" });
-    const { dialog } = await renderModal(services);
+  const services = createServices();
+  vi.mocked(services.createRegister).mockResolvedValue({ kind: "forbidden" });
+  const { dialog } = await renderModal(services);
 
-    await submitName(dialog, "Caja 1");
+  await submitName(dialog, "Caja 1");
 
-    await expect.poll(() => window.location.pathname).toBe("/account");
-  } finally {
-    window.history.pushState(null, "", "/");
-  }
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test("ends the session when creating a register finds no open session", async () => {

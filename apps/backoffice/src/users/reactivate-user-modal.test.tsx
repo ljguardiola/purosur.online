@@ -1,5 +1,5 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { afterEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { ReactivateUserModal, type ReactivateUserModalServices } from "./reactivate-user-modal";
@@ -37,7 +37,7 @@ const sofia: BranchUser = {
   mayRemovePasskey: false,
 };
 
-afterEach(() => {
+beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 

@@ -41,6 +41,8 @@ export type TextFieldValueKind =
 // that calls for a prefix or a suffix can't compile with an effectively empty one.
 export type TextFieldAffix = Exclude<ReactNode, null | undefined | boolean>;
 
+type TextFieldDiscountWidth = "standard" | "narrow";
+
 type TextFieldCommonProps = {
   label: string;
   value: string;
@@ -60,10 +62,20 @@ type TextFieldCommonProps = {
 };
 
 type TextFieldKindProps =
-  | { kind: "amount" | "counted-cash" | "price"; prefix: TextFieldAffix; suffix?: undefined }
-  | { kind: "weight" | "quantity"; suffix: TextFieldAffix; prefix?: undefined }
-  | { kind: "discount"; prefix?: undefined; suffix?: TextFieldAffix }
-  | { kind: "plain-text"; prefix?: undefined; suffix?: TextFieldAffix };
+  | {
+      kind: "amount" | "counted-cash" | "price";
+      prefix: TextFieldAffix;
+      suffix?: undefined;
+      width?: undefined;
+    }
+  | { kind: "weight" | "quantity"; suffix: TextFieldAffix; prefix?: undefined; width?: undefined }
+  | {
+      kind: "discount";
+      prefix?: undefined;
+      suffix?: TextFieldAffix;
+      width?: TextFieldDiscountWidth;
+    }
+  | { kind: "plain-text"; prefix?: undefined; suffix?: TextFieldAffix; width?: undefined };
 
 export type TextFieldProps = TextFieldCommonProps &
   FieldErrorProps &
@@ -77,6 +89,7 @@ export type TextFieldReadOnlyReasonProps = TextFieldCommonProps &
     disabled?: false;
     prefix?: undefined;
     suffix?: undefined;
+    width?: undefined;
     readOnly: true;
     readOnlyReason: string;
   };
@@ -87,7 +100,11 @@ const frameClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> 
   price: "h-control-6xl gap-2 px-4",
   weight: "h-control-5xl gap-2 px-4",
   quantity: "h-control-6xl gap-2 px-4",
-  discount: "h-control-4xl w-55 shrink-0 gap-2 px-4",
+  discount: "h-control-4xl shrink-0 gap-2 px-4",
+};
+const discountWidthClassName: Record<TextFieldDiscountWidth, string> = {
+  standard: "w-55",
+  narrow: "w-45",
 };
 const registerPlainTextHeightClassName = "h-control-3xl";
 const registerPlainTextInsetClassName = "px-4";
@@ -156,7 +173,9 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
       ? size === "backoffice"
         ? backofficeFieldBoxClassName
         : registerPlainTextFrameClassName
-      : frameClassName[kind];
+      : kind === "discount"
+        ? `${frameClassName.discount} ${discountWidthClassName[props.width ?? "standard"]}`
+        : frameClassName[kind];
   const insetClassName =
     size === "backoffice" ? backofficeFieldInsetClassName : registerPlainTextInsetClassName;
   const heightClassName =

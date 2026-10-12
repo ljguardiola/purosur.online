@@ -1,12 +1,16 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { FiscalAddress } from "./fiscal-addresses-api";
 import { PointsOfSaleScreen } from "./points-of-sale-screen";
 import type { PointsOfSaleScreenServices } from "./points-of-sale-services";
 import type { RegisterPointOfSale } from "./register-points-of-sale-api";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 function createServices(
   overrides: Partial<PointsOfSaleScreenServices> = {},
@@ -196,7 +200,6 @@ test("sends to Mi cuenta when a load comes back forbidden", async () => {
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("ends the session when a load finds it closed", async () => {

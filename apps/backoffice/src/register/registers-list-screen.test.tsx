@@ -1,6 +1,6 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { act, StrictMode } from "react";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { RegisterSummary } from "./registers-api";
@@ -13,6 +13,10 @@ import {
   register2,
   renderScreen,
 } from "./test-support/registers-list-screen";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 test("shows the breadcrumb, heading, each register's name and count", async () => {
   const services = createServices();
@@ -313,16 +317,12 @@ test("shows the rate-limited notice with a retry action", async () => {
 
 test("navigates to Mi cuenta when the registers request comes back forbidden", async () => {
   window.history.pushState(null, "", "/registers");
-  try {
-    const services = createServices();
-    vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "forbidden" });
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "forbidden" });
 
-    await renderScreen(services);
+  await renderScreen(services);
 
-    await expect.poll(() => window.location.pathname).toBe("/account");
-  } finally {
-    window.history.pushState(null, "", "/");
-  }
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test("ends the session when the registers request finds no open session", async () => {
@@ -741,21 +741,15 @@ test("a refresh that fails shows the load error with its retry action, like a fa
 
 test("navigates to Mi cuenta when emitting a code comes back forbidden", async () => {
   window.history.pushState(null, "", "/registers");
-  try {
-    const services = createServices();
-    vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
-    vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "forbidden" });
-    const screen = await renderScreen(services);
-    await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "forbidden" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Emitir código de alta para Caja 1" }),
-    );
+  await userEvent.click(screen.getByRole("button", { name: "Emitir código de alta para Caja 1" }));
 
-    await expect.poll(() => window.location.pathname).toBe("/account");
-  } finally {
-    window.history.pushState(null, "", "/");
-  }
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test("ends the session when emitting a code finds no open session", async () => {
