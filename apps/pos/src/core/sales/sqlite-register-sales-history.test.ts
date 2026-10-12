@@ -1,12 +1,10 @@
-import { type SaleStanding, saleStandingOf } from "@purosur/domain";
+import { type FiscalDocumentState, type SaleStanding, saleStandingOf } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { SqliteRegisterSalesHistory } from "./sqlite-register-sales-history";
-
-type FiscalState = "REQUESTING" | "AUTHORIZED" | "REJECTED" | "UNKNOWN";
 
 interface SaleSeed {
   id: string;
@@ -18,7 +16,7 @@ interface SaleSeed {
   actor?: string;
   lines?: number[];
   payments?: { method: "CASH" | "TRANSFER" | "QR"; amount: number }[];
-  fiscal?: { state: FiscalState; pointOfSale?: number; number?: number };
+  fiscal?: { state: FiscalDocumentState; pointOfSale?: number; number?: number };
   deferred?: boolean | "satisfied";
 }
 
