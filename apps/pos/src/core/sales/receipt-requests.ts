@@ -3,7 +3,6 @@ import type {
   ReceiptCopyShown,
   ReceiptPrintStatusOutcome,
   ReprintSaleReceiptOutcome,
-  RetryReceiptPrintOutcome,
 } from "@purosur/contracts";
 import type { ReceiptCopy } from "@purosur/domain";
 import {
@@ -16,7 +15,6 @@ import {
   type ReceiptPrintGrant,
   receiptDeliveryOf,
   reprintSaleReceipt,
-  retrySaleReceiptPrint,
 } from "@purosur/domain/sales/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import type { ActionGate } from "../sessions/action-gate";
@@ -55,7 +53,7 @@ type SaleReceiptRefusal = Extract<
 >;
 
 type SellerRefusal = Extract<
-  RetryReceiptPrintOutcome,
+  ReprintSaleReceiptOutcome,
   { kind: "not_signed_in" | "lacks_permission" }
 >;
 
@@ -152,45 +150,6 @@ export async function printCompletedSaleReceiptFor(
   );
 }
 
-export async function retryReceiptPrintFor(
-  deps: ReceiptRequestDeps,
-  saleId: string,
-): Promise<RetryReceiptPrintOutcome> {
-  const chainKey = await deps.readOutboxChainKey();
-  const started: Started = { copy: undefined };
-  const start = await deps.jobs.start(saleId, ({ watch, printers }) =>
-    retrySaleReceiptPrint(
-      {
-        ...printingPorts(
-          deps,
-          chainKey,
-          signedSellerAuthority(deps, saleId, started),
-          printers(deps.printers),
-        ),
-        standings: deps.jobs,
-      },
-      { saleId },
-      watch,
-    ),
-  );
-  switch (start.kind) {
-    case "busy":
-      return { kind: "not_offered" };
-    case "failed":
-      return { kind: "unavailable" };
-    case "sent":
-      return started.copy === undefined
-        ? { kind: "unavailable" }
-        : { kind: "started", copy: toWireCopy(started.copy) };
-    case "answered":
-      return start.outcome.kind === "printed" ||
-        start.outcome.kind === "abandoned" ||
-        start.outcome.kind === "withdrawn"
-        ? { kind: "started", copy: toWireCopy(start.outcome.copy) }
-        : start.outcome;
-  }
-}
-
 export async function reprintSaleReceiptFor(
   deps: ReceiptRequestDeps,
   { saleId, reason, authorization }: ReprintSaleReceiptRequest,
@@ -235,11 +194,7 @@ export async function reprintSaleReceiptFor(
         : { kind: "started", copy: toWireCopy(started.copy) };
     case "answered": {
       const { outcome } = start;
-      if (
-        outcome.kind === "printed" ||
-        outcome.kind === "abandoned" ||
-        outcome.kind === "withdrawn"
-      ) {
+      if (outcome.kind === "printed" || outcome.kind === "abandoned") {
         return { kind: "started", copy: toWireCopy(outcome.copy) };
       }
       return outcome.kind === "invalid_reason"

@@ -302,7 +302,6 @@ export type {
   CancelLockedSaleOutcome,
   ReceiptPrintStatusOutcome,
   ReprintSaleReceiptOutcome,
-  RetryReceiptPrintOutcome,
   SalesCoreToRendererMessage,
   SalesRendererToCoreMessage,
 } from "./sales/core-messages.js";

@@ -1552,27 +1552,6 @@ describe("createCoreClient", () => {
     },
   );
 
-  it.each([
-    { kind: "started", copy: { kind: "duplicate", order_number: 2 } },
-    { kind: "not_offered" },
-    { kind: "lacks_permission" },
-  ])(
-    "asks the core to retry a sale's receipt print and resolves with the outcome: %j",
-    async (outcome) => {
-      const client = clientWithSequentialIds();
-      const port = new FakePort();
-      client.connect(port);
-
-      const retried = client.retryReceiptPrint("sale-1");
-      port.answer({ type: "retry-receipt-print-result", request_id: "request-1", outcome });
-
-      expect(await retried).toEqual(outcome);
-      expect(port.posted).toEqual([
-        { type: "retry-receipt-print", request_id: "request-1", sale_id: "sale-1" },
-      ]);
-    },
-  );
-
   it("asks the core to reprint a sale's receipt with its reason and the authorization given", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

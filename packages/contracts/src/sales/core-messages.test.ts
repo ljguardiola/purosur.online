@@ -1199,10 +1199,8 @@ describe("asking how a sale's receipt print stands", () => {
       "cover_open",
       "paper_out",
       "not_responding",
-      "retry_offered",
       "printer_not_configured",
       "failed",
-      "withdrawn",
       "printed",
     ].map((standing) => ({
       kind: "found",
@@ -1219,6 +1217,8 @@ describe("asking how a sale's receipt print stands", () => {
   it.each([
     { kind: "found", next_copy: { kind: "original" }, printed: false },
     { kind: "found", next_copy: { kind: "original" }, printed: false, standing: "jammed" },
+    { kind: "found", next_copy: { kind: "original" }, printed: false, standing: "withdrawn" },
+    { kind: "found", next_copy: { kind: "original" }, printed: false, standing: "retry_offered" },
     { kind: "found", next_copy: { kind: "duplicate" }, printed: false, standing: null },
     {
       kind: "found",
@@ -1237,42 +1237,10 @@ describe("asking how a sale's receipt print stands", () => {
 });
 
 describe("retrying a sale's receipt print", () => {
-  const retry = { type: "retry-receipt-print", request_id: REQUEST_ID, sale_id: "sale-1" };
-
-  it("accepts a request naming the sale", () => {
-    expect(salesRendererToCoreMessageSchema.parse(retry)).toEqual(retry);
-  });
-
-  it("rejects a request without the sale", () => {
-    const { sale_id: _sale, ...message } = retry;
+  it("is no longer a request the register answers", () => {
+    const message = { type: "retry-receipt-print", request_id: REQUEST_ID, sale_id: "sale-1" };
 
     expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it.each([
-    { kind: "started", copy: { kind: "duplicate", order_number: 1 } },
-    { kind: "started", copy: { kind: "original" } },
-    { kind: "not_offered" },
-    { kind: "printer_not_configured" },
-    { kind: "not_signed_in" },
-    { kind: "lacks_permission" },
-    { kind: "not_found" },
-    { kind: "unavailable" },
-  ])("accepts the result $kind", (outcome) => {
-    const message = { type: "retry-receipt-print-result", request_id: REQUEST_ID, outcome };
-
-    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([
-    { kind: "started" },
-    { kind: "started", copy: { kind: "duplicate" } },
-    { kind: "busy" },
-    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
-  ])("rejects the result %j", (outcome) => {
-    const message = { type: "retry-receipt-print-result", request_id: REQUEST_ID, outcome };
-
-    expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 });
 

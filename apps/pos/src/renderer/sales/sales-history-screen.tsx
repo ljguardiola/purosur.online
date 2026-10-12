@@ -135,7 +135,7 @@ export function SalesHistoryScreen({
         <FloatingNotification
           tone="success"
           icon={<Printer />}
-          title="Se mandó la reimpresión a la impresora"
+          title="La reimpresión sale en cuanto la impresora esté lista"
           description={`${receiptCopyPresentation(sent).comesOutAs}.`}
           onDismiss={() => setSent(undefined)}
         />

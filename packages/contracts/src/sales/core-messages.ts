@@ -144,12 +144,6 @@ const receiptPrintStatusMessageSchema = z.object({
   sale_id: z.string(),
 });
 
-const retryReceiptPrintMessageSchema = z.object({
-  type: z.literal("retry-receipt-print"),
-  request_id: requestId,
-  sale_id: z.string(),
-});
-
 export const reprintSaleReceiptMessageSchema = z.object({
   type: z.literal("reprint-sale-receipt"),
   request_id: requestId,
@@ -226,7 +220,6 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   cashChargeRequestMessageSchema,
   cancelLockedSaleMessageSchema,
   receiptPrintStatusMessageSchema,
-  retryReceiptPrintMessageSchema,
   reprintSaleReceiptMessageSchema,
   salesHistoryMessageSchema,
   saleHistoryDetailMessageSchema,
@@ -256,10 +249,8 @@ const receiptPrintStatusOutcomeSchema = z.discriminatedUnion("kind", [
         "cover_open",
         "paper_out",
         "not_responding",
-        "retry_offered",
         "printer_not_configured",
         "failed",
-        "withdrawn",
         "printed",
       ])
       .nullable(),
@@ -269,17 +260,6 @@ const receiptPrintStatusOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unavailable") }),
 ]);
 export type ReceiptPrintStatusOutcome = z.infer<typeof receiptPrintStatusOutcomeSchema>;
-
-const retryReceiptPrintOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("started"), copy: receiptCopySchema }),
-  z.object({ kind: z.literal("not_offered") }),
-  z.object({ kind: z.literal("printer_not_configured") }),
-  z.object({ kind: z.literal("not_signed_in") }),
-  z.object({ kind: z.literal("lacks_permission") }),
-  z.object({ kind: z.literal("not_found") }),
-  z.object({ kind: z.literal("unavailable") }),
-]);
-export type RetryReceiptPrintOutcome = z.infer<typeof retryReceiptPrintOutcomeSchema>;
 
 const reprintSaleReceiptOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("started"), copy: receiptCopySchema }),
@@ -383,11 +363,6 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("receipt-print-status-result"),
     request_id: requestId,
     outcome: receiptPrintStatusOutcomeSchema,
-  }),
-  z.object({
-    type: z.literal("retry-receipt-print-result"),
-    request_id: requestId,
-    outcome: retryReceiptPrintOutcomeSchema,
   }),
   z.object({
     type: z.literal("reprint-sale-receipt-result"),

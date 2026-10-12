@@ -8,7 +8,6 @@ import type {
   OpenSale,
   PaymentMethodAvailability,
   ReceiptPrintStatusOutcome,
-  RetryReceiptPrintOutcome,
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
 import {
@@ -107,7 +106,6 @@ export type ChargeScreenProps = {
     paymentTransactionId: string,
   ) => Promise<AbandonMercadoPagoChargeOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
-  retryReceiptPrint: (saleId: string) => Promise<RetryReceiptPrintOutcome>;
   onSessionInvalid: () => void;
 };
 
@@ -125,7 +123,6 @@ export function ChargeScreen({
   followMercadoPagoCharge,
   abandonMercadoPagoCharge,
   receiptPrintStatus,
-  retryReceiptPrint,
   onSessionInvalid,
 }: ChargeScreenProps) {
   const navigate = useNavigate();
@@ -329,7 +326,6 @@ export function ChargeScreen({
           saleId={step.sale.id}
           payment={step.payment}
           readReceiptStatus={receiptPrintStatus}
-          retryReceiptPrint={retryReceiptPrint}
           mayChangePrinter={mayChangePrinter}
           onNewSale={backToSale}
         />

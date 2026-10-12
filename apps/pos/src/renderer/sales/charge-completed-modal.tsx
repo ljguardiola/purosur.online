@@ -1,4 +1,4 @@
-import type { ReceiptPrintStatusOutcome, RetryReceiptPrintOutcome } from "@purosur/contracts";
+import type { ReceiptPrintStatusOutcome } from "@purosur/contracts";
 import type { CompletedCharge } from "./cash-charge-modal";
 import type { CompletedPointPayment } from "./point-payment-wait-modal";
 import type { CompletedQrPayment } from "./qr-payment-wait-modal";
@@ -15,18 +15,16 @@ export function ChargeCompletedModal({
   saleId,
   payment,
   readReceiptStatus,
-  retryReceiptPrint,
   mayChangePrinter,
   onNewSale,
 }: {
   saleId: string;
   payment: CompletedPayment;
   readReceiptStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
-  retryReceiptPrint: (saleId: string) => Promise<RetryReceiptPrintOutcome>;
   mayChangePrinter: boolean;
   onNewSale: () => void;
 }) {
-  const shared = { saleId, readReceiptStatus, retryReceiptPrint, mayChangePrinter, onNewSale };
+  const shared = { saleId, readReceiptStatus, mayChangePrinter, onNewSale };
   switch (payment.method) {
     case "CASH":
       return (

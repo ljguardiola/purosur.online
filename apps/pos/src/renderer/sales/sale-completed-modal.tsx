@@ -1,80 +1,49 @@
-import type {
-  ReceiptCopyShown,
-  ReceiptPrintStatusOutcome,
-  RetryReceiptPrintOutcome,
-} from "@purosur/contracts";
+import type { ReceiptPrintStatusOutcome } from "@purosur/contracts";
 import { Button, FigureStat, formatCents, InlineNotice, Modal, SummaryRowGroup } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowRight, CircleCheck, Plus, Printer, TriangleAlert } from "lucide-react";
-import { useState } from "react";
 import type { ReceiptPrintStatus } from "./sales-queries";
-import { useReceiptPrintStatusQuery, useRefreshReceiptPrintStatus } from "./sales-queries";
-
-const RETRY_FAILED_MESSAGE = "No se pudo reintentar la impresión. Probá de nuevo.";
+import { useReceiptPrintStatusQuery } from "./sales-queries";
 
 type FailedStanding =
   | "cover_open"
   | "paper_out"
   | "not_responding"
-  | "retry_offered"
-  | "withdrawn"
   | "printer_not_configured"
   | "failed";
 
 type FailurePresentation = {
   printerState: string | undefined;
   title?: string;
-  help: (copy: ReceiptCopyShown) => string;
+  help: string;
 };
 
-const AUTOMATIC_RESOLUTION =
-  "El ticket ya enviado queda en la impresora y sale solo cuando se resuelve. No hace falta reimprimir.";
-
-const UNCONFIRMED_PRINT = "La impresora volvió a responder pero no confirmó la impresión.";
-
 const PRINT_FROM_HISTORY = "Imprimilo desde el historial de ventas.";
-
-function retryCopyText(copy: ReceiptCopyShown): string {
-  return copy.kind === "original"
-    ? "El reintento sale como original."
-    : `Como el ticket ya se había enviado, el reintento sale como duplicado, con la reimpresión Nº ${copy.order_number}.`;
-}
 
 const FAILURES: Record<FailedStanding, FailurePresentation> = {
   paper_out: {
     printerState: "Sin papel",
     title: "La impresora se quedó sin papel",
-    help: () => `Poné un rollo nuevo y cerrá la tapa. ${AUTOMATIC_RESOLUTION}`,
+    help: "Poné un rollo nuevo y cerrá la tapa. El ticket sale solo cuando la impresora tenga papel.",
   },
   cover_open: {
     printerState: "Tapa abierta",
     title: "La tapa de la impresora está abierta",
-    help: () => `Cerrala. ${AUTOMATIC_RESOLUTION}`,
+    help: "Cerrala. El ticket sale solo cuando se cierre.",
   },
   not_responding: {
     printerState: "No responde",
     title: "La impresora no responde",
-    help: () =>
-      "Revisá que esté encendida y con el cable conectado. Si vuelve a responder y el ticket no sale, se ofrece reintentar.",
-  },
-  retry_offered: {
-    printerState: "Normal · sin confirmar la impresión",
-    title: "El ticket no salió",
-    help: (copy) => `${UNCONFIRMED_PRINT} ${retryCopyText(copy)}`,
-  },
-  withdrawn: {
-    printerState: "Cambiada",
-    help: () => PRINT_FROM_HISTORY,
+    help: "Revisá que esté encendida y con el cable conectado. El ticket sale solo cuando vuelva a responder.",
   },
   printer_not_configured: {
     printerState: "Sin configurar",
     title: "La impresora no está configurada",
-    help: () =>
-      "Cargá su dirección en Impresora y después imprimí el ticket desde el historial de ventas.",
+    help: "Cargá su dirección en Impresora y después imprimí el ticket desde el historial de ventas.",
   },
   failed: {
     printerState: undefined,
-    help: () => PRINT_FROM_HISTORY,
+    help: PRINT_FROM_HISTORY,
   },
 };
 
@@ -97,7 +66,6 @@ export type SaleCompletedModalProps = {
   saleId: string;
   total: number;
   readReceiptStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
-  retryReceiptPrint: (saleId: string) => Promise<RetryReceiptPrintOutcome>;
   mayChangePrinter: boolean;
   onNewSale: () => void;
 } & (
@@ -108,14 +76,10 @@ export type SaleCompletedModalProps = {
 );
 
 export function SaleCompletedModal(props: SaleCompletedModalProps) {
-  const { saleId, total, readReceiptStatus, retryReceiptPrint, mayChangePrinter, onNewSale } =
-    props;
+  const { saleId, total, readReceiptStatus, mayChangePrinter, onNewSale } = props;
   const navigate = useNavigate();
   const change = "change" in props ? props.change : 0;
   const receipt = useReceiptPrintStatusQuery({ saleId, read: readReceiptStatus });
-  const refreshReceipt = useRefreshReceiptPrintStatus(saleId);
-  const [retrying, setRetrying] = useState(false);
-  const [notice, setNotice] = useState<string>();
   const paymentRow =
     props.method === "TRANSFER"
       ? { label: "Transferencia", value: formatCents(props.amount) }
@@ -125,29 +89,6 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
           ? { label: "Point integrada", value: formatCents(props.amount) }
           : { label: "Efectivo entregado", value: formatCents(props.tendered) };
   const failedStanding = receipt.status === "loaded" ? failedStandingOf(receipt.value) : undefined;
-
-  async function retry() {
-    if (retrying) {
-      return;
-    }
-    setRetrying(true);
-    setNotice(undefined);
-    const outcome = await retryReceiptPrint(saleId).catch((): "failed" => "failed");
-    setRetrying(false);
-    if (outcome === "failed" || outcome.kind === "unavailable") {
-      setNotice(RETRY_FAILED_MESSAGE);
-      return;
-    }
-    if (outcome.kind === "lacks_permission") {
-      setNotice("No tenés permiso para reintentar la impresión.");
-      return;
-    }
-    if (outcome.kind === "printer_not_configured") {
-      setNotice("La impresora no está configurada.");
-      return;
-    }
-    await refreshReceipt();
-  }
 
   if (receipt.status === "loaded" && failedStanding !== undefined) {
     const changePrinter = mayChangePrinter ? (
@@ -161,7 +102,6 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
       </Button>
     ) : null;
     const failure = FAILURES[failedStanding];
-    const { next_copy: copy } = receipt.value;
     return (
       <Modal
         open
@@ -173,30 +113,12 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
         contextTone="error"
         title="No se pudo imprimir el ticket"
         footer={
-          failedStanding === "retry_offered" ? (
-            <>
-              <Button variant="secondary" size="large" icon={<ArrowRight />} onPress={onNewSale}>
-                Seguir vendiendo
-              </Button>
-              {changePrinter}
-              <Button
-                size="large"
-                fullWidth
-                icon={<Printer />}
-                disabled={retrying}
-                onPress={() => void retry()}
-              >
-                Reintentar impresión
-              </Button>
-            </>
-          ) : (
-            <>
-              {changePrinter}
-              <Button size="large" fullWidth icon={<ArrowRight />} onPress={onNewSale}>
-                Seguir vendiendo
-              </Button>
-            </>
-          )
+          <>
+            {changePrinter}
+            <Button size="large" fullWidth icon={<ArrowRight />} onPress={onNewSale}>
+              Seguir vendiendo
+            </Button>
+          </>
         }
       >
         <div className="flex flex-col gap-4">
@@ -213,12 +135,9 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            description={failure.help(copy)}
+            description={failure.help}
             {...(failure.title === undefined ? {} : { title: failure.title })}
           />
-          {notice === undefined || failedStanding !== "retry_offered" ? null : (
-            <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
-          )}
         </div>
       </Modal>
     );

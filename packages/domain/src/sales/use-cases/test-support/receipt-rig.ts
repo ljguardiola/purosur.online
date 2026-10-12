@@ -11,7 +11,7 @@ import { SequentialIds } from "./fake-sale-ledger.js";
 
 const SALE_COMPLETED_AT = new Date("2026-10-07T15:00:00.000Z");
 export const FIRST_PRINT_AT = new Date("2026-10-07T15:01:00.000Z");
-export const ACKNOWLEDGED_AT = new Date("2026-10-07T15:01:03.000Z");
+export const SENT_AT = new Date("2026-10-07T15:01:03.000Z");
 const OWN_GRANT: ReceiptPrintGrant = { actorId: "cashier", authorizedBy: undefined };
 export const AUTHORIZED_GRANT: ReceiptPrintGrant = {
   actorId: "cashier",
@@ -76,7 +76,6 @@ export function receiptRig(
   const watch = {
     onStatus: (status: PrinterStatus) => statuses.push(status),
     signal: new AbortController().signal,
-    withdrawal: new AbortController().signal,
   };
   const ports: ReceiptPrintingPorts<ReceiptPrintGrant, typeof NOT_PERMITTED> = {
     ledger,

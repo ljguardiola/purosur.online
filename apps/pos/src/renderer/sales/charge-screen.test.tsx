@@ -183,21 +183,22 @@ describe("ChargeScreen", () => {
     expect(receiptPrintStatus).toHaveBeenCalledWith("sale-1");
   });
 
-  it("shows the printer failure of the completed sale and retries it through the core", async () => {
-    const { screen, retryReceiptPrint } = await renderScreen({
+  it("shows the printer failure of the completed sale, which prints by itself once resolved", async () => {
+    const { screen } = await renderScreen({
       receiptPrintStatus: async () => ({
         kind: "found",
         next_copy: { kind: "original" },
         printed: false,
-        standing: "retry_offered",
+        standing: "paper_out",
       }),
     });
 
     await chargeInCash(screen, "5.000,00");
-    await expect.element(screen.getByText("El ticket no salió")).toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "Reintentar impresión" }));
 
-    expect(retryReceiptPrint).toHaveBeenCalledWith("sale-1");
+    await expect.element(screen.getByText("La impresora se quedó sin papel")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Reintentar impresión" }))
+      .not.toBeInTheDocument();
   });
 
   it("offers to change the printer on a failed print to a person who may configure it", async () => {
