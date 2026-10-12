@@ -3,6 +3,7 @@ import {
   isRefundDiscardable,
   isRefundDiscarded,
   isRefundPending,
+  refundAlertKind,
 } from "../model/payment-refund.js";
 import type { RefundStore } from "./refund-store.js";
 
@@ -44,7 +45,7 @@ export async function discardRefund(
     }
     const discardedAt = clock.now();
     await tx.recordRefundDiscarded(refund.id, actorId, discardedAt);
-    await tx.resolveLatePaymentRefundAlert(refund.id, actorId, discardedAt);
+    await tx.resolveRefundAlert(refund.id, refundAlertKind(refund.origin), actorId, discardedAt);
     return { kind: "discarded", refundId: refund.id, discardedAt };
   });
 }

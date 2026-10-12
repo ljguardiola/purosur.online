@@ -1,3 +1,4 @@
+import type { AlertKind } from "../../alerts/index.js";
 import { hasApprovedPayment, PAYMENT_METHODS, type PaymentMethod } from "./payment.js";
 
 export interface RefundablePayment {
@@ -77,6 +78,10 @@ export function isRefundDiscarded(state: string): boolean {
 
 export function isRefundDiscardable(origin: string): boolean {
   return origin === LATE_PAYMENT_REFUND_ORIGIN;
+}
+
+export function refundAlertKind(origin: string): AlertKind {
+  return origin === LATE_PAYMENT_REFUND_ORIGIN ? "late_payment_refund" : "refund_task";
 }
 
 export interface LatePaymentRefund extends PlannedRefund {

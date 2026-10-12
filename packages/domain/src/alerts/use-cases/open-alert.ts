@@ -17,9 +17,10 @@ export type OpenAlertOutcome =
 export async function openAlert(
   { store, clock }: AlertOpeningPorts,
   input: OpenAlertInput,
+  level?: AlertLevel,
 ): Promise<OpenAlertOutcome> {
   const openedAt = clock.now();
-  return store.transaction((tx) => openAlertIn(tx, input, openedAt));
+  return store.transaction((tx) => openAlertIn(tx, input, openedAt, level));
 }
 
 export async function openAlertIn(
