@@ -6,8 +6,9 @@ import type {
   SaleDiscountRequest,
   SignInUser,
 } from "@purosur/contracts";
-import { SummaryRow } from "@purosur/ui";
+import { InlineNotice, SummaryRow } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { TriangleAlert } from "lucide-react";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render as renderReference } from "vitest-browser-react";
@@ -122,9 +123,11 @@ describe("ApplySaleDiscountModal", () => {
     await expect.element(screen.getByText("VENTA EN CURSO · 8 LÍNEAS")).toBeVisible();
     await expect
       .element(
-        screen.getByText(
-          "Si después cambiás una línea, este descuento se quita y hay que volver a aplicarlo.",
-        ),
+        screen
+          .getByText(
+            "Si después cambiás una línea, este descuento se quita y hay que volver a aplicarlo.",
+          )
+          .first(),
       )
       .toBeVisible();
     await expectNoAccessibilityViolations(document.body);
@@ -146,6 +149,73 @@ describe("ApplySaleDiscountModal", () => {
     await expect
       .element(screen.getByText("Se suma a las promociones y a los descuentos de línea."))
       .toBeVisible();
+  });
+
+  it("heads the modal with the percent icon", async () => {
+    await renderModal();
+
+    expect(document.querySelector("svg.lucide-percent")).not.toBeNull();
+    expect(document.querySelector("svg.lucide-badge-percent")).toBeNull();
+  });
+
+  it("draws the value in the compact discount entry, with no unit inside it, for a percentage and for an amount", async () => {
+    const { screen } = await renderModal();
+
+    for (const [unit, name] of [
+      ["%", "Porcentaje de descuento"],
+      ["$", "Monto de descuento"],
+    ] as const) {
+      await chooseKind(screen, unit);
+      const input = screen.getByRole("textbox", { name }).element() as HTMLElement;
+      const box = input.parentElement as HTMLElement;
+
+      expect(box.getBoundingClientRect().height).toBeCloseTo(56, 0);
+      expect(box.getBoundingClientRect().width).toBeCloseTo(220, 0);
+      expect(Math.round(Number.parseFloat(getComputedStyle(input).fontSize))).toBe(24);
+      expect(getComputedStyle(input).textAlign).toBe("left");
+      expect(box.children).toHaveLength(1);
+    }
+  });
+
+  it("puts the unit, the value and its description on one row, in that order", async () => {
+    const { screen } = await renderModal();
+    const units = screen.getByRole("radiogroup", { name: "Unidad del descuento" }).element();
+    const box = screen.getByRole("textbox", { name: "Porcentaje de descuento" }).element()
+      .parentElement as HTMLElement;
+    const description = screen
+      .getByText("Se suma a las promociones y a los descuentos de línea.")
+      .element();
+    const [unitsRect, boxRect, descriptionRect] = [units, box, description].map((element) =>
+      element.getBoundingClientRect(),
+    ) as [DOMRect, DOMRect, DOMRect];
+
+    expect(unitsRect.right).toBeLessThanOrEqual(boxRect.left);
+    expect(descriptionRect.left).toBeGreaterThanOrEqual(boxRect.right);
+    const boxMiddle = boxRect.top + boxRect.height / 2;
+    expect(unitsRect.top).toBeLessThan(boxMiddle);
+    expect(unitsRect.bottom).toBeGreaterThan(boxMiddle);
+    expect(descriptionRect.top).toBeLessThan(boxMiddle);
+    expect(descriptionRect.bottom).toBeGreaterThan(boxMiddle);
+  });
+
+  it("shows the warning about changing a line as a warning notice", async () => {
+    const { screen } = await renderModal();
+    const reference = await renderReference(
+      <InlineNotice tone="warning" icon={<TriangleAlert />} title="Referencia" />,
+    );
+
+    const shown = screen
+      .getByText(
+        "Si después cambiás una línea, este descuento se quita y hay que volver a aplicarlo.",
+      )
+      .first()
+      .element();
+    const referenceTitle = reference.getByText("Referencia").first().element();
+    expectDrawnLike(shown, referenceTitle, ["color", "fontSize", "fontWeight"], "warning");
+    expect(getComputedStyle(shown.parentElement?.parentElement as Element).backgroundColor).toBe(
+      getComputedStyle(referenceTitle.parentElement?.parentElement as Element).backgroundColor,
+    );
+    await reference.unmount();
   });
 
   it("asks for an amount when the dollar sign is chosen, emptying what was typed", async () => {
