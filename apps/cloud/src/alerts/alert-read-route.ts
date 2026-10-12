@@ -5,6 +5,7 @@ import {
   alertKindPolicy,
   alertNamedRecordIds,
   argentinaCalendarDay,
+  DISCARDABLE_REFUND_ALERT_KINDS,
   hasFortnightStarted,
   isOpenAlert,
 } from "@purosur/domain";
@@ -107,7 +108,7 @@ export function toAlertDetailBody(
     escalatedAt: alert.escalatedAt?.toISOString() ?? null,
     resolvedAt: alert.resolvedAt?.toISOString() ?? null,
     open: isOpenAlert(alert),
-    closing: alertClosing(alert.kind),
+    closing: alertClosing(alert.kind, DISCARDABLE_REFUND_ALERT_KINDS),
     deliveries: deliveries.map(toAlertDelivery),
   });
 }

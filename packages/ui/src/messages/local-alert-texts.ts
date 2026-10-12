@@ -52,6 +52,12 @@ const FIXED_LOCAL_ALERT_TEXTS = {
     whatToDo:
       "Si ese reembolso ya se hizo desde Mercado Pago, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes por el mismo medio, o descartarlo si no corresponde. El Administrador ya fue avisado.",
   },
+  refund_task: {
+    title: "Reembolso pendiente de confirmar",
+    meaning: "Hay un reembolso aprobado que todavía no quedó marcado como hecho en el sistema.",
+    whatToDo:
+      "Si ese reembolso ya se hizo por fuera del sistema, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes. El Administrador ya fue avisado.",
+  },
 } satisfies Record<string, LocalAlertText>;
 
 export type LocalAlertKind = keyof typeof FIXED_LOCAL_ALERT_TEXTS | "sales_denied";

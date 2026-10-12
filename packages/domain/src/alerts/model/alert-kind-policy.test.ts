@@ -8,6 +8,8 @@ import {
   alertKindPolicy,
   alertKindsWithScope,
   LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS,
+  REFUND_TASK_ALERT_OPENING_DELAY_MS,
+  REFUND_TASK_ESCALATION_DELAY_MS,
 } from "./alert-kind-policy.js";
 
 describe("alertKindPolicy", () => {
@@ -17,6 +19,11 @@ describe("alertKindPolicy", () => {
 
   it("escalates a late-payment refund after 72 hours", () => {
     expect(LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS).toBe(72 * 60 * 60 * 1000);
+  });
+
+  it("opens the alert of a forgotten refund after 24 hours and escalates it 72 hours after the refund opened", () => {
+    expect(REFUND_TASK_ALERT_OPENING_DELAY_MS).toBe(24 * 60 * 60 * 1000);
+    expect(REFUND_TASK_ESCALATION_DELAY_MS).toBe(72 * 60 * 60 * 1000);
   });
 
   const afterOpening = { kind: "afterOpening", delayMs: ALERT_ESCALATION_DELAY_MS } as const;
@@ -48,6 +55,14 @@ describe("alertKindPolicy", () => {
       "late_payment_refund",
       "warning",
       { kind: "afterOpening", delayMs: LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS },
+      "local",
+      "refund",
+      true,
+    ],
+    [
+      "refund_task",
+      "warning",
+      { kind: "afterSubjectOpening", delayMs: REFUND_TASK_ESCALATION_DELAY_MS },
       "local",
       "refund",
       true,
@@ -85,8 +100,10 @@ describe("alertKindPolicy", () => {
 });
 
 describe("alertClosing", () => {
-  it("closes by itself an alert whose condition stays cleared, with its refund an alert scoped to a refund, and every other by hand", () => {
-    const closings = Object.fromEntries(ALERT_KINDS.map((kind) => [kind, alertClosing(kind)]));
+  it("closes by itself an alert whose condition stays cleared, with its refund done or discarded a discardable refund's alert, once its refund is done any other refund's, and every other by hand", () => {
+    const closings = Object.fromEntries(
+      ALERT_KINDS.map((kind) => [kind, alertClosing(kind, ["late_payment_refund"])]),
+    );
 
     expect(closings).toEqual({
       backoffice_passkey_changed: "by_hand",
@@ -105,11 +122,27 @@ describe("alertClosing", () => {
       fiscal_rejected: "by_itself",
       offline_authorization_code_missing: "by_itself",
       late_payment_refund: "with_its_refund",
+      refund_task: "when_its_refund_is_done",
     });
   });
 
+  it("closes a refund's alert with its refund done or discarded only when its kind is one of a discardable refund", () => {
+    expect(alertClosing("late_payment_refund", [])).toBe("when_its_refund_is_done");
+    expect(alertClosing("refund_task", ["refund_task"])).toBe("with_its_refund");
+  });
+
+  it("closes an alert not scoped to a refund the same way whatever kinds belong to a discardable refund", () => {
+    expect(alertClosing("register_enrolled", ["register_enrolled"])).toBe("by_hand");
+    expect(alertClosing("update_required", ["update_required"])).toBe("by_itself");
+  });
+
   it("lists every way an alert closes", () => {
-    expect(ALERT_CLOSINGS).toEqual(["by_itself", "with_its_refund", "by_hand"]);
+    expect(ALERT_CLOSINGS).toEqual([
+      "by_itself",
+      "with_its_refund",
+      "when_its_refund_is_done",
+      "by_hand",
+    ]);
   });
 });
 
@@ -140,6 +173,6 @@ describe("alertKindsWithScope", () => {
     expect(alertKindsWithScope("registerFortnight")).toEqual([
       "offline_authorization_code_missing",
     ]);
-    expect(alertKindsWithScope("refund")).toEqual(["late_payment_refund"]);
+    expect(alertKindsWithScope("refund")).toEqual(["late_payment_refund", "refund_task"]);
   });
 });

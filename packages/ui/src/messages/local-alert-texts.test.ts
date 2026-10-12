@@ -82,6 +82,16 @@ test("tells the refund owed for a second paid order of a sale's QR that the QR w
   });
 });
 
+test("gives the refund of a cancelled sale left pending its title, what it means and what to do", () => {
+  expect(localAlertText({ kind: "refund_task" })).toEqual({
+    title: "Reembolso pendiente de confirmar",
+    meaning: "Hay un reembolso aprobado que todavía no quedó marcado como hecho en el sistema.",
+    whatToDo:
+      "Si ese reembolso ya se hizo por fuera del sistema, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes. El Administrador ya fue avisado.",
+  });
+  expect(localAlertTitle("refund_task")).toBe("Reembolso pendiente de confirmar");
+});
+
 test("gives no title to a kind that has none, nor to one this app does not know yet", () => {
   expect(localAlertTitle("update_required")).toBeUndefined();
   expect(localAlertTitle("register_battery_low")).toBeUndefined();
@@ -108,6 +118,7 @@ test("knows the kinds that have a fixed text", () => {
   expect(isLocalAlertKind("installation_revoked")).toBe(true);
   expect(isLocalAlertKind("serial_device_missing")).toBe(true);
   expect(isLocalAlertKind("late_payment_refund")).toBe(true);
+  expect(isLocalAlertKind("refund_task")).toBe(true);
 });
 
 test("does not know a kind that has none, nor a member every object has", () => {
@@ -122,5 +133,6 @@ test("names exactly the kinds that have a fixed text", () => {
     | "installation_revoked"
     | "serial_device_missing"
     | "late_payment_refund"
+    | "refund_task"
   >();
 });

@@ -14,6 +14,7 @@ const passkeyChange = {
   resolvedAt: null,
   salesDeniedReason: null,
   refundAmount: null,
+  refundMethod: null,
 };
 const closedLockout = {
   ...passkeyChange,
@@ -55,6 +56,20 @@ describe("alertSummarySchema", () => {
 
     expect(alertSummarySchema.safeParse(owed).data).toEqual(owed);
   });
+
+  it.each(["CASH", "TRANSFER", "QR"])(
+    "accepts the amount and the %s method of a refund left pending",
+    (refundMethod) => {
+      const forgotten = {
+        ...passkeyChange,
+        kind: "refund_task",
+        refundAmount: 1_240_000,
+        refundMethod,
+      };
+
+      expect(alertSummarySchema.safeParse(forgotten).data).toEqual(forgotten);
+    },
+  );
 
   it("strips keys it does not define", () => {
     expect(alertSummarySchema.safeParse({ ...passkeyChange, detail: {} }).data).toEqual(
@@ -116,6 +131,9 @@ describe("alertSummarySchema", () => {
     ["refundAmount", -1],
     ["refundAmount", "100"],
     ["refundAmount", undefined],
+    ["refundMethod", "CHEQUE"],
+    ["refundMethod", 1],
+    ["refundMethod", undefined],
   ])("refuses %s as %j", (field, value) => {
     expect(alertSummarySchema.safeParse({ ...passkeyChange, [field]: value }).success).toBe(false);
   });

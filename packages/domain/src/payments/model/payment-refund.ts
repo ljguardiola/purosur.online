@@ -1,3 +1,4 @@
+import type { AlertKind } from "../../alerts/index.js";
 import { hasApprovedPayment, PAYMENT_METHODS, type PaymentMethod } from "./payment.js";
 
 export interface RefundablePayment {
@@ -78,6 +79,17 @@ export function isRefundDiscarded(state: string): boolean {
 export function isRefundDiscardable(origin: string): boolean {
   return origin === LATE_PAYMENT_REFUND_ORIGIN;
 }
+
+export function refundAlertKind(origin: string): AlertKind {
+  return origin === LATE_PAYMENT_REFUND_ORIGIN ? "late_payment_refund" : "refund_task";
+}
+
+export const DISCARDABLE_REFUND_ALERT_KINDS: readonly AlertKind[] =
+  REFUND_ORIGINS.filter(isRefundDiscardable).map(refundAlertKind);
+
+export const REFUND_TASK_ORIGINS: readonly RefundOrigin[] = REFUND_ORIGINS.filter(
+  (origin) => refundAlertKind(origin) === "refund_task",
+);
 
 export interface LatePaymentRefund extends PlannedRefund {
   origin: typeof LATE_PAYMENT_REFUND_ORIGIN;

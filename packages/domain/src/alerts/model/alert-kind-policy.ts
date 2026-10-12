@@ -18,6 +18,7 @@ export type AlertScopeKind =
 
 type AlertEscalationRule =
   | { kind: "afterOpening"; delayMs: number }
+  | { kind: "afterSubjectOpening"; delayMs: number }
   | { kind: "beforeDeadline"; leadMs: number };
 
 export interface AlertKindPolicy {
@@ -31,6 +32,8 @@ export interface AlertKindPolicy {
 
 export const ALERT_ESCALATION_DELAY_MS = 24 * 60 * 60 * 1000;
 export const LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS = 72 * 60 * 60 * 1000;
+export const REFUND_TASK_ALERT_OPENING_DELAY_MS = 24 * 60 * 60 * 1000;
+export const REFUND_TASK_ESCALATION_DELAY_MS = 72 * 60 * 60 * 1000;
 
 const AFTER_OPENING = { kind: "afterOpening", delayMs: ALERT_ESCALATION_DELAY_MS } as const;
 
@@ -163,6 +166,14 @@ const ALERT_KIND_POLICIES = {
     deduplicates: true,
     resolvesAfterStableClear: false,
   },
+  refund_task: {
+    level: "warning",
+    escalation: { kind: "afterSubjectOpening", delayMs: REFUND_TASK_ESCALATION_DELAY_MS },
+    audience: "local",
+    scopeKind: "refund",
+    deduplicates: true,
+    resolvesAfterStableClear: false,
+  },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;
 
 export function alertKindPolicy(kind: AlertKind): AlertKindPolicy {
@@ -173,13 +184,24 @@ export function alertKindsWithScope(scopeKind: AlertScopeKind): AlertKind[] {
   return ALERT_KINDS.filter((kind) => ALERT_KIND_POLICIES[kind].scopeKind === scopeKind);
 }
 
-export const ALERT_CLOSINGS = ["by_itself", "with_its_refund", "by_hand"] as const;
+export const ALERT_CLOSINGS = [
+  "by_itself",
+  "with_its_refund",
+  "when_its_refund_is_done",
+  "by_hand",
+] as const;
 export type AlertClosing = (typeof ALERT_CLOSINGS)[number];
 
-export function alertClosing(kind: AlertKind): AlertClosing {
+export function alertClosing(
+  kind: AlertKind,
+  discardableRefundAlertKinds: readonly AlertKind[],
+): AlertClosing {
   const policy = ALERT_KIND_POLICIES[kind];
   if (policy.resolvesAfterStableClear) {
     return "by_itself";
   }
-  return policy.scopeKind === "refund" ? "with_its_refund" : "by_hand";
+  if (policy.scopeKind !== "refund") {
+    return "by_hand";
+  }
+  return discardableRefundAlertKinds.includes(kind) ? "with_its_refund" : "when_its_refund_is_done";
 }

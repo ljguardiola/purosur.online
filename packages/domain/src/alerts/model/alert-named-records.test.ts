@@ -105,7 +105,7 @@ describe("a refund scope", () => {
       expect(alertScopeRecordId({ kind, scope: SCOPE })).toBeUndefined();
       expect(alertNamedRecordIds({ kind, scope: SCOPE })).toEqual([]);
     }
-    expect(kindsScopedTo("refund")).toEqual(["late_payment_refund"]);
+    expect(kindsScopedTo("refund")).toEqual(["late_payment_refund", "refund_task"]);
   });
 });
 

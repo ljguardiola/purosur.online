@@ -1,9 +1,5 @@
 import type { Clock } from "../../shared/index.js";
-import {
-  isRefundDiscarded,
-  isRefundPending,
-  LATE_PAYMENT_REFUND_ORIGIN,
-} from "../model/payment-refund.js";
+import { isRefundDiscarded, isRefundPending, refundAlertKind } from "../model/payment-refund.js";
 import type { RefundStore } from "./refund-store.js";
 
 export interface MarkRefundDonePorts {
@@ -40,9 +36,7 @@ export async function markRefundDone(
     }
     const doneAt = clock.now();
     await tx.recordRefundDone(refund.id, actorId, doneAt);
-    if (refund.origin === LATE_PAYMENT_REFUND_ORIGIN) {
-      await tx.resolveLatePaymentRefundAlert(refund.id, actorId, doneAt);
-    }
+    await tx.resolveRefundAlert(refund.id, refundAlertKind(refund.origin), actorId, doneAt);
     return { kind: "marked_done", refundId: refund.id, doneAt };
   });
 }

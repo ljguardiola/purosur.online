@@ -15,6 +15,11 @@ export function escalatesAt({ kind, detail }: OpenAlertInput, openedAt: Date): D
   if (escalation.kind === "afterOpening") {
     return new Date(openedAt.getTime() + escalation.delayMs);
   }
+  if (escalation.kind === "afterSubjectOpening") {
+    return "refundOpenedAt" in detail
+      ? new Date(Date.parse(detail.refundOpenedAt) + escalation.delayMs)
+      : null;
+  }
   return "notAfter" in detail ? new Date(Date.parse(detail.notAfter) - escalation.leadMs) : null;
 }
 

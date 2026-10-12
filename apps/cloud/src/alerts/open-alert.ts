@@ -1,4 +1,4 @@
-import type { OpenAlertInput } from "@purosur/domain";
+import type { AlertLevel, OpenAlertInput } from "@purosur/domain";
 import {
   type OpenAlertOutcome,
   openAlert as openAlertUseCase,
@@ -10,6 +10,7 @@ export type { OpenAlertInput, OpenAlertOutcome };
 
 export interface OpenAlertDeps {
   now: () => Date;
+  level?: AlertLevel;
 }
 
 export function openAlert<TQueryResult extends PgQueryResultHKT>(
@@ -20,5 +21,6 @@ export function openAlert<TQueryResult extends PgQueryResultHKT>(
   return openAlertUseCase(
     { store: new DrizzleAlertStore(tx, deps.now), clock: { now: deps.now } },
     input,
+    deps.level,
   );
 }

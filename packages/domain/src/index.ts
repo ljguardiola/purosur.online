@@ -241,6 +241,7 @@ export type {
 export {
   cancellableWithoutAuthorization,
   cashCharge,
+  DISCARDABLE_REFUND_ALERT_KINDS,
   isLateApproval,
   isRefundPending,
   isValidOrderAmount,
@@ -269,6 +270,7 @@ export {
   REFUND_ORIGINS,
   REFUND_PENDING_STATE,
   REFUND_STATES,
+  REFUND_TASK_ORIGINS,
 } from "./payments/index.js";
 export type {
   AuthorizablePermissionKey,

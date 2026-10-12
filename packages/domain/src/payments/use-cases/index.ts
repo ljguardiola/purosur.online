@@ -101,6 +101,11 @@ export type {
 } from "./mercado-pago-order-ports.js";
 export { PaymentTransactionAlreadyRecorded } from "./mercado-pago-order-ports.js";
 export type {
+  OpenOverdueRefundTaskAlertsOutcome,
+  OpenOverdueRefundTaskAlertsPorts,
+} from "./open-overdue-refund-task-alerts.js";
+export { openOverdueRefundTaskAlerts } from "./open-overdue-refund-task-alerts.js";
+export type {
   QrPaymentReplacement,
   QrPaymentReplacementStore,
   QrPaymentReplacementTransaction,
@@ -119,6 +124,11 @@ export type {
   RefundStore,
   RefundStoreTransaction,
 } from "./refund-store.js";
+export type {
+  PendingRefundOfCancelledSale,
+  RefundTaskAlertStore,
+  RefundTaskAlertTransaction,
+} from "./refund-task-alert-ports.js";
 export type {
   StartMercadoPagoChargeInput,
   StartMercadoPagoChargeOutcome,
