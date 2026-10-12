@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { LifeBuoy } from "lucide-react";
+import { LifeBuoy, Usb } from "lucide-react";
 import { within } from "storybook/test";
 import {
   playPseudoHoverPaintsBoneFill,
@@ -63,4 +63,14 @@ export const LightHovered: Story = {
 export const LightFocusVisible: Story = {
   args: { rail: "light", active: false },
   play: playTabMatchesCssFocusVisible(theLink),
+};
+
+export const LightLongLabel: Story = {
+  args: {
+    rail: "light",
+    active: false,
+    label: "Balanza y lector",
+    icon: <Usb />,
+    href: "/serial-devices",
+  },
 };

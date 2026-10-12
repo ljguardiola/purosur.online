@@ -1401,6 +1401,7 @@ describe("asking for the register's sales history", () => {
     },
     { ...found, rows: [{ ...row, comprobante: { kind: "none" }, state: "in_progress" }] },
     { ...found, rows: [{ ...row, operation_number: null }] },
+    { ...found, rows: [{ ...row, occurred_at: "2026-10-08T09:00:00.000-03:00" }] },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
     { kind: "unavailable" },
@@ -1464,6 +1465,7 @@ describe("asking for the detail of one sale of the history", () => {
       kind: "found",
       detail: { ...detail, operation_number: null, next_copy: { kind: "original" } },
     },
+    { kind: "found", detail: { ...detail, occurred_at: "2026-10-08T09:00:00.000-03:00" } },
     { kind: "not_found" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
@@ -1479,6 +1481,7 @@ describe("asking for the detail of one sale of the history", () => {
     { kind: "found", detail: { ...detail, next_copy: { kind: "reprint" } } },
     { kind: "found", detail: { ...detail, served_by_first_name: undefined } },
     { kind: "found", detail: { ...detail, state: "voided" } },
+    { kind: "found", detail: { ...detail, occurred_at: "yesterday" } },
   ])("rejects the answer %j", (outcome) => {
     expect(salesCoreToRendererMessageSchema.safeParse(answer(outcome)).success).toBe(false);
   });

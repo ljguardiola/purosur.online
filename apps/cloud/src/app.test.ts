@@ -1837,7 +1837,7 @@ describe("wiring the unclear outcome route", () => {
         withConnection: (work) => work(testDatabase.db),
       } satisfies DedicatedConnections<PgliteQueryResultHKT>,
       taxAuthority: {
-        solicit: async () => ({ kind: "no_answer" as const }),
+        solicit: async () => ({ kind: "no_answer" as const, rejections: [] }),
       },
       certificateFingerprint: "AA:BB",
       enqueueUnclearOutcome: async () => {},

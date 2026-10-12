@@ -10,12 +10,9 @@ import {
   SectionNavButton,
   searchArticles,
 } from "@purosur/ui";
-import { ArrowRight, FileText, House, Search, SearchX } from "lucide-react";
+import { ArrowRight, FileText, Search, SearchX } from "lucide-react";
 import { useState } from "react";
-import type { ActionEntry } from "../shell/action-entries";
-import { entriesFor } from "../shell/action-entries";
-import { NavigationRail } from "../shell/navigation-rail";
-import { SignOutModal } from "../shell/sign-out-modal";
+import { NoSessionRail } from "../shell/no-session-rail";
 import type { SignedInPerson } from "../shell/signed-in-person";
 
 type RegisterHelpCatalog = HelpCatalog<CategoryRecord, Record<string, HelpArticle<string, string>>>;
@@ -24,7 +21,6 @@ export type HelpScreenProps = {
   person: SignedInPerson;
   registerName: string | null;
   help: RegisterHelpCatalog;
-  entries: readonly ActionEntry[];
   signOut: () => void;
 };
 
@@ -38,8 +34,7 @@ function sectionsMatching(help: RegisterHelpCatalog, query: string): Section[] {
   );
 }
 
-export function HelpScreen({ person, registerName, help, entries, signOut }: HelpScreenProps) {
-  const [leaving, setLeaving] = useState(false);
+export function HelpScreen({ person, registerName, help, signOut }: HelpScreenProps) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -48,12 +43,7 @@ export function HelpScreen({ person, registerName, help, entries, signOut }: Hel
 
   return (
     <div className="flex h-full w-full bg-surface">
-      <NavigationRail
-        entries={entriesFor(entries, person.abilities)}
-        current="/help"
-        home={{ label: "Inicio", icon: House, to: "/" }}
-        onSignOut={() => setLeaving(true)}
-      />
+      <NoSessionRail person={person} current="/help" signOut={signOut} />
       <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
         <ScreenHeader eyebrow={registerName ?? undefined} title="Ayuda" />
         <div className="flex min-h-0 flex-1 gap-8">
@@ -128,12 +118,6 @@ export function HelpScreen({ person, registerName, help, entries, signOut }: Hel
           </div>
         </div>
       </main>
-      <SignOutModal
-        open={leaving}
-        firstName={person.first_name}
-        onClose={() => setLeaving(false)}
-        onSignOut={signOut}
-      />
     </div>
   );
 }

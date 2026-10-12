@@ -50,10 +50,12 @@ function pesosOf(cents: number): string {
   return (cents / CENTS_PER_PESO).toFixed(2);
 }
 
+const NO_ANSWER: SolicitationAnswer = { kind: "no_answer", rejections: [] };
+
 function answerOf(answer: unknown): SolicitationAnswer {
   const result = (answer as { FECAESolicitarResult?: SolicitationResult })?.FECAESolicitarResult;
   if (result === undefined) {
-    return { kind: "no_answer" };
+    return NO_ANSWER;
   }
   const listed = result.FeDetResp?.FECAEDetResponse;
   const details = Array.isArray(listed) ? listed : listed === undefined ? [] : [listed];
@@ -75,14 +77,16 @@ function answerOf(answer: unknown): SolicitationAnswer {
     ...rejectionsOf(result.Errors, "Err"),
   ];
   if (rejections.length === 0) {
-    return { kind: "no_answer" };
+    return NO_ANSWER;
   }
   if (result.FeCabResp?.Resultado === "R" || detail?.Resultado === "R") {
     return { kind: "rejected", rejections };
   }
   const withoutResult =
     result.FeCabResp?.Resultado === undefined && detail?.Resultado === undefined;
-  return withoutResult ? { kind: "refused_without_result", rejections } : { kind: "no_answer" };
+  return withoutResult
+    ? { kind: "refused_without_result", rejections }
+    : { kind: "no_answer", rejections };
 }
 
 export class WsfeTaxAuthorityInvoicing implements TaxAuthorityInvoicing {
@@ -153,7 +157,7 @@ export class WsfeTaxAuthorityInvoicing implements TaxAuthorityInvoicing {
       }
       return answerOf(answer);
     } catch {
-      return { kind: "no_answer" };
+      return NO_ANSWER;
     }
   }
 }

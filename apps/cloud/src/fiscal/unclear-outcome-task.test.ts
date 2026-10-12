@@ -88,7 +88,12 @@ async function recordRequest(columns: Partial<typeof fiscalRequests.$inferInsert
 }
 
 async function unclearRequest(columns: Partial<typeof fiscalRequests.$inferInsert> = {}) {
-  return recordRequest({ answerKind: "unclear", answeredAt: ANSWERED_AT, ...columns });
+  return recordRequest({
+    answerKind: "unclear",
+    unclearCodes: [],
+    answeredAt: ANSWERED_AT,
+    ...columns,
+  });
 }
 
 async function storedRow(fiscalDocumentId: string) {

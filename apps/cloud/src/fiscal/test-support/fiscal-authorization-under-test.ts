@@ -18,7 +18,7 @@ export const CERTIFICATE_FINGERPRINT = "AB:CD:EF";
 
 export class FakeTaxAuthority implements TaxAuthorityInvoicing {
   readonly solicitations: FiscalDocumentSolicitation[] = [];
-  answer: SolicitationAnswer = { kind: "no_answer" };
+  answer: SolicitationAnswer = { kind: "no_answer", rejections: [] };
 
   async solicit(solicitation: FiscalDocumentSolicitation): Promise<SolicitationAnswer> {
     this.solicitations.push(solicitation);

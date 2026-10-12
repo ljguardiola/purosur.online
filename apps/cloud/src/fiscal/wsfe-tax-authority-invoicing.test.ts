@@ -182,14 +182,52 @@ describe("WsfeTaxAuthorityInvoicing", () => {
 
       expect(await invoicingAt(server.endpoint, 200).solicit(solicitation)).toEqual({
         kind: "no_answer",
+        rejections: [],
       });
     });
 
     it("answers no answer when ARCA cannot be reached", async () => {
       expect(await invoicingAt(UNREACHABLE_WSFE_ENDPOINT).solicit(solicitation)).toEqual({
         kind: "no_answer",
+        rejections: [],
       });
     });
+
+    it.each([
+      [
+        "ARCA approves without an authorization code",
+        "fe-cae-solicitar-approved-without-code.xml",
+        [
+          {
+            code: 10242,
+            message:
+              "El campo Condicion IVA receptor no es un valor permitido. Consular metodo FEParamGetCondicionIvaReceptor",
+          },
+        ],
+      ],
+      [
+        "ARCA answers a partial result",
+        "fe-cae-solicitar-partial.xml",
+        [
+          {
+            code: 10016,
+            message:
+              "El numero o fecha del comprobante no se corresponde con el proximo a autorizar. Consultar metodo FECompUltimoAutorizado.",
+          },
+          { code: 10000, message: "Error de validacion." },
+        ],
+      ],
+    ])(
+      "answers no answer with every code and message ARCA gave when %s",
+      async (_case, file, rejections) => {
+        server.behave(answers(file));
+
+        expect(await invoicingAt(server.endpoint).solicit(solicitation)).toEqual({
+          kind: "no_answer",
+          rejections,
+        });
+      },
+    );
   });
 
   it("hands over the raw answer ARCA gave", async () => {

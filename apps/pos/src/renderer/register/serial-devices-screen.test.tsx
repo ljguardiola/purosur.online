@@ -1,10 +1,8 @@
 import type { ReadSerialDevicesOutcome, RegisterSerialDevicesOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { Usb } from "lucide-react";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SerialDevicesToRegister } from "../platform/core-client";
-import type { ActionEntry } from "../shell/action-entries";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { render } from "../shell/test-support/render-with-router";
 import { SAME_SERIAL_DEVICE_MESSAGE } from "./serial-devices-form";
@@ -14,13 +12,6 @@ const PERSON: SignedInPerson = {
   user_id: "u1",
   first_name: "Linus",
   abilities: ["configure_serial_devices"],
-};
-
-const DEVICES_ENTRY: ActionEntry = {
-  label: "Balanza y lector",
-  icon: Usb,
-  ability: "configure_serial_devices",
-  to: "/serial-devices",
 };
 
 const SCALE_IDENTITY = { vendor_id: "0403", product_id: "6001" };
@@ -74,7 +65,6 @@ async function renderScreen({
       person={PERSON}
       registerName={registerName}
       sessionOpen={sessionOpen}
-      entries={[DEVICES_ENTRY]}
       signOut={vi.fn()}
       readSerialDevices={readSerialDevices}
       registerSerialDevices={registerSerialDevices}

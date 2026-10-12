@@ -18,6 +18,7 @@ export class FakePointOfSaleLanes implements PointOfSaleLanes {
   readonly operations: string[] = [];
   readonly requests = new Map<string, AuthorizationRequestRecord>();
   readonly answers = new Map<string, RealTimeAuthorizationAnswer>();
+  readonly unclearCodes = new Map<string, readonly number[]>();
   readonly lanesEntered: number[] = [];
   readonly invoicingCallsOkAt: Date[] = [];
   readonly rejectionAlertChanges: (RejectionAlertChange | null)[] = [];
@@ -97,12 +98,14 @@ class FakeLane implements PointOfSaleLane {
     fiscalDocumentId: string,
     answer: RealTimeAuthorizationAnswer,
     answeredAt: Date,
+    unclearCodes: readonly number[],
   ): Promise<void> {
     this.lanes.operations.push(`recordAnswer:${answer.kind}@${answeredAt.toISOString()}`);
     if (this.lanes.answerRecordingFailure !== undefined) {
       throw this.lanes.answerRecordingFailure;
     }
     this.lanes.answers.set(fiscalDocumentId, answer);
+    this.lanes.unclearCodes.set(fiscalDocumentId, unclearCodes);
   }
 
   async recordTaxAuthorityAnswer(
@@ -111,6 +114,7 @@ class FakeLane implements PointOfSaleLane {
     answeredAt: Date,
     rejectionAlertChange: RejectionAlertChange | null,
     taxAuthorityCount: LastAuthorizedCount | null,
+    unclearCodes: readonly number[],
   ): Promise<void> {
     this.lanes.operations.push(
       `recordTaxAuthorityAnswer:${answer.kind}@${answeredAt.toISOString()}`,
@@ -119,6 +123,7 @@ class FakeLane implements PointOfSaleLane {
       throw this.lanes.answerRecordingFailure;
     }
     this.lanes.answers.set(fiscalDocumentId, answer);
+    this.lanes.unclearCodes.set(fiscalDocumentId, unclearCodes);
     this.lanes.invoicingCallsOkAt.push(new Date(answeredAt));
     this.lanes.rejectionAlertChanges.push(rejectionAlertChange);
     this.lanes.taxAuthorityCounts.push(taxAuthorityCount);
