@@ -24,7 +24,10 @@ const channelConfig = {
 };
 
 const { appId, packageName, productName } = channelConfig[channel];
-const updateFeedUrl = process.env.POS_UPDATE_FEED_URL;
+const version = process.env.POS_VERSION;
+if (version !== undefined && !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version)) {
+  throw new Error(`POS_VERSION must be X.Y.Z; got ${version}`);
+}
 const sentryDsn = process.env.POS_SENTRY_DSN;
 const cloudUrl = process.env.POS_CLOUD_URL;
 
@@ -56,14 +59,16 @@ export default {
     oneClick: false,
     allowToChangeInstallationDirectory: true,
   },
-  publish: updateFeedUrl ? [{ provider: "generic", url: updateFeedUrl, channel }] : null,
+  publish: null,
+  // Unset, the package's own version stays; the installer's file name and app.getVersion() carry it.
+  ...(version === undefined ? {} : { extraMetadata: { version } }),
   // app.asar's package.json is copied from disk untouched, so electron-builder's updater cache
   // folder (named after the in-memory package name) is renamed here to keep channels apart.
   beforePack: (context) => {
     context.packager.info.metadata.name = packageName;
   },
-  // The channel lives next to app.asar rather than inside it, the same way electron-builder writes
-  // the update feed's app-update.yml, before the installer is built from this folder.
+  // The channel lives next to app.asar rather than inside it, before the installer is built from
+  // this folder.
   afterPack: async (context) => {
     const resourcesDir = context.packager.getResourcesDir(context.appOutDir);
     await writeFile(join(resourcesDir, "channel.json"), channelFile);
