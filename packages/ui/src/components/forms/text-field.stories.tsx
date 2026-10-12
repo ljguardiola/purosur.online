@@ -86,7 +86,7 @@ export const Discount: Story = {
   },
   decorators: [
     (Story) => (
-      <div className="w-[34rem]">
+      <div className="w-136">
         <Story />
       </div>
     ),

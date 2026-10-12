@@ -306,6 +306,36 @@ test("places the discount description to the right of the box, centered with it,
   expect(describedText(fieldInput(screen, "Discount"))).toContain("Adds to promotions.");
 });
 
+test("has no accessibility violations on the discount kind with a hidden label, a suffix and a description", async () => {
+  const screen = await render(
+    <TextField
+      kind="discount"
+      label="Discount"
+      labelVisuallyHidden
+      value="10"
+      onChange={() => {}}
+      suffix="%"
+      description="Adds to promotions."
+    />,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("has no accessibility violations on an invalid discount kind with its message", async () => {
+  const screen = await render(
+    <TextField
+      kind="discount"
+      label="Discount"
+      value=""
+      onChange={() => {}}
+      errorMessage="Enter a discount."
+    />,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("keeps the discount error message below the box", async () => {
   const screen = await render(
     <TextField

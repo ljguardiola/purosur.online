@@ -6,7 +6,7 @@ import type {
   SaleDiscountRequest,
   SignInUser,
 } from "@purosur/contracts";
-import { InlineNotice, SummaryRow } from "@purosur/ui";
+import { InlineNotice, SummaryRow, TextField } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { TriangleAlert } from "lucide-react";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -158,8 +158,13 @@ describe("ApplySaleDiscountModal", () => {
     expect(document.querySelector("svg.lucide-badge-percent")).toBeNull();
   });
 
-  it("draws the value in the compact discount entry, with no unit inside it, for a percentage and for an amount", async () => {
+  it("draws the value in the discount entry, with no unit inside it, for a percentage and for an amount", async () => {
     const { screen } = await renderModal();
+    const reference = await renderReference(
+      <TextField kind="discount" label="Referencia" value="" onChange={() => {}} />,
+    );
+    const referenceInput = reference.getByRole("textbox", { name: "Referencia" }).element();
+    const referenceBox = referenceInput.parentElement as HTMLElement;
 
     for (const [unit, name] of [
       ["%", "Porcentaje de descuento"],
@@ -169,33 +174,24 @@ describe("ApplySaleDiscountModal", () => {
       const input = screen.getByRole("textbox", { name }).element() as HTMLElement;
       const box = input.parentElement as HTMLElement;
 
-      expect(box.getBoundingClientRect().height).toBeCloseTo(56, 0);
-      expect(box.getBoundingClientRect().width).toBeCloseTo(220, 0);
-      expect(Math.round(Number.parseFloat(getComputedStyle(input).fontSize))).toBe(24);
-      expect(getComputedStyle(input).textAlign).toBe("left");
+      expectDrawnLike(box, referenceBox, ["width", "height"], `${unit} box`);
+      expectDrawnLike(input, referenceInput, ["fontSize", "textAlign"], `${unit} value`);
       expect(box.children).toHaveLength(1);
     }
   });
 
-  it("puts the unit, the value and its description on one row, in that order", async () => {
+  it("puts the unit to the left of the value, on one row", async () => {
     const { screen } = await renderModal();
     const units = screen.getByRole("radiogroup", { name: "Unidad del descuento" }).element();
     const box = screen.getByRole("textbox", { name: "Porcentaje de descuento" }).element()
       .parentElement as HTMLElement;
-    const description = screen
-      .getByText("Se suma a las promociones y a los descuentos de línea.")
-      .element();
-    const [unitsRect, boxRect, descriptionRect] = [units, box, description].map((element) =>
-      element.getBoundingClientRect(),
-    ) as [DOMRect, DOMRect, DOMRect];
+    const unitsRect = units.getBoundingClientRect();
+    const boxRect = box.getBoundingClientRect();
 
     expect(unitsRect.right).toBeLessThanOrEqual(boxRect.left);
-    expect(descriptionRect.left).toBeGreaterThanOrEqual(boxRect.right);
     const boxMiddle = boxRect.top + boxRect.height / 2;
     expect(unitsRect.top).toBeLessThan(boxMiddle);
     expect(unitsRect.bottom).toBeGreaterThan(boxMiddle);
-    expect(descriptionRect.top).toBeLessThan(boxMiddle);
-    expect(descriptionRect.bottom).toBeGreaterThan(boxMiddle);
   });
 
   it("shows the warning about changing a line as a warning notice", async () => {
