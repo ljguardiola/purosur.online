@@ -57,7 +57,7 @@ class HeldTaxAuthority implements TaxAuthorityInvoicing {
   }
 
   release(number: number): void {
-    this.releases.get(number)?.({ kind: "no_answer" });
+    this.releases.get(number)?.({ kind: "no_answer", rejections: [] });
   }
 
   async untilStarted(count: number): Promise<void> {

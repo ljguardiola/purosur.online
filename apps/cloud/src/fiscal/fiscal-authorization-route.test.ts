@@ -331,7 +331,7 @@ describe("POST /fiscal/authorize", () => {
     it("answers UNCLEAR when the tax authority gave no answer", async () => {
       const { deviceToken } = await enrollRegisterWithPointOfSale();
       await route.issueWsaaToken();
-      route.taxAuthority.answer = { kind: "no_answer" };
+      route.taxAuthority.answer = { kind: "no_answer", rejections: [] };
 
       const response = await authorize(requestBody(), `Bearer ${deviceToken}`);
 
@@ -343,7 +343,7 @@ describe("POST /fiscal/authorize", () => {
     it("enqueues the decision of the document when the tax authority left the outcome unclear", async () => {
       const { deviceToken } = await enrollRegisterWithPointOfSale();
       await route.issueWsaaToken();
-      route.taxAuthority.answer = { kind: "no_answer" };
+      route.taxAuthority.answer = { kind: "no_answer", rejections: [] };
       const body = requestBody();
 
       await authorize(body, `Bearer ${deviceToken}`);
@@ -424,7 +424,7 @@ describe("POST /fiscal/authorize", () => {
     it("reports an unclear outcome with the point of sale, the document type and the number, and nothing of the buyer, the sale or the token", async () => {
       const { deviceToken } = await enrollRegisterWithPointOfSale();
       await route.issueWsaaToken();
-      route.taxAuthority.answer = { kind: "no_answer" };
+      route.taxAuthority.answer = { kind: "no_answer", rejections: [] };
       const body = requestBody({ number: 1234567 });
       body.sale_event.payload = {
         buyer: { cuit: FICTIONAL_CUIT, name: FICTIONAL_LEGAL_NAME, email: "buyer@example.test" },
@@ -461,7 +461,7 @@ describe("POST /fiscal/authorize", () => {
     it("reports the number of an unclear outcome in a form the reports' scrubbing keeps", async () => {
       const { deviceToken } = await enrollRegisterWithPointOfSale();
       await route.issueWsaaToken();
-      route.taxAuthority.answer = { kind: "no_answer" };
+      route.taxAuthority.answer = { kind: "no_answer", rejections: [] };
 
       await authorize(requestBody({ number: 12345678 }), `Bearer ${deviceToken}`);
 

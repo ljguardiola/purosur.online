@@ -332,7 +332,7 @@ describe("authorizeFiscalDocument", () => {
   });
 
   it("hands the lane no count when the tax authority gave no answer or none was attempted", async () => {
-    const noAnswer = authorize({ solicitation: { kind: "no_answer" } });
+    const noAnswer = authorize({ solicitation: { kind: "no_answer", rejections: [] } });
     const notAttempted = authorize({ token: null });
     await Promise.all([noAnswer.outcome, notAttempted.outcome]);
 
@@ -350,7 +350,7 @@ describe("authorizeFiscalDocument", () => {
   });
 
   it("answers unclear and counts no evidence when the tax authority gave no answer", async () => {
-    const { lanes, outcome } = authorize({ solicitation: { kind: "no_answer" } });
+    const { lanes, outcome } = authorize({ solicitation: { kind: "no_answer", rejections: [] } });
     const answeredAt = new Date(RECEIVED_AT.getTime() + ANSWER_DELAY_MS);
 
     await expect(outcome).resolves.toEqual({
@@ -379,8 +379,26 @@ describe("authorizeFiscalDocument", () => {
     expect(lanes.unclearCodes.get(FISCAL_DOCUMENT_ID)).toEqual([10016, 600]);
   });
 
+  it("hands the lane the codes the tax authority gave with an answer that settles nothing", async () => {
+    const { lanes, outcome } = authorize({
+      solicitation: {
+        kind: "no_answer",
+        rejections: [{ code: 10242, message: "El valor de CondicionIVAReceptorId es invalido." }],
+      },
+    });
+
+    await expect(outcome).resolves.toEqual({
+      kind: "answered",
+      answer: { kind: "unclear" },
+      taxAuthorityCodes: [10242],
+    });
+    expect(lanes.unclearCodes.get(FISCAL_DOCUMENT_ID)).toEqual([10242]);
+    expect(lanes.invoicingCallsOkAt).toEqual([]);
+    expect(lanes.rejectionAlertChanges).toEqual([]);
+  });
+
   it("hands the lane no codes when the tax authority gave no answer", async () => {
-    const { lanes, outcome } = authorize({ solicitation: { kind: "no_answer" } });
+    const { lanes, outcome } = authorize({ solicitation: { kind: "no_answer", rejections: [] } });
     await outcome;
 
     expect(lanes.unclearCodes.get(FISCAL_DOCUMENT_ID)).toEqual([]);
