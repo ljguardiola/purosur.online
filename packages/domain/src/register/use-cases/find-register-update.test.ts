@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type RegisterRelease, findRegisterUpdate } from "./find-register-update.js";
+import { findRegisterUpdate, type RegisterRelease } from "./find-register-update.js";
 import { FakeRegisterReleases } from "./test-support/fake-register-releases.js";
 
 const RELEASE: RegisterRelease = {

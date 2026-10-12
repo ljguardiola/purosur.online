@@ -67,6 +67,8 @@ export {
 export type { RegisterService, WatchedRegister } from "./model/register-service.js";
 export { isOutOfService, isWatchedForQuietness } from "./model/register-service.js";
 export { lastSuccessfulSyncOfRegister } from "./model/register-sync.js";
+export type { RegisterVersion } from "./model/register-version.js";
+export { isNewerRegisterVersion } from "./model/register-version.js";
 export type {
   DetectedSerialDevice,
   RegisteredSerialDevices,
@@ -83,3 +85,4 @@ export {
   SERIAL_DEVICE_ROLES,
   serialDeviceStandings,
 } from "./model/serial-devices.js";
+export { isSafeMomentToUpdate, REGISTER_UPDATE_HOLD_LIMIT_MS } from "./model/update-safe-moment.js";
