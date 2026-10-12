@@ -33,6 +33,14 @@ function payment(state: string, overrides: Record<string, unknown> = {}) {
   };
 }
 
+function cancellation(
+  state: string,
+  cancelOnTerminal = false,
+  overrides: Record<string, unknown> = {},
+) {
+  return payment(state, { cancel_on_terminal: cancelOnTerminal, ...overrides });
+}
+
 function ok(body: unknown): CloudResponse {
   return { kind: "ok", body };
 }
@@ -117,10 +125,38 @@ describe("asking the cloud for a Mercado Pago QR order", () => {
     "conflict",
     "payment_provider_refused",
     "payment_provider_not_configured",
-  ] as const)("answers refused when the cloud refuses with %s", async (code) => {
+  ] as const)("answers refused when the cloud refuses a QR order with %s", async (code) => {
     const { orders } = cloudOrders([refused(code)]);
 
     expect(await orders.requestOrder(ORDER)).toEqual({ kind: "refused" });
+  });
+
+  it.each([
+    "device_token_rejected",
+    "revoked",
+    "not_found",
+    "conflict",
+    "payment_provider_refused",
+  ] as const)("answers refused when the cloud refuses a terminal order with %s", async (code) => {
+    const { orders } = cloudOrders([refused(code)]);
+
+    expect(await orders.requestOrder({ ...ORDER, method: "POINT" })).toEqual({ kind: "refused" });
+  });
+
+  it("answers not_configured when the cloud has no terminal configured for the terminal order", async () => {
+    const { orders } = cloudOrders([refused("payment_provider_not_configured")]);
+
+    expect(await orders.requestOrder({ ...ORDER, method: "POINT" })).toEqual({
+      kind: "not_configured",
+    });
+  });
+
+  it("answers below_minimum when the cloud finds the terminal order's amount invalid", async () => {
+    const { orders } = cloudOrders([refused("validation_failed")]);
+
+    expect(await orders.requestOrder({ ...ORDER, method: "POINT" })).toEqual({
+      kind: "below_minimum",
+    });
   });
 
   it.each(["rate_limited", "server_unavailable", "payment_provider_unavailable"] as const)(
@@ -227,7 +263,7 @@ describe("reading a Mercado Pago QR order's state from the cloud", () => {
 
 describe("asking the cloud to cancel a Mercado Pago QR order", () => {
   it("posts to the payment's cancel path with the device token, no body and one short attempt", async () => {
-    const { calls, orders } = cloudOrders([ok(payment("CANCELLED"))]);
+    const { calls, orders } = cloudOrders([ok(cancellation("CANCELLED"))]);
 
     await orders.cancelOrder(PAYMENT_ID);
 
@@ -245,14 +281,28 @@ describe("asking the cloud to cancel a Mercado Pago QR order", () => {
   it.each(["CANCELLED", "APPROVED", "EXPIRED", "DECLINED", "PENDING"])(
     "answers the state %s the cloud reports",
     async (state) => {
-      const { orders } = cloudOrders([ok(payment(state))]);
+      const { orders } = cloudOrders([ok(cancellation(state))]);
 
       expect(await orders.cancelOrder(PAYMENT_ID)).toEqual({ kind: "answered", state });
     },
   );
 
+  it("answers cancel_on_terminal when the cloud says the payment can only be cancelled on the terminal", async () => {
+    const { orders } = cloudOrders([
+      ok(cancellation("PENDING", true, { provider: "MERCADOPAGO_POINT" })),
+    ]);
+
+    expect(await orders.cancelOrder(PAYMENT_ID)).toEqual({ kind: "cancel_on_terminal" });
+  });
+
+  it("answers unreachable when the cloud does not say whether the cancellation is left to the terminal", async () => {
+    const { orders } = cloudOrders([ok(payment("CANCELLED"))]);
+
+    expect(await orders.cancelOrder(PAYMENT_ID)).toEqual({ kind: "unreachable" });
+  });
+
   it("encodes the id in the path", async () => {
-    const { calls, orders } = cloudOrders([ok(payment("CANCELLED"))]);
+    const { calls, orders } = cloudOrders([ok(cancellation("CANCELLED"))]);
 
     await orders.cancelOrder("a/b");
 
@@ -264,7 +314,10 @@ describe("asking the cloud to cancel a Mercado Pago QR order", () => {
     ["the cloud answers a retryable error", refused("payment_provider_unavailable")],
     ["the cloud does not know the payment", refused("not_found")],
     ["the body is not a payment", ok({ state: "CANCELLED" })],
-    ["the body is another payment", ok(payment("CANCELLED", { payment_transaction_id: "other" }))],
+    [
+      "the body is another payment",
+      ok(cancellation("CANCELLED", false, { payment_transaction_id: "other" })),
+    ],
   ])("answers unreachable when %s", async (_name, response) => {
     const { orders } = cloudOrders([response]);
 

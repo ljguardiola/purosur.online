@@ -82,4 +82,20 @@ describe("startMercadoPagoCharge on the integrated terminal", () => {
     expect(world.pendingCharge(CHARGE_PAYMENT_ID)).not.toBeNull();
     expect(world.operations).toEqual(["recordPendingPayment", "requestOrder"]);
   });
+
+  it.each(["not_configured", "below_minimum"] as const)(
+    "closes the payment as cancelled and tells the cloud answered %s, as nothing was asked of the terminal",
+    async (kind) => {
+      const world = new FakeMercadoPagoChargeWorld();
+      world.orderAnswer = { kind };
+
+      expect(await startMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind });
+      expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
+      expect(world.operations).toEqual([
+        "recordPendingPayment",
+        "requestOrder",
+        "recordEnded:CANCELLED",
+      ]);
+    },
+  );
 });
