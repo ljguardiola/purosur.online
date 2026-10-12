@@ -39,9 +39,14 @@ export function countByLotAllocations(
   return allocationsToTargets(lotsAtTheMoment, countedByLot);
 }
 
+function wasReceivedAfter(lot: StockLot, moment: Date): boolean {
+  return lot.receivedAt.getTime() > moment.getTime();
+}
+
 export function countByProductAllocations(
   lotsAtTheMoment: readonly StockLot[],
   counted: number,
+  moment: Date,
 ): PlannedLotAllocation[] {
   const targets = new Map<string, number>();
   let unplaced = counted;
@@ -57,7 +62,9 @@ export function countByProductAllocations(
     return allocationsToTargets(lotsAtTheMoment, targets);
   }
 
-  const excessTarget: LotAllocationTarget = shortfallTarget(lotsAtTheMoment);
+  const excessTarget: LotAllocationTarget = shortfallTarget(
+    lotsAtTheMoment.filter((lot) => lot.technical || !wasReceivedAfter(lot, moment)),
+  );
   if (excessTarget.kind === "new_technical_lot") {
     return [
       ...allocationsToTargets(lotsAtTheMoment, targets),

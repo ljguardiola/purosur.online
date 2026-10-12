@@ -51,7 +51,10 @@ export async function registerCount(
     if (locked.kind === "not_found") {
       return { kind: "not_found" };
     }
-    const quantities = byLot ? countedLots.map((lot) => lot.counted) : [input.counted ?? 0];
+    const counted = byLot
+      ? countedLots.reduce((sum, lot) => sum + lot.counted, 0)
+      : (input.counted ?? 0);
+    const quantities = [...countedLots.map((lot) => lot.counted), counted];
     if (!quantities.every((quantity) => isCountedQuantity(locked.saleUnit, quantity))) {
       return { kind: "invalid_quantity" };
     }
@@ -75,9 +78,6 @@ export async function registerCount(
       return { kind: "invalid_lot" };
     }
 
-    const counted = byLot
-      ? countedLots.reduce((sum, lot) => sum + lot.counted, 0)
-      : (input.counted ?? 0);
     const { expected, delta } = countResult({
       counted,
       balance: locked.balance,
@@ -99,7 +99,7 @@ export async function registerCount(
     if (applied.supersededByCountId === null) {
       const planned: PlannedLotAllocation[] = byLot
         ? countByLotAllocations(lots, new Map(countedLots.map((lot) => [lot.lotId, lot.counted])))
-        : countByProductAllocations(lots, counted);
+        : countByProductAllocations(lots, counted, input.occurredAt);
       await allocateToLots(tx, key, applied.movementId, planned);
     }
     return { kind: "recorded", expected, delta, ...applied };

@@ -1,4 +1,8 @@
-import type { StockCountBody, StockProductBalance } from "@purosur/contracts";
+import {
+  type StockCountBody,
+  type StockProductBalance,
+  stockCountBodySchema,
+} from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
 import { parseStockQuantity, quantityMessage } from "../platform/stock-quantity";
 import type { CountMoment } from "./count-moment";
@@ -58,5 +62,9 @@ export function lotsMessage(
   lots: readonly CountLot[],
   saleUnit: SaleUnit,
 ): string {
-  return lotsTotal(typed, lots, saleUnit) === undefined ? quantityMessage(saleUnit) : LOTS_CHANGED;
+  const accepted = lots.every(
+    (lot) =>
+      stockCountBodySchema.shape.counted.safeParse(lotCounted(typed[lot.id], saleUnit)).success,
+  );
+  return accepted ? LOTS_CHANGED : quantityMessage(saleUnit);
 }
