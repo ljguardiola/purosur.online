@@ -1,7 +1,8 @@
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { cashMovements, cashSessions } from "../platform/db/schema.js";
+import { branchFirstCashSessions, cashMovements, cashSessions } from "../platform/db/schema.js";
+import type { PendingChanges } from "../sync/change-log.js";
 
 type FactOf<TKind extends SyncedFact["kind"]> = Extract<SyncedFact, { kind: TKind }>;
 
@@ -14,9 +15,23 @@ export interface AppliedOrigin {
 export async function openAppliedCashSession<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
   origin: AppliedOrigin,
+  pending: PendingChanges,
   { session }: FactOf<"cash_session_opened">,
 ): Promise<void> {
   await tx.insert(cashSessions).values({ ...origin, ...session });
+  const [first] = await tx
+    .insert(branchFirstCashSessions)
+    .values({ locationId: origin.locationId, openedAt: session.openedAt })
+    .onConflictDoNothing()
+    .returning({ locationId: branchFirstCashSessions.locationId });
+  if (first) {
+    pending.note({
+      entity: "branch_first_cash_session",
+      entityId: first.locationId,
+      version: 1,
+      op: "insert",
+    });
+  }
 }
 
 export async function closeAppliedCashSession<TQueryResult extends PgQueryResultHKT>(

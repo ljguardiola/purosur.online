@@ -116,7 +116,7 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
   async record(fact: SyncedFact, event: UnappliedEvent): Promise<void> {
     switch (fact.kind) {
       case "cash_session_opened":
-        return openAppliedCashSession(this.tx, await this.originOf(event), fact);
+        return openAppliedCashSession(this.tx, await this.originOf(event), this.pending, fact);
       case "cash_session_closed":
         return closeAppliedCashSession(this.tx, fact);
       case "cash_movement_recorded":
