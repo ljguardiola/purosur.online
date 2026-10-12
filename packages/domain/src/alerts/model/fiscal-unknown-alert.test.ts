@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { fiscalUnknownAlertIsDue, fiscalUnknownAlertLevel } from "./fiscal-unknown-alert.js";
+import {
+  fiscalUnknownAlertIsDue,
+  fiscalUnknownAlertKey,
+  fiscalUnknownAlertLevel,
+} from "./fiscal-unknown-alert.js";
 
 const UNCLEAR_SINCE = new Date("2026-10-01T08:00:00.000Z");
 
@@ -28,5 +32,14 @@ describe("fiscalUnknownAlertLevel", () => {
   it("is critical once the document has been unclear for 30 minutes", () => {
     expect(fiscalUnknownAlertLevel(UNCLEAR_SINCE, after(30))).toBe("critical");
     expect(fiscalUnknownAlertLevel(UNCLEAR_SINCE, after(200))).toBe("critical");
+  });
+});
+
+describe("fiscalUnknownAlertKey", () => {
+  it("names the unclear-outcome alert scoped to the given document", () => {
+    expect(fiscalUnknownAlertKey("document-1")).toEqual({
+      kind: "fiscal_unknown",
+      scope: "document-1",
+    });
   });
 });

@@ -1,3 +1,4 @@
+import type { FiscalUnknownAlertKey } from "../../../alerts/index.js";
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
 import type {
   RecordedRequestOutcome,
@@ -23,7 +24,11 @@ export class FakeUnclearOutcomeStore implements UnclearOutcomeLanes, UnclearOutc
   readonly documents: FakePointOfSaleLanes;
   readonly answeredAt = new Map<string, Date>();
   readonly decisions = new Map<string, { decision: UnclearOutcomeDecision; decidedAt: Date }>();
-  readonly resolvedAlerts: { fiscalDocumentId: string; resolvedAt: Date }[] = [];
+  readonly resolvedAlerts: {
+    decision: UnclearOutcomeDecision["kind"];
+    alert: FiscalUnknownAlertKey;
+    resolvedAt: Date;
+  }[] = [];
   vanishAfterLookup = false;
   recordingFailure: Error | undefined;
 
@@ -110,16 +115,17 @@ class FakeUnclearOutcomeLane implements UnclearOutcomeLane {
     fiscalDocumentId: string,
     decision: UnclearOutcomeDecision,
     decidedAt: Date,
+    resolvedAlert: FiscalUnknownAlertKey,
   ): Promise<void> {
     this.store.documents.operations.push(
       `recordDecision:${decision.kind}@${decidedAt.toISOString()}`,
     );
     this.store.decisions.set(fiscalDocumentId, { decision, decidedAt: new Date(decidedAt) });
-  }
-
-  async resolveUnclearOutcomeAlert(fiscalDocumentId: string, resolvedAt: Date): Promise<void> {
-    this.store.documents.operations.push(`resolveUnclearOutcomeAlert@${resolvedAt.toISOString()}`);
-    this.store.resolvedAlerts.push({ fiscalDocumentId, resolvedAt: new Date(resolvedAt) });
+    this.store.resolvedAlerts.push({
+      decision: decision.kind,
+      alert: resolvedAlert,
+      resolvedAt: new Date(decidedAt),
+    });
   }
 
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {

@@ -171,7 +171,6 @@ describe("decideUnclearRealTimeOutcome", () => {
       "enterLane",
       "unclearRequest",
       "recordDecision:released@2026-10-01T12:00:05.000Z",
-      "resolveUnclearOutcomeAlert@2026-10-01T12:00:05.000Z",
       "leaveLane",
     ]);
     expect(store.decisions.get(FISCAL_DOCUMENT_ID)?.decision).toEqual({ kind: "released" });
@@ -225,7 +224,6 @@ describe("decideUnclearRealTimeOutcome", () => {
       "validToken",
       "voucherAt",
       "recordDecision:released@2026-10-01T12:01:00.000Z",
-      "resolveUnclearOutcomeAlert@2026-10-01T12:01:00.000Z",
       "leaveLane",
     ]);
     expect(vouchers.lookups).toEqual([{ token: TOKEN, pointOfSale: 12, number: 41 }]);
@@ -272,19 +270,20 @@ describe("decideUnclearRealTimeOutcome", () => {
       "conflicting",
     ],
   ])(
-    "resolves the alert of the document, once its decision is recorded, for %s",
+    "records the decision together with the resolution of the document's alert, for %s",
     async (_name, change, decision) => {
       const { ports, documents, store } = scenario(change);
 
       await decide(ports);
 
       expect(store.resolvedAlerts).toEqual([
-        { fiscalDocumentId: FISCAL_DOCUMENT_ID, resolvedAt: SETTLED_AT },
+        {
+          decision,
+          alert: { kind: "fiscal_unknown", scope: FISCAL_DOCUMENT_ID },
+          resolvedAt: SETTLED_AT,
+        },
       ]);
-      const operations = documents.operations;
-      expect(operations.findIndex((op) => op.startsWith(`recordDecision:${decision}`))).toBe(
-        operations.findIndex((op) => op.startsWith("resolveUnclearOutcomeAlert")) - 1,
-      );
+      expect(documents.operations.filter((op) => op.startsWith("recordDecision"))).toHaveLength(1);
     },
   );
 

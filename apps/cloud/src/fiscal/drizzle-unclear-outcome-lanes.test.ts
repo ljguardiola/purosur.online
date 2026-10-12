@@ -2,6 +2,7 @@ import {
   FiscalDocumentAlreadyRecorded,
   type RealTimeAuthorizationAnswer,
 } from "@purosur/domain/fiscal/use-cases";
+import { fiscalUnknownAlertKey } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import type { PgliteQueryResultHKT } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -180,7 +181,7 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       const request = await recordedRequest(42, { kind: "unclear" });
 
       await unclearLanes.inPointOfSaleLane(7, (lane) =>
-        lane.recordDecision(request.fiscalDocumentId, { kind: "released" }, DECIDED_AT),
+        lane.recordDecision(request.fiscalDocumentId, { kind: "released" }, DECIDED_AT, fiscalUnknownAlertKey(request.fiscalDocumentId)),
       );
 
       expect(await storedRow(request.fiscalDocumentId)).toMatchObject({
@@ -203,6 +204,7 @@ describe("DrizzleUnclearOutcomeLanes", () => {
             authorizationCodeDueOn: "2026-10-16",
           },
           DECIDED_AT,
+          fiscalUnknownAlertKey(request.fiscalDocumentId),
         ),
       );
 
@@ -218,7 +220,7 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       const request = await recordedRequest(42, { kind: "unclear" });
 
       await unclearLanes.inPointOfSaleLane(7, (lane) =>
-        lane.recordDecision(request.fiscalDocumentId, { kind: "conflicting" }, DECIDED_AT),
+        lane.recordDecision(request.fiscalDocumentId, { kind: "conflicting" }, DECIDED_AT, fiscalUnknownAlertKey(request.fiscalDocumentId)),
       );
 
       expect(await storedRow(request.fiscalDocumentId)).toMatchObject({
@@ -241,7 +243,7 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       const request = await recordedRequest(42, { kind: "unclear" });
 
       const found = await unclearLanes.inPointOfSaleLane(7, async (lane) => {
-        await lane.recordDecision(request.fiscalDocumentId, decision, DECIDED_AT);
+        await lane.recordDecision(request.fiscalDocumentId, decision, DECIDED_AT, fiscalUnknownAlertKey(request.fiscalDocumentId));
         return lane.unclearRequest(request.fiscalDocumentId);
       });
 
@@ -257,13 +259,13 @@ describe("DrizzleUnclearOutcomeLanes", () => {
 
       await expect(
         unclearLanes.inPointOfSaleLane(7, (lane) =>
-          lane.recordDecision(request.fiscalDocumentId, { kind: "released" }, DECIDED_AT),
+          lane.recordDecision(request.fiscalDocumentId, { kind: "released" }, DECIDED_AT, fiscalUnknownAlertKey(request.fiscalDocumentId)),
         ),
       ).rejects.toThrow();
     });
   });
 
-  describe("the alert of an unclear outcome", () => {
+  describe("the alert of an unclear outcome, when the document is decided", () => {
     async function anOpenAlert(scope: string, resolvedAt: Date | null = null) {
       await db.insert(alerts).values({
         kind: "fiscal_unknown",
@@ -279,15 +281,23 @@ describe("DrizzleUnclearOutcomeLanes", () => {
     const alertOf = async (scope: string) =>
       (await db.select().from(alerts).where(eq(alerts.scope, scope)))[0];
 
-    it("is resolved at the given moment, and only the alert of the given document", async () => {
+    const decide = (document: { fiscalDocumentId: string; pointOfSale: number }) =>
+      unclearLanes.inPointOfSaleLane(document.pointOfSale, (lane) =>
+        lane.recordDecision(
+          document.fiscalDocumentId,
+          { kind: "released" },
+          DECIDED_AT,
+          fiscalUnknownAlertKey(document.fiscalDocumentId),
+        ),
+      );
+
+    it("is resolved at the moment of the decision, and only the alert of the decided document", async () => {
       const decided = await anUnclearDocument(db);
       const other = await anUnclearDocument(db);
       await anOpenAlert(decided.fiscalDocumentId);
       await anOpenAlert(other.fiscalDocumentId);
 
-      await unclearLanes.inPointOfSaleLane(decided.pointOfSale, (lane) =>
-        lane.resolveUnclearOutcomeAlert(decided.fiscalDocumentId, DECIDED_AT),
-      );
+      await decide(decided);
 
       expect(await alertOf(decided.fiscalDocumentId)).toMatchObject({ resolvedAt: DECIDED_AT });
       expect(await alertOf(other.fiscalDocumentId)).toMatchObject({ resolvedAt: null });
@@ -298,21 +308,18 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       const earlier = new Date(ANSWERED_AT.getTime() - 1_000);
       await anOpenAlert(document.fiscalDocumentId, earlier);
 
-      await unclearLanes.inPointOfSaleLane(document.pointOfSale, (lane) =>
-        lane.resolveUnclearOutcomeAlert(document.fiscalDocumentId, DECIDED_AT),
-      );
+      await decide(document);
 
       expect(await alertOf(document.fiscalDocumentId)).toMatchObject({ resolvedAt: earlier });
     });
 
-    it("does nothing for a document that never had an alert", async () => {
+    it("needs no alert for a document that never had one", async () => {
       const document = await anUnclearDocument(db);
 
-      await unclearLanes.inPointOfSaleLane(document.pointOfSale, (lane) =>
-        lane.resolveUnclearOutcomeAlert(document.fiscalDocumentId, DECIDED_AT),
-      );
+      await decide(document);
 
       expect(await db.select().from(alerts)).toEqual([]);
+      expect(await storedRow(document.fiscalDocumentId)).toMatchObject({ decision: "released" });
     });
   });
 
@@ -358,7 +365,7 @@ describe("DrizzleUnclearOutcomeLanes", () => {
 
       const recorded = await unclearLanes.inPointOfSaleLane(7, async (lane) => {
         const before = await lane.recordedRequest(request.registerId, request.fiscalDocumentId);
-        await lane.recordDecision(request.fiscalDocumentId, { kind: "released" }, DECIDED_AT);
+        await lane.recordDecision(request.fiscalDocumentId, { kind: "released" }, DECIDED_AT, fiscalUnknownAlertKey(request.fiscalDocumentId));
         const after = await lane.recordedRequest(request.registerId, request.fiscalDocumentId);
         return [before, after];
       });

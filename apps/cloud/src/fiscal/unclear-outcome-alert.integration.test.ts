@@ -26,16 +26,19 @@ const MINUTE_MS = 60 * 1000;
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
+let admin: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
 
 beforeAll(async () => {
   integrationDb = await createIntegrationDatabase("unclear_outcome_alert");
   sql = postgres(integrationDb.databaseUrl, { max: 8 });
+  admin = postgres(integrationDb.adminDatabaseUrl, { max: 1 });
   db = drizzle(sql);
 }, 60_000);
 
 afterAll(async () => {
   await sql.end({ timeout: 1 });
+  await admin.end({ timeout: 1 });
   await integrationDb.close();
 });
 
@@ -174,5 +177,31 @@ describe("the alert of a document left unclear on a real Postgres", () => {
 
     expect(outcome.fiscalDocumentIds).not.toContain(document.fiscalDocumentId);
     expect(await alertsOf(document.fiscalDocumentId)).toEqual([]);
+  });
+
+  it("stores no decision when resolving the alert fails with it", async () => {
+    const document = await anUnclearDocument(db, { answer: "not_attempted" });
+    await openOverdueAlerts(minutesAfterUnclear(6));
+    await admin`
+      create function refuse_alert_resolution() returns trigger language plpgsql as $$
+      begin
+        raise exception 'the alert resolution broke';
+      end;
+      $$`;
+    await admin`
+      create trigger refuse_alert_resolution before update on alerts
+      for each row execute function refuse_alert_resolution()`;
+
+    try {
+      await expect(decide(document.fiscalDocumentId, minutesAfterUnclear(7))).rejects.toThrow();
+    } finally {
+      await admin`drop trigger refuse_alert_resolution on alerts`;
+      await admin`drop function refuse_alert_resolution()`;
+    }
+
+    expect(
+      await sql`select decision, decided_at from fiscal_requests where fiscal_document_id = ${document.fiscalDocumentId}`,
+    ).toEqual([{ decision: null, decided_at: null }]);
+    expect(await alertsOf(document.fiscalDocumentId)).toMatchObject([{ resolvedAt: null }]);
   });
 });
