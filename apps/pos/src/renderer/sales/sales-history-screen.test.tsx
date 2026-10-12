@@ -356,7 +356,7 @@ describe("SalesHistoryScreen", () => {
     expect(reprintSaleReceipt).not.toHaveBeenCalled();
   });
 
-  it("closes the reprint, says it was sent to the printer and reads the sale again once it started", async () => {
+  it("closes the reprint, says it prints as soon as the printer is ready and reads the sale again once it started", async () => {
     const { screen, reprintSaleReceipt, saleHistoryDetail, salesHistory } = await renderScreen();
     await chooseSale(screen, "11:42");
     await userEvent.click(screen.getByRole("button", { name: "Reimprimir duplicado" }));
@@ -374,7 +374,9 @@ describe("SalesHistoryScreen", () => {
       "El cliente pidió otra copia",
       undefined,
     );
-    await expect.element(screen.getByText("Se mandó la reimpresión a la impresora")).toBeVisible();
+    await expect
+      .element(screen.getByText("La reimpresión sale en cuanto la impresora esté lista"))
+      .toBeVisible();
     await expect.element(screen.getByText("Sale como duplicado.")).toBeVisible();
     await expect.element(screen.getByText("REIMPRIMIR VENTA DE LAS 11:42")).not.toBeInTheDocument();
     await expect.poll(() => saleHistoryDetail.mock.calls.length).toBe(2);

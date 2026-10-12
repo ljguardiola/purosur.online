@@ -8,30 +8,35 @@ export interface SentReceipt {
   ledgerStateWhenSent: FakeReceiptLedgerState;
 }
 
+interface WaitingReceipt {
+  watch: ReceiptPrintWatch;
+  sending: () => Uint8Array;
+  end: (ending: ReceiptPrintEnding) => void;
+}
+
 export class FakeReceiptPrinter implements ReceiptPrinter {
   sent: SentReceipt[] = [];
+  waiting: WaitingReceipt[] = [];
   private readonly ledger: FakeReceiptLedger;
-  private endings: ((ending: ReceiptPrintEnding) => void)[] = [];
   private waiters: { count: number; resolve: () => void }[] = [];
 
   constructor(ledger: FakeReceiptLedger) {
     this.ledger = ledger;
   }
 
-  print(bytes: Uint8Array, watch: ReceiptPrintWatch): Promise<ReceiptPrintEnding> {
-    this.sent.push({ bytes, watch, ledgerStateWhenSent: structuredClone(this.ledger.state) });
-    for (const waiter of this.waiters) {
-      if (this.sent.length >= waiter.count) {
-        waiter.resolve();
-      }
-    }
+  print(watch: ReceiptPrintWatch, sending: () => Uint8Array): Promise<ReceiptPrintEnding> {
     return new Promise((resolve) => {
-      this.endings.push(resolve);
+      this.waiting.push({ watch, sending, end: resolve });
+      for (const waiter of this.waiters) {
+        if (this.waiting.length >= waiter.count) {
+          waiter.resolve();
+        }
+      }
     });
   }
 
-  whenSent(count = 1): Promise<void> {
-    if (this.sent.length >= count) {
+  whenWaiting(count = 1): Promise<void> {
+    if (this.waiting.length >= count) {
       return Promise.resolve();
     }
     return new Promise((resolve) => {
@@ -40,34 +45,26 @@ export class FakeReceiptPrinter implements ReceiptPrinter {
   }
 
   report(status: PrinterStatus): void {
-    this.lastWatch().onStatus(status);
+    this.lastWaiting().watch.onStatus(status);
   }
 
-  acknowledge(): void {
-    this.end({ kind: "acknowledged" });
+  becomeReady(): void {
+    const { watch, sending, end } = this.lastWaiting();
+    watch.onStatus("ready");
+    const bytes = sending();
+    this.sent.push({ bytes, watch, ledgerStateWhenSent: structuredClone(this.ledger.state) });
+    end({ kind: "sent" });
   }
 
   abandon(): void {
-    this.end({ kind: "abandoned" });
+    this.lastWaiting().end({ kind: "abandoned" });
   }
 
-  withdraw(): void {
-    this.end({ kind: "withdrawn" });
-  }
-
-  private lastWatch(): ReceiptPrintWatch {
-    const last = this.sent.at(-1);
+  private lastWaiting(): WaitingReceipt {
+    const last = this.waiting.at(-1);
     if (last === undefined) {
-      throw new Error("nothing was sent");
+      throw new Error("nothing is waiting");
     }
-    return last.watch;
-  }
-
-  private end(ending: ReceiptPrintEnding): void {
-    const resolve = this.endings.at(-1);
-    if (resolve === undefined) {
-      throw new Error("nothing was sent");
-    }
-    resolve(ending);
+    return last;
   }
 }

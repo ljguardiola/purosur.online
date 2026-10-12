@@ -3,10 +3,15 @@ import { EventEmitter } from "node:events";
 export class ScriptedSocket extends EventEmitter {
   readonly written: Uint8Array[] = [];
   destroyed = false;
+  ended = false;
 
   write(data: Uint8Array): boolean {
     this.written.push(data);
     return true;
+  }
+
+  end(): void {
+    this.ended = true;
   }
 
   destroy(): void {

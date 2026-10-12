@@ -1,28 +1,17 @@
-import { RECEIPT_RETRY_DELAY_MS } from "@purosur/domain";
 import type { ReceiptPrinter, ReceiptPrinters } from "@purosur/domain/sales/use-cases";
 import { describe, expect, it, vi } from "vitest";
 import { createReceiptPrintJobs } from "./receipt-print-jobs";
 import { ControllableReceiptPrinter } from "./test-support/controllable-receipt-printer";
 
-const START = new Date("2026-10-08T12:00:00.000Z");
 const BYTES = Uint8Array.of(1, 2, 3);
 
 function rig() {
-  let moment = START;
   const failures: unknown[] = [];
   const printer = new ControllableReceiptPrinter();
   const jobs = createReceiptPrintJobs({
-    now: () => moment,
     reportFailure: (_context, error) => failures.push(error),
   });
-  return {
-    jobs,
-    printer,
-    failures,
-    advance(ms: number) {
-      moment = new Date(moment.getTime() + ms);
-    },
-  };
+  return { jobs, printer, failures };
 }
 
 type Rig = ReturnType<typeof rig>;
@@ -32,14 +21,14 @@ function sending(printer: ReceiptPrinter) {
     watch,
     printers,
   }: {
-    watch: Parameters<ReceiptPrinter["print"]>[1];
+    watch: Parameters<ReceiptPrinter["print"]>[0];
     printers: (inner: ReceiptPrinters) => ReceiptPrinters;
   }) => {
     const configured = printers({ configured: () => printer }).configured();
     if (configured === undefined) {
       return { kind: "printer_not_configured" };
     }
-    const ending = await configured.print(BYTES, watch);
+    const ending = await configured.print(watch, () => BYTES);
     return { kind: ending.kind };
   };
 }
@@ -53,21 +42,22 @@ describe("receipt print jobs", () => {
     expect(rig().jobs.standingOf("sale-1")).toBeNull();
   });
 
-  it("answers sent as soon as the printer received the receipt, without waiting for its acknowledgment", async () => {
+  it("answers sent as soon as the run reaches the printer, while it waits for the printer to be ready", async () => {
     const subject = rig();
 
     const started = await printingSale(subject);
 
     expect(started).toEqual({ kind: "sent" });
-    expect(subject.printer.sent).toHaveLength(1);
+    expect(subject.printer.waiting).toHaveLength(1);
+    expect(subject.printer.handed).toEqual([]);
     expect(subject.jobs.standingOf("sale-1")).toBe("printing");
   });
 
-  it("stands as printed once the printer acknowledges", async () => {
+  it("stands as printed once the receipt was sent to the printer", async () => {
     const subject = rig();
     await printingSale(subject);
 
-    subject.printer.acknowledge();
+    subject.printer.becomeReady();
 
     await vi.waitFor(() => expect(subject.jobs.standingOf("sale-1")).toBe("printed"));
   });
@@ -84,19 +74,17 @@ describe("receipt print jobs", () => {
     },
   );
 
-  it("offers a retry once the printer has been ready for the retry delay without acknowledging", async () => {
+  it("stands as printing again once the printer reports it is ready", async () => {
     const subject = rig();
     await printingSale(subject);
+    subject.printer.report("paper_out");
+
     subject.printer.report("ready");
 
-    subject.advance(RECEIPT_RETRY_DELAY_MS - 1);
     expect(subject.jobs.standingOf("sale-1")).toBe("printing");
-    subject.advance(1);
-
-    expect(subject.jobs.standingOf("sale-1")).toBe("retry_offered");
   });
 
-  it.each(["printing", "cover_open"] as const)(
+  it.each(["printing", "cover_open", "paper_out", "not_responding"] as const)(
     "refuses to start another print of a sale while it stands as %s",
     async (status) => {
       const subject = rig();
@@ -106,7 +94,7 @@ describe("receipt print jobs", () => {
       const second = await printingSale(subject);
 
       expect(second).toEqual({ kind: "busy" });
-      expect(subject.printer.sent).toHaveLength(1);
+      expect(subject.printer.waiting).toHaveLength(1);
     },
   );
 
@@ -135,32 +123,18 @@ describe("receipt print jobs", () => {
   it("starts another print once the previous one is printed", async () => {
     const subject = rig();
     await printingSale(subject);
-    subject.printer.acknowledge();
+    subject.printer.becomeReady();
     await vi.waitFor(() => expect(subject.jobs.standingOf("sale-1")).toBe("printed"));
 
     expect(await printingSale(subject)).toEqual({ kind: "sent" });
     expect(subject.jobs.standingOf("sale-1")).toBe("printing");
   });
 
-  it("abandons the previous print when it starts the print that replaces a retry offered", async () => {
+  it("ignores what a finished print still reports once another one started", async () => {
     const subject = rig();
     await printingSale(subject);
-    subject.printer.report("ready");
-    subject.advance(RECEIPT_RETRY_DELAY_MS);
-
-    const second = await printingSale(subject);
-
-    expect(second).toEqual({ kind: "sent" });
-    expect(subject.printer.sent[0]?.watch.signal.aborted).toBe(true);
-    expect(subject.printer.sent[1]?.watch.signal.aborted).toBe(false);
-    expect(subject.jobs.standingOf("sale-1")).toBe("printing");
-  });
-
-  it("ignores what the abandoned print still reports", async () => {
-    const subject = rig();
-    await printingSale(subject);
-    subject.printer.report("ready");
-    subject.advance(RECEIPT_RETRY_DELAY_MS);
+    subject.printer.becomeReady();
+    await vi.waitFor(() => expect(subject.jobs.standingOf("sale-1")).toBe("printed"));
     await printingSale(subject);
 
     subject.printer.report("paper_out", 0);
@@ -168,17 +142,16 @@ describe("receipt print jobs", () => {
     expect(subject.jobs.standingOf("sale-1")).toBe("printing");
   });
 
-  it("keeps the print it offered a retry for when the new start is answered before sending", async () => {
+  it("abandons the previous print when a new one starts after it", async () => {
     const subject = rig();
     await printingSale(subject);
-    subject.printer.report("ready");
-    subject.advance(RECEIPT_RETRY_DELAY_MS);
+    subject.printer.becomeReady();
+    await vi.waitFor(() => expect(subject.jobs.standingOf("sale-1")).toBe("printed"));
 
-    const refused = await subject.jobs.start("sale-1", async () => ({ kind: "not_permitted" }));
+    await printingSale(subject);
 
-    expect(refused).toEqual({ kind: "answered", outcome: { kind: "not_permitted" } });
-    expect(subject.printer.sent[0]?.watch.signal.aborted).toBe(false);
-    expect(subject.jobs.standingOf("sale-1")).toBe("retry_offered");
+    expect(subject.printer.waiting[0]?.watch.signal.aborted).toBe(true);
+    expect(subject.printer.waiting[1]?.watch.signal.aborted).toBe(false);
   });
 
   it("answers with the outcome of a start that ended without sending, leaving no job", async () => {
@@ -253,20 +226,6 @@ describe("receipt print jobs", () => {
     expect(subject.jobs.standingOf("sale-1")).toBe("printing");
   });
 
-  it("stands as failed when the start that replaces a retry offered fails before sending", async () => {
-    const subject = rig();
-    await printingSale(subject);
-    subject.printer.report("ready");
-    subject.advance(RECEIPT_RETRY_DELAY_MS);
-
-    await subject.jobs.start("sale-1", async () => {
-      throw new Error("the ledger is damaged");
-    });
-
-    expect(subject.printer.sent[0]?.watch.signal.aborted).toBe(true);
-    expect(subject.jobs.standingOf("sale-1")).toBe("failed");
-  });
-
   it("reports a failure after sending, stands as failed and leaves the sale free to print again", async () => {
     const subject = rig();
     const failure = new Error("the printer adapter broke");
@@ -278,79 +237,12 @@ describe("receipt print jobs", () => {
     const started = await subject.jobs.start("sale-1", async ({ watch, printers }) =>
       printers({ configured: () => breaking })
         .configured()
-        ?.print(BYTES, watch),
+        ?.print(watch, () => BYTES),
     );
 
     expect(started).toEqual({ kind: "sent" });
     await vi.waitFor(() => expect(subject.failures).toEqual([failure]));
     expect(subject.jobs.standingOf("sale-1")).toBe("failed");
     expect(await printingSale(subject)).toEqual({ kind: "sent" });
-  });
-
-  describe("withdrawing the held receipts", () => {
-    it("asks the printer to withdraw the held receipt without freeing the sale until the printer confirms", async () => {
-      const subject = rig();
-      await printingSale(subject);
-      subject.printer.report("paper_out");
-
-      subject.jobs.withdrawHeld();
-
-      expect(subject.printer.sent[0]?.watch.withdrawal.aborted).toBe(true);
-      expect(subject.jobs.standingOf("sale-1")).toBe("paper_out");
-      expect(await printingSale(subject)).toEqual({ kind: "busy" });
-    });
-
-    it("stands as withdrawn and allows a duplicate once the printer confirms the withdrawal", async () => {
-      const subject = rig();
-      await printingSale(subject);
-      subject.printer.report("paper_out");
-      subject.jobs.withdrawHeld();
-
-      subject.printer.withdraw();
-
-      await vi.waitFor(() => expect(subject.jobs.standingOf("sale-1")).toBe("withdrawn"));
-      expect(await printingSale(subject)).toEqual({ kind: "sent" });
-      expect(subject.jobs.standingOf("sale-1")).toBe("printing");
-    });
-
-    it("asks every sale's held receipt to be withdrawn", async () => {
-      const subject = rig();
-      await printingSale(subject, "sale-1");
-      await printingSale(subject, "sale-2");
-
-      subject.jobs.withdrawHeld();
-
-      expect(subject.printer.sent.map(({ watch }) => watch.withdrawal.aborted)).toEqual([
-        true,
-        true,
-      ]);
-    });
-
-    it("leaves a printed sale printed", async () => {
-      const subject = rig();
-      await printingSale(subject);
-      subject.printer.acknowledge();
-      await vi.waitFor(() => expect(subject.jobs.standingOf("sale-1")).toBe("printed"));
-
-      subject.jobs.withdrawHeld();
-
-      expect(subject.jobs.standingOf("sale-1")).toBe("printed");
-    });
-
-    it("ignores the withdrawal of a print already replaced by a newer one", async () => {
-      const subject = rig();
-      await printingSale(subject);
-      subject.printer.report("ready");
-      subject.advance(RECEIPT_RETRY_DELAY_MS);
-      await printingSale(subject);
-
-      subject.printer.withdraw(0);
-
-      expect(subject.jobs.standingOf("sale-1")).toBe("printing");
-    });
-
-    it("does nothing when no receipt is held", () => {
-      expect(() => rig().jobs.withdrawHeld()).not.toThrow();
-    });
   });
 });

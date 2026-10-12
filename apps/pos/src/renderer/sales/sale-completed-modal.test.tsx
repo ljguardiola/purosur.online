@@ -1,4 +1,4 @@
-import type { ReceiptPrintStatusOutcome, RetryReceiptPrintOutcome } from "@purosur/contracts";
+import type { ReceiptPrintStatusOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -22,7 +22,6 @@ type Amounts =
 
 type Overrides = {
   readReceiptStatus?: () => Promise<ReceiptPrintStatusOutcome>;
-  retryReceiptPrint?: () => Promise<RetryReceiptPrintOutcome>;
   mayChangePrinter?: boolean;
 };
 
@@ -33,24 +32,16 @@ async function renderModal(amounts: Amounts, overrides: Overrides = {}) {
   const readReceiptStatus = vi.fn(
     overrides.readReceiptStatus ?? (async () => found(null, { printed: true })),
   );
-  const retryReceiptPrint = vi.fn(
-    overrides.retryReceiptPrint ??
-      (async (): Promise<RetryReceiptPrintOutcome> => ({
-        kind: "started",
-        copy: { kind: "original" },
-      })),
-  );
   const screen = await render(
     <SaleCompletedModal
       {...amounts}
       saleId="sale-1"
       readReceiptStatus={readReceiptStatus}
-      retryReceiptPrint={retryReceiptPrint}
       mayChangePrinter={overrides.mayChangePrinter ?? false}
       onNewSale={onNewSale}
     />,
   );
-  return { screen, onNewSale, readReceiptStatus, retryReceiptPrint };
+  return { screen, onNewSale, readReceiptStatus };
 }
 
 async function expectAlertText(
@@ -191,19 +182,19 @@ describe("SaleCompletedModal", () => {
       standing: "paper_out",
       state: "Sin papel",
       title: "La impresora se quedó sin papel",
-      help: "Poné un rollo nuevo y cerrá la tapa. El ticket ya enviado queda en la impresora y sale solo cuando se resuelve. No hace falta reimprimir.",
+      help: "Poné un rollo nuevo y cerrá la tapa. El ticket sale solo cuando la impresora tenga papel.",
     },
     {
       standing: "cover_open",
       state: "Tapa abierta",
       title: "La tapa de la impresora está abierta",
-      help: "Cerrala. El ticket ya enviado queda en la impresora y sale solo cuando se resuelve. No hace falta reimprimir.",
+      help: "Cerrala. El ticket sale solo cuando se cierre.",
     },
     {
       standing: "not_responding",
       state: "No responde",
       title: "La impresora no responde",
-      help: "Revisá que esté encendida y con el cable conectado. Si vuelve a responder y el ticket no sale, se ofrece reintentar.",
+      help: "Revisá que esté encendida y con el cable conectado. El ticket sale solo cuando vuelva a responder.",
     },
     {
       standing: "printer_not_configured",
@@ -291,146 +282,11 @@ describe("SaleCompletedModal", () => {
     expect(onNewSale).toHaveBeenCalledOnce();
   });
 
-  it("offers retrying when the printer answers again without confirming the print, and asks the core to retry", async () => {
-    let standing: Standing = "retry_offered";
-    const { screen, retryReceiptPrint } = await renderModal(CASH, {
-      readReceiptStatus: async () => found(standing),
-      retryReceiptPrint: async () => {
-        standing = "printing";
-        return { kind: "started", copy: { kind: "original" } };
-      },
-    });
-
-    await expect.element(screen.getByText("Normal · sin confirmar la impresión")).toBeVisible();
-    await expectAlertText(
-      screen,
-      "El ticket no salió La impresora volvió a responder pero no confirmó la impresión. El reintento sale como original.",
-    );
-
-    await userEvent.click(screen.getByRole("button", { name: "Reintentar impresión" }));
-
-    expect(retryReceiptPrint).toHaveBeenCalledWith("sale-1");
-    await expect.element(screen.getByText("Imprimiendo")).toBeVisible();
-    await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
-  });
-
-  it("says the retry comes out as a duplicate with its reprint number, because the ticket was already sent, when the core says the next copy is one", async () => {
-    const { screen } = await renderModal(CASH, {
-      readReceiptStatus: async () => ({
-        kind: "found",
-        next_copy: { kind: "duplicate", order_number: 2 },
-        printed: false,
-        standing: "retry_offered",
-      }),
-    });
-
-    await expectAlertText(
-      screen,
-      "La impresora volvió a responder pero no confirmó la impresión. Como el ticket ya se había enviado, el reintento sale como duplicado, con la reimpresión Nº 2.",
-    );
-  });
-
-  it("lets the cashier go on selling from the retry layout", async () => {
-    const { screen, onNewSale } = await renderModal(CASH, {
-      readReceiptStatus: async () => found("retry_offered"),
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: "Seguir vendiendo" }));
-
-    expect(onNewSale).toHaveBeenCalledOnce();
-  });
-
-  it.each([
-    {
-      outcome: { kind: "lacks_permission" } as const,
-      notice: "No tenés permiso para reintentar la impresión.",
-    },
-    {
-      outcome: { kind: "unavailable" } as const,
-      notice: "No se pudo reintentar la impresión. Probá de nuevo.",
-    },
-    {
-      outcome: { kind: "printer_not_configured" } as const,
-      notice: "La impresora no está configurada.",
-    },
-  ])("tells the retry was refused: $outcome.kind", async ({ outcome, notice }) => {
-    const { screen } = await renderModal(CASH, {
-      readReceiptStatus: async () => found("retry_offered"),
-      retryReceiptPrint: async () => outcome,
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: "Reintentar impresión" }));
-
-    await expect.element(screen.getByRole("alert").filter({ hasText: notice })).toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: "Reintentar impresión" }))
-      .toBeEnabled();
-  });
-
-  it("drops the advice to try again once the retry it refused leaves the print failed, with no retry to try", async () => {
-    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
-    let standing: Standing = "retry_offered";
-    const { screen } = await renderModal(CASH, {
-      readReceiptStatus: async () => found(standing),
-      retryReceiptPrint: async () => {
-        standing = "failed";
-        return { kind: "unavailable" };
-      },
-    });
-    const retryNotice = screen
-      .getByRole("alert")
-      .filter({ hasText: "No se pudo reintentar la impresión. Probá de nuevo." });
-    await userEvent.click(screen.getByRole("button", { name: "Reintentar impresión" }));
-    await expect.element(retryNotice).toBeVisible();
-
-    await vi.advanceTimersByTimeAsync(2000);
-
-    await expect
-      .element(
-        screen.getByRole("alert").filter({ hasText: "Imprimilo desde el historial de ventas." }),
-      )
-      .toBeVisible();
-    await expect.element(retryNotice).not.toBeInTheDocument();
-  });
-
-  it("tells the retry failed when the core cannot be reached", async () => {
-    const { screen } = await renderModal(CASH, {
-      readReceiptStatus: async () => found("retry_offered"),
-      retryReceiptPrint: () => Promise.reject(new Error("the connection was replaced")),
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: "Reintentar impresión" }));
-
-    await expect
-      .element(
-        screen
-          .getByRole("alert")
-          .filter({ hasText: "No se pudo reintentar la impresión. Probá de nuevo." }),
-      )
-      .toBeVisible();
-  });
-
-  it("tells that the printer was changed and that the receipt is printed from the history when it was withdrawn, with no retry", async () => {
-    const { screen } = await renderModal(CASH, {
-      readReceiptStatus: async () => found("withdrawn"),
-    });
-
-    await expect.element(screen.getByText("Cambiada", { exact: true })).toBeVisible();
-    await expect
-      .poll(() => screen.getByRole("alert").element().textContent)
-      .toBe("Imprimilo desde el historial de ventas.");
-    await expect
-      .element(screen.getByRole("button", { name: "Reintentar impresión" }))
-      .not.toBeInTheDocument();
-  });
-
   describe("changing the printer from a failed print", () => {
     const FAILED_STANDINGS = [
       "cover_open",
       "paper_out",
       "not_responding",
-      "retry_offered",
-      "withdrawn",
       "printer_not_configured",
       "failed",
     ] as const;
