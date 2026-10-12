@@ -117,7 +117,7 @@ test("renders a row it is given with a danger or an accent tone in that tone", a
   const dangerValue = screen.getByText("− $10.00", { exact: true }).element() as HTMLElement;
   const accentValue = screen.getByText("$90.00", { exact: true }).element() as HTMLElement;
 
-  expect(getComputedStyle(dangerValue).color).toBe(tokenRgb("error"));
+  expect(getComputedStyle(dangerValue).color).toBe(tokenRgb("error-strong"));
   expect(getComputedStyle(accentValue).color).toBe(tokenRgb("text-accent"));
   expect(getComputedStyle(accentValue).fontSize).toBe("20px");
 

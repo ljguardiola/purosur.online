@@ -86,22 +86,22 @@ test("keeps the label in its own color when only the value is a saving", async (
   expect(getComputedStyle(strongLabel).color).toBe(tokenRgb("text"));
 });
 
-test("renders the value in red UI for a danger tone, in both the regular and the strong form", async () => {
+test("renders the value bold in strong red for a danger tone, at its form's size", async () => {
   const regularScreen = await render(
     <SummaryRow label="Discount" value="− $10.00" tone="danger" />,
   );
   const regularValue = regularScreen
     .getByText("− $10.00", { exact: true })
     .element() as HTMLElement;
-  expect(getComputedStyle(regularValue).color).toBe(tokenRgb("error"));
+  expect(getComputedStyle(regularValue).color).toBe(tokenRgb("error-strong"));
   expect(getComputedStyle(regularValue).fontSize).toBe("16px");
-  expect(getComputedStyle(regularValue).fontWeight).toBe("600");
+  expect(getComputedStyle(regularValue).fontWeight).toBe("700");
 
   const strongScreen = await render(
     <SummaryRow label="Total discount" value="− $25.00" strong tone="danger" />,
   );
   const strongValue = strongScreen.getByText("− $25.00", { exact: true }).element() as HTMLElement;
-  expect(getComputedStyle(strongValue).color).toBe(tokenRgb("error"));
+  expect(getComputedStyle(strongValue).color).toBe(tokenRgb("error-strong"));
   expect(getComputedStyle(strongValue).fontSize).toBe("18px");
   expect(getComputedStyle(strongValue).fontWeight).toBe("700");
 });
