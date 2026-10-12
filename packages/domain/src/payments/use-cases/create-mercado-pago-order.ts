@@ -1,5 +1,6 @@
 import {
   type MercadoPagoOrderTransaction,
+  type MercadoPagoPointPaymentTransaction,
   type MercadoPagoQrPaymentTransaction,
   mercadoPagoOrderExpiresAt,
 } from "../model/payment-transaction.js";
@@ -22,10 +23,21 @@ export interface CreateMercadoPagoOrderInput {
   amount: number;
 }
 
-export interface MercadoPagoOrderKind {
-  identity: Pick<MercadoPagoQrPaymentTransaction, "method" | "provider">;
+type MercadoPagoOrderIdentity =
+  | Pick<MercadoPagoQrPaymentTransaction, "method" | "provider">
+  | Pick<MercadoPagoPointPaymentTransaction, "method" | "provider">;
+
+export type MercadoPagoOrderAttempt<TNotCreated extends { kind: string }> =
+  | MercadoPagoOrderCreation
+  | { kind: "not_created"; outcome: TNotCreated };
+
+export interface MercadoPagoOrderKind<
+  TRefusal extends { kind: string },
+  TNotCreated extends { kind: string },
+> {
+  identity: MercadoPagoOrderIdentity;
   lifetimeMinutes: number;
-  isValidAmount(amount: number): boolean;
+  refuseAmount(amount: number): TRefusal | null;
   create(
     mercadoPago: MercadoPagoOrders,
     request: {
@@ -34,31 +46,44 @@ export interface MercadoPagoOrderKind {
       amount: number;
       expiresAfterMinutes: number;
     },
-  ): Promise<MercadoPagoOrderCreation>;
+  ): Promise<MercadoPagoOrderAttempt<TNotCreated>>;
 }
 
-export type CreateMercadoPagoOrderOutcome =
+export type CreateMercadoPagoOrderOutcome<
+  TRefusal extends { kind: string },
+  TNotCreated extends { kind: string },
+> =
   | { kind: "recorded"; transaction: MercadoPagoOrderTransaction }
-  | { kind: "invalid_amount" }
   | { kind: "request_mismatch" }
   | { kind: "not_owned" }
   | { kind: "provider_refused" }
-  | { kind: "provider_unavailable" };
+  | { kind: "provider_unavailable" }
+  | TRefusal
+  | TNotCreated;
 
-export async function createMercadoPagoOrder(
+export async function createMercadoPagoOrder<
+  TRefusal extends { kind: string },
+  TNotCreated extends { kind: string },
+>(
   { lanes, mercadoPago, clock }: MercadoPagoOrderPorts,
   { registerId, paymentTransactionId, saleId, amount }: CreateMercadoPagoOrderInput,
-  kind: MercadoPagoOrderKind,
-): Promise<CreateMercadoPagoOrderOutcome> {
-  if (!kind.isValidAmount(amount)) {
-    return { kind: "invalid_amount" };
+  kind: MercadoPagoOrderKind<TRefusal, TNotCreated>,
+): Promise<CreateMercadoPagoOrderOutcome<TRefusal, TNotCreated>> {
+  const refusal = kind.refuseAmount(amount);
+  if (refusal !== null) {
+    return refusal;
   }
 
-  return lanes.inPaymentTransactionLane<CreateMercadoPagoOrderOutcome>(
+  return lanes.inPaymentTransactionLane<CreateMercadoPagoOrderOutcome<TRefusal, TNotCreated>>(
     paymentTransactionId,
     async (lane) => {
       const recorded = await lane.recordedTransaction(registerId, paymentTransactionId);
-      if (recorded !== null && (recorded.saleId !== saleId || recorded.amount !== amount)) {
+      if (
+        recorded !== null &&
+        (recorded.saleId !== saleId ||
+          recorded.amount !== amount ||
+          recorded.method !== kind.identity.method)
+      ) {
         return { kind: "request_mismatch" };
       }
 
@@ -117,13 +142,20 @@ export async function createMercadoPagoOrder(
           transaction = { ...transaction, expiresAt };
         }
 
-        const creation = await kind.create(mercadoPago, {
+        const attempt = await kind.create(mercadoPago, {
           idempotencyKey: paymentTransactionId,
           externalReference: paymentTransactionId,
           amount,
           expiresAfterMinutes: kind.lifetimeMinutes,
         });
         const earlierAttemptMayHaveCreatedOrder = recorded?.creationOutcomeUnknown === true;
+        if (attempt.kind === "not_created") {
+          if (!earlierAttemptMayHaveCreatedOrder) {
+            await lane.recordCreationCreatedNothing(paymentTransactionId);
+          }
+          return attempt.outcome;
+        }
+        const creation = attempt;
         if (creation.kind === "refused" || creation.kind === "throttled") {
           if (!earlierAttemptMayHaveCreatedOrder) {
             await lane.recordCreationCreatedNothing(paymentTransactionId);

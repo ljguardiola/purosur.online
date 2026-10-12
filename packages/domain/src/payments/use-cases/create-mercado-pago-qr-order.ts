@@ -10,12 +10,15 @@ import type { MercadoPagoOrderPorts } from "./mercado-pago-order-ports.js";
 
 export type CreateMercadoPagoQrOrderInput = CreateMercadoPagoOrderInput;
 
-export type CreateMercadoPagoQrOrderOutcome = CreateMercadoPagoOrderOutcome;
+export type CreateMercadoPagoQrOrderOutcome = CreateMercadoPagoOrderOutcome<
+  { kind: "invalid_amount" },
+  never
+>;
 
-const QR_ORDER: MercadoPagoOrderKind = {
+const QR_ORDER: MercadoPagoOrderKind<{ kind: "invalid_amount" }, never> = {
   identity: { method: "QR", provider: "MERCADOPAGO_QR" },
   lifetimeMinutes: MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
-  isValidAmount: isValidOrderAmount,
+  refuseAmount: (amount) => (isValidOrderAmount(amount) ? null : { kind: "invalid_amount" }),
   create: (mercadoPago, request) => mercadoPago.createQrOrder(request),
 };
 

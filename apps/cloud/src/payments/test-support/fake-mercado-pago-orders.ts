@@ -3,6 +3,7 @@ import type {
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
   MercadoPagoOrders,
+  MercadoPagoPointOrderCreation,
   MercadoPagoQrOrderRequest,
 } from "@purosur/domain/payments/use-cases";
 
@@ -45,6 +46,10 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   async createQrOrder(request: MercadoPagoQrOrderRequest): Promise<MercadoPagoOrderCreation> {
     this.creations.push(request);
     return this.creation;
+  }
+
+  async createPointOrder(): Promise<MercadoPagoPointOrderCreation> {
+    return { kind: "not_configured" };
   }
 
   async readOrder(orderId: string): Promise<MercadoPagoOrderReading> {

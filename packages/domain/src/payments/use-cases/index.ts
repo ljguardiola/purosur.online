@@ -31,6 +31,11 @@ export type {
 } from "./confirm-mercado-pago-order-notification.js";
 export { confirmMercadoPagoOrderNotification } from "./confirm-mercado-pago-order-notification.js";
 export type {
+  CreateMercadoPagoPointOrderInput,
+  CreateMercadoPagoPointOrderOutcome,
+} from "./create-mercado-pago-point-order.js";
+export { createMercadoPagoPointOrder } from "./create-mercado-pago-point-order.js";
+export type {
   CreateMercadoPagoQrOrderInput,
   CreateMercadoPagoQrOrderOutcome,
 } from "./create-mercado-pago-qr-order.js";
@@ -85,6 +90,8 @@ export type {
   MercadoPagoOrderPorts,
   MercadoPagoOrderReading,
   MercadoPagoOrders,
+  MercadoPagoPointOrderCreation,
+  MercadoPagoPointOrderRequest,
   MercadoPagoQrOrderRequest,
   PaymentTransactionLane,
   PaymentTransactionLanes,

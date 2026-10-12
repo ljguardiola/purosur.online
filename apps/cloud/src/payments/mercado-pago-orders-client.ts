@@ -3,6 +3,7 @@ import type {
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
   MercadoPagoOrders,
+  MercadoPagoPointOrderCreation,
   MercadoPagoQrOrderRequest,
 } from "@purosur/domain/payments/use-cases";
 import { z } from "zod";
@@ -174,6 +175,10 @@ export function createMercadoPagoOrdersClient(
         return { kind: "throttled" };
       }
       return { kind: "refused" };
+    },
+
+    async createPointOrder(): Promise<MercadoPagoPointOrderCreation> {
+      return { kind: "not_configured" };
     },
 
     async readOrder(orderId: string): Promise<MercadoPagoOrderReading> {

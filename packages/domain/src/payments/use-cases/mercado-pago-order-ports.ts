@@ -69,11 +69,20 @@ export interface MercadoPagoQrOrderRequest {
   expiresAfterMinutes: number;
 }
 
+export interface MercadoPagoPointOrderRequest {
+  idempotencyKey: string;
+  externalReference: string;
+  amount: number;
+  expiresAfterMinutes: number;
+}
+
 export type MercadoPagoOrderCreation =
   | { kind: "created"; orderId: string; result: MercadoPagoOrderResult }
   | { kind: "refused" }
   | { kind: "throttled" }
   | { kind: "unavailable" };
+
+export type MercadoPagoPointOrderCreation = MercadoPagoOrderCreation | { kind: "not_configured" };
 
 export type MercadoPagoOrderReading =
   | { kind: "read"; result: MercadoPagoOrderResult }
@@ -87,6 +96,7 @@ export type MercadoPagoOrderCancellation =
 export interface MercadoPagoOrders {
   readonly longestCallMs: number;
   createQrOrder(request: MercadoPagoQrOrderRequest): Promise<MercadoPagoOrderCreation>;
+  createPointOrder(request: MercadoPagoPointOrderRequest): Promise<MercadoPagoPointOrderCreation>;
   readOrder(orderId: string): Promise<MercadoPagoOrderReading>;
   cancelOrder(orderId: string, idempotencyKey: string): Promise<MercadoPagoOrderCancellation>;
 }

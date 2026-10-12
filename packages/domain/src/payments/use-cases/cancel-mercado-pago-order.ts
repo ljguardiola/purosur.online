@@ -1,3 +1,4 @@
+import { isMercadoPagoOrderAtTerminal } from "../model/mercado-pago-order-result.js";
 import {
   type MercadoPagoOrderTransaction,
   PENDING_PAYMENT_TRANSACTION_STATE,
@@ -19,6 +20,7 @@ export type MercadoPagoOrderCancellationOutcome =
   | { kind: "cancelled"; transaction: MercadoPagoOrderTransaction }
   | { kind: "approved"; transaction: MercadoPagoOrderTransaction }
   | { kind: "already_closed"; transaction: MercadoPagoOrderTransaction }
+  | { kind: "cancel_on_terminal"; transaction: MercadoPagoOrderTransaction }
   | { kind: "provider_unavailable" };
 
 export type CancelMercadoPagoOrderOutcome =
@@ -72,10 +74,20 @@ async function cancelOrder(
       if (reading.kind === "unavailable") {
         return { kind: "provider_unavailable" };
       }
-      return outcomeOfClosed(
-        await recordMercadoPagoOrderResult(lane, transaction, reading.result, clock.now()),
-        false,
+      const recorded = await recordMercadoPagoOrderResult(
+        lane,
+        transaction,
+        reading.result,
+        clock.now(),
       );
+      if (
+        recorded.method === "POINT" &&
+        recorded.state === PENDING_PAYMENT_TRANSACTION_STATE &&
+        isMercadoPagoOrderAtTerminal(reading.result)
+      ) {
+        return { kind: "cancel_on_terminal", transaction: recorded };
+      }
+      return outcomeOfClosed(recorded, false);
     }
     case "unavailable":
       return { kind: "provider_unavailable" };

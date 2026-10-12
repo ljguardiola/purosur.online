@@ -2962,6 +2962,7 @@ describe("wiring the Mercado Pago notification route", () => {
         mercadoPago: {
           longestCallMs: 1,
           createQrOrder: async () => ({ kind: "unavailable" }),
+          createPointOrder: async () => ({ kind: "unavailable" }),
           readOrder: async () => ({ kind: "unavailable" }),
           cancelOrder: async () => ({ kind: "unavailable" }),
         },

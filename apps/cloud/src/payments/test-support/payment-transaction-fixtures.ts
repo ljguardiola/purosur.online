@@ -6,10 +6,12 @@ import { seededLocationId } from "../../test-support/seeded-location.js";
 export const CREATED_AT = new Date("2026-10-09T12:00:00.000Z");
 const EXPIRES_AT = new Date("2026-10-09T12:05:00.000Z");
 
+type QrOrderTransaction = Extract<MercadoPagoOrderTransaction, { method: "QR" }>;
+
 export function pendingTransaction(
   registerId: string,
-  overrides: Partial<MercadoPagoOrderTransaction> = {},
-): MercadoPagoOrderTransaction {
+  overrides: Partial<QrOrderTransaction> = {},
+): QrOrderTransaction {
   return {
     id: crypto.randomUUID(),
     registerId,

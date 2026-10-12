@@ -5,6 +5,7 @@ import {
   type MercadoPagoOrderPorts,
   type MercadoPagoOrderReading,
   type MercadoPagoOrders,
+  type MercadoPagoPointOrderCreation,
   type MercadoPagoQrOrderRequest,
 } from "@purosur/domain/payments/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -65,6 +66,10 @@ class HeldMercadoPago implements MercadoPagoOrders {
         }
       });
     });
+  }
+
+  async createPointOrder(): Promise<MercadoPagoPointOrderCreation> {
+    return { kind: "not_configured" };
   }
 
   async readOrder(): Promise<MercadoPagoOrderReading> {
