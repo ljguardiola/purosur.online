@@ -1853,6 +1853,7 @@ export const fiscalRequests = pgTable(
     authorizationCodeDueOn: date("authorization_code_due_on", { mode: "string" }),
     rejectionCodes: integer("rejection_codes").array(),
     rejectionClass: text("rejection_class"),
+    unclearCodes: integer("unclear_codes").array(),
     answeredAt: timestamp("answered_at", { withTimezone: true }),
     decision: text("decision"),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
@@ -1877,6 +1878,10 @@ export const fiscalRequests = pgTable(
     check(
       "fiscal_requests_rejection_check",
       sql`coalesce(${table.answerKind} = 'rejected', false) = (${table.rejectionCodes} is not null)`,
+    ),
+    check(
+      "fiscal_requests_unclear_codes_check",
+      sql`coalesce(${table.answerKind} = 'unclear', false) = (${table.unclearCodes} is not null)`,
     ),
     check(
       "fiscal_requests_rejection_class_check",

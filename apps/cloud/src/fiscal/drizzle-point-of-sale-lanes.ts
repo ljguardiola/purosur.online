@@ -118,11 +118,12 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
     fiscalDocumentId: string,
     answer: RealTimeAuthorizationAnswer,
     answeredAt: Date,
+    unclearCodes: readonly number[],
   ): Promise<void> {
     await this.db.transaction(async (tx) => {
       await tx
         .update(fiscalRequests)
-        .set({ ...answerColumnsOf(answer), answeredAt })
+        .set({ ...answerColumnsOf(answer, unclearCodes), answeredAt })
         .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
       await this.scheduleUnclearOutcome(tx, fiscalDocumentId, answer, answeredAt);
     });
@@ -134,11 +135,12 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
     answeredAt: Date,
     rejectionAlertChange: RejectionAlertChange | null,
     taxAuthorityCount: LastAuthorizedCount | null,
+    unclearCodes: readonly number[],
   ): Promise<void> {
     await this.db.transaction(async (tx) => {
       await tx
         .update(fiscalRequests)
-        .set({ ...answerColumnsOf(answer), answeredAt })
+        .set({ ...answerColumnsOf(answer, unclearCodes), answeredAt })
         .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
       await tx
         .insert(arcaInvoicingEvidence)
