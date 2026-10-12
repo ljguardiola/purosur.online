@@ -79,7 +79,7 @@ export interface SaleLedgerTransaction {
   activeProductById(productId: string): SellableProduct | undefined;
   searchableProducts(): SearchableProduct[];
   buyerIdentificationThresholds(): BuyerIdentificationThreshold[];
-  priceAt(productId: string, moment: Date): ListPrice | undefined;
+  currentPrice(productId: string): ListPrice | undefined;
   promotionsTargeting(productId: string): CandidatePromotion[];
   recordOpenedSale(sale: Sale): void;
   recordSaleLine(saleId: string, line: SaleLine): void;

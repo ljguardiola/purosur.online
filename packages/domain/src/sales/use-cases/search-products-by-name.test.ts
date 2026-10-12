@@ -2,13 +2,8 @@ import { describe, expect, it } from "vitest";
 import { PRODUCT_NAME_MAX_LENGTH } from "../../catalog/index.js";
 import type { SaleState } from "../model/sale.js";
 import { searchProductsByName } from "./search-products-by-name.js";
-import {
-  FakeSaleLedger,
-  type FakeSaleLedgerState,
-  FixedClock,
-} from "./test-support/fake-sale-ledger.js";
+import { FakeSaleLedger, type FakeSaleLedgerState } from "./test-support/fake-sale-ledger.js";
 
-const NOW = new Date("2026-09-30T12:34:56.789Z");
 const LONG_AGO = new Date("2026-01-01T00:00:00.000Z");
 const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
 const SESSION = { id: "session-1", openedBy: "cashier" };
@@ -42,7 +37,7 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 }
 
 function search(store: FakeSaleLedger, query: string, actorId = "cashier") {
-  return searchProductsByName({ ledger: store, clock: new FixedClock(NOW) }, { actorId, query });
+  return searchProductsByName({ ledger: store }, { actorId, query });
 }
 
 describe("searchProductsByName", () => {
@@ -96,7 +91,7 @@ describe("searchProductsByName", () => {
     expect(store.searchableReads).toBe(1);
   });
 
-  it("shows the price valid at the clock's moment, or none when the product has none yet", () => {
+  it("shows the newest synced price, even one starting after the register's clock", () => {
     const store = ledger({
       prices: [
         {
@@ -126,8 +121,28 @@ describe("searchProductsByName", () => {
     const outcome = search(store, "de");
 
     expect(outcome.kind === "results" && outcome.products.map((found) => found.unitPrice)).toEqual([
+      9000, 2800,
+    ]);
+  });
+
+  it("shows no price for a product with no synced price yet", () => {
+    const store = ledger({
+      prices: [
+        {
+          id: "price-3",
+          productId: "yerba",
+          priceListId: "list-1",
+          unitPrice: 2500,
+          validFrom: LONG_AGO,
+        },
+      ],
+    });
+
+    const outcome = search(store, "de");
+
+    expect(outcome.kind === "results" && outcome.products.map((found) => found.unitPrice)).toEqual([
       null,
-      2800,
+      2500,
     ]);
   });
 

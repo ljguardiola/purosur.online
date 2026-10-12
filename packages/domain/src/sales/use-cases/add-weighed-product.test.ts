@@ -198,11 +198,15 @@ describe("addWeighedProduct", () => {
     ]);
   });
 
-  it("prices the weight at the price in effect at the clock's moment", () => {
+  it("prices the weight at the newest synced price, even one starting after the register's clock", () => {
     const store = ledger({
       prices: [
         priceOf("queso", 9000),
-        { ...priceOf("queso", 9500), id: "price-later", validFrom: NOW },
+        {
+          ...priceOf("queso", 9500),
+          id: "price-later",
+          validFrom: new Date(NOW.getTime() + 60_000),
+        },
       ],
     });
 
