@@ -13,12 +13,12 @@ export const areaNavLook: Record<AreaNavRail, NavItemLook> = {
     inactive: {
       container: "",
       icon: "text-text-inverse-subtle",
-      label: "text-caption text-text-inverse-subtle",
+      label: "text-center text-caption text-text-inverse-subtle",
     },
     active: {
       container: "bg-surface-nav-subtle",
       icon: "text-text-inverse",
-      label: "text-caption font-bold text-text-inverse",
+      label: "text-center text-caption font-bold text-text-inverse",
     },
   },
   // The register is driven by touch, so its rail items are larger than the backoffice's.
@@ -30,12 +30,12 @@ export const areaNavLook: Record<AreaNavRail, NavItemLook> = {
     inactive: {
       container: "hover:bg-surface-subtle",
       icon: "text-text-subtle",
-      label: "text-caption text-text-subtle",
+      label: "text-center text-caption text-text-subtle",
     },
     active: {
       container: "bg-action-subtle",
       icon: "text-text-accent",
-      label: "text-caption font-bold text-text-accent",
+      label: "text-center text-caption font-bold text-text-accent",
     },
   },
 };

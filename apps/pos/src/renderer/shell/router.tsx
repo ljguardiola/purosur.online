@@ -97,7 +97,6 @@ import { SaleScreen } from "../sales/sale-screen";
 import { SalesHistoryScreen } from "../sales/sales-history-screen";
 import { FirstSignInScreen } from "../sessions/first-sign-in-screen";
 import { SignInScreen } from "../sessions/sign-in-screen";
-import { ACTION_ENTRIES } from "./action-entries";
 import { BrandPanelScreen } from "./brand-panel-screen";
 import { CoreDownNotice } from "./core-down-notice";
 import type { SignedInPerson } from "./signed-in-person";
@@ -380,7 +379,6 @@ const signedInRoute = createRoute({
       <NoSessionScreen
         person={person}
         registerName={registerName}
-        entries={ACTION_ENTRIES}
         signOut={signOut}
         openCashSession={openCashSession}
       />
@@ -401,15 +399,7 @@ const helpRoute = createRoute({
   component: function HelpRoute() {
     const { person, signOut } = helpRoute.useRouteContext();
     const registerName = useRegisterName();
-    return (
-      <HelpScreen
-        person={person}
-        registerName={registerName}
-        help={help}
-        entries={ACTION_ENTRIES}
-        signOut={signOut}
-      />
-    );
+    return <HelpScreen person={person} registerName={registerName} help={help} signOut={signOut} />;
   },
 });
 
@@ -438,7 +428,6 @@ const receiptPrinterRoute = createRoute({
         person={person}
         registerName={registerName}
         sessionOpen={sessionOpen}
-        entries={ACTION_ENTRIES}
         signOut={signOut}
         readReceiptPrinter={readReceiptPrinter}
         setReceiptPrinter={setReceiptPrinter}
@@ -476,7 +465,6 @@ const serialDevicesRoute = createRoute({
         person={person}
         registerName={registerName}
         sessionOpen={sessionOpen}
-        entries={ACTION_ENTRIES}
         signOut={signOut}
         readSerialDevices={readSerialDevices}
         registerSerialDevices={registerSerialDevices}
@@ -680,6 +668,7 @@ const cashCountRoute = createRoute({
       <CashCountScreen
         sessionId={id}
         registerName={registerName}
+        abilities={person.abilities}
         lock={signOut}
         loadCashBalance={cashBalance}
         loadCashCountPreview={cashCountPreview}
