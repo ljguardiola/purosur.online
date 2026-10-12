@@ -13,7 +13,10 @@ import {
 import { ArrowLeft, Info, QrCode, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { INVALID_AMOUNT_MESSAGE } from "./cash-charge-form";
-import { qrChargeRequestFrom, startQrChargeRequestSchema } from "./qr-charge-form";
+import {
+  mercadoPagoChargeRequestFrom,
+  mercadoPagoChargeRequestSchema,
+} from "./mercado-pago-charge-form";
 
 const REFUSED_MESSAGE = "Mercado Pago no pudo crear la orden. Cobrá con otro medio.";
 const UNREACHABLE_MESSAGE =
@@ -51,7 +54,7 @@ export function QrChargeModal({
   const [notice, setNotice] = useState<string>();
   const { form, submit, submitting } = useRequestForm({
     defaultValues: { amount: formatAmountInput(pending) },
-    request: { schema: startQrChargeRequestSchema, from: qrChargeRequestFrom },
+    request: { schema: mercadoPagoChargeRequestSchema, from: mercadoPagoChargeRequestFrom },
     fields: { amount: "amount" },
     messages: { amount: INVALID_AMOUNT_MESSAGE },
     onSubmit: async (request, { showFieldError }) => {
