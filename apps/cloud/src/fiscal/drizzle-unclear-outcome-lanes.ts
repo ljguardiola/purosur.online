@@ -1,3 +1,4 @@
+import type { FiscalUnknownAlertKey } from "@purosur/domain";
 import {
   type AbandonedRequestRecord,
   FiscalDocumentAlreadyRecorded,
@@ -99,27 +100,27 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
     fiscalDocumentId: string,
     decision: UnclearOutcomeDecision,
     decidedAt: Date,
+    resolvedAlert: FiscalUnknownAlertKey,
   ): Promise<void> {
-    await this.db
-      .update(fiscalRequests)
-      .set({ ...decisionColumnsOf(decision), decidedAt })
-      .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
-  }
-
-  async resolveUnclearOutcomeAlert(fiscalDocumentId: string, resolvedAt: Date): Promise<void> {
-    const [open] = await this.db
-      .select({ id: alerts.id })
-      .from(alerts)
-      .where(
-        and(
-          eq(alerts.kind, "fiscal_unknown"),
-          eq(alerts.scope, fiscalDocumentId),
-          openAlertCondition(),
-        ),
-      );
-    if (open !== undefined) {
-      await resolveAlert(this.db, open.id, { now: () => resolvedAt });
-    }
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(fiscalRequests)
+        .set({ ...decisionColumnsOf(decision), decidedAt })
+        .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
+      const [open] = await tx
+        .select({ id: alerts.id })
+        .from(alerts)
+        .where(
+          and(
+            eq(alerts.kind, resolvedAlert.kind),
+            eq(alerts.scope, resolvedAlert.scope),
+            openAlertCondition(),
+          ),
+        );
+      if (open !== undefined) {
+        await resolveAlert(tx, open.id, { now: () => decidedAt });
+      }
+    });
   }
 
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {

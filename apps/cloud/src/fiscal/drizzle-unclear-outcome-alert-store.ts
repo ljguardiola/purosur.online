@@ -1,4 +1,9 @@
-import { type AlertLevel, UNCLEAR_ANSWER_KINDS, unclearOutcomeSince } from "@purosur/domain";
+import {
+  type AlertLevel,
+  fiscalUnknownAlertKey,
+  UNCLEAR_ANSWER_KINDS,
+  unclearOutcomeSince,
+} from "@purosur/domain";
 import type {
   UnclearDocumentWithoutAlert,
   UnclearOutcomeAlertStore,
@@ -81,8 +86,7 @@ class DrizzleUnclearOutcomeAlertTransaction<TQueryResult extends PgQueryResultHK
     await openAlert(
       this.tx,
       {
-        kind: "fiscal_unknown",
-        scope: document.fiscalDocumentId,
+        ...fiscalUnknownAlertKey(document.fiscalDocumentId),
         detail: {
           fiscalDocumentId: document.fiscalDocumentId,
           saleId: document.saleId,

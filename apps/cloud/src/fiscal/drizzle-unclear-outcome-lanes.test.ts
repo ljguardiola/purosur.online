@@ -1,8 +1,8 @@
+import { fiscalUnknownAlertKey } from "@purosur/domain";
 import {
   FiscalDocumentAlreadyRecorded,
   type RealTimeAuthorizationAnswer,
 } from "@purosur/domain/fiscal/use-cases";
-import { fiscalUnknownAlertKey } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import type { PgliteQueryResultHKT } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -181,7 +181,12 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       const request = await recordedRequest(42, { kind: "unclear" });
 
       await unclearLanes.inPointOfSaleLane(7, (lane) =>
-        lane.recordDecision(request.fiscalDocumentId, { kind: "released" }, DECIDED_AT, fiscalUnknownAlertKey(request.fiscalDocumentId)),
+        lane.recordDecision(
+          request.fiscalDocumentId,
+          { kind: "released" },
+          DECIDED_AT,
+          fiscalUnknownAlertKey(request.fiscalDocumentId),
+        ),
       );
 
       expect(await storedRow(request.fiscalDocumentId)).toMatchObject({
@@ -220,7 +225,12 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       const request = await recordedRequest(42, { kind: "unclear" });
 
       await unclearLanes.inPointOfSaleLane(7, (lane) =>
-        lane.recordDecision(request.fiscalDocumentId, { kind: "conflicting" }, DECIDED_AT, fiscalUnknownAlertKey(request.fiscalDocumentId)),
+        lane.recordDecision(
+          request.fiscalDocumentId,
+          { kind: "conflicting" },
+          DECIDED_AT,
+          fiscalUnknownAlertKey(request.fiscalDocumentId),
+        ),
       );
 
       expect(await storedRow(request.fiscalDocumentId)).toMatchObject({
@@ -243,7 +253,12 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       const request = await recordedRequest(42, { kind: "unclear" });
 
       const found = await unclearLanes.inPointOfSaleLane(7, async (lane) => {
-        await lane.recordDecision(request.fiscalDocumentId, decision, DECIDED_AT, fiscalUnknownAlertKey(request.fiscalDocumentId));
+        await lane.recordDecision(
+          request.fiscalDocumentId,
+          decision,
+          DECIDED_AT,
+          fiscalUnknownAlertKey(request.fiscalDocumentId),
+        );
         return lane.unclearRequest(request.fiscalDocumentId);
       });
 
@@ -259,7 +274,12 @@ describe("DrizzleUnclearOutcomeLanes", () => {
 
       await expect(
         unclearLanes.inPointOfSaleLane(7, (lane) =>
-          lane.recordDecision(request.fiscalDocumentId, { kind: "released" }, DECIDED_AT, fiscalUnknownAlertKey(request.fiscalDocumentId)),
+          lane.recordDecision(
+            request.fiscalDocumentId,
+            { kind: "released" },
+            DECIDED_AT,
+            fiscalUnknownAlertKey(request.fiscalDocumentId),
+          ),
         ),
       ).rejects.toThrow();
     });
@@ -365,7 +385,12 @@ describe("DrizzleUnclearOutcomeLanes", () => {
 
       const recorded = await unclearLanes.inPointOfSaleLane(7, async (lane) => {
         const before = await lane.recordedRequest(request.registerId, request.fiscalDocumentId);
-        await lane.recordDecision(request.fiscalDocumentId, { kind: "released" }, DECIDED_AT, fiscalUnknownAlertKey(request.fiscalDocumentId));
+        await lane.recordDecision(
+          request.fiscalDocumentId,
+          { kind: "released" },
+          DECIDED_AT,
+          fiscalUnknownAlertKey(request.fiscalDocumentId),
+        );
         const after = await lane.recordedRequest(request.registerId, request.fiscalDocumentId);
         return [before, after];
       });
