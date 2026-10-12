@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  fiscalEmissionStopReasonOf,
   fiscalEmissionStoppedReportOf,
+  fiscalEmissionStopReasonOf,
   type LatestPreEmissionGateOutcome,
 } from "./fiscal-emission-stop.js";
 import { PRE_EMISSION_GATE_FAILURE_REASONS } from "./pre-emission-gate.js";
@@ -17,11 +17,12 @@ describe("fiscalEmissionStopReasonOf", () => {
     expect(fiscalEmissionStopReasonOf(PASSED)).toBeUndefined();
   });
 
-  it.each(
-    PRE_EMISSION_GATE_FAILURE_REASONS,
-  )("finds a register whose latest sale failed the check for %s stopped, for that reason", (reason) => {
-    expect(fiscalEmissionStopReasonOf({ kind: "failed", reason })).toBe(reason);
-  });
+  it.each(PRE_EMISSION_GATE_FAILURE_REASONS)(
+    "finds a register whose latest sale failed the check for %s stopped, for that reason",
+    (reason) => {
+      expect(fiscalEmissionStopReasonOf({ kind: "failed", reason })).toBe(reason);
+    },
+  );
 });
 
 describe("fiscalEmissionStoppedReportOf", () => {
