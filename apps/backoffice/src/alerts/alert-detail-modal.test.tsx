@@ -1284,7 +1284,7 @@ test("tells a register whose fiscal emission is stopped in plain language, with 
     )
     .toBeVisible();
   await expect.element(screen.getByText(/Seguir vendiendo igual: se cobra la venta/)).toBeVisible();
-  await expect.element(screen.getByText("Falta la razón social del emisor")).toBeVisible();
+  await expect.element(screen.getByText("Motivo: Falta la razón social del emisor")).toBeVisible();
   await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
 });
 
