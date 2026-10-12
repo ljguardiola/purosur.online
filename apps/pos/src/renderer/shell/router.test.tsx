@@ -31,6 +31,7 @@ type RoutePath =
   | "/enroll"
   | "/starting"
   | "/core-down"
+  | "/updating"
   | "/out-of-service"
   | "/pin-code-redemption"
   | "/first-sign-in";
@@ -108,6 +109,7 @@ const screenFor: Record<
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
   "/starting": (screen) => screen.getByRole("img", { name: BRAND_LOGO_ALT }),
   "/core-down": (screen) => screen.getByText(CORE_DOWN_TITLE),
+  "/updating": (screen) => screen.getByText("Actualizando la caja"),
   "/out-of-service": (screen) => screen.getByText(OUT_OF_SERVICE_TITLE),
   "/pin-code-redemption": (screen) => screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE }),
   "/first-sign-in": (screen) => screen.getByRole("heading", { name: FIRST_SIGN_IN_TITLE }),
@@ -267,6 +269,7 @@ describe("routeFor", () => {
     { coreStatus: "up", enrollment: "unknown", person: PERSON, route: "/starting" },
     { coreStatus: "starting", enrollment: "enrolled", person: PERSON, route: "/starting" },
     { coreStatus: "down", enrollment: "enrolled", person: PERSON, route: "/core-down" },
+    { coreStatus: "updating", enrollment: "enrolled", person: PERSON, route: "/updating" },
     {
       coreStatus: "up",
       enrollment: "enrolled",
