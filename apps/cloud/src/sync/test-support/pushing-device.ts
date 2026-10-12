@@ -83,6 +83,13 @@ export function saleCompleted(options: {
   completedAt: string;
   total: number;
   payments: { amount: number }[];
+  saleDiscount?: {
+    kind: "PERCENT" | "AMOUNT";
+    value: number;
+    amount: number;
+    reason: string;
+    authorizedBy: string | null;
+  };
   line?: {
     id?: string;
     productId: string;
@@ -99,13 +106,14 @@ export function saleCompleted(options: {
 }): PushedEventDraft {
   const { line } = options;
   const lineId = line?.id ?? randomUUID();
-  const adjusted = line?.adjustment !== undefined;
+  const { saleDiscount } = options;
+  const adjusted = line?.adjustment !== undefined || saleDiscount !== undefined;
   const withStock = line?.weight !== undefined || adjusted;
   return {
     aggregate_type: "Sale",
     aggregate_id: options.saleId,
     event_type: "sale_completed",
-    schema_version: adjusted ? 7 : line?.weight ? 6 : 2,
+    schema_version: saleDiscount ? 8 : adjusted ? 7 : line?.weight ? 6 : 2,
     occurred_at: options.completedAt,
     payload: {
       id: options.saleId,
@@ -115,6 +123,17 @@ export function saleCompleted(options: {
       actor_id: CASHIER,
       occurred_at: options.completedAt,
       total: options.total,
+      ...(saleDiscount
+        ? {
+            sale_discount: {
+              kind: saleDiscount.kind,
+              value: saleDiscount.value,
+              amount: saleDiscount.amount,
+              reason: saleDiscount.reason,
+              authorized_by: saleDiscount.authorizedBy,
+            },
+          }
+        : {}),
       lines: line
         ? [
             {
@@ -129,16 +148,19 @@ export function saleCompleted(options: {
               discount_amount: 0,
               promotions: [],
               line_total: options.total,
-              ...(line.adjustment
+              ...(adjusted
                 ? {
-                    manual_adjustment: {
-                      kind: line.adjustment.kind,
-                      value: line.adjustment.value,
-                      reason: line.adjustment.reason,
-                      authorized_by: line.adjustment.authorizedBy,
-                    },
+                    manual_adjustment: line.adjustment
+                      ? {
+                          kind: line.adjustment.kind,
+                          value: line.adjustment.value,
+                          reason: line.adjustment.reason,
+                          authorized_by: line.adjustment.authorizedBy,
+                        }
+                      : null,
                   }
                 : {}),
+              ...(saleDiscount ? { sale_discount_share: saleDiscount.amount } : {}),
             },
           ]
         : [],

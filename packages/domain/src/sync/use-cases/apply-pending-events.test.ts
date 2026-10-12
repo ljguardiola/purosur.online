@@ -831,6 +831,7 @@ describe("an event that breaks an invariant of its own aggregate", () => {
           priceListId: "outdated-price-list",
           promotionId: null,
           discountAmount: 0,
+          saleDiscountShare: 0,
           lineTotal: 1,
         },
       ],

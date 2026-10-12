@@ -256,7 +256,10 @@ describe("the open sale", () => {
   it("carries no lines for a sale in progress whose lines were all removed", () => {
     addSale("sale-1", "OPEN", []);
 
-    expect(ledger.transaction((tx) => tx.openSale("session-1"))).toEqual({ lines: [] });
+    expect(ledger.transaction((tx) => tx.openSale("session-1"))).toEqual({
+      lines: [],
+      saleDiscount: null,
+    });
   });
 
   it("is none for a session whose sale is not the one in progress", () => {

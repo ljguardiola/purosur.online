@@ -4,8 +4,10 @@ import type {
   FollowMercadoPagoQrChargeOutcome,
   ManualAdjustmentRequest,
   OpenSale,
+  PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   ReceiptPrintStatusOutcome,
+  SaleDiscountRequest,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
   SearchProductsOutcome,
@@ -27,6 +29,7 @@ import {
   useRefreshReceiptPrintStatus,
   useRefreshSalesHistory,
   useResetCurrentSale,
+  useSaleDiscountPreviewQuery,
   useSaleHistoryDetailQuery,
   useSalesHistoryQuery,
   useSearchProducts,
@@ -59,6 +62,10 @@ const SALE: OpenSale = {
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,
+  sale_discount_authorization_required: false,
+  sale_discount_refusal: null,
+  sale_discount: null,
+  subtotal: 238_000,
 };
 
 function CurrentSaleProbe({
@@ -477,6 +484,92 @@ describe("adjustment preview query", () => {
           lineId={lineId}
           quantity={quantity}
           adjustment={adjustment}
+        />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+  });
+});
+
+function SaleDiscountPreviewProbe({
+  read,
+  subtotal = 5_070_000,
+  discount = { kind: "PERCENT", value: 5 },
+}: {
+  read: () => Promise<PreviewSaleDiscountOutcome>;
+  subtotal?: number;
+  discount?: SaleDiscountRequest | "none";
+}) {
+  const preview = useSaleDiscountPreviewQuery({
+    subtotal,
+    discount: discount === "none" ? undefined : discount,
+    read,
+  });
+  return <p>{preview.status === "loaded" ? JSON.stringify(preview.value) : preview.status}</p>;
+}
+
+describe("sale discount preview query", () => {
+  const PREVIEW: PreviewSaleDiscountOutcome = {
+    kind: "preview",
+    subtotal: 5_070_000,
+    discount_amount: 253_500,
+    total: 4_816_500,
+  };
+
+  it("holds what the core answers for the discount it is given", async () => {
+    const read = vi.fn(async () => PREVIEW);
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <SaleDiscountPreviewProbe read={read} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText(JSON.stringify(PREVIEW))).toBeVisible();
+    expect(read).toHaveBeenCalledExactlyOnceWith({ kind: "PERCENT", value: 5 });
+  });
+
+  it("does not ask while there is no discount to preview", async () => {
+    const read = vi.fn(async () => PREVIEW);
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <SaleDiscountPreviewProbe read={read} discount="none" />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("fails when the core answers it is unavailable", async () => {
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <SaleDiscountPreviewProbe read={async () => ({ kind: "unavailable" })} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
+  });
+
+  it.each<[string, number, SaleDiscountRequest]>([
+    ["another subtotal", 4_000_000, { kind: "PERCENT", value: 5 }],
+    ["another discount", 5_070_000, { kind: "PERCENT", value: 10 }],
+    ["another kind of discount", 5_070_000, { kind: "AMOUNT", value: 5 }],
+  ])("never shows the preview given for %s", async (_what, subtotal, discount) => {
+    const queryClient = createQueryClient();
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <SaleDiscountPreviewProbe read={async () => PREVIEW} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText(JSON.stringify(PREVIEW))).toBeVisible();
+
+    await screen.rerender(
+      <QueryClientProvider client={queryClient}>
+        <SaleDiscountPreviewProbe
+          read={() => new Promise(() => {})}
+          subtotal={subtotal}
+          discount={discount}
         />
       </QueryClientProvider>,
     );

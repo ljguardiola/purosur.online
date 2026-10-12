@@ -17,6 +17,7 @@ import {
   FixedClock,
   SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
+import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
 
 const NOW = new Date("2026-09-30T12:34:56.789Z");
 const IDENTITY = { registerId: "register-1", deviceId: "device-1" };
@@ -38,6 +39,7 @@ const OPEN_SALE: SaleWithLines = {
   sessionId: "session-1",
   actorId: "cashier",
   state: "OPEN",
+  saleDiscount: null,
   lines: [
     {
       id: "line-1",
@@ -374,7 +376,7 @@ describe("chargeSaleInCash", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "sale_completed",
-        schema_version: 7,
+        schema_version: 8,
         occurred_at: NOW.toISOString(),
         actor_id: "cashier",
         payload: {
@@ -386,6 +388,7 @@ describe("chargeSaleInCash", () => {
           actor_id: "cashier",
           occurred_at: NOW.toISOString(),
           total: TOTAL,
+          sale_discount: null,
           lines: [
             {
               id: "line-1",
@@ -399,6 +402,7 @@ describe("chargeSaleInCash", () => {
               promotion_id: null,
               discount_amount: 0,
               promotions: [],
+              sale_discount_share: 0,
               line_total: 5000,
             },
             {
@@ -413,6 +417,7 @@ describe("chargeSaleInCash", () => {
               promotion_id: null,
               discount_amount: 0,
               promotions: [],
+              sale_discount_share: 0,
               line_total: 900,
             },
           ],
@@ -1121,5 +1126,125 @@ describe("chargeSaleInCash", () => {
       expect(() => charge(store, 4000, "sale-1", "cashier", ids)).toThrow("failed");
       expect(store.state).toEqual(before);
     });
+  });
+});
+
+describe("chargeSaleInCash on a sale with a discount on the total", () => {
+  const DISCOUNTED_TOTAL = 5310;
+  const withDiscount = (
+    saleDiscount: SaleWithLines["saleDiscount"] = TEN_PERCENT_SALE_DISCOUNT,
+  ) => [{ ...OPEN_SALE, saleDiscount }];
+
+  it("charges the total with the discount taken off and reports the change on it", () => {
+    const store = ledger({ sales: withDiscount() });
+
+    expect(charge(store, 6000)).toEqual({
+      kind: "completed",
+      saleId: "sale-1",
+      total: DISCOUNTED_TOTAL,
+      tendered: 6000,
+      change: 690,
+    });
+    expect(store.state.payments[0]).toMatchObject({ amount: DISCOUNTED_TOTAL, tendered: 6000 });
+  });
+
+  it("answers what is still pending on the discounted total", () => {
+    expect(charge(ledger({ sales: withDiscount() }), 5000)).toEqual({
+      kind: "partially_paid",
+      saleId: "sale-1",
+      total: DISCOUNTED_TOTAL,
+      paid: 5000,
+      pending: 310,
+    });
+  });
+
+  it("authorizes a document, and reports a total, that include the discount", () => {
+    const store = ledger({ sales: withDiscount() });
+
+    charge(store, DISCOUNTED_TOTAL);
+
+    expect(store.state.outbox[0]?.payload).toMatchObject({ total: DISCOUNTED_TOTAL });
+    expect(store.state.preEmissionGates[0]?.outcome).toMatchObject({
+      kind: "passed",
+      document: { total: DISCOUNTED_TOTAL, netAmount: DISCOUNTED_TOTAL },
+    });
+  });
+
+  it("records each line's total with its share of the discount taken off, adding up to the total", () => {
+    const store = ledger({ sales: withDiscount() });
+
+    charge(store, DISCOUNTED_TOTAL);
+
+    expect(store.state.outbox[0]?.payload).toMatchObject({
+      lines: [
+        { id: "line-1", line_total: 4500 },
+        { id: "line-2", line_total: 810 },
+      ],
+    });
+  });
+
+  it("records the discount, with its amount, reason and authorizer, and each line's share of it", () => {
+    const store = ledger({
+      sales: withDiscount({
+        kind: "PERCENT",
+        percent: 10,
+        reason: "Cliente frecuente",
+        authorizedBy: "supervisor",
+      }),
+    });
+
+    charge(store, DISCOUNTED_TOTAL);
+
+    expect(store.state.outbox[0]?.payload).toMatchObject({
+      total: DISCOUNTED_TOTAL,
+      sale_discount: {
+        kind: "PERCENT",
+        value: 10,
+        amount: 590,
+        reason: "Cliente frecuente",
+        authorized_by: "supervisor",
+      },
+      lines: [
+        { id: "line-1", sale_discount_share: 500, line_total: 4500 },
+        { id: "line-2", sale_discount_share: 90, line_total: 810 },
+      ],
+    });
+  });
+
+  it("records a fixed amount discount with the amount taken off", () => {
+    const store = ledger({
+      sales: withDiscount({ kind: "AMOUNT", amount: 590, reason: "Rotura", authorizedBy: null }),
+    });
+
+    charge(store, DISCOUNTED_TOTAL);
+
+    expect(store.state.outbox[0]?.payload).toMatchObject({
+      sale_discount: {
+        kind: "AMOUNT",
+        value: 590,
+        amount: 590,
+        reason: "Rotura",
+        authorized_by: null,
+      },
+    });
+  });
+
+  it("does not refuse for the threshold the undiscounted total reaches", () => {
+    const store = ledger({
+      sales: withDiscount(),
+      thresholds: [{ ...THRESHOLD, amount: TOTAL }],
+    });
+
+    expect(charge(store, DISCOUNTED_TOTAL)).toEqual(expect.objectContaining({ kind: "completed" }));
+  });
+
+  it("refuses a sale the discount leaves at zero before looking at the amount", () => {
+    const store = ledger({
+      sales: withDiscount({ kind: "PERCENT", percent: 100, reason: "regalo", authorizedBy: null }),
+    });
+    const before = structuredClone(store.state);
+
+    expect(charge(store, 0)).toEqual({ kind: "zero_total" });
+    expect(store.state).toEqual(before);
   });
 });

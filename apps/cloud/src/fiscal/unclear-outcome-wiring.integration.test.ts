@@ -80,6 +80,7 @@ describe("the unclear outcome decisions the server sets up on a real Postgres", 
     await db.insert(fiscalRequests).values({
       ...request,
       answerKind: "unclear",
+      unclearCodes: [],
       answeredAt: ANSWERED_AT,
     });
     const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {

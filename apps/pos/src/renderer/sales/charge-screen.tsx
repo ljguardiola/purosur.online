@@ -122,6 +122,7 @@ export function ChargeScreen({
   onSessionInvalid,
 }: ChargeScreenProps) {
   const navigate = useNavigate();
+  const mayChangePrinter = person.abilities.includes("configure_receipt_printer");
   const current = useCurrentSaleQuery({ sessionId, userId: person.user_id, read: currentSale });
   const refreshCurrentSale = useRefreshCurrentSale(sessionId, person.user_id);
   const [step, setStep] = useState<Step>({ name: "methods" });
@@ -284,6 +285,7 @@ export function ChargeScreen({
           saleId={step.sale.id}
           readReceiptStatus={receiptPrintStatus}
           retryReceiptPrint={retryReceiptPrint}
+          mayChangePrinter={mayChangePrinter}
           total={step.payment.charge.total}
           method="QR"
           amount={step.payment.charge.amount}
@@ -295,6 +297,7 @@ export function ChargeScreen({
           saleId={step.sale.id}
           readReceiptStatus={receiptPrintStatus}
           retryReceiptPrint={retryReceiptPrint}
+          mayChangePrinter={mayChangePrinter}
           total={step.payment.charge.total}
           tendered={step.payment.charge.tendered}
           change={step.payment.charge.change}
@@ -306,6 +309,7 @@ export function ChargeScreen({
           saleId={step.sale.id}
           readReceiptStatus={receiptPrintStatus}
           retryReceiptPrint={retryReceiptPrint}
+          mayChangePrinter={mayChangePrinter}
           total={step.payment.charge.total}
           method="TRANSFER"
           amount={step.payment.charge.amount}

@@ -5,8 +5,10 @@ import type {
   FollowMercadoPagoQrChargeOutcome,
   ManualAdjustmentRequest,
   OpenSale,
+  PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   ReceiptPrintStatusOutcome,
+  SaleDiscountRequest,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
   SearchProductsOutcome,
@@ -34,6 +36,8 @@ export const salesKeys = {
       adjustment.kind,
       adjustment.value,
     ] as const,
+  saleDiscountPreview: (subtotal: number, discount: SaleDiscountRequest) =>
+    [...salesKey, "sale-discount-preview", subtotal, discount.kind, discount.value] as const,
   search: (query: string) => [...salesKey, "search", query] as const,
   qrCharge: (paymentTransactionId: string) =>
     [...salesKey, "qr-charge", paymentTransactionId] as const,
@@ -256,6 +260,28 @@ export function useAdjustmentPreviewQuery({
       return outcome === undefined || outcome.kind === "unavailable" ? "unavailable" : outcome;
     },
     enabled: adjustment !== undefined,
+    staleTime: 0,
+  });
+}
+
+export type ShownSaleDiscountPreview = Exclude<PreviewSaleDiscountOutcome, { kind: "unavailable" }>;
+
+export function useSaleDiscountPreviewQuery({
+  subtotal,
+  discount,
+  read,
+}: {
+  subtotal: number;
+  discount: SaleDiscountRequest | undefined;
+  read: (discount: SaleDiscountRequest) => Promise<PreviewSaleDiscountOutcome>;
+}): CoreData<ShownSaleDiscountPreview> {
+  return useCoreQuery({
+    queryKey: salesKeys.saleDiscountPreview(subtotal, discount ?? { kind: "PERCENT", value: 0 }),
+    read: async () => {
+      const outcome = discount === undefined ? undefined : await read(discount);
+      return outcome === undefined || outcome.kind === "unavailable" ? "unavailable" : outcome;
+    },
+    enabled: discount !== undefined,
     staleTime: 0,
   });
 }

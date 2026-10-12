@@ -19,6 +19,7 @@ import {
   addSearchedProductFor,
   addWeighedProductFor,
   adjustSaleLineFor,
+  applySaleDiscountFor,
   cancelLockedSaleFor,
   cancelPaidSaleFor,
   cancelSaleFor,
@@ -29,6 +30,7 @@ import {
   chargeSaleInCashFor,
   currentSaleFor,
   type OutboxSaleRequestDeps,
+  previewSaleDiscountFor,
   previewSaleLineAdjustmentFor,
   removeSaleLineFor,
   scanProductFor,
@@ -232,6 +234,7 @@ describe("scanning a product on the register", () => {
     expect(await scanProductFor(deps(), "111")).toEqual({
       kind: "added",
       removed_manual_discount: false,
+      removed_sale_discount: false,
       sale: {
         id: "id-1",
         lines: [
@@ -258,6 +261,10 @@ describe("scanning a product on the register", () => {
         refunds_on_cancel: [],
         cancel_authorization_required: true,
         adjust_authorization_required: true,
+        sale_discount_authorization_required: true,
+        subtotal: 3000,
+        sale_discount: null,
+        sale_discount_refusal: null,
       },
     });
   });
@@ -419,6 +426,7 @@ describe("adding a searched product on the register", () => {
     expect(await addSearchedProductFor(deps(), "p1")).toEqual({
       kind: "added",
       removed_manual_discount: false,
+      removed_sale_discount: false,
       sale: {
         id: "id-1",
         lines: [
@@ -445,6 +453,10 @@ describe("adding a searched product on the register", () => {
         refunds_on_cancel: [],
         cancel_authorization_required: true,
         adjust_authorization_required: true,
+        sale_discount_authorization_required: true,
+        subtotal: 1500,
+        sale_discount: null,
+        sale_discount_refusal: null,
       },
     });
   });
@@ -529,6 +541,7 @@ describe("adding a product sold by weight on the register", () => {
     expect(await addWeighedProductFor(deps(), "p2", 1250)).toEqual({
       kind: "added",
       removed_manual_discount: false,
+      removed_sale_discount: false,
       sale: {
         id: "id-1",
         lines: [WEIGHED_LINE],
@@ -541,6 +554,10 @@ describe("adding a product sold by weight on the register", () => {
         refunds_on_cancel: [],
         cancel_authorization_required: true,
         adjust_authorization_required: true,
+        sale_discount_authorization_required: true,
+        subtotal: 11250,
+        sale_discount: null,
+        sale_discount_refusal: null,
       },
     });
   });
@@ -636,6 +653,7 @@ describe("weighing a product on the scale on the register", () => {
     expect(outcome).toMatchObject({
       kind: "added",
       removed_manual_discount: false,
+      removed_sale_discount: false,
       sale: {
         lines: [
           {
@@ -864,6 +882,10 @@ describe("the sale in progress", () => {
       refunds_on_cancel: [],
       cancel_authorization_required: true,
       adjust_authorization_required: true,
+      sale_discount_authorization_required: true,
+      subtotal: 3000,
+      sale_discount: null,
+      sale_discount_refusal: null,
     });
   });
 
@@ -1058,6 +1080,7 @@ describe("adjusting a line of the sale in progress", () => {
 
     expect(outcome).toEqual({
       kind: "changed",
+      removed_sale_discount: false,
       sale: expect.objectContaining({
         total: 2700,
         lines: [
@@ -1110,6 +1133,7 @@ describe("adjusting a line of the sale in progress", () => {
 
     expect(outcome).toEqual({
       kind: "changed",
+      removed_sale_discount: false,
       sale: expect.objectContaining({
         lines: [expect.objectContaining({ manual_adjustment: { kind: "PERCENT", value: 10 } })],
       }),
@@ -1295,6 +1319,7 @@ describe("telling a manual discount was removed", () => {
 
     expect(await changeLineQuantityFor(deps(), lineId, 1, 2)).toMatchObject({
       removed_manual_discount: false,
+      removed_sale_discount: false,
     });
   });
 
@@ -1313,6 +1338,7 @@ describe("telling a manual discount was removed", () => {
 
     expect(await changeLineQuantityFor(deps(), lineId, 1, 2)).toMatchObject({
       removed_manual_discount: false,
+      removed_sale_discount: false,
       sale: { lines: [{ manual_adjustment: { kind: "PERCENT" } }] },
     });
   });
@@ -1485,12 +1511,377 @@ describe("previewing an adjustment of a line", () => {
   });
 });
 
+describe("discounting the sale's total", () => {
+  const TOTAL_DISCOUNT = "apply_total_discount";
+
+  function withPins(overrides: Partial<OutboxSaleRequestDeps> = {}): OutboxSaleRequestDeps {
+    return deps({ gate: pinGate(), ...overrides });
+  }
+
+  function grantTotalDiscount(): void {
+    database
+      .prepare(
+        `INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('cashier', '${TOTAL_DISCOUNT}', 1)`,
+      )
+      .run();
+  }
+
+  function request(
+    overrides: Partial<Parameters<typeof applySaleDiscountFor>[1]> = {},
+  ): Parameters<typeof applySaleDiscountFor>[1] {
+    return {
+      discount: { kind: "PERCENT", value: 10 },
+      reason: "Cliente frecuente",
+      ...overrides,
+    };
+  }
+
+  function discountColumns(): unknown[] {
+    return database
+      .prepare(
+        `SELECT sale_discount_kind AS kind, sale_discount_value AS value,
+                sale_discount_reason AS reason, sale_discount_authorized_by AS authorized_by
+         FROM sales`,
+      )
+      .all();
+  }
+
+  const UNTOUCHED = [{ kind: null, value: null, reason: null, authorized_by: null }];
+
+  it("answers the sale discounted to a cashier who holds the permission, recording its reason and nobody else's authorization", async () => {
+    grantTotalDiscount();
+    await sellTwoYerbas();
+
+    const outcome = await applySaleDiscountFor(withPins(), request());
+
+    expect(outcome).toEqual({
+      kind: "applied",
+      sale: expect.objectContaining({
+        subtotal: 3000,
+        sale_discount: { kind: "PERCENT", value: 10, amount: 300 },
+        total: 2700,
+        pending: 2700,
+      }),
+    });
+    expect(discountColumns()).toEqual([
+      { kind: "PERCENT", value: 10, reason: "Cliente frecuente", authorized_by: null },
+    ]);
+  });
+
+  it("applies a fixed amount", async () => {
+    grantTotalDiscount();
+    await sellTwoYerbas();
+
+    expect(
+      await applySaleDiscountFor(withPins(), request({ discount: { kind: "AMOUNT", value: 500 } })),
+    ).toMatchObject({
+      kind: "applied",
+      sale: { sale_discount: { kind: "AMOUNT", value: 500, amount: 500 }, total: 2500 },
+    });
+  });
+
+  it("records who authorized the discount with their PIN", async () => {
+    addPersonWithPin("u2", "Grace", [TOTAL_DISCOUNT]);
+    await sellTwoYerbas();
+
+    const outcome = await applySaleDiscountFor(withPins(), {
+      ...request(),
+      authorization: { user_id: "u2", pin: CLOSER_PIN },
+    });
+
+    expect(outcome).toMatchObject({ kind: "applied" });
+    expect(discountColumns()).toMatchObject([{ authorized_by: "u2" }]);
+  });
+
+  it("shows the sale in progress afterwards with the discount", async () => {
+    grantTotalDiscount();
+    await sellTwoYerbas();
+    await applySaleDiscountFor(withPins(), request());
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      subtotal: 3000,
+      sale_discount: { kind: "PERCENT", value: 10, amount: 300 },
+      total: 2700,
+    });
+  });
+
+  it("shows a sale with no discount as having none, its subtotal being its total", async () => {
+    await sellTwoYerbas();
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      subtotal: 3000,
+      sale_discount: null,
+      total: 3000,
+    });
+  });
+
+  it("refuses a cashier without the permission who brings no authorization, changing nothing", async () => {
+    await sellTwoYerbas();
+
+    expect(await applySaleDiscountFor(withPins(), request())).toEqual({
+      kind: "lacks_permission",
+    });
+    expect(discountColumns()).toEqual(UNTOUCHED);
+  });
+
+  it("refuses a wrong PIN, changing nothing", async () => {
+    addPersonWithPin("u2", "Grace", [TOTAL_DISCOUNT]);
+    await sellTwoYerbas();
+
+    const outcome = await applySaleDiscountFor(withPins(), {
+      ...request(),
+      authorization: { user_id: "u2", pin: "0000" },
+    });
+
+    expect(outcome.kind).toBe("wrong_pin");
+    expect(discountColumns()).toEqual(UNTOUCHED);
+  });
+
+  it("refuses the PIN of a person who lacks the permission, changing nothing", async () => {
+    addPersonWithPin("u2", "Grace", ["override_line_price_or_discount"]);
+    await sellTwoYerbas();
+
+    expect(
+      await applySaleDiscountFor(withPins(), {
+        ...request(),
+        authorization: { user_id: "u2", pin: CLOSER_PIN },
+      }),
+    ).toEqual({ kind: "lacks_permission" });
+    expect(discountColumns()).toEqual(UNTOUCHED);
+  });
+
+  it("answers the domain's refusal of a discount above the sale", async () => {
+    grantTotalDiscount();
+    await sellTwoYerbas();
+
+    expect(
+      await applySaleDiscountFor(
+        withPins(),
+        request({ discount: { kind: "AMOUNT", value: 3001 } }),
+      ),
+    ).toEqual({ kind: "discount_exceeds_sale" });
+    expect(discountColumns()).toEqual(UNTOUCHED);
+  });
+
+  it("answers that there is no sale to discount", async () => {
+    grantTotalDiscount();
+
+    expect(await applySaleDiscountFor(withPins(), request())).toEqual({ kind: "no_open_sale" });
+  });
+
+  it("answers that the sale has no lines to discount", async () => {
+    grantTotalDiscount();
+    const lineId = await sellTwoYerbas();
+    await removeSaleLineFor(deps(), lineId);
+
+    expect(await applySaleDiscountFor(withPins(), request())).toEqual({ kind: "empty_sale" });
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    grantTotalDiscount();
+    signedInPerson.clear();
+
+    expect(await applySaleDiscountFor(withPins(), request())).toEqual({ kind: "not_signed_in" });
+  });
+
+  it("answers not permitted to a person who sells but did not open the session", async () => {
+    grantTotalDiscount();
+    await sellTwoYerbas();
+    database.prepare("UPDATE cash_sessions SET opened_by = 'u9'").run();
+
+    expect(await applySaleDiscountFor(withPins(), request())).toEqual({ kind: "not_permitted" });
+  });
+
+  it("answers that no session is open", async () => {
+    grantTotalDiscount();
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await applySaleDiscountFor(withPins(), request())).toEqual({ kind: "no_open_session" });
+  });
+
+  it("answers that the lines cannot change once a payment was approved", async () => {
+    grantTotalDiscount();
+    const saleId = await sellTwoForPayments();
+    await chargeSaleInCashFor(deps(), { saleId, tendered: 1000 });
+
+    expect(await applySaleDiscountFor(withPins(), request())).toEqual({
+      kind: "sale_has_payments",
+    });
+  });
+
+  it("says that discounting the total needs another person's authorization to a person without the permission", async () => {
+    await scanProductFor(deps(), "111");
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      sale_discount_authorization_required: true,
+    });
+  });
+
+  it("says that discounting the total needs nobody's authorization to a person with the permission", async () => {
+    grantTotalDiscount();
+    await scanProductFor(deps(), "111");
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      sale_discount_authorization_required: false,
+    });
+  });
+
+  it("says that the total may be discounted while the sale's lines add up to something", async () => {
+    await scanProductFor(deps(), "111");
+
+    expect(await currentSaleFor(deps())).toMatchObject({ sale_discount_refusal: null });
+  });
+
+  it("says that the total may not be discounted once the sale has no lines", async () => {
+    const lineId = await sellTwoYerbas();
+
+    expect(await removeSaleLineFor(deps(), lineId)).toMatchObject({
+      sale: { sale_discount_refusal: "empty_sale" },
+    });
+  });
+
+  describe("previewing it", () => {
+    function preview(discount: Parameters<typeof previewSaleDiscountFor>[1]["discount"]) {
+      return previewSaleDiscountFor(deps(), { discount });
+    }
+
+    it.each([
+      ["a percentage off", { kind: "PERCENT", value: 10 }, 300, 2700],
+      ["an amount off", { kind: "AMOUNT", value: 500 }, 500, 2500],
+    ] as const)(
+      "answers what %s would leave the sale at, to a cashier without the permission",
+      async (_case, discount, discountAmount, total) => {
+        await sellTwoYerbas();
+
+        expect(await preview(discount)).toEqual({
+          kind: "preview",
+          subtotal: 3000,
+          discount_amount: discountAmount,
+          total,
+        });
+        expect(discountColumns()).toEqual(UNTOUCHED);
+      },
+    );
+
+    it("answers the domain's refusal of a discount above the sale", async () => {
+      await sellTwoYerbas();
+
+      expect(await preview({ kind: "AMOUNT", value: 3001 })).toEqual({
+        kind: "discount_exceeds_sale",
+      });
+    });
+
+    it("answers that there is no sale to discount", async () => {
+      expect(await preview({ kind: "PERCENT", value: 10 })).toEqual({ kind: "no_open_sale" });
+    });
+
+    it("answers not signed in when nobody is signed in", async () => {
+      await sellTwoYerbas();
+      signedInPerson.clear();
+
+      expect(await preview({ kind: "PERCENT", value: 10 })).toEqual({ kind: "not_signed_in" });
+    });
+
+    it("answers not permitted to a person who sells but did not open the session", async () => {
+      await sellTwoYerbas();
+      database.prepare("UPDATE cash_sessions SET opened_by = 'u9'").run();
+
+      expect(await preview({ kind: "PERCENT", value: 10 })).toEqual({ kind: "not_permitted" });
+    });
+
+    it("answers that the lines cannot change once a payment was approved", async () => {
+      const saleId = await sellTwoForPayments();
+      await chargeSaleInCashFor(deps(), { saleId, tendered: 1000 });
+
+      expect(await preview({ kind: "PERCENT", value: 10 })).toEqual({
+        kind: "sale_has_payments",
+      });
+    });
+  });
+});
+
+describe("telling the discount on the sale's total was removed", () => {
+  async function discountedTotal(): Promise<string> {
+    database
+      .prepare(
+        "INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('cashier', 'apply_total_discount', 1)",
+      )
+      .run();
+    const lineId = await sellTwoYerbas();
+    await applySaleDiscountFor(deps(), {
+      discount: { kind: "AMOUNT", value: 500 },
+      reason: "Cliente frecuente",
+    });
+    return lineId;
+  }
+
+  it("answers that scanning another unit removed it, leaving the sale undiscounted", async () => {
+    await discountedTotal();
+
+    expect(await scanProductFor(deps(), "111")).toMatchObject({
+      kind: "added",
+      removed_sale_discount: true,
+      sale: { sale_discount: null, subtotal: 4500, total: 4500 },
+    });
+  });
+
+  it("answers that changing a quantity removed it", async () => {
+    const lineId = await discountedTotal();
+
+    expect(await changeLineQuantityFor(deps(), lineId, 1, 2)).toMatchObject({
+      kind: "changed",
+      removed_sale_discount: true,
+      sale: { sale_discount: null, total: 1500 },
+    });
+  });
+
+  it("answers that removing a line removed it", async () => {
+    const lineId = await discountedTotal();
+
+    expect(await removeSaleLineFor(deps(), lineId)).toMatchObject({
+      kind: "removed",
+      removed_sale_discount: true,
+      sale: { sale_discount: null },
+    });
+  });
+
+  it("answers that adjusting a line removed it", async () => {
+    const lineId = await discountedTotal();
+    database
+      .prepare(
+        "INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('cashier', 'override_line_price_or_discount', 1)",
+      )
+      .run();
+
+    expect(
+      await adjustSaleLineFor(deps(), {
+        lineId,
+        adjustment: { kind: "PERCENT", value: 10 },
+        reason: "Producto golpeado",
+      }),
+    ).toMatchObject({
+      kind: "changed",
+      removed_sale_discount: true,
+      sale: { sale_discount: null, total: 2700 },
+    });
+  });
+
+  it("answers that nothing was removed when the sale had no discount on its total", async () => {
+    const lineId = await sellTwoYerbas();
+
+    expect(await changeLineQuantityFor(deps(), lineId, 1, 2)).toMatchObject({
+      removed_sale_discount: false,
+    });
+  });
+});
+
 describe("removing a line", () => {
   it("answers the sale without the line", async () => {
     const lineId = await sellTwoYerbas();
 
     expect(await removeSaleLineFor(deps(), lineId)).toEqual({
       kind: "removed",
+      removed_sale_discount: false,
       sale: {
         id: "id-1",
         lines: [],
@@ -1503,6 +1894,10 @@ describe("removing a line", () => {
         refunds_on_cancel: [],
         cancel_authorization_required: true,
         adjust_authorization_required: true,
+        sale_discount_authorization_required: true,
+        subtotal: 0,
+        sale_discount: null,
+        sale_discount_refusal: "empty_sale",
       },
     });
   });
@@ -1558,6 +1953,7 @@ describe("cancelling the sale", () => {
     expect(await scanProductFor(shared, "111")).toMatchObject({
       kind: "added",
       removed_manual_discount: false,
+      removed_sale_discount: false,
       sale: { lines: [{ quantity: 1 }], total: 1500 },
     });
     expect(await currentSaleFor(shared)).toMatchObject({ total: 1500 });
@@ -1635,6 +2031,7 @@ describe("charging the sale in progress in cash", () => {
     expect(await scanProductFor(deps(), "111")).toMatchObject({
       kind: "added",
       removed_manual_discount: false,
+      removed_sale_discount: false,
       sale: {
         charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 3000 },
       },

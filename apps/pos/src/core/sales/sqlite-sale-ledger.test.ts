@@ -847,7 +847,7 @@ describe("charging an open sale in cash", () => {
     const stored = database
       .prepare("SELECT id, sale_line_id, product_id, delta FROM stock_movements")
       .all();
-    expect(event.schema_version).toBe(7);
+    expect(event.schema_version).toBe(8);
     expect(JSON.parse(event.payload).stock_movements).toEqual(
       (stored as { id: string; sale_line_id: string; product_id: string; delta: number }[]).map(
         (row) => ({ ...row }),
@@ -1116,7 +1116,7 @@ describe("charging a sale with a line sold by weight", () => {
       schema_version: number;
       payload: string;
     };
-    expect(event.schema_version).toBe(7);
+    expect(event.schema_version).toBe(8);
     expect(JSON.parse(event.payload)).toMatchObject({
       lines: [{ quantity: 1250, weight_source: "MANUAL", line_total: 11250 }],
       stock_movements: [{ delta: -1250 }],

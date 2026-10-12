@@ -36,10 +36,12 @@ async function renderScreen({
   read = async (): Promise<ReadReceiptPrinterOutcome> => NOT_CONFIGURED,
   set = async (): Promise<SetReceiptPrinterOutcome> => SAVED,
   registerName = "Caja 1",
+  sessionOpen = false,
 }: {
   read?: () => Promise<ReadReceiptPrinterOutcome>;
   set?: (address: string) => Promise<SetReceiptPrinterOutcome>;
   registerName?: string | null;
+  sessionOpen?: boolean;
 } = {}) {
   await page.viewport(1280, 900);
   onTestFinished(() => page.viewport(414, 896));
@@ -50,6 +52,7 @@ async function renderScreen({
     <ReceiptPrinterScreen
       person={PERSON}
       registerName={registerName}
+      sessionOpen={sessionOpen}
       entries={[PRINTER_ENTRY]}
       signOut={vi.fn()}
       readReceiptPrinter={readReceiptPrinter}
@@ -68,6 +71,24 @@ async function save(screen: Rendered["screen"], typed: string) {
 }
 
 describe("ReceiptPrinterScreen", () => {
+  it("offers Inicio and no cash entries when no session is open", async () => {
+    const { screen } = await renderScreen();
+
+    await expect.element(screen.getByRole("link", { name: "Inicio" })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Caja" })).not.toBeInTheDocument();
+  });
+
+  it("offers the open-session menu, with Impresora as current, while a session is open", async () => {
+    const { screen } = await renderScreen({ sessionOpen: true });
+
+    await expect.element(screen.getByRole("link", { name: "Venta" })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: "Impresora" }))
+      .toHaveAttribute("aria-current", "page");
+    await expect.element(screen.getByRole("link", { name: "Inicio" })).not.toBeInTheDocument();
+  });
+
   it("is titled Impresora de tickets and names the register in the eyebrow", async () => {
     const { screen } = await renderScreen();
 

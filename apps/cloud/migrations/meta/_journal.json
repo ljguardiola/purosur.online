@@ -617,6 +617,20 @@
       "when": 1791783318182,
       "tag": "0091_late_payment_refund_per_order",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1791787210366,
+      "tag": "0092_sale_total_discounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1791787270366,
+      "tag": "0093_unclear_authorization_codes",
+      "breakpoints": true
     }
   ]
 }

@@ -225,6 +225,35 @@ describe("resolving a waiting document", () => {
     ).rejects.toThrow("the fiscal document is not waiting for an answer");
     expect(storedDocument()).toMatchObject({ state: "UNKNOWN" });
   });
+
+  describe("for a sale the document is not of", () => {
+    const ofAnotherSale: RealTimeAuthorizationResolved = {
+      ...resolution({ resolution: { state: "UNKNOWN", deferralReason: "unclear_outcome" } }),
+      saleId: "sale-2",
+    };
+
+    beforeEach(() => {
+      insertCompletedSale(database, "sale-2");
+    });
+
+    it("refuses the answer, leaving the document waiting and routing neither sale", async () => {
+      await expect(documents.resolve(ofAnotherSale)).rejects.toThrow(
+        "the fiscal document is not of that sale",
+      );
+
+      expect(storedDocument()).toMatchObject({ state: "REQUESTING", resolved_at: null });
+      expect(routings()).toEqual([]);
+    });
+
+    it("refuses the answer of an interrupted request, leaving the document waiting and routing neither sale", () => {
+      expect(() => documents.transaction((tx) => tx.resolve(ofAnotherSale))).toThrow(
+        "the fiscal document is not of that sale",
+      );
+
+      expect(storedDocument()).toMatchObject({ state: "REQUESTING", resolved_at: null });
+      expect(routings()).toEqual([]);
+    });
+  });
 });
 
 describe("the documents left with an unclear outcome", () => {

@@ -441,6 +441,8 @@ export type {
   ReceiptSource,
   Sale,
   SaleComprobante,
+  SaleDiscount,
+  SaleDiscountValue,
   SaleFiscalDocument,
   SaleFiscalFacts,
   SaleLine,
@@ -455,6 +457,8 @@ export type {
   WeightSource,
 } from "./sales/index.js";
 export {
+  amountToCharge,
+  appliedSaleDiscountAmount,
   isDeferralPending,
   isSalesReportRangeAsked,
   manualAdjustmentReason,
@@ -467,6 +471,7 @@ export {
   observePrinterNotConfigured,
   observePrinterStatus,
   observePrintFailed,
+  observePrintWithdrawn,
   openSaleStanding,
   PENDING_DEFERRED_SALE_RECORD,
   RECEIPT_REPRINT_REASON_MAX_LENGTH,
@@ -478,6 +483,7 @@ export {
   SALES_HISTORY_PAGE_SIZE,
   SALES_REPORT_SALE_STATE,
   saleComprobanteOf,
+  saleDiscountUnavailability,
   saleStandingOf,
   saleTotal,
   startedReceiptPrint,

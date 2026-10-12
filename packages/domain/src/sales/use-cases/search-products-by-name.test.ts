@@ -139,6 +139,7 @@ describe("searchProductsByName", () => {
       sessionId: "session-0",
       actorId: "cashier",
       state,
+      saleDiscount: null,
       lines: [
         {
           id: `${id}-line`,

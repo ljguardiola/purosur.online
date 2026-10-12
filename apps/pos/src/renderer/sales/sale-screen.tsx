@@ -2,6 +2,7 @@ import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
+  ApplySaleDiscountOutcome,
   Authorization,
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
@@ -11,8 +12,10 @@ import type {
   FoundProduct,
   ManualAdjustmentRequest,
   OpenSale,
+  PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   RemoveSaleLineOutcome,
+  SaleDiscountRequest,
   ScanProductOutcome,
   SearchProductsOutcome,
   SignInUser,
@@ -37,6 +40,7 @@ import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
 import type { Refund } from "../shell/refund-lines";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { AdjustLineModal } from "./adjust-line-modal";
+import { ApplySaleDiscountModal } from "./apply-sale-discount-modal";
 import { CancelPaidSaleModal } from "./cancel-paid-sale-modal";
 import { CancelSaleModal } from "./cancel-sale-modal";
 import { ChangeLineWeightModal } from "./change-line-weight-modal";
@@ -91,6 +95,12 @@ export type SaleScreenProps = {
     lineId: string,
     adjustment: ManualAdjustmentRequest,
   ) => Promise<PreviewSaleLineAdjustmentOutcome>;
+  applySaleDiscount: (
+    discount: SaleDiscountRequest,
+    reason: string,
+    authorization: Authorization | undefined,
+  ) => Promise<ApplySaleDiscountOutcome>;
+  previewSaleDiscount: (discount: SaleDiscountRequest) => Promise<PreviewSaleDiscountOutcome>;
   removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
   cancelSale: () => Promise<CancelSaleOutcome>;
   cancelPaidSale: (
@@ -145,6 +155,20 @@ function discountRemovedFrom(sale: OpenSale, lineId: string | undefined): ScanPr
     : { kind: "manual_discount_removed", product_name: line.product_name };
 }
 
+function discountsRemovedFrom(
+  sale: OpenSale,
+  lineId: string | undefined,
+  removed: { manual: boolean; saleTotal: boolean },
+): ScanProblem | undefined {
+  const manualRemoved = removed.manual ? discountRemovedFrom(sale, lineId) : undefined;
+  if (!removed.saleTotal) {
+    return manualRemoved;
+  }
+  return manualRemoved?.kind === "manual_discount_removed"
+    ? { kind: "manual_and_sale_discount_removed", product_name: manualRemoved.product_name }
+    : { kind: "sale_discount_removed" };
+}
+
 function focusScanField(form: HTMLFormElement | null) {
   form?.querySelector("input")?.focus();
 }
@@ -170,6 +194,8 @@ export function SaleScreen({
   changeLineWeight,
   adjustSaleLine,
   previewSaleLineAdjustment,
+  applySaleDiscount,
+  previewSaleDiscount,
   removeSaleLine,
   cancelSale,
   cancelPaidSale,
@@ -195,10 +221,12 @@ export function SaleScreen({
   const [cancelledRefunds, setCancelledRefunds] = useState<Refund[]>();
   const [weighing, setWeighing] = useState<Weighing>();
   const [adjusting, setAdjusting] = useState<SaleLine>();
+  const [discounting, setDiscounting] = useState(false);
   const editInFlight = useRef(false);
   const confirmingCancelNow = useRef(false);
   const weighingNow = useRef<Weighing>(undefined);
   const adjustingNow = useRef(false);
+  const discountingNow = useRef(false);
   const listboxId = useId();
 
   useEffect(() => {
@@ -207,6 +235,7 @@ export function SaleScreen({
         event.relatedTarget === null &&
         !confirmingCancelNow.current &&
         !adjustingNow.current &&
+        !discountingNow.current &&
         weighingNow.current === undefined
       ) {
         focusScanField(field.current);
@@ -276,9 +305,10 @@ export function SaleScreen({
       case "added": {
         const addedLineId = changedLineId(await takeSale(outcome.sale), outcome.sale);
         setProblem(
-          outcome.removed_manual_discount
-            ? discountRemovedFrom(outcome.sale, addedLineId)
-            : undefined,
+          discountsRemovedFrom(outcome.sale, addedLineId, {
+            manual: outcome.removed_manual_discount,
+            saleTotal: outcome.removed_sale_discount,
+          }),
         );
         setChanged(addedLineId);
         setCode((typed) => (typed.trim() === submitted ? "" : typed));
@@ -402,9 +432,26 @@ export function SaleScreen({
     setAdjusting(line);
   }
 
-  async function takeAdjustedSale(adjusted: OpenSale) {
-    askToAdjust(undefined);
+  function askToDiscount(asking: boolean) {
+    discountingNow.current = asking;
+    setDiscounting(asking);
+  }
+
+  async function takeDiscountedSale(discounted: OpenSale) {
+    askToDiscount(false);
     setProblem(undefined);
+    setChanged(undefined);
+    await takeSale(discounted);
+  }
+
+  async function readSaleAgainAfterDiscounting() {
+    askToDiscount(false);
+    await resetCurrentSale();
+  }
+
+  async function takeAdjustedSale(adjusted: OpenSale, removedSaleDiscount: boolean) {
+    askToAdjust(undefined);
+    setProblem(removedSaleDiscount ? { kind: "sale_discount_removed" } : undefined);
     setChanged(undefined);
     await takeSale(adjusted);
   }
@@ -462,13 +509,16 @@ export function SaleScreen({
     switch (outcome.kind) {
       case "changed":
         setProblem(
-          outcome.removed_manual_discount ? discountRemovedFrom(outcome.sale, line?.id) : undefined,
+          discountsRemovedFrom(outcome.sale, line?.id, {
+            manual: outcome.removed_manual_discount,
+            saleTotal: outcome.removed_sale_discount,
+          }),
         );
         setChanged(undefined);
         await takeSale(outcome.sale);
         break;
       case "removed":
-        setProblem(undefined);
+        setProblem(outcome.removed_sale_discount ? { kind: "sale_discount_removed" } : undefined);
         setChanged(undefined);
         await takeSale(outcome.sale);
         break;
@@ -527,11 +577,12 @@ export function SaleScreen({
       !confirmingPaidCancel &&
       cancelledRefunds === undefined &&
       weighing === undefined &&
-      adjusting === undefined
+      adjusting === undefined &&
+      !discounting
     ) {
       focusScanField(field.current);
     }
-  }, [confirmingCancel, confirmingPaidCancel, cancelledRefunds, weighing, adjusting]);
+  }, [confirmingCancel, confirmingPaidCancel, cancelledRefunds, weighing, adjusting, discounting]);
 
   const found = results?.query === code.trim() && !dismissed ? results : undefined;
   const choosing = found !== undefined && found.products.length > 0;
@@ -664,13 +715,18 @@ export function SaleScreen({
         ) : null}
       </main>
       <PaymentPanel
+        saleStatus={current.status}
         lineCount={sale?.lines.length ?? 0}
+        subtotal={sale?.subtotal ?? 0}
+        saleDiscount={sale?.sale_discount ?? null}
         total={sale?.total ?? 0}
         paid={sale?.paid ?? 0}
         pending={sale?.pending ?? 0}
         cancellable={answer !== undefined}
         chargeRefusal={sale?.charge_refusal ?? null}
         canCancel={sale !== null && !editing}
+        canDiscount={sale !== null && sale.sale_discount_refusal === null && editable && !editing}
+        onDiscount={() => askToDiscount(true)}
         onCharge={() => void navigate({ to: "/charge" })}
         onCancel={() => void askToCancelSale()}
       />
@@ -710,10 +766,27 @@ export function SaleScreen({
           loadAuthorizers={loadAuthorizers}
           adjustSaleLine={adjustSaleLine}
           previewAdjustment={previewSaleLineAdjustment}
-          onAdjusted={(adjusted) => void takeAdjustedSale(adjusted)}
+          onAdjusted={(adjusted, removedSaleDiscount) =>
+            void takeAdjustedSale(adjusted, removedSaleDiscount)
+          }
           onSaleGone={() => void readSaleAgainAfterAdjusting()}
           onSessionInvalid={onSessionInvalid}
           onClose={() => askToAdjust(undefined)}
+        />
+      ) : null}
+      {discounting && sale !== null ? (
+        <ApplySaleDiscountModal
+          lineCount={sale.lines.length}
+          subtotal={sale.subtotal}
+          authorizationRequired={sale.sale_discount_authorization_required}
+          person={person}
+          loadAuthorizers={loadAuthorizers}
+          applySaleDiscount={applySaleDiscount}
+          previewSaleDiscount={previewSaleDiscount}
+          onApplied={(discounted) => void takeDiscountedSale(discounted)}
+          onSaleGone={() => void readSaleAgainAfterDiscounting()}
+          onSessionInvalid={onSessionInvalid}
+          onClose={() => askToDiscount(false)}
         />
       ) : null}
       {confirmingPaidCancel && sale !== null ? (

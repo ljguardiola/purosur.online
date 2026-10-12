@@ -77,6 +77,7 @@ import {
   addSearchedProductFor,
   addWeighedProductFor,
   adjustSaleLineFor,
+  applySaleDiscountFor,
   cancelLockedSaleFor,
   cancelPaidSaleFor,
   cancelSaleFor,
@@ -86,6 +87,7 @@ import {
   chargeSaleByTransferFor,
   chargeSaleInCashFor,
   currentSaleFor,
+  previewSaleDiscountFor,
   previewSaleLineAdjustmentFor,
   removeSaleLineFor,
   scanProductFor,
@@ -670,6 +672,16 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (request) =>
           previewSaleLineAdjustmentFor({ database: localDatabase, gate: actionGate, now }, request),
+  applySaleDiscount:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) =>
+          applySaleDiscountFor({ database: localDatabase, gate: actionGate, now }, request),
+  previewSaleDiscount:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) =>
+          previewSaleDiscountFor({ database: localDatabase, gate: actionGate, now }, request),
   removeSaleLine:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -778,7 +790,17 @@ const rendererRequestDeps: RendererRequestDeps = {
   setReceiptPrinter:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (address) => setReceiptPrinterFor({ database: localDatabase, gate: actionGate }, address),
+      : (address) =>
+          setReceiptPrinterFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              replacement: {
+                receiptPrinterReplaced: () => receiptPrinting.withdrawHeldReceipts?.(),
+              },
+            },
+            address,
+          ),
   readSerialDevices:
     localDatabase === undefined || actionGate === undefined
       ? undefined

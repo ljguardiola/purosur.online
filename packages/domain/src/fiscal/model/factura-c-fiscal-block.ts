@@ -33,7 +33,6 @@ export interface FacturaCFiscalBlock {
   buyerTaxStatusDescription: string;
   pointOfSale: number;
   number: number;
-  total: number;
   authorizationCode: string;
   authorizationCodeDueOn: string;
   qrText: string;
@@ -75,7 +74,6 @@ export function facturaCFiscalBlock(authorized: AuthorizedFacturaC): FacturaCFis
     buyerTaxStatusDescription: document.buyerTaxStatusDescription,
     pointOfSale: authorized.pointOfSale,
     number: authorized.number,
-    total: document.total,
     authorizationCode: authorized.authorizationCode,
     authorizationCodeDueOn: authorized.authorizationCodeDueOn,
     qrText: qrText(authorized),

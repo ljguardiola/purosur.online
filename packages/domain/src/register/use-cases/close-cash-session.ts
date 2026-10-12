@@ -1,4 +1,4 @@
-import { saleTotal } from "../../sales/index.js";
+import { amountToCharge } from "../../sales/index.js";
 import type { Clock, OperationAuthority } from "../../shared/index.js";
 import { isValidCashAmount } from "../../shared/index.js";
 import { cashCountDifference } from "../model/cash-count.js";
@@ -48,7 +48,7 @@ export async function closeCashSession<Refusal>(
     }
     const openSale = tx.openSale(sessionId);
     if (openSale) {
-      return { kind: "open_sale", total: saleTotal(openSale.lines) };
+      return { kind: "open_sale", total: amountToCharge(openSale) };
     }
 
     const closedAt = clock.now();

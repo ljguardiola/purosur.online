@@ -4,6 +4,7 @@ import {
   type SetReceiptPrinterOutcome,
 } from "@purosur/contracts";
 import {
+  type ReceiptPrinterReplacement,
   readReceiptPrinterAddress,
   setReceiptPrinterAddress,
 } from "@purosur/domain/register/use-cases";
@@ -14,6 +15,7 @@ import { SqliteReceiptPrinterSettings } from "./sqlite-receipt-printer-settings"
 export interface ReceiptPrinterRequestDeps {
   database: LocalDatabase;
   gate: ActionGate;
+  replacement: ReceiptPrinterReplacement;
 }
 
 type Refusal = { kind: "not_signed_in" } | { kind: "lacks_permission" };
@@ -35,7 +37,7 @@ function authorityOf(gate: ActionGate) {
 export async function readReceiptPrinterFor({
   database,
   gate,
-}: ReceiptPrinterRequestDeps): Promise<ReadReceiptPrinterOutcome> {
+}: Pick<ReceiptPrinterRequestDeps, "database" | "gate">): Promise<ReadReceiptPrinterOutcome> {
   return readReceiptPrinterAddress({
     settings: new SqliteReceiptPrinterSettings(database),
     authority: authorityOf(gate),
@@ -43,7 +45,7 @@ export async function readReceiptPrinterFor({
 }
 
 export async function setReceiptPrinterFor(
-  { database, gate }: ReceiptPrinterRequestDeps,
+  { database, gate, replacement }: ReceiptPrinterRequestDeps,
   text: string,
 ): Promise<SetReceiptPrinterOutcome> {
   const parsed = receiptPrinterAddressTextSchema.safeParse(text);
@@ -51,7 +53,11 @@ export async function setReceiptPrinterFor(
     return { kind: "invalid_address" };
   }
   return setReceiptPrinterAddress(
-    { settings: new SqliteReceiptPrinterSettings(database), authority: authorityOf(gate) },
+    {
+      settings: new SqliteReceiptPrinterSettings(database),
+      authority: authorityOf(gate),
+      replacement,
+    },
     { address: parsed.data },
   );
 }

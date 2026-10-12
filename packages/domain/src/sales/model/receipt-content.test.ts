@@ -52,6 +52,7 @@ function source(overrides: Partial<ReceiptSource> = {}): ReceiptSource {
     servedByFirstName: "Marta",
     operationNumber: 482,
     total: 11250,
+    saleDiscount: null,
     lines: [YERBA, QUESO],
     payments: [{ method: "CASH", amount: 11250, tendered: 12000 }],
     fiscal: { kind: "none" },
@@ -145,6 +146,33 @@ describe("receiptContent", () => {
 
     expect(totals.subtotal).toBe(11250);
     expect(totals.total).toBe(11000);
+  });
+
+  describe("a discount on the sale's total", () => {
+    const discounted = (saleDiscount: ReceiptSource["saleDiscount"], total: number) =>
+      receiptContent(source({ saleDiscount, total })).totals;
+
+    it("shows a percent discount with its percent and the amount it takes off the subtotal", () => {
+      const totals = discounted({ kind: "PERCENT", percent: 5 }, 10688);
+
+      expect(totals).toMatchObject({
+        subtotal: 11250,
+        saleDiscount: { kind: "PERCENT", percent: 5, amount: 563 },
+        total: 10688,
+      });
+    });
+
+    it("shows a fixed amount discount with the amount it takes off", () => {
+      expect(discounted({ kind: "AMOUNT", amount: 1250 }, 10000)).toMatchObject({
+        subtotal: 11250,
+        saleDiscount: { kind: "AMOUNT", amount: 1250 },
+        total: 10000,
+      });
+    });
+
+    it("shows no discount when the sale has none", () => {
+      expect(discounted(null, 11250).saleDiscount).toBeNull();
+    });
   });
 
   it("lists the payments by method and amount", () => {

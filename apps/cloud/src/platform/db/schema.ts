@@ -1118,6 +1118,11 @@ export const sales = pgTable(
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     cancellationAuthorizedBy: text("cancellation_authorized_by"),
     total: bigint("total", { mode: "number" }).notNull(),
+    saleDiscountKind: text("sale_discount_kind"),
+    saleDiscountValue: bigint("sale_discount_value", { mode: "number" }),
+    saleDiscountAmount: bigint("sale_discount_amount", { mode: "number" }),
+    saleDiscountReason: text("sale_discount_reason"),
+    saleDiscountAuthorizedBy: text("sale_discount_authorized_by"),
     operationNumber: bigint("operation_number", { mode: "number" }),
     printAttemptedAt: timestamp("print_attempted_at", { withTimezone: true }),
     printedAt: timestamp("printed_at", { withTimezone: true }),
@@ -1130,6 +1135,33 @@ export const sales = pgTable(
       sql`${table.printedAt} is null or ${table.printAttemptedAt} is not null`,
     ),
     check("sales_state_check", sql`${table.state} in ('COMPLETED', 'CANCELLED')`),
+    check(
+      "sales_sale_discount_kind_check",
+      sql`${table.saleDiscountKind} IN ('PERCENT', 'AMOUNT')`,
+    ),
+    check(
+      "sales_sale_discount_value_check",
+      sql`(${table.saleDiscountValue} IS NULL) = (${table.saleDiscountKind} IS NULL)
+        AND (
+          ${table.saleDiscountKind} IS NULL
+          OR (${table.saleDiscountKind} = 'PERCENT' AND ${table.saleDiscountValue} BETWEEN 1 AND 100)
+          OR (${table.saleDiscountKind} = 'AMOUNT' AND ${table.saleDiscountValue} > 0)
+        )`,
+    ),
+    check(
+      "sales_sale_discount_amount_check",
+      sql`(${table.saleDiscountAmount} IS NULL) = (${table.saleDiscountKind} IS NULL)
+        AND (${table.saleDiscountAmount} IS NULL OR ${table.saleDiscountAmount} >= 0)`,
+    ),
+    check(
+      "sales_sale_discount_reason_check",
+      sql`(${table.saleDiscountReason} IS NULL) = (${table.saleDiscountKind} IS NULL)
+        AND (${table.saleDiscountReason} IS NULL OR btrim(${table.saleDiscountReason}) <> '')`,
+    ),
+    check(
+      "sales_sale_discount_authorized_by_check",
+      sql`${table.saleDiscountAuthorizedBy} IS NULL OR ${table.saleDiscountKind} IS NOT NULL`,
+    ),
     check(
       "sales_state_matches_timestamps_check",
       sql`(${table.state} = 'COMPLETED' and ${table.completedAt} is not null and ${table.cancelledAt} is null)
@@ -1186,8 +1218,10 @@ export const saleLines = pgTable(
     manualAdjustmentValue: bigint("manual_adjustment_value", { mode: "number" }),
     manualAdjustmentReason: text("manual_adjustment_reason"),
     manualAdjustmentAuthorizedBy: text("manual_adjustment_authorized_by"),
+    saleDiscountShare: bigint("sale_discount_share", { mode: "number" }).notNull().default(0),
   },
   (table) => [
+    check("sale_lines_sale_discount_share_check", sql`${table.saleDiscountShare} >= 0`),
     check("sale_lines_weight_source_check", sql`${table.weightSource} IN ('SCALE', 'MANUAL')`),
     check(
       "sale_lines_manual_adjustment_kind_check",
@@ -1858,6 +1892,7 @@ export const fiscalRequests = pgTable(
     authorizationCodeDueOn: date("authorization_code_due_on", { mode: "string" }),
     rejectionCodes: integer("rejection_codes").array(),
     rejectionClass: text("rejection_class"),
+    unclearCodes: integer("unclear_codes").array(),
     answeredAt: timestamp("answered_at", { withTimezone: true }),
     decision: text("decision"),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
@@ -1882,6 +1917,10 @@ export const fiscalRequests = pgTable(
     check(
       "fiscal_requests_rejection_check",
       sql`coalesce(${table.answerKind} = 'rejected', false) = (${table.rejectionCodes} is not null)`,
+    ),
+    check(
+      "fiscal_requests_unclear_codes_check",
+      sql`coalesce(${table.answerKind} = 'unclear', false) = (${table.unclearCodes} is not null)`,
     ),
     check(
       "fiscal_requests_rejection_class_check",

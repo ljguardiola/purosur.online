@@ -157,6 +157,7 @@ describe("the unclear outcome jobs on a real Postgres", () => {
       const waiting = await recordRequest(registerId, 1);
       const unclear = await recordRequest(registerId, 2, {
         answerKind: "unclear",
+        unclearCodes: [],
         answeredAt: ANSWERED_AT,
       });
       const notAttempted = await recordRequest(registerId, 3, {
@@ -192,6 +193,7 @@ describe("the unclear outcome jobs on a real Postgres", () => {
       });
       await recordRequest(registerId, 3, {
         answerKind: "unclear",
+        unclearCodes: [],
         answeredAt: ANSWERED_AT,
         decision: "released",
         decidedAt: ANSWERED_AT,
@@ -215,6 +217,7 @@ describe("the unclear outcome jobs on a real Postgres", () => {
       });
       const fiscalDocumentId = await recordRequest(registerId, 1, {
         answerKind: "unclear",
+        unclearCodes: [],
         answeredAt: ANSWERED_AT,
       });
       const dueAt = new Date("2126-01-01T00:00:00.000Z");
