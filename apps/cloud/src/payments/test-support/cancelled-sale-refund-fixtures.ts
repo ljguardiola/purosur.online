@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { insertEnrolledInstallation } from "../../register/test-support/enrolled-installation.js";
 import { applyCancelledSale } from "../../sales/test-support/applied-sales.js";
@@ -5,7 +6,10 @@ import { aTransferCancelledSale } from "../../sync/test-support/synced-facts.js"
 
 export async function aPendingRefundOfCancelledSale<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  { cancelledAt, registerName = "Caja 1" }: { cancelledAt: Date; registerName?: string },
+  {
+    cancelledAt,
+    registerName = `Caja ${randomUUID()}`,
+  }: { cancelledAt: Date; registerName?: string },
 ) {
   const { deviceId, locationId } = await insertEnrolledInstallation(db, {
     now: cancelledAt,

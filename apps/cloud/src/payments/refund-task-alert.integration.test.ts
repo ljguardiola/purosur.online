@@ -1,13 +1,11 @@
 import { escalateOverdueAlerts } from "@purosur/domain/alerts/use-cases";
-import {
-  markRefundDone,
-  openOverdueRefundTaskAlerts,
-} from "@purosur/domain/payments/use-cases";
+import { markRefundDone, openOverdueRefundTaskAlerts } from "@purosur/domain/payments/use-cases";
+import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DrizzleAlertStore } from "../alerts/drizzle-alert-store.js";
-import { users } from "../platform/db/schema.js";
+import { alerts, users } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -46,9 +44,8 @@ function openOverdueAlerts(now: Date) {
   });
 }
 
-async function alertsOf(refundId: string) {
-  return sql<{ kind: string; level: string; location_id: string; escalate_at: Date; resolved_at: Date | null }[]>`
-    select kind, level, location_id, escalate_at, resolved_at from alerts where scope = ${refundId}`;
+function alertsOf(refundId: string) {
+  return db.select().from(alerts).where(eq(alerts.scope, refundId));
 }
 
 async function aUserOf(locationId: string): Promise<string> {
@@ -71,7 +68,7 @@ describe("the alert of a refund left pending on a real Postgres", () => {
     await openOverdueAlerts(hoursAfterCancelling(24));
 
     expect(await alertsOf(refund.refundId)).toMatchObject([
-      { kind: "refund_task", level: "warning", location_id: refund.locationId },
+      { kind: "refund_task", level: "warning", locationId: refund.locationId },
     ]);
   });
 
@@ -106,7 +103,7 @@ describe("the alert of a refund left pending on a real Postgres", () => {
     await escalate(hoursAfterCancelling(72));
 
     const [alert] = await alertsOf(refund.refundId);
-    expect(alert).toMatchObject({ level: "critical", escalate_at: hoursAfterCancelling(72) });
+    expect(alert).toMatchObject({ level: "critical", escalateAt: hoursAfterCancelling(72) });
   });
 
   it("resolves the alert when the refund is marked done", async () => {
@@ -116,10 +113,14 @@ describe("the alert of a refund left pending on a real Postgres", () => {
 
     await markRefundDone(
       { store: new DrizzleRefundStore(db), clock: { now: () => doneAt } },
-      { refundId: refund.refundId, locationId: refund.locationId, actorId: await aUserOf(refund.locationId) },
+      {
+        refundId: refund.refundId,
+        locationId: refund.locationId,
+        actorId: await aUserOf(refund.locationId),
+      },
     );
 
-    expect(await alertsOf(refund.refundId)).toMatchObject([{ resolved_at: doneAt }]);
+    expect(await alertsOf(refund.refundId)).toMatchObject([{ resolvedAt: doneAt }]);
   });
 
   it("skips a refund that a request is marking done at that moment, opening no alert for it", async () => {
@@ -143,7 +144,7 @@ describe("the alert of a refund left pending on a real Postgres", () => {
     release();
     await marking;
 
-    expect(outcome).toEqual({ kind: "opened", refundIds: [] });
+    expect(outcome.refundIds).not.toContain(refund.refundId);
     expect(await alertsOf(refund.refundId)).toEqual([]);
   });
 });

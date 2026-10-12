@@ -177,7 +177,9 @@ describe("DrizzleRefundStore", () => {
       const { userId } = await signedInWith(db, ["confirm_refunds"], NOW);
       const resolvedAt = new Date("2026-10-08T09:00:00.000Z");
 
-      await store().transaction((tx) => tx.resolveRefundAlert(refundId, "refund_task", userId, resolvedAt));
+      await store().transaction((tx) =>
+        tx.resolveRefundAlert(refundId, "refund_task", userId, resolvedAt),
+      );
 
       const rows = await db.select().from(alerts);
       expect(rows.find((alert) => alert.id === taskAlert?.id)).toMatchObject({

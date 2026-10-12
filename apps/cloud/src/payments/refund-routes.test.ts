@@ -252,7 +252,10 @@ describe("POST /refunds/:id/completion", () => {
     const response = await markDone(headers, forgotten.refundId);
 
     expect(response.statusCode).toBe(200);
-    const [resolved] = await db.select().from(alerts).where(eq(alerts.id, alert?.id ?? ""));
+    const [resolved] = await db
+      .select()
+      .from(alerts)
+      .where(eq(alerts.id, alert?.id ?? ""));
     expect(resolved).toMatchObject({ resolvedAt: NOW, resolvedBy: userId });
   });
 
