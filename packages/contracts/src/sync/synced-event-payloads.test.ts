@@ -1436,6 +1436,24 @@ describe("the initial count's payloads", () => {
     expect(accepts("opening_count_withdrawn", 1, WITHDRAWN)).toBe(true);
   });
 
+  it("takes as an id any record id, not only one of a uuid version", () => {
+    const RECORD_ID = "0d7b6f3e-5b1c-0c6e-0a51-3f1f6c1a2b01";
+
+    expect(
+      accepts("opening_count_recorded", 1, {
+        ...RECORDED,
+        movement_id: RECORD_ID,
+        product_id: RECORD_ID,
+      }),
+    ).toBe(true);
+    expect(
+      accepts("opening_count_withdrawn", 1, {
+        movement_id: RECORD_ID,
+        withdrawn_movement_id: RECORD_ID,
+      }),
+    ).toBe(true);
+  });
+
   it.each(["movement_id", "withdrawn_movement_id"])(
     "refuses a withdrawal whose %s is no uuid or is missing",
     (field) => {
