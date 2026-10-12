@@ -31,3 +31,6 @@ CREATE TABLE branch_first_cash_sessions (
 
 INSERT INTO pulled_table_redeliveries (table_name) VALUES ('branch_first_cash_sessions')
   ON CONFLICT (table_name) DO UPDATE SET cursor = 0;
+
+INSERT INTO pulled_table_redeliveries (table_name) VALUES ('stock_movements')
+  ON CONFLICT (table_name) DO UPDATE SET cursor = 0;
