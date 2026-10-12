@@ -2,7 +2,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   cancellableWithoutAuthorization,
   hasApprovedPayment,
-  holdsApprovedQrPayment,
+  holdsApprovedMercadoPagoPayment,
   MERCADO_PAGO_PAYMENT_METHODS,
   MERCADO_PAGO_PROVIDERS,
   PAYMENT_METHODS,
@@ -54,23 +54,34 @@ describe("hasApprovedPayment", () => {
   });
 });
 
-describe("holdsApprovedQrPayment", () => {
+describe("holdsApprovedMercadoPagoPayment", () => {
   const QR = { state: "APPROVED", method: "QR" } as const;
+  const POINT = { state: "APPROVED", method: "POINT" } as const;
 
   it("is false for a sale without payments", () => {
-    expect(holdsApprovedQrPayment([])).toBe(false);
+    expect(holdsApprovedMercadoPagoPayment([])).toBe(false);
   });
 
   it("is true when an approved payment of several is by QR", () => {
-    expect(holdsApprovedQrPayment([APPROVED, QR])).toBe(true);
+    expect(holdsApprovedMercadoPagoPayment([APPROVED, QR])).toBe(true);
   });
 
   it("is false when only payments of other methods are approved", () => {
-    expect(holdsApprovedQrPayment([APPROVED, { ...APPROVED, method: "TRANSFER" }])).toBe(false);
+    expect(holdsApprovedMercadoPagoPayment([APPROVED, { ...APPROVED, method: "TRANSFER" }])).toBe(
+      false,
+    );
+  });
+
+  it("is true when an approved payment of several is by the integrated terminal", () => {
+    expect(holdsApprovedMercadoPagoPayment([APPROVED, POINT])).toBe(true);
   });
 
   it("is false when the QR payment is not approved", () => {
-    expect(holdsApprovedQrPayment([{ ...QR, state: "PENDING" }])).toBe(false);
+    expect(holdsApprovedMercadoPagoPayment([{ ...QR, state: "PENDING" }])).toBe(false);
+  });
+
+  it("is false when the integrated terminal payment is not approved", () => {
+    expect(holdsApprovedMercadoPagoPayment([{ ...POINT, state: "PENDING" }])).toBe(false);
   });
 });
 
@@ -122,12 +133,6 @@ describe("a Mercado Pago Point payment of a sale", () => {
     for (const field of ["cardLastDigits", "cardType", "cardBrand", "cardholderName"] as const) {
       expectTypeOf<PointPayment>().not.toHaveProperty(field);
     }
-  });
-});
-
-describe("holdsApprovedQrPayment", () => {
-  it("is false when the approved payment is by the integrated terminal", () => {
-    expect(holdsApprovedQrPayment([{ state: "APPROVED", method: "POINT" }])).toBe(false);
   });
 });
 

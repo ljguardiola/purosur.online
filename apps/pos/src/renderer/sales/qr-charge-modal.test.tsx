@@ -146,7 +146,7 @@ describe("QrChargeModal", () => {
 
     await expect
       .element(screen.getByRole("alert"))
-      .toHaveTextContent("Ya hay un cobro con QR en curso para esta venta.");
+      .toHaveTextContent("Ya hay un cobro con Mercado Pago en curso para esta venta.");
     await expect.element(create).toBeEnabled();
     await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
     expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();

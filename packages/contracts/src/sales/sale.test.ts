@@ -96,7 +96,7 @@ describe("saleSchema", () => {
     },
   );
 
-  it.each([null, "mercado_pago_charge_in_progress", "holds_qr_payment"] as const)(
+  it.each([null, "mercado_pago_charge_in_progress", "holds_mercado_pago_payment"] as const)(
     "accepts a sale whose cancellation is refused by %s",
     (cancel_refusal) => {
       expect(saleSchema.parse({ ...sale, cancel_refusal }).cancel_refusal).toBe(cancel_refusal);
@@ -486,7 +486,7 @@ describe("cancelPaidSaleOutcomeSchema", () => {
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
     { kind: "locked", consecutive_failures: PIN_SIGN_IN_LOCKOUT_FAILURES },
     { kind: "mercado_pago_charge_in_progress" },
-    { kind: "holds_qr_payment" },
+    { kind: "holds_mercado_pago_payment" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(cancelPaidSaleOutcomeSchema.parse(outcome)).toEqual(outcome);
   });

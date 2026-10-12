@@ -17,6 +17,13 @@ const QR_PAYMENT = {
   provider: "MERCADOPAGO_QR",
 } as const;
 
+const POINT_PAYMENT = {
+  ...QR_PAYMENT,
+  id: "payment-4",
+  method: "POINT",
+  provider: "MERCADOPAGO_POINT",
+} as const;
+
 const NOW = new Date("2026-10-09T12:01:00.000Z");
 const QR_CHARGE_IN_ITS_WAIT = {
   method: "QR",
@@ -125,7 +132,7 @@ describe("openSaleStanding", () => {
       balance: { paid: 4000, pending: 1900 },
       linesLock: "approved_payment",
       cancellable: false,
-      cancelRefusal: "holds_qr_payment",
+      cancelRefusal: "holds_mercado_pago_payment",
       refundsOnCancel: [],
     });
   });
@@ -198,7 +205,8 @@ describe("saleCancelRefusal", () => {
       [POINT_CHARGE_PAST_ITS_WAIT],
       "mercado_pago_charge_in_progress",
     ],
-    ["a QR payment is approved", [QR_PAYMENT], [], "holds_qr_payment"],
+    ["a QR payment is approved", [QR_PAYMENT], [], "holds_mercado_pago_payment"],
+    ["a terminal payment is approved", [POINT_PAYMENT], [], "holds_mercado_pago_payment"],
     [
       "a QR payment is approved and another QR charge is in its wait",
       [QR_PAYMENT],

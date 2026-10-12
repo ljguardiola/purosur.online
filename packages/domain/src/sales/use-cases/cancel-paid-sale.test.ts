@@ -81,6 +81,12 @@ const QR_PAYMENT: SalePayment = {
   state: "APPROVED",
   occurredAt: PAID_AT,
 };
+const POINT_PAYMENT: SalePayment = {
+  ...QR_PAYMENT,
+  id: "payment-4",
+  method: "POINT",
+  provider: "MERCADOPAGO_POINT",
+};
 const PAYMENT_MOVEMENT: SaleCashMovement = {
   id: "movement-1",
   sessionId: "session-1",
@@ -459,10 +465,15 @@ describe("cancelPaidSale", () => {
   });
 
   describe("what it refuses", () => {
-    it.each(["sale", "locked_register"] as const)(
-      "refuses a sale holding an approved QR payment from the %s, leaving everything as it was",
-      async (from) => {
-        const store = ledger({ payments: [CASH_PAYMENT, QR_PAYMENT] });
+    it.each([
+      { from: "sale", method: "QR", payment: QR_PAYMENT },
+      { from: "locked_register", method: "QR", payment: QR_PAYMENT },
+      { from: "sale", method: "integrated terminal", payment: POINT_PAYMENT },
+      { from: "locked_register", method: "integrated terminal", payment: POINT_PAYMENT },
+    ] as const)(
+      "refuses a sale holding an approved $method payment from the $from, leaving everything as it was",
+      async ({ from, payment }) => {
+        const store = ledger({ payments: [CASH_PAYMENT, payment] });
         const before = structuredClone(store.state);
 
         const outcome = await cancel(
@@ -472,7 +483,7 @@ describe("cancelPaidSale", () => {
           from,
         );
 
-        expect(outcome).toEqual({ kind: "holds_qr_payment" });
+        expect(outcome).toEqual({ kind: "holds_mercado_pago_payment" });
         expect(store.state).toEqual(before);
       },
     );

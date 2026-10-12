@@ -883,7 +883,7 @@ describe("the open sale of the session", () => {
     expect(sessionOpenSaleFor(database, NOW)).toMatchObject({
       paid: 2000,
       cancellable: false,
-      cancel_refusal: "holds_qr_payment",
+      cancel_refusal: "holds_mercado_pago_payment",
       refunds_on_cancel: [],
     });
   });

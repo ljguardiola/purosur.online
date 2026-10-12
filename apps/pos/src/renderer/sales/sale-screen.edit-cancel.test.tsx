@@ -437,7 +437,7 @@ describe("SaleScreen cancelling the sale", () => {
 
     await screen.getByRole("button", { name: "Cancelar la venta" }).click();
 
-    await expect.element(screen.getByText("Hay un cobro con QR en curso")).toBeVisible();
+    await expect.element(screen.getByText("Hay un cobro con Mercado Pago en curso")).toBeVisible();
     await expect
       .element(screen.getByText("Esperá a que termine para cancelar la venta."))
       .toBeVisible();

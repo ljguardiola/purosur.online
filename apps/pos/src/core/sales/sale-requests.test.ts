@@ -927,7 +927,7 @@ describe("the sale in progress", () => {
 
     expect(await currentSaleFor(deps())).toMatchObject({
       lines_lock: "approved_payment",
-      cancel_refusal: "holds_qr_payment",
+      cancel_refusal: "holds_mercado_pago_payment",
       refunds_on_cancel: [],
     });
   });

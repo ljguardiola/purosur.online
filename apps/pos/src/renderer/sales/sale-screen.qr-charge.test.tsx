@@ -8,7 +8,7 @@ function answering(...answers: CurrentSaleAnswer[]) {
   return vi.fn(async () => (answers.length > 1 ? answers.shift() : answers[0]) ?? null);
 }
 
-const QR_WAIT_LOCK = "Hay un cobro con QR en curso. Esperá a que termine.";
+const QR_WAIT_LOCK = "Hay un cobro con Mercado Pago en curso. Esperá a que termine.";
 const APPROVED_PAYMENT_LOCK = "La venta ya no se puede cambiar porque tiene un pago aprobado.";
 
 const SALE_IN_A_QR_WAIT: OpenSale = {
@@ -21,7 +21,7 @@ const SALE_WITH_QR_PAYMENT: OpenSale = {
   paid: 100_000,
   pending: 376_000,
   lines_lock: "approved_payment",
-  cancel_refusal: "holds_qr_payment",
+  cancel_refusal: "holds_mercado_pago_payment",
 };
 
 describe("SaleScreen while a QR charge of the sale is in its wait", () => {
@@ -56,7 +56,7 @@ describe("SaleScreen while a QR charge of the sale is in its wait", () => {
 
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
-    await expect.element(screen.getByText("Hay un cobro con QR en curso")).toBeVisible();
+    await expect.element(screen.getByText("Hay un cobro con Mercado Pago en curso")).toBeVisible();
     await expect
       .element(screen.getByText("Esperá a que termine para cancelar la venta."))
       .toBeVisible();
@@ -75,7 +75,9 @@ describe("SaleScreen while a QR charge of the sale is in its wait", () => {
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
     await expect.element(screen.getByRole("dialog")).toBeVisible();
-    await expect.element(screen.getByText("Hay un cobro con QR en curso")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Hay un cobro con Mercado Pago en curso"))
+      .not.toBeInTheDocument();
   });
 
   it("says the sale could not be cancelled when the core cannot answer whether it still refuses", async () => {
@@ -115,7 +117,7 @@ describe("SaleScreen with an approved QR payment", () => {
     await expect
       .element(
         screen.getByText(
-          "La venta tiene un pago con QR: todavía no se puede anular desde la caja.",
+          "La venta tiene un pago con Mercado Pago: todavía no se puede anular desde la caja.",
         ),
       )
       .toBeVisible();
