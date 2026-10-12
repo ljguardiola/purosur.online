@@ -28,7 +28,7 @@ export type SaleStockApplication = { kind: "applied" } | { kind: "refused"; reas
 
 export type ProviderTransactionOfPayment = Pick<
   MercadoPagoOrderTransaction,
-  "saleId" | "amount" | "state"
+  "saleId" | "amount" | "state" | "method"
 >;
 
 export interface EventApplicationTransaction {

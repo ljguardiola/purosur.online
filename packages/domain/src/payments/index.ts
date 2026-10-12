@@ -8,6 +8,7 @@ export {
   MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS,
   MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
 } from "./model/mercado-pago-order-charge-wait.js";
+export { mercadoPagoPaymentIsBacked } from "./model/mercado-pago-payment-backing.js";
 export {
   isValidPointOrderAmount,
   MERCADO_PAGO_POINT_MINIMUM_ORDER_CENTS,
@@ -69,6 +70,5 @@ export {
   PAYMENT_TRANSACTION_STATES,
   PENDING_PAYMENT_TRANSACTION_STATE,
 } from "./model/payment-transaction.js";
-export { qrPaymentIsBacked } from "./model/qr-payment-backing.js";
 export type { SaleBalance } from "./model/sale-balance.js";
 export { approvedPaymentsCoverTotal, saleBalance } from "./model/sale-balance.js";
