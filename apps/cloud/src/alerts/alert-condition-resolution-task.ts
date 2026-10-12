@@ -1,6 +1,9 @@
 import { ALERT_CONDITION_EVALUATION_INTERVAL_MS } from "@purosur/domain";
 import { detectQuietRegisters, resolveStablyClearedAlerts } from "@purosur/domain/alerts/use-cases";
-import { detectMissingOfflineAuthorizationCodes } from "@purosur/domain/fiscal/use-cases";
+import {
+  detectMissingOfflineAuthorizationCodes,
+  openOverdueUnclearOutcomeAlerts,
+} from "@purosur/domain/fiscal/use-cases";
 import { openOverdueRefundTaskAlerts } from "@purosur/domain/payments/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -8,6 +11,7 @@ import type { PoolClient } from "pg";
 import { DrizzleBranchHoursReader } from "../branch/drizzle-branch-hours-reader.js";
 import { DrizzleMissingOfflineAuthorizationCodeAlerts } from "../fiscal/drizzle-missing-offline-authorization-code-alerts.js";
 import { DrizzleOfflineAuthorizationCodeHoldingReader } from "../fiscal/drizzle-offline-authorization-code-holding-reader.js";
+import { DrizzleUnclearOutcomeAlertStore } from "../fiscal/drizzle-unclear-outcome-alert-store.js";
 import { DrizzleRefundTaskAlertStore } from "../payments/drizzle-refund-task-alert-store.js";
 import {
   type BackgroundJobs,
@@ -65,12 +69,23 @@ function openRefundTaskAlertsTask<TQueryResult extends PgQueryResultHKT>(
   });
 }
 
+function openUnclearOutcomeAlertsTask<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  deps: { now: () => Date },
+) {
+  return openOverdueUnclearOutcomeAlerts({
+    store: new DrizzleUnclearOutcomeAlertStore(db),
+    clock: { now: deps.now },
+  });
+}
+
 export interface AlertConditionResolutionJobsDeps {
   createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
   resolve?: typeof resolveClearedConditionAlertsTask;
   detectQuiet?: typeof detectQuietRegistersTask;
   detectMissingCodes?: typeof detectMissingOfflineAuthorizationCodesTask;
   openRefundTaskAlerts?: typeof openRefundTaskAlertsTask;
+  openUnclearOutcomeAlerts?: typeof openUnclearOutcomeAlertsTask;
 }
 
 export function alertConditionResolutionJobs(
@@ -83,6 +98,7 @@ export function alertConditionResolutionJobs(
   const doDetectMissingCodes =
     deps.detectMissingCodes ?? detectMissingOfflineAuthorizationCodesTask;
   const doOpenRefundTaskAlerts = deps.openRefundTaskAlerts ?? openRefundTaskAlertsTask;
+  const doOpenUnclearOutcomeAlerts = deps.openUnclearOutcomeAlerts ?? openUnclearOutcomeAlertsTask;
   return {
     taskList: {
       [ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER]: async (_payload, helpers) => {
@@ -92,6 +108,7 @@ export function alertConditionResolutionJobs(
           await doDetectQuiet(db, { now: options.now });
           await doDetectMissingCodes(db, { now: options.now });
           await doOpenRefundTaskAlerts(db, { now: options.now });
+          await doOpenUnclearOutcomeAlerts(db, { now: options.now });
         });
       },
     },

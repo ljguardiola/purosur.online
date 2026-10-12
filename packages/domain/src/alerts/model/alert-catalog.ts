@@ -16,6 +16,7 @@ const ALERT_KIND_LIST = [
   "offline_authorization_code_missing",
   "late_payment_refund",
   "refund_task",
+  "fiscal_unknown",
 ] as const;
 
 export type AlertKind = (typeof ALERT_KIND_LIST)[number];

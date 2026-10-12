@@ -14,7 +14,8 @@ export type AlertScopeKind =
   | "event"
   | "pointOfSaleDocumentType"
   | "registerFortnight"
-  | "refund";
+  | "refund"
+  | "fiscalDocument";
 
 type AlertEscalationRule =
   | { kind: "afterOpening"; delayMs: number }
@@ -34,6 +35,8 @@ export const ALERT_ESCALATION_DELAY_MS = 24 * 60 * 60 * 1000;
 export const LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS = 72 * 60 * 60 * 1000;
 export const REFUND_TASK_ALERT_OPENING_DELAY_MS = 24 * 60 * 60 * 1000;
 export const REFUND_TASK_ESCALATION_DELAY_MS = 72 * 60 * 60 * 1000;
+export const FISCAL_UNKNOWN_ALERT_OPENING_DELAY_MS = 5 * 60 * 1000;
+export const FISCAL_UNKNOWN_ESCALATION_DELAY_MS = 30 * 60 * 1000;
 
 const AFTER_OPENING = { kind: "afterOpening", delayMs: ALERT_ESCALATION_DELAY_MS } as const;
 
@@ -174,6 +177,14 @@ const ALERT_KIND_POLICIES = {
     deduplicates: true,
     resolvesAfterStableClear: false,
   },
+  fiscal_unknown: {
+    level: "warning",
+    escalation: { kind: "afterSubjectOpening", delayMs: FISCAL_UNKNOWN_ESCALATION_DELAY_MS },
+    audience: "all",
+    scopeKind: "fiscalDocument",
+    deduplicates: true,
+    resolvesAfterStableClear: false,
+  },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;
 
 export function alertKindPolicy(kind: AlertKind): AlertKindPolicy {
@@ -188,6 +199,7 @@ export const ALERT_CLOSINGS = [
   "by_itself",
   "with_its_refund",
   "when_its_refund_is_done",
+  "when_its_document_is_resolved",
   "by_hand",
 ] as const;
 export type AlertClosing = (typeof ALERT_CLOSINGS)[number];
@@ -199,6 +211,9 @@ export function alertClosing(
   const policy = ALERT_KIND_POLICIES[kind];
   if (policy.resolvesAfterStableClear) {
     return "by_itself";
+  }
+  if (policy.scopeKind === "fiscalDocument") {
+    return "when_its_document_is_resolved";
   }
   if (policy.scopeKind !== "refund") {
     return "by_hand";

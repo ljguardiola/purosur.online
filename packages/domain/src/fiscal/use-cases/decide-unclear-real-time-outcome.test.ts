@@ -256,6 +256,49 @@ describe("decideUnclearRealTimeOutcome", () => {
     expect(lastAuthorizedLookup.lookups).toEqual([]);
   });
 
+  it.each<[string, Scenario, string]>([
+    ["a request recorded as not attempted", { answer: { kind: "not_attempted" } }, "released"],
+    ["no voucher below the last authorized number", {}, "released"],
+    [
+      "a voucher with the document's content",
+      { voucher: { kind: "found", voucher: MATCHING_VOUCHER } },
+      "adopted",
+    ],
+    [
+      "a voucher with other content",
+      { voucher: { kind: "found", voucher: { ...MATCHING_VOUCHER, total: 1 } } },
+      "conflicting",
+    ],
+  ])(
+    "records the decision together with the resolution of the document's alert, for %s",
+    async (_name, change, decision) => {
+      const { ports, documents, store } = scenario(change);
+
+      await decide(ports);
+
+      expect(store.resolvedAlerts).toEqual([
+        {
+          decision,
+          alert: { kind: "fiscal_unknown", scope: FISCAL_DOCUMENT_ID },
+          resolvedAt: SETTLED_AT,
+        },
+      ]);
+      expect(documents.operations.filter((op) => op.startsWith("recordDecision"))).toHaveLength(1);
+    },
+  );
+
+  it("resolves no alert for a request that was already decided or is not unclear", async () => {
+    const decided = scenario({ decision: { kind: "released" } });
+    await decide(decided.ports);
+    const answered = scenario({
+      answer: { kind: "rejected", codes: [10015], rejectionClass: "content" },
+    });
+    await decide(answered.ports);
+
+    expect(decided.store.resolvedAlerts).toEqual([]);
+    expect(answered.store.resolvedAlerts).toEqual([]);
+  });
+
   it("records a voucher with other content as conflicting", async () => {
     const { ports, store } = scenario({
       voucher: { kind: "found", voucher: { ...MATCHING_VOUCHER, total: 1 } },
@@ -282,6 +325,7 @@ describe("decideUnclearRealTimeOutcome", () => {
     });
     expect(store.decisions.size).toBe(0);
     expect(documents.operations.some((op) => op.startsWith("recordDecision"))).toBe(false);
+    expect(store.resolvedAlerts).toEqual([]);
   });
 
   it("does not look up a voucher or the last authorized number without a token", async () => {

@@ -1,3 +1,4 @@
+import type { FiscalUnknownAlertKey } from "../../alerts/index.js";
 import type { Clock } from "../../shared/index.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
 import type {
@@ -32,6 +33,7 @@ export interface UnclearOutcomeLane {
     fiscalDocumentId: string,
     decision: UnclearOutcomeDecision,
     decidedAt: Date,
+    resolvedAlert: FiscalUnknownAlertKey,
   ): Promise<void>;
   registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;
   recordedRequest(

@@ -8,6 +8,7 @@ import {
 } from "./alert-escalation.js";
 import {
   ALERT_ESCALATION_DELAY_MS,
+  FISCAL_UNKNOWN_ESCALATION_DELAY_MS,
   LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS,
   REFUND_TASK_ESCALATION_DELAY_MS,
 } from "./alert-kind-policy.js";
@@ -66,6 +67,28 @@ describe("escalatesAt", () => {
         alertOpenedAt,
       ),
     ).toEqual(new Date(refundOpenedAt.getTime() + REFUND_TASK_ESCALATION_DELAY_MS));
+  });
+
+  it("is 30 minutes after the document became unclear for an unclear document, whenever its alert opened", () => {
+    const unclearSince = new Date("2026-10-01T07:50:00.000Z");
+
+    expect(
+      escalatesAt(
+        {
+          kind: "fiscal_unknown",
+          scope: "document-1",
+          detail: {
+            fiscalDocumentId: "document-1",
+            saleId: "sale-1",
+            registerId: "register-1",
+            pointOfSale: 12,
+            number: 41,
+            unclearSince: unclearSince.toISOString(),
+          },
+        },
+        OPENED,
+      ),
+    ).toEqual(new Date(unclearSince.getTime() + FISCAL_UNKNOWN_ESCALATION_DELAY_MS));
   });
 
   it("is never, for a kind that opens already critical", () => {
