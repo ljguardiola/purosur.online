@@ -21,6 +21,14 @@ describe("registerVersionSchema", () => {
   });
 
   it.each([
+    ["0.5.0", { major: 0, minor: 5, patch: 0 }],
+    ["1.200.3", { major: 1, minor: 200, patch: 3 }],
+    ["10.0.0", { major: 10, minor: 0, patch: 0 }],
+  ])("reads %s", (text, version) => {
+    expect(registerVersionSchema.parse(text)).toEqual(version);
+  });
+
+  it.each([
     "1.2",
     "1.2.3.4",
     "01.2.3",
@@ -116,6 +124,8 @@ describe("registerReleaseEntrySchema", () => {
     ["too long", Buffer.alloc(65, 1).toString("base64")],
     ["not base64", `${"!".repeat(86)}==`],
     ["empty", ""],
+    ["preceded by other text", `!${SHA512}`],
+    ["followed by other text", `${SHA512}!`],
   ])("refuses a digest that is %s", (_name, sha512) => {
     expect(registerReleaseEntrySchema.safeParse({ ...ENTRY, sha512 }).success).toBe(false);
   });
@@ -158,6 +168,15 @@ describe("registerUpdateAnswerSchema", () => {
       }).success,
     ).toBe(false);
   });
+
+  it.each(["xhttps://bucket.example.com/setup.exe", "httpsx://bucket.example.com/setup.exe"])(
+    "refuses the download scheme of %s",
+    (download_url) => {
+      expect(registerUpdateAnswerSchema.safeParse({ ...available, download_url }).success).toBe(
+        false,
+      );
+    },
+  );
 
   it("refuses a download address that is not a URL", () => {
     expect(
