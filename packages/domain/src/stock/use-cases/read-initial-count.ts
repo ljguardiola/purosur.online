@@ -11,8 +11,7 @@ function compareConfirmation(
   b: { confirmedAt: Date; movementId: string },
 ): number {
   return (
-    a.confirmedAt.getTime() - b.confirmedAt.getTime() ||
-    (a.movementId < b.movementId ? -1 : a.movementId > b.movementId ? 1 : 0)
+    a.confirmedAt.getTime() - b.confirmedAt.getTime() || a.movementId.localeCompare(b.movementId)
   );
 }
 

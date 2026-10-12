@@ -23,11 +23,15 @@ export interface InitialCountLotView {
   valueCents: number | null;
 }
 
-function compareNullsLast(a: string | null, b: string | null): number {
+function compareText(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+function compareExpiry(a: string | null, b: string | null): number {
   if (a === null || b === null) {
     return Number(a === null) - Number(b === null);
   }
-  return a < b ? -1 : a > b ? 1 : 0;
+  return compareText(a, b);
 }
 
 export async function readInitialCountLots(
@@ -54,8 +58,8 @@ export async function readInitialCountLots(
     }))
     .sort(
       (a, b) =>
-        compareNullsLast(a.productName, b.productName) ||
-        compareNullsLast(a.expiresOn, b.expiresOn) ||
-        compareNullsLast(a.lotId, b.lotId),
+        compareText(a.productName, b.productName) ||
+        compareExpiry(a.expiresOn, b.expiresOn) ||
+        compareText(a.lotId, b.lotId),
     );
 }
