@@ -12,12 +12,12 @@ import type { ReceiptPrintGrant } from "./receipt-printing.js";
 import { FakeOperationAuthority } from "./test-support/fake-operation-authority.js";
 import { textOf } from "./test-support/fake-receipt-template.js";
 import {
-  ACKNOWLEDGED_AT,
   AUTHORIZED_GRANT,
   completedSale,
   FIRST_PRINT_AT,
   NOT_PERMITTED,
   receiptRig,
+  SENT_AT,
 } from "./test-support/receipt-rig.js";
 
 const ISSUER_IDENTITY = {
@@ -69,8 +69,8 @@ describe("printSaleReceipt", () => {
       const rig = receiptRig([saleWithFiscal({ kind: "authorized", authorized })]);
 
       const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
-      await rig.printer.whenSent();
-      rig.printer.acknowledge();
+      await rig.printer.whenWaiting();
+      rig.printer.becomeReady();
       await printing;
 
       expect(rig.template.renders[0]?.fiscal).toEqual(facturaCFiscalBlock(authorized));
@@ -78,11 +78,32 @@ describe("printSaleReceipt", () => {
   });
 
   describe("the first print of a sale", () => {
-    it("records the attempt and its event, and stores the receipt, before anything is sent", async () => {
+    it("records and sends nothing while the printer has not reported it is ready", async () => {
       const rig = receiptRig();
 
       const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
-      await rig.printer.whenSent();
+      await rig.printer.whenWaiting();
+      rig.printer.report("paper_out");
+
+      expect(rig.printer.sent).toEqual([]);
+      expect(rig.template.renders).toEqual([]);
+      expect(rig.ledger.state.sales[0]).toMatchObject({
+        printAttemptedAt: null,
+        printedAt: null,
+        stored: undefined,
+        reprints: [],
+      });
+      expect(rig.ledger.state.outbox).toEqual([]);
+      rig.printer.abandon();
+      await printing;
+    });
+
+    it("records the attempt and its event, and stores the receipt, as it sends", async () => {
+      const rig = receiptRig();
+
+      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      await rig.printer.whenWaiting();
+      rig.printer.becomeReady();
 
       const atSend = rig.printer.sent[0]?.ledgerStateWhenSent;
       expect(atSend?.sales[0]?.printAttemptedAt).toEqual(FIRST_PRINT_AT);
@@ -91,106 +112,124 @@ describe("printSaleReceipt", () => {
       expect(atSend?.outbox).toEqual([
         printStateEvent("id-1", FIRST_PRINT_AT, null, FIRST_PRINT_AT),
       ]);
-      rig.printer.acknowledge();
       await printing;
     });
 
-    it("sends the original, as the template prints it, with the status watch it was given", async () => {
+    it("hands the printer the original, as the template prints it, with the status watch it was given", async () => {
       const rig = receiptRig();
 
       const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
-      await rig.printer.whenSent();
+      await rig.printer.whenWaiting();
+      rig.printer.report("paper_out");
+      expect(rig.statuses).toEqual(["paper_out"]);
+      rig.printer.becomeReady();
+      await printing;
 
       expect(textOf(rig.printer.sent[0]?.bytes ?? new Uint8Array())).toBe(
         "HEAD[v1] total 6750\nBODY 1 lines\n",
       );
       expect(rig.printer.sent[0]?.watch).toBe(rig.watch);
-      rig.printer.report("paper_out");
-      expect(rig.statuses).toEqual(["paper_out"]);
-      rig.printer.acknowledge();
-      await printing;
     });
 
-    it("writes printed_at only when the printer acknowledges, not when the send returns", async () => {
+    it("writes printed_at once the receipt was sent, after the attempt", async () => {
       const rig = receiptRig();
 
       const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
-      await rig.printer.whenSent();
-      await Promise.resolve();
-
-      expect(rig.ledger.state.sales[0]?.printedAt).toBeNull();
-      expect(rig.ledger.state.outbox).toHaveLength(1);
-
-      rig.clock.set(ACKNOWLEDGED_AT);
-      rig.printer.acknowledge();
+      await rig.printer.whenWaiting();
+      rig.printer.becomeReady();
+      rig.clock.set(SENT_AT);
       const outcome = await printing;
 
       expect(outcome).toEqual({ kind: "printed", copy: { kind: "original" } });
-      expect(rig.ledger.state.sales[0]?.printedAt).toEqual(ACKNOWLEDGED_AT);
-      expect(rig.ledger.state.outbox[1]).toEqual(
-        printStateEvent("id-2", FIRST_PRINT_AT, ACKNOWLEDGED_AT, ACKNOWLEDGED_AT),
-      );
+      expect(rig.ledger.state.sales[0]?.printAttemptedAt).toEqual(FIRST_PRINT_AT);
+      expect(rig.ledger.state.sales[0]?.printedAt).toEqual(SENT_AT);
+      expect(rig.ledger.state.outbox).toEqual([
+        printStateEvent("id-1", FIRST_PRINT_AT, null, FIRST_PRINT_AT),
+        printStateEvent("id-2", FIRST_PRINT_AT, SENT_AT, SENT_AT),
+      ]);
     });
 
-    it("writes nothing more when the print is abandoned", async () => {
+    it("writes nothing when the print is abandoned before the printer was ready", async () => {
       const rig = receiptRig();
 
       const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
-      await rig.printer.whenSent();
+      await rig.printer.whenWaiting();
       rig.printer.abandon();
       const outcome = await printing;
 
       expect(outcome).toEqual({ kind: "abandoned", copy: { kind: "original" } });
       expect(rig.ledger.transactions).toBe(1);
-      expect(rig.ledger.state.sales[0]?.printedAt).toBeNull();
-      expect(rig.ledger.state.sales[0]?.printAttemptedAt).toEqual(FIRST_PRINT_AT);
-      expect(rig.ledger.state.outbox).toHaveLength(1);
-    });
-  });
-
-  describe("a print withdrawn from the printer", () => {
-    it("answers withdrawn and records nothing as printed", async () => {
-      const rig = receiptRig();
-
-      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
-      await rig.printer.whenSent();
-      rig.printer.withdraw();
-      const outcome = await printing;
-
-      expect(outcome).toEqual({ kind: "withdrawn", copy: { kind: "original" } });
-      expect(rig.ledger.transactions).toBe(1);
-      expect(rig.ledger.state.sales[0]?.printedAt).toBeNull();
-      expect(rig.ledger.state.sales[0]?.printAttemptedAt).toEqual(FIRST_PRINT_AT);
-      expect(rig.ledger.state.outbox).toHaveLength(1);
+      expect(rig.ledger.state.sales[0]).toMatchObject({
+        printAttemptedAt: null,
+        printedAt: null,
+        stored: undefined,
+        reprints: [],
+      });
+      expect(rig.ledger.state.outbox).toEqual([]);
     });
 
-    it("goes out as the next duplicate when printed again", async () => {
+    it("prints the original again after an abandoned print, with no reprint number consumed", async () => {
       const rig = receiptRig();
       const first = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
-      await rig.printer.whenSent();
-      rig.printer.withdraw();
+      await rig.printer.whenWaiting(1);
+      rig.printer.abandon();
       await first;
 
       const second = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
-      await rig.printer.whenSent(2);
-      rig.printer.acknowledge();
+      await rig.printer.whenWaiting(2);
+      rig.printer.becomeReady();
 
-      expect(await second).toEqual({
-        kind: "printed",
-        copy: { kind: "duplicate", orderNumber: 1 },
-      });
+      expect(await second).toEqual({ kind: "printed", copy: { kind: "original" } });
+      expect(rig.ledger.state.sales[0]?.reprints).toEqual([]);
     });
   });
 
-  describe("a retry after an attempt that was never acknowledged", () => {
+  describe("a copy decided before the printer was ready", () => {
+    it("is recomputed as it sends, so the bytes match what was recorded", async () => {
+      const rig = receiptRig();
+      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      await rig.printer.whenWaiting();
+      const [sale] = rig.ledger.state.sales;
+      if (sale !== undefined) {
+        sale.printAttemptedAt = FIRST_PRINT_AT;
+      }
+
+      rig.printer.becomeReady();
+
+      expect(await printing).toEqual({
+        kind: "printed",
+        copy: { kind: "duplicate", orderNumber: 1 },
+      });
+      expect(textOf(rig.printer.sent[0]?.bytes ?? new Uint8Array())).toBe(
+        "HEAD[v1] total 6750\nDUPLICATE 1\nBODY 1 lines\n",
+      );
+      expect(rig.ledger.state.sales[0]?.reprints).toHaveLength(1);
+    });
+
+    it("fails when the sale is gone as the printer becomes ready", async () => {
+      const rig = receiptRig();
+      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      await rig.printer.whenWaiting();
+      rig.ledger.state.sales = [];
+
+      expect(() => rig.printer.becomeReady()).toThrow("sale-1");
+      rig.printer.abandon();
+      await printing;
+    });
+  });
+
+  describe("a print after an attempt that was never completed", () => {
     const attempted = completedSale({ printAttemptedAt: FIRST_PRINT_AT });
 
-    it("is the first duplicate, recorded as a retry with its event, before it is sent", async () => {
+    it("is the first duplicate, recorded as a retry with its event, as it is sent", async () => {
       const rig = receiptRig([attempted]);
-      rig.clock.set(ACKNOWLEDGED_AT);
+      rig.clock.set(SENT_AT);
 
       const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
-      await rig.printer.whenSent();
+      await rig.printer.whenWaiting();
+      expect(rig.ledger.state.sales[0]?.reprints).toEqual([]);
+      expect(rig.ledger.state.outbox).toEqual([]);
+      rig.printer.becomeReady();
 
       const atSend = rig.printer.sent[0]?.ledgerStateWhenSent;
       const reprint = {
@@ -199,7 +238,7 @@ describe("printSaleReceipt", () => {
         requestedBy: "cashier",
         authorizedBy: null,
         reason: { kind: "retry" },
-        occurredAt: ACKNOWLEDGED_AT,
+        occurredAt: SENT_AT,
       };
       expect(atSend?.sales[0]?.reprints).toEqual([reprint]);
       expect(atSend?.outbox).toEqual([
@@ -217,35 +256,34 @@ describe("printSaleReceipt", () => {
             reason_kind: "retry",
             reason_text: null,
           },
-          occurred_at: ACKNOWLEDGED_AT.toISOString(),
+          occurred_at: SENT_AT.toISOString(),
           actor_id: "cashier",
         },
       ]);
       expect(textOf(rig.printer.sent[0]?.bytes ?? new Uint8Array())).toBe(
         "HEAD[v1] total 6750\nDUPLICATE 1\nBODY 1 lines\n",
       );
-      rig.printer.acknowledge();
       await printing;
     });
 
-    it("keeps the attempt time and sets printed_at when the retry is acknowledged", async () => {
+    it("keeps the attempt time and sets printed_at once it was sent", async () => {
       const rig = receiptRig([attempted]);
-      rig.clock.set(ACKNOWLEDGED_AT);
+      rig.clock.set(SENT_AT);
 
       const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
-      await rig.printer.whenSent();
-      rig.printer.acknowledge();
+      await rig.printer.whenWaiting();
+      rig.printer.becomeReady();
       const outcome = await printing;
 
       expect(outcome).toEqual({ kind: "printed", copy: { kind: "duplicate", orderNumber: 1 } });
       expect(rig.ledger.state.sales[0]?.printAttemptedAt).toEqual(FIRST_PRINT_AT);
-      expect(rig.ledger.state.sales[0]?.printedAt).toEqual(ACKNOWLEDGED_AT);
+      expect(rig.ledger.state.sales[0]?.printedAt).toEqual(SENT_AT);
       expect(rig.ledger.state.outbox[1]).toEqual(
-        printStateEvent("id-2", FIRST_PRINT_AT, ACKNOWLEDGED_AT, ACKNOWLEDGED_AT),
+        printStateEvent("id-2", FIRST_PRINT_AT, SENT_AT, SENT_AT),
       );
     });
 
-    it("records who authorized the retry", async () => {
+    it("records who authorized the duplicate", async () => {
       const authority = new FakeOperationAuthority<ReceiptPrintGrant, typeof NOT_PERMITTED>({
         kind: "granted",
         grant: AUTHORIZED_GRANT,
@@ -253,8 +291,8 @@ describe("printSaleReceipt", () => {
       const rig = receiptRig([attempted], authority);
 
       const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
-      await rig.printer.whenSent();
-      rig.printer.abandon();
+      await rig.printer.whenWaiting();
+      rig.printer.becomeReady();
       await printing;
 
       expect(rig.ledger.state.sales[0]?.reprints[0]?.authorizedBy).toBe("supervisor");
@@ -266,11 +304,11 @@ describe("printSaleReceipt", () => {
       const rig = receiptRig([
         completedSale({ printAttemptedAt: FIRST_PRINT_AT, printedAt: printedBefore }),
       ]);
-      rig.clock.set(ACKNOWLEDGED_AT);
+      rig.clock.set(SENT_AT);
 
       const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
-      await rig.printer.whenSent();
-      rig.printer.acknowledge();
+      await rig.printer.whenWaiting();
+      rig.printer.becomeReady();
       const outcome = await printing;
 
       expect(outcome).toEqual({ kind: "printed", copy: { kind: "duplicate", orderNumber: 1 } });
@@ -287,15 +325,15 @@ describe("printSaleReceipt", () => {
 
     for (let round = 0; round < 3; round += 1) {
       const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
-      await rig.printer.whenSent(round + 1);
-      rig.printer.abandon();
+      await rig.printer.whenWaiting(round + 1);
+      rig.printer.becomeReady();
       orders.push(await printing);
     }
 
     expect(orders).toEqual([
-      { kind: "abandoned", copy: { kind: "original" } },
-      { kind: "abandoned", copy: { kind: "duplicate", orderNumber: 1 } },
-      { kind: "abandoned", copy: { kind: "duplicate", orderNumber: 2 } },
+      { kind: "printed", copy: { kind: "original" } },
+      { kind: "printed", copy: { kind: "duplicate", orderNumber: 1 } },
+      { kind: "printed", copy: { kind: "duplicate", orderNumber: 2 } },
     ]);
     expect(rig.ledger.state.sales[0]?.reprints.map(({ orderNumber }) => orderNumber)).toEqual([
       1, 2,
@@ -306,13 +344,13 @@ describe("printSaleReceipt", () => {
     const rig = receiptRig();
 
     const first = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
-    await rig.printer.whenSent(1);
-    rig.printer.abandon();
+    await rig.printer.whenWaiting(1);
+    rig.printer.becomeReady();
     await first;
     rig.template.version = "v2";
     const second = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
-    await rig.printer.whenSent(2);
-    rig.printer.abandon();
+    await rig.printer.whenWaiting(2);
+    rig.printer.becomeReady();
     await second;
 
     expect(rig.template.renders).toHaveLength(1);
@@ -358,8 +396,8 @@ describe("printSaleReceipt", () => {
       rig.printers.configure(rig.printer);
 
       const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
-      await rig.printer.whenSent();
-      rig.printer.acknowledge();
+      await rig.printer.whenWaiting();
+      rig.printer.becomeReady();
 
       expect(await printing).toEqual({ kind: "printed", copy: { kind: "original" } });
     });
@@ -368,8 +406,8 @@ describe("printSaleReceipt", () => {
       const rig = receiptRig();
 
       const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
-      await rig.printer.whenSent();
-      rig.printer.acknowledge();
+      await rig.printer.whenWaiting();
+      rig.printer.becomeReady();
       await printing;
 
       expect(rig.printers.asked).toBe(1);
