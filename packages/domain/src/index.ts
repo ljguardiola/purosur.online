@@ -236,6 +236,7 @@ export type {
 export {
   cancellableWithoutAuthorization,
   cashCharge,
+  DISCARDABLE_REFUND_ALERT_KINDS,
   isLateApproval,
   isRefundPending,
   isValidOrderAmount,
