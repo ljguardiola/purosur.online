@@ -1,5 +1,5 @@
 export type { DatedPrice } from "./model/current-price.js";
-export { newestPrice, priceInEffectAt } from "./model/current-price.js";
+export { newestPrice } from "./model/current-price.js";
 export type { DiscountRecurrence } from "./model/discount-applies.js";
 export { discountAppliesOn } from "./model/discount-applies.js";
 export type { DiscountBenefit } from "./model/discount-benefit.js";

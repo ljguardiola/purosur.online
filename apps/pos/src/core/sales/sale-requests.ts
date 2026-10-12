@@ -267,12 +267,12 @@ export async function addSearchedProductFor(
 }
 
 export async function searchProductsFor(
-  { database, gate, now }: Pick<SaleRequestDeps, "database" | "gate" | "now">,
+  { database, gate }: Pick<SaleRequestDeps, "database" | "gate">,
   query: string,
 ): Promise<SearchProductsOutcome> {
   const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     searchProductsByName(
-      { ledger: saleLedger(database), clock: { now } },
+      { ledger: saleLedger(database) },
       { actorId: signedInUserId, query },
     ),
   );

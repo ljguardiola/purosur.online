@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { newestPrice, priceInEffectAt } from "./current-price.js";
+import { newestPrice } from "./current-price.js";
 
 const EARLIER = new Date("2026-09-01T00:00:00.000Z");
 const LATER = new Date("2026-09-15T00:00:00.000Z");
@@ -49,28 +49,3 @@ describe("newestPrice", () => {
   });
 });
 
-describe("priceInEffectAt", () => {
-  const moment = new Date("2026-09-30T12:00:00.000Z");
-
-  it("is the newest of the prices already started, ignoring one that starts later", () => {
-    const started = { id: "a", validFrom: LATER };
-    const future = { id: "b", validFrom: new Date("2026-10-15T00:00:00.000Z") };
-
-    expect(priceInEffectAt([{ id: "c", validFrom: EARLIER }, started, future], moment)).toBe(
-      started,
-    );
-  });
-
-  it("starts applying at the very millisecond it becomes valid", () => {
-    const starting = { id: "a", validFrom: moment };
-    const oneMillisecondLater = { id: "b", validFrom: new Date(moment.getTime() + 1) };
-
-    expect(priceInEffectAt([starting, oneMillisecondLater], moment)).toBe(starting);
-  });
-
-  it("is missing while every price starts later", () => {
-    expect(
-      priceInEffectAt([{ id: "a", validFrom: new Date(moment.getTime() + 1) }], moment),
-    ).toBeUndefined();
-  });
-});

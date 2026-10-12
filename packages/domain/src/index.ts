@@ -332,7 +332,6 @@ export {
   isValidDiscountWeekdays,
   MAX_UNIT_PRICE_CENTS,
   newestPrice,
-  priceInEffectAt,
   priceReviewAt,
 } from "./pricing/index.js";
 export type { ReceiptType } from "./purchasing/index.js";
