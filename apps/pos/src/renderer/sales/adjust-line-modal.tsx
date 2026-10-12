@@ -284,9 +284,13 @@ export function AdjustLineModal({
             <form.AppField name="value" listeners={{ onChange: () => setNotice(undefined) }}>
               {(field) => (
                 <TextField
-                  {...(kind === "PERCENT"
-                    ? ({ kind: "quantity", suffix: "%" } as const)
-                    : ({ kind: "amount", prefix: "$" } as const))}
+                  {...(kind === "PRICE"
+                    ? ({ kind: "amount", prefix: "$" } as const)
+                    : ({
+                        kind: "discount",
+                        width: "narrow",
+                        ...(kind === "PERCENT" ? { suffix: "%" } : {}),
+                      } as const))}
                   label={valueLabel(kind)}
                   labelVisuallyHidden
                   {...(kind === "PRICE" ? {} : { description: REPLACES_PROMOTION_HINT })}
