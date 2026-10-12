@@ -1,8 +1,6 @@
-import { spawn } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
-import { createWriteStream, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import * as Sentry from "@sentry/electron/main";
 import {
@@ -32,6 +30,12 @@ import { initializeErrorReporting } from "./error-reporting";
 import { localDataFolderFor } from "./local-data-folder";
 import { denyDisallowedNavigation, denyWindowOpen } from "./navigation-guard";
 import { createRegisterUpdater } from "./register-update";
+import {
+  pendingUpdateFiles,
+  sha512Hash,
+  spawnDetachedInstaller,
+  updateFetch,
+} from "./register-update-adapters";
 import { reportStartFailure } from "./start-failure";
 import { createSafeMomentAsker } from "./update-safe-moment-asker";
 import { showWhenReadyAndReviveRenderer } from "./window-lifecycle";
@@ -255,61 +259,20 @@ function startRegister(settings: ChannelSettings): void {
     // relaunched while the window is going away.
     app.on("before-quit", () => supervisor.stop());
 
-    const pendingUpdateFolder = join(app.getPath("userData"), "pending-update");
     createRegisterUpdater({
       isPackaged: app.isPackaged,
       cloudUrl: settings.cloudUrl,
       installedVersion: app.getVersion(),
       readDeviceToken: () => deviceCredentials.read()?.device_token,
-      fetch: async (url, init) => {
-        const response = await net.fetch(url, init);
-        return {
-          status: response.status,
-          json: () => response.json(),
-          body: response.body === null ? null : Readable.fromWeb(response.body),
-        };
-      },
-      files: {
-        clearPending: async () => {
-          rmSync(pendingUpdateFolder, { recursive: true, force: true });
-          mkdirSync(pendingUpdateFolder, { recursive: true });
-        },
-        pathOf: (name) => join(pendingUpdateFolder, name),
-        open: async (name) => {
-          const stream = createWriteStream(join(pendingUpdateFolder, name));
-          return {
-            write: (chunk) =>
-              new Promise<void>((resolve, reject) => {
-                stream.write(chunk, (error) => (error ? reject(error) : resolve()));
-              }),
-            close: () => new Promise<void>((resolve) => stream.end(resolve)),
-          };
-        },
-        remove: async (name) => rmSync(join(pendingUpdateFolder, name), { force: true }),
-      },
-      createHash: () => {
-        const hash = createHash("sha512");
-        return {
-          update: (chunk) => {
-            hash.update(chunk);
-          },
-          digestBase64: () => hash.digest("base64"),
-        };
-      },
+      fetch: updateFetch((url, init) => net.fetch(url, init)),
+      files: pendingUpdateFiles(join(app.getPath("userData"), "pending-update")),
+      createHash: sha512Hash,
       wait: (ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
       coreStatus: () => coreStatus,
       setCoreStatus,
       askSafeMoment: () => safeMomentAsker.ask(),
       releaseHold: () => currentCoreProcess?.postMessage({ type: "update-hold-release" }),
-      spawnInstaller: (path, args) =>
-        new Promise<void>((resolve, reject) => {
-          const installer = spawn(path, [...args], { detached: true, stdio: "ignore" });
-          installer.once("error", reject);
-          installer.once("spawn", () => {
-            installer.unref();
-            resolve();
-          });
-        }),
+      spawnInstaller: spawnDetachedInstaller,
       quit: () => app.quit(),
       report: (error) => Sentry.captureException(error),
     }).start();
