@@ -36,13 +36,7 @@ function sectionsMatching(help: RegisterHelpCatalog, query: string): Section[] {
   );
 }
 
-export function HelpScreen({
-  person,
-  registerName,
-  sessionOpen,
-  help,
-  signOut,
-}: HelpScreenProps) {
+export function HelpScreen({ person, registerName, sessionOpen, help, signOut }: HelpScreenProps) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
