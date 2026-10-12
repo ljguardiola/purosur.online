@@ -802,6 +802,79 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to apply a discount on the sale's total with its reason and who authorizes it", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const authorization = { user_id: "u2", pin: "1234" };
+
+    const applied = client.applySaleDiscount(
+      { kind: "PERCENT", value: 5 },
+      "Cliente frecuente",
+      authorization,
+    );
+    port.answer({
+      type: "apply-sale-discount-result",
+      request_id: "request-1",
+      outcome: { kind: "empty_sale" },
+    });
+
+    expect(await applied).toEqual({ kind: "empty_sale" });
+    expect(port.posted).toEqual([
+      {
+        type: "apply-sale-discount",
+        request_id: "request-1",
+        discount: { kind: "PERCENT", value: 5 },
+        reason: "Cliente frecuente",
+        authorization,
+      },
+    ]);
+  });
+
+  it("asks the core to apply a discount on the sale's total without an authorization when none is given", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    void client.applySaleDiscount({ kind: "AMOUNT", value: 270_000 }, "Compra grande", undefined);
+
+    expect(port.posted).toEqual([
+      {
+        type: "apply-sale-discount",
+        request_id: "request-1",
+        discount: { kind: "AMOUNT", value: 270_000 },
+        reason: "Compra grande",
+      },
+    ]);
+  });
+
+  it("asks the core to preview a discount on the sale's total and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const previewed = client.previewSaleDiscount({ kind: "PERCENT", value: 5 });
+    port.answer({
+      type: "preview-sale-discount-result",
+      request_id: "request-1",
+      outcome: { kind: "preview", subtotal: 5_070_000, discount_amount: 253_500, total: 4_816_500 },
+    });
+
+    expect(await previewed).toEqual({
+      kind: "preview",
+      subtotal: 5_070_000,
+      discount_amount: 253_500,
+      total: 4_816_500,
+    });
+    expect(port.posted).toEqual([
+      {
+        type: "preview-sale-discount",
+        request_id: "request-1",
+        discount: { kind: "PERCENT", value: 5 },
+      },
+    ]);
+  });
+
   it("asks the core to preview an adjustment of a line, with no reason and no authorization, and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
