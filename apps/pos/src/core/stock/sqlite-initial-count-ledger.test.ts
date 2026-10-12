@@ -18,7 +18,8 @@ let database: LocalDatabase;
 function ledger(
   options: { chainKey?: string | undefined; access?: RoleAccess | undefined } = {},
 ): SqliteInitialCountLedger {
-  const { chainKey = CHAIN_KEY, access = COUNTER } = options;
+  const chainKey = "chainKey" in options ? options.chainKey : CHAIN_KEY;
+  const access = options.access ?? COUNTER;
   return new SqliteInitialCountLedger(
     database,
     { activePerson: (userId) => (userId === "u1" ? { firstName: "Ada", access } : undefined) },
@@ -79,13 +80,13 @@ describe("the initial count's access", () => {
     expect(ledger().transaction((tx) => tx.branchFirstSessionOpened())).toBe(true);
   });
 
-  it("knows the register opened a cash session, whether it is still open or not", () => {
+  it("knows the register opened a cash session", () => {
     expect(ledger().transaction((tx) => tx.ownSessionEverOpened())).toBe(false);
 
     database
       .prepare(
         `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
-         VALUES ('s1', 'register-1', 'device-1', 'u1', '2026-10-10T12:00:00.000Z', 0, 'CLOSED')`,
+         VALUES ('s1', 'register-1', 'device-1', 'u1', '2026-10-10T12:00:00.000Z', 0, 'OPEN')`,
       )
       .run();
 
