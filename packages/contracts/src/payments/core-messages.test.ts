@@ -299,3 +299,49 @@ describe("abandoning a Mercado Pago QR charge", () => {
     expect(paymentsCoreToRendererMessageSchema.safeParse(result).success).toBe(false);
   });
 });
+
+describe("asking which payment methods are available", () => {
+  const message = { type: "payment-method-availability", request_id: REQUEST_ID };
+
+  it("accepts a request carrying only its id", () => {
+    expect(paymentsRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request without its id", () => {
+    expect(
+      paymentsRendererToCoreMessageSchema.safeParse({ ...message, request_id: undefined }).success,
+    ).toBe(false);
+  });
+
+  it.each([
+    { qr: "available", point: "available" },
+    { qr: "offline", point: "offline" },
+    { qr: "available", point: "below_minimum" },
+    { qr: "available", point: "not_configured" },
+    null,
+  ])("accepts the answer %o", (availability) => {
+    const result = {
+      type: "payment-method-availability-result",
+      request_id: REQUEST_ID,
+      availability,
+    };
+
+    expect(paymentsCoreToRendererMessageSchema.parse(result)).toEqual(result);
+  });
+
+  it.each([
+    { qr: "below_minimum", point: "available" },
+    { qr: "not_configured", point: "available" },
+    { qr: "available", point: "unknown" },
+    { qr: "available" },
+    { point: "available" },
+  ])("rejects the answer %o", (availability) => {
+    expect(
+      paymentsCoreToRendererMessageSchema.safeParse({
+        type: "payment-method-availability-result",
+        request_id: REQUEST_ID,
+        availability,
+      }).success,
+    ).toBe(false);
+  });
+});

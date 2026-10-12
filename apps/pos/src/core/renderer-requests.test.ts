@@ -1224,6 +1224,41 @@ describe("answerRendererRequest", () => {
     expect(requests).toEqual([{ saleId: "s1", method: "QR", amount: 1200 }]);
   });
 
+  it("answers which payment methods are available for the sale being charged", async () => {
+    const availability = { qr: "available", point: "below_minimum" } as const;
+    const { deps: withAvailability } = deps(true, {
+      paymentMethodAvailability: async () => availability,
+    });
+
+    expect(
+      await answerRendererRequest(withAvailability, {
+        type: "payment-method-availability",
+        request_id: "r66",
+      }),
+    ).toEqual({ type: "payment-method-availability-result", request_id: "r66", availability });
+  });
+
+  it("answers no availability when the register has no database or reading it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      paymentMethodAvailability: async () => {
+        throw error;
+      },
+    });
+    const message = { type: "payment-method-availability", request_id: "r67" } as const;
+    const none = {
+      type: "payment-method-availability-result",
+      request_id: "r67",
+      availability: null,
+    };
+
+    expect(await answerRendererRequest(failing.deps, message)).toEqual(none);
+    expect(failing.failures).toEqual([
+      { context: "reading which payment methods are available", error },
+    ]);
+    expect(await answerRendererRequest(deps(true).deps, message)).toEqual(none);
+  });
+
   it("follows a Mercado Pago QR charge and answers the outcome", async () => {
     const requests: { paymentTransactionId: string }[] = [];
     const { deps: withQr } = deps(true, {
