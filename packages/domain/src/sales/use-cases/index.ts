@@ -120,7 +120,6 @@ export type {
   ReceiptPrintEnding,
   ReceiptPrinter,
   ReceiptPrinters,
-  ReceiptPrintStandings,
   ReceiptPrintWatch,
   ReceiptReason,
   ReceiptReprint,
@@ -160,12 +159,6 @@ export type {
   ReprintSaleReceiptPorts,
 } from "./reprint-sale-receipt.js";
 export { reprintSaleReceipt } from "./reprint-sale-receipt.js";
-export type {
-  RetrySaleReceiptPrintInput,
-  RetrySaleReceiptPrintOutcome,
-  RetrySaleReceiptPrintPorts,
-} from "./retry-sale-receipt-print.js";
-export { retrySaleReceiptPrint } from "./retry-sale-receipt-print.js";
 export type {
   CandidatePromotion,
   IdGenerator,

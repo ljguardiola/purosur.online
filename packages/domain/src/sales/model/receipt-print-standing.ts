@@ -1,54 +1,34 @@
-export const RECEIPT_RETRY_DELAY_MS = 10_000;
-
 export type PrinterStatus = "ready" | "cover_open" | "paper_out" | "not_responding";
 
 export interface ReceiptPrintObservation {
-  acknowledged: boolean;
+  sent: boolean;
   failed: boolean;
   printerNotConfigured: boolean;
-  withdrawn: boolean;
   status: PrinterStatus | null;
-  readySince: Date | null;
 }
 
 export type ReceiptPrintStanding =
   | "printing"
   | "printed"
-  | "withdrawn"
   | "cover_open"
   | "paper_out"
   | "not_responding"
-  | "retry_offered"
   | "printer_not_configured"
   | "failed";
 
 export function startedReceiptPrint(): ReceiptPrintObservation {
-  return {
-    acknowledged: false,
-    failed: false,
-    printerNotConfigured: false,
-    withdrawn: false,
-    status: null,
-    readySince: null,
-  };
+  return { sent: false, failed: false, printerNotConfigured: false, status: null };
 }
 
 export function observePrinterStatus(
   observation: ReceiptPrintObservation,
   status: PrinterStatus,
-  at: Date,
 ): ReceiptPrintObservation {
-  return {
-    ...observation,
-    status,
-    readySince: observation.status === "ready" ? observation.readySince : at,
-  };
+  return { ...observation, status };
 }
 
-export function observePrintAcknowledged(
-  observation: ReceiptPrintObservation,
-): ReceiptPrintObservation {
-  return { ...observation, acknowledged: true };
+export function observePrintSent(observation: ReceiptPrintObservation): ReceiptPrintObservation {
+  return { ...observation, sent: true };
 }
 
 export function observePrintFailed(observation: ReceiptPrintObservation): ReceiptPrintObservation {
@@ -61,28 +41,14 @@ export function observePrinterNotConfigured(
   return { ...observation, printerNotConfigured: true };
 }
 
-export function observePrintWithdrawn(
-  observation: ReceiptPrintObservation,
-): ReceiptPrintObservation {
-  return { ...observation, withdrawn: true };
-}
-
-export function receiptPrintStanding(
-  {
-    acknowledged,
-    failed,
-    printerNotConfigured,
-    withdrawn,
-    status,
-    readySince,
-  }: ReceiptPrintObservation,
-  now: Date,
-): ReceiptPrintStanding {
-  if (acknowledged) {
+export function receiptPrintStanding({
+  sent,
+  failed,
+  printerNotConfigured,
+  status,
+}: ReceiptPrintObservation): ReceiptPrintStanding {
+  if (sent) {
     return "printed";
-  }
-  if (withdrawn) {
-    return "withdrawn";
   }
   if (printerNotConfigured) {
     return "printer_not_configured";
@@ -90,34 +56,13 @@ export function receiptPrintStanding(
   if (failed) {
     return "failed";
   }
-  if (status === null) {
-    return "printing";
-  }
-  if (status !== "ready") {
-    return status;
-  }
-  return readySince !== null && now.getTime() - readySince.getTime() >= RECEIPT_RETRY_DELAY_MS
-    ? "retry_offered"
-    : "printing";
+  return status === null || status === "ready" ? "printing" : status;
 }
 
-export function mayStartReceiptPrint(
-  observation: ReceiptPrintObservation | undefined,
-  now: Date,
-): boolean {
+export function mayStartReceiptPrint(observation: ReceiptPrintObservation | undefined): boolean {
   if (observation === undefined) {
     return true;
   }
-  const standing = receiptPrintStanding(observation, now);
-  return (
-    standing === "printed" ||
-    standing === "retry_offered" ||
-    standing === "withdrawn" ||
-    standing === "failed" ||
-    standing === "printer_not_configured"
-  );
-}
-
-export function mayRetryReceiptPrint(standing: ReceiptPrintStanding | null): boolean {
-  return standing === "retry_offered";
+  const standing = receiptPrintStanding(observation);
+  return standing === "printed" || standing === "failed" || standing === "printer_not_configured";
 }

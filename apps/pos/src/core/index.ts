@@ -790,17 +790,7 @@ const rendererRequestDeps: RendererRequestDeps = {
   setReceiptPrinter:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (address) =>
-          setReceiptPrinterFor(
-            {
-              database: localDatabase,
-              gate: actionGate,
-              replacement: {
-                receiptPrinterReplaced: () => receiptPrinting.withdrawHeldReceipts?.(),
-              },
-            },
-            address,
-          ),
+      : (address) => setReceiptPrinterFor({ database: localDatabase, gate: actionGate }, address),
   readSerialDevices:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -823,7 +813,6 @@ const rendererRequestDeps: RendererRequestDeps = {
             devices,
           ),
   receiptPrintStatus: receiptPrinting.receiptPrintStatus,
-  retryReceiptPrint: receiptPrinting.retryReceiptPrint,
   reprintSaleReceipt: receiptPrinting.reprintSaleReceipt,
   reportFailure,
 };

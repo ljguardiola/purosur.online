@@ -7,26 +7,27 @@ import { ScriptedSocket } from "./test-support/scripted-socket.js";
 
 const POLL_INTERVAL_MS = 500;
 const CONNECT_LIMIT_MS = 3000;
-const PRINT_ID = "A1b2";
 const RECEIPT = Uint8Array.of(0x1b, 0x40, 0x48, 0x6f, 0x6c, 0x61, 0x0a);
-const TRANSMIT_RESPONSE_REQUEST = [0x1d, 0x28, 0x48, 0x06, 0x00, 0x30, 0x30, ...ascii(PRINT_ID)];
 const STATUS_QUERY = [0x10, 0x04, 0x02];
-const CLEAR_BUFFERS = [0x10, 0x14, 0x08, 0x01, 0x03, 0x14, 0x01, 0x06, 0x02, 0x08];
-const CLEARED = [0x37, 0x25, 0x00];
 const READY = 0x12;
 const COVER_OPEN = 0x16 | 0x20;
 const PAPER_OUT = 0x32;
-
-function ascii(text: string): number[] {
-  return [...text].map((character) => character.charCodeAt(0));
-}
-
-function responseTo(id: string): number[] {
-  return [0x37, 0x22, ...ascii(id), 0x00];
-}
+const ERROR = 0x52;
+const FEEDING = 0x1a;
 
 async function nextIoTurn(): Promise<void> {
   await new Promise<void>((resolve) => setImmediate(resolve));
+}
+
+function receiptToSend(bytes: Uint8Array = RECEIPT) {
+  const handed = { calls: 0 };
+  return {
+    handed,
+    sending: () => {
+      handed.calls += 1;
+      return bytes;
+    },
+  };
 }
 
 describe("TcpReceiptPrinter against a printer on the network", () => {
@@ -51,10 +52,8 @@ describe("TcpReceiptPrinter against a printer on the network", () => {
     timers = new ManualTimers();
     observer = new ReceiptPrintObserver();
     printer = new TcpReceiptPrinter({
-      host: "127.0.0.1",
-      port: fake.port,
+      address: () => ({ host: "127.0.0.1", port: fake.port }),
       timers,
-      nextPrintId: () => PRINT_ID,
     });
   });
 
@@ -63,48 +62,65 @@ describe("TcpReceiptPrinter against a printer on the network", () => {
     await fake.stop();
   });
 
-  it("acknowledges once the ticket has come out, with the receipt bytes alone printed", async () => {
-    const ending = await printer.print(RECEIPT, observer.watch);
+  it("sends the receipt to a ready printer and resolves sent", async () => {
+    const { sending, handed } = receiptToSend();
+    const ending = printer.print(observer.watch, sending);
+    const outcome = settled(ending);
 
-    expect(ending).toEqual({ kind: "acknowledged" });
+    await pollUntil(() => outcome.done);
+
+    expect(await ending).toEqual({ kind: "sent" });
+    await fake.whenPrinted(1);
     expect(fake.printed).toEqual([RECEIPT]);
+    expect(handed.calls).toBe(1);
   });
 
-  it("does not acknowledge while the cover is open and prints exactly once after closing it", async () => {
+  it("asks for the bytes and writes nothing while the cover is open, then prints exactly once after closing it", async () => {
     fake.openCover();
-    const ending = printer.print(RECEIPT, observer.watch);
+    const { sending, handed } = receiptToSend();
+    const ending = printer.print(observer.watch, sending);
     const outcome = settled(ending);
-    await fake.whenHeld(1);
+    await fake.whenConnectionCount(1);
 
     await pollUntil(() => observer.statuses.includes("cover_open"));
+    await pollUntil(() => fake.statusQueries >= 4);
     expect(outcome.done).toBe(false);
+    expect(handed.calls).toBe(0);
     expect(fake.printed).toEqual([]);
 
     fake.closeCover();
-    expect(await ending).toEqual({ kind: "acknowledged" });
+    await pollUntil(() => outcome.done);
+    expect(await ending).toEqual({ kind: "sent" });
+    await fake.whenPrinted(1);
     expect(fake.printed).toEqual([RECEIPT]);
+    expect(handed.calls).toBe(1);
     expect(timers.pending(POLL_INTERVAL_MS)).toBe(0);
-    expect(fake.printed).toHaveLength(1);
   });
 
-  it("reports paper out and acknowledges after loading paper", async () => {
+  it("reports paper out, writes nothing, and sends after paper is loaded", async () => {
     fake.runOutOfPaper();
-    const ending = printer.print(RECEIPT, observer.watch);
-    await fake.whenHeld(1);
+    const { sending, handed } = receiptToSend();
+    const ending = printer.print(observer.watch, sending);
+    const outcome = settled(ending);
+    await fake.whenConnectionCount(1);
 
     await pollUntil(() => observer.statuses.length === 1);
     expect(observer.statuses).toEqual(["paper_out"]);
+    expect(handed.calls).toBe(0);
+    expect(fake.printed).toEqual([]);
 
     fake.loadPaper();
-    expect(await ending).toEqual({ kind: "acknowledged" });
+    await pollUntil(() => outcome.done);
+    expect(await ending).toEqual({ kind: "sent" });
+    await fake.whenPrinted(1);
     expect(fake.printed).toEqual([RECEIPT]);
   });
 
   it("reports cover open rather than paper out when both are reported", async () => {
     fake.openCover();
     fake.runOutOfPaper();
-    void printer.print(RECEIPT, observer.watch);
-    await fake.whenHeld(1);
+    void printer.print(observer.watch, receiptToSend().sending);
+    await fake.whenConnectionCount(1);
 
     await pollUntil(() => observer.statuses.length === 1);
 
@@ -113,114 +129,98 @@ describe("TcpReceiptPrinter against a printer on the network", () => {
 
   it("does not repeat a status that has not changed", async () => {
     fake.openCover();
-    void printer.print(RECEIPT, observer.watch);
-    await fake.whenHeld(1);
+    void printer.print(observer.watch, receiptToSend().sending);
+    await fake.whenConnectionCount(1);
 
     await pollUntil(() => fake.statusQueries >= 4);
-    fake.closeCover();
-    await fake.whenStatusQueries(4);
 
     expect(observer.statuses).toEqual(["cover_open"]);
   });
 
-  it("reports not responding when the connection is refused, and sends the receipt once the printer accepts", async () => {
+  it("reports not responding when the connection is refused, and sends once the printer accepts", async () => {
     await fake.refuseConnections();
-    const ending = printer.print(RECEIPT, observer.watch);
+    const { sending, handed } = receiptToSend();
+    const ending = printer.print(observer.watch, sending);
     const outcome = settled(ending);
 
     await pollUntil(() => observer.statuses.length >= 1);
     expect(observer.statuses).toEqual(["not_responding"]);
+    expect(handed.calls).toBe(0);
 
     await fake.listen();
     await pollUntil(() => outcome.done);
-    expect(await ending).toEqual({ kind: "acknowledged" });
+    expect(await ending).toEqual({ kind: "sent" });
+    await fake.whenPrinted(1);
     expect(fake.printed).toEqual([RECEIPT]);
   });
 
-  it("reports not responding when the connection drops, without resending and without ever resolving", async () => {
-    fake.openCover();
-    const ending = printer.print(RECEIPT, observer.watch);
+  it("writes nothing while the printer stays silent, and sends once it answers ready", async () => {
+    fake.stayUnresponsive();
+    const { sending, handed } = receiptToSend();
+    const ending = printer.print(observer.watch, sending);
     const outcome = settled(ending);
-    await fake.whenHeld(1);
+    await fake.whenConnectionCount(1);
+
+    await pollUntil(() => observer.statuses.includes("not_responding"));
+    expect(handed.calls).toBe(0);
+
+    fake.respondAgain();
+    await pollUntil(() => outcome.done);
+    expect(await ending).toEqual({ kind: "sent" });
+    expect(observer.statuses).toEqual(["not_responding", "ready"]);
+  });
+
+  it("reports not responding when the connection drops and goes on waiting for a ready answer", async () => {
+    fake.openCover();
+    const { sending, handed } = receiptToSend();
+    const ending = printer.print(observer.watch, sending);
+    const outcome = settled(ending);
+    await fake.whenConnectionCount(1);
 
     fake.dropConnections();
     await pollUntil(() => observer.statuses.includes("not_responding"));
-    await pollUntil(() => observer.statuses.includes("cover_open"));
-    expect(fake.heldCount).toBe(1);
+    await pollUntil(() => observer.statuses.at(-1) === "cover_open");
+    expect(outcome.done).toBe(false);
+    expect(handed.calls).toBe(0);
 
     fake.closeCover();
-    await pollUntil(() => observer.statuses.at(-1) === "ready");
-
+    await pollUntil(() => outcome.done);
+    expect(await ending).toEqual({ kind: "sent" });
+    await fake.whenPrinted(1);
     expect(fake.printed).toEqual([RECEIPT]);
-    expect(outcome.done).toBe(false);
-    observer.abort.abort();
-    expect(await ending).toEqual({ kind: "abandoned" });
-  });
-
-  it("is ready again after a power cycle, never prints the lost receipt and waits until aborted", async () => {
-    fake.openCover();
-    const ending = printer.print(RECEIPT, observer.watch);
-    const outcome = settled(ending);
-    await fake.whenHeld(1);
-
-    fake.powerCycle();
-    await pollUntil(() => observer.statuses.at(-1) === "not_responding");
-    await pollUntil(() => observer.statuses.at(-1) === "ready");
-    const queries = fake.statusQueries;
-    await pollUntil(() => fake.statusQueries >= queries + 3);
-
-    expect(observer.statuses).toEqual(["not_responding", "ready"]);
-    expect(fake.printed).toEqual([]);
-    expect(fake.heldCount).toBe(0);
-    expect(outcome.done).toBe(false);
-
-    observer.abort.abort();
-    expect(await ending).toEqual({ kind: "abandoned" });
-    expect(fake.printed).toEqual([]);
-  });
-
-  it("does not take another print's acknowledgment for its own", async () => {
-    fake.openCover();
-    const ending = printer.print(RECEIPT, observer.watch);
-    const outcome = settled(ending);
-    await fake.whenHeld(1);
-
-    fake.sendToHosts(responseTo("ZZZZ"));
-    await pollUntil(() => observer.statuses.length === 1);
-    expect(outcome.done).toBe(false);
-
-    fake.closeCover();
-    expect(await ending).toEqual({ kind: "acknowledged" });
   });
 
   it("closes the connection and stops polling when aborted", async () => {
     fake.openCover();
-    const ending = printer.print(RECEIPT, observer.watch);
-    await fake.whenHeld(1);
+    const { sending, handed } = receiptToSend();
+    const ending = printer.print(observer.watch, sending);
+    await fake.whenConnectionCount(1);
 
     observer.abort.abort();
 
     expect(await ending).toEqual({ kind: "abandoned" });
+    expect(handed.calls).toBe(0);
     expect(timers.pending(POLL_INTERVAL_MS)).toBe(0);
     await fake.whenConnectionCount(0);
+    expect(fake.printed).toEqual([]);
   });
 
   it("is abandoned without connecting when already aborted", async () => {
     let connections = 0;
     const idle = new TcpReceiptPrinter({
-      host: "127.0.0.1",
-      port: fake.port,
+      address: () => ({ host: "127.0.0.1", port: fake.port }),
       timers,
-      nextPrintId: () => PRINT_ID,
       connect: () => {
         connections += 1;
         return new ScriptedSocket();
       },
     });
+    const { sending, handed } = receiptToSend();
     observer.abort.abort();
 
-    expect(await idle.print(RECEIPT, observer.watch)).toEqual({ kind: "abandoned" });
+    expect(await idle.print(observer.watch, sending)).toEqual({ kind: "abandoned" });
     expect(connections).toBe(0);
+    expect(handed.calls).toBe(0);
     expect(timers.pending(POLL_INTERVAL_MS)).toBe(0);
   });
 });
@@ -229,19 +229,21 @@ describe("TcpReceiptPrinter reading the printer's byte stream", () => {
   let timers: ManualTimers;
   let observer: ReceiptPrintObserver;
   let sockets: ScriptedSocket[];
+  let connections: Array<{ port: number; host: string }>;
+  let address: { host: string; port: number | null } | undefined;
   let printer: TcpReceiptPrinter;
-  let nextId: string;
 
   beforeEach(() => {
     timers = new ManualTimers();
     observer = new ReceiptPrintObserver();
     sockets = [];
-    nextId = PRINT_ID;
+    connections = [];
+    address = { host: "printer.local", port: null };
     printer = new TcpReceiptPrinter({
-      host: "printer.local",
+      address: () => address,
       timers,
-      nextPrintId: () => nextId,
-      connect: () => {
+      connect: (port, host) => {
+        connections.push({ port, host });
         const socket = new ScriptedSocket();
         sockets.push(socket);
         return socket;
@@ -253,82 +255,184 @@ describe("TcpReceiptPrinter reading the printer's byte stream", () => {
     observer.abort.abort();
   });
 
-  function connectedSocket(): ScriptedSocket {
-    const socket = sockets[0] as ScriptedSocket;
+  function socketAt(index = 0): ScriptedSocket {
+    return sockets[index] as ScriptedSocket;
+  }
+
+  function connectedSocket(index = 0): ScriptedSocket {
+    const socket = socketAt(index);
     socket.connected();
     return socket;
   }
 
-  it("sends the receipt followed by the transmit response request on connecting", () => {
-    void printer.print(RECEIPT, observer.watch);
-    const socket = connectedSocket();
+  function written(socket: ScriptedSocket): number[][] {
+    return socket.written.map((bytes) => [...bytes]);
+  }
 
-    expect(socket.written).toHaveLength(1);
-    expect([...(socket.written[0] as Uint8Array)]).toEqual([
-      ...RECEIPT,
-      ...TRANSMIT_RESPONSE_REQUEST,
-    ]);
+  it("connects to the raw printing port when the address has none", () => {
+    void printer.print(observer.watch, receiptToSend().sending);
+
+    expect(connections).toEqual([{ port: 9100, host: "printer.local" }]);
   });
 
-  it("acknowledges a response split across several chunks", async () => {
-    const ending = printer.print(RECEIPT, observer.watch);
-    const socket = connectedSocket();
+  it("connects to the port the address names", () => {
+    address = { host: "10.10.10.2", port: 9101 };
+    void printer.print(observer.watch, receiptToSend().sending);
 
-    socket.receive(0x37);
-    socket.receive(0x22, ...ascii("A1"));
-    socket.receive(...ascii("b2"), 0x00);
-
-    expect(await ending).toEqual({ kind: "acknowledged" });
+    expect(connections).toEqual([{ port: 9101, host: "10.10.10.2" }]);
   });
 
-  it("does not take id bytes that look like status bytes for statuses", async () => {
-    nextId = "2r2r";
-    const ending = printer.print(RECEIPT, observer.watch);
+  it("writes nothing on connecting, only status queries on each poll", () => {
+    void printer.print(observer.watch, receiptToSend().sending);
     const socket = connectedSocket();
 
-    socket.receive(...responseTo("2r2r"));
+    expect(socket.written).toEqual([]);
+    timers.fire(POLL_INTERVAL_MS);
+    socket.receive(COVER_OPEN);
+    timers.fire(POLL_INTERVAL_MS);
 
-    expect(await ending).toEqual({ kind: "acknowledged" });
-    expect(observer.statuses).toEqual([]);
+    expect(written(socket)).toEqual([STATUS_QUERY, STATUS_QUERY]);
   });
 
-  it("reads a status byte that follows a stray response mark", () => {
-    void printer.print(RECEIPT, observer.watch);
+  it("writes the bytes it is handed on the connection that answered ready, then ends it gracefully", async () => {
+    const { sending, handed } = receiptToSend();
+    const ending = printer.print(observer.watch, sending);
+    const socket = connectedSocket();
+    timers.fire(POLL_INTERVAL_MS);
+
+    socket.receive(READY);
+
+    expect(await ending).toEqual({ kind: "sent" });
+    expect(written(socket)).toEqual([STATUS_QUERY, [...RECEIPT]]);
+    expect(socket.ended).toBe(true);
+    expect(socket.destroyed).toBe(false);
+    expect(handed.calls).toBe(1);
+    expect(timers.pending(POLL_INTERVAL_MS)).toBe(0);
+  });
+
+  it("reports the ready status before asking for the bytes", () => {
+    const seen: string[] = [];
+    void printer.print(observer.watch, () => {
+      seen.push(...observer.statuses);
+      return RECEIPT;
+    });
+
+    connectedSocket().receive(READY);
+
+    expect(seen).toEqual(["ready"]);
+  });
+
+  it("asks for the bytes only once, however many ready answers follow", async () => {
+    const { sending, handed } = receiptToSend();
+    const ending = printer.print(observer.watch, sending);
     const socket = connectedSocket();
 
-    socket.receive(0x37, READY);
+    socket.receive(READY, READY);
+    await ending;
+    socket.receive(READY);
 
+    expect(handed.calls).toBe(1);
+    expect(written(socket)).toEqual([[...RECEIPT]]);
+  });
+
+  it("resolves sent even when the connection closes right after writing", async () => {
+    const ending = printer.print(observer.watch, receiptToSend().sending);
+    const socket = connectedSocket();
+
+    socket.receive(READY);
+    socket.emit("close");
+
+    expect(await ending).toEqual({ kind: "sent" });
     expect(observer.statuses).toEqual(["ready"]);
+    timers.fire(POLL_INTERVAL_MS);
+    expect(sockets).toHaveLength(1);
+  });
+
+  it("neither writes nor asks for the bytes while the status is not ready", () => {
+    const { sending, handed } = receiptToSend();
+    void printer.print(observer.watch, sending);
+    const socket = connectedSocket();
+
+    socket.receive(COVER_OPEN);
+    socket.receive(PAPER_OUT);
+
+    expect(handed.calls).toBe(0);
+    expect(socket.written).toEqual([]);
+  });
+
+  it.each([
+    ["an error", ERROR],
+    ["paper fed by its feed button", FEEDING],
+  ])(
+    "reports not responding and writes nothing while the printer reports %s, then sends once it answers ready",
+    async (_cause, status) => {
+      const { sending, handed } = receiptToSend();
+      const ending = printer.print(observer.watch, sending);
+      const socket = connectedSocket();
+
+      socket.receive(status);
+      expect(observer.statuses).toEqual(["not_responding"]);
+      expect(handed.calls).toBe(0);
+      expect(socket.written).toEqual([]);
+
+      socket.receive(READY);
+      expect(await ending).toEqual({ kind: "sent" });
+      expect(handed.calls).toBe(1);
+    },
+  );
+
+  it("writes nothing and is abandoned when aborted before a ready answer", async () => {
+    const { sending, handed } = receiptToSend();
+    const ending = printer.print(observer.watch, sending);
+    const socket = connectedSocket();
+
+    observer.abort.abort();
+    socket.receive(READY);
+
+    expect(await ending).toEqual({ kind: "abandoned" });
+    expect(handed.calls).toBe(0);
+    expect(socket.written).toEqual([]);
+    expect(socket.destroyed).toBe(true);
+  });
+
+  it("rejects and closes the connection when the bytes cannot be produced", async () => {
+    const ending = printer.print(observer.watch, () => {
+      throw new Error("cannot render");
+    });
+    const socket = connectedSocket();
+
+    socket.receive(READY);
+
+    await expect(ending).rejects.toThrow("cannot render");
+    expect(socket.written).toEqual([]);
+    expect(socket.destroyed).toBe(true);
+    expect(timers.pending(POLL_INTERVAL_MS)).toBe(0);
+  });
+
+  it("ignores bytes that are not a status", () => {
+    const { sending, handed } = receiptToSend();
+    void printer.print(observer.watch, sending);
+    const socket = connectedSocket();
+
+    socket.receive(0x37, 0x22, 0x41, 0x42, 0x43, 0x44, 0x00);
+
+    expect(observer.statuses).toEqual([]);
+    expect(handed.calls).toBe(0);
   });
 
   it("reads cover open before paper out and reports only changes", () => {
-    void printer.print(RECEIPT, observer.watch);
+    void printer.print(observer.watch, receiptToSend().sending);
     const socket = connectedSocket();
 
     socket.receive(COVER_OPEN);
     socket.receive(COVER_OPEN);
     socket.receive(PAPER_OUT);
-    socket.receive(READY);
 
-    expect(observer.statuses).toEqual(["cover_open", "paper_out", "ready"]);
-  });
-
-  it("queries the status on every poll", () => {
-    void printer.print(RECEIPT, observer.watch);
-    const socket = connectedSocket();
-
-    timers.fire(POLL_INTERVAL_MS);
-    socket.receive(READY);
-    timers.fire(POLL_INTERVAL_MS);
-
-    expect(socket.written.slice(1).map((bytes) => [...bytes])).toEqual([
-      STATUS_QUERY,
-      STATUS_QUERY,
-    ]);
+    expect(observer.statuses).toEqual(["cover_open", "paper_out"]);
   });
 
   it("reports not responding after two unanswered polls and recovers when the printer answers", () => {
-    void printer.print(RECEIPT, observer.watch);
+    void printer.print(observer.watch, receiptToSend().sending);
     const socket = connectedSocket();
 
     timers.fire(POLL_INTERVAL_MS);
@@ -337,101 +441,115 @@ describe("TcpReceiptPrinter reading the printer's byte stream", () => {
     timers.fire(POLL_INTERVAL_MS);
     expect(observer.statuses).toEqual(["not_responding"]);
 
-    socket.receive(READY);
-    expect(observer.statuses).toEqual(["not_responding", "ready"]);
+    socket.receive(COVER_OPEN);
+    expect(observer.statuses).toEqual(["not_responding", "cover_open"]);
   });
 
-  it("keeps querying the status of a printer that stopped answering, and recovers when it answers", () => {
-    void printer.print(RECEIPT, observer.watch);
+  it("keeps querying the status of a printer that stopped answering", () => {
+    void printer.print(observer.watch, receiptToSend().sending);
     const socket = connectedSocket();
 
     for (let poll = 0; poll < 5; poll += 1) timers.fire(POLL_INTERVAL_MS);
-    expect(observer.statuses).toEqual(["not_responding"]);
-    expect(socket.written.slice(1).map((bytes) => [...bytes])).toEqual(
-      Array.from({ length: 5 }, () => STATUS_QUERY),
-    );
 
-    socket.receive(READY);
-    expect(observer.statuses).toEqual(["not_responding", "ready"]);
+    expect(observer.statuses).toEqual(["not_responding"]);
+    expect(written(socket)).toEqual(Array.from({ length: 5 }, () => STATUS_QUERY));
   });
 
   it("reports not responding when the connect limit passes, then connects again at the next poll", () => {
-    void printer.print(RECEIPT, observer.watch);
+    void printer.print(observer.watch, receiptToSend().sending);
     expect(timers.pending(CONNECT_LIMIT_MS)).toBe(1);
 
     timers.fire(CONNECT_LIMIT_MS);
 
     expect(observer.statuses).toEqual(["not_responding"]);
-    expect((sockets[0] as ScriptedSocket).destroyed).toBe(true);
+    expect(socketAt(0).destroyed).toBe(true);
 
     timers.fire(POLL_INTERVAL_MS);
     expect(sockets).toHaveLength(2);
-    (sockets[1] as ScriptedSocket).connected();
-    expect((sockets[1] as ScriptedSocket).written).toHaveLength(1);
   });
 
   it("stops waiting for the connect limit once connected", () => {
-    void printer.print(RECEIPT, observer.watch);
+    void printer.print(observer.watch, receiptToSend().sending);
 
     connectedSocket();
 
     expect(timers.pending(CONNECT_LIMIT_MS)).toBe(0);
   });
 
-  it("reconnects after the socket closes and only asks for the status, never resending the receipt", () => {
-    void printer.print(RECEIPT, observer.watch);
+  it("reconnects after the socket closes and writes the bytes on the new connection when it answers ready", async () => {
+    const ending = printer.print(observer.watch, receiptToSend().sending);
     connectedSocket().emit("close");
     expect(observer.statuses).toEqual(["not_responding"]);
 
     timers.fire(POLL_INTERVAL_MS);
-    const second = sockets[1] as ScriptedSocket;
-    second.connected();
-    expect(second.written).toEqual([]);
+    const second = connectedSocket(1);
     timers.fire(POLL_INTERVAL_MS);
     second.receive(READY);
 
-    expect(second.written.map((bytes) => [...bytes])).toEqual([STATUS_QUERY]);
+    expect(await ending).toEqual({ kind: "sent" });
+    expect(written(second)).toEqual([STATUS_QUERY, [...RECEIPT]]);
     expect(observer.statuses).toEqual(["not_responding", "ready"]);
   });
 
   it("reports not responding on a socket error", () => {
-    void printer.print(RECEIPT, observer.watch);
+    void printer.print(observer.watch, receiptToSend().sending);
 
     connectedSocket().emit("error", new Error("reset"));
 
     expect(observer.statuses).toEqual(["not_responding"]);
   });
 
-  it("ignores an acknowledgment arriving on a connection that never carried the receipt", async () => {
-    const ending = printer.print(RECEIPT, observer.watch);
+  it("ignores the bytes of a connection it dropped", async () => {
+    const { sending, handed } = receiptToSend();
+    const ending = printer.print(observer.watch, sending);
     const outcome = settled(ending);
-    connectedSocket().emit("close");
+    const first = connectedSocket();
+    first.emit("close");
     timers.fire(POLL_INTERVAL_MS);
-    const second = sockets[1] as ScriptedSocket;
-    second.connected();
+    connectedSocket(1);
 
-    second.receive(...responseTo(PRINT_ID));
+    first.receive(READY);
     await Promise.resolve();
 
     expect(outcome.done).toBe(false);
+    expect(handed.calls).toBe(0);
+    expect(first.written).toEqual([]);
+    expect(observer.statuses).toEqual(["not_responding"]);
+  });
+
+  it("ignores the bytes of a connection that timed out before connecting", async () => {
+    const { sending, handed } = receiptToSend();
+    const ending = printer.print(observer.watch, sending);
+    const outcome = settled(ending);
+    timers.fire(CONNECT_LIMIT_MS);
+
+    socketAt(0).receive(READY);
+    await Promise.resolve();
+
+    expect(outcome.done).toBe(false);
+    expect(handed.calls).toBe(0);
   });
 });
 
-describe("TcpReceiptPrinter withdrawing a receipt", () => {
+describe("TcpReceiptPrinter following the configured address", () => {
   let timers: ManualTimers;
   let observer: ReceiptPrintObserver;
   let sockets: ScriptedSocket[];
+  let connections: Array<{ port: number; host: string }>;
+  let address: { host: string; port: number | null } | undefined;
   let printer: TcpReceiptPrinter;
 
   beforeEach(() => {
     timers = new ManualTimers();
     observer = new ReceiptPrintObserver();
     sockets = [];
+    connections = [];
+    address = { host: "10.10.10.2", port: null };
     printer = new TcpReceiptPrinter({
-      host: "printer.local",
+      address: () => address,
       timers,
-      nextPrintId: () => PRINT_ID,
-      connect: () => {
+      connect: (port, host) => {
+        connections.push({ port, host });
         const socket = new ScriptedSocket();
         sockets.push(socket);
         return socket;
@@ -443,169 +561,135 @@ describe("TcpReceiptPrinter withdrawing a receipt", () => {
     observer.abort.abort();
   });
 
-  function connected(index = 0): ScriptedSocket {
-    const socket = sockets[index] as ScriptedSocket;
-    socket.connected();
-    return socket;
+  function socketAt(index: number): ScriptedSocket {
+    return sockets[index] as ScriptedSocket;
   }
 
-  function writtenAfterReceipt(socket: ScriptedSocket): number[][] {
-    return socket.written.slice(1).map((bytes) => [...bytes]);
-  }
+  it("drops the connection and connects to the new address at the next poll", () => {
+    void printer.print(observer.watch, receiptToSend().sending);
+    socketAt(0).connected();
+    socketAt(0).receive(PAPER_OUT);
 
-  it("is withdrawn at once, writing nothing, when the receipt never reached the printer", async () => {
-    const ending = printer.print(RECEIPT, observer.watch);
+    address = { host: "10.10.10.3", port: 9101 };
+    timers.fire(POLL_INTERVAL_MS);
 
-    observer.withdraw.abort();
-
-    expect(await ending).toEqual({ kind: "withdrawn" });
-    expect((sockets[0] as ScriptedSocket).destroyed).toBe(true);
-    expect((sockets[0] as ScriptedSocket).written).toEqual([]);
-    expect(timers.pending(POLL_INTERVAL_MS)).toBe(0);
+    expect(socketAt(0).destroyed).toBe(true);
+    expect(connections).toEqual([
+      { port: 9100, host: "10.10.10.2" },
+      { port: 9101, host: "10.10.10.3" },
+    ]);
   });
 
-  it("never writes the receipt when the connection completes after the withdrawal", async () => {
-    const ending = printer.print(RECEIPT, observer.watch);
-    observer.withdraw.abort();
-    await ending;
+  it("sends the receipt on the new address's connection and never writes to the old one", async () => {
+    const { sending, handed } = receiptToSend();
+    const ending = printer.print(observer.watch, sending);
+    socketAt(0).connected();
+    socketAt(0).receive(PAPER_OUT);
+    address = { host: "10.10.10.3", port: null };
+    timers.fire(POLL_INTERVAL_MS);
+    socketAt(1).connected();
 
-    (sockets[0] as ScriptedSocket).connected();
+    socketAt(0).receive(READY);
+    expect(handed.calls).toBe(0);
+    timers.fire(POLL_INTERVAL_MS);
+    socketAt(1).receive(READY);
 
-    expect((sockets[0] as ScriptedSocket).written).toEqual([]);
+    expect(await ending).toEqual({ kind: "sent" });
+    expect(handed.calls).toBe(1);
+    expect(socketAt(1).written.map((bytes) => [...bytes])).toEqual([STATUS_QUERY, [...RECEIPT]]);
+    expect(socketAt(0).written).toEqual([]);
   });
 
-  it("is withdrawn without connecting when already asked to withdraw", async () => {
-    observer.withdraw.abort();
+  it("keeps the connection when the address is only written differently", () => {
+    void printer.print(observer.watch, receiptToSend().sending);
+    socketAt(0).connected();
 
-    expect(await printer.print(RECEIPT, observer.watch)).toEqual({ kind: "withdrawn" });
+    address = { host: "10.10.10.2", port: 9100 };
+    timers.fire(POLL_INTERVAL_MS);
+
+    expect(socketAt(0).destroyed).toBe(false);
+    expect(sockets).toHaveLength(1);
+  });
+
+  it("keeps the connection when the same host is written in another case", () => {
+    address = { host: "Ticketera.local", port: null };
+    void printer.print(observer.watch, receiptToSend().sending);
+    socketAt(0).connected();
+
+    address = { host: "ticketera.LOCAL", port: null };
+    timers.fire(POLL_INTERVAL_MS);
+
+    expect(sockets).toHaveLength(1);
+  });
+
+  it("changes connection when only the port differs", () => {
+    void printer.print(observer.watch, receiptToSend().sending);
+    socketAt(0).connected();
+
+    address = { host: "10.10.10.2", port: 9101 };
+    timers.fire(POLL_INTERVAL_MS);
+
+    expect(connections.at(-1)).toEqual({ port: 9101, host: "10.10.10.2" });
+  });
+
+  it("keeps the live connection when no address is configured any more", () => {
+    void printer.print(observer.watch, receiptToSend().sending);
+    socketAt(0).connected();
+
+    address = undefined;
+    timers.fire(POLL_INTERVAL_MS);
+
+    expect(socketAt(0).destroyed).toBe(false);
+    expect(sockets).toHaveLength(1);
+  });
+
+  it("keeps the live connection and its polling when the address cannot be read", () => {
+    let readable = true;
+    printer = new TcpReceiptPrinter({
+      address: () => {
+        if (!readable) throw new Error("the settings cannot be read");
+        return address;
+      },
+      timers,
+      connect: () => {
+        const socket = new ScriptedSocket();
+        sockets.push(socket);
+        return socket;
+      },
+    });
+    void printer.print(observer.watch, receiptToSend().sending);
+    socketAt(0).connected();
+
+    readable = false;
+    timers.fire(POLL_INTERVAL_MS);
+    timers.fire(POLL_INTERVAL_MS);
+
+    expect(socketAt(0).destroyed).toBe(false);
+    expect(socketAt(0).written.map((bytes) => [...bytes])).toEqual([STATUS_QUERY, STATUS_QUERY]);
+    expect(sockets).toHaveLength(1);
+  });
+
+  it("connects to the address a lost connection is replaced with", () => {
+    void printer.print(observer.watch, receiptToSend().sending);
+    socketAt(0).connected();
+    socketAt(0).emit("close");
+
+    address = { host: "10.10.10.3", port: null };
+    timers.fire(POLL_INTERVAL_MS);
+
+    expect(connections.at(-1)).toEqual({ port: 9100, host: "10.10.10.3" });
+  });
+
+  it("reports not responding and connects once an address exists when none was configured at the start", () => {
+    address = undefined;
+    void printer.print(observer.watch, receiptToSend().sending);
+
     expect(sockets).toHaveLength(0);
-  });
-
-  it("clears the printer's buffers and stays pending until the printer answers that they are cleared", async () => {
-    const ending = printer.print(RECEIPT, observer.watch);
-    const outcome = settled(ending);
-    const socket = connected();
-    socket.receive(PAPER_OUT);
-
-    observer.withdraw.abort();
-    expect(writtenAfterReceipt(socket)).toEqual([CLEAR_BUFFERS]);
-    await Promise.resolve();
-    expect(outcome.done).toBe(false);
-
-    socket.receive(...CLEARED);
-
-    expect(await ending).toEqual({ kind: "withdrawn" });
-    expect(socket.destroyed).toBe(true);
-    expect(timers.pending(POLL_INTERVAL_MS)).toBe(0);
-  });
-
-  it("reads the cleared answer split across several chunks", async () => {
-    const ending = printer.print(RECEIPT, observer.watch);
-    const socket = connected();
-    observer.withdraw.abort();
-
-    socket.receive(0x37);
-    socket.receive(0x25);
-    socket.receive(0x00);
-
-    expect(await ending).toEqual({ kind: "withdrawn" });
-  });
-
-  it("does not take a cleared answer that arrives without being asked to withdraw for a withdrawal", async () => {
-    const ending = printer.print(RECEIPT, observer.watch);
-    const outcome = settled(ending);
-    const socket = connected();
-
-    socket.receive(...CLEARED);
-    await Promise.resolve();
-
-    expect(outcome.done).toBe(false);
-    observer.withdraw.abort();
-    await Promise.resolve();
-    expect(outcome.done).toBe(false);
-    socket.receive(...CLEARED);
-    expect(await ending).toEqual({ kind: "withdrawn" });
-  });
-
-  it("falls back to reading a status byte after a response mark that is neither a print answer nor a cleared answer", () => {
-    void printer.print(RECEIPT, observer.watch);
-    const socket = connected();
-
-    socket.receive(0x37, 0x25, READY);
-
-    expect(observer.statuses).toEqual(["ready"]);
-  });
-
-  it("asks again to clear the buffers on every connection while withdrawing, never resending the receipt", async () => {
-    const ending = printer.print(RECEIPT, observer.watch);
-    const outcome = settled(ending);
-    connected().emit("close");
-    observer.withdraw.abort();
-    await Promise.resolve();
-    expect(outcome.done).toBe(false);
-
     timers.fire(POLL_INTERVAL_MS);
-    const second = sockets[1] as ScriptedSocket;
-    second.connected();
+    expect(observer.statuses).toEqual(["not_responding"]);
 
-    expect(second.written.map((bytes) => [...bytes])).toEqual([CLEAR_BUFFERS]);
-    second.receive(...CLEARED);
-    expect(await ending).toEqual({ kind: "withdrawn" });
-  });
-
-  it("clears the buffers of a connection that opens only after the withdrawal was asked", async () => {
-    const ending = printer.print(RECEIPT, observer.watch);
-    const first = connected();
-    first.emit("close");
+    address = { host: "10.10.10.2", port: null };
     timers.fire(POLL_INTERVAL_MS);
-    observer.withdraw.abort();
-
-    const second = connected(1);
-
-    expect(second.written.map((bytes) => [...bytes])).toEqual([CLEAR_BUFFERS]);
-    second.receive(...CLEARED);
-    expect(await ending).toEqual({ kind: "withdrawn" });
-  });
-
-  it("is acknowledged when the print acknowledgment arrives before the cleared answer", async () => {
-    const ending = printer.print(RECEIPT, observer.watch);
-    const socket = connected();
-    observer.withdraw.abort();
-
-    socket.receive(...responseTo(PRINT_ID));
-
-    expect(await ending).toEqual({ kind: "acknowledged" });
-  });
-
-  it("does nothing when the withdrawal is asked after the print finished", async () => {
-    const ending = printer.print(RECEIPT, observer.watch);
-    const socket = connected();
-    socket.receive(...responseTo(PRINT_ID));
-    await ending;
-    const written = socket.written.length;
-
-    observer.withdraw.abort();
-
-    expect(socket.written).toHaveLength(written);
-  });
-
-  it("is abandoned when aborted while withdrawing", async () => {
-    const ending = printer.print(RECEIPT, observer.watch);
-    connected();
-    observer.withdraw.abort();
-
-    observer.abort.abort();
-
-    expect(await ending).toEqual({ kind: "abandoned" });
-  });
-
-  it("keeps polling the status while it waits for the cleared answer", () => {
-    void printer.print(RECEIPT, observer.watch);
-    const socket = connected();
-    observer.withdraw.abort();
-
-    timers.fire(POLL_INTERVAL_MS);
-
-    expect(writtenAfterReceipt(socket)).toEqual([CLEAR_BUFFERS, STATUS_QUERY]);
+    expect(connections).toEqual([{ port: 9100, host: "10.10.10.2" }]);
   });
 });
