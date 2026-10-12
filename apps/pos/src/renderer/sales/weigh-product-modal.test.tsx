@@ -2,7 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import { deferred } from "./test-support/deferred";
+import { deferred } from "./test-support/sale-screen";
 import type { ScaleWeighing } from "./weigh-product-modal";
 import { WeighProductModal } from "./weigh-product-modal";
 

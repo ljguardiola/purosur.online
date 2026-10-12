@@ -1,10 +1,12 @@
-import type { LotReferenceCostBody } from "@purosur/contracts";
+import { type LotReferenceCostBody, lotReferenceCostBodySchema } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
-import { parseAmountCents } from "@purosur/ui";
+import { formatCents, parseAmountCents } from "@purosur/ui";
+import { schemaLimit } from "../platform/schema-limit";
 
 const COST_REQUIRED = "Ingresá el costo de referencia.";
 const COST_MALFORMED = "Escribí el costo con coma para los decimales, por ejemplo 10.180,50.";
-const COST_OUT_OF_RANGE = "Ingresá un costo mayor a cero.";
+const UNIT_COST_SCHEMA = lotReferenceCostBodySchema.shape.unitCostCents;
+const COST_OUT_OF_RANGE = `Ingresá un costo mayor a cero, de hasta ${formatCents(schemaLimit(UNIT_COST_SCHEMA.meta()?.["maxValue"]))}.`;
 
 export type CostFormValues = { cost: string };
 

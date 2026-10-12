@@ -37,7 +37,6 @@ import { flushSync } from "react-dom";
 import type { SearchResults } from "../platform/product-search-results";
 import { ProductSearchResults, searchOptionId } from "../platform/product-search-results";
 import type { ScaleWeighing } from "../platform/use-scale-weighing";
-import { WeighProductModal } from "../platform/weigh-product-modal";
 import { useBarcodeReadings } from "../shell/barcode-readings";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
@@ -60,6 +59,7 @@ import {
 } from "./sales-queries";
 import type { ScanProblem } from "./scan-problem-message";
 import { messageFor, ScanProblemMessage } from "./scan-problem-message";
+import { WeighProductModal } from "./weigh-product-modal";
 
 export type SaleScreenProps = {
   sessionId: string;

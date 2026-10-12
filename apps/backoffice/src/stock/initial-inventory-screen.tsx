@@ -34,6 +34,8 @@ type ScreenNotice = { id: number; title: string; description: string };
 
 const NO_LOTS: InitialInventoryLot[] = [];
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 const COST_OPTIONS = [
   { value: "all", label: "Todos" },
   { value: "incomplete", label: "Sin costo" },
@@ -110,6 +112,7 @@ export function InitialInventoryScreen({
   services,
 }: InitialInventoryScreenProps) {
   const [search, setSearch] = useState(filters.search);
+  const [debouncedSearch, setDebouncedSearch] = useState(filters.search.trim());
   const [cost, setCost] = useState(filters.cost);
   const [editTarget, setEditTarget] = useState<InitialInventoryLot | null>(null);
   const [notice, setNotice] = useState<ScreenNotice | null>(null);
@@ -124,8 +127,16 @@ export function InitialInventoryScreen({
     }
   }, [search, cost, filters]);
 
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [search]);
+
   const data = useInitialInventoryLotsQuery({
-    cost: cost === "all" ? undefined : cost,
+    filters: {
+      ...(cost === "all" ? {} : { cost }),
+      ...(debouncedSearch === "" ? {} : { product: debouncedSearch }),
+    },
     fetchInitialInventoryLots: services.fetchInitialInventoryLots,
     onSessionEnded,
   });
@@ -149,7 +160,6 @@ export function InitialInventoryScreen({
   const table = useTableModel({
     items: lots,
     id: (lot) => lot.lotId,
-    search: { text: search, in: (lot) => [lot.productName] },
     columns: [...columns, rowActions],
   });
   const shownLots = table.getRowModel().rows.map((row) => row.original);
@@ -179,7 +189,7 @@ export function InitialInventoryScreen({
           </div>
           <ListFilter
             name="cost"
-            label="Costo:"
+            label="Lotes:"
             options={COST_OPTIONS}
             value={cost}
             onChange={setCost}
@@ -190,7 +200,7 @@ export function InitialInventoryScreen({
           table={table}
           {...cloudTableState(data, "los lotes")}
           empty={
-            lots.length === 0 && cost === "all"
+            lots.length === 0 && cost === "all" && debouncedSearch === ""
               ? {
                   icon: <ClipboardList />,
                   title: "Todavía no se contó el local",

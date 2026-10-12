@@ -3,6 +3,7 @@ import {
   Button,
   Eyebrow,
   FigureStat,
+  formatNumber,
   LoadingPlaceholder,
   SidePanel,
   SummaryRowGroup,
@@ -24,15 +25,11 @@ function Totals({ lines }: { lines: readonly InitialCountLine[] }) {
       <FigureStat label={EYEBROW} size="heading" value={linesText(summary.lines)} />
       <SummaryRowGroup
         rows={[
-          { label: "Productos distintos", value: String(summary.products) },
+          { label: "Productos distintos", value: formatNumber(summary.products) },
           { label: "Con vencimiento", value: linesText(summary.withExpiry) },
           { label: "Sin vencimiento", value: linesText(summary.withoutExpiry) },
         ]}
       />
-      <p className="text-detail text-text-subtle">
-        Cada línea confirmada se guarda en el momento. Un mismo producto con dos vencimientos va en
-        dos líneas.
-      </p>
     </>
   );
 }

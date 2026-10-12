@@ -2,6 +2,7 @@ import {
   INITIAL_COUNT_COST_FILTERS,
   isCalendarDay,
   isReferenceUnitCost,
+  MAX_CASH_AMOUNT_CENTS,
   SALE_UNITS,
 } from "@purosur/domain";
 import { z } from "zod";
@@ -44,7 +45,8 @@ const UNIT_COST_MESSAGE = "unitCostCents must be a positive whole number of cent
 export const lotReferenceCostBodySchema = z.object({
   unitCostCents: z
     .number({ error: UNIT_COST_MESSAGE })
-    .refine((cents) => Number.isInteger(cents) && isReferenceUnitCost(cents), UNIT_COST_MESSAGE),
+    .refine((cents) => Number.isInteger(cents) && isReferenceUnitCost(cents), UNIT_COST_MESSAGE)
+    .meta({ maxValue: MAX_CASH_AMOUNT_CENTS }),
 });
 
 export type LotReferenceCostBody = z.input<typeof lotReferenceCostBodySchema>;

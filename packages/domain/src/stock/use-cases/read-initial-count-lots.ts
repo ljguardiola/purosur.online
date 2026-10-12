@@ -1,4 +1,5 @@
 import type { SaleUnit } from "../../catalog/index.js";
+import { compareSpanishText } from "../../shared/index.js";
 import { type InitialCountCostFilter, initialCountCostIncomplete } from "../model/initial-count.js";
 import { lotValueCents } from "../model/lot-value.js";
 import { lotUnitCostCents } from "../model/unit-cost.js";
@@ -58,7 +59,7 @@ export async function readInitialCountLots(
     }))
     .sort(
       (a, b) =>
-        compareText(a.productName, b.productName) ||
+        compareSpanishText(a.productName, b.productName) ||
         compareExpiry(a.expiresOn, b.expiresOn) ||
         compareText(a.lotId, b.lotId),
     );

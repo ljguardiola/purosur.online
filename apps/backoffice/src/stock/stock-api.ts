@@ -179,10 +179,17 @@ export function registerCount(body: StockCountBody): Promise<RegisterCountOutcom
 }
 
 export function fetchInitialInventoryLots(
-  cost: InitialInventoryLotsQuery["cost"],
+  filters: InitialInventoryLotsQuery,
 ): Promise<CloudReadOutcome<InitialInventoryLotList>> {
-  const query = cost === undefined ? "" : `?cost=${cost}`;
-  return readList(`/api/initial-inventory-lots${query}`, initialInventoryLotListSchema);
+  const query = new URLSearchParams();
+  if (filters.cost !== undefined) {
+    query.set("cost", filters.cost);
+  }
+  if (filters.product !== undefined) {
+    query.set("product", filters.product);
+  }
+  const search = query.size === 0 ? "" : `?${query.toString()}`;
+  return readList(`/api/initial-inventory-lots${search}`, initialInventoryLotListSchema);
 }
 
 export type SetLotReferenceCostOutcome =

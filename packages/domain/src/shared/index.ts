@@ -23,3 +23,4 @@ export { SALES_DENIED_REASONS } from "./sales-denied.js";
 export type { Scale, ScaleReading } from "./scale.js";
 export type { SlidingWindowLimit } from "./sliding-window-limit.js";
 export { slidingWindowRetryAfterSeconds, slidingWindowStart } from "./sliding-window-limit.js";
+export { compareSpanishText } from "./text-order.js";

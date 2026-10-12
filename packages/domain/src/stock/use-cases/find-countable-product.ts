@@ -1,5 +1,6 @@
 import {
   isBarcodeTooLong,
+  isProductNameTooLong,
   type NameMatch,
   rankProductSearch,
   type SaleUnit,
@@ -45,6 +46,9 @@ export function searchCountableProductsByName(
     const refusal = initialCountRefusal(tx, actorId);
     if (refusal) {
       return refusal;
+    }
+    if (isProductNameTooLong(query)) {
+      return { kind: "results", products: [], more: false };
     }
     const { hits, more } = rankProductSearch(tx.searchableProducts(), query);
     return {
