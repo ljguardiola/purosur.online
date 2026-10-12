@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { mercadoPagoOrderRequestSchema, mercadoPagoPaymentSchema } from "./mercado-pago-order.js";
+import {
+  mercadoPagoCancellationSchema,
+  mercadoPagoOrderRequestSchema,
+  mercadoPagoPaymentSchema,
+} from "./mercado-pago-order.js";
 
 const TRANSACTION_ID = "4b0d2c1e-7f3a-4e58-9a61-0c5d8e2f1a77";
 const SALE_ID = "9d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10";
@@ -91,4 +95,22 @@ describe("mercadoPagoPaymentSchema", () => {
       expect(mercadoPagoPaymentSchema.safeParse(rest).success).toBe(false);
     },
   );
+});
+
+describe("mercadoPagoCancellationSchema", () => {
+  it("accepts the state of a payment with whether it can only be cancelled on the terminal", () => {
+    const cancellation = { ...payment, provider: "MERCADOPAGO_POINT", cancel_on_terminal: true };
+
+    expect(mercadoPagoCancellationSchema.parse(cancellation)).toEqual(cancellation);
+  });
+
+  it("refuses an answer that does not say whether the cancellation is left to the terminal", () => {
+    expect(mercadoPagoCancellationSchema.safeParse(payment).success).toBe(false);
+  });
+
+  it("refuses a cancellation that is not a boolean", () => {
+    expect(
+      mercadoPagoCancellationSchema.safeParse({ ...payment, cancel_on_terminal: "yes" }).success,
+    ).toBe(false);
+  });
 });
