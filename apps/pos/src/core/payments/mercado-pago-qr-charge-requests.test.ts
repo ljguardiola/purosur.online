@@ -171,7 +171,9 @@ describe("starting a Mercado Pago QR charge at the register", () => {
       remaining_seconds: 180,
     });
     expect(orders.pendingRowsWhenAsked).toEqual([{ id: "qr-1", state: "PENDING" }]);
-    expect(orders.requested).toEqual([{ paymentTransactionId: "qr-1", saleId, amount: 2000 }]);
+    expect(orders.requested).toEqual([
+      { paymentTransactionId: "qr-1", saleId, method: "QR", amount: 2000 },
+    ]);
     expect(qrRows()).toEqual([
       {
         id: "qr-1",

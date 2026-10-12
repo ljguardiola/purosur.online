@@ -26,6 +26,7 @@ function payment(state: string, overrides: Record<string, unknown> = {}) {
     payment_transaction_id: PAYMENT_ID,
     state,
     needs_review: false,
+    provider: "MERCADOPAGO_QR",
     amount: 5000,
     expires_at: "2026-10-09T12:03:10.000Z",
     ...overrides,
