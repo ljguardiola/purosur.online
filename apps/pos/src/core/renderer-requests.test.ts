@@ -1217,10 +1217,11 @@ describe("answerRendererRequest", () => {
         type: "start-mercado-pago-charge",
         request_id: "r60",
         sale_id: "s1",
+        method: "QR",
         amount: 1200,
       }),
     ).toEqual({ type: "start-mercado-pago-charge-result", request_id: "r60", outcome });
-    expect(requests).toEqual([{ saleId: "s1", amount: 1200 }]);
+    expect(requests).toEqual([{ saleId: "s1", method: "QR", amount: 1200 }]);
   });
 
   it("follows a Mercado Pago QR charge and answers the outcome", async () => {
@@ -1308,6 +1309,7 @@ describe("answerRendererRequest", () => {
         type: "start-mercado-pago-charge",
         request_id: "r62",
         sale_id: "s1",
+        method: "QR",
         amount: 1200,
       }),
     ).toEqual({
@@ -1340,6 +1342,7 @@ describe("answerRendererRequest", () => {
         type: "start-mercado-pago-charge",
         request_id: "r64",
         sale_id: "s1",
+        method: "QR",
         amount: 1200,
       }),
     ).toEqual({

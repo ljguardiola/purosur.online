@@ -509,6 +509,7 @@ describe("createCoreClient", () => {
         type: "start-mercado-pago-charge",
         request_id: "request-1",
         sale_id: "sale-1",
+        method: "QR",
         amount: 300_000,
       },
     ]);

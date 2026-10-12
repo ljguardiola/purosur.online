@@ -26,6 +26,7 @@ function orderRequest(
   return {
     payment_transaction_id: crypto.randomUUID(),
     sale_id: crypto.randomUUID(),
+    provider: "MERCADOPAGO_QR",
     amount: 5000,
     ...overrides,
   };
@@ -210,6 +211,7 @@ describe("the Mercado Pago QR routes", () => {
         payment_transaction_id: body.payment_transaction_id,
         state: "PENDING",
         needs_review: false,
+        provider: "MERCADOPAGO_QR",
         amount: 5000,
         expires_at: "2026-10-09T12:03:10.000Z",
       });
@@ -277,6 +279,20 @@ describe("the Mercado Pago QR routes", () => {
       expect(cloudErrorSchema.parse(response.json()).code).toBe("not_found");
       expect(await transactions()).toMatchObject([{ registerId: owner.registerId }]);
       expect(route.mercadoPago.creations).toHaveLength(1);
+    });
+
+    it("answers that the provider is not configured for the integrated terminal, recording nothing and not calling Mercado Pago", async () => {
+      const { deviceToken } = await enroll();
+
+      const response = await createOrder(
+        orderRequest({ provider: "MERCADOPAGO_POINT" }),
+        `Bearer ${deviceToken}`,
+      );
+
+      expect(response.statusCode).toBe(503);
+      expect(cloudErrorSchema.parse(response.json()).code).toBe("payment_provider_not_configured");
+      expect(route.mercadoPago.creations).toEqual([]);
+      expect(await transactions()).toEqual([]);
     });
 
     it("answers that the provider refused the order", async () => {
