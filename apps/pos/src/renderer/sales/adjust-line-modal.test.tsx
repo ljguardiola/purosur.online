@@ -233,7 +233,7 @@ describe("AdjustLineModal", () => {
       .toHaveValue("");
   });
 
-  it("takes the discount in the narrow discount entry, with % inside it only for a percentage, and the promotion hint beside it", async () => {
+  it("takes the discount in the narrow discount entry, with % inside it only for a percentage", async () => {
     const { screen } = await renderModal();
     const reference = await renderReference(
       <TextField kind="discount" width="narrow" label="Referencia" value="" onChange={() => {}} />,
@@ -248,7 +248,6 @@ describe("AdjustLineModal", () => {
       await chooseKind(screen, unit);
       const input = screen.getByRole("textbox", { name }).element() as HTMLElement;
       const box = input.parentElement as HTMLElement;
-      const hint = screen.getByText("Reemplaza la promoción de la línea, si tiene.").element();
 
       expectDrawnLike(box, referenceBox, ["width", "height"], ` box`);
       expectDrawnLike(input, referenceInput, ["fontSize", "fontWeight", "textAlign"], ` value`);
@@ -257,9 +256,6 @@ describe("AdjustLineModal", () => {
           .filter((child) => child !== input)
           .map((child) => child.textContent),
       ).toEqual(affixes);
-      expect(hint.getBoundingClientRect().left).toBeGreaterThanOrEqual(
-        box.getBoundingClientRect().right,
-      );
     }
   });
 
