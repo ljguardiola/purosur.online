@@ -147,16 +147,16 @@ export type {
 export {
   paymentsCoreToRendererMessageSchema,
   paymentsRendererToCoreMessageSchema,
-  startMercadoPagoQrChargeMessageSchema,
+  startMercadoPagoChargeMessageSchema,
 } from "./payments/core-messages.js";
 export type {
-  MercadoPagoQrOrderRequestBody,
-  MercadoPagoQrPaymentBody,
-} from "./payments/mercado-pago-qr-order.js";
+  MercadoPagoOrderRequestBody,
+  MercadoPagoPaymentBody,
+} from "./payments/mercado-pago-order.js";
 export {
-  mercadoPagoQrOrderRequestSchema,
-  mercadoPagoQrPaymentSchema,
-} from "./payments/mercado-pago-qr-order.js";
+  mercadoPagoOrderRequestSchema,
+  mercadoPagoPaymentSchema,
+} from "./payments/mercado-pago-order.js";
 export type {
   DiscardedRefundBody,
   MarkedRefundDoneBody,

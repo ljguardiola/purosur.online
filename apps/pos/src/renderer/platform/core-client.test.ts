@@ -498,7 +498,7 @@ describe("createCoreClient", () => {
       remaining_seconds: 180,
     } as const;
     port.answer({
-      type: "start-mercado-pago-qr-charge-result",
+      type: "start-mercado-pago-charge-result",
       request_id: "request-1",
       outcome: shown,
     });
@@ -521,7 +521,7 @@ describe("createCoreClient", () => {
 
     const outcome = client.abandonMercadoPagoCharge("019a0000-0000-7000-8000-0000000000a1");
     port.answer({
-      type: "abandon-mercado-pago-qr-charge-result",
+      type: "abandon-mercado-pago-charge-result",
       request_id: "request-1",
       outcome: { kind: "cancelled" },
     });
@@ -543,7 +543,7 @@ describe("createCoreClient", () => {
 
     const outcome = client.followMercadoPagoCharge("019a0000-0000-7000-8000-0000000000a1");
     port.answer({
-      type: "follow-mercado-pago-qr-charge-result",
+      type: "follow-mercado-pago-charge-result",
       request_id: "request-1",
       outcome: { kind: "waiting", remaining_seconds: 161 },
     });

@@ -1,7 +1,7 @@
-import { startMercadoPagoQrChargeMessageSchema } from "@purosur/contracts";
+import { startMercadoPagoChargeMessageSchema } from "@purosur/contracts";
 import { parseAmountCents } from "@purosur/ui";
 
-export const startQrChargeRequestSchema = startMercadoPagoQrChargeMessageSchema.pick({
+export const startQrChargeRequestSchema = startMercadoPagoChargeMessageSchema.pick({
   amount: true,
 });
 

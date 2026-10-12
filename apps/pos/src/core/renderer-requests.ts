@@ -929,7 +929,7 @@ export async function answerRendererRequest(
       };
     case "start-mercado-pago-charge":
       return {
-        type: "start-mercado-pago-qr-charge-result",
+        type: "start-mercado-pago-charge-result",
         request_id: message.request_id,
         outcome: await attemptStartMercadoPagoQrCharge(deps, {
           saleId: message.sale_id,
@@ -938,7 +938,7 @@ export async function answerRendererRequest(
       };
     case "follow-mercado-pago-charge":
       return {
-        type: "follow-mercado-pago-qr-charge-result",
+        type: "follow-mercado-pago-charge-result",
         request_id: message.request_id,
         outcome: await attemptFollowMercadoPagoQrCharge(deps, {
           paymentTransactionId: message.payment_transaction_id,
@@ -946,7 +946,7 @@ export async function answerRendererRequest(
       };
     case "abandon-mercado-pago-charge":
       return {
-        type: "abandon-mercado-pago-qr-charge-result",
+        type: "abandon-mercado-pago-charge-result",
         request_id: message.request_id,
         outcome: await attemptAbandonMercadoPagoQrCharge(deps, {
           paymentTransactionId: message.payment_transaction_id,

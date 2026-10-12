@@ -1,9 +1,9 @@
 import {
   cloudError,
   cloudErrorStatus,
-  type MercadoPagoQrPaymentBody,
-  mercadoPagoQrOrderRequestSchema,
-  mercadoPagoQrPaymentSchema,
+  type MercadoPagoPaymentBody,
+  mercadoPagoOrderRequestSchema,
+  mercadoPagoPaymentSchema,
 } from "@purosur/contracts";
 import type { MercadoPagoOrderTransaction } from "@purosur/domain";
 import {
@@ -66,7 +66,7 @@ function sendError(reply: FastifyReply, error: CloudErrorBody) {
   return reply.code(cloudErrorStatus(error.code)).send(error);
 }
 
-function toWire(transaction: MercadoPagoOrderTransaction): MercadoPagoQrPaymentBody {
+function toWire(transaction: MercadoPagoOrderTransaction): MercadoPagoPaymentBody {
   return {
     payment_transaction_id: transaction.id,
     state: transaction.state,
@@ -130,7 +130,7 @@ export function registerMercadoPagoQrRoutes<TQueryResult extends PgQueryResultHK
           await sendError(reply, PROVIDER_NOT_CONFIGURED);
           return;
         }
-        const body = await readValidatedBody(reply, mercadoPagoQrOrderRequestSchema, request.body);
+        const body = await readValidatedBody(reply, mercadoPagoOrderRequestSchema, request.body);
         if (!body) {
           return;
         }
@@ -147,9 +147,7 @@ export function registerMercadoPagoQrRoutes<TQueryResult extends PgQueryResultHK
 
         switch (outcome.kind) {
           case "recorded":
-            await reply
-              .code(200)
-              .send(mercadoPagoQrPaymentSchema.parse(toWire(outcome.transaction)));
+            await reply.code(200).send(mercadoPagoPaymentSchema.parse(toWire(outcome.transaction)));
             return;
           case "invalid_amount":
             await sendError(reply, INVALID_AMOUNT);
@@ -195,9 +193,7 @@ export function registerMercadoPagoQrRoutes<TQueryResult extends PgQueryResultHK
 
         switch (outcome.kind) {
           case "read":
-            await reply
-              .code(200)
-              .send(mercadoPagoQrPaymentSchema.parse(toWire(outcome.transaction)));
+            await reply.code(200).send(mercadoPagoPaymentSchema.parse(toWire(outcome.transaction)));
             return;
           case "not_found":
             await sendError(reply, PAYMENT_NOT_OWNED);
@@ -236,9 +232,7 @@ export function registerMercadoPagoQrRoutes<TQueryResult extends PgQueryResultHK
           case "cancelled":
           case "approved":
           case "already_closed":
-            await reply
-              .code(200)
-              .send(mercadoPagoQrPaymentSchema.parse(toWire(outcome.transaction)));
+            await reply.code(200).send(mercadoPagoPaymentSchema.parse(toWire(outcome.transaction)));
             return;
           case "not_found":
             await sendError(reply, PAYMENT_NOT_OWNED);

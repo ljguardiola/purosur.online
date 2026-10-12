@@ -77,7 +77,7 @@ describe("starting a Mercado Pago QR charge", () => {
     { kind: "no_open_session" },
     { kind: "unavailable" },
   ])("accepts the result $kind", (outcome) => {
-    const result = { type: "start-mercado-pago-qr-charge-result", request_id: REQUEST_ID, outcome };
+    const result = { type: "start-mercado-pago-charge-result", request_id: REQUEST_ID, outcome };
 
     expect(paymentsCoreToRendererMessageSchema.parse(result)).toEqual(result);
   });
@@ -87,7 +87,7 @@ describe("starting a Mercado Pago QR charge", () => {
     ["a wait in part of a second", 1.5],
   ])("rejects an order shown with %s", (_case, remaining_seconds) => {
     const result = {
-      type: "start-mercado-pago-qr-charge-result",
+      type: "start-mercado-pago-charge-result",
       request_id: REQUEST_ID,
       outcome: {
         kind: "order_shown",
@@ -102,7 +102,7 @@ describe("starting a Mercado Pago QR charge", () => {
 
   it("accepts an order shown with more than the wait left, since it ends at the order's expiry", () => {
     const result = {
-      type: "start-mercado-pago-qr-charge-result",
+      type: "start-mercado-pago-charge-result",
       request_id: REQUEST_ID,
       outcome: {
         kind: "order_shown",
@@ -117,7 +117,7 @@ describe("starting a Mercado Pago QR charge", () => {
 
   it("rejects an order shown for no amount", () => {
     const result = {
-      type: "start-mercado-pago-qr-charge-result",
+      type: "start-mercado-pago-charge-result",
       request_id: REQUEST_ID,
       outcome: {
         kind: "order_shown",
@@ -172,7 +172,7 @@ describe("following a Mercado Pago QR charge", () => {
     { kind: "unavailable" },
   ])("accepts the result $kind", (outcome) => {
     const result = {
-      type: "follow-mercado-pago-qr-charge-result",
+      type: "follow-mercado-pago-charge-result",
       request_id: REQUEST_ID,
       outcome,
     };
@@ -182,7 +182,7 @@ describe("following a Mercado Pago QR charge", () => {
 
   it.each([-1, 2.5])("rejects a wait with %s seconds left", (remaining_seconds) => {
     const result = {
-      type: "follow-mercado-pago-qr-charge-result",
+      type: "follow-mercado-pago-charge-result",
       request_id: REQUEST_ID,
       outcome: { kind: "waiting", remaining_seconds },
     };
@@ -191,7 +191,7 @@ describe("following a Mercado Pago QR charge", () => {
   });
 
   it("rejects a result without its request id", () => {
-    const result = { type: "follow-mercado-pago-qr-charge-result", outcome: { kind: "declined" } };
+    const result = { type: "follow-mercado-pago-charge-result", outcome: { kind: "declined" } };
 
     expect(paymentsCoreToRendererMessageSchema.safeParse(result).success).toBe(false);
   });
@@ -244,7 +244,7 @@ describe("abandoning a Mercado Pago QR charge", () => {
     { kind: "unavailable" },
   ])("accepts the result $kind", (outcome) => {
     const result = {
-      type: "abandon-mercado-pago-qr-charge-result",
+      type: "abandon-mercado-pago-charge-result",
       request_id: REQUEST_ID,
       outcome,
     };
@@ -260,7 +260,7 @@ describe("abandoning a Mercado Pago QR charge", () => {
     { kind: "completed", sale_id: "s1", total: 3000 },
   ])("rejects the result %j", (outcome) => {
     const result = {
-      type: "abandon-mercado-pago-qr-charge-result",
+      type: "abandon-mercado-pago-charge-result",
       request_id: REQUEST_ID,
       outcome,
     };
@@ -270,7 +270,7 @@ describe("abandoning a Mercado Pago QR charge", () => {
 
   it("rejects a result without its request id", () => {
     const result = {
-      type: "abandon-mercado-pago-qr-charge-result",
+      type: "abandon-mercado-pago-charge-result",
       outcome: { kind: "cancelled" },
     };
 

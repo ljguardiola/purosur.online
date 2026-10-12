@@ -1219,7 +1219,7 @@ describe("answerRendererRequest", () => {
         sale_id: "s1",
         amount: 1200,
       }),
-    ).toEqual({ type: "start-mercado-pago-qr-charge-result", request_id: "r60", outcome });
+    ).toEqual({ type: "start-mercado-pago-charge-result", request_id: "r60", outcome });
     expect(requests).toEqual([{ saleId: "s1", amount: 1200 }]);
   });
 
@@ -1239,7 +1239,7 @@ describe("answerRendererRequest", () => {
         payment_transaction_id: "qr-1",
       }),
     ).toEqual({
-      type: "follow-mercado-pago-qr-charge-result",
+      type: "follow-mercado-pago-charge-result",
       request_id: "r61",
       outcome: { kind: "waiting", remaining_seconds: 100 },
     });
@@ -1262,7 +1262,7 @@ describe("answerRendererRequest", () => {
         payment_transaction_id: "qr-1",
       }),
     ).toEqual({
-      type: "abandon-mercado-pago-qr-charge-result",
+      type: "abandon-mercado-pago-charge-result",
       request_id: "r66",
       outcome: { kind: "replaced" },
     });
@@ -1282,7 +1282,7 @@ describe("answerRendererRequest", () => {
       payment_transaction_id: "qr-1",
     } as const;
     const unavailable = {
-      type: "abandon-mercado-pago-qr-charge-result",
+      type: "abandon-mercado-pago-charge-result",
       request_id: "r67",
       outcome: { kind: "unavailable" },
     };
@@ -1311,7 +1311,7 @@ describe("answerRendererRequest", () => {
         amount: 1200,
       }),
     ).toEqual({
-      type: "start-mercado-pago-qr-charge-result",
+      type: "start-mercado-pago-charge-result",
       request_id: "r62",
       outcome: { kind: "unavailable" },
     });
@@ -1322,7 +1322,7 @@ describe("answerRendererRequest", () => {
         payment_transaction_id: "qr-1",
       }),
     ).toEqual({
-      type: "follow-mercado-pago-qr-charge-result",
+      type: "follow-mercado-pago-charge-result",
       request_id: "r63",
       outcome: { kind: "unavailable" },
     });
@@ -1343,7 +1343,7 @@ describe("answerRendererRequest", () => {
         amount: 1200,
       }),
     ).toEqual({
-      type: "start-mercado-pago-qr-charge-result",
+      type: "start-mercado-pago-charge-result",
       request_id: "r64",
       outcome: { kind: "unavailable" },
     });
@@ -1354,7 +1354,7 @@ describe("answerRendererRequest", () => {
         payment_transaction_id: "qr-1",
       }),
     ).toEqual({
-      type: "follow-mercado-pago-qr-charge-result",
+      type: "follow-mercado-pago-charge-result",
       request_id: "r65",
       outcome: { kind: "unavailable" },
     });

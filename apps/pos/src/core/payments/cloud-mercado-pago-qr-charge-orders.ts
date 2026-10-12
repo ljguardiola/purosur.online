@@ -1,7 +1,7 @@
 import {
   isRetryableCloudError,
-  type MercadoPagoQrOrderRequestBody,
-  mercadoPagoQrPaymentSchema,
+  type MercadoPagoOrderRequestBody,
+  mercadoPagoPaymentSchema,
 } from "@purosur/contracts";
 import { MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS } from "@purosur/domain";
 import type {
@@ -34,7 +34,7 @@ function orderAnswerOf(response: CloudResponse): MercadoPagoChargeOrderAnswer {
   if (response.kind === "error") {
     return isRetryableCloudError(response.error.code) ? UNREACHABLE : { kind: "refused" };
   }
-  const payment = mercadoPagoQrPaymentSchema.safeParse(response.body);
+  const payment = mercadoPagoPaymentSchema.safeParse(response.body);
   return payment.success
     ? { kind: "created", expiresAt: new Date(payment.data.expires_at) }
     : UNREACHABLE;
@@ -47,7 +47,7 @@ function orderReadingOf(
   if (response.kind !== "ok") {
     return UNREACHABLE;
   }
-  const payment = mercadoPagoQrPaymentSchema.safeParse(response.body);
+  const payment = mercadoPagoPaymentSchema.safeParse(response.body);
   if (!payment.success || payment.data.payment_transaction_id !== paymentTransactionId) {
     return UNREACHABLE;
   }
@@ -81,7 +81,7 @@ export class CloudMercadoPagoQrChargeOrders implements MercadoPagoChargeOrders {
     if (deviceToken === undefined) {
       return { kind: "refused" };
     }
-    const body: MercadoPagoQrOrderRequestBody = {
+    const body: MercadoPagoOrderRequestBody = {
       payment_transaction_id: order.paymentTransactionId,
       sale_id: order.saleId,
       amount: order.amount,

@@ -1,7 +1,7 @@
 import {
   cloudErrorSchema,
-  type MercadoPagoQrOrderRequestBody,
-  mercadoPagoQrPaymentSchema,
+  type MercadoPagoOrderRequestBody,
+  mercadoPagoPaymentSchema,
 } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -21,8 +21,8 @@ import { mercadoPagoQrRoutesUnderTest } from "./test-support/mercado-pago-qr-und
 const route = mercadoPagoQrRoutesUnderTest();
 
 function orderRequest(
-  overrides: Partial<MercadoPagoQrOrderRequestBody> = {},
-): MercadoPagoQrOrderRequestBody {
+  overrides: Partial<MercadoPagoOrderRequestBody> = {},
+): MercadoPagoOrderRequestBody {
   return {
     payment_transaction_id: crypto.randomUUID(),
     sale_id: crypto.randomUUID(),
@@ -206,7 +206,7 @@ describe("the Mercado Pago QR routes", () => {
       const response = await createOrder(body, `Bearer ${deviceToken}`);
 
       expect(response.statusCode).toBe(200);
-      expect(mercadoPagoQrPaymentSchema.parse(response.json())).toEqual({
+      expect(mercadoPagoPaymentSchema.parse(response.json())).toEqual({
         payment_transaction_id: body.payment_transaction_id,
         state: "PENDING",
         needs_review: false,
@@ -237,7 +237,7 @@ describe("the Mercado Pago QR routes", () => {
 
       const response = await createOrder(orderRequest(), `Bearer ${deviceToken}`);
 
-      expect(mercadoPagoQrPaymentSchema.parse(response.json()).state).toBe("APPROVED");
+      expect(mercadoPagoPaymentSchema.parse(response.json()).state).toBe("APPROVED");
     });
 
     it("answers the payment already recorded without creating a second order when asked again", async () => {
@@ -345,7 +345,7 @@ describe("the Mercado Pago QR routes", () => {
       const response = await readPayment(body.payment_transaction_id, `Bearer ${deviceToken}`);
 
       expect(response.statusCode).toBe(200);
-      expect(mercadoPagoQrPaymentSchema.parse(response.json())).toMatchObject({
+      expect(mercadoPagoPaymentSchema.parse(response.json())).toMatchObject({
         payment_transaction_id: body.payment_transaction_id,
         state: "APPROVED",
         needs_review: false,
@@ -410,7 +410,7 @@ describe("the Mercado Pago QR routes", () => {
       const response = await cancelPayment(id, `Bearer ${deviceToken}`);
 
       expect(response.statusCode).toBe(200);
-      expect(mercadoPagoQrPaymentSchema.parse(response.json())).toMatchObject({
+      expect(mercadoPagoPaymentSchema.parse(response.json())).toMatchObject({
         payment_transaction_id: id,
         state: "CANCELLED",
         needs_review: false,
@@ -430,7 +430,7 @@ describe("the Mercado Pago QR routes", () => {
       const response = await cancelPayment(id, `Bearer ${deviceToken}`);
 
       expect(response.statusCode).toBe(200);
-      expect(mercadoPagoQrPaymentSchema.parse(response.json())).toMatchObject({
+      expect(mercadoPagoPaymentSchema.parse(response.json())).toMatchObject({
         state: "APPROVED",
       });
       expect(route.mercadoPago.cancellations).toEqual([]);
@@ -484,7 +484,7 @@ describe("the Mercado Pago QR routes", () => {
 
       expect(created.statusCode).toBe(200);
       expect(read.statusCode).toBe(200);
-      expect(mercadoPagoQrPaymentSchema.parse(read.json()).state).toBe("APPROVED");
+      expect(mercadoPagoPaymentSchema.parse(read.json()).state).toBe("APPROVED");
       const everything = JSON.stringify([
         await transactions(),
         created.json(),

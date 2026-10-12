@@ -715,7 +715,7 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           amount,
         },
         (answer) =>
-          answer.type === "start-mercado-pago-qr-charge-result" ? answer.outcome : undefined,
+          answer.type === "start-mercado-pago-charge-result" ? answer.outcome : undefined,
       );
     },
     followMercadoPagoCharge(paymentTransactionId) {
@@ -726,7 +726,7 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           payment_transaction_id: paymentTransactionId,
         },
         (answer) =>
-          answer.type === "follow-mercado-pago-qr-charge-result" ? answer.outcome : undefined,
+          answer.type === "follow-mercado-pago-charge-result" ? answer.outcome : undefined,
       );
     },
     abandonMercadoPagoCharge(paymentTransactionId) {
@@ -737,7 +737,7 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           payment_transaction_id: paymentTransactionId,
         },
         (answer) =>
-          answer.type === "abandon-mercado-pago-qr-charge-result" ? answer.outcome : undefined,
+          answer.type === "abandon-mercado-pago-charge-result" ? answer.outcome : undefined,
       );
     },
     closeCashSession(sessionId, countedCash) {
