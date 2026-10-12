@@ -824,8 +824,31 @@ describe("add-scanned-product while a QR charge of the sale is in its wait", () 
 });
 
 describe("add-scanned-product on a sale with a discount on the total", () => {
+  const FIDEOS = { id: "fideos", name: "Fideos", saleUnit: "UNIT" as const };
+
   function discountedStore(): FakeSaleLedger {
-    const store = scannedOnce(2);
+    const store = ledger({
+      products: [YERBA, FIDEOS],
+      barcodes: { "7790001": "yerba", "7790003": "fideos" },
+      prices: [
+        {
+          id: "price-1",
+          productId: "yerba",
+          priceListId: "list-1",
+          unitPrice: 2500,
+          validFrom: LONG_AGO,
+        },
+        {
+          id: "price-2",
+          productId: "fideos",
+          priceListId: "list-1",
+          unitPrice: 900,
+          validFrom: LONG_AGO,
+        },
+      ],
+    });
+    scan(store);
+    scan(store);
     const [sale] = store.state.sales;
     if (sale) {
       sale.saleDiscount = TEN_PERCENT_SALE_DISCOUNT;
@@ -852,7 +875,7 @@ describe("add-scanned-product on a sale with a discount on the total", () => {
   it("removes the discount and tells so when a new line is added", () => {
     const store = discountedStore();
 
-    const outcome = scan(store, "7790002");
+    const outcome = scan(store, "7790003");
 
     expect(store.state.sales[0]?.saleDiscount).toBeNull();
     expect(outcome).toEqual(expect.objectContaining({ kind: "added", removedSaleDiscount: true }));
@@ -863,7 +886,7 @@ describe("add-scanned-product on a sale with a discount on the total", () => {
 
     const outcome = scan(store, "0000");
 
-    expect(outcome).toEqual({ kind: "product_not_found" });
+    expect(outcome).toEqual({ kind: "unknown_code" });
     expect(store.state.sales[0]?.saleDiscount).toEqual(TEN_PERCENT_SALE_DISCOUNT);
   });
 });

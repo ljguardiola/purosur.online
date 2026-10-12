@@ -89,6 +89,7 @@ export function readOpenSale(
     sessionId: sale.session_id,
     actorId: sale.actor_id,
     state: "OPEN",
+    saleDiscount: null,
     lines: lines.map((line) =>
       toSaleLine(
         line,

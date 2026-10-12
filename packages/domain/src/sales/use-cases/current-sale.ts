@@ -2,7 +2,7 @@ import type { ChargeRefusal } from "../../fiscal/index.js";
 import type { Clock } from "../../shared/index.js";
 import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { SaleWithLines } from "../model/sale.js";
-import { saleTotal } from "../model/sale-line.js";
+import { amountToCharge, appliedSaleDiscountAmount } from "../model/sale-discount.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
@@ -23,6 +23,7 @@ export type CurrentSaleOutcome =
   | ({
       kind: "open";
       sale: SaleWithLines;
+      saleDiscountAmount: number;
       chargeRefusal: ChargeRefusal | undefined;
     } & OpenSaleStanding);
 
@@ -42,9 +43,10 @@ export function currentSale(
     return {
       kind: "open",
       sale,
+      saleDiscountAmount: appliedSaleDiscountAmount(sale),
       chargeRefusal: saleChargeRefusal(tx, sale, clock.now()),
       ...openSaleStanding(
-        saleTotal(sale.lines),
+        amountToCharge(sale),
         tx.salePayments(sale.id),
         tx.pendingQrPaymentsOf(sale.id),
         clock.now(),

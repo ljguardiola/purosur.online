@@ -101,6 +101,9 @@ export class SqliteSaleLedger implements SaleLedger {
       recordOpenedSale: (sale) => this.recordOpenedSale(sale),
       recordSaleLine: (saleId, line) => this.recordSaleLine(saleId, line),
       recordChangedLine: (line) => this.recordChangedLine(line),
+      recordSaleDiscount: () => {
+        throw new Error("the register does not store a discount on the sale's total yet");
+      },
       deleteSaleLine: (lineId) => this.deleteSaleLine(lineId),
       salePayments: (saleId) => readSalePayments(this.database, saleId),
       discardOpenSale: (saleId) => this.discardOpenSale(saleId),

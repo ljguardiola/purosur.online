@@ -47,6 +47,8 @@ function manualAdjustment(adjustment: ManualAdjustmentPayload | null): ManualAdj
 
 function saleParts(payload: CompletedSalePayload | CancelledSalePayload) {
   return {
+    saleDiscount: null,
+    saleDiscountAmount: 0,
     lines: payload.lines.map((line) => ({
       id: line.id,
       productId: line.product_id,
@@ -56,6 +58,7 @@ function saleParts(payload: CompletedSalePayload | CancelledSalePayload) {
       priceListId: line.price_list_id,
       promotionId: line.promotion_id,
       discountAmount: line.discount_amount,
+      saleDiscountShare: 0,
       weightSource: "weight_source" in line ? line.weight_source : null,
       manualAdjustment:
         "manual_adjustment" in line ? manualAdjustment(line.manual_adjustment) : null,

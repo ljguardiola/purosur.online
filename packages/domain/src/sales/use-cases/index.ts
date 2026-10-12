@@ -25,6 +25,13 @@ export type {
 } from "./adjust-sale-line.js";
 export { adjustSaleLine } from "./adjust-sale-line.js";
 export type {
+  ApplySaleDiscountGrant,
+  ApplySaleDiscountInput,
+  ApplySaleDiscountOutcome,
+  ApplySaleDiscountPorts,
+} from "./apply-sale-discount.js";
+export { applySaleDiscount } from "./apply-sale-discount.js";
+export type {
   CancelPaidSaleGrant,
   CancelPaidSaleInput,
   CancelPaidSaleOutcome,
@@ -67,6 +74,12 @@ export type {
   CurrentSalePorts,
 } from "./current-sale.js";
 export { currentSale } from "./current-sale.js";
+export type {
+  PreviewSaleDiscountInput,
+  PreviewSaleDiscountOutcome,
+  PreviewSaleDiscountPorts,
+} from "./preview-sale-discount.js";
+export { previewSaleDiscount } from "./preview-sale-discount.js";
 export type {
   PreviewSaleLineAdjustmentInput,
   PreviewSaleLineAdjustmentOutcome,

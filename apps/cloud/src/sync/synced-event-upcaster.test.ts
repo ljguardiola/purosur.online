@@ -83,6 +83,7 @@ const decodedLine = {
   priceListId: saleLine.price_list_id,
   promotionId: null,
   discountAmount: 0,
+  saleDiscountShare: 0,
   lineTotal: 4800,
 };
 
@@ -129,6 +130,8 @@ describe("decoding the events the registers pushed", () => {
           completedAt: new Date("2026-10-06T11:20:00.000Z"),
           operationNumber: null,
           total: 4800,
+          saleDiscount: null,
+          saleDiscountAmount: 0,
           lines: [decodedLine],
           payments: [
             {
@@ -851,6 +854,8 @@ describe("decoding the events the registers pushed", () => {
           authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
           cancelledAt: new Date("2026-10-06T11:25:00.000Z"),
           total: 4800,
+          saleDiscount: null,
+          saleDiscountAmount: 0,
           lines: [decodedLine],
           payments: [
             {

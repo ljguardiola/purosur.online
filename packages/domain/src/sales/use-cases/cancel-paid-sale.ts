@@ -4,7 +4,7 @@ import { registerOperationAccess } from "../../register/index.js";
 import type { Clock, OperationAuthority, OutboxEventDraft } from "../../shared/index.js";
 import { saleCancelRefusal } from "../model/open-sale-standing.js";
 import type { SaleWithLines } from "../model/sale.js";
-import { saleTotal } from "../model/sale-line.js";
+import { amountToCharge, settledLines } from "../model/sale-discount.js";
 import { saleCashMovementRecord, saleLineRecord } from "./sale-event-records.js";
 import type {
   IdGenerator,
@@ -162,8 +162,8 @@ function saleCancelledEvent(
       actor_id: sale.actorId,
       authorized_by: grant.authorizedBy ?? null,
       occurred_at: occurredAtIso,
-      total: saleTotal(sale.lines),
-      lines: sale.lines.map(saleLineRecord),
+      total: amountToCharge(sale),
+      lines: settledLines(sale).map(saleLineRecord),
       payments: payments.map(paymentRecord),
       refunds: refunds.map((refund) => ({
         id: refund.id,
