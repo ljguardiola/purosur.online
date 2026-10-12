@@ -481,6 +481,14 @@ describe("addScannedProduct", () => {
     expect(outcome.kind === "added" && outcome.sale.lines[0]?.listUnitPrice).toBe(2700);
   });
 
+  it("refuses a product with no synced price, naming it and changing nothing", () => {
+    const store = ledger({ prices: [] });
+    const before = structuredClone(store.state);
+
+    expect(scan(store)).toEqual({ kind: "no_price", productName: "Yerba 1 kg" });
+    nothingRecorded(store, before);
+  });
+
   it("asks for the weight of a product sold by weight, naming it and changing nothing", () => {
     const store = ledger({
       prices: [
