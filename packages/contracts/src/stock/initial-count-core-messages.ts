@@ -74,7 +74,7 @@ const initialCountLineSchema = z.object({
 });
 export type InitialCountLine = z.infer<typeof initialCountLineSchema>;
 
-export const readInitialCountOutcomeSchema = z.discriminatedUnion("kind", [
+const readInitialCountOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("read"),
     offered: z.boolean(),
@@ -86,7 +86,7 @@ export const readInitialCountOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type ReadInitialCountOutcome = z.infer<typeof readInitialCountOutcomeSchema>;
 
-export const recordInitialCountLineOutcomeSchema = z.discriminatedUnion("kind", [
+const recordInitialCountLineOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("recorded"), line: initialCountLineSchema }),
   z.object({ kind: z.literal("unknown_product") }),
   z.object({ kind: z.literal("invalid_quantity") }),
@@ -98,7 +98,7 @@ export const recordInitialCountLineOutcomeSchema = z.discriminatedUnion("kind", 
 ]);
 export type RecordInitialCountLineOutcome = z.infer<typeof recordInitialCountLineOutcomeSchema>;
 
-export const withdrawInitialCountLineOutcomeSchema = z.discriminatedUnion("kind", [
+const withdrawInitialCountLineOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("withdrawn") }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("already_withdrawn") }),
@@ -109,7 +109,7 @@ export const withdrawInitialCountLineOutcomeSchema = z.discriminatedUnion("kind"
 ]);
 export type WithdrawInitialCountLineOutcome = z.infer<typeof withdrawInitialCountLineOutcomeSchema>;
 
-export const findCountableProductOutcomeSchema = z.discriminatedUnion("kind", [
+const findCountableProductOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("found"),
     product: z.object({
@@ -126,7 +126,7 @@ export const findCountableProductOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type FindCountableProductOutcome = z.infer<typeof findCountableProductOutcomeSchema>;
 
-export const searchCountableProductsOutcomeSchema = z.discriminatedUnion("kind", [
+const searchCountableProductsOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("results"),
     products: z
@@ -148,7 +148,7 @@ export const searchCountableProductsOutcomeSchema = z.discriminatedUnion("kind",
 ]);
 export type SearchCountableProductsOutcome = z.infer<typeof searchCountableProductsOutcomeSchema>;
 
-export const weighCountedProductOutcomeSchema = z.discriminatedUnion("kind", [
+const weighCountedProductOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("weighed"), weight_thousandths: countedQuantitySchema }),
   z.object({ kind: z.literal("weighing") }),
   z.object({ kind: z.literal("scale_unavailable") }),
