@@ -42,17 +42,25 @@ const HELP = defineHelp("es-AR", {
 
 async function renderScreen({
   registerName = null,
+  sessionOpen = false,
   help = HELP,
   signOut = vi.fn(),
 }: {
   registerName?: string | null;
+  sessionOpen?: boolean;
   help?: HelpScreenProps["help"];
   signOut?: () => void;
 } = {}) {
   await page.viewport(1280, 900);
   onTestFinished(() => page.viewport(414, 896));
   const screen = await render(
-    <HelpScreen person={PERSON} registerName={registerName} help={help} signOut={signOut} />,
+    <HelpScreen
+      person={PERSON}
+      registerName={registerName}
+      sessionOpen={sessionOpen}
+      help={help}
+      signOut={signOut}
+    />,
   );
   return { screen, signOut };
 }
@@ -193,6 +201,27 @@ describe("HelpScreen", () => {
       .not.toHaveAttribute("aria-current");
     await userEvent.click(screen.getByRole("link", { name: "Inicio" }));
     expect(screen.router.state.location.pathname).toBe("/");
+  });
+
+  it("offers the open-session menu, with Ayuda as current, while a session is open", async () => {
+    const { screen } = await renderScreen({ sessionOpen: true });
+
+    await expect
+      .element(screen.getByRole("link", { name: "Ayuda" }))
+      .toHaveAttribute("aria-current", "page");
+    await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Inicio" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("link", { name: "Venta" }));
+    expect(screen.router.state.location.pathname).toBe("/session");
+  });
+
+  it("leaves the register locked from Salir while a session is open", async () => {
+    const { screen, signOut } = await renderScreen({ sessionOpen: true });
+
+    await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+    await userEvent.click(screen.getByRole("button", { name: "Dejar bloqueada" }));
+
+    expect(signOut).toHaveBeenCalledOnce();
   });
 
   it("asks for confirmation before signing out", async () => {

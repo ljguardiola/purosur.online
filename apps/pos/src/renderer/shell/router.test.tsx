@@ -900,6 +900,79 @@ describe("the register's router", () => {
     await expect.element(screen.getByRole("link", { name: "Ayuda" })).not.toBeInTheDocument();
   });
 
+  it("renders the help with a session open, with the open-session menu, for a person who may read it", async () => {
+    const router = routerAt("/help", "up", "enrolled", HELP_READER, OPEN_SESSION);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/help"](screen)).toBeVisible();
+    expect(router.state.location.pathname).toBe("/help");
+    await expect.element(screen.getByRole("link", { name: "Venta" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: "Ayuda" }))
+      .toHaveAttribute("aria-current", "page");
+  });
+
+  it("sends a person who may not read the help to the sale while a session is open", async () => {
+    const router = routerAt("/help", "up", "enrolled", PRINTER_CONFIGURER, OPEN_SESSION);
+
+    await render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname).toBe("/session");
+  });
+
+  it("opens the help from the sale and goes back to Venta with the session open and its sale as it was", async () => {
+    const signOut = vi.fn();
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", HELP_READER, signOut, OPEN_SESSION),
+        currentSale: async () => ({
+          id: "sale-1",
+          lines: [
+            {
+              id: "line-1",
+              product_id: "p1",
+              product_name: "Yerba mate 1 kg",
+              sale_unit: "UNIT" as const,
+              weight_source: null,
+              quantity: 1,
+              list_unit_price: 238_000,
+              discount_amount: 0,
+              promotion: null,
+              manual_adjustment: null,
+              line_total: 238_000,
+            },
+          ],
+          total: 238_000,
+          paid: 0,
+          pending: 238_000,
+          lines_lock: null,
+          cancel_refusal: null,
+          charge_refusal: null,
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
+          adjust_authorization_required: false,
+          sale_discount_authorization_required: false,
+          sale_discount_refusal: null,
+          sale_discount: null,
+          subtotal: 238_000,
+        }),
+      },
+      "/session",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("link", { name: "Ayuda" }));
+    await expect.element(screenFor["/help"](screen)).toBeVisible();
+    await userEvent.click(screen.getByRole("link", { name: "Venta" }));
+
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    expect(router.state.location.pathname).toBe("/session");
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
   it("renders the receipt printer screen for a person who may configure it", async () => {
     const router = routerAt("/receipt-printer", "up", "enrolled", PRINTER_CONFIGURER);
 
