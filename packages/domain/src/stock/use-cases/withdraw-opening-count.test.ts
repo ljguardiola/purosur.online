@@ -138,7 +138,7 @@ describe("withdrawOpeningCount", () => {
     expect(store.balanceOf(YERBA)).toBe(3_000);
   });
 
-  it("takes nothing from a lot already in debt, never leaving it negative, and records no movement", async () => {
+  it("takes nothing from a lot already in debt, never leaving it negative, and records a withdrawal of nothing", async () => {
     const store = await storeWithLine();
     await sell(store, 7_000);
 
@@ -147,9 +147,10 @@ describe("withdrawOpeningCount", () => {
     expect(outcome).toMatchObject({ kind: "withdrawn", taken: 0, notTaken: 6_000 });
     expect(lotOf(store, "movement-a")).toMatchObject({ remaining: -1_000, withdrawn: true });
     expect(store.balanceOf(YERBA)).toBe(-1_000);
-    expect(store.snapshot().movements.some((movement) => movement.id === "withdrawal-a")).toBe(
-      false,
-    );
+    expect(
+      store.snapshot().movements.find((movement) => movement.id === "withdrawal-a"),
+    ).toMatchObject({ kind: "opening_count_withdrawal", delta: 0 });
+    expect(store.snapshot().allocations.some((a) => a.movementId === "withdrawal-a")).toBe(false);
   });
 
   it("takes from the withdrawn line's own lot only, not from the lot that expires first", async () => {
