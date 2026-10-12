@@ -18,6 +18,7 @@ import {
   retryReceiptPrintFor,
 } from "./receipt-requests";
 import { ControllableReceiptPrinter } from "./test-support/controllable-receipt-printer";
+import { ReceiptPrintObserver } from "./test-support/receipt-print-watch";
 
 const START = new Date("2026-10-08T12:00:00.000Z");
 const COMPLETED_AT = "2026-10-08T11:59:00.000Z";
@@ -317,25 +318,29 @@ describe("the print status of a sale's receipt", () => {
   });
 });
 
-function jobsAnswering(
+const WITHDRAWING_PRINTERS: ReceiptRequestDeps["printers"] = {
+  configured: () => ({ print: async () => ({ kind: "withdrawn" }) }),
+};
+
+function jobsRunningUnwatched(
   standing: ReturnType<typeof jobs.standingOf>,
-  outcome: { kind: string; copy: { kind: "duplicate"; orderNumber: number } },
 ): ReceiptRequestDeps["jobs"] {
   return {
     standingOf: () => standing,
     withdrawHeld: () => {},
-    start: async () => ({ kind: "answered", outcome }) as never,
+    start: async (_saleId, run) => ({
+      kind: "answered",
+      outcome: await run({ watch: new ReceiptPrintObserver().watch, printers: (inner) => inner }),
+    }),
   };
 }
 
 describe("retrying a sale's receipt print", () => {
   it("starts a retry whose receipt the printer withdrew", async () => {
-    const withdrawn = jobsAnswering("withdrawn", {
-      kind: "withdrawn",
-      copy: { kind: "duplicate", orderNumber: 1 },
-    });
+    await printedAndOffered();
+    const withdrawn = { jobs: jobsRunningUnwatched("withdrawn"), printers: WITHDRAWING_PRINTERS };
 
-    expect(await retryReceiptPrintFor(deps({ jobs: withdrawn }), "sale-1")).toEqual({
+    expect(await retryReceiptPrintFor(deps(withdrawn), "sale-1")).toEqual({
       kind: "started",
       copy: { kind: "duplicate", order_number: 1 },
     });
@@ -408,14 +413,12 @@ describe("retrying a sale's receipt print", () => {
 
 describe("reprinting a sale's receipt from the history", () => {
   it("starts a reprint whose receipt the printer withdrew", async () => {
+    await printedAndOffered();
     signedInPerson.set("supervisor");
-    const withdrawn = jobsAnswering("withdrawn", {
-      kind: "withdrawn",
-      copy: { kind: "duplicate", orderNumber: 1 },
-    });
+    const withdrawn = { jobs: jobsRunningUnwatched("withdrawn"), printers: WITHDRAWING_PRINTERS };
 
     expect(
-      await reprintSaleReceiptFor(deps({ jobs: withdrawn }), { saleId: "sale-1", reason: REASON }),
+      await reprintSaleReceiptFor(deps(withdrawn), { saleId: "sale-1", reason: REASON }),
     ).toEqual({ kind: "started", copy: { kind: "duplicate", order_number: 1 } });
   });
 
