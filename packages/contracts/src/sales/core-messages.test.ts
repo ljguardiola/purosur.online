@@ -819,9 +819,7 @@ describe("applying a discount on the sale's total", () => {
     ["no request id", { request_id: undefined }],
     ["an authorization missing the PIN", { authorization: { user_id: "u2" } }],
   ])("rejects a discount with %s", (_case, change) => {
-    expect(salesRendererToCoreMessageSchema.safeParse({ ...apply, ...change }).success).toBe(
-      false,
-    );
+    expect(salesRendererToCoreMessageSchema.safeParse({ ...apply, ...change }).success).toBe(false);
   });
 
   it("accepts the answer to the discount", () => {
@@ -926,22 +924,34 @@ describe("sale line answers", () => {
   };
 
   it.each([
-    ["change-line-quantity-result", { kind: "changed", sale, removed_manual_discount: false, removed_sale_discount: false }],
+    [
+      "change-line-quantity-result",
+      { kind: "changed", sale, removed_manual_discount: false, removed_sale_discount: false },
+    ],
     ["change-line-quantity-result", { kind: "unknown_line" }],
     ["change-line-quantity-result", { kind: "stale_quantity" }],
     ["change-line-quantity-result", { kind: "sale_has_payments" }],
     ["change-line-quantity-result", { kind: "sold_by_weight" }],
-    ["change-line-weight-result", { kind: "changed", sale, removed_manual_discount: false, removed_sale_discount: false }],
+    [
+      "change-line-weight-result",
+      { kind: "changed", sale, removed_manual_discount: false, removed_sale_discount: false },
+    ],
     ["change-line-weight-result", { kind: "stale_weight" }],
     ["change-line-weight-result", { kind: "invalid_weight" }],
     ["change-line-weight-result", { kind: "not_sold_by_weight" }],
     ["change-line-weight-result", { kind: "sale_has_payments" }],
-    ["add-weighed-product-result", { kind: "added", sale, removed_manual_discount: false, removed_sale_discount: false }],
+    [
+      "add-weighed-product-result",
+      { kind: "added", sale, removed_manual_discount: false, removed_sale_discount: false },
+    ],
     ["add-weighed-product-result", { kind: "invalid_weight" }],
     ["add-weighed-product-result", { kind: "not_sold_by_weight" }],
     ["add-weighed-product-result", { kind: "product_unavailable" }],
     ["add-weighed-product-result", { kind: "no_price", product_name: "Queso" }],
-    ["weigh-product-result", { kind: "added", sale, removed_manual_discount: false, removed_sale_discount: false }],
+    [
+      "weigh-product-result",
+      { kind: "added", sale, removed_manual_discount: false, removed_sale_discount: false },
+    ],
     ["weigh-product-result", { kind: "weighing" }],
     ["weigh-product-result", { kind: "scale_unavailable" }],
     ["weigh-product-result", { kind: "not_sold_by_weight" }],
