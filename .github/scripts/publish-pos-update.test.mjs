@@ -137,7 +137,7 @@ test("sends the installer with its length and a binary content type, signed", as
 test("publishes when the feed holds an older version", async () => {
   await withInstallerDir((installerDir) =>
     withFakeBucket(
-      { [`${BUCKET_NAME}/register-updates/latest.json`]: entryJson("0.0.9") },
+      { stored: { [`${BUCKET_NAME}/register-updates/latest.json`]: entryJson("0.0.9") } },
       async ({ endpoint, puts }) => {
         const result = await publishUpdate({
           installerDir,
@@ -156,7 +156,7 @@ for (const published of ["0.0.57", "0.0.58", "0.1.0"]) {
   test(`uploads nothing when the feed already holds ${published}`, async () => {
     await withInstallerDir((installerDir) =>
       withFakeBucket(
-        { [`${BUCKET_NAME}/register-updates/latest.json`]: entryJson(published) },
+        { stored: { [`${BUCKET_NAME}/register-updates/latest.json`]: entryJson(published) } },
         async ({ endpoint, puts }) => {
           const result = await publishUpdate({
             installerDir,
@@ -192,7 +192,9 @@ test("fails without writing the entry when the installer upload fails", async ()
 test("fails when the entry it finds is not a release entry", async () => {
   await withInstallerDir((installerDir) =>
     withFakeBucket(
-      { [`${BUCKET_NAME}/register-updates/latest.json`]: '{"version":"not a version"}' },
+      {
+        stored: { [`${BUCKET_NAME}/register-updates/latest.json`]: '{"version":"not a version"}' },
+      },
       async ({ endpoint, puts }) => {
         await assert.rejects(
           publishUpdate({ installerDir, version: "0.0.57", bucket: bucketAt(endpoint) }),
@@ -297,7 +299,7 @@ test("the CLI publishes and exits 0, never printing the secret", async () => {
 test("the CLI exits 0 with a notice when the feed is not older", async () => {
   await withInstallerDir((installerDir) =>
     withFakeBucket(
-      { [`${BUCKET_NAME}/register-updates/latest.json`]: entryJson("0.0.60") },
+      { stored: { [`${BUCKET_NAME}/register-updates/latest.json`]: entryJson("0.0.60") } },
       async ({ endpoint, puts }) => {
         const result = await runCli([installerDir], cliEnv(endpoint));
 
