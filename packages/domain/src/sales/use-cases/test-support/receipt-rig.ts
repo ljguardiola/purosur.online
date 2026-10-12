@@ -75,6 +75,7 @@ export function receiptRig(
   const watch = {
     onStatus: (status: PrinterStatus) => statuses.push(status),
     signal: new AbortController().signal,
+    withdrawal: new AbortController().signal,
   };
   const ports: ReceiptPrintingPorts<ReceiptPrintGrant, typeof NOT_PERMITTED> = {
     ledger,

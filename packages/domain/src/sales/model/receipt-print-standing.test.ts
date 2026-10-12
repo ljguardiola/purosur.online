@@ -6,6 +6,7 @@ import {
   observePrinterNotConfigured,
   observePrinterStatus,
   observePrintFailed,
+  observePrintWithdrawn,
   RECEIPT_RETRY_DELAY_MS,
   type ReceiptPrintObservation,
   receiptPrintStanding,
@@ -140,9 +141,39 @@ describe("receiptPrintStanding", () => {
       acknowledged: false,
       failed: false,
       printerNotConfigured: false,
+      withdrawn: false,
       status: null,
       readySince: null,
     });
+  });
+
+  it("is withdrawn once the printer can no longer emit the receipt", () => {
+    expect(receiptPrintStanding(observePrintWithdrawn(startedReceiptPrint()), T0)).toBe(
+      "withdrawn",
+    );
+  });
+
+  it.each(["cover_open", "paper_out", "not_responding", "ready"] as const)(
+    "is withdrawn rather than %s once the receipt was withdrawn",
+    (status) => {
+      const observed = observePrinterStatus(startedReceiptPrint(), status, T0);
+
+      expect(receiptPrintStanding(observePrintWithdrawn(observed), after(60_000))).toBe(
+        "withdrawn",
+      );
+    },
+  );
+
+  it("stays printed when the withdrawal is observed after the acknowledgment", () => {
+    const acknowledged = observePrintAcknowledged(startedReceiptPrint());
+
+    expect(receiptPrintStanding(observePrintWithdrawn(acknowledged), T0)).toBe("printed");
+  });
+
+  it("is withdrawn rather than failed or printer_not_configured", () => {
+    const observed = observePrinterNotConfigured(observePrintFailed(startedReceiptPrint()));
+
+    expect(receiptPrintStanding(observePrintWithdrawn(observed), T0)).toBe("withdrawn");
   });
 });
 
@@ -184,6 +215,19 @@ describe("mayStartReceiptPrint", () => {
     expect(mayStartReceiptPrint(observePrintFailed(startedReceiptPrint()), T0)).toBe(true);
   });
 
+  it("allows a print after the previous one was withdrawn", () => {
+    expect(mayStartReceiptPrint(observePrintWithdrawn(startedReceiptPrint()), T0)).toBe(true);
+  });
+
+  it.each(["cover_open", "paper_out", "not_responding"] as const)(
+    "refuses a print while %s is reported and the receipt is not withdrawn",
+    (status) => {
+      expect(
+        mayStartReceiptPrint(observePrinterStatus(startedReceiptPrint(), status, T0), T0),
+      ).toBe(false);
+    },
+  );
+
   it("allows a print after the previous one was acknowledged", () => {
     expect(mayStartReceiptPrint(observePrintAcknowledged(startedReceiptPrint()), T0)).toBe(true);
   });
@@ -204,5 +248,9 @@ describe("mayRetryReceiptPrint", () => {
     ] as const) {
       expect(mayRetryReceiptPrint(standing)).toBe(false);
     }
+  });
+
+  it("allows the retry once the receipt was withdrawn", () => {
+    expect(mayRetryReceiptPrint("withdrawn")).toBe(true);
   });
 });
