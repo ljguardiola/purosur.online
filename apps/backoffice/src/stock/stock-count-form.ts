@@ -62,9 +62,8 @@ export function lotsMessage(
   lots: readonly CountLot[],
   saleUnit: SaleUnit,
 ): string {
-  const accepted = lots.every(
-    (lot) =>
-      stockCountBodySchema.shape.counted.safeParse(lotCounted(typed[lot.id], saleUnit)).success,
-  );
+  const accepted = stockCountBodySchema.shape.lots.safeParse(
+    lots.map((lot) => ({ lotId: lot.id, counted: lotCounted(typed[lot.id], saleUnit) })),
+  ).success;
   return accepted ? LOTS_CHANGED : quantityMessage(saleUnit);
 }
