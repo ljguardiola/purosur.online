@@ -151,9 +151,11 @@ describe("PointPaymentWaitModal", () => {
 
       await expect
         .element(
-          screen.getByText(
-            "No hay conexión con la nube. Cancelá el cobro en la terminal y esperá a que vuelva la conexión.",
-          ),
+          screen
+            .getByText(
+              "No hay conexión con la nube. Cancelá el cobro en la terminal y esperá a que vuelva la conexión.",
+            )
+            .first(),
         )
         .toBeVisible();
       await expect
@@ -176,9 +178,11 @@ describe("PointPaymentWaitModal", () => {
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
       await expect
         .element(
-          screen.getByText(
-            "No se pudo cancelar el cobro de la terminal. Volvé a intentarlo en unos segundos.",
-          ),
+          screen
+            .getByText(
+              "No se pudo cancelar el cobro de la terminal. Volvé a intentarlo en unos segundos.",
+            )
+            .first(),
         )
         .toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));

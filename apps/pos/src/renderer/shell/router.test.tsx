@@ -1271,7 +1271,7 @@ describe("the register's router", () => {
     await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
 
     await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
-    expect(charges).toEqual([["sale-1", "QR", 238_000]]);
+    expect(charges).toEqual([["sale-1", 238_000]]);
   });
 
   it("reads the cash session again when the charge screen finds it is no longer valid", async () => {
@@ -2228,6 +2228,7 @@ describe("the charge route's Mercado Pago QR", () => {
       {
         ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
         ...SALE_TO_CHARGE,
+        paymentMethodAvailability: async () => AVAILABLE,
         startMercadoPagoCharge: async (saleId, method, amount) => {
           started.push([saleId, method, amount]);
           return { kind: "unavailable" };

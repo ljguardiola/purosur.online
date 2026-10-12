@@ -1,3 +1,4 @@
+import type { FollowMercadoPagoChargeOutcome, PaymentMethodAvailability } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -51,7 +52,11 @@ describe("ChargeScreen · Point integrada", () => {
       .element(screen.getByRole("radio", { name: "Point integrada" }))
       .not.toBeInTheDocument();
     await expect
-      .element(screen.getByText("Point integrada: no se ofrece con un total menor a $ 15,00"))
+      .element(
+        screen
+          .getByRole("status")
+          .getByText("Point integrada: no se ofrece con un total menor a $ 15,00"),
+      )
       .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -67,10 +72,10 @@ describe("ChargeScreen · Point integrada", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it.each([
-    ["is still loading", () => new Promise<never>(() => {})],
+  it.each<[string, () => Promise<PaymentMethodAvailability | null>]>([
+    ["is still loading", () => new Promise(() => {})],
     ["could not be read", async () => null],
-  ] as const)(
+  ])(
     "offers no terminal and no notice while the availability %s",
     async (_state, paymentMethodAvailability) => {
       const { screen } = await renderScreen({ paymentMethodAvailability });
@@ -187,11 +192,11 @@ describe("ChargeScreen · Point integrada", () => {
     });
 
     it("tells the wait is over and goes back to the methods once the terminal confirms the cancellation", async () => {
-      const answers = [
+      const answers: FollowMercadoPagoChargeOutcome[] = [
         { kind: "at_terminal_wait_over" },
         { kind: "at_terminal_wait_over" },
         { kind: "closed" },
-      ] as const;
+      ];
       const { screen } = await waitOnTerminal({
         followMercadoPagoCharge: async () => answers.shift() ?? { kind: "closed" },
       });
