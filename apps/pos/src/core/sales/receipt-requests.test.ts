@@ -156,7 +156,7 @@ describe("printing a completed sale's receipt", () => {
     expect(reprints()).toEqual([]);
   });
 
-  it("records the print attempt, sends the original receipt and records the sale as printed once the printer is ready", async () => {
+  it("records the print attempt and the sale as printed as it sends the original receipt once the printer is ready", async () => {
     await printCompletedSaleReceiptFor(deps(), "sale-1");
 
     printer.becomeReady();
@@ -164,12 +164,10 @@ describe("printing a completed sale's receipt", () => {
 
     expect(printer.handed).toHaveLength(1);
     expect(printer.handed[0]?.length).toBeGreaterThan(0);
-    await vi.waitFor(() =>
-      expect(deliveryOf("sale-1")).toEqual({
-        print_attempted_at: START.toISOString(),
-        printed_at: new Date(START.getTime() + 3000).toISOString(),
-      }),
-    );
+    expect(deliveryOf("sale-1")).toEqual({
+      print_attempted_at: START.toISOString(),
+      printed_at: START.toISOString(),
+    });
     expect(reprints()).toEqual([]);
   });
 
@@ -361,6 +359,8 @@ describe("reprinting a sale's receipt from the history", () => {
       reason: `  ${REASON} `,
     });
     expect(outcome).toEqual({ kind: "started", copy: { kind: "duplicate", order_number: 1 } });
+    await printer.whenWaiting(2);
+    printer.becomeReady();
 
     expect(reprints()).toEqual([
       {
@@ -392,6 +392,8 @@ describe("reprinting a sale's receipt from the history", () => {
         authorization: { user_id: "supervisor", pin: AUTHORIZER_PIN },
       }),
     ).toEqual({ kind: "started", copy: { kind: "duplicate", order_number: 1 } });
+    await printer.whenWaiting(2);
+    printer.becomeReady();
 
     expect(reprints()).toEqual([
       {
