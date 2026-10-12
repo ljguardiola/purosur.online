@@ -40,6 +40,51 @@ test("stacks rows 8px apart, with a 1px line above and below the group and 16px 
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("draws the filled form as a subtle card with 8px corners, no lines, 12px by 16px padding and rows 6px apart", async () => {
+  const screen = await render(
+    <SummaryRowGroup
+      variant="filled"
+      rows={[
+        { label: "List price", value: "$84.00", detail: true },
+        { label: "Discount", value: "− $8.40", detail: true, tone: "error" },
+      ]}
+    />,
+  );
+  const group = screen.container.firstElementChild as HTMLElement;
+  const style = getComputedStyle(group);
+
+  expect(style.backgroundColor).toBe(tokenRgb("surface-subtle"));
+  expect(style.borderRadius).toBe("8px");
+  expect(style.borderTopWidth).toBe("0px");
+  expect(style.borderBottomWidth).toBe("0px");
+  expect(style.borderLeftWidth).toBe("0px");
+  expect(style.borderRightWidth).toBe("0px");
+  expect(style.paddingTop).toBe("12px");
+  expect(style.paddingBottom).toBe("12px");
+  expect(style.paddingLeft).toBe("16px");
+  expect(style.paddingRight).toBe("16px");
+
+  const [firstRow, secondRow] = Array.from(group.children) as [HTMLElement, HTMLElement];
+  const gap = secondRow.getBoundingClientRect().top - firstRow.getBoundingClientRect().bottom;
+  expect(gap).toBeGreaterThan(5);
+  expect(gap).toBeLessThan(7);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("draws the divided form when given it by name, the same as by default", async () => {
+  const rows = [{ label: "Items", value: "3" }] as const;
+  const screen = await render(
+    <>
+      <SummaryRowGroup rows={rows} />
+      <SummaryRowGroup variant="divided" rows={rows} />
+    </>,
+  );
+  const [byDefault, byName] = Array.from(screen.container.children) as [HTMLElement, HTMLElement];
+
+  expect(byName.className).toBe(byDefault.className);
+});
+
 test("draws no divider on the rows themselves, only one line above and below the whole group", async () => {
   const screen = await render(
     <SummaryRowGroup
@@ -144,4 +189,8 @@ test("does not accept an empty rows list, or one TypeScript cannot prove is non-
   expectTypeOf<{ rows: [] }>().not.toExtend<SummaryRowGroupProps>();
   expectTypeOf<{ rows: SummaryRowProps[] }>().not.toExtend<SummaryRowGroupProps>();
   expectTypeOf<{ rows: readonly SummaryRowProps[] }>().not.toExtend<SummaryRowGroupProps>();
+});
+
+test("does not accept a form other than divided or filled", () => {
+  expectTypeOf<{ rows: [SummaryRowProps]; variant: "outlined" }>().not.toExtend<SummaryRowGroupProps>();
 });
