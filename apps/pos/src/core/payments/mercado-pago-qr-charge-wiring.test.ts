@@ -74,6 +74,24 @@ describe("the register's Mercado Pago QR charging", () => {
     }
   });
 
+  it("offers no charge on the integrated terminal yet, asking the cloud nothing", async () => {
+    const requests: { url: string; init: RequestInit }[] = [];
+    const charging = createMercadoPagoQrCharging({
+      database,
+      gate: gate(),
+      cloudClient: cloudClient(requests),
+      readDeviceToken: async () => "prefix.secret",
+      readOutboxChainKey: async () => "key",
+      now: () => NOW,
+      ids: { next: () => "id" },
+    });
+
+    expect(await charging.start?.({ saleId: "sale-1", method: "POINT", amount: 3000 })).toEqual({
+      kind: "unavailable",
+    });
+    expect(requests).toEqual([]);
+  });
+
   it("reads a QR order's state from the cloud's address with the device token", async () => {
     const requests: { url: string; init: RequestInit }[] = [];
     const signedIn = createSignedInPerson();
