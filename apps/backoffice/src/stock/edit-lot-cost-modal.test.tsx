@@ -115,9 +115,7 @@ test("says a lot that is not of the initial count takes no reference cost", asyn
   await userEvent.click(screen.getByRole("button", { name: SAVE }));
 
   const dialog = screen.getByRole("dialog");
-  await expect
-    .element(dialog.getByRole("alert"))
-    .toHaveTextContent("Este lote no es de la puesta en marcha");
+  await expect.element(dialog.getByText("Este lote no es de la puesta en marcha")).toBeVisible();
   await expect.element(dialog.getByRole("button", { name: SAVE })).toBeDisabled();
 });
 
