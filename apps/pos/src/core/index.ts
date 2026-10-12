@@ -22,6 +22,7 @@ import {
 } from "./fiscal/real-time-authorization-wiring";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
 import { createMercadoPagoCharging } from "./payments/mercado-pago-charge-wiring";
+import { paymentMethodAvailabilityFor } from "./payments/payment-method-availability-requests";
 import {
   type CloudClientDeps,
   getFromCloud,
@@ -737,6 +738,16 @@ const rendererRequestDeps: RendererRequestDeps = {
           ),
   startMercadoPagoCharge: mercadoPagoCharging.start,
   followMercadoPagoCharge: mercadoPagoCharging.follow,
+  paymentMethodAvailability:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : () =>
+          paymentMethodAvailabilityFor({
+            database: localDatabase,
+            gate: actionGate,
+            now,
+            cloud: () => cloudReachability,
+          }),
   abandonMercadoPagoCharge: mercadoPagoCharging.abandon,
   searchProducts:
     localDatabase === undefined || actionGate === undefined

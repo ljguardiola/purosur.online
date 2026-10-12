@@ -307,6 +307,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       },
       startMercadoPagoCharge: undefined,
       followMercadoPagoCharge: undefined,
+      paymentMethodAvailability: undefined,
       abandonMercadoPagoCharge: undefined,
       searchProducts: async (query: string): Promise<SearchProductsOutcome> => {
         searches.push(query);

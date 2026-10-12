@@ -25,6 +25,7 @@ import type {
   ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
+  PaymentMethodAvailability,
   PinCodeRedemptionOutcome,
   PinPolicy,
   PreviewSaleDiscountOutcome,
@@ -108,6 +109,7 @@ export interface RendererRequestDeps {
   followMercadoPagoCharge:
     | ((request: { paymentTransactionId: string }) => Promise<FollowMercadoPagoChargeOutcome>)
     | undefined;
+  paymentMethodAvailability: (() => Promise<PaymentMethodAvailability | null>) | undefined;
   abandonMercadoPagoCharge:
     | ((request: { paymentTransactionId: string }) => Promise<AbandonMercadoPagoChargeOutcome>)
     | undefined;
@@ -461,6 +463,17 @@ async function attemptStartMercadoPagoCharge(
   } catch (error) {
     deps.reportFailure("starting a Mercado Pago QR charge", error);
     return { kind: "unavailable" };
+  }
+}
+
+async function readPaymentMethodAvailability(
+  deps: RendererRequestDeps,
+): Promise<PaymentMethodAvailability | null> {
+  try {
+    return (await deps.paymentMethodAvailability?.()) ?? null;
+  } catch (error) {
+    deps.reportFailure("reading which payment methods are available", error);
+    return null;
   }
 }
 
@@ -956,6 +969,12 @@ export async function answerRendererRequest(
         outcome: await attemptAbandonMercadoPagoCharge(deps, {
           paymentTransactionId: message.payment_transaction_id,
         }),
+      };
+    case "payment-method-availability":
+      return {
+        type: "payment-method-availability-result",
+        request_id: message.request_id,
+        availability: await readPaymentMethodAvailability(deps),
       };
     case "search-products":
       return {

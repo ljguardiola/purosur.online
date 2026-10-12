@@ -7,6 +7,7 @@ import {
   recordIdSchema,
   requestIdSchema,
 } from "../shared/index.js";
+import { paymentMethodAvailabilitySchema } from "./payment-method-availability.js";
 
 export const startMercadoPagoChargeMessageSchema = z.object({
   type: z.literal("start-mercado-pago-charge"),
@@ -28,10 +29,16 @@ const abandonMercadoPagoChargeMessageSchema = z.object({
   payment_transaction_id: z.string(),
 });
 
+const paymentMethodAvailabilityMessageSchema = z.object({
+  type: z.literal("payment-method-availability"),
+  request_id: requestIdSchema,
+});
+
 export const paymentsRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   startMercadoPagoChargeMessageSchema,
   followMercadoPagoChargeMessageSchema,
   abandonMercadoPagoChargeMessageSchema,
+  paymentMethodAvailabilityMessageSchema,
 ]);
 export type PaymentsRendererToCoreMessage = z.infer<typeof paymentsRendererToCoreMessageSchema>;
 
@@ -102,6 +109,11 @@ const abandonMercadoPagoChargeOutcomeSchema = z.discriminatedUnion("kind", [
 export type AbandonMercadoPagoChargeOutcome = z.infer<typeof abandonMercadoPagoChargeOutcomeSchema>;
 
 export const paymentsCoreToRendererMessageSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("payment-method-availability-result"),
+    request_id: requestIdSchema,
+    availability: paymentMethodAvailabilitySchema.nullable(),
+  }),
   z.object({
     type: z.literal("start-mercado-pago-charge-result"),
     request_id: requestIdSchema,
