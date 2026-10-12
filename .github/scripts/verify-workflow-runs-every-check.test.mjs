@@ -1284,6 +1284,14 @@ for (const spec of PRE_PULLED_IMAGES) {
     assert.deepEqual(violations, []);
   });
 
+  test(`leaves a ${spec.job} job pulling ${spec.label} with no time limit of its own to the job time-limit check`, () => {
+    const violations = findPrePulledJobTimeoutViolations(
+      jobWithPull(spec, { jobTimeoutMinutes: null }),
+    );
+
+    assert.deepEqual(violations, []);
+  });
+
   for (const [label, extra, pattern] of [
     ["only runs under its own condition", "if: false", /in a step that has its own if/],
     ["is allowed to fail", "continue-on-error: true", /in a step that sets continue-on-error/],
