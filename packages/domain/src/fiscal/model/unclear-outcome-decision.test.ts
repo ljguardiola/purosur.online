@@ -14,8 +14,10 @@ import {
   type TaxAuthorityVoucher,
   UNCLEAR_OUTCOME_REASK_INTERVAL_MS,
   UNCLEAR_OUTCOME_SETTLING_DELAY_MS,
+  type UnclearOutcomeDecision,
   unclearDocumentSettlement,
   unclearOutcomeSettlesAt,
+  unclearOutcomeSince,
   voucherMatchesDocument,
 } from "./unclear-outcome-decision.js";
 
@@ -307,5 +309,74 @@ describe("unclearDocumentSettlement", () => {
         answer: { kind: "rejected", codes: [10015], rejectionClass: "content" },
       }),
     ).toEqual({ state: "REJECTED", deferralReason: "rejected" });
+  });
+});
+
+describe("unclearOutcomeSince", () => {
+  const ANSWERED_AT = new Date("2026-10-01T12:00:05.000Z");
+  const NOT_AFTER = new Date("2026-10-01T11:59:59.000Z");
+
+  it.each<[string, RealTimeAuthorizationAnswer]>([
+    ["unclear", { kind: "unclear" }],
+    ["not attempted", { kind: "not_attempted" }],
+  ])("is when the tax authority's answer was recorded as %s while no decision is recorded", (_name, answer) => {
+    expect(
+      unclearOutcomeSince({ answer, answeredAt: ANSWERED_AT, notAfter: NOT_AFTER, decision: null }),
+    ).toEqual(ANSWERED_AT);
+  });
+
+  it("is the moment the call was due to be over when no answer was ever recorded", () => {
+    expect(
+      unclearOutcomeSince({
+        answer: null,
+        answeredAt: null,
+        notAfter: NOT_AFTER,
+        decision: null,
+      }),
+    ).toEqual(NOT_AFTER);
+  });
+
+  it("is never for a request the tax authority answered clearly", () => {
+    expect(
+      unclearOutcomeSince({
+        answer: { kind: "rejected", codes: [10015], rejectionClass: "content" },
+        answeredAt: ANSWERED_AT,
+        notAfter: NOT_AFTER,
+        decision: null,
+      }),
+    ).toBeNull();
+    expect(
+      unclearOutcomeSince({
+        answer: {
+          kind: "authorized",
+          authorizationCode: "75123456789012",
+          authorizationCodeDueOn: "2026-10-11",
+        },
+        answeredAt: ANSWERED_AT,
+        notAfter: NOT_AFTER,
+        decision: null,
+      }),
+    ).toBeNull();
+  });
+
+  it.each<[string, UnclearOutcomeDecision]>([
+    ["released", { kind: "released" }],
+    ["conflicting", { kind: "conflicting" }],
+    [
+      "adopted",
+      { kind: "adopted", authorizationCode: "75123456789012", authorizationCodeDueOn: "2026-10-11" },
+    ],
+  ])("is never once the outcome was %s", (_name, decision) => {
+    expect(
+      unclearOutcomeSince({
+        answer: { kind: "unclear" },
+        answeredAt: ANSWERED_AT,
+        notAfter: NOT_AFTER,
+        decision,
+      }),
+    ).toBeNull();
+    expect(
+      unclearOutcomeSince({ answer: null, answeredAt: null, notAfter: NOT_AFTER, decision }),
+    ).toBeNull();
   });
 });
