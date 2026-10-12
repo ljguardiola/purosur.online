@@ -462,6 +462,7 @@ export {
   observePrinterNotConfigured,
   observePrinterStatus,
   observePrintFailed,
+  observePrintWithdrawn,
   openSaleStanding,
   RECEIPT_REPRINT_REASON_MAX_LENGTH,
   RECEIPT_RETRY_DELAY_MS,

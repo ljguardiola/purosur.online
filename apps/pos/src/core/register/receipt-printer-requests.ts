@@ -14,6 +14,7 @@ import { SqliteReceiptPrinterSettings } from "./sqlite-receipt-printer-settings"
 export interface ReceiptPrinterRequestDeps {
   database: LocalDatabase;
   gate: ActionGate;
+  receiptPrinterChanged: () => void;
 }
 
 type Refusal = { kind: "not_signed_in" } | { kind: "lacks_permission" };
@@ -43,15 +44,19 @@ export async function readReceiptPrinterFor({
 }
 
 export async function setReceiptPrinterFor(
-  { database, gate }: ReceiptPrinterRequestDeps,
+  { database, gate, receiptPrinterChanged }: ReceiptPrinterRequestDeps,
   text: string,
 ): Promise<SetReceiptPrinterOutcome> {
   const parsed = receiptPrinterAddressTextSchema.safeParse(text);
   if (!parsed.success) {
     return { kind: "invalid_address" };
   }
-  return setReceiptPrinterAddress(
+  const outcome = await setReceiptPrinterAddress(
     { settings: new SqliteReceiptPrinterSettings(database), authority: authorityOf(gate) },
     { address: parsed.data },
   );
+  if (outcome.kind === "saved") {
+    receiptPrinterChanged();
+  }
+  return outcome;
 }
