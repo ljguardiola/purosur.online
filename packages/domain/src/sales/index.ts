@@ -32,18 +32,11 @@ export {
   receiptReprintReason,
 } from "./model/receipt-reprint-reason.js";
 export type { LinePromotion, Sale, SaleLine, SaleState, SaleWithLines } from "./model/sale.js";
-export type {
-  SaleDiscount,
-  SaleDiscountRefusal,
-  SaleDiscountValue,
-  SettledSaleLine,
-} from "./model/sale-discount.js";
+export type { SaleDiscount, SaleDiscountValue } from "./model/sale-discount.js";
 export {
   amountToCharge,
   appliedSaleDiscountAmount,
-  saleDiscountRefusal,
   saleDiscountUnavailability,
-  settledLines,
 } from "./model/sale-discount.js";
 export type {
   DeferredSaleRecord,
