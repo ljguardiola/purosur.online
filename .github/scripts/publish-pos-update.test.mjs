@@ -7,9 +7,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { findInstaller, publishUpdate } from "./publish-pos-update.mjs";
+import { findInstaller, objectUrl, publishUpdate } from "./publish-pos-update.mjs";
+import { forwardBucketFetch } from "./test-support/forward-bucket-fetch.mjs";
 
 const cliPath = fileURLToPath(new URL("./publish-pos-update.mjs", import.meta.url));
+const forwardedFetchPreload = fileURLToPath(
+  new URL("./test-support/install-forwarded-fetch.mjs", import.meta.url),
+);
+
+const BUCKET_ENDPOINT = "https://storage.example.test";
 
 const BUCKET_NAME = "register-updates-staging";
 const SECRET_ACCESS_KEY = "fictional-secret-access-key-0123456789";
@@ -74,9 +80,10 @@ async function withFakeBucket({ stored = {}, failPutFor = [] } = {}, run) {
     response.end();
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const endpoint = `http://127.0.0.1:${server.address().port}`;
+  const port = server.address().port;
+  const fetch = forwardBucketFetch(port, BUCKET_NAME);
   try {
-    return await run({ endpoint, objects, puts });
+    return await run({ endpoint: BUCKET_ENDPOINT, fetch, port, objects, puts });
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
@@ -96,11 +103,12 @@ const sha512OfInstaller = createHash("sha512").update(INSTALLER_BYTES).digest("b
 
 test("publishes the installer and then the entry that points at it when the feed is empty", async () => {
   await withInstallerDir((installerDir) =>
-    withFakeBucket({}, async ({ endpoint, objects, puts }) => {
+    withFakeBucket({}, async ({ endpoint, fetch, objects, puts }) => {
       const result = await publishUpdate({
         installerDir,
         version: "0.0.57",
         bucket: bucketAt(endpoint),
+        fetch,
       });
 
       assert.equal(result.published, true);
@@ -123,8 +131,8 @@ test("publishes the installer and then the entry that points at it when the feed
 
 test("sends the installer with its length and a binary content type, signed", async () => {
   await withInstallerDir((installerDir) =>
-    withFakeBucket({}, async ({ endpoint, puts }) => {
-      await publishUpdate({ installerDir, version: "0.0.57", bucket: bucketAt(endpoint) });
+    withFakeBucket({}, async ({ endpoint, fetch, puts }) => {
+      await publishUpdate({ installerDir, version: "0.0.57", bucket: bucketAt(endpoint), fetch });
 
       assert.equal(puts[0].contentLength, String(INSTALLER_BYTES.length));
       assert.equal(puts[0].contentType, "application/octet-stream");
@@ -138,11 +146,12 @@ test("publishes when the feed holds an older version", async () => {
   await withInstallerDir((installerDir) =>
     withFakeBucket(
       { stored: { [`${BUCKET_NAME}/register-updates/latest.json`]: entryJson("0.0.9") } },
-      async ({ endpoint, puts }) => {
+      async ({ endpoint, fetch, puts }) => {
         const result = await publishUpdate({
           installerDir,
           version: "0.0.57",
           bucket: bucketAt(endpoint),
+          fetch,
         });
 
         assert.equal(result.published, true);
@@ -157,11 +166,12 @@ for (const published of ["0.0.57", "0.0.58", "0.1.0"]) {
     await withInstallerDir((installerDir) =>
       withFakeBucket(
         { stored: { [`${BUCKET_NAME}/register-updates/latest.json`]: entryJson(published) } },
-        async ({ endpoint, puts }) => {
+        async ({ endpoint, fetch, puts }) => {
           const result = await publishUpdate({
             installerDir,
             version: "0.0.57",
             bucket: bucketAt(endpoint),
+            fetch,
           });
 
           assert.equal(result.published, false);
@@ -174,9 +184,9 @@ for (const published of ["0.0.57", "0.0.58", "0.1.0"]) {
 
 test("fails without writing the entry when the installer upload fails", async () => {
   await withInstallerDir((installerDir) =>
-    withFakeBucket({ failPutFor: [".exe"] }, async ({ endpoint, objects, puts }) => {
+    withFakeBucket({ failPutFor: [".exe"] }, async ({ endpoint, fetch, objects, puts }) => {
       await assert.rejects(
-        publishUpdate({ installerDir, version: "0.0.57", bucket: bucketAt(endpoint) }),
+        publishUpdate({ installerDir, version: "0.0.57", bucket: bucketAt(endpoint), fetch }),
         /installer/i,
       );
 
@@ -195,9 +205,9 @@ test("fails when the entry it finds is not a release entry", async () => {
       {
         stored: { [`${BUCKET_NAME}/register-updates/latest.json`]: '{"version":"not a version"}' },
       },
-      async ({ endpoint, puts }) => {
+      async ({ endpoint, fetch, puts }) => {
         await assert.rejects(
-          publishUpdate({ installerDir, version: "0.0.57", bucket: bucketAt(endpoint) }),
+          publishUpdate({ installerDir, version: "0.0.57", bucket: bucketAt(endpoint), fetch }),
           /latest\.json/,
         );
         assert.deepEqual(puts, []);
@@ -218,7 +228,8 @@ test("fails when reading the entry is refused for a reason other than being abse
         publishUpdate({
           installerDir,
           version: "0.0.57",
-          bucket: bucketAt(`http://127.0.0.1:${server.address().port}`),
+          bucket: bucketAt(BUCKET_ENDPOINT),
+          fetch: forwardBucketFetch(server.address().port, BUCKET_NAME),
         }),
         /403/,
       );
@@ -230,13 +241,23 @@ test("fails when reading the entry is refused for a reason other than being abse
 
 test("refuses a version that is not X.Y.Z before touching the bucket", async () => {
   await withInstallerDir((installerDir) =>
-    withFakeBucket({}, async ({ endpoint, puts }) => {
+    withFakeBucket({}, async ({ endpoint, fetch, puts }) => {
       await assert.rejects(
-        publishUpdate({ installerDir, version: "1.2", bucket: bucketAt(endpoint) }),
+        publishUpdate({ installerDir, version: "1.2", bucket: bucketAt(endpoint), fetch }),
         /version/i,
       );
       assert.deepEqual(puts, []);
     }),
+  );
+});
+
+test("addresses an object by the bucket's host name, as the cloud does", () => {
+  assert.equal(
+    objectUrl(
+      { endpoint: "https://storage.example.test", name: "register-updates-staging" },
+      "register-updates/0.0.57/Puro Sur Setup 0.0.57.exe",
+    ),
+    "https://register-updates-staging.storage.example.test/register-updates/0.0.57/Puro%20Sur%20Setup%200.0.57.exe",
   );
 });
 
@@ -259,7 +280,7 @@ test("refuses a directory with no installer or with several", async () => {
 
 function runCli(args, env) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [cliPath, ...args], {
+    const child = spawn(process.execPath, ["--import", forwardedFetchPreload, cliPath, ...args], {
       env: { PATH: process.env.PATH, ...env },
     });
     let output = "";
@@ -273,8 +294,9 @@ function runCli(args, env) {
   });
 }
 
-function cliEnv(endpoint, version = "0.0.57") {
+function cliEnv(endpoint, port, version = "0.0.57") {
   return {
+    FAKE_BUCKET_PORT: String(port),
     POS_UPDATES_BUCKET_ENDPOINT: endpoint,
     POS_UPDATES_BUCKET_NAME: BUCKET_NAME,
     POS_UPDATES_BUCKET_REGION: "auto",
@@ -286,8 +308,8 @@ function cliEnv(endpoint, version = "0.0.57") {
 
 test("the CLI publishes and exits 0, never printing the secret", async () => {
   await withInstallerDir((installerDir) =>
-    withFakeBucket({}, async ({ endpoint, puts }) => {
-      const result = await runCli([installerDir], cliEnv(endpoint));
+    withFakeBucket({}, async ({ endpoint, port, puts }) => {
+      const result = await runCli([installerDir], cliEnv(endpoint, port));
 
       assert.equal(result.status, 0, result.output);
       assert.equal(puts.length, 2);
@@ -300,8 +322,8 @@ test("the CLI exits 0 with a notice when the feed is not older", async () => {
   await withInstallerDir((installerDir) =>
     withFakeBucket(
       { stored: { [`${BUCKET_NAME}/register-updates/latest.json`]: entryJson("0.0.60") } },
-      async ({ endpoint, puts }) => {
-        const result = await runCli([installerDir], cliEnv(endpoint));
+      async ({ endpoint, port, puts }) => {
+        const result = await runCli([installerDir], cliEnv(endpoint, port));
 
         assert.equal(result.status, 0, result.output);
         assert.match(result.output, /::notice::/);
@@ -313,8 +335,8 @@ test("the CLI exits 0 with a notice when the feed is not older", async () => {
 
 test("the CLI exits 1 and never prints the secret when the upload fails", async () => {
   await withInstallerDir((installerDir) =>
-    withFakeBucket({ failPutFor: [".exe"] }, async ({ endpoint, objects }) => {
-      const result = await runCli([installerDir], cliEnv(endpoint));
+    withFakeBucket({ failPutFor: [".exe"] }, async ({ endpoint, port, objects }) => {
+      const result = await runCli([installerDir], cliEnv(endpoint, port));
 
       assert.equal(result.status, 1);
       assert.match(result.output, /::error::/);
