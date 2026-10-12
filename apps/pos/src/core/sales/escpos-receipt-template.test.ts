@@ -468,7 +468,7 @@ describe("the ESC/POS receipt template", () => {
       }),
     );
 
-    expect(textLines).toContain("Terminal Mercado Pago                $ 10.000,00");
+    expect(textLines).toContain("Point Mercado Pago                   $ 10.000,00");
   });
 
   it("wraps a long product name beside its amount within the columns of the paper", () => {

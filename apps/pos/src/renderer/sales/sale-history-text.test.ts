@@ -48,8 +48,8 @@ describe("paymentMethodsText", () => {
     expect(paymentMethodsText(["QR", "CASH"])).toBe("QR + Efectivo");
   });
 
-  it("names a Mercado Pago terminal payment as Terminal", () => {
-    expect(paymentMethodsText(["POINT", "CASH"])).toBe("Terminal + Efectivo");
+  it("names a Mercado Pago terminal payment as Point", () => {
+    expect(paymentMethodsText(["POINT", "CASH"])).toBe("Point + Efectivo");
   });
 
   it("is a dash when the sale has no payment", () => {
@@ -62,7 +62,7 @@ describe("paymentMethodName", () => {
     ["CASH", "Efectivo"],
     ["TRANSFER", "Transferencia"],
     ["QR", "QR de Mercado Pago"],
-    ["POINT", "Terminal de Mercado Pago"],
+    ["POINT", "Point integrada"],
   ] as const)("names %s as %s", (method, name) => {
     expect(paymentMethodName(method)).toBe(name);
   });

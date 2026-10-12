@@ -224,9 +224,17 @@ describe("PointPaymentWaitModal", () => {
       await expect
         .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
         .toBeVisible();
+      await expect.element(screen.getByText("Total de la venta")).toBeVisible();
+      await expect.element(screen.getByText("$ 50.700,00")).toBeVisible();
+      await expect.element(screen.getByText("Pagado")).toBeVisible();
+      await expect.element(screen.getByText("$ 10.000,00")).toBeVisible();
+      await expect.element(screen.getByText("A cobrar ahora")).toBeVisible();
+      await expect.element(screen.getByText("$ 30.000,00")).toBeVisible();
       await expect.element(screen.getByText("0:00")).toBeVisible();
       await expect.element(screen.getByText("de 3:00")).toBeVisible();
       await expect.element(screen.getByText("Cobro enviado a la terminal")).toBeVisible();
+      await expect.element(screen.getByText("Tiempo agotado")).toBeVisible();
+      await expect.element(screen.getByText("Con error")).toBeInTheDocument();
       await expect.element(screen.getByText("Esperando la cancelación")).toBeVisible();
       await expect
         .element(screen.getByText("Cancelá el cobro en la terminal", { exact: true }).first())
@@ -284,6 +292,12 @@ describe("PointPaymentWaitModal", () => {
       await expect
         .element(screen.getByRole("heading", { name: "Esperando la cancelación en la terminal" }))
         .toBeVisible();
+      await expect.element(screen.getByText("Total de la venta")).toBeVisible();
+      await expect.element(screen.getByText("$ 50.700,00")).toBeVisible();
+      await expect.element(screen.getByText("Pagado")).toBeVisible();
+      await expect.element(screen.getByText("$ 10.000,00")).toBeVisible();
+      await expect.element(screen.getByText("A cobrar ahora")).toBeVisible();
+      await expect.element(screen.getByText("$ 30.000,00")).toBeVisible();
       await expect.element(screen.getByText("2:41")).toBeVisible();
       await expect.element(screen.getByText("Cobro enviado a la terminal")).toBeVisible();
       await expect.element(screen.getByText("Esperando la cancelación")).toBeVisible();
