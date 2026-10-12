@@ -95,7 +95,10 @@ export function receiptContent(source: ReceiptSource): ReceiptContent {
     totals: {
       subtotal: lines.reduce((sum, { lineTotal }) => sum + lineTotal, 0),
       total: source.total,
-      payments: source.payments.map(({ method, amount }) => ({ method, amount })),
+      payments: source.payments.map(({ method, amount, tendered }) => ({
+        method,
+        amount: method === "CASH" && tendered !== null ? tendered : amount,
+      })),
       change: source.payments.reduce(
         (sum, { method, amount, tendered }) =>
           method === "CASH" && tendered !== null ? sum + tendered - amount : sum,

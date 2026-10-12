@@ -207,6 +207,32 @@ describe("receiptContent", () => {
     ).toBe(0);
   });
 
+  it("lists a cash payment by the cash handed over, so it adds up with the change", () => {
+    const { totals } = receiptContent(
+      source({
+        total: 2_140_000,
+        payments: [{ method: "CASH", amount: 2_140_000, tendered: 2_500_000 }],
+      }),
+    );
+
+    expect(totals.payments).toEqual([{ method: "CASH", amount: 2_500_000 }]);
+    expect(totals.change).toBe(360_000);
+  });
+
+  it("lists a cash payment with no tendered amount recorded by the amount it paid", () => {
+    expect(
+      receiptContent(source({ payments: [{ method: "CASH", amount: 11250, tendered: null }] }))
+        .totals.payments,
+    ).toEqual([{ method: "CASH", amount: 11250 }]);
+  });
+
+  it("lists a non-cash payment by the amount it paid, whatever it records as tendered", () => {
+    expect(
+      receiptContent(source({ payments: [{ method: "TRANSFER", amount: 100, tendered: 900 }] }))
+        .totals.payments,
+    ).toEqual([{ method: "TRANSFER", amount: 100 }]);
+  });
+
   describe("the fiscal block", () => {
     const AUTHORIZED = authorizedFacturaC(11250, ISSUER_IDENTITY);
 

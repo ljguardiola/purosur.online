@@ -26,6 +26,34 @@ export const StrongSaving: Story = {
   args: { label: "Total de ahorro", value: "-$25.000", strong: true, saving: true },
 };
 
+export const ErrorTone: Story = {
+  args: { label: "Descuento", value: "− $10.000", tone: "error" },
+};
+
+export const StrongError: Story = {
+  args: { label: "Total descontado", value: "− $25.000", strong: true, tone: "error" },
+};
+
+export const Info: Story = {
+  args: { label: "Queda en", value: "$90.000", tone: "info" },
+};
+
+export const StrongInfo: Story = {
+  args: { label: "Queda la línea en", value: "$428.400", strong: true, tone: "info" },
+};
+
+export const Detail: Story = {
+  args: { label: "Precio de lista", value: "$8.400", detail: true },
+};
+
+export const DetailError: Story = {
+  args: { label: "Descuento", value: "− $840", detail: true, tone: "error" },
+};
+
+export const DetailInfo: Story = {
+  args: { label: "Queda la línea en", value: "$7.560", detail: true, tone: "info" },
+};
+
 export const LongLabel: Story = {
   args: {
     label: "Un motivo largo que no entra en una sola línea dentro de esta fila angosta",
