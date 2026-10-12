@@ -4,6 +4,7 @@ import type {
   RetryReceiptPrintOutcome,
 } from "@purosur/contracts";
 import { Button, FigureStat, formatCents, InlineNotice, Modal, SummaryRowGroup } from "@purosur/ui";
+import { useNavigate } from "@tanstack/react-router";
 import { ArrowRight, CircleCheck, Plus, Printer, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import type { ReceiptPrintStatus } from "./sales-queries";
@@ -16,6 +17,7 @@ type FailedStanding =
   | "paper_out"
   | "not_responding"
   | "retry_offered"
+  | "withdrawn"
   | "printer_not_configured"
   | "failed";
 
@@ -58,6 +60,11 @@ const FAILURES: Record<FailedStanding, FailurePresentation> = {
     title: "El ticket no salió",
     help: (copy) => `${UNCONFIRMED_PRINT} ${retryCopyText(copy)}`,
   },
+  withdrawn: {
+    printerState: "Cambiada",
+    title: "El ticket se retiró de la impresora anterior",
+    help: (copy) => `No va a salir en ella. ${retryCopyText(copy)}`,
+  },
   printer_not_configured: {
     printerState: "Sin configurar",
     title: "La impresora no está configurada",
@@ -90,6 +97,7 @@ export type SaleCompletedModalProps = {
   total: number;
   readReceiptStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
   retryReceiptPrint: (saleId: string) => Promise<RetryReceiptPrintOutcome>;
+  mayChangePrinter: boolean;
   onNewSale: () => void;
 } & (
   | { tendered: number; change: number; method?: "CASH" }
@@ -98,7 +106,9 @@ export type SaleCompletedModalProps = {
 );
 
 export function SaleCompletedModal(props: SaleCompletedModalProps) {
-  const { saleId, total, readReceiptStatus, retryReceiptPrint, onNewSale } = props;
+  const { saleId, total, readReceiptStatus, retryReceiptPrint, mayChangePrinter, onNewSale } =
+    props;
+  const navigate = useNavigate();
   const change = props.method === "TRANSFER" || props.method === "QR" ? 0 : props.change;
   const receipt = useReceiptPrintStatusQuery({ saleId, read: readReceiptStatus });
   const refreshReceipt = useRefreshReceiptPrintStatus(saleId);
@@ -136,6 +146,17 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
   }
 
   if (receipt.status === "loaded" && failedStanding !== undefined) {
+    const retryOffered = failedStanding === "retry_offered" || failedStanding === "withdrawn";
+    const changePrinter = mayChangePrinter ? (
+      <Button
+        variant="secondary"
+        size="large"
+        icon={<Printer />}
+        onPress={() => void navigate({ to: "/receipt-printer" })}
+      >
+        Cambiar impresora
+      </Button>
+    ) : null;
     const failure = FAILURES[failedStanding];
     const { next_copy: copy } = receipt.value;
     return (
@@ -149,11 +170,12 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
         contextTone="error"
         title="No se pudo imprimir el ticket"
         footer={
-          failedStanding === "retry_offered" ? (
+          retryOffered ? (
             <>
               <Button variant="secondary" size="large" icon={<ArrowRight />} onPress={onNewSale}>
                 Seguir vendiendo
               </Button>
+              {changePrinter}
               <Button
                 size="large"
                 fullWidth
@@ -165,9 +187,12 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
               </Button>
             </>
           ) : (
-            <Button size="large" fullWidth icon={<ArrowRight />} onPress={onNewSale}>
-              Seguir vendiendo
-            </Button>
+            <>
+              {changePrinter}
+              <Button size="large" fullWidth icon={<ArrowRight />} onPress={onNewSale}>
+                Seguir vendiendo
+              </Button>
+            </>
           )
         }
       >
@@ -188,7 +213,7 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
             description={failure.help(copy)}
             {...(failure.title === undefined ? {} : { title: failure.title })}
           />
-          {notice === undefined || failedStanding !== "retry_offered" ? null : (
+          {notice === undefined || !retryOffered ? null : (
             <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
           )}
         </div>
