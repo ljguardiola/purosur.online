@@ -8,12 +8,12 @@ import type { PoolClient } from "pg";
 import { DrizzleBranchHoursReader } from "../branch/drizzle-branch-hours-reader.js";
 import { DrizzleMissingOfflineAuthorizationCodeAlerts } from "../fiscal/drizzle-missing-offline-authorization-code-alerts.js";
 import { DrizzleOfflineAuthorizationCodeHoldingReader } from "../fiscal/drizzle-offline-authorization-code-holding-reader.js";
+import { DrizzleRefundTaskAlertStore } from "../payments/drizzle-refund-task-alert-store.js";
 import {
   type BackgroundJobs,
   crontabLineEvery,
   databaseOfClient,
 } from "../platform/background-jobs.js";
-import { DrizzleRefundTaskAlertStore } from "../payments/drizzle-refund-task-alert-store.js";
 import { DrizzleWatchedRegisterReader } from "../register/drizzle-watched-register-reader.js";
 import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
 import { DrizzleAlertStore } from "./drizzle-alert-store.js";

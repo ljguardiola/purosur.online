@@ -109,13 +109,7 @@ class DrizzleRefundStoreTransaction<TQueryResult extends PgQueryResultHKT>
     const [alert] = await this.tx
       .select({ id: alerts.id })
       .from(alerts)
-      .where(
-        and(
-          eq(alerts.kind, kind),
-          eq(alerts.scope, refundId),
-          openAlertCondition(),
-        ),
-      );
+      .where(and(eq(alerts.kind, kind), eq(alerts.scope, refundId), openAlertCondition()));
     if (alert) {
       await closeAlert(
         {
