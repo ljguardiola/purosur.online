@@ -75,6 +75,35 @@ export const Quantity: Story = {
   },
 };
 
+export const Discount: Story = {
+  args: {
+    kind: "discount",
+    label: "Porcentaje de descuento",
+    labelVisuallyHidden: true,
+    value: "10",
+    onChange: () => {},
+    description: "Se suma a las promociones y a los descuentos de línea.",
+  },
+  decorators: [
+    (Story) => (
+      <div className="w-[34rem]">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+export const DiscountWithSuffix: Story = {
+  args: {
+    kind: "discount",
+    label: "Porcentaje de descuento",
+    labelVisuallyHidden: true,
+    value: "10",
+    onChange: () => {},
+    suffix: "%",
+  },
+};
+
 export const PlainText: Story = {
   args: { kind: "plain-text", label: "Motivo", value: "", onChange: () => {} },
 };
