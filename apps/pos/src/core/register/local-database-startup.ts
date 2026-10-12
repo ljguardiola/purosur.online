@@ -1,5 +1,5 @@
 import { dirname, join } from "node:path";
-import { type LocalDatabaseVersion, localDatabaseVersionOf } from "@purosur/domain";
+import { localDatabaseVersionOf } from "@purosur/domain";
 import {
   checkLocalDatabase,
   type LocalDatabaseHealth,
