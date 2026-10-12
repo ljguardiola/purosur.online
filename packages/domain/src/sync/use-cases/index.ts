@@ -26,7 +26,7 @@ export type {
   ProviderTransactionOfPayment,
   QuarantinedEvent,
   QuarantineNotices,
-  SaleStockApplication,
+  StockApplication,
   UnappliedEvent,
 } from "./event-application-ports.js";
 export type { PruneOutboxOutcome } from "./prune-outbox.js";

@@ -11,7 +11,7 @@ import type {
   EventApplicationTransaction,
   FailedAttempt,
   ProviderTransactionOfPayment,
-  SaleStockApplication,
+  StockApplication,
   SyncedFact,
   UnappliedEvent,
 } from "@purosur/domain/sync/use-cases";
@@ -36,6 +36,11 @@ import { recordAppliedCancelledSale, recordAppliedSale } from "../sales/drizzle-
 import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
 import { type PendingChanges, withPendingChanges } from "./change-log.js";
 
+type OpeningCountRecordedFact = Extract<SyncedFact, { kind: "opening_count_recorded" }>["count"];
+type OpeningCountWithdrawnFact = Extract<
+  SyncedFact,
+  { kind: "opening_count_withdrawn" }
+>["withdrawal"];
 type CompletedSale = Extract<SyncedFact, { kind: "sale_completed" }>["sale"];
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
@@ -137,18 +142,16 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
           this.now(),
         );
       case "opening_count_recorded":
-        return this.applyOpeningCount(fact.count, event);
       case "opening_count_withdrawn":
-        return this.withdrawOpeningCount(fact.withdrawal, event);
       case "fiscal_gate_failed":
         return;
     }
   }
 
-  private async applyOpeningCount(
-    count: Extract<SyncedFact, { kind: "opening_count_recorded" }>["count"],
+  async applyOpeningCount(
+    count: OpeningCountRecordedFact,
     event: UnappliedEvent,
-  ): Promise<void> {
+  ): Promise<StockApplication> {
     const { locationId } = await this.originOf(event);
     const outcome = await applyOpeningCount(
       new DrizzleStockStoreTransaction(this.tx, this.pending),
@@ -165,20 +168,21 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
     switch (outcome.kind) {
       case "recorded":
       case "already_applied":
-        return;
+        return { kind: "applied" };
       case "not_found":
-        throw new Error(`product ${count.productId} is not in the catalog`);
+        return { kind: "refused", reason: `product ${count.productId} is not in the catalog` };
       case "invalid_quantity":
-        throw new Error(
-          `an opening count of product ${count.productId} has a quantity it can't be counted in`,
-        );
+        return {
+          kind: "refused",
+          reason: `an opening count of product ${count.productId} has a quantity it can't be counted in`,
+        };
     }
   }
 
-  private async withdrawOpeningCount(
-    withdrawal: Extract<SyncedFact, { kind: "opening_count_withdrawn" }>["withdrawal"],
+  async withdrawOpeningCount(
+    withdrawal: OpeningCountWithdrawnFact,
     event: UnappliedEvent,
-  ): Promise<void> {
+  ): Promise<StockApplication> {
     const { locationId } = await this.originOf(event);
     const outcome = await withdrawOpeningCount(
       new DrizzleStockStoreTransaction(this.tx, this.pending),
@@ -190,16 +194,19 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
         withdrawnMovementId: withdrawal.withdrawnMovementId,
       },
     );
-    if (outcome.kind === "not_found") {
-      throw new Error(`opening count movement ${withdrawal.withdrawnMovementId} was never counted`);
-    }
+    return outcome.kind === "not_found"
+      ? {
+          kind: "refused",
+          reason: `opening count movement ${withdrawal.withdrawnMovementId} was never counted`,
+        }
+      : { kind: "applied" };
   }
 
   async applySaleStock(
     sale: CompletedSale,
     movements: NonNullable<CompletedSale["stockMovements"]>,
     event: UnappliedEvent,
-  ): Promise<SaleStockApplication> {
+  ): Promise<StockApplication> {
     const { locationId } = await this.originOf(event);
     const outcome = await applyRegisterStockMovements(
       new DrizzleStockStoreTransaction(this.tx, this.pending),
