@@ -38,6 +38,9 @@ function toPayment(row: PaymentRow): SalePayment {
   if (row.method === "QR") {
     return { ...common, method: "QR", provider: "MERCADOPAGO_QR" };
   }
+  if (row.method === "POINT") {
+    return { ...common, method: "POINT", provider: "MERCADOPAGO_POINT" };
+  }
   if (row.method === "TRANSFER") {
     return {
       ...common,
@@ -55,30 +58,34 @@ function toPayment(row: PaymentRow): SalePayment {
   };
 }
 
-interface PendingQrPaymentRow {
+interface PendingMercadoPagoPaymentRow {
   id: string;
   sale_id: string;
+  method: PendingMercadoPagoSalePayment["method"];
   amount: number;
   occurred_at: string;
   wait_ends_at: string;
 }
 
-const PENDING_QR_PAYMENTS = `SELECT id, sale_id, amount, occurred_at, wait_ends_at FROM payment_transactions
-  WHERE method = 'QR' AND state = 'PENDING'`;
-const FOLLOWED_QR_PAYMENTS = `${PENDING_QR_PAYMENTS} AND replaced = 0`;
+const PENDING_MERCADO_PAGO_PAYMENTS = `SELECT id, sale_id, method, amount, occurred_at, wait_ends_at
+  FROM payment_transactions WHERE method IN ('QR', 'POINT') AND state = 'PENDING'`;
+const FOLLOWED_MERCADO_PAGO_PAYMENTS = `${PENDING_MERCADO_PAGO_PAYMENTS} AND replaced = 0`;
 
-function toPendingMercadoPagoPayment(row: PendingQrPaymentRow): PendingMercadoPagoSalePayment {
-  return {
+function toPendingMercadoPagoPayment(
+  row: PendingMercadoPagoPaymentRow,
+): PendingMercadoPagoSalePayment {
+  const common = {
     id: row.id,
     saleId: row.sale_id,
     kind: "SALE",
-    method: "QR",
-    provider: "MERCADOPAGO_QR",
     state: "PENDING",
     amount: row.amount,
     occurredAt: new Date(row.occurred_at),
     waitEndsAt: new Date(row.wait_ends_at),
-  };
+  } as const;
+  return row.method === "POINT"
+    ? { ...common, method: "POINT", provider: "MERCADOPAGO_POINT" }
+    : { ...common, method: "QR", provider: "MERCADOPAGO_QR" };
 }
 
 export function insertPendingMercadoPagoPayment(
@@ -90,12 +97,14 @@ export function insertPendingMercadoPagoPayment(
       `INSERT INTO payment_transactions (
          id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at
        ) VALUES (
-         @id, @sale_id, 'SALE', 'QR', 'MERCADOPAGO_QR', @amount, 'PENDING', @occurred_at, @wait_ends_at
+         @id, @sale_id, 'SALE', @method, @provider, @amount, 'PENDING', @occurred_at, @wait_ends_at
        )`,
     )
     .run({
       id: payment.id,
       sale_id: payment.saleId,
+      method: payment.method,
+      provider: payment.provider,
       amount: payment.amount,
       occurred_at: payment.occurredAt.toISOString(),
       wait_ends_at: payment.waitEndsAt.toISOString(),
@@ -107,7 +116,7 @@ export function readPendingMercadoPagoPayment(
   paymentTransactionId: string,
 ): PendingMercadoPagoSalePayment | undefined {
   const row = database
-    .prepare<[string], PendingQrPaymentRow>(`${FOLLOWED_QR_PAYMENTS} AND id = ?`)
+    .prepare<[string], PendingMercadoPagoPaymentRow>(`${FOLLOWED_MERCADO_PAGO_PAYMENTS} AND id = ?`)
     .get(paymentTransactionId);
   return row === undefined ? undefined : toPendingMercadoPagoPayment(row);
 }
@@ -117,7 +126,9 @@ export function readPendingMercadoPagoPaymentsOf(
   saleId: string,
 ): PendingMercadoPagoSalePayment[] {
   return database
-    .prepare<[string], PendingQrPaymentRow>(`${PENDING_QR_PAYMENTS} AND sale_id = ? ORDER BY rowid`)
+    .prepare<[string], PendingMercadoPagoPaymentRow>(
+      `${PENDING_MERCADO_PAGO_PAYMENTS} AND sale_id = ? ORDER BY rowid`,
+    )
     .all(saleId)
     .map(toPendingMercadoPagoPayment);
 }
@@ -128,7 +139,7 @@ export function approvePendingMercadoPagoPayment(
 ): void {
   database
     .prepare(
-      "UPDATE payment_transactions SET state = 'APPROVED' WHERE id = ? AND method = 'QR' AND state = 'PENDING'",
+      "UPDATE payment_transactions SET state = 'APPROVED' WHERE id = ? AND method IN ('QR', 'POINT') AND state = 'PENDING'",
     )
     .run(paymentTransactionId);
 }

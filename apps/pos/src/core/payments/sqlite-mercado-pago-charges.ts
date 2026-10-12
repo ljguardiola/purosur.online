@@ -8,6 +8,7 @@ import type { LocalDatabase } from "../platform/local-database";
 interface PendingChargeRow {
   id: string;
   sale_id: string;
+  method: PendingMercadoPagoCharge["method"];
   amount: number;
   wait_ends_at: string;
 }
@@ -22,8 +23,8 @@ export class SqliteMercadoPagoCharges implements MercadoPagoCharges {
   pendingCharge(paymentTransactionId: string): PendingMercadoPagoCharge | null {
     const row = this.database
       .prepare<[string], PendingChargeRow>(
-        `SELECT id, sale_id, amount, wait_ends_at FROM payment_transactions
-         WHERE id = ? AND method = 'QR' AND state = 'PENDING' AND replaced = 0`,
+        `SELECT id, sale_id, method, amount, wait_ends_at FROM payment_transactions
+         WHERE id = ? AND method IN ('QR', 'POINT') AND state = 'PENDING' AND replaced = 0`,
       )
       .get(paymentTransactionId);
     if (row === undefined) {
@@ -32,7 +33,7 @@ export class SqliteMercadoPagoCharges implements MercadoPagoCharges {
     return {
       paymentTransactionId: row.id,
       saleId: row.sale_id,
-      method: "QR",
+      method: row.method,
       amount: row.amount,
       waitEndsAt: new Date(row.wait_ends_at),
     };
@@ -41,7 +42,7 @@ export class SqliteMercadoPagoCharges implements MercadoPagoCharges {
   recordEnded(paymentTransactionId: string, state: EndedMercadoPagoChargeState): void {
     this.database
       .prepare(
-        "UPDATE payment_transactions SET state = ? WHERE id = ? AND method = 'QR' AND state = 'PENDING'",
+        "UPDATE payment_transactions SET state = ? WHERE id = ? AND method IN ('QR', 'POINT') AND state = 'PENDING'",
       )
       .run(state, paymentTransactionId);
   }
@@ -49,7 +50,7 @@ export class SqliteMercadoPagoCharges implements MercadoPagoCharges {
   recordWaitEnd(paymentTransactionId: string, waitEndsAt: Date): void {
     this.database
       .prepare(
-        "UPDATE payment_transactions SET wait_ends_at = ? WHERE id = ? AND method = 'QR' AND state = 'PENDING'",
+        "UPDATE payment_transactions SET wait_ends_at = ? WHERE id = ? AND method IN ('QR', 'POINT') AND state = 'PENDING'",
       )
       .run(waitEndsAt.toISOString(), paymentTransactionId);
   }
