@@ -61,9 +61,9 @@ export function registerOwnConditions({
         ? { kind: "sales_denied", reason: salesDenied.sales_denied_reason }
         : null,
     fiscal_emission_stopped:
-      fiscalEmissionStopReasonOf(latestPreEmissionGate) === undefined
-        ? null
-        : { kind: "fiscal_emission_stopped" },
+      !salesStop.stopped && fiscalEmissionStopReasonOf(latestPreEmissionGate) !== undefined
+        ? { kind: "fiscal_emission_stopped" }
+        : null,
     register_silent:
       !revoked &&
       lastAcceptedPushAt !== null &&

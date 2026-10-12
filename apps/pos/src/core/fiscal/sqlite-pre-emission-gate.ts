@@ -84,7 +84,7 @@ export function readLatestPreEmissionGateOutcome(
   const latest = database
     .prepare<[], LatestOutcomeRow>(
       `SELECT outcome, failure_reason FROM pre_emission_gate_outcomes
-       ORDER BY evaluated_at DESC, rowid DESC LIMIT 1`,
+       ORDER BY rowid DESC LIMIT 1`,
     )
     .get();
   if (latest === undefined) {
