@@ -1,6 +1,7 @@
 import {
   cloudErrorSchema,
   type MercadoPagoOrderRequestBody,
+  mercadoPagoCancellationSchema,
   mercadoPagoPaymentSchema,
 } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
@@ -9,16 +10,24 @@ import { installationRequestAttempts, paymentTransactions } from "../platform/db
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";
 import { createMercadoPagoOrdersClient } from "./mercado-pago-orders-client.js";
-import { NOW, ORDER_ID, PAID_ORDER } from "./test-support/fake-mercado-pago-orders.js";
+import {
+  AT_TERMINAL_ORDER,
+  NOW,
+  ORDER_ID,
+  PAID_ORDER,
+} from "./test-support/fake-mercado-pago-orders.js";
 import {
   createdOrder,
   ORDER_CARD_FIRST_SIX,
   ORDER_CARD_LAST_FOUR,
+  POINT_TERMINAL_ID,
   paidWithCardOrder,
+  pointCreatedOrder,
+  pointPaidWithCardOrder,
 } from "./test-support/mercado-pago-documented-orders.js";
-import { mercadoPagoQrRoutesUnderTest } from "./test-support/mercado-pago-qr-under-test.js";
+import { mercadoPagoOrderRoutesUnderTest } from "./test-support/mercado-pago-order-routes-under-test.js";
 
-const route = mercadoPagoQrRoutesUnderTest();
+const route = mercadoPagoOrderRoutesUnderTest();
 
 function orderRequest(
   overrides: Partial<MercadoPagoOrderRequestBody> = {},
@@ -39,7 +48,7 @@ function enroll(registerName = "Caja 1") {
 function createOrder(payload: unknown, authorization?: string) {
   return route.app.inject({
     method: "POST",
-    url: "/payments/mercado-pago-qr/orders",
+    url: "/payments/mercado-pago/orders",
     payload: payload as object,
     ...(authorization !== undefined && { headers: { authorization } }),
   });
@@ -48,7 +57,7 @@ function createOrder(payload: unknown, authorization?: string) {
 function readPayment(id: string, authorization?: string) {
   return route.app.inject({
     method: "GET",
-    url: `/payments/mercado-pago-qr/${id}`,
+    url: `/payments/mercado-pago/${id}`,
     ...(authorization !== undefined && { headers: { authorization } }),
   });
 }
@@ -56,7 +65,7 @@ function readPayment(id: string, authorization?: string) {
 function cancelPayment(id: string, authorization?: string) {
   return route.app.inject({
     method: "POST",
-    url: `/payments/mercado-pago-qr/${id}/cancel`,
+    url: `/payments/mercado-pago/${id}/cancel`,
     ...(authorization !== undefined && { headers: { authorization } }),
   });
 }
@@ -81,7 +90,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("the Mercado Pago QR routes", () => {
+describe("the Mercado Pago order routes", () => {
   describe.each(asks)("who may ask, %s", (_name, ask) => {
     it("refuses a request that carries no device token", async () => {
       const response = await ask();
@@ -166,7 +175,7 @@ describe("the Mercado Pago QR routes", () => {
     });
   });
 
-  describe("POST /payments/mercado-pago-qr/orders", () => {
+  describe("POST /payments/mercado-pago/orders", () => {
     it("refuses an over-limit request before reading its body", async () => {
       const { deviceId, deviceToken } = await enroll();
       await insertRequestsUpToLimit(route.db, deviceId, "payment_order", NOW);
@@ -281,20 +290,6 @@ describe("the Mercado Pago QR routes", () => {
       expect(route.mercadoPago.creations).toHaveLength(1);
     });
 
-    it("answers that the provider is not configured for the integrated terminal, recording nothing and not calling Mercado Pago", async () => {
-      const { deviceToken } = await enroll();
-
-      const response = await createOrder(
-        orderRequest({ provider: "MERCADOPAGO_POINT" }),
-        `Bearer ${deviceToken}`,
-      );
-
-      expect(response.statusCode).toBe(503);
-      expect(cloudErrorSchema.parse(response.json()).code).toBe("payment_provider_not_configured");
-      expect(route.mercadoPago.creations).toEqual([]);
-      expect(await transactions()).toEqual([]);
-    });
-
     it("answers that the provider refused the order", async () => {
       route.mercadoPago.creation = { kind: "refused" };
       const { deviceToken } = await enroll();
@@ -317,7 +312,132 @@ describe("the Mercado Pago QR routes", () => {
     });
   });
 
-  describe("GET /payments/mercado-pago-qr/:id", () => {
+  describe("an order on the integrated terminal", () => {
+    function pointOrderRequest(overrides: Partial<MercadoPagoOrderRequestBody> = {}) {
+      return orderRequest({ provider: "MERCADOPAGO_POINT", amount: 5000, ...overrides });
+    }
+
+    it("creates the order on the terminal and answers the pending payment of that provider", async () => {
+      const { deviceToken, registerId } = await enroll();
+      const body = pointOrderRequest();
+
+      const response = await createOrder(body, `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(200);
+      expect(mercadoPagoPaymentSchema.parse(response.json())).toMatchObject({
+        payment_transaction_id: body.payment_transaction_id,
+        state: "PENDING",
+        provider: "MERCADOPAGO_POINT",
+        amount: 5000,
+      });
+      expect(route.mercadoPago.pointCreations).toEqual([
+        {
+          idempotencyKey: body.payment_transaction_id,
+          externalReference: body.payment_transaction_id,
+          amount: 5000,
+          expiresAfterMinutes: 5,
+        },
+      ]);
+      expect(route.mercadoPago.creations).toEqual([]);
+      expect(await transactions()).toMatchObject([
+        {
+          id: body.payment_transaction_id,
+          registerId,
+          method: "POINT",
+          provider: "MERCADOPAGO_POINT",
+          providerOrderId: ORDER_ID,
+        },
+      ]);
+    });
+
+    it("refuses an amount below the terminal's minimum, recording nothing and not calling Mercado Pago", async () => {
+      const { deviceToken } = await enroll();
+
+      const response = await createOrder(
+        pointOrderRequest({ amount: 1499 }),
+        `Bearer ${deviceToken}`,
+      );
+
+      expect(response.statusCode).toBe(400);
+      expect(cloudErrorSchema.parse(response.json()).code).toBe("validation_failed");
+      expect(route.mercadoPago.pointCreations).toEqual([]);
+      expect(await transactions()).toEqual([]);
+    });
+
+    it("answers that the provider is not configured when no terminal is configured", async () => {
+      route.mercadoPago.pointCreation = { kind: "not_configured" };
+      const { deviceToken } = await enroll();
+
+      const response = await createOrder(pointOrderRequest(), `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(503);
+      expect(cloudErrorSchema.parse(response.json()).code).toBe("payment_provider_not_configured");
+    });
+
+    it.each([
+      ["refused", { kind: "refused" }, 502, "payment_provider_refused"],
+      ["unavailable", { kind: "unavailable" }, 503, "payment_provider_unavailable"],
+    ] as const)("answers that the provider is %s", async (_name, creation, status, code) => {
+      route.mercadoPago.pointCreation = creation;
+      const { deviceToken } = await enroll();
+
+      const response = await createOrder(pointOrderRequest(), `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(status);
+      expect(cloudErrorSchema.parse(response.json()).code).toBe(code);
+    });
+
+    it("answers the payment still pending while the order is at the terminal", async () => {
+      const { deviceToken } = await enroll();
+      const body = pointOrderRequest();
+      await createOrder(body, `Bearer ${deviceToken}`);
+      route.mercadoPago.reading = { kind: "read", result: AT_TERMINAL_ORDER };
+
+      const response = await readPayment(body.payment_transaction_id, `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(200);
+      expect(mercadoPagoPaymentSchema.parse(response.json())).toMatchObject({
+        state: "PENDING",
+        provider: "MERCADOPAGO_POINT",
+      });
+    });
+
+    it("cancels an order that is not at the terminal yet", async () => {
+      const { deviceToken } = await enroll();
+      const body = pointOrderRequest();
+      await createOrder(body, `Bearer ${deviceToken}`);
+
+      const response = await cancelPayment(body.payment_transaction_id, `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(200);
+      expect(mercadoPagoCancellationSchema.parse(response.json())).toMatchObject({
+        state: "CANCELLED",
+        provider: "MERCADOPAGO_POINT",
+        cancel_on_terminal: false,
+      });
+    });
+
+    it("answers that the order can only be cancelled on the terminal once it is there", async () => {
+      const { deviceToken } = await enroll();
+      const body = pointOrderRequest();
+      await createOrder(body, `Bearer ${deviceToken}`);
+      route.mercadoPago.cancellation = { kind: "cannot_cancel" };
+      route.mercadoPago.reading = { kind: "read", result: AT_TERMINAL_ORDER };
+
+      const response = await cancelPayment(body.payment_transaction_id, `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(200);
+      expect(mercadoPagoCancellationSchema.parse(response.json())).toMatchObject({
+        payment_transaction_id: body.payment_transaction_id,
+        state: "PENDING",
+        provider: "MERCADOPAGO_POINT",
+        cancel_on_terminal: true,
+      });
+      expect(await transactions()).toMatchObject([{ state: "PENDING" }]);
+    });
+  });
+
+  describe("GET /payments/mercado-pago/:id", () => {
     it("refuses an identifier that is not a record id", async () => {
       const { deviceToken } = await enroll();
 
@@ -382,7 +502,7 @@ describe("the Mercado Pago QR routes", () => {
     });
   });
 
-  describe("POST /payments/mercado-pago-qr/:id/cancel", () => {
+  describe("POST /payments/mercado-pago/:id/cancel", () => {
     async function pendingPayment(deviceToken: string) {
       const body = orderRequest();
       await createOrder(body, `Bearer ${deviceToken}`);
@@ -426,10 +546,11 @@ describe("the Mercado Pago QR routes", () => {
       const response = await cancelPayment(id, `Bearer ${deviceToken}`);
 
       expect(response.statusCode).toBe(200);
-      expect(mercadoPagoPaymentSchema.parse(response.json())).toMatchObject({
+      expect(mercadoPagoCancellationSchema.parse(response.json())).toMatchObject({
         payment_transaction_id: id,
         state: "CANCELLED",
         needs_review: false,
+        cancel_on_terminal: false,
       });
       const [cancellation] = route.mercadoPago.cancellations;
       expect(cancellation?.orderId).toBe(ORDER_ID);
@@ -509,6 +630,51 @@ describe("the Mercado Pago QR routes", () => {
       ]);
       expect(everything).not.toContain(ORDER_CARD_FIRST_SIX);
       expect(everything).not.toContain(ORDER_CARD_LAST_FOUR);
+      expect(consoleCalls).toEqual([]);
+    });
+  });
+
+  describe("an order answer on the terminal that carries card data", () => {
+    const consoleMethods = ["log", "info", "warn", "error", "debug"] as const;
+
+    it("stores and logs none of it, through the real client and the real database", async () => {
+      const consoleCalls: unknown[][] = [];
+      for (const method of consoleMethods) {
+        vi.spyOn(console, method).mockImplementation((...args: unknown[]) => {
+          consoleCalls.push(args);
+        });
+      }
+      const fetch = vi.fn<typeof globalThis.fetch>(async (_url, init) =>
+        init?.method === "POST"
+          ? new Response(JSON.stringify(pointCreatedOrder("50.00")), { status: 201 })
+          : new Response(JSON.stringify(pointPaidWithCardOrder("50.00")), { status: 200 }),
+      );
+      await route.serveWith(
+        createMercadoPagoOrdersClient({
+          accessToken: "APP_USR-fictional-access-token-0001",
+          externalPosId: "STORE01POS01",
+          pointTerminalId: POINT_TERMINAL_ID,
+          fetch,
+        }),
+      );
+      const { deviceToken } = await enroll();
+      const body = orderRequest({ provider: "MERCADOPAGO_POINT" });
+
+      const created = await createOrder(body, `Bearer ${deviceToken}`);
+      const read = await readPayment(body.payment_transaction_id, `Bearer ${deviceToken}`);
+
+      expect(created.statusCode).toBe(200);
+      expect(read.statusCode).toBe(200);
+      expect(mercadoPagoPaymentSchema.parse(read.json()).state).toBe("APPROVED");
+      const everything = JSON.stringify([
+        await transactions(),
+        created.json(),
+        read.json(),
+        consoleCalls,
+      ]);
+      expect(everything).not.toContain(ORDER_CARD_FIRST_SIX);
+      expect(everything).not.toContain(ORDER_CARD_LAST_FOUR);
+      expect(everything).not.toContain("credit_card");
       expect(consoleCalls).toEqual([]);
     });
   });
