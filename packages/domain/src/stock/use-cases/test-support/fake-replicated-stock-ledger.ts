@@ -28,7 +28,7 @@ export class FakeReplicatedStockLedger implements ReplicatedStockLedger {
 
   movement(id: string): ReplicatedStockMovement | undefined {
     const movement = this.movements.get(id);
-    return movement && { supersededByCountId: movement.supersededByCountId };
+    return movement && { supersededByCountId: movement.supersededByCountId, delta: movement.delta };
   }
 
   recordMovement(movement: PulledStockMovement): void {
@@ -37,6 +37,14 @@ export class FakeReplicatedStockLedger implements ReplicatedStockLedger {
       delta: movement.delta,
       supersededByCountId: movement.supersededByCountId,
     });
+  }
+
+  adoptMovementDelta(id: string, delta: number): void {
+    const movement = this.movements.get(id);
+    if (!movement) {
+      throw new Error(`movement  is not recorded`);
+    }
+    movement.delta = delta;
   }
 
   markSuperseded(id: string, countId: string): void {
