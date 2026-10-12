@@ -23,8 +23,11 @@ describe("mercadoPagoOrderChargeWaitEndsAt", () => {
     const attemptStartedAt = new Date("2026-10-09T12:00:00.000Z");
 
     expect(
-      mercadoPagoOrderExpiresAt(attemptStartedAt, 0).getTime() -
-        mercadoPagoOrderChargeWaitEndsAt(attemptStartedAt).getTime(),
+      mercadoPagoOrderExpiresAt(
+        attemptStartedAt,
+        MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
+        0,
+      ).getTime() - mercadoPagoOrderChargeWaitEndsAt(attemptStartedAt).getTime(),
     ).toBe(0);
     expect(MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES).toBe(3);
   });

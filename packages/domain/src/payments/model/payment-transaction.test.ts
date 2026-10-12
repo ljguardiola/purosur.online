@@ -52,20 +52,25 @@ describe("PaymentTransaction", () => {
 });
 
 describe("mercadoPagoOrderExpiresAt", () => {
-  it("expires when the register's 3-minute wait ends, plus the longest the creation call can take", () => {
-    expect(mercadoPagoOrderExpiresAt(new Date("2026-10-09T12:00:00.000Z"), 10_000)).toEqual(
+  it("expires when the order's lifetime ends, plus the longest the creation call can take", () => {
+    expect(mercadoPagoOrderExpiresAt(new Date("2026-10-09T12:00:00.000Z"), 3, 10_000)).toEqual(
       new Date("2026-10-09T12:03:10.000Z"),
     );
   });
 
-  it("is never earlier than the attempt's start plus the wait plus the longest call", () => {
+  it("is exactly the attempt's start plus the lifetime plus the longest call", () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 0, max: 4_000_000_000_000 }),
+        fc.integer({ min: 1, max: 10 }),
         fc.integer({ min: 0, max: 600_000 }),
-        (attemptStartedAt, longestCallMs) =>
-          mercadoPagoOrderExpiresAt(new Date(attemptStartedAt), longestCallMs).getTime() ===
-          attemptStartedAt + 3 * 60 * 1000 + longestCallMs,
+        (attemptStartedAt, lifetimeMinutes, longestCallMs) =>
+          mercadoPagoOrderExpiresAt(
+            new Date(attemptStartedAt),
+            lifetimeMinutes,
+            longestCallMs,
+          ).getTime() ===
+          attemptStartedAt + lifetimeMinutes * 60 * 1000 + longestCallMs,
       ),
     );
   });
@@ -73,7 +78,7 @@ describe("mercadoPagoOrderExpiresAt", () => {
   it("does not change the attempt's start it is given", () => {
     const attemptStartedAt = new Date("2026-10-09T12:00:00.000Z");
 
-    mercadoPagoOrderExpiresAt(attemptStartedAt, 10_000);
+    mercadoPagoOrderExpiresAt(attemptStartedAt, 3, 10_000);
 
     expect(attemptStartedAt).toEqual(new Date("2026-10-09T12:00:00.000Z"));
   });

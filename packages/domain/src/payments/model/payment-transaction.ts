@@ -1,5 +1,3 @@
-import { MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES } from "./mercado-pago-order-charge-wait.js";
-
 export const PAYMENT_TRANSACTION_STATES = [
   "PENDING",
   "APPROVED",
@@ -69,10 +67,12 @@ interface MercadoPagoOrder {
 
 export type MercadoPagoOrderTransaction = MercadoPagoQrPaymentTransaction & MercadoPagoOrder;
 
-export function mercadoPagoOrderExpiresAt(attemptStartedAt: Date, longestCallMs: number): Date {
-  return new Date(
-    attemptStartedAt.getTime() + MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES * 60 * 1000 + longestCallMs,
-  );
+export function mercadoPagoOrderExpiresAt(
+  attemptStartedAt: Date,
+  lifetimeMinutes: number,
+  longestCallMs: number,
+): Date {
+  return new Date(attemptStartedAt.getTime() + lifetimeMinutes * 60 * 1000 + longestCallMs);
 }
 
 export type ExpiryWithoutOrder = "expired" | "needs_review";
