@@ -14,6 +14,10 @@ export function formatNumber(value: number, options?: Intl.NumberFormatOptions):
   return new Intl.NumberFormat(LOCALE, options).format(value);
 }
 
+export function formatPercent(percent: number): string {
+  return `${formatNumber(percent)} %`;
+}
+
 export function formatCents(cents: number): string {
   return `$ ${formatAmountInput(cents)}`;
 }

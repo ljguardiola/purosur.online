@@ -50,6 +50,24 @@ export const DetailWithTones: Story = {
   },
 };
 
+export const Filled: Story = {
+  decorators: [
+    (Story) => (
+      <div className="bg-surface p-6">
+        <Story />
+      </div>
+    ),
+  ],
+  args: {
+    variant: "filled",
+    rows: [
+      { label: "Precio de lista", value: "$ 8.400,00", detail: true },
+      { label: "Descuento", value: "− $ 840,00", detail: true, tone: "error" },
+      { label: "Queda la línea en", value: "$ 7.560,00", detail: true, tone: "info" },
+    ],
+  },
+};
+
 export const SingleRow: Story = {
   args: {
     rows: [{ label: "Total", value: "$120.000", strong: true }],

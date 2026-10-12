@@ -303,6 +303,7 @@ export function AdjustLineModal({
           )}
         </form.Subscribe>
         <SummaryRowGroup
+          variant="filled"
           rows={[
             { label: "Precio de lista", value: formatCents(listUnitPrice), detail: true },
             ...(!previewRowsShown || typed.kind === "PRICE"
