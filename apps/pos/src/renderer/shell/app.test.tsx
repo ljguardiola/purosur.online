@@ -255,6 +255,12 @@ function coreAnswering(
     async previewSaleLineAdjustment() {
       return { kind: "unavailable" };
     },
+    async applySaleDiscount() {
+      return { kind: "no_open_sale" };
+    },
+    async previewSaleDiscount() {
+      return { kind: "unavailable" };
+    },
     async removeSaleLine() {
       return { kind: "unavailable" };
     },

@@ -181,6 +181,8 @@ function contextWith(
     changeLineWeight: async () => ({ kind: "unavailable" }),
     adjustSaleLine: async () => ({ kind: "unavailable" }),
     previewSaleLineAdjustment: async () => ({ kind: "unavailable" }),
+    applySaleDiscount: async () => ({ kind: "no_open_sale" }),
+    previewSaleDiscount: async () => ({ kind: "unavailable" }),
     removeSaleLine: async () => ({ kind: "unavailable" }),
     cancelSale: async () => ({ kind: "unavailable" }),
     cancelPaidSale: async () => ({ kind: "unavailable" }),
