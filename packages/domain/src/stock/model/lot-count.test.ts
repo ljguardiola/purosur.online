@@ -20,6 +20,8 @@ function lot(id: string, overrides: Partial<StockLot> = {}): StockLot {
   };
 }
 
+const MOMENT = new Date("2026-06-01T12:00:00.000Z");
+
 function target(lotId: string) {
   return { kind: "lot", lotId } as const;
 }
@@ -102,7 +104,7 @@ describe("countByProductAllocations", () => {
       lot("late", { expiresOn: "2027-06-01", remaining: 5_000 }),
     ];
 
-    expect(countByProductAllocations(lots, 6_000)).toEqual([
+    expect(countByProductAllocations(lots, 6_000, MOMENT)).toEqual([
       { target: target("soon"), quantity: -3_000 },
     ]);
   });
@@ -113,7 +115,7 @@ describe("countByProductAllocations", () => {
       lot("soon", { expiresOn: "2027-01-01", remaining: 4_000 }),
     ];
 
-    expect(countByProductAllocations(lots, 6_000)).toEqual([
+    expect(countByProductAllocations(lots, 6_000, MOMENT)).toEqual([
       { target: target("soon"), quantity: -3_000 },
     ]);
   });
@@ -124,7 +126,7 @@ describe("countByProductAllocations", () => {
       lot("none", { expiresOn: null, remaining: 4_000 }),
     ];
 
-    expect(countByProductAllocations(lots, 5_000)).toEqual([
+    expect(countByProductAllocations(lots, 5_000, MOMENT)).toEqual([
       { target: target("dated"), quantity: -3_000 },
     ]);
   });
@@ -135,7 +137,7 @@ describe("countByProductAllocations", () => {
       lot("late", { expiresOn: "2027-06-01", remaining: 5_000 }),
     ];
 
-    expect(countByProductAllocations(lots, 0)).toEqual([
+    expect(countByProductAllocations(lots, 0, MOMENT)).toEqual([
       { target: target("soon"), quantity: -4_000 },
       { target: target("late"), quantity: -5_000 },
     ]);
@@ -147,8 +149,54 @@ describe("countByProductAllocations", () => {
       lot("new", { expiresOn: "2027-06-01", remaining: 1_000, receivedAt: new Date("2026-03-01") }),
     ];
 
-    expect(countByProductAllocations(lots, 5_000)).toEqual([
+    expect(countByProductAllocations(lots, 5_000, MOMENT)).toEqual([
       { target: target("new"), quantity: 3_000 },
+    ]);
+  });
+
+  it("gives the excess to the most recently received lot that existed at the moment", () => {
+    const lots = [
+      lot("held", { remaining: 1_000, receivedAt: new Date("2026-01-01") }),
+      lot("arrived-later", { remaining: 0, receivedAt: new Date("2026-07-01") }),
+    ];
+
+    expect(countByProductAllocations(lots, 5_000, MOMENT)).toEqual([
+      { target: target("held"), quantity: 4_000 },
+    ]);
+  });
+
+  it("gives the excess to a lot received at the very moment of the count", () => {
+    const lots = [
+      lot("held", { remaining: 1_000, receivedAt: new Date("2026-01-01") }),
+      lot("arrived-then", { remaining: 0, receivedAt: MOMENT }),
+    ];
+
+    expect(countByProductAllocations(lots, 5_000, MOMENT)).toEqual([
+      { target: target("arrived-then"), quantity: 4_000 },
+    ]);
+  });
+
+  it("gives the excess to the technical lot when every bought lot was received after the moment", () => {
+    const lots = [
+      lot("tech", {
+        technical: true,
+        purchasedOn: null,
+        remaining: 0,
+        receivedAt: new Date("2026-07-01"),
+      }),
+      lot("arrived-later", { remaining: 0, receivedAt: new Date("2026-07-01") }),
+    ];
+
+    expect(countByProductAllocations(lots, 5_000, MOMENT)).toEqual([
+      { target: target("tech"), quantity: 5_000 },
+    ]);
+  });
+
+  it("opens a technical lot for the excess when no lot was received by the moment", () => {
+    const lots = [lot("arrived-later", { remaining: 0, receivedAt: new Date("2026-07-01") })];
+
+    expect(countByProductAllocations(lots, 5_000, MOMENT)).toEqual([
+      { target: { kind: "new_technical_lot" }, quantity: 5_000 },
     ]);
   });
 
@@ -158,7 +206,7 @@ describe("countByProductAllocations", () => {
       lot("bought", { remaining: 5_000 }),
     ];
 
-    expect(countByProductAllocations(lots, 5_000)).toEqual([
+    expect(countByProductAllocations(lots, 5_000, MOMENT)).toEqual([
       { target: target("tech"), quantity: -2_000 },
     ]);
   });
@@ -166,25 +214,25 @@ describe("countByProductAllocations", () => {
   it("sets a product whose only lot is technical to the counted quantity", () => {
     const lots = [lot("tech", { technical: true, purchasedOn: null, remaining: 2_000 })];
 
-    expect(countByProductAllocations(lots, 7_000)).toEqual([
+    expect(countByProductAllocations(lots, 7_000, MOMENT)).toEqual([
       { target: target("tech"), quantity: 5_000 },
     ]);
   });
 
   it("opens a technical lot for a product with no lot", () => {
-    expect(countByProductAllocations([], 7_000)).toEqual([
+    expect(countByProductAllocations([], 7_000, MOMENT)).toEqual([
       { target: { kind: "new_technical_lot" }, quantity: 7_000 },
     ]);
   });
 
   it("allocates nothing to a product with no lot counted at zero", () => {
-    expect(countByProductAllocations([], 0)).toEqual([]);
+    expect(countByProductAllocations([], 0, MOMENT)).toEqual([]);
   });
 
   it("brings a lot in debt up to what the count gives it", () => {
     const lots = [lot("debt", { remaining: -1_000 })];
 
-    expect(countByProductAllocations(lots, 3_000)).toEqual([
+    expect(countByProductAllocations(lots, 3_000, MOMENT)).toEqual([
       { target: target("debt"), quantity: 4_000 },
     ]);
   });
@@ -199,7 +247,7 @@ describe("countByProductAllocations", () => {
       lot("ok", { expiresOn: "2027-01-01", remaining: 2_000, receivedAt: new Date("2026-02-01") }),
     ];
 
-    expect(countByProductAllocations(lots, 2_500)).toEqual([
+    expect(countByProductAllocations(lots, 2_500, MOMENT)).toEqual([
       { target: target("debt"), quantity: 1_000 },
       { target: target("ok"), quantity: 500 },
     ]);
@@ -262,7 +310,7 @@ describe("countByProductAllocations generated", () => {
   it("leaves the product's lots adding up to the counted quantity", () => {
     fc.assert(
       fc.property(lotsArbitrary, countedArbitrary, (lots, counted) => {
-        const allocations = countByProductAllocations(lots, counted);
+        const allocations = countByProductAllocations(lots, counted, MOMENT);
         const opened = allocations
           .filter(({ target: to }) => to.kind === "new_technical_lot")
           .reduce((sum, { quantity }) => sum + quantity, 0);
@@ -275,7 +323,7 @@ describe("countByProductAllocations generated", () => {
   it("leaves no lot below zero", () => {
     fc.assert(
       fc.property(lotsArbitrary, countedArbitrary, (lots, counted) => {
-        const allocations = countByProductAllocations(lots, counted);
+        const allocations = countByProductAllocations(lots, counted, MOMENT);
 
         expect([...applied(lots, allocations).values()].every((value) => value >= 0)).toBe(true);
         expect(
@@ -290,7 +338,7 @@ describe("countByProductAllocations generated", () => {
   it("raises a lot above what it holds only for the excess", () => {
     fc.assert(
       fc.property(lotsArbitrary, countedArbitrary, (lots, counted) => {
-        const after = applied(lots, countByProductAllocations(lots, counted));
+        const after = applied(lots, countByProductAllocations(lots, counted, MOMENT));
         const raised = lots.filter(
           (candidate) => (after.get(candidate.id) ?? 0) > Math.max(0, candidate.remaining),
         );
@@ -306,10 +354,32 @@ describe("countByProductAllocations generated", () => {
     );
   });
 
+  it("never raises a bought lot received after the moment", () => {
+    fc.assert(
+      fc.property(
+        lotsArbitrary,
+        countedArbitrary,
+        fc.integer({ min: 0, max: 20 }),
+        (lots, counted, momentDay) => {
+          const moment = new Date(Date.UTC(2026, 0, 1 + momentDay));
+          const after = applied(lots, countByProductAllocations(lots, counted, moment));
+
+          for (const candidate of lots) {
+            if (!candidate.technical && candidate.receivedAt > moment) {
+              expect(after.get(candidate.id) ?? 0).toBeLessThanOrEqual(
+                Math.max(0, candidate.remaining),
+              );
+            }
+          }
+        },
+      ),
+    );
+  });
+
   it("allocates at most once to a lot and never a zero", () => {
     fc.assert(
       fc.property(lotsArbitrary, countedArbitrary, (lots, counted) => {
-        const allocations = countByProductAllocations(lots, counted);
+        const allocations = countByProductAllocations(lots, counted, MOMENT);
         const ids = plannedLotIds(allocations);
 
         expect(new Set(ids).size).toBe(ids.length);

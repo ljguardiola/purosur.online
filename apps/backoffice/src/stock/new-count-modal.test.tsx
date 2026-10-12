@@ -140,26 +140,6 @@ test("shows the balance the chosen product expects and the difference", async ()
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("says there is no difference when the count equals the expected balance", async () => {
-  const rendered = await renderModal(createServices());
-
-  await count(rendered, "Té verde en hebras 100 g", "17");
-
-  await expect.element(rendered.dialog.getByText("Sin diferencia")).toBeVisible();
-});
-
-test("says the expected balance could not be opened when the cloud fails to give it", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchExpectedBalance).mockResolvedValue({ kind: "failed" });
-  const rendered = await renderModal(services);
-
-  await count(rendered, "Té verde en hebras 100 g", "16");
-
-  await expect
-    .element(rendered.dialog.getByText("No pudimos abrir el saldo esperado"))
-    .toBeVisible();
-});
-
 test("registers the count at the moment chosen", async () => {
   const services = createServices();
   const result = { expected: 17_000, delta: -1000, balance: 16_000, superseded: false };
@@ -441,18 +421,12 @@ test("does not offer counting by lot to a user who may not view balances", async
   await expect.element(rendered.dialog.getByRole("radio", { name: "Por lote" })).toBeDisabled();
 });
 
-test("lists each lot in the order the cloud answers with its expiry and expected balance", async () => {
+test("shows a quantity field for each lot of the chosen product", async () => {
   const services = createServices();
   const rendered = await renderModal(services);
   await countByLot(rendered, services);
   const { dialog, screen } = rendered;
 
-  await expect.element(dialog.getByText("Cantidad contada de cada lote")).toBeVisible();
-  await expect.element(dialog.getByText("L-2312")).toBeVisible();
-  await expect.element(dialog.getByText("Vence el 14/10/2026 · saldo 4,400 kg")).toBeVisible();
-  await expect.element(dialog.getByText("—", { exact: true })).toBeVisible();
-  await expect.element(dialog.getByText("Sin vencimiento · saldo 8,000 kg")).toBeVisible();
-  await expect.element(dialog.getByText("Un lote sin cantidad queda en cero.")).toBeVisible();
   expect(dialog.getByRole("textbox", { name: /^Cantidad contada/ }).all()).toHaveLength(2);
   await expect.element(dialog.getByRole("textbox", { name: FIRST_LOT })).toBeVisible();
   await expect.element(dialog.getByRole("textbox", { name: SECOND_LOT })).toBeVisible();

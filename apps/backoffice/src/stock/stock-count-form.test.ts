@@ -100,6 +100,12 @@ describe("lotsMessage", () => {
     );
   });
 
+  it("explains how to write the quantity when one is over the largest accepted quantity", () => {
+    expect(lotsMessage({ [ALMONDS_FIRST_LOT_ID]: "9.999.999" }, lots, "KG")).toBe(
+      "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
+    );
+  });
+
   it("says the lots changed when every quantity can be read", () => {
     expect(lotsMessage({ [ALMONDS_FIRST_LOT_ID]: "4,300" }, lots, "KG")).toBe(
       "Los lotes del producto cambiaron. Elegí el producto de nuevo.",

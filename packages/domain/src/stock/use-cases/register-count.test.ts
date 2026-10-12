@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MAX_STOCK_QUANTITY } from "../model/stock-quantity.js";
 import { registerCount } from "./register-count.js";
 import type { CountedLot } from "./stock-store.js";
 import { FakeStockStore, FixedClock } from "./test-support/fake-stock-store.js";
@@ -296,6 +297,26 @@ describe("registerCount by product on a product with lots", () => {
     await count(store, { counted: 12_000 });
 
     expect(remainingOf(store)).toEqual({ soon: 6_000, late: 6_000 });
+  });
+
+  it("gives the excess of a past count to a lot received by its moment, not to one received after it", async () => {
+    const store = storeWithProduct({ balance: 13_000 });
+    seedLots(store);
+    const receipt = store.seedMovement({
+      ...KEY,
+      kind: "receipt",
+      reason: null,
+      delta: 3_000,
+      occurredAt: AFTER_COUNT,
+      actorId: "actor-2",
+      supersededByCountId: null,
+    });
+    store.seedLot({ ...KEY, id: "arrived-later", receivedAt: AFTER_COUNT, remaining: 3_000 });
+    store.seedAllocation({ movementId: receipt, lotId: "arrived-later", quantity: 3_000 });
+
+    await count(store, { counted: 12_000 });
+
+    expect(remainingOf(store)).toEqual({ soon: 6_000, late: 6_000, "arrived-later": 3_000 });
   });
 
   it("sets a technical lot that is the product's only lot to the counted quantity", async () => {
@@ -607,6 +628,22 @@ describe("registerCount by lot", () => {
       lots: [
         { lotId: "soon", counted: 1_000 },
         { lotId: "late", counted: 1_500 },
+      ],
+    });
+
+    expect(outcome).toEqual({ kind: "invalid_quantity" });
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("refuses lots whose sum is over the largest counted quantity, writing nothing", async () => {
+    const store = storeWithProduct({ balance: 10_000 });
+    seedLots(store);
+    const before = store.snapshot();
+
+    const outcome = await count(store, {
+      lots: [
+        { lotId: "soon", counted: MAX_STOCK_QUANTITY },
+        { lotId: "late", counted: 1 },
       ],
     });
 
