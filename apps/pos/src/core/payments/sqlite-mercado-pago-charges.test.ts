@@ -20,6 +20,15 @@ function addQrPayment(id: string, state: string): void {
     .run(id, state, OCCURRED_AT, WAIT_ENDS_AT);
 }
 
+function addPointPayment(id: string, state: string): void {
+  database
+    .prepare(
+      `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at)
+       VALUES (?, 'sale-1', 'SALE', 'POINT', 'MERCADOPAGO_POINT', 5000, ?, ?, ?)`,
+    )
+    .run(id, state, OCCURRED_AT, WAIT_ENDS_AT);
+}
+
 function stateOf(id: string): unknown {
   return database.prepare("SELECT state FROM payment_transactions WHERE id = ?").get(id);
 }
@@ -109,5 +118,45 @@ describe("the Mercado Pago QR charges the register keeps", () => {
     expect(
       database.prepare("SELECT wait_ends_at FROM payment_transactions WHERE id = 'qr-1'").get(),
     ).toEqual({ wait_ends_at: WAIT_ENDS_AT });
+  });
+
+  it("find a pending integrated terminal payment with its method, sale, amount and the end of its wait", () => {
+    addPointPayment("point-1", "PENDING");
+
+    expect(charges.pendingCharge("point-1")).toEqual({
+      paymentTransactionId: "point-1",
+      saleId: "sale-1",
+      method: "POINT",
+      amount: 5000,
+      waitEndsAt: new Date(WAIT_ENDS_AT),
+    });
+  });
+
+  it("find no pending charge for an integrated terminal payment that ended", () => {
+    addPointPayment("point-approved", "APPROVED");
+    addPointPayment("point-cancelled", "CANCELLED");
+
+    expect(charges.pendingCharge("point-approved")).toBeNull();
+    expect(charges.pendingCharge("point-cancelled")).toBeNull();
+  });
+
+  it.each(["DECLINED", "CANCELLED", "EXPIRED"] as const)(
+    "record a pending integrated terminal payment as %s once its order ends that way",
+    (state) => {
+      addPointPayment("point-1", "PENDING");
+
+      charges.recordEnded("point-1", state);
+
+      expect(stateOf("point-1")).toEqual({ state });
+    },
+  );
+
+  it("record a pending integrated terminal payment's wait end, keeping it pending", () => {
+    addPointPayment("point-1", "PENDING");
+    const waitEndsAt = new Date("2026-10-09T12:00:04.000Z");
+
+    charges.recordWaitEnd("point-1", waitEndsAt);
+
+    expect(charges.pendingCharge("point-1")?.waitEndsAt).toEqual(waitEndsAt);
   });
 });
