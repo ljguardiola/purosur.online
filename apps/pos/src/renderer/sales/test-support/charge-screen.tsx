@@ -242,3 +242,28 @@ export async function chargeInCash(screen: Screen, tendered: string) {
   );
   await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
 }
+
+export function saleWithChargeInProgress(
+  method: MercadoPagoMethod,
+  remainingSeconds: number,
+): OpenSale {
+  return {
+    ...SALE_OF_ONE_LINE,
+    lines_lock: "mercado_pago_charge_in_progress",
+    cancel_refusal: "mercado_pago_charge_in_progress",
+    mercado_pago_charge_in_progress: {
+      payment_transaction_id: method === "POINT" ? POINT_PAYMENT_ID : QR_PAYMENT_ID,
+      method,
+      amount: 476_000,
+      remaining_seconds: remainingSeconds,
+    },
+  };
+}
+
+export function readsInTurn(
+  first: CurrentSaleAnswer,
+  ...rest: CurrentSaleAnswer[]
+): () => Promise<CurrentSaleAnswer> {
+  const reads = [first, ...rest];
+  return async () => (reads.length > 1 ? reads.shift() : reads[0]) ?? null;
+}

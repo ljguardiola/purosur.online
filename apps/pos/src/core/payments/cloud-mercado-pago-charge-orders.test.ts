@@ -222,6 +222,12 @@ describe("reading a Mercado Pago QR order's state from the cloud", () => {
     expect(await orders.readOrder(PAYMENT_ID)).toEqual({ kind: "unreachable" });
   });
 
+  it("answers not_recorded when the cloud has no record of the payment", async () => {
+    const { orders } = cloudOrders([refused("not_found")]);
+
+    expect(await orders.readOrder(PAYMENT_ID)).toEqual({ kind: "not_recorded" });
+  });
+
   it("asks the cloud at most once every 3 seconds, answering the last state read in between", async () => {
     const { calls, orders, advance } = cloudOrders([
       ok(payment("PENDING")),
@@ -295,6 +301,12 @@ describe("asking the cloud to cancel a Mercado Pago QR order", () => {
     expect(await orders.cancelOrder(PAYMENT_ID)).toEqual({ kind: "cancel_on_terminal" });
   });
 
+  it("answers not_recorded when the cloud has no record of the payment", async () => {
+    const { orders } = cloudOrders([refused("not_found")]);
+
+    expect(await orders.cancelOrder(PAYMENT_ID)).toEqual({ kind: "not_recorded" });
+  });
+
   it("answers unreachable when the cloud does not say whether the cancellation is left to the terminal", async () => {
     const { orders } = cloudOrders([ok(payment("CANCELLED"))]);
 
@@ -312,7 +324,6 @@ describe("asking the cloud to cancel a Mercado Pago QR order", () => {
   it.each([
     ["the cloud cannot be reached", { kind: "unreachable" } as CloudResponse],
     ["the cloud answers a retryable error", refused("payment_provider_unavailable")],
-    ["the cloud does not know the payment", refused("not_found")],
     ["the body is not a payment", ok({ state: "CANCELLED" })],
     [
       "the body is another payment",

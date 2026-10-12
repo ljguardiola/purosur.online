@@ -102,6 +102,22 @@ describe("followMercadoPagoCharge on the integrated terminal", () => {
     },
   );
 
+  it.each([
+    ["before the wait ends", new Date("2026-10-09T12:00:19.000Z")],
+    ["after the wait", AFTER_THE_WAIT],
+  ])(
+    "answers closed, ending the payment as cancelled, when the cloud never recorded it, %s",
+    async (_when, now) => {
+      const world = followingWorld();
+      world.now = now;
+      world.orderReading = { kind: "not_recorded" };
+
+      expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "closed" });
+      expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
+      expect(world.operations).toEqual(["readOrder", "recordEnded:CANCELLED"]);
+    },
+  );
+
   it("answers that no charge is pending once it is closed", async () => {
     const world = followingWorld();
     world.orderReading = { kind: "read", state: "EXPIRED" };

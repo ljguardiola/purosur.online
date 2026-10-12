@@ -75,6 +75,19 @@ describe("abandonMercadoPagoCharge on the integrated terminal", () => {
     expect(world.pendingCharge(CHARGE_PAYMENT_ID)).not.toBeNull();
   });
 
+  it.each(["POINT", "QR"] as const)(
+    "records a %s payment the cloud never recorded as cancelled, never replacing it",
+    async (method) => {
+      const world = new FakeMercadoPagoChargeWorld();
+      world.seedPending({ method });
+      world.orderCancellation = { kind: "not_recorded" };
+
+      expect(await abandonMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "cancelled" });
+      expect(world.operations).toEqual(["cancelOrder", "recordEnded:CANCELLED"]);
+      expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
+    },
+  );
+
   it("replaces a QR payment the cloud cannot cancel, as before", async () => {
     const world = new FakeMercadoPagoChargeWorld();
     world.seedPending({ method: "QR" });

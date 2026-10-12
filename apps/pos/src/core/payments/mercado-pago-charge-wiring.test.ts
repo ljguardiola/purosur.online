@@ -3,6 +3,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { currentSaleFor } from "../sales/sale-requests";
 import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
@@ -13,6 +14,7 @@ import {
 } from "./test-support/mercado-pago-charge-requests";
 
 const NOW = new Date("2026-10-09T12:00:00.000Z");
+const PROVIDER_UNAVAILABLE = { status: 503, code: "payment_provider_unavailable" };
 
 let database: LocalDatabase;
 
@@ -26,13 +28,16 @@ function gate() {
   });
 }
 
-function cloudClient(requests: { url: string; init: RequestInit }[]) {
+function cloudClient(
+  requests: { url: string; init: RequestInit }[],
+  refusal: { status: number; code: string } = { status: 404, code: "not_found" },
+) {
   return {
     cloudUrl: "https://cloud.example",
     fetch: async (url: string, init: RequestInit) => {
       requests.push({ url, init });
-      return new Response(JSON.stringify({ code: "not_found", message: "x", details: [] }), {
-        status: 404,
+      return new Response(JSON.stringify({ code: refusal.code, message: "x", details: [] }), {
+        status: refusal.status,
         headers: { "content-type": "application/json" },
       });
     },
@@ -125,6 +130,50 @@ describe("the register's Mercado Pago QR charging", () => {
     ]);
   });
 
+  it("unlocks the sale when the cloud never recorded a terminal payment whose order it could not be asked for", async () => {
+    const signedInPerson = createSignedInPerson();
+    seedChargeRegister(database);
+    signedInPerson.set("u1");
+    const saleId = await openSaleOfTwoYerbas({ database, signedInPerson });
+    const pointGate = createActionGate({
+      store: new SqliteSignInStore(database),
+      signedInPerson,
+      readPepper: async () => undefined,
+      hashPin: async () => "",
+      now: () => NOW,
+    });
+    const notFound = cloudClient([]);
+    const charging = createMercadoPagoCharging({
+      database,
+      gate: pointGate,
+      cloudClient: {
+        ...notFound,
+        fetch: async (url: string, init: RequestInit) => {
+          if (init.method === "POST") {
+            throw new TypeError("fetch failed");
+          }
+          return notFound.fetch(url, init);
+        },
+      },
+      readDeviceToken: async () => "prefix.secret",
+      readOutboxChainKey: async () => "key",
+      now: () => NOW,
+      ids: { next: () => "point-1" },
+    });
+
+    expect(await charging.start?.({ saleId, method: "POINT", amount: 3000 })).toMatchObject({
+      kind: "order_unconfirmed",
+      payment_transaction_id: "point-1",
+    });
+    expect(await charging.follow?.({ paymentTransactionId: "point-1" })).toEqual({
+      kind: "closed",
+    });
+    expect(await currentSaleFor({ database, gate: pointGate, now: () => NOW })).toMatchObject({
+      charge_refusal: null,
+      mercado_pago_charge_in_progress: null,
+    });
+  });
+
   it("reads a QR order's state from the cloud's address with the device token", async () => {
     const requests: { url: string; init: RequestInit }[] = [];
     const signedIn = createSignedInPerson();
@@ -149,7 +198,7 @@ describe("the register's Mercado Pago QR charging", () => {
         hashPin: async () => "",
         now: () => NOW,
       }),
-      cloudClient: cloudClient(requests),
+      cloudClient: cloudClient(requests, PROVIDER_UNAVAILABLE),
       readDeviceToken: async () => "prefix.secret",
       readOutboxChainKey: async () => "key",
       now: () => NOW,
@@ -194,7 +243,7 @@ describe("the register's Mercado Pago QR charging", () => {
         hashPin: async () => "",
         now: () => NOW,
       }),
-      cloudClient: cloudClient(requests),
+      cloudClient: cloudClient(requests, PROVIDER_UNAVAILABLE),
       readDeviceToken: async () => "prefix.secret",
       readOutboxChainKey: async () => Buffer.alloc(32, 7).toString("base64"),
       now: () => NOW,

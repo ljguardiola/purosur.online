@@ -87,6 +87,15 @@ describe("followMercadoPagoCharge", () => {
     expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "wait_over" });
   });
 
+  it("answers the wait is over, recording the payment cancelled, when the cloud never recorded it", async () => {
+    const world = followingWorld();
+    world.orderReading = { kind: "not_recorded" };
+
+    expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "wait_over" });
+    expect(world.operations).toEqual(["readOrder", "recordEnded:CANCELLED"]);
+    expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
+  });
+
   it("cannot confirm the expiry when the order cannot be read after the countdown ended, leaving the payment pending", async () => {
     const world = followingWorld();
     world.now = new Date("2026-10-09T12:03:00.000Z");

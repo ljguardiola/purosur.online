@@ -201,6 +201,17 @@ describe("PointChargeModal", () => {
       .toHaveTextContent("No se pudo crear la orden. Probá de nuevo.");
   });
 
+  it("says the charge could not be sent, letting it be sent again, when the core answers it could not reach the cloud", async () => {
+    const { screen, send } = await renderModal(async () => ({ kind: "unreachable" }));
+
+    await userEvent.click(send);
+
+    await expect
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent("No se pudo crear la orden. Probá de nuevo.");
+    await expect.element(send).toBeEnabled();
+  });
+
   it.each([
     { kind: "empty_sale" },
     { kind: "zero_total" },

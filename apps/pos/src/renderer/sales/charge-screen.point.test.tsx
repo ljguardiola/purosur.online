@@ -7,8 +7,10 @@ import {
   choosePoint,
   POINT_ORDER_SHOWN,
   POINT_PAYMENT_ID,
+  readsInTurn,
   renderScreen,
   SALE_OF_ONE_LINE,
+  saleWithChargeInProgress,
 } from "./test-support/charge-screen";
 
 const NEXT_ASK_TIMEOUT_MS = 5_000;
@@ -124,6 +126,65 @@ describe("ChargeScreen · Point integrada", () => {
       .toBeVisible();
     await expect.element(screen.getByRole("dialog").getByText("$ 3.000,00")).toBeVisible();
     await expect.poll(() => followMercadoPagoCharge.mock.calls[0]).toEqual([POINT_PAYMENT_ID]);
+  });
+
+  describe("following the charge the open sale has in progress", () => {
+    it("shows the customer paid until Continuar, then the completed sale, after the sale stops being open", async () => {
+      const { screen, currentSale } = await renderScreen({
+        currentSale: readsInTurn(saleWithChargeInProgress("POINT", 120), null),
+        followMercadoPagoCharge: async () => ({
+          kind: "completed",
+          sale_id: "sale-1",
+          total: 476_000,
+        }),
+      });
+
+      await expect
+        .element(screen.getByRole("heading", { name: "El cliente pagó en la terminal" }))
+        .toBeVisible();
+      await expect
+        .poll(() => currentSale.mock.calls.length, { timeout: NEXT_ASK_TIMEOUT_MS })
+        .toBeGreaterThan(1);
+      await expect
+        .element(screen.getByRole("heading", { name: "El cliente pagó en la terminal" }))
+        .toBeVisible();
+
+      await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+    });
+
+    it("keeps the declined notice after the sale stops showing the charge", async () => {
+      const { screen, currentSale } = await renderScreen({
+        currentSale: readsInTurn(saleWithChargeInProgress("POINT", 120), SALE_OF_ONE_LINE),
+        followMercadoPagoCharge: async () => ({ kind: "declined" }),
+      });
+
+      await expect
+        .element(screen.getByRole("heading", { name: "La terminal rechazó el pago" }))
+        .toBeVisible();
+      await expect
+        .poll(() => currentSale.mock.calls.length, { timeout: NEXT_ASK_TIMEOUT_MS })
+        .toBeGreaterThan(1);
+      await expect
+        .element(screen.getByRole("heading", { name: "La terminal rechazó el pago" }))
+        .toBeVisible();
+    });
+
+    it("keeps the time the wait started with while the sale is read again", async () => {
+      const { screen, currentSale } = await renderScreen({
+        currentSale: readsInTurn(
+          saleWithChargeInProgress("POINT", 120),
+          saleWithChargeInProgress("POINT", 90),
+        ),
+        followMercadoPagoCharge: async () => ({ kind: "waiting", remaining_seconds: 90 }),
+      });
+
+      await expect
+        .poll(() => currentSale.mock.calls.length, { timeout: NEXT_ASK_TIMEOUT_MS })
+        .toBeGreaterThan(1);
+      await expect.element(screen.getByText("de 2:00")).toBeVisible();
+    });
   });
 
   it("follows the charge on the terminal when the cloud could not confirm its order", async () => {
