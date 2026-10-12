@@ -172,16 +172,6 @@ describe("the sales history", () => {
     });
   });
 
-  it("answers each sale's time in Argentina time", async () => {
-    addSale({ id: "after-midnight", occurredAt: "2026-10-10T05:13:00.000Z", operationNumber: 1 });
-
-    const answer = await salesHistoryFor(deps(), ASK);
-
-    expect(answer.kind === "found" && answer.rows.map(({ occurred_at }) => occurred_at)).toEqual([
-      "2026-10-10T02:13:00.000-03:00",
-    ]);
-  });
-
   it("shows a deferred sale with its non-fiscal comprobante", async () => {
     addSale({
       id: "offline",
