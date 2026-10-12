@@ -82,6 +82,7 @@ export const readInitialCountOutcomeSchema = z.discriminatedUnion("kind", [
   }),
   notPermittedOutcome,
   notSignedInOutcome,
+  unavailableOutcome,
 ]);
 export type ReadInitialCountOutcome = z.infer<typeof readInitialCountOutcomeSchema>;
 
@@ -121,6 +122,7 @@ export const findCountableProductOutcomeSchema = z.discriminatedUnion("kind", [
   notPermittedOutcome,
   notSignedInOutcome,
   notOfferedOutcome,
+  unavailableOutcome,
 ]);
 export type FindCountableProductOutcome = z.infer<typeof findCountableProductOutcomeSchema>;
 
@@ -142,6 +144,7 @@ export const searchCountableProductsOutcomeSchema = z.discriminatedUnion("kind",
   notPermittedOutcome,
   notSignedInOutcome,
   notOfferedOutcome,
+  unavailableOutcome,
 ]);
 export type SearchCountableProductsOutcome = z.infer<typeof searchCountableProductsOutcomeSchema>;
 
@@ -154,6 +157,7 @@ export const weighCountedProductOutcomeSchema = z.discriminatedUnion("kind", [
   notPermittedOutcome,
   notSignedInOutcome,
   notOfferedOutcome,
+  unavailableOutcome,
 ]);
 export type WeighCountedProductOutcome = z.infer<typeof weighCountedProductOutcomeSchema>;
 
