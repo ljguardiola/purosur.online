@@ -38,6 +38,8 @@ export interface MercadoPagoChargeSale<Refusal, Settlement, ReplacementRefusal =
 export type MercadoPagoChargeOrderAnswer =
   | { kind: "created"; expiresAt: Date }
   | { kind: "refused" }
+  | { kind: "not_configured" }
+  | { kind: "below_minimum" }
   | { kind: "unreachable" };
 
 export type MercadoPagoChargeOrderReading =

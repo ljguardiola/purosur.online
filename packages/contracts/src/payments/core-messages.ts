@@ -59,6 +59,7 @@ const startMercadoPagoChargeOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("mercado_pago_charge_in_progress") }),
   z.object({ kind: z.literal("invalid_amount") }),
   z.object({ kind: z.literal("below_minimum") }),
+  z.object({ kind: z.literal("not_configured") }),
   z.object({ kind: z.literal("exceeds_pending"), pending: z.int().nonnegative() }),
   ...saleChargeRefusals,
 ]);

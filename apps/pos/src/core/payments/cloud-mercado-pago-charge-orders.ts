@@ -1,6 +1,7 @@
 import {
   isRetryableCloudError,
   type MercadoPagoOrderRequestBody,
+  mercadoPagoCancellationSchema,
   mercadoPagoPaymentSchema,
 } from "@purosur/contracts";
 import { MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS } from "@purosur/domain";
@@ -27,11 +28,20 @@ export interface CloudMercadoPagoChargeOrdersDeps {
 const ORDERS_PATH = "/api/payments/mercado-pago/orders";
 const UNREACHABLE = { kind: "unreachable" } as const;
 
-function orderAnswerOf(response: CloudResponse): MercadoPagoChargeOrderAnswer {
+function orderAnswerOf(
+  response: CloudResponse,
+  method: "QR" | "POINT",
+): MercadoPagoChargeOrderAnswer {
   if (response.kind === "unreachable") {
     return UNREACHABLE;
   }
   if (response.kind === "error") {
+    if (method === "POINT" && response.error.code === "payment_provider_not_configured") {
+      return { kind: "not_configured" };
+    }
+    if (method === "POINT" && response.error.code === "validation_failed") {
+      return { kind: "below_minimum" };
+    }
     return isRetryableCloudError(response.error.code) ? UNREACHABLE : { kind: "refused" };
   }
   const payment = mercadoPagoPaymentSchema.safeParse(response.body);
@@ -58,8 +68,16 @@ function orderCancellationOf(
   response: CloudResponse,
   paymentTransactionId: string,
 ): MercadoPagoChargeOrderCancellation {
-  const reading = orderReadingOf(response, paymentTransactionId);
-  return reading.kind === "read" ? { kind: "answered", state: reading.state } : UNREACHABLE;
+  if (response.kind !== "ok") {
+    return UNREACHABLE;
+  }
+  const cancellation = mercadoPagoCancellationSchema.safeParse(response.body);
+  if (!cancellation.success || cancellation.data.payment_transaction_id !== paymentTransactionId) {
+    return UNREACHABLE;
+  }
+  return cancellation.data.cancel_on_terminal
+    ? { kind: "cancel_on_terminal" }
+    : { kind: "answered", state: cancellation.data.state };
 }
 
 export class CloudMercadoPagoChargeOrders implements MercadoPagoChargeOrders {
@@ -88,7 +106,7 @@ export class CloudMercadoPagoChargeOrders implements MercadoPagoChargeOrders {
       provider: order.method === "POINT" ? "MERCADOPAGO_POINT" : "MERCADOPAGO_QR",
       amount: order.amount,
     };
-    return orderAnswerOf(await this.deps.post(ORDERS_PATH, deviceToken, body));
+    return orderAnswerOf(await this.deps.post(ORDERS_PATH, deviceToken, body), order.method);
   }
 
   async readOrder(paymentTransactionId: string): Promise<MercadoPagoChargeOrderReading> {

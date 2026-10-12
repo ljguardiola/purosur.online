@@ -23,6 +23,8 @@ export type StartMercadoPagoChargeOutcome<Refusal> =
       remainingSeconds: number;
     }
   | { kind: "order_refused" }
+  | { kind: "not_configured" }
+  | { kind: "below_minimum" }
   | { kind: "unreachable" }
   | Refusal;
 
@@ -31,12 +33,16 @@ function startedOnTheTerminal<Refusal>(
   order: { paymentTransactionId: string; amount: number; waitEndsAt: Date },
   answer: MercadoPagoChargeOrderAnswer,
 ): StartMercadoPagoChargeOutcome<Refusal> {
-  if (answer.kind === "refused") {
-    charges.recordEnded(order.paymentTransactionId, "CANCELLED");
-    return { kind: "order_refused" };
-  }
   if (answer.kind === "unreachable") {
     return { kind: "unreachable" };
+  }
+  if (
+    answer.kind === "refused" ||
+    answer.kind === "not_configured" ||
+    answer.kind === "below_minimum"
+  ) {
+    charges.recordEnded(order.paymentTransactionId, "CANCELLED");
+    return answer.kind === "refused" ? { kind: "order_refused" } : { kind: answer.kind };
   }
   return {
     kind: "order_shown",
@@ -80,7 +86,7 @@ export async function startMercadoPagoCharge<Refusal, Settlement>(
   }
   if (answer.kind !== "created") {
     charges.recordWaitEnd(paymentTransactionId, clock.now());
-    return answer.kind === "refused" ? { kind: "order_refused" } : { kind: "unreachable" };
+    return answer.kind === "unreachable" ? { kind: "unreachable" } : { kind: "order_refused" };
   }
 
   charges.recordWaitEnd(paymentTransactionId, answer.expiresAt);
