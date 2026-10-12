@@ -1,6 +1,10 @@
 import { reportsFailedQuery } from "@purosur/contracts";
 import type { AlertDetails } from "@purosur/domain";
-import { applyRegisterStockMovements } from "@purosur/domain/stock/use-cases";
+import {
+  applyOpeningCount,
+  applyRegisterStockMovements,
+  withdrawOpeningCount,
+} from "@purosur/domain/stock/use-cases";
 import type {
   AggregateKey,
   EventApplication,
@@ -132,8 +136,62 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
           fact,
           this.now(),
         );
+      case "opening_count_recorded":
+        return this.applyOpeningCount(fact.count, event);
+      case "opening_count_withdrawn":
+        return this.withdrawOpeningCount(fact.withdrawal, event);
       case "fiscal_gate_failed":
         return;
+    }
+  }
+
+  private async applyOpeningCount(
+    count: Extract<SyncedFact, { kind: "opening_count_recorded" }>["count"],
+    event: UnappliedEvent,
+  ): Promise<void> {
+    const { locationId } = await this.originOf(event);
+    const outcome = await applyOpeningCount(
+      new DrizzleStockStoreTransaction(this.tx, this.pending),
+      {
+        locationId,
+        occurredAt: count.countedAt,
+        actorId: count.actorId,
+        movementId: count.movementId,
+        productId: count.productId,
+        counted: count.counted,
+        expiresOn: count.expiresOn,
+      },
+    );
+    switch (outcome.kind) {
+      case "recorded":
+      case "already_applied":
+        return;
+      case "not_found":
+        throw new Error(`product ${count.productId} is not in the catalog`);
+      case "invalid_quantity":
+        throw new Error(
+          `an opening count of product ${count.productId} has a quantity it can't be counted in`,
+        );
+    }
+  }
+
+  private async withdrawOpeningCount(
+    withdrawal: Extract<SyncedFact, { kind: "opening_count_withdrawn" }>["withdrawal"],
+    event: UnappliedEvent,
+  ): Promise<void> {
+    const { locationId } = await this.originOf(event);
+    const outcome = await withdrawOpeningCount(
+      new DrizzleStockStoreTransaction(this.tx, this.pending),
+      {
+        locationId,
+        occurredAt: withdrawal.withdrawnAt,
+        actorId: withdrawal.actorId,
+        movementId: withdrawal.movementId,
+        withdrawnMovementId: withdrawal.withdrawnMovementId,
+      },
+    );
+    if (outcome.kind === "not_found") {
+      throw new Error(`opening count movement ${withdrawal.withdrawnMovementId} was never counted`);
     }
   }
 
