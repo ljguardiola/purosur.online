@@ -24,9 +24,24 @@ function purchasedLot(id: string, overrides: Partial<LotInStock> = {}): LotInSto
     lotNumber: null,
     expiresOn: null,
     purchase: { purchasedOn: "2026-10-01", supplierName: "Distribuidora Sur" },
+    initialCount: false,
     remaining: 4_000,
     costIncomplete: false,
     cost: { totalCents: 5_000, quantity: 1_000 },
+    ...overrides,
+  };
+}
+
+function initialCountLot(id: string, overrides: Partial<LotInStock> = {}): LotInStock {
+  return {
+    id,
+    lotNumber: null,
+    expiresOn: "2027-03-01",
+    purchase: null,
+    initialCount: true,
+    remaining: 6_000,
+    costIncomplete: true,
+    cost: null,
     ...overrides,
   };
 }
@@ -37,6 +52,7 @@ function technicalLot(id: string, remaining: number): LotInStock {
     lotNumber: null,
     expiresOn: null,
     purchase: null,
+    initialCount: false,
     remaining,
     costIncomplete: true,
     cost: null,
@@ -125,6 +141,43 @@ describe("readStockBalances", () => {
         origin: { kind: "purchase", purchasedOn: "2026-10-01", supplierName: "Distribuidora Sur" },
       },
     ]);
+  });
+
+  it("gives a lot of the initial count its own origin, not a technical lot, with no value while its cost is incomplete", async () => {
+    const { products } = await read([
+      level("p1", { balance: 6_000, lots: [initialCountLot("l1")] }),
+    ]);
+
+    expect(products[0]?.lots).toEqual([
+      {
+        id: "l1",
+        lotNumber: null,
+        expiresOn: "2027-03-01",
+        technical: false,
+        remaining: 6_000,
+        valueCents: null,
+        unitCostCents: null,
+        origin: { kind: "initial_count" },
+      },
+    ]);
+    expect(products[0]).toMatchObject({ valueCents: null, unitCostCents: null, correction: null });
+  });
+
+  it("values a lot of the initial count with its typed cost exactly as it values a purchase's", async () => {
+    const typed = { totalCents: 1_234, quantity: 1_000 };
+    const { products } = await read([
+      level("p1", {
+        balance: 6_000,
+        lots: [
+          initialCountLot("l1", { cost: typed, costIncomplete: false }),
+          purchasedLot("l2", { cost: typed, remaining: 6_000 }),
+        ],
+      }),
+    ]);
+
+    const [initial, purchase] = products[0]?.lots ?? [];
+    expect(initial).toMatchObject({ valueCents: 7_404, unitCostCents: 1_234 });
+    expect(purchase).toMatchObject({ valueCents: 7_404, unitCostCents: 1_234 });
   });
 
   it("gives a technical lot no value and the product's sales without lots as origin", async () => {
