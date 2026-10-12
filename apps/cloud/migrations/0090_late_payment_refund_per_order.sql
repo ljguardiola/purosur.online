@@ -1,0 +1,4 @@
+ALTER TABLE "payment_refunds" DROP CONSTRAINT "payment_refunds_payment_transaction_id_unique";--> statement-breakpoint
+ALTER TABLE "payment_refunds" ADD COLUMN "provider_order_id" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "payment_refunds_transaction_without_order_unique" ON "payment_refunds" USING btree ("payment_transaction_id") WHERE "payment_refunds"."provider_order_id" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "payment_refunds_transaction_order_unique" ON "payment_refunds" USING btree ("payment_transaction_id","provider_order_id") WHERE "payment_refunds"."provider_order_id" is not null;
