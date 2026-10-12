@@ -12,7 +12,7 @@ interface PendingChargeRow {
   wait_ends_at: string;
 }
 
-export class SqliteMercadoPagoQrCharges implements MercadoPagoCharges {
+export class SqliteMercadoPagoCharges implements MercadoPagoCharges {
   private readonly database: LocalDatabase;
 
   constructor(database: LocalDatabase) {

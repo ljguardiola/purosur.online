@@ -21,7 +21,7 @@ import {
   startRegisterHealthChecks,
 } from "./fiscal/real-time-authorization-wiring";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
-import { createMercadoPagoQrCharging } from "./payments/mercado-pago-qr-charge-wiring";
+import { createMercadoPagoCharging } from "./payments/mercado-pago-charge-wiring";
 import {
   type CloudClientDeps,
   getFromCloud,
@@ -383,7 +383,7 @@ await settleInterruptedAuthorizations({
     reportFailure("settling the interrupted real-time authorizations", error),
 });
 
-const mercadoPagoQrCharging = createMercadoPagoQrCharging({
+const mercadoPagoCharging = createMercadoPagoCharging({
   database: localDatabase,
   gate: actionGate,
   cloudClient,
@@ -735,9 +735,9 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             request,
           ),
-  startMercadoPagoCharge: mercadoPagoQrCharging.start,
-  followMercadoPagoCharge: mercadoPagoQrCharging.follow,
-  abandonMercadoPagoCharge: mercadoPagoQrCharging.abandon,
+  startMercadoPagoCharge: mercadoPagoCharging.start,
+  followMercadoPagoCharge: mercadoPagoCharging.follow,
+  abandonMercadoPagoCharge: mercadoPagoCharging.abandon,
   searchProducts:
     localDatabase === undefined || actionGate === undefined
       ? undefined

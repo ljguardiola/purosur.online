@@ -2,9 +2,9 @@ import { encodePinHash } from "@purosur/contracts";
 import type { MercadoPagoChargeOrders } from "@purosur/domain/payments/use-cases";
 import { derivePinVerifier } from "../../credentials/pin-verifier";
 import {
-  abandonMercadoPagoQrChargeFor,
-  startMercadoPagoQrChargeFor,
-} from "../../payments/mercado-pago-qr-charge-requests";
+  abandonMercadoPagoChargeFor,
+  startMercadoPagoChargeFor,
+} from "../../payments/mercado-pago-charge-requests";
 import type { LocalDatabase } from "../../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../../platform/local-migrations";
 import { migrationClock } from "../../platform/test-support/migration-clock";
@@ -480,7 +480,7 @@ export async function withRegisterSession<TResult>(
       );
     }
     nextStep();
-    const qr = await startMercadoPagoQrChargeFor(
+    const qr = await startMercadoPagoChargeFor(
       { ...deps(), orders: OFFLINE_QR_ORDERS },
       { saleId: replacedScan.sale.id, amount: 500 },
     );
@@ -488,7 +488,7 @@ export async function withRegisterSession<TResult>(
       throw new Error(`The register session's "start a QR charge" ended as "${qr.kind}"`);
     }
     nextStep();
-    const replaced = await abandonMercadoPagoQrChargeFor(
+    const replaced = await abandonMercadoPagoChargeFor(
       { ...deps(), orders: OFFLINE_QR_ORDERS },
       { paymentTransactionId: qr.payment_transaction_id },
     );

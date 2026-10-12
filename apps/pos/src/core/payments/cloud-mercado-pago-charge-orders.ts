@@ -12,7 +12,7 @@ import type {
 } from "@purosur/domain/payments/use-cases";
 import type { CloudCallOptions, CloudResponse } from "../platform/cloud-client";
 
-export interface CloudMercadoPagoQrChargeOrdersDeps {
+export interface CloudMercadoPagoChargeOrdersDeps {
   readDeviceToken: () => Promise<string | undefined>;
   post: (
     path: string,
@@ -62,13 +62,13 @@ function orderCancellationOf(
   return reading.kind === "read" ? { kind: "answered", state: reading.state } : UNREACHABLE;
 }
 
-export class CloudMercadoPagoQrChargeOrders implements MercadoPagoChargeOrders {
-  private readonly deps: CloudMercadoPagoQrChargeOrdersDeps;
+export class CloudMercadoPagoChargeOrders implements MercadoPagoChargeOrders {
+  private readonly deps: CloudMercadoPagoChargeOrdersDeps;
   private lastCheck:
     | { paymentTransactionId: string; at: Date; reading: MercadoPagoChargeOrderReading }
     | undefined;
 
-  constructor(deps: CloudMercadoPagoQrChargeOrdersDeps) {
+  constructor(deps: CloudMercadoPagoChargeOrdersDeps) {
     this.deps = deps;
   }
 

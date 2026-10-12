@@ -19,11 +19,11 @@ import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import {
-  abandonMercadoPagoQrChargeFor,
-  followMercadoPagoQrChargeFor,
-  type MercadoPagoQrChargeRequestDeps,
-  startMercadoPagoQrChargeFor,
-} from "./mercado-pago-qr-charge-requests";
+  abandonMercadoPagoChargeFor,
+  followMercadoPagoChargeFor,
+  type MercadoPagoChargeRequestDeps,
+  startMercadoPagoChargeFor,
+} from "./mercado-pago-charge-requests";
 
 const NOW = new Date("2026-10-09T12:00:00.000Z");
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
@@ -62,8 +62,8 @@ class FakeOrders implements MercadoPagoChargeOrders {
 
 function deps(
   orders: FakeOrders,
-  overrides: Partial<MercadoPagoQrChargeRequestDeps> = {},
-): MercadoPagoQrChargeRequestDeps {
+  overrides: Partial<MercadoPagoChargeRequestDeps> = {},
+): MercadoPagoChargeRequestDeps {
   let count = 0;
   return {
     database,
@@ -162,7 +162,7 @@ describe("starting a Mercado Pago QR charge at the register", () => {
     const saleId = await saleOfTwoYerbas();
     const orders = new FakeOrders();
 
-    const outcome = await startMercadoPagoQrChargeFor(deps(orders), { saleId, amount: 2000 });
+    const outcome = await startMercadoPagoChargeFor(deps(orders), { saleId, amount: 2000 });
 
     expect(outcome).toEqual({
       kind: "order_shown",
@@ -190,9 +190,10 @@ describe("starting a Mercado Pago QR charge at the register", () => {
     const orders = new FakeOrders();
     orders.answer = { kind: "created", expiresAt: new Date("2026-10-09T12:03:10.000Z") };
 
-    expect(await startMercadoPagoQrChargeFor(deps(orders), { saleId, amount: 2000 })).toMatchObject(
-      { kind: "order_shown", remaining_seconds: 190 },
-    );
+    expect(await startMercadoPagoChargeFor(deps(orders), { saleId, amount: 2000 })).toMatchObject({
+      kind: "order_shown",
+      remaining_seconds: 190,
+    });
     expect(qrRows()).toMatchObject([{ wait_ends_at: "2026-10-09T12:03:10.000Z" }]);
   });
 
@@ -200,7 +201,7 @@ describe("starting a Mercado Pago QR charge at the register", () => {
     const saleId = await saleOfTwoYerbas();
     const orders = new FakeOrders();
 
-    expect(await startMercadoPagoQrChargeFor(deps(orders), { saleId, amount: 5000 })).toEqual({
+    expect(await startMercadoPagoChargeFor(deps(orders), { saleId, amount: 5000 })).toEqual({
       kind: "exceeds_pending",
       pending: 3000,
     });
@@ -217,12 +218,12 @@ describe("starting a Mercado Pago QR charge at the register", () => {
       const orders = new FakeOrders();
       orders.answer = { kind: answer };
 
-      expect(await startMercadoPagoQrChargeFor(deps(orders), { saleId, amount: 3000 })).toEqual({
+      expect(await startMercadoPagoChargeFor(deps(orders), { saleId, amount: 3000 })).toEqual({
         kind,
       });
       expect(qrRows()).toMatchObject([{ state: "PENDING", wait_ends_at: NOW.toISOString() }]);
       expect(
-        await startMercadoPagoQrChargeFor(deps(new FakeOrders(), { ids: { next: () => "qr-2" } }), {
+        await startMercadoPagoChargeFor(deps(new FakeOrders(), { ids: { next: () => "qr-2" } }), {
           saleId,
           amount: 3000,
         }),
@@ -232,10 +233,10 @@ describe("starting a Mercado Pago QR charge at the register", () => {
 
   it("refuses a second QR charge of the sale while the first one is in its wait", async () => {
     const saleId = await saleOfTwoYerbas();
-    await startMercadoPagoQrChargeFor(deps(new FakeOrders()), { saleId, amount: 1000 });
+    await startMercadoPagoChargeFor(deps(new FakeOrders()), { saleId, amount: 1000 });
 
     expect(
-      await startMercadoPagoQrChargeFor(deps(new FakeOrders()), { saleId, amount: 1000 }),
+      await startMercadoPagoChargeFor(deps(new FakeOrders()), { saleId, amount: 1000 }),
     ).toEqual({ kind: "mercado_pago_charge_in_progress" });
   });
 
@@ -244,7 +245,7 @@ describe("starting a Mercado Pago QR charge at the register", () => {
     signedInPerson.clear();
 
     expect(
-      await startMercadoPagoQrChargeFor(deps(new FakeOrders()), { saleId, amount: 3000 }),
+      await startMercadoPagoChargeFor(deps(new FakeOrders()), { saleId, amount: 3000 }),
     ).toEqual({ kind: "not_signed_in" });
     expect(qrRows()).toEqual([]);
   });
@@ -253,7 +254,7 @@ describe("starting a Mercado Pago QR charge at the register", () => {
 describe("following a Mercado Pago QR charge at the register", () => {
   async function chargeStarted(amount = 3000): Promise<string> {
     const saleId = await saleOfTwoYerbas();
-    await startMercadoPagoQrChargeFor(deps(new FakeOrders()), { saleId, amount });
+    await startMercadoPagoChargeFor(deps(new FakeOrders()), { saleId, amount });
     return saleId;
   }
 
@@ -261,7 +262,7 @@ describe("following a Mercado Pago QR charge at the register", () => {
     await chargeStarted();
 
     expect(
-      await followMercadoPagoQrChargeFor(
+      await followMercadoPagoChargeFor(
         deps(new FakeOrders(), { now: () => new Date("2026-10-09T12:00:19.000Z") }),
         { paymentTransactionId: "qr-1" },
       ),
@@ -274,7 +275,7 @@ describe("following a Mercado Pago QR charge at the register", () => {
     orders.reading = { kind: "read", state: "APPROVED" };
 
     expect(
-      await followMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+      await followMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
     ).toEqual({ kind: "completed", sale_id: saleId, total: 3000 });
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "COMPLETED" }]);
     expect(qrRows()).toMatchObject([{ id: "qr-1", state: "APPROVED" }]);
@@ -289,7 +290,7 @@ describe("following a Mercado Pago QR charge at the register", () => {
     orders.reading = { kind: "read", state: "APPROVED" };
 
     expect(
-      await followMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+      await followMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
     ).toEqual({ kind: "partially_paid", sale_id: saleId, total: 3000, paid: 1000, pending: 2000 });
   });
 
@@ -299,7 +300,7 @@ describe("following a Mercado Pago QR charge at the register", () => {
     orders.reading = { kind: "read", state: "EXPIRED" };
 
     expect(
-      await followMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+      await followMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
     ).toEqual({ kind: "wait_over" });
     expect(qrRows()).toMatchObject([{ state: "EXPIRED" }]);
   });
@@ -310,7 +311,7 @@ describe("following a Mercado Pago QR charge at the register", () => {
     orders.reading = { kind: "read", state: "CANCELLED" };
 
     expect(
-      await followMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+      await followMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
     ).toEqual({ kind: "declined" });
     expect(qrRows()).toMatchObject([{ state: "CANCELLED" }]);
   });
@@ -319,7 +320,7 @@ describe("following a Mercado Pago QR charge at the register", () => {
     await chargeStarted();
 
     expect(
-      await followMercadoPagoQrChargeFor(
+      await followMercadoPagoChargeFor(
         deps(new FakeOrders(), { now: () => new Date("2026-10-09T12:03:00.000Z") }),
         { paymentTransactionId: "qr-1" },
       ),
@@ -333,7 +334,7 @@ describe("following a Mercado Pago QR charge at the register", () => {
     orders.reading = { kind: "unreachable" };
 
     expect(
-      await followMercadoPagoQrChargeFor(
+      await followMercadoPagoChargeFor(
         deps(orders, { now: () => new Date("2026-10-09T12:03:00.000Z") }),
         { paymentTransactionId: "qr-1" },
       ),
@@ -345,7 +346,7 @@ describe("following a Mercado Pago QR charge at the register", () => {
     await chargeStarted();
 
     expect(
-      await followMercadoPagoQrChargeFor(deps(new FakeOrders()), {
+      await followMercadoPagoChargeFor(deps(new FakeOrders()), {
         paymentTransactionId: "missing",
       }),
     ).toEqual({ kind: "not_pending" });
@@ -367,7 +368,7 @@ describe("following a Mercado Pago QR charge at the register", () => {
       orders.reading = reading;
 
       expect(
-        await followMercadoPagoQrChargeFor(
+        await followMercadoPagoChargeFor(
           deps(orders, { readOutboxChainKey: async () => undefined, now: () => new Date(now) }),
           { paymentTransactionId: "qr-1" },
         ),
@@ -381,7 +382,7 @@ describe("following a Mercado Pago QR charge at the register", () => {
     orders.reading = { kind: "read", state: "APPROVED" };
 
     expect(
-      await followMercadoPagoQrChargeFor(
+      await followMercadoPagoChargeFor(
         deps(orders, { readOutboxChainKey: async () => undefined }),
         { paymentTransactionId: "qr-1" },
       ),
@@ -394,7 +395,7 @@ describe("following a Mercado Pago QR charge at the register", () => {
     signedInPerson.clear();
 
     expect(
-      await followMercadoPagoQrChargeFor(deps(new FakeOrders()), { paymentTransactionId: "qr-1" }),
+      await followMercadoPagoChargeFor(deps(new FakeOrders()), { paymentTransactionId: "qr-1" }),
     ).toEqual({ kind: "not_signed_in" });
   });
 });
@@ -402,7 +403,7 @@ describe("following a Mercado Pago QR charge at the register", () => {
 describe("abandoning a Mercado Pago QR charge at the register", () => {
   async function chargeStarted(amount = 3000): Promise<string> {
     const saleId = await saleOfTwoYerbas();
-    await startMercadoPagoQrChargeFor(deps(new FakeOrders()), { saleId, amount });
+    await startMercadoPagoChargeFor(deps(new FakeOrders()), { saleId, amount });
     return saleId;
   }
 
@@ -417,7 +418,7 @@ describe("abandoning a Mercado Pago QR charge at the register", () => {
     const orders = new FakeOrders();
 
     expect(
-      await abandonMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+      await abandonMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
     ).toEqual({ kind: "cancelled" });
     expect(orders.cancelled).toEqual(["qr-1"]);
     expect(qrRows()).toMatchObject([{ state: "CANCELLED" }]);
@@ -430,7 +431,7 @@ describe("abandoning a Mercado Pago QR charge at the register", () => {
     orders.cancellation = { kind: "answered", state: "APPROVED" };
 
     expect(
-      await abandonMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+      await abandonMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
     ).toEqual({
       kind: "already_paid",
       settlement: { kind: "completed", sale_id: saleId, total: 3000 },
@@ -445,7 +446,7 @@ describe("abandoning a Mercado Pago QR charge at the register", () => {
     orders.cancellation = { kind: "answered", state: "APPROVED" };
 
     expect(
-      await abandonMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+      await abandonMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
     ).toEqual({
       kind: "already_paid",
       settlement: {
@@ -464,11 +465,11 @@ describe("abandoning a Mercado Pago QR charge at the register", () => {
     orders.cancellation = { kind: "answered", state: "EXPIRED" };
 
     expect(
-      await abandonMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+      await abandonMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
     ).toEqual({ kind: "closed" });
     expect(qrRows()).toMatchObject([{ state: "EXPIRED" }]);
     expect(
-      await abandonMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+      await abandonMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
     ).toEqual({ kind: "not_pending" });
     expect(orders.cancelled).toEqual(["qr-1"]);
   });
@@ -479,12 +480,12 @@ describe("abandoning a Mercado Pago QR charge at the register", () => {
     orders.cancellation = { kind: "unreachable" };
 
     expect(
-      await abandonMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+      await abandonMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
     ).toEqual({ kind: "replaced" });
     expect(qrRows()).toMatchObject([{ state: "PENDING", wait_ends_at: NOW.toISOString() }]);
     expect(outboxEvents()).toEqual([{ event_type: "qr_payment_replaced", aggregate_id: saleId }]);
     expect(
-      await followMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+      await followMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
     ).toEqual({ kind: "not_pending" });
   });
 
@@ -492,7 +493,7 @@ describe("abandoning a Mercado Pago QR charge at the register", () => {
     const saleId = await chargeStarted(1000);
     const orders = new FakeOrders();
     orders.cancellation = { kind: "unreachable" };
-    await abandonMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" });
+    await abandonMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" });
 
     const charged = await chargeSaleInCashFor(
       {
@@ -530,7 +531,7 @@ describe("abandoning a Mercado Pago QR charge at the register", () => {
     orders.cancellation = { kind: "unreachable" };
 
     expect(
-      await abandonMercadoPagoQrChargeFor(
+      await abandonMercadoPagoChargeFor(
         deps(orders, { readOutboxChainKey: async () => undefined }),
         { paymentTransactionId: "qr-1" },
       ),
@@ -544,7 +545,7 @@ describe("abandoning a Mercado Pago QR charge at the register", () => {
     await chargeStarted();
 
     expect(
-      await abandonMercadoPagoQrChargeFor(deps(new FakeOrders()), {
+      await abandonMercadoPagoChargeFor(deps(new FakeOrders()), {
         paymentTransactionId: "missing",
       }),
     ).toEqual({ kind: "not_pending" });
@@ -556,7 +557,7 @@ describe("abandoning a Mercado Pago QR charge at the register", () => {
     const orders = new FakeOrders();
 
     expect(
-      await abandonMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+      await abandonMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
     ).toEqual({ kind: "not_signed_in" });
     expect(orders.cancelled).toEqual([]);
   });

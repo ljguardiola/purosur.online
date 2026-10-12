@@ -3,13 +3,13 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
-import { SqliteMercadoPagoQrCharges } from "./sqlite-mercado-pago-qr-charges";
+import { SqliteMercadoPagoCharges } from "./sqlite-mercado-pago-charges";
 
 const OCCURRED_AT = "2026-10-09T12:00:00.000Z";
 const WAIT_ENDS_AT = "2026-10-09T12:03:00.000Z";
 
 let database: LocalDatabase;
-let charges: SqliteMercadoPagoQrCharges;
+let charges: SqliteMercadoPagoCharges;
 
 function addQrPayment(id: string, state: string): void {
   database
@@ -34,7 +34,7 @@ beforeEach(() => {
      INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
      VALUES ('cash-1', 'sale-1', 'SALE', 'CASH', 'NONE', 1000, 1000, 'APPROVED', '${OCCURRED_AT}');`,
   );
-  charges = new SqliteMercadoPagoQrCharges(database);
+  charges = new SqliteMercadoPagoCharges(database);
 });
 
 afterEach(() => {

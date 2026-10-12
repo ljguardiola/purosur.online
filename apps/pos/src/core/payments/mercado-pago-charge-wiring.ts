@@ -11,15 +11,15 @@ import {
 } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
 import type { ActionGate } from "../sessions/action-gate";
-import { CloudMercadoPagoQrChargeOrders } from "./cloud-mercado-pago-qr-charge-orders";
+import { CloudMercadoPagoChargeOrders } from "./cloud-mercado-pago-charge-orders";
 import {
-  abandonMercadoPagoQrChargeFor,
-  followMercadoPagoQrChargeFor,
-  type MercadoPagoQrChargeRequestDeps,
-  startMercadoPagoQrChargeFor,
-} from "./mercado-pago-qr-charge-requests";
+  abandonMercadoPagoChargeFor,
+  followMercadoPagoChargeFor,
+  type MercadoPagoChargeRequestDeps,
+  startMercadoPagoChargeFor,
+} from "./mercado-pago-charge-requests";
 
-export interface MercadoPagoQrChargingWiringDeps {
+export interface MercadoPagoChargingWiringDeps {
   database: LocalDatabase | undefined;
   gate: ActionGate | undefined;
   cloudClient: CloudClientDeps | undefined;
@@ -29,7 +29,7 @@ export interface MercadoPagoQrChargingWiringDeps {
   ids: IdGenerator;
 }
 
-interface MercadoPagoQrCharging {
+interface MercadoPagoCharging {
   start:
     | ((request: {
         saleId: string;
@@ -45,7 +45,7 @@ interface MercadoPagoQrCharging {
     | undefined;
 }
 
-export function createMercadoPagoQrCharging({
+export function createMercadoPagoCharging({
   database,
   gate,
   cloudClient,
@@ -53,14 +53,14 @@ export function createMercadoPagoQrCharging({
   readOutboxChainKey,
   now,
   ids,
-}: MercadoPagoQrChargingWiringDeps): MercadoPagoQrCharging {
+}: MercadoPagoChargingWiringDeps): MercadoPagoCharging {
   if (database === undefined || gate === undefined || cloudClient === undefined) {
     return { start: undefined, follow: undefined, abandon: undefined };
   }
-  const deps: MercadoPagoQrChargeRequestDeps = {
+  const deps: MercadoPagoChargeRequestDeps = {
     database,
     gate,
-    orders: new CloudMercadoPagoQrChargeOrders({
+    orders: new CloudMercadoPagoChargeOrders({
       readDeviceToken,
       post: (path, bearerToken, body, options) =>
         postToCloudWithBearer(cloudClient, path, bearerToken, body, options),
@@ -74,10 +74,8 @@ export function createMercadoPagoQrCharging({
   };
   return {
     start: async (request) =>
-      request.method === "QR"
-        ? startMercadoPagoQrChargeFor(deps, request)
-        : { kind: "unavailable" },
-    follow: (request) => followMercadoPagoQrChargeFor(deps, request),
-    abandon: (request) => abandonMercadoPagoQrChargeFor(deps, request),
+      request.method === "QR" ? startMercadoPagoChargeFor(deps, request) : { kind: "unavailable" },
+    follow: (request) => followMercadoPagoChargeFor(deps, request),
+    abandon: (request) => abandonMercadoPagoChargeFor(deps, request),
   };
 }

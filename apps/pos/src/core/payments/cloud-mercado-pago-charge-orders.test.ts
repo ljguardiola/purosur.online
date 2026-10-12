@@ -1,7 +1,7 @@
 import { cloudError } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import type { CloudCallOptions, CloudResponse } from "../platform/cloud-client";
-import { CloudMercadoPagoQrChargeOrders } from "./cloud-mercado-pago-qr-charge-orders";
+import { CloudMercadoPagoChargeOrders } from "./cloud-mercado-pago-charge-orders";
 
 const PAYMENT_ID = "019a0000-0000-7000-8000-0000000000a1";
 const SALE_ID = "019a0000-0000-7000-8000-0000000000b1";
@@ -45,7 +45,7 @@ function cloudOrders(answers: CloudResponse[], token: string | null = "prefix.se
   const calls: Call[] = [];
   let now = START;
   const answerOf = () => answers.shift() ?? { kind: "unreachable" };
-  const orders = new CloudMercadoPagoQrChargeOrders({
+  const orders = new CloudMercadoPagoChargeOrders({
     readDeviceToken: async () => token ?? undefined,
     post: async (path, bearerToken, body, options) => {
       calls.push({ method: "POST", path, bearerToken, body, options });

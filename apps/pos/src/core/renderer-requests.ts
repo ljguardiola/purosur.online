@@ -452,7 +452,7 @@ async function attemptChargeSaleInCash(
   }
 }
 
-async function attemptStartMercadoPagoQrCharge(
+async function attemptStartMercadoPagoCharge(
   deps: RendererRequestDeps,
   request: { saleId: string; method: "QR" | "POINT"; amount: number },
 ): Promise<StartMercadoPagoChargeOutcome> {
@@ -464,7 +464,7 @@ async function attemptStartMercadoPagoQrCharge(
   }
 }
 
-async function attemptFollowMercadoPagoQrCharge(
+async function attemptFollowMercadoPagoCharge(
   deps: RendererRequestDeps,
   request: { paymentTransactionId: string },
 ): Promise<FollowMercadoPagoChargeOutcome> {
@@ -476,7 +476,7 @@ async function attemptFollowMercadoPagoQrCharge(
   }
 }
 
-async function attemptAbandonMercadoPagoQrCharge(
+async function attemptAbandonMercadoPagoCharge(
   deps: RendererRequestDeps,
   request: { paymentTransactionId: string },
 ): Promise<AbandonMercadoPagoChargeOutcome> {
@@ -935,7 +935,7 @@ export async function answerRendererRequest(
       return {
         type: "start-mercado-pago-charge-result",
         request_id: message.request_id,
-        outcome: await attemptStartMercadoPagoQrCharge(deps, {
+        outcome: await attemptStartMercadoPagoCharge(deps, {
           saleId: message.sale_id,
           method: message.method,
           amount: message.amount,
@@ -945,7 +945,7 @@ export async function answerRendererRequest(
       return {
         type: "follow-mercado-pago-charge-result",
         request_id: message.request_id,
-        outcome: await attemptFollowMercadoPagoQrCharge(deps, {
+        outcome: await attemptFollowMercadoPagoCharge(deps, {
           paymentTransactionId: message.payment_transaction_id,
         }),
       };
@@ -953,7 +953,7 @@ export async function answerRendererRequest(
       return {
         type: "abandon-mercado-pago-charge-result",
         request_id: message.request_id,
-        outcome: await attemptAbandonMercadoPagoQrCharge(deps, {
+        outcome: await attemptAbandonMercadoPagoCharge(deps, {
           paymentTransactionId: message.payment_transaction_id,
         }),
       };

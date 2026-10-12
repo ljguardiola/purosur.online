@@ -67,7 +67,7 @@ const PENDING_QR_PAYMENTS = `SELECT id, sale_id, amount, occurred_at, wait_ends_
   WHERE method = 'QR' AND state = 'PENDING'`;
 const FOLLOWED_QR_PAYMENTS = `${PENDING_QR_PAYMENTS} AND replaced = 0`;
 
-function toPendingQrPayment(row: PendingQrPaymentRow): PendingMercadoPagoSalePayment {
+function toPendingMercadoPagoPayment(row: PendingQrPaymentRow): PendingMercadoPagoSalePayment {
   return {
     id: row.id,
     saleId: row.sale_id,
@@ -81,7 +81,7 @@ function toPendingQrPayment(row: PendingQrPaymentRow): PendingMercadoPagoSalePay
   };
 }
 
-export function insertPendingQrPayment(
+export function insertPendingMercadoPagoPayment(
   database: LocalDatabase,
   payment: PendingMercadoPagoSalePayment,
 ): void {
@@ -102,24 +102,24 @@ export function insertPendingQrPayment(
     });
 }
 
-export function readPendingQrPayment(
+export function readPendingMercadoPagoPayment(
   database: LocalDatabase,
   paymentTransactionId: string,
 ): PendingMercadoPagoSalePayment | undefined {
   const row = database
     .prepare<[string], PendingQrPaymentRow>(`${FOLLOWED_QR_PAYMENTS} AND id = ?`)
     .get(paymentTransactionId);
-  return row === undefined ? undefined : toPendingQrPayment(row);
+  return row === undefined ? undefined : toPendingMercadoPagoPayment(row);
 }
 
-export function readPendingQrPaymentsOf(
+export function readPendingMercadoPagoPaymentsOf(
   database: LocalDatabase,
   saleId: string,
 ): PendingMercadoPagoSalePayment[] {
   return database
     .prepare<[string], PendingQrPaymentRow>(`${PENDING_QR_PAYMENTS} AND sale_id = ? ORDER BY rowid`)
     .all(saleId)
-    .map(toPendingQrPayment);
+    .map(toPendingMercadoPagoPayment);
 }
 
 export function approvePendingMercadoPagoPayment(

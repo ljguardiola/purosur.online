@@ -6,7 +6,7 @@ import { openLocalDatabase } from "../platform/test-support/open-local-database"
 import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
-import { createMercadoPagoQrCharging } from "./mercado-pago-qr-charge-wiring";
+import { createMercadoPagoCharging } from "./mercado-pago-charge-wiring";
 
 const NOW = new Date("2026-10-09T12:00:00.000Z");
 
@@ -54,19 +54,19 @@ describe("the register's Mercado Pago QR charging", () => {
     };
 
     for (const charging of [
-      createMercadoPagoQrCharging({
+      createMercadoPagoCharging({
         ...common,
         database: undefined,
         gate: gate(),
         cloudClient: cloudClient([]),
       }),
-      createMercadoPagoQrCharging({
+      createMercadoPagoCharging({
         ...common,
         database,
         gate: undefined,
         cloudClient: cloudClient([]),
       }),
-      createMercadoPagoQrCharging({ ...common, database, gate: gate(), cloudClient: undefined }),
+      createMercadoPagoCharging({ ...common, database, gate: gate(), cloudClient: undefined }),
     ]) {
       expect(charging.start).toBeUndefined();
       expect(charging.follow).toBeUndefined();
@@ -76,7 +76,7 @@ describe("the register's Mercado Pago QR charging", () => {
 
   it("offers no charge on the integrated terminal yet, asking the cloud nothing", async () => {
     const requests: { url: string; init: RequestInit }[] = [];
-    const charging = createMercadoPagoQrCharging({
+    const charging = createMercadoPagoCharging({
       database,
       gate: gate(),
       cloudClient: cloudClient(requests),
@@ -107,7 +107,7 @@ describe("the register's Mercado Pago QR charging", () => {
          VALUES ('qr-1', 'sale-1', 'SALE', 'QR', 'MERCADOPAGO_QR', 3000, 'PENDING', '2026-10-09T11:59:00.000Z', '2026-10-09T12:02:00.000Z');`,
     );
     signedIn.set("u1");
-    const charging = createMercadoPagoQrCharging({
+    const charging = createMercadoPagoCharging({
       database,
       gate: createActionGate({
         store: new SqliteSignInStore(database),
@@ -152,7 +152,7 @@ describe("the register's Mercado Pago QR charging", () => {
          VALUES ('qr-1', 'sale-1', 'SALE', 'QR', 'MERCADOPAGO_QR', 3000, 'PENDING', '2026-10-09T11:59:00.000Z', '2026-10-09T12:02:00.000Z');`,
     );
     signedIn.set("u1");
-    const charging = createMercadoPagoQrCharging({
+    const charging = createMercadoPagoCharging({
       database,
       gate: createActionGate({
         store: new SqliteSignInStore(database),
