@@ -12,7 +12,7 @@ export interface UpdateResponse {
   body: AsyncIterable<Uint8Array> | null;
 }
 
-export interface PendingFile {
+interface PendingFile {
   write(chunk: Uint8Array): Promise<void>;
   close(): Promise<void>;
 }
