@@ -2,6 +2,7 @@ import {
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalDocumentState,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
+  isDeferralPending,
   SALE_STANDING_DEFINITIONS,
   type SaleFiscalFacts,
   type SaleStanding,
@@ -41,7 +42,10 @@ const OF_THIS_REGISTER = `sales.state = 'COMPLETED'
 const IN_THE_OPEN_SESSION =
   "sales.session_id IN (SELECT id FROM cash_sessions WHERE state = 'OPEN')";
 
-const DEFERRED = "EXISTS (SELECT 1 FROM deferred_sales WHERE deferred_sales.sale_id = sales.id)";
+const DEFERRED = `EXISTS (
+  SELECT 1 FROM deferred_sales
+  WHERE deferred_sales.sale_id = sales.id AND deferred_sales.satisfied_at IS NULL
+)`;
 
 const DOCUMENT_BEING_REQUESTED = `EXISTS (
   SELECT 1 FROM fiscal_documents
@@ -190,11 +194,15 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
         "SELECT state, point_of_sale, number FROM fiscal_documents WHERE sale_id = ?",
       )
       .get(saleId);
-    const deferred =
-      this.database.prepare("SELECT 1 FROM deferred_sales WHERE sale_id = ?").get(saleId) !==
-      undefined;
+    const deferredRecord = this.database
+      .prepare<[string], { satisfied_at: string | null }>(
+        "SELECT satisfied_at FROM deferred_sales WHERE sale_id = ?",
+      )
+      .get(saleId);
     return {
-      deferred,
+      deferred: isDeferralPending(
+        deferredRecord === undefined ? null : { satisfied: deferredRecord.satisfied_at !== null },
+      ),
       fiscalDocument:
         document === undefined
           ? null
