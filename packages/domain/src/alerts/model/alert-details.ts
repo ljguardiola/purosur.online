@@ -122,7 +122,7 @@ interface LatePaymentRefundDetail {
   providerOrderId: string | null;
 }
 
-export interface RefundTaskDetail {
+interface RefundTaskDetail {
   saleId: string;
   amount: number;
   method: string;

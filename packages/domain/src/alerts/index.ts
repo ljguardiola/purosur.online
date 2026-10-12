@@ -31,7 +31,6 @@ export type {
   OpenAlertInput,
   PasskeyChangedDetail,
   RecoveryRequestedDetail,
-  RefundTaskDetail,
   RegisterEnrolledDetail,
   SignInLockoutDetail,
 } from "./model/alert-details.js";
