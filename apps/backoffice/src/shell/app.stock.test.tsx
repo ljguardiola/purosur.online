@@ -1,5 +1,5 @@
 import type { Capability } from "@purosur/domain";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { openSession } from "../sessions/test-support/open-session";
@@ -25,8 +25,6 @@ opensOnlyScreens([
 ]);
 
 beforeEach(resetPageState);
-
-afterEach(resetPageState);
 
 function stockServices(capabilities: Capability[]) {
   const services = createAppServices({

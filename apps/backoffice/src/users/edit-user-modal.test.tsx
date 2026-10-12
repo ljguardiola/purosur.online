@@ -1,4 +1,4 @@
-import { afterEach, expect, onTestFinished, test, vi } from "vitest";
+import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import type { RoleSummary } from "../platform/roles-api";
@@ -69,7 +69,7 @@ function grantAuthorization(services: EditUserModalServices) {
   vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
 }
 
-afterEach(() => {
+beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 

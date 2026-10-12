@@ -1,7 +1,7 @@
 import type { SupplierSummary } from "@purosur/contracts";
 import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { FieldSizeProvider } from "@purosur/ui";
-import { afterEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { NewSupplierModal, type NewSupplierModalServices } from "./new-supplier-modal";
@@ -9,7 +9,7 @@ import { suppliersWithCuits } from "./test-support/suppliers";
 
 const { andina } = suppliersWithCuits(FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT);
 
-afterEach(() => {
+beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 

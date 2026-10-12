@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { openSession } from "../sessions/test-support/open-session";
@@ -10,8 +10,6 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 opensOnlyScreens(["/", "/alerts", "/help"]);
 
 beforeEach(resetPageState);
-
-afterEach(resetPageState);
 
 test("shows the Inicio item in the rail for a non-administrator, linking to Inicio", async () => {
   const services = createAppServices({

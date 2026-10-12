@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { openSession } from "../sessions/test-support/open-session";
@@ -20,8 +20,6 @@ opensOnlyScreens([
 ]);
 
 beforeEach(resetPageState);
-
-afterEach(resetPageState);
 
 test("shows the Catálogo item in the rail for a user holding manage_products_and_categories, linking to the products list", async () => {
   const services = createAppServices({
@@ -98,7 +96,6 @@ test("navigating directly to /categories opens the categories list, with Categor
     .getByRole("link", { name: "Categorías" })
     .element() as HTMLAnchorElement;
   expect(categoriesItem.getAttribute("aria-current")).toBe("page");
-  window.history.pushState(null, "", "/");
 });
 
 test("redirects a non-permitted user's typed /categories to Mi cuenta, without listing categories", async () => {
@@ -129,7 +126,6 @@ test("navigating directly to /brands opens the brands list, with Marcas active",
   await expect.element(screen.getByRole("heading", { name: "Marcas", level: 1 })).toBeVisible();
   const brandsItem = screen.getByRole("link", { name: "Marcas" }).element() as HTMLAnchorElement;
   expect(brandsItem.getAttribute("aria-current")).toBe("page");
-  window.history.pushState(null, "", "/");
 });
 
 test("redirects a non-permitted user's typed /brands to Mi cuenta, without listing brands", async () => {
@@ -172,7 +168,6 @@ test("navigating directly to /tags opens the tags list, with Distintivos active 
   expect(
     labels.filter((label) => ["Marcas", "Distintivos", "Precios"].includes(label ?? "")),
   ).toEqual(["Marcas", "Distintivos", "Precios"]);
-  window.history.pushState(null, "", "/");
 });
 
 test("redirects a non-permitted user's typed /tags to Mi cuenta, without listing tags", async () => {

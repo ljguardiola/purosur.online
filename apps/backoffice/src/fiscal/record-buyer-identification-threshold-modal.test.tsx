@@ -1,6 +1,6 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { render } from "../shell/test-support/render-with-router";
@@ -9,6 +9,10 @@ import {
   RecordBuyerIdentificationThresholdModal,
   type RecordBuyerIdentificationThresholdModalServices,
 } from "./record-buyer-identification-threshold-modal";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 function createServices(): RecordBuyerIdentificationThresholdModalServices {
   return {
@@ -527,7 +531,6 @@ test("sends to Mi cuenta when recording comes back forbidden", async () => {
   await submit(dialog);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("ends the session when recording comes back unauthenticated", async () => {
