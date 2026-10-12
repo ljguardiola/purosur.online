@@ -35,7 +35,12 @@ export class FakeMercadoPagoChargeWorld
   >();
   readonly recordedPayments: PendingMercadoPagoPayment[] = [];
   readonly settledPayments: { actorId: string; paymentTransactionId: string }[] = [];
-  readonly requestedOrders: { paymentTransactionId: string; saleId: string; amount: number }[] = [];
+  readonly requestedOrders: {
+    paymentTransactionId: string;
+    saleId: string;
+    method: PendingMercadoPagoCharge["method"];
+    amount: number;
+  }[] = [];
   readonly readOrders: string[] = [];
   readonly cancelledOrders: string[] = [];
   readonly replacedPayments: { actorId: string; paymentTransactionId: string; replacedAt: Date }[] =
@@ -61,6 +66,7 @@ export class FakeMercadoPagoChargeWorld
     const pending = {
       paymentTransactionId: CHARGE_PAYMENT_ID,
       saleId: CHARGE_SALE_ID,
+      method: "QR" as PendingMercadoPagoCharge["method"],
       amount: 5000,
       waitEndsAt: CHARGE_WAIT_ENDS_AT,
       ...charge,
@@ -120,6 +126,7 @@ export class FakeMercadoPagoChargeWorld
   async requestOrder(order: {
     paymentTransactionId: string;
     saleId: string;
+    method: PendingMercadoPagoCharge["method"];
     amount: number;
   }): Promise<MercadoPagoChargeOrderAnswer> {
     this.operations.push("requestOrder");

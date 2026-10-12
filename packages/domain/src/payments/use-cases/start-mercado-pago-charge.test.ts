@@ -13,7 +13,12 @@ function recordedWaitEnd(waitEndsAt: Date): string {
   return ["recordWaitEnd", waitEndsAt.toISOString()].join(":");
 }
 
-const INPUT = { actorId: CHARGE_ACTOR_ID, saleId: CHARGE_SALE_ID, amount: 5000 };
+const INPUT = {
+  actorId: CHARGE_ACTOR_ID,
+  saleId: CHARGE_SALE_ID,
+  method: "QR",
+  amount: 5000,
+} as const;
 
 describe("startMercadoPagoCharge", () => {
   it("keeps the pending payment, with the end of its 3-minute wait, before asking the cloud for the order", async () => {
@@ -37,7 +42,12 @@ describe("startMercadoPagoCharge", () => {
     await startMercadoPagoCharge(world.ports, INPUT);
 
     expect(world.requestedOrders).toEqual([
-      { paymentTransactionId: CHARGE_PAYMENT_ID, saleId: CHARGE_SALE_ID, amount: 5000 },
+      {
+        paymentTransactionId: CHARGE_PAYMENT_ID,
+        saleId: CHARGE_SALE_ID,
+        method: "QR",
+        amount: 5000,
+      },
     ]);
   });
 
