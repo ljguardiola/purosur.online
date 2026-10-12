@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { openOverdueUnclearOutcomeAlerts } from "./open-overdue-unclear-outcome-alerts.js";
-import { ManualClock } from "./test-support/fake-arca-vitality.js";
+import { FixedClock } from "./test-support/fake-alert-store.js";
 import {
   type FakeUnclearDocument,
   FakeUnclearOutcomeAlertStore,
@@ -24,7 +24,7 @@ function minutesAfterUnclear(minutes: number, milliseconds = 0): Date {
 }
 
 function evaluate(store: FakeUnclearOutcomeAlertStore, now: Date) {
-  return openOverdueUnclearOutcomeAlerts({ store, clock: new ManualClock(now) });
+  return openOverdueUnclearOutcomeAlerts({ store, clock: new FixedClock(now) });
 }
 
 describe("openOverdueUnclearOutcomeAlerts", () => {

@@ -34,9 +34,9 @@ export type {
   ClosedAlert,
 } from "./close-alert.js";
 export { closeAlert } from "./close-alert.js";
+export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
 export type { QuietRegisterDetectionPorts } from "./detect-quiet-registers.js";
 export { detectQuietRegisters } from "./detect-quiet-registers.js";
-export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
 export { escalateOverdueAlerts } from "./escalate-overdue-alerts.js";
 export type {
   MissingOfflineAuthorizationCodeAlerts,
@@ -48,7 +48,17 @@ export type { ObserveAlertConditionOutcome } from "./observe-alert-condition.js"
 export { observeAlertCondition } from "./observe-alert-condition.js";
 export type { OpenAlertOutcome } from "./open-alert.js";
 export { openAlert } from "./open-alert.js";
+export type {
+  OpenOverdueUnclearOutcomeAlertsOutcome,
+  OpenOverdueUnclearOutcomeAlertsPorts,
+} from "./open-overdue-unclear-outcome-alerts.js";
+export { openOverdueUnclearOutcomeAlerts } from "./open-overdue-unclear-outcome-alerts.js";
 export type { ResolveAlertOutcome } from "./resolve-alert.js";
 export { resolveAlert } from "./resolve-alert.js";
 export { resolveStablyClearedAlerts } from "./resolve-stably-cleared-alerts.js";
+export type {
+  UnclearDocumentWithoutAlert,
+  UnclearOutcomeAlertStore,
+  UnclearOutcomeAlertTransaction,
+} from "./unclear-outcome-alert-ports.js";
 export type { WatchedRegisterReader } from "./watched-register-reader.js";

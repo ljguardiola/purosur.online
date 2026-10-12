@@ -1,9 +1,9 @@
 import type { NewAlert } from "@purosur/domain/alerts/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { DrizzleAlertStore } from "./drizzle-alert-store.js";
 import { alerts } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { DrizzleAlertStore } from "./drizzle-alert-store.js";
 import { DrizzleMissingOfflineAuthorizationCodeAlerts } from "./drizzle-missing-offline-authorization-code-alerts.js";
 
 const NOW = new Date("2026-10-12T15:00:00.000Z");

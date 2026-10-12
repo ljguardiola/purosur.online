@@ -1,5 +1,5 @@
-import { fiscalUnknownAlertIsDue, fiscalUnknownAlertLevel } from "../../alerts/index.js";
 import type { Clock } from "../../shared/index.js";
+import { fiscalUnknownAlertIsDue, fiscalUnknownAlertLevel } from "../model/fiscal-unknown-alert.js";
 import type { UnclearOutcomeAlertStore } from "./unclear-outcome-alert-ports.js";
 
 export interface OpenOverdueUnclearOutcomeAlertsPorts {

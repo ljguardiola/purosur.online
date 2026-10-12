@@ -1,4 +1,4 @@
-import type { AlertLevel } from "../../../alerts/index.js";
+import type { AlertLevel } from "../../model/alert-catalog.js";
 import type {
   UnclearDocumentWithoutAlert,
   UnclearOutcomeAlertStore,

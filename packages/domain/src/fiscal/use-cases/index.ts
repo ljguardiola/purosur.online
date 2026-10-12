@@ -199,11 +199,6 @@ export type {
   OfflineNumberBlockStore,
 } from "./offline-number-block-store.js";
 export type {
-  OpenOverdueUnclearOutcomeAlertsOutcome,
-  OpenOverdueUnclearOutcomeAlertsPorts,
-} from "./open-overdue-unclear-outcome-alerts.js";
-export { openOverdueUnclearOutcomeAlerts } from "./open-overdue-unclear-outcome-alerts.js";
-export type {
   ArcaOnlineStatus,
   ReadArcaOnlineStatusInput,
 } from "./read-arca-online-status.js";
@@ -296,11 +291,6 @@ export type {
   TaxAuthorityCounts,
   TaxAuthorityLastAuthorizedLookup,
 } from "./tax-authority-count-ports.js";
-export type {
-  UnclearDocumentWithoutAlert,
-  UnclearOutcomeAlertStore,
-  UnclearOutcomeAlertTransaction,
-} from "./unclear-outcome-alert-ports.js";
 export type {
   AbandonedRequestRecord,
   AskAboutUnclearOutcomePorts,

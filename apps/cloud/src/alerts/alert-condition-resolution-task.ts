@@ -2,17 +2,15 @@ import { ALERT_CONDITION_EVALUATION_INTERVAL_MS } from "@purosur/domain";
 import {
   detectMissingOfflineAuthorizationCodes,
   detectQuietRegisters,
+  openOverdueUnclearOutcomeAlerts,
   resolveStablyClearedAlerts,
 } from "@purosur/domain/alerts/use-cases";
-import { openOverdueUnclearOutcomeAlerts } from "@purosur/domain/fiscal/use-cases";
 import { openOverdueRefundTaskAlerts } from "@purosur/domain/payments/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
 import { DrizzleBranchHoursReader } from "../branch/drizzle-branch-hours-reader.js";
-import { DrizzleMissingOfflineAuthorizationCodeAlerts } from "./drizzle-missing-offline-authorization-code-alerts.js";
 import { DrizzleOfflineAuthorizationCodeHoldingReader } from "../fiscal/drizzle-offline-authorization-code-holding-reader.js";
-import { DrizzleUnclearOutcomeAlertStore } from "../fiscal/drizzle-unclear-outcome-alert-store.js";
 import { DrizzleRefundTaskAlertStore } from "../payments/drizzle-refund-task-alert-store.js";
 import {
   type BackgroundJobs,
@@ -22,6 +20,8 @@ import {
 import { DrizzleWatchedRegisterReader } from "../register/drizzle-watched-register-reader.js";
 import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
 import { DrizzleAlertStore } from "./drizzle-alert-store.js";
+import { DrizzleMissingOfflineAuthorizationCodeAlerts } from "./drizzle-missing-offline-authorization-code-alerts.js";
+import { DrizzleUnclearOutcomeAlertStore } from "./drizzle-unclear-outcome-alert-store.js";
 
 export const ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER = "alert-condition-resolution";
 
