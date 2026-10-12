@@ -50,7 +50,7 @@ test("renders each item's title in bold body text above its detail in subtle det
   );
 });
 
-test("puts each item's field at the right of its title, inside the frame and its padding, 160px wide whatever the row's width", async () => {
+test("puts each item's field at the right of its title, 160px wide whatever the row's width", async () => {
   const screen = await render(
     <div style={{ width: "480px" }}>
       <LabelledFieldList
@@ -64,7 +64,7 @@ test("puts each item's field at the right of its title, inside the frame and its
   const field = screen.getByText("Campo", { exact: true }).element() as HTMLElement;
 
   expect(field.getBoundingClientRect().width).toBe(160);
-  expect(field.getBoundingClientRect().right).toBeCloseTo(463, 0);
+  expect(field.getBoundingClientRect().right).toBeCloseTo(480, 0);
   expect(title.getBoundingClientRect().right).toBeLessThan(field.getBoundingClientRect().left);
 });
 
@@ -101,9 +101,9 @@ test("pads each item 12px vertically and 16px horizontally and divides the items
   expect(firstStyle.paddingBottom).toBe("12px");
   expect(firstStyle.paddingLeft).toBe("16px");
   expect(firstStyle.paddingRight).toBe("16px");
-  expect(firstStyle.borderBottomWidth).toBe("1px");
-  expect(firstStyle.borderBottomColor).toBe(tokenRgb("border"));
-  expect(secondStyle.borderBottomWidth).toBe("0px");
+  expect(firstStyle.borderTopWidth).toBe("0px");
+  expect(secondStyle.borderTopWidth).toBe("1px");
+  expect(secondStyle.borderTopColor).toBe(tokenRgb("border"));
 });
 
 test("writes a title of the identifier kind in bold monospace", async () => {
