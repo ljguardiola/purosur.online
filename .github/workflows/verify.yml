@@ -120,12 +120,64 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           HEAD_BRANCH: ${{ github.head_ref }}
 
+  # ECR Public caps what one address pulls without credentials, and shared runners share that cap:
+  # the shards pull the cloud's Postgres image from a copy on ghcr.io with the run's own token.
+  # Looking the copy up needs only a read-only token, which is all a Dependabot run ever gets.
+  postgres-image:
+    name: postgres image
+    needs: [scope]
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.tests_needed != 'false') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      packages: read
+    outputs:
+      mirrored: ${{ steps.mirror.outputs.mirrored }}
+    steps:
+      - id: mirror
+        name: Look up the cloud's Postgres image on ghcr.io
+        run: |
+          echo "$GITHUB_TOKEN" | skopeo login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          if timeout 60 skopeo inspect --raw "docker://${POSTGRES_IMAGE%%:*}@${POSTGRES_IMAGE#*@}" > /dev/null; then
+            echo "mirrored=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "mirrored=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          POSTGRES_IMAGE: ghcr.io/ljguardiola/postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+
+  # Copies the same digest from ECR Public only when ghcr.io does not have it yet, so the public
+  # registry is pulled from once per digest instead of by every shard of every run.
+  postgres-image-copy:
+    name: postgres image copy
+    needs: [postgres-image]
+    if: ${{ needs.postgres-image.outputs.mirrored == 'false' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      packages: write
+    steps:
+      - name: Copy the cloud's Postgres image to ghcr.io
+        timeout-minutes: 23
+        run: |
+          echo "$GITHUB_TOKEN" | skopeo login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          for delay in 0 15 30 60; do
+            sleep "$delay"
+            timeout 300 skopeo copy --all --preserve-digests "docker://${SOURCE_IMAGE%%:*}@${SOURCE_IMAGE#*@}" "docker://${POSTGRES_IMAGE%@*}" && exit 0
+          done
+          exit 1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_IMAGE: public.ecr.aws/docker/library/postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+          POSTGRES_IMAGE: ghcr.io/ljguardiola/postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+
   # vitest run, sharded six ways, each shard given an even share of every project's files by their
   # durations measured on the run test-durations-source picked, so a slow shard - not the
   # ever-growing total test count - bounds this job's wall time.
   tests:
     name: tests (${{ matrix.shard }}/6)
-    needs: [scope, test-durations-source]
+    needs: [scope, test-durations-source, postgres-image, postgres-image-copy]
     # Skipped on `pull_request` only when scope positively decided the shards read no changed path;
     # a failed or missing decision runs them, like static above.
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.tests_needed != 'false') }}
@@ -138,6 +190,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      packages: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -159,6 +212,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ needs.test-durations-source.outputs.run_id }}
 
+      - name: Sign in to ghcr.io
+        timeout-minutes: 2
+        run: echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
       - name: Pull the cloud's Postgres image
         timeout-minutes: 10
         run: |
@@ -168,7 +227,7 @@ jobs:
           done
           exit 1
         env:
-          POSTGRES_IMAGE: public.ecr.aws/docker/library/postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+          POSTGRES_IMAGE: ghcr.io/ljguardiola/postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
 
       - name: Pull the Playwright image
         timeout-minutes: 10
