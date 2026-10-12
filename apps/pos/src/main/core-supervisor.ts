@@ -1,4 +1,5 @@
 import { isCoreReadyMessage } from "./core-readiness";
+import { isCoreRefusedMessage } from "./core-refusal";
 import type { CoreStatus } from "./core-status-broadcast";
 
 export interface RestartPolicy {
@@ -49,8 +50,11 @@ export interface CoreSupervisorDeps {
   // Fires once per outage: failed periodic retries never report again until a recovered core has
   // stayed ready for stableRunMs.
   onRestartsExhausted?(): void;
+  // A core that refuses the local database it found is killed and never started again.
+  onRefused?(): void;
   // "up" only once the process has said it is ready; "down" from bounded restarts running out
-  // until a retry's process is ready; "starting" otherwise.
+  // until a retry's process is ready; "refused" once the core refuses its database; "starting"
+  // otherwise.
   onStatusChange?(status: CoreStatus): void;
 }
 
@@ -65,6 +69,7 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
   let stopped = true;
   let current: SupervisedProcess | undefined;
   let outageOpen = false;
+  let refused = false;
   let status: CoreStatus = "starting";
   let cancelScheduled: (() => void) | undefined;
   let cancelReadinessDeadline: (() => void) | undefined;
@@ -107,7 +112,21 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
     cancelReadinessDeadline = cancelDeadline;
 
     process.on("message", (message) => {
-      if (stopped || current !== process || readyAt !== undefined || missedReadinessDeadline) {
+      if (
+        stopped ||
+        refused ||
+        current !== process ||
+        readyAt !== undefined ||
+        missedReadinessDeadline
+      ) {
+        return;
+      }
+      if (isCoreRefusedMessage(message)) {
+        cancelDeadline();
+        refused = true;
+        process.kill();
+        setStatus("refused");
+        deps.onRefused?.();
         return;
       }
       if (isCoreReadyMessage(message)) {
@@ -130,7 +149,7 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
       if (current === process) {
         current = undefined;
       }
-      if (stopped) {
+      if (stopped || refused) {
         return;
       }
 
@@ -162,6 +181,7 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
   return {
     start(): void {
       stopped = false;
+      refused = false;
       attempt = 0;
       outageOpen = false;
       status = "starting";
