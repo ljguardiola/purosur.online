@@ -1256,6 +1256,60 @@ test("tells a register with a damaged database how to get it selling again", asy
   await expect.element(screen.getByText(/registro de operaciones/)).not.toBeInTheDocument();
 });
 
+test("tells a register whose fiscal emission is stopped in plain language, with the failed check's reason", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "fiscal_emission_stopped",
+        level: "critical",
+        audience: "local",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: { deviceId: "device-1", reason: "legal_name_missing" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Emisión de facturas detenida", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Esta caja no puede emitir ningún comprobante fiscal por ahora, ni siquiera el de contingencia.",
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText(/Seguir vendiendo igual: se cobra la venta/)).toBeVisible();
+  await expect.element(screen.getByText("Falta la razón social del emisor")).toBeVisible();
+  await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+});
+
+test("names a register whose fiscal emission is stopped by what happened when the alert is not for the Local audience", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "fiscal_emission_stopped",
+        level: "critical",
+        audience: "all",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: { deviceId: "device-1", reason: "legal_name_missing" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Una caja no puede emitir comprobantes fiscales", { exact: true }))
+    .toBeVisible();
+});
+
 test("names a register that can't sell by what happened when the alert is not for the Local audience", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
