@@ -129,7 +129,7 @@ describe("the register's Mercado Pago QR charging", () => {
     });
     expect(requests.map(({ url, init }) => [url, init.method, init.headers])).toEqual([
       [
-        "https://cloud.example/api/payments/mercado-pago-qr/qr-1",
+        "https://cloud.example/api/payments/mercado-pago/qr-1",
         "GET",
         { authorization: "Bearer prefix.secret" },
       ],
@@ -173,7 +173,7 @@ describe("the register's Mercado Pago QR charging", () => {
     });
     expect(requests.map(({ url, init }) => [url, init.method, init.headers])).toEqual([
       [
-        "https://cloud.example/api/payments/mercado-pago-qr/qr-1/cancel",
+        "https://cloud.example/api/payments/mercado-pago/qr-1/cancel",
         "POST",
         { authorization: "Bearer prefix.secret" },
       ],

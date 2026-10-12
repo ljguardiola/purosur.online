@@ -75,7 +75,7 @@ describe("asking the cloud for a Mercado Pago QR order", () => {
     expect(calls).toEqual([
       {
         method: "POST",
-        path: "/api/payments/mercado-pago-qr/orders",
+        path: "/api/payments/mercado-pago/orders",
         bearerToken: "prefix.secret",
         body: {
           payment_transaction_id: PAYMENT_ID,
@@ -156,7 +156,7 @@ describe("reading a Mercado Pago QR order's state from the cloud", () => {
     expect(calls).toEqual([
       {
         method: "GET",
-        path: `/api/payments/mercado-pago-qr/${PAYMENT_ID}`,
+        path: `/api/payments/mercado-pago/${PAYMENT_ID}`,
         bearerToken: "prefix.secret",
         options: { timeoutMs: 3_000, singleAttempt: true },
       },
@@ -212,8 +212,8 @@ describe("reading a Mercado Pago QR order's state from the cloud", () => {
     await orders.readOrder(other);
 
     expect(calls.map((call) => call.path)).toEqual([
-      `/api/payments/mercado-pago-qr/${PAYMENT_ID}`,
-      `/api/payments/mercado-pago-qr/${other}`,
+      `/api/payments/mercado-pago/${PAYMENT_ID}`,
+      `/api/payments/mercado-pago/${other}`,
     ]);
   });
 
@@ -234,7 +234,7 @@ describe("asking the cloud to cancel a Mercado Pago QR order", () => {
     expect(calls).toEqual([
       {
         method: "POST",
-        path: `/api/payments/mercado-pago-qr/${PAYMENT_ID}/cancel`,
+        path: `/api/payments/mercado-pago/${PAYMENT_ID}/cancel`,
         bearerToken: "prefix.secret",
         body: undefined,
         options: { timeoutMs: 3000, singleAttempt: true },
@@ -256,7 +256,7 @@ describe("asking the cloud to cancel a Mercado Pago QR order", () => {
 
     await orders.cancelOrder("a/b");
 
-    expect(calls[0]?.path).toBe("/api/payments/mercado-pago-qr/a%2Fb/cancel");
+    expect(calls[0]?.path).toBe("/api/payments/mercado-pago/a%2Fb/cancel");
   });
 
   it.each([
