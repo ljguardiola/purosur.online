@@ -390,16 +390,24 @@ const helpRoute = createRoute({
   getParentRoute: () => statusBarRoute,
   path: "/help",
   beforeLoad: ({ context }) => {
-    const person = requireSignedInPerson(context);
+    const { person, sessionOpen } = requireSignedInPersonAnywhere(context);
     if (!person.abilities.includes("read_register_help")) {
-      throw redirect({ to: "/" });
+      throw redirect({ to: routeFor(context) });
     }
-    return { person };
+    return { person, sessionOpen };
   },
   component: function HelpRoute() {
-    const { person, signOut } = helpRoute.useRouteContext();
+    const { person, sessionOpen, signOut } = helpRoute.useRouteContext();
     const registerName = useRegisterName();
-    return <HelpScreen person={person} registerName={registerName} help={help} signOut={signOut} />;
+    return (
+      <HelpScreen
+        person={person}
+        registerName={registerName}
+        sessionOpen={sessionOpen}
+        help={help}
+        signOut={signOut}
+      />
+    );
   },
 });
 
