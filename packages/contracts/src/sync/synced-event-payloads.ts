@@ -2,6 +2,7 @@ import {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_TYPES,
   cashMovementReason,
+  isCalendarDay,
   isValidCashAmount,
   isValidCashMovementAmount,
   manualAdjustmentReason,
@@ -284,6 +285,18 @@ const qrPaymentReplacedSchema = z.object({
   sale_id: text,
 });
 
+const openingCountRecordedSchema = z.object({
+  movement_id: z.uuid(),
+  product_id: z.uuid(),
+  counted: z.int().refine(mayBeMovementQuantity),
+  expires_on: z.string().refine(isCalendarDay).nullable(),
+});
+
+const openingCountWithdrawnSchema = z.object({
+  movement_id: z.uuid(),
+  withdrawn_movement_id: z.uuid(),
+});
+
 const PAYLOAD_SCHEMAS = {
   "sale_completed@1": saleCompletedV1Schema,
   "sale_completed@2": saleCompletedV2Schema,
@@ -302,6 +315,8 @@ const PAYLOAD_SCHEMAS = {
   "cash_movement_recorded@1": cashMovementRecordedSchema,
   "fiscal_gate_failed@1": fiscalGateFailedSchema,
   "qr_payment_replaced@1": qrPaymentReplacedSchema,
+  "opening_count_recorded@1": openingCountRecordedSchema,
+  "opening_count_withdrawn@1": openingCountWithdrawnSchema,
 };
 
 export type SyncedEventPayloads = {
