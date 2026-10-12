@@ -17,6 +17,7 @@ import {
   FixedClock,
   SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
+import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
 
 const NOW = new Date("2026-10-07T15:30:00.000Z");
 const PAID_AT = new Date("2026-10-07T15:10:00.000Z");
@@ -44,6 +45,7 @@ const OPEN_SALE: SaleWithLines = {
   sessionId: "session-1",
   actorId: "cashier",
   state: "OPEN",
+  saleDiscount: null,
   lines: [YERBA_LINE],
 };
 const CASH_PAYMENT: SalePayment = {
@@ -284,6 +286,17 @@ describe("cancelPaidSale", () => {
           actor_id: "cashier",
         },
       ]);
+    });
+
+    it("records the discounted total and each line's total with its share of the discount taken off", async () => {
+      const store = ledger({ sales: [{ ...OPEN_SALE, saleDiscount: TEN_PERCENT_SALE_DISCOUNT }] });
+
+      await cancel(store);
+
+      expect(store.state.outbox[0]?.payload).toMatchObject({
+        total: 6075,
+        lines: [{ ...LINE_RECORD, line_total: 6075 }],
+      });
     });
 
     it("records a line's manual adjustment in the event", async () => {

@@ -13,6 +13,7 @@ import {
   FixedClock,
   SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
+import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
 
 const NOW = new Date("2026-09-30T12:34:56.789Z");
 
@@ -41,6 +42,7 @@ const OPEN_SALE: SaleWithLines = {
   sessionId: "session-1",
   actorId: "cashier",
   state: "OPEN",
+  saleDiscount: null,
   lines: [],
 };
 
@@ -127,6 +129,7 @@ describe("addScannedProduct", () => {
       sessionId: "session-1",
       actorId: "cashier",
       state: "OPEN",
+      saleDiscount: null,
       lines: [
         {
           id: "id-2",
@@ -148,6 +151,7 @@ describe("addScannedProduct", () => {
     expect(outcome).toEqual({
       kind: "added",
       removedManualDiscount: false,
+      removedSaleDiscount: false,
       sale,
       balance: { paid: 0, pending: 2500 },
       linesLock: null,
@@ -816,5 +820,50 @@ describe("add-scanned-product while a QR charge of the sale is in its wait", () 
     const store = ledger({ sales: [OPEN_SALE], pendingQrPayments: [WAIT_ENDED] });
 
     expect(scan(store)).toMatchObject({ kind: "added" });
+  });
+});
+
+describe("add-scanned-product on a sale with a discount on the total", () => {
+  function discountedStore(): FakeSaleLedger {
+    const store = scannedOnce(2);
+    const [sale] = store.state.sales;
+    if (sale) {
+      sale.saleDiscount = TEN_PERCENT_SALE_DISCOUNT;
+    }
+    return store;
+  }
+
+  it("removes the discount and tells so when another unit of the line is added", () => {
+    const store = discountedStore();
+
+    const outcome = scan(store);
+
+    expect(store.state.sales[0]?.saleDiscount).toBeNull();
+    expect(outcome).toEqual(
+      expect.objectContaining({
+        kind: "added",
+        removedSaleDiscount: true,
+        sale: expect.objectContaining({ saleDiscount: null }),
+        balance: { paid: 0, pending: 7500 },
+      }),
+    );
+  });
+
+  it("removes the discount and tells so when a new line is added", () => {
+    const store = discountedStore();
+
+    const outcome = scan(store, "7790002");
+
+    expect(store.state.sales[0]?.saleDiscount).toBeNull();
+    expect(outcome).toEqual(expect.objectContaining({ kind: "added", removedSaleDiscount: true }));
+  });
+
+  it("keeps the discount when the product is refused", () => {
+    const store = discountedStore();
+
+    const outcome = scan(store, "0000");
+
+    expect(outcome).toEqual({ kind: "product_not_found" });
+    expect(store.state.sales[0]?.saleDiscount).toEqual(TEN_PERCENT_SALE_DISCOUNT);
   });
 });
