@@ -42,22 +42,20 @@ export async function withdrawOpeningCount(
   const taken = Math.min(line.counted, Math.max(lot?.remaining ?? 0, 0));
   const coveringCount = await tx.earliestCountAtOrAfter(key, input.occurredAt);
   const supersededByCountId = coveringCount?.movementId ?? null;
-  if (taken > 0) {
-    const { movementId, balance } = await recordStockMovement(tx, {
-      ...key,
-      id: input.movementId,
-      kind: "opening_count_withdrawal",
-      reason: null,
-      delta: -taken,
-      occurredAt: input.occurredAt,
-      actorId: input.actorId,
-      supersededByCountId,
-    });
-    if (balance !== null) {
-      await allocateToLots(tx, key, movementId, [
-        { target: lotTarget(line.lotId), quantity: -taken },
-      ]);
-    }
+  const { movementId, balance } = await recordStockMovement(tx, {
+    ...key,
+    id: input.movementId,
+    kind: "opening_count_withdrawal",
+    reason: null,
+    delta: 0 - taken,
+    occurredAt: input.occurredAt,
+    actorId: input.actorId,
+    supersededByCountId,
+  });
+  if (balance !== null && taken > 0) {
+    await allocateToLots(tx, key, movementId, [
+      { target: lotTarget(line.lotId), quantity: -taken },
+    ]);
   }
   await tx.markOpeningCountWithdrawn(line.lotId);
   return { kind: "withdrawn", taken, notTaken: line.counted - taken, supersededByCountId };
