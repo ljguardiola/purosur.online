@@ -26,7 +26,7 @@ const ISSUER_IDENTITY = {
   grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
 };
 
-function printStateEvent(id: string, printAttemptedAt: Date, printedAt: Date | null, at: Date) {
+function printStateEvent(id: string, printAttemptedAt: Date, printedAt: Date) {
   return {
     event_id: id,
     aggregate_type: "Sale",
@@ -36,9 +36,9 @@ function printStateEvent(id: string, printAttemptedAt: Date, printedAt: Date | n
     payload: {
       sale_id: "sale-1",
       print_attempted_at: printAttemptedAt.toISOString(),
-      printed_at: printedAt?.toISOString() ?? null,
+      printed_at: printedAt.toISOString(),
     },
-    occurred_at: at.toISOString(),
+    occurred_at: printedAt.toISOString(),
     actor_id: "cashier",
   };
 }
@@ -109,9 +109,7 @@ describe("printSaleReceipt", () => {
       expect(atSend?.sales[0]?.printAttemptedAt).toEqual(FIRST_PRINT_AT);
       expect(atSend?.sales[0]?.printedAt).toEqual(FIRST_PRINT_AT);
       expect(atSend?.sales[0]?.stored?.templateVersion).toBe("v1");
-      expect(atSend?.outbox).toEqual([
-        printStateEvent("id-1", FIRST_PRINT_AT, FIRST_PRINT_AT, FIRST_PRINT_AT),
-      ]);
+      expect(atSend?.outbox).toEqual([printStateEvent("id-1", FIRST_PRINT_AT, FIRST_PRINT_AT)]);
       await printing;
     });
 
@@ -273,7 +271,7 @@ describe("printSaleReceipt", () => {
       expect(outcome).toEqual({ kind: "printed", copy: { kind: "duplicate", orderNumber: 1 } });
       expect(atSend?.sales[0]?.printAttemptedAt).toEqual(FIRST_PRINT_AT);
       expect(atSend?.sales[0]?.printedAt).toEqual(SENT_AT);
-      expect(atSend?.outbox[1]).toEqual(printStateEvent("id-2", FIRST_PRINT_AT, SENT_AT, SENT_AT));
+      expect(atSend?.outbox[1]).toEqual(printStateEvent("id-2", FIRST_PRINT_AT, SENT_AT));
       expect(rig.ledger.transactions).toBe(2);
       expect(rig.ledger.state).toEqual(atSend);
     });
