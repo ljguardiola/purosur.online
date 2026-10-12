@@ -7,6 +7,10 @@ import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { createMercadoPagoCharging } from "./mercado-pago-charge-wiring";
+import {
+  openSaleOfTwoYerbas,
+  seedChargeRegister,
+} from "./test-support/mercado-pago-charge-requests";
 
 const NOW = new Date("2026-10-09T12:00:00.000Z");
 
@@ -74,22 +78,51 @@ describe("the register's Mercado Pago QR charging", () => {
     }
   });
 
-  it("offers no charge on the integrated terminal yet, asking the cloud nothing", async () => {
+  it("starts a charge on the integrated terminal by asking the cloud for a terminal order with the device token", async () => {
     const requests: { url: string; init: RequestInit }[] = [];
+    const signedInPerson = createSignedInPerson();
+    seedChargeRegister(database);
+    signedInPerson.set("u1");
+    const saleId = await openSaleOfTwoYerbas({ database, signedInPerson });
     const charging = createMercadoPagoCharging({
       database,
-      gate: gate(),
+      gate: createActionGate({
+        store: new SqliteSignInStore(database),
+        signedInPerson,
+        readPepper: async () => undefined,
+        hashPin: async () => "",
+        now: () => NOW,
+      }),
       cloudClient: cloudClient(requests),
       readDeviceToken: async () => "prefix.secret",
       readOutboxChainKey: async () => "key",
       now: () => NOW,
-      ids: { next: () => "id" },
+      ids: { next: () => "point-1" },
     });
 
-    expect(await charging.start?.({ saleId: "sale-1", method: "POINT", amount: 3000 })).toEqual({
-      kind: "unavailable",
+    expect(await charging.start?.({ saleId, method: "POINT", amount: 3000 })).toEqual({
+      kind: "order_refused",
     });
-    expect(requests).toEqual([]);
+    expect(
+      requests.map(({ url, init }) => [
+        url,
+        init.method,
+        init.headers,
+        JSON.parse(String(init.body)),
+      ]),
+    ).toEqual([
+      [
+        "https://cloud.example/api/payments/mercado-pago/orders",
+        "POST",
+        expect.objectContaining({ authorization: "Bearer prefix.secret" }),
+        {
+          payment_transaction_id: "point-1",
+          sale_id: saleId,
+          provider: "MERCADOPAGO_POINT",
+          amount: 3000,
+        },
+      ],
+    ]);
   });
 
   it("reads a QR order's state from the cloud's address with the device token", async () => {

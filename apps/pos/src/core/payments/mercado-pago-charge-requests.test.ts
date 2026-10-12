@@ -67,7 +67,11 @@ describe("starting a Mercado Pago QR charge at the register", () => {
     const saleId = await saleOfTwoYerbas();
     const orders = new FakeOrders();
 
-    const outcome = await startMercadoPagoChargeFor(deps(orders), { saleId, amount: 2000 });
+    const outcome = await startMercadoPagoChargeFor(deps(orders), {
+      saleId,
+      method: "QR",
+      amount: 2000,
+    });
 
     expect(outcome).toEqual({
       kind: "order_shown",
@@ -95,7 +99,9 @@ describe("starting a Mercado Pago QR charge at the register", () => {
     const orders = new FakeOrders();
     orders.answer = { kind: "created", expiresAt: new Date("2026-10-09T12:03:10.000Z") };
 
-    expect(await startMercadoPagoChargeFor(deps(orders), { saleId, amount: 2000 })).toMatchObject({
+    expect(
+      await startMercadoPagoChargeFor(deps(orders), { saleId, method: "QR", amount: 2000 }),
+    ).toMatchObject({
       kind: "order_shown",
       remaining_seconds: 190,
     });
@@ -106,7 +112,9 @@ describe("starting a Mercado Pago QR charge at the register", () => {
     const saleId = await saleOfTwoYerbas();
     const orders = new FakeOrders();
 
-    expect(await startMercadoPagoChargeFor(deps(orders), { saleId, amount: 5000 })).toEqual({
+    expect(
+      await startMercadoPagoChargeFor(deps(orders), { saleId, method: "QR", amount: 5000 }),
+    ).toEqual({
       kind: "exceeds_pending",
       pending: 3000,
     });
@@ -123,13 +131,16 @@ describe("starting a Mercado Pago QR charge at the register", () => {
       const orders = new FakeOrders();
       orders.answer = { kind: answer };
 
-      expect(await startMercadoPagoChargeFor(deps(orders), { saleId, amount: 3000 })).toEqual({
+      expect(
+        await startMercadoPagoChargeFor(deps(orders), { saleId, method: "QR", amount: 3000 }),
+      ).toEqual({
         kind,
       });
       expect(qrRows()).toMatchObject([{ state: "PENDING", wait_ends_at: NOW.toISOString() }]);
       expect(
         await startMercadoPagoChargeFor(deps(new FakeOrders(), { ids: { next: () => "qr-2" } }), {
           saleId,
+          method: "QR",
           amount: 3000,
         }),
       ).toMatchObject({ kind: "order_shown", payment_transaction_id: "qr-2" });
@@ -138,10 +149,14 @@ describe("starting a Mercado Pago QR charge at the register", () => {
 
   it("refuses a second QR charge of the sale while the first one is in its wait", async () => {
     const saleId = await saleOfTwoYerbas();
-    await startMercadoPagoChargeFor(deps(new FakeOrders()), { saleId, amount: 1000 });
+    await startMercadoPagoChargeFor(deps(new FakeOrders()), { saleId, method: "QR", amount: 1000 });
 
     expect(
-      await startMercadoPagoChargeFor(deps(new FakeOrders()), { saleId, amount: 1000 }),
+      await startMercadoPagoChargeFor(deps(new FakeOrders()), {
+        saleId,
+        method: "QR",
+        amount: 1000,
+      }),
     ).toEqual({ kind: "mercado_pago_charge_in_progress" });
   });
 
@@ -150,7 +165,11 @@ describe("starting a Mercado Pago QR charge at the register", () => {
     signedInPerson.clear();
 
     expect(
-      await startMercadoPagoChargeFor(deps(new FakeOrders()), { saleId, amount: 3000 }),
+      await startMercadoPagoChargeFor(deps(new FakeOrders()), {
+        saleId,
+        method: "QR",
+        amount: 3000,
+      }),
     ).toEqual({ kind: "not_signed_in" });
     expect(qrRows()).toEqual([]);
   });
@@ -159,7 +178,7 @@ describe("starting a Mercado Pago QR charge at the register", () => {
 describe("following a Mercado Pago QR charge at the register", () => {
   async function chargeStarted(amount = 3000): Promise<string> {
     const saleId = await saleOfTwoYerbas();
-    await startMercadoPagoChargeFor(deps(new FakeOrders()), { saleId, amount });
+    await startMercadoPagoChargeFor(deps(new FakeOrders()), { saleId, method: "QR", amount });
     return saleId;
   }
 
@@ -308,7 +327,7 @@ describe("following a Mercado Pago QR charge at the register", () => {
 describe("abandoning a Mercado Pago QR charge at the register", () => {
   async function chargeStarted(amount = 3000): Promise<string> {
     const saleId = await saleOfTwoYerbas();
-    await startMercadoPagoChargeFor(deps(new FakeOrders()), { saleId, amount });
+    await startMercadoPagoChargeFor(deps(new FakeOrders()), { saleId, method: "QR", amount });
     return saleId;
   }
 

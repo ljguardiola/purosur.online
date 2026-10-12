@@ -482,7 +482,7 @@ export async function withRegisterSession<TResult>(
     nextStep();
     const qr = await startMercadoPagoChargeFor(
       { ...deps(), orders: OFFLINE_QR_ORDERS },
-      { saleId: replacedScan.sale.id, amount: 500 },
+      { saleId: replacedScan.sale.id, method: "QR", amount: 500 },
     );
     if (qr.kind !== "order_shown") {
       throw new Error(`The register session's "start a QR charge" ended as "${qr.kind}"`);
