@@ -59,7 +59,11 @@ describe("the payment methods available for the sale being charged", () => {
   it("are both available while the cloud is reachable and the sale's pending amount reaches the terminal's minimum", async () => {
     await openSaleOfTwoYerbas({ database, signedInPerson });
 
-    expect(await availability("reachable")).toEqual({ qr: "available", point: "available" });
+    expect(await availability("reachable")).toEqual({
+      qr: "available",
+      point: "available",
+      point_minimum: 1500,
+    });
   });
 
   it.each(["unreachable", "unknown"] as const)(
@@ -67,7 +71,11 @@ describe("the payment methods available for the sale being charged", () => {
     async (cloud) => {
       await openSaleOfTwoYerbas({ database, signedInPerson });
 
-      expect(await availability(cloud)).toEqual({ qr: "offline", point: "offline" });
+      expect(await availability(cloud)).toEqual({
+        qr: "offline",
+        point: "offline",
+        point_minimum: 1500,
+      });
     },
   );
 
@@ -84,6 +92,10 @@ describe("the payment methods available for the sale being charged", () => {
       { saleId, tendered: 2000 },
     );
 
-    expect(await availability("reachable")).toEqual({ qr: "available", point: "below_minimum" });
+    expect(await availability("reachable")).toEqual({
+      qr: "available",
+      point: "below_minimum",
+      point_minimum: 1500,
+    });
   });
 });
