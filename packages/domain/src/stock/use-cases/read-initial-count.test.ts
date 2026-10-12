@@ -78,6 +78,22 @@ describe("readInitialCount", () => {
     });
   });
 
+  it("lists lines confirmed at the same moment by their movement id, whatever order they came in", () => {
+    const store = ledger({
+      movements: [
+        counted("m-b", "yerba", 6_000, "2026-10-07T09:00:00.000Z", null),
+        counted("m-c", "queso", 1_250, "2026-10-07T09:00:00.000Z", null),
+        counted("m-a", "yerba", 2_000, "2026-10-07T09:00:00.000Z", "2027-01-31"),
+      ],
+    });
+
+    const outcome = readInitialCount({ ledger: store }, { actorId: "counter" });
+
+    expect(outcome).toMatchObject({
+      lines: [{ movementId: "m-a" }, { movementId: "m-b" }, { movementId: "m-c" }],
+    });
+  });
+
   it("leaves out a line that was withdrawn", () => {
     const store = ledger({
       movements: [

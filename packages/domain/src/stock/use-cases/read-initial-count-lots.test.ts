@@ -120,17 +120,32 @@ describe("readInitialCountLots", () => {
 
   it("lists the products by name and each product's lots by expiry, the one without expiry last", async () => {
     const { lots } = await read([
-      row("yerba-none", { expiresOn: null }),
-      row("yerba-late", { expiresOn: "2027-06-30" }),
-      row("arroz", { productName: "Arroz largo fino", expiresOn: "2028-01-01" }),
-      row("yerba-early", { expiresOn: "2027-01-31" }),
+      row("l-1", { expiresOn: null }),
+      row("l-2", { expiresOn: "2027-06-30" }),
+      row("l-3", { productName: "Arroz largo fino", expiresOn: "2028-01-01" }),
+      row("l-4", { expiresOn: "2027-01-31" }),
     ]);
 
-    expect(lots.map((lot) => lot.lotId)).toEqual([
-      "arroz",
-      "yerba-early",
-      "yerba-late",
-      "yerba-none",
+    expect(lots.map((lot) => lot.lotId)).toEqual(["l-3", "l-4", "l-2", "l-1"]);
+  });
+
+  it("lists lots of one product with the same expiry by their id, whatever order they came in", async () => {
+    const { lots } = await read([
+      row("l-9", { expiresOn: "2027-01-31" }),
+      row("l-2", { expiresOn: "2027-01-31" }),
+      row("l-8", { expiresOn: null }),
+      row("l-1", { expiresOn: null }),
     ]);
+
+    expect(lots.map((lot) => lot.lotId)).toEqual(["l-2", "l-9", "l-1", "l-8"]);
+  });
+
+  it("lists a later product's earlier-expiring lot after an earlier product's lots", async () => {
+    const { lots } = await read([
+      row("l-1", { productName: "Yerba 1 kg", expiresOn: "2026-12-01" }),
+      row("l-2", { productName: "Arroz largo fino", expiresOn: "2028-01-01" }),
+    ]);
+
+    expect(lots.map((lot) => lot.lotId)).toEqual(["l-2", "l-1"]);
   });
 });

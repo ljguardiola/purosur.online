@@ -166,6 +166,17 @@ describe("withdrawOpeningCount", () => {
     );
   });
 
+  it("takes from the lot of the line withdrawn when the product has other lots with less in them", async () => {
+    const store = await storeWithLine(3_000);
+    await count(store, "movement-b", 6_000, "2026-12-31");
+
+    const outcome = await withdraw(store, withdrawal({ withdrawnMovementId: "movement-b" }));
+
+    expect(outcome).toMatchObject({ kind: "withdrawn", taken: 6_000, notTaken: 0 });
+    expect(lotOf(store, "movement-a")).toMatchObject({ remaining: 3_000, withdrawn: false });
+    expect(lotOf(store, "movement-b")).toMatchObject({ remaining: 0, withdrawn: true });
+  });
+
   it("says not found for a movement that is no opening count", async () => {
     const store = await storeWithLine();
     const before = store.snapshot();
