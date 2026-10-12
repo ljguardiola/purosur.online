@@ -6,7 +6,7 @@ import type {
   PreviewSaleLineAdjustmentOutcome,
   SignInUser,
 } from "@purosur/contracts";
-import { SummaryRow } from "@purosur/ui";
+import { SummaryRow, SummaryRowGroup } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -543,6 +543,31 @@ describe("AdjustLineModal previewing the adjustment", () => {
         `${context} label`,
       );
     }
+    await reference.unmount();
+  });
+
+  it("shows the summary as a filled card set apart from the form", async () => {
+    const { screen } = await renderModal();
+    const reference = await renderReference(
+      <SummaryRowGroup variant="filled" rows={[{ label: "Referencia", value: "$ 1,00" }]} />,
+    );
+
+    const summary = screen.getByText("Precio de lista", { exact: true }).element().parentElement
+      ?.parentElement as Element;
+    expectDrawnLike(
+      summary,
+      reference.container.firstElementChild as Element,
+      [
+        "backgroundColor",
+        "borderTopWidth",
+        "borderBottomWidth",
+        "borderRadius",
+        "paddingTop",
+        "paddingLeft",
+        "rowGap",
+      ],
+      "summary",
+    );
     await reference.unmount();
   });
 

@@ -21,7 +21,7 @@ import {
   TextField,
   useRequestForm,
 } from "@purosur/ui";
-import { ArrowLeft, BadgePercent, Check, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Check, Percent, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { AuthorizationSection } from "../shell/authorization-section";
 import type { SignedInPerson } from "../shell/signed-in-person";
@@ -191,7 +191,7 @@ export function ApplySaleDiscountModal({
       }}
       width="standard"
       tone="info"
-      icon={<BadgePercent />}
+      icon={<Percent />}
       context={`VENTA EN CURSO · ${lineCount} ${plural(lineCount, { one: "LÍNEA", other: "LÍNEAS" })}`}
       title="Descuento sobre el total"
       closable={!submitting}
@@ -221,7 +221,7 @@ export function ApplySaleDiscountModal({
       <div className="flex flex-col gap-5">
         <form.Subscribe selector={(state) => state.values.kind}>
           {(kind) => (
-            <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-4">
               <SegmentedControl
                 label="Unidad del descuento"
                 options={UNIT_OPTIONS}
@@ -231,9 +231,7 @@ export function ApplySaleDiscountModal({
               <form.AppField name="value" listeners={{ onChange: () => setNotice(undefined) }}>
                 {(field) => (
                   <TextField
-                    {...(kind === "PERCENT"
-                      ? ({ kind: "quantity", suffix: "%" } as const)
-                      : ({ kind: "amount", prefix: "$" } as const))}
+                    kind="discount"
                     label={valueLabel(kind)}
                     labelVisuallyHidden
                     description="Se suma a las promociones y a los descuentos de línea."
@@ -292,9 +290,11 @@ export function ApplySaleDiscountModal({
             onRetry={preview.retry}
           />
         ) : null}
-        <p className="text-detail text-text-subtle">
-          Si después cambiás una línea, este descuento se quita y hay que volver a aplicarlo.
-        </p>
+        <InlineNotice
+          tone="warning"
+          icon={<TriangleAlert />}
+          title="Si después cambiás una línea, este descuento se quita y hay que volver a aplicarlo."
+        />
         <AuthorizationSection
           authorization={authorization}
           action={AUTHORIZING}
