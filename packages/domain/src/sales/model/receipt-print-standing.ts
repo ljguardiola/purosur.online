@@ -6,6 +6,7 @@ export interface ReceiptPrintObservation {
   acknowledged: boolean;
   failed: boolean;
   printerNotConfigured: boolean;
+  withdrawn: boolean;
   status: PrinterStatus | null;
   readySince: Date | null;
 }
@@ -13,6 +14,7 @@ export interface ReceiptPrintObservation {
 export type ReceiptPrintStanding =
   | "printing"
   | "printed"
+  | "withdrawn"
   | "cover_open"
   | "paper_out"
   | "not_responding"
@@ -25,6 +27,7 @@ export function startedReceiptPrint(): ReceiptPrintObservation {
     acknowledged: false,
     failed: false,
     printerNotConfigured: false,
+    withdrawn: false,
     status: null,
     readySince: null,
   };
@@ -58,12 +61,28 @@ export function observePrinterNotConfigured(
   return { ...observation, printerNotConfigured: true };
 }
 
+export function observePrintWithdrawn(
+  observation: ReceiptPrintObservation,
+): ReceiptPrintObservation {
+  return { ...observation, withdrawn: true };
+}
+
 export function receiptPrintStanding(
-  { acknowledged, failed, printerNotConfigured, status, readySince }: ReceiptPrintObservation,
+  {
+    acknowledged,
+    failed,
+    printerNotConfigured,
+    withdrawn,
+    status,
+    readySince,
+  }: ReceiptPrintObservation,
   now: Date,
 ): ReceiptPrintStanding {
   if (acknowledged) {
     return "printed";
+  }
+  if (withdrawn) {
+    return "withdrawn";
   }
   if (printerNotConfigured) {
     return "printer_not_configured";
@@ -93,11 +112,12 @@ export function mayStartReceiptPrint(
   return (
     standing === "printed" ||
     standing === "retry_offered" ||
+    standing === "withdrawn" ||
     standing === "failed" ||
     standing === "printer_not_configured"
   );
 }
 
 export function mayRetryReceiptPrint(standing: ReceiptPrintStanding | null): boolean {
-  return standing === "retry_offered";
+  return standing === "retry_offered" || standing === "withdrawn";
 }
