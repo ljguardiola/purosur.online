@@ -931,11 +931,11 @@ test("summarizes the refund of a cancelled sale left pending by its method and a
   await expect
     .element(
       row.getByText(
-        "Hay un reembolso aprobado que todavía no quedó marcado como hecho en el sistema.",
+        "Hay un reembolso aprobado que todavía no quedó marcado como hecho en el sistema. Si ese reembolso ya se hizo por fuera del sistema, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes. El Administrador ya fue avisado.",
+        { exact: true },
       ),
     )
     .toBeVisible();
-  await expect.element(row.getByText(/hacerlo cuanto antes/)).toBeVisible();
   await expect
     .element(row.getByText("Transferencia de $ 12.400,00", { exact: true }))
     .toBeVisible();
