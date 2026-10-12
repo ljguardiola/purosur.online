@@ -3,6 +3,7 @@ import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
+  ApplySaleDiscountOutcome,
   Authorization,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
@@ -27,6 +28,7 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -38,6 +40,7 @@ import type {
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
   RetryReceiptPrintOutcome,
+  SaleDiscountRequest,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
   ScanProductOutcome,
@@ -193,6 +196,12 @@ export interface RouterContext {
     lineId: string,
     adjustment: ManualAdjustmentRequest,
   ) => Promise<PreviewSaleLineAdjustmentOutcome>;
+  applySaleDiscount: (
+    discount: SaleDiscountRequest,
+    reason: string,
+    authorization: Authorization | undefined,
+  ) => Promise<ApplySaleDiscountOutcome>;
+  previewSaleDiscount: (discount: SaleDiscountRequest) => Promise<PreviewSaleDiscountOutcome>;
   removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
   cancelSale: () => Promise<CancelSaleOutcome>;
   cancelPaidSale: (
@@ -486,6 +495,8 @@ const openSessionRoute = createRoute({
       changeLineWeight,
       adjustSaleLine,
       previewSaleLineAdjustment,
+      applySaleDiscount,
+      previewSaleDiscount,
       removeSaleLine,
       cancelSale,
       cancelPaidSale,
@@ -509,6 +520,8 @@ const openSessionRoute = createRoute({
         changeLineWeight={changeLineWeight}
         adjustSaleLine={adjustSaleLine}
         previewSaleLineAdjustment={previewSaleLineAdjustment}
+        applySaleDiscount={applySaleDiscount}
+        previewSaleDiscount={previewSaleDiscount}
         removeSaleLine={removeSaleLine}
         cancelSale={cancelSale}
         cancelPaidSale={cancelPaidSale}
@@ -895,6 +908,8 @@ export function createAppRouter(
     | "changeLineWeight"
     | "adjustSaleLine"
     | "previewSaleLineAdjustment"
+    | "applySaleDiscount"
+    | "previewSaleDiscount"
     | "removeSaleLine"
     | "cancelSale"
     | "cancelPaidSale"
