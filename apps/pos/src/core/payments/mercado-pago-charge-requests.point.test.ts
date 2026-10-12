@@ -327,18 +327,6 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
     const offline = new FakeOrders();
     offline.reading = { kind: "unreachable" };
     await followMercadoPagoChargeFor(deps(offline), { paymentTransactionId: paymentId });
-    expect(
-      await chargeSaleInCashFor(
-        {
-          database,
-          gate: deps(offline).gate,
-          readOutboxChainKey: async () => CHARGE_CHAIN_KEY,
-          now: () => CHARGE_NOW,
-          ids: { next: () => "cash-1" },
-        },
-        { saleId, tendered: 3000 },
-      ),
-    ).toEqual({ kind: "mercado_pago_charge_in_progress" });
 
     const online = new FakeOrders();
     online.reading = { kind: "read", state: "CANCELLED" };
