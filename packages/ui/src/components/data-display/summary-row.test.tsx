@@ -332,3 +332,25 @@ test("does not accept a row that is both strong and a detail", () => {
   }>().not.toExtend<SummaryRowProps>();
   expectTypeOf<{ label: string; value: string; detail: true }>().toExtend<SummaryRowProps>();
 });
+
+test("does not accept a detail row that is a saving", () => {
+  expectTypeOf<{
+    label: string;
+    value: string;
+    detail: true;
+    saving: true;
+  }>().not.toExtend<SummaryRowProps>();
+  expectTypeOf<{
+    label: string;
+    value: string;
+    detail: true;
+    tone: "error";
+  }>().toExtend<SummaryRowProps>();
+  expectTypeOf<{ label: string; value: string; saving: true }>().toExtend<SummaryRowProps>();
+  expectTypeOf<{
+    label: string;
+    value: string;
+    strong: true;
+    saving: true;
+  }>().toExtend<SummaryRowProps>();
+});
