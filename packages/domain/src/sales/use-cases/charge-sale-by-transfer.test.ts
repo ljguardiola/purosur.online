@@ -15,6 +15,7 @@ import {
   FixedClock,
   SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
+import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
 
 const NOW = new Date("2026-09-30T12:34:56.789Z");
 const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
@@ -179,6 +180,18 @@ describe("chargeSaleByTransfer", () => {
     expect(store.state.payments[0]).toMatchObject({ amount: 4000 });
   });
 
+  it("charges, and authorizes the invoice for, the total with the discount on the total taken off", () => {
+    const store = ledger({ sales: [{ ...OPEN_SALE, saleDiscount: TEN_PERCENT_SALE_DISCOUNT }] });
+
+    expect(charge(store, 5310)).toMatchObject({ kind: "completed", total: 5310 });
+    expect(store.state.payments[0]).toMatchObject({ amount: 5310 });
+    expect(store.state.outbox[0]?.payload).toMatchObject({ total: 5310 });
+    expect(store.state.preEmissionGates[0]?.outcome).toMatchObject({
+      kind: "passed",
+      document: { total: 5310, netAmount: 5310 },
+    });
+  });
+
   it("records no cash movement", () => {
     const store = ledger();
 
@@ -198,7 +211,7 @@ describe("chargeSaleByTransfer", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "sale_completed",
-        schema_version: 7,
+        schema_version: 8,
         occurred_at: NOW.toISOString(),
         actor_id: "cashier",
         payload: {
@@ -210,6 +223,7 @@ describe("chargeSaleByTransfer", () => {
           actor_id: "cashier",
           occurred_at: NOW.toISOString(),
           total: TOTAL,
+          sale_discount: null,
           lines: [
             {
               id: "line-1",
@@ -223,6 +237,7 @@ describe("chargeSaleByTransfer", () => {
               promotion_id: null,
               discount_amount: 0,
               promotions: [],
+              sale_discount_share: 0,
               line_total: 5000,
             },
             {
@@ -237,6 +252,7 @@ describe("chargeSaleByTransfer", () => {
               promotion_id: null,
               discount_amount: 0,
               promotions: [],
+              sale_discount_share: 0,
               line_total: 900,
             },
           ],

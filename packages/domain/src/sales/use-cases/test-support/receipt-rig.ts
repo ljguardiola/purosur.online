@@ -29,6 +29,7 @@ const SOURCE: ReceiptSource = {
   servedByFirstName: "Marta",
   operationNumber: 482,
   total: 6750,
+  saleDiscount: null,
   lines: [
     {
       productName: "Yerba 1 kg",

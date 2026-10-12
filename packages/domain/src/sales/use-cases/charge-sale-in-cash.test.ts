@@ -376,7 +376,7 @@ describe("chargeSaleInCash", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "sale_completed",
-        schema_version: 7,
+        schema_version: 8,
         occurred_at: NOW.toISOString(),
         actor_id: "cashier",
         payload: {
@@ -388,6 +388,7 @@ describe("chargeSaleInCash", () => {
           actor_id: "cashier",
           occurred_at: NOW.toISOString(),
           total: TOTAL,
+          sale_discount: null,
           lines: [
             {
               id: "line-1",
@@ -401,6 +402,7 @@ describe("chargeSaleInCash", () => {
               promotion_id: null,
               discount_amount: 0,
               promotions: [],
+              sale_discount_share: 0,
               line_total: 5000,
             },
             {
@@ -415,6 +417,7 @@ describe("chargeSaleInCash", () => {
               promotion_id: null,
               discount_amount: 0,
               promotions: [],
+              sale_discount_share: 0,
               line_total: 900,
             },
           ],
@@ -1177,6 +1180,52 @@ describe("chargeSaleInCash on a sale with a discount on the total", () => {
         { id: "line-1", line_total: 4500 },
         { id: "line-2", line_total: 810 },
       ],
+    });
+  });
+
+  it("records the discount, with its amount, reason and authorizer, and each line's share of it", () => {
+    const store = ledger({
+      sales: withDiscount({
+        kind: "PERCENT",
+        percent: 10,
+        reason: "Cliente frecuente",
+        authorizedBy: "supervisor",
+      }),
+    });
+
+    charge(store, DISCOUNTED_TOTAL);
+
+    expect(store.state.outbox[0]?.payload).toMatchObject({
+      total: DISCOUNTED_TOTAL,
+      sale_discount: {
+        kind: "PERCENT",
+        value: 10,
+        amount: 590,
+        reason: "Cliente frecuente",
+        authorized_by: "supervisor",
+      },
+      lines: [
+        { id: "line-1", sale_discount_share: 500, line_total: 4500 },
+        { id: "line-2", sale_discount_share: 90, line_total: 810 },
+      ],
+    });
+  });
+
+  it("records a fixed amount discount with the amount taken off", () => {
+    const store = ledger({
+      sales: withDiscount({ kind: "AMOUNT", amount: 590, reason: "Rotura", authorizedBy: null }),
+    });
+
+    charge(store, DISCOUNTED_TOTAL);
+
+    expect(store.state.outbox[0]?.payload).toMatchObject({
+      sale_discount: {
+        kind: "AMOUNT",
+        value: 590,
+        amount: 590,
+        reason: "Rotura",
+        authorized_by: null,
+      },
     });
   });
 

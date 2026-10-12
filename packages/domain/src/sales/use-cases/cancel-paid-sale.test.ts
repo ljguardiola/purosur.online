@@ -192,6 +192,7 @@ const LINE_RECORD = {
   promotions: [
     { discount_id: "ten", kind: "PERCENT_OFF", percent: 10, buy_qty: null, pay_qty: null },
   ],
+  sale_discount_share: 0,
   line_total: 6750,
 };
 
@@ -245,7 +246,7 @@ describe("cancelPaidSale", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "sale_cancelled",
-          schema_version: 3,
+          schema_version: 4,
           payload: {
             id: "sale-1",
             register_id: "register-1",
@@ -255,6 +256,7 @@ describe("cancelPaidSale", () => {
             authorized_by: null,
             occurred_at: NOW.toISOString(),
             total: 6750,
+            sale_discount: null,
             lines: [LINE_RECORD],
             payments: [FIRST_PAYMENT_RECORD],
             refunds: [
@@ -295,7 +297,24 @@ describe("cancelPaidSale", () => {
 
       expect(store.state.outbox[0]?.payload).toMatchObject({
         total: 6075,
-        lines: [{ ...LINE_RECORD, line_total: 6075 }],
+        lines: [{ ...LINE_RECORD, sale_discount_share: 675, line_total: 6075 }],
+      });
+    });
+
+    it("records the discount on the total, with its amount, reason and authorizer", async () => {
+      const saleDiscount = { ...TEN_PERCENT_SALE_DISCOUNT, reason: "Rotura", authorizedBy: "boss" };
+      const store = ledger({ sales: [{ ...OPEN_SALE, saleDiscount }] });
+
+      await cancel(store);
+
+      expect(store.state.outbox[0]?.payload).toMatchObject({
+        sale_discount: {
+          kind: "PERCENT",
+          value: 10,
+          amount: 675,
+          reason: "Rotura",
+          authorized_by: "boss",
+        },
       });
     });
 
