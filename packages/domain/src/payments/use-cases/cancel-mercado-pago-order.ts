@@ -80,11 +80,7 @@ async function cancelOrder(
         reading.result,
         clock.now(),
       );
-      if (
-        recorded.method === "POINT" &&
-        recorded.state === PENDING_PAYMENT_TRANSACTION_STATE &&
-        isMercadoPagoOrderAtTerminal(reading.result)
-      ) {
+      if (recorded.method === "POINT" && isMercadoPagoOrderAtTerminal(reading.result)) {
         return { kind: "cancel_on_terminal", transaction: recorded };
       }
       return outcomeOfClosed(recorded, false);
