@@ -13,6 +13,7 @@ import {
   arcaWsaaTokens,
   auditLog,
   backofficeRateLimitAttempts,
+  branchFirstCashSessions,
   branchHours,
   branchSettings,
   brands,
@@ -721,6 +722,10 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       options: [{ code: 901, description: "Condicion de prueba A", invoiceClass: "A" }],
     });
     await db.insert(issuerIdentificationVersions).values({ version: 2 });
+    await db.insert(branchFirstCashSessions).values({
+      locationId: await seededLocationId(db),
+      openedAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
     await db.insert(offlineAuthorizationCodeAcquisitionReports).values({
       fortnightStart: "2026-10-16",
       outcomeKind: "no_answer",
