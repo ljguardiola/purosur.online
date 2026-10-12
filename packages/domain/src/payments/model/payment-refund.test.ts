@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
+  DISCARDABLE_REFUND_ALERT_KINDS,
   isRefundDiscardable,
   isRefundDiscarded,
   isRefundPending,
@@ -235,6 +236,12 @@ describe("refundAlertKind", () => {
 describe("REFUND_TASK_ORIGINS", () => {
   it("lists every origin whose refund gets the refund task alert, leaving out a payment that arrived late", () => {
     expect(REFUND_TASK_ORIGINS).toEqual([SALE_CANCELLED_REFUND_ORIGIN]);
+  });
+});
+
+describe("DISCARDABLE_REFUND_ALERT_KINDS", () => {
+  it("lists the alert kind of every refund that may be discarded, leaving out the refund task of a cancelled sale", () => {
+    expect(DISCARDABLE_REFUND_ALERT_KINDS).toEqual(["late_payment_refund"]);
   });
 });
 

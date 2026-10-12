@@ -100,8 +100,10 @@ describe("alertKindPolicy", () => {
 });
 
 describe("alertClosing", () => {
-  it("closes by itself an alert whose condition stays cleared, with its refund done or discarded the late-payment refund's alert, once its refund is done the refund task's, and every other by hand", () => {
-    const closings = Object.fromEntries(ALERT_KINDS.map((kind) => [kind, alertClosing(kind)]));
+  it("closes by itself an alert whose condition stays cleared, with its refund done or discarded a discardable refund's alert, once its refund is done any other refund's, and every other by hand", () => {
+    const closings = Object.fromEntries(
+      ALERT_KINDS.map((kind) => [kind, alertClosing(kind, ["late_payment_refund"])]),
+    );
 
     expect(closings).toEqual({
       backoffice_passkey_changed: "by_hand",
@@ -122,6 +124,16 @@ describe("alertClosing", () => {
       late_payment_refund: "with_its_refund",
       refund_task: "when_its_refund_is_done",
     });
+  });
+
+  it("closes a refund's alert with its refund done or discarded only when its kind is one of a discardable refund", () => {
+    expect(alertClosing("late_payment_refund", [])).toBe("when_its_refund_is_done");
+    expect(alertClosing("refund_task", ["refund_task"])).toBe("with_its_refund");
+  });
+
+  it("closes an alert not scoped to a refund the same way whatever kinds belong to a discardable refund", () => {
+    expect(alertClosing("register_enrolled", ["register_enrolled"])).toBe("by_hand");
+    expect(alertClosing("update_required", ["update_required"])).toBe("by_itself");
   });
 
   it("lists every way an alert closes", () => {
