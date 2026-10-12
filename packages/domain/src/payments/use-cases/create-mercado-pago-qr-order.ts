@@ -124,6 +124,7 @@ export async function createMercadoPagoQrOrder(
               createdOrderId,
               creation.result,
               clock.now(),
+              false,
             ),
           };
         }

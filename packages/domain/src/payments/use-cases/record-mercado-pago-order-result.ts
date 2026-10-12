@@ -41,6 +41,7 @@ export async function recordCreatedMercadoPagoOrder(
   providerOrderId: string,
   result: MercadoPagoOrderResult,
   readAt: Date,
+  otherOrderPossible: boolean,
 ): Promise<MercadoPagoQrOrderTransaction> {
   const withOrder = { ...transaction, providerOrderId };
   const outcome = applyMercadoPagoOrderResult(withOrder, result);
@@ -49,8 +50,16 @@ export async function recordCreatedMercadoPagoOrder(
       outcome,
       readAt,
     });
+    if (!otherOrderPossible) {
+      await atomic.recordNoOtherOrderPossible(transaction.id);
+    }
     await openLatePaymentRefundIfLate(atomic, withOrder, state, readAt);
     return state;
   });
-  return { ...withOrder, ...outcome, replaced: recorded.replaced };
+  return {
+    ...withOrder,
+    ...outcome,
+    creationOutcomeUnknown: otherOrderPossible,
+    replaced: recorded.replaced,
+  };
 }

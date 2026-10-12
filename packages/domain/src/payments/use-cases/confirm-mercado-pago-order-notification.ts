@@ -94,6 +94,7 @@ async function confirmOrderOfUnrecordedCreation(
           providerOrderId,
           reading.result,
           clock.now(),
+          true,
         ),
       };
     },
