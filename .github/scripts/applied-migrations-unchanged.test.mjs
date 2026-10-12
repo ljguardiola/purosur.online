@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -7,9 +7,11 @@ import {
   compareJournalContents,
   describeViolation,
   findMigrationViolations,
+  findMisnumberedRegisterMigrations,
   isJournalFile,
   isProtectedMigrationFile,
   listBasePaths,
+  listWorkingTreeRegisterMigrations,
   protectedMigrationPaths,
   readBaseBlob,
   readWorkingTreeFile,
@@ -376,6 +378,217 @@ test("reports a journal-specific violation for an edited journal entry", () => {
   assert.match(violations[0].reason, /modified/);
 });
 
+function registerMigration(name) {
+  return `apps/pos/src/core/migrations/${name}`;
+}
+
+const registerMigrationsOnMain = [
+  registerMigration("0000_a.sql"),
+  registerMigration("0001_b.sql"),
+  registerMigration("0002_c.sql"),
+];
+
+test("accepts a new register migration numbered above every one on main", () => {
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: registerMigrationsOnMain,
+    currentPaths: [...registerMigrationsOnMain, registerMigration("0003_d.sql")],
+  });
+
+  assert.deepEqual(violations, []);
+});
+
+test("accepts a new register migration whose name sorts after every one on main without an underscore after its number", () => {
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: registerMigrationsOnMain,
+    currentPaths: [
+      ...registerMigrationsOnMain,
+      registerMigration("0003-manual-line-fix.sql"),
+      registerMigration("0004.sql"),
+    ],
+  });
+
+  assert.deepEqual(violations, []);
+});
+
+test("refuses a new register migration numbered below the highest one on main", () => {
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: [registerMigration("0000_a.sql"), registerMigration("0002_c.sql")],
+    currentPaths: [
+      registerMigration("0000_a.sql"),
+      registerMigration("0001_b.sql"),
+      registerMigration("0002_c.sql"),
+    ],
+  });
+
+  assert.deepEqual(violations, [
+    {
+      path: registerMigration("0001_b.sql"),
+      reason:
+        "new register migration must start with a 4-digit number above 0002, the number of 0002_c, the last one already on main — renumber it 0003",
+    },
+  ]);
+});
+
+test("refuses a new register migration numbered the same as the highest one on main even when its name sorts after it", () => {
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: registerMigrationsOnMain,
+    currentPaths: [...registerMigrationsOnMain, registerMigration("0002_other.sql")],
+  });
+
+  assert.deepEqual(violations, [
+    {
+      path: registerMigration("0002_other.sql"),
+      reason:
+        "new register migration must start with a 4-digit number above 0002, the number of 0002_c, the last one already on main — renumber it 0003",
+    },
+  ]);
+});
+
+test("accepts a refused register migration once renumbered as its refusal suggests", () => {
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: registerMigrationsOnMain,
+    currentPaths: [...registerMigrationsOnMain, registerMigration("0003_other.sql")],
+  });
+
+  assert.deepEqual(violations, []);
+});
+
+test("refuses a new register migration whose name does not start with a number, even one sorting after every one on main", () => {
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: registerMigrationsOnMain,
+    currentPaths: [...registerMigrationsOnMain, registerMigration("late_fix.sql")],
+  });
+
+  assert.deepEqual(violations, [
+    {
+      path: registerMigration("late_fix.sql"),
+      reason:
+        "new register migration must start with a 4-digit number above 0002, the number of 0002_c, the last one already on main — renumber it 0003",
+    },
+  ]);
+});
+
+test("refuses every misnumbered new register migration, not only the first", () => {
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: registerMigrationsOnMain,
+    currentPaths: [
+      ...registerMigrationsOnMain,
+      registerMigration("0001_x.sql"),
+      registerMigration("0002_y.sql"),
+      registerMigration("0003_z.sql"),
+    ],
+  });
+
+  assert.deepEqual(
+    violations.map((violation) => violation.path),
+    [registerMigration("0001_x.sql"), registerMigration("0002_y.sql")],
+  );
+});
+
+test("refuses a new register migration whose number is higher but whose name sorts before the last one on main", () => {
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: registerMigrationsOnMain,
+    currentPaths: [...registerMigrationsOnMain, registerMigration("00003_d.sql")],
+  });
+
+  assert.deepEqual(violations, [
+    {
+      path: registerMigration("00003_d.sql"),
+      reason:
+        "new register migration must start with a 4-digit number above 0002, the number of 0002_c, the last one already on main — renumber it 0003",
+    },
+  ]);
+});
+
+test("refuses a new register migration numbered the same as the highest one on main with fewer digits", () => {
+  const onMain = [registerMigration("0038_a.sql"), registerMigration("0039_b.sql")];
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: onMain,
+    currentPaths: [...onMain, registerMigration("039_other.sql")],
+  });
+
+  assert.deepEqual(violations, [
+    {
+      path: registerMigration("039_other.sql"),
+      reason:
+        "new register migration must start with a 4-digit number above 0039, the number of 0039_b, the last one already on main — renumber it 0040",
+    },
+  ]);
+});
+
+test("refuses a new register migration numbered with fewer digits than the last one on main even when its name sorts after it", () => {
+  const onMain = [registerMigration("0038_a.sql"), registerMigration("0039_b.sql")];
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: onMain,
+    currentPaths: [...onMain, registerMigration("1_late_fix.sql")],
+  });
+
+  assert.deepEqual(violations, [
+    {
+      path: registerMigration("1_late_fix.sql"),
+      reason:
+        "new register migration must start with a 4-digit number above 0039, the number of 0039_b, the last one already on main — renumber it 0040",
+    },
+  ]);
+});
+
+test("refuses a new register migration after the last number of its width without suggesting a wider one", () => {
+  const onMain = [registerMigration("9998_a.sql"), registerMigration("9999_a.sql")];
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: onMain,
+    currentPaths: [...onMain, registerMigration("10000_b.sql")],
+  });
+
+  assert.deepEqual(violations, [
+    {
+      path: registerMigration("10000_b.sql"),
+      reason:
+        "new register migration must start with a 4-digit number above 9999, the number of 9999_a, the last one already on main — no 4-digit number is left above 9999",
+    },
+  ]);
+});
+
+test("accepts a change that adds no register migration", () => {
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: registerMigrationsOnMain,
+    currentPaths: [...registerMigrationsOnMain, "apps/pos/src/core/sales/sale-requests.ts"],
+  });
+
+  assert.deepEqual(violations, []);
+});
+
+test("does not treat a register migration already on main as new, whatever its number", () => {
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: registerMigrationsOnMain,
+    currentPaths: registerMigrationsOnMain,
+  });
+
+  assert.deepEqual(violations, []);
+});
+
+test("ignores new files outside the register's migrations folder", () => {
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: registerMigrationsOnMain,
+    currentPaths: [
+      ...registerMigrationsOnMain,
+      "apps/cloud/migrations/0000_x.sql",
+      registerMigration("test-support/0000_fixture.sql"),
+      "apps/pos/src/core/platform/0000_local-migrations.test.ts",
+    ],
+  });
+
+  assert.deepEqual(violations, []);
+});
+
+test("accepts any numbered register migration when main has none", () => {
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths: ["apps/pos/package.json"],
+    currentPaths: [registerMigration("0000_a.sql")],
+  });
+
+  assert.deepEqual(violations, []);
+});
+
 test("describes a violation as its path and reason", () => {
   assert.equal(
     describeViolation({ path: "apps/cloud/migrations/0000_x.sql", reason: "deleted" }),
@@ -444,6 +657,23 @@ test("reports a missing working tree file as undefined instead of throwing", asy
   }
 });
 
+test("lists the register migrations in a working tree as repository paths", async () => {
+  const root = await mkdtemp(join(tmpdir(), "applied-migrations-unchanged-"));
+  try {
+    const migrationsDir = join(root, "apps/pos/src/core/migrations");
+    await mkdir(migrationsDir, { recursive: true });
+    await writeFile(join(migrationsDir, "0000_a.sql"), "create table a();");
+    await writeFile(join(migrationsDir, "0001_b.sql"), "create table b();");
+
+    assert.deepEqual(listWorkingTreeRegisterMigrations(root).sort(), [
+      registerMigration("0000_a.sql"),
+      registerMigration("0001_b.sql"),
+    ]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("no migration already on main is modified or deleted, and every new one is dated after them", () => {
   const ref = resolveBaseRef(process.env);
   const base = resolveBaseSha({ ref, runGit: runGitSync });
@@ -469,5 +699,31 @@ test("no migration already on main is modified or deleted, and every new one is 
     violations.map(describeViolation),
     [],
     "a migration already on main is never edited or deleted, and a new one is dated after every one on main",
+  );
+});
+
+test("every new register migration is numbered above every one already on main", () => {
+  const ref = resolveBaseRef(process.env);
+  const base = resolveBaseSha({ ref, runGit: runGitSync });
+  assert.ok(
+    base,
+    `could not resolve base ref "${ref}" for the register migration guard — fetch it first, e.g. \`git fetch origin main\``,
+  );
+
+  const basePaths = listBasePaths({ base, runGit: runGitSync });
+  assert.ok(
+    basePaths.includes(registerMigration("0000_sync_state_and_branch_settings.sql")),
+    "expected to find a register migration already on main",
+  );
+
+  const violations = findMisnumberedRegisterMigrations({
+    basePaths,
+    currentPaths: listWorkingTreeRegisterMigrations(),
+  });
+
+  assert.deepEqual(
+    violations.map(describeViolation),
+    [],
+    "a new register migration is numbered above every one already on main",
   );
 });

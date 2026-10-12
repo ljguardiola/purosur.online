@@ -106,7 +106,9 @@ function printed(content: ReceiptContent, copy: ReceiptCopy = ORIGINAL) {
 const HEAD = [
   "[init]",
   "[codepage PC850]",
-  "[logo 384x200]",
+  "[feed dots 24]",
+  "[logo 576x280]",
+  "[feed dots 16]",
   "[small]                       Av. Belgrano 1450[/small]",
   "[small]              WhatsApp 11 5555-0100  ·  @puro.sur[/small]",
 ];
@@ -162,6 +164,15 @@ const QR_DATA = {
 };
 const QR_URL = "https://www.arca.gob.ar/fe/qr/?p=";
 const QR_TEXT = QR_URL + btoa(JSON.stringify(QR_DATA));
+const LONGEST_VERSION_11_VOUCHER = {
+  ...QR_DATA,
+  ptoVta: 12345,
+  nroCmp: 123456,
+  importe: 12345.67,
+  tipoDocRec: 80,
+  nroDocRec: 20000000001,
+};
+const VERSION_12_VOUCHER = { ...LONGEST_VERSION_11_VOUCHER, nroCmp: 12345678, importe: 1234567.89 };
 const FISCAL_BLOCK: FacturaCFiscalBlock = {
   invoiceClass: "C",
   voucherTypeCode: 11,
@@ -197,13 +208,15 @@ const FISCAL_BODY = [
   "[small]Inicio de actividades 15/01/2020[/small]",
   RULE,
   ...SALE_OF_MIXED_SALE,
+  "[feed dots 16]",
   "[align center]",
   "[qr model 2]",
   "[qr module 4]",
-  "[qr correction M]",
+  "[qr correction L]",
   `[qr store ${QR_TEXT}]`,
   "[qr print]",
   "[align left]",
+  "[feed dots 8]",
   "[small]                     Comprobante autorizado[/small]",
   "[small]             CAE 71234567890123  ·  Vto. 10/10/2026[/small]",
   ...CLOSING,
@@ -380,6 +393,23 @@ describe("the ESC/POS receipt template", () => {
     expect(written(1)).toContain("Operación 000001                     Atendió Ada");
     expect(written(1_234_567)).toContain("Operación 1234567                    Atendió Ada");
   });
+
+  it.each(["Ana María", "  Ana María López ", "Ana"])(
+    "names who served the sale %j by the first word of their name",
+    (name) => {
+      const { textLines } = printed(
+        receipt({
+          operation: {
+            occurredAt: new Date("2026-09-30T15:05:00.000Z"),
+            servedByFirstName: name,
+            operationNumber: 482,
+          },
+        }),
+      );
+
+      expect(textLines).toContain("Operación 000482                     Atendió Ana");
+    },
+  );
 
   it("writes the moment of the sale in Argentina's time", () => {
     const { textLines } = printed(
@@ -608,6 +638,36 @@ describe("the ESC/POS receipt template", () => {
 
       expect(textLines.some((line) => /Importe neto|IVA/.test(line))).toBe(false);
     });
+
+    it.each([
+      { text: "x".repeat(10), module: 12 },
+      { text: "x".repeat(200), module: 5 },
+      { text: QR_TEXT, module: 4 },
+      { text: "x".repeat(600), module: 3 },
+    ])(
+      "prints a QR of $text.length characters with modules of $module dots, the side nearest to 244 dots",
+      ({ text, module }) => {
+        const printout = printed(receipt({ fiscal: { ...FISCAL_BLOCK, qrText: text } })).text;
+
+        expect(printout).toContain(`[qr module ${module}]`);
+      },
+    );
+
+    it.each([
+      { voucher: LONGEST_VERSION_11_VOUCHER, symbolModules: 61, side: 244 },
+      { voucher: VERSION_12_VOUCHER, symbolModules: 65, side: 260 },
+    ])(
+      "prints a real-length tax authority QR at low error correction, $symbolModules modules of 4 dots, $side dots wide",
+      ({ voucher, symbolModules, side }) => {
+        const qrText = QR_URL + btoa(JSON.stringify(voucher));
+        const printout = printed(receipt({ fiscal: { ...FISCAL_BLOCK, qrText } })).text;
+        const module = Number(printout.match(/\[qr module (\d+)\]/)?.[1]);
+
+        expect(printout).toContain("[qr correction L]");
+        expect(module).toBe(4);
+        expect(module * symbolModules).toBe(side);
+      },
+    );
 
     it("prints a QR whose text carries the voucher's data as the tax authority defines", () => {
       const store = printed(fiscalReceipt()).text.match(/\[qr store (.*)\]/)?.[1] ?? "";

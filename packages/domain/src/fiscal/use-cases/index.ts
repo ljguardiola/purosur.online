@@ -257,6 +257,15 @@ export type {
   RenewWsaaTokenOutcome,
 } from "./renew-wsaa-token.js";
 export { renewWsaaToken } from "./renew-wsaa-token.js";
+export { reportOfflineAuthorizationCodeAcquisitionFailures } from "./report-offline-authorization-code-acquisition-failures.js";
+export type {
+  AcquisitionFailureNotice,
+  AcquisitionFailureNotifier,
+  AcquisitionFailureReportPorts,
+  AcquisitionFailureReportStore,
+  ReportableAcquisitionFailure,
+  ReportableAcquisitionFailureKind,
+} from "./report-offline-authorization-code-acquisition-failures-ports.js";
 export type {
   RequestRealTimeAuthorizationInput,
   RequestRealTimeAuthorizationOutcome,

@@ -1,5 +1,5 @@
 {
-  "id": "d0c60c76-4a4e-4cda-bc72-caaf38f2fee1",
+  "id": "4f728172-509d-419c-b851-bccc8d1dcfcb",
   "prevId": "967a99d6-ea0b-4256-98cd-646eb2a7bcc8",
   "version": "7",
   "dialect": "postgresql",
@@ -2748,6 +2748,42 @@
           "value": "not \"lots\".\"technical\" or (\"lots\".\"expires_on\" is null and \"lots\".\"purchased_on\" is null)"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.offline_authorization_code_acquisition_reports": {
+      "name": "offline_authorization_code_acquisition_reports",
+      "schema": "",
+      "columns": {
+        "fortnight_start": {
+          "name": "fortnight_start",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outcome_kind": {
+          "name": "outcome_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reported_at": {
+          "name": "reported_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "offline_authorization_code_acquisition_reports_pk": {
+          "name": "offline_authorization_code_acquisition_reports_pk",
+          "columns": ["fortnight_start", "outcome_kind"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.offline_number_blocks": {
@@ -6770,82 +6806,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.stock_count_lots": {
-      "name": "stock_count_lots",
-      "schema": "",
-      "columns": {
-        "movement_id": {
-          "name": "movement_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "lot_id": {
-          "name": "lot_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "counted": {
-          "name": "counted",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "stock_count_lots_lot_id_idx": {
-          "name": "stock_count_lots_lot_id_idx",
-          "columns": [
-            {
-              "expression": "lot_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "stock_count_lots_movement_id_stock_counts_movement_id_fk": {
-          "name": "stock_count_lots_movement_id_stock_counts_movement_id_fk",
-          "tableFrom": "stock_count_lots",
-          "tableTo": "stock_counts",
-          "columnsFrom": ["movement_id"],
-          "columnsTo": ["movement_id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "stock_count_lots_lot_id_lots_id_fk": {
-          "name": "stock_count_lots_lot_id_lots_id_fk",
-          "tableFrom": "stock_count_lots",
-          "tableTo": "lots",
-          "columnsFrom": ["lot_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "stock_count_lots_movement_id_lot_id_pk": {
-          "name": "stock_count_lots_movement_id_lot_id_pk",
-          "columns": ["movement_id", "lot_id"]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "stock_count_lots_counted_non_negative": {
-          "name": "stock_count_lots_counted_non_negative",
-          "value": "\"stock_count_lots\".\"counted\" >= 0"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.stock_counts": {
