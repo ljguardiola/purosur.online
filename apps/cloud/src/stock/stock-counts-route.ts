@@ -27,6 +27,26 @@ const PART_OF_A_UNIT_RESPONSE = {
   message: "a product sold by the unit is counted in whole units",
   details: [{ field: "counted" }],
 } as const;
+const PART_OF_A_UNIT_LOT_RESPONSE = {
+  code: "validation_failed",
+  message: "a product sold by the unit is counted in whole units",
+  details: [{ field: "lots" }],
+} as const;
+const INVALID_LOT_RESPONSE = {
+  code: "validation_failed",
+  message: "lots must be lots of the product that held stock at the moment of the count",
+  details: [{ field: "lots" }],
+} as const;
+const REPEATED_LOT_RESPONSE = {
+  code: "validation_failed",
+  message: "lots must not list a lot twice",
+  details: [{ field: "lots" }],
+} as const;
+const AMBIGUOUS_COUNT_RESPONSE = {
+  code: "validation_failed",
+  message: "a count gives either a counted quantity or the lots counted",
+  details: [{ field: "counted" }],
+} as const;
 const IN_THE_FUTURE_RESPONSE = {
   code: "occurred_in_the_future",
   message: "a count cannot happen after now",
@@ -87,7 +107,8 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
     const outcome = await registerCount(ports, {
       productId: body.productId,
       locationId: openSession.locationId,
-      counted: body.counted,
+      ...(body.counted === undefined ? {} : { counted: body.counted }),
+      ...(body.lots === undefined ? {} : { lots: body.lots }),
       occurredAt: new Date(body.occurredAt),
       actorId: openSession.userId,
     });
@@ -97,7 +118,21 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
       return;
     }
     if (outcome.kind === "invalid_quantity") {
-      await reply.code(400).send(PART_OF_A_UNIT_RESPONSE);
+      await reply
+        .code(400)
+        .send(body.lots === undefined ? PART_OF_A_UNIT_RESPONSE : PART_OF_A_UNIT_LOT_RESPONSE);
+      return;
+    }
+    if (outcome.kind === "invalid_lot") {
+      await reply.code(400).send(INVALID_LOT_RESPONSE);
+      return;
+    }
+    if (outcome.kind === "repeated_lot") {
+      await reply.code(400).send(REPEATED_LOT_RESPONSE);
+      return;
+    }
+    if (outcome.kind === "ambiguous_count") {
+      await reply.code(400).send(AMBIGUOUS_COUNT_RESPONSE);
       return;
     }
     if (outcome.kind === "occurred_in_the_future") {
@@ -146,9 +181,13 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
         await reply.code(400).send(INVALID_MOMENT_RESPONSE);
         return;
       }
-      await reply
-        .code(200)
-        .send(stockProductBalanceSchema.parse({ ...outcome.product, balance: outcome.balance }));
+      await reply.code(200).send(
+        stockProductBalanceSchema.parse({
+          ...outcome.product,
+          balance: outcome.balance,
+          lots: outcome.lots,
+        }),
+      );
     },
   );
 }

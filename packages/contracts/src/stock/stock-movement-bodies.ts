@@ -6,6 +6,7 @@ import {
   isCalendarDay,
   LOSS_REASONS,
   mayBeCountedQuantity,
+  mayBeCountedTogether,
   mayBeMovementQuantity,
   STOCK_DIRECTIONS,
   STOCK_QUANTITY_DECIMALS,
@@ -49,12 +50,20 @@ export const stockAdjustmentBodySchema = z
 
 export type StockAdjustmentBody = z.input<typeof stockAdjustmentBodySchema>;
 
+const countedQuantity = z
+  .number({ error: COUNTED_MESSAGE })
+  .refine(mayBeCountedQuantity, COUNTED_MESSAGE);
+
 export const stockCountBodySchema = z.object({
   productId,
-  counted: z
-    .number({ error: COUNTED_MESSAGE })
-    .refine(mayBeCountedQuantity, COUNTED_MESSAGE)
-    .meta(QUANTITY_UNITS),
+  counted: countedQuantity.optional().meta(QUANTITY_UNITS),
+  lots: z
+    .array(
+      z.object({ lotId: recordIdSchema("lotId must be a lot's id"), counted: countedQuantity }),
+    )
+    .min(1, "lots must list at least one lot")
+    .refine(mayBeCountedTogether, "lots must add up to at most the largest quantity a count holds")
+    .optional(),
   occurredAt: z.iso
     .datetime({ offset: true, error: "occurredAt must be an ISO date and time" })
     .meta({ timeZone: ARGENTINA_TIME_ZONE }),

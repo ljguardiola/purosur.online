@@ -1,5 +1,5 @@
 {
-  "id": "0dd25b5a-ef3a-499f-b54d-3c22ee0d83b0",
+  "id": "1168a868-aad5-4762-a5a0-1e43c15c077a",
   "prevId": "4f728172-509d-419c-b851-bccc8d1dcfcb",
   "version": "7",
   "dialect": "postgresql",
@@ -3185,12 +3185,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "provider_order_id": {
-          "name": "provider_order_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "origin": {
           "name": "origin",
           "type": "text",
@@ -3254,44 +3248,6 @@
         }
       },
       "indexes": {
-        "payment_refunds_transaction_without_order_unique": {
-          "name": "payment_refunds_transaction_without_order_unique",
-          "columns": [
-            {
-              "expression": "payment_transaction_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"payment_refunds\".\"provider_order_id\" is null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payment_refunds_transaction_order_unique": {
-          "name": "payment_refunds_transaction_order_unique",
-          "columns": [
-            {
-              "expression": "payment_transaction_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "provider_order_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"payment_refunds\".\"provider_order_id\" is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "payment_refunds_pending_idx": {
           "name": "payment_refunds_pending_idx",
           "columns": [
@@ -3345,7 +3301,13 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "payment_refunds_payment_transaction_id_unique": {
+          "name": "payment_refunds_payment_transaction_id_unique",
+          "nullsNotDistinct": false,
+          "columns": ["payment_transaction_id"]
+        }
+      },
       "policies": {},
       "checkConstraints": {
         "payment_refunds_state_check": {
@@ -6844,6 +6806,82 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.stock_count_lots": {
+      "name": "stock_count_lots",
+      "schema": "",
+      "columns": {
+        "movement_id": {
+          "name": "movement_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lot_id": {
+          "name": "lot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "counted": {
+          "name": "counted",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "stock_count_lots_lot_id_idx": {
+          "name": "stock_count_lots_lot_id_idx",
+          "columns": [
+            {
+              "expression": "lot_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "stock_count_lots_movement_id_stock_counts_movement_id_fk": {
+          "name": "stock_count_lots_movement_id_stock_counts_movement_id_fk",
+          "tableFrom": "stock_count_lots",
+          "tableTo": "stock_counts",
+          "columnsFrom": ["movement_id"],
+          "columnsTo": ["movement_id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "stock_count_lots_lot_id_lots_id_fk": {
+          "name": "stock_count_lots_lot_id_lots_id_fk",
+          "tableFrom": "stock_count_lots",
+          "tableTo": "lots",
+          "columnsFrom": ["lot_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "stock_count_lots_movement_id_lot_id_pk": {
+          "name": "stock_count_lots_movement_id_lot_id_pk",
+          "columns": ["movement_id", "lot_id"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "stock_count_lots_counted_non_negative": {
+          "name": "stock_count_lots_counted_non_negative",
+          "value": "\"stock_count_lots\".\"counted\" >= 0"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.stock_counts": {

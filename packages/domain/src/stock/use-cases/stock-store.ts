@@ -42,6 +42,11 @@ export interface NewStockCount {
   expected: number;
 }
 
+export interface CountedLot {
+  lotId: string;
+  counted: number;
+}
+
 export interface LotAllocation {
   movementId: string;
   lotId: string;
@@ -57,7 +62,9 @@ export interface StockStoreTransaction {
   earliestCountAtOrAfter(key: ProductStockKey, at: Date): Promise<CoveringCount | undefined>;
   appliedDeltaAfter(key: ProductStockKey, at: Date): Promise<number>;
   recordMovement(movement: NewStockMovement): Promise<string>;
+  lotAllocationsAfter(key: ProductStockKey, at: Date): Promise<Map<string, number>>;
   recordCount(count: NewStockCount): Promise<void>;
+  recordCountedLots(movementId: string, lots: readonly CountedLot[]): Promise<void>;
   productLots(key: ProductStockKey): Promise<StockLot[]>;
   openTechnicalLot(key: ProductStockKey): Promise<string>;
   recordLot(lot: NewLot): Promise<string>;

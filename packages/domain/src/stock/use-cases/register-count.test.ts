@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { MAX_STOCK_QUANTITY } from "../model/stock-quantity.js";
 import { registerCount } from "./register-count.js";
+import type { CountedLot } from "./stock-store.js";
 import { FakeStockStore, FixedClock } from "./test-support/fake-stock-store.js";
 
 const NOW = new Date("2026-09-15T21:40:00.000Z");
@@ -47,18 +49,46 @@ function seedCount(store: FakeStockStore, occurredAt: Date) {
 
 function count(
   store: FakeStockStore,
-  overrides: { productId?: string; counted?: number; occurredAt?: Date } = {},
+  overrides: {
+    productId?: string;
+    counted?: number;
+    lots?: CountedLot[];
+    occurredAt?: Date;
+  } = {},
 ) {
+  const counted = overrides.counted ?? (overrides.lots ? undefined : 12_150);
   return registerCount(
     { store, clock: new FixedClock(NOW) },
     {
       productId: overrides.productId ?? "product-1",
       locationId: "branch-1",
-      counted: overrides.counted ?? 12_150,
+      ...(counted === undefined ? {} : { counted }),
+      ...(overrides.lots ? { lots: overrides.lots } : {}),
       occurredAt: overrides.occurredAt ?? COUNTED_AT,
       actorId: "actor-1",
     },
   );
+}
+
+function seedLots(store: FakeStockStore) {
+  store.seedLot({
+    ...KEY,
+    id: "soon",
+    expiresOn: "2027-01-01",
+    receivedAt: new Date("2026-02-01T12:00:00.000Z"),
+    remaining: 4_000,
+  });
+  store.seedLot({
+    ...KEY,
+    id: "late",
+    expiresOn: "2027-06-01",
+    receivedAt: new Date("2026-01-01T12:00:00.000Z"),
+    remaining: 6_000,
+  });
+}
+
+function remainingOf(store: FakeStockStore): Record<string, number> {
+  return Object.fromEntries(store.snapshot().lots.map((lot) => [lot.id, lot.remaining]));
 }
 
 describe("registerCount", () => {
@@ -223,9 +253,13 @@ describe("registerCount", () => {
       "lockProductStock",
       "earliestCountAtOrAfter",
       "appliedDeltaAfter",
+      "lotAllocationsAfter",
+      "productLots",
       "recordMovement",
       "addToBalance",
       "recordCount",
+      "openTechnicalLot",
+      "allocateToLot",
     ]);
   });
 
@@ -241,15 +275,513 @@ describe("registerCount", () => {
       expect(store.snapshot()).toEqual(before);
     },
   );
+});
 
-  it("records no lot allocation for a count", async () => {
-    const store = storeWithProduct({ balance: 12_400 });
-    store.seedLot({ ...KEY, id: "stocked", remaining: 12_400 });
+describe("registerCount by product on a product with lots", () => {
+  it("fills the lots from the latest expiry backwards and empties the rest", async () => {
+    const store = storeWithProduct({ balance: 10_000 });
+    seedLots(store);
 
-    await count(store, { counted: 12_150 });
+    await count(store, { counted: 7_000 });
 
-    expect(store.snapshot().allocations).toEqual([]);
-    expect(store.snapshot().lots[0]?.remaining).toBe(12_400);
-    expect(store.operationOrder).not.toContain("productLots");
+    expect(remainingOf(store)).toEqual({ soon: 1_000, late: 6_000 });
+    expect(store.snapshot().allocations).toEqual([
+      { movementId: "movement-1", lotId: "soon", quantity: -3_000 },
+    ]);
   });
+
+  it("gives the excess to the most recently received lot", async () => {
+    const store = storeWithProduct({ balance: 10_000 });
+    seedLots(store);
+
+    await count(store, { counted: 12_000 });
+
+    expect(remainingOf(store)).toEqual({ soon: 6_000, late: 6_000 });
+  });
+
+  it("gives the excess of a past count to a lot received by its moment, not to one received after it", async () => {
+    const store = storeWithProduct({ balance: 13_000 });
+    seedLots(store);
+    const receipt = store.seedMovement({
+      ...KEY,
+      kind: "receipt",
+      reason: null,
+      delta: 3_000,
+      occurredAt: AFTER_COUNT,
+      actorId: "actor-2",
+      supersededByCountId: null,
+    });
+    store.seedLot({ ...KEY, id: "arrived-later", receivedAt: AFTER_COUNT, remaining: 3_000 });
+    store.seedAllocation({ movementId: receipt, lotId: "arrived-later", quantity: 3_000 });
+
+    await count(store, { counted: 12_000 });
+
+    expect(remainingOf(store)).toEqual({ soon: 6_000, late: 6_000, "arrived-later": 3_000 });
+  });
+
+  it("sets a technical lot that is the product's only lot to the counted quantity", async () => {
+    const store = storeWithProduct({ balance: -3_000 });
+    store.seedLot({
+      ...KEY,
+      id: "technical",
+      technical: true,
+      purchasedOn: null,
+      remaining: -3_000,
+    });
+
+    await count(store, { counted: 4_000 });
+
+    expect(remainingOf(store)).toEqual({ technical: 4_000 });
+  });
+
+  it("sets the technical lot to zero when the bought lots hold the count", async () => {
+    const store = storeWithProduct({ balance: 9_000 });
+    seedLots(store);
+    store.seedLot({
+      ...KEY,
+      id: "technical",
+      technical: true,
+      purchasedOn: null,
+      remaining: -1_000,
+    });
+
+    await count(store, { counted: 10_000 });
+
+    expect(remainingOf(store)).toEqual({ soon: 4_000, late: 6_000, technical: 0 });
+  });
+
+  it("opens a technical lot to hold the count of a product with no lot", async () => {
+    const store = storeWithProduct({ balance: 0 });
+
+    await count(store, { counted: 4_000 });
+
+    const { lots, allocations } = store.snapshot();
+    expect(lots).toMatchObject([{ technical: true, remaining: 4_000 }]);
+    expect(allocations).toEqual([
+      { movementId: "movement-1", lotId: lots[0]?.id, quantity: 4_000 },
+    ]);
+  });
+
+  it("opens no technical lot for a product with no lot counted at zero", async () => {
+    const store = storeWithProduct({ balance: 0 });
+
+    await count(store, { counted: 0 });
+
+    expect(store.snapshot().lots).toEqual([]);
+  });
+
+  it("records no counted lots", async () => {
+    const store = storeWithProduct({ balance: 10_000 });
+    seedLots(store);
+
+    await count(store, { counted: 7_000 });
+
+    expect(store.snapshot().countedLots).toEqual([]);
+  });
+
+  it("keeps what movements after the count took from a lot", async () => {
+    const store = storeWithProduct({ balance: 10_000 });
+    seedLots(store);
+    const sale = store.seedMovement({
+      ...KEY,
+      kind: "sale",
+      reason: null,
+      delta: -2_000,
+      occurredAt: AFTER_COUNT,
+      actorId: "actor-2",
+      supersededByCountId: null,
+    });
+    store.seedAllocation({ movementId: sale, lotId: "soon", quantity: -2_000 });
+
+    await count(store, { counted: 7_000 });
+
+    expect(remainingOf(store)).toEqual({ soon: -1_000, late: 6_000 });
+  });
+
+  it("ignores what a movement superseded by a count took from a lot", async () => {
+    const store = storeWithProduct({ balance: 10_000 });
+    seedLots(store);
+    const sale = store.seedMovement({
+      ...KEY,
+      kind: "sale",
+      reason: null,
+      delta: -2_000,
+      occurredAt: AFTER_COUNT,
+      actorId: "actor-2",
+      supersededByCountId: "movement-99",
+    });
+    store.seedAllocation({ movementId: sale, lotId: "soon", quantity: -2_000 });
+
+    await count(store, { counted: 7_000 });
+
+    expect(remainingOf(store)).toEqual({ soon: 1_000, late: 6_000 });
+  });
+
+  it("ignores what movements at another branch took from a lot", async () => {
+    const store = storeWithProduct({ balance: 10_000 });
+    seedLots(store);
+    const sale = seedLoss(store, AFTER_COUNT, -2_000, "branch-2");
+    store.seedAllocation({ movementId: sale, lotId: "soon", quantity: -2_000 });
+
+    await count(store, { counted: 7_000 });
+
+    expect(remainingOf(store)).toEqual({ soon: 1_000, late: 6_000 });
+  });
+});
+
+describe("registerCount by lot", () => {
+  it("makes the sum of the counted lots the counted quantity", async () => {
+    const store = storeWithProduct({ balance: 10_000 });
+    seedLots(store);
+
+    const outcome = await count(store, {
+      lots: [
+        { lotId: "soon", counted: 1_000 },
+        { lotId: "late", counted: 2_500 },
+      ],
+    });
+
+    expect(outcome).toMatchObject({
+      kind: "recorded",
+      expected: 10_000,
+      delta: -6_500,
+      balance: 3_500,
+    });
+    expect(store.snapshot().counts).toEqual([
+      { movementId: "movement-1", counted: 3_500, expected: 10_000 },
+    ]);
+  });
+
+  it("sets each counted lot to its counted quantity and every other lot to zero", async () => {
+    const store = storeWithProduct({ balance: 10_500 });
+    seedLots(store);
+    store.seedLot({ ...KEY, id: "technical", technical: true, purchasedOn: null, remaining: 500 });
+    store.seedLot({ ...KEY, id: "other-branch", locationId: "branch-2", remaining: 800 });
+
+    await count(store, { lots: [{ lotId: "soon", counted: 4_500 }] });
+
+    expect(remainingOf(store)).toEqual({
+      soon: 4_500,
+      late: 0,
+      technical: 0,
+      "other-branch": 800,
+    });
+  });
+
+  it("records the counted lots with the count", async () => {
+    const store = storeWithProduct({ balance: 10_000 });
+    seedLots(store);
+    const lots = [
+      { lotId: "soon", counted: 1_000 },
+      { lotId: "late", counted: 0 },
+    ];
+
+    await count(store, { lots });
+
+    expect(store.snapshot().countedLots).toEqual([{ movementId: "movement-1", lots }]);
+  });
+
+  it("counts a lot that is in debt", async () => {
+    const store = storeWithProduct({ balance: -500 });
+    store.seedLot({ ...KEY, id: "debt", remaining: -500 });
+
+    await count(store, { lots: [{ lotId: "debt", counted: 200 }] });
+
+    expect(remainingOf(store)).toEqual({ debt: 200 });
+  });
+
+  it("sets a counted lot to its counted quantity minus what later movements took from it", async () => {
+    const store = storeWithProduct({ balance: 10_000 });
+    seedLots(store);
+    const sale = store.seedMovement({
+      ...KEY,
+      kind: "sale",
+      reason: null,
+      delta: -2_000,
+      occurredAt: AFTER_COUNT,
+      actorId: "actor-2",
+      supersededByCountId: null,
+    });
+    store.seedAllocation({ movementId: sale, lotId: "soon", quantity: -2_000 });
+
+    const outcome = await count(store, { lots: [{ lotId: "soon", counted: 5_000 }] });
+
+    expect(outcome).toMatchObject({ expected: 12_000, delta: -7_000, balance: 3_000 });
+    expect(remainingOf(store)).toEqual({ soon: 3_000, late: 0 });
+  });
+
+  it("accepts a lot that had stock at the moment of a past count and none now", async () => {
+    const store = storeWithProduct({ balance: 0 });
+    store.seedLot({ ...KEY, id: "sold", remaining: 0 });
+    const sale = store.seedMovement({
+      ...KEY,
+      kind: "sale",
+      reason: null,
+      delta: -3_000,
+      occurredAt: AFTER_COUNT,
+      actorId: "actor-2",
+      supersededByCountId: null,
+    });
+    store.seedAllocation({ movementId: sale, lotId: "sold", quantity: -3_000 });
+
+    const outcome = await count(store, { lots: [{ lotId: "sold", counted: 2_000 }] });
+
+    expect(outcome).toMatchObject({ kind: "recorded" });
+    expect(remainingOf(store)).toEqual({ sold: -1_000 });
+  });
+
+  it("refuses a lot of another product", async () => {
+    const store = storeWithProduct();
+    seedLots(store);
+    store.seedLot({ productId: "product-2", locationId: "branch-1", id: "foreign", remaining: 5 });
+    const before = store.snapshot();
+
+    const outcome = await count(store, { lots: [{ lotId: "foreign", counted: 1_000 }] });
+
+    expect(outcome).toEqual({ kind: "invalid_lot" });
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("refuses a lot of another branch", async () => {
+    const store = storeWithProduct();
+    store.seedLot({ ...KEY, locationId: "branch-2", id: "elsewhere", remaining: 5_000 });
+
+    expect(await count(store, { lots: [{ lotId: "elsewhere", counted: 1_000 }] })).toEqual({
+      kind: "invalid_lot",
+    });
+  });
+
+  it("refuses a lot that does not exist", async () => {
+    const store = storeWithProduct();
+    seedLots(store);
+
+    expect(await count(store, { lots: [{ lotId: "missing", counted: 1_000 }] })).toEqual({
+      kind: "invalid_lot",
+    });
+  });
+
+  it("refuses the technical lot", async () => {
+    const store = storeWithProduct();
+    store.seedLot({
+      ...KEY,
+      id: "technical",
+      technical: true,
+      purchasedOn: null,
+      remaining: 2_000,
+    });
+
+    expect(await count(store, { lots: [{ lotId: "technical", counted: 1_000 }] })).toEqual({
+      kind: "invalid_lot",
+    });
+  });
+
+  it("refuses a lot with nothing at the moment of the count", async () => {
+    const store = storeWithProduct();
+    store.seedLot({ ...KEY, id: "empty", remaining: 0 });
+
+    expect(await count(store, { lots: [{ lotId: "empty", counted: 1_000 }] })).toEqual({
+      kind: "invalid_lot",
+    });
+  });
+
+  it("refuses a lot received after the moment of the count", async () => {
+    const store = storeWithProduct({ balance: 3_000 });
+    const receipt = store.seedMovement({
+      ...KEY,
+      kind: "receipt",
+      reason: null,
+      delta: 3_000,
+      occurredAt: AFTER_COUNT,
+      actorId: "actor-2",
+      supersededByCountId: null,
+    });
+    store.seedLot({ ...KEY, id: "arrived-later", remaining: 3_000 });
+    store.seedAllocation({ movementId: receipt, lotId: "arrived-later", quantity: 3_000 });
+
+    expect(await count(store, { lots: [{ lotId: "arrived-later", counted: 1_000 }] })).toEqual({
+      kind: "invalid_lot",
+    });
+  });
+
+  it("refuses a lot listed twice, writing nothing", async () => {
+    const store = storeWithProduct();
+    seedLots(store);
+    const before = store.snapshot();
+
+    const outcome = await count(store, {
+      lots: [
+        { lotId: "soon", counted: 1_000 },
+        { lotId: "soon", counted: 2_000 },
+      ],
+    });
+
+    expect(outcome).toEqual({ kind: "repeated_lot" });
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("refuses a lot quantity that is part of a unit for a product sold by the unit", async () => {
+    const store = storeWithProduct({ saleUnit: "UNIT", balance: 10_000 });
+    seedLots(store);
+    const before = store.snapshot();
+
+    const outcome = await count(store, {
+      lots: [
+        { lotId: "soon", counted: 1_000 },
+        { lotId: "late", counted: 1_500 },
+      ],
+    });
+
+    expect(outcome).toEqual({ kind: "invalid_quantity" });
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("refuses lots whose sum is over the largest counted quantity, writing nothing", async () => {
+    const store = storeWithProduct({ balance: 10_000 });
+    seedLots(store);
+    const before = store.snapshot();
+
+    const outcome = await count(store, {
+      lots: [
+        { lotId: "soon", counted: MAX_STOCK_QUANTITY },
+        { lotId: "late", counted: 1 },
+      ],
+    });
+
+    expect(outcome).toEqual({ kind: "invalid_quantity" });
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("answers not_found for a product that does not exist", async () => {
+    const store = storeWithProduct();
+
+    expect(
+      await count(store, { productId: "missing", lots: [{ lotId: "soon", counted: 1_000 }] }),
+    ).toEqual({ kind: "not_found" });
+  });
+
+  it("refuses a lot count that happened at the moment of another count", async () => {
+    const store = storeWithProduct();
+    seedLots(store);
+    seedCount(store, COUNTED_AT);
+
+    expect(await count(store, { lots: [{ lotId: "soon", counted: 1_000 }] })).toEqual({
+      kind: "count_at_same_moment",
+    });
+  });
+
+  it("locks the product's stock before it reads, and reads before it writes", async () => {
+    const store = storeWithProduct({ balance: 10_000 });
+    seedLots(store);
+
+    await count(store, { lots: [{ lotId: "soon", counted: 1_000 }] });
+
+    expect(store.operationOrder).toEqual([
+      "lockProductStock",
+      "earliestCountAtOrAfter",
+      "appliedDeltaAfter",
+      "lotAllocationsAfter",
+      "productLots",
+      "recordMovement",
+      "addToBalance",
+      "recordCount",
+      "recordCountedLots",
+      "allocateToLot",
+      "allocateToLot",
+    ]);
+  });
+});
+
+describe("registerCount that is not exactly one of a counted quantity and lots", () => {
+  it.each([
+    ["both", { counted: 1_000, lots: [{ lotId: "soon", counted: 1_000 }] }],
+    ["neither", {}],
+    ["no lots in an empty list", { lots: [] }],
+  ])("refuses %s, writing nothing", async (_case, input) => {
+    const store = storeWithProduct();
+    seedLots(store);
+    const before = store.snapshot();
+
+    const outcome = await registerCount(
+      { store, clock: new FixedClock(NOW) },
+      {
+        productId: "product-1",
+        locationId: "branch-1",
+        occurredAt: COUNTED_AT,
+        actorId: "actor-1",
+        ...input,
+      },
+    );
+
+    expect(outcome).toEqual({ kind: "ambiguous_count" });
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("counts by product when the list of lots is empty beside a counted quantity", async () => {
+    const store = storeWithProduct({ balance: 10_000 });
+    seedLots(store);
+
+    const outcome = await registerCount(
+      { store, clock: new FixedClock(NOW) },
+      {
+        productId: "product-1",
+        locationId: "branch-1",
+        counted: 7_000,
+        lots: [],
+        occurredAt: COUNTED_AT,
+        actorId: "actor-1",
+      },
+    );
+
+    expect(outcome).toMatchObject({ kind: "recorded", balance: 7_000 });
+  });
+});
+
+describe("registerCount dated before an already registered count", () => {
+  it("leaves every lot as it is", async () => {
+    const store = storeWithProduct({ balance: 10_000 });
+    seedLots(store);
+    seedCount(store, AFTER_COUNT);
+
+    await count(store, { counted: 3_000 });
+
+    expect(remainingOf(store)).toEqual({ soon: 4_000, late: 6_000 });
+    expect(store.snapshot().allocations).toEqual([]);
+  });
+
+  it("records the counted lots all the same", async () => {
+    const store = storeWithProduct({ balance: 10_000 });
+    seedLots(store);
+    seedCount(store, AFTER_COUNT);
+    const lots = [{ lotId: "soon", counted: 1_000 }];
+
+    await count(store, { lots });
+
+    expect(remainingOf(store)).toEqual({ soon: 4_000, late: 6_000 });
+    expect(store.snapshot().countedLots).toEqual([{ movementId: "movement-2", lots }]);
+  });
+});
+
+describe("registerCount when a write to the lots fails", () => {
+  it.each(["allocateToLot", "recordCountedLots", "openTechnicalLot"] as const)(
+    "leaves nothing behind when %s fails",
+    async (operation) => {
+      const store = storeWithProduct({ balance: 0 });
+      if (operation !== "openTechnicalLot") {
+        seedLots(store);
+      }
+      store.failingWrites.add(operation);
+      const before = store.snapshot();
+
+      await expect(
+        count(
+          store,
+          operation === "openTechnicalLot"
+            ? { counted: 4_000 }
+            : { lots: [{ lotId: "soon", counted: 1_000 }] },
+        ),
+      ).rejects.toThrow(`${operation} failed`);
+
+      expect(store.snapshot()).toEqual(before);
+    },
+  );
 });

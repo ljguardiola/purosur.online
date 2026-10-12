@@ -425,6 +425,7 @@ export {
   serialDeviceStandings,
 } from "./register/index.js";
 export type {
+  DeferredSaleRecord,
   LinePromotion,
   ListPrice,
   ManualAdjustment,
@@ -452,6 +453,7 @@ export type {
   WeightSource,
 } from "./sales/index.js";
 export {
+  isDeferralPending,
   isSalesReportRangeAsked,
   manualAdjustmentReason,
   mayBeManualDiscountAmount,
@@ -464,6 +466,7 @@ export {
   observePrinterStatus,
   observePrintFailed,
   openSaleStanding,
+  PENDING_DEFERRED_SALE_RECORD,
   RECEIPT_REPRINT_REASON_MAX_LENGTH,
   RECEIPT_RETRY_DELAY_MS,
   receiptPrintStanding,
@@ -539,6 +542,7 @@ export {
   manualStockMovementCapability,
   manualStockMovementReasons,
   mayBeCountedQuantity,
+  mayBeCountedTogether,
   mayBeMovementQuantity,
   STOCK_CORRECTIONS,
   STOCK_DIRECTIONS,

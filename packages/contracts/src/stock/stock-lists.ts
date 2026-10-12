@@ -55,11 +55,22 @@ const stockLotSchema = z.object({
   ]),
 });
 
-export const stockProductBalanceSchema = stockProductSchema.extend({ balance: z.int() });
+const stockProductWithBalanceSchema = stockProductSchema.extend({ balance: z.int() });
+
+export const stockProductBalanceSchema = stockProductWithBalanceSchema.extend({
+  lots: z.array(
+    z.object({
+      id: z.string(),
+      lotNumber: z.string().nullable(),
+      expiresOn: calendarDay.nullable(),
+      expected: z.int(),
+    }),
+  ),
+});
 
 export type StockProductBalance = z.output<typeof stockProductBalanceSchema>;
 
-export const stockBalanceSchema = stockProductBalanceSchema.extend({
+export const stockBalanceSchema = stockProductWithBalanceSchema.extend({
   valueCents: z.int().nullable(),
   unitCostCents: z.int().nullable(),
   lotCount: z.int(),
@@ -91,6 +102,7 @@ const stockCountSchema = z.object({
   counted: z.int().nonnegative(),
   delta: z.int(),
   superseded: z.boolean(),
+  lotCount: z.int().nullable(),
 });
 
 export const stockCountListSchema = z.object({ counts: z.array(stockCountSchema) });

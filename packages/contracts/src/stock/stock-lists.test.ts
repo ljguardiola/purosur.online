@@ -53,6 +53,8 @@ const balance = {
   lots: [purchasedLot],
 };
 
+const countableLot = { id: "lot-1", lotNumber: "L-77", expiresOn: "2027-03-01", expected: 12_150 };
+
 const count = {
   id: "movement-1",
   productId: "product-1",
@@ -65,6 +67,7 @@ const count = {
   counted: 12_150,
   delta: -250,
   superseded: false,
+  lotCount: null,
 };
 
 const movement = {
@@ -204,11 +207,24 @@ describe("stockBalanceSchema", () => {
 });
 
 describe("stockProductBalanceSchema", () => {
-  const { valueCents, unitCostCents, lotCount, correction, lots, ...productWithBalance } = balance;
+  const { valueCents, unitCostCents, lotCount, correction, lots, ...product } = balance;
+  const productWithBalance = { ...product, lots: [countableLot] };
 
-  it("accepts a product with the balance it holds, without its valuation or lots", () => {
+  it("accepts a product with the balance it holds and the lots that can be counted", () => {
     expect(stockProductBalanceSchema.safeParse(productWithBalance).data).toEqual(
       productWithBalance,
+    );
+  });
+
+  it("accepts a lot with no number or expiry, and a product with no lot", () => {
+    const bare = {
+      ...productWithBalance,
+      lots: [{ ...countableLot, lotNumber: null, expiresOn: null }],
+    };
+
+    expect(stockProductBalanceSchema.safeParse(bare).data).toEqual(bare);
+    expect(stockProductBalanceSchema.safeParse({ ...productWithBalance, lots: [] }).success).toBe(
+      true,
     );
   });
 
@@ -216,6 +232,11 @@ describe("stockProductBalanceSchema", () => {
     ["balance", 0.5],
     ["balance", undefined],
     ["active", undefined],
+    ["lots", undefined],
+    ["lots", [{ ...countableLot, expected: 0.5 }]],
+    ["lots", [{ ...countableLot, expected: undefined }]],
+    ["lots", [{ ...countableLot, expiresOn: "2027-02-30" }]],
+    ["lots", [{ ...countableLot, id: undefined }]],
   ])("refuses %s as %j", (field, value) => {
     expect(
       stockProductBalanceSchema.safeParse({ ...productWithBalance, [field]: value }).success,
@@ -225,7 +246,9 @@ describe("stockProductBalanceSchema", () => {
 
 describe("stockCountListSchema", () => {
   it("accepts counts with what was expected, counted and the difference", () => {
-    const list = { counts: [count, { ...count, id: "movement-3", superseded: true }] };
+    const list = {
+      counts: [count, { ...count, id: "movement-3", superseded: true, lotCount: 3 }],
+    };
 
     expect(stockCountListSchema.safeParse(list).data).toEqual(list);
   });
@@ -235,6 +258,8 @@ describe("stockCountListSchema", () => {
     ["delta", 0.5],
     ["superseded", "no"],
     ["counted", -1],
+    ["lotCount", undefined],
+    ["lotCount", 1.5],
   ])("refuses %s as %j", (field, value) => {
     expect(stockCountListSchema.safeParse({ counts: [{ ...count, [field]: value }] }).success).toBe(
       false,

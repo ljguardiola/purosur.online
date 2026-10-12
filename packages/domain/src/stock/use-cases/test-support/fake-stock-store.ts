@@ -3,6 +3,7 @@ import type { Clock } from "../../../shared/index.js";
 import type { NewLot } from "../../model/lot.js";
 import type { StockLot } from "../../model/lot-allocation.js";
 import type {
+  CountedLot,
   CoveringCount,
   LockProductStockResult,
   LotAllocation,
@@ -35,11 +36,17 @@ export interface FakeStockLot extends ProductStockKey, StockLot {
   costComplete: boolean;
 }
 
+interface FakeCountedLots {
+  movementId: string;
+  lots: CountedLot[];
+}
+
 export interface FakeStockState {
   products: FakeStockProduct[];
   balances: FakeStockBalance[];
   movements: FakeStockMovement[];
   counts: NewStockCount[];
+  countedLots: FakeCountedLots[];
   lots: FakeStockLot[];
   allocations: LotAllocation[];
   nextId: number;
@@ -48,6 +55,7 @@ export interface FakeStockState {
 type WriteOperation =
   | "recordMovement"
   | "recordCount"
+  | "recordCountedLots"
   | "addToBalance"
   | "recordLot"
   | "openTechnicalLot"
@@ -59,6 +67,10 @@ function cloneState(state: FakeStockState): FakeStockState {
     balances: state.balances.map((row) => ({ ...row })),
     movements: state.movements.map((row) => ({ ...row, occurredAt: new Date(row.occurredAt) })),
     counts: state.counts.map((row) => ({ ...row })),
+    countedLots: state.countedLots.map((row) => ({
+      movementId: row.movementId,
+      lots: row.lots.map((lot) => ({ ...lot })),
+    })),
     lots: state.lots.map((row) => ({ ...row, receivedAt: new Date(row.receivedAt) })),
     allocations: state.allocations.map((row) => ({ ...row })),
     nextId: state.nextId,
@@ -112,6 +124,26 @@ class FakeStockStoreTransaction implements StockStoreTransaction {
       .reduce((sum, row) => sum + row.delta, 0);
   }
 
+  async lotAllocationsAfter(key: ProductStockKey, at: Date): Promise<Map<string, number>> {
+    this.store.operationOrder.push("lotAllocationsAfter");
+    const allocated = new Map<string, number>();
+    for (const allocation of this.state.allocations) {
+      const movement = this.state.movements.find((row) => row.id === allocation.movementId);
+      if (
+        movement &&
+        sameKey(movement, key) &&
+        movement.supersededByCountId === null &&
+        movement.occurredAt.getTime() > at.getTime()
+      ) {
+        allocated.set(
+          allocation.lotId,
+          (allocated.get(allocation.lotId) ?? 0) + allocation.quantity,
+        );
+      }
+    }
+    return allocated;
+  }
+
   async recordMovement(movement: NewStockMovement): Promise<string> {
     this.beforeWrite("recordMovement");
     const id = movement.id ?? `movement-${this.state.nextId++}`;
@@ -122,6 +154,11 @@ class FakeStockStoreTransaction implements StockStoreTransaction {
   async recordCount(count: NewStockCount): Promise<void> {
     this.beforeWrite("recordCount");
     this.state.counts.push({ ...count });
+  }
+
+  async recordCountedLots(movementId: string, lots: readonly CountedLot[]): Promise<void> {
+    this.beforeWrite("recordCountedLots");
+    this.state.countedLots.push({ movementId, lots: lots.map((lot) => ({ ...lot })) });
   }
 
   async productLots(key: ProductStockKey): Promise<StockLot[]> {
@@ -221,6 +258,7 @@ export class FakeStockStore implements StockStore {
     balances: [],
     movements: [],
     counts: [],
+    countedLots: [],
     lots: [],
     allocations: [],
     nextId: 1,
@@ -261,6 +299,10 @@ export class FakeStockStore implements StockStore {
     const id = `movement-${this.state.nextId++}`;
     this.state.movements.push({ ...movement, id });
     return id;
+  }
+
+  seedAllocation(allocation: LotAllocation): void {
+    this.state.allocations.push({ ...allocation });
   }
 
   balanceOf(key: ProductStockKey): number {
