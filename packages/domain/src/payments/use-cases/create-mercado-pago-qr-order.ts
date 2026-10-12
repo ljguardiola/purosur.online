@@ -90,7 +90,7 @@ export async function createMercadoPagoQrOrder(
           }
           const expiresAt = mercadoPagoOrderExpiresAt(attemptStartedAt, mercadoPago.longestCallMs);
           await lane.recordCreationAttempt(paymentTransactionId, expiresAt);
-          transaction = { ...transaction, creationOutcomeUnknown: true, expiresAt };
+          transaction = { ...transaction, expiresAt };
         }
 
         const creation = await mercadoPago.createQrOrder({
@@ -99,8 +99,8 @@ export async function createMercadoPagoQrOrder(
           amount,
           expiresAfterMinutes: MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES,
         });
+        const earlierAttemptMayHaveCreatedOrder = recorded?.creationOutcomeUnknown === true;
         if (creation.kind === "refused" || creation.kind === "throttled") {
-          const earlierAttemptMayHaveCreatedOrder = recorded?.creationOutcomeUnknown === true;
           if (!earlierAttemptMayHaveCreatedOrder) {
             await lane.recordCreationCreatedNothing(paymentTransactionId);
           }
@@ -128,7 +128,13 @@ export async function createMercadoPagoQrOrder(
             ),
           };
         }
-        await lane.recordOrderCreated(paymentTransactionId, orderId, null);
+        await lane.inOneTransaction(async (atomic) => {
+          await atomic.recordOrderCreated(paymentTransactionId, createdOrderId, null);
+          if (!earlierAttemptMayHaveCreatedOrder) {
+            await atomic.recordNoOtherOrderPossible(paymentTransactionId);
+          }
+        });
+        transaction = { ...transaction, creationOutcomeUnknown: earlierAttemptMayHaveCreatedOrder };
       }
 
       const reading = await mercadoPago.readOrder(orderId);
