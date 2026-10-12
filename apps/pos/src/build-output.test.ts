@@ -114,13 +114,13 @@ function loadBuilderConfig(overrides: Record<string, string>): Record<string, un
 
 describe("the register's installer configuration", () => {
   it("stamps the version the environment names into the packaged app", () => {
-    expect(loadBuilderConfig({ POS_VERSION: "0.0.57" }).extraMetadata).toEqual({
+    expect(loadBuilderConfig({ POS_VERSION: "0.0.57" })["extraMetadata"]).toEqual({
       version: "0.0.57",
     });
   });
 
   it("leaves the package's own version untouched without one", () => {
-    expect(loadBuilderConfig({}).extraMetadata).toBeUndefined();
+    expect(loadBuilderConfig({})["extraMetadata"]).toBeUndefined();
   });
 
   it.each(["1.2", "1.2.3.4", "v1.2.3", "01.2.3", "1.2.x", "", "1.2.3-beta"])(
@@ -135,7 +135,7 @@ describe("the register's installer configuration", () => {
       loadBuilderConfig({
         POS_VERSION: "0.0.57",
         POS_UPDATE_FEED_URL: "https://updates.example.com",
-      }).publish,
+      })["publish"],
     ).toBeNull();
   });
 });
