@@ -444,6 +444,73 @@ describe("synced event payloads", () => {
     });
   });
 
+  describe("a sale paid on the integrated terminal", () => {
+    const sale = (): Payload => recordedPayload("sale_completed", 8);
+    const POINT_PAYMENT = {
+      ...CASH_PAYMENT_V2,
+      id: "pay-4",
+      method: "POINT",
+      provider: "MERCADOPAGO_POINT",
+      tendered: null,
+    };
+    const withPayments = (payments: unknown[]) => ({ ...sale(), payments });
+
+    it("accepts a sale paid by an approved Mercado Pago Point, alone or with other payments", () => {
+      expect(accepts("sale_completed", 8, withPayments([POINT_PAYMENT]))).toBe(true);
+      expect(
+        accepts(
+          "sale_completed",
+          8,
+          withPayments([CASH_PAYMENT_V2, TRANSFER_PAYMENT_V2, POINT_PAYMENT]),
+        ),
+      ).toBe(true);
+    });
+
+    it("keeps accepting the sales paid by QR in the same version", () => {
+      const qr = { ...POINT_PAYMENT, method: "QR", provider: "MERCADOPAGO_QR" };
+
+      expect(accepts("sale_completed", 8, withPayments([qr]))).toBe(true);
+    });
+
+    it.each([
+      ["a pending state", { state: "PENDING" }],
+      ["another provider", { provider: "NONE" }],
+      ["the QR provider", { provider: "MERCADOPAGO_QR" }],
+      ["an amount tendered", { tendered: 5000 }],
+      ["an authorizer", { authorized_by: "user-2" }],
+      ["a confirmation", { confirmed_at: "2026-10-06T11:21:00.000Z" }],
+      ["the card's last digits", { card_last_digits: "4242" }],
+      ["the card's brand", { card_brand: "visa" }],
+    ])("refuses a Point payment with %s", (_description, change) => {
+      expect(accepts("sale_completed", 8, withPayments([{ ...POINT_PAYMENT, ...change }]))).toBe(
+        false,
+      );
+    });
+
+    it("refuses a QR payment with the Point provider", () => {
+      const qr = { ...POINT_PAYMENT, method: "QR" };
+
+      expect(accepts("sale_completed", 8, withPayments([qr]))).toBe(false);
+    });
+
+    it.each([1, 2, 3, 4, 5, 6, 7])("keeps refusing a Point payment in version %s", (version) => {
+      const base = { ...sale(), completed_at: "2026-10-06T11:20:00.000Z" };
+
+      expect(accepts("sale_completed", version, { ...base, payments: [POINT_PAYMENT] })).toBe(
+        false,
+      );
+    });
+
+    it("refuses a Point payment in a cancelled sale", () => {
+      expect(
+        accepts("sale_cancelled", 4, {
+          ...recordedPayload("sale_cancelled", 4),
+          payments: [POINT_PAYMENT],
+        }),
+      ).toBe(false);
+    });
+  });
+
   describe("a sale's lines recording the source of their weight", () => {
     const WEIGHED_LINE = {
       id: "line-2",

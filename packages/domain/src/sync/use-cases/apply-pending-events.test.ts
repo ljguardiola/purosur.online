@@ -433,7 +433,12 @@ describe("an event that cannot be applied yet", () => {
       confirmedAt: null,
     } as const;
     const qrSale = () => aCompletedSaleFact({ payments: [qrPayment] });
-    const approvedTransaction = { saleId: "sale-1", amount: 1500, state: "APPROVED" } as const;
+    const approvedTransaction = {
+      saleId: "sale-1",
+      amount: 1500,
+      state: "APPROVED",
+      method: "QR",
+    } as const;
 
     it("is applied when the provider's own approved transaction backs the payment", async () => {
       const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
@@ -450,6 +455,10 @@ describe("an event that cannot be applied yet", () => {
       ["has a pending transaction", { ...approvedTransaction, state: "PENDING" as const }],
       ["has a transaction of another sale", { ...approvedTransaction, saleId: "sale-2" }],
       ["has a transaction of another amount", { ...approvedTransaction, amount: 1400 }],
+      [
+        "has a transaction of the integrated terminal",
+        { ...approvedTransaction, method: "POINT" as const },
+      ],
     ])("is retried and left unrecorded when the payment %s", async (_description, transaction) => {
       const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
       if (transaction !== undefined) {
@@ -510,6 +519,57 @@ describe("an event that cannot be applied yet", () => {
         "read provider transaction qr-payment-2",
       ]);
       expect(application.event("sale-event").appliedAt).toBeNull();
+    });
+  });
+
+  describe("a completed sale paid on the integrated terminal", () => {
+    const pointPayment = {
+      id: "point-payment-1",
+      method: "POINT",
+      provider: "MERCADOPAGO_POINT",
+      amount: 1500,
+      tendered: null,
+      state: "APPROVED",
+      occurredAt: new Date("2026-10-07T10:00:00.000Z"),
+      authorizedBy: null,
+      confirmedAt: null,
+    } as const;
+    const pointSale = () => aCompletedSaleFact({ payments: [pointPayment] });
+    const approvedTransaction = {
+      saleId: "sale-1",
+      amount: 1500,
+      state: "APPROVED",
+      method: "POINT",
+    } as const;
+
+    it("is applied when the terminal's own approved transaction backs the payment", async () => {
+      const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
+      application.providerTransactions.set("point-payment-1", approvedTransaction);
+
+      await run(application, new FakeEventUpcaster({ "sale-event": pointSale() }));
+
+      expect(application.event("sale-event").appliedAt).toEqual(NOW);
+    });
+
+    it.each([
+      ["has no transaction", undefined],
+      ["has a pending transaction", { ...approvedTransaction, state: "PENDING" as const }],
+      ["has a QR transaction", { ...approvedTransaction, method: "QR" as const }],
+    ])("is retried and left unrecorded when the payment %s", async (_description, transaction) => {
+      const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
+      if (transaction !== undefined) {
+        application.providerTransactions.set("point-payment-1", transaction);
+      }
+
+      await run(application, new FakeEventUpcaster({ "sale-event": pointSale() }));
+
+      expect(application.event("sale-event")).toMatchObject({
+        appliedAt: null,
+        attempts: 1,
+        error:
+          "payment point-payment-1 is not backed by an approved Mercado Pago transaction of this sale and amount",
+      });
+      expect(application.state.recorded).toEqual([]);
     });
   });
 
