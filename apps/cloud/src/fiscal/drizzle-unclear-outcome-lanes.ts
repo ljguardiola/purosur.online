@@ -1,4 +1,4 @@
-import type { FiscalUnknownAlertKey } from "@purosur/domain";
+import { fiscalUnknownAlertKey } from "@purosur/domain";
 import {
   type AbandonedRequestRecord,
   FiscalDocumentAlreadyRecorded,
@@ -7,6 +7,7 @@ import {
   type UnclearOutcomeLane,
   type UnclearOutcomeLanes,
   type UnclearOutcomeRequests,
+  type UnclearOutcomeWarningClearance,
   type UnclearRequest,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq } from "drizzle-orm";
@@ -100,25 +101,22 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
     fiscalDocumentId: string,
     decision: UnclearOutcomeDecision,
     decidedAt: Date,
-    resolvedAlert: FiscalUnknownAlertKey,
+    clearedWarning: UnclearOutcomeWarningClearance,
   ): Promise<void> {
     await this.db.transaction(async (tx) => {
       await tx
         .update(fiscalRequests)
         .set({ ...decisionColumnsOf(decision), decidedAt })
         .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
+      const warning = fiscalUnknownAlertKey(clearedWarning.fiscalDocumentId);
       const [open] = await tx
         .select({ id: alerts.id })
         .from(alerts)
         .where(
-          and(
-            eq(alerts.kind, resolvedAlert.kind),
-            eq(alerts.scope, resolvedAlert.scope),
-            openAlertCondition(),
-          ),
+          and(eq(alerts.kind, warning.kind), eq(alerts.scope, warning.scope), openAlertCondition()),
         );
       if (open !== undefined) {
-        await resolveAlert(tx, open.id, { now: () => decidedAt });
+        await resolveAlert(tx, open.id, { now: () => clearedWarning.clearedAt });
       }
     });
   }

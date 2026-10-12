@@ -1,4 +1,3 @@
-import { fiscalUnknownAlertKey } from "@purosur/domain";
 import {
   FiscalDocumentAlreadyRecorded,
   type RealTimeAuthorizationAnswer,
@@ -181,12 +180,10 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       const request = await recordedRequest(42, { kind: "unclear" });
 
       await unclearLanes.inPointOfSaleLane(7, (lane) =>
-        lane.recordDecision(
-          request.fiscalDocumentId,
-          { kind: "released" },
-          DECIDED_AT,
-          fiscalUnknownAlertKey(request.fiscalDocumentId),
-        ),
+        lane.recordDecision(request.fiscalDocumentId, { kind: "released" }, DECIDED_AT, {
+          fiscalDocumentId: request.fiscalDocumentId,
+          clearedAt: DECIDED_AT,
+        }),
       );
 
       expect(await storedRow(request.fiscalDocumentId)).toMatchObject({
@@ -209,7 +206,7 @@ describe("DrizzleUnclearOutcomeLanes", () => {
             authorizationCodeDueOn: "2026-10-16",
           },
           DECIDED_AT,
-          fiscalUnknownAlertKey(request.fiscalDocumentId),
+          { fiscalDocumentId: request.fiscalDocumentId, clearedAt: DECIDED_AT },
         ),
       );
 
@@ -225,12 +222,10 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       const request = await recordedRequest(42, { kind: "unclear" });
 
       await unclearLanes.inPointOfSaleLane(7, (lane) =>
-        lane.recordDecision(
-          request.fiscalDocumentId,
-          { kind: "conflicting" },
-          DECIDED_AT,
-          fiscalUnknownAlertKey(request.fiscalDocumentId),
-        ),
+        lane.recordDecision(request.fiscalDocumentId, { kind: "conflicting" }, DECIDED_AT, {
+          fiscalDocumentId: request.fiscalDocumentId,
+          clearedAt: DECIDED_AT,
+        }),
       );
 
       expect(await storedRow(request.fiscalDocumentId)).toMatchObject({
@@ -253,12 +248,10 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       const request = await recordedRequest(42, { kind: "unclear" });
 
       const found = await unclearLanes.inPointOfSaleLane(7, async (lane) => {
-        await lane.recordDecision(
-          request.fiscalDocumentId,
-          decision,
-          DECIDED_AT,
-          fiscalUnknownAlertKey(request.fiscalDocumentId),
-        );
+        await lane.recordDecision(request.fiscalDocumentId, decision, DECIDED_AT, {
+          fiscalDocumentId: request.fiscalDocumentId,
+          clearedAt: DECIDED_AT,
+        });
         return lane.unclearRequest(request.fiscalDocumentId);
       });
 
@@ -274,12 +267,10 @@ describe("DrizzleUnclearOutcomeLanes", () => {
 
       await expect(
         unclearLanes.inPointOfSaleLane(7, (lane) =>
-          lane.recordDecision(
-            request.fiscalDocumentId,
-            { kind: "released" },
-            DECIDED_AT,
-            fiscalUnknownAlertKey(request.fiscalDocumentId),
-          ),
+          lane.recordDecision(request.fiscalDocumentId, { kind: "released" }, DECIDED_AT, {
+            fiscalDocumentId: request.fiscalDocumentId,
+            clearedAt: DECIDED_AT,
+          }),
         ),
       ).rejects.toThrow();
     });
@@ -303,12 +294,10 @@ describe("DrizzleUnclearOutcomeLanes", () => {
 
     const decide = (document: { fiscalDocumentId: string; pointOfSale: number }) =>
       unclearLanes.inPointOfSaleLane(document.pointOfSale, (lane) =>
-        lane.recordDecision(
-          document.fiscalDocumentId,
-          { kind: "released" },
-          DECIDED_AT,
-          fiscalUnknownAlertKey(document.fiscalDocumentId),
-        ),
+        lane.recordDecision(document.fiscalDocumentId, { kind: "released" }, DECIDED_AT, {
+          fiscalDocumentId: document.fiscalDocumentId,
+          clearedAt: DECIDED_AT,
+        }),
       );
 
     it("is resolved at the moment of the decision, and only the alert of the decided document", async () => {
@@ -385,12 +374,10 @@ describe("DrizzleUnclearOutcomeLanes", () => {
 
       const recorded = await unclearLanes.inPointOfSaleLane(7, async (lane) => {
         const before = await lane.recordedRequest(request.registerId, request.fiscalDocumentId);
-        await lane.recordDecision(
-          request.fiscalDocumentId,
-          { kind: "released" },
-          DECIDED_AT,
-          fiscalUnknownAlertKey(request.fiscalDocumentId),
-        );
+        await lane.recordDecision(request.fiscalDocumentId, { kind: "released" }, DECIDED_AT, {
+          fiscalDocumentId: request.fiscalDocumentId,
+          clearedAt: DECIDED_AT,
+        });
         const after = await lane.recordedRequest(request.registerId, request.fiscalDocumentId);
         return [before, after];
       });

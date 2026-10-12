@@ -299,6 +299,7 @@ export type {
   UnclearOutcomeLane,
   UnclearOutcomeLanes,
   UnclearOutcomeRequests,
+  UnclearOutcomeWarningClearance,
   UnclearRequest,
   UnclearRequestProgress,
   VoucherAnswer,
