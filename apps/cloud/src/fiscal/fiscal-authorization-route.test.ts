@@ -440,6 +440,7 @@ describe("POST /fiscal/authorize", () => {
             pointOfSale: 7,
             documentType: FACTURA_C_DOCUMENT_TYPE,
             document: "00007-01234567",
+            taxAuthorityCodes: "",
           },
         },
       );
@@ -467,6 +468,67 @@ describe("POST /fiscal/authorize", () => {
       const context = route.report.mock.calls[0]?.[2]?.context ?? {};
       expect(scrubErrorReport({ extra: context }).extra).toEqual(context);
       expect(context).toMatchObject({ document: "00007-12345678" });
+    });
+
+    it("reports the codes the tax authority gave with an unclear outcome and keeps them with the request, without its message nor anything of the buyer", async () => {
+      const { deviceToken } = await enrollRegisterWithPointOfSale();
+      await route.issueWsaaToken();
+      const message = `El receptor ${FICTIONAL_LEGAL_NAME} CUIT ${FICTIONAL_CUIT} no sigue al ultimo autorizado.`;
+      route.taxAuthority.answer = {
+        kind: "refused_without_result",
+        rejections: [
+          { code: 10016, message },
+          { code: 600, message },
+        ],
+      };
+      const body = requestBody();
+
+      await authorize(body, `Bearer ${deviceToken}`);
+
+      expect(route.report.mock.calls[0]?.[2]?.context).toMatchObject({
+        taxAuthorityCodes: "10016,600",
+      });
+      expect(reportedText()).not.toContain(message);
+      for (const sensitive of [FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME]) {
+        expect(reportedText()).not.toContain(sensitive);
+      }
+      const [stored] = await requests();
+      expect(stored?.unclearCodes).toEqual([10016, 600]);
+      expect(JSON.stringify(stored)).not.toContain(FICTIONAL_LEGAL_NAME);
+    });
+
+    it("reports and keeps the code of an out of sequence rejection, which is an unclear outcome", async () => {
+      const { deviceToken } = await enrollRegisterWithPointOfSale();
+      await route.issueWsaaToken();
+      route.taxAuthority.answer = {
+        kind: "rejected",
+        rejections: [{ code: 10016, message: "El numero no sigue al ultimo autorizado." }],
+      };
+
+      await authorize(requestBody(), `Bearer ${deviceToken}`);
+
+      expect(route.report.mock.calls[0]?.[2]?.context).toMatchObject({
+        taxAuthorityCodes: "10016",
+      });
+      expect((await requests())[0]?.unclearCodes).toEqual([10016]);
+    });
+
+    it("reports the codes of an unclear outcome in a form the reports' scrubbing keeps", async () => {
+      const { deviceToken } = await enrollRegisterWithPointOfSale();
+      await route.issueWsaaToken();
+      route.taxAuthority.answer = {
+        kind: "refused_without_result",
+        rejections: [
+          { code: 10016, message: "El numero no sigue al ultimo autorizado." },
+          { code: 600, message: "ValidacionDeToken." },
+        ],
+      };
+
+      await authorize(requestBody(), `Bearer ${deviceToken}`);
+
+      const context = route.report.mock.calls[0]?.[2]?.context ?? {};
+      expect(scrubErrorReport({ extra: context }).extra).toEqual(context);
+      expect(context).toMatchObject({ taxAuthorityCodes: "10016,600" });
     });
 
     it("reports an unclear outcome once, not again when the register asks again for the same document", async () => {
