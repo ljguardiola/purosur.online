@@ -1081,6 +1081,70 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 
+  it("reads an opening count as the line counted, at the moment and by the person the event says", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          aggregate_type: "StockMovement",
+          aggregate_id: "6d1f7c3a-5b2e-4f8a-9c4d-1e2f3a4b5c6d",
+          event_type: "opening_count_recorded",
+          schema_version: 1,
+          payload: {
+            movement_id: "6d1f7c3a-5b2e-4f8a-9c4d-1e2f3a4b5c6d",
+            product_id: "5d1a8f3c-9e47-4b02-8c6d-7a3f2e9b1c06",
+            counted: 6000,
+            expires_on: "2027-01-31",
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "opening_count_recorded",
+        count: {
+          movementId: "6d1f7c3a-5b2e-4f8a-9c4d-1e2f3a4b5c6d",
+          productId: "5d1a8f3c-9e47-4b02-8c6d-7a3f2e9b1c06",
+          counted: 6000,
+          expiresOn: "2027-01-31",
+          countedAt: new Date("2026-10-06T11:20:00.000Z"),
+          actorId: USER,
+        },
+      },
+    });
+  });
+
+  it("reads the withdrawal of an opening count with the movement it takes back", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          aggregate_type: "StockMovement",
+          aggregate_id: "7e2a8d4b-6c3f-4a9b-8d5e-2f3a4b5c6d7e",
+          event_type: "opening_count_withdrawn",
+          schema_version: 1,
+          payload: {
+            movement_id: "7e2a8d4b-6c3f-4a9b-8d5e-2f3a4b5c6d7e",
+            withdrawn_movement_id: "6d1f7c3a-5b2e-4f8a-9c4d-1e2f3a4b5c6d",
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "opening_count_withdrawn",
+        withdrawal: {
+          movementId: "7e2a8d4b-6c3f-4a9b-8d5e-2f3a4b5c6d7e",
+          withdrawnMovementId: "6d1f7c3a-5b2e-4f8a-9c4d-1e2f3a4b5c6d",
+          withdrawnAt: new Date("2026-10-06T11:20:00.000Z"),
+          actorId: USER,
+        },
+      },
+    });
+  });
+
   it("cannot read an event type and version no schema describes", () => {
     const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 8 })));
 
