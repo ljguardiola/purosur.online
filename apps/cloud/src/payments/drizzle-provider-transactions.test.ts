@@ -30,6 +30,7 @@ describe("providerTransactionOfPayment", () => {
       saleId: transaction.saleId,
       amount: 30_700,
       state: "APPROVED",
+      method: "QR",
     });
   });
 

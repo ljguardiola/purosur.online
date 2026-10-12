@@ -91,6 +91,15 @@ function createdResult(overrides: Partial<MercadoPagoOrderResult> = {}): Mercado
 
 type MercadoPagoOrderResult = Extract<MercadoPagoOrderReading, { kind: "read" }>["result"];
 
+describe("createPointOrder", () => {
+  it("answers that no terminal is configured without calling Mercado Pago", async () => {
+    const { client, fetch } = clientAnswering();
+
+    expect(await client.createPointOrder(REQUEST)).toEqual({ kind: "not_configured" });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
 describe("the Mercado Pago orders client", () => {
   describe("creating a QR order", () => {
     it("posts the order of the store's static QR code with the idempotency key and the amount in pesos", async () => {
