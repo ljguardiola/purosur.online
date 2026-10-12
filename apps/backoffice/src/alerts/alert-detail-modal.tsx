@@ -261,7 +261,7 @@ function fiscalUnknownDescription({
   unclearSince,
 }: Extract<AlertDetail, { kind: "fiscal_unknown" }>["detail"]): string {
   const document = `${formatPointOfSaleNumber(pointOfSale)}-${formatInvoiceNumber(number)}`;
-  return `El comprobante ${document} quedó sin respuesta clara de ARCA desde ${alertDateTime(new Date(unclearSince))}. Mientras no se resuelva, ese punto de venta no pide CAE y las ventas de la caja quedan diferidas.`;
+  return `Comprobante ${document}, sin respuesta desde ${alertDateTime(new Date(unclearSince))}. Mientras no se resuelva, ese punto de venta no pide CAE y las ventas de la caja quedan diferidas.`;
 }
 
 function alertTitle(alert: AlertDetail): string {
