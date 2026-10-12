@@ -16,6 +16,8 @@ export function aCompletedSale(overrides: Partial<CompletedSale> = {}): Complete
     actorId: USER,
     completedAt: COMPLETED_AT,
     total: 4800,
+    saleDiscount: null,
+    saleDiscountAmount: 0,
     lines: [
       {
         id: randomUUID(),
@@ -28,6 +30,7 @@ export function aCompletedSale(overrides: Partial<CompletedSale> = {}): Complete
         priceListId: randomUUID(),
         promotionId: null,
         discountAmount: 0,
+        saleDiscountShare: 0,
         lineTotal: 4800,
       },
     ],
@@ -78,6 +81,8 @@ export function aCancelledSale(overrides: Partial<CancelledSale> = {}): Cancelle
     authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
     cancelledAt,
     total: 4800,
+    saleDiscount: null,
+    saleDiscountAmount: 0,
     lines: aCompletedSale().lines,
     payments: [payment],
     refunds: [

@@ -19,7 +19,7 @@ export const EMPTY_ADJUST_LINE_FORM: AdjustLineFormValues = {
 
 export const REQUIRED_REASON_MESSAGE = "Escribí un motivo.";
 
-function parsedValue(kind: AdjustmentKind, value: string): number {
+export function parsedValue(kind: AdjustmentKind, value: string): number {
   if (kind === "PERCENT") {
     const digits = parseEsArNumber(value, 0);
     return digits === undefined ? Number.NaN : Number(digits.whole);

@@ -165,6 +165,24 @@ describe("DrizzlePaymentTransactionLanes", () => {
     });
   });
 
+  describe("a creation that answered with the only order the transaction can have", () => {
+    it("forgets that another order of the transaction may have been created", async () => {
+      const registerId = await insertRegister(db, "caja-1");
+      const transaction = pendingTransaction(registerId, { creationOutcomeUnknown: true });
+      const other = pendingTransaction(registerId, { creationOutcomeUnknown: true });
+
+      const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
+        await lane.recordPendingTransaction(transaction);
+        await lane.recordPendingTransaction(other);
+        await lane.recordNoOtherOrderPossible(transaction.id);
+        return lane.recordedTransaction(registerId, transaction.id);
+      });
+
+      expect(recorded).toEqual({ ...transaction, creationOutcomeUnknown: false });
+      expect(await storedRow(other.id)).toMatchObject({ creationOutcomeUnknown: true });
+    });
+  });
+
   describe("a transaction left for review", () => {
     it("flags the transaction for a person to review, keeping its state", async () => {
       const registerId = await insertRegister(db, "caja-1");
@@ -380,6 +398,7 @@ describe("DrizzlePaymentTransactionLanes", () => {
           saleId: transaction.saleId,
           paymentId: null,
           paymentTransactionId: transaction.id,
+          providerOrderId: null,
           origin: "late_payment",
           method: "QR",
           provider: "MERCADOPAGO_QR",
@@ -409,7 +428,11 @@ describe("DrizzlePaymentTransactionLanes", () => {
           level: "warning",
           audience: "local",
           locationId,
-          detail: { saleId: transaction.saleId, amount: transaction.amount },
+          detail: {
+            saleId: transaction.saleId,
+            amount: transaction.amount,
+            providerOrderId: null,
+          },
           openedAt: READ_AT,
         }),
       ]);

@@ -174,6 +174,24 @@ describe("GET /refunds/pending", () => {
     });
   });
 
+  it("tells the Mercado Pago order of a late payment refund that names one, and none for the others", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const cancelledId = await aPendingRefund();
+    const late = await aPendingLatePaymentRefund(db, {
+      openedAt: new Date("2026-10-06T10:00:00.000Z"),
+      registerName: "Caja 2",
+      providerOrderId: "ORD01SECOND",
+    });
+
+    const response = await pendingRefunds(headers);
+
+    const body = pendingRefundsSchema.parse(response.json());
+    expect(body.refunds.map(({ id, provider_order_id }) => [id, provider_order_id])).toEqual([
+      [late.refundId, "ORD01SECOND"],
+      [cancelledId, null],
+    ]);
+  });
+
   it("lists nothing to a session of another branch", async () => {
     const otherLocationId = await insertLocation(db);
     const { headers } = await signedInWith(db, ["confirm_refunds"], NOW, {

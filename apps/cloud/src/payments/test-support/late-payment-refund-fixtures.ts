@@ -11,7 +11,13 @@ export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResu
     openedAt,
     registerName = "Caja 1",
     coveredBy = [],
-  }: { openedAt: Date; registerName?: string; coveredBy?: PaymentMethod[] },
+    providerOrderId = null,
+  }: {
+    openedAt: Date;
+    registerName?: string;
+    coveredBy?: PaymentMethod[];
+    providerOrderId?: string | null;
+  },
 ) {
   const { deviceId, locationId, registerId } = await insertEnrolledInstallation(db, {
     now: openedAt,
@@ -46,6 +52,7 @@ export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResu
     saleId: transaction.saleId,
     paymentTransactionId: transaction.id,
     origin: "late_payment",
+    providerOrderId,
     method: transaction.method,
     provider: transaction.provider,
     amount: transaction.amount,
@@ -60,7 +67,7 @@ export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResu
       level: "warning",
       audience: "local",
       locationId,
-      detail: { saleId: transaction.saleId, amount: transaction.amount },
+      detail: { saleId: transaction.saleId, amount: transaction.amount, providerOrderId },
       openedAt,
     })
     .returning({ id: alerts.id });

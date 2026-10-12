@@ -1,5 +1,5 @@
 {
-  "id": "7f4e420d-4898-41be-90ca-2dc9505ecad7",
+  "id": "f742e3f3-43a9-437b-a390-74047d550023",
   "prevId": "1168a868-aad5-4762-a5a0-1e43c15c077a",
   "version": "7",
   "dialect": "postgresql",
@@ -1970,12 +1970,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "unclear_codes": {
-          "name": "unclear_codes",
-          "type": "integer[]",
-          "primaryKey": false,
-          "notNull": false
-        },
         "answered_at": {
           "name": "answered_at",
           "type": "timestamp with time zone",
@@ -2054,10 +2048,6 @@
         "fiscal_requests_rejection_check": {
           "name": "fiscal_requests_rejection_check",
           "value": "coalesce(\"fiscal_requests\".\"answer_kind\" = 'rejected', false) = (\"fiscal_requests\".\"rejection_codes\" is not null)"
-        },
-        "fiscal_requests_unclear_codes_check": {
-          "name": "fiscal_requests_unclear_codes_check",
-          "value": "coalesce(\"fiscal_requests\".\"answer_kind\" = 'unclear', false) = (\"fiscal_requests\".\"unclear_codes\" is not null)"
         },
         "fiscal_requests_rejection_class_check": {
           "name": "fiscal_requests_rejection_class_check",
@@ -3195,6 +3185,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "provider_order_id": {
+          "name": "provider_order_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "origin": {
           "name": "origin",
           "type": "text",
@@ -3258,6 +3254,44 @@
         }
       },
       "indexes": {
+        "payment_refunds_transaction_without_order_unique": {
+          "name": "payment_refunds_transaction_without_order_unique",
+          "columns": [
+            {
+              "expression": "payment_transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"payment_refunds\".\"provider_order_id\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payment_refunds_transaction_order_unique": {
+          "name": "payment_refunds_transaction_order_unique",
+          "columns": [
+            {
+              "expression": "payment_transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "provider_order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"payment_refunds\".\"provider_order_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "payment_refunds_pending_idx": {
           "name": "payment_refunds_pending_idx",
           "columns": [
@@ -3311,13 +3345,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "payment_refunds_payment_transaction_id_unique": {
-          "name": "payment_refunds_payment_transaction_id_unique",
-          "nullsNotDistinct": false,
-          "columns": ["payment_transaction_id"]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
         "payment_refunds_state_check": {

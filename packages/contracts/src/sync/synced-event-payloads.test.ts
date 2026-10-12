@@ -136,6 +136,7 @@ describe("synced event payloads", () => {
       "sale_cancelled@1",
       "sale_cancelled@2",
       "sale_cancelled@3",
+      "sale_cancelled@4",
       "sale_completed@1",
       "sale_completed@2",
       "sale_completed@3",
@@ -143,6 +144,7 @@ describe("synced event payloads", () => {
       "sale_completed@5",
       "sale_completed@6",
       "sale_completed@7",
+      "sale_completed@8",
       "sale_print_state_changed@1",
     ]);
   });
@@ -162,8 +164,8 @@ describe("synced event payloads", () => {
 
   it.each([
     ["an unknown event type", "sale_opened", 1],
-    ["a sale_completed version nobody emitted", "sale_completed", 8],
-    ["a sale_cancelled version nobody emitted", "sale_cancelled", 4],
+    ["a sale_completed version nobody emitted", "sale_completed", 9],
+    ["a sale_cancelled version nobody emitted", "sale_cancelled", 5],
     ["version zero", "sale_completed", 0],
     ["a cash_session_opened version nobody emitted", "cash_session_opened", 2],
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
@@ -526,6 +528,131 @@ describe("synced event payloads", () => {
       );
       expect(accepts(eventType, version, sale)).toBe(true);
       expect(accepts(eventType, version, withLines(sale, [unit]))).toBe(true);
+    });
+  });
+
+  describe("a sale recording its discount on the total", () => {
+    const DISCOUNT = {
+      kind: "PERCENT",
+      value: 10,
+      amount: 450,
+      reason: "Compra grande",
+      authorized_by: null,
+    };
+    const withoutDiscount = (sale: Payload): Payload => ({
+      ...sale,
+      sale_discount: null,
+      lines: (sale["lines"] as Payload[]).map((line) => ({ ...line, sale_discount_share: 0 })),
+    });
+    const completed = (): Payload => withoutDiscount(recordedPayload("sale_completed", 7));
+    const cancelled = (): Payload => withoutDiscount(recordedPayload("sale_cancelled", 3));
+    const discounted = (sale: Payload, change: Payload = {}): Payload => ({
+      ...sale,
+      sale_discount: { ...DISCOUNT, ...change },
+    });
+
+    it.each([
+      ["sale_completed", 8, completed],
+      ["sale_cancelled", 4, cancelled],
+    ])("accepts a %s v%i with no discount on the total", (eventType, version, sale) => {
+      expect(accepts(eventType, version, sale())).toBe(true);
+    });
+
+    it.each([
+      ["a percent", {}],
+      ["a percent of one hundred", { value: 100 }],
+      ["an amount", { kind: "AMOUNT", value: 450 }],
+      ["an authorizer", { authorized_by: "user-2" }],
+      ["a discount of zero cents", { amount: 0 }],
+    ])("accepts a discount on the total with %s", (_case, change) => {
+      expect(accepts("sale_completed", 8, discounted(completed(), change))).toBe(true);
+      expect(accepts("sale_cancelled", 4, discounted(cancelled(), change))).toBe(true);
+    });
+
+    it.each([
+      ["a kind nobody records", { kind: "PRICE" }],
+      ["a lowercase kind", { kind: "percent" }],
+      ["a percent of zero", { value: 0 }],
+      ["a percent over one hundred", { value: 101 }],
+      ["a fractional percent", { value: 10.5 }],
+      ["an amount of zero", { kind: "AMOUNT", value: 0 }],
+      ["a negative amount", { kind: "AMOUNT", value: -1 }],
+      ["a negative discounted amount", { amount: -1 }],
+      ["a fractional discounted amount", { amount: 4.5 }],
+      ["an empty reason", { reason: "" }],
+      ["a reason with surrounding spaces", { reason: " Compra grande " }],
+      ["an empty authorizer", { authorized_by: "" }],
+    ])("refuses a discount on the total with %s", (_case, change) => {
+      expect(accepts("sale_completed", 8, discounted(completed(), change))).toBe(false);
+      expect(accepts("sale_cancelled", 4, discounted(cancelled(), change))).toBe(false);
+    });
+
+    it.each(["kind", "value", "amount", "reason", "authorized_by"])(
+      "refuses a discount on the total without its %s",
+      (field) => {
+        const { [field]: _removed, ...discount } = DISCOUNT as Payload;
+
+        expect(accepts("sale_completed", 8, { ...completed(), sale_discount: discount })).toBe(
+          false,
+        );
+        expect(accepts("sale_cancelled", 4, { ...cancelled(), sale_discount: discount })).toBe(
+          false,
+        );
+      },
+    );
+
+    it.each([
+      ["sale_completed", 8, completed],
+      ["sale_cancelled", 4, cancelled],
+    ])("refuses a %s v%i without the discount field", (eventType, version, sale) => {
+      const { sale_discount: _removed, ...rest } = sale();
+
+      expect(accepts(eventType, version, rest)).toBe(false);
+    });
+
+    it.each([
+      ["sale_completed", 8, completed],
+      ["sale_cancelled", 4, cancelled],
+    ])("refuses a %s v%i whose line has no share of the discount", (eventType, version, sale) => {
+      const body = sale();
+      const [line, ...others] = body["lines"] as Payload[];
+      const { sale_discount_share: _removed, ...bare } = line as Payload;
+
+      expect(accepts(eventType, version, { ...body, lines: [bare, ...others] })).toBe(false);
+    });
+
+    it.each([
+      ["a negative share", -1],
+      ["a fractional share", 0.5],
+    ])("refuses a line with %s", (_case, share) => {
+      const sale = completed();
+      const [line, ...others] = sale["lines"] as Payload[];
+
+      expect(
+        accepts("sale_completed", 8, {
+          ...sale,
+          lines: [{ ...line, sale_discount_share: share }, ...others],
+        }),
+      ).toBe(false);
+    });
+
+    it("accepts a line whose share is a positive number of cents", () => {
+      const sale = completed();
+      const [line, ...others] = sale["lines"] as Payload[];
+
+      expect(
+        accepts("sale_completed", 8, {
+          ...sale,
+          lines: [{ ...line, sale_discount_share: 450 }, ...others],
+        }),
+      ).toBe(true);
+    });
+
+    it.each([
+      ["sale_completed", 7],
+      ["sale_cancelled", 3],
+    ])("keeps reading a %s v%i, which carries no discount on the total", (eventType, version) => {
+      expect(accepts(eventType, version, recordedPayload(eventType, version))).toBe(true);
     });
   });
 
@@ -1130,7 +1257,7 @@ describe("sale_cancelled v1", () => {
   });
 
   it("refuses a version nobody emitted", () => {
-    expect(syncedEventPayloadKey("sale_cancelled", 4)).toBeUndefined();
+    expect(syncedEventPayloadKey("sale_cancelled", 5)).toBeUndefined();
   });
 
   it("refuses a cancelled sale without payments", () => {

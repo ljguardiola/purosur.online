@@ -31,7 +31,8 @@ export type ReceiptPrintOutcome =
   | { kind: "unavailable" }
   | { kind: "printer_not_configured" }
   | { kind: "printed"; copy: ReceiptCopy }
-  | { kind: "abandoned"; copy: ReceiptCopy };
+  | { kind: "abandoned"; copy: ReceiptCopy }
+  | { kind: "withdrawn"; copy: ReceiptCopy };
 
 interface Recorded {
   copy: ReceiptCopy;
@@ -100,8 +101,8 @@ export async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refus
 
   const { copy, stored } = recorded;
   const ending = await printer.print(template.printable(stored, copy), watch);
-  if (ending.kind === "abandoned") {
-    return { kind: "abandoned", copy };
+  if (ending.kind !== "acknowledged") {
+    return { kind: ending.kind, copy };
   }
 
   ledger.transaction((tx) => {

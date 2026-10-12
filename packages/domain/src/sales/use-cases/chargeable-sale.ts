@@ -2,7 +2,7 @@ import type { ChargeRefusal } from "../../fiscal/index.js";
 import { saleBalance } from "../../payments/index.js";
 import { buyerIdentificationRefusal } from "../model/buyer-identification-check.js";
 import type { SaleWithLines } from "../model/sale.js";
-import { saleTotal } from "../model/sale-line.js";
+import { amountToCharge } from "../model/sale-discount.js";
 import type { SaleLedgerTransaction, SellingSession } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
 
@@ -47,7 +47,7 @@ export function chargeableSale(
   if (sale.lines.length === 0) {
     return { kind: "empty_sale" };
   }
-  const total = saleTotal(sale.lines);
+  const total = amountToCharge(sale);
   if (total === 0) {
     return { kind: "zero_total" };
   }

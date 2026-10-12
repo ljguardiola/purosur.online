@@ -34,7 +34,7 @@ describe("escalatesAt", () => {
         kind: "late_payment_refund",
         scope: "refund-1",
         locationId: "branch-1",
-        detail: { saleId: "sale-1", amount: 2500 },
+        detail: { saleId: "sale-1", amount: 2500, providerOrderId: null },
       },
       OPENED,
     );

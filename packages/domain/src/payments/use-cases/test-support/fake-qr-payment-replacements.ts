@@ -53,7 +53,13 @@ class FakeQrPaymentReplacementTransaction implements QrPaymentReplacementTransac
   ): Promise<LatePaymentRefundOpening> {
     this.store.operations.push("openLatePaymentRefund");
     this.store.failIfAsked("openLatePaymentRefund");
-    if (this.store.refunds.some((opened) => opened.refund.paymentId === refund.paymentId)) {
+    if (
+      this.store.refunds.some(
+        (opened) =>
+          opened.refund.paymentId === refund.paymentId &&
+          opened.refund.providerOrderId === refund.providerOrderId,
+      )
+    ) {
       return "already_open";
     }
     this.store.refunds.push({ refund: structuredClone(refund), openedAt: new Date(openedAt) });

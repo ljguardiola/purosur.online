@@ -2,7 +2,8 @@ import type { ChargeRefusal } from "../../fiscal/index.js";
 import type { Clock } from "../../shared/index.js";
 import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { SaleLine, SaleWithLines } from "../model/sale.js";
-import { saleTotal } from "../model/sale-line.js";
+import { amountToCharge } from "../model/sale-discount.js";
+import { withoutSaleDiscount } from "./remove-sale-discount.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type { SaleLedgerTransaction } from "./sale-ledger.js";
 import { saleLinesLocked } from "./sale-lines-locked.js";
@@ -17,6 +18,7 @@ export type SaleLineChangeRefusal =
 export type ChangedLineOutcome = {
   kind: "changed";
   removedManualDiscount: boolean;
+  removedSaleDiscount: boolean;
   sale: SaleWithLines;
   chargeRefusal: ChargeRefusal | undefined;
 } & OpenSaleStanding;
@@ -53,14 +55,20 @@ export function changedLine(
   updated: SaleLine,
   moment: Date,
 ): ChangedLineOutcome {
-  const changed = { ...sale, lines: sale.lines.map((each) => (each === line ? updated : each)) };
+  const changesTotal =
+    updated.quantity !== line.quantity || updated.manualAdjustment !== line.manualAdjustment;
+  const { sale: kept, removedSaleDiscount } = changesTotal
+    ? withoutSaleDiscount(tx, sale)
+    : { sale, removedSaleDiscount: false };
+  const changed = { ...kept, lines: sale.lines.map((each) => (each === line ? updated : each)) };
   return {
     kind: "changed",
     removedManualDiscount: line.manualAdjustment !== null && updated.manualAdjustment === null,
+    removedSaleDiscount,
     sale: changed,
     chargeRefusal: saleChargeRefusal(tx, changed, moment),
     ...openSaleStanding(
-      saleTotal(changed.lines),
+      amountToCharge(changed),
       tx.salePayments(changed.id),
       tx.pendingQrPaymentsOf(changed.id),
       moment,

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyMercadoPagoOrderResult,
   type MercadoPagoOrderResult,
+  paidAmountOfMercadoPagoOrder,
   paymentStateOfMercadoPagoOrder,
 } from "./mercado-pago-order-result.js";
 import { PAYMENT_TRANSACTION_STATES } from "./payment-transaction.js";
@@ -13,6 +14,7 @@ function order(overrides: Partial<MercadoPagoOrderResult> = {}): MercadoPagoOrde
   return {
     status: "processed",
     statusDetail: "accredited",
+    externalReference: null,
     totalPaidAmount: 2500,
     payments: [ACCREDITED],
     ...overrides,
@@ -31,6 +33,7 @@ const orderResultArbitrary = fc.record({
     "something_new",
   ),
   statusDetail: fc.constantFrom("accredited", "partially_refunded", "other"),
+  externalReference: fc.constant(null),
   totalPaidAmount: fc.option(fc.integer({ min: 0, max: 1_000_000 }), { nil: null }),
   payments: fc.array(
     fc.record({
@@ -226,4 +229,57 @@ describe("applyMercadoPagoOrderResult", () => {
       );
     },
   );
+});
+
+describe("paidAmountOfMercadoPagoOrder", () => {
+  it("is the amount a processed, fully accredited order states it was paid", () => {
+    expect(paidAmountOfMercadoPagoOrder(order({ totalPaidAmount: 2300 }))).toBe(2300);
+  });
+
+  it("is the sum of the payments when the order does not state the amount", () => {
+    const split = order({
+      totalPaidAmount: null,
+      payments: [
+        { ...ACCREDITED, paidAmount: 1000 },
+        { ...ACCREDITED, paidAmount: 1500 },
+      ],
+    });
+
+    expect(paidAmountOfMercadoPagoOrder(split)).toBe(2500);
+  });
+
+  it("is the amount of the order's payment state, whatever the amount the order is for", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 1_000_000 }), (paid) => {
+        const result = order({
+          totalPaidAmount: paid,
+          payments: [{ ...ACCREDITED, paidAmount: paid }],
+        });
+
+        expect(paidAmountOfMercadoPagoOrder(result)).toBe(paid);
+        expect(paymentStateOfMercadoPagoOrder(result, paid).state).toBe("APPROVED");
+      }),
+    );
+  });
+
+  it.each([
+    ["created", order({ status: "created", statusDetail: "created", payments: [] })],
+    ["refunded", order({ status: "refunded" })],
+    ["canceled", order({ status: "canceled" })],
+    ["expired", order({ status: "expired" })],
+    ["failed", order({ status: "failed" })],
+    ["processed without payments", order({ payments: [] })],
+    [
+      "processed with a payment that is not accredited",
+      order({ payments: [{ ...ACCREDITED, statusDetail: "pending_review_manual" }] }),
+    ],
+    ["processed with a status detail that is not accredited", order({ statusDetail: "other" })],
+    [
+      "processed with an unknown paid amount",
+      order({ totalPaidAmount: null, payments: [{ ...ACCREDITED, paidAmount: null }] }),
+    ],
+    ["processed with nothing paid", order({ totalPaidAmount: 0 })],
+  ])("is nothing for an order that is %s", (_name, result) => {
+    expect(paidAmountOfMercadoPagoOrder(result)).toBeNull();
+  });
 });

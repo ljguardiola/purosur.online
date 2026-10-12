@@ -1,24 +1,32 @@
 import type { OpenSale } from "@purosur/contracts";
+import type { LoadStatus } from "@purosur/ui";
 import {
   Button,
   FigureStat,
   formatCents,
   InlineNotice,
+  LoadingPlaceholder,
   plural,
   SidePanel,
   SummaryRowGroup,
 } from "@purosur/ui";
-import { Banknote, Lock, OctagonAlert, TriangleAlert, X } from "lucide-react";
+import { BadgePercent, Banknote, Lock, OctagonAlert, TriangleAlert, X } from "lucide-react";
 import type { ReactNode } from "react";
+import { saleDiscountLabel } from "./sale-discount-text";
 
 export type PaymentPanelProps = {
+  saleStatus: LoadStatus;
   lineCount: number;
+  subtotal: number;
+  saleDiscount: OpenSale["sale_discount"];
   total: number;
   paid: number;
   pending: number;
   cancellable: boolean;
   chargeRefusal: OpenSale["charge_refusal"];
   canCancel: boolean;
+  canDiscount: boolean;
+  onDiscount: () => void;
   onCharge: () => void;
   onCancel: () => void;
 };
@@ -41,13 +49,18 @@ function refusalNotice(refusal: NonNullable<OpenSale["charge_refusal"]>): ReactN
 }
 
 export function PaymentPanel({
+  saleStatus,
   lineCount,
+  subtotal,
+  saleDiscount,
   total,
   paid,
   pending,
   cancellable,
   chargeRefusal,
   canCancel,
+  canDiscount,
+  onDiscount,
   onCharge,
   onCancel,
 }: PaymentPanelProps) {
@@ -72,7 +85,32 @@ export function PaymentPanel({
       }
     >
       <FigureStat label="Total a cobrar" value={formatCents(total)} />
-      <SummaryRowGroup rows={[{ label: `${lineCount} ${lines}`, value: formatCents(total) }]} />
+      {saleStatus === "loading" ? <LoadingPlaceholder variant="card" lines={2} /> : null}
+      {saleStatus === "loaded" ? (
+        <SummaryRowGroup
+          rows={[
+            { label: `${lineCount} ${lines}`, value: formatCents(subtotal) },
+            saleDiscount === null
+              ? { label: "Descuento sobre el total", value: "Sin aplicar" }
+              : {
+                  label: saleDiscountLabel(saleDiscount),
+                  value: `− ${formatCents(saleDiscount.amount)}`,
+                  tone: "error",
+                },
+          ]}
+        />
+      ) : null}
+      {saleStatus === "loaded" ? (
+        <Button
+          variant="secondary"
+          fullWidth
+          icon={<BadgePercent />}
+          disabled={!canDiscount}
+          onPress={onDiscount}
+        >
+          Aplicar descuento al total
+        </Button>
+      ) : null}
       {paid === 0 ? null : (
         <SummaryRowGroup
           rows={[

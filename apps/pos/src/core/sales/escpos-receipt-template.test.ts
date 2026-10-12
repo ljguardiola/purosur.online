@@ -61,6 +61,7 @@ function receipt(overrides: Partial<ReceiptContent> = {}): ReceiptContent {
     ],
     totals: {
       subtotal: 1_767_500,
+      saleDiscount: null,
       total: 1_767_500,
       payments: [
         { method: "CASH", amount: 1_000_000 },
@@ -90,6 +91,7 @@ function singleUnitReceipt(productName: string, price: number): ReceiptContent {
     ],
     totals: {
       subtotal: price,
+      saleDiscount: null,
       total: price,
       payments: [{ method: "TRANSFER", amount: price }],
       change: 0,
@@ -186,7 +188,6 @@ const FISCAL_BLOCK: FacturaCFiscalBlock = {
   buyerTaxStatusDescription: "Consumidor Final",
   pointOfSale: 1,
   number: 123,
-  total: 1_767_500,
   authorizationCode: "71234567890123",
   authorizationCodeDueOn: "2026-10-10",
   qrText: QR_TEXT,
@@ -262,6 +263,42 @@ function rowsWithinThePaper(content: ReceiptContent, copy: ReceiptCopy = ORIGINA
   return printed(content, copy).rows.every(({ text, small }) => text.length <= (small ? 64 : 48));
 }
 
+function discountedReceipt(saleDiscount: NonNullable<ReceiptContent["totals"]["saleDiscount"]>) {
+  return receipt({
+    lines: [
+      {
+        productName: "Yerba a granel",
+        saleUnit: "KG",
+        quantity: 350,
+        listUnitPrice: 1_890_000,
+        chargedUnitPrice: 1_890_000,
+        manualAdjustment: null,
+        promotion: null,
+        discountAmount: 0,
+        lineTotal: 661_500,
+      },
+      {
+        productName: "Aceite 900 ml",
+        saleUnit: "UNIT",
+        quantity: 2,
+        listUnitPrice: 643_000,
+        chargedUnitPrice: 643_000,
+        manualAdjustment: null,
+        promotion: null,
+        discountAmount: 0,
+        lineTotal: 1_286_000,
+      },
+    ],
+    totals: {
+      subtotal: 1_947_500,
+      saleDiscount,
+      total: 1_947_500 - saleDiscount.amount,
+      payments: [{ method: "CASH", amount: 2_000_000 }],
+      change: 2_000_000 - (1_947_500 - saleDiscount.amount),
+    },
+  });
+}
+
 describe("the ESC/POS receipt template", () => {
   it("renders the original receipt of a sale with a weighed line, a promotion and two payments", () => {
     expect(printed(receipt()).text).toBe([...HEAD, ...BODY_OF_MIXED_SALE].join("\n"));
@@ -291,6 +328,43 @@ describe("the ESC/POS receipt template", () => {
         "Transferencia                         $ 4.200,00",
         ...CLOSING,
       ].join("\n"),
+    );
+  });
+
+  it("prints a discount on the total of a sale, in percent, between the subtotal and the total", () => {
+    expect(printed(discountedReceipt({ kind: "PERCENT", percent: 5, amount: 97_375 })).text).toBe(
+      [
+        ...HEAD,
+        RULE,
+        ...OPERATION,
+        "[bold]PRODUCTO                                 IMPORTE[/bold]",
+        "Yerba a granel",
+        "  0,350 kg x $ 18.900,00 el kg        $ 6.615,00",
+        "Aceite 900 ml",
+        "  2 x $ 6.430,00                     $ 12.860,00",
+        RULE,
+        "Subtotal                             $ 19.475,00",
+        "Descuento sobre el total 5%            -$ 973,75",
+        RULE,
+        "[bold]TOTAL                                $ 18.501,25[/bold]",
+        RULE,
+        "Efectivo                             $ 20.000,00",
+        "Vuelto                                $ 1.498,75",
+        ...CLOSING,
+      ].join("\n"),
+    );
+  });
+
+  it("prints a discount on the total of a fixed amount without a percentage", () => {
+    const { textLines } = printed(discountedReceipt({ kind: "AMOUNT", amount: 50_000 }));
+
+    expect(textLines).toContain("Descuento sobre el total               -$ 500,00");
+    expect(textLines).toContain("TOTAL                                $ 18.975,00");
+  });
+
+  it("prints no row for the discount on the total when the sale has none", () => {
+    expect(printed(receipt()).textLines.some((line) => line.includes("Descuento sobre"))).toBe(
+      false,
     );
   });
 
@@ -345,6 +419,7 @@ describe("the ESC/POS receipt template", () => {
       receipt({
         totals: {
           subtotal: 1_767_500,
+          saleDiscount: null,
           total: 1_767_500,
           payments: [
             { method: "CASH", amount: 767_500 },

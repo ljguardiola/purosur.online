@@ -55,11 +55,13 @@ async function renderScreen({
   register = async (): Promise<RegisterSerialDevicesOutcome> => REGISTERED,
   registerName = "Caja 1",
   withSkip = false,
+  sessionOpen = false,
 }: {
   read?: () => Promise<ReadSerialDevicesOutcome>;
   register?: (devices: SerialDevicesToRegister) => Promise<RegisterSerialDevicesOutcome>;
   registerName?: string | null;
   withSkip?: boolean;
+  sessionOpen?: boolean;
 } = {}) {
   await page.viewport(1280, 900);
   onTestFinished(() => page.viewport(414, 896));
@@ -71,6 +73,7 @@ async function renderScreen({
     <SerialDevicesScreen
       person={PERSON}
       registerName={registerName}
+      sessionOpen={sessionOpen}
       entries={[DEVICES_ENTRY]}
       signOut={vi.fn()}
       readSerialDevices={readSerialDevices}
@@ -90,6 +93,24 @@ async function choose(screen: Rendered["screen"], role: "Balanza" | "Lector", de
 }
 
 describe("SerialDevicesScreen", () => {
+  it("offers Inicio and no cash entries when no session is open", async () => {
+    const { screen } = await renderScreen();
+
+    await expect.element(screen.getByRole("link", { name: "Inicio" })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Caja" })).not.toBeInTheDocument();
+  });
+
+  it("offers the open-session menu, with Balanza y lector as current, while a session is open", async () => {
+    const { screen } = await renderScreen({ sessionOpen: true });
+
+    await expect.element(screen.getByRole("link", { name: "Venta" })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: "Balanza y lector" }))
+      .toHaveAttribute("aria-current", "page");
+    await expect.element(screen.getByRole("link", { name: "Inicio" })).not.toBeInTheDocument();
+  });
+
   it("is titled Balanza y lector and names the register in the eyebrow", async () => {
     const { screen } = await renderScreen();
 

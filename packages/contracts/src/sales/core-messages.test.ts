@@ -300,10 +300,14 @@ describe("sale answers", () => {
     refunds_on_cancel: [],
     cancel_authorization_required: false,
     adjust_authorization_required: false,
+    sale_discount_authorization_required: false,
+    subtotal: 3000,
+    sale_discount: null,
+    sale_discount_refusal: null,
   };
 
   it.each([
-    { kind: "added", sale, removed_manual_discount: false },
+    { kind: "added", sale, removed_manual_discount: false, removed_sale_discount: false },
     { kind: "unknown_code" },
     { kind: "no_price", product_name: "Yerba" },
     { kind: "sale_has_payments" },
@@ -768,6 +772,140 @@ describe("previewing a sale line adjustment", () => {
   });
 });
 
+describe("applying a discount on the sale's total", () => {
+  const apply = {
+    type: "apply-sale-discount",
+    request_id: REQUEST_ID,
+    discount: { kind: "PERCENT", value: 10 },
+    reason: "Cliente frecuente",
+  };
+
+  it.each([
+    { kind: "PERCENT", value: 1 },
+    { kind: "PERCENT", value: 100 },
+    { kind: "AMOUNT", value: 1 },
+    { kind: "AMOUNT", value: 25_000 },
+  ])("accepts the discount $kind of $value", (discount) => {
+    const message = { ...apply, discount };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts the discount authorized with another person's PIN", () => {
+    const authorized = { ...apply, authorization: { user_id: "u2", pin: "1234" } };
+
+    expect(salesRendererToCoreMessageSchema.parse(authorized)).toEqual(authorized);
+  });
+
+  it("hands the core the reason without the spaces around it", () => {
+    expect(
+      salesRendererToCoreMessageSchema.parse({ ...apply, reason: "  Cliente frecuente \n" }),
+    ).toEqual(apply);
+  });
+
+  it.each([
+    ["a percent of zero", { discount: { kind: "PERCENT", value: 0 } }],
+    ["a percent above 100", { discount: { kind: "PERCENT", value: 101 } }],
+    ["a fractional percent", { discount: { kind: "PERCENT", value: 10.5 } }],
+    ["an amount of zero", { discount: { kind: "AMOUNT", value: 0 } }],
+    ["a negative amount", { discount: { kind: "AMOUNT", value: -5 } }],
+    ["a fractional amount", { discount: { kind: "AMOUNT", value: 5.5 } }],
+    ["a price", { discount: { kind: "PRICE", value: 100 } }],
+    ["a kind it does not know", { discount: { kind: "FREE", value: 10 } }],
+    ["a discount without a value", { discount: { kind: "PERCENT" } }],
+    ["no discount", { discount: undefined }],
+    ["no reason", { reason: undefined }],
+    ["an empty reason", { reason: "" }],
+    ["a reason of spaces", { reason: "   " }],
+    ["no request id", { request_id: undefined }],
+    ["an authorization missing the PIN", { authorization: { user_id: "u2" } }],
+  ])("rejects a discount with %s", (_case, change) => {
+    expect(salesRendererToCoreMessageSchema.safeParse({ ...apply, ...change }).success).toBe(false);
+  });
+
+  it("accepts the answer to the discount", () => {
+    const message = {
+      type: "apply-sale-discount-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "discount_exceeds_sale" },
+    };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects an answer with an outcome it does not know", () => {
+    expect(
+      salesCoreToRendererMessageSchema.safeParse({
+        type: "apply-sale-discount-result",
+        request_id: REQUEST_ID,
+        outcome: { kind: "somewhere_else" },
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("previewing a discount on the sale's total", () => {
+  const preview = {
+    type: "preview-sale-discount",
+    request_id: REQUEST_ID,
+    discount: { kind: "AMOUNT", value: 500 },
+  };
+
+  it.each([
+    { kind: "PERCENT", value: 1 },
+    { kind: "PERCENT", value: 100 },
+    { kind: "AMOUNT", value: 1 },
+    { kind: "AMOUNT", value: 25_000 },
+  ])("accepts the discount $kind of $value", (discount) => {
+    const message = { ...preview, discount };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    ["a percent of zero", { discount: { kind: "PERCENT", value: 0 } }],
+    ["a percent above 100", { discount: { kind: "PERCENT", value: 101 } }],
+    ["an amount of zero", { discount: { kind: "AMOUNT", value: 0 } }],
+    ["a price", { discount: { kind: "PRICE", value: 100 } }],
+    ["no discount", { discount: undefined }],
+    ["no request id", { request_id: undefined }],
+  ])("rejects a preview with %s", (_case, change) => {
+    expect(salesRendererToCoreMessageSchema.safeParse({ ...preview, ...change }).success).toBe(
+      false,
+    );
+  });
+
+  it("asks for no reason and no authorization", () => {
+    const message = {
+      ...preview,
+      reason: "Cliente frecuente",
+      authorization: { user_id: "u2", pin: "1234" },
+    };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(preview);
+  });
+
+  it("accepts the answer to the preview", () => {
+    const message = {
+      type: "preview-sale-discount-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "preview", subtotal: 3000, discount_amount: 500, total: 2500 },
+    };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects an answer with an outcome it does not know", () => {
+    expect(
+      salesCoreToRendererMessageSchema.safeParse({
+        type: "preview-sale-discount-result",
+        request_id: REQUEST_ID,
+        outcome: { kind: "somewhere_else" },
+      }).success,
+    ).toBe(false);
+  });
+});
+
 describe("sale line answers", () => {
   const sale = {
     id: "s1",
@@ -781,29 +919,45 @@ describe("sale line answers", () => {
     refunds_on_cancel: [],
     cancel_authorization_required: false,
     adjust_authorization_required: false,
+    sale_discount_authorization_required: false,
+    subtotal: 3000,
+    sale_discount: null,
+    sale_discount_refusal: null,
   };
 
   it.each([
-    ["change-line-quantity-result", { kind: "changed", sale, removed_manual_discount: false }],
+    [
+      "change-line-quantity-result",
+      { kind: "changed", sale, removed_manual_discount: false, removed_sale_discount: false },
+    ],
     ["change-line-quantity-result", { kind: "unknown_line" }],
     ["change-line-quantity-result", { kind: "stale_quantity" }],
     ["change-line-quantity-result", { kind: "sale_has_payments" }],
     ["change-line-quantity-result", { kind: "sold_by_weight" }],
-    ["change-line-weight-result", { kind: "changed", sale, removed_manual_discount: false }],
+    [
+      "change-line-weight-result",
+      { kind: "changed", sale, removed_manual_discount: false, removed_sale_discount: false },
+    ],
     ["change-line-weight-result", { kind: "stale_weight" }],
     ["change-line-weight-result", { kind: "invalid_weight" }],
     ["change-line-weight-result", { kind: "not_sold_by_weight" }],
     ["change-line-weight-result", { kind: "sale_has_payments" }],
-    ["add-weighed-product-result", { kind: "added", sale, removed_manual_discount: false }],
+    [
+      "add-weighed-product-result",
+      { kind: "added", sale, removed_manual_discount: false, removed_sale_discount: false },
+    ],
     ["add-weighed-product-result", { kind: "invalid_weight" }],
     ["add-weighed-product-result", { kind: "not_sold_by_weight" }],
     ["add-weighed-product-result", { kind: "product_unavailable" }],
     ["add-weighed-product-result", { kind: "no_price", product_name: "Queso" }],
-    ["weigh-product-result", { kind: "added", sale, removed_manual_discount: false }],
+    [
+      "weigh-product-result",
+      { kind: "added", sale, removed_manual_discount: false, removed_sale_discount: false },
+    ],
     ["weigh-product-result", { kind: "weighing" }],
     ["weigh-product-result", { kind: "scale_unavailable" }],
     ["weigh-product-result", { kind: "not_sold_by_weight" }],
-    ["remove-sale-line-result", { kind: "removed", sale }],
+    ["remove-sale-line-result", { kind: "removed", sale, removed_sale_discount: false }],
     ["remove-sale-line-result", { kind: "no_open_sale" }],
     ["remove-sale-line-result", { kind: "sale_has_payments" }],
     ["cancel-sale-result", { kind: "cancelled" }],
@@ -1046,6 +1200,7 @@ describe("asking how a sale's receipt print stands", () => {
       "retry_offered",
       "printer_not_configured",
       "failed",
+      "withdrawn",
       "printed",
     ].map((standing) => ({
       kind: "found",

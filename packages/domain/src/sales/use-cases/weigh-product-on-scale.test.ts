@@ -28,6 +28,7 @@ const OPEN_SALE: SaleWithLines = {
   sessionId: "session-1",
   actorId: "cashier",
   state: "OPEN",
+  saleDiscount: null,
   lines: [],
 };
 const PAYMENT: SalePayment = {
@@ -111,6 +112,7 @@ describe("weighProductOnScale", () => {
     expect(outcome).toEqual({
       kind: "added",
       removedManualDiscount: false,
+      removedSaleDiscount: false,
       sale,
       balance: { paid: 0, pending: 11250 },
       linesLock: null,

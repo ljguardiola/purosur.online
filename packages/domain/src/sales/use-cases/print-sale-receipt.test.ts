@@ -148,6 +148,40 @@ describe("printSaleReceipt", () => {
     });
   });
 
+  describe("a print withdrawn from the printer", () => {
+    it("answers withdrawn and records nothing as printed", async () => {
+      const rig = receiptRig();
+
+      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      await rig.printer.whenSent();
+      rig.printer.withdraw();
+      const outcome = await printing;
+
+      expect(outcome).toEqual({ kind: "withdrawn", copy: { kind: "original" } });
+      expect(rig.ledger.transactions).toBe(1);
+      expect(rig.ledger.state.sales[0]?.printedAt).toBeNull();
+      expect(rig.ledger.state.sales[0]?.printAttemptedAt).toEqual(FIRST_PRINT_AT);
+      expect(rig.ledger.state.outbox).toHaveLength(1);
+    });
+
+    it("goes out as the next duplicate when printed again", async () => {
+      const rig = receiptRig();
+      const first = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      await rig.printer.whenSent();
+      rig.printer.withdraw();
+      await first;
+
+      const second = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      await rig.printer.whenSent(2);
+      rig.printer.acknowledge();
+
+      expect(await second).toEqual({
+        kind: "printed",
+        copy: { kind: "duplicate", orderNumber: 1 },
+      });
+    });
+  });
+
   describe("a retry after an attempt that was never acknowledged", () => {
     const attempted = completedSale({ printAttemptedAt: FIRST_PRINT_AT });
 

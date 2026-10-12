@@ -105,7 +105,14 @@ export function PendingRefundsScreen({
     dataColumn({
       id: "method",
       header: "Medio",
-      render: (refund: PendingRefund) => refundMethodLabel(refund.method),
+      render: (refund: PendingRefund) =>
+        refund.provider_order_id === null ? (
+          refundMethodLabel(refund.method)
+        ) : (
+          <TableCellText description={`Orden ${refund.provider_order_id}`}>
+            {refundMethodLabel(refund.method)}
+          </TableCellText>
+        ),
     }),
     dataColumn({
       id: "amount",

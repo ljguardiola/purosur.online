@@ -410,6 +410,11 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
   if (alert.kind === "sales_denied") {
     return <LocalAlertExplanation kind={alert.kind} reason={alert.detail.reason} />;
   }
+  if (alert.kind === "late_payment_refund") {
+    return (
+      <LocalAlertExplanation kind={alert.kind} providerOrderId={alert.detail.providerOrderId} />
+    );
+  }
   return <LocalAlertExplanation kind={alert.kind} />;
 }
 

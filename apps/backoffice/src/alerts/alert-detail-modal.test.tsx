@@ -1472,7 +1472,7 @@ test("tells a refund owed for a QR payment that arrived late: what it means, wha
         scopeDisplay: "refund-1",
         scopeKind: "refund",
         closing: "with_its_refund",
-        detail: { saleId: "sale-1", amount: 250_000 },
+        detail: { saleId: "sale-1", amount: 250_000, providerOrderId: null },
       }),
     ),
   );
@@ -1509,4 +1509,28 @@ test("tells a refund owed for a QR payment that arrived late: what it means, wha
     .toBeVisible();
   await expect.element(screen.getByText("Tarea de reembolso", { exact: true })).toBeVisible();
   expect(screen.getByText(/refund-1/).query()).toBeNull();
+});
+
+test("tells a refund owed for a second paid order of a sale's QR that the QR was paid twice, naming that order", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "late_payment_refund",
+        level: "warning",
+        audience: "local",
+        scope: "refund-1",
+        scopeDisplay: "refund-1",
+        scopeKind: "refund",
+        closing: "with_its_refund",
+        detail: { saleId: "sale-1", amount: 250_000, providerOrderId: "ORD01SECOND" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText(/El QR de una venta se pagó dos veces/)).toBeVisible();
+  await expect.element(screen.getByText(/ORD01SECOND/)).toBeVisible();
+  expect(screen.getByText(/por otro medio/).query()).toBeNull();
 });

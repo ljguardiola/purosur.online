@@ -58,7 +58,8 @@ export type LocalAlertKind = keyof typeof FIXED_LOCAL_ALERT_TEXTS | "sales_denie
 
 export type LocalAlertSubject =
   | { kind: "sales_denied"; reason: LocalSalesDeniedReason }
-  | { kind: Exclude<LocalAlertKind, "sales_denied">; reason?: undefined };
+  | { kind: "late_payment_refund"; providerOrderId: string | null; reason?: undefined }
+  | { kind: Exclude<LocalAlertKind, "sales_denied" | "late_payment_refund">; reason?: undefined };
 
 export function isLocalAlertKind(value: string): value is LocalAlertKind {
   return value === "sales_denied" || Object.hasOwn(FIXED_LOCAL_ALERT_TEXTS, value);
@@ -71,8 +72,19 @@ export function localAlertTitle(kind: string): string | undefined {
   return kind === "sales_denied" ? SALES_DENIED_TITLE : FIXED_LOCAL_ALERT_TEXTS[kind].title;
 }
 
+function secondPaidOrderText(providerOrderId: string): LocalAlertText {
+  return {
+    ...FIXED_LOCAL_ALERT_TEXTS.late_payment_refund,
+    meaning: `El QR de una venta se pagó dos veces; el pago de más es el de la orden ${providerOrderId} de Mercado Pago.`,
+  };
+}
+
 export function localAlertText(subject: LocalAlertSubject): LocalAlertText {
-  return subject.kind === "sales_denied"
-    ? SALES_DENIED_TEXTS[subject.reason]
-    : FIXED_LOCAL_ALERT_TEXTS[subject.kind];
+  if (subject.kind === "sales_denied") {
+    return SALES_DENIED_TEXTS[subject.reason];
+  }
+  if (subject.kind === "late_payment_refund" && subject.providerOrderId !== null) {
+    return secondPaidOrderText(subject.providerOrderId);
+  }
+  return FIXED_LOCAL_ALERT_TEXTS[subject.kind];
 }

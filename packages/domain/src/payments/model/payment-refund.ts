@@ -81,6 +81,7 @@ export function isRefundDiscardable(origin: string): boolean {
 
 export interface LatePaymentRefund extends PlannedRefund {
   origin: typeof LATE_PAYMENT_REFUND_ORIGIN;
+  providerOrderId: string | null;
 }
 
 export function latePaymentRefund(
@@ -93,6 +94,18 @@ export function latePaymentRefund(
     amount: payment.amount,
     state: REFUND_PENDING_STATE,
     origin: LATE_PAYMENT_REFUND_ORIGIN,
+    providerOrderId: null,
+  };
+}
+
+export function latePaymentRefundOfUnrecordedOrder(
+  payment: Pick<RefundablePayment, "id" | "method" | "provider" | "amount">,
+  providerOrderId: string,
+  paidAmount: number,
+): LatePaymentRefund {
+  return {
+    ...latePaymentRefund({ ...payment, amount: paidAmount }),
+    providerOrderId,
   };
 }
 

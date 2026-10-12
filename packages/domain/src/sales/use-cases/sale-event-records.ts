@@ -1,6 +1,11 @@
 import type { JsonValue } from "../../shared/index.js";
 import type { ManualAdjustment } from "../model/manual-adjustment.js";
 import type { LinePromotion, SaleLine } from "../model/sale.js";
+import {
+  appliedSaleDiscountAmount,
+  type SaleDiscount,
+  type SettledSaleLine,
+} from "../model/sale-discount.js";
 import type { SaleCashMovement, SaleStockMovement } from "./sale-ledger.js";
 
 function frozenPromotion({ id, benefit }: LinePromotion): JsonValue {
@@ -51,7 +56,24 @@ function manualAdjustmentRecord(adjustment: ManualAdjustment | null): JsonValue 
   }
 }
 
-export function saleLineRecord(line: SaleLine): JsonValue {
+export function saleDiscountRecord(sale: {
+  lines: readonly SaleLine[];
+  saleDiscount: SaleDiscount | null;
+}): JsonValue {
+  const { saleDiscount } = sale;
+  if (saleDiscount === null) {
+    return null;
+  }
+  return {
+    kind: saleDiscount.kind,
+    value: saleDiscount.kind === "PERCENT" ? saleDiscount.percent : saleDiscount.amount,
+    amount: appliedSaleDiscountAmount(sale),
+    reason: saleDiscount.reason,
+    authorized_by: saleDiscount.authorizedBy,
+  };
+}
+
+export function saleLineRecord(line: SettledSaleLine): JsonValue {
   return {
     id: line.id,
     product_id: line.productId,
@@ -64,6 +86,7 @@ export function saleLineRecord(line: SaleLine): JsonValue {
     promotion_id: line.promotionId,
     discount_amount: line.discountAmount,
     promotions: line.promotions.map(frozenPromotion),
+    sale_discount_share: line.saleDiscountShare,
     line_total: line.lineTotal,
   };
 }

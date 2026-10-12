@@ -3,6 +3,7 @@ import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
+  ApplySaleDiscountOutcome,
   Authorization,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
@@ -27,6 +28,7 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -38,6 +40,7 @@ import type {
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
   RetryReceiptPrintOutcome,
+  SaleDiscountRequest,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
   ScanProductOutcome,
@@ -193,6 +196,12 @@ export interface RouterContext {
     lineId: string,
     adjustment: ManualAdjustmentRequest,
   ) => Promise<PreviewSaleLineAdjustmentOutcome>;
+  applySaleDiscount: (
+    discount: SaleDiscountRequest,
+    reason: string,
+    authorization: Authorization | undefined,
+  ) => Promise<ApplySaleDiscountOutcome>;
+  previewSaleDiscount: (discount: SaleDiscountRequest) => Promise<PreviewSaleDiscountOutcome>;
   removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
   cancelSale: () => Promise<CancelSaleOutcome>;
   cancelPaidSale: (
@@ -408,20 +417,27 @@ const receiptPrinterRoute = createRoute({
   getParentRoute: () => statusBarRoute,
   path: "/receipt-printer",
   beforeLoad: ({ context }) => {
-    const person = requireSignedInPerson(context);
+    const { person, sessionOpen } = requireSignedInPersonAnywhere(context);
     if (!person.abilities.includes("configure_receipt_printer")) {
-      throw redirect({ to: "/" });
+      throw redirect({ to: routeFor(context) });
     }
-    return { person };
+    return { person, sessionOpen };
   },
   component: function ReceiptPrinterRoute() {
-    const { person, signOut, readReceiptPrinter, setReceiptPrinter, refreshCashSession } =
-      receiptPrinterRoute.useRouteContext();
+    const {
+      person,
+      sessionOpen,
+      signOut,
+      readReceiptPrinter,
+      setReceiptPrinter,
+      refreshCashSession,
+    } = receiptPrinterRoute.useRouteContext();
     const registerName = useRegisterName();
     return (
       <ReceiptPrinterScreen
         person={person}
         registerName={registerName}
+        sessionOpen={sessionOpen}
         entries={ACTION_ENTRIES}
         signOut={signOut}
         readReceiptPrinter={readReceiptPrinter}
@@ -437,15 +453,21 @@ const serialDevicesRoute = createRoute({
   path: "/serial-devices",
   validateSearch: (search: { offered?: unknown }) => ({ offered: search.offered === true }),
   beforeLoad: ({ context }) => {
-    const person = requireSignedInPerson(context);
+    const { person, sessionOpen } = requireSignedInPersonAnywhere(context);
     if (!mayConfigureSerialDevices(person)) {
-      throw redirect({ to: "/" });
+      throw redirect({ to: routeFor(context) });
     }
-    return { person };
+    return { person, sessionOpen };
   },
   component: function SerialDevicesRoute() {
-    const { person, signOut, readSerialDevices, registerSerialDevices, refreshCashSession } =
-      serialDevicesRoute.useRouteContext();
+    const {
+      person,
+      sessionOpen,
+      signOut,
+      readSerialDevices,
+      registerSerialDevices,
+      refreshCashSession,
+    } = serialDevicesRoute.useRouteContext();
     const { offered } = serialDevicesRoute.useSearch();
     const registerName = useRegisterName();
     const navigate = serialDevicesRoute.useNavigate();
@@ -453,6 +475,7 @@ const serialDevicesRoute = createRoute({
       <SerialDevicesScreen
         person={person}
         registerName={registerName}
+        sessionOpen={sessionOpen}
         entries={ACTION_ENTRIES}
         signOut={signOut}
         readSerialDevices={readSerialDevices}
@@ -486,6 +509,8 @@ const openSessionRoute = createRoute({
       changeLineWeight,
       adjustSaleLine,
       previewSaleLineAdjustment,
+      applySaleDiscount,
+      previewSaleDiscount,
       removeSaleLine,
       cancelSale,
       cancelPaidSale,
@@ -509,6 +534,8 @@ const openSessionRoute = createRoute({
         changeLineWeight={changeLineWeight}
         adjustSaleLine={adjustSaleLine}
         previewSaleLineAdjustment={previewSaleLineAdjustment}
+        applySaleDiscount={applySaleDiscount}
+        previewSaleDiscount={previewSaleDiscount}
         removeSaleLine={removeSaleLine}
         cancelSale={cancelSale}
         cancelPaidSale={cancelPaidSale}
@@ -895,6 +922,8 @@ export function createAppRouter(
     | "changeLineWeight"
     | "adjustSaleLine"
     | "previewSaleLineAdjustment"
+    | "applySaleDiscount"
+    | "previewSaleDiscount"
     | "removeSaleLine"
     | "cancelSale"
     | "cancelPaidSale"

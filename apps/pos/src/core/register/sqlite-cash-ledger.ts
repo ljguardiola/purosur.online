@@ -206,7 +206,7 @@ export class SqliteCashLedger implements CashLedger {
 
   private openSale(sessionId: string): OpenSale | undefined {
     const sale = readOpenSale(this.database, sessionId);
-    return sale && { lines: sale.lines };
+    return sale && { lines: sale.lines, saleDiscount: sale.saleDiscount };
   }
 
   private appendOutboxEvent(draft: OutboxEventDraft): void {

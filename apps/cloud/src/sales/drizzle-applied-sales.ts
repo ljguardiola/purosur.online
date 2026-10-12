@@ -1,4 +1,4 @@
-import type { ManualAdjustment } from "@purosur/domain";
+import type { ManualAdjustment, SaleDiscount } from "@purosur/domain";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
@@ -34,6 +34,25 @@ function manualAdjustmentColumns(adjustment: ManualAdjustment | null) {
     case "AMOUNT":
       return { ...columns, manualAdjustmentValue: adjustment.amount };
   }
+}
+
+function saleDiscountColumns(discount: SaleDiscount | null, amount: number) {
+  if (discount === null) {
+    return {
+      saleDiscountKind: null,
+      saleDiscountValue: null,
+      saleDiscountAmount: null,
+      saleDiscountReason: null,
+      saleDiscountAuthorizedBy: null,
+    };
+  }
+  return {
+    saleDiscountKind: discount.kind,
+    saleDiscountValue: discount.kind === "PERCENT" ? discount.percent : discount.amount,
+    saleDiscountAmount: amount,
+    saleDiscountReason: discount.reason,
+    saleDiscountAuthorizedBy: discount.authorizedBy,
+  };
 }
 
 async function recordSaleParts<TQueryResult extends PgQueryResultHKT>(
@@ -84,9 +103,17 @@ export async function recordAppliedSale<TQueryResult extends PgQueryResultHKT>(
     payments: _payments,
     cashMovements: _movements,
     stockMovements: _stockMovements,
+    saleDiscount,
+    saleDiscountAmount,
     ...header
   } = sale;
-  await tx.insert(sales).values({ ...origin, ...header, state: "COMPLETED", appliedAt });
+  await tx.insert(sales).values({
+    ...origin,
+    ...header,
+    ...saleDiscountColumns(saleDiscount, saleDiscountAmount),
+    state: "COMPLETED",
+    appliedAt,
+  });
   await recordSaleParts(tx, sale, null);
 }
 
@@ -102,6 +129,7 @@ export async function recordAppliedCancelledSale<TQueryResult extends PgQueryRes
     sessionId: sale.sessionId,
     actorId: sale.actorId,
     total: sale.total,
+    ...saleDiscountColumns(sale.saleDiscount, sale.saleDiscountAmount),
     state: "CANCELLED",
     cancelledAt: sale.cancelledAt,
     cancellationAuthorizedBy: sale.authorizedBy,

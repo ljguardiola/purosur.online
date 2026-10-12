@@ -51,6 +51,10 @@ export class FakeReceiptPrinter implements ReceiptPrinter {
     this.end({ kind: "abandoned" });
   }
 
+  withdraw(): void {
+    this.end({ kind: "withdrawn" });
+  }
+
   private lastWatch(): ReceiptPrintWatch {
     const last = this.sent.at(-1);
     if (last === undefined) {

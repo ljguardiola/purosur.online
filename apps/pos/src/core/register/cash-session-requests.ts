@@ -12,6 +12,7 @@ import type {
   SignInUser,
 } from "@purosur/contracts";
 import {
+  amountToCharge,
   type ClosedCashSession,
   cashBreakdown,
   cashCountDifference,
@@ -20,7 +21,6 @@ import {
   type OpenedCashSession,
   openSaleStanding,
   registerAbilities,
-  saleTotal,
 } from "@purosur/domain";
 import {
   type Clock,
@@ -260,7 +260,7 @@ export function sessionOpenSaleFor(database: LocalDatabase, now: Date): SessionO
   if (!sale) {
     return null;
   }
-  const total = saleTotal(sale.lines);
+  const total = amountToCharge(sale);
   const standing = openSaleStanding(
     total,
     readSalePayments(database, sale.id),
