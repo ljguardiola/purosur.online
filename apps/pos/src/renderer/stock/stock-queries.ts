@@ -9,7 +9,7 @@ import { coreQueryOptions, useCoreQuery } from "../platform/use-core-query";
 
 const stockKey = ["stock"] as const;
 
-export const stockKeys = {
+const stockKeys = {
   initialCount: [...stockKey, "initial-count"] as const,
   countableSearch: (query: string) => [...stockKey, "countable-search", query] as const,
 };

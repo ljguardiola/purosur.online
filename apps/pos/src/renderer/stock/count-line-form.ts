@@ -3,7 +3,7 @@ import type { SaleUnit } from "@purosur/domain";
 import type { DateFieldProps } from "@purosur/ui";
 import { parseEsArNumber } from "@purosur/ui";
 
-export type ExpiryDay = NonNullable<DateFieldProps["value"]>;
+type ExpiryDay = NonNullable<DateFieldProps["value"]>;
 
 export type CountLineFormValues = { counted: string; expiresOn: ExpiryDay | null };
 
