@@ -1,3 +1,4 @@
+import type { FiscalUnknownAlertKey } from "@purosur/domain";
 import {
   type AbandonedRequestRecord,
   FiscalDocumentAlreadyRecorded,
@@ -10,8 +11,10 @@ import {
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { openAlertCondition } from "../alerts/open-alert-condition.js";
+import { resolveAlert } from "../alerts/resolve-alert.js";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
-import { fiscalRequests, registerPointsOfSale } from "../platform/db/schema.js";
+import { alerts, fiscalRequests, registerPointsOfSale } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import type { EnqueueUnclearOutcome } from "./enqueue-unclear-outcome.js";
 import { answerOf } from "./fiscal-request-answer.js";
@@ -97,11 +100,27 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
     fiscalDocumentId: string,
     decision: UnclearOutcomeDecision,
     decidedAt: Date,
+    resolvedAlert: FiscalUnknownAlertKey,
   ): Promise<void> {
-    await this.db
-      .update(fiscalRequests)
-      .set({ ...decisionColumnsOf(decision), decidedAt })
-      .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(fiscalRequests)
+        .set({ ...decisionColumnsOf(decision), decidedAt })
+        .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
+      const [open] = await tx
+        .select({ id: alerts.id })
+        .from(alerts)
+        .where(
+          and(
+            eq(alerts.kind, resolvedAlert.kind),
+            eq(alerts.scope, resolvedAlert.scope),
+            openAlertCondition(),
+          ),
+        );
+      if (open !== undefined) {
+        await resolveAlert(tx, open.id, { now: () => decidedAt });
+      }
+    });
   }
 
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {

@@ -203,6 +203,7 @@ describe("alertDetailSchema", () => {
       AlertDetails["late_payment_refund"]
     >();
     expectTypeOf<WireDetail<"refund_task">>().toEqualTypeOf<AlertDetails["refund_task"]>();
+    expectTypeOf<WireDetail<"fiscal_unknown">>().toEqualTypeOf<AlertDetails["fiscal_unknown"]>();
     expectTypeOf<WireDetail<"offline_authorization_code_missing">>().toExtend<
       AlertDetails["offline_authorization_code_missing"]
     >();
@@ -348,6 +349,14 @@ describe("alertDetailSchema", () => {
         method: "TRANSFER",
         refundOpenedAt: "2026-10-05T12:00:00.000Z",
       },
+      fiscal_unknown: {
+        fiscalDocumentId: "document-1",
+        saleId: "sale-1",
+        registerId: "register-1",
+        pointOfSale: 12,
+        number: 41,
+        unclearSince: "2026-10-05T12:00:00.000Z",
+      },
     } satisfies Record<AlertKind, unknown>;
 
     it.each(ALERT_KINDS)("accepts the detail of %s", (kind) => {
@@ -365,6 +374,22 @@ describe("alertDetailSchema", () => {
       const { [field]: _omitted, ...detail } = detailOf[kind] as Record<string, unknown>;
 
       expect(alertDetailSchema.safeParse({ ...base, kind, detail }).success).toBe(false);
+    });
+
+    it.each([
+      ["a fractional point of sale", { pointOfSale: 1.5 }],
+      ["a fractional number", { number: 41.5 }],
+      ["a point of sale as text", { pointOfSale: "12" }],
+      ["an unclear moment as a number", { unclearSince: 1 }],
+      ["a sale that is not text", { saleId: 1 }],
+    ])("refuses an unclear-outcome alert with %s", (_case, change) => {
+      const alert = {
+        ...base,
+        kind: "fiscal_unknown",
+        detail: { ...detailOf.fiscal_unknown, ...change },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
     });
 
     it("accepts a late payment refund alert that names no order", () => {

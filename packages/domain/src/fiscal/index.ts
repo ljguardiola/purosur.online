@@ -107,5 +107,6 @@ export {
 export {
   awaitsUnclearOutcomeDecision,
   UNCLEAR_ANSWER_KINDS,
+  unclearOutcomeSince,
 } from "./model/unclear-outcome-decision.js";
 export { isWsaaTokenValid, WSAA_ALREADY_AUTHENTICATED_RETRY_MS } from "./model/wsaa-token.js";
