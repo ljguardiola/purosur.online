@@ -1,4 +1,4 @@
-export type LocalDatabaseVersion = "known" | "newer_than_version";
+type LocalDatabaseVersion = "known" | "newer_than_version";
 
 export function localDatabaseVersionOf({
   applied,
