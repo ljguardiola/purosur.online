@@ -1,5 +1,5 @@
 import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { openSession } from "../sessions/test-support/open-session";
@@ -11,8 +11,6 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 opensOnlyScreens(["/", "/account", "/fiscal-settings", "/help", "/points-of-sale"]);
 
 beforeEach(resetPageState);
-
-afterEach(resetPageState);
 
 test("shows the Caja item in the rail for a user holding change_fiscal_configuration, linking to Puntos de venta", async () => {
   const services = createAppServices({

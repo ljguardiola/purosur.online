@@ -1,11 +1,15 @@
 import type { ProductSummary } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { PrintLabelsModal, type PrintLabelsModalServices } from "./print-labels-modal";
 import { almonds, honey } from "./test-support/products";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 // Both barcodes are valid check-digit values in the GS1 restricted-circulation range.
 const honeyWithInternalBarcode: ProductSummary = {
@@ -536,7 +540,6 @@ test("navigates to Mi cuenta when printing comes back forbidden", async () => {
   await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("cancel closes the print labels modal without calling the API", async () => {

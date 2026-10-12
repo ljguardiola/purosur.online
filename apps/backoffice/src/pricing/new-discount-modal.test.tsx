@@ -29,6 +29,7 @@ import {
 // A modal panel is centered by a fixed-position overlay that never grows the document's scroll
 // area, so a control past its clipped edge can't be scrolled into view at the default viewport.
 beforeEach(async () => {
+  window.history.pushState(null, "", "/");
   await page.viewport(1280, 1100);
 });
 
@@ -392,7 +393,6 @@ test("sends the user to Mi cuenta when the cloud refuses the permission", async 
   await userEvent.click(dialog.getByRole("button", { name: "Crear la promoción" }));
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("shows the rate-limited notice with the time to wait", async () => {

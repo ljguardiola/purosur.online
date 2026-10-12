@@ -1,11 +1,15 @@
 import type { TagSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { TagReload } from "./catalog-queries";
 import { EditTagModal, type EditTagModalServices } from "./edit-tag-modal";
 import { organico, sinTacc } from "./test-support/tags";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 function renderModal({
   target = sinTacc,
@@ -216,7 +220,6 @@ test("navigates to Mi cuenta when saving comes back forbidden", async () => {
   await save(screen);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("cancel closes the modal without calling the API", async () => {
