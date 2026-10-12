@@ -149,4 +149,22 @@ describe("PaymentPanel", () => {
       .element(screen.getByRole("button", { name: "Aplicar descuento al total" }))
       .toBeDisabled();
   });
+
+  it("offers no discount on the total while the sale loads", async () => {
+    const screen = await renderPanel({ saleStatus: "loading", canDiscount: false });
+
+    await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Aplicar descuento al total" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("offers no discount on the total once the sale cannot be read", async () => {
+    const screen = await renderPanel({ saleStatus: "failed", canDiscount: false });
+
+    await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Aplicar descuento al total" }))
+      .not.toBeInTheDocument();
+  });
 });

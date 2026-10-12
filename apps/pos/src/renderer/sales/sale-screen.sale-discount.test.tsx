@@ -63,6 +63,9 @@ describe("SaleScreen showing the discount on the total", () => {
 
     await expect.element(screen.getByText("Cargando…").first()).toBeInTheDocument();
     await expect.element(screen.getByText("Sin aplicar")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: OPEN_DISCOUNT }))
+      .not.toBeInTheDocument();
   });
 
   it("says nothing of the discount on the total once the sale cannot be read", async () => {
@@ -72,6 +75,9 @@ describe("SaleScreen showing the discount on the total", () => {
 
     await expect.element(screen.getByText("No se pudo cargar la venta")).toBeVisible();
     await expect.element(screen.getByText("Sin aplicar")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: OPEN_DISCOUNT }))
+      .not.toBeInTheDocument();
   });
 
   it("offers the discount only once the sale has a line that can change", async () => {
