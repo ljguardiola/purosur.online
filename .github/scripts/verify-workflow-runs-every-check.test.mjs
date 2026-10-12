@@ -847,7 +847,28 @@ test("reports a workflow that does not parse as YAML", () => {
 });
 
 const POSTGRES_DIGEST = "sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873";
-const PINNED_POSTGRES_IMAGE = `public.ecr.aws/docker/library/postgres:18-alpine@${POSTGRES_DIGEST}`;
+const PINNED_POSTGRES_IMAGE = `ghcr.io/ljguardiola/postgres:18-alpine@${POSTGRES_DIGEST}`;
+const ECR_POSTGRES_IMAGE = `public.ecr.aws/docker/library/postgres:18-alpine@${POSTGRES_DIGEST}`;
+const GITHUB_TOKEN = `\${{ github.token }}`;
+const SIGN_IN_TO_GHCR =
+  'echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin';
+const LOOK_UP_MIRROR_LINES = [
+  'echo "$GITHUB_TOKEN" | skopeo login ghcr.io --username "$GITHUB_ACTOR" --password-stdin',
+  `if timeout 60 skopeo inspect --raw "docker://\${POSTGRES_IMAGE%%:*}@\${POSTGRES_IMAGE#*@}" > /dev/null; then`,
+  '  echo "mirrored=true" >> "$GITHUB_OUTPUT"',
+  "else",
+  '  echo "mirrored=false" >> "$GITHUB_OUTPUT"',
+  "fi",
+];
+const COPY_MIRROR_LINES = [
+  'echo "$GITHUB_TOKEN" | skopeo login ghcr.io --username "$GITHUB_ACTOR" --password-stdin',
+  "for delay in 0 15 30 60; do",
+  '  sleep "$delay"',
+  `  timeout 300 skopeo copy --all --preserve-digests "docker://\${SOURCE_IMAGE%%:*}@\${SOURCE_IMAGE#*@}" "docker://\${POSTGRES_IMAGE%@*}" && exit 0`,
+  "done",
+  "exit 1",
+];
+const COPY_CONDITION = `\${{ needs.postgres-image.outputs.mirrored == 'false' }}`;
 const PLAYWRIGHT_DIGEST = "sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27";
 const PINNED_PLAYWRIGHT_IMAGE = `mcr.microsoft.com/playwright:v1.63.0-noble@${PLAYWRIGHT_DIGEST}`;
 const INSTALLED_PLAYWRIGHT_VERSION = "1.63.0";
@@ -870,15 +891,9 @@ const PRE_PULLED_IMAGES = [
     testsScript: "verify:tests",
     constant: "POSTGRES_IMAGE",
     image: PINNED_POSTGRES_IMAGE,
-    tagOnly: "public.ecr.aws/docker/library/postgres:18-alpine",
-    dockerHubImages: [
-      `postgres:18-alpine@${POSTGRES_DIGEST}`,
-      `library/postgres:18-alpine@${POSTGRES_DIGEST}`,
-      `docker.io/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
-      `index.docker.io/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
-      `registry-1.docker.io/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
-      `registry.hub.docker.com/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
-    ],
+    tagOnly: "ghcr.io/ljguardiola/postgres:18-alpine",
+    dockerHubImages: [],
+    mirroredOnGhcr: true,
     findViolations: (workflowSource, setupSource) =>
       findCloudPostgresImageViolations(workflowSource, setupSource),
   },
@@ -935,8 +950,12 @@ function jobWithPull(
     pullAfterTests = false,
     pullStepExtra = [],
     testsEnv = { TESTCONTAINERS_RYUK_DISABLED: '"true"' },
+    mirror = {},
   } = {},
 ) {
+  const mirrorLines = spec.mirroredOnGhcr
+    ? ghcrMirrorLines({ mirroredImage: spec.image, ...mirror })
+    : {};
   const pullStep = [
     `      - name: Pull ${spec.label}`,
     ...pullStepExtra.map((line) => `        ${line}`),
@@ -953,12 +972,73 @@ function jobWithPull(
   ];
   return [
     "jobs:",
+    ...(mirrorLines.jobs ?? []),
     `  ${spec.job}:`,
+    ...(mirrorLines.testsJobHeader ?? []),
     "    runs-on: ubuntu-24.04",
     "    steps:",
     "      - run: pnpm install --frozen-lockfile",
+    ...(mirrorLines.signInStep ?? []),
     ...(pullAfterTests ? [...testsStep, ...pullStep] : [...pullStep, ...testsStep]),
   ].join("\n");
+}
+
+function ghcrMirrorLines({
+  mirroredImage,
+  sourceImage = ECR_POSTGRES_IMAGE,
+  lookupPermissions = ["packages: read"],
+  lookupLines = LOOK_UP_MIRROR_LINES,
+  lookupOutput = `\${{ steps.mirror.outputs.mirrored }}`,
+  copyCondition = COPY_CONDITION,
+  copyPermissions = ["packages: write"],
+  copyLines = COPY_MIRROR_LINES,
+  testsNeeds = ["scope", "postgres-image", "postgres-image-copy"],
+  testsPermissions = ["contents: read", "packages: read"],
+  signIn = SIGN_IN_TO_GHCR,
+  signInToken = GITHUB_TOKEN,
+}) {
+  const block = (indent, lines) => lines.map((line) => `${" ".repeat(indent)}${line}`);
+  return {
+    jobs: [
+      "  postgres-image:",
+      "    needs: [scope]",
+      "    runs-on: ubuntu-24.04",
+      "    permissions:",
+      ...block(6, lookupPermissions),
+      "    outputs:",
+      `      mirrored: ${lookupOutput}`,
+      "    steps:",
+      "      - id: mirror",
+      "        run: |",
+      ...block(10, lookupLines),
+      "        env:",
+      `          GITHUB_TOKEN: ${GITHUB_TOKEN}`,
+      `          POSTGRES_IMAGE: ${mirroredImage}`,
+      "  postgres-image-copy:",
+      "    needs: [postgres-image]",
+      `    if: ${copyCondition}`,
+      "    runs-on: ubuntu-24.04",
+      "    permissions:",
+      ...block(6, copyPermissions),
+      "    steps:",
+      "      - run: |",
+      ...block(10, copyLines),
+      "        env:",
+      `          GITHUB_TOKEN: ${GITHUB_TOKEN}`,
+      `          SOURCE_IMAGE: ${sourceImage}`,
+      `          POSTGRES_IMAGE: ${mirroredImage}`,
+    ],
+    testsJobHeader: [
+      `    needs: [${testsNeeds.join(", ")}]`,
+      "    permissions:",
+      ...block(6, testsPermissions),
+    ],
+    signInStep: [
+      `      - run: ${signIn}`,
+      "        env:",
+      `          GITHUB_TOKEN: ${signInToken}`,
+    ],
+  };
 }
 
 for (const spec of PRE_PULLED_IMAGES) {
@@ -972,7 +1052,7 @@ for (const spec of PRE_PULLED_IMAGES) {
 
   test(`flags ${spec.label} referenced by a tag alone, which can move to other bytes`, () => {
     const violations = spec.findViolations(
-      jobWithPull(spec, { pulledImage: spec.tagOnly }),
+      jobWithPull(spec, { pulledImage: spec.tagOnly, mirror: { mirroredImage: spec.tagOnly } }),
       setup(spec.tagOnly),
     );
 
@@ -1069,19 +1149,149 @@ test("flags a Playwright image whose tag is not the installed Playwright version
 });
 
 for (const image of [
-  `mirror:5000/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
-  `localhost/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
+  `mirror:5000/playwright:v1.63.0-noble@${PLAYWRIGHT_DIGEST}`,
+  `localhost/playwright:v1.63.0-noble@${PLAYWRIGHT_DIGEST}`,
 ]) {
-  test(`passes the cloud's Postgres image pulled from the registry host of \`${image}\`, which is not Docker Hub`, () => {
-    const [postgres] = PRE_PULLED_IMAGES;
-    const violations = postgres.findViolations(
-      jobWithPull(postgres, { pulledImage: image }),
-      setupDeclaring(postgres.constant, image),
+  test(`passes the Playwright image pulled from the registry host of \`${image}\`, which is not Docker Hub`, () => {
+    const playwright = PRE_PULLED_IMAGES[1];
+    const violations = playwright.findViolations(
+      jobWithPull(playwright, { pulledImage: image }),
+      setupDeclaring(playwright.constant, image),
     );
 
     assert.deepEqual(violations, []);
   });
 }
+
+const [POSTGRES_SPEC] = PRE_PULLED_IMAGES;
+
+function postgresViolations(mirror, { pulledImage = PINNED_POSTGRES_IMAGE } = {}) {
+  return POSTGRES_SPEC.findViolations(
+    jobWithPull(POSTGRES_SPEC, { pulledImage, mirror: { mirroredImage: pulledImage, ...mirror } }),
+    setupDeclaring(POSTGRES_SPEC.constant, pulledImage),
+  );
+}
+
+for (const image of [
+  ECR_POSTGRES_IMAGE,
+  `mirror:5000/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
+  `postgres:18-alpine@${POSTGRES_DIGEST}`,
+  `docker.io/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
+]) {
+  test(`flags the cloud's Postgres image started from \`${image}\`, a registry verify.yml does not sign in to`, () => {
+    const violations = postgresViolations({}, { pulledImage: image });
+
+    assertSingleViolation(violations, /is not on ghcr\.io/);
+  });
+}
+
+test("flags a tests job that pulls the cloud's Postgres image without signing in to ghcr.io first", () => {
+  const violations = postgresViolations({ signIn: "docker login ghcr.io" });
+
+  assertSingleViolation(violations, /does not sign in to ghcr\.io with its own token/);
+});
+
+test("flags a tests job that signs in to ghcr.io with a token other than its own", () => {
+  const violations = postgresViolations({ signInToken: `\${{ secrets.GHCR_TOKEN }}` });
+
+  assertSingleViolation(violations, /does not sign in to ghcr\.io with its own token/);
+});
+
+test("flags a tests job not granted packages: read, which signing in to ghcr.io needs", () => {
+  const violations = postgresViolations({ testsPermissions: ["contents: read"] });
+
+  assertSingleViolation(violations, /tests job is not granted packages: read/);
+});
+
+for (const needs of [
+  ["scope", "postgres-image"],
+  ["scope", "postgres-image-copy"],
+]) {
+  test(`flags a tests job that needs only ${needs.join(" and ")}, not both mirror jobs`, () => {
+    const violations = postgresViolations({ testsNeeds: needs });
+
+    assertSingleViolation(
+      violations,
+      /does not wait for the postgres-image and postgres-image-copy jobs/,
+    );
+  });
+}
+
+for (const [label, permissions] of [
+  ["packages: write", ["packages: write"]],
+  ["contents: write besides packages: read", ["packages: read", "contents: write"]],
+]) {
+  test(`flags a postgres-image job granted ${label}, which a read-only token cannot get`, () => {
+    const violations = postgresViolations({ lookupPermissions: permissions });
+
+    assertSingleViolation(violations, /postgres-image job must be granted only packages: read/);
+  });
+}
+
+test("flags a postgres-image job that does not look the mirrored image up on ghcr.io", () => {
+  const violations = postgresViolations({
+    lookupLines: ['echo "mirrored=true" >> "$GITHUB_OUTPUT"'],
+  });
+
+  assertSingleViolation(violations, /postgres-image job does not look up/);
+});
+
+test("flags a postgres-image job that looks up another image than the global setup starts", () => {
+  const violations = postgresViolations({
+    mirroredImage: `ghcr.io/ljguardiola/postgres:17-alpine@${POSTGRES_DIGEST}`,
+  });
+
+  assert.equal(violations.length, 2, violations.join("\n"));
+  assert.match(violations[0], /postgres-image job does not look up/);
+  assert.match(violations[1], /postgres-image-copy job does not copy/);
+});
+
+test("flags a postgres-image job that does not report what its lookup found", () => {
+  const violations = postgresViolations({ lookupOutput: "true" });
+
+  assertSingleViolation(violations, /postgres-image job does not look up/);
+});
+
+test("flags a postgres-image-copy job that copies even when the mirrored image is already there", () => {
+  const violations = postgresViolations({ copyCondition: `\${{ !cancelled() }}` });
+
+  assertSingleViolation(violations, /postgres-image-copy job does not run only when/);
+});
+
+test("flags a postgres-image-copy job not granted packages: write", () => {
+  const violations = postgresViolations({ copyPermissions: ["packages: read"] });
+
+  assertSingleViolation(violations, /postgres-image-copy job is not granted packages: write/);
+});
+
+test("flags a postgres-image-copy job that copies once, without retrying", () => {
+  const violations = postgresViolations({
+    copyLines: [
+      `skopeo copy --all --preserve-digests "docker://$SOURCE_IMAGE" "docker://\${POSTGRES_IMAGE%@*}"`,
+    ],
+  });
+
+  assertSingleViolation(violations, /postgres-image-copy job does not copy/);
+});
+
+test("flags a postgres-image-copy job whose source is another digest than the mirrored image", () => {
+  const violations = postgresViolations({
+    sourceImage: `public.ecr.aws/docker/library/postgres:18-alpine@${PLAYWRIGHT_DIGEST}`,
+  });
+
+  assertSingleViolation(
+    violations,
+    /copies `public\.ecr\.aws\/docker\/library\/postgres:18-alpine@sha256:eff16c30[0-9a-f]+`, not the digest/,
+  );
+});
+
+test("flags a postgres-image-copy job that copies from Docker Hub, whose unauthenticated pulls a shared runner can exhaust", () => {
+  const violations = postgresViolations({
+    sourceImage: `postgres:18-alpine@${POSTGRES_DIGEST}`,
+  });
+
+  assertSingleViolation(violations, /postgres-image-copy job copies .* from Docker Hub/);
+});
 
 function composeDeclaring(dbImage) {
   return [
