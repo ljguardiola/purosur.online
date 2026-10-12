@@ -73,8 +73,7 @@ export function createMercadoPagoCharging({
     ids,
   };
   return {
-    start: async (request) =>
-      request.method === "QR" ? startMercadoPagoChargeFor(deps, request) : { kind: "unavailable" },
+    start: (request) => startMercadoPagoChargeFor(deps, request),
     follow: (request) => followMercadoPagoChargeFor(deps, request),
     abandon: (request) => abandonMercadoPagoChargeFor(deps, request),
   };

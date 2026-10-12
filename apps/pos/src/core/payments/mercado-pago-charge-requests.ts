@@ -69,7 +69,7 @@ function notPerformed(kind: string): { kind: "not_signed_in" | "not_permitted" }
 
 export async function startMercadoPagoChargeFor(
   deps: MercadoPagoChargeRequestDeps,
-  { saleId, amount }: { saleId: string; amount: number },
+  { saleId, method, amount }: { saleId: string; method: "QR" | "POINT"; amount: number },
 ): Promise<StartMercadoPagoChargeOutcome> {
   const guarded = await deps.gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     startMercadoPagoCharge(
@@ -79,7 +79,7 @@ export async function startMercadoPagoChargeFor(
         charges: new SqliteMercadoPagoCharges(deps.database),
         clock: { now: deps.now },
       },
-      { actorId: signedInUserId, saleId, method: "QR", amount },
+      { actorId: signedInUserId, saleId, method, amount },
     ),
   );
   if (guarded.kind !== "performed") {
