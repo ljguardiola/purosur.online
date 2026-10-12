@@ -34,3 +34,18 @@ export const AllDone: Story = {
     ],
   },
 };
+
+export const FailedStep: Story = {
+  args: {
+    steps: [
+      { id: "sent", label: "Cobro enviado a la terminal", state: "done" },
+      { id: "timeout", label: "Tiempo agotado", state: "error" },
+      {
+        id: "cancel",
+        label: "Esperando la cancelación",
+        detail: "Cancelá el cobro en la terminal",
+        state: "current",
+      },
+    ],
+  },
+};
