@@ -1,10 +1,8 @@
 import type { SearchableProduct } from "../../../catalog/index.js";
 import type { RoleAccess } from "../../../permissions/index.js";
-import type { OutboxEventDraft } from "../../../shared/index.js";
+import type { OutboxEventDraft, Scale, ScaleReading } from "../../../shared/index.js";
 import type {
   CountableProduct,
-  CountScale,
-  CountScaleReading,
   InitialCountIds,
   InitialCountLedger,
   InitialCountLine,
@@ -150,15 +148,15 @@ export class SequentialIds implements InitialCountIds {
   }
 }
 
-export class FakeCountScale implements CountScale {
+export class FakeCountScale implements Scale {
   reads = 0;
-  private readonly readings: CountScaleReading[];
+  private readonly readings: ScaleReading[];
 
-  constructor(...readings: CountScaleReading[]) {
+  constructor(...readings: ScaleReading[]) {
     this.readings = readings;
   }
 
-  read(): Promise<CountScaleReading> {
+  read(): Promise<ScaleReading> {
     this.reads += 1;
     return Promise.resolve(this.readings.shift() ?? { kind: "unavailable" });
   }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import type { ScaleReading } from "../../shared/index.js";
 import { MAX_STOCK_QUANTITY } from "../model/stock-quantity.js";
-import type { CountScaleReading } from "./initial-count-ledger.js";
 import {
   FakeCountScale,
   FakeInitialCountLedger,
@@ -11,7 +11,7 @@ import { weighCountedProduct } from "./weigh-counted-product.js";
 const COUNTER = { isAdministrator: false, permissionKeys: ["record_initial_inventory"] };
 const YERBA = { id: "yerba", name: "Yerba 1 kg", saleUnit: "UNIT" as const };
 const QUESO = { id: "queso", name: "Queso cremoso", saleUnit: "KG" as const };
-const STABLE_1250: CountScaleReading = { kind: "stable", weightThousandths: 1_250 };
+const STABLE_1250: ScaleReading = { kind: "stable", weightThousandths: 1_250 };
 
 function ledger(state: Partial<FakeInitialCountState> = {}): FakeInitialCountLedger {
   return new FakeInitialCountLedger({

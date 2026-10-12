@@ -35,15 +35,6 @@ export interface InitialCountIds {
   next(): string;
 }
 
-export type CountScaleReading =
-  | { kind: "stable"; weightThousandths: number }
-  | { kind: "not_stable" }
-  | { kind: "unavailable" };
-
-export interface CountScale {
-  read(): Promise<CountScaleReading>;
-}
-
 export interface InitialCountLedger {
   transaction<TOutcome>(work: (tx: InitialCountTransaction) => TOutcome): TOutcome;
 }

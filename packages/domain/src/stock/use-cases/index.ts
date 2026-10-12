@@ -1,4 +1,4 @@
-export type { Clock } from "../../shared/index.js";
+export type { Clock, Scale, ScaleReading } from "../../shared/index.js";
 export type { NewInitialCountLot, NewLot } from "../model/lot.js";
 export type { StockLot } from "../model/lot-allocation.js";
 export type { PurchaseReceipt } from "../model/stock-receipt.js";
@@ -34,8 +34,6 @@ export {
 export type { InitialCountRefusal } from "./initial-count-access.js";
 export type {
   CountableProduct,
-  CountScale,
-  CountScaleReading,
   InitialCountIds,
   InitialCountLedger,
   InitialCountLine,

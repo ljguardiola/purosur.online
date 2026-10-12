@@ -1,6 +1,7 @@
+import type { Scale } from "../../shared/index.js";
 import { mayBeMovementQuantity } from "../model/stock-quantity.js";
 import { type InitialCountRefusal, initialCountRefusal } from "./initial-count-access.js";
-import type { CountScale, InitialCountLedger } from "./initial-count-ledger.js";
+import type { InitialCountLedger } from "./initial-count-ledger.js";
 
 export interface WeighCountedProductInput {
   actorId: string;
@@ -9,7 +10,7 @@ export interface WeighCountedProductInput {
 
 export interface WeighCountedProductPorts {
   ledger: InitialCountLedger;
-  scale: CountScale;
+  scale: Scale;
 }
 
 export type WeighCountedProductOutcome =
