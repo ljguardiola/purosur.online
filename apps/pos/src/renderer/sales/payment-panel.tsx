@@ -100,15 +100,17 @@ export function PaymentPanel({
           ]}
         />
       ) : null}
-      <Button
-        variant="secondary"
-        fullWidth
-        icon={<BadgePercent />}
-        disabled={!canDiscount}
-        onPress={onDiscount}
-      >
-        Aplicar descuento al total
-      </Button>
+      {saleStatus === "loaded" ? (
+        <Button
+          variant="secondary"
+          fullWidth
+          icon={<BadgePercent />}
+          disabled={!canDiscount}
+          onPress={onDiscount}
+        >
+          Aplicar descuento al total
+        </Button>
+      ) : null}
       {paid === 0 ? null : (
         <SummaryRowGroup
           rows={[
