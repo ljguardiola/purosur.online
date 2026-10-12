@@ -382,6 +382,26 @@ describe("SqliteRegisterSalesHistory", () => {
     );
   });
 
+  describe("a sale with a discount on its total", () => {
+    function discountSale(id: string, amount: number): void {
+      database
+        .prepare(
+          `UPDATE sales SET sale_discount_kind = 'AMOUNT', sale_discount_value = ?,
+             sale_discount_amount = ?, sale_discount_reason = 'Cliente frecuente'
+           WHERE id = ?`,
+        )
+        .run(amount, amount, id);
+    }
+
+    it("totals what was charged in the listing and in its detail", () => {
+      addSale({ id: "sale-1", lines: [1500, 2500] });
+      discountSale("sale-1", 500);
+
+      expect(all().entries.map(({ total }) => total)).toEqual([3500]);
+      expect(history.saleOfRegister("sale-1")?.total).toBe(3500);
+    });
+  });
+
   describe("the detail of one sale", () => {
     it("shows who served it, its lines, its payments and its fiscal facts", () => {
       addSale({

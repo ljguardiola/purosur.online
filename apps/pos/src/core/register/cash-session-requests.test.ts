@@ -815,6 +815,18 @@ describe("the open sale of the session", () => {
     });
   });
 
+  it("tells the total to charge after a discount on the sale's total", async () => {
+    addOpenSale(await openAs("u1", 5000), 3500);
+    database
+      .prepare(
+        `UPDATE sales SET sale_discount_kind = 'PERCENT', sale_discount_value = 10,
+           sale_discount_amount = 350, sale_discount_reason = 'Cliente frecuente'`,
+      )
+      .run();
+
+    expect(sessionOpenSaleFor(database, NOW)).toMatchObject({ id: "sale-1", total: 3150 });
+  });
+
   it("tells that it cannot be cancelled once it has an approved payment", async () => {
     addOpenSale(await openAs("u1", 5000), 3500);
     addApprovedPayment();

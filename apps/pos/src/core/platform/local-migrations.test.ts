@@ -881,6 +881,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_sale_total_discounts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -947,6 +948,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_sale_total_discounts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1008,6 +1010,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_sale_total_discounts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1068,6 +1071,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_sale_total_discounts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1155,6 +1159,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_sale_total_discounts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1234,6 +1239,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_sale_total_discounts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1317,6 +1323,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_sale_total_discounts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1383,6 +1390,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_sale_total_discounts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1441,6 +1449,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_sale_total_discounts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -2666,6 +2675,102 @@ describe("the register's local migrations", () => {
       expect(() => adjust({ kind: null, value: null, reason: null, authorized_by: "u2" })).toThrow(
         /CHECK/,
       );
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("let a sale carry a discount on its total and its lines a share of it, none over the sales and lines it already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0040_sale_total_discounts",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0040_sale_total_discounts",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 2, 1500, 'list-1', 3000);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            `SELECT sale_discount_kind, sale_discount_value, sale_discount_amount,
+                    sale_discount_reason, sale_discount_authorized_by
+             FROM sales`,
+          )
+          .all(),
+      ).toEqual([
+        {
+          sale_discount_kind: null,
+          sale_discount_value: null,
+          sale_discount_amount: null,
+          sale_discount_reason: null,
+          sale_discount_authorized_by: null,
+        },
+      ]);
+      expect(
+        after.prepare("SELECT id, line_total, sale_discount_share FROM sale_lines").all(),
+      ).toEqual([{ id: "line-1", line_total: 3000, sale_discount_share: 0 }]);
+      const discount = (values: {
+        kind: string | null;
+        value: number | null;
+        amount: number | null;
+        reason: string | null;
+        authorized_by: string | null;
+      }) =>
+        after
+          .prepare(
+            `UPDATE sales
+             SET sale_discount_kind = @kind, sale_discount_value = @value,
+                 sale_discount_amount = @amount, sale_discount_reason = @reason,
+                 sale_discount_authorized_by = @authorized_by`,
+          )
+          .run(values);
+      const set = { reason: "Cliente frecuente", authorized_by: null };
+      const none = { kind: null, value: null, amount: null, reason: null, authorized_by: null };
+      expect(() => discount({ kind: "PERCENT", value: 1, amount: 0, ...set })).not.toThrow();
+      expect(() => discount({ kind: "PERCENT", value: 100, amount: 3000, ...set })).not.toThrow();
+      expect(() => discount({ kind: "AMOUNT", value: 1, amount: 1, ...set })).not.toThrow();
+      expect(() =>
+        discount({ kind: "AMOUNT", value: 300, amount: 300, ...set, authorized_by: "u2" }),
+      ).not.toThrow();
+      expect(() => discount(none)).not.toThrow();
+      expect(() => discount({ kind: "PRICE", value: 1, amount: 1, ...set })).toThrow(/CHECK/);
+      expect(() => discount({ kind: "PERCENT", value: 0, amount: 0, ...set })).toThrow(/CHECK/);
+      expect(() => discount({ kind: "PERCENT", value: 101, amount: 1, ...set })).toThrow(/CHECK/);
+      expect(() => discount({ kind: "AMOUNT", value: 0, amount: 0, ...set })).toThrow(/CHECK/);
+      expect(() => discount({ kind: "AMOUNT", value: 1, amount: -1, ...set })).toThrow(/CHECK/);
+      expect(() => discount({ kind: "AMOUNT", value: 1, amount: null, ...set })).toThrow(/CHECK/);
+      expect(() => discount({ kind: "AMOUNT", value: null, amount: 1, ...set })).toThrow(/CHECK/);
+      expect(() =>
+        discount({ kind: "AMOUNT", value: 1, amount: 1, reason: null, authorized_by: null }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        discount({ kind: "AMOUNT", value: 1, amount: 1, reason: "  ", authorized_by: null }),
+      ).toThrow(/CHECK/);
+      expect(() => discount({ ...none, value: 5 })).toThrow(/CHECK/);
+      expect(() => discount({ ...none, amount: 5 })).toThrow(/CHECK/);
+      expect(() => discount({ ...none, reason: "Motivo" })).toThrow(/CHECK/);
+      expect(() => discount({ ...none, authorized_by: "u2" })).toThrow(/CHECK/);
+      const share = (value: number | null) =>
+        after.prepare("UPDATE sale_lines SET sale_discount_share = ?").run(value);
+      expect(() => share(0)).not.toThrow();
+      expect(() => share(3000)).not.toThrow();
+      expect(() => share(-1)).toThrow(/CHECK/);
+      expect(() => share(null)).toThrow(/NOT NULL/);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });
