@@ -105,21 +105,21 @@ test("renders a row it is given as strong or as a saving, not in the plain form"
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("renders a row it is given with a danger or an accent tone in that tone", async () => {
+test("renders a row it is given with an error or an info tone in that tone", async () => {
   const screen = await render(
     <SummaryRowGroup
       rows={[
-        { label: "Discount", value: "− $10.00", tone: "danger" },
-        { label: "Line total", value: "$90.00", strong: true, tone: "accent" },
+        { label: "Discount", value: "− $10.00", tone: "error" },
+        { label: "Line total", value: "$90.00", strong: true, tone: "info" },
       ]}
     />,
   );
-  const dangerValue = screen.getByText("− $10.00", { exact: true }).element() as HTMLElement;
-  const accentValue = screen.getByText("$90.00", { exact: true }).element() as HTMLElement;
+  const errorValue = screen.getByText("− $10.00", { exact: true }).element() as HTMLElement;
+  const infoValue = screen.getByText("$90.00", { exact: true }).element() as HTMLElement;
 
-  expect(getComputedStyle(dangerValue).color).toBe(tokenRgb("error-strong"));
-  expect(getComputedStyle(accentValue).color).toBe(tokenRgb("text-accent"));
-  expect(getComputedStyle(accentValue).fontSize).toBe("20px");
+  expect(getComputedStyle(errorValue).color).toBe(tokenRgb("error-strong"));
+  expect(getComputedStyle(infoValue).color).toBe(tokenRgb("info-strong"));
+  expect(getComputedStyle(infoValue).fontSize).toBe("20px");
 
   await expectNoAccessibilityViolations(screen.container);
 });

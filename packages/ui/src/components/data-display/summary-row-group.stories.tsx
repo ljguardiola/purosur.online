@@ -34,8 +34,8 @@ export const WithTones: Story = {
   args: {
     rows: [
       { label: "Precio de lista", value: "$ 2.380,00" },
-      { label: "Descuento", value: "− $ 476,00", tone: "danger" },
-      { label: "Queda la línea en", value: "$ 4.284,00", strong: true, tone: "accent" },
+      { label: "Descuento", value: "− $ 476,00", tone: "error" },
+      { label: "Queda la línea en", value: "$ 4.284,00", strong: true, tone: "info" },
     ],
   },
 };

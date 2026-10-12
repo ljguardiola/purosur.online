@@ -26,20 +26,20 @@ export const StrongSaving: Story = {
   args: { label: "Total de ahorro", value: "-$25.000", strong: true, saving: true },
 };
 
-export const Danger: Story = {
-  args: { label: "Descuento", value: "− $10.000", tone: "danger" },
+export const ErrorTone: Story = {
+  args: { label: "Descuento", value: "− $10.000", tone: "error" },
 };
 
-export const StrongDanger: Story = {
-  args: { label: "Total descontado", value: "− $25.000", strong: true, tone: "danger" },
+export const StrongError: Story = {
+  args: { label: "Total descontado", value: "− $25.000", strong: true, tone: "error" },
 };
 
-export const Accent: Story = {
-  args: { label: "Queda en", value: "$90.000", tone: "accent" },
+export const Info: Story = {
+  args: { label: "Queda en", value: "$90.000", tone: "info" },
 };
 
-export const StrongAccent: Story = {
-  args: { label: "Queda la línea en", value: "$428.400", strong: true, tone: "accent" },
+export const StrongInfo: Story = {
+  args: { label: "Queda la línea en", value: "$428.400", strong: true, tone: "info" },
 };
 
 export const LongLabel: Story = {

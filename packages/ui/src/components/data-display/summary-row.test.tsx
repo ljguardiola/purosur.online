@@ -86,10 +86,8 @@ test("keeps the label in its own color when only the value is a saving", async (
   expect(getComputedStyle(strongLabel).color).toBe(tokenRgb("text"));
 });
 
-test("renders the value bold in strong red for a danger tone, at its form's size", async () => {
-  const regularScreen = await render(
-    <SummaryRow label="Discount" value="− $10.00" tone="danger" />,
-  );
+test("renders the value bold in strong red for an error tone, at its form's size", async () => {
+  const regularScreen = await render(<SummaryRow label="Discount" value="− $10.00" tone="error" />);
   const regularValue = regularScreen
     .getByText("− $10.00", { exact: true })
     .element() as HTMLElement;
@@ -98,7 +96,7 @@ test("renders the value bold in strong red for a danger tone, at its form's size
   expect(getComputedStyle(regularValue).fontWeight).toBe("700");
 
   const strongScreen = await render(
-    <SummaryRow label="Total discount" value="− $25.00" strong tone="danger" />,
+    <SummaryRow label="Total discount" value="− $25.00" strong tone="error" />,
   );
   const strongValue = strongScreen.getByText("− $25.00", { exact: true }).element() as HTMLElement;
   expect(getComputedStyle(strongValue).color).toBe(tokenRgb("error-strong"));
@@ -106,42 +104,38 @@ test("renders the value bold in strong red for a danger tone, at its form's size
   expect(getComputedStyle(strongValue).fontWeight).toBe("700");
 });
 
-test("renders the value at 20px bold in accent text for an accent tone, in both the regular and the strong form", async () => {
-  const regularScreen = await render(
-    <SummaryRow label="Line total" value="$90.00" tone="accent" />,
-  );
+test("renders the value at 20px bold in strong blue for an info tone, in both the regular and the strong form", async () => {
+  const regularScreen = await render(<SummaryRow label="Line total" value="$90.00" tone="info" />);
   const regularValue = regularScreen.getByText("$90.00", { exact: true }).element() as HTMLElement;
-  expect(getComputedStyle(regularValue).color).toBe(tokenRgb("text-accent"));
+  expect(getComputedStyle(regularValue).color).toBe(tokenRgb("info-strong"));
   expect(getComputedStyle(regularValue).fontSize).toBe("20px");
   expect(getComputedStyle(regularValue).fontWeight).toBe("700");
 
   const strongScreen = await render(
-    <SummaryRow label="Line total" value="$95.00" strong tone="accent" />,
+    <SummaryRow label="Line total" value="$95.00" strong tone="info" />,
   );
   const strongValue = strongScreen.getByText("$95.00", { exact: true }).element() as HTMLElement;
-  expect(getComputedStyle(strongValue).color).toBe(tokenRgb("text-accent"));
+  expect(getComputedStyle(strongValue).color).toBe(tokenRgb("info-strong"));
   expect(getComputedStyle(strongValue).fontSize).toBe("20px");
   expect(getComputedStyle(strongValue).fontWeight).toBe("700");
 });
 
 test("keeps the label in its own form and color when only the value carries a tone", async () => {
-  const dangerScreen = await render(<SummaryRow label="Discount" value="− $10.00" tone="danger" />);
-  const dangerLabel = dangerScreen.getByText("Discount", { exact: true }).element() as HTMLElement;
-  expect(getComputedStyle(dangerLabel).color).toBe(tokenRgb("text-subtle"));
-  expect(getComputedStyle(dangerLabel).fontSize).toBe("16px");
-  expect(getComputedStyle(dangerLabel).fontWeight).toBe("400");
+  const errorScreen = await render(<SummaryRow label="Discount" value="− $10.00" tone="error" />);
+  const errorLabel = errorScreen.getByText("Discount", { exact: true }).element() as HTMLElement;
+  expect(getComputedStyle(errorLabel).color).toBe(tokenRgb("text-subtle"));
+  expect(getComputedStyle(errorLabel).fontSize).toBe("16px");
+  expect(getComputedStyle(errorLabel).fontWeight).toBe("400");
 
-  const accentScreen = await render(
-    <SummaryRow label="Line total" value="$90.00" strong tone="accent" />,
+  const infoScreen = await render(
+    <SummaryRow label="Line total" value="$90.00" strong tone="info" />,
   );
-  const accentLabel = accentScreen
-    .getByText("Line total", { exact: true })
-    .element() as HTMLElement;
-  expect(getComputedStyle(accentLabel).color).toBe(tokenRgb("text"));
-  expect(getComputedStyle(accentLabel).fontSize).toBe("18px");
-  expect(getComputedStyle(accentLabel).fontWeight).toBe("700");
+  const infoLabel = infoScreen.getByText("Line total", { exact: true }).element() as HTMLElement;
+  expect(getComputedStyle(infoLabel).color).toBe(tokenRgb("text"));
+  expect(getComputedStyle(infoLabel).fontSize).toBe("18px");
+  expect(getComputedStyle(infoLabel).fontWeight).toBe("700");
 
-  await expectNoAccessibilityViolations(accentScreen.container);
+  await expectNoAccessibilityViolations(infoScreen.container);
 });
 
 test("grows with a long label instead of keeping a fixed height", async () => {
@@ -271,18 +265,18 @@ test("does not accept a row that is both a saving and carries a tone", () => {
     label: string;
     value: string;
     saving: true;
-    tone: "danger";
+    tone: "error";
   }>().not.toExtend<SummaryRowProps>();
   expectTypeOf<{
     label: string;
     value: string;
     saving: true;
-    tone: "accent";
+    tone: "info";
   }>().not.toExtend<SummaryRowProps>();
 });
 
-test("accepts only the danger and accent tones", () => {
-  expectTypeOf<{ label: string; value: string; tone: "danger" }>().toExtend<SummaryRowProps>();
-  expectTypeOf<{ label: string; value: string; tone: "accent" }>().toExtend<SummaryRowProps>();
+test("accepts only the error and info tones", () => {
+  expectTypeOf<{ label: string; value: string; tone: "error" }>().toExtend<SummaryRowProps>();
+  expectTypeOf<{ label: string; value: string; tone: "info" }>().toExtend<SummaryRowProps>();
   expectTypeOf<{ label: string; value: string; tone: "success" }>().not.toExtend<SummaryRowProps>();
 });
