@@ -25,6 +25,7 @@ import { ScriptedSocket } from "./test-support/scripted-socket";
 
 const NOW = new Date("2026-10-08T12:00:00.000Z");
 const COMPLETED_AT = "2026-10-08T11:59:00.000Z";
+const READY = 0x12;
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
 
 describe("the register's receipt printing without a local database", () => {
@@ -42,9 +43,7 @@ describe("the register's receipt printing without a local database", () => {
 
   it("offers no request to answer", () => {
     expect(printing.receiptPrintStatus).toBeUndefined();
-    expect(printing.retryReceiptPrint).toBeUndefined();
     expect(printing.reprintSaleReceipt).toBeUndefined();
-    expect(printing.withdrawHeldReceipts).toBeUndefined();
   });
 
   it("leaves a charge as it is", () => {
@@ -191,26 +190,73 @@ describe("the register's receipt printing over its local database", () => {
     expect(connections[0]).toMatchObject({ host: "10.10.10.9", port: 9101 });
   });
 
-  it("asks the printer to clear a receipt it still holds when the held receipts are withdrawn", async () => {
-    saveAddress("10.10.10.2", null);
-    const printing = printingOverDatabase();
-    await printing.afterCompletedSale(async () => ({ kind: "completed", sale_id: "sale-1" }))?.({});
-    await vi.waitFor(() => expect(connections).toHaveLength(1));
-    const socket = (connections[0] as (typeof connections)[number]).socket;
-    socket.connected();
-    socket.receive(0x32);
+  describe("a receipt waiting for paper", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    });
 
-    printing.withdrawHeldReceipts?.();
-    socket.receive(0x37, 0x25, 0x00);
+    afterEach(() => {
+      vi.useRealTimers();
+    });
 
-    expect(socket.written.map((bytes) => [...bytes])).toContainEqual([
-      0x10, 0x14, 0x08, 0x01, 0x03, 0x14, 0x01, 0x06, 0x02, 0x08,
-    ]);
-    await vi.waitFor(async () =>
+    it("goes out on the address saved while it waits, and never on the one it waited at", async () => {
+      saveAddress("10.10.10.2", null);
+      const printing = printingOverDatabase();
+      await printing.afterCompletedSale(async () => ({ kind: "completed", sale_id: "sale-1" }))?.(
+        {},
+      );
+      await vi.waitFor(() => expect(connections).toHaveLength(1));
+      const [old] = connections;
+      old?.socket.connected();
+      old?.socket.receive(0x32);
       expect(await printing.receiptPrintStatus?.("sale-1")).toMatchObject({
-        standing: "withdrawn",
-      }),
-    );
+        printed: false,
+        standing: "paper_out",
+      });
+
+      saveAddress("10.10.10.9", 9101);
+      await vi.advanceTimersByTimeAsync(500);
+
+      expect(connections).toHaveLength(2);
+      const replacement = connections[1];
+      expect(replacement).toMatchObject({ host: "10.10.10.9", port: 9101 });
+      replacement?.socket.connected();
+      replacement?.socket.receive(0x12);
+
+      await vi.waitFor(async () =>
+        expect(await printing.receiptPrintStatus?.("sale-1")).toMatchObject({
+          next_copy: { kind: "duplicate", order_number: 1 },
+          printed: true,
+          standing: "printed",
+        }),
+      );
+      expect(replacement?.socket.written).toHaveLength(1);
+      expect(old?.socket.written).toEqual([]);
+      expect(old?.socket.destroyed).toBe(true);
+    });
+
+    it("leaves the sale's receipt as the original until the printer is ready", async () => {
+      saveAddress("10.10.10.2", null);
+      const printing = printingOverDatabase();
+      await printing.afterCompletedSale(async () => ({ kind: "completed", sale_id: "sale-1" }))?.(
+        {},
+      );
+      await vi.waitFor(() => expect(connections).toHaveLength(1));
+      connections[0]?.socket.connected();
+      connections[0]?.socket.receive(0x32);
+
+      expect(await printing.receiptPrintStatus?.("sale-1")).toEqual({
+        kind: "found",
+        next_copy: { kind: "original" },
+        printed: false,
+        standing: "paper_out",
+      });
+      expect(
+        database.prepare("SELECT print_attempted_at FROM sales WHERE id = 'sale-1'").get(),
+      ).toEqual({
+        print_attempted_at: null,
+      });
+    });
   });
 
   it("prints nothing for a charge that completed no sale", async () => {
@@ -223,7 +269,7 @@ describe("the register's receipt printing over its local database", () => {
     expect(syncs).toBe(0);
   });
 
-  it("answers the print status, the retry and the reprint of a sale's receipt", async () => {
+  it("answers the print status and the reprint of a sale's receipt", async () => {
     const printing = printingOverDatabase();
 
     expect(await printing.receiptPrintStatus?.("sale-1")).toEqual({
@@ -232,14 +278,12 @@ describe("the register's receipt printing over its local database", () => {
       printed: false,
       standing: null,
     });
-    expect(await printing.retryReceiptPrint?.("sale-1")).toEqual({ kind: "not_offered" });
     expect(await printing.reprintSaleReceipt?.({ saleId: "sale-1", reason: "Se perdió" })).toEqual({
       kind: "lacks_permission",
     });
   });
 
   describe("a charge whose sale has a fiscal document", () => {
-    const TRANSMIT_RESPONSE_LENGTH = 11;
     const QR_URL = "https://www.arca.gob.ar/fe/qr/?p=";
     const AUTHORIZED_ANSWER = {
       state: "AUTHORIZED",
@@ -289,8 +333,9 @@ describe("the register's receipt printing over its local database", () => {
       await vi.waitFor(() => expect(syncs).toBe(1));
       return connections.map(({ socket }) => {
         socket.connected();
+        socket.receive(READY);
         const [written] = socket.written;
-        return printoutOf((written ?? new Uint8Array()).slice(0, -TRANSMIT_RESPONSE_LENGTH));
+        return printoutOf(written ?? new Uint8Array());
       });
     }
 
@@ -397,10 +442,11 @@ describe("the register's receipt printing over its local database", () => {
       await vi.waitFor(() => expect(connections).toHaveLength(1));
       const [connection] = connections;
       connection?.socket.connected();
+      connection?.socket.receive(READY);
 
       expect(await reprinted).toEqual({ kind: "started", copy: { kind: "original" } });
       const [written] = connection?.socket.written ?? [];
-      const paper = printoutOf((written ?? new Uint8Array()).slice(0, -TRANSMIT_RESPONSE_LENGTH));
+      const paper = printoutOf(written ?? new Uint8Array());
       expect(paper.textLines).toContain("Yerba");
       expect(paper.text).not.toContain("FACTURA C");
     });

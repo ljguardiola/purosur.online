@@ -6,46 +6,46 @@ import type {
 
 type Status = Parameters<ReceiptPrintWatch["onStatus"]>[0];
 
-interface Sent {
-  bytes: Uint8Array;
+interface Waiting {
   watch: ReceiptPrintWatch;
+  sending: () => Uint8Array;
   end: (ending: ReceiptPrintEnding) => void;
 }
 
 export class ControllableReceiptPrinter implements ReceiptPrinter {
-  readonly sent: Sent[] = [];
+  readonly waiting: Waiting[] = [];
+  readonly handed: Uint8Array[] = [];
   private waiters: { count: number; resolve: () => void }[] = [];
 
-  print(bytes: Uint8Array, watch: ReceiptPrintWatch): Promise<ReceiptPrintEnding> {
+  print(watch: ReceiptPrintWatch, sending: () => Uint8Array): Promise<ReceiptPrintEnding> {
     return new Promise((resolve) => {
       watch.signal.addEventListener("abort", () => resolve({ kind: "abandoned" }), { once: true });
-      this.sent.push({ bytes, watch, end: resolve });
+      this.waiting.push({ watch, sending, end: resolve });
       for (const waiter of this.waiters) {
-        if (this.sent.length >= waiter.count) waiter.resolve();
+        if (this.waiting.length >= waiter.count) waiter.resolve();
       }
     });
   }
 
-  whenSent(count = 1): Promise<void> {
-    if (this.sent.length >= count) return Promise.resolve();
+  whenWaiting(count = 1): Promise<void> {
+    if (this.waiting.length >= count) return Promise.resolve();
     return new Promise((resolve) => this.waiters.push({ count, resolve }));
   }
 
-  report(status: Status, index = this.sent.length - 1): void {
+  report(status: Status, index = this.waiting.length - 1): void {
     this.at(index).watch.onStatus(status);
   }
 
-  acknowledge(index = this.sent.length - 1): void {
-    this.at(index).end({ kind: "acknowledged" });
+  becomeReady(index = this.waiting.length - 1): void {
+    const { watch, sending, end } = this.at(index);
+    watch.onStatus("ready");
+    this.handed.push(sending());
+    end({ kind: "sent" });
   }
 
-  withdraw(index = this.sent.length - 1): void {
-    this.at(index).end({ kind: "withdrawn" });
-  }
-
-  private at(index: number): Sent {
-    const sent = this.sent[index];
-    if (sent === undefined) throw new Error("nothing was sent");
-    return sent;
+  private at(index: number): Waiting {
+    const waiting = this.waiting[index];
+    if (waiting === undefined) throw new Error("nothing is waiting");
+    return waiting;
   }
 }

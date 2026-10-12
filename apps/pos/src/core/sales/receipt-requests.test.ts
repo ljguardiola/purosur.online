@@ -1,5 +1,4 @@
 import { encodePinHash } from "@purosur/contracts";
-import { RECEIPT_RETRY_DELAY_MS } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import type { LocalDatabase } from "../platform/local-database";
@@ -15,7 +14,6 @@ import {
   type ReceiptRequestDeps,
   receiptPrintStatusFor,
   reprintSaleReceiptFor,
-  retryReceiptPrintFor,
 } from "./receipt-requests";
 import { ControllableReceiptPrinter } from "./test-support/controllable-receipt-printer";
 import { ReceiptPrintObserver } from "./test-support/receipt-print-watch";
@@ -116,15 +114,9 @@ function reprints(): unknown[] {
     .all();
 }
 
-async function printedAndOffered(saleId = "sale-1"): Promise<void> {
+async function printedAndSent(saleId = "sale-1"): Promise<void> {
   await printCompletedSaleReceiptFor(deps(), saleId);
-  printer.report("ready");
-  advance(RECEIPT_RETRY_DELAY_MS);
-}
-
-async function printedAndAcknowledged(saleId = "sale-1"): Promise<void> {
-  await printCompletedSaleReceiptFor(deps(), saleId);
-  printer.acknowledge();
+  printer.becomeReady();
   await vi.waitFor(() => expect(jobs.standingOf(saleId)).toBe("printed"));
 }
 
@@ -146,7 +138,7 @@ beforeEach(() => {
   failures = [];
   idCount = 0;
   printer = new ControllableReceiptPrinter();
-  jobs = createReceiptPrintJobs({ now: () => moment, reportFailure: (_c, e) => failures.push(e) });
+  jobs = createReceiptPrintJobs({ reportFailure: (_c, e) => failures.push(e) });
 });
 
 afterEach(() => {
@@ -154,30 +146,31 @@ afterEach(() => {
 });
 
 describe("printing a completed sale's receipt", () => {
-  it("records the print attempt and sends the original receipt, leaving it unprinted until the printer acknowledges", async () => {
+  it("records nothing and sends nothing while the printer has not reported paper", async () => {
     await printCompletedSaleReceiptFor(deps(), "sale-1");
+    printer.report("paper_out");
 
-    expect(printer.sent).toHaveLength(1);
-    expect(printer.sent[0]?.bytes.length).toBeGreaterThan(0);
-    expect(deliveryOf("sale-1")).toEqual({
-      print_attempted_at: START.toISOString(),
-      printed_at: null,
-    });
+    expect(printer.waiting).toHaveLength(1);
+    expect(printer.handed).toEqual([]);
+    expect(deliveryOf("sale-1")).toEqual({ print_attempted_at: null, printed_at: null });
     expect(reprints()).toEqual([]);
   });
 
-  it("records the sale as printed once the printer acknowledges", async () => {
+  it("records the print attempt, sends the original receipt and records the sale as printed once the printer is ready", async () => {
     await printCompletedSaleReceiptFor(deps(), "sale-1");
+
+    printer.becomeReady();
     advance(3000);
 
-    printer.acknowledge();
-
+    expect(printer.handed).toHaveLength(1);
+    expect(printer.handed[0]?.length).toBeGreaterThan(0);
     await vi.waitFor(() =>
       expect(deliveryOf("sale-1")).toEqual({
         print_attempted_at: START.toISOString(),
         printed_at: new Date(START.getTime() + 3000).toISOString(),
       }),
     );
+    expect(reprints()).toEqual([]);
   });
 
   it("sends nothing when nobody is signed in", async () => {
@@ -185,7 +178,7 @@ describe("printing a completed sale's receipt", () => {
 
     await printCompletedSaleReceiptFor(deps(), "sale-1");
 
-    expect(printer.sent).toEqual([]);
+    expect(printer.waiting).toEqual([]);
     expect(deliveryOf("sale-1")).toEqual({ print_attempted_at: null, printed_at: null });
   });
 
@@ -195,7 +188,7 @@ describe("printing a completed sale's receipt", () => {
       "sale-1",
     );
 
-    expect(printer.sent).toEqual([]);
+    expect(printer.waiting).toEqual([]);
     expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
       printed: false,
       standing: "failed",
@@ -207,7 +200,7 @@ describe("printing a completed sale's receipt", () => {
 
     await printCompletedSaleReceiptFor(deps(), "sale-1");
 
-    expect(printer.sent).toEqual([]);
+    expect(printer.waiting).toEqual([]);
     expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
       printed: false,
       standing: "failed",
@@ -226,9 +219,9 @@ describe("printing a completed sale's receipt", () => {
       standing: "printer_not_configured",
     });
     await printCompletedSaleReceiptFor(deps(), "sale-1");
-    expect(printer.sent).toHaveLength(1);
+    expect(printer.waiting).toHaveLength(1);
     expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
-      next_copy: { kind: "duplicate", order_number: 1 },
+      next_copy: { kind: "original" },
       standing: "printing",
     });
   });
@@ -239,7 +232,7 @@ describe("printing a completed sale's receipt", () => {
     await printCompletedSaleReceiptFor(deps(), "sale-1");
 
     expect(failures).toHaveLength(1);
-    expect(printer.sent).toEqual([]);
+    expect(printer.waiting).toEqual([]);
   });
 });
 
@@ -263,12 +256,12 @@ describe("the print status of a sale's receipt", () => {
     });
   });
 
-  it("answers the next copy as the first duplicate and the print as in progress once sent", async () => {
+  it("answers the original as the next copy and the print as in progress while it waits for the printer", async () => {
     await printCompletedSaleReceiptFor(deps(), "sale-1");
 
     expect(await receiptPrintStatusFor(deps(), "sale-1")).toEqual({
       kind: "found",
-      next_copy: { kind: "duplicate", order_number: 1 },
+      next_copy: { kind: "original" },
       printed: false,
       standing: "printing",
     });
@@ -285,21 +278,12 @@ describe("the print status of a sale's receipt", () => {
     },
   );
 
-  it("offers a retry after the printer was ready for the retry delay without acknowledging", async () => {
-    await printedAndOffered();
-
-    expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
-      printed: false,
-      standing: "retry_offered",
-    });
-  });
-
   it("answers that the print failed, with the original still next, when its receipt could not be prepared", async () => {
     database.exec("DELETE FROM branch_settings");
 
     await printCompletedSaleReceiptFor(deps(), "sale-1");
 
-    expect(printer.sent).toEqual([]);
+    expect(printer.waiting).toEqual([]);
     expect(await receiptPrintStatusFor(deps(), "sale-1")).toEqual({
       kind: "found",
       next_copy: { kind: "original" },
@@ -308,8 +292,8 @@ describe("the print status of a sale's receipt", () => {
     });
   });
 
-  it("answers printed once the printer acknowledged", async () => {
-    await printedAndAcknowledged();
+  it("answers printed once the receipt was sent to the printer", async () => {
+    await printedAndSent();
 
     expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
       printed: true,
@@ -318,16 +302,13 @@ describe("the print status of a sale's receipt", () => {
   });
 });
 
-const WITHDRAWING_PRINTERS: ReceiptRequestDeps["printers"] = {
-  configured: () => ({ print: async () => ({ kind: "withdrawn" }) }),
+const ABANDONING_PRINTERS: ReceiptRequestDeps["printers"] = {
+  configured: () => ({ print: async () => ({ kind: "abandoned" }) }),
 };
 
-function jobsRunningUnwatched(
-  standing: ReturnType<typeof jobs.standingOf>,
-): ReceiptRequestDeps["jobs"] {
+function jobsRunningUnwatched(): ReceiptRequestDeps["jobs"] {
   return {
-    standingOf: () => standing,
-    withdrawHeld: () => {},
+    standingOf: () => null,
     start: async (_saleId, run) => ({
       kind: "answered",
       outcome: await run({ watch: new ReceiptPrintObserver().watch, printers: (inner) => inner }),
@@ -335,80 +316,14 @@ function jobsRunningUnwatched(
   };
 }
 
-describe("retrying a sale's receipt print", () => {
-  it("is not offered while the print is in progress", async () => {
-    await printCompletedSaleReceiptFor(deps(), "sale-1");
-
-    expect(await retryReceiptPrintFor(deps(), "sale-1")).toEqual({ kind: "not_offered" });
-    expect(printer.sent).toHaveLength(1);
-  });
-
-  it("is not offered after a print that failed", async () => {
-    database.exec("DELETE FROM branch_settings");
-    await printCompletedSaleReceiptFor(deps(), "sale-1");
-
-    expect(await retryReceiptPrintFor(deps(), "sale-1")).toEqual({ kind: "not_offered" });
-    expect(reprints()).toEqual([]);
-  });
-
-  it("is not offered for a sale nothing was printed for", async () => {
-    expect(await retryReceiptPrintFor(deps(), "sale-1")).toEqual({ kind: "not_offered" });
-  });
-
-  it("answers printer_not_configured when the printer is no longer configured", async () => {
-    await printedAndOffered();
-
-    expect(await retryReceiptPrintFor(deps({ printers: NO_PRINTERS }), "sale-1")).toEqual({
-      kind: "printer_not_configured",
-    });
-    expect(reprints()).toEqual([]);
-  });
-
-  it("sends the receipt again as a duplicate recorded as a retry, with no PIN and no reprint permission", async () => {
-    await printedAndOffered();
-
-    expect(await retryReceiptPrintFor(deps(), "sale-1")).toEqual({
-      kind: "started",
-      copy: { kind: "duplicate", order_number: 1 },
-    });
-
-    expect(printer.sent).toHaveLength(2);
-    expect(printer.sent[0]?.watch.signal.aborted).toBe(true);
-    expect(reprints()).toEqual([
-      {
-        order_number: 1,
-        requested_by: "cashier",
-        authorized_by: null,
-        reason_kind: "retry",
-        reason_text: null,
-      },
-    ]);
-  });
-
-  it("is refused to a person who may not sell", async () => {
-    await printedAndOffered();
-    signedInPerson.set("clerk");
-
-    expect(await retryReceiptPrintFor(deps(), "sale-1")).toEqual({ kind: "lacks_permission" });
-    expect(printer.sent).toHaveLength(1);
-  });
-
-  it("is refused when nobody is signed in", async () => {
-    await printedAndOffered();
-    signedInPerson.clear();
-
-    expect(await retryReceiptPrintFor(deps(), "sale-1")).toEqual({ kind: "not_signed_in" });
-  });
-});
-
 describe("reprinting a sale's receipt from the history", () => {
-  it("starts a reprint whose receipt the printer withdrew", async () => {
-    await printedAndOffered();
+  it("starts a reprint whose print the printer abandoned before it was ready", async () => {
+    await printedAndSent();
     signedInPerson.set("supervisor");
-    const withdrawn = { jobs: jobsRunningUnwatched("withdrawn"), printers: WITHDRAWING_PRINTERS };
+    const abandoning = { jobs: jobsRunningUnwatched(), printers: ABANDONING_PRINTERS };
 
     expect(
-      await reprintSaleReceiptFor(deps(withdrawn), { saleId: "sale-1", reason: REASON }),
+      await reprintSaleReceiptFor(deps(abandoning), { saleId: "sale-1", reason: REASON }),
     ).toEqual({ kind: "started", copy: { kind: "duplicate", order_number: 1 } });
   });
 
@@ -438,7 +353,7 @@ describe("reprinting a sale's receipt from the history", () => {
   });
 
   it("records the typed reason for a person who holds the permission", async () => {
-    await printedAndAcknowledged();
+    await printedAndSent();
     signedInPerson.set("supervisor");
 
     const outcome = await reprintSaleReceiptFor(deps(), {
@@ -459,16 +374,16 @@ describe("reprinting a sale's receipt from the history", () => {
   });
 
   it("asks another person's authorization from a person without the permission", async () => {
-    await printedAndAcknowledged();
+    await printedAndSent();
 
     expect(await reprintSaleReceiptFor(deps(), { saleId: "sale-1", reason: REASON })).toEqual({
       kind: "lacks_permission",
     });
-    expect(printer.sent).toHaveLength(1);
+    expect(printer.waiting).toHaveLength(1);
   });
 
   it("records who authorized it with the PIN of a person who holds the permission", async () => {
-    await printedAndAcknowledged();
+    await printedAndSent();
 
     expect(
       await reprintSaleReceiptFor(deps(), {
@@ -490,7 +405,7 @@ describe("reprinting a sale's receipt from the history", () => {
   });
 
   it("refuses a wrong PIN without printing", async () => {
-    await printedAndAcknowledged();
+    await printedAndSent();
 
     const outcome = await reprintSaleReceiptFor(deps(), {
       saleId: "sale-1",
@@ -499,12 +414,12 @@ describe("reprinting a sale's receipt from the history", () => {
     });
 
     expect(outcome).toMatchObject({ kind: "wrong_pin" });
-    expect(printer.sent).toHaveLength(1);
+    expect(printer.waiting).toHaveLength(1);
     expect(reprints()).toEqual([]);
   });
 
   it("refuses the PIN of a person who lacks the permission", async () => {
-    await printedAndAcknowledged();
+    await printedAndSent();
 
     expect(
       await reprintSaleReceiptFor(deps(), {
@@ -522,7 +437,7 @@ describe("reprinting a sale's receipt from the history", () => {
       kind: "invalid_reason",
       max_length: 200,
     });
-    expect(printer.sent).toEqual([]);
+    expect(printer.waiting).toEqual([]);
   });
 
   it("is busy while a print of that sale may still come out", async () => {
@@ -532,7 +447,7 @@ describe("reprinting a sale's receipt from the history", () => {
     expect(await reprintSaleReceiptFor(deps(), { saleId: "sale-1", reason: REASON })).toEqual({
       kind: "busy",
     });
-    expect(printer.sent).toHaveLength(1);
+    expect(printer.waiting).toHaveLength(1);
   });
 
   it("answers not_found for a sale that is not completed", async () => {
