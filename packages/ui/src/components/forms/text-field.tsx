@@ -34,6 +34,7 @@ export type TextFieldValueKind =
   | "price"
   | "weight"
   | "quantity"
+  | "discount"
   | "plain-text";
 
 // Excludes boolean along with null/undefined since React renders a boolean as nothing, so a kind
@@ -61,6 +62,7 @@ type TextFieldCommonProps = {
 type TextFieldKindProps =
   | { kind: "amount" | "counted-cash" | "price"; prefix: TextFieldAffix; suffix?: undefined }
   | { kind: "weight" | "quantity"; suffix: TextFieldAffix; prefix?: undefined }
+  | { kind: "discount"; prefix?: undefined; suffix?: TextFieldAffix }
   | { kind: "plain-text"; prefix?: undefined; suffix?: TextFieldAffix };
 
 export type TextFieldProps = TextFieldCommonProps &
@@ -85,6 +87,7 @@ const frameClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> 
   price: "h-control-6xl gap-2 px-4",
   weight: "h-control-5xl gap-2 px-4",
   quantity: "h-control-6xl gap-2 px-4",
+  discount: "h-control-4xl w-55 shrink-0 gap-2 px-4",
 };
 const registerPlainTextHeightClassName = "h-control-3xl";
 const registerPlainTextInsetClassName = "px-4";
@@ -96,6 +99,7 @@ const valueClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> 
   price: "text-right text-display text-text",
   weight: "text-left text-display text-text",
   quantity: "text-right text-display text-text",
+  discount: "text-left text-title text-text",
 };
 const registerPlainTextValueClassName = "text-left text-body text-text";
 const registerPlainTextSuffixedValueClassName = "text-right text-body text-text";
@@ -104,6 +108,8 @@ const inputBaseClassName = "min-w-0 flex-1 bg-transparent caret-focus outline-no
 
 const moneyPrefixClassName = "shrink-0 text-display font-normal text-text-subtle";
 const unitSuffixClassName = "shrink-0 text-heading font-normal text-text-subtle";
+const discountSuffixClassName = "shrink-0 text-subheading font-normal text-text-subtle";
+const discountDescriptionClassName = "text-detail text-text-subtle";
 const plainTextSuffixClassName = "shrink-0 text-body text-text-subtle";
 
 // The tooltip trigger adds its own `aria-describedby` while open, replacing the input's; the
@@ -139,7 +145,9 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
   const prefix =
     kind === "amount" || kind === "counted-cash" || kind === "price" ? props.prefix : undefined;
   const suffix =
-    kind === "weight" || kind === "quantity" || kind === "plain-text" ? props.suffix : undefined;
+    kind === "weight" || kind === "quantity" || kind === "discount" || kind === "plain-text"
+      ? props.suffix
+      : undefined;
 
   const contextSize = useFieldSize();
   const size = kind === "plain-text" ? contextSize : "register";
@@ -193,6 +201,68 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
       : valueClassName[kind]
   } ${readOnlyReason !== undefined ? `self-stretch ${insetClassName}` : ""}`;
 
+  const descriptionElement =
+    errorMessage === undefined && !invalid && description !== undefined ? (
+      <AriaText
+        slot="description"
+        className={kind === "discount" ? discountDescriptionClassName : fieldHelperClassName}
+        {...disabledTextProps(disabled)}
+      >
+        {description}
+      </AriaText>
+    ) : null;
+  const errorElement =
+    errorMessage !== undefined ? (
+      <AriaText
+        slot="errorMessage"
+        className={fieldErrorClassName}
+        {...disabledTextProps(disabled)}
+      >
+        {errorMessage}
+      </AriaText>
+    ) : null;
+  const descriptionBelowBox = kind === "discount" ? null : descriptionElement;
+  const boxElement = (
+    <div
+      className={`${fieldBoxClassName} ${readOnlyReason !== undefined ? heightClassName : boxFrameClassName} ${fieldBoxStateClassName({ disabled, readOnly, invalid })}`}
+    >
+      {prefix !== undefined && (
+        <span aria-hidden="true" id={affixId} className={moneyPrefixClassName}>
+          {prefix}
+        </span>
+      )}
+      {readOnlyReason !== undefined ? (
+        <>
+          <Tooltip description={readOnlyReason}>
+            <AriaFocusable>
+              <ReadOnlyReasonInput className={inputClassName} {...labelledByProps} />
+            </AriaFocusable>
+          </Tooltip>
+          <span id={readOnlyReasonId} className="sr-only">
+            {readOnlyReason}
+          </span>
+        </>
+      ) : (
+        <AriaInput className={inputClassName} {...labelledByProps} />
+      )}
+      {suffix !== undefined && (
+        <span
+          aria-hidden="true"
+          id={affixId}
+          className={
+            kind === "plain-text"
+              ? plainTextSuffixClassName
+              : kind === "discount"
+                ? discountSuffixClassName
+                : unitSuffixClassName
+          }
+        >
+          {suffix}
+        </span>
+      )}
+    </div>
+  );
+
   return (
     <AriaTextField
       value={value}
@@ -218,58 +288,16 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
       >
         {label}
       </AriaLabel>
-      <div
-        className={`${fieldBoxClassName} ${readOnlyReason !== undefined ? heightClassName : boxFrameClassName} ${fieldBoxStateClassName({ disabled, readOnly, invalid })}`}
-      >
-        {prefix !== undefined && (
-          <span aria-hidden="true" id={affixId} className={moneyPrefixClassName}>
-            {prefix}
-          </span>
-        )}
-        {readOnlyReason !== undefined ? (
-          <>
-            <Tooltip description={readOnlyReason}>
-              <AriaFocusable>
-                <ReadOnlyReasonInput className={inputClassName} {...labelledByProps} />
-              </AriaFocusable>
-            </Tooltip>
-            <span id={readOnlyReasonId} className="sr-only">
-              {readOnlyReason}
-            </span>
-          </>
-        ) : (
-          <AriaInput className={inputClassName} {...labelledByProps} />
-        )}
-        {suffix !== undefined && (
-          <span
-            aria-hidden="true"
-            id={affixId}
-            className={kind === "plain-text" ? plainTextSuffixClassName : unitSuffixClassName}
-          >
-            {suffix}
-          </span>
-        )}
-      </div>
-      {errorMessage !== undefined ? (
-        <AriaText
-          slot="errorMessage"
-          className={fieldErrorClassName}
-          {...disabledTextProps(disabled)}
-        >
-          {errorMessage}
-        </AriaText>
+      {kind === "discount" ? (
+        <div className="flex items-center gap-3">
+          {boxElement}
+          {descriptionElement}
+        </div>
       ) : (
-        !invalid &&
-        description !== undefined && (
-          <AriaText
-            slot="description"
-            className={fieldHelperClassName}
-            {...disabledTextProps(disabled)}
-          >
-            {description}
-          </AriaText>
-        )
+        boxElement
       )}
+      {errorElement}
+      {descriptionBelowBox}
     </AriaTextField>
   );
 }

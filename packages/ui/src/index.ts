@@ -179,6 +179,7 @@ export {
   formatInvoiceNumber,
   formatNumber,
   formatOperationNumber,
+  formatPercent,
   formatPointOfSaleNumber,
   formatSignedCents,
   formatTimeAgo,

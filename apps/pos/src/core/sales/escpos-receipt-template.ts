@@ -13,6 +13,7 @@ import {
   formatInvoiceNumber,
   formatNumber,
   formatOperationNumber,
+  formatPercent,
   formatPointOfSaleNumber,
 } from "@purosur/ui/formatters";
 import { encodePc850 } from "./pc850";
@@ -258,7 +259,7 @@ function issuer(out: Output, { issuer }: FacturaCFiscalBlock): void {
 
 function discountText({ manualAdjustment, promotion }: ReceiptContent["lines"][number]): string {
   if (manualAdjustment?.kind === "PERCENT") {
-    return `Descuento manual ${formatNumber(manualAdjustment.percent)} %`;
+    return `Descuento manual ${formatPercent(manualAdjustment.percent)}`;
   }
   if (manualAdjustment?.kind === "AMOUNT") {
     return "Descuento manual";
@@ -267,13 +268,13 @@ function discountText({ manualAdjustment, promotion }: ReceiptContent["lines"][n
     return "Descuento";
   }
   return promotion.kind === "PERCENT_OFF"
-    ? `${formatNumber(promotion.percent)} % de descuento`
+    ? `${formatPercent(promotion.percent)} de descuento`
     : `Lleve ${formatNumber(promotion.buyQty)}, pague ${formatNumber(promotion.payQty)}`;
 }
 
 function saleDiscountText(discount: NonNullable<ReceiptContent["totals"]["saleDiscount"]>): string {
   return discount.kind === "PERCENT"
-    ? `Descuento sobre el total ${formatNumber(discount.percent)}%`
+    ? `Descuento sobre el total ${formatPercent(discount.percent)}`
     : "Descuento sobre el total";
 }
 
