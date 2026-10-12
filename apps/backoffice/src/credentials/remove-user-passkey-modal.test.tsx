@@ -1,4 +1,4 @@
-import { afterEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { Passkey } from "./passkey-list";
@@ -38,7 +38,7 @@ function grantAuthorization(services: RemoveUserPasskeyModalServices) {
   vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
 }
 
-afterEach(() => {
+beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 

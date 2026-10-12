@@ -6,12 +6,16 @@ import {
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useIsFetching } from "@tanstack/react-query";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { BranchSettings } from "./branch-settings-api";
 import { BranchSettingsScreen } from "./branch-settings-screen";
 import type { BranchSettingsScreenServices } from "./branch-settings-services";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 function createServices(
   overrides: Partial<BranchSettingsScreenServices> = {},
@@ -342,7 +346,6 @@ test("navigates to Mi cuenta when the load comes back forbidden", async () => {
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("navigates to Mi cuenta when the save comes back forbidden", async () => {
@@ -358,7 +361,6 @@ test("navigates to Mi cuenta when the save comes back forbidden", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("navigates to Mi cuenta when Recargar comes back forbidden", async () => {
@@ -377,7 +379,6 @@ test("navigates to Mi cuenta when Recargar comes back forbidden", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Recargar" }));
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("saves every field, each day's ranges and the loaded version, then shows the values read again", async () => {

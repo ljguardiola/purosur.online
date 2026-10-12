@@ -1,6 +1,6 @@
 import type { CategorySummary, ProductSummary } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { productsListFilters } from "./routes";
 import { almonds, driedFruits, groceries, honey } from "./test-support/products";
@@ -13,6 +13,10 @@ import {
   renderScreen,
   screenElement,
 } from "./test-support/products-list-screen";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 test("shows the breadcrumb, heading, each product's data and the product count", async () => {
   const services = createServices();
@@ -387,7 +391,6 @@ test("navigates to Mi cuenta when the products request comes back forbidden", as
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("ends the session when the products request finds no open session", async () => {

@@ -16,6 +16,7 @@ import {
 } from "./test-support/stock-fixtures";
 
 beforeEach(async () => {
+  window.history.pushState(null, "", "/");
   await page.viewport(1280, 900);
 });
 
@@ -374,19 +375,15 @@ test("ends the session when registering finds it over", async () => {
 
 test("navigates to Mi cuenta when registering comes back forbidden", async () => {
   window.history.pushState(null, "", "/stock/movements");
-  try {
-    const services = createServices();
-    vi.mocked(services.recordLoss).mockResolvedValue({ kind: "forbidden" });
-    const rendered = await renderForm(services);
-    await userEvent.click(cardLabel(rendered, "Pérdida"));
-    await fillLoss(rendered);
+  const services = createServices();
+  vi.mocked(services.recordLoss).mockResolvedValue({ kind: "forbidden" });
+  const rendered = await renderForm(services);
+  await userEvent.click(cardLabel(rendered, "Pérdida"));
+  await fillLoss(rendered);
 
-    await userEvent.click(rendered.dialog.getByRole("button", { name: "Registrar la pérdida" }));
+  await userEvent.click(rendered.dialog.getByRole("button", { name: "Registrar la pérdida" }));
 
-    await expect.poll(() => window.location.pathname).toBe("/account");
-  } finally {
-    window.history.pushState(null, "", "/");
-  }
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test.each([

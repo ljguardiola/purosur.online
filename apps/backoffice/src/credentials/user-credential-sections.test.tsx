@@ -1,5 +1,5 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { afterEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import {
   createServices,
@@ -10,7 +10,7 @@ import {
   renderSections,
 } from "./test-support/user-credential-sections";
 
-afterEach(() => {
+beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 

@@ -1,7 +1,7 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { createQueryClient } from "../platform/query-client";
 import { render } from "../shell/test-support/render-with-router";
@@ -17,6 +17,10 @@ import {
   SECOND_REFUND_ID,
   TRANSFER_REFUND_ID,
 } from "./test-support/refund-fixtures";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 function createServices(): PendingRefundsScreenServices {
   return { fetchPendingRefunds: vi.fn(), markRefundDone: vi.fn(), discardRefund: vi.fn() };
@@ -294,7 +298,6 @@ test("navigates to Mi cuenta when the refunds request comes back forbidden", asy
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("ends the session when the refunds request finds no open session", async () => {
