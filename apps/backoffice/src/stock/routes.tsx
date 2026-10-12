@@ -3,6 +3,7 @@ import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import {
   canPerformStockCounts,
+  canRecordInitialInventory,
   canSeeStockBalances,
   canSeeStockMovements,
 } from "../shell/backoffice-access";
@@ -46,6 +47,13 @@ export const stockMovementsFilters = z.object({
 
 export type StockMovementsFilters = z.output<typeof stockMovementsFilters>;
 
+export const initialInventoryFilters = z.object({
+  search: z.string().default("").catch(""),
+  cost: z.enum(["all", "known", "incomplete"]).default("all").catch("all"),
+});
+
+export type InitialInventoryFilters = z.output<typeof initialInventoryFilters>;
+
 export const stockBalancesRoute = createRoute({
   getParentRoute: () => stockAreaRoute,
   path: "inventory",
@@ -71,4 +79,13 @@ export const stockMovementsRoute = createRoute({
   validateSearch: stockMovementsFilters,
   search: { middlewares: [stripSearchParams(stockMovementsFilters.parse({}))] },
   component: lazyScreen(() => import("./stock-movements-page"), "StockMovementsPage"),
+});
+
+export const initialInventoryRoute = createRoute({
+  getParentRoute: () => stockAreaRoute,
+  path: "initial-inventory",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canRecordInitialInventory),
+  validateSearch: initialInventoryFilters,
+  search: { middlewares: [stripSearchParams(initialInventoryFilters.parse({}))] },
+  component: lazyScreen(() => import("./initial-inventory-page"), "InitialInventoryPage"),
 });
