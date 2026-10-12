@@ -17,6 +17,7 @@ type LaneWrite =
   | "recordNeedsReview"
   | "recordExpired"
   | "recordOrderCreated"
+  | "recordNoOtherOrderPossible"
   | "recordOrderResult"
   | "openLatePaymentRefund";
 
@@ -105,6 +106,15 @@ class FakeLane implements PaymentTransactionLane {
       return { state: stored?.state ?? "PENDING", replaced: stored?.replaced ?? false };
     }
     return this.store(paymentTransactionId, reading.outcome, reading.readAt);
+  }
+
+  async recordNoOtherOrderPossible(paymentTransactionId: string): Promise<void> {
+    this.lanes.operations.push("recordNoOtherOrderPossible");
+    this.lanes.failIfAsked("recordNoOtherOrderPossible");
+    const stored = this.lanes.transactions.get(paymentTransactionId);
+    if (stored) {
+      stored.creationOutcomeUnknown = false;
+    }
   }
 
   async recordOrderResult(

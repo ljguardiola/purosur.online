@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { confirmMercadoPagoOrderNotification } from "./confirm-mercado-pago-order-notification.js";
+import { createMercadoPagoQrOrder } from "./create-mercado-pago-qr-order.js";
 import {
   AMOUNT,
   mercadoPagoQrOrderWorld,
   NOW,
   orderResult,
   paidOrderResult,
+  REGISTER_ID,
+  SALE_ID,
   storedTransaction,
   TRANSACTION_ID,
 } from "./test-support/mercado-pago-qr-order-fixtures.js";
@@ -96,6 +99,23 @@ describe("confirmMercadoPagoOrderNotification of an order no payment has recorde
       kind: "unknown_order",
     });
     expect(mercadoPago.readOrders).toEqual([]);
+  });
+
+  it("asks Mercado Pago nothing about an unknown order once a payment's first order creation was answered clearly", async () => {
+    const world = mercadoPagoQrOrderWorld();
+    await createMercadoPagoQrOrder(world.ports, {
+      registerId: REGISTER_ID,
+      paymentTransactionId: TRANSACTION_ID,
+      saleId: SALE_ID,
+      amount: AMOUNT,
+    });
+
+    expect(
+      await confirmMercadoPagoOrderNotification(world.notificationPorts, {
+        providerOrderId: "order-unrelated",
+      }),
+    ).toEqual({ kind: "unknown_order" });
+    expect(world.mercadoPago.readOrders).toEqual([]);
   });
 
   it("answers provider unavailable and records nothing when the order cannot be read", async () => {

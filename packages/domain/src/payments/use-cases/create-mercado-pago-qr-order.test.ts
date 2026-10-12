@@ -40,6 +40,7 @@ describe("createMercadoPagoQrOrder", () => {
       "recordPendingTransaction",
       "createQrOrder",
       "recordOrderCreated",
+      "recordNoOtherOrderPossible",
       "leaveLane",
     ]);
     expect(lanes.lanesEntered).toEqual([TRANSACTION_ID]);
@@ -69,13 +70,27 @@ describe("createMercadoPagoQrOrder", () => {
 
     const expected = storedTransaction({
       providerOrderId: "order-1",
-      creationOutcomeUnknown: true,
+      creationOutcomeUnknown: false,
       createdAt: NOW,
       expiresAt: new Date("2026-10-09T12:03:10.000Z"),
     });
     expect(outcome).toEqual({ kind: "recorded", transaction: expected });
     expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(expected);
     expect(lanes.resultReadAt.get(TRANSACTION_ID)).toEqual(NOW);
+  });
+
+  it("records the first attempt's order and that no other order of the payment exists in one storage transaction", async () => {
+    const { lanes, ports } = mercadoPagoQrOrderWorld();
+    lanes.failOn = "recordNoOtherOrderPossible";
+
+    await expect(createMercadoPagoQrOrder(ports, INPUT)).rejects.toThrow(
+      "recordNoOtherOrderPossible failed",
+    );
+
+    expect(lanes.transactions.get(TRANSACTION_ID)).toMatchObject({
+      providerOrderId: null,
+      creationOutcomeUnknown: true,
+    });
   });
 
   it("trusts the answer of a new order's creation", async () => {
@@ -328,6 +343,23 @@ describe("createMercadoPagoQrOrder", () => {
       await createMercadoPagoQrOrder(ports, INPUT);
 
       expect(lanes.transactions.get(TRANSACTION_ID)?.creationOutcomeUnknown).toBe(true);
+    });
+
+    it("still remembers that an earlier attempt's order may exist when a retry creates an order", async () => {
+      const { lanes, ports } = mercadoPagoQrOrderWorld();
+      lanes.seed(storedTransaction({ creationOutcomeUnknown: true }));
+
+      const outcome = await createMercadoPagoQrOrder(ports, INPUT);
+
+      expect(outcome).toMatchObject({
+        kind: "recorded",
+        transaction: { providerOrderId: "order-1", creationOutcomeUnknown: true },
+      });
+      expect(lanes.transactions.get(TRANSACTION_ID)).toMatchObject({
+        providerOrderId: "order-1",
+        creationOutcomeUnknown: true,
+      });
+      expect(lanes.operations).not.toContain("recordNoOtherOrderPossible");
     });
 
     it("still remembers that an earlier attempt's order may exist when a retry is refused", async () => {
