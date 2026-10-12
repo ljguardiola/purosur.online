@@ -1,5 +1,5 @@
 import {
-  aMercadoPagoChargeInItsWait,
+  aMercadoPagoChargeInProgress,
   cancellableWithoutAuthorization,
 } from "../../payments/index.js";
 import type { Clock } from "../../shared/index.js";
@@ -42,7 +42,7 @@ export function cancelSale(
 
     const pendingMercadoPagoPayments = tx.pendingMercadoPagoPaymentsOf(sale.id);
     const now = clock.now();
-    if (aMercadoPagoChargeInItsWait(pendingMercadoPagoPayments, now)) {
+    if (aMercadoPagoChargeInProgress(pendingMercadoPagoPayments, now)) {
       return { kind: "mercado_pago_charge_in_progress" };
     }
 

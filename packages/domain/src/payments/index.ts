@@ -4,7 +4,7 @@ export {
   PAYMENT_NOTIFICATION_LIMIT,
 } from "./model/mercado-pago-notifications.js";
 export {
-  aMercadoPagoChargeInItsWait,
+  aMercadoPagoChargeInProgress,
   MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS,
   MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
 } from "./model/mercado-pago-order-charge-wait.js";

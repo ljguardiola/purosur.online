@@ -1,5 +1,5 @@
 import {
-  aMercadoPagoChargeInItsWait,
+  aMercadoPagoChargeInProgress,
   cancellableWithoutAuthorization,
   hasApprovedPayment,
   holdsApprovedQrPayment,
@@ -24,23 +24,23 @@ export interface OpenSaleStanding {
 
 export function saleLinesLock(
   payments: readonly { state: string }[],
-  pendingMercadoPagoPayments: readonly { waitEndsAt: Date }[],
+  pendingMercadoPagoPayments: readonly { method: string; waitEndsAt: Date }[],
   now: Date,
 ): SaleLinesLock | null {
   if (hasApprovedPayment(payments)) {
     return "approved_payment";
   }
-  return aMercadoPagoChargeInItsWait(pendingMercadoPagoPayments, now)
+  return aMercadoPagoChargeInProgress(pendingMercadoPagoPayments, now)
     ? "mercado_pago_charge_in_progress"
     : null;
 }
 
 export function saleCancelRefusal(
   payments: readonly { state: string; method: string }[],
-  pendingMercadoPagoPayments: readonly { waitEndsAt: Date }[],
+  pendingMercadoPagoPayments: readonly { method: string; waitEndsAt: Date }[],
   now: Date,
 ): SaleCancelRefusal | null {
-  if (aMercadoPagoChargeInItsWait(pendingMercadoPagoPayments, now)) {
+  if (aMercadoPagoChargeInProgress(pendingMercadoPagoPayments, now)) {
     return "mercado_pago_charge_in_progress";
   }
   return holdsApprovedQrPayment(payments) ? "holds_qr_payment" : null;
@@ -49,7 +49,7 @@ export function saleCancelRefusal(
 export function openSaleStanding(
   total: number,
   payments: readonly RefundablePayment[],
-  pendingMercadoPagoPayments: readonly { waitEndsAt: Date }[],
+  pendingMercadoPagoPayments: readonly { method: string; waitEndsAt: Date }[],
   now: Date,
 ): OpenSaleStanding {
   const cancelRefusal = saleCancelRefusal(payments, pendingMercadoPagoPayments, now);

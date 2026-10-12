@@ -32,7 +32,7 @@ export function replacePendingQrPayment(
       return session;
     }
     const pending = tx.pendingMercadoPagoPayment(paymentTransactionId);
-    if (pending === undefined) {
+    if (pending === undefined || pending.method !== "QR") {
       return { kind: "not_pending" };
     }
     if (tx.openSale(session.id)?.id !== pending.saleId) {

@@ -26,11 +26,12 @@ export function mercadoPagoOrderChargeRemainingSeconds(waitEndsAt: Date, now: Da
   return wait.kind === "waiting" ? wait.remainingSeconds : 0;
 }
 
-export function aMercadoPagoChargeInItsWait(
-  pendingMercadoPagoPayments: readonly { waitEndsAt: Date }[],
+export function aMercadoPagoChargeInProgress(
+  pendingPayments: readonly { method: string; waitEndsAt: Date }[],
   now: Date,
 ): boolean {
-  return pendingMercadoPagoPayments.some(
-    ({ waitEndsAt }) => mercadoPagoOrderChargeWait(waitEndsAt, now).kind === "waiting",
+  return pendingPayments.some(
+    ({ method, waitEndsAt }) =>
+      method === "POINT" || mercadoPagoOrderChargeWait(waitEndsAt, now).kind === "waiting",
   );
 }
