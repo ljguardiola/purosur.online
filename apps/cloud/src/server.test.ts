@@ -1510,6 +1510,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
     const mercadoPago = {
       longestCallMs: expect.any(Number),
       createQrOrder: expect.any(Function),
+      createPointOrder: expect.any(Function),
       readOrder: expect.any(Function),
       cancelOrder: expect.any(Function),
     };
@@ -1535,6 +1536,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
     expect(recoveryEnv.mercadoPago).toEqual({
       longestCallMs: expect.any(Number),
       createQrOrder: expect.any(Function),
+      createPointOrder: expect.any(Function),
       readOrder: expect.any(Function),
       cancelOrder: expect.any(Function),
     });
