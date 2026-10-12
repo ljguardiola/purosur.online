@@ -32,9 +32,7 @@ async function databaseHoldingLotsAndSessions() {
     return rows[0]?.id as string;
   };
   const locationId = await first("select id from locations limit 1");
-  const otherLocationId = await first(
-    "insert into locations default values returning id",
-  );
+  const otherLocationId = await first("insert into locations default values returning id");
   const registerId = await first(
     "insert into registers (location_id, name) values ($1, 'Caja 1') returning id",
     [locationId],
