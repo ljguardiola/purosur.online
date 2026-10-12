@@ -417,6 +417,7 @@ export type {
   WithdrawInitialCountLineOutcome,
 } from "./stock/initial-count-core-messages.js";
 export {
+  recordInitialCountLineMessageSchema,
   stockCoreToRendererMessageSchema,
   stockRendererToCoreMessageSchema,
 } from "./stock/initial-count-core-messages.js";

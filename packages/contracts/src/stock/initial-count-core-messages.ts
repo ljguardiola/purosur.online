@@ -17,7 +17,7 @@ const readInitialCountMessageSchema = z.object({
   request_id: requestId,
 });
 
-const recordInitialCountLineMessageSchema = z.object({
+export const recordInitialCountLineMessageSchema = z.object({
   type: z.literal("record-initial-count-line"),
   request_id: requestId,
   product_id: z.string(),
