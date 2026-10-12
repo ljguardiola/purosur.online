@@ -1,4 +1,6 @@
-type SummaryRowTone = "danger" | "accent";
+import { type Tone, toneClassName } from "../shared/tone";
+
+type SummaryRowTone = Extract<Tone, "error" | "info">;
 
 export type SummaryRowProps = {
   label: string;
@@ -34,19 +36,14 @@ const textColorClassName: Record<SummaryRowForm, string> = {
 
 const savingColorClassName = "text-success";
 
-const toneColorClassName: Record<SummaryRowTone, string> = {
-  danger: "text-error-strong",
-  accent: "text-text-accent",
-};
-
 const toneTypeClassName: Record<SummaryRowTone, Record<SummaryRowForm, string>> = {
-  danger: { regular: "text-body font-bold", strong: "text-subheading" },
-  accent: { regular: "text-heading", strong: "text-heading" },
+  error: { regular: "text-body font-bold", strong: "text-subheading" },
+  info: { regular: "text-heading", strong: "text-heading" },
 };
 
 function valueColorClassName(form: SummaryRowForm, saving: boolean, tone?: SummaryRowTone) {
   if (tone !== undefined) {
-    return toneColorClassName[tone];
+    return toneClassName[tone].strongText;
   }
   return saving ? savingColorClassName : textColorClassName[form];
 }
