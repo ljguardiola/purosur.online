@@ -544,9 +544,11 @@ describe("the outcomes that say a manual discount was removed", () => {
     ["changing a line's quantity", changeLineQuantityOutcomeSchema, "changed"],
     ["changing a line's weight", changeLineWeightOutcomeSchema, "changed"],
   ] as const)("require it when %s changes the sale", (_case, schema, kind) => {
-    expect(schema.safeParse({ kind, sale, removed_manual_discount: true }).success).toBe(true);
-    expect(schema.safeParse({ kind, sale }).success).toBe(false);
-    expect(schema.safeParse({ kind, sale, removed_manual_discount: "yes" }).success).toBe(false);
+    const answer = { kind, sale, removed_sale_discount: false };
+
+    expect(schema.safeParse({ ...answer, removed_manual_discount: true }).success).toBe(true);
+    expect(schema.safeParse(answer).success).toBe(false);
+    expect(schema.safeParse({ ...answer, removed_manual_discount: "yes" }).success).toBe(false);
   });
 });
 
