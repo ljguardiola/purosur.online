@@ -1422,6 +1422,9 @@ describe("App", () => {
             refunds_on_cancel: [],
             cancel_authorization_required: false,
             adjust_authorization_required: false,
+            sale_discount_authorization_required: false,
+            sale_discount: null,
+            subtotal: 238_000,
           };
         },
       },
@@ -1469,6 +1472,9 @@ describe("App", () => {
           refunds_on_cancel: [],
           cancel_authorization_required: false,
           adjust_authorization_required: false,
+          sale_discount_authorization_required: false,
+          sale_discount: null,
+          subtotal: 238_000,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
         chargeSaleInCash: async (saleId, tendered) => {
@@ -1529,6 +1535,9 @@ describe("App", () => {
                 refunds_on_cancel: [],
                 cancel_authorization_required: false,
                 adjust_authorization_required: false,
+                sale_discount_authorization_required: false,
+                sale_discount: null,
+                subtotal: 238_000,
               })
             : new Promise(() => {});
         },
@@ -1595,6 +1604,9 @@ describe("App", () => {
           refunds_on_cancel: [],
           cancel_authorization_required: false,
           adjust_authorization_required: false,
+          sale_discount_authorization_required: false,
+          sale_discount: null,
+          subtotal: 238_000,
         }),
         chargeSaleByTransfer: async (saleId, amount) => {
           charges.push([saleId, amount]);
@@ -1652,6 +1664,9 @@ describe("App", () => {
                 refunds_on_cancel: [],
                 cancel_authorization_required: false,
                 adjust_authorization_required: false,
+                sale_discount_authorization_required: false,
+                sale_discount: null,
+                subtotal: 238_000,
               })
             : new Promise(() => {});
         },
@@ -1715,6 +1730,9 @@ describe("App", () => {
                 refunds_on_cancel: [],
                 cancel_authorization_required: false,
                 adjust_authorization_required: false,
+                sale_discount_authorization_required: false,
+                sale_discount: null,
+                subtotal: 238_000,
               })
             : new Promise(() => {});
         },
@@ -1787,6 +1805,9 @@ describe("App", () => {
                 refunds_on_cancel: [],
                 cancel_authorization_required: false,
                 adjust_authorization_required: false,
+                sale_discount_authorization_required: false,
+                sale_discount: null,
+                subtotal: 238_000,
               })
             : new Promise(() => {});
         },
@@ -2812,6 +2833,9 @@ describe("App", () => {
             refunds_on_cancel: [],
             cancel_authorization_required: false,
             adjust_authorization_required: false,
+            sale_discount_authorization_required: false,
+            sale_discount: null,
+            subtotal: 238_000,
           }),
           cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
           chargeSaleInCash: async (saleId, tendered) => ({

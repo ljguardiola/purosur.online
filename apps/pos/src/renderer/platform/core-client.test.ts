@@ -961,6 +961,9 @@ describe("createCoreClient", () => {
       refunds_on_cancel: [],
       cancel_authorization_required: false,
       adjust_authorization_required: false,
+      sale_discount_authorization_required: false,
+      sale_discount: null,
+      subtotal: 4_760,
     },
     {
       id: "sale-2",
@@ -988,6 +991,9 @@ describe("createCoreClient", () => {
       refunds_on_cancel: [],
       cancel_authorization_required: false,
       adjust_authorization_required: false,
+      sale_discount_authorization_required: false,
+      sale_discount: null,
+      subtotal: 1_000_000_000,
     },
   ])(
     "asks the core for the sale in progress of the person and resolves with it: %j",

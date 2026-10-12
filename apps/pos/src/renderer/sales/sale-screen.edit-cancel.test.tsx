@@ -28,6 +28,9 @@ const SALE_OF_THREE_YERBAS: OpenSale = {
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,
+  sale_discount_authorization_required: false,
+  sale_discount: null,
+  subtotal: 714_000,
 };
 const SALE_OF_ONE_YERBA: OpenSale = {
   id: "sale-1",
@@ -41,6 +44,9 @@ const SALE_OF_ONE_YERBA: OpenSale = {
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,
+  sale_discount_authorization_required: false,
+  sale_discount: null,
+  subtotal: 238_000,
 };
 const SALE_OF_ALFAJOR: OpenSale = {
   id: "sale-1",
@@ -54,6 +60,9 @@ const SALE_OF_ALFAJOR: OpenSale = {
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,
+  sale_discount_authorization_required: false,
+  sale_discount: null,
+  subtotal: 150_000,
 };
 const EMPTY_SALE: OpenSale = {
   id: "sale-1",
@@ -67,6 +76,9 @@ const EMPTY_SALE: OpenSale = {
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,
+  sale_discount_authorization_required: false,
+  sale_discount: null,
+  subtotal: 0,
 };
 
 const RAISE_YERBA = "Subir la cantidad de Yerba mate 1 kg";
@@ -79,6 +91,7 @@ describe("SaleScreen editing the lines", () => {
       async (): Promise<ChangeLineQuantityOutcome> => ({
         kind: "changed",
         removed_manual_discount: false,
+        removed_sale_discount: false,
         sale: SALE_OF_THREE_YERBAS,
       }),
     );
@@ -98,6 +111,7 @@ describe("SaleScreen editing the lines", () => {
       async (): Promise<ChangeLineQuantityOutcome> => ({
         kind: "changed",
         removed_manual_discount: false,
+        removed_sale_discount: false,
         sale: SALE_OF_ONE_YERBA,
       }),
     );
@@ -128,7 +142,11 @@ describe("SaleScreen editing the lines", () => {
 
   it("removes a line at once and shows the sale without it", async () => {
     const removeSaleLine = vi.fn(
-      async (): Promise<RemoveSaleLineOutcome> => ({ kind: "removed", sale: SALE_OF_ALFAJOR }),
+      async (): Promise<RemoveSaleLineOutcome> => ({
+        kind: "removed",
+        sale: SALE_OF_ALFAJOR,
+        removed_sale_discount: false,
+      }),
     );
     const { screen } = await renderScreen({
       currentSale: async () => SALE_OF_YERBA_AND_ALFAJOR,
@@ -148,6 +166,7 @@ describe("SaleScreen editing the lines", () => {
       changeLineQuantity: async () => ({
         kind: "changed",
         removed_manual_discount: false,
+        removed_sale_discount: false,
         sale: SALE_OF_THREE_YERBAS,
       }),
     });
@@ -172,7 +191,7 @@ describe("SaleScreen editing the lines", () => {
     await expect.element(raise).toBeDisabled();
     await expect.element(screen.getByRole("button", { name: REMOVE_YERBA })).toBeDisabled();
     await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeDisabled();
-    answer.resolve({ kind: "changed", removed_manual_discount: false, sale: SALE_OF_THREE_YERBAS });
+    answer.resolve({ kind: "changed", removed_manual_discount: false, removed_sale_discount: false, sale: SALE_OF_THREE_YERBAS });
     await expect.element(raise).toBeEnabled();
     expect(changeLineQuantity).toHaveBeenCalledOnce();
   });

@@ -59,6 +59,9 @@ const SALE: OpenSale = {
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,
+  sale_discount_authorization_required: false,
+  sale_discount: null,
+  subtotal: 238_000,
 };
 
 function CurrentSaleProbe({

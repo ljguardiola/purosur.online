@@ -1109,6 +1109,9 @@ describe("the register's router", () => {
           refunds_on_cancel: [],
           cancel_authorization_required: false,
           adjust_authorization_required: false,
+          sale_discount_authorization_required: false,
+          sale_discount: null,
+          subtotal: 238_000,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
         chargeSaleInCash: async (saleId, tendered) => {
@@ -1163,6 +1166,9 @@ describe("the register's router", () => {
           refunds_on_cancel: [],
           cancel_authorization_required: false,
           adjust_authorization_required: false,
+          sale_discount_authorization_required: false,
+          sale_discount: null,
+          subtotal: 238_000,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
         chargeSaleInCash: async () => ({ kind: "no_open_session" }),
@@ -1914,6 +1920,9 @@ describe("the register's status bar", () => {
       refunds_on_cancel: [],
       cancel_authorization_required: false,
       adjust_authorization_required: false,
+      sale_discount_authorization_required: false,
+      sale_discount: null,
+      subtotal: 238_000,
     }),
   };
 
@@ -2025,6 +2034,9 @@ describe("the charge route's Mercado Pago QR", () => {
       refunds_on_cancel: [],
       cancel_authorization_required: false,
       adjust_authorization_required: false,
+      sale_discount_authorization_required: false,
+      sale_discount: null,
+      subtotal: 238_000,
     }),
   };
 

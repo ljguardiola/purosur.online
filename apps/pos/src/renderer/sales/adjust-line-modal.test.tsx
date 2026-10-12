@@ -24,7 +24,7 @@ const AUTHORIZERS: SignInUser[] = [
 ];
 const APPLY = /^Aplicar el (descuento|precio)$/;
 const REASON = "Motivo";
-const CHANGED: AdjustSaleLineOutcome = { kind: "changed", sale: SALE_OF_YERBA };
+const CHANGED: AdjustSaleLineOutcome = { kind: "changed", sale: SALE_OF_YERBA, removed_sale_discount: false };
 
 type Props = {
   previewAdjustment?: (
