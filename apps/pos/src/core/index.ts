@@ -791,16 +791,7 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : (address) =>
-          setReceiptPrinterFor(
-            {
-              database: localDatabase,
-              gate: actionGate,
-              replacement: {
-                receiptPrinterReplaced: () => receiptPrinting.withdrawHeldReceipts?.(),
-              },
-            },
-            address,
-          ),
+          setReceiptPrinterFor({ database: localDatabase, gate: actionGate }, address),
   readSerialDevices:
     localDatabase === undefined || actionGate === undefined
       ? undefined

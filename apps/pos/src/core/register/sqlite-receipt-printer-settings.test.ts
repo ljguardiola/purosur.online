@@ -43,20 +43,4 @@ describe("SqliteReceiptPrinterSettings", () => {
       rows: 1,
     });
   });
-
-  it("holds no current printer until an address is saved", () => {
-    expect(settings.isCurrentReceiptPrinter({ host: "10.10.10.2", port: null })).toBe(false);
-  });
-
-  it("holds as current the printer an address reaches, written with or without its port", () => {
-    settings.saveReceiptPrinterAddress({ host: "Ticketera", port: null });
-
-    expect(settings.isCurrentReceiptPrinter({ host: "ticketera", port: 9100 })).toBe(true);
-  });
-
-  it("holds as current no printer another address reaches", () => {
-    settings.saveReceiptPrinterAddress({ host: "10.10.10.2", port: 9100 });
-
-    expect(settings.isCurrentReceiptPrinter({ host: "10.10.10.3", port: 9100 })).toBe(false);
-  });
 });
