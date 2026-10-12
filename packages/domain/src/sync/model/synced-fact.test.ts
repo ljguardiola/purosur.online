@@ -4,10 +4,10 @@ import { dependenciesOf, invariantBreaksOf } from "./synced-fact.js";
 import {
   A_CASH_MOVEMENT_FACT,
   A_GATE_FAILED_FACT,
-  AN_OPENING_COUNT_RECORDED_FACT,
-  AN_OPENING_COUNT_WITHDRAWN_FACT,
   A_SESSION_CLOSED_FACT,
   A_SESSION_OPENED_FACT,
+  AN_OPENING_COUNT_RECORDED_FACT,
+  AN_OPENING_COUNT_WITHDRAWN_FACT,
   aCancelledSaleFact,
   aCompletedSaleFact,
 } from "./test-support/synced-facts.js";
