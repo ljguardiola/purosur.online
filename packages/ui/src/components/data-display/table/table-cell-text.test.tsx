@@ -58,6 +58,7 @@ test("leaves its text color and weight to the row unless it is asked for a tone 
 test.each([
   ["subtle", "text-subtle"],
   ["error", "error-strong"],
+  ["success", "success-strong"],
 ] as const)("writes its text in the %s tone", async (tone, token) => {
   const screen = await render(<TableCellText tone={tone}>Coffee</TableCellText>);
   const text = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
