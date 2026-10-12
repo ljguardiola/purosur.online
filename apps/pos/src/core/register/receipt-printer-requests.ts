@@ -36,7 +36,7 @@ function authorityOf(gate: ActionGate) {
 export async function readReceiptPrinterFor({
   database,
   gate,
-}: ReceiptPrinterRequestDeps): Promise<ReadReceiptPrinterOutcome> {
+}: Pick<ReceiptPrinterRequestDeps, "database" | "gate">): Promise<ReadReceiptPrinterOutcome> {
   return readReceiptPrinterAddress({
     settings: new SqliteReceiptPrinterSettings(database),
     authority: authorityOf(gate),
