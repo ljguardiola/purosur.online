@@ -31,13 +31,7 @@ export type ReceiptPrintOutcome =
   | { kind: "unavailable" }
   | { kind: "printer_not_configured" }
   | { kind: "printed"; copy: ReceiptCopy }
-  | { kind: "abandoned"; copy: ReceiptCopy }
-  | { kind: "withdrawn"; copy: ReceiptCopy };
-
-interface Recorded {
-  copy: ReceiptCopy;
-  stored: StoredReceipt;
-}
+  | { kind: "abandoned"; copy: ReceiptCopy };
 
 export async function printReceipt<Grant extends ReceiptPrintGrant, Refusal>(
   ports: ReceiptPrintingPorts<Grant, Refusal>,
@@ -63,7 +57,7 @@ export async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refus
   if (printer === undefined) {
     return { kind: "printer_not_configured" };
   }
-  const recorded = ledger.transaction<Recorded | ReceiptPrintOutcome>((tx) => {
+  const decided = ledger.transaction<ReceiptCopy | ReceiptPrintOutcome>((tx) => {
     const delivery = tx.receiptDelivery(saleId);
     if (delivery === undefined) {
       return { kind: "not_found" };
@@ -71,38 +65,49 @@ export async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refus
     if (!tx.outboxReady()) {
       return { kind: "unavailable" };
     }
-    const existing = tx.storedReceipt(saleId);
-    if (existing === undefined && tx.receiptSource(saleId).fiscal.kind === "awaiting") {
+    if (
+      tx.storedReceipt(saleId) === undefined &&
+      tx.receiptSource(saleId).fiscal.kind === "awaiting"
+    ) {
       return { kind: "unavailable" };
     }
-    const copy = nextReceiptCopy(delivery);
-    const at = clock.now();
-    if (copy.kind === "original") {
-      tx.recordPrintAttempt(saleId, at);
-      tx.appendOutboxEvent(printStateEvent(ids.next(), saleId, grant, at, null));
-    } else {
-      tx.recordReprint({
-        saleId,
-        orderNumber: copy.orderNumber,
-        requestedBy: grant.actorId,
-        authorizedBy: grant.authorizedBy ?? null,
-        reason: reasonOfDuplicate,
-        occurredAt: at,
-      });
-      tx.appendOutboxEvent(
-        reprintEvent(ids.next(), saleId, copy.orderNumber, grant, reasonOfDuplicate, at),
-      );
-    }
-    return { copy, stored: storedReceiptOf(tx, template, saleId) };
+    return nextReceiptCopy(delivery);
   });
-  if ("kind" in recorded) {
-    return recorded;
+  if (decided.kind !== "original" && decided.kind !== "duplicate") {
+    return decided;
   }
 
-  const { copy, stored } = recorded;
-  const ending = await printer.print(template.printable(stored, copy), watch);
-  if (ending.kind !== "acknowledged") {
-    return { kind: ending.kind, copy };
+  const handedOver: { copy?: ReceiptCopy } = {};
+  const ending = await printer.print(watch, () =>
+    ledger.transaction((tx) => {
+      const delivery = tx.receiptDelivery(saleId);
+      if (delivery === undefined) {
+        throw new Error(`sale ${saleId} has no receipt to send`);
+      }
+      const copy = nextReceiptCopy(delivery);
+      const at = clock.now();
+      if (copy.kind === "original") {
+        tx.recordPrintAttempt(saleId, at);
+        tx.appendOutboxEvent(printStateEvent(ids.next(), saleId, grant, at, null));
+      } else {
+        tx.recordReprint({
+          saleId,
+          orderNumber: copy.orderNumber,
+          requestedBy: grant.actorId,
+          authorizedBy: grant.authorizedBy ?? null,
+          reason: reasonOfDuplicate,
+          occurredAt: at,
+        });
+        tx.appendOutboxEvent(
+          reprintEvent(ids.next(), saleId, copy.orderNumber, grant, reasonOfDuplicate, at),
+        );
+      }
+      handedOver.copy = copy;
+      return template.printable(storedReceiptOf(tx, template, saleId), copy);
+    }),
+  );
+  if (ending.kind === "abandoned") {
+    return { kind: "abandoned", copy: decided };
   }
 
   ledger.transaction((tx) => {
@@ -115,7 +120,7 @@ export async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refus
       );
     }
   });
-  return { kind: "printed", copy };
+  return { kind: "printed", copy: handedOver.copy ?? decided };
 }
 
 function storedReceiptOf(
