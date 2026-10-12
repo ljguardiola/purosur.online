@@ -53,6 +53,10 @@ export const LatePaymentRefund: Story = {
   args: { kind: "late_payment_refund", providerOrderId: null },
 };
 
+export const RefundTask: Story = {
+  args: { kind: "refund_task" },
+};
+
 export const LatePaymentRefundOfSecondOrder: Story = {
   args: { kind: "late_payment_refund", providerOrderId: "ORD01JZ8K3M4N5P6Q7R8S9T0V" },
 };
