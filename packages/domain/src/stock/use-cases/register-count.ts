@@ -5,7 +5,7 @@ import {
   isCountableByLot,
   lotsAtMoment,
 } from "../model/lot-count.js";
-import { countResult } from "../model/stock-count.js";
+import { countedLotsTotal, countResult } from "../model/stock-count.js";
 import { isCountedQuantity } from "../model/stock-quantity.js";
 import {
   type AppliedStockMovement,
@@ -51,9 +51,7 @@ export async function registerCount(
     if (locked.kind === "not_found") {
       return { kind: "not_found" };
     }
-    const counted = byLot
-      ? countedLots.reduce((sum, lot) => sum + lot.counted, 0)
-      : (input.counted ?? 0);
+    const counted = byLot ? countedLotsTotal(countedLots) : (input.counted ?? 0);
     const quantities = [...countedLots.map((lot) => lot.counted), counted];
     if (!quantities.every((quantity) => isCountedQuantity(locked.saleUnit, quantity))) {
       return { kind: "invalid_quantity" };
