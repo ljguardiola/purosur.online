@@ -1,6 +1,6 @@
-import type { AlertConditionObservation } from "../../alerts/index.js";
+import type { Fortnight } from "../../fiscal/index.js";
 import type { Clock } from "../../shared/index.js";
-import type { Fortnight } from "../model/offline-authorization-code.js";
+import type { AlertConditionObservation } from "../model/alert-condition-observation.js";
 
 export interface RegisterOfflineAuthorizationCodeHolding {
   registerId: string;

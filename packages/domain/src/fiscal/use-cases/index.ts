@@ -123,7 +123,6 @@ export type {
   DecideUnclearRealTimeOutcomeOutcome,
 } from "./decide-unclear-real-time-outcome.js";
 export { decideUnclearRealTimeOutcome } from "./decide-unclear-real-time-outcome.js";
-export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
 export type {
   EditFiscalAddressInput,
   EditFiscalAddressOutcome,
@@ -178,12 +177,6 @@ export type {
   IssuerIdentificationStoreTransaction,
   NewIssuerIdentificationVersion,
 } from "./issuer-identification-store.js";
-export type {
-  MissingOfflineAuthorizationCodeAlerts,
-  MissingOfflineAuthorizationCodeDetectionPorts,
-  OfflineAuthorizationCodeHoldingReader,
-  RegisterOfflineAuthorizationCodeHolding,
-} from "./missing-offline-authorization-code-ports.js";
 export type {
   FortnightAcquisitionOutcome,
   ObtainOfflineAuthorizationCodesOutcome,

@@ -1,6 +1,5 @@
-import type { AlertConditionObservation } from "../../../alerts/index.js";
-import type { Clock } from "../../../shared/index.js";
-import type { Fortnight } from "../../model/offline-authorization-code.js";
+import type { Fortnight } from "../../../fiscal/index.js";
+import type { AlertConditionObservation } from "../../model/alert-condition-observation.js";
 import type {
   MissingOfflineAuthorizationCodeAlerts,
   OfflineAuthorizationCodeHoldingReader,
@@ -56,17 +55,5 @@ export class FakeMissingOfflineAuthorizationCodeAlerts
     if (observation.holds) {
       this.openScopes.add(observation.alert.scope);
     }
-  }
-}
-
-export class FixedClock implements Clock {
-  private readonly instant: Date;
-
-  constructor(instant: Date) {
-    this.instant = instant;
-  }
-
-  now(): Date {
-    return new Date(this.instant);
   }
 }
