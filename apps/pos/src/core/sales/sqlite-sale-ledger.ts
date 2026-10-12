@@ -3,9 +3,9 @@ import {
   type DiscountBenefit,
   type DiscountTargetKind,
   discountsTargeting,
+  newestPrice,
   nextOperationNumber,
   type OutboxEventDraft,
-  priceInEffectAt,
   type Sale,
   type SaleDiscount,
   type SaleLine,
@@ -98,7 +98,7 @@ export class SqliteSaleLedger implements SaleLedger {
       activeProductById: (productId) => this.activeProductById(productId),
       searchableProducts: () => this.searchableProducts(),
       buyerIdentificationThresholds: () => this.buyerIdentificationThresholds(),
-      priceAt: (productId, moment) => this.priceAt(productId, moment),
+      currentPrice: (productId) => this.currentPrice(productId),
       promotionsTargeting: (productId) => this.promotionsTargeting(productId),
       recordOpenedSale: (sale) => this.recordOpenedSale(sale),
       recordSaleLine: (saleId, line) => this.recordSaleLine(saleId, line),
@@ -231,10 +231,7 @@ export class SqliteSaleLedger implements SaleLedger {
       }));
   }
 
-  private priceAt(
-    productId: string,
-    moment: Date,
-  ): { priceListId: string; unitPrice: number } | undefined {
+  private currentPrice(productId: string): { priceListId: string; unitPrice: number } | undefined {
     const candidates = this.database
       .prepare<[string], PriceRow>(
         "SELECT id, price_list_id, unit_price, valid_from FROM prices WHERE product_id = ? AND removed = 0",
@@ -246,7 +243,7 @@ export class SqliteSaleLedger implements SaleLedger {
         unitPrice: row.unit_price,
         validFrom: new Date(row.valid_from),
       }));
-    const price = priceInEffectAt(candidates, moment);
+    const price = newestPrice(candidates);
     return price && { priceListId: price.priceListId, unitPrice: price.unitPrice };
   }
 

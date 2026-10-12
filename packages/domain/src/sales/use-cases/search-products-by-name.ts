@@ -4,7 +4,6 @@ import {
   rankProductSearch,
   type SaleUnit,
 } from "../../catalog/index.js";
-import type { Clock } from "../../shared/index.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import { isRefusal, type SellingSessionRefusal, sellingSession } from "./selling-session.js";
 
@@ -15,7 +14,6 @@ export interface SearchProductsByNameInput {
 
 export interface SearchProductsByNamePorts {
   ledger: SaleLedger;
-  clock: Clock;
 }
 
 export interface FoundProduct {
@@ -31,7 +29,7 @@ export type SearchProductsByNameOutcome =
   | { kind: "results"; products: FoundProduct[]; more: boolean };
 
 export function searchProductsByName(
-  { ledger, clock }: SearchProductsByNamePorts,
+  { ledger }: SearchProductsByNamePorts,
   { actorId, query }: SearchProductsByNameInput,
 ): SearchProductsByNameOutcome {
   return ledger.transaction<SearchProductsByNameOutcome>((tx) => {
@@ -42,13 +40,12 @@ export function searchProductsByName(
     if (isProductNameTooLong(query)) {
       return { kind: "results", products: [], more: false };
     }
-    const moment = clock.now();
     const { hits, more } = rankProductSearch(tx.searchableProducts(), query);
     const products = hits.map(({ product, matches }) => ({
       productId: product.id,
       name: product.name,
       saleUnit: product.saleUnit,
-      unitPrice: tx.priceAt(product.id, moment)?.unitPrice ?? null,
+      unitPrice: tx.currentPrice(product.id)?.unitPrice ?? null,
       matches,
     }));
     return { kind: "results", products, more };
