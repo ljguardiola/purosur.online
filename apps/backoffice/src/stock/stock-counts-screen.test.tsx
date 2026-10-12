@@ -1,6 +1,6 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { accessWith } from "../shell/test-support/backoffice-access";
@@ -18,6 +18,10 @@ import {
   tea,
   withoutBalance,
 } from "./test-support/stock-fixtures";
+
+beforeEach(async () => {
+  await page.viewport(1280, 900);
+});
 
 const COUNTER_WHO_VIEWS = accessWith("stock_counts", "stock_balances", "stock_area");
 
