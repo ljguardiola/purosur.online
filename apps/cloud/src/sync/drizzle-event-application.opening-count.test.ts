@@ -40,7 +40,10 @@ async function insertCashier(locationId: string): Promise<void> {
     .values({ id: CASHIER, firstName: "Ada", email: "ada@example.com", locationId });
 }
 
-function countOf(productId: string, counted = 6_000): SyncedFact {
+function countOf(
+  productId: string,
+  counted = 6_000,
+): Extract<SyncedFact, { kind: "opening_count_recorded" }> {
   return {
     kind: "opening_count_recorded",
     count: {
@@ -54,7 +57,7 @@ function countOf(productId: string, counted = 6_000): SyncedFact {
   };
 }
 
-const WITHDRAWAL: SyncedFact = {
+const WITHDRAWAL: Extract<SyncedFact, { kind: "opening_count_withdrawn" }> = {
   kind: "opening_count_withdrawn",
   withdrawal: {
     movementId: WITHDRAWAL_ID,
@@ -64,7 +67,10 @@ const WITHDRAWAL: SyncedFact = {
   },
 };
 
-async function record(deviceId: string, fact: SyncedFact) {
+async function record(
+  deviceId: string,
+  fact: Extract<SyncedFact, { kind: "opening_count_recorded" | "opening_count_withdrawn" }>,
+) {
   const event = unappliedEventOf(
     {
       event_id: randomUUID(),
@@ -80,7 +86,11 @@ async function record(deviceId: string, fact: SyncedFact) {
     },
     { deviceId },
   );
-  return system.application.transaction((tx) => tx.record(fact, event));
+  return system.application.transaction((tx) =>
+    fact.kind === "opening_count_recorded"
+      ? tx.applyOpeningCount(fact.count, event)
+      : tx.withdrawOpeningCount(fact.withdrawal, event),
+  );
 }
 
 async function enrolled() {
@@ -148,16 +158,20 @@ describe("applying the opening count a register pushed", () => {
   it("refuses a count of a product that is not in the catalog", async () => {
     const { deviceId } = await enrolled();
 
-    await expect(record(deviceId, countOf(randomUUID()))).rejects.toThrow(/is not in the catalog/);
+    expect(await record(deviceId, countOf(randomUUID()))).toEqual({
+      kind: "refused",
+      reason: expect.stringMatching(/is not in the catalog/),
+    });
   });
 
   it("refuses a quantity the product can't be counted in", async () => {
     const { deviceId } = await enrolled();
     const productId = await insertProduct("UNIT");
 
-    await expect(record(deviceId, countOf(productId, 1_500))).rejects.toThrow(
-      /can't be counted in/,
-    );
+    expect(await record(deviceId, countOf(productId, 1_500))).toEqual({
+      kind: "refused",
+      reason: expect.stringMatching(/can't be counted in/),
+    });
     expect(await system.db.select().from(lots)).toEqual([]);
   });
 });
@@ -201,6 +215,9 @@ describe("applying the withdrawal of an opening count a register pushed", () => 
   it("refuses the withdrawal of a count of the branch that was never applied", async () => {
     const { deviceId } = await enrolled();
 
-    await expect(record(deviceId, WITHDRAWAL)).rejects.toThrow(/was never counted/);
+    expect(await record(deviceId, WITHDRAWAL)).toEqual({
+      kind: "refused",
+      reason: expect.stringMatching(/was never counted/),
+    });
   });
 });
