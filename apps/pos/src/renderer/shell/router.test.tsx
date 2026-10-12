@@ -586,7 +586,6 @@ describe("the register's router", () => {
       path: "/initial-count",
       coreStatus: "up",
       enrollment: "enrolled",
-      person: INVENTORY_COUNTER,
       cashSession: OPEN_SESSION,
       redirectedTo: "/session",
     },

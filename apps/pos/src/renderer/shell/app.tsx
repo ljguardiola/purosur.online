@@ -404,6 +404,13 @@ function Register({ core }: { core: CoreClient }) {
     registerSerialDevices: (devices: SerialDevicesToRegister) =>
       core.registerSerialDevices(devices),
     takeSerialDevicesOffer,
+    readInitialCount: () => core.readInitialCount(),
+    recordInitialCountLine: (productId: string, counted: number, expiresOn: string | null) =>
+      core.recordInitialCountLine(productId, counted, expiresOn),
+    withdrawInitialCountLine: (movementId: string) => core.withdrawInitialCountLine(movementId),
+    findCountableProduct: (code: string) => core.findCountableProduct(code),
+    searchCountableProducts: (query: string) => core.searchCountableProducts(query),
+    weighCountedProduct: (productId: string) => core.weighCountedProduct(productId),
     // A replaced core connection fails this request; the core coming back up asks again.
     refreshCashSession,
   };

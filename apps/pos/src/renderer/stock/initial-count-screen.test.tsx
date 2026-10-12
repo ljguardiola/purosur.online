@@ -39,7 +39,7 @@ describe("InitialCountScreen", () => {
     const { screen } = await renderScreen();
 
     await expect.element(screen.getByText("Todavía no cargaste ninguna línea")).toBeVisible();
-    await expect.element(screen.getByText("0 líneas", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("0 líneas", { exact: true }).first()).toBeVisible();
   });
 
   it("lists the lines already counted and totals them", async () => {
