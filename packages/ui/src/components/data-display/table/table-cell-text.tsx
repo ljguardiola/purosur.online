@@ -3,14 +3,18 @@ import type { ReactNode } from "react";
 export type TableCellTextProps = {
   children: ReactNode;
   description?: ReactNode;
-  tone?: "subtle" | "error" | undefined;
+  tone?: "subtle" | "error" | "success" | undefined;
   strong?: boolean;
   monospace?: boolean;
   size?: "body" | "detail";
   descriptionTone?: "error" | undefined;
 };
 
-const TEXT_TONE_CLASS_NAME = { subtle: "text-text-subtle", error: "text-error-strong" } as const;
+const TEXT_TONE_CLASS_NAME = {
+  subtle: "text-text-subtle",
+  error: "text-error-strong",
+  success: "text-success-strong",
+} as const;
 
 const TEXT_SIZE_CLASS_NAME = { body: "text-body", detail: "text-detail" } as const;
 

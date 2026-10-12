@@ -1,7 +1,7 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { beforeEach, expect, test, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -18,6 +18,10 @@ import {
   tea,
   withoutBalance,
 } from "./test-support/stock-fixtures";
+
+beforeEach(async () => {
+  await page.viewport(1280, 900);
+});
 
 const COUNTER_WHO_VIEWS = accessWith("stock_counts", "stock_balances", "stock_area");
 
@@ -87,6 +91,35 @@ test("shows each count with its moment, product, expected and counted quantities
   await expectNoAccessibilityViolations(screen.container);
 });
 
+function cellOf(text: string): HTMLElement {
+  return page.getByText(text, { exact: true }).element() as HTMLElement;
+}
+
+test("writes the day of a count in bold with its time under it, and a difference in the tone of its sign", async () => {
+  const screen = await renderScreen(createServices([almondsCount, honeyCount, teaCount]));
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+
+  expect(cellOf("15/09/2026").className).toContain("font-bold");
+  expect(cellOf("18:32").className).toContain("text-text-subtle");
+  expect(cellOf("Almendras peladas").className).toContain("font-bold");
+  expect(cellOf("12,400 kg").className).toContain("text-text-subtle");
+  expect(cellOf("12,400 kg").className).not.toContain("font-bold");
+  expect(cellOf("12,150 kg").className).toContain("font-bold");
+  expect(cellOf("− 0,250 kg").className).toContain("text-error-strong");
+  expect(cellOf("− 0,250 kg").className).toContain("font-bold");
+  expect(cellOf("+ 1 u").className).toContain("text-success-strong");
+  expect(cellOf("+ 1 u").className).toContain("font-bold");
+  expect(cellOf("Sin diferencia").className).toContain("text-text-subtle");
+  expect(cellOf("Sin diferencia").className).not.toContain("font-bold");
+});
+
+test("writes a superseded count's difference in its tone, with the tag under it", async () => {
+  const screen = await renderScreen(createServices([supersededCount]));
+
+  await expect.element(screen.getByText("Superado por un recuento posterior")).toBeVisible();
+  expect(cellOf("− 2 u").className).toContain("text-error-strong");
+});
+
 test("says a count by a single lot counted one lot", async () => {
   const screen = await renderScreen(createServices([{ ...almondsCount, lotCount: 1 }]));
 
@@ -142,6 +175,71 @@ test("shows a failed load with a retry that loads the counts again", async () =>
 
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
 });
+
+const teaCount = {
+  ...honeyCount,
+  id: "count-4",
+  productId: tea.id,
+  productName: tea.name,
+  occurredAt: "2026-09-14T12:00:00.000Z",
+  expected: 17_000,
+  counted: 18_000,
+  delta: 1_000,
+};
+
+const COUNT_NAMES = [almonds.name, honey.name, tea.name];
+
+function shownProductNames(screen: Screen) {
+  return screen
+    .getByRole("table", { name: "Recuentos" })
+    .getByRole("row")
+    .elements()
+    .map((row) => COUNT_NAMES.find((name) => row.textContent?.includes(name)))
+    .filter((name) => name !== undefined);
+}
+
+test("opens on the counts by date, the latest first", async () => {
+  const screen = await renderScreen(createServices([honeyCount, almondsCount, teaCount]));
+  await expect.element(screen.getByText(honey.name)).toBeVisible();
+
+  expect(shownProductNames(screen)).toEqual([almonds.name, tea.name, honey.name]);
+});
+
+test.each([
+  [{ sortBy: "date", sort: "ascending" }, [honey, tea, almonds]],
+  [{ sortBy: "product", sort: "descending" }, [tea, honey, almonds]],
+  [{ sortBy: "expected", sort: "descending" }, [honey, tea, almonds]],
+  [{ sortBy: "counted", sort: "ascending" }, [almonds, tea, honey]],
+  [{ sortBy: "difference", sort: "descending" }, [tea, honey, almonds]],
+] as const)("opens on the order the URL asks for, %j", async (order, products) => {
+  const screen = await renderScreen(createServices([almondsCount, honeyCount, teaCount]), {
+    filters: stockCountsFilters.parse(order),
+  });
+  await expect.element(screen.getByText(honey.name)).toBeVisible();
+
+  expect(shownProductNames(screen)).toEqual(products.map((product) => product.name));
+});
+
+test.each([
+  ["Fecha", { sortBy: "date", sort: "ascending" }],
+  ["Producto", { sortBy: "product", sort: "ascending" }],
+  ["Saldo esperado", { sortBy: "expected", sort: "descending" }],
+  ["Contado", { sortBy: "counted", sort: "descending" }],
+  ["Diferencia", { sortBy: "difference", sort: "descending" }],
+] as const)(
+  "reports the %s column as the order when its header is pressed",
+  async (header, order) => {
+    const onFiltersChange = vi.fn();
+    const screen = await renderScreen(createServices([almondsCount, honeyCount, teaCount]), {
+      onFiltersChange,
+    });
+    await expect.element(screen.getByText(almonds.name)).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: header, exact: true }));
+
+    await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject(order);
+  },
+);
 
 async function openNewCount(screen: Screen) {
   await userEvent.click(screen.getByRole("button", { name: "Nuevo recuento" }));

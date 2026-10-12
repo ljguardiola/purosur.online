@@ -29,6 +29,11 @@ export const stockCountsFilters = z.object({
   search: z.string().default("").catch(""),
   category: z.string().default("ALL").catch("ALL"),
   period: periodFilter,
+  sortBy: z
+    .enum(["date", "product", "expected", "counted", "difference"])
+    .default("date")
+    .catch("date"),
+  sort: z.enum(["ascending", "descending"]).default("descending").catch("descending"),
 });
 
 export type StockCountsFilters = z.output<typeof stockCountsFilters>;

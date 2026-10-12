@@ -3,12 +3,15 @@ import {
   Button,
   dataColumn,
   FloatingNotification,
+  type ItemOrder,
   ListFilter,
   plural,
   SearchField,
   Table,
   TableCellText,
+  type TableSort,
   Tag,
+  textOrder,
   useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
@@ -54,12 +57,30 @@ function countedWay(count: StockCount): string {
   return `Por lote · ${plural(lotCount, { one: "1 lote", other: `${lotCount} lotes` })}`;
 }
 
+type CountSortColumn = StockCountsFilters["sortBy"];
+
+const productOrder = textOrder((count: StockCount) => count.productName);
+
+function numberOrder(value: (count: StockCount) => number): ItemOrder<StockCount> {
+  return (a, b) => value(a) - value(b);
+}
+
+function differenceTone(delta: number) {
+  if (delta === 0) {
+    return "subtle";
+  }
+  return delta < 0 ? "error" : "success";
+}
+
 function differenceCell(count: StockCount) {
-  const difference =
-    count.delta === 0 ? "Sin diferencia" : formatStockChange(count.delta, count.saleUnit);
+  const difference = (
+    <TableCellText strong={count.delta !== 0} tone={differenceTone(count.delta)}>
+      {count.delta === 0 ? "Sin diferencia" : formatStockChange(count.delta, count.saleUnit)}
+    </TableCellText>
+  );
   return count.superseded ? (
     <div className="flex flex-col items-end gap-1">
-      <span>{difference}</span>
+      {difference}
       <Tag tone="neutral">Superado por un recuento posterior</Tag>
     </div>
   ) : (
@@ -71,8 +92,12 @@ const columns = [
   dataColumn({
     id: "date",
     header: "Fecha",
+    sort: {
+      order: numberOrder((count) => Date.parse(count.occurredAt)),
+      firstDirection: "descending",
+    },
     render: (count: StockCount) => (
-      <TableCellText description={formatStockTime(count.occurredAt)}>
+      <TableCellText strong description={formatStockTime(count.occurredAt)}>
         {formatStockDay(count.occurredAt)}
       </TableCellText>
     ),
@@ -80,26 +105,38 @@ const columns = [
   dataColumn({
     id: "product",
     header: "Producto",
+    sort: { order: productOrder, firstDirection: "ascending" },
     render: (count: StockCount) => (
-      <TableCellText description={countedWay(count)}>{count.productName}</TableCellText>
+      <TableCellText strong description={countedWay(count)}>
+        {count.productName}
+      </TableCellText>
     ),
   }),
   dataColumn({
     id: "expected",
     header: "Saldo esperado",
     align: "end",
-    render: (count: StockCount) => formatStockQuantity(count.expected, count.saleUnit),
+    sort: { order: numberOrder((count) => count.expected), firstDirection: "descending" },
+    render: (count: StockCount) => (
+      <TableCellText tone="subtle">
+        {formatStockQuantity(count.expected, count.saleUnit)}
+      </TableCellText>
+    ),
   }),
   dataColumn({
     id: "counted",
     header: "Contado",
     align: "end",
-    render: (count: StockCount) => formatStockQuantity(count.counted, count.saleUnit),
+    sort: { order: numberOrder((count) => count.counted), firstDirection: "descending" },
+    render: (count: StockCount) => (
+      <TableCellText strong>{formatStockQuantity(count.counted, count.saleUnit)}</TableCellText>
+    ),
   }),
   dataColumn({
     id: "difference",
     header: "Diferencia",
     align: "end",
+    sort: { order: numberOrder((count) => count.delta), firstDirection: "descending" },
     render: differenceCell,
   }),
 ] as const;
@@ -143,6 +180,10 @@ export function StockCountsScreen({
   const [search, setSearch] = useState(filters.search);
   const [category, setCategory] = useState(filters.category);
   const [period, setPeriod] = useState<StockPeriod>(filters.period);
+  const [sort, setSort] = useState<TableSort<CountSortColumn>>({
+    column: filters.sortBy,
+    direction: filters.sort,
+  });
   const [newCount, setNewCount] = useState<ReturnType<typeof countMomentNow> | null>(null);
   const [notice, setNotice] = useState<ScreenNotice | null>(null);
   const lastNoticeId = useRef(0);
@@ -150,11 +191,17 @@ export function StockCountsScreen({
   const refreshStock = useRefreshStock();
 
   useEffect(() => {
-    const shown: StockCountsFilters = { search, category, period };
+    const shown: StockCountsFilters = {
+      search,
+      category,
+      period,
+      sortBy: sort.column,
+      sort: sort.direction,
+    };
     if (!deepEqual(shown, filters)) {
       reportFilters(shown);
     }
-  }, [search, category, period, filters]);
+  }, [search, category, period, sort.column, sort.direction, filters]);
 
   const days = periodDays(period);
   const data = useStockCountsQuery({
@@ -179,6 +226,8 @@ export function StockCountsScreen({
     search: { text: search, in: (count) => [count.productName] },
     filter: (count) => category === "ALL" || count.categoryId === category,
     columns,
+    sort,
+    onSortChange: setSort,
   });
   const matchCount = table.getRowModel().rows.length;
 
