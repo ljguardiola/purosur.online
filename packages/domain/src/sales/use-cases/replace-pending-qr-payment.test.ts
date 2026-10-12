@@ -1,4 +1,7 @@
-import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
+import {
+  PENDING_POINT_TRANSACTION,
+  PENDING_QR_TRANSACTION,
+} from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import type { PendingMercadoPagoSalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
@@ -149,6 +152,25 @@ describe("replacePendingQrPayment", () => {
     const before = structuredClone(store.state);
 
     expect(replace(store, "qr-1", actorId)).toEqual(refusal);
+    expect(store.state).toEqual(before);
+  });
+
+  it("never replaces a terminal payment: it answers that no QR payment is pending, changing nothing", () => {
+    const store = ledger({
+      pendingMercadoPagoPayments: [
+        {
+          ...PENDING_POINT_TRANSACTION,
+          id: "point-1",
+          saleId: "sale-1",
+          amount: 1000,
+          occurredAt: new Date("2026-10-09T11:50:00.000Z"),
+          waitEndsAt: new Date("2026-10-09T11:53:00.000Z"),
+        },
+      ],
+    });
+    const before = structuredClone(store.state);
+
+    expect(replace(store, "point-1")).toEqual({ kind: "not_pending" });
     expect(store.state).toEqual(before);
   });
 });

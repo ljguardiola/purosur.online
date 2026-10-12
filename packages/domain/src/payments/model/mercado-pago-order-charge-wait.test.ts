@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
-  aMercadoPagoChargeInItsWait,
+  aMercadoPagoChargeInProgress,
   MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS,
   MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
   mercadoPagoOrderChargeRemainingSeconds,
@@ -98,32 +98,32 @@ describe("MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS", () => {
   });
 });
 
-describe("aMercadoPagoChargeInItsWait", () => {
-  const pending = (waitEndsAt: Date) => ({ waitEndsAt });
+describe("aMercadoPagoChargeInProgress", () => {
+  const qr = (waitEndsAt: Date) => ({ method: "QR", waitEndsAt }) as const;
+  const point = (waitEndsAt: Date) => ({ method: "POINT", waitEndsAt }) as const;
+  const OVER = new Date("2026-10-09T11:59:00.000Z");
 
-  it("is false for a sale with no pending QR payment", () => {
-    expect(aMercadoPagoChargeInItsWait([], STARTED_AT)).toBe(false);
+  it("is false for a sale with no pending Mercado Pago payment", () => {
+    expect(aMercadoPagoChargeInProgress([], STARTED_AT)).toBe(false);
   });
 
   it("is true while a pending QR payment's wait has not ended", () => {
-    expect(aMercadoPagoChargeInItsWait([pending(WAIT_ENDS_AT)], STARTED_AT)).toBe(true);
+    expect(aMercadoPagoChargeInProgress([qr(WAIT_ENDS_AT)], STARTED_AT)).toBe(true);
   });
 
   it("is false once every pending QR payment's wait has ended", () => {
-    expect(
-      aMercadoPagoChargeInItsWait(
-        [pending(new Date("2026-10-09T11:59:00.000Z")), pending(WAIT_ENDS_AT)],
-        WAIT_ENDS_AT,
-      ),
-    ).toBe(false);
+    expect(aMercadoPagoChargeInProgress([qr(OVER), qr(WAIT_ENDS_AT)], WAIT_ENDS_AT)).toBe(false);
   });
 
   it("is true when any of several pending QR payments is still in its wait", () => {
-    expect(
-      aMercadoPagoChargeInItsWait(
-        [pending(new Date("2026-10-09T11:59:00.000Z")), pending(WAIT_ENDS_AT)],
-        STARTED_AT,
-      ),
-    ).toBe(true);
+    expect(aMercadoPagoChargeInProgress([qr(OVER), qr(WAIT_ENDS_AT)], STARTED_AT)).toBe(true);
+  });
+
+  it("is true while a pending terminal payment's wait has not ended", () => {
+    expect(aMercadoPagoChargeInProgress([point(WAIT_ENDS_AT)], STARTED_AT)).toBe(true);
+  });
+
+  it("stays true for a pending terminal payment after its wait, until the payment is closed", () => {
+    expect(aMercadoPagoChargeInProgress([point(OVER)], WAIT_ENDS_AT)).toBe(true);
   });
 });

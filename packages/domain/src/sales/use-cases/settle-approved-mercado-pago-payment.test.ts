@@ -1,4 +1,7 @@
-import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
+import {
+  PENDING_POINT_TRANSACTION,
+  PENDING_QR_TRANSACTION,
+} from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import {
   FICTIONAL_CUIT,
@@ -99,6 +102,56 @@ function settle(store: FakeSaleLedger, paymentTransactionId = "qr-1", actorId = 
     { actorId, paymentTransactionId },
   );
 }
+
+describe("settleApprovedMercadoPagoPayment on the integrated terminal", () => {
+  const pendingPoint: PendingMercadoPagoSalePayment = {
+    ...PENDING_POINT_TRANSACTION,
+    id: "point-1",
+    saleId: "sale-1",
+    amount: TOTAL,
+    occurredAt: STARTED_AT,
+    waitEndsAt: new Date("2026-10-09T12:03:00.000Z"),
+  };
+
+  it("approves the terminal payment and completes the sale it covers, sending it in the sale_completed event", () => {
+    const store = ledger({ pendingMercadoPagoPayments: [pendingPoint] });
+
+    expect(settle(store, "point-1")).toEqual({ kind: "completed", saleId: "sale-1", total: TOTAL });
+    expect(store.state.payments).toEqual([
+      {
+        id: "point-1",
+        saleId: "sale-1",
+        kind: "SALE",
+        method: "POINT",
+        provider: "MERCADOPAGO_POINT",
+        amount: TOTAL,
+        state: "APPROVED",
+        occurredAt: STARTED_AT,
+      },
+    ]);
+    expect(store.state.outbox[0]).toMatchObject({
+      event_type: "sale_completed",
+      payload: {
+        payments: [
+          expect.objectContaining({
+            id: "point-1",
+            method: "POINT",
+            provider: "MERCADOPAGO_POINT",
+            tendered: null,
+            authorized_by: null,
+            confirmed_at: null,
+          }),
+        ],
+      },
+    });
+  });
+
+  it("approves a terminal payment that covers part of the sale and leaves the rest pending", () => {
+    const store = ledger({ pendingMercadoPagoPayments: [{ ...pendingPoint, amount: 3000 }] });
+
+    expect(settle(store, "point-1")).toMatchObject({ kind: "partially_paid", pending: 2000 });
+  });
+});
 
 describe("settleApprovedMercadoPagoPayment", () => {
   it("approves the QR payment and completes the sale it covers, in one transaction", () => {

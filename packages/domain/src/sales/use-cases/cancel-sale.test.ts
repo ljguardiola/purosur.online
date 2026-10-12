@@ -1,4 +1,7 @@
-import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
+import {
+  PENDING_POINT_TRANSACTION,
+  PENDING_QR_TRANSACTION,
+} from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import type { SalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
@@ -169,6 +172,27 @@ describe("cancelSale", () => {
     store.failOn = "discardOpenSale";
 
     expect(() => cancel(store)).toThrow("discardOpenSale failed");
+    expect(store.state).toEqual(before);
+  });
+});
+
+describe("cancelSale with a terminal charge", () => {
+  it("refuses while the terminal charge is pending, even past its wait, changing nothing", () => {
+    const store = ledger({
+      pendingMercadoPagoPayments: [
+        {
+          ...PENDING_POINT_TRANSACTION,
+          id: "point-1",
+          saleId: "sale-1",
+          amount: 1000,
+          occurredAt: new Date(NOW.getTime() - 600_000),
+          waitEndsAt: new Date(NOW.getTime() - 1),
+        },
+      ],
+    });
+    const before = structuredClone(store.state);
+
+    expect(cancel(store)).toEqual({ kind: "mercado_pago_charge_in_progress" });
     expect(store.state).toEqual(before);
   });
 });

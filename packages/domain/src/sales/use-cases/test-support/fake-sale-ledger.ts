@@ -255,12 +255,12 @@ export class FakeSaleLedger implements SaleLedger {
           id: pending.id,
           saleId: pending.saleId,
           kind: "SALE",
-          method: "QR",
-          provider: "MERCADOPAGO_QR",
+          method: pending.method,
+          provider: pending.provider,
           amount: pending.amount,
           state: "APPROVED",
           occurredAt: pending.occurredAt,
-        });
+        } as SalePayment);
       },
       recordCashMovement: (movement) => {
         this.failIfAsked("recordCashMovement");

@@ -1,4 +1,7 @@
-import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
+import {
+  PENDING_POINT_TRANSACTION,
+  PENDING_QR_TRANSACTION,
+} from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import type { SaleWithLines } from "../model/sale.js";
 import { recordPendingMercadoPagoPayment } from "./record-pending-mercado-pago-payment.js";
@@ -51,10 +54,15 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   });
 }
 
-function record(store: FakeSaleLedger, amount = 5000, actorId = "cashier") {
+function record(
+  store: FakeSaleLedger,
+  amount = 5000,
+  actorId = "cashier",
+  method: "QR" | "POINT" = "QR",
+) {
   return recordPendingMercadoPagoPayment(
     { ledger: store, ids: new SequentialIds() },
-    { actorId, saleId: "sale-1", amount, occurredAt: STARTED_AT, waitEndsAt: WAIT_ENDS_AT },
+    { actorId, saleId: "sale-1", method, amount, occurredAt: STARTED_AT, waitEndsAt: WAIT_ENDS_AT },
   );
 }
 
@@ -156,5 +164,121 @@ describe("recordPendingMercadoPagoPayment", () => {
 
     expect(() => record(store)).toThrow();
     expect(store.state.pendingMercadoPagoPayments).toEqual([]);
+  });
+
+  describe("on the integrated terminal", () => {
+    const pointPending = (waitEndsAt: Date) => ({
+      ...PENDING_POINT_TRANSACTION,
+      id: "earlier",
+      saleId: "sale-1",
+      amount: 1000,
+      occurredAt: new Date("2026-10-09T11:50:00.000Z"),
+      waitEndsAt,
+    });
+
+    it("keeps a pending terminal payment of the amount with the end of its wait and names it", () => {
+      const store = ledger();
+
+      expect(record(store, 3000, "cashier", "POINT")).toEqual({
+        kind: "recorded",
+        paymentTransactionId: "id-1",
+      });
+      expect(store.state.pendingMercadoPagoPayments).toEqual([
+        {
+          ...PENDING_POINT_TRANSACTION,
+          id: "id-1",
+          saleId: "sale-1",
+          amount: 3000,
+          occurredAt: STARTED_AT,
+          waitEndsAt: WAIT_ENDS_AT,
+        },
+      ]);
+    });
+
+    it("accepts exactly the terminal's minimum", () => {
+      const store = ledger({
+        sales: [{ ...OPEN_SALE, lines: [{ ...OPEN_SALE.lines[0]!, lineTotal: 1500 }] }],
+      });
+
+      expect(record(store, 1500, "cashier", "POINT")).toEqual({
+        kind: "recorded",
+        paymentTransactionId: "id-1",
+      });
+    });
+
+    it("refuses an amount under the terminal's minimum, recording nothing", () => {
+      const store = ledger();
+
+      expect(record(store, 1499, "cashier", "POINT")).toEqual({ kind: "below_minimum" });
+      expect(store.state.pendingMercadoPagoPayments).toEqual([]);
+    });
+
+    it("lets a QR charge of the same small amount through", () => {
+      expect(record(ledger(), 1499, "cashier", "QR")).toEqual({
+        kind: "recorded",
+        paymentTransactionId: "id-1",
+      });
+    });
+
+    it("refuses a charge of the other kind of invalid amount first", () => {
+      expect(record(ledger(), 0, "cashier", "POINT")).toEqual({ kind: "invalid_amount" });
+      expect(record(ledger(), 5001, "cashier", "POINT")).toEqual({
+        kind: "exceeds_pending",
+        pending: 5000,
+      });
+    });
+
+    it("refuses any charge while a terminal charge is pending, even past its wait", () => {
+      const store = ledger({
+        pendingMercadoPagoPayments: [pointPending(new Date("2026-10-09T11:53:00.000Z"))],
+      });
+
+      expect(record(store, 5000, "cashier", "QR")).toEqual({
+        kind: "mercado_pago_charge_in_progress",
+      });
+      expect(record(store, 5000, "cashier", "POINT")).toEqual({
+        kind: "mercado_pago_charge_in_progress",
+      });
+      expect(store.state.pendingMercadoPagoPayments.map(({ id }) => id)).toEqual(["earlier"]);
+    });
+
+    it("refuses a terminal charge while a QR charge is in its wait", () => {
+      const store = ledger({
+        pendingMercadoPagoPayments: [
+          {
+            ...PENDING_QR_TRANSACTION,
+            id: "earlier",
+            saleId: "sale-1",
+            amount: 1000,
+            occurredAt: STARTED_AT,
+            waitEndsAt: new Date("2026-10-09T12:01:00.000Z"),
+          },
+        ],
+      });
+
+      expect(record(store, 5000, "cashier", "POINT")).toEqual({
+        kind: "mercado_pago_charge_in_progress",
+      });
+    });
+
+    it("starts a terminal charge once an earlier QR charge's wait has ended", () => {
+      const store = ledger({
+        pendingMercadoPagoPayments: [
+          {
+            ...PENDING_QR_TRANSACTION,
+            id: "earlier",
+            saleId: "sale-1",
+            amount: 1000,
+            occurredAt: new Date("2026-10-09T11:50:00.000Z"),
+            waitEndsAt: new Date("2026-10-09T11:53:00.000Z"),
+          },
+        ],
+      });
+
+      expect(record(store, 5000, "cashier", "POINT")).toEqual({
+        kind: "recorded",
+        paymentTransactionId: "id-1",
+      });
+    });
   });
 });

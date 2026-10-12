@@ -18,8 +18,18 @@ const QR_PAYMENT = {
 } as const;
 
 const NOW = new Date("2026-10-09T12:01:00.000Z");
-const QR_CHARGE_IN_ITS_WAIT = { waitEndsAt: new Date("2026-10-09T12:03:00.000Z") };
-const QR_CHARGE_PAST_ITS_WAIT = { waitEndsAt: new Date("2026-10-09T12:00:30.000Z") };
+const QR_CHARGE_IN_ITS_WAIT = {
+  method: "QR",
+  waitEndsAt: new Date("2026-10-09T12:03:00.000Z"),
+} as const;
+const QR_CHARGE_PAST_ITS_WAIT = {
+  method: "QR",
+  waitEndsAt: new Date("2026-10-09T12:00:30.000Z"),
+} as const;
+const POINT_CHARGE_PAST_ITS_WAIT = {
+  method: "POINT",
+  waitEndsAt: new Date("2026-10-09T12:00:30.000Z"),
+} as const;
 
 describe("openSaleStanding", () => {
   it("leaves the lines editable and the sale cancellable while nothing is paid", () => {
@@ -101,6 +111,15 @@ describe("openSaleStanding", () => {
     });
   });
 
+  it("keeps the lines locked and the cancellation refused by a terminal charge past its wait, as it can still be paid on the terminal", () => {
+    expect(openSaleStanding(5900, [], [POINT_CHARGE_PAST_ITS_WAIT], NOW)).toMatchObject({
+      linesLock: "mercado_pago_charge_in_progress",
+      cancellable: false,
+      cancelRefusal: "mercado_pago_charge_in_progress",
+      refundsOnCancel: [],
+    });
+  });
+
   it("refuses the cancellation of a sale holding an approved QR payment, planning no refund", () => {
     expect(openSaleStanding(5900, [CASH_PAYMENT, QR_PAYMENT], [], NOW)).toEqual({
       balance: { paid: 4000, pending: 1900 },
@@ -119,12 +138,11 @@ describe("openSaleStanding", () => {
       amount: fc.integer({ min: 1, max: 100_000 }),
       state: fc.constantFrom("APPROVED", "REJECTED", "PENDING"),
     });
-    const pendingMercadoPagoPayment = fc.record({
-      waitEndsAt: fc.constantFrom(
-        QR_CHARGE_IN_ITS_WAIT.waitEndsAt,
-        QR_CHARGE_PAST_ITS_WAIT.waitEndsAt,
-      ),
-    });
+    const pendingMercadoPagoPayment = fc.constantFrom(
+      QR_CHARGE_IN_ITS_WAIT,
+      QR_CHARGE_PAST_ITS_WAIT,
+      POINT_CHARGE_PAST_ITS_WAIT,
+    );
 
     fc.assert(
       fc.property(fc.array(payment), fc.array(pendingMercadoPagoPayment), (payments, pending) => {
@@ -151,6 +169,12 @@ describe("saleLinesLock", () => {
     ["a payment is approved", [CASH_PAYMENT], [], "approved_payment"],
     ["a QR charge is in its wait", [], [QR_CHARGE_IN_ITS_WAIT], "mercado_pago_charge_in_progress"],
     [
+      "a terminal charge is past its wait",
+      [],
+      [POINT_CHARGE_PAST_ITS_WAIT],
+      "mercado_pago_charge_in_progress",
+    ],
+    [
       "a payment is approved and a QR charge is in its wait",
       [CASH_PAYMENT],
       [QR_CHARGE_IN_ITS_WAIT],
@@ -168,6 +192,12 @@ describe("saleCancelRefusal", () => {
     ["a QR payment was rejected", [{ ...QR_PAYMENT, state: "REJECTED" }], [], null],
     ["a QR charge's wait is over", [], [QR_CHARGE_PAST_ITS_WAIT], null],
     ["a QR charge is in its wait", [], [QR_CHARGE_IN_ITS_WAIT], "mercado_pago_charge_in_progress"],
+    [
+      "a terminal charge is past its wait",
+      [],
+      [POINT_CHARGE_PAST_ITS_WAIT],
+      "mercado_pago_charge_in_progress",
+    ],
     ["a QR payment is approved", [QR_PAYMENT], [], "holds_qr_payment"],
     [
       "a QR payment is approved and another QR charge is in its wait",
