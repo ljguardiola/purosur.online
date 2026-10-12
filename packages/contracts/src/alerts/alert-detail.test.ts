@@ -202,6 +202,7 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"late_payment_refund">>().toEqualTypeOf<
       AlertDetails["late_payment_refund"]
     >();
+    expectTypeOf<WireDetail<"refund_task">>().toEqualTypeOf<AlertDetails["refund_task"]>();
     expectTypeOf<WireDetail<"offline_authorization_code_missing">>().toExtend<
       AlertDetails["offline_authorization_code_missing"]
     >();
@@ -340,7 +341,13 @@ describe("alertDetailSchema", () => {
         fortnightEnd: "2026-10-31",
         fortnightStarted: false,
       },
-      late_payment_refund: { saleId: "sale-1", amount: 250000 },
+      late_payment_refund: { saleId: "sale-1", amount: 250000, providerOrderId: "ORD01" },
+      refund_task: {
+        saleId: "sale-1",
+        amount: 1240000,
+        method: "TRANSFER",
+        refundOpenedAt: "2026-10-05T12:00:00.000Z",
+      },
     } satisfies Record<AlertKind, unknown>;
 
     it.each(ALERT_KINDS)("accepts the detail of %s", (kind) => {
@@ -358,6 +365,16 @@ describe("alertDetailSchema", () => {
       const { [field]: _omitted, ...detail } = detailOf[kind] as Record<string, unknown>;
 
       expect(alertDetailSchema.safeParse({ ...base, kind, detail }).success).toBe(false);
+    });
+
+    it("accepts a late payment refund alert that names no order", () => {
+      const alert = {
+        ...base,
+        kind: "late_payment_refund",
+        detail: { saleId: "sale-1", amount: 250000, providerOrderId: null },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
     });
 
     it("accepts a sales-denied alert of a register whose local database is damaged", () => {

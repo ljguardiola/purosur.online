@@ -251,7 +251,7 @@ describe("closeCashSession", () => {
 
   it("refuses while a sale is open, telling its total, and records nothing", async () => {
     const store = ledger({
-      openSale: { lines: [{ lineTotal: 1_250 }, { lineTotal: 3_000 }] },
+      openSale: { lines: [{ lineTotal: 1_250 }, { lineTotal: 3_000 }], saleDiscount: null },
     });
     const before = structuredClone(store.state);
 
@@ -259,8 +259,19 @@ describe("closeCashSession", () => {
     expect(store.state).toEqual(before);
   });
 
+  it("tells the total of an open sale with the discount on the total taken off", async () => {
+    const store = ledger({
+      openSale: {
+        lines: [{ lineTotal: 1_250 }, { lineTotal: 3_000 }],
+        saleDiscount: { kind: "AMOUNT", amount: 250, reason: "regalo", authorizedBy: null },
+      },
+    });
+
+    expect(await close(store)).toEqual({ kind: "open_sale", total: 4_000 });
+  });
+
   it("refuses an open sale even when its total is zero", async () => {
-    expect(await close(ledger({ openSale: { lines: [] } }))).toEqual({
+    expect(await close(ledger({ openSale: { lines: [], saleDiscount: null } }))).toEqual({
       kind: "open_sale",
       total: 0,
     });
@@ -284,7 +295,10 @@ describe("closeCashSession", () => {
   });
 
   it("checks the session before the open sale", async () => {
-    const store = ledger({ sessions: [], openSale: { lines: [{ lineTotal: 100 }] } });
+    const store = ledger({
+      sessions: [],
+      openSale: { lines: [{ lineTotal: 100 }], saleDiscount: null },
+    });
 
     expect(await close(store)).toEqual({ kind: "no_open_session" });
   });

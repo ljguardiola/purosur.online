@@ -1,11 +1,13 @@
 import fc from "fast-check";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
+  DISCARDABLE_REFUND_ALERT_KINDS,
   isRefundDiscardable,
   isRefundDiscarded,
   isRefundPending,
   LATE_PAYMENT_REFUND_ORIGIN,
   latePaymentRefund,
+  latePaymentRefundOfUnrecordedOrder,
   methodsCoveringRefundedSale,
   PLANNED_REFUND_STATES,
   type PlannedRefund,
@@ -13,6 +15,8 @@ import {
   plannedRefunds,
   REFUND_ORIGINS,
   REFUND_STATES,
+  REFUND_TASK_ORIGINS,
+  refundAlertKind,
   refundsSettleApprovedPayments,
   SALE_CANCELLED_REFUND_ORIGIN,
 } from "./payment-refund.js";
@@ -219,6 +223,28 @@ describe("isRefundDiscardable", () => {
   });
 });
 
+describe("refundAlertKind", () => {
+  it("is the late-payment refund alert for a payment that arrived late", () => {
+    expect(refundAlertKind(LATE_PAYMENT_REFUND_ORIGIN)).toBe("late_payment_refund");
+  });
+
+  it("is the refund task alert for a cancelled sale", () => {
+    expect(refundAlertKind(SALE_CANCELLED_REFUND_ORIGIN)).toBe("refund_task");
+  });
+});
+
+describe("REFUND_TASK_ORIGINS", () => {
+  it("lists every origin whose refund gets the refund task alert, leaving out a payment that arrived late", () => {
+    expect(REFUND_TASK_ORIGINS).toEqual([SALE_CANCELLED_REFUND_ORIGIN]);
+  });
+});
+
+describe("DISCARDABLE_REFUND_ALERT_KINDS", () => {
+  it("lists the alert kind of every refund that may be discarded, leaving out the refund task of a cancelled sale", () => {
+    expect(DISCARDABLE_REFUND_ALERT_KINDS).toEqual(["late_payment_refund"]);
+  });
+});
+
 describe("latePaymentRefund", () => {
   it("gives the payment back by the channel it came in, for its full amount, until a person carries it out", () => {
     expect(
@@ -235,6 +261,7 @@ describe("latePaymentRefund", () => {
       amount: 2500,
       state: "PENDING",
       origin: "late_payment",
+      providerOrderId: null,
     });
   });
 
@@ -288,5 +315,25 @@ describe("methodsCoveringRefundedSale", () => {
         { method: "TRANSFER", state: "APPROVED" },
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("latePaymentRefundOfUnrecordedOrder", () => {
+  it("gives back what the order was paid, naming the order the payment did not record", () => {
+    expect(
+      latePaymentRefundOfUnrecordedOrder(
+        { id: "pay-3", method: "QR", provider: "MERCADOPAGO_QR", amount: 2500 },
+        "order-2",
+        2300,
+      ),
+    ).toEqual({
+      paymentId: "pay-3",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      amount: 2300,
+      state: "PENDING",
+      origin: "late_payment",
+      providerOrderId: "order-2",
+    });
   });
 });

@@ -236,10 +236,12 @@ export type {
 export {
   cancellableWithoutAuthorization,
   cashCharge,
+  DISCARDABLE_REFUND_ALERT_KINDS,
   isLateApproval,
   isRefundPending,
   isValidOrderAmount,
   latePaymentRefund,
+  latePaymentRefundOfUnrecordedOrder,
   MERCADO_PAGO_PENDING_CHECK_INTERVAL_MS,
   MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS,
   MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES,
@@ -254,6 +256,7 @@ export {
   REFUND_ORIGINS,
   REFUND_PENDING_STATE,
   REFUND_STATES,
+  REFUND_TASK_ORIGINS,
 } from "./payments/index.js";
 export type {
   AuthorizablePermissionKey,
@@ -438,6 +441,8 @@ export type {
   ReceiptSource,
   Sale,
   SaleComprobante,
+  SaleDiscount,
+  SaleDiscountValue,
   SaleFiscalDocument,
   SaleFiscalFacts,
   SaleLine,
@@ -452,6 +457,8 @@ export type {
   WeightSource,
 } from "./sales/index.js";
 export {
+  amountToCharge,
+  appliedSaleDiscountAmount,
   isDeferralPending,
   isSalesReportRangeAsked,
   manualAdjustmentReason,
@@ -464,6 +471,7 @@ export {
   observePrinterNotConfigured,
   observePrinterStatus,
   observePrintFailed,
+  observePrintWithdrawn,
   openSaleStanding,
   PENDING_DEFERRED_SALE_RECORD,
   RECEIPT_REPRINT_REASON_MAX_LENGTH,
@@ -475,6 +483,7 @@ export {
   SALES_HISTORY_PAGE_SIZE,
   SALES_REPORT_SALE_STATE,
   saleComprobanteOf,
+  saleDiscountUnavailability,
   saleStandingOf,
   saleTotal,
   startedReceiptPrint,

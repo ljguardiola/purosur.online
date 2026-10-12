@@ -83,6 +83,7 @@ const decodedLine = {
   priceListId: saleLine.price_list_id,
   promotionId: null,
   discountAmount: 0,
+  saleDiscountShare: 0,
   lineTotal: 4800,
 };
 
@@ -129,6 +130,8 @@ describe("decoding the events the registers pushed", () => {
           completedAt: new Date("2026-10-06T11:20:00.000Z"),
           operationNumber: null,
           total: 4800,
+          saleDiscount: null,
+          saleDiscountAmount: 0,
           lines: [decodedLine],
           payments: [
             {
@@ -619,6 +622,208 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 
+  describe("the discount on a sale's total", () => {
+    const sharedLines = [
+      { ...saleLine, weight_source: null, manual_adjustment: null, sale_discount_share: 300 },
+      {
+        ...saleLine,
+        id: "01a1122a-0305-7189-87d0-8256a353fd43",
+        weight_source: null,
+        manual_adjustment: null,
+        line_total: 4500,
+        sale_discount_share: 100,
+      },
+    ];
+    const saleDiscount = {
+      kind: "PERCENT",
+      value: 4,
+      amount: 400,
+      reason: "Compra grande",
+      authorized_by: "6f0c2a1e-3b54-4d7a-9c10-5e8a7b2d4f09",
+    };
+    const decodedDiscount = {
+      saleDiscount: {
+        kind: "PERCENT",
+        percent: 4,
+        reason: "Compra grande",
+        authorizedBy: "6f0c2a1e-3b54-4d7a-9c10-5e8a7b2d4f09",
+      },
+      saleDiscountAmount: 400,
+      lines: [{ saleDiscountShare: 300 }, { saleDiscountShare: 100 }],
+    };
+    const refund = {
+      id: "01a1122a-0308-7000-8000-00000000aaa3",
+      kind: "REFUND",
+      parent_id: salePayment.id,
+      method: "CASH",
+      provider: "NONE",
+      amount: 5000,
+      state: "APPROVED",
+      occurred_at: "2026-10-06T11:20:00.000Z",
+    };
+    const payment = { ...salePayment, authorized_by: null, confirmed_at: null };
+    const completed = (change: Record<string, unknown> = {}) =>
+      pushed({
+        schema_version: 8,
+        payload: {
+          ...saleFields,
+          lines: sharedLines,
+          sale_discount: saleDiscount,
+          operation_number: 484,
+          payments: [payment],
+          stock_movements: [],
+          ...change,
+        },
+      });
+    const cancelled = (change: Record<string, unknown> = {}) =>
+      pushed({
+        event_type: "sale_cancelled",
+        schema_version: 4,
+        payload: {
+          ...saleFields,
+          lines: sharedLines,
+          sale_discount: saleDiscount,
+          authorized_by: null,
+          payments: [payment],
+          refunds: [refund],
+          ...change,
+        },
+      });
+
+    it("reads a version 8 sale with its discount and each line's share of it", () => {
+      expect(upcaster.decode(unappliedEventOf(completed()))).toMatchObject({
+        kind: "fact",
+        fact: { kind: "sale_completed", sale: decodedDiscount },
+      });
+    });
+
+    it("reads a version 4 cancelled sale with its discount and each line's share of it", () => {
+      expect(upcaster.decode(unappliedEventOf(cancelled()))).toMatchObject({
+        kind: "fact",
+        fact: { kind: "sale_cancelled", sale: decodedDiscount },
+      });
+    });
+
+    it("reads a fixed amount discount without an authorizer", () => {
+      const decoded = upcaster.decode(
+        unappliedEventOf(
+          completed({
+            sale_discount: { ...saleDiscount, kind: "AMOUNT", value: 400, authorized_by: null },
+          }),
+        ),
+      );
+
+      expect(decoded).toMatchObject({
+        fact: {
+          sale: {
+            saleDiscount: {
+              kind: "AMOUNT",
+              amount: 400,
+              reason: "Compra grande",
+              authorizedBy: null,
+            },
+          },
+        },
+      });
+    });
+
+    it("reads a sale without a discount as having none and no line sharing it", () => {
+      const lines = sharedLines.map((line) => ({ ...line, sale_discount_share: 0 }));
+
+      expect(
+        upcaster.decode(unappliedEventOf(completed({ sale_discount: null, lines }))),
+      ).toMatchObject({
+        fact: {
+          sale: {
+            saleDiscount: null,
+            saleDiscountAmount: 0,
+            lines: [{ saleDiscountShare: 0 }, { saleDiscountShare: 0 }],
+          },
+        },
+      });
+    });
+
+    it("refuses a version 8 sale whose discount is of an unknown kind", () => {
+      const decoded = upcaster.decode(
+        unappliedEventOf(completed({ sale_discount: { ...saleDiscount, kind: "PRICE" } })),
+      );
+
+      expect(decoded.kind).toBe("unreadable");
+    });
+
+    it.each([1, 2, 3, 4, 5, 6, 7])(
+      "reads a version %s sale as having no discount on its total",
+      (version) => {
+        const decoded = upcaster.decode(
+          unappliedEventOf(
+            pushed({
+              schema_version: version,
+              payload: {
+                ...saleFields,
+                ...(version === 1 ? { completed_at: "2026-10-06T11:20:00.000Z" } : {}),
+                ...(version >= 4 ? { operation_number: 1 } : {}),
+                ...(version >= 3 ? { stock_movements: [] } : {}),
+                ...(version >= 6 ? { lines: [{ ...saleLine, weight_source: null }] } : {}),
+                ...(version >= 7
+                  ? { lines: [{ ...saleLine, weight_source: null, manual_adjustment: null }] }
+                  : {}),
+                payments: [version === 1 ? salePayment : payment],
+              },
+            }),
+          ),
+        );
+
+        expect(decoded).toMatchObject({
+          fact: {
+            sale: {
+              saleDiscount: null,
+              saleDiscountAmount: 0,
+              lines: [{ saleDiscountShare: 0 }],
+            },
+          },
+        });
+      },
+    );
+
+    it.each([1, 2, 3])(
+      "reads a version %s cancelled sale as having no discount on its total",
+      (version) => {
+        const lines =
+          version === 1
+            ? [saleLine]
+            : [
+                {
+                  ...saleLine,
+                  weight_source: null,
+                  ...(version === 3 ? { manual_adjustment: null } : {}),
+                },
+              ];
+
+        const decoded = upcaster.decode(
+          unappliedEventOf(
+            pushed({
+              event_type: "sale_cancelled",
+              schema_version: version,
+              payload: {
+                ...saleFields,
+                lines,
+                authorized_by: null,
+                payments: [payment],
+                refunds: [refund],
+              },
+            }),
+          ),
+        );
+
+        expect(decoded).toMatchObject({
+          fact: {
+            sale: { saleDiscount: null, saleDiscountAmount: 0, lines: [{ saleDiscountShare: 0 }] },
+          },
+        });
+      },
+    );
+  });
+
   it("reads the print state of a sale's receipt", () => {
     const decoded = upcaster.decode(
       unappliedEventOf(
@@ -851,6 +1056,8 @@ describe("decoding the events the registers pushed", () => {
           authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
           cancelledAt: new Date("2026-10-06T11:25:00.000Z"),
           total: 4800,
+          saleDiscount: null,
+          saleDiscountAmount: 0,
           lines: [decodedLine],
           payments: [
             {
@@ -1146,11 +1353,11 @@ describe("decoding the events the registers pushed", () => {
   });
 
   it("cannot read an event type and version no schema describes", () => {
-    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 8 })));
+    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 9 })));
 
     expect(decoded).toEqual({
       kind: "unreadable",
-      reason: "no schema reads sale_completed version 8",
+      reason: "no schema reads sale_completed version 9",
     });
   });
 

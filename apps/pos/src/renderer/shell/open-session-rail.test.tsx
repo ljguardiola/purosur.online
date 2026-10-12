@@ -1,12 +1,21 @@
-import { describe, expect, it, onTestFinished } from "vitest";
+import type { ComponentProps } from "react";
+import { describe, expect, expectTypeOf, it, onTestFinished } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { OpenSessionRail } from "./open-session-rail";
 import { render } from "./test-support/render-with-router";
 
 describe("OpenSessionRail", () => {
+  it("needs the person's abilities, so no screen can leave its entries out", () => {
+    expectTypeOf<{
+      registerName: string | null;
+      lock: () => void;
+      current: "cash";
+    }>().not.toExtend<ComponentProps<typeof OpenSessionRail>>();
+  });
+
   it("marks Venta as current on the sale screen", async () => {
     const screen = await render(
-      <OpenSessionRail registerName="Caja 1" lock={() => {}} current="sale" />,
+      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="sale" />,
     );
 
     await expect
@@ -19,7 +28,7 @@ describe("OpenSessionRail", () => {
 
   it("marks Caja as current on the cash screens and sends Venta to the sale", async () => {
     const screen = await render(
-      <OpenSessionRail registerName="Caja 1" lock={() => {}} current="cash" />,
+      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="cash" />,
     );
 
     await expect
@@ -87,13 +96,94 @@ describe("OpenSessionRail", () => {
     await expect.element(screen.getByRole("link", { name: "Historial" })).not.toBeInTheDocument();
   });
 
+  it("offers the printer and the scale and reader, after Caja, to a person who may configure them", async () => {
+    const screen = await render(
+      <OpenSessionRail
+        registerName="Caja 1"
+        lock={() => {}}
+        current="sale"
+        abilities={["view_sales_history", "configure_receipt_printer", "configure_serial_devices"]}
+      />,
+    );
+
+    const links = screen
+      .getByRole("link")
+      .elements()
+      .map((item) => item.textContent);
+    expect(links).toEqual(["Historial", "Caja", "Impresora", "Balanza y lector"]);
+    expect(screen.getByRole("link", { name: "Impresora" }).element().getAttribute("href")).toBe(
+      "/receipt-printer",
+    );
+    expect(
+      screen.getByRole("link", { name: "Balanza y lector" }).element().getAttribute("href"),
+    ).toBe("/serial-devices");
+  });
+
+  it("offers each device screen only to a person who may configure it", async () => {
+    const screen = await render(
+      <OpenSessionRail
+        registerName="Caja 1"
+        lock={() => {}}
+        current="sale"
+        abilities={["configure_serial_devices"]}
+      />,
+    );
+
+    await expect.element(screen.getByRole("link", { name: "Balanza y lector" })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Impresora" })).not.toBeInTheDocument();
+  });
+
+  it("marks Impresora as current on the printer screen", async () => {
+    const screen = await render(
+      <OpenSessionRail
+        registerName="Caja 1"
+        lock={() => {}}
+        current="receipt_printer"
+        abilities={["configure_receipt_printer", "configure_serial_devices"]}
+      />,
+    );
+
+    await expect
+      .element(screen.getByRole("link", { name: "Impresora" }))
+      .toHaveAttribute("aria-current", "page");
+    await expect
+      .element(screen.getByRole("link", { name: "Balanza y lector" }))
+      .not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "Venta" }).element().getAttribute("href")).toBe(
+      "/session",
+    );
+  });
+
+  it("marks Balanza y lector as current on the serial devices screen", async () => {
+    const screen = await render(
+      <OpenSessionRail
+        registerName="Caja 1"
+        lock={() => {}}
+        current="serial_devices"
+        abilities={["configure_receipt_printer", "configure_serial_devices"]}
+      />,
+    );
+
+    await expect
+      .element(screen.getByRole("link", { name: "Balanza y lector" }))
+      .toHaveAttribute("aria-current", "page");
+    await expect
+      .element(screen.getByRole("link", { name: "Impresora" }))
+      .not.toHaveAttribute("aria-current");
+  });
+
   describe("Salir", () => {
     async function renderRail() {
       await page.viewport(1280, 900);
       onTestFinished(() => page.viewport(414, 896));
       const locked: string[] = [];
       const screen = await render(
-        <OpenSessionRail registerName="Caja 1" lock={() => locked.push("locked")} current="sale" />,
+        <OpenSessionRail
+          abilities={[]}
+          registerName="Caja 1"
+          lock={() => locked.push("locked")}
+          current="sale"
+        />,
       );
       return Object.assign(screen, { locked });
     }

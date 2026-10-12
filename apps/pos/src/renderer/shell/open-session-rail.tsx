@@ -1,29 +1,40 @@
 import type { RegisterAbility } from "@purosur/domain";
 import { useNavigate } from "@tanstack/react-router";
-import { History, ShoppingBasket, Wallet } from "lucide-react";
+import { ShoppingBasket, Wallet } from "lucide-react";
 import { useState } from "react";
+import type { ActionEntry } from "./action-entries";
+import { ACTION_ENTRIES, entriesFor } from "./action-entries";
 import { LeavingTheRegisterModal } from "./leaving-the-register-modal";
 import type { NavigationRailProps } from "./navigation-rail";
 import { NavigationRail } from "./navigation-rail";
+
+const SCREEN_ROUTES = {
+  sale: "/session",
+  cash: "/cash",
+  history: "/history",
+  receipt_printer: "/receipt-printer",
+  serial_devices: "/serial-devices",
+} as const satisfies Record<string, ActionEntry["to"]>;
 
 export function OpenSessionRail({
   registerName,
   lock,
   current,
-  abilities = [],
+  abilities,
 }: {
   registerName: string | null;
   lock: () => void;
-  current: "sale" | "cash" | "history";
-  abilities?: readonly RegisterAbility[];
+  current: keyof typeof SCREEN_ROUTES;
+  abilities: readonly RegisterAbility[];
 }) {
   const navigate = useNavigate();
   const [leaving, setLeaving] = useState(false);
-  const historyLinks: NonNullable<NavigationRailProps["links"]> = abilities.includes(
-    "view_sales_history",
-  )
-    ? [{ label: "Historial", icon: History, to: "/history", current: current === "history" }]
-    : [];
+  const linksTo = (
+    routes: readonly ActionEntry["to"][],
+  ): NonNullable<NavigationRailProps["links"]> =>
+    entriesFor(ACTION_ENTRIES, abilities)
+      .filter(({ to }) => routes.includes(to))
+      .map(({ label, icon, to }) => ({ label, icon, to, current: to === SCREEN_ROUTES[current] }));
 
   return (
     <>
@@ -35,8 +46,9 @@ export function OpenSessionRail({
             : { label: "Venta", icon: ShoppingBasket, to: "/session" }
         }
         links={[
-          ...historyLinks,
+          ...linksTo(["/history"]),
           { label: "Caja", icon: Wallet, to: "/cash", current: current === "cash" },
+          ...linksTo(["/receipt-printer", "/serial-devices"]),
         ]}
         onSignOut={() => setLeaving(true)}
       />

@@ -1,9 +1,7 @@
 import type { OpenCashSessionOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { History } from "lucide-react";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import type { ActionEntry } from "../shell/action-entries";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { render } from "../shell/test-support/render-with-router";
 import { NoSessionScreen } from "./no-session-screen";
@@ -14,32 +12,23 @@ const PERSON: SignedInPerson = {
   abilities: ["view_sales_history"],
 };
 
-const HISTORY: ActionEntry = {
-  label: "Historial",
-  icon: History,
-  ability: "view_sales_history",
-  to: "/sign-in",
-};
-const REPRINT: ActionEntry = {
-  label: "Reimprimir",
-  icon: History,
-  ability: "reprint_receipt",
-  to: "/sign-in",
-};
-
-async function renderScreen(
-  entries: readonly ActionEntry[] = [],
-  signOut = vi.fn(),
-  registerName: string | null = null,
-  openCashSession = vi.fn(async (): Promise<OpenCashSessionOutcome> => ({ kind: "unavailable" })),
-) {
+async function renderScreen({
+  registerName = null,
+  person = PERSON,
+}: {
+  registerName?: string | null;
+  person?: SignedInPerson;
+} = {}) {
+  const signOut = vi.fn();
+  const openCashSession = vi.fn(
+    async (): Promise<OpenCashSessionOutcome> => ({ kind: "unavailable" }),
+  );
   await page.viewport(1280, 900);
   onTestFinished(() => page.viewport(414, 896));
   const screen = await render(
     <NoSessionScreen
-      person={PERSON}
+      person={person}
       registerName={registerName}
-      entries={entries}
       signOut={signOut}
       openCashSession={openCashSession}
     />,
@@ -56,7 +45,7 @@ describe("NoSessionScreen", () => {
   });
 
   it("names the register in the eyebrow", async () => {
-    const { screen } = await renderScreen([], vi.fn(), "Caja 1");
+    const { screen } = await renderScreen({ registerName: "Caja 1" });
 
     await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
   });
@@ -69,20 +58,23 @@ describe("NoSessionScreen", () => {
   });
 
   it("offers only Inicio and Salir when no entry exists", async () => {
-    const { screen } = await renderScreen();
+    const { screen } = await renderScreen({ person: { ...PERSON, abilities: [] } });
 
-    const buttons = Array.from(screen.container.querySelectorAll("button")).map(
-      (button) => button.textContent,
-    );
+    const railItems = Array.from(
+      screen
+        .getByRole("navigation", { name: "Menú de la caja" })
+        .element()
+        .querySelectorAll("a, button"),
+    ).map((item) => item.textContent);
 
-    expect(buttons).toEqual(["Inicio", "Salir"]);
+    expect(railItems).toEqual(["Inicio", "Salir"]);
   });
 
-  it("offers the entries the person's permissions unlock, and no others", async () => {
-    const { screen } = await renderScreen([HISTORY, REPRINT]);
+  it("offers the entries the person's permissions unlock", async () => {
+    const { screen } = await renderScreen();
 
     await expect.element(screen.getByRole("link", { name: "Historial" })).toBeVisible();
-    await expect.element(screen.getByRole("link", { name: "Reimprimir" })).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("link", { name: "Ayuda" })).not.toBeInTheDocument();
   });
 
   it("asks for confirmation before leaving, without signing out yet", async () => {
@@ -136,7 +128,6 @@ describe("NoSessionScreen", () => {
       <NoSessionScreen
         person={{ ...PERSON, abilities: ["open_cash_session"] }}
         registerName={null}
-        entries={[]}
         signOut={vi.fn()}
         openCashSession={openCashSession}
       />,

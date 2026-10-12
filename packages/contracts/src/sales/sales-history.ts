@@ -28,7 +28,7 @@ const operationNumberSchema = z.int().positive().nullable();
 
 const salesHistoryRowSchema = z.object({
   sale_id: z.string(),
-  occurred_at: z.iso.datetime(),
+  occurred_at: z.iso.datetime({ offset: true }),
   comprobante: comprobanteSchema,
   operation_number: operationNumberSchema,
   payment_methods: z.array(z.enum(PAYMENT_METHODS)),
@@ -51,7 +51,7 @@ export type SalesHistoryOutcome = z.infer<typeof salesHistoryOutcomeSchema>;
 
 const saleHistoryDetailSchema = z.object({
   sale_id: z.string(),
-  occurred_at: z.iso.datetime(),
+  occurred_at: z.iso.datetime({ offset: true }),
   total: z.int(),
   comprobante: comprobanteSchema,
   operation_number: operationNumberSchema,

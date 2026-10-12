@@ -42,7 +42,13 @@ describe("alertConditionResolutionJobs", () => {
 
     const jobs = alertConditionResolutionJobs(
       { now: () => new Date("2026-01-05T12:00:00.000Z") },
-      { createDatabase, resolve, detectQuiet, detectMissingCodes },
+      {
+        createDatabase,
+        resolve,
+        detectQuiet,
+        detectMissingCodes,
+        openRefundTaskAlerts: vi.fn().mockResolvedValue(0),
+      },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
     if (!task) {
@@ -79,6 +85,7 @@ describe("alertConditionResolutionJobs", () => {
         resolve,
         detectQuiet,
         detectMissingCodes: vi.fn().mockResolvedValue(0),
+        openRefundTaskAlerts: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -114,6 +121,7 @@ describe("alertConditionResolutionJobs", () => {
         resolve: vi.fn().mockResolvedValue(0),
         detectQuiet,
         detectMissingCodes,
+        openRefundTaskAlerts: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -125,6 +133,45 @@ describe("alertConditionResolutionJobs", () => {
 
     expect(calls).toEqual(["detectQuiet", "detectMissingCodes"]);
     const [dbArgument, depsArgument] = detectMissingCodes.mock.calls[0] as [
+      unknown,
+      { now: () => Date },
+    ];
+    expect(dbArgument).toBe(fakeDb);
+    expect(depsArgument.now()).toEqual(new Date("2026-01-05T12:00:00.000Z"));
+  });
+
+  it("opens the alerts of refunds left pending right after the missing offline authorization codes, on the same database and by the same clock", async () => {
+    const fakeClient: PoolClient = Object.create(null);
+    const fakeDb = { marker: "fake-db" };
+    const calls: string[] = [];
+    const detectMissingCodes = vi.fn().mockImplementation(async () => {
+      calls.push("detectMissingCodes");
+      return 0;
+    });
+    const openRefundTaskAlerts = vi.fn().mockImplementation(async () => {
+      calls.push("openRefundTaskAlerts");
+      return { kind: "opened", refundIds: [] };
+    });
+
+    const jobs = alertConditionResolutionJobs(
+      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      {
+        createDatabase: vi.fn().mockReturnValue(fakeDb),
+        resolve: vi.fn().mockResolvedValue(0),
+        detectQuiet: vi.fn().mockResolvedValue(0),
+        detectMissingCodes,
+        openRefundTaskAlerts,
+      },
+    );
+    const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
+    if (!task) {
+      throw new Error("test setup: expected the registered alert condition resolution task");
+    }
+
+    await task({}, jobHelpers(fakeClient, vi.fn()));
+
+    expect(calls).toEqual(["detectMissingCodes", "openRefundTaskAlerts"]);
+    const [dbArgument, depsArgument] = openRefundTaskAlerts.mock.calls[0] as [
       unknown,
       { now: () => Date },
     ];

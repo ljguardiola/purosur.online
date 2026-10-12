@@ -38,6 +38,7 @@ export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
         registerName: registers.name,
         method: paymentRefunds.method,
         origin: paymentRefunds.origin,
+        providerOrderId: paymentRefunds.providerOrderId,
         amount: paymentRefunds.amount,
         occurredAt: paymentRefunds.occurredAt,
         saleCancelledAt: sales.cancelledAt,

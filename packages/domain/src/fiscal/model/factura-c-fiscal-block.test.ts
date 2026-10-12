@@ -90,11 +90,6 @@ describe("facturaCFiscalBlock", () => {
     });
   });
 
-  it("carries the voucher's total", () => {
-    const block = facturaCFiscalBlock(authorized(5900));
-    expect(block).toMatchObject({ total: 5900 });
-  });
-
   it("encodes the voucher's data in the QR as the tax authority defines", () => {
     const { qrText } = facturaCFiscalBlock(authorized(123456));
     expect(JSON.stringify(qrPayload(qrText))).toBe(

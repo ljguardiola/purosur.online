@@ -9,7 +9,7 @@ import {
 } from "../model/payment-transaction.js";
 import type { PaymentTransactionLane, RecordedOrderState } from "./mercado-pago-qr-order-ports.js";
 
-export async function openLatePaymentRefundIfLate(
+async function openLatePaymentRefundIfLate(
   lane: PaymentTransactionLane,
   transaction: MercadoPagoQrOrderTransaction,
   recorded: RecordedOrderState,
@@ -33,4 +33,33 @@ export async function recordMercadoPagoOrderResult(
     return state;
   });
   return { ...transaction, ...outcome, replaced: recorded.replaced };
+}
+
+export async function recordCreatedMercadoPagoOrder(
+  lane: PaymentTransactionLane,
+  transaction: MercadoPagoQrOrderTransaction,
+  providerOrderId: string,
+  result: MercadoPagoOrderResult,
+  readAt: Date,
+  otherOrderPossible: boolean,
+): Promise<MercadoPagoQrOrderTransaction> {
+  const withOrder = { ...transaction, providerOrderId };
+  const outcome = applyMercadoPagoOrderResult(withOrder, result);
+  const recorded = await lane.inOneTransaction(async (atomic) => {
+    const state = await atomic.recordOrderCreated(transaction.id, providerOrderId, {
+      outcome,
+      readAt,
+    });
+    if (!otherOrderPossible) {
+      await atomic.recordNoOtherOrderPossible(transaction.id);
+    }
+    await openLatePaymentRefundIfLate(atomic, withOrder, state, readAt);
+    return state;
+  });
+  return {
+    ...withOrder,
+    ...outcome,
+    creationOutcomeUnknown: otherOrderPossible,
+    replaced: recorded.replaced,
+  };
 }

@@ -40,6 +40,7 @@ export interface PaymentTransactionLane {
     providerOrderId: string,
     reading: PaymentTransactionReading | null,
   ): Promise<RecordedOrderState>;
+  recordNoOtherOrderPossible(paymentTransactionId: string): Promise<void>;
   recordOrderResult(
     paymentTransactionId: string,
     outcome: PaymentTransactionOutcome,

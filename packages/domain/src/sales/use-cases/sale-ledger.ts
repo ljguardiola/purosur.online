@@ -11,6 +11,7 @@ import type { DiscountRecurrence } from "../../pricing/index.js";
 import type { CashMovement } from "../../register/index.js";
 import type { OutboxEventDraft } from "../../shared/index.js";
 import type { LinePromotion, Sale, SaleLine, SaleWithLines } from "../model/sale.js";
+import type { SaleDiscount } from "../model/sale-discount.js";
 import type { ListPrice } from "../model/sale-line.js";
 
 export interface RegisterIdentity {
@@ -83,6 +84,7 @@ export interface SaleLedgerTransaction {
   recordOpenedSale(sale: Sale): void;
   recordSaleLine(saleId: string, line: SaleLine): void;
   recordChangedLine(line: SaleLine): void;
+  recordSaleDiscount(saleId: string, discount: SaleDiscount | null): void;
   deleteSaleLine(lineId: string): void;
   salePayments(saleId: string): SalePayment[];
   saleCashMovements(saleId: string): SaleCashMovement[];

@@ -22,6 +22,7 @@ import {
 import {
   addWeighedProductFor,
   adjustSaleLineFor,
+  applySaleDiscountFor,
   cancelPaidSaleFor,
   changeLineWeightFor,
   chargeSaleByTransferFor,
@@ -89,6 +90,7 @@ function seed(database: ReturnType<typeof openLocalDatabase>): void {
         "void_sale",
         "reprint_receipt",
         "override_line_price_or_discount",
+        "apply_total_discount",
       ],
     ],
   ] as const) {
@@ -378,6 +380,33 @@ export async function withRegisterSession<TResult>(
       tendered: amountOff.sale.total,
     });
     expectOutcome("charge the sale with adjusted lines", adjustedCash.kind, "completed");
+    for (const code of ["7790001000011", "7790001000035"]) {
+      nextStep();
+      const toDiscount = await scanProductFor(deps(), code);
+      expectOutcome("scan a product to discount the total", toDiscount.kind, "added");
+    }
+    nextStep();
+    const discountedSale = await currentSaleFor(deps());
+    if (discountedSale === null || discountedSale === "not_permitted") {
+      throw new Error(`The register session's "read the sale to discount" found no sale`);
+    }
+    nextStep();
+    const totalDiscount = await applySaleDiscountFor(deps(), {
+      discount: { kind: "PERCENT", value: 5 },
+      reason: "Compra grande",
+      authorization: { user_id: GRACE, pin: PIN },
+    });
+    if (totalDiscount.kind !== "applied") {
+      throw new Error(
+        `The register session's "discount the sale's total" ended as "${totalDiscount.kind}"`,
+      );
+    }
+    nextStep();
+    const discountedCash = await chargeSaleInCashFor(deps(), {
+      saleId: discountedSale.id,
+      tendered: totalDiscount.sale.total,
+    });
+    expectOutcome("charge the sale with a discount on its total", discountedCash.kind, "completed");
     nextStep();
     const split = await scanProductFor(deps(), "7790001000011");
     if (split.kind !== "added") {
@@ -409,6 +438,17 @@ export async function withRegisterSession<TResult>(
       authorization: undefined,
     });
     expectOutcome("discount the sale to abandon", abandonedDiscount.kind, "changed");
+    nextStep();
+    const abandonedTotalDiscount = await applySaleDiscountFor(deps(), {
+      discount: { kind: "AMOUNT", value: 100 },
+      reason: "Cliente frecuente",
+      authorization: { user_id: GRACE, pin: PIN },
+    });
+    expectOutcome(
+      "discount the total of the sale to abandon",
+      abandonedTotalDiscount.kind,
+      "applied",
+    );
     nextStep();
     const deposit = await chargeSaleInCashFor(deps(), { saleId: abandoned.sale.id, tendered: 500 });
     expectOutcome(

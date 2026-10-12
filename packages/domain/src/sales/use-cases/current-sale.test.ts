@@ -8,6 +8,7 @@ import {
   type FakeSaleLedgerState,
   FixedClock,
 } from "./test-support/fake-sale-ledger.js";
+import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
 
 const NOW = new Date("2026-09-30T12:34:56.789Z");
 const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
@@ -19,6 +20,7 @@ const SALE: SaleWithLines = {
   sessionId: "session-1",
   actorId: "cashier",
   state: "OPEN",
+  saleDiscount: null,
   lines: [
     {
       id: "line-1",
@@ -138,6 +140,29 @@ describe("currentSale", () => {
     read(store);
 
     expect(store.state).toEqual(before);
+  });
+});
+
+describe("current-sale with a discount on the total", () => {
+  const discounted = { ...SALE, saleDiscount: TEN_PERCENT_SALE_DISCOUNT };
+
+  it("answers the balance of the discounted total", () => {
+    expect(read(ledger({ sales: [discounted] }))).toEqual(
+      expect.objectContaining({
+        kind: "open",
+        sale: discounted,
+        balance: { paid: 0, pending: 4500 },
+      }),
+    );
+  });
+
+  it("works out the buyer identification refusal on the discounted total", () => {
+    const store = ledger({
+      sales: [discounted],
+      thresholds: [{ ...THRESHOLD, amount: 5000 }],
+    });
+
+    expect(read(store)).toHaveProperty("chargeRefusal", undefined);
   });
 });
 

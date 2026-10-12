@@ -3,6 +3,7 @@ import type { OpenAlertInput } from "../model/alert-details.js";
 import {
   ALERT_ESCALATION_DELAY_MS,
   LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS,
+  REFUND_TASK_ESCALATION_DELAY_MS,
 } from "../model/alert-kind-policy.js";
 import { openAlert } from "./open-alert.js";
 import { NOW } from "./test-support/alert-fixtures.js";
@@ -66,7 +67,7 @@ describe("openAlert", () => {
       kind: "late_payment_refund",
       scope: "refund-1",
       locationId: HERE,
-      detail: { saleId: "sale-1", amount: 2500 },
+      detail: { saleId: "sale-1", amount: 2500, providerOrderId: null },
     });
 
     expect(store.snapshot().alerts[0]).toMatchObject({
@@ -79,6 +80,39 @@ describe("openAlert", () => {
     const recipients = store.snapshot().deliveries.map(({ recipientUserId }) => recipientUserId);
     expect(recipients).toContain("branch-same-location");
     expect(recipients).not.toContain("branch-other-location");
+  });
+
+  it("opens a forgotten-refund alert as a warning, escalating 72 hours after the refund opened", async () => {
+    const store = storeWithViewers();
+    const refundOpenedAt = new Date(NOW.getTime() - 30 * 60 * 60 * 1000);
+
+    await open(store, {
+      kind: "refund_task",
+      scope: "refund-1",
+      locationId: HERE,
+      detail: {
+        saleId: "sale-1",
+        amount: 12400,
+        method: "TRANSFER",
+        refundOpenedAt: refundOpenedAt.toISOString(),
+      },
+    });
+
+    expect(store.snapshot().alerts[0]).toMatchObject({
+      kind: "refund_task",
+      level: "warning",
+      audience: "local",
+      locationId: HERE,
+      escalateAt: new Date(refundOpenedAt.getTime() + REFUND_TASK_ESCALATION_DELAY_MS),
+    });
+  });
+
+  it("opens the alert at the level it is asked to, instead of the level of its kind", async () => {
+    const store = storeWithViewers();
+
+    await openAlert({ store, clock: new FixedClock(NOW) }, PASSKEY_CHANGED, "critical");
+
+    expect(store.snapshot().alerts[0]).toMatchObject({ level: "critical" });
   });
 
   it("opens the alert and delivers it to the active users who may see it", async () => {

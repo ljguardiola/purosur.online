@@ -55,6 +55,7 @@ interface ReceiptPrinting {
         request: Parameters<typeof reprintSaleReceiptFor>[1],
       ) => ReturnType<typeof reprintSaleReceiptFor>)
     | undefined;
+  withdrawHeldReceipts: (() => void) | undefined;
 }
 
 export function createReceiptPrinting({
@@ -75,8 +76,10 @@ export function createReceiptPrinting({
       receiptPrintStatus: undefined,
       retryReceiptPrint: undefined,
       reprintSaleReceipt: undefined,
+      withdrawHeldReceipts: undefined,
     };
   }
+  const jobs = createReceiptPrintJobs({ now, reportFailure });
   const deps: ReceiptRequestDeps = {
     database,
     gate,
@@ -85,7 +88,7 @@ export function createReceiptPrinting({
     readOutboxChainKey,
     signedInUserId,
     printers: savedReceiptPrinters(new SqliteReceiptPrinterSettings(database), connectPrinter),
-    jobs: createReceiptPrintJobs({ now, reportFailure }),
+    jobs,
   };
   return {
     afterCompletedSale: (charge) =>
@@ -102,5 +105,6 @@ export function createReceiptPrinting({
     receiptPrintStatus: (saleId) => receiptPrintStatusFor(deps, saleId),
     retryReceiptPrint: (saleId) => retryReceiptPrintFor(deps, saleId),
     reprintSaleReceipt: (request) => reprintSaleReceiptFor(deps, request),
+    withdrawHeldReceipts: jobs.withdrawHeld,
   };
 }

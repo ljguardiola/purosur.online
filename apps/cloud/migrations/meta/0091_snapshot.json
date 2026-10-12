@@ -1,5 +1,5 @@
 {
-  "id": "3698a8e2-f7c2-4004-99cd-312573b6eeea",
+  "id": "f742e3f3-43a9-437b-a390-74047d550023",
   "prevId": "1168a868-aad5-4762-a5a0-1e43c15c077a",
   "version": "7",
   "dialect": "postgresql",
@@ -603,41 +603,6 @@
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.branch_first_cash_sessions": {
-      "name": "branch_first_cash_sessions",
-      "schema": "",
-      "columns": {
-        "location_id": {
-          "name": "location_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "opened_at": {
-          "name": "opened_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "branch_first_cash_sessions_location_id_locations_id_fk": {
-          "name": "branch_first_cash_sessions_location_id_locations_id_fk",
-          "tableFrom": "branch_first_cash_sessions",
-          "tableTo": "locations",
-          "columnsFrom": ["location_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -2613,19 +2578,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "origin_movement_id": {
-          "name": "origin_movement_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "withdrawn": {
-          "name": "withdrawn",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "lot_number": {
           "name": "lot_number",
           "type": "text",
@@ -2763,15 +2715,6 @@
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
-        },
-        "lots_origin_movement_id_stock_movements_id_fk": {
-          "name": "lots_origin_movement_id_stock_movements_id_fk",
-          "tableFrom": "lots",
-          "tableTo": "stock_movements",
-          "columnsFrom": ["origin_movement_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2780,11 +2723,6 @@
           "name": "lots_purchase_line_id_key",
           "nullsNotDistinct": false,
           "columns": ["purchase_line_id"]
-        },
-        "lots_origin_movement_id_key": {
-          "name": "lots_origin_movement_id_key",
-          "nullsNotDistinct": false,
-          "columns": ["origin_movement_id"]
         }
       },
       "policies": {},
@@ -2793,13 +2731,9 @@
           "name": "lots_cost_quantity_check",
           "value": "\"lots\".\"cost_quantity\" > 0"
         },
-        "lots_exactly_one_origin_check": {
-          "name": "lots_exactly_one_origin_check",
-          "value": "\"lots\".\"technical\"::int + (\"lots\".\"purchase_line_id\" is not null)::int + (\"lots\".\"origin_movement_id\" is not null)::int = 1"
-        },
-        "lots_withdrawn_only_if_initial_count_check": {
-          "name": "lots_withdrawn_only_if_initial_count_check",
-          "value": "not \"lots\".\"withdrawn\" or \"lots\".\"origin_movement_id\" is not null"
+        "lots_technical_iff_no_purchase_line_check": {
+          "name": "lots_technical_iff_no_purchase_line_check",
+          "value": "\"lots\".\"technical\" = (\"lots\".\"purchase_line_id\" is null)"
         },
         "lots_cost_pair_check": {
           "name": "lots_cost_pair_check",
@@ -3251,6 +3185,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "provider_order_id": {
+          "name": "provider_order_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "origin": {
           "name": "origin",
           "type": "text",
@@ -3314,6 +3254,44 @@
         }
       },
       "indexes": {
+        "payment_refunds_transaction_without_order_unique": {
+          "name": "payment_refunds_transaction_without_order_unique",
+          "columns": [
+            {
+              "expression": "payment_transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"payment_refunds\".\"provider_order_id\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payment_refunds_transaction_order_unique": {
+          "name": "payment_refunds_transaction_order_unique",
+          "columns": [
+            {
+              "expression": "payment_transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "provider_order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"payment_refunds\".\"provider_order_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "payment_refunds_pending_idx": {
           "name": "payment_refunds_pending_idx",
           "columns": [
@@ -3367,13 +3345,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "payment_refunds_payment_transaction_id_unique": {
-          "name": "payment_refunds_payment_transaction_id_unique",
-          "nullsNotDistinct": false,
-          "columns": ["payment_transaction_id"]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
         "payment_refunds_state_check": {
@@ -7187,11 +7159,11 @@
       "checkConstraints": {
         "stock_movements_kind_check": {
           "name": "stock_movements_kind_check",
-          "value": "\"stock_movements\".\"kind\" in ('loss', 'adjustment', 'count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal')"
+          "value": "\"stock_movements\".\"kind\" in ('loss', 'adjustment', 'count', 'sale', 'receipt')"
         },
         "stock_movements_reason_unless_count_sale_or_receipt_check": {
           "name": "stock_movements_reason_unless_count_sale_or_receipt_check",
-          "value": "(\"stock_movements\".\"kind\" in ('count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal')) = (\"stock_movements\".\"reason\" is null)"
+          "value": "(\"stock_movements\".\"kind\" in ('count', 'sale', 'receipt')) = (\"stock_movements\".\"reason\" is null)"
         },
         "stock_movements_sale_line_iff_sale_check": {
           "name": "stock_movements_sale_line_iff_sale_check",

@@ -41,6 +41,7 @@ describe("SaleScreen telling the manual discount was removed", () => {
       changeLineQuantity: async (): Promise<ChangeLineQuantityOutcome> => ({
         kind: "changed",
         removed_manual_discount: true,
+        removed_sale_discount: false,
         sale: THREE_YERBAS,
       }),
     });
@@ -57,6 +58,7 @@ describe("SaleScreen telling the manual discount was removed", () => {
       changeLineQuantity: async (): Promise<ChangeLineQuantityOutcome> => ({
         kind: "changed",
         removed_manual_discount: false,
+        removed_sale_discount: false,
         sale: THREE_YERBAS,
       }),
     });
@@ -72,6 +74,7 @@ describe("SaleScreen telling the manual discount was removed", () => {
       async (): Promise<ScanProductOutcome> => ({
         kind: "added",
         removed_manual_discount: true,
+        removed_sale_discount: false,
         sale: THREE_YERBAS,
       }),
     );
@@ -105,6 +108,7 @@ describe("SaleScreen telling the manual discount was removed", () => {
       addProduct: async (): Promise<AddProductOutcome> => ({
         kind: "added",
         removed_manual_discount: true,
+        removed_sale_discount: false,
         sale: THREE_YERBAS,
       }),
     });
@@ -135,6 +139,7 @@ describe("SaleScreen telling the manual discount was removed", () => {
       changeLineWeight: async (): Promise<ChangeLineWeightOutcome> => ({
         kind: "changed",
         removed_manual_discount: true,
+        removed_sale_discount: false,
         sale: SALE_OF_QUESO,
       }),
     });

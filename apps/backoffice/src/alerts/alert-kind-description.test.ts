@@ -32,9 +32,15 @@ test("describes a register that has not downloaded the fortnight's offline autho
   );
 });
 
-test("describes a QR payment Mercado Pago charged for a sale already paid another way", () => {
+test("describes a QR payment Mercado Pago charged that has to be given back, whatever its cause", () => {
   expect(alertKindDescription("late_payment_refund")).toBe(
-    "Mercado Pago cobró un pago QR de una venta que ya se había cobrado por otro medio",
+    "Mercado Pago cobró un pago QR que hay que devolver",
+  );
+});
+
+test("describes the refund of a cancelled sale left without being marked as done", () => {
+  expect(alertKindDescription("refund_task")).toBe(
+    "Una venta anulada tiene un reembolso sin marcar como hecho",
   );
 });
 

@@ -1,17 +1,12 @@
 import type { OpenCashSessionOutcome } from "@purosur/contracts";
 import { ScreenHeader } from "@purosur/ui";
-import { useState } from "react";
-import type { ActionEntry } from "../shell/action-entries";
-import { entriesFor } from "../shell/action-entries";
-import { NavigationRail } from "../shell/navigation-rail";
-import { SignOutModal } from "../shell/sign-out-modal";
+import { NoSessionRail } from "../shell/no-session-rail";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { CashOpeningPanel } from "./cash-opening-panel";
 
 export type NoSessionScreenProps = {
   person: SignedInPerson;
   registerName: string | null;
-  entries: readonly ActionEntry[];
   signOut: () => void;
   openCashSession: (openingFloat: number) => Promise<OpenCashSessionOutcome>;
 };
@@ -19,18 +14,12 @@ export type NoSessionScreenProps = {
 export function NoSessionScreen({
   person,
   registerName,
-  entries,
   signOut,
   openCashSession,
 }: NoSessionScreenProps) {
-  const [leaving, setLeaving] = useState(false);
-
   return (
     <div className="flex h-full w-full bg-surface">
-      <NavigationRail
-        entries={entriesFor(entries, person.abilities)}
-        onSignOut={() => setLeaving(true)}
-      />
+      <NoSessionRail person={person} signOut={signOut} />
       <main className="flex flex-1 flex-col p-8">
         <ScreenHeader eyebrow={registerName ?? undefined} title="¿Qué querés hacer?" />
       </main>
@@ -38,12 +27,6 @@ export function NoSessionScreen({
         firstName={person.first_name}
         canOpen={person.abilities.includes("open_cash_session")}
         open={openCashSession}
-      />
-      <SignOutModal
-        open={leaving}
-        firstName={person.first_name}
-        onClose={() => setLeaving(false)}
-        onSignOut={signOut}
       />
     </div>
   );

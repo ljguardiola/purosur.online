@@ -75,7 +75,7 @@ export type AdjustLineModalProps = {
     lineId: string,
     adjustment: ManualAdjustmentRequest,
   ) => Promise<PreviewSaleLineAdjustmentOutcome>;
-  onAdjusted: (sale: OpenSale) => void;
+  onAdjusted: (sale: OpenSale, removedSaleDiscount: boolean) => void;
   onSaleGone: () => void;
   onSessionInvalid: () => void;
   onClose: () => void;
@@ -153,7 +153,7 @@ export function AdjustLineModal({
       switch (outcome.kind) {
         case "changed":
           authorization.performed();
-          onAdjusted(outcome.sale);
+          onAdjusted(outcome.sale, outcome.removed_sale_discount);
           break;
         case "same_as_list_price":
           showFieldError("value", SAME_AS_LIST_PRICE_MESSAGE);

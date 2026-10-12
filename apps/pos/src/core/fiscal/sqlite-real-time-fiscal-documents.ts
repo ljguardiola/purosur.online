@@ -197,6 +197,7 @@ export class SqliteRealTimeFiscalDocuments
     resolution,
     resolvedAt,
   }: RealTimeAuthorizationResolved): void {
+    this.refuseUnlessDocumentOfSale(fiscalDocumentId, saleId);
     this.changeState(
       fiscalDocumentId,
       "REQUESTING",

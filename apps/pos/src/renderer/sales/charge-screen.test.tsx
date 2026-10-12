@@ -1,4 +1,4 @@
-import type { CurrentSaleAnswer } from "@purosur/contracts";
+import type { CurrentSaleAnswer, ReceiptPrintStatusOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -12,6 +12,13 @@ import {
   SALE_OF_TWO_LINES,
   SALE_WITH_PART_PAID,
 } from "./test-support/charge-screen";
+
+const FAILED_PRINT: ReceiptPrintStatusOutcome = {
+  kind: "found",
+  next_copy: { kind: "original" },
+  printed: false,
+  standing: "failed",
+};
 
 describe("ChargeScreen", () => {
   it("offers transfer as a way to pay, next to cash", async () => {
@@ -100,6 +107,10 @@ describe("ChargeScreen", () => {
         refunds_on_cancel: [],
         cancel_authorization_required: false,
         adjust_authorization_required: false,
+        sale_discount_authorization_required: false,
+        sale_discount_refusal: "empty_sale",
+        sale_discount: null,
+        subtotal: 0,
       },
     ],
     ["the person may not sell", "not_permitted"],
@@ -186,6 +197,28 @@ describe("ChargeScreen", () => {
     await userEvent.click(screen.getByRole("button", { name: "Reintentar impresión" }));
 
     expect(retryReceiptPrint).toHaveBeenCalledWith("sale-1");
+  });
+
+  it("offers to change the printer on a failed print to a person who may configure it", async () => {
+    const { screen } = await renderScreen({
+      person: { ...PERSON, abilities: ["open_cash_session", "configure_receipt_printer"] },
+      receiptPrintStatus: async () => FAILED_PRINT,
+    });
+
+    await chargeInCash(screen, "5.000,00");
+
+    await expect.element(screen.getByRole("button", { name: "Cambiar impresora" })).toBeVisible();
+  });
+
+  it("does not offer to change the printer on a failed print to a person who may not configure it", async () => {
+    const { screen } = await renderScreen({ receiptPrintStatus: async () => FAILED_PRINT });
+
+    await chargeInCash(screen, "5.000,00");
+
+    await expect.element(screen.getByText("No se pudo imprimir el ticket")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Cambiar impresora" }))
+      .not.toBeInTheDocument();
   });
 
   it("shows the sale as paid behind the completed sale, with no way back to it", async () => {

@@ -11,28 +11,77 @@ const DOCKER_HUB_HOSTS = new Set([
   "registry.hub.docker.com",
 ]);
 const INSTALLED_PLAYWRIGHT_PACKAGE_JSON_PATH = "node_modules/playwright/package.json";
+const GITHUB_TOKEN_EXPRESSION = `\${{ github.token }}`;
+const SIGN_IN_TO_GHCR_COMMAND =
+  'echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin';
+const SKOPEO_SIGN_IN_TO_GHCR =
+  'echo "$GITHUB_TOKEN" | skopeo login ghcr.io --username "$GITHUB_ACTOR" --password-stdin';
+const COPY_RETRY_DELAYS_SECONDS = [0, 15, 30, 60];
+const EXPECTED_MIRROR_OUTPUT = `\${{ steps.mirror.outputs.mirrored }}`;
 const CLOUD_POSTGRES_IMAGE = {
   label: "the cloud's Postgres image",
   setupPath: "apps/cloud/vitest.global-setup.postgres.ts",
   constant: "POSTGRES_IMAGE",
   job: "tests",
   testsScript: "verify:tests",
+  registry: "ghcr.io",
+  lookupJob: "postgres-image",
+  copyJob: "postgres-image-copy",
+  copyAttemptSeconds: 300,
+  pullAttemptSeconds: 120,
 };
 const PLAYWRIGHT_IMAGE = {
   label: "the Playwright image",
   setupPath: "vitest.global-setup.playwright-server.ts",
   constant: "PLAYWRIGHT_SERVER_IMAGE",
+  registry: "ghcr.io",
+  lookupJob: "playwright-image",
+  copyJob: "playwright-image-copy",
+  copyAttemptSeconds: 600,
+  // The runner's image store restarts every layer on each attempt, and this image is large.
+  pullAttemptSeconds: 300,
 };
 const PLAYWRIGHT_IMAGE_JOBS = {
   tests: { ...PLAYWRIGHT_IMAGE, job: "tests", testsScript: "verify:tests" },
   visual: { ...PLAYWRIGHT_IMAGE, job: "visual", testsScript: "verify:visual" },
 };
+const PRE_PULLED_IMAGES = [CLOUD_POSTGRES_IMAGE, ...Object.values(PLAYWRIGHT_IMAGE_JOBS)];
 
-function pullWithRetriesCommand(imageEnv) {
+function retrySeconds(attemptSeconds) {
+  return COPY_RETRY_DELAYS_SECONDS.reduce((total, delay) => total + delay + attemptSeconds, 0);
+}
+
+function lookUpMirrorCommand(spec) {
+  return [
+    SKOPEO_SIGN_IN_TO_GHCR,
+    `if timeout 60 skopeo inspect --raw "docker://\${${spec.constant}%%:*}@\${${spec.constant}#*@}" > /dev/null; then`,
+    '  echo "mirrored=true" >> "$GITHUB_OUTPUT"',
+    "else",
+    '  echo "mirrored=false" >> "$GITHUB_OUTPUT"',
+    "fi",
+  ].join("\n");
+}
+
+function copyMirrorCommand(spec) {
+  return [
+    SKOPEO_SIGN_IN_TO_GHCR,
+    `for delay in ${COPY_RETRY_DELAYS_SECONDS.join(" ")}; do`,
+    '  sleep "$delay"',
+    `  timeout ${spec.copyAttemptSeconds} skopeo copy --all --preserve-digests "docker://\${SOURCE_IMAGE%%:*}@\${SOURCE_IMAGE#*@}" "docker://\${${spec.constant}%@*}" && exit 0`,
+    "done",
+    "exit 1",
+  ].join("\n");
+}
+
+function expectedCopyCondition(spec) {
+  return `\${{ needs.${spec.lookupJob}.outputs.mirrored == 'false' }}`;
+}
+
+function pullWithRetriesCommand(spec) {
   return [
     "for delay in 0 15 30 60; do",
     '  sleep "$delay"',
-    `  timeout 120 docker pull "$${imageEnv}" && exit 0`,
+    `  timeout ${spec.pullAttemptSeconds} docker pull "$${spec.constant}" && exit 0`,
     "done",
     "exit 1",
   ].join("\n");
@@ -425,6 +474,18 @@ function declaredImage(setupSource, spec) {
   return new RegExp(`const ${spec.constant} =\\s*"([^"]+)";`).exec(setupSource)?.[1];
 }
 
+function testsStepIndex(doc, jobSteps, spec) {
+  return jobSteps.findIndex((step) => {
+    const run = resolveScalar(doc, mapGet(doc, step, "run"));
+    return typeof run === "string" && run.trim().startsWith(`pnpm ${spec.testsScript}`);
+  });
+}
+
+function isPullStepOf(doc, step, spec) {
+  const run = resolveScalar(doc, mapGet(doc, step, "run"));
+  return typeof run === "string" && run.trim() === pullWithRetriesCommand(spec);
+}
+
 // Testcontainers pulls an image the runner does not have yet with a single attempt, so a slow
 // registry would fail the whole job; the job pulls it first, retrying.
 function findPrePulledImageViolations(workflowSource, setupSource, spec) {
@@ -437,23 +498,18 @@ function findPrePulledImageViolations(workflowSource, setupSource, spec) {
   if (!/@sha256:[0-9a-f]{64}$/.test(image)) {
     violations.push(`${spec.label} \`${image}\` is not pinned by digest`);
   }
-  // Docker Hub limits unauthenticated pulls per address, and shared runners share that limit.
-  if (comesFromDockerHub(image)) {
+  if (!image.startsWith(`${spec.registry}/`)) {
     violations.push(
-      `${spec.label} \`${image}\` comes from Docker Hub, whose unauthenticated pulls a shared runner can exhaust`,
+      `${spec.label} \`${image}\` is not on ${spec.registry}, the registry verify.yml signs in to with its own token`,
     );
   }
 
   const doc = parseDocument(workflowSource);
   const jobSteps = steps(doc, jobNode(doc, spec.job));
-  const testsIndex = jobSteps.findIndex((step) => {
-    const run = resolveScalar(doc, mapGet(doc, step, "run"));
-    return typeof run === "string" && run.trim().startsWith(`pnpm ${spec.testsScript}`);
-  });
-  const pullStep = jobSteps.slice(0, Math.max(testsIndex, 0)).find((step) => {
-    const run = resolveScalar(doc, mapGet(doc, step, "run"));
-    return typeof run === "string" && run.trim() === pullWithRetriesCommand(spec.constant);
-  });
+  const testsIndex = testsStepIndex(doc, jobSteps, spec);
+  const pullStep = jobSteps
+    .slice(0, Math.max(testsIndex, 0))
+    .find((step) => isPullStepOf(doc, step, spec));
 
   const pullStepName = `verify.yml's ${spec.job} job pulls ${spec.label} in a step that`;
   if (pullStep === undefined) {
@@ -476,6 +532,16 @@ function findPrePulledImageViolations(workflowSource, setupSource, spec) {
     if (mapHas(doc, pullStep, "shell")) {
       violations.push(`${pullStepName} sets its own shell`);
     }
+    const pullMinutes = resolveScalar(doc, mapGet(doc, pullStep, "timeout-minutes"));
+    if (pullMinutes === undefined) {
+      violations.push(
+        `verify.yml's ${spec.job} job's pull step of ${spec.label} sets no timeout-minutes`,
+      );
+    } else if (!(Number(pullMinutes) * 60 >= retrySeconds(spec.pullAttemptSeconds))) {
+      violations.push(
+        `verify.yml's ${spec.job} job's pull step of ${spec.label} allows ${pullMinutes} minutes, less than the ${retrySeconds(spec.pullAttemptSeconds)} seconds its pull attempts and their delays can take`,
+      );
+    }
   }
 
   // Ryuk is another image Testcontainers pulls from Docker Hub; a runner is discarded after its
@@ -489,12 +555,153 @@ function findPrePulledImageViolations(workflowSource, setupSource, spec) {
       `verify.yml's ${spec.job} job's ${spec.testsScript} step does not set TESTCONTAINERS_RYUK_DISABLED to true`,
     );
   }
-  return { image, violations };
+  return { image, violations, doc, jobSteps, pullStep };
+}
+
+function permissionsOf(doc, job) {
+  const permissions = resolveNode(doc, mapGet(doc, job, "permissions"));
+  if (!isMap(permissions)) return {};
+  return Object.fromEntries(
+    permissions.items.map((pair) => [
+      String(resolveScalar(doc, pair.key)),
+      resolveScalar(doc, pair.value),
+    ]),
+  );
+}
+
+function stepEnv(doc, step, name) {
+  return resolveScalar(doc, mapGet(doc, mapGet(doc, step, "env"), name));
+}
+
+function digestOf(image) {
+  return /@(sha256:[0-9a-f]{64})$/.exec(image)?.[1];
+}
+
+// A public registry caps what one address pulls without credentials (ECR Public) or stalls a layer
+// (MCR), and shared runners share that address: the jobs pull from a copy on ghcr.io with the run's
+// own token, and only a missing copy is ever pulled from the public registry, once.
+function mirrorConsumerViolations(mirror, job, { doc, jobSteps, pullStep }) {
+  const violations = [];
+  const consumerJob = jobNode(doc, job);
+
+  if (permissionsOf(doc, consumerJob).packages !== "read") {
+    violations.push(
+      `verify.yml's ${job} job is not granted packages: read, which signing in to ghcr.io needs`,
+    );
+  }
+  const pullIndex = pullStep === undefined ? jobSteps.length : jobSteps.indexOf(pullStep);
+  const signsIn = jobSteps.slice(0, pullIndex).some((step) => {
+    const run = resolveScalar(doc, mapGet(doc, step, "run"));
+    return (
+      typeof run === "string" &&
+      run.trim() === SIGN_IN_TO_GHCR_COMMAND &&
+      stepEnv(doc, step, "GITHUB_TOKEN") === GITHUB_TOKEN_EXPRESSION
+    );
+  });
+  if (!signsIn) {
+    violations.push(
+      `verify.yml's ${job} job does not sign in to ghcr.io with its own token before pulling ${mirror.label}`,
+    );
+  }
+  const needs = neededJobs(doc, consumerJob);
+  if (!needs.includes(mirror.lookupJob) || !needs.includes(mirror.copyJob)) {
+    violations.push(
+      `verify.yml's ${job} job does not wait for the ${mirror.lookupJob} and ${mirror.copyJob} jobs that put ${mirror.label} on ghcr.io`,
+    );
+  }
+  return violations;
+}
+
+function mirrorJobsViolations(mirror, image, doc) {
+  const violations = [];
+  const copyRetrySeconds = retrySeconds(mirror.copyAttemptSeconds);
+
+  // A Dependabot run gets a read-only token whatever the workflow asks for, so the lookup must
+  // need nothing more.
+  const lookupJob = jobNode(doc, mirror.lookupJob);
+  const lookupPermissions = permissionsOf(doc, lookupJob);
+  if (Object.keys(lookupPermissions).length !== 1 || lookupPermissions.packages !== "read") {
+    violations.push(
+      `verify.yml's ${mirror.lookupJob} job must be granted only packages: read, so that a read-only token can look the copy up`,
+    );
+  }
+  const lookupStep = stepRunningExactly(doc, lookupJob, lookUpMirrorCommand(mirror));
+  if (
+    lookupStep === undefined ||
+    resolveScalar(doc, mapGet(doc, lookupStep, "id")) !== "mirror" ||
+    stepEnv(doc, lookupStep, mirror.constant) !== image ||
+    stepEnv(doc, lookupStep, "GITHUB_TOKEN") !== GITHUB_TOKEN_EXPRESSION ||
+    resolveScalar(doc, mapGet(doc, mapGet(doc, lookupJob, "outputs"), "mirrored")) !==
+      EXPECTED_MIRROR_OUTPUT
+  ) {
+    violations.push(
+      `verify.yml's ${mirror.lookupJob} job does not look up \`${image}\` on ghcr.io and output whether it found it as mirrored`,
+    );
+  }
+
+  const copyJob = jobNode(doc, mirror.copyJob);
+  if (
+    !neededJobs(doc, copyJob).includes(mirror.lookupJob) ||
+    resolveScalar(doc, mapGet(doc, copyJob, "if")) !== expectedCopyCondition(mirror)
+  ) {
+    violations.push(
+      `verify.yml's ${mirror.copyJob} job does not run only when ${mirror.lookupJob} did not find the copy (\`if: ${expectedCopyCondition(mirror)}\`)`,
+    );
+  }
+  if (permissionsOf(doc, copyJob).packages !== "write") {
+    violations.push(
+      `verify.yml's ${mirror.copyJob} job is not granted packages: write, which copying to ghcr.io needs`,
+    );
+  }
+  const copyStep = stepRunningExactly(doc, copyJob, copyMirrorCommand(mirror));
+  if (
+    copyStep === undefined ||
+    stepEnv(doc, copyStep, mirror.constant) !== image ||
+    stepEnv(doc, copyStep, "GITHUB_TOKEN") !== GITHUB_TOKEN_EXPRESSION
+  ) {
+    violations.push(
+      `verify.yml's ${mirror.copyJob} job does not copy to \`${image}\` with its own token, retrying`,
+    );
+    return violations;
+  }
+  for (const [label, node] of [
+    ["job", copyJob],
+    ["step", copyStep],
+  ]) {
+    if (!mapHas(doc, node, "timeout-minutes")) continue;
+    const minutes = resolveScalar(doc, mapGet(doc, node, "timeout-minutes"));
+    if (!(Number(minutes) * 60 >= copyRetrySeconds)) {
+      violations.push(
+        `verify.yml's ${mirror.copyJob} ${label} allows ${minutes} minutes, less than the ${copyRetrySeconds} seconds its copy attempts and their delays can take`,
+      );
+    }
+  }
+  const source = String(stepEnv(doc, copyStep, "SOURCE_IMAGE"));
+  if (digestOf(image) !== undefined && digestOf(source) !== digestOf(image)) {
+    violations.push(
+      `verify.yml's ${mirror.copyJob} job copies \`${source}\`, not the digest of \`${image}\``,
+    );
+  }
+  if (comesFromDockerHub(source)) {
+    violations.push(
+      `verify.yml's ${mirror.copyJob} job copies \`${source}\` from Docker Hub, whose unauthenticated pulls a shared runner can exhaust`,
+    );
+  }
+  return violations;
 }
 
 export function findCloudPostgresImageViolations(workflowSource, postgresSetupSource) {
-  return findPrePulledImageViolations(workflowSource, postgresSetupSource, CLOUD_POSTGRES_IMAGE)
-    .violations;
+  const found = findPrePulledImageViolations(
+    workflowSource,
+    postgresSetupSource,
+    CLOUD_POSTGRES_IMAGE,
+  );
+  if (found.image === undefined) return found.violations;
+  return [
+    ...found.violations,
+    ...mirrorConsumerViolations(CLOUD_POSTGRES_IMAGE, CLOUD_POSTGRES_IMAGE.job, found),
+    ...mirrorJobsViolations(CLOUD_POSTGRES_IMAGE, found.image, found.doc),
+  ];
 }
 
 export function findLocalPostgresImageViolations(composeSource, postgresSetupSource) {
@@ -513,15 +720,49 @@ export function findPlaywrightImageViolations(
   job,
 ) {
   const spec = PLAYWRIGHT_IMAGE_JOBS[job];
-  const { image, violations } = findPrePulledImageViolations(
-    workflowSource,
-    playwrightServerSetupSource,
-    spec,
-  );
+  const found = findPrePulledImageViolations(workflowSource, playwrightServerSetupSource, spec);
+  const { image, violations } = found;
+  if (image !== undefined) {
+    violations.push(...mirrorConsumerViolations(PLAYWRIGHT_IMAGE, job, found));
+    if (spec === PLAYWRIGHT_IMAGE_JOBS.tests) {
+      violations.push(...mirrorJobsViolations(PLAYWRIGHT_IMAGE, image, found.doc));
+    }
+  }
   if (image !== undefined && !image.includes(`:v${installedPlaywrightVersion}-`)) {
     violations.push(
       `${spec.label} \`${image}\` is not the installed Playwright version ${installedPlaywrightVersion}`,
     );
+  }
+  return violations;
+}
+
+export function findPrePulledJobTimeoutViolations(workflowSource) {
+  const doc = parseDocument(workflowSource);
+  const violations = [];
+  for (const jobId of new Set(PRE_PULLED_IMAGES.map((spec) => spec.job))) {
+    const job = jobNode(doc, jobId);
+    const pulled = PRE_PULLED_IMAGES.filter((spec) => spec.job === jobId);
+    const jobSteps = steps(doc, job);
+    const testsIndex = testsStepIndex(doc, jobSteps, pulled[0]);
+    if (testsIndex === -1) continue;
+    const testsStep = jobSteps[testsIndex];
+    const testsScript = pulled[0].testsScript;
+    if (!mapHas(doc, testsStep, "timeout-minutes")) {
+      violations.push(`verify.yml's ${jobId} job's ${testsScript} step sets no timeout-minutes`);
+      continue;
+    }
+    if (!mapHas(doc, job, "timeout-minutes")) continue;
+    const pullSeconds = pulled
+      .filter((spec) => jobSteps.some((step) => isPullStepOf(doc, step, spec)))
+      .reduce((total, spec) => total + retrySeconds(spec.pullAttemptSeconds), 0);
+    const neededSeconds =
+      pullSeconds + Number(resolveScalar(doc, mapGet(doc, testsStep, "timeout-minutes"))) * 60;
+    const jobMinutes = resolveScalar(doc, mapGet(doc, job, "timeout-minutes"));
+    if (!(Number(jobMinutes) * 60 >= neededSeconds)) {
+      violations.push(
+        `verify.yml's ${jobId} job allows ${jobMinutes} minutes, less than the ${neededSeconds} seconds its image pulls and its ${testsScript} step can take`,
+      );
+    }
   }
   return violations;
 }
@@ -569,6 +810,7 @@ export function checkRepository({
         job,
       ),
     ),
+    ...findPrePulledJobTimeoutViolations(workflowSource),
     ...findPlaywrightInstallViolations(workflowSource),
   ];
 }

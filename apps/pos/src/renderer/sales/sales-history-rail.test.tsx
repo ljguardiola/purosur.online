@@ -47,6 +47,39 @@ describe("SalesHistoryRail", () => {
     await expect.element(screen.getByRole("link", { name: "Caja" })).not.toBeInTheDocument();
   });
 
+  it("keeps every entry of Inicio the person may use when no session is open", async () => {
+    await page.viewport(1280, 900);
+    onTestFinished(() => page.viewport(414, 896));
+    const screen = await render(
+      <SalesHistoryRail
+        person={{
+          ...PERSON,
+          abilities: [
+            "view_sales_history",
+            "configure_receipt_printer",
+            "configure_serial_devices",
+            "read_register_help",
+          ],
+        }}
+        registerName="Caja 1"
+        sessionOpen={false}
+        lock={vi.fn()}
+      />,
+    );
+
+    const items = Array.from(
+      screen.getByRole("navigation").element().querySelectorAll("button, a"),
+    ).map((item) => item.textContent);
+    expect(items).toEqual([
+      "Inicio",
+      "Historial",
+      "Impresora",
+      "Balanza y lector",
+      "Ayuda",
+      "Salir",
+    ]);
+  });
+
   it("asks to confirm before signing out when no session is open", async () => {
     const { screen, lock } = await renderRail(false);
 

@@ -107,6 +107,7 @@ describe("addSearchedProduct", () => {
       sessionId: "session-1",
       actorId: "cashier",
       state: "OPEN",
+      saleDiscount: null,
       lines: [
         {
           id: "id-2",
@@ -128,6 +129,7 @@ describe("addSearchedProduct", () => {
     expect(outcome).toEqual({
       kind: "added",
       removedManualDiscount: false,
+      removedSaleDiscount: false,
       sale,
       balance: { paid: 0, pending: 2500 },
       linesLock: null,
@@ -266,6 +268,7 @@ describe("add-searched-product on a sale with an approved payment", () => {
     sessionId: "session-1",
     actorId: "cashier",
     state: "OPEN",
+    saleDiscount: null,
     lines: [],
   };
 
@@ -301,6 +304,7 @@ describe("add-searched-product while a QR charge of the sale is in its wait", ()
     sessionId: "session-1",
     actorId: "cashier",
     state: "OPEN",
+    saleDiscount: null,
     lines: [],
   };
 

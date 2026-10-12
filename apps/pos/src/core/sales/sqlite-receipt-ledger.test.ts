@@ -243,6 +243,35 @@ describe("a receipt ledger's source of a sale", () => {
     );
   });
 
+  it("totals the amount charged after a discount on the sale's total, leaving each line at its own subtotal", () => {
+    insertSaleWithEverything();
+    database.exec(
+      `UPDATE sales SET sale_discount_kind = 'AMOUNT', sale_discount_value = 100000,
+         sale_discount_reason = 'Cliente frecuente'
+       WHERE id = 'sale-1'`,
+    );
+
+    const source = inTransaction((tx) => tx.receiptSource("sale-1"));
+
+    expect(source.total).toBe(637100);
+    expect(source.lines.map((line) => line.lineTotal)).toEqual([661500, 75600]);
+    expect(source.saleDiscount).toEqual({ kind: "AMOUNT", amount: 100000 });
+  });
+
+  it("carries a percent discount on the sale's total with its percent", () => {
+    insertSaleWithEverything();
+    database.exec(
+      `UPDATE sales SET sale_discount_kind = 'PERCENT', sale_discount_value = 5,
+         sale_discount_reason = 'Cliente frecuente'
+       WHERE id = 'sale-1'`,
+    );
+
+    const source = inTransaction((tx) => tx.receiptSource("sale-1"));
+
+    expect(source.saleDiscount).toEqual({ kind: "PERCENT", percent: 5 });
+    expect(source.total).toBe(700245);
+  });
+
   it("holds the branch header, the moment, who served, the operation number, the total, the lines and the payments", () => {
     insertSaleWithEverything();
 
@@ -258,6 +287,7 @@ describe("a receipt ledger's source of a sale", () => {
       servedByFirstName: "Ada",
       operationNumber: 482,
       total: 737100,
+      saleDiscount: null,
       lines: [
         {
           productName: "Yerba a granel",

@@ -1,10 +1,8 @@
 import type { ReadSerialDevicesOutcome, RegisterSerialDevicesOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { Usb } from "lucide-react";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SerialDevicesToRegister } from "../platform/core-client";
-import type { ActionEntry } from "../shell/action-entries";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { render } from "../shell/test-support/render-with-router";
 import { SAME_SERIAL_DEVICE_MESSAGE } from "./serial-devices-form";
@@ -14,13 +12,6 @@ const PERSON: SignedInPerson = {
   user_id: "u1",
   first_name: "Linus",
   abilities: ["configure_serial_devices"],
-};
-
-const DEVICES_ENTRY: ActionEntry = {
-  label: "Balanza y lector",
-  icon: Usb,
-  ability: "configure_serial_devices",
-  to: "/serial-devices",
 };
 
 const SCALE_IDENTITY = { vendor_id: "0403", product_id: "6001" };
@@ -55,11 +46,13 @@ async function renderScreen({
   register = async (): Promise<RegisterSerialDevicesOutcome> => REGISTERED,
   registerName = "Caja 1",
   withSkip = false,
+  sessionOpen = false,
 }: {
   read?: () => Promise<ReadSerialDevicesOutcome>;
   register?: (devices: SerialDevicesToRegister) => Promise<RegisterSerialDevicesOutcome>;
   registerName?: string | null;
   withSkip?: boolean;
+  sessionOpen?: boolean;
 } = {}) {
   await page.viewport(1280, 900);
   onTestFinished(() => page.viewport(414, 896));
@@ -71,7 +64,7 @@ async function renderScreen({
     <SerialDevicesScreen
       person={PERSON}
       registerName={registerName}
-      entries={[DEVICES_ENTRY]}
+      sessionOpen={sessionOpen}
       signOut={vi.fn()}
       readSerialDevices={readSerialDevices}
       registerSerialDevices={registerSerialDevices}
@@ -90,6 +83,24 @@ async function choose(screen: Rendered["screen"], role: "Balanza" | "Lector", de
 }
 
 describe("SerialDevicesScreen", () => {
+  it("offers Inicio and no cash entries when no session is open", async () => {
+    const { screen } = await renderScreen();
+
+    await expect.element(screen.getByRole("link", { name: "Inicio" })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Caja" })).not.toBeInTheDocument();
+  });
+
+  it("offers the open-session menu, with Balanza y lector as current, while a session is open", async () => {
+    const { screen } = await renderScreen({ sessionOpen: true });
+
+    await expect.element(screen.getByRole("link", { name: "Venta" })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: "Balanza y lector" }))
+      .toHaveAttribute("aria-current", "page");
+    await expect.element(screen.getByRole("link", { name: "Inicio" })).not.toBeInTheDocument();
+  });
+
   it("is titled Balanza y lector and names the register in the eyebrow", async () => {
     const { screen } = await renderScreen();
 

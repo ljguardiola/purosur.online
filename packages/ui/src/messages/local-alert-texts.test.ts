@@ -64,12 +64,32 @@ test("gives every kind that has a fixed text its title, whatever the reason", ()
 });
 
 test("gives the refund owed for a late QR payment its title, what it means and what to do", () => {
-  expect(localAlertText({ kind: "late_payment_refund" })).toEqual({
+  expect(localAlertText({ kind: "late_payment_refund", providerOrderId: null })).toEqual({
     title: "Reembolso pendiente por un pago tardío",
     meaning: "Mercado Pago cobró un QR de una venta que ya se había cobrado por otro medio.",
     whatToDo:
       "Si ese reembolso ya se hizo desde Mercado Pago, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes por el mismo medio, o descartarlo si no corresponde. El Administrador ya fue avisado.",
   });
+});
+
+test("tells the refund owed for a second paid order of a sale's QR that the QR was paid twice, naming that order", () => {
+  expect(localAlertText({ kind: "late_payment_refund", providerOrderId: "ORD01SECOND" })).toEqual({
+    title: "Reembolso pendiente por un pago tardío",
+    meaning:
+      "El QR de una venta se pagó dos veces; el pago de más es el de la orden ORD01SECOND de Mercado Pago.",
+    whatToDo:
+      "Si ese reembolso ya se hizo desde Mercado Pago, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes por el mismo medio, o descartarlo si no corresponde. El Administrador ya fue avisado.",
+  });
+});
+
+test("gives the refund of a cancelled sale left pending its title, what it means and what to do", () => {
+  expect(localAlertText({ kind: "refund_task" })).toEqual({
+    title: "Reembolso pendiente de confirmar",
+    meaning: "Hay un reembolso aprobado que todavía no quedó marcado como hecho en el sistema.",
+    whatToDo:
+      "Si ese reembolso ya se hizo por fuera del sistema, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes. El Administrador ya fue avisado.",
+  });
+  expect(localAlertTitle("refund_task")).toBe("Reembolso pendiente de confirmar");
 });
 
 test("gives no title to a kind that has none, nor to one this app does not know yet", () => {
@@ -98,6 +118,7 @@ test("knows the kinds that have a fixed text", () => {
   expect(isLocalAlertKind("installation_revoked")).toBe(true);
   expect(isLocalAlertKind("serial_device_missing")).toBe(true);
   expect(isLocalAlertKind("late_payment_refund")).toBe(true);
+  expect(isLocalAlertKind("refund_task")).toBe(true);
 });
 
 test("does not know a kind that has none, nor a member every object has", () => {
@@ -112,5 +133,6 @@ test("names exactly the kinds that have a fixed text", () => {
     | "installation_revoked"
     | "serial_device_missing"
     | "late_payment_refund"
+    | "refund_task"
   >();
 });

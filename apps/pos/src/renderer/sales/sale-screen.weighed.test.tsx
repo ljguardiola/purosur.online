@@ -88,6 +88,7 @@ describe("SaleScreen adding a product sold by weight", () => {
       async (): Promise<AddWeighedProductOutcome> => ({
         kind: "added",
         removed_manual_discount: false,
+        removed_sale_discount: false,
         sale: { ...SALE_OF_QUESO, lines: [...SALE_OF_YERBA.lines, QUESO] },
       }),
     );
@@ -228,6 +229,7 @@ describe("SaleScreen weighing a product on the scale", () => {
       async (): Promise<WeighProductOutcome> => ({
         kind: "added",
         removed_manual_discount: false,
+        removed_sale_discount: false,
         sale: {
           ...SALE_OF_QUESO,
           lines: [...SALE_OF_YERBA.lines, { ...QUESO, weight_source: "SCALE" }],
@@ -252,6 +254,7 @@ describe("SaleScreen weighing a product on the scale", () => {
       async (): Promise<WeighProductOutcome> => ({
         kind: "added",
         removed_manual_discount: false,
+        removed_sale_discount: false,
         sale: SALE_OF_QUESO,
       }),
     );
@@ -271,6 +274,7 @@ describe("SaleScreen weighing a product on the scale", () => {
       async (): Promise<AddWeighedProductOutcome> => ({
         kind: "added",
         removed_manual_discount: false,
+        removed_sale_discount: false,
         sale: SALE_OF_QUESO,
       }),
     );
@@ -364,6 +368,7 @@ describe("SaleScreen weighing a product on the scale", () => {
       async (): Promise<AddWeighedProductOutcome> => ({
         kind: "added",
         removed_manual_discount: false,
+        removed_sale_discount: false,
         sale: SALE_OF_QUESO,
       }),
     );
@@ -401,7 +406,12 @@ describe("SaleScreen weighing a product on the scale", () => {
 
     await scan(field, "7790001");
     await screen.getByRole("button", { name: "Cancelar" }).click();
-    answer.resolve({ kind: "added", removed_manual_discount: false, sale: SALE_OF_QUESO });
+    answer.resolve({
+      kind: "added",
+      removed_manual_discount: false,
+      removed_sale_discount: false,
+      sale: SALE_OF_QUESO,
+    });
 
     await expect.element(lines).toHaveLength(1);
     await expect.element(lines.first()).toHaveAttribute("aria-current", "true");
@@ -497,6 +507,7 @@ describe("SaleScreen changing the weight of a line", () => {
       async (): Promise<ChangeLineWeightOutcome> => ({
         kind: "changed",
         removed_manual_discount: false,
+        removed_sale_discount: false,
         sale: { ...SALE_OF_QUESO, lines: [changed], total: 1_000_000, pending: 1_000_000 },
       }),
     );

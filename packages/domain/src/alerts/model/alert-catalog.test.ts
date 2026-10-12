@@ -28,6 +28,7 @@ describe("ALERT_KINDS", () => {
       "fiscal_rejected",
       "offline_authorization_code_missing",
       "late_payment_refund",
+      "refund_task",
     ]);
   });
 });

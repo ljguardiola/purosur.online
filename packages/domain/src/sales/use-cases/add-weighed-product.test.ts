@@ -12,6 +12,7 @@ import {
   FixedClock,
   SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
+import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
 
 const NOW = new Date("2026-09-30T12:34:56.789Z");
 const LONG_AGO = new Date("2026-01-01T00:00:00.000Z");
@@ -27,6 +28,7 @@ const OPEN_SALE: SaleWithLines = {
   sessionId: "session-1",
   actorId: "cashier",
   state: "OPEN",
+  saleDiscount: null,
   lines: [],
 };
 const PAYMENT: SalePayment = {
@@ -97,6 +99,7 @@ describe("addWeighedProduct", () => {
       sessionId: "session-1",
       actorId: "cashier",
       state: "OPEN",
+      saleDiscount: null,
       lines: [
         {
           id: "id-2",
@@ -118,6 +121,7 @@ describe("addWeighedProduct", () => {
     expect(outcome).toEqual({
       kind: "added",
       removedManualDiscount: false,
+      removedSaleDiscount: false,
       sale,
       balance: { paid: 0, pending: 11250 },
       linesLock: null,
@@ -367,5 +371,28 @@ describe("addWeighedProduct while a QR charge of the sale is in its wait", () =>
     });
 
     expect(weigh(store).kind).toBe("added");
+  });
+});
+
+describe("addWeighedProduct on a sale with a discount on the total", () => {
+  it("removes the discount and tells so when a weighed line is added", () => {
+    const store = ledger();
+    weigh(store, "queso", 1000);
+    const [sale] = store.state.sales;
+    if (sale) {
+      sale.saleDiscount = TEN_PERCENT_SALE_DISCOUNT;
+    }
+
+    const outcome = weigh(store, "queso", 500);
+
+    expect(store.state.sales[0]?.saleDiscount).toBeNull();
+    expect(outcome).toEqual(
+      expect.objectContaining({
+        kind: "added",
+        removedSaleDiscount: true,
+        sale: expect.objectContaining({ saleDiscount: null }),
+        balance: { paid: 0, pending: 13_500 },
+      }),
+    );
   });
 });

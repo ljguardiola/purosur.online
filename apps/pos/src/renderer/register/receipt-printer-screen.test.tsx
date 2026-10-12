@@ -1,9 +1,7 @@
 import type { ReadReceiptPrinterOutcome, SetReceiptPrinterOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { Printer } from "lucide-react";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import type { ActionEntry } from "../shell/action-entries";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { render } from "../shell/test-support/render-with-router";
 import { INVALID_RECEIPT_PRINTER_ADDRESS_MESSAGE } from "./receipt-printer-form";
@@ -13,13 +11,6 @@ const PERSON: SignedInPerson = {
   user_id: "u1",
   first_name: "Linus",
   abilities: ["configure_receipt_printer"],
-};
-
-const PRINTER_ENTRY: ActionEntry = {
-  label: "Impresora",
-  icon: Printer,
-  ability: "configure_receipt_printer",
-  to: "/receipt-printer",
 };
 
 const NOT_CONFIGURED: ReadReceiptPrinterOutcome = { kind: "not_configured" };
@@ -36,10 +27,12 @@ async function renderScreen({
   read = async (): Promise<ReadReceiptPrinterOutcome> => NOT_CONFIGURED,
   set = async (): Promise<SetReceiptPrinterOutcome> => SAVED,
   registerName = "Caja 1",
+  sessionOpen = false,
 }: {
   read?: () => Promise<ReadReceiptPrinterOutcome>;
   set?: (address: string) => Promise<SetReceiptPrinterOutcome>;
   registerName?: string | null;
+  sessionOpen?: boolean;
 } = {}) {
   await page.viewport(1280, 900);
   onTestFinished(() => page.viewport(414, 896));
@@ -50,7 +43,7 @@ async function renderScreen({
     <ReceiptPrinterScreen
       person={PERSON}
       registerName={registerName}
-      entries={[PRINTER_ENTRY]}
+      sessionOpen={sessionOpen}
       signOut={vi.fn()}
       readReceiptPrinter={readReceiptPrinter}
       setReceiptPrinter={setReceiptPrinter}
@@ -68,6 +61,24 @@ async function save(screen: Rendered["screen"], typed: string) {
 }
 
 describe("ReceiptPrinterScreen", () => {
+  it("offers Inicio and no cash entries when no session is open", async () => {
+    const { screen } = await renderScreen();
+
+    await expect.element(screen.getByRole("link", { name: "Inicio" })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Caja" })).not.toBeInTheDocument();
+  });
+
+  it("offers the open-session menu, with Impresora as current, while a session is open", async () => {
+    const { screen } = await renderScreen({ sessionOpen: true });
+
+    await expect.element(screen.getByRole("link", { name: "Venta" })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: "Impresora" }))
+      .toHaveAttribute("aria-current", "page");
+    await expect.element(screen.getByRole("link", { name: "Inicio" })).not.toBeInTheDocument();
+  });
+
   it("is titled Impresora de tickets and names the register in the eyebrow", async () => {
     const { screen } = await renderScreen();
 

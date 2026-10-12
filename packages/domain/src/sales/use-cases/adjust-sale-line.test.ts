@@ -14,6 +14,7 @@ import {
   type FakeSaleLedgerWrite,
   FixedClock,
 } from "./test-support/fake-sale-ledger.js";
+import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
 
 const NOW = new Date("2026-10-07T15:30:00.000Z");
 const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
@@ -53,6 +54,7 @@ const OPEN_SALE: SaleWithLines = {
   sessionId: "session-1",
   actorId: "cashier",
   state: "OPEN",
+  saleDiscount: null,
   lines: [YERBA_LINE, AZUCAR_LINE],
 };
 const PAYMENT: SalePayment = {
@@ -123,6 +125,7 @@ describe("adjustSaleLine", () => {
       expect(outcome).toEqual({
         kind: "changed",
         removedManualDiscount: false,
+        removedSaleDiscount: false,
         sale: { ...OPEN_SALE, lines: [adjusted, AZUCAR_LINE] },
         balance: { paid: 0, pending: 7200 },
         linesLock: null,
@@ -367,5 +370,36 @@ describe("adjustSaleLine", () => {
       );
       expect(store.state).toEqual(before);
     });
+  });
+});
+
+describe("adjustSaleLine on a sale with a discount on the total", () => {
+  function discountedStore(): FakeSaleLedger {
+    return ledger({ sales: [{ ...OPEN_SALE, saleDiscount: TEN_PERCENT_SALE_DISCOUNT }] });
+  }
+
+  it("removes the discount and tells so", async () => {
+    const store = discountedStore();
+
+    const outcome = await adjust(store, { kind: "PERCENT", percent: 20 });
+
+    expect(store.state.sales[0]?.saleDiscount).toBeNull();
+    expect(outcome).toEqual(
+      expect.objectContaining({
+        kind: "changed",
+        removedSaleDiscount: true,
+        sale: expect.objectContaining({ saleDiscount: null }),
+        balance: { paid: 0, pending: 7200 },
+      }),
+    );
+  });
+
+  it("keeps the discount when the adjustment is refused", async () => {
+    const store = discountedStore();
+
+    const outcome = await adjust(store, { kind: "PRICE", unitPrice: 2500 });
+
+    expect(outcome).toEqual({ kind: "same_as_list_price" });
+    expect(store.state.sales[0]?.saleDiscount).toEqual(TEN_PERCENT_SALE_DISCOUNT);
   });
 });

@@ -11,13 +11,11 @@ import {
   ScreenHeader,
   useRequestForm,
 } from "@purosur/ui";
-import { House, Lock, Printer, TriangleAlert, UserX } from "lucide-react";
+import { Lock, Printer, TriangleAlert, UserX } from "lucide-react";
 import type { FormEvent } from "react";
 import { useState } from "react";
-import type { ActionEntry } from "../shell/action-entries";
-import { entriesFor } from "../shell/action-entries";
-import { NavigationRail } from "../shell/navigation-rail";
-import { SignOutModal } from "../shell/sign-out-modal";
+import { NoSessionRail } from "../shell/no-session-rail";
+import { OpenSessionRail } from "../shell/open-session-rail";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import {
   receiptPrinterAddressText,
@@ -42,7 +40,7 @@ const NOT_SAVED: Notice = {
 export type ReceiptPrinterScreenProps = {
   person: SignedInPerson;
   registerName: string | null;
-  entries: readonly ActionEntry[];
+  sessionOpen: boolean;
   signOut: () => void;
   readReceiptPrinter: () => Promise<ReadReceiptPrinterOutcome>;
   setReceiptPrinter: (address: string) => Promise<SetReceiptPrinterOutcome>;
@@ -130,13 +128,12 @@ function ReceiptPrinterForm({
 export function ReceiptPrinterScreen({
   person,
   registerName,
-  entries,
+  sessionOpen,
   signOut,
   readReceiptPrinter,
   setReceiptPrinter,
   onSessionInvalid,
 }: ReceiptPrinterScreenProps) {
-  const [leaving, setLeaving] = useState(false);
   const [saved, setSaved] = useState<ReceiptPrinterAddress>();
   const printer = useReceiptPrinterQuery(readReceiptPrinter);
   const refreshPrinter = useRefreshReceiptPrinter();
@@ -148,12 +145,16 @@ export function ReceiptPrinterScreen({
 
   return (
     <div className="flex h-full w-full bg-surface">
-      <NavigationRail
-        entries={entriesFor(entries, person.abilities)}
-        current="/receipt-printer"
-        home={{ label: "Inicio", icon: House, to: "/" }}
-        onSignOut={() => setLeaving(true)}
-      />
+      {sessionOpen ? (
+        <OpenSessionRail
+          registerName={registerName}
+          lock={signOut}
+          current="receipt_printer"
+          abilities={person.abilities}
+        />
+      ) : (
+        <NoSessionRail person={person} current="/receipt-printer" signOut={signOut} />
+      )}
       <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
         <ScreenHeader eyebrow={registerName ?? undefined} title="Impresora de tickets" />
         {printer.status === "loading" ? <LoadingPlaceholder variant="form" fields={1} /> : null}
@@ -205,12 +206,6 @@ export function ReceiptPrinterScreen({
           onDismiss={() => setSaved(undefined)}
         />
       )}
-      <SignOutModal
-        open={leaving}
-        firstName={person.first_name}
-        onClose={() => setLeaving(false)}
-        onSignOut={signOut}
-      />
     </div>
   );
 }

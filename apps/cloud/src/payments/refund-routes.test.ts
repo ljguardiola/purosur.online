@@ -17,6 +17,7 @@ import {
 import { aTransferCancelledSale } from "../sync/test-support/synced-facts.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerRefundRoutes } from "./refund-routes.js";
+import { aPendingRefundOfCancelledSale } from "./test-support/cancelled-sale-refund-fixtures.js";
 import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fixtures.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
@@ -174,6 +175,24 @@ describe("GET /refunds/pending", () => {
     });
   });
 
+  it("tells the Mercado Pago order of a late payment refund that names one, and none for the others", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const cancelledId = await aPendingRefund();
+    const late = await aPendingLatePaymentRefund(db, {
+      openedAt: new Date("2026-10-06T10:00:00.000Z"),
+      registerName: "Caja 2",
+      providerOrderId: "ORD01SECOND",
+    });
+
+    const response = await pendingRefunds(headers);
+
+    const body = pendingRefundsSchema.parse(response.json());
+    expect(body.refunds.map(({ id, provider_order_id }) => [id, provider_order_id])).toEqual([
+      [late.refundId, "ORD01SECOND"],
+      [cancelledId, null],
+    ]);
+  });
+
   it("lists nothing to a session of another branch", async () => {
     const otherLocationId = await insertLocation(db);
     const { headers } = await signedInWith(db, ["confirm_refunds"], NOW, {
@@ -212,6 +231,32 @@ describe("POST /refunds/:id/completion", () => {
     expect(response.statusCode).toBe(200);
     const [alert] = await db.select().from(alerts).where(eq(alerts.id, late.alertId));
     expect(alert).toMatchObject({ resolvedAt: NOW, resolvedBy: userId });
+  });
+
+  it("resolves the refund task alert of a cancelled sale's refund when it is marked as done", async () => {
+    const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const forgotten = await aPendingRefundOfCancelledSale(db, { cancelledAt: NOW });
+    const [alert] = await db
+      .insert(alerts)
+      .values({
+        kind: "refund_task",
+        scope: forgotten.refundId,
+        level: "warning",
+        audience: "local",
+        locationId: forgotten.locationId,
+        detail: {},
+        openedAt: NOW,
+      })
+      .returning({ id: alerts.id });
+
+    const response = await markDone(headers, forgotten.refundId);
+
+    expect(response.statusCode).toBe(200);
+    const [resolved] = await db
+      .select()
+      .from(alerts)
+      .where(eq(alerts.id, alert?.id ?? ""));
+    expect(resolved).toMatchObject({ resolvedAt: NOW, resolvedBy: userId });
   });
 
   it("answers 409 to a refund that was discarded", async () => {

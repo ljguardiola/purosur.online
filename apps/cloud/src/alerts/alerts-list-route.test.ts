@@ -148,6 +148,7 @@ interface ListBody {
     scopeDisplay: string | null;
     salesDeniedReason: string | null;
     refundAmount: number | null;
+    refundMethod: string | null;
   }[];
   total: number;
   pageSize: number;
@@ -247,6 +248,54 @@ describe("GET /alerts", () => {
 
     expect(response.statusCode).toBe(200);
     expect(listBody(response).alerts.map((row) => row.refundAmount)).toEqual([250_000]);
+  });
+
+  it("tells the amount and the method of a refund left pending", async () => {
+    const roleId = await insertRole(["view_all_alerts"]);
+    const userId = await insertUserWithRole(roleId);
+    const rawSessionId = await insertSession(userId);
+    await insertAlert({
+      kind: "refund_task",
+      scope: "refund-a",
+      audience: "local",
+      detail: {
+        saleId: "sale-a",
+        amount: 1_240_000,
+        method: "QR",
+        refundOpenedAt: "2026-10-05T12:00:00.000Z",
+      },
+    });
+
+    const response = await getAlerts(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(listBody(response).alerts.map((row) => [row.refundAmount, row.refundMethod])).toEqual([
+      [1_240_000, "QR"],
+    ]);
+  });
+
+  it("lists no method for a refund left pending whose stored method is not a payment method", async () => {
+    const roleId = await insertRole(["view_all_alerts"]);
+    const userId = await insertUserWithRole(roleId);
+    const rawSessionId = await insertSession(userId);
+    await insertAlert({
+      kind: "refund_task",
+      scope: "refund-a",
+      audience: "local",
+      detail: {
+        saleId: "sale-a",
+        amount: 1_240_000,
+        method: "CHEQUE",
+        refundOpenedAt: "2026-10-05T12:00:00.000Z",
+      },
+    });
+
+    const response = await getAlerts(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(listBody(response).alerts.map((row) => [row.refundAmount, row.refundMethod])).toEqual([
+      [1_240_000, null],
+    ]);
   });
 
   it("filters by level", async () => {

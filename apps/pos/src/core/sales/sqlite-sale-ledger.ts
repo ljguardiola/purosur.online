@@ -7,6 +7,7 @@ import {
   type OutboxEventDraft,
   priceInEffectAt,
   type Sale,
+  type SaleDiscount,
   type SaleLine,
   type SalePayment,
   type SaleUnit,
@@ -42,6 +43,7 @@ import { addToStockBalance, insertSaleStockMovement } from "../stock/sqlite-stoc
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { manualAdjustmentColumns } from "./sqlite-manual-adjustment";
 import { type BenefitColumns, readOpenSale, toBenefit } from "./sqlite-open-sale";
+import { saleDiscountColumns } from "./sqlite-sale-discount";
 
 interface PriceRow {
   id: string;
@@ -101,6 +103,7 @@ export class SqliteSaleLedger implements SaleLedger {
       recordOpenedSale: (sale) => this.recordOpenedSale(sale),
       recordSaleLine: (saleId, line) => this.recordSaleLine(saleId, line),
       recordChangedLine: (line) => this.recordChangedLine(line),
+      recordSaleDiscount: (saleId, discount) => this.recordSaleDiscount(saleId, discount),
       deleteSaleLine: (lineId) => this.deleteSaleLine(lineId),
       salePayments: (saleId) => readSalePayments(this.database, saleId),
       discardOpenSale: (saleId) => this.discardOpenSale(saleId),
@@ -372,6 +375,18 @@ export class SqliteSaleLedger implements SaleLedger {
         line_total: line.lineTotal,
         ...manualAdjustmentColumns(line.manualAdjustment),
       });
+  }
+
+  private recordSaleDiscount(saleId: string, discount: SaleDiscount | null): void {
+    this.database
+      .prepare(
+        `UPDATE sales
+         SET sale_discount_kind = @sale_discount_kind, sale_discount_value = @sale_discount_value,
+             sale_discount_reason = @sale_discount_reason,
+             sale_discount_authorized_by = @sale_discount_authorized_by
+         WHERE id = @id`,
+      )
+      .run({ id: saleId, ...saleDiscountColumns(discount) });
   }
 
   private deleteSaleLine(lineId: string): void {

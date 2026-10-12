@@ -1,3 +1,4 @@
+import type { AlertKind } from "../../alerts/index.js";
 import type { PaymentMethod } from "../model/payment.js";
 import type { RefundOrigin } from "../model/payment-refund.js";
 
@@ -18,6 +19,7 @@ export interface PendingRefundRecord {
   occurredAt: Date;
   saleOccurredAt: Date;
   coveredBy: PaymentMethod[];
+  providerOrderId: string | null;
   cancelledBy: string | null;
   cancelledByName: string | null;
 }
@@ -39,8 +41,9 @@ export interface RefundStoreTransaction {
   lockRefund(refundId: string, locationId: string): Promise<LockedRefund | undefined>;
   recordRefundDone(refundId: string, doneBy: string, doneAt: Date): Promise<void>;
   recordRefundDiscarded(refundId: string, discardedBy: string, discardedAt: Date): Promise<void>;
-  resolveLatePaymentRefundAlert(
+  resolveRefundAlert(
     refundId: string,
+    kind: AlertKind,
     resolvedBy: string,
     resolvedAt: Date,
   ): Promise<void>;

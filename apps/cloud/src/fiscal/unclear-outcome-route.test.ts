@@ -95,6 +95,7 @@ async function seedUnclearRequest(
   await testDatabase.db.insert(fiscalRequests).values({
     ...authorizationRequestRecord(registerId, { fiscalDocumentId }),
     answerKind: "unclear",
+    unclearCodes: [],
     answeredAt: NOW,
     ...decision,
   });
@@ -290,7 +291,10 @@ describe("POST /fiscal/unclear-outcomes", () => {
       async (clearAnswer, answer) => {
         const { deviceToken, registerId } = await enrollRegisterWithPointOfSale();
         const body = questionBody();
-        await seedUnclearRequest(registerId, body.fiscal_document_id, clearAnswer);
+        await seedUnclearRequest(registerId, body.fiscal_document_id, {
+          ...clearAnswer,
+          unclearCodes: null,
+        });
 
         const response = await ask(body, `Bearer ${deviceToken}`);
 

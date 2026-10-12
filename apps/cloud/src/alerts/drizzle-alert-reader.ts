@@ -59,9 +59,12 @@ const SUMMARY_COLUMNS = {
   >`case when ${alerts.kind} = 'sales_denied' then ${alerts.detail}->>'reason' end`,
   refundAmount: sql<
     number | null
-  >`case when ${alerts.kind} = 'late_payment_refund' then (${alerts.detail}->>'amount')::bigint end`.mapWith(
+  >`case when ${alerts.kind} in ('late_payment_refund', 'refund_task') then (${alerts.detail}->>'amount')::bigint end`.mapWith(
     Number,
   ),
+  refundMethod: sql<
+    string | null
+  >`case when ${alerts.kind} = 'refund_task' then ${alerts.detail}->>'method' end`,
 };
 
 // Storage keeps the kind as free text, so a row can carry a kind the catalog no longer lists.
@@ -86,6 +89,7 @@ function toSummary(row: {
   resolvedAt: Date | null;
   storedSalesDeniedReason: string | null;
   refundAmount: number | null;
+  refundMethod: string | null;
 }): AlertSummary {
   const { storedSalesDeniedReason, ...summary } = row;
   return {

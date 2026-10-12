@@ -44,9 +44,13 @@ export interface ReceiptTemplate {
 export interface ReceiptPrintWatch {
   onStatus(status: PrinterStatus): void;
   signal: AbortSignal;
+  withdrawal: AbortSignal;
 }
 
-export type ReceiptPrintEnding = { kind: "acknowledged" } | { kind: "abandoned" };
+export type ReceiptPrintEnding =
+  | { kind: "acknowledged" }
+  | { kind: "abandoned" }
+  | { kind: "withdrawn" };
 
 export interface ReceiptPrinter {
   print(receipt: Uint8Array, watch: ReceiptPrintWatch): Promise<ReceiptPrintEnding>;

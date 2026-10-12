@@ -4,6 +4,7 @@ import type {
   RetryReceiptPrintOutcome,
 } from "@purosur/contracts";
 import { Button, FigureStat, formatCents, InlineNotice, Modal, SummaryRowGroup } from "@purosur/ui";
+import { useNavigate } from "@tanstack/react-router";
 import { ArrowRight, CircleCheck, Plus, Printer, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import type { ReceiptPrintStatus } from "./sales-queries";
@@ -16,6 +17,7 @@ type FailedStanding =
   | "paper_out"
   | "not_responding"
   | "retry_offered"
+  | "withdrawn"
   | "printer_not_configured"
   | "failed";
 
@@ -29,6 +31,8 @@ const AUTOMATIC_RESOLUTION =
   "El ticket ya enviado queda en la impresora y sale solo cuando se resuelve. No hace falta reimprimir.";
 
 const UNCONFIRMED_PRINT = "La impresora volvió a responder pero no confirmó la impresión.";
+
+const PRINT_FROM_HISTORY = "Imprimilo desde el historial de ventas.";
 
 function retryCopyText(copy: ReceiptCopyShown): string {
   return copy.kind === "original"
@@ -58,6 +62,10 @@ const FAILURES: Record<FailedStanding, FailurePresentation> = {
     title: "El ticket no salió",
     help: (copy) => `${UNCONFIRMED_PRINT} ${retryCopyText(copy)}`,
   },
+  withdrawn: {
+    printerState: "Cambiada",
+    help: () => PRINT_FROM_HISTORY,
+  },
   printer_not_configured: {
     printerState: "Sin configurar",
     title: "La impresora no está configurada",
@@ -66,7 +74,7 @@ const FAILURES: Record<FailedStanding, FailurePresentation> = {
   },
   failed: {
     printerState: undefined,
-    help: () => "Imprimilo desde el historial de ventas.",
+    help: () => PRINT_FROM_HISTORY,
   },
 };
 
@@ -90,6 +98,7 @@ export type SaleCompletedModalProps = {
   total: number;
   readReceiptStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
   retryReceiptPrint: (saleId: string) => Promise<RetryReceiptPrintOutcome>;
+  mayChangePrinter: boolean;
   onNewSale: () => void;
 } & (
   | { tendered: number; change: number; method?: "CASH" }
@@ -98,7 +107,9 @@ export type SaleCompletedModalProps = {
 );
 
 export function SaleCompletedModal(props: SaleCompletedModalProps) {
-  const { saleId, total, readReceiptStatus, retryReceiptPrint, onNewSale } = props;
+  const { saleId, total, readReceiptStatus, retryReceiptPrint, mayChangePrinter, onNewSale } =
+    props;
+  const navigate = useNavigate();
   const change = props.method === "TRANSFER" || props.method === "QR" ? 0 : props.change;
   const receipt = useReceiptPrintStatusQuery({ saleId, read: readReceiptStatus });
   const refreshReceipt = useRefreshReceiptPrintStatus(saleId);
@@ -136,6 +147,16 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
   }
 
   if (receipt.status === "loaded" && failedStanding !== undefined) {
+    const changePrinter = mayChangePrinter ? (
+      <Button
+        variant="secondary"
+        size="large"
+        icon={<Printer />}
+        onPress={() => void navigate({ to: "/receipt-printer" })}
+      >
+        Cambiar impresora
+      </Button>
+    ) : null;
     const failure = FAILURES[failedStanding];
     const { next_copy: copy } = receipt.value;
     return (
@@ -154,6 +175,7 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
               <Button variant="secondary" size="large" icon={<ArrowRight />} onPress={onNewSale}>
                 Seguir vendiendo
               </Button>
+              {changePrinter}
               <Button
                 size="large"
                 fullWidth
@@ -165,9 +187,12 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
               </Button>
             </>
           ) : (
-            <Button size="large" fullWidth icon={<ArrowRight />} onPress={onNewSale}>
-              Seguir vendiendo
-            </Button>
+            <>
+              {changePrinter}
+              <Button size="large" fullWidth icon={<ArrowRight />} onPress={onNewSale}>
+                Seguir vendiendo
+              </Button>
+            </>
           )
         }
       >

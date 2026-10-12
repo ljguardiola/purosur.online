@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { LogOut } from "lucide-react";
+import { LogOut, Usb } from "lucide-react";
 import { within } from "storybook/test";
 import {
   playPseudoHoverPaintsBoneFill,
@@ -59,4 +59,8 @@ export const LightHovered: Story = {
 export const LightFocusVisible: Story = {
   args: { rail: "light" },
   play: playTabMatchesCssFocusVisible(theButton),
+};
+
+export const LightLongLabel: Story = {
+  args: { rail: "light", label: "Balanza y lector", icon: <Usb /> },
 };

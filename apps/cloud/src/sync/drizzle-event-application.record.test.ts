@@ -172,6 +172,11 @@ describe("recording the sales of applied events", () => {
       cancelledAt: null,
       cancellationAuthorizedBy: null,
       total: 4800,
+      saleDiscountKind: null,
+      saleDiscountValue: null,
+      saleDiscountAmount: null,
+      saleDiscountReason: null,
+      saleDiscountAuthorizedBy: null,
       appliedAt: new Date("2026-10-06T15:00:00.000Z"),
       operationNumber: null,
       printAttemptedAt: null,
@@ -216,6 +221,7 @@ describe("recording the sales of applied events", () => {
         priceListId: line.priceListId,
         promotionId: line.promotionId,
         discountAmount: line.discountAmount,
+        saleDiscountShare: 0,
         lineTotal: line.lineTotal,
       })),
     );
@@ -372,6 +378,111 @@ describe("recording the sales of applied events", () => {
     });
   });
 
+  it("keeps the discount on a sale's total, its amount, its reason and who authorized it, and each line's share of it", async () => {
+    const { deviceId } = await system.enrollInstallation();
+    const sessionId = randomUUID();
+    await openSession(deviceId, sessionId);
+    const base = aCompletedSale({ sessionId });
+    const [unit] = base.lines;
+    if (!unit) {
+      throw new Error("test setup: the sale has no line");
+    }
+    const first = { ...unit, saleDiscountShare: 300, lineTotal: 4500 };
+    const second = { ...unit, id: randomUUID(), saleDiscountShare: 100, lineTotal: 4700 };
+    const completed = {
+      ...base,
+      total: 9200,
+      saleDiscount: {
+        kind: "PERCENT" as const,
+        percent: 4,
+        reason: "Compra grande",
+        authorizedBy: "supervisor",
+      },
+      saleDiscountAmount: 400,
+      lines: [first, second],
+    };
+
+    await record({ kind: "sale_completed", sale: completed }, { deviceId });
+
+    const [row] = await system.db.select().from(sales);
+    expect(row).toMatchObject({
+      total: 9200,
+      saleDiscountKind: "PERCENT",
+      saleDiscountValue: 4,
+      saleDiscountAmount: 400,
+      saleDiscountReason: "Compra grande",
+      saleDiscountAuthorizedBy: "supervisor",
+    });
+    const shares = await system.db.select().from(saleLines);
+    expect(shares.map(({ id, saleDiscountShare }) => ({ id, saleDiscountShare }))).toEqual(
+      expect.arrayContaining([
+        { id: first.id, saleDiscountShare: 300 },
+        { id: second.id, saleDiscountShare: 100 },
+      ]),
+    );
+  });
+
+  it("keeps a discount of a fixed amount on a sale's total", async () => {
+    const { deviceId } = await system.enrollInstallation();
+    const sessionId = randomUUID();
+    await openSession(deviceId, sessionId);
+    const completed = {
+      ...aCompletedSale({ sessionId }),
+      saleDiscount: {
+        kind: "AMOUNT" as const,
+        amount: 500,
+        reason: "Rotura",
+        authorizedBy: null,
+      },
+      saleDiscountAmount: 500,
+    };
+
+    await record({ kind: "sale_completed", sale: completed }, { deviceId });
+
+    const [row] = await system.db.select().from(sales);
+    expect(row).toMatchObject({
+      saleDiscountKind: "AMOUNT",
+      saleDiscountValue: 500,
+      saleDiscountAmount: 500,
+      saleDiscountReason: "Rotura",
+      saleDiscountAuthorizedBy: null,
+    });
+  });
+
+  it("keeps the discount on the total of a cancelled sale and the share of each of its lines too", async () => {
+    const { deviceId } = await system.enrollInstallation();
+    const sessionId = randomUUID();
+    await openSession(deviceId, sessionId);
+    const base = aCancelledSale({ sessionId });
+    const [unit] = base.lines;
+    if (!unit) {
+      throw new Error("test setup: the sale has no line");
+    }
+    const cancelled = {
+      ...base,
+      saleDiscount: {
+        kind: "PERCENT" as const,
+        percent: 10,
+        reason: "Compra grande",
+        authorizedBy: null,
+      },
+      saleDiscountAmount: 480,
+      lines: [{ ...unit, saleDiscountShare: 480 }],
+    };
+
+    await record({ kind: "sale_cancelled", sale: cancelled }, { deviceId });
+
+    const [row] = await system.db.select().from(sales);
+    expect(row).toMatchObject({
+      saleDiscountKind: "PERCENT",
+      saleDiscountValue: 10,
+      saleDiscountAmount: 480,
+      saleDiscountReason: "Compra grande",
+    });
+    const [line] = await system.db.select().from(saleLines);
+    expect(line).toMatchObject({ saleDiscountShare: 480 });
+  });
+
   it("keeps a sale that has no line", async () => {
     const { deviceId } = await system.enrollInstallation();
     const sessionId = randomUUID();
@@ -510,6 +621,11 @@ describe("recording the cancelled sales of applied events", () => {
       cancelledAt: new Date("2026-10-06T11:25:00.000Z"),
       cancellationAuthorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
       total: 4800,
+      saleDiscountKind: null,
+      saleDiscountValue: null,
+      saleDiscountAmount: null,
+      saleDiscountReason: null,
+      saleDiscountAuthorizedBy: null,
       appliedAt: new Date("2026-10-06T15:00:00.000Z"),
       operationNumber: null,
       printAttemptedAt: null,
@@ -583,6 +699,7 @@ describe("recording the cancelled sales of applied events", () => {
       saleId: cancelled.id,
       paymentId: transfer.id,
       paymentTransactionId: null,
+      providerOrderId: null,
       origin: "sale_cancelled",
       method: "TRANSFER",
       provider: "NONE",

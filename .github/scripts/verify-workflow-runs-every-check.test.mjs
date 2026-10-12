@@ -6,6 +6,7 @@ import {
   findLocalPostgresImageViolations,
   findPlaywrightImageViolations,
   findPlaywrightInstallViolations,
+  findPrePulledJobTimeoutViolations,
   findVerifyWorkflowViolations,
 } from "./verify-workflow-runs-every-check.mjs";
 
@@ -847,19 +848,89 @@ test("reports a workflow that does not parse as YAML", () => {
 });
 
 const POSTGRES_DIGEST = "sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873";
-const PINNED_POSTGRES_IMAGE = `public.ecr.aws/docker/library/postgres:18-alpine@${POSTGRES_DIGEST}`;
+const PINNED_POSTGRES_IMAGE = `ghcr.io/ljguardiola/postgres:18-alpine@${POSTGRES_DIGEST}`;
+const ECR_POSTGRES_IMAGE = `public.ecr.aws/docker/library/postgres:18-alpine@${POSTGRES_DIGEST}`;
+const GITHUB_TOKEN = `\${{ github.token }}`;
+const SIGN_IN_TO_GHCR =
+  'echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin';
 const PLAYWRIGHT_DIGEST = "sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27";
-const PINNED_PLAYWRIGHT_IMAGE = `mcr.microsoft.com/playwright:v1.63.0-noble@${PLAYWRIGHT_DIGEST}`;
+const PINNED_PLAYWRIGHT_IMAGE = `ghcr.io/ljguardiola/playwright:v1.63.0-noble@${PLAYWRIGHT_DIGEST}`;
+const MCR_PLAYWRIGHT_IMAGE = `mcr.microsoft.com/playwright:v1.63.0-noble@${PLAYWRIGHT_DIGEST}`;
 const INSTALLED_PLAYWRIGHT_VERSION = "1.63.0";
 
-function pullWithRetriesLines(imageEnv) {
+function lookUpMirrorLines(constant) {
   return [
+    'echo "$GITHUB_TOKEN" | skopeo login ghcr.io --username "$GITHUB_ACTOR" --password-stdin',
+    `if timeout 60 skopeo inspect --raw "docker://\${${constant}%%:*}@\${${constant}#*@}" > /dev/null; then`,
+    '  echo "mirrored=true" >> "$GITHUB_OUTPUT"',
+    "else",
+    '  echo "mirrored=false" >> "$GITHUB_OUTPUT"',
+    "fi",
+  ];
+}
+
+function copyMirrorLines(constant, attemptSeconds) {
+  return [
+    'echo "$GITHUB_TOKEN" | skopeo login ghcr.io --username "$GITHUB_ACTOR" --password-stdin',
     "for delay in 0 15 30 60; do",
     '  sleep "$delay"',
-    `  timeout 120 docker pull "$${imageEnv}" && exit 0`,
+    `  timeout ${attemptSeconds} skopeo copy --all --preserve-digests "docker://\${SOURCE_IMAGE%%:*}@\${SOURCE_IMAGE#*@}" "docker://\${${constant}%@*}" && exit 0`,
     "done",
     "exit 1",
   ];
+}
+
+function pullWithRetriesLines(imageEnv, attemptSeconds) {
+  return [
+    "for delay in 0 15 30 60; do",
+    '  sleep "$delay"',
+    `  timeout ${attemptSeconds} docker pull "$${imageEnv}" && exit 0`,
+    "done",
+    "exit 1",
+  ];
+}
+
+const POSTGRES_MIRROR = {
+  lookupJob: "postgres-image",
+  copyJob: "postgres-image-copy",
+  sourceImage: ECR_POSTGRES_IMAGE,
+  dockerHubSourceImage: `postgres:18-alpine@${POSTGRES_DIGEST}`,
+  otherDigestSourceImage: `public.ecr.aws/docker/library/postgres:18-alpine@${PLAYWRIGHT_DIGEST}`,
+  copyAttemptSeconds: 300,
+  copyRetrySeconds: 1305,
+  copyJobTimeoutMinutes: 25,
+  enoughCopyStepTimeoutMinutes: 22,
+  notOnGhcrImages: [
+    ECR_POSTGRES_IMAGE,
+    `mirror:5000/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
+    `postgres:18-alpine@${POSTGRES_DIGEST}`,
+    `docker.io/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
+  ],
+  otherImage: `ghcr.io/ljguardiola/postgres:17-alpine@${POSTGRES_DIGEST}`,
+};
+
+const PLAYWRIGHT_MIRROR = {
+  lookupJob: "playwright-image",
+  copyJob: "playwright-image-copy",
+  sourceImage: MCR_PLAYWRIGHT_IMAGE,
+  dockerHubSourceImage: `playwright:v1.63.0-noble@${PLAYWRIGHT_DIGEST}`,
+  otherDigestSourceImage: `mcr.microsoft.com/playwright:v1.63.0-noble@${POSTGRES_DIGEST}`,
+  copyAttemptSeconds: 600,
+  copyRetrySeconds: 2505,
+  copyJobTimeoutMinutes: 45,
+  enoughCopyStepTimeoutMinutes: 42,
+  notOnGhcrImages: [
+    MCR_PLAYWRIGHT_IMAGE,
+    `mirror:5000/playwright:v1.63.0-noble@${PLAYWRIGHT_DIGEST}`,
+    `localhost/playwright:v1.63.0-noble@${PLAYWRIGHT_DIGEST}`,
+    `docker.io/acme/playwright:v1.63.0-noble@${PLAYWRIGHT_DIGEST}`,
+  ],
+  otherImage: `ghcr.io/ljguardiola/playwright:v1.62.0-noble@${PLAYWRIGHT_DIGEST}`,
+};
+
+function findPlaywrightViolationsOf(job) {
+  return (workflowSource, setupSource) =>
+    findPlaywrightImageViolations(workflowSource, setupSource, INSTALLED_PLAYWRIGHT_VERSION, job);
 }
 
 const PRE_PULLED_IMAGES = [
@@ -870,15 +941,14 @@ const PRE_PULLED_IMAGES = [
     testsScript: "verify:tests",
     constant: "POSTGRES_IMAGE",
     image: PINNED_POSTGRES_IMAGE,
-    tagOnly: "public.ecr.aws/docker/library/postgres:18-alpine",
-    dockerHubImages: [
-      `postgres:18-alpine@${POSTGRES_DIGEST}`,
-      `library/postgres:18-alpine@${POSTGRES_DIGEST}`,
-      `docker.io/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
-      `index.docker.io/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
-      `registry-1.docker.io/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
-      `registry.hub.docker.com/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
-    ],
+    tagOnly: "ghcr.io/ljguardiola/postgres:18-alpine",
+    mirror: POSTGRES_MIRROR,
+    pullAttemptSeconds: 120,
+    otherPullAttemptSeconds: 300,
+    pullRetrySeconds: 585,
+    enoughPullTimeoutMinutes: 10,
+    jobSeconds: 1485,
+    jobTimeoutMinutes: 25,
     findViolations: (workflowSource, setupSource) =>
       findCloudPostgresImageViolations(workflowSource, setupSource),
   },
@@ -889,15 +959,15 @@ const PRE_PULLED_IMAGES = [
     testsScript: "verify:tests",
     constant: "PLAYWRIGHT_SERVER_IMAGE",
     image: PINNED_PLAYWRIGHT_IMAGE,
-    tagOnly: "mcr.microsoft.com/playwright:v1.63.0-noble",
-    dockerHubImages: [`docker.io/acme/playwright:v1.63.0-noble@${PLAYWRIGHT_DIGEST}`],
-    findViolations: (workflowSource, setupSource) =>
-      findPlaywrightImageViolations(
-        workflowSource,
-        setupSource,
-        INSTALLED_PLAYWRIGHT_VERSION,
-        "tests",
-      ),
+    tagOnly: "ghcr.io/ljguardiola/playwright:v1.63.0-noble",
+    mirror: PLAYWRIGHT_MIRROR,
+    pullAttemptSeconds: 300,
+    otherPullAttemptSeconds: 120,
+    pullRetrySeconds: 1305,
+    enoughPullTimeoutMinutes: 22,
+    jobSeconds: 2205,
+    jobTimeoutMinutes: 37,
+    findViolations: findPlaywrightViolationsOf("tests"),
   },
   {
     label: "the Playwright image",
@@ -906,17 +976,20 @@ const PRE_PULLED_IMAGES = [
     testsScript: "verify:visual",
     constant: "PLAYWRIGHT_SERVER_IMAGE",
     image: PINNED_PLAYWRIGHT_IMAGE,
-    tagOnly: "mcr.microsoft.com/playwright:v1.63.0-noble",
-    dockerHubImages: [`docker.io/acme/playwright:v1.63.0-noble@${PLAYWRIGHT_DIGEST}`],
-    findViolations: (workflowSource, setupSource) =>
-      findPlaywrightImageViolations(
-        workflowSource,
-        setupSource,
-        INSTALLED_PLAYWRIGHT_VERSION,
-        "visual",
-      ),
+    tagOnly: "ghcr.io/ljguardiola/playwright:v1.63.0-noble",
+    mirror: PLAYWRIGHT_MIRROR,
+    pullAttemptSeconds: 300,
+    otherPullAttemptSeconds: 120,
+    pullRetrySeconds: 1305,
+    enoughPullTimeoutMinutes: 22,
+    jobSeconds: 2205,
+    jobTimeoutMinutes: 37,
+    findViolations: findPlaywrightViolationsOf("visual"),
   },
 ];
+
+const [POSTGRES_SPEC, PLAYWRIGHT_TESTS_SPEC, PLAYWRIGHT_VISUAL_SPEC] = PRE_PULLED_IMAGES;
+const MIRRORED_IMAGES = [POSTGRES_SPEC, PLAYWRIGHT_TESTS_SPEC];
 
 function setupDeclaring(constant, image) {
   return [
@@ -927,38 +1000,149 @@ function setupDeclaring(constant, image) {
   ].join("\n");
 }
 
-function jobWithPull(
+function pullStepLines(
   spec,
   {
-    pullLines = pullWithRetriesLines(spec.constant),
+    pullLines = pullWithRetriesLines(spec.constant, spec.pullAttemptSeconds),
     pulledImage = spec.image,
-    pullAfterTests = false,
     pullStepExtra = [],
-    testsEnv = { TESTCONTAINERS_RYUK_DISABLED: '"true"' },
+    pullTimeoutMinutes = spec.enoughPullTimeoutMinutes,
   } = {},
 ) {
-  const pullStep = [
+  return [
     `      - name: Pull ${spec.label}`,
+    ...(pullTimeoutMinutes === null ? [] : [`        timeout-minutes: ${pullTimeoutMinutes}`]),
     ...pullStepExtra.map((line) => `        ${line}`),
     "        run: |",
     ...pullLines.map((line) => `          ${line}`),
     "        env:",
     `          ${spec.constant}: ${pulledImage}`,
   ];
+}
+
+function jobWithPull(
+  spec,
+  {
+    pullLines,
+    pulledImage = spec.image,
+    pullAfterTests = false,
+    pullStepExtra,
+    pullTimeoutMinutes,
+    alsoPulls = [],
+    testsEnv = { TESTCONTAINERS_RYUK_DISABLED: '"true"' },
+    testsTimeoutMinutes = 15,
+    jobTimeoutMinutes = spec.jobTimeoutMinutes,
+    mirror = {},
+    signInAfterPull = false,
+  } = {},
+) {
+  const mirrorLines = ghcrMirrorLines(spec, { mirroredImage: spec.image, ...mirror });
+  const pullStep = [
+    ...alsoPulls.flatMap((other) => pullStepLines(other)),
+    ...pullStepLines(spec, { pullLines, pulledImage, pullStepExtra, pullTimeoutMinutes }),
+  ];
   const testsStep = [
     `      - run: ${spec.testsRun}`,
+    ...(testsTimeoutMinutes === null ? [] : [`        timeout-minutes: ${testsTimeoutMinutes}`]),
     ...(Object.keys(testsEnv).length === 0
       ? []
       : ["        env:", ...Object.entries(testsEnv).map(([k, v]) => `          ${k}: ${v}`)]),
   ];
   return [
     "jobs:",
+    ...mirrorLines.jobs,
     `  ${spec.job}:`,
+    ...(jobTimeoutMinutes === null ? [] : [`    timeout-minutes: ${jobTimeoutMinutes}`]),
+    ...mirrorLines.consumerJobHeader,
     "    runs-on: ubuntu-24.04",
     "    steps:",
     "      - run: pnpm install --frozen-lockfile",
-    ...(pullAfterTests ? [...testsStep, ...pullStep] : [...pullStep, ...testsStep]),
+    ...(signInAfterPull ? [] : mirrorLines.signInStep),
+    ...(pullAfterTests ? [...testsStep, ...pullStep] : [...pullStep, ...testsStep]).flatMap(
+      (line) =>
+        signInAfterPull && line === `      - run: ${spec.testsRun}`
+          ? [...mirrorLines.signInStep, line]
+          : [line],
+    ),
   ].join("\n");
+}
+
+function ghcrMirrorLines(
+  spec,
+  {
+    mirroredImage,
+    sourceImage = spec.mirror.sourceImage,
+    lookupPermissions = ["packages: read"],
+    lookupLines = lookUpMirrorLines(spec.constant),
+    lookupOutput = `\${{ steps.mirror.outputs.mirrored }}`,
+    lookupStepId = "mirror",
+    lookupToken = GITHUB_TOKEN,
+    copyNeeds = [spec.mirror.lookupJob],
+    copyCondition = `\${{ needs.${spec.mirror.lookupJob}.outputs.mirrored == 'false' }}`,
+    copyJobTimeoutMinutes = spec.mirror.copyJobTimeoutMinutes,
+    copyStepTimeoutMinutes,
+    copyToken = GITHUB_TOKEN,
+    copyPermissions = ["packages: write"],
+    copyLines = copyMirrorLines(spec.constant, spec.mirror.copyAttemptSeconds),
+    consumerNeeds = ["scope", spec.mirror.lookupJob, spec.mirror.copyJob],
+    consumerPermissions = ["contents: read", "packages: read"],
+    signIn = SIGN_IN_TO_GHCR,
+    signInToken = GITHUB_TOKEN,
+  },
+) {
+  const block = (indent, lines) => lines.map((line) => `${" ".repeat(indent)}${line}`);
+  return {
+    jobs: [
+      `  ${spec.mirror.lookupJob}:`,
+      "    needs: [scope]",
+      "    runs-on: ubuntu-24.04",
+      "    permissions:",
+      ...block(6, lookupPermissions),
+      "    outputs:",
+      `      mirrored: ${lookupOutput}`,
+      "    steps:",
+      `      - id: ${lookupStepId}`,
+      "        run: |",
+      ...block(10, lookupLines),
+      "        env:",
+      `          GITHUB_TOKEN: ${lookupToken}`,
+      `          ${spec.constant}: ${mirroredImage}`,
+      `  ${spec.mirror.copyJob}:`,
+      `    needs: [${copyNeeds.join(", ")}]`,
+      `    if: ${copyCondition}`,
+      "    runs-on: ubuntu-24.04",
+      `    timeout-minutes: ${copyJobTimeoutMinutes}`,
+      "    permissions:",
+      ...block(6, copyPermissions),
+      "    steps:",
+      "      - run: |",
+      ...block(10, copyLines),
+      ...(copyStepTimeoutMinutes === undefined
+        ? []
+        : [`        timeout-minutes: ${copyStepTimeoutMinutes}`]),
+      "        env:",
+      `          GITHUB_TOKEN: ${copyToken}`,
+      `          SOURCE_IMAGE: ${sourceImage}`,
+      `          ${spec.constant}: ${mirroredImage}`,
+    ],
+    consumerJobHeader: [
+      `    needs: [${consumerNeeds.join(", ")}]`,
+      "    permissions:",
+      ...block(6, consumerPermissions),
+    ],
+    signInStep: [
+      `      - run: ${signIn}`,
+      "        env:",
+      `          GITHUB_TOKEN: ${signInToken}`,
+    ],
+  };
+}
+
+function violationsWithMirror(spec, mirror, { pulledImage = spec.image } = {}) {
+  return spec.findViolations(
+    jobWithPull(spec, { pulledImage, mirror: { mirroredImage: pulledImage, ...mirror } }),
+    setupDeclaring(spec.constant, pulledImage),
+  );
 }
 
 for (const spec of PRE_PULLED_IMAGES) {
@@ -972,23 +1156,12 @@ for (const spec of PRE_PULLED_IMAGES) {
 
   test(`flags ${spec.label} referenced by a tag alone, which can move to other bytes`, () => {
     const violations = spec.findViolations(
-      jobWithPull(spec, { pulledImage: spec.tagOnly }),
+      jobWithPull(spec, { pulledImage: spec.tagOnly, mirror: { mirroredImage: spec.tagOnly } }),
       setup(spec.tagOnly),
     );
 
     assertSingleViolation(violations, /not pinned by digest/);
   });
-
-  for (const dockerHubImage of spec.dockerHubImages) {
-    test(`flags ${spec.label} pulled from Docker Hub as \`${dockerHubImage}\`, whose unauthenticated pulls are rate-limited`, () => {
-      const violations = spec.findViolations(
-        jobWithPull(spec, { pulledImage: dockerHubImage }),
-        setup(dockerHubImage),
-      );
-
-      assertSingleViolation(violations, /comes from Docker Hub/);
-    });
-  }
 
   test(`flags a global setup whose ${spec.constant} cannot be read`, () => {
     const violations = spec.findViolations(jobWithPull(spec), 'const IMAGE = "postgres";');
@@ -1023,14 +1196,100 @@ for (const spec of PRE_PULLED_IMAGES) {
   test(`flags a ${spec.job} job whose pull attempt of ${spec.label} can stall without a time limit`, () => {
     const violations = spec.findViolations(
       jobWithPull(spec, {
-        pullLines: pullWithRetriesLines(spec.constant).map((line) =>
-          line.replace("timeout 120 ", ""),
+        pullLines: pullWithRetriesLines(spec.constant, spec.pullAttemptSeconds).map((line) =>
+          line.replace(`timeout ${spec.pullAttemptSeconds} `, ""),
         ),
       }),
       setup(),
     );
 
     assertSingleViolation(violations, new RegExp(`before its ${spec.testsScript} step`));
+  });
+
+  test(`flags a ${spec.job} job whose pull attempt of ${spec.label} gives up after ${spec.otherPullAttemptSeconds} seconds instead of ${spec.pullAttemptSeconds}`, () => {
+    const violations = spec.findViolations(
+      jobWithPull(spec, {
+        pullLines: pullWithRetriesLines(spec.constant, spec.otherPullAttemptSeconds),
+      }),
+      setup(),
+    );
+
+    assertSingleViolation(violations, new RegExp(`before its ${spec.testsScript} step`));
+  });
+
+  test(`flags a ${spec.job} job whose pull step of ${spec.label} sets no time limit`, () => {
+    const violations = spec.findViolations(
+      jobWithPull(spec, { pullTimeoutMinutes: null }),
+      setup(),
+    );
+
+    assertSingleViolation(
+      violations,
+      new RegExp(`${spec.job} job's pull step of .* sets no timeout-minutes`),
+    );
+  });
+
+  test(`flags a ${spec.job} job whose pull step of ${spec.label} times out before its last attempt can`, () => {
+    const shortMinutes = spec.enoughPullTimeoutMinutes - 1;
+    const violations = spec.findViolations(
+      jobWithPull(spec, { pullTimeoutMinutes: shortMinutes }),
+      setup(),
+    );
+
+    assertSingleViolation(
+      violations,
+      new RegExp(
+        `${spec.job} job's pull step of .* allows ${shortMinutes} minutes, less than the ${spec.pullRetrySeconds} seconds its pull attempts and their delays can take`,
+      ),
+    );
+  });
+
+  test(`passes a ${spec.job} job whose pull step of ${spec.label} times out just after its last attempt can`, () => {
+    const violations = spec.findViolations(
+      jobWithPull(spec, { pullTimeoutMinutes: spec.enoughPullTimeoutMinutes }),
+      setup(),
+    );
+
+    assert.deepEqual(violations, []);
+  });
+
+  test(`flags a ${spec.job} job pulling ${spec.label} whose ${spec.testsScript} step sets no time limit`, () => {
+    const violations = findPrePulledJobTimeoutViolations(
+      jobWithPull(spec, { testsTimeoutMinutes: null }),
+    );
+
+    assertSingleViolation(
+      violations,
+      new RegExp(`${spec.job} job's ${spec.testsScript} step sets no timeout-minutes`),
+    );
+  });
+
+  test(`flags a ${spec.job} job whose time limit ends before pulling ${spec.label} and running its tests can`, () => {
+    const shortMinutes = spec.jobTimeoutMinutes - 1;
+    const violations = findPrePulledJobTimeoutViolations(
+      jobWithPull(spec, { jobTimeoutMinutes: shortMinutes }),
+    );
+
+    assertSingleViolation(
+      violations,
+      new RegExp(
+        `${spec.job} job allows ${shortMinutes} minutes, less than the ${spec.jobSeconds} seconds its image pulls and its ${spec.testsScript} step can take`,
+      ),
+    );
+  });
+
+  test(`passes a ${spec.job} job whose time limit covers pulling ${spec.label} and running its tests`, () => {
+    const violations = findPrePulledJobTimeoutViolations(jobWithPull(spec));
+
+    assert.deepEqual(violations, []);
+  });
+
+  test(`leaves a ${spec.job} job pulling ${spec.label} with no time limit of its own to the job time-limit check`, () => {
+    const violations = findPrePulledJobTimeoutViolations(
+      jobWithPull(spec, { jobTimeoutMinutes: null }),
+    );
+
+    assert.deepEqual(violations, []);
   });
 
   for (const [label, extra, pattern] of [
@@ -1053,33 +1312,234 @@ for (const spec of PRE_PULLED_IMAGES) {
 
     assertSingleViolation(violations, /TESTCONTAINERS_RYUK_DISABLED/);
   });
+
+  for (const image of spec.mirror.notOnGhcrImages) {
+    test(`flags ${spec.label} started from \`${image}\`, a registry verify.yml does not sign in to`, () => {
+      const violations = violationsWithMirror(spec, {}, { pulledImage: image });
+
+      assertSingleViolation(violations, /is not on ghcr\.io/);
+    });
+  }
+
+  test(`flags a ${spec.job} job that pulls ${spec.label} without signing in to ghcr.io first`, () => {
+    const violations = violationsWithMirror(spec, { signIn: "docker login ghcr.io" });
+
+    assertSingleViolation(
+      violations,
+      new RegExp(`${spec.job} job does not sign in to ghcr\\.io with its own token`),
+    );
+  });
+
+  test(`flags a ${spec.job} job that signs in to ghcr.io with a token other than its own`, () => {
+    const violations = violationsWithMirror(spec, { signInToken: `\${{ secrets.GHCR_TOKEN }}` });
+
+    assertSingleViolation(
+      violations,
+      new RegExp(`${spec.job} job does not sign in to ghcr\\.io with its own token`),
+    );
+  });
+
+  test(`flags a ${spec.job} job that signs in to ghcr.io only after pulling ${spec.label}`, () => {
+    const violations = spec.findViolations(
+      jobWithPull(spec, { signInAfterPull: true }),
+      setupDeclaring(spec.constant, spec.image),
+    );
+
+    assertSingleViolation(
+      violations,
+      new RegExp(`${spec.job} job does not sign in to ghcr\\.io with its own token before pulling`),
+    );
+  });
+
+  test(`flags a ${spec.job} job not granted packages: read, which signing in to ghcr.io needs`, () => {
+    const violations = violationsWithMirror(spec, { consumerPermissions: ["contents: read"] });
+
+    assertSingleViolation(violations, new RegExp(`${spec.job} job is not granted packages: read`));
+  });
+
+  for (const needs of [
+    ["scope", spec.mirror.lookupJob],
+    ["scope", spec.mirror.copyJob],
+  ]) {
+    test(`flags a ${spec.job} job that needs only ${needs.join(" and ")}, not both mirror jobs`, () => {
+      const violations = violationsWithMirror(spec, { consumerNeeds: needs });
+
+      assertSingleViolation(
+        violations,
+        new RegExp(
+          `${spec.job} job does not wait for the ${spec.mirror.lookupJob} and ${spec.mirror.copyJob} jobs`,
+        ),
+      );
+    });
+  }
 }
 
-test("flags a Playwright image whose tag is not the installed Playwright version", () => {
-  const visual = PRE_PULLED_IMAGES[2];
-  const image =
-    "mcr.microsoft.com/playwright:v1.62.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27";
+test("flags a tests job whose time limit covers each image it pulls but not both", () => {
+  const violations = findPrePulledJobTimeoutViolations(
+    jobWithPull(PLAYWRIGHT_TESTS_SPEC, { alsoPulls: [POSTGRES_SPEC], jobTimeoutMinutes: 46 }),
+  );
 
-  const violations = visual.findViolations(
-    jobWithPull(visual, { pulledImage: image }),
-    setupDeclaring(visual.constant, image),
+  assertSingleViolation(
+    violations,
+    /tests job allows 46 minutes, less than the 2790 seconds its image pulls and its verify:tests step can take/,
+  );
+});
+
+test("passes a tests job whose time limit covers pulling both images and running its tests", () => {
+  const violations = findPrePulledJobTimeoutViolations(
+    jobWithPull(PLAYWRIGHT_TESTS_SPEC, { alsoPulls: [POSTGRES_SPEC], jobTimeoutMinutes: 47 }),
+  );
+
+  assert.deepEqual(violations, []);
+});
+
+test("flags a Playwright image whose tag is not the installed Playwright version", () => {
+  const violations = violationsWithMirror(
+    PLAYWRIGHT_VISUAL_SPEC,
+    {},
+    { pulledImage: PLAYWRIGHT_MIRROR.otherImage },
   );
 
   assertSingleViolation(violations, /not the installed Playwright version 1\.63\.0/);
 });
 
-for (const image of [
-  `mirror:5000/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
-  `localhost/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
-]) {
-  test(`passes the cloud's Postgres image pulled from the registry host of \`${image}\`, which is not Docker Hub`, () => {
-    const [postgres] = PRE_PULLED_IMAGES;
-    const violations = postgres.findViolations(
-      jobWithPull(postgres, { pulledImage: image }),
-      setupDeclaring(postgres.constant, image),
+for (const spec of MIRRORED_IMAGES) {
+  const { lookupJob, copyJob } = spec.mirror;
+
+  for (const [label, permissions] of [
+    ["packages: write", ["packages: write"]],
+    ["contents: write besides packages: read", ["packages: read", "contents: write"]],
+  ]) {
+    test(`flags a ${lookupJob} job granted ${label}, which a read-only token cannot get`, () => {
+      const violations = violationsWithMirror(spec, { lookupPermissions: permissions });
+
+      assertSingleViolation(
+        violations,
+        new RegExp(`${lookupJob} job must be granted only packages: read`),
+      );
+    });
+  }
+
+  test(`flags a ${lookupJob} job that does not look the mirrored image up on ghcr.io`, () => {
+    const violations = violationsWithMirror(spec, {
+      lookupLines: ['echo "mirrored=true" >> "$GITHUB_OUTPUT"'],
+    });
+
+    assertSingleViolation(violations, new RegExp(`${lookupJob} job does not look up`));
+  });
+
+  test(`flags a ${lookupJob} job that looks up another image than the global setup starts`, () => {
+    const violations = violationsWithMirror(spec, { mirroredImage: spec.mirror.otherImage });
+
+    assert.equal(violations.length, 2, violations.join("\n"));
+    assert.match(violations[0], new RegExp(`${lookupJob} job does not look up`));
+    assert.match(violations[1], new RegExp(`${copyJob} job does not copy`));
+  });
+
+  test(`flags a ${lookupJob} job whose lookup step is not the mirror step its output reads`, () => {
+    const violations = violationsWithMirror(spec, { lookupStepId: "lookup" });
+
+    assertSingleViolation(violations, new RegExp(`${lookupJob} job does not look up`));
+  });
+
+  test(`flags a ${lookupJob} job that looks the mirrored image up with a token other than its own`, () => {
+    const violations = violationsWithMirror(spec, { lookupToken: `\${{ secrets.GHCR_TOKEN }}` });
+
+    assertSingleViolation(violations, new RegExp(`${lookupJob} job does not look up`));
+  });
+
+  test(`flags a ${lookupJob} job that does not report what its lookup found`, () => {
+    const violations = violationsWithMirror(spec, { lookupOutput: "true" });
+
+    assertSingleViolation(violations, new RegExp(`${lookupJob} job does not look up`));
+  });
+
+  test(`flags a ${copyJob} job that copies even when the mirrored image is already there`, () => {
+    const violations = violationsWithMirror(spec, { copyCondition: `\${{ !cancelled() }}` });
+
+    assertSingleViolation(violations, new RegExp(`${copyJob} job does not run only when`));
+  });
+
+  test(`flags a ${copyJob} job that does not wait for the lookup it depends on`, () => {
+    const violations = violationsWithMirror(spec, { copyNeeds: ["scope"] });
+
+    assertSingleViolation(violations, new RegExp(`${copyJob} job does not run only when`));
+  });
+
+  test(`flags a ${copyJob} job that copies with a token other than its own`, () => {
+    const violations = violationsWithMirror(spec, { copyToken: `\${{ secrets.GHCR_TOKEN }}` });
+
+    assertSingleViolation(
+      violations,
+      new RegExp(`${copyJob} job does not copy .* with its own token`),
     );
+  });
+
+  for (const [label, timeouts] of [
+    ["job", { copyJobTimeoutMinutes: 10 }],
+    ["step", { copyStepTimeoutMinutes: 10 }],
+  ]) {
+    test(`flags a ${copyJob} ${label} whose time limit ends before its last copy attempt can`, () => {
+      const violations = violationsWithMirror(spec, timeouts);
+
+      assertSingleViolation(
+        violations,
+        new RegExp(
+          `${copyJob} ${label} allows 10 minutes, less than the ${spec.mirror.copyRetrySeconds} seconds its copy attempts and their delays can take`,
+        ),
+      );
+    });
+  }
+
+  test(`passes a ${copyJob} step whose time limit covers every copy attempt and delay`, () => {
+    const violations = violationsWithMirror(spec, {
+      copyStepTimeoutMinutes: spec.mirror.enoughCopyStepTimeoutMinutes,
+    });
 
     assert.deepEqual(violations, []);
+  });
+
+  test(`flags a ${copyJob} job not granted packages: write`, () => {
+    const violations = violationsWithMirror(spec, { copyPermissions: ["packages: read"] });
+
+    assertSingleViolation(violations, new RegExp(`${copyJob} job is not granted packages: write`));
+  });
+
+  test(`flags a ${copyJob} job that copies once, without retrying`, () => {
+    const violations = violationsWithMirror(spec, {
+      copyLines: [
+        `skopeo copy --all --preserve-digests "docker://$SOURCE_IMAGE" "docker://\${${spec.constant}%@*}"`,
+      ],
+    });
+
+    assertSingleViolation(violations, new RegExp(`${copyJob} job does not copy`));
+  });
+
+  test(`flags a ${copyJob} job whose copy attempt has another time limit than the one its job allows for`, () => {
+    const violations = violationsWithMirror(spec, {
+      copyLines: copyMirrorLines(spec.constant, 30),
+    });
+
+    assertSingleViolation(violations, new RegExp(`${copyJob} job does not copy`));
+  });
+
+  test(`flags a ${copyJob} job whose source is another digest than the mirrored image`, () => {
+    const violations = violationsWithMirror(spec, {
+      sourceImage: spec.mirror.otherDigestSourceImage,
+    });
+
+    assertSingleViolation(
+      violations,
+      new RegExp(`${copyJob} job copies \`[^\`]+\`, not the digest`),
+    );
+  });
+
+  test(`flags a ${copyJob} job that copies from Docker Hub, whose unauthenticated pulls a shared runner can exhaust`, () => {
+    const violations = violationsWithMirror(spec, {
+      sourceImage: spec.mirror.dockerHubSourceImage,
+    });
+
+    assertSingleViolation(violations, new RegExp(`${copyJob} job copies .* from Docker Hub`));
   });
 }
 

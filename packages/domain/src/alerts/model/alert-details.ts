@@ -119,6 +119,14 @@ interface OfflineAuthorizationCodeMissingDetail {
 interface LatePaymentRefundDetail {
   saleId: string;
   amount: number;
+  providerOrderId: string | null;
+}
+
+interface RefundTaskDetail {
+  saleId: string;
+  amount: number;
+  method: string;
+  refundOpenedAt: string;
 }
 
 export interface AlertDetails {
@@ -138,6 +146,7 @@ export interface AlertDetails {
   fiscal_rejected: FiscalRejectedDetail;
   offline_authorization_code_missing: OfflineAuthorizationCodeMissingDetail;
   late_payment_refund: LatePaymentRefundDetail;
+  refund_task: RefundTaskDetail;
 }
 
 export type OpenAlertInput = {

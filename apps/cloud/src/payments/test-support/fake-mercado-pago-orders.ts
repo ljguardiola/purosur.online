@@ -12,6 +12,7 @@ export const ORDER_ID = "ORD01JQ4S4KY8HWQ6NA5PXB65B3D3";
 export const UNPAID_ORDER = {
   status: "created",
   statusDetail: "created",
+  externalReference: null,
   totalPaidAmount: null,
   payments: [{ status: "created", statusDetail: "ready_to_process", paidAmount: null }],
 } as const;
@@ -19,6 +20,7 @@ export const UNPAID_ORDER = {
 export const PAID_ORDER = {
   status: "processed",
   statusDetail: "accredited",
+  externalReference: null,
   totalPaidAmount: 5000,
   payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 5000 }],
 } as const;
@@ -26,6 +28,7 @@ export const PAID_ORDER = {
 const CANCELLED_ORDER = {
   status: "canceled",
   statusDetail: "canceled",
+  externalReference: null,
   totalPaidAmount: null,
   payments: [{ status: "canceled", statusDetail: "canceled_by_api", paidAmount: null }],
 } as const;

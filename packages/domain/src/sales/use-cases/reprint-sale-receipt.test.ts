@@ -165,6 +165,21 @@ describe("reprintSaleReceipt", () => {
     expect(rig.ledger.state.outbox).toHaveLength(1);
   });
 
+  it("answers withdrawn and keeps the printed time unset when the printer withdraws the reprint", async () => {
+    const rig = receiptRig([completedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
+
+    const printing = reprintSaleReceipt(rig.ports, INPUT, rig.watch);
+    await rig.printer.whenSent();
+    rig.printer.withdraw();
+
+    expect(await printing).toEqual({
+      kind: "withdrawn",
+      copy: { kind: "duplicate", orderNumber: 1 },
+    });
+    expect(rig.ledger.state.sales[0]?.printedAt).toBeNull();
+    expect(rig.ledger.state.sales[0]?.reprints).toHaveLength(1);
+  });
+
   it("numbers successive reprints 1, 2 and 3", async () => {
     const rig = receiptRig([completedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
 
