@@ -81,6 +81,49 @@ test("shows what was counted above the expected balance under the label it is gi
   );
 });
 
+function renderLotsBalance(counted: number) {
+  return renderBalance({
+    product: withoutBalance(almonds),
+    balance: loaded(expectedBalance(almonds, 12_400)),
+    counted,
+    countedLabel: "Total contado",
+  });
+}
+
+async function differenceColor(counted: number, difference: string): Promise<string> {
+  const screen = await renderLotsBalance(counted);
+  return getComputedStyle(screen.getByText(difference, { exact: true }).element()).color;
+}
+
+test("draws the difference in the plain color when it is nil and in another color when it is not", async () => {
+  const plain = await differenceColor(12_400, "Sin diferencia");
+  const shortfall = await differenceColor(12_150, "− 0,250 kg");
+  const surplus = await differenceColor(12_650, "+ 0,250 kg");
+
+  expect(new Set([plain, shortfall, surplus]).size).toBe(3);
+});
+
+test("draws the plain difference like the expected balance", async () => {
+  const screen = await renderLotsBalance(12_400);
+  const expected = screen.getByText("12,400 kg", { exact: true }).first().element();
+  const difference = screen.getByText("Sin diferencia", { exact: true }).element();
+
+  expect(getComputedStyle(difference).color).toBe(getComputedStyle(expected).color);
+});
+
+test("holds the counted total, the expected balance and the difference in one tinted card of bold values", async () => {
+  const screen = await renderLotsBalance(12_150);
+  const card = screen.getByText("Total contado", { exact: true }).element().parentElement
+    ?.parentElement as HTMLElement;
+  const value = screen.getByText("− 0,250 kg", { exact: true }).element();
+
+  expect(card.textContent).toBe("Total contado12,150 kgSaldo esperado12,400 kgDiferencia− 0,250 kg");
+  expect(getComputedStyle(card).backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(getComputedStyle(card).borderTopLeftRadius).toBe("8px");
+  expect(getComputedStyle(value).fontWeight).toBe("700");
+  expect(getComputedStyle(value).fontSize).toBe("20px");
+});
+
 test("shows a placeholder and no balance while the expected balance loads", async () => {
   const screen = await renderBalance({ balance: { status: "loading" }, counted: 16_000 });
 
