@@ -4,17 +4,21 @@ import { Package, Scale, Search, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 
-export type SearchResults = {
+export type SearchedProduct = Omit<FoundProduct, "unit_price"> & {
+  unit_price?: FoundProduct["unit_price"];
+};
+
+export type SearchResults<Product extends SearchedProduct = FoundProduct> = {
   query: string;
-  products: FoundProduct[];
+  products: Product[];
   more: boolean;
 };
 
-export type ProductSearchResultsProps = {
+export type ProductSearchResultsProps<Product extends SearchedProduct = FoundProduct> = {
   listboxId: string;
-  search: SearchResults | undefined;
+  search: SearchResults<Product> | undefined;
   activeIndex: number;
-  onChoose: (product: FoundProduct) => void;
+  onChoose: (product: Product) => void;
 };
 
 export function searchOptionId(listboxId: string, index: number) {
@@ -24,7 +28,7 @@ export function searchOptionId(listboxId: string, index: number) {
 const PANEL_POSITION_CLASS_NAME = "absolute inset-x-0 top-full z-overlay mt-2";
 const PANEL_BOX_CLASS_NAME = "overflow-hidden rounded-lg border border-border bg-surface shadow-lg";
 
-function HighlightedName({ product }: { product: FoundProduct }) {
+function HighlightedName({ product }: { product: SearchedProduct }) {
   const parts: ReactNode[] = [];
   let next = 0;
   for (const { start, length } of product.matches) {
@@ -40,23 +44,26 @@ function HighlightedName({ product }: { product: FoundProduct }) {
   return parts;
 }
 
-function priceText(product: FoundProduct) {
+function priceText(product: SearchedProduct) {
+  if (product.unit_price === undefined) {
+    return product.sale_unit === "KG" ? "Por kg" : "Por unidad";
+  }
   if (product.unit_price === null) {
     return "Sin precio";
   }
   return `${formatCents(product.unit_price)} / ${product.sale_unit === "KG" ? "kg" : "u"}`;
 }
 
-function ResultOption({
+function ResultOption<Product extends SearchedProduct>({
   id,
   product,
   active,
   onChoose,
 }: {
   id: string;
-  product: FoundProduct;
+  product: Product;
   active: boolean;
-  onChoose: (product: FoundProduct) => void;
+  onChoose: (product: Product) => void;
 }) {
   const TypeIcon = product.sale_unit === "KG" ? Scale : Package;
   return (
@@ -88,12 +95,12 @@ function ResultOption({
 
 // The live region stays mounted while there is nothing to tell: one that arrives already holding
 // its text is not announced.
-export function ProductSearchResults({
+export function ProductSearchResults<Product extends SearchedProduct = FoundProduct>({
   listboxId,
   search,
   activeIndex,
   onChoose,
-}: ProductSearchResultsProps) {
+}: ProductSearchResultsProps<Product>) {
   const activeId = searchOptionId(listboxId, activeIndex);
 
   useEffect(() => {
@@ -126,12 +133,12 @@ export function ProductSearchResults({
   );
 }
 
-function FoundProducts({
+function FoundProducts<Product extends SearchedProduct>({
   listboxId,
   search: { products, more },
   activeIndex,
   onChoose,
-}: ProductSearchResultsProps & { search: SearchResults }) {
+}: ProductSearchResultsProps<Product> & { search: SearchResults<Product> }) {
   return (
     <div className={`${PANEL_POSITION_CLASS_NAME} ${PANEL_BOX_CLASS_NAME}`}>
       {/* Pressing an option must not take the focus away from the field, and a browser puts a

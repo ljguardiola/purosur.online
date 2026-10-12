@@ -3,7 +3,11 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import type { ProductSearchResultsProps, SearchResults } from "./product-search-results";
+import type {
+  ProductSearchResultsProps,
+  SearchedProduct,
+  SearchResults,
+} from "./product-search-results";
 import { ProductSearchResults, searchOptionId } from "./product-search-results";
 
 const YERBA: FoundProduct = {
@@ -55,7 +59,10 @@ async function renderResults({
   more = false,
   activeIndex = 0,
   onChoose = vi.fn(),
-}: Partial<SearchResults & Pick<ProductSearchResultsProps, "activeIndex" | "onChoose">> = {}) {
+}: Partial<
+  SearchResults<SearchedProduct> &
+    Pick<ProductSearchResultsProps<SearchedProduct>, "activeIndex" | "onChoose">
+> = {}) {
   await page.viewport(1280, 720);
   const screen = await render(
     <>
