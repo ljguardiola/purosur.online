@@ -883,6 +883,7 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
+        "0042_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -951,6 +952,7 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
+        "0042_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1014,6 +1016,7 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
+        "0042_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1076,6 +1079,7 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
+        "0042_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1165,6 +1169,7 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
+        "0042_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1246,6 +1251,7 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
+        "0042_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1331,6 +1337,7 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
+        "0042_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1399,6 +1406,7 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
+        "0042_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1459,6 +1467,7 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
+        "0042_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
