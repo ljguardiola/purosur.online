@@ -8,8 +8,9 @@ import { paletteColor, tokenBackgroundColor, tokenRgb } from "../../test/token-c
 import { Button } from "../forms/button";
 import { Modal, type ModalProps, type ModalWidth } from "./modal";
 
-// The default browser-mode viewport is phone-sized, and a window narrower than a panel's width caps
-// the panel, so the tests that measure each width's exact size need a window wider than the 1040px editor.
+// The default browser-mode viewport is phone-sized, and a panel keeps a 1.5rem margin on each side of
+// the window, so the tests that measure each width's exact size need a window at least 1088px wide:
+// the 1040px editor plus both margins.
 beforeEach(async () => {
   await page.viewport(1280, 900);
 });
