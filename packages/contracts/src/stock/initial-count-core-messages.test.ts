@@ -117,6 +117,7 @@ describe("stockCoreToRendererMessageSchema", () => {
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
     { kind: "not_offered" },
+    { kind: "unavailable" },
   ] as const;
 
   it("rejects any other message type", () => {
@@ -132,6 +133,7 @@ describe("stockCoreToRendererMessageSchema", () => {
     ],
     ["read-initial-count-result", { kind: "not_permitted" }],
     ["read-initial-count-result", { kind: "not_signed_in" }],
+    ["read-initial-count-result", { kind: "unavailable" }],
     ["record-initial-count-line-result", { kind: "recorded", line: LINE }],
     ...["unavailable", "unknown_product", "invalid_quantity", "invalid_expiry"].map(
       (kind): [string, unknown] => ["record-initial-count-line-result", { kind }],
