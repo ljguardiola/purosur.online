@@ -48,6 +48,7 @@ describe("the Mercado Pago QR charges the register keeps", () => {
     expect(charges.pendingCharge("qr-1")).toEqual({
       paymentTransactionId: "qr-1",
       saleId: "sale-1",
+      method: "QR",
       amount: 5000,
       waitEndsAt: new Date(WAIT_ENDS_AT),
     });

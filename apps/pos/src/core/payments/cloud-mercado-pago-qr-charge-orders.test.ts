@@ -5,7 +5,12 @@ import { CloudMercadoPagoQrChargeOrders } from "./cloud-mercado-pago-qr-charge-o
 
 const PAYMENT_ID = "019a0000-0000-7000-8000-0000000000a1";
 const SALE_ID = "019a0000-0000-7000-8000-0000000000b1";
-const ORDER = { paymentTransactionId: PAYMENT_ID, saleId: SALE_ID, amount: 5000 };
+const ORDER = {
+  paymentTransactionId: PAYMENT_ID,
+  saleId: SALE_ID,
+  method: "QR",
+  amount: 5000,
+} as const;
 const START = new Date("2026-10-09T12:00:00.000Z");
 
 interface Call {
@@ -71,9 +76,27 @@ describe("asking the cloud for a Mercado Pago QR order", () => {
         method: "POST",
         path: "/api/payments/mercado-pago-qr/orders",
         bearerToken: "prefix.secret",
-        body: { payment_transaction_id: PAYMENT_ID, sale_id: SALE_ID, amount: 5000 },
+        body: {
+          payment_transaction_id: PAYMENT_ID,
+          sale_id: SALE_ID,
+          provider: "MERCADOPAGO_QR",
+          amount: 5000,
+        },
       },
     ]);
+  });
+
+  it("names the integrated terminal as the provider of a terminal order", async () => {
+    const { calls, orders } = cloudOrders([ok(payment("PENDING"))]);
+
+    await orders.requestOrder({ ...ORDER, method: "POINT" });
+
+    expect(calls[0]?.body).toEqual({
+      payment_transaction_id: PAYMENT_ID,
+      sale_id: SALE_ID,
+      provider: "MERCADOPAGO_POINT",
+      amount: 5000,
+    });
   });
 
   it("answers created, with the expiry the cloud recorded, when the cloud answers with the payment", async () => {
