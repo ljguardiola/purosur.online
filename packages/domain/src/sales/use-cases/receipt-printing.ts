@@ -88,7 +88,6 @@ async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
       const at = clock.now();
       if (copy.kind === "original") {
         tx.recordPrintAttempt(saleId, at);
-        tx.appendOutboxEvent(printStateEvent(ids.next(), saleId, grant, at, null));
       } else {
         tx.recordReprint({
           saleId,
@@ -102,6 +101,12 @@ async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
           reprintEvent(ids.next(), saleId, copy.orderNumber, grant, reasonOfDuplicate, at),
         );
       }
+      if (delivery.printedAt === null) {
+        tx.recordPrinted(saleId, at);
+        tx.appendOutboxEvent(
+          printStateEvent(ids.next(), saleId, grant, delivery.printAttemptedAt ?? at, at),
+        );
+      }
       handedOver.copy = copy;
       return template.printable(storedReceiptOf(tx, template, saleId), copy);
     }),
@@ -109,17 +114,6 @@ async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
   if (ending.kind === "abandoned") {
     return { kind: "abandoned", copy: decided };
   }
-
-  ledger.transaction((tx) => {
-    const delivery = tx.receiptDelivery(saleId);
-    if (delivery?.printAttemptedAt && delivery.printedAt === null) {
-      const printedAt = clock.now();
-      tx.recordPrinted(saleId, printedAt);
-      tx.appendOutboxEvent(
-        printStateEvent(ids.next(), saleId, grant, delivery.printAttemptedAt, printedAt),
-      );
-    }
-  });
   return { kind: "printed", copy: handedOver.copy ?? decided };
 }
 
@@ -142,7 +136,7 @@ function printStateEvent(
   saleId: string,
   { actorId }: ReceiptPrintGrant,
   printAttemptedAt: Date,
-  printedAt: Date | null,
+  printedAt: Date,
 ): OutboxEventDraft {
   return {
     event_id: eventId,
@@ -153,9 +147,9 @@ function printStateEvent(
     payload: {
       sale_id: saleId,
       print_attempted_at: printAttemptedAt.toISOString(),
-      printed_at: printedAt?.toISOString() ?? null,
+      printed_at: printedAt.toISOString(),
     },
-    occurred_at: (printedAt ?? printAttemptedAt).toISOString(),
+    occurred_at: printedAt.toISOString(),
     actor_id: actorId,
   };
 }
