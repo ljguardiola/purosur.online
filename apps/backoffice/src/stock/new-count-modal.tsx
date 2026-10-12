@@ -21,7 +21,7 @@ import {
   useFieldContext,
   useRequestForm,
 } from "@purosur/ui";
-import { Check, ClipboardCheck, Layers, Package, ShieldX, TriangleAlert } from "lucide-react";
+import { Check, ClipboardCheck, Layers, Package, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -225,7 +225,13 @@ export function NewCountModal({
       closable={!submitting}
       footer={
         <>
-          <Button variant="secondary" size="large" disabled={submitting} onPress={onClose}>
+          <Button
+            variant="secondary"
+            size="large"
+            icon={<X />}
+            disabled={submitting}
+            onPress={onClose}
+          >
             Cancelar
           </Button>
           <Button
@@ -281,10 +287,11 @@ export function NewCountModal({
           )}
           <form.AppField name="productId">
             {(field) => (
-              <field.Select
+              <field.ComboBox
                 label="Producto"
-                placeholder="Elegí un producto"
+                placeholder="Buscá un producto"
                 options={options}
+                variant="search"
                 required
               />
             )}
@@ -317,28 +324,44 @@ export function NewCountModal({
           </FieldGroup>
           <form.AppField name="moment">{() => <CountMomentField />}</form.AppField>
           {mode === "lots" && product ? (
-            <form.AppField name="lots">
-              {() => <CountLotsField lots={countableLots} saleUnit={product.saleUnit} />}
-            </form.AppField>
-          ) : (
-            <form.AppField name="counted">
-              {(field) => (
-                <field.TextField
-                  {...quantityFieldKind(product?.saleUnit ?? "UNIT")}
-                  label="Cantidad contada"
-                  required
+            <>
+              <form.AppField name="lots">
+                {() => <CountLotsField lots={countableLots} saleUnit={product.saleUnit} />}
+              </form.AppField>
+              {showsBalance && at !== undefined ? (
+                <CountBalance
+                  product={product}
+                  balance={productBalance}
+                  counted={counted}
+                  mode="lots"
                 />
-              )}
-            </form.AppField>
+              ) : null}
+            </>
+          ) : (
+            <div className="flex flex-row items-end gap-4">
+              <div className="w-50 shrink-0">
+                <form.AppField name="counted">
+                  {(field) => (
+                    <field.TextField
+                      {...quantityFieldKind(product?.saleUnit ?? "UNIT")}
+                      label="Cantidad contada"
+                      required
+                    />
+                  )}
+                </form.AppField>
+              </div>
+              {showsBalance && product && at !== undefined ? (
+                <div className="min-w-0 flex-1">
+                  <CountBalance
+                    product={product}
+                    balance={productBalance}
+                    counted={counted}
+                    mode="product"
+                  />
+                </div>
+              ) : null}
+            </div>
           )}
-          {showsBalance && product && at !== undefined ? (
-            <CountBalance
-              product={product}
-              balance={productBalance}
-              counted={counted}
-              countedLabel={mode === "lots" ? "Total contado" : null}
-            />
-          ) : null}
         </div>
       ) : null}
     </Modal>

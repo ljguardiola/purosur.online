@@ -309,7 +309,7 @@ describe("addScannedProduct", () => {
     ]);
   });
 
-  it("uses the latest price already valid at the clock's moment", () => {
+  it("uses the newest synced price, with its price list, over the older ones", () => {
     const store = ledger({
       prices: [
         {
@@ -339,7 +339,7 @@ describe("addScannedProduct", () => {
     const outcome = scan(store);
 
     expect(outcome.kind === "added" && outcome.sale.lines).toEqual([
-      expect.objectContaining({ priceListId: "list-2", listUnitPrice: 2800 }),
+      expect.objectContaining({ priceListId: "list-3", listUnitPrice: 9999 }),
     ]);
   });
 
@@ -456,18 +456,33 @@ describe("addScannedProduct", () => {
     expect(store.barcodeLookups).toBe(1);
   });
 
-  it("refuses a product without a valid price, naming it and changing nothing", () => {
+  it("adds the line at the newest synced price even while the register's clock lags behind its start", () => {
     const store = ledger({
       prices: [
+        {
+          id: "price-1",
+          productId: "yerba",
+          priceListId: "list-1",
+          unitPrice: 2500,
+          validFrom: LONG_AGO,
+        },
         {
           id: "price-10",
           productId: "yerba",
           priceListId: "list-1",
-          unitPrice: 2500,
-          validFrom: new Date("2026-10-01T00:00:00.000Z"),
+          unitPrice: 2700,
+          validFrom: new Date(NOW.getTime() + 60_000),
         },
       ],
     });
+
+    const outcome = scan(store);
+
+    expect(outcome.kind === "added" && outcome.sale.lines[0]?.listUnitPrice).toBe(2700);
+  });
+
+  it("refuses a product with no synced price, naming it and changing nothing", () => {
+    const store = ledger({ prices: [] });
     const before = structuredClone(store.state);
 
     expect(scan(store)).toEqual({ kind: "no_price", productName: "Yerba 1 kg" });
@@ -544,20 +559,20 @@ describe("addScannedProduct", () => {
     expect(scan(store, "7790001")).toEqual({ kind: "no_price", productName: "Yerba 1 kg" });
   });
 
-  it("asks for the price at the clock's moment", () => {
+  it("asks for the weight of a product sold by weight whose only synced price starts after the register's clock", () => {
     const store = ledger({
       prices: [
         {
           id: "price-12",
-          productId: "yerba",
+          productId: "queso",
           priceListId: "list-1",
-          unitPrice: 2500,
-          validFrom: NOW,
+          unitPrice: 9000,
+          validFrom: new Date(NOW.getTime() + 60_000),
         },
       ],
     });
 
-    expect(scan(store).kind).toBe("added");
+    expect(scan(store, "7790002").kind).toBe("weight_needed");
   });
 
   it.each<FakeSaleLedgerWrite>(["recordOpenedSale", "recordSaleLine"])(

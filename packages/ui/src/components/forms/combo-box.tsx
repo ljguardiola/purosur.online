@@ -1,4 +1,4 @@
-import { Check, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Search } from "lucide-react";
 import { useContext, useState } from "react";
 import {
   Button as AriaButton,
@@ -52,6 +52,7 @@ export type ComboBoxProps<V extends string> = FieldErrorProps &
     placeholder?: string;
     disabled?: boolean;
     required?: boolean;
+    variant?: "select" | "search";
   };
 
 const NO_RESULTS_TEXT = "Sin resultados";
@@ -99,8 +100,11 @@ function readListMetrics(): ListMetrics {
   };
 }
 
-function Chevron() {
+function Chevron({ variant }: { variant: "select" | "search" }) {
   const state = useContext(AriaComboBoxStateContext);
+  if (variant === "search") {
+    return <Search aria-hidden="true" className={chevronClassName} />;
+  }
   return state?.isOpen ? (
     <ChevronUp aria-hidden="true" className={chevronClassName} />
   ) : (
@@ -118,6 +122,7 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
     placeholder,
     disabled = false,
     required = false,
+    variant = "select",
   } = props;
   const { invalid, errorMessage, errorMessageId } = fieldError(props);
   const { contains } = useFilter({ sensitivity: "base" });
@@ -196,7 +201,7 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
           </Tag>
         ) : null}
         <AriaButton className={chevronButtonClassName}>
-          <Chevron />
+          <Chevron variant={variant} />
         </AriaButton>
       </div>
       {errorMessage !== undefined ? (

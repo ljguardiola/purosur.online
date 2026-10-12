@@ -191,7 +191,128 @@ test("does not accept an empty rows list, or one TypeScript cannot prove is non-
   expectTypeOf<{ rows: readonly SummaryRowProps[] }>().not.toExtend<SummaryRowGroupProps>();
 });
 
-test("does not accept a form other than divided or filled", () => {
+test("draws the plain form with no line, no fill and no padding, rows 4px apart", async () => {
+  const screen = await render(
+    <SummaryRowGroup
+      variant="plain"
+      rows={[
+        { label: "Saldo esperado", value: "12 u", detail: true },
+        { label: "Diferencia", value: "− 2 u", detail: true, tone: "error" },
+      ]}
+    />,
+  );
+  const group = screen.container.firstElementChild as HTMLElement;
+  const style = getComputedStyle(group);
+
+  expect(style.display).toBe("flex");
+  expect(style.flexDirection).toBe("column");
+  expect(style.rowGap).toBe("4px");
+  expect(style.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(style.borderTopWidth).toBe("0px");
+  expect(style.borderBottomWidth).toBe("0px");
+  expect(style.borderLeftWidth).toBe("0px");
+  expect(style.borderRightWidth).toBe("0px");
+  expect(style.paddingTop).toBe("0px");
+  expect(style.paddingLeft).toBe("0px");
+
+  const error = screen.getByText("− 2 u", { exact: true }).element() as HTMLElement;
+  expect(getComputedStyle(error).fontWeight).toBe("700");
+  expect(getComputedStyle(error).color).toBe(tokenRgb("error-strong"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("lays the horizontal filled form out as a subtle card with its rows side by side, 24px apart and centered", async () => {
+  const screen = await render(
+    <SummaryRowGroup
+      variant="filled"
+      orientation="horizontal"
+      rows={[
+        { label: "Total contado", value: "10 u" },
+        { label: "Saldo esperado", value: "12 u", subtle: true },
+        { label: "Diferencia", value: "− 2 u", tone: "error" },
+      ]}
+    />,
+  );
+  const group = screen.container.firstElementChild as HTMLElement;
+  const style = getComputedStyle(group);
+  const rows = Array.from(group.children) as HTMLElement[];
+
+  expect(style.display).toBe("flex");
+  expect(style.flexDirection).toBe("row");
+  expect(style.columnGap).toBe("24px");
+  expect(style.alignItems).toBe("center");
+  expect(style.backgroundColor).toBe(tokenRgb("surface-subtle"));
+  expect(style.borderRadius).toBe("8px");
+  expect(style.paddingTop).toBe("12px");
+  expect(style.paddingLeft).toBe("16px");
+
+  const rects = rows.map((row) => row.getBoundingClientRect());
+  expect(rects[1]?.left).toBeGreaterThan(rects[0]?.right ?? 0);
+  expect(rects[2]?.left).toBeGreaterThan(rects[1]?.right ?? 0);
+  expect((rects[1]?.left ?? 0) - (rects[0]?.right ?? 0)).toBeCloseTo(24, 0);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("writes each horizontal row's label in subtle detail text above its value in 18px bold text", async () => {
+  const screen = await render(
+    <SummaryRowGroup
+      variant="filled"
+      orientation="horizontal"
+      rows={[
+        { label: "Total contado", value: "10 u" },
+        { label: "Saldo esperado", value: "12 u", subtle: true },
+        { label: "Diferencia", value: "− 2 u", tone: "error" },
+      ]}
+    />,
+  );
+  const label = screen.getByText("Total contado", { exact: true }).element() as HTMLElement;
+  const value = screen.getByText("10 u", { exact: true }).element() as HTMLElement;
+  const subtle = screen.getByText("12 u", { exact: true }).element() as HTMLElement;
+  const error = screen.getByText("− 2 u", { exact: true }).element() as HTMLElement;
+  const row = label.parentElement as HTMLElement;
+
+  expect(getComputedStyle(row).flexDirection).toBe("column");
+  expect(getComputedStyle(row).rowGap).toBe("4px");
+  expect(label.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+    value.getBoundingClientRect().top,
+  );
+  expect(getComputedStyle(label).fontSize).toBe("14px");
+  expect(getComputedStyle(label).fontWeight).toBe("400");
+  expect(getComputedStyle(label).color).toBe(tokenRgb("text-subtle"));
+  for (const figure of [value, subtle, error]) {
+    expect(getComputedStyle(figure).fontSize).toBe("18px");
+    expect(getComputedStyle(figure).fontWeight).toBe("700");
+  }
+  expect(getComputedStyle(value).color).toBe(tokenRgb("text"));
+  expect(getComputedStyle(subtle).color).toBe(tokenRgb("text-subtle"));
+  expect(getComputedStyle(error).color).toBe(tokenRgb("error-strong"));
+});
+
+test("accepts the horizontal form only filled", () => {
+  expectTypeOf<{
+    rows: [{ label: string; value: string }];
+    variant: "filled";
+    orientation: "horizontal";
+  }>().toExtend<SummaryRowGroupProps>();
+  expectTypeOf<{
+    rows: [{ label: string; value: string }];
+    orientation: "horizontal";
+  }>().not.toExtend<SummaryRowGroupProps>();
+  expectTypeOf<{
+    rows: [{ label: string; value: string }];
+    variant: "divided";
+    orientation: "horizontal";
+  }>().not.toExtend<SummaryRowGroupProps>();
+  expectTypeOf<{
+    rows: [{ label: string; value: string }];
+    variant: "plain";
+    orientation: "horizontal";
+  }>().not.toExtend<SummaryRowGroupProps>();
+});
+
+test("does not accept a form other than divided, filled or plain", () => {
   expectTypeOf<{
     rows: [SummaryRowProps];
     variant: "outlined";

@@ -21,3 +21,7 @@ export const Card: Story = {
 export const List: Story = {
   args: { variant: "list", items: 4 },
 };
+
+export const Rows: Story = {
+  args: { variant: "rows", rows: 2 },
+};
