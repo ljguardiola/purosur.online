@@ -317,7 +317,30 @@ describe("the print status of a sale's receipt", () => {
   });
 });
 
+function jobsAnswering(
+  standing: ReturnType<typeof jobs.standingOf>,
+  outcome: { kind: string; copy: { kind: "duplicate"; orderNumber: number } },
+): ReceiptRequestDeps["jobs"] {
+  return {
+    standingOf: () => standing,
+    withdrawHeld: () => {},
+    start: async () => ({ kind: "answered", outcome }) as never,
+  };
+}
+
 describe("retrying a sale's receipt print", () => {
+  it("starts a retry whose receipt the printer withdrew", async () => {
+    const withdrawn = jobsAnswering("withdrawn", {
+      kind: "withdrawn",
+      copy: { kind: "duplicate", orderNumber: 1 },
+    });
+
+    expect(await retryReceiptPrintFor(deps({ jobs: withdrawn }), "sale-1")).toEqual({
+      kind: "started",
+      copy: { kind: "duplicate", order_number: 1 },
+    });
+  });
+
   it("is not offered while the print is in progress", async () => {
     await printCompletedSaleReceiptFor(deps(), "sale-1");
 
@@ -384,6 +407,18 @@ describe("retrying a sale's receipt print", () => {
 });
 
 describe("reprinting a sale's receipt from the history", () => {
+  it("starts a reprint whose receipt the printer withdrew", async () => {
+    signedInPerson.set("supervisor");
+    const withdrawn = jobsAnswering("withdrawn", {
+      kind: "withdrawn",
+      copy: { kind: "duplicate", orderNumber: 1 },
+    });
+
+    expect(
+      await reprintSaleReceiptFor(deps({ jobs: withdrawn }), { saleId: "sale-1", reason: REASON }),
+    ).toEqual({ kind: "started", copy: { kind: "duplicate", order_number: 1 } });
+  });
+
   const REASON = "el cliente la perdió";
 
   it("prints a sale never printed as the original", async () => {

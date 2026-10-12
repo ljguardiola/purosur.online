@@ -18,10 +18,14 @@ const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
+let changes: number;
 
 function deps(): ReceiptPrinterRequestDeps {
   return {
     database,
+    receiptPrinterChanged: () => {
+      changes += 1;
+    },
     gate: createActionGate({
       store: new SqliteSignInStore(database),
       signedInPerson,
@@ -58,6 +62,7 @@ beforeEach(() => {
   addPerson("cashier", ["sell_and_charge"]);
   signedInPerson = createSignedInPerson();
   signedInPerson.set("installer");
+  changes = 0;
 });
 
 afterEach(() => {
@@ -129,5 +134,26 @@ describe("setting the receipt printer", () => {
 
     expect(await setReceiptPrinterFor(deps(), "10.10.10.2")).toEqual({ kind: "lacks_permission" });
     expect(storedAddress()).toBeUndefined();
+  });
+
+  it("announces that the printer changed once the address is saved", async () => {
+    await setReceiptPrinterFor(deps(), "10.10.10.2");
+
+    expect(changes).toBe(1);
+  });
+
+  it("announces no change when the address is invalid", async () => {
+    await setReceiptPrinterFor(deps(), "10.10.10.2:99999");
+
+    expect(changes).toBe(0);
+  });
+
+  it("announces no change when nobody is signed in or the person may not configure the printer", async () => {
+    signedInPerson.clear();
+    await setReceiptPrinterFor(deps(), "10.10.10.2");
+    signedInPerson.set("cashier");
+    await setReceiptPrinterFor(deps(), "10.10.10.2");
+
+    expect(changes).toBe(0);
   });
 });

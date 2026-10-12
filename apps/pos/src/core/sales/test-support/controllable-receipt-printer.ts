@@ -39,6 +39,10 @@ export class ControllableReceiptPrinter implements ReceiptPrinter {
     this.at(index).end({ kind: "acknowledged" });
   }
 
+  withdraw(index = this.sent.length - 1): void {
+    this.at(index).end({ kind: "withdrawn" });
+  }
+
   private at(index: number): Sent {
     const sent = this.sent[index];
     if (sent === undefined) throw new Error("nothing was sent");

@@ -286,4 +286,71 @@ describe("receipt print jobs", () => {
     expect(subject.jobs.standingOf("sale-1")).toBe("failed");
     expect(await printingSale(subject)).toEqual({ kind: "sent" });
   });
+
+  describe("withdrawing the held receipts", () => {
+    it("asks the printer to withdraw the held receipt without freeing the sale until the printer confirms", async () => {
+      const subject = rig();
+      await printingSale(subject);
+      subject.printer.report("paper_out");
+
+      subject.jobs.withdrawHeld();
+
+      expect(subject.printer.sent[0]?.watch.withdrawal.aborted).toBe(true);
+      expect(subject.jobs.standingOf("sale-1")).toBe("paper_out");
+      expect(await printingSale(subject)).toEqual({ kind: "busy" });
+    });
+
+    it("stands as withdrawn and allows a duplicate once the printer confirms the withdrawal", async () => {
+      const subject = rig();
+      await printingSale(subject);
+      subject.printer.report("paper_out");
+      subject.jobs.withdrawHeld();
+
+      subject.printer.withdraw();
+
+      await vi.waitFor(() => expect(subject.jobs.standingOf("sale-1")).toBe("withdrawn"));
+      expect(await printingSale(subject)).toEqual({ kind: "sent" });
+      expect(subject.jobs.standingOf("sale-1")).toBe("printing");
+    });
+
+    it("asks every sale's held receipt to be withdrawn", async () => {
+      const subject = rig();
+      await printingSale(subject, "sale-1");
+      await printingSale(subject, "sale-2");
+
+      subject.jobs.withdrawHeld();
+
+      expect(subject.printer.sent.map(({ watch }) => watch.withdrawal.aborted)).toEqual([
+        true,
+        true,
+      ]);
+    });
+
+    it("leaves a printed sale printed", async () => {
+      const subject = rig();
+      await printingSale(subject);
+      subject.printer.acknowledge();
+      await vi.waitFor(() => expect(subject.jobs.standingOf("sale-1")).toBe("printed"));
+
+      subject.jobs.withdrawHeld();
+
+      expect(subject.jobs.standingOf("sale-1")).toBe("printed");
+    });
+
+    it("ignores the withdrawal of a print already replaced by a newer one", async () => {
+      const subject = rig();
+      await printingSale(subject);
+      subject.printer.report("ready");
+      subject.advance(RECEIPT_RETRY_DELAY_MS);
+      await printingSale(subject);
+
+      subject.printer.withdraw(0);
+
+      expect(subject.jobs.standingOf("sale-1")).toBe("printing");
+    });
+
+    it("does nothing when no receipt is held", () => {
+      expect(() => rig().jobs.withdrawHeld()).not.toThrow();
+    });
+  });
 });
