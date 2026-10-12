@@ -32,6 +32,8 @@ const AUTOMATIC_RESOLUTION =
 
 const UNCONFIRMED_PRINT = "La impresora volvió a responder pero no confirmó la impresión.";
 
+const PRINT_FROM_HISTORY = "Imprimilo desde el historial de ventas.";
+
 function retryCopyText(copy: ReceiptCopyShown): string {
   return copy.kind === "original"
     ? "El reintento sale como original."
@@ -62,8 +64,7 @@ const FAILURES: Record<FailedStanding, FailurePresentation> = {
   },
   withdrawn: {
     printerState: "Cambiada",
-    title: "El ticket se retiró de la impresora anterior",
-    help: (copy) => `No va a salir en ella. ${retryCopyText(copy)}`,
+    help: () => PRINT_FROM_HISTORY,
   },
   printer_not_configured: {
     printerState: "Sin configurar",
@@ -73,7 +74,7 @@ const FAILURES: Record<FailedStanding, FailurePresentation> = {
   },
   failed: {
     printerState: undefined,
-    help: () => "Imprimilo desde el historial de ventas.",
+    help: () => PRINT_FROM_HISTORY,
   },
 };
 
@@ -146,7 +147,6 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
   }
 
   if (receipt.status === "loaded" && failedStanding !== undefined) {
-    const retryOffered = failedStanding === "retry_offered" || failedStanding === "withdrawn";
     const changePrinter = mayChangePrinter ? (
       <Button
         variant="secondary"
@@ -170,7 +170,7 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
         contextTone="error"
         title="No se pudo imprimir el ticket"
         footer={
-          retryOffered ? (
+          failedStanding === "retry_offered" ? (
             <>
               <Button variant="secondary" size="large" icon={<ArrowRight />} onPress={onNewSale}>
                 Seguir vendiendo
@@ -213,7 +213,7 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
             description={failure.help(copy)}
             {...(failure.title === undefined ? {} : { title: failure.title })}
           />
-          {notice === undefined || !retryOffered ? null : (
+          {notice === undefined || failedStanding !== "retry_offered" ? null : (
             <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
           )}
         </div>

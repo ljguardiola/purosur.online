@@ -783,7 +783,9 @@ const rendererRequestDeps: RendererRequestDeps = {
             {
               database: localDatabase,
               gate: actionGate,
-              receiptPrinterChanged: () => receiptPrinting.withdrawHeldReceipts?.(),
+              replacement: {
+                receiptPrinterReplaced: () => receiptPrinting.withdrawHeldReceipts?.(),
+              },
             },
             address,
           ),
