@@ -223,9 +223,9 @@ describe("withdrawOpeningCount", () => {
     const outcome = await withdraw(store, withdrawal());
 
     expect(outcome).toMatchObject({ kind: "withdrawn", supersededByCountId: countId });
-    expect(store.snapshot().movements.find((movement) => movement.id === "withdrawal-a")).toMatchObject(
-      { delta: -6_000, supersededByCountId: countId },
-    );
+    expect(
+      store.snapshot().movements.find((movement) => movement.id === "withdrawal-a"),
+    ).toMatchObject({ delta: -6_000, supersededByCountId: countId });
     expect(store.balanceOf(YERBA)).toBe(6_000);
     expect(lotOf(store, "movement-a")).toMatchObject({ remaining: 6_000, withdrawn: true });
   });
@@ -246,9 +246,7 @@ describe("withdrawOpeningCount", () => {
     store.failingWrites.add("markOpeningCountWithdrawn");
     const before = store.snapshot();
 
-    await expect(withdraw(store, withdrawal())).rejects.toThrow(
-      "markOpeningCountWithdrawn failed",
-    );
+    await expect(withdraw(store, withdrawal())).rejects.toThrow("markOpeningCountWithdrawn failed");
 
     expect(store.snapshot()).toEqual(before);
   });

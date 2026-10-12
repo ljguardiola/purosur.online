@@ -58,7 +58,10 @@ describe("applyOpeningCount", () => {
     store.seedBalance({ ...YERBA, quantity: 1_000 });
 
     await apply(store, line());
-    await apply(store, line({ movementId: "movement-b", productId: "product-harina", counted: 2_500 }));
+    await apply(
+      store,
+      line({ movementId: "movement-b", productId: "product-harina", counted: 2_500 }),
+    );
 
     expect(store.balanceOf(YERBA)).toBe(7_000);
     expect(store.balanceOf(HARINA)).toBe(2_500);
@@ -186,9 +189,9 @@ describe("applyOpeningCount", () => {
 
     await apply(store, line());
 
-    expect(store.snapshot().movements.find((movement) => movement.id === "movement-a")).toMatchObject(
-      { kind: "opening_count", delta: 6_000, supersededByCountId: countId },
-    );
+    expect(
+      store.snapshot().movements.find((movement) => movement.id === "movement-a"),
+    ).toMatchObject({ kind: "opening_count", delta: 6_000, supersededByCountId: countId });
     expect(store.balanceOf(YERBA)).toBe(0);
     expect(store.snapshot().lots).toMatchObject([{ originMovementId: "movement-a", remaining: 0 }]);
     expect(store.snapshot().allocations).toEqual([]);

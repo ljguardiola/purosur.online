@@ -1,22 +1,25 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
-import { lotValueCents } from "./lot-value.js";
 import { isReferenceUnitCost, referenceCostOf } from "./lot-reference-cost.js";
+import { lotValueCents } from "./lot-value.js";
 import { STOCK_QUANTITY_PER_UNIT } from "./stock-quantity.js";
 import { lotUnitCostCents } from "./unit-cost.js";
 
 describe("referenceCostOf", () => {
   it("is the typed cost for exactly one sale unit", () => {
-    expect(referenceCostOf(1_234)).toEqual({ totalCents: 1_234, quantity: STOCK_QUANTITY_PER_UNIT });
+    expect(referenceCostOf(1_234)).toEqual({
+      totalCents: 1_234,
+      quantity: STOCK_QUANTITY_PER_UNIT,
+    });
   });
 
   it("shows back as the typed cost per sale unit", () => {
     fc.assert(
       fc.property(fc.integer({ min: 1, max: MAX_CASH_AMOUNT_CENTS }), (cents) => {
-        expect(
-          lotUnitCostCents({ cost: referenceCostOf(cents), costIncomplete: false }),
-        ).toBe(cents);
+        expect(lotUnitCostCents({ cost: referenceCostOf(cents), costIncomplete: false })).toBe(
+          cents,
+        );
       }),
     );
   });
@@ -25,12 +28,12 @@ describe("referenceCostOf", () => {
     expect(
       lotValueCents({ remaining: 2_500, cost: referenceCostOf(333), costIncomplete: false }),
     ).toBe(833);
-    expect(
-      lotValueCents({ remaining: 1, cost: referenceCostOf(333), costIncomplete: false }),
-    ).toBe(0);
-    expect(
-      lotValueCents({ remaining: 2, cost: referenceCostOf(333), costIncomplete: false }),
-    ).toBe(1);
+    expect(lotValueCents({ remaining: 1, cost: referenceCostOf(333), costIncomplete: false })).toBe(
+      0,
+    );
+    expect(lotValueCents({ remaining: 2, cost: referenceCostOf(333), costIncomplete: false })).toBe(
+      1,
+    );
   });
 });
 
