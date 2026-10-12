@@ -18,7 +18,8 @@ function found(standing: Standing, { printed = false } = {}): ReceiptPrintStatus
 type Amounts =
   | { total: number; tendered: number; change: number }
   | { total: number; method: "TRANSFER"; amount: number }
-  | { total: number; method: "QR"; amount: number };
+  | { total: number; method: "QR"; amount: number }
+  | { total: number; method: "POINT"; amount: number };
 
 type Overrides = {
   readReceiptStatus?: () => Promise<ReceiptPrintStatusOutcome>;
@@ -118,6 +119,20 @@ describe("SaleCompletedModal", () => {
       .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
       .toBeVisible();
     await expect.element(screen.getByText("QR de Mercado Pago", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("$ 3.000,00")).toBeVisible();
+    await expect.element(screen.getByText("$ 4.760,00")).toBeVisible();
+    await expect.element(screen.getByText("VUELTO", { exact: true })).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Efectivo entregado")).not.toBeInTheDocument();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("says there is no change to hand over and shows what the integrated terminal charged", async () => {
+    const { screen } = await renderModal({ total: 476_000, method: "POINT", amount: 300_000 });
+
+    await expect
+      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
+      .toBeVisible();
+    await expect.element(screen.getByText("Point integrada", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("$ 3.000,00")).toBeVisible();
     await expect.element(screen.getByText("$ 4.760,00")).toBeVisible();
     await expect.element(screen.getByText("VUELTO", { exact: true })).not.toBeInTheDocument();
