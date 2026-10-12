@@ -34,11 +34,17 @@ const LOOK_UP_MIRROR_COMMAND = [
   '  echo "mirrored=false" >> "$GITHUB_OUTPUT"',
   "fi",
 ].join("\n");
+const COPY_RETRY_DELAYS_SECONDS = [0, 15, 30, 60];
+const COPY_ATTEMPT_SECONDS = 300;
+const COPY_RETRY_SECONDS = COPY_RETRY_DELAYS_SECONDS.reduce(
+  (total, delay) => total + delay + COPY_ATTEMPT_SECONDS,
+  0,
+);
 const COPY_MIRROR_COMMAND = [
   SKOPEO_SIGN_IN_TO_GHCR,
-  "for delay in 0 15 30 60; do",
+  `for delay in ${COPY_RETRY_DELAYS_SECONDS.join(" ")}; do`,
   '  sleep "$delay"',
-  `  timeout 300 skopeo copy --all --preserve-digests "docker://\${SOURCE_IMAGE%%:*}@\${SOURCE_IMAGE#*@}" "docker://\${POSTGRES_IMAGE%@*}" && exit 0`,
+  `  timeout ${COPY_ATTEMPT_SECONDS} skopeo copy --all --preserve-digests "docker://\${SOURCE_IMAGE%%:*}@\${SOURCE_IMAGE#*@}" "docker://\${POSTGRES_IMAGE%@*}" && exit 0`,
   "done",
   "exit 1",
 ].join("\n");
@@ -623,6 +629,18 @@ function postgresMirrorViolations({ image, doc, jobSteps, pullStep }) {
       `verify.yml's ${POSTGRES_COPY_JOB} job does not copy to \`${image}\` with its own token, retrying`,
     );
     return violations;
+  }
+  for (const [label, node] of [
+    ["job", copyJob],
+    ["step", copyStep],
+  ]) {
+    if (!mapHas(doc, node, "timeout-minutes")) continue;
+    const minutes = resolveScalar(doc, mapGet(doc, node, "timeout-minutes"));
+    if (!(Number(minutes) * 60 >= COPY_RETRY_SECONDS)) {
+      violations.push(
+        `verify.yml's ${POSTGRES_COPY_JOB} ${label} allows ${minutes} minutes, less than the ${COPY_RETRY_SECONDS} seconds its copy attempts and their delays can take`,
+      );
+    }
   }
   const source = String(stepEnv(doc, copyStep, "SOURCE_IMAGE"));
   if (digestOf(image) !== undefined && digestOf(source) !== digestOf(image)) {

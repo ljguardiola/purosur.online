@@ -154,11 +154,12 @@ jobs:
     needs: [postgres-image]
     if: ${{ needs.postgres-image.outputs.mirrored == 'false' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 25
     permissions:
       packages: write
     steps:
       - name: Copy the cloud's Postgres image to ghcr.io
+        timeout-minutes: 23
         run: |
           echo "$GITHUB_TOKEN" | skopeo login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           for delay in 0 15 30 60; do
