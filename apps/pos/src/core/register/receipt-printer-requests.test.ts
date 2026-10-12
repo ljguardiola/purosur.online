@@ -4,7 +4,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
-import { createActionGate } from "../sessions/action-gate";
+import { type ActionGate, createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import {
@@ -18,21 +18,31 @@ const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
-let changes: number;
+let replacements: number;
+
+function gate(): ActionGate {
+  return createActionGate({
+    store: new SqliteSignInStore(database),
+    signedInPerson,
+    readPepper: async () => PEPPER,
+    hashPin: async () => "hash-of-a-pin",
+    now: () => new Date("2026-10-08T12:00:00.000Z"),
+  });
+}
+
+function readDeps(): { database: LocalDatabase; gate: ActionGate } {
+  return { database, gate: gate() };
+}
 
 function deps(): ReceiptPrinterRequestDeps {
   return {
     database,
-    receiptPrinterChanged: () => {
-      changes += 1;
+    gate: gate(),
+    replacement: {
+      receiptPrinterReplaced: () => {
+        replacements += 1;
+      },
     },
-    gate: createActionGate({
-      store: new SqliteSignInStore(database),
-      signedInPerson,
-      readPepper: async () => PEPPER,
-      hashPin: async () => "hash-of-a-pin",
-      now: () => new Date("2026-10-08T12:00:00.000Z"),
-    }),
   };
 }
 
@@ -62,7 +72,7 @@ beforeEach(() => {
   addPerson("cashier", ["sell_and_charge"]);
   signedInPerson = createSignedInPerson();
   signedInPerson.set("installer");
-  changes = 0;
+  replacements = 0;
 });
 
 afterEach(() => {
@@ -71,13 +81,13 @@ afterEach(() => {
 
 describe("reading the receipt printer", () => {
   it("answers not_configured while no address is saved", async () => {
-    expect(await readReceiptPrinterFor(deps())).toEqual({ kind: "not_configured" });
+    expect(await readReceiptPrinterFor(readDeps())).toEqual({ kind: "not_configured" });
   });
 
   it("answers the saved address", async () => {
     await setReceiptPrinterFor(deps(), "10.10.10.2:9100");
 
-    expect(await readReceiptPrinterFor(deps())).toEqual({
+    expect(await readReceiptPrinterFor(readDeps())).toEqual({
       kind: "configured",
       address: { host: "10.10.10.2", port: 9100 },
     });
@@ -86,13 +96,13 @@ describe("reading the receipt printer", () => {
   it("answers not_signed_in when nobody is signed in", async () => {
     signedInPerson.clear();
 
-    expect(await readReceiptPrinterFor(deps())).toEqual({ kind: "not_signed_in" });
+    expect(await readReceiptPrinterFor(readDeps())).toEqual({ kind: "not_signed_in" });
   });
 
   it("answers lacks_permission to a person who may not configure the printer", async () => {
     signedInPerson.set("cashier");
 
-    expect(await readReceiptPrinterFor(deps())).toEqual({ kind: "lacks_permission" });
+    expect(await readReceiptPrinterFor(readDeps())).toEqual({ kind: "lacks_permission" });
   });
 });
 
@@ -136,24 +146,32 @@ describe("setting the receipt printer", () => {
     expect(storedAddress()).toBeUndefined();
   });
 
-  it("announces that the printer changed once the address is saved", async () => {
+  it("announces the replaced printer once a different address is saved", async () => {
     await setReceiptPrinterFor(deps(), "10.10.10.2");
+    await setReceiptPrinterFor(deps(), "10.10.10.3");
 
-    expect(changes).toBe(1);
+    expect(replacements).toBe(2);
   });
 
-  it("announces no change when the address is invalid", async () => {
+  it("announces no replacement when the address saved is the one already stored", async () => {
+    await setReceiptPrinterFor(deps(), "10.10.10.2");
+    await setReceiptPrinterFor(deps(), " 10.10.10.2 ");
+
+    expect(replacements).toBe(1);
+  });
+
+  it("announces no replacement when the address is invalid", async () => {
     await setReceiptPrinterFor(deps(), "10.10.10.2:99999");
 
-    expect(changes).toBe(0);
+    expect(replacements).toBe(0);
   });
 
-  it("announces no change when nobody is signed in or the person may not configure the printer", async () => {
+  it("announces no replacement when nobody is signed in or the person may not configure the printer", async () => {
     signedInPerson.clear();
     await setReceiptPrinterFor(deps(), "10.10.10.2");
     signedInPerson.set("cashier");
     await setReceiptPrinterFor(deps(), "10.10.10.2");
 
-    expect(changes).toBe(0);
+    expect(replacements).toBe(0);
   });
 });
