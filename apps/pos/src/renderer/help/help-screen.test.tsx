@@ -1,9 +1,7 @@
 import { defineHelp } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { CircleHelp, History } from "lucide-react";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import type { ActionEntry } from "../shell/action-entries";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { render } from "../shell/test-support/render-with-router";
 import type { HelpScreenProps } from "./help-screen";
@@ -13,19 +11,6 @@ const PERSON: SignedInPerson = {
   user_id: "u1",
   first_name: "Ada",
   abilities: ["read_register_help", "view_sales_history"],
-};
-
-const HELP_ENTRY: ActionEntry = {
-  label: "Ayuda",
-  icon: CircleHelp,
-  ability: "read_register_help",
-  to: "/help",
-};
-const HISTORY_ENTRY: ActionEntry = {
-  label: "Historial",
-  icon: History,
-  ability: "view_sales_history",
-  to: "/sign-in",
 };
 
 const HELP = defineHelp("es-AR", {
@@ -67,13 +52,7 @@ async function renderScreen({
   await page.viewport(1280, 900);
   onTestFinished(() => page.viewport(414, 896));
   const screen = await render(
-    <HelpScreen
-      person={PERSON}
-      registerName={registerName}
-      help={help}
-      entries={[HELP_ENTRY, HISTORY_ENTRY]}
-      signOut={signOut}
-    />,
+    <HelpScreen person={PERSON} registerName={registerName} help={help} signOut={signOut} />,
   );
   return { screen, signOut };
 }

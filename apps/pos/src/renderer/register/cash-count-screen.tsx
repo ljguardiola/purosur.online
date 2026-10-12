@@ -1,4 +1,5 @@
 import type { CashBalance, CashCountPreview, CloseCashSessionOutcome } from "@purosur/contracts";
+import type { RegisterAbility } from "@purosur/domain";
 import { Button, Card, InlineNotice, ScreenHeader, useRequestForm } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Lock, TriangleAlert, UserX } from "lucide-react";
@@ -30,6 +31,7 @@ const FAILED: Notice = { title: "No se pudo cerrar la caja. Probá de nuevo.", i
 export type CashCountScreenProps = {
   sessionId: string;
   registerName: string | null;
+  abilities: readonly RegisterAbility[];
   lock: () => void;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
   loadCashCountPreview: (countedCash: number) => Promise<CashCountPreview | null | "unavailable">;
@@ -39,6 +41,7 @@ export type CashCountScreenProps = {
 export function CashCountScreen({
   sessionId,
   registerName,
+  abilities,
   lock,
   loadCashBalance,
   loadCashCountPreview,
@@ -105,7 +108,12 @@ export function CashCountScreen({
 
   return (
     <div className="flex h-full w-full bg-surface">
-      <OpenSessionRail registerName={registerName} lock={lock} current="cash" />
+      <OpenSessionRail
+        registerName={registerName}
+        lock={lock}
+        current="cash"
+        abilities={abilities}
+      />
       <form className="flex flex-1" noValidate onSubmit={handleSubmit}>
         <main className="flex flex-1 flex-col gap-4 p-8">
           <ScreenHeader eyebrow={registerName ?? undefined} title="Cerrar caja" />

@@ -14,15 +14,12 @@ import {
   useRequestForm,
   useTableModel,
 } from "@purosur/ui";
-import { House, Lock, TriangleAlert, Usb, UserX } from "lucide-react";
+import { Lock, TriangleAlert, Usb, UserX } from "lucide-react";
 import type { FormEvent } from "react";
 import { useState } from "react";
 import type { SerialDevicesToRegister } from "../platform/core-client";
-import type { ActionEntry } from "../shell/action-entries";
-import { entriesFor } from "../shell/action-entries";
-import { NavigationRail } from "../shell/navigation-rail";
+import { NoSessionRail } from "../shell/no-session-rail";
 import { OpenSessionRail } from "../shell/open-session-rail";
-import { SignOutModal } from "../shell/sign-out-modal";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import type { ShownSerialDevices } from "./register-queries";
 import { useRefreshSerialDevices, useSerialDevicesQuery } from "./register-queries";
@@ -54,7 +51,6 @@ export type SerialDevicesScreenProps = {
   person: SignedInPerson;
   registerName: string | null;
   sessionOpen: boolean;
-  entries: readonly ActionEntry[];
   signOut: () => void;
   readSerialDevices: () => Promise<ReadSerialDevicesOutcome>;
   registerSerialDevices: (
@@ -221,14 +217,12 @@ export function SerialDevicesScreen({
   person,
   registerName,
   sessionOpen,
-  entries,
   signOut,
   readSerialDevices,
   registerSerialDevices,
   onSessionInvalid,
   onSkip,
 }: SerialDevicesScreenProps) {
-  const [leaving, setLeaving] = useState(false);
   const [savedDescription, setSavedDescription] = useState<string>();
   const devices = useSerialDevicesQuery(readSerialDevices);
   const refreshDevices = useRefreshSerialDevices();
@@ -245,12 +239,7 @@ export function SerialDevicesScreen({
           abilities={person.abilities}
         />
       ) : (
-        <NavigationRail
-          entries={entriesFor(entries, person.abilities)}
-          current="/serial-devices"
-          home={{ label: "Inicio", icon: House, to: "/" }}
-          onSignOut={() => setLeaving(true)}
-        />
+        <NoSessionRail person={person} current="/serial-devices" signOut={signOut} />
       )}
       <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
         <ScreenHeader eyebrow={registerName ?? undefined} title="Balanza y lector" />
@@ -319,12 +308,6 @@ export function SerialDevicesScreen({
           onDismiss={() => setSavedDescription(undefined)}
         />
       )}
-      <SignOutModal
-        open={leaving}
-        firstName={person.first_name}
-        onClose={() => setLeaving(false)}
-        onSignOut={signOut}
-      />
     </div>
   );
 }

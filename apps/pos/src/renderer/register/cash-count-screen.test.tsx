@@ -392,6 +392,7 @@ describe("CashCountScreen", () => {
       <CashCountScreen
         sessionId="s1"
         registerName={null}
+        abilities={[]}
         lock={() => {}}
         loadCashBalance={() => new Promise(() => {})}
         loadCashCountPreview={answerPreview}
