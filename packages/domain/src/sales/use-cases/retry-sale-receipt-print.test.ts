@@ -50,25 +50,6 @@ describe("retrySaleReceiptPrint", () => {
     );
   });
 
-  it("prints the retry of a receipt withdrawn from the previous printer, as a duplicate", async () => {
-    const rig = receiptRig([attempted]);
-    rig.clock.set(ACKNOWLEDGED_AT);
-
-    const printing = retrySaleReceiptPrint(
-      { ...rig.ports, standings: standingsOf("withdrawn") },
-      { saleId: "sale-1" },
-      rig.watch,
-    );
-    await rig.printer.whenSent();
-    rig.printer.acknowledge();
-
-    expect(await printing).toEqual({
-      kind: "printed",
-      copy: { kind: "duplicate", orderNumber: 1 },
-    });
-    expect(rig.ledger.state.sales[0]?.reprints[0]?.reason).toEqual({ kind: "retry" });
-  });
-
   it("answers withdrawn and records nothing as printed when the printer withdraws the retry", async () => {
     const rig = receiptRig([attempted]);
 

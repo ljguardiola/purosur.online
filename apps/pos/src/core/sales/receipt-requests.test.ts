@@ -336,16 +336,6 @@ function jobsRunningUnwatched(
 }
 
 describe("retrying a sale's receipt print", () => {
-  it("starts a retry whose receipt the printer withdrew", async () => {
-    await printedAndOffered();
-    const withdrawn = { jobs: jobsRunningUnwatched("withdrawn"), printers: WITHDRAWING_PRINTERS };
-
-    expect(await retryReceiptPrintFor(deps(withdrawn), "sale-1")).toEqual({
-      kind: "started",
-      copy: { kind: "duplicate", order_number: 1 },
-    });
-  });
-
   it("is not offered while the print is in progress", async () => {
     await printCompletedSaleReceiptFor(deps(), "sale-1");
 

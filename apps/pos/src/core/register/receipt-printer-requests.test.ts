@@ -160,6 +160,15 @@ describe("setting the receipt printer", () => {
     expect(replacements).toBe(1);
   });
 
+  it("announces no replacement when the address saved reaches the printer already stored, with or without its port", async () => {
+    await setReceiptPrinterFor(deps(), "10.10.10.2");
+    await setReceiptPrinterFor(deps(), "10.10.10.2:9100");
+    await setReceiptPrinterFor(deps(), "10.10.10.2");
+
+    expect(replacements).toBe(1);
+    expect(storedAddress()).toEqual({ host: "10.10.10.2", port: null });
+  });
+
   it("announces no replacement when the address is invalid", async () => {
     await setReceiptPrinterFor(deps(), "10.10.10.2:99999");
 

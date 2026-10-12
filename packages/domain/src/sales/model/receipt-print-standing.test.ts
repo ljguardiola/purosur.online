@@ -250,7 +250,7 @@ describe("mayRetryReceiptPrint", () => {
     }
   });
 
-  it("allows the retry once the receipt was withdrawn", () => {
-    expect(mayRetryReceiptPrint("withdrawn")).toBe(true);
+  it("offers no retry once the receipt was withdrawn", () => {
+    expect(mayRetryReceiptPrint("withdrawn")).toBe(false);
   });
 });

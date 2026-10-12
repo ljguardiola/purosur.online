@@ -84,16 +84,29 @@ describe("setReceiptPrinterAddress", () => {
     expect(replacement.savesSeenAtEachReplacement).toEqual([1]);
   });
 
-  it("announces no replacement when the address saved is the one already stored", async () => {
-    const settings = new FakeReceiptPrinterSettings({ host: "Printer.Local", port: null });
+  it("announces no replacement when the settings hold the address's printer as the current one", async () => {
+    const settings = new FakeReceiptPrinterSettings(OTHER_ADDRESS);
     const replacement = new FakeReceiptPrinterReplacement(settings);
 
     const outcome = await setReceiptPrinterAddress(
       { settings, authority: granting(GRANT), replacement },
-      { address: OTHER_ADDRESS },
+      { address: { ...OTHER_ADDRESS } },
     );
 
     expect(outcome).toEqual({ kind: "saved", address: OTHER_ADDRESS });
+    expect(settings.saves).toBe(1);
     expect(replacement.savesSeenAtEachReplacement).toEqual([]);
+  });
+
+  it("announces the replaced printer whenever the settings do not hold the address's printer as the current one", async () => {
+    const settings = new FakeReceiptPrinterSettings({ host: "Printer.Local", port: null });
+    const replacement = new FakeReceiptPrinterReplacement(settings);
+
+    await setReceiptPrinterAddress(
+      { settings, authority: granting(GRANT), replacement },
+      { address: OTHER_ADDRESS },
+    );
+
+    expect(replacement.savesSeenAtEachReplacement).toEqual([1]);
   });
 });
