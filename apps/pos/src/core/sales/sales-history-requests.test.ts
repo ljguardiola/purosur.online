@@ -145,7 +145,7 @@ describe("the sales history", () => {
       rows: [
         {
           sale_id: "late",
-          occurred_at: "2026-10-08T15:00:00.000Z",
+          occurred_at: "2026-10-08T12:00:00.000-03:00",
           comprobante: {
             kind: "fiscal",
             document_type: "factura_c",
@@ -159,7 +159,7 @@ describe("the sales history", () => {
         },
         {
           sale_id: "early",
-          occurred_at: "2026-10-08T09:00:00.000Z",
+          occurred_at: "2026-10-08T06:00:00.000-03:00",
           comprobante: { kind: "none" },
           operation_number: 1,
           payment_methods: ["CASH"],
@@ -170,6 +170,16 @@ describe("the sales history", () => {
       total: 2,
       page_size: 50,
     });
+  });
+
+  it("answers each sale's time in Argentina time", async () => {
+    addSale({ id: "after-midnight", occurredAt: "2026-10-10T05:13:00.000Z", operationNumber: 1 });
+
+    const answer = await salesHistoryFor(deps(), ASK);
+
+    expect(answer.kind === "found" && answer.rows.map(({ occurred_at }) => occurred_at)).toEqual([
+      "2026-10-10T02:13:00.000-03:00",
+    ]);
   });
 
   it("shows a deferred sale with its non-fiscal comprobante", async () => {
@@ -267,7 +277,7 @@ describe("the detail of a sale of the history", () => {
       kind: "found",
       detail: {
         sale_id: "sale-1",
-        occurred_at: "2026-10-08T09:00:00.000Z",
+        occurred_at: "2026-10-08T06:00:00.000-03:00",
         total: 3000,
         comprobante: { kind: "fiscal", document_type: "factura_c", point_of_sale: 3, number: 1204 },
         operation_number: 482,
