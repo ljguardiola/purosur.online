@@ -12,6 +12,8 @@ const STATUS_QUERY = [0x10, 0x04, 0x02];
 const READY = 0x12;
 const COVER_OPEN = 0x16 | 0x20;
 const PAPER_OUT = 0x32;
+const ERROR = 0x52;
+const FEEDING = 0x1a;
 
 async function nextIoTurn(): Promise<void> {
   await new Promise<void>((resolve) => setImmediate(resolve));
@@ -357,6 +359,27 @@ describe("TcpReceiptPrinter reading the printer's byte stream", () => {
     expect(handed.calls).toBe(0);
     expect(socket.written).toEqual([]);
   });
+
+  it.each([
+    ["an error", ERROR],
+    ["paper fed by its feed button", FEEDING],
+  ])(
+    "reports not responding and writes nothing while the printer reports %s, then sends once it answers ready",
+    async (_cause, status) => {
+      const { sending, handed } = receiptToSend();
+      const ending = printer.print(observer.watch, sending);
+      const socket = connectedSocket();
+
+      socket.receive(status);
+      expect(observer.statuses).toEqual(["not_responding"]);
+      expect(handed.calls).toBe(0);
+      expect(socket.written).toEqual([]);
+
+      socket.receive(READY);
+      expect(await ending).toEqual({ kind: "sent" });
+      expect(handed.calls).toBe(1);
+    },
+  );
 
   it("writes nothing and is abandoned when aborted before a ready answer", async () => {
     const { sending, handed } = receiptToSend();
