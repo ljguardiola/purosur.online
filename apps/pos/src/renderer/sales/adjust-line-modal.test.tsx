@@ -6,10 +6,13 @@ import type {
   PreviewSaleLineAdjustmentOutcome,
   SignInUser,
 } from "@purosur/contracts";
+import { SummaryRow } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { render as renderReference } from "vitest-browser-react";
 import type { SignedInPerson } from "../shell/signed-in-person";
+import { expectDrawnLike } from "../shell/test-support/drawn-like";
 import { render } from "../shell/test-support/render-with-router";
 import { AdjustLineModal } from "./adjust-line-modal";
 import { deferred, SALE_OF_YERBA } from "./test-support/sale-screen";
@@ -494,6 +497,37 @@ describe("AdjustLineModal previewing the adjustment", () => {
     await expect.element(screen.getByText("− $ 476,00")).toBeVisible();
     await expect.element(screen.getByText("$ 4.284,00")).toBeVisible();
     expect(preview).toHaveBeenLastCalledWith("line-1", { kind: "PERCENT", value: 10 });
+  });
+
+  it("shows the summary as detail rows, the discount in the error tone and what the line is left at in the info tone", async () => {
+    const { screen } = await renderModal({ previewAdjustment: async () => TEN_PERCENT });
+    const reference = await renderReference(
+      <>
+        <SummaryRow label="Referencia de precio" value="$ 1,00" detail />
+        <SummaryRow label="Referencia de descuento" value="− $ 2,00" detail tone="error" />
+        <SummaryRow label="Referencia de total" value="$ 3,00" detail tone="info" />
+      </>,
+    );
+
+    await typeValue(screen, "Porcentaje de descuento", "10");
+
+    await expect.element(screen.getByText("− $ 476,00")).toBeVisible();
+    for (const [shown, drawnAs, context] of [
+      ["$ 2.380,00", "$ 1,00", "list price"],
+      ["− $ 476,00", "− $ 2,00", "discount"],
+      ["$ 4.284,00", "$ 3,00", "line total"],
+    ] as const) {
+      const value = screen.getByText(shown, { exact: true }).element();
+      const referenceValue = reference.getByText(drawnAs, { exact: true }).element();
+      expectDrawnLike(value, referenceValue, ["color", "fontSize", "fontWeight"], context);
+      expectDrawnLike(
+        value.previousElementSibling as Element,
+        referenceValue.previousElementSibling as Element,
+        ["color", "fontSize", "fontWeight"],
+        `${context} label`,
+      );
+    }
+    await reference.unmount();
   });
 
   it("asks again, in cents, when the amount of the discount is typed", async () => {
