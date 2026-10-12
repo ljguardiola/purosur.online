@@ -8,6 +8,11 @@ export {
   MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS,
   MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
 } from "./model/mercado-pago-order-charge-wait.js";
+export {
+  isValidPointOrderAmount,
+  MERCADO_PAGO_POINT_MINIMUM_ORDER_CENTS,
+  MERCADO_PAGO_POINT_ORDER_EXPIRY_MINUTES,
+} from "./model/mercado-pago-point-order.js";
 export { nonCashCharge } from "./model/non-cash-charge.js";
 export type { PaymentMethod } from "./model/payment.js";
 export {
@@ -16,6 +21,16 @@ export {
   holdsApprovedQrPayment,
   PAYMENT_METHODS,
 } from "./model/payment.js";
+export type {
+  PointTerminalAvailability,
+  QrAvailability,
+  RegisterPointTerminalAvailability,
+} from "./model/payment-method-availability.js";
+export {
+  POINT_TERMINAL_AVAILABILITIES,
+  pointTerminalAvailability,
+  qrAvailability,
+} from "./model/payment-method-availability.js";
 export { paymentRecord } from "./model/payment-record.js";
 export type {
   LatePaymentRefund,
