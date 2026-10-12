@@ -197,7 +197,9 @@ describe("recordPendingMercadoPagoPayment", () => {
 
     it("accepts exactly the terminal's minimum", () => {
       const store = ledger({
-        sales: [{ ...OPEN_SALE, lines: [{ ...OPEN_SALE.lines[0]!, lineTotal: 1500 }] }],
+        sales: [
+          { ...OPEN_SALE, lines: OPEN_SALE.lines.map((line) => ({ ...line, lineTotal: 1500 })) },
+        ],
       });
 
       expect(record(store, 1500, "cashier", "POINT")).toEqual({
