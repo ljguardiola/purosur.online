@@ -4,8 +4,8 @@ import type {
   WeighCountedProductOutcome,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { CountLineModalProps } from "./count-line-modal";
 import { CountLineModal } from "./count-line-modal";
@@ -34,6 +34,8 @@ async function renderModal({
   recordLine?: CountLineModalProps["recordLine"];
   weigh?: CountLineModalProps["weigh"];
 } = {}) {
+  await page.viewport(1280, 900);
+  onTestFinished(() => page.viewport(414, 896));
   const recording = vi.fn(recordLine);
   const weighing = vi.fn(weigh);
   const onRecorded = vi.fn();
@@ -119,7 +121,7 @@ describe("CountLineModal", () => {
     const { screen, recording } = await renderModal();
 
     await expect
-      .element(screen.getByText("La balanza no está disponible. Escribí el peso."))
+      .element(screen.getByText("La balanza no está disponible. Escribí el peso.").first())
       .toBeVisible();
     await typeCounted(screen, "2,5");
     await confirm(screen);
@@ -198,7 +200,9 @@ describe("CountLineModal", () => {
 
     await confirm(screen);
 
-    await expect.element(screen.getByText("Este producto ya no se puede contar.")).toBeVisible();
+    await expect
+      .element(screen.getByText("Este producto ya no se puede contar.").first())
+      .toBeVisible();
   });
 
   it("tells the person may no longer load the count", async () => {
@@ -211,7 +215,7 @@ describe("CountLineModal", () => {
     await confirm(screen);
 
     await expect
-      .element(screen.getByText("Ya no tenés permiso para cargar el inventario inicial."))
+      .element(screen.getByText("Ya no tenés permiso para cargar el inventario inicial.").first())
       .toBeVisible();
   });
 
@@ -225,7 +229,7 @@ describe("CountLineModal", () => {
     await confirm(screen);
 
     await expect
-      .element(screen.getByText("No se pudo guardar la línea. Probá de nuevo."))
+      .element(screen.getByText("No se pudo guardar la línea. Probá de nuevo.").first())
       .toBeVisible();
     await expect
       .element(screen.getByRole("textbox", { name: "Cantidad contada" }))
