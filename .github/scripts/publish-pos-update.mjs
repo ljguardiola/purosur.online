@@ -42,17 +42,18 @@ function digestsOf(path) {
   });
 }
 
-function objectUrl(bucket, key) {
-  const path = [bucket.name, ...key.split("/")].map(encodeURIComponent).join("/");
-  return `${bucket.endpoint.replace(/\/+$/, "")}/${path}`;
+export function objectUrl(bucket, key) {
+  const endpoint = new URL(bucket.endpoint);
+  const path = key.split("/").map(encodeURIComponent).join("/");
+  return `${endpoint.protocol}//${bucket.name}.${endpoint.host}/${path}`;
 }
 
 function failureOf(action, response) {
   return new Error(`${action} failed with status ${response.status}`);
 }
 
-async function readEntry(client, bucket, schema) {
-  const response = await client.fetch(objectUrl(bucket, ENTRY_KEY));
+async function readEntry(send, bucket, schema) {
+  const response = await send(objectUrl(bucket, ENTRY_KEY));
   if (response.status === 404) {
     return undefined;
   }
@@ -66,8 +67,8 @@ async function readEntry(client, bucket, schema) {
   return parsed.data;
 }
 
-async function putObject(client, bucket, key, { body, contentType, contentLength, sha256 }) {
-  const response = await client.fetch(objectUrl(bucket, key), {
+async function putObject(send, bucket, key, { body, contentType, contentLength, sha256 }) {
+  const response = await send(objectUrl(bucket, key), {
     method: "PUT",
     body,
     duplex: "half",
@@ -82,7 +83,12 @@ async function putObject(client, bucket, key, { body, contentType, contentLength
   }
 }
 
-export async function publishUpdate({ installerDir, version: versionText, bucket }) {
+export async function publishUpdate({
+  installerDir,
+  version: versionText,
+  bucket,
+  fetch: fetchRequest = fetch,
+}) {
   const { registerReleaseEntrySchema, registerVersionSchema } = await import(
     "../../packages/contracts/src/register/register-update.ts"
   );
@@ -105,7 +111,9 @@ export async function publishUpdate({ installerDir, version: versionText, bucket
     retries: 0,
   });
 
-  const published = await readEntry(client, bucket, registerReleaseEntrySchema);
+  const send = async (url, init) => fetchRequest(await client.sign(url, init));
+
+  const published = await readEntry(send, bucket, registerReleaseEntrySchema);
   if (published && !isNewerRegisterVersion(published.version, parsedVersion.data)) {
     return {
       published: false,
@@ -115,7 +123,7 @@ export async function publishUpdate({ installerDir, version: versionText, bucket
 
   const digests = await digestsOf(installerPath);
   try {
-    await putObject(client, bucket, `${UPDATES_PREFIX}/${versionText}/${file}`, {
+    await putObject(send, bucket, `${UPDATES_PREFIX}/${versionText}/${file}`, {
       body: Readable.toWeb(createReadStream(installerPath)),
       contentType: "application/octet-stream",
       contentLength: digests.size,
@@ -131,7 +139,7 @@ export async function publishUpdate({ installerDir, version: versionText, bucket
     size: digests.size,
     sha512: digests.sha512,
   });
-  await putObject(client, bucket, ENTRY_KEY, {
+  await putObject(send, bucket, ENTRY_KEY, {
     body: entry,
     contentType: "application/json",
     contentLength: Buffer.byteLength(entry),
