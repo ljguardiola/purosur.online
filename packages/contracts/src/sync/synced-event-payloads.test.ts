@@ -479,12 +479,19 @@ describe("synced event payloads", () => {
       ["an amount tendered", { tendered: 5000 }],
       ["an authorizer", { authorized_by: "user-2" }],
       ["a confirmation", { confirmed_at: "2026-10-06T11:21:00.000Z" }],
-      ["the card's last digits", { card_last_digits: "4242" }],
-      ["the card's brand", { card_brand: "visa" }],
     ])("refuses a Point payment with %s", (_description, change) => {
       expect(accepts("sale_completed", 8, withPayments([{ ...POINT_PAYMENT, ...change }]))).toBe(
         false,
       );
+    });
+
+    it("drops whatever a Point payment says about the card that paid", () => {
+      const parsed = syncedEventPayloadSchema("sale_completed@8").parse(
+        withPayments([{ ...POINT_PAYMENT, card_last_digits: "4242", card_brand: "visa" }]),
+      );
+
+      expect(parsed.payments[0]).not.toHaveProperty("card_last_digits");
+      expect(parsed.payments[0]).not.toHaveProperty("card_brand");
     });
 
     it("refuses a QR payment with the Point provider", () => {
