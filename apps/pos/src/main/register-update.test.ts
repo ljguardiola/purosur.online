@@ -72,9 +72,7 @@ function setup(options: Options = {}) {
     fetch: async (url, init) => {
       requests.push({ url, headers: init?.headers });
       if (url.startsWith(`${CLOUD}/api/register/update`)) {
-        return (
-          options.checkResponse?.() ?? jsonResponse(200, availableAnswer())
-        );
+        return options.checkResponse?.() ?? jsonResponse(200, availableAnswer());
       }
       return (
         options.downloadResponse?.() ?? {
@@ -467,7 +465,9 @@ describe("createRegisterUpdater", () => {
       waits.shift()?.resolve();
       await Promise.all([first, second]);
 
-      expect(requests.filter((request) => request.url.includes("/api/register/update"))).toHaveLength(1);
+      expect(
+        requests.filter((request) => request.url.includes("/api/register/update")),
+      ).toHaveLength(1);
     });
 
     it("makes no further checks once an installer was launched", async () => {

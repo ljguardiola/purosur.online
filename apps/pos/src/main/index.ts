@@ -1,5 +1,8 @@
-import { readFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
+import { createWriteStream, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import * as Sentry from "@sentry/electron/main";
 import {
@@ -7,6 +10,7 @@ import {
   BrowserWindow,
   dialog,
   MessageChannelMain,
+  net,
   safeStorage,
   session,
   utilityProcess,
@@ -27,7 +31,9 @@ import { readDeviceCredentialsRequest } from "./device-credentials-messages";
 import { initializeErrorReporting } from "./error-reporting";
 import { localDataFolderFor } from "./local-data-folder";
 import { denyDisallowedNavigation, denyWindowOpen } from "./navigation-guard";
+import { createRegisterUpdater } from "./register-update";
 import { reportStartFailure } from "./start-failure";
+import { createSafeMomentAsker } from "./update-safe-moment-asker";
 import { showWhenReadyAndReviveRenderer } from "./window-lifecycle";
 import { createWindowOptions } from "./window-options";
 
@@ -51,6 +57,8 @@ const RESTART_POLICY = {
 };
 
 const CORE_READINESS_TIMEOUT_MS = 30_000;
+
+const SAFE_MOMENT_ANSWER_TIMEOUT_MS = 10_000;
 
 const DEFAULT_CORE_RETRY_INTERVAL_MS = 90_000;
 
@@ -182,6 +190,20 @@ function startRegister(settings: ChannelSettings): void {
       sendCoreStatusToRenderer();
     }
 
+    const safeMomentAsker = createSafeMomentAsker({
+      sendToCore: (message) => {
+        if (currentCoreProcess === undefined) {
+          return false;
+        }
+        currentCoreProcess.postMessage(message);
+        return true;
+      },
+      newRequestId: () => randomUUID(),
+      startTimeout: (run) => {
+        setTimeout(run, SAFE_MOMENT_ANSWER_TIMEOUT_MS);
+      },
+    });
+
     const supervisor = createCoreSupervisor({
       fork: (): SupervisedProcess => {
         const child = utilityProcess.fork(CORE_ENTRY, coreArguments, {
@@ -189,6 +211,7 @@ function startRegister(settings: ChannelSettings): void {
         });
         forwardCoreOutput(child, process.stdout, process.stderr);
         child.on("message", (message) => {
+          safeMomentAsker.handleCoreMessage(message);
           const request = readDeviceCredentialsRequest(message);
           if (request !== undefined) {
             child.postMessage(answerCoreCredentialsRequest(deviceCredentials, request));
@@ -231,6 +254,65 @@ function startRegister(settings: ChannelSettings): void {
     // Stopping first keeps the core's quit-triggered exit from being taken for a crash and
     // relaunched while the window is going away.
     app.on("before-quit", () => supervisor.stop());
+
+    const pendingUpdateFolder = join(app.getPath("userData"), "pending-update");
+    createRegisterUpdater({
+      isPackaged: app.isPackaged,
+      cloudUrl: settings.cloudUrl,
+      installedVersion: app.getVersion(),
+      readDeviceToken: () => deviceCredentials.read()?.device_token,
+      fetch: async (url, init) => {
+        const response = await net.fetch(url, init);
+        return {
+          status: response.status,
+          json: () => response.json(),
+          body: response.body === null ? null : Readable.fromWeb(response.body),
+        };
+      },
+      files: {
+        clearPending: async () => {
+          rmSync(pendingUpdateFolder, { recursive: true, force: true });
+          mkdirSync(pendingUpdateFolder, { recursive: true });
+        },
+        pathOf: (name) => join(pendingUpdateFolder, name),
+        open: async (name) => {
+          const stream = createWriteStream(join(pendingUpdateFolder, name));
+          return {
+            write: (chunk) =>
+              new Promise<void>((resolve, reject) => {
+                stream.write(chunk, (error) => (error ? reject(error) : resolve()));
+              }),
+            close: () => new Promise<void>((resolve) => stream.end(resolve)),
+          };
+        },
+        remove: async (name) => rmSync(join(pendingUpdateFolder, name), { force: true }),
+      },
+      createHash: () => {
+        const hash = createHash("sha512");
+        return {
+          update: (chunk) => {
+            hash.update(chunk);
+          },
+          digestBase64: () => hash.digest("base64"),
+        };
+      },
+      wait: (ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
+      coreStatus: () => coreStatus,
+      setCoreStatus,
+      askSafeMoment: () => safeMomentAsker.ask(),
+      releaseHold: () => currentCoreProcess?.postMessage({ type: "update-hold-release" }),
+      spawnInstaller: (path, args) =>
+        new Promise<void>((resolve, reject) => {
+          const installer = spawn(path, [...args], { detached: true, stdio: "ignore" });
+          installer.once("error", reject);
+          installer.once("spawn", () => {
+            installer.unref();
+            resolve();
+          });
+        }),
+      quit: () => app.quit(),
+      report: (error) => Sentry.captureException(error),
+    }).start();
 
     window.webContents.on("did-finish-load", () => {
       rendererHasLoadedOnce = true;
