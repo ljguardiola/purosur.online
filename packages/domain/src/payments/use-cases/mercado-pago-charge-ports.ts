@@ -44,11 +44,13 @@ export type MercadoPagoChargeOrderAnswer =
 
 export type MercadoPagoChargeOrderReading =
   | { kind: "read"; state: PaymentTransactionState }
+  | { kind: "not_recorded" }
   | { kind: "unreachable" };
 
 export type MercadoPagoChargeOrderCancellation =
   | { kind: "answered"; state: PaymentTransactionState }
   | { kind: "cancel_on_terminal" }
+  | { kind: "not_recorded" }
   | { kind: "unreachable" };
 
 export interface MercadoPagoChargeOrders {

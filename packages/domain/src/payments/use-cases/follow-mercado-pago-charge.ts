@@ -29,6 +29,10 @@ export async function followMercadoPagoCharge<Refusal, Settlement>(
   }
 
   const reading = await orders.readOrder(paymentTransactionId);
+  if (reading.kind === "not_recorded") {
+    charges.recordEnded(paymentTransactionId, "CANCELLED");
+    return { kind: charge.method === "POINT" ? "closed" : "wait_over" };
+  }
   if (reading.kind === "read") {
     const { state } = reading;
     if (state === "APPROVED") {

@@ -25,6 +25,10 @@ export async function abandonMercadoPagoCharge<Refusal, Settlement, ReplacementR
   }
 
   const cancellation = await orders.cancelOrder(paymentTransactionId);
+  if (cancellation.kind === "not_recorded") {
+    charges.recordEnded(paymentTransactionId, "CANCELLED");
+    return { kind: "cancelled" };
+  }
   if (cancellation.kind === "answered") {
     const { state } = cancellation;
     if (state === "APPROVED") {

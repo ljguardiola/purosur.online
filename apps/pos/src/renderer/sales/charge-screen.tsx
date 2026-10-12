@@ -68,11 +68,10 @@ function stepOf(method: ChargeMethod): Step {
   }
 }
 
-function followedChargeStep(chosen: Step, sale: OpenSale | undefined): Step {
-  const charge = chosen.name === "methods" ? sale?.mercado_pago_charge_in_progress : undefined;
-  if (sale === undefined || charge === undefined || charge === null) {
-    return chosen;
-  }
+function followedChargeStep(
+  sale: OpenSale,
+  charge: NonNullable<OpenSale["mercado_pago_charge_in_progress"]>,
+): Step {
   const order = {
     kind: "order_shown",
     payment_transaction_id: charge.payment_transaction_id,
@@ -135,7 +134,7 @@ export function ChargeScreen({
     read: paymentMethodAvailability,
   });
   const refreshAvailability = useRefreshPaymentMethodAvailability(sessionId, person.user_id);
-  const [chosenStep, setStep] = useState<Step>({ name: "methods" });
+  const [step, setStep] = useState<Step>({ name: "methods" });
   const [notice, setNotice] = useState<"cancelled">();
 
   function backToSale() {
@@ -156,7 +155,11 @@ export function ChargeScreen({
     answer.charge_refusal !== null
       ? undefined
       : answer;
-  const step = followedChargeStep(chosenStep, chargeable);
+  const chargeInProgress =
+    step.name === "methods" ? chargeable?.mercado_pago_charge_in_progress : undefined;
+  if (chargeable !== undefined && chargeInProgress !== undefined && chargeInProgress !== null) {
+    setStep(followedChargeStep(chargeable, chargeInProgress));
+  }
   const saleKept =
     step.name === "completed" || step.name === "qr-wait" || step.name === "point-wait";
   const nothingToCharge = answer !== undefined && chargeable === undefined && !saleKept;

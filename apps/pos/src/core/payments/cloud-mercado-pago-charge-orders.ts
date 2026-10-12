@@ -27,6 +27,11 @@ export interface CloudMercadoPagoChargeOrdersDeps {
 
 const ORDERS_PATH = "/api/payments/mercado-pago/orders";
 const UNREACHABLE = { kind: "unreachable" } as const;
+const NOT_RECORDED = { kind: "not_recorded" } as const;
+
+function isNotRecorded(response: CloudResponse): boolean {
+  return response.kind === "error" && response.error.code === "not_found";
+}
 
 function orderAnswerOf(
   response: CloudResponse,
@@ -54,6 +59,9 @@ function orderReadingOf(
   response: CloudResponse,
   paymentTransactionId: string,
 ): MercadoPagoChargeOrderReading {
+  if (isNotRecorded(response)) {
+    return NOT_RECORDED;
+  }
   if (response.kind !== "ok") {
     return UNREACHABLE;
   }
@@ -68,6 +76,9 @@ function orderCancellationOf(
   response: CloudResponse,
   paymentTransactionId: string,
 ): MercadoPagoChargeOrderCancellation {
+  if (isNotRecorded(response)) {
+    return NOT_RECORDED;
+  }
   if (response.kind !== "ok") {
     return UNREACHABLE;
   }
