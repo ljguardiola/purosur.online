@@ -23,3 +23,8 @@ export const mercadoPagoPaymentSchema = z.object({
   expires_at: z.iso.datetime(),
 });
 export type MercadoPagoPaymentBody = z.output<typeof mercadoPagoPaymentSchema>;
+
+export const mercadoPagoCancellationSchema = mercadoPagoPaymentSchema.extend({
+  cancel_on_terminal: z.boolean(),
+});
+export type MercadoPagoCancellationBody = z.output<typeof mercadoPagoCancellationSchema>;
