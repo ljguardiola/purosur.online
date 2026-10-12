@@ -290,6 +290,8 @@ function alertTitle(alert: AlertDetail): string {
       return alertKindDescription(alert.kind);
     case "late_payment_refund":
       return "Reembolso pendiente por un pago tardío";
+    case "refund_task":
+      return "Reembolso pendiente de confirmar";
   }
 }
 
@@ -354,6 +356,7 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "register_silent":
     case "sales_denied":
     case "late_payment_refund":
+    case "refund_task":
       return "";
   }
 }
@@ -387,6 +390,12 @@ const CLOSING_NOTES: Record<AlertDetail["closing"], string | null> = {
   with_its_refund: "Se cierra cuando su reembolso se marca como hecho o se descarta.",
   by_hand: "No se cierra sola: se cierra a mano después de revisarla.",
 };
+
+const REFUND_TASK_CLOSING_NOTE = "Se cierra cuando su reembolso se marca como hecho.";
+
+function closingNote(alert: AlertDetail): string | null {
+  return alert.kind === "refund_task" ? REFUND_TASK_CLOSING_NOTE : CLOSING_NOTES[alert.closing];
+}
 
 function AlertDescription({ alert }: { alert: AlertDetail }) {
   if (alert.kind === "fiscal_rejected") {
@@ -614,8 +623,8 @@ function OpenAlertDetailModal({
                 ))}
               </div>
             </div>
-            {alert.open && CLOSING_NOTES[alert.closing] !== null ? (
-              <p className="text-text-subtle text-detail">{CLOSING_NOTES[alert.closing]}</p>
+            {alert.open && closingNote(alert) !== null ? (
+              <p className="text-text-subtle text-detail">{closingNote(alert)}</p>
             ) : null}
           </>
         ) : null}

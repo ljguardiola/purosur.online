@@ -936,7 +936,9 @@ test("summarizes the refund of a cancelled sale left pending by its method and a
     )
     .toBeVisible();
   await expect.element(row.getByText(/hacerlo cuanto antes/)).toBeVisible();
-  await expect.element(row.getByText("Transferencia de $ 12.400,00", { exact: true })).toBeVisible();
+  await expect
+    .element(row.getByText("Transferencia de $ 12.400,00", { exact: true }))
+    .toBeVisible();
   expect(row.getByText(/3f2b8c1e/).query()).toBeNull();
 });
 

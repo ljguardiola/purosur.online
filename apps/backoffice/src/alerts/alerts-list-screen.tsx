@@ -21,6 +21,7 @@ import { deepEqual } from "@tanstack/react-router";
 import { Bell, Eye, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { refundMethodLabel } from "../platform/refund-method-label";
 import type { CloudData } from "../platform/use-cloud-query";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -85,6 +86,13 @@ function localSubjectOf(alert: AlertSummary): LocalAlertSubject | undefined {
       : { kind: alert.kind, reason: alert.salesDeniedReason };
   }
   return { kind: alert.kind };
+}
+
+function alertScopeCell(alert: AlertSummary, scopeDisplay: string): string {
+  if (alert.kind === "refund_task" && alert.refundAmount !== null && alert.refundMethod !== null) {
+    return `${refundMethodLabel(alert.refundMethod)} de ${formatCents(alert.refundAmount)}`;
+  }
+  return alertScopeLabel(alert.scopeKind, scopeDisplay);
 }
 
 function alertRowDescription(alert: AlertSummary): string {
@@ -199,7 +207,7 @@ export function AlertsListScreen({
       id: "scope",
       header: "Alcance",
       render: (item: AlertSummary) =>
-        item.scopeDisplay === null ? "—" : alertScopeLabel(item.scopeKind, item.scopeDisplay),
+        item.scopeDisplay === null ? "—" : alertScopeCell(item, item.scopeDisplay),
     }),
     dataColumn({
       id: "openedAt",
