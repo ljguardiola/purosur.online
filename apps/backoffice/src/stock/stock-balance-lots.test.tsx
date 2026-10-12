@@ -58,3 +58,51 @@ test("shows a technical lot as Técnico, from the product's sales without lots a
     "Técnico—Ventas sin lotes del producto− 4 uSin costo—",
   );
 });
+
+test("shows a lot of the initial count as Inventario inicial, costed and valued like a purchase lot", async () => {
+  const counted = {
+    ...honey,
+    lots: [
+      {
+        id: "lot-initial",
+        lotNumber: null,
+        expiresOn: null,
+        technical: false,
+        remaining: 24_000,
+        valueCents: 13_056_000,
+        unitCostCents: 544_000,
+        origin: { kind: "initial_count" as const },
+      },
+    ],
+  };
+  const screen = await renderLots(counted);
+
+  const lot = screen.getByRole("table", { name: `Lotes de ` });
+  expect(lot.getByRole("row").nth(1).element().textContent).toBe(
+    "——Inventario inicial24 u$ 5.440,00$ 130.560,00",
+  );
+});
+
+test("shows an initial count lot with no cost as Sin costo", async () => {
+  const counted = {
+    ...honey,
+    lots: [
+      {
+        id: "lot-initial",
+        lotNumber: null,
+        expiresOn: null,
+        technical: false,
+        remaining: 24_000,
+        valueCents: null,
+        unitCostCents: null,
+        origin: { kind: "initial_count" as const },
+      },
+    ],
+  };
+  const screen = await renderLots(counted);
+
+  const lot = screen.getByRole("table", { name: `Lotes de ` });
+  expect(lot.getByRole("row").nth(1).element().textContent).toBe(
+    "——Inventario inicial24 uSin costo—",
+  );
+});
