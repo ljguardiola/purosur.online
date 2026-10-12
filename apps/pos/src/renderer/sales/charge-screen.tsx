@@ -8,7 +8,6 @@ import type {
   OpenSale,
   ReceiptPrintStatusOutcome,
   RegisterStatus,
-  RetryReceiptPrintOutcome,
   StartMercadoPagoQrChargeOutcome,
 } from "@purosur/contracts";
 import {
@@ -100,7 +99,6 @@ export type ChargeScreenProps = {
     paymentTransactionId: string,
   ) => Promise<AbandonMercadoPagoQrChargeOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
-  retryReceiptPrint: (saleId: string) => Promise<RetryReceiptPrintOutcome>;
   onSessionInvalid: () => void;
 };
 
@@ -118,7 +116,6 @@ export function ChargeScreen({
   followMercadoPagoQrCharge,
   abandonMercadoPagoQrCharge,
   receiptPrintStatus,
-  retryReceiptPrint,
   onSessionInvalid,
 }: ChargeScreenProps) {
   const navigate = useNavigate();
@@ -284,7 +281,6 @@ export function ChargeScreen({
         <SaleCompletedModal
           saleId={step.sale.id}
           readReceiptStatus={receiptPrintStatus}
-          retryReceiptPrint={retryReceiptPrint}
           mayChangePrinter={mayChangePrinter}
           total={step.payment.charge.total}
           method="QR"
@@ -296,7 +292,6 @@ export function ChargeScreen({
         <SaleCompletedModal
           saleId={step.sale.id}
           readReceiptStatus={receiptPrintStatus}
-          retryReceiptPrint={retryReceiptPrint}
           mayChangePrinter={mayChangePrinter}
           total={step.payment.charge.total}
           tendered={step.payment.charge.tendered}
@@ -308,7 +303,6 @@ export function ChargeScreen({
         <SaleCompletedModal
           saleId={step.sale.id}
           readReceiptStatus={receiptPrintStatus}
-          retryReceiptPrint={retryReceiptPrint}
           mayChangePrinter={mayChangePrinter}
           total={step.payment.charge.total}
           method="TRANSFER"

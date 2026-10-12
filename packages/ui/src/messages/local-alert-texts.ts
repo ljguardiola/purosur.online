@@ -58,6 +58,13 @@ const FIXED_LOCAL_ALERT_TEXTS = {
     whatToDo:
       "Si ese reembolso ya se hizo por fuera del sistema, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes. El Administrador ya fue avisado.",
   },
+  fiscal_emission_stopped: {
+    title: "Emisión de facturas detenida",
+    meaning:
+      "Esta caja no puede emitir ningún comprobante fiscal por ahora, ni siquiera el de contingencia.",
+    whatToDo:
+      "Seguir vendiendo igual: se cobra la venta, se entrega al cliente el papel que indica que todavía no es la factura y que debe conservarlo, y la factura se emite sola más adelante. El Administrador ya fue avisado.",
+  },
 } satisfies Record<string, LocalAlertText>;
 
 export type LocalAlertKind = keyof typeof FIXED_LOCAL_ALERT_TEXTS | "sales_denied";

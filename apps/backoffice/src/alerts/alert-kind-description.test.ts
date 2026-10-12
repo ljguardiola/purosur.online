@@ -50,6 +50,12 @@ test("describes a document left without a clear answer from ARCA", () => {
   );
 });
 
+test("describes a register that can't issue fiscal documents", () => {
+  expect(alertKindDescription("fiscal_emission_stopped")).toBe(
+    "Una caja no puede emitir comprobantes fiscales",
+  );
+});
+
 test("gives no description to a kind this app does not know yet", () => {
   expect(alertKindDescription("register_battery_low")).toBe("");
 });

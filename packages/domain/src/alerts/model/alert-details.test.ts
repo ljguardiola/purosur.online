@@ -60,6 +60,24 @@ describe("OpenAlertInput", () => {
     }>().not.toExtend<OpenAlertInput>();
   });
 
+  it("accepts the device and the failed check's reason for a fiscal-emission-stopped alert", () => {
+    expectTypeOf<{
+      kind: "fiscal_emission_stopped";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string; reason: "legal_name_missing" };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses a fiscal-emission-stopped alert with a reason the pre-emission check does not fail for", () => {
+    expectTypeOf<{
+      kind: "fiscal_emission_stopped";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string; reason: "out_of_paper" };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("accepts the point of sale, document type, class, documents and rejections for a fiscal-rejected alert", () => {
     expectTypeOf<{
       kind: "fiscal_rejected";

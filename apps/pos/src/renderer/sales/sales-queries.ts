@@ -124,11 +124,6 @@ export function useReceiptPrintStatusQuery({
   });
 }
 
-export function useRefreshReceiptPrintStatus(saleId: string): () => Promise<void> {
-  const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: salesKeys.receiptPrintStatus(saleId) });
-}
-
 export type ShownSalesHistory = Exclude<SalesHistoryOutcome, { kind: "unavailable" }>;
 
 export function useSalesHistoryQuery({

@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { receiptDeliveryOf } from "./receipt-delivery-of.js";
-import {
-  ACKNOWLEDGED_AT,
-  completedSale,
-  FIRST_PRINT_AT,
-  receiptRig,
-} from "./test-support/receipt-rig.js";
+import { completedSale, FIRST_PRINT_AT, receiptRig, SENT_AT } from "./test-support/receipt-rig.js";
 
 describe("receiptDeliveryOf", () => {
   it("answers that a sale never printed would print the original next", () => {
@@ -23,7 +18,7 @@ describe("receiptDeliveryOf", () => {
     const rig = receiptRig([
       completedSale({
         printAttemptedAt: FIRST_PRINT_AT,
-        printedAt: ACKNOWLEDGED_AT,
+        printedAt: SENT_AT,
         reprints: [
           {
             saleId: "sale-1",
@@ -31,7 +26,7 @@ describe("receiptDeliveryOf", () => {
             requestedBy: "cashier",
             authorizedBy: null,
             reason: { kind: "retry" },
-            occurredAt: ACKNOWLEDGED_AT,
+            occurredAt: SENT_AT,
           },
         ],
       }),
@@ -41,7 +36,7 @@ describe("receiptDeliveryOf", () => {
       kind: "found",
       nextCopy: { kind: "duplicate", orderNumber: 2 },
       printAttemptedAt: FIRST_PRINT_AT,
-      printedAt: ACKNOWLEDGED_AT,
+      printedAt: SENT_AT,
     });
   });
 

@@ -196,6 +196,18 @@ describe("RegisterStatusBar", () => {
     await expect.element(screen.getByText("Qué hacer")).toBeVisible();
   });
 
+  it("shows the stopped fiscal emission condition with its title, what it means and what to do, with no connection to the cloud", async () => {
+    const screen = await renderBar({
+      status: loaded({ conditions: [{ kind: "fiscal_emission_stopped" }], cloud: "unreachable" }),
+    });
+
+    await expect.element(screen.getByText("Emisión de facturas detenida")).toBeVisible();
+    await expect
+      .element(screen.getByText(/no puede emitir ningún comprobante fiscal por ahora/))
+      .toBeVisible();
+    await expect.element(screen.getByText(/Seguir vendiendo igual/)).toBeVisible();
+  });
+
   it("has no accessibility violations with a device not detected", async () => {
     const screen = await renderBar({
       status: loaded({

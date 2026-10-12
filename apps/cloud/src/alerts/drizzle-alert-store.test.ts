@@ -506,6 +506,25 @@ describe("DrizzleAlertStore recordConditionCleared and recordConditionHolding", 
   });
 });
 
+describe("DrizzleAlertStore recordConditionDetail", () => {
+  it("replaces only the given alert's detail with the given one", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const changed = await store.transaction((tx) => tx.insertAlert(newAlert()));
+    const untouched = await store.transaction((tx) =>
+      tx.insertAlert(newAlert({ scope: "user-2" })),
+    );
+
+    await store.transaction((tx) =>
+      tx.recordConditionDetail(changed, { previousEmail: "c@example.com", actorId: "actor-2" }),
+    );
+
+    const [hit] = await db.select().from(alerts).where(eq(alerts.id, changed));
+    const [miss] = await db.select().from(alerts).where(eq(alerts.id, untouched));
+    expect(hit?.detail).toEqual({ previousEmail: "c@example.com", actorId: "actor-2" });
+    expect(miss?.detail).toEqual(newAlert().detail);
+  });
+});
+
 describe("DrizzleAlertStore lockClearedConditionAlerts", () => {
   it("lists only the open alerts whose condition cleared, with what a resolution keeps", async () => {
     const store = new DrizzleAlertStore(db, () => NOON);

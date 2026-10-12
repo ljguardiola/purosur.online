@@ -19,12 +19,10 @@ export type {
 } from "./model/receipt-print-standing.js";
 export {
   mayStartReceiptPrint,
-  observePrintAcknowledged,
   observePrinterNotConfigured,
   observePrinterStatus,
   observePrintFailed,
-  observePrintWithdrawn,
-  RECEIPT_RETRY_DELAY_MS,
+  observePrintSent,
   receiptPrintStanding,
   startedReceiptPrint,
 } from "./model/receipt-print-standing.js";
