@@ -1,6 +1,7 @@
 import { MAX_STOCK_QUANTITY, SEARCH_RESULT_LIMIT } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
+  recordInitialCountLineMessageSchema,
   stockCoreToRendererMessageSchema,
   stockRendererToCoreMessageSchema,
 } from "./initial-count-core-messages.js";
@@ -237,5 +238,26 @@ describe("stockCoreToRendererMessageSchema", () => {
         outcome: { kind: "not_permitted" },
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("recordInitialCountLineMessageSchema", () => {
+  const countedAndExpiry = recordInitialCountLineMessageSchema.pick({
+    counted: true,
+    expires_on: true,
+  });
+
+  it("accepts a counted quantity with or without an expiry day", () => {
+    expect(countedAndExpiry.safeParse({ counted: 4400, expires_on: "2026-12-31" }).success).toBe(
+      true,
+    );
+    expect(countedAndExpiry.safeParse({ counted: 4400, expires_on: null }).success).toBe(true);
+  });
+
+  it("refuses a quantity that cannot be counted and an expiry that is not a calendar day", () => {
+    expect(countedAndExpiry.safeParse({ counted: 0, expires_on: null }).success).toBe(false);
+    expect(countedAndExpiry.safeParse({ counted: 4400, expires_on: "2026-02-30" }).success).toBe(
+      false,
+    );
   });
 });
