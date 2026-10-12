@@ -72,6 +72,12 @@ describe("a readable printout of ESC/POS bytes", () => {
     ]);
   });
 
+  it("shows a feed of dots apart from a feed of lines", () => {
+    const printout = printoutOf(Uint8Array.from([ESC, 0x4a, 24, ESC, 0x64, 3]));
+
+    expect(printout.text).toBe(["[feed dots 24]", "[feed 3]"].join("\n"));
+  });
+
   it("shows a raster image as its size", () => {
     const printout = printoutOf(Uint8Array.from([GS, 0x76, 0x30, 0, 2, 0, 3, 0, 1, 2, 3, 4, 5, 6]));
 

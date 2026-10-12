@@ -304,7 +304,7 @@ export function AdjustLineModal({
         </form.Subscribe>
         <SummaryRowGroup
           rows={[
-            { label: "Precio de lista", value: formatCents(listUnitPrice) },
+            { label: "Precio de lista", value: formatCents(listUnitPrice), detail: true },
             ...(!previewRowsShown || typed.kind === "PRICE"
               ? []
               : [
@@ -314,6 +314,8 @@ export function AdjustLineModal({
                       previewed?.kind === "preview"
                         ? `− ${formatCents(previewed.discount_amount)}`
                         : NOT_PREVIEWED,
+                    detail: true as const,
+                    tone: "error" as const,
                   },
                 ]),
             ...(previewRowsShown
@@ -324,7 +326,8 @@ export function AdjustLineModal({
                       previewed?.kind === "preview"
                         ? formatCents(previewed.line_total)
                         : NOT_PREVIEWED,
-                    strong: true,
+                    detail: true as const,
+                    tone: "info" as const,
                   },
                 ]
               : []),

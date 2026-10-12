@@ -1,11 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
 const MIGRATIONS_DIR_SEGMENT = "migrations";
 const META_DIR_SEGMENT = "meta";
 const JOURNAL_FILE_NAME = "_journal.json";
 const REGENERATE_ON_MAIN = "regenerate the migration on top of the current main";
+const REGISTER_MIGRATIONS_DIR = "apps/pos/src/core/migrations";
 
 export function isProtectedMigrationFile(path) {
   const segments = path.split("/");
@@ -109,6 +111,54 @@ export function findMigrationViolations({ basePaths, readBase, readCurrent }) {
   return violations;
 }
 
+function isRegisterMigrationFile(path) {
+  return (
+    path.startsWith(`${REGISTER_MIGRATIONS_DIR}/`) &&
+    path.endsWith(".sql") &&
+    !path.slice(REGISTER_MIGRATIONS_DIR.length + 1).includes("/")
+  );
+}
+
+function registerMigrationName(path) {
+  return path.slice(REGISTER_MIGRATIONS_DIR.length + 1).replace(/\.sql$/, "");
+}
+
+// The register applies every migration it has not applied yet in the order of their names, so a new
+// migration whose name sorts before one a register already applied runs after it there but before it
+// on a fresh install. Numbers of the same width sort by name in their numeric order.
+export function findMisnumberedRegisterMigrations({ basePaths, currentPaths }) {
+  const baseMigrations = basePaths.filter(isRegisterMigrationFile);
+  const lastOnMain = baseMigrations
+    .map(registerMigrationName)
+    .reduce(
+      (last, name) => (last !== undefined && last.localeCompare(name) >= 0 ? last : name),
+      undefined,
+    );
+  if (lastOnMain === undefined) return [];
+  const lastNumberOnMain = leadingNumber(lastOnMain);
+  const width = lastNumberOnMain.length;
+  const nextNumber = String(Number(lastNumberOnMain) + 1).padStart(width, "0");
+  const fix =
+    nextNumber.length === width
+      ? `renumber it ${nextNumber}`
+      : `no ${width}-digit number is left above ${lastNumberOnMain}`;
+  const onMain = new Set(baseMigrations);
+  return currentPaths
+    .filter((path) => isRegisterMigrationFile(path) && !onMain.has(path))
+    .filter((path) => {
+      const number = leadingNumber(registerMigrationName(path));
+      return number.length !== width || Number(number) <= Number(lastNumberOnMain);
+    })
+    .map((path) => ({
+      path,
+      reason: `new register migration must start with a ${width}-digit number above ${lastNumberOnMain}, the number of ${lastOnMain}, the last one already on main — ${fix}`,
+    }));
+}
+
+function leadingNumber(name) {
+  return /^\d*/.exec(name)[0];
+}
+
 export function describeViolation({ path, reason }) {
   return `${path}: ${reason}`;
 }
@@ -131,6 +181,12 @@ export function readWorkingTreeFile(path) {
     if (error.code === "ENOENT") return undefined;
     throw error;
   }
+}
+
+export function listWorkingTreeRegisterMigrations(root = ".") {
+  return readdirSync(join(root, REGISTER_MIGRATIONS_DIR)).map(
+    (name) => `${REGISTER_MIGRATIONS_DIR}/${name}`,
+  );
 }
 
 export function runGitSync(args) {

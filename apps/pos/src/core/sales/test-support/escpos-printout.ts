@@ -66,6 +66,8 @@ export function printoutOf(bytes: Uint8Array): Printout {
       } else if (command === 0x61) {
         const alignment = take();
         marker(`[align ${ALIGNMENTS[alignment] ?? alignment}]`);
+      } else if (command === 0x4a) {
+        marker(`[feed dots ${take()}]`);
       } else if (command === 0x64) {
         marker(`[feed ${take()}]`);
       } else {
