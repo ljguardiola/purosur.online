@@ -908,6 +908,35 @@ describe("the register's router", () => {
     await expect.element(screenFor["/receipt-printer"](screen)).toBeVisible();
   });
 
+  it("renders the receipt printer screen with a session open, with the open-session menu, for a person who may configure it", async () => {
+    const router = routerAt("/receipt-printer", "up", "enrolled", PRINTER_CONFIGURER, OPEN_SESSION);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/receipt-printer"](screen)).toBeVisible();
+    expect(router.state.location.pathname).toBe("/receipt-printer");
+    await expect.element(screen.getByRole("link", { name: "Venta" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: "Impresora" }))
+      .toHaveAttribute("aria-current", "page");
+  });
+
+  it("sends a person who may not configure the receipt printer to the sale while a session is open", async () => {
+    const router = routerAt("/receipt-printer", "up", "enrolled", DEVICES_CONFIGURER, OPEN_SESSION);
+
+    await render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname).toBe("/session");
+  });
+
+  it("sends a person who may not configure the receipt printer home when no session is open", async () => {
+    const router = routerAt("/receipt-printer", "up", "enrolled", DEVICES_CONFIGURER);
+
+    await render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname).toBe("/");
+  });
+
   it("opens the receipt printer from the no-session screen for a person who may configure it", async () => {
     const router = routerAt("/", "up", "enrolled", PRINTER_CONFIGURER);
     const screen = await render(<RouterProvider router={router} />);
@@ -946,6 +975,35 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screenFor["/serial-devices"](screen)).toBeVisible();
+  });
+
+  it("renders the serial devices screen with a session open, with the open-session menu, for a person who may configure them", async () => {
+    const router = routerAt("/serial-devices", "up", "enrolled", DEVICES_CONFIGURER, OPEN_SESSION);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/serial-devices"](screen)).toBeVisible();
+    expect(router.state.location.pathname).toBe("/serial-devices");
+    await expect.element(screen.getByRole("link", { name: "Venta" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: "Balanza y lector" }))
+      .toHaveAttribute("aria-current", "page");
+  });
+
+  it("sends a person who may not configure the serial devices to the sale while a session is open", async () => {
+    const router = routerAt("/serial-devices", "up", "enrolled", PRINTER_CONFIGURER, OPEN_SESSION);
+
+    await render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname).toBe("/session");
+  });
+
+  it("sends a person who may not configure the serial devices home when no session is open", async () => {
+    const router = routerAt("/serial-devices", "up", "enrolled", PRINTER_CONFIGURER);
+
+    await render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname).toBe("/");
   });
 
   it("opens the serial devices from the no-session screen for a person who may configure them", async () => {

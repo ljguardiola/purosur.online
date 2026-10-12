@@ -259,6 +259,7 @@ const receiptPrintStatusOutcomeSchema = z.discriminatedUnion("kind", [
         "retry_offered",
         "printer_not_configured",
         "failed",
+        "withdrawn",
         "printed",
       ])
       .nullable(),

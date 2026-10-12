@@ -1200,6 +1200,7 @@ describe("asking how a sale's receipt print stands", () => {
       "retry_offered",
       "printer_not_configured",
       "failed",
+      "withdrawn",
       "printed",
     ].map((standing) => ({
       kind: "found",

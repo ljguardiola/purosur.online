@@ -4,6 +4,7 @@ import {
   observePrinterNotConfigured,
   observePrinterStatus,
   observePrintFailed,
+  observePrintWithdrawn,
   type ReceiptPrintObservation,
   receiptPrintStanding,
   startedReceiptPrint,
@@ -41,6 +42,7 @@ export interface ReceiptPrintJobs extends ReceiptPrintStandings {
     run: (runner: ReceiptPrintRunner) => Promise<TOutcome>,
     options?: ReceiptPrintStartOptions,
   ): Promise<ReceiptPrintStart<TOutcome>>;
+  withdrawHeld(): void;
 }
 
 function isPrinterNotConfigured(outcome: unknown): boolean {
@@ -55,6 +57,7 @@ function isPrinterNotConfigured(outcome: unknown): boolean {
 interface Job {
   observation: ReceiptPrintObservation;
   abort: AbortController;
+  withdrawal: AbortController;
 }
 
 interface Entry {
@@ -69,6 +72,12 @@ export function createReceiptPrintJobs({
   const entries = new Map<string, Entry>();
 
   return {
+    withdrawHeld() {
+      for (const entry of entries.values()) {
+        entry.current?.withdrawal.abort();
+      }
+    },
+
     standingOf(saleId) {
       const job = entries.get(saleId)?.current;
       return job === undefined ? null : receiptPrintStanding(job.observation, now());
@@ -81,7 +90,11 @@ export function createReceiptPrintJobs({
         return Promise.resolve({ kind: "busy" });
       }
       entry.starting = true;
-      const job: Job = { observation: startedReceiptPrint(), abort: new AbortController() };
+      const job: Job = {
+        observation: startedReceiptPrint(),
+        abort: new AbortController(),
+        withdrawal: new AbortController(),
+      };
 
       return new Promise((resolve) => {
         let sent = false;
@@ -102,6 +115,7 @@ export function createReceiptPrintJobs({
         };
         const watch: ReceiptPrintWatch = {
           signal: job.abort.signal,
+          withdrawal: job.withdrawal.signal,
           onStatus: (status) => {
             if (entry.current === job) {
               job.observation = observePrinterStatus(job.observation, status, now());
@@ -112,8 +126,12 @@ export function createReceiptPrintJobs({
           async print(bytes, printWatch) {
             markSent();
             const ending = await inner.print(bytes, printWatch);
-            if (ending.kind === "acknowledged" && entry.current === job) {
-              job.observation = observePrintAcknowledged(job.observation);
+            if (entry.current === job) {
+              if (ending.kind === "acknowledged") {
+                job.observation = observePrintAcknowledged(job.observation);
+              } else if (ending.kind === "withdrawn") {
+                job.observation = observePrintWithdrawn(job.observation);
+              }
             }
             return ending;
           },
