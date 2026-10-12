@@ -620,6 +620,32 @@ describe("TcpReceiptPrinter following the configured address", () => {
     expect(sockets).toHaveLength(1);
   });
 
+  it("keeps the live connection and its polling when the address cannot be read", () => {
+    let readable = true;
+    printer = new TcpReceiptPrinter({
+      address: () => {
+        if (!readable) throw new Error("the settings cannot be read");
+        return address;
+      },
+      timers,
+      connect: () => {
+        const socket = new ScriptedSocket();
+        sockets.push(socket);
+        return socket;
+      },
+    });
+    void printer.print(observer.watch, receiptToSend().sending);
+    socketAt(0).connected();
+
+    readable = false;
+    timers.fire(POLL_INTERVAL_MS);
+    timers.fire(POLL_INTERVAL_MS);
+
+    expect(socketAt(0).destroyed).toBe(false);
+    expect(socketAt(0).written.map((bytes) => [...bytes])).toEqual([STATUS_QUERY, STATUS_QUERY]);
+    expect(sockets).toHaveLength(1);
+  });
+
   it("connects to the address a lost connection is replaced with", () => {
     void printer.print(observer.watch, receiptToSend().sending);
     socketAt(0).connected();
