@@ -160,3 +160,38 @@ test("keeps the dark rail's look when it is given no rail", async () => {
   );
   expect(implicit.getBoundingClientRect().width).toBe(explicit.getBoundingClientRect().width);
 });
+
+test("centers each line of a label that wraps under its icon, on either rail", async () => {
+  const screen = await render(
+    <div className="flex gap-2 bg-surface p-2">
+      <AreaNavItem
+        icon={<LifeBuoy />}
+        label="Balanza y lector"
+        active={false}
+        href="/serial-devices"
+        rail="light"
+      />
+      <AreaNavItem
+        icon={<LifeBuoy />}
+        label="Ventas por categoría"
+        active={false}
+        href="/sales"
+        rail="dark"
+      />
+    </div>,
+  );
+
+  for (const name of ["Balanza y lector", "Ventas por categoría"]) {
+    const link = screen.getByRole("link", { name }).element();
+    const linkBox = link.getBoundingClientRect();
+    const range = document.createRange();
+    range.selectNodeContents(screen.getByText(name).element());
+    const lines = Array.from(range.getClientRects());
+    expect(lines.length).toBeGreaterThan(1);
+    for (const line of lines) {
+      expect(
+        Math.abs(line.left + line.width / 2 - (linkBox.left + linkBox.width / 2)),
+      ).toBeLessThanOrEqual(1);
+    }
+  }
+});

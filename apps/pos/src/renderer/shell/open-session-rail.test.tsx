@@ -1,12 +1,21 @@
-import { describe, expect, it, onTestFinished } from "vitest";
+import type { ComponentProps } from "react";
+import { describe, expect, expectTypeOf, it, onTestFinished } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { OpenSessionRail } from "./open-session-rail";
 import { render } from "./test-support/render-with-router";
 
 describe("OpenSessionRail", () => {
+  it("needs the person's abilities, so no screen can leave its entries out", () => {
+    expectTypeOf<{
+      registerName: string | null;
+      lock: () => void;
+      current: "cash";
+    }>().not.toExtend<ComponentProps<typeof OpenSessionRail>>();
+  });
+
   it("marks Venta as current on the sale screen", async () => {
     const screen = await render(
-      <OpenSessionRail registerName="Caja 1" lock={() => {}} current="sale" />,
+      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="sale" />,
     );
 
     await expect
@@ -19,7 +28,7 @@ describe("OpenSessionRail", () => {
 
   it("marks Caja as current on the cash screens and sends Venta to the sale", async () => {
     const screen = await render(
-      <OpenSessionRail registerName="Caja 1" lock={() => {}} current="cash" />,
+      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="cash" />,
     );
 
     await expect
@@ -169,7 +178,12 @@ describe("OpenSessionRail", () => {
       onTestFinished(() => page.viewport(414, 896));
       const locked: string[] = [];
       const screen = await render(
-        <OpenSessionRail registerName="Caja 1" lock={() => locked.push("locked")} current="sale" />,
+        <OpenSessionRail
+          abilities={[]}
+          registerName="Caja 1"
+          lock={() => locked.push("locked")}
+          current="sale"
+        />,
       );
       return Object.assign(screen, { locked });
     }

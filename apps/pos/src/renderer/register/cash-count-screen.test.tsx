@@ -1,4 +1,5 @@
 import type { CashBalance, CashCountPreview, CloseCashSessionOutcome } from "@purosur/contracts";
+import type { RegisterAbility } from "@purosur/domain";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -50,6 +51,7 @@ async function renderScreen(
     loadCashBalance?: () => Promise<CashBalance | null | "unavailable">;
     loadCashCountPreview?: LoadCashCountPreview;
     closeCashSession?: CloseCashSession;
+    abilities?: readonly RegisterAbility[];
   } = {},
 ) {
   await page.viewport(1280, 720);
@@ -59,6 +61,7 @@ async function renderScreen(
     <CashCountScreen
       sessionId="s1"
       registerName="Caja 1"
+      abilities={props.abilities ?? []}
       lock={() => {}}
       loadCashBalance={props.loadCashBalance ?? (async () => BALANCE)}
       loadCashCountPreview={props.loadCashCountPreview ?? answerPreview}
@@ -94,6 +97,20 @@ function deferred<T>() {
 }
 
 describe("CashCountScreen", () => {
+  it("offers in its rail every open-session entry the person may use", async () => {
+    const { screen } = await renderScreen({
+      abilities: ["view_sales_history", "configure_receipt_printer", "configure_serial_devices"],
+    });
+
+    const items = Array.from(
+      screen
+        .getByRole("navigation", { name: "Menú de la caja" })
+        .element()
+        .querySelectorAll("button, a"),
+    ).map((item) => item.textContent);
+    expect(items).toEqual(["Venta", "Historial", "Caja", "Impresora", "Balanza y lector", "Salir"]);
+  });
+
   it("asks for the counted cash", async () => {
     const { screen } = await renderScreen();
 
