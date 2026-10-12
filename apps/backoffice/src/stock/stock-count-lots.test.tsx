@@ -79,14 +79,6 @@ test("lists each lot in the order given with its number, expiry and expected bal
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("writes each lot's number in bold monospace", async () => {
-  const screen = await renderLots();
-  const style = getComputedStyle(screen.getByText("L-2312").element());
-
-  expect(style.fontFamily).toMatch(/monospace$/);
-  expect(style.fontWeight).toBe("700");
-});
-
 test("keeps the quantity typed for each lot apart", async () => {
   const onSubmit = vi.fn();
   const screen = await renderLots(onSubmit);

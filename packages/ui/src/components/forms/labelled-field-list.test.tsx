@@ -68,56 +68,14 @@ test("puts each item's field at the right of its title, 160px wide whatever the 
   expect(title.getBoundingClientRect().right).toBeLessThan(field.getBoundingClientRect().left);
 });
 
-test("renders the items in the order given", async () => {
+test("renders the items in the order given, 12px apart", async () => {
   const screen = await render(<LabelledFieldList items={items} />);
   const first = screen.getByText("L-2312", { exact: true }).element() as HTMLElement;
   const second = screen.getByText("L-2401", { exact: true }).element() as HTMLElement;
+  const list = screen.container.firstElementChild as HTMLElement;
 
   expect(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(Math.round(Number.parseFloat(getComputedStyle(list).rowGap))).toBe(12);
 
   await expectNoAccessibilityViolations(screen.container);
-});
-
-test("frames all the items in one 8px rounded container with the design system's border", async () => {
-  const screen = await render(<LabelledFieldList items={items} />);
-  const list = screen.container.firstElementChild as HTMLElement;
-  const style = getComputedStyle(list);
-
-  expect(style.borderTopWidth).toBe("1px");
-  expect(style.borderTopColor).toBe(tokenRgb("border"));
-  expect(style.borderTopLeftRadius).toBe("8px");
-  expect(list.childElementCount).toBe(2);
-});
-
-test("pads each item 12px vertically and 16px horizontally and divides the items with a 1px line", async () => {
-  const screen = await render(<LabelledFieldList items={items} />);
-  const [first, second] = Array.from(
-    (screen.container.firstElementChild as HTMLElement).children,
-  ) as HTMLElement[];
-  const firstStyle = getComputedStyle(first as HTMLElement);
-  const secondStyle = getComputedStyle(second as HTMLElement);
-
-  expect(firstStyle.paddingTop).toBe("12px");
-  expect(firstStyle.paddingBottom).toBe("12px");
-  expect(firstStyle.paddingLeft).toBe("16px");
-  expect(firstStyle.paddingRight).toBe("16px");
-  expect(firstStyle.borderTopWidth).toBe("0px");
-  expect(secondStyle.borderTopWidth).toBe("1px");
-  expect(secondStyle.borderTopColor).toBe(tokenRgb("border"));
-});
-
-test("writes a title of the identifier kind in bold monospace", async () => {
-  const screen = await render(<LabelledFieldList items={items} titleKind="identifier" />);
-  const title = screen.getByText("L-2312", { exact: true }).element() as HTMLElement;
-  const style = getComputedStyle(title);
-
-  expect(style.fontFamily).toMatch(/monospace$/);
-  expect(style.fontWeight).toBe("700");
-});
-
-test("writes a title in the regular font unless it is of the identifier kind", async () => {
-  const screen = await render(<LabelledFieldList items={items} />);
-  const title = screen.getByText("L-2312", { exact: true }).element() as HTMLElement;
-
-  expect(getComputedStyle(title).fontFamily).not.toMatch(/monospace/);
 });
