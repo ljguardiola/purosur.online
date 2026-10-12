@@ -225,6 +225,29 @@ describe("stockCountBodySchema", () => {
     expect(result.error?.issues[0]?.path).toEqual(["lots", 0, field]);
   });
 
+  it("accepts lots that add up to the largest quantity a count holds", () => {
+    const { counted, ...byLot } = count;
+    const lots = [
+      { lotId: LOT_ID, counted: MAX_STOCK_QUANTITY - 1 },
+      { lotId: OTHER_LOT_ID, counted: 1 },
+    ];
+
+    expect(stockCountBodySchema.safeParse({ ...byLot, lots }).success).toBe(true);
+  });
+
+  it("refuses lots that add up to more than the largest quantity a count holds, on the lots", () => {
+    const { counted, ...byLot } = count;
+    const lots = [
+      { lotId: LOT_ID, counted: MAX_STOCK_QUANTITY },
+      { lotId: OTHER_LOT_ID, counted: 1 },
+    ];
+
+    expect(firstIssue(stockCountBodySchema, { ...byLot, lots })).toEqual({
+      field: "lots",
+      message: "lots must add up to at most the largest quantity a count holds",
+    });
+  });
+
   it("accepts a moment with an offset", () => {
     expect(
       stockCountBodySchema.safeParse({ ...count, occurredAt: "2026-09-15T18:32:00-03:00" }).success,

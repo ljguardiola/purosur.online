@@ -219,6 +219,28 @@ describe("POST /inventory-counts", () => {
     });
   });
 
+  it("refuses lots of a product sold by the kilo that add up to more than a count holds, saying so", async () => {
+    const { headers, locationId, userId } = await signedInWith(db, ["perform_stock_counts"], NOW);
+    const { productId } = await insertProduct(db, { saleUnit: "KG" });
+    const lotIds = [
+      await insertPurchasedLot(db, { productId, locationId, actorId: userId, remaining: 4000 }),
+      await insertPurchasedLot(db, { productId, locationId, actorId: userId, remaining: 6000 }),
+    ];
+
+    const response = await registerCountRequest(headers, {
+      productId,
+      lots: lotIds.map((lotId) => ({ lotId, counted: 2_000_000_000 })),
+      occurredAt: COUNTED_AT.toISOString(),
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      code: "validation_failed",
+      message: "lots must add up to at most the largest quantity a count holds",
+      details: [{ field: "lots" }],
+    });
+  });
+
   it.each([
     ["neither a counted quantity nor lots", {}],
     [
