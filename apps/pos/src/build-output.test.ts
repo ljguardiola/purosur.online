@@ -4,7 +4,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "n
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { __unstable__loadDesignSystem } from "@tailwindcss/node";
 import { Scanner } from "@tailwindcss/oxide";
 import { type Selector, type SelectorComponent, transform } from "lightningcss";
@@ -19,7 +19,7 @@ const ELECTRON_VITE_CLI = join(
 const CHANNEL_VARIABLES = [
   "POS_CHANNEL",
   "POS_SENTRY_DSN",
-  "POS_UPDATE_FEED_URL",
+  "POS_VERSION",
   "POS_CLOUD_URL",
   "MAIN_VITE_SENTRY_DSN",
   "RENDERER_VITE_SENTRY_DSN",
@@ -83,7 +83,7 @@ describe("the register's compiled app code", { timeout: 0 }, () => {
       build({
         POS_CHANNEL: "staging",
         POS_SENTRY_DSN: "https://public@o1.ingest.sentry.io/2",
-        POS_UPDATE_FEED_URL: "https://updates.example.com/staging",
+        POS_VERSION: "1.2.3",
         POS_CLOUD_URL: "https://staging.purosur.online",
         MAIN_VITE_SENTRY_DSN: "https://public@o1.ingest.sentry.io/2",
         RENDERER_VITE_SENTRY_DSN: "https://public@o1.ingest.sentry.io/2",
@@ -93,6 +93,50 @@ describe("the register's compiled app code", { timeout: 0 }, () => {
 
     expect(Object.keys(plain).length).toBeGreaterThan(0);
     expect(staging).toEqual(plain);
+  });
+});
+
+const BUILDER_CONFIG = join(APP_DIR, "electron-builder.config.mjs");
+
+function loadBuilderConfig(overrides: Record<string, string>): Record<string, unknown> {
+  const printed = execFileSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      "const { default: config } = await import(process.argv[1]); process.stdout.write(JSON.stringify(config));",
+      pathToFileURL(BUILDER_CONFIG).href,
+    ],
+    { cwd: APP_DIR, env: environmentWith({ POS_CHANNEL: "staging", ...overrides }), stdio: "pipe" },
+  );
+  return JSON.parse(printed.toString());
+}
+
+describe("the register's installer configuration", () => {
+  it("stamps the version the environment names into the packaged app", () => {
+    expect(loadBuilderConfig({ POS_VERSION: "0.0.57" }).extraMetadata).toEqual({
+      version: "0.0.57",
+    });
+  });
+
+  it("leaves the package's own version untouched without one", () => {
+    expect(loadBuilderConfig({}).extraMetadata).toBeUndefined();
+  });
+
+  it.each(["1.2", "1.2.3.4", "v1.2.3", "01.2.3", "1.2.x", "", "1.2.3-beta"])(
+    "refuses the version %j",
+    (version) => {
+      expect(() => loadBuilderConfig({ POS_VERSION: version })).toThrow(/POS_VERSION/);
+    },
+  );
+
+  it("publishes nothing from the builder itself, whatever feed the environment names", () => {
+    expect(
+      loadBuilderConfig({
+        POS_VERSION: "0.0.57",
+        POS_UPDATE_FEED_URL: "https://updates.example.com",
+      }).publish,
+    ).toBeNull();
   });
 });
 
