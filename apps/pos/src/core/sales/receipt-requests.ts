@@ -183,7 +183,9 @@ export async function retryReceiptPrintFor(
         ? { kind: "unavailable" }
         : { kind: "started", copy: toWireCopy(started.copy) };
     case "answered":
-      return start.outcome.kind === "printed" || start.outcome.kind === "abandoned"
+      return start.outcome.kind === "printed" ||
+        start.outcome.kind === "abandoned" ||
+        start.outcome.kind === "withdrawn"
         ? { kind: "started", copy: toWireCopy(start.outcome.copy) }
         : start.outcome;
   }
@@ -233,7 +235,11 @@ export async function reprintSaleReceiptFor(
         : { kind: "started", copy: toWireCopy(started.copy) };
     case "answered": {
       const { outcome } = start;
-      if (outcome.kind === "printed" || outcome.kind === "abandoned") {
+      if (
+        outcome.kind === "printed" ||
+        outcome.kind === "abandoned" ||
+        outcome.kind === "withdrawn"
+      ) {
         return { kind: "started", copy: toWireCopy(outcome.copy) };
       }
       return outcome.kind === "invalid_reason"

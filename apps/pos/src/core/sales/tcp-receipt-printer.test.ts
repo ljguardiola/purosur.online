@@ -11,6 +11,8 @@ const PRINT_ID = "A1b2";
 const RECEIPT = Uint8Array.of(0x1b, 0x40, 0x48, 0x6f, 0x6c, 0x61, 0x0a);
 const TRANSMIT_RESPONSE_REQUEST = [0x1d, 0x28, 0x48, 0x06, 0x00, 0x30, 0x30, ...ascii(PRINT_ID)];
 const STATUS_QUERY = [0x10, 0x04, 0x02];
+const CLEAR_BUFFERS = [0x10, 0x14, 0x08, 0x01, 0x03, 0x14, 0x01, 0x06, 0x02, 0x08];
+const CLEARED = [0x37, 0x25, 0x00];
 const READY = 0x12;
 const COVER_OPEN = 0x16 | 0x20;
 const PAPER_OUT = 0x32;
@@ -412,5 +414,198 @@ describe("TcpReceiptPrinter reading the printer's byte stream", () => {
     await Promise.resolve();
 
     expect(outcome.done).toBe(false);
+  });
+});
+
+describe("TcpReceiptPrinter withdrawing a receipt", () => {
+  let timers: ManualTimers;
+  let observer: ReceiptPrintObserver;
+  let sockets: ScriptedSocket[];
+  let printer: TcpReceiptPrinter;
+
+  beforeEach(() => {
+    timers = new ManualTimers();
+    observer = new ReceiptPrintObserver();
+    sockets = [];
+    printer = new TcpReceiptPrinter({
+      host: "printer.local",
+      timers,
+      nextPrintId: () => PRINT_ID,
+      connect: () => {
+        const socket = new ScriptedSocket();
+        sockets.push(socket);
+        return socket;
+      },
+    });
+  });
+
+  afterEach(() => {
+    observer.abort.abort();
+  });
+
+  function connected(index = 0): ScriptedSocket {
+    const socket = sockets[index] as ScriptedSocket;
+    socket.connected();
+    return socket;
+  }
+
+  function writtenAfterReceipt(socket: ScriptedSocket): number[][] {
+    return socket.written.slice(1).map((bytes) => [...bytes]);
+  }
+
+  it("is withdrawn at once, writing nothing, when the receipt never reached the printer", async () => {
+    const ending = printer.print(RECEIPT, observer.watch);
+
+    observer.withdraw.abort();
+
+    expect(await ending).toEqual({ kind: "withdrawn" });
+    expect((sockets[0] as ScriptedSocket).destroyed).toBe(true);
+    expect((sockets[0] as ScriptedSocket).written).toEqual([]);
+    expect(timers.pending(POLL_INTERVAL_MS)).toBe(0);
+  });
+
+  it("never writes the receipt when the connection completes after the withdrawal", async () => {
+    const ending = printer.print(RECEIPT, observer.watch);
+    observer.withdraw.abort();
+    await ending;
+
+    (sockets[0] as ScriptedSocket).connected();
+
+    expect((sockets[0] as ScriptedSocket).written).toEqual([]);
+  });
+
+  it("is withdrawn without connecting when already asked to withdraw", async () => {
+    observer.withdraw.abort();
+
+    expect(await printer.print(RECEIPT, observer.watch)).toEqual({ kind: "withdrawn" });
+    expect(sockets).toHaveLength(0);
+  });
+
+  it("clears the printer's buffers and stays pending until the printer answers that they are cleared", async () => {
+    const ending = printer.print(RECEIPT, observer.watch);
+    const outcome = settled(ending);
+    const socket = connected();
+    socket.receive(PAPER_OUT);
+
+    observer.withdraw.abort();
+    expect(writtenAfterReceipt(socket)).toEqual([CLEAR_BUFFERS]);
+    await Promise.resolve();
+    expect(outcome.done).toBe(false);
+
+    socket.receive(...CLEARED);
+
+    expect(await ending).toEqual({ kind: "withdrawn" });
+    expect(socket.destroyed).toBe(true);
+    expect(timers.pending(POLL_INTERVAL_MS)).toBe(0);
+  });
+
+  it("reads the cleared answer split across several chunks", async () => {
+    const ending = printer.print(RECEIPT, observer.watch);
+    const socket = connected();
+    observer.withdraw.abort();
+
+    socket.receive(0x37);
+    socket.receive(0x25);
+    socket.receive(0x00);
+
+    expect(await ending).toEqual({ kind: "withdrawn" });
+  });
+
+  it("does not take a cleared answer that arrives without being asked to withdraw for a withdrawal", async () => {
+    const ending = printer.print(RECEIPT, observer.watch);
+    const outcome = settled(ending);
+    const socket = connected();
+
+    socket.receive(...CLEARED);
+    await Promise.resolve();
+
+    expect(outcome.done).toBe(false);
+    observer.withdraw.abort();
+    await Promise.resolve();
+    expect(outcome.done).toBe(false);
+    socket.receive(...CLEARED);
+    expect(await ending).toEqual({ kind: "withdrawn" });
+  });
+
+  it("falls back to reading a status byte after a response mark that is neither a print answer nor a cleared answer", () => {
+    void printer.print(RECEIPT, observer.watch);
+    const socket = connected();
+
+    socket.receive(0x37, 0x25, READY);
+
+    expect(observer.statuses).toEqual(["ready"]);
+  });
+
+  it("asks again to clear the buffers on every connection while withdrawing, never resending the receipt", async () => {
+    const ending = printer.print(RECEIPT, observer.watch);
+    const outcome = settled(ending);
+    connected().emit("close");
+    observer.withdraw.abort();
+    await Promise.resolve();
+    expect(outcome.done).toBe(false);
+
+    timers.fire(POLL_INTERVAL_MS);
+    const second = sockets[1] as ScriptedSocket;
+    second.connected();
+
+    expect(second.written.map((bytes) => [...bytes])).toEqual([CLEAR_BUFFERS]);
+    second.receive(...CLEARED);
+    expect(await ending).toEqual({ kind: "withdrawn" });
+  });
+
+  it("clears the buffers of a connection that opens only after the withdrawal was asked", async () => {
+    const ending = printer.print(RECEIPT, observer.watch);
+    const first = connected();
+    first.emit("close");
+    timers.fire(POLL_INTERVAL_MS);
+    observer.withdraw.abort();
+
+    const second = connected(1);
+
+    expect(second.written.map((bytes) => [...bytes])).toEqual([CLEAR_BUFFERS]);
+    second.receive(...CLEARED);
+    expect(await ending).toEqual({ kind: "withdrawn" });
+  });
+
+  it("is acknowledged when the print acknowledgment arrives before the cleared answer", async () => {
+    const ending = printer.print(RECEIPT, observer.watch);
+    const socket = connected();
+    observer.withdraw.abort();
+
+    socket.receive(...responseTo(PRINT_ID));
+
+    expect(await ending).toEqual({ kind: "acknowledged" });
+  });
+
+  it("does nothing when the withdrawal is asked after the print finished", async () => {
+    const ending = printer.print(RECEIPT, observer.watch);
+    const socket = connected();
+    socket.receive(...responseTo(PRINT_ID));
+    await ending;
+    const written = socket.written.length;
+
+    observer.withdraw.abort();
+
+    expect(socket.written).toHaveLength(written);
+  });
+
+  it("is abandoned when aborted while withdrawing", async () => {
+    const ending = printer.print(RECEIPT, observer.watch);
+    connected();
+    observer.withdraw.abort();
+
+    observer.abort.abort();
+
+    expect(await ending).toEqual({ kind: "abandoned" });
+  });
+
+  it("keeps polling the status while it waits for the cleared answer", () => {
+    void printer.print(RECEIPT, observer.watch);
+    const socket = connected();
+    observer.withdraw.abort();
+
+    timers.fire(POLL_INTERVAL_MS);
+
+    expect(writtenAfterReceipt(socket)).toEqual([CLEAR_BUFFERS, STATUS_QUERY]);
   });
 });

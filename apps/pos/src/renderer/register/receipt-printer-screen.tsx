@@ -17,6 +17,7 @@ import { useState } from "react";
 import type { ActionEntry } from "../shell/action-entries";
 import { entriesFor } from "../shell/action-entries";
 import { NavigationRail } from "../shell/navigation-rail";
+import { OpenSessionRail } from "../shell/open-session-rail";
 import { SignOutModal } from "../shell/sign-out-modal";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import {
@@ -42,6 +43,7 @@ const NOT_SAVED: Notice = {
 export type ReceiptPrinterScreenProps = {
   person: SignedInPerson;
   registerName: string | null;
+  sessionOpen: boolean;
   entries: readonly ActionEntry[];
   signOut: () => void;
   readReceiptPrinter: () => Promise<ReadReceiptPrinterOutcome>;
@@ -130,6 +132,7 @@ function ReceiptPrinterForm({
 export function ReceiptPrinterScreen({
   person,
   registerName,
+  sessionOpen,
   entries,
   signOut,
   readReceiptPrinter,
@@ -148,12 +151,21 @@ export function ReceiptPrinterScreen({
 
   return (
     <div className="flex h-full w-full bg-surface">
-      <NavigationRail
-        entries={entriesFor(entries, person.abilities)}
-        current="/receipt-printer"
-        home={{ label: "Inicio", icon: House, to: "/" }}
-        onSignOut={() => setLeaving(true)}
-      />
+      {sessionOpen ? (
+        <OpenSessionRail
+          registerName={registerName}
+          lock={signOut}
+          current="receipt_printer"
+          abilities={person.abilities}
+        />
+      ) : (
+        <NavigationRail
+          entries={entriesFor(entries, person.abilities)}
+          current="/receipt-printer"
+          home={{ label: "Inicio", icon: House, to: "/" }}
+          onSignOut={() => setLeaving(true)}
+        />
+      )}
       <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
         <ScreenHeader eyebrow={registerName ?? undefined} title="Impresora de tickets" />
         {printer.status === "loading" ? <LoadingPlaceholder variant="form" fields={1} /> : null}

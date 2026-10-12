@@ -50,6 +50,24 @@ describe("retrySaleReceiptPrint", () => {
     );
   });
 
+  it("answers withdrawn and records nothing as printed when the printer withdraws the retry", async () => {
+    const rig = receiptRig([attempted]);
+
+    const printing = retrySaleReceiptPrint(
+      { ...rig.ports, standings: standingsOf("retry_offered") },
+      { saleId: "sale-1" },
+      rig.watch,
+    );
+    await rig.printer.whenSent();
+    rig.printer.withdraw();
+
+    expect(await printing).toEqual({
+      kind: "withdrawn",
+      copy: { kind: "duplicate", orderNumber: 1 },
+    });
+    expect(rig.ledger.state.sales[0]?.printedAt).toBeNull();
+  });
+
   it.each([
     null,
     "printing",

@@ -44,6 +44,7 @@ describe("the register's receipt printing without a local database", () => {
     expect(printing.receiptPrintStatus).toBeUndefined();
     expect(printing.retryReceiptPrint).toBeUndefined();
     expect(printing.reprintSaleReceipt).toBeUndefined();
+    expect(printing.withdrawHeldReceipts).toBeUndefined();
   });
 
   it("leaves a charge as it is", () => {
@@ -188,6 +189,28 @@ describe("the register's receipt printing over its local database", () => {
 
     await vi.waitFor(() => expect(connections).toHaveLength(1));
     expect(connections[0]).toMatchObject({ host: "10.10.10.9", port: 9101 });
+  });
+
+  it("asks the printer to clear a receipt it still holds when the held receipts are withdrawn", async () => {
+    saveAddress("10.10.10.2", null);
+    const printing = printingOverDatabase();
+    await printing.afterCompletedSale(async () => ({ kind: "completed", sale_id: "sale-1" }))?.({});
+    await vi.waitFor(() => expect(connections).toHaveLength(1));
+    const socket = (connections[0] as (typeof connections)[number]).socket;
+    socket.connected();
+    socket.receive(0x32);
+
+    printing.withdrawHeldReceipts?.();
+    socket.receive(0x37, 0x25, 0x00);
+
+    expect(socket.written.map((bytes) => [...bytes])).toContainEqual([
+      0x10, 0x14, 0x08, 0x01, 0x03, 0x14, 0x01, 0x06, 0x02, 0x08,
+    ]);
+    await vi.waitFor(async () =>
+      expect(await printing.receiptPrintStatus?.("sale-1")).toMatchObject({
+        standing: "withdrawn",
+      }),
+    );
   });
 
   it("prints nothing for a charge that completed no sale", async () => {

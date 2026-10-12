@@ -23,6 +23,7 @@ export {
   observePrinterNotConfigured,
   observePrinterStatus,
   observePrintFailed,
+  observePrintWithdrawn,
   RECEIPT_RETRY_DELAY_MS,
   receiptPrintStanding,
   startedReceiptPrint,

@@ -465,6 +465,7 @@ export {
   observePrinterNotConfigured,
   observePrinterStatus,
   observePrintFailed,
+  observePrintWithdrawn,
   openSaleStanding,
   PENDING_DEFERRED_SALE_RECORD,
   RECEIPT_REPRINT_REASON_MAX_LENGTH,

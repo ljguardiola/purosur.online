@@ -15,6 +15,10 @@ export class FakeReceiptPrinterSettings implements ReceiptPrinterSettings {
     return this.address;
   }
 
+  isCurrentReceiptPrinter(address: ReceiptPrinterAddress): boolean {
+    return this.address?.host === address.host && this.address.port === address.port;
+  }
+
   saveReceiptPrinterAddress(address: ReceiptPrinterAddress): void {
     this.saves += 1;
     this.address = address;
