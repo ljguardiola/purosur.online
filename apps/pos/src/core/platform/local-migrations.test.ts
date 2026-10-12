@@ -2469,6 +2469,152 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("let a payment be an integrated terminal payment in any state of its wait, keeping the payments and refunds a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0042_integrated_terminal_payments",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0042_integrated_terminal_payments",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('done', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z'),
+                ('open', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at, wait_ends_at)
+         VALUES ('pay-cash', 'done', 'SALE', 'CASH', 'NONE', 1000, 1500, NULL, NULL, 'APPROVED', '2026-10-09T12:05:00.000Z', NULL),
+                ('pay-transfer', 'open', 'SALE', 'TRANSFER', 'NONE', 400, NULL, 'u1', '2026-10-09T12:08:00.000Z', 'APPROVED', '2026-10-09T12:08:00.000Z', NULL),
+                ('pay-qr', 'open', 'SALE', 'QR', 'MERCADOPAGO_QR', 600, NULL, NULL, NULL, 'PENDING', '2026-10-09T12:06:00.000Z', '2026-10-09T12:09:00.000Z');
+         UPDATE payment_transactions SET replaced = 1 WHERE id = 'pay-qr';
+         INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
+         VALUES ('refund-1', 'pay-cash', 'CASH', 'NONE', 1000, 'APPROVED', '2026-10-09T12:20:00.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            `SELECT id, sale_id, method, provider, amount, tendered, authorized_by, confirmed_at, state,
+                    occurred_at, wait_ends_at, replaced
+             FROM payment_transactions ORDER BY id`,
+          )
+          .all(),
+      ).toEqual([
+        {
+          id: "pay-cash",
+          sale_id: "done",
+          method: "CASH",
+          provider: "NONE",
+          amount: 1000,
+          tendered: 1500,
+          authorized_by: null,
+          confirmed_at: null,
+          state: "APPROVED",
+          occurred_at: "2026-10-09T12:05:00.000Z",
+          wait_ends_at: null,
+          replaced: 0,
+        },
+        {
+          id: "pay-qr",
+          sale_id: "open",
+          method: "QR",
+          provider: "MERCADOPAGO_QR",
+          amount: 600,
+          tendered: null,
+          authorized_by: null,
+          confirmed_at: null,
+          state: "PENDING",
+          occurred_at: "2026-10-09T12:06:00.000Z",
+          wait_ends_at: "2026-10-09T12:09:00.000Z",
+          replaced: 1,
+        },
+        {
+          id: "pay-transfer",
+          sale_id: "open",
+          method: "TRANSFER",
+          provider: "NONE",
+          amount: 400,
+          tendered: null,
+          authorized_by: "u1",
+          confirmed_at: "2026-10-09T12:08:00.000Z",
+          state: "APPROVED",
+          occurred_at: "2026-10-09T12:08:00.000Z",
+          wait_ends_at: null,
+          replaced: 0,
+        },
+      ]);
+      expect(after.prepare("SELECT id, payment_id FROM payment_refunds").all()).toEqual([
+        { id: "refund-1", payment_id: "pay-cash" },
+      ]);
+
+      const insertPayment = after.prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at, wait_ends_at)
+         VALUES (@id, 'open', 'SALE', 'POINT', @provider, 600, @tendered, @authorized_by, NULL, @state, '2026-10-09T12:10:00.000Z', @wait_ends_at)`,
+      );
+      const point = {
+        provider: "MERCADOPAGO_POINT",
+        tendered: null,
+        authorized_by: null,
+        state: "PENDING",
+        wait_ends_at: "2026-10-09T12:13:00.000Z",
+      };
+      for (const [id, state] of [
+        ["point-pending", "PENDING"],
+        ["point-approved", "APPROVED"],
+        ["point-declined", "DECLINED"],
+        ["point-cancelled", "CANCELLED"],
+        ["point-expired", "EXPIRED"],
+      ]) {
+        insertPayment.run({ ...point, id, state });
+      }
+      expect(
+        after
+          .prepare("SELECT count(*) AS total FROM payment_transactions WHERE method = 'POINT'")
+          .get(),
+      ).toEqual({ total: 5 });
+      expect(() =>
+        insertPayment.run({ ...point, id: "point-on-qr", provider: "MERCADOPAGO_QR" }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insertPayment.run({ ...point, id: "point-no-wait", wait_ends_at: null }),
+      ).toThrow(/CHECK/);
+      expect(() => insertPayment.run({ ...point, id: "point-tendered", tendered: 600 })).toThrow(
+        /CHECK/,
+      );
+      expect(() =>
+        insertPayment.run({ ...point, id: "point-authorized", authorized_by: "u1" }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        after
+          .prepare("UPDATE payment_transactions SET replaced = 1 WHERE id = 'point-pending'")
+          .run(),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        after
+          .prepare(
+            "UPDATE payment_transactions SET provider = 'MERCADOPAGO_POINT' WHERE id = 'pay-qr'",
+          )
+          .run(),
+      ).toThrow(/CHECK/);
+      expect(
+        after
+          .prepare("SELECT name FROM sqlite_schema WHERE name = 'payment_transactions_by_sale'")
+          .all(),
+      ).toEqual([{ name: "payment_transactions_by_sale" }]);
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("add the tax authority's last authorized number to the offline point of sale, unknown over the one a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
