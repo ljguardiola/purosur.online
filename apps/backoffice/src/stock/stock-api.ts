@@ -1,4 +1,8 @@
 import {
+  type InitialInventoryLotList,
+  type InitialInventoryLotsQuery,
+  initialInventoryLotListSchema,
+  type LotReferenceCostBody,
   type StockAdjustmentBody,
   type StockBalanceList,
   type StockCountBody,
@@ -172,4 +176,51 @@ export function registerCount(body: StockCountBody): Promise<RegisterCountOutcom
     "occurred_in_the_future",
     "count_at_same_moment",
   ]);
+}
+
+export function fetchInitialInventoryLots(
+  cost: InitialInventoryLotsQuery["cost"],
+): Promise<CloudReadOutcome<InitialInventoryLotList>> {
+  const query = cost === undefined ? "" : `?cost=${cost}`;
+  return readList(`/api/initial-inventory-lots${query}`, initialInventoryLotListSchema);
+}
+
+export type SetLotReferenceCostOutcome =
+  | { kind: "ok" }
+  | { kind: "validation_failed"; field: string }
+  | { kind: "not_found" }
+  | { kind: "lot_withdrawn" }
+  | { kind: "not_an_initial_count_lot" }
+  | CloudRefusal;
+
+export async function setLotReferenceCost(
+  lotId: string,
+  body: LotReferenceCostBody,
+): Promise<SetLotReferenceCostOutcome> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/initial-inventory-lots/${lotId}/reference-cost`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    return { kind: "ok" };
+  }
+  if (response.status === 400) {
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
+  }
+  if (response.status === 404 || response.status === 409) {
+    const code = ((await response.json().catch(() => undefined)) as { code?: unknown } | undefined)
+      ?.code;
+    if (code === "not_found" || code === "lot_withdrawn" || code === "not_an_initial_count_lot") {
+      return { kind: code };
+    }
+    return { kind: "failed" };
+  }
+  return refusalOf(response);
 }
