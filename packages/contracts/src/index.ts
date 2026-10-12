@@ -402,6 +402,16 @@ export {
   withoutQueryParameters,
 } from "./shared/index.js";
 export type {
+  InitialInventoryLotList,
+  InitialInventoryLotsQuery,
+  LotReferenceCostBody,
+} from "./stock/initial-inventory-lots.js";
+export {
+  initialInventoryLotListSchema,
+  initialInventoryLotsQuerySchema,
+  lotReferenceCostBodySchema,
+} from "./stock/initial-inventory-lots.js";
+export type {
   StockBalance,
   StockBalanceList,
   StockCount,
