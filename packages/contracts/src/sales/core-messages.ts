@@ -9,6 +9,7 @@ import {
   addProductOutcomeSchema,
   addWeighedProductOutcomeSchema,
   adjustSaleLineOutcomeSchema,
+  applySaleDiscountOutcomeSchema,
   cancelPaidSaleOutcomeSchema,
   cancelSaleOutcomeSchema,
   cashChargeSchema,
@@ -19,9 +20,11 @@ import {
   holdsQrPaymentOutcome,
   manualAdjustmentReasonSchema,
   manualAdjustmentValueSchema,
+  previewSaleDiscountOutcomeSchema,
   previewSaleLineAdjustmentOutcomeSchema,
   qrChargeInProgressOutcome,
   removeSaleLineOutcomeSchema,
+  saleDiscountValueSchema,
   saleLineQuantitySchema,
   saleLineWeightSchema,
   saleSchema,
@@ -76,6 +79,20 @@ const previewSaleLineAdjustmentMessageSchema = z.object({
   request_id: requestId,
   line_id: z.string(),
   adjustment: manualAdjustmentValueSchema,
+});
+
+export const applySaleDiscountMessageSchema = z.object({
+  type: z.literal("apply-sale-discount"),
+  request_id: requestId,
+  discount: saleDiscountValueSchema,
+  reason: manualAdjustmentReasonSchema,
+  authorization: authorizationSchema.optional(),
+});
+
+const previewSaleDiscountMessageSchema = z.object({
+  type: z.literal("preview-sale-discount"),
+  request_id: requestId,
+  discount: saleDiscountValueSchema,
 });
 
 const removeSaleLineMessageSchema = z.object({
@@ -194,6 +211,8 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   changeLineWeightMessageSchema,
   adjustSaleLineMessageSchema,
   previewSaleLineAdjustmentMessageSchema,
+  applySaleDiscountMessageSchema,
+  previewSaleDiscountMessageSchema,
   removeSaleLineMessageSchema,
   cancelSaleMessageSchema,
   cancelPaidSaleMessageSchema,
@@ -298,6 +317,16 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("preview-sale-line-adjustment-result"),
     request_id: requestId,
     outcome: previewSaleLineAdjustmentOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("apply-sale-discount-result"),
+    request_id: requestId,
+    outcome: applySaleDiscountOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("preview-sale-discount-result"),
+    request_id: requestId,
+    outcome: previewSaleDiscountOutcomeSchema,
   }),
   z.object({
     type: z.literal("remove-sale-line-result"),
