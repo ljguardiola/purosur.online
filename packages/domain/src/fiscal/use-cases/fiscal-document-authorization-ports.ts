@@ -42,6 +42,7 @@ export interface PointOfSaleLane {
     fiscalDocumentId: string,
     answer: RealTimeAuthorizationAnswer,
     answeredAt: Date,
+    unclearCodes: readonly number[],
   ): Promise<void>;
   recordTaxAuthorityAnswer(
     fiscalDocumentId: string,
@@ -49,6 +50,7 @@ export interface PointOfSaleLane {
     answeredAt: Date,
     rejectionAlertChange: RejectionAlertChange | null,
     taxAuthorityCount: LastAuthorizedCount | null,
+    unclearCodes: readonly number[],
   ): Promise<void>;
 }
 
@@ -71,7 +73,7 @@ export type SolicitationAnswer =
   | { kind: "authorized"; authorizationCode: string; authorizationCodeDueOn: string }
   | { kind: "rejected"; rejections: readonly TaxAuthorityRejection[] }
   | { kind: "refused_without_result"; rejections: readonly TaxAuthorityRejection[] }
-  | { kind: "no_answer" };
+  | { kind: "no_answer"; rejections: readonly TaxAuthorityRejection[] };
 
 export interface TaxAuthorityInvoicing {
   solicit(solicitation: FiscalDocumentSolicitation): Promise<SolicitationAnswer>;

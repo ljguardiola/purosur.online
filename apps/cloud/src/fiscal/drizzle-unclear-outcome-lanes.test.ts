@@ -70,7 +70,7 @@ async function recordedRequest(number = 42, answer?: RealTimeAuthorizationAnswer
   await authorizationLanes.inPointOfSaleLane(7, async (lane) => {
     await lane.recordRequest(request);
     if (answer) {
-      await lane.recordAnswer(request.fiscalDocumentId, answer, ANSWERED_AT);
+      await lane.recordAnswer(request.fiscalDocumentId, answer, ANSWERED_AT, []);
     }
   });
   enqueued = [];
@@ -159,6 +159,7 @@ describe("DrizzleUnclearOutcomeLanes", () => {
 
       expect(await storedRow(request.fiscalDocumentId)).toMatchObject({
         answerKind: "unclear",
+        unclearCodes: [],
         answeredAt: ABANDONED_AT,
         decision: null,
       });
@@ -369,6 +370,7 @@ describe("DrizzleUnclearOutcomeLanes", () => {
         receivedAt: ABANDONED_AT,
         notAfter: ABANDONED_AT,
         answerKind: "unclear",
+        unclearCodes: [],
         answeredAt: ABANDONED_AT,
         decision: null,
       });

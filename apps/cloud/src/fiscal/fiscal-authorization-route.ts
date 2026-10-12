@@ -187,6 +187,7 @@ export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryRes
                 pointOfSale: body.point_of_sale,
                 documentType: FACTURA_C_DOCUMENT_TYPE,
                 document: voucherIdentifier(body.point_of_sale, body.number),
+                taxAuthorityCodes: outcome.taxAuthorityCodes.join(","),
               },
             },
           );

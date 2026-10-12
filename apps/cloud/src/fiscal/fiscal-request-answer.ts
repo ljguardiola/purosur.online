@@ -33,7 +33,10 @@ export function answerOf(row: RecordedAnswerColumns): RealTimeAuthorizationAnswe
   }
 }
 
-export function answerColumnsOf(answer: RealTimeAuthorizationAnswer) {
+export function answerColumnsOf(
+  answer: RealTimeAuthorizationAnswer,
+  unclearCodes: readonly number[],
+) {
   switch (answer.kind) {
     case "authorized":
       return {
@@ -42,6 +45,7 @@ export function answerColumnsOf(answer: RealTimeAuthorizationAnswer) {
         authorizationCodeDueOn: answer.authorizationCodeDueOn,
         rejectionCodes: null,
         rejectionClass: null,
+        unclearCodes: null,
       };
     case "rejected":
       return {
@@ -50,8 +54,17 @@ export function answerColumnsOf(answer: RealTimeAuthorizationAnswer) {
         authorizationCodeDueOn: null,
         rejectionCodes: [...answer.codes],
         rejectionClass: answer.rejectionClass,
+        unclearCodes: null,
       };
     case "not_attempted":
+      return {
+        answerKind: answer.kind,
+        authorizationCode: null,
+        authorizationCodeDueOn: null,
+        rejectionCodes: null,
+        rejectionClass: null,
+        unclearCodes: null,
+      };
     case "unclear":
       return {
         answerKind: answer.kind,
@@ -59,6 +72,7 @@ export function answerColumnsOf(answer: RealTimeAuthorizationAnswer) {
         authorizationCodeDueOn: null,
         rejectionCodes: null,
         rejectionClass: null,
+        unclearCodes: [...unclearCodes],
       };
   }
 }
