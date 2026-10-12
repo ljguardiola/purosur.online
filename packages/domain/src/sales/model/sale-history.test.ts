@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FiscalDocumentState } from "../../fiscal/index.js";
 import {
+  isDeferralPending,
   SALES_HISTORY_PAGE_SIZE,
   type SaleFiscalDocument,
   type SaleFiscalFacts,
@@ -35,7 +36,7 @@ describe("saleStandingOf", () => {
     expect(saleStandingOf({ deferred: true, fiscalDocument: null })).toBe("deferred");
   });
 
-  it.each<FiscalDocumentState>(["REJECTED", "UNKNOWN"])(
+  it.each<FiscalDocumentState>(["REJECTED", "UNKNOWN", "RELEASED", "CONFLICTING"])(
     "is deferred when its fiscal document ended %s and the sale was routed to deferred",
     (state) => {
       expect(saleStandingOf({ deferred: true, fiscalDocument: document(state) })).toBe("deferred");
@@ -65,7 +66,7 @@ describe("saleComprobanteOf", () => {
     });
   });
 
-  it.each<FiscalDocumentState>(["REJECTED", "UNKNOWN"])(
+  it.each<FiscalDocumentState>(["REJECTED", "UNKNOWN", "RELEASED", "CONFLICTING"])(
     "is a non-fiscal document when the deferred sale's fiscal document ended %s",
     (state) => {
       expect(saleComprobanteOf({ deferred: true, fiscalDocument: document(state) })).toEqual({
@@ -88,5 +89,19 @@ describe("saleComprobanteOf", () => {
 describe("SALES_HISTORY_PAGE_SIZE", () => {
   it("shows fifty sales per page", () => {
     expect(SALES_HISTORY_PAGE_SIZE).toBe(50);
+  });
+});
+
+describe("isDeferralPending", () => {
+  it("is pending for a deferred record no authorization satisfied", () => {
+    expect(isDeferralPending({ satisfied: false })).toBe(true);
+  });
+
+  it("is not pending for a deferred record an authorization satisfied", () => {
+    expect(isDeferralPending({ satisfied: true })).toBe(false);
+  });
+
+  it("is not pending for a sale that was never deferred", () => {
+    expect(isDeferralPending(null)).toBe(false);
   });
 });

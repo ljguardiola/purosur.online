@@ -12,9 +12,13 @@ export class FakeStockLedgerReader implements StockLedgerReader {
 
   readonly ledgerReads: LedgerRead[] = [];
 
-  constructor(products: StockProduct[], ledger: LedgerAtMoment) {
+  constructor(
+    products: StockProduct[],
+    ledger: Pick<LedgerAtMoment, "balance" | "appliedAfterCount"> &
+      Partial<Pick<LedgerAtMoment, "lots" | "lotAllocationsAfter">>,
+  ) {
     this.products = products;
-    this.ledger = ledger;
+    this.ledger = { lots: [], lotAllocationsAfter: new Map(), ...ledger };
   }
 
   async product(productId: string): Promise<StockProduct | undefined> {
@@ -23,6 +27,6 @@ export class FakeStockLedgerReader implements StockLedgerReader {
 
   async ledgerAt(key: ProductStockKey, at: Date): Promise<LedgerAtMoment> {
     this.ledgerReads.push({ key: { ...key }, at: new Date(at) });
-    return { ...this.ledger };
+    return { ...this.ledger, lots: this.ledger.lots.map((lot) => ({ ...lot })) };
   }
 }

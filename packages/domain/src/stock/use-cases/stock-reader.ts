@@ -1,4 +1,5 @@
 import type { SaleUnit } from "../../catalog/index.js";
+import type { StockLot } from "../model/lot-allocation.js";
 import type { LotCost } from "../model/lot-value.js";
 import type { ManualStockMovementKind } from "../model/stock-movement-kind.js";
 import type { AdjustmentReason, LossReason } from "../model/stock-movement-reason.js";
@@ -29,9 +30,15 @@ export interface StockLevel extends StockProduct {
   lots: LotInStock[];
 }
 
+export interface LedgerLot extends StockLot {
+  lotNumber: string | null;
+}
+
 export interface LedgerAtMoment {
   balance: number;
   appliedAfterCount: number;
+  lots: LedgerLot[];
+  lotAllocationsAfter: ReadonlyMap<string, number>;
 }
 
 export interface RecordedStockCount {
@@ -46,6 +53,7 @@ export interface RecordedStockCount {
   counted: number;
   delta: number;
   superseded: boolean;
+  lotCount: number | null;
 }
 
 export interface RecordedStockMovement {

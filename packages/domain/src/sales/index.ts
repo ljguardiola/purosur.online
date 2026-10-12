@@ -47,6 +47,7 @@ export {
   spreadSaleDiscount,
 } from "./model/sale-discount.js";
 export type {
+  DeferredSaleRecord,
   SaleComprobante,
   SaleFiscalDocument,
   SaleFiscalFacts,
@@ -54,6 +55,8 @@ export type {
   SaleStandingDefinition,
 } from "./model/sale-history.js";
 export {
+  isDeferralPending,
+  PENDING_DEFERRED_SALE_RECORD,
   SALE_STANDING_DEFINITIONS,
   SALE_STANDINGS,
   SALES_HISTORY_PAGE_SIZE,

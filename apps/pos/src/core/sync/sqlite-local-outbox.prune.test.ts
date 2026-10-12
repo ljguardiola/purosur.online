@@ -1,4 +1,11 @@
+import type { FiscalDocumentState } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  insertCompletedSale,
+  insertFiscalDocument,
+  insertSaleCompletedEvent,
+  openFiscalDatabase,
+} from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { SqliteLocalOutbox } from "./sqlite-local-outbox";
 import { appendOutboxEvent } from "./sqlite-outbox";
@@ -97,6 +104,42 @@ describe("forgetting the acknowledged events of the outbox", () => {
     expect(heldSeqs()).toEqual([4]);
     untouched.close();
   });
+});
+
+describe("forgetting the acknowledged events while a fiscal document waits", () => {
+  it.each<FiscalDocumentState>(["REQUESTING", "UNKNOWN"])(
+    "keeps the completion event of a sale whose fiscal document is %s",
+    async (state) => {
+      const fiscal = openFiscalDatabase();
+      try {
+        insertCompletedSale(fiscal, "sale-1");
+        insertSaleCompletedEvent(fiscal, "sale-1");
+        insertFiscalDocument(fiscal, { state });
+        insertCompletedSale(fiscal, "sale-2");
+        insertSaleCompletedEvent(fiscal, "sale-2");
+        insertFiscalDocument(fiscal, {
+          id: "doc-2",
+          saleId: "sale-2",
+          pointOfSale: 13,
+          state: "AUTHORIZED",
+        });
+        await new SqliteLocalOutbox(fiscal, () => dayAfterZero(1)).acknowledgeThrough(
+          Number.MAX_SAFE_INTEGER,
+        );
+
+        expect(
+          await new SqliteLocalOutbox(fiscal, () => dayAfterZero(100)).forgetAcknowledgedBefore(
+            dayAfterZero(2),
+          ),
+        ).toBe(1);
+        expect(fiscal.prepare("SELECT aggregate_id FROM outbox").all()).toEqual([
+          { aggregate_id: "sale-1" },
+        ]);
+      } finally {
+        fiscal.close();
+      }
+    },
+  );
 });
 
 function contentsOfEveryTableButTheOutbox(target: LocalDatabase): Record<string, string[]> {

@@ -1,5 +1,5 @@
 {
-  "id": "29dac569-31b2-4951-9885-5575485b402a",
+  "id": "1168a868-aad5-4762-a5a0-1e43c15c077a",
   "prevId": "4f728172-509d-419c-b851-bccc8d1dcfcb",
   "version": "7",
   "dialect": "postgresql",
@@ -5972,13 +5972,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "sale_discount_share": {
-          "name": "sale_discount_share",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         }
       },
       "indexes": {},
@@ -5997,10 +5990,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "sale_lines_sale_discount_share_check": {
-          "name": "sale_lines_sale_discount_share_check",
-          "value": "\"sale_lines\".\"sale_discount_share\" >= 0"
-        },
         "sale_lines_weight_source_check": {
           "name": "sale_lines_weight_source_check",
           "value": "\"sale_lines\".\"weight_source\" IN ('SCALE', 'MANUAL')"
@@ -6266,36 +6255,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "sale_discount_kind": {
-          "name": "sale_discount_kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sale_discount_value": {
-          "name": "sale_discount_value",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sale_discount_amount": {
-          "name": "sale_discount_amount",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sale_discount_reason": {
-          "name": "sale_discount_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sale_discount_authorized_by": {
-          "name": "sale_discount_authorized_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "operation_number": {
           "name": "operation_number",
           "type": "bigint",
@@ -6375,26 +6334,6 @@
         "sales_state_check": {
           "name": "sales_state_check",
           "value": "\"sales\".\"state\" in ('COMPLETED', 'CANCELLED')"
-        },
-        "sales_sale_discount_kind_check": {
-          "name": "sales_sale_discount_kind_check",
-          "value": "\"sales\".\"sale_discount_kind\" IN ('PERCENT', 'AMOUNT')"
-        },
-        "sales_sale_discount_value_check": {
-          "name": "sales_sale_discount_value_check",
-          "value": "(\"sales\".\"sale_discount_value\" IS NULL) = (\"sales\".\"sale_discount_kind\" IS NULL)\n        AND (\n          \"sales\".\"sale_discount_kind\" IS NULL\n          OR (\"sales\".\"sale_discount_kind\" = 'PERCENT' AND \"sales\".\"sale_discount_value\" BETWEEN 1 AND 100)\n          OR (\"sales\".\"sale_discount_kind\" = 'AMOUNT' AND \"sales\".\"sale_discount_value\" > 0)\n        )"
-        },
-        "sales_sale_discount_amount_check": {
-          "name": "sales_sale_discount_amount_check",
-          "value": "(\"sales\".\"sale_discount_amount\" IS NULL) = (\"sales\".\"sale_discount_kind\" IS NULL)\n        AND (\"sales\".\"sale_discount_amount\" IS NULL OR \"sales\".\"sale_discount_amount\" >= 0)"
-        },
-        "sales_sale_discount_reason_check": {
-          "name": "sales_sale_discount_reason_check",
-          "value": "(\"sales\".\"sale_discount_reason\" IS NULL) = (\"sales\".\"sale_discount_kind\" IS NULL)\n        AND (\"sales\".\"sale_discount_reason\" IS NULL OR btrim(\"sales\".\"sale_discount_reason\") <> '')"
-        },
-        "sales_sale_discount_authorized_by_check": {
-          "name": "sales_sale_discount_authorized_by_check",
-          "value": "\"sales\".\"sale_discount_authorized_by\" IS NULL OR \"sales\".\"sale_discount_kind\" IS NOT NULL"
         },
         "sales_state_matches_timestamps_check": {
           "name": "sales_state_matches_timestamps_check",
@@ -6867,6 +6806,82 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.stock_count_lots": {
+      "name": "stock_count_lots",
+      "schema": "",
+      "columns": {
+        "movement_id": {
+          "name": "movement_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lot_id": {
+          "name": "lot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "counted": {
+          "name": "counted",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "stock_count_lots_lot_id_idx": {
+          "name": "stock_count_lots_lot_id_idx",
+          "columns": [
+            {
+              "expression": "lot_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "stock_count_lots_movement_id_stock_counts_movement_id_fk": {
+          "name": "stock_count_lots_movement_id_stock_counts_movement_id_fk",
+          "tableFrom": "stock_count_lots",
+          "tableTo": "stock_counts",
+          "columnsFrom": ["movement_id"],
+          "columnsTo": ["movement_id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "stock_count_lots_lot_id_lots_id_fk": {
+          "name": "stock_count_lots_lot_id_lots_id_fk",
+          "tableFrom": "stock_count_lots",
+          "tableTo": "lots",
+          "columnsFrom": ["lot_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "stock_count_lots_movement_id_lot_id_pk": {
+          "name": "stock_count_lots_movement_id_lot_id_pk",
+          "columns": ["movement_id", "lot_id"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "stock_count_lots_counted_non_negative": {
+          "name": "stock_count_lots_counted_non_negative",
+          "value": "\"stock_count_lots\".\"counted\" >= 0"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.stock_counts": {

@@ -1,3 +1,5 @@
+import { mayBeCountedQuantity } from "./stock-quantity.js";
+
 export interface CountResult {
   expected: number;
   delta: number;
@@ -14,4 +16,12 @@ export function countResult(params: {
 }): CountResult {
   const expected = expectedBalance(params);
   return { expected, delta: params.counted - expected };
+}
+
+export function countedLotsTotal(lots: readonly { counted: number }[]): number {
+  return lots.reduce((sum, lot) => sum + lot.counted, 0);
+}
+
+export function mayBeCountedTogether(lots: readonly { counted: number }[]): boolean {
+  return mayBeCountedQuantity(countedLotsTotal(lots));
 }

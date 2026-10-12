@@ -8,6 +8,7 @@ import {
   lots,
   products,
   stockBalances,
+  stockCountLots,
   stockCounts,
   stockMovements,
   users,
@@ -518,5 +519,159 @@ describe("DrizzleStockStore lots", () => {
       ),
     ).rejects.toThrow();
     expect(await db.select().from(lotAllocations)).toEqual([]);
+  });
+});
+
+describe("DrizzleStockStore lotAllocationsAfter", () => {
+  async function allocatedAt(
+    productId: string,
+    locationId: string,
+    actorId: string,
+    lotId: string,
+    quantity: number,
+    occurredAt: Date,
+    supersededByCountId?: string,
+  ): Promise<string> {
+    const movementId = await seedMovement({
+      productId,
+      locationId,
+      actorId,
+      kind: "loss",
+      delta: quantity,
+      occurredAt,
+      ...(supersededByCountId ? { supersededByCountId } : {}),
+    });
+    await db.insert(lotAllocations).values({ movementId, lotId, quantity });
+    return movementId;
+  }
+
+  it("sums, per lot, what applied movements after the moment of the product in the branch allocated", async () => {
+    const locationId = await seededLocationId(db);
+    const otherLocationId = await insertLocation();
+    const productId = await insertProduct();
+    const actorId = await insertUser(locationId);
+    const lotId = await insertPurchasedLot(db, { productId, locationId, actorId });
+    const otherLotId = await insertPurchasedLot(db, { productId, locationId, actorId });
+    const elsewhereLotId = await insertPurchasedLot(db, {
+      productId,
+      locationId: otherLocationId,
+      actorId,
+    });
+    await allocatedAt(productId, locationId, actorId, lotId, -1000, AFTER_COUNT);
+    await allocatedAt(productId, locationId, actorId, lotId, -500, NOW);
+    await allocatedAt(productId, locationId, actorId, otherLotId, 300, NOW);
+    await allocatedAt(productId, locationId, actorId, lotId, -7000, COUNTED_AT);
+    await allocatedAt(productId, locationId, actorId, lotId, -8000, BEFORE_COUNT);
+    await allocatedAt(productId, otherLocationId, actorId, elsewhereLotId, -9000, AFTER_COUNT);
+    const store = new DrizzleStockStore(db);
+
+    const allocated = await store.transaction((tx) =>
+      tx.lotAllocationsAfter({ productId, locationId }, COUNTED_AT),
+    );
+
+    expect(allocated).toEqual(
+      new Map([
+        [lotId, -1500],
+        [otherLotId, 300],
+      ]),
+    );
+  });
+
+  it("leaves out the movements a later count superseded", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct();
+    const actorId = await insertUser(locationId);
+    const lotId = await insertPurchasedLot(db, { productId, locationId, actorId });
+    const count = await seedMovement({
+      productId,
+      locationId,
+      actorId,
+      kind: "count",
+      delta: 0,
+      occurredAt: NOW,
+    });
+    await allocatedAt(productId, locationId, actorId, lotId, -1000, AFTER_COUNT, count);
+    const store = new DrizzleStockStore(db);
+
+    const allocated = await store.transaction((tx) =>
+      tx.lotAllocationsAfter({ productId, locationId }, COUNTED_AT),
+    );
+
+    expect(allocated).toEqual(new Map());
+  });
+});
+
+describe("DrizzleStockStore recordCountedLots", () => {
+  it("records the quantity counted of each lot against the count", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct();
+    const actorId = await insertUser(locationId);
+    const lotId = await insertPurchasedLot(db, { productId, locationId, actorId });
+    const otherLotId = await insertPurchasedLot(db, { productId, locationId, actorId });
+    const movementId = await seedMovement({
+      productId,
+      locationId,
+      actorId,
+      kind: "count",
+      delta: 0,
+      occurredAt: NOW,
+    });
+    await db.insert(stockCounts).values({ movementId, counted: 3000, expected: 0 });
+    const store = new DrizzleStockStore(db);
+
+    await store.transaction((tx) =>
+      tx.recordCountedLots(movementId, [
+        { lotId, counted: 3000 },
+        { lotId: otherLotId, counted: 0 },
+      ]),
+    );
+
+    expect(await db.select().from(stockCountLots)).toEqual(
+      expect.arrayContaining([
+        { movementId, lotId, counted: 3000 },
+        { movementId, lotId: otherLotId, counted: 0 },
+      ]),
+    );
+  });
+
+  it("registers a count by lot end to end, keeping the lots in line with it", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct();
+    const actorId = await insertUser(locationId);
+    const soon = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId,
+      expiresOn: "2027-01-01",
+      remaining: 4000,
+    });
+    const late = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId,
+      expiresOn: "2027-06-01",
+      remaining: 6000,
+    });
+    await db.insert(stockBalances).values({ productId, locationId, quantity: 10_000 });
+
+    const outcome = await registerCount(portsAt(NOW), {
+      productId,
+      locationId,
+      lots: [{ lotId: soon, counted: 1000 }],
+      occurredAt: COUNTED_AT,
+      actorId,
+    });
+
+    expect(outcome).toMatchObject({ kind: "recorded", balance: 1000 });
+    const remaining = await db.select({ id: lots.id, remaining: lots.remaining }).from(lots);
+    expect(remaining).toEqual(
+      expect.arrayContaining([
+        { id: soon, remaining: 1000 },
+        { id: late, remaining: 0 },
+      ]),
+    );
+    expect(await db.select().from(stockCountLots)).toEqual([
+      { movementId: expect.any(String), lotId: soon, counted: 1000 },
+    ]);
   });
 });

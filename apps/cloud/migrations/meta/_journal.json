@@ -607,8 +607,15 @@
     {
       "idx": 86,
       "version": "7",
-      "when": 1791776903723,
-      "tag": "0090_sale_total_discounts",
+      "when": 1791769450153,
+      "tag": "0090_stock_count_lots",
+      "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1791779639204,
+      "tag": "0091_sale_total_discounts",
       "breakpoints": true
     }
   ]

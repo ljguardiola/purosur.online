@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { lotAllocations } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleStockReader } from "./drizzle-stock-reader.js";
 import { insertPurchasedLot, insertTechnicalLot } from "./test-support/lot-fixtures.js";
@@ -122,7 +123,57 @@ describe("DrizzleStockReader.ledgerAt", () => {
     expect(await new DrizzleStockReader(db).ledgerAt({ productId, locationId }, MOMENT)).toEqual({
       balance: 20,
       appliedAfterCount: 4,
+      lots: [],
+      lotAllocationsAfter: new Map(),
     });
+  });
+
+  it("answers the product's lots at that location and what movements after the moment allocated to them", async () => {
+    const { actorId, locationId } = await seededActor();
+    const otherLocationId = await insertLocation(db);
+    const { productId } = await insertProduct(db);
+    const receivedAt = new Date("2026-08-01T12:00:00.000Z");
+    const lotId = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId,
+      lotNumber: "L-77",
+      expiresOn: "2027-03-01",
+      purchasedOn: "2026-08-01",
+      remaining: 3000,
+      createdAt: receivedAt,
+    });
+    const technicalId = await insertTechnicalLot(db, { productId, locationId, remaining: -500 });
+    await insertPurchasedLot(db, { productId, locationId: otherLocationId, actorId });
+    const sale = await insertMovement(db, {
+      productId,
+      locationId,
+      actorId,
+      kind: "loss",
+      reason: "theft",
+      delta: -2000,
+      occurredAt: AFTER_MOMENT,
+    });
+    await db.insert(lotAllocations).values({ movementId: sale, lotId, quantity: -2000 });
+
+    const ledger = await new DrizzleStockReader(db).ledgerAt({ productId, locationId }, MOMENT);
+
+    expect(ledger.lots).toEqual(
+      expect.arrayContaining([
+        {
+          id: lotId,
+          lotNumber: "L-77",
+          technical: false,
+          expiresOn: "2027-03-01",
+          purchasedOn: "2026-08-01",
+          receivedAt,
+          remaining: 3000,
+        },
+        expect.objectContaining({ id: technicalId, technical: true, remaining: -500 }),
+      ]),
+    );
+    expect(ledger.lots).toHaveLength(2);
+    expect(ledger.lotAllocationsAfter).toEqual(new Map([[lotId, -2000]]));
   });
 
   it("answers zero for a product with no balance and no movements at that location", async () => {
@@ -132,6 +183,8 @@ describe("DrizzleStockReader.ledgerAt", () => {
     expect(await new DrizzleStockReader(db).ledgerAt({ productId, locationId }, MOMENT)).toEqual({
       balance: 0,
       appliedAfterCount: 0,
+      lots: [],
+      lotAllocationsAfter: new Map(),
     });
   });
 });
@@ -333,6 +386,13 @@ describe("DrizzleStockReader.counts", () => {
       occurredAt: LATER,
       count: { counted: 12, expected: 10 },
     });
+    const lotId = await insertPurchasedLot(db, { productId, locationId, actorId });
+    const byLot = await insertMovement(db, {
+      ...count,
+      delta: 0,
+      occurredAt: new Date(LATER.getTime() + 1000),
+      count: { counted: 7, expected: 7, lots: [{ lotId, counted: 7 }] },
+    });
     const earlier = await insertMovement(db, {
       ...count,
       delta: -1,
@@ -363,6 +423,20 @@ describe("DrizzleStockReader.counts", () => {
 
     expect(await new DrizzleStockReader(db).counts({ locationId, since: SINCE })).toEqual([
       {
+        id: byLot,
+        productId,
+        productName: "Miel pura de abeja 1 kg",
+        categoryId,
+        categoryName: "Almacén",
+        saleUnit: "KG",
+        occurredAt: new Date(LATER.getTime() + 1000),
+        expected: 7,
+        counted: 7,
+        delta: 0,
+        superseded: false,
+        lotCount: 1,
+      },
+      {
         id: latest,
         productId,
         productName: "Miel pura de abeja 1 kg",
@@ -374,6 +448,7 @@ describe("DrizzleStockReader.counts", () => {
         counted: 12,
         delta: 2,
         superseded: false,
+        lotCount: null,
       },
       {
         id: earlier,
@@ -387,6 +462,7 @@ describe("DrizzleStockReader.counts", () => {
         counted: 9,
         delta: -1,
         superseded: true,
+        lotCount: null,
       },
     ]);
   });

@@ -33,6 +33,13 @@ export const MultipleChildren: Story = {
   },
 };
 
+export const WithDescription: Story = {
+  args: {
+    label: "Cantidad contada de cada lote",
+    description: "Un lote sin cantidad queda en cero.",
+  },
+};
+
 export const Backoffice: Story = {
   decorators: [
     (Story) => (

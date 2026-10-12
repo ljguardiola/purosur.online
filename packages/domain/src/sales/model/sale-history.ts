@@ -17,6 +17,18 @@ export interface SaleFiscalDocument {
   number: number;
 }
 
+export interface DeferredSaleRecord {
+  satisfied: boolean;
+}
+
+export const PENDING_DEFERRED_SALE_RECORD = {
+  satisfied: false,
+} as const satisfies DeferredSaleRecord;
+
+export function isDeferralPending(record: DeferredSaleRecord | null): boolean {
+  return record !== null && record.satisfied === PENDING_DEFERRED_SALE_RECORD.satisfied;
+}
+
 export interface SaleFiscalFacts {
   deferred: boolean;
   fiscalDocument: SaleFiscalDocument | null;

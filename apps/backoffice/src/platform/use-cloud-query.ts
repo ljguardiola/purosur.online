@@ -61,6 +61,7 @@ export async function fetchCloudQuery<T>(
 export function useCloudQuery<T>({
   queryKey,
   keepPreviousData: keepsPreviousData = false,
+  enabled = true,
   read,
   gcTime,
   refetchInterval,
@@ -68,6 +69,7 @@ export function useCloudQuery<T>({
   onForbidden,
 }: CloudQuery<T> & {
   keepPreviousData?: boolean | undefined;
+  enabled?: boolean | undefined;
   refetchInterval?: number;
   onSessionEnded: () => void;
   onForbidden: () => void;
@@ -78,6 +80,7 @@ export function useCloudQuery<T>({
   const query = useQuery({
     queryKey,
     queryFn: cloudQueryFn(read),
+    enabled,
     ...(gcTime === undefined ? {} : { gcTime }),
     ...(keepsPreviousData ? { placeholderData: keepPreviousData } : {}),
   });

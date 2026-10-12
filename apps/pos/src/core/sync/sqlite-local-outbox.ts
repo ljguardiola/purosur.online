@@ -1,5 +1,9 @@
 import { PUSH_EVENTS_REQUEST_MAX_BYTES } from "@purosur/contracts";
-import type { PushedEvent } from "@purosur/domain";
+import {
+  type PushedEvent,
+  SALE_COMPLETED_EVENT_TYPE,
+  SERIES_WAITING_STATES,
+} from "@purosur/domain";
 import type { LocalOutbox, OutboxPruning } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import { stopOpeningNewSales } from "./sqlite-local-installation";
@@ -90,7 +94,17 @@ export class SqliteLocalOutbox implements LocalOutbox, OutboxPruning {
 
   async forgetAcknowledgedBefore(cutoff: Date): Promise<number> {
     return this.database
-      .prepare("DELETE FROM outbox WHERE acked_at IS NOT NULL AND acked_at < ?")
-      .run(cutoff.toISOString()).changes;
+      .prepare<string[]>(
+        `DELETE FROM outbox
+          WHERE acked_at IS NOT NULL AND acked_at < ?
+            AND NOT (
+              event_type = ?
+              AND aggregate_id IN (
+                SELECT sale_id FROM fiscal_documents
+                WHERE state IN (${SERIES_WAITING_STATES.map(() => "?").join(", ")})
+              )
+            )`,
+      )
+      .run(cutoff.toISOString(), SALE_COMPLETED_EVENT_TYPE, ...SERIES_WAITING_STATES).changes;
   }
 }

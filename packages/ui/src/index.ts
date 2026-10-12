@@ -89,6 +89,11 @@ export type { FieldSize, FieldSizeProviderProps } from "./components/forms/field
 export { FieldSizeProvider } from "./components/forms/field-size";
 export type { IconButtonProps } from "./components/forms/icon-button";
 export { IconButton } from "./components/forms/icon-button";
+export type {
+  LabelledFieldListItem,
+  LabelledFieldListProps,
+} from "./components/forms/labelled-field-list";
+export { LabelledFieldList } from "./components/forms/labelled-field-list";
 export type { ListFilterProps } from "./components/forms/list-filter";
 export { ListFilter } from "./components/forms/list-filter";
 export type { NarrowedOption, Option, Options } from "./components/forms/option";

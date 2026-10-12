@@ -5,6 +5,7 @@ import type {
   StockMovement,
   StockMovementReasonList,
   StockProduct,
+  StockProductBalance,
 } from "@purosur/contracts";
 
 type StockLot = StockBalance["lots"][number];
@@ -198,6 +199,7 @@ export const almondsCount: StockCount = {
   counted: 12_150,
   delta: -250,
   superseded: false,
+  lotCount: 2,
 };
 
 export const honeyCount: StockCount = {
@@ -212,6 +214,7 @@ export const honeyCount: StockCount = {
   counted: 24_000,
   delta: 0,
   superseded: false,
+  lotCount: null,
 };
 
 export const supersededCount: StockCount = {
@@ -223,6 +226,22 @@ export const supersededCount: StockCount = {
   delta: -2000,
   superseded: true,
 };
+
+export function expectedBalance(
+  product: StockBalance,
+  balance: number,
+  lots: StockProductBalance["lots"] = [],
+): StockProductBalance {
+  return { ...withoutBalance(product), balance, lots };
+}
+
+export const ALMONDS_FIRST_LOT_ID = "00000000-0000-4000-8000-0000000000a1";
+export const ALMONDS_SECOND_LOT_ID = "00000000-0000-4000-8000-0000000000a2";
+
+export const almondsExpectedByLot = expectedBalance(almonds, 12_400, [
+  { id: ALMONDS_FIRST_LOT_ID, lotNumber: "L-2312", expiresOn: "2026-10-14", expected: 4_400 },
+  { id: ALMONDS_SECOND_LOT_ID, lotNumber: null, expiresOn: null, expected: 8_000 },
+]);
 
 export const honeyLoss: StockMovement = {
   id: "movement-1",

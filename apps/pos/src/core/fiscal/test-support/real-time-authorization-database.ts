@@ -1,4 +1,4 @@
-import type { FacturaC } from "@purosur/domain";
+import type { DeferralReason, FacturaC, FiscalDocumentState } from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -104,7 +104,7 @@ export interface FiscalDocumentRow {
   saleId: string;
   pointOfSale: number;
   number: number;
-  state: "REQUESTING" | "AUTHORIZED" | "REJECTED" | "UNKNOWN";
+  state: FiscalDocumentState;
 }
 
 export function insertFiscalDocument(
@@ -168,4 +168,16 @@ export function insertOfflineNumberBlock(
        ) VALUES (?, ?, 'factura_c', ?, ?, 'in_use', 1)`,
     )
     .run(id, pointOfSale, firstNumber, lastNumber);
+}
+
+export function insertDeferredSale(
+  database: LocalDatabase,
+  saleId: string,
+  reason: DeferralReason = "unclear_outcome",
+): void {
+  database
+    .prepare(
+      "INSERT INTO deferred_sales (sale_id, reason, routed_at) VALUES (?, ?, '2026-09-30T12:05:01.000Z')",
+    )
+    .run(saleId, reason);
 }
