@@ -24,7 +24,7 @@ export interface CloudMercadoPagoQrChargeOrdersDeps {
   now: () => Date;
 }
 
-const ORDERS_PATH = "/api/payments/mercado-pago-qr/orders";
+const ORDERS_PATH = "/api/payments/mercado-pago/orders";
 const UNREACHABLE = { kind: "unreachable" } as const;
 
 function orderAnswerOf(response: CloudResponse): MercadoPagoChargeOrderAnswer {
@@ -104,7 +104,7 @@ export class CloudMercadoPagoQrChargeOrders implements MercadoPagoChargeOrders {
       return UNREACHABLE;
     }
     const response = await this.deps.get(
-      `/api/payments/mercado-pago-qr/${encodeURIComponent(paymentTransactionId)}`,
+      `/api/payments/mercado-pago/${encodeURIComponent(paymentTransactionId)}`,
       deviceToken,
       { timeoutMs: MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS, singleAttempt: true },
     );
@@ -119,7 +119,7 @@ export class CloudMercadoPagoQrChargeOrders implements MercadoPagoChargeOrders {
       return UNREACHABLE;
     }
     const response = await this.deps.post(
-      `/api/payments/mercado-pago-qr/${encodeURIComponent(paymentTransactionId)}/cancel`,
+      `/api/payments/mercado-pago/${encodeURIComponent(paymentTransactionId)}/cancel`,
       deviceToken,
       undefined,
       { timeoutMs: MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS, singleAttempt: true },
