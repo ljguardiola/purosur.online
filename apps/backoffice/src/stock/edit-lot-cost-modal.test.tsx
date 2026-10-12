@@ -130,9 +130,7 @@ test("puts a cost the cloud refuses on the cost field", async () => {
   await userEvent.fill(screen.getByLabelText("Costo de referencia por kg"), "100");
   await userEvent.click(screen.getByRole("button", { name: SAVE }));
 
-  await expect
-    .element(screen.getByText("Ingresá un costo mayor a cero, de hasta $ 21.474.836,47."))
-    .toBeVisible();
+  await expect.element(screen.getByText("Revisá el costo.")).toBeVisible();
 });
 
 test.each([

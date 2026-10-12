@@ -32,6 +32,10 @@ test.each([
   expect(costMessage({ ...EMPTY_COST_FORM, cost })).toBe(reason);
 });
 
+test("asks to review a cost the contract accepts but the cloud refused", () => {
+  expect(costMessage({ ...EMPTY_COST_FORM, cost: "100" })).toBe("Revisá el costo.");
+});
+
 test("names the cost per the unit the product is sold by", () => {
   expect(referenceCostLabel("KG")).toBe("Costo de referencia por kg");
   expect(referenceCostLabel("UNIT")).toBe("Costo de referencia por unidad");
