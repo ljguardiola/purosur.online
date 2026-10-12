@@ -169,6 +169,12 @@ describe("stockCoreToRendererMessageSchema", () => {
     expect(acceptsAnswer(type, outcome)).toBe(true);
   });
 
+  it.each(ACCEPTED)("keeps whole the %s answer %j", (type, outcome) => {
+    const message = { type, request_id: REQUEST_ID, outcome };
+
+    expect(stockCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
   it.each([
     "record-initial-count-line-result",
     "withdraw-initial-count-line-result",
