@@ -104,6 +104,26 @@ export const DiscountWithSuffix: Story = {
   },
 };
 
+export const DiscountNarrow: Story = {
+  args: {
+    kind: "discount",
+    width: "narrow",
+    label: "Porcentaje de descuento",
+    labelVisuallyHidden: true,
+    value: "10",
+    onChange: () => {},
+    suffix: "%",
+    description: "Reemplaza la promoción de la línea, si tiene.",
+  },
+  decorators: [
+    (Story) => (
+      <div className="w-148">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
 export const PlainText: Story = {
   args: { kind: "plain-text", label: "Motivo", value: "", onChange: () => {} },
 };
