@@ -212,6 +212,9 @@ export function PointPaymentWaitModal({
   if (awaitingCancellation) {
     return (
       <AwaitingCancellationModal
+        total={total}
+        paid={paid}
+        amount={order.amount}
         waitedOut={waitedOut}
         remainingSeconds={waitedOut ? 0 : remainingSeconds}
         totalSeconds={order.remaining_seconds}
@@ -246,13 +249,7 @@ export function PointPaymentWaitModal({
       }
     >
       <div className="flex flex-col gap-5">
-        <SummaryRowGroup
-          rows={[
-            { label: "Total de la venta", value: formatCents(total) },
-            { label: "Pagado", value: formatCents(paid) },
-            { label: "A cobrar ahora", value: formatCents(order.amount) },
-          ]}
-        />
+        <PointSaleSummary total={total} paid={paid} amount={order.amount} />
         {charge.status === "failed" ? (
           <LoadFailure
             icon={<TriangleAlert />}
@@ -311,13 +308,39 @@ export function PointPaymentWaitModal({
   );
 }
 
+function PointSaleSummary({
+  total,
+  paid,
+  amount,
+}: {
+  total: number;
+  paid: number;
+  amount: number;
+}) {
+  return (
+    <SummaryRowGroup
+      rows={[
+        { label: "Total de la venta", value: formatCents(total) },
+        { label: "Pagado", value: formatCents(paid) },
+        { label: "A cobrar ahora", value: formatCents(amount) },
+      ]}
+    />
+  );
+}
+
 function AwaitingCancellationModal({
+  total,
+  paid,
+  amount,
   waitedOut,
   remainingSeconds,
   totalSeconds,
   closed,
   onChooseAnotherMethod,
 }: {
+  total: number;
+  paid: number;
+  amount: number;
   waitedOut: boolean;
   remainingSeconds: number;
   totalSeconds: number;
@@ -351,6 +374,7 @@ function AwaitingCancellationModal({
       }
     >
       <div className="flex flex-col gap-5">
+        <PointSaleSummary total={total} paid={paid} amount={amount} />
         <div className="flex items-center gap-6">
           <CountdownRing
             remainingSeconds={remainingSeconds}
@@ -360,6 +384,9 @@ function AwaitingCancellationModal({
           <ProgressSteps
             steps={[
               SENT_STEP,
+              ...(waitedOut
+                ? [{ id: "wait-over", label: "Tiempo agotado", state: "error" } as const]
+                : []),
               {
                 id: "awaiting-cancellation",
                 label: "Esperando la cancelación",

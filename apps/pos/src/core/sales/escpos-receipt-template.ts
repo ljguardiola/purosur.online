@@ -49,7 +49,7 @@ const PAYMENT_NAMES = {
   CASH: "Efectivo",
   TRANSFER: "Transferencia",
   QR: "QR Mercado Pago",
-  POINT: "Terminal Mercado Pago",
+  POINT: "Point Mercado Pago",
 } as const;
 
 class Output {

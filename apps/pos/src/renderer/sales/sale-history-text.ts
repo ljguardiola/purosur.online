@@ -18,13 +18,13 @@ const PAYMENT_METHOD_NAMES = {
   CASH: "Efectivo",
   TRANSFER: "Transferencia",
   QR: "QR de Mercado Pago",
-  POINT: "Terminal de Mercado Pago",
+  POINT: "Point integrada",
 } as const satisfies Record<PaymentMethod, string>;
 
 const PAYMENT_METHOD_SHORT_NAMES = {
   ...PAYMENT_METHOD_NAMES,
   QR: "QR",
-  POINT: "Terminal",
+  POINT: "Point",
 } as const satisfies Record<PaymentMethod, string>;
 
 const STATE_PRESENTATION = {
