@@ -271,19 +271,22 @@ describe("decideUnclearRealTimeOutcome", () => {
       { voucher: { kind: "found", voucher: { ...MATCHING_VOUCHER, total: 1 } } },
       "conflicting",
     ],
-  ])("resolves the alert of the document, once its decision is recorded, for %s", async (_name, change, decision) => {
-    const { ports, documents, store } = scenario(change);
+  ])(
+    "resolves the alert of the document, once its decision is recorded, for %s",
+    async (_name, change, decision) => {
+      const { ports, documents, store } = scenario(change);
 
-    await decide(ports);
+      await decide(ports);
 
-    expect(store.resolvedAlerts).toEqual([
-      { fiscalDocumentId: FISCAL_DOCUMENT_ID, resolvedAt: SETTLED_AT },
-    ]);
-    const operations = documents.operations;
-    expect(operations.findIndex((op) => op.startsWith(`recordDecision:${decision}`))).toBe(
-      operations.findIndex((op) => op.startsWith("resolveUnclearOutcomeAlert")) - 1,
-    );
-  });
+      expect(store.resolvedAlerts).toEqual([
+        { fiscalDocumentId: FISCAL_DOCUMENT_ID, resolvedAt: SETTLED_AT },
+      ]);
+      const operations = documents.operations;
+      expect(operations.findIndex((op) => op.startsWith(`recordDecision:${decision}`))).toBe(
+        operations.findIndex((op) => op.startsWith("resolveUnclearOutcomeAlert")) - 1,
+      );
+    },
+  );
 
   it("resolves no alert for a request that was already decided or is not unclear", async () => {
     const decided = scenario({ decision: { kind: "released" } });

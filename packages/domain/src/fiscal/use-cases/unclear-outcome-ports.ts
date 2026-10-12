@@ -33,6 +33,7 @@ export interface UnclearOutcomeLane {
     decision: UnclearOutcomeDecision,
     decidedAt: Date,
   ): Promise<void>;
+  resolveUnclearOutcomeAlert(fiscalDocumentId: string, resolvedAt: Date): Promise<void>;
   registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;
   recordedRequest(
     registerId: string,

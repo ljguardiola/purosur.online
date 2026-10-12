@@ -75,6 +75,7 @@ export async function decideUnclearRealTimeOutcome(
     } else if (request.progress.answer.kind === "not_attempted") {
       const decision: UnclearOutcomeDecision = { kind: "released" };
       await lane.recordDecision(fiscalDocumentId, decision, now);
+      await lane.resolveUnclearOutcomeAlert(fiscalDocumentId, now);
       return { kind: "decided", decision };
     } else {
       abandonedAt = request.progress.answeredAt;
@@ -94,6 +95,7 @@ export async function decideUnclearRealTimeOutcome(
       return verdict;
     }
     await lane.recordDecision(fiscalDocumentId, verdict, now);
+    await lane.resolveUnclearOutcomeAlert(fiscalDocumentId, now);
     return { kind: "decided", decision: verdict };
   });
 }

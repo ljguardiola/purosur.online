@@ -118,9 +118,7 @@ class FakeUnclearOutcomeLane implements UnclearOutcomeLane {
   }
 
   async resolveUnclearOutcomeAlert(fiscalDocumentId: string, resolvedAt: Date): Promise<void> {
-    this.store.documents.operations.push(
-      `resolveUnclearOutcomeAlert@${resolvedAt.toISOString()}`,
-    );
+    this.store.documents.operations.push(`resolveUnclearOutcomeAlert@${resolvedAt.toISOString()}`);
     this.store.resolvedAlerts.push({ fiscalDocumentId, resolvedAt: new Date(resolvedAt) });
   }
 

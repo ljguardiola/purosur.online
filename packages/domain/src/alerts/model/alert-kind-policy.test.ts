@@ -149,7 +149,9 @@ describe("alertClosing", () => {
 
   it("closes an unclear document's alert once its document is resolved whatever kinds belong to a discardable refund", () => {
     expect(alertClosing("fiscal_unknown", [])).toBe("when_its_document_is_resolved");
-    expect(alertClosing("fiscal_unknown", ["fiscal_unknown"])).toBe("when_its_document_is_resolved");
+    expect(alertClosing("fiscal_unknown", ["fiscal_unknown"])).toBe(
+      "when_its_document_is_resolved",
+    );
   });
 
   it("closes an alert not scoped to a refund the same way whatever kinds belong to a discardable refund", () => {

@@ -319,11 +319,19 @@ describe("unclearOutcomeSince", () => {
   it.each<[string, RealTimeAuthorizationAnswer]>([
     ["unclear", { kind: "unclear" }],
     ["not attempted", { kind: "not_attempted" }],
-  ])("is when the tax authority's answer was recorded as %s while no decision is recorded", (_name, answer) => {
-    expect(
-      unclearOutcomeSince({ answer, answeredAt: ANSWERED_AT, notAfter: NOT_AFTER, decision: null }),
-    ).toEqual(ANSWERED_AT);
-  });
+  ])(
+    "is when the tax authority's answer was recorded as %s while no decision is recorded",
+    (_name, answer) => {
+      expect(
+        unclearOutcomeSince({
+          answer,
+          answeredAt: ANSWERED_AT,
+          notAfter: NOT_AFTER,
+          decision: null,
+        }),
+      ).toEqual(ANSWERED_AT);
+    },
+  );
 
   it("is the moment the call was due to be over when no answer was ever recorded", () => {
     expect(
@@ -364,7 +372,11 @@ describe("unclearOutcomeSince", () => {
     ["conflicting", { kind: "conflicting" }],
     [
       "adopted",
-      { kind: "adopted", authorizationCode: "75123456789012", authorizationCodeDueOn: "2026-10-11" },
+      {
+        kind: "adopted",
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-11",
+      },
     ],
   ])("is never once the outcome was %s", (_name, decision) => {
     expect(
