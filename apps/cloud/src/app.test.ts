@@ -2539,6 +2539,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/inventory-levels/:productId",
+        access: capabilityAccess("stock_balances"),
+      },
+      {
+        method: "GET",
         url: "/api/initial-inventory-lots",
         access: capabilityAccess("initial_inventory"),
       },
@@ -2546,11 +2551,6 @@ describe("the route access inventory", () => {
         method: "PUT",
         url: "/api/initial-inventory-lots/:lotId/reference-cost",
         access: capabilityAccess("initial_inventory"),
-      },
-      {
-        method: "GET",
-        url: "/api/inventory-levels/:productId",
-        access: capabilityAccess("stock_balances"),
       },
       {
         method: "GET",
