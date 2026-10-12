@@ -486,6 +486,25 @@ test("caps the panel below the viewport and lets only the body scroll when conte
   }
 });
 
+test("keeps the panel inside a viewport narrower than its width", async () => {
+  await page.viewport(414, 896);
+  try {
+    for (const width of ["standard", "editor"] as const) {
+      const screen = await render(<Modal {...baseProps({ width, closable: true })} />);
+      const panel = screen.getByRole("dialog").element().parentElement as HTMLElement;
+
+      const panelRect = panel.getBoundingClientRect();
+      expect(panelRect.left, `${width} left`).toBeGreaterThanOrEqual(24 - 1);
+      expect(panelRect.right, `${width} right`).toBeLessThanOrEqual(window.innerWidth - 24 + 1);
+
+      await expectNoAccessibilityViolations(document.body);
+      await screen.unmount();
+    }
+  } finally {
+    await page.viewport(1280, 900);
+  }
+});
+
 test("keeps the header and footer at their natural height even when the body scrolls", async () => {
   const naturalScreen = await render(
     <Modal {...baseProps({ footer: <Button>Confirm</Button> })} />,
