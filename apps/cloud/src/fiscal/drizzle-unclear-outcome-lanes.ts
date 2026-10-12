@@ -10,8 +10,10 @@ import {
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { openAlertCondition } from "../alerts/open-alert-condition.js";
+import { resolveAlert } from "../alerts/resolve-alert.js";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
-import { fiscalRequests, registerPointsOfSale } from "../platform/db/schema.js";
+import { alerts, fiscalRequests, registerPointsOfSale } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import type { EnqueueUnclearOutcome } from "./enqueue-unclear-outcome.js";
 import { answerOf } from "./fiscal-request-answer.js";
@@ -102,6 +104,22 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
       .update(fiscalRequests)
       .set({ ...decisionColumnsOf(decision), decidedAt })
       .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
+  }
+
+  async resolveUnclearOutcomeAlert(fiscalDocumentId: string, resolvedAt: Date): Promise<void> {
+    const [open] = await this.db
+      .select({ id: alerts.id })
+      .from(alerts)
+      .where(
+        and(
+          eq(alerts.kind, "fiscal_unknown"),
+          eq(alerts.scope, fiscalDocumentId),
+          openAlertCondition(),
+        ),
+      );
+    if (open !== undefined) {
+      await resolveAlert(this.db, open.id, { now: () => resolvedAt });
+    }
   }
 
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
