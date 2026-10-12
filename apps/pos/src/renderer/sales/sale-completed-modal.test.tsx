@@ -23,6 +23,7 @@ type Amounts =
 type Overrides = {
   readReceiptStatus?: () => Promise<ReceiptPrintStatusOutcome>;
   retryReceiptPrint?: () => Promise<RetryReceiptPrintOutcome>;
+  mayChangePrinter?: boolean;
 };
 
 async function renderModal(amounts: Amounts, overrides: Overrides = {}) {
@@ -45,6 +46,7 @@ async function renderModal(amounts: Amounts, overrides: Overrides = {}) {
       saleId="sale-1"
       readReceiptStatus={readReceiptStatus}
       retryReceiptPrint={retryReceiptPrint}
+      mayChangePrinter={overrides.mayChangePrinter ?? false}
       onNewSale={onNewSale}
     />,
   );
@@ -406,5 +408,113 @@ describe("SaleCompletedModal", () => {
           .filter({ hasText: "No se pudo reintentar la impresión. Probá de nuevo." }),
       )
       .toBeVisible();
+  });
+
+  describe("a receipt withdrawn from the previous printer", () => {
+    it("says the ticket left the previous printer and offers the retry as a duplicate", async () => {
+      let standing: Standing = "withdrawn";
+      const { screen, retryReceiptPrint } = await renderModal(CASH, {
+        readReceiptStatus: async () => ({
+          kind: "found",
+          next_copy: { kind: "duplicate", order_number: 1 },
+          printed: false,
+          standing,
+        }),
+        retryReceiptPrint: async () => {
+          standing = "printing";
+          return { kind: "started", copy: { kind: "duplicate", order_number: 1 } };
+        },
+      });
+
+      await expect.element(screen.getByText("Cambiada", { exact: true })).toBeVisible();
+      await expectAlertText(
+        screen,
+        "El ticket se retiró de la impresora anterior No va a salir en ella. Como el ticket ya se había enviado, el reintento sale como duplicado, con la reimpresión Nº 1.",
+      );
+
+      await userEvent.click(screen.getByRole("button", { name: "Reintentar impresión" }));
+
+      expect(retryReceiptPrint).toHaveBeenCalledWith("sale-1");
+      await expect.element(screen.getByText("Imprimiendo")).toBeVisible();
+    });
+
+    it("lets the cashier go on selling", async () => {
+      const { screen, onNewSale } = await renderModal(CASH, {
+        readReceiptStatus: async () => found("withdrawn"),
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Seguir vendiendo" }));
+
+      expect(onNewSale).toHaveBeenCalledOnce();
+    });
+
+    it("shows the refusal of a retry", async () => {
+      const { screen } = await renderModal(CASH, {
+        readReceiptStatus: async () => found("withdrawn"),
+        retryReceiptPrint: async () => ({ kind: "unavailable" }),
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Reintentar impresión" }));
+
+      await expect
+        .element(
+          screen
+            .getByRole("alert")
+            .filter({ hasText: "No se pudo reintentar la impresión. Probá de nuevo." }),
+        )
+        .toBeVisible();
+    });
+  });
+
+  describe("changing the printer from a failed print", () => {
+    const FAILED_STANDINGS = [
+      "cover_open",
+      "paper_out",
+      "not_responding",
+      "retry_offered",
+      "withdrawn",
+      "printer_not_configured",
+      "failed",
+    ] as const;
+
+    it.each(FAILED_STANDINGS)(
+      "offers to change the printer, and goes to its screen, to a person who may, when the print stands as %s",
+      async (standing) => {
+        const { screen } = await renderModal(CASH, {
+          readReceiptStatus: async () => found(standing),
+          mayChangePrinter: true,
+        });
+
+        await userEvent.click(screen.getByRole("button", { name: "Cambiar impresora" }));
+
+        await expect.poll(() => screen.router.state.location.pathname).toBe("/receipt-printer");
+      },
+    );
+
+    it.each(FAILED_STANDINGS)(
+      "does not offer to change the printer to a person who may not, when the print stands as %s",
+      async (standing) => {
+        const { screen } = await renderModal(CASH, {
+          readReceiptStatus: async () => found(standing),
+        });
+
+        await expect.element(screen.getByText("No se pudo imprimir el ticket")).toBeVisible();
+        await expect
+          .element(screen.getByRole("button", { name: "Cambiar impresora" }))
+          .not.toBeInTheDocument();
+      },
+    );
+
+    it("does not offer it while the receipt prints", async () => {
+      const { screen } = await renderModal(CASH, {
+        readReceiptStatus: async () => found("printing"),
+        mayChangePrinter: true,
+      });
+
+      await expect.element(screen.getByText("Imprimiendo")).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Cambiar impresora" }))
+        .not.toBeInTheDocument();
+    });
   });
 });
