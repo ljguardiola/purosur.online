@@ -951,6 +951,7 @@ function jobWithPull(
     pullStepExtra = [],
     testsEnv = { TESTCONTAINERS_RYUK_DISABLED: '"true"' },
     mirror = {},
+    signInAfterPull = false,
   } = {},
 ) {
   const mirrorLines = spec.mirroredOnGhcr
@@ -978,8 +979,13 @@ function jobWithPull(
     "    runs-on: ubuntu-24.04",
     "    steps:",
     "      - run: pnpm install --frozen-lockfile",
-    ...(mirrorLines.signInStep ?? []),
-    ...(pullAfterTests ? [...testsStep, ...pullStep] : [...pullStep, ...testsStep]),
+    ...(signInAfterPull ? [] : (mirrorLines.signInStep ?? [])),
+    ...(pullAfterTests ? [...testsStep, ...pullStep] : [...pullStep, ...testsStep]).flatMap(
+      (line) =>
+        signInAfterPull && line === `      - run: ${spec.testsRun}`
+          ? [...(mirrorLines.signInStep ?? []), line]
+          : [line],
+    ),
   ].join("\n");
 }
 
@@ -989,7 +995,13 @@ function ghcrMirrorLines({
   lookupPermissions = ["packages: read"],
   lookupLines = LOOK_UP_MIRROR_LINES,
   lookupOutput = `\${{ steps.mirror.outputs.mirrored }}`,
+  lookupStepId = "mirror",
+  lookupToken = GITHUB_TOKEN,
+  copyNeeds = ["postgres-image"],
   copyCondition = COPY_CONDITION,
+  copyJobTimeoutMinutes = 25,
+  copyStepTimeoutMinutes,
+  copyToken = GITHUB_TOKEN,
   copyPermissions = ["packages: write"],
   copyLines = COPY_MIRROR_LINES,
   testsNeeds = ["scope", "postgres-image", "postgres-image-copy"],
@@ -1008,23 +1020,27 @@ function ghcrMirrorLines({
       "    outputs:",
       `      mirrored: ${lookupOutput}`,
       "    steps:",
-      "      - id: mirror",
+      `      - id: ${lookupStepId}`,
       "        run: |",
       ...block(10, lookupLines),
       "        env:",
-      `          GITHUB_TOKEN: ${GITHUB_TOKEN}`,
+      `          GITHUB_TOKEN: ${lookupToken}`,
       `          POSTGRES_IMAGE: ${mirroredImage}`,
       "  postgres-image-copy:",
-      "    needs: [postgres-image]",
+      `    needs: [${copyNeeds.join(", ")}]`,
       `    if: ${copyCondition}`,
       "    runs-on: ubuntu-24.04",
+      `    timeout-minutes: ${copyJobTimeoutMinutes}`,
       "    permissions:",
       ...block(6, copyPermissions),
       "    steps:",
       "      - run: |",
       ...block(10, copyLines),
+      ...(copyStepTimeoutMinutes === undefined
+        ? []
+        : [`        timeout-minutes: ${copyStepTimeoutMinutes}`]),
       "        env:",
-      `          GITHUB_TOKEN: ${GITHUB_TOKEN}`,
+      `          GITHUB_TOKEN: ${copyToken}`,
       `          SOURCE_IMAGE: ${sourceImage}`,
       `          POSTGRES_IMAGE: ${mirroredImage}`,
     ],
@@ -1197,6 +1213,18 @@ test("flags a tests job that signs in to ghcr.io with a token other than its own
   assertSingleViolation(violations, /does not sign in to ghcr\.io with its own token/);
 });
 
+test("flags a tests job that signs in to ghcr.io only after pulling the cloud's Postgres image", () => {
+  const violations = POSTGRES_SPEC.findViolations(
+    jobWithPull(POSTGRES_SPEC, { signInAfterPull: true }),
+    setupDeclaring(POSTGRES_SPEC.constant, PINNED_POSTGRES_IMAGE),
+  );
+
+  assertSingleViolation(
+    violations,
+    /does not sign in to ghcr\.io with its own token before pulling/,
+  );
+});
+
 test("flags a tests job not granted packages: read, which signing in to ghcr.io needs", () => {
   const violations = postgresViolations({ testsPermissions: ["contents: read"] });
 
@@ -1246,6 +1274,18 @@ test("flags a postgres-image job that looks up another image than the global set
   assert.match(violations[1], /postgres-image-copy job does not copy/);
 });
 
+test("flags a postgres-image job whose lookup step is not the mirror step its output reads", () => {
+  const violations = postgresViolations({ lookupStepId: "lookup" });
+
+  assertSingleViolation(violations, /postgres-image job does not look up/);
+});
+
+test("flags a postgres-image job that looks the mirrored image up with a token other than its own", () => {
+  const violations = postgresViolations({ lookupToken: `\${{ secrets.GHCR_TOKEN }}` });
+
+  assertSingleViolation(violations, /postgres-image job does not look up/);
+});
+
 test("flags a postgres-image job that does not report what its lookup found", () => {
   const violations = postgresViolations({ lookupOutput: "true" });
 
@@ -1256,6 +1296,40 @@ test("flags a postgres-image-copy job that copies even when the mirrored image i
   const violations = postgresViolations({ copyCondition: `\${{ !cancelled() }}` });
 
   assertSingleViolation(violations, /postgres-image-copy job does not run only when/);
+});
+
+test("flags a postgres-image-copy job that does not wait for the lookup it depends on", () => {
+  const violations = postgresViolations({ copyNeeds: ["scope"] });
+
+  assertSingleViolation(violations, /postgres-image-copy job does not run only when/);
+});
+
+test("flags a postgres-image-copy job that copies with a token other than its own", () => {
+  const violations = postgresViolations({ copyToken: `\${{ secrets.GHCR_TOKEN }}` });
+
+  assertSingleViolation(violations, /postgres-image-copy job does not copy .* with its own token/);
+});
+
+for (const [label, timeouts] of [
+  ["job", { copyJobTimeoutMinutes: 10 }],
+  ["step", { copyStepTimeoutMinutes: 10 }],
+]) {
+  test(`flags a postgres-image-copy ${label} whose time limit ends before its last copy attempt can`, () => {
+    const violations = postgresViolations(timeouts);
+
+    assertSingleViolation(
+      violations,
+      new RegExp(
+        `postgres-image-copy ${label} allows 10 minutes, less than the 1305 seconds its copy attempts and their delays can take`,
+      ),
+    );
+  });
+}
+
+test("passes a postgres-image-copy step whose time limit covers every copy attempt and delay", () => {
+  const violations = postgresViolations({ copyStepTimeoutMinutes: 22 });
+
+  assert.deepEqual(violations, []);
 });
 
 test("flags a postgres-image-copy job not granted packages: write", () => {
