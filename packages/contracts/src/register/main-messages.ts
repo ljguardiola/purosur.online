@@ -90,9 +90,14 @@ export interface CoreReadyMessage {
   type: "core-ready";
 }
 
+export interface CoreRefusedMessage {
+  type: "core-refused";
+  reason: "newer_database";
+}
+
 export const coreStatusMessageSchema = z.object({
   type: z.literal("core-status"),
-  status: z.enum(["starting", "down", "up"]),
+  status: z.enum(["starting", "down", "up", "refused"]),
 });
 export type CoreStatusMessage = z.infer<typeof coreStatusMessageSchema>;
 
