@@ -175,6 +175,15 @@ const kindCases: KindCase[] = [
     affix: { position: "suffix", content: "kg", fontSize: 20 },
   },
   {
+    kind: "discount",
+    label: "Discount",
+    height: 56,
+    paddingX: 16,
+    gap: 8,
+    valueAlign: "left",
+    valueFontSize: 24,
+  },
+  {
     kind: "plain-text",
     label: "Reason",
     height: 52,
@@ -196,6 +205,9 @@ function renderKind(kindCase: KindCase, value: string) {
     return (
       <TextField kind={kindCase.kind as "weight"} {...common} suffix={kindCase.affix.content} />
     );
+  }
+  if (kindCase.kind === "discount") {
+    return <TextField kind="discount" {...common} />;
   }
   return <TextField kind="plain-text" {...common} />;
 }
@@ -235,6 +247,114 @@ for (const kindCase of kindCases) {
     }
   });
 }
+
+test("renders the discount kind in a fixed 220px box", async () => {
+  const screen = await render(
+    <TextField kind="discount" label="Discount" value="" onChange={() => {}} />,
+  );
+
+  expect(fieldBox(screen, "Discount").getBoundingClientRect().width).toBeCloseTo(220, 0);
+});
+
+test("renders the discount suffix at 18px in the subtle text color, after the input", async () => {
+  const screen = await render(
+    <TextField kind="discount" label="Discount" value="10" onChange={() => {}} suffix="%" />,
+  );
+  const box = fieldBox(screen, "Discount");
+  const suffix = screen.getByText("%").element() as HTMLElement;
+  const style = getComputedStyle(suffix);
+
+  expect(Math.round(Number.parseFloat(style.fontSize))).toBe(18);
+  expect(style.color).toBe(tokenRgb("text-subtle"));
+  expect(suffix.getAttribute("aria-hidden")).toBe("true");
+  expect(Array.from(box.children).indexOf(suffix)).toBeGreaterThan(
+    Array.from(box.children).indexOf(fieldInput(screen, "Discount")),
+  );
+  expect(describedText(fieldInput(screen, "Discount"))).toContain("%");
+});
+
+test("renders no suffix on the discount kind when none is given", async () => {
+  const screen = await render(
+    <TextField kind="discount" label="Discount" value="" onChange={() => {}} />,
+  );
+
+  expect(fieldBox(screen, "Discount").children).toHaveLength(1);
+});
+
+test("places the discount description to the right of the box, centered with it, and describing the input", async () => {
+  const screen = await render(
+    <TextField
+      kind="discount"
+      label="Discount"
+      value=""
+      onChange={() => {}}
+      description="Adds to promotions."
+    />,
+  );
+  const box = fieldBox(screen, "Discount");
+  const description = screen.getByText("Adds to promotions.").element() as HTMLElement;
+  const boxRect = box.getBoundingClientRect();
+  const descriptionRect = description.getBoundingClientRect();
+  const style = getComputedStyle(description);
+
+  expect(descriptionRect.left).toBeGreaterThanOrEqual(boxRect.right);
+  expect(descriptionRect.top + descriptionRect.height / 2).toBeCloseTo(
+    boxRect.top + boxRect.height / 2,
+    0,
+  );
+  expect(style.color).toBe(tokenRgb("text-subtle"));
+  expect(describedText(fieldInput(screen, "Discount"))).toContain("Adds to promotions.");
+});
+
+test("has no accessibility violations on the discount kind with a hidden label, a suffix and a description", async () => {
+  const screen = await render(
+    <TextField
+      kind="discount"
+      label="Discount"
+      labelVisuallyHidden
+      value="10"
+      onChange={() => {}}
+      suffix="%"
+      description="Adds to promotions."
+    />,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("has no accessibility violations on an invalid discount kind with its message", async () => {
+  const screen = await render(
+    <TextField
+      kind="discount"
+      label="Discount"
+      value=""
+      onChange={() => {}}
+      errorMessage="Enter a discount."
+    />,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the discount error message below the box", async () => {
+  const screen = await render(
+    <TextField
+      kind="discount"
+      label="Discount"
+      value=""
+      onChange={() => {}}
+      description="Adds to promotions."
+      errorMessage="Enter a discount."
+    />,
+  );
+  const box = fieldBox(screen, "Discount");
+  const error = screen.getByText("Enter a discount.").element();
+
+  expect(error.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+    box.getBoundingClientRect().bottom,
+  );
+  expect(describedText(fieldInput(screen, "Discount"))).toContain("Enter a discount.");
+});
 
 test("keeps the same box appearance whether the value is empty or filled", async () => {
   const emptyScreen = await render(renderKind(kindCases[0] as KindCase, ""));
@@ -880,6 +1000,26 @@ test("does not accept a prefix on the plain text kind", () => {
     onChange: (value: string) => void;
     prefix: string;
   }>().not.toExtend<TextFieldProps>();
+});
+
+test("does not accept a prefix on the discount kind", () => {
+  expectTypeOf<{
+    kind: "discount";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    prefix: string;
+  }>().not.toExtend<TextFieldProps>();
+});
+
+test("accepts the discount kind with an optional suffix", () => {
+  expectTypeOf<{
+    kind: "discount";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    suffix: string;
+  }>().toExtend<TextFieldProps>();
 });
 
 test("accepts an optional suffix on the plain text kind", () => {

@@ -18,6 +18,7 @@ const ALERT_KIND_LABELS = {
   offline_authorization_code_missing: "CAEA sin bajar a la caja",
   late_payment_refund: "Reembolso pendiente por un pago tardío",
   refund_task: "Reembolso pendiente de una venta anulada",
+  fiscal_unknown: "Resultado fiscal incierto",
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {

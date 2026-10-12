@@ -14,6 +14,7 @@ import {
   formatMonthName,
   formatNumber,
   formatOperationNumber,
+  formatPercent,
   formatPointOfSaleNumber,
   formatSignedCents,
   formatTimeAgo,
@@ -43,6 +44,14 @@ describe("formatNumber", () => {
 
   it("passes formatting options through to Intl.NumberFormat", () => {
     expect(formatNumber(1234.5, { minimumFractionDigits: 2 })).toBe("1.234,50");
+  });
+});
+
+describe("formatPercent", () => {
+  it("writes a percentage the way it reads in Argentina, with a space before the sign", () => {
+    expect(formatPercent(5)).toBe("5 %");
+    expect(formatPercent(12.5)).toBe("12,5 %");
+    expect(formatPercent(100)).toBe("100 %");
   });
 });
 
