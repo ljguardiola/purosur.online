@@ -68,7 +68,10 @@ export {
 } from "./model/alert-visibility.js";
 export type { FiscalUnknownAlertKey } from "./model/fiscal-unknown-alert.js";
 export { fiscalUnknownAlertKey } from "./model/fiscal-unknown-alert.js";
-export { offlineAuthorizationCodeAcquisitionLevel } from "./model/offline-authorization-code-acquisition.js";
+export {
+  acquisitionUrgencyAlertLevel,
+  offlineAuthorizationCodeAcquisitionLevel,
+} from "./model/offline-authorization-code-acquisition.js";
 export { isOpenAlert } from "./model/open-alert-state.js";
 export { refundTaskAlertIsDue, refundTaskAlertLevel } from "./model/refund-task-alert.js";
 export {

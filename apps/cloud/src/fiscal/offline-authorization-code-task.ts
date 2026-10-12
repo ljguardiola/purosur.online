@@ -1,7 +1,7 @@
 import {
+  acquisitionUrgencyAlertLevel,
   argentinaCalendarDay,
   OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS,
-  offlineAuthorizationCodeAcquisitionLevel,
 } from "@purosur/domain";
 import {
   currentFortnightCodeAfterObtaining,
@@ -72,11 +72,7 @@ export function offlineAuthorizationCodeJobs(
     await reportOfflineAuthorizationCodeAcquisitionFailures(outcome, {
       store: new DrizzleOfflineAuthorizationCodeAcquisitionReports(db, { now }),
       notifier: {
-        failureNeedsAttention: async ({ fortnight, outcome: failure }) => {
-          const level = offlineAuthorizationCodeAcquisitionLevel(
-            fortnight,
-            argentinaCalendarDay(now()),
-          );
+        failureNeedsAttention: async ({ fortnight, outcome: failure, urgency }) => {
           report(
             "fiscal: an offline authorization code could not be obtained",
             new Error(describeAcquisition(fortnight, failure)),
@@ -85,7 +81,7 @@ export function offlineAuthorizationCodeJobs(
                 fortnightStart: fortnight.start,
                 fortnightEnd: fortnight.end,
                 outcome: failure.kind,
-                ...(level === null ? {} : { level }),
+                level: acquisitionUrgencyAlertLevel(urgency),
                 ...(failure.kind === "refused"
                   ? { rejections: rejectionsText(failure.rejections) }
                   : {}),
