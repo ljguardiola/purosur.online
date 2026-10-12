@@ -574,7 +574,7 @@ describe("TcpReceiptPrinter following the configured address", () => {
     expect(await ending).toEqual({ kind: "sent" });
     expect(handed.calls).toBe(1);
     expect(socketAt(1).written.map((bytes) => [...bytes])).toEqual([STATUS_QUERY, [...RECEIPT]]);
-    expect(socketAt(0).written.map((bytes) => [...bytes])).toEqual([STATUS_QUERY]);
+    expect(socketAt(0).written).toEqual([]);
   });
 
   it("keeps the connection when the address is only written differently", () => {
