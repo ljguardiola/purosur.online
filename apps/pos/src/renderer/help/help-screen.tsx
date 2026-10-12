@@ -13,6 +13,7 @@ import {
 import { ArrowRight, FileText, Search, SearchX } from "lucide-react";
 import { useState } from "react";
 import { NoSessionRail } from "../shell/no-session-rail";
+import { OpenSessionRail } from "../shell/open-session-rail";
 import type { SignedInPerson } from "../shell/signed-in-person";
 
 type RegisterHelpCatalog = HelpCatalog<CategoryRecord, Record<string, HelpArticle<string, string>>>;
@@ -20,6 +21,7 @@ type RegisterHelpCatalog = HelpCatalog<CategoryRecord, Record<string, HelpArticl
 export type HelpScreenProps = {
   person: SignedInPerson;
   registerName: string | null;
+  sessionOpen: boolean;
   help: RegisterHelpCatalog;
   signOut: () => void;
 };
@@ -34,7 +36,13 @@ function sectionsMatching(help: RegisterHelpCatalog, query: string): Section[] {
   );
 }
 
-export function HelpScreen({ person, registerName, help, signOut }: HelpScreenProps) {
+export function HelpScreen({
+  person,
+  registerName,
+  sessionOpen,
+  help,
+  signOut,
+}: HelpScreenProps) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -43,7 +51,16 @@ export function HelpScreen({ person, registerName, help, signOut }: HelpScreenPr
 
   return (
     <div className="flex h-full w-full bg-surface">
-      <NoSessionRail person={person} current="/help" signOut={signOut} />
+      {sessionOpen ? (
+        <OpenSessionRail
+          registerName={registerName}
+          lock={signOut}
+          current="help"
+          abilities={person.abilities}
+        />
+      ) : (
+        <NoSessionRail person={person} current="/help" signOut={signOut} />
+      )}
       <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
         <ScreenHeader eyebrow={registerName ?? undefined} title="Ayuda" />
         <div className="flex min-h-0 flex-1 gap-8">
