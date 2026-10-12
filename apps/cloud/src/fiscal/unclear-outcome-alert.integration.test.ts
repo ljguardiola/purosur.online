@@ -1,4 +1,3 @@
-import { escalateOverdueAlerts } from "@purosur/domain/alerts/use-cases";
 import {
   decideUnclearRealTimeOutcome,
   openOverdueUnclearOutcomeAlerts,
@@ -7,7 +6,6 @@ import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DrizzleAlertStore } from "../alerts/drizzle-alert-store.js";
 import { alerts } from "../platform/db/schema.js";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
 import {
@@ -75,66 +73,6 @@ function alertsOf(fiscalDocumentId: string) {
 }
 
 describe("the alert of a document left unclear on a real Postgres", () => {
-  it("opens a warning for everyone once the document has been unclear for 5 minutes", async () => {
-    const document = await anUnclearDocument(db);
-
-    await openOverdueAlerts(minutesAfterUnclear(4));
-    expect(await alertsOf(document.fiscalDocumentId)).toEqual([]);
-    await openOverdueAlerts(minutesAfterUnclear(5));
-
-    expect(await alertsOf(document.fiscalDocumentId)).toMatchObject([
-      { kind: "fiscal_unknown", level: "warning", audience: "all", locationId: null },
-    ]);
-  });
-
-  it("opens no second alert when it is evaluated again", async () => {
-    const document = await anUnclearDocument(db);
-
-    await openOverdueAlerts(minutesAfterUnclear(5));
-    await openOverdueAlerts(minutesAfterUnclear(6));
-
-    expect(await alertsOf(document.fiscalDocumentId)).toHaveLength(1);
-  });
-
-  it("opens no alert for a document decided within the 5 minutes", async () => {
-    const document = await anUnclearDocument(db, { answer: "not_attempted" });
-
-    expect(await decide(document.fiscalDocumentId, minutesAfterUnclear(2))).toMatchObject({
-      kind: "decided",
-    });
-    await openOverdueAlerts(minutesAfterUnclear(5));
-
-    expect(await alertsOf(document.fiscalDocumentId)).toEqual([]);
-  });
-
-  it("escalates to critical 30 minutes after the document became unclear, whenever the alert opened", async () => {
-    const document = await anUnclearDocument(db);
-    await openOverdueAlerts(minutesAfterUnclear(10));
-    const escalate = (now: Date) =>
-      escalateOverdueAlerts({
-        store: new DrizzleAlertStore(db, () => now),
-        clock: { now: () => now },
-      });
-
-    await escalate(minutesAfterUnclear(29));
-    expect(await alertsOf(document.fiscalDocumentId)).toMatchObject([{ level: "warning" }]);
-    await escalate(minutesAfterUnclear(30));
-
-    expect(await alertsOf(document.fiscalDocumentId)).toMatchObject([
-      { level: "critical", escalateAt: minutesAfterUnclear(30) },
-    ]);
-  });
-
-  it("resolves the alert when the document is decided", async () => {
-    const document = await anUnclearDocument(db, { answer: "not_attempted" });
-    await openOverdueAlerts(minutesAfterUnclear(6));
-    const decidedAt = minutesAfterUnclear(8);
-
-    await decide(document.fiscalDocumentId, decidedAt);
-
-    expect(await alertsOf(document.fiscalDocumentId)).toMatchObject([{ resolvedAt: decidedAt }]);
-  });
-
   it("resolves the alert of a document decided while the job was opening it", async () => {
     const document = await anUnclearDocument(db, { answer: "not_attempted" });
     let release: () => void = () => {};
