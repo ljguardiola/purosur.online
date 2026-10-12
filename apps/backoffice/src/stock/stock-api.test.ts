@@ -135,6 +135,14 @@ test("fetchExpectedBalance asks for the product's balance at the moment", async 
     saleUnit: "KG",
     active: true,
     balance: 17_000,
+    lots: [
+      {
+        id: "00000000-0000-4000-8000-0000000000a1",
+        lotNumber: "L-2312",
+        expiresOn: "2026-10-14",
+        expected: 4_400,
+      },
+    ],
   };
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, level));
 

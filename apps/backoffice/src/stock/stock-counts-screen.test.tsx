@@ -76,7 +76,8 @@ test("shows each count with its moment, product, expected and counted quantities
   const table = screen.getByRole("table", { name: "Recuentos" });
   await expect.element(table.getByText("15/09/2026")).toBeVisible();
   await expect.element(table.getByText("18:32")).toBeVisible();
-  await expect.element(table.getByText("Frutos secos")).toBeVisible();
+  await expect.element(table.getByText("Por lote · 2 lotes")).toBeVisible();
+  await expect.element(table.getByText("Por producto").first()).toBeVisible();
   await expect.element(table.getByText("12,400 kg")).toBeVisible();
   await expect.element(table.getByText("12,150 kg")).toBeVisible();
   await expect.element(table.getByText("− 0,250 kg")).toBeVisible();
@@ -84,6 +85,14 @@ test("shows each count with its moment, product, expected and counted quantities
   await expect.element(table.getByText("Superado por un recuento posterior")).toBeVisible();
   await expect.element(screen.getByText("3 recuentos en los últimos 30 días")).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("says a count by a single lot counted one lot", async () => {
+  const screen = await renderScreen(createServices([{ ...almondsCount, lotCount: 1 }]));
+
+  await expect
+    .element(screen.getByRole("table", { name: "Recuentos" }).getByText("Por lote · 1 lote"))
+    .toBeVisible();
 });
 
 test("reads the period the URL names and reports a new one", async () => {

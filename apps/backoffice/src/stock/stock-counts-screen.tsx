@@ -46,6 +46,14 @@ type ScreenNotice = { id: number; title: string; description: string };
 
 const NO_COUNTS: StockCount[] = [];
 
+function countedWay(count: StockCount): string {
+  const { lotCount } = count;
+  if (lotCount === null) {
+    return "Por producto";
+  }
+  return `Por lote · ${plural(lotCount, { one: "1 lote", other: `${lotCount} lotes` })}`;
+}
+
 function differenceCell(count: StockCount) {
   const difference =
     count.delta === 0 ? "Sin diferencia" : formatStockChange(count.delta, count.saleUnit);
@@ -73,7 +81,7 @@ const columns = [
     id: "product",
     header: "Producto",
     render: (count: StockCount) => (
-      <TableCellText description={count.categoryName}>{count.productName}</TableCellText>
+      <TableCellText description={countedWay(count)}>{count.productName}</TableCellText>
     ),
   }),
   dataColumn({

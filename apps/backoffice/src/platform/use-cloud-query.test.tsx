@@ -32,6 +32,7 @@ type ProbeProps = {
   gcTime?: number;
   refetchInterval?: number;
   keepPreviousData?: boolean;
+  enabled?: boolean;
   read: () => Promise<CloudReadOutcome<string>>;
   onSessionEnded?: () => void;
   onForbidden?: () => void;
@@ -42,6 +43,7 @@ function Probe({
   gcTime,
   refetchInterval,
   keepPreviousData,
+  enabled,
   read,
   onSessionEnded = () => {},
   onForbidden = () => {},
@@ -49,6 +51,7 @@ function Probe({
   const data = useCloudQuery({
     queryKey,
     keepPreviousData,
+    enabled,
     read,
     onSessionEnded,
     onForbidden,
@@ -777,4 +780,16 @@ test("a read at the interval that answers after a newer read failed never replac
     await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("loaded:stale")).not.toBeInTheDocument();
   });
+});
+
+test("reads nothing and stays loading while it is not enabled, and reads once it is", async () => {
+  const read = vi.fn<() => Promise<CloudReadOutcome<string>>>().mockResolvedValue(ok("answer"));
+  const screen = await render(<Probe enabled={false} read={read} />);
+  await expect.element(screen.getByText("loading")).toBeVisible();
+  expect(read).not.toHaveBeenCalled();
+
+  await screen.rerender(<Probe enabled read={read} />);
+
+  await expect.element(screen.getByText("loaded:answer")).toBeVisible();
+  expect(read).toHaveBeenCalledTimes(1);
 });

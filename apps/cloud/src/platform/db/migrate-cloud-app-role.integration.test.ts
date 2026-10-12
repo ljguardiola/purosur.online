@@ -384,6 +384,28 @@ describe("the cloud_app role runMigrations creates", () => {
     await expectPermissionDenied(cloudApp`truncate lot_allocations`);
   });
 
+  it("cannot update, delete or truncate the lots counted in a stock count", async () => {
+    const { movementId, productId, locationId } = await insertCountedMovement();
+    const [lot] = await cloudApp<{ id: string }[]>`
+      insert into lots (product_id, location_id, quantity_received, technical, cost_incomplete)
+      values (${productId}, ${locationId}, 0, true, true) returning id
+    `;
+    if (!lot) {
+      throw new Error("test setup: seeding the technical lot returned no row");
+    }
+    await cloudApp`
+      insert into stock_count_lots (movement_id, lot_id, counted) values (${movementId}, ${lot.id}, 5)
+    `;
+
+    await expectPermissionDenied(
+      cloudApp`update stock_count_lots set counted = 999 where movement_id = ${movementId}`,
+    );
+    await expectPermissionDenied(
+      cloudApp`delete from stock_count_lots where movement_id = ${movementId}`,
+    );
+    await expectPermissionDenied(cloudApp`truncate stock_count_lots`);
+  });
+
   it("updates and deletes a row of a table whose write privileges are not revoked", async () => {
     const [role] = await cloudApp<{ id: string }[]>`
       insert into roles (name, is_administrator) values ('cloud_app_role_test', false) returning id

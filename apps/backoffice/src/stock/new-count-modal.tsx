@@ -1,56 +1,60 @@
 import type { CalendarDate } from "@internationalized/date";
-import { type StockCountResult, type StockProduct, stockCountBodySchema } from "@purosur/contracts";
-import type { SaleUnit } from "@purosur/domain";
+import {
+  type StockCountResult,
+  type StockProduct,
+  type StockProductBalance,
+  stockCountBodySchema,
+} from "@purosur/contracts";
 import {
   Button,
   DateField,
   EmptyState,
+  FieldGroup,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
   Modal,
+  OptionCardGroup,
   type RequestSubmission,
   SharedFieldError,
-  SummaryRowGroup,
   TextField,
   useFieldContext,
   useRequestForm,
 } from "@purosur/ui";
-import { Check, ClipboardCheck, Package, ShieldX, TriangleAlert } from "lucide-react";
+import { Check, ClipboardCheck, Layers, Package, ShieldX, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import {
-  formatStockChange,
-  formatStockQuantity,
-  parseStockQuantity,
-  quantityFieldKind,
-  quantityMessage,
-} from "../platform/stock-quantity";
+import { parseStockQuantity, quantityFieldKind, quantityMessage } from "../platform/stock-quantity";
+import type { CloudData } from "../platform/use-cloud-query";
 import { type CountMoment, type CountStart, countOccurredAt } from "./count-moment";
 import type { RegisterCountOutcome } from "./stock-api";
+import { CountBalance } from "./stock-count-balance";
+import {
+  type CountFormValues,
+  countBody,
+  countedMode,
+  lotsMessage,
+  lotsTotal,
+} from "./stock-count-form";
+import { CountLotsField } from "./stock-count-lots";
 import type { StockCountsScreenServices } from "./stock-counts-services";
 import { productOptions } from "./stock-movement-form";
 import { useExpectedBalanceQuery, useRefreshStock, useStockProductsQuery } from "./stock-queries";
-
-type CountFormValues = { productId: string | null; moment: CountMoment; counted: string };
 
 type Notice =
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "notFound" };
 
+const NO_LOTS: StockProductBalance["lots"] = [];
 const COUNTED_REQUIRED = "Ingresá la cantidad contada.";
 const IN_THE_FUTURE = "El recuento no puede ser posterior a ahora.";
 const SAME_MOMENT = "Ya hay un recuento de este producto a esa hora. Elegí otra hora.";
 
 function momentMessage({ moment }: CountFormValues): string {
   return moment.day === null ? "Elegí el día del recuento." : "Escribí la hora como 18:32.";
-}
-
-function differenceText(difference: number, saleUnit: SaleUnit): string {
-  return difference === 0 ? "Sin diferencia" : formatStockChange(difference, saleUnit);
 }
 
 function CountMomentField() {
@@ -87,44 +91,6 @@ function CountMomentField() {
   );
 }
 
-function ExpectedBalance({
-  product,
-  at,
-  counted,
-  services,
-  onSessionEnded,
-}: {
-  product: StockProduct;
-  at: string;
-  counted: number | undefined;
-  services: StockCountsScreenServices;
-  onSessionEnded: () => void;
-}) {
-  const data = useExpectedBalanceQuery({
-    productId: product.id,
-    at,
-    fetchExpectedBalance: services.fetchExpectedBalance,
-    onSessionEnded,
-  });
-  if (data.status === "loading") {
-    return <LoadingPlaceholder variant="card" lines={2} />;
-  }
-  if (data.status === "failed") {
-    return <LoadFailure {...cloudLoadFailure(data, "el saldo esperado")} />;
-  }
-  const { balance: expected } = data.value;
-  return (
-    <SummaryRowGroup
-      rows={[
-        { label: "Saldo esperado", value: formatStockQuantity(expected, product.saleUnit) },
-        ...(counted === undefined
-          ? []
-          : [{ label: "Diferencia", value: differenceText(counted - expected, product.saleUnit) }]),
-      ]}
-    />
-  );
-}
-
 export type NewCountModalProps = {
   startMoment: CountStart;
   showsBalance: boolean;
@@ -157,18 +123,20 @@ export function NewCountModal({
     defaultValues: {
       productId: null,
       moment: { day: startMoment.day, time: startMoment.time },
+      mode: "product",
       counted: "",
+      lots: {},
     } as CountFormValues,
     request: {
       schema: stockCountBodySchema,
-      from: ({ productId, moment, counted }) => ({
-        productId: productId ?? "",
-        counted:
-          parseStockQuantity(counted, productOf(productId)?.saleUnit ?? "UNIT") ?? Number.NaN,
-        occurredAt: countOccurredAt(moment, startMoment) ?? "",
-      }),
+      from: (formValues) =>
+        countBody(formValues, {
+          saleUnit: productOf(formValues.productId)?.saleUnit ?? "UNIT",
+          lots: countableLots,
+          at: countOccurredAt(formValues.moment, startMoment),
+        }),
     },
-    fields: { productId: "productId", counted: "counted", occurredAt: "moment" },
+    fields: { productId: "productId", counted: "counted", lots: "lots", occurredAt: "moment" },
     messages: {
       productId: "Elegí el producto.",
       moment: momentMessage,
@@ -176,6 +144,8 @@ export function NewCountModal({
         counted.trim() === ""
           ? COUNTED_REQUIRED
           : quantityMessage(productOf(productId)?.saleUnit ?? "UNIT"),
+      lots: ({ productId, lots }) =>
+        lotsMessage(lots, countableLots, productOf(productId)?.saleUnit ?? "UNIT"),
     },
     onSubmit: async (request, submission) => {
       const product = productOf(request.productId);
@@ -219,6 +189,25 @@ export function NewCountModal({
   const product = productOf(values.productId);
   const at = countOccurredAt(values.moment, startMoment);
   const options = productOptions(listed);
+  const balance = useExpectedBalanceQuery({
+    productId: product?.id ?? "",
+    at: at ?? "",
+    enabled: showsBalance && product !== undefined && at !== undefined,
+    fetchExpectedBalance: services.fetchExpectedBalance,
+    onSessionEnded,
+  });
+  const productBalance: CloudData<StockProductBalance> =
+    balance.status === "loaded" && balance.value.id !== product?.id
+      ? { status: "loading" }
+      : balance;
+  const countableLots = productBalance.status === "loaded" ? productBalance.value.lots : NO_LOTS;
+  const mode = countedMode(values.mode, countableLots);
+  const counted =
+    product === undefined
+      ? undefined
+      : mode === "lots"
+        ? lotsTotal(values.lots, countableLots, product.saleUnit)
+        : parseStockQuantity(values.counted, product.saleUnit);
 
   return (
     <Modal
@@ -300,23 +289,54 @@ export function NewCountModal({
               />
             )}
           </form.AppField>
+          <FieldGroup label="Cómo se cuenta">
+            <form.AppField name="mode">
+              {(field) => (
+                <OptionCardGroup
+                  label="Cómo se cuenta"
+                  value={mode}
+                  onChange={field.handleChange}
+                  options={[
+                    {
+                      value: "product",
+                      icon: <Package />,
+                      label: "Por producto",
+                      description: "La cantidad total del producto",
+                    },
+                    {
+                      value: "lots",
+                      icon: <Layers />,
+                      label: "Por lote",
+                      description: "La cantidad de cada lote",
+                      disabled: countableLots.length === 0,
+                    },
+                  ]}
+                />
+              )}
+            </form.AppField>
+          </FieldGroup>
           <form.AppField name="moment">{() => <CountMomentField />}</form.AppField>
-          <form.AppField name="counted">
-            {(field) => (
-              <field.TextField
-                {...quantityFieldKind(product?.saleUnit ?? "UNIT")}
-                label="Cantidad contada"
-                required
-              />
-            )}
-          </form.AppField>
+          {mode === "lots" && product ? (
+            <form.AppField name="lots">
+              {() => <CountLotsField lots={countableLots} saleUnit={product.saleUnit} />}
+            </form.AppField>
+          ) : (
+            <form.AppField name="counted">
+              {(field) => (
+                <field.TextField
+                  {...quantityFieldKind(product?.saleUnit ?? "UNIT")}
+                  label="Cantidad contada"
+                  required
+                />
+              )}
+            </form.AppField>
+          )}
           {showsBalance && product && at !== undefined ? (
-            <ExpectedBalance
+            <CountBalance
               product={product}
-              at={at}
-              counted={parseStockQuantity(values.counted, product.saleUnit)}
-              services={services}
-              onSessionEnded={onSessionEnded}
+              balance={productBalance}
+              counted={counted}
+              countedLabel={mode === "lots" ? "Total contado" : null}
             />
           ) : null}
         </div>

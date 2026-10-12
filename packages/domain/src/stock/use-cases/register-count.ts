@@ -1,20 +1,35 @@
-import { countResult } from "../model/stock-count.js";
+import type { PlannedLotAllocation } from "../model/lot-allocation.js";
+import {
+  countByLotAllocations,
+  countByProductAllocations,
+  isCountableByLot,
+  lotsAtMoment,
+} from "../model/lot-count.js";
+import { countedLotsTotal, countResult } from "../model/stock-count.js";
 import { isCountedQuantity } from "../model/stock-quantity.js";
-import { type AppliedStockMovement, applyStockMovement } from "./apply-stock-movement.js";
-import type { StockPorts } from "./stock-store.js";
+import {
+  type AppliedStockMovement,
+  allocateToLots,
+  applyStockMovement,
+} from "./apply-stock-movement.js";
+import type { CountedLot, StockPorts } from "./stock-store.js";
 
 export interface RegisterCountInput {
   productId: string;
   locationId: string;
-  counted: number;
+  counted?: number;
+  lots?: readonly CountedLot[];
   occurredAt: Date;
   actorId: string;
 }
 
 export type RegisterCountOutcome =
   | { kind: "occurred_in_the_future" }
+  | { kind: "ambiguous_count" }
   | { kind: "not_found" }
   | { kind: "invalid_quantity" }
+  | { kind: "repeated_lot" }
+  | { kind: "invalid_lot" }
   | { kind: "count_at_same_moment" }
   | ({ kind: "recorded"; expected: number; delta: number } & AppliedStockMovement);
 
@@ -25,14 +40,25 @@ export async function registerCount(
   if (input.occurredAt.getTime() > clock.now().getTime()) {
     return { kind: "occurred_in_the_future" };
   }
+  const countedLots = input.lots ?? [];
+  const byLot = countedLots.length > 0;
+  if (byLot === (input.counted !== undefined)) {
+    return { kind: "ambiguous_count" };
+  }
   const key = { productId: input.productId, locationId: input.locationId };
   return store.transaction<RegisterCountOutcome>(async (tx) => {
     const locked = await tx.lockProductStock(key);
     if (locked.kind === "not_found") {
       return { kind: "not_found" };
     }
-    if (!isCountedQuantity(locked.saleUnit, input.counted)) {
+    const counted = byLot ? countedLotsTotal(countedLots) : (input.counted ?? 0);
+    const quantities = [...countedLots.map((lot) => lot.counted), counted];
+    if (!quantities.every((quantity) => isCountedQuantity(locked.saleUnit, quantity))) {
       return { kind: "invalid_quantity" };
+    }
+    const lotIds = new Set(countedLots.map((lot) => lot.lotId));
+    if (lotIds.size < countedLots.length) {
+      return { kind: "repeated_lot" };
     }
 
     // Two counts at one moment would each claim to be what the shelf held then, and which one
@@ -42,10 +68,18 @@ export async function registerCount(
       return { kind: "count_at_same_moment" };
     }
 
+    const appliedAfterCount = await tx.appliedDeltaAfter(key, input.occurredAt);
+    const allocatedAfter = await tx.lotAllocationsAfter(key, input.occurredAt);
+    const lots = lotsAtMoment(await tx.productLots(key), allocatedAfter);
+    const countable = new Set(lots.filter(isCountableByLot).map((lot) => lot.id));
+    if (![...lotIds].every((lotId) => countable.has(lotId))) {
+      return { kind: "invalid_lot" };
+    }
+
     const { expected, delta } = countResult({
-      counted: input.counted,
+      counted,
       balance: locked.balance,
-      appliedAfterCount: await tx.appliedDeltaAfter(key, input.occurredAt),
+      appliedAfterCount,
     });
     const applied = await applyStockMovement(tx, locked.balance, {
       ...key,
@@ -56,7 +90,16 @@ export async function registerCount(
       actorId: input.actorId,
       supersededByCountId: coveringCount?.movementId ?? null,
     });
-    await tx.recordCount({ movementId: applied.movementId, counted: input.counted, expected });
+    await tx.recordCount({ movementId: applied.movementId, counted, expected });
+    if (byLot) {
+      await tx.recordCountedLots(applied.movementId, countedLots);
+    }
+    if (applied.supersededByCountId === null) {
+      const planned: PlannedLotAllocation[] = byLot
+        ? countByLotAllocations(lots, new Map(countedLots.map((lot) => [lot.lotId, lot.counted])))
+        : countByProductAllocations(lots, counted, input.occurredAt);
+      await allocateToLots(tx, key, applied.movementId, planned);
+    }
     return { kind: "recorded", expected, delta, ...applied };
   });
 }

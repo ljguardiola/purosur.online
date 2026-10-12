@@ -541,6 +541,7 @@ export {
   manualStockMovementCapability,
   manualStockMovementReasons,
   mayBeCountedQuantity,
+  mayBeCountedTogether,
   mayBeMovementQuantity,
   STOCK_CORRECTIONS,
   STOCK_DIRECTIONS,

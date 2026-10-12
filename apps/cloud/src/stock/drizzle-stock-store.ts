@@ -1,5 +1,6 @@
 import type { SaleUnit } from "@purosur/domain";
 import type {
+  CountedLot,
   CoveringCount,
   LockProductStockResult,
   LotAllocation,
@@ -18,11 +19,16 @@ import {
   lots,
   products,
   stockBalances,
+  stockCountLots,
   stockCounts,
   stockMovements,
 } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
-import { appliedDeltaAfter, earliestCountAtOrAfter } from "./stock-ledger-queries.js";
+import {
+  appliedDeltaAfter,
+  earliestCountAtOrAfter,
+  lotAllocationsAfter,
+} from "./stock-ledger-queries.js";
 import { STOCK_MOVEMENT_VERSION } from "./stock-movement-version.js";
 
 function balanceOf(key: ProductStockKey) {
@@ -75,6 +81,10 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
     return appliedDeltaAfter(this.tx, key, at);
   }
 
+  lotAllocationsAfter(key: ProductStockKey, at: Date): Promise<Map<string, number>> {
+    return lotAllocationsAfter(this.tx, key, at);
+  }
+
   async recordMovement(movement: NewStockMovement): Promise<string> {
     const [recorded] = await this.tx
       .insert(stockMovements)
@@ -95,6 +105,10 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
   async recordCount(count: NewStockCount): Promise<void> {
     await this.tx.insert(stockCounts).values(count);
+  }
+
+  async recordCountedLots(movementId: string, countedLots: readonly CountedLot[]): Promise<void> {
+    await this.tx.insert(stockCountLots).values(countedLots.map((lot) => ({ movementId, ...lot })));
   }
 
   async recordLot(lot: NewLot): Promise<string> {
