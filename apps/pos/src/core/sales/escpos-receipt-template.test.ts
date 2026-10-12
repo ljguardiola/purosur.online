@@ -5,6 +5,7 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
 import type { StoredReceipt } from "@purosur/domain/sales/use-cases";
+import { formatPercent } from "@purosur/ui/formatters";
 import { describe, expect, it } from "vitest";
 import { escPosReceiptTemplate } from "./escpos-receipt-template";
 import { printoutOf } from "./test-support/escpos-printout";
@@ -344,7 +345,7 @@ describe("the ESC/POS receipt template", () => {
         "  2 x $ 6.430,00                     $ 12.860,00",
         RULE,
         "Subtotal                             $ 19.475,00",
-        "Descuento sobre el total 5%            -$ 973,75",
+        "Descuento sobre el total 5 %           -$ 973,75",
         RULE,
         "[bold]TOTAL                                $ 18.501,25[/bold]",
         RULE,
@@ -353,6 +354,26 @@ describe("the ESC/POS receipt template", () => {
         ...CLOSING,
       ].join("\n"),
     );
+  });
+
+  it("prints the percentage of a line discount and of the discount on the total the same way", () => {
+    const { textLines } = printed({
+      ...discountedReceipt({ kind: "PERCENT", percent: 7.5, amount: 146_063 }),
+      lines: [
+        { ...MANUAL_PERCENT_LINE, manualAdjustment: { kind: "PERCENT", percent: 12.5 } },
+        {
+          ...MANUAL_PERCENT_LINE,
+          productName: "Café molido 250 g",
+          manualAdjustment: null,
+          promotion: { kind: "PERCENT_OFF", percent: 2.5 },
+        },
+      ],
+    });
+    const printedText = textLines.join("\n");
+
+    expect(printedText).toContain(`Descuento manual ${formatPercent(12.5)}`);
+    expect(printedText).toContain(`${formatPercent(2.5)} de descuento`);
+    expect(printedText).toContain(`Descuento sobre el total ${formatPercent(7.5)}`);
   });
 
   it("prints a discount on the total of a fixed amount without a percentage", () => {
