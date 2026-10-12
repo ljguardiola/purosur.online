@@ -188,7 +188,6 @@ const FISCAL_BLOCK: FacturaCFiscalBlock = {
   buyerTaxStatusDescription: "Consumidor Final",
   pointOfSale: 1,
   number: 123,
-  total: 1_767_500,
   authorizationCode: "71234567890123",
   authorizationCodeDueOn: "2026-10-10",
   qrText: QR_TEXT,
