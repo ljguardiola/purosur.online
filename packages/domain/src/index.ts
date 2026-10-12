@@ -223,6 +223,8 @@ export {
 export type {
   LatePaymentRefund,
   MercadoPagoOrderTransaction,
+  MercadoPagoPaymentTransaction,
+  MercadoPagoPointPaymentTransaction,
   MercadoPagoQrPaymentTransaction,
   PaymentMethod,
   PaymentTransaction,

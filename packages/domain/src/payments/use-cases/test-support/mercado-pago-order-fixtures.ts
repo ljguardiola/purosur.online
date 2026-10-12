@@ -38,9 +38,22 @@ export function paidOrderResult(paid = AMOUNT): MercadoPagoOrderResult {
   });
 }
 
-export function storedTransaction(
-  overrides: Partial<MercadoPagoOrderTransaction> = {},
-): MercadoPagoOrderTransaction {
+type QrOrderTransaction = Extract<MercadoPagoOrderTransaction, { method: "QR" }>;
+type PointOrderTransaction = Extract<MercadoPagoOrderTransaction, { method: "POINT" }>;
+
+export function storedPointTransaction(
+  overrides: Partial<PointOrderTransaction> = {},
+): PointOrderTransaction {
+  return {
+    ...storedTransaction(),
+    method: "POINT",
+    provider: "MERCADOPAGO_POINT",
+    expiresAt: new Date("2026-10-09T12:06:00.000Z"),
+    ...overrides,
+  };
+}
+
+export function storedTransaction(overrides: Partial<QrOrderTransaction> = {}): QrOrderTransaction {
   return {
     id: TRANSACTION_ID,
     registerId: REGISTER_ID,

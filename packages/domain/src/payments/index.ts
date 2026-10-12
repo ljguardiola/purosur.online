@@ -55,6 +55,8 @@ export {
 } from "./model/payment-refund.js";
 export type {
   MercadoPagoOrderTransaction,
+  MercadoPagoPaymentTransaction,
+  MercadoPagoPointPaymentTransaction,
   MercadoPagoQrPaymentTransaction,
   PaymentTransaction,
   PaymentTransactionState,

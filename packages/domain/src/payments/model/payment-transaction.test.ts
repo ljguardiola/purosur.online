@@ -78,9 +78,9 @@ describe("MercadoPagoPointPaymentTransaction", () => {
   });
 
   it("carries nothing about the card that paid", () => {
-    expectTypeOf<keyof MercadoPagoPointPaymentTransaction>().not.toExtend<
-      "cardLastDigits" | "cardType" | "cardBrand" | "cardholderName"
-    >();
+    for (const field of ["cardLastDigits", "cardType", "cardBrand", "cardholderName"] as const) {
+      expectTypeOf<MercadoPagoPointPaymentTransaction>().not.toHaveProperty(field);
+    }
   });
 
   it("is a pending sale payment as well while its wait runs", () => {

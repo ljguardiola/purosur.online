@@ -117,9 +117,9 @@ describe("a Mercado Pago Point payment of a sale", () => {
   });
 
   it("carries nothing about the card that paid", () => {
-    expectTypeOf<keyof PointPayment>().not.toExtend<
-      "cardLastDigits" | "cardType" | "cardBrand" | "cardholderName"
-    >();
+    for (const field of ["cardLastDigits", "cardType", "cardBrand", "cardholderName"] as const) {
+      expectTypeOf<PointPayment>().not.toHaveProperty(field);
+    }
   });
 });
 

@@ -42,14 +42,27 @@ export interface MercadoPagoQrPaymentTransaction extends SalePaymentTransaction 
   confirmedAt?: never;
 }
 
+export interface MercadoPagoPointPaymentTransaction extends SalePaymentTransaction {
+  method: "POINT";
+  provider: "MERCADOPAGO_POINT";
+  state: PaymentTransactionState;
+  tendered?: never;
+  authorizedBy?: never;
+  confirmedAt?: never;
+}
+
+export type MercadoPagoPaymentTransaction =
+  | MercadoPagoQrPaymentTransaction
+  | MercadoPagoPointPaymentTransaction;
+
 export type PaymentTransaction =
   | CashPaymentTransaction
   | TransferPaymentTransaction
-  | MercadoPagoQrPaymentTransaction;
+  | MercadoPagoPaymentTransaction;
 
 export type SalePayment = PaymentTransaction & { state: "APPROVED"; occurredAt: Date };
 
-export type PendingMercadoPagoSalePayment = MercadoPagoQrPaymentTransaction & {
+export type PendingMercadoPagoSalePayment = MercadoPagoPaymentTransaction & {
   state: "PENDING";
   occurredAt: Date;
   waitEndsAt: Date;
@@ -65,7 +78,7 @@ interface MercadoPagoOrder {
   expiresAt: Date;
 }
 
-export type MercadoPagoOrderTransaction = MercadoPagoQrPaymentTransaction & MercadoPagoOrder;
+export type MercadoPagoOrderTransaction = MercadoPagoPaymentTransaction & MercadoPagoOrder;
 
 export function mercadoPagoOrderExpiresAt(
   attemptStartedAt: Date,
