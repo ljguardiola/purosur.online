@@ -225,6 +225,7 @@ export {
 } from "./fiscal/index.js";
 export type {
   LatePaymentRefund,
+  MercadoPagoChargeInProgress,
   MercadoPagoOrderTransaction,
   MercadoPagoPaymentTransaction,
   MercadoPagoPointPaymentTransaction,
@@ -238,7 +239,6 @@ export type {
   QrAvailability,
   RefundOrigin,
   RefundState,
-  RegisterPointTerminalAvailability,
   SalePayment,
 } from "./payments/index.js";
 export {

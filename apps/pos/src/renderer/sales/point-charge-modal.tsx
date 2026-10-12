@@ -21,13 +21,15 @@ import {
   CHARGE_IN_PROGRESS_MESSAGE,
   exceedsPendingMessage,
   ORDER_FAILED_MESSAGE,
-  ORDER_UNREACHABLE_MESSAGE,
 } from "./mercado-pago-charge-messages";
 
 const REFUSED_MESSAGE = "Mercado Pago rechazó la orden. Cobrá con otro medio.";
 const NOT_CONFIGURED_MESSAGE = "La Point integrada no está configurada en esta caja.";
 
-export type ShownPointOrder = Extract<StartMercadoPagoChargeOutcome, { kind: "order_shown" }>;
+export type ShownPointOrder = Extract<
+  StartMercadoPagoChargeOutcome,
+  { kind: "order_shown" | "order_unconfirmed" }
+>;
 
 export type PointChargeModalProps = {
   total: number;
@@ -64,6 +66,7 @@ export function PointChargeModal({
       );
       switch (outcome.kind) {
         case "order_shown":
+        case "order_unconfirmed":
           onOrderShown(outcome);
           break;
         case "exceeds_pending":
@@ -81,9 +84,6 @@ export function PointChargeModal({
         case "order_refused":
           setNotice(REFUSED_MESSAGE);
           break;
-        case "unreachable":
-          setNotice(ORDER_UNREACHABLE_MESSAGE);
-          break;
         case "mercado_pago_charge_in_progress":
           setNotice(CHARGE_IN_PROGRESS_MESSAGE);
           break;
@@ -99,6 +99,7 @@ export function PointChargeModal({
         case "no_open_session":
           onSessionInvalid();
           break;
+        case "unreachable":
         case "unavailable":
           setNotice(ORDER_FAILED_MESSAGE);
           break;

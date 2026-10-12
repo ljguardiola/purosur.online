@@ -31,6 +31,7 @@ import {
   type ChargeRefusal,
   cashCharge,
   type ManualAdjustmentValue,
+  type MercadoPagoChargeInProgress,
   type PlannedRefund,
   type RegisterActor,
   type RegisterOperation,
@@ -144,6 +145,7 @@ interface OpenSaleAnswer {
   linesLock: OpenSale["lines_lock"];
   cancelRefusal: OpenSale["cancel_refusal"];
   refundsOnCancel: readonly PlannedRefund[];
+  mercadoPagoChargeInProgress: MercadoPagoChargeInProgress | null;
 }
 
 interface SaleView {
@@ -185,7 +187,15 @@ function asSeller<Outcome>(
 }
 
 function toOpenSale(
-  { sale, chargeRefusal, balance, linesLock, cancelRefusal, refundsOnCancel }: OpenSaleAnswer,
+  {
+    sale,
+    chargeRefusal,
+    balance,
+    linesLock,
+    cancelRefusal,
+    refundsOnCancel,
+    mercadoPagoChargeInProgress,
+  }: OpenSaleAnswer,
   view: SaleView,
 ): OpenSale {
   return {
@@ -216,6 +226,15 @@ function toOpenSale(
     sale_discount_authorization_required: view.saleDiscountAuthorizationRequired,
     sale_discount_refusal: saleDiscountUnavailability(sale.lines)?.kind ?? null,
     charge_refusal: chargeRefusal ?? null,
+    mercado_pago_charge_in_progress:
+      mercadoPagoChargeInProgress === null
+        ? null
+        : {
+            payment_transaction_id: mercadoPagoChargeInProgress.paymentTransactionId,
+            method: mercadoPagoChargeInProgress.method,
+            amount: mercadoPagoChargeInProgress.amount,
+            remaining_seconds: mercadoPagoChargeInProgress.remainingSeconds,
+          },
   };
 }
 

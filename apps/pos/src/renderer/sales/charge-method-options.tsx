@@ -23,7 +23,7 @@ const CASH_OPTION: MethodOption = {
 const POINT_OPTION: MethodOption = {
   value: "POINT",
   label: "Point integrada",
-  description: "Débito o crédito en la terminal · requiere internet",
+  description: "Tarjeta o QR en la terminal · requiere internet",
   icon: <CreditCard />,
 };
 
@@ -31,12 +31,6 @@ const POINT_OPTION_OFFLINE: MethodOption = {
   ...POINT_OPTION,
   description: "No disponible sin conexión",
   icon: <WifiOff />,
-  disabled: true,
-};
-
-const POINT_OPTION_NOT_CONFIGURED: MethodOption = {
-  ...POINT_OPTION,
-  description: "No configurada en esta caja",
   disabled: true,
 };
 
@@ -67,8 +61,6 @@ function pointOption(point: PaymentMethodAvailability["point"]): MethodOption | 
       return POINT_OPTION;
     case "offline":
       return POINT_OPTION_OFFLINE;
-    case "not_configured":
-      return POINT_OPTION_NOT_CONFIGURED;
     case "below_minimum":
       return undefined;
   }

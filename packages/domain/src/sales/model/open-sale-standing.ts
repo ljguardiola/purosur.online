@@ -3,6 +3,9 @@ import {
   cancellableWithoutAuthorization,
   hasApprovedPayment,
   holdsApprovedMercadoPagoPayment,
+  type MercadoPagoChargeInProgress,
+  type MercadoPagoPaymentMethod,
+  mercadoPagoChargeInProgress,
   type PlannedRefund,
   plannedRefunds,
   type RefundablePayment,
@@ -20,6 +23,7 @@ export interface OpenSaleStanding {
   cancellable: boolean;
   cancelRefusal: SaleCancelRefusal | null;
   refundsOnCancel: PlannedRefund[];
+  mercadoPagoChargeInProgress: MercadoPagoChargeInProgress | null;
 }
 
 export function saleLinesLock(
@@ -49,7 +53,12 @@ export function saleCancelRefusal(
 export function openSaleStanding(
   total: number,
   payments: readonly RefundablePayment[],
-  pendingMercadoPagoPayments: readonly { method: string; waitEndsAt: Date }[],
+  pendingMercadoPagoPayments: readonly {
+    id: string;
+    method: MercadoPagoPaymentMethod;
+    amount: number;
+    waitEndsAt: Date;
+  }[],
   now: Date,
 ): OpenSaleStanding {
   const cancelRefusal = saleCancelRefusal(payments, pendingMercadoPagoPayments, now);
@@ -59,5 +68,6 @@ export function openSaleStanding(
     cancellable: cancelRefusal === null && cancellableWithoutAuthorization(payments),
     cancelRefusal,
     refundsOnCancel: cancelRefusal === null ? plannedRefunds(payments) : [],
+    mercadoPagoChargeInProgress: mercadoPagoChargeInProgress(pendingMercadoPagoPayments, now),
   };
 }

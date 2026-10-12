@@ -88,8 +88,9 @@ export async function startMercadoPagoChargeFor(
   const outcome = guarded.result;
   switch (outcome.kind) {
     case "order_shown":
+    case "order_unconfirmed":
       return {
-        kind: "order_shown",
+        kind: outcome.kind,
         payment_transaction_id: outcome.paymentTransactionId,
         amount: outcome.amount,
         remaining_seconds: outcome.remainingSeconds,

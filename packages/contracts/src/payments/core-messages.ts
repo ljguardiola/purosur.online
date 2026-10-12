@@ -54,13 +54,15 @@ const saleChargeRefusals = [
   z.object({ kind: z.literal("unavailable") }),
 ] as const;
 
+const followedOrderFields = {
+  payment_transaction_id: recordIdSchema(),
+  amount: z.int().positive(),
+  remaining_seconds: z.int().min(0),
+};
+
 const startMercadoPagoChargeOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("order_shown"),
-    payment_transaction_id: recordIdSchema(),
-    amount: z.int().positive(),
-    remaining_seconds: z.int().min(0),
-  }),
+  z.object({ kind: z.literal("order_shown"), ...followedOrderFields }),
+  z.object({ kind: z.literal("order_unconfirmed"), ...followedOrderFields }),
   z.object({ kind: z.literal("order_refused") }),
   z.object({ kind: z.literal("unreachable") }),
   z.object({ kind: z.literal("mercado_pago_charge_in_progress") }),

@@ -25,6 +25,7 @@ import {
   TimerOff,
   TriangleAlert,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { MercadoPagoPaidModal } from "./mercado-pago-paid-modal";
 import type { ShownPointOrder } from "./point-charge-modal";
@@ -105,6 +106,25 @@ export function PointPaymentWaitModal({
   function abandonOrder() {
     abandonment.mutate(order.payment_transaction_id);
   }
+
+  function followAgain() {
+    if (charge.status === "failed") {
+      setRetried(true);
+      charge.retry();
+    }
+  }
+
+  const followFailure =
+    charge.status === "failed" ? (
+      <LoadFailure
+        icon={<TriangleAlert />}
+        title="No se pudo consultar el cobro en la terminal"
+        description="Volvé a intentarlo en unos segundos."
+        onRetry={followAgain}
+      />
+    ) : charge.status === "loading" && retried ? (
+      <LoadingPlaceholder variant="card" lines={2} />
+    ) : null;
 
   function chooseAnotherMethodUnlessPaid() {
     if (paidByFollowing === undefined) {
@@ -219,6 +239,7 @@ export function PointPaymentWaitModal({
         remainingSeconds={waitedOut ? 0 : remainingSeconds}
         totalSeconds={order.remaining_seconds}
         closed={outcome?.kind === "closed"}
+        followFailure={followFailure}
         onChooseAnotherMethod={onChooseAnotherMethod}
       />
     );
@@ -250,19 +271,7 @@ export function PointPaymentWaitModal({
     >
       <div className="flex flex-col gap-5">
         <PointSaleSummary total={total} paid={paid} amount={order.amount} />
-        {charge.status === "failed" ? (
-          <LoadFailure
-            icon={<TriangleAlert />}
-            title="No se pudo consultar el cobro en la terminal"
-            description="Volvé a intentarlo en unos segundos."
-            onRetry={() => {
-              setRetried(true);
-              charge.retry();
-            }}
-          />
-        ) : charge.status === "loading" && retried ? (
-          <LoadingPlaceholder variant="card" lines={2} />
-        ) : (
+        {followFailure ?? (
           <div className="flex items-center gap-6">
             <CountdownRing
               remainingSeconds={remainingSeconds}
@@ -274,8 +283,8 @@ export function PointPaymentWaitModal({
                 SENT_STEP,
                 {
                   id: "customer-paying",
-                  label: "Esperando la tarjeta",
-                  detail: "Débito o crédito, en la terminal",
+                  label: "Esperando el pago",
+                  detail: "Tarjeta o QR, en la terminal",
                   state: "current",
                 },
                 { id: "payment-approved", label: "Pago aprobado", state: "upcoming" },
@@ -283,7 +292,7 @@ export function PointPaymentWaitModal({
             />
           </div>
         )}
-        {abandoned?.kind === "unreachable" ? (
+        {abandoned?.kind === "unreachable" || order.kind === "order_unconfirmed" ? (
           <InlineNotice
             tone="warning"
             icon={<TriangleAlert />}
@@ -336,6 +345,7 @@ function AwaitingCancellationModal({
   remainingSeconds,
   totalSeconds,
   closed,
+  followFailure,
   onChooseAnotherMethod,
 }: {
   total: number;
@@ -345,6 +355,7 @@ function AwaitingCancellationModal({
   remainingSeconds: number;
   totalSeconds: number;
   closed: boolean;
+  followFailure: ReactNode;
   onChooseAnotherMethod: () => void;
 }) {
   const icon: Icon = waitedOut ? <TimerOff /> : <Hourglass />;
@@ -375,27 +386,28 @@ function AwaitingCancellationModal({
     >
       <div className="flex flex-col gap-5">
         <PointSaleSummary total={total} paid={paid} amount={amount} />
-        <div className="flex items-center gap-6">
-          <CountdownRing
-            remainingSeconds={remainingSeconds}
-            totalSeconds={totalSeconds}
-            label="Tiempo para pagar"
-          />
-          <ProgressSteps
-            steps={[
-              SENT_STEP,
-              ...(waitedOut
-                ? [{ id: "wait-over", label: "Tiempo agotado", state: "error" } as const]
-                : []),
-              {
-                id: "awaiting-cancellation",
-                label: "Esperando la cancelación",
-                detail: "Cancelá el cobro en la terminal",
-                state: "current",
-              },
-            ]}
-          />
-        </div>
+        {followFailure ?? (
+          <div className="flex items-center gap-6">
+            <CountdownRing
+              remainingSeconds={remainingSeconds}
+              totalSeconds={totalSeconds}
+              label="Tiempo para pagar"
+            />
+            <ProgressSteps
+              steps={[
+                SENT_STEP,
+                ...(waitedOut
+                  ? [{ id: "wait-over", label: "Tiempo agotado", state: "error" } as const]
+                  : []),
+                {
+                  id: "awaiting-cancellation",
+                  label: "Esperando la cancelación",
+                  state: "current",
+                },
+              ]}
+            />
+          </div>
+        )}
         <HighlightedNotice
           tone="warning"
           icon={<TriangleAlert />}
@@ -426,7 +438,9 @@ function DeclinedModal({ onChooseAnotherMethod }: { onChooseAnotherMethod: () =>
       }
     >
       <div className="flex flex-col gap-3">
-        <p className="text-body text-text">La tarjeta no se aprobó, así que no se cobró nada.</p>
+        <p className="text-body text-text">
+          El pago no se aprobó en la terminal, así que no se cobró nada.
+        </p>
         <p className="text-detail text-text-subtle">
           Se puede volver a intentar con la Point o cobrar con otro medio.
         </p>

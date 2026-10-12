@@ -13,6 +13,7 @@ import {
 import { ArrowLeft, Check, Landmark, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { INVALID_AMOUNT_MESSAGE } from "./cash-charge-form";
+import { CHARGE_IN_PROGRESS_MESSAGE } from "./mercado-pago-charge-messages";
 import {
   chargeSaleByTransferRequestSchema,
   transferChargeRequestFrom,
@@ -85,6 +86,9 @@ export function TransferChargeModal({
         case "not_signed_in":
         case "no_open_session":
           onSessionInvalid();
+          break;
+        case "mercado_pago_charge_in_progress":
+          setNotice(CHARGE_IN_PROGRESS_MESSAGE);
           break;
         case "unavailable":
           setNotice(FAILED_MESSAGE);

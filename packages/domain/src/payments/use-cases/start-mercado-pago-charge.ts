@@ -17,7 +17,7 @@ export interface StartMercadoPagoChargeInput {
 
 export type StartMercadoPagoChargeOutcome<Refusal> =
   | {
-      kind: "order_shown";
+      kind: "order_shown" | "order_unconfirmed";
       paymentTransactionId: string;
       amount: number;
       remainingSeconds: number;
@@ -33,9 +33,6 @@ function startedOnTheTerminal<Refusal>(
   order: { paymentTransactionId: string; amount: number; waitEndsAt: Date },
   answer: MercadoPagoChargeOrderAnswer,
 ): StartMercadoPagoChargeOutcome<Refusal> {
-  if (answer.kind === "unreachable") {
-    return { kind: "unreachable" };
-  }
   if (
     answer.kind === "refused" ||
     answer.kind === "not_configured" ||
@@ -45,7 +42,7 @@ function startedOnTheTerminal<Refusal>(
     return answer.kind === "refused" ? { kind: "order_refused" } : { kind: answer.kind };
   }
   return {
-    kind: "order_shown",
+    kind: answer.kind === "unreachable" ? "order_unconfirmed" : "order_shown",
     paymentTransactionId: order.paymentTransactionId,
     amount: order.amount,
     remainingSeconds: mercadoPagoOrderChargeRemainingSeconds(order.waitEndsAt, clock.now()),

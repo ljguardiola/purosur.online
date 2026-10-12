@@ -1,6 +1,7 @@
 import {
   isValidDiscountBuyNPayM,
   isValidDiscountPercent,
+  MERCADO_PAGO_PAYMENT_METHODS,
   manualAdjustmentReason,
   mayBeManualDiscountAmount,
   mayBeManualDiscountPercent,
@@ -18,6 +19,7 @@ import {
   partiallyPaidOutcomeSchema,
   plannedRefundSchema,
   reachesThresholdRefusalSchema,
+  recordIdSchema,
   saleCancelRefusalSchema,
 } from "../shared/index.js";
 
@@ -99,6 +101,14 @@ export const saleSchema = z.object({
   sale_discount_refusal: z.enum(["empty_sale", "zero_total"]).nullable(),
   charge_refusal: z
     .discriminatedUnion("kind", [reachesThresholdRefusalSchema, noThresholdRefusalSchema])
+    .nullable(),
+  mercado_pago_charge_in_progress: z
+    .object({
+      payment_transaction_id: recordIdSchema(),
+      method: z.enum(MERCADO_PAGO_PAYMENT_METHODS),
+      amount: z.int().positive(),
+      remaining_seconds: z.int().min(0),
+    })
     .nullable(),
 });
 export type OpenSale = z.infer<typeof saleSchema>;
@@ -385,6 +395,7 @@ export const chargeSaleInCashOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("no_open_session") }),
   z.object({ kind: z.literal("unavailable") }),
+  qrChargeInProgressOutcome,
 ]);
 export type ChargeSaleInCashOutcome = z.infer<typeof chargeSaleInCashOutcomeSchema>;
 
@@ -402,5 +413,6 @@ export const chargeSaleByTransferOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("no_open_session") }),
   z.object({ kind: z.literal("unavailable") }),
+  qrChargeInProgressOutcome,
 ]);
 export type ChargeSaleByTransferOutcome = z.infer<typeof chargeSaleByTransferOutcomeSchema>;

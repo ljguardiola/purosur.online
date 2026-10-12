@@ -1,22 +1,12 @@
 import { MERCADO_PAGO_POINT_MINIMUM_ORDER_CENTS } from "./mercado-pago-point-order.js";
 
-export const POINT_TERMINAL_AVAILABILITIES = [
-  "available",
-  "offline",
-  "below_minimum",
-  "not_configured",
-] as const;
+export const POINT_TERMINAL_AVAILABILITIES = ["available", "offline", "below_minimum"] as const;
 
 export type PointTerminalAvailability = (typeof POINT_TERMINAL_AVAILABILITIES)[number];
 
 export const QR_AVAILABILITIES = ["available", "offline"] as const;
 
 export type QrAvailability = (typeof QR_AVAILABILITIES)[number];
-
-export type RegisterPointTerminalAvailability = Exclude<
-  PointTerminalAvailability,
-  "not_configured"
->;
 
 export function qrAvailability(cloudReachable: boolean): QrAvailability {
   return cloudReachable ? "available" : "offline";
@@ -25,7 +15,7 @@ export function qrAvailability(cloudReachable: boolean): QrAvailability {
 export function pointTerminalAvailability(
   cloudReachable: boolean,
   pendingCents: number,
-): RegisterPointTerminalAvailability {
+): PointTerminalAvailability {
   if (!cloudReachable) {
     return "offline";
   }

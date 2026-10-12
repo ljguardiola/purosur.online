@@ -1,10 +1,9 @@
 import {
-  aMercadoPagoChargeInProgress,
   isValidPointOrderAmount,
   nonCashCharge,
   type PendingMercadoPagoSalePayment,
 } from "../../payments/index.js";
-import { chargeableSale, isSaleRefusal, type SaleRefusal } from "./chargeable-sale.js";
+import { isSaleRefusal, type NewPaymentRefusal, saleOpenToNewPayment } from "./chargeable-sale.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
 
 export interface RecordPendingMercadoPagoPaymentInput {
@@ -22,11 +21,10 @@ export interface RecordPendingMercadoPagoPaymentPorts {
 }
 
 export type PendingMercadoPagoPaymentRefusal =
-  | SaleRefusal
+  | NewPaymentRefusal
   | { kind: "invalid_amount" }
   | { kind: "exceeds_pending"; pending: number }
-  | { kind: "below_minimum" }
-  | { kind: "mercado_pago_charge_in_progress" };
+  | { kind: "below_minimum" };
 
 export type RecordPendingMercadoPagoPaymentOutcome =
   | { kind: "recorded"; paymentTransactionId: string }
@@ -37,14 +35,11 @@ export function recordPendingMercadoPagoPayment(
   { actorId, saleId, method, amount, occurredAt, waitEndsAt }: RecordPendingMercadoPagoPaymentInput,
 ): RecordPendingMercadoPagoPaymentOutcome {
   return ledger.transaction<RecordPendingMercadoPagoPaymentOutcome>((tx) => {
-    const chargeable = chargeableSale(tx, actorId, saleId, occurredAt);
+    const chargeable = saleOpenToNewPayment(tx, actorId, saleId, occurredAt);
     if (isSaleRefusal(chargeable)) {
       return chargeable;
     }
     const { sale, pending } = chargeable;
-    if (aMercadoPagoChargeInProgress(tx.pendingMercadoPagoPaymentsOf(sale.id), occurredAt)) {
-      return { kind: "mercado_pago_charge_in_progress" };
-    }
     const charge = nonCashCharge(pending, amount);
     if (charge.kind === "invalid_amount" || charge.kind === "exceeds_pending") {
       return charge;

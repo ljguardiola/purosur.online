@@ -3,10 +3,12 @@ export {
   MERCADO_PAGO_PENDING_CHECK_INTERVAL_MS,
   PAYMENT_NOTIFICATION_LIMIT,
 } from "./model/mercado-pago-notifications.js";
+export type { MercadoPagoChargeInProgress } from "./model/mercado-pago-order-charge-wait.js";
 export {
   aMercadoPagoChargeInProgress,
   MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS,
   MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
+  mercadoPagoChargeInProgress,
 } from "./model/mercado-pago-order-charge-wait.js";
 export { mercadoPagoPaymentIsBacked } from "./model/mercado-pago-payment-backing.js";
 export {
@@ -15,7 +17,7 @@ export {
   MERCADO_PAGO_POINT_ORDER_EXPIRY_MINUTES,
 } from "./model/mercado-pago-point-order.js";
 export { nonCashCharge } from "./model/non-cash-charge.js";
-export type { PaymentMethod } from "./model/payment.js";
+export type { MercadoPagoPaymentMethod, PaymentMethod } from "./model/payment.js";
 export {
   cancellableWithoutAuthorization,
   hasApprovedPayment,
@@ -27,7 +29,6 @@ export {
 export type {
   PointTerminalAvailability,
   QrAvailability,
-  RegisterPointTerminalAvailability,
 } from "./model/payment-method-availability.js";
 export {
   POINT_TERMINAL_AVAILABILITIES,
