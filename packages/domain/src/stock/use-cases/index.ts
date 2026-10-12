@@ -43,8 +43,24 @@ export type {
   InitialCountMovementKind,
   InitialCountTransaction,
 } from "./initial-count-ledger.js";
+export type {
+  InitialCountLotReader,
+  InitialCountLotRow,
+  InitialCountLotsQuery,
+} from "./initial-count-lot-reader.js";
+export type {
+  LockedLot,
+  LotCostStore,
+  LotCostTransaction,
+  LotOriginKind,
+} from "./lot-cost-store.js";
 export type { ReadInitialCountOutcome } from "./read-initial-count.js";
 export { readInitialCount } from "./read-initial-count.js";
+export type {
+  InitialCountLotView,
+  ReadInitialCountLotsInput,
+} from "./read-initial-count-lots.js";
+export { readInitialCountLots } from "./read-initial-count-lots.js";
 export type {
   LotOrigin,
   ReadStockBalancesInput,
@@ -73,6 +89,11 @@ export type {
   ReplicatedStockLedger,
   ReplicatedStockMovement,
 } from "./replicated-stock-ledger.js";
+export type {
+  SetLotReferenceCostInput,
+  SetLotReferenceCostOutcome,
+} from "./set-lot-reference-cost.js";
+export { setLotReferenceCost } from "./set-lot-reference-cost.js";
 export type {
   LedgerAtMoment,
   LedgerLot,
