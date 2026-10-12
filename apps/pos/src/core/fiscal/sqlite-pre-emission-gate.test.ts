@@ -13,6 +13,7 @@ import {
   insertPreEmissionGateOutcome,
   readBuyerTaxStatusSetInEffect,
   readIssuerIdentificationInEffect,
+  readLatestPreEmissionGateOutcome,
 } from "./sqlite-pre-emission-gate";
 
 const NOW = new Date("2026-10-01T12:00:00.000Z");
@@ -192,5 +193,73 @@ describe("the pre-emission gate outcomes recorded", () => {
     expect(() => insert("PASSED", null, null)).toThrow(/CHECK/);
     expect(() => insert("FAILED", null, null)).toThrow(/CHECK/);
     expect(() => insert("FAILED", "legal_name_missing", "{}")).toThrow(/CHECK/);
+  });
+});
+
+describe("the latest pre-emission gate outcome of the register", () => {
+  const at = (minutes: number) => new Date(NOW.getTime() + minutes * 60_000);
+
+  beforeEach(() => {
+    addSale("sale-1");
+    addSale("sale-2");
+  });
+
+  function record(saleId: string, evaluatedAt: Date, failed: boolean): void {
+    insertPreEmissionGateOutcome(database, {
+      saleId,
+      evaluatedAt,
+      outcome: failed
+        ? { kind: "failed", reason: "legal_name_missing" }
+        : { kind: "passed", document: DOCUMENT },
+    });
+  }
+
+  it("is none before any sale was evaluated", () => {
+    expect(readLatestPreEmissionGateOutcome(database)).toBeUndefined();
+  });
+
+  it("is the failure, with its reason, of a register whose only evaluated sale failed", () => {
+    record("sale-1", NOW, true);
+
+    expect(readLatestPreEmissionGateOutcome(database)).toEqual({
+      kind: "failed",
+      reason: "legal_name_missing",
+    });
+  });
+
+  it("is the pass of a register whose only evaluated sale passed, with no document", () => {
+    record("sale-1", NOW, false);
+
+    expect(readLatestPreEmissionGateOutcome(database)).toStrictEqual({ kind: "passed" });
+  });
+
+  it("is the outcome recorded last, even when the register's clock was set back before it", () => {
+    record("sale-1", at(5), true);
+    record("sale-2", at(1), false);
+
+    expect(readLatestPreEmissionGateOutcome(database)).toStrictEqual({ kind: "passed" });
+  });
+
+  it("is the outcome recorded last of those left once the newest one was removed", () => {
+    addSale("sale-3");
+    record("sale-1", at(5), false);
+    record("sale-2", at(1), true);
+    record("sale-3", at(0), false);
+    database.prepare("DELETE FROM pre_emission_gate_outcomes WHERE sale_id = 'sale-3'").run();
+
+    expect(readLatestPreEmissionGateOutcome(database)).toEqual({
+      kind: "failed",
+      reason: "legal_name_missing",
+    });
+  });
+
+  it("is the outcome recorded last when two were evaluated at the same instant", () => {
+    record("sale-2", NOW, false);
+    record("sale-1", NOW, true);
+
+    expect(readLatestPreEmissionGateOutcome(database)).toEqual({
+      kind: "failed",
+      reason: "legal_name_missing",
+    });
   });
 });

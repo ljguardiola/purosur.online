@@ -256,6 +256,22 @@ test("renders the discount kind in a fixed 220px box", async () => {
   expect(fieldBox(screen, "Discount").getBoundingClientRect().width).toBeCloseTo(220, 0);
 });
 
+test("renders the narrow discount kind in a fixed 180px box", async () => {
+  const screen = await render(
+    <TextField kind="discount" width="narrow" label="Discount" value="" onChange={() => {}} />,
+  );
+
+  expect(fieldBox(screen, "Discount").getBoundingClientRect().width).toBeCloseTo(180, 0);
+});
+
+test("renders the standard discount kind in the same 220px box as when no width is given", async () => {
+  const screen = await render(
+    <TextField kind="discount" width="standard" label="Discount" value="" onChange={() => {}} />,
+  );
+
+  expect(fieldBox(screen, "Discount").getBoundingClientRect().width).toBeCloseTo(220, 0);
+});
+
 test("renders the discount suffix at 18px in the subtle text color, after the input", async () => {
   const screen = await render(
     <TextField kind="discount" label="Discount" value="10" onChange={() => {}} suffix="%" />,
@@ -1020,6 +1036,42 @@ test("accepts the discount kind with an optional suffix", () => {
     onChange: (value: string) => void;
     suffix: string;
   }>().toExtend<TextFieldProps>();
+});
+
+test("accepts a narrow or standard width on the discount kind", () => {
+  expectTypeOf<{
+    kind: "discount";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    width: "narrow" | "standard";
+  }>().toExtend<TextFieldProps>();
+});
+
+test("does not accept a width on any kind but discount", () => {
+  expectTypeOf<{
+    kind: "amount" | "counted-cash" | "price";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    prefix: string;
+    width: "narrow";
+  }>().not.toExtend<TextFieldProps>();
+  expectTypeOf<{
+    kind: "weight" | "quantity";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    suffix: string;
+    width: "narrow";
+  }>().not.toExtend<TextFieldProps>();
+  expectTypeOf<{
+    kind: "plain-text";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    width: "narrow";
+  }>().not.toExtend<TextFieldProps>();
 });
 
 test("accepts an optional suffix on the plain text kind", () => {

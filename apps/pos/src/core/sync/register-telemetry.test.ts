@@ -1,4 +1,8 @@
-import type { SalesStopState, SerialDevicesReport } from "@purosur/domain";
+import type {
+  LatestPreEmissionGateOutcome,
+  SalesStopState,
+  SerialDevicesReport,
+} from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { damagedRegisterTelemetryReader, registerTelemetryReader } from "./register-telemetry";
 
@@ -9,11 +13,15 @@ const SERIAL_DEVICES: SerialDevicesReport = {
   reader: { standing: "not_detected", vendor_id: "26f1", product_id: "8802" },
 };
 
-function readerStopped(stop: SalesStopState) {
+function readerStopped(
+  stop: SalesStopState,
+  latestGate: LatestPreEmissionGateOutcome | undefined = undefined,
+) {
   return registerTelemetryReader(
     async () => STORAGE,
     () => stop,
     () => SERIAL_DEVICES,
+    () => latestGate,
   );
 }
 
@@ -22,8 +30,39 @@ describe("the register's telemetry", () => {
     expect(await readerStopped({ stopped: false })()).toEqual({
       ...STORAGE,
       sales_denied: false,
+      fiscal_emission_stopped: false,
       serial_devices: SERIAL_DEVICES,
     });
+  });
+
+  it("reports its fiscal emission stopped, and why, while its latest sale failed the pre-emission check", async () => {
+    expect(
+      await readerStopped(
+        { stopped: false },
+        { kind: "failed", reason: "gross_income_registration_missing" },
+      )(),
+    ).toEqual({
+      ...STORAGE,
+      sales_denied: false,
+      fiscal_emission_stopped: true,
+      fiscal_emission_stopped_reason: "gross_income_registration_missing",
+      serial_devices: SERIAL_DEVICES,
+    });
+  });
+
+  it("reports its fiscal emission available once its latest sale passed the check", async () => {
+    expect(await readerStopped({ stopped: false }, { kind: "passed" })()).toMatchObject({
+      fiscal_emission_stopped: false,
+    });
+  });
+
+  it("reports its fiscal emission stopped even when its installation was revoked", async () => {
+    expect(
+      await readerStopped(
+        { stopped: true, reason: "installation_revoked" },
+        { kind: "failed", reason: "legal_name_missing" },
+      )(),
+    ).toMatchObject({ fiscal_emission_stopped: true });
   });
 
   it("reports its storage, that it can't sell and why when its event history broke", async () => {
@@ -31,13 +70,15 @@ describe("the register's telemetry", () => {
       ...STORAGE,
       sales_denied: true,
       sales_denied_reason: "event_history_broken",
+      fiscal_emission_stopped: false,
       serial_devices: SERIAL_DEVICES,
     });
   });
 
-  it("reports only its storage and serial devices once the cloud revoked its installation", async () => {
+  it("reports only its storage, fiscal emission and serial devices once the cloud revoked its installation", async () => {
     expect(await readerStopped({ stopped: true, reason: "installation_revoked" })()).toEqual({
       ...STORAGE,
+      fiscal_emission_stopped: false,
       serial_devices: SERIAL_DEVICES,
     });
   });
@@ -48,6 +89,7 @@ describe("the register's telemetry", () => {
       async () => STORAGE,
       () => ({ stopped: false }),
       () => devices,
+      () => undefined,
     );
 
     const before = await read();
@@ -67,6 +109,7 @@ describe("the register's telemetry", () => {
       async () => STORAGE,
       () => stop,
       () => SERIAL_DEVICES,
+      () => undefined,
     );
 
     const before = await read();
@@ -75,6 +118,23 @@ describe("the register's telemetry", () => {
 
     expect(before).toMatchObject({ sales_denied: false });
     expect(after).toMatchObject({ sales_denied: true });
+  });
+
+  it("reads its latest pre-emission check each time it reports", async () => {
+    let latest: LatestPreEmissionGateOutcome | undefined;
+    const read = registerTelemetryReader(
+      async () => STORAGE,
+      () => ({ stopped: false }),
+      () => SERIAL_DEVICES,
+      () => latest,
+    );
+
+    const before = await read();
+    latest = { kind: "failed", reason: "legal_name_missing" };
+    const after = await read();
+
+    expect(before).toMatchObject({ fiscal_emission_stopped: false });
+    expect(after).toMatchObject({ fiscal_emission_stopped: true });
   });
 });
 
@@ -87,6 +147,9 @@ describe("the telemetry of a register whose local database is damaged", () => {
     });
     expect(await damagedRegisterTelemetryReader(async () => STORAGE)()).not.toHaveProperty(
       "serial_devices",
+    );
+    expect(await damagedRegisterTelemetryReader(async () => STORAGE)()).not.toHaveProperty(
+      "fiscal_emission_stopped",
     );
   });
 });

@@ -255,6 +255,7 @@ function Register({ core }: { core: CoreClient }) {
         );
       }
       void queryClient.invalidateQueries({ queryKey: cashKey });
+      void queryClient.invalidateQueries({ queryKey: registerKeys.status });
     } else if (
       kind === "empty_sale" ||
       kind === "zero_total" ||

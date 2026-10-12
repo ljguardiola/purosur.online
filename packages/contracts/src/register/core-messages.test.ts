@@ -1226,6 +1226,7 @@ describe("register status messages", () => {
     ],
     [[{ kind: "installation_revoked" }], "unreachable"],
     [[{ kind: "serial_device_missing" }], "reachable"],
+    [[{ kind: "fiscal_emission_stopped" }], "unreachable"],
   ])("accepts the status with conditions %j and the cloud %s", (conditions, cloud) => {
     const message = {
       type: "register-status",

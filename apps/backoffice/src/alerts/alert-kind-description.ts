@@ -20,6 +20,7 @@ const ALERT_KIND_DESCRIPTIONS = {
   late_payment_refund: "Mercado Pago cobró un pago QR que hay que devolver",
   refund_task: "Una venta anulada tiene un reembolso sin marcar como hecho",
   fiscal_unknown: "Un comprobante quedó sin respuesta clara de ARCA",
+  fiscal_emission_stopped: "Una caja no puede emitir comprobantes fiscales",
 } satisfies Record<AlertKind, string>;
 
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);

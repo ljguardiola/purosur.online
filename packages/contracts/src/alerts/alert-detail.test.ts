@@ -204,6 +204,9 @@ describe("alertDetailSchema", () => {
     >();
     expectTypeOf<WireDetail<"refund_task">>().toEqualTypeOf<AlertDetails["refund_task"]>();
     expectTypeOf<WireDetail<"fiscal_unknown">>().toEqualTypeOf<AlertDetails["fiscal_unknown"]>();
+    expectTypeOf<WireDetail<"fiscal_emission_stopped">>().toEqualTypeOf<
+      AlertDetails["fiscal_emission_stopped"]
+    >();
     expectTypeOf<WireDetail<"offline_authorization_code_missing">>().toExtend<
       AlertDetails["offline_authorization_code_missing"]
     >();
@@ -349,6 +352,7 @@ describe("alertDetailSchema", () => {
         method: "TRANSFER",
         refundOpenedAt: "2026-10-05T12:00:00.000Z",
       },
+      fiscal_emission_stopped: { deviceId: "device-1", reason: "legal_name_missing" },
       fiscal_unknown: {
         fiscalDocumentId: "document-1",
         saleId: "sale-1",
@@ -417,6 +421,16 @@ describe("alertDetailSchema", () => {
         ...base,
         kind: "sales_denied",
         detail: { deviceId: "device-1", reason: "installation_revoked" },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
+    });
+
+    it("refuses a fiscal-emission-stopped alert with a reason the pre-emission check does not fail for", () => {
+      const alert = {
+        ...base,
+        kind: "fiscal_emission_stopped",
+        detail: { deviceId: "device-1", reason: "out_of_paper" },
       };
 
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);

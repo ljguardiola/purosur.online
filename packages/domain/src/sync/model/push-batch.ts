@@ -1,3 +1,4 @@
+import type { FiscalEmissionStoppedReport } from "../../fiscal/index.js";
 import type { SerialDevicesReport } from "../../register/index.js";
 import type { OutboxEvent, SalesDeniedReport } from "../../shared/index.js";
 
@@ -12,4 +13,5 @@ export interface StorageTelemetry {
 }
 
 export type RegisterTelemetry = StorageTelemetry &
-  SalesDeniedReport & { serial_devices?: SerialDevicesReport | undefined };
+  SalesDeniedReport &
+  FiscalEmissionStoppedReport & { serial_devices?: SerialDevicesReport | undefined };
