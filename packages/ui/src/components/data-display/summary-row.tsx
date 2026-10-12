@@ -5,7 +5,7 @@ type SummaryRowTone = Extract<Tone, "error" | "info">;
 export type SummaryRowProps = {
   label: string;
   value: string;
-} & ({ strong?: boolean; detail?: false } | { strong?: false; detail: true }) &
+} & ({ strong?: boolean; detail?: false } | { strong?: false; detail: true; saving?: false }) &
   ({ saving?: boolean; tone?: undefined } | { saving?: false; tone: SummaryRowTone });
 
 type SummaryRowForm = "regular" | "strong" | "detail";
