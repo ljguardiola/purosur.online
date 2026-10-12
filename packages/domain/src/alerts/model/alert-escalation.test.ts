@@ -9,6 +9,7 @@ import {
 import {
   ALERT_ESCALATION_DELAY_MS,
   LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS,
+  REFUND_TASK_ESCALATION_DELAY_MS,
 } from "./alert-kind-policy.js";
 
 const OPENED = new Date("2026-10-01T08:00:00.000Z");
@@ -43,6 +44,28 @@ describe("escalatesAt", () => {
       new Date(OPENED.getTime() + LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS),
     );
     expect(escalation).not.toEqual(DUE);
+  });
+
+  it("is 72 hours after the refund opened for a forgotten refund, whenever its alert opened", () => {
+    const refundOpenedAt = new Date("2026-09-30T08:00:00.000Z");
+    const alertOpenedAt = new Date("2026-10-01T09:00:00.000Z");
+
+    expect(
+      escalatesAt(
+        {
+          kind: "refund_task",
+          scope: "refund-1",
+          locationId: "branch-1",
+          detail: {
+            saleId: "sale-1",
+            amount: 12400,
+            method: "TRANSFER",
+            refundOpenedAt: refundOpenedAt.toISOString(),
+          },
+        },
+        alertOpenedAt,
+      ),
+    ).toEqual(new Date(refundOpenedAt.getTime() + REFUND_TASK_ESCALATION_DELAY_MS));
   });
 
   it("is never, for a kind that opens already critical", () => {

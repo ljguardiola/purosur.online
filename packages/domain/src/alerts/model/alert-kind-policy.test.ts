@@ -8,6 +8,8 @@ import {
   alertKindPolicy,
   alertKindsWithScope,
   LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS,
+  REFUND_TASK_ALERT_OPENING_DELAY_MS,
+  REFUND_TASK_ESCALATION_DELAY_MS,
 } from "./alert-kind-policy.js";
 
 describe("alertKindPolicy", () => {
@@ -17,6 +19,11 @@ describe("alertKindPolicy", () => {
 
   it("escalates a late-payment refund after 72 hours", () => {
     expect(LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS).toBe(72 * 60 * 60 * 1000);
+  });
+
+  it("opens the alert of a forgotten refund after 24 hours and escalates it 72 hours after the refund opened", () => {
+    expect(REFUND_TASK_ALERT_OPENING_DELAY_MS).toBe(24 * 60 * 60 * 1000);
+    expect(REFUND_TASK_ESCALATION_DELAY_MS).toBe(72 * 60 * 60 * 1000);
   });
 
   const afterOpening = { kind: "afterOpening", delayMs: ALERT_ESCALATION_DELAY_MS } as const;
@@ -48,6 +55,14 @@ describe("alertKindPolicy", () => {
       "late_payment_refund",
       "warning",
       { kind: "afterOpening", delayMs: LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS },
+      "local",
+      "refund",
+      true,
+    ],
+    [
+      "refund_task",
+      "warning",
+      { kind: "afterSubjectOpening", delayMs: REFUND_TASK_ESCALATION_DELAY_MS },
       "local",
       "refund",
       true,
@@ -105,6 +120,7 @@ describe("alertClosing", () => {
       fiscal_rejected: "by_itself",
       offline_authorization_code_missing: "by_itself",
       late_payment_refund: "with_its_refund",
+      refund_task: "with_its_refund",
     });
   });
 
@@ -140,6 +156,6 @@ describe("alertKindsWithScope", () => {
     expect(alertKindsWithScope("registerFortnight")).toEqual([
       "offline_authorization_code_missing",
     ]);
-    expect(alertKindsWithScope("refund")).toEqual(["late_payment_refund"]);
+    expect(alertKindsWithScope("refund")).toEqual(["late_payment_refund", "refund_task"]);
   });
 });
