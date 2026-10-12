@@ -11,7 +11,9 @@ import {
   formatCalendarDay,
   formatCalendarDayRange,
   formatDate,
+  formatInvoiceNumber,
   formatNumber,
+  formatPointOfSaleNumber,
   InlineNotice,
   isLocalAlertKind,
   LoadFailure,
@@ -253,6 +255,15 @@ function offlineAuthorizationCodeMissingDescription({
   return `La quincena empieza el ${formatCalendarDay(detail.fortnightStart)}. Sin el CAEA, si ARCA no responde, la caja no puede emitir facturas y las ventas quedan diferidas. Hay que conectarla a internet hoy.`;
 }
 
+function fiscalUnknownDescription({
+  pointOfSale,
+  number,
+  unclearSince,
+}: Extract<AlertDetail, { kind: "fiscal_unknown" }>["detail"]): string {
+  const document = `${formatPointOfSaleNumber(pointOfSale)}-${formatInvoiceNumber(number)}`;
+  return `El comprobante ${document} quedó sin respuesta clara de ARCA desde ${alertDateTime(new Date(unclearSince))}. Mientras no se resuelva, ese punto de venta no pide CAE y las ventas de la caja quedan diferidas.`;
+}
+
 function alertTitle(alert: AlertDetail): string {
   const localTitle = alert.audience === "local" ? localAlertTitle(alert.kind) : undefined;
   if (localTitle !== undefined) {
@@ -287,6 +298,7 @@ function alertTitle(alert: AlertDetail): string {
     case "sales_denied":
     case "fiscal_rejected":
     case "offline_authorization_code_missing":
+    case "fiscal_unknown":
       return alertKindDescription(alert.kind);
     case "late_payment_refund":
       return "Reembolso pendiente por un pago tardío";
@@ -351,6 +363,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return `La caja «${targetName}» usa la versión ${alert.detail.appVersion}, que la nube ya no acepta. Hay que actualizarla para que vuelva a sincronizar.`;
     case "offline_authorization_code_missing":
       return offlineAuthorizationCodeMissingDescription(alert);
+    case "fiscal_unknown":
+      return fiscalUnknownDescription(alert.detail);
     case "fiscal_rejected":
       return "Cada venta de este punto de venta queda diferida hasta corregir la causa que indica ARCA.";
     case "register_silent":
@@ -389,6 +403,7 @@ const CLOSING_NOTES: Record<AlertDetail["closing"], string | null> = {
   by_itself: null,
   with_its_refund: "Se cierra cuando su reembolso se marca como hecho o se descarta.",
   when_its_refund_is_done: "Se cierra cuando su reembolso se marca como hecho.",
+  when_its_document_is_resolved: "Se cierra sola cuando se resuelve el comprobante.",
   by_hand: "No se cierra sola: se cierra a mano después de revisarla.",
 };
 

@@ -19,6 +19,7 @@ const ALERT_KIND_DESCRIPTIONS = {
   offline_authorization_code_missing: "Una caja todavía no bajó el CAEA de la quincena",
   late_payment_refund: "Mercado Pago cobró un pago QR que hay que devolver",
   refund_task: "Una venta anulada tiene un reembolso sin marcar como hecho",
+  fiscal_unknown: "Un comprobante quedó sin respuesta clara de ARCA",
 } satisfies Record<AlertKind, string>;
 
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);
