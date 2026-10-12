@@ -46,7 +46,7 @@ export async function printReceipt<Grant extends ReceiptPrintGrant, Refusal>(
   return printGrantedReceipt(ports, authorization.grant, saleId, reasonOfDuplicate, watch);
 }
 
-export async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
+async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
   { ledger, clock, ids, template, printers }: ReceiptPrintingPorts<Grant, Refusal>,
   grant: Grant,
   saleId: string,
