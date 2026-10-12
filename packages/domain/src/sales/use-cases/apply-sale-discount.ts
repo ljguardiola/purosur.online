@@ -7,10 +7,8 @@ import {
   type SaleDiscount,
   type SaleDiscountRefusal,
   type SaleDiscountValue,
-  saleDiscountAmount,
   saleDiscountRefusal,
 } from "../model/sale-discount.js";
-import { saleTotal } from "../model/sale-line.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import {
@@ -41,7 +39,6 @@ export type ApplySaleDiscountOutcome =
   | ({
       kind: "applied";
       sale: SaleWithLines;
-      saleDiscountAmount: number;
       chargeRefusal: ChargeRefusal | undefined;
     } & OpenSaleStanding);
 
@@ -72,7 +69,6 @@ export async function applySaleDiscount<Grant extends ApplySaleDiscountGrant, Re
     return {
       kind: "applied",
       sale: discounted,
-      saleDiscountAmount: saleDiscountAmount(saleTotal(sale.lines), discount),
       chargeRefusal: saleChargeRefusal(tx, discounted, moment),
       ...openSaleStanding(
         amountToCharge(discounted),

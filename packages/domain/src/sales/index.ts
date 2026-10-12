@@ -41,10 +41,9 @@ export type {
 export {
   amountToCharge,
   appliedSaleDiscountAmount,
-  saleDiscountAmount,
   saleDiscountRefusal,
+  saleDiscountUnavailability,
   settledLines,
-  spreadSaleDiscount,
 } from "./model/sale-discount.js";
 export type {
   DeferredSaleRecord,

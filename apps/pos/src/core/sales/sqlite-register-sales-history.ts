@@ -191,8 +191,8 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       .all(saleId);
     const discount = this.database
       .prepare<[string], SaleDiscountColumns>(
-        `SELECT sale_discount_kind, sale_discount_value, sale_discount_amount,
-                sale_discount_reason, sale_discount_authorized_by
+        `SELECT sale_discount_kind, sale_discount_value, sale_discount_reason,
+                sale_discount_authorized_by
          FROM sales WHERE id = ?`,
       )
       .get(saleId);

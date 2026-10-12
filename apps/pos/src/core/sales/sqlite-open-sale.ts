@@ -56,8 +56,8 @@ export function readOpenSale(
   const sale = database
     .prepare<[string], SaleRow>(
       `SELECT id, register_id, device_id, session_id, actor_id,
-              sale_discount_kind, sale_discount_value, sale_discount_amount,
-              sale_discount_reason, sale_discount_authorized_by
+              sale_discount_kind, sale_discount_value, sale_discount_reason,
+              sale_discount_authorized_by
        FROM sales WHERE session_id = ? AND state = 'OPEN'`,
     )
     .get(sessionId);

@@ -14,7 +14,7 @@ import { render as renderReference } from "vitest-browser-react";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { expectDrawnLike } from "../shell/test-support/drawn-like";
 import { render } from "../shell/test-support/render-with-router";
-import { SaleDiscountModal } from "./sale-discount-modal";
+import { ApplySaleDiscountModal } from "./apply-sale-discount-modal";
 import { deferred, SALE_OF_YERBA } from "./test-support/sale-screen";
 
 const PERSON: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
@@ -65,7 +65,7 @@ async function renderModal({
     onClose: vi.fn(),
   };
   const screen = await render(
-    <SaleDiscountModal
+    <ApplySaleDiscountModal
       lineCount={lineCount}
       subtotal={5_070_000}
       authorizationRequired={authorizationRequired}
@@ -112,7 +112,7 @@ async function fillValidPercentage(screen: Screen) {
   await typeReason(screen, "Cliente frecuente");
 }
 
-describe("SaleDiscountModal", () => {
+describe("ApplySaleDiscountModal", () => {
   it("names the sale it discounts by its number of lines and warns the discount goes away when a line changes", async () => {
     const { screen } = await renderModal();
 
@@ -419,7 +419,7 @@ describe("SaleDiscountModal", () => {
   });
 });
 
-describe("SaleDiscountModal previewing the discount", () => {
+describe("ApplySaleDiscountModal previewing the discount", () => {
   it("shows a placeholder in each row before anything is typed, asking the core nothing", async () => {
     const { screen, preview } = await renderModal();
 

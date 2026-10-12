@@ -40,7 +40,7 @@ import { useSaleDiscountPreviewQuery } from "./sales-queries";
 const FAILED_MESSAGE = "No se pudo aplicar el descuento. Probá de nuevo.";
 const DISCOUNT_EXCEEDS_SALE_MESSAGE = "El descuento no puede ser mayor al total de la venta.";
 const EMPTY_SALE_MESSAGE = "La venta no tiene líneas para descontar.";
-const ZERO_TOTAL_MESSAGE = "El total de la venta ya es $ 0,00: no hay nada para descontar.";
+const ZERO_TOTAL_MESSAGE = `El total de la venta ya es ${formatCents(0)}: no hay nada para descontar.`;
 const AUTHORIZING = "descontar sobre el total";
 const PERMISSION: AuthorizablePermissionKey = "apply_total_discount";
 const NOT_PREVIEWED = "—";
@@ -50,7 +50,7 @@ const UNIT_OPTIONS = [
   { value: "AMOUNT", label: "$" },
 ] as const;
 
-export type SaleDiscountModalProps = {
+export type ApplySaleDiscountModalProps = {
   lineCount: number;
   subtotal: number;
   authorizationRequired: boolean;
@@ -72,7 +72,7 @@ function valueLabel(kind: SaleDiscountKind): string {
   return kind === "PERCENT" ? "Porcentaje de descuento" : "Monto de descuento";
 }
 
-export function SaleDiscountModal({
+export function ApplySaleDiscountModal({
   lineCount,
   subtotal,
   authorizationRequired,
@@ -84,7 +84,7 @@ export function SaleDiscountModal({
   onSaleGone,
   onSessionInvalid,
   onClose,
-}: SaleDiscountModalProps) {
+}: ApplySaleDiscountModalProps) {
   const [notice, setNotice] = useState<string>();
   const authorization = useAuthorization({
     person,

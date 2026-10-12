@@ -40,6 +40,7 @@ import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
 import type { Refund } from "../shell/refund-lines";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { AdjustLineModal } from "./adjust-line-modal";
+import { ApplySaleDiscountModal } from "./apply-sale-discount-modal";
 import { CancelPaidSaleModal } from "./cancel-paid-sale-modal";
 import { CancelSaleModal } from "./cancel-sale-modal";
 import { ChangeLineWeightModal } from "./change-line-weight-modal";
@@ -47,7 +48,6 @@ import { changedLineId } from "./changed-line";
 import { PaymentPanel } from "./payment-panel";
 import type { SearchResults } from "./product-search-results";
 import { ProductSearchResults, searchOptionId } from "./product-search-results";
-import { SaleDiscountModal } from "./sale-discount-modal";
 import { SaleLines } from "./sale-lines";
 import {
   useCurrentSaleQuery,
@@ -715,6 +715,7 @@ export function SaleScreen({
         ) : null}
       </main>
       <PaymentPanel
+        saleStatus={current.status}
         lineCount={sale?.lines.length ?? 0}
         subtotal={sale?.subtotal ?? 0}
         saleDiscount={sale?.sale_discount ?? null}
@@ -724,7 +725,7 @@ export function SaleScreen({
         cancellable={answer !== undefined}
         chargeRefusal={sale?.charge_refusal ?? null}
         canCancel={sale !== null && !editing}
-        canDiscount={sale !== null && sale.lines.length > 0 && editable && !editing}
+        canDiscount={sale !== null && sale.sale_discount_refusal === null && editable && !editing}
         onDiscount={() => askToDiscount(true)}
         onCharge={() => void navigate({ to: "/charge" })}
         onCancel={() => void askToCancelSale()}
@@ -774,7 +775,7 @@ export function SaleScreen({
         />
       ) : null}
       {discounting && sale !== null ? (
-        <SaleDiscountModal
+        <ApplySaleDiscountModal
           lineCount={sale.lines.length}
           subtotal={sale.subtotal}
           authorizationRequired={sale.sale_discount_authorization_required}

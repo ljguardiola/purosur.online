@@ -3,20 +3,15 @@ import type { SaleDiscount } from "@purosur/domain";
 export interface SaleDiscountColumns {
   sale_discount_kind: SaleDiscount["kind"] | null;
   sale_discount_value: number | null;
-  sale_discount_amount: number | null;
   sale_discount_reason: string | null;
   sale_discount_authorized_by: string | null;
 }
 
-export function saleDiscountColumns(
-  discount: SaleDiscount | null,
-  amount: number,
-): SaleDiscountColumns {
+export function saleDiscountColumns(discount: SaleDiscount | null): SaleDiscountColumns {
   if (discount === null) {
     return {
       sale_discount_kind: null,
       sale_discount_value: null,
-      sale_discount_amount: null,
       sale_discount_reason: null,
       sale_discount_authorized_by: null,
     };
@@ -24,7 +19,6 @@ export function saleDiscountColumns(
   return {
     sale_discount_kind: discount.kind,
     sale_discount_value: discount.kind === "PERCENT" ? discount.percent : discount.amount,
-    sale_discount_amount: amount,
     sale_discount_reason: discount.reason,
     sale_discount_authorized_by: discount.authorizedBy,
   };

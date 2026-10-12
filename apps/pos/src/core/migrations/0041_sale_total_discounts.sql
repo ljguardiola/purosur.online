@@ -14,13 +14,6 @@ ALTER TABLE sales
   );
 
 ALTER TABLE sales
-  ADD COLUMN sale_discount_amount INTEGER
-  CHECK (
-    (sale_discount_amount IS NULL) = (sale_discount_kind IS NULL)
-    AND (sale_discount_amount IS NULL OR sale_discount_amount >= 0)
-  );
-
-ALTER TABLE sales
   ADD COLUMN sale_discount_reason TEXT
   CHECK (
     (sale_discount_reason IS NULL) = (sale_discount_kind IS NULL)
@@ -30,7 +23,3 @@ ALTER TABLE sales
 ALTER TABLE sales
   ADD COLUMN sale_discount_authorized_by TEXT
   CHECK (sale_discount_authorized_by IS NULL OR sale_discount_kind IS NOT NULL);
-
-ALTER TABLE sale_lines
-  ADD COLUMN sale_discount_share INTEGER NOT NULL DEFAULT 0
-  CHECK (sale_discount_share >= 0);

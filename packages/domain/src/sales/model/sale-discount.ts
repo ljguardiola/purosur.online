@@ -10,10 +10,9 @@ export type SaleDiscount = SaleDiscountValue & {
   authorizedBy: string | null;
 };
 
-export type SaleDiscountRefusal =
-  | { kind: "empty_sale" }
-  | { kind: "zero_total" }
-  | { kind: "discount_exceeds_sale" };
+export type SaleDiscountUnavailability = { kind: "empty_sale" } | { kind: "zero_total" };
+
+export type SaleDiscountRefusal = SaleDiscountUnavailability | { kind: "discount_exceeds_sale" };
 
 export type SettledSaleLine = SaleLine & { saleDiscountShare: number };
 
@@ -31,18 +30,24 @@ export function saleDiscountAmount(subtotal: number, discount: SaleDiscountValue
       });
 }
 
+export function saleDiscountUnavailability(
+  lines: readonly Pick<SaleLine, "lineTotal">[],
+): SaleDiscountUnavailability | undefined {
+  if (lines.length === 0) {
+    return { kind: "empty_sale" };
+  }
+  return saleTotal(lines) === 0 ? { kind: "zero_total" } : undefined;
+}
+
 export function saleDiscountRefusal(
   lines: readonly Pick<SaleLine, "lineTotal">[],
   discount: SaleDiscountValue,
 ): SaleDiscountRefusal | undefined {
-  if (lines.length === 0) {
-    return { kind: "empty_sale" };
+  const unavailability = saleDiscountUnavailability(lines);
+  if (unavailability) {
+    return unavailability;
   }
-  const subtotal = saleTotal(lines);
-  if (subtotal === 0) {
-    return { kind: "zero_total" };
-  }
-  return discount.kind === "AMOUNT" && discount.amount > subtotal
+  return discount.kind === "AMOUNT" && discount.amount > saleTotal(lines)
     ? { kind: "discount_exceeds_sale" }
     : undefined;
 }

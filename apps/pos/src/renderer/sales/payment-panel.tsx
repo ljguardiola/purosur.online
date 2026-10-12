@@ -1,9 +1,11 @@
 import type { OpenSale } from "@purosur/contracts";
+import type { LoadStatus } from "@purosur/ui";
 import {
   Button,
   FigureStat,
   formatCents,
   InlineNotice,
+  LoadingPlaceholder,
   plural,
   SidePanel,
   SummaryRowGroup,
@@ -13,6 +15,7 @@ import type { ReactNode } from "react";
 import { saleDiscountLabel } from "./sale-discount-text";
 
 export type PaymentPanelProps = {
+  saleStatus: LoadStatus;
   lineCount: number;
   subtotal: number;
   saleDiscount: OpenSale["sale_discount"];
@@ -46,6 +49,7 @@ function refusalNotice(refusal: NonNullable<OpenSale["charge_refusal"]>): ReactN
 }
 
 export function PaymentPanel({
+  saleStatus,
   lineCount,
   subtotal,
   saleDiscount,
@@ -81,18 +85,21 @@ export function PaymentPanel({
       }
     >
       <FigureStat label="Total a cobrar" value={formatCents(total)} />
-      <SummaryRowGroup
-        rows={[
-          { label: `${lineCount} ${lines}`, value: formatCents(subtotal) },
-          saleDiscount === null
-            ? { label: "Descuento sobre el total", value: "Sin aplicar" }
-            : {
-                label: saleDiscountLabel(saleDiscount),
-                value: `− ${formatCents(saleDiscount.amount)}`,
-                tone: "error",
-              },
-        ]}
-      />
+      {saleStatus === "loading" ? <LoadingPlaceholder variant="card" lines={2} /> : null}
+      {saleStatus === "loaded" ? (
+        <SummaryRowGroup
+          rows={[
+            { label: `${lineCount} ${lines}`, value: formatCents(subtotal) },
+            saleDiscount === null
+              ? { label: "Descuento sobre el total", value: "Sin aplicar" }
+              : {
+                  label: saleDiscountLabel(saleDiscount),
+                  value: `− ${formatCents(saleDiscount.amount)}`,
+                  tone: "error",
+                },
+          ]}
+        />
+      ) : null}
       <Button
         variant="secondary"
         fullWidth

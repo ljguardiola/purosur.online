@@ -12,9 +12,6 @@ import {
   type SalePayment,
   type SaleUnit,
   type SearchableProduct,
-  saleDiscountAmount,
-  saleTotal,
-  spreadSaleDiscount,
 } from "@purosur/domain";
 import type {
   CandidatePromotion,
@@ -381,38 +378,15 @@ export class SqliteSaleLedger implements SaleLedger {
   }
 
   private recordSaleDiscount(saleId: string, discount: SaleDiscount | null): void {
-    const lines = this.database
-      .prepare<[string], { id: string; line_total: number }>(
-        "SELECT id, line_total FROM sale_lines WHERE sale_id = ? ORDER BY position",
-      )
-      .all(saleId);
-    const amount =
-      discount === null
-        ? 0
-        : saleDiscountAmount(
-            saleTotal(lines.map((line) => ({ lineTotal: line.line_total }))),
-            discount,
-          );
     this.database
       .prepare(
         `UPDATE sales
          SET sale_discount_kind = @sale_discount_kind, sale_discount_value = @sale_discount_value,
-             sale_discount_amount = @sale_discount_amount,
              sale_discount_reason = @sale_discount_reason,
              sale_discount_authorized_by = @sale_discount_authorized_by
          WHERE id = @id`,
       )
-      .run({ id: saleId, ...saleDiscountColumns(discount, amount) });
-    const shares = spreadSaleDiscount(
-      lines.map((line) => line.line_total),
-      amount,
-    );
-    const share = this.database.prepare(
-      "UPDATE sale_lines SET sale_discount_share = ? WHERE id = ?",
-    );
-    lines.forEach((line, position) => {
-      share.run(shares[position] ?? 0, line.id);
-    });
+      .run({ id: saleId, ...saleDiscountColumns(discount) });
   }
 
   private deleteSaleLine(lineId: string): void {

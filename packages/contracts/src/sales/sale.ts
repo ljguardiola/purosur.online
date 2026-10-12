@@ -96,6 +96,7 @@ export const saleSchema = z.object({
   cancel_authorization_required: z.boolean(),
   adjust_authorization_required: z.boolean(),
   sale_discount_authorization_required: z.boolean(),
+  sale_discount_refusal: z.enum(["empty_sale", "zero_total"]).nullable(),
   charge_refusal: z
     .discriminatedUnion("kind", [reachesThresholdRefusalSchema, noThresholdRefusalSchema])
     .nullable(),

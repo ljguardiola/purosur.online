@@ -139,7 +139,6 @@ export class SqliteReceiptLedger implements ReceiptLedger {
                 sales.operation_number AS operation_number,
                 sales.sale_discount_kind AS sale_discount_kind,
                 sales.sale_discount_value AS sale_discount_value,
-                sales.sale_discount_amount AS sale_discount_amount,
                 sales.sale_discount_reason AS sale_discount_reason,
                 sales.sale_discount_authorized_by AS sale_discount_authorized_by
          FROM sales JOIN users ON users.id = sales.actor_id

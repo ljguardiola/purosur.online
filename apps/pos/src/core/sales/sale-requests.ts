@@ -27,6 +27,7 @@ import type {
 } from "@purosur/contracts";
 import {
   amountToCharge,
+  appliedSaleDiscountAmount,
   type ChargeRefusal,
   cashCharge,
   type ManualAdjustmentValue,
@@ -37,7 +38,7 @@ import {
   type SaleDiscountValue,
   type SaleLine,
   type SaleWithLines,
-  saleDiscountAmount,
+  saleDiscountUnavailability,
   saleTotal,
 } from "@purosur/domain";
 import {
@@ -130,7 +131,7 @@ function toWireSaleDiscount(sale: SaleWithLines): OpenSale["sale_discount"] {
   if (saleDiscount === null) {
     return null;
   }
-  const amount = saleDiscountAmount(saleTotal(sale.lines), saleDiscount);
+  const amount = appliedSaleDiscountAmount(sale);
   return saleDiscount.kind === "PERCENT"
     ? { kind: "PERCENT", value: saleDiscount.percent, amount }
     : { kind: "AMOUNT", value: saleDiscount.amount, amount };
@@ -213,6 +214,7 @@ function toOpenSale(
     cancel_authorization_required: view.cancelAuthorizationRequired,
     adjust_authorization_required: view.adjustAuthorizationRequired,
     sale_discount_authorization_required: view.saleDiscountAuthorizationRequired,
+    sale_discount_refusal: saleDiscountUnavailability(sale.lines)?.kind ?? null,
     charge_refusal: chargeRefusal ?? null,
   };
 }

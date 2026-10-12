@@ -455,6 +455,7 @@ export type {
 } from "./sales/index.js";
 export {
   amountToCharge,
+  appliedSaleDiscountAmount,
   isDeferralPending,
   isSalesReportRangeAsked,
   manualAdjustmentReason,
@@ -478,10 +479,9 @@ export {
   SALES_HISTORY_PAGE_SIZE,
   SALES_REPORT_SALE_STATE,
   saleComprobanteOf,
-  saleDiscountAmount,
+  saleDiscountUnavailability,
   saleStandingOf,
   saleTotal,
-  spreadSaleDiscount,
   startedReceiptPrint,
   WEIGHT_SOURCES,
 } from "./sales/index.js";
