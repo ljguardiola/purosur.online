@@ -48,12 +48,12 @@ import {
 const CLOSE_FAILED = "No se pudo cerrar la caja. Probá de nuevo.";
 const CANCEL_FAILED = "No se pudo cancelar la venta. Probá de nuevo.";
 const QR_CHARGE_IN_PROGRESS_MESSAGE =
-  "Hay un cobro con QR en curso. Esperá a que termine para cancelar la venta.";
-const HOLDS_QR_PAYMENT_MESSAGE =
-  "La venta tiene un pago con QR: todavía no se puede anular desde la caja.";
+  "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.";
+const HOLDS_MERCADO_PAGO_PAYMENT_MESSAGE =
+  "La venta tiene un pago con Mercado Pago: todavía no se puede anular desde la caja.";
 const CANCEL_REFUSAL_MESSAGES: Record<NonNullable<SessionOpenSale["cancel_refusal"]>, string> = {
   mercado_pago_charge_in_progress: QR_CHARGE_IN_PROGRESS_MESSAGE,
-  holds_qr_payment: HOLDS_QR_PAYMENT_MESSAGE,
+  holds_mercado_pago_payment: HOLDS_MERCADO_PAGO_PAYMENT_MESSAGE,
 };
 
 export type RefusedClose = Extract<
@@ -191,7 +191,7 @@ export function LockedCashCount({
       case "no_open_session":
         break;
       case "mercado_pago_charge_in_progress":
-      case "holds_qr_payment":
+      case "holds_mercado_pago_payment":
         setFailure(CANCEL_REFUSAL_MESSAGES[outcome.kind]);
         break;
       case "unavailable":

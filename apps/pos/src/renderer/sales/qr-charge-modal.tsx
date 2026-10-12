@@ -18,7 +18,7 @@ import { qrChargeRequestFrom, startQrChargeRequestSchema } from "./qr-charge-for
 const REFUSED_MESSAGE = "Mercado Pago no pudo crear la orden. Cobrá con otro medio.";
 const UNREACHABLE_MESSAGE =
   "No se pudo crear la orden porque la caja no llega a la nube. Cobrá con otro medio.";
-const IN_PROGRESS_MESSAGE = "Ya hay un cobro con QR en curso para esta venta.";
+const IN_PROGRESS_MESSAGE = "Ya hay un cobro con Mercado Pago en curso para esta venta.";
 const FAILED_MESSAGE = "No se pudo crear la orden. Probá de nuevo.";
 
 function exceedsPendingMessage(pending: number): string {

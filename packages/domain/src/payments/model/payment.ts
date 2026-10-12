@@ -10,10 +10,13 @@ export function hasApprovedPayment(payments: readonly { state: string }[]): bool
   return payments.some((payment) => payment.state === "APPROVED");
 }
 
-export function holdsApprovedQrPayment(
+export function holdsApprovedMercadoPagoPayment(
   payments: readonly { state: string; method: string }[],
 ): boolean {
-  return payments.some((payment) => payment.state === "APPROVED" && payment.method === "QR");
+  return payments.some(
+    (payment) =>
+      payment.state === "APPROVED" && (payment.method === "QR" || payment.method === "POINT"),
+  );
 }
 
 export function cancellableWithoutAuthorization(payments: readonly { state: string }[]): boolean {
