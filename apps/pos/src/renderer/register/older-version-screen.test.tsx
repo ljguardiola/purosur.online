@@ -26,7 +26,7 @@ describe("OlderVersionScreen", () => {
     await expect.element(screen.getByText(NOTICE_DESCRIPTION)).toBeVisible();
     await expect
       .element(screen.getByRole("status"))
-      .toHaveTextContent(`${NOTICE_TITLE}${NOTICE_DESCRIPTION}`);
+      .toHaveTextContent(`${NOTICE_TITLE} ${NOTICE_DESCRIPTION}`);
   });
 
   it("offers nothing to press", async () => {
