@@ -35,6 +35,8 @@ function upsertOf(entity: PulledEntity, changeSeq: number): SyncChange {
           version: 1,
         },
       };
+    case "branch_first_cash_session":
+      return { ...base, entity, row: { opened_at: "2026-10-10T12:00:00.000Z" } };
     case "category":
       return { ...base, entity, row: { name: "Almacén", parent_id: null, version: 1 } };
     case "product":

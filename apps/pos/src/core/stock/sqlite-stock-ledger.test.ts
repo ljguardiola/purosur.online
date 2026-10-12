@@ -189,7 +189,10 @@ describe("the stock movements the register pulls from the cloud", () => {
         superseded_by_count_id: "count-1",
       },
     ]);
-    expect(ledger.movement("cloud-movement-2")).toEqual({ supersededByCountId: "count-1" });
+    expect(ledger.movement("cloud-movement-2")).toEqual({
+      supersededByCountId: "count-1",
+      delta: -1000,
+    });
   });
 
   it("marks the register's own sale movement as superseded by a count", () => {
@@ -202,11 +205,25 @@ describe("the stock movements the register pulls from the cloud", () => {
       occurredAt: SOLD_AT,
     });
     const ledger = new SqliteReplicatedStockLedger(database);
-    expect(ledger.movement("own-movement")).toEqual({ supersededByCountId: null });
+    expect(ledger.movement("own-movement")).toEqual({ supersededByCountId: null, delta: -2000 });
 
     ledger.markSuperseded("own-movement", "count-1");
 
-    expect(ledger.movement("own-movement")).toEqual({ supersededByCountId: "count-1" });
+    expect(ledger.movement("own-movement")).toEqual({
+      supersededByCountId: "count-1",
+      delta: -2000,
+    });
+  });
+
+  it("replaces the delta of a movement it holds with the one the cloud applied", () => {
+    const ledger = new SqliteReplicatedStockLedger(database);
+    ledger.recordMovement({ ...pulled, id: "opening-count", kind: "opening_count", delta: 5000 });
+    ledger.recordMovement({ ...pulled, id: "other-movement" });
+
+    ledger.adoptMovementDelta("opening-count", 3000);
+
+    expect(ledger.movement("opening-count")).toEqual({ supersededByCountId: null, delta: 3000 });
+    expect(ledger.movement("other-movement")).toEqual({ supersededByCountId: null, delta: -1000 });
   });
 
   it("adds a pulled delta to the product's balance", () => {
