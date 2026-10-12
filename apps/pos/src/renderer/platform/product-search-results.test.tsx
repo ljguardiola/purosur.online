@@ -84,6 +84,19 @@ describe("ProductSearchResults", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("names the way a product is sold instead of a price when the products come without one", async () => {
+    const { screen } = await renderResults({
+      products: [
+        { product_id: "p1", name: "Yerba mate 1 kg", sale_unit: "UNIT", matches: [] },
+        { product_id: "p2", name: "Queso cremoso", sale_unit: "KG", matches: [] },
+      ],
+    });
+
+    const options = screen.getByRole("option");
+    await expect.element(options.nth(0)).toHaveTextContent("Yerba mate 1 kgPor unidad");
+    await expect.element(options.nth(1)).toHaveTextContent("Queso cremosoPor kg");
+  });
+
   it("highlights only the matched ranges of each name", async () => {
     const { screen } = await renderResults({
       products: [
