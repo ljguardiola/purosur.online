@@ -4,6 +4,7 @@ import type {
   MercadoPagoOrderReading,
   MercadoPagoOrders,
   MercadoPagoPointOrderCreation,
+  MercadoPagoPointOrderRequest,
   MercadoPagoQrOrderRequest,
 } from "@purosur/domain/payments/use-cases";
 import { z } from "zod";
@@ -11,6 +12,7 @@ import { z } from "zod";
 export interface MercadoPagoOrdersClientOptions {
   accessToken: string;
   externalPosId: string;
+  pointTerminalId?: string;
   fetch?: typeof globalThis.fetch;
 }
 
@@ -140,45 +142,64 @@ export function createMercadoPagoOrdersClient(
     }
   }
 
+  async function createOrder(
+    request: { idempotencyKey: string },
+    body: Record<string, unknown>,
+  ): Promise<MercadoPagoOrderCreation> {
+    const answer = await call("/v1/orders", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${options.accessToken}`,
+        "Content-Type": "application/json",
+        "X-Idempotency-Key": request.idempotencyKey,
+      },
+      body: JSON.stringify(body),
+    });
+    if (answer.kind === "unreachable" || answer.status >= 500) {
+      return { kind: "unavailable" };
+    }
+    if (answer.status >= 200 && answer.status < 300) {
+      const order = parsedOrder(answer.body);
+      return order === null ? { kind: "unavailable" } : { kind: "created", ...order };
+    }
+    if (answer.status === REQUEST_TIMEOUT) {
+      return { kind: "unavailable" };
+    }
+    if (answer.status === TOO_MANY_REQUESTS) {
+      return { kind: "throttled" };
+    }
+    return { kind: "refused" };
+  }
+
   return {
     longestCallMs: MERCADO_PAGO_TIMEOUT_MS,
 
-    async createQrOrder(request: MercadoPagoQrOrderRequest): Promise<MercadoPagoOrderCreation> {
+    createQrOrder(request: MercadoPagoQrOrderRequest): Promise<MercadoPagoOrderCreation> {
       const amount = pesosOfCents(request.amount);
-      const answer = await call("/v1/orders", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${options.accessToken}`,
-          "Content-Type": "application/json",
-          "X-Idempotency-Key": request.idempotencyKey,
-        },
-        body: JSON.stringify({
-          type: "qr",
-          total_amount: amount,
-          external_reference: request.externalReference,
-          expiration_time: `PT${request.expiresAfterMinutes}M`,
-          config: { qr: { external_pos_id: options.externalPosId, mode: "static" } },
-          transactions: { payments: [{ amount }] },
-        }),
+      return createOrder(request, {
+        type: "qr",
+        total_amount: amount,
+        external_reference: request.externalReference,
+        expiration_time: `PT${request.expiresAfterMinutes}M`,
+        config: { qr: { external_pos_id: options.externalPosId, mode: "static" } },
+        transactions: { payments: [{ amount }] },
       });
-      if (answer.kind === "unreachable" || answer.status >= 500) {
-        return { kind: "unavailable" };
-      }
-      if (answer.status >= 200 && answer.status < 300) {
-        const order = parsedOrder(answer.body);
-        return order === null ? { kind: "unavailable" } : { kind: "created", ...order };
-      }
-      if (answer.status === REQUEST_TIMEOUT) {
-        return { kind: "unavailable" };
-      }
-      if (answer.status === TOO_MANY_REQUESTS) {
-        return { kind: "throttled" };
-      }
-      return { kind: "refused" };
     },
 
-    async createPointOrder(): Promise<MercadoPagoPointOrderCreation> {
-      return { kind: "not_configured" };
+    async createPointOrder(
+      request: MercadoPagoPointOrderRequest,
+    ): Promise<MercadoPagoPointOrderCreation> {
+      const { pointTerminalId } = options;
+      if (pointTerminalId === undefined) {
+        return { kind: "not_configured" };
+      }
+      return createOrder(request, {
+        type: "point",
+        external_reference: request.externalReference,
+        expiration_time: `PT${request.expiresAfterMinutes}M`,
+        transactions: { payments: [{ amount: pesosOfCents(request.amount) }] },
+        config: { point: { terminal_id: pointTerminalId, print_on_terminal: "no_ticket" } },
+      });
     },
 
     async readOrder(orderId: string): Promise<MercadoPagoOrderReading> {
