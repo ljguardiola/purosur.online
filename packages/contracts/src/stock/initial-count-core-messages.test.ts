@@ -123,7 +123,7 @@ describe("stockCoreToRendererMessageSchema", () => {
     expect(stockCoreToRendererMessageSchema.safeParse({ type: "sale" }).success).toBe(false);
   });
 
-  it.each([
+  const ACCEPTED: [string, unknown][] = [
     ["read-initial-count-result", { kind: "read", offered: true, lines: [LINE] }],
     ["read-initial-count-result", { kind: "read", offered: false, lines: [] }],
     [
@@ -133,14 +133,12 @@ describe("stockCoreToRendererMessageSchema", () => {
     ["read-initial-count-result", { kind: "not_permitted" }],
     ["read-initial-count-result", { kind: "not_signed_in" }],
     ["record-initial-count-line-result", { kind: "recorded", line: LINE }],
-    ...["unavailable", "unknown_product", "invalid_quantity", "invalid_expiry"].map((kind) => [
-      "record-initial-count-line-result",
-      { kind },
-    ]),
-    ...["unavailable", "not_found", "already_withdrawn", "withdrawn"].map((kind) => [
-      "withdraw-initial-count-line-result",
-      { kind },
-    ]),
+    ...["unavailable", "unknown_product", "invalid_quantity", "invalid_expiry"].map(
+      (kind): [string, unknown] => ["record-initial-count-line-result", { kind }],
+    ),
+    ...["unavailable", "not_found", "already_withdrawn", "withdrawn"].map(
+      (kind): [string, unknown] => ["withdraw-initial-count-line-result", { kind }],
+    ),
     [
       "find-countable-product-result",
       { kind: "found", product: { product_id: "product-1", name: "Queso", sale_unit: "KG" } },
@@ -162,11 +160,12 @@ describe("stockCoreToRendererMessageSchema", () => {
       },
     ],
     ["weigh-counted-product-result", { kind: "weighed", weight_thousandths: 1250 }],
-    ...["weighing", "scale_unavailable", "unknown_product", "not_sold_by_weight"].map((kind) => [
-      "weigh-counted-product-result",
-      { kind },
-    ]),
-  ] as const)("accepts the %s answer %j", (type, outcome) => {
+    ...["weighing", "scale_unavailable", "unknown_product", "not_sold_by_weight"].map(
+      (kind): [string, unknown] => ["weigh-counted-product-result", { kind }],
+    ),
+  ];
+
+  it.each(ACCEPTED)("accepts the %s answer %j", (type, outcome) => {
     expect(acceptsAnswer(type, outcome)).toBe(true);
   });
 
