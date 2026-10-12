@@ -35,11 +35,14 @@ const textColorClassName: Record<SummaryRowForm, string> = {
 const savingColorClassName = "text-success";
 
 const toneColorClassName: Record<SummaryRowTone, string> = {
-  danger: "text-error",
+  danger: "text-error-strong",
   accent: "text-text-accent",
 };
 
-const accentTypeClassName = "text-heading";
+const toneTypeClassName: Record<SummaryRowTone, Record<SummaryRowForm, string>> = {
+  danger: { regular: "text-body font-bold", strong: "text-subheading" },
+  accent: { regular: "text-heading", strong: "text-heading" },
+};
 
 function valueColorClassName(form: SummaryRowForm, saving: boolean, tone?: SummaryRowTone) {
   if (tone !== undefined) {
@@ -63,7 +66,7 @@ export function SummaryRow({
   ].join(" ");
   const valueClassName = [
     valueBaseClassName,
-    tone === "accent" ? accentTypeClassName : valueTypeClassName[form],
+    tone === undefined ? valueTypeClassName[form] : toneTypeClassName[tone][form],
     valueColorClassName(form, saving, tone),
   ].join(" ");
 
