@@ -2,7 +2,7 @@ import { unclearDocumentSettlement } from "../model/unclear-outcome-decision.js"
 import type { ApplyUnclearOutcomeDecisionsPorts } from "./apply-unclear-outcome-decision-ports.js";
 import type { WaitingFiscalDocument } from "./real-time-authorization-ports.js";
 
-export interface UnclearOutcomeDecisionFailure {
+interface UnclearOutcomeDecisionFailure {
   fiscalDocumentId: string;
   error: unknown;
 }
