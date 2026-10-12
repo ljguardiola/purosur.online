@@ -21,28 +21,31 @@ const LOT = {
 
 describe("initialInventoryLotsQuerySchema", () => {
   it("accepts no filter at all", () => {
-    expect(initialInventoryLotsQuerySchema.parse({})).toEqual({});
+    expect(initialInventoryLotsQuerySchema.parse({})).toStrictEqual({});
   });
 
   it.each(["known", "incomplete"])("accepts the %s cost filter", (cost) => {
-    expect(initialInventoryLotsQuerySchema.parse({ cost })).toEqual({ cost });
+    expect(initialInventoryLotsQuerySchema.parse({ cost })).toStrictEqual({ cost });
   });
 
   it("accepts the text to find in the product's name", () => {
-    expect(initialInventoryLotsQuerySchema.parse({ product: "yerba" })).toEqual({
+    expect(initialInventoryLotsQuerySchema.parse({ product: "yerba" })).toStrictEqual({
       product: "yerba",
     });
   });
 
   it("reads a blank text as no filter", () => {
-    expect(initialInventoryLotsQuerySchema.parse({ product: "  " })).toEqual({});
+    expect(initialInventoryLotsQuerySchema.parse({ product: "  " })).toStrictEqual({});
   });
 
   it("refuses a cost filter that is neither, naming the field", () => {
     const result = initialInventoryLotsQuerySchema.safeParse({ cost: "all" });
 
     expect(result.success).toBe(false);
-    expect(result.error?.issues[0]?.path).toEqual(["cost"]);
+    expect(result.error?.issues[0]).toMatchObject({
+      path: ["cost"],
+      message: "cost must be known or incomplete",
+    });
   });
 });
 
@@ -92,10 +95,19 @@ describe("lotReferenceCostBodySchema", () => {
     const result = lotReferenceCostBodySchema.safeParse({ unitCostCents });
 
     expect(result.success).toBe(false);
-    expect(result.error?.issues[0]?.path).toEqual(["unitCostCents"]);
+    expect(result.error?.issues[0]).toMatchObject({
+      path: ["unitCostCents"],
+      message: "unitCostCents must be a positive whole number of cents",
+    });
   });
 
-  it("refuses a body with no cost", () => {
-    expect(lotReferenceCostBodySchema.safeParse({}).success).toBe(false);
+  it("refuses a body with no cost or a cost that is no number, with the same message", () => {
+    for (const body of [{}, { unitCostCents: "35" }]) {
+      const result = lotReferenceCostBodySchema.safeParse(body);
+
+      expect(result.error?.issues[0]?.message).toBe(
+        "unitCostCents must be a positive whole number of cents",
+      );
+    }
   });
 });
