@@ -16,9 +16,27 @@ describe("the receipt's logo bitmap", () => {
     expect(generated).toBe(readFileSync(COMMITTED, "utf8"));
   });
 
-  it("is as wide as a whole number of bytes that fits the printer's 384 dots", () => {
+  it("is as wide as the printer's 576 printable dots, a whole number of bytes, and 280 dots tall", () => {
+    expect(RECEIPT_LOGO.widthDots).toBe(576);
     expect(RECEIPT_LOGO.widthDots % 8).toBe(0);
-    expect(RECEIPT_LOGO.widthDots).toBeLessThanOrEqual(384);
+    expect(RECEIPT_LOGO.heightDots).toBe(280);
+  });
+
+  it("is centered, with equal margins on both sides within one dot", () => {
+    const inkedColumns = Array.from({ length: RECEIPT_LOGO.widthDots }, () => false);
+    for (const row of RECEIPT_LOGO.rows) {
+      const bytes = Buffer.from(row, "base64");
+      for (let x = 0; x < RECEIPT_LOGO.widthDots; x += 1) {
+        if (((bytes[x >> 3] ?? 0) & (0x80 >> (x & 7))) !== 0) {
+          inkedColumns[x] = true;
+        }
+      }
+    }
+    const left = inkedColumns.indexOf(true);
+    const right = RECEIPT_LOGO.widthDots - 1 - inkedColumns.lastIndexOf(true);
+
+    expect(Math.abs(left - right)).toBeLessThanOrEqual(1);
+    expect(left).toBeLessThanOrEqual(20);
   });
 
   it("holds one row of whole bytes per dot of height", () => {

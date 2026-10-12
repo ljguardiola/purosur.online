@@ -27,11 +27,22 @@ const PC850_TABLE = 2;
 const ESC = 0x1b;
 const GS = 0x1d;
 const LINE_FEED = 0x0a;
-const QR_MODULE_DOTS = 4;
+const QR_SIDE_DOTS = 244;
+const QR_MAX_MODULE_DOTS = 16;
+const QR_CORRECTION_LEVEL_L = 0x30;
+const QR_BYTE_CAPACITY_AT_LEVEL_L = [
+  17, 32, 53, 78, 106, 134, 154, 192, 230, 271, 321, 367, 425, 458, 520, 586, 644, 718, 792, 858,
+  929, 1003, 1091, 1171, 1273, 1367, 1465, 1528, 1628, 1732, 1840, 1952, 2068, 2188, 2303, 2431,
+  2563, 2699, 2809, 2953,
+];
+const QR_TOP_MARGIN_DOTS = 16;
+const QR_BOTTOM_MARGIN_DOTS = 8;
 const QR_STORE_OVERHEAD = 3;
 const CENTER_ALIGNMENT = 1;
 const LEFT_ALIGNMENT = 0;
 const VOUCHER_CODE_DIGITS = 3;
+const LOGO_TOP_MARGIN_DOTS = 24;
+const LOGO_BOTTOM_MARGIN_DOTS = 16;
 
 const PAYMENT_NAMES = {
   CASH: "Efectivo",
@@ -79,17 +90,28 @@ class Output {
     const stored = data.length + QR_STORE_OVERHEAD;
     this.command(ESC, 0x61, CENTER_ALIGNMENT);
     this.command(GS, 0x28, 0x6b, 4, 0, 0x31, 0x41, 0x32, 0);
-    this.command(GS, 0x28, 0x6b, 3, 0, 0x31, 0x43, QR_MODULE_DOTS);
-    this.command(GS, 0x28, 0x6b, 3, 0, 0x31, 0x45, 0x31);
+    this.command(GS, 0x28, 0x6b, 3, 0, 0x31, 0x43, qrModuleDots(data.length));
+    this.command(GS, 0x28, 0x6b, 3, 0, 0x31, 0x45, QR_CORRECTION_LEVEL_L);
     this.command(GS, 0x28, 0x6b, stored & 0xff, stored >> 8, 0x31, 0x50, 0x30);
     this.chunks.push(data);
     this.command(GS, 0x28, 0x6b, 3, 0, 0x31, 0x51, 0x30);
     this.command(ESC, 0x61, LEFT_ALIGNMENT);
   }
 
+  feed(dots: number): void {
+    this.command(ESC, 0x4a, dots);
+  }
+
   bytes(): Uint8Array {
     return concatenated(this.chunks);
   }
+}
+
+function qrModuleDots(bytes: number): number {
+  const version = QR_BYTE_CAPACITY_AT_LEVEL_L.findIndex((capacity) => bytes <= capacity) + 1;
+  const modules = 17 + 4 * (version === 0 ? QR_BYTE_CAPACITY_AT_LEVEL_L.length : version);
+  const nearest = Math.round(QR_SIDE_DOTS / modules);
+  return Math.min(Math.max(nearest, 1), QR_MAX_MODULE_DOTS);
 }
 
 function concatenated(chunks: readonly Uint8Array[]): Uint8Array {
@@ -158,6 +180,7 @@ function initialization(out: Output): void {
 function logo(out: Output): void {
   const { widthDots, heightDots, rows } = RECEIPT_LOGO;
   const widthBytes = widthDots / 8;
+  out.feed(LOGO_TOP_MARGIN_DOTS);
   out.command(
     GS,
     0x76,
@@ -169,6 +192,7 @@ function logo(out: Output): void {
     heightDots >> 8,
   );
   out.raw(concatenated(rows.map((encoded) => Uint8Array.from(Buffer.from(encoded, "base64")))));
+  out.feed(LOGO_BOTTOM_MARGIN_DOTS);
 }
 
 function branch(
@@ -215,7 +239,10 @@ function operation(
           `Nº ${formatInvoiceNumber(block.number)}`,
         )),
     ...row(`Fecha ${date}`, `Hora ${time}`),
-    ...row(`Operación ${formatOperationNumber(operationNumber)}`, `Atendió ${servedByFirstName}`),
+    ...row(
+      `Operación ${formatOperationNumber(operationNumber)}`,
+      `Atendió ${servedByFirstName.trim().split(/\s+/)[0]}`,
+    ),
     RULE,
   ]);
 }
@@ -297,7 +324,9 @@ function calendarDay(day: string): string {
 }
 
 function authorization(out: Output, block: FacturaCFiscalBlock): void {
+  out.feed(QR_TOP_MARGIN_DOTS);
   out.qr(block.qrText);
+  out.feed(QR_BOTTOM_MARGIN_DOTS);
   out.small([
     ...centered("Comprobante autorizado", SMALL_COLUMNS),
     ...centered(
