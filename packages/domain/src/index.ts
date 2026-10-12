@@ -218,6 +218,7 @@ export {
   thresholdInEffectOn,
   thresholdScheduledAfter,
   UNCLEAR_ANSWER_KINDS,
+  unclearOutcomeSince,
   WSAA_ALREADY_AUTHENTICATED_RETRY_MS,
 } from "./fiscal/index.js";
 export type {
