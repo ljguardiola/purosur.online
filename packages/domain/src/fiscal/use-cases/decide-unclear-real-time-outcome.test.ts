@@ -171,6 +171,7 @@ describe("decideUnclearRealTimeOutcome", () => {
       "enterLane",
       "unclearRequest",
       "recordDecision:released@2026-10-01T12:00:05.000Z",
+      "resolveUnclearOutcomeAlert@2026-10-01T12:00:05.000Z",
       "leaveLane",
     ]);
     expect(store.decisions.get(FISCAL_DOCUMENT_ID)?.decision).toEqual({ kind: "released" });
@@ -224,6 +225,7 @@ describe("decideUnclearRealTimeOutcome", () => {
       "validToken",
       "voucherAt",
       "recordDecision:released@2026-10-01T12:01:00.000Z",
+      "resolveUnclearOutcomeAlert@2026-10-01T12:01:00.000Z",
       "leaveLane",
     ]);
     expect(vouchers.lookups).toEqual([{ token: TOKEN, pointOfSale: 12, number: 41 }]);
@@ -256,6 +258,45 @@ describe("decideUnclearRealTimeOutcome", () => {
     expect(lastAuthorizedLookup.lookups).toEqual([]);
   });
 
+  it.each<[string, Scenario, string]>([
+    ["a request recorded as not attempted", { answer: { kind: "not_attempted" } }, "released"],
+    ["no voucher below the last authorized number", {}, "released"],
+    [
+      "a voucher with the document's content",
+      { voucher: { kind: "found", voucher: MATCHING_VOUCHER } },
+      "adopted",
+    ],
+    [
+      "a voucher with other content",
+      { voucher: { kind: "found", voucher: { ...MATCHING_VOUCHER, total: 1 } } },
+      "conflicting",
+    ],
+  ])("resolves the alert of the document, once its decision is recorded, for %s", async (_name, change, decision) => {
+    const { ports, documents, store } = scenario(change);
+
+    await decide(ports);
+
+    expect(store.resolvedAlerts).toEqual([
+      { fiscalDocumentId: FISCAL_DOCUMENT_ID, resolvedAt: SETTLED_AT },
+    ]);
+    const operations = documents.operations;
+    expect(operations.findIndex((op) => op.startsWith(`recordDecision:${decision}`))).toBe(
+      operations.findIndex((op) => op.startsWith("resolveUnclearOutcomeAlert")) - 1,
+    );
+  });
+
+  it("resolves no alert for a request that was already decided or is not unclear", async () => {
+    const decided = scenario({ decision: { kind: "released" } });
+    await decide(decided.ports);
+    const answered = scenario({
+      answer: { kind: "rejected", codes: [10015], rejectionClass: "content" },
+    });
+    await decide(answered.ports);
+
+    expect(decided.store.resolvedAlerts).toEqual([]);
+    expect(answered.store.resolvedAlerts).toEqual([]);
+  });
+
   it("records a voucher with other content as conflicting", async () => {
     const { ports, store } = scenario({
       voucher: { kind: "found", voucher: { ...MATCHING_VOUCHER, total: 1 } },
@@ -282,6 +323,7 @@ describe("decideUnclearRealTimeOutcome", () => {
     });
     expect(store.decisions.size).toBe(0);
     expect(documents.operations.some((op) => op.startsWith("recordDecision"))).toBe(false);
+    expect(store.resolvedAlerts).toEqual([]);
   });
 
   it("does not look up a voucher or the last authorized number without a token", async () => {

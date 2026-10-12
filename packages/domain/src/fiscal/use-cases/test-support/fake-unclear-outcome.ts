@@ -23,6 +23,7 @@ export class FakeUnclearOutcomeStore implements UnclearOutcomeLanes, UnclearOutc
   readonly documents: FakePointOfSaleLanes;
   readonly answeredAt = new Map<string, Date>();
   readonly decisions = new Map<string, { decision: UnclearOutcomeDecision; decidedAt: Date }>();
+  readonly resolvedAlerts: { fiscalDocumentId: string; resolvedAt: Date }[] = [];
   vanishAfterLookup = false;
   recordingFailure: Error | undefined;
 
@@ -114,6 +115,13 @@ class FakeUnclearOutcomeLane implements UnclearOutcomeLane {
       `recordDecision:${decision.kind}@${decidedAt.toISOString()}`,
     );
     this.store.decisions.set(fiscalDocumentId, { decision, decidedAt: new Date(decidedAt) });
+  }
+
+  async resolveUnclearOutcomeAlert(fiscalDocumentId: string, resolvedAt: Date): Promise<void> {
+    this.store.documents.operations.push(
+      `resolveUnclearOutcomeAlert@${resolvedAt.toISOString()}`,
+    );
+    this.store.resolvedAlerts.push({ fiscalDocumentId, resolvedAt: new Date(resolvedAt) });
   }
 
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
