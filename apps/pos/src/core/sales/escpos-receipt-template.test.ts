@@ -434,6 +434,22 @@ describe("the ESC/POS receipt template", () => {
     expect(textLines).toContain("QR Mercado Pago                      $ 10.000,00");
   });
 
+  it("names a payment on the Mercado Pago terminal, aligned with the other payment lines", () => {
+    const { textLines } = printed(
+      receipt({
+        totals: {
+          subtotal: 1_000_000,
+          saleDiscount: null,
+          total: 1_000_000,
+          payments: [{ method: "POINT", amount: 1_000_000 }],
+          change: 0,
+        },
+      }),
+    );
+
+    expect(textLines).toContain("Terminal Mercado Pago                $ 10.000,00");
+  });
+
   it("wraps a long product name beside its amount within the columns of the paper", () => {
     const { textLines } = printed(
       singleUnitReceipt(
