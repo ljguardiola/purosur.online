@@ -1,7 +1,7 @@
 import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import type { SaleWithLines } from "../model/sale.js";
-import { recordPendingQrPayment } from "./record-pending-qr-payment.js";
+import { recordPendingMercadoPagoPayment } from "./record-pending-mercado-pago-payment.js";
 import {
   FakeSaleLedger,
   type FakeSaleLedgerState,
@@ -52,18 +52,18 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 }
 
 function record(store: FakeSaleLedger, amount = 5000, actorId = "cashier") {
-  return recordPendingQrPayment(
+  return recordPendingMercadoPagoPayment(
     { ledger: store, ids: new SequentialIds() },
     { actorId, saleId: "sale-1", amount, occurredAt: STARTED_AT, waitEndsAt: WAIT_ENDS_AT },
   );
 }
 
-describe("recordPendingQrPayment", () => {
+describe("recordPendingMercadoPagoPayment", () => {
   it("keeps a pending QR payment of the amount with the end of its wait and names it", () => {
     const store = ledger();
 
     expect(record(store, 3000)).toEqual({ kind: "recorded", paymentTransactionId: "id-1" });
-    expect(store.state.pendingQrPayments).toEqual([
+    expect(store.state.pendingMercadoPagoPayments).toEqual([
       {
         ...PENDING_QR_TRANSACTION,
         id: "id-1",
@@ -90,33 +90,33 @@ describe("recordPendingQrPayment", () => {
     const store = ledger();
 
     expect(record(store, 5001)).toEqual({ kind: "exceeds_pending", pending: 5000 });
-    expect(store.state.pendingQrPayments).toEqual([]);
+    expect(store.state.pendingMercadoPagoPayments).toEqual([]);
   });
 
   it.each([0, -100, 12.5])("refuses the invalid amount %s, recording nothing", (amount) => {
     const store = ledger();
 
     expect(record(store, amount)).toEqual({ kind: "invalid_amount" });
-    expect(store.state.pendingQrPayments).toEqual([]);
+    expect(store.state.pendingMercadoPagoPayments).toEqual([]);
   });
 
   it("passes on why the sale cannot be charged, recording nothing", () => {
     const store = ledger({ sales: [{ ...OPEN_SALE, lines: [] }] });
 
     expect(record(store)).toEqual({ kind: "empty_sale" });
-    expect(store.state.pendingQrPayments).toEqual([]);
+    expect(store.state.pendingMercadoPagoPayments).toEqual([]);
   });
 
   it("refuses someone who may not sell, recording nothing", () => {
     const store = ledger();
 
     expect(record(store, 5000, "stranger")).toEqual({ kind: "not_permitted" });
-    expect(store.state.pendingQrPayments).toEqual([]);
+    expect(store.state.pendingMercadoPagoPayments).toEqual([]);
   });
 
   it("refuses a second QR charge while another one of the sale is still in its wait", () => {
     const store = ledger({
-      pendingQrPayments: [
+      pendingMercadoPagoPayments: [
         {
           ...PENDING_QR_TRANSACTION,
           id: "earlier",
@@ -128,13 +128,13 @@ describe("recordPendingQrPayment", () => {
       ],
     });
 
-    expect(record(store)).toEqual({ kind: "qr_charge_in_progress" });
-    expect(store.state.pendingQrPayments.map(({ id }) => id)).toEqual(["earlier"]);
+    expect(record(store)).toEqual({ kind: "mercado_pago_charge_in_progress" });
+    expect(store.state.pendingMercadoPagoPayments.map(({ id }) => id)).toEqual(["earlier"]);
   });
 
   it("starts a new QR charge once an earlier one's wait has ended, keeping that one pending", () => {
     const store = ledger({
-      pendingQrPayments: [
+      pendingMercadoPagoPayments: [
         {
           ...PENDING_QR_TRANSACTION,
           id: "earlier",
@@ -147,14 +147,14 @@ describe("recordPendingQrPayment", () => {
     });
 
     expect(record(store)).toEqual({ kind: "recorded", paymentTransactionId: "id-1" });
-    expect(store.state.pendingQrPayments.map(({ id }) => id)).toEqual(["earlier", "id-1"]);
+    expect(store.state.pendingMercadoPagoPayments.map(({ id }) => id)).toEqual(["earlier", "id-1"]);
   });
 
   it("leaves nothing behind when keeping the payment fails", () => {
     const store = ledger();
-    store.failOn = "recordPendingQrPayment";
+    store.failOn = "recordPendingMercadoPagoPayment";
 
     expect(() => record(store)).toThrow();
-    expect(store.state.pendingQrPayments).toEqual([]);
+    expect(store.state.pendingMercadoPagoPayments).toEqual([]);
   });
 });

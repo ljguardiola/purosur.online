@@ -2,9 +2,9 @@ import {
   createMercadoPagoQrOrder,
   type MercadoPagoOrderCancellation,
   type MercadoPagoOrderCreation,
+  type MercadoPagoOrderPorts,
   type MercadoPagoOrderReading,
   type MercadoPagoOrders,
-  type MercadoPagoQrOrderPorts,
   type MercadoPagoQrOrderRequest,
 } from "@purosur/domain/payments/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -91,7 +91,7 @@ class HeldMercadoPago implements MercadoPagoOrders {
   }
 }
 
-function portsOf(mercadoPago: MercadoPagoOrders): MercadoPagoQrOrderPorts {
+function portsOf(mercadoPago: MercadoPagoOrders): MercadoPagoOrderPorts {
   return {
     lanes: new DrizzlePaymentTransactionLanes(postgresDedicatedConnections(sql)),
     mercadoPago,
@@ -99,7 +99,7 @@ function portsOf(mercadoPago: MercadoPagoOrders): MercadoPagoQrOrderPorts {
   };
 }
 
-function create(ports: MercadoPagoQrOrderPorts, registerId: string, paymentTransactionId: string) {
+function create(ports: MercadoPagoOrderPorts, registerId: string, paymentTransactionId: string) {
   return createMercadoPagoQrOrder(ports, {
     registerId,
     paymentTransactionId,

@@ -1,4 +1,4 @@
-import type { PendingQrSalePayment, SalePayment } from "@purosur/domain";
+import type { PendingMercadoPagoSalePayment, SalePayment } from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
 
 interface PaymentRow {
@@ -67,7 +67,7 @@ const PENDING_QR_PAYMENTS = `SELECT id, sale_id, amount, occurred_at, wait_ends_
   WHERE method = 'QR' AND state = 'PENDING'`;
 const FOLLOWED_QR_PAYMENTS = `${PENDING_QR_PAYMENTS} AND replaced = 0`;
 
-function toPendingQrPayment(row: PendingQrPaymentRow): PendingQrSalePayment {
+function toPendingQrPayment(row: PendingQrPaymentRow): PendingMercadoPagoSalePayment {
   return {
     id: row.id,
     saleId: row.sale_id,
@@ -83,7 +83,7 @@ function toPendingQrPayment(row: PendingQrPaymentRow): PendingQrSalePayment {
 
 export function insertPendingQrPayment(
   database: LocalDatabase,
-  payment: PendingQrSalePayment,
+  payment: PendingMercadoPagoSalePayment,
 ): void {
   database
     .prepare(
@@ -105,7 +105,7 @@ export function insertPendingQrPayment(
 export function readPendingQrPayment(
   database: LocalDatabase,
   paymentTransactionId: string,
-): PendingQrSalePayment | undefined {
+): PendingMercadoPagoSalePayment | undefined {
   const row = database
     .prepare<[string], PendingQrPaymentRow>(`${FOLLOWED_QR_PAYMENTS} AND id = ?`)
     .get(paymentTransactionId);
@@ -115,14 +115,14 @@ export function readPendingQrPayment(
 export function readPendingQrPaymentsOf(
   database: LocalDatabase,
   saleId: string,
-): PendingQrSalePayment[] {
+): PendingMercadoPagoSalePayment[] {
   return database
     .prepare<[string], PendingQrPaymentRow>(`${PENDING_QR_PAYMENTS} AND sale_id = ? ORDER BY rowid`)
     .all(saleId)
     .map(toPendingQrPayment);
 }
 
-export function approvePendingQrPayment(
+export function approvePendingMercadoPagoPayment(
   database: LocalDatabase,
   paymentTransactionId: string,
 ): void {

@@ -1,23 +1,23 @@
 import type {
-  AbandonMercadoPagoQrChargeOutcome,
-  FollowMercadoPagoQrChargeOutcome,
-  StartMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
+  StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
 import {
-  abandonMercadoPagoQrCharge,
-  followMercadoPagoQrCharge,
-  type MercadoPagoQrChargeOrders,
-  type MercadoPagoQrChargeSale,
-  startMercadoPagoQrCharge,
+  abandonMercadoPagoCharge,
+  followMercadoPagoCharge,
+  type MercadoPagoChargeOrders,
+  type MercadoPagoChargeSale,
+  startMercadoPagoCharge,
 } from "@purosur/domain/payments/use-cases";
 import {
   type IdGenerator,
-  type PendingQrPaymentRefusal,
+  type PendingMercadoPagoPaymentRefusal,
   type PendingQrPaymentReplacementRefusal,
-  recordPendingQrPayment,
+  recordPendingMercadoPagoPayment,
   replacePendingQrPayment,
-  type SettleApprovedQrPaymentOutcome,
-  settleApprovedQrPayment,
+  type SettleApprovedMercadoPagoPaymentOutcome,
+  settleApprovedMercadoPagoPayment,
 } from "@purosur/domain/sales/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import { SqliteSaleLedger } from "../sales/sqlite-sale-ledger";
@@ -28,32 +28,32 @@ import { SqliteMercadoPagoQrCharges } from "./sqlite-mercado-pago-qr-charges";
 export interface MercadoPagoQrChargeRequestDeps {
   database: LocalDatabase;
   gate: ActionGate;
-  orders: MercadoPagoQrChargeOrders;
+  orders: MercadoPagoChargeOrders;
   readOutboxChainKey: () => Promise<string | undefined>;
   now: () => Date;
   ids: IdGenerator;
 }
 
-type QrChargeSettlement = SettleApprovedQrPaymentOutcome | { kind: "unavailable" };
+type QrChargeSettlement = SettleApprovedMercadoPagoPaymentOutcome | { kind: "unavailable" };
 
 function qrChargeSale(
   { database, now, ids }: MercadoPagoQrChargeRequestDeps,
   outboxChainKey: string | undefined,
-): MercadoPagoQrChargeSale<
-  PendingQrPaymentRefusal,
+): MercadoPagoChargeSale<
+  PendingMercadoPagoPaymentRefusal,
   QrChargeSettlement,
   PendingQrPaymentReplacementRefusal
 > {
   const ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), outboxChainKey);
   return {
     recordPendingPayment: (payment) => {
-      const outcome = recordPendingQrPayment({ ledger, ids }, payment);
+      const outcome = recordPendingMercadoPagoPayment({ ledger, ids }, payment);
       return outcome.kind === "recorded" ? outcome : { kind: "refused", refusal: outcome };
     },
     settleApprovedPayment: (payment) =>
       outboxChainKey === undefined
         ? { kind: "unavailable" }
-        : settleApprovedQrPayment({ ledger, clock: { now }, ids }, payment),
+        : settleApprovedMercadoPagoPayment({ ledger, clock: { now }, ids }, payment),
     replacePendingPayment: (payment) => {
       const outcome = replacePendingQrPayment({ ledger, ids }, payment);
       return outcome.kind === "replaced" ? outcome : { kind: "refused", refusal: outcome };
@@ -68,9 +68,9 @@ function notPerformed(kind: string): { kind: "not_signed_in" | "not_permitted" }
 export async function startMercadoPagoQrChargeFor(
   deps: MercadoPagoQrChargeRequestDeps,
   { saleId, amount }: { saleId: string; amount: number },
-): Promise<StartMercadoPagoQrChargeOutcome> {
+): Promise<StartMercadoPagoChargeOutcome> {
   const guarded = await deps.gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
-    startMercadoPagoQrCharge(
+    startMercadoPagoCharge(
       {
         sale: qrChargeSale(deps, undefined),
         orders: deps.orders,
@@ -104,10 +104,10 @@ export async function startMercadoPagoQrChargeFor(
 export async function followMercadoPagoQrChargeFor(
   deps: MercadoPagoQrChargeRequestDeps,
   { paymentTransactionId }: { paymentTransactionId: string },
-): Promise<FollowMercadoPagoQrChargeOutcome> {
+): Promise<FollowMercadoPagoChargeOutcome> {
   const outboxChainKey = await deps.readOutboxChainKey();
   const guarded = await deps.gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
-    followMercadoPagoQrCharge(
+    followMercadoPagoCharge(
       {
         sale: qrChargeSale(deps, outboxChainKey),
         orders: deps.orders,
@@ -132,7 +132,7 @@ export async function followMercadoPagoQrChargeFor(
 }
 
 type SettledQrCharge = Extract<
-  AbandonMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
   { kind: "already_paid" }
 >["settlement"];
 
@@ -158,10 +158,10 @@ function settledOutcome(settlement: QrChargeSettlement): SettledQrCharge {
 export async function abandonMercadoPagoQrChargeFor(
   deps: MercadoPagoQrChargeRequestDeps,
   { paymentTransactionId }: { paymentTransactionId: string },
-): Promise<AbandonMercadoPagoQrChargeOutcome> {
+): Promise<AbandonMercadoPagoChargeOutcome> {
   const outboxChainKey = await deps.readOutboxChainKey();
   const guarded = await deps.gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
-    abandonMercadoPagoQrCharge(
+    abandonMercadoPagoCharge(
       {
         sale: qrChargeSale(deps, outboxChainKey),
         orders: deps.orders,

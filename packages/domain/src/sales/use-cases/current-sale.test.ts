@@ -219,11 +219,11 @@ describe("current-sale charge refusal", () => {
       waitEndsAt: new Date(NOW.getTime() + 60_000),
     };
 
-    expect(read(ledger({ pendingQrPayments: [pending] }))).toMatchObject({
+    expect(read(ledger({ pendingMercadoPagoPayments: [pending] }))).toMatchObject({
       kind: "open",
-      linesLock: "qr_charge_in_progress",
+      linesLock: "mercado_pago_charge_in_progress",
       cancellable: false,
-      cancelRefusal: "qr_charge_in_progress",
+      cancelRefusal: "mercado_pago_charge_in_progress",
     });
   });
 });

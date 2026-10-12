@@ -1,7 +1,7 @@
 import type {
-  EndedMercadoPagoQrChargeState,
-  MercadoPagoQrCharges,
-  PendingMercadoPagoQrCharge,
+  EndedMercadoPagoChargeState,
+  MercadoPagoCharges,
+  PendingMercadoPagoCharge,
 } from "@purosur/domain/payments/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 
@@ -12,14 +12,14 @@ interface PendingChargeRow {
   wait_ends_at: string;
 }
 
-export class SqliteMercadoPagoQrCharges implements MercadoPagoQrCharges {
+export class SqliteMercadoPagoQrCharges implements MercadoPagoCharges {
   private readonly database: LocalDatabase;
 
   constructor(database: LocalDatabase) {
     this.database = database;
   }
 
-  pendingCharge(paymentTransactionId: string): PendingMercadoPagoQrCharge | null {
+  pendingCharge(paymentTransactionId: string): PendingMercadoPagoCharge | null {
     const row = this.database
       .prepare<[string], PendingChargeRow>(
         `SELECT id, sale_id, amount, wait_ends_at FROM payment_transactions
@@ -37,7 +37,7 @@ export class SqliteMercadoPagoQrCharges implements MercadoPagoQrCharges {
     };
   }
 
-  recordEnded(paymentTransactionId: string, state: EndedMercadoPagoQrChargeState): void {
+  recordEnded(paymentTransactionId: string, state: EndedMercadoPagoChargeState): void {
     this.database
       .prepare(
         "UPDATE payment_transactions SET state = ? WHERE id = ? AND method = 'QR' AND state = 'PENDING'",

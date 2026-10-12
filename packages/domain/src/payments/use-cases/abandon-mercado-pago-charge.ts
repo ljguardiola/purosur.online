@@ -1,11 +1,11 @@
-import type { MercadoPagoQrChargePorts } from "./mercado-pago-qr-charge-ports.js";
+import type { MercadoPagoChargePorts } from "./mercado-pago-charge-ports.js";
 
-export interface AbandonMercadoPagoQrChargeInput {
+export interface AbandonMercadoPagoChargeInput {
   actorId: string;
   paymentTransactionId: string;
 }
 
-export type AbandonMercadoPagoQrChargeOutcome<ReplacementRefusal, Settlement> =
+export type AbandonMercadoPagoChargeOutcome<ReplacementRefusal, Settlement> =
   | { kind: "not_pending" }
   | { kind: "cancelled" }
   | { kind: "already_paid"; settlement: Settlement }
@@ -13,15 +13,10 @@ export type AbandonMercadoPagoQrChargeOutcome<ReplacementRefusal, Settlement> =
   | { kind: "replaced" }
   | ReplacementRefusal;
 
-export async function abandonMercadoPagoQrCharge<Refusal, Settlement, ReplacementRefusal>(
-  {
-    sale,
-    orders,
-    charges,
-    clock,
-  }: MercadoPagoQrChargePorts<Refusal, Settlement, ReplacementRefusal>,
-  { actorId, paymentTransactionId }: AbandonMercadoPagoQrChargeInput,
-): Promise<AbandonMercadoPagoQrChargeOutcome<ReplacementRefusal, Settlement>> {
+export async function abandonMercadoPagoCharge<Refusal, Settlement, ReplacementRefusal>(
+  { sale, orders, charges, clock }: MercadoPagoChargePorts<Refusal, Settlement, ReplacementRefusal>,
+  { actorId, paymentTransactionId }: AbandonMercadoPagoChargeInput,
+): Promise<AbandonMercadoPagoChargeOutcome<ReplacementRefusal, Settlement>> {
   if (charges.pendingCharge(paymentTransactionId) === null) {
     return { kind: "not_pending" };
   }

@@ -2,7 +2,7 @@ import { describe, expectTypeOf, it } from "vitest";
 import type {
   MercadoPagoOrderCancellation,
   MercadoPagoOrders,
-} from "./mercado-pago-qr-order-ports.js";
+} from "./mercado-pago-order-ports.js";
 
 describe("MercadoPagoOrders", () => {
   it("cancels an order only with a key of the cancellation's own", () => {

@@ -1,11 +1,11 @@
-import type { MercadoPagoQrOrderTransaction } from "../../model/payment-transaction.js";
+import type { MercadoPagoOrderTransaction } from "../../model/payment-transaction.js";
 import type {
   MercadoPagoOrderCancellation,
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
   MercadoPagoOrders,
   MercadoPagoQrOrderRequest,
-} from "../mercado-pago-qr-order-ports.js";
+} from "../mercado-pago-order-ports.js";
 import type { FakePaymentTransactionLanes } from "./fake-payment-transaction-lanes.js";
 
 export class FakeMercadoPagoOrders implements MercadoPagoOrders {
@@ -15,7 +15,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   readonly cancellations: { orderId: string; idempotencyKey: string }[] = [];
   heldLaneDuringCall: boolean | undefined;
   transactionsRecordedDuringCall: string[] | undefined;
-  recordedDuringCreation: MercadoPagoQrOrderTransaction | undefined;
+  recordedDuringCreation: MercadoPagoOrderTransaction | undefined;
   creationStopsMidway = false;
   creation: MercadoPagoOrderCreation;
   reading: MercadoPagoOrderReading;

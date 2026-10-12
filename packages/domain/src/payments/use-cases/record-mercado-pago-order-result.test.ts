@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { cancelMercadoPagoQrOrder } from "./cancel-mercado-pago-qr-order.js";
+import { cancelMercadoPagoOrder } from "./cancel-mercado-pago-order.js";
 import { checkPendingMercadoPagoPayments } from "./check-pending-mercado-pago-payments.js";
 import { confirmMercadoPagoOrderNotification } from "./confirm-mercado-pago-order-notification.js";
 import { recordMercadoPagoOrderResult } from "./record-mercado-pago-order-result.js";
 import {
   AMOUNT,
-  mercadoPagoQrOrderWorld,
+  mercadoPagoOrderWorld,
   NOW,
   orderResult,
   paidOrderResult,
   REGISTER_ID,
   storedTransaction,
   TRANSACTION_ID,
-} from "./test-support/mercado-pago-qr-order-fixtures.js";
+} from "./test-support/mercado-pago-order-fixtures.js";
 
 const WITH_ORDER = { providerOrderId: "order-1" };
 const LATE_PAYMENT_REFUND = {
@@ -26,7 +26,7 @@ const LATE_PAYMENT_REFUND = {
 };
 
 function record(
-  world: ReturnType<typeof mercadoPagoQrOrderWorld>,
+  world: ReturnType<typeof mercadoPagoOrderWorld>,
   transaction = storedTransaction(WITH_ORDER),
   result = paidOrderResult(),
 ) {
@@ -37,7 +37,7 @@ function record(
 
 describe("recordMercadoPagoOrderResult", () => {
   it("opens the pending refund task of a payment Mercado Pago approved after the register replaced it, with the approval", async () => {
-    const world = mercadoPagoQrOrderWorld();
+    const world = mercadoPagoOrderWorld();
     world.lanes.seed(storedTransaction({ ...WITH_ORDER, replaced: true }));
 
     const recorded = await record(world, storedTransaction({ ...WITH_ORDER, replaced: true }));
@@ -56,7 +56,7 @@ describe("recordMercadoPagoOrderResult", () => {
   });
 
   it("refunds the payment by the channel it came in and sends nothing to Mercado Pago", async () => {
-    const world = mercadoPagoQrOrderWorld();
+    const world = mercadoPagoOrderWorld();
     world.lanes.seed(storedTransaction({ ...WITH_ORDER, replaced: true }));
 
     await record(world, storedTransaction({ ...WITH_ORDER, replaced: true }));
@@ -69,7 +69,7 @@ describe("recordMercadoPagoOrderResult", () => {
   });
 
   it("opens no task for a payment approved while the register still waited on it", async () => {
-    const world = mercadoPagoQrOrderWorld();
+    const world = mercadoPagoOrderWorld();
     world.lanes.seed(storedTransaction(WITH_ORDER));
 
     await record(world);
@@ -83,7 +83,7 @@ describe("recordMercadoPagoOrderResult", () => {
     ["cancelled", orderResult({ status: "canceled", statusDetail: "canceled" })],
     ["still waiting", orderResult()],
   ])("opens no task for a replaced payment whose order is %s", async (_case, result) => {
-    const world = mercadoPagoQrOrderWorld();
+    const world = mercadoPagoOrderWorld();
     world.lanes.seed(storedTransaction({ ...WITH_ORDER, replaced: true }));
 
     await record(world, storedTransaction({ ...WITH_ORDER, replaced: true }), result);
@@ -92,7 +92,7 @@ describe("recordMercadoPagoOrderResult", () => {
   });
 
   it("decides from the payment as its write left it, so a replacement landing after it was read still opens the task", async () => {
-    const world = mercadoPagoQrOrderWorld();
+    const world = mercadoPagoOrderWorld();
     world.lanes.seed(storedTransaction(WITH_ORDER));
     const readBeforeTheReplacement = storedTransaction(WITH_ORDER);
     world.lanes.replacementLandsBeforeNextWrite = true;
@@ -103,7 +103,7 @@ describe("recordMercadoPagoOrderResult", () => {
   });
 
   it("opens a single task when the same approval is recorded twice", async () => {
-    const world = mercadoPagoQrOrderWorld();
+    const world = mercadoPagoOrderWorld();
     world.lanes.seed(storedTransaction({ ...WITH_ORDER, replaced: true }));
     const read = storedTransaction({ ...WITH_ORDER, replaced: true });
 
@@ -117,7 +117,7 @@ describe("recordMercadoPagoOrderResult", () => {
   });
 
   it("does not record the approval either when the task cannot be opened", async () => {
-    const world = mercadoPagoQrOrderWorld();
+    const world = mercadoPagoOrderWorld();
     world.lanes.seed(storedTransaction({ ...WITH_ORDER, replaced: true }));
     world.lanes.failOn = "openLatePaymentRefund";
 
@@ -133,7 +133,7 @@ describe("recordMercadoPagoOrderResult", () => {
 
 describe("a payment approved after the register replaced it", () => {
   it("opens one task when Mercado Pago's notification is confirmed twice", async () => {
-    const world = mercadoPagoQrOrderWorld({ reading: { kind: "read", result: paidOrderResult() } });
+    const world = mercadoPagoOrderWorld({ reading: { kind: "read", result: paidOrderResult() } });
     world.lanes.seed(storedTransaction({ ...WITH_ORDER, replaced: true }));
 
     await confirmMercadoPagoOrderNotification(world.notificationPorts, {
@@ -147,13 +147,13 @@ describe("a payment approved after the register replaced it", () => {
   });
 
   it("opens one task when the cancellation finds the order already paid and the pending check follows", async () => {
-    const world = mercadoPagoQrOrderWorld({ reading: { kind: "read", result: orderResult() } });
+    const world = mercadoPagoOrderWorld({ reading: { kind: "read", result: orderResult() } });
     world.mercadoPago.cancellation = { kind: "cannot_cancel" };
     world.mercadoPago.queuedReadings.push({ kind: "read", result: orderResult() });
     world.mercadoPago.queuedReadings.push({ kind: "read", result: paidOrderResult() });
     world.lanes.seed(storedTransaction({ ...WITH_ORDER, replaced: true }));
 
-    const outcome = await cancelMercadoPagoQrOrder(world.ports, {
+    const outcome = await cancelMercadoPagoOrder(world.ports, {
       registerId: REGISTER_ID,
       paymentTransactionId: TRANSACTION_ID,
     });
@@ -164,7 +164,7 @@ describe("a payment approved after the register replaced it", () => {
   });
 
   it("opens one task when the pending check finds the replaced order paid", async () => {
-    const world = mercadoPagoQrOrderWorld({ reading: { kind: "read", result: paidOrderResult() } });
+    const world = mercadoPagoOrderWorld({ reading: { kind: "read", result: paidOrderResult() } });
     world.mercadoPago.cancellation = { kind: "cannot_cancel" };
     world.lanes.seed(storedTransaction({ ...WITH_ORDER, replaced: true }));
 

@@ -1,38 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { abandonMercadoPagoQrCharge } from "./abandon-mercado-pago-qr-charge.js";
-import { followMercadoPagoQrCharge } from "./follow-mercado-pago-qr-charge.js";
+import { abandonMercadoPagoCharge } from "./abandon-mercado-pago-charge.js";
+import { followMercadoPagoCharge } from "./follow-mercado-pago-charge.js";
 import {
-  FakeMercadoPagoQrChargeWorld,
-  QR_ACTOR_ID,
-  QR_PAYMENT_ID,
-  QR_SALE_ID,
-} from "./test-support/mercado-pago-qr-charge-world.js";
+  CHARGE_ACTOR_ID,
+  CHARGE_PAYMENT_ID,
+  CHARGE_SALE_ID,
+  FakeMercadoPagoChargeWorld,
+} from "./test-support/mercado-pago-charge-world.js";
 
-const INPUT = { actorId: QR_ACTOR_ID, paymentTransactionId: QR_PAYMENT_ID };
+const INPUT = { actorId: CHARGE_ACTOR_ID, paymentTransactionId: CHARGE_PAYMENT_ID };
 
-function followingWorld(): FakeMercadoPagoQrChargeWorld {
-  const world = new FakeMercadoPagoQrChargeWorld();
+function followingWorld(): FakeMercadoPagoChargeWorld {
+  const world = new FakeMercadoPagoChargeWorld();
   world.seedPending();
   return world;
 }
 
-describe("followMercadoPagoQrCharge", () => {
+describe("followMercadoPagoCharge", () => {
   it("answers that no charge is pending, asking the cloud nothing, for a payment it does not keep as pending", async () => {
-    const world = new FakeMercadoPagoQrChargeWorld();
+    const world = new FakeMercadoPagoChargeWorld();
 
-    expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "not_pending" });
+    expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "not_pending" });
     expect(world.readOrders).toEqual([]);
   });
 
   it("answers that no charge is pending for a payment marked as replaced, asking the cloud nothing", async () => {
     const world = followingWorld();
     world.replacePendingPayment({
-      actorId: QR_ACTOR_ID,
-      paymentTransactionId: QR_PAYMENT_ID,
+      actorId: CHARGE_ACTOR_ID,
+      paymentTransactionId: CHARGE_PAYMENT_ID,
       replacedAt: world.now,
     });
 
-    expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "not_pending" });
+    expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "not_pending" });
     expect(world.readOrders).toEqual([]);
   });
 
@@ -40,18 +40,18 @@ describe("followMercadoPagoQrCharge", () => {
     const world = followingWorld();
     world.now = new Date("2026-10-09T12:00:19.000Z");
 
-    expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toEqual({
+    expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({
       kind: "waiting",
       remainingSeconds: 161,
     });
-    expect(world.readOrders).toEqual([QR_PAYMENT_ID]);
+    expect(world.readOrders).toEqual([CHARGE_PAYMENT_ID]);
   });
 
   it("keeps waiting while the cloud cannot be reached", async () => {
     const world = followingWorld();
     world.orderReading = { kind: "unreachable" };
 
-    expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toEqual({
+    expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({
       kind: "waiting",
       remainingSeconds: 180,
     });
@@ -61,12 +61,12 @@ describe("followMercadoPagoQrCharge", () => {
     const world = followingWorld();
     world.now = new Date("2026-10-09T12:03:00.000Z");
 
-    expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toEqual({
+    expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({
       kind: "waiting",
       remainingSeconds: 0,
     });
-    expect(world.readOrders).toEqual([QR_PAYMENT_ID]);
-    expect(world.pendingCharge(QR_PAYMENT_ID)).not.toBeNull();
+    expect(world.readOrders).toEqual([CHARGE_PAYMENT_ID]);
+    expect(world.pendingCharge(CHARGE_PAYMENT_ID)).not.toBeNull();
   });
 
   it("answers the wait is over, recording the payment expired, once Mercado Pago reports the order expired", async () => {
@@ -74,9 +74,9 @@ describe("followMercadoPagoQrCharge", () => {
     world.now = new Date("2026-10-09T12:03:00.000Z");
     world.orderReading = { kind: "read", state: "EXPIRED" };
 
-    expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "wait_over" });
+    expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "wait_over" });
     expect(world.operations).toEqual(["readOrder", "recordEnded:EXPIRED"]);
-    expect(world.pendingCharge(QR_PAYMENT_ID)).toBeNull();
+    expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
     expect(world.settledPayments).toEqual([]);
   });
 
@@ -84,7 +84,7 @@ describe("followMercadoPagoQrCharge", () => {
     const world = followingWorld();
     world.orderReading = { kind: "read", state: "EXPIRED" };
 
-    expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "wait_over" });
+    expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "wait_over" });
   });
 
   it("cannot confirm the expiry when the order cannot be read after the countdown ended, leaving the payment pending", async () => {
@@ -92,10 +92,10 @@ describe("followMercadoPagoQrCharge", () => {
     world.now = new Date("2026-10-09T12:03:00.000Z");
     world.orderReading = { kind: "unreachable" };
 
-    expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toEqual({
+    expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({
       kind: "expiry_unconfirmed",
     });
-    expect(world.pendingCharge(QR_PAYMENT_ID)).not.toBeNull();
+    expect(world.pendingCharge(CHARGE_PAYMENT_ID)).not.toBeNull();
     expect(world.operations).toEqual(["readOrder"]);
   });
 
@@ -104,13 +104,13 @@ describe("followMercadoPagoQrCharge", () => {
     world.orderReading = { kind: "read", state: "APPROVED" };
     world.settlement = {
       kind: "partially_paid",
-      saleId: QR_SALE_ID,
+      saleId: CHARGE_SALE_ID,
       total: 8000,
       paid: 5000,
       pending: 3000,
     };
 
-    expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toEqual({
+    expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({
       kind: "approved",
       settlement: world.settlement,
     });
@@ -122,7 +122,7 @@ describe("followMercadoPagoQrCharge", () => {
     world.now = new Date("2026-10-09T12:03:05.000Z");
     world.orderReading = { kind: "read", state: "APPROVED" };
 
-    expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toMatchObject({
+    expect(await followMercadoPagoCharge(world.ports, INPUT)).toMatchObject({
       kind: "approved",
     });
     expect(world.settledPayments).toEqual([INPUT]);
@@ -133,7 +133,7 @@ describe("followMercadoPagoQrCharge", () => {
     world.now = new Date("2026-10-09T12:02:59.999Z");
     world.orderReading = { kind: "read", state: "APPROVED" };
 
-    expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toMatchObject({
+    expect(await followMercadoPagoCharge(world.ports, INPUT)).toMatchObject({
       kind: "approved",
     });
   });
@@ -144,7 +144,7 @@ describe("followMercadoPagoQrCharge", () => {
       const world = followingWorld();
       world.orderReading = { kind: "read", state };
 
-      expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "declined" });
+      expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "declined" });
       expect(world.operations).toEqual(["readOrder", `recordEnded:${state}`]);
       expect(world.settledPayments).toEqual([]);
     },
@@ -157,9 +157,9 @@ describe("a Mercado Pago QR charge followed and abandoned to its end", () => {
     world.now = new Date("2026-10-09T12:03:05.000Z");
     world.scriptedReadings.push({ kind: "read", state: "APPROVED" });
 
-    const first = await followMercadoPagoQrCharge(world.ports, INPUT);
-    const second = await followMercadoPagoQrCharge(world.ports, INPUT);
-    const abandoned = await abandonMercadoPagoQrCharge(world.ports, INPUT);
+    const first = await followMercadoPagoCharge(world.ports, INPUT);
+    const second = await followMercadoPagoCharge(world.ports, INPUT);
+    const abandoned = await abandonMercadoPagoCharge(world.ports, INPUT);
 
     expect(first).toMatchObject({ kind: "approved" });
     expect(second).toEqual({ kind: "not_pending" });
@@ -176,9 +176,9 @@ describe("a Mercado Pago QR charge followed and abandoned to its end", () => {
     );
 
     const outcomes = [
-      await followMercadoPagoQrCharge(world.ports, INPUT),
-      await followMercadoPagoQrCharge(world.ports, INPUT),
-      await followMercadoPagoQrCharge(world.ports, INPUT),
+      await followMercadoPagoCharge(world.ports, INPUT),
+      await followMercadoPagoCharge(world.ports, INPUT),
+      await followMercadoPagoCharge(world.ports, INPUT),
     ];
 
     expect(outcomes).toEqual([
@@ -186,7 +186,7 @@ describe("a Mercado Pago QR charge followed and abandoned to its end", () => {
       { kind: "wait_over" },
       { kind: "not_pending" },
     ]);
-    expect(world.charges.get(QR_PAYMENT_ID)?.state).toBe("EXPIRED");
+    expect(world.charges.get(CHARGE_PAYMENT_ID)?.state).toBe("EXPIRED");
     expect(world.settledPayments).toEqual([]);
   });
 
@@ -201,11 +201,11 @@ describe("a Mercado Pago QR charge followed and abandoned to its end", () => {
       world.orderReading = { kind: "unreachable" };
       world.orderCancellation = cancellation;
 
-      expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toEqual({
+      expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({
         kind: "expiry_unconfirmed",
       });
-      expect(await abandonMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "replaced" });
-      expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "not_pending" });
+      expect(await abandonMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "replaced" });
+      expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "not_pending" });
       expect(world.settledPayments).toEqual([]);
     },
   );
@@ -215,9 +215,9 @@ describe("a Mercado Pago QR charge followed and abandoned to its end", () => {
     world.now = new Date("2026-10-09T12:03:00.000Z");
     world.orderReading = { kind: "unreachable" };
 
-    await followMercadoPagoQrCharge(world.ports, INPUT);
+    await followMercadoPagoCharge(world.ports, INPUT);
 
-    expect(await abandonMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "cancelled" });
+    expect(await abandonMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "cancelled" });
     expect(world.settledPayments).toEqual([]);
   });
 
@@ -227,10 +227,10 @@ describe("a Mercado Pago QR charge followed and abandoned to its end", () => {
     world.orderReading = { kind: "unreachable" };
     world.orderCancellation = { kind: "answered", state: "APPROVED" };
 
-    await followMercadoPagoQrCharge(world.ports, INPUT);
-    const abandoned = await abandonMercadoPagoQrCharge(world.ports, INPUT);
-    const followed = await followMercadoPagoQrCharge(world.ports, INPUT);
-    const abandonedAgain = await abandonMercadoPagoQrCharge(world.ports, INPUT);
+    await followMercadoPagoCharge(world.ports, INPUT);
+    const abandoned = await abandonMercadoPagoCharge(world.ports, INPUT);
+    const followed = await followMercadoPagoCharge(world.ports, INPUT);
+    const abandonedAgain = await abandonMercadoPagoCharge(world.ports, INPUT);
 
     expect(abandoned).toMatchObject({ kind: "already_paid" });
     expect(followed).toEqual({ kind: "not_pending" });

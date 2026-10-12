@@ -1,5 +1,5 @@
 import type {
-  AbandonMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
@@ -21,7 +21,7 @@ import type {
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
-  FollowMercadoPagoQrChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
   ManualAdjustmentRequest,
@@ -50,7 +50,7 @@ import type {
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
-  StartMercadoPagoQrChargeOutcome,
+  StartMercadoPagoChargeOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
@@ -159,16 +159,16 @@ export interface RouterContext {
   cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
-  startMercadoPagoQrCharge: (
+  startMercadoPagoCharge: (
     saleId: string,
     amount: number,
-  ) => Promise<StartMercadoPagoQrChargeOutcome>;
-  followMercadoPagoQrCharge: (
+  ) => Promise<StartMercadoPagoChargeOutcome>;
+  followMercadoPagoCharge: (
     paymentTransactionId: string,
-  ) => Promise<FollowMercadoPagoQrChargeOutcome>;
-  abandonMercadoPagoQrCharge: (
+  ) => Promise<FollowMercadoPagoChargeOutcome>;
+  abandonMercadoPagoCharge: (
     paymentTransactionId: string,
-  ) => Promise<AbandonMercadoPagoQrChargeOutcome>;
+  ) => Promise<AbandonMercadoPagoChargeOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
   addWeighedProduct: (
@@ -562,9 +562,9 @@ const chargeRoute = createRoute({
       cashCharge,
       chargeSaleInCash,
       chargeSaleByTransfer,
-      startMercadoPagoQrCharge,
-      followMercadoPagoQrCharge,
-      abandonMercadoPagoQrCharge,
+      startMercadoPagoCharge,
+      followMercadoPagoCharge,
+      abandonMercadoPagoCharge,
       registerStatus,
       receiptPrintStatus,
       retryReceiptPrint,
@@ -583,9 +583,9 @@ const chargeRoute = createRoute({
         chargeSaleInCash={chargeSaleInCash}
         chargeSaleByTransfer={chargeSaleByTransfer}
         registerStatus={status}
-        startMercadoPagoQrCharge={startMercadoPagoQrCharge}
-        followMercadoPagoQrCharge={followMercadoPagoQrCharge}
-        abandonMercadoPagoQrCharge={abandonMercadoPagoQrCharge}
+        startMercadoPagoCharge={startMercadoPagoCharge}
+        followMercadoPagoCharge={followMercadoPagoCharge}
+        abandonMercadoPagoCharge={abandonMercadoPagoCharge}
         receiptPrintStatus={receiptPrintStatus}
         retryReceiptPrint={retryReceiptPrint}
         onSessionInvalid={() => void refreshCashSession()}
@@ -911,9 +911,9 @@ export function createAppRouter(
     | "cashCharge"
     | "chargeSaleInCash"
     | "chargeSaleByTransfer"
-    | "startMercadoPagoQrCharge"
-    | "followMercadoPagoQrCharge"
-    | "abandonMercadoPagoQrCharge"
+    | "startMercadoPagoCharge"
+    | "followMercadoPagoCharge"
+    | "abandonMercadoPagoCharge"
     | "searchProducts"
     | "addProduct"
     | "addWeighedProduct"

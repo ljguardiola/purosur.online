@@ -138,11 +138,11 @@ export {
   unclearOutcomeQuestionSchema,
 } from "./fiscal/unclear-outcome-question.js";
 export type {
-  AbandonMercadoPagoQrChargeOutcome,
-  FollowMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
   PaymentsCoreToRendererMessage,
   PaymentsRendererToCoreMessage,
-  StartMercadoPagoQrChargeOutcome,
+  StartMercadoPagoChargeOutcome,
 } from "./payments/core-messages.js";
 export {
   paymentsCoreToRendererMessageSchema,

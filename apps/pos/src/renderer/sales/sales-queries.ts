@@ -1,8 +1,8 @@
 import type {
-  AbandonMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
   CashChargeAnswer,
   CurrentSaleAnswer,
-  FollowMercadoPagoQrChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
   ManualAdjustmentRequest,
   OpenSale,
   PreviewSaleDiscountOutcome,
@@ -50,7 +50,7 @@ export const salesKeys = {
 
 const QR_WAIT_FOLLOW_INTERVAL_MS = 1000;
 
-export type FollowedQrCharge = Exclude<FollowMercadoPagoQrChargeOutcome, { kind: "unavailable" }>;
+export type FollowedQrCharge = Exclude<FollowMercadoPagoChargeOutcome, { kind: "unavailable" }>;
 
 export function useQrChargeQuery({
   paymentTransactionId,
@@ -58,7 +58,7 @@ export function useQrChargeQuery({
   following = true,
 }: {
   paymentTransactionId: string;
-  follow: (paymentTransactionId: string) => Promise<FollowMercadoPagoQrChargeOutcome>;
+  follow: (paymentTransactionId: string) => Promise<FollowMercadoPagoChargeOutcome>;
   following?: boolean;
 }): CoreData<FollowedQrCharge> {
   const queryClient = useQueryClient();
@@ -91,7 +91,7 @@ export function useQrChargeQuery({
 }
 
 export function useAbandonQrChargeMutation(
-  abandon: (paymentTransactionId: string) => Promise<AbandonMercadoPagoQrChargeOutcome>,
+  abandon: (paymentTransactionId: string) => Promise<AbandonMercadoPagoChargeOutcome>,
 ) {
   return useMutation({
     mutationFn: (paymentTransactionId: string) => abandon(paymentTransactionId),
@@ -190,8 +190,8 @@ export function useCurrentSaleQuery({
       answer !== undefined &&
       answer !== null &&
       answer !== "not_permitted" &&
-      (answer.lines_lock === "qr_charge_in_progress" ||
-        answer.cancel_refusal === "qr_charge_in_progress")
+      (answer.lines_lock === "mercado_pago_charge_in_progress" ||
+        answer.cancel_refusal === "mercado_pago_charge_in_progress")
         ? QR_WAIT_FOLLOW_INTERVAL_MS
         : false,
   });

@@ -17,7 +17,7 @@ describe("paymentsRendererToCoreMessageSchema", () => {
 
 describe("starting a Mercado Pago QR charge", () => {
   const message = {
-    type: "start-mercado-pago-qr-charge",
+    type: "start-mercado-pago-charge",
     request_id: REQUEST_ID,
     sale_id: "s1",
     amount: 2000,
@@ -64,7 +64,7 @@ describe("starting a Mercado Pago QR charge", () => {
     },
     { kind: "order_refused" },
     { kind: "unreachable" },
-    { kind: "qr_charge_in_progress" },
+    { kind: "mercado_pago_charge_in_progress" },
     { kind: "invalid_amount" },
     { kind: "exceeds_pending", pending: 1500 },
     { kind: "empty_sale" },
@@ -133,7 +133,7 @@ describe("starting a Mercado Pago QR charge", () => {
 
 describe("following a Mercado Pago QR charge", () => {
   const message = {
-    type: "follow-mercado-pago-qr-charge",
+    type: "follow-mercado-pago-charge",
     request_id: REQUEST_ID,
     payment_transaction_id: PAYMENT_ID,
   };
@@ -199,7 +199,7 @@ describe("following a Mercado Pago QR charge", () => {
 
 describe("abandoning a Mercado Pago QR charge", () => {
   const message = {
-    type: "abandon-mercado-pago-qr-charge",
+    type: "abandon-mercado-pago-charge",
     request_id: REQUEST_ID,
     payment_transaction_id: PAYMENT_ID,
   };

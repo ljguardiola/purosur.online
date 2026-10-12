@@ -110,9 +110,9 @@ function coreAnswering(
     cashCharge?: CoreClient["cashCharge"];
     chargeSaleInCash?: CoreClient["chargeSaleInCash"];
     chargeSaleByTransfer?: CoreClient["chargeSaleByTransfer"];
-    startMercadoPagoQrCharge?: CoreClient["startMercadoPagoQrCharge"];
-    followMercadoPagoQrCharge?: CoreClient["followMercadoPagoQrCharge"];
-    abandonMercadoPagoQrCharge?: CoreClient["abandonMercadoPagoQrCharge"];
+    startMercadoPagoCharge?: CoreClient["startMercadoPagoCharge"];
+    followMercadoPagoCharge?: CoreClient["followMercadoPagoCharge"];
+    abandonMercadoPagoCharge?: CoreClient["abandonMercadoPagoCharge"];
     searchProducts?: CoreClient["searchProducts"];
     addProduct?: CoreClient["addProduct"];
     addWeighedProduct?: CoreClient["addWeighedProduct"];
@@ -340,20 +340,20 @@ function coreAnswering(
         ? { kind: "unavailable" }
         : sales.chargeSaleByTransfer(saleId, amount);
     },
-    async startMercadoPagoQrCharge(saleId, amount) {
-      return sales.startMercadoPagoQrCharge === undefined
+    async startMercadoPagoCharge(saleId, amount) {
+      return sales.startMercadoPagoCharge === undefined
         ? { kind: "unavailable" }
-        : sales.startMercadoPagoQrCharge(saleId, amount);
+        : sales.startMercadoPagoCharge(saleId, amount);
     },
-    async followMercadoPagoQrCharge(paymentTransactionId) {
-      return sales.followMercadoPagoQrCharge === undefined
+    async followMercadoPagoCharge(paymentTransactionId) {
+      return sales.followMercadoPagoCharge === undefined
         ? { kind: "unavailable" }
-        : sales.followMercadoPagoQrCharge(paymentTransactionId);
+        : sales.followMercadoPagoCharge(paymentTransactionId);
     },
-    async abandonMercadoPagoQrCharge(paymentTransactionId) {
-      return sales.abandonMercadoPagoQrCharge === undefined
+    async abandonMercadoPagoCharge(paymentTransactionId) {
+      return sales.abandonMercadoPagoCharge === undefined
         ? { kind: "unavailable" }
-        : sales.abandonMercadoPagoQrCharge(paymentTransactionId);
+        : sales.abandonMercadoPagoCharge(paymentTransactionId);
     },
     async closeCashSession(sessionId, countedCash) {
       closed.push([sessionId, countedCash]);
@@ -1748,13 +1748,13 @@ describe("App", () => {
               })
             : new Promise(() => {});
         },
-        startMercadoPagoQrCharge: async (_saleId, amount) => ({
+        startMercadoPagoCharge: async (_saleId, amount) => ({
           kind: "order_shown",
           payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
           amount,
           remaining_seconds: 180,
         }),
-        followMercadoPagoQrCharge: async () => ({
+        followMercadoPagoCharge: async () => ({
           kind: "completed",
           sale_id: "sale-1",
           total: 238_000,
@@ -1824,14 +1824,14 @@ describe("App", () => {
               })
             : new Promise(() => {});
         },
-        startMercadoPagoQrCharge: async (_saleId, amount) => ({
+        startMercadoPagoCharge: async (_saleId, amount) => ({
           kind: "order_shown",
           payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
           amount,
           remaining_seconds: 180,
         }),
-        followMercadoPagoQrCharge: async () => ({ kind: "waiting", remaining_seconds: 170 }),
-        abandonMercadoPagoQrCharge: async () => ({
+        followMercadoPagoCharge: async () => ({ kind: "waiting", remaining_seconds: 170 }),
+        abandonMercadoPagoCharge: async () => ({
           kind: "already_paid",
           settlement: { kind: "completed", sale_id: "sale-1", total: 238_000 },
         }),

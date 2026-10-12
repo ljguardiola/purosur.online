@@ -31,7 +31,7 @@ export function replacePendingQrPayment(
     if (isRefusal(session)) {
       return session;
     }
-    const pending = tx.pendingQrPayment(paymentTransactionId);
+    const pending = tx.pendingMercadoPagoPayment(paymentTransactionId);
     if (pending === undefined) {
       return { kind: "not_pending" };
     }

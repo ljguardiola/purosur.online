@@ -735,9 +735,9 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             request,
           ),
-  startMercadoPagoQrCharge: mercadoPagoQrCharging.start,
-  followMercadoPagoQrCharge: mercadoPagoQrCharging.follow,
-  abandonMercadoPagoQrCharge: mercadoPagoQrCharging.abandon,
+  startMercadoPagoCharge: mercadoPagoQrCharging.start,
+  followMercadoPagoCharge: mercadoPagoQrCharging.follow,
+  abandonMercadoPagoCharge: mercadoPagoQrCharging.abandon,
   searchProducts:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -834,11 +834,11 @@ const answeredRendererRequestDeps: RendererRequestDeps = {
   chargeSaleByTransfer: receiptPrinting.afterCompletedSale(
     rendererRequestDeps.chargeSaleByTransfer,
   ),
-  followMercadoPagoQrCharge: receiptPrinting.afterCompletedSale(
-    rendererRequestDeps.followMercadoPagoQrCharge,
+  followMercadoPagoCharge: receiptPrinting.afterCompletedSale(
+    rendererRequestDeps.followMercadoPagoCharge,
   ),
-  abandonMercadoPagoQrCharge: receiptPrinting.afterCompletedSale(
-    rendererRequestDeps.abandonMercadoPagoQrCharge,
+  abandonMercadoPagoCharge: receiptPrinting.afterCompletedSale(
+    rendererRequestDeps.abandonMercadoPagoCharge,
   ),
 };
 

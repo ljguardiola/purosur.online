@@ -318,7 +318,7 @@ describe("CancelPaidSaleModal", () => {
     it.each<[string, CancelPaidSaleOutcome, string]>([
       [
         "a QR charge is still waiting",
-        { kind: "qr_charge_in_progress" },
+        { kind: "mercado_pago_charge_in_progress" },
         "Hay un cobro con QR en curso. Esperá a que termine para cancelar la venta.",
       ],
       [

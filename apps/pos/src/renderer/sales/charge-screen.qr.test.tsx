@@ -44,7 +44,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
   );
 
   it("shows the QR as unavailable without a connection, and does not open it", async () => {
-    const { screen, startMercadoPagoQrCharge } = await renderScreen({
+    const { screen, startMercadoPagoCharge } = await renderScreen({
       registerStatus: registerStatusWithCloud("unreachable"),
     });
 
@@ -60,7 +60,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
     await expect
       .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con QR?" }))
       .not.toBeInTheDocument();
-    expect(startMercadoPagoQrCharge).not.toHaveBeenCalled();
+    expect(startMercadoPagoCharge).not.toHaveBeenCalled();
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -75,7 +75,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
   });
 
   it("creates the order for the sale and waits for the customer's payment", async () => {
-    const { screen, startMercadoPagoQrCharge } = await renderScreen();
+    const { screen, startMercadoPagoCharge } = await renderScreen();
 
     await chooseQr(screen);
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
@@ -83,7 +83,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
     await expect
       .element(screen.getByRole("heading", { name: "Esperando el pago del cliente" }))
       .toBeVisible();
-    expect(startMercadoPagoQrCharge).toHaveBeenCalledExactlyOnceWith("sale-1", 476_000);
+    expect(startMercadoPagoCharge).toHaveBeenCalledExactlyOnceWith("sale-1", 476_000);
   });
 
   it("returns to the methods from Cambiar de medio of the amount step", async () => {
@@ -101,8 +101,8 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
   });
 
   it("follows the order the core created and shows the sale as completed with the QR charge once approved", async () => {
-    const { screen, followMercadoPagoQrCharge, receiptPrintStatus } = await renderScreen({
-      followMercadoPagoQrCharge: async () => ({
+    const { screen, followMercadoPagoCharge, receiptPrintStatus } = await renderScreen({
+      followMercadoPagoCharge: async () => ({
         kind: "completed",
         sale_id: "sale-1",
         total: 476_000,
@@ -119,13 +119,13 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
     await expect
       .element(screen.getByRole("dialog").getByText("QR de Mercado Pago", { exact: true }))
       .toBeVisible();
-    expect(followMercadoPagoQrCharge).toHaveBeenCalledWith(QR_PAYMENT_ID);
+    expect(followMercadoPagoCharge).toHaveBeenCalledWith(QR_PAYMENT_ID);
     await expect.poll(() => receiptPrintStatus.mock.calls).toEqual([["sale-1"]]);
   });
 
   it("shows the customer paid and keeps the sale open until Continuar is pressed", async () => {
     const { screen } = await renderScreen({
-      followMercadoPagoQrCharge: async () => ({
+      followMercadoPagoCharge: async () => ({
         kind: "completed",
         sale_id: "sale-1",
         total: 476_000,
@@ -148,8 +148,8 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
 
   it("charges only the amount of the order when it is the one completed", async () => {
     const { screen } = await renderScreen({
-      startMercadoPagoQrCharge: async () => ({ ...QR_ORDER_SHOWN, amount: 300_000 }),
-      followMercadoPagoQrCharge: async () => ({
+      startMercadoPagoCharge: async () => ({ ...QR_ORDER_SHOWN, amount: 300_000 }),
+      followMercadoPagoCharge: async () => ({
         kind: "completed",
         sale_id: "sale-1",
         total: 476_000,
@@ -168,7 +168,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
 
   it("goes back to the methods and reads the sale again after a declined order, from Elegir otro medio", async () => {
     const { screen, currentSale } = await renderScreen({
-      followMercadoPagoQrCharge: async () => ({ kind: "declined" }),
+      followMercadoPagoCharge: async () => ({ kind: "declined" }),
     });
     await expect.element(screen.getByRole("radio", { name: "Efectivo" })).toBeVisible();
     const readsBefore = currentSale.mock.calls.length;
@@ -191,7 +191,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
     const { screen } = await renderScreen({
       currentSale: async () =>
         reads.shift() ?? { ...SALE_OF_ONE_LINE, paid: 300_000, pending: 176_000 },
-      followMercadoPagoQrCharge: async () => ({
+      followMercadoPagoCharge: async () => ({
         kind: "partially_paid",
         sale_id: "sale-1",
         total: 476_000,
@@ -228,7 +228,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
       userEvent.click(page.getByRole("button", { name: "Cobrar con otro medio" }));
 
     it("asks the core to abandon the order and goes back to the methods with a notice once it is cancelled", async () => {
-      const { screen, abandonMercadoPagoQrCharge, currentSale } = await waitForOrder();
+      const { screen, abandonMercadoPagoCharge, currentSale } = await waitForOrder();
       const readsBefore = currentSale.mock.calls.length;
 
       await abandon();
@@ -239,14 +239,14 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
       await expect
         .element(screen.getByRole("status").getByText("Se canceló la orden QR."))
         .toBeVisible();
-      expect(abandonMercadoPagoQrCharge).toHaveBeenCalledExactlyOnceWith(QR_PAYMENT_ID);
+      expect(abandonMercadoPagoCharge).toHaveBeenCalledExactlyOnceWith(QR_PAYMENT_ID);
       expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
       await expectNoAccessibilityViolations(screen.container);
     });
 
     it("goes back to the methods from Elegir otro medio once Mercado Pago says the order expired, without cancelling it", async () => {
-      const { screen, abandonMercadoPagoQrCharge, currentSale } = await waitForOrder(
-        { followMercadoPagoQrCharge: async () => ({ kind: "wait_over" }) },
+      const { screen, abandonMercadoPagoCharge, currentSale } = await waitForOrder(
+        { followMercadoPagoCharge: async () => ({ kind: "wait_over" }) },
         "Venció la espera del QR",
       );
       const readsBefore = currentSale.mock.calls.length;
@@ -256,13 +256,13 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
       await expect
         .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
         .toBeVisible();
-      expect(abandonMercadoPagoQrCharge).not.toHaveBeenCalled();
+      expect(abandonMercadoPagoCharge).not.toHaveBeenCalled();
       expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
     });
 
     it("cancels the order from Elegir otro medio when the expiry could not be confirmed", async () => {
-      const { screen, abandonMercadoPagoQrCharge } = await waitForOrder(
-        { followMercadoPagoQrCharge: async () => ({ kind: "expiry_unconfirmed" }) },
+      const { screen, abandonMercadoPagoCharge } = await waitForOrder(
+        { followMercadoPagoCharge: async () => ({ kind: "expiry_unconfirmed" }) },
         "No se pudo confirmar el vencimiento del QR",
       );
 
@@ -271,12 +271,12 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
       await expect
         .element(screen.getByRole("status").getByText("Se canceló la orden QR."))
         .toBeVisible();
-      expect(abandonMercadoPagoQrCharge).toHaveBeenCalledExactlyOnceWith(QR_PAYMENT_ID);
+      expect(abandonMercadoPagoCharge).toHaveBeenCalledExactlyOnceWith(QR_PAYMENT_ID);
     });
 
     it("shows the customer paid and then the sale as completed with the QR charge from Continuar", async () => {
       const { screen, receiptPrintStatus } = await waitForOrder({
-        abandonMercadoPagoQrCharge: async () => ({
+        abandonMercadoPagoCharge: async () => ({
           kind: "already_paid",
           settlement: { kind: "completed", sale_id: "sale-1", total: 476_000 },
         }),
@@ -299,7 +299,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
       const { screen } = await waitForOrder({
         currentSale: async () =>
           reads.shift() ?? { ...SALE_OF_ONE_LINE, paid: 300_000, pending: 176_000 },
-        abandonMercadoPagoQrCharge: async () => ({
+        abandonMercadoPagoCharge: async () => ({
           kind: "already_paid",
           settlement: {
             kind: "partially_paid",
@@ -327,7 +327,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
 
     it("says the order was already closed and goes back to the methods from Elegir otro medio", async () => {
       const { screen } = await waitForOrder({
-        abandonMercadoPagoQrCharge: async () => ({ kind: "closed" }),
+        abandonMercadoPagoCharge: async () => ({ kind: "closed" }),
       });
 
       await abandon();
@@ -346,7 +346,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
 
     it("warns that the cancellation could not be confirmed before the sale is completed another way", async () => {
       const { screen } = await waitForOrder({
-        abandonMercadoPagoQrCharge: async () => ({ kind: "replaced" }),
+        abandonMercadoPagoCharge: async () => ({ kind: "replaced" }),
       });
 
       await abandon();
@@ -367,7 +367,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
 
     it("goes back to the methods to read the sale again when the order is not pending", async () => {
       const { screen, currentSale } = await waitForOrder({
-        abandonMercadoPagoQrCharge: async () => ({ kind: "not_pending" }),
+        abandonMercadoPagoCharge: async () => ({ kind: "not_pending" }),
       });
       const readsBefore = currentSale.mock.calls.length;
 
@@ -381,7 +381,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
 
     it("asks the application to check the session when abandoning finds it is no longer valid", async () => {
       const { onSessionInvalid } = await waitForOrder({
-        abandonMercadoPagoQrCharge: async () => ({ kind: "not_signed_in" }),
+        abandonMercadoPagoCharge: async () => ({ kind: "not_signed_in" }),
       });
 
       await abandon();

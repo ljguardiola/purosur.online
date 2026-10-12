@@ -76,9 +76,9 @@ describe("openSaleStanding", () => {
 
   it("locks the lines and refuses the cancellation by the QR charge in its wait while nothing is paid", () => {
     expect(openSaleStanding(5900, [], [QR_CHARGE_IN_ITS_WAIT], NOW)).toMatchObject({
-      linesLock: "qr_charge_in_progress",
+      linesLock: "mercado_pago_charge_in_progress",
       cancellable: false,
-      cancelRefusal: "qr_charge_in_progress",
+      cancelRefusal: "mercado_pago_charge_in_progress",
       refundsOnCancel: [],
     });
   });
@@ -87,7 +87,7 @@ describe("openSaleStanding", () => {
     expect(openSaleStanding(5900, [CASH_PAYMENT], [QR_CHARGE_IN_ITS_WAIT], NOW)).toMatchObject({
       linesLock: "approved_payment",
       cancellable: false,
-      cancelRefusal: "qr_charge_in_progress",
+      cancelRefusal: "mercado_pago_charge_in_progress",
       refundsOnCancel: [],
     });
   });
@@ -119,7 +119,7 @@ describe("openSaleStanding", () => {
       amount: fc.integer({ min: 1, max: 100_000 }),
       state: fc.constantFrom("APPROVED", "REJECTED", "PENDING"),
     });
-    const pendingQrPayment = fc.record({
+    const pendingMercadoPagoPayment = fc.record({
       waitEndsAt: fc.constantFrom(
         QR_CHARGE_IN_ITS_WAIT.waitEndsAt,
         QR_CHARGE_PAST_ITS_WAIT.waitEndsAt,
@@ -127,7 +127,7 @@ describe("openSaleStanding", () => {
     });
 
     fc.assert(
-      fc.property(fc.array(payment), fc.array(pendingQrPayment), (payments, pending) => {
+      fc.property(fc.array(payment), fc.array(pendingMercadoPagoPayment), (payments, pending) => {
         const standing = openSaleStanding(5900, payments, pending, NOW);
         const ways = [
           standing.cancellable,
@@ -149,7 +149,7 @@ describe("saleLinesLock", () => {
     ["a payment was rejected", [{ ...CASH_PAYMENT, state: "REJECTED" }], [], null],
     ["a QR charge's wait is over", [], [QR_CHARGE_PAST_ITS_WAIT], null],
     ["a payment is approved", [CASH_PAYMENT], [], "approved_payment"],
-    ["a QR charge is in its wait", [], [QR_CHARGE_IN_ITS_WAIT], "qr_charge_in_progress"],
+    ["a QR charge is in its wait", [], [QR_CHARGE_IN_ITS_WAIT], "mercado_pago_charge_in_progress"],
     [
       "a payment is approved and a QR charge is in its wait",
       [CASH_PAYMENT],
@@ -167,13 +167,13 @@ describe("saleCancelRefusal", () => {
     ["a cash payment is approved", [CASH_PAYMENT], [], null],
     ["a QR payment was rejected", [{ ...QR_PAYMENT, state: "REJECTED" }], [], null],
     ["a QR charge's wait is over", [], [QR_CHARGE_PAST_ITS_WAIT], null],
-    ["a QR charge is in its wait", [], [QR_CHARGE_IN_ITS_WAIT], "qr_charge_in_progress"],
+    ["a QR charge is in its wait", [], [QR_CHARGE_IN_ITS_WAIT], "mercado_pago_charge_in_progress"],
     ["a QR payment is approved", [QR_PAYMENT], [], "holds_qr_payment"],
     [
       "a QR payment is approved and another QR charge is in its wait",
       [QR_PAYMENT],
       [QR_CHARGE_IN_ITS_WAIT],
-      "qr_charge_in_progress",
+      "mercado_pago_charge_in_progress",
     ],
   ] as const)("answers why cancelling is refused when %s", (_case, payments, pending, refusal) => {
     expect(saleCancelRefusal(payments, pending, NOW)).toBe(refusal);

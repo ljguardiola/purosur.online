@@ -1,4 +1,4 @@
-import type { StartMercadoPagoQrChargeOutcome } from "@purosur/contracts";
+import type { StartMercadoPagoChargeOutcome } from "@purosur/contracts";
 import {
   Button,
   fieldErrorMessage,
@@ -25,13 +25,13 @@ function exceedsPendingMessage(pending: number): string {
   return `No puede superar el saldo pendiente de ${formatCents(pending)}.`;
 }
 
-export type ShownQrOrder = Extract<StartMercadoPagoQrChargeOutcome, { kind: "order_shown" }>;
+export type ShownQrOrder = Extract<StartMercadoPagoChargeOutcome, { kind: "order_shown" }>;
 
 export type QrChargeModalProps = {
   total: number;
   paid: number;
   pending: number;
-  start: (amount: number) => Promise<StartMercadoPagoQrChargeOutcome>;
+  start: (amount: number) => Promise<StartMercadoPagoChargeOutcome>;
   onChooseAnotherMethod: () => void;
   onOrderShown: (order: ShownQrOrder) => void;
   onSaleUnavailable: () => void;
@@ -56,7 +56,7 @@ export function QrChargeModal({
     messages: { amount: INVALID_AMOUNT_MESSAGE },
     onSubmit: async (request, { showFieldError }) => {
       const outcome = await start(request.amount).catch(
-        (): StartMercadoPagoQrChargeOutcome => ({ kind: "unavailable" }),
+        (): StartMercadoPagoChargeOutcome => ({ kind: "unavailable" }),
       );
       switch (outcome.kind) {
         case "order_shown":
@@ -74,7 +74,7 @@ export function QrChargeModal({
         case "unreachable":
           setNotice(UNREACHABLE_MESSAGE);
           break;
-        case "qr_charge_in_progress":
+        case "mercado_pago_charge_in_progress":
           setNotice(IN_PROGRESS_MESSAGE);
           break;
         case "empty_sale":

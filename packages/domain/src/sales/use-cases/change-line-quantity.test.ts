@@ -474,7 +474,7 @@ describe("changeLineQuantity on a sale with an approved payment", () => {
 
 describe("changeLineQuantity while a QR charge of the sale is in its wait", () => {
   it("refuses to change a line, writing nothing", () => {
-    const store = ledger({ pendingQrPayments: [IN_ITS_WAIT] });
+    const store = ledger({ pendingMercadoPagoPayments: [IN_ITS_WAIT] });
     const before = structuredClone(store.state);
 
     expect(change(store, "line-1", 5)).toEqual({ kind: "sale_has_payments" });
@@ -482,7 +482,7 @@ describe("changeLineQuantity while a QR charge of the sale is in its wait", () =
   });
 
   it("changes it again once the wait has ended", () => {
-    const store = ledger({ pendingQrPayments: [WAIT_ENDED] });
+    const store = ledger({ pendingMercadoPagoPayments: [WAIT_ENDED] });
 
     expect(change(store, "line-1", 5)).toMatchObject({ kind: "changed" });
   });

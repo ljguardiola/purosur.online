@@ -64,7 +64,7 @@ export function CancelLockedPaidSaleModal({
       case "not_permitted":
         setNotice(NOT_PERMITTED_MESSAGE);
         break;
-      case "qr_charge_in_progress":
+      case "mercado_pago_charge_in_progress":
         setNotice(QR_CHARGE_IN_PROGRESS_MESSAGE);
         break;
       case "holds_qr_payment":

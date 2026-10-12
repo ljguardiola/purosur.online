@@ -9,29 +9,29 @@ import {
 import { completeSale } from "./complete-sale.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
 
-export interface SettleApprovedQrPaymentInput {
+export interface SettleApprovedMercadoPagoPaymentInput {
   actorId: string;
   paymentTransactionId: string;
 }
 
-export interface SettleApprovedQrPaymentPorts {
+export interface SettleApprovedMercadoPagoPaymentPorts {
   ledger: SaleLedger;
   clock: Clock;
   ids: IdGenerator;
 }
 
-export type SettleApprovedQrPaymentOutcome =
+export type SettleApprovedMercadoPagoPaymentOutcome =
   | { kind: "not_pending" }
   | SaleRefusal
   | PartiallyPaid
   | { kind: "completed"; saleId: string; total: number };
 
-export function settleApprovedQrPayment(
-  { ledger, clock, ids }: SettleApprovedQrPaymentPorts,
-  { actorId, paymentTransactionId }: SettleApprovedQrPaymentInput,
-): SettleApprovedQrPaymentOutcome {
-  return ledger.transaction<SettleApprovedQrPaymentOutcome>((tx) => {
-    const pendingQr = tx.pendingQrPayment(paymentTransactionId);
+export function settleApprovedMercadoPagoPayment(
+  { ledger, clock, ids }: SettleApprovedMercadoPagoPaymentPorts,
+  { actorId, paymentTransactionId }: SettleApprovedMercadoPagoPaymentInput,
+): SettleApprovedMercadoPagoPaymentOutcome {
+  return ledger.transaction<SettleApprovedMercadoPagoPaymentOutcome>((tx) => {
+    const pendingQr = tx.pendingMercadoPagoPayment(paymentTransactionId);
     if (pendingQr === undefined) {
       return { kind: "not_pending" };
     }
@@ -42,7 +42,7 @@ export function settleApprovedQrPayment(
     }
     const { sale, total } = chargeable;
 
-    tx.approvePendingQrPayment(paymentTransactionId);
+    tx.approvePendingMercadoPagoPayment(paymentTransactionId);
     const payments = tx.salePayments(sale.id);
     const { paid, pending } = saleBalance(total, payments);
     if (pending > 0) {

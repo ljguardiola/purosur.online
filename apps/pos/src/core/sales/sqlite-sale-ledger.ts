@@ -29,7 +29,7 @@ import {
 } from "../fiscal/sqlite-pre-emission-gate";
 import { decideSaleAuthorizationIn } from "../fiscal/sqlite-sale-authorization";
 import {
-  approvePendingQrPayment,
+  approvePendingMercadoPagoPayment,
   insertPendingQrPayment,
   markQrPaymentReplaced,
   readPendingQrPayment,
@@ -108,12 +108,12 @@ export class SqliteSaleLedger implements SaleLedger {
       salePayments: (saleId) => readSalePayments(this.database, saleId),
       discardOpenSale: (saleId) => this.discardOpenSale(saleId),
       recordPayment: (payment) => this.recordPayment(payment),
-      recordPendingQrPayment: (payment) => insertPendingQrPayment(this.database, payment),
-      pendingQrPayment: (paymentTransactionId) =>
+      recordPendingMercadoPagoPayment: (payment) => insertPendingQrPayment(this.database, payment),
+      pendingMercadoPagoPayment: (paymentTransactionId) =>
         readPendingQrPayment(this.database, paymentTransactionId),
-      pendingQrPaymentsOf: (saleId) => readPendingQrPaymentsOf(this.database, saleId),
-      approvePendingQrPayment: (paymentTransactionId) =>
-        approvePendingQrPayment(this.database, paymentTransactionId),
+      pendingMercadoPagoPaymentsOf: (saleId) => readPendingQrPaymentsOf(this.database, saleId),
+      approvePendingMercadoPagoPayment: (paymentTransactionId) =>
+        approvePendingMercadoPagoPayment(this.database, paymentTransactionId),
       markQrPaymentReplaced: (paymentTransactionId, waitEndsAt) =>
         markQrPaymentReplaced(this.database, paymentTransactionId, waitEndsAt),
       saleCashMovements: (saleId) => readMovementsOf(this.database, { type: "sale", id: saleId }),

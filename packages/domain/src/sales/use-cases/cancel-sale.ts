@@ -1,4 +1,7 @@
-import { aQrChargeInItsWait, cancellableWithoutAuthorization } from "../../payments/index.js";
+import {
+  aMercadoPagoChargeInItsWait,
+  cancellableWithoutAuthorization,
+} from "../../payments/index.js";
 import type { Clock } from "../../shared/index.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
@@ -17,7 +20,7 @@ export type CancelSaleOutcome =
   | { kind: "no_open_session" }
   | { kind: "no_open_sale" }
   | { kind: "has_approved_payment" }
-  | { kind: "qr_charge_in_progress" }
+  | { kind: "mercado_pago_charge_in_progress" }
   | { kind: "cancelled" };
 
 export function cancelSale(
@@ -37,13 +40,13 @@ export function cancelSale(
       return { kind: "has_approved_payment" };
     }
 
-    const pendingQrPayments = tx.pendingQrPaymentsOf(sale.id);
+    const pendingMercadoPagoPayments = tx.pendingMercadoPagoPaymentsOf(sale.id);
     const now = clock.now();
-    if (aQrChargeInItsWait(pendingQrPayments, now)) {
-      return { kind: "qr_charge_in_progress" };
+    if (aMercadoPagoChargeInItsWait(pendingMercadoPagoPayments, now)) {
+      return { kind: "mercado_pago_charge_in_progress" };
     }
 
-    if (pendingQrPayments.length > 0) {
+    if (pendingMercadoPagoPayments.length > 0) {
       tx.recordCancelledSale(sale.id, now, undefined);
     } else {
       tx.discardOpenSale(sale.id);

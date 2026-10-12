@@ -176,21 +176,21 @@ describe("cancelSale", () => {
 describe("cancelSale with a QR charge", () => {
   it("refuses while the QR charge is in its wait, changing nothing", () => {
     const store = ledger({
-      pendingQrPayments: [pendingQrEndingAt(new Date(NOW.getTime() + 60_000))],
+      pendingMercadoPagoPayments: [pendingQrEndingAt(new Date(NOW.getTime() + 60_000))],
     });
     const before = structuredClone(store.state);
 
-    expect(cancel(store)).toEqual({ kind: "qr_charge_in_progress" });
+    expect(cancel(store)).toEqual({ kind: "mercado_pago_charge_in_progress" });
     expect(store.state).toEqual(before);
   });
 
   it("keeps the sale, cancelled now, after the wait, so its pending QR payment stays known", () => {
     const pending = pendingQrEndingAt(new Date(NOW.getTime() - 1));
-    const store = ledger({ pendingQrPayments: [pending] });
+    const store = ledger({ pendingMercadoPagoPayments: [pending] });
 
     expect(cancel(store)).toEqual({ kind: "cancelled" });
     expect(store.state.sales).toEqual([{ ...OPEN_SALE, state: "CANCELLED", occurredAt: NOW }]);
-    expect(store.state.pendingQrPayments).toEqual([pending]);
+    expect(store.state.pendingMercadoPagoPayments).toEqual([pending]);
     expect(store.state.outbox).toEqual([]);
   });
 });

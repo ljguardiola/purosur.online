@@ -4,10 +4,10 @@ export {
   PAYMENT_NOTIFICATION_LIMIT,
 } from "./model/mercado-pago-notifications.js";
 export {
-  aQrChargeInItsWait,
-  MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS,
-  MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES,
-} from "./model/mercado-pago-qr-charge-wait.js";
+  aMercadoPagoChargeInItsWait,
+  MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS,
+  MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
+} from "./model/mercado-pago-order-charge-wait.js";
 export { nonCashCharge } from "./model/non-cash-charge.js";
 export type { PaymentMethod } from "./model/payment.js";
 export {
@@ -39,11 +39,11 @@ export {
   refundsSettleApprovedPayments,
 } from "./model/payment-refund.js";
 export type {
-  MercadoPagoQrOrderTransaction,
+  MercadoPagoOrderTransaction,
   MercadoPagoQrPaymentTransaction,
   PaymentTransaction,
   PaymentTransactionState,
-  PendingQrSalePayment,
+  PendingMercadoPagoSalePayment,
   SalePayment,
 } from "./model/payment-transaction.js";
 export {

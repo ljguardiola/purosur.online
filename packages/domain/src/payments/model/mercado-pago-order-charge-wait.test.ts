@@ -1,22 +1,22 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
-  aQrChargeInItsWait,
-  MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS,
-  MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES,
-  mercadoPagoQrChargeRemainingSeconds,
-  mercadoPagoQrChargeWait,
-  mercadoPagoQrChargeWaitEndsAt,
-} from "./mercado-pago-qr-charge-wait.js";
+  aMercadoPagoChargeInItsWait,
+  MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS,
+  MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
+  mercadoPagoOrderChargeRemainingSeconds,
+  mercadoPagoOrderChargeWait,
+  mercadoPagoOrderChargeWaitEndsAt,
+} from "./mercado-pago-order-charge-wait.js";
 import { mercadoPagoOrderExpiresAt } from "./payment-transaction.js";
 
 const STARTED_AT = new Date("2026-10-09T12:00:00.000Z");
 const WAIT_ENDS_AT = new Date("2026-10-09T12:03:00.000Z");
 
-describe("mercadoPagoQrChargeWaitEndsAt", () => {
+describe("mercadoPagoOrderChargeWaitEndsAt", () => {
   it("waits 3 minutes from the moment the charge starts", () => {
-    expect(MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES).toBe(3);
-    expect(mercadoPagoQrChargeWaitEndsAt(STARTED_AT)).toEqual(WAIT_ENDS_AT);
+    expect(MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES).toBe(3);
+    expect(mercadoPagoOrderChargeWaitEndsAt(STARTED_AT)).toEqual(WAIT_ENDS_AT);
   });
 
   it("asks Mercado Pago to expire the order exactly when the wait ends", () => {
@@ -24,48 +24,48 @@ describe("mercadoPagoQrChargeWaitEndsAt", () => {
 
     expect(
       mercadoPagoOrderExpiresAt(attemptStartedAt, 0).getTime() -
-        mercadoPagoQrChargeWaitEndsAt(attemptStartedAt).getTime(),
+        mercadoPagoOrderChargeWaitEndsAt(attemptStartedAt).getTime(),
     ).toBe(0);
-    expect(MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES).toBe(3);
+    expect(MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES).toBe(3);
   });
 });
 
-describe("mercadoPagoQrChargeRemainingSeconds", () => {
+describe("mercadoPagoOrderChargeRemainingSeconds", () => {
   it("counts a started second as a second still left", () => {
     expect(
-      mercadoPagoQrChargeRemainingSeconds(WAIT_ENDS_AT, new Date("2026-10-09T12:02:59.001Z")),
+      mercadoPagoOrderChargeRemainingSeconds(WAIT_ENDS_AT, new Date("2026-10-09T12:02:59.001Z")),
     ).toBe(1);
   });
 
   it("is 0 the moment the wait ends and after it", () => {
-    expect(mercadoPagoQrChargeRemainingSeconds(WAIT_ENDS_AT, WAIT_ENDS_AT)).toBe(0);
+    expect(mercadoPagoOrderChargeRemainingSeconds(WAIT_ENDS_AT, WAIT_ENDS_AT)).toBe(0);
     expect(
-      mercadoPagoQrChargeRemainingSeconds(WAIT_ENDS_AT, new Date("2026-10-09T12:10:00.000Z")),
+      mercadoPagoOrderChargeRemainingSeconds(WAIT_ENDS_AT, new Date("2026-10-09T12:10:00.000Z")),
     ).toBe(0);
   });
 });
 
-describe("mercadoPagoQrChargeWait", () => {
+describe("mercadoPagoOrderChargeWait", () => {
   it("is still waiting with the whole wait left right after the charge starts", () => {
-    expect(mercadoPagoQrChargeWait(WAIT_ENDS_AT, STARTED_AT)).toEqual({
+    expect(mercadoPagoOrderChargeWait(WAIT_ENDS_AT, STARTED_AT)).toEqual({
       kind: "waiting",
       remainingSeconds: 180,
     });
   });
 
   it("counts a started second as a second still left", () => {
-    expect(mercadoPagoQrChargeWait(WAIT_ENDS_AT, new Date("2026-10-09T12:02:59.001Z"))).toEqual({
+    expect(mercadoPagoOrderChargeWait(WAIT_ENDS_AT, new Date("2026-10-09T12:02:59.001Z"))).toEqual({
       kind: "waiting",
       remainingSeconds: 1,
     });
   });
 
   it("is over the moment the wait ends", () => {
-    expect(mercadoPagoQrChargeWait(WAIT_ENDS_AT, WAIT_ENDS_AT)).toEqual({ kind: "over" });
+    expect(mercadoPagoOrderChargeWait(WAIT_ENDS_AT, WAIT_ENDS_AT)).toEqual({ kind: "over" });
   });
 
   it("is over after the wait ends", () => {
-    expect(mercadoPagoQrChargeWait(WAIT_ENDS_AT, new Date("2026-10-09T12:10:00.000Z"))).toEqual({
+    expect(mercadoPagoOrderChargeWait(WAIT_ENDS_AT, new Date("2026-10-09T12:10:00.000Z"))).toEqual({
       kind: "over",
     });
   });
@@ -74,7 +74,7 @@ describe("mercadoPagoQrChargeWait", () => {
     fc.assert(
       fc.property(fc.integer({ min: 0, max: 400_000 }), (elapsedMs) => {
         const now = new Date(STARTED_AT.getTime() + elapsedMs);
-        const wait = mercadoPagoQrChargeWait(mercadoPagoQrChargeWaitEndsAt(STARTED_AT), now);
+        const wait = mercadoPagoOrderChargeWait(mercadoPagoOrderChargeWaitEndsAt(STARTED_AT), now);
         if (elapsedMs >= 180_000) {
           expect(wait).toEqual({ kind: "over" });
         } else {
@@ -89,26 +89,26 @@ describe("mercadoPagoQrChargeWait", () => {
   });
 });
 
-describe("MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS", () => {
+describe("MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS", () => {
   it("asks the cloud for the order's state every 3 seconds, at most", () => {
-    expect(MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS).toBe(3_000);
+    expect(MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS).toBe(3_000);
   });
 });
 
-describe("aQrChargeInItsWait", () => {
+describe("aMercadoPagoChargeInItsWait", () => {
   const pending = (waitEndsAt: Date) => ({ waitEndsAt });
 
   it("is false for a sale with no pending QR payment", () => {
-    expect(aQrChargeInItsWait([], STARTED_AT)).toBe(false);
+    expect(aMercadoPagoChargeInItsWait([], STARTED_AT)).toBe(false);
   });
 
   it("is true while a pending QR payment's wait has not ended", () => {
-    expect(aQrChargeInItsWait([pending(WAIT_ENDS_AT)], STARTED_AT)).toBe(true);
+    expect(aMercadoPagoChargeInItsWait([pending(WAIT_ENDS_AT)], STARTED_AT)).toBe(true);
   });
 
   it("is false once every pending QR payment's wait has ended", () => {
     expect(
-      aQrChargeInItsWait(
+      aMercadoPagoChargeInItsWait(
         [pending(new Date("2026-10-09T11:59:00.000Z")), pending(WAIT_ENDS_AT)],
         WAIT_ENDS_AT,
       ),
@@ -117,7 +117,7 @@ describe("aQrChargeInItsWait", () => {
 
   it("is true when any of several pending QR payments is still in its wait", () => {
     expect(
-      aQrChargeInItsWait(
+      aMercadoPagoChargeInItsWait(
         [pending(new Date("2026-10-09T11:59:00.000Z")), pending(WAIT_ENDS_AT)],
         STARTED_AT,
       ),

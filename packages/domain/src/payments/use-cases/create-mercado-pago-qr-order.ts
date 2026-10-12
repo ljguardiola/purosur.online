@@ -1,13 +1,13 @@
-import { MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES } from "../model/mercado-pago-qr-charge-wait.js";
+import { MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES } from "../model/mercado-pago-order-charge-wait.js";
 import {
   isValidOrderAmount,
-  type MercadoPagoQrOrderTransaction,
+  type MercadoPagoOrderTransaction,
   mercadoPagoOrderExpiresAt,
 } from "../model/payment-transaction.js";
 import {
-  type MercadoPagoQrOrderPorts,
+  type MercadoPagoOrderPorts,
   PaymentTransactionAlreadyRecorded,
-} from "./mercado-pago-qr-order-ports.js";
+} from "./mercado-pago-order-ports.js";
 import { recordExpiryWithoutOrder } from "./record-expiry-without-order.js";
 import {
   recordCreatedMercadoPagoOrder,
@@ -22,7 +22,7 @@ export interface CreateMercadoPagoQrOrderInput {
 }
 
 export type CreateMercadoPagoQrOrderOutcome =
-  | { kind: "recorded"; transaction: MercadoPagoQrOrderTransaction }
+  | { kind: "recorded"; transaction: MercadoPagoOrderTransaction }
   | { kind: "invalid_amount" }
   | { kind: "request_mismatch" }
   | { kind: "not_owned" }
@@ -30,7 +30,7 @@ export type CreateMercadoPagoQrOrderOutcome =
   | { kind: "provider_unavailable" };
 
 export async function createMercadoPagoQrOrder(
-  { lanes, mercadoPago, clock }: MercadoPagoQrOrderPorts,
+  { lanes, mercadoPago, clock }: MercadoPagoOrderPorts,
   { registerId, paymentTransactionId, saleId, amount }: CreateMercadoPagoQrOrderInput,
 ): Promise<CreateMercadoPagoQrOrderOutcome> {
   if (!isValidOrderAmount(amount)) {
@@ -45,7 +45,7 @@ export async function createMercadoPagoQrOrder(
         return { kind: "request_mismatch" };
       }
 
-      let transaction: MercadoPagoQrOrderTransaction;
+      let transaction: MercadoPagoOrderTransaction;
       if (recorded === null) {
         const createdAt = clock.now();
         transaction = {
@@ -97,7 +97,7 @@ export async function createMercadoPagoQrOrder(
           idempotencyKey: paymentTransactionId,
           externalReference: paymentTransactionId,
           amount,
-          expiresAfterMinutes: MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES,
+          expiresAfterMinutes: MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
         });
         const earlierAttemptMayHaveCreatedOrder = recorded?.creationOutcomeUnknown === true;
         if (creation.kind === "refused" || creation.kind === "throttled") {

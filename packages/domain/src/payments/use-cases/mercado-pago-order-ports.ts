@@ -2,7 +2,7 @@ import type { Clock } from "../../shared/index.js";
 import type { MercadoPagoOrderResult } from "../model/mercado-pago-order-result.js";
 import type { LatePaymentRefund } from "../model/payment-refund.js";
 import type {
-  MercadoPagoQrOrderTransaction,
+  MercadoPagoOrderTransaction,
   PaymentTransactionState,
 } from "../model/payment-transaction.js";
 
@@ -29,8 +29,8 @@ export interface PaymentTransactionLane {
   recordedTransaction(
     registerId: string,
     paymentTransactionId: string,
-  ): Promise<MercadoPagoQrOrderTransaction | null>;
-  recordPendingTransaction(transaction: MercadoPagoQrOrderTransaction): Promise<void>;
+  ): Promise<MercadoPagoOrderTransaction | null>;
+  recordPendingTransaction(transaction: MercadoPagoOrderTransaction): Promise<void>;
   recordCreationAttempt(paymentTransactionId: string, expiresAt: Date): Promise<void>;
   recordCreationCreatedNothing(paymentTransactionId: string): Promise<void>;
   recordNeedsReview(paymentTransactionId: string): Promise<void>;
@@ -95,7 +95,7 @@ export interface MercadoPagoCancellationKeys {
   newCancellationKey(): string;
 }
 
-export interface MercadoPagoQrOrderPorts {
+export interface MercadoPagoOrderPorts {
   lanes: PaymentTransactionLanes;
   mercadoPago: MercadoPagoOrders;
   clock: Clock;

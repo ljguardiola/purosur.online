@@ -5,12 +5,12 @@ import {
   mercadoPagoQrOrderRequestSchema,
   mercadoPagoQrPaymentSchema,
 } from "@purosur/contracts";
-import type { MercadoPagoQrOrderTransaction } from "@purosur/domain";
+import type { MercadoPagoOrderTransaction } from "@purosur/domain";
 import {
-  cancelMercadoPagoQrOrder,
+  cancelMercadoPagoOrder,
   createMercadoPagoQrOrder,
   type MercadoPagoOrders,
-  readMercadoPagoQrPayment,
+  readMercadoPagoOrderPayment,
 } from "@purosur/domain/payments/use-cases";
 import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -66,7 +66,7 @@ function sendError(reply: FastifyReply, error: CloudErrorBody) {
   return reply.code(cloudErrorStatus(error.code)).send(error);
 }
 
-function toWire(transaction: MercadoPagoQrOrderTransaction): MercadoPagoQrPaymentBody {
+function toWire(transaction: MercadoPagoOrderTransaction): MercadoPagoQrPaymentBody {
   return {
     payment_transaction_id: transaction.id,
     state: transaction.state,
@@ -188,7 +188,7 @@ export function registerMercadoPagoQrRoutes<TQueryResult extends PgQueryResultHK
           return;
         }
 
-        const outcome = await readMercadoPagoQrPayment(
+        const outcome = await readMercadoPagoOrderPayment(
           { lanes, mercadoPago, clock },
           { registerId, paymentTransactionId: ids.id },
         );
@@ -227,7 +227,7 @@ export function registerMercadoPagoQrRoutes<TQueryResult extends PgQueryResultHK
           return;
         }
 
-        const outcome = await cancelMercadoPagoQrOrder(
+        const outcome = await cancelMercadoPagoOrder(
           { lanes, mercadoPago, cancellationKeys: randomMercadoPagoCancellationKeys, clock },
           { registerId, paymentTransactionId: ids.id },
         );

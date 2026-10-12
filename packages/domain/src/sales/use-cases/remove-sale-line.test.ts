@@ -229,7 +229,7 @@ describe("removeSaleLine on a sale with an approved payment", () => {
 
 describe("removeSaleLine while a QR charge of the sale is in its wait", () => {
   it("refuses to remove a line, writing nothing", () => {
-    const store = ledger({ pendingQrPayments: [IN_ITS_WAIT] });
+    const store = ledger({ pendingMercadoPagoPayments: [IN_ITS_WAIT] });
     const before = structuredClone(store.state);
 
     expect(remove(store, "line-1")).toEqual({ kind: "sale_has_payments" });
@@ -237,7 +237,7 @@ describe("removeSaleLine while a QR charge of the sale is in its wait", () => {
   });
 
   it("removes it again once the wait has ended", () => {
-    const store = ledger({ pendingQrPayments: [WAIT_ENDED] });
+    const store = ledger({ pendingMercadoPagoPayments: [WAIT_ENDED] });
 
     expect(remove(store, "line-1")).toMatchObject({ kind: "removed" });
   });

@@ -13,8 +13,8 @@ const APPROVED_PAYMENT_LOCK = "La venta ya no se puede cambiar porque tiene un p
 
 const SALE_IN_A_QR_WAIT: OpenSale = {
   ...SALE_OF_YERBA,
-  lines_lock: "qr_charge_in_progress",
-  cancel_refusal: "qr_charge_in_progress",
+  lines_lock: "mercado_pago_charge_in_progress",
+  cancel_refusal: "mercado_pago_charge_in_progress",
 };
 const SALE_WITH_QR_PAYMENT: OpenSale = {
   ...SALE_OF_YERBA,

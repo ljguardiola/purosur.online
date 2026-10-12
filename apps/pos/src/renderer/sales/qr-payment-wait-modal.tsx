@@ -1,6 +1,6 @@
 import type {
-  AbandonMercadoPagoQrChargeOutcome,
-  FollowMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
 import {
@@ -29,10 +29,7 @@ import type { ShownQrOrder } from "./qr-charge-modal";
 import type { FollowedQrCharge } from "./sales-queries";
 import { useAbandonQrChargeMutation, useQrChargeQuery } from "./sales-queries";
 
-export type CompletedQrPayment = Extract<
-  FollowMercadoPagoQrChargeOutcome,
-  { kind: "completed" }
-> & {
+export type CompletedQrPayment = Extract<FollowMercadoPagoChargeOutcome, { kind: "completed" }> & {
   amount: number;
 };
 
@@ -42,8 +39,8 @@ export type QrPaymentWaitModalProps = {
   total: number;
   paid: number;
   order: ShownQrOrder;
-  follow: (paymentTransactionId: string) => Promise<FollowMercadoPagoQrChargeOutcome>;
-  abandon: (paymentTransactionId: string) => Promise<AbandonMercadoPagoQrChargeOutcome>;
+  follow: (paymentTransactionId: string) => Promise<FollowMercadoPagoChargeOutcome>;
+  abandon: (paymentTransactionId: string) => Promise<AbandonMercadoPagoChargeOutcome>;
   onCancelled: () => void;
   onChooseAnotherMethod: () => void;
   onCompleted: (payment: CompletedQrPayment) => void;
@@ -129,7 +126,7 @@ export function QrPaymentWaitModal({
     }
   });
 
-  const leaveWhenAbandoned = useEffectEvent((answer: AbandonMercadoPagoQrChargeOutcome) => {
+  const leaveWhenAbandoned = useEffectEvent((answer: AbandonMercadoPagoChargeOutcome) => {
     switch (answer.kind) {
       case "cancelled":
         onCancelled();

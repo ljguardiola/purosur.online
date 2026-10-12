@@ -1,5 +1,5 @@
 import type { LatePaymentRefund } from "../../model/payment-refund.js";
-import type { MercadoPagoQrOrderTransaction } from "../../model/payment-transaction.js";
+import type { MercadoPagoOrderTransaction } from "../../model/payment-transaction.js";
 import {
   type LatePaymentRefundOpening,
   PaymentTransactionAlreadyRecorded,
@@ -8,7 +8,7 @@ import {
   type PaymentTransactionOutcome,
   type PaymentTransactionReading,
   type RecordedOrderState,
-} from "../mercado-pago-qr-order-ports.js";
+} from "../mercado-pago-order-ports.js";
 
 type LaneWrite =
   | "recordPendingTransaction"
@@ -36,13 +36,13 @@ class FakeLane implements PaymentTransactionLane {
   async recordedTransaction(
     registerId: string,
     paymentTransactionId: string,
-  ): Promise<MercadoPagoQrOrderTransaction | null> {
+  ): Promise<MercadoPagoOrderTransaction | null> {
     this.lanes.operations.push("recordedTransaction");
     const stored = this.lanes.transactions.get(paymentTransactionId);
     return stored?.registerId === registerId ? structuredClone(stored) : null;
   }
 
-  async recordPendingTransaction(transaction: MercadoPagoQrOrderTransaction): Promise<void> {
+  async recordPendingTransaction(transaction: MercadoPagoOrderTransaction): Promise<void> {
     this.lanes.operations.push("recordPendingTransaction");
     this.lanes.failIfAsked("recordPendingTransaction");
     if (this.lanes.racer) {
@@ -191,21 +191,21 @@ function replaceContents<TValue>(live: Map<string, TValue>, saved: Map<string, T
 
 export class FakePaymentTransactionLanes implements PaymentTransactionLanes {
   readonly operations: string[] = [];
-  readonly transactions = new Map<string, MercadoPagoQrOrderTransaction>();
+  readonly transactions = new Map<string, MercadoPagoOrderTransaction>();
   readonly resultReadAt = new Map<string, Date>();
   readonly latePaymentRefunds = new Map<string, OpenedLatePaymentRefund>();
   replacementLandsBeforeNextWrite = false;
   readonly lanesEntered: string[] = [];
   held = false;
   failOn: LaneWrite | undefined;
-  racer: MercadoPagoQrOrderTransaction | undefined;
+  racer: MercadoPagoOrderTransaction | undefined;
 
-  seed(transaction: MercadoPagoQrOrderTransaction) {
+  seed(transaction: MercadoPagoOrderTransaction) {
     this.transactions.set(transaction.id, structuredClone(transaction));
   }
 
   restore(before: {
-    transactions: Map<string, MercadoPagoQrOrderTransaction>;
+    transactions: Map<string, MercadoPagoOrderTransaction>;
     resultReadAt: Map<string, Date>;
     latePaymentRefunds: Map<string, OpenedLatePaymentRefund>;
   }) {

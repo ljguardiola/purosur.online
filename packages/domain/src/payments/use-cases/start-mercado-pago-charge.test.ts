@@ -1,62 +1,62 @@
 import { describe, expect, it } from "vitest";
-import { startMercadoPagoQrCharge } from "./start-mercado-pago-qr-charge.js";
+import { startMercadoPagoCharge } from "./start-mercado-pago-charge.js";
 import {
-  FakeMercadoPagoQrChargeWorld,
-  QR_ACTOR_ID,
-  QR_CHARGE_NOW,
-  QR_CHARGE_WAIT_ENDS_AT,
-  QR_PAYMENT_ID,
-  QR_SALE_ID,
-} from "./test-support/mercado-pago-qr-charge-world.js";
+  CHARGE_ACTOR_ID,
+  CHARGE_NOW,
+  CHARGE_PAYMENT_ID,
+  CHARGE_SALE_ID,
+  CHARGE_WAIT_ENDS_AT,
+  FakeMercadoPagoChargeWorld,
+} from "./test-support/mercado-pago-charge-world.js";
 
 function recordedWaitEnd(waitEndsAt: Date): string {
   return ["recordWaitEnd", waitEndsAt.toISOString()].join(":");
 }
 
-const INPUT = { actorId: QR_ACTOR_ID, saleId: QR_SALE_ID, amount: 5000 };
+const INPUT = { actorId: CHARGE_ACTOR_ID, saleId: CHARGE_SALE_ID, amount: 5000 };
 
-describe("startMercadoPagoQrCharge", () => {
+describe("startMercadoPagoCharge", () => {
   it("keeps the pending payment, with the end of its 3-minute wait, before asking the cloud for the order", async () => {
-    const world = new FakeMercadoPagoQrChargeWorld();
+    const world = new FakeMercadoPagoChargeWorld();
 
-    await startMercadoPagoQrCharge(world.ports, INPUT);
+    await startMercadoPagoCharge(world.ports, INPUT);
 
     expect(world.recordedPayments).toEqual([
-      { ...INPUT, occurredAt: QR_CHARGE_NOW, waitEndsAt: QR_CHARGE_WAIT_ENDS_AT },
+      { ...INPUT, occurredAt: CHARGE_NOW, waitEndsAt: CHARGE_WAIT_ENDS_AT },
     ]);
     expect(world.operations).toEqual([
       "recordPendingPayment",
       "requestOrder",
-      recordedWaitEnd(QR_CHARGE_WAIT_ENDS_AT),
+      recordedWaitEnd(CHARGE_WAIT_ENDS_AT),
     ]);
   });
 
   it("asks the cloud for an order of the pending payment's id, sale and amount", async () => {
-    const world = new FakeMercadoPagoQrChargeWorld();
+    const world = new FakeMercadoPagoChargeWorld();
 
-    await startMercadoPagoQrCharge(world.ports, INPUT);
+    await startMercadoPagoCharge(world.ports, INPUT);
 
     expect(world.requestedOrders).toEqual([
-      { paymentTransactionId: QR_PAYMENT_ID, saleId: QR_SALE_ID, amount: 5000 },
+      { paymentTransactionId: CHARGE_PAYMENT_ID, saleId: CHARGE_SALE_ID, amount: 5000 },
     ]);
   });
 
   it("shows the order with the amount and the wait left once the cloud creates it", async () => {
-    const world = new FakeMercadoPagoQrChargeWorld();
+    const world = new FakeMercadoPagoChargeWorld();
 
-    expect(await startMercadoPagoQrCharge(world.ports, INPUT)).toEqual({
+    expect(await startMercadoPagoCharge(world.ports, INPUT)).toEqual({
       kind: "order_shown",
-      paymentTransactionId: QR_PAYMENT_ID,
+      paymentTransactionId: CHARGE_PAYMENT_ID,
       amount: 5000,
       remainingSeconds: 180,
     });
   });
 
   it("passes on the sale's refusal and asks the cloud for nothing", async () => {
-    const world = new FakeMercadoPagoQrChargeWorld();
+    const world = new FakeMercadoPagoChargeWorld();
     world.saleRefusal = { kind: "exceeds_pending", pending: 3000 };
 
-    expect(await startMercadoPagoQrCharge(world.ports, INPUT)).toEqual({
+    expect(await startMercadoPagoCharge(world.ports, INPUT)).toEqual({
       kind: "exceeds_pending",
       pending: 3000,
     });
@@ -69,7 +69,7 @@ describe("startMercadoPagoQrCharge", () => {
   ] as const)(
     "answers $outcome.kind when the cloud's answer is $answer.kind, keeping the payment pending, since the order may exist, with its wait ended when the cloud answered",
     async ({ answer, outcome }) => {
-      const world = new FakeMercadoPagoQrChargeWorld();
+      const world = new FakeMercadoPagoChargeWorld();
       const answeredAt = new Date("2026-10-09T12:00:04.000Z");
       world.requestOrder = async () => {
         world.operations.push("requestOrder");
@@ -77,8 +77,8 @@ describe("startMercadoPagoQrCharge", () => {
         return answer;
       };
 
-      expect(await startMercadoPagoQrCharge(world.ports, INPUT)).toEqual(outcome);
-      expect(world.pendingCharge(QR_PAYMENT_ID)?.waitEndsAt).toEqual(answeredAt);
+      expect(await startMercadoPagoCharge(world.ports, INPUT)).toEqual(outcome);
+      expect(world.pendingCharge(CHARGE_PAYMENT_ID)?.waitEndsAt).toEqual(answeredAt);
       expect(world.operations).toEqual([
         "recordPendingPayment",
         "requestOrder",
@@ -88,15 +88,15 @@ describe("startMercadoPagoQrCharge", () => {
   );
 
   it("ends the wait when the cloud says the order expires, whenever that is", async () => {
-    const world = new FakeMercadoPagoQrChargeWorld();
+    const world = new FakeMercadoPagoChargeWorld();
     const expiresAt = new Date("2026-10-09T12:03:10.000Z");
     world.orderAnswer = { kind: "created", expiresAt };
 
-    expect(await startMercadoPagoQrCharge(world.ports, INPUT)).toMatchObject({
+    expect(await startMercadoPagoCharge(world.ports, INPUT)).toMatchObject({
       kind: "order_shown",
       remainingSeconds: 190,
     });
-    expect(world.pendingCharge(QR_PAYMENT_ID)?.waitEndsAt).toEqual(expiresAt);
+    expect(world.pendingCharge(CHARGE_PAYMENT_ID)?.waitEndsAt).toEqual(expiresAt);
     expect(world.operations).toEqual([
       "recordPendingPayment",
       "requestOrder",
@@ -105,22 +105,22 @@ describe("startMercadoPagoQrCharge", () => {
   });
 
   it("counts the time the cloud took against the wait that ends at the order's expiry", async () => {
-    const world = new FakeMercadoPagoQrChargeWorld();
+    const world = new FakeMercadoPagoChargeWorld();
     world.requestOrder = async () => {
       world.now = new Date("2026-10-09T12:00:02.000Z");
       return { kind: "created", expiresAt: new Date("2026-10-09T12:03:10.000Z") };
     };
 
-    expect(await startMercadoPagoQrCharge(world.ports, INPUT)).toMatchObject({
+    expect(await startMercadoPagoCharge(world.ports, INPUT)).toMatchObject({
       remainingSeconds: 188,
     });
   });
 
   it("shows no time left when the order the cloud created has already expired", async () => {
-    const world = new FakeMercadoPagoQrChargeWorld();
+    const world = new FakeMercadoPagoChargeWorld();
     world.orderAnswer = { kind: "created", expiresAt: new Date("2026-10-08T12:00:00.000Z") };
 
-    expect(await startMercadoPagoQrCharge(world.ports, INPUT)).toMatchObject({
+    expect(await startMercadoPagoCharge(world.ports, INPUT)).toMatchObject({
       remainingSeconds: 0,
     });
   });

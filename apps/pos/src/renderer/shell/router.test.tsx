@@ -169,9 +169,9 @@ function contextWith(
     cashCharge: async () => ({ kind: "invalid_amount" }),
     chargeSaleInCash: async () => ({ kind: "unavailable" }),
     chargeSaleByTransfer: async () => ({ kind: "unavailable" }),
-    startMercadoPagoQrCharge: async () => ({ kind: "unavailable" }),
-    followMercadoPagoQrCharge: async () => ({ kind: "unavailable" }),
-    abandonMercadoPagoQrCharge: async () => ({ kind: "unavailable" }),
+    startMercadoPagoCharge: async () => ({ kind: "unavailable" }),
+    followMercadoPagoCharge: async () => ({ kind: "unavailable" }),
+    abandonMercadoPagoCharge: async () => ({ kind: "unavailable" }),
     scanProduct: async () => ({ kind: "unknown_code" }),
     searchProducts: async () => ({ kind: "results", products: [], more: false }),
     addProduct: async () => ({ kind: "product_unavailable" }),
@@ -2155,7 +2155,7 @@ describe("the charge route's Mercado Pago QR", () => {
       {
         ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
         ...SALE_TO_CHARGE,
-        startMercadoPagoQrCharge: async (saleId, amount) => {
+        startMercadoPagoCharge: async (saleId, amount) => {
           started.push([saleId, amount]);
           return { kind: "unavailable" };
         },

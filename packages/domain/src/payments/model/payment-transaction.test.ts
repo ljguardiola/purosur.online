@@ -5,12 +5,12 @@ import {
   expiryWithoutOrder,
   isLateApproval,
   isValidOrderAmount,
-  type MercadoPagoQrOrderTransaction,
+  type MercadoPagoOrderTransaction,
   mayHaveUnrecordedOrder,
   mercadoPagoOrderExpiresAt,
   PAYMENT_TRANSACTION_STATES,
   type PaymentTransaction,
-  type PendingQrSalePayment,
+  type PendingMercadoPagoSalePayment,
   type SalePayment,
 } from "./payment-transaction.js";
 
@@ -33,8 +33,8 @@ describe("PaymentTransaction", () => {
 
   it("records what the register and the cloud each know of a transaction as that transaction", () => {
     expectTypeOf<SalePayment>().toExtend<PaymentTransaction>();
-    expectTypeOf<PendingQrSalePayment>().toExtend<PaymentTransaction>();
-    expectTypeOf<MercadoPagoQrOrderTransaction>().toExtend<PaymentTransaction>();
+    expectTypeOf<PendingMercadoPagoSalePayment>().toExtend<PaymentTransaction>();
+    expectTypeOf<MercadoPagoOrderTransaction>().toExtend<PaymentTransaction>();
   });
 
   it("records only approved payments in a sale", () => {
@@ -44,10 +44,10 @@ describe("PaymentTransaction", () => {
   });
 
   it("records the cloud's Mercado Pago QR transaction as the transaction of a sale and nothing else", () => {
-    type WithoutKind = Omit<MercadoPagoQrOrderTransaction, "kind">;
+    type WithoutKind = Omit<MercadoPagoOrderTransaction, "kind">;
 
-    expectTypeOf<WithoutKind>().not.toExtend<MercadoPagoQrOrderTransaction>();
-    expectTypeOf<WithoutKind & { kind: "REFUND" }>().not.toExtend<MercadoPagoQrOrderTransaction>();
+    expectTypeOf<WithoutKind>().not.toExtend<MercadoPagoOrderTransaction>();
+    expectTypeOf<WithoutKind & { kind: "REFUND" }>().not.toExtend<MercadoPagoOrderTransaction>();
   });
 });
 
@@ -153,7 +153,7 @@ describe("awaitsUnrecordedOrder", () => {
 describe("mayHaveUnrecordedOrder", () => {
   function transactionWhoseCreation(
     outcome: "unknown" | "known",
-    overrides: Partial<Pick<MercadoPagoQrOrderTransaction, "state" | "providerOrderId">> = {},
+    overrides: Partial<Pick<MercadoPagoOrderTransaction, "state" | "providerOrderId">> = {},
   ) {
     return {
       state: "PENDING",

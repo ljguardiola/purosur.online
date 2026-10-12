@@ -299,13 +299,15 @@ describe("change-line-weight while a QR charge of the sale is in its wait", () =
   });
 
   it("refuses to change a line", () => {
-    const store = ledger({ pendingQrPayments: [pending(new Date(NOW.getTime() + 60_000))] });
+    const store = ledger({
+      pendingMercadoPagoPayments: [pending(new Date(NOW.getTime() + 60_000))],
+    });
 
     expect(retype(store, "line-1", 1500)).toEqual({ kind: "sale_has_payments" });
   });
 
   it("changes a line once the wait has ended", () => {
-    const store = ledger({ pendingQrPayments: [pending(new Date(NOW.getTime() - 1))] });
+    const store = ledger({ pendingMercadoPagoPayments: [pending(new Date(NOW.getTime() - 1))] });
 
     expect(retype(store, "line-1", 1500).kind).toBe("changed");
   });

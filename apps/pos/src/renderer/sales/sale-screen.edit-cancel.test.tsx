@@ -431,7 +431,7 @@ describe("SaleScreen cancelling the sale", () => {
   it("tells the sale cannot be cancelled yet while its QR charge is waiting", async () => {
     const { screen } = await renderScreen({
       currentSale: async () => SALE_OF_YERBA,
-      cancelSale: async () => ({ kind: "qr_charge_in_progress" }),
+      cancelSale: async () => ({ kind: "mercado_pago_charge_in_progress" }),
     });
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 

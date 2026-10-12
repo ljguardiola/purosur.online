@@ -1,22 +1,22 @@
-import type { MercadoPagoQrOrderTransaction } from "../model/payment-transaction.js";
-import type { MercadoPagoQrOrderPorts } from "./mercado-pago-qr-order-ports.js";
+import type { MercadoPagoOrderTransaction } from "../model/payment-transaction.js";
+import type { MercadoPagoOrderPorts } from "./mercado-pago-order-ports.js";
 import { refreshMercadoPagoTransaction } from "./refresh-mercado-pago-transaction.js";
 
-export interface ReadMercadoPagoQrPaymentInput {
+export interface ReadMercadoPagoOrderPaymentInput {
   registerId: string;
   paymentTransactionId: string;
 }
 
-export type ReadMercadoPagoQrPaymentOutcome =
-  | { kind: "read"; transaction: MercadoPagoQrOrderTransaction }
+export type ReadMercadoPagoOrderPaymentOutcome =
+  | { kind: "read"; transaction: MercadoPagoOrderTransaction }
   | { kind: "not_found" }
   | { kind: "provider_unavailable" };
 
-export async function readMercadoPagoQrPayment(
-  { lanes, mercadoPago, clock }: MercadoPagoQrOrderPorts,
-  { registerId, paymentTransactionId }: ReadMercadoPagoQrPaymentInput,
-): Promise<ReadMercadoPagoQrPaymentOutcome> {
-  return lanes.inPaymentTransactionLane<ReadMercadoPagoQrPaymentOutcome>(
+export async function readMercadoPagoOrderPayment(
+  { lanes, mercadoPago, clock }: MercadoPagoOrderPorts,
+  { registerId, paymentTransactionId }: ReadMercadoPagoOrderPaymentInput,
+): Promise<ReadMercadoPagoOrderPaymentOutcome> {
+  return lanes.inPaymentTransactionLane<ReadMercadoPagoOrderPaymentOutcome>(
     paymentTransactionId,
     async (lane) => {
       const transaction = await lane.recordedTransaction(registerId, paymentTransactionId);

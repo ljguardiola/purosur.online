@@ -1,16 +1,16 @@
 import {
-  mercadoPagoQrChargeRemainingSeconds,
-  mercadoPagoQrChargeWaitEndsAt,
-} from "../model/mercado-pago-qr-charge-wait.js";
-import type { MercadoPagoQrChargePorts } from "./mercado-pago-qr-charge-ports.js";
+  mercadoPagoOrderChargeRemainingSeconds,
+  mercadoPagoOrderChargeWaitEndsAt,
+} from "../model/mercado-pago-order-charge-wait.js";
+import type { MercadoPagoChargePorts } from "./mercado-pago-charge-ports.js";
 
-export interface StartMercadoPagoQrChargeInput {
+export interface StartMercadoPagoChargeInput {
   actorId: string;
   saleId: string;
   amount: number;
 }
 
-export type StartMercadoPagoQrChargeOutcome<Refusal> =
+export type StartMercadoPagoChargeOutcome<Refusal> =
   | {
       kind: "order_shown";
       paymentTransactionId: string;
@@ -21,17 +21,17 @@ export type StartMercadoPagoQrChargeOutcome<Refusal> =
   | { kind: "unreachable" }
   | Refusal;
 
-export async function startMercadoPagoQrCharge<Refusal, Settlement>(
+export async function startMercadoPagoCharge<Refusal, Settlement>(
   {
     sale,
     orders,
     charges,
     clock,
-  }: Pick<MercadoPagoQrChargePorts<Refusal, Settlement>, "sale" | "orders" | "charges" | "clock">,
-  { actorId, saleId, amount }: StartMercadoPagoQrChargeInput,
-): Promise<StartMercadoPagoQrChargeOutcome<Refusal>> {
+  }: Pick<MercadoPagoChargePorts<Refusal, Settlement>, "sale" | "orders" | "charges" | "clock">,
+  { actorId, saleId, amount }: StartMercadoPagoChargeInput,
+): Promise<StartMercadoPagoChargeOutcome<Refusal>> {
   const startedAt = clock.now();
-  const waitEndsAt = mercadoPagoQrChargeWaitEndsAt(startedAt);
+  const waitEndsAt = mercadoPagoOrderChargeWaitEndsAt(startedAt);
   const recorded = sale.recordPendingPayment({
     actorId,
     saleId,
@@ -55,6 +55,6 @@ export async function startMercadoPagoQrCharge<Refusal, Settlement>(
     kind: "order_shown",
     paymentTransactionId,
     amount,
-    remainingSeconds: mercadoPagoQrChargeRemainingSeconds(answer.expiresAt, clock.now()),
+    remainingSeconds: mercadoPagoOrderChargeRemainingSeconds(answer.expiresAt, clock.now()),
   };
 }

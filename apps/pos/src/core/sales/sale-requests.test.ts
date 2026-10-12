@@ -915,8 +915,8 @@ describe("the sale in progress", () => {
     addQrPayment(saleId, "PENDING", new Date(NOW.getTime() + 60_000));
 
     expect(await currentSaleFor(deps())).toMatchObject({
-      lines_lock: "qr_charge_in_progress",
-      cancel_refusal: "qr_charge_in_progress",
+      lines_lock: "mercado_pago_charge_in_progress",
+      cancel_refusal: "mercado_pago_charge_in_progress",
       refunds_on_cancel: [],
     });
   });

@@ -1,6 +1,6 @@
 import type {
   LatePaymentRefund,
-  MercadoPagoQrOrderTransaction,
+  MercadoPagoOrderTransaction,
   PaymentTransactionState,
 } from "@purosur/domain";
 import {
@@ -38,7 +38,7 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
   async recordedTransaction(
     registerId: string,
     paymentTransactionId: string,
-  ): Promise<MercadoPagoQrOrderTransaction | null> {
+  ): Promise<MercadoPagoOrderTransaction | null> {
     const [row] = await this.db
       .select()
       .from(paymentTransactions)
@@ -69,7 +69,7 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
     };
   }
 
-  async recordPendingTransaction(transaction: MercadoPagoQrOrderTransaction): Promise<void> {
+  async recordPendingTransaction(transaction: MercadoPagoOrderTransaction): Promise<void> {
     try {
       await this.db.insert(paymentTransactions).values(transaction);
     } catch (error) {

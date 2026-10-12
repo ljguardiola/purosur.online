@@ -1,7 +1,7 @@
 import type {
-  AbandonMercadoPagoQrChargeOutcome,
-  FollowMercadoPagoQrChargeOutcome,
-  StartMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
+  StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
 import type { IdGenerator } from "@purosur/domain/sales/use-cases";
 import {
@@ -31,13 +31,13 @@ export interface MercadoPagoQrChargingWiringDeps {
 
 interface MercadoPagoQrCharging {
   start:
-    | ((request: { saleId: string; amount: number }) => Promise<StartMercadoPagoQrChargeOutcome>)
+    | ((request: { saleId: string; amount: number }) => Promise<StartMercadoPagoChargeOutcome>)
     | undefined;
   follow:
-    | ((request: { paymentTransactionId: string }) => Promise<FollowMercadoPagoQrChargeOutcome>)
+    | ((request: { paymentTransactionId: string }) => Promise<FollowMercadoPagoChargeOutcome>)
     | undefined;
   abandon:
-    | ((request: { paymentTransactionId: string }) => Promise<AbandonMercadoPagoQrChargeOutcome>)
+    | ((request: { paymentTransactionId: string }) => Promise<AbandonMercadoPagoChargeOutcome>)
     | undefined;
 }
 

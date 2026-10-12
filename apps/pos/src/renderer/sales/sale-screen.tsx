@@ -137,7 +137,7 @@ const LETTER = /\p{L}/u;
 
 const LOCKED_REASONS: Record<NonNullable<OpenSale["lines_lock"]>, string> = {
   approved_payment: "La venta ya no se puede cambiar porque tiene un pago aprobado.",
-  qr_charge_in_progress: "Hay un cobro con QR en curso. Esperá a que termine.",
+  mercado_pago_charge_in_progress: "Hay un cobro con QR en curso. Esperá a que termine.",
 };
 
 function reportsCoreState(outcome: TakenOutcome): boolean {
@@ -533,7 +533,7 @@ export function SaleScreen({
         break;
       case "not_permitted":
       case "has_approved_payment":
-      case "qr_charge_in_progress":
+      case "mercado_pago_charge_in_progress":
         setProblem(outcome);
         break;
       case "sale_has_payments":

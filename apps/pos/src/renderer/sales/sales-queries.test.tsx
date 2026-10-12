@@ -1,7 +1,7 @@
 import type {
   CashChargeAnswer,
   CurrentSaleAnswer,
-  FollowMercadoPagoQrChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
   ManualAdjustmentRequest,
   OpenSale,
   PreviewSaleDiscountOutcome,
@@ -248,11 +248,14 @@ describe("current sale query", () => {
   it.each<[string, Pick<OpenSale, "lines_lock" | "cancel_refusal">]>([
     [
       "its lines are locked",
-      { lines_lock: "qr_charge_in_progress", cancel_refusal: "qr_charge_in_progress" },
+      {
+        lines_lock: "mercado_pago_charge_in_progress",
+        cancel_refusal: "mercado_pago_charge_in_progress",
+      },
     ],
     [
       "cancelling it is refused",
-      { lines_lock: "approved_payment", cancel_refusal: "qr_charge_in_progress" },
+      { lines_lock: "approved_payment", cancel_refusal: "mercado_pago_charge_in_progress" },
     ],
   ])(
     "reads the sale again every second while %s by a QR charge in its wait, and stops once the core lifts it",
@@ -285,11 +288,11 @@ describe("current sale query", () => {
   it("asks the core for the sale when it is read, answering and showing what the core says now", async () => {
     const read = vi
       .fn<() => Promise<CurrentSaleAnswer>>()
-      .mockResolvedValueOnce({ ...SALE, lines_lock: "qr_charge_in_progress" })
+      .mockResolvedValueOnce({ ...SALE, lines_lock: "mercado_pago_charge_in_progress" })
       .mockResolvedValue(SALE);
     document.title = "";
     const screen = await renderWithClient(<CurrentSaleProbe read={read} />);
-    await expect.element(screen.getByText("lines qr_charge_in_progress")).toBeVisible();
+    await expect.element(screen.getByText("lines mercado_pago_charge_in_progress")).toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "read" }));
 
@@ -692,9 +695,9 @@ describe("receipt print status query", () => {
   });
 });
 
-type Follow = (paymentTransactionId: string) => Promise<FollowMercadoPagoQrChargeOutcome>;
+type Follow = (paymentTransactionId: string) => Promise<FollowMercadoPagoChargeOutcome>;
 
-function followAnswering(...outcomes: FollowMercadoPagoQrChargeOutcome[]) {
+function followAnswering(...outcomes: FollowMercadoPagoChargeOutcome[]) {
   return vi.fn<Follow>(async () => {
     const outcome = outcomes.length > 1 ? outcomes.shift() : outcomes[0];
     return outcome ?? { kind: "unavailable" };

@@ -305,9 +305,9 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         transferCharges.push(request);
         return { kind: "no_open_sale" };
       },
-      startMercadoPagoQrCharge: undefined,
-      followMercadoPagoQrCharge: undefined,
-      abandonMercadoPagoQrCharge: undefined,
+      startMercadoPagoCharge: undefined,
+      followMercadoPagoCharge: undefined,
+      abandonMercadoPagoCharge: undefined,
       searchProducts: async (query: string): Promise<SearchProductsOutcome> => {
         searches.push(query);
         return { kind: "results", products: [], more: false };
@@ -1206,7 +1206,7 @@ describe("answerRendererRequest", () => {
       remaining_seconds: 180,
     } as const;
     const { deps: withQr } = deps(true, {
-      startMercadoPagoQrCharge: async (request) => {
+      startMercadoPagoCharge: async (request) => {
         requests.push(request);
         return outcome;
       },
@@ -1214,7 +1214,7 @@ describe("answerRendererRequest", () => {
 
     expect(
       await answerRendererRequest(withQr, {
-        type: "start-mercado-pago-qr-charge",
+        type: "start-mercado-pago-charge",
         request_id: "r60",
         sale_id: "s1",
         amount: 1200,
@@ -1226,7 +1226,7 @@ describe("answerRendererRequest", () => {
   it("follows a Mercado Pago QR charge and answers the outcome", async () => {
     const requests: { paymentTransactionId: string }[] = [];
     const { deps: withQr } = deps(true, {
-      followMercadoPagoQrCharge: async (request) => {
+      followMercadoPagoCharge: async (request) => {
         requests.push(request);
         return { kind: "waiting", remaining_seconds: 100 };
       },
@@ -1234,7 +1234,7 @@ describe("answerRendererRequest", () => {
 
     expect(
       await answerRendererRequest(withQr, {
-        type: "follow-mercado-pago-qr-charge",
+        type: "follow-mercado-pago-charge",
         request_id: "r61",
         payment_transaction_id: "qr-1",
       }),
@@ -1249,7 +1249,7 @@ describe("answerRendererRequest", () => {
   it("abandons a Mercado Pago QR charge and answers the outcome", async () => {
     const requests: { paymentTransactionId: string }[] = [];
     const { deps: withQr } = deps(true, {
-      abandonMercadoPagoQrCharge: async (request) => {
+      abandonMercadoPagoCharge: async (request) => {
         requests.push(request);
         return { kind: "replaced" };
       },
@@ -1257,7 +1257,7 @@ describe("answerRendererRequest", () => {
 
     expect(
       await answerRendererRequest(withQr, {
-        type: "abandon-mercado-pago-qr-charge",
+        type: "abandon-mercado-pago-charge",
         request_id: "r66",
         payment_transaction_id: "qr-1",
       }),
@@ -1272,12 +1272,12 @@ describe("answerRendererRequest", () => {
   it("answers that abandoning a QR charge is unavailable when it fails or the register has no database, and reports why", async () => {
     const error = new Error("database is locked");
     const failing = deps(true, {
-      abandonMercadoPagoQrCharge: async () => {
+      abandonMercadoPagoCharge: async () => {
         throw error;
       },
     });
     const message = {
-      type: "abandon-mercado-pago-qr-charge",
+      type: "abandon-mercado-pago-charge",
       request_id: "r67",
       payment_transaction_id: "qr-1",
     } as const;
@@ -1295,17 +1295,17 @@ describe("answerRendererRequest", () => {
   it("answers that a QR charge is unavailable when it fails, and reports why", async () => {
     const error = new Error("database is locked");
     const failing = deps(true, {
-      startMercadoPagoQrCharge: async () => {
+      startMercadoPagoCharge: async () => {
         throw error;
       },
-      followMercadoPagoQrCharge: async () => {
+      followMercadoPagoCharge: async () => {
         throw error;
       },
     });
 
     expect(
       await answerRendererRequest(failing.deps, {
-        type: "start-mercado-pago-qr-charge",
+        type: "start-mercado-pago-charge",
         request_id: "r62",
         sale_id: "s1",
         amount: 1200,
@@ -1317,7 +1317,7 @@ describe("answerRendererRequest", () => {
     });
     expect(
       await answerRendererRequest(failing.deps, {
-        type: "follow-mercado-pago-qr-charge",
+        type: "follow-mercado-pago-charge",
         request_id: "r63",
         payment_transaction_id: "qr-1",
       }),
@@ -1337,7 +1337,7 @@ describe("answerRendererRequest", () => {
 
     expect(
       await answerRendererRequest(withoutDatabase, {
-        type: "start-mercado-pago-qr-charge",
+        type: "start-mercado-pago-charge",
         request_id: "r64",
         sale_id: "s1",
         amount: 1200,
@@ -1349,7 +1349,7 @@ describe("answerRendererRequest", () => {
     });
     expect(
       await answerRendererRequest(withoutDatabase, {
-        type: "follow-mercado-pago-qr-charge",
+        type: "follow-mercado-pago-charge",
         request_id: "r65",
         payment_transaction_id: "qr-1",
       }),

@@ -8,20 +8,20 @@ import {
 } from "../shared/index.js";
 
 export const startMercadoPagoQrChargeMessageSchema = z.object({
-  type: z.literal("start-mercado-pago-qr-charge"),
+  type: z.literal("start-mercado-pago-charge"),
   request_id: requestIdSchema,
   sale_id: z.string(),
   amount: z.int(),
 });
 
 const followMercadoPagoQrChargeMessageSchema = z.object({
-  type: z.literal("follow-mercado-pago-qr-charge"),
+  type: z.literal("follow-mercado-pago-charge"),
   request_id: requestIdSchema,
   payment_transaction_id: z.string(),
 });
 
 const abandonMercadoPagoQrChargeMessageSchema = z.object({
-  type: z.literal("abandon-mercado-pago-qr-charge"),
+  type: z.literal("abandon-mercado-pago-charge"),
   request_id: requestIdSchema,
   payment_transaction_id: z.string(),
 });
@@ -54,12 +54,12 @@ const startMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("order_refused") }),
   z.object({ kind: z.literal("unreachable") }),
-  z.object({ kind: z.literal("qr_charge_in_progress") }),
+  z.object({ kind: z.literal("mercado_pago_charge_in_progress") }),
   z.object({ kind: z.literal("invalid_amount") }),
   z.object({ kind: z.literal("exceeds_pending"), pending: z.int().nonnegative() }),
   ...saleChargeRefusals,
 ]);
-export type StartMercadoPagoQrChargeOutcome = z.infer<typeof startMercadoPagoQrChargeOutcomeSchema>;
+export type StartMercadoPagoChargeOutcome = z.infer<typeof startMercadoPagoQrChargeOutcomeSchema>;
 
 const unsettledQrChargeOutcomes = [
   z.object({ kind: z.literal("not_pending") }),
@@ -79,9 +79,7 @@ const followMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("declined") }),
   ...settledQrChargeOutcomes,
 ]);
-export type FollowMercadoPagoQrChargeOutcome = z.infer<
-  typeof followMercadoPagoQrChargeOutcomeSchema
->;
+export type FollowMercadoPagoChargeOutcome = z.infer<typeof followMercadoPagoQrChargeOutcomeSchema>;
 
 const abandonMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("cancelled") }),
@@ -93,7 +91,7 @@ const abandonMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind", [
   }),
   ...unsettledQrChargeOutcomes,
 ]);
-export type AbandonMercadoPagoQrChargeOutcome = z.infer<
+export type AbandonMercadoPagoChargeOutcome = z.infer<
   typeof abandonMercadoPagoQrChargeOutcomeSchema
 >;
 

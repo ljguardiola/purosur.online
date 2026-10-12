@@ -1,15 +1,15 @@
 import type {
-  AbandonMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
   CashChargeAnswer,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
-  FollowMercadoPagoQrChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
   OpenSale,
   ReceiptPrintStatusOutcome,
   RegisterStatus,
   RetryReceiptPrintOutcome,
-  StartMercadoPagoQrChargeOutcome,
+  StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
 import {
   InlineNotice,
@@ -89,16 +89,16 @@ export type ChargeScreenProps = {
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
   registerStatus: CoreData<RegisterStatus>;
-  startMercadoPagoQrCharge: (
+  startMercadoPagoCharge: (
     saleId: string,
     amount: number,
-  ) => Promise<StartMercadoPagoQrChargeOutcome>;
-  followMercadoPagoQrCharge: (
+  ) => Promise<StartMercadoPagoChargeOutcome>;
+  followMercadoPagoCharge: (
     paymentTransactionId: string,
-  ) => Promise<FollowMercadoPagoQrChargeOutcome>;
-  abandonMercadoPagoQrCharge: (
+  ) => Promise<FollowMercadoPagoChargeOutcome>;
+  abandonMercadoPagoCharge: (
     paymentTransactionId: string,
-  ) => Promise<AbandonMercadoPagoQrChargeOutcome>;
+  ) => Promise<AbandonMercadoPagoChargeOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
   retryReceiptPrint: (saleId: string) => Promise<RetryReceiptPrintOutcome>;
   onSessionInvalid: () => void;
@@ -114,9 +114,9 @@ export function ChargeScreen({
   chargeSaleInCash,
   chargeSaleByTransfer,
   registerStatus,
-  startMercadoPagoQrCharge,
-  followMercadoPagoQrCharge,
-  abandonMercadoPagoQrCharge,
+  startMercadoPagoCharge,
+  followMercadoPagoCharge,
+  abandonMercadoPagoCharge,
   receiptPrintStatus,
   retryReceiptPrint,
   onSessionInvalid,
@@ -253,7 +253,7 @@ export function ChargeScreen({
           total={sale.total}
           paid={sale.paid}
           pending={sale.pending}
-          start={(amount) => startMercadoPagoQrCharge(sale.id, amount)}
+          start={(amount) => startMercadoPagoCharge(sale.id, amount)}
           onChooseAnotherMethod={() => void backToMethodsWithBalance()}
           onOrderShown={(order) => setStep({ name: "qr-wait", order, sale })}
           onSaleUnavailable={backToSale}
@@ -265,8 +265,8 @@ export function ChargeScreen({
           total={step.sale.total}
           paid={step.sale.paid}
           order={step.order}
-          follow={followMercadoPagoQrCharge}
-          abandon={abandonMercadoPagoQrCharge}
+          follow={followMercadoPagoCharge}
+          abandon={abandonMercadoPagoCharge}
           onCancelled={() => {
             setNotice("cancelled");
             void backToMethodsWithBalance();

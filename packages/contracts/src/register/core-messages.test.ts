@@ -598,7 +598,7 @@ describe("the open sale of the cash session", () => {
   it.each([
     openSale,
     { ...openSale, total: 0, cancellable: false },
-    { ...openSale, cancellable: false, cancel_refusal: "qr_charge_in_progress" },
+    { ...openSale, cancellable: false, cancel_refusal: "mercado_pago_charge_in_progress" },
     { ...openSale, paid: 3200, cancellable: false, cancel_refusal: "holds_qr_payment" },
     { ...openSale, paid: 3200, refunds_on_cancel: [cashRefund, transferRefund] },
     null,

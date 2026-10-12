@@ -129,11 +129,11 @@ export type {
 } from "./receipt-ports.js";
 export type { ReceiptPrintGrant, ReceiptPrintOutcome } from "./receipt-printing.js";
 export type {
-  PendingQrPaymentRefusal,
-  RecordPendingQrPaymentInput,
-  RecordPendingQrPaymentOutcome,
-} from "./record-pending-qr-payment.js";
-export { recordPendingQrPayment } from "./record-pending-qr-payment.js";
+  PendingMercadoPagoPaymentRefusal,
+  RecordPendingMercadoPagoPaymentInput,
+  RecordPendingMercadoPagoPaymentOutcome,
+} from "./record-pending-mercado-pago-payment.js";
+export { recordPendingMercadoPagoPayment } from "./record-pending-mercado-pago-payment.js";
 export type {
   RegisterSalesHistory,
   SaleHistoryRecord,
@@ -188,10 +188,10 @@ export type {
 } from "./search-products-by-name.js";
 export { searchProductsByName } from "./search-products-by-name.js";
 export type {
-  SettleApprovedQrPaymentInput,
-  SettleApprovedQrPaymentOutcome,
-} from "./settle-approved-qr-payment.js";
-export { settleApprovedQrPayment } from "./settle-approved-qr-payment.js";
+  SettleApprovedMercadoPagoPaymentInput,
+  SettleApprovedMercadoPagoPaymentOutcome,
+} from "./settle-approved-mercado-pago-payment.js";
+export { settleApprovedMercadoPagoPayment } from "./settle-approved-mercado-pago-payment.js";
 export type {
   WeighProductOnScaleInput,
   WeighProductOnScaleOutcome,

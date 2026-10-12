@@ -1,5 +1,5 @@
 import { encodePinHash } from "@purosur/contracts";
-import type { MercadoPagoQrChargeOrders } from "@purosur/domain/payments/use-cases";
+import type { MercadoPagoChargeOrders } from "@purosur/domain/payments/use-cases";
 import { derivePinVerifier } from "../../credentials/pin-verifier";
 import {
   abandonMercadoPagoQrChargeFor,
@@ -65,7 +65,7 @@ const PEPPER = Buffer.alloc(32, 9).toString("base64url");
 const PIN = "4826";
 const PIN_HASH = "hash-of-the-pin";
 
-const OFFLINE_QR_ORDERS: MercadoPagoQrChargeOrders = {
+const OFFLINE_QR_ORDERS: MercadoPagoChargeOrders = {
   requestOrder: async () => ({ kind: "created", expiresAt: new Date("2026-10-09T12:03:00.000Z") }),
   readOrder: async () => ({ kind: "unreachable" }),
   cancelOrder: async () => ({ kind: "unreachable" }),

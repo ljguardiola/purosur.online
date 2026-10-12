@@ -4,10 +4,10 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
 import type {
-  MercadoPagoQrChargeOrderAnswer,
-  MercadoPagoQrChargeOrderCancellation,
-  MercadoPagoQrChargeOrderReading,
-  MercadoPagoQrChargeOrders,
+  MercadoPagoChargeOrderAnswer,
+  MercadoPagoChargeOrderCancellation,
+  MercadoPagoChargeOrderReading,
+  MercadoPagoChargeOrders,
 } from "@purosur/domain/payments/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
@@ -31,14 +31,14 @@ const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
 
-class FakeOrders implements MercadoPagoQrChargeOrders {
+class FakeOrders implements MercadoPagoChargeOrders {
   readonly requested: { paymentTransactionId: string; saleId: string; amount: number }[] = [];
-  answer: MercadoPagoQrChargeOrderAnswer = {
+  answer: MercadoPagoChargeOrderAnswer = {
     kind: "created",
     expiresAt: new Date("2026-10-09T12:03:00.000Z"),
   };
-  reading: MercadoPagoQrChargeOrderReading = { kind: "read", state: "PENDING" };
-  cancellation: MercadoPagoQrChargeOrderCancellation = { kind: "answered", state: "CANCELLED" };
+  reading: MercadoPagoChargeOrderReading = { kind: "read", state: "PENDING" };
+  cancellation: MercadoPagoChargeOrderCancellation = { kind: "answered", state: "CANCELLED" };
   cancelled: string[] = [];
   pendingRowsWhenAsked: unknown[] = [];
 
@@ -234,7 +234,7 @@ describe("starting a Mercado Pago QR charge at the register", () => {
 
     expect(
       await startMercadoPagoQrChargeFor(deps(new FakeOrders()), { saleId, amount: 1000 }),
-    ).toEqual({ kind: "qr_charge_in_progress" });
+    ).toEqual({ kind: "mercado_pago_charge_in_progress" });
   });
 
   it("answers that nobody is signed in, keeping nothing", async () => {

@@ -1,5 +1,5 @@
 import type {
-  AbandonMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
@@ -22,7 +22,7 @@ import type {
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
-  FollowMercadoPagoQrChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
   ManualAdjustmentRequest,
@@ -61,7 +61,7 @@ import type {
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
-  StartMercadoPagoQrChargeOutcome,
+  StartMercadoPagoChargeOutcome,
   SyncCoreToRendererMessage,
   WeighProductOutcome,
 } from "@purosur/contracts";
@@ -200,16 +200,9 @@ export interface CoreClient {
   cashCharge(saleId: string, tendered: number): Promise<CashChargeAnswer>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer(saleId: string, amount: number): Promise<ChargeSaleByTransferOutcome>;
-  startMercadoPagoQrCharge(
-    saleId: string,
-    amount: number,
-  ): Promise<StartMercadoPagoQrChargeOutcome>;
-  followMercadoPagoQrCharge(
-    paymentTransactionId: string,
-  ): Promise<FollowMercadoPagoQrChargeOutcome>;
-  abandonMercadoPagoQrCharge(
-    paymentTransactionId: string,
-  ): Promise<AbandonMercadoPagoQrChargeOutcome>;
+  startMercadoPagoCharge(saleId: string, amount: number): Promise<StartMercadoPagoChargeOutcome>;
+  followMercadoPagoCharge(paymentTransactionId: string): Promise<FollowMercadoPagoChargeOutcome>;
+  abandonMercadoPagoCharge(paymentTransactionId: string): Promise<AbandonMercadoPagoChargeOutcome>;
   closeCashSession(sessionId: string, countedCash: number): Promise<CloseCashSessionOutcome>;
   closeLockedCashSession(
     sessionId: string,
@@ -713,10 +706,10 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         (answer) => (answer.type === "charge-sale-by-transfer-result" ? answer.outcome : undefined),
       );
     },
-    startMercadoPagoQrCharge(saleId, amount) {
+    startMercadoPagoCharge(saleId, amount) {
       return ask(
         {
-          type: "start-mercado-pago-qr-charge",
+          type: "start-mercado-pago-charge",
           request_id: deps.newRequestId(),
           sale_id: saleId,
           amount,
@@ -725,10 +718,10 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           answer.type === "start-mercado-pago-qr-charge-result" ? answer.outcome : undefined,
       );
     },
-    followMercadoPagoQrCharge(paymentTransactionId) {
+    followMercadoPagoCharge(paymentTransactionId) {
       return ask(
         {
-          type: "follow-mercado-pago-qr-charge",
+          type: "follow-mercado-pago-charge",
           request_id: deps.newRequestId(),
           payment_transaction_id: paymentTransactionId,
         },
@@ -736,10 +729,10 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           answer.type === "follow-mercado-pago-qr-charge-result" ? answer.outcome : undefined,
       );
     },
-    abandonMercadoPagoQrCharge(paymentTransactionId) {
+    abandonMercadoPagoCharge(paymentTransactionId) {
       return ask(
         {
-          type: "abandon-mercado-pago-qr-charge",
+          type: "abandon-mercado-pago-charge",
           request_id: deps.newRequestId(),
           payment_transaction_id: paymentTransactionId,
         },

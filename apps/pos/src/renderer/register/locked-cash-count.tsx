@@ -52,7 +52,7 @@ const QR_CHARGE_IN_PROGRESS_MESSAGE =
 const HOLDS_QR_PAYMENT_MESSAGE =
   "La venta tiene un pago con QR: todavía no se puede anular desde la caja.";
 const CANCEL_REFUSAL_MESSAGES: Record<NonNullable<SessionOpenSale["cancel_refusal"]>, string> = {
-  qr_charge_in_progress: QR_CHARGE_IN_PROGRESS_MESSAGE,
+  mercado_pago_charge_in_progress: QR_CHARGE_IN_PROGRESS_MESSAGE,
   holds_qr_payment: HOLDS_QR_PAYMENT_MESSAGE,
 };
 
@@ -190,7 +190,7 @@ export function LockedCashCount({
       case "not_permitted":
       case "no_open_session":
         break;
-      case "qr_charge_in_progress":
+      case "mercado_pago_charge_in_progress":
       case "holds_qr_payment":
         setFailure(CANCEL_REFUSAL_MESSAGES[outcome.kind]);
         break;

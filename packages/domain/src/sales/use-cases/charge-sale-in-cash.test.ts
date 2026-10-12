@@ -169,7 +169,7 @@ describe("chargeSaleInCash", () => {
 
   it("completes the sale beside a pending QR payment marked as replaced, sending only the approved payments", () => {
     const store = ledger({
-      pendingQrPayments: [REPLACED_QR],
+      pendingMercadoPagoPayments: [REPLACED_QR],
       replacedQrPaymentIds: ["qr-1"],
     });
 

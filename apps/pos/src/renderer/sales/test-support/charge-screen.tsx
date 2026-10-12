@@ -1,15 +1,15 @@
 import type {
-  AbandonMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
   CashChargeAnswer,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
-  FollowMercadoPagoQrChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
   OpenSale,
   ReceiptPrintStatusOutcome,
   RegisterStatus,
   RetryReceiptPrintOutcome,
-  StartMercadoPagoQrChargeOutcome,
+  StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
 import { onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -108,13 +108,13 @@ export const SALE_WITH_PART_PAID: OpenSale = {
 const COVERED: CashChargeAnswer = { kind: "covered", applied: 476_000, change: 24_000 };
 
 export const QR_PAYMENT_ID = "019a0000-0000-7000-8000-0000000000a1";
-export const QR_ORDER_SHOWN: StartMercadoPagoQrChargeOutcome = {
+export const QR_ORDER_SHOWN: StartMercadoPagoChargeOutcome = {
   kind: "order_shown",
   payment_transaction_id: QR_PAYMENT_ID,
   amount: 476_000,
   remaining_seconds: 180,
 };
-const QR_WAITING: FollowMercadoPagoQrChargeOutcome = { kind: "waiting", remaining_seconds: 170 };
+const QR_WAITING: FollowMercadoPagoChargeOutcome = { kind: "waiting", remaining_seconds: 170 };
 
 export function registerStatusWithCloud(cloud: RegisterStatus["cloud"]): CoreData<RegisterStatus> {
   return {
@@ -131,16 +131,16 @@ export function registerStatusWithCloud(cloud: RegisterStatus["cloud"]): CoreDat
 
 export type Overrides = {
   registerStatus?: CoreData<RegisterStatus>;
-  startMercadoPagoQrCharge?: (
+  startMercadoPagoCharge?: (
     saleId: string,
     amount: number,
-  ) => Promise<StartMercadoPagoQrChargeOutcome>;
-  followMercadoPagoQrCharge?: (
+  ) => Promise<StartMercadoPagoChargeOutcome>;
+  followMercadoPagoCharge?: (
     paymentTransactionId: string,
-  ) => Promise<FollowMercadoPagoQrChargeOutcome>;
-  abandonMercadoPagoQrCharge?: (
+  ) => Promise<FollowMercadoPagoChargeOutcome>;
+  abandonMercadoPagoCharge?: (
     paymentTransactionId: string,
-  ) => Promise<AbandonMercadoPagoQrChargeOutcome>;
+  ) => Promise<AbandonMercadoPagoChargeOutcome>;
   person?: ChargeScreenProps["person"];
   currentSale?: () => Promise<CurrentSaleAnswer>;
   cashCharge?: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
@@ -166,15 +166,15 @@ export async function renderScreen(overrides: Overrides = {}) {
   const chargeSaleByTransfer = vi.fn(
     overrides.chargeSaleByTransfer ?? (async () => TRANSFER_COMPLETED),
   );
-  const startMercadoPagoQrCharge = vi.fn(
-    overrides.startMercadoPagoQrCharge ?? (async () => QR_ORDER_SHOWN),
+  const startMercadoPagoCharge = vi.fn(
+    overrides.startMercadoPagoCharge ?? (async () => QR_ORDER_SHOWN),
   );
-  const followMercadoPagoQrCharge = vi.fn(
-    overrides.followMercadoPagoQrCharge ?? (async () => QR_WAITING),
+  const followMercadoPagoCharge = vi.fn(
+    overrides.followMercadoPagoCharge ?? (async () => QR_WAITING),
   );
-  const abandonMercadoPagoQrCharge = vi.fn(
-    overrides.abandonMercadoPagoQrCharge ??
-      (async (): Promise<AbandonMercadoPagoQrChargeOutcome> => ({ kind: "cancelled" })),
+  const abandonMercadoPagoCharge = vi.fn(
+    overrides.abandonMercadoPagoCharge ??
+      (async (): Promise<AbandonMercadoPagoChargeOutcome> => ({ kind: "cancelled" })),
   );
   const receiptPrintStatus = vi.fn(overrides.receiptPrintStatus ?? (async () => PRINTED));
   const retryReceiptPrint = vi.fn(
@@ -193,9 +193,9 @@ export async function renderScreen(overrides: Overrides = {}) {
       chargeSaleInCash={chargeSaleInCash}
       chargeSaleByTransfer={chargeSaleByTransfer}
       registerStatus={overrides.registerStatus ?? registerStatusWithCloud("reachable")}
-      startMercadoPagoQrCharge={startMercadoPagoQrCharge}
-      followMercadoPagoQrCharge={followMercadoPagoQrCharge}
-      abandonMercadoPagoQrCharge={abandonMercadoPagoQrCharge}
+      startMercadoPagoCharge={startMercadoPagoCharge}
+      followMercadoPagoCharge={followMercadoPagoCharge}
+      abandonMercadoPagoCharge={abandonMercadoPagoCharge}
       receiptPrintStatus={receiptPrintStatus}
       retryReceiptPrint={retryReceiptPrint}
       onSessionInvalid={onSessionInvalid}
@@ -207,9 +207,9 @@ export async function renderScreen(overrides: Overrides = {}) {
     cashCharge,
     chargeSaleInCash,
     chargeSaleByTransfer,
-    startMercadoPagoQrCharge,
-    followMercadoPagoQrCharge,
-    abandonMercadoPagoQrCharge,
+    startMercadoPagoCharge,
+    followMercadoPagoCharge,
+    abandonMercadoPagoCharge,
     receiptPrintStatus,
     retryReceiptPrint,
     onSessionInvalid,

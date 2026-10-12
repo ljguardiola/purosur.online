@@ -5,10 +5,10 @@ import {
 import { latePaymentRefundOfUnrecordedOrder } from "../model/payment-refund.js";
 import {
   awaitsUnrecordedOrder,
-  type MercadoPagoQrOrderTransaction,
+  type MercadoPagoOrderTransaction,
 } from "../model/payment-transaction.js";
 import type { MercadoPagoNotificationPorts } from "./mercado-pago-notification-ports.js";
-import type { PaymentTransactionLane } from "./mercado-pago-qr-order-ports.js";
+import type { PaymentTransactionLane } from "./mercado-pago-order-ports.js";
 import { recordCreatedMercadoPagoOrder } from "./record-mercado-pago-order-result.js";
 import { refreshMercadoPagoTransaction } from "./refresh-mercado-pago-transaction.js";
 
@@ -17,7 +17,7 @@ export interface ConfirmMercadoPagoOrderNotificationInput {
 }
 
 export type ConfirmMercadoPagoOrderNotificationOutcome =
-  | { kind: "refreshed"; transaction: MercadoPagoQrOrderTransaction }
+  | { kind: "refreshed"; transaction: MercadoPagoOrderTransaction }
   | { kind: "late_payment_of_other_order" }
   | { kind: "unknown_order" }
   | { kind: "provider_unavailable" };
@@ -103,7 +103,7 @@ async function confirmOrderOfUnrecordedCreation(
 
 async function openLatePaymentRefundOfOtherOrder(
   lane: PaymentTransactionLane,
-  transaction: MercadoPagoQrOrderTransaction,
+  transaction: MercadoPagoOrderTransaction,
   providerOrderId: string,
   result: MercadoPagoOrderResult,
   openedAt: Date,

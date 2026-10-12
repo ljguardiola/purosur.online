@@ -64,7 +64,7 @@ export function removeSaleLine(
       ...openSaleStanding(
         amountToCharge(remaining),
         tx.salePayments(remaining.id),
-        tx.pendingQrPaymentsOf(remaining.id),
+        tx.pendingMercadoPagoPaymentsOf(remaining.id),
         clock.now(),
       ),
     };

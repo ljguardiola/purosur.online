@@ -1,4 +1,4 @@
-import type { MercadoPagoCancellationKeys } from "../mercado-pago-qr-order-ports.js";
+import type { MercadoPagoCancellationKeys } from "../mercado-pago-order-ports.js";
 
 export class FakeMercadoPagoCancellationKeys implements MercadoPagoCancellationKeys {
   readonly issued: string[] = [];
