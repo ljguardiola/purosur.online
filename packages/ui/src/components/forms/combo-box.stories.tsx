@@ -83,6 +83,15 @@ export const Selected: Story = {
   args: { value: "cafe" },
 };
 
+export const Search: Story = {
+  args: { variant: "search", placeholder: "Buscá un producto" },
+};
+
+export const SearchFiltered: Story = {
+  args: { variant: "search", options: optionsWithDescriptions, placeholder: "Buscá un producto" },
+  play: playTyping("yerba"),
+};
+
 export const Hovered: Story = {
   args: { value: "cafe" },
   play: playHoverSetsDataHovered(input),

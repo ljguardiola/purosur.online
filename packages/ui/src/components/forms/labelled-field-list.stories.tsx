@@ -65,3 +65,7 @@ export const LongDetail: Story = {
     ],
   },
 };
+
+export const MonospaceTitles: Story = {
+  args: { monospaceTitles: true },
+};

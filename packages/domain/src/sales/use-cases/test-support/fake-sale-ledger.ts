@@ -7,7 +7,7 @@ import {
 } from "../../../fiscal/index.js";
 import type { PendingQrSalePayment, SalePayment } from "../../../payments/index.js";
 import type { RoleAccess } from "../../../permissions/index.js";
-import { priceInEffectAt } from "../../../pricing/index.js";
+import { newestPrice } from "../../../pricing/index.js";
 import { type CashMovement, nextOperationNumber } from "../../../register/index.js";
 import type { Clock, OutboxEventDraft } from "../../../shared/index.js";
 import type { SaleWithLines } from "../../model/sale.js";
@@ -154,7 +154,7 @@ export class FakeSaleLedger implements SaleLedger {
         }));
       },
       buyerIdentificationThresholds: () => structuredClone(working.thresholds),
-      priceAt: (productId, moment) => latestPriceAt(working.prices, productId, moment),
+      currentPrice: (productId) => newestPriceOf(working.prices, productId),
       promotionsTargeting: (productId) => {
         this.promotionReads += 1;
         return structuredClone(working.promotionsByProduct[productId] ?? []);
@@ -335,16 +335,9 @@ function completedSalesContaining(state: FakeSaleLedgerState, productId: string)
   ).length;
 }
 
-function latestPriceAt(
-  prices: readonly FakePrice[],
-  productId: string,
-  moment: Date,
-): ListPrice | undefined {
-  const inEffect = priceInEffectAt(
-    prices.filter((price) => price.productId === productId),
-    moment,
-  );
-  return inEffect && { priceListId: inEffect.priceListId, unitPrice: inEffect.unitPrice };
+function newestPriceOf(prices: readonly FakePrice[], productId: string): ListPrice | undefined {
+  const newest = newestPrice(prices.filter((price) => price.productId === productId));
+  return newest && { priceListId: newest.priceListId, unitPrice: newest.unitPrice };
 }
 
 export class SequentialIds implements IdGenerator {

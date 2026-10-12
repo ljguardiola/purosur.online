@@ -400,19 +400,18 @@ describe("the price a scan takes", () => {
     return outcome.kind === "added" ? outcome.sale.lines[0] : outcome;
   }
 
-  it("is the latest one already valid, ignoring a future one and an older one", () => {
+  it("is the newest synced one, ignoring the older ones", () => {
     addPrice("p1", "2026-08-01T00:00:00.000Z", 1000);
     addPrice("p1", "2026-09-15T00:00:00.000Z", 1200);
-    addPrice("p1", "2026-10-15T00:00:00.000Z", 1800);
 
     expect(scannedPrice()).toMatchObject({ listUnitPrice: 1200, priceListId: "list-1" });
   });
 
-  it("starts applying at the very millisecond it becomes valid", () => {
-    addPrice("p1", "2026-09-30T12:00:00.000Z", 1300);
-    addPrice("p1", "2026-09-30T12:00:00.001Z", 1400);
+  it("is the newest synced one even while the register's clock lags behind its start", () => {
+    addPrice("p1", "2026-09-15T00:00:00.000Z", 1200);
+    addPrice("p1", "2026-09-30T12:03:00.000Z", 1800);
 
-    expect(scannedPrice()).toMatchObject({ listUnitPrice: 1300 });
+    expect(scannedPrice()).toMatchObject({ listUnitPrice: 1800 });
   });
 
   it("ignores a removed price", () => {
@@ -429,10 +428,10 @@ describe("the price a scan takes", () => {
     expect(scannedPrice()).toEqual({ kind: "no_price", productName: "Yerba" });
   });
 
-  it("is missing while every price of the product starts in the future", () => {
-    addPrice("p1", "2026-10-15T00:00:00.000Z", 1800);
+  it("is the only synced one even while the register's clock lags behind its start", () => {
+    addPrice("p1", "2026-09-30T12:03:00.000Z", 1800);
 
-    expect(scannedPrice()).toEqual({ kind: "no_price", productName: "Yerba" });
+    expect(scannedPrice()).toMatchObject({ listUnitPrice: 1800 });
   });
 
   it("is the one with the greater id when two start at the same moment, whatever their versions", () => {

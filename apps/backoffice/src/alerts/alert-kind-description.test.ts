@@ -44,6 +44,12 @@ test("describes the refund of a cancelled sale left without being marked as done
   );
 });
 
+test("describes a document left without a clear answer from ARCA", () => {
+  expect(alertKindDescription("fiscal_unknown")).toBe(
+    "Un comprobante quedó sin respuesta clara de ARCA",
+  );
+});
+
 test("gives no description to a kind this app does not know yet", () => {
   expect(alertKindDescription("register_battery_low")).toBe("");
 });

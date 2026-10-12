@@ -35,7 +35,7 @@ export function isWeighedProductRefusal(
   return "kind" in result;
 }
 
-type Price = NonNullable<ReturnType<SaleLedgerTransaction["priceAt"]>>;
+type Price = NonNullable<ReturnType<SaleLedgerTransaction["currentPrice"]>>;
 
 export interface PricedProduct {
   product: Product;
@@ -48,12 +48,11 @@ export function pricedWeighedProduct(
   clock: Clock,
   product: Product,
 ): PricedProduct | { kind: "no_price"; productName: string } {
-  const moment = clock.now();
-  const price = tx.priceAt(product.id, moment);
+  const price = tx.currentPrice(product.id);
   if (!price) {
     return { kind: "no_price", productName: product.name };
   }
-  return { product, price, moment };
+  return { product, price, moment: clock.now() };
 }
 
 export function isNoPrice(

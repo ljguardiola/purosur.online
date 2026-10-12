@@ -742,7 +742,7 @@ const rendererRequestDeps: RendererRequestDeps = {
   searchProducts:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (query) => searchProductsFor({ database: localDatabase, gate: actionGate, now }, query),
+      : (query) => searchProductsFor({ database: localDatabase, gate: actionGate }, query),
   addProduct:
     localDatabase === undefined || actionGate === undefined
       ? undefined

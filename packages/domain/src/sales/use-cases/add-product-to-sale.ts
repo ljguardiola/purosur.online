@@ -41,7 +41,7 @@ export function addProductToSale(
   }
   const moment = clock.now();
   if (product.saleUnit === "KG") {
-    return tx.priceAt(product.id, moment)
+    return tx.currentPrice(product.id)
       ? { kind: "weight_needed", productId: product.id, productName: product.name }
       : { kind: "no_price", productName: product.name };
   }
@@ -62,7 +62,7 @@ export function addProductToSale(
       line.manualAdjustment !== null && updated.manualAdjustment === null,
     );
   }
-  const price = tx.priceAt(product.id, moment);
+  const price = tx.currentPrice(product.id);
   if (!price) {
     return { kind: "no_price", productName: product.name };
   }

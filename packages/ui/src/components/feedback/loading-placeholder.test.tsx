@@ -87,8 +87,31 @@ test("draws each list item as an icon block, two text lines and a control square
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("draws each summary row as a label line and a value line on one baseline, with no frame", async () => {
+  const screen = await render(<LoadingPlaceholder variant="rows" rows={2} />);
+
+  const group = shapes(screen.container);
+  expect(getComputedStyle(group).borderTopWidth).toBe("0px");
+  expect(getComputedStyle(group).paddingTop).toBe("0px");
+  const rows = Array.from(group.children) as HTMLElement[];
+  expect(rows).toHaveLength(2);
+  for (const row of rows) {
+    const [label, value] = Array.from(row.children) as HTMLElement[];
+    const labelRect = (label as HTMLElement).getBoundingClientRect();
+    const valueRect = (value as HTMLElement).getBoundingClientRect();
+    expect(labelRect.width).toBeGreaterThan(0);
+    expect(valueRect.width).toBeGreaterThan(0);
+    expect(valueRect.left).toBeGreaterThan(labelRect.right);
+    expect(valueRect.right).toBe(row.getBoundingClientRect().right);
+    expect(valueRect.top).toBe(labelRect.top);
+  }
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("requires the count each variant counts by", () => {
   expectTypeOf<{ variant: "form"; lines: number }>().not.toExtend<LoadingPlaceholderProps>();
   expectTypeOf<{ variant: "card"; fields: number }>().not.toExtend<LoadingPlaceholderProps>();
   expectTypeOf<{ variant: "list"; items: number }>().toExtend<LoadingPlaceholderProps>();
+  expectTypeOf<{ variant: "rows"; lines: number }>().not.toExtend<LoadingPlaceholderProps>();
+  expectTypeOf<{ variant: "rows"; rows: number }>().toExtend<LoadingPlaceholderProps>();
 });

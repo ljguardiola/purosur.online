@@ -129,6 +129,15 @@ interface RefundTaskDetail {
   refundOpenedAt: string;
 }
 
+interface FiscalUnknownDetail {
+  fiscalDocumentId: string;
+  saleId: string;
+  registerId: string;
+  pointOfSale: number;
+  number: number;
+  unclearSince: string;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -147,6 +156,7 @@ export interface AlertDetails {
   offline_authorization_code_missing: OfflineAuthorizationCodeMissingDetail;
   late_payment_refund: LatePaymentRefundDetail;
   refund_task: RefundTaskDetail;
+  fiscal_unknown: FiscalUnknownDetail;
 }
 
 export type OpenAlertInput = {

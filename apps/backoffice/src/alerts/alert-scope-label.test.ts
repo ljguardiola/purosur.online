@@ -26,6 +26,12 @@ test("names the task of a refund instead of showing its id", () => {
   );
 });
 
+test("names the document of an unclear outcome instead of showing its id", () => {
+  expect(alertScopeLabel("fiscalDocument", "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6")).toBe(
+    "Comprobante",
+  );
+});
+
 test("shows any other kind of scope as the cloud displays it", () => {
   expect(alertScopeLabel("register", "production")).toBe("production");
 });
