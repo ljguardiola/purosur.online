@@ -108,6 +108,57 @@ test("offers a deactivated product in the selector marked as deactivated", async
     .toBeVisible();
 });
 
+test("asks for the product in a search box that says what to look for", async () => {
+  const { dialog } = await renderModal(createServices());
+
+  await expect
+    .element(dialog.getByRole("combobox", { name: /Producto/ }))
+    .toHaveAttribute("placeholder", "Buscá un producto");
+});
+
+test("finds the product to count by typing part of its name, and registers the same request", async () => {
+  const services = createServices();
+  vi.mocked(services.registerCount).mockResolvedValue({
+    kind: "ok",
+    value: { expected: 17_000, delta: -1000, balance: 16_000, superseded: false },
+  });
+  const { screen, dialog } = await renderModal(services);
+
+  await userEvent.fill(dialog.getByRole("combobox", { name: /Producto/ }), "té ve");
+  expect(screen.getByRole("option").elements()).toHaveLength(1);
+  await userEvent.click(screen.getByRole("option", { name: "Té verde en hebras 100 g" }));
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad contada/ }), "16");
+  await userEvent.click(dialog.getByRole("button", { name: REGISTER }));
+
+  await expect
+    .poll(() => vi.mocked(services.registerCount).mock.calls[0]?.[0])
+    .toEqual({ productId: tea.id, counted: 16_000, occurredAt: "2026-09-15T21:40:30.000Z" });
+});
+
+test("offers a deactivated product found by typing, marked as deactivated", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchStockProducts).mockResolvedValue({
+    kind: "ok",
+    value: { products: [almonds, oats, honey].map(withoutBalance) },
+  });
+  const { screen, dialog } = await renderModal(services);
+
+  await userEvent.fill(dialog.getByRole("combobox", { name: /Producto/ }), "aven");
+
+  await expect
+    .element(screen.getByRole("option", { name: /Avena arrollada/ }).getByText("Desactivado"))
+    .toBeVisible();
+});
+
+test("draws a magnifier in the product search and a cross on Cancelar", async () => {
+  const { dialog } = await renderModal(createServices());
+
+  const search = dialog.getByRole("button", { name: /Producto/ }).element();
+  const cancel = dialog.getByRole("button", { name: "Cancelar" }).element();
+  expect(search.querySelector("svg")?.classList.contains("lucide-search")).toBe(true);
+  expect(cancel.querySelector("svg")?.classList.contains("lucide-x")).toBe(true);
+});
+
 test("keeps the modal open and says the product no longer exists when the cloud cannot find it", async () => {
   const services = createServices();
   vi.mocked(services.fetchExpectedBalance).mockResolvedValue({
@@ -139,6 +190,41 @@ test("shows the balance the chosen product expects and the difference", async ()
   expect(services.fetchExpectedBalance).toHaveBeenCalledWith(tea.id, "2026-09-15T21:40:30.000Z");
   await expectNoAccessibilityViolations(screen.container);
 });
+
+test("puts the expected balance beside a narrow field for the quantity counted", async () => {
+  const rendered = await renderModal(createServices());
+  const { dialog } = rendered;
+
+  await count(rendered, "Té verde en hebras 100 g", "16");
+
+  const field = dialog.getByRole("textbox", { name: /^Cantidad contada/ }).element();
+  const balance = dialog.getByText("Saldo esperado").element();
+  const fieldRect = field.getBoundingClientRect();
+  const balanceRect = balance.getBoundingClientRect();
+  expect(fieldRect.width).toBeLessThanOrEqual(200);
+  expect(balanceRect.left).toBeGreaterThan(fieldRect.right);
+  expect(balanceRect.top).toBeLessThan(fieldRect.bottom);
+  expect(balanceRect.bottom).toBeGreaterThan(fieldRect.top);
+});
+
+test.each([
+  ["16", "− 1 u", true],
+  ["18", "+ 1 u", false],
+  ["17", "Sin diferencia", false],
+])(
+  "writes the difference of a count of %s in red only when it falls short",
+  async (typed, difference, red) => {
+    const rendered = await renderModal(createServices());
+    const { dialog } = rendered;
+
+    await count(rendered, "Té verde en hebras 100 g", typed);
+
+    await expect.element(dialog.getByText(difference, { exact: true })).toBeVisible();
+    const classes = (dialog.getByText(difference, { exact: true }).element() as HTMLElement)
+      .className;
+    expect(classes.includes("text-error-strong")).toBe(red);
+  },
+);
 
 test("registers the count at the moment chosen", async () => {
   const services = createServices();
@@ -446,6 +532,33 @@ test("shows the total counted, the expected balance and the difference as quanti
   await expect.element(dialog.getByText("12,150 kg")).toBeVisible();
   await expect.element(dialog.getByText("12,400 kg")).toBeVisible();
   await expect.element(dialog.getByText("− 0,250 kg")).toBeVisible();
+});
+
+test("shows the totals in a card below the lots, the expected balance subtle and a shortfall in red", async () => {
+  const services = createServices();
+  const rendered = await renderModal(services);
+  await countByLot(rendered, services);
+  const { dialog } = rendered;
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: FIRST_LOT }), "4,300");
+  await userEvent.fill(dialog.getByRole("textbox", { name: SECOND_LOT }), "7,850");
+
+  const lotField = dialog
+    .getByRole("textbox", { name: SECOND_LOT })
+    .element()
+    .getBoundingClientRect();
+  const labels = ["Total contado", "Saldo esperado", "Diferencia"].map((label) =>
+    dialog.getByText(label, { exact: true }).element().getBoundingClientRect(),
+  );
+  expect(labels[0]?.top).toBeGreaterThan(lotField.bottom);
+  expect(labels[1]?.left).toBeGreaterThan(labels[0]?.left ?? 0);
+  expect(labels[2]?.left).toBeGreaterThan(labels[1]?.left ?? 0);
+  expect(labels[1]?.top).toBe(labels[0]?.top);
+  const classesOf = (text: string) =>
+    (dialog.getByText(text, { exact: true }).element() as HTMLElement).className;
+  expect(classesOf("12,400 kg")).toContain("text-text-subtle");
+  expect(classesOf("− 0,250 kg")).toContain("text-error-strong");
+  expect(classesOf("12,150 kg")).not.toContain("text-error-strong");
 });
 
 test("registers the quantity of every lot, a lot left empty as zero", async () => {
