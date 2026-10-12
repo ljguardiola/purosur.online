@@ -29,7 +29,7 @@ const OUT_OF_SERVICE: StartedLocalDatabase = { kind: "out_of_service" };
 function versionOfFile(deps: {
   path: string;
   migrations: readonly LocalMigration[];
-}): LocalDatabaseVersion {
+}): ReturnType<typeof localDatabaseVersionOf> {
   try {
     return localDatabaseVersionOf({
       applied: appliedMigrationNames(deps.path),
