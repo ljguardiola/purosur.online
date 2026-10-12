@@ -6,14 +6,14 @@ import type {
   CurrentSaleAnswer,
   FollowMercadoPagoChargeOutcome,
   OpenSale,
+  PaymentMethodAvailability,
   ReceiptPrintStatusOutcome,
-  RegisterStatus,
   RetryReceiptPrintOutcome,
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
 import { onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import type { CoreData } from "../../platform/use-core-query";
+import type { MercadoPagoMethod } from "../../platform/core-client";
 import { render } from "../../shell/test-support/render-with-router";
 import type { ChargeScreenProps } from "../charge-screen";
 import { ChargeScreen } from "../charge-screen";
@@ -116,23 +116,25 @@ export const QR_ORDER_SHOWN: StartMercadoPagoChargeOutcome = {
 };
 const QR_WAITING: FollowMercadoPagoChargeOutcome = { kind: "waiting", remaining_seconds: 170 };
 
-export function registerStatusWithCloud(cloud: RegisterStatus["cloud"]): CoreData<RegisterStatus> {
-  return {
-    status: "loaded",
-    value: {
-      conditions: [],
-      cloud,
-      serial_devices: { scale: "matching", reader: "matching" },
-      serial_devices_setup_offered: false,
-    },
-    refreshing: false,
-  };
-}
+export const POINT_PAYMENT_ID = "019a0000-0000-7000-8000-0000000000b1";
+export const POINT_ORDER_SHOWN: StartMercadoPagoChargeOutcome = {
+  kind: "order_shown",
+  payment_transaction_id: POINT_PAYMENT_ID,
+  amount: 476_000,
+  remaining_seconds: 180,
+};
+
+export const AVAILABLE: PaymentMethodAvailability = {
+  qr: "available",
+  point: "available",
+  point_minimum: 1500,
+};
 
 export type Overrides = {
-  registerStatus?: CoreData<RegisterStatus>;
+  paymentMethodAvailability?: () => Promise<PaymentMethodAvailability | null>;
   startMercadoPagoCharge?: (
     saleId: string,
+    method: MercadoPagoMethod,
     amount: number,
   ) => Promise<StartMercadoPagoChargeOutcome>;
   followMercadoPagoCharge?: (
@@ -166,6 +168,9 @@ export async function renderScreen(overrides: Overrides = {}) {
   const chargeSaleByTransfer = vi.fn(
     overrides.chargeSaleByTransfer ?? (async () => TRANSFER_COMPLETED),
   );
+  const paymentMethodAvailability = vi.fn(
+    overrides.paymentMethodAvailability ?? (async () => AVAILABLE),
+  );
   const startMercadoPagoCharge = vi.fn(
     overrides.startMercadoPagoCharge ?? (async () => QR_ORDER_SHOWN),
   );
@@ -192,7 +197,7 @@ export async function renderScreen(overrides: Overrides = {}) {
       cashCharge={cashCharge}
       chargeSaleInCash={chargeSaleInCash}
       chargeSaleByTransfer={chargeSaleByTransfer}
-      registerStatus={overrides.registerStatus ?? registerStatusWithCloud("reachable")}
+      paymentMethodAvailability={paymentMethodAvailability}
       startMercadoPagoCharge={startMercadoPagoCharge}
       followMercadoPagoCharge={followMercadoPagoCharge}
       abandonMercadoPagoCharge={abandonMercadoPagoCharge}
@@ -207,6 +212,7 @@ export async function renderScreen(overrides: Overrides = {}) {
     cashCharge,
     chargeSaleInCash,
     chargeSaleByTransfer,
+    paymentMethodAvailability,
     startMercadoPagoCharge,
     followMercadoPagoCharge,
     abandonMercadoPagoCharge,
@@ -228,6 +234,10 @@ export async function chooseTransfer(screen: Screen) {
 
 export async function chooseQr(screen: Screen) {
   await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
+}
+
+export async function choosePoint(screen: Screen) {
+  await userEvent.click(screen.getByText("Point integrada", { exact: true }));
 }
 
 export async function chargeInCash(screen: Screen, tendered: string) {

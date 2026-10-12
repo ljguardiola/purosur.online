@@ -2,10 +2,10 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import {
+  AVAILABLE,
   chooseQr,
   QR_ORDER_SHOWN,
   QR_PAYMENT_ID,
-  registerStatusWithCloud,
   renderScreen,
   SALE_OF_ONE_LINE,
 } from "./test-support/charge-screen";
@@ -13,27 +13,27 @@ import {
 const NEXT_ASK_TIMEOUT_MS = 5_000;
 
 describe("ChargeScreen · QR de Mercado Pago", () => {
-  it("offers the QR between cash and transfer when the core can reach the cloud", async () => {
-    const { screen } = await renderScreen({
-      registerStatus: registerStatusWithCloud("reachable"),
-    });
+  it("offers the QR after the terminal and before the transfer when the core answers it is available", async () => {
+    const { screen } = await renderScreen({ paymentMethodAvailability: async () => AVAILABLE });
 
     await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeEnabled();
     await expect
       .element(screen.getByText("El cliente escanea el QR · requiere internet"))
       .toBeVisible();
     const methods = screen.getByRole("radiogroup", { name: "Medio de pago" }).element();
-    expect(methods.textContent).toMatch(/Efectivo.*QR de Mercado Pago.*Transferencia/s);
+    expect(methods.textContent).toMatch(
+      /Efectivo.*Point integrada.*QR de Mercado Pago.*Transferencia/s,
+    );
     await expectNoAccessibilityViolations(screen.container);
   });
 
   it.each([
-    ["is still loading", { status: "loading" }],
-    ["could not be read", { status: "failed", retry: () => {} }],
+    ["is still loading", () => new Promise<never>(() => {})],
+    ["could not be read", async () => null],
   ] as const)(
-    "offers no QR while the register's status %s, without blaming the connection",
-    async (_state, registerStatus) => {
-      const { screen } = await renderScreen({ registerStatus });
+    "offers no QR while the availability %s, without blaming the connection",
+    async (_state, paymentMethodAvailability) => {
+      const { screen } = await renderScreen({ paymentMethodAvailability });
 
       await expect.element(screen.getByRole("radio", { name: "Efectivo" })).toBeVisible();
       await expect
@@ -45,11 +45,11 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
 
   it("shows the QR as unavailable without a connection, and does not open it", async () => {
     const { screen, startMercadoPagoCharge } = await renderScreen({
-      registerStatus: registerStatusWithCloud("unreachable"),
+      paymentMethodAvailability: async () => ({ ...AVAILABLE, qr: "offline", point: "offline" }),
     });
 
     await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeDisabled();
-    await expect.element(screen.getByText("No disponible sin conexión")).toBeVisible();
+    await expect.element(screen.getByText("No disponible sin conexión").first()).toBeVisible();
     await expect
       .element(screen.getByText("El cliente escanea el QR · requiere internet"))
       .not.toBeInTheDocument();
@@ -83,7 +83,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
     await expect
       .element(screen.getByRole("heading", { name: "Esperando el pago del cliente" }))
       .toBeVisible();
-    expect(startMercadoPagoCharge).toHaveBeenCalledExactlyOnceWith("sale-1", 476_000);
+    expect(startMercadoPagoCharge).toHaveBeenCalledExactlyOnceWith("sale-1", "QR", 476_000);
   });
 
   it("returns to the methods from Cambiar de medio of the amount step", async () => {
