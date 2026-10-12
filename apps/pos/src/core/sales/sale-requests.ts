@@ -2,6 +2,7 @@ import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
+  ApplySaleDiscountOutcome,
   Authorization,
   AuthorizationRefusal,
   AuthorizedBy,
@@ -16,13 +17,16 @@ import type {
   CurrentSaleAnswer,
   ManualAdjustmentRequest,
   OpenSale,
+  PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   RemoveSaleLineOutcome,
+  SaleDiscountRequest,
   ScanProductOutcome,
   SearchProductsOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
 import {
+  amountToCharge,
   type ChargeRefusal,
   cashCharge,
   type ManualAdjustmentValue,
@@ -30,17 +34,21 @@ import {
   type RegisterActor,
   type RegisterOperation,
   registerOperationAccess,
+  type SaleDiscountValue,
   type SaleLine,
   type SaleWithLines,
+  saleDiscountAmount,
   saleTotal,
 } from "@purosur/domain";
 import {
   type AddScannedProductOutcome,
   type AdjustSaleLineGrant,
+  type ApplySaleDiscountGrant,
   addScannedProduct,
   addSearchedProduct,
   addWeighedProduct,
   adjustSaleLine,
+  applySaleDiscount,
   type CancelPaidSaleGrant,
   type Clock,
   cancelPaidSale,
@@ -52,6 +60,7 @@ import {
   currentSale,
   type IdGenerator,
   type OperationAuthorization,
+  previewSaleDiscount,
   previewSaleLineAdjustment,
   removeSaleLine,
   type Scale,
@@ -116,6 +125,17 @@ function toManualAdjustmentRequest(
   }
 }
 
+function toWireSaleDiscount(sale: SaleWithLines): OpenSale["sale_discount"] {
+  const { saleDiscount } = sale;
+  if (saleDiscount === null) {
+    return null;
+  }
+  const amount = saleDiscountAmount(saleTotal(sale.lines), saleDiscount);
+  return saleDiscount.kind === "PERCENT"
+    ? { kind: "PERCENT", value: saleDiscount.percent, amount }
+    : { kind: "AMOUNT", value: saleDiscount.amount, amount };
+}
+
 interface OpenSaleAnswer {
   sale: SaleWithLines;
   chargeRefusal: ChargeRefusal | undefined;
@@ -128,6 +148,7 @@ interface OpenSaleAnswer {
 interface SaleView {
   cancelAuthorizationRequired: boolean;
   adjustAuthorizationRequired: boolean;
+  saleDiscountAuthorizationRequired: boolean;
 }
 
 interface SellerAnswer<Outcome> {
@@ -145,6 +166,7 @@ function saleView(database: LocalDatabase, userId: string): SaleView {
   return {
     cancelAuthorizationRequired: needsAuthorization({ kind: "cancel_paid_sale" }),
     adjustAuthorizationRequired: needsAuthorization({ kind: "adjust_sale_line" }),
+    saleDiscountAuthorizationRequired: needsAuthorization({ kind: "apply_sale_discount" }),
   };
 }
 
@@ -180,7 +202,9 @@ function toOpenSale(
       manual_adjustment: toManualAdjustmentRequest(line.manualAdjustment),
       line_total: line.lineTotal,
     })),
-    total: saleTotal(sale.lines),
+    subtotal: saleTotal(sale.lines),
+    sale_discount: toWireSaleDiscount(sale),
+    total: amountToCharge(sale),
     paid: balance.paid,
     pending: balance.pending,
     lines_lock: linesLock,
@@ -188,6 +212,7 @@ function toOpenSale(
     refunds_on_cancel: refundsOnCancel.map(toWireRefund),
     cancel_authorization_required: view.cancelAuthorizationRequired,
     adjust_authorization_required: view.adjustAuthorizationRequired,
+    sale_discount_authorization_required: view.saleDiscountAuthorizationRequired,
     charge_refusal: chargeRefusal ?? null,
   };
 }
@@ -284,6 +309,7 @@ function toDetailOutcome(
         kind: "added",
         sale: toOpenSale(outcome, view),
         removed_manual_discount: outcome.removedManualDiscount,
+        removed_sale_discount: outcome.removedSaleDiscount,
       };
     case "weight_needed":
       return {
@@ -317,6 +343,7 @@ export async function addWeighedProductFor(
         kind: "added",
         sale: toOpenSale(outcome, view),
         removed_manual_discount: outcome.removedManualDiscount,
+        removed_sale_discount: outcome.removedSaleDiscount,
       };
     case "no_price":
       return { kind: "no_price", product_name: outcome.productName };
@@ -345,6 +372,7 @@ export async function weighProductFor(
         kind: "added",
         sale: toOpenSale(outcome, view),
         removed_manual_discount: outcome.removedManualDiscount,
+        removed_sale_discount: outcome.removedSaleDiscount,
       };
     case "no_price":
       return { kind: "no_price", product_name: outcome.productName };
@@ -403,6 +431,7 @@ export async function changeLineQuantityFor(
         kind: "changed",
         sale: toOpenSale(outcome, view),
         removed_manual_discount: outcome.removedManualDiscount,
+        removed_sale_discount: outcome.removedSaleDiscount,
       }
     : { kind: outcome.kind };
 }
@@ -428,6 +457,7 @@ export async function changeLineWeightFor(
         kind: "changed",
         sale: toOpenSale(outcome, view),
         removed_manual_discount: outcome.removedManualDiscount,
+        removed_sale_discount: outcome.removedSaleDiscount,
       }
     : { kind: outcome.kind };
 }
@@ -489,7 +519,11 @@ export async function adjustSaleLineFor(
   if (outcome.kind !== "changed") {
     return outcome;
   }
-  return { kind: "changed", sale: toOpenSale(outcome, saleView(database, outcome.sale.actorId)) };
+  return {
+    kind: "changed",
+    sale: toOpenSale(outcome, saleView(database, outcome.sale.actorId)),
+    removed_sale_discount: outcome.removedSaleDiscount,
+  };
 }
 
 export interface PreviewSaleLineAdjustmentRequest {
@@ -520,6 +554,91 @@ export async function previewSaleLineAdjustmentFor(
     : outcome;
 }
 
+export interface ApplySaleDiscountRequest {
+  discount: SaleDiscountRequest;
+  reason: string;
+  authorization?: Authorization | undefined;
+}
+
+type ApplySaleDiscountRefusal = Extract<
+  ApplySaleDiscountOutcome,
+  { kind: "not_signed_in" | "lacks_permission" | AuthorizationRefusal["kind"] }
+>;
+
+function toSaleDiscountValue(discount: SaleDiscountRequest): SaleDiscountValue {
+  return discount.kind === "PERCENT"
+    ? { kind: "PERCENT", percent: discount.value }
+    : { kind: "AMOUNT", amount: discount.value };
+}
+
+export async function applySaleDiscountFor(
+  { database, gate, now }: Pick<SaleRequestDeps, "database" | "gate" | "now">,
+  { discount, reason, authorization }: ApplySaleDiscountRequest,
+): Promise<ApplySaleDiscountOutcome> {
+  const outcome = await applySaleDiscount<ApplySaleDiscountGrant, ApplySaleDiscountRefusal>(
+    {
+      ledger: saleLedger(database),
+      clock: { now },
+      authority: {
+        async authorize(): Promise<
+          OperationAuthorization<ApplySaleDiscountGrant, ApplySaleDiscountRefusal>
+        > {
+          const guarded = await gate.runAuthorized(
+            { kind: "apply_sale_discount" },
+            authorization,
+            async (actor) => actor,
+          );
+          return guarded.kind === "performed"
+            ? {
+                kind: "granted",
+                grant: {
+                  actorId: guarded.result.signedInUserId,
+                  authorizedBy: guarded.authorized_by?.user_id,
+                },
+              }
+            : { kind: "refused", refusal: guarded };
+        },
+      },
+    },
+    { discount: toSaleDiscountValue(discount), reason },
+  );
+  if (outcome.kind !== "applied") {
+    return outcome;
+  }
+  return {
+    kind: "applied",
+    sale: toOpenSale(outcome, saleView(database, outcome.sale.actorId)),
+  };
+}
+
+export interface PreviewSaleDiscountRequest {
+  discount: SaleDiscountRequest;
+}
+
+export async function previewSaleDiscountFor(
+  { database, gate, now }: Pick<SaleRequestDeps, "database" | "gate" | "now">,
+  { discount }: PreviewSaleDiscountRequest,
+): Promise<PreviewSaleDiscountOutcome> {
+  const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
+    previewSaleDiscount(
+      { ledger: saleLedger(database), clock: { now } },
+      { actorId: signedInUserId, discount: toSaleDiscountValue(discount) },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const outcome = guarded.result;
+  return outcome.kind === "preview"
+    ? {
+        kind: "preview",
+        subtotal: outcome.subtotal,
+        discount_amount: outcome.saleDiscountAmount,
+        total: outcome.total,
+      }
+    : outcome;
+}
+
 export async function removeSaleLineFor(
   { database, gate, now }: Pick<SaleRequestDeps, "database" | "gate" | "now">,
   lineId: string,
@@ -532,7 +651,11 @@ export async function removeSaleLineFor(
   }
   const { outcome, view } = guarded.result;
   return outcome.kind === "removed"
-    ? { kind: "removed", sale: toOpenSale(outcome, view) }
+    ? {
+        kind: "removed",
+        sale: toOpenSale(outcome, view),
+        removed_sale_discount: outcome.removedSaleDiscount,
+      }
     : { kind: outcome.kind };
 }
 

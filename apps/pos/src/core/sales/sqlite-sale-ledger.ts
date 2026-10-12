@@ -7,10 +7,14 @@ import {
   type OutboxEventDraft,
   priceInEffectAt,
   type Sale,
+  type SaleDiscount,
   type SaleLine,
   type SalePayment,
   type SaleUnit,
   type SearchableProduct,
+  saleDiscountAmount,
+  saleTotal,
+  spreadSaleDiscount,
 } from "@purosur/domain";
 import type {
   CandidatePromotion,
@@ -42,6 +46,7 @@ import { addToStockBalance, insertSaleStockMovement } from "../stock/sqlite-stoc
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { manualAdjustmentColumns } from "./sqlite-manual-adjustment";
 import { type BenefitColumns, readOpenSale, toBenefit } from "./sqlite-open-sale";
+import { saleDiscountColumns } from "./sqlite-sale-discount";
 
 interface PriceRow {
   id: string;
@@ -101,9 +106,7 @@ export class SqliteSaleLedger implements SaleLedger {
       recordOpenedSale: (sale) => this.recordOpenedSale(sale),
       recordSaleLine: (saleId, line) => this.recordSaleLine(saleId, line),
       recordChangedLine: (line) => this.recordChangedLine(line),
-      recordSaleDiscount: () => {
-        throw new Error("the register does not store a discount on the sale's total yet");
-      },
+      recordSaleDiscount: (saleId, discount) => this.recordSaleDiscount(saleId, discount),
       deleteSaleLine: (lineId) => this.deleteSaleLine(lineId),
       salePayments: (saleId) => readSalePayments(this.database, saleId),
       discardOpenSale: (saleId) => this.discardOpenSale(saleId),
@@ -375,6 +378,41 @@ export class SqliteSaleLedger implements SaleLedger {
         line_total: line.lineTotal,
         ...manualAdjustmentColumns(line.manualAdjustment),
       });
+  }
+
+  private recordSaleDiscount(saleId: string, discount: SaleDiscount | null): void {
+    const lines = this.database
+      .prepare<[string], { id: string; line_total: number }>(
+        "SELECT id, line_total FROM sale_lines WHERE sale_id = ? ORDER BY position",
+      )
+      .all(saleId);
+    const amount =
+      discount === null
+        ? 0
+        : saleDiscountAmount(
+            saleTotal(lines.map((line) => ({ lineTotal: line.line_total }))),
+            discount,
+          );
+    this.database
+      .prepare(
+        `UPDATE sales
+         SET sale_discount_kind = @sale_discount_kind, sale_discount_value = @sale_discount_value,
+             sale_discount_amount = @sale_discount_amount,
+             sale_discount_reason = @sale_discount_reason,
+             sale_discount_authorized_by = @sale_discount_authorized_by
+         WHERE id = @id`,
+      )
+      .run({ id: saleId, ...saleDiscountColumns(discount, amount) });
+    const shares = spreadSaleDiscount(
+      lines.map((line) => line.line_total),
+      amount,
+    );
+    const share = this.database.prepare(
+      "UPDATE sale_lines SET sale_discount_share = ? WHERE id = ?",
+    );
+    lines.forEach((line, position) => {
+      share.run(shares[position] ?? 0, line.id);
+    });
   }
 
   private deleteSaleLine(lineId: string): void {

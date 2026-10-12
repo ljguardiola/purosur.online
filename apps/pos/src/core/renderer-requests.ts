@@ -3,6 +3,7 @@ import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
+  ApplySaleDiscountOutcome,
   Authorization,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
@@ -26,6 +27,7 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -57,10 +59,12 @@ import type { CoreToRendererMessage, RendererToCoreMessage } from "./renderer-me
 import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type {
   AdjustSaleLineRequest,
+  ApplySaleDiscountRequest,
   CancelLockedSaleRequest,
   CancelPaidSaleRequest,
   ChargeSaleByTransferRequest,
   ChargeSaleInCashRequest,
+  PreviewSaleDiscountRequest,
   PreviewSaleLineAdjustmentRequest,
 } from "./sales/sale-requests";
 import type { SalesHistoryRequest } from "./sales/sales-history-requests";
@@ -128,6 +132,12 @@ export interface RendererRequestDeps {
   adjustSaleLine: ((request: AdjustSaleLineRequest) => Promise<AdjustSaleLineOutcome>) | undefined;
   previewSaleLineAdjustment:
     | ((request: PreviewSaleLineAdjustmentRequest) => Promise<PreviewSaleLineAdjustmentOutcome>)
+    | undefined;
+  applySaleDiscount:
+    | ((request: ApplySaleDiscountRequest) => Promise<ApplySaleDiscountOutcome>)
+    | undefined;
+  previewSaleDiscount:
+    | ((request: PreviewSaleDiscountRequest) => Promise<PreviewSaleDiscountOutcome>)
     | undefined;
   removeSaleLine: ((lineId: string) => Promise<RemoveSaleLineOutcome>) | undefined;
   cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
@@ -722,6 +732,36 @@ export async function answerRendererRequest(
                 lineId: message.line_id,
                 adjustment: message.adjustment,
               })),
+        ),
+      };
+    }
+    case "apply-sale-discount": {
+      const { applySaleDiscount } = deps;
+      return {
+        type: "apply-sale-discount-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "discounting the sale's total",
+          applySaleDiscount &&
+            (() =>
+              applySaleDiscount({
+                discount: message.discount,
+                reason: message.reason,
+                authorization: message.authorization,
+              })),
+        ),
+      };
+    }
+    case "preview-sale-discount": {
+      const { previewSaleDiscount } = deps;
+      return {
+        type: "preview-sale-discount-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "previewing the discount on the sale's total",
+          previewSaleDiscount && (() => previewSaleDiscount({ discount: message.discount })),
         ),
       };
     }

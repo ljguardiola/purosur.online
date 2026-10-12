@@ -1,4 +1,5 @@
 import {
+  amountToCharge,
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalDocumentState,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
@@ -6,7 +7,6 @@ import {
   type SaleFiscalFacts,
   type SaleStanding,
   type SaleStandingDefinition,
-  saleTotal,
 } from "@purosur/domain";
 import type {
   RegisterSalesHistory,
@@ -17,6 +17,7 @@ import type {
 } from "@purosur/domain/sales/use-cases";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
+import { type SaleDiscountColumns, toSaleDiscount } from "./sqlite-sale-discount";
 
 interface SaleRow {
   id: string;
@@ -175,13 +176,22 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
   }
 
   private totalOf(saleId: string): number {
-    return saleTotal(
-      this.database
-        .prepare<[string], { lineTotal: number }>(
-          "SELECT line_total AS lineTotal FROM sale_lines WHERE sale_id = ?",
-        )
-        .all(saleId),
-    );
+    const lines = this.database
+      .prepare<[string], { lineTotal: number }>(
+        "SELECT line_total AS lineTotal FROM sale_lines WHERE sale_id = ?",
+      )
+      .all(saleId);
+    const discount = this.database
+      .prepare<[string], SaleDiscountColumns>(
+        `SELECT sale_discount_kind, sale_discount_value, sale_discount_amount,
+                sale_discount_reason, sale_discount_authorized_by
+         FROM sales WHERE id = ?`,
+      )
+      .get(saleId);
+    return amountToCharge({
+      lines,
+      saleDiscount: discount === undefined ? null : toSaleDiscount(discount),
+    });
   }
 
   private fiscalFactsOf(saleId: string): SaleFiscalFacts {

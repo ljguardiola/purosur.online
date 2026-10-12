@@ -7,8 +7,9 @@ import type {
 } from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
 import { type ManualAdjustmentColumns, toManualAdjustment } from "./sqlite-manual-adjustment";
+import { type SaleDiscountColumns, toSaleDiscount } from "./sqlite-sale-discount";
 
-interface SaleRow {
+interface SaleRow extends SaleDiscountColumns {
   id: string;
   register_id: string;
   device_id: string;
@@ -54,7 +55,9 @@ export function readOpenSale(
 ): SaleWithLines | undefined {
   const sale = database
     .prepare<[string], SaleRow>(
-      `SELECT id, register_id, device_id, session_id, actor_id
+      `SELECT id, register_id, device_id, session_id, actor_id,
+              sale_discount_kind, sale_discount_value, sale_discount_amount,
+              sale_discount_reason, sale_discount_authorized_by
        FROM sales WHERE session_id = ? AND state = 'OPEN'`,
     )
     .get(sessionId);
@@ -89,7 +92,7 @@ export function readOpenSale(
     sessionId: sale.session_id,
     actorId: sale.actor_id,
     state: "OPEN",
-    saleDiscount: null,
+    saleDiscount: toSaleDiscount(sale),
     lines: lines.map((line) =>
       toSaleLine(
         line,
