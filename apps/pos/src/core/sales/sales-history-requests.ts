@@ -1,6 +1,7 @@
 import type { SaleHistoryDetailOutcome, SalesHistoryOutcome } from "@purosur/contracts";
 import type { SaleComprobante } from "@purosur/domain";
 import { readSaleHistoryDetail, readSalesHistory } from "@purosur/domain/sales/use-cases";
+import { inArgentinaTime } from "../platform/argentina-time";
 import type { LocalDatabase } from "../platform/local-database";
 import type { ActionGate } from "../sessions/action-gate";
 import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
@@ -46,7 +47,7 @@ export async function salesHistoryFor(
     kind: "found",
     rows: rows.map((row) => ({
       sale_id: row.saleId,
-      occurred_at: row.occurredAt.toISOString(),
+      occurred_at: inArgentinaTime(row.occurredAt),
       comprobante: toWireComprobante(row.comprobante),
       operation_number: row.operationNumber,
       payment_methods: row.paymentMethods,
@@ -82,7 +83,7 @@ export async function saleHistoryDetailFor(
     kind: "found",
     detail: {
       sale_id: detail.saleId,
-      occurred_at: detail.occurredAt.toISOString(),
+      occurred_at: inArgentinaTime(detail.occurredAt),
       total: detail.total,
       comprobante: toWireComprobante(detail.comprobante),
       operation_number: detail.operationNumber,
