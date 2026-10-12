@@ -1,5 +1,9 @@
 import type { PaymentMethodAvailability } from "@purosur/contracts";
-import { pointTerminalAvailability, qrAvailability } from "@purosur/domain";
+import {
+  MERCADO_PAGO_POINT_MINIMUM_ORDER_CENTS,
+  pointTerminalAvailability,
+  qrAvailability,
+} from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
 import { currentSaleFor, type SaleRequestDeps } from "../sales/sale-requests";
 import type { CloudReachability } from "../sync/cloud-reachability";
@@ -21,5 +25,6 @@ export async function paymentMethodAvailabilityFor({
   return {
     qr: qrAvailability(cloudReachable),
     point: pointTerminalAvailability(cloudReachable, sale.pending),
+    point_minimum: MERCADO_PAGO_POINT_MINIMUM_ORDER_CENTS,
   };
 }
