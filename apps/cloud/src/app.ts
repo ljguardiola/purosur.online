@@ -97,6 +97,7 @@ import { registerRoleReadRoute } from "./permissions/role-read-route.js";
 import type { RolesRouteOptions } from "./permissions/roles-list-route.js";
 import { registerRolesListRoute } from "./permissions/roles-list-route.js";
 import { registerEdgeOriginGuard } from "./platform/edge-origin-guard.js";
+import { reportError } from "./platform/error-reporting.js";
 import { registerHealthRoute } from "./platform/health-route.js";
 import { registerDiscountCreationRoute } from "./pricing/discount-creation-route.js";
 import { registerDiscountEditRoute } from "./pricing/discount-edit-route.js";
@@ -122,6 +123,10 @@ import { registerRegisterCoverageRoute } from "./register/register-coverage-rout
 import { registerRegisterCreationRoute } from "./register/register-creation-route.js";
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
 import { registerRegisterSyncStatusRoute } from "./register/register-sync-status-route.js";
+import {
+  type RegisterUpdateFeed,
+  registerRegisterUpdateRoute,
+} from "./register/register-update-route.js";
 import type { RegistersRouteOptions } from "./register/registers-list-route.js";
 import { registerRegistersListRoute } from "./register/registers-list-route.js";
 import {
@@ -200,6 +205,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
     Omit<MercadoPagoQrRoutesOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
   >;
   mercadoPagoNotifications?: WithoutClock<MercadoPagoNotificationRoutesOptions<TQueryResult>>;
+  registerUpdateFeed?: RegisterUpdateFeed;
   health?: WithoutClock<HealthArcaOptions<TQueryResult>>;
   firstPinCodes?: WithoutClock<FirstPinCodeRouteOptions<TQueryResult>>;
 }
@@ -218,6 +224,7 @@ type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
     | "fiscalAuthorization"
     | "mercadoPagoQr"
     | "mercadoPagoNotifications"
+    | "registerUpdateFeed"
   >
 >;
 
@@ -565,6 +572,12 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           now,
         });
         registerEventsRoute(api, { ...options.devices, now });
+        registerRegisterUpdateRoute(api, {
+          ...options.devices,
+          ...(options.registerUpdateFeed && { feed: options.registerUpdateFeed }),
+          reportError: (error) => reportError("the register update feed failed", error),
+          now,
+        });
         if (options.fiscalAuthorization) {
           registerFiscalAuthorizationRoute(api, {
             ...options.devices,

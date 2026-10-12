@@ -1,9 +1,6 @@
 // Secrets are read from the environment of whoever runs `railway config plan`/`apply`; the CLI
 // evaluates this file as ordinary Node, so `process.env` reaches the compiled graph.
-//
-// `bucket()` exposes no `.env` accessor in this SDK version, so the bucket's credentials cannot be
-// referenced from the cloud service here.
-import { bucket, defineRailway, image, postgres, project, service } from "railway/iac";
+import { bucket, defineRailway, image, postgres, project, ref, service } from "railway/iac";
 import { resolveMercadoPagoConfig } from "../apps/cloud/src/payments/mercado-pago-config.ts";
 // Railway IaC cannot register a custom domain: it must be added once in the dashboard or with
 // `railway domain <domain> --service "Cloud Server"`, and only then declared in this file.
@@ -109,6 +106,7 @@ export default defineRailway((ctx) => {
   // empty one in its place, database included. Rename it in the Railway dashboard first.
   const db = postgres(POSTGRES_RESOURCE_NAME, { region: SERVICE_REGION });
   const media = bucket("Media Storage", { region: BUCKET_REGION });
+  const registerUpdates = bucket("Register Updates", { region: BUCKET_REGION });
 
   const registryCredentials = {
     username: "ljguardiola",
@@ -163,6 +161,11 @@ export default defineRailway((ctx) => {
       ARCA_CERTIFICATE: arcaCertificate,
       ARCA_PRIVATE_KEY: arcaPrivateKey,
       ARCA_ENVIRONMENT: arcaEnvironment,
+      REGISTER_UPDATES_BUCKET_ENDPOINT: ref(registerUpdates, "ENDPOINT"),
+      REGISTER_UPDATES_BUCKET_NAME: ref(registerUpdates, "BUCKET"),
+      REGISTER_UPDATES_BUCKET_REGION: ref(registerUpdates, "REGION"),
+      REGISTER_UPDATES_BUCKET_ACCESS_KEY_ID: ref(registerUpdates, "ACCESS_KEY_ID"),
+      REGISTER_UPDATES_BUCKET_SECRET_ACCESS_KEY: ref(registerUpdates, "SECRET_ACCESS_KEY"),
       ...(mercadoPago
         ? {
             MERCADOPAGO_ACCESS_TOKEN: mercadoPago.accessToken,
@@ -174,6 +177,6 @@ export default defineRailway((ctx) => {
   });
 
   return project("Puro Sur", {
-    resources: [db, media, migrate, cloud],
+    resources: [db, media, registerUpdates, migrate, cloud],
   });
 });
