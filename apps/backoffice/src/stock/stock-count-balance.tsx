@@ -16,7 +16,11 @@ export function CountBalance({
   mode: "product" | "lots";
 }) {
   if (balance.status === "loading") {
-    return <LoadingPlaceholder variant="card" lines={2} />;
+    return mode === "lots" ? (
+      <LoadingPlaceholder variant="card" lines={2} />
+    ) : (
+      <LoadingPlaceholder variant="rows" rows={2} />
+    );
   }
   if (balance.status === "failed") {
     return <LoadFailure {...cloudLoadFailure(balance, "el saldo esperado")} />;

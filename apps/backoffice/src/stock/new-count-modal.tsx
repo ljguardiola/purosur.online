@@ -351,12 +351,14 @@ export function NewCountModal({
                 </form.AppField>
               </div>
               {showsBalance && product && at !== undefined ? (
-                <CountBalance
-                  product={product}
-                  balance={productBalance}
-                  counted={counted}
-                  mode="product"
-                />
+                <div className="min-w-0 flex-1">
+                  <CountBalance
+                    product={product}
+                    balance={productBalance}
+                    counted={counted}
+                    mode="product"
+                  />
+                </div>
               ) : null}
             </div>
           )}
