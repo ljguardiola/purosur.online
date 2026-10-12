@@ -172,12 +172,62 @@ jobs:
           SOURCE_IMAGE: public.ecr.aws/docker/library/postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
           POSTGRES_IMAGE: ghcr.io/ljguardiola/postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
 
+  # MCR can stall a layer, and shared runners pull from the same address: the tests and the visual
+  # job pull the Playwright image from a copy on ghcr.io with the run's own token, and only a
+  # missing copy is ever pulled from MCR, once per digest.
+  playwright-image:
+    name: playwright image
+    needs: [scope]
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.tests_needed != 'false' || needs.scope.outputs.catalog_changed != 'false') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      packages: read
+    outputs:
+      mirrored: ${{ steps.mirror.outputs.mirrored }}
+    steps:
+      - id: mirror
+        name: Look up the Playwright image on ghcr.io
+        run: |
+          echo "$GITHUB_TOKEN" | skopeo login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          if timeout 60 skopeo inspect --raw "docker://${PLAYWRIGHT_SERVER_IMAGE%%:*}@${PLAYWRIGHT_SERVER_IMAGE#*@}" > /dev/null; then
+            echo "mirrored=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "mirrored=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PLAYWRIGHT_SERVER_IMAGE: ghcr.io/ljguardiola/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+
+  playwright-image-copy:
+    name: playwright image copy
+    needs: [playwright-image]
+    if: ${{ needs.playwright-image.outputs.mirrored == 'false' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      packages: write
+    steps:
+      - name: Copy the Playwright image to ghcr.io
+        timeout-minutes: 43
+        run: |
+          echo "$GITHUB_TOKEN" | skopeo login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          for delay in 0 15 30 60; do
+            sleep "$delay"
+            timeout 600 skopeo copy --all --preserve-digests "docker://${SOURCE_IMAGE%%:*}@${SOURCE_IMAGE#*@}" "docker://${PLAYWRIGHT_SERVER_IMAGE%@*}" && exit 0
+          done
+          exit 1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_IMAGE: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+          PLAYWRIGHT_SERVER_IMAGE: ghcr.io/ljguardiola/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+
   # vitest run, sharded six ways, each shard given an even share of every project's files by their
   # durations measured on the run test-durations-source picked, so a slow shard - not the
   # ever-growing total test count - bounds this job's wall time.
   tests:
     name: tests (${{ matrix.shard }}/6)
-    needs: [scope, test-durations-source, postgres-image, postgres-image-copy]
+    needs: [scope, test-durations-source, postgres-image, postgres-image-copy, playwright-image, playwright-image-copy]
     # Skipped on `pull_request` only when scope positively decided the shards read no changed path;
     # a failed or missing decision runs them, like static above.
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.tests_needed != 'false') }}
@@ -238,7 +288,7 @@ jobs:
           done
           exit 1
         env:
-          PLAYWRIGHT_SERVER_IMAGE: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+          PLAYWRIGHT_SERVER_IMAGE: ghcr.io/ljguardiola/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
 
       - run: pnpm verify:tests --shard=${{ matrix.shard }}/6
         env:
@@ -256,10 +306,13 @@ jobs:
 
   visual:
     name: visual
-    needs: [scope]
+    needs: [scope, playwright-image, playwright-image-copy]
     if: ${{ !cancelled() && needs.scope.outputs.catalog_changed != 'false' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -274,6 +327,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Sign in to ghcr.io
+        timeout-minutes: 2
+        run: echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
       - name: Pull the Playwright image
         timeout-minutes: 10
         run: |
@@ -283,7 +342,7 @@ jobs:
           done
           exit 1
         env:
-          PLAYWRIGHT_SERVER_IMAGE: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+          PLAYWRIGHT_SERVER_IMAGE: ghcr.io/ljguardiola/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
 
       - run: pnpm verify:visual
         env:

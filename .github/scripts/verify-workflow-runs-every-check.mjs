@@ -36,6 +36,11 @@ const PLAYWRIGHT_IMAGE = {
   label: "the Playwright image",
   setupPath: "vitest.global-setup.playwright-server.ts",
   constant: "PLAYWRIGHT_SERVER_IMAGE",
+  registry: "ghcr.io",
+  lookupJob: "playwright-image",
+  copyJob: "playwright-image-copy",
+  consumerJobs: ["tests", "visual"],
+  copyAttemptSeconds: 600,
 };
 const PLAYWRIGHT_IMAGE_JOBS = {
   tests: { ...PLAYWRIGHT_IMAGE, job: "tests", testsScript: "verify:tests" },
@@ -526,6 +531,16 @@ function findPrePulledImageViolations(workflowSource, setupSource, spec) {
     if (mapHas(doc, pullStep, "shell")) {
       violations.push(`${pullStepName} sets its own shell`);
     }
+    const pullMinutes = resolveScalar(doc, mapGet(doc, pullStep, "timeout-minutes"));
+    if (pullMinutes === undefined) {
+      violations.push(
+        `verify.yml's ${spec.job} job's pull step of ${spec.label} sets no timeout-minutes`,
+      );
+    } else if (!(Number(pullMinutes) * 60 >= PULL_RETRY_SECONDS)) {
+      violations.push(
+        `verify.yml's ${spec.job} job's pull step of ${spec.label} allows ${pullMinutes} minutes, less than the ${PULL_RETRY_SECONDS} seconds its pull attempts and their delays can take`,
+      );
+    }
   }
 
   // Ryuk is another image Testcontainers pulls from Docker Hub; a runner is discarded after its
@@ -704,11 +719,14 @@ export function findPlaywrightImageViolations(
   job,
 ) {
   const spec = PLAYWRIGHT_IMAGE_JOBS[job];
-  const { image, violations } = findPrePulledImageViolations(
-    workflowSource,
-    playwrightServerSetupSource,
-    spec,
-  );
+  const found = findPrePulledImageViolations(workflowSource, playwrightServerSetupSource, spec);
+  const { image, violations } = found;
+  if (image !== undefined) {
+    violations.push(...mirrorConsumerViolations(PLAYWRIGHT_IMAGE, job, found));
+    if (job === PLAYWRIGHT_IMAGE.consumerJobs[0]) {
+      violations.push(...mirrorJobsViolations(PLAYWRIGHT_IMAGE, image, found.doc));
+    }
+  }
   if (image !== undefined && !image.includes(`:v${installedPlaywrightVersion}-`)) {
     violations.push(
       `${spec.label} \`${image}\` is not the installed Playwright version ${installedPlaywrightVersion}`,
