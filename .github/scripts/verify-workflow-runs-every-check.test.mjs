@@ -6,6 +6,7 @@ import {
   findLocalPostgresImageViolations,
   findPlaywrightImageViolations,
   findPlaywrightInstallViolations,
+  findPrePulledJobTimeoutViolations,
   findVerifyWorkflowViolations,
 } from "./verify-workflow-runs-every-check.mjs";
 
@@ -879,11 +880,11 @@ function copyMirrorLines(constant, attemptSeconds) {
   ];
 }
 
-function pullWithRetriesLines(imageEnv) {
+function pullWithRetriesLines(imageEnv, attemptSeconds) {
   return [
     "for delay in 0 15 30 60; do",
     '  sleep "$delay"',
-    `  timeout 120 docker pull "$${imageEnv}" && exit 0`,
+    `  timeout ${attemptSeconds} docker pull "$${imageEnv}" && exit 0`,
     "done",
     "exit 1",
   ];
@@ -942,6 +943,12 @@ const PRE_PULLED_IMAGES = [
     image: PINNED_POSTGRES_IMAGE,
     tagOnly: "ghcr.io/ljguardiola/postgres:18-alpine",
     mirror: POSTGRES_MIRROR,
+    pullAttemptSeconds: 120,
+    otherPullAttemptSeconds: 300,
+    pullRetrySeconds: 585,
+    enoughPullTimeoutMinutes: 10,
+    jobSeconds: 1485,
+    jobTimeoutMinutes: 25,
     findViolations: (workflowSource, setupSource) =>
       findCloudPostgresImageViolations(workflowSource, setupSource),
   },
@@ -954,6 +961,12 @@ const PRE_PULLED_IMAGES = [
     image: PINNED_PLAYWRIGHT_IMAGE,
     tagOnly: "ghcr.io/ljguardiola/playwright:v1.63.0-noble",
     mirror: PLAYWRIGHT_MIRROR,
+    pullAttemptSeconds: 300,
+    otherPullAttemptSeconds: 120,
+    pullRetrySeconds: 1305,
+    enoughPullTimeoutMinutes: 22,
+    jobSeconds: 2205,
+    jobTimeoutMinutes: 37,
     findViolations: findPlaywrightViolationsOf("tests"),
   },
   {
@@ -965,6 +978,12 @@ const PRE_PULLED_IMAGES = [
     image: PINNED_PLAYWRIGHT_IMAGE,
     tagOnly: "ghcr.io/ljguardiola/playwright:v1.63.0-noble",
     mirror: PLAYWRIGHT_MIRROR,
+    pullAttemptSeconds: 300,
+    otherPullAttemptSeconds: 120,
+    pullRetrySeconds: 1305,
+    enoughPullTimeoutMinutes: 22,
+    jobSeconds: 2205,
+    jobTimeoutMinutes: 37,
     findViolations: findPlaywrightViolationsOf("visual"),
   },
 ];
@@ -981,21 +1000,16 @@ function setupDeclaring(constant, image) {
   ].join("\n");
 }
 
-function jobWithPull(
+function pullStepLines(
   spec,
   {
-    pullLines = pullWithRetriesLines(spec.constant),
+    pullLines = pullWithRetriesLines(spec.constant, spec.pullAttemptSeconds),
     pulledImage = spec.image,
-    pullAfterTests = false,
     pullStepExtra = [],
-    pullTimeoutMinutes = 10,
-    testsEnv = { TESTCONTAINERS_RYUK_DISABLED: '"true"' },
-    mirror = {},
-    signInAfterPull = false,
+    pullTimeoutMinutes = spec.enoughPullTimeoutMinutes,
   } = {},
 ) {
-  const mirrorLines = ghcrMirrorLines(spec, { mirroredImage: spec.image, ...mirror });
-  const pullStep = [
+  return [
     `      - name: Pull ${spec.label}`,
     ...(pullTimeoutMinutes === null ? [] : [`        timeout-minutes: ${pullTimeoutMinutes}`]),
     ...pullStepExtra.map((line) => `        ${line}`),
@@ -1004,8 +1018,32 @@ function jobWithPull(
     "        env:",
     `          ${spec.constant}: ${pulledImage}`,
   ];
+}
+
+function jobWithPull(
+  spec,
+  {
+    pullLines,
+    pulledImage = spec.image,
+    pullAfterTests = false,
+    pullStepExtra,
+    pullTimeoutMinutes,
+    alsoPulls = [],
+    testsEnv = { TESTCONTAINERS_RYUK_DISABLED: '"true"' },
+    testsTimeoutMinutes = 15,
+    jobTimeoutMinutes = spec.jobTimeoutMinutes,
+    mirror = {},
+    signInAfterPull = false,
+  } = {},
+) {
+  const mirrorLines = ghcrMirrorLines(spec, { mirroredImage: spec.image, ...mirror });
+  const pullStep = [
+    ...alsoPulls.flatMap((other) => pullStepLines(other)),
+    ...pullStepLines(spec, { pullLines, pulledImage, pullStepExtra, pullTimeoutMinutes }),
+  ];
   const testsStep = [
     `      - run: ${spec.testsRun}`,
+    ...(testsTimeoutMinutes === null ? [] : [`        timeout-minutes: ${testsTimeoutMinutes}`]),
     ...(Object.keys(testsEnv).length === 0
       ? []
       : ["        env:", ...Object.entries(testsEnv).map(([k, v]) => `          ${k}: ${v}`)]),
@@ -1014,6 +1052,7 @@ function jobWithPull(
     "jobs:",
     ...mirrorLines.jobs,
     `  ${spec.job}:`,
+    ...(jobTimeoutMinutes === null ? [] : [`    timeout-minutes: ${jobTimeoutMinutes}`]),
     ...mirrorLines.consumerJobHeader,
     "    runs-on: ubuntu-24.04",
     "    steps:",
@@ -1157,9 +1196,20 @@ for (const spec of PRE_PULLED_IMAGES) {
   test(`flags a ${spec.job} job whose pull attempt of ${spec.label} can stall without a time limit`, () => {
     const violations = spec.findViolations(
       jobWithPull(spec, {
-        pullLines: pullWithRetriesLines(spec.constant).map((line) =>
-          line.replace("timeout 120 ", ""),
+        pullLines: pullWithRetriesLines(spec.constant, spec.pullAttemptSeconds).map((line) =>
+          line.replace(`timeout ${spec.pullAttemptSeconds} `, ""),
         ),
+      }),
+      setup(),
+    );
+
+    assertSingleViolation(violations, new RegExp(`before its ${spec.testsScript} step`));
+  });
+
+  test(`flags a ${spec.job} job whose pull attempt of ${spec.label} gives up after ${spec.otherPullAttemptSeconds} seconds instead of ${spec.pullAttemptSeconds}`, () => {
+    const violations = spec.findViolations(
+      jobWithPull(spec, {
+        pullLines: pullWithRetriesLines(spec.constant, spec.otherPullAttemptSeconds),
       }),
       setup(),
     );
@@ -1180,18 +1230,56 @@ for (const spec of PRE_PULLED_IMAGES) {
   });
 
   test(`flags a ${spec.job} job whose pull step of ${spec.label} times out before its last attempt can`, () => {
-    const violations = spec.findViolations(jobWithPull(spec, { pullTimeoutMinutes: 9 }), setup());
+    const shortMinutes = spec.enoughPullTimeoutMinutes - 1;
+    const violations = spec.findViolations(
+      jobWithPull(spec, { pullTimeoutMinutes: shortMinutes }),
+      setup(),
+    );
 
     assertSingleViolation(
       violations,
       new RegExp(
-        `${spec.job} job's pull step of .* allows 9 minutes, less than the 585 seconds its pull attempts and their delays can take`,
+        `${spec.job} job's pull step of .* allows ${shortMinutes} minutes, less than the ${spec.pullRetrySeconds} seconds its pull attempts and their delays can take`,
       ),
     );
   });
 
   test(`passes a ${spec.job} job whose pull step of ${spec.label} times out just after its last attempt can`, () => {
-    const violations = spec.findViolations(jobWithPull(spec, { pullTimeoutMinutes: 10 }), setup());
+    const violations = spec.findViolations(
+      jobWithPull(spec, { pullTimeoutMinutes: spec.enoughPullTimeoutMinutes }),
+      setup(),
+    );
+
+    assert.deepEqual(violations, []);
+  });
+
+  test(`flags a ${spec.job} job pulling ${spec.label} whose ${spec.testsScript} step sets no time limit`, () => {
+    const violations = findPrePulledJobTimeoutViolations(
+      jobWithPull(spec, { testsTimeoutMinutes: null }),
+    );
+
+    assertSingleViolation(
+      violations,
+      new RegExp(`${spec.job} job's ${spec.testsScript} step sets no timeout-minutes`),
+    );
+  });
+
+  test(`flags a ${spec.job} job whose time limit ends before pulling ${spec.label} and running its tests can`, () => {
+    const shortMinutes = spec.jobTimeoutMinutes - 1;
+    const violations = findPrePulledJobTimeoutViolations(
+      jobWithPull(spec, { jobTimeoutMinutes: shortMinutes }),
+    );
+
+    assertSingleViolation(
+      violations,
+      new RegExp(
+        `${spec.job} job allows ${shortMinutes} minutes, less than the ${spec.jobSeconds} seconds its image pulls and its ${spec.testsScript} step can take`,
+      ),
+    );
+  });
+
+  test(`passes a ${spec.job} job whose time limit covers pulling ${spec.label} and running its tests`, () => {
+    const violations = findPrePulledJobTimeoutViolations(jobWithPull(spec));
 
     assert.deepEqual(violations, []);
   });
@@ -1277,6 +1365,25 @@ for (const spec of PRE_PULLED_IMAGES) {
     });
   }
 }
+
+test("flags a tests job whose time limit covers each image it pulls but not both", () => {
+  const violations = findPrePulledJobTimeoutViolations(
+    jobWithPull(PLAYWRIGHT_TESTS_SPEC, { alsoPulls: [POSTGRES_SPEC], jobTimeoutMinutes: 46 }),
+  );
+
+  assertSingleViolation(
+    violations,
+    /tests job allows 46 minutes, less than the 2790 seconds its image pulls and its verify:tests step can take/,
+  );
+});
+
+test("passes a tests job whose time limit covers pulling both images and running its tests", () => {
+  const violations = findPrePulledJobTimeoutViolations(
+    jobWithPull(PLAYWRIGHT_TESTS_SPEC, { alsoPulls: [POSTGRES_SPEC], jobTimeoutMinutes: 47 }),
+  );
+
+  assert.deepEqual(violations, []);
+});
 
 test("flags a Playwright image whose tag is not the installed Playwright version", () => {
   const violations = violationsWithMirror(
