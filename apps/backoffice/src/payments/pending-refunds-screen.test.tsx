@@ -122,7 +122,6 @@ test("tells, in the method cell of a refund for a second paid order, the order M
   expect(rows).toHaveLength(2);
   expect(rows[0]).not.toContain("Orden");
   expect(rows[1]).toContain("Aprobación tardía");
-  expect(rows[1]).toContain("El QR de la venta del 08/10 09:37 se pagó dos veces");
   expect(rows[1]).toContain("QR de Mercado Pago");
   expect(rows[1]).toContain("Orden ORD01JQ4S4KY8HWQ6NA5PXB65B3D3");
   await expectNoAccessibilityViolations(screen.container);

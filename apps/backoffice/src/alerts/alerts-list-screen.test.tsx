@@ -927,6 +927,31 @@ test("describes a register that can't sell by its kind when the cloud names no r
     .toBeVisible();
 });
 
+test("describes a refund alert for a late QR payment by its kind when the cloud gives no amount", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...passkeyAlert,
+        kind: "late_payment_refund",
+        level: "warning",
+        audience: "local",
+        scope: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        scopeDisplay: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        scopeKind: "refund",
+        refundAmount: null,
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Reembolso pendiente por un pago tardío/ });
+  await expect
+    .element(row.getByText("Mercado Pago cobró un pago QR que hay que devolver", { exact: true }))
+    .toBeVisible();
+});
+
 test("searches a quiet register's alert by its fixed title", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert]));

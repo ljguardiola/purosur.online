@@ -58,7 +58,9 @@ describe("openLatePaymentRefund", () => {
     const { refunds, openedAlerts } = await refundsAndAlertsOf(payment.id);
     expect(refunds).toHaveLength(1);
     expect(refunds[0]?.providerOrderId).toBeNull();
-    expect(openedAlerts).toHaveLength(1);
+    expect(openedAlerts.map(({ detail }) => detail)).toEqual([
+      { saleId: payment.saleId, amount: payment.amount, providerOrderId: null },
+    ]);
   });
 
   it("opens a task and an alert for each order the payment's reference is on", async () => {
@@ -85,6 +87,12 @@ describe("openLatePaymentRefund", () => {
       { providerOrderId: "order-2", amount: 4200 },
       { providerOrderId: "order-3", amount: 4300 },
     ]);
+    expect(openedAlerts.map(({ detail }) => detail)).toEqual(
+      expect.arrayContaining([
+        { saleId: payment.saleId, amount: 4200, providerOrderId: "order-2" },
+        { saleId: payment.saleId, amount: 4300, providerOrderId: "order-3" },
+      ]),
+    );
     expect(openedAlerts).toHaveLength(2);
   });
 

@@ -91,13 +91,26 @@ describe("DrizzlePaymentTransactionDirectory.anyPaymentTransactionMayHaveUnrecor
     expect(await directory().anyPaymentTransactionMayHaveUnrecordedOrder()).toBe(true);
   });
 
-  it("does not hold for a transaction with an order, a settled one or one whose creation outcome is known", async () => {
+  it("holds when a settled transaction with an order has an unknown creation outcome", async () => {
+    const registerId = await insertRegister(db, "Caja 1");
+    await db.insert(paymentTransactions).values(
+      pendingTransaction(registerId, {
+        creationOutcomeUnknown: true,
+        providerOrderId: "ORD01",
+        state: "APPROVED",
+      }),
+    );
+
+    expect(await directory().anyPaymentTransactionMayHaveUnrecordedOrder()).toBe(true);
+  });
+
+  it("does not hold when every transaction's creation outcome is known", async () => {
     const registerId = await insertRegister(db, "Caja 1");
     await db
       .insert(paymentTransactions)
       .values([
-        pendingTransaction(registerId, { creationOutcomeUnknown: true, providerOrderId: "ORD01" }),
-        pendingTransaction(registerId, { creationOutcomeUnknown: true, state: "EXPIRED" }),
+        pendingTransaction(registerId, { creationOutcomeUnknown: false, providerOrderId: "ORD01" }),
+        pendingTransaction(registerId, { creationOutcomeUnknown: false, state: "EXPIRED" }),
         pendingTransaction(registerId, { creationOutcomeUnknown: false }),
       ]);
 

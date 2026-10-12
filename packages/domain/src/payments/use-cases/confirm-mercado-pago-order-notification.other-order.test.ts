@@ -16,7 +16,6 @@ const HOLDING_ANOTHER_ORDER = { providerOrderId: "order-1", creationOutcomeUnkno
 function worldReading(result: ReturnType<typeof orderResult>) {
   const world = mercadoPagoQrOrderWorld({ reading: { kind: "read", result } });
   world.lanes.seed(storedTransaction(HOLDING_ANOTHER_ORDER));
-  world.lanes.seed(storedTransaction({ id: "transaction-2", creationOutcomeUnknown: true }));
   return world;
 }
 
@@ -71,8 +70,7 @@ describe("confirmMercadoPagoOrderNotification of a paid order the payment did no
     const { lanes, notificationPorts } = mercadoPagoQrOrderWorld({
       reading: { kind: "read", result: paidOrderNamingThePayment() },
     });
-    lanes.seed(storedTransaction({ providerOrderId: "order-1", state: "APPROVED" }));
-    lanes.seed(storedTransaction({ id: "transaction-2", creationOutcomeUnknown: true }));
+    lanes.seed(storedTransaction({ ...HOLDING_ANOTHER_ORDER, state: "APPROVED" }));
 
     expect(await confirmMercadoPagoOrderNotification(notificationPorts, INPUT)).toEqual({
       kind: "late_payment_of_other_order",
@@ -114,15 +112,16 @@ describe("confirmMercadoPagoOrderNotification of a paid order the payment did no
     expect(lanes.latePaymentRefunds.size).toBe(0);
   });
 
-  it("asks Mercado Pago nothing when no payment waits for an order", async () => {
-    const { lanes, notificationPorts } = mercadoPagoQrOrderWorld({
+  it("asks Mercado Pago nothing when no payment's order creation was unclear", async () => {
+    const { lanes, mercadoPago, notificationPorts } = mercadoPagoQrOrderWorld({
       reading: { kind: "read", result: paidOrderNamingThePayment() },
     });
-    lanes.seed(storedTransaction({ creationOutcomeUnknown: false, providerOrderId: null }));
+    lanes.seed(storedTransaction({ ...HOLDING_ANOTHER_ORDER, creationOutcomeUnknown: false }));
 
     expect(await confirmMercadoPagoOrderNotification(notificationPorts, INPUT)).toEqual({
       kind: "unknown_order",
     });
+    expect(mercadoPago.readOrders).toEqual([]);
     expect(lanes.latePaymentRefunds.size).toBe(0);
   });
 

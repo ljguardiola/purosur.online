@@ -67,7 +67,7 @@ export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResu
       level: "warning",
       audience: "local",
       locationId,
-      detail: { saleId: transaction.saleId, amount: transaction.amount },
+      detail: { saleId: transaction.saleId, amount: transaction.amount, providerOrderId },
       openedAt,
     })
     .returning({ id: alerts.id });

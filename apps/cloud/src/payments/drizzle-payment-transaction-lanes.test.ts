@@ -380,6 +380,7 @@ describe("DrizzlePaymentTransactionLanes", () => {
           saleId: transaction.saleId,
           paymentId: null,
           paymentTransactionId: transaction.id,
+          providerOrderId: null,
           origin: "late_payment",
           method: "QR",
           provider: "MERCADOPAGO_QR",
@@ -409,7 +410,11 @@ describe("DrizzlePaymentTransactionLanes", () => {
           level: "warning",
           audience: "local",
           locationId,
-          detail: { saleId: transaction.saleId, amount: transaction.amount },
+          detail: {
+            saleId: transaction.saleId,
+            amount: transaction.amount,
+            providerOrderId: null,
+          },
           openedAt: READ_AT,
         }),
       ]);
