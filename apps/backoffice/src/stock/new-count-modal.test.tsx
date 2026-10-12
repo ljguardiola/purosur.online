@@ -191,7 +191,7 @@ test("puts the expected balance beside a narrow field for the quantity counted",
   expect(balanceRect.bottom).toBeGreaterThan(fieldRect.top);
 });
 
-test("fills the room beside the quantity field with unframed lines while the expected balance loads", async () => {
+test("fills the room beside the quantity field with the placeholder while the expected balance loads", async () => {
   const services = createServices();
   vi.mocked(services.fetchExpectedBalance).mockReturnValue(new Promise(() => {}));
   const rendered = await renderModal(services);
@@ -209,12 +209,6 @@ test("fills the room beside the quantity field with unframed lines while the exp
   const shapesRect = shapes.getBoundingClientRect();
   expect(shapesRect.left).toBeGreaterThan(fieldRect.right);
   expect(shapesRect.width).toBeGreaterThan(fieldRect.width);
-  expect(getComputedStyle(shapes).borderTopWidth).toBe("0px");
-  const lineWidths = Array.from(shapes.querySelectorAll(".bg-surface-soft")).map(
-    (line) => line.getBoundingClientRect().width,
-  );
-  expect(lineWidths.length).toBeGreaterThan(0);
-  expect(lineWidths.every((width) => width > 0)).toBe(true);
 });
 
 test("registers the count at the moment chosen", async () => {

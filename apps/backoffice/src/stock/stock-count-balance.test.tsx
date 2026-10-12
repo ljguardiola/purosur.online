@@ -127,15 +127,26 @@ test("shows only the expected balance while the lots' total cannot be read", asy
   expect(rowsText(screen.container)).toBe("Saldo esperado12,400 kg");
 });
 
-test.each(["product", "lots"] as const)(
-  "shows a placeholder and no balance while the expected balance loads, counting by %s",
-  async (mode) => {
-    const screen = await renderBalance({ balance: { status: "loading" }, counted: 16_000, mode });
+async function loadingShapes(mode: "product" | "lots") {
+  const screen = await renderBalance({ balance: { status: "loading" }, counted: 16_000, mode });
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  expect(screen.getByText("Saldo esperado").query()).toBeNull();
+  return getComputedStyle(screen.container.querySelector('[aria-hidden="true"]') as HTMLElement);
+}
 
-    expect(screen.container.querySelector('[aria-hidden="true"]')).not.toBeNull();
-    expect(screen.getByText("Saldo esperado").query()).toBeNull();
-  },
-);
+test("draws unframed lines and no balance while the expected balance loads, counting by product", async () => {
+  const shapes = await loadingShapes("product");
+
+  expect(shapes.borderTopWidth).toBe("0px");
+  expect(shapes.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+});
+
+test("draws a card and no balance while the expected balance loads, counting by lot", async () => {
+  const shapes = await loadingShapes("lots");
+
+  expect(shapes.borderTopWidth).not.toBe("0px");
+  expect(shapes.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+});
 
 test("says the expected balance could not be opened, with a Reintentar that loads it again", async () => {
   const retry = vi.fn();
