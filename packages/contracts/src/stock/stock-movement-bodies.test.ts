@@ -13,6 +13,8 @@ import {
 } from "./stock-movement-bodies.js";
 
 const PRODUCT_ID = "11111111-1111-1111-1111-111111111111";
+const LOT_ID = "22222222-2222-2222-2222-222222222222";
+const OTHER_LOT_ID = "33333333-3333-3333-3333-333333333333";
 
 function firstIssue(
   schema:
@@ -161,7 +163,7 @@ describe("stockCountBodySchema", () => {
     );
   });
 
-  it.each([undefined, -1, 0.5, "16000", MAX_STOCK_QUANTITY + 1])(
+  it.each([-1, 0.5, "16000", MAX_STOCK_QUANTITY + 1])(
     "rejects the counted quantity %j",
     (counted) => {
       expect(firstIssue(stockCountBodySchema, { ...count, counted })).toEqual({
@@ -180,6 +182,71 @@ describe("stockCountBodySchema", () => {
       });
     },
   );
+
+  it("accepts the quantity counted per lot instead of a counted quantity", () => {
+    const { counted, ...byLot } = count;
+    const lots = [
+      { lotId: LOT_ID, counted: 4_000 },
+      { lotId: OTHER_LOT_ID, counted: 0 },
+    ];
+
+    expect(stockCountBodySchema.safeParse({ ...byLot, lots })).toMatchObject({
+      success: true,
+      data: { ...byLot, lots },
+    });
+  });
+
+  it("refuses a count by lot that lists no lot", () => {
+    expect(firstIssue(stockCountBodySchema, { ...count, lots: [] })).toEqual({
+      field: "lots",
+      message: "lots must list at least one lot",
+    });
+  });
+
+  it("refuses a lot that is not a lot's id", () => {
+    const result = stockCountBodySchema.safeParse({
+      ...count,
+      lots: [{ lotId: "x", counted: 1_000 }],
+    });
+
+    expect(result.error?.issues[0]?.message).toBe("lotId must be a lot's id");
+  });
+
+  it.each([
+    ["a lot id that is not an id", { lotId: "x", counted: 1_000 }, "lotId"],
+    ["a missing counted quantity", { lotId: LOT_ID }, "counted"],
+    ["a negative counted quantity", { lotId: LOT_ID, counted: -1 }, "counted"],
+    ["a fractional counted quantity", { lotId: LOT_ID, counted: 0.5 }, "counted"],
+    ["a quantity over the largest", { lotId: LOT_ID, counted: MAX_STOCK_QUANTITY + 1 }, "counted"],
+  ])("refuses a lot with %s", (_case, lot, field) => {
+    const result = stockCountBodySchema.safeParse({ ...count, lots: [lot] });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(["lots", 0, field]);
+  });
+
+  it("accepts lots that add up to the largest quantity a count holds", () => {
+    const { counted, ...byLot } = count;
+    const lots = [
+      { lotId: LOT_ID, counted: MAX_STOCK_QUANTITY - 1 },
+      { lotId: OTHER_LOT_ID, counted: 1 },
+    ];
+
+    expect(stockCountBodySchema.safeParse({ ...byLot, lots }).success).toBe(true);
+  });
+
+  it("refuses lots that add up to more than the largest quantity a count holds, on the lots", () => {
+    const { counted, ...byLot } = count;
+    const lots = [
+      { lotId: LOT_ID, counted: MAX_STOCK_QUANTITY },
+      { lotId: OTHER_LOT_ID, counted: 1 },
+    ];
+
+    expect(firstIssue(stockCountBodySchema, { ...byLot, lots })).toEqual({
+      field: "lots",
+      message: "lots must add up to at most the largest quantity a count holds",
+    });
+  });
 
   it("accepts a moment with an offset", () => {
     expect(

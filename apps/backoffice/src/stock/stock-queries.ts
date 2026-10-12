@@ -99,6 +99,7 @@ export function useExpectedBalanceQuery(
   params: ReadParams & {
     productId: string;
     at: string;
+    enabled: boolean;
     fetchExpectedBalance: typeof fetchExpectedBalance;
   },
 ) {
@@ -106,6 +107,7 @@ export function useExpectedBalanceQuery(
   return useCloudQuery<StockProductBalance>({
     queryKey: stockKeys.expectedBalance(params.productId, params.at),
     keepPreviousData: true,
+    enabled: params.enabled,
     read: async () => {
       const outcome = await params.fetchExpectedBalance(params.productId, params.at);
       return outcome.kind === "not_found" ? { kind: "failed" } : outcome;
