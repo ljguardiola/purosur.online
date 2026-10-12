@@ -60,6 +60,7 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         occurredAt: refund?.occurredAt,
         saleOccurredAt: cancelled.cancelledAt,
         coveredBy: [],
+        providerOrderId: null,
         cancelledBy: userId,
         cancelledByName: "Ada Lucero",
       },
@@ -143,10 +144,22 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
           occurredAt: NOW,
           saleOccurredAt: late.saleOccurredAt,
           coveredBy: [],
+          providerOrderId: null,
           cancelledBy: null,
           cancelledByName: null,
         },
       ]);
+    });
+
+    it("lists the Mercado Pago order it is the refund of, when it names one", async () => {
+      const late = await aPendingLatePaymentRefund(db, {
+        openedAt: NOW,
+        providerOrderId: "ORD01SECOND",
+      });
+
+      const [refund] = await reader().pendingRefunds(late.locationId);
+
+      expect(refund?.providerOrderId).toBe("ORD01SECOND");
     });
 
     it("lists the methods that covered its sale once the sale reached the cloud, each once", async () => {

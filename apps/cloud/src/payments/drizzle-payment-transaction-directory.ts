@@ -26,6 +26,25 @@ export class DrizzlePaymentTransactionDirectory<TQueryResult extends PgQueryResu
     return row ?? null;
   }
 
+  async anyPaymentTransactionMayHaveUnrecordedOrder(): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: paymentTransactions.id })
+      .from(paymentTransactions)
+      .where(eq(paymentTransactions.creationOutcomeUnknown, true))
+      .limit(1);
+    return row !== undefined;
+  }
+
+  async paymentTransactionOfExternalReference(
+    externalReference: string,
+  ): Promise<PaymentTransactionReference | null> {
+    const [row] = await this.db
+      .select({ id: paymentTransactions.id, registerId: paymentTransactions.registerId })
+      .from(paymentTransactions)
+      .where(sql`${paymentTransactions.id}::text = ${externalReference.toLowerCase()}`);
+    return row ?? null;
+  }
+
   async pendingPaymentTransactions(): Promise<PaymentTransactionReference[]> {
     return this.db
       .select({ id: paymentTransactions.id, registerId: paymentTransactions.registerId })

@@ -23,6 +23,7 @@ const refund: Record<string, unknown> = {
   seconds_pending: 3600,
   sale_occurred_at: "2026-10-07T15:30:00.000Z",
   covered_by: [],
+  provider_order_id: null,
   cancelled_by: "u1",
   cancelled_by_name: "Lucia",
 };
@@ -63,6 +64,14 @@ describe("pendingRefundsSchema", () => {
     expect(pendingRefundsSchema.parse(list)).toEqual(list);
   });
 
+  it("accepts the refund of a late payment that names the Mercado Pago order it is for", () => {
+    const list = {
+      refunds: [{ ...refund, origin: "late_payment", provider_order_id: "ORD01SECOND" }],
+    };
+
+    expect(pendingRefundsSchema.parse(list)).toEqual(list);
+  });
+
   it("accepts a refund whose canceller is not a known person", () => {
     const list = { refunds: [{ ...refund, cancelled_by_name: null }] };
 
@@ -94,6 +103,8 @@ describe("pendingRefundsSchema", () => {
     ["a sale date that is not ISO", { sale_occurred_at: "ayer" }],
     ["a method that covered the sale and no payment has", { covered_by: ["CARD"] }],
     ["covering methods that are not a list", { covered_by: "CASH" }],
+    ["an order that is not text", { provider_order_id: 1 }],
+    ["an empty order", { provider_order_id: "" }],
     ["a fractional time pending", { seconds_pending: 1.5 }],
     ["a negative time pending", { seconds_pending: -1 }],
   ])("refuses a refund with %s", (_case, change) => {

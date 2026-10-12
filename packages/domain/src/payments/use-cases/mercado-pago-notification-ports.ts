@@ -8,6 +8,10 @@ export interface PaymentTransactionReference {
 
 export interface PaymentTransactionDirectory {
   paymentTransactionOfOrder(providerOrderId: string): Promise<PaymentTransactionReference | null>;
+  anyPaymentTransactionMayHaveUnrecordedOrder(): Promise<boolean>;
+  paymentTransactionOfExternalReference(
+    externalReference: string,
+  ): Promise<PaymentTransactionReference | null>;
   pendingPaymentTransactions(): Promise<PaymentTransactionReference[]>;
 }
 

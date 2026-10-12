@@ -91,7 +91,7 @@ describe("recording the replacement of a pending QR payment", () => {
         scope: refund?.id,
         level: "warning",
         audience: "local",
-        detail: { saleId: transaction.saleId, amount: transaction.amount },
+        detail: { saleId: transaction.saleId, amount: transaction.amount, providerOrderId: null },
       }),
     ]);
   });

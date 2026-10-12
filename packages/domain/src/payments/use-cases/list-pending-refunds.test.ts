@@ -17,6 +17,7 @@ const TRANSFER_REFUND: FakePendingRefund = {
   occurredAt: new Date("2026-10-07T15:30:00.000Z"),
   saleOccurredAt: new Date("2026-10-07T15:30:00.000Z"),
   coveredBy: [],
+  providerOrderId: null,
   cancelledBy: "cashier",
   cancelledByName: "Lucia",
   locationId: "branch-1",
@@ -55,6 +56,20 @@ describe("listPendingRefunds", () => {
       ["refund-3", "late_payment", true],
     ]);
     expect(refunds[1]).toMatchObject({ cancelledBy: null, cancelledByName: null });
+  });
+
+  it("lists the Mercado Pago order a late-payment refund names", async () => {
+    const late: FakePendingRefund = {
+      ...TRANSFER_REFUND,
+      method: "QR",
+      origin: "late_payment",
+      providerOrderId: "order-2",
+    };
+    const store = new FakeRefundStore([], [late]);
+
+    const [refund] = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
+
+    expect(refund?.providerOrderId).toBe("order-2");
   });
 
   it("lists nothing when the branch has no pending refund", async () => {

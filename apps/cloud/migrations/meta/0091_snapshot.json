@@ -1,5 +1,5 @@
 {
-  "id": "aec4bdbd-f2a7-460a-bd75-f1f052b6be85",
+  "id": "f742e3f3-43a9-437b-a390-74047d550023",
   "prevId": "1168a868-aad5-4762-a5a0-1e43c15c077a",
   "version": "7",
   "dialect": "postgresql",
@@ -3185,6 +3185,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "provider_order_id": {
+          "name": "provider_order_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "origin": {
           "name": "origin",
           "type": "text",
@@ -3248,6 +3254,44 @@
         }
       },
       "indexes": {
+        "payment_refunds_transaction_without_order_unique": {
+          "name": "payment_refunds_transaction_without_order_unique",
+          "columns": [
+            {
+              "expression": "payment_transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"payment_refunds\".\"provider_order_id\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payment_refunds_transaction_order_unique": {
+          "name": "payment_refunds_transaction_order_unique",
+          "columns": [
+            {
+              "expression": "payment_transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "provider_order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"payment_refunds\".\"provider_order_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "payment_refunds_pending_idx": {
           "name": "payment_refunds_pending_idx",
           "columns": [
@@ -3301,13 +3345,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "payment_refunds_payment_transaction_id_unique": {
-          "name": "payment_refunds_payment_transaction_id_unique",
-          "nullsNotDistinct": false,
-          "columns": ["payment_transaction_id"]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
         "payment_refunds_state_check": {
@@ -5972,13 +6010,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "sale_discount_share": {
-          "name": "sale_discount_share",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         }
       },
       "indexes": {},
@@ -5997,10 +6028,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "sale_lines_sale_discount_share_check": {
-          "name": "sale_lines_sale_discount_share_check",
-          "value": "\"sale_lines\".\"sale_discount_share\" >= 0"
-        },
         "sale_lines_weight_source_check": {
           "name": "sale_lines_weight_source_check",
           "value": "\"sale_lines\".\"weight_source\" IN ('SCALE', 'MANUAL')"
@@ -6266,36 +6293,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "sale_discount_kind": {
-          "name": "sale_discount_kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sale_discount_value": {
-          "name": "sale_discount_value",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sale_discount_amount": {
-          "name": "sale_discount_amount",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sale_discount_reason": {
-          "name": "sale_discount_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sale_discount_authorized_by": {
-          "name": "sale_discount_authorized_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "operation_number": {
           "name": "operation_number",
           "type": "bigint",
@@ -6375,26 +6372,6 @@
         "sales_state_check": {
           "name": "sales_state_check",
           "value": "\"sales\".\"state\" in ('COMPLETED', 'CANCELLED')"
-        },
-        "sales_sale_discount_kind_check": {
-          "name": "sales_sale_discount_kind_check",
-          "value": "\"sales\".\"sale_discount_kind\" IN ('PERCENT', 'AMOUNT')"
-        },
-        "sales_sale_discount_value_check": {
-          "name": "sales_sale_discount_value_check",
-          "value": "(\"sales\".\"sale_discount_value\" IS NULL) = (\"sales\".\"sale_discount_kind\" IS NULL)\n        AND (\n          \"sales\".\"sale_discount_kind\" IS NULL\n          OR (\"sales\".\"sale_discount_kind\" = 'PERCENT' AND \"sales\".\"sale_discount_value\" BETWEEN 1 AND 100)\n          OR (\"sales\".\"sale_discount_kind\" = 'AMOUNT' AND \"sales\".\"sale_discount_value\" > 0)\n        )"
-        },
-        "sales_sale_discount_amount_check": {
-          "name": "sales_sale_discount_amount_check",
-          "value": "(\"sales\".\"sale_discount_amount\" IS NULL) = (\"sales\".\"sale_discount_kind\" IS NULL)\n        AND (\"sales\".\"sale_discount_amount\" IS NULL OR \"sales\".\"sale_discount_amount\" >= 0)"
-        },
-        "sales_sale_discount_reason_check": {
-          "name": "sales_sale_discount_reason_check",
-          "value": "(\"sales\".\"sale_discount_reason\" IS NULL) = (\"sales\".\"sale_discount_kind\" IS NULL)\n        AND (\"sales\".\"sale_discount_reason\" IS NULL OR btrim(\"sales\".\"sale_discount_reason\") <> '')"
-        },
-        "sales_sale_discount_authorized_by_check": {
-          "name": "sales_sale_discount_authorized_by_check",
-          "value": "\"sales\".\"sale_discount_authorized_by\" IS NULL OR \"sales\".\"sale_discount_kind\" IS NOT NULL"
         },
         "sales_state_matches_timestamps_check": {
           "name": "sales_state_matches_timestamps_check",

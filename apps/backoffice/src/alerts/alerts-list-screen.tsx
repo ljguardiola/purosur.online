@@ -72,7 +72,11 @@ function alertRowTitle(alert: AlertSummary): string {
 }
 
 function localSubjectOf(alert: AlertSummary): LocalAlertSubject | undefined {
-  if (alert.audience !== "local" || !isLocalAlertKind(alert.kind)) {
+  if (
+    alert.audience !== "local" ||
+    !isLocalAlertKind(alert.kind) ||
+    alert.kind === "late_payment_refund"
+  ) {
     return undefined;
   }
   if (alert.kind === "sales_denied") {

@@ -154,6 +154,7 @@ const fiscalRejectedDetailSchema = z.object({
 const latePaymentRefundDetailSchema = z.object({
   saleId: z.string(),
   amount: z.int(),
+  providerOrderId: z.string().nullable(),
 });
 
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
