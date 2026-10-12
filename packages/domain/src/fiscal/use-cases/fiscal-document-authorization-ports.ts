@@ -73,7 +73,7 @@ export type SolicitationAnswer =
   | { kind: "authorized"; authorizationCode: string; authorizationCodeDueOn: string }
   | { kind: "rejected"; rejections: readonly TaxAuthorityRejection[] }
   | { kind: "refused_without_result"; rejections: readonly TaxAuthorityRejection[] }
-  | { kind: "no_answer" };
+  | { kind: "no_answer"; rejections: readonly TaxAuthorityRejection[] };
 
 export interface TaxAuthorityInvoicing {
   solicit(solicitation: FiscalDocumentSolicitation): Promise<SolicitationAnswer>;

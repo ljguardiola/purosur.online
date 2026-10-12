@@ -58,9 +58,7 @@ function answerOf(answer: SolicitationAnswer): RealTimeAuthorizationAnswer {
 }
 
 function rejectionsOf(solicitation: SolicitationAnswer): readonly TaxAuthorityRejection[] {
-  return solicitation.kind === "rejected" || solicitation.kind === "refused_without_result"
-    ? solicitation.rejections
-    : [];
+  return solicitation.kind === "authorized" ? [] : solicitation.rejections;
 }
 
 function unclearCodesOf(
