@@ -32,13 +32,28 @@ test("keeps the balances filters a URL names, falling back for a value it does n
 });
 
 test("opens the counts of the last 30 days in every category", () => {
-  expect(stockCountsFilters.parse({})).toEqual({ search: "", category: "ALL", period: "30" });
+  expect(stockCountsFilters.parse({})).toEqual({
+    search: "",
+    category: "ALL",
+    period: "30",
+    sortBy: "date",
+    sort: "descending",
+  });
 });
 
 test("keeps the counts filters a URL names, falling back for a period it does not offer", () => {
   expect(stockCountsFilters.parse({ period: "7" }).period).toBe("7");
   expect(stockCountsFilters.parse({ period: "90" }).period).toBe("90");
   expect(stockCountsFilters.parse({ period: "12" }).period).toBe("30");
+});
+
+test("keeps the counts order a URL names, falling back for one it does not offer", () => {
+  const order = { sortBy: "difference", sort: "ascending" };
+  expect(stockCountsFilters.parse(order)).toMatchObject(order);
+  expect(stockCountsFilters.parse({ sortBy: "price", sort: "up" })).toMatchObject({
+    sortBy: "date",
+    sort: "descending",
+  });
 });
 
 test("opens the losses and adjustments of the last 30 days, for every reason", () => {

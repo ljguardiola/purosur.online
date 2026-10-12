@@ -10,7 +10,8 @@ import {
 export type LoadingPlaceholderProps =
   | { variant: "form"; fields: number }
   | { variant: "card"; lines: number }
-  | { variant: "list"; items: number };
+  | { variant: "list"; items: number }
+  | { variant: "rows"; rows: number };
 
 function FormShapes({ fields }: { fields: number }) {
   return (
@@ -58,6 +59,19 @@ function ListShapes({ items }: { items: number }) {
   );
 }
 
+function RowShapes({ rows }: { rows: number }) {
+  return (
+    <div aria-hidden="true" className="flex animate-placeholder-reveal flex-col gap-1">
+      {placeholderIds("row", rows).map((id, position) => (
+        <div key={id} className="flex h-6 items-center justify-between gap-4">
+          <PlaceholderLine widthPercent={placeholderLineWidthPercent(position) / 2} />
+          <PlaceholderLine widthPercent={25} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function LoadingPlaceholder(props: LoadingPlaceholderProps) {
   return (
     <div>
@@ -65,6 +79,7 @@ export function LoadingPlaceholder(props: LoadingPlaceholderProps) {
       {props.variant === "form" && <FormShapes fields={props.fields} />}
       {props.variant === "card" && <CardShapes lines={props.lines} />}
       {props.variant === "list" && <ListShapes items={props.items} />}
+      {props.variant === "rows" && <RowShapes rows={props.rows} />}
     </div>
   );
 }

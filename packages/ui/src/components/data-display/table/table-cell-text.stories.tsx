@@ -45,6 +45,10 @@ export const ErrorText: Story = {
   args: { children: "− 3 u", tone: "error", strong: true },
 };
 
+export const SuccessText: Story = {
+  args: { children: "+ 3 u", tone: "success", strong: true },
+};
+
 export const ErrorDescription: Story = {
   args: {
     children: "Yerba mate orgánica 500 g",
