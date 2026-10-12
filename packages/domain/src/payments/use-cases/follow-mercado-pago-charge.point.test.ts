@@ -98,7 +98,7 @@ describe("followMercadoPagoCharge on the integrated terminal", () => {
 
       expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "closed" });
       expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
-      expect(world.operations).toEqual(["readOrder", `recordEnded:`]);
+      expect(world.operations).toEqual(["readOrder", ["recordEnded", state].join(":")]);
     },
   );
 

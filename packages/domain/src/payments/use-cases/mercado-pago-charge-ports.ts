@@ -1,9 +1,13 @@
 import type { Clock } from "../../shared/index.js";
-import type { PaymentTransactionState } from "../model/payment-transaction.js";
+import type {
+  MercadoPagoPaymentTransaction,
+  PaymentTransactionState,
+} from "../model/payment-transaction.js";
 
 export interface PendingMercadoPagoPayment {
   actorId: string;
   saleId: string;
+  method: MercadoPagoPaymentTransaction["method"];
   amount: number;
   occurredAt: Date;
   waitEndsAt: Date;
@@ -12,6 +16,7 @@ export interface PendingMercadoPagoPayment {
 export interface PendingMercadoPagoCharge {
   paymentTransactionId: string;
   saleId: string;
+  method: MercadoPagoPaymentTransaction["method"];
   amount: number;
   waitEndsAt: Date;
 }
@@ -41,12 +46,14 @@ export type MercadoPagoChargeOrderReading =
 
 export type MercadoPagoChargeOrderCancellation =
   | { kind: "answered"; state: PaymentTransactionState }
+  | { kind: "cancel_on_terminal" }
   | { kind: "unreachable" };
 
 export interface MercadoPagoChargeOrders {
   requestOrder(order: {
     paymentTransactionId: string;
     saleId: string;
+    method: MercadoPagoPaymentTransaction["method"];
     amount: number;
   }): Promise<MercadoPagoChargeOrderAnswer>;
   readOrder(paymentTransactionId: string): Promise<MercadoPagoChargeOrderReading>;

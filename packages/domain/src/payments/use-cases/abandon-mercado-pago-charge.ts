@@ -10,6 +10,8 @@ export type AbandonMercadoPagoChargeOutcome<ReplacementRefusal, Settlement> =
   | { kind: "cancelled" }
   | { kind: "already_paid"; settlement: Settlement }
   | { kind: "closed" }
+  | { kind: "cancel_on_terminal" }
+  | { kind: "unreachable" }
   | { kind: "replaced" }
   | ReplacementRefusal;
 
@@ -17,7 +19,8 @@ export async function abandonMercadoPagoCharge<Refusal, Settlement, ReplacementR
   { sale, orders, charges, clock }: MercadoPagoChargePorts<Refusal, Settlement, ReplacementRefusal>,
   { actorId, paymentTransactionId }: AbandonMercadoPagoChargeInput,
 ): Promise<AbandonMercadoPagoChargeOutcome<ReplacementRefusal, Settlement>> {
-  if (charges.pendingCharge(paymentTransactionId) === null) {
+  const charge = charges.pendingCharge(paymentTransactionId);
+  if (charge === null) {
     return { kind: "not_pending" };
   }
 
@@ -34,6 +37,12 @@ export async function abandonMercadoPagoCharge<Refusal, Settlement, ReplacementR
       charges.recordEnded(paymentTransactionId, state);
       return { kind: state === "CANCELLED" ? "cancelled" : "closed" };
     }
+  }
+
+  if (charge.method === "POINT") {
+    return cancellation.kind === "cancel_on_terminal"
+      ? { kind: "cancel_on_terminal" }
+      : { kind: "unreachable" };
   }
 
   const replacement = sale.replacePendingPayment({

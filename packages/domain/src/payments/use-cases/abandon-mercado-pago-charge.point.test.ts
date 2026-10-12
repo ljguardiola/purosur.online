@@ -52,7 +52,7 @@ describe("abandonMercadoPagoCharge on the integrated terminal", () => {
       world.orderCancellation = { kind: "answered", state };
 
       expect(await abandonMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "closed" });
-      expect(world.operations).toEqual(["cancelOrder", `recordEnded:`]);
+      expect(world.operations).toEqual(["cancelOrder", ["recordEnded", state].join(":")]);
     },
   );
 

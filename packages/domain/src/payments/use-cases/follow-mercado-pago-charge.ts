@@ -13,6 +13,8 @@ export type FollowMercadoPagoChargeOutcome<Settlement> =
   | { kind: "not_pending" }
   | { kind: "waiting"; remainingSeconds: number }
   | { kind: "wait_over" }
+  | { kind: "at_terminal_wait_over" }
+  | { kind: "closed" }
   | { kind: "expiry_unconfirmed" }
   | { kind: "declined" }
   | { kind: "approved"; settlement: Settlement };
@@ -37,15 +39,21 @@ export async function followMercadoPagoCharge<Refusal, Settlement>(
     }
     if (state === "EXPIRED") {
       charges.recordEnded(paymentTransactionId, state);
-      return { kind: "wait_over" };
+      return { kind: charge.method === "POINT" ? "closed" : "wait_over" };
     }
     if (state !== "PENDING") {
       charges.recordEnded(paymentTransactionId, state);
-      return { kind: "declined" };
+      return { kind: charge.method === "POINT" && state === "CANCELLED" ? "closed" : "declined" };
     }
   }
 
   const now = clock.now();
+  if (
+    charge.method === "POINT" &&
+    mercadoPagoOrderChargeWait(charge.waitEndsAt, now).kind === "over"
+  ) {
+    return { kind: "at_terminal_wait_over" };
+  }
   if (
     reading.kind === "unreachable" &&
     mercadoPagoOrderChargeWait(charge.waitEndsAt, now).kind === "over"
