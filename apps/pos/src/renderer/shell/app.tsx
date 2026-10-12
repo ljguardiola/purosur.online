@@ -391,7 +391,6 @@ function Register({ core }: { core: CoreClient }) {
     cancelPaidSale: (saleId: string, authorization: Authorization | undefined) =>
       core.cancelPaidSale(saleId, authorization),
     receiptPrintStatus: (saleId: string) => core.receiptPrintStatus(saleId),
-    retryReceiptPrint: (saleId: string) => core.retryReceiptPrint(saleId),
     reprintSaleReceipt: (
       saleId: string,
       reason: string,

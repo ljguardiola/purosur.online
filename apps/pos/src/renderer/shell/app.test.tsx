@@ -117,7 +117,6 @@ function coreAnswering(
     addProduct?: CoreClient["addProduct"];
     addWeighedProduct?: CoreClient["addWeighedProduct"];
     receiptPrintStatus?: CoreClient["receiptPrintStatus"];
-    retryReceiptPrint?: CoreClient["retryReceiptPrint"];
     reprintSaleReceipt?: CoreClient["reprintSaleReceipt"];
     salesHistory?: CoreClient["salesHistory"];
     saleHistoryDetail?: CoreClient["saleHistoryDetail"];
@@ -274,11 +273,6 @@ function coreAnswering(
       return sales.receiptPrintStatus === undefined
         ? { kind: "found", next_copy: { kind: "original" }, printed: true, standing: "printed" }
         : sales.receiptPrintStatus(saleId);
-    },
-    async retryReceiptPrint(saleId) {
-      return sales.retryReceiptPrint === undefined
-        ? { kind: "not_offered" }
-        : sales.retryReceiptPrint(saleId);
     },
     async reprintSaleReceipt(saleId, reason, authorization) {
       return sales.reprintSaleReceipt === undefined

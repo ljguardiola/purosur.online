@@ -1,32 +1,25 @@
 import { createServer, type Server, type Socket } from "node:net";
 
 const STATUS_QUERY = [0x10, 0x04, 0x02];
-const TRANSMIT_RESPONSE_HEAD = [0x1d, 0x28, 0x48, 0x06, 0x00, 0x30, 0x30];
-const TRANSMIT_RESPONSE_LENGTH = TRANSMIT_RESPONSE_HEAD.length + 4;
 const COVER_OPEN_BIT = 0x04;
 const PAPER_END_BIT = 0x20;
 const FIXED_STATUS_BITS = 0x12;
-
-interface HeldReceipt {
-  bytes: Uint8Array;
-  id: Uint8Array;
-  connection: Socket;
-}
 
 interface Connection {
   socket: Socket;
   pending: number[];
   receipt: number[];
+  printed: boolean;
 }
 
 type Match = "match" | "partial" | "none";
 
-function matchAt(bytes: number[], at: number, head: number[], length: number): Match {
-  for (let offset = 0; offset < head.length; offset += 1) {
+function matchAt(bytes: number[], at: number): Match {
+  for (let offset = 0; offset < STATUS_QUERY.length; offset += 1) {
     if (at + offset >= bytes.length) return "partial";
-    if (bytes[at + offset] !== head[offset]) return "none";
+    if (bytes[at + offset] !== STATUS_QUERY[offset]) return "none";
   }
-  return bytes.length - at >= length ? "match" : "partial";
+  return "match";
 }
 
 export class FakeThermalPrinter {
@@ -35,7 +28,6 @@ export class FakeThermalPrinter {
   private server: Server | undefined;
   private listeningPort = 0;
   private readonly connections = new Set<Connection>();
-  private held: HeldReceipt[] = [];
   private coverOpen = false;
   private paperOut = false;
   private unresponsive = false;
@@ -47,10 +39,6 @@ export class FakeThermalPrinter {
 
   get connectionCount(): number {
     return this.connections.size;
-  }
-
-  get heldCount(): number {
-    return this.held.length;
   }
 
   async listen(): Promise<void> {
@@ -79,7 +67,6 @@ export class FakeThermalPrinter {
 
   closeCover(): void {
     this.coverOpen = false;
-    this.printHeld();
   }
 
   runOutOfPaper(): void {
@@ -88,7 +75,6 @@ export class FakeThermalPrinter {
 
   loadPaper(): void {
     this.paperOut = false;
-    this.printHeld();
   }
 
   stayUnresponsive(): void {
@@ -103,24 +89,12 @@ export class FakeThermalPrinter {
     for (const connection of this.connections) connection.socket.destroy();
   }
 
-  powerCycle(): void {
-    this.held = [];
-    this.coverOpen = false;
-    this.paperOut = false;
-    this.unresponsive = false;
-    this.dropConnections();
-  }
-
-  sendToHosts(bytes: number[]): void {
-    for (const connection of this.connections) connection.socket.write(Uint8Array.from(bytes));
-  }
-
   async whenStatusQueries(count: number): Promise<void> {
     await this.until(() => this.statusQueries >= count);
   }
 
-  async whenHeld(count: number): Promise<void> {
-    await this.until(() => this.held.length >= count);
+  async whenPrinted(count: number): Promise<void> {
+    await this.until(() => this.printed.length >= count);
   }
 
   async whenConnectionCount(count: number): Promise<void> {
@@ -138,17 +112,26 @@ export class FakeThermalPrinter {
   }
 
   private accept(socket: Socket): void {
-    const connection: Connection = { socket, pending: [], receipt: [] };
+    const connection: Connection = { socket, pending: [], receipt: [], printed: false };
     this.connections.add(connection);
     socket.on("data", (chunk) => {
       connection.pending.push(...chunk);
       this.consume(connection);
     });
     socket.on("error", () => {});
+    socket.on("end", () => this.print(connection));
     socket.on("close", () => {
+      this.print(connection);
       this.connections.delete(connection);
       this.changed();
     });
+    this.changed();
+  }
+
+  private print(connection: Connection): void {
+    if (connection.printed || connection.receipt.length === 0) return;
+    connection.printed = true;
+    this.printed.push(Uint8Array.from(connection.receipt));
     this.changed();
   }
 
@@ -157,24 +140,11 @@ export class FakeThermalPrinter {
     let at = 0;
     let consumed = 0;
     while (at < bytes.length) {
-      const query = matchAt(bytes, at, STATUS_QUERY, STATUS_QUERY.length);
-      const request = matchAt(bytes, at, TRANSMIT_RESPONSE_HEAD, TRANSMIT_RESPONSE_LENGTH);
-      if (query === "partial" || request === "partial") break;
+      const query = matchAt(bytes, at);
+      if (query === "partial") break;
       if (query === "match") {
         this.answerStatusQuery(connection.socket);
         at += STATUS_QUERY.length;
-      } else if (request === "match") {
-        const id = Uint8Array.from(
-          bytes.slice(at + TRANSMIT_RESPONSE_HEAD.length, at + TRANSMIT_RESPONSE_LENGTH),
-        );
-        this.held.push({
-          bytes: Uint8Array.from(connection.receipt),
-          id,
-          connection: connection.socket,
-        });
-        connection.receipt = [];
-        at += TRANSMIT_RESPONSE_LENGTH;
-        this.printHeld();
       } else {
         connection.receipt.push(bytes[at] as number);
         at += 1;
@@ -192,16 +162,5 @@ export class FakeThermalPrinter {
     if (this.coverOpen) status |= COVER_OPEN_BIT | PAPER_END_BIT;
     if (this.paperOut) status |= PAPER_END_BIT;
     socket.write(Uint8Array.of(status));
-  }
-
-  private printHeld(): void {
-    if (this.coverOpen || this.paperOut) return;
-    const ready = this.held;
-    this.held = [];
-    for (const receipt of ready) {
-      this.printed.push(receipt.bytes);
-      receipt.connection.write(Uint8Array.of(0x37, 0x22, ...receipt.id, 0x00));
-    }
-    this.changed();
   }
 }
