@@ -2818,6 +2818,8 @@ describe("the register's local migrations", () => {
     expect(() => insert("doc-3", "sale-3", 41, "REQUESTING")).toThrow(/UNIQUE/);
     expect(() => insert("doc-3", "sale-3", 42, "REQUESTING")).not.toThrow();
     database.close();
+  });
+
   it("let a sale carry a discount on its total and its lines a share of it, none over the sales and lines it already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
