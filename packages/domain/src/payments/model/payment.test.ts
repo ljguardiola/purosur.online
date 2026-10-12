@@ -3,6 +3,7 @@ import {
   cancellableWithoutAuthorization,
   hasApprovedPayment,
   holdsApprovedQrPayment,
+  PAYMENT_METHODS,
 } from "./payment.js";
 import type { SalePayment } from "./payment-transaction.js";
 
@@ -91,5 +92,39 @@ describe("a Mercado Pago QR payment of a sale", () => {
   it("carries no tendered amount nor anyone who confirmed it", () => {
     expectTypeOf<QrPayment & { tendered: number }>().not.toExtend<SalePayment>();
     expectTypeOf<QrPayment & { authorizedBy: string }>().not.toExtend<SalePayment>();
+  });
+});
+
+describe("PAYMENT_METHODS", () => {
+  it("lists the integrated terminal beside cash, transfer and QR", () => {
+    expect(PAYMENT_METHODS).toEqual(["CASH", "TRANSFER", "QR", "POINT"]);
+  });
+});
+
+describe("a Mercado Pago Point payment of a sale", () => {
+  type PointPayment = Extract<SalePayment, { method: "POINT" }>;
+
+  it("is an approved payment processed by Mercado Pago Point", () => {
+    expectTypeOf<PointPayment>().toExtend<{ provider: "MERCADOPAGO_POINT"; state: "APPROVED" }>();
+    expectTypeOf<
+      Omit<PointPayment, "provider"> & { provider: "MERCADOPAGO_QR" }
+    >().not.toExtend<SalePayment>();
+  });
+
+  it("carries no tendered amount nor anyone who confirmed it", () => {
+    expectTypeOf<PointPayment & { tendered: number }>().not.toExtend<SalePayment>();
+    expectTypeOf<PointPayment & { authorizedBy: string }>().not.toExtend<SalePayment>();
+  });
+
+  it("carries nothing about the card that paid", () => {
+    expectTypeOf<keyof PointPayment>().not.toExtend<
+      "cardLastDigits" | "cardType" | "cardBrand" | "cardholderName"
+    >();
+  });
+});
+
+describe("holdsApprovedQrPayment", () => {
+  it("is false when the approved payment is by the integrated terminal", () => {
+    expect(holdsApprovedQrPayment([{ state: "APPROVED", method: "POINT" }])).toBe(false);
   });
 });

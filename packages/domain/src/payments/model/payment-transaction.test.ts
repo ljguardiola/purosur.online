@@ -6,6 +6,7 @@ import {
   isLateApproval,
   isValidOrderAmount,
   type MercadoPagoOrderTransaction,
+  type MercadoPagoPointPaymentTransaction,
   mayHaveUnrecordedOrder,
   mercadoPagoOrderExpiresAt,
   PAYMENT_TRANSACTION_STATES,
@@ -48,6 +49,44 @@ describe("PaymentTransaction", () => {
 
     expectTypeOf<WithoutKind>().not.toExtend<MercadoPagoOrderTransaction>();
     expectTypeOf<WithoutKind & { kind: "REFUND" }>().not.toExtend<MercadoPagoOrderTransaction>();
+  });
+});
+
+describe("MercadoPagoPointPaymentTransaction", () => {
+  it("is a payment transaction of a sale by the integrated terminal", () => {
+    expectTypeOf<MercadoPagoPointPaymentTransaction>().toExtend<PaymentTransaction>();
+    expectTypeOf<MercadoPagoPointPaymentTransaction["method"]>().toEqualTypeOf<"POINT">();
+    expectTypeOf<
+      MercadoPagoPointPaymentTransaction["provider"]
+    >().toEqualTypeOf<"MERCADOPAGO_POINT">();
+  });
+
+  it("is a Mercado Pago order beside the QR one, kept on the same model", () => {
+    expectTypeOf<MercadoPagoOrderTransaction["method"]>().toEqualTypeOf<"QR" | "POINT">();
+    expectTypeOf<MercadoPagoOrderTransaction["provider"]>().toEqualTypeOf<
+      "MERCADOPAGO_QR" | "MERCADOPAGO_POINT"
+    >();
+  });
+
+  it("does not mix a QR method with the Point provider", () => {
+    expectTypeOf<
+      Omit<MercadoPagoOrderTransaction, "method" | "provider"> & {
+        method: "QR";
+        provider: "MERCADOPAGO_POINT";
+      }
+    >().not.toExtend<MercadoPagoOrderTransaction>();
+  });
+
+  it("carries nothing about the card that paid", () => {
+    expectTypeOf<keyof MercadoPagoPointPaymentTransaction>().not.toExtend<
+      "cardLastDigits" | "cardType" | "cardBrand" | "cardholderName"
+    >();
+  });
+
+  it("is a pending sale payment as well while its wait runs", () => {
+    expectTypeOf<
+      Extract<PendingMercadoPagoSalePayment, { method: "POINT" }>["provider"]
+    >().toEqualTypeOf<"MERCADOPAGO_POINT">();
   });
 });
 
