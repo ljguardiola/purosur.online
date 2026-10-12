@@ -27,7 +27,7 @@ type MercadoPagoOrderIdentity =
   | Pick<MercadoPagoQrPaymentTransaction, "method" | "provider">
   | Pick<MercadoPagoPointPaymentTransaction, "method" | "provider">;
 
-export type MercadoPagoOrderAttempt<TNotCreated extends { kind: string }> =
+type MercadoPagoOrderAttempt<TNotCreated extends { kind: string }> =
   | MercadoPagoOrderCreation
   | { kind: "not_created"; outcome: TNotCreated };
 
