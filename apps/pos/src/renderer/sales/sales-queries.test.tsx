@@ -26,7 +26,6 @@ import {
   useReadCurrentSale,
   useReceiptPrintStatusQuery,
   useRefreshCurrentSale,
-  useRefreshReceiptPrintStatus,
   useRefreshSalesHistory,
   useResetCurrentSale,
   useSaleDiscountPreviewQuery,
@@ -594,15 +593,7 @@ function ReceiptPrintStatusProbe({
   read: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
 }) {
   const status = useReceiptPrintStatusQuery({ saleId, read });
-  const refresh = useRefreshReceiptPrintStatus(saleId);
-  return (
-    <>
-      <p>{status.status === "loaded" ? `${status.value.standing ?? "idle"}` : status.status}</p>
-      <button type="button" onClick={() => void refresh()}>
-        refresh
-      </button>
-    </>
-  );
+  return <p>{status.status === "loaded" ? `${status.value.standing ?? "idle"}` : status.status}</p>;
 }
 
 describe("receipt print status query", () => {
@@ -676,20 +667,6 @@ describe("receipt print status query", () => {
       expect(read).toHaveBeenCalledTimes(1);
     },
   );
-
-  it("reads again at once when the status is refreshed", async () => {
-    const answers: ReceiptPrintStatusOutcome[] = [
-      { kind: "found", next_copy: { kind: "original" }, printed: true, standing: "retry_offered" },
-      { kind: "found", next_copy: { kind: "original" }, printed: true, standing: "printed" },
-    ];
-    const read = vi.fn(async () => answers.shift() ?? { kind: "unavailable" as const });
-    const screen = await renderWithClient(<ReceiptPrintStatusProbe read={read} />);
-    await expect.element(screen.getByText("retry_offered")).toBeVisible();
-
-    await userEvent.click(screen.getByRole("button", { name: "refresh" }));
-
-    await expect.element(screen.getByText("printed")).toBeVisible();
-  });
 });
 
 type Follow = (paymentTransactionId: string) => Promise<FollowMercadoPagoQrChargeOutcome>;
