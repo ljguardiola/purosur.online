@@ -49,7 +49,7 @@ describe("setReceiptPrinterAddress", () => {
     );
 
     expect(outcome).toEqual(LACKS_PERMISSION);
-        expect(authority.asked).toBe(1);
+    expect(authority.asked).toBe(1);
     expect(settings.saves).toBe(0);
     expect(settings.receiptPrinterAddress()).toEqual(ADDRESS);
   });
