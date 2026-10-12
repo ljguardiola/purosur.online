@@ -22,6 +22,7 @@ import { credentialsKey } from "../credentials/credentials-queries";
 import type {
   CashMovementInput,
   CoreClient,
+  MercadoPagoMethod,
   SalesHistoryQuery,
   SerialDevicesToRegister,
 } from "../platform/core-client";
@@ -276,8 +277,8 @@ function Register({ core }: { core: CoreClient }) {
     return outcome;
   }
 
-  async function startMercadoPagoCharge(saleId: string, amount: number) {
-    const outcome = await core.startMercadoPagoCharge(saleId, amount);
+  async function startMercadoPagoCharge(saleId: string, method: MercadoPagoMethod, amount: number) {
+    const outcome = await core.startMercadoPagoCharge(saleId, method, amount);
     await refreshAfterCharge(outcome.kind);
     return outcome;
   }
@@ -356,6 +357,7 @@ function Register({ core }: { core: CoreClient }) {
     cashCharge: (saleId: string, tendered: number) => core.cashCharge(saleId, tendered),
     chargeSaleInCash,
     chargeSaleByTransfer,
+    paymentMethodAvailability: () => core.paymentMethodAvailability(),
     startMercadoPagoCharge,
     followMercadoPagoCharge,
     abandonMercadoPagoCharge,
@@ -430,6 +432,7 @@ function Register({ core }: { core: CoreClient }) {
         void queryClient.invalidateQueries({ queryKey: credentialsKey });
         void queryClient.invalidateQueries({ queryKey: registerKeys.registerName });
         void queryClient.invalidateQueries({ queryKey: registerKeys.status });
+        void queryClient.invalidateQueries({ queryKey: salesKeys.paymentMethodAvailabilityRoot });
         void queryClient.invalidateQueries({ queryKey: lockedClosersKey });
       }),
     [core, queryClient],

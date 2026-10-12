@@ -104,13 +104,14 @@ export type SaleCompletedModalProps = {
   | { tendered: number; change: number; method?: "CASH" }
   | { method: "TRANSFER"; amount: number }
   | { method: "QR"; amount: number }
+  | { method: "POINT"; amount: number }
 );
 
 export function SaleCompletedModal(props: SaleCompletedModalProps) {
   const { saleId, total, readReceiptStatus, retryReceiptPrint, mayChangePrinter, onNewSale } =
     props;
   const navigate = useNavigate();
-  const change = props.method === "TRANSFER" || props.method === "QR" ? 0 : props.change;
+  const change = "change" in props ? props.change : 0;
   const receipt = useReceiptPrintStatusQuery({ saleId, read: readReceiptStatus });
   const refreshReceipt = useRefreshReceiptPrintStatus(saleId);
   const [retrying, setRetrying] = useState(false);
@@ -120,7 +121,9 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
       ? { label: "Transferencia", value: formatCents(props.amount) }
       : props.method === "QR"
         ? { label: "QR de Mercado Pago", value: formatCents(props.amount) }
-        : { label: "Efectivo entregado", value: formatCents(props.tendered) };
+        : props.method === "POINT"
+          ? { label: "Point integrada", value: formatCents(props.amount) }
+          : { label: "Efectivo entregado", value: formatCents(props.tendered) };
   const failedStanding = receipt.status === "loaded" ? failedStandingOf(receipt.value) : undefined;
 
   async function retry() {

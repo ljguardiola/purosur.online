@@ -26,6 +26,7 @@ import type {
   ListedCashMovement,
   ManualAdjustmentRequest,
   OpenCashSessionOutcome,
+  PaymentMethodAvailability,
   PinCodeRedemptionOutcome,
   PinPolicy,
   PreviewSaleDiscountOutcome,
@@ -72,6 +73,7 @@ import { HelpScreen } from "../help/help-screen";
 import { help } from "../help/register-help";
 import type {
   CashMovementInput,
+  MercadoPagoMethod,
   SalesHistoryQuery,
   SerialDevicesToRegister,
 } from "../platform/core-client";
@@ -88,7 +90,6 @@ import {
   registerNameQueryOptions,
   registerStatusQueryOptions,
   useRegisterNameQuery,
-  useRegisterStatusQuery,
 } from "../register/register-queries";
 import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
 import { SerialDevicesScreen } from "../register/serial-devices-screen";
@@ -158,8 +159,10 @@ export interface RouterContext {
   cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
+  paymentMethodAvailability: () => Promise<PaymentMethodAvailability | null>;
   startMercadoPagoCharge: (
     saleId: string,
+    method: MercadoPagoMethod,
     amount: number,
   ) => Promise<StartMercadoPagoChargeOutcome>;
   followMercadoPagoCharge: (
@@ -558,16 +561,15 @@ const chargeRoute = createRoute({
       cashCharge,
       chargeSaleInCash,
       chargeSaleByTransfer,
+      paymentMethodAvailability,
       startMercadoPagoCharge,
       followMercadoPagoCharge,
       abandonMercadoPagoCharge,
-      registerStatus,
       receiptPrintStatus,
       retryReceiptPrint,
       refreshCashSession,
     } = chargeRoute.useRouteContext();
     const registerName = useRegisterName();
-    const status = useRegisterStatusQuery(registerStatus);
     return (
       <ChargeScreen
         sessionId={id}
@@ -578,7 +580,7 @@ const chargeRoute = createRoute({
         cashCharge={cashCharge}
         chargeSaleInCash={chargeSaleInCash}
         chargeSaleByTransfer={chargeSaleByTransfer}
-        registerStatus={status}
+        paymentMethodAvailability={paymentMethodAvailability}
         startMercadoPagoCharge={startMercadoPagoCharge}
         followMercadoPagoCharge={followMercadoPagoCharge}
         abandonMercadoPagoCharge={abandonMercadoPagoCharge}
@@ -908,6 +910,7 @@ export function createAppRouter(
     | "cashCharge"
     | "chargeSaleInCash"
     | "chargeSaleByTransfer"
+    | "paymentMethodAvailability"
     | "startMercadoPagoCharge"
     | "followMercadoPagoCharge"
     | "abandonMercadoPagoCharge"

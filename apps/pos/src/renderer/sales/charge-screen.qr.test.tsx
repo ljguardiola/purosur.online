@@ -1,3 +1,4 @@
+import type { PaymentMethodAvailability } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -27,10 +28,10 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it.each([
-    ["is still loading", () => new Promise<never>(() => {})],
+  it.each<[string, () => Promise<PaymentMethodAvailability | null>]>([
+    ["is still loading", () => new Promise(() => {})],
     ["could not be read", async () => null],
-  ] as const)(
+  ])(
     "offers no QR while the availability %s, without blaming the connection",
     async (_state, paymentMethodAvailability) => {
       const { screen } = await renderScreen({ paymentMethodAvailability });

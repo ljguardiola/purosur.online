@@ -28,6 +28,7 @@ import type {
   ManualAdjustmentRequest,
   OpenCashSession,
   OpenCashSessionOutcome,
+  PaymentMethodAvailability,
   PaymentsCoreToRendererMessage,
   PaymentsRendererToCoreMessage,
   PinCodeRedemptionOutcome,
@@ -119,6 +120,11 @@ export type SerialDevicesToRegister = Extract<
   { type: "register-serial-devices" }
 >["devices"];
 
+export type MercadoPagoMethod = Extract<
+  PaymentsRendererToCoreMessage,
+  { type: "start-mercado-pago-charge" }
+>["method"];
+
 export interface CoreClient {
   connect(port: CorePort): void;
   enrollmentStatus(): Promise<boolean>;
@@ -200,7 +206,12 @@ export interface CoreClient {
   cashCharge(saleId: string, tendered: number): Promise<CashChargeAnswer>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer(saleId: string, amount: number): Promise<ChargeSaleByTransferOutcome>;
-  startMercadoPagoCharge(saleId: string, amount: number): Promise<StartMercadoPagoChargeOutcome>;
+  paymentMethodAvailability(): Promise<PaymentMethodAvailability | null>;
+  startMercadoPagoCharge(
+    saleId: string,
+    method: MercadoPagoMethod,
+    amount: number,
+  ): Promise<StartMercadoPagoChargeOutcome>;
   followMercadoPagoCharge(paymentTransactionId: string): Promise<FollowMercadoPagoChargeOutcome>;
   abandonMercadoPagoCharge(paymentTransactionId: string): Promise<AbandonMercadoPagoChargeOutcome>;
   closeCashSession(sessionId: string, countedCash: number): Promise<CloseCashSessionOutcome>;
@@ -706,13 +717,20 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         (answer) => (answer.type === "charge-sale-by-transfer-result" ? answer.outcome : undefined),
       );
     },
-    startMercadoPagoCharge(saleId, amount) {
+    paymentMethodAvailability() {
+      return ask(
+        { type: "payment-method-availability", request_id: deps.newRequestId() },
+        (answer) =>
+          answer.type === "payment-method-availability-result" ? answer.availability : undefined,
+      );
+    },
+    startMercadoPagoCharge(saleId, method, amount) {
       return ask(
         {
           type: "start-mercado-pago-charge",
           request_id: deps.newRequestId(),
           sale_id: saleId,
-          method: "QR",
+          method,
           amount,
         },
         (answer) =>

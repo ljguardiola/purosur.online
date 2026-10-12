@@ -5,6 +5,7 @@ import type {
   FollowMercadoPagoChargeOutcome,
   ManualAdjustmentRequest,
   OpenSale,
+  PaymentMethodAvailability,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   ReceiptPrintStatusOutcome,
@@ -39,6 +40,9 @@ export const salesKeys = {
   saleDiscountPreview: (subtotal: number, discount: SaleDiscountRequest) =>
     [...salesKey, "sale-discount-preview", subtotal, discount.kind, discount.value] as const,
   search: (query: string) => [...salesKey, "search", query] as const,
+  paymentMethodAvailabilityRoot: [...salesKey, "payment-method-availability"] as const,
+  paymentMethodAvailability: (sessionId: string, userId: string) =>
+    [...salesKey, "payment-method-availability", sessionId, userId] as const,
   qrCharge: (paymentTransactionId: string) =>
     [...salesKey, "qr-charge", paymentTransactionId] as const,
   receiptPrintStatus: (saleId: string) => [...salesKey, "receipt-print-status", saleId] as const,
@@ -76,7 +80,9 @@ export function useQrChargeQuery({
     refetchInterval: ({ state }) =>
       following &&
       state.status === "success" &&
-      (state.data?.kind === "waiting" || state.data?.kind === "expiry_unconfirmed")
+      (state.data?.kind === "waiting" ||
+        state.data?.kind === "expiry_unconfirmed" ||
+        state.data?.kind === "at_terminal_wait_over")
         ? QR_WAIT_FOLLOW_INTERVAL_MS
         : false,
     refetchIntervalInBackground: true,
@@ -96,6 +102,33 @@ export function useAbandonQrChargeMutation(
   return useMutation({
     mutationFn: (paymentTransactionId: string) => abandon(paymentTransactionId),
   });
+}
+
+export function usePaymentMethodAvailabilityQuery({
+  sessionId,
+  userId,
+  read,
+}: {
+  sessionId: string;
+  userId: string;
+  read: () => Promise<PaymentMethodAvailability | null>;
+}): CoreData<PaymentMethodAvailability> {
+  return useCoreQuery({
+    queryKey: salesKeys.paymentMethodAvailability(sessionId, userId),
+    read: async () => (await read()) ?? "unavailable",
+    staleTime: 0,
+  });
+}
+
+export function useRefreshPaymentMethodAvailability(
+  sessionId: string,
+  userId: string,
+): () => Promise<void> {
+  const queryClient = useQueryClient();
+  return () =>
+    queryClient.invalidateQueries({
+      queryKey: salesKeys.paymentMethodAvailability(sessionId, userId),
+    });
 }
 
 const RECEIPT_PRINT_POLL_MILLISECONDS = 1000;
