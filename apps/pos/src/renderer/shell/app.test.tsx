@@ -629,6 +629,32 @@ describe("App", () => {
     await expect.poll(() => statusAsks.length).toBeGreaterThan(readsBefore);
   });
 
+  it("stops offering the initial inventory once a pull brings the branch's first cash session", async () => {
+    const answering = coreAnswering(true, undefined, {
+      kind: "signed_in",
+      person: { user_id: "u1", first_name: "Ada", abilities: ["record_initial_inventory"] },
+      cash_session: null,
+    });
+    const readInitialCount = vi
+      .fn<CoreClient["readInitialCount"]>()
+      .mockResolvedValueOnce({ kind: "read", offered: true, lines: [] })
+      .mockResolvedValue({ kind: "read", offered: false, lines: [] });
+    const screen = await render(<App core={{ ...answering.core, readInitialCount }} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    await expect
+      .element(screen.getByRole("button", { name: "Cargar el inventario" }))
+      .toBeVisible();
+
+    answering.finishPull(null);
+
+    await expect
+      .element(screen.getByRole("button", { name: "Cargar el inventario" }))
+      .not.toBeInTheDocument();
+  });
+
   it("reads the register's status and the serial devices again whenever the serial devices change", async () => {
     const { core, statusAsks, changeSerialDevices } = coreAnswering(true);
     const screen = await render(<App core={core} />);

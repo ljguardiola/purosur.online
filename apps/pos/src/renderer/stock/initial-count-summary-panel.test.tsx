@@ -46,16 +46,21 @@ describe("InitialCountSummaryPanel", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("says each confirmed line is kept at once and that a product with two expiries takes two lines", async () => {
+  it("writes how many distinct products were counted as a number of the register's language", async () => {
+    const { screen } = await renderPanel({
+      status: "loaded",
+      refreshing: false,
+      value: Array.from({ length: 1200 }, (_, index) => line(`m${index}`, `p${index}`, null)),
+    });
+
+    await expect.element(screen.getByText("1.200", { exact: true })).toBeVisible();
+  });
+
+  it("adds no note under the totals", async () => {
     const { screen } = await renderPanel({ status: "loaded", refreshing: false, value: [] });
 
-    await expect
-      .element(
-        screen.getByText(
-          "Cada línea confirmada se guarda en el momento. Un mismo producto con dos vencimientos va en dos líneas.",
-        ),
-      )
-      .toBeVisible();
+    await expect.element(screen.getByText("Sin vencimiento")).toBeVisible();
+    expect(screen.getByText(/se guarda|dos vencimientos/).query()).toBeNull();
   });
 
   it("finishes the count from the button", async () => {

@@ -105,8 +105,8 @@ test("says the shop was not counted yet when there are no lots", async () => {
     .toBeVisible();
 });
 
-test("says nothing matches when the search hides every lot", async () => {
-  const screen = await renderScreen(createServices(), {
+test("says nothing matches when no lot matches the search", async () => {
+  const screen = await renderScreen(createServices([]), {
     filters: initialInventoryFilters.parse({ search: "yerba" }),
   });
 
@@ -121,22 +121,35 @@ test("says nothing matches when the cost filter leaves no lots", async () => {
   await expect.element(screen.getByText("Sin resultados")).toBeVisible();
 });
 
-test("searches the lots by product name", async () => {
-  const screen = await renderScreen(createServices(), {
+test("asks the cloud for the lots of the product the URL names", async () => {
+  const services = createServices([initialLotHoney]);
+  const screen = await renderScreen(services, {
     filters: initialInventoryFilters.parse({ search: "miel" }),
   });
 
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
-  expect(screen.getByText("Almendras peladas").query()).toBeNull();
+  expect(services.fetchInitialInventoryLots).toHaveBeenCalledWith({ product: "miel" });
 });
 
-test("reports the typed search", async () => {
+test("reports the typed search and asks the cloud for its product", async () => {
+  const services = createServices();
   const onFiltersChange = vi.fn();
-  const screen = await renderScreen(createServices(), { onFiltersChange });
+  const screen = await renderScreen(services, { onFiltersChange });
 
   await userEvent.fill(screen.getByRole("searchbox", { name: "Buscar un producto" }), "té");
 
   await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ search: "té" });
+  await expect
+    .poll(() => vi.mocked(services.fetchInitialInventoryLots).mock.lastCall)
+    .toEqual([{ product: "té" }]);
+});
+
+test("shows the lots the cloud answers for the search", async () => {
+  const screen = await renderScreen(createServices([initialLotAlmonds]), {
+    filters: initialInventoryFilters.parse({ search: "frutos" }),
+  });
+
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
 });
 
 test("asks the cloud for the lots of the cost the URL names and reports a new one", async () => {
@@ -147,24 +160,25 @@ test("asks the cloud for the lots of the cost the URL names and reports a new on
     onFiltersChange,
   });
   await expect.element(screen.getByText("Té verde en hebras 100 g")).toBeVisible();
-  expect(services.fetchInitialInventoryLots).toHaveBeenCalledWith("incomplete");
+  expect(services.fetchInitialInventoryLots).toHaveBeenCalledWith({ cost: "incomplete" });
 
-  await userEvent.click(screen.getByRole("button", { name: /Costo:/ }));
+  await expect.element(screen.getByRole("button", { name: "Lotes: Sin costo" })).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: /Lotes:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Con costo" }));
 
   await expect
     .poll(() => vi.mocked(services.fetchInitialInventoryLots).mock.lastCall)
-    .toEqual(["known"]);
+    .toEqual([{ cost: "known" }]);
   await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ cost: "known" });
 });
 
-test("asks the cloud for every lot when no cost is chosen", async () => {
+test("asks the cloud for every lot when no filter is chosen", async () => {
   const services = createServices();
   await renderScreen(services);
 
   await expect
     .poll(() => vi.mocked(services.fetchInitialInventoryLots).mock.lastCall)
-    .toEqual([undefined]);
+    .toEqual([{}]);
 });
 
 test("shows a failed load with a retry that loads the lots again", async () => {

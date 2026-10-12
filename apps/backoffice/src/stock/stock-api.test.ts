@@ -292,10 +292,10 @@ const initialLots = {
   ],
 };
 
-test("fetchInitialInventoryLots reads every lot of the initial count when no cost is asked for", async () => {
+test("fetchInitialInventoryLots reads every lot of the initial count when no filter is asked for", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, initialLots));
 
-  expect(await fetchInitialInventoryLots(undefined)).toEqual({ kind: "ok", value: initialLots });
+  expect(await fetchInitialInventoryLots({})).toEqual({ kind: "ok", value: initialLots });
   expect(fetch).toHaveBeenCalledWith("/api/initial-inventory-lots");
 });
 
@@ -304,16 +304,26 @@ test.each(["known", "incomplete"] as const)(
   async (cost) => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { lots: [] }));
 
-    await fetchInitialInventoryLots(cost);
+    await fetchInitialInventoryLots({ cost });
 
     expect(fetch).toHaveBeenCalledWith(`/api/initial-inventory-lots?cost=${cost}`);
   },
 );
 
+test("fetchInitialInventoryLots asks only for the lots of the searched product", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { lots: [] }));
+
+  await fetchInitialInventoryLots({ cost: "incomplete", product: "té verde" });
+
+  expect(fetch).toHaveBeenCalledWith(
+    "/api/initial-inventory-lots?cost=incomplete&product=t%C3%A9+verde",
+  );
+});
+
 test("fetchInitialInventoryLots treats a body that does not match the list as failed", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { lots: [{ lotId: 1 }] }));
 
-  expect(await fetchInitialInventoryLots(undefined)).toEqual({ kind: "failed" });
+  expect(await fetchInitialInventoryLots({})).toEqual({ kind: "failed" });
 });
 
 test.each([
@@ -323,13 +333,13 @@ test.each([
 ])("fetchInitialInventoryLots answers %i as %j", async (status, outcome) => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
 
-  expect(await fetchInitialInventoryLots(undefined)).toEqual(outcome);
+  expect(await fetchInitialInventoryLots({})).toEqual(outcome);
 });
 
 test("fetchInitialInventoryLots answers failed when the request cannot be sent", async () => {
   vi.mocked(fetch).mockRejectedValue(new TypeError("offline"));
 
-  expect(await fetchInitialInventoryLots(undefined)).toEqual({ kind: "failed" });
+  expect(await fetchInitialInventoryLots({})).toEqual({ kind: "failed" });
 });
 
 test("setLotReferenceCost puts the cost of the lot and answers ok on 204", async () => {

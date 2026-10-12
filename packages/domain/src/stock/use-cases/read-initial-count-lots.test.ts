@@ -129,6 +129,20 @@ describe("readInitialCountLots", () => {
     expect(lots.map((lot) => lot.lotId)).toEqual(["l-3", "l-4", "l-2", "l-1"]);
   });
 
+  it("lists the products by name as a Spanish reader orders them, whatever their accents and case", async () => {
+    const { lots } = await read([
+      row("l-1", { productName: "Yerba 1 kg" }),
+      row("l-2", { productName: "Ácido cítrico" }),
+      row("l-3", { productName: "aceite de oliva" }),
+    ]);
+
+    expect(lots.map((lot) => lot.productName)).toEqual([
+      "aceite de oliva",
+      "Ácido cítrico",
+      "Yerba 1 kg",
+    ]);
+  });
+
   it("lists lots of one product with the same expiry by their id, whatever order they came in", async () => {
     const { lots } = await read([
       row("l-9", { expiresOn: "2027-01-31" }),
@@ -138,6 +152,35 @@ describe("readInitialCountLots", () => {
     ]);
 
     expect(lots.map((lot) => lot.lotId)).toEqual(["l-2", "l-9", "l-1", "l-8"]);
+  });
+
+  it("lists one product's lots by expiry and then by id in whatever order they came in", async () => {
+    const rows = [
+      row("l-1", { expiresOn: "2027-06-30" }),
+      row("l-4", { expiresOn: "2027-01-31" }),
+      row("l-3", { expiresOn: null }),
+      row("l-2", { expiresOn: "2027-01-31" }),
+    ];
+    const arrivals = rows.flatMap((first) =>
+      rows
+        .filter((second) => second !== first)
+        .flatMap((second) =>
+          rows
+            .filter((third) => third !== first && third !== second)
+            .map((third) => [
+              first,
+              second,
+              third,
+              ...rows.filter((last) => ![first, second, third].includes(last)),
+            ]),
+        ),
+    );
+
+    for (const arrival of arrivals) {
+      const { lots } = await read(arrival);
+
+      expect(lots.map((lot) => lot.lotId)).toEqual(["l-2", "l-4", "l-1", "l-3"]);
+    }
   });
 
   it("lists a later product's earlier-expiring lot after an earlier product's lots", async () => {

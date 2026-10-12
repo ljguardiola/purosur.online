@@ -42,7 +42,7 @@ export class FakeReplicatedStockLedger implements ReplicatedStockLedger {
   adoptMovementDelta(id: string, delta: number): void {
     const movement = this.movements.get(id);
     if (!movement) {
-      throw new Error(`movement  is not recorded`);
+      throw new Error(`movement ${id} is not recorded`);
     }
     movement.delta = delta;
   }

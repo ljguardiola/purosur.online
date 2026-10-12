@@ -101,6 +101,12 @@ describe("lotReferenceCostBodySchema", () => {
     });
   });
 
+  it("declares in its metadata the largest cost it accepts", () => {
+    const unitCostCents = lotReferenceCostBodySchema.shape.unitCostCents;
+
+    expect(unitCostCents.meta()).toMatchObject({ maxValue: MAX_CASH_AMOUNT_CENTS });
+  });
+
   it("refuses a body with no cost or a cost that is no number, with the same message", () => {
     for (const body of [{}, { unitCostCents: "35" }]) {
       const result = lotReferenceCostBodySchema.safeParse(body);

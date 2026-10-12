@@ -35,6 +35,7 @@ export class FakeInitialCountLedger implements InitialCountLedger {
   state: FakeInitialCountState;
   lookups: string[] = [];
   barcodeLookups = 0;
+  searchableReads = 0;
   failingWrite: FakeInitialCountWrite | undefined;
 
   constructor(state: Partial<FakeInitialCountState> = {}) {
@@ -81,13 +82,15 @@ export class FakeInitialCountLedger implements InitialCountLedger {
         this.barcodeLookups += 1;
         return countable(working.products.find((product) => product.barcode === code));
       },
-      searchableProducts: (): SearchableProduct[] =>
-        working.products.map(({ id, name, saleUnit, timesSoldHere }) => ({
+      searchableProducts: (): SearchableProduct[] => {
+        this.searchableReads += 1;
+        return working.products.map(({ id, name, saleUnit, timesSoldHere }) => ({
           id,
           name,
           saleUnit,
           timesSoldHere: timesSoldHere ?? 0,
-        })),
+        }));
+      },
       initialCountLine: (movementId) =>
         linesOf(working).find((line) => line.movementId === movementId),
       notWithdrawnInitialCountLines: () => linesOf(working).filter((line) => !line.withdrawn),

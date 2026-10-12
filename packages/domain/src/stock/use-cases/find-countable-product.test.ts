@@ -111,13 +111,28 @@ describe("searchCountableProductsByName", () => {
     }
   });
 
-  it("answers no results for a query too long to be a name", () => {
+  it("answers no results for a query too long to be a name, without reading the products", () => {
+    const store = ledger();
+
     const outcome = searchCountableProductsByName(
-      { ledger: ledger() },
+      { ledger: store },
       { actorId: "counter", query: "a".repeat(PRODUCT_NAME_MAX_LENGTH + 1) },
     );
 
     expect(outcome).toEqual({ kind: "results", products: [], more: false });
+    expect(store.searchableReads).toBe(0);
+  });
+
+  it("searches a query as long as the longest product name", () => {
+    const store = ledger();
+
+    const outcome = searchCountableProductsByName(
+      { ledger: store },
+      { actorId: "counter", query: "a".repeat(PRODUCT_NAME_MAX_LENGTH) },
+    );
+
+    expect(outcome).toEqual({ kind: "results", products: [], more: false });
+    expect(store.searchableReads).toBe(1);
   });
 
   it("says there are more results than it shows", () => {

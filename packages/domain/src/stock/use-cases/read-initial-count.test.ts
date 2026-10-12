@@ -94,6 +94,19 @@ describe("readInitialCount", () => {
     });
   });
 
+  it("orders movement ids confirmed at the same moment alphabetically, whatever their case", () => {
+    const store = ledger({
+      movements: [
+        counted("m-B", "yerba", 6_000, "2026-10-07T09:00:00.000Z", null),
+        counted("m-a", "queso", 1_250, "2026-10-07T09:00:00.000Z", null),
+      ],
+    });
+
+    const outcome = readInitialCount({ ledger: store }, { actorId: "counter" });
+
+    expect(outcome).toMatchObject({ lines: [{ movementId: "m-a" }, { movementId: "m-B" }] });
+  });
+
   it("leaves out a line that was withdrawn", () => {
     const store = ledger({
       movements: [

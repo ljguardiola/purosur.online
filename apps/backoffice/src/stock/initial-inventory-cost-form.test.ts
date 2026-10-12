@@ -23,7 +23,11 @@ test.each([
     cost: "12.50",
     reason: "Escribí el costo con coma para los decimales, por ejemplo 10.180,50.",
   },
-  { cost: "0", reason: "Ingresá un costo mayor a cero." },
+  { cost: "0", reason: "Ingresá un costo mayor a cero, de hasta $ 21.474.836,47." },
+  {
+    cost: "21.474.836,48",
+    reason: "Ingresá un costo mayor a cero, de hasta $ 21.474.836,47.",
+  },
 ])("a typed cost of '$cost' can't be saved: $reason", ({ cost, reason }) => {
   expect(costMessage({ ...EMPTY_COST_FORM, cost })).toBe(reason);
 });
