@@ -147,7 +147,7 @@ describe("DrizzleRefundStore", () => {
       const resolvedAt = new Date("2026-10-08T09:00:00.000Z");
 
       await store().transaction((tx) =>
-        tx.resolveLatePaymentRefundAlert(task.refundId, userId, resolvedAt),
+        tx.resolveRefundAlert(task.refundId, "late_payment_refund", userId, resolvedAt),
       );
 
       const rows = await db.select().from(alerts);
@@ -158,12 +158,46 @@ describe("DrizzleRefundStore", () => {
       expect(rows.find((alert) => alert.id === other.alertId)).toMatchObject({ resolvedAt: null });
     });
 
+    it("resolves the refund task alert of a cancelled sale's refund, and not an alert of another kind for the same refund", async () => {
+      const { refundId, locationId } = await aPendingRefund();
+      const [taskAlert, otherAlert] = await db
+        .insert(alerts)
+        .values(
+          (["refund_task", "late_payment_refund"] as const).map((kind) => ({
+            kind,
+            scope: refundId,
+            level: "warning" as const,
+            audience: "local" as const,
+            locationId,
+            detail: {},
+            openedAt: NOW,
+          })),
+        )
+        .returning({ id: alerts.id });
+      const { userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+      const resolvedAt = new Date("2026-10-08T09:00:00.000Z");
+
+      await store().transaction((tx) => tx.resolveRefundAlert(refundId, "refund_task", userId, resolvedAt));
+
+      const rows = await db.select().from(alerts);
+      expect(rows.find((alert) => alert.id === taskAlert?.id)).toMatchObject({
+        resolvedAt,
+        resolvedBy: userId,
+      });
+      expect(rows.find((alert) => alert.id === otherAlert?.id)).toMatchObject({ resolvedAt: null });
+    });
+
     it("resolves nothing, and fails nothing, when no alert is open for the task", async () => {
       const { refundId } = await aPendingLatePaymentRefund(db, { openedAt: NOW });
       const { userId } = await signedInWith(db, ["confirm_refunds"], NOW);
       const resolve = () =>
         store().transaction((tx) =>
-          tx.resolveLatePaymentRefundAlert(refundId, userId, new Date("2026-10-08T09:00:00.000Z")),
+          tx.resolveRefundAlert(
+            refundId,
+            "late_payment_refund",
+            userId,
+            new Date("2026-10-08T09:00:00.000Z"),
+          ),
         );
       await resolve();
 

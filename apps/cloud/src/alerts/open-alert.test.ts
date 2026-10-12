@@ -127,6 +127,16 @@ describe("openAlert", () => {
     );
   });
 
+  it("opens the alert at the level it is asked to, instead of the level of its kind", async () => {
+    const outcome = await db.transaction((tx) =>
+      openAlert(tx, PASSKEY_REGISTERED, { now: () => NOON, level: "critical" }),
+    );
+
+    if (outcome.kind !== "opened") throw new Error("expected the alert to open");
+    const [row] = await db.select().from(alerts).where(eq(alerts.id, outcome.alertId));
+    expect(row).toMatchObject({ level: "critical" });
+  });
+
   it("answers already_open for a second trigger while the alert is open, delivering nothing new", async () => {
     await insertUser({
       firstName: "Grace",
