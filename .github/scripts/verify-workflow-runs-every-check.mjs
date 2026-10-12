@@ -29,7 +29,6 @@ const CLOUD_POSTGRES_IMAGE = {
   registry: "ghcr.io",
   lookupJob: "postgres-image",
   copyJob: "postgres-image-copy",
-  consumerJobs: ["tests"],
   copyAttemptSeconds: 300,
 };
 const PLAYWRIGHT_IMAGE = {
@@ -39,7 +38,6 @@ const PLAYWRIGHT_IMAGE = {
   registry: "ghcr.io",
   lookupJob: "playwright-image",
   copyJob: "playwright-image-copy",
-  consumerJobs: ["tests", "visual"],
   copyAttemptSeconds: 600,
 };
 const PLAYWRIGHT_IMAGE_JOBS = {
@@ -486,16 +484,9 @@ function findPrePulledImageViolations(workflowSource, setupSource, spec) {
   if (!/@sha256:[0-9a-f]{64}$/.test(image)) {
     violations.push(`${spec.label} \`${image}\` is not pinned by digest`);
   }
-  if (spec.registry !== undefined) {
-    if (!image.startsWith(`${spec.registry}/`)) {
-      violations.push(
-        `${spec.label} \`${image}\` is not on ${spec.registry}, the registry verify.yml signs in to with its own token`,
-      );
-    }
-    // Docker Hub limits unauthenticated pulls per address, and shared runners share that limit.
-  } else if (comesFromDockerHub(image)) {
+  if (!image.startsWith(`${spec.registry}/`)) {
     violations.push(
-      `${spec.label} \`${image}\` comes from Docker Hub, whose unauthenticated pulls a shared runner can exhaust`,
+      `${spec.label} \`${image}\` is not on ${spec.registry}, the registry verify.yml signs in to with its own token`,
     );
   }
 
@@ -723,7 +714,7 @@ export function findPlaywrightImageViolations(
   const { image, violations } = found;
   if (image !== undefined) {
     violations.push(...mirrorConsumerViolations(PLAYWRIGHT_IMAGE, job, found));
-    if (job === PLAYWRIGHT_IMAGE.consumerJobs[0]) {
+    if (spec === PLAYWRIGHT_IMAGE_JOBS.tests) {
       violations.push(...mirrorJobsViolations(PLAYWRIGHT_IMAGE, image, found.doc));
     }
   }
