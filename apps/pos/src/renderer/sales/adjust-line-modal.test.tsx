@@ -6,7 +6,7 @@ import type {
   PreviewSaleLineAdjustmentOutcome,
   SignInUser,
 } from "@purosur/contracts";
-import { SummaryRow, SummaryRowGroup } from "@purosur/ui";
+import { SummaryRow, SummaryRowGroup, TextField } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -231,6 +231,32 @@ describe("AdjustLineModal", () => {
     await expect
       .element(screen.getByRole("textbox", { name: "Porcentaje de descuento" }))
       .toHaveValue("");
+  });
+
+  it("takes the discount in the narrow discount entry, with % inside it only for a percentage", async () => {
+    const { screen } = await renderModal();
+    const reference = await renderReference(
+      <TextField kind="discount" width="narrow" label="Referencia" value="" onChange={() => {}} />,
+    );
+    const referenceInput = reference.getByRole("textbox", { name: "Referencia" }).element();
+    const referenceBox = referenceInput.parentElement as HTMLElement;
+
+    for (const [unit, name, affixes] of [
+      ["%", "Porcentaje de descuento", ["%"]],
+      ["$", "Monto de descuento", []],
+    ] as const) {
+      await chooseKind(screen, unit);
+      const input = screen.getByRole("textbox", { name }).element() as HTMLElement;
+      const box = input.parentElement as HTMLElement;
+
+      expectDrawnLike(box, referenceBox, ["width", "height"], ` box`);
+      expectDrawnLike(input, referenceInput, ["fontSize", "fontWeight", "textAlign"], ` value`);
+      expect(
+        Array.from(box.children)
+          .filter((child) => child !== input)
+          .map((child) => child.textContent),
+      ).toEqual(affixes);
+    }
   });
 
   describe("before asking the core", () => {
