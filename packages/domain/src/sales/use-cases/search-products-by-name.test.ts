@@ -96,7 +96,7 @@ describe("searchProductsByName", () => {
     expect(store.searchableReads).toBe(1);
   });
 
-  it("shows the price valid at the clock's moment, or none when the product has none yet", () => {
+  it("shows the newest synced price, even one starting after the register's clock, or none when the product has none yet", () => {
     const store = ledger({
       prices: [
         {
@@ -126,8 +126,7 @@ describe("searchProductsByName", () => {
     const outcome = search(store, "de");
 
     expect(outcome.kind === "results" && outcome.products.map((found) => found.unitPrice)).toEqual([
-      null,
-      2800,
+      9000, 2800,
     ]);
   });
 
