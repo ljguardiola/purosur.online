@@ -1,4 +1,5 @@
 import { dirname, join } from "node:path";
+import { type LocalDatabaseVersion, localDatabaseVersionOf } from "@purosur/domain";
 import {
   checkLocalDatabase,
   type LocalDatabaseHealth,
@@ -6,6 +7,7 @@ import {
 } from "@purosur/domain/register/use-cases";
 import { isDatabaseDamage } from "../platform/database-damage";
 import {
+  appliedMigrationNames,
   applyMigrations,
   type LocalDatabase,
   type LocalMigration,
@@ -19,9 +21,28 @@ import {
 
 export type StartedLocalDatabase =
   | { kind: "ready"; database: LocalDatabase; health: LocalDatabaseHealth }
-  | { kind: "out_of_service" };
+  | { kind: "out_of_service" }
+  | { kind: "newer_than_version" };
 
 const OUT_OF_SERVICE: StartedLocalDatabase = { kind: "out_of_service" };
+
+function versionOfFile(deps: {
+  path: string;
+  migrations: readonly LocalMigration[];
+}): LocalDatabaseVersion {
+  try {
+    return localDatabaseVersionOf({
+      applied: appliedMigrationNames(deps.path),
+      known: deps.migrations.map((migration) => migration.name),
+    });
+  } catch (error) {
+    if (isDatabaseDamage(error)) {
+      throw error;
+    }
+    // Opening the file for writing meets the same failure and the damage marker still decides first.
+    return "known";
+  }
+}
 
 export async function startLocalDatabase(deps: {
   path: string;
@@ -39,6 +60,9 @@ export async function startLocalDatabase(deps: {
     integrityHolds: () => sqliteIntegrityHolds(open()),
   });
   try {
+    if (versionOfFile(deps) === "newer_than_version") {
+      return { kind: "newer_than_version" };
+    }
     if ((await checkLocalDatabase({ health })).kind === "out_of_service") {
       opened?.close();
       return OUT_OF_SERVICE;
