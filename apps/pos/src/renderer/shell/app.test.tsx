@@ -249,6 +249,24 @@ function coreAnswering(
     async weighProduct() {
       return { kind: "scale_unavailable" };
     },
+    async readInitialCount() {
+      return { kind: "unavailable" };
+    },
+    async recordInitialCountLine() {
+      return { kind: "unavailable" };
+    },
+    async withdrawInitialCountLine() {
+      return { kind: "unavailable" };
+    },
+    async findCountableProduct() {
+      return { kind: "unavailable" };
+    },
+    async searchCountableProducts() {
+      return { kind: "unavailable" };
+    },
+    async weighCountedProduct() {
+      return { kind: "unavailable" };
+    },
     async adjustSaleLine() {
       return { kind: "unavailable" };
     },
