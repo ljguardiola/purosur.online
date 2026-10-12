@@ -66,6 +66,7 @@ describe("currentSale", () => {
       cancellable: true,
       cancelRefusal: null,
       refundsOnCancel: [],
+      mercadoPagoChargeInProgress: null,
     });
   });
 
@@ -224,6 +225,12 @@ describe("current-sale charge refusal", () => {
       linesLock: "mercado_pago_charge_in_progress",
       cancellable: false,
       cancelRefusal: "mercado_pago_charge_in_progress",
+      mercadoPagoChargeInProgress: {
+        paymentTransactionId: "qr-1",
+        method: "QR",
+        amount: 5000,
+        remainingSeconds: 60,
+      },
     });
   });
 });

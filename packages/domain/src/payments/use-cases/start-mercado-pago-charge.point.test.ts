@@ -74,11 +74,16 @@ describe("startMercadoPagoCharge on the integrated terminal", () => {
     ]);
   });
 
-  it("keeps the payment pending when the cloud cannot be reached, since the terminal may already show the order", async () => {
+  it("keeps the payment pending and names it to be followed when the cloud cannot be reached, since the terminal may already show the order", async () => {
     const world = new FakeMercadoPagoChargeWorld();
     world.orderAnswer = { kind: "unreachable" };
 
-    expect(await startMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "unreachable" });
+    expect(await startMercadoPagoCharge(world.ports, INPUT)).toEqual({
+      kind: "order_unconfirmed",
+      paymentTransactionId: CHARGE_PAYMENT_ID,
+      amount: 5000,
+      remainingSeconds: 180,
+    });
     expect(world.pendingCharge(CHARGE_PAYMENT_ID)).not.toBeNull();
     expect(world.operations).toEqual(["recordPendingPayment", "requestOrder"]);
   });

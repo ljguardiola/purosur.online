@@ -110,6 +110,7 @@ describe("removeSaleLine", () => {
       cancellable: true,
       cancelRefusal: null,
       refundsOnCancel: [],
+      mercadoPagoChargeInProgress: null,
     });
     expect(store.state).toEqual({ ...before, sales: [{ ...OPEN_SALE, lines: [AZUCAR_LINE] }] });
     expect(store.transactions).toBe(1);
@@ -129,6 +130,7 @@ describe("removeSaleLine", () => {
       cancellable: true,
       cancelRefusal: null,
       refundsOnCancel: [],
+      mercadoPagoChargeInProgress: null,
     });
     expect(store.state.sales[0]?.state).toBe("OPEN");
   });

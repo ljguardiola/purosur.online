@@ -136,6 +136,7 @@ describe("addSearchedProduct", () => {
       cancellable: true,
       cancelRefusal: null,
       refundsOnCancel: [],
+      mercadoPagoChargeInProgress: null,
     });
     expect(store.state.sales).toEqual([sale]);
   });

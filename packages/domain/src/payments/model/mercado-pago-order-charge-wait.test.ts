@@ -4,6 +4,7 @@ import {
   aMercadoPagoChargeInProgress,
   MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS,
   MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
+  mercadoPagoChargeInProgress,
   mercadoPagoOrderChargeRemainingSeconds,
   mercadoPagoOrderChargeWait,
   mercadoPagoOrderChargeWaitEndsAt,
@@ -125,5 +126,41 @@ describe("aMercadoPagoChargeInProgress", () => {
 
   it("stays true for a pending terminal payment after its wait, until the payment is closed", () => {
     expect(aMercadoPagoChargeInProgress([point(OVER)], WAIT_ENDS_AT)).toBe(true);
+  });
+});
+
+describe("mercadoPagoChargeInProgress", () => {
+  const OVER = new Date("2026-10-09T11:59:00.000Z");
+  const pending = (id: string, method: "QR" | "POINT", waitEndsAt: Date) => ({
+    id,
+    method,
+    amount: 3000,
+    waitEndsAt,
+  });
+
+  it("is none for a sale with no pending Mercado Pago payment", () => {
+    expect(mercadoPagoChargeInProgress([], STARTED_AT)).toBeNull();
+  });
+
+  it("is none once every pending QR payment's wait has ended", () => {
+    expect(mercadoPagoChargeInProgress([pending("qr-1", "QR", OVER)], STARTED_AT)).toBeNull();
+  });
+
+  it("names the QR payment still in its wait, with its amount and the seconds left", () => {
+    expect(
+      mercadoPagoChargeInProgress(
+        [pending("qr-1", "QR", OVER), pending("qr-2", "QR", WAIT_ENDS_AT)],
+        new Date("2026-10-09T12:01:00.000Z"),
+      ),
+    ).toEqual({ paymentTransactionId: "qr-2", method: "QR", amount: 3000, remainingSeconds: 120 });
+  });
+
+  it("names a pending terminal payment after its wait, with no time left", () => {
+    expect(mercadoPagoChargeInProgress([pending("point-1", "POINT", OVER)], WAIT_ENDS_AT)).toEqual({
+      paymentTransactionId: "point-1",
+      method: "POINT",
+      amount: 3000,
+      remainingSeconds: 0,
+    });
   });
 });

@@ -7,12 +7,13 @@ import {
   MERCADO_PAGO_PENDING_CHECK_TASK_IDENTIFIER,
   mercadoPagoPendingCheckJobs,
 } from "./mercado-pago-pending-check-task.js";
+import { clientAnsweringOrder } from "./test-support/client-answering-order.js";
 import { NOW, ORDER_ID } from "./test-support/fake-mercado-pago-orders.js";
+import { pointPaidWithCardOrder } from "./test-support/mercado-pago-documented-orders.js";
 import {
   insertRegister,
   pendingPointTransaction,
 } from "./test-support/payment-transaction-fixtures.js";
-import { clientAnsweringOrder, POINT_ORDER_STATES } from "./test-support/point-order-states.js";
 
 let testDatabase: TestDatabase;
 
@@ -29,29 +30,30 @@ beforeEach(async () => {
 });
 
 describe("the pending check of a payment on the integrated terminal", () => {
-  it.each(POINT_ORDER_STATES)(
-    "moves the pending payment of an order %s to its state",
-    async (_name, order, state) => {
-      const registerId = await insertRegister(testDatabase.db, "Caja 1");
-      const payment = pendingPointTransaction(registerId, { providerOrderId: ORDER_ID });
-      await testDatabase.db.insert(paymentTransactions).values(payment);
-      const jobs = mercadoPagoPendingCheckJobs({
-        now: () => NOW,
-        mercadoPago: clientAnsweringOrder(order()),
-        db: testDatabase.db,
-        connections: { withConnection: (work) => work(testDatabase.db) },
-      });
+  it("approves the pending payment of an order paid on the terminal", async () => {
+    const registerId = await insertRegister(testDatabase.db, "Caja 1");
+    const payment = pendingPointTransaction(registerId, { providerOrderId: ORDER_ID });
+    await testDatabase.db.insert(paymentTransactions).values(payment);
+    const jobs = mercadoPagoPendingCheckJobs({
+      now: () => NOW,
+      mercadoPago: clientAnsweringOrder(pointPaidWithCardOrder()),
+      db: testDatabase.db,
+      connections: { withConnection: (work) => work(testDatabase.db) },
+    });
 
-      await jobs.taskList[MERCADO_PAGO_PENDING_CHECK_TASK_IDENTIFIER]?.(
-        {},
-        buildJobHelpers().helpers,
-      );
+    await jobs.taskList[MERCADO_PAGO_PENDING_CHECK_TASK_IDENTIFIER]?.(
+      {},
+      buildJobHelpers().helpers,
+    );
 
-      const [row] = await testDatabase.db
-        .select()
-        .from(paymentTransactions)
-        .where(eq(paymentTransactions.id, payment.id));
-      expect(row).toMatchObject({ state, method: "POINT", provider: "MERCADOPAGO_POINT" });
-    },
-  );
+    const [row] = await testDatabase.db
+      .select()
+      .from(paymentTransactions)
+      .where(eq(paymentTransactions.id, payment.id));
+    expect(row).toMatchObject({
+      state: "APPROVED",
+      method: "POINT",
+      provider: "MERCADOPAGO_POINT",
+    });
+  });
 });

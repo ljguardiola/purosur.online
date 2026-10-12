@@ -51,13 +51,8 @@ describe("pointTerminalAvailability", () => {
 });
 
 describe("POINT_TERMINAL_AVAILABILITIES", () => {
-  it("lists what the cloud can report about the terminal besides what the register works out", () => {
-    expect(POINT_TERMINAL_AVAILABILITIES).toEqual([
-      "available",
-      "offline",
-      "below_minimum",
-      "not_configured",
-    ]);
+  it("lists what the register works out about the terminal", () => {
+    expect(POINT_TERMINAL_AVAILABILITIES).toEqual(["available", "offline", "below_minimum"]);
   });
 });
 

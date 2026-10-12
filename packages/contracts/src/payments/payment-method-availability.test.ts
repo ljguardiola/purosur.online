@@ -6,7 +6,6 @@ describe("paymentMethodAvailabilitySchema", () => {
     { qr: "available", point: "available", point_minimum: 1500 },
     { qr: "offline", point: "offline", point_minimum: 1500 },
     { qr: "available", point: "below_minimum", point_minimum: 1500 },
-    { qr: "available", point: "not_configured", point_minimum: 1500 },
   ])("accepts %j", (availability) => {
     expect(paymentMethodAvailabilitySchema.parse(availability)).toEqual(availability);
   });
@@ -21,15 +20,15 @@ describe("paymentMethodAvailabilitySchema", () => {
     },
   );
 
-  it("refuses an availability of the terminal that is not one the cloud or the register answers", () => {
-    expect(
-      paymentMethodAvailabilitySchema.safeParse({
-        qr: "available",
-        point: "unknown",
-        point_minimum: 1500,
-      }).success,
-    ).toBe(false);
-  });
+  it.each(["not_configured", "unknown"])(
+    "refuses %s as the availability of the terminal, which the register does not answer",
+    (point) => {
+      expect(
+        paymentMethodAvailabilitySchema.safeParse({ qr: "available", point, point_minimum: 1500 })
+          .success,
+      ).toBe(false);
+    },
+  );
 
   it.each(["qr", "point", "point_minimum"])("refuses an answer without its %s", (field) => {
     const answer: Record<string, unknown> = {

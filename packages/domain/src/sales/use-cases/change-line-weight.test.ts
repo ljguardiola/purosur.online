@@ -109,6 +109,7 @@ describe("changeLineWeight", () => {
       cancellable: true,
       cancelRefusal: null,
       refundsOnCancel: [],
+      mercadoPagoChargeInProgress: null,
     });
     expect(store.state.outbox).toEqual([]);
     expect(store.transactions).toBe(1);

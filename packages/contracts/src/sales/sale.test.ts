@@ -52,6 +52,7 @@ const sale = {
   subtotal: 3000,
   sale_discount: null,
   sale_discount_refusal: null,
+  mercado_pago_charge_in_progress: null,
 };
 
 describe("saleSchema", () => {
@@ -102,6 +103,47 @@ describe("saleSchema", () => {
       expect(saleSchema.parse({ ...sale, cancel_refusal }).cancel_refusal).toBe(cancel_refusal);
     },
   );
+
+  it.each(["QR", "POINT"] as const)(
+    "accepts a sale with a %s charge in progress, named to be followed",
+    (method) => {
+      const mercado_pago_charge_in_progress = {
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000b1",
+        method,
+        amount: 2000,
+        remaining_seconds: 0,
+      };
+
+      expect(
+        saleSchema.parse({ ...sale, mercado_pago_charge_in_progress })
+          .mercado_pago_charge_in_progress,
+      ).toEqual(mercado_pago_charge_in_progress);
+    },
+  );
+
+  it.each([
+    ["without saying whether a charge is in progress", undefined],
+    [
+      "with a charge in progress of another method",
+      {
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000b1",
+        method: "CASH",
+        amount: 2000,
+        remaining_seconds: 0,
+      },
+    ],
+    [
+      "with a charge in progress with a negative wait",
+      {
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000b1",
+        method: "QR",
+        amount: 2000,
+        remaining_seconds: -1,
+      },
+    ],
+  ])("rejects a sale %s", (_case, mercado_pago_charge_in_progress) => {
+    expect(saleSchema.safeParse({ ...sale, mercado_pago_charge_in_progress }).success).toBe(false);
+  });
 
   it.each([null, "empty_sale", "zero_total"] as const)(
     "accepts a sale whose discount on the total is refused by %s",
@@ -732,6 +774,7 @@ describe("chargeSaleInCashOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "unavailable" },
+    { kind: "mercado_pago_charge_in_progress" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(chargeSaleInCashOutcomeSchema.parse(outcome)).toEqual(outcome);
   });
@@ -775,6 +818,7 @@ describe("chargeSaleByTransferOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "unavailable" },
+    { kind: "mercado_pago_charge_in_progress" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(chargeSaleByTransferOutcomeSchema.parse(outcome)).toEqual(outcome);
   });

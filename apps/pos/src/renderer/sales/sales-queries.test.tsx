@@ -62,6 +62,7 @@ const SALE: OpenSale = {
   lines_lock: null,
   cancel_refusal: null,
   charge_refusal: null,
+  mercado_pago_charge_in_progress: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,

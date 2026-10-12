@@ -78,6 +78,12 @@ describe("starting a Mercado Pago QR charge", () => {
       amount: 2000,
       remaining_seconds: 0,
     },
+    {
+      kind: "order_unconfirmed",
+      payment_transaction_id: PAYMENT_ID,
+      amount: 2000,
+      remaining_seconds: 180,
+    },
     { kind: "order_refused" },
     { kind: "unreachable" },
     { kind: "mercado_pago_charge_in_progress" },
@@ -317,7 +323,6 @@ describe("asking which payment methods are available", () => {
     { qr: "available", point: "available", point_minimum: 1500 },
     { qr: "offline", point: "offline", point_minimum: 1500 },
     { qr: "available", point: "below_minimum", point_minimum: 1500 },
-    { qr: "available", point: "not_configured", point_minimum: 1500 },
     null,
   ])("accepts the answer %o", (availability) => {
     const result = {

@@ -1,4 +1,4 @@
-import type { FollowMercadoPagoChargeOutcome, PaymentMethodAvailability } from "@purosur/contracts";
+import type { FollowMercadoPagoChargeOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -19,7 +19,7 @@ describe("ChargeScreen · Point integrada", () => {
 
     await expect.element(screen.getByRole("radio", { name: "Point integrada" })).toBeEnabled();
     await expect
-      .element(screen.getByText("Débito o crédito en la terminal · requiere internet"))
+      .element(screen.getByText("Tarjeta o QR en la terminal · requiere internet"))
       .toBeVisible();
     const methods = screen.getByRole("radiogroup", { name: "Medio de pago" }).element();
     expect(methods.textContent).toMatch(/Efectivo.*Point integrada.*QR de Mercado Pago/s);
@@ -55,40 +55,11 @@ describe("ChargeScreen · Point integrada", () => {
       .element(
         screen
           .getByRole("status")
-          .getByText("Point integrada: no se ofrece con un total menor a $ 15,00"),
+          .getByText("Point integrada: no se ofrece para cobrar menos de $ 15,00"),
       )
       .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
-
-  it("shows the terminal as not configured in this register", async () => {
-    const { screen } = await renderScreen({
-      paymentMethodAvailability: async () => ({ ...AVAILABLE, point: "not_configured" }),
-    });
-
-    await expect.element(screen.getByRole("radio", { name: "Point integrada" })).toBeDisabled();
-    await expect.element(screen.getByText("No configurada en esta caja")).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeEnabled();
-    await expectNoAccessibilityViolations(screen.container);
-  });
-
-  it.each<[string, () => Promise<PaymentMethodAvailability | null>]>([
-    ["is still loading", () => new Promise(() => {})],
-    ["could not be read", async () => null],
-  ])(
-    "offers no terminal and no notice while the availability %s",
-    async (_state, paymentMethodAvailability) => {
-      const { screen } = await renderScreen({ paymentMethodAvailability });
-
-      await expect.element(screen.getByRole("radio", { name: "Efectivo" })).toBeVisible();
-      await expect
-        .element(screen.getByRole("radio", { name: "Point integrada" }))
-        .not.toBeInTheDocument();
-      await expect
-        .element(screen.getByText(/Point integrada: no se ofrece/))
-        .not.toBeInTheDocument();
-    },
-  );
 
   it("reads the availability of the sale again when it opens the methods after a partial payment", async () => {
     const { screen, paymentMethodAvailability } = await renderScreen({
@@ -130,6 +101,50 @@ describe("ChargeScreen · Point integrada", () => {
     await expect
       .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
       .not.toBeInTheDocument();
+  });
+
+  it("opens the wait on the terminal for the charge the open sale has in progress, and follows it", async () => {
+    const { screen, followMercadoPagoCharge } = await renderScreen({
+      currentSale: async () => ({
+        ...SALE_OF_ONE_LINE,
+        lines_lock: "mercado_pago_charge_in_progress",
+        cancel_refusal: "mercado_pago_charge_in_progress",
+        mercado_pago_charge_in_progress: {
+          payment_transaction_id: POINT_PAYMENT_ID,
+          method: "POINT",
+          amount: 300_000,
+          remaining_seconds: 120,
+        },
+      }),
+      followMercadoPagoCharge: async () => ({ kind: "waiting", remaining_seconds: 119 }),
+    });
+
+    await expect
+      .element(screen.getByRole("heading", { name: "El cliente paga en la terminal" }))
+      .toBeVisible();
+    await expect.element(screen.getByRole("dialog").getByText("$ 3.000,00")).toBeVisible();
+    await expect.poll(() => followMercadoPagoCharge.mock.calls[0]).toEqual([POINT_PAYMENT_ID]);
+  });
+
+  it("follows the charge on the terminal when the cloud could not confirm its order", async () => {
+    const { screen, followMercadoPagoCharge } = await renderScreen({
+      startMercadoPagoCharge: async () => ({
+        kind: "order_unconfirmed",
+        payment_transaction_id: POINT_PAYMENT_ID,
+        amount: 476_000,
+        remaining_seconds: 180,
+      }),
+      followMercadoPagoCharge: async () => ({ kind: "waiting", remaining_seconds: 170 }),
+    });
+
+    await choosePoint(screen);
+    await userEvent.click(screen.getByRole("button", { name: "Enviar a la terminal" }));
+
+    await expect
+      .element(screen.getByRole("heading", { name: "El cliente paga en la terminal" }))
+      .toBeVisible();
+    await expect.element(screen.getByText(/Cobrá con otro medio/)).not.toBeInTheDocument();
+    await expect.poll(() => followMercadoPagoCharge.mock.calls[0]).toEqual([POINT_PAYMENT_ID]);
   });
 
   it("sends the sale to the terminal and waits for the customer to pay there", async () => {

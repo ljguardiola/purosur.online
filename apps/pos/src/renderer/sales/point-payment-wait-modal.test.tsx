@@ -91,8 +91,8 @@ describe("PointPaymentWaitModal", () => {
       await expect.element(screen.getByText("A cobrar ahora")).toBeVisible();
       await expect.element(screen.getByText("$ 30.000,00")).toBeVisible();
       await expect.element(screen.getByText("Cobro enviado a la terminal")).toBeVisible();
-      await expect.element(screen.getByText("Esperando la tarjeta")).toBeVisible();
-      await expect.element(screen.getByText("Débito o crédito, en la terminal")).toBeVisible();
+      await expect.element(screen.getByText("Esperando el pago")).toBeVisible();
+      await expect.element(screen.getByText("Tarjeta o QR, en la terminal")).toBeVisible();
       await expect.element(screen.getByText("Pago aprobado")).toBeVisible();
       await expect.element(screen.getByRole("timer", { name: "Tiempo para pagar" })).toBeVisible();
       await expect.element(screen.getByText("2:41")).toBeVisible();
@@ -217,6 +217,36 @@ describe("PointPaymentWaitModal", () => {
     });
   });
 
+  describe("when the order may have reached the terminal while the cloud could not be reached", () => {
+    const UNCONFIRMED = { ...ORDER, kind: "order_unconfirmed" } as const;
+
+    it("says to cancel on the terminal and wait for the connection, while it keeps following the payment", async () => {
+      const { screen, followCharge, callbacks } = await renderModal(
+        undefined,
+        undefined,
+        UNCONFIRMED,
+      );
+
+      await expect
+        .element(
+          screen
+            .getByText(
+              "No hay conexión con la nube. Cancelá el cobro en la terminal y esperá a que vuelva la conexión.",
+            )
+            .first(),
+        )
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: "El cliente paga en la terminal" }))
+        .toBeVisible();
+      await expect
+        .poll(() => followCharge.mock.calls.length, { timeout: NEXT_ASK_TIMEOUT_MS })
+        .toBeGreaterThan(1);
+      expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
+      await expectNoAccessibilityViolations(screen.container);
+    });
+  });
+
   describe("when the wait is over and the order is still on the terminal", () => {
     it("tells to cancel on the terminal and offers Elegir otro medio only once the terminal closes the order", async () => {
       const { screen, callbacks } = await renderModal(answering(WAIT_OVER, WAIT_OVER, CLOSED));
@@ -236,9 +266,9 @@ describe("PointPaymentWaitModal", () => {
       await expect.element(screen.getByText("Tiempo agotado")).toBeVisible();
       await expect.element(screen.getByText("Con error")).toBeInTheDocument();
       await expect.element(screen.getByText("Esperando la cancelación")).toBeVisible();
-      await expect
-        .element(screen.getByText("Cancelá el cobro en la terminal", { exact: true }).first())
-        .toBeVisible();
+      expect(
+        screen.getByText("Cancelá el cobro en la terminal", { exact: true }).elements(),
+      ).toHaveLength(1);
       await expect
         .element(screen.getByRole("status"))
         .toHaveTextContent(
@@ -257,6 +287,32 @@ describe("PointPaymentWaitModal", () => {
         .toBeEnabled();
       await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
 
+      expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
+    });
+
+    it("says the core could not tell how the cancellation goes and keeps following from Reintentar", async () => {
+      const { screen, callbacks } = await renderModal(
+        answering(WAIT_OVER, { kind: "unavailable" }, CLOSED),
+      );
+
+      await expect
+        .element(screen.getByText("No se pudo consultar el cobro en la terminal"), {
+          timeout: NEXT_ASK_TIMEOUT_MS,
+        })
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
+        .toBeVisible();
+      await expectNoAccessibilityViolations(screen.container);
+
+      await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+      await expect
+        .element(screen.getByRole("button", { name: "Elegir otro medio" }), {
+          timeout: NEXT_ASK_TIMEOUT_MS,
+        })
+        .toBeEnabled();
+      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
       expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
     });
 
@@ -395,7 +451,7 @@ describe("PointPaymentWaitModal", () => {
         .element(screen.getByRole("heading", { name: "La terminal rechazó el pago" }))
         .toBeVisible();
       await expect
-        .element(screen.getByText("La tarjeta no se aprobó, así que no se cobró nada."))
+        .element(screen.getByText("El pago no se aprobó en la terminal, así que no se cobró nada."))
         .toBeVisible();
       await expect
         .element(

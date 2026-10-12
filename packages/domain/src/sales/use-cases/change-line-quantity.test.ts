@@ -140,6 +140,7 @@ describe("changeLineQuantity", () => {
       cancellable: true,
       cancelRefusal: null,
       refundsOnCancel: [],
+      mercadoPagoChargeInProgress: null,
     });
     expect(store.state.outbox).toEqual([]);
   });
@@ -161,6 +162,7 @@ describe("changeLineQuantity", () => {
       cancellable: true,
       cancelRefusal: null,
       refundsOnCancel: [],
+      mercadoPagoChargeInProgress: null,
     });
     expect(store.state).toEqual({
       ...before,
@@ -261,6 +263,7 @@ describe("changeLineQuantity", () => {
       cancellable: true,
       cancelRefusal: null,
       refundsOnCancel: [],
+      mercadoPagoChargeInProgress: null,
     });
     expect(store.state).toEqual(before);
   });

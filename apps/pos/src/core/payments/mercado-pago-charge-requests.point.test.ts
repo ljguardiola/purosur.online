@@ -1,4 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
@@ -152,14 +155,19 @@ describe("starting a charge on the integrated terminal at the register", () => {
     },
   );
 
-  it("keeps the payment pending when the cloud cannot be reached, as the terminal may already show the order", async () => {
+  it("keeps the payment pending and names it to be followed when the cloud cannot be reached, as the terminal may already show the order", async () => {
     const saleId = await saleOfTwoYerbas();
     const orders = new FakeOrders();
     orders.answer = { kind: "unreachable" };
 
     expect(
       await startMercadoPagoChargeFor(deps(orders), { saleId, method: "POINT", amount: 3000 }),
-    ).toEqual({ kind: "unreachable" });
+    ).toEqual({
+      kind: "order_unconfirmed",
+      payment_transaction_id: "qr-1",
+      amount: 3000,
+      remaining_seconds: 180,
+    });
     expect(pointRows()).toMatchObject([{ state: "PENDING" }]);
     expect((await openSale()).lines_lock).toBe("mercado_pago_charge_in_progress");
   });
@@ -203,6 +211,41 @@ describe("a charge on the integrated terminal whose wait ran out, after the regi
   async function restarted(orders: FakeOrders) {
     return deps(orders, { now: () => WAIT_OVER });
   }
+
+  it("names the pending charge in the open sale read from the same database, and following it resolves it", async () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-point-"));
+    onTestFinished(() => rmSync(folder, { recursive: true, force: true }));
+    const file = join(folder, "register.db");
+    database.close();
+    database = openLocalDatabase(file, LOCAL_MIGRATIONS, migrationClock);
+    seedChargeRegister(database);
+    const { saleId, paymentId } = await pointChargeStarted();
+    database.close();
+    database = openLocalDatabase(file, LOCAL_MIGRATIONS, migrationClock);
+    signedInPerson = createSignedInPerson();
+    signedInPerson.set("u1");
+
+    const sale = await currentSaleFor(await restarted(new FakeOrders()));
+
+    expect(sale).toMatchObject({
+      id: saleId,
+      mercado_pago_charge_in_progress: {
+        payment_transaction_id: paymentId,
+        method: "POINT",
+        amount: 3000,
+        remaining_seconds: 0,
+      },
+    });
+    const followed =
+      sale !== null && sale !== "not_permitted" ? sale.mercado_pago_charge_in_progress : null;
+    const orders = new FakeOrders();
+    orders.reading = { kind: "read", state: "APPROVED" };
+    expect(
+      await followMercadoPagoChargeFor(await restarted(orders), {
+        paymentTransactionId: followed?.payment_transaction_id ?? "",
+      }),
+    ).toEqual({ kind: "completed", sale_id: saleId, total: 3000 });
+  });
 
   it("keeps the sale locked, unable to be cancelled, whatever the clock says", async () => {
     await pointChargeStarted();
@@ -327,6 +370,18 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
     const offline = new FakeOrders();
     offline.reading = { kind: "unreachable" };
     await followMercadoPagoChargeFor(deps(offline), { paymentTransactionId: paymentId });
+    expect(
+      await chargeSaleInCashFor(
+        {
+          database,
+          gate: deps(offline).gate,
+          readOutboxChainKey: async () => CHARGE_CHAIN_KEY,
+          now: () => CHARGE_NOW,
+          ids: { next: () => "cash-1" },
+        },
+        { saleId, tendered: 3000 },
+      ),
+    ).toEqual({ kind: "mercado_pago_charge_in_progress" });
 
     const online = new FakeOrders();
     online.reading = { kind: "read", state: "CANCELLED" };

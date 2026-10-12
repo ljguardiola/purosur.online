@@ -28,6 +28,27 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("opens the wait for the QR charge the open sale has in progress, and follows it", async () => {
+    const { screen, followMercadoPagoCharge } = await renderScreen({
+      currentSale: async () => ({
+        ...SALE_OF_ONE_LINE,
+        lines_lock: "mercado_pago_charge_in_progress",
+        cancel_refusal: "mercado_pago_charge_in_progress",
+        mercado_pago_charge_in_progress: {
+          payment_transaction_id: QR_PAYMENT_ID,
+          method: "QR",
+          amount: 476_000,
+          remaining_seconds: 120,
+        },
+      }),
+    });
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Esperando el pago del cliente" }))
+      .toBeVisible();
+    await expect.poll(() => followMercadoPagoCharge.mock.calls[0]).toEqual([QR_PAYMENT_ID]);
+  });
+
   it.each<[string, () => Promise<PaymentMethodAvailability | null>]>([
     ["is still loading", () => new Promise(() => {})],
     ["could not be read", async () => null],

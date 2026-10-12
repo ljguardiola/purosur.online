@@ -26,15 +26,21 @@ const POINT_PAYMENT = {
 
 const NOW = new Date("2026-10-09T12:01:00.000Z");
 const QR_CHARGE_IN_ITS_WAIT = {
+  id: "qr-1",
   method: "QR",
+  amount: 3000,
   waitEndsAt: new Date("2026-10-09T12:03:00.000Z"),
 } as const;
 const QR_CHARGE_PAST_ITS_WAIT = {
+  id: "qr-0",
   method: "QR",
+  amount: 3000,
   waitEndsAt: new Date("2026-10-09T12:00:30.000Z"),
 } as const;
 const POINT_CHARGE_PAST_ITS_WAIT = {
+  id: "point-1",
   method: "POINT",
+  amount: 4000,
   waitEndsAt: new Date("2026-10-09T12:00:30.000Z"),
 } as const;
 
@@ -46,6 +52,7 @@ describe("openSaleStanding", () => {
       cancellable: true,
       cancelRefusal: null,
       refundsOnCancel: [],
+      mercadoPagoChargeInProgress: null,
     });
   });
 
@@ -64,6 +71,7 @@ describe("openSaleStanding", () => {
           state: "APPROVED",
         },
       ],
+      mercadoPagoChargeInProgress: null,
     });
   });
 
@@ -88,6 +96,7 @@ describe("openSaleStanding", () => {
       cancellable: true,
       cancelRefusal: null,
       refundsOnCancel: [],
+      mercadoPagoChargeInProgress: null,
     });
   });
 
@@ -106,6 +115,18 @@ describe("openSaleStanding", () => {
       cancellable: false,
       cancelRefusal: "mercado_pago_charge_in_progress",
       refundsOnCancel: [],
+    });
+  });
+
+  it("names the Mercado Pago charge in progress, so it can be followed", () => {
+    expect(
+      openSaleStanding(5900, [], [QR_CHARGE_PAST_ITS_WAIT, POINT_CHARGE_PAST_ITS_WAIT], NOW)
+        .mercadoPagoChargeInProgress,
+    ).toEqual({
+      paymentTransactionId: "point-1",
+      method: "POINT",
+      amount: 4000,
+      remainingSeconds: 0,
     });
   });
 
@@ -134,6 +155,7 @@ describe("openSaleStanding", () => {
       cancellable: false,
       cancelRefusal: "holds_mercado_pago_payment",
       refundsOnCancel: [],
+      mercadoPagoChargeInProgress: null,
     });
   });
 

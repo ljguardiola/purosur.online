@@ -179,16 +179,14 @@ describe("PointChargeModal", () => {
       .toHaveTextContent("Ya hay un cobro con Mercado Pago en curso para esta venta.");
   });
 
-  it("says the charge could not be sent because the register cannot reach the cloud", async () => {
-    const { screen, send } = await renderModal(async () => ({ kind: "unreachable" }));
+  it("follows the charge, offering no other method, when the cloud could not confirm the order reached the terminal", async () => {
+    const unconfirmed = { ...ORDER_SHOWN, kind: "order_unconfirmed" } as const;
+    const { screen, send, callbacks } = await renderModal(async () => unconfirmed);
 
     await userEvent.click(send);
 
-    await expect
-      .element(screen.getByRole("alert"))
-      .toHaveTextContent(
-        "No se pudo crear la orden porque la caja no llega a la nube. Cobrá con otro medio.",
-      );
+    await expect.poll(() => callbacks.onOrderShown.mock.calls).toEqual([[unconfirmed]]);
+    await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
   });
 
   it("says the charge could not be sent when the core cannot answer", async () => {
