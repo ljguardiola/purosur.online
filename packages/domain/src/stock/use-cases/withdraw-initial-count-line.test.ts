@@ -71,10 +71,10 @@ describe("withdrawInitialCountLine", () => {
     expect(store.state.outbox[1]).toEqual({
       event_id: "id-4",
       aggregate_type: "StockMovement",
-      aggregate_id: "id-1",
+      aggregate_id: "id-3",
       event_type: "opening_count_withdrawn",
       schema_version: 1,
-      payload: { movement_id: "id-1", withdrawn_movement_id: "id-1" },
+      payload: { movement_id: "id-3", withdrawn_movement_id: "id-1" },
       occurred_at: WITHDRAWN_AT.toISOString(),
       actor_id: "counter",
     });

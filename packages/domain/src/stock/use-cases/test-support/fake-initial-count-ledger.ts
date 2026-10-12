@@ -77,11 +77,11 @@ export class FakeInitialCountLedger implements InitialCountLedger {
       outboxReady: () => working.outboxReady,
       activeProductById: (productId) => {
         look("activeProductById");
-        return working.products.find((product) => product.id === productId);
+        return countable(working.products.find((product) => product.id === productId));
       },
       activeProductByBarcode: (code) => {
         this.barcodeLookups += 1;
-        return working.products.find((product) => product.barcode === code);
+        return countable(working.products.find((product) => product.barcode === code));
       },
       searchableProducts: (): SearchableProduct[] =>
         working.products.map(({ id, name, saleUnit, timesSoldHere }) => ({
@@ -109,6 +109,10 @@ export class FakeInitialCountLedger implements InitialCountLedger {
     this.state = working;
     return outcome;
   }
+}
+
+function countable(product: FakeCountableProduct | undefined): CountableProduct | undefined {
+  return product && { id: product.id, name: product.name, saleUnit: product.saleUnit };
 }
 
 function linesOf(state: FakeInitialCountState): InitialCountLine[] {
