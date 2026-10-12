@@ -8,11 +8,10 @@ export function isNewerRegisterVersion(
   installed: RegisterVersion,
   offered: RegisterVersion,
 ): boolean {
-  if (offered.major !== installed.major) {
-    return offered.major > installed.major;
-  }
-  if (offered.minor !== installed.minor) {
-    return offered.minor > installed.minor;
-  }
-  return offered.patch > installed.patch;
+  const differences = [
+    offered.major - installed.major,
+    offered.minor - installed.minor,
+    offered.patch - installed.patch,
+  ];
+  return (differences.find((difference) => difference !== 0) ?? 0) > 0;
 }
