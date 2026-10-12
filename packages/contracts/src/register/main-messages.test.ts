@@ -175,11 +175,11 @@ describe("mainToCoreMessageSchema", () => {
 });
 
 describe("coreStatusMessageSchema", () => {
-  it.each(["starting", "down", "up"])("accepts a core status of %s", (status) => {
+  it.each(["starting", "down", "up", "refused"])("accepts a core status of %s", (status) => {
     expect(coreStatusMessageSchema.safeParse({ type: "core-status", status }).success).toBe(true);
   });
 
-  it("rejects a status outside starting, down and up", () => {
+  it("rejects a status outside starting, down, up and refused", () => {
     expect(coreStatusMessageSchema.safeParse({ type: "core-status", status: "" }).success).toBe(
       false,
     );
