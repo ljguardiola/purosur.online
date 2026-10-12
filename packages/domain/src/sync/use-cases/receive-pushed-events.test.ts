@@ -580,6 +580,108 @@ describe("reporting how the register stands", () => {
     expect(inbox.state.acceptedPushes).toEqual([]);
   });
 
+  describe("a register's fiscal emission", () => {
+    const STOPPED: RegisterTelemetry = {
+      ...TELEMETRY,
+      fiscal_emission_stopped: true,
+      fiscal_emission_stopped_reason: "legal_name_missing",
+    };
+
+    function emissionObservations(inbox: FakeInbox) {
+      return inbox.state.observedConditions
+        .map(({ observation }) => observation)
+        .filter(
+          (observation) =>
+            (observation.holds ? observation.alert.kind : observation.kind) ===
+            "fiscal_emission_stopped",
+        );
+    }
+
+    it("holds the fiscal-emission-stopped condition of the installation's register, in its branch, for a register that reports it stopped", async () => {
+      const inbox = new FakeInbox();
+      inbox.registerIds.set(DEVICE, "register-1");
+      inbox.locationIds.set(DEVICE, "location-1");
+
+      await receive(inbox, eventsOf(1), { telemetry: STOPPED });
+
+      expect(emissionObservations(inbox)).toEqual([
+        {
+          holds: true,
+          alert: {
+            kind: "fiscal_emission_stopped",
+            scope: "register-1",
+            locationId: "location-1",
+            detail: { deviceId: DEVICE, reason: "legal_name_missing" },
+          },
+        },
+      ]);
+    });
+
+    it("holds it for a push that carries no event", async () => {
+      const inbox = new FakeInbox();
+
+      await receive(inbox, [], { telemetry: STOPPED });
+
+      expect(emissionObservations(inbox)).toHaveLength(1);
+    });
+
+    it("clears the condition of the installation's register for a register that reports it available", async () => {
+      const inbox = new FakeInbox();
+      inbox.registerIds.set(DEVICE, "register-1");
+
+      await receive(inbox, eventsOf(1), {
+        telemetry: { ...TELEMETRY, fiscal_emission_stopped: false },
+      });
+
+      expect(emissionObservations(inbox)).toEqual([
+        { holds: false, kind: "fiscal_emission_stopped", scope: "register-1" },
+      ]);
+    });
+
+    it("observes nothing of a register that reports nothing about its emission", async () => {
+      const inbox = new FakeInbox();
+
+      await receive(inbox, eventsOf(1));
+
+      expect(emissionObservations(inbox)).toEqual([]);
+    });
+
+    it("observes it for a push it refuses for a gap, a stale device or a version not accepted", async () => {
+      const gap = new FakeInbox();
+      await receive(gap, eventsOf(3), { telemetry: STOPPED });
+      const stale = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
+      await receive(stale, [{ ...fakeEvent(1), event_id: "another-event" }], {
+        telemetry: STOPPED,
+      });
+      const outdated = new FakeInbox();
+      await receive(outdated, eventsOf(1), { telemetry: STOPPED, appVersion: "not-a-version" });
+
+      for (const inbox of [gap, stale, outdated]) {
+        expect(emissionObservations(inbox)).toHaveLength(1);
+      }
+    });
+
+    it("observes nothing of a push that breaks its chain and so revokes the installation", async () => {
+      const inbox = new FakeInbox();
+
+      await receive(inbox, [{ ...fakeEvent(1), chain_hmac: "forged-link" }], {
+        telemetry: STOPPED,
+      });
+
+      expect(inbox.state.brokenChainRevocations).not.toEqual([]);
+      expect(emissionObservations(inbox)).toEqual([]);
+    });
+
+    it("observes nothing of a revoked installation", async () => {
+      const inbox = new FakeInbox();
+      inbox.revokedDevices.add(DEVICE);
+
+      await receive(inbox, eventsOf(1), { telemetry: STOPPED });
+
+      expect(emissionObservations(inbox)).toEqual([]);
+    });
+  });
+
   it("records the moment of a push it received, after receiving it", async () => {
     const inbox = new FakeInbox();
 

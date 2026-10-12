@@ -1,4 +1,5 @@
 import {
+  PRE_EMISSION_GATE_FAILURE_REASONS,
   PUSH_BATCH_MAX_EVENTS,
   SALES_DENIED_REASONS,
   SERIAL_DEVICE_REPORT_STANDINGS,
@@ -29,14 +30,30 @@ const storageTelemetrySchema = z.object({
     .optional(),
 });
 
-const registerTelemetrySchema = z.union([
-  storageTelemetrySchema.extend({
+const salesDeniedReportSchema = z.union([
+  z.object({
     sales_denied: z.literal(true),
     sales_denied_reason: z.enum(SALES_DENIED_REASONS),
   }),
-  storageTelemetrySchema.extend({ sales_denied: z.literal(false), sales_denied_reason: absent }),
-  storageTelemetrySchema.extend({ sales_denied: absent, sales_denied_reason: absent }),
+  z.object({ sales_denied: z.literal(false), sales_denied_reason: absent }),
+  z.object({ sales_denied: absent, sales_denied_reason: absent }),
 ]);
+
+const fiscalEmissionStoppedReportSchema = z.union([
+  z.object({
+    fiscal_emission_stopped: z.literal(true),
+    fiscal_emission_stopped_reason: z.enum(PRE_EMISSION_GATE_FAILURE_REASONS),
+  }),
+  z.object({
+    fiscal_emission_stopped: z.literal(false),
+    fiscal_emission_stopped_reason: absent,
+  }),
+  z.object({ fiscal_emission_stopped: absent, fiscal_emission_stopped_reason: absent }),
+]);
+
+const registerTelemetrySchema = storageTelemetrySchema
+  .and(salesDeniedReportSchema)
+  .and(fiscalEmissionStoppedReportSchema);
 
 export const PUSH_EVENTS_REQUEST_MAX_BYTES = 16_777_216;
 

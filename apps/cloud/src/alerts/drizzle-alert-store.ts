@@ -222,6 +222,10 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
     await this.tx.update(alerts).set({ conditionClearedAt: null }).where(eq(alerts.id, alertId));
   }
 
+  async recordConditionDetail(alertId: string, detail: Record<string, unknown>): Promise<void> {
+    await this.tx.update(alerts).set({ detail }).where(eq(alerts.id, alertId));
+  }
+
   async lockClearedConditionAlerts(): Promise<ClearedConditionAlert[]> {
     const rows = await this.tx
       .select({

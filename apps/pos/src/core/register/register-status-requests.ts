@@ -4,6 +4,7 @@ import {
   registerOperationAccess,
   registerOwnConditions,
 } from "@purosur/domain";
+import { readLatestPreEmissionGateOutcome } from "../fiscal/sqlite-pre-emission-gate";
 import type { LocalDatabase } from "../platform/local-database";
 import type { SignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
@@ -36,6 +37,7 @@ export async function registerStatusFor({
   return {
     conditions: registerOwnConditions({
       salesStop: salesStopOf(database),
+      latestPreEmissionGate: readLatestPreEmissionGateOutcome(database),
       lastAcceptedPushAt: new SqliteAcceptedPushLog(database).lastAcceptedPushAt(),
       hours: new SqliteLocalReplica(database).ownBranchHours(),
       now: now(),

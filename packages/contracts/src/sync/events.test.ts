@@ -1,4 +1,4 @@
-import { PUSH_BATCH_MAX_EVENTS } from "@purosur/domain";
+import { PRE_EMISSION_GATE_FAILURE_REASONS, PUSH_BATCH_MAX_EVENTS } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { pushEventsRequestSchema, pushEventsResponseSchema } from "./events.js";
 
@@ -106,6 +106,76 @@ describe("push events request", () => {
     ["a sales_denied that is not a boolean", { sales_denied: "yes" }],
   ])("refuses telemetry that says %s", (_name, change) => {
     expect(requestWith({ telemetry: { ...telemetry, ...change } }).success).toBe(false);
+  });
+
+  it("accepts a register that reports its fiscal emission available", () => {
+    const reported = { ...telemetry, fiscal_emission_stopped: false };
+
+    expect(requestWith({ telemetry: reported }).data?.telemetry).toEqual(reported);
+  });
+
+  it.each(PRE_EMISSION_GATE_FAILURE_REASONS)(
+    "accepts a register that reports its fiscal emission stopped because of %s",
+    (reason) => {
+      const reported = {
+        ...telemetry,
+        fiscal_emission_stopped: true,
+        fiscal_emission_stopped_reason: reason,
+      };
+
+      expect(requestWith({ telemetry: reported }).data?.telemetry).toEqual(reported);
+    },
+  );
+
+  it("accepts a fiscal emission report beside every kind of sales state", () => {
+    const salesStates = [
+      {},
+      { sales_denied: false },
+      { sales_denied: true, sales_denied_reason: "event_history_broken" },
+    ];
+    const emissionStates = [
+      { fiscal_emission_stopped: false },
+      { fiscal_emission_stopped: true, fiscal_emission_stopped_reason: "legal_name_missing" },
+    ];
+
+    for (const sales of salesStates) {
+      for (const emission of emissionStates) {
+        const reported = { ...telemetry, ...sales, ...emission };
+
+        expect(requestWith({ telemetry: reported }).data?.telemetry).toEqual(reported);
+      }
+    }
+  });
+
+  it.each([
+    ["its fiscal emission is stopped with no reason", { fiscal_emission_stopped: true }],
+    [
+      "its fiscal emission is stopped for a reason the pre-emission check does not fail for",
+      { fiscal_emission_stopped: true, fiscal_emission_stopped_reason: "out_of_paper" },
+    ],
+    [
+      "its fiscal emission is available with a reason",
+      { fiscal_emission_stopped: false, fiscal_emission_stopped_reason: "legal_name_missing" },
+    ],
+    [
+      "a fiscal emission reason with no word on the emission",
+      { fiscal_emission_stopped_reason: "legal_name_missing" },
+    ],
+    ["a fiscal_emission_stopped that is not a boolean", { fiscal_emission_stopped: "yes" }],
+  ])("refuses telemetry that says %s", (_name, change) => {
+    expect(requestWith({ telemetry: { ...telemetry, ...change } }).success).toBe(false);
+  });
+
+  it("refuses a fiscal emission report beside a sales state it refuses", () => {
+    expect(
+      requestWith({
+        telemetry: {
+          ...telemetry,
+          fiscal_emission_stopped: false,
+          sales_denied: true,
+        },
+      }).success,
+    ).toBe(false);
   });
 
   it("accepts telemetry at its limits", () => {
