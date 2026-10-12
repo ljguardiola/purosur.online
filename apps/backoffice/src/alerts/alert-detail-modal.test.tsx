@@ -1584,3 +1584,47 @@ test("explains the refund of a cancelled sale left pending to the branch, closin
     )
     .toBeVisible();
 });
+
+test("tells a document ARCA left without a clear answer: its number, since when, what stays blocked and that it closes once the document is resolved", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "fiscal_unknown",
+        level: "warning",
+        audience: "all",
+        scope: "fiscal-document-1",
+        scopeDisplay: "fiscal-document-1",
+        scopeKind: "fiscalDocument",
+        closing: "when_its_document_is_resolved",
+        detail: {
+          fiscalDocumentId: "fiscal-document-1",
+          saleId: "sale-1",
+          registerId: "register-1",
+          pointOfSale: 12,
+          number: 41,
+          unclearSince: "2026-01-02T12:00:00.000Z",
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Un comprobante quedó sin respuesta clara de ARCA", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Comprobante 00012-00000041, desde el 02/01/2026 09:00. Mientras no se resuelva, ese punto de venta no pide CAE y las ventas de la caja quedan diferidas.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(screen.getByText("Se cierra sola cuando se resuelve el comprobante.", { exact: true }))
+    .toBeVisible();
+  await expect.element(screen.getByText("Comprobante", { exact: true })).toBeVisible();
+  expect(screen.getByText(/fiscal-document-1/).query()).toBeNull();
+});

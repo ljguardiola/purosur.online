@@ -12,6 +12,7 @@ export type {
   AlertViewer,
   ArcaCertificateExpiringDetail,
   EmailChangedDetail,
+  FiscalUnknownAlertKey,
   OpenAlertInput,
   PasskeyChangedDetail,
   RecoveryRequestedDetail,
@@ -41,6 +42,7 @@ export {
   ESCALATED_LEVEL,
   escalatesAt,
   fiscalRejectionAlertObservation,
+  fiscalUnknownAlertKey,
   isAlertKind,
   isAlertLevel,
   isDueForEscalation,
@@ -218,6 +220,7 @@ export {
   thresholdInEffectOn,
   thresholdScheduledAfter,
   UNCLEAR_ANSWER_KINDS,
+  unclearOutcomeSince,
   WSAA_ALREADY_AUTHENTICATED_RETRY_MS,
 } from "./fiscal/index.js";
 export type {

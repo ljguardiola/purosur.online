@@ -164,6 +164,15 @@ const refundTaskDetailSchema = z.object({
   refundOpenedAt: z.string(),
 });
 
+const fiscalUnknownDetailSchema = z.object({
+  fiscalDocumentId: z.string(),
+  saleId: z.string(),
+  registerId: z.string(),
+  pointOfSale: z.int(),
+  number: z.int(),
+  unclearSince: z.string(),
+});
+
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
 
 const alertBase = {
@@ -266,6 +275,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("refund_task" satisfies AlertKind),
     detail: refundTaskDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("fiscal_unknown" satisfies AlertKind),
+    detail: fiscalUnknownDetailSchema,
   }),
 ] as const;
 

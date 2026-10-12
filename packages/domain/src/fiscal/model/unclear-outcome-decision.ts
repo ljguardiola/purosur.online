@@ -21,6 +21,23 @@ export function awaitsUnclearOutcomeDecision(answer: RealTimeAuthorizationAnswer
   return answer === null || UNCLEAR_ANSWER_KINDS.includes(answer.kind);
 }
 
+export function unclearOutcomeSince({
+  answer,
+  answeredAt,
+  notAfter,
+  decision,
+}: {
+  answer: RealTimeAuthorizationAnswer | null;
+  answeredAt: Date | null;
+  notAfter: Date;
+  decision: UnclearOutcomeDecision | null;
+}): Date | null {
+  if (decision !== null || !awaitsUnclearOutcomeDecision(answer)) {
+    return null;
+  }
+  return answeredAt ?? notAfter;
+}
+
 export interface TaxAuthorityVoucher {
   issuedOn: string;
   total: number;

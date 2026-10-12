@@ -22,6 +22,9 @@ export function alertScopeLabel(scopeKind: string | null, scopeDisplay: string):
   if (scopeKind === ("refund" satisfies AlertScopeKind)) {
     return "Tarea de reembolso";
   }
+  if (scopeKind === ("fiscalDocument" satisfies AlertScopeKind)) {
+    return "Comprobante";
+  }
   return scopeKind === ("environment" satisfies AlertScopeKind)
     ? (ARCA_ENVIRONMENT_LABELS.get(scopeDisplay) ?? scopeDisplay)
     : scopeDisplay;
