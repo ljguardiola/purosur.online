@@ -271,10 +271,7 @@ export async function searchProductsFor(
   query: string,
 ): Promise<SearchProductsOutcome> {
   const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
-    searchProductsByName(
-      { ledger: saleLedger(database) },
-      { actorId: signedInUserId, query },
-    ),
+    searchProductsByName({ ledger: saleLedger(database) }, { actorId: signedInUserId, query }),
   );
   if (guarded.kind !== "performed") {
     return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
