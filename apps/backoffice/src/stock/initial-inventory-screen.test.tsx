@@ -59,21 +59,23 @@ test("shows each lot with its product, expiry, counted quantity, reference cost 
   await expect
     .element(screen.getByRole("heading", { name: "Inventario inicial", level: 1 }))
     .toBeVisible();
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
   const rows = screen.getByRole("table", { name: TABLE }).getByRole("row").elements();
   expect(rows.map((row) => row.textContent)).toEqual([
     "ProductoVenceContadoCosto de referenciaValorizadoAcciones",
     "Almendras peladasFrutos secos01/12/20264,400 kg$ 10.180,00 / kg$ 44.792,00",
-    "Miel pura de abeja 1 kgMiel y dulces—24 u$ 5.440,00$ 130.560,00",
-    "Té verde en hebras 100 gInfusiones15/03/202712 uSin costo—",
+    "Miel pura de abeja 1 kgAlmacén—24 u$ 5.440,00$ 130.560,00",
+    "Té verde en hebras 100 gAlmacén15/03/202712 uSin costo—",
   ]);
   await expectNoAccessibilityViolations(screen.container);
 });
 
 test("writes a lot with no cost in the tone of an error", async () => {
   const screen = await renderScreen(createServices());
-  await expect.element(screen.getByText("Sin costo", { exact: true })).toBeVisible();
+  const table = screen.getByRole("table", { name: TABLE });
+  await expect.element(table.getByText("Sin costo", { exact: true })).toBeVisible();
 
-  const cell = screen.getByText("Sin costo", { exact: true }).element() as HTMLElement;
+  const cell = table.getByText("Sin costo", { exact: true }).element() as HTMLElement;
   expect(cell.className).toContain("text-error-strong");
 });
 
@@ -232,6 +234,6 @@ test("reads the lots again when the lot being edited no longer exists", async ()
   await userEvent.fill(dialog.getByLabelText("Costo de referencia por kg"), "100");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar el costo" }));
 
-  await expect.element(dialog.getByText("Este lote ya no existe")).toBeVisible();
+  await expect.element(dialog.getByText("Este lote ya no existe").first()).toBeVisible();
   await expect.poll(() => vi.mocked(services.fetchInitialInventoryLots).mock.calls.length).toBe(2);
 });
