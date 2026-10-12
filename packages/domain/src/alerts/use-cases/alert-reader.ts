@@ -18,6 +18,7 @@ interface AlertRecord {
 export interface AlertSummary extends AlertRecord {
   salesDeniedReason: SalesDeniedReason | null;
   refundAmount: number | null;
+  refundMethod: string | null;
 }
 
 export interface AlertDetailView extends AlertRecord {

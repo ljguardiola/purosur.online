@@ -1,5 +1,11 @@
 import { type AlertSummary, alertListPageSchema } from "@purosur/contracts";
-import { alertKindPolicy, alertNamedRecordIds, isAlertKind, isAlertLevel } from "@purosur/domain";
+import {
+  alertKindPolicy,
+  alertNamedRecordIds,
+  isAlertKind,
+  isAlertLevel,
+  PAYMENT_METHODS,
+} from "@purosur/domain";
 import type {
   AlertSearch,
   AlertSummary as AlertSummaryRow,
@@ -41,6 +47,7 @@ function toAlertSummary(
     resolvedAt: row.resolvedAt?.toISOString() ?? null,
     salesDeniedReason: row.salesDeniedReason,
     refundAmount: row.refundAmount,
+    refundMethod: PAYMENT_METHODS.find((method) => method === row.refundMethod) ?? null,
   };
 }
 

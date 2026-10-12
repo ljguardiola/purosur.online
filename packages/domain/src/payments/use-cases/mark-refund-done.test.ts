@@ -39,7 +39,7 @@ describe("markRefundDone", () => {
 
     await mark(store);
 
-    expect(store.operationOrder).toEqual(["lockRefund", "recordRefundDone"]);
+    expect(store.operationOrder.slice(0, 2)).toEqual(["lockRefund", "recordRefundDone"]);
     expect(store.transactions).toBe(1);
   });
 
@@ -77,23 +77,28 @@ describe("markRefundDone", () => {
 
     await mark(store);
 
-    expect(store.operationOrder).toEqual([
-      "lockRefund",
-      "recordRefundDone",
-      "resolveLatePaymentRefundAlert",
-    ]);
+    expect(store.operationOrder).toEqual(["lockRefund", "recordRefundDone", "resolveRefundAlert"]);
     expect(store.resolvedAlerts).toEqual([
-      { refundId: "refund-1", resolvedBy: "manager", resolvedAt: NOW },
+      {
+        refundId: "refund-1",
+        kind: "late_payment_refund",
+        resolvedBy: "manager",
+        resolvedAt: NOW,
+      },
     ]);
     expect(store.transactions).toBe(1);
   });
 
-  it("resolves no alert when a refund of a cancelled sale is marked done", async () => {
+  it("resolves the refund task alert, in the same transaction, when a refund of a cancelled sale is marked done", async () => {
     const store = new FakeRefundStore([{ ...PENDING }]);
 
     await mark(store);
 
-    expect(store.resolvedAlerts).toEqual([]);
+    expect(store.operationOrder).toEqual(["lockRefund", "recordRefundDone", "resolveRefundAlert"]);
+    expect(store.resolvedAlerts).toEqual([
+      { refundId: "refund-1", kind: "refund_task", resolvedBy: "manager", resolvedAt: NOW },
+    ]);
+    expect(store.transactions).toBe(1);
   });
 
   it("answers that a discarded refund was discarded, not that it was done, leaving it as it was", async () => {
@@ -113,11 +118,21 @@ describe("markRefundDone", () => {
 
   it("leaves a late-payment refund pending, with its alert open, if resolving the alert fails", async () => {
     const store = new FakeRefundStore([{ ...LATE_PAYMENT }]);
-    store.failOn = "resolveLatePaymentRefundAlert";
+    store.failOn = "resolveRefundAlert";
 
-    await expect(mark(store)).rejects.toThrow("resolveLatePaymentRefundAlert failed");
+    await expect(mark(store)).rejects.toThrow("resolveRefundAlert failed");
 
     expect(store.refunds).toEqual([LATE_PAYMENT]);
+    expect(store.resolvedAlerts).toEqual([]);
+  });
+
+  it("leaves a refund of a cancelled sale pending, with its alert open, if resolving the alert fails", async () => {
+    const store = new FakeRefundStore([{ ...PENDING }]);
+    store.failOn = "resolveRefundAlert";
+
+    await expect(mark(store)).rejects.toThrow("resolveRefundAlert failed");
+
+    expect(store.refunds).toEqual([PENDING]);
     expect(store.resolvedAlerts).toEqual([]);
   });
 

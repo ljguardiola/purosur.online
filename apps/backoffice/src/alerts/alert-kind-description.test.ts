@@ -38,6 +38,12 @@ test("describes a QR payment Mercado Pago charged that has to be given back, wha
   );
 });
 
+test("describes the refund of a cancelled sale left without being marked as done", () => {
+  expect(alertKindDescription("refund_task")).toBe(
+    "Una venta anulada tiene un reembolso sin marcar como hecho",
+  );
+});
+
 test("gives no description to a kind this app does not know yet", () => {
   expect(alertKindDescription("register_battery_low")).toBe("");
 });

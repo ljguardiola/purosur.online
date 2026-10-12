@@ -202,6 +202,7 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"late_payment_refund">>().toEqualTypeOf<
       AlertDetails["late_payment_refund"]
     >();
+    expectTypeOf<WireDetail<"refund_task">>().toEqualTypeOf<AlertDetails["refund_task"]>();
     expectTypeOf<WireDetail<"offline_authorization_code_missing">>().toExtend<
       AlertDetails["offline_authorization_code_missing"]
     >();
@@ -341,6 +342,12 @@ describe("alertDetailSchema", () => {
         fortnightStarted: false,
       },
       late_payment_refund: { saleId: "sale-1", amount: 250000, providerOrderId: "ORD01" },
+      refund_task: {
+        saleId: "sale-1",
+        amount: 1240000,
+        method: "TRANSFER",
+        refundOpenedAt: "2026-10-05T12:00:00.000Z",
+      },
     } satisfies Record<AlertKind, unknown>;
 
     it.each(ALERT_KINDS)("accepts the detail of %s", (kind) => {

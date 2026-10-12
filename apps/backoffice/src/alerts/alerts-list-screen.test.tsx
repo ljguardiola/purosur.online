@@ -40,6 +40,7 @@ const passkeyAlert: AlertSummary = {
   resolvedAt: null,
   salesDeniedReason: null,
   refundAmount: null,
+  refundMethod: null,
 };
 
 const lockoutAlert: AlertSummary = {
@@ -55,6 +56,7 @@ const lockoutAlert: AlertSummary = {
   resolvedAt: null,
   salesDeniedReason: null,
   refundAmount: null,
+  refundMethod: null,
 };
 
 const closedAlert: AlertSummary = {
@@ -70,6 +72,7 @@ const closedAlert: AlertSummary = {
   resolvedAt: "2026-01-05T09:00:00.000Z",
   salesDeniedReason: null,
   refundAmount: null,
+  refundMethod: null,
 };
 
 function ok(
@@ -863,6 +866,7 @@ test("summarizes the refund owed for a late QR payment by its amount, under its 
         scopeDisplay: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
         scopeKind: "refund",
         refundAmount: 1_240_000,
+        refundMethod: null,
       },
     ]),
   );
@@ -889,6 +893,7 @@ test("summarizes a closed refund alert for a late QR payment by its amount alone
         scopeDisplay: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
         scopeKind: "refund",
         refundAmount: 1_240_000,
+        refundMethod: null,
       },
     ]),
   );
@@ -900,6 +905,88 @@ test("summarizes a closed refund alert for a late QR payment by its amount alone
     .element(row.getByText("QR de Mercado Pago de $ 12.400,00", { exact: true }))
     .toBeVisible();
   expect(row.getByText(/sin marcar como hecho/).query()).toBeNull();
+});
+
+test("summarizes the refund of a cancelled sale left pending by its method and amount, under its title and what to do", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...passkeyAlert,
+        kind: "refund_task",
+        level: "warning",
+        audience: "local",
+        scope: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        scopeDisplay: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        scopeKind: "refund",
+        refundAmount: 1_240_000,
+        refundMethod: "TRANSFER",
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Reembolso pendiente de confirmar/ });
+  await expect
+    .element(
+      row.getByText(
+        "Hay un reembolso aprobado que todavía no quedó marcado como hecho en el sistema. Si ese reembolso ya se hizo por fuera del sistema, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes. El Administrador ya fue avisado.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(row.getByText("Transferencia de $ 12.400,00", { exact: true }))
+    .toBeVisible();
+  expect(row.getByText(/3f2b8c1e/).query()).toBeNull();
+});
+
+test("summarizes a closed alert of a refund left pending as the refund of a cancelled sale, without telling to do it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...closedAlert,
+        kind: "refund_task",
+        audience: "local",
+        scope: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        scopeDisplay: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        scopeKind: "refund",
+        refundAmount: 1_240_000,
+        refundMethod: "TRANSFER",
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Reembolso pendiente de confirmar/ });
+  await expect
+    .element(row.getByText("Reembolso de una venta anulada", { exact: true }))
+    .toBeVisible();
+  expect(row.getByText(/todavía no/).query()).toBeNull();
+  expect(row.getByText(/cuanto antes/).query()).toBeNull();
+});
+
+test("shows the scope of a refund left pending when the cloud gives no method or amount", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...passkeyAlert,
+        kind: "refund_task",
+        audience: "local",
+        scopeDisplay: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        scopeKind: "refund",
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Reembolso pendiente de confirmar/ });
+  await expect.element(row.getByText("Tarea de reembolso")).toBeVisible();
 });
 
 test("describes a register that can't sell by its kind when the cloud names no reason", async () => {
@@ -914,6 +1001,7 @@ test("describes a register that can't sell by its kind when the cloud names no r
         scopeDisplay: "Caja 1",
         salesDeniedReason: null,
         refundAmount: null,
+        refundMethod: null,
       },
     ]),
   );
@@ -940,6 +1028,7 @@ test("describes a refund alert for a late QR payment by its kind when the cloud 
         scopeDisplay: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
         scopeKind: "refund",
         refundAmount: null,
+        refundMethod: null,
       },
     ]),
   );

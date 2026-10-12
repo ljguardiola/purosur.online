@@ -2,9 +2,9 @@ import type { PendingRefundsBody } from "@purosur/contracts";
 import { Button, formatCents, InlineNotice, Modal } from "@purosur/ui";
 import { CircleCheck, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { refundMethodLabel } from "../platform/refund-method-label";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { refundMethodLabel } from "./refund-method-label";
 import type { markRefundDone } from "./refunds-api";
 
 export type MarkRefundDoneModalServices = {

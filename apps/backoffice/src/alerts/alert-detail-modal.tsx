@@ -290,6 +290,8 @@ function alertTitle(alert: AlertDetail): string {
       return alertKindDescription(alert.kind);
     case "late_payment_refund":
       return "Reembolso pendiente por un pago tardío";
+    case "refund_task":
+      return "Reembolso pendiente de confirmar";
   }
 }
 
@@ -354,6 +356,7 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "register_silent":
     case "sales_denied":
     case "late_payment_refund":
+    case "refund_task":
       return "";
   }
 }
@@ -385,6 +388,7 @@ const REJECTION_CLASS_LABELS = {
 const CLOSING_NOTES: Record<AlertDetail["closing"], string | null> = {
   by_itself: null,
   with_its_refund: "Se cierra cuando su reembolso se marca como hecho o se descarta.",
+  when_its_refund_is_done: "Se cierra cuando su reembolso se marca como hecho.",
   by_hand: "No se cierra sola: se cierra a mano después de revisarla.",
 };
 

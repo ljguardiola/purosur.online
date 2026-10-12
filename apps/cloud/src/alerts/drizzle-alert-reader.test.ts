@@ -242,6 +242,42 @@ describe("DrizzleAlertReader listVisibleAlerts", () => {
     );
   });
 
+  it("reads the amount and the method of a refund left pending from the stored detail, and none of them for another kind", async () => {
+    const forgottenId = await insertAlert({
+      kind: "refund_task",
+      audience: "local",
+      detail: {
+        saleId: "sale-1",
+        amount: 1_240_000,
+        method: "TRANSFER",
+        refundOpenedAt: NOON.toISOString(),
+      },
+    });
+    const otherId = await insertAlert({
+      kind: "register_silent",
+      audience: "local",
+      detail: { amount: 999, method: "CASH" },
+    });
+    const lateId = await insertAlert({
+      kind: "late_payment_refund",
+      audience: "local",
+      detail: { saleId: "sale-1", amount: 250_000, method: "QR" },
+    });
+
+    const { alerts: listed } = await new DrizzleAlertReader(db).listVisibleAlerts(ALL, {}, 1);
+    const refunds = new Map(
+      listed.map((alert) => [alert.id, [alert.refundAmount, alert.refundMethod]]),
+    );
+
+    expect(refunds).toEqual(
+      new Map([
+        [forgottenId, [1_240_000, "TRANSFER"]],
+        [otherId, [null, null]],
+        [lateId, [250_000, null]],
+      ]),
+    );
+  });
+
   it("reads a late-payment refund amount larger than a 32-bit integer holds", async () => {
     const alertId = await insertAlert({
       kind: "late_payment_refund",

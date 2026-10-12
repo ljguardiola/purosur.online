@@ -1534,3 +1534,53 @@ test("tells a refund owed for a second paid order of a sale's QR that the QR was
   await expect.element(screen.getByText(/ORD01SECOND/)).toBeVisible();
   expect(screen.getByText(/por otro medio/).query()).toBeNull();
 });
+
+test("explains the refund of a cancelled sale left pending to the branch, closing with the refund being marked as done", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "refund_task",
+        level: "critical",
+        audience: "local",
+        scope: "refund-1",
+        scopeDisplay: "refund-1",
+        scopeKind: "refund",
+        closing: "when_its_refund_is_done",
+        detail: {
+          saleId: "sale-1",
+          amount: 1_240_000,
+          method: "TRANSFER",
+          refundOpenedAt: "2026-01-02T12:00:00.000Z",
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Reembolso pendiente de confirmar", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Hay un reembolso aprobado que todavía no quedó marcado como hecho en el sistema.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Si ese reembolso ya se hizo por fuera del sistema, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes. El Administrador ya fue avisado.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText("Se cierra cuando su reembolso se marca como hecho.", { exact: true }),
+    )
+    .toBeVisible();
+});
