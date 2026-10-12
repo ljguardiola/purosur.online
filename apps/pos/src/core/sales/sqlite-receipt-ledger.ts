@@ -6,6 +6,8 @@ import {
   type OutboxEventDraft,
   type ReceiptDelivery,
   type ReceiptSource,
+  type SaleDiscount,
+  type SaleDiscountValue,
   type SaleUnit,
 } from "@purosur/domain";
 import type {
@@ -21,6 +23,15 @@ import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { type ManualAdjustmentColumns, toManualAdjustment } from "./sqlite-manual-adjustment";
 import { type BenefitColumns, toBenefit } from "./sqlite-open-sale";
 import { type SaleDiscountColumns, toSaleDiscount } from "./sqlite-sale-discount";
+
+function receiptSaleDiscount(discount: SaleDiscount | null): SaleDiscountValue | null {
+  if (discount === null) {
+    return null;
+  }
+  return discount.kind === "PERCENT"
+    ? { kind: "PERCENT", percent: discount.percent }
+    : { kind: "AMOUNT", amount: discount.amount };
+}
 
 interface DeliveryRow {
   print_attempted_at: string | null;
@@ -144,6 +155,7 @@ export class SqliteReceiptLedger implements ReceiptLedger {
       throw new Error("the sale's receipt cannot be sourced");
     }
     const lines = this.receiptLines(saleId);
+    const saleDiscount = toSaleDiscount(sale);
     return {
       header: {
         address: branch.address,
@@ -153,7 +165,8 @@ export class SqliteReceiptLedger implements ReceiptLedger {
       occurredAt: new Date(sale.occurred_at),
       servedByFirstName: sale.first_name,
       operationNumber: sale.operation_number,
-      total: amountToCharge({ lines, saleDiscount: toSaleDiscount(sale) }),
+      total: amountToCharge({ lines, saleDiscount }),
+      saleDiscount: receiptSaleDiscount(saleDiscount),
       lines,
       payments: readSalePayments(this.database, saleId).map((payment) => ({
         method: payment.method,

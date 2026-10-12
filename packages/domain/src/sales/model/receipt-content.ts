@@ -5,6 +5,7 @@ import type { DiscountBenefit } from "../../pricing/index.js";
 import type { CompletedSalePayment } from "./completed-sale.js";
 import type { ManualAdjustmentValue } from "./manual-adjustment.js";
 import type { LinePromotion } from "./sale.js";
+import { type SaleDiscountValue, saleDiscountAmount } from "./sale-discount.js";
 
 type PaymentMethod = CompletedSalePayment["method"];
 
@@ -43,6 +44,7 @@ export interface ReceiptSource {
   servedByFirstName: string;
   operationNumber: number;
   total: number;
+  saleDiscount: SaleDiscountValue | null;
   lines: ReceiptSourceLine[];
   payments: ReceiptSourcePayment[];
   fiscal: ReceiptSourceFiscalDocument;
@@ -60,17 +62,35 @@ interface ReceiptContentLine {
   lineTotal: number;
 }
 
+type ReceiptSaleDiscount =
+  | { kind: "PERCENT"; percent: number; amount: number }
+  | { kind: "AMOUNT"; amount: number };
+
 export interface ReceiptContent {
   header: ReceiptHeader;
   operation: { occurredAt: Date; servedByFirstName: string; operationNumber: number };
   lines: ReceiptContentLine[];
   totals: {
     subtotal: number;
+    saleDiscount: ReceiptSaleDiscount | null;
     total: number;
     payments: { method: PaymentMethod; amount: number }[];
     change: number;
   };
   fiscal: FacturaCFiscalBlock | null;
+}
+
+function receiptSaleDiscount(
+  subtotal: number,
+  discount: SaleDiscountValue | null,
+): ReceiptSaleDiscount | null {
+  if (discount === null) {
+    return null;
+  }
+  const amount = saleDiscountAmount(subtotal, discount);
+  return discount.kind === "PERCENT"
+    ? { kind: "PERCENT", percent: discount.percent, amount }
+    : { kind: "AMOUNT", amount };
 }
 
 export function receiptContent(source: ReceiptSource): ReceiptContent {
@@ -84,6 +104,7 @@ export function receiptContent(source: ReceiptSource): ReceiptContent {
       promotion: promotions.find(({ id }) => id === promotionId)?.benefit ?? null,
     }),
   );
+  const subtotal = lines.reduce((sum, { lineTotal }) => sum + lineTotal, 0);
   return {
     header: source.header,
     operation: {
@@ -93,7 +114,8 @@ export function receiptContent(source: ReceiptSource): ReceiptContent {
     },
     lines,
     totals: {
-      subtotal: lines.reduce((sum, { lineTotal }) => sum + lineTotal, 0),
+      subtotal,
+      saleDiscount: receiptSaleDiscount(subtotal, source.saleDiscount),
       total: source.total,
       payments: source.payments.map(({ method, amount, tendered }) => ({
         method,

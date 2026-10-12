@@ -4,7 +4,7 @@ import {
   syncedEventPayloadKey,
   syncedEventPayloadSchema,
 } from "@purosur/contracts";
-import type { ManualAdjustment } from "@purosur/domain";
+import type { ManualAdjustment, SaleDiscount } from "@purosur/domain";
 import type {
   DecodedEvent,
   EventUpcaster,
@@ -19,12 +19,14 @@ type CompletedSalePayload = SyncedEventPayloads[
   | "sale_completed@4"
   | "sale_completed@5"
   | "sale_completed@6"
-  | "sale_completed@7"];
+  | "sale_completed@7"
+  | "sale_completed@8"];
 type SalePayment = SyncedEventPayloads["sale_completed@1" | "sale_completed@5"]["payments"][number];
 type CancelledSalePayload = SyncedEventPayloads[
   | "sale_cancelled@1"
   | "sale_cancelled@2"
-  | "sale_cancelled@3"];
+  | "sale_cancelled@3"
+  | "sale_cancelled@4"];
 
 type ManualAdjustmentPayload = NonNullable<
   SyncedEventPayloads["sale_completed@7"]["lines"][number]["manual_adjustment"]
@@ -45,10 +47,20 @@ function manualAdjustment(adjustment: ManualAdjustmentPayload | null): ManualAdj
   }
 }
 
+type SaleDiscountPayload = NonNullable<SyncedEventPayloads["sale_completed@8"]["sale_discount"]>;
+
+function saleDiscount(discount: SaleDiscountPayload): SaleDiscount {
+  const { reason, authorized_by: authorizedBy } = discount;
+  return discount.kind === "PERCENT"
+    ? { kind: "PERCENT", percent: discount.value, reason, authorizedBy }
+    : { kind: "AMOUNT", amount: discount.value, reason, authorizedBy };
+}
+
 function saleParts(payload: CompletedSalePayload | CancelledSalePayload) {
+  const discount = "sale_discount" in payload ? payload.sale_discount : null;
   return {
-    saleDiscount: null,
-    saleDiscountAmount: 0,
+    saleDiscount: discount === null ? null : saleDiscount(discount),
+    saleDiscountAmount: discount === null ? 0 : discount.amount,
     lines: payload.lines.map((line) => ({
       id: line.id,
       productId: line.product_id,
@@ -58,7 +70,7 @@ function saleParts(payload: CompletedSalePayload | CancelledSalePayload) {
       priceListId: line.price_list_id,
       promotionId: line.promotion_id,
       discountAmount: line.discount_amount,
-      saleDiscountShare: 0,
+      saleDiscountShare: "sale_discount_share" in line ? line.sale_discount_share : 0,
       weightSource: "weight_source" in line ? line.weight_source : null,
       manualAdjustment:
         "manual_adjustment" in line ? manualAdjustment(line.manual_adjustment) : null,
@@ -190,6 +202,14 @@ const FACT_OF: {
       payload.stock_movements,
       payload.operation_number,
     ),
+  "sale_completed@8": (payload) =>
+    completedSale(
+      payload,
+      payload.occurred_at,
+      payload.payments,
+      payload.stock_movements,
+      payload.operation_number,
+    ),
   "sale_print_state_changed@1": (payload) => ({
     kind: "sale_print_state_changed",
     printState: {
@@ -215,6 +235,7 @@ const FACT_OF: {
   "sale_cancelled@1": cancelledSale,
   "sale_cancelled@2": cancelledSale,
   "sale_cancelled@3": cancelledSale,
+  "sale_cancelled@4": cancelledSale,
   "cash_session_opened@1": (payload, event) => ({
     kind: "cash_session_opened",
     session: {
