@@ -1,5 +1,9 @@
 import type { BranchWeeklyHoursRange } from "../../branch/index.js";
 import {
+  fiscalEmissionStopReasonOf,
+  type LatestPreEmissionGateOutcome,
+} from "../../fiscal/index.js";
+import {
   isSerialDeviceMissing,
   type SerialDeviceRole,
   type SerialDeviceStanding,
@@ -16,6 +20,7 @@ import { isRegisterQuiet } from "./quiet-register.js";
 export const REGISTER_OWN_CONDITIONS = [
   "installation_revoked",
   "sales_denied",
+  "fiscal_emission_stopped",
   "register_silent",
   "serial_device_missing",
 ] as const satisfies readonly (AlertKind | "installation_revoked" | "serial_device_missing")[];
@@ -30,6 +35,7 @@ type HeldRegisterOwnCondition = {
 
 interface RegisterOwnStanding {
   salesStop: SalesStopState;
+  latestPreEmissionGate: LatestPreEmissionGateOutcome | undefined;
   lastAcceptedPushAt: Date | null;
   hours: readonly BranchWeeklyHoursRange[];
   now: Date;
@@ -38,6 +44,7 @@ interface RegisterOwnStanding {
 
 export function registerOwnConditions({
   salesStop,
+  latestPreEmissionGate,
   lastAcceptedPushAt,
   hours,
   now,
@@ -53,6 +60,10 @@ export function registerOwnConditions({
       salesDenied.sales_denied === true
         ? { kind: "sales_denied", reason: salesDenied.sales_denied_reason }
         : null,
+    fiscal_emission_stopped:
+      fiscalEmissionStopReasonOf(latestPreEmissionGate) === undefined
+        ? null
+        : { kind: "fiscal_emission_stopped" },
     register_silent:
       !revoked &&
       lastAcceptedPushAt !== null &&
