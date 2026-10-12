@@ -583,6 +583,7 @@ describe("recording the cancelled sales of applied events", () => {
       saleId: cancelled.id,
       paymentId: transfer.id,
       paymentTransactionId: null,
+      providerOrderId: null,
       origin: "sale_cancelled",
       method: "TRANSFER",
       provider: "NONE",
