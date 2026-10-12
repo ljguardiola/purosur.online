@@ -4,8 +4,8 @@ import {
 } from "../model/mercado-pago-order-result.js";
 import { latePaymentRefundOfUnrecordedOrder } from "../model/payment-refund.js";
 import {
+  awaitsUnrecordedOrder,
   type MercadoPagoQrOrderTransaction,
-  mayHaveUnrecordedOrder,
 } from "../model/payment-transaction.js";
 import type { MercadoPagoNotificationPorts } from "./mercado-pago-notification-ports.js";
 import type { PaymentTransactionLane } from "./mercado-pago-qr-order-ports.js";
@@ -83,7 +83,7 @@ async function confirmOrderOfUnrecordedCreation(
           clock.now(),
         );
       }
-      if (!mayHaveUnrecordedOrder(transaction)) {
+      if (!awaitsUnrecordedOrder(transaction)) {
         return { kind: "unknown_order" };
       }
       return {

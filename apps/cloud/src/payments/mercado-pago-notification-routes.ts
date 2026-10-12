@@ -57,7 +57,8 @@ function headerValue(value: string | string[] | undefined): string | undefined {
 
 // Public to the backoffice's session guard. Mercado Pago does not sign the notifications of QR
 // orders with the application's secret, so an order notification decides nothing by itself: it
-// only makes the cloud read now, with its own credentials, the order of a pending payment of ours.
+// only makes the cloud read now, with its own credentials, the order it names, when a payment of
+// ours recorded that order or a payment's order creation got no clear answer.
 // Any other notification is authenticated by its signature.
 export function registerMercadoPagoNotificationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,

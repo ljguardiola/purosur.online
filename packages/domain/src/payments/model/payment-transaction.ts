@@ -95,6 +95,12 @@ export function expiryWithoutOrder(
 }
 
 export function mayHaveUnrecordedOrder(
+  transaction: Pick<MercadoPagoQrOrderTransaction, "creationOutcomeUnknown">,
+): boolean {
+  return transaction.creationOutcomeUnknown;
+}
+
+export function awaitsUnrecordedOrder(
   transaction: Pick<
     MercadoPagoQrOrderTransaction,
     "state" | "providerOrderId" | "creationOutcomeUnknown"
@@ -103,7 +109,7 @@ export function mayHaveUnrecordedOrder(
   return (
     transaction.state === PENDING_PAYMENT_TRANSACTION_STATE &&
     transaction.providerOrderId === null &&
-    transaction.creationOutcomeUnknown
+    mayHaveUnrecordedOrder(transaction)
   );
 }
 
