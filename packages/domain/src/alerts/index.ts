@@ -67,8 +67,8 @@ export {
   canSeeAlert,
 } from "./model/alert-visibility.js";
 export { offlineAuthorizationCodeAcquisitionLevel } from "./model/offline-authorization-code-acquisition.js";
-export { refundTaskAlertIsDue, refundTaskAlertLevel } from "./model/refund-task-alert.js";
 export { isOpenAlert } from "./model/open-alert-state.js";
+export { refundTaskAlertIsDue, refundTaskAlertLevel } from "./model/refund-task-alert.js";
 export {
   REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
   registerFortnightScope,

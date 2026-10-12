@@ -75,13 +75,16 @@ describe("openOverdueRefundTaskAlerts", () => {
     expect(store.opened).toEqual([]);
   });
 
-  it.each(["APPROVED", "DISCARDED"] as const)("opens nothing for a refund already %s", async (state) => {
-    const store = new FakeRefundTaskAlertStore([{ ...REFUND, state }]);
+  it.each(["APPROVED", "DISCARDED"] as const)(
+    "opens nothing for a refund already %s",
+    async (state) => {
+      const store = new FakeRefundTaskAlertStore([{ ...REFUND, state }]);
 
-    await evaluate(store, hoursAfterOpening(100));
+      await evaluate(store, hoursAfterOpening(100));
 
-    expect(store.opened).toEqual([]);
-  });
+      expect(store.opened).toEqual([]);
+    },
+  );
 
   it("does not open a second alert for a refund that already has one open", async () => {
     const store = new FakeRefundTaskAlertStore([{ ...REFUND }]);

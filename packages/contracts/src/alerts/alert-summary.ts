@@ -1,4 +1,9 @@
-import { ALERT_AUDIENCES, ALERT_LEVELS, PAYMENT_METHODS, SALES_DENIED_REASONS } from "@purosur/domain";
+import {
+  ALERT_AUDIENCES,
+  ALERT_LEVELS,
+  PAYMENT_METHODS,
+  SALES_DENIED_REASONS,
+} from "@purosur/domain";
 import { z } from "zod";
 
 export const alertLevelSchema = z.enum(ALERT_LEVELS);

@@ -77,11 +77,7 @@ describe("markRefundDone", () => {
 
     await mark(store);
 
-    expect(store.operationOrder).toEqual([
-      "lockRefund",
-      "recordRefundDone",
-      "resolveRefundAlert",
-    ]);
+    expect(store.operationOrder).toEqual(["lockRefund", "recordRefundDone", "resolveRefundAlert"]);
     expect(store.resolvedAlerts).toEqual([
       {
         refundId: "refund-1",

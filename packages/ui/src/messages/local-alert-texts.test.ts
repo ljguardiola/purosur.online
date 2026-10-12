@@ -85,8 +85,7 @@ test("tells the refund owed for a second paid order of a sale's QR that the QR w
 test("gives the refund of a cancelled sale left pending its title, what it means and what to do", () => {
   expect(localAlertText({ kind: "refund_task" })).toEqual({
     title: "Reembolso pendiente de confirmar",
-    meaning:
-      "Hay un reembolso aprobado que todavía no quedó marcado como hecho en el sistema.",
+    meaning: "Hay un reembolso aprobado que todavía no quedó marcado como hecho en el sistema.",
     whatToDo:
       "Si ese reembolso ya se hizo por fuera del sistema, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes. El Administrador ya fue avisado.",
   });

@@ -23,10 +23,7 @@ export interface ResolvedRefundAlert {
   resolvedAt: Date;
 }
 
-type RefundStoreWrite =
-  | "recordRefundDone"
-  | "recordRefundDiscarded"
-  | "resolveRefundAlert";
+type RefundStoreWrite = "recordRefundDone" | "recordRefundDiscarded" | "resolveRefundAlert";
 
 class FakeRefundStoreTransaction implements RefundStoreTransaction {
   private readonly refunds: FakeStoredRefund[];
