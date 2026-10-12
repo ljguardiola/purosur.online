@@ -13,6 +13,7 @@ import {
   type PlannedRefundState,
   plannedRefunds,
   REFUND_ORIGINS,
+  refundAlertKind,
   REFUND_STATES,
   refundsSettleApprovedPayments,
   SALE_CANCELLED_REFUND_ORIGIN,
@@ -217,6 +218,16 @@ describe("isRefundDiscardable", () => {
 
   it.each(["sale_cancelled", "", "other"])("is false for the origin %j", (origin) => {
     expect(isRefundDiscardable(origin)).toBe(false);
+  });
+});
+
+describe("refundAlertKind", () => {
+  it("is the late-payment refund alert for a payment that arrived late", () => {
+    expect(refundAlertKind(LATE_PAYMENT_REFUND_ORIGIN)).toBe("late_payment_refund");
+  });
+
+  it("is the refund task alert for a cancelled sale", () => {
+    expect(refundAlertKind(SALE_CANCELLED_REFUND_ORIGIN)).toBe("refund_task");
   });
 });
 

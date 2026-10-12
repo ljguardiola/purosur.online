@@ -1,3 +1,4 @@
+import type { AlertKind } from "../../../alerts/index.js";
 import type { Clock } from "../../../shared/index.js";
 import type {
   LockedRefund,
@@ -17,6 +18,7 @@ export interface FakeStoredRefund extends LockedRefund {
 
 export interface ResolvedRefundAlert {
   refundId: string;
+  kind: AlertKind;
   resolvedBy: string;
   resolvedAt: Date;
 }
@@ -24,7 +26,7 @@ export interface ResolvedRefundAlert {
 type RefundStoreWrite =
   | "recordRefundDone"
   | "recordRefundDiscarded"
-  | "resolveLatePaymentRefundAlert";
+  | "resolveRefundAlert";
 
 class FakeRefundStoreTransaction implements RefundStoreTransaction {
   private readonly refunds: FakeStoredRefund[];
@@ -75,16 +77,17 @@ class FakeRefundStoreTransaction implements RefundStoreTransaction {
     }
   }
 
-  async resolveLatePaymentRefundAlert(
+  async resolveRefundAlert(
     refundId: string,
+    kind: AlertKind,
     resolvedBy: string,
     resolvedAt: Date,
   ): Promise<void> {
-    this.store.operationOrder.push("resolveLatePaymentRefundAlert");
-    if (this.store.failOn === "resolveLatePaymentRefundAlert") {
-      throw new Error("resolveLatePaymentRefundAlert failed");
+    this.store.operationOrder.push("resolveRefundAlert");
+    if (this.store.failOn === "resolveRefundAlert") {
+      throw new Error("resolveRefundAlert failed");
     }
-    this.store.resolvedAlerts.push({ refundId, resolvedBy, resolvedAt });
+    this.store.resolvedAlerts.push({ refundId, kind, resolvedBy, resolvedAt });
   }
 }
 
