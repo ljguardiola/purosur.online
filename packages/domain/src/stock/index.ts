@@ -1,3 +1,10 @@
+export type { InitialCountCostFilter } from "./model/initial-count.js";
+export {
+  INITIAL_COUNT_COST_FILTERS,
+  initialCountCostIncomplete,
+  initialCountOffered,
+} from "./model/initial-count.js";
+export { isReferenceUnitCost, referenceCostOf } from "./model/lot-reference-cost.js";
 export { isLotInStock } from "./model/lot-value.js";
 export type { StockCorrection } from "./model/product-valuation.js";
 export { STOCK_CORRECTIONS } from "./model/product-valuation.js";
