@@ -610,6 +610,13 @@
       "when": 1791769450153,
       "tag": "0090_stock_count_lots",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1791781547561,
+      "tag": "0091_initial_count_lots",
+      "breakpoints": true
     }
   ]
 }
