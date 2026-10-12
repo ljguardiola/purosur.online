@@ -11,6 +11,15 @@ const DOCKER_HUB_HOSTS = new Set([
   "registry.hub.docker.com",
 ]);
 const INSTALLED_PLAYWRIGHT_PACKAGE_JSON_PATH = "node_modules/playwright/package.json";
+const GITHUB_TOKEN_EXPRESSION = `\${{ github.token }}`;
+const SIGN_IN_TO_GHCR_COMMAND =
+  'echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin';
+const SKOPEO_SIGN_IN_TO_GHCR =
+  'echo "$GITHUB_TOKEN" | skopeo login ghcr.io --username "$GITHUB_ACTOR" --password-stdin';
+const COPY_RETRY_DELAYS_SECONDS = [0, 15, 30, 60];
+const PULL_ATTEMPT_SECONDS = 120;
+const PULL_RETRY_SECONDS = retrySeconds(PULL_ATTEMPT_SECONDS);
+const EXPECTED_MIRROR_OUTPUT = `\${{ steps.mirror.outputs.mirrored }}`;
 const CLOUD_POSTGRES_IMAGE = {
   label: "the cloud's Postgres image",
   setupPath: "apps/cloud/vitest.global-setup.postgres.ts",
@@ -18,38 +27,11 @@ const CLOUD_POSTGRES_IMAGE = {
   job: "tests",
   testsScript: "verify:tests",
   registry: "ghcr.io",
+  lookupJob: "postgres-image",
+  copyJob: "postgres-image-copy",
+  consumerJobs: ["tests"],
+  copyAttemptSeconds: 300,
 };
-const POSTGRES_LOOKUP_JOB = "postgres-image";
-const POSTGRES_COPY_JOB = "postgres-image-copy";
-const GITHUB_TOKEN_EXPRESSION = `\${{ github.token }}`;
-const SIGN_IN_TO_GHCR_COMMAND =
-  'echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin';
-const SKOPEO_SIGN_IN_TO_GHCR =
-  'echo "$GITHUB_TOKEN" | skopeo login ghcr.io --username "$GITHUB_ACTOR" --password-stdin';
-const LOOK_UP_MIRROR_COMMAND = [
-  SKOPEO_SIGN_IN_TO_GHCR,
-  `if timeout 60 skopeo inspect --raw "docker://\${POSTGRES_IMAGE%%:*}@\${POSTGRES_IMAGE#*@}" > /dev/null; then`,
-  '  echo "mirrored=true" >> "$GITHUB_OUTPUT"',
-  "else",
-  '  echo "mirrored=false" >> "$GITHUB_OUTPUT"',
-  "fi",
-].join("\n");
-const COPY_RETRY_DELAYS_SECONDS = [0, 15, 30, 60];
-const COPY_ATTEMPT_SECONDS = 300;
-const COPY_RETRY_SECONDS = COPY_RETRY_DELAYS_SECONDS.reduce(
-  (total, delay) => total + delay + COPY_ATTEMPT_SECONDS,
-  0,
-);
-const COPY_MIRROR_COMMAND = [
-  SKOPEO_SIGN_IN_TO_GHCR,
-  `for delay in ${COPY_RETRY_DELAYS_SECONDS.join(" ")}; do`,
-  '  sleep "$delay"',
-  `  timeout ${COPY_ATTEMPT_SECONDS} skopeo copy --all --preserve-digests "docker://\${SOURCE_IMAGE%%:*}@\${SOURCE_IMAGE#*@}" "docker://\${POSTGRES_IMAGE%@*}" && exit 0`,
-  "done",
-  "exit 1",
-].join("\n");
-const EXPECTED_MIRROR_OUTPUT = `\${{ steps.mirror.outputs.mirrored }}`;
-const EXPECTED_COPY_CONDITION = `\${{ needs.${POSTGRES_LOOKUP_JOB}.outputs.mirrored == 'false' }}`;
 const PLAYWRIGHT_IMAGE = {
   label: "the Playwright image",
   setupPath: "vitest.global-setup.playwright-server.ts",
@@ -59,6 +41,36 @@ const PLAYWRIGHT_IMAGE_JOBS = {
   tests: { ...PLAYWRIGHT_IMAGE, job: "tests", testsScript: "verify:tests" },
   visual: { ...PLAYWRIGHT_IMAGE, job: "visual", testsScript: "verify:visual" },
 };
+
+function retrySeconds(attemptSeconds) {
+  return COPY_RETRY_DELAYS_SECONDS.reduce((total, delay) => total + delay + attemptSeconds, 0);
+}
+
+function lookUpMirrorCommand(spec) {
+  return [
+    SKOPEO_SIGN_IN_TO_GHCR,
+    `if timeout 60 skopeo inspect --raw "docker://\${${spec.constant}%%:*}@\${${spec.constant}#*@}" > /dev/null; then`,
+    '  echo "mirrored=true" >> "$GITHUB_OUTPUT"',
+    "else",
+    '  echo "mirrored=false" >> "$GITHUB_OUTPUT"',
+    "fi",
+  ].join("\n");
+}
+
+function copyMirrorCommand(spec) {
+  return [
+    SKOPEO_SIGN_IN_TO_GHCR,
+    `for delay in ${COPY_RETRY_DELAYS_SECONDS.join(" ")}; do`,
+    '  sleep "$delay"',
+    `  timeout ${spec.copyAttemptSeconds} skopeo copy --all --preserve-digests "docker://\${SOURCE_IMAGE%%:*}@\${SOURCE_IMAGE#*@}" "docker://\${${spec.constant}%@*}" && exit 0`,
+    "done",
+    "exit 1",
+  ].join("\n");
+}
+
+function expectedCopyCondition(spec) {
+  return `\${{ needs.${spec.lookupJob}.outputs.mirrored == 'false' }}`;
+}
 
 function pullWithRetriesCommand(imageEnv) {
   return [
@@ -549,16 +561,16 @@ function digestOf(image) {
   return /@(sha256:[0-9a-f]{64})$/.exec(image)?.[1];
 }
 
-// ECR Public, like Docker Hub, caps what one address pulls without credentials, and shared runners
-// share that cap: the tests pull from a copy on ghcr.io with the run's own token, and only a missing
-// copy is ever pulled from the public registry, once.
-function postgresMirrorViolations({ image, doc, jobSteps, pullStep }) {
+// A public registry caps what one address pulls without credentials (ECR Public) or stalls a layer
+// (MCR), and shared runners share that address: the jobs pull from a copy on ghcr.io with the run's
+// own token, and only a missing copy is ever pulled from the public registry, once.
+function mirrorConsumerViolations(mirror, job, { doc, jobSteps, pullStep }) {
   const violations = [];
-  const testsJob = jobNode(doc, CLOUD_POSTGRES_IMAGE.job);
+  const consumerJob = jobNode(doc, job);
 
-  if (permissionsOf(doc, testsJob).packages !== "read") {
+  if (permissionsOf(doc, consumerJob).packages !== "read") {
     violations.push(
-      "verify.yml's tests job is not granted packages: read, which signing in to ghcr.io needs",
+      `verify.yml's ${job} job is not granted packages: read, which signing in to ghcr.io needs`,
     );
   }
   const pullIndex = pullStep === undefined ? jobSteps.length : jobSteps.indexOf(pullStep);
@@ -572,61 +584,67 @@ function postgresMirrorViolations({ image, doc, jobSteps, pullStep }) {
   });
   if (!signsIn) {
     violations.push(
-      `verify.yml's tests job does not sign in to ghcr.io with its own token before pulling ${CLOUD_POSTGRES_IMAGE.label}`,
+      `verify.yml's ${job} job does not sign in to ghcr.io with its own token before pulling ${mirror.label}`,
     );
   }
-  const testsNeeds = neededJobs(doc, testsJob);
-  if (!testsNeeds.includes(POSTGRES_LOOKUP_JOB) || !testsNeeds.includes(POSTGRES_COPY_JOB)) {
+  const needs = neededJobs(doc, consumerJob);
+  if (!needs.includes(mirror.lookupJob) || !needs.includes(mirror.copyJob)) {
     violations.push(
-      `verify.yml's tests job does not wait for the ${POSTGRES_LOOKUP_JOB} and ${POSTGRES_COPY_JOB} jobs that put ${CLOUD_POSTGRES_IMAGE.label} on ghcr.io`,
+      `verify.yml's ${job} job does not wait for the ${mirror.lookupJob} and ${mirror.copyJob} jobs that put ${mirror.label} on ghcr.io`,
     );
   }
+  return violations;
+}
+
+function mirrorJobsViolations(mirror, image, doc) {
+  const violations = [];
+  const copyRetrySeconds = retrySeconds(mirror.copyAttemptSeconds);
 
   // A Dependabot run gets a read-only token whatever the workflow asks for, so the lookup must
   // need nothing more.
-  const lookupJob = jobNode(doc, POSTGRES_LOOKUP_JOB);
+  const lookupJob = jobNode(doc, mirror.lookupJob);
   const lookupPermissions = permissionsOf(doc, lookupJob);
   if (Object.keys(lookupPermissions).length !== 1 || lookupPermissions.packages !== "read") {
     violations.push(
-      `verify.yml's ${POSTGRES_LOOKUP_JOB} job must be granted only packages: read, so that a read-only token can look the copy up`,
+      `verify.yml's ${mirror.lookupJob} job must be granted only packages: read, so that a read-only token can look the copy up`,
     );
   }
-  const lookupStep = stepRunningExactly(doc, lookupJob, LOOK_UP_MIRROR_COMMAND);
+  const lookupStep = stepRunningExactly(doc, lookupJob, lookUpMirrorCommand(mirror));
   if (
     lookupStep === undefined ||
     resolveScalar(doc, mapGet(doc, lookupStep, "id")) !== "mirror" ||
-    stepEnv(doc, lookupStep, "POSTGRES_IMAGE") !== image ||
+    stepEnv(doc, lookupStep, mirror.constant) !== image ||
     stepEnv(doc, lookupStep, "GITHUB_TOKEN") !== GITHUB_TOKEN_EXPRESSION ||
     resolveScalar(doc, mapGet(doc, mapGet(doc, lookupJob, "outputs"), "mirrored")) !==
       EXPECTED_MIRROR_OUTPUT
   ) {
     violations.push(
-      `verify.yml's ${POSTGRES_LOOKUP_JOB} job does not look up \`${image}\` on ghcr.io and output whether it found it as mirrored`,
+      `verify.yml's ${mirror.lookupJob} job does not look up \`${image}\` on ghcr.io and output whether it found it as mirrored`,
     );
   }
 
-  const copyJob = jobNode(doc, POSTGRES_COPY_JOB);
+  const copyJob = jobNode(doc, mirror.copyJob);
   if (
-    !neededJobs(doc, copyJob).includes(POSTGRES_LOOKUP_JOB) ||
-    resolveScalar(doc, mapGet(doc, copyJob, "if")) !== EXPECTED_COPY_CONDITION
+    !neededJobs(doc, copyJob).includes(mirror.lookupJob) ||
+    resolveScalar(doc, mapGet(doc, copyJob, "if")) !== expectedCopyCondition(mirror)
   ) {
     violations.push(
-      `verify.yml's ${POSTGRES_COPY_JOB} job does not run only when ${POSTGRES_LOOKUP_JOB} did not find the copy (\`if: ${EXPECTED_COPY_CONDITION}\`)`,
+      `verify.yml's ${mirror.copyJob} job does not run only when ${mirror.lookupJob} did not find the copy (\`if: ${expectedCopyCondition(mirror)}\`)`,
     );
   }
   if (permissionsOf(doc, copyJob).packages !== "write") {
     violations.push(
-      `verify.yml's ${POSTGRES_COPY_JOB} job is not granted packages: write, which copying to ghcr.io needs`,
+      `verify.yml's ${mirror.copyJob} job is not granted packages: write, which copying to ghcr.io needs`,
     );
   }
-  const copyStep = stepRunningExactly(doc, copyJob, COPY_MIRROR_COMMAND);
+  const copyStep = stepRunningExactly(doc, copyJob, copyMirrorCommand(mirror));
   if (
     copyStep === undefined ||
-    stepEnv(doc, copyStep, "POSTGRES_IMAGE") !== image ||
+    stepEnv(doc, copyStep, mirror.constant) !== image ||
     stepEnv(doc, copyStep, "GITHUB_TOKEN") !== GITHUB_TOKEN_EXPRESSION
   ) {
     violations.push(
-      `verify.yml's ${POSTGRES_COPY_JOB} job does not copy to \`${image}\` with its own token, retrying`,
+      `verify.yml's ${mirror.copyJob} job does not copy to \`${image}\` with its own token, retrying`,
     );
     return violations;
   }
@@ -636,21 +654,21 @@ function postgresMirrorViolations({ image, doc, jobSteps, pullStep }) {
   ]) {
     if (!mapHas(doc, node, "timeout-minutes")) continue;
     const minutes = resolveScalar(doc, mapGet(doc, node, "timeout-minutes"));
-    if (!(Number(minutes) * 60 >= COPY_RETRY_SECONDS)) {
+    if (!(Number(minutes) * 60 >= copyRetrySeconds)) {
       violations.push(
-        `verify.yml's ${POSTGRES_COPY_JOB} ${label} allows ${minutes} minutes, less than the ${COPY_RETRY_SECONDS} seconds its copy attempts and their delays can take`,
+        `verify.yml's ${mirror.copyJob} ${label} allows ${minutes} minutes, less than the ${copyRetrySeconds} seconds its copy attempts and their delays can take`,
       );
     }
   }
   const source = String(stepEnv(doc, copyStep, "SOURCE_IMAGE"));
   if (digestOf(image) !== undefined && digestOf(source) !== digestOf(image)) {
     violations.push(
-      `verify.yml's ${POSTGRES_COPY_JOB} job copies \`${source}\`, not the digest of \`${image}\``,
+      `verify.yml's ${mirror.copyJob} job copies \`${source}\`, not the digest of \`${image}\``,
     );
   }
   if (comesFromDockerHub(source)) {
     violations.push(
-      `verify.yml's ${POSTGRES_COPY_JOB} job copies \`${source}\` from Docker Hub, whose unauthenticated pulls a shared runner can exhaust`,
+      `verify.yml's ${mirror.copyJob} job copies \`${source}\` from Docker Hub, whose unauthenticated pulls a shared runner can exhaust`,
     );
   }
   return violations;
@@ -663,7 +681,11 @@ export function findCloudPostgresImageViolations(workflowSource, postgresSetupSo
     CLOUD_POSTGRES_IMAGE,
   );
   if (found.image === undefined) return found.violations;
-  return [...found.violations, ...postgresMirrorViolations(found)];
+  return [
+    ...found.violations,
+    ...mirrorConsumerViolations(CLOUD_POSTGRES_IMAGE, CLOUD_POSTGRES_IMAGE.job, found),
+    ...mirrorJobsViolations(CLOUD_POSTGRES_IMAGE, found.image, found.doc),
+  ];
 }
 
 export function findLocalPostgresImageViolations(composeSource, postgresSetupSource) {
