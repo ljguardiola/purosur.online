@@ -3,6 +3,8 @@ import {
   cancellableWithoutAuthorization,
   hasApprovedPayment,
   holdsApprovedQrPayment,
+  MERCADO_PAGO_PAYMENT_METHODS,
+  MERCADO_PAGO_PROVIDERS,
   PAYMENT_METHODS,
 } from "./payment.js";
 import type { SalePayment } from "./payment-transaction.js";
@@ -126,5 +128,18 @@ describe("a Mercado Pago Point payment of a sale", () => {
 describe("holdsApprovedQrPayment", () => {
   it("is false when the approved payment is by the integrated terminal", () => {
     expect(holdsApprovedQrPayment([{ state: "APPROVED", method: "POINT" }])).toBe(false);
+  });
+});
+
+describe("the Mercado Pago methods and providers", () => {
+  it("are the QR and the integrated terminal", () => {
+    expect(MERCADO_PAGO_PAYMENT_METHODS).toEqual(["QR", "POINT"]);
+    expect(MERCADO_PAGO_PROVIDERS).toEqual(["MERCADOPAGO_QR", "MERCADOPAGO_POINT"]);
+  });
+
+  it("are all methods of a payment", () => {
+    for (const method of MERCADO_PAGO_PAYMENT_METHODS) {
+      expect(PAYMENT_METHODS).toContain(method);
+    }
   });
 });

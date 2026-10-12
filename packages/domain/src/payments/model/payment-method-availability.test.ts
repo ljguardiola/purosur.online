@@ -4,6 +4,7 @@ import { MERCADO_PAGO_POINT_MINIMUM_ORDER_CENTS } from "./mercado-pago-point-ord
 import {
   POINT_TERMINAL_AVAILABILITIES,
   pointTerminalAvailability,
+  QR_AVAILABILITIES,
   qrAvailability,
 } from "./payment-method-availability.js";
 
@@ -57,5 +58,11 @@ describe("POINT_TERMINAL_AVAILABILITIES", () => {
       "below_minimum",
       "not_configured",
     ]);
+  });
+});
+
+describe("QR_AVAILABILITIES", () => {
+  it("lists what the register works out about the QR", () => {
+    expect(QR_AVAILABILITIES).toEqual(["available", "offline"]);
   });
 });

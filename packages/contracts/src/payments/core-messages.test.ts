@@ -20,12 +20,28 @@ describe("starting a Mercado Pago QR charge", () => {
     type: "start-mercado-pago-charge",
     request_id: REQUEST_ID,
     sale_id: "s1",
+    method: "QR",
     amount: 2000,
   };
 
   it("accepts a charge of an amount of a sale", () => {
     expect(paymentsRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
+
+  it("accepts a charge on the integrated terminal", () => {
+    const onTheTerminal = { ...message, method: "POINT" };
+
+    expect(paymentsRendererToCoreMessageSchema.parse(onTheTerminal)).toEqual(onTheTerminal);
+  });
+
+  it.each([undefined, "CASH", "TRANSFER", "MERCADOPAGO_POINT", "point"])(
+    "rejects a charge by the method %s",
+    (method) => {
+      expect(paymentsRendererToCoreMessageSchema.safeParse({ ...message, method }).success).toBe(
+        false,
+      );
+    },
+  );
 
   it("does not take who is charging from the renderer", () => {
     expect(paymentsRendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(
@@ -66,6 +82,7 @@ describe("starting a Mercado Pago QR charge", () => {
     { kind: "unreachable" },
     { kind: "mercado_pago_charge_in_progress" },
     { kind: "invalid_amount" },
+    { kind: "below_minimum" },
     { kind: "exceeds_pending", pending: 1500 },
     { kind: "empty_sale" },
     { kind: "zero_total" },
@@ -156,6 +173,8 @@ describe("following a Mercado Pago QR charge", () => {
     { kind: "waiting", remaining_seconds: 0 },
     { kind: "waiting", remaining_seconds: 190 },
     { kind: "wait_over" },
+    { kind: "at_terminal_wait_over" },
+    { kind: "closed" },
     { kind: "expiry_unconfirmed" },
     { kind: "declined" },
     { kind: "not_pending" },
@@ -224,6 +243,8 @@ describe("abandoning a Mercado Pago QR charge", () => {
     { kind: "cancelled" },
     { kind: "closed" },
     { kind: "replaced" },
+    { kind: "cancel_on_terminal" },
+    { kind: "unreachable" },
     { kind: "not_pending" },
     { kind: "already_paid", settlement: { kind: "completed", sale_id: "s1", total: 3000 } },
     {
