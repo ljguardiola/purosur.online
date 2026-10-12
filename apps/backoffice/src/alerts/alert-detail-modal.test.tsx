@@ -1617,7 +1617,7 @@ test("tells a document ARCA left without a clear answer: its number, since when,
   await expect
     .element(
       screen.getByText(
-        "Comprobante 00012-00000041, sin respuesta desde 02/01/2026 09:00. Mientras no se resuelva, ese punto de venta no pide CAE y las ventas de la caja quedan diferidas.",
+        "Comprobante 00012-00000041, desde el 02/01/2026 09:00. Mientras no se resuelva, ese punto de venta no pide CAE y las ventas de la caja quedan diferidas.",
         { exact: true },
       ),
     )
