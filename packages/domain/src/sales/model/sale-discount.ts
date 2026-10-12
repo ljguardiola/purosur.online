@@ -57,9 +57,7 @@ export function spreadSaleDiscount(lineSubtotals: readonly number[], amount: num
   const leftover = amount - shares.reduce((total, share) => total + share, 0);
   const byLargestRemainder = exact
     .map((product, position) => ({ position, remainder: product % sum }))
-    .sort((a, b) =>
-      a.remainder === b.remainder ? a.position - b.position : a.remainder > b.remainder ? -1 : 1,
-    );
+    .sort((a, b) => Number(b.remainder - a.remainder));
   for (const { position } of byLargestRemainder.slice(0, leftover)) {
     shares[position] = (shares[position] ?? 0) + 1;
   }

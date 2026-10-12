@@ -132,6 +132,7 @@ describe("spreadSaleDiscount", () => {
   it("spreads nothing when there is nothing to take off", () => {
     expect(spreadSaleDiscount([100, 200], 0)).toEqual([0, 0]);
     expect(spreadSaleDiscount([], 0)).toEqual([]);
+    expect(spreadSaleDiscount([0, 0], 0)).toEqual([0, 0]);
   });
 
   it("never gives a leftover cent to a line without subtotal", () => {
@@ -193,6 +194,32 @@ describe("spreadSaleDiscount", () => {
 
           shares.slice(1).forEach((share, index) => {
             expect(share).toBeLessThanOrEqual(shares[index] ?? 0);
+          });
+        },
+      ),
+    );
+  });
+
+  it("gives the leftover cents to the lower position among equal remainders that are not next to each other", () => {
+    expect(spreadSaleDiscount([3, 1, 3, 1, 3], 7)).toEqual([2, 1, 2, 0, 2]);
+  });
+
+  it("gives lines with the same subtotal shares that never grow with the position", () => {
+    fc.assert(
+      fc.property(
+        fc.array(fc.constantFrom(1, 2, 3), { minLength: 2, maxLength: 12 }),
+        fc.double({ min: 0, max: 1, noNaN: true }),
+        (subtotals, fraction) => {
+          const sum = subtotals.reduce((total, subtotal) => total + subtotal, 0);
+
+          const shares = spreadSaleDiscount(subtotals, Math.round(sum * fraction));
+
+          subtotals.forEach((subtotal, earlier) => {
+            subtotals.forEach((other, later) => {
+              if (earlier < later && subtotal === other) {
+                expect(shares[earlier]).toBeGreaterThanOrEqual(shares[later] ?? 0);
+              }
+            });
           });
         },
       ),
