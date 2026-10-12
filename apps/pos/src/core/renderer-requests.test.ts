@@ -2,6 +2,7 @@ import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
+  ApplySaleDiscountOutcome,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
@@ -20,6 +21,7 @@ import type {
   OpenCashSession,
   OpenCashSessionOutcome,
   OpenSale,
+  PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -50,7 +52,9 @@ import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requ
 import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type {
   AdjustSaleLineRequest,
+  ApplySaleDiscountRequest,
   CancelPaidSaleRequest,
+  PreviewSaleDiscountRequest,
   PreviewSaleLineAdjustmentRequest,
 } from "./sales/sale-requests";
 import type { SalesHistoryRequest } from "./sales/sales-history-requests";
@@ -201,6 +205,28 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
           ].join(" "),
         );
         return { kind: "unknown_line" };
+      },
+      previewSaleDiscount: async (
+        request: PreviewSaleDiscountRequest,
+      ): Promise<PreviewSaleDiscountOutcome> => {
+        saleChanges.push(
+          ["preview-discount", request.discount.kind, request.discount.value].join(" "),
+        );
+        return { kind: "no_open_sale" };
+      },
+      applySaleDiscount: async (
+        request: ApplySaleDiscountRequest,
+      ): Promise<ApplySaleDiscountOutcome> => {
+        saleChanges.push(
+          [
+            "discount",
+            request.discount.kind,
+            request.discount.value,
+            request.reason,
+            request.authorization?.user_id ?? "alone",
+          ].join(" "),
+        );
+        return { kind: "no_open_sale" };
       },
       removeSaleLine: async (lineId: string): Promise<RemoveSaleLineOutcome> => {
         saleChanges.push(["remove", lineId].join(" "));
@@ -1548,6 +1574,10 @@ describe("answerRendererRequest", () => {
       refunds_on_cancel: [],
       cancel_authorization_required: false,
       adjust_authorization_required: false,
+      sale_discount_authorization_required: false,
+      sale_discount_refusal: null,
+      subtotal: 1500,
+      sale_discount: null,
     };
     const { deps: withSale, saleLookups } = deps(true, { currentSale: async () => sale });
     const recording = deps(true);
@@ -2403,6 +2433,30 @@ describe("answerRendererRequest", () => {
         "previewing a sale line adjustment",
         "preview l1 AMOUNT 500",
         "preview-sale-line-adjustment-result",
+      ],
+      [
+        "apply-sale-discount",
+        {
+          type: "apply-sale-discount",
+          discount: { kind: "PERCENT", value: 10 },
+          reason: "Cliente frecuente",
+          authorization: { user_id: "u2", pin: "1234" },
+        } as const,
+        "applySaleDiscount",
+        "discounting the sale's total",
+        "discount PERCENT 10 Cliente frecuente u2",
+        "apply-sale-discount-result",
+      ],
+      [
+        "preview-sale-discount",
+        {
+          type: "preview-sale-discount",
+          discount: { kind: "AMOUNT", value: 500 },
+        } as const,
+        "previewSaleDiscount",
+        "previewing the discount on the sale's total",
+        "preview-discount AMOUNT 500",
+        "preview-sale-discount-result",
       ],
       [
         "remove-sale-line",

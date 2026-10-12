@@ -70,6 +70,7 @@ export type FakeSaleLedgerWrite =
   | "recordOpenedSale"
   | "recordSaleLine"
   | "recordChangedLine"
+  | "recordSaleDiscount"
   | "deleteSaleLine"
   | "discardOpenSale"
   | "recordPayment"
@@ -160,7 +161,7 @@ export class FakeSaleLedger implements SaleLedger {
       },
       recordOpenedSale: (sale) => {
         this.failIfAsked("recordOpenedSale");
-        working.sales.push({ ...sale, lines: [] });
+        working.sales.push({ ...sale, saleDiscount: null, lines: [] });
       },
       recordSaleLine: (saleId, line) => {
         this.failIfAsked("recordSaleLine");
@@ -182,6 +183,13 @@ export class FakeSaleLedger implements SaleLedger {
                 }
               : stored,
           );
+        }
+      },
+      recordSaleDiscount: (saleId, discount) => {
+        this.failIfAsked("recordSaleDiscount");
+        const sale = working.sales.find((stored) => stored.id === saleId);
+        if (sale) {
+          sale.saleDiscount = discount;
         }
       },
       deleteSaleLine: (lineId) => {

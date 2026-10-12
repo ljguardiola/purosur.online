@@ -24,7 +24,11 @@ const AUTHORIZERS: SignInUser[] = [
 ];
 const APPLY = /^Aplicar el (descuento|precio)$/;
 const REASON = "Motivo";
-const CHANGED: AdjustSaleLineOutcome = { kind: "changed", sale: SALE_OF_YERBA };
+const CHANGED: AdjustSaleLineOutcome = {
+  kind: "changed",
+  sale: SALE_OF_YERBA,
+  removed_sale_discount: false,
+};
 
 type Props = {
   previewAdjustment?: (
@@ -59,7 +63,7 @@ async function renderModal({
     return AUTHORIZERS;
   };
   const handlers = {
-    onAdjusted: vi.fn<(sale: OpenSale) => void>(),
+    onAdjusted: vi.fn<(sale: OpenSale, removedSaleDiscount: boolean) => void>(),
     onSaleGone: vi.fn(),
     onSessionInvalid: vi.fn(),
     onClose: vi.fn(),
@@ -171,7 +175,19 @@ describe("AdjustLineModal", () => {
       "Vence pronto",
       undefined,
     );
-    await expect.poll(() => onAdjusted.mock.calls).toEqual([[SALE_OF_YERBA]]);
+    await expect.poll(() => onAdjusted.mock.calls).toEqual([[SALE_OF_YERBA, false]]);
+  });
+
+  it("tells the screen when adjusting the line removed the discount on the sale's total", async () => {
+    const { screen, onAdjusted } = await renderModal({
+      adjustSaleLine: async () => ({ ...CHANGED, removed_sale_discount: true }),
+    });
+    await typePrice(screen, "1.500");
+    await typeReason(screen, "Vence pronto");
+
+    await apply(screen);
+
+    await expect.poll(() => onAdjusted.mock.calls).toEqual([[SALE_OF_YERBA, true]]);
   });
 
   it("sends a percentage discount", async () => {

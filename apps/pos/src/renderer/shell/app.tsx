@@ -9,6 +9,7 @@ import type {
   ManualAdjustmentRequest,
   OpenCashSession,
   OpenCashSessionOutcome,
+  SaleDiscountRequest,
   SignInOutcome,
   StartMercadoPagoQrChargeOutcome,
 } from "@purosur/contracts";
@@ -378,6 +379,12 @@ function Register({ core }: { core: CoreClient }) {
     ) => core.adjustSaleLine(lineId, adjustment, reason, authorization),
     previewSaleLineAdjustment: (lineId: string, adjustment: ManualAdjustmentRequest) =>
       core.previewSaleLineAdjustment(lineId, adjustment),
+    applySaleDiscount: (
+      discount: SaleDiscountRequest,
+      reason: string,
+      authorization: Authorization | undefined,
+    ) => core.applySaleDiscount(discount, reason, authorization),
+    previewSaleDiscount: (discount: SaleDiscountRequest) => core.previewSaleDiscount(discount),
     removeSaleLine: (lineId: string) => core.removeSaleLine(lineId),
     cancelSale: () => core.cancelSale(),
     cancelPaidSale: (saleId: string, authorization: Authorization | undefined) =>

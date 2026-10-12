@@ -9,6 +9,7 @@ import {
   type FakeSaleLedgerState,
   FixedClock,
 } from "./test-support/fake-sale-ledger.js";
+import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
 
 const NOW = new Date("2026-09-30T12:34:56.789Z");
 const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
@@ -47,6 +48,7 @@ const OPEN_SALE: SaleWithLines = {
   sessionId: "session-1",
   actorId: "cashier",
   state: "OPEN",
+  saleDiscount: null,
   lines: [QUESO_LINE, YERBA_LINE],
 };
 const PAYMENT: SalePayment = {
@@ -100,6 +102,7 @@ describe("changeLineWeight", () => {
     expect(outcome).toEqual({
       kind: "changed",
       removedManualDiscount: false,
+      removedSaleDiscount: false,
       sale: { ...OPEN_SALE, lines: [changed, YERBA_LINE] },
       balance: { paid: 0, pending: 30000 },
       linesLock: null,
@@ -376,5 +379,41 @@ describe("change-line-weight on a line with a manual adjustment", () => {
 
     expect(storedLine(store, "line-1")).toEqual({ ...withAmount, weightSource: "MANUAL" });
     expect(outcome).toEqual(expect.objectContaining({ removedManualDiscount: false }));
+  });
+});
+
+describe("changeLineWeight on a sale with a discount on the total", () => {
+  function discountedStore(): FakeSaleLedger {
+    return ledger({ sales: [{ ...OPEN_SALE, saleDiscount: TEN_PERCENT_SALE_DISCOUNT }] });
+  }
+
+  it("removes the discount and tells so when the weight changes", () => {
+    const store = discountedStore();
+
+    const outcome = retype(store, "line-1", 2000);
+
+    expect(store.state.sales[0]?.saleDiscount).toBeNull();
+    expect(outcome).toEqual(
+      expect.objectContaining({
+        kind: "changed",
+        removedSaleDiscount: true,
+        sale: expect.objectContaining({ saleDiscount: null }),
+        balance: { paid: 0, pending: 25_500 },
+      }),
+    );
+  });
+
+  it("keeps the discount and tells nothing was removed when the weight is the same", () => {
+    const store = discountedStore();
+
+    const outcome = retype(store, "line-1", 1000);
+
+    expect(store.state.sales[0]?.saleDiscount).toEqual(TEN_PERCENT_SALE_DISCOUNT);
+    expect(outcome).toEqual(
+      expect.objectContaining({
+        removedSaleDiscount: false,
+        balance: { paid: 0, pending: 14_850 },
+      }),
+    );
   });
 });

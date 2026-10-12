@@ -19,7 +19,11 @@ type SignedInOperation = OperationOf<
   | "configure_serial_devices"
 >;
 type AuthorizableOperation = OperationOf<
-  "record_cash_movement" | "cancel_paid_sale" | "adjust_sale_line" | "reprint_receipt"
+  | "record_cash_movement"
+  | "cancel_paid_sale"
+  | "adjust_sale_line"
+  | "apply_sale_discount"
+  | "reprint_receipt"
 >;
 type LockedRegisterOperation = OperationOf<"close_locked_register">;
 

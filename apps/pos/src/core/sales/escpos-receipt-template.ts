@@ -271,6 +271,12 @@ function discountText({ manualAdjustment, promotion }: ReceiptContent["lines"][n
     : `Lleve ${formatNumber(promotion.buyQty)}, pague ${formatNumber(promotion.payQty)}`;
 }
 
+function saleDiscountText(discount: NonNullable<ReceiptContent["totals"]["saleDiscount"]>): string {
+  return discount.kind === "PERCENT"
+    ? `Descuento sobre el total ${formatNumber(discount.percent)}%`
+    : "Descuento sobre el total";
+}
+
 function weightText(thousandths: number): string {
   return formatNumber(thousandths / STOCK_QUANTITY_PER_UNIT, {
     minimumFractionDigits: STOCK_QUANTITY_DECIMALS,
@@ -302,6 +308,9 @@ function sale(out: Output, { lines, totals }: Pick<ReceiptContent, "lines" | "to
     ...lines.flatMap(saleLine),
     RULE,
     ...row("Subtotal", formatCents(totals.subtotal)),
+    ...(totals.saleDiscount === null
+      ? []
+      : row(saleDiscountText(totals.saleDiscount), `-${formatCents(totals.saleDiscount.amount)}`)),
     RULE,
   ]);
   out.bold(row("TOTAL", formatCents(totals.total)));

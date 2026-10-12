@@ -280,6 +280,52 @@ describe("applying what POST /events received", () => {
     expect(await route.db.select().from(alerts)).toEqual([]);
   });
 
+  it("applies a sale with a discount on its total, keeping the discount and the line's share of it", async () => {
+    const { installation, device } = await pushingFromARegister();
+    await route.db.insert(users).values({
+      id: CASHIER,
+      firstName: "Ada",
+      email: "ada@example.com",
+      locationId: installation.locationId,
+    });
+    const priceListId = await seededPriceListId(route.db);
+    const { productId } = await insertProduct(route.db);
+    const sessionId = randomUUID();
+    await device.push([
+      cashSessionOpened(sessionId, "2026-10-06T11:00:00.000Z"),
+      saleCompleted({
+        saleId: randomUUID(),
+        sessionId,
+        completedAt: "2026-10-06T11:20:00.000Z",
+        total: 2160,
+        payments: [{ amount: 2160 }],
+        saleDiscount: {
+          kind: "PERCENT",
+          value: 10,
+          amount: 240,
+          reason: "Compra grande",
+          authorizedBy: CASHIER,
+        },
+        line: { productId, priceListId, listUnitPrice: 2400 },
+      }),
+    ]);
+
+    await applyAt(NOW);
+
+    const [sale] = await route.db.select().from(sales);
+    expect(sale).toMatchObject({
+      total: 2160,
+      saleDiscountKind: "PERCENT",
+      saleDiscountValue: 10,
+      saleDiscountAmount: 240,
+      saleDiscountReason: "Compra grande",
+      saleDiscountAuthorizedBy: CASHIER,
+    });
+    const [line] = await route.db.select().from(saleLines);
+    expect(line).toMatchObject({ lineTotal: 2160, saleDiscountShare: 240 });
+    expect(await route.db.select().from(alerts)).toEqual([]);
+  });
+
   it("retries a sale whose cash session arrives later, and applies it once the session is applied", async () => {
     const { device } = await pushingFromARegister();
     const sessionId = randomUUID();

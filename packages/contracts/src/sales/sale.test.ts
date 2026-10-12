@@ -8,12 +8,14 @@ import {
   addProductOutcomeSchema,
   addWeighedProductOutcomeSchema,
   adjustSaleLineOutcomeSchema,
+  applySaleDiscountOutcomeSchema,
   cancelPaidSaleOutcomeSchema,
   cancelSaleOutcomeSchema,
   changeLineQuantityOutcomeSchema,
   changeLineWeightOutcomeSchema,
   chargeSaleByTransferOutcomeSchema,
   chargeSaleInCashOutcomeSchema,
+  previewSaleDiscountOutcomeSchema,
   removeSaleLineOutcomeSchema,
   saleSchema,
   scanProductOutcomeSchema,
@@ -46,6 +48,10 @@ const sale = {
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,
+  sale_discount_authorization_required: false,
+  subtotal: 3000,
+  sale_discount: null,
+  sale_discount_refusal: null,
 };
 
 describe("saleSchema", () => {
@@ -97,11 +103,24 @@ describe("saleSchema", () => {
     },
   );
 
+  it.each([null, "empty_sale", "zero_total"] as const)(
+    "accepts a sale whose discount on the total is refused by %s",
+    (sale_discount_refusal) => {
+      expect(saleSchema.parse({ ...sale, sale_discount_refusal }).sale_discount_refusal).toBe(
+        sale_discount_refusal,
+      );
+    },
+  );
+
   it.each([
     ["its lines locked for an unknown reason", { ...sale, lines_lock: "closed" }],
     ["its lines locked by a boolean", { ...sale, lines_lock: true }],
     ["its cancellation refused for an unknown reason", { ...sale, cancel_refusal: "closed" }],
     ["its cancellation refused by a boolean", { ...sale, cancel_refusal: true }],
+    [
+      "its discount on the total refused for a reason that needs a discount",
+      { ...sale, sale_discount_refusal: "discount_exceeds_sale" },
+    ],
   ])("rejects a sale with %s", (_case, value) => {
     expect(saleSchema.safeParse(value).success).toBe(false);
   });
@@ -260,7 +279,7 @@ describe("a sale line's manual adjustment", () => {
 
 describe("scanProductOutcomeSchema", () => {
   it.each([
-    { kind: "added", sale, removed_manual_discount: false },
+    { kind: "added", sale, removed_manual_discount: false, removed_sale_discount: false },
     { kind: "unknown_code" },
     { kind: "no_price", product_name: "Yerba" },
     { kind: "weight_needed", product_id: "p2", product_name: "Queso" },
@@ -299,7 +318,7 @@ const refusals = [
 
 describe("changeLineQuantityOutcomeSchema", () => {
   it.each([
-    { kind: "changed", sale, removed_manual_discount: false },
+    { kind: "changed", sale, removed_manual_discount: false, removed_sale_discount: false },
     { kind: "unknown_line" },
     { kind: "stale_quantity" },
     { kind: "invalid_quantity" },
@@ -320,7 +339,7 @@ describe("changeLineQuantityOutcomeSchema", () => {
 
 describe("changeLineWeightOutcomeSchema", () => {
   it.each([
-    { kind: "changed", sale, removed_manual_discount: false },
+    { kind: "changed", sale, removed_manual_discount: false, removed_sale_discount: false },
     { kind: "unknown_line" },
     { kind: "stale_weight" },
     { kind: "invalid_weight" },
@@ -344,7 +363,7 @@ describe("changeLineWeightOutcomeSchema", () => {
 
 describe("addWeighedProductOutcomeSchema", () => {
   it.each([
-    { kind: "added", sale, removed_manual_discount: false },
+    { kind: "added", sale, removed_manual_discount: false, removed_sale_discount: false },
     { kind: "product_unavailable" },
     { kind: "not_sold_by_weight" },
     { kind: "invalid_weight" },
@@ -373,7 +392,7 @@ describe("addWeighedProductOutcomeSchema", () => {
 
 describe("weighProductOutcomeSchema", () => {
   it.each([
-    { kind: "added", sale, removed_manual_discount: false },
+    { kind: "added", sale, removed_manual_discount: false, removed_sale_discount: false },
     { kind: "weighing" },
     { kind: "scale_unavailable" },
     { kind: "product_unavailable" },
@@ -402,7 +421,8 @@ describe("weighProductOutcomeSchema", () => {
 
 describe("removeSaleLineOutcomeSchema", () => {
   it.each([
-    { kind: "removed", sale },
+    { kind: "removed", sale, removed_sale_discount: false },
+    { kind: "removed", sale, removed_sale_discount: true },
     { kind: "unknown_line" },
     { kind: "sale_has_payments" },
     ...refusals,
@@ -412,7 +432,9 @@ describe("removeSaleLineOutcomeSchema", () => {
 
   it.each([
     { kind: "removed" },
-    { kind: "changed", sale, removed_manual_discount: false },
+    { kind: "removed", sale },
+    { kind: "removed", sale, removed_sale_discount: "yes" },
+    { kind: "changed", sale, removed_manual_discount: false, removed_sale_discount: false },
     { kind: "invalid_quantity" },
     { kind: "somewhere_else" },
     {},
@@ -486,7 +508,8 @@ describe("cancelPaidSaleOutcomeSchema", () => {
 
 describe("adjustSaleLineOutcomeSchema", () => {
   it.each([
-    { kind: "changed", sale },
+    { kind: "changed", sale, removed_sale_discount: false },
+    { kind: "changed", sale, removed_sale_discount: true },
     { kind: "unknown_line" },
     { kind: "same_as_list_price" },
     { kind: "discount_exceeds_line" },
@@ -500,13 +523,23 @@ describe("adjustSaleLineOutcomeSchema", () => {
   });
 
   it("carries no authorizer of the change", () => {
-    const changed = { kind: "changed", sale, authorized_by: { user_id: "u2", first_name: "Ana" } };
+    const changed = {
+      kind: "changed",
+      sale,
+      removed_sale_discount: false,
+      authorized_by: { user_id: "u2", first_name: "Ana" },
+    };
 
-    expect(adjustSaleLineOutcomeSchema.parse(changed)).toEqual({ kind: "changed", sale });
+    expect(adjustSaleLineOutcomeSchema.parse(changed)).toEqual({
+      kind: "changed",
+      sale,
+      removed_sale_discount: false,
+    });
   });
 
   it.each([
     { kind: "changed" },
+    { kind: "changed", sale },
     { kind: "removed", sale },
     { kind: "stale_quantity" },
     { kind: "somewhere_else" },
@@ -525,9 +558,144 @@ describe("the outcomes that say a manual discount was removed", () => {
     ["changing a line's quantity", changeLineQuantityOutcomeSchema, "changed"],
     ["changing a line's weight", changeLineWeightOutcomeSchema, "changed"],
   ] as const)("require it when %s changes the sale", (_case, schema, kind) => {
-    expect(schema.safeParse({ kind, sale, removed_manual_discount: true }).success).toBe(true);
-    expect(schema.safeParse({ kind, sale }).success).toBe(false);
-    expect(schema.safeParse({ kind, sale, removed_manual_discount: "yes" }).success).toBe(false);
+    const answer = { kind, sale, removed_sale_discount: false };
+
+    expect(schema.safeParse({ ...answer, removed_manual_discount: true }).success).toBe(true);
+    expect(schema.safeParse(answer).success).toBe(false);
+    expect(schema.safeParse({ ...answer, removed_manual_discount: "yes" }).success).toBe(false);
+  });
+});
+
+describe("the outcomes that say the discount on the sale's total was removed", () => {
+  it.each([
+    ["scanning a product", scanProductOutcomeSchema, "added"],
+    ["adding a product", addProductOutcomeSchema, "added"],
+    ["adding a weighed product", addWeighedProductOutcomeSchema, "added"],
+    ["weighing a product", weighProductOutcomeSchema, "added"],
+    ["changing a line's quantity", changeLineQuantityOutcomeSchema, "changed"],
+    ["changing a line's weight", changeLineWeightOutcomeSchema, "changed"],
+  ] as const)("require it when %s changes the sale", (_case, schema, kind) => {
+    const answer = { kind, sale, removed_manual_discount: false };
+
+    expect(schema.safeParse({ ...answer, removed_sale_discount: true }).success).toBe(true);
+    expect(schema.safeParse(answer).success).toBe(false);
+    expect(schema.safeParse({ ...answer, removed_sale_discount: "yes" }).success).toBe(false);
+  });
+});
+
+describe("a sale's discount on its total", () => {
+  const discounted = (sale_discount: unknown) => ({ ...sale, sale_discount });
+
+  it.each([
+    { kind: "PERCENT", value: 1, amount: 30 },
+    { kind: "PERCENT", value: 100, amount: 3000 },
+    { kind: "AMOUNT", value: 1, amount: 1 },
+    { kind: "AMOUNT", value: 450, amount: 450 },
+  ])("accepts $kind of $value that discounts $amount", (value) => {
+    expect(saleSchema.parse(discounted(value)).sale_discount).toEqual(value);
+  });
+
+  it("carries neither the reason nor who authorized the discount", () => {
+    const sale_discount = {
+      kind: "PERCENT",
+      value: 10,
+      amount: 300,
+      reason: "Cliente frecuente",
+      authorized_by: { user_id: "u2", first_name: "Ana" },
+    };
+
+    expect(saleSchema.parse(discounted(sale_discount)).sale_discount).toEqual({
+      kind: "PERCENT",
+      value: 10,
+      amount: 300,
+    });
+  });
+
+  it.each([
+    ["a kind it does not know", { kind: "PRICE", value: 1, amount: 1 }],
+    ["a percent of zero", { kind: "PERCENT", value: 0, amount: 0 }],
+    ["a percent above 100", { kind: "PERCENT", value: 101, amount: 10 }],
+    ["a fractional percent", { kind: "PERCENT", value: 12.5, amount: 10 }],
+    ["an amount of zero", { kind: "AMOUNT", value: 0, amount: 0 }],
+    ["a fractional amount", { kind: "AMOUNT", value: 1.5, amount: 2 }],
+    ["a negative discounted amount", { kind: "AMOUNT", value: 1, amount: -1 }],
+    ["a fractional discounted amount", { kind: "AMOUNT", value: 1, amount: 0.5 }],
+    ["no discounted amount", { kind: "AMOUNT", value: 1 }],
+    ["no value", { kind: "PERCENT", amount: 1 }],
+  ])("rejects a discount with %s", (_case, value) => {
+    expect(saleSchema.safeParse(discounted(value)).success).toBe(false);
+  });
+
+  it.each([
+    ["subtotal", { ...sale, subtotal: undefined }],
+    ["discount on the total", { ...sale, sale_discount: undefined }],
+    [
+      "answer on discounting the total needing authorization",
+      { ...sale, sale_discount_authorization_required: undefined },
+    ],
+    ["refusal of a discount on the total", { ...sale, sale_discount_refusal: undefined }],
+    ["a subtotal that is negative", { ...sale, subtotal: -1 }],
+    ["a subtotal that is fractional", { ...sale, subtotal: 1.5 }],
+  ])("rejects a sale without its %s", (_field, value) => {
+    expect(saleSchema.safeParse(value).success).toBe(false);
+  });
+});
+
+describe("applySaleDiscountOutcomeSchema", () => {
+  it.each([
+    { kind: "applied", sale },
+    { kind: "empty_sale" },
+    { kind: "zero_total" },
+    { kind: "discount_exceeds_sale" },
+    { kind: "sale_has_payments" },
+    ...refusals,
+    { kind: "lacks_permission" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+    { kind: "locked", consecutive_failures: PIN_SIGN_IN_LOCKOUT_FAILURES },
+  ])("accepts the outcome $kind", (outcome) => {
+    expect(applySaleDiscountOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it("carries no authorizer of the discount", () => {
+    const applied = { kind: "applied", sale, authorized_by: { user_id: "u2", first_name: "Ana" } };
+
+    expect(applySaleDiscountOutcomeSchema.parse(applied)).toEqual({ kind: "applied", sale });
+  });
+
+  it.each([
+    { kind: "applied" },
+    { kind: "changed", sale },
+    { kind: "unknown_line" },
+    { kind: "somewhere_else" },
+    {},
+  ])("rejects the outcome %j", (outcome) => {
+    expect(applySaleDiscountOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
+});
+
+describe("previewSaleDiscountOutcomeSchema", () => {
+  it.each([
+    { kind: "preview", subtotal: 3000, discount_amount: 300, total: 2700 },
+    { kind: "preview", subtotal: 3000, discount_amount: 3000, total: 0 },
+    { kind: "empty_sale" },
+    { kind: "zero_total" },
+    { kind: "discount_exceeds_sale" },
+    { kind: "sale_has_payments" },
+    ...refusals,
+  ])("accepts the outcome $kind", (outcome) => {
+    expect(previewSaleDiscountOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it.each([
+    ["an outcome it does not know", { kind: "somewhere_else" }],
+    ["no subtotal", { kind: "preview", discount_amount: 300, total: 2700 }],
+    ["no discount", { kind: "preview", subtotal: 3000, total: 2700 }],
+    ["no total", { kind: "preview", subtotal: 3000, discount_amount: 300 }],
+    ["a negative total", { kind: "preview", subtotal: 3000, discount_amount: 300, total: -1 }],
+    ["a fractional discount", { kind: "preview", subtotal: 3000, discount_amount: 0.5, total: 1 }],
+    ["an authorization refusal", { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 }],
+  ])("rejects an answer with %s", (_case, outcome) => {
+    expect(previewSaleDiscountOutcomeSchema.safeParse(outcome).success).toBe(false);
   });
 });
 
@@ -753,7 +921,7 @@ describe("searchProductsOutcomeSchema", () => {
 
 describe("addProductOutcomeSchema", () => {
   it.each([
-    { kind: "added", sale, removed_manual_discount: false },
+    { kind: "added", sale, removed_manual_discount: false, removed_sale_discount: false },
     { kind: "no_price", product_name: "Yerba" },
     { kind: "weight_needed", product_id: "p2", product_name: "Queso" },
     { kind: "line_quantity_limit", product_name: "Yerba" },

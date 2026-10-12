@@ -12,6 +12,8 @@ export function aCompletedSaleFact(overrides: Partial<SaleCompleted["sale"]> = {
       completedAt: new Date("2026-10-07T10:00:00.000Z"),
       operationNumber: null,
       total: 1500,
+      saleDiscount: null,
+      saleDiscountAmount: 0,
       lines: [
         {
           id: "line-1",
@@ -24,6 +26,7 @@ export function aCompletedSaleFact(overrides: Partial<SaleCompleted["sale"]> = {
           priceListId: "price-list-1",
           promotionId: null,
           discountAmount: 0,
+          saleDiscountShare: 0,
           lineTotal: 1500,
         },
       ],
@@ -67,6 +70,8 @@ export function aCancelledSaleFact(overrides: Partial<SaleCancelled["sale"]> = {
       authorizedBy: "supervisor-1",
       cancelledAt: new Date("2026-10-07T10:05:00.000Z"),
       total: 3000,
+      saleDiscount: null,
+      saleDiscountAmount: 0,
       lines: [
         {
           id: "line-1",
@@ -79,6 +84,7 @@ export function aCancelledSaleFact(overrides: Partial<SaleCancelled["sale"]> = {
           priceListId: "price-list-1",
           promotionId: null,
           discountAmount: 0,
+          saleDiscountShare: 0,
           lineTotal: 3000,
         },
       ],

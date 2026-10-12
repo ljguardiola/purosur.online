@@ -61,6 +61,10 @@ export const SALE_OF_ONE_LINE: OpenSale = {
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,
+  sale_discount_authorization_required: false,
+  sale_discount_refusal: null,
+  sale_discount: null,
+  subtotal: 476_000,
 };
 export const SALE_OF_TWO_LINES: OpenSale = {
   id: "sale-1",
@@ -74,6 +78,10 @@ export const SALE_OF_TWO_LINES: OpenSale = {
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,
+  sale_discount_authorization_required: false,
+  sale_discount_refusal: null,
+  sale_discount: null,
+  subtotal: 626_000,
 };
 const COMPLETED: ChargeSaleInCashOutcome = {
   kind: "completed",
