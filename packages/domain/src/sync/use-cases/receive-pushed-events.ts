@@ -1,4 +1,5 @@
 import {
+  registerFiscalEmissionObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,
@@ -47,11 +48,20 @@ export async function receivePushedEvents(
       locationId,
       report: telemetry,
     });
+    const fiscalEmission = registerFiscalEmissionObservation({
+      registerId,
+      deviceId,
+      locationId,
+      report: telemetry,
+    });
     const keptInService = async (
       outcome: ReceivePushedEventsOutcome,
     ): Promise<ReceivePushedEventsOutcome> => {
       if (salesDenied !== undefined) {
         await tx.observeAlertCondition(salesDenied, now);
+      }
+      if (fiscalEmission !== undefined) {
+        await tx.observeAlertCondition(fiscalEmission, now);
       }
       return outcome;
     };

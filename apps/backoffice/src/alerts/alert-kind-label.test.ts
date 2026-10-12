@@ -16,6 +16,7 @@ test("names a kind of the catalog by its title", () => {
   expect(alertKindLabel("late_payment_refund")).toBe("Reembolso pendiente por un pago tardío");
   expect(alertKindLabel("refund_task")).toBe("Reembolso pendiente de una venta anulada");
   expect(alertKindLabel("fiscal_unknown")).toBe("Resultado fiscal incierto");
+  expect(alertKindLabel("fiscal_emission_stopped")).toBe("Emisión de facturas detenida");
 });
 
 test("names a kind this app does not know yet, such as one a later cloud adds, by the kind itself", () => {

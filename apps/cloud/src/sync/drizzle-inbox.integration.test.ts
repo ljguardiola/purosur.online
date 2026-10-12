@@ -593,6 +593,57 @@ describe("the inbox reporting how a register stands, on a real Postgres", () => 
     });
   });
 
+  it("opens a critical alert shown to the register's branch when it reports its fiscal emission stopped, once for as many reports as it makes", async () => {
+    const { deviceId, registerId, locationId } = await insertEnrolledInstallation();
+    const stopped: RegisterTelemetry = {
+      ...TELEMETRY,
+      fiscal_emission_stopped: true,
+      fiscal_emission_stopped_reason: "gross_income_registration_missing",
+    };
+
+    await push(deviceId, [], "1.4.0", stopped);
+    await push(deviceId, [], "1.4.0", stopped);
+
+    const rows = await db.select().from(alerts).where(eq(alerts.scope, registerId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      kind: "fiscal_emission_stopped",
+      level: "critical",
+      audience: "local",
+      locationId,
+      detail: { deviceId, reason: "gross_income_registration_missing" },
+      conditionClearedAt: null,
+    });
+  });
+
+  it("leaves exactly one open alert when two pushes of the same register report its fiscal emission stopped at once", async () => {
+    const { deviceId, registerId } = await insertEnrolledInstallation();
+    const stopped: RegisterTelemetry = {
+      ...TELEMETRY,
+      fiscal_emission_stopped: true,
+      fiscal_emission_stopped_reason: "legal_name_missing",
+    };
+
+    await Promise.all([push(deviceId, [], "1.4.0", stopped), push(deviceId, [], "1.4.0", stopped)]);
+
+    const rows = await db.select().from(alerts).where(eq(alerts.scope, registerId));
+    expect(rows.filter(({ resolvedAt }) => resolvedAt === null)).toHaveLength(1);
+  });
+
+  it("marks the fiscal-emission-stopped alert as cleared when the register reports its emission available again, without resolving it", async () => {
+    const { deviceId, registerId } = await insertEnrolledInstallation();
+    await push(deviceId, [], "1.4.0", {
+      ...TELEMETRY,
+      fiscal_emission_stopped: true,
+      fiscal_emission_stopped_reason: "legal_name_missing",
+    });
+
+    await push(deviceId, [], "1.4.0", { ...TELEMETRY, fiscal_emission_stopped: false });
+
+    const [row] = await db.select().from(alerts).where(eq(alerts.scope, registerId));
+    expect(row).toMatchObject({ conditionClearedAt: NOW, resolvedAt: null });
+  });
+
   it("raises no alert for an installation the cloud revoked", async () => {
     const { deviceId, registerId } = await insertEnrolledInstallation();
     await db

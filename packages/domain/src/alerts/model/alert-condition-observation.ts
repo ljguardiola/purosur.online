@@ -1,4 +1,9 @@
-import type { FiscalDocumentType, Fortnight, RejectionAlertChange } from "../../fiscal/index.js";
+import type {
+  FiscalDocumentType,
+  FiscalEmissionStoppedReport,
+  Fortnight,
+  RejectionAlertChange,
+} from "../../fiscal/index.js";
 import type { SalesDeniedReport } from "../../shared/index.js";
 import type { AlertKind, AlertLevel } from "./alert-catalog.js";
 import type { OpenAlertInput } from "./alert-details.js";
@@ -84,6 +89,36 @@ export function registerSalesDeniedObservation({
       scope: registerId,
       locationId,
       detail: { deviceId, reason: report.sales_denied_reason },
+    },
+  };
+}
+
+interface RegisterFiscalEmissionStanding {
+  registerId: string;
+  deviceId: string;
+  locationId: string;
+  report: FiscalEmissionStoppedReport;
+}
+
+export function registerFiscalEmissionObservation({
+  registerId,
+  deviceId,
+  locationId,
+  report,
+}: RegisterFiscalEmissionStanding): AlertConditionObservation | undefined {
+  if (report.fiscal_emission_stopped === undefined) {
+    return undefined;
+  }
+  if (!report.fiscal_emission_stopped) {
+    return { holds: false, kind: "fiscal_emission_stopped", scope: registerId };
+  }
+  return {
+    holds: true,
+    alert: {
+      kind: "fiscal_emission_stopped",
+      scope: registerId,
+      locationId,
+      detail: { deviceId, reason: report.fiscal_emission_stopped_reason },
     },
   };
 }

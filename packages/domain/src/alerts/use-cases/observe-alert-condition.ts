@@ -1,6 +1,7 @@
 import { isHigherAlertLevel } from "../model/alert-catalog.js";
 import type { AlertConditionObservation } from "../model/alert-condition-observation.js";
 import { isStablyCleared } from "../model/alert-condition-resolution.js";
+import { isSameAlertDetail } from "../model/alert-detail-equality.js";
 import { alertKindPolicy } from "../model/alert-kind-policy.js";
 import type { AlertClosingPorts } from "./alert-store.js";
 import { closeStablyClearedAlert } from "./close-stably-cleared-alert.js";
@@ -32,6 +33,9 @@ export async function observeAlertCondition(
         if (!stablyCleared) {
           if (open.conditionClearedAt !== null) {
             await tx.recordConditionHolding(open.alertId);
+          }
+          if (!isSameAlertDetail(open.detail, observation.alert.detail)) {
+            await tx.recordConditionDetail(open.alertId, { ...observation.alert.detail });
           }
           if (
             observation.level !== undefined &&
