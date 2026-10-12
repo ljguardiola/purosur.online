@@ -15,6 +15,7 @@ import {
   WEIGHT_SOURCES,
 } from "@purosur/domain";
 import { z } from "zod";
+import { recordIdSchema } from "../shared/index.js";
 
 const text = z.string().min(1);
 const instant = z.iso.datetime();
@@ -319,15 +320,15 @@ const qrPaymentReplacedSchema = z.object({
 });
 
 const openingCountRecordedSchema = z.object({
-  movement_id: z.uuid(),
-  product_id: z.uuid(),
+  movement_id: recordIdSchema(),
+  product_id: recordIdSchema(),
   counted: z.int().refine(mayBeMovementQuantity),
   expires_on: z.string().refine(isCalendarDay).nullable(),
 });
 
 const openingCountWithdrawnSchema = z.object({
-  movement_id: z.uuid(),
-  withdrawn_movement_id: z.uuid(),
+  movement_id: recordIdSchema(),
+  withdrawn_movement_id: recordIdSchema(),
 });
 
 const PAYLOAD_SCHEMAS = {
