@@ -1,8 +1,10 @@
 import {
   type BuyerTaxStatusOption,
   type IssuerIdentificationInEffect,
+  type LatestPreEmissionGateOutcome,
   latestBuyerTaxStatusSet,
   latestIssuerIdentification,
+  type PreEmissionGateFailureReason,
   type PreEmissionGateOutcome,
 } from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
@@ -69,6 +71,28 @@ export function readBuyerTaxStatusSetInEffect(
       })),
     }));
   return latestBuyerTaxStatusSet(sets)?.options;
+}
+
+interface LatestOutcomeRow {
+  outcome: "PASSED" | "FAILED";
+  failure_reason: PreEmissionGateFailureReason | null;
+}
+
+export function readLatestPreEmissionGateOutcome(
+  database: LocalDatabase,
+): LatestPreEmissionGateOutcome | undefined {
+  const latest = database
+    .prepare<[], LatestOutcomeRow>(
+      `SELECT outcome, failure_reason FROM pre_emission_gate_outcomes
+       ORDER BY evaluated_at DESC, rowid DESC LIMIT 1`,
+    )
+    .get();
+  if (latest === undefined) {
+    return undefined;
+  }
+  return latest.failure_reason === null
+    ? { kind: "passed" }
+    : { kind: "failed", reason: latest.failure_reason };
 }
 
 export function insertPreEmissionGateOutcome(
