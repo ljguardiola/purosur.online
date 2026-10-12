@@ -192,5 +192,8 @@ test("does not accept an empty rows list, or one TypeScript cannot prove is non-
 });
 
 test("does not accept a form other than divided or filled", () => {
-  expectTypeOf<{ rows: [SummaryRowProps]; variant: "outlined" }>().not.toExtend<SummaryRowGroupProps>();
+  expectTypeOf<{
+    rows: [SummaryRowProps];
+    variant: "outlined";
+  }>().not.toExtend<SummaryRowGroupProps>();
 });
