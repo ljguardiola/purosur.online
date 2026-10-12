@@ -95,6 +95,7 @@ describe("SaleScreen", () => {
       scanProduct: async () => ({
         kind: "added",
         removed_manual_discount: false,
+        removed_sale_discount: false,
         sale: SALE_OF_YERBA,
       }),
     });
@@ -132,6 +133,7 @@ describe("SaleScreen", () => {
         async (): Promise<ScanProductOutcome> => ({
           kind: "added",
           removed_manual_discount: false,
+          removed_sale_discount: false,
           sale: SALE_OF_YERBA,
         }),
       );
@@ -188,7 +190,7 @@ describe("SaleScreen", () => {
     it("shows a placeholder while it loads, with the scan field ready", async () => {
       const { screen, field } = await renderScreen({ currentSale: () => new Promise(() => {}) });
 
-      await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
+      await expect.element(screen.getByText("Cargando…").first()).toBeInTheDocument();
       await expect.element(field).toHaveFocus();
     });
 
@@ -254,6 +256,10 @@ describe("SaleScreen", () => {
           refunds_on_cancel: [],
           cancel_authorization_required: false,
           adjust_authorization_required: false,
+          sale_discount_authorization_required: false,
+          sale_discount_refusal: null,
+          sale_discount: null,
+          subtotal: 578_400,
         }),
       });
 
@@ -287,6 +293,10 @@ describe("SaleScreen", () => {
           refunds_on_cancel: [],
           cancel_authorization_required: false,
           adjust_authorization_required: false,
+          sale_discount_authorization_required: false,
+          sale_discount_refusal: null,
+          sale_discount: null,
+          subtotal: 428_400,
         }),
       });
       const reference = await render(<Tag tone="success">Referencia</Tag>);
@@ -322,6 +332,10 @@ describe("SaleScreen", () => {
           refunds_on_cancel: [],
           cancel_authorization_required: false,
           adjust_authorization_required: false,
+          sale_discount_authorization_required: false,
+          sale_discount_refusal: null,
+          sale_discount: null,
+          subtotal: 300_000,
         }),
       });
 
@@ -367,6 +381,10 @@ describe("SaleScreen", () => {
           refunds_on_cancel: [],
           cancel_authorization_required: false,
           adjust_authorization_required: false,
+          sale_discount_authorization_required: false,
+          sale_discount_refusal: "zero_total",
+          sale_discount: null,
+          subtotal: 0,
         }),
       });
 
@@ -444,6 +462,7 @@ describe("SaleScreen", () => {
         scanProduct: async () => ({
           kind: "added",
           removed_manual_discount: false,
+          removed_sale_discount: false,
           sale: SALE_OF_YERBA,
         }),
       });
@@ -483,6 +502,7 @@ describe("SaleScreen", () => {
         async (): Promise<ScanProductOutcome> => ({
           kind: "added",
           removed_manual_discount: false,
+          removed_sale_discount: false,
           sale: SALE_OF_YERBA,
         }),
       );
@@ -530,11 +550,13 @@ describe("SaleScreen", () => {
         .mockResolvedValueOnce({
           kind: "added",
           removed_manual_discount: false,
+          removed_sale_discount: false,
           sale: SALE_OF_YERBA,
         })
         .mockResolvedValueOnce({
           kind: "added",
           removed_manual_discount: false,
+          removed_sale_discount: false,
           sale: SALE_OF_YERBA_AND_ALFAJOR,
         });
       const { screen, field } = await renderScreen({ scanProduct });
@@ -567,6 +589,7 @@ describe("SaleScreen", () => {
         scanProduct: async () => ({
           kind: "added",
           removed_manual_discount: false,
+          removed_sale_discount: false,
           sale: SALE_OF_YERBA,
         }),
       });
@@ -589,11 +612,16 @@ describe("SaleScreen", () => {
         refunds_on_cancel: [],
         cancel_authorization_required: false,
         adjust_authorization_required: false,
+        sale_discount_authorization_required: false,
+        sale_discount_refusal: null,
+        sale_discount: null,
+        subtotal: 776_000,
       };
       const scanProduct = vi.fn(
         async (): Promise<ScanProductOutcome> => ({
           kind: "added",
           removed_manual_discount: false,
+          removed_sale_discount: false,
           sale: again,
         }),
       );
@@ -616,7 +644,12 @@ describe("SaleScreen", () => {
 
       await scan(field, "7790001");
       await field.fill("77900");
-      answer.resolve({ kind: "added", removed_manual_discount: false, sale: SALE_OF_YERBA });
+      answer.resolve({
+        kind: "added",
+        removed_manual_discount: false,
+        removed_sale_discount: false,
+        sale: SALE_OF_YERBA,
+      });
 
       await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
       await expect.element(field).toHaveValue("77900");
@@ -630,6 +663,7 @@ describe("SaleScreen", () => {
         .mockResolvedValueOnce({
           kind: "added",
           removed_manual_discount: false,
+          removed_sale_discount: false,
           sale: SALE_OF_YERBA,
         });
       const { screen, field } = await renderScreen({ scanProduct });
@@ -726,6 +760,7 @@ describe("SaleScreen", () => {
         .mockResolvedValueOnce({
           kind: "added",
           removed_manual_discount: false,
+          removed_sale_discount: false,
           sale: SALE_OF_YERBA,
         });
       const { screen, field } = await renderScreen({ scanProduct });
@@ -835,6 +870,7 @@ describe("SaleScreen", () => {
         .mockResolvedValueOnce({
           kind: "added",
           removed_manual_discount: false,
+          removed_sale_discount: false,
           sale: SALE_OF_YERBA,
         });
       const { screen, field } = await renderScreen({ scanProduct });

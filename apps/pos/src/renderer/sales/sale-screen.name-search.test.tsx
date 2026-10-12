@@ -275,6 +275,7 @@ describe("SaleScreen searching by name", () => {
       const addProduct = vi.fn<SaleScreenProps["addProduct"]>(async () => ({
         kind: "added",
         removed_manual_discount: false,
+        removed_sale_discount: false,
         sale: SALE_OF_YERBA_AND_ALFAJOR,
       }));
       const scanProduct = vi.fn<SaleScreenProps["scanProduct"]>();
@@ -355,6 +356,7 @@ describe("SaleScreen searching by name", () => {
         async (): Promise<ScanProductOutcome> => ({
           kind: "added",
           removed_manual_discount: false,
+          removed_sale_discount: false,
           sale: SALE_OF_YERBA,
         }),
       );
@@ -376,6 +378,7 @@ describe("SaleScreen searching by name", () => {
       const addProduct = vi.fn<SaleScreenProps["addProduct"]>(async () => ({
         kind: "added",
         removed_manual_discount: false,
+        removed_sale_discount: false,
         sale: SALE_OF_YERBA_AND_ALFAJOR,
       }));
       const { screen, field } = await renderScreen({
@@ -402,6 +405,7 @@ describe("SaleScreen searching by name", () => {
         addProduct: async () => ({
           kind: "added",
           removed_manual_discount: false,
+          removed_sale_discount: false,
           sale: SALE_OF_YERBA,
         }),
       });
@@ -418,6 +422,7 @@ describe("SaleScreen searching by name", () => {
       const addProduct = vi.fn<SaleScreenProps["addProduct"]>(async () => ({
         kind: "added",
         removed_manual_discount: false,
+        removed_sale_discount: false,
         sale: SALE_OF_YERBA,
       }));
       const { screen, field } = await renderScreen({

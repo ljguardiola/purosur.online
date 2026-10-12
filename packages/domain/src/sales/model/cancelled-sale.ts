@@ -4,6 +4,7 @@ import type {
   CompletedSaleLine,
   CompletedSalePayment,
 } from "./completed-sale.js";
+import type { SaleDiscount } from "./sale-discount.js";
 
 interface CancelledSaleRefund extends PlannedRefund {
   id: string;
@@ -17,6 +18,8 @@ export interface CancelledSale {
   authorizedBy: string | null;
   cancelledAt: Date;
   total: number;
+  saleDiscount: SaleDiscount | null;
+  saleDiscountAmount: number;
   lines: CompletedSaleLine[];
   payments: CompletedSalePayment[];
   refunds: CancelledSaleRefund[];

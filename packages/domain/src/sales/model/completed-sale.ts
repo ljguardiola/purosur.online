@@ -1,5 +1,6 @@
 import type { CashMovementType } from "../../register/index.js";
 import type { ManualAdjustment } from "./manual-adjustment.js";
+import type { SaleDiscount } from "./sale-discount.js";
 import { saleUnitOfWeightSource, soldLineStockDelta } from "./sale-line.js";
 import type { WeightSource } from "./weight-source.js";
 
@@ -14,6 +15,7 @@ export interface CompletedSaleLine {
   priceListId: string;
   promotionId: string | null;
   discountAmount: number;
+  saleDiscountShare: number;
   lineTotal: number;
 }
 
@@ -51,6 +53,8 @@ export interface CompletedSale {
   completedAt: Date;
   operationNumber: number | null;
   total: number;
+  saleDiscount: SaleDiscount | null;
+  saleDiscountAmount: number;
   lines: CompletedSaleLine[];
   payments: CompletedSalePayment[];
   cashMovements: CompletedSaleCashMovement[];

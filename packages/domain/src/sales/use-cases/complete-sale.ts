@@ -3,9 +3,11 @@ import type { SalePayment } from "../../payments/index.js";
 import { paymentRecord } from "../../payments/index.js";
 import { type OutboxEventDraft, SALE_COMPLETED_EVENT_TYPE } from "../../shared/index.js";
 import type { SaleWithLines } from "../model/sale.js";
+import { settledLines } from "../model/sale-discount.js";
 import { soldLineStockDelta } from "../model/sale-line.js";
 import {
   saleCashMovementRecord,
+  saleDiscountRecord,
   saleLineRecord,
   saleStockMovementRecord,
 } from "./sale-event-records.js";
@@ -97,7 +99,7 @@ function saleCompletedEvent(
     aggregate_type: "Sale",
     aggregate_id: sale.id,
     event_type: SALE_COMPLETED_EVENT_TYPE,
-    schema_version: 7,
+    schema_version: 8,
     payload: {
       id: sale.id,
       operation_number: operationNumber,
@@ -107,7 +109,8 @@ function saleCompletedEvent(
       actor_id: sale.actorId,
       occurred_at: completedAtIso,
       total,
-      lines: sale.lines.map(saleLineRecord),
+      sale_discount: saleDiscountRecord(sale),
+      lines: settledLines(sale).map(saleLineRecord),
       payments: payments.map(paymentRecord),
       cash_movements: movements.map(saleCashMovementRecord),
       stock_movements: stockMovements.map(saleStockMovementRecord),

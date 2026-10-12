@@ -3,6 +3,7 @@ import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
+  ApplySaleDiscountOutcome,
   Authorization,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
@@ -31,6 +32,7 @@ import type {
   PaymentsRendererToCoreMessage,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -45,6 +47,7 @@ import type {
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
   RetryReceiptPrintOutcome,
+  SaleDiscountRequest,
   SaleHistoryDetailOutcome,
   SalesCoreToRendererMessage,
   SalesHistoryOutcome,
@@ -169,6 +172,12 @@ export interface CoreClient {
     lineId: string,
     adjustment: ManualAdjustmentRequest,
   ): Promise<PreviewSaleLineAdjustmentOutcome>;
+  applySaleDiscount(
+    discount: SaleDiscountRequest,
+    reason: string,
+    authorization: Authorization | undefined,
+  ): Promise<ApplySaleDiscountOutcome>;
+  previewSaleDiscount(discount: SaleDiscountRequest): Promise<PreviewSaleDiscountOutcome>;
   removeSaleLine(lineId: string): Promise<RemoveSaleLineOutcome>;
   cancelSale(): Promise<CancelSaleOutcome>;
   cancelPaidSale(
@@ -534,6 +543,24 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         },
         (answer) =>
           answer.type === "preview-sale-line-adjustment-result" ? answer.outcome : undefined,
+      );
+    },
+    applySaleDiscount(discount, reason, authorization) {
+      return ask(
+        {
+          type: "apply-sale-discount",
+          request_id: deps.newRequestId(),
+          discount,
+          reason,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) => (answer.type === "apply-sale-discount-result" ? answer.outcome : undefined),
+      );
+    },
+    previewSaleDiscount(discount) {
+      return ask(
+        { type: "preview-sale-discount", request_id: deps.newRequestId(), discount },
+        (answer) => (answer.type === "preview-sale-discount-result" ? answer.outcome : undefined),
       );
     },
     removeSaleLine(lineId) {

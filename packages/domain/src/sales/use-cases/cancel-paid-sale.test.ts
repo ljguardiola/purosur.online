@@ -17,6 +17,7 @@ import {
   FixedClock,
   SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
+import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
 
 const NOW = new Date("2026-10-07T15:30:00.000Z");
 const PAID_AT = new Date("2026-10-07T15:10:00.000Z");
@@ -44,6 +45,7 @@ const OPEN_SALE: SaleWithLines = {
   sessionId: "session-1",
   actorId: "cashier",
   state: "OPEN",
+  saleDiscount: null,
   lines: [YERBA_LINE],
 };
 const CASH_PAYMENT: SalePayment = {
@@ -190,6 +192,7 @@ const LINE_RECORD = {
   promotions: [
     { discount_id: "ten", kind: "PERCENT_OFF", percent: 10, buy_qty: null, pay_qty: null },
   ],
+  sale_discount_share: 0,
   line_total: 6750,
 };
 
@@ -243,7 +246,7 @@ describe("cancelPaidSale", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "sale_cancelled",
-          schema_version: 3,
+          schema_version: 4,
           payload: {
             id: "sale-1",
             register_id: "register-1",
@@ -253,6 +256,7 @@ describe("cancelPaidSale", () => {
             authorized_by: null,
             occurred_at: NOW.toISOString(),
             total: 6750,
+            sale_discount: null,
             lines: [LINE_RECORD],
             payments: [FIRST_PAYMENT_RECORD],
             refunds: [
@@ -284,6 +288,34 @@ describe("cancelPaidSale", () => {
           actor_id: "cashier",
         },
       ]);
+    });
+
+    it("records the discounted total and each line's total with its share of the discount taken off", async () => {
+      const store = ledger({ sales: [{ ...OPEN_SALE, saleDiscount: TEN_PERCENT_SALE_DISCOUNT }] });
+
+      await cancel(store);
+
+      expect(store.state.outbox[0]?.payload).toMatchObject({
+        total: 6075,
+        lines: [{ ...LINE_RECORD, sale_discount_share: 675, line_total: 6075 }],
+      });
+    });
+
+    it("records the discount on the total, with its amount, reason and authorizer", async () => {
+      const saleDiscount = { ...TEN_PERCENT_SALE_DISCOUNT, reason: "Rotura", authorizedBy: "boss" };
+      const store = ledger({ sales: [{ ...OPEN_SALE, saleDiscount }] });
+
+      await cancel(store);
+
+      expect(store.state.outbox[0]?.payload).toMatchObject({
+        sale_discount: {
+          kind: "PERCENT",
+          value: 10,
+          amount: 675,
+          reason: "Rotura",
+          authorized_by: "boss",
+        },
+      });
     });
 
     it("records a line's manual adjustment in the event", async () => {

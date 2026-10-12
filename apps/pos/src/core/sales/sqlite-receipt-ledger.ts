@@ -1,12 +1,14 @@
 import {
+  amountToCharge,
   type LinePromotion,
   type ManualAdjustment,
   type ManualAdjustmentValue,
   type OutboxEventDraft,
   type ReceiptDelivery,
   type ReceiptSource,
+  type SaleDiscount,
+  type SaleDiscountValue,
   type SaleUnit,
-  saleTotal,
 } from "@purosur/domain";
 import type {
   ReceiptLedger,
@@ -20,6 +22,16 @@ import type { LocalDatabase } from "../platform/local-database";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { type ManualAdjustmentColumns, toManualAdjustment } from "./sqlite-manual-adjustment";
 import { type BenefitColumns, toBenefit } from "./sqlite-open-sale";
+import { type SaleDiscountColumns, toSaleDiscount } from "./sqlite-sale-discount";
+
+function receiptSaleDiscount(discount: SaleDiscount | null): SaleDiscountValue | null {
+  if (discount === null) {
+    return null;
+  }
+  return discount.kind === "PERCENT"
+    ? { kind: "PERCENT", percent: discount.percent }
+    : { kind: "AMOUNT", amount: discount.amount };
+}
 
 interface DeliveryRow {
   print_attempted_at: string | null;
@@ -27,7 +39,7 @@ interface DeliveryRow {
   reprint_count: number;
 }
 
-interface SaleRow {
+interface SaleRow extends SaleDiscountColumns {
   occurred_at: string;
   first_name: string;
   operation_number: number | null;
@@ -124,7 +136,11 @@ export class SqliteReceiptLedger implements ReceiptLedger {
     const sale = this.database
       .prepare<[string], SaleRow>(
         `SELECT sales.occurred_at AS occurred_at, users.first_name AS first_name,
-                sales.operation_number AS operation_number
+                sales.operation_number AS operation_number,
+                sales.sale_discount_kind AS sale_discount_kind,
+                sales.sale_discount_value AS sale_discount_value,
+                sales.sale_discount_reason AS sale_discount_reason,
+                sales.sale_discount_authorized_by AS sale_discount_authorized_by
          FROM sales JOIN users ON users.id = sales.actor_id
          WHERE sales.id = ? AND sales.state = 'COMPLETED'`,
       )
@@ -138,6 +154,7 @@ export class SqliteReceiptLedger implements ReceiptLedger {
       throw new Error("the sale's receipt cannot be sourced");
     }
     const lines = this.receiptLines(saleId);
+    const saleDiscount = toSaleDiscount(sale);
     return {
       header: {
         address: branch.address,
@@ -147,7 +164,8 @@ export class SqliteReceiptLedger implements ReceiptLedger {
       occurredAt: new Date(sale.occurred_at),
       servedByFirstName: sale.first_name,
       operationNumber: sale.operation_number,
-      total: saleTotal(lines),
+      total: amountToCharge({ lines, saleDiscount }),
+      saleDiscount: receiptSaleDiscount(saleDiscount),
       lines,
       payments: readSalePayments(this.database, saleId).map((payment) => ({
         method: payment.method,

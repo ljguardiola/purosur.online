@@ -8,6 +8,7 @@ import {
   type FakeSaleLedgerState,
   FixedClock,
 } from "./test-support/fake-sale-ledger.js";
+import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
 
 const NOW = new Date("2026-09-30T12:34:56.789Z");
 
@@ -61,6 +62,7 @@ const OPEN_SALE: SaleWithLines = {
   sessionId: "session-1",
   actorId: "cashier",
   state: "OPEN",
+  saleDiscount: null,
   lines: [YERBA_LINE, AZUCAR_LINE],
 };
 
@@ -101,6 +103,7 @@ describe("removeSaleLine", () => {
 
     expect(outcome).toEqual({
       kind: "removed",
+      removedSaleDiscount: false,
       sale: { ...OPEN_SALE, lines: [AZUCAR_LINE] },
       balance: { paid: 0, pending: 1200 },
       linesLock: null,
@@ -119,6 +122,7 @@ describe("removeSaleLine", () => {
 
     expect(outcome).toEqual({
       kind: "removed",
+      removedSaleDiscount: false,
       sale: { ...OPEN_SALE, lines: [] },
       balance: { paid: 0, pending: 0 },
       linesLock: null,
@@ -236,5 +240,32 @@ describe("removeSaleLine while a QR charge of the sale is in its wait", () => {
     const store = ledger({ pendingQrPayments: [WAIT_ENDED] });
 
     expect(remove(store, "line-1")).toMatchObject({ kind: "removed" });
+  });
+});
+
+describe("removeSaleLine on a sale with a discount on the total", () => {
+  it("removes the discount and tells so", () => {
+    const store = ledger({ sales: [{ ...OPEN_SALE, saleDiscount: TEN_PERCENT_SALE_DISCOUNT }] });
+
+    const outcome = remove(store, "line-1");
+
+    expect(store.state.sales[0]?.saleDiscount).toBeNull();
+    expect(outcome).toEqual(
+      expect.objectContaining({
+        kind: "removed",
+        removedSaleDiscount: true,
+        sale: expect.objectContaining({ saleDiscount: null }),
+        balance: { paid: 0, pending: 1200 },
+      }),
+    );
+  });
+
+  it("keeps the discount when the line is unknown", () => {
+    const store = ledger({ sales: [{ ...OPEN_SALE, saleDiscount: TEN_PERCENT_SALE_DISCOUNT }] });
+
+    const outcome = remove(store, "nowhere");
+
+    expect(outcome).toEqual({ kind: "unknown_line" });
+    expect(store.state.sales[0]?.saleDiscount).toEqual(TEN_PERCENT_SALE_DISCOUNT);
   });
 });

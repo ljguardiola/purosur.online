@@ -4,7 +4,8 @@ import type { Clock } from "../../shared/index.js";
 import { argentinaCalendarDay } from "../../shared/index.js";
 import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { LinePromotion, Sale, SaleLine, SaleWithLines } from "../model/sale.js";
-import { saleTotal } from "../model/sale-line.js";
+import { amountToCharge } from "../model/sale-discount.js";
+import { withoutSaleDiscount } from "./remove-sale-discount.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type {
   IdGenerator,
@@ -25,6 +26,7 @@ export type SaleAdditionRefusal =
 export type AddedLineOutcome = {
   kind: "added";
   removedManualDiscount: boolean;
+  removedSaleDiscount: boolean;
   sale: SaleWithLines;
   chargeRefusal: ChargeRefusal | undefined;
 } & OpenSaleStanding;
@@ -83,16 +85,18 @@ export function addLineToSale(
 export function added(
   tx: SaleLedgerTransaction,
   moment: Date,
-  sale: SaleWithLines,
+  withLine: SaleWithLines,
   removedManualDiscount: boolean,
 ): AddedLineOutcome {
+  const { sale, removedSaleDiscount } = withoutSaleDiscount(tx, withLine);
   return {
     kind: "added",
     removedManualDiscount,
+    removedSaleDiscount,
     sale,
     chargeRefusal: saleChargeRefusal(tx, sale, moment),
     ...openSaleStanding(
-      saleTotal(sale.lines),
+      amountToCharge(sale),
       tx.salePayments(sale.id),
       tx.pendingQrPaymentsOf(sale.id),
       moment,
@@ -128,7 +132,7 @@ function startSale(
     state: "OPEN",
   };
   tx.recordOpenedSale(sale);
-  return { ...sale, lines: [] };
+  return { ...sale, saleDiscount: null, lines: [] };
 }
 
 function isOpenSale(target: SaleWithLines | RegisterIdentity): target is SaleWithLines {

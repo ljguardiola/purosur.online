@@ -18,6 +18,7 @@ function line(
     priceListId: "price-list-1",
     promotionId: null,
     discountAmount: 0,
+    saleDiscountShare: 0,
     lineTotal: 1500 * quantity,
   };
 }
