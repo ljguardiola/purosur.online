@@ -46,8 +46,8 @@ import { CancelSaleModal } from "./cancel-sale-modal";
 import { ChangeLineWeightModal } from "./change-line-weight-modal";
 import { changedLineId } from "./changed-line";
 import { PaymentPanel } from "./payment-panel";
-import type { SearchResults } from "./product-search-results";
-import { ProductSearchResults, searchOptionId } from "./product-search-results";
+import type { SearchResults } from "../platform/product-search-results";
+import { ProductSearchResults, searchOptionId } from "../platform/product-search-results";
 import { SaleLines } from "./sale-lines";
 import {
   useCurrentSaleQuery,
@@ -58,8 +58,8 @@ import {
 } from "./sales-queries";
 import type { ScanProblem } from "./scan-problem-message";
 import { messageFor, ScanProblemMessage } from "./scan-problem-message";
-import type { ScaleWeighing } from "./use-scale-weighing";
-import { WeighProductModal } from "./weigh-product-modal";
+import type { ScaleWeighing } from "../platform/use-scale-weighing";
+import { WeighProductModal } from "../platform/weigh-product-modal";
 
 export type SaleScreenProps = {
   sessionId: string;

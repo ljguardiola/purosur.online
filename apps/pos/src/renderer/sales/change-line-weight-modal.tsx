@@ -8,7 +8,7 @@ import {
 } from "@purosur/ui";
 import { Check, Scale } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { changeLineWeightRequestSchema, weightMessage, weightRequestFrom } from "./weight-form";
+import { changeLineWeightRequestSchema, weightMessage, weightRequestFrom } from "../platform/weight-form";
 
 export type ChangeLineWeightModalProps = {
   productName: string;

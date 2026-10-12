@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "vitest-browser-react";
-import { deferred } from "./test-support/sale-screen";
+import { deferred } from "./test-support/deferred";
 import type { ScaleWeighing } from "./use-scale-weighing";
 import { useScaleWeighing } from "./use-scale-weighing";
 
