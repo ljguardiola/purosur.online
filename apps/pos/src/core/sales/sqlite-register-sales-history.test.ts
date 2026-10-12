@@ -434,10 +434,10 @@ describe("SqliteRegisterSalesHistory", () => {
       database
         .prepare(
           `UPDATE sales SET sale_discount_kind = 'AMOUNT', sale_discount_value = ?,
-             sale_discount_amount = ?, sale_discount_reason = 'Cliente frecuente'
+             sale_discount_reason = 'Cliente frecuente'
            WHERE id = ?`,
         )
-        .run(amount, amount, id);
+        .run(amount, id);
     }
 
     it("totals what was charged in the listing and in its detail", () => {

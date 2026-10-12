@@ -101,6 +101,7 @@ describe("ChargeScreen", () => {
         cancel_authorization_required: false,
         adjust_authorization_required: false,
         sale_discount_authorization_required: false,
+        sale_discount_refusal: "empty_sale",
         sale_discount: null,
         subtotal: 0,
       },

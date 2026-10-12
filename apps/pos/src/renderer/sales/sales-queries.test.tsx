@@ -63,6 +63,7 @@ const SALE: OpenSale = {
   cancel_authorization_required: false,
   adjust_authorization_required: false,
   sale_discount_authorization_required: false,
+  sale_discount_refusal: null,
   sale_discount: null,
   subtotal: 238_000,
 };

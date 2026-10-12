@@ -84,6 +84,7 @@ export const SALE_OF_QUESO: OpenSale = {
   cancel_authorization_required: false,
   adjust_authorization_required: false,
   sale_discount_authorization_required: false,
+  sale_discount_refusal: null,
   sale_discount: null,
   subtotal: 1_562_500,
 };
@@ -100,6 +101,7 @@ export const SALE_OF_YERBA: OpenSale = {
   cancel_authorization_required: false,
   adjust_authorization_required: false,
   sale_discount_authorization_required: false,
+  sale_discount_refusal: null,
   sale_discount: null,
   subtotal: 476_000,
 };
@@ -116,6 +118,7 @@ export const SALE_OF_YERBA_AND_ALFAJOR: OpenSale = {
   cancel_authorization_required: false,
   adjust_authorization_required: false,
   sale_discount_authorization_required: false,
+  sale_discount_refusal: null,
   sale_discount: null,
   subtotal: 626_000,
 };

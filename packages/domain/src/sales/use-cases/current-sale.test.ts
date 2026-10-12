@@ -61,7 +61,6 @@ describe("currentSale", () => {
     expect(read(ledger())).toEqual({
       kind: "open",
       sale: SALE,
-      saleDiscountAmount: 0,
       balance: { paid: 0, pending: 5000 },
       linesLock: null,
       cancellable: true,
@@ -147,12 +146,11 @@ describe("currentSale", () => {
 describe("current-sale with a discount on the total", () => {
   const discounted = { ...SALE, saleDiscount: TEN_PERCENT_SALE_DISCOUNT };
 
-  it("answers the discount's amount and the balance of the discounted total", () => {
+  it("answers the balance of the discounted total", () => {
     expect(read(ledger({ sales: [discounted] }))).toEqual(
       expect.objectContaining({
         kind: "open",
         sale: discounted,
-        saleDiscountAmount: 500,
         balance: { paid: 0, pending: 4500 },
       }),
     );

@@ -820,7 +820,7 @@ describe("the open sale of the session", () => {
     database
       .prepare(
         `UPDATE sales SET sale_discount_kind = 'PERCENT', sale_discount_value = 10,
-           sale_discount_amount = 350, sale_discount_reason = 'Cliente frecuente'`,
+           sale_discount_reason = 'Cliente frecuente'`,
       )
       .run();
 

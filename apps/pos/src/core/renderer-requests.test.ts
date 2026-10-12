@@ -1575,6 +1575,7 @@ describe("answerRendererRequest", () => {
       cancel_authorization_required: false,
       adjust_authorization_required: false,
       sale_discount_authorization_required: false,
+      sale_discount_refusal: null,
       subtotal: 1500,
       sale_discount: null,
     };

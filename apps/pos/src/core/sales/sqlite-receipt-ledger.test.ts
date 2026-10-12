@@ -247,10 +247,8 @@ describe("a receipt ledger's source of a sale", () => {
     insertSaleWithEverything();
     database.exec(
       `UPDATE sales SET sale_discount_kind = 'AMOUNT', sale_discount_value = 100000,
-         sale_discount_amount = 100000, sale_discount_reason = 'Cliente frecuente'
-       WHERE id = 'sale-1';
-       UPDATE sale_lines SET sale_discount_share = 90000 WHERE id = 'line-1';
-       UPDATE sale_lines SET sale_discount_share = 10000 WHERE id = 'line-2';`,
+         sale_discount_reason = 'Cliente frecuente'
+       WHERE id = 'sale-1'`,
     );
 
     const source = inTransaction((tx) => tx.receiptSource("sale-1"));
@@ -264,7 +262,7 @@ describe("a receipt ledger's source of a sale", () => {
     insertSaleWithEverything();
     database.exec(
       `UPDATE sales SET sale_discount_kind = 'PERCENT', sale_discount_value = 5,
-         sale_discount_amount = 36855, sale_discount_reason = 'Cliente frecuente'
+         sale_discount_reason = 'Cliente frecuente'
        WHERE id = 'sale-1'`,
     );
 

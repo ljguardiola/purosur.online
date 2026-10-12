@@ -303,6 +303,7 @@ describe("sale answers", () => {
     sale_discount_authorization_required: false,
     subtotal: 3000,
     sale_discount: null,
+    sale_discount_refusal: null,
   };
 
   it.each([
@@ -921,6 +922,7 @@ describe("sale line answers", () => {
     sale_discount_authorization_required: false,
     subtotal: 3000,
     sale_discount: null,
+    sale_discount_refusal: null,
   };
 
   it.each([

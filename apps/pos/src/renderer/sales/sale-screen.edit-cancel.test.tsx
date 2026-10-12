@@ -29,6 +29,7 @@ const SALE_OF_THREE_YERBAS: OpenSale = {
   cancel_authorization_required: false,
   adjust_authorization_required: false,
   sale_discount_authorization_required: false,
+  sale_discount_refusal: null,
   sale_discount: null,
   subtotal: 714_000,
 };
@@ -45,6 +46,7 @@ const SALE_OF_ONE_YERBA: OpenSale = {
   cancel_authorization_required: false,
   adjust_authorization_required: false,
   sale_discount_authorization_required: false,
+  sale_discount_refusal: null,
   sale_discount: null,
   subtotal: 238_000,
 };
@@ -61,6 +63,7 @@ const SALE_OF_ALFAJOR: OpenSale = {
   cancel_authorization_required: false,
   adjust_authorization_required: false,
   sale_discount_authorization_required: false,
+  sale_discount_refusal: null,
   sale_discount: null,
   subtotal: 150_000,
 };
@@ -77,6 +80,7 @@ const EMPTY_SALE: OpenSale = {
   cancel_authorization_required: false,
   adjust_authorization_required: false,
   sale_discount_authorization_required: false,
+  sale_discount_refusal: "empty_sale",
   sale_discount: null,
   subtotal: 0,
 };

@@ -264,6 +264,7 @@ describe("scanning a product on the register", () => {
         sale_discount_authorization_required: true,
         subtotal: 3000,
         sale_discount: null,
+        sale_discount_refusal: null,
       },
     });
   });
@@ -455,6 +456,7 @@ describe("adding a searched product on the register", () => {
         sale_discount_authorization_required: true,
         subtotal: 1500,
         sale_discount: null,
+        sale_discount_refusal: null,
       },
     });
   });
@@ -555,6 +557,7 @@ describe("adding a product sold by weight on the register", () => {
         sale_discount_authorization_required: true,
         subtotal: 11250,
         sale_discount: null,
+        sale_discount_refusal: null,
       },
     });
   });
@@ -882,6 +885,7 @@ describe("the sale in progress", () => {
       sale_discount_authorization_required: true,
       subtotal: 3000,
       sale_discount: null,
+      sale_discount_refusal: null,
     });
   });
 
@@ -1536,14 +1540,13 @@ describe("discounting the sale's total", () => {
     return database
       .prepare(
         `SELECT sale_discount_kind AS kind, sale_discount_value AS value,
-                sale_discount_amount AS amount, sale_discount_reason AS reason,
-                sale_discount_authorized_by AS authorized_by
+                sale_discount_reason AS reason, sale_discount_authorized_by AS authorized_by
          FROM sales`,
       )
       .all();
   }
 
-  const UNTOUCHED = [{ kind: null, value: null, amount: null, reason: null, authorized_by: null }];
+  const UNTOUCHED = [{ kind: null, value: null, reason: null, authorized_by: null }];
 
   it("answers the sale discounted to a cashier who holds the permission, recording its reason and nobody else's authorization", async () => {
     grantTotalDiscount();
@@ -1561,7 +1564,7 @@ describe("discounting the sale's total", () => {
       }),
     });
     expect(discountColumns()).toEqual([
-      { kind: "PERCENT", value: 10, amount: 300, reason: "Cliente frecuente", authorized_by: null },
+      { kind: "PERCENT", value: 10, reason: "Cliente frecuente", authorized_by: null },
     ]);
   });
 
@@ -1723,6 +1726,20 @@ describe("discounting the sale's total", () => {
     });
   });
 
+  it("says that the total may be discounted while the sale's lines add up to something", async () => {
+    await scanProductFor(deps(), "111");
+
+    expect(await currentSaleFor(deps())).toMatchObject({ sale_discount_refusal: null });
+  });
+
+  it("says that the total may not be discounted once the sale has no lines", async () => {
+    const lineId = await sellTwoYerbas();
+
+    expect(await removeSaleLineFor(deps(), lineId)).toMatchObject({
+      sale: { sale_discount_refusal: "empty_sale" },
+    });
+  });
+
   describe("previewing it", () => {
     function preview(discount: Parameters<typeof previewSaleDiscountFor>[1]["discount"]) {
       return previewSaleDiscountFor(deps(), { discount });
@@ -1880,6 +1897,7 @@ describe("removing a line", () => {
         sale_discount_authorization_required: true,
         subtotal: 0,
         sale_discount: null,
+        sale_discount_refusal: "empty_sale",
       },
     });
   });

@@ -190,7 +190,7 @@ describe("SaleScreen", () => {
     it("shows a placeholder while it loads, with the scan field ready", async () => {
       const { screen, field } = await renderScreen({ currentSale: () => new Promise(() => {}) });
 
-      await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
+      await expect.element(screen.getByText("Cargando…").first()).toBeInTheDocument();
       await expect.element(field).toHaveFocus();
     });
 
@@ -257,6 +257,7 @@ describe("SaleScreen", () => {
           cancel_authorization_required: false,
           adjust_authorization_required: false,
           sale_discount_authorization_required: false,
+          sale_discount_refusal: null,
           sale_discount: null,
           subtotal: 578_400,
         }),
@@ -293,6 +294,7 @@ describe("SaleScreen", () => {
           cancel_authorization_required: false,
           adjust_authorization_required: false,
           sale_discount_authorization_required: false,
+          sale_discount_refusal: null,
           sale_discount: null,
           subtotal: 428_400,
         }),
@@ -331,6 +333,7 @@ describe("SaleScreen", () => {
           cancel_authorization_required: false,
           adjust_authorization_required: false,
           sale_discount_authorization_required: false,
+          sale_discount_refusal: null,
           sale_discount: null,
           subtotal: 300_000,
         }),
@@ -379,6 +382,7 @@ describe("SaleScreen", () => {
           cancel_authorization_required: false,
           adjust_authorization_required: false,
           sale_discount_authorization_required: false,
+          sale_discount_refusal: "zero_total",
           sale_discount: null,
           subtotal: 0,
         }),
@@ -609,6 +613,7 @@ describe("SaleScreen", () => {
         cancel_authorization_required: false,
         adjust_authorization_required: false,
         sale_discount_authorization_required: false,
+        sale_discount_refusal: null,
         sale_discount: null,
         subtotal: 776_000,
       };

@@ -32,6 +32,7 @@ function sale(...lines: ReturnType<typeof line>[]): OpenSale {
     cancel_authorization_required: false,
     adjust_authorization_required: false,
     sale_discount_authorization_required: false,
+    sale_discount_refusal: null,
     sale_discount: null,
     subtotal: lines.reduce((sum, item) => sum + item.line_total, 0),
   };

@@ -120,7 +120,6 @@ describe("applySaleDiscount", () => {
     expect(outcome).toEqual({
       kind: "applied",
       sale: { ...OPEN_SALE, saleDiscount: discount },
-      saleDiscountAmount: 795,
       balance: { paid: 0, pending: 7155 },
       linesLock: null,
       cancellable: true,
@@ -146,7 +145,6 @@ describe("applySaleDiscount", () => {
     expect(outcome).toEqual(
       expect.objectContaining({
         kind: "applied",
-        saleDiscountAmount: 950,
         balance: { paid: 0, pending: 7000 },
       }),
     );
@@ -157,10 +155,10 @@ describe("applySaleDiscount", () => {
     const exact = ledger();
 
     expect(await apply(whole, { kind: "PERCENT", percent: 100 })).toEqual(
-      expect.objectContaining({ saleDiscountAmount: 7950, balance: { paid: 0, pending: 0 } }),
+      expect.objectContaining({ balance: { paid: 0, pending: 0 } }),
     );
     expect(await apply(exact, { kind: "AMOUNT", amount: 7950 })).toEqual(
-      expect.objectContaining({ saleDiscountAmount: 7950, balance: { paid: 0, pending: 0 } }),
+      expect.objectContaining({ balance: { paid: 0, pending: 0 } }),
     );
   });
 
@@ -179,7 +177,7 @@ describe("applySaleDiscount", () => {
 
     const outcome = await apply(store, { kind: "PERCENT", percent: 10 });
 
-    expect(outcome).toEqual(expect.objectContaining({ saleDiscountAmount: 775 }));
+    expect(outcome).toEqual(expect.objectContaining({ balance: { paid: 0, pending: 6975 } }));
   });
 
   it("leaves the lines as they were", async () => {
@@ -201,9 +199,7 @@ describe("applySaleDiscount", () => {
       reason: REASON,
       authorizedBy: null,
     });
-    expect(outcome).toEqual(
-      expect.objectContaining({ saleDiscountAmount: 500, balance: { paid: 0, pending: 7450 } }),
-    );
+    expect(outcome).toEqual(expect.objectContaining({ balance: { paid: 0, pending: 7450 } }));
   });
 
   it("works out the buyer identification refusal on the discounted total", async () => {

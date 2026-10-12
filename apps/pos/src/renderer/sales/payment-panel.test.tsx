@@ -9,6 +9,7 @@ import { PaymentPanel } from "./payment-panel";
 function renderPanel(props: Partial<PaymentPanelProps> = {}) {
   return render(
     <PaymentPanel
+      saleStatus="loaded"
       lineCount={2}
       subtotal={500_000}
       saleDiscount={null}
@@ -81,6 +82,21 @@ describe("PaymentPanel", () => {
 
     await expect.element(screen.getByText("Descuento sobre el total")).toBeVisible();
     await expect.element(screen.getByText("Sin aplicar")).toBeVisible();
+  });
+
+  it("shows a placeholder instead of the discount on the total while the sale loads", async () => {
+    const screen = await renderPanel({ saleStatus: "loading" });
+
+    await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
+    await expect.element(screen.getByText("Descuento sobre el total")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Sin aplicar")).not.toBeInTheDocument();
+  });
+
+  it("says nothing of the discount on the total once the sale cannot be read", async () => {
+    const screen = await renderPanel({ saleStatus: "failed" });
+
+    await expect.element(screen.getByText("Descuento sobre el total")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Sin aplicar")).not.toBeInTheDocument();
   });
 
   it("shows the amount of a percentage discount on the total with its percentage", async () => {

@@ -6,6 +6,7 @@ import {
   type SaleDiscount,
   saleDiscountAmount,
   saleDiscountRefusal,
+  saleDiscountUnavailability,
   settledLines,
   spreadSaleDiscount,
 } from "./sale-discount.js";
@@ -100,6 +101,22 @@ describe("saleDiscountRefusal", () => {
       { kind: "zero_total" },
     );
     expect(saleDiscountRefusal([line("a", 0)], discount({ kind: "AMOUNT", amount: 10 }))).toEqual({
+      kind: "zero_total",
+    });
+  });
+});
+
+describe("saleDiscountUnavailability", () => {
+  it("leaves a discount available on a sale whose lines add up to something", () => {
+    expect(saleDiscountUnavailability([line("a", 0), line("b", 1)])).toBeUndefined();
+  });
+
+  it("makes a discount unavailable on a sale with no lines", () => {
+    expect(saleDiscountUnavailability([])).toEqual({ kind: "empty_sale" });
+  });
+
+  it("makes a discount unavailable on a sale whose lines add up to nothing", () => {
+    expect(saleDiscountUnavailability([line("a", 0), line("b", 0)])).toEqual({
       kind: "zero_total",
     });
   });

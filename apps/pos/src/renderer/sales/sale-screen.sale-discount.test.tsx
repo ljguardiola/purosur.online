@@ -58,9 +58,34 @@ describe("SaleScreen showing the discount on the total", () => {
     await expect.element(screen.getByText("$ 4.522,00").first()).toBeVisible();
   });
 
+  it("says nothing of the discount on the total while the sale loads", async () => {
+    const { screen } = await renderScreen({ currentSale: () => new Promise(() => {}) });
+
+    await expect.element(screen.getByText("Cargando…").first()).toBeInTheDocument();
+    await expect.element(screen.getByText("Sin aplicar")).not.toBeInTheDocument();
+  });
+
+  it("says nothing of the discount on the total once the sale cannot be read", async () => {
+    const { screen } = await renderScreen({
+      currentSale: () => Promise.reject(new Error("unavailable")),
+    });
+
+    await expect.element(screen.getByText("No se pudo cargar la venta")).toBeVisible();
+    await expect.element(screen.getByText("Sin aplicar")).not.toBeInTheDocument();
+  });
+
   it("offers the discount only once the sale has a line that can change", async () => {
     const { screen } = await renderScreen({ currentSale: async () => null });
 
+    await expect.element(screen.getByRole("button", { name: OPEN_DISCOUNT })).toBeDisabled();
+  });
+
+  it("offers no discount on a sale the core says cannot be discounted", async () => {
+    const { screen } = await renderScreen({
+      currentSale: async () => ({ ...SALE_OF_YERBA, sale_discount_refusal: "zero_total" }),
+    });
+
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
     await expect.element(screen.getByRole("button", { name: OPEN_DISCOUNT })).toBeDisabled();
   });
 

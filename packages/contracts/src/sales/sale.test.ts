@@ -51,6 +51,7 @@ const sale = {
   sale_discount_authorization_required: false,
   subtotal: 3000,
   sale_discount: null,
+  sale_discount_refusal: null,
 };
 
 describe("saleSchema", () => {
@@ -102,11 +103,24 @@ describe("saleSchema", () => {
     },
   );
 
+  it.each([null, "empty_sale", "zero_total"] as const)(
+    "accepts a sale whose discount on the total is refused by %s",
+    (sale_discount_refusal) => {
+      expect(saleSchema.parse({ ...sale, sale_discount_refusal }).sale_discount_refusal).toBe(
+        sale_discount_refusal,
+      );
+    },
+  );
+
   it.each([
     ["its lines locked for an unknown reason", { ...sale, lines_lock: "closed" }],
     ["its lines locked by a boolean", { ...sale, lines_lock: true }],
     ["its cancellation refused for an unknown reason", { ...sale, cancel_refusal: "closed" }],
     ["its cancellation refused by a boolean", { ...sale, cancel_refusal: true }],
+    [
+      "its discount on the total refused for a reason that needs a discount",
+      { ...sale, sale_discount_refusal: "discount_exceeds_sale" },
+    ],
   ])("rejects a sale with %s", (_case, value) => {
     expect(saleSchema.safeParse(value).success).toBe(false);
   });
@@ -619,6 +633,7 @@ describe("a sale's discount on its total", () => {
       "answer on discounting the total needing authorization",
       { ...sale, sale_discount_authorization_required: undefined },
     ],
+    ["refusal of a discount on the total", { ...sale, sale_discount_refusal: undefined }],
     ["a subtotal that is negative", { ...sale, subtotal: -1 }],
     ["a subtotal that is fractional", { ...sale, subtotal: 1.5 }],
   ])("rejects a sale without its %s", (_field, value) => {
