@@ -1,4 +1,9 @@
-import { REFUND_DISCARDED_STATE, REFUND_DONE_STATE, REFUND_PENDING_STATE } from "@purosur/domain";
+import {
+  type AlertKind,
+  REFUND_DISCARDED_STATE,
+  REFUND_DONE_STATE,
+  REFUND_PENDING_STATE,
+} from "@purosur/domain";
 import { closeAlert } from "@purosur/domain/alerts/use-cases";
 import type {
   LockedRefund,
@@ -95,8 +100,9 @@ class DrizzleRefundStoreTransaction<TQueryResult extends PgQueryResultHKT>
     });
   }
 
-  async resolveLatePaymentRefundAlert(
+  async resolveRefundAlert(
     refundId: string,
+    kind: AlertKind,
     resolvedBy: string,
     resolvedAt: Date,
   ): Promise<void> {
@@ -105,7 +111,7 @@ class DrizzleRefundStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .from(alerts)
       .where(
         and(
-          eq(alerts.kind, "late_payment_refund"),
+          eq(alerts.kind, kind),
           eq(alerts.scope, refundId),
           openAlertCondition(),
         ),

@@ -1,6 +1,7 @@
 import { ALERT_CONDITION_EVALUATION_INTERVAL_MS } from "@purosur/domain";
 import { detectQuietRegisters, resolveStablyClearedAlerts } from "@purosur/domain/alerts/use-cases";
 import { detectMissingOfflineAuthorizationCodes } from "@purosur/domain/fiscal/use-cases";
+import { openOverdueRefundTaskAlerts } from "@purosur/domain/payments/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
@@ -12,6 +13,7 @@ import {
   crontabLineEvery,
   databaseOfClient,
 } from "../platform/background-jobs.js";
+import { DrizzleRefundTaskAlertStore } from "../payments/drizzle-refund-task-alert-store.js";
 import { DrizzleWatchedRegisterReader } from "../register/drizzle-watched-register-reader.js";
 import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
 import { DrizzleAlertStore } from "./drizzle-alert-store.js";
@@ -53,11 +55,22 @@ function detectMissingOfflineAuthorizationCodesTask<TQueryResult extends PgQuery
   });
 }
 
+function openRefundTaskAlertsTask<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  deps: { now: () => Date },
+) {
+  return openOverdueRefundTaskAlerts({
+    store: new DrizzleRefundTaskAlertStore(db),
+    clock: { now: deps.now },
+  });
+}
+
 export interface AlertConditionResolutionJobsDeps {
   createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
   resolve?: typeof resolveClearedConditionAlertsTask;
   detectQuiet?: typeof detectQuietRegistersTask;
   detectMissingCodes?: typeof detectMissingOfflineAuthorizationCodesTask;
+  openRefundTaskAlerts?: typeof openRefundTaskAlertsTask;
 }
 
 export function alertConditionResolutionJobs(
@@ -69,6 +82,7 @@ export function alertConditionResolutionJobs(
   const doDetectQuiet = deps.detectQuiet ?? detectQuietRegistersTask;
   const doDetectMissingCodes =
     deps.detectMissingCodes ?? detectMissingOfflineAuthorizationCodesTask;
+  const doOpenRefundTaskAlerts = deps.openRefundTaskAlerts ?? openRefundTaskAlertsTask;
   return {
     taskList: {
       [ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER]: async (_payload, helpers) => {
@@ -77,6 +91,7 @@ export function alertConditionResolutionJobs(
           await doResolve(db, { now: options.now });
           await doDetectQuiet(db, { now: options.now });
           await doDetectMissingCodes(db, { now: options.now });
+          await doOpenRefundTaskAlerts(db, { now: options.now });
         });
       },
     },
