@@ -5,10 +5,10 @@ import type {
   ReceiptPrinter,
   ReceiptPrintWatch,
 } from "@purosur/domain/sales/use-cases";
+import { RAW_PRINTING_PORT } from "../register/receipt-printer-endpoint";
 
 type PrinterStatus = Parameters<ReceiptPrintWatch["onStatus"]>[0];
 
-const RAW_PRINTING_PORT = 9100;
 const POLL_INTERVAL_MS = 500;
 const CONNECT_LIMIT_MS = 3000;
 const UNANSWERED_POLLS_BEFORE_SILENCE = 2;

@@ -1,8 +1,5 @@
 import type { OperationAuthority } from "../../shared/index.js";
-import {
-  isSameReceiptPrinterAddress,
-  type ReceiptPrinterAddress,
-} from "../model/receipt-printer-address.js";
+import type { ReceiptPrinterAddress } from "../model/receipt-printer-address.js";
 import type { ReceiptPrinterReplacement } from "./receipt-printer-replacement.js";
 import type { ReceiptPrinterSettings } from "./receipt-printer-settings.js";
 
@@ -26,9 +23,9 @@ export async function setReceiptPrinterAddress<Grant, Refusal>(
   if (authorization.kind === "refused") {
     return authorization.refusal;
   }
-  const stored = settings.receiptPrinterAddress();
+  const replacesPrinter = !settings.isCurrentReceiptPrinter(address);
   settings.saveReceiptPrinterAddress(address);
-  if (stored === undefined || !isSameReceiptPrinterAddress(stored, address)) {
+  if (replacesPrinter) {
     replacement.receiptPrinterReplaced();
   }
   return { kind: "saved", address };

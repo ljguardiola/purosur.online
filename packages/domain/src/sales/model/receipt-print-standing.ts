@@ -119,5 +119,5 @@ export function mayStartReceiptPrint(
 }
 
 export function mayRetryReceiptPrint(standing: ReceiptPrintStanding | null): boolean {
-  return standing === "retry_offered" || standing === "withdrawn";
+  return standing === "retry_offered";
 }
