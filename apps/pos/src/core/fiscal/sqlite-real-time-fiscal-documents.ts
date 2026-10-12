@@ -72,6 +72,7 @@ export class SqliteRealTimeFiscalDocuments
     settledAt,
   }: UnclearDocumentSettled): Promise<void> {
     this.database.transaction(() => {
+      this.refuseUnlessDocumentOfSale(fiscalDocumentId, saleId);
       this.changeState(
         fiscalDocumentId,
         "UNKNOWN",
@@ -81,6 +82,17 @@ export class SqliteRealTimeFiscalDocuments
       );
       this.updateDeferredSale(fiscalDocumentId, saleId, settlement, settledAt);
     })();
+  }
+
+  private refuseUnlessDocumentOfSale(fiscalDocumentId: string, saleId: string): void {
+    const document = this.database
+      .prepare<[string, string], { id: string }>(
+        "SELECT id FROM fiscal_documents WHERE id = ? AND sale_id = ?",
+      )
+      .get(fiscalDocumentId, saleId);
+    if (document === undefined) {
+      throw new Error("the fiscal document is not of that sale");
+    }
   }
 
   private waitingDocumentOf(row: WaitingDocumentRow): WaitingFiscalDocument {
@@ -211,8 +223,7 @@ export class SqliteRealTimeFiscalDocuments
         `SELECT event_id, device_seq, aggregate_type, aggregate_id, event_type, schema_version,
                 payload, occurred_at, actor_id, chain_hmac
            FROM outbox
-          WHERE device_id = (SELECT device_id FROM sync_state)
-            AND event_type = ? AND aggregate_id = ?`,
+          WHERE event_type = ? AND aggregate_id = ?`,
       )
       .get(SALE_COMPLETED_EVENT_TYPE, saleId);
     return row === undefined ? null : { ...row, payload: JSON.parse(row.payload) };

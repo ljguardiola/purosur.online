@@ -74,3 +74,29 @@ INSERT INTO deferred_sales (sale_id, reason, routed_at)
   SELECT sale_id, reason, routed_at FROM deferred_sales_held;
 
 DROP TABLE deferred_sales_held;
+
+CREATE TRIGGER deferred_sales_inserted_satisfied_by_own_authorization
+BEFORE INSERT ON deferred_sales
+WHEN NEW.satisfied_by_fiscal_document_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM fiscal_documents
+    WHERE id = NEW.satisfied_by_fiscal_document_id
+      AND sale_id = NEW.sale_id
+      AND state = 'AUTHORIZED'
+  )
+BEGIN
+  SELECT RAISE(ABORT, 'a deferred sale is satisfied only by an authorized fiscal document of its own sale');
+END;
+
+CREATE TRIGGER deferred_sales_updated_satisfied_by_own_authorization
+BEFORE UPDATE OF sale_id, satisfied_by_fiscal_document_id ON deferred_sales
+WHEN NEW.satisfied_by_fiscal_document_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM fiscal_documents
+    WHERE id = NEW.satisfied_by_fiscal_document_id
+      AND sale_id = NEW.sale_id
+      AND state = 'AUTHORIZED'
+  )
+BEGIN
+  SELECT RAISE(ABORT, 'a deferred sale is satisfied only by an authorized fiscal document of its own sale');
+END;

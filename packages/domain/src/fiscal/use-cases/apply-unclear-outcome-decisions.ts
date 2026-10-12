@@ -26,7 +26,7 @@ export async function applyUnclearOutcomeDecisions({
     ...document
   }: WaitingFiscalDocument): Promise<DocumentResult> {
     if (saleEvent === null) {
-      return "still_unclear";
+      throw new Error("the completion event of the unclear document's sale is not held");
     }
     const told = await cloud.outcomeOf({ ...document, saleEvent });
     if (told.kind === "pending" || told.kind === "no_answer") {
