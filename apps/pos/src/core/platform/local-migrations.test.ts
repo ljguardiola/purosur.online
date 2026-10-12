@@ -881,6 +881,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_unclear_outcome_settlements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -947,6 +948,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_unclear_outcome_settlements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1008,6 +1010,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_unclear_outcome_settlements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1068,6 +1071,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_unclear_outcome_settlements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1155,6 +1159,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_unclear_outcome_settlements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1234,6 +1239,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_unclear_outcome_settlements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1317,6 +1323,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_unclear_outcome_settlements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1383,6 +1390,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_unclear_outcome_settlements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1441,6 +1449,7 @@ describe("the register's local migrations", () => {
         "0037_offline_point_of_sale_tax_authority_count",
         "0038_pulled_table_redeliveries",
         "0039_manual_line_adjustments",
+        "0040_unclear_outcome_settlements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -2670,6 +2679,136 @@ describe("the register's local migrations", () => {
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }
+  });
+
+  it("let an unclear fiscal document be released or conflicting and a deferred sale be satisfied only by an authorized document of its own sale, over the documents a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0040_unclear_outcome_settlements",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0040_unclear_outcome_settlements",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z'),
+                ('sale-2', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:06:00.000Z');
+         INSERT INTO fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
+           authorization_code, authorization_code_due_on, reserved_at, resolved_at
+         ) VALUES
+           ('doc-1', 'sale-1', 12, 'factura_c', 41, '2026-10-09', '{"total":1500}', 'AUTHORIZED',
+            '75123456789012', '2026-10-19', '2026-10-09T12:05:00.000Z', '2026-10-09T12:05:01.000Z'),
+           ('doc-2', 'sale-2', 12, 'factura_c', 42, '2026-10-09', '{"total":2500}', 'UNKNOWN',
+            NULL, NULL, '2026-10-09T12:06:00.000Z', '2026-10-09T12:06:06.000Z');
+         INSERT INTO deferred_sales (sale_id, reason, routed_at)
+         VALUES ('sale-2', 'unclear_outcome', '2026-10-09T12:06:06.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after.prepare("SELECT id, number, state FROM fiscal_documents ORDER BY id").all(),
+      ).toEqual([
+        { id: "doc-1", number: 41, state: "AUTHORIZED" },
+        { id: "doc-2", number: 42, state: "UNKNOWN" },
+      ]);
+      expect(after.prepare("SELECT * FROM deferred_sales").all()).toEqual([
+        {
+          sale_id: "sale-2",
+          reason: "unclear_outcome",
+          routed_at: "2026-10-09T12:06:06.000Z",
+          satisfied_by_fiscal_document_id: null,
+          satisfied_at: null,
+        },
+      ]);
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+
+      const settle = (state: string) =>
+        after.prepare("UPDATE fiscal_documents SET state = ? WHERE id = 'doc-2'").run(state);
+      expect(() => settle("RELEASED")).not.toThrow();
+      expect(() => settle("CONFLICTING")).not.toThrow();
+      expect(() => settle("PENDING")).toThrow(/CHECK/);
+      expect(() =>
+        after
+          .prepare(
+            "UPDATE fiscal_documents SET authorization_code = 'x', authorization_code_due_on = '2026-10-19' WHERE id = 'doc-2'",
+          )
+          .run(),
+      ).toThrow(/CHECK/);
+
+      const satisfy = (documentId: string | null, at: string | null) =>
+        after
+          .prepare(
+            "UPDATE deferred_sales SET satisfied_by_fiscal_document_id = ?, satisfied_at = ? WHERE sale_id = 'sale-2'",
+          )
+          .run(documentId, at);
+      const notOwnAuthorization = /an authorized fiscal document of its own sale/;
+      expect(() => satisfy("missing", "2026-10-09T12:07:00.000Z")).toThrow(notOwnAuthorization);
+      expect(() => satisfy("doc-1", "2026-10-09T12:07:00.000Z")).toThrow(notOwnAuthorization);
+      expect(() => satisfy("doc-2", "2026-10-09T12:07:00.000Z")).toThrow(notOwnAuthorization);
+      expect(() =>
+        after
+          .prepare(
+            `INSERT INTO deferred_sales (
+               sale_id, reason, routed_at, satisfied_by_fiscal_document_id, satisfied_at
+             ) VALUES ('sale-1', 'rejected', '2026-10-09T12:05:01.000Z', 'doc-2', '2026-10-09T12:07:00.000Z')`,
+          )
+          .run(),
+      ).toThrow(notOwnAuthorization);
+      after
+        .prepare(
+          `UPDATE fiscal_documents
+           SET state = 'AUTHORIZED', authorization_code = '75123456789012',
+               authorization_code_due_on = '2026-10-19'
+           WHERE id = 'doc-2'`,
+        )
+        .run();
+      expect(() => satisfy("doc-2", null)).toThrow(/CHECK/);
+      expect(() => satisfy(null, "2026-10-09T12:07:00.000Z")).toThrow(/CHECK/);
+      expect(() => satisfy("doc-2", "2026-10-09T12:07:00.000Z")).not.toThrow();
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("free the number of a released document and keep the number of a conflicting one in use", () => {
+    const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+    database.exec(
+      `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+       VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+       INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+       VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z'),
+              ('sale-2', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:06:00.000Z'),
+              ('sale-3', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:07:00.000Z');`,
+    );
+    const insert = (id: string, saleId: string, number: number, state: string) =>
+      database
+        .prepare(
+          `INSERT INTO fiscal_documents (
+             id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
+             reserved_at, resolved_at
+           ) VALUES (?, ?, 12, 'factura_c', ?, '2026-10-09', '{}', ?, '2026-10-09T12:05:00.000Z', ?)`,
+        )
+        .run(id, saleId, number, state, state === "REQUESTING" ? null : "2026-10-09T12:05:01.000Z");
+
+    insert("doc-1", "sale-1", 41, "RELEASED");
+    expect(() => insert("doc-2", "sale-2", 41, "REQUESTING")).not.toThrow();
+    database
+      .prepare(
+        "UPDATE fiscal_documents SET state = 'CONFLICTING', resolved_at = '2026-10-09T12:05:02.000Z' WHERE id = 'doc-2'",
+      )
+      .run();
+    expect(() => insert("doc-3", "sale-3", 41, "REQUESTING")).toThrow(/UNIQUE/);
+    expect(() => insert("doc-3", "sale-3", 42, "REQUESTING")).not.toThrow();
+    database.close();
   });
 
   describe("the real-time authorization", () => {

@@ -1,5 +1,6 @@
 import {
   type FacturaC,
+  type FiscalDocumentState,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   type PushedEvent,
   SALE_COMPLETED_EVENT_TYPE,
@@ -10,6 +11,9 @@ import type {
   InterruptedRealTimeAuthorizationsTransaction,
   RealTimeAuthorizationResolved,
   RealTimeFiscalDocuments,
+  UnclearDocumentSettled,
+  UnclearDocumentSettlement,
+  UnclearFiscalDocuments,
   WaitingFiscalDocument,
 } from "@purosur/domain/fiscal/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
@@ -33,7 +37,7 @@ interface RequestingDocumentRow {
 }
 
 export class SqliteRealTimeFiscalDocuments
-  implements RealTimeFiscalDocuments, InterruptedRealTimeAuthorizations
+  implements RealTimeFiscalDocuments, InterruptedRealTimeAuthorizations, UnclearFiscalDocuments
 {
   private readonly database: LocalDatabase;
 
@@ -48,9 +52,50 @@ export class SqliteRealTimeFiscalDocuments
          FROM fiscal_documents WHERE sale_id = ? AND state = 'REQUESTING'`,
       )
       .get(saleId);
-    if (row === undefined) {
-      return null;
+    return row === undefined ? null : this.waitingDocumentOf(row);
+  }
+
+  async unclearDocuments(): Promise<readonly WaitingFiscalDocument[]> {
+    return this.database
+      .prepare<[], WaitingDocumentRow>(
+        `SELECT id, sale_id, point_of_sale, number, issued_on, document
+         FROM fiscal_documents WHERE state = 'UNKNOWN' ORDER BY reserved_at, id`,
+      )
+      .all()
+      .map((row) => this.waitingDocumentOf(row));
+  }
+
+  async settle({
+    fiscalDocumentId,
+    saleId,
+    settlement,
+    settledAt,
+  }: UnclearDocumentSettled): Promise<void> {
+    this.database.transaction(() => {
+      this.refuseUnlessDocumentOfSale(fiscalDocumentId, saleId);
+      this.changeState(
+        fiscalDocumentId,
+        "UNKNOWN",
+        settlement,
+        settledAt,
+        "the fiscal document is not unclear",
+      );
+      this.updateDeferredSale(fiscalDocumentId, saleId, settlement, settledAt);
+    })();
+  }
+
+  private refuseUnlessDocumentOfSale(fiscalDocumentId: string, saleId: string): void {
+    const document = this.database
+      .prepare<[string, string], { id: string }>(
+        "SELECT id FROM fiscal_documents WHERE id = ? AND sale_id = ?",
+      )
+      .get(fiscalDocumentId, saleId);
+    if (document === undefined) {
+      throw new Error("the fiscal document is not of that sale");
     }
+  }
+
+  private waitingDocumentOf(row: WaitingDocumentRow): WaitingFiscalDocument {
     return {
       fiscalDocumentId: row.id,
       saleId: row.sale_id,
@@ -60,6 +105,36 @@ export class SqliteRealTimeFiscalDocuments
       document: JSON.parse(row.document) as FacturaC,
       saleEvent: this.saleCompletedEvent(row.sale_id),
     };
+  }
+
+  private updateDeferredSale(
+    fiscalDocumentId: string,
+    saleId: string,
+    settlement: UnclearDocumentSettlement,
+    settledAt: Date,
+  ): void {
+    if (settlement.state === "AUTHORIZED") {
+      this.updateDeferredRecord(
+        saleId,
+        `satisfied_by_fiscal_document_id = @document_id, satisfied_at = @settled_at`,
+        { document_id: fiscalDocumentId, settled_at: settledAt.toISOString() },
+      );
+    } else if (settlement.state === "REJECTED") {
+      this.updateDeferredRecord(saleId, "reason = @reason", { reason: settlement.deferralReason });
+    }
+  }
+
+  private updateDeferredRecord(
+    saleId: string,
+    assignments: string,
+    values: Record<string, string>,
+  ): void {
+    const { changes } = this.database
+      .prepare(`UPDATE deferred_sales SET ${assignments} WHERE sale_id = @sale_id`)
+      .run({ ...values, sale_id: saleId });
+    if (changes !== 1) {
+      throw new Error("the sale has no deferred record");
+    }
   }
 
   transaction<TOutcome>(
@@ -88,21 +163,23 @@ export class SqliteRealTimeFiscalDocuments
       .map((row) => ({ fiscalDocumentId: row.id, saleId: row.sale_id }));
   }
 
-  private recordResolution({
-    fiscalDocumentId,
-    saleId,
-    resolution,
-    resolvedAt,
-  }: RealTimeAuthorizationResolved): void {
+  private changeState(
+    fiscalDocumentId: string,
+    from: FiscalDocumentState,
+    resolution: UnclearDocumentSettlement,
+    resolvedAt: Date,
+    refusal: string,
+  ): void {
     const { changes } = this.database
       .prepare(
         `UPDATE fiscal_documents
          SET state = @state, authorization_code = @authorization_code,
              authorization_code_due_on = @authorization_code_due_on, resolved_at = @resolved_at
-         WHERE id = @id AND state = 'REQUESTING'`,
+         WHERE id = @id AND state = @from`,
       )
       .run({
         id: fiscalDocumentId,
+        from,
         state: resolution.state,
         authorization_code: resolution.state === "AUTHORIZED" ? resolution.authorizationCode : null,
         authorization_code_due_on:
@@ -110,8 +187,23 @@ export class SqliteRealTimeFiscalDocuments
         resolved_at: resolvedAt.toISOString(),
       });
     if (changes !== 1) {
-      throw new Error("the fiscal document is not waiting for an answer");
+      throw new Error(refusal);
     }
+  }
+
+  private recordResolution({
+    fiscalDocumentId,
+    saleId,
+    resolution,
+    resolvedAt,
+  }: RealTimeAuthorizationResolved): void {
+    this.changeState(
+      fiscalDocumentId,
+      "REQUESTING",
+      resolution,
+      resolvedAt,
+      "the fiscal document is not waiting for an answer",
+    );
     if (resolution.state !== "AUTHORIZED") {
       this.database
         .prepare(
@@ -131,8 +223,7 @@ export class SqliteRealTimeFiscalDocuments
         `SELECT event_id, device_seq, aggregate_type, aggregate_id, event_type, schema_version,
                 payload, occurred_at, actor_id, chain_hmac
            FROM outbox
-          WHERE device_id = (SELECT device_id FROM sync_state)
-            AND event_type = ? AND aggregate_id = ?`,
+          WHERE event_type = ? AND aggregate_id = ?`,
       )
       .get(SALE_COMPLETED_EVENT_TYPE, saleId);
     return row === undefined ? null : { ...row, payload: JSON.parse(row.payload) };

@@ -14,6 +14,7 @@ import {
   type TaxAuthorityVoucher,
   UNCLEAR_OUTCOME_REASK_INTERVAL_MS,
   UNCLEAR_OUTCOME_SETTLING_DELAY_MS,
+  unclearDocumentSettlement,
   unclearOutcomeSettlesAt,
   voucherMatchesDocument,
 } from "./unclear-outcome-decision.js";
@@ -250,4 +251,61 @@ describe("outcomeToldToAskingRegister", () => {
       expect(outcomeToldToAskingRegister({ answer, decision: null })).toEqual({ kind: "pending" });
     },
   );
+});
+
+describe("unclearDocumentSettlement", () => {
+  it("frees the number of a document whose decision is released", () => {
+    expect(unclearDocumentSettlement({ kind: "decided", decision: { kind: "released" } })).toEqual({
+      state: "RELEASED",
+    });
+  });
+
+  it("keeps consumed the number of a document whose decision is conflicting", () => {
+    expect(
+      unclearDocumentSettlement({ kind: "decided", decision: { kind: "conflicting" } }),
+    ).toEqual({ state: "CONFLICTING" });
+  });
+
+  it("authorizes a document whose decision is adopted, with the code and due date of the voucher", () => {
+    expect(
+      unclearDocumentSettlement({
+        kind: "decided",
+        decision: {
+          kind: "adopted",
+          authorizationCode: "75123456789012",
+          authorizationCodeDueOn: "2026-10-11",
+        },
+      }),
+    ).toEqual({
+      state: "AUTHORIZED",
+      authorizationCode: "75123456789012",
+      authorizationCodeDueOn: "2026-10-11",
+    });
+  });
+
+  it("settles a document the tax authority had already authorized as a timely authorization", () => {
+    expect(
+      unclearDocumentSettlement({
+        kind: "answered",
+        answer: {
+          kind: "authorized",
+          authorizationCode: "75123456789012",
+          authorizationCodeDueOn: "2026-10-11",
+        },
+      }),
+    ).toEqual({
+      state: "AUTHORIZED",
+      authorizationCode: "75123456789012",
+      authorizationCodeDueOn: "2026-10-11",
+    });
+  });
+
+  it("settles a document the tax authority had already rejected as a timely rejection", () => {
+    expect(
+      unclearDocumentSettlement({
+        kind: "answered",
+        answer: { kind: "rejected", codes: [10015], rejectionClass: "content" },
+      }),
+    ).toEqual({ state: "REJECTED", deferralReason: "rejected" });
+  });
 });
