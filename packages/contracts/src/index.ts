@@ -157,6 +157,8 @@ export {
   mercadoPagoOrderRequestSchema,
   mercadoPagoPaymentSchema,
 } from "./payments/mercado-pago-order.js";
+export type { PaymentMethodAvailability } from "./payments/payment-method-availability.js";
+export { paymentMethodAvailabilitySchema } from "./payments/payment-method-availability.js";
 export type {
   DiscardedRefundBody,
   MarkedRefundDoneBody,

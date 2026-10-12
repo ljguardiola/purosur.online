@@ -75,6 +75,7 @@ export class CloudMercadoPagoQrChargeOrders implements MercadoPagoChargeOrders {
   async requestOrder(order: {
     paymentTransactionId: string;
     saleId: string;
+    method: "QR" | "POINT";
     amount: number;
   }): Promise<MercadoPagoChargeOrderAnswer> {
     const deviceToken = await this.deps.readDeviceToken();
@@ -84,6 +85,7 @@ export class CloudMercadoPagoQrChargeOrders implements MercadoPagoChargeOrders {
     const body: MercadoPagoOrderRequestBody = {
       payment_transaction_id: order.paymentTransactionId,
       sale_id: order.saleId,
+      provider: order.method === "POINT" ? "MERCADOPAGO_POINT" : "MERCADOPAGO_QR",
       amount: order.amount,
     };
     return orderAnswerOf(await this.deps.post(ORDERS_PATH, deviceToken, body));

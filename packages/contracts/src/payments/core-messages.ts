@@ -1,3 +1,4 @@
+import { MERCADO_PAGO_PAYMENT_METHODS } from "@purosur/domain";
 import { z } from "zod";
 import {
   noThresholdRefusalSchema,
@@ -11,6 +12,7 @@ export const startMercadoPagoChargeMessageSchema = z.object({
   type: z.literal("start-mercado-pago-charge"),
   request_id: requestIdSchema,
   sale_id: z.string(),
+  method: z.enum(MERCADO_PAGO_PAYMENT_METHODS),
   amount: z.int(),
 });
 
@@ -56,6 +58,7 @@ const startMercadoPagoChargeOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unreachable") }),
   z.object({ kind: z.literal("mercado_pago_charge_in_progress") }),
   z.object({ kind: z.literal("invalid_amount") }),
+  z.object({ kind: z.literal("below_minimum") }),
   z.object({ kind: z.literal("exceeds_pending"), pending: z.int().nonnegative() }),
   ...saleChargeRefusals,
 ]);
@@ -75,6 +78,8 @@ const settledQrChargeOutcomes = [
 const followMercadoPagoChargeOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("waiting"), remaining_seconds: z.int().min(0) }),
   z.object({ kind: z.literal("wait_over") }),
+  z.object({ kind: z.literal("at_terminal_wait_over") }),
+  z.object({ kind: z.literal("closed") }),
   z.object({ kind: z.literal("expiry_unconfirmed") }),
   z.object({ kind: z.literal("declined") }),
   ...settledQrChargeOutcomes,
@@ -85,6 +90,8 @@ const abandonMercadoPagoChargeOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("cancelled") }),
   z.object({ kind: z.literal("closed") }),
   z.object({ kind: z.literal("replaced") }),
+  z.object({ kind: z.literal("cancel_on_terminal") }),
+  z.object({ kind: z.literal("unreachable") }),
   z.object({
     kind: z.literal("already_paid"),
     settlement: z.discriminatedUnion("kind", settledQrChargeOutcomes),

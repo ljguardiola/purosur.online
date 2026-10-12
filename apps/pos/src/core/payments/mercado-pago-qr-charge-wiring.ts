@@ -31,7 +31,11 @@ export interface MercadoPagoQrChargingWiringDeps {
 
 interface MercadoPagoQrCharging {
   start:
-    | ((request: { saleId: string; amount: number }) => Promise<StartMercadoPagoChargeOutcome>)
+    | ((request: {
+        saleId: string;
+        method: "QR" | "POINT";
+        amount: number;
+      }) => Promise<StartMercadoPagoChargeOutcome>)
     | undefined;
   follow:
     | ((request: { paymentTransactionId: string }) => Promise<FollowMercadoPagoChargeOutcome>)
@@ -69,7 +73,10 @@ export function createMercadoPagoQrCharging({
     ids,
   };
   return {
-    start: (request) => startMercadoPagoQrChargeFor(deps, request),
+    start: async (request) =>
+      request.method === "QR"
+        ? startMercadoPagoQrChargeFor(deps, request)
+        : { kind: "unavailable" },
     follow: (request) => followMercadoPagoQrChargeFor(deps, request),
     abandon: (request) => abandonMercadoPagoQrChargeFor(deps, request),
   };

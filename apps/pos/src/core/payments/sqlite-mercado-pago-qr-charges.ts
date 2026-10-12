@@ -32,6 +32,7 @@ export class SqliteMercadoPagoQrCharges implements MercadoPagoCharges {
     return {
       paymentTransactionId: row.id,
       saleId: row.sale_id,
+      method: "QR",
       amount: row.amount,
       waitEndsAt: new Date(row.wait_ends_at),
     };

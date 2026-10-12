@@ -71,6 +71,7 @@ function toWire(transaction: MercadoPagoOrderTransaction): MercadoPagoPaymentBod
     payment_transaction_id: transaction.id,
     state: transaction.state,
     needs_review: transaction.needsReview,
+    provider: transaction.provider,
     amount: transaction.amount,
     expires_at: transaction.expiresAt.toISOString(),
   };
@@ -132,6 +133,10 @@ export function registerMercadoPagoQrRoutes<TQueryResult extends PgQueryResultHK
         }
         const body = await readValidatedBody(reply, mercadoPagoOrderRequestSchema, request.body);
         if (!body) {
+          return;
+        }
+        if (body.provider !== "MERCADOPAGO_QR") {
+          await sendError(reply, PROVIDER_NOT_CONFIGURED);
           return;
         }
 

@@ -9,7 +9,9 @@ export const POINT_TERMINAL_AVAILABILITIES = [
 
 export type PointTerminalAvailability = (typeof POINT_TERMINAL_AVAILABILITIES)[number];
 
-export type QrAvailability = Extract<PointTerminalAvailability, "available" | "offline">;
+export const QR_AVAILABILITIES = ["available", "offline"] as const;
+
+export type QrAvailability = (typeof QR_AVAILABILITIES)[number];
 
 export type RegisterPointTerminalAvailability = Exclude<
   PointTerminalAvailability,

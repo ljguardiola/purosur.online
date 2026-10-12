@@ -712,6 +712,7 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           type: "start-mercado-pago-charge",
           request_id: deps.newRequestId(),
           sale_id: saleId,
+          method: "QR",
           amount,
         },
         (answer) =>

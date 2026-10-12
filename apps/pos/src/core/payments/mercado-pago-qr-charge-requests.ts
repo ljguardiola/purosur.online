@@ -77,7 +77,7 @@ export async function startMercadoPagoQrChargeFor(
         charges: new SqliteMercadoPagoQrCharges(deps.database),
         clock: { now: deps.now },
       },
-      { actorId: signedInUserId, saleId, amount },
+      { actorId: signedInUserId, saleId, method: "QR", amount },
     ),
   );
   if (guarded.kind !== "performed") {

@@ -99,7 +99,11 @@ export interface RendererRequestDeps {
     | ((request: ChargeSaleByTransferRequest) => Promise<ChargeSaleByTransferOutcome>)
     | undefined;
   startMercadoPagoCharge:
-    | ((request: { saleId: string; amount: number }) => Promise<StartMercadoPagoChargeOutcome>)
+    | ((request: {
+        saleId: string;
+        method: "QR" | "POINT";
+        amount: number;
+      }) => Promise<StartMercadoPagoChargeOutcome>)
     | undefined;
   followMercadoPagoCharge:
     | ((request: { paymentTransactionId: string }) => Promise<FollowMercadoPagoChargeOutcome>)
@@ -450,7 +454,7 @@ async function attemptChargeSaleInCash(
 
 async function attemptStartMercadoPagoQrCharge(
   deps: RendererRequestDeps,
-  request: { saleId: string; amount: number },
+  request: { saleId: string; method: "QR" | "POINT"; amount: number },
 ): Promise<StartMercadoPagoChargeOutcome> {
   try {
     return (await deps.startMercadoPagoCharge?.(request)) ?? { kind: "unavailable" };
@@ -933,6 +937,7 @@ export async function answerRendererRequest(
         request_id: message.request_id,
         outcome: await attemptStartMercadoPagoQrCharge(deps, {
           saleId: message.sale_id,
+          method: message.method,
           amount: message.amount,
         }),
       };

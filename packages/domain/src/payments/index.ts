@@ -20,6 +20,8 @@ export {
   cancellableWithoutAuthorization,
   hasApprovedPayment,
   holdsApprovedQrPayment,
+  MERCADO_PAGO_PAYMENT_METHODS,
+  MERCADO_PAGO_PROVIDERS,
   PAYMENT_METHODS,
 } from "./model/payment.js";
 export type {
@@ -30,6 +32,7 @@ export type {
 export {
   POINT_TERMINAL_AVAILABILITIES,
   pointTerminalAvailability,
+  QR_AVAILABILITIES,
   qrAvailability,
 } from "./model/payment-method-availability.js";
 export { paymentRecord } from "./model/payment-record.js";
