@@ -16,8 +16,6 @@ const REFUND: FakeRefundOfSale = {
   method: "TRANSFER",
   amount: 12400,
   openedAt: REFUND_OPENED,
-  origin: "sale_cancelled",
-  state: "PENDING",
   hasOpenRefundTaskAlert: false,
 };
 
@@ -66,25 +64,6 @@ describe("openOverdueRefundTaskAlerts", () => {
 
     expect(store.opened.map((alert) => alert.level)).toEqual(["critical"]);
   });
-
-  it("opens nothing for a refund of a payment that arrived late, which has its own alert", async () => {
-    const store = new FakeRefundTaskAlertStore([{ ...REFUND, origin: "late_payment" }]);
-
-    await evaluate(store, hoursAfterOpening(100));
-
-    expect(store.opened).toEqual([]);
-  });
-
-  it.each(["APPROVED", "DISCARDED"] as const)(
-    "opens nothing for a refund already %s",
-    async (state) => {
-      const store = new FakeRefundTaskAlertStore([{ ...REFUND, state }]);
-
-      await evaluate(store, hoursAfterOpening(100));
-
-      expect(store.opened).toEqual([]);
-    },
-  );
 
   it("does not open a second alert for a refund that already has one open", async () => {
     const store = new FakeRefundTaskAlertStore([{ ...REFUND }]);

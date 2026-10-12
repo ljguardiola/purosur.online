@@ -942,6 +942,33 @@ test("summarizes the refund of a cancelled sale left pending by its method and a
   expect(row.getByText(/3f2b8c1e/).query()).toBeNull();
 });
 
+test("summarizes a closed alert of a refund left pending as the refund of a cancelled sale, without telling to do it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...closedAlert,
+        kind: "refund_task",
+        audience: "local",
+        scope: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        scopeDisplay: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        scopeKind: "refund",
+        refundAmount: 1_240_000,
+        refundMethod: "TRANSFER",
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Reembolso pendiente de confirmar/ });
+  await expect
+    .element(row.getByText("Reembolso de una venta anulada", { exact: true }))
+    .toBeVisible();
+  expect(row.getByText(/todavía no/).query()).toBeNull();
+  expect(row.getByText(/cuanto antes/).query()).toBeNull();
+});
+
 test("shows the scope of a refund left pending when the cloud gives no method or amount", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(

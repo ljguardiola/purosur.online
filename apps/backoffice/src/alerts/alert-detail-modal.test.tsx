@@ -1546,7 +1546,7 @@ test("explains the refund of a cancelled sale left pending to the branch, closin
         scope: "refund-1",
         scopeDisplay: "refund-1",
         scopeKind: "refund",
-        closing: "with_its_refund",
+        closing: "when_its_refund_is_done",
         detail: {
           saleId: "sale-1",
           amount: 1_240_000,

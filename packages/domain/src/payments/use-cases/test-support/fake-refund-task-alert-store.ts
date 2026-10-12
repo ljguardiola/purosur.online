@@ -6,8 +6,6 @@ import type {
 } from "../refund-task-alert-ports.js";
 
 export interface FakeRefundOfSale extends PendingRefundOfCancelledSale {
-  origin: "sale_cancelled" | "late_payment";
-  state: "PENDING" | "APPROVED" | "DISCARDED";
   hasOpenRefundTaskAlert: boolean;
 }
 
@@ -36,12 +34,7 @@ class FakeRefundTaskAlertTransaction implements RefundTaskAlertTransaction {
   > {
     this.store.operationOrder.push("lockRefunds");
     return this.store.refunds
-      .filter(
-        (refund) =>
-          refund.origin === "sale_cancelled" &&
-          refund.state === "PENDING" &&
-          !refund.hasOpenRefundTaskAlert,
-      )
+      .filter((refund) => !refund.hasOpenRefundTaskAlert)
       .map(({ refundId, saleId, locationId, method, amount, openedAt }) => ({
         refundId,
         saleId,

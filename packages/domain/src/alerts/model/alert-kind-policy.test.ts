@@ -100,7 +100,7 @@ describe("alertKindPolicy", () => {
 });
 
 describe("alertClosing", () => {
-  it("closes by itself an alert whose condition stays cleared, with its refund an alert scoped to a refund, and every other by hand", () => {
+  it("closes by itself an alert whose condition stays cleared, with its refund done or discarded the late-payment refund's alert, once its refund is done the refund task's, and every other by hand", () => {
     const closings = Object.fromEntries(ALERT_KINDS.map((kind) => [kind, alertClosing(kind)]));
 
     expect(closings).toEqual({
@@ -120,12 +120,17 @@ describe("alertClosing", () => {
       fiscal_rejected: "by_itself",
       offline_authorization_code_missing: "by_itself",
       late_payment_refund: "with_its_refund",
-      refund_task: "with_its_refund",
+      refund_task: "when_its_refund_is_done",
     });
   });
 
   it("lists every way an alert closes", () => {
-    expect(ALERT_CLOSINGS).toEqual(["by_itself", "with_its_refund", "by_hand"]);
+    expect(ALERT_CLOSINGS).toEqual([
+      "by_itself",
+      "with_its_refund",
+      "when_its_refund_is_done",
+      "by_hand",
+    ]);
   });
 });
 

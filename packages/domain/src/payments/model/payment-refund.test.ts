@@ -14,6 +14,7 @@ import {
   plannedRefunds,
   REFUND_ORIGINS,
   REFUND_STATES,
+  REFUND_TASK_ORIGINS,
   refundAlertKind,
   refundsSettleApprovedPayments,
   SALE_CANCELLED_REFUND_ORIGIN,
@@ -228,6 +229,12 @@ describe("refundAlertKind", () => {
 
   it("is the refund task alert for a cancelled sale", () => {
     expect(refundAlertKind(SALE_CANCELLED_REFUND_ORIGIN)).toBe("refund_task");
+  });
+});
+
+describe("REFUND_TASK_ORIGINS", () => {
+  it("lists every origin whose refund gets the refund task alert, leaving out a payment that arrived late", () => {
+    expect(REFUND_TASK_ORIGINS).toEqual([SALE_CANCELLED_REFUND_ORIGIN]);
   });
 });
 
