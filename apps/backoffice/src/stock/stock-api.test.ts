@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   fetchExpectedBalance,
+  fetchInitialInventoryLots,
   fetchStockBalances,
   fetchStockCounts,
   fetchStockMovementReasons,
@@ -9,6 +10,7 @@ import {
   recordAdjustment,
   recordLoss,
   registerCount,
+  setLotReferenceCost,
 } from "./stock-api";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
@@ -271,4 +273,106 @@ test("fetchStockProducts reads the products a movement can be registered for", a
 
   expect(await fetchStockProducts()).toEqual({ kind: "ok", value: listed });
   expect(fetch).toHaveBeenCalledWith("/api/inventory-items");
+});
+
+const initialLots = {
+  lots: [
+    {
+      lotId: "lot-1",
+      productId: PRODUCT_ID,
+      productName: "Almendras peladas",
+      categoryName: "Frutos secos",
+      saleUnit: "KG",
+      expiresOn: "2026-12-01",
+      counted: 4_400,
+      costIncomplete: false,
+      unitCostCents: 1_018_000,
+      valueCents: 4_479_200,
+    },
+  ],
+};
+
+test("fetchInitialInventoryLots reads every lot of the initial count when no cost is asked for", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, initialLots));
+
+  expect(await fetchInitialInventoryLots(undefined)).toEqual({ kind: "ok", value: initialLots });
+  expect(fetch).toHaveBeenCalledWith("/api/initial-inventory-lots");
+});
+
+test.each(["known", "incomplete"] as const)(
+  "fetchInitialInventoryLots asks only for the %s cost",
+  async (cost) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { lots: [] }));
+
+    await fetchInitialInventoryLots(cost);
+
+    expect(fetch).toHaveBeenCalledWith(`/api/initial-inventory-lots?cost=${cost}`);
+  },
+);
+
+test("fetchInitialInventoryLots treats a body that does not match the list as failed", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { lots: [{ lotId: 1 }] }));
+
+  expect(await fetchInitialInventoryLots(undefined)).toEqual({ kind: "failed" });
+});
+
+test.each([
+  [401, { kind: "unauthenticated" }],
+  [403, { kind: "forbidden" }],
+  [500, { kind: "failed" }],
+])("fetchInitialInventoryLots answers %i as %j", async (status, outcome) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+  expect(await fetchInitialInventoryLots(undefined)).toEqual(outcome);
+});
+
+test("fetchInitialInventoryLots answers failed when the request cannot be sent", async () => {
+  vi.mocked(fetch).mockRejectedValue(new TypeError("offline"));
+
+  expect(await fetchInitialInventoryLots(undefined)).toEqual({ kind: "failed" });
+});
+
+test("setLotReferenceCost puts the cost of the lot and answers ok on 204", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(204));
+
+  expect(await setLotReferenceCost("lot-1", { unitCostCents: 1_018_000 })).toEqual({ kind: "ok" });
+  expect(fetch).toHaveBeenCalledWith("/api/initial-inventory-lots/lot-1/reference-cost", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ unitCostCents: 1_018_000 }),
+  });
+});
+
+test.each([
+  [404, { code: "not_found" }, { kind: "not_found" }],
+  [404, { code: "lot_withdrawn" }, { kind: "lot_withdrawn" }],
+  [409, { code: "not_an_initial_count_lot" }, { kind: "not_an_initial_count_lot" }],
+  [
+    400,
+    { code: "validation_failed", details: [{ field: "unitCostCents" }] },
+    { kind: "validation_failed", field: "unitCostCents" },
+  ],
+  [409, { code: "something_else" }, { kind: "failed" }],
+  [500, undefined, { kind: "failed" }],
+  [401, undefined, { kind: "unauthenticated" }],
+  [403, undefined, { kind: "forbidden" }],
+])("setLotReferenceCost answers %i %j as %j", async (status, body, outcome) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status, body));
+
+  expect(await setLotReferenceCost("lot-1", { unitCostCents: 100 })).toEqual(outcome);
+});
+
+test("setLotReferenceCost reads the retry time of a rate-limited response", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "7" }));
+
+  expect(await setLotReferenceCost("lot-1", { unitCostCents: 100 })).toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 7,
+  });
+});
+
+test("setLotReferenceCost answers failed when the request cannot be sent", async () => {
+  vi.mocked(fetch).mockRejectedValue(new TypeError("offline"));
+
+  expect(await setLotReferenceCost("lot-1", { unitCostCents: 100 })).toEqual({ kind: "failed" });
 });
