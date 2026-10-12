@@ -138,6 +138,48 @@ test("keeps the label in its own form and color when only the value carries a to
   await expectNoAccessibilityViolations(infoScreen.container);
 });
 
+test("renders a detail row's label at 14px and its value at 16px, both regular, in secondary text", async () => {
+  const screen = await render(<SummaryRow label="List price" value="$84.00" detail />);
+  const label = screen.getByText("List price", { exact: true }).element() as HTMLElement;
+  const value = screen.getByText("$84.00", { exact: true }).element() as HTMLElement;
+
+  expect(getComputedStyle(label).fontSize).toBe("14px");
+  expect(getComputedStyle(label).fontWeight).toBe("400");
+  expect(getComputedStyle(label).color).toBe(tokenRgb("text-subtle"));
+
+  expect(getComputedStyle(value).fontSize).toBe("16px");
+  expect(getComputedStyle(value).fontWeight).toBe("400");
+  expect(getComputedStyle(value).color).toBe(tokenRgb("text-subtle"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("renders a detail row's toned value as the tone draws it, keeping the label at 14px regular", async () => {
+  const errorScreen = await render(
+    <SummaryRow label="Discount" value="− $8.40" detail tone="error" />,
+  );
+  const errorLabel = errorScreen.getByText("Discount", { exact: true }).element() as HTMLElement;
+  const errorValue = errorScreen.getByText("− $8.40", { exact: true }).element() as HTMLElement;
+  expect(getComputedStyle(errorValue).color).toBe(tokenRgb("error-strong"));
+  expect(getComputedStyle(errorValue).fontSize).toBe("16px");
+  expect(getComputedStyle(errorValue).fontWeight).toBe("700");
+  expect(getComputedStyle(errorLabel).fontSize).toBe("14px");
+  expect(getComputedStyle(errorLabel).fontWeight).toBe("400");
+  expect(getComputedStyle(errorLabel).color).toBe(tokenRgb("text-subtle"));
+
+  const infoScreen = await render(
+    <SummaryRow label="Line total" value="$75.60" detail tone="info" />,
+  );
+  const infoLabel = infoScreen.getByText("Line total", { exact: true }).element() as HTMLElement;
+  const infoValue = infoScreen.getByText("$75.60", { exact: true }).element() as HTMLElement;
+  expect(getComputedStyle(infoValue).color).toBe(tokenRgb("info-strong"));
+  expect(getComputedStyle(infoValue).fontSize).toBe("20px");
+  expect(getComputedStyle(infoValue).fontWeight).toBe("700");
+  expect(getComputedStyle(infoLabel).fontSize).toBe("14px");
+  expect(getComputedStyle(infoLabel).fontWeight).toBe("400");
+  expect(getComputedStyle(infoLabel).color).toBe(tokenRgb("text-subtle"));
+});
+
 test("grows with a long label instead of keeping a fixed height", async () => {
   const longLabel =
     "A very long label that does not fit on a single line inside this narrow row at all";
@@ -279,4 +321,14 @@ test("accepts only the error and info tones", () => {
   expectTypeOf<{ label: string; value: string; tone: "error" }>().toExtend<SummaryRowProps>();
   expectTypeOf<{ label: string; value: string; tone: "info" }>().toExtend<SummaryRowProps>();
   expectTypeOf<{ label: string; value: string; tone: "success" }>().not.toExtend<SummaryRowProps>();
+});
+
+test("does not accept a row that is both strong and a detail", () => {
+  expectTypeOf<{
+    label: string;
+    value: string;
+    strong: true;
+    detail: true;
+  }>().not.toExtend<SummaryRowProps>();
+  expectTypeOf<{ label: string; value: string; detail: true }>().toExtend<SummaryRowProps>();
 });

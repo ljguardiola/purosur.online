@@ -124,6 +124,17 @@ test("renders a row it is given with an error or an info tone in that tone", asy
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("renders a row it is given as a detail in the detail form", async () => {
+  const screen = await render(
+    <SummaryRowGroup rows={[{ label: "List price", value: "$84.00", detail: true }]} />,
+  );
+  const label = screen.getByText("List price", { exact: true }).element() as HTMLElement;
+  const value = screen.getByText("$84.00", { exact: true }).element() as HTMLElement;
+
+  expect(getComputedStyle(label).fontSize).toBe("14px");
+  expect(getComputedStyle(value).fontWeight).toBe("400");
+});
+
 test("does not accept a group without rows to hold", () => {
   expectTypeOf<Record<string, never>>().not.toExtend<SummaryRowGroupProps>();
   expectTypeOf<{ rows: undefined }>().not.toExtend<SummaryRowGroupProps>();

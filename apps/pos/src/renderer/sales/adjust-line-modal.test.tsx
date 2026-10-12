@@ -499,36 +499,34 @@ describe("AdjustLineModal previewing the adjustment", () => {
     expect(preview).toHaveBeenLastCalledWith("line-1", { kind: "PERCENT", value: 10 });
   });
 
-  it("shows the discount in the summary's error tone and what the line is left at in its info tone", async () => {
+  it("shows the summary as detail rows, the discount in the error tone and what the line is left at in the info tone", async () => {
     const { screen } = await renderModal({ previewAdjustment: async () => TEN_PERCENT });
     const reference = await renderReference(
       <>
-        <SummaryRow label="Referencia de descuento" value="− $ 1,00" tone="error" />
-        <SummaryRow label="Referencia de total" value="$ 2,00" strong tone="info" />
+        <SummaryRow label="Referencia de precio" value="$ 1,00" detail />
+        <SummaryRow label="Referencia de descuento" value="− $ 2,00" detail tone="error" />
+        <SummaryRow label="Referencia de total" value="$ 3,00" detail tone="info" />
       </>,
     );
 
     await typeValue(screen, "Porcentaje de descuento", "10");
 
     await expect.element(screen.getByText("− $ 476,00")).toBeVisible();
-    expectDrawnLike(
-      screen.getByText("− $ 476,00").element(),
-      reference.getByText("− $ 1,00").element(),
-      ["color", "fontSize", "fontWeight"],
-      "discount",
-    );
-    expectDrawnLike(
-      screen.getByText("$ 4.284,00").element(),
-      reference.getByText("$ 2,00").element(),
-      ["color", "fontSize", "fontWeight"],
-      "line total",
-    );
-    expectDrawnLike(
-      screen.getByText("Queda la línea en").element(),
-      reference.getByText("Referencia de total").element(),
-      ["color", "fontSize", "fontWeight"],
-      "line total label",
-    );
+    for (const [shown, drawnAs, context] of [
+      ["$ 2.380,00", "$ 1,00", "list price"],
+      ["− $ 476,00", "− $ 2,00", "discount"],
+      ["$ 4.284,00", "$ 3,00", "line total"],
+    ] as const) {
+      const value = screen.getByText(shown, { exact: true }).element();
+      const referenceValue = reference.getByText(drawnAs, { exact: true }).element();
+      expectDrawnLike(value, referenceValue, ["color", "fontSize", "fontWeight"], context);
+      expectDrawnLike(
+        value.previousElementSibling as Element,
+        referenceValue.previousElementSibling as Element,
+        ["color", "fontSize", "fontWeight"],
+        `${context} label`,
+      );
+    }
     await reference.unmount();
   });
 
