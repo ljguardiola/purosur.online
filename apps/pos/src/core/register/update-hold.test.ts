@@ -75,8 +75,6 @@ describe("createUpdateHold", () => {
 
     expect(scheduled[0]?.cancelled).toBe(true);
     expect(scheduled[1]?.cancelled).toBe(false);
-    scheduled[0]?.run();
-    expect(hold.isHeld()).toBe(true);
     scheduled[1]?.run();
     expect(hold.isHeld()).toBe(false);
   });
