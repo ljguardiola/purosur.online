@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import { hostname, release, version } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { type CoreReadyMessage, mainToCoreMessageSchema } from "@purosur/contracts";
+import {
+  type CoreReadyMessage,
+  type CoreRefusedMessage,
+  mainToCoreMessageSchema,
+} from "@purosur/contracts";
 import * as Sentry from "@sentry/electron/utility";
 import { net } from "electron";
 import {
@@ -187,9 +191,12 @@ async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefine
       now,
     });
     console.info(
-      started.kind === "ready"
-        ? "core: the local database is ready"
-        : "core: the local database is damaged, so the register is out of service",
+      {
+        ready: "core: the local database is ready",
+        out_of_service: "core: the local database is damaged, so the register is out of service",
+        newer_than_version:
+          "core: the local database was migrated by a newer version, so it is left untouched",
+      }[started.kind],
     );
     return started;
   } catch (error) {
@@ -202,7 +209,17 @@ async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefine
   }
 }
 
-const register = registerServiceOf(await startLocalDatabaseFile(), () => process.exit(1));
+const startedLocalDatabase = await startLocalDatabaseFile();
+if (startedLocalDatabase?.kind === "newer_than_version") {
+  console.error("core: refusing a local database migrated by a newer version");
+  process.parentPort.postMessage({
+    type: "core-refused",
+    reason: "newer_database",
+  } satisfies CoreRefusedMessage);
+  await new Promise<never>(() => {});
+}
+
+const register = registerServiceOf(startedLocalDatabase, () => process.exit(1));
 const localDatabase = register.database;
 const replica = localDatabase === undefined ? undefined : new SqliteLocalReplica(localDatabase);
 const localOutbox =
