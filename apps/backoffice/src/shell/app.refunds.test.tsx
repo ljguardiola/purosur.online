@@ -1,5 +1,5 @@
 import type { Capability } from "@purosur/domain";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { pendingRefunds } from "../payments/test-support/refund-fixtures";
@@ -12,8 +12,6 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 opensOnlyScreens(["/", "/account", "/help", "/pending-refunds", "/points-of-sale"]);
 
 beforeEach(resetPageState);
-
-afterEach(resetPageState);
 
 function refundsServices(capabilities: Capability[]) {
   const services = createAppServices({

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { openSession } from "../sessions/test-support/open-session";
@@ -10,8 +10,6 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 opensOnlyScreens(["/", "/account", "/help", "/users", "/users/$userId"]);
 
 beforeEach(resetPageState);
-
-afterEach(resetPageState);
 
 test("routes /account to Mi cuenta inside the Shell, with Config and Usuarios active and Ayuda not", async () => {
   const services = createAppServices();
@@ -331,7 +329,6 @@ test("lets a non-Administrator holding deactivate_users open Usuarios, without N
   expect(screen.getByRole("button", { name: "Nuevo usuario" }).query()).toBeNull();
   expect(services.usersListScreen.fetchRoles).not.toHaveBeenCalled();
   expect(window.location.pathname).toBe("/users");
-  window.history.pushState(null, "", "/");
 });
 
 test("opens a user's detail for a non-Administrator holding deactivate_users, offering only Desactivar", async () => {
@@ -376,7 +373,6 @@ test("opens a user's detail for a non-Administrator holding deactivate_users, of
   expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
   expect(services.userCredentialSections.fetchUserPasskeys).not.toHaveBeenCalled();
   expect(window.location.pathname).toBe("/users/user-3");
-  window.history.pushState(null, "", "/");
 });
 
 test("lets a non-Administrator holding only reset_user_pin open Usuarios and a user's detail, offering the PIN reset", async () => {
@@ -418,7 +414,6 @@ test("lets a non-Administrator holding only reset_user_pin open Usuarios and a u
   await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeVisible();
   await expect.element(screen.getByRole("link", { name: "Usuarios" })).toBeVisible();
   expect(window.location.pathname).toBe("/users/user-3");
-  window.history.pushState(null, "", "/");
 });
 
 test.each([
