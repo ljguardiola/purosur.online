@@ -12,7 +12,7 @@ import type {
   InitialCountTransaction,
 } from "../initial-count-ledger.js";
 
-export interface FakeCountableProduct extends CountableProduct {
+interface FakeCountableProduct extends CountableProduct {
   barcode?: string;
   timesSoldHere?: number;
 }
