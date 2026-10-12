@@ -388,14 +388,9 @@ const REJECTION_CLASS_LABELS = {
 const CLOSING_NOTES: Record<AlertDetail["closing"], string | null> = {
   by_itself: null,
   with_its_refund: "Se cierra cuando su reembolso se marca como hecho o se descarta.",
+  when_its_refund_is_done: "Se cierra cuando su reembolso se marca como hecho.",
   by_hand: "No se cierra sola: se cierra a mano después de revisarla.",
 };
-
-const REFUND_TASK_CLOSING_NOTE = "Se cierra cuando su reembolso se marca como hecho.";
-
-function closingNote(alert: AlertDetail): string | null {
-  return alert.kind === "refund_task" ? REFUND_TASK_CLOSING_NOTE : CLOSING_NOTES[alert.closing];
-}
 
 function AlertDescription({ alert }: { alert: AlertDetail }) {
   if (alert.kind === "fiscal_rejected") {
@@ -623,8 +618,8 @@ function OpenAlertDetailModal({
                 ))}
               </div>
             </div>
-            {alert.open && closingNote(alert) !== null ? (
-              <p className="text-text-subtle text-detail">{closingNote(alert)}</p>
+            {alert.open && CLOSING_NOTES[alert.closing] !== null ? (
+              <p className="text-text-subtle text-detail">{CLOSING_NOTES[alert.closing]}</p>
             ) : null}
           </>
         ) : null}

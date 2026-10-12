@@ -184,13 +184,25 @@ export function alertKindsWithScope(scopeKind: AlertScopeKind): AlertKind[] {
   return ALERT_KINDS.filter((kind) => ALERT_KIND_POLICIES[kind].scopeKind === scopeKind);
 }
 
-export const ALERT_CLOSINGS = ["by_itself", "with_its_refund", "by_hand"] as const;
+export const ALERT_CLOSINGS = [
+  "by_itself",
+  "with_its_refund",
+  "when_its_refund_is_done",
+  "by_hand",
+] as const;
 export type AlertClosing = (typeof ALERT_CLOSINGS)[number];
+
+const KINDS_OF_A_DISCARDABLE_REFUND: readonly AlertKind[] = ["late_payment_refund"];
 
 export function alertClosing(kind: AlertKind): AlertClosing {
   const policy = ALERT_KIND_POLICIES[kind];
   if (policy.resolvesAfterStableClear) {
     return "by_itself";
   }
-  return policy.scopeKind === "refund" ? "with_its_refund" : "by_hand";
+  if (policy.scopeKind !== "refund") {
+    return "by_hand";
+  }
+  return KINDS_OF_A_DISCARDABLE_REFUND.includes(kind)
+    ? "with_its_refund"
+    : "when_its_refund_is_done";
 }

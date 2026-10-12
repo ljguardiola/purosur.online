@@ -100,6 +100,9 @@ function alertRowDescription(alert: AlertSummary): string {
     const payment = `QR de Mercado Pago de ${formatCents(alert.refundAmount)}`;
     return alert.resolvedAt === null ? `${payment} sin marcar como hecho` : payment;
   }
+  if (alert.kind === "refund_task" && alert.resolvedAt !== null) {
+    return "Reembolso de una venta anulada";
+  }
   const subject = localSubjectOf(alert);
   if (subject === undefined) {
     return alertKindDescription(alert.kind);

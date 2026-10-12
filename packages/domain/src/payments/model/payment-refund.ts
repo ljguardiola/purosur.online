@@ -84,6 +84,10 @@ export function refundAlertKind(origin: string): AlertKind {
   return origin === LATE_PAYMENT_REFUND_ORIGIN ? "late_payment_refund" : "refund_task";
 }
 
+export const REFUND_TASK_ORIGINS: readonly RefundOrigin[] = REFUND_ORIGINS.filter(
+  (origin) => refundAlertKind(origin) === "refund_task",
+);
+
 export interface LatePaymentRefund extends PlannedRefund {
   origin: typeof LATE_PAYMENT_REFUND_ORIGIN;
   providerOrderId: string | null;
