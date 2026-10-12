@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
+  DISCARDABLE_REFUND_ALERT_KINDS,
   isRefundDiscardable,
   isRefundDiscarded,
   isRefundPending,
@@ -14,6 +15,8 @@ import {
   plannedRefunds,
   REFUND_ORIGINS,
   REFUND_STATES,
+  REFUND_TASK_ORIGINS,
+  refundAlertKind,
   refundsSettleApprovedPayments,
   SALE_CANCELLED_REFUND_ORIGIN,
 } from "./payment-refund.js";
@@ -217,6 +220,28 @@ describe("isRefundDiscardable", () => {
 
   it.each(["sale_cancelled", "", "other"])("is false for the origin %j", (origin) => {
     expect(isRefundDiscardable(origin)).toBe(false);
+  });
+});
+
+describe("refundAlertKind", () => {
+  it("is the late-payment refund alert for a payment that arrived late", () => {
+    expect(refundAlertKind(LATE_PAYMENT_REFUND_ORIGIN)).toBe("late_payment_refund");
+  });
+
+  it("is the refund task alert for a cancelled sale", () => {
+    expect(refundAlertKind(SALE_CANCELLED_REFUND_ORIGIN)).toBe("refund_task");
+  });
+});
+
+describe("REFUND_TASK_ORIGINS", () => {
+  it("lists every origin whose refund gets the refund task alert, leaving out a payment that arrived late", () => {
+    expect(REFUND_TASK_ORIGINS).toEqual([SALE_CANCELLED_REFUND_ORIGIN]);
+  });
+});
+
+describe("DISCARDABLE_REFUND_ALERT_KINDS", () => {
+  it("lists the alert kind of every refund that may be discarded, leaving out the refund task of a cancelled sale", () => {
+    expect(DISCARDABLE_REFUND_ALERT_KINDS).toEqual(["late_payment_refund"]);
   });
 });
 

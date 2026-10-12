@@ -32,7 +32,12 @@ describe("discardRefund", () => {
       { ...LATE_PAYMENT, state: "DISCARDED", discardedBy: "manager", discardedAt: NOW },
     ]);
     expect(store.resolvedAlerts).toEqual([
-      { refundId: "refund-1", resolvedBy: "manager", resolvedAt: NOW },
+      {
+        refundId: "refund-1",
+        kind: "late_payment_refund",
+        resolvedBy: "manager",
+        resolvedAt: NOW,
+      },
     ]);
     expect(store.transactions).toBe(1);
   });
@@ -45,7 +50,7 @@ describe("discardRefund", () => {
     expect(store.operationOrder).toEqual([
       "lockRefund",
       "recordRefundDiscarded",
-      "resolveLatePaymentRefundAlert",
+      "resolveRefundAlert",
     ]);
   });
 
@@ -96,7 +101,7 @@ describe("discardRefund", () => {
     expect(store.operationOrder).toEqual(["lockRefund"]);
   });
 
-  it.each(["recordRefundDiscarded", "resolveLatePaymentRefundAlert"] as const)(
+  it.each(["recordRefundDiscarded", "resolveRefundAlert"] as const)(
     "leaves the refund pending, with its alert open, if %s fails",
     async (step) => {
       const store = new FakeRefundStore([{ ...LATE_PAYMENT }]);

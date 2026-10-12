@@ -30,6 +30,7 @@ const alert: AlertSummary = {
   resolvedAt: null,
   salesDeniedReason: null,
   refundAmount: null,
+  refundMethod: null,
 };
 
 const emptyListBody = {
@@ -115,6 +116,7 @@ test("fetchAlerts reports failed when the request itself throws", async () => {
 const {
   salesDeniedReason: _reasonNotInDetail,
   refundAmount: _amountNotInDetail,
+  refundMethod: _methodNotInDetail,
   ...alertWithoutReason
 } = alert;
 

@@ -157,6 +157,13 @@ const latePaymentRefundDetailSchema = z.object({
   providerOrderId: z.string().nullable(),
 });
 
+const refundTaskDetailSchema = z.object({
+  saleId: z.string(),
+  amount: z.int(),
+  method: z.string(),
+  refundOpenedAt: z.string(),
+});
+
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
 
 const alertBase = {
@@ -254,6 +261,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("late_payment_refund" satisfies AlertKind),
     detail: latePaymentRefundDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("refund_task" satisfies AlertKind),
+    detail: refundTaskDetailSchema,
   }),
 ] as const;
 

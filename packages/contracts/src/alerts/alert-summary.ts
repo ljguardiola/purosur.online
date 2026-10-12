@@ -1,4 +1,9 @@
-import { ALERT_AUDIENCES, ALERT_LEVELS, SALES_DENIED_REASONS } from "@purosur/domain";
+import {
+  ALERT_AUDIENCES,
+  ALERT_LEVELS,
+  PAYMENT_METHODS,
+  SALES_DENIED_REASONS,
+} from "@purosur/domain";
 import { z } from "zod";
 
 export const alertLevelSchema = z.enum(ALERT_LEVELS);
@@ -17,6 +22,7 @@ export const alertSummarySchema = z.object({
   resolvedAt: z.string().nullable(),
   salesDeniedReason: z.enum(SALES_DENIED_REASONS).nullable(),
   refundAmount: z.int().nonnegative().nullable(),
+  refundMethod: z.enum(PAYMENT_METHODS).nullable(),
 });
 
 export const alertListPageSchema = z.object({
