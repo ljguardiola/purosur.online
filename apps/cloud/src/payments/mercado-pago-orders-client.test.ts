@@ -14,6 +14,7 @@ import {
   instoreOrderLockedError,
   ORDER_CARD_FIRST_SIX,
   ORDER_CARD_LAST_FOUR,
+  ORDER_EXTERNAL_REFERENCE,
   ORDER_ID,
   orderAlreadyCanceledError,
   paidOrder,
@@ -81,6 +82,7 @@ function createdResult(overrides: Partial<MercadoPagoOrderResult> = {}): Mercado
   return {
     status: "created",
     statusDetail: "created",
+    externalReference: ORDER_EXTERNAL_REFERENCE,
     totalPaidAmount: null,
     payments: [{ status: "created", statusDetail: "ready_to_process", paidAmount: null }],
     ...overrides,
@@ -169,6 +171,7 @@ describe("the Mercado Pago orders client", () => {
         result: {
           status: "processed",
           statusDetail: "accredited",
+          externalReference: ORDER_EXTERNAL_REFERENCE,
           totalPaidAmount: 5000,
           payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 5000 }],
         },
@@ -278,6 +281,7 @@ describe("the Mercado Pago orders client", () => {
         {
           status: "processed",
           statusDetail: "accredited",
+          externalReference: ORDER_EXTERNAL_REFERENCE,
           totalPaidAmount: 5000,
           payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 5000 }],
         },
@@ -288,6 +292,7 @@ describe("the Mercado Pago orders client", () => {
         {
           status: "processed",
           statusDetail: "accredited",
+          externalReference: ORDER_EXTERNAL_REFERENCE,
           totalPaidAmount: 4728,
           payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 4728 }],
         },
@@ -356,6 +361,20 @@ describe("the Mercado Pago orders client", () => {
       });
     });
 
+    it("answers the order's external reference, and none when the order carries none", async () => {
+      const { client } = clientAnswering(
+        answer(200, createdOrder()),
+        answer(200, { ...createdOrder(), external_reference: undefined }),
+      );
+
+      expect(await client.readOrder(ORDER_ID)).toMatchObject({
+        result: { externalReference: ORDER_EXTERNAL_REFERENCE },
+      });
+      expect(await client.readOrder(ORDER_ID)).toMatchObject({
+        result: { externalReference: null },
+      });
+    });
+
     it("reads an answer that does not state the order's total amount", async () => {
       const { client } = clientAnswering(
         answer(200, { ...createdOrder(), total_amount: undefined }),
@@ -381,6 +400,7 @@ describe("the Mercado Pago orders client", () => {
         result: {
           status: "processed",
           statusDetail: "accredited",
+          externalReference: ORDER_EXTERNAL_REFERENCE,
           totalPaidAmount: 5000,
           payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 5000 }],
         },
@@ -524,6 +544,7 @@ describe("the Mercado Pago orders client", () => {
         result: {
           status: "canceled",
           statusDetail: "canceled",
+          externalReference: ORDER_EXTERNAL_REFERENCE,
           totalPaidAmount: null,
           payments: [{ status: "canceled", statusDetail: "canceled_by_api", paidAmount: null }],
         },

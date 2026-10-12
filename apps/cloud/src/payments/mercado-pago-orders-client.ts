@@ -49,6 +49,7 @@ const orderAnswerSchema = z.object({
   id: z.string().min(1),
   status: z.string(),
   status_detail: z.string(),
+  external_reference: z.string().optional(),
   total_paid_amount: amountSchema.optional(),
   transactions: z
     .object({
@@ -74,6 +75,7 @@ function parsedOrder(body: unknown) {
     result: {
       status: answer.status,
       statusDetail: answer.status_detail,
+      externalReference: answer.external_reference ?? null,
       totalPaidAmount: answer.total_paid_amount ?? null,
       payments: (answer.transactions?.payments ?? []).map((payment) => ({
         status: payment.status,

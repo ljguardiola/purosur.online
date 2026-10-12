@@ -9,6 +9,7 @@ interface MercadoPagoOrderPayment {
 export interface MercadoPagoOrderResult {
   status: string;
   statusDetail: string;
+  externalReference: string | null;
   totalPaidAmount: number | null;
   payments: readonly MercadoPagoOrderPayment[];
 }
@@ -44,6 +45,14 @@ function isFullyAccredited(result: MercadoPagoOrderResult): boolean {
       (payment) => payment.status === PROCESSED && payment.statusDetail === ACCREDITED,
     )
   );
+}
+
+export function paidAmountOfMercadoPagoOrder(result: MercadoPagoOrderResult): number | null {
+  if (result.status !== PROCESSED || !isFullyAccredited(result)) {
+    return null;
+  }
+  const paid = amountPaid(result);
+  return paid !== null && paid > 0 ? paid : null;
 }
 
 export function paymentStateOfMercadoPagoOrder(

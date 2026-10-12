@@ -17,6 +17,7 @@ type LaneWrite =
   | "recordNeedsReview"
   | "recordExpired"
   | "recordOrderCreated"
+  | "recordNoOtherOrderPossible"
   | "recordOrderResult"
   | "openLatePaymentRefund";
 
@@ -107,6 +108,15 @@ class FakeLane implements PaymentTransactionLane {
     return this.store(paymentTransactionId, reading.outcome, reading.readAt);
   }
 
+  async recordNoOtherOrderPossible(paymentTransactionId: string): Promise<void> {
+    this.lanes.operations.push("recordNoOtherOrderPossible");
+    this.lanes.failIfAsked("recordNoOtherOrderPossible");
+    const stored = this.lanes.transactions.get(paymentTransactionId);
+    if (stored) {
+      stored.creationOutcomeUnknown = false;
+    }
+  }
+
   async recordOrderResult(
     paymentTransactionId: string,
     outcome: PaymentTransactionOutcome,
@@ -123,10 +133,11 @@ class FakeLane implements PaymentTransactionLane {
   ): Promise<LatePaymentRefundOpening> {
     this.lanes.operations.push("openLatePaymentRefund");
     this.lanes.failIfAsked("openLatePaymentRefund");
-    if (this.lanes.latePaymentRefunds.has(refund.paymentId)) {
+    const key = `${refund.paymentId}|${refund.providerOrderId ?? ""}`;
+    if (this.lanes.latePaymentRefunds.has(key)) {
       return "already_open";
     }
-    this.lanes.latePaymentRefunds.set(refund.paymentId, {
+    this.lanes.latePaymentRefunds.set(key, {
       refund: structuredClone(refund),
       openedAt: new Date(openedAt),
     });

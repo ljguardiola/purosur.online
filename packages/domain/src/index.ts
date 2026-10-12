@@ -240,6 +240,7 @@ export {
   isRefundPending,
   isValidOrderAmount,
   latePaymentRefund,
+  latePaymentRefundOfUnrecordedOrder,
   MERCADO_PAGO_PENDING_CHECK_INTERVAL_MS,
   MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS,
   MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES,

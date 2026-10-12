@@ -16,6 +16,7 @@ export const transferRefund: PendingRefundsBody["refunds"][number] = {
   seconds_pending: 3 * 3600,
   sale_occurred_at: "2026-10-07T15:30:00.000Z",
   covered_by: [],
+  provider_order_id: null,
   cancelled_by: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
   cancelled_by_name: "Lucía",
 };
@@ -33,6 +34,7 @@ const secondRefund: PendingRefundsBody["refunds"][number] = {
   seconds_pending: 20 * 60,
   sale_occurred_at: "2026-10-07T18:05:00.000Z",
   covered_by: [],
+  provider_order_id: null,
   cancelled_by: "ffffffff-ffff-4fff-8fff-ffffffffffff",
   cancelled_by_name: null,
 };
@@ -52,8 +54,19 @@ export const latePaymentRefund: PendingRefundsBody["refunds"][number] = {
   seconds_pending: 27 * 3600,
   sale_occurred_at: "2026-10-08T12:37:00.000Z",
   covered_by: ["TRANSFER"],
+  provider_order_id: null,
   cancelled_by: null,
   cancelled_by_name: null,
+};
+
+const OTHER_ORDER_REFUND_ID = "77777777-7777-4777-8777-777777777777";
+
+const latePaymentOfOtherOrderRefund: PendingRefundsBody["refunds"][number] = {
+  ...latePaymentRefund,
+  id: OTHER_ORDER_REFUND_ID,
+  amount: 118_000,
+  covered_by: ["QR"],
+  provider_order_id: "ORD01JQ4S4KY8HWQ6NA5PXB65B3D3",
 };
 
 export const pendingRefunds: PendingRefundsBody = { refunds: [transferRefund, secondRefund] };
@@ -62,4 +75,8 @@ export const noPendingRefunds: PendingRefundsBody = { refunds: [] };
 
 export const pendingRefundsWithLatePayment: PendingRefundsBody = {
   refunds: [transferRefund, latePaymentRefund],
+};
+
+export const pendingRefundsWithLatePaymentOfOtherOrder: PendingRefundsBody = {
+  refunds: [transferRefund, latePaymentOfOtherOrderRefund],
 };

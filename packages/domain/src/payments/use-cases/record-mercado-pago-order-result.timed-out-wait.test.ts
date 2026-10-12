@@ -58,6 +58,7 @@ describe("a QR payment the register could not confirm expired", () => {
         amount: AMOUNT,
         state: "PENDING",
         origin: "late_payment",
+        providerOrderId: null,
       },
     ]);
     expect(cloud.mercadoPago.cancellations).toEqual([]);

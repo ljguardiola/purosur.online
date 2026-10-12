@@ -1244,9 +1244,8 @@ export const paymentRefunds = pgTable(
     id: uuid("id").primaryKey(),
     saleId: uuid("sale_id").notNull(),
     paymentId: uuid("payment_id"),
-    paymentTransactionId: uuid("payment_transaction_id")
-      .unique()
-      .references(() => paymentTransactions.id),
+    paymentTransactionId: uuid("payment_transaction_id").references(() => paymentTransactions.id),
+    providerOrderId: text("provider_order_id"),
     origin: text("origin").notNull().default("sale_cancelled"),
     method: text("method").notNull(),
     provider: text("provider").notNull(),
@@ -1259,6 +1258,12 @@ export const paymentRefunds = pgTable(
     discardedAt: timestamp("discarded_at", { withTimezone: true }),
   },
   (table) => [
+    uniqueIndex("payment_refunds_transaction_without_order_unique")
+      .on(table.paymentTransactionId)
+      .where(sql`${table.providerOrderId} is null`),
+    uniqueIndex("payment_refunds_transaction_order_unique")
+      .on(table.paymentTransactionId, table.providerOrderId)
+      .where(sql`${table.providerOrderId} is not null`),
     foreignKey({
       name: "payment_refunds_payment_of_its_sale_fk",
       columns: [table.paymentId, table.saleId],

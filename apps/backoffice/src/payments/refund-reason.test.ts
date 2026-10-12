@@ -8,11 +8,17 @@ const SALE_MOMENT = "2026-09-16T12:37:00.000Z";
 
 const latePayment: Pick<
   Refund,
-  "origin" | "sale_occurred_at" | "covered_by" | "cancelled_by" | "cancelled_by_name"
+  | "origin"
+  | "sale_occurred_at"
+  | "covered_by"
+  | "provider_order_id"
+  | "cancelled_by"
+  | "cancelled_by_name"
 > = {
   origin: "late_payment",
   sale_occurred_at: SALE_MOMENT,
   covered_by: ["TRANSFER"],
+  provider_order_id: null,
   cancelled_by: null,
   cancelled_by_name: null,
 };
@@ -21,6 +27,7 @@ const cancelledSale: typeof latePayment = {
   origin: "sale_cancelled",
   sale_occurred_at: SALE_MOMENT,
   covered_by: [],
+  provider_order_id: null,
   cancelled_by: "user-1",
   cancelled_by_name: "Lucía Pérez",
 };
@@ -29,6 +36,13 @@ test("tells a late approval after the sale was charged by transfer", () => {
   expect(refundReason(latePayment)).toEqual({
     title: "Aprobación tardía",
     detail: "El QR de la venta del 16/09 09:37 se pagó después de cobrarla con transferencia",
+  });
+});
+
+test("tells a QR order paid twice, keeping the origin label", () => {
+  expect(refundReason({ ...latePayment, provider_order_id: "ORD01SECOND" })).toEqual({
+    title: "Aprobación tardía",
+    detail: "El QR de la venta del 16/09 09:37 se pagó dos veces",
   });
 });
 
