@@ -29,6 +29,7 @@ describe("ALERT_KINDS", () => {
       "offline_authorization_code_missing",
       "late_payment_refund",
       "refund_task",
+      "fiscal_unknown",
     ]);
   });
 });

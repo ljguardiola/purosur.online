@@ -7,6 +7,8 @@ import {
   alertClosing,
   alertKindPolicy,
   alertKindsWithScope,
+  FISCAL_UNKNOWN_ALERT_OPENING_DELAY_MS,
+  FISCAL_UNKNOWN_ESCALATION_DELAY_MS,
   LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS,
   REFUND_TASK_ALERT_OPENING_DELAY_MS,
   REFUND_TASK_ESCALATION_DELAY_MS,
@@ -24,6 +26,11 @@ describe("alertKindPolicy", () => {
   it("opens the alert of a forgotten refund after 24 hours and escalates it 72 hours after the refund opened", () => {
     expect(REFUND_TASK_ALERT_OPENING_DELAY_MS).toBe(24 * 60 * 60 * 1000);
     expect(REFUND_TASK_ESCALATION_DELAY_MS).toBe(72 * 60 * 60 * 1000);
+  });
+
+  it("opens the alert of an unclear document after 5 minutes and escalates it 30 minutes after the document became unclear", () => {
+    expect(FISCAL_UNKNOWN_ALERT_OPENING_DELAY_MS).toBe(5 * 60 * 1000);
+    expect(FISCAL_UNKNOWN_ESCALATION_DELAY_MS).toBe(30 * 60 * 1000);
   });
 
   const afterOpening = { kind: "afterOpening", delayMs: ALERT_ESCALATION_DELAY_MS } as const;
@@ -65,6 +72,14 @@ describe("alertKindPolicy", () => {
       { kind: "afterSubjectOpening", delayMs: REFUND_TASK_ESCALATION_DELAY_MS },
       "local",
       "refund",
+      true,
+    ],
+    [
+      "fiscal_unknown",
+      "warning",
+      { kind: "afterSubjectOpening", delayMs: FISCAL_UNKNOWN_ESCALATION_DELAY_MS },
+      "all",
+      "fiscalDocument",
       true,
     ],
   ] as const)(
@@ -123,12 +138,18 @@ describe("alertClosing", () => {
       offline_authorization_code_missing: "by_itself",
       late_payment_refund: "with_its_refund",
       refund_task: "when_its_refund_is_done",
+      fiscal_unknown: "when_its_document_is_resolved",
     });
   });
 
   it("closes a refund's alert with its refund done or discarded only when its kind is one of a discardable refund", () => {
     expect(alertClosing("late_payment_refund", [])).toBe("when_its_refund_is_done");
     expect(alertClosing("refund_task", ["refund_task"])).toBe("with_its_refund");
+  });
+
+  it("closes an unclear document's alert once its document is resolved whatever kinds belong to a discardable refund", () => {
+    expect(alertClosing("fiscal_unknown", [])).toBe("when_its_document_is_resolved");
+    expect(alertClosing("fiscal_unknown", ["fiscal_unknown"])).toBe("when_its_document_is_resolved");
   });
 
   it("closes an alert not scoped to a refund the same way whatever kinds belong to a discardable refund", () => {
@@ -141,6 +162,7 @@ describe("alertClosing", () => {
       "by_itself",
       "with_its_refund",
       "when_its_refund_is_done",
+      "when_its_document_is_resolved",
       "by_hand",
     ]);
   });
@@ -174,5 +196,6 @@ describe("alertKindsWithScope", () => {
       "offline_authorization_code_missing",
     ]);
     expect(alertKindsWithScope("refund")).toEqual(["late_payment_refund", "refund_task"]);
+    expect(alertKindsWithScope("fiscalDocument")).toEqual(["fiscal_unknown"]);
   });
 });
