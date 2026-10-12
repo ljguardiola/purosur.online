@@ -1,12 +1,10 @@
-import { type SaleStanding, saleStandingOf } from "@purosur/domain";
+import { type FiscalDocumentState, type SaleStanding, saleStandingOf } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { SqliteRegisterSalesHistory } from "./sqlite-register-sales-history";
-
-type FiscalState = "REQUESTING" | "AUTHORIZED" | "REJECTED" | "UNKNOWN";
 
 interface SaleSeed {
   id: string;
@@ -18,8 +16,8 @@ interface SaleSeed {
   actor?: string;
   lines?: number[];
   payments?: { method: "CASH" | "TRANSFER" | "QR"; amount: number }[];
-  fiscal?: { state: FiscalState; pointOfSale?: number; number?: number };
-  deferred?: boolean;
+  fiscal?: { state: FiscalDocumentState; pointOfSale?: number; number?: number };
+  deferred?: boolean | "satisfied";
 }
 
 const DECIDED_STANDINGS = ["completed", "in_progress", "deferred"] as const;
@@ -115,6 +113,13 @@ function addSale({
         "INSERT INTO deferred_sales (sale_id, reason, routed_at) VALUES (?, 'fiscally_offline', '2026-10-08T12:00:00.000Z')",
       )
       .run(id);
+  }
+  if (deferred === "satisfied") {
+    database
+      .prepare(
+        "UPDATE deferred_sales SET satisfied_by_fiscal_document_id = ?, satisfied_at = '2026-10-08T12:01:00.000Z' WHERE sale_id = ?",
+      )
+      .run(`doc-${id}`, id);
   }
 }
 
@@ -299,6 +304,48 @@ describe("SqliteRegisterSalesHistory", () => {
       addSale({ id: "sale-1", deferred: true });
 
       expect(all().entries[0]?.fiscal).toEqual({ deferred: true, fiscalDocument: null });
+    });
+  });
+
+  describe("a deferred sale an authorization satisfied", () => {
+    beforeEach(() => {
+      addSale({
+        id: "adopted",
+        occurredAt: "2026-10-08T10:00:00.000Z",
+        fiscal: { state: "AUTHORIZED", pointOfSale: 7, number: 1204 },
+        deferred: "satisfied",
+      });
+      addSale({
+        id: "released",
+        occurredAt: "2026-10-08T10:01:00.000Z",
+        fiscal: { state: "RELEASED", pointOfSale: 8 },
+        deferred: true,
+      });
+      addSale({
+        id: "conflicting",
+        occurredAt: "2026-10-08T10:02:00.000Z",
+        fiscal: { state: "CONFLICTING", pointOfSale: 9 },
+        deferred: true,
+      });
+    });
+
+    it("shows its authorized document as its fiscal document, no longer deferred", () => {
+      const adopted = all().entries.find(({ saleId }) => saleId === "adopted");
+
+      expect(adopted?.fiscal).toEqual({
+        deferred: false,
+        fiscalDocument: {
+          state: "AUTHORIZED",
+          documentType: "factura_c",
+          pointOfSale: 7,
+          number: 1204,
+        },
+      });
+    });
+
+    it("is completed, while a sale whose document was released or conflicting stays deferred", () => {
+      expect(idsOf(all("completed"))).toEqual(["adopted"]);
+      expect(idsOf(all("deferred"))).toEqual(["conflicting", "released"]);
     });
   });
 

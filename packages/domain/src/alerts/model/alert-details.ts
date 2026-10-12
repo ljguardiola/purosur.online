@@ -119,6 +119,7 @@ interface OfflineAuthorizationCodeMissingDetail {
 interface LatePaymentRefundDetail {
   saleId: string;
   amount: number;
+  providerOrderId: string | null;
 }
 
 export interface AlertDetails {

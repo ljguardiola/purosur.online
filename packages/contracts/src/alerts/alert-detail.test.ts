@@ -340,7 +340,7 @@ describe("alertDetailSchema", () => {
         fortnightEnd: "2026-10-31",
         fortnightStarted: false,
       },
-      late_payment_refund: { saleId: "sale-1", amount: 250000 },
+      late_payment_refund: { saleId: "sale-1", amount: 250000, providerOrderId: "ORD01" },
     } satisfies Record<AlertKind, unknown>;
 
     it.each(ALERT_KINDS)("accepts the detail of %s", (kind) => {
@@ -358,6 +358,16 @@ describe("alertDetailSchema", () => {
       const { [field]: _omitted, ...detail } = detailOf[kind] as Record<string, unknown>;
 
       expect(alertDetailSchema.safeParse({ ...base, kind, detail }).success).toBe(false);
+    });
+
+    it("accepts a late payment refund alert that names no order", () => {
+      const alert = {
+        ...base,
+        kind: "late_payment_refund",
+        detail: { saleId: "sale-1", amount: 250000, providerOrderId: null },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
     });
 
     it("accepts a sales-denied alert of a register whose local database is damaged", () => {

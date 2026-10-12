@@ -67,3 +67,36 @@ test("renders every child passed to it, in order, below its own label", async ()
     "Second",
   ]);
 });
+
+test("renders its description below its children in subtle detail text", async () => {
+  const screen = await render(
+    <FieldGroup
+      label="Cantidad contada de cada lote"
+      description="Un lote sin cantidad queda en cero."
+    >
+      <p>First</p>
+    </FieldGroup>,
+  );
+  const label = screen.getByText("Cantidad contada de cada lote").element() as HTMLElement;
+  const description = screen
+    .getByText("Un lote sin cantidad queda en cero.", { exact: true })
+    .element() as HTMLElement;
+  const wrapper = label.parentElement as HTMLElement;
+
+  expect(wrapper.lastElementChild).toBe(description);
+  expect(getComputedStyle(description).fontSize).toBe("14px");
+  expect(getComputedStyle(description).color).toBe(tokenRgb("text-subtle"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("renders no description line when given none", async () => {
+  const screen = await render(
+    <FieldGroup label="Categoría">
+      <p>Miel</p>
+    </FieldGroup>,
+  );
+  const label = screen.getByText("Categoría").element() as HTMLElement;
+
+  expect((label.parentElement as HTMLElement).children).toHaveLength(2);
+});

@@ -74,6 +74,21 @@ function forcedBodyPseudoStateClasses(Story: CatalogStory): string[] {
     .sort();
 }
 
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+// Chromium antialiases text a pixel past the area it repaints when that text goes away, so a
+// story's capture can keep a trace of a story before it. Changing the page's background, for one
+// painted frame, makes the next frame repaint every pixel.
+async function repaintWholePage(): Promise<void> {
+  const root = document.documentElement;
+  root.style.backgroundColor = "black";
+  await nextFrame();
+  await nextFrame();
+  root.style.removeProperty("background-color");
+}
+
 export async function renderCatalogStory(Story: CatalogStory): Promise<HTMLElement> {
   // The pseudo-states addon adds its classes to the root in a deferred callback after mount and
   // never removes them when the story unmounts.
@@ -81,6 +96,7 @@ export async function renderCatalogStory(Story: CatalogStory): Promise<HTMLEleme
     document.body.classList.remove(...pseudoStateClasses(document.body));
   });
 
+  await repaintWholePage();
   const screen = await render(<Story />);
   // Storybook-driven decorator effects, like the pseudo-states addon's own stylesheet rewrite,
   // only run once this event reaches them; nothing here emits it automatically outside Storybook.

@@ -50,6 +50,7 @@ describe("applyQrPaymentReplacement", () => {
           amount: 4100,
           state: "PENDING",
           origin: "late_payment",
+          providerOrderId: null,
         },
         openedAt: NOW,
       },

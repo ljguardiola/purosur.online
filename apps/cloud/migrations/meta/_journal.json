@@ -603,6 +603,20 @@
       "when": 1791759902193,
       "tag": "0089_acquisition_failure_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1791769450153,
+      "tag": "0090_stock_count_lots",
+      "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1791783318182,
+      "tag": "0091_late_payment_refund_per_order",
+      "breakpoints": true
     }
   ]
 }

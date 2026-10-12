@@ -22,6 +22,7 @@ export function orderResult(
   return {
     status: "created",
     statusDetail: "created",
+    externalReference: null,
     totalPaidAmount: null,
     payments: [],
     ...overrides,

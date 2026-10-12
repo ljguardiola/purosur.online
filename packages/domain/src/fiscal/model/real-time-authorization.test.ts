@@ -1,5 +1,5 @@
 import fc from "fast-check";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -11,6 +11,7 @@ import {
   authorizationCallDeadline,
   DEFERRAL_REASONS,
   decideRealTimeAuthorization,
+  type FiscalDocumentState,
   invoiceDateOf,
   isCompletionEventOfSale,
   mayStartAuthorizationCall,
@@ -343,9 +344,16 @@ describe("SERIES_WAITING_STATES", () => {
   });
 });
 
+describe("FiscalDocumentState", () => {
+  it("holds a document whose number was released or found holding a conflicting voucher", () => {
+    expectTypeOf<"RELEASED">().toExtend<FiscalDocumentState>();
+    expectTypeOf<"CONFLICTING">().toExtend<FiscalDocumentState>();
+  });
+});
+
 describe("NUMBER_CONSUMING_STATES", () => {
-  it("consumes a document's number only once the tax authority authorized it", () => {
-    expect(NUMBER_CONSUMING_STATES).toEqual(["AUTHORIZED"]);
+  it("keeps a document's number consumed once the tax authority authorized it or it was found holding a conflicting voucher", () => {
+    expect(NUMBER_CONSUMING_STATES).toEqual(["AUTHORIZED", "CONFLICTING"]);
   });
 });
 

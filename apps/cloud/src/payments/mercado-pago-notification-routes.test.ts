@@ -28,7 +28,7 @@ const route = mercadoPagoNotificationRoutesUnderTest();
 const NOT_AN_ORDER = "payment";
 
 async function pendingPaymentOfOrder(
-  providerOrderId = ORDER_ID,
+  providerOrderId: string | null = ORDER_ID,
   overrides: Parameters<typeof pendingTransaction>[1] = {},
 ) {
   const registerId = await insertRegister(route.db, "Caja 1");
@@ -383,9 +383,87 @@ describe("POST /payments/mercado-pago/notifications", () => {
           level: "warning",
           audience: "local",
           locationId: register?.locationId,
-          detail: { saleId: payment.saleId, amount: payment.amount },
+          detail: { saleId: payment.saleId, amount: payment.amount, providerOrderId: null },
         }),
       ]);
+    });
+
+    it("approves the payment whose order creation was unclear when its order turns out paid", async () => {
+      const payment = await pendingPaymentOfOrder(null, { creationOutcomeUnknown: true });
+      route.mercadoPago.reading = {
+        kind: "read",
+        result: { ...PAID_ORDER, externalReference: payment.id },
+      };
+
+      const response = await route.notify();
+
+      expect(response.statusCode).toBe(200);
+      const [stored] = await route.db
+        .select()
+        .from(paymentTransactions)
+        .where(eq(paymentTransactions.id, payment.id));
+      expect(stored).toMatchObject({ state: "APPROVED", providerOrderId: ORDER_ID });
+    });
+
+    it("opens the pending refund task and its alert when the order of a replaced payment whose creation was unclear turns out paid", async () => {
+      const payment = await pendingPaymentOfOrder(null, {
+        creationOutcomeUnknown: true,
+        replaced: true,
+      });
+      route.mercadoPago.reading = {
+        kind: "read",
+        result: { ...PAID_ORDER, externalReference: payment.id },
+      };
+
+      await route.notify();
+
+      expect(await route.db.select().from(paymentRefunds)).toEqual([
+        expect.objectContaining({ paymentTransactionId: payment.id, origin: "late_payment" }),
+      ]);
+      expect(await route.db.select().from(alerts)).toEqual([
+        expect.objectContaining({ kind: "late_payment_refund" }),
+      ]);
+    });
+
+    it("opens a refund task and its alert naming the order when a paid order names a payment that holds another order, leaving the payment as it is", async () => {
+      const payment = await pendingPaymentOfOrder("ORD01FIRST", {
+        creationOutcomeUnknown: true,
+        state: "APPROVED",
+      });
+      route.mercadoPago.reading = {
+        kind: "read",
+        result: { ...PAID_ORDER, externalReference: payment.id },
+      };
+
+      const response = await route.notify();
+
+      expect(response.statusCode).toBe(200);
+      const refunds = await route.db.select().from(paymentRefunds);
+      expect(refunds).toEqual([
+        expect.objectContaining({
+          paymentTransactionId: payment.id,
+          providerOrderId: ORDER_ID,
+          origin: "late_payment",
+          amount: PAID_ORDER.totalPaidAmount,
+          state: "PENDING",
+        }),
+      ]);
+      expect(await route.db.select().from(alerts)).toEqual([
+        expect.objectContaining({
+          kind: "late_payment_refund",
+          scope: refunds[0]?.id,
+          detail: {
+            saleId: payment.saleId,
+            amount: PAID_ORDER.totalPaidAmount,
+            providerOrderId: ORDER_ID,
+          },
+        }),
+      ]);
+      const [stored] = await route.db
+        .select()
+        .from(paymentTransactions)
+        .where(eq(paymentTransactions.id, payment.id));
+      expect(stored).toMatchObject({ state: "APPROVED", providerOrderId: "ORD01FIRST" });
     });
 
     it("opens no refund task when the order of a payment that was not replaced turns out paid", async () => {

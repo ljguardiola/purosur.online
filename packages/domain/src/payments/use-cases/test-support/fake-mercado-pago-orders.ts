@@ -21,7 +21,13 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   reading: MercadoPagoOrderReading;
   cancellation: MercadoPagoOrderCancellation = {
     kind: "cancelled",
-    result: { status: "canceled", statusDetail: "canceled", totalPaidAmount: null, payments: [] },
+    result: {
+      status: "canceled",
+      statusDetail: "canceled",
+      externalReference: null,
+      totalPaidAmount: null,
+      payments: [],
+    },
   };
   readonly readingsByOrder = new Map<string, MercadoPagoOrderReading>();
   readonly queuedReadings: MercadoPagoOrderReading[] = [];

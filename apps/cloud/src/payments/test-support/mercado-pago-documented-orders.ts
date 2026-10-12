@@ -1,6 +1,7 @@
 // Shapes written from Mercado Pago's Orders API reference, not responses recorded from its servers.
 
 export const ORDER_ID = "ORD01JQ4S4KY8HWQ6NA5PXB65B3D3";
+export const ORDER_EXTERNAL_REFERENCE = "0b0a5a42-1f9a-4a53-9f55-3e1c1c0d7a10";
 export const ORDER_CARD_FIRST_SIX = "450995";
 export const ORDER_CARD_LAST_FOUR = "3704";
 
@@ -25,7 +26,7 @@ function documentedOrder(order: DocumentedOrder): Record<string, unknown> {
     id: ORDER_ID,
     type: "qr",
     processing_mode: "automatic",
-    external_reference: "0b0a5a42-1f9a-4a53-9f55-3e1c1c0d7a10",
+    external_reference: ORDER_EXTERNAL_REFERENCE,
     total_amount: order.amount,
     ...(order.paidAmount === undefined ? {} : { total_paid_amount: order.paidAmount }),
     country_code: "ARG",

@@ -27,6 +27,7 @@ export type {
 export {
   isRefundPending,
   latePaymentRefund,
+  latePaymentRefundOfUnrecordedOrder,
   methodsCoveringRefundedSale,
   PLANNED_REFUND_STATES,
   plannedRefunds,

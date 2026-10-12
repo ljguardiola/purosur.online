@@ -8,6 +8,7 @@ import {
 } from "@purosur/domain";
 import type {
   LedgerAtMoment,
+  LedgerLot,
   LotInStock,
   ProductStockKey,
   RecordedStockCount,
@@ -28,11 +29,12 @@ import {
   purchaseLines,
   purchases,
   stockBalances,
+  stockCountLots,
   stockCounts,
   stockMovements,
   suppliers,
 } from "../platform/db/schema.js";
-import { appliedDeltaAfter } from "./stock-ledger-queries.js";
+import { appliedDeltaAfter, lotAllocationsAfter } from "./stock-ledger-queries.js";
 
 const stockProductColumns = {
   id: products.id,
@@ -54,6 +56,24 @@ async function currentBalance<TQueryResult extends PgQueryResultHKT>(
       and(eq(stockBalances.productId, key.productId), eq(stockBalances.locationId, key.locationId)),
     );
   return balance?.quantity ?? 0;
+}
+
+async function productLotsOf<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  key: ProductStockKey,
+): Promise<LedgerLot[]> {
+  return db
+    .select({
+      id: lots.id,
+      lotNumber: lots.lotNumber,
+      technical: lots.technical,
+      expiresOn: lots.expiresOn,
+      purchasedOn: lots.purchasedOn,
+      receivedAt: lots.createdAt,
+      remaining: lots.remaining,
+    })
+    .from(lots)
+    .where(and(eq(lots.productId, key.productId), eq(lots.locationId, key.locationId)));
 }
 
 export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
@@ -79,6 +99,8 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
       async (tx) => ({
         balance: await currentBalance(tx, key),
         appliedAfterCount: await appliedDeltaAfter(tx, key, at),
+        lots: await productLotsOf(tx, key),
+        lotAllocationsAfter: await lotAllocationsAfter(tx, key, at),
       }),
       { isolationLevel: "repeatable read", accessMode: "read only" },
     );
@@ -164,6 +186,10 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
         counted: stockCounts.counted,
         delta: stockMovements.delta,
         supersededByCountId: stockMovements.supersededByCountId,
+        lotCount: sql<number>`(
+          select count(*) from ${stockCountLots}
+          where ${stockCountLots.movementId} = ${stockMovements.id}
+        )`.mapWith(Number),
       })
       .from(stockMovements)
       .innerJoin(stockCounts, eq(stockCounts.movementId, stockMovements.id))
@@ -176,10 +202,11 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
         ),
       )
       .orderBy(desc(stockMovements.occurredAt), desc(stockMovements.id));
-    return rows.map(({ supersededByCountId, ...row }) => ({
+    return rows.map(({ supersededByCountId, lotCount, ...row }) => ({
       ...row,
       saleUnit: row.saleUnit as SaleUnit,
       superseded: supersededByCountId !== null,
+      lotCount: lotCount === 0 ? null : lotCount,
     }));
   }
 

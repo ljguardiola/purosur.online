@@ -1,7 +1,7 @@
 import type { CoveringCount, ProductStockKey } from "@purosur/domain/stock/use-cases";
 import { and, asc, eq, gt, gte, isNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { stockMovements } from "../platform/db/schema.js";
+import { lotAllocations, stockMovements } from "../platform/db/schema.js";
 
 function movementsOf(key: ProductStockKey) {
   return and(
@@ -44,4 +44,27 @@ export async function appliedDeltaAfter<TQueryResult extends PgQueryResultHKT>(
       ),
     );
   return row?.total ?? 0;
+}
+
+export async function lotAllocationsAfter<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  key: ProductStockKey,
+  at: Date,
+): Promise<Map<string, number>> {
+  const rows = await db
+    .select({
+      lotId: lotAllocations.lotId,
+      total: sql<number>`sum(${lotAllocations.quantity})`.mapWith(Number),
+    })
+    .from(lotAllocations)
+    .innerJoin(stockMovements, eq(stockMovements.id, lotAllocations.movementId))
+    .where(
+      and(
+        movementsOf(key),
+        isNull(stockMovements.supersededByCountId),
+        gt(stockMovements.occurredAt, at),
+      ),
+    )
+    .groupBy(lotAllocations.lotId);
+  return new Map(rows.map((row) => [row.lotId, row.total]));
 }

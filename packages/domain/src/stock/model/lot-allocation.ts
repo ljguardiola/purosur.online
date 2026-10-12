@@ -9,7 +9,7 @@ export interface StockLot {
   remaining: number;
 }
 
-type LotAllocationTarget = { kind: "lot"; lotId: string } | { kind: "new_technical_lot" };
+export type LotAllocationTarget = { kind: "lot"; lotId: string } | { kind: "new_technical_lot" };
 
 export interface PlannedLotAllocation {
   target: LotAllocationTarget;
@@ -42,11 +42,11 @@ function compareMostRecentlyReceived(a: StockLot, b: StockLot): number {
   return b.receivedAt.getTime() - a.receivedAt.getTime() || compareNullsLast(b.id, a.id);
 }
 
-function lotTarget(lotId: string): LotAllocationTarget {
+export function lotTarget(lotId: string): LotAllocationTarget {
   return { kind: "lot", lotId };
 }
 
-function shortfallTarget(lots: readonly StockLot[]): LotAllocationTarget {
+export function shortfallTarget(lots: readonly StockLot[]): LotAllocationTarget {
   const [mostRecent] = lots.filter((lot) => !lot.technical).sort(compareMostRecentlyReceived);
   const lot = mostRecent ?? lots.find((candidate) => candidate.technical);
   return lot ? lotTarget(lot.id) : { kind: "new_technical_lot" };

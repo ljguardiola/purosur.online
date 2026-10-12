@@ -131,6 +131,13 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
     );
   }
 
+  async recordNoOtherOrderPossible(paymentTransactionId: string): Promise<void> {
+    await this.db
+      .update(paymentTransactions)
+      .set({ creationOutcomeUnknown: false })
+      .where(eq(paymentTransactions.id, paymentTransactionId));
+  }
+
   async recordOrderResult(
     paymentTransactionId: string,
     { state, needsReview }: PaymentTransactionOutcome,

@@ -22,6 +22,7 @@ import { CREATED_AT, insertRegister } from "./test-support/payment-transaction-f
 const UNPAID_ORDER = {
   status: "created",
   statusDetail: "created",
+  externalReference: null,
   totalPaidAmount: null,
   payments: [],
 } as const;

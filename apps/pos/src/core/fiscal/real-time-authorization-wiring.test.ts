@@ -1,3 +1,4 @@
+import { cloudError, cloudErrorStatus } from "@purosur/contracts";
 import { REGISTER_HEALTH_CHECK_INTERVAL_MS } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CloudClientDeps } from "../platform/cloud-client";
@@ -9,6 +10,7 @@ import {
 } from "./real-time-authorization-wiring";
 import {
   insertCompletedSale,
+  insertDeferredSale,
   insertFiscalDocument,
   insertHealthCheck,
   insertSaleCompletedEvent,
@@ -25,26 +27,24 @@ interface SentRequest {
   authorization: string | null;
 }
 
-function cloudAnswering(answer: () => Promise<Response>) {
+function cloudAnswering(answer: (path: string) => Promise<Response>) {
   const sent: SentRequest[] = [];
   const cloud: CloudClientDeps = {
     cloudUrl: CLOUD_URL,
     fetch: async (input, init) => {
       const request = new Request(input, init);
-      sent.push({
-        path: new URL(request.url).pathname,
-        authorization: request.headers.get("authorization"),
-      });
-      return answer();
+      const path = new URL(request.url).pathname;
+      sent.push({ path, authorization: request.headers.get("authorization") });
+      return answer(path);
     },
     sleep: async () => undefined,
   };
   return { cloud, sent };
 }
 
-function json(body: unknown): Response {
+function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
-    status: 200,
+    status,
     headers: { "content-type": "application/json" },
   });
 }
@@ -299,5 +299,245 @@ describe("the register's health checks", () => {
 
     expect(scheduled).toEqual([]);
     expect(stop).toBeUndefined();
+  });
+});
+
+describe("applying the decisions of the documents left with an unclear outcome, as the register's health is checked", () => {
+  const UNCLEAR_PATH = "/api/fiscal/unclear-outcomes";
+
+  const healthy = () =>
+    json({
+      status: "ok",
+      version: "abc1234",
+      installation: { revoked: false },
+      arca: { token_valid: true, probe_ok_at: "2026-09-30T12:05:00.000Z", reachable: true },
+    });
+
+  function ticking(unclearOutcome: () => Promise<Response>, failures: unknown[] = []) {
+    const { cloud, sent } = cloudAnswering(async (path) =>
+      path === UNCLEAR_PATH ? unclearOutcome() : healthy(),
+    );
+    const scheduled: { run: () => void; delayMs: number }[] = [];
+    startRegisterHealthChecks({
+      database,
+      cloudClient: cloud,
+      readDeviceToken: async () => "prefix.secret",
+      now: () => NOW,
+      scheduleNext: (run, delayMs) => {
+        scheduled.push({ run, delayMs });
+        return () => undefined;
+      },
+      reportFailure: (error) => failures.push(error),
+    });
+    async function tick(): Promise<void> {
+      const before = scheduled.length;
+      scheduled[before - 1]?.run();
+      await vi.waitFor(() => expect(scheduled).toHaveLength(before + 1));
+    }
+    return { sent, tick };
+  }
+
+  function leaveUnclear(index: number, state: "UNKNOWN" | "REQUESTING" = "UNKNOWN"): void {
+    const saleId = `sale-${index}`;
+    insertCompletedSale(database, saleId);
+    insertSaleCompletedEvent(database, saleId);
+    insertFiscalDocument(database, {
+      id: `doc-${index}`,
+      saleId,
+      pointOfSale: 12 + index,
+      number: 40 + index,
+      state,
+    });
+    if (state === "UNKNOWN") {
+      insertDeferredSale(database, saleId);
+    }
+  }
+
+  function documentStates(): unknown {
+    return database.prepare("SELECT id, state FROM fiscal_documents ORDER BY id").all();
+  }
+
+  it("asks the cloud nothing when no document is unclear", async () => {
+    const { sent, tick } = ticking(async () => json({ state: "RELEASED" }));
+
+    await tick();
+
+    expect(sent.map(({ path }) => path)).toEqual(["/api/health"]);
+  });
+
+  it("asks once about each unclear document, with the device token, after recording the health check", async () => {
+    leaveUnclear(1);
+    leaveUnclear(2);
+    const { sent, tick } = ticking(async () => json({ state: "PENDING" }));
+
+    await tick();
+
+    expect(sent).toEqual([
+      { path: "/api/health", authorization: "Bearer prefix.secret" },
+      { path: UNCLEAR_PATH, authorization: "Bearer prefix.secret" },
+      { path: UNCLEAR_PATH, authorization: "Bearer prefix.secret" },
+    ]);
+  });
+
+  it("frees the number of a released document and keeps its sale deferred", async () => {
+    leaveUnclear(1);
+    const { tick } = ticking(async () => json({ state: "RELEASED" }));
+
+    await tick();
+
+    expect(documentStates()).toEqual([{ id: "doc-1", state: "RELEASED" }]);
+    expect(database.prepare("SELECT satisfied_at FROM deferred_sales").all()).toEqual([
+      { satisfied_at: null },
+    ]);
+  });
+
+  it("authorizes an adopted document and satisfies the deferred record of its sale", async () => {
+    leaveUnclear(1);
+    const { tick } = ticking(async () =>
+      json({
+        state: "ADOPTED",
+        authorization_code: "75123456789012",
+        authorization_code_due_on: "2026-10-10",
+      }),
+    );
+
+    await tick();
+
+    expect(
+      database
+        .prepare(
+          `SELECT fiscal_documents.state, fiscal_documents.authorization_code,
+                  deferred_sales.satisfied_by_fiscal_document_id AS satisfied_by
+           FROM fiscal_documents JOIN deferred_sales ON deferred_sales.sale_id = fiscal_documents.sale_id`,
+        )
+        .all(),
+    ).toEqual([
+      { state: "AUTHORIZED", authorization_code: "75123456789012", satisfied_by: "doc-1" },
+    ]);
+  });
+
+  it("keeps the number of a conflicting document consumed", async () => {
+    leaveUnclear(1);
+    const { tick } = ticking(async () => json({ state: "CONFLICTING" }));
+
+    await tick();
+
+    expect(documentStates()).toEqual([{ id: "doc-1", state: "CONFLICTING" }]);
+  });
+
+  it("applies a rejection the tax authority had already given as a timely one", async () => {
+    leaveUnclear(1);
+    const { tick } = ticking(async () =>
+      json({ state: "REJECTED", rejection_codes: [10015], rejection_class: "content" }),
+    );
+
+    await tick();
+
+    expect(documentStates()).toEqual([{ id: "doc-1", state: "REJECTED" }]);
+    expect(database.prepare("SELECT reason FROM deferred_sales").all()).toEqual([
+      { reason: "rejected" },
+    ]);
+  });
+
+  it("changes nothing while the decision is pending and asks again on the next tick", async () => {
+    leaveUnclear(1);
+    const { sent, tick } = ticking(async () => json({ state: "PENDING" }));
+
+    await tick();
+    await tick();
+
+    expect(documentStates()).toEqual([{ id: "doc-1", state: "UNKNOWN" }]);
+    expect(sent.filter(({ path }) => path === UNCLEAR_PATH)).toHaveLength(2);
+  });
+
+  it.each([
+    ["the cloud cannot be reached", async () => Promise.reject(new TypeError("fetch failed"))],
+    ["the cloud's body is not one it answers", async () => json({ state: "SOMETHING_ELSE" })],
+    [
+      "the cloud refuses",
+      async () =>
+        json(
+          cloudError("not_found", "that point of sale is not this register's"),
+          cloudErrorStatus("not_found"),
+        ),
+    ],
+  ])("changes nothing when %s", async (_name, answer) => {
+    leaveUnclear(1);
+    const failures: unknown[] = [];
+    const { tick } = ticking(answer, failures);
+
+    await tick();
+
+    expect(documentStates()).toEqual([{ id: "doc-1", state: "UNKNOWN" }]);
+    expect(failures).toEqual([]);
+  });
+
+  it("resolves by asking a document a stopped register left requesting", async () => {
+    leaveUnclear(1, "REQUESTING");
+    await settleInterruptedAuthorizations({ database, now: () => NOW, reportFailure: () => {} });
+    expect(documentStates()).toEqual([{ id: "doc-1", state: "UNKNOWN" }]);
+    const { tick } = ticking(async () => json({ state: "RELEASED" }));
+
+    await tick();
+
+    expect(documentStates()).toEqual([{ id: "doc-1", state: "RELEASED" }]);
+  });
+
+  it("settles the other documents and reports the one whose settling failed", async () => {
+    leaveUnclear(1);
+    leaveUnclear(2);
+    database.prepare("DELETE FROM deferred_sales WHERE sale_id = 'sale-1'").run();
+    const failures: unknown[] = [];
+    const { tick } = ticking(
+      async () =>
+        json({
+          state: "ADOPTED",
+          authorization_code: "75123456789012",
+          authorization_code_due_on: "2026-10-10",
+        }),
+      failures,
+    );
+
+    await tick();
+
+    expect(failures).toHaveLength(1);
+    expect(documentStates()).toEqual([
+      { id: "doc-1", state: "UNKNOWN" },
+      { id: "doc-2", state: "AUTHORIZED" },
+    ]);
+  });
+
+  it("applies the decisions even when recording the health check failed, reporting its failure", async () => {
+    leaveUnclear(1);
+    const failures: unknown[] = [];
+    const { tick } = ticking(async () => json({ state: "RELEASED" }), failures);
+    database.prepare("DROP TABLE register_health_checks").run();
+
+    await tick();
+
+    expect(failures.length).toBeGreaterThan(0);
+    expect(documentStates()).toEqual([{ id: "doc-1", state: "RELEASED" }]);
+  });
+
+  it("keeps checking the register's health when applying the decisions failed", async () => {
+    leaveUnclear(1);
+    database.prepare("DROP TABLE deferred_sales").run();
+    const failures: unknown[] = [];
+    const { tick } = ticking(
+      async () =>
+        json({
+          state: "ADOPTED",
+          authorization_code: "75123456789012",
+          authorization_code_due_on: "2026-10-10",
+        }),
+      failures,
+    );
+
+    await tick();
+
+    expect(failures.length).toBeGreaterThan(0);
+    expect(database.prepare("SELECT count(*) AS total FROM register_health_checks").get()).toEqual({
+      total: 1,
+    });
   });
 });

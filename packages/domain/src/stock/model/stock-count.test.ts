@@ -1,6 +1,12 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { countResult, expectedBalance } from "./stock-count.js";
+import {
+  countedLotsTotal,
+  countResult,
+  expectedBalance,
+  mayBeCountedTogether,
+} from "./stock-count.js";
+import { MAX_STOCK_QUANTITY } from "./stock-quantity.js";
 
 describe("countResult", () => {
   it("expects the current balance when nothing was applied after the count", () => {
@@ -53,5 +59,36 @@ describe("expectedBalance", () => {
 
   it("is the current balance when nothing was applied after the moment", () => {
     expect(expectedBalance({ balance: -4000, appliedAfterCount: 0 })).toBe(-4000);
+  });
+});
+
+describe("countedLotsTotal", () => {
+  it("is what the lots counted together add up to", () => {
+    expect(countedLotsTotal([{ counted: 4250 }, { counted: 0 }, { counted: 1750 }])).toBe(6000);
+  });
+
+  it("is the sum of every lot's counted quantity", () => {
+    fc.assert(
+      fc.property(fc.array(fc.integer({ min: 0, max: 1_000_000 })), (quantities) => {
+        const lots = quantities.map((counted) => ({ counted }));
+        return countedLotsTotal(lots) === quantities.reduce((sum, quantity) => sum + quantity, 0);
+      }),
+    );
+  });
+});
+
+describe("mayBeCountedTogether", () => {
+  it("accepts lots adding up to the largest quantity a count holds", () => {
+    expect(mayBeCountedTogether([{ counted: MAX_STOCK_QUANTITY - 1000 }, { counted: 1000 }])).toBe(
+      true,
+    );
+  });
+
+  it("refuses lots each under the largest quantity whose total is over it", () => {
+    expect(mayBeCountedTogether([{ counted: MAX_STOCK_QUANTITY }, { counted: 1 }])).toBe(false);
+  });
+
+  it("refuses lots whose total is not a counted quantity", () => {
+    expect(mayBeCountedTogether([{ counted: 1000 }, { counted: -2000 }])).toBe(false);
   });
 });

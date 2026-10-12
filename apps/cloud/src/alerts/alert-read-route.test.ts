@@ -441,7 +441,11 @@ describe("GET /alerts/:id for the refund of a late payment", () => {
         level: "warning",
         audience: "local",
         locationId: ownLocationId,
-        detail: { saleId: "9d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10", amount: 250000 },
+        detail: {
+          saleId: "9d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10",
+          amount: 250000,
+          providerOrderId: null,
+        },
         openedAt: NOON,
       })
       .returning({ id: alerts.id });
@@ -458,7 +462,11 @@ describe("GET /alerts/:id for the refund of a late payment", () => {
       audience: "local",
       open: true,
       closing: "with_its_refund",
-      detail: { saleId: "9d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10", amount: 250000 },
+      detail: {
+        saleId: "9d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10",
+        amount: 250000,
+        providerOrderId: null,
+      },
     });
   });
 });

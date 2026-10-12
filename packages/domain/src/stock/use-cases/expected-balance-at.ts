@@ -1,3 +1,5 @@
+import { compareFirstToConsume } from "../model/lot-allocation.js";
+import { isCountableByLot, lotsAtMoment } from "../model/lot-count.js";
 import { expectedBalance } from "../model/stock-count.js";
 import type { StockLedgerReader, StockProduct } from "./stock-reader.js";
 
@@ -7,10 +9,17 @@ export interface ExpectedBalanceAtInput {
   at: Date | undefined;
 }
 
+export interface CountableLot {
+  id: string;
+  lotNumber: string | null;
+  expiresOn: string | null;
+  expected: number;
+}
+
 export type ExpectedBalanceAtOutcome =
   | { kind: "not_found" }
   | { kind: "invalid_moment" }
-  | { kind: "found"; product: StockProduct; balance: number };
+  | { kind: "found"; product: StockProduct; balance: number; lots: CountableLot[] };
 
 export async function expectedBalanceAt(
   { ledger }: { ledger: StockLedgerReader },
@@ -23,8 +32,18 @@ export async function expectedBalanceAt(
   if (input.at === undefined) {
     return { kind: "invalid_moment" };
   }
-  const balance = expectedBalance(
-    await ledger.ledgerAt({ productId: input.productId, locationId: input.locationId }, input.at),
+  const atMoment = await ledger.ledgerAt(
+    { productId: input.productId, locationId: input.locationId },
+    input.at,
   );
-  return { kind: "found", product, balance };
+  const lots = lotsAtMoment(atMoment.lots, atMoment.lotAllocationsAfter)
+    .filter(isCountableByLot)
+    .sort(compareFirstToConsume)
+    .map(({ id, lotNumber, expiresOn, remaining }) => ({
+      id,
+      lotNumber,
+      expiresOn,
+      expected: remaining,
+    }));
+  return { kind: "found", product, balance: expectedBalance(atMoment), lots };
 }

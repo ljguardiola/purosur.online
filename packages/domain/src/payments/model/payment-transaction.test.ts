@@ -1,10 +1,12 @@
 import fc from "fast-check";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
+  awaitsUnrecordedOrder,
   expiryWithoutOrder,
   isLateApproval,
   isValidOrderAmount,
   type MercadoPagoQrOrderTransaction,
+  mayHaveUnrecordedOrder,
   mercadoPagoOrderExpiresAt,
   PAYMENT_TRANSACTION_STATES,
   type PaymentTransaction,
@@ -119,6 +121,68 @@ describe("expiryWithoutOrder", () => {
       expect(expiryWithoutOrder({ ...UNKNOWN_CREATION, state }, LATER)).toBeNull();
     },
   );
+});
+
+describe("awaitsUnrecordedOrder", () => {
+  const AWAITING_ORDER = {
+    state: "PENDING",
+    providerOrderId: null,
+    creationOutcomeUnknown: true,
+  } as const;
+
+  it("holds for a pending transaction without an order whose creation outcome is unknown", () => {
+    expect(awaitsUnrecordedOrder(AWAITING_ORDER)).toBe(true);
+  });
+
+  it("does not hold when the creation is known to have created nothing", () => {
+    expect(awaitsUnrecordedOrder({ ...AWAITING_ORDER, creationOutcomeUnknown: false })).toBe(false);
+  });
+
+  it("does not hold once an order is recorded", () => {
+    expect(awaitsUnrecordedOrder({ ...AWAITING_ORDER, providerOrderId: "order-1" })).toBe(false);
+  });
+
+  it.each(PAYMENT_TRANSACTION_STATES.filter((state) => state !== "PENDING"))(
+    "does not hold for a %s transaction",
+    (state) => {
+      expect(awaitsUnrecordedOrder({ ...AWAITING_ORDER, state })).toBe(false);
+    },
+  );
+});
+
+describe("mayHaveUnrecordedOrder", () => {
+  function transactionWhoseCreation(
+    outcome: "unknown" | "known",
+    overrides: Partial<Pick<MercadoPagoQrOrderTransaction, "state" | "providerOrderId">> = {},
+  ) {
+    return {
+      state: "PENDING",
+      providerOrderId: null,
+      creationOutcomeUnknown: outcome === "unknown",
+      ...overrides,
+    };
+  }
+
+  it("holds for a transaction whose creation outcome is unknown, even once an order is recorded", () => {
+    expect(mayHaveUnrecordedOrder(transactionWhoseCreation("unknown"))).toBe(true);
+    expect(
+      mayHaveUnrecordedOrder(transactionWhoseCreation("unknown", { providerOrderId: "order-1" })),
+    ).toBe(true);
+  });
+
+  it.each(PAYMENT_TRANSACTION_STATES)(
+    "holds for a %s transaction whose creation outcome is unknown",
+    (state) => {
+      expect(mayHaveUnrecordedOrder(transactionWhoseCreation("unknown", { state }))).toBe(true);
+    },
+  );
+
+  it("does not hold when the creation outcome is known", () => {
+    expect(mayHaveUnrecordedOrder(transactionWhoseCreation("known"))).toBe(false);
+    expect(
+      mayHaveUnrecordedOrder(transactionWhoseCreation("known", { providerOrderId: "order-1" })),
+    ).toBe(false);
+  });
 });
 
 describe("isValidOrderAmount", () => {
