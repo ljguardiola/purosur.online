@@ -406,6 +406,21 @@ export {
   withoutQueryParameters,
 } from "./shared/index.js";
 export type {
+  FindCountableProductOutcome,
+  InitialCountLine,
+  ReadInitialCountOutcome,
+  RecordInitialCountLineOutcome,
+  SearchCountableProductsOutcome,
+  StockCoreToRendererMessage,
+  StockRendererToCoreMessage,
+  WeighCountedProductOutcome,
+  WithdrawInitialCountLineOutcome,
+} from "./stock/initial-count-core-messages.js";
+export {
+  stockCoreToRendererMessageSchema,
+  stockRendererToCoreMessageSchema,
+} from "./stock/initial-count-core-messages.js";
+export type {
   InitialInventoryLotList,
   InitialInventoryLotsQuery,
   LotReferenceCostBody,
