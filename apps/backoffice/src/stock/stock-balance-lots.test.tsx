@@ -77,7 +77,7 @@ test("shows a lot of the initial count as Inventario inicial, costed and valued 
   };
   const screen = await renderLots(counted);
 
-  const lot = screen.getByRole("table", { name: `Lotes de ` });
+  const lot = screen.getByRole("table", { name: "Lotes de Miel pura de abeja 1 kg" });
   expect(lot.getByRole("row").nth(1).element().textContent).toBe(
     "——Inventario inicial24 u$ 5.440,00$ 130.560,00",
   );
@@ -101,7 +101,7 @@ test("shows an initial count lot with no cost as Sin costo", async () => {
   };
   const screen = await renderLots(counted);
 
-  const lot = screen.getByRole("table", { name: `Lotes de ` });
+  const lot = screen.getByRole("table", { name: "Lotes de Miel pura de abeja 1 kg" });
   expect(lot.getByRole("row").nth(1).element().textContent).toBe(
     "——Inventario inicial24 uSin costo—",
   );
