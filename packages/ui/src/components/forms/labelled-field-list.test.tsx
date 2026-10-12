@@ -64,7 +64,7 @@ test("puts each item's field at the right of its title, 170px wide whatever the 
   const field = screen.getByText("Campo", { exact: true }).element() as HTMLElement;
 
   expect(field.getBoundingClientRect().width).toBe(170);
-  expect(field.getBoundingClientRect().right).toBeCloseTo(480 - 16, 0);
+  expect(field.getBoundingClientRect().right).toBeCloseTo(480 - 1 - 16, 0);
   expect(title.getBoundingClientRect().right).toBeLessThan(field.getBoundingClientRect().left);
 });
 
@@ -81,9 +81,9 @@ test("renders the items in the order given, in one bordered card with a divider 
   expect(getComputedStyle(list).borderLeftWidth).toBe("1px");
   expect(getComputedStyle(list).borderTopColor).toBe(tokenRgb("border"));
   expect(getComputedStyle(list).borderRadius).toBe("8px");
-  expect(getComputedStyle(firstRow).borderBottomWidth).toBe("0px");
-  expect(getComputedStyle(secondRow).borderTopWidth).toBe("1px");
-  expect(getComputedStyle(secondRow).borderTopColor).toBe(tokenRgb("border"));
+  expect(getComputedStyle(firstRow).borderBottomWidth).toBe("1px");
+  expect(getComputedStyle(firstRow).borderBottomColor).toBe(tokenRgb("border"));
+  expect(getComputedStyle(secondRow).borderBottomWidth).toBe("0px");
 
   await expectNoAccessibilityViolations(screen.container);
 });

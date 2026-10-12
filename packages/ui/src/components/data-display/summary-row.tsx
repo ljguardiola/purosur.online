@@ -89,3 +89,23 @@ export function SummaryRow({
     </div>
   );
 }
+
+export type StackedSummaryRowProps = {
+  label: string;
+  value: string;
+} & ({ subtle?: boolean; tone?: undefined } | { subtle?: false; tone: Extract<Tone, "error"> });
+
+export function StackedSummaryRow({ label, value, subtle = false, tone }: StackedSummaryRowProps) {
+  const valueColorClassName =
+    tone === undefined
+      ? subtle
+        ? "text-text-subtle"
+        : "text-text"
+      : toneClassName[tone].strongText;
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-detail text-text-subtle">{label}</span>
+      <span className={`text-subheading ${valueColorClassName}`}>{value}</span>
+    </div>
+  );
+}
