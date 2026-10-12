@@ -1,5 +1,11 @@
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { lots, purchaseLines, purchases, suppliers } from "../../platform/db/schema.js";
+import {
+  lots,
+  purchaseLines,
+  purchases,
+  stockMovements,
+  suppliers,
+} from "../../platform/db/schema.js";
 
 export async function insertPurchasedLot<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -95,4 +101,54 @@ export async function insertTechnicalLot<TQueryResult extends PgQueryResultHKT>(
     throw new Error("test setup: seeding the technical lot returned no row");
   }
   return lot.id;
+}
+
+export async function insertInitialCountLot<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  input: {
+    productId: string;
+    locationId: string;
+    actorId: string;
+    counted?: number;
+    remaining?: number;
+    expiresOn?: string | null;
+    withdrawn?: boolean;
+    unitCostCents?: number;
+  },
+): Promise<{ lotId: string; movementId: string }> {
+  const counted = input.counted ?? 6_000;
+  const [movement] = await db
+    .insert(stockMovements)
+    .values({
+      productId: input.productId,
+      locationId: input.locationId,
+      kind: "opening_count",
+      reason: null,
+      delta: counted,
+      occurredAt: new Date("2026-10-01T12:00:00.000Z"),
+      actorId: input.actorId,
+    })
+    .returning({ id: stockMovements.id });
+  if (!movement) {
+    throw new Error("test setup: seeding the opening count movement returned no row");
+  }
+  const [lot] = await db
+    .insert(lots)
+    .values({
+      productId: input.productId,
+      locationId: input.locationId,
+      originMovementId: movement.id,
+      expiresOn: input.expiresOn ?? null,
+      withdrawn: input.withdrawn ?? false,
+      costIncomplete: input.unitCostCents === undefined,
+      costTotalCents: input.unitCostCents ?? null,
+      costQuantity: input.unitCostCents === undefined ? null : 1_000,
+      quantityReceived: counted,
+      remaining: input.remaining ?? counted,
+    })
+    .returning({ id: lots.id });
+  if (!lot) {
+    throw new Error("test setup: seeding the initial count lot returned no row");
+  }
+  return { lotId: lot.id, movementId: movement.id };
 }
