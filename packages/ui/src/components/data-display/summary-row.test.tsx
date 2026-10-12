@@ -116,9 +116,9 @@ test("renders the value at 20px bold in accent text for an accent tone, in both 
   expect(getComputedStyle(regularValue).fontWeight).toBe("700");
 
   const strongScreen = await render(
-    <SummaryRow label="Line total" value="$90.00" strong tone="accent" />,
+    <SummaryRow label="Line total" value="$95.00" strong tone="accent" />,
   );
-  const strongValue = strongScreen.getByText("$90.00", { exact: true }).element() as HTMLElement;
+  const strongValue = strongScreen.getByText("$95.00", { exact: true }).element() as HTMLElement;
   expect(getComputedStyle(strongValue).color).toBe(tokenRgb("text-accent"));
   expect(getComputedStyle(strongValue).fontSize).toBe("20px");
   expect(getComputedStyle(strongValue).fontWeight).toBe("700");
