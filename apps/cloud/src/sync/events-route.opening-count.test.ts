@@ -1,4 +1,4 @@
-import { canonicalOutboxEvent } from "@purosur/domain";
+import { canonicalOutboxEvent, type JsonValue } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import {
@@ -24,7 +24,7 @@ const route = eventsRouteUnderTest();
 function pushOf(
   deviceSeq: number,
   previousHmac: string | null,
-  event: { aggregateId: string; eventType: string; payload: Record<string, unknown> },
+  event: { aggregateId: string; eventType: string; payload: { [member: string]: JsonValue } },
 ) {
   const unlinked = {
     event_id: crypto.randomUUID(),
