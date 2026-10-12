@@ -195,7 +195,7 @@ describe("applying the decisions of the documents left with an unclear outcome",
     expect(store.settlements).toEqual([]);
   });
 
-  it("asks nothing about a document whose sale event is not known", async () => {
+  it("reports as failed, asking nothing about it, a document whose sale event is no longer held", async () => {
     const { cloud, store, outcome } = apply([unclear(1, false)], {
       "doc-1": { kind: "decided", decision: { kind: "released" } },
     });
@@ -203,8 +203,13 @@ describe("applying the decisions of the documents left with an unclear outcome",
     expect(await outcome).toEqual({
       kind: "applied",
       settled: [],
-      stillUnclear: ["doc-1"],
-      failed: [],
+      stillUnclear: [],
+      failed: [
+        {
+          fiscalDocumentId: "doc-1",
+          error: new Error("the completion event of the unclear document's sale is not held"),
+        },
+      ],
     });
     expect(cloud.questions).toEqual([]);
     expect(store.settlements).toEqual([]);

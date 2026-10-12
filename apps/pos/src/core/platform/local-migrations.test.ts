@@ -2681,7 +2681,7 @@ describe("the register's local migrations", () => {
     }
   });
 
-  it("let an unclear fiscal document be released or conflicting and a deferred sale be satisfied, over the documents a register already holds", () => {
+  it("let an unclear fiscal document be released or conflicting and a deferred sale be satisfied only by an authorized document of its own sale, over the documents a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");
@@ -2749,9 +2749,29 @@ describe("the register's local migrations", () => {
             "UPDATE deferred_sales SET satisfied_by_fiscal_document_id = ?, satisfied_at = ? WHERE sale_id = 'sale-2'",
           )
           .run(documentId, at);
+      const notOwnAuthorization = /an authorized fiscal document of its own sale/;
+      expect(() => satisfy("missing", "2026-10-09T12:07:00.000Z")).toThrow(notOwnAuthorization);
+      expect(() => satisfy("doc-1", "2026-10-09T12:07:00.000Z")).toThrow(notOwnAuthorization);
+      expect(() => satisfy("doc-2", "2026-10-09T12:07:00.000Z")).toThrow(notOwnAuthorization);
+      expect(() =>
+        after
+          .prepare(
+            `INSERT INTO deferred_sales (
+               sale_id, reason, routed_at, satisfied_by_fiscal_document_id, satisfied_at
+             ) VALUES ('sale-1', 'rejected', '2026-10-09T12:05:01.000Z', 'doc-2', '2026-10-09T12:07:00.000Z')`,
+          )
+          .run(),
+      ).toThrow(notOwnAuthorization);
+      after
+        .prepare(
+          `UPDATE fiscal_documents
+           SET state = 'AUTHORIZED', authorization_code = '75123456789012',
+               authorization_code_due_on = '2026-10-19'
+           WHERE id = 'doc-2'`,
+        )
+        .run();
       expect(() => satisfy("doc-2", null)).toThrow(/CHECK/);
       expect(() => satisfy(null, "2026-10-09T12:07:00.000Z")).toThrow(/CHECK/);
-      expect(() => satisfy("missing", "2026-10-09T12:07:00.000Z")).toThrow(/FOREIGN KEY/);
       expect(() => satisfy("doc-2", "2026-10-09T12:07:00.000Z")).not.toThrow();
       after.close();
     } finally {

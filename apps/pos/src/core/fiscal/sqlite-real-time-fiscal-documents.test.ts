@@ -5,6 +5,7 @@ import type {
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { SqliteLocalOutbox } from "../sync/sqlite-local-outbox";
+import { adoptDevice } from "../sync/test-support/sqlite-local-outbox";
 import { SqliteRealTimeFiscalDocuments } from "./sqlite-real-time-fiscal-documents";
 import {
   FACTURA_C,
@@ -289,6 +290,18 @@ describe("the documents left with an unclear outcome", () => {
     ]);
   });
 
+  it("carry the event of their sale when an earlier installation of the register recorded it", async () => {
+    insertFiscalDocument(database, { state: "UNKNOWN" });
+    adoptDevice(database, "device-b");
+
+    const [unclear] = await documents.unclearDocuments();
+
+    expect(unclear?.saleEvent).toMatchObject({
+      event_type: "sale_completed",
+      aggregate_id: "sale-1",
+    });
+  });
+
   it.each(["REQUESTING", "AUTHORIZED", "REJECTED", "RELEASED", "CONFLICTING"] as const)(
     "are none while the only document is %s",
     async (state) => {
@@ -385,6 +398,30 @@ describe("settling an unclear document", () => {
 
     expect(storedDocument()).toMatchObject({ state: "RELEASED" });
     expect(deferredRecord()).toMatchObject({ reason: "unclear_outcome", satisfied_at: null });
+  });
+
+  it("refuses a document of another sale, leaving it and both sales as they are", async () => {
+    insertCompletedSale(database, "sale-2");
+    insertDeferredSale(database, "sale-2");
+
+    await expect(
+      documents.settle({
+        ...settled({
+          state: "AUTHORIZED",
+          authorizationCode: "75123456789012",
+          authorizationCodeDueOn: "2026-10-10",
+        }),
+        saleId: "sale-2",
+      }),
+    ).rejects.toThrow("the fiscal document is not of that sale");
+
+    expect(storedDocument()).toMatchObject({ state: "UNKNOWN", authorization_code: null });
+    expect(
+      database.prepare("SELECT sale_id, satisfied_at FROM deferred_sales ORDER BY sale_id").all(),
+    ).toEqual([
+      { sale_id: "sale-1", satisfied_at: null },
+      { sale_id: "sale-2", satisfied_at: null },
+    ]);
   });
 
   it("changes nothing when the sale has no deferred record to update", async () => {

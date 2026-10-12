@@ -1,3 +1,4 @@
+import { cloudError, cloudErrorStatus } from "@purosur/contracts";
 import { REGISTER_HEALTH_CHECK_INTERVAL_MS } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CloudClientDeps } from "../platform/cloud-client";
@@ -41,9 +42,9 @@ function cloudAnswering(answer: (path: string) => Promise<Response>) {
   return { cloud, sent };
 }
 
-function json(body: unknown): Response {
+function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
-    status: 200,
+    status,
     headers: { "content-type": "application/json" },
   });
 }
@@ -452,7 +453,14 @@ describe("applying the decisions of the documents left with an unclear outcome, 
   it.each([
     ["the cloud cannot be reached", async () => Promise.reject(new TypeError("fetch failed"))],
     ["the cloud's body is not one it answers", async () => json({ state: "SOMETHING_ELSE" })],
-    ["the cloud refuses", async () => json({ error: { code: "internal", message: "x" } })],
+    [
+      "the cloud refuses",
+      async () =>
+        json(
+          cloudError("not_found", "that point of sale is not this register's"),
+          cloudErrorStatus("not_found"),
+        ),
+    ],
   ])("changes nothing when %s", async (_name, answer) => {
     leaveUnclear(1);
     const failures: unknown[] = [];
