@@ -34,7 +34,11 @@ export interface AuthorizeFiscalDocumentInput {
 }
 
 export type AuthorizeFiscalDocumentOutcome =
-  | { kind: "answered"; answer: RealTimeAuthorizationAnswer }
+  | {
+      kind: "answered";
+      answer: RealTimeAuthorizationAnswer;
+      taxAuthorityCodes: readonly number[];
+    }
   | { kind: "already_answered"; answer: RealTimeAuthorizationAnswer }
   | { kind: "point_of_sale_not_owned" }
   | { kind: "fiscal_document_not_owned" }
@@ -57,6 +61,13 @@ function rejectionsOf(solicitation: SolicitationAnswer): readonly TaxAuthorityRe
   return solicitation.kind === "rejected" || solicitation.kind === "refused_without_result"
     ? solicitation.rejections
     : [];
+}
+
+function unclearCodesOf(
+  solicitation: SolicitationAnswer,
+  answer: RealTimeAuthorizationAnswer,
+): readonly number[] {
+  return answer.kind === "unclear" ? rejectionsOf(solicitation).map(({ code }) => code) : [];
 }
 
 function taxAuthorityGaveAnswer(
@@ -119,8 +130,8 @@ export async function authorizeFiscalDocument(
       const token = await tokens.validToken();
       if (token === null || !mayStartAuthorizationCall(notAfter, clock.now())) {
         const answer: RealTimeAuthorizationAnswer = { kind: "not_attempted" };
-        await lane.recordAnswer(request.fiscalDocumentId, answer, clock.now());
-        return { kind: "answered", answer };
+        await lane.recordAnswer(request.fiscalDocumentId, answer, clock.now(), []);
+        return { kind: "answered", answer, taxAuthorityCodes: [] };
       }
 
       const solicitation = await taxAuthority.solicit({
@@ -133,6 +144,7 @@ export async function authorizeFiscalDocument(
       });
       const answeredAt = clock.now();
       const answer = answerOf(solicitation);
+      const taxAuthorityCodes = unclearCodesOf(solicitation, answer);
       if (taxAuthorityGaveAnswer(solicitation, answer)) {
         await lane.recordTaxAuthorityAnswer(
           request.fiscalDocumentId,
@@ -151,11 +163,12 @@ export async function authorizeFiscalDocument(
                 readAt: answeredAt,
               }
             : null,
+          taxAuthorityCodes,
         );
       } else {
-        await lane.recordAnswer(request.fiscalDocumentId, answer, answeredAt);
+        await lane.recordAnswer(request.fiscalDocumentId, answer, answeredAt, taxAuthorityCodes);
       }
-      return { kind: "answered", answer };
+      return { kind: "answered", answer, taxAuthorityCodes };
     },
   );
 }

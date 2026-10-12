@@ -42,6 +42,7 @@ export interface PointOfSaleLane {
     fiscalDocumentId: string,
     answer: RealTimeAuthorizationAnswer,
     answeredAt: Date,
+    unclearCodes: readonly number[],
   ): Promise<void>;
   recordTaxAuthorityAnswer(
     fiscalDocumentId: string,
@@ -49,6 +50,7 @@ export interface PointOfSaleLane {
     answeredAt: Date,
     rejectionAlertChange: RejectionAlertChange | null,
     taxAuthorityCount: LastAuthorizedCount | null,
+    unclearCodes: readonly number[],
   ): Promise<void>;
 }
 
