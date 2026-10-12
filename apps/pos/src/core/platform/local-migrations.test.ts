@@ -2058,6 +2058,8 @@ describe("the register's local migrations", () => {
           delta: -1000,
           occurred_at: "2026-10-09T12:05:00.000Z",
           superseded_by_count_id: "pulled-count",
+          expires_on: null,
+          withdraws_movement_id: null,
         },
         {
           id: "pulled-count",
@@ -2067,6 +2069,8 @@ describe("the register's local migrations", () => {
           delta: 2000,
           occurred_at: "2026-10-09T13:00:00.000Z",
           superseded_by_count_id: null,
+          expires_on: null,
+          withdraws_movement_id: null,
         },
       ]);
       expect(after.prepare("SELECT * FROM stock_balances").all()).toEqual([
@@ -2583,6 +2587,7 @@ describe("the register's local migrations", () => {
           .prepare("SELECT table_name, cursor FROM pulled_table_redeliveries ORDER BY table_name")
           .all(),
       ).toEqual([
+        { table_name: "branch_first_cash_sessions", cursor: 0 },
         { table_name: "register_offline_point_of_sale", cursor: 0 },
         { table_name: "register_point_of_sale", cursor: 0 },
       ]);
