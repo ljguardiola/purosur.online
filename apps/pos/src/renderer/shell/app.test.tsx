@@ -1507,6 +1507,85 @@ describe("App", () => {
     expect(charges).toEqual([["sale-1", 250_000]]);
   });
 
+  it("reads the register's status again once a sale is charged, showing the condition it left", async () => {
+    let completed = false;
+    const answering = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => GRACE_SESSION },
+      {
+        currentSale: async () => ({
+          id: "sale-1",
+          lines: [
+            {
+              id: "line-1",
+              product_id: "p1",
+              product_name: "Yerba mate 1 kg",
+              sale_unit: "UNIT" as const,
+              weight_source: null,
+              quantity: 1,
+              list_unit_price: 238_000,
+              discount_amount: 0,
+              promotion: null,
+              manual_adjustment: null,
+              line_total: 238_000,
+            },
+          ],
+          total: 238_000,
+          paid: 0,
+          pending: 238_000,
+          lines_lock: null,
+          cancel_refusal: null,
+          charge_refusal: null,
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
+          adjust_authorization_required: false,
+          sale_discount_authorization_required: false,
+          sale_discount_refusal: null,
+          sale_discount: null,
+          subtotal: 238_000,
+        }),
+        cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
+        chargeSaleInCash: async (saleId, tendered) => {
+          completed = true;
+          return { kind: "completed", sale_id: saleId, total: 238_000, tendered, change: 12_000 };
+        },
+      },
+    );
+    const core: CoreClient = {
+      ...answering.core,
+      async registerStatus() {
+        return {
+          conditions: completed ? [{ kind: "fiscal_emission_stopped" }] : [],
+          cloud: "unreachable",
+          serial_devices: { scale: "matching", reader: "matching" },
+          serial_devices_setup_offered: false,
+        };
+      },
+    };
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await resumeLockedRegister(screen);
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+    await userEvent.click(screen.getByText("Efectivo", { exact: true }));
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
+      "2.500,00",
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+
+    await expect.element(screen.getByRole("heading", { name: "Entregá el vuelto" })).toBeVisible();
+    await expect
+      .element(
+        screen
+          .getByRole("region", { name: "Estado de la caja" })
+          .getByText("Emisión de facturas detenida"),
+      )
+      .toBeVisible();
+  });
+
   it("shows no line of the sale that was just charged when a new sale starts", async () => {
     const yerba = {
       id: "line-1",

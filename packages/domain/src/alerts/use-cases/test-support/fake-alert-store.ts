@@ -46,7 +46,8 @@ export type AlertWriteOperation =
   | "recordClosure"
   | "recordEscalation"
   | "recordConditionCleared"
-  | "recordConditionHolding";
+  | "recordConditionHolding"
+  | "recordConditionDetail";
 
 class FakeAlertStoreTransaction implements AlertStoreTransaction {
   private readonly state: FakeAlertState;
@@ -175,6 +176,11 @@ class FakeAlertStoreTransaction implements AlertStoreTransaction {
   async recordConditionHolding(alertId: string): Promise<void> {
     this.beforeWrite("recordConditionHolding");
     this.find(alertId).conditionClearedAt = null;
+  }
+
+  async recordConditionDetail(alertId: string, detail: Record<string, unknown>): Promise<void> {
+    this.beforeWrite("recordConditionDetail");
+    this.find(alertId).detail = structuredClone(detail);
   }
 
   async lockClearedConditionAlerts(): Promise<ClearedConditionAlert[]> {

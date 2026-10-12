@@ -233,11 +233,24 @@ describe("the latest pre-emission gate outcome of the register", () => {
     expect(readLatestPreEmissionGateOutcome(database)).toStrictEqual({ kind: "passed" });
   });
 
-  it("is the outcome evaluated last, whatever order the sales were recorded in", () => {
-    record("sale-1", at(5), false);
-    record("sale-2", at(1), true);
+  it("is the outcome recorded last, even when the register's clock was set back before it", () => {
+    record("sale-1", at(5), true);
+    record("sale-2", at(1), false);
 
     expect(readLatestPreEmissionGateOutcome(database)).toStrictEqual({ kind: "passed" });
+  });
+
+  it("is the outcome recorded last of those left once the newest one was removed", () => {
+    addSale("sale-3");
+    record("sale-1", at(5), false);
+    record("sale-2", at(1), true);
+    record("sale-3", at(0), false);
+    database.prepare("DELETE FROM pre_emission_gate_outcomes WHERE sale_id = 'sale-3'").run();
+
+    expect(readLatestPreEmissionGateOutcome(database)).toEqual({
+      kind: "failed",
+      reason: "legal_name_missing",
+    });
   });
 
   it("is the outcome recorded last when two were evaluated at the same instant", () => {
