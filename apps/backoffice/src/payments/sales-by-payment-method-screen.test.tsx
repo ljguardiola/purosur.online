@@ -135,7 +135,7 @@ test.each([
   ],
   [
     { sortBy: "sales", sort: "ascending" },
-    ["Point integrada", "Transferencia", "QR de Mercado Pago", "Efectivo"],
+    ["Transferencia", "Point integrada", "QR de Mercado Pago", "Efectivo"],
   ],
   [
     { sortBy: "amount", sort: "ascending" },
