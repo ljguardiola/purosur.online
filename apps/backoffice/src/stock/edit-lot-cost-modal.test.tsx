@@ -4,7 +4,11 @@ import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { EditLotCostModal, type EditLotCostModalProps } from "./edit-lot-cost-modal";
-import { initialLotAlmonds, initialLotHoney } from "./test-support/stock-fixtures";
+import {
+  initialLotAlmonds,
+  initialLotHoney,
+  initialLotWithdrawnStillHeld,
+} from "./test-support/stock-fixtures";
 
 function createProps(overrides: Partial<EditLotCostModalProps> = {}): EditLotCostModalProps {
   return {
@@ -41,6 +45,18 @@ test("names the product and how much of the lot was counted", async () => {
     .element(dialog.getByText("Lote contado en la puesta en marcha: 4,400 kg."))
     .toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("says a withdrawn line's lot comes from it and how much of the lot is left", async () => {
+  const screen = await renderModal(createProps({ lot: initialLotWithdrawnStillHeld }));
+
+  await expect
+    .element(
+      screen.getByText(
+        "Lote de una línea retirada de la puesta en marcha: quedan 1,500 kg.",
+      ),
+    )
+    .toBeVisible();
 });
 
 test.each([
