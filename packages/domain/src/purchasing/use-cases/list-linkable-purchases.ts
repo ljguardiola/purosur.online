@@ -18,21 +18,6 @@ export interface LinkablePurchase extends FreightPurchaseListing {
   valueCents: number;
 }
 
-function compareText(left: string, right: string): number {
-  if (left < right) {
-    return -1;
-  }
-  return left > right ? 1 : 0;
-}
-
-function newestFirst(left: LinkablePurchaseListing, right: LinkablePurchaseListing): number {
-  return (
-    compareText(right.purchasedOn, left.purchasedOn) ||
-    right.recordedAt.getTime() - left.recordedAt.getTime() ||
-    compareText(left.id, right.id)
-  );
-}
-
 export async function listLinkablePurchases(
   reader: FreightListReader,
   { locationId, since, freightId }: LinkablePurchasesQuery,
@@ -41,12 +26,18 @@ export async function listLinkablePurchases(
   const linked =
     freightId === undefined ? [] : await reader.purchasesLinkedTo(locationId, freightId);
   const byId = new Map([...recent, ...linked].map((purchase) => [purchase.id, purchase]));
-  return [...byId.values()].sort(newestFirst).map((purchase) => ({
-    id: purchase.id,
-    purchasedOn: purchase.purchasedOn,
-    supplier: purchase.supplier,
-    receiptType: purchase.receiptType,
-    receiptNumber: purchase.receiptNumber,
-    valueCents: purchaseValueCents(purchase.lines),
-  }));
+  // Each sort keeps the order the previous one left among equals, so the last is the main key.
+  return [...byId.keys()]
+    .sort()
+    .map((id) => byId.get(id) as LinkablePurchaseListing)
+    .sort((left, right) => right.recordedAt.getTime() - left.recordedAt.getTime())
+    .sort((left, right) => right.purchasedOn.localeCompare(left.purchasedOn))
+    .map((purchase) => ({
+      id: purchase.id,
+      purchasedOn: purchase.purchasedOn,
+      supplier: purchase.supplier,
+      receiptType: purchase.receiptType,
+      receiptNumber: purchase.receiptNumber,
+      valueCents: purchaseValueCents(purchase.lines),
+    }));
 }

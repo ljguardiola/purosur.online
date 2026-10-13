@@ -74,6 +74,22 @@ describe("listLinkablePurchases", () => {
     expect(purchases.map(({ id }) => id)).toEqual(["second", "first"]);
   });
 
+  it("orders by the day of the purchase before the instant it was recorded", async () => {
+    const reader = new FakeFreightListReader({
+      purchases: [
+        purchase("dated-earlier", "2026-03-05", "2026-03-10T10:00:00Z", [100]),
+        purchase("dated-later", "2026-03-09", "2026-03-09T10:00:00Z", [100]),
+      ],
+    });
+
+    const purchases = await listLinkablePurchases(reader, {
+      locationId: BRANCH,
+      since: "2026-03-01",
+    });
+
+    expect(purchases.map(({ id }) => id)).toEqual(["dated-later", "dated-earlier"]);
+  });
+
   it("puts the lower id first among purchases of the same day recorded at the same instant", async () => {
     const reader = new FakeFreightListReader({
       purchases: [
