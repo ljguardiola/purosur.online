@@ -56,6 +56,12 @@ test("describes a register that can't issue fiscal documents", () => {
   );
 });
 
+test("describes a register whose events were altered on its disk", () => {
+  expect(alertKindDescription("outbox_chain_broken")).toBe(
+    "Eventos de una caja alterados en su disco",
+  );
+});
+
 test("gives no description to a kind this app does not know yet", () => {
   expect(alertKindDescription("register_battery_low")).toBe("");
 });

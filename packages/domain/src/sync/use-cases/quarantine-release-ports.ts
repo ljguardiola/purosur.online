@@ -1,9 +1,10 @@
-import type { EventQuarantineReason } from "../../alerts/index.js";
 import type { Clock } from "../../shared/index.js";
+import type { EventQuarantineReason } from "../model/event-quarantine.js";
 import type { QuarantineState, ReleasedEventState } from "../model/quarantine-release.js";
 import type { AggregateKey } from "../model/synced-fact.js";
 
 export interface HeldEventRecord extends QuarantineState {
+  deviceId: string;
   attempts: number;
   lastError: string | null;
 }
@@ -22,7 +23,9 @@ export interface QuarantineReleaseTransaction {
   lockEvent(eventId: string): Promise<HeldEventRecord | undefined>;
   releaseForNewSeries(eventId: string, released: ReleasedEventState): Promise<void>;
   recordRelease(release: QuarantineReleaseRecord): Promise<void>;
-  resolveQuarantineAlert(eventId: string, resolvedAt: Date): Promise<void>;
+  lockDeviceQuarantines(deviceId: string): Promise<void>;
+  deviceHasQuarantinedEvents(deviceId: string): Promise<boolean>;
+  recordDeviceQuarantineCleared(deviceId: string, clearedAt: Date): Promise<void>;
 }
 
 export interface QuarantineRelease {

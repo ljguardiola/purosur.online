@@ -1,5 +1,5 @@
 import type { EventQuarantineReason } from "@purosur/contracts";
-import { ofSyncedAggregate } from "./synced-event-names";
+import { ofSyncedAggregate } from "../platform/synced-event-names";
 
 export function eventQuarantineReasonText(reason: EventQuarantineReason): string {
   switch (reason.kind) {

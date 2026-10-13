@@ -1,5 +1,5 @@
 import { reportsFailedQuery } from "@purosur/contracts";
-import type { AlertDetails } from "@purosur/domain";
+import type { EventInvariantBreaks, EventQuarantine } from "@purosur/domain";
 import {
   applyOpeningCount,
   applyRegisterStockMovements,
@@ -17,7 +17,8 @@ import type {
 } from "@purosur/domain/sync/use-cases";
 import { and, asc, eq, isNull, min, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { openAlert } from "../alerts/open-alert.js";
+import { openEventInvariantAlert } from "../alerts/event-invariant-alert.js";
+import { openQuarantinedEventAlert } from "../alerts/quarantined-event-alert.js";
 import { recordAppliedQrPaymentReplacement } from "../payments/drizzle-applied-qr-payment-replacement.js";
 import { providerTransactionOfPayment } from "../payments/drizzle-provider-transactions.js";
 import { describeDatabaseFailure, errorCode } from "../platform/db/describe-database-failure.js";
@@ -35,6 +36,7 @@ import {
 import { recordAppliedCancelledSale, recordAppliedSale } from "../sales/drizzle-applied-sales.js";
 import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
 import { type PendingChanges, withPendingChanges } from "./change-log.js";
+import { lockDeviceQuarantines } from "./lock-device-quarantines.js";
 
 type OpeningCountRecordedFact = Extract<SyncedFact, { kind: "opening_count_recorded" }>["count"];
 type OpeningCountWithdrawnFact = Extract<
@@ -242,20 +244,20 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
       .where(eq(inbox.eventId, eventId));
   }
 
-  async openQuarantineAlert(details: AlertDetails["events_quarantined"]): Promise<void> {
-    await openAlert(
-      this.tx,
-      { kind: "events_quarantined", scope: details.eventId, detail: details },
-      { now: this.now },
-    );
+  async lockDeviceQuarantines(deviceId: string): Promise<void> {
+    await lockDeviceQuarantines(this.tx, deviceId);
   }
 
-  async openInvariantAlert(details: AlertDetails["event_invariant_violated"]): Promise<void> {
-    await openAlert(
-      this.tx,
-      { kind: "event_invariant_violated", scope: details.eventId, detail: details },
-      { now: this.now },
-    );
+  async recordQuarantine(quarantine: EventQuarantine): Promise<void> {
+    await this.tx
+      .update(inbox)
+      .set({ quarantineReason: quarantine.reason })
+      .where(eq(inbox.eventId, quarantine.eventId));
+    await openQuarantinedEventAlert(this.tx, quarantine, this.now());
+  }
+
+  async recordInvariantBreaks(found: EventInvariantBreaks): Promise<void> {
+    await openEventInvariantAlert(this.tx, found, this.now());
   }
 
   private async originOf(event: UnappliedEvent): Promise<AppliedOrigin> {

@@ -1,6 +1,7 @@
 import {
   ALERT_AUDIENCES,
   ALERT_LEVELS,
+  type EventQuarantine,
   FACTURA_C_DOCUMENT_TYPE,
   type JsonValue,
   OFFLINE_NUMBER_BLOCK_STATUSES,
@@ -1072,6 +1073,7 @@ export const inbox = pgTable(
     nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
     quarantinedAt: timestamp("quarantined_at", { withTimezone: true }),
     lastError: text("last_error"),
+    quarantineReason: jsonb("quarantine_reason").$type<EventQuarantine["reason"]>(),
   },
   (table) => [
     unique("inbox_device_id_device_seq_key").on(table.deviceId, table.deviceSeq),
