@@ -178,12 +178,21 @@ describe("saveRecipe", () => {
     expect(store.snapshot().recipes).toEqual([]);
   });
 
-  it("locks the assembled product, then the components in ascending id order", async () => {
+  it("locks the assembled product and its components together, in ascending id order", async () => {
     const store = storeWithProducts();
 
     await save(store, { components: [raisins, bag, nuts] });
 
-    expect(store.lockLog).toEqual(["mix", "bag", "nuts", "raisins"]);
+    expect(store.lockLog).toEqual(["bag", "mix", "nuts", "raisins"]);
+  });
+
+  it("locks a component whose id sorts before the assembled product's before it", async () => {
+    const store = storeWithProducts();
+    store.seedProduct({ id: "almonds", saleUnit: "KG", active: true });
+
+    await save(store, { productId: "nuts", components: [raisins, { ...nuts, componentProductId: "almonds" }] });
+
+    expect(store.lockLog).toEqual(["almonds", "nuts", "raisins"]);
   });
 
   it("lets an unexpected failure of the store through, leaving nothing saved", async () => {
