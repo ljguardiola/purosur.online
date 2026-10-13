@@ -47,6 +47,43 @@ describe("RefundLines", () => {
       .toBeVisible();
   });
 
+  it("says a standalone terminal payment's refund stays pending", async () => {
+    const refund: Refund = {
+      payment_id: "p7",
+      method: "STANDALONE_TERMINAL",
+      amount: 90_000,
+      state: "PENDING",
+    };
+
+    const screen = await render(<RefundLines refunds={[refund]} />);
+
+    await expect
+      .element(
+        screen.getByText(
+          "Reembolso pendiente del pago con la terminal independiente por $ 900,00",
+          {
+            exact: true,
+          },
+        ),
+      )
+      .toBeVisible();
+  });
+
+  it("says a standalone terminal payment's refund given back now goes back by that terminal", async () => {
+    const refund: Refund = {
+      payment_id: "p8",
+      method: "STANDALONE_TERMINAL",
+      amount: 90_000,
+      state: "APPROVED",
+    };
+
+    const screen = await render(<RefundLines refunds={[refund]} />);
+
+    await expect
+      .element(screen.getByText("Devolver $ 900,00 por la terminal independiente", { exact: true }))
+      .toBeVisible();
+  });
+
   it("says a terminal payment's refund stays pending", async () => {
     const refund: Refund = { payment_id: "p5", method: "POINT", amount: 90_000, state: "PENDING" };
 

@@ -1,4 +1,8 @@
-import type { PendingMercadoPagoSalePayment, SalePayment } from "@purosur/domain";
+import {
+  isConfirmedByHand,
+  type PendingMercadoPagoSalePayment,
+  type SalePayment,
+} from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
 
 interface PaymentRow {
@@ -41,14 +45,19 @@ function toPayment(row: PaymentRow): SalePayment {
   if (row.method === "POINT") {
     return { ...common, method: "POINT", provider: "MERCADOPAGO_POINT" };
   }
-  if (row.method === "TRANSFER") {
-    return {
-      ...common,
-      method: "TRANSFER",
-      provider: "NONE",
+  if (isConfirmedByHand(row)) {
+    const confirmation = {
       authorizedBy: row.authorized_by as string,
       confirmedAt: new Date(row.confirmed_at as string),
     };
+    return row.method === "TRANSFER"
+      ? { ...common, method: "TRANSFER", provider: "NONE", ...confirmation }
+      : {
+          ...common,
+          method: "STANDALONE_TERMINAL",
+          provider: "EXTERNAL_TERMINAL",
+          ...confirmation,
+        };
   }
   return {
     ...common,

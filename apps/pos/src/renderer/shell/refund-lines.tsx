@@ -8,6 +8,7 @@ const GIVEN_BACK_BY: Record<Refund["method"], string> = {
   TRANSFER: "por transferencia",
   QR: "por QR de Mercado Pago",
   POINT: "por la terminal de Mercado Pago",
+  STANDALONE_TERMINAL: "por la terminal independiente",
 };
 
 const PENDING_OF: Record<Refund["method"], string> = {
@@ -15,6 +16,7 @@ const PENDING_OF: Record<Refund["method"], string> = {
   TRANSFER: "de la transferencia",
   QR: "del pago con QR",
   POINT: "del pago con la terminal",
+  STANDALONE_TERMINAL: "del pago con la terminal independiente",
 };
 
 function refundLine(refund: Refund): string {

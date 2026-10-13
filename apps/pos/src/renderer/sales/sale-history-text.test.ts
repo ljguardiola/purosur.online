@@ -52,6 +52,12 @@ describe("paymentMethodsText", () => {
     expect(paymentMethodsText(["POINT", "CASH"])).toBe("Point + Efectivo");
   });
 
+  it("names a standalone terminal payment as Terminal independiente", () => {
+    expect(paymentMethodsText(["STANDALONE_TERMINAL", "CASH"])).toBe(
+      "Terminal independiente + Efectivo",
+    );
+  });
+
   it("is a dash when the sale has no payment", () => {
     expect(paymentMethodsText([])).toBe("—");
   });
@@ -63,6 +69,7 @@ describe("paymentMethodName", () => {
     ["TRANSFER", "Transferencia"],
     ["QR", "QR de Mercado Pago"],
     ["POINT", "Point integrada"],
+    ["STANDALONE_TERMINAL", "Terminal independiente"],
   ] as const)("names %s as %s", (method, name) => {
     expect(paymentMethodName(method)).toBe(name);
   });
