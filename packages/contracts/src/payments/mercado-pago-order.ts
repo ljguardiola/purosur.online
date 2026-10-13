@@ -14,6 +14,13 @@ export const mercadoPagoOrderRequestSchema = z.object({
 });
 export type MercadoPagoOrderRequestBody = z.output<typeof mercadoPagoOrderRequestSchema>;
 
+export const mercadoPagoCancellationRequestSchema = mercadoPagoOrderRequestSchema.omit({
+  payment_transaction_id: true,
+});
+export type MercadoPagoCancellationRequestBody = z.output<
+  typeof mercadoPagoCancellationRequestSchema
+>;
+
 export const mercadoPagoPaymentSchema = z.object({
   payment_transaction_id: recordIdSchema(),
   state: z.enum(PAYMENT_TRANSACTION_STATES),

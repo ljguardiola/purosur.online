@@ -1,11 +1,13 @@
 import {
   isRetryableCloudError,
+  type MercadoPagoCancellationRequestBody,
   type MercadoPagoOrderRequestBody,
   mercadoPagoCancellationSchema,
   mercadoPagoPaymentSchema,
 } from "@purosur/contracts";
 import { MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS } from "@purosur/domain";
 import type {
+  MercadoPagoChargeOrder,
   MercadoPagoChargeOrderAnswer,
   MercadoPagoChargeOrderCancellation,
   MercadoPagoChargeOrderReading,
@@ -29,8 +31,12 @@ const ORDERS_PATH = "/api/payments/mercado-pago/orders";
 const UNREACHABLE = { kind: "unreachable" } as const;
 const NOT_RECORDED = { kind: "not_recorded" } as const;
 
-function isNotRecorded(response: CloudResponse): boolean {
-  return response.kind === "error" && response.error.code === "not_found";
+function paymentRequestOf(order: MercadoPagoChargeOrder): MercadoPagoCancellationRequestBody {
+  return {
+    sale_id: order.saleId,
+    provider: order.method === "POINT" ? "MERCADOPAGO_POINT" : "MERCADOPAGO_QR",
+    amount: order.amount,
+  };
 }
 
 function orderAnswerOf(
@@ -59,7 +65,7 @@ function orderReadingOf(
   response: CloudResponse,
   paymentTransactionId: string,
 ): MercadoPagoChargeOrderReading {
-  if (isNotRecorded(response)) {
+  if (response.kind === "error" && response.error.code === "not_found") {
     return NOT_RECORDED;
   }
   if (response.kind !== "ok") {
@@ -76,9 +82,6 @@ function orderCancellationOf(
   response: CloudResponse,
   paymentTransactionId: string,
 ): MercadoPagoChargeOrderCancellation {
-  if (isNotRecorded(response)) {
-    return NOT_RECORDED;
-  }
   if (response.kind !== "ok") {
     return UNREACHABLE;
   }
@@ -101,21 +104,14 @@ export class CloudMercadoPagoChargeOrders implements MercadoPagoChargeOrders {
     this.deps = deps;
   }
 
-  async requestOrder(order: {
-    paymentTransactionId: string;
-    saleId: string;
-    method: "QR" | "POINT";
-    amount: number;
-  }): Promise<MercadoPagoChargeOrderAnswer> {
+  async requestOrder(order: MercadoPagoChargeOrder): Promise<MercadoPagoChargeOrderAnswer> {
     const deviceToken = await this.deps.readDeviceToken();
     if (deviceToken === undefined) {
       return { kind: "refused" };
     }
     const body: MercadoPagoOrderRequestBody = {
       payment_transaction_id: order.paymentTransactionId,
-      sale_id: order.saleId,
-      provider: order.method === "POINT" ? "MERCADOPAGO_POINT" : "MERCADOPAGO_QR",
-      amount: order.amount,
+      ...paymentRequestOf(order),
     };
     return orderAnswerOf(await this.deps.post(ORDERS_PATH, deviceToken, body), order.method);
   }
@@ -142,17 +138,17 @@ export class CloudMercadoPagoChargeOrders implements MercadoPagoChargeOrders {
     return reading;
   }
 
-  async cancelOrder(paymentTransactionId: string): Promise<MercadoPagoChargeOrderCancellation> {
+  async cancelOrder(order: MercadoPagoChargeOrder): Promise<MercadoPagoChargeOrderCancellation> {
     const deviceToken = await this.deps.readDeviceToken();
     if (deviceToken === undefined) {
       return UNREACHABLE;
     }
     const response = await this.deps.post(
-      `/api/payments/mercado-pago/${encodeURIComponent(paymentTransactionId)}/cancel`,
+      `/api/payments/mercado-pago/${encodeURIComponent(order.paymentTransactionId)}/cancel`,
       deviceToken,
-      undefined,
+      paymentRequestOf(order),
       { timeoutMs: MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS, singleAttempt: true },
     );
-    return orderCancellationOf(response, paymentTransactionId);
+    return orderCancellationOf(response, order.paymentTransactionId);
   }
 }

@@ -64,6 +64,7 @@ export type {
 export { markRefundDone } from "./mark-refund-done.js";
 export type {
   EndedMercadoPagoChargeState,
+  MercadoPagoChargeOrder,
   MercadoPagoChargeOrderAnswer,
   MercadoPagoChargeOrderCancellation,
   MercadoPagoChargeOrderReading,

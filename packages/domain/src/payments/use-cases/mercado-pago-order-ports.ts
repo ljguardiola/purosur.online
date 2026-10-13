@@ -31,6 +31,7 @@ export interface PaymentTransactionLane {
     paymentTransactionId: string,
   ): Promise<MercadoPagoOrderTransaction | null>;
   recordPendingTransaction(transaction: MercadoPagoOrderTransaction): Promise<void>;
+  recordCancelledWithoutOrder(transaction: MercadoPagoOrderTransaction): Promise<void>;
   recordCreationAttempt(paymentTransactionId: string, expiresAt: Date): Promise<void>;
   recordCreationCreatedNothing(paymentTransactionId: string): Promise<void>;
   recordNeedsReview(paymentTransactionId: string): Promise<void>;

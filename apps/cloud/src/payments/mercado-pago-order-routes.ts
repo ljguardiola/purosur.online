@@ -3,6 +3,7 @@ import {
   cloudErrorStatus,
   type MercadoPagoCancellationBody,
   type MercadoPagoPaymentBody,
+  mercadoPagoCancellationRequestSchema,
   mercadoPagoCancellationSchema,
   mercadoPagoOrderRequestSchema,
   mercadoPagoPaymentSchema,
@@ -243,10 +244,24 @@ export function registerMercadoPagoOrderRoutes<TQueryResult extends PgQueryResul
         if (!ids) {
           return;
         }
+        const body = await readValidatedBody(
+          reply,
+          mercadoPagoCancellationRequestSchema,
+          request.body,
+        );
+        if (!body) {
+          return;
+        }
 
         const outcome = await cancelMercadoPagoOrder(
           { lanes, mercadoPago, cancellationKeys: randomMercadoPagoCancellationKeys, clock },
-          { registerId, paymentTransactionId: ids.id },
+          {
+            registerId,
+            paymentTransactionId: ids.id,
+            saleId: body.sale_id,
+            amount: body.amount,
+            provider: body.provider,
+          },
         );
 
         switch (outcome.kind) {

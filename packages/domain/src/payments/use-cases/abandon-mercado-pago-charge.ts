@@ -24,11 +24,12 @@ export async function abandonMercadoPagoCharge<Refusal, Settlement, ReplacementR
     return { kind: "not_pending" };
   }
 
-  const cancellation = await orders.cancelOrder(paymentTransactionId);
-  if (cancellation.kind === "not_recorded") {
-    charges.recordEnded(paymentTransactionId, "CANCELLED");
-    return { kind: "cancelled" };
-  }
+  const cancellation = await orders.cancelOrder({
+    paymentTransactionId,
+    saleId: charge.saleId,
+    method: charge.method,
+    amount: charge.amount,
+  });
   if (cancellation.kind === "answered") {
     const { state } = cancellation;
     if (state === "APPROVED") {

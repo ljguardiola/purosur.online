@@ -2,7 +2,11 @@ import {
   mercadoPagoOrderChargeRemainingSeconds,
   mercadoPagoOrderChargeWait,
 } from "../model/mercado-pago-order-charge-wait.js";
-import type { MercadoPagoChargePorts } from "./mercado-pago-charge-ports.js";
+import type {
+  MercadoPagoChargeOrderCancellation,
+  MercadoPagoChargeOrderReading,
+  MercadoPagoChargePorts,
+} from "./mercado-pago-charge-ports.js";
 
 export interface FollowMercadoPagoChargeInput {
   actorId: string;
@@ -19,6 +23,19 @@ export type FollowMercadoPagoChargeOutcome<Settlement> =
   | { kind: "declined" }
   | { kind: "approved"; settlement: Settlement };
 
+function readingOfCancellation(
+  cancellation: MercadoPagoChargeOrderCancellation,
+): MercadoPagoChargeOrderReading {
+  switch (cancellation.kind) {
+    case "answered":
+      return { kind: "read", state: cancellation.state };
+    case "cancel_on_terminal":
+      return { kind: "read", state: "PENDING" };
+    case "unreachable":
+      return cancellation;
+  }
+}
+
 export async function followMercadoPagoCharge<Refusal, Settlement>(
   { sale, orders, charges, clock }: MercadoPagoChargePorts<Refusal, Settlement>,
   { actorId, paymentTransactionId }: FollowMercadoPagoChargeInput,
@@ -28,10 +45,19 @@ export async function followMercadoPagoCharge<Refusal, Settlement>(
     return { kind: "not_pending" };
   }
 
-  const reading = await orders.readOrder(paymentTransactionId);
+  let reading = await orders.readOrder(paymentTransactionId);
   if (reading.kind === "not_recorded") {
-    charges.recordEnded(paymentTransactionId, "CANCELLED");
-    return { kind: charge.method === "POINT" ? "closed" : "wait_over" };
+    const cancellation = await orders.cancelOrder({
+      paymentTransactionId,
+      saleId: charge.saleId,
+      method: charge.method,
+      amount: charge.amount,
+    });
+    if (cancellation.kind === "answered" && cancellation.state === "CANCELLED") {
+      charges.recordEnded(paymentTransactionId, "CANCELLED");
+      return { kind: charge.method === "POINT" ? "closed" : "wait_over" };
+    }
+    reading = readingOfCancellation(cancellation);
   }
   if (reading.kind === "read") {
     const { state } = reading;

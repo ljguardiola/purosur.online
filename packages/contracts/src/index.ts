@@ -151,10 +151,12 @@ export {
 } from "./payments/core-messages.js";
 export type {
   MercadoPagoCancellationBody,
+  MercadoPagoCancellationRequestBody,
   MercadoPagoOrderRequestBody,
   MercadoPagoPaymentBody,
 } from "./payments/mercado-pago-order.js";
 export {
+  mercadoPagoCancellationRequestSchema,
   mercadoPagoCancellationSchema,
   mercadoPagoOrderRequestSchema,
   mercadoPagoPaymentSchema,

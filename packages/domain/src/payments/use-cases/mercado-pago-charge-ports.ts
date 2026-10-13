@@ -50,18 +50,19 @@ export type MercadoPagoChargeOrderReading =
 export type MercadoPagoChargeOrderCancellation =
   | { kind: "answered"; state: PaymentTransactionState }
   | { kind: "cancel_on_terminal" }
-  | { kind: "not_recorded" }
   | { kind: "unreachable" };
 
+export interface MercadoPagoChargeOrder {
+  paymentTransactionId: string;
+  saleId: string;
+  method: MercadoPagoPaymentTransaction["method"];
+  amount: number;
+}
+
 export interface MercadoPagoChargeOrders {
-  requestOrder(order: {
-    paymentTransactionId: string;
-    saleId: string;
-    method: MercadoPagoPaymentTransaction["method"];
-    amount: number;
-  }): Promise<MercadoPagoChargeOrderAnswer>;
+  requestOrder(order: MercadoPagoChargeOrder): Promise<MercadoPagoChargeOrderAnswer>;
   readOrder(paymentTransactionId: string): Promise<MercadoPagoChargeOrderReading>;
-  cancelOrder(paymentTransactionId: string): Promise<MercadoPagoChargeOrderCancellation>;
+  cancelOrder(order: MercadoPagoChargeOrder): Promise<MercadoPagoChargeOrderCancellation>;
 }
 
 export interface MercadoPagoCharges {

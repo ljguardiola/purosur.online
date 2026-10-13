@@ -70,7 +70,15 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
       : { ...transaction, method: "QR", provider: "MERCADOPAGO_QR" };
   }
 
-  async recordPendingTransaction(transaction: MercadoPagoOrderTransaction): Promise<void> {
+  recordPendingTransaction(transaction: MercadoPagoOrderTransaction): Promise<void> {
+    return this.insertTransaction(transaction);
+  }
+
+  recordCancelledWithoutOrder(transaction: MercadoPagoOrderTransaction): Promise<void> {
+    return this.insertTransaction(transaction);
+  }
+
+  private async insertTransaction(transaction: MercadoPagoOrderTransaction): Promise<void> {
     try {
       await this.db.insert(paymentTransactions).values(transaction);
     } catch (error) {
