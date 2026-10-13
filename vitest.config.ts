@@ -77,7 +77,7 @@ export default defineConfig({
   test: {
     passWithNoTests: true,
     slowTestThreshold: ROOT_SLOW_TEST_THRESHOLD,
-    sequence: { sequencer: durationBalancedSequencer(process.env["TEST_DURATIONS_DIR"]) },
+    sequence: { sequencer: durationBalancedSequencer(process.env["TEST_DURATIONS"]) },
     reporters: [
       ...configDefaults.reporters,
       new SlowTestsReporter({
