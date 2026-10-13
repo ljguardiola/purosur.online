@@ -25,6 +25,9 @@ export default defineConfig({
     // no wait bounds, such as an evaluate against a main process that hangs.
     testTimeout: UNBOUNDED_CALL_BACKSTOP_MS,
     hookTimeout: UNBOUNDED_CALL_BACKSTOP_MS,
+    // A hang that affects every launch would spend one bound in each file and outlast the job's time
+    // limit before any failure is reported; the run stops at the first failure and reports it.
+    bail: 1,
     setupFiles: ["e2e/test-support/print-logs-on-failure.setup.ts"],
   },
 });

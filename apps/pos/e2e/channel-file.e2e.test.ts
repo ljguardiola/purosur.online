@@ -7,6 +7,7 @@ import { APP_DIR, appEnv, launchApp, platformArgs, writeChannelFile } from "./la
 import { WAIT_BOUND_MS } from "./test-support/bounds";
 import { closeRegister } from "./test-support/close-register";
 import { coreStartEnded } from "./test-support/core-start-outcomes";
+import { recordLaunchedRegister } from "./test-support/launched-registers";
 import { within } from "./test-support/until";
 
 // The electron package's main export is the path to its binary.
@@ -25,23 +26,22 @@ async function runUntilItExitsOrStarts(channelFile: string): Promise<Run> {
     detached: process.platform !== "win32",
   });
   const closed = once(child, "close") as Promise<[number | null, NodeJS.Signals | null]>;
-  let stdout = "";
+  const logs: string[] = [];
+  recordLaunchedRegister(logs);
   let stderr = "";
   const started = new Promise<void>((resolve) => {
-    const collect = (append: (text: string) => void) => (chunk: Buffer) => {
-      append(chunk.toString());
-      if (coreStartEnded(stdout + stderr)) {
+    const collect = (chunk: Buffer): string => {
+      const text = chunk.toString();
+      logs.push(text);
+      if (coreStartEnded(logs.join(""))) {
         resolve();
       }
+      return text;
     };
-    child.stdout.on(
-      "data",
-      collect((text) => (stdout += text)),
-    );
-    child.stderr.on(
-      "data",
-      collect((text) => (stderr += text)),
-    );
+    child.stdout.on("data", collect);
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr += collect(chunk);
+    });
   });
   try {
     await within(Promise.race([closed, started]), {

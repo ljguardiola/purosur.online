@@ -41,11 +41,17 @@ function isRunning(processId: number): boolean {
 }
 
 async function closeEveryProcessOf(app: ElectronApplication): Promise<void> {
-  const processIds = await within(
-    app.evaluate(({ app: electronApp }) => electronApp.getAppMetrics().map((metric) => metric.pid)),
-    { withinMs: WAIT_BOUND_MS, waitingFor: "the register to list its processes" },
-  ).catch(() => []);
-  await closeRegister(app);
+  let processIds: number[];
+  try {
+    processIds = await within(
+      app.evaluate(({ app: electronApp }) =>
+        electronApp.getAppMetrics().map((metric) => metric.pid),
+      ),
+      { withinMs: WAIT_BOUND_MS, waitingFor: "the register to list its processes" },
+    );
+  } finally {
+    await closeRegister(app);
+  }
   await until(() => processIds.every((processId) => !isRunning(processId)), {
     withinMs: WAIT_BOUND_MS,
     waitingFor: "the register's processes to end",
@@ -125,11 +131,12 @@ export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
   }
 
   async function stop(): Promise<void> {
+    const app = openApp;
     running = undefined;
-    if (openApp !== undefined) {
-      await closeEveryProcessOf(openApp);
-    }
     openApp = undefined;
+    if (app !== undefined) {
+      await closeEveryProcessOf(app);
+    }
   }
 
   function current(): RunningRegister {

@@ -23,7 +23,7 @@ export async function closeRegister(app: ClosableApp): Promise<void> {
     waitingFor: "the register to close",
   }).catch(() => "unbounded" as const);
   if (outcome === "unbounded") {
-    child.kill();
+    child.kill("SIGKILL");
     console.error(`the register did not close within ${WAIT_BOUND_MS} ms and was killed`);
     return;
   }
