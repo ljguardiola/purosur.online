@@ -344,6 +344,8 @@ describe("chargeSaleByTransfer", () => {
         saleId: "sale-1",
         gate: store.state.preEmissionGates[0]?.outcome,
         decidedAt: NOW,
+        occurredAt: NOW,
+        total: TOTAL,
       },
     ]);
   });

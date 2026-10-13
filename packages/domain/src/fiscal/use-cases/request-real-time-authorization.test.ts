@@ -15,10 +15,30 @@ import {
   FakeRealTimeTaxAuthority,
   FakeRoundTripSamples,
 } from "./test-support/fake-real-time-authorization.js";
+import { SequentialIds } from "./test-support/fake-sale-authorization.js";
+import { ScriptedShortCodes } from "./test-support/scripted-short-codes.js";
 
 const START = new Date("2026-10-01T12:00:00.000Z");
 const ANSWER_DELAY_MS = 1_200;
 const FISCAL_DOCUMENT_ID = "fiscal-document-1";
+const RESERVED_AT = new Date("2026-10-01T11:59:58.000Z");
+const SHORT_CODES = ["7KQ4M2P9", "R3XW8H5N"];
+
+function deferredRecord(
+  reason: "rejected" | "unclear_outcome",
+  routedAt: Date,
+  shortCode = "7KQ4M2P9",
+) {
+  return {
+    id: "id-1",
+    saleId: "sale-1",
+    occurredAt: RESERVED_AT,
+    total: 12_500,
+    reason,
+    shortCode,
+    routedAt,
+  };
+}
 
 const DOCUMENT: FacturaC = {
   invoiceClass: "C",
@@ -57,6 +77,7 @@ const WAITING = {
   number: 41,
   issuedOn: "2026-10-01",
   document: DOCUMENT,
+  reservedAt: RESERVED_AT,
   saleEvent: SALE_EVENT,
 };
 
@@ -64,17 +85,26 @@ function request({
   answer = { kind: "unclear" },
   samples = [100, 300, 200],
   waiting = WAITING,
+  takenShortCodes = [],
 }: {
   answer?: RealTimeAuthorizationAnswer;
   samples?: readonly number[];
   waiting?: WaitingFiscalDocument | null;
+  takenShortCodes?: string[];
 } = {}) {
   const clock = new ManualClock(START);
-  const documents = new FakeRealTimeFiscalDocuments(waiting);
+  const documents = new FakeRealTimeFiscalDocuments(waiting, takenShortCodes);
   const roundTrips = new FakeRoundTripSamples(samples);
   const taxAuthority = new FakeRealTimeTaxAuthority(answer, () => clock.advanceBy(ANSWER_DELAY_MS));
   const outcome = requestRealTimeAuthorization(
-    { documents, roundTrips, taxAuthority, clock },
+    {
+      documents,
+      roundTrips,
+      taxAuthority,
+      clock,
+      ids: new SequentialIds(),
+      shortCodes: new ScriptedShortCodes(SHORT_CODES),
+    },
     { saleId: "sale-1" },
   );
   return { documents, roundTrips, taxAuthority, outcome };
@@ -93,6 +123,7 @@ describe("requestRealTimeAuthorization", () => {
         number: 41,
         issuedOn: "2026-10-01",
         document: DOCUMENT,
+        reservedAt: RESERVED_AT,
         saleEvent: SALE_EVENT,
         timeoutMs: 5_000,
         roundTripMedianMs: 200,
@@ -129,6 +160,7 @@ describe("requestRealTimeAuthorization", () => {
           authorizationCodeDueOn: "2026-10-11",
         },
         resolvedAt: new Date(START.getTime() + ANSWER_DELAY_MS),
+        deferredSale: null,
       },
     ]);
   });
@@ -208,7 +240,49 @@ describe("requestRealTimeAuthorization", () => {
         saleId: "sale-1",
         resolution: { state: "UNKNOWN", deferralReason: "unclear_outcome" },
         resolvedAt: START,
+        deferredSale: deferredRecord("unclear_outcome", START),
       },
+    ]);
+  });
+
+  it("records the deferred sale of a rejected document with the sale's time and total, routed when the answer arrived", async () => {
+    const { documents, outcome } = request({
+      answer: { kind: "rejected", codes: [10015], rejectionClass: "content" },
+    });
+    await outcome;
+
+    expect(documents.resolutions.map(({ deferredSale }) => deferredSale)).toEqual([
+      deferredRecord("rejected", new Date(START.getTime() + ANSWER_DELAY_MS)),
+    ]);
+  });
+
+  it("records the deferred sale of an unclear answer", async () => {
+    const { documents, outcome } = request({ answer: { kind: "unclear" } });
+    await outcome;
+
+    expect(documents.resolutions.map(({ deferredSale }) => deferredSale)).toEqual([
+      deferredRecord("unclear_outcome", new Date(START.getTime() + ANSWER_DELAY_MS)),
+    ]);
+  });
+
+  it("draws another short code for the deferred sale when the first is already taken", async () => {
+    const { documents, outcome } = request({
+      answer: { kind: "unclear" },
+      takenShortCodes: ["7KQ4M2P9"],
+    });
+
+    await expect(outcome).resolves.toEqual({ kind: "unclear" });
+    expect(
+      documents.resolutionAttempts.map(({ deferredSale }) => [
+        deferredSale?.id,
+        deferredSale?.shortCode,
+      ]),
+    ).toEqual([
+      ["id-1", "7KQ4M2P9"],
+      ["id-1", "R3XW8H5N"],
+    ]);
+    expect(documents.resolutions.map(({ deferredSale }) => deferredSale?.shortCode)).toEqual([
+      "R3XW8H5N",
     ]);
   });
 });
