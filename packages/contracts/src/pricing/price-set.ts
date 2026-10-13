@@ -6,7 +6,7 @@ const UNIT_PRICE_MESSAGE = "unitPrice must be a positive integer number of cents
 const EXPECTED_CURRENT_PRICE_MESSAGE =
   "expectedCurrentPriceId must be an existing price's id, or null";
 
-export const unitPriceSchema = z
+const unitPriceSchema = z
   .number({ error: UNIT_PRICE_MESSAGE })
   .int(UNIT_PRICE_MESSAGE)
   .min(1, UNIT_PRICE_MESSAGE)
