@@ -472,7 +472,6 @@ export type {
   SaleStandingDefinition,
   SaleState,
   SalesOfDay,
-  SalesReportRange,
   SalesReportTotals,
   SaleWithLines,
   SoldProduct,
@@ -482,7 +481,6 @@ export {
   amountToCharge,
   appliedSaleDiscountAmount,
   isDeferralPending,
-  isSalesReportRangeAsked,
   manualAdjustmentReason,
   mayBeManualDiscountAmount,
   mayBeManualDiscountPercent,
@@ -531,12 +529,13 @@ export {
   signInLockoutWindowStart,
   signInLookupAttemptWindowStart,
 } from "./sessions/index.js";
-export type { IsoWeekday, SalesDeniedReason } from "./shared/index.js";
+export type { IsoWeekday, ReportPeriod, SalesDeniedReason } from "./shared/index.js";
 export {
   ARGENTINA_TIME_ZONE,
   argentinaCalendarDay,
   argentinaInstant,
   isCalendarDay,
+  isReportPeriodAsked,
   isoWeekdayOf,
   isValidCashAmount,
   MAX_CASH_AMOUNT_CENTS,
