@@ -40,7 +40,7 @@ const REQUIRED_REASON_MESSAGE = "Escribí el motivo de la reimpresión.";
 const AUTHORIZING = "reimprimir comprobantes";
 const PERMISSION: AuthorizablePermissionKey = "reprint_receipt";
 
-export type ReprintableSale = Pick<SaleDetail, "sale_id" | "occurred_at"> &
+type ReprintableSale = Pick<SaleDetail, "sale_id" | "occurred_at"> &
   Partial<Pick<SaleDetail, "comprobante" | "operation_number">> & { next_copy: NextReceiptCopy };
 
 export type ReprintReceiptModalProps = {
