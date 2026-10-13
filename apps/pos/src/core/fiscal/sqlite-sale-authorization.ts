@@ -1,4 +1,5 @@
 import {
+  type DeferredSale,
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalDocumentState,
   type FiscalOnlineSignalEvidence,
@@ -10,10 +11,12 @@ import {
   type FiscalDocumentReservation,
   type RealTimeSeries,
   type SaleAuthorizationTransaction,
-  type SaleRoutedToDeferred,
+  type ShortCodeRandomness,
 } from "@purosur/domain/fiscal/use-cases";
 import type { SaleAuthorizationDecision } from "@purosur/domain/sales/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
+import { cryptoShortCodes } from "./crypto-short-codes";
+import { insertDeferredSale } from "./sqlite-deferred-sales";
 
 function placeholdersFor(states: readonly FiscalDocumentState[]): string {
   return states.map(() => "?").join(", ");
@@ -110,27 +113,22 @@ function sqliteSaleAuthorizationTransaction(database: LocalDatabase): SaleAuthor
         });
     },
 
-    routeSaleToDeferred(routing: SaleRoutedToDeferred): void {
-      database
-        .prepare(
-          "INSERT INTO deferred_sales (sale_id, reason, routed_at) VALUES (@sale_id, @reason, @routed_at)",
-        )
-        .run({
-          sale_id: routing.saleId,
-          reason: routing.reason,
-          routed_at: routing.routedAt.toISOString(),
-        });
+    routeSaleToDeferred(deferred: DeferredSale): void {
+      insertDeferredSale(database, deferred);
     },
   };
 }
 
 export function decideSaleAuthorizationIn(
   database: LocalDatabase,
-  { ids, saleId, gate, decidedAt }: SaleAuthorizationDecision,
+  { ids, saleId, gate, decidedAt, occurredAt, total }: SaleAuthorizationDecision,
+  shortCodes: ShortCodeRandomness = cryptoShortCodes,
 ): void {
-  decideSaleAuthorization(sqliteSaleAuthorizationTransaction(database), ids, {
+  decideSaleAuthorization(sqliteSaleAuthorizationTransaction(database), ids, shortCodes, {
     saleId,
     gate,
     decidedAt,
+    occurredAt,
+    total,
   });
 }

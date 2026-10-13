@@ -3,6 +3,7 @@ import type { ReceiptLedgerTransaction } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   FACTURA_C,
+  insertDeferredSale,
   insertFiscalDocument,
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
@@ -335,6 +336,15 @@ describe("a receipt ledger's fiscal document of a sale", () => {
       kind: "authorized",
       authorized: { pointOfSale: 12, number: 41, document: FACTURA_C },
     });
+  });
+
+  it("is the sale's deferred record when the sale was routed to the deferred flow", () => {
+    insertSaleWithEverything();
+    const reference = insertDeferredSale(database, "sale-1", "fiscally_offline");
+
+    const { fiscal } = inTransaction((tx) => tx.receiptSource("sale-1"));
+
+    expect(fiscal).toEqual({ kind: "deferred", deferred: reference });
   });
 });
 

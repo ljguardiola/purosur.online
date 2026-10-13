@@ -16,6 +16,7 @@ import { requestFirstPinCode } from "./credentials/first-pin-code-request";
 import { checkPinCodeRedemption, redeemPinCode } from "./credentials/pin-code-redemption";
 import { pinPolicy } from "./credentials/pin-policy";
 import { applyRedeemedPin } from "./credentials/redeemed-pin";
+import { cryptoShortCodes } from "./fiscal/crypto-short-codes";
 import {
   createRealTimeAuthorization,
   settleInterruptedAuthorizations,
@@ -382,12 +383,16 @@ const realTimeAuthorization = createRealTimeAuthorization({
   readDeviceToken,
   now,
   reportFailure: (error) => reportFailure("the real-time authorization", error),
+  ids: uuidV7Ids,
+  shortCodes: cryptoShortCodes,
 });
 await settleInterruptedAuthorizations({
   database: localDatabase,
   now,
   reportFailure: (error) =>
     reportFailure("settling the interrupted real-time authorizations", error),
+  ids: uuidV7Ids,
+  shortCodes: cryptoShortCodes,
 });
 
 const mercadoPagoCharging = createMercadoPagoCharging({

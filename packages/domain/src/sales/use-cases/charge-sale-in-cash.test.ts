@@ -748,6 +748,8 @@ describe("chargeSaleInCash", () => {
         saleId: "sale-1",
         gate: store.state.preEmissionGates[0]?.outcome,
         decidedAt: NOW,
+        occurredAt: NOW,
+        total: 5900,
       },
     ]);
   });
@@ -762,6 +764,8 @@ describe("chargeSaleInCash", () => {
         saleId: "sale-1",
         gate: { kind: "failed", reason: "issuer_identification_missing" },
         decidedAt: NOW,
+        occurredAt: NOW,
+        total: 5900,
       },
     ]);
   });

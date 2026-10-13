@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { facturaCFiscalBlock } from "../../fiscal/index.js";
+import { deferredSaleDocumentBlock, facturaCFiscalBlock } from "../../fiscal/index.js";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -270,6 +270,14 @@ describe("receiptContent", () => {
       );
 
       expect(content.fiscal).toEqual(facturaCFiscalBlock(AUTHORIZED));
+    });
+
+    it("is the non-fiscal document block of the deferred sale of the sale", () => {
+      const deferred = { id: "0198-abc", shortCode: "7KQ4M2P9" };
+
+      const content = receiptContent(source({ fiscal: { kind: "deferred", deferred } }));
+
+      expect(content.fiscal).toEqual(deferredSaleDocumentBlock(deferred));
     });
 
     it.each([
