@@ -8,16 +8,13 @@ import { StatusIndicatorButton } from "./status-indicator-button";
 
 function renderPanel() {
   return render(
-    <>
-      <p>Fuera del panel</p>
-      <NotificationPanel
-        title="Avisos de esta caja"
-        trigger={<StatusIndicatorButton tone="warning">2 avisos</StatusIndicatorButton>}
-      >
-        <p>Primer aviso</p>
-        <p>Segundo aviso</p>
-      </NotificationPanel>
-    </>,
+    <NotificationPanel
+      title="Avisos de esta caja"
+      trigger={<StatusIndicatorButton tone="warning">2 avisos</StatusIndicatorButton>}
+    >
+      <p>Primer aviso</p>
+      <p>Segundo aviso</p>
+    </NotificationPanel>,
   );
 }
 
@@ -95,7 +92,7 @@ test("closes when pressing outside of it", async () => {
   const screen = await renderPanel();
   await userEvent.click(screen.getByRole("button", { name: "2 avisos" }));
 
-  await userEvent.click(screen.getByText("Fuera del panel"));
+  await userEvent.click(document.body);
 
   await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
 });
