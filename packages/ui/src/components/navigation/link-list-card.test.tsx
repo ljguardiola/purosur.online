@@ -49,13 +49,13 @@ test("draws an outlined card with the surface background and 8px radius", async 
   expect(style.borderRadius).toBe("8px");
 });
 
-test("draws a divider between the rows and none above the first one", async () => {
+test("draws a divider between the rows and none below the last one", async () => {
   const screen = await renderCard();
 
   const [first, second] = screen.getByRole("listitem").elements();
-  expect(getComputedStyle(first as Element).borderTopWidth).toBe("0px");
-  expect(getComputedStyle(second as Element).borderTopWidth).toBe("1px");
-  expect(getComputedStyle(second as Element).borderTopColor).toBe(tokenRgb("border"));
+  expect(getComputedStyle(first as Element).borderBottomWidth).toBe("1px");
+  expect(getComputedStyle(first as Element).borderBottomColor).toBe(tokenRgb("border"));
+  expect(getComputedStyle(second as Element).borderBottomWidth).toBe("0px");
 });
 
 test("turns a row subtle on hover", async () => {

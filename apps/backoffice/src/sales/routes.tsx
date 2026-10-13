@@ -5,13 +5,6 @@ import { reportFiltersSearch } from "../shell/report-filters-search";
 import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout } from "../shell/signed-in-route";
 
-export const reportsIndexRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
-  path: "reports",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
-  component: lazyScreen(() => import("./reports-index-page"), "ReportsIndexPage"),
-});
-
 export const salesByDayRoute = createRoute({
   getParentRoute: () => reportsAreaRoute,
   path: "reports/sales-by-day",

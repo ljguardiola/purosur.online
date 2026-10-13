@@ -1,25 +1,18 @@
-import { ButtonLink, Card } from "@purosur/ui";
+import { LinkListCard, LinkListRow } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTopBar } from "../shell/screen-top-bar";
+import { ShoppingBag } from "lucide-react";
+import { ScreenLayout } from "./screen-layout";
+import { ScreenTopBar } from "./screen-top-bar";
 
-const ReportLink = createLink(ButtonLink);
+const ReportRow = createLink(LinkListRow);
 
 export function ReportsIndexScreen() {
   return (
     <ScreenLayout topBar={<ScreenTopBar eyebrow="Puro Sur" title="Reportes" />} bodyClassName="p-6">
-      <ul className="flex flex-col gap-4">
-        <li>
-          <Card>
-            <ReportLink to="/reports/sales-by-day" variant="text">
-              Ventas por día o por rango
-            </ReportLink>
-            <p className="text-detail text-text-subtle">
-              Las ventas de cada día, de una caja o de todas.
-            </p>
-          </Card>
-        </li>
-      </ul>
+      <LinkListCard title="Ventas" icon={<ShoppingBag />}>
+        <ReportRow to="/reports/sales-by-day" label="Ventas por día o por rango" />
+        <ReportRow to="/reports/sales-by-payment-method" label="Ventas por medio de pago" />
+      </LinkListCard>
     </ScreenLayout>
   );
 }

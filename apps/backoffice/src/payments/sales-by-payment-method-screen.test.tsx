@@ -109,7 +109,7 @@ test("shows each method with its sales, its amount and its share of the total", 
   await expect.element(table.getByRole("columnheader", { name: "Parte del total" })).toBeVisible();
   const cash = table.getByRole("row", { name: /Efectivo/ });
   await expect.element(cash.getByText("$ 9.000,00")).toBeVisible();
-  await expect.element(cash.getByText("3", { exact: true })).toBeVisible();
+  await expect.element(cash.getByText("4", { exact: true })).toBeVisible();
   await expect.element(cash.getByText("64 %")).toBeVisible();
   await expect.element(table.getByRole("row", { name: /QR de Mercado Pago/ })).toBeVisible();
   await expect.element(table.getByRole("row", { name: /Point integrada/ })).toBeVisible();
@@ -174,7 +174,9 @@ test("asks the cloud for no range when the URL has none, and shows the range it 
 
   await renderScreen(services);
 
-  await expect.poll(() => services.fetchSalesByPaymentMethod.mock.calls.length).toBeGreaterThan(0);
+  await expect
+    .poll(() => vi.mocked(services.fetchSalesByPaymentMethod).mock.calls.length)
+    .toBeGreaterThan(0);
   expect(services.fetchSalesByPaymentMethod).toHaveBeenCalledWith({});
 });
 

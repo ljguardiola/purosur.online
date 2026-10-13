@@ -1,9 +1,11 @@
 import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import { canSeeRefundsArea } from "../shell/backoffice-access";
+import { canSeeRefundsArea, canSeeReports } from "../shell/backoffice-access";
 import { cashAndFiscalAreaRoute } from "../shell/cash-and-fiscal-area";
 import { lazyScreen } from "../shell/lazy-screen";
+import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout } from "../shell/signed-in-route";
+import { salesByPaymentMethodFilters } from "./sales-by-payment-method-filters";
 
 export const ALL_REGISTERS = "all";
 
@@ -20,4 +22,13 @@ export const pendingRefundsRoute = createRoute({
   validateSearch: pendingRefundsFilters,
   search: { middlewares: [stripSearchParams(pendingRefundsFilters.parse({}))] },
   component: lazyScreen(() => import("./pending-refunds-page"), "PendingRefundsPage"),
+});
+
+export const salesByPaymentMethodRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/sales-by-payment-method",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: salesByPaymentMethodFilters,
+  search: { middlewares: [stripSearchParams(salesByPaymentMethodFilters.parse({}))] },
+  component: lazyScreen(() => import("./sales-by-payment-method-page"), "SalesByPaymentMethodPage"),
 });

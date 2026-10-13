@@ -10,7 +10,7 @@ import {
 import { accountRecoveryRoute, myAccountRoute, registerPasskeyRoute } from "../credentials/routes";
 import { fiscalConfigurationRoute, pointsOfSaleRoute } from "../fiscal/routes";
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
-import { pendingRefundsRoute } from "../payments/routes";
+import { pendingRefundsRoute, salesByPaymentMethodRoute } from "../payments/routes";
 import { rolesListRoute } from "../permissions/routes";
 import { discountsListRoute, pricesListRoute } from "../pricing/routes";
 import {
@@ -20,7 +20,7 @@ import {
   suppliersListRoute,
 } from "../purchasing/routes";
 import { registersListRoute } from "../register/routes";
-import { reportsIndexRoute, salesByDayRoute } from "../sales/routes";
+import { salesByDayRoute } from "../sales/routes";
 import { signInRoute } from "../sessions/routes";
 import {
   initialInventoryRoute,
@@ -36,7 +36,7 @@ import { helpAreaRoute } from "./help-area";
 import { homeAreaRoute } from "./home-area";
 import { ScreenDownloadFailure } from "./lazy-screen";
 import { publicRoute } from "./public-route";
-import { reportsAreaRoute } from "./reports-area";
+import { reportsAreaRoute, reportsIndexRoute } from "./reports-area";
 import { type RouterContext, rootRoute } from "./root-route";
 import { ScreenFailure } from "./screen-failure";
 import { ScreenPending } from "./screen-pending";
@@ -82,7 +82,7 @@ const routeTree = rootRoute.addChildren([
       fiscalConfigurationRoute,
       pendingRefundsRoute,
     ]),
-    reportsAreaRoute.addChildren([reportsIndexRoute, salesByDayRoute]),
+    reportsAreaRoute.addChildren([reportsIndexRoute, salesByDayRoute, salesByPaymentMethodRoute]),
     settingsAreaRoute.addChildren([
       myAccountRoute,
       usersListRoute,

@@ -1,7 +1,9 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { ChartColumn, List } from "lucide-react";
+import { ChartColumn, List, Wallet } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
-import { signedInRoute } from "./signed-in-route";
+import { canSeeReports } from "./backoffice-access";
+import { lazyScreen } from "./lazy-screen";
+import { refuseWithout, signedInRoute } from "./signed-in-route";
 
 export const reportsAreaRoute = createRoute({
   getParentRoute: () => signedInRoute,
@@ -9,9 +11,17 @@ export const reportsAreaRoute = createRoute({
   component: ReportsArea,
 });
 
+export const reportsIndexRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  component: lazyScreen(() => import("./reports-index-page"), "ReportsIndexPage"),
+});
+
 function ReportsArea() {
   const matchRoute = useMatchRoute();
   const salesByDayShown = Boolean(matchRoute({ to: "/reports/sales-by-day" }));
+  const salesByPaymentMethodShown = Boolean(matchRoute({ to: "/reports/sales-by-payment-method" }));
   return (
     <AreaLayout
       area="reports"
@@ -36,6 +46,15 @@ function ReportsArea() {
                 icon={<ChartColumn />}
                 search={salesByDayShown ? true : {}}
                 active={salesByDayShown}
+              />
+            </li>
+            <li>
+              <SectionLink
+                to="/reports/sales-by-payment-method"
+                label="Ventas por medio de pago"
+                icon={<Wallet />}
+                search={salesByPaymentMethodShown ? true : {}}
+                active={salesByPaymentMethodShown}
               />
             </li>
           </ul>

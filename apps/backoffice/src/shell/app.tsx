@@ -18,6 +18,7 @@ import type { FiscalConfigurationScreenServices } from "../fiscal/fiscal-configu
 import type { PointsOfSaleScreenServices } from "../fiscal/points-of-sale-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
 import type { PendingRefundsScreenServices } from "../payments/pending-refunds-services";
+import type { SalesByPaymentMethodScreenServices } from "../payments/sales-by-payment-method-services";
 import type { RolesListScreenServices } from "../permissions/roles-list-services";
 import { createQueryClient } from "../platform/query-client";
 import type { DiscountsListScreenServices } from "../pricing/discounts-list-services";
@@ -73,6 +74,7 @@ export type AppServices = {
   pricesListScreen: PricesListScreenServices;
   discountsListScreen: DiscountsListScreenServices;
   salesByDayScreen: SalesByDayScreenServices;
+  salesByPaymentMethodScreen: SalesByPaymentMethodScreenServices;
   pendingRefundsScreen: PendingRefundsScreenServices;
   stockBalancesScreen: StockBalancesScreenServices;
   stockCountsScreen: StockCountsScreenServices;

@@ -7,9 +7,9 @@ import type { ReportFilters as ReportFiltersValue } from "./report-filters-searc
 import type { fetchReportRegisters } from "./report-registers-api";
 import { useReportRegistersQuery } from "./report-registers-queries";
 
-export type ReportFiltersProps = {
-  filters: ReportFiltersValue;
-  onFiltersChange: (filters: ReportFiltersValue) => void;
+export type ReportFiltersProps<Filters extends ReportFiltersValue> = {
+  filters: Filters;
+  onFiltersChange: (filters: Filters) => void;
   onSessionEnded: () => void;
   fetchReportRegisters: typeof fetchReportRegisters;
   answeredPeriod: { from: string; to: string } | undefined;
@@ -26,13 +26,13 @@ function typedRange({ from, to }: RangeDraft): { from: string; to: string } | nu
 
 const registerOrder = textOrder((register: { label: string }) => register.label);
 
-export function ReportFilters({
+export function ReportFilters<Filters extends ReportFiltersValue>({
   filters,
   onFiltersChange,
   onSessionEnded,
   fetchReportRegisters,
   answeredPeriod,
-}: ReportFiltersProps) {
+}: ReportFiltersProps<Filters>) {
   const [draft, setDraft] = useState<RangeDraft | null>(null);
   const reportFilters = useEffectEvent(onFiltersChange);
   const registerChosen = filters.register !== "ALL";
