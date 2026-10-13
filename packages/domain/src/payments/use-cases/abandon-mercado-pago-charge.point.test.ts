@@ -3,6 +3,7 @@ import { abandonMercadoPagoCharge } from "./abandon-mercado-pago-charge.js";
 import {
   CHARGE_ACTOR_ID,
   CHARGE_PAYMENT_ID,
+  CHARGE_SALE_ID,
   FakeMercadoPagoChargeWorld,
 } from "./test-support/mercado-pago-charge-world.js";
 
@@ -75,18 +76,32 @@ describe("abandonMercadoPagoCharge on the integrated terminal", () => {
     expect(world.pendingCharge(CHARGE_PAYMENT_ID)).not.toBeNull();
   });
 
-  it.each(["POINT", "QR"] as const)(
-    "records a %s payment the cloud never recorded as cancelled, never replacing it",
-    async (method) => {
-      const world = new FakeMercadoPagoChargeWorld();
-      world.seedPending({ method });
-      world.orderCancellation = { kind: "not_recorded" };
+  it("asks the cloud to cancel with the payment's sale, method and amount, so a payment the cloud has no record of ends only once the cloud confirms it", async () => {
+    const world = abandoningWorld();
+    world.orderCancellation = { kind: "unreachable" };
 
-      expect(await abandonMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "cancelled" });
-      expect(world.operations).toEqual(["cancelOrder", "recordEnded:CANCELLED"]);
-      expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
-    },
-  );
+    expect(await abandonMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "unreachable" });
+    expect(world.pendingCharge(CHARGE_PAYMENT_ID)).not.toBeNull();
+
+    world.orderCancellation = { kind: "answered", state: "CANCELLED" };
+
+    expect(await abandonMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "cancelled" });
+    expect(world.cancelledOrders).toEqual([
+      {
+        paymentTransactionId: CHARGE_PAYMENT_ID,
+        saleId: CHARGE_SALE_ID,
+        method: "POINT",
+        amount: 5000,
+      },
+      {
+        paymentTransactionId: CHARGE_PAYMENT_ID,
+        saleId: CHARGE_SALE_ID,
+        method: "POINT",
+        amount: 5000,
+      },
+    ]);
+    expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
+  });
 
   it("replaces a QR payment the cloud cannot cancel, as before", async () => {
     const world = new FakeMercadoPagoChargeWorld();

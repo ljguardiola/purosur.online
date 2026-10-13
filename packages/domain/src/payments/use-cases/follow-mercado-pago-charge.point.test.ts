@@ -106,7 +106,7 @@ describe("followMercadoPagoCharge on the integrated terminal", () => {
     ["before the wait ends", new Date("2026-10-09T12:00:19.000Z")],
     ["after the wait", AFTER_THE_WAIT],
   ])(
-    "answers closed, ending the payment as cancelled, when the cloud never recorded it, %s",
+    "answers closed, ending the payment as cancelled, once the cloud confirms it cancelled a payment it had no record of, %s",
     async (_when, now) => {
       const world = followingWorld();
       world.now = now;
@@ -114,9 +114,43 @@ describe("followMercadoPagoCharge on the integrated terminal", () => {
 
       expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "closed" });
       expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
-      expect(world.operations).toEqual(["readOrder", "recordEnded:CANCELLED"]);
+      expect(world.operations).toEqual(["readOrder", "cancelOrder", "recordEnded:CANCELLED"]);
     },
   );
+
+  it.each([
+    ["cannot be reached to cancel it", { kind: "unreachable" } as const],
+    ["finds its order already at the terminal", { kind: "cancel_on_terminal" } as const],
+  ])(
+    "never ends a payment the cloud had no record of while the cloud %s",
+    async (_name, cancellation) => {
+      const world = followingWorld();
+      world.orderReading = { kind: "not_recorded" };
+      world.orderCancellation = cancellation;
+
+      expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({
+        kind: "waiting",
+        remainingSeconds: 180,
+      });
+      world.now = AFTER_THE_WAIT;
+      expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({
+        kind: "at_terminal_wait_over",
+      });
+      expect(world.pendingCharge(CHARGE_PAYMENT_ID)).not.toBeNull();
+      expect(world.operations.filter((operation) => operation.startsWith("recordEnded"))).toEqual(
+        [],
+      );
+    },
+  );
+
+  it("settles a payment the cloud had no record of when its late order was paid before the cancellation reached it", async () => {
+    const world = followingWorld();
+    world.orderReading = { kind: "not_recorded" };
+    world.orderCancellation = { kind: "answered", state: "APPROVED" };
+
+    expect(await followMercadoPagoCharge(world.ports, INPUT)).toMatchObject({ kind: "approved" });
+    expect(world.settledPayments).toEqual([INPUT]);
+  });
 
   it("answers that no charge is pending once it is closed", async () => {
     const world = followingWorld();

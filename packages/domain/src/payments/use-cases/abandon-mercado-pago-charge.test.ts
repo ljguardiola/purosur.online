@@ -8,6 +8,12 @@ import {
 } from "./test-support/mercado-pago-charge-world.js";
 
 const INPUT = { actorId: CHARGE_ACTOR_ID, paymentTransactionId: CHARGE_PAYMENT_ID };
+const CANCELLED_ORDER = {
+  paymentTransactionId: CHARGE_PAYMENT_ID,
+  saleId: CHARGE_SALE_ID,
+  method: "QR",
+  amount: 5000,
+} as const;
 
 function abandoningWorld(): FakeMercadoPagoChargeWorld {
   const world = new FakeMercadoPagoChargeWorld();
@@ -33,11 +39,11 @@ describe("abandonMercadoPagoCharge", () => {
     expect(world.operations).toEqual([]);
   });
 
-  it("records the payment as cancelled once the cloud confirms the cancellation", async () => {
+  it("records the payment as cancelled once the cloud confirms the cancellation it was asked with the payment's sale, method and amount", async () => {
     const world = abandoningWorld();
 
     expect(await abandonMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "cancelled" });
-    expect(world.cancelledOrders).toEqual([CHARGE_PAYMENT_ID]);
+    expect(world.cancelledOrders).toEqual([CANCELLED_ORDER]);
     expect(world.operations).toEqual(["cancelOrder", "recordEnded:CANCELLED"]);
     expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
   });
@@ -80,7 +86,7 @@ describe("abandonMercadoPagoCharge", () => {
       expect(await abandonMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "closed" });
       expect(world.operations).toEqual(["cancelOrder", `recordEnded:${state}`]);
       expect(await abandonMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "not_pending" });
-      expect(world.cancelledOrders).toEqual([CHARGE_PAYMENT_ID]);
+      expect(world.cancelledOrders).toEqual([CANCELLED_ORDER]);
     },
   );
 
@@ -107,10 +113,10 @@ describe("abandonMercadoPagoCharge", () => {
     world.orderCancellation = { kind: "unreachable" };
     const asked: Date[] = [];
     const cancelOrder = world.cancelOrder.bind(world);
-    world.cancelOrder = async (id) => {
+    world.cancelOrder = async (order) => {
       world.now = new Date("2026-10-09T12:00:07.000Z");
       asked.push(world.now);
-      return cancelOrder(id);
+      return cancelOrder(order);
     };
 
     await abandonMercadoPagoCharge(world.ports, INPUT);

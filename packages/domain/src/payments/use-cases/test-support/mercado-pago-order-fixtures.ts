@@ -16,6 +16,13 @@ export const REGISTER_ID = "register-1";
 export const TRANSACTION_ID = "transaction-1";
 export const SALE_ID = "sale-1";
 export const AMOUNT = 2500;
+export const QR_CANCELLATION = {
+  registerId: REGISTER_ID,
+  paymentTransactionId: TRANSACTION_ID,
+  saleId: SALE_ID,
+  amount: AMOUNT,
+  provider: "MERCADOPAGO_QR",
+} as const;
 
 export function orderResult(
   overrides: Partial<MercadoPagoOrderResult> = {},

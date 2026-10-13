@@ -9,7 +9,7 @@ import {
   NOW,
   orderResult,
   paidOrderResult,
-  REGISTER_ID,
+  QR_CANCELLATION,
   storedTransaction,
   TRANSACTION_ID,
 } from "./test-support/mercado-pago-order-fixtures.js";
@@ -153,10 +153,7 @@ describe("a payment approved after the register replaced it", () => {
     world.mercadoPago.queuedReadings.push({ kind: "read", result: paidOrderResult() });
     world.lanes.seed(storedTransaction({ ...WITH_ORDER, replaced: true }));
 
-    const outcome = await cancelMercadoPagoOrder(world.ports, {
-      registerId: REGISTER_ID,
-      paymentTransactionId: TRANSACTION_ID,
-    });
+    const outcome = await cancelMercadoPagoOrder(world.ports, QR_CANCELLATION);
     await checkPendingMercadoPagoPayments(world.notificationPorts);
 
     expect(outcome.kind).toBe("approved");

@@ -12,6 +12,7 @@ import {
 
 type LaneWrite =
   | "recordPendingTransaction"
+  | "recordCancelledWithoutOrder"
   | "recordCreationAttempt"
   | "recordCreationCreatedNothing"
   | "recordNeedsReview"
@@ -45,6 +46,16 @@ class FakeLane implements PaymentTransactionLane {
   async recordPendingTransaction(transaction: MercadoPagoOrderTransaction): Promise<void> {
     this.lanes.operations.push("recordPendingTransaction");
     this.lanes.failIfAsked("recordPendingTransaction");
+    this.insert(transaction);
+  }
+
+  async recordCancelledWithoutOrder(transaction: MercadoPagoOrderTransaction): Promise<void> {
+    this.lanes.operations.push("recordCancelledWithoutOrder");
+    this.lanes.failIfAsked("recordCancelledWithoutOrder");
+    this.insert(transaction);
+  }
+
+  private insert(transaction: MercadoPagoOrderTransaction): void {
     if (this.lanes.racer) {
       this.lanes.seed(this.lanes.racer);
     }

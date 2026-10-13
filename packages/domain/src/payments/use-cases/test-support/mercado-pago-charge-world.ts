@@ -1,6 +1,7 @@
 import type { PaymentTransactionState } from "../../model/payment-transaction.js";
 import type {
   EndedMercadoPagoChargeState,
+  MercadoPagoChargeOrder,
   MercadoPagoChargeOrderAnswer,
   MercadoPagoChargeOrderCancellation,
   MercadoPagoChargeOrderReading,
@@ -35,14 +36,9 @@ export class FakeMercadoPagoChargeWorld
   >();
   readonly recordedPayments: PendingMercadoPagoPayment[] = [];
   readonly settledPayments: { actorId: string; paymentTransactionId: string }[] = [];
-  readonly requestedOrders: {
-    paymentTransactionId: string;
-    saleId: string;
-    method: PendingMercadoPagoCharge["method"];
-    amount: number;
-  }[] = [];
+  readonly requestedOrders: MercadoPagoChargeOrder[] = [];
   readonly readOrders: string[] = [];
-  readonly cancelledOrders: string[] = [];
+  readonly cancelledOrders: MercadoPagoChargeOrder[] = [];
   readonly replacedPayments: { actorId: string; paymentTransactionId: string; replacedAt: Date }[] =
     [];
   now = CHARGE_NOW;
@@ -123,12 +119,7 @@ export class FakeMercadoPagoChargeWorld
     return { kind: "replaced" };
   }
 
-  async requestOrder(order: {
-    paymentTransactionId: string;
-    saleId: string;
-    method: PendingMercadoPagoCharge["method"];
-    amount: number;
-  }): Promise<MercadoPagoChargeOrderAnswer> {
+  async requestOrder(order: MercadoPagoChargeOrder): Promise<MercadoPagoChargeOrderAnswer> {
     this.operations.push("requestOrder");
     this.requestedOrders.push(order);
     return this.orderAnswer;
@@ -140,9 +131,9 @@ export class FakeMercadoPagoChargeWorld
     return this.scriptedReadings.shift() ?? this.orderReading;
   }
 
-  async cancelOrder(paymentTransactionId: string): Promise<MercadoPagoChargeOrderCancellation> {
+  async cancelOrder(order: MercadoPagoChargeOrder): Promise<MercadoPagoChargeOrderCancellation> {
     this.operations.push("cancelOrder");
-    this.cancelledOrders.push(paymentTransactionId);
+    this.cancelledOrders.push(order);
     return this.orderCancellation;
   }
 

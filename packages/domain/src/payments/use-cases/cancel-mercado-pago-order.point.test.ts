@@ -1,16 +1,32 @@
 import { describe, expect, it } from "vitest";
 import { cancelMercadoPagoOrder } from "./cancel-mercado-pago-order.js";
+import { createMercadoPagoPointOrder } from "./create-mercado-pago-point-order.js";
 import {
+  AMOUNT,
   mercadoPagoOrderWorld,
+  NOW,
   orderResult,
   paidOrderResult,
   REGISTER_ID,
+  SALE_ID,
   storedPointTransaction,
   storedTransaction,
   TRANSACTION_ID,
 } from "./test-support/mercado-pago-order-fixtures.js";
 
-const INPUT = { registerId: REGISTER_ID, paymentTransactionId: TRANSACTION_ID };
+const INPUT = {
+  registerId: REGISTER_ID,
+  paymentTransactionId: TRANSACTION_ID,
+  saleId: SALE_ID,
+  amount: AMOUNT,
+  provider: "MERCADOPAGO_POINT",
+} as const;
+const ORDER_INPUT = {
+  registerId: REGISTER_ID,
+  paymentTransactionId: TRANSACTION_ID,
+  saleId: SALE_ID,
+  amount: AMOUNT,
+};
 const WITH_ORDER = { providerOrderId: "order-1" };
 const AT_TERMINAL = orderResult({ status: "at_terminal", statusDetail: "at_terminal" });
 
@@ -96,6 +112,53 @@ describe("cancelMercadoPagoOrder on a Point order", () => {
 
     expect(await cancelMercadoPagoOrder(world.ports, INPUT)).toEqual({
       kind: "provider_unavailable",
+    });
+  });
+
+  describe("for a payment whose order request may still reach the cloud", () => {
+    it("records it cancelled on the terminal's provider and never sends the late order to the terminal", async () => {
+      const { lanes, mercadoPago, ports } = mercadoPagoOrderWorld();
+
+      const cancellation = await cancelMercadoPagoOrder(ports, INPUT);
+      const lateCreation = await createMercadoPagoPointOrder(ports, ORDER_INPUT);
+
+      const cancelled = storedPointTransaction({
+        state: "CANCELLED",
+        createdAt: NOW,
+        expiresAt: NOW,
+      });
+      expect(cancellation).toEqual({ kind: "cancelled", transaction: cancelled });
+      expect(lateCreation).toEqual({ kind: "recorded", transaction: cancelled });
+      expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(cancelled);
+      expect(mercadoPago.pointCreationRequests).toEqual([]);
+    });
+
+    it("refuses a late order that names another amount than the cancelled payment, without calling Mercado Pago", async () => {
+      const { mercadoPago, ports } = mercadoPagoOrderWorld();
+      await cancelMercadoPagoOrder(ports, INPUT);
+
+      expect(
+        await createMercadoPagoPointOrder(ports, { ...ORDER_INPUT, amount: AMOUNT + 1 }),
+      ).toEqual({ kind: "request_mismatch" });
+      expect(mercadoPago.pointCreationRequests).toEqual([]);
+    });
+
+    it("cancels through the order when the order request reached the lane first, leaving it to the terminal while it shows there", async () => {
+      const { lanes, mercadoPago, ports } = mercadoPagoOrderWorld({
+        pointCreation: { kind: "created", orderId: "order-1", result: AT_TERMINAL },
+        reading: { kind: "read", result: AT_TERMINAL },
+      });
+      mercadoPago.cancellation = { kind: "cannot_cancel" };
+      await createMercadoPagoPointOrder(ports, ORDER_INPUT);
+
+      const outcome = await cancelMercadoPagoOrder(ports, INPUT);
+
+      expect(outcome).toMatchObject({
+        kind: "cancel_on_terminal",
+        transaction: { state: "PENDING", providerOrderId: "order-1" },
+      });
+      expect(mercadoPago.cancellations).toHaveLength(1);
+      expect(lanes.operations).not.toContain("recordCancelledWithoutOrder");
     });
   });
 });

@@ -62,7 +62,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoChargeOrders {
     return this.reading;
   }
 
-  async cancelOrder(paymentTransactionId: string) {
+  async cancelOrder({ paymentTransactionId }: { paymentTransactionId: string }) {
     this.cancelled.push(paymentTransactionId);
     return this.cancellation;
   }

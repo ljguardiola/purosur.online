@@ -1,27 +1,85 @@
 import { describe, expect, it } from "vitest";
 import { cancelMercadoPagoOrder } from "./cancel-mercado-pago-order.js";
+import { createMercadoPagoQrOrder } from "./create-mercado-pago-qr-order.js";
 import {
+  AMOUNT,
   mercadoPagoOrderWorld,
   NOW,
   orderResult,
   paidOrderResult,
   REGISTER_ID,
+  SALE_ID,
   storedTransaction,
   TRANSACTION_ID,
 } from "./test-support/mercado-pago-order-fixtures.js";
 
-const INPUT = { registerId: REGISTER_ID, paymentTransactionId: TRANSACTION_ID };
+const INPUT = {
+  registerId: REGISTER_ID,
+  paymentTransactionId: TRANSACTION_ID,
+  saleId: SALE_ID,
+  amount: AMOUNT,
+  provider: "MERCADOPAGO_QR",
+} as const;
 const WITH_ORDER = { providerOrderId: "order-1" };
 const CANCELLED_ORDER = orderResult({ status: "canceled", statusDetail: "canceled" });
 const EXPIRED_ORDER = orderResult({ status: "expired", statusDetail: "expired" });
 const UNPAID = { kind: "read", result: orderResult() } as const;
 
 describe("cancelMercadoPagoOrder", () => {
-  it("answers not found for a payment transaction that does not exist", async () => {
+  it("records a payment it has no record of as cancelled before any order, in the payment's lane, without calling Mercado Pago", async () => {
+    const { lanes, mercadoPago, ports } = mercadoPagoOrderWorld();
+
+    const outcome = await cancelMercadoPagoOrder(ports, INPUT);
+
+    const expected = storedTransaction({ state: "CANCELLED", createdAt: NOW, expiresAt: NOW });
+    expect(outcome).toEqual({ kind: "cancelled", transaction: expected });
+    expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(expected);
+    expect(lanes.operations).toEqual([
+      "enterLane",
+      "recordedTransaction",
+      "recordCancelledWithoutOrder",
+      "leaveLane",
+    ]);
+    expect(mercadoPago.readOrders).toEqual([]);
+    expect(mercadoPago.cancellations).toEqual([]);
+  });
+
+  it("never creates the order of a payment cancelled before the cloud recorded it", async () => {
     const { mercadoPago, ports } = mercadoPagoOrderWorld();
+    await cancelMercadoPagoOrder(ports, INPUT);
+
+    const lateCreation = await createMercadoPagoQrOrder(ports, {
+      registerId: REGISTER_ID,
+      paymentTransactionId: TRANSACTION_ID,
+      saleId: SALE_ID,
+      amount: AMOUNT,
+    });
+
+    expect(lateCreation).toMatchObject({
+      kind: "recorded",
+      transaction: { state: "CANCELLED", providerOrderId: null },
+    });
+    expect(mercadoPago.creationRequests).toEqual([]);
+  });
+
+  it("fails, recording nothing, when recording a payment it has no record of as cancelled fails", async () => {
+    const { lanes, ports } = mercadoPagoOrderWorld();
+    lanes.failOn = "recordCancelledWithoutOrder";
+
+    await expect(cancelMercadoPagoOrder(ports, INPUT)).rejects.toThrow(
+      "recordCancelledWithoutOrder failed",
+    );
+    expect(lanes.transactions.has(TRANSACTION_ID)).toBe(false);
+  });
+
+  it("answers not found, recording nothing, for a payment another register recorded while it was being cancelled", async () => {
+    const { lanes, mercadoPago, ports } = mercadoPagoOrderWorld();
+    lanes.racer = storedTransaction({ registerId: "register-2" });
 
     expect(await cancelMercadoPagoOrder(ports, INPUT)).toEqual({ kind: "not_found" });
-    expect(mercadoPago.readOrders).toEqual([]);
+    expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(
+      storedTransaction({ registerId: "register-2" }),
+    );
     expect(mercadoPago.cancellations).toEqual([]);
   });
 

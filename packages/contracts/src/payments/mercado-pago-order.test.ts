@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  mercadoPagoCancellationRequestSchema,
   mercadoPagoCancellationSchema,
   mercadoPagoOrderRequestSchema,
   mercadoPagoPaymentSchema,
@@ -111,6 +112,39 @@ describe("mercadoPagoCancellationSchema", () => {
   it("refuses a cancellation that is not a boolean", () => {
     expect(
       mercadoPagoCancellationSchema.safeParse({ ...payment, cancel_on_terminal: "yes" }).success,
+    ).toBe(false);
+  });
+});
+
+describe("mercadoPagoCancellationRequestSchema", () => {
+  const cancellationRequest: Record<string, unknown> = {
+    sale_id: SALE_ID,
+    provider: "MERCADOPAGO_POINT",
+    amount: 2500,
+  };
+
+  it("accepts the sale, provider and amount of the payment to cancel", () => {
+    expect(mercadoPagoCancellationRequestSchema.parse(cancellationRequest)).toEqual(
+      cancellationRequest,
+    );
+  });
+
+  it.each(["sale_id", "provider", "amount"])("refuses a request without %s", (key) => {
+    const { [key]: _removed, ...rest } = cancellationRequest;
+
+    expect(mercadoPagoCancellationRequestSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it.each([0, 10.5])("refuses the amount %s", (amount) => {
+    expect(
+      mercadoPagoCancellationRequestSchema.safeParse({ ...cancellationRequest, amount }).success,
+    ).toBe(false);
+  });
+
+  it("refuses a provider that takes no order", () => {
+    expect(
+      mercadoPagoCancellationRequestSchema.safeParse({ ...cancellationRequest, provider: "NONE" })
+        .success,
     ).toBe(false);
   });
 });

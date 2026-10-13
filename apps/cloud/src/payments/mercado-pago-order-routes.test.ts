@@ -1,5 +1,6 @@
 import {
   cloudErrorSchema,
+  type MercadoPagoCancellationRequestBody,
   type MercadoPagoOrderRequestBody,
   mercadoPagoCancellationSchema,
   mercadoPagoPaymentSchema,
@@ -62,10 +63,21 @@ function readPayment(id: string, authorization?: string) {
   });
 }
 
-function cancelPayment(id: string, authorization?: string) {
+const CANCELLATION_REQUEST: MercadoPagoCancellationRequestBody = {
+  sale_id: crypto.randomUUID(),
+  provider: "MERCADOPAGO_QR",
+  amount: 5000,
+};
+
+function cancelPayment(
+  id: string,
+  authorization?: string,
+  payload: unknown = CANCELLATION_REQUEST,
+) {
   return route.app.inject({
     method: "POST",
     url: `/payments/mercado-pago/${id}/cancel`,
+    payload: payload as object,
     ...(authorization !== undefined && { headers: { authorization } }),
   });
 }
@@ -518,13 +530,35 @@ describe("the Mercado Pago order routes", () => {
       expect(cloudErrorSchema.parse(response.json()).code).toBe("validation_failed");
     });
 
-    it("answers not found for a payment that was never recorded", async () => {
+    it("refuses a request without the payment's sale, provider and amount", async () => {
       const { deviceToken } = await enroll();
 
-      const response = await cancelPayment(crypto.randomUUID(), `Bearer ${deviceToken}`);
+      const response = await cancelPayment(crypto.randomUUID(), `Bearer ${deviceToken}`, {});
 
-      expect(response.statusCode).toBe(404);
-      expect(cloudErrorSchema.parse(response.json()).code).toBe("not_found");
+      expect(response.statusCode).toBe(400);
+      expect(cloudErrorSchema.parse(response.json()).code).toBe("validation_failed");
+      expect(await transactions()).toEqual([]);
+    });
+
+    it("answers cancelled for a payment it never recorded, keeping it cancelled without asking Mercado Pago", async () => {
+      const { deviceToken } = await enroll();
+      const id = crypto.randomUUID();
+
+      const response = await cancelPayment(id, `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(200);
+      expect(mercadoPagoCancellationSchema.parse(response.json())).toMatchObject({
+        payment_transaction_id: id,
+        state: "CANCELLED",
+        provider: "MERCADOPAGO_QR",
+        amount: 5000,
+        cancel_on_terminal: false,
+      });
+      expect(await transactions()).toMatchObject([
+        { id, saleId: CANCELLATION_REQUEST.sale_id, state: "CANCELLED", providerOrderId: null },
+      ]);
+      expect(route.mercadoPago.cancellations).toEqual([]);
+      expect(route.mercadoPago.creations).toEqual([]);
     });
 
     it("answers not found for a payment another register recorded, without cancelling its order", async () => {

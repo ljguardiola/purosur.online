@@ -268,20 +268,32 @@ describe("reading a Mercado Pago QR order's state from the cloud", () => {
 });
 
 describe("asking the cloud to cancel a Mercado Pago QR order", () => {
-  it("posts to the payment's cancel path with the device token, no body and one short attempt", async () => {
+  it("posts to the payment's cancel path with the device token, the payment's sale, provider and amount, and one short attempt", async () => {
     const { calls, orders } = cloudOrders([ok(cancellation("CANCELLED"))]);
 
-    await orders.cancelOrder(PAYMENT_ID);
+    await orders.cancelOrder(ORDER);
 
     expect(calls).toEqual([
       {
         method: "POST",
         path: `/api/payments/mercado-pago/${PAYMENT_ID}/cancel`,
         bearerToken: "prefix.secret",
-        body: undefined,
+        body: { sale_id: SALE_ID, provider: "MERCADOPAGO_QR", amount: 5000 },
         options: { timeoutMs: 3000, singleAttempt: true },
       },
     ]);
+  });
+
+  it("names the terminal's provider for a payment on the integrated terminal", async () => {
+    const { calls, orders } = cloudOrders([ok(cancellation("CANCELLED"))]);
+
+    await orders.cancelOrder({ ...ORDER, method: "POINT" });
+
+    expect(calls[0]?.body).toEqual({
+      sale_id: SALE_ID,
+      provider: "MERCADOPAGO_POINT",
+      amount: 5000,
+    });
   });
 
   it.each(["CANCELLED", "APPROVED", "EXPIRED", "DECLINED", "PENDING"])(
@@ -289,7 +301,7 @@ describe("asking the cloud to cancel a Mercado Pago QR order", () => {
     async (state) => {
       const { orders } = cloudOrders([ok(cancellation(state))]);
 
-      expect(await orders.cancelOrder(PAYMENT_ID)).toEqual({ kind: "answered", state });
+      expect(await orders.cancelOrder(ORDER)).toEqual({ kind: "answered", state });
     },
   );
 
@@ -298,25 +310,25 @@ describe("asking the cloud to cancel a Mercado Pago QR order", () => {
       ok(cancellation("PENDING", true, { provider: "MERCADOPAGO_POINT" })),
     ]);
 
-    expect(await orders.cancelOrder(PAYMENT_ID)).toEqual({ kind: "cancel_on_terminal" });
+    expect(await orders.cancelOrder(ORDER)).toEqual({ kind: "cancel_on_terminal" });
   });
 
-  it("answers not_recorded when the cloud has no record of the payment", async () => {
+  it("never takes a payment the cloud does not find as ended", async () => {
     const { orders } = cloudOrders([refused("not_found")]);
 
-    expect(await orders.cancelOrder(PAYMENT_ID)).toEqual({ kind: "not_recorded" });
+    expect(await orders.cancelOrder(ORDER)).toEqual({ kind: "unreachable" });
   });
 
   it("answers unreachable when the cloud does not say whether the cancellation is left to the terminal", async () => {
     const { orders } = cloudOrders([ok(payment("CANCELLED"))]);
 
-    expect(await orders.cancelOrder(PAYMENT_ID)).toEqual({ kind: "unreachable" });
+    expect(await orders.cancelOrder(ORDER)).toEqual({ kind: "unreachable" });
   });
 
   it("encodes the id in the path", async () => {
     const { calls, orders } = cloudOrders([ok(cancellation("CANCELLED"))]);
 
-    await orders.cancelOrder("a/b");
+    await orders.cancelOrder({ ...ORDER, paymentTransactionId: "a/b" });
 
     expect(calls[0]?.path).toBe("/api/payments/mercado-pago/a%2Fb/cancel");
   });
@@ -332,13 +344,13 @@ describe("asking the cloud to cancel a Mercado Pago QR order", () => {
   ])("answers unreachable when %s", async (_name, response) => {
     const { orders } = cloudOrders([response]);
 
-    expect(await orders.cancelOrder(PAYMENT_ID)).toEqual({ kind: "unreachable" });
+    expect(await orders.cancelOrder(ORDER)).toEqual({ kind: "unreachable" });
   });
 
   it("answers unreachable, calling nothing, without a device token", async () => {
     const { calls, orders } = cloudOrders([], null);
 
-    expect(await orders.cancelOrder(PAYMENT_ID)).toEqual({ kind: "unreachable" });
+    expect(await orders.cancelOrder(ORDER)).toEqual({ kind: "unreachable" });
     expect(calls).toEqual([]);
   });
 });

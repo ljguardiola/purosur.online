@@ -5,7 +5,7 @@ import {
   mercadoPagoOrderWorld,
   orderResult,
   paidOrderResult,
-  REGISTER_ID,
+  QR_CANCELLATION,
   storedTransaction,
   TRANSACTION_ID,
 } from "./test-support/mercado-pago-order-fixtures.js";
@@ -187,10 +187,7 @@ describe("checkPendingMercadoPagoPayments", () => {
       });
       mercadoPago.cancellation = { kind: "unavailable" };
       lanes.seed(storedTransaction({ providerOrderId: "order-1" }));
-      await cancelMercadoPagoOrder(ports, {
-        registerId: REGISTER_ID,
-        paymentTransactionId: TRANSACTION_ID,
-      });
+      await cancelMercadoPagoOrder(ports, QR_CANCELLATION);
       lanes.seed({ ...storedTransaction({ providerOrderId: "order-1" }), replaced: true });
       mercadoPago.cancellation = {
         kind: "cancelled",

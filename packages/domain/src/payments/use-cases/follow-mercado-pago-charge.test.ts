@@ -87,13 +87,34 @@ describe("followMercadoPagoCharge", () => {
     expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "wait_over" });
   });
 
-  it("answers the wait is over, recording the payment cancelled, when the cloud never recorded it", async () => {
+  it("asks the cloud to cancel a payment it has no record of, with the payment's sale, method and amount, and answers the wait is over once the cloud confirms it cancelled", async () => {
     const world = followingWorld();
     world.orderReading = { kind: "not_recorded" };
 
     expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "wait_over" });
-    expect(world.operations).toEqual(["readOrder", "recordEnded:CANCELLED"]);
+    expect(world.operations).toEqual(["readOrder", "cancelOrder", "recordEnded:CANCELLED"]);
+    expect(world.cancelledOrders).toEqual([
+      {
+        paymentTransactionId: CHARGE_PAYMENT_ID,
+        saleId: CHARGE_SALE_ID,
+        method: "QR",
+        amount: 5000,
+      },
+    ]);
     expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
+  });
+
+  it("keeps waiting, leaving the payment pending, when the cloud has no record of it and cannot be reached to cancel it", async () => {
+    const world = followingWorld();
+    world.orderReading = { kind: "not_recorded" };
+    world.orderCancellation = { kind: "unreachable" };
+
+    expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({
+      kind: "waiting",
+      remainingSeconds: 180,
+    });
+    expect(world.operations).toEqual(["readOrder", "cancelOrder"]);
+    expect(world.pendingCharge(CHARGE_PAYMENT_ID)).not.toBeNull();
   });
 
   it("cannot confirm the expiry when the order cannot be read after the countdown ended, leaving the payment pending", async () => {

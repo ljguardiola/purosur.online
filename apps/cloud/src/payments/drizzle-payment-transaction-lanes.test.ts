@@ -142,6 +142,43 @@ describe("DrizzlePaymentTransactionLanes", () => {
     });
   });
 
+  describe("a payment cancelled before any order", () => {
+    it("keeps it cancelled, with no order, with every field it was recorded with", async () => {
+      const registerId = await insertRegister(db, "caja-1");
+      const transaction = pendingPointTransaction(registerId, { state: "CANCELLED" });
+
+      const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
+        await lane.recordCancelledWithoutOrder(transaction);
+        return lane.recordedTransaction(registerId, transaction.id);
+      });
+
+      expect(recorded).toEqual(transaction);
+    });
+
+    it("refuses one another register already recorded with the error of the domain, leaving it as it was", async () => {
+      const ownerId = await insertRegister(db, "caja-1");
+      const otherRegisterId = await insertRegister(db, "caja-2");
+      const transaction = pendingTransaction(ownerId);
+      await lanes.inPaymentTransactionLane(transaction.id, (lane) =>
+        lane.recordPendingTransaction(transaction),
+      );
+
+      await expect(
+        lanes.inPaymentTransactionLane(transaction.id, (lane) =>
+          lane.recordCancelledWithoutOrder({
+            ...transaction,
+            registerId: otherRegisterId,
+            state: "CANCELLED",
+          }),
+        ),
+      ).rejects.toBeInstanceOf(PaymentTransactionAlreadyRecorded);
+      expect(await storedRow(transaction.id)).toMatchObject({
+        registerId: ownerId,
+        state: "PENDING",
+      });
+    });
+  });
+
   describe("a creation attempt", () => {
     it("moves the transaction's expiry to the new attempt's and remembers that its order may be created", async () => {
       const registerId = await insertRegister(db, "caja-1");

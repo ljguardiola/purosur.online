@@ -401,3 +401,46 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
     ).toMatchObject({ kind: "completed", sale_id: saleId });
   });
 });
+
+describe("a charge on the integrated terminal whose order request never reached the cloud", () => {
+  async function unconfirmedPointCharge(): Promise<{ saleId: string; paymentId: string }> {
+    const saleId = await saleOfTwoYerbas();
+    const orders = new FakeOrders();
+    orders.answer = { kind: "unreachable" };
+    const outcome = await startMercadoPagoChargeFor(deps(orders), {
+      saleId,
+      method: "POINT",
+      amount: 3000,
+    });
+    if (outcome.kind !== "order_unconfirmed") {
+      throw new Error("test setup: the terminal charge was confirmed");
+    }
+    return { saleId, paymentId: outcome.payment_transaction_id };
+  }
+
+  it("keeps the sale locked while the cloud has no record of the payment and cannot confirm its cancellation", async () => {
+    const { paymentId } = await unconfirmedPointCharge();
+    const orders = new FakeOrders();
+    orders.reading = { kind: "not_recorded" };
+    orders.cancellation = { kind: "unreachable" };
+
+    await followMercadoPagoChargeFor(deps(orders), { paymentTransactionId: paymentId });
+
+    expect(orders.cancelled).toEqual([paymentId]);
+    expect(pointRows()).toMatchObject([{ state: "PENDING" }]);
+    expect((await openSale()).lines_lock).toBe("mercado_pago_charge_in_progress");
+  });
+
+  it("frees the sale once the cloud confirms it cancelled the payment it had no record of", async () => {
+    const { paymentId } = await unconfirmedPointCharge();
+    const orders = new FakeOrders();
+    orders.reading = { kind: "not_recorded" };
+    orders.cancellation = { kind: "answered", state: "CANCELLED" };
+
+    expect(
+      await followMercadoPagoChargeFor(deps(orders), { paymentTransactionId: paymentId }),
+    ).toEqual({ kind: "closed" });
+    expect(pointRows()).toMatchObject([{ state: "CANCELLED" }]);
+    expect((await openSale()).lines_lock).toBeNull();
+  });
+});
