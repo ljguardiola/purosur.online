@@ -650,6 +650,64 @@ describe("the open sale of the cash session", () => {
   });
 });
 
+describe("what a stopped register left pending", () => {
+  const pending = {
+    sales_to_print: [
+      {
+        sale_id: "sale-1",
+        completed_at: "2026-10-13T12:00:00.000Z",
+        total: 345000,
+        standing: "outcome_unknown",
+      },
+    ],
+    unknown_fiscal_documents: [],
+    pending_payments: [],
+  };
+
+  it("accepts a request for it", () => {
+    const message = { type: "startup-pending-request", request_id: REQUEST_ID };
+
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request for it without its request id", () => {
+    expect(
+      registerRendererToCoreMessageSchema.safeParse({ type: "startup-pending-request" }).success,
+    ).toBe(false);
+  });
+
+  it("accepts what was left pending", () => {
+    const message = { type: "startup-pending", request_id: REQUEST_ID, pending };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects an answer without what was left pending", () => {
+    expect(
+      registerCoreToRendererMessageSchema.safeParse({
+        type: "startup-pending",
+        request_id: REQUEST_ID,
+      }).success,
+    ).toBe(false);
+  });
+
+  it.each(["startup-pending-unavailable", "startup-pending-not-permitted"])(
+    "accepts the answer %s",
+    (type) => {
+      const message = { type, request_id: REQUEST_ID };
+
+      expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+    },
+  );
+
+  it.each(["startup-pending-unavailable", "startup-pending-not-permitted"])(
+    "rejects the answer %s without its request id",
+    (type) => {
+      expect(registerCoreToRendererMessageSchema.safeParse({ type }).success).toBe(false);
+    },
+  );
+});
+
 describe("identifying who closes a locked register", () => {
   const identify = {
     type: "identify-locked-closer",
