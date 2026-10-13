@@ -56,11 +56,11 @@ describe("salesOfGroups", () => {
     expect(
       salesOfGroups([
         unitLines(null, [], 1, 100),
-        unitLines("c1", ["Almacén"], 1, 300),
+        unitLines("c1", ["Almacén"], 1, 500),
         weighedLines(null, [], 400, 200),
       ]),
     ).toEqual([
-      { id: "c1", path: ["Almacén"], units: 1, thousandths: 0, amount: 300 },
+      { id: "c1", path: ["Almacén"], units: 1, thousandths: 0, amount: 500 },
       { id: null, path: [], units: 1, thousandths: 400, amount: 300 },
     ]);
   });
