@@ -6,10 +6,11 @@ import type {
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq, type SQL, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { openAlert } from "../alerts/open-alert.js";
-import { openAlertCondition } from "../alerts/open-alert-condition.js";
-import { resolveAlert } from "../alerts/resolve-alert.js";
-import { alerts, arcaWsaaTicketRefusals, arcaWsaaTokens } from "../platform/db/schema.js";
+import {
+  openWsaaTicketHeldAlert,
+  resolveWsaaTicketHeldAlert,
+} from "../alerts/wsaa-ticket-held-alert.js";
+import { arcaWsaaTicketRefusals, arcaWsaaTokens } from "../platform/db/schema.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -71,20 +72,7 @@ class DrizzleWsaaTokenAnswer<TQueryResult extends PgQueryResultHKT> implements W
   }
 
   async resolveHeldTicketAlert(resolvedAt: Date): Promise<void> {
-    const [open] = await this.tx
-      .select({ id: alerts.id })
-      .from(alerts)
-      .where(
-        and(
-          eq(alerts.kind, "arca_wsaa_ticket_held"),
-          eq(alerts.scope, this.options.environment),
-          openAlertCondition(),
-        ),
-      )
-      .for("update");
-    if (open) {
-      await resolveAlert(this.tx, open.id, { now: () => resolvedAt });
-    }
+    await resolveWsaaTicketHeldAlert(this.tx, this.options.environment, resolvedAt);
   }
 
   async resumeWorkWaitingOnToken(): Promise<void> {
@@ -106,14 +94,11 @@ class DrizzleWsaaTokenAnswer<TQueryResult extends PgQueryResultHKT> implements W
   }
 
   async openHeldTicketAlert(openedAt: Date, retryIntervalMinutes: number): Promise<void> {
-    await openAlert(
+    await openWsaaTicketHeldAlert(
       this.tx,
-      {
-        kind: "arca_wsaa_ticket_held",
-        scope: this.options.environment,
-        detail: { retryIntervalMinutes },
-      },
-      { now: () => openedAt },
+      this.options.environment,
+      retryIntervalMinutes,
+      openedAt,
     );
   }
 }

@@ -1,4 +1,3 @@
-import { fiscalUnknownAlertKey } from "@purosur/domain";
 import {
   type AbandonedRequestRecord,
   FiscalDocumentAlreadyRecorded,
@@ -12,10 +11,9 @@ import {
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { openAlertCondition } from "../alerts/open-alert-condition.js";
-import { resolveAlert } from "../alerts/resolve-alert.js";
+import { resolveUnclearOutcomeAlert } from "../alerts/resolve-unclear-outcome-alert.js";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
-import { alerts, fiscalRequests, registerPointsOfSale } from "../platform/db/schema.js";
+import { fiscalRequests, registerPointsOfSale } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import type { EnqueueUnclearOutcome } from "./enqueue-unclear-outcome.js";
 import { answerOf } from "./fiscal-request-answer.js";
@@ -108,16 +106,11 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
         .update(fiscalRequests)
         .set({ ...decisionColumnsOf(decision), decidedAt })
         .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
-      const warning = fiscalUnknownAlertKey(clearedWarning.fiscalDocumentId);
-      const [open] = await tx
-        .select({ id: alerts.id })
-        .from(alerts)
-        .where(
-          and(eq(alerts.kind, warning.kind), eq(alerts.scope, warning.scope), openAlertCondition()),
-        );
-      if (open !== undefined) {
-        await resolveAlert(tx, open.id, { now: () => clearedWarning.clearedAt });
-      }
+      await resolveUnclearOutcomeAlert(
+        tx,
+        clearedWarning.fiscalDocumentId,
+        clearedWarning.clearedAt,
+      );
     });
   }
 
