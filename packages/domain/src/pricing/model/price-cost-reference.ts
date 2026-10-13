@@ -1,4 +1,4 @@
-import { argentinaCalendarDay, type Fraction, roundHalfUpSigned } from "../../shared/index.js";
+import { argentinaCalendarDay, type Fraction, roundHalfUp } from "../../shared/index.js";
 import {
   knownLotCost,
   type LotCost,
@@ -103,7 +103,7 @@ function unitCostFraction({ totalCents, quantity }: LotCost): Fraction {
 
 function marginTenthsOfPercent(cost: Fraction, unitPrice: number): number {
   const priceNumerator = BigInt(unitPrice) * cost.denominator;
-  return roundHalfUpSigned({
+  return roundHalfUp({
     numerator: (priceNumerator - cost.numerator) * 1000n,
     denominator: priceNumerator,
   });

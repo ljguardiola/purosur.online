@@ -4,12 +4,10 @@ export interface Fraction {
 }
 
 export function roundHalfUp({ numerator, denominator }: Fraction): number {
-  return Number((2n * numerator + denominator) / (2n * denominator));
-}
-
-// Integer division truncates towards zero, so a negative numerator is first moved onto a
-// non-negative remainder above the whole part below the quotient.
-export function roundHalfUpSigned({ numerator, denominator }: Fraction): number {
-  const wholes = numerator / denominator - 1n;
-  return Number(wholes) + roundHalfUp({ numerator: numerator - wholes * denominator, denominator });
+  const doubled = 2n * numerator + denominator;
+  const divisor = 2n * denominator;
+  const quotient = doubled / divisor;
+  // Integer division truncates towards zero, so a negative quotient with a remainder steps down to
+  // its floor.
+  return Number(doubled % divisor < 0n ? quotient - 1n : quotient);
 }

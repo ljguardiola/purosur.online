@@ -17,7 +17,7 @@ export {
   SALE_COMPLETED_EVENT_TYPE,
 } from "./outbox-event.js";
 export type { Fraction } from "./rounding.js";
-export { roundHalfUp, roundHalfUpSigned } from "./rounding.js";
+export { roundHalfUp } from "./rounding.js";
 export type { SalesDeniedReason, SalesDeniedReport } from "./sales-denied.js";
 export { SALES_DENIED_REASONS } from "./sales-denied.js";
 export type { Scale, ScaleReading } from "./scale.js";
