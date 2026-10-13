@@ -50,6 +50,7 @@ test.each([
   [["CASH"], "en efectivo"],
   [["TRANSFER"], "con transferencia"],
   [["QR"], "con QR de Mercado Pago"],
+  [["POINT"], "con la terminal de Mercado Pago"],
   [["CASH", "TRANSFER"], "en efectivo y con transferencia"],
   [[], "por otro medio"],
 ] as const)("names how a sale covered by %j was charged: %s", (coveredBy, words) => {

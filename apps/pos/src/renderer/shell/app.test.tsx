@@ -110,9 +110,10 @@ function coreAnswering(
     cashCharge?: CoreClient["cashCharge"];
     chargeSaleInCash?: CoreClient["chargeSaleInCash"];
     chargeSaleByTransfer?: CoreClient["chargeSaleByTransfer"];
-    startMercadoPagoQrCharge?: CoreClient["startMercadoPagoQrCharge"];
-    followMercadoPagoQrCharge?: CoreClient["followMercadoPagoQrCharge"];
-    abandonMercadoPagoQrCharge?: CoreClient["abandonMercadoPagoQrCharge"];
+    paymentMethodAvailability?: CoreClient["paymentMethodAvailability"];
+    startMercadoPagoCharge?: CoreClient["startMercadoPagoCharge"];
+    followMercadoPagoCharge?: CoreClient["followMercadoPagoCharge"];
+    abandonMercadoPagoCharge?: CoreClient["abandonMercadoPagoCharge"];
     searchProducts?: CoreClient["searchProducts"];
     addProduct?: CoreClient["addProduct"];
     addWeighedProduct?: CoreClient["addWeighedProduct"];
@@ -352,20 +353,25 @@ function coreAnswering(
         ? { kind: "unavailable" }
         : sales.chargeSaleByTransfer(saleId, amount);
     },
-    async startMercadoPagoQrCharge(saleId, amount) {
-      return sales.startMercadoPagoQrCharge === undefined
-        ? { kind: "unavailable" }
-        : sales.startMercadoPagoQrCharge(saleId, amount);
+    async paymentMethodAvailability() {
+      return sales.paymentMethodAvailability === undefined
+        ? { qr: "available", point: "available", point_minimum: 1500 }
+        : sales.paymentMethodAvailability();
     },
-    async followMercadoPagoQrCharge(paymentTransactionId) {
-      return sales.followMercadoPagoQrCharge === undefined
+    async startMercadoPagoCharge(saleId, method, amount) {
+      return sales.startMercadoPagoCharge === undefined
         ? { kind: "unavailable" }
-        : sales.followMercadoPagoQrCharge(paymentTransactionId);
+        : sales.startMercadoPagoCharge(saleId, method, amount);
     },
-    async abandonMercadoPagoQrCharge(paymentTransactionId) {
-      return sales.abandonMercadoPagoQrCharge === undefined
+    async followMercadoPagoCharge(paymentTransactionId) {
+      return sales.followMercadoPagoCharge === undefined
         ? { kind: "unavailable" }
-        : sales.abandonMercadoPagoQrCharge(paymentTransactionId);
+        : sales.followMercadoPagoCharge(paymentTransactionId);
+    },
+    async abandonMercadoPagoCharge(paymentTransactionId) {
+      return sales.abandonMercadoPagoCharge === undefined
+        ? { kind: "unavailable" }
+        : sales.abandonMercadoPagoCharge(paymentTransactionId);
     },
     async closeCashSession(sessionId, countedCash) {
       closed.push([sessionId, countedCash]);
@@ -1463,6 +1469,7 @@ describe("App", () => {
             lines_lock: null,
             cancel_refusal: null,
             charge_refusal: null,
+            mercado_pago_charge_in_progress: null,
             refunds_on_cancel: [],
             cancel_authorization_required: false,
             adjust_authorization_required: false,
@@ -1514,6 +1521,7 @@ describe("App", () => {
           lines_lock: null,
           cancel_refusal: null,
           charge_refusal: null,
+          mercado_pago_charge_in_progress: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
           adjust_authorization_required: false,
@@ -1583,6 +1591,7 @@ describe("App", () => {
           sale_discount_refusal: null,
           sale_discount: null,
           subtotal: 238_000,
+          mercado_pago_charge_in_progress: null,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
         chargeSaleInCash: async (saleId, tendered) => {
@@ -1657,6 +1666,7 @@ describe("App", () => {
                 lines_lock: null,
                 cancel_refusal: null,
                 charge_refusal: null,
+                mercado_pago_charge_in_progress: null,
                 refunds_on_cancel: [],
                 cancel_authorization_required: false,
                 adjust_authorization_required: false,
@@ -1727,6 +1737,7 @@ describe("App", () => {
           lines_lock: null,
           cancel_refusal: null,
           charge_refusal: null,
+          mercado_pago_charge_in_progress: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
           adjust_authorization_required: false,
@@ -1788,6 +1799,7 @@ describe("App", () => {
                 lines_lock: null,
                 cancel_refusal: null,
                 charge_refusal: null,
+                mercado_pago_charge_in_progress: null,
                 refunds_on_cancel: [],
                 cancel_authorization_required: false,
                 adjust_authorization_required: false,
@@ -1820,6 +1832,63 @@ describe("App", () => {
     await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
     await expect.poll(() => reads).toBe(3);
     await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
+  });
+
+  it("reads which payment methods are available again whenever a pull finishes while the sale is charged", async () => {
+    const yerba = {
+      id: "line-1",
+      product_id: "p1",
+      product_name: "Yerba mate 1 kg",
+      sale_unit: "UNIT" as const,
+      weight_source: null,
+      quantity: 1,
+      list_unit_price: 238_000,
+      discount_amount: 0,
+      promotion: null,
+      manual_adjustment: null,
+      line_total: 238_000,
+    };
+    let availabilityReads = 0;
+    const { core, finishPull } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => GRACE_SESSION },
+      {
+        currentSale: async () => ({
+          id: "sale-1",
+          lines: [yerba],
+          total: 238_000,
+          paid: 0,
+          pending: 238_000,
+          lines_lock: null,
+          cancel_refusal: null,
+          charge_refusal: null,
+          mercado_pago_charge_in_progress: null,
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
+          adjust_authorization_required: false,
+          sale_discount_authorization_required: false,
+          sale_discount_refusal: null,
+          sale_discount: null,
+          subtotal: 238_000,
+        }),
+        paymentMethodAvailability: async () => {
+          availabilityReads += 1;
+          return { qr: "available", point: "available", point_minimum: 1500 };
+        },
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await resumeLockedRegister(screen);
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+    await expect.poll(() => availabilityReads).toBeGreaterThan(0);
+    const readsBefore = availabilityReads;
+
+    finishPull(null);
+
+    await expect.poll(() => availabilityReads).toBeGreaterThan(readsBefore);
   });
 
   it("shows no line of the sale that was just charged by QR when a new sale starts", async () => {
@@ -1855,6 +1924,7 @@ describe("App", () => {
                 lines_lock: null,
                 cancel_refusal: null,
                 charge_refusal: null,
+                mercado_pago_charge_in_progress: null,
                 refunds_on_cancel: [],
                 cancel_authorization_required: false,
                 adjust_authorization_required: false,
@@ -1865,13 +1935,14 @@ describe("App", () => {
               })
             : new Promise(() => {});
         },
-        startMercadoPagoQrCharge: async (_saleId, amount) => ({
+        startMercadoPagoCharge: async (_saleId, _method, amount) => ({
           kind: "order_shown",
           payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
           amount,
           remaining_seconds: 180,
+          wait_seconds: 180,
         }),
-        followMercadoPagoQrCharge: async () => ({
+        followMercadoPagoCharge: async () => ({
           kind: "completed",
           sale_id: "sale-1",
           total: 238_000,
@@ -1931,6 +2002,7 @@ describe("App", () => {
                 lines_lock: null,
                 cancel_refusal: null,
                 charge_refusal: null,
+                mercado_pago_charge_in_progress: null,
                 refunds_on_cancel: [],
                 cancel_authorization_required: false,
                 adjust_authorization_required: false,
@@ -1941,14 +2013,15 @@ describe("App", () => {
               })
             : new Promise(() => {});
         },
-        startMercadoPagoQrCharge: async (_saleId, amount) => ({
+        startMercadoPagoCharge: async (_saleId, _method, amount) => ({
           kind: "order_shown",
           payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
           amount,
           remaining_seconds: 180,
+          wait_seconds: 180,
         }),
-        followMercadoPagoQrCharge: async () => ({ kind: "waiting", remaining_seconds: 170 }),
-        abandonMercadoPagoQrCharge: async () => ({
+        followMercadoPagoCharge: async () => ({ kind: "waiting", remaining_seconds: 170 }),
+        abandonMercadoPagoCharge: async () => ({
           kind: "already_paid",
           settlement: { kind: "completed", sale_id: "sale-1", total: 238_000 },
         }),
@@ -2960,6 +3033,7 @@ describe("App", () => {
             lines_lock: null,
             cancel_refusal: null,
             charge_refusal: null,
+            mercado_pago_charge_in_progress: null,
             refunds_on_cancel: [],
             cancel_authorization_required: false,
             adjust_authorization_required: false,

@@ -555,7 +555,7 @@ describe("open sale query", () => {
         total: 3_434_000,
         paid: 0,
         cancellable: false,
-        cancel_refusal: "qr_charge_in_progress",
+        cancel_refusal: "mercado_pago_charge_in_progress",
         refunds_on_cancel: [],
       })
       .mockResolvedValue(null);
@@ -565,7 +565,7 @@ describe("open sale query", () => {
         <OpenSaleProbe read={read} answer={null} />
       </QueryClientProvider>,
     );
-    await expect.element(screen.getByText(/qr_charge_in_progress/)).toBeVisible();
+    await expect.element(screen.getByText(/mercado_pago_charge_in_progress/)).toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "read" }));
 

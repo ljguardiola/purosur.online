@@ -3,7 +3,7 @@ import type { SalePayment } from "../../payments/index.js";
 import { cashCharge } from "../../payments/index.js";
 import type { Clock } from "../../shared/index.js";
 import type { SaleWithLines } from "../model/sale.js";
-import { chargeableSale, isSaleRefusal, type PartiallyPaid } from "./chargeable-sale.js";
+import { isSaleRefusal, type PartiallyPaid, saleOpenToNewPayment } from "./chargeable-sale.js";
 import { completeSale } from "./complete-sale.js";
 import type { IdGenerator, SaleCashMovement, SaleLedger } from "./sale-ledger.js";
 
@@ -26,6 +26,7 @@ export type ChargeSaleInCashOutcome =
   | { kind: "empty_sale" }
   | { kind: "zero_total" }
   | ChargeRefusal
+  | { kind: "mercado_pago_charge_in_progress" }
   | { kind: "invalid_amount" }
   | PartiallyPaid
   | { kind: "completed"; saleId: string; total: number; tendered: number; change: number };
@@ -36,7 +37,7 @@ export function chargeSaleInCash(
 ): ChargeSaleInCashOutcome {
   return ledger.transaction<ChargeSaleInCashOutcome>((tx) => {
     const completedAt = clock.now();
-    const chargeable = chargeableSale(tx, actorId, saleId, completedAt);
+    const chargeable = saleOpenToNewPayment(tx, actorId, saleId, completedAt);
     if (isSaleRefusal(chargeable)) {
       return chargeable;
     }

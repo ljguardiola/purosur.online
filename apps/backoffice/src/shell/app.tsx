@@ -3,6 +3,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { type ComponentType, useEffect, useState } from "react";
 import type { AlertsListScreenServices } from "../alerts/alerts-list-services";
+import type { AlertsOpenCountLinkProps } from "../alerts/alerts-open-count-link";
+import type { AlertsOpenCountLinkServices } from "../alerts/alerts-open-count-link-services";
 import type { BranchSettingsScreenServices } from "../branch/branch-settings-services";
 import type { BrandsListScreenServices } from "../catalog/brands-list-services";
 import type { CategoriesListScreenServices } from "../catalog/categories-list-services";
@@ -85,6 +87,8 @@ export type AppServices = {
   accountFooter: AccountFooterServices;
   screenFailure: ScreenFailureServices;
   homeScreen: HomeScreenServices;
+  stockTopBarAlertsCount: ComponentType<AlertsOpenCountLinkProps>;
+  alertsOpenCountLink: AlertsOpenCountLinkServices;
   alertsListScreen: AlertsListScreenServices;
   quarantinedEventsScreen: QuarantinedEventsScreenServices;
 };
@@ -93,6 +97,7 @@ type ShellServiceName =
   | "fetchSession"
   | "checkSessionStatus"
   | "userDetailCredentialSections"
+  | "stockTopBarAlertsCount"
   | "accountFooter"
   | "screenFailure";
 
@@ -105,6 +110,10 @@ const defaultRouteServices: RouteServices = {
   userDetailCredentialSections: lazyScreen(
     () => import("../credentials/user-credential-sections"),
     "UserCredentialSections",
+  ),
+  stockTopBarAlertsCount: lazyScreen(
+    () => import("../alerts/alerts-open-count-link"),
+    "AlertsOpenCountLink",
   ),
   accountFooter: defaultAccountFooterServices,
   screenFailure: defaultScreenFailureServices,

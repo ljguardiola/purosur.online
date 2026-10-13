@@ -1,18 +1,18 @@
 import type {
-  AbandonMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
   CashChargeAnswer,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
-  FollowMercadoPagoQrChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
   OpenSale,
+  PaymentMethodAvailability,
   ReceiptPrintStatusOutcome,
-  RegisterStatus,
-  StartMercadoPagoQrChargeOutcome,
+  StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
 import { onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import type { CoreData } from "../../platform/use-core-query";
+import type { MercadoPagoMethod } from "../../platform/core-client";
 import { render } from "../../shell/test-support/render-with-router";
 import type { ChargeScreenProps } from "../charge-screen";
 import { ChargeScreen } from "../charge-screen";
@@ -57,6 +57,7 @@ export const SALE_OF_ONE_LINE: OpenSale = {
   lines_lock: null,
   cancel_refusal: null,
   charge_refusal: null,
+  mercado_pago_charge_in_progress: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,
@@ -74,6 +75,7 @@ export const SALE_OF_TWO_LINES: OpenSale = {
   lines_lock: null,
   cancel_refusal: null,
   charge_refusal: null,
+  mercado_pago_charge_in_progress: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,
@@ -107,39 +109,43 @@ export const SALE_WITH_PART_PAID: OpenSale = {
 const COVERED: CashChargeAnswer = { kind: "covered", applied: 476_000, change: 24_000 };
 
 export const QR_PAYMENT_ID = "019a0000-0000-7000-8000-0000000000a1";
-export const QR_ORDER_SHOWN: StartMercadoPagoQrChargeOutcome = {
+export const QR_ORDER_SHOWN: StartMercadoPagoChargeOutcome = {
   kind: "order_shown",
   payment_transaction_id: QR_PAYMENT_ID,
   amount: 476_000,
   remaining_seconds: 180,
+  wait_seconds: 180,
 };
-const QR_WAITING: FollowMercadoPagoQrChargeOutcome = { kind: "waiting", remaining_seconds: 170 };
+const QR_WAITING: FollowMercadoPagoChargeOutcome = { kind: "waiting", remaining_seconds: 170 };
 
-export function registerStatusWithCloud(cloud: RegisterStatus["cloud"]): CoreData<RegisterStatus> {
-  return {
-    status: "loaded",
-    value: {
-      conditions: [],
-      cloud,
-      serial_devices: { scale: "matching", reader: "matching" },
-      serial_devices_setup_offered: false,
-    },
-    refreshing: false,
-  };
-}
+export const POINT_PAYMENT_ID = "019a0000-0000-7000-8000-0000000000b1";
+export const POINT_ORDER_SHOWN: StartMercadoPagoChargeOutcome = {
+  kind: "order_shown",
+  payment_transaction_id: POINT_PAYMENT_ID,
+  amount: 476_000,
+  remaining_seconds: 180,
+  wait_seconds: 180,
+};
+
+export const AVAILABLE: PaymentMethodAvailability = {
+  qr: "available",
+  point: "available",
+  point_minimum: 1500,
+};
 
 export type Overrides = {
-  registerStatus?: CoreData<RegisterStatus>;
-  startMercadoPagoQrCharge?: (
+  paymentMethodAvailability?: () => Promise<PaymentMethodAvailability | null>;
+  startMercadoPagoCharge?: (
     saleId: string,
+    method: MercadoPagoMethod,
     amount: number,
-  ) => Promise<StartMercadoPagoQrChargeOutcome>;
-  followMercadoPagoQrCharge?: (
+  ) => Promise<StartMercadoPagoChargeOutcome>;
+  followMercadoPagoCharge?: (
     paymentTransactionId: string,
-  ) => Promise<FollowMercadoPagoQrChargeOutcome>;
-  abandonMercadoPagoQrCharge?: (
+  ) => Promise<FollowMercadoPagoChargeOutcome>;
+  abandonMercadoPagoCharge?: (
     paymentTransactionId: string,
-  ) => Promise<AbandonMercadoPagoQrChargeOutcome>;
+  ) => Promise<AbandonMercadoPagoChargeOutcome>;
   person?: ChargeScreenProps["person"];
   currentSale?: () => Promise<CurrentSaleAnswer>;
   cashCharge?: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
@@ -164,15 +170,18 @@ export async function renderScreen(overrides: Overrides = {}) {
   const chargeSaleByTransfer = vi.fn(
     overrides.chargeSaleByTransfer ?? (async () => TRANSFER_COMPLETED),
   );
-  const startMercadoPagoQrCharge = vi.fn(
-    overrides.startMercadoPagoQrCharge ?? (async () => QR_ORDER_SHOWN),
+  const paymentMethodAvailability = vi.fn(
+    overrides.paymentMethodAvailability ?? (async () => AVAILABLE),
   );
-  const followMercadoPagoQrCharge = vi.fn(
-    overrides.followMercadoPagoQrCharge ?? (async () => QR_WAITING),
+  const startMercadoPagoCharge = vi.fn(
+    overrides.startMercadoPagoCharge ?? (async () => QR_ORDER_SHOWN),
   );
-  const abandonMercadoPagoQrCharge = vi.fn(
-    overrides.abandonMercadoPagoQrCharge ??
-      (async (): Promise<AbandonMercadoPagoQrChargeOutcome> => ({ kind: "cancelled" })),
+  const followMercadoPagoCharge = vi.fn(
+    overrides.followMercadoPagoCharge ?? (async () => QR_WAITING),
+  );
+  const abandonMercadoPagoCharge = vi.fn(
+    overrides.abandonMercadoPagoCharge ??
+      (async (): Promise<AbandonMercadoPagoChargeOutcome> => ({ kind: "cancelled" })),
   );
   const receiptPrintStatus = vi.fn(overrides.receiptPrintStatus ?? (async () => PRINTED));
   const onSessionInvalid = vi.fn();
@@ -186,10 +195,10 @@ export async function renderScreen(overrides: Overrides = {}) {
       cashCharge={cashCharge}
       chargeSaleInCash={chargeSaleInCash}
       chargeSaleByTransfer={chargeSaleByTransfer}
-      registerStatus={overrides.registerStatus ?? registerStatusWithCloud("reachable")}
-      startMercadoPagoQrCharge={startMercadoPagoQrCharge}
-      followMercadoPagoQrCharge={followMercadoPagoQrCharge}
-      abandonMercadoPagoQrCharge={abandonMercadoPagoQrCharge}
+      paymentMethodAvailability={paymentMethodAvailability}
+      startMercadoPagoCharge={startMercadoPagoCharge}
+      followMercadoPagoCharge={followMercadoPagoCharge}
+      abandonMercadoPagoCharge={abandonMercadoPagoCharge}
       receiptPrintStatus={receiptPrintStatus}
       onSessionInvalid={onSessionInvalid}
     />,
@@ -200,9 +209,10 @@ export async function renderScreen(overrides: Overrides = {}) {
     cashCharge,
     chargeSaleInCash,
     chargeSaleByTransfer,
-    startMercadoPagoQrCharge,
-    followMercadoPagoQrCharge,
-    abandonMercadoPagoQrCharge,
+    paymentMethodAvailability,
+    startMercadoPagoCharge,
+    followMercadoPagoCharge,
+    abandonMercadoPagoCharge,
     receiptPrintStatus,
     onSessionInvalid,
   };
@@ -222,6 +232,10 @@ export async function chooseQr(screen: Screen) {
   await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
 }
 
+export async function choosePoint(screen: Screen) {
+  await userEvent.click(screen.getByText("Point integrada", { exact: true }));
+}
+
 export async function chargeInCash(screen: Screen, tendered: string) {
   await chooseCash(screen);
   await userEvent.fill(
@@ -229,4 +243,30 @@ export async function chargeInCash(screen: Screen, tendered: string) {
     tendered,
   );
   await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+}
+
+export function saleWithChargeInProgress(
+  method: MercadoPagoMethod,
+  remainingSeconds: number,
+): OpenSale {
+  return {
+    ...SALE_OF_ONE_LINE,
+    lines_lock: "mercado_pago_charge_in_progress",
+    cancel_refusal: "mercado_pago_charge_in_progress",
+    mercado_pago_charge_in_progress: {
+      payment_transaction_id: method === "POINT" ? POINT_PAYMENT_ID : QR_PAYMENT_ID,
+      method,
+      amount: 476_000,
+      remaining_seconds: remainingSeconds,
+      wait_seconds: 180,
+    },
+  };
+}
+
+export function readsInTurn(
+  first: CurrentSaleAnswer,
+  ...rest: CurrentSaleAnswer[]
+): () => Promise<CurrentSaleAnswer> {
+  const reads = [first, ...rest];
+  return async () => (reads.length > 1 ? reads.shift() : reads[0]) ?? null;
 }

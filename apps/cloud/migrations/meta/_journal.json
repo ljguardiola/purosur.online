@@ -638,6 +638,13 @@
       "when": 1791806568561,
       "tag": "0094_initial_count_lots",
       "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1791851997628,
+      "tag": "0095_point_payment_transactions",
+      "breakpoints": true
     }
   ]
 }

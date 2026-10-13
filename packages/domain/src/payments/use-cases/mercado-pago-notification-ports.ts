@@ -1,5 +1,5 @@
 import type { Clock } from "../../shared/index.js";
-import type { MercadoPagoOrders, PaymentTransactionLanes } from "./mercado-pago-qr-order-ports.js";
+import type { MercadoPagoOrders, PaymentTransactionLanes } from "./mercado-pago-order-ports.js";
 
 export interface PaymentTransactionReference {
   id: string;

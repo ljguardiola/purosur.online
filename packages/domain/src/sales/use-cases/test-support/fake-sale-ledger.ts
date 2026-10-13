@@ -5,7 +5,7 @@ import {
   latestBuyerTaxStatusSet,
   latestIssuerIdentification,
 } from "../../../fiscal/index.js";
-import type { PendingQrSalePayment, SalePayment } from "../../../payments/index.js";
+import type { PendingMercadoPagoSalePayment, SalePayment } from "../../../payments/index.js";
 import type { RoleAccess } from "../../../permissions/index.js";
 import { newestPrice } from "../../../pricing/index.js";
 import { type CashMovement, nextOperationNumber } from "../../../register/index.js";
@@ -51,7 +51,7 @@ export interface FakeSaleLedgerState {
   promotionsByProduct: Record<string, CandidatePromotion[]>;
   sales: StoredSale[];
   payments: SalePayment[];
-  pendingQrPayments: PendingQrSalePayment[];
+  pendingMercadoPagoPayments: PendingMercadoPagoSalePayment[];
   replacedQrPaymentIds: string[];
   refunds: SaleRefund[];
   movements: CashMovement[];
@@ -74,8 +74,8 @@ export type FakeSaleLedgerWrite =
   | "deleteSaleLine"
   | "discardOpenSale"
   | "recordPayment"
-  | "recordPendingQrPayment"
-  | "approvePendingQrPayment"
+  | "recordPendingMercadoPagoPayment"
+  | "approvePendingMercadoPagoPayment"
   | "markQrPaymentReplaced"
   | "recordCashMovement"
   | "recordSaleStockMovement"
@@ -109,7 +109,7 @@ export class FakeSaleLedger implements SaleLedger {
       promotionsByProduct: {},
       sales: [],
       payments: [],
-      pendingQrPayments: [],
+      pendingMercadoPagoPayments: [],
       replacedQrPaymentIds: [],
       refunds: [],
       movements: [],
@@ -215,46 +215,52 @@ export class FakeSaleLedger implements SaleLedger {
         this.failIfAsked("recordPayment");
         working.payments.push(payment);
       },
-      recordPendingQrPayment: (payment) => {
-        this.failIfAsked("recordPendingQrPayment");
-        working.pendingQrPayments.push(payment);
+      recordPendingMercadoPagoPayment: (payment) => {
+        this.failIfAsked("recordPendingMercadoPagoPayment");
+        working.pendingMercadoPagoPayments.push(payment);
       },
-      pendingQrPayment: (paymentTransactionId) => {
-        const pending = working.pendingQrPayments.find(
+      pendingMercadoPagoPayment: (paymentTransactionId) => {
+        const pending = working.pendingMercadoPagoPayments.find(
           ({ id }) => id === paymentTransactionId && !working.replacedQrPaymentIds.includes(id),
         );
         return pending && structuredClone(pending);
       },
       markQrPaymentReplaced: (paymentTransactionId, waitEndsAt) => {
         this.failIfAsked("markQrPaymentReplaced");
-        const pending = working.pendingQrPayments.find(({ id }) => id === paymentTransactionId);
+        const pending = working.pendingMercadoPagoPayments.find(
+          ({ id }) => id === paymentTransactionId,
+        );
         if (pending === undefined) {
           return;
         }
         pending.waitEndsAt = waitEndsAt;
         working.replacedQrPaymentIds.push(paymentTransactionId);
       },
-      pendingQrPaymentsOf: (saleId) =>
-        structuredClone(working.pendingQrPayments.filter((pending) => pending.saleId === saleId)),
-      approvePendingQrPayment: (paymentTransactionId) => {
-        this.failIfAsked("approvePendingQrPayment");
-        const pending = working.pendingQrPayments.find(({ id }) => id === paymentTransactionId);
+      pendingMercadoPagoPaymentsOf: (saleId) =>
+        structuredClone(
+          working.pendingMercadoPagoPayments.filter((pending) => pending.saleId === saleId),
+        ),
+      approvePendingMercadoPagoPayment: (paymentTransactionId) => {
+        this.failIfAsked("approvePendingMercadoPagoPayment");
+        const pending = working.pendingMercadoPagoPayments.find(
+          ({ id }) => id === paymentTransactionId,
+        );
         if (pending === undefined) {
           return;
         }
-        working.pendingQrPayments = working.pendingQrPayments.filter(
+        working.pendingMercadoPagoPayments = working.pendingMercadoPagoPayments.filter(
           ({ id }) => id !== paymentTransactionId,
         );
         working.payments.push({
           id: pending.id,
           saleId: pending.saleId,
           kind: "SALE",
-          method: "QR",
-          provider: "MERCADOPAGO_QR",
+          method: pending.method,
+          provider: pending.provider,
           amount: pending.amount,
           state: "APPROVED",
           occurredAt: pending.occurredAt,
-        });
+        } as SalePayment);
       },
       recordCashMovement: (movement) => {
         this.failIfAsked("recordCashMovement");

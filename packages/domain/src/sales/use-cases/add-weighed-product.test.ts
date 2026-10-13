@@ -128,6 +128,7 @@ describe("addWeighedProduct", () => {
       cancellable: true,
       cancelRefusal: null,
       refundsOnCancel: [],
+      mercadoPagoChargeInProgress: null,
     });
     expect(store.state.sales).toEqual([sale]);
   });
@@ -360,7 +361,7 @@ describe("addWeighedProduct while a QR charge of the sale is in its wait", () =>
   it("refuses to add a line, writing nothing", () => {
     const store = ledger({
       sales: [OPEN_SALE],
-      pendingQrPayments: [pending(new Date(NOW.getTime() + 60_000))],
+      pendingMercadoPagoPayments: [pending(new Date(NOW.getTime() + 60_000))],
     });
     const before = structuredClone(store.state);
 
@@ -371,7 +372,7 @@ describe("addWeighedProduct while a QR charge of the sale is in its wait", () =>
   it("adds again once the wait has ended", () => {
     const store = ledger({
       sales: [OPEN_SALE],
-      pendingQrPayments: [pending(new Date(NOW.getTime() - 1))],
+      pendingMercadoPagoPayments: [pending(new Date(NOW.getTime() - 1))],
     });
 
     expect(weigh(store).kind).toBe("added");

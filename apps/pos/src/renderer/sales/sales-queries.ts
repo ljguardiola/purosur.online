@@ -1,10 +1,11 @@
 import type {
-  AbandonMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
   CashChargeAnswer,
   CurrentSaleAnswer,
-  FollowMercadoPagoQrChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
   ManualAdjustmentRequest,
   OpenSale,
+  PaymentMethodAvailability,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   ReceiptPrintStatusOutcome,
@@ -39,6 +40,9 @@ export const salesKeys = {
   saleDiscountPreview: (subtotal: number, discount: SaleDiscountRequest) =>
     [...salesKey, "sale-discount-preview", subtotal, discount.kind, discount.value] as const,
   search: (query: string) => [...salesKey, "search", query] as const,
+  paymentMethodAvailabilityRoot: [...salesKey, "payment-method-availability"] as const,
+  paymentMethodAvailability: (sessionId: string, userId: string) =>
+    [...salesKey, "payment-method-availability", sessionId, userId] as const,
   qrCharge: (paymentTransactionId: string) =>
     [...salesKey, "qr-charge", paymentTransactionId] as const,
   receiptPrintStatus: (saleId: string) => [...salesKey, "receipt-print-status", saleId] as const,
@@ -50,7 +54,7 @@ export const salesKeys = {
 
 const QR_WAIT_FOLLOW_INTERVAL_MS = 1000;
 
-export type FollowedQrCharge = Exclude<FollowMercadoPagoQrChargeOutcome, { kind: "unavailable" }>;
+export type FollowedQrCharge = Exclude<FollowMercadoPagoChargeOutcome, { kind: "unavailable" }>;
 
 export function useQrChargeQuery({
   paymentTransactionId,
@@ -58,7 +62,7 @@ export function useQrChargeQuery({
   following = true,
 }: {
   paymentTransactionId: string;
-  follow: (paymentTransactionId: string) => Promise<FollowMercadoPagoQrChargeOutcome>;
+  follow: (paymentTransactionId: string) => Promise<FollowMercadoPagoChargeOutcome>;
   following?: boolean;
 }): CoreData<FollowedQrCharge> {
   const queryClient = useQueryClient();
@@ -76,7 +80,9 @@ export function useQrChargeQuery({
     refetchInterval: ({ state }) =>
       following &&
       state.status === "success" &&
-      (state.data?.kind === "waiting" || state.data?.kind === "expiry_unconfirmed")
+      (state.data?.kind === "waiting" ||
+        state.data?.kind === "expiry_unconfirmed" ||
+        state.data?.kind === "at_terminal_wait_over")
         ? QR_WAIT_FOLLOW_INTERVAL_MS
         : false,
     refetchIntervalInBackground: true,
@@ -91,11 +97,38 @@ export function useQrChargeQuery({
 }
 
 export function useAbandonQrChargeMutation(
-  abandon: (paymentTransactionId: string) => Promise<AbandonMercadoPagoQrChargeOutcome>,
+  abandon: (paymentTransactionId: string) => Promise<AbandonMercadoPagoChargeOutcome>,
 ) {
   return useMutation({
     mutationFn: (paymentTransactionId: string) => abandon(paymentTransactionId),
   });
+}
+
+export function usePaymentMethodAvailabilityQuery({
+  sessionId,
+  userId,
+  read,
+}: {
+  sessionId: string;
+  userId: string;
+  read: () => Promise<PaymentMethodAvailability | null>;
+}): CoreData<PaymentMethodAvailability> {
+  return useCoreQuery({
+    queryKey: salesKeys.paymentMethodAvailability(sessionId, userId),
+    read: async () => (await read()) ?? "unavailable",
+    staleTime: 0,
+  });
+}
+
+export function useRefreshPaymentMethodAvailability(
+  sessionId: string,
+  userId: string,
+): () => Promise<void> {
+  const queryClient = useQueryClient();
+  return () =>
+    queryClient.invalidateQueries({
+      queryKey: salesKeys.paymentMethodAvailability(sessionId, userId),
+    });
 }
 
 const RECEIPT_PRINT_POLL_MILLISECONDS = 1000;
@@ -185,8 +218,8 @@ export function useCurrentSaleQuery({
       answer !== undefined &&
       answer !== null &&
       answer !== "not_permitted" &&
-      (answer.lines_lock === "qr_charge_in_progress" ||
-        answer.cancel_refusal === "qr_charge_in_progress")
+      (answer.lines_lock === "mercado_pago_charge_in_progress" ||
+        answer.cancel_refusal === "mercado_pago_charge_in_progress")
         ? QR_WAIT_FOLLOW_INTERVAL_MS
         : false,
   });

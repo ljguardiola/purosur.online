@@ -1,5 +1,5 @@
 import type { EventQuarantineReason } from "../../alerts/index.js";
-import { qrPaymentIsBacked } from "../../payments/index.js";
+import { mercadoPagoPaymentIsBacked } from "../../payments/index.js";
 import type { CompletedSale } from "../../sales/index.js";
 import { afterFailedAttempt } from "../model/event-application-retry.js";
 import { nextEventToApply } from "../model/next-event-to-apply.js";
@@ -76,15 +76,15 @@ function failureOf(ports: ApplyPendingEventsPorts, error: unknown): Failure {
   };
 }
 
-async function requireQrPaymentsBacked(
+async function requireMercadoPagoPaymentsBacked(
   tx: EventApplicationTransaction,
   sale: CompletedSale,
 ): Promise<void> {
   for (const payment of sale.payments) {
     if (
-      payment.method === "QR" &&
-      !qrPaymentIsBacked(
-        { saleId: sale.id, amount: payment.amount },
+      (payment.method === "QR" || payment.method === "POINT") &&
+      !mercadoPagoPaymentIsBacked(
+        { saleId: sale.id, amount: payment.amount, method: payment.method },
         await tx.providerTransactionOfPayment(payment.id),
       )
     ) {
@@ -145,7 +145,7 @@ async function applyEvent(
     }
   }
   if (fact.kind === "sale_completed") {
-    await requireQrPaymentsBacked(tx, fact.sale);
+    await requireMercadoPagoPaymentsBacked(tx, fact.sale);
   }
   await recordFact(tx, fact, event);
   await tx.markApplied(event.eventId, now);
