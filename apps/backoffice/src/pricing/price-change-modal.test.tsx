@@ -17,6 +17,7 @@ const withoutPrice: PriceProduct = {
   currentPrice: null,
   secondsSinceReview: null,
   pending: true,
+  costReference: null,
 };
 
 const rice: PriceProduct = {
@@ -32,6 +33,12 @@ const rice: PriceProduct = {
   },
   secondsSinceReview: 3_456_000,
   pending: true,
+  costReference: {
+    lastCostCents: 428000,
+    freightPerUnitCents: 18000,
+    totalCostCents: 446000,
+    marginTenthsOfPercent: 405,
+  },
 };
 
 function createProps(overrides: Partial<PriceChangeModalProps> = {}): PriceChangeModalProps {
@@ -43,6 +50,7 @@ function createProps(overrides: Partial<PriceChangeModalProps> = {}): PriceChang
     onSaved: vi.fn(),
     onGone: vi.fn(),
     reload: vi.fn(),
+    fetchPriceMargin: vi.fn().mockResolvedValue({ kind: "ok", value: { costReference: null } }),
     setPrice: vi.fn(),
     confirmPrice: vi.fn(),
     ...overrides,
@@ -454,4 +462,57 @@ test("a confirmation answered that there is no price to confirm offers the reloa
     .toHaveTextContent("No hay un precio para confirmar");
   expect(dialog.getByRole("alert").element().textContent).toBe("No hay un precio para confirmar");
   await expect.element(dialog.getByRole("button", { name: "Recargar el precio" })).toBeVisible();
+});
+
+test("shows the product's cost breakdown", async () => {
+  const screen = await renderModal(createProps());
+
+  await expect.element(screen.getByText("Costo total")).toBeVisible();
+  await expect.element(screen.getByText("$ 4.460,00 / kg")).toBeVisible();
+});
+
+test("tells a product with no cost that its margin needs one, and never asks for a margin", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    const props = createProps({ target: { ...rice, costReference: null } });
+    const screen = await renderModal(props);
+
+    await expect.element(screen.getByText("Sin costo registrado")).toBeVisible();
+    await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "8200");
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(screen.getByText("Margen con este precio").query()).toBeNull();
+    expect(props.fetchPriceMargin).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("asks for the margin of the typed price and shows it", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    const props = createProps();
+    vi.mocked(props.fetchPriceMargin).mockResolvedValue({
+      kind: "ok",
+      value: {
+        costReference: {
+          lastCostCents: 428000,
+          freightPerUnitCents: 18000,
+          totalCostCents: 446000,
+          marginTenthsOfPercent: 456,
+        },
+      },
+    });
+    const screen = await renderModal(props);
+
+    await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "8200");
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    await vi.waitFor(() =>
+      expect(props.fetchPriceMargin).toHaveBeenCalledWith("product-2", 820000),
+    );
+    await vi.waitFor(() => screen.getByText("45,6 %").element());
+  } finally {
+    vi.useRealTimers();
+  }
 });

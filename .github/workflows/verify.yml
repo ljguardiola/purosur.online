@@ -93,18 +93,19 @@ jobs:
         env:
           CHANGE_BASE_REF: ${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}
 
-  # The newest successful Verify run that kept its tests' durations, on main or on the head branch
-  # under review, for the shards below.
-  # Finding none, or failing to look, must not fail the run: the shards then split by file count.
+  # The durations of the newest successful Verify run that kept them, on main or on the head branch
+  # under review, downloaded once and handed to every shard below so they all split alike.
+  # Finding none, or failing to look or download, must not fail the run: the shards then split by
+  # file count.
   test-durations-source:
     name: test durations source
     runs-on: ubuntu-24.04
-    timeout-minutes: 3
+    timeout-minutes: 5
     permissions:
       contents: read
       actions: read
     outputs:
-      run_id: ${{ steps.source.outputs.run_id }}
+      durations: ${{ steps.source.outputs.durations }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -239,7 +240,6 @@ jobs:
     timeout-minutes: 47
     permissions:
       contents: read
-      actions: read
       packages: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -254,13 +254,6 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-
-      - name: Download the test durations
-        if: ${{ needs.test-durations-source.outputs.run_id != '' }}
-        run: gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'test-durations-shard-*' --dir "$RUNNER_TEMP/test-durations"
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ needs.test-durations-source.outputs.run_id }}
 
       - name: Sign in to ghcr.io
         timeout-minutes: 2
@@ -294,7 +287,7 @@ jobs:
         timeout-minutes: 15
         env:
           TESTCONTAINERS_RYUK_DISABLED: "true"
-          TEST_DURATIONS_DIR: ${{ runner.temp }}/test-durations
+          TEST_DURATIONS: ${{ needs.test-durations-source.outputs.durations }}
           TEST_DURATIONS_FILE: ${{ runner.temp }}/test-durations-out/shard-${{ matrix.shard }}.json
 
       - name: Keep this shard's test durations

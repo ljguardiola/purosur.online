@@ -1,7 +1,16 @@
-import { appendFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { appendFile, mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
+import { encodeDurations, readDurations } from "./test-durations-payload.mjs";
 
 const LOG_PREFIX = "test-durations-source";
 const ARTIFACT_PREFIX = "test-durations-shard-";
+const DOWNLOAD_TIMEOUT_MS = 90_000;
+// The shards receive the payload as one environment variable, and Linux refuses to start a
+// process with a single environment string over 128 KiB.
+const MAX_PAYLOAD_BYTES = 96 * 1024;
 
 export async function findRunWithDurations({ runs, listArtifacts }) {
   for (const run of runs) {
@@ -11,6 +20,28 @@ export async function findRunWithDurations({ runs, listArtifacts }) {
     }
   }
   return null;
+}
+
+export async function downloadDurations(
+  runId,
+  { repository, token, dir, execFileImpl = promisify(execFile) },
+) {
+  await execFileImpl(
+    "gh",
+    [
+      "run",
+      "download",
+      String(runId),
+      "--repo",
+      repository,
+      "--pattern",
+      `${ARTIFACT_PREFIX}*`,
+      "--dir",
+      dir,
+    ],
+    { env: { ...process.env, GH_TOKEN: token }, timeout: DOWNLOAD_TIMEOUT_MS },
+  );
+  return readDurations(dir);
 }
 
 function newestRun(runs) {
@@ -41,6 +72,12 @@ function apiGetter({ token, fetchImpl }) {
 export async function runCli({
   env = process.env,
   fetchImpl = fetch,
+  download = async (runId) =>
+    downloadDurations(runId, {
+      repository: env.GITHUB_REPOSITORY,
+      token: env.GITHUB_TOKEN,
+      dir: await mkdtemp(join(env.RUNNER_TEMP ?? tmpdir(), "test-durations-")),
+    }),
   appendOutput = appendFile,
   log = console.log,
   logError = console.error,
@@ -80,11 +117,31 @@ export async function runCli({
     }
     runId = newestRun(found)?.id ?? null;
   } catch (error) {
-    logError(`${LOG_PREFIX}: warning, shards fall back to even counts: ${error.message}`);
+    logError(`${LOG_PREFIX}: warning, shards split by file count: ${error.message}`);
   }
 
-  log(`${LOG_PREFIX}: ${runId === null ? "no run to take durations from" : `using run ${runId}`}`);
-  await appendOutput(GITHUB_OUTPUT, `run_id=${runId ?? ""}\n`);
+  let payload = "";
+  if (runId === null) {
+    log(`${LOG_PREFIX}: no run to take durations from, shards split by file count`);
+  } else {
+    try {
+      payload = encodeDurations(await download(runId));
+      if (payload.length > MAX_PAYLOAD_BYTES) {
+        logError(
+          `${LOG_PREFIX}: warning, shards split by file count: run ${runId}'s durations are too large to hand to them (${payload.length} bytes encoded)`,
+        );
+        payload = "";
+      } else {
+        log(`${LOG_PREFIX}: shards split by the durations of run ${runId}`);
+      }
+    } catch (error) {
+      logError(
+        `${LOG_PREFIX}: warning, shards split by file count: downloading run ${runId}'s durations failed: ${error.message}`,
+      );
+    }
+  }
+
+  await appendOutput(GITHUB_OUTPUT, `durations=${payload}\n`);
   return 0;
 }
 

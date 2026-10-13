@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import {
   durationBalancedSequencer,
   durationKey,
-  readDurations,
   shardPlan,
   TestDurationsReporter,
 } from "./test-durations.mjs";
+import { encodeDurations } from "./test-durations-payload.mjs";
 
 async function inScratchDir(body) {
   const dir = await mkdtemp(join(tmpdir(), "test-durations-"));
@@ -174,33 +174,6 @@ test("balances by count when no duration is known at all", () => {
   assert.deepEqual(sizes.sort(), [3, 3, 4]);
 });
 
-test("reads and merges every json file under a directory, nested ones included", async () => {
-  await inScratchDir(async (dir) => {
-    await mkdir(join(dir, "test-durations-shard-1"), { recursive: true });
-    await writeFile(join(dir, "test-durations-shard-1", "shard-1.json"), '{"a:x":1,"a:y":2}');
-    await writeFile(join(dir, "top.json"), '{"b:z":3}');
-    await writeFile(join(dir, "notes.txt"), "not json");
-
-    assert.deepEqual(await readDurations(dir), { "a:x": 1, "a:y": 2, "b:z": 3 });
-  });
-});
-
-test("reads no durations from an unset or missing directory", async () => {
-  assert.deepEqual(await readDurations(undefined), {});
-  await inScratchDir(async (dir) => {
-    assert.deepEqual(await readDurations(join(dir, "missing")), {});
-  });
-});
-
-test("refuses a json file that is not an object of numbers", async () => {
-  for (const content of ["[1,2]", "null", '{"a":"slow"}', "{not json"]) {
-    await inScratchDir(async (dir) => {
-      await writeFile(join(dir, "bad.json"), content);
-      await assert.rejects(readDurations(dir));
-    });
-  }
-});
-
 function moduleWith(project, relativeModuleId, diagnostic) {
   return { project: { name: project }, relativeModuleId, diagnostic: () => diagnostic };
 }
@@ -250,25 +223,61 @@ function spec(project, moduleId) {
 }
 
 test("the sequencer keeps the specs of the configured shard, balanced by the measured durations", async () => {
-  await inScratchDir(async (dir) => {
-    await writeFile(
-      join(dir, "d.json"),
-      JSON.stringify({ "node:a.test.ts": 100, "node:b.test.ts": 100, "node:c.test.ts": 10 }),
-    );
-    const specs = ["a", "b", "c"].map((f) => spec("node", `/repo/${f}.test.ts`));
-    const Sequencer = durationBalancedSequencer(dir);
-
-    const first = fakeContext({ index: 1, count: 2 });
-    const second = fakeContext({ index: 2, count: 2 });
-    const one = await new Sequencer(first.ctx).shard(specs);
-    const two = await new Sequencer(second.ctx).shard(specs);
-
-    assert.deepEqual(one.map((s) => s.moduleId).sort(), ["/repo/a.test.ts", "/repo/c.test.ts"]);
-    assert.deepEqual(
-      two.map((s) => s.moduleId),
-      ["/repo/b.test.ts"],
-    );
-    assert.equal(first.logs.length, 1);
-    assert.match(first.logs[0], /shard 1\/2/);
+  const payload = encodeDurations({
+    "node:a.test.ts": 100,
+    "node:b.test.ts": 100,
+    "node:c.test.ts": 10,
   });
+  const specs = ["a", "b", "c"].map((f) => spec("node", `/repo/${f}.test.ts`));
+  const Sequencer = durationBalancedSequencer(payload);
+
+  const first = fakeContext({ index: 1, count: 2 });
+  const second = fakeContext({ index: 2, count: 2 });
+  const one = await new Sequencer(first.ctx).shard(specs);
+  const two = await new Sequencer(second.ctx).shard(specs);
+
+  assert.deepEqual(one.map((s) => s.moduleId).sort(), ["/repo/a.test.ts", "/repo/c.test.ts"]);
+  assert.deepEqual(
+    two.map((s) => s.moduleId),
+    ["/repo/b.test.ts"],
+  );
+  assert.equal(first.logs.length, 1);
+  assert.match(first.logs[0], /shard 1\/2/);
+});
+
+for (const [label, payload] of [
+  ["measured durations", encodeDurations({ "node:f0.test.ts": 900, "node:f3.test.ts": 40 })],
+  ["no durations", ""],
+]) {
+  test(`the sequencer of every shard, given the same ${label}, runs each file exactly once`, async () => {
+    const specs = Array.from({ length: 23 }, (_, i) => spec("node", `/repo/f${i}.test.ts`));
+    const Sequencer = durationBalancedSequencer(payload);
+
+    const ran = [];
+    for (let index = 1; index <= 6; index++) {
+      const { ctx } = fakeContext({ index, count: 6 });
+      ran.push(...(await new Sequencer(ctx).shard(specs)).map((s) => s.moduleId));
+    }
+
+    assert.deepEqual(ran.sort(), specs.map((s) => s.moduleId).sort());
+  });
+}
+
+test("the sequencer says it runs without durations when it has none", async () => {
+  const specs = ["a", "b", "c"].map((f) => spec("node", `/repo/${f}.test.ts`));
+  const { ctx, logs } = fakeContext({ index: 1, count: 2 });
+
+  await new (durationBalancedSequencer(undefined))(ctx).shard(specs);
+
+  assert.equal(logs.length, 1);
+  assert.match(logs[0], /shard 1\/2 runs 2 files without durations, split by file count/);
+});
+
+test("the sequencer names no missing durations when it has them", async () => {
+  const specs = ["a", "b"].map((f) => spec("node", `/repo/${f}.test.ts`));
+  const { ctx, logs } = fakeContext({ index: 1, count: 2 });
+
+  await new (durationBalancedSequencer(encodeDurations({ "node:a.test.ts": 5 })))(ctx).shard(specs);
+
+  assert.doesNotMatch(logs[0], /without durations/);
 });

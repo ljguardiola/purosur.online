@@ -17,6 +17,7 @@ export interface Sale {
 
 export interface LinePromotion {
   id: string;
+  name: string;
   benefit: DiscountBenefit;
 }
 
