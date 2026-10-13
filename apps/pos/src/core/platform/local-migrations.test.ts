@@ -2500,6 +2500,100 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("keep the promotions frozen on a sale's lines and name each with the promotion's name, refusing to migrate one whose promotion is unknown", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0047_sale_line_promotion_names",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0047_sale_line_promotion_names",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z');
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total, promotion_id, discount_amount)
+         VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 3, 1500, 'list-1', 3600, 'd-percent', 900);
+         INSERT INTO discounts (id, name, kind, percent, buy_qty, pay_qty, target_kind, target_id, valid_from, valid_to, weekdays, active, version)
+         VALUES ('d-percent', 'Promo 20% en la segunda', 'PERCENT_OFF', 20, NULL, NULL, 'PRODUCT', 'p1', '2026-09-01', '2026-12-31', '[]', 1, 1),
+                ('d-3x2', 'Lleve 3, pague 2', 'BUY_N_PAY_M', NULL, 3, 2, 'PRODUCT', 'p1', '2026-09-01', '2026-12-31', '[]', 1, 1);
+         INSERT INTO sale_line_promotions (line_id, discount_id, kind, percent, buy_qty, pay_qty)
+         VALUES ('line-1', 'd-percent', 'PERCENT_OFF', 20, NULL, NULL),
+                ('line-1', 'd-3x2', 'BUY_N_PAY_M', NULL, 3, 2);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            `SELECT line_id, discount_id, name, kind, percent, buy_qty, pay_qty
+             FROM sale_line_promotions ORDER BY discount_id`,
+          )
+          .all(),
+      ).toEqual([
+        {
+          line_id: "line-1",
+          discount_id: "d-3x2",
+          name: "Lleve 3, pague 2",
+          kind: "BUY_N_PAY_M",
+          percent: null,
+          buy_qty: 3,
+          pay_qty: 2,
+        },
+        {
+          line_id: "line-1",
+          discount_id: "d-percent",
+          name: "Promo 20% en la segunda",
+          kind: "PERCENT_OFF",
+          percent: 20,
+          buy_qty: null,
+          pay_qty: null,
+        },
+      ]);
+      expect(() =>
+        after
+          .prepare(
+            "INSERT INTO sale_line_promotions (line_id, discount_id, name, kind, percent) VALUES ('line-1', 'd-new', NULL, 'PERCENT_OFF', 10)",
+          )
+          .run(),
+      ).toThrow(/NOT NULL/);
+      expect(() =>
+        after
+          .prepare(
+            "INSERT INTO sale_line_promotions (line_id, discount_id, name, kind, percent) VALUES ('missing', 'd-new', 'Promo', 'PERCENT_OFF', 10)",
+          )
+          .run(),
+      ).toThrow(/FOREIGN KEY/);
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      after.close();
+
+      const orphan = openLocalDatabase(join(folder, "orphan.sqlite"), previous, migrationClock);
+      orphan.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z');
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 1, 1500, 'list-1', 1200);
+         INSERT INTO sale_line_promotions (line_id, discount_id, kind, percent)
+         VALUES ('line-1', 'unknown', 'PERCENT_OFF', 20);`,
+      );
+      orphan.close();
+
+      expect(() =>
+        openLocalDatabase(join(folder, "orphan.sqlite"), LOCAL_MIGRATIONS, migrationClock),
+      ).toThrow(/NOT NULL/);
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("let a payment be an integrated terminal payment in any state of its wait, keeping the payments and refunds a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
