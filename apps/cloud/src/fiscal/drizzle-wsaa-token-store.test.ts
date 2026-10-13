@@ -41,9 +41,9 @@ beforeEach(async () => {
   await testDatabase.clear();
 });
 
-function newStore(resumeWorkWaitingOnToken?: ResumeWorkWaitingOnToken, environment = ENVIRONMENT) {
+function newStore(resumeWorkWaitingOnToken?: ResumeWorkWaitingOnToken) {
   return new DrizzleWsaaTokenStore(testDatabase.db, {
-    environment,
+    environment: ENVIRONMENT,
     ...(resumeWorkWaitingOnToken ? { resumeWorkWaitingOnToken } : {}),
   });
 }
@@ -66,11 +66,11 @@ function answering<TOutcome>(
   return held((renewal) => renewal.recordAnswer(work), service, fingerprint, store);
 }
 
-function heldTicketAlertsOf(environment: string) {
+function heldTicketAlerts() {
   return testDatabase.db
     .select()
     .from(alerts)
-    .where(and(eq(alerts.kind, "arca_wsaa_ticket_held"), eq(alerts.scope, environment)));
+    .where(and(eq(alerts.kind, "arca_wsaa_ticket_held"), eq(alerts.scope, ENVIRONMENT)));
 }
 
 describe("DrizzleWsaaTokenStore", () => {
@@ -114,7 +114,7 @@ describe("DrizzleWsaaTokenStore", () => {
 
     expect(await held((renewal) => renewal.persistedToken())).toBeNull();
     expect(await held((renewal) => renewal.lastRefusal())).toBeNull();
-    expect(await heldTicketAlertsOf(ENVIRONMENT)).toHaveLength(0);
+    expect(await heldTicketAlerts()).toHaveLength(0);
   });
 
   it("finds no refusal before one is recorded", async () => {
@@ -153,7 +153,7 @@ describe("DrizzleWsaaTokenStore", () => {
   it("records that the ticket is held elsewhere as an open held-ticket alert of its environment", async () => {
     await answering((answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES));
 
-    expect(await heldTicketAlertsOf(ENVIRONMENT)).toMatchObject([
+    expect(await heldTicketAlerts()).toMatchObject([
       { detail: { retryIntervalMinutes: RETRY_INTERVAL_MINUTES }, openedAt: NOW, resolvedAt: null },
     ]);
   });
@@ -163,7 +163,7 @@ describe("DrizzleWsaaTokenStore", () => {
     await answering((answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES));
     await answering((answer) => answer.clearTicketHeldElsewhere(later));
 
-    expect(await heldTicketAlertsOf(ENVIRONMENT)).toMatchObject([{ resolvedAt: later }]);
+    expect(await heldTicketAlerts()).toMatchObject([{ resolvedAt: later }]);
   });
 
   describe("resuming the work that waits on a token", () => {
