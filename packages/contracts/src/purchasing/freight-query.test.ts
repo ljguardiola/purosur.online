@@ -9,8 +9,8 @@ describe("freightListQuerySchema", () => {
     expect(freightListQuerySchema.parse({ period: String(days) }).period).toBe(days);
   });
 
-  it("falls back to the shortest period when none is asked for", () => {
-    expect(freightListQuerySchema.parse({}).period).toBe(FREIGHT_PERIOD_DAYS[0]);
+  it("falls back to the last 90 days when no period is asked for", () => {
+    expect(freightListQuerySchema.parse({}).period).toBe(90);
   });
 
   it.each(["", "7", "31", "abc", "30.5"])("rejects the period %j", (period) => {
@@ -56,7 +56,7 @@ describe("the messages of a refused query", () => {
 describe("linkablePurchasesQuerySchema", () => {
   it("reads the period like the freight list does", () => {
     expect(linkablePurchasesQuerySchema.parse({ period: "90" }).period).toBe(90);
-    expect(linkablePurchasesQuerySchema.parse({}).period).toBe(FREIGHT_PERIOD_DAYS[0]);
+    expect(linkablePurchasesQuerySchema.parse({}).period).toBe(90);
     expect(linkablePurchasesQuerySchema.safeParse({ period: "7" }).success).toBe(false);
   });
 
