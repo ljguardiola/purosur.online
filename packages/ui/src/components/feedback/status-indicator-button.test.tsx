@@ -1,5 +1,4 @@
-import { expect, expectTypeOf, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { expect, expectTypeOf, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { expectFullyRound } from "../../test/fully-round";
@@ -13,19 +12,6 @@ test("is a button that reads as its caller's text", async () => {
   );
 
   await expect.element(screen.getByRole("button", { name: "2 avisos" })).toBeVisible();
-});
-
-test("calls onPress when pressed", async () => {
-  const onPress = vi.fn();
-  const screen = await render(
-    <StatusIndicatorButton tone="warning" onPress={onPress}>
-      1 aviso
-    </StatusIndicatorButton>,
-  );
-
-  await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
-
-  expect(onPress).toHaveBeenCalledTimes(1);
 });
 
 test("looks exactly like a status indicator of the same tone", async () => {

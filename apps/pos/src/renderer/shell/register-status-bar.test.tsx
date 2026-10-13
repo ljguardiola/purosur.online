@@ -270,8 +270,16 @@ describe("RegisterStatusBar", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
 
-    await expect.element(screen.getByText("Revisar la balanza o el lector")).toBeVisible();
-    await expect.element(screen.getByRole("dialog")).toBeVisible();
+    const panel = screen.getByRole("dialog", { name: "Avisos de esta caja" });
+    await expect.element(panel.getByText("Revisar la balanza o el lector")).toBeVisible();
+    await expect
+      .element(
+        panel.getByText(
+          "Revisar que esté conectado y encendido. Mientras tanto, tipear el peso a mano y buscar los productos por nombre. Si el problema sigue, avisar al Administrador.",
+          { exact: true },
+        ),
+      )
+      .toBeVisible();
   });
 
   it("shows the stopped fiscal emission notice with its title, what it means and what to do, with no connection to the cloud", async () => {

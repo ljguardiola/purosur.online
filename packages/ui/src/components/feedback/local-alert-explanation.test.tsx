@@ -3,7 +3,7 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { LocalAlertExplanation } from "./local-alert-explanation";
 
-test("explains what a register that can't sell means and what to do, with no title by default", async () => {
+test("explains what a register that can't sell means and what to do", async () => {
   const screen = await render(
     <LocalAlertExplanation kind="sales_denied" reason="event_history_broken" />,
   );
@@ -57,19 +57,10 @@ test("explains a register that isn't syncing", async () => {
   await expect.element(screen.getByText(/Revisar la conexión a internet del local/)).toBeVisible();
 });
 
-test("shows the kind's title above its explanation when asked to", async () => {
-  const screen = await render(<LocalAlertExplanation kind="register_silent" title />);
-
-  await expect.element(screen.getByText("La caja no está sincronizando")).toBeVisible();
-});
-
-test("has no accessibility violations, with or without its title", async () => {
-  const withoutTitle = await render(
+test("has no accessibility violations", async () => {
+  const screen = await render(
     <LocalAlertExplanation kind="sales_denied" reason="event_history_broken" />,
   );
-  await expectNoAccessibilityViolations(withoutTitle.container);
-  await withoutTitle.unmount();
 
-  const withTitle = await render(<LocalAlertExplanation kind="register_silent" title />);
-  await expectNoAccessibilityViolations(withTitle.container);
+  await expectNoAccessibilityViolations(screen.container);
 });
