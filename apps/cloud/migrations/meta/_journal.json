@@ -652,6 +652,13 @@
       "when": 1791871465058,
       "tag": "0096_quarantine_reasons",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1791899458086,
+      "tag": "0097_device_battery",
+      "breakpoints": true
     }
   ]
 }

@@ -494,6 +494,7 @@ export { syncCoreToRendererMessageSchema } from "./sync/core-messages.js";
 export type { EventQuarantineReason } from "./sync/event-quarantine-reason.js";
 export type { PushEventsRequest, PushEventsResponse } from "./sync/events.js";
 export {
+  MALFORMED_BATTERY_REPORT,
   PUSH_EVENTS_REQUEST_MAX_BYTES,
   pushEventsRequestSchema,
   pushEventsResponseSchema,

@@ -21,6 +21,21 @@ const serialDeviceReportSchema = z.union([
   }),
 ]);
 
+export const MALFORMED_BATTERY_REPORT = "malformed" as const;
+
+const batteryReportSchema = z
+  .union([
+    z.strictObject({ present: z.literal(false) }),
+    z.strictObject({
+      present: z.literal(true),
+      charge_percent: z.int().min(0).max(100),
+      health_percent: z.int32().nonnegative().optional(),
+      on_battery: z.boolean(),
+      on_battery_minutes: z.int32().nonnegative(),
+    }),
+  ])
+  .or(z.unknown().transform(() => MALFORMED_BATTERY_REPORT));
+
 const storageTelemetrySchema = z.object({
   wal_size_bytes: z.int().nonnegative(),
   disk_free_bytes: z.int().nonnegative(),
@@ -28,6 +43,7 @@ const storageTelemetrySchema = z.object({
   serial_devices: z
     .strictObject({ scale: serialDeviceReportSchema, reader: serialDeviceReportSchema })
     .optional(),
+  battery: batteryReportSchema.optional(),
 });
 
 const salesDeniedReportSchema = z.union([

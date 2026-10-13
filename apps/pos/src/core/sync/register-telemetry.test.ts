@@ -1,4 +1,5 @@
 import type {
+  BatteryReport,
   LatestPreEmissionGateOutcome,
   SalesStopState,
   SerialDevicesReport,
@@ -13,15 +14,25 @@ const SERIAL_DEVICES: SerialDevicesReport = {
   reader: { standing: "not_detected", vendor_id: "26f1", product_id: "8802" },
 };
 
+const BATTERY: BatteryReport = {
+  present: true,
+  charge_percent: 64,
+  health_percent: 88,
+  on_battery: true,
+  on_battery_minutes: 12,
+};
+
 function readerStopped(
   stop: SalesStopState,
   latestGate: LatestPreEmissionGateOutcome | undefined = undefined,
+  battery: BatteryReport | undefined = undefined,
 ) {
   return registerTelemetryReader(
     async () => STORAGE,
     () => stop,
     () => SERIAL_DEVICES,
     () => latestGate,
+    () => battery,
   );
 }
 
@@ -90,6 +101,7 @@ describe("the register's telemetry", () => {
       () => ({ stopped: false }),
       () => devices,
       () => undefined,
+      () => undefined,
     );
 
     const before = await read();
@@ -103,12 +115,44 @@ describe("the register's telemetry", () => {
     expect(after.serial_devices?.reader.standing).toBe("matching");
   });
 
+  it("reports its battery when it has one to report", async () => {
+    expect(await readerStopped({ stopped: false }, undefined, BATTERY)()).toMatchObject({
+      battery: BATTERY,
+    });
+    expect(await readerStopped({ stopped: false }, undefined, { present: false })()).toMatchObject({
+      battery: { present: false },
+    });
+  });
+
+  it("reports no battery at all, not an absent one, while its battery cannot be read", async () => {
+    expect(await readerStopped({ stopped: false })()).not.toHaveProperty("battery");
+  });
+
+  it("reads its battery each time it reports", async () => {
+    let battery: BatteryReport | undefined;
+    const read = registerTelemetryReader(
+      async () => STORAGE,
+      () => ({ stopped: false }),
+      () => SERIAL_DEVICES,
+      () => undefined,
+      () => battery,
+    );
+
+    const before = await read();
+    battery = BATTERY;
+    const after = await read();
+
+    expect(before).not.toHaveProperty("battery");
+    expect(after.battery).toEqual(BATTERY);
+  });
+
   it("reads what it is stopped for each time it reports", async () => {
     let stop: SalesStopState = { stopped: false };
     const read = registerTelemetryReader(
       async () => STORAGE,
       () => stop,
       () => SERIAL_DEVICES,
+      () => undefined,
       () => undefined,
     );
 
@@ -127,6 +171,7 @@ describe("the register's telemetry", () => {
       () => ({ stopped: false }),
       () => SERIAL_DEVICES,
       () => latest,
+      () => undefined,
     );
 
     const before = await read();
@@ -140,16 +185,27 @@ describe("the register's telemetry", () => {
 
 describe("the telemetry of a register whose local database is damaged", () => {
   it("reports its storage, that it can't sell and that its local database is damaged", async () => {
-    expect(await damagedRegisterTelemetryReader(async () => STORAGE)()).toEqual({
+    const read = damagedRegisterTelemetryReader(
+      async () => STORAGE,
+      () => undefined,
+    );
+
+    expect(await read()).toEqual({
       ...STORAGE,
       sales_denied: true,
       sales_denied_reason: "local_database_damaged",
     });
-    expect(await damagedRegisterTelemetryReader(async () => STORAGE)()).not.toHaveProperty(
-      "serial_devices",
+    expect(await read()).not.toHaveProperty("serial_devices");
+    expect(await read()).not.toHaveProperty("fiscal_emission_stopped");
+    expect(await read()).not.toHaveProperty("battery");
+  });
+
+  it("still reports its battery when it has one to report", async () => {
+    const read = damagedRegisterTelemetryReader(
+      async () => STORAGE,
+      () => BATTERY,
     );
-    expect(await damagedRegisterTelemetryReader(async () => STORAGE)()).not.toHaveProperty(
-      "fiscal_emission_stopped",
-    );
+
+    expect(await read()).toMatchObject({ sales_denied: true, battery: BATTERY });
   });
 });
