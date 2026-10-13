@@ -1,12 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { shiftCalendarDay } from "../../shared/index.js";
-import {
-  daysToExpiry,
-  expiryWindowEnd,
-  isExpired,
-  isWithinExpiryWindow,
-} from "./lot-expiry.js";
+import { daysToExpiry, expiryWindowEnd, isExpired, isWithinExpiryWindow } from "./lot-expiry.js";
 
 const day = fc
   .integer({ min: Date.UTC(2000, 0, 1), max: Date.UTC(2100, 11, 31) })
