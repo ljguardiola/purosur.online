@@ -1645,7 +1645,7 @@ describe("App", () => {
       .element(
         screen
           .getByRole("region", { name: "Estado de la caja" })
-          .getByText("Emisión de facturas detenida"),
+          .getByRole("button", { name: "1 aviso" }),
       )
       .toBeVisible();
   });

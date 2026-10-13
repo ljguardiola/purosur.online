@@ -2276,7 +2276,7 @@ describe("the register's status bar", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByText("La caja no puede vender")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "1 aviso" })).toBeVisible();
     await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
   });
 });
