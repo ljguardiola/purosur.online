@@ -6,6 +6,7 @@ test.each([
   ["TRANSFER", "Transferencia"],
   ["QR", "QR de Mercado Pago"],
   ["POINT", "Point integrada"],
+  ["STANDALONE_TERMINAL", "Terminal independiente"],
 ] as const)("names the %s payment method %s", (method, label) => {
   expect(paymentMethodLabel(method)).toBe(label);
 });

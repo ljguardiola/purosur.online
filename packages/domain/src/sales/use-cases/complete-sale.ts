@@ -67,7 +67,14 @@ export function completeSale(
     buyerTaxStatuses: tx.buyerTaxStatusSetInEffect(),
   });
   tx.recordPreEmissionGate({ saleId: sale.id, evaluatedAt: completedAt, outcome: gate });
-  tx.decideSaleAuthorization({ saleId: sale.id, gate, decidedAt: completedAt, ids });
+  tx.decideSaleAuthorization({
+    saleId: sale.id,
+    gate,
+    decidedAt: completedAt,
+    occurredAt: completedAt,
+    total,
+    ids,
+  });
   if (gate.kind === "failed") {
     tx.appendOutboxEvent(
       preEmissionGateFailedEvent({

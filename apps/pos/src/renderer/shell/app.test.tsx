@@ -110,6 +110,7 @@ function coreAnswering(
     cashCharge?: CoreClient["cashCharge"];
     chargeSaleInCash?: CoreClient["chargeSaleInCash"];
     chargeSaleByTransfer?: CoreClient["chargeSaleByTransfer"];
+    chargeSaleOnStandaloneTerminal?: CoreClient["chargeSaleOnStandaloneTerminal"];
     paymentMethodAvailability?: CoreClient["paymentMethodAvailability"];
     startMercadoPagoCharge?: CoreClient["startMercadoPagoCharge"];
     followMercadoPagoCharge?: CoreClient["followMercadoPagoCharge"];
@@ -353,6 +354,11 @@ function coreAnswering(
         ? { kind: "unavailable" }
         : sales.chargeSaleByTransfer(saleId, amount);
     },
+    async chargeSaleOnStandaloneTerminal(saleId, amount) {
+      return sales.chargeSaleOnStandaloneTerminal === undefined
+        ? { kind: "unavailable" }
+        : sales.chargeSaleOnStandaloneTerminal(saleId, amount);
+    },
     async paymentMethodAvailability() {
       return sales.paymentMethodAvailability === undefined
         ? { qr: "available", point: "available", point_minimum: 1500 }
@@ -459,7 +465,7 @@ function coreAnswering(
 
 const enrolledCore = coreAnswering(true).core;
 
-function postCoreStatus(status: "starting" | "down" | "up"): void {
+function postCoreStatus(status: "starting" | "down" | "up" | "updating"): void {
   window.postMessage({ channel: "core-status", payload: { type: "core-status", status } }, "*");
 }
 
@@ -858,6 +864,17 @@ describe("App", () => {
     postCoreStatus("down");
 
     await expect.element(screen.getByText(CORE_DOWN_TITLE)).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
+  });
+
+  it("replaces the whole screen with the updating notice while the register updates itself", async () => {
+    const screen = await render(<App core={enrolledCore} />);
+
+    postCoreStatus("updating");
+
+    await expect.element(screen.getByText("Actualizando la caja")).toBeVisible();
     await expect
       .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
       .not.toBeInTheDocument();
@@ -1759,6 +1776,66 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
     await userEvent.click(screen.getByText("Transferencia", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+
+    await expect
+      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
+      .toBeVisible();
+    expect(charges).toEqual([["sale-1", 238_000]]);
+  });
+
+  it("charges the sale in progress on the standalone terminal through the core", async () => {
+    const charges: [string, number][] = [];
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => GRACE_SESSION },
+      {
+        currentSale: async () => ({
+          id: "sale-1",
+          lines: [
+            {
+              id: "line-1",
+              product_id: "p1",
+              product_name: "Yerba mate 1 kg",
+              sale_unit: "UNIT" as const,
+              weight_source: null,
+              quantity: 1,
+              list_unit_price: 238_000,
+              discount_amount: 0,
+              promotion: null,
+              manual_adjustment: null,
+              line_total: 238_000,
+            },
+          ],
+          total: 238_000,
+          paid: 0,
+          pending: 238_000,
+          lines_lock: null,
+          cancel_refusal: null,
+          charge_refusal: null,
+          mercado_pago_charge_in_progress: null,
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
+          adjust_authorization_required: false,
+          sale_discount_authorization_required: false,
+          sale_discount_refusal: null,
+          sale_discount: null,
+          subtotal: 238_000,
+        }),
+        chargeSaleOnStandaloneTerminal: async (saleId, amount) => {
+          charges.push([saleId, amount]);
+          return { kind: "completed", sale_id: saleId, total: 238_000 };
+        },
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await resumeLockedRegister(screen);
+
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+    await userEvent.click(screen.getByText("Terminal independiente", { exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Registrar pago aprobado" }));
 
     await expect
       .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))

@@ -152,11 +152,14 @@
                     "allowImportNames": [
                       "errorReportingOptions",
                       "CoreReadyMessage",
+                      "CoreRefusedMessage",
                       "CoreStatusMessage",
                       "CredentialsReplacement",
                       "DeviceCredentials",
                       "DeviceCredentialsAnswer",
-                      "DeviceCredentialsRequest"
+                      "DeviceCredentialsRequest",
+                      "RegisterUpdateAnswer",
+                      "UpdateSafeMomentAnswer"
                     ]
                   }
                 }

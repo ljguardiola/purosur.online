@@ -485,6 +485,29 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to charge a sale on the standalone terminal and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.chargeSaleOnStandaloneTerminal("sale-1", 300_000);
+    port.answer({
+      type: "charge-sale-on-standalone-terminal-result",
+      request_id: "request-1",
+      outcome: { kind: "completed", sale_id: "sale-1", total: 476_000 },
+    });
+
+    expect(await outcome).toEqual({ kind: "completed", sale_id: "sale-1", total: 476_000 });
+    expect(port.posted).toEqual([
+      {
+        type: "charge-sale-on-standalone-terminal",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        amount: 300_000,
+      },
+    ]);
+  });
+
   it.each(["QR", "POINT"] as const)(
     "asks the core to start a Mercado Pago %s charge of an amount of a sale and resolves with the outcome",
     async (method) => {
@@ -1607,6 +1630,17 @@ describe("createCoreClient", () => {
 
     await expect(enrolled).rejects.toThrow("the core connection was replaced");
     expect(previous.closed).toBe(true);
+  });
+
+  it("fails a request the core refuses while an update installs", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const enrolled = client.enrollmentStatus();
+    port.answer({ type: "refused-while-updating", request_id: "request-1" });
+
+    await expect(enrolled).rejects.toThrow("the core refused the request while an update installs");
   });
 
   it("ignores anything still arriving on a replaced port", async () => {

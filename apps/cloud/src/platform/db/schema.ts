@@ -1,6 +1,7 @@
 import {
   ALERT_AUDIENCES,
   ALERT_LEVELS,
+  type EventQuarantine,
   FACTURA_C_DOCUMENT_TYPE,
   type JsonValue,
   OFFLINE_NUMBER_BLOCK_STATUSES,
@@ -1072,6 +1073,7 @@ export const inbox = pgTable(
     nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
     quarantinedAt: timestamp("quarantined_at", { withTimezone: true }),
     lastError: text("last_error"),
+    quarantineReason: jsonb("quarantine_reason").$type<EventQuarantine["reason"]>(),
   },
   (table) => [
     unique("inbox_device_id_device_seq_key").on(table.deviceId, table.deviceSeq),
@@ -1426,8 +1428,8 @@ export const changes = pgTable(
     // Set on a price's changes only, so the feed can tell which branch's list a price belongs to
     // after the price itself is gone.
     priceListId: uuid("price_list_id"),
-    // Set on a user's and a stock movement's changes only, so the feed can tell which branch a
-    // user belongs to after the user itself is gone.
+    // Set on a user's, a stock movement's and a refund completion's changes only, so the feed can
+    // tell which branch each belongs to, a user's even after the user itself is gone.
     locationId: uuid("location_id"),
     // Set on an offline number block's changes only, so the feed can tell which register a block
     // belongs to.

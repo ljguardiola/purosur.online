@@ -216,6 +216,13 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
           version: change.row.version,
         },
       };
+    case "refund_completion":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: { done_by: change.row.doneBy, done_at: change.row.doneAt.toISOString() },
+      };
     case "offline_authorization_code":
       return {
         change_seq,

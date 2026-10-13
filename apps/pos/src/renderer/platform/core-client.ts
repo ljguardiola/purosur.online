@@ -15,6 +15,7 @@ import type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CredentialsCoreToRendererMessage,
@@ -226,6 +227,10 @@ export interface CoreClient {
   cashCharge(saleId: string, tendered: number): Promise<CashChargeAnswer>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer(saleId: string, amount: number): Promise<ChargeSaleByTransferOutcome>;
+  chargeSaleOnStandaloneTerminal(
+    saleId: string,
+    amount: number,
+  ): Promise<ChargeSaleOnStandaloneTerminalOutcome>;
   paymentMethodAvailability(): Promise<PaymentMethodAvailability | null>;
   startMercadoPagoCharge(
     saleId: string,
@@ -292,6 +297,13 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       for (const listener of barcodeReadListeners) {
         listener(answer.data.code);
       }
+      return;
+    }
+    if (answer.data.type === "refused-while-updating") {
+      sent
+        .get(answer.data.request_id)
+        ?.fail(new Error("the core refused the request while an update installs"));
+      sent.delete(answer.data.request_id);
       return;
     }
     if (sent.get(answer.data.request_id)?.settle(answer.data)) {
@@ -777,6 +789,18 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           amount,
         },
         (answer) => (answer.type === "charge-sale-by-transfer-result" ? answer.outcome : undefined),
+      );
+    },
+    chargeSaleOnStandaloneTerminal(saleId, amount) {
+      return ask(
+        {
+          type: "charge-sale-on-standalone-terminal",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          amount,
+        },
+        (answer) =>
+          answer.type === "charge-sale-on-standalone-terminal-result" ? answer.outcome : undefined,
       );
     },
     paymentMethodAvailability() {

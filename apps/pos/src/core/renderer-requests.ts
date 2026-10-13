@@ -15,6 +15,7 @@ import type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CurrentSaleAnswer,
@@ -64,6 +65,7 @@ import type {
   CancelPaidSaleRequest,
   ChargeSaleByTransferRequest,
   ChargeSaleInCashRequest,
+  ChargeSaleOnStandaloneTerminalRequest,
   PreviewSaleDiscountRequest,
   PreviewSaleLineAdjustmentRequest,
 } from "./sales/sale-requests";
@@ -101,6 +103,11 @@ export interface RendererRequestDeps {
     | undefined;
   chargeSaleByTransfer:
     | ((request: ChargeSaleByTransferRequest) => Promise<ChargeSaleByTransferOutcome>)
+    | undefined;
+  chargeSaleOnStandaloneTerminal:
+    | ((
+        request: ChargeSaleOnStandaloneTerminalRequest,
+      ) => Promise<ChargeSaleOnStandaloneTerminalOutcome>)
     | undefined;
   startMercadoPagoCharge:
     | ((request: {
@@ -512,6 +519,18 @@ async function attemptChargeSaleByTransfer(
     return (await deps.chargeSaleByTransfer?.(request)) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure("charging a sale by transfer", error);
+    return { kind: "unavailable" };
+  }
+}
+
+async function attemptChargeSaleOnStandaloneTerminal(
+  deps: RendererRequestDeps,
+  request: ChargeSaleOnStandaloneTerminalRequest,
+): Promise<ChargeSaleOnStandaloneTerminalOutcome> {
+  try {
+    return (await deps.chargeSaleOnStandaloneTerminal?.(request)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("charging a sale on the standalone terminal", error);
     return { kind: "unavailable" };
   }
 }
@@ -931,6 +950,15 @@ export async function answerRendererRequest(
         type: "charge-sale-by-transfer-result",
         request_id: message.request_id,
         outcome: await attemptChargeSaleByTransfer(deps, {
+          saleId: message.sale_id,
+          amount: message.amount,
+        }),
+      };
+    case "charge-sale-on-standalone-terminal":
+      return {
+        type: "charge-sale-on-standalone-terminal-result",
+        request_id: message.request_id,
+        outcome: await attemptChargeSaleOnStandaloneTerminal(deps, {
           saleId: message.sale_id,
           amount: message.amount,
         }),

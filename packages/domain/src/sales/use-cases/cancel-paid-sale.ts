@@ -41,6 +41,7 @@ export type CancelPaidSaleOutcome<Grant extends CancelPaidSaleGrant> =
   | { kind: "no_open_sale" }
   | { kind: "mercado_pago_charge_in_progress" }
   | { kind: "holds_mercado_pago_payment" }
+  | { kind: "holds_standalone_terminal_payment" }
   | { kind: "unavailable" }
   | { kind: "cancelled"; refunds: SaleRefund[]; grant: Grant };
 

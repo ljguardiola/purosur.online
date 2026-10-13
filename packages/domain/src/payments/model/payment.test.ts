@@ -4,6 +4,8 @@ import {
   cancellableWithoutAuthorization,
   hasApprovedPayment,
   holdsApprovedMercadoPagoPayment,
+  holdsApprovedStandaloneTerminalPayment,
+  isConfirmedByHand,
   MERCADO_PAGO_PAYMENT_METHODS,
   MERCADO_PAGO_PROVIDERS,
   PAYMENT_METHODS,
@@ -110,8 +112,8 @@ describe("a Mercado Pago QR payment of a sale", () => {
 });
 
 describe("PAYMENT_METHODS", () => {
-  it("lists the integrated terminal beside cash, transfer and QR", () => {
-    expect(PAYMENT_METHODS).toEqual(["CASH", "TRANSFER", "QR", "POINT"]);
+  it("lists the standalone terminal beside cash, transfer, QR and the integrated terminal", () => {
+    expect(PAYMENT_METHODS).toEqual(["CASH", "TRANSFER", "QR", "POINT", "STANDALONE_TERMINAL"]);
   });
 });
 
@@ -153,5 +155,75 @@ describe("the Mercado Pago methods and providers", () => {
 describe("APPROVED_PAYMENT_STATE", () => {
   it("is the state of a payment that was charged", () => {
     expect(APPROVED_PAYMENT_STATE).toBe("APPROVED");
+  });
+});
+
+describe("a standalone terminal payment of a sale", () => {
+  type StandalonePayment = Extract<SalePayment, { method: "STANDALONE_TERMINAL" }>;
+
+  it("is an approved payment on the external terminal", () => {
+    expectTypeOf<StandalonePayment>().toExtend<{
+      provider: "EXTERNAL_TERMINAL";
+      state: "APPROVED";
+    }>();
+    expectTypeOf<
+      Omit<StandalonePayment, "provider"> & { provider: "NONE" }
+    >().not.toExtend<SalePayment>();
+  });
+
+  it("does not accept one without who confirmed it and when", () => {
+    expectTypeOf<Omit<StandalonePayment, "authorizedBy">>().not.toExtend<SalePayment>();
+    expectTypeOf<Omit<StandalonePayment, "confirmedAt">>().not.toExtend<SalePayment>();
+  });
+
+  it("carries no tendered amount", () => {
+    expectTypeOf<StandalonePayment & { tendered: number }>().not.toExtend<SalePayment>();
+  });
+});
+
+describe("isConfirmedByHand", () => {
+  it.each(["TRANSFER", "STANDALONE_TERMINAL"])("is true for %s", (method) => {
+    expect(isConfirmedByHand({ method })).toBe(true);
+  });
+
+  it.each(["CASH", "QR", "POINT"])("is false for %s", (method) => {
+    expect(isConfirmedByHand({ method })).toBe(false);
+  });
+
+  it("narrows a payment to the ones that carry who confirmed them and when", () => {
+    const payment = APPROVED as SalePayment;
+
+    if (isConfirmedByHand(payment)) {
+      expectTypeOf(payment.authorizedBy).toEqualTypeOf<string>();
+      expectTypeOf(payment.confirmedAt).toEqualTypeOf<Date>();
+    }
+  });
+});
+
+describe("holdsApprovedStandaloneTerminalPayment", () => {
+  const STANDALONE = { state: "APPROVED", method: "STANDALONE_TERMINAL" } as const;
+
+  it("is false for a sale without payments", () => {
+    expect(holdsApprovedStandaloneTerminalPayment([])).toBe(false);
+  });
+
+  it("is true when an approved payment of several is on the standalone terminal", () => {
+    expect(holdsApprovedStandaloneTerminalPayment([APPROVED, STANDALONE])).toBe(true);
+  });
+
+  it("is false when only payments of other methods are approved", () => {
+    expect(
+      holdsApprovedStandaloneTerminalPayment([
+        APPROVED,
+        { state: "APPROVED", method: "TRANSFER" },
+        { state: "APPROVED", method: "POINT" },
+      ]),
+    ).toBe(false);
+  });
+
+  it("is false when the standalone terminal payment is not approved", () => {
+    expect(holdsApprovedStandaloneTerminalPayment([{ ...STANDALONE, state: "PENDING" }])).toBe(
+      false,
+    );
   });
 });

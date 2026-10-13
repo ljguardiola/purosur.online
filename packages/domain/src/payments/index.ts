@@ -17,12 +17,18 @@ export {
   MERCADO_PAGO_POINT_ORDER_EXPIRY_MINUTES,
 } from "./model/mercado-pago-point-order.js";
 export { nonCashCharge } from "./model/non-cash-charge.js";
-export type { MercadoPagoPaymentMethod, PaymentMethod } from "./model/payment.js";
+export type {
+  ConfirmedByHandMethod,
+  MercadoPagoPaymentMethod,
+  PaymentMethod,
+} from "./model/payment.js";
 export {
   APPROVED_PAYMENT_STATE,
   cancellableWithoutAuthorization,
   hasApprovedPayment,
   holdsApprovedMercadoPagoPayment,
+  holdsApprovedStandaloneTerminalPayment,
+  isConfirmedByHand,
   MERCADO_PAGO_PAYMENT_METHODS,
   MERCADO_PAGO_PROVIDERS,
   PAYMENT_METHODS,

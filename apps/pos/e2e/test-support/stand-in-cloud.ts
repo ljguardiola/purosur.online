@@ -25,7 +25,9 @@ import {
   signInLookupSchema,
 } from "@purosur/contracts";
 import { PULL_PAGE_MAX_CHANGES } from "@purosur/domain";
+import { WAIT_BOUND_MS } from "./bounds";
 import { type CloudChange, pinRecord } from "./cloud-changes";
+import { within } from "./until";
 
 export interface StandInCloud {
   readonly url: string;
@@ -323,12 +325,18 @@ export async function startStandInCloud(
     dropEveryConnection: async () => {
       const closed = new Promise<void>((resolve) => server.close(() => resolve()));
       server.closeAllConnections();
-      await closed;
+      await within(closed, {
+        withinMs: WAIT_BOUND_MS,
+        waitingFor: "the stand-in cloud's connections to close",
+      });
       await listen(port);
     },
     stop: async () => {
       server.closeAllConnections();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await within(new Promise<void>((resolve) => server.close(() => resolve())), {
+        withinMs: WAIT_BOUND_MS,
+        waitingFor: "the stand-in cloud to stop",
+      });
       if (problems.length > 0) {
         throw new Error(`the stand-in cloud refused the register: ${problems.join("; ")}`);
       }

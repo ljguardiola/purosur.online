@@ -13,11 +13,8 @@ import {
 import { ArrowLeft, Check, Landmark, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { INVALID_AMOUNT_MESSAGE } from "./cash-charge-form";
+import { chargeSaleByTransferRequestSchema, handChargeRequestFrom } from "./hand-charge-form";
 import { CHARGE_IN_PROGRESS_MESSAGE } from "./mercado-pago-charge-messages";
-import {
-  chargeSaleByTransferRequestSchema,
-  transferChargeRequestFrom,
-} from "./transfer-charge-form";
 
 const FAILED_MESSAGE = "No se pudo cobrar la venta. Probá de nuevo.";
 
@@ -55,7 +52,7 @@ export function TransferChargeModal({
   const [notice, setNotice] = useState<string>();
   const { form, submit, submitting } = useRequestForm({
     defaultValues: { amount: formatAmountInput(pending) },
-    request: { schema: chargeSaleByTransferRequestSchema, from: transferChargeRequestFrom },
+    request: { schema: chargeSaleByTransferRequestSchema, from: handChargeRequestFrom },
     fields: { amount: "amount" },
     messages: { amount: INVALID_AMOUNT_MESSAGE },
     onSubmit: async (request, { showFieldError }) => {

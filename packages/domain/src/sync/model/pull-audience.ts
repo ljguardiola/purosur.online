@@ -16,6 +16,7 @@ export const PULLED_ENTITIES = [
   "buyer_identification_threshold",
   "buyer_tax_status_set",
   "stock_movement",
+  "refund_completion",
   "offline_authorization_code",
   "offline_number_block",
 ] as const;
@@ -59,6 +60,7 @@ const NOTHING: PullAudience = {
   buyer_identification_threshold: NONE,
   buyer_tax_status_set: NONE,
   stock_movement: NONE,
+  refund_completion: NONE,
   offline_authorization_code: NONE,
   offline_number_block: NONE,
 };
@@ -86,6 +88,7 @@ export function pullAudienceOf({
     buyer_identification_threshold: EVERY_ROW,
     buyer_tax_status_set: EVERY_ROW,
     stock_movement: { kind: "rows_of_branch", locationId },
+    refund_completion: { kind: "rows_of_branch", locationId },
     offline_authorization_code: EVERY_ROW,
     offline_number_block: { kind: "rows_of_register", registerId },
   };

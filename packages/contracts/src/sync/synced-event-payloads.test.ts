@@ -521,6 +521,62 @@ describe("synced event payloads", () => {
     });
   });
 
+  describe("a sale paid on the standalone terminal", () => {
+    const sale = (): Payload => recordedPayload("sale_completed", 8);
+    const STANDALONE_PAYMENT = {
+      ...CASH_PAYMENT_V2,
+      id: "pay-5",
+      method: "STANDALONE_TERMINAL",
+      provider: "EXTERNAL_TERMINAL",
+      tendered: null,
+      authorized_by: "user-2",
+      confirmed_at: "2026-10-06T11:21:00.000Z",
+    };
+    const withPayments = (payments: unknown[]) => ({ ...sale(), payments });
+
+    it("accepts a sale paid on the standalone terminal, alone or with other payments", () => {
+      expect(accepts("sale_completed", 8, withPayments([STANDALONE_PAYMENT]))).toBe(true);
+      expect(
+        accepts(
+          "sale_completed",
+          8,
+          withPayments([CASH_PAYMENT_V2, TRANSFER_PAYMENT_V2, STANDALONE_PAYMENT]),
+        ),
+      ).toBe(true);
+    });
+
+    it.each([
+      ["a pending state", { state: "PENDING" }],
+      ["another provider", { provider: "NONE" }],
+      ["a Mercado Pago provider", { provider: "MERCADOPAGO_POINT" }],
+      ["an amount tendered", { tendered: 5000 }],
+      ["no authorizer", { authorized_by: null }],
+      ["no confirmation", { confirmed_at: null }],
+      ["a confirmation that is no instant", { confirmed_at: "yesterday" }],
+    ])("refuses a standalone terminal payment with %s", (_description, change) => {
+      expect(
+        accepts("sale_completed", 8, withPayments([{ ...STANDALONE_PAYMENT, ...change }])),
+      ).toBe(false);
+    });
+
+    it("refuses a transfer on the external terminal provider", () => {
+      const transfer = { ...TRANSFER_PAYMENT_V2, provider: "EXTERNAL_TERMINAL" };
+
+      expect(accepts("sale_completed", 8, withPayments([transfer]))).toBe(false);
+    });
+
+    it.each([1, 2, 3, 4, 5, 6, 7])(
+      "keeps refusing a standalone terminal payment in version %s",
+      (version) => {
+        const base = { ...sale(), completed_at: "2026-10-06T11:20:00.000Z" };
+
+        expect(
+          accepts("sale_completed", version, { ...base, payments: [STANDALONE_PAYMENT] }),
+        ).toBe(false);
+      },
+    );
+  });
+
   describe("a sale's lines recording the source of their weight", () => {
     const WEIGHED_LINE = {
       id: "line-2",

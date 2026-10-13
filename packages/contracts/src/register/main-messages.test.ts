@@ -175,11 +175,14 @@ describe("mainToCoreMessageSchema", () => {
 });
 
 describe("coreStatusMessageSchema", () => {
-  it.each(["starting", "down", "up"])("accepts a core status of %s", (status) => {
-    expect(coreStatusMessageSchema.safeParse({ type: "core-status", status }).success).toBe(true);
-  });
+  it.each(["starting", "down", "up", "updating", "refused"])(
+    "accepts a core status of %s",
+    (status) => {
+      expect(coreStatusMessageSchema.safeParse({ type: "core-status", status }).success).toBe(true);
+    },
+  );
 
-  it("rejects a status outside starting, down and up", () => {
+  it("rejects an empty or missing status", () => {
     expect(coreStatusMessageSchema.safeParse({ type: "core-status", status: "" }).success).toBe(
       false,
     );
@@ -189,5 +192,25 @@ describe("coreStatusMessageSchema", () => {
   it("rejects any other message type", () => {
     expect(coreStatusMessageSchema.safeParse({ type: "ping", status: "up" }).success).toBe(false);
     expect(coreStatusMessageSchema.safeParse({ status: "up" }).success).toBe(false);
+  });
+});
+
+describe("update messages", () => {
+  it("accepts main asking whether this is a safe moment to update", () => {
+    const message = { type: "update-safe-moment-request", request_id: "u1" };
+
+    expect(mainToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts main releasing the hold after the installer failed to start", () => {
+    const message = { type: "update-hold-release" };
+
+    expect(mainToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("refuses a safe-moment request without its request id", () => {
+    expect(mainToCoreMessageSchema.safeParse({ type: "update-safe-moment-request" }).success).toBe(
+      false,
+    );
   });
 });

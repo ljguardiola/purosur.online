@@ -281,6 +281,7 @@ export { healthCheckSchema } from "./register/health-check.js";
 export type { InstallationKeysBody } from "./register/installation-keys.js";
 export type {
   CoreReadyMessage,
+  CoreRefusedMessage,
   CoreStatusMessage,
   CoreStatusRequest,
   CredentialsReplacement,
@@ -288,6 +289,7 @@ export type {
   DeviceCredentialsAnswer,
   DeviceCredentialsRequest,
   MainToCoreMessage,
+  UpdateSafeMomentAnswer,
 } from "./register/main-messages.js";
 export { coreStatusMessageSchema, mainToCoreMessageSchema } from "./register/main-messages.js";
 export { receiptPrinterAddressTextSchema } from "./register/receipt-printer-address.js";
@@ -304,6 +306,14 @@ export {
 } from "./register/register-sync-status.js";
 export type { ReportRegisterListBody } from "./register/report-register-list.js";
 export { reportRegisterListSchema } from "./register/report-register-list.js";
+export type { RegisterUpdateAnswer } from "./register/register-update.js";
+export {
+  registerReleaseEntrySchema,
+  registerUpdateAnswerSchema,
+  registerUpdateQuerySchema,
+  registerVersionSchema,
+  registerVersionText,
+} from "./register/register-update.js";
 export type {
   CancelLockedSaleOutcome,
   ReceiptPrintStatusOutcome,
@@ -318,6 +328,7 @@ export {
   changeLineWeightMessageSchema,
   chargeSaleByTransferMessageSchema,
   chargeSaleInCashMessageSchema,
+  chargeSaleOnStandaloneTerminalMessageSchema,
   reprintSaleReceiptMessageSchema,
   salesCoreToRendererMessageSchema,
   salesRendererToCoreMessageSchema,
@@ -335,6 +346,7 @@ export type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleOnStandaloneTerminalOutcome,
   CurrentSaleAnswer,
   FoundProduct,
   ManualAdjustmentRequest,
@@ -377,7 +389,6 @@ export type {
   AuthorizedBy,
   BranchSettingsBody,
   ErrorReportingConfiguration,
-  EventQuarantineReason,
   IssuerIdentificationBody,
   OpenCashSession,
   PinAttemptRefusal,
@@ -476,6 +487,7 @@ export type { ChangesPage, ChangesQuery, SyncChange } from "./sync/changes.js";
 export { changesPageSchema, changesQuerySchema } from "./sync/changes.js";
 export type { SyncCoreToRendererMessage } from "./sync/core-messages.js";
 export { syncCoreToRendererMessageSchema } from "./sync/core-messages.js";
+export type { EventQuarantineReason } from "./sync/event-quarantine-reason.js";
 export type { PushEventsRequest, PushEventsResponse } from "./sync/events.js";
 export {
   PUSH_EVENTS_REQUEST_MAX_BYTES,
