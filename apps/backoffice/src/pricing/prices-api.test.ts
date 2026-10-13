@@ -26,6 +26,7 @@ const rice: PriceProduct = {
   currentPrice: { id: "price-1", unitPrice: 750000, validFrom: "2026-01-01T12:00:00.000Z" },
   secondsSinceReview: 3_456_000,
   pending: true,
+  costReference: { lastCostCents: 428000, freightPerUnitCents: 18000, totalCostCents: 446000, marginTenthsOfPercent: 405 },
 };
 
 test("fetchPrices lists the products, the pending count, the review window and the categories on 200", async () => {

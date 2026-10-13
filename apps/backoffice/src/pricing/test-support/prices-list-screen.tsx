@@ -32,6 +32,7 @@ export const withoutPrice: PriceProduct = {
   currentPrice: null,
   secondsSinceReview: null,
   pending: true,
+  costReference: null,
 };
 
 export const rice: PriceProduct = {
@@ -47,6 +48,7 @@ export const rice: PriceProduct = {
   },
   secondsSinceReview: 3_456_000,
   pending: true,
+  costReference: { lastCostCents: 428000, freightPerUnitCents: 18000, totalCostCents: 446000, marginTenthsOfPercent: 405 },
 };
 
 export const yerbaMate: PriceProduct = {
