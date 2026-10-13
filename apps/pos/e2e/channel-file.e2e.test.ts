@@ -4,7 +4,10 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { APP_DIR, appEnv, launchApp, platformArgs, writeChannelFile } from "./launch-app";
+import { WAIT_BOUND_MS } from "./test-support/bounds";
+import { closeRegister } from "./test-support/close-register";
 import { coreStartEnded } from "./test-support/core-start-outcomes";
+import { within } from "./test-support/until";
 
 // The electron package's main export is the path to its binary.
 const ELECTRON_BINARY = createRequire(join(APP_DIR, "package.json"))("electron") as string;
@@ -40,11 +43,20 @@ async function runUntilItExitsOrStarts(channelFile: string): Promise<Run> {
       collect((text) => (stderr += text)),
     );
   });
-  await Promise.race([closed, started]);
-  if (child.exitCode === null && child.signalCode === null && child.pid !== undefined) {
-    process.kill(process.platform === "win32" ? child.pid : -child.pid, "SIGKILL");
+  try {
+    await within(Promise.race([closed, started]), {
+      withinMs: WAIT_BOUND_MS,
+      waitingFor: "the register to exit or finish starting its core",
+    });
+  } finally {
+    if (child.exitCode === null && child.signalCode === null && child.pid !== undefined) {
+      process.kill(process.platform === "win32" ? child.pid : -child.pid, "SIGKILL");
+    }
   }
-  const [status] = await closed;
+  const [status] = await within(closed, {
+    withinMs: WAIT_BOUND_MS,
+    waitingFor: "the register's process to end",
+  });
   return { status, stderr };
 }
 
@@ -64,7 +76,7 @@ describe("the register's channel file", () => {
       expect(paths.userData).toBe(join(paths.appData, "purosur-pos-e2e-channel"));
       expect(paths.sessionData).toBe(paths.userData);
     } finally {
-      await app.close();
+      await closeRegister(app);
     }
   });
 

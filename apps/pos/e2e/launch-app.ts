@@ -3,6 +3,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type ElectronApplication, _electron as electron } from "playwright";
+import { WAIT_BOUND_MS } from "./test-support/bounds";
+import { recordLaunchedRegister } from "./test-support/launched-registers";
 
 // This file lives in apps/pos/e2e; the built, unpacked app (package.json + out/) is its parent.
 export const APP_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -42,12 +44,6 @@ export function appEnv(channelFile: string): Record<string, string> {
   return env;
 }
 
-// The app starts within seconds on CI; the bound is far above that and only turns one that never
-// starts into a failure carrying Playwright's launch log, which holds what the app wrote.
-export const LAUNCH_BOUND_MS = 60_000;
-
-// Waits on the app's window have no limit, so each test waits for what it checks however long the
-// machine takes; the job's own timeout ends a run where it never comes.
 export async function launchApp(
   channelFile: string = writeChannelFile(E2E_CHANNEL_FILE),
   extraEnv: Record<string, string> = {},
@@ -55,11 +51,12 @@ export async function launchApp(
   const app = await electron.launch({
     args: [APP_DIR, ...platformArgs()],
     env: { ...appEnv(channelFile), ...extraEnv },
-    timeout: LAUNCH_BOUND_MS,
+    timeout: WAIT_BOUND_MS,
   });
-  app.context().setDefaultTimeout(0);
+  app.context().setDefaultTimeout(WAIT_BOUND_MS);
   const logs: string[] = [];
   app.process().stdout?.on("data", (chunk: Buffer) => logs.push(chunk.toString()));
   app.process().stderr?.on("data", (chunk: Buffer) => logs.push(chunk.toString()));
+  recordLaunchedRegister(logs);
   return { app, logs };
 }

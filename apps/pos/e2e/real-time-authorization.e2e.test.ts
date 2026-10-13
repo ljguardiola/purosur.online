@@ -4,6 +4,7 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { WAIT_BOUND_MS } from "./test-support/bounds";
 import {
   branchSettingsChange,
   buyerIdentificationThresholdChange,
@@ -125,7 +126,10 @@ describe("authorizing a sale's invoice in real time on the register", () => {
     await page.getByText("Efectivo", { exact: true }).click();
     await page.getByLabel("Importe entregado por el cliente").fill("2.380,00");
     await page.getByRole("button", { name: "Completar venta" }).click();
-    await until(() => cloud.authorizationRequests.length === 1);
+    await until(() => cloud.authorizationRequests.length === 1, {
+      withinMs: WAIT_BOUND_MS,
+      waitingFor: "the first real-time authorization request",
+    });
 
     expect(cloud.authorizationRequests[0]).toMatchObject({
       point_of_sale: POINT_OF_SALE,
@@ -147,7 +151,10 @@ describe("authorizing a sale's invoice in real time on the register", () => {
     await page.getByRole("button", { name: "Cobrar" }).click();
     await page.getByText("Transferencia", { exact: true }).click();
     await page.getByRole("button", { name: "Vi el ingreso" }).click();
-    await until(() => cloud.authorizationRequests.length === 2);
+    await until(() => cloud.authorizationRequests.length === 2, {
+      withinMs: WAIT_BOUND_MS,
+      waitingFor: "the second real-time authorization request",
+    });
 
     expect(cloud.authorizationRequests[1]).toMatchObject({
       point_of_sale: POINT_OF_SALE,

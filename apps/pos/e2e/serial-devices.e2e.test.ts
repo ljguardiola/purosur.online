@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { launchApp, writeChannelFile } from "./launch-app";
+import { WAIT_BOUND_MS } from "./test-support/bounds";
+import { closeRegister } from "./test-support/close-register";
 import { roleChange, userChange } from "./test-support/cloud-changes";
 import { enrolledRegister } from "./test-support/enrolled-register";
-import { killOnFailure } from "./test-support/kill-on-failure";
 import {
   SERIAL_DEVICE_WATCH_FAILED,
   SERIAL_DEVICES_LISTED,
 } from "./test-support/serial-device-logs";
 import { startStandInCloud } from "./test-support/stand-in-cloud";
-import { REGISTER_LOG_BOUND_MS, untilLogged } from "./test-support/until";
+import { untilLogged } from "./test-support/until";
 
 const LINUS_ID = "5b0b8f4e-3c2d-4a55-9c1e-0a6f6a1d0a05";
 const LINUS_EMAIL = "linus@example.com";
@@ -18,14 +19,12 @@ describe("the register's serial devices", () => {
     const launched = await launchApp(
       writeChannelFile({ channel: "staging", dataFolder: "purosur-pos-e2e-serial-devices" }),
     );
-    await killOnFailure(launched.app, async () => {
-      await launched.app.firstWindow();
-      await untilLogged(launched, SERIAL_DEVICES_LISTED, { withinMs: REGISTER_LOG_BOUND_MS });
-    });
     try {
+      await launched.app.firstWindow();
+      await untilLogged(launched, SERIAL_DEVICES_LISTED, { withinMs: WAIT_BOUND_MS });
       expect(launched.logs.join("")).not.toContain(SERIAL_DEVICE_WATCH_FAILED);
     } finally {
-      await launched.app.close();
+      await closeRegister(launched.app);
     }
   });
 

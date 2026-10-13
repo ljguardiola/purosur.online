@@ -1,5 +1,6 @@
 import { defaultServerConditions } from "vite";
 import { defineConfig } from "vitest/config";
+import { UNBOUNDED_CALL_BACKSTOP_MS } from "./e2e/test-support/bounds";
 
 // Separate on purpose: these launch the built app with Playwright's Electron driver and need a
 // display, so `pnpm verify` (Linux, no display) must never collect them.
@@ -20,10 +21,10 @@ export default defineConfig({
     // One Electron instance at a time: launching several together would compete for the same
     // display and make the restart/timing assertions flaky.
     fileParallelism: false,
-    // No limit: waits on the window and polled conditions take however long the machine takes, and
-    // the job's own timeout ends a run where one never comes; launching the register and waiting
-    // for a line it logs carry their own bound.
-    testTimeout: 0,
-    hookTimeout: 0,
+    // Only a backstop: every wait carries its own bound and says what it waited for. This ends a call
+    // no wait bounds, such as an evaluate against a main process that hangs.
+    testTimeout: UNBOUNDED_CALL_BACKSTOP_MS,
+    hookTimeout: UNBOUNDED_CALL_BACKSTOP_MS,
+    setupFiles: ["e2e/test-support/print-logs-on-failure.setup.ts"],
   },
 });
