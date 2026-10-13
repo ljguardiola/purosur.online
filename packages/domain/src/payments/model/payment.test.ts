@@ -69,9 +69,9 @@ describe("holdsApprovedPointPayment", () => {
   });
 
   it("is false when only payments of other methods are approved, a QR payment included", () => {
-    expect(
-      holdsApprovedPointPayment([APPROVED, { ...APPROVED, method: "TRANSFER" }, QR]),
-    ).toBe(false);
+    expect(holdsApprovedPointPayment([APPROVED, { ...APPROVED, method: "TRANSFER" }, QR])).toBe(
+      false,
+    );
   });
 
   it("is false when the integrated terminal payment is not approved", () => {

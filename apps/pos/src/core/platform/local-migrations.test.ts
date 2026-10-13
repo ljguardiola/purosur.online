@@ -3002,9 +3002,7 @@ describe("the register's local migrations", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");
-      const previous = LOCAL_MIGRATIONS.filter(
-        (migration) => migration.name < "0049_qr_refunds",
-      );
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < "0049_qr_refunds");
       expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain("0049_qr_refunds");
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -3066,12 +3064,10 @@ describe("the register's local migrations", () => {
       expect(() =>
         insertRefund.run({ ...qr, id: "point-provider", provider: "MERCADOPAGO_POINT" }),
       ).toThrow(/CHECK/);
-      expect(() =>
-        insertRefund.run({ ...qr, id: "cash-on-qr", method: "CASH" }),
-      ).toThrow(/CHECK/);
-      expect(() =>
-        insertRefund.run({ ...qr, id: "transfer-on-qr", method: "TRANSFER" }),
-      ).toThrow(/CHECK/);
+      expect(() => insertRefund.run({ ...qr, id: "cash-on-qr", method: "CASH" })).toThrow(/CHECK/);
+      expect(() => insertRefund.run({ ...qr, id: "transfer-on-qr", method: "TRANSFER" })).toThrow(
+        /CHECK/,
+      );
       expect(() =>
         after
           .prepare(
