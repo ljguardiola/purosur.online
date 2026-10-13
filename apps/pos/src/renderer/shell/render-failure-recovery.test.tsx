@@ -11,6 +11,7 @@ import { createQueryClient } from "../platform/query-client";
 import { RenderFailureRecovery } from "./render-failure-recovery";
 import type { RouterContext } from "./router";
 import { createRegisterRouter } from "./router";
+import { startupPendingGate } from "./startup-pending-gate";
 import { surfaceBehind } from "./test-support/surface-behind";
 
 const NOTICE_TITLE = "No se pudo mostrar la pantalla";
@@ -100,6 +101,8 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       readSerialDevices: async () => ({ kind: "unavailable" }),
       registerSerialDevices: async () => ({ kind: "unavailable" }),
       takeSerialDevicesOffer: async () => false,
+      startupPending: async () => "not_permitted",
+      startupPendingGate: startupPendingGate(),
       readInitialCount: async () => ({ kind: "unavailable" }),
       recordInitialCountLine: async () => ({ kind: "unavailable" }),
       withdrawInitialCountLine: async () => ({ kind: "unavailable" }),
