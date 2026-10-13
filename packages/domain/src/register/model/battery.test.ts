@@ -36,19 +36,17 @@ describe("batteryHealthPercent", () => {
     expect(batteryHealthPercent(100, -5)).toBeUndefined();
   });
 
-  it("never exceeds the exact percentage", () => {
+  it("does not lose a whole percent to floating-point error", () => {
+    expect(batteryHealthPercent(29, 100)).toBe(29);
+    expect(batteryHealthPercent(58, 100)).toBe(58);
+  });
+
+  it("is the exact whole percentage rounded down for every capacity", () => {
     fc.assert(
       fc.property(
         fc.nat({ max: 100_000 }),
         fc.integer({ min: 1, max: 100_000 }),
-        (full, design) => {
-          const health = batteryHealthPercent(full, design);
-          return (
-            health !== undefined &&
-            health <= (full / design) * 100 &&
-            health > (full / design) * 100 - 1
-          );
-        },
+        (full, design) => batteryHealthPercent(full, design) === Math.floor((full * 100) / design),
       ),
     );
   });
