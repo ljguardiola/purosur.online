@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { argentinaInstant } from "../../shared/index.js";
 import { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
+import { FixedClock } from "./test-support/fake-alert-store.js";
 import {
   FakeMissingOfflineAuthorizationCodeAlerts,
   FakeOfflineAuthorizationCodeHoldingReader,
   type FakeWatchedHolding,
-  FixedClock,
 } from "./test-support/fake-missing-offline-authorization-codes.js";
 
 const FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };

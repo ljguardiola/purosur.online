@@ -3,6 +3,8 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
+import { ARCA_VITALITY_CHECK_TASK_IDENTIFIER } from "../fiscal/arca-vitality-task.js";
+import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-server.js";
 import { alerts } from "../platform/db/schema.js";
 import { setUpRecovery } from "../server.js";
 import {
@@ -13,8 +15,6 @@ import {
   ARCA_CERTIFICATE_EXPIRY_CHECK_TASK_IDENTIFIER,
   enqueueArcaCertificateExpiryCheck,
 } from "./arca-certificate-expiry-task.js";
-import { ARCA_VITALITY_CHECK_TASK_IDENTIFIER } from "./arca-vitality-task.js";
-import { UNREACHABLE_WSFE_ENDPOINT } from "./test-support/fake-wsfe-server.js";
 
 const UNUSED_EMAIL_SENDER: AccessEmailSender = {
   async sendRecoveryLink() {},

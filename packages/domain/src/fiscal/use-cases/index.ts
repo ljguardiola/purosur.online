@@ -2,9 +2,9 @@ export type { Clock } from "../../shared/index.js";
 export type { ArcaReachabilityEvidence } from "../model/arca-reachability.js";
 export type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
 export type {
-  RejectionAlertChange,
+  RejectionStandingChange,
   TaxAuthorityRejection,
-} from "../model/fiscal-rejection-alert.js";
+} from "../model/fiscal-rejection-standing.js";
 export type { Fortnight } from "../model/offline-authorization-code.js";
 export type {
   DeferralReason,
@@ -30,13 +30,6 @@ export type {
 } from "./apply-unclear-outcome-decision-ports.js";
 export type { ApplyUnclearOutcomeDecisionsOutcome } from "./apply-unclear-outcome-decisions.js";
 export { applyUnclearOutcomeDecisions } from "./apply-unclear-outcome-decisions.js";
-export type {
-  ArcaCertificateExpiryPorts,
-  ArcaCertificateExpiryStore,
-  ArcaCertificateExpiryStoreTransaction,
-  NewCertificateExpiringAlert,
-  OpenCertificateExpiringAlert,
-} from "./arca-certificate-expiry-store.js";
 export type {
   ArcaOnlineStatusPorts,
   ArcaReachabilityReader,
@@ -89,11 +82,6 @@ export type {
   BuyerTaxStatusStore,
   BuyerTaxStatusStoreTransaction,
 } from "./buyer-tax-status-store.js";
-export type {
-  CheckArcaCertificateExpiryInput,
-  CheckArcaCertificateExpiryOutcome,
-} from "./check-arca-certificate-expiry.js";
-export { checkArcaCertificateExpiry } from "./check-arca-certificate-expiry.js";
 export type { CheckArcaVitalityOutcome } from "./check-arca-vitality.js";
 export { checkArcaVitality } from "./check-arca-vitality.js";
 export type {
@@ -123,7 +111,6 @@ export type {
   DecideUnclearRealTimeOutcomeOutcome,
 } from "./decide-unclear-real-time-outcome.js";
 export { decideUnclearRealTimeOutcome } from "./decide-unclear-real-time-outcome.js";
-export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
 export type {
   EditFiscalAddressInput,
   EditFiscalAddressOutcome,
@@ -179,12 +166,6 @@ export type {
   NewIssuerIdentificationVersion,
 } from "./issuer-identification-store.js";
 export type {
-  MissingOfflineAuthorizationCodeAlerts,
-  MissingOfflineAuthorizationCodeDetectionPorts,
-  OfflineAuthorizationCodeHoldingReader,
-  RegisterOfflineAuthorizationCodeHolding,
-} from "./missing-offline-authorization-code-ports.js";
-export type {
   FortnightAcquisitionOutcome,
   ObtainOfflineAuthorizationCodesOutcome,
 } from "./obtain-offline-authorization-codes.js";
@@ -205,11 +186,6 @@ export type {
   OfflineNumberBlockRecord,
   OfflineNumberBlockStore,
 } from "./offline-number-block-store.js";
-export type {
-  OpenOverdueUnclearOutcomeAlertsOutcome,
-  OpenOverdueUnclearOutcomeAlertsPorts,
-} from "./open-overdue-unclear-outcome-alerts.js";
-export { openOverdueUnclearOutcomeAlerts } from "./open-overdue-unclear-outcome-alerts.js";
 export type {
   ArcaOnlineStatus,
   ReadArcaOnlineStatusInput,
@@ -304,11 +280,6 @@ export type {
   TaxAuthorityLastAuthorizedLookup,
 } from "./tax-authority-count-ports.js";
 export type {
-  UnclearDocumentWithoutAlert,
-  UnclearOutcomeAlertStore,
-  UnclearOutcomeAlertTransaction,
-} from "./unclear-outcome-alert-ports.js";
-export type {
   AbandonedRequestRecord,
   AskAboutUnclearOutcomePorts,
   DecideUnclearRealTimeOutcomePorts,
@@ -316,6 +287,7 @@ export type {
   UnclearOutcomeLane,
   UnclearOutcomeLanes,
   UnclearOutcomeRequests,
+  UnclearOutcomeWarningClearance,
   UnclearRequest,
   UnclearRequestProgress,
   VoucherAnswer,

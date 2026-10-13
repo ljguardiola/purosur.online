@@ -24,10 +24,10 @@ export type WsaaTokenOperation =
   | "requestToken"
   | "recordIssuedToken"
   | "clearRefusal"
-  | "resolveHeldTicketAlert"
+  | "clearTicketHeldElsewhere"
   | "resumeWorkWaitingOnToken"
   | "recordRefusal"
-  | "openHeldTicketAlert"
+  | "recordTicketHeldElsewhere"
   | "commitAnswer"
   | "rollbackAnswer"
   | "releaseRenewal";
@@ -35,9 +35,9 @@ export type WsaaTokenOperation =
 interface FakeWsaaState {
   rows: FakeWsaaTokenRow[];
   refusedAt: Date | null;
-  heldTicketAlertOpen: boolean;
-  heldTicketAlertChangedAt: Date | null;
-  heldTicketAlertRetryIntervalMinutes: number | null;
+  ticketHeldElsewhere: boolean;
+  ticketHeldElsewhereChangedAt: Date | null;
+  ticketHeldElsewhereRetryIntervalMinutes: number | null;
   resumeCount: number;
 }
 
@@ -73,10 +73,10 @@ class FakeAnswer implements WsaaTokenAnswer {
     this.store.refusedAt = null;
   }
 
-  async resolveHeldTicketAlert(resolvedAt: Date): Promise<void> {
-    this.store.perform("resolveHeldTicketAlert");
-    this.store.heldTicketAlertOpen = false;
-    this.store.heldTicketAlertChangedAt = new Date(resolvedAt);
+  async clearTicketHeldElsewhere(at: Date): Promise<void> {
+    this.store.perform("clearTicketHeldElsewhere");
+    this.store.ticketHeldElsewhere = false;
+    this.store.ticketHeldElsewhereChangedAt = new Date(at);
   }
 
   async resumeWorkWaitingOnToken(): Promise<void> {
@@ -89,11 +89,11 @@ class FakeAnswer implements WsaaTokenAnswer {
     this.store.refusedAt = new Date(refusedAt);
   }
 
-  async openHeldTicketAlert(openedAt: Date, retryIntervalMinutes: number): Promise<void> {
-    this.store.perform("openHeldTicketAlert");
-    this.store.heldTicketAlertOpen = true;
-    this.store.heldTicketAlertChangedAt = new Date(openedAt);
-    this.store.heldTicketAlertRetryIntervalMinutes = retryIntervalMinutes;
+  async recordTicketHeldElsewhere(at: Date, retryIntervalMinutes: number): Promise<void> {
+    this.store.perform("recordTicketHeldElsewhere");
+    this.store.ticketHeldElsewhere = true;
+    this.store.ticketHeldElsewhereChangedAt = new Date(at);
+    this.store.ticketHeldElsewhereRetryIntervalMinutes = retryIntervalMinutes;
   }
 }
 
@@ -144,9 +144,9 @@ class FakeRenewal implements WsaaTokenRenewal {
 export class FakeWsaaTokenStore implements WsaaTokenStore {
   rows: FakeWsaaTokenRow[] = [];
   refusedAt: Date | null = null;
-  heldTicketAlertOpen = false;
-  heldTicketAlertChangedAt: Date | null = null;
-  heldTicketAlertRetryIntervalMinutes: number | null = null;
+  ticketHeldElsewhere = false;
+  ticketHeldElsewhereChangedAt: Date | null = null;
+  ticketHeldElsewhereRetryIntervalMinutes: number | null = null;
   resumeCount = 0;
   operations: WsaaTokenOperation[] = [];
   failingOperation: WsaaTokenOperation | undefined;
@@ -168,9 +168,9 @@ export class FakeWsaaTokenStore implements WsaaTokenStore {
     return {
       rows: this.rows.map((row) => ({ ...row, token: copyOf(row.token) })),
       refusedAt: this.refusedAt ? new Date(this.refusedAt) : null,
-      heldTicketAlertOpen: this.heldTicketAlertOpen,
-      heldTicketAlertChangedAt: this.heldTicketAlertChangedAt,
-      heldTicketAlertRetryIntervalMinutes: this.heldTicketAlertRetryIntervalMinutes,
+      ticketHeldElsewhere: this.ticketHeldElsewhere,
+      ticketHeldElsewhereChangedAt: this.ticketHeldElsewhereChangedAt,
+      ticketHeldElsewhereRetryIntervalMinutes: this.ticketHeldElsewhereRetryIntervalMinutes,
       resumeCount: this.resumeCount,
     };
   }
@@ -178,9 +178,9 @@ export class FakeWsaaTokenStore implements WsaaTokenStore {
   restore(state: FakeWsaaState): void {
     this.rows = state.rows;
     this.refusedAt = state.refusedAt;
-    this.heldTicketAlertOpen = state.heldTicketAlertOpen;
-    this.heldTicketAlertChangedAt = state.heldTicketAlertChangedAt;
-    this.heldTicketAlertRetryIntervalMinutes = state.heldTicketAlertRetryIntervalMinutes;
+    this.ticketHeldElsewhere = state.ticketHeldElsewhere;
+    this.ticketHeldElsewhereChangedAt = state.ticketHeldElsewhereChangedAt;
+    this.ticketHeldElsewhereRetryIntervalMinutes = state.ticketHeldElsewhereRetryIntervalMinutes;
     this.resumeCount = state.resumeCount;
   }
 

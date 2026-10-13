@@ -1,11 +1,11 @@
+import { fortnightsWithinRequestWindowOn } from "../../fiscal/index.js";
+import { argentinaCalendarDay } from "../../shared/index.js";
 import {
-  offlineAuthorizationCodeAcquisitionLevel,
   offlineAuthorizationCodeHeldObservation,
   offlineAuthorizationCodeMissingObservation,
-  registerFortnightScope,
-} from "../../alerts/index.js";
-import { argentinaCalendarDay } from "../../shared/index.js";
-import { fortnightsWithinRequestWindowOn } from "../model/offline-authorization-code.js";
+} from "../model/alert-condition-observation.js";
+import { offlineAuthorizationCodeAcquisitionLevel } from "../model/offline-authorization-code-acquisition.js";
+import { registerFortnightScope } from "../model/register-fortnight-scope.js";
 import type { MissingOfflineAuthorizationCodeDetectionPorts } from "./missing-offline-authorization-code-ports.js";
 
 export async function detectMissingOfflineAuthorizationCodes({

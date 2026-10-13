@@ -1,6 +1,6 @@
-import type { AlertLevel } from "../../alerts/index.js";
 import type { Clock } from "../../shared/index.js";
 import type { Fortnight } from "../model/offline-authorization-code.js";
+import type { OfflineAuthorizationCodeAcquisitionUrgency } from "../model/offline-authorization-code-acquisition-urgency.js";
 import type { FortnightAcquisitionOutcome } from "./obtain-offline-authorization-codes.js";
 
 export type ReportableAcquisitionFailure = Extract<
@@ -13,7 +13,7 @@ export type ReportableAcquisitionFailureKind = ReportableAcquisitionFailure["kin
 export interface AcquisitionFailureNotice {
   fortnight: Fortnight;
   outcome: ReportableAcquisitionFailure;
-  level: Extract<AlertLevel, "warning" | "critical">;
+  urgency: Extract<OfflineAuthorizationCodeAcquisitionUrgency, "due" | "pressing">;
 }
 
 export interface AcquisitionFailureReportStore {

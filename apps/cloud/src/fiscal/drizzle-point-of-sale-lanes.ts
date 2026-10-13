@@ -7,7 +7,7 @@ import {
   type PointOfSaleLanes,
   type RealTimeAuthorizationAnswer,
   type RecordedAuthorizationRequest,
-  type RejectionAlertChange,
+  type RejectionStandingChange,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -133,7 +133,7 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
     fiscalDocumentId: string,
     answer: RealTimeAuthorizationAnswer,
     answeredAt: Date,
-    rejectionAlertChange: RejectionAlertChange | null,
+    rejectionStanding: RejectionStandingChange | null,
     taxAuthorityCount: LastAuthorizedCount | null,
     unclearCodes: readonly number[],
   ): Promise<void> {
@@ -151,8 +151,8 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
             lastCallOkAt: sql`greatest(${arcaInvoicingEvidence.lastCallOkAt}, excluded.last_call_ok_at)`,
           },
         });
-      if (rejectionAlertChange !== null) {
-        await observeAlertCondition(tx, fiscalRejectionAlertObservation(rejectionAlertChange), {
+      if (rejectionStanding !== null) {
+        await observeAlertCondition(tx, fiscalRejectionAlertObservation(rejectionStanding), {
           now: () => answeredAt,
         });
       }
