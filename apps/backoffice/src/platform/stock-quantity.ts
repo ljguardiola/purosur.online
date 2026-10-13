@@ -30,6 +30,11 @@ export function formatStockQuantityInput(quantity: number, saleUnit: SaleUnit): 
     : formatNumber(units, { maximumFractionDigits: 0 });
 }
 
+export function formatStockQuantityLimit(limit: number, saleUnit: SaleUnit): string {
+  const typeable = saleUnit === "KG" ? limit : limit - (limit % STOCK_QUANTITY_PER_UNIT);
+  return formatStockQuantity(typeable, saleUnit);
+}
+
 export function formatStockChange(delta: number, saleUnit: SaleUnit): string {
   return delta > 0 ? `+ ${formatMagnitude(delta, saleUnit)}` : formatStockQuantity(delta, saleUnit);
 }

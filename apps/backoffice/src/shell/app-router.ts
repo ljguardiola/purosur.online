@@ -24,6 +24,7 @@ import { reportsIndexRoute, salesByDayRoute } from "../sales/routes";
 import { signInRoute } from "../sessions/routes";
 import {
   initialInventoryRoute,
+  recipesListRoute,
   stockBalancesRoute,
   stockCountsRoute,
   stockMovementsRoute,
@@ -75,6 +76,7 @@ const routeTree = rootRoute.addChildren([
       packagingsListRoute,
       purchasesListRoute,
       newPurchaseRoute,
+      recipesListRoute,
       initialInventoryRoute,
     ]),
     cashAndFiscalAreaRoute.addChildren([

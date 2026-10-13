@@ -151,6 +151,10 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       deactivatePackaging: vi.fn(),
       reactivatePackaging: vi.fn(),
     },
+    recipesListScreen: {
+      fetchRecipes: vi.fn().mockReturnValue(new Promise(() => {})),
+      saveRecipe: vi.fn(),
+    },
     purchasesListScreen: {
       fetchPurchases: vi.fn().mockReturnValue(new Promise(() => {})),
     },
