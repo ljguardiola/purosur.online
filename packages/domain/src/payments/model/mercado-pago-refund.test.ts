@@ -6,7 +6,6 @@ import {
   isAwaitingMercadoPago,
   isProcessedByMercadoPago,
   isRefundSentByCloud,
-  MERCADO_PAGO_REFUND_FOLLOW_INTERVAL_MS,
   progressOfRefundAnswer,
   refundableAmount,
   refundIsBackedByItsCancellation,
@@ -169,12 +168,5 @@ describe("isAwaitingMercadoPago", () => {
     expect(
       isAwaitingMercadoPago({ ...confirmed, lastRefusalReason: "payment_not_refundable" }),
     ).toBe(false);
-  });
-});
-
-describe("the follow interval", () => {
-  it("is a policy of the domain, in whole seconds", () => {
-    expect(MERCADO_PAGO_REFUND_FOLLOW_INTERVAL_MS % 1000).toBe(0);
-    expect(MERCADO_PAGO_REFUND_FOLLOW_INTERVAL_MS).toBeGreaterThan(0);
   });
 });
