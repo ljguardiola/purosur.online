@@ -191,3 +191,29 @@ describe("coreStatusMessageSchema", () => {
     expect(coreStatusMessageSchema.safeParse({ status: "up" }).success).toBe(false);
   });
 });
+
+describe("update messages", () => {
+  it("accepts main asking whether this is a safe moment to update", () => {
+    const message = { type: "update-safe-moment-request", request_id: "u1" };
+
+    expect(mainToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts main releasing the hold after the installer failed to start", () => {
+    const message = { type: "update-hold-release" };
+
+    expect(mainToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("refuses a safe-moment request without its request id", () => {
+    expect(mainToCoreMessageSchema.safeParse({ type: "update-safe-moment-request" }).success).toBe(
+      false,
+    );
+  });
+
+  it("accepts the updating core status", () => {
+    const message = { type: "core-status", status: "updating" };
+
+    expect(coreStatusMessageSchema.parse(message)).toEqual(message);
+  });
+});

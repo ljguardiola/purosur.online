@@ -52,6 +52,14 @@ export type {
   EnrollInstallationOutcome,
 } from "./enroll-installation.js";
 export { enrollInstallation } from "./enroll-installation.js";
+export type {
+  FindRegisterUpdateInput,
+  FindRegisterUpdatePorts,
+  RegisterRelease,
+  RegisterReleases,
+  RegisterUpdateOutcome,
+} from "./find-register-update.js";
+export { findRegisterUpdate } from "./find-register-update.js";
 export type { InstallationKeys } from "./installation-keys.js";
 export type {
   BranchRegisterSummary,

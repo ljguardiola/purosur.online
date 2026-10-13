@@ -108,6 +108,7 @@ import { InitialCountScreen } from "../stock/initial-count-screen";
 import { initialCountQueryOptions } from "../stock/stock-queries";
 import { BrandPanelScreen } from "./brand-panel-screen";
 import { CoreDownNotice } from "./core-down-notice";
+import { RegisterUpdatingNotice } from "./register-updating-notice";
 import type { SignedInPerson } from "./signed-in-person";
 import { StatusBarLayout } from "./status-bar-layout";
 
@@ -255,6 +256,7 @@ type ScreenPath =
   | "/enroll"
   | "/starting"
   | "/core-down"
+  | "/updating"
   | "/out-of-service";
 
 // Until the core says whether the register is in service and then whether this installation is
@@ -272,6 +274,9 @@ export function routeFor({
 >): ScreenPath {
   if (coreStatus === "down") {
     return "/core-down";
+  }
+  if (coreStatus === "updating") {
+    return "/updating";
   }
   if (coreStatus === "starting" || registerService === "unknown") {
     return "/starting";
@@ -890,6 +895,13 @@ const coreDownRoute = createRoute({
   component: CoreDownNotice,
 });
 
+const updatingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/updating",
+  beforeLoad: ({ context }) => requireRoute("/updating", context),
+  component: RegisterUpdatingNotice,
+});
+
 const outOfServiceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/out-of-service",
@@ -920,6 +932,7 @@ export const routeTree = rootRoute.addChildren([
   enrollRoute,
   startingRoute,
   coreDownRoute,
+  updatingRoute,
   outOfServiceRoute,
 ]);
 
