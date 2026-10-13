@@ -94,7 +94,7 @@ const ALERT_KIND_POLICIES = {
     level: "warning",
     escalation: AFTER_OPENING,
     audience: "all",
-    scopeKind: "event",
+    scopeKind: "syncDevice",
     deduplicates: true,
     resolvesAfterStableClear: false,
   },

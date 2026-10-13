@@ -12,19 +12,23 @@ export async function openQuarantinedEventAlert<TQueryResult extends PgQueryResu
 ): Promise<void> {
   await openAlert(
     tx,
-    { kind: QUARANTINED_EVENT_ALERT_KIND, scope: quarantine.eventId, detail: quarantine },
+    {
+      kind: QUARANTINED_EVENT_ALERT_KIND,
+      scope: quarantine.deviceId,
+      detail: { deviceId: quarantine.deviceId },
+    },
     { now: () => at },
   );
 }
 
 export function resolveQuarantinedEventAlert<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
-  eventId: string,
+  deviceId: string,
   at: Date,
 ): Promise<void> {
   return resolveOpenAlertOf(
     tx,
-    { kind: QUARANTINED_EVENT_ALERT_KIND, scope: eventId },
+    { kind: QUARANTINED_EVENT_ALERT_KIND, scope: deviceId },
     { now: () => at },
   );
 }

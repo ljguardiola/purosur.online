@@ -36,6 +36,7 @@ import {
 import { recordAppliedCancelledSale, recordAppliedSale } from "../sales/drizzle-applied-sales.js";
 import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
 import { type PendingChanges, withPendingChanges } from "./change-log.js";
+import { lockDeviceQuarantines } from "./lock-device-quarantines.js";
 
 type OpeningCountRecordedFact = Extract<SyncedFact, { kind: "opening_count_recorded" }>["count"];
 type OpeningCountWithdrawnFact = Extract<
@@ -244,6 +245,11 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async recordQuarantine(quarantine: EventQuarantine): Promise<void> {
+    await this.tx
+      .update(inbox)
+      .set({ quarantineReason: quarantine.reason })
+      .where(eq(inbox.eventId, quarantine.eventId));
+    await lockDeviceQuarantines(this.tx, quarantine.deviceId);
     await openQuarantinedEventAlert(this.tx, quarantine, this.now());
   }
 

@@ -8,7 +8,6 @@ import {
   SALES_DENIED_REASONS,
 } from "@purosur/domain";
 import { z } from "zod";
-import { eventQuarantineReasonSchema } from "../shared/index.js";
 import { alertAudienceSchema, alertLevelSchema } from "./alert-summary.js";
 
 const alertDeliverySchema = z.object({
@@ -102,11 +101,6 @@ const registerEnrolledDetailSchema = z.object({
 
 const eventsQuarantinedDetailSchema = z.object({
   deviceId: z.string(),
-  eventId: z.string(),
-  eventType: z.string(),
-  aggregateType: z.string(),
-  aggregateId: z.string(),
-  reason: eventQuarantineReasonSchema,
 });
 
 const eventInvariantViolatedDetailSchema = z.object({

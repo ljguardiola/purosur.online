@@ -5,10 +5,11 @@ import type {
   QuarantineReleaseRecord,
   QuarantineReleaseTransaction,
 } from "@purosur/domain/sync/use-cases";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { resolveQuarantinedEventAlert } from "../alerts/quarantined-event-alert.js";
 import { auditLog, inbox, registerInstallations, registers } from "../platform/db/schema.js";
+import { lockDeviceQuarantines } from "./lock-device-quarantines.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -45,6 +46,7 @@ class DrizzleQuarantineReleaseTransaction<TQueryResult extends PgQueryResultHKT>
   async lockEvent(eventId: string): Promise<HeldEventRecord | undefined> {
     const [row] = await this.tx
       .select({
+        deviceId: inbox.deviceId,
         appliedAt: inbox.appliedAt,
         quarantinedAt: inbox.quarantinedAt,
         attempts: inbox.attempts,
@@ -60,7 +62,10 @@ class DrizzleQuarantineReleaseTransaction<TQueryResult extends PgQueryResultHKT>
     eventId: string,
     released: QuarantineReleaseRecord["released"],
   ): Promise<void> {
-    await this.tx.update(inbox).set(released).where(eq(inbox.eventId, eventId));
+    await this.tx
+      .update(inbox)
+      .set({ ...released, quarantineReason: null })
+      .where(eq(inbox.eventId, eventId));
   }
 
   async recordRelease(release: QuarantineReleaseRecord): Promise<void> {
@@ -77,8 +82,23 @@ class DrizzleQuarantineReleaseTransaction<TQueryResult extends PgQueryResultHKT>
     });
   }
 
-  async recordQuarantineReleased(eventId: string, releasedAt: Date): Promise<void> {
-    await resolveQuarantinedEventAlert(this.tx, eventId, releasedAt);
+  async lockDeviceQuarantines(deviceId: string): Promise<void> {
+    await lockDeviceQuarantines(this.tx, deviceId);
+  }
+
+  async deviceHasQuarantinedEvents(deviceId: string): Promise<boolean> {
+    const [row] = await this.tx
+      .select({ eventId: inbox.eventId })
+      .from(inbox)
+      .where(
+        and(eq(inbox.deviceId, deviceId), isNull(inbox.appliedAt), isNotNull(inbox.quarantinedAt)),
+      )
+      .limit(1);
+    return row !== undefined;
+  }
+
+  async recordDeviceQuarantineCleared(deviceId: string, clearedAt: Date): Promise<void> {
+    await resolveQuarantinedEventAlert(this.tx, deviceId, clearedAt);
   }
 }
 

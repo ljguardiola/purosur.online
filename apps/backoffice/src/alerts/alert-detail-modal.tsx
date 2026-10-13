@@ -68,7 +68,7 @@ import {
 import { preEmissionCheckReasonLabel } from "./pre-emission-check-reason-label";
 import {
   invariantViolationDescription,
-  quarantinedEventDescription,
+  quarantinedEventsDescription,
 } from "./synced-event-alert-description";
 
 type Icon = ReactElement<{ className?: string }>;
@@ -288,7 +288,7 @@ function alertTitle(alert: AlertDetail): string {
     case "register_enrolled":
       return "Se dio de alta una caja";
     case "events_quarantined":
-      return "Evento de una caja en cuarentena";
+      return "Eventos de una caja en cuarentena";
     case "event_invariant_violated":
       return "Evento aplicado con una inconsistencia";
     case "arca_certificate_expiring":
@@ -324,7 +324,7 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       : `La dirección ${alert.scopeDisplay} quedó bloqueada para ingresar al backoffice después de ${failuresText}.`;
   }
   if (alert.kind === "events_quarantined") {
-    return quarantinedEventDescription(alert.detail);
+    return quarantinedEventsDescription(alert.scopeDisplay);
   }
   if (alert.kind === "event_invariant_violated") {
     return invariantViolationDescription(alert.detail);

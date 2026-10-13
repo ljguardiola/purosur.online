@@ -43,7 +43,10 @@ export function releaseQuarantinedEvent(
       },
       released,
     });
-    await tx.recordQuarantineReleased(eventId, releasedAt);
+    await tx.lockDeviceQuarantines(held.deviceId);
+    if (!(await tx.deviceHasQuarantinedEvents(held.deviceId))) {
+      await tx.recordDeviceQuarantineCleared(held.deviceId, releasedAt);
+    }
     return { kind: "released" };
   });
 }
