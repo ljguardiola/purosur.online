@@ -2,11 +2,15 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
 import {
+  FREIGHT_CARRIER_NAME_MAX_LENGTH,
+  FREIGHT_DESCRIPTION_MAX_LENGTH,
   FREIGHT_PERIOD_DAYS,
   freightPeriodStart,
   hasFreightPurchases,
   isFreightAmount,
+  isFreightCarrierNameTooLong,
   isFreightDescription,
+  isFreightDescriptionTooLong,
   isValidFreightMeans,
   MIN_FREIGHT_PURCHASES,
 } from "./freight.js";
@@ -92,5 +96,19 @@ describe("freightPeriodStart", () => {
 
   it("counts from the Argentine day, which is still the day before shortly after UTC midnight", () => {
     expect(freightPeriodStart(30, new Date("2026-04-01T01:00:00Z"))).toBe("2026-03-01");
+  });
+});
+
+describe("the freight text limits", () => {
+  it("are the purchase note's for a description and the supplier name's for a carrier", () => {
+    expect(FREIGHT_DESCRIPTION_MAX_LENGTH).toBe(PURCHASE_NOTE_MAX_LENGTH);
+    expect(FREIGHT_CARRIER_NAME_MAX_LENGTH).toBe(SUPPLIER_NAME_MAX_LENGTH);
+  });
+
+  it("refuse a description or a carrier name one character over", () => {
+    expect(isFreightDescriptionTooLong("a".repeat(FREIGHT_DESCRIPTION_MAX_LENGTH))).toBe(false);
+    expect(isFreightDescriptionTooLong("a".repeat(FREIGHT_DESCRIPTION_MAX_LENGTH + 1))).toBe(true);
+    expect(isFreightCarrierNameTooLong("a".repeat(FREIGHT_CARRIER_NAME_MAX_LENGTH))).toBe(false);
+    expect(isFreightCarrierNameTooLong("a".repeat(FREIGHT_CARRIER_NAME_MAX_LENGTH + 1))).toBe(true);
   });
 });
