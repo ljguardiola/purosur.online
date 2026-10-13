@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { shiftCalendarDay } from "../../shared/index.js";
-import { daysToExpiry, expiryWindowEnd, isExpired, isWithinExpiryWindow } from "./lot-expiry.js";
+import { daysToExpiry, expiryWindowEnd, isExpired } from "./lot-expiry.js";
 
 const day = fc
   .integer({ min: Date.UTC(2000, 0, 1), max: Date.UTC(2100, 11, 31) })
@@ -63,40 +63,5 @@ describe("expiryWindowEnd", () => {
 
   it("is today for a window of zero days", () => {
     expect(expiryWindowEnd("2026-10-13", 0)).toBe("2026-10-13");
-  });
-});
-
-describe("isWithinExpiryWindow", () => {
-  it("includes a lot expiring on the last day of the window", () => {
-    expect(isWithinExpiryWindow("2026-11-12", "2026-10-13", 30)).toBe(true);
-  });
-
-  it("excludes a lot expiring the day after the window", () => {
-    expect(isWithinExpiryWindow("2026-11-13", "2026-10-13", 30)).toBe(false);
-  });
-
-  it("includes a lot that is already expired", () => {
-    expect(isWithinExpiryWindow("2025-01-01", "2026-10-13", 30)).toBe(true);
-  });
-
-  it("holds exactly when the lot expires within that many days from today", () => {
-    fc.assert(
-      fc.property(day, offset, fc.integer({ min: 0, max: 365 }), (today, shift, windowDays) => {
-        expect(isWithinExpiryWindow(shiftCalendarDay(today, shift), today, windowDays)).toBe(
-          shift <= windowDays,
-        );
-      }),
-    );
-  });
-
-  it("includes every expired lot", () => {
-    fc.assert(
-      fc.property(day, offset, fc.integer({ min: 0, max: 365 }), (today, shift, windowDays) => {
-        const expiresOn = shiftCalendarDay(today, shift);
-        if (isExpired(expiresOn, today)) {
-          expect(isWithinExpiryWindow(expiresOn, today, windowDays)).toBe(true);
-        }
-      }),
-    );
   });
 });

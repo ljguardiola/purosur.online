@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ExpiringLotProduct, ExpiringLotRow } from "./expiring-lot-reader.js";
 import { readExpiringLots } from "./read-expiring-lots.js";
-import { FakeExpiringLotReader } from "./test-support/fake-expiring-lot-reader.js";
+import {
+  FakeBranchSettings,
+  FakeExpiringLotReader,
+} from "./test-support/fake-expiring-lot-reader.js";
 import { FixedClock } from "./test-support/fake-stock-store.js";
 
 const NOON = new Date("2026-10-13T15:00:00.000Z");
@@ -43,24 +46,25 @@ async function read(
   rows: (ExpiringLotRow & { locationId: string })[],
   options: { windowDays?: number; now?: Date } = {},
 ) {
-  const expiringLots = new FakeExpiringLotReader(options.windowDays ?? 30, rows);
+  const expiringLots = new FakeExpiringLotReader(rows);
+  const branchSettings = new FakeBranchSettings(options.windowDays ?? 30);
   const view = await readExpiringLots(
-    { expiringLots, clock: new FixedClock(options.now ?? NOON) },
+    { expiringLots, branchSettings, clock: new FixedClock(options.now ?? NOON) },
     { locationId: "location-1" },
   );
-  return { view, expiringLots };
+  return { view, expiringLots, branchSettings };
 }
 
 describe("readExpiringLots", () => {
-  it("reads the warning window of the location and answers it", async () => {
-    const { view, expiringLots } = await read([], { windowDays: 45 });
+  it("reads the expiring lot alert days of the location's branch settings as its window and answers it", async () => {
+    const { view, branchSettings } = await read([], { windowDays: 45 });
 
     expect(view).toEqual({
       windowDays: 45,
       lots: [],
       summary: { valueCents: 0, withoutCostCount: 0 },
     });
-    expect(expiringLots.windowReads).toEqual(["location-1"]);
+    expect(branchSettings.reads).toEqual(["location-1"]);
   });
 
   it("asks for the lots expiring by the last day of the window, counted from today", async () => {

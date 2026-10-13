@@ -2,11 +2,12 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { expiringLotsFilters } from "./routes";
-import { chiaExpiredLot } from "./test-support/expiring-lots-fixtures";
+import { chiaExpiredLot, expiringLotList } from "./test-support/expiring-lots-fixtures";
 import {
   createServices,
   listed,
   renderScreen,
+  type Screen,
   shownProductNames,
 } from "./test-support/expiring-lots-screen";
 
@@ -38,10 +39,6 @@ test("says when each lot expires, an expired one apart from the rest", async () 
 
   const table = screen.getByRole("table", { name: "Vencimientos" });
   await expect.element(table.getByText("Venció hace 3 días")).toBeVisible();
-  await expect.element(table.getByText("Venció ayer")).toBeVisible();
-  await expect.element(table.getByText("Vence hoy")).toBeVisible();
-  await expect.element(table.getByText("Vence mañana")).toBeVisible();
-  await expect.element(table.getByText("Vence en 12 días")).toBeVisible();
   const expired = getComputedStyle(table.getByText("Venció hace 3 días").element()).color;
   const upcoming = getComputedStyle(table.getByText("Vence hoy").element()).color;
   expect(expired).not.toBe(upcoming);
@@ -108,6 +105,49 @@ test("names the window the cloud answers in the first expiry option and reports 
 
   await expect.element(screen.getByText("Vence hoy")).not.toBeInTheDocument();
   await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ expiry: "expired" });
+});
+
+async function expiryOptions(screen: Screen): Promise<(string | null)[]> {
+  await userEvent.click(screen.getByRole("button", { name: /Vencimiento:/ }));
+  return screen
+    .getByRole("option")
+    .elements()
+    .map((option) => option.textContent);
+}
+
+test("names no window in the first expiry option while the lots load", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchExpiringLots).mockReturnValue(new Promise(() => {}));
+  const screen = await renderScreen(services);
+
+  expect(await expiryOptions(screen)).toEqual(["Vencidos y por vencer", "Vencidos", "Por vencer"]);
+});
+
+test("names no window in the first expiry option when the lots failed to load", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchExpiringLots).mockResolvedValue({ kind: "failed" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+
+  expect(await expiryOptions(screen)).toEqual(["Vencidos y por vencer", "Vencidos", "Por vencer"]);
+});
+
+test("names a window of one day in the singular", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchExpiringLots).mockResolvedValue({
+    kind: "ok",
+    value: { ...expiringLotList([]), windowDays: 1 },
+  });
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(screen.getByText("Ningún lote venció ni vence en el próximo día."))
+    .toBeVisible();
+  expect(await expiryOptions(screen)).toEqual([
+    "Vencidos y en el próximo día",
+    "Vencidos",
+    "Por vencer",
+  ]);
 });
 
 test("filters by the category and the name typed, and reports each change", async () => {

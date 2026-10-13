@@ -95,7 +95,7 @@ describe("discardExpiredLot", () => {
     expect(store.snapshot()).toEqual(before);
   });
 
-  it("answers not_found for a lot withdrawn from the stock", async () => {
+  it("discards a lot withdrawn from the initial count that still holds stock", async () => {
     const store = storeWithLots();
     store.seedLot({
       ...KEY,
@@ -107,7 +107,7 @@ describe("discardExpiredLot", () => {
 
     const outcome = await discard(store, { lotId: "withdrawn" });
 
-    expect(outcome).toEqual({ kind: "not_found" });
+    expect(outcome).toMatchObject({ kind: "discarded", quantity: 1000 });
   });
 
   it("answers not_found when the lot's product has no stock to lock", async () => {

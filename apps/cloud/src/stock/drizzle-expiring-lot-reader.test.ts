@@ -1,8 +1,5 @@
-import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { branchSettings } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
-import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleExpiringLotReader } from "./drizzle-expiring-lot-reader.js";
 import { insertInitialCountLot, insertPurchasedLot } from "./test-support/lot-fixtures.js";
 import {
@@ -31,18 +28,6 @@ async function seededActor(): Promise<{ actorId: string; locationId: string }> {
   const { userId, locationId } = await signedInWith(db, [], new Date("2026-10-01T12:00:00.000Z"));
   return { actorId: userId, locationId };
 }
-
-describe("DrizzleExpiringLotReader.expiryWarningWindowDays", () => {
-  it("answers the window configured for the branch", async () => {
-    const locationId = await seededLocationId(db);
-    await db
-      .update(branchSettings)
-      .set({ expiringLotAlertDays: 45 })
-      .where(eq(branchSettings.locationId, locationId));
-
-    expect(await new DrizzleExpiringLotReader(db).expiryWarningWindowDays(locationId)).toBe(45);
-  });
-});
 
 describe("DrizzleExpiringLotReader.lotsExpiringBy", () => {
   it("answers the lots of the branch expiring on or before the last day, with their product and category", async () => {
@@ -118,10 +103,10 @@ describe("DrizzleExpiringLotReader.lotsExpiringBy", () => {
     expect(rows.map(({ id }) => id)).toEqual([own]);
   });
 
-  it("leaves out a withdrawn lot", async () => {
+  it("answers a lot withdrawn from the initial count that still holds stock", async () => {
     const { actorId, locationId } = await seededActor();
     const { productId } = await insertProduct(db);
-    await insertInitialCountLot(db, {
+    const { lotId } = await insertInitialCountLot(db, {
       productId,
       locationId,
       actorId,
@@ -129,9 +114,9 @@ describe("DrizzleExpiringLotReader.lotsExpiringBy", () => {
       withdrawn: true,
     });
 
-    expect(await new DrizzleExpiringLotReader(db).lotsExpiringBy(locationId, "2026-11-12")).toEqual(
-      [],
-    );
+    const rows = await new DrizzleExpiringLotReader(db).lotsExpiringBy(locationId, "2026-11-12");
+
+    expect(rows.map(({ id }) => id)).toEqual([lotId]);
   });
 
   it("answers a lot of the initial count with no cost until one is set, and a lot with a cost with it", async () => {

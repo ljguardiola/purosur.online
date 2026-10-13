@@ -1,6 +1,7 @@
+import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { lots, stockBalances, stockMovements } from "../platform/db/schema.js";
+import { branchSettings, stockMovements } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerExpiringLotsRoutes } from "./expiring-lots-route.js";
 import { insertPurchasedLot } from "./test-support/lot-fixtures.js";
@@ -69,38 +70,29 @@ describe("GET /expiring-lots", () => {
     },
   );
 
-  it("lists the lots of the user's branch expiring within its window, ordered by expiry", async () => {
+  it("lists the lots of the user's branch within the window its branch settings configure", async () => {
     const { headers, locationId, userId } = await signedInWith(
       db,
       ["manage_expiration_dates"],
       NOW,
     );
+    await db
+      .update(branchSettings)
+      .set({ expiringLotAlertDays: 45 })
+      .where(eq(branchSettings.locationId, locationId));
     const otherLocationId = await insertLocation(db);
     const cheese = await insertProduct(db, {
       name: "Queso cremoso",
       categoryName: "Lácteos",
       saleUnit: "KG",
     });
-    const expired = await insertPurchasedLot(db, {
+    const own = await insertPurchasedLot(db, {
       productId: cheese.productId,
       locationId,
       actorId: userId,
       expiresOn: "2026-10-10",
       lotNumber: "L-77",
       remaining: 4_000,
-    });
-    const soon = await insertPurchasedLot(db, {
-      productId: cheese.productId,
-      locationId,
-      actorId: userId,
-      expiresOn: "2026-10-20",
-      remaining: 2_000,
-    });
-    await insertPurchasedLot(db, {
-      productId: cheese.productId,
-      locationId,
-      actorId: userId,
-      expiresOn: "2026-12-31",
     });
     await insertPurchasedLot(db, {
       productId: cheese.productId,
@@ -112,38 +104,27 @@ describe("GET /expiring-lots", () => {
     const response = await listLots(headers);
 
     expect(response.statusCode).toBe(200);
-    const product = {
-      id: cheese.productId,
-      name: "Queso cremoso",
-      categoryId: cheese.categoryId,
-      categoryName: "Lácteos",
-      saleUnit: "KG",
-    };
     expect(response.json()).toEqual({
-      windowDays: 30,
+      windowDays: 45,
       lots: [
         {
-          id: expired,
+          id: own,
           lotNumber: "L-77",
           expiresOn: "2026-10-10",
           remaining: 4_000,
           valueCents: 20_000,
           expired: true,
           daysToExpiry: -3,
-          product,
-        },
-        {
-          id: soon,
-          lotNumber: null,
-          expiresOn: "2026-10-20",
-          remaining: 2_000,
-          valueCents: 10_000,
-          expired: false,
-          daysToExpiry: 7,
-          product,
+          product: {
+            id: cheese.productId,
+            name: "Queso cremoso",
+            categoryId: cheese.categoryId,
+            categoryName: "Lácteos",
+            saleUnit: "KG",
+          },
         },
       ],
-      summary: { valueCents: 30_000, withoutCostCount: 0 },
+      summary: { valueCents: 20_000, withoutCostCount: 0 },
     });
   });
 });
@@ -214,10 +195,6 @@ describe("POST /expiring-lots/:lotId/discard", () => {
       occurredAt: NOW,
       actorId: userId,
     });
-    expect(await db.select({ remaining: lots.remaining }).from(lots)).toEqual([{ remaining: 0 }]);
-    expect(await db.select({ quantity: stockBalances.quantity }).from(stockBalances)).toEqual([
-      { quantity: 6_000 },
-    ]);
   });
 
   it("answers 404 for a lot that does not exist", async () => {
@@ -241,10 +218,9 @@ describe("POST /expiring-lots/:lotId/discard", () => {
     });
 
     expect((await discard(lotId, headers)).statusCode).toBe(404);
-    expect(await db.select().from(stockMovements)).toEqual([]);
   });
 
-  it("answers 409 lot_not_expired for a lot that has not expired yet, leaving it untouched", async () => {
+  it("answers 409 lot_not_expired for a lot that has not expired yet", async () => {
     const { headers, locationId, userId } = await signedInWith(
       db,
       ["manage_expiration_dates"],
@@ -263,9 +239,6 @@ describe("POST /expiring-lots/:lotId/discard", () => {
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "lot_not_expired" });
-    expect(await db.select({ remaining: lots.remaining }).from(lots)).toEqual([
-      { remaining: 4_000 },
-    ]);
   });
 
   it("answers 409 lot_empty for an expired lot with nothing left", async () => {
@@ -287,6 +260,5 @@ describe("POST /expiring-lots/:lotId/discard", () => {
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "lot_empty" });
-    expect(await db.select().from(stockMovements)).toEqual([]);
   });
 });

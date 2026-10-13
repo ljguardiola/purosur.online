@@ -842,7 +842,7 @@ describe("DrizzleStockStoreTransaction.lotProduct", () => {
     expect(await store.transaction((tx) => tx.lotProduct(lotId, otherLocationId))).toBeUndefined();
   });
 
-  it("answers nothing for a withdrawn lot", async () => {
+  it("answers the product of a lot withdrawn from the initial count", async () => {
     const locationId = await seededLocationId(db);
     const productId = await insertProduct();
     const actorId = await insertUser(locationId);
@@ -854,7 +854,7 @@ describe("DrizzleStockStoreTransaction.lotProduct", () => {
     });
     const store = new DrizzleStockStore(db);
 
-    expect(await store.transaction((tx) => tx.lotProduct(lotId, locationId))).toBeUndefined();
+    expect(await store.transaction((tx) => tx.lotProduct(lotId, locationId))).toBe(productId);
   });
 
   it("answers nothing for an unknown lot", async () => {
