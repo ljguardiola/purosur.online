@@ -5,6 +5,7 @@ import type { ElectronApplication, Page } from "playwright";
 import { expect } from "vitest";
 import { launchApp, writeChannelFile } from "../launch-app";
 import { CORE_READY, coreStartEnded, startEndingsIn } from "./core-start-outcomes";
+import { killOnFailure } from "./kill-on-failure";
 import type { StandInCloud } from "./stand-in-cloud";
 import { REGISTER_LOG_BOUND_MS, until, untilLogged } from "./until";
 
@@ -107,14 +108,16 @@ export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
 
   async function startReady(): Promise<RunningRegister> {
     const started = await start();
-    await untilLogged(started, coreStartEnded, { withinMs: REGISTER_LOG_BOUND_MS });
+    await killOnFailure(started.app, () =>
+      untilLogged(started, coreStartEnded, { withinMs: REGISTER_LOG_BOUND_MS }),
+    );
     expect(startEndingsIn(started.logs.join(""))).toEqual([CORE_READY]);
     return started;
   }
 
   async function stop(): Promise<void> {
     running = undefined;
-    if (openApp !== undefined) {
+    if (openApp !== undefined && !openApp.process().killed) {
       await closeEveryProcessOf(openApp);
     }
     openApp = undefined;

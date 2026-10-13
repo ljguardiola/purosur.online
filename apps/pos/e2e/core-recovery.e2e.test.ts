@@ -1,6 +1,7 @@
 import type { ElectronApplication, JSHandle, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { launchApp } from "./launch-app";
+import { killOnFailure } from "./test-support/kill-on-failure";
 import { REGISTER_LOG_BOUND_MS, until, untilLogged } from "./test-support/until";
 
 // A fresh data folder holds no enrollment, so a core that is up shows the enrollment screen.
@@ -104,7 +105,9 @@ describe("the register's own recovery once the core's bounded restarts run out",
   });
 
   afterAll(async () => {
-    await app.close();
+    if (!app.process().killed) {
+      await app.close();
+    }
   });
 
   it("shows the blocking notice once bounded restarts are exhausted, and clears it once a periodic retry's core is up", async () => {
@@ -181,7 +184,9 @@ describe("the register's own recovery once the core's bounded restarts run out",
       port?.start();
       port?.postMessage({ type: "bogus" });
     });
-    await untilLogged({ app, logs }, "core: rejected message", { withinMs: REGISTER_LOG_BOUND_MS });
+    await killOnFailure(app, () =>
+      untilLogged({ app, logs }, "core: rejected message", { withinMs: REGISTER_LOG_BOUND_MS }),
+    );
     expect(logs.join("")).toContain("core: rejected message");
   });
 });

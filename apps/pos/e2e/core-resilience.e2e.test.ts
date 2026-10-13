@@ -1,6 +1,7 @@
 import type { ElectronApplication, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { launchApp } from "./launch-app";
+import { killOnFailure } from "./test-support/kill-on-failure";
 import { REGISTER_LOG_BOUND_MS, until, untilLogged } from "./test-support/until";
 
 // Electron's own service name for a Node.js utility process, robust against other utility
@@ -57,7 +58,9 @@ describe("the core process's supervision and message gate", () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (!app.process().killed) {
+      await app.close();
+    }
   });
 
   it("has a core utility process running", async () => {
@@ -102,9 +105,9 @@ describe("the core process's supervision and message gate", () => {
       // earlier ping is handled — a wait condition instead of a fixed sleep.
       port?.postMessage({ type: "end-marker" });
     });
-    await untilLogged({ app, logs }, "messageType: 'end-marker'", {
-      withinMs: REGISTER_LOG_BOUND_MS,
-    });
+    await killOnFailure(app, () =>
+      untilLogged({ app, logs }, "messageType: 'end-marker'", { withinMs: REGISTER_LOG_BOUND_MS }),
+    );
 
     const joined = logs.join("");
     expect(joined).toContain("core: rejected message");

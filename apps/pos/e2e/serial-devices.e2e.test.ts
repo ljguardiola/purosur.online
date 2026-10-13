@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { launchApp, writeChannelFile } from "./launch-app";
 import { roleChange, userChange } from "./test-support/cloud-changes";
 import { enrolledRegister } from "./test-support/enrolled-register";
+import { killOnFailure } from "./test-support/kill-on-failure";
 import {
   SERIAL_DEVICE_WATCH_FAILED,
   SERIAL_DEVICES_LISTED,
@@ -17,10 +18,11 @@ describe("the register's serial devices", () => {
     const launched = await launchApp(
       writeChannelFile({ channel: "staging", dataFolder: "purosur-pos-e2e-serial-devices" }),
     );
-    try {
+    await killOnFailure(launched.app, async () => {
       await launched.app.firstWindow();
-
       await untilLogged(launched, SERIAL_DEVICES_LISTED, { withinMs: REGISTER_LOG_BOUND_MS });
+    });
+    try {
       expect(launched.logs.join("")).not.toContain(SERIAL_DEVICE_WATCH_FAILED);
     } finally {
       await launched.app.close();

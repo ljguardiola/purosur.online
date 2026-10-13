@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { CORE_DAMAGED, coreStartEnded, startEndingsIn } from "./test-support/core-start-outcomes";
 import { type EnrolledRegister, enrolledRegister } from "./test-support/enrolled-register";
+import { killOnFailure } from "./test-support/kill-on-failure";
 import { type StandInCloud, startStandInCloud } from "./test-support/stand-in-cloud";
 import { REGISTER_LOG_BOUND_MS, until, untilLogged } from "./test-support/until";
 
@@ -42,7 +43,9 @@ describe("a register whose local database is damaged", () => {
       await replaceDatabaseWithBytesThatAreNotOne(localDataFolder);
     });
 
-    await untilLogged(register, coreStartEnded, { withinMs: REGISTER_LOG_BOUND_MS });
+    await killOnFailure(register.app, () =>
+      untilLogged(register, coreStartEnded, { withinMs: REGISTER_LOG_BOUND_MS }),
+    );
     expect(startEndingsIn(register.logs.join(""))).toEqual([CORE_DAMAGED]);
     await register.page.getByText("La caja necesita restaurarse", { exact: true }).waitFor();
     const damageReports = () =>

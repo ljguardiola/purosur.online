@@ -20,8 +20,9 @@ export default defineConfig({
     // One Electron instance at a time: launching several together would compete for the same
     // display and make the restart/timing assertions flaky.
     fileParallelism: false,
-    // No limit: each test waits for the condition it checks however long the machine takes, and the
-    // job's own timeout ends a run where one never comes.
+    // No limit: waits on the window and polled conditions take however long the machine takes, and
+    // the job's own timeout ends a run where one never comes; launching the register and waiting
+    // for a line it logs carry their own bound.
     testTimeout: 0,
     hookTimeout: 0,
   },

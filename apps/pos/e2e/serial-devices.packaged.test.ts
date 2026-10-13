@@ -4,6 +4,7 @@ import { _electron as electron } from "playwright";
 import { describe, expect, it } from "vitest";
 import { serializeChannelFile } from "../src/shared/channel";
 import { APP_DIR, appEnv, LAUNCH_BOUND_MS } from "./launch-app";
+import { killOnFailure } from "./test-support/kill-on-failure";
 import {
   SERIAL_DEVICE_WATCH_FAILED,
   SERIAL_DEVICES_LISTED,
@@ -62,18 +63,13 @@ describe("the packaged register's serial devices", () => {
     const logs: string[] = [];
     app.process().stdout?.on("data", (chunk: Buffer) => logs.push(chunk.toString()));
     app.process().stderr?.on("data", (chunk: Buffer) => logs.push(chunk.toString()));
-    let started = false;
+    await killOnFailure(app, () =>
+      untilLogged({ app, logs }, SERIAL_DEVICES_LISTED, { withinMs: REGISTER_LOG_BOUND_MS }),
+    );
     try {
-      await untilLogged({ app, logs }, SERIAL_DEVICES_LISTED, { withinMs: REGISTER_LOG_BOUND_MS });
-      started = true;
-
       expect(logs.join("")).not.toContain(SERIAL_DEVICE_WATCH_FAILED);
     } finally {
-      if (started) {
-        await app.close();
-      } else {
-        app.process().kill();
-      }
+      await app.close();
     }
   });
 });
