@@ -144,6 +144,46 @@ describe("pendingUpdateFiles", () => {
     expect(readFileSync(join(folder, "installer.exe"), "utf8")).toBe("first second");
   });
 
+  describe("when the file cannot be created", () => {
+    let uncaught: unknown[];
+    const recordUncaught = (error: unknown) => {
+      uncaught.push(error);
+    };
+
+    beforeEach(() => {
+      uncaught = [];
+      process.on("uncaughtException", recordUncaught);
+    });
+
+    afterEach(() => {
+      process.off("uncaughtException", recordUncaught);
+    });
+
+    it("raises no uncaught exception when a write fails", async () => {
+      const file = await pendingUpdateFiles(join(folder, "missing")).open("installer.exe");
+
+      await Promise.allSettled([file.write(encoder.encode("bytes"))]);
+      await Promise.allSettled([file.close()]);
+
+      expect(uncaught).toEqual([]);
+    });
+
+    it("rejects the write with the failure, and the close after it", async () => {
+      const file = await pendingUpdateFiles(join(folder, "missing")).open("installer.exe");
+
+      await expect(file.write(encoder.encode("bytes"))).rejects.toMatchObject({ code: "ENOENT" });
+      await expect(file.close()).rejects.toMatchObject({ code: "ENOENT" });
+    });
+
+    it("rejects the close with the failure when nothing was written", async () => {
+      const file = await pendingUpdateFiles(join(folder, "missing")).open("installer.exe");
+
+      await expect(file.close()).rejects.toMatchObject({ code: "ENOENT" });
+
+      expect(uncaught).toEqual([]);
+    });
+  });
+
   it("removes a named file and tolerates one that is already gone", async () => {
     const files = pendingUpdateFiles(folder);
     await files.clearPending();
