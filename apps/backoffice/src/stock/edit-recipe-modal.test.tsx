@@ -150,14 +150,16 @@ test("keeps showing a component that is no longer among the products on offer, a
   expect(dialog.getByRole("textbox", { name: "Cantidad de Almendras" }).query()).toBeNull();
 });
 
-test("refuses a recipe left without components, without calling the API", async () => {
-  const saveRecipe = vi.fn<EditRecipeModalServices["saveRecipe"]>();
+test("shows the refusal of a recipe left without components under the components", async () => {
+  const saveRecipe = vi.fn<EditRecipeModalServices["saveRecipe"]>().mockResolvedValue({
+    kind: "invalid_recipe",
+    reason: { kind: "no_components" },
+  });
   const screen = await renderModal({ saveRecipe, target: { ...cajaDeInfusiones, components: [] } });
 
   const dialog = await save(screen);
 
   await expect.element(dialog.getByText("Agregá al menos un componente.")).toBeVisible();
-  expect(saveRecipe).not.toHaveBeenCalled();
 });
 
 test("refuses an unreadable quantity, saying how to type it", async () => {
@@ -212,7 +214,7 @@ test("shows a component that is no longer available next to it", async () => {
   const dialog = await save(screen);
 
   await expect
-    .element(dialog.getByText("Este componente ya no está disponible. Quitalo."))
+    .element(dialog.getByText("Este componente ya no está disponible. Quitalo.").first())
     .toBeVisible();
 });
 

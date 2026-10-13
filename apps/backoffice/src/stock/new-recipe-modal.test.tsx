@@ -185,15 +185,17 @@ test("creates the recipe of the chosen product with each quantity sent as thousa
   await expect.poll(() => onSaved.mock.calls).toEqual([[created]]);
 });
 
-test("refuses a recipe without components, without calling the API", async () => {
-  const saveRecipe = vi.fn<NewRecipeModalServices["saveRecipe"]>();
+test("shows the refusal of a recipe without components under the components", async () => {
+  const saveRecipe = vi.fn<NewRecipeModalServices["saveRecipe"]>().mockResolvedValue({
+    kind: "invalid_recipe",
+    reason: { kind: "no_components" },
+  });
   const screen = await renderModal({ saveRecipe });
   await chooseProduct(screen, "Avena con pasas");
 
   const dialog = await submit(screen);
 
   await expect.element(dialog.getByText("Agregá al menos un componente.")).toBeVisible();
-  expect(saveRecipe).not.toHaveBeenCalled();
 });
 
 test("asks for the product when the components are fine, without calling the API", async () => {
@@ -259,7 +261,7 @@ test("shows a component that is no longer available next to it", async () => {
   const dialog = await submitAvenaWith(saveRecipe);
 
   await expect
-    .element(dialog.getByText("Este componente ya no está disponible. Quitalo."))
+    .element(dialog.getByText("Este componente ya no está disponible. Quitalo.").first())
     .toBeVisible();
 });
 
@@ -271,7 +273,7 @@ test("shows a repeated component next to it", async () => {
 
   const dialog = await submitAvenaWith(saveRecipe);
 
-  await expect.element(dialog.getByText("Este componente está repetido.")).toBeVisible();
+  await expect.element(dialog.getByText("Este componente está repetido.").first()).toBeVisible();
 });
 
 test("shows a quantity the cloud refused next to its component", async () => {
@@ -284,9 +286,9 @@ test("shows a quantity the cloud refused next to its component", async () => {
 
   await expect
     .element(
-      dialog.getByText(
-        "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
-      ),
+      dialog
+        .getByText("Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.")
+        .first(),
     )
     .toBeVisible();
 });
@@ -303,19 +305,10 @@ test("shows the assembled product used as its own component next to that compone
   const dialog = await submit(screen);
 
   await expect
-    .element(dialog.getByText("El producto armado no puede ser componente de su propia receta."))
+    .element(
+      dialog.getByText("El producto armado no puede ser componente de su propia receta.").first(),
+    )
     .toBeVisible();
-});
-
-test("asks to add a component when the cloud finds the recipe without any", async () => {
-  const saveRecipe = vi.fn<NewRecipeModalServices["saveRecipe"]>().mockResolvedValue({
-    kind: "invalid_recipe",
-    reason: { kind: "no_components" },
-  });
-
-  const dialog = await submitAvenaWith(saveRecipe);
-
-  await expect.element(dialog.getByText("Agregá al menos un componente.")).toBeVisible();
 });
 
 test("tells that someone else created the recipe meanwhile", async () => {
