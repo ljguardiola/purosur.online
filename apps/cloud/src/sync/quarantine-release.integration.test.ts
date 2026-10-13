@@ -127,7 +127,11 @@ describe("releasing a quarantined event on a real Postgres", () => {
     const first = await quarantinedEventOf(randomUUID());
     await quarantinedEventOf(randomUUID(), first);
 
-    await release({ eventId: first.eventId, locationId: first.locationId, releasedBy: first.userId });
+    await release({
+      eventId: first.eventId,
+      locationId: first.locationId,
+      releasedBy: first.userId,
+    });
 
     expect(await eventRow(first.eventId)).toMatchObject({ attempts: 0, quarantinedAt: null });
     expect(await alertOf(first.deviceId)).toEqual({ resolvedAt: null });

@@ -115,7 +115,11 @@ describe("releasing a quarantined event", () => {
   it("does not count events of the device that were applied or are only retrying as quarantined", async () => {
     const { application, releaseWith } = setup([
       quarantined(),
-      aStoredEvent({ eventId: "applied", appliedAt: QUARANTINED_AT, quarantinedAt: QUARANTINED_AT }),
+      aStoredEvent({
+        eventId: "applied",
+        appliedAt: QUARANTINED_AT,
+        quarantinedAt: QUARANTINED_AT,
+      }),
       aStoredEvent({ eventId: "retrying", attempts: 3, nextAttemptAt: NOW }),
     ]);
 
