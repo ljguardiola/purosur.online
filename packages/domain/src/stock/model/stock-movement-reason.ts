@@ -11,7 +11,7 @@ export type LossReason = (typeof LOSS_REASONS)[number];
 
 export const SYSTEM_LOSS_REASONS = ["expired"] as const;
 
-export type SystemLossReason = (typeof SYSTEM_LOSS_REASONS)[number];
+type SystemLossReason = (typeof SYSTEM_LOSS_REASONS)[number];
 
 export type RecordedLossReason = LossReason | SystemLossReason;
 

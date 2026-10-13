@@ -26,9 +26,7 @@ export {
 export type {
   AdjustmentReason,
   LossReason,
-  RecordedLossReason,
   StockDirection,
-  SystemLossReason,
 } from "./model/stock-movement-reason.js";
 export {
   ADJUSTMENT_REASONS,
