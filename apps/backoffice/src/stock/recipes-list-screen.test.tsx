@@ -374,27 +374,6 @@ test("lists the recipes in the product order the filters name", async () => {
     .toEqual(["Mix ", "Caja"]);
 });
 
-test("a recipe created meanwhile by someone else reads the recipes again", async () => {
-  const services = createServices();
-  vi.mocked(services.saveRecipe).mockResolvedValue({ kind: "stale_version" });
-  const screen = await loaded(services, [cajaDeInfusiones]);
-
-  await userEvent.click(screen.getByRole("button", { name: "Nueva receta" }));
-  const dialog = screen.getByRole("dialog");
-  await userEvent.click(dialog.getByRole("combobox", { name: /^Producto armado/ }));
-  await expect.element(screen.getByRole("option", { name: "Avena con pasas" })).toBeVisible();
-  (screen.getByRole("option", { name: "Avena con pasas" }).element() as HTMLElement).click();
-  await userEvent.click(dialog.getByRole("button", { name: "Agregar un componente" }));
-  await userEvent.click(dialog.getByRole("combobox", { name: /^Componente/ }));
-  await expect.element(screen.getByRole("option", { name: "Almendras" })).toBeVisible();
-  (screen.getByRole("option", { name: "Almendras" }).element() as HTMLElement).click();
-  await userEvent.fill(dialog.getByRole("textbox", { name: "Cantidad de Almendras" }), "0,4");
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la receta" }));
-
-  await expect.element(dialog.getByText("Otra persona cambió esta receta")).toBeVisible();
-  await expect.poll(() => vi.mocked(services.fetchRecipes).mock.calls.length).toBe(2);
-});
-
 test("has no accessibility violations once loaded, and with the create modal open", async () => {
   const services = createServices();
   const screen = await loaded(services, [mixDeFrutosSecos, cajaDeInfusiones]);

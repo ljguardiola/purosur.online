@@ -99,12 +99,13 @@ describe("recipeSaveBodySchema", () => {
     });
   });
 
-  it("declares the quantity's units", () => {
+  it("declares the quantity's units and its largest value", () => {
     const quantity = recipeSaveBodySchema.shape.components.element.shape.quantityPerOutputUnit;
 
     expect(quantity.meta()).toEqual({
       decimals: STOCK_QUANTITY_DECIMALS,
       perUnit: STOCK_QUANTITY_PER_UNIT,
+      maxValue: MAX_STOCK_QUANTITY,
     });
   });
 

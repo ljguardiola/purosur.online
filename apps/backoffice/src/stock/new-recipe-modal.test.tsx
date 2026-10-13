@@ -4,13 +4,16 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { NewRecipeModal, type NewRecipeModalServices } from "./new-recipe-modal";
+import type { fetchRecipes } from "./recipes-api";
 import {
   almendras,
   avenaConPasas,
   mixDeFrutosSecos,
   nueces,
+  recipeList,
   recipeProducts,
 } from "./test-support/recipes";
+import { RecipesReader } from "./test-support/recipes-reader";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -23,8 +26,13 @@ function renderModal({
   onSaved = () => {},
   onClose = () => {},
   onSessionEnded = () => {},
+  readRecipes = vi.fn<typeof fetchRecipes>().mockResolvedValue({
+    kind: "ok",
+    value: recipeList([mixDeFrutosSecos]),
+  }),
 }: {
   saveRecipe?: NewRecipeModalServices["saveRecipe"];
+  readRecipes?: typeof fetchRecipes;
   products?: RecipeList["products"];
   recipes?: RecipeSummary[];
   onSaved?: (recipe: RecipeSummary) => void;
@@ -34,6 +42,7 @@ function renderModal({
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
+        <RecipesReader read={readRecipes} />
         <NewRecipeModal
           open
           products={products}
@@ -76,11 +85,15 @@ async function submit(screen: ModalScreen) {
 
 async function submitAvenaWith(
   saveRecipe: NewRecipeModalServices["saveRecipe"],
-  onSessionEnded?: () => void,
+  {
+    onSessionEnded,
+    readRecipes,
+  }: { onSessionEnded?: () => void; readRecipes?: typeof fetchRecipes } = {},
 ) {
   const screen = await renderModal({
     saveRecipe,
     ...(onSessionEnded ? { onSessionEnded } : {}),
+    ...(readRecipes ? { readRecipes } : {}),
   });
   await chooseProduct(screen, "Avena con pasas");
   await addComponent(screen, "Almendras", "0,4");
@@ -236,7 +249,7 @@ test("refuses a quantity of zero", async () => {
   const dialog = await submit(screen);
 
   await expect
-    .element(dialog.getByText("Té verde: ingresá una cantidad mayor a cero."))
+    .element(dialog.getByText("Té verde: ingresá una cantidad mayor a cero, de hasta 2.147.483 u."))
     .toBeVisible();
   expect(saveRecipe).not.toHaveBeenCalled();
 });
@@ -324,6 +337,20 @@ test("tells that someone else created the recipe meanwhile", async () => {
     .toBeVisible();
 });
 
+test("reads the recipes again when someone else created the recipe meanwhile", async () => {
+  const readRecipes = vi
+    .fn<typeof fetchRecipes>()
+    .mockResolvedValue({ kind: "ok", value: recipeList([mixDeFrutosSecos]) });
+  const saveRecipe = vi
+    .fn<NewRecipeModalServices["saveRecipe"]>()
+    .mockResolvedValue({ kind: "stale_version" });
+
+  const dialog = await submitAvenaWith(saveRecipe, { readRecipes });
+
+  await expect.element(dialog.getByText("Otra persona cambió esta receta")).toBeVisible();
+  await expect.poll(() => readRecipes.mock.calls.length).toBe(2);
+});
+
 test("shows a failed attempt", async () => {
   const dialog = await submitAvenaWith(
     vi.fn<NewRecipeModalServices["saveRecipe"]>().mockResolvedValue({ kind: "failed" }),
@@ -348,7 +375,7 @@ test("ends the session when the cloud finds none open", async () => {
 
   await submitAvenaWith(
     vi.fn<NewRecipeModalServices["saveRecipe"]>().mockResolvedValue({ kind: "unauthenticated" }),
-    onSessionEnded,
+    { onSessionEnded },
   );
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);

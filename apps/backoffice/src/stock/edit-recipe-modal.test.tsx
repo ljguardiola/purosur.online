@@ -4,6 +4,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { EditRecipeModal, type EditRecipeModalServices } from "./edit-recipe-modal";
+import type { fetchRecipes } from "./recipes-api";
 import {
   almendras,
   cajaDeInfusiones,
@@ -11,9 +12,11 @@ import {
   miel,
   mixDeFrutosSecos,
   nueces,
+  recipeList,
   recipeProducts,
   teVerde,
 } from "./test-support/recipes";
+import { RecipesReader } from "./test-support/recipes-reader";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -26,8 +29,13 @@ function renderModal({
   onSaved = () => {},
   onClose = () => {},
   onSessionEnded = () => {},
+  readRecipes = vi.fn<typeof fetchRecipes>().mockResolvedValue({
+    kind: "ok",
+    value: recipeList([mixDeFrutosSecos]),
+  }),
 }: {
   saveRecipe?: EditRecipeModalServices["saveRecipe"];
+  readRecipes?: typeof fetchRecipes;
   target?: RecipeSummary;
   products?: RecipeList["products"];
   onSaved?: (recipe: RecipeSummary) => void;
@@ -37,6 +45,7 @@ function renderModal({
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
+        <RecipesReader read={readRecipes} />
         <EditRecipeModal
           target={target}
           products={products}
@@ -192,6 +201,21 @@ test("tells that someone else changed the recipe and to open it again", async ()
   await expect
     .element(dialog.getByText("Cerrá esta ventana y volvé a abrirla para ver cómo quedó."))
     .toBeVisible();
+});
+
+test("reads the recipes again when someone else changed the recipe", async () => {
+  const readRecipes = vi
+    .fn<typeof fetchRecipes>()
+    .mockResolvedValue({ kind: "ok", value: recipeList([mixDeFrutosSecos]) });
+  const saveRecipe = vi
+    .fn<EditRecipeModalServices["saveRecipe"]>()
+    .mockResolvedValue({ kind: "stale_version" });
+  const screen = await renderModal({ saveRecipe, readRecipes });
+
+  const dialog = await save(screen);
+
+  await expect.element(dialog.getByText("Otra persona cambió esta receta")).toBeVisible();
+  await expect.poll(() => readRecipes.mock.calls.length).toBe(2);
 });
 
 test("tells that the product is no longer available", async () => {

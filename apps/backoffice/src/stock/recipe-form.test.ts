@@ -108,16 +108,35 @@ describe("recipeComponentsMessage", () => {
   });
 
   it.each([
-    ["kilos", kgRow, "0,000", "Almendras: ingresá una cantidad mayor a cero."],
-    ["units", unitRow, "0", "Té verde: ingresá una cantidad mayor a cero."],
-  ])(
-    "asks for a quantity greater than zero when zero %s are typed",
-    (_unit, row, quantity, message) => {
-      expect(
-        recipeComponentsMessage({ ...EMPTY_RECIPE_FORM, components: [{ ...row, quantity }] }),
-      ).toBe(message);
-    },
-  );
+    [
+      "zero kilos",
+      kgRow,
+      "0,000",
+      "Almendras: ingresá una cantidad mayor a cero, de hasta 2.147.483,647 kg.",
+    ],
+    [
+      "zero units",
+      unitRow,
+      "0",
+      "Té verde: ingresá una cantidad mayor a cero, de hasta 2.147.483 u.",
+    ],
+    [
+      "more kilos than a stock quantity holds",
+      kgRow,
+      "2.147.483,648",
+      "Almendras: ingresá una cantidad mayor a cero, de hasta 2.147.483,647 kg.",
+    ],
+    [
+      "more units than a stock quantity holds",
+      unitRow,
+      "2.147.484",
+      "Té verde: ingresá una cantidad mayor a cero, de hasta 2.147.483 u.",
+    ],
+  ])("states the quantities it takes when %s are typed", (_unit, row, quantity, message) => {
+    expect(
+      recipeComponentsMessage({ ...EMPTY_RECIPE_FORM, components: [{ ...row, quantity }] }),
+    ).toBe(message);
+  });
 });
 
 describe("recipeProductOptions", () => {
