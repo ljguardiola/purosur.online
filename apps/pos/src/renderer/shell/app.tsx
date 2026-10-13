@@ -405,6 +405,7 @@ function Register({ core }: { core: CoreClient }) {
     cancelPaidSale: (saleId: string, authorization: Authorization | undefined) =>
       core.cancelPaidSale(saleId, authorization),
     receiptPrintStatus: (saleId: string) => core.receiptPrintStatus(saleId),
+    printOriginalReceipt: (saleId: string) => core.printOriginalReceipt(saleId),
     reprintSaleReceipt: (
       saleId: string,
       reason: string,

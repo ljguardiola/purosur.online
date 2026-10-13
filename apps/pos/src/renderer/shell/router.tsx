@@ -33,6 +33,7 @@ import type {
   PinPolicy,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  PrintOriginalReceiptOutcome,
   ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -230,6 +231,7 @@ export interface RouterContext {
     authorization: Authorization | undefined,
   ) => Promise<CancelPaidSaleOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+  printOriginalReceipt: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
   reprintSaleReceipt: (
     saleId: string,
     reason: string,
@@ -657,7 +659,7 @@ const startupPendingRoute = createRoute({
       startupPending,
       startupPendingGate,
       cashBalance,
-      saleHistoryDetail,
+      printOriginalReceipt,
       reprintSaleReceipt,
       authorizers,
       refreshCashSession,
@@ -674,7 +676,7 @@ const startupPendingRoute = createRoute({
         lock={signOut}
         loadStartupPending={startupPending}
         loadCashBalance={cashBalance}
-        saleHistoryDetail={saleHistoryDetail}
+        printOriginalReceipt={printOriginalReceipt}
         reprintSaleReceipt={reprintSaleReceipt}
         loadAuthorizers={authorizers}
         onGoSelling={() => {
@@ -1089,6 +1091,7 @@ export function createAppRouter(
     | "cancelSale"
     | "cancelPaidSale"
     | "receiptPrintStatus"
+    | "printOriginalReceipt"
     | "reprintSaleReceipt"
     | "salesHistory"
     | "saleHistoryDetail"

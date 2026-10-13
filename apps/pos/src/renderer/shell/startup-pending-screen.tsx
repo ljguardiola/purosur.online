@@ -1,9 +1,9 @@
 import type {
   Authorization,
   CashBalance,
+  PrintOriginalReceiptOutcome,
   ReceiptCopyShown,
   ReprintSaleReceiptOutcome,
-  SaleHistoryDetailOutcome,
   SignInUser,
   StartupPending,
 } from "@purosur/contracts";
@@ -40,7 +40,6 @@ import {
 } from "../register/register-queries";
 import { hasStartupPendingItems } from "../register/startup-pending-items";
 import { ReprintReceiptModal } from "../sales/reprint-receipt-modal";
-import type { SaleDetail } from "../sales/sale-history-text";
 import { receiptCopyPresentation } from "../sales/sale-history-text";
 import { OpenSessionRail } from "./open-session-rail";
 import type { SignedInPerson } from "./signed-in-person";
@@ -54,6 +53,23 @@ const CONSULTING = (
 
 type SaleToPrint = StartupPending["sales_to_print"][number];
 
+const FAILED_PROBLEM = { title: "No se pudo imprimir el ticket", description: "Probá de nuevo." };
+
+const PRINT_PROBLEMS = {
+  busy: {
+    title: "Esa venta ya se está imprimiendo",
+    description: "Esperá a que termine antes de volver a imprimirla.",
+  },
+  printer_not_configured: {
+    title: "La impresora no está configurada",
+    description: "Cargá su dirección en Impresora y después imprimí el ticket de nuevo.",
+  },
+  lacks_permission: {
+    title: "No tenés permiso para imprimir",
+    description: "Pedile a quien pueda que imprima el ticket.",
+  },
+} as const;
+
 export type StartupPendingScreenProps = {
   sessionId: string;
   person: SignedInPerson;
@@ -63,7 +79,7 @@ export type StartupPendingScreenProps = {
   lock: () => void;
   loadStartupPending: () => Promise<StartupPendingAnswer>;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
-  saleHistoryDetail: (saleId: string) => Promise<SaleHistoryDetailOutcome>;
+  printOriginalReceipt: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
   reprintSaleReceipt: (
     saleId: string,
     reason: string,
@@ -80,11 +96,11 @@ function saleText(completedAt: string, total: number): string {
 
 function SaleToPrintRow({
   sale,
-  opening,
+  printing,
   onPrint,
 }: {
   sale: SaleToPrint;
-  opening: boolean;
+  printing: boolean;
   onPrint: () => void;
 }) {
   const original = sale.standing === "never_printed";
@@ -103,7 +119,7 @@ function SaleToPrintRow({
           variant={original ? "primary" : "secondary"}
           size="large"
           icon={<Printer />}
-          dataStatus={opening ? "loading" : "loaded"}
+          dataStatus={printing ? "loading" : "loaded"}
           onPress={onPrint}
         >
           {original ? "Imprimir el ticket" : "Reimprimir como duplicado"}
@@ -115,12 +131,12 @@ function SaleToPrintRow({
 
 function PendingItems({
   pending,
-  openingSaleId,
+  printingSaleId,
   onPrint,
 }: {
   pending: StartupPending;
-  openingSaleId: string | undefined;
-  onPrint: (saleId: string) => void;
+  printingSaleId: string | undefined;
+  onPrint: (sale: SaleToPrint) => void;
 }) {
   return (
     <ul className="flex flex-col gap-4">
@@ -128,8 +144,8 @@ function PendingItems({
         <SaleToPrintRow
           key={sale.sale_id}
           sale={sale}
-          opening={openingSaleId === sale.sale_id}
-          onPrint={() => onPrint(sale.sale_id)}
+          printing={printingSaleId === sale.sale_id}
+          onPrint={() => onPrint(sale)}
         />
       ))}
       {pending.unknown_fiscal_documents.map((document) => (
@@ -158,12 +174,12 @@ function PendingItems({
 
 function PendingSection({
   data,
-  openingSaleId,
+  printingSaleId,
   onPrint,
 }: {
   data: CoreData<StartupPendingAnswer>;
-  openingSaleId: string | undefined;
-  onPrint: (saleId: string) => void;
+  printingSaleId: string | undefined;
+  onPrint: (sale: SaleToPrint) => void;
 }) {
   if (data.status === "loading") {
     return <LoadingPlaceholder variant="list" items={3} />;
@@ -182,7 +198,7 @@ function PendingSection({
   if (pending === "not_permitted" || !hasStartupPendingItems(pending)) {
     return <EmptyState variant="blank" icon={<CheckCheck />} title="No queda nada pendiente" />;
   }
-  return <PendingItems pending={pending} openingSaleId={openingSaleId} onPrint={onPrint} />;
+  return <PendingItems pending={pending} printingSaleId={printingSaleId} onPrint={onPrint} />;
 }
 
 export function StartupPendingScreen({
@@ -194,7 +210,7 @@ export function StartupPendingScreen({
   lock,
   loadStartupPending,
   loadCashBalance,
-  saleHistoryDetail,
+  printOriginalReceipt,
   reprintSaleReceipt,
   loadAuthorizers,
   onGoSelling,
@@ -203,27 +219,45 @@ export function StartupPendingScreen({
   const pending = useStartupPendingQuery(loadStartupPending);
   const balance = useCashBalanceQuery(sessionId, loadCashBalance);
   const refreshPending = useRefreshStartupPending();
-  const [openingSaleId, setOpeningSaleId] = useState<string>();
-  const [printing, setPrinting] = useState<SaleDetail>();
+  const [printingSaleId, setPrintingSaleId] = useState<string>();
+  const [duplicateOf, setDuplicateOf] = useState<SaleToPrint>();
   const [sent, setSent] = useState<ReceiptCopyShown>();
   const [problem, setProblem] = useState<{ title: string; description: string }>();
 
-  async function openPrint(saleId: string) {
-    setOpeningSaleId(saleId);
+  async function printOriginal(saleId: string) {
+    setPrintingSaleId(saleId);
     setProblem(undefined);
-    const outcome = await saleHistoryDetail(saleId).catch((): "failed" => "failed");
-    setOpeningSaleId(undefined);
-    if (outcome === "failed" || outcome.kind === "unavailable" || outcome.kind === "not_found") {
-      setProblem({ title: "No se pudo abrir la venta", description: "Probá de nuevo." });
-    } else if (outcome.kind === "lacks_permission") {
-      setProblem({
-        title: "No tenés permiso para ver la venta",
-        description: "Pedile a quien pueda que la imprima.",
-      });
-    } else if (outcome.kind === "not_signed_in") {
-      onSessionInvalid();
+    const outcome = await printOriginalReceipt(saleId).catch((): "failed" => "failed");
+    setPrintingSaleId(undefined);
+    if (outcome === "failed") {
+      setProblem(FAILED_PROBLEM);
+      return;
+    }
+    switch (outcome.kind) {
+      case "started":
+        setSent(outcome.copy);
+        void refreshPending();
+        break;
+      case "already_attempted":
+      case "not_found":
+        void refreshPending();
+        break;
+      case "not_signed_in":
+        onSessionInvalid();
+        break;
+      case "unavailable":
+        setProblem(FAILED_PROBLEM);
+        break;
+      default:
+        setProblem(PRINT_PROBLEMS[outcome.kind]);
+    }
+  }
+
+  function print(sale: SaleToPrint) {
+    if (sale.standing === "never_printed") {
+      void printOriginal(sale.sale_id);
     } else {
-      setPrinting(outcome.detail);
+      setDuplicateOf(sale);
     }
   }
 
@@ -249,11 +283,7 @@ export function StartupPendingScreen({
           title="Hay cosas para resolver"
           description="La caja se cerró sin terminar algunas operaciones. Esto es lo que quedó."
         />
-        <PendingSection
-          data={pending}
-          openingSaleId={openingSaleId}
-          onPrint={(saleId) => void openPrint(saleId)}
-        />
+        <PendingSection data={pending} printingSaleId={printingSaleId} onPrint={print} />
       </main>
       <SidePanel
         footer={
@@ -271,23 +301,27 @@ export function StartupPendingScreen({
         <p className="text-title text-text-accent">{sessionOwner.first_name}</p>
         <p className="text-detail text-text-subtle">{`${since}${openingFloat}`}</p>
       </SidePanel>
-      {printing === undefined ? null : (
+      {duplicateOf === undefined ? null : (
         <ReprintReceiptModal
-          sale={printing}
+          sale={{
+            sale_id: duplicateOf.sale_id,
+            occurred_at: duplicateOf.completed_at,
+            next_copy: { kind: "duplicate" },
+          }}
           person={person}
           loadAuthorizers={loadAuthorizers}
           reprintSaleReceipt={reprintSaleReceipt}
           onReprinted={(copy) => {
-            setPrinting(undefined);
+            setDuplicateOf(undefined);
             setSent(copy);
             void refreshPending();
           }}
           onSaleGone={() => {
-            setPrinting(undefined);
+            setDuplicateOf(undefined);
             void refreshPending();
           }}
           onSessionInvalid={onSessionInvalid}
-          onClose={() => setPrinting(undefined)}
+          onClose={() => setDuplicateOf(undefined)}
         />
       )}
       {sent === undefined ? null : (

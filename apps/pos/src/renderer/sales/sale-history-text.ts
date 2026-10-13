@@ -1,8 +1,4 @@
-import type {
-  ReceiptCopyShown,
-  SaleHistoryDetailOutcome,
-  SalesHistoryOutcome,
-} from "@purosur/contracts";
+import type { SaleHistoryDetailOutcome, SalesHistoryOutcome } from "@purosur/contracts";
 import type { PaymentMethod } from "@purosur/domain";
 import type { SummaryRowGroupProps, SummaryRowProps, TagProps } from "@purosur/ui";
 import { formatInvoiceNumber, formatOperationNumber, formatPointOfSaleNumber } from "@purosur/ui";
@@ -71,7 +67,11 @@ export function saleStatePresentation(state: ShownSaleState): {
   return STATE_PRESENTATION[state];
 }
 
-export function receiptCopyPresentation(copy: ReceiptCopyShown): {
+export type NextReceiptCopy =
+  | { kind: "original" }
+  | { kind: "duplicate"; order_number?: number | undefined };
+
+export function receiptCopyPresentation(copy: NextReceiptCopy): {
   printButton: string;
   comesOutAs: string;
   legend: string | undefined;
@@ -81,7 +81,8 @@ export function receiptCopyPresentation(copy: ReceiptCopyShown): {
     : {
         printButton: "Reimprimir duplicado",
         comesOutAs: "Sale como duplicado",
-        legend: `COPIA DUPLICADA Nº ${copy.order_number}`,
+        legend:
+          copy.order_number === undefined ? undefined : `COPIA DUPLICADA Nº ${copy.order_number}`,
       };
 }
 
