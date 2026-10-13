@@ -884,6 +884,7 @@ describe("the register's local migrations", () => {
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
         "0042_initial_count",
+        "0044_deferred_sale_records",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -953,6 +954,7 @@ describe("the register's local migrations", () => {
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
         "0042_initial_count",
+        "0044_deferred_sale_records",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1017,6 +1019,7 @@ describe("the register's local migrations", () => {
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
         "0042_initial_count",
+        "0044_deferred_sale_records",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1080,6 +1083,7 @@ describe("the register's local migrations", () => {
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
         "0042_initial_count",
+        "0044_deferred_sale_records",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1170,6 +1174,7 @@ describe("the register's local migrations", () => {
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
         "0042_initial_count",
+        "0044_deferred_sale_records",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1252,6 +1257,7 @@ describe("the register's local migrations", () => {
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
         "0042_initial_count",
+        "0044_deferred_sale_records",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1338,6 +1344,7 @@ describe("the register's local migrations", () => {
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
         "0042_initial_count",
+        "0044_deferred_sale_records",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1407,6 +1414,7 @@ describe("the register's local migrations", () => {
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
         "0042_initial_count",
+        "0044_deferred_sale_records",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1468,6 +1476,7 @@ describe("the register's local migrations", () => {
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
         "0042_initial_count",
+        "0044_deferred_sale_records",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -3117,7 +3126,11 @@ describe("the register's local migrations", () => {
           `INSERT INTO deferred_sales (id, sale_id, occurred_at, total, reason, short_code, routed_at)
            VALUES (@id, @sale_id, '2026-09-30T12:00:00.000Z', 1500, @reason, @short_code, '2026-09-30T12:05:00.000Z')`,
         )
-        .run({ ...values, id: `deferred-${routedSales}`, short_code: `7KQ4M2P${routedSales + 1}` });
+        .run({
+          ...values,
+          id: `deferred-${routedSales}`,
+          short_code: `2222222${"ABCDEFGHJKLMNPQR"[routedSales]}`,
+        });
     }
 
     it.each(DEFERRAL_REASONS)("route a sale to the deferred flow for the reason %s", (reason) => {

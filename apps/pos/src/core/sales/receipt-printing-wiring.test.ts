@@ -394,13 +394,11 @@ describe("the register's receipt printing over its local database", () => {
           cloudAnswering(async () =>
             json({ state: "REJECTED", rejection_codes: [10015], rejection_class: "content" }),
           ),
-        true,
       ],
-      ["the answer is unclear", () => cloudAnswering(async () => json({ state: "UNCLEAR" })), true],
+      ["the answer is unclear", () => cloudAnswering(async () => json({ state: "UNCLEAR" }))],
       [
         "the tax authority is not asked",
         () => cloudAnswering(async () => json({ state: "NOT_ATTEMPTED" })),
-        true,
       ],
       [
         "the cloud cannot be reached",
@@ -408,16 +406,24 @@ describe("the register's receipt printing over its local database", () => {
           cloudAnswering(async () => {
             throw new TypeError("fetch failed");
           }),
-        true,
       ],
-      ["the register has no cloud", () => undefined, true],
-      ["the sale has no fiscal document", () => cloudAnswering(async () => json({})), false],
-    ])("still prints the receipt as before, once, when %s", async (_case, cloud, hasDocument) => {
-      if (hasDocument) {
-        insertDocumentWaiting();
-      }
+      ["the register has no cloud", () => undefined],
+    ])("prints once the non-fiscal document of the deferred sale when %s", async (_case, cloud) => {
+      insertDocumentWaiting();
 
       await chargingWith(cloud())?.({});
+      const papers = await printedPapers();
+
+      expect(papers).toHaveLength(1);
+      expect(papers[0]?.textLines).toContain("Yerba");
+      expect(papers[0]?.text).toContain("DOCUMENTO NO VALIDO COMO FACTURA");
+      expect(papers[0]?.text).toContain("Código de consulta");
+      expect(papers[0]?.text).toContain("[qr store purosur-deferred-sale:");
+      expect(papers[0]?.text).not.toContain("FACTURA C");
+    });
+
+    it("still prints the receipt as before, once, when the sale has no fiscal document", async () => {
+      await chargingWith(cloudAnswering(async () => json({})))?.({});
       const papers = await printedPapers();
 
       expect(papers).toHaveLength(1);
@@ -426,7 +432,7 @@ describe("the register's receipt printing over its local database", () => {
       expect(papers[0]?.text).not.toContain("[qr");
     });
 
-    it("prints the receipt as before on a reprint once the register restarts after stopping while the tax authority was asked", async () => {
+    it("prints the deferred sale's document on a reprint once the register restarts after stopping while the tax authority was asked", async () => {
       insertDocumentWaiting();
       database
         .prepare(
@@ -448,10 +454,11 @@ describe("the register's receipt printing over its local database", () => {
       const [written] = connection?.socket.written ?? [];
       const paper = printoutOf(written ?? new Uint8Array());
       expect(paper.textLines).toContain("Yerba");
+      expect(paper.text).toContain("DOCUMENTO NO VALIDO COMO FACTURA");
       expect(paper.text).not.toContain("FACTURA C");
     });
 
-    it("still prints the receipt as before, once, when asking the tax authority fails", async () => {
+    it("prints once the deferred sale's document when asking the tax authority fails", async () => {
       insertDocumentWaiting();
 
       await chargingWith(
@@ -463,6 +470,7 @@ describe("the register's receipt printing over its local database", () => {
       const papers = await printedPapers();
 
       expect(papers).toHaveLength(1);
+      expect(papers[0]?.text).toContain("DOCUMENTO NO VALIDO COMO FACTURA");
       expect(papers[0]?.text).not.toContain("FACTURA C");
     });
   });
