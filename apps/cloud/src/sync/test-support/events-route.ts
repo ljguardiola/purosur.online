@@ -13,8 +13,13 @@ export interface EventsRouteUnderTest {
   readonly app: FastifyInstance;
 }
 
+export interface LogStream {
+  write(line: string): void;
+}
+
 export function eventsRouteUnderTest(
   enqueueEventApplication: EnqueueEventApplication = async () => {},
+  logStream?: LogStream,
 ): EventsRouteUnderTest {
   let testDatabase: TestDatabase;
   let app: FastifyInstance;
@@ -29,7 +34,7 @@ export function eventsRouteUnderTest(
 
   beforeEach(async () => {
     await testDatabase.clear();
-    app = Fastify();
+    app = logStream ? Fastify({ logger: { level: "warn", stream: logStream } }) : Fastify();
     registerRouteAccess(app);
     registerEventsRoute(app, {
       db: testDatabase.db,
