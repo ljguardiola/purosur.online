@@ -28,6 +28,11 @@ export type {
 } from "./expected-balance-at.js";
 export { expectedBalanceAt } from "./expected-balance-at.js";
 export type {
+  ExpiringLotProduct,
+  ExpiringLotReader,
+  ExpiringLotRow,
+} from "./expiring-lot-reader.js";
+export type {
   FindCountableProductByBarcodeOutcome,
   FoundCountableProduct,
   SearchCountableProductsByNameOutcome,
@@ -57,6 +62,12 @@ export type {
   LotCostTransaction,
   LotOriginKind,
 } from "./lot-cost-store.js";
+export type {
+  ExpiringLotsView,
+  ExpiringLotView,
+  ReadExpiringLotsInput,
+} from "./read-expiring-lots.js";
+export { readExpiringLots } from "./read-expiring-lots.js";
 export type { ReadInitialCountOutcome } from "./read-initial-count.js";
 export { readInitialCount } from "./read-initial-count.js";
 export type {
