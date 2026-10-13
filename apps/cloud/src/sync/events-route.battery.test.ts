@@ -104,7 +104,9 @@ describe("the battery a register reports through POST /events", () => {
 
     await push(deviceToken, { ...PRESENT, charge_percent: 150 });
 
-    expect(logged).toEqual([{ message: expect.stringContaining("battery"), context: { deviceId } }]);
+    expect(logged).toEqual([
+      { message: expect.stringContaining("battery"), context: { deviceId } },
+    ]);
   });
 
   it("keeps what it holds when the battery report of a push cannot be read", async () => {
