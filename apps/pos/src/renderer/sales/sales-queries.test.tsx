@@ -1,9 +1,10 @@
 import type {
   CashChargeAnswer,
   CurrentSaleAnswer,
-  FollowMercadoPagoQrChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
   ManualAdjustmentRequest,
   OpenSale,
+  PaymentMethodAvailability,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   ReceiptPrintStatusOutcome,
@@ -22,10 +23,12 @@ import {
   useAdjustmentPreviewQuery,
   useCashChargeQuery,
   useCurrentSaleQuery,
+  usePaymentMethodAvailabilityQuery,
   useQrChargeQuery,
   useReadCurrentSale,
   useReceiptPrintStatusQuery,
   useRefreshCurrentSale,
+  useRefreshPaymentMethodAvailability,
   useRefreshSalesHistory,
   useResetCurrentSale,
   useSaleDiscountPreviewQuery,
@@ -58,6 +61,7 @@ const SALE: OpenSale = {
   lines_lock: null,
   cancel_refusal: null,
   charge_refusal: null,
+  mercado_pago_charge_in_progress: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,
@@ -247,11 +251,14 @@ describe("current sale query", () => {
   it.each<[string, Pick<OpenSale, "lines_lock" | "cancel_refusal">]>([
     [
       "its lines are locked",
-      { lines_lock: "qr_charge_in_progress", cancel_refusal: "qr_charge_in_progress" },
+      {
+        lines_lock: "mercado_pago_charge_in_progress",
+        cancel_refusal: "mercado_pago_charge_in_progress",
+      },
     ],
     [
       "cancelling it is refused",
-      { lines_lock: "approved_payment", cancel_refusal: "qr_charge_in_progress" },
+      { lines_lock: "approved_payment", cancel_refusal: "mercado_pago_charge_in_progress" },
     ],
   ])(
     "reads the sale again every second while %s by a QR charge in its wait, and stops once the core lifts it",
@@ -284,11 +291,11 @@ describe("current sale query", () => {
   it("asks the core for the sale when it is read, answering and showing what the core says now", async () => {
     const read = vi
       .fn<() => Promise<CurrentSaleAnswer>>()
-      .mockResolvedValueOnce({ ...SALE, lines_lock: "qr_charge_in_progress" })
+      .mockResolvedValueOnce({ ...SALE, lines_lock: "mercado_pago_charge_in_progress" })
       .mockResolvedValue(SALE);
     document.title = "";
     const screen = await renderWithClient(<CurrentSaleProbe read={read} />);
-    await expect.element(screen.getByText("lines qr_charge_in_progress")).toBeVisible();
+    await expect.element(screen.getByText("lines mercado_pago_charge_in_progress")).toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "read" }));
 
@@ -669,9 +676,9 @@ describe("receipt print status query", () => {
   );
 });
 
-type Follow = (paymentTransactionId: string) => Promise<FollowMercadoPagoQrChargeOutcome>;
+type Follow = (paymentTransactionId: string) => Promise<FollowMercadoPagoChargeOutcome>;
 
-function followAnswering(...outcomes: FollowMercadoPagoQrChargeOutcome[]) {
+function followAnswering(...outcomes: FollowMercadoPagoChargeOutcome[]) {
   return vi.fn<Follow>(async () => {
     const outcome = outcomes.length > 1 ? outcomes.shift() : outcomes[0];
     return outcome ?? { kind: "unavailable" };
@@ -719,6 +726,24 @@ describe("QR charge query", () => {
     await expect.element(screen.getByText("declined")).toBeVisible();
     await vi.advanceTimersByTimeAsync(5000);
     expect(follow).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps asking while the order is at the terminal after the wait is over, and stops once it closes", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const follow = followAnswering(
+      { kind: "waiting", remaining_seconds: 1 },
+      { kind: "at_terminal_wait_over" },
+      { kind: "at_terminal_wait_over" },
+      { kind: "closed" },
+    );
+    const screen = await renderWithClient(<QrChargeProbe follow={follow} />);
+    await expect.element(screen.getByText("waiting 1")).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(3000);
+
+    await expect.element(screen.getByText("closed")).toBeVisible();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(follow).toHaveBeenCalledTimes(4);
   });
 
   it("fails, asking no more, when the core cannot answer", async () => {
@@ -789,6 +814,101 @@ function SalesHistoryProbe({
     </>
   );
 }
+
+type ReadAvailability = () => Promise<PaymentMethodAvailability | null>;
+
+function AvailabilityProbe({ read }: { read: ReadAvailability }) {
+  const availability = usePaymentMethodAvailabilityQuery({ sessionId: "s1", userId: "u1", read });
+  const refresh = useRefreshPaymentMethodAvailability("s1", "u1");
+  return (
+    <>
+      <p>{availability.status}</p>
+      {availability.status === "loaded" ? (
+        <p>
+          qr {availability.value.qr}, point {availability.value.point}, minimum{" "}
+          {availability.value.point_minimum}
+        </p>
+      ) : null}
+      <button type="button" onClick={() => void refresh()}>
+        refresh
+      </button>
+    </>
+  );
+}
+
+describe("payment methods availability query", () => {
+  it("holds what the core answers for the sale being charged", async () => {
+    const read = vi.fn<ReadAvailability>(async () => ({
+      qr: "available",
+      point: "below_minimum",
+      point_minimum: 1500,
+    }));
+    const screen = await renderWithClient(<AvailabilityProbe read={read} />);
+
+    await expect
+      .element(screen.getByText("qr available, point below_minimum, minimum 1500"))
+      .toBeVisible();
+  });
+
+  it("fails when the core has no sale to answer for", async () => {
+    const screen = await renderWithClient(<AvailabilityProbe read={async () => null} />);
+
+    await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+  });
+
+  it("fails when reading it is rejected", async () => {
+    const screen = await renderWithClient(
+      <AvailabilityProbe
+        read={async () => {
+          throw new Error("the core could not answer");
+        }}
+      />,
+    );
+
+    await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+  });
+
+  it("reads again at once when it is refreshed", async () => {
+    const answers: PaymentMethodAvailability[] = [
+      { qr: "available", point: "available", point_minimum: 1500 },
+      { qr: "offline", point: "offline", point_minimum: 1500 },
+    ];
+    const read = vi.fn<ReadAvailability>(async () => answers.shift() ?? null);
+    const screen = await renderWithClient(<AvailabilityProbe read={read} />);
+    await expect
+      .element(screen.getByText("qr available, point available, minimum 1500"))
+      .toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "refresh" }));
+
+    await expect.element(screen.getByText("qr offline, point offline, minimum 1500")).toBeVisible();
+  });
+
+  it("reads again each time the charge screen opens", async () => {
+    const read = vi.fn<ReadAvailability>(async () => ({
+      qr: "available",
+      point: "available",
+      point_minimum: 1500,
+    }));
+    const client = createQueryClient();
+    const first = await render(
+      <QueryClientProvider client={client}>
+        <AvailabilityProbe read={read} />
+      </QueryClientProvider>,
+    );
+    await expect.element(first.getByText("loaded", { exact: true })).toBeVisible();
+    await first.unmount();
+
+    const second = await render(
+      <QueryClientProvider client={client}>
+        <AvailabilityProbe read={read} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(second.getByText("loaded", { exact: true })).toBeVisible();
+    await expect.poll(() => read.mock.calls.length).toBe(2);
+  });
+});
 
 describe("sales history query", () => {
   it("reads the page and filters it is given", async () => {

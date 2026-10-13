@@ -1,10 +1,10 @@
 import { encodePinHash } from "@purosur/contracts";
-import type { MercadoPagoQrChargeOrders } from "@purosur/domain/payments/use-cases";
+import type { MercadoPagoChargeOrders } from "@purosur/domain/payments/use-cases";
 import { derivePinVerifier } from "../../credentials/pin-verifier";
 import {
-  abandonMercadoPagoQrChargeFor,
-  startMercadoPagoQrChargeFor,
-} from "../../payments/mercado-pago-qr-charge-requests";
+  abandonMercadoPagoChargeFor,
+  startMercadoPagoChargeFor,
+} from "../../payments/mercado-pago-charge-requests";
 import type { LocalDatabase } from "../../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../../platform/local-migrations";
 import { migrationClock } from "../../platform/test-support/migration-clock";
@@ -68,7 +68,7 @@ const PEPPER = Buffer.alloc(32, 9).toString("base64url");
 const PIN = "4826";
 const PIN_HASH = "hash-of-the-pin";
 
-const OFFLINE_QR_ORDERS: MercadoPagoQrChargeOrders = {
+const OFFLINE_QR_ORDERS: MercadoPagoChargeOrders = {
   requestOrder: async () => ({ kind: "created", expiresAt: new Date("2026-10-09T12:03:00.000Z") }),
   readOrder: async () => ({ kind: "unreachable" }),
   cancelOrder: async () => ({ kind: "unreachable" }),
@@ -496,15 +496,15 @@ export async function withRegisterSession<TResult>(
       );
     }
     nextStep();
-    const qr = await startMercadoPagoQrChargeFor(
+    const qr = await startMercadoPagoChargeFor(
       { ...deps(), orders: OFFLINE_QR_ORDERS },
-      { saleId: replacedScan.sale.id, amount: 500 },
+      { saleId: replacedScan.sale.id, method: "QR", amount: 500 },
     );
     if (qr.kind !== "order_shown") {
       throw new Error(`The register session's "start a QR charge" ended as "${qr.kind}"`);
     }
     nextStep();
-    const replaced = await abandonMercadoPagoQrChargeFor(
+    const replaced = await abandonMercadoPagoChargeFor(
       { ...deps(), orders: OFFLINE_QR_ORDERS },
       { paymentTransactionId: qr.payment_transaction_id },
     );

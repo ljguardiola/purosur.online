@@ -131,7 +131,7 @@ describe("chargeSaleByTransfer", () => {
 
   it("completes the sale beside a pending QR payment marked as replaced, sending only the approved payments", () => {
     const store = ledger({
-      pendingQrPayments: [REPLACED_QR],
+      pendingMercadoPagoPayments: [REPLACED_QR],
       replacedQrPaymentIds: ["qr-1"],
     });
 
@@ -141,6 +141,25 @@ describe("chargeSaleByTransfer", () => {
     expect(store.state.outbox[0]?.payload).toMatchObject({
       payments: [{ id: "id-1", method: "TRANSFER" }],
     });
+  });
+
+  it.each([
+    [
+      "a terminal charge, even past its wait",
+      {
+        ...REPLACED_QR,
+        id: "point-1",
+        method: "POINT",
+        provider: "MERCADOPAGO_POINT",
+      },
+    ],
+    ["a QR charge in its wait", { ...REPLACED_QR, waitEndsAt: new Date(NOW.getTime() + 60_000) }],
+  ] as const)("refuses to charge, recording nothing, while %s is in progress", (_case, pending) => {
+    const store = ledger({ pendingMercadoPagoPayments: [pending] });
+
+    expect(charge(store)).toEqual({ kind: "mercado_pago_charge_in_progress" });
+    expect(store.state.payments).toEqual([]);
+    expect(store.state.sales[0]?.state).toBe("OPEN");
   });
 
   it("dates the sale with the moment it is charged, not with the moment its first product was added", () => {

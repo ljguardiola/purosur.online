@@ -73,7 +73,7 @@ export async function applySaleDiscount<Grant extends ApplySaleDiscountGrant, Re
       ...openSaleStanding(
         amountToCharge(discounted),
         tx.salePayments(sale.id),
-        tx.pendingQrPaymentsOf(sale.id),
+        tx.pendingMercadoPagoPaymentsOf(sale.id),
         moment,
       ),
     };

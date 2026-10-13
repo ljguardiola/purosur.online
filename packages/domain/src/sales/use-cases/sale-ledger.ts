@@ -5,7 +5,11 @@ import type {
   IssuerIdentificationInEffect,
   PreEmissionGateOutcome,
 } from "../../fiscal/index.js";
-import type { PendingQrSalePayment, PlannedRefund, SalePayment } from "../../payments/index.js";
+import type {
+  PendingMercadoPagoSalePayment,
+  PlannedRefund,
+  SalePayment,
+} from "../../payments/index.js";
 import type { RoleAccess } from "../../permissions/index.js";
 import type { DiscountRecurrence } from "../../pricing/index.js";
 import type { CashMovement } from "../../register/index.js";
@@ -92,10 +96,12 @@ export interface SaleLedgerTransaction {
   saleCashMovements(saleId: string): SaleCashMovement[];
   discardOpenSale(saleId: string): void;
   recordPayment(payment: SalePayment): void;
-  recordPendingQrPayment(payment: PendingQrSalePayment): void;
-  pendingQrPayment(paymentTransactionId: string): PendingQrSalePayment | undefined;
-  pendingQrPaymentsOf(saleId: string): PendingQrSalePayment[];
-  approvePendingQrPayment(paymentTransactionId: string): void;
+  recordPendingMercadoPagoPayment(payment: PendingMercadoPagoSalePayment): void;
+  pendingMercadoPagoPayment(
+    paymentTransactionId: string,
+  ): PendingMercadoPagoSalePayment | undefined;
+  pendingMercadoPagoPaymentsOf(saleId: string): PendingMercadoPagoSalePayment[];
+  approvePendingMercadoPagoPayment(paymentTransactionId: string): void;
   markQrPaymentReplaced(paymentTransactionId: string, waitEndsAt: Date): void;
   recordCashMovement(movement: CashMovement): void;
   recordSaleStockMovement(movement: SaleStockMovement): void;

@@ -52,6 +52,7 @@ const sale = {
   subtotal: 3000,
   sale_discount: null,
   sale_discount_refusal: null,
+  mercado_pago_charge_in_progress: null,
 };
 
 describe("saleSchema", () => {
@@ -89,19 +90,92 @@ describe("saleSchema", () => {
     expect(saleSchema.parse({ ...sale, lines: [promoted] }).lines).toEqual([promoted]);
   });
 
-  it.each([null, "approved_payment", "qr_charge_in_progress"] as const)(
+  it.each([null, "approved_payment", "mercado_pago_charge_in_progress"] as const)(
     "accepts a sale whose lines are locked by %s",
     (lines_lock) => {
       expect(saleSchema.parse({ ...sale, lines_lock }).lines_lock).toBe(lines_lock);
     },
   );
 
-  it.each([null, "qr_charge_in_progress", "holds_qr_payment"] as const)(
+  it.each([null, "mercado_pago_charge_in_progress", "holds_mercado_pago_payment"] as const)(
     "accepts a sale whose cancellation is refused by %s",
     (cancel_refusal) => {
       expect(saleSchema.parse({ ...sale, cancel_refusal }).cancel_refusal).toBe(cancel_refusal);
     },
   );
+
+  it.each(["QR", "POINT"] as const)(
+    "accepts a sale with a %s charge in progress, named to be followed",
+    (method) => {
+      const mercado_pago_charge_in_progress = {
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000b1",
+        method,
+        amount: 2000,
+        remaining_seconds: 0,
+        wait_seconds: 180,
+      };
+
+      expect(
+        saleSchema.parse({ ...sale, mercado_pago_charge_in_progress })
+          .mercado_pago_charge_in_progress,
+      ).toEqual(mercado_pago_charge_in_progress);
+    },
+  );
+
+  it.each([
+    ["without saying whether a charge is in progress", undefined],
+    [
+      "with a charge in progress of another method",
+      {
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000b1",
+        method: "CASH",
+        amount: 2000,
+        remaining_seconds: 0,
+        wait_seconds: 180,
+      },
+    ],
+    [
+      "with a charge in progress with a negative wait",
+      {
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000b1",
+        method: "QR",
+        amount: 2000,
+        remaining_seconds: -1,
+        wait_seconds: 180,
+      },
+    ],
+    [
+      "with a charge in progress without the full wait",
+      {
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000b1",
+        method: "POINT",
+        amount: 2000,
+        remaining_seconds: 0,
+      },
+    ],
+    [
+      "with a charge in progress with no full wait",
+      {
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000b1",
+        method: "POINT",
+        amount: 2000,
+        remaining_seconds: 0,
+        wait_seconds: 0,
+      },
+    ],
+    [
+      "with a charge in progress with a negative full wait",
+      {
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000b1",
+        method: "POINT",
+        amount: 2000,
+        remaining_seconds: 0,
+        wait_seconds: -1,
+      },
+    ],
+  ])("rejects a sale %s", (_case, mercado_pago_charge_in_progress) => {
+    expect(saleSchema.safeParse({ ...sale, mercado_pago_charge_in_progress }).success).toBe(false);
+  });
 
   it.each([null, "empty_sale", "zero_total"] as const)(
     "accepts a sale whose discount on the total is refused by %s",
@@ -485,8 +559,8 @@ describe("cancelPaidSaleOutcomeSchema", () => {
     { kind: "unavailable" },
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
     { kind: "locked", consecutive_failures: PIN_SIGN_IN_LOCKOUT_FAILURES },
-    { kind: "qr_charge_in_progress" },
-    { kind: "holds_qr_payment" },
+    { kind: "mercado_pago_charge_in_progress" },
+    { kind: "holds_mercado_pago_payment" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(cancelPaidSaleOutcomeSchema.parse(outcome)).toEqual(outcome);
   });
@@ -703,7 +777,7 @@ describe("cancelSaleOutcomeSchema", () => {
   it.each([
     { kind: "cancelled" },
     { kind: "has_approved_payment" },
-    { kind: "qr_charge_in_progress" },
+    { kind: "mercado_pago_charge_in_progress" },
     ...refusals,
   ])("accepts the outcome $kind", (outcome) => {
     expect(cancelSaleOutcomeSchema.parse(outcome)).toEqual(outcome);
@@ -732,6 +806,7 @@ describe("chargeSaleInCashOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "unavailable" },
+    { kind: "mercado_pago_charge_in_progress" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(chargeSaleInCashOutcomeSchema.parse(outcome)).toEqual(outcome);
   });
@@ -775,6 +850,7 @@ describe("chargeSaleByTransferOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "unavailable" },
+    { kind: "mercado_pago_charge_in_progress" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(chargeSaleByTransferOutcomeSchema.parse(outcome)).toEqual(outcome);
   });

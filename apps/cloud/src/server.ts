@@ -103,6 +103,8 @@ export interface ServerEnv {
   MERCADOPAGO_QR_EXTERNAL_POS_ID?: string | undefined;
   /** The secret Mercado Pago signs its notifications with, from its developer panel. */
   MERCADOPAGO_WEBHOOK_SECRET?: string | undefined;
+  /** The identifier of the store's integrated Point terminal at Mercado Pago. */
+  MERCADOPAGO_POINT_TERMINAL_ID?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
@@ -679,7 +681,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
       : {}),
     ...(database
       ? {
-          mercadoPagoQr: {
+          mercadoPagoOrders: {
             connections: database.recovery.connections,
             ...(mercadoPago ? { mercadoPago } : {}),
           },

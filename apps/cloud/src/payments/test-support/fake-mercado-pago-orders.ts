@@ -3,6 +3,8 @@ import type {
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
   MercadoPagoOrders,
+  MercadoPagoPointOrderCreation,
+  MercadoPagoPointOrderRequest,
   MercadoPagoQrOrderRequest,
 } from "@purosur/domain/payments/use-cases";
 
@@ -25,6 +27,14 @@ export const PAID_ORDER = {
   payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 5000 }],
 } as const;
 
+export const AT_TERMINAL_ORDER = {
+  status: "at_terminal",
+  statusDetail: "at_terminal",
+  externalReference: null,
+  totalPaidAmount: null,
+  payments: [{ status: "at_terminal", statusDetail: "at_terminal", paidAmount: null }],
+} as const;
+
 const CANCELLED_ORDER = {
   status: "canceled",
   statusDetail: "canceled",
@@ -36,15 +46,28 @@ const CANCELLED_ORDER = {
 export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   readonly longestCallMs = 10_000;
   readonly creations: MercadoPagoQrOrderRequest[] = [];
+  readonly pointCreations: MercadoPagoPointOrderRequest[] = [];
   readonly readings: string[] = [];
   readonly cancellations: { orderId: string; idempotencyKey: string }[] = [];
   creation: MercadoPagoOrderCreation = { kind: "created", orderId: ORDER_ID, result: UNPAID_ORDER };
+  pointCreation: MercadoPagoPointOrderCreation = {
+    kind: "created",
+    orderId: ORDER_ID,
+    result: UNPAID_ORDER,
+  };
   reading: MercadoPagoOrderReading = { kind: "read", result: UNPAID_ORDER };
   cancellation: MercadoPagoOrderCancellation = { kind: "cancelled", result: CANCELLED_ORDER };
 
   async createQrOrder(request: MercadoPagoQrOrderRequest): Promise<MercadoPagoOrderCreation> {
     this.creations.push(request);
     return this.creation;
+  }
+
+  async createPointOrder(
+    request: MercadoPagoPointOrderRequest,
+  ): Promise<MercadoPagoPointOrderCreation> {
+    this.pointCreations.push(request);
+    return this.pointCreation;
   }
 
   async readOrder(orderId: string): Promise<MercadoPagoOrderReading> {

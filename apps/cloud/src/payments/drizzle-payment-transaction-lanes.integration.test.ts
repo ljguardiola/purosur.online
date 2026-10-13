@@ -1,10 +1,12 @@
 import {
+  cancelMercadoPagoOrder,
   createMercadoPagoQrOrder,
   type MercadoPagoOrderCancellation,
   type MercadoPagoOrderCreation,
+  type MercadoPagoOrderPorts,
   type MercadoPagoOrderReading,
   type MercadoPagoOrders,
-  type MercadoPagoQrOrderPorts,
+  type MercadoPagoPointOrderCreation,
   type MercadoPagoQrOrderRequest,
 } from "@purosur/domain/payments/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -67,6 +69,10 @@ class HeldMercadoPago implements MercadoPagoOrders {
     });
   }
 
+  async createPointOrder(): Promise<MercadoPagoPointOrderCreation> {
+    return { kind: "not_configured" };
+  }
+
   async readOrder(): Promise<MercadoPagoOrderReading> {
     return { kind: "read", result: UNPAID_ORDER };
   }
@@ -91,7 +97,7 @@ class HeldMercadoPago implements MercadoPagoOrders {
   }
 }
 
-function portsOf(mercadoPago: MercadoPagoOrders): MercadoPagoQrOrderPorts {
+function portsOf(mercadoPago: MercadoPagoOrders): MercadoPagoOrderPorts {
   return {
     lanes: new DrizzlePaymentTransactionLanes(postgresDedicatedConnections(sql)),
     mercadoPago,
@@ -99,13 +105,26 @@ function portsOf(mercadoPago: MercadoPagoOrders): MercadoPagoQrOrderPorts {
   };
 }
 
-function create(ports: MercadoPagoQrOrderPorts, registerId: string, paymentTransactionId: string) {
+function create(ports: MercadoPagoOrderPorts, registerId: string, paymentTransactionId: string) {
   return createMercadoPagoQrOrder(ports, {
     registerId,
     paymentTransactionId,
     saleId: "00000000-0000-4000-8000-000000000001",
     amount: 5000,
   });
+}
+
+function cancel(ports: MercadoPagoOrderPorts, registerId: string, paymentTransactionId: string) {
+  return cancelMercadoPagoOrder(
+    { ...ports, cancellationKeys: { newCancellationKey: () => crypto.randomUUID() } },
+    {
+      registerId,
+      paymentTransactionId,
+      saleId: "00000000-0000-4000-8000-000000000001",
+      amount: 5000,
+      provider: "MERCADOPAGO_QR",
+    },
+  );
 }
 
 function storedRows(id: string) {
@@ -202,5 +221,37 @@ describe("the payment transaction lanes on a real Postgres", () => {
     await mercadoPago.untilStarted(2);
     mercadoPago.release(id);
     await expect(next).resolves.toMatchObject({ kind: "recorded" });
+  });
+
+  it("never calls the provider for an order asked for after the payment was cancelled before the cloud recorded it", async () => {
+    const registerId = await insertRegister(db, "caja-cancelled-first");
+    const id = crypto.randomUUID();
+    const mercadoPago = new HeldMercadoPago();
+    const ports = portsOf(mercadoPago);
+
+    await expect(cancel(ports, registerId, id)).resolves.toMatchObject({ kind: "cancelled" });
+    await expect(create(ports, registerId, id)).resolves.toMatchObject({
+      kind: "recorded",
+      transaction: { state: "CANCELLED", providerOrderId: null },
+    });
+
+    expect(mercadoPago.started).toEqual([]);
+  });
+
+  it("serves a cancellation that arrives while the payment's order is being created after the creation, through the created order", async () => {
+    const registerId = await insertRegister(db, "caja-cancelled-during-creation");
+    const id = crypto.randomUUID();
+    const mercadoPago = new HeldMercadoPago();
+    const ports = portsOf(mercadoPago);
+
+    const creation = create(ports, registerId, id);
+    await mercadoPago.untilStarted(1);
+    const cancellation = cancel(ports, registerId, id);
+    await waitForLockWaiters(sql, 1);
+    mercadoPago.release(id);
+    await creation;
+
+    expect(await cancellation).toEqual({ kind: "provider_unavailable" });
+    expect(await storedRows(id)).toMatchObject([{ id, provider_order_id: `ORD-${id}` }]);
   });
 });
