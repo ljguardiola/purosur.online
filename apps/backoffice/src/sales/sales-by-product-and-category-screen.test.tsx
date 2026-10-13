@@ -398,17 +398,17 @@ test("pages a report with more rows than a page and counts them", async () => {
       sort: "ascending",
     }),
   });
-  await expect.element(screen.getByText("Producto 01")).toBeVisible();
+  await expect.element(screen.getByRole("table").getByText("Producto 01")).toBeVisible();
 
   expect(screen.getByRole("row").elements()).toHaveLength(26);
   await expect.element(screen.getByText("30 productos")).toBeVisible();
-  expect(screen.getByText("Producto 26").query()).toBeNull();
+  expect(screen.getByRole("table").getByText("Producto 26").query()).toBeNull();
 
   await userEvent.click(screen.getByRole("button", { name: "Página 2" }));
 
-  await expect.element(screen.getByText("Producto 26")).toBeVisible();
+  await expect.element(screen.getByRole("table").getByText("Producto 26")).toBeVisible();
   expect(screen.getByRole("row").elements()).toHaveLength(6);
-  expect(screen.getByText("Producto 01").query()).toBeNull();
+  expect(screen.getByRole("table").getByText("Producto 01").query()).toBeNull();
 });
 
 test("does not offer pages for a report that fits in one", async () => {
@@ -432,12 +432,12 @@ test("goes back to the first page when the grouping changes", async () => {
       sort: "ascending",
     }),
   });
-  await expect.element(screen.getByText("Producto 01")).toBeVisible();
+  await expect.element(screen.getByRole("table").getByText("Producto 01")).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Página 2" }));
-  await expect.element(screen.getByText("Producto 26")).toBeVisible();
+  await expect.element(screen.getByRole("table").getByText("Producto 26")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /Agrupar:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Por categoría" }));
 
-  await expect.element(screen.getByText("Producto 01")).toBeVisible();
+  await expect.element(screen.getByRole("table").getByText("Producto 01")).toBeVisible();
 });
