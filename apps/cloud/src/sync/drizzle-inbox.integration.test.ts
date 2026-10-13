@@ -480,19 +480,17 @@ describe("the inbox keeping the latest battery a register reported, on a real Po
   };
 
   async function batteryOf(deviceId: string) {
-    const [row] = await sql<
-      {
-        present: boolean | null;
-        chargePercent: number | null;
-        healthPercent: number | null;
-        onBattery: boolean | null;
-        onBatteryMinutes: number | null;
-        reportedAt: Date | null;
-      }[]
-    >`select battery_present as "present", battery_charge_percent as "chargePercent",
-             battery_health_percent as "healthPercent", battery_on_battery as "onBattery",
-             battery_on_battery_minutes as "onBatteryMinutes", battery_reported_at as "reportedAt"
-      from device_state where device_id = ${deviceId}`;
+    const [row] = await db
+      .select({
+        present: deviceState.batteryPresent,
+        chargePercent: deviceState.batteryChargePercent,
+        healthPercent: deviceState.batteryHealthPercent,
+        onBattery: deviceState.batteryOnBattery,
+        onBatteryMinutes: deviceState.batteryOnBatteryMinutes,
+        reportedAt: deviceState.batteryReportedAt,
+      })
+      .from(deviceState)
+      .where(eq(deviceState.deviceId, deviceId));
     return row;
   }
 
@@ -587,7 +585,7 @@ describe("the inbox keeping the latest battery a register reported, on a real Po
 
     await push(first.deviceId, linked(event(1)), "1.4.0", PRESENT);
 
-    expect(await batteryOf(second.deviceId)).toMatchObject({ present: null });
+    expect(await batteryOf(second.deviceId)).toBeUndefined();
   });
 });
 
