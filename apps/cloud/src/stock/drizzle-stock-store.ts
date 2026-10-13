@@ -159,6 +159,14 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
     }
   }
 
+  async lotProduct(lotId: string, locationId: string): Promise<string | undefined> {
+    const [found] = await this.tx
+      .select({ productId: lots.productId })
+      .from(lots)
+      .where(and(eq(lots.id, lotId), eq(lots.locationId, locationId), eq(lots.withdrawn, false)));
+    return found?.productId;
+  }
+
   async productLots(key: ProductStockKey): Promise<StockLot[]> {
     const found = await this.tx
       .select({
