@@ -59,9 +59,7 @@ const CONDITION_ICONS: Record<Condition["kind"], Icon> = {
 };
 
 function conditionTone(condition: Condition): "error" | "warning" {
-  return condition.kind === "sales_denied" || condition.kind === "installation_revoked"
-    ? "error"
-    : "warning";
+  return condition.level === "critical" ? "error" : "warning";
 }
 
 function NoticesPill({ conditions }: { conditions: RegisterStatus["conditions"] }) {

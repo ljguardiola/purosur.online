@@ -1,4 +1,5 @@
 import {
+  ALERT_LEVELS,
   type AuthorizablePermissionKey,
   CASH_MOVEMENT_DIRECTIONS,
   CASH_MOVEMENT_KINDS,
@@ -320,8 +321,15 @@ const SERIAL_DEVICE_STANDING_KINDS = [
 ] as const;
 
 const registerOwnConditionSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("sales_denied"), reason: z.enum(SALES_DENIED_REASONS) }),
-  z.object({ kind: z.enum(REGISTER_OWN_CONDITIONS).exclude(["sales_denied"]) }),
+  z.object({
+    kind: z.literal("sales_denied"),
+    reason: z.enum(SALES_DENIED_REASONS),
+    level: z.enum(ALERT_LEVELS),
+  }),
+  z.object({
+    kind: z.enum(REGISTER_OWN_CONDITIONS).exclude(["sales_denied"]),
+    level: z.enum(ALERT_LEVELS),
+  }),
 ]);
 
 const registerStatusSchema = z.object({
