@@ -45,7 +45,14 @@ export function recipeShapeRefusal(
   return null;
 }
 
-export function inLockOrder(components: readonly RecipeComponent[]): RecipeComponent[] {
-  const ids = [...new Set(components.map((component) => component.componentProductId))].sort();
-  return ids.flatMap((id) => components.filter((component) => component.componentProductId === id));
+export function productsInLockOrder(
+  assembledProductId: string,
+  components: readonly RecipeComponent[],
+): string[] {
+  return [
+    ...new Set([
+      assembledProductId,
+      ...components.map((component) => component.componentProductId),
+    ]),
+  ].sort();
 }

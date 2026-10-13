@@ -1,13 +1,13 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import {
-  inLockOrder,
   isQuantityPerOutputUnit,
   mayBeInRecipe,
+  productsInLockOrder,
   type RecipeComponent,
   type RecipeShapeRefusal,
   recipeShapeRefusal,
 } from "../model/recipe.js";
-import type { Recipe, RecipeStore } from "./recipe-store.js";
+import type { LockRecipeProductResult, Recipe, RecipeStore } from "./recipe-store.js";
 import { RecipeVersionConflict } from "./recipe-store.js";
 
 export interface SaveRecipeInput {
@@ -39,23 +39,28 @@ export async function saveRecipe(
 
   try {
     return await store.transaction(async (tx) => {
-      const assembled = await tx.lockProduct(input.productId);
-      if (assembled.kind === "not_found" || !mayBeInRecipe(assembled.product)) {
+      const locked = new Map<string, LockRecipeProductResult>();
+      for (const productId of productsInLockOrder(input.productId, input.components)) {
+        locked.set(productId, await tx.lockProduct(productId));
+      }
+
+      const assembled = locked.get(input.productId);
+      if (assembled?.kind !== "locked" || !mayBeInRecipe(assembled.product)) {
         return { kind: "product_not_found" };
+      }
+
+      const withSaleUnits: { component: RecipeComponent; saleUnit: SaleUnit }[] = [];
+      for (const component of input.components) {
+        const product = locked.get(component.componentProductId);
+        if (product?.kind !== "locked" || !mayBeInRecipe(product.product)) {
+          return { kind: "component_not_found", componentProductId: component.componentProductId };
+        }
+        withSaleUnits.push({ component, saleUnit: product.product.saleUnit });
       }
 
       const currentVersion = await tx.recipeVersion(input.productId);
       if (currentVersion !== input.version) {
         return { kind: "stale_version" };
-      }
-
-      const withSaleUnits: { component: RecipeComponent; saleUnit: SaleUnit }[] = [];
-      for (const component of inLockOrder(input.components)) {
-        const locked = await tx.lockProduct(component.componentProductId);
-        if (locked.kind === "not_found" || !mayBeInRecipe(locked.product)) {
-          return { kind: "component_not_found", componentProductId: component.componentProductId };
-        }
-        withSaleUnits.push({ component, saleUnit: locked.product.saleUnit });
       }
 
       for (const { component, saleUnit } of withSaleUnits) {
