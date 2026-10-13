@@ -2614,7 +2614,7 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
-        url: "/api/reports/registers",
+        url: "/api/reports/sales-by-payment-method",
         access: capabilityAccess("reports_area"),
       },
       {
@@ -2636,6 +2636,11 @@ describe("the route access inventory", () => {
         method: "GET",
         url: "/api/registers",
         access: capabilityAccess("registers_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/registers",
+        access: capabilityAccess("reports_area"),
       },
       {
         method: "GET",

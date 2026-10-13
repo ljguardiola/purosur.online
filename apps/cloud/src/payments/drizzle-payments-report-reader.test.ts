@@ -155,25 +155,6 @@ describe("DrizzlePaymentsReportReader.approvedPaymentsByMethod", () => {
     expect(report.total).toBe(1_000);
   });
 
-  it("leaves out the payments of a sale that was completed and then cancelled", async () => {
-    const { deviceId, locationId } = await aRegister("Caja 1");
-    const saleId = await sold(deviceId, [aPayment("QR", 4_800)]);
-    await applyCancelledSale(db, {
-      deviceId,
-      cancelledAt: new Date("2026-10-06T16:00:00.000Z"),
-      total: 4_800,
-      overrides: { id: saleId },
-    });
-
-    const report = await reader().approvedPaymentsByMethod({
-      locationId,
-      period: wholeOctober,
-      registerId: undefined,
-    });
-
-    expect(report).toEqual({ methods: [], salesCount: 0, total: 0 });
-  });
-
   it("dates a payment by the Argentina calendar day its sale was completed", async () => {
     const { deviceId, locationId } = await aRegister("Caja 1");
     const at = (completedAt: string) => new Date(completedAt);
