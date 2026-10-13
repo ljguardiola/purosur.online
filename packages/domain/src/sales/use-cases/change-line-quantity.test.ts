@@ -85,9 +85,14 @@ const PAYMENT: SalePayment = {
   occurredAt: NOW,
 };
 
-const TEN_PERCENT = { id: "ten", benefit: { kind: "PERCENT_OFF" as const, percent: 10 } };
+const TEN_PERCENT = {
+  id: "ten",
+  name: "Diez por ciento",
+  benefit: { kind: "PERCENT_OFF" as const, percent: 10 },
+};
 const THREE_FOR_TWO = {
   id: "three-for-two",
+  name: "Lleve 3 pague 2",
   benefit: { kind: "BUY_N_PAY_M" as const, buyQty: 3, payQty: 2 },
 };
 
@@ -199,6 +204,7 @@ describe("changeLineQuantity", () => {
   it("drops a promotion the lowered quantity no longer reaches", () => {
     const threeForOne = {
       id: "three-for-one",
+      name: "Promoción three-for-one",
       benefit: { kind: "BUY_N_PAY_M" as const, buyQty: 3, payQty: 1 },
     };
     const promoted = {
