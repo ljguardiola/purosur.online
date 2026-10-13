@@ -38,7 +38,7 @@ async function seeded() {
 }
 
 describe("DrizzleLotCostStore.lockLot", () => {
-  it("tells where a lot came from and whether it was withdrawn, from its columns", async () => {
+  it("tells where a lot came from, whether it was withdrawn and what it still holds, from its columns", async () => {
     const { actorId, locationId, productId } = await seeded();
     const initial = await insertInitialCountLot(db, { productId, locationId, actorId });
     const withdrawn = await insertInitialCountLot(db, {
@@ -46,6 +46,7 @@ describe("DrizzleLotCostStore.lockLot", () => {
       locationId,
       actorId,
       withdrawn: true,
+      remaining: -250,
     });
     const purchased = await insertPurchasedLot(db, { productId, locationId, actorId });
     const technical = await insertTechnicalLot(db, { productId, locationId, remaining: 0 });
@@ -59,10 +60,10 @@ describe("DrizzleLotCostStore.lockLot", () => {
     }));
 
     expect(locked).toEqual({
-      initial: { origin: "initial_count", withdrawn: false },
-      withdrawn: { origin: "initial_count", withdrawn: true },
-      purchased: { origin: "purchase", withdrawn: false },
-      technical: { origin: "technical", withdrawn: false },
+      initial: { origin: "initial_count", withdrawn: false, remaining: 6_000 },
+      withdrawn: { origin: "initial_count", withdrawn: true, remaining: -250 },
+      purchased: { origin: "purchase", withdrawn: false, remaining: 10_000 },
+      technical: { origin: "technical", withdrawn: false, remaining: 0 },
     });
   });
 
