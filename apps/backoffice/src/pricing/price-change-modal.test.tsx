@@ -50,7 +50,7 @@ function createProps(overrides: Partial<PriceChangeModalProps> = {}): PriceChang
     onSaved: vi.fn(),
     onGone: vi.fn(),
     reload: vi.fn(),
-    fetchPriceMargin: vi.fn().mockResolvedValue({ kind: "failed" }),
+    fetchPriceMargin: vi.fn().mockResolvedValue({ kind: "ok", value: { costReference: null } }),
     setPrice: vi.fn(),
     confirmPrice: vi.fn(),
     ...overrides,

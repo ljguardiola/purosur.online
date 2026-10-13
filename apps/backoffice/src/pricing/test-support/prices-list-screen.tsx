@@ -15,7 +15,7 @@ export function createServices(
 ): PricesListScreenServices {
   return {
     fetchPrices: vi.fn(),
-    fetchPriceMargin: vi.fn(),
+    fetchPriceMargin: vi.fn().mockResolvedValue({ kind: "ok", value: { costReference: null } }),
     setPrice: vi.fn(),
     confirmPrice: vi.fn(),
     ...overrides,
