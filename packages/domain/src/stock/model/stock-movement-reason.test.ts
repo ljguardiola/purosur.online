@@ -5,8 +5,8 @@ import {
   LOSS_REASONS,
   lossDelta,
   STOCK_DIRECTIONS,
-  signedDelta,
   SYSTEM_LOSS_REASONS,
+  signedDelta,
 } from "./stock-movement-reason.js";
 
 describe("LOSS_REASONS", () => {
