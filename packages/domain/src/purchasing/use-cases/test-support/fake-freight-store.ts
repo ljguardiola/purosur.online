@@ -48,10 +48,13 @@ function cloneState(state: FakeFreightState): FakeFreightState {
 }
 
 class FakeFreightStoreTransaction implements FreightStoreTransaction {
-  constructor(
-    private readonly state: FakeFreightState,
-    private readonly store: FakeFreightStore,
-  ) {}
+  private readonly state: FakeFreightState;
+  private readonly store: FakeFreightStore;
+
+  constructor(state: FakeFreightState, store: FakeFreightStore) {
+    this.state = state;
+    this.store = store;
+  }
 
   async lockPurchasesForFreight(
     locationId: string,
