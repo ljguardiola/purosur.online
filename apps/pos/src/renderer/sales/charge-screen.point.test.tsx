@@ -116,6 +116,7 @@ describe("ChargeScreen · Point integrada", () => {
           method: "POINT",
           amount: 300_000,
           remaining_seconds: 120,
+          wait_seconds: 180,
         },
       }),
       followMercadoPagoCharge: async () => ({ kind: "waiting", remaining_seconds: 119 }),

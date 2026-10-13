@@ -1202,6 +1202,7 @@ describe("answerRendererRequest", () => {
       payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
       amount: 1200,
       remaining_seconds: 180,
+      wait_seconds: 180,
     } as const;
     const { deps: withQr } = deps(true, {
       startMercadoPagoCharge: async (request) => {
