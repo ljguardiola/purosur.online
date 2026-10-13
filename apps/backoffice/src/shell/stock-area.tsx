@@ -20,7 +20,7 @@ import {
   canSeeStockMovements,
 } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
-import { StockTopBarAlertsCount } from "./stock-top-bar";
+import { StockTopBarAlertsCount } from "./stock-top-bar-alerts-count";
 
 export const stockAreaRoute = createRoute({
   getParentRoute: () => signedInRoute,

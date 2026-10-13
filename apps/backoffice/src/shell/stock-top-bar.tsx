@@ -1,7 +1,6 @@
-import { createContext, type ReactNode, Suspense, useContext } from "react";
+import { type ReactNode, Suspense, useContext } from "react";
 import { ScreenTitle } from "./screen-title";
-
-export const StockTopBarAlertsCount = createContext<ReactNode>(null);
+import { StockTopBarAlertsCount } from "./stock-top-bar-alerts-count";
 
 export function StockTopBar({ title, action }: { title: string; action?: ReactNode }) {
   const alertsCount = useContext(StockTopBarAlertsCount);
