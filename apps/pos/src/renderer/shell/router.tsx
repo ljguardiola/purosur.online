@@ -89,6 +89,7 @@ import { EnrollmentScreen } from "../register/enrollment-screen";
 import { LockedCloseScreen } from "../register/locked-close-screen";
 import { LockedRegisterScreen } from "../register/locked-register-screen";
 import { NoSessionScreen } from "../register/no-session-screen";
+import { OlderVersionScreen } from "../register/older-version-screen";
 import { OutOfServiceScreen } from "../register/out-of-service-screen";
 import { ReceiptPrinterScreen } from "../register/receipt-printer-screen";
 import {
@@ -257,7 +258,8 @@ type ScreenPath =
   | "/starting"
   | "/core-down"
   | "/updating"
-  | "/out-of-service";
+  | "/out-of-service"
+  | "/older-version";
 
 // Until the core says whether the register is in service and then whether this installation is
 // enrolled, the register stays on the brand panel instead of guessing which screen comes next. The
@@ -272,6 +274,9 @@ export function routeFor({
   RouterContext,
   "coreStatus" | "registerService" | "enrollment" | "person" | "cashSession"
 >): ScreenPath {
+  if (coreStatus === "refused") {
+    return "/older-version";
+  }
   if (coreStatus === "down") {
     return "/core-down";
   }
@@ -909,6 +914,13 @@ const outOfServiceRoute = createRoute({
   component: OutOfServiceScreen,
 });
 
+const olderVersionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/older-version",
+  beforeLoad: ({ context }) => requireRoute("/older-version", context),
+  component: OlderVersionScreen,
+});
+
 export const routeTree = rootRoute.addChildren([
   sessionEyebrowRoute.addChildren([
     statusBarRoute.addChildren([
@@ -934,6 +946,7 @@ export const routeTree = rootRoute.addChildren([
   coreDownRoute,
   updatingRoute,
   outOfServiceRoute,
+  olderVersionRoute,
 ]);
 
 export function createRegisterRouter<TRouteTree extends AnyRoute>(

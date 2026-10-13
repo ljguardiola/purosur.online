@@ -72,6 +72,7 @@ export type {
   LocalDatabaseHealth,
   LocalDatabaseHealthPorts,
 } from "./local-database-health.js";
+export type { LocalDatabaseMigrations } from "./local-database-migrations.js";
 export type {
   OpenCashSessionGrant,
   OpenCashSessionInput,
