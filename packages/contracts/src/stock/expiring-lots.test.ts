@@ -51,8 +51,11 @@ describe("expiringLotListSchema", () => {
     ["lotNumber", undefined],
   ])("refuses a lot with %s as %j", (field, value) => {
     expect(
-      expiringLotListSchema.safeParse({ windowDays: 30, lots: [{ ...lot, [field]: value }], summary })
-        .success,
+      expiringLotListSchema.safeParse({
+        windowDays: 30,
+        lots: [{ ...lot, [field]: value }],
+        summary,
+      }).success,
     ).toBe(false);
   });
 

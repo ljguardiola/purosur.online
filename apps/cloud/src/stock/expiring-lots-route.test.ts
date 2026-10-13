@@ -156,7 +156,10 @@ describe("POST /expiring-lots/:lotId/discard", () => {
   it("rejects an Origin that is not the backoffice's own", async () => {
     const { headers } = await signedInWith(db, ["manage_expiration_dates"], NOW);
 
-    const response = await discard(UNKNOWN_LOT_ID, { ...headers, origin: "https://attacker.example" });
+    const response = await discard(UNKNOWN_LOT_ID, {
+      ...headers,
+      origin: "https://attacker.example",
+    });
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
@@ -260,7 +263,9 @@ describe("POST /expiring-lots/:lotId/discard", () => {
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "lot_not_expired" });
-    expect(await db.select({ remaining: lots.remaining }).from(lots)).toEqual([{ remaining: 4_000 }]);
+    expect(await db.select({ remaining: lots.remaining }).from(lots)).toEqual([
+      { remaining: 4_000 },
+    ]);
   });
 
   it("answers 409 lot_empty for an expired lot with nothing left", async () => {

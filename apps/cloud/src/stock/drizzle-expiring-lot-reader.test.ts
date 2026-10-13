@@ -4,11 +4,12 @@ import { branchSettings } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleExpiringLotReader } from "./drizzle-expiring-lot-reader.js";
+import { insertInitialCountLot, insertPurchasedLot } from "./test-support/lot-fixtures.js";
 import {
-  insertInitialCountLot,
-  insertPurchasedLot,
-} from "./test-support/lot-fixtures.js";
-import { insertLocation, insertProduct, signedInWith } from "./test-support/stock-route-fixtures.js";
+  insertLocation,
+  insertProduct,
+  signedInWith,
+} from "./test-support/stock-route-fixtures.js";
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -128,9 +129,9 @@ describe("DrizzleExpiringLotReader.lotsExpiringBy", () => {
       withdrawn: true,
     });
 
-    expect(
-      await new DrizzleExpiringLotReader(db).lotsExpiringBy(locationId, "2026-11-12"),
-    ).toEqual([]);
+    expect(await new DrizzleExpiringLotReader(db).lotsExpiringBy(locationId, "2026-11-12")).toEqual(
+      [],
+    );
   });
 
   it("answers a lot of the initial count with no cost until one is set, and a lot with a cost with it", async () => {

@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { isLotInStock, lotValueCents, lotsValueSummary } from "./lot-value.js";
+import { isLotInStock, lotsValueSummary, lotValueCents } from "./lot-value.js";
 
 const cost = { totalCents: 5_000, quantity: 1_000 };
 

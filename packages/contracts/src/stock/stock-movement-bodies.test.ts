@@ -60,12 +60,15 @@ describe("stockLossBodySchema", () => {
     });
   });
 
-  it.each([undefined, "supplier_return", "count", "THEFT", "expired"])("rejects the reason %j", (reason) => {
-    expect(firstIssue(stockLossBodySchema, { ...loss, reason })).toEqual({
-      field: "reason",
-      message: "reason must be one of the loss reasons",
-    });
-  });
+  it.each([undefined, "supplier_return", "count", "THEFT", "expired"])(
+    "rejects the reason %j",
+    (reason) => {
+      expect(firstIssue(stockLossBodySchema, { ...loss, reason })).toEqual({
+        field: "reason",
+        message: "reason must be one of the loss reasons",
+      });
+    },
+  );
 
   it("accepts the smallest and the largest quantity a movement holds", () => {
     expect(stockLossBodySchema.safeParse({ ...loss, quantity: 1 }).success).toBe(true);
