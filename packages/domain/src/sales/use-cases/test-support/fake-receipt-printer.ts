@@ -50,9 +50,15 @@ export class FakeReceiptPrinter implements ReceiptPrinter {
   }
 
   becomeReady(): void {
-    const { watch, sending, end } = this.lastWaiting();
+    const { watch, sending, end, fail } = this.lastWaiting();
     watch.onStatus("ready");
-    const bytes = sending();
+    let bytes: Uint8Array;
+    try {
+      bytes = sending();
+    } catch (error) {
+      fail(error instanceof Error ? error : new Error(String(error)));
+      return;
+    }
     this.sent.push({ bytes, watch, ledgerStateWhenSent: structuredClone(this.ledger.state) });
     end({ kind: "sent" });
   }

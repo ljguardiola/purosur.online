@@ -225,9 +225,9 @@ describe("printSaleReceipt", () => {
       await rig.printer.whenWaiting();
       rig.ledger.state.sales = [];
 
-      expect(() => rig.printer.becomeReady()).toThrow("sale-1");
-      rig.printer.abandon();
-      await printing;
+      rig.printer.becomeReady();
+
+      await expect(printing).rejects.toThrow("sale-1");
     });
   });
 
