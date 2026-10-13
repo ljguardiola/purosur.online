@@ -12,6 +12,7 @@ interface WaitingReceipt {
   watch: ReceiptPrintWatch;
   sending: () => Uint8Array;
   end: (ending: ReceiptPrintEnding) => void;
+  fail: (error: Error) => void;
 }
 
 export class FakeReceiptPrinter implements ReceiptPrinter {
@@ -25,8 +26,8 @@ export class FakeReceiptPrinter implements ReceiptPrinter {
   }
 
   print(watch: ReceiptPrintWatch, sending: () => Uint8Array): Promise<ReceiptPrintEnding> {
-    return new Promise((resolve) => {
-      this.waiting.push({ watch, sending, end: resolve });
+    return new Promise((resolve, reject) => {
+      this.waiting.push({ watch, sending, end: resolve, fail: reject });
       for (const waiter of this.waiters) {
         if (this.waiting.length >= waiter.count) {
           waiter.resolve();
@@ -54,6 +55,14 @@ export class FakeReceiptPrinter implements ReceiptPrinter {
     const bytes = sending();
     this.sent.push({ bytes, watch, ledgerStateWhenSent: structuredClone(this.ledger.state) });
     end({ kind: "sent" });
+  }
+
+  breakAfterSending(): void {
+    const { watch, sending, fail } = this.lastWaiting();
+    watch.onStatus("ready");
+    const bytes = sending();
+    this.sent.push({ bytes, watch, ledgerStateWhenSent: structuredClone(this.ledger.state) });
+    fail(new Error("the connection to the printer broke"));
   }
 
   abandon(): void {
