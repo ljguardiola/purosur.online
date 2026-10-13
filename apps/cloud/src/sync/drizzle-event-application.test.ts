@@ -3,6 +3,7 @@ import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { alerts, inbox } from "../platform/db/schema.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   APPLICATION_NOW,
   eventApplicationUnderTest,
@@ -287,7 +288,11 @@ describe("opening the alerts of the events that were not applied normally", () =
   });
 
   it("opens one alert for each device with a quarantined event", async () => {
-    const [first, second] = [await system.enrollInstallation(), await system.enrollInstallation()];
+    const first = await system.enrollInstallation();
+    const second = await insertEnrolledInstallation(system.db, {
+      now: APPLICATION_NOW,
+      registerName: "Caja 2",
+    });
     const quarantine = async (deviceId: string) => {
       const eventId = await insertInboxEvent(system.db, deviceId);
       await system.application.transaction((tx) =>

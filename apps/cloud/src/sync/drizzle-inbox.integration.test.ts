@@ -138,6 +138,7 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
       nextAttemptAt: null,
       quarantinedAt: null,
       lastError: null,
+      quarantineReason: null,
     });
   });
 
