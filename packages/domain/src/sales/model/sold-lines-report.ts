@@ -59,7 +59,7 @@ export function salesOfGroups(rows: readonly SoldLinesOfGroup[]): SalesOfGroup[]
   return [...groups.values()].sort((a, b) => b.amount - a.amount || pathOrder(a, b));
 }
 
-export function soldTotals(groups: readonly SoldTotals[]): SoldTotals {
+export function soldTotals(groups: readonly SalesOfGroup[]): SoldTotals {
   return {
     units: groups.reduce((sum, group) => sum + group.units, 0),
     thousandths: groups.reduce((sum, group) => sum + group.thousandths, 0),
