@@ -31,7 +31,6 @@ interface DatedCost {
   cost: LotCost;
   day: string;
   instant: number;
-  lineId: string | null;
 }
 
 function datedCost(source: CostSource): DatedCost | null {
@@ -41,7 +40,6 @@ function datedCost(source: CostSource): DatedCost | null {
       cost: source.cost,
       day: source.purchasedOn,
       instant: source.recordedAt.getTime(),
-      lineId: source.lineId,
     };
   }
   if (source.withdrawn || source.costIncomplete || source.cost === null) {
@@ -52,7 +50,6 @@ function datedCost(source: CostSource): DatedCost | null {
     cost: source.cost,
     day: argentinaCalendarDay(source.countedAt),
     instant: source.countedAt.getTime(),
-    lineId: null,
   };
 }
 
@@ -63,12 +60,22 @@ function compare<T extends string | number>(a: T, b: T): number {
   return a > b ? 1 : 0;
 }
 
+function isPurchaseLine(dated: DatedCost): boolean {
+  return dated.source.kind === "purchase_line";
+}
+
+function compareLowerLineId(a: DatedCost, b: DatedCost): number {
+  return a.source.kind === "purchase_line" && b.source.kind === "purchase_line"
+    ? compare(b.source.lineId, a.source.lineId)
+    : 0;
+}
+
 function compareRecency(a: DatedCost, b: DatedCost): number {
   return (
     compare(a.day, b.day) ||
     compare(a.instant, b.instant) ||
-    compare(a.lineId === null ? 0 : 1, b.lineId === null ? 0 : 1) ||
-    compare(b.lineId ?? "", a.lineId ?? "")
+    compare(isPurchaseLine(a) ? 1 : 0, isPurchaseLine(b) ? 1 : 0) ||
+    compareLowerLineId(a, b)
   );
 }
 
