@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  productsInLockOrder,
   isQuantityPerOutputUnit,
   mayBeInRecipe,
   PRODUCTS_A_RECIPE_MAY_USE,
+  productsInLockOrder,
   recipeShapeRefusal,
 } from "./recipe.js";
 import { MAX_STOCK_QUANTITY, STOCK_QUANTITY_PER_UNIT } from "./stock-quantity.js";

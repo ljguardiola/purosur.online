@@ -190,7 +190,10 @@ describe("saveRecipe", () => {
     const store = storeWithProducts();
     store.seedProduct({ id: "almonds", saleUnit: "KG", active: true });
 
-    await save(store, { productId: "nuts", components: [raisins, { ...nuts, componentProductId: "almonds" }] });
+    await save(store, {
+      productId: "nuts",
+      components: [raisins, { ...nuts, componentProductId: "almonds" }],
+    });
 
     expect(store.lockLog).toEqual(["almonds", "nuts", "raisins"]);
   });
