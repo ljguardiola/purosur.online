@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { followInterruptedMercadoPagoCharges } from "./follow-interrupted-mercado-pago-charges.js";
 import {
   CHARGE_ACTOR_ID,
-  CHARGE_NOW,
   CHARGE_PAYMENT_ID,
   CHARGE_SALE_ID,
   FakeMercadoPagoChargeWorld,
@@ -11,7 +10,10 @@ import {
 const OTHER_PAYMENT_ID = "019a0000-0000-7000-8000-0000000000a2";
 const OTHER_SALE_ID = "019a0000-0000-7000-8000-0000000000b2";
 const OTHER_ACTOR_ID = "019a0000-0000-7000-8000-0000000000c2";
-const RUN = { runStartedAt: CHARGE_NOW };
+
+function leftPending(world: FakeMercadoPagoChargeWorld) {
+  return { interrupted: world.pendingCharges() };
+}
 
 function worldWithPendingCharge(): FakeMercadoPagoChargeWorld {
   const world = new FakeMercadoPagoChargeWorld();
@@ -23,7 +25,7 @@ describe("followInterruptedMercadoPagoCharges", () => {
   it("asks the cloud nothing when no charge was left pending", async () => {
     const world = new FakeMercadoPagoChargeWorld();
 
-    expect(await followInterruptedMercadoPagoCharges(world.ports, RUN)).toEqual({
+    expect(await followInterruptedMercadoPagoCharges(world.ports, leftPending(world))).toEqual({
       followed: [],
       failures: [],
     });
@@ -35,7 +37,7 @@ describe("followInterruptedMercadoPagoCharges", () => {
     world.seedPending({}, OTHER_ACTOR_ID);
     world.orderReading = { kind: "read", state: "APPROVED" };
 
-    const result = await followInterruptedMercadoPagoCharges(world.ports, RUN);
+    const result = await followInterruptedMercadoPagoCharges(world.ports, leftPending(world));
 
     expect(world.settledPayments).toEqual([
       { actorId: OTHER_ACTOR_ID, paymentTransactionId: CHARGE_PAYMENT_ID },
@@ -52,8 +54,9 @@ describe("followInterruptedMercadoPagoCharges", () => {
     const world = worldWithPendingCharge();
     world.orderReading = { kind: "read", state: "APPROVED" };
 
-    await followInterruptedMercadoPagoCharges(world.ports, RUN);
-    const second = await followInterruptedMercadoPagoCharges(world.ports, RUN);
+    const run = leftPending(world);
+    await followInterruptedMercadoPagoCharges(world.ports, run);
+    const second = await followInterruptedMercadoPagoCharges(world.ports, run);
 
     expect(world.settledPayments).toHaveLength(1);
     expect(second.followed).toEqual([]);
@@ -63,7 +66,7 @@ describe("followInterruptedMercadoPagoCharges", () => {
     const world = worldWithPendingCharge();
     world.orderReading = { kind: "read", state: "DECLINED" };
 
-    const result = await followInterruptedMercadoPagoCharges(world.ports, RUN);
+    const result = await followInterruptedMercadoPagoCharges(world.ports, leftPending(world));
 
     expect(world.operations).toEqual(["readOrder", "recordEnded:DECLINED"]);
     expect(result.followed).toEqual([
@@ -76,7 +79,7 @@ describe("followInterruptedMercadoPagoCharges", () => {
     const world = worldWithPendingCharge();
     world.orderReading = { kind: "unreachable" };
 
-    await followInterruptedMercadoPagoCharges(world.ports, RUN);
+    await followInterruptedMercadoPagoCharges(world.ports, leftPending(world));
 
     expect(world.operations).toEqual(["readOrder"]);
     expect(world.pendingCharge(CHARGE_PAYMENT_ID)).not.toBeNull();
@@ -91,7 +94,7 @@ describe("followInterruptedMercadoPagoCharges", () => {
     );
     world.orderReading = { kind: "read", state: "APPROVED" };
 
-    await followInterruptedMercadoPagoCharges(world.ports, RUN);
+    await followInterruptedMercadoPagoCharges(world.ports, leftPending(world));
 
     expect(world.settledPayments).toEqual([
       { actorId: CHARGE_ACTOR_ID, paymentTransactionId: CHARGE_PAYMENT_ID },
@@ -99,26 +102,55 @@ describe("followInterruptedMercadoPagoCharges", () => {
     ]);
   });
 
-  it("does not follow a charge recorded once this run had started", async () => {
-    const world = new FakeMercadoPagoChargeWorld();
-    world.seedPending({}, CHARGE_ACTOR_ID, CHARGE_NOW);
+  it("follows a charge left pending even when the register's clock now reads earlier than when it was recorded", async () => {
+    const world = worldWithPendingCharge();
+    world.now = new Date("2026-10-09T11:30:00.000Z");
     world.orderReading = { kind: "read", state: "APPROVED" };
 
-    const result = await followInterruptedMercadoPagoCharges(world.ports, RUN);
+    const result = await followInterruptedMercadoPagoCharges(world.ports, leftPending(world));
 
+    expect(world.readOrders).toEqual([CHARGE_PAYMENT_ID]);
+    expect(result.followed).toEqual([
+      {
+        paymentTransactionId: CHARGE_PAYMENT_ID,
+        outcome: { kind: "approved", settlement: world.settlement },
+      },
+    ]);
+  });
+
+  it("does not follow a charge started after the charges left pending were taken", async () => {
+    const world = worldWithPendingCharge();
+    const run = leftPending(world);
+    world.seedPending({ paymentTransactionId: OTHER_PAYMENT_ID, saleId: OTHER_SALE_ID });
+    world.orderReading = { kind: "read", state: "PENDING" };
+
+    await followInterruptedMercadoPagoCharges(world.ports, run);
+
+    expect(world.readOrders).toEqual([CHARGE_PAYMENT_ID]);
+  });
+
+  it("does not follow again a charge that ended since the charges left pending were taken", async () => {
+    const world = worldWithPendingCharge();
+    const run = leftPending(world);
+    world.recordEnded(CHARGE_PAYMENT_ID, "EXPIRED");
+
+    expect(await followInterruptedMercadoPagoCharges(world.ports, run)).toEqual({
+      followed: [],
+      failures: [],
+    });
     expect(world.readOrders).toEqual([]);
-    expect(result).toEqual({ followed: [], failures: [] });
   });
 
   it("does not follow a charge replaced by another", async () => {
     const world = worldWithPendingCharge();
+    const run = leftPending(world);
     world.replacePendingPayment({
       actorId: CHARGE_ACTOR_ID,
       paymentTransactionId: CHARGE_PAYMENT_ID,
       replacedAt: world.now,
     });
 
-    await followInterruptedMercadoPagoCharges(world.ports, RUN);
+    await followInterruptedMercadoPagoCharges(world.ports, run);
 
     expect(world.readOrders).toEqual([]);
   });
@@ -129,7 +161,7 @@ describe("followInterruptedMercadoPagoCharges", () => {
     world.unreadableOrders.add(CHARGE_PAYMENT_ID);
     world.orderReading = { kind: "read", state: "APPROVED" };
 
-    const result = await followInterruptedMercadoPagoCharges(world.ports, RUN);
+    const result = await followInterruptedMercadoPagoCharges(world.ports, leftPending(world));
 
     expect(world.settledPayments).toEqual([
       { actorId: CHARGE_ACTOR_ID, paymentTransactionId: OTHER_PAYMENT_ID },
@@ -150,7 +182,7 @@ describe("followInterruptedMercadoPagoCharges", () => {
     world.seedPending({ paymentTransactionId: OTHER_PAYMENT_ID, saleId: CHARGE_SALE_ID });
     world.orderReading = { kind: "read", state: "EXPIRED" };
 
-    await followInterruptedMercadoPagoCharges(world.ports, RUN);
+    await followInterruptedMercadoPagoCharges(world.ports, leftPending(world));
 
     expect(world.operations).toEqual([
       "readOrder",

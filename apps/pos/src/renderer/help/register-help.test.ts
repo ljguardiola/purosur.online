@@ -47,6 +47,13 @@ describe("the register's help", () => {
     expect(titlesFound("seguir vendiendo")).toEqual([STARTUP_PENDING_TITLE]);
   });
 
+  it("points to the row's printer, the only thing the row shows to print with, and names the duplicate modal's own button", () => {
+    expect(titlesFound("impresora de la fila")).toEqual([STARTUP_PENDING_TITLE]);
+    expect(titlesFound("Reimprimir duplicado")).toEqual([STARTUP_PENDING_TITLE]);
+    expect(titlesFound("Tocá Imprimir el ticket")).toEqual([]);
+    expect(titlesFound("Tocá Reimprimir como duplicado")).toEqual([]);
+  });
+
   it("files every section under a category it declares", () => {
     for (const article of Object.values(help.articles)) {
       expect(Object.keys(help.categories)).toContain(article.category);

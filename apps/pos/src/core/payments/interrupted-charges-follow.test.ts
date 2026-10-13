@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createInterruptedChargesFollow } from "./interrupted-charges-follow";
 
-const RUN_STARTED_AT = new Date("2026-10-13T12:00:00.000Z");
+const LEFT_PENDING = [{ paymentTransactionId: "qr-1", actorId: "u1" }];
+
+type LeftPending = typeof LEFT_PENDING;
 
 type Followed = { failures: { paymentTransactionId: string; error: unknown }[] };
 
@@ -13,11 +15,11 @@ function deferred() {
   return { promise, resolve };
 }
 
-function subject(follow: ((runStartedAt: Date) => Promise<Followed>) | undefined) {
+function subject(follow: ((interrupted: LeftPending) => Promise<Followed>) | undefined) {
   const failures: [string, unknown][] = [];
   const following = createInterruptedChargesFollow({
     follow,
-    runStartedAt: RUN_STARTED_AT,
+    interrupted: LEFT_PENDING,
     reportFailure: (activity, error) => {
       failures.push([activity, error]);
     },
@@ -26,16 +28,17 @@ function subject(follow: ((runStartedAt: Date) => Promise<Followed>) | undefined
 }
 
 describe("following the charges a stopped register left pending", () => {
-  it("follows the charges recorded before this run started", async () => {
-    const asked: Date[] = [];
-    const { following } = subject(async (runStartedAt) => {
-      asked.push(runStartedAt);
+  it("follows, every time, the charges it was handed as left pending", async () => {
+    const asked: LeftPending[] = [];
+    const { following } = subject(async (interrupted) => {
+      asked.push(interrupted);
       return { failures: [] };
     });
 
     await following.followNow();
+    await following.followNow();
 
-    expect(asked).toEqual([RUN_STARTED_AT]);
+    expect(asked).toEqual([LEFT_PENDING, LEFT_PENDING]);
   });
 
   it("joins a follow still under way instead of starting another, and follows again once it ended", async () => {
