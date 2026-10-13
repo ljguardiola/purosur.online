@@ -1701,7 +1701,7 @@ test("tells a document ARCA left without a clear answer: its number, since when,
   expect(screen.getByText(/fiscal-document-1/).query()).toBeNull();
 });
 
-test("tells that an alert for quarantined events resolves by itself and offers no way to close it by hand", async () => {
+test("tells that an alert for quarantined events resolves by itself and still offers closing it by hand", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(ok(quarantinedEventAlert));
 
@@ -1719,5 +1719,5 @@ test("tells that an alert for quarantined events resolves by itself and offers n
       ),
     )
     .toBeVisible();
-  expect(screen.getByRole("button", { name: "Cerrar la alerta" }).query()).toBeNull();
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
 });
