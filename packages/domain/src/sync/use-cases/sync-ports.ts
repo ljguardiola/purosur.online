@@ -1,4 +1,3 @@
-import type { AlertConditionObservation } from "../../alerts/index.js";
 import type { Fortnight } from "../../fiscal/index.js";
 import type { Clock } from "../../shared/index.js";
 import type { LimitedEndpoint } from "../model/installation-request-limit.js";
@@ -114,6 +113,20 @@ export interface InstallationRegister {
   locationId: string;
 }
 
+export interface RegisterVersionStanding {
+  registerId: string;
+  deviceId: string;
+  appVersion: string;
+  accepted: boolean;
+}
+
+export interface RegisterStops {
+  registerId: string;
+  deviceId: string;
+  locationId: string;
+  report: RegisterTelemetry;
+}
+
 export interface InboxTransaction {
   lockDevice(deviceId: string): Promise<void>;
   installationRevoked(deviceId: string): Promise<boolean>;
@@ -129,7 +142,9 @@ export interface InboxTransaction {
   receive(deviceId: string, events: readonly PushedEvent[], receivedAt: Date): Promise<void>;
   recordPushReport(deviceId: string, report: PushReport, at: Date): Promise<void>;
   installationRegister(deviceId: string): Promise<InstallationRegister>;
-  observeAlertCondition(observation: AlertConditionObservation, at: Date): Promise<void>;
+  recordRegisterVersionStanding(standing: RegisterVersionStanding, at: Date): Promise<void>;
+  recordRegisterStops(stops: RegisterStops, at: Date): Promise<void>;
+  recordRegisterSynced(registerId: string, at: Date): Promise<void>;
   recordAcceptedPush(deviceId: string, at: Date): Promise<void>;
   // Keeps the moment of the first push of no events; a later one changes nothing.
   recordReportsEveryCycle(deviceId: string, at: Date): Promise<void>;

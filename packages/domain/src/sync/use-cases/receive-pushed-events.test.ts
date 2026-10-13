@@ -61,7 +61,9 @@ describe("receiving the events a register pushes", () => {
     expect(inbox.state).toEqual({
       received: [],
       reports: [],
-      observedConditions: [],
+      versionStandings: [],
+      registerStops: [],
+      syncedRegisters: [],
       acceptedPushes: [],
       everyCycleReports: [],
       refusedPushes: [],
@@ -253,7 +255,9 @@ describe("receiving the events a register pushes", () => {
     expect(inbox.state).toEqual({
       received: [],
       reports: [],
-      observedConditions: [],
+      versionStandings: [],
+      registerStops: [],
+      syncedRegisters: [],
       acceptedPushes: [],
       everyCycleReports: [],
       refusedPushes: [],
@@ -314,30 +318,35 @@ describe("requiring a register version", () => {
 });
 
 describe("reporting how the register stands", () => {
-  it("clears the update-required condition of the installation's register for an accepted version", async () => {
+  it("records the version standing of the installation's register as accepted for an accepted version", async () => {
     const inbox = new FakeInbox();
     inbox.registerIds.set(DEVICE, "register-1");
 
     await receive(inbox, eventsOf(1), { appVersion: "1.4.0" });
 
-    expect(inbox.state.observedConditions[0]).toEqual({
-      observation: { holds: false, kind: "update_required", scope: "register-1" },
-      at: NOW,
-    });
+    expect(inbox.state.versionStandings).toEqual([
+      {
+        standing: {
+          registerId: "register-1",
+          deviceId: DEVICE,
+          appVersion: "1.4.0",
+          accepted: true,
+        },
+        at: NOW,
+      },
+    ]);
   });
 
-  it("clears the silent-register condition of the installation's register once it accepts the push", async () => {
+  it("records that the installation's register synced once it accepts the push", async () => {
     const inbox = new FakeInbox();
     inbox.registerIds.set(DEVICE, "register-1");
 
     await receive(inbox, eventsOf(1));
 
-    expect(inbox.state.observedConditions.slice(1)).toEqual([
-      { observation: { holds: false, kind: "register_silent", scope: "register-1" }, at: NOW },
-    ]);
+    expect(inbox.state.syncedRegisters).toEqual([{ registerId: "register-1", at: NOW }]);
   });
 
-  it("accepts a push of no events as a sync, clearing the silent-register condition", async () => {
+  it("accepts a push of no events as a sync of its register", async () => {
     const inbox = new FakeInbox();
     inbox.registerIds.set(DEVICE, "register-1");
 
@@ -345,25 +354,21 @@ describe("reporting how the register stands", () => {
 
     expect(outcome).toEqual({ kind: "received", ackSeq: 0 });
     expect(inbox.state.acceptedPushes).toEqual([{ deviceId: DEVICE, at: NOW }]);
-    expect(inbox.state.observedConditions.map(({ observation }) => observation)).toContainEqual({
-      holds: false,
-      kind: "register_silent",
-      scope: "register-1",
-    });
+    expect(inbox.state.syncedRegisters).toEqual([{ registerId: "register-1", at: NOW }]);
   });
 
-  it("clears the silent-register condition right after recording the accepted push", async () => {
+  it("records the register's sync right after recording the accepted push", async () => {
     const inbox = new FakeInbox();
 
     await receive(inbox, eventsOf(1));
 
     const calls = inbox.calls;
-    expect(calls.lastIndexOf("observeAlertCondition")).toBe(
+    expect(calls.lastIndexOf("recordRegisterSynced")).toBe(
       calls.indexOf("recordAcceptedPush device-1") + 1,
     );
   });
 
-  it("leaves the silent-register condition alone for a push it does not accept", async () => {
+  it("records no sync of the register for a push it does not accept", async () => {
     const notAccepted = [
       await pushReceivedBy(new FakeInbox(), eventsOf(3)),
       await pushReceivedBy(new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]), [
@@ -374,13 +379,7 @@ describe("reporting how the register stands", () => {
     ];
 
     for (const inbox of notAccepted) {
-      expect(
-        inbox.state.observedConditions.filter(({ observation }) =>
-          observation.holds
-            ? observation.alert.kind === "register_silent"
-            : observation.kind === "register_silent",
-        ),
-      ).toEqual([]);
+      expect(inbox.state.syncedRegisters).toEqual([]);
     }
   });
 
@@ -423,28 +422,26 @@ describe("reporting how the register stands", () => {
     }
   });
 
-  it("holds the update-required condition of the installation's register, naming the device and the version, for a version that is not accepted", async () => {
+  it("records the version standing of the installation's register as not accepted, naming the device and the version, for a version that is not accepted", async () => {
     const inbox = new FakeInbox();
     inbox.registerIds.set(DEVICE, "register-1");
 
     await receive(inbox, eventsOf(1), { appVersion: "not-a-version" });
 
-    expect(inbox.state.observedConditions).toEqual([
+    expect(inbox.state.versionStandings).toEqual([
       {
-        observation: {
-          holds: true,
-          alert: {
-            kind: "update_required",
-            scope: "register-1",
-            detail: { deviceId: DEVICE, appVersion: "not-a-version" },
-          },
+        standing: {
+          registerId: "register-1",
+          deviceId: DEVICE,
+          appVersion: "not-a-version",
+          accepted: false,
         },
         at: NOW,
       },
     ]);
   });
 
-  it("observes the version right after recording the push report, before looking at the events", async () => {
+  it("records the version standing right after recording the push report, before looking at the events", async () => {
     const inbox = new FakeInbox();
 
     await receive(inbox, eventsOf(1));
@@ -453,15 +450,15 @@ describe("reporting how the register stands", () => {
     expect(calls.indexOf("installationRegister device-1")).toBe(
       calls.indexOf("recordPushReport device-1") + 1,
     );
-    expect(calls.indexOf("observeAlertCondition")).toBe(
+    expect(calls.indexOf("recordRegisterVersionStanding")).toBe(
       calls.indexOf("installationRegister device-1") + 1,
     );
-    expect(calls.indexOf("observeAlertCondition")).toBeLessThan(
+    expect(calls.indexOf("recordRegisterVersionStanding")).toBeLessThan(
       calls.indexOf("receivedDeviceSeqs device-1"),
     );
   });
 
-  it("observes the version of a push it refuses for a gap, a stale device or a broken chain", async () => {
+  it("records the version standing of a push it refuses for a gap, a stale device or a broken chain", async () => {
     const gap = new FakeInbox();
     await receive(gap, eventsOf(3));
     const stale = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
@@ -470,66 +467,56 @@ describe("reporting how the register stands", () => {
     await receive(broken, [{ ...fakeEvent(1), chain_hmac: "forged-link" }]);
 
     for (const inbox of [gap, stale, broken]) {
-      expect(inbox.state.observedConditions).toEqual([
+      expect(inbox.state.versionStandings).toEqual([
         {
-          observation: { holds: false, kind: "update_required", scope: "register-of-device-1" },
+          standing: {
+            registerId: "register-of-device-1",
+            deviceId: DEVICE,
+            appVersion: "1.4.0",
+            accepted: true,
+          },
           at: NOW,
         },
       ]);
     }
   });
 
-  it("holds the sales-denied condition of the installation's register, in its branch, for a register that reports it can't sell", async () => {
+  it("records the stops the register reports, with its branch, for an accepted push", async () => {
     const inbox = new FakeInbox();
     inbox.registerIds.set(DEVICE, "register-1");
     inbox.locationIds.set(DEVICE, "location-1");
+    const telemetry: RegisterTelemetry = {
+      ...TELEMETRY,
+      sales_denied: true,
+      sales_denied_reason: "event_history_broken",
+      fiscal_emission_stopped: true,
+      fiscal_emission_stopped_reason: "legal_name_missing",
+    };
 
-    await receive(inbox, eventsOf(1), {
-      telemetry: {
-        ...TELEMETRY,
-        sales_denied: true,
-        sales_denied_reason: "event_history_broken",
-      },
-    });
+    await receive(inbox, eventsOf(1), { telemetry });
 
-    expect(inbox.state.observedConditions.map(({ observation }) => observation)).toContainEqual({
-      holds: true,
-      alert: {
-        kind: "sales_denied",
-        scope: "register-1",
-        locationId: "location-1",
-        detail: { deviceId: DEVICE, reason: "event_history_broken" },
+    expect(inbox.state.registerStops).toEqual([
+      {
+        stops: {
+          registerId: "register-1",
+          deviceId: DEVICE,
+          locationId: "location-1",
+          report: telemetry,
+        },
+        at: NOW,
       },
-    });
+    ]);
   });
 
-  it("clears the sales-denied condition of the installation's register for a register that reports it can sell", async () => {
-    const inbox = new FakeInbox();
-    inbox.registerIds.set(DEVICE, "register-1");
-
-    await receive(inbox, eventsOf(1), { telemetry: { ...TELEMETRY, sales_denied: false } });
-
-    expect(inbox.state.observedConditions.map(({ observation }) => observation)).toContainEqual({
-      holds: false,
-      kind: "sales_denied",
-      scope: "register-1",
-    });
-  });
-
-  it("observes no sales-denied condition of a register that reports nothing about selling", async () => {
+  it("records the stops of a push that carries no event", async () => {
     const inbox = new FakeInbox();
 
-    await receive(inbox, eventsOf(1));
+    await receive(inbox, [], { telemetry: { ...TELEMETRY, sales_denied: false } });
 
-    expect(
-      inbox.state.observedConditions.filter(
-        ({ observation }) =>
-          (observation.holds ? observation.alert.kind : observation.kind) === "sales_denied",
-      ),
-    ).toEqual([]);
+    expect(inbox.state.registerStops).toHaveLength(1);
   });
 
-  it("observes the sales-denied condition of a push it refuses for a gap, a stale device or a version not accepted", async () => {
+  it("records the stops of a push it refuses for a gap, a stale device or a version not accepted", async () => {
     const telemetry: RegisterTelemetry = {
       ...TELEMETRY,
       sales_denied: true,
@@ -543,16 +530,11 @@ describe("reporting how the register stands", () => {
     await receive(outdated, eventsOf(1), { telemetry, appVersion: "not-a-version" });
 
     for (const inbox of [gap, stale, outdated]) {
-      expect(inbox.state.observedConditions.map(({ observation }) => observation)).toContainEqual(
-        expect.objectContaining({
-          holds: true,
-          alert: expect.objectContaining({ kind: "sales_denied" }),
-        }),
-      );
+      expect(inbox.state.registerStops).toHaveLength(1);
     }
   });
 
-  it("observes no sales-denied condition of a push that breaks its chain and so revokes the installation", async () => {
+  it("records no stops of a push that breaks its chain and so revokes the installation", async () => {
     const inbox = new FakeInbox();
 
     await receive(inbox, [{ ...fakeEvent(1), chain_hmac: "forged-link" }], {
@@ -560,15 +542,10 @@ describe("reporting how the register stands", () => {
     });
 
     expect(inbox.state.brokenChainRevocations).not.toEqual([]);
-    expect(
-      inbox.state.observedConditions.filter(
-        ({ observation }) =>
-          (observation.holds ? observation.alert.kind : observation.kind) === "sales_denied",
-      ),
-    ).toEqual([]);
+    expect(inbox.state.registerStops).toEqual([]);
   });
 
-  it("observes nothing of a revoked installation", async () => {
+  it("records nothing of the register of a revoked installation", async () => {
     const inbox = new FakeInbox();
     inbox.revokedDevices.add(DEVICE);
 
@@ -576,110 +553,10 @@ describe("reporting how the register stands", () => {
       telemetry: { ...TELEMETRY, sales_denied: true, sales_denied_reason: "event_history_broken" },
     });
 
-    expect(inbox.state.observedConditions).toEqual([]);
+    expect(inbox.state.versionStandings).toEqual([]);
+    expect(inbox.state.registerStops).toEqual([]);
+    expect(inbox.state.syncedRegisters).toEqual([]);
     expect(inbox.state.acceptedPushes).toEqual([]);
-  });
-
-  describe("a register's fiscal emission", () => {
-    const STOPPED: RegisterTelemetry = {
-      ...TELEMETRY,
-      fiscal_emission_stopped: true,
-      fiscal_emission_stopped_reason: "legal_name_missing",
-    };
-
-    function emissionObservations(inbox: FakeInbox) {
-      return inbox.state.observedConditions
-        .map(({ observation }) => observation)
-        .filter(
-          (observation) =>
-            (observation.holds ? observation.alert.kind : observation.kind) ===
-            "fiscal_emission_stopped",
-        );
-    }
-
-    it("holds the fiscal-emission-stopped condition of the installation's register, in its branch, for a register that reports it stopped", async () => {
-      const inbox = new FakeInbox();
-      inbox.registerIds.set(DEVICE, "register-1");
-      inbox.locationIds.set(DEVICE, "location-1");
-
-      await receive(inbox, eventsOf(1), { telemetry: STOPPED });
-
-      expect(emissionObservations(inbox)).toEqual([
-        {
-          holds: true,
-          alert: {
-            kind: "fiscal_emission_stopped",
-            scope: "register-1",
-            locationId: "location-1",
-            detail: { deviceId: DEVICE, reason: "legal_name_missing" },
-          },
-        },
-      ]);
-    });
-
-    it("holds it for a push that carries no event", async () => {
-      const inbox = new FakeInbox();
-
-      await receive(inbox, [], { telemetry: STOPPED });
-
-      expect(emissionObservations(inbox)).toHaveLength(1);
-    });
-
-    it("clears the condition of the installation's register for a register that reports it available", async () => {
-      const inbox = new FakeInbox();
-      inbox.registerIds.set(DEVICE, "register-1");
-
-      await receive(inbox, eventsOf(1), {
-        telemetry: { ...TELEMETRY, fiscal_emission_stopped: false },
-      });
-
-      expect(emissionObservations(inbox)).toEqual([
-        { holds: false, kind: "fiscal_emission_stopped", scope: "register-1" },
-      ]);
-    });
-
-    it("observes nothing of a register that reports nothing about its emission", async () => {
-      const inbox = new FakeInbox();
-
-      await receive(inbox, eventsOf(1));
-
-      expect(emissionObservations(inbox)).toEqual([]);
-    });
-
-    it("observes it for a push it refuses for a gap, a stale device or a version not accepted", async () => {
-      const gap = new FakeInbox();
-      await receive(gap, eventsOf(3), { telemetry: STOPPED });
-      const stale = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
-      await receive(stale, [{ ...fakeEvent(1), event_id: "another-event" }], {
-        telemetry: STOPPED,
-      });
-      const outdated = new FakeInbox();
-      await receive(outdated, eventsOf(1), { telemetry: STOPPED, appVersion: "not-a-version" });
-
-      for (const inbox of [gap, stale, outdated]) {
-        expect(emissionObservations(inbox)).toHaveLength(1);
-      }
-    });
-
-    it("observes nothing of a push that breaks its chain and so revokes the installation", async () => {
-      const inbox = new FakeInbox();
-
-      await receive(inbox, [{ ...fakeEvent(1), chain_hmac: "forged-link" }], {
-        telemetry: STOPPED,
-      });
-
-      expect(inbox.state.brokenChainRevocations).not.toEqual([]);
-      expect(emissionObservations(inbox)).toEqual([]);
-    });
-
-    it("observes nothing of a revoked installation", async () => {
-      const inbox = new FakeInbox();
-      inbox.revokedDevices.add(DEVICE);
-
-      await receive(inbox, eventsOf(1), { telemetry: STOPPED });
-
-      expect(emissionObservations(inbox)).toEqual([]);
-    });
   });
 
   it("records the moment of a push it received, after receiving it", async () => {
