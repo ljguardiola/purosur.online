@@ -1,8 +1,8 @@
 import { LinkListCard, LinkListRow } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
 import { ShoppingBag } from "lucide-react";
-import { ScreenLayout } from "./screen-layout";
-import { ScreenTopBar } from "./screen-top-bar";
+import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTopBar } from "../shell/screen-top-bar";
 
 const ReportRow = createLink(LinkListRow);
 

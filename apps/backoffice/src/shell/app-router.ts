@@ -20,7 +20,7 @@ import {
   suppliersListRoute,
 } from "../purchasing/routes";
 import { registersListRoute } from "../register/routes";
-import { salesByDayRoute } from "../sales/routes";
+import { reportsIndexRoute, salesByDayRoute } from "../sales/routes";
 import { signInRoute } from "../sessions/routes";
 import {
   initialInventoryRoute,
@@ -36,7 +36,7 @@ import { helpAreaRoute } from "./help-area";
 import { homeAreaRoute } from "./home-area";
 import { ScreenDownloadFailure } from "./lazy-screen";
 import { publicRoute } from "./public-route";
-import { reportsAreaRoute, reportsIndexRoute } from "./reports-area";
+import { reportsAreaRoute } from "./reports-area";
 import { type RouterContext, rootRoute } from "./root-route";
 import { ScreenFailure } from "./screen-failure";
 import { ScreenPending } from "./screen-pending";

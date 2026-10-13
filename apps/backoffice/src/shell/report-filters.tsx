@@ -1,16 +1,14 @@
 import type { CalendarDate } from "@internationalized/date";
-import type { ReportRegisterListBody } from "@purosur/contracts";
 import { reportQuerySchema } from "@purosur/contracts";
-import { DateField, ListFilter, sortedItems, textOrder } from "@purosur/ui";
-import { useEffect, useEffectEvent, useState } from "react";
-import type { CloudData } from "../platform/use-cloud-query";
+import { DateField } from "@purosur/ui";
+import { Suspense, useContext, useState } from "react";
 import { calendarDateOf, dayOf, hasFourDigitYear } from "./report-day";
 import type { ReportFilters as ReportFiltersValue } from "./report-filters-search";
+import { ReportRegisterFilterSlot } from "./report-register-filter-slot";
 
 export type ReportFiltersProps<Filters extends ReportFiltersValue> = {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
-  registers: CloudData<ReportRegisterListBody>;
   answeredPeriod: { from: string; to: string } | undefined;
 };
 
@@ -23,39 +21,13 @@ function typedRange({ from, to }: RangeDraft): { from: string; to: string } | nu
   return { from: dayOf(from), to: dayOf(to) };
 }
 
-const registerOrder = textOrder((register: { label: string }) => register.label);
-
 export function ReportFilters<Filters extends ReportFiltersValue>({
   filters,
   onFiltersChange,
-  registers,
   answeredPeriod,
 }: ReportFiltersProps<Filters>) {
   const [draft, setDraft] = useState<RangeDraft | null>(null);
-  const reportFilters = useEffectEvent(onFiltersChange);
-  const registerChosen = filters.register !== "ALL";
-
-  const registersListed = registers.status === "loaded";
-  const listedOptions = registersListed
-    ? sortedItems(
-        registers.value.registers.map(({ id, name }) => ({ value: id, label: name })),
-        { order: registerOrder, direction: "ascending" },
-      )
-    : [];
-  const chosenOption =
-    registerChosen && !registersListed ? [{ value: filters.register, label: "La elegida" }] : [];
-  const registerOptions = [
-    { value: "ALL", label: "Todas" },
-    ...chosenOption,
-    ...listedOptions,
-  ] satisfies [{ value: string; label: string }, ...{ value: string; label: string }[]];
-  const registerOffered = registerOptions.some((option) => option.value === filters.register);
-
-  useEffect(() => {
-    if (registersListed && !registerOffered) {
-      reportFilters({ ...filters, register: "ALL" });
-    }
-  }, [registersListed, registerOffered, filters]);
+  const registerFilter = useContext(ReportRegisterFilterSlot);
 
   const shownPeriod = filters.from === "" ? answeredPeriod : { from: filters.from, to: filters.to };
   const range: RangeDraft = draft ?? {
@@ -96,13 +68,12 @@ export function ReportFilters<Filters extends ReportFiltersValue>({
           rangeRefused ? "La fecha de fin no puede ser anterior a la de inicio." : undefined
         }
       />
-      <ListFilter
-        name="register"
-        label="Caja:"
-        options={registerOptions}
-        value={registerOffered ? filters.register : "ALL"}
-        onChange={(register) => onFiltersChange({ ...filters, register })}
-      />
+      <Suspense fallback={null}>
+        {registerFilter({
+          value: filters.register,
+          onChange: (register) => onFiltersChange({ ...filters, register }),
+        })}
+      </Suspense>
     </div>
   );
 }

@@ -28,6 +28,8 @@ import type { PackagingsListScreenServices } from "../purchasing/packagings-list
 import type { PurchasesListScreenServices } from "../purchasing/purchases-list-services";
 import type { SuppliersListScreenServices } from "../purchasing/suppliers-list-services";
 import type { RegistersListScreenServices } from "../register/registers-list-services";
+import type { ReportRegisterFilterProps } from "../register/report-register-filter";
+import type { ReportRegisterFilterServices } from "../register/report-register-filter-services";
 import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../sessions/session-api";
 import type { SignInScreenServices } from "../sessions/sign-in-services";
@@ -75,6 +77,8 @@ export type AppServices = {
   discountsListScreen: DiscountsListScreenServices;
   salesByDayScreen: SalesByDayScreenServices;
   salesByPaymentMethodScreen: SalesByPaymentMethodScreenServices;
+  reportFiltersRegisterFilter: ComponentType<ReportRegisterFilterProps>;
+  reportRegisterFilter: ReportRegisterFilterServices;
   pendingRefundsScreen: PendingRefundsScreenServices;
   stockBalancesScreen: StockBalancesScreenServices;
   stockCountsScreen: StockCountsScreenServices;
@@ -100,6 +104,7 @@ type ShellServiceName =
   | "checkSessionStatus"
   | "userDetailCredentialSections"
   | "stockTopBarAlertsCount"
+  | "reportFiltersRegisterFilter"
   | "accountFooter"
   | "screenFailure";
 
@@ -116,6 +121,10 @@ const defaultRouteServices: RouteServices = {
   stockTopBarAlertsCount: lazyScreen(
     () => import("../alerts/alerts-open-count-link"),
     "AlertsOpenCountLink",
+  ),
+  reportFiltersRegisterFilter: lazyScreen(
+    () => import("../register/report-register-filter"),
+    "ReportRegisterFilter",
   ),
   accountFooter: defaultAccountFooterServices,
   screenFailure: defaultScreenFailureServices,

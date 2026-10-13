@@ -17,7 +17,7 @@ export {
   SALE_COMPLETED_EVENT_TYPE,
 } from "./outbox-event.js";
 export type { ReportPeriod } from "./report-period.js";
-export { defaultReportPeriod, isReportPeriodAsked } from "./report-period.js";
+export { isReportPeriodAsked, reportPeriodOf } from "./report-period.js";
 export type { Fraction } from "./rounding.js";
 export { roundHalfUp } from "./rounding.js";
 export type { SalesDeniedReason, SalesDeniedReport } from "./sales-denied.js";

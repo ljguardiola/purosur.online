@@ -7,6 +7,8 @@ export type { FigureStatProps } from "./components/data-display/figure-stat";
 export { FigureStat } from "./components/data-display/figure-stat";
 export type { HelpArticleBodyProps } from "./components/data-display/help-article-body";
 export { HelpArticleBody } from "./components/data-display/help-article-body";
+export type { PercentBarProps } from "./components/data-display/percent-bar";
+export { PercentBar } from "./components/data-display/percent-bar";
 export type { ProportionBarProps } from "./components/data-display/proportion-bar";
 export { ProportionBar } from "./components/data-display/proportion-bar";
 export type { SummaryRowProps } from "./components/data-display/summary-row";

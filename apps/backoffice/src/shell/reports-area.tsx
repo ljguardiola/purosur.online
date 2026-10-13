@@ -1,9 +1,8 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { ChartColumn, List, Wallet } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
-import { canSeeReports } from "./backoffice-access";
-import { lazyScreen } from "./lazy-screen";
-import { refuseWithout, signedInRoute } from "./signed-in-route";
+import { ReportRegisterFilterProvider } from "./report-register-filter-slot";
+import { signedInRoute } from "./signed-in-route";
 
 export const reportsAreaRoute = createRoute({
   getParentRoute: () => signedInRoute,
@@ -11,14 +10,8 @@ export const reportsAreaRoute = createRoute({
   component: ReportsArea,
 });
 
-export const reportsIndexRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
-  path: "reports",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
-  component: lazyScreen(() => import("./reports-index-page"), "ReportsIndexPage"),
-});
-
 function ReportsArea() {
+  const { services, sessionActions } = reportsAreaRoute.useRouteContext();
   const matchRoute = useMatchRoute();
   const salesByDayShown = Boolean(matchRoute({ to: "/reports/sales-by-day" }));
   const salesByPaymentMethodShown = Boolean(matchRoute({ to: "/reports/sales-by-payment-method" }));
@@ -61,7 +54,13 @@ function ReportsArea() {
         </>
       }
     >
-      <Outlet />
+      <ReportRegisterFilterProvider
+        filter={services.reportFiltersRegisterFilter}
+        services={services.reportRegisterFilter}
+        onSessionEnded={sessionActions.sessionEnded}
+      >
+        <Outlet />
+      </ReportRegisterFilterProvider>
     </AreaLayout>
   );
 }

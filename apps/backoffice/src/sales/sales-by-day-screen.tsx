@@ -19,7 +19,7 @@ import {
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { SalesByDayScreenServices } from "./sales-by-day-services";
-import { useReportRegistersQuery, useSalesReportQuery } from "./sales-queries";
+import { useSalesReportQuery } from "./sales-queries";
 
 export type SalesByDayScreenProps = {
   filters: ReportFiltersValue;
@@ -59,10 +59,6 @@ export function SalesByDayScreen({
   services,
 }: SalesByDayScreenProps) {
   const registerChosen = filters.register !== "ALL";
-  const registers = useReportRegistersQuery({
-    fetchReportRegisters: services.fetchReportRegisters,
-    onSessionEnded,
-  });
   const data = useSalesReportQuery({
     query: reportQueryOf(filters),
     fetchSalesReport: services.fetchSalesReport,
@@ -80,7 +76,6 @@ export function SalesByDayScreen({
       <ReportFilters
         filters={filters}
         onFiltersChange={onFiltersChange}
-        registers={registers}
         answeredPeriod={shown?.range}
       />
       {data.status === "failed" ? null : (

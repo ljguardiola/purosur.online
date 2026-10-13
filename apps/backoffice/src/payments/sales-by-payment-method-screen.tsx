@@ -5,8 +5,7 @@ import {
   FigureStat,
   formatCents,
   formatNumber,
-  formatPercent,
-  ProportionBar,
+  PercentBar,
   Table,
   TableCellText,
   textOrder,
@@ -14,14 +13,13 @@ import {
 } from "@purosur/ui";
 import { Receipt } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { formatDisplayDate } from "../platform/display-date";
 import { paymentMethodLabel } from "../platform/payment-method-label";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import { paymentMethodShare } from "./payment-method-share";
-import { useReportRegistersQuery, useSalesByPaymentMethodQuery } from "./payments-queries";
+import { useSalesByPaymentMethodQuery } from "./payments-queries";
 import type { SalesByPaymentMethodFilters } from "./sales-by-payment-method-filters";
 import type { SalesByPaymentMethodScreenServices } from "./sales-by-payment-method-services";
 
@@ -65,25 +63,11 @@ function paymentColumns(total: number) {
     dataColumn({
       id: "share",
       header: "Parte del total",
-      render: (sales: SalesOfMethod) => {
-        const share = paymentMethodShare(sales.amount, total);
-        return (
-          <div className="flex items-center gap-3">
-            <ProportionBar value={share} />
-            <span className="text-detail text-text-subtle">
-              {formatPercent(Math.round(share * 100))}
-            </span>
-          </div>
-        );
-      },
+      render: (sales: SalesOfMethod) => (
+        <PercentBar value={paymentMethodShare(sales.amount, total)} />
+      ),
     }),
   ] as const;
-}
-
-function periodDetail({ from, to }: SalesByPaymentMethodBody["range"]): string {
-  return from === to
-    ? `El ${formatDisplayDate(from)}`
-    : `Del ${formatDisplayDate(from)} al ${formatDisplayDate(to)}`;
 }
 
 export function SalesByPaymentMethodScreen({
@@ -93,10 +77,6 @@ export function SalesByPaymentMethodScreen({
   services,
 }: SalesByPaymentMethodScreenProps) {
   const registerChosen = filters.register !== "ALL";
-  const registers = useReportRegistersQuery({
-    fetchReportRegisters: services.fetchReportRegisters,
-    onSessionEnded,
-  });
   const data = useSalesByPaymentMethodQuery({
     query: reportQueryOf(filters),
     fetchSalesByPaymentMethod: services.fetchSalesByPaymentMethod,
@@ -120,7 +100,6 @@ export function SalesByPaymentMethodScreen({
       <ReportFilters
         filters={filters}
         onFiltersChange={onFiltersChange}
-        registers={registers}
         answeredPeriod={shown?.range}
       />
       {data.status === "failed" ? null : (
@@ -132,7 +111,6 @@ export function SalesByPaymentMethodScreen({
                   size="heading"
                   label="Total vendido"
                   value={formatCents(shown.totals.total)}
-                  detail={periodDetail(shown.range)}
                 />
               </Card>
               <Card>

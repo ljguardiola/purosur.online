@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { useDocumentTitle } from "./document-title";
+import { useDocumentTitle } from "../shell/document-title";
 import { ReportsIndexScreen } from "./reports-index-screen";
 
 export function ReportsIndexPage(): ReactElement {

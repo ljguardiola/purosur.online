@@ -23,3 +23,10 @@ export function defaultReportPeriod(now: Date): ReportPeriod {
   const today = argentinaCalendarDay(now);
   return { from: today, to: today };
 }
+
+export function reportPeriodOf(
+  { from, to }: { from: string | undefined; to: string | undefined },
+  now: Date,
+): ReportPeriod {
+  return from !== undefined && to !== undefined ? { from, to } : defaultReportPeriod(now);
+}

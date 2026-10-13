@@ -1,4 +1,4 @@
-import { type Clock, defaultReportPeriod, type ReportPeriod } from "../../shared/index.js";
+import { type Clock, type ReportPeriod, reportPeriodOf } from "../../shared/index.js";
 import {
   type SalesOfDay,
   type SalesReportTotals,
@@ -22,10 +22,7 @@ export async function readSalesByDay(
   { reader, clock }: { reader: SalesReportReader; clock: Clock },
   { locationId, asked, registerId }: ReadSalesByDayInput,
 ): Promise<SalesByDayReport> {
-  const range =
-    asked.from !== undefined && asked.to !== undefined
-      ? { from: asked.from, to: asked.to }
-      : defaultReportPeriod(clock.now());
+  const range = reportPeriodOf(asked, clock.now());
   const days = await reader.completedSalesByDay({ locationId, range, registerId });
   return { range, days, totals: salesReportTotals(days) };
 }

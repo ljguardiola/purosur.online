@@ -304,8 +304,6 @@ export {
   registerSyncStatusListSchema,
   registerSyncStatusSchema,
 } from "./register/register-sync-status.js";
-export type { ReportRegisterListBody } from "./register/report-register-list.js";
-export { reportRegisterListSchema } from "./register/report-register-list.js";
 export type { RegisterUpdateAnswer } from "./register/register-update.js";
 export {
   registerReleaseEntrySchema,
@@ -314,6 +312,8 @@ export {
   registerVersionSchema,
   registerVersionText,
 } from "./register/register-update.js";
+export type { ReportRegisterListBody } from "./register/report-register-list.js";
+export { reportRegisterListSchema } from "./register/report-register-list.js";
 export type {
   CancelLockedSaleOutcome,
   ReceiptPrintStatusOutcome,
