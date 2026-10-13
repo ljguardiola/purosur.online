@@ -12,6 +12,8 @@ export const FREIGHT_CARRIER_NAME_MAX_LENGTH = SUPPLIER_NAME_MAX_LENGTH;
 
 export const FREIGHT_PERIOD_DAYS = [30, 90, 365] as const;
 
+export const DEFAULT_FREIGHT_PERIOD_DAYS = 90;
+
 export type FreightPeriodDays = (typeof FREIGHT_PERIOD_DAYS)[number];
 
 function hasVisibleCharacter(text: string): boolean {

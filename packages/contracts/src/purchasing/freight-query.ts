@@ -1,4 +1,5 @@
 import {
+  DEFAULT_FREIGHT_PERIOD_DAYS,
   FREIGHT_DESCRIPTION_MAX_LENGTH,
   FREIGHT_PERIOD_DAYS,
   isFreightDescriptionTooLong,
@@ -10,7 +11,7 @@ import { optionalLimitedTextSchema } from "./optional-text.js";
 const periodSchema = z.coerce
   .number()
   .pipe(z.literal(FREIGHT_PERIOD_DAYS))
-  .default(FREIGHT_PERIOD_DAYS[0]);
+  .default(DEFAULT_FREIGHT_PERIOD_DAYS);
 
 export const freightListQuerySchema = z.object({
   period: periodSchema,

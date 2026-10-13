@@ -370,6 +370,7 @@ export {
 } from "./pricing/index.js";
 export type { FreightMeans, FreightPeriodDays, ReceiptType } from "./purchasing/index.js";
 export {
+  DEFAULT_FREIGHT_PERIOD_DAYS,
   FREIGHT_CARRIER_NAME_MAX_LENGTH,
   FREIGHT_DESCRIPTION_MAX_LENGTH,
   FREIGHT_PERIOD_DAYS,
