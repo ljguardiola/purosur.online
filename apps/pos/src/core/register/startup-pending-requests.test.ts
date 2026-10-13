@@ -24,6 +24,14 @@ function gate() {
   });
 }
 
+async function pendingOf() {
+  const answer = await startupPendingFor({ database, gate: gate() });
+  if (answer === "not_permitted") {
+    throw new Error("test setup: the person may not sell");
+  }
+  return answer;
+}
+
 function addCompletedSale(
   id: string,
   occurredAt: string,
@@ -58,7 +66,7 @@ afterEach(() => {
 
 describe("what a stopped register left pending", () => {
   it("is empty for a register that left nothing", async () => {
-    expect(await startupPendingFor({ database, gate: gate() })).toEqual({
+    expect(await pendingOf()).toEqual({
       sales_to_print: [],
       unknown_fiscal_documents: [],
       pending_payments: [],
@@ -76,7 +84,7 @@ describe("what a stopped register left pending", () => {
       "2026-10-13T11:11:01.000Z",
     );
 
-    expect((await startupPendingFor({ database, gate: gate() })).sales_to_print).toEqual([
+    expect((await pendingOf()).sales_to_print).toEqual([
       {
         sale_id: "never",
         completed_at: "2026-10-13T11:00:00.000Z",
@@ -98,12 +106,12 @@ describe("what a stopped register left pending", () => {
       `INSERT INTO fiscal_documents (
          id, sale_id, point_of_sale, document_type, number, issued_on, document, state, reserved_at, resolved_at
        ) VALUES (
-         'doc-1', 'sale-1', 12, 'FACTURA_C', 41, '2026-10-13', '{}', 'UNKNOWN',
+         'doc-1', 'sale-1', 12, 'factura_c', 41, '2026-10-13', '{}', 'UNKNOWN',
          '2026-10-13T11:00:01.000Z', '2026-10-13T11:00:02.000Z'
        )`,
     );
 
-    expect((await startupPendingFor({ database, gate: gate() })).unknown_fiscal_documents).toEqual([
+    expect((await pendingOf()).unknown_fiscal_documents).toEqual([
       {
         id: "doc-1",
         sale_id: "sale-1",
@@ -122,7 +130,7 @@ describe("what a stopped register left pending", () => {
                '2026-10-13T11:50:00.000Z', '2026-10-13T11:53:00.000Z')`,
     );
 
-    expect((await startupPendingFor({ database, gate: gate() })).pending_payments).toEqual([
+    expect((await pendingOf()).pending_payments).toEqual([
       {
         payment_id: "qr-1",
         sale_id: "open-sale",
@@ -136,7 +144,7 @@ describe("what a stopped register left pending", () => {
   it("is refused while nobody is signed in", async () => {
     signedInPerson.clear();
 
-    expect(await startupPendingFor({ database, gate: gate() })).toBe("not_permitted");
+    expect(await pendingOf()).toBe("not_permitted");
   });
 
   it("is refused to a person who may not sell", async () => {
@@ -144,6 +152,6 @@ describe("what a stopped register left pending", () => {
       "UPDATE role_permissions SET active = 0 WHERE permission_key = 'sell_and_charge'",
     );
 
-    expect(await startupPendingFor({ database, gate: gate() })).toBe("not_permitted");
+    expect(await pendingOf()).toBe("not_permitted");
   });
 });

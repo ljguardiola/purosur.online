@@ -156,17 +156,18 @@ describe("printing a completed sale's receipt", () => {
     expect(reprints()).toEqual([]);
   });
 
-  it("records the print attempt and the sale as printed as it sends the original receipt once the printer is ready", async () => {
+  it("records the print attempt as it sends the original receipt and the sale as printed once the printer took it", async () => {
     await printCompletedSaleReceiptFor(deps(), "sale-1");
 
     printer.becomeReady();
     advance(3000);
+    await vi.waitFor(() => expect(jobs.standingOf("sale-1")).toBe("printed"));
 
     expect(printer.handed).toHaveLength(1);
     expect(printer.handed[0]?.length).toBeGreaterThan(0);
     expect(deliveryOf("sale-1")).toEqual({
       print_attempted_at: START.toISOString(),
-      printed_at: START.toISOString(),
+      printed_at: new Date(START.getTime() + 3000).toISOString(),
     });
     expect(reprints()).toEqual([]);
   });

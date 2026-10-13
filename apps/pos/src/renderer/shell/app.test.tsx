@@ -399,6 +399,9 @@ function coreAnswering(
     async sessionOpenSale() {
       return cashDrawer.sessionOpenSale === undefined ? null : cashDrawer.sessionOpenSale();
     },
+    async startupPending() {
+      return { sales_to_print: [], unknown_fiscal_documents: [], pending_payments: [] };
+    },
     async cashBalance() {
       return cashDrawer.cashBalance === undefined ? null : cashDrawer.cashBalance();
     },
