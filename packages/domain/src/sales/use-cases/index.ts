@@ -75,6 +75,12 @@ export type {
 } from "./charge-sale-in-cash.js";
 export { chargeSaleInCash } from "./charge-sale-in-cash.js";
 export type {
+  ChargeSaleOnStandaloneTerminalInput,
+  ChargeSaleOnStandaloneTerminalOutcome,
+  ChargeSaleOnStandaloneTerminalPorts,
+} from "./charge-sale-on-standalone-terminal.js";
+export { chargeSaleOnStandaloneTerminal } from "./charge-sale-on-standalone-terminal.js";
+export type {
   CurrentSaleInput,
   CurrentSaleOutcome,
   CurrentSalePorts,

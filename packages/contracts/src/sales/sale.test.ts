@@ -15,6 +15,7 @@ import {
   changeLineWeightOutcomeSchema,
   chargeSaleByTransferOutcomeSchema,
   chargeSaleInCashOutcomeSchema,
+  chargeSaleOnStandaloneTerminalOutcomeSchema,
   previewSaleDiscountOutcomeSchema,
   removeSaleLineOutcomeSchema,
   saleSchema,
@@ -97,12 +98,14 @@ describe("saleSchema", () => {
     },
   );
 
-  it.each([null, "mercado_pago_charge_in_progress", "holds_mercado_pago_payment"] as const)(
-    "accepts a sale whose cancellation is refused by %s",
-    (cancel_refusal) => {
-      expect(saleSchema.parse({ ...sale, cancel_refusal }).cancel_refusal).toBe(cancel_refusal);
-    },
-  );
+  it.each([
+    null,
+    "mercado_pago_charge_in_progress",
+    "holds_mercado_pago_payment",
+    "holds_standalone_terminal_payment",
+  ] as const)("accepts a sale whose cancellation is refused by %s", (cancel_refusal) => {
+    expect(saleSchema.parse({ ...sale, cancel_refusal }).cancel_refusal).toBe(cancel_refusal);
+  });
 
   it.each(["QR", "POINT"] as const)(
     "accepts a sale with a %s charge in progress, named to be followed",
@@ -561,6 +564,7 @@ describe("cancelPaidSaleOutcomeSchema", () => {
     { kind: "locked", consecutive_failures: PIN_SIGN_IN_LOCKOUT_FAILURES },
     { kind: "mercado_pago_charge_in_progress" },
     { kind: "holds_mercado_pago_payment" },
+    { kind: "holds_standalone_terminal_payment" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(cancelPaidSaleOutcomeSchema.parse(outcome)).toEqual(outcome);
   });
@@ -878,6 +882,59 @@ describe("chargeSaleByTransferOutcomeSchema", () => {
   it("leaves out what only a cash charge reports", () => {
     expect(
       chargeSaleByTransferOutcomeSchema.parse({
+        kind: "completed",
+        sale_id: "s1",
+        total: 3000,
+        tendered: 5000,
+        change: 2000,
+      }),
+    ).toEqual({ kind: "completed", sale_id: "s1", total: 3000 });
+  });
+});
+
+describe("chargeSaleOnStandaloneTerminalOutcomeSchema", () => {
+  it.each([
+    { kind: "completed", sale_id: "s1", total: 3000 },
+    { kind: "partially_paid", sale_id: "s1", total: 3000, paid: 1000, pending: 2000 },
+    { kind: "invalid_amount" },
+    { kind: "exceeds_pending", pending: 2000 },
+    { kind: "empty_sale" },
+    { kind: "zero_total" },
+    { kind: "reaches_buyer_identification_threshold", threshold: 10_000_000 },
+    { kind: "no_buyer_identification_threshold" },
+    { kind: "no_open_sale" },
+    { kind: "not_permitted" },
+    { kind: "not_signed_in" },
+    { kind: "no_open_session" },
+    { kind: "unavailable" },
+    { kind: "mercado_pago_charge_in_progress" },
+  ])("accepts the outcome $kind", (outcome) => {
+    expect(chargeSaleOnStandaloneTerminalOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it.each([
+    { kind: "completed" },
+    { kind: "completed", sale_id: "s1" },
+    { kind: "completed", total: 3000 },
+    { kind: "completed", sale_id: "s1", total: -1 },
+    { kind: "completed", sale_id: "s1", total: 3000.5 },
+    { kind: "insufficient_cash", amount_due: 3000 },
+    { kind: "exceeds_pending" },
+    { kind: "exceeds_pending", pending: -1 },
+    { kind: "exceeds_pending", pending: 1.5 },
+    { kind: "partially_paid", sale_id: "s1", total: 3000, paid: 1000 },
+    { kind: "reaches_buyer_identification_threshold" },
+    { kind: "reaches_buyer_identification_threshold", threshold: 0 },
+    { kind: "reaches_buyer_identification_threshold", threshold: 1.5 },
+    { kind: "somewhere_else" },
+    {},
+  ])("rejects the outcome %j", (outcome) => {
+    expect(chargeSaleOnStandaloneTerminalOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
+
+  it("leaves out what only a cash charge reports", () => {
+    expect(
+      chargeSaleOnStandaloneTerminalOutcomeSchema.parse({
         kind: "completed",
         sale_id: "s1",
         total: 3000,

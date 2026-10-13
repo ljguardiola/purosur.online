@@ -14,6 +14,7 @@ import type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleOnStandaloneTerminalOutcome,
   CurrentSaleAnswer,
   ManualAdjustmentRequest,
   OpenSale,
@@ -59,6 +60,7 @@ import {
   changeLineWeight,
   chargeSaleByTransfer,
   chargeSaleInCash,
+  chargeSaleOnStandaloneTerminal,
   currentSale,
   type IdGenerator,
   type OperationAuthorization,
@@ -93,6 +95,11 @@ export interface ChargeSaleInCashRequest {
 }
 
 export interface ChargeSaleByTransferRequest {
+  saleId: string;
+  amount: number;
+}
+
+export interface ChargeSaleOnStandaloneTerminalRequest {
   saleId: string;
   amount: number;
 }
@@ -848,16 +855,19 @@ function partiallyPaid(outcome: {
   };
 }
 
-export async function chargeSaleByTransferFor(
+type ConfirmedByHandCharge = typeof chargeSaleByTransfer | typeof chargeSaleOnStandaloneTerminal;
+
+async function chargeSaleConfirmedByHandFor(
   { database, gate, now, ids, readOutboxChainKey }: OutboxSaleRequestDeps,
   { saleId, amount }: ChargeSaleByTransferRequest,
+  charge: ConfirmedByHandCharge,
 ): Promise<ChargeSaleByTransferOutcome> {
   const outboxChainKey = await readOutboxChainKey();
   if (outboxChainKey === undefined) {
     return { kind: "unavailable" };
   }
   const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
-    chargeSaleByTransfer(
+    charge(
       { ledger: saleLedger(database, outboxChainKey), clock: { now }, ids },
       { actorId: signedInUserId, saleId, amount },
     ),
@@ -878,4 +888,18 @@ export async function chargeSaleByTransferFor(
     default:
       return { kind: outcome.kind };
   }
+}
+
+export function chargeSaleByTransferFor(
+  deps: OutboxSaleRequestDeps,
+  request: ChargeSaleByTransferRequest,
+): Promise<ChargeSaleByTransferOutcome> {
+  return chargeSaleConfirmedByHandFor(deps, request, chargeSaleByTransfer);
+}
+
+export function chargeSaleOnStandaloneTerminalFor(
+  deps: OutboxSaleRequestDeps,
+  request: ChargeSaleOnStandaloneTerminalRequest,
+): Promise<ChargeSaleOnStandaloneTerminalOutcome> {
+  return chargeSaleConfirmedByHandFor(deps, request, chargeSaleOnStandaloneTerminal);
 }

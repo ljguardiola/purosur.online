@@ -13,6 +13,7 @@ import type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   FirstPinCodeRequestOutcome,
@@ -80,6 +81,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const scans: string[] = [];
   const charges: { saleId: string; tendered: number }[] = [];
   const transferCharges: { saleId: string }[] = [];
+  const standaloneTerminalCharges: { saleId: string }[] = [];
   const searches: string[] = [];
   const additions: string[] = [];
   const weighedAdditions: string[] = [];
@@ -105,6 +107,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     scans,
     charges,
     transferCharges,
+    standaloneTerminalCharges,
     searches,
     additions,
     weighedAdditions,
@@ -306,6 +309,13 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         amount: number;
       }): Promise<ChargeSaleByTransferOutcome> => {
         transferCharges.push(request);
+        return { kind: "no_open_sale" };
+      },
+      chargeSaleOnStandaloneTerminal: async (request: {
+        saleId: string;
+        amount: number;
+      }): Promise<ChargeSaleOnStandaloneTerminalOutcome> => {
+        standaloneTerminalCharges.push(request);
         return { kind: "no_open_sale" };
       },
       startMercadoPagoCharge: undefined,
@@ -1199,6 +1209,81 @@ describe("answerRendererRequest", () => {
     ).toEqual({
       type: "charge-sale-by-transfer-result",
       request_id: "r37",
+      outcome: { kind: "unavailable" },
+    });
+  });
+
+  it("charges the sale on the standalone terminal and answers the outcome", async () => {
+    const outcome: ChargeSaleOnStandaloneTerminalOutcome = {
+      kind: "completed",
+      sale_id: "s1",
+      total: 3000,
+    };
+    const { deps: withCharge, standaloneTerminalCharges } = deps(true, {
+      chargeSaleOnStandaloneTerminal: async () => outcome,
+    });
+    const answer = await answerRendererRequest(withCharge, {
+      type: "charge-sale-on-standalone-terminal",
+      request_id: "s34",
+      sale_id: "s1",
+      amount: 1200,
+    });
+    const recording = deps(true);
+    await answerRendererRequest(recording.deps, {
+      type: "charge-sale-on-standalone-terminal",
+      request_id: "s35",
+      sale_id: "s2",
+      amount: 1200,
+    });
+
+    expect(answer).toEqual({
+      type: "charge-sale-on-standalone-terminal-result",
+      request_id: "s34",
+      outcome,
+    });
+    expect(standaloneTerminalCharges).toEqual([]);
+    expect(recording.standaloneTerminalCharges).toEqual([{ saleId: "s2", amount: 1200 }]);
+    expect(recording.charges).toEqual([]);
+  });
+
+  it("answers that charging on the standalone terminal is unavailable when it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      chargeSaleOnStandaloneTerminal: async () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "charge-sale-on-standalone-terminal",
+        request_id: "s36",
+        sale_id: "s1",
+        amount: 1200,
+      }),
+    ).toEqual({
+      type: "charge-sale-on-standalone-terminal-result",
+      request_id: "s36",
+      outcome: { kind: "unavailable" },
+    });
+    expect(failing.failures).toEqual([
+      { context: "charging a sale on the standalone terminal", error },
+    ]);
+  });
+
+  it("answers that charging on the standalone terminal is unavailable when the register has no database", async () => {
+    const withoutDatabase = deps(true, { chargeSaleOnStandaloneTerminal: undefined });
+
+    expect(
+      await answerRendererRequest(withoutDatabase.deps, {
+        type: "charge-sale-on-standalone-terminal",
+        request_id: "s37",
+        sale_id: "s1",
+        amount: 1200,
+      }),
+    ).toEqual({
+      type: "charge-sale-on-standalone-terminal-result",
+      request_id: "s37",
       outcome: { kind: "unavailable" },
     });
   });

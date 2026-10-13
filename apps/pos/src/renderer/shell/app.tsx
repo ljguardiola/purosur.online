@@ -3,6 +3,7 @@ import type {
   Authorization,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   FollowMercadoPagoChargeOutcome,
@@ -244,6 +245,7 @@ function Register({ core }: { core: CoreClient }) {
     kind: (
       | ChargeSaleInCashOutcome
       | ChargeSaleByTransferOutcome
+      | ChargeSaleOnStandaloneTerminalOutcome
       | StartMercadoPagoChargeOutcome
       | FollowMercadoPagoChargeOutcome
       | AbandonMercadoPagoChargeOutcome
@@ -277,6 +279,12 @@ function Register({ core }: { core: CoreClient }) {
 
   async function chargeSaleByTransfer(saleId: string, amount: number) {
     const outcome = await core.chargeSaleByTransfer(saleId, amount);
+    await refreshAfterCharge(outcome.kind);
+    return outcome;
+  }
+
+  async function chargeSaleOnStandaloneTerminal(saleId: string, amount: number) {
+    const outcome = await core.chargeSaleOnStandaloneTerminal(saleId, amount);
     await refreshAfterCharge(outcome.kind);
     return outcome;
   }
@@ -361,6 +369,7 @@ function Register({ core }: { core: CoreClient }) {
     cashCharge: (saleId: string, tendered: number) => core.cashCharge(saleId, tendered),
     chargeSaleInCash,
     chargeSaleByTransfer,
+    chargeSaleOnStandaloneTerminal,
     paymentMethodAvailability: () => core.paymentMethodAvailability(),
     startMercadoPagoCharge,
     followMercadoPagoCharge,

@@ -94,6 +94,7 @@ import {
   changeLineWeightFor,
   chargeSaleByTransferFor,
   chargeSaleInCashFor,
+  chargeSaleOnStandaloneTerminalFor,
   currentSaleFor,
   previewSaleDiscountFor,
   previewSaleLineAdjustmentFor,
@@ -774,6 +775,21 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             request,
           ),
+  chargeSaleOnStandaloneTerminal:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) =>
+          chargeSaleOnStandaloneTerminalFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now,
+              ids: uuidV7Ids,
+            },
+            request,
+          ),
   startMercadoPagoCharge: mercadoPagoCharging.start,
   followMercadoPagoCharge: mercadoPagoCharging.follow,
   paymentMethodAvailability:
@@ -883,6 +899,9 @@ const answeredRendererRequestDeps: RendererRequestDeps = {
   chargeSaleInCash: receiptPrinting.afterCompletedSale(rendererRequestDeps.chargeSaleInCash),
   chargeSaleByTransfer: receiptPrinting.afterCompletedSale(
     rendererRequestDeps.chargeSaleByTransfer,
+  ),
+  chargeSaleOnStandaloneTerminal: receiptPrinting.afterCompletedSale(
+    rendererRequestDeps.chargeSaleOnStandaloneTerminal,
   ),
   followMercadoPagoCharge: receiptPrinting.afterCompletedSale(
     rendererRequestDeps.followMercadoPagoCharge,

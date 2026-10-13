@@ -17,7 +17,9 @@ import {
   changeLineWeightOutcomeSchema,
   chargeSaleByTransferOutcomeSchema,
   chargeSaleInCashOutcomeSchema,
+  chargeSaleOnStandaloneTerminalOutcomeSchema,
   holdsMercadoPagoPaymentOutcome,
+  holdsStandaloneTerminalPaymentOutcome,
   manualAdjustmentReasonSchema,
   manualAdjustmentValueSchema,
   previewSaleDiscountOutcomeSchema,
@@ -185,6 +187,13 @@ export const chargeSaleByTransferMessageSchema = z.object({
   amount: z.int(),
 });
 
+export const chargeSaleOnStandaloneTerminalMessageSchema = z.object({
+  type: z.literal("charge-sale-on-standalone-terminal"),
+  request_id: requestId,
+  sale_id: z.string(),
+  amount: z.int(),
+});
+
 const cashChargeRequestMessageSchema = z.object({
   type: z.literal("cash-charge-request"),
   request_id: requestId,
@@ -217,6 +226,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   saleRequestMessageSchema,
   chargeSaleInCashMessageSchema,
   chargeSaleByTransferMessageSchema,
+  chargeSaleOnStandaloneTerminalMessageSchema,
   cashChargeRequestMessageSchema,
   cancelLockedSaleMessageSchema,
   receiptPrintStatusMessageSchema,
@@ -235,6 +245,7 @@ const cancelLockedSaleOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("not_locked") }),
   qrChargeInProgressOutcome,
   holdsMercadoPagoPaymentOutcome,
+  holdsStandaloneTerminalPaymentOutcome,
 ]);
 export type CancelLockedSaleOutcome = z.infer<typeof cancelLockedSaleOutcomeSchema>;
 
@@ -353,6 +364,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("charge-sale-by-transfer-result"),
     request_id: requestId,
     outcome: chargeSaleByTransferOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("charge-sale-on-standalone-terminal-result"),
+    request_id: requestId,
+    outcome: chargeSaleOnStandaloneTerminalOutcomeSchema,
   }),
   z.object({
     type: z.literal("cancel-locked-sale-result"),

@@ -19,6 +19,7 @@ const PAYMENT_METHOD_NAMES = {
   TRANSFER: "Transferencia",
   QR: "QR de Mercado Pago",
   POINT: "Point integrada",
+  STANDALONE_TERMINAL: "Terminal independiente",
 } as const satisfies Record<PaymentMethod, string>;
 
 const PAYMENT_METHOD_SHORT_NAMES = {

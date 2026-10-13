@@ -887,6 +887,7 @@ describe("the register's local migrations", () => {
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
         "0045_refund_completions",
+        "0046_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -959,6 +960,7 @@ describe("the register's local migrations", () => {
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
         "0045_refund_completions",
+        "0046_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1026,6 +1028,7 @@ describe("the register's local migrations", () => {
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
         "0045_refund_completions",
+        "0046_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1092,6 +1095,7 @@ describe("the register's local migrations", () => {
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
         "0045_refund_completions",
+        "0046_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1185,6 +1189,7 @@ describe("the register's local migrations", () => {
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
         "0045_refund_completions",
+        "0046_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1270,6 +1275,7 @@ describe("the register's local migrations", () => {
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
         "0045_refund_completions",
+        "0046_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1359,6 +1365,7 @@ describe("the register's local migrations", () => {
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
         "0045_refund_completions",
+        "0046_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1431,6 +1438,7 @@ describe("the register's local migrations", () => {
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
         "0045_refund_completions",
+        "0046_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1495,6 +1503,7 @@ describe("the register's local migrations", () => {
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
         "0045_refund_completions",
+        "0046_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -2640,6 +2649,111 @@ describe("the register's local migrations", () => {
         after
           .prepare(
             "UPDATE payment_transactions SET provider = 'MERCADOPAGO_POINT' WHERE id = 'pay-qr'",
+          )
+          .run(),
+      ).toThrow(/CHECK/);
+      expect(
+        after
+          .prepare("SELECT name FROM sqlite_schema WHERE name = 'payment_transactions_by_sale'")
+          .all(),
+      ).toEqual([{ name: "payment_transactions_by_sale" }]);
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("let a payment be a standalone terminal payment confirmed by hand, keeping the payments and refunds a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0046_standalone_terminal_payments",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0046_standalone_terminal_payments",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('done', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z'),
+                ('open', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at, wait_ends_at)
+         VALUES ('pay-cash', 'done', 'SALE', 'CASH', 'NONE', 1000, 1500, NULL, NULL, 'APPROVED', '2026-10-09T12:05:00.000Z', NULL),
+                ('pay-transfer', 'open', 'SALE', 'TRANSFER', 'NONE', 400, NULL, 'u1', '2026-10-09T12:08:00.000Z', 'APPROVED', '2026-10-09T12:08:00.000Z', NULL),
+                ('pay-point', 'open', 'SALE', 'POINT', 'MERCADOPAGO_POINT', 600, NULL, NULL, NULL, 'PENDING', '2026-10-09T12:06:00.000Z', '2026-10-09T12:09:00.000Z');
+         INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
+         VALUES ('refund-1', 'pay-cash', 'CASH', 'NONE', 1000, 'APPROVED', '2026-10-09T12:20:00.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare("SELECT id, method, provider, state FROM payment_transactions ORDER BY id")
+          .all(),
+      ).toEqual([
+        { id: "pay-cash", method: "CASH", provider: "NONE", state: "APPROVED" },
+        { id: "pay-point", method: "POINT", provider: "MERCADOPAGO_POINT", state: "PENDING" },
+        { id: "pay-transfer", method: "TRANSFER", provider: "NONE", state: "APPROVED" },
+      ]);
+      expect(after.prepare("SELECT id, payment_id FROM payment_refunds").all()).toEqual([
+        { id: "refund-1", payment_id: "pay-cash" },
+      ]);
+
+      const insertPayment = after.prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at, wait_ends_at)
+         VALUES (@id, 'open', 'SALE', 'STANDALONE_TERMINAL', @provider, 600, @tendered, @authorized_by, @confirmed_at, @state, '2026-10-09T12:10:00.000Z', @wait_ends_at)`,
+      );
+      const standalone = {
+        provider: "EXTERNAL_TERMINAL",
+        tendered: null,
+        authorized_by: "u1",
+        confirmed_at: "2026-10-09T12:10:00.000Z",
+        state: "APPROVED",
+        wait_ends_at: null,
+      };
+      insertPayment.run({ ...standalone, id: "standalone-1" });
+      expect(
+        after
+          .prepare(
+            "SELECT authorized_by, confirmed_at FROM payment_transactions WHERE id = 'standalone-1'",
+          )
+          .get(),
+      ).toEqual({ authorized_by: "u1", confirmed_at: "2026-10-09T12:10:00.000Z" });
+      expect(() =>
+        insertPayment.run({ ...standalone, id: "no-authorizer", authorized_by: null }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insertPayment.run({ ...standalone, id: "no-confirmation", confirmed_at: null }),
+      ).toThrow(/CHECK/);
+      expect(() => insertPayment.run({ ...standalone, id: "tendered", tendered: 600 })).toThrow(
+        /CHECK/,
+      );
+      expect(() => insertPayment.run({ ...standalone, id: "pending", state: "PENDING" })).toThrow(
+        /CHECK/,
+      );
+      expect(() =>
+        insertPayment.run({
+          ...standalone,
+          id: "waiting",
+          wait_ends_at: "2026-10-09T12:13:00.000Z",
+        }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insertPayment.run({ ...standalone, id: "no-terminal", provider: "NONE" }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insertPayment.run({ ...standalone, id: "mercado-pago", provider: "MERCADOPAGO_POINT" }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        after
+          .prepare(
+            "UPDATE payment_transactions SET provider = 'EXTERNAL_TERMINAL' WHERE id = 'pay-transfer'",
           )
           .run(),
       ).toThrow(/CHECK/);

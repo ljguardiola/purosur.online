@@ -7,6 +7,7 @@ const REFUND_METHOD_LABELS = {
   TRANSFER: "Transferencia",
   QR: "QR de Mercado Pago",
   POINT: "Point integrada",
+  STANDALONE_TERMINAL: "Terminal independiente",
 } satisfies Record<RefundMethod, string>;
 
 export function refundMethodLabel(method: RefundMethod): string {
