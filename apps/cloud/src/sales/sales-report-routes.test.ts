@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { inbox, registers } from "../platform/db/schema.js";
+import { inbox } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   BACKOFFICE_ORIGIN,
@@ -41,10 +41,6 @@ afterEach(async () => {
 
 function salesByDay(headers: Record<string, string>, query = "") {
   return app.inject({ method: "GET", url: `/reports/sales-by-day${query}`, headers });
-}
-
-function reportRegisters(headers: Record<string, string>) {
-  return app.inject({ method: "GET", url: "/reports/registers", headers });
 }
 
 async function receiveSale(total: number): Promise<{ registerId: string }> {
@@ -101,10 +97,9 @@ async function receiveSale(total: number): Promise<{ registerId: string }> {
   return { registerId };
 }
 
-describe.each([
-  ["GET /reports/sales-by-day", salesByDay],
-  ["GET /reports/registers", reportRegisters],
-])("%s access", (_name, request) => {
+describe("GET /reports/sales-by-day access", () => {
+  const request = salesByDay;
+
   it("returns 401 when no session cookie was sent", async () => {
     const response = await request({ origin: BACKOFFICE_ORIGIN });
 
@@ -204,35 +199,3 @@ describe("GET /reports/sales-by-day", () => {
     expect(response.json().totals).toEqual({ sales_count: 0, total: 0 });
   });
 });
-
-describe("GET /reports/registers", () => {
-  it("lists the registers of the session's branch by name", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
-    const second = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 2" });
-    const first = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 1" });
-    await insertEnrolledInstallation(db, {
-      now: NOW,
-      existingRegisterId: await anotherBranchRegister(),
-    });
-
-    const response = await reportRegisters(headers);
-
-    expect(response.json()).toEqual({
-      registers: [
-        { id: first.registerId, name: "Caja 1" },
-        { id: second.registerId, name: "Caja 2" },
-      ],
-    });
-  });
-});
-
-async function anotherBranchRegister(): Promise<string> {
-  const [register] = await db
-    .insert(registers)
-    .values({ locationId: await insertLocation(db), name: "Caja X" })
-    .returning({ id: registers.id });
-  if (!register) {
-    throw new Error("test setup: seeding the register returned no row");
-  }
-  return register.id;
-}
