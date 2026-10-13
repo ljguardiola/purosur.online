@@ -15,6 +15,7 @@ export function createServices(
 ): PricesListScreenServices {
   return {
     fetchPrices: vi.fn(),
+    fetchPriceMargin: vi.fn(),
     setPrice: vi.fn(),
     confirmPrice: vi.fn(),
     ...overrides,
