@@ -7,6 +7,7 @@ import {
   freightPerUnit,
   hasDistributableValue,
   lineValue,
+  purchaseValueCents,
 } from "./freight-distribution.js";
 
 function line(id: string, costPaidCents: number, quantity = 1000, quantityPerPackage = 1000) {
@@ -254,6 +255,40 @@ describe("freightPerUnit", () => {
           );
         },
       ),
+    );
+  });
+});
+
+describe("purchaseValueCents", () => {
+  it("adds up the exact value of the lines and rounds half up once", () => {
+    expect(purchaseValueCents([line("a", 333, 2500, 1000), line("b", 1, 500, 1000)])).toBe(833);
+    expect(purchaseValueCents([line("a", 333, 1500, 1000), line("b", 1, 1000, 1000)])).toBe(501);
+  });
+
+  it("is zero for a purchase of free lines", () => {
+    expect(purchaseValueCents([line("a", 0)])).toBe(0);
+  });
+
+  it("never differs from the exact total by more than half a cent", () => {
+    fc.assert(
+      fc.property(linesArbitrary, (lines) => {
+        const denominator = lines.reduce(
+          (product, { quantityPerPackage }) => product * BigInt(quantityPerPackage),
+          1n,
+        );
+        const numerator = lines.reduce(
+          (sum, candidate) =>
+            sum +
+            lines.reduce(
+              (weight, other) =>
+                other === candidate ? weight : weight * BigInt(other.quantityPerPackage),
+              BigInt(candidate.costPaidCents) * BigInt(candidate.quantity),
+            ),
+          0n,
+        );
+        const difference = BigInt(purchaseValueCents(lines)) * denominator - numerator;
+        expect(2n * (difference < 0n ? -difference : difference) <= denominator).toBe(true);
+      }),
     );
   });
 });
