@@ -27,7 +27,19 @@ export type {
   SourceAddressHasher,
 } from "./alert-store.js";
 export { AlertAlreadyOpenError } from "./alert-store.js";
+export type {
+  ArcaCertificateExpiryPorts,
+  ArcaCertificateExpiryStore,
+  ArcaCertificateExpiryStoreTransaction,
+  NewCertificateExpiringAlert,
+  OpenCertificateExpiringAlert,
+} from "./arca-certificate-expiry-store.js";
 export type { BranchHoursReader } from "./branch-hours-reader.js";
+export type {
+  CheckArcaCertificateExpiryInput,
+  CheckArcaCertificateExpiryOutcome,
+} from "./check-arca-certificate-expiry.js";
+export { checkArcaCertificateExpiry } from "./check-arca-certificate-expiry.js";
 export type {
   CloseAlertInput,
   CloseAlertOutcome,

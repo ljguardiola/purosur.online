@@ -1,4 +1,7 @@
-export { ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS } from "./model/arca-certificate-expiry.js";
+export {
+  ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS,
+  arcaCertificateExpiryStanding,
+} from "./model/arca-certificate-expiry.js";
 export { ARCA_VITALITY_CHECK_INTERVAL_MS } from "./model/arca-reachability.js";
 export type {
   BuyerIdentificationThreshold,

@@ -1,4 +1,4 @@
-import { arcaCertificateExpiryStanding } from "../model/arca-certificate-expiry.js";
+import { arcaCertificateExpiryStanding } from "../../fiscal/index.js";
 import type { ArcaCertificateExpiryPorts } from "./arca-certificate-expiry-store.js";
 
 export interface CheckArcaCertificateExpiryInput {

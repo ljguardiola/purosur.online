@@ -4,11 +4,11 @@ import {
   WSAA_ALREADY_AUTHENTICATED_RETRY_MS,
 } from "../model/wsaa-token.js";
 import { renewWsaaToken } from "./renew-wsaa-token.js";
-import { FixedClock } from "./test-support/fake-arca-certificate-expiry-store.js";
 import {
   FakeWsaaAuthentication,
   FakeWsaaTokenStore,
 } from "./test-support/fake-wsaa-token-store.js";
+import { FixedClock } from "./test-support/fixed-clock.js";
 import type { WsaaAuthenticationResult } from "./wsaa-token-ports.js";
 
 const HOUR_MS = 60 * 60 * 1000;

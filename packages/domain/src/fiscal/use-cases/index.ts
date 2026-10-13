@@ -31,13 +31,6 @@ export type {
 export type { ApplyUnclearOutcomeDecisionsOutcome } from "./apply-unclear-outcome-decisions.js";
 export { applyUnclearOutcomeDecisions } from "./apply-unclear-outcome-decisions.js";
 export type {
-  ArcaCertificateExpiryPorts,
-  ArcaCertificateExpiryStore,
-  ArcaCertificateExpiryStoreTransaction,
-  NewCertificateExpiringAlert,
-  OpenCertificateExpiringAlert,
-} from "./arca-certificate-expiry-store.js";
-export type {
   ArcaOnlineStatusPorts,
   ArcaReachabilityReader,
   WsaaTokenReader,
@@ -89,11 +82,6 @@ export type {
   BuyerTaxStatusStore,
   BuyerTaxStatusStoreTransaction,
 } from "./buyer-tax-status-store.js";
-export type {
-  CheckArcaCertificateExpiryInput,
-  CheckArcaCertificateExpiryOutcome,
-} from "./check-arca-certificate-expiry.js";
-export { checkArcaCertificateExpiry } from "./check-arca-certificate-expiry.js";
 export type { CheckArcaVitalityOutcome } from "./check-arca-vitality.js";
 export { checkArcaVitality } from "./check-arca-vitality.js";
 export type {
