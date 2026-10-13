@@ -471,6 +471,22 @@ describe("the ESC/POS receipt template", () => {
     expect(textLines).toContain("Point Mercado Pago                   $ 10.000,00");
   });
 
+  it("names a payment on the standalone terminal, aligned with the other payment lines", () => {
+    const { textLines } = printed(
+      receipt({
+        totals: {
+          subtotal: 1_000_000,
+          saleDiscount: null,
+          total: 1_000_000,
+          payments: [{ method: "STANDALONE_TERMINAL", amount: 1_000_000 }],
+          change: 0,
+        },
+      }),
+    );
+
+    expect(textLines).toContain("Terminal independiente               $ 10.000,00");
+  });
+
   it("wraps a long product name beside its amount within the columns of the paper", () => {
     const { textLines } = printed(
       singleUnitReceipt(
