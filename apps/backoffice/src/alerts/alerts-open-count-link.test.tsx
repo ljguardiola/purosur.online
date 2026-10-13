@@ -70,6 +70,11 @@ test("shows nothing, and stays on the screen, when the cloud refuses the count",
   const screen = await renderLink(services);
 
   await expect.poll(() => services.fetchAlertsOverview).toHaveBeenCalled();
+  await screen.rerender(
+    <main>
+      <AlertsOpenCountLink services={services} onSessionEnded={() => {}} />
+    </main>,
+  );
   expect(screen.container.querySelector("main")?.textContent).toBe("");
   expect(window.location.pathname).toBe("/inventory");
 });
