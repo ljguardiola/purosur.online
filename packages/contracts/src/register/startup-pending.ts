@@ -1,10 +1,11 @@
+import { UNPRINTED_SALE_STANDINGS } from "@purosur/domain";
 import { z } from "zod";
 
 const startupSaleToPrintSchema = z.object({
   sale_id: z.string(),
   completed_at: z.string(),
   total: z.int().nonnegative(),
-  standing: z.enum(["never_printed", "outcome_unknown"]),
+  standing: z.enum(UNPRINTED_SALE_STANDINGS),
 });
 
 const startupUnknownFiscalDocumentSchema = z.object({

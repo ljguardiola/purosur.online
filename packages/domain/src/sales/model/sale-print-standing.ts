@@ -4,6 +4,10 @@ export const SALE_PRINT_STANDINGS = ["never_printed", "outcome_unknown", "printe
 
 export type SalePrintStanding = (typeof SALE_PRINT_STANDINGS)[number];
 
+export const UNPRINTED_SALE_STANDINGS = ["never_printed", "outcome_unknown"] as const;
+
+export type UnprintedSaleStanding = (typeof UNPRINTED_SALE_STANDINGS)[number];
+
 export function salePrintStanding({
   printAttemptedAt,
   printedAt,

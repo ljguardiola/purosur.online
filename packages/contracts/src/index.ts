@@ -310,6 +310,7 @@ export {
   registerVersionSchema,
   registerVersionText,
 } from "./register/register-update.js";
+export type { StartupPending } from "./register/startup-pending.js";
 export type {
   CancelLockedSaleOutcome,
   ReceiptPrintStatusOutcome,

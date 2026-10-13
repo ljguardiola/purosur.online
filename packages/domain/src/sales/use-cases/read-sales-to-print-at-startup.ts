@@ -1,4 +1,4 @@
-import { type SalePrintStanding, salePrintStanding } from "../model/sale-print-standing.js";
+import { salePrintStanding, type UnprintedSaleStanding } from "../model/sale-print-standing.js";
 
 export interface StartupSale {
   saleId: string;
@@ -16,7 +16,7 @@ export interface SaleToPrintAtStartup {
   saleId: string;
   completedAt: Date;
   total: number;
-  standing: Exclude<SalePrintStanding, "printed">;
+  standing: UnprintedSaleStanding;
 }
 
 export function readSalesToPrintAtStartup({

@@ -1,4 +1,4 @@
-import type { RegisterCoreToRendererMessage } from "@purosur/contracts";
+import type { StartupPending } from "@purosur/contracts";
 import { readSalesToPrintAtStartup } from "@purosur/domain/sales/use-cases";
 import { readUnknownFiscalDocuments } from "../fiscal/sqlite-unknown-fiscal-documents";
 import { readPendingMercadoPagoPayments } from "../payments/sqlite-pending-mercado-pago-payments";
@@ -6,9 +6,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { SqliteStartupSales } from "../sales/sqlite-startup-sales";
 import type { ActionGate } from "../sessions/action-gate";
 
-export type StartupPendingAnswer =
-  | Extract<RegisterCoreToRendererMessage, { type: "startup-pending" }>["pending"]
-  | "not_permitted";
+export type StartupPendingAnswer = StartupPending | "not_permitted";
 
 export async function startupPendingFor({
   database,

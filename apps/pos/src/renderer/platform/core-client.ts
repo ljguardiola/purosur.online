@@ -66,6 +66,7 @@ import type {
   SignInOutcome,
   SignInUser,
   StartMercadoPagoChargeOutcome,
+  StartupPending,
   StockCoreToRendererMessage,
   StockRendererToCoreMessage,
   SyncCoreToRendererMessage,
@@ -135,11 +136,6 @@ export type MercadoPagoMethod = Extract<
   PaymentsRendererToCoreMessage,
   { type: "start-mercado-pago-charge" }
 >["method"];
-
-type StartupPendingRead = Extract<
-  RegisterCoreToRendererMessage,
-  { type: "startup-pending" }
->["pending"];
 
 export interface CoreClient {
   connect(port: CorePort): void;
@@ -250,7 +246,7 @@ export interface CoreClient {
   cashBalance(): Promise<CashBalance | null | "unavailable">;
   cashCountPreview(countedCash: number): Promise<CashCountPreview | null | "unavailable">;
   sessionOpenSale(): Promise<SessionOpenSale | null | "unavailable">;
-  startupPending(): Promise<StartupPendingRead | "not_permitted">;
+  startupPending(): Promise<StartupPending | "not_permitted">;
   onPulled(listener: () => void): () => void;
   onSerialDevicesChanged(listener: () => void): () => void;
   onBarcodeRead(listener: (code: string) => void): () => void;
