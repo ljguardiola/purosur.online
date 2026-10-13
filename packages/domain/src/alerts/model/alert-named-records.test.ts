@@ -102,9 +102,11 @@ describe("alertScopeRecordId", () => {
 
 describe("a sync device scope", () => {
   it("names the installation of the scope, whose register's name is shown", () => {
-    expect(kindsScopedTo("syncDevice")).toEqual(["outbox_chain_broken"]);
-    expect(alertScopeRecordId({ kind: "outbox_chain_broken", scope: SCOPE })).toBe(SCOPE);
-    expect(alertNamedRecordIds({ kind: "outbox_chain_broken", scope: SCOPE })).toEqual([SCOPE]);
+    expect(kindsScopedTo("syncDevice")).toEqual(["events_quarantined", "outbox_chain_broken"]);
+    for (const kind of kindsScopedTo("syncDevice")) {
+      expect(alertScopeRecordId({ kind, scope: SCOPE })).toBe(SCOPE);
+      expect(alertNamedRecordIds({ kind, scope: SCOPE })).toEqual([SCOPE]);
+    }
   });
 });
 
