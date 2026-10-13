@@ -1,13 +1,17 @@
 import type { TagSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { type TagsListFilters, tagsListFilters } from "./routes";
 import { TagsListScreen } from "./tags-list-screen";
 import type { TagsListScreenServices } from "./tags-list-services";
 import { organico, sinColorantes, sinTacc, tagList, vegano } from "./test-support/tags";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 function createServices(overrides: Partial<TagsListScreenServices> = {}): TagsListScreenServices {
   return {
@@ -209,7 +213,6 @@ test("navigates to Mi cuenta when the tags request comes back forbidden", async 
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("ends the session when the tags request finds no open session", async () => {

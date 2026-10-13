@@ -20,6 +20,7 @@ import type {
   CoreStatusMessage,
   CurrentSaleAnswer,
   EnrollmentOutcome,
+  FindCountableProductOutcome,
   FirstPinCodeRequestOutcome,
   FollowMercadoPagoQrChargeOutcome,
   IdentifyLockedCloserOutcome,
@@ -30,11 +31,13 @@ import type {
   PinPolicy,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
   ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
+  RecordInitialCountLineOutcome,
   RegisterSerialDevicesOutcome,
   RegisterStatus,
   RemoveSaleLineOutcome,
@@ -43,6 +46,7 @@ import type {
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
   ScanProductOutcome,
+  SearchCountableProductsOutcome,
   SearchProductsOutcome,
   SessionOpenSale,
   SetReceiptPrinterOutcome,
@@ -50,7 +54,9 @@ import type {
   SignInOutcome,
   SignInUser,
   StartMercadoPagoQrChargeOutcome,
+  WeighCountedProductOutcome,
   WeighProductOutcome,
+  WithdrawInitialCountLineOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import type { QueryClient } from "@tanstack/react-query";
@@ -96,6 +102,9 @@ import { SaleScreen } from "../sales/sale-screen";
 import { SalesHistoryScreen } from "../sales/sales-history-screen";
 import { FirstSignInScreen } from "../sessions/first-sign-in-screen";
 import { SignInScreen } from "../sessions/sign-in-screen";
+import { InitialCountOffer } from "../stock/initial-count-offer";
+import { InitialCountScreen } from "../stock/initial-count-screen";
+import { initialCountQueryOptions } from "../stock/stock-queries";
 import { BrandPanelScreen } from "./brand-panel-screen";
 import { CoreDownNotice } from "./core-down-notice";
 import { RegisterUpdatingNotice } from "./register-updating-notice";
@@ -222,6 +231,16 @@ export interface RouterContext {
     devices: SerialDevicesToRegister,
   ) => Promise<RegisterSerialDevicesOutcome>;
   takeSerialDevicesOffer: (readStatus: () => Promise<RegisterStatus>) => Promise<boolean>;
+  readInitialCount: () => Promise<ReadInitialCountOutcome>;
+  recordInitialCountLine: (
+    productId: string,
+    counted: number,
+    expiresOn: string | null,
+  ) => Promise<RecordInitialCountLineOutcome>;
+  withdrawInitialCountLine: (movementId: string) => Promise<WithdrawInitialCountLineOutcome>;
+  findCountableProduct: (code: string) => Promise<FindCountableProductOutcome>;
+  searchCountableProducts: (query: string) => Promise<SearchCountableProductsOutcome>;
+  weighCountedProduct: (productId: string) => Promise<WeighCountedProductOutcome>;
   refreshCashSession: () => Promise<void>;
 }
 
@@ -376,13 +395,14 @@ const signedInRoute = createRoute({
     return { person };
   },
   component: function SignedInRoute() {
-    const { person, signOut, openCashSession } = signedInRoute.useRouteContext();
+    const { person, signOut, openCashSession, readInitialCount } = signedInRoute.useRouteContext();
     const registerName = useRegisterName();
     return (
       <NoSessionScreen
         person={person}
         registerName={registerName}
         signOut={signOut}
+        offers={<InitialCountOffer person={person} readInitialCount={readInitialCount} />}
         openCashSession={openCashSession}
       />
     );
@@ -481,6 +501,50 @@ const serialDevicesRoute = createRoute({
         registerSerialDevices={registerSerialDevices}
         onSessionInvalid={() => void refreshCashSession()}
         {...(offered ? { onSkip: () => void navigate({ to: "/" }) } : {})}
+      />
+    );
+  },
+});
+
+const initialCountRoute = createRoute({
+  getParentRoute: () => statusBarRoute,
+  path: "/initial-count",
+  beforeLoad: async ({ context }) => {
+    const person = requireSignedInPerson(context);
+    if (!person.abilities.includes("record_initial_inventory")) {
+      throw redirect({ to: "/" });
+    }
+    const count = await context.queryClient
+      .fetchQuery({ ...initialCountQueryOptions(context.readInitialCount), staleTime: 0 })
+      .catch(() => undefined);
+    if (count?.kind === "read" && !count.offered) {
+      throw redirect({ to: "/" });
+    }
+    return { person };
+  },
+  component: function InitialCountRoute() {
+    const {
+      person,
+      signOut,
+      readInitialCount,
+      recordInitialCountLine,
+      withdrawInitialCountLine,
+      findCountableProduct,
+      searchCountableProducts,
+      weighCountedProduct,
+      refreshCashSession,
+    } = initialCountRoute.useRouteContext();
+    return (
+      <InitialCountScreen
+        person={person}
+        signOut={signOut}
+        readInitialCount={readInitialCount}
+        recordInitialCountLine={recordInitialCountLine}
+        withdrawInitialCountLine={withdrawInitialCountLine}
+        findCountableProduct={findCountableProduct}
+        searchCountableProducts={searchCountableProducts}
+        weighCountedProduct={weighCountedProduct}
+        onSessionInvalid={() => void refreshCashSession()}
       />
     );
   },
@@ -850,6 +914,7 @@ export const routeTree = rootRoute.addChildren([
       helpRoute,
       receiptPrinterRoute,
       serialDevicesRoute,
+      initialCountRoute,
       openSessionRoute,
       chargeRoute,
       historyRoute,
@@ -942,6 +1007,12 @@ export function createAppRouter(
     | "readSerialDevices"
     | "registerSerialDevices"
     | "takeSerialDevicesOffer"
+    | "readInitialCount"
+    | "recordInitialCountLine"
+    | "withdrawInitialCountLine"
+    | "findCountableProduct"
+    | "searchCountableProducts"
+    | "weighCountedProduct"
     | "refreshCashSession"
   >,
 ) {

@@ -4,9 +4,11 @@ import type {
   CoveringCount,
   LockProductStockResult,
   LotAllocation,
+  NewInitialCountLot,
   NewLot,
   NewStockCount,
   NewStockMovement,
+  OpeningCountLot,
   ProductStockKey,
   StockLot,
   StockStore,
@@ -117,6 +119,44 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
       throw new Error("inserting the lot returned no row");
     }
     return recorded.id;
+  }
+
+  async recordInitialCountLot(lot: NewInitialCountLot): Promise<string> {
+    const [recorded] = await this.tx
+      .insert(lots)
+      .values({ ...lot, costIncomplete: true })
+      .returning({ id: lots.id });
+    if (!recorded) {
+      throw new Error("inserting the initial count lot returned no row");
+    }
+    return recorded.id;
+  }
+
+  async openingCountLot(
+    locationId: string,
+    movementId: string,
+  ): Promise<OpeningCountLot | undefined> {
+    const [found] = await this.tx
+      .select({
+        lotId: lots.id,
+        productId: lots.productId,
+        counted: lots.quantityReceived,
+        withdrawn: lots.withdrawn,
+      })
+      .from(lots)
+      .where(and(eq(lots.originMovementId, movementId), eq(lots.locationId, locationId)));
+    return found;
+  }
+
+  async markOpeningCountWithdrawn(lotId: string): Promise<void> {
+    const [updated] = await this.tx
+      .update(lots)
+      .set({ withdrawn: true })
+      .where(eq(lots.id, lotId))
+      .returning({ id: lots.id });
+    if (!updated) {
+      throw new Error("marking the initial count lot as withdrawn updated no row");
+    }
   }
 
   async productLots(key: ProductStockKey): Promise<StockLot[]> {

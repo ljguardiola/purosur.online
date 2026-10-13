@@ -1,5 +1,5 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { afterEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import {
@@ -8,7 +8,7 @@ import {
 } from "./release-quarantined-event-modal";
 import { quarantinedSale } from "./test-support/quarantined-events";
 
-afterEach(() => {
+beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 

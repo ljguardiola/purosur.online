@@ -185,6 +185,24 @@ describe("stockBalanceSchema", () => {
     });
   });
 
+  it("accepts a lot of the initial count with its cost still incomplete and one with a typed cost", () => {
+    const initialCountLot = {
+      id: "lot-3",
+      lotNumber: null,
+      expiresOn: "2027-01-31",
+      technical: false,
+      remaining: 6_000,
+      valueCents: null,
+      unitCostCents: null,
+      origin: { kind: "initial_count" },
+    };
+    const typedLot = { ...initialCountLot, id: "lot-4", valueCents: 7_404, unitCostCents: 1_234 };
+
+    expect(
+      stockBalanceSchema.safeParse({ ...balance, lots: [initialCountLot, typedLot] }).data,
+    ).toEqual({ ...balance, lots: [initialCountLot, typedLot] });
+  });
+
   it.each([
     ["remaining", 0.5],
     ["valueCents", 1.5],

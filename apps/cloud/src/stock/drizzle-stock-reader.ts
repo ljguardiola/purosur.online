@@ -153,6 +153,7 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
         costIncomplete: lots.costIncomplete,
         costTotalCents: lots.costTotalCents,
         costQuantity: lots.costQuantity,
+        initialCount: sql<boolean>`${lots.originMovementId} is not null`,
       })
       .from(lots)
       .leftJoin(purchaseLines, eq(purchaseLines.id, lots.purchaseLineId))

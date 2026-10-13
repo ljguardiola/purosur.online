@@ -23,6 +23,7 @@ import type {
   OpenSale,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
   ReceiptPrintStatusOutcome,
@@ -322,6 +323,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         weighings.push(productId);
         return { kind: "weighing" };
       },
+      initialCount: undefined,
       currentSale: async (): Promise<OpenSale | null> => {
         saleLookups.push("read");
         return null;
@@ -1540,6 +1542,24 @@ describe("answerRendererRequest", () => {
     expect(await answerRendererRequest(failing.deps, request)).toEqual(unavailable);
     expect(failing.failures).toEqual([{ context: "weighing a product on the scale", error }]);
     expect(await answerRendererRequest(withoutDatabase.deps, request)).toEqual(unavailable);
+  });
+
+  it("answers a request to count the initial stock with the outcome of the core's request", async () => {
+    const outcome: ReadInitialCountOutcome = { kind: "read", offered: true, lines: [] };
+    const { deps: withCount } = deps(true, {
+      initialCount: {
+        read: async () => outcome,
+        record: async () => ({ kind: "unavailable" }),
+        withdraw: async () => ({ kind: "unavailable" }),
+        find: async () => ({ kind: "unavailable" }),
+        search: async () => ({ kind: "unavailable" }),
+        weigh: async () => ({ kind: "unavailable" }),
+      },
+    });
+
+    expect(
+      await answerRendererRequest(withCount, { type: "read-initial-count", request_id: "r92" }),
+    ).toEqual({ type: "read-initial-count-result", request_id: "r92", outcome });
   });
 
   it("answers the sale in progress", async () => {

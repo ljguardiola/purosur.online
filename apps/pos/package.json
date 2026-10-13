@@ -16,6 +16,7 @@
     "generate:receipt-logo": "node scripts/generate-receipt-logo.ts > src/core/sales/receipt-logo.ts"
   },
   "devDependencies": {
+    "@internationalized/date": "^3.12.4",
     "@purosur/contracts": "workspace:*",
     "@purosur/domain": "workspace:*",
     "@purosur/ui": "workspace:*",

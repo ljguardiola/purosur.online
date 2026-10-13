@@ -1,13 +1,17 @@
 import { reportsFailedQuery } from "@purosur/contracts";
 import type { AlertDetails } from "@purosur/domain";
-import { applyRegisterStockMovements } from "@purosur/domain/stock/use-cases";
+import {
+  applyOpeningCount,
+  applyRegisterStockMovements,
+  withdrawOpeningCount,
+} from "@purosur/domain/stock/use-cases";
 import type {
   AggregateKey,
   EventApplication,
   EventApplicationTransaction,
   FailedAttempt,
   ProviderTransactionOfPayment,
-  SaleStockApplication,
+  StockApplication,
   SyncedFact,
   UnappliedEvent,
 } from "@purosur/domain/sync/use-cases";
@@ -32,6 +36,11 @@ import { recordAppliedCancelledSale, recordAppliedSale } from "../sales/drizzle-
 import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
 import { type PendingChanges, withPendingChanges } from "./change-log.js";
 
+type OpeningCountRecordedFact = Extract<SyncedFact, { kind: "opening_count_recorded" }>["count"];
+type OpeningCountWithdrawnFact = Extract<
+  SyncedFact,
+  { kind: "opening_count_withdrawn" }
+>["withdrawal"];
 type CompletedSale = Extract<SyncedFact, { kind: "sale_completed" }>["sale"];
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
@@ -112,7 +121,7 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
   async record(fact: SyncedFact, event: UnappliedEvent): Promise<void> {
     switch (fact.kind) {
       case "cash_session_opened":
-        return openAppliedCashSession(this.tx, await this.originOf(event), fact);
+        return openAppliedCashSession(this.tx, await this.originOf(event), this.pending, fact);
       case "cash_session_closed":
         return closeAppliedCashSession(this.tx, fact);
       case "cash_movement_recorded":
@@ -132,16 +141,72 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
           fact,
           this.now(),
         );
+      case "opening_count_recorded":
+      case "opening_count_withdrawn":
       case "fiscal_gate_failed":
         return;
     }
+  }
+
+  async applyOpeningCount(
+    count: OpeningCountRecordedFact,
+    event: UnappliedEvent,
+  ): Promise<StockApplication> {
+    const { locationId } = await this.originOf(event);
+    const outcome = await applyOpeningCount(
+      new DrizzleStockStoreTransaction(this.tx, this.pending),
+      {
+        locationId,
+        occurredAt: count.countedAt,
+        actorId: count.actorId,
+        movementId: count.movementId,
+        productId: count.productId,
+        counted: count.counted,
+        expiresOn: count.expiresOn,
+      },
+    );
+    switch (outcome.kind) {
+      case "recorded":
+      case "already_applied":
+        return { kind: "applied" };
+      case "not_found":
+        return { kind: "refused", reason: `product ${count.productId} is not in the catalog` };
+      case "invalid_quantity":
+        return {
+          kind: "refused",
+          reason: `an opening count of product ${count.productId} has a quantity it can't be counted in`,
+        };
+    }
+  }
+
+  async withdrawOpeningCount(
+    withdrawal: OpeningCountWithdrawnFact,
+    event: UnappliedEvent,
+  ): Promise<StockApplication> {
+    const { locationId } = await this.originOf(event);
+    const outcome = await withdrawOpeningCount(
+      new DrizzleStockStoreTransaction(this.tx, this.pending),
+      {
+        locationId,
+        occurredAt: withdrawal.withdrawnAt,
+        actorId: withdrawal.actorId,
+        movementId: withdrawal.movementId,
+        withdrawnMovementId: withdrawal.withdrawnMovementId,
+      },
+    );
+    return outcome.kind === "not_found"
+      ? {
+          kind: "refused",
+          reason: `opening count movement ${withdrawal.withdrawnMovementId} was never counted`,
+        }
+      : { kind: "applied" };
   }
 
   async applySaleStock(
     sale: CompletedSale,
     movements: NonNullable<CompletedSale["stockMovements"]>,
     event: UnappliedEvent,
-  ): Promise<SaleStockApplication> {
+  ): Promise<StockApplication> {
     const { locationId } = await this.originOf(event);
     const outcome = await applyRegisterStockMovements(
       new DrizzleStockStoreTransaction(this.tx, this.pending),

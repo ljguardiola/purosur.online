@@ -3,6 +3,7 @@ import {
   type AlertKind,
   ARGENTINA_TIME_ZONE,
   FACTURA_C_DOCUMENT_TYPE,
+  PRE_EMISSION_GATE_FAILURE_REASONS,
   REJECTION_CLASSES,
   SALES_DENIED_REASONS,
 } from "@purosur/domain";
@@ -173,6 +174,11 @@ const fiscalUnknownDetailSchema = z.object({
   unclearSince: z.string(),
 });
 
+const fiscalEmissionStoppedDetailSchema = z.object({
+  deviceId: z.string(),
+  reason: z.enum(PRE_EMISSION_GATE_FAILURE_REASONS),
+});
+
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
 
 const alertBase = {
@@ -280,6 +286,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("fiscal_unknown" satisfies AlertKind),
     detail: fiscalUnknownDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("fiscal_emission_stopped" satisfies AlertKind),
+    detail: fiscalEmissionStoppedDetailSchema,
   }),
 ] as const;
 

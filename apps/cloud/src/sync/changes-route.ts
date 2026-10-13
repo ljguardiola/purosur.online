@@ -51,6 +51,13 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
         entity_id,
         row: toBranchSettingsWire(change.row),
       };
+    case "branch_first_cash_session":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: { opened_at: change.row.openedAt.toISOString() },
+      };
     case "category":
       return {
         change_seq,

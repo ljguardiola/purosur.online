@@ -25,7 +25,6 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await cdp().send("Network.setBlockedURLs", { urls: [] });
-  window.history.pushState(null, "", "/");
   window.sessionStorage.clear();
 });
 

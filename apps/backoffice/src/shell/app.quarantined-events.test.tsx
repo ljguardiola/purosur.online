@@ -1,6 +1,6 @@
 import type { AlertDetail } from "@purosur/contracts";
 import type { Capability } from "@purosur/domain";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { openSession } from "../sessions/test-support/open-session";
@@ -12,8 +12,6 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 opensOnlyScreens(["/", "/account", "/alerts", "/help", "/quarantined-events"]);
 
 beforeEach(resetPageState);
-
-afterEach(resetPageState);
 
 function sessionHolding(capabilities: Capability[]) {
   return openSession({ userId: "user-2", isAdministrator: false, capabilities });

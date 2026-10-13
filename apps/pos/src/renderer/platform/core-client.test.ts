@@ -737,6 +737,118 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to read the initial count and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const read = client.readInitialCount();
+    port.answer({
+      type: "read-initial-count-result",
+      request_id: "request-1",
+      outcome: { kind: "read", offered: true, lines: [] },
+    });
+
+    expect(await read).toEqual({ kind: "read", offered: true, lines: [] });
+    expect(port.posted).toEqual([{ type: "read-initial-count", request_id: "request-1" }]);
+  });
+
+  it("asks the core to record a line of the initial count and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const recorded = client.recordInitialCountLine("p1", 6000, "2026-12-31");
+    port.answer({
+      type: "record-initial-count-line-result",
+      request_id: "request-1",
+      outcome: { kind: "not_offered" },
+    });
+
+    expect(await recorded).toEqual({ kind: "not_offered" });
+    expect(port.posted).toEqual([
+      {
+        type: "record-initial-count-line",
+        request_id: "request-1",
+        product_id: "p1",
+        counted: 6000,
+        expires_on: "2026-12-31",
+      },
+    ]);
+  });
+
+  it("asks the core to withdraw a line of the initial count and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const withdrawn = client.withdrawInitialCountLine("movement-1");
+    port.answer({
+      type: "withdraw-initial-count-line-result",
+      request_id: "request-1",
+      outcome: { kind: "withdrawn" },
+    });
+
+    expect(await withdrawn).toEqual({ kind: "withdrawn" });
+    expect(port.posted).toEqual([
+      { type: "withdraw-initial-count-line", request_id: "request-1", movement_id: "movement-1" },
+    ]);
+  });
+
+  it("asks the core to find a product to count by its code and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const found = client.findCountableProduct("7790001");
+    port.answer({
+      type: "find-countable-product-result",
+      request_id: "request-1",
+      outcome: { kind: "unknown_code" },
+    });
+
+    expect(await found).toEqual({ kind: "unknown_code" });
+    expect(port.posted).toEqual([
+      { type: "find-countable-product", request_id: "request-1", code: "7790001" },
+    ]);
+  });
+
+  it("asks the core to search the products to count by name and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const searched = client.searchCountableProducts("yer");
+    port.answer({
+      type: "search-countable-products-result",
+      request_id: "request-1",
+      outcome: { kind: "results", products: [], more: false },
+    });
+
+    expect(await searched).toEqual({ kind: "results", products: [], more: false });
+    expect(port.posted).toEqual([
+      { type: "search-countable-products", request_id: "request-1", query: "yer" },
+    ]);
+  });
+
+  it("asks the core to weigh a product to count and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const weighed = client.weighCountedProduct("p2");
+    port.answer({
+      type: "weigh-counted-product-result",
+      request_id: "request-1",
+      outcome: { kind: "weighed", weight_thousandths: 1250 },
+    });
+
+    expect(await weighed).toEqual({ kind: "weighed", weight_thousandths: 1250 });
+    expect(port.posted).toEqual([
+      { type: "weigh-counted-product", request_id: "request-1", product_id: "p2" },
+    ]);
+  });
+
   it("asks the core to remove a line and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

@@ -1,11 +1,11 @@
 import { Button, FigureStat, formatCents, formatWeight, Modal, StatusIndicator } from "@purosur/ui";
 import { Check, Keyboard, Scale } from "lucide-react";
 import { useEffect, useRef } from "react";
+import type { ScaleWeighing } from "../platform/use-scale-weighing";
+import { useScaleWeighing } from "../platform/use-scale-weighing";
 import { AddWeighedProductModal } from "./add-weighed-product-modal";
-import type { ScaleWeighing } from "./use-scale-weighing";
-import { useScaleWeighing } from "./use-scale-weighing";
 
-export type { ScaleWeighing } from "./use-scale-weighing";
+export type { ScaleWeighing } from "../platform/use-scale-weighing";
 
 const SCALE_UNAVAILABLE_NOTE = "La balanza no está disponible. Tipeá el peso.";
 

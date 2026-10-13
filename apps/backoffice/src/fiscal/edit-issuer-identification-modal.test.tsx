@@ -6,7 +6,7 @@ import {
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import {
@@ -14,6 +14,10 @@ import {
   type EditIssuerIdentificationModalServices,
 } from "./edit-issuer-identification-modal";
 import type { IssuerIdentification } from "./issuer-identification-api";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 function createServices(
   overrides: Partial<EditIssuerIdentificationModalServices> = {},
@@ -546,7 +550,6 @@ test("sends to Mi cuenta when saving comes back forbidden", async () => {
   await save(dialog);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("ends the session when saving comes back unauthenticated", async () => {

@@ -56,6 +56,7 @@ describe("alertKindPolicy", () => {
     ["update_required", "critical", null, "all", "register", true],
     ["register_silent", "critical", null, "local", "register", true],
     ["sales_denied", "critical", null, "local", "register", true],
+    ["fiscal_emission_stopped", "critical", null, "local", "register", true],
     ["fiscal_rejected", "critical", null, "all", "pointOfSaleDocumentType", true],
     ["offline_authorization_code_missing", "informational", null, "all", "registerFortnight", true],
     [
@@ -104,6 +105,7 @@ describe("alertKindPolicy", () => {
       "sales_denied",
       "fiscal_rejected",
       "offline_authorization_code_missing",
+      "fiscal_emission_stopped",
     ]);
   });
 
@@ -139,6 +141,7 @@ describe("alertClosing", () => {
       late_payment_refund: "with_its_refund",
       refund_task: "when_its_refund_is_done",
       fiscal_unknown: "when_its_document_is_resolved",
+      fiscal_emission_stopped: "by_itself",
     });
   });
 
@@ -184,6 +187,7 @@ describe("alertKindsWithScope", () => {
       "update_required",
       "register_silent",
       "sales_denied",
+      "fiscal_emission_stopped",
     ]);
     expect(alertKindsWithScope("event")).toEqual([
       "events_quarantined",

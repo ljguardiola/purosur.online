@@ -26,6 +26,7 @@ type RoutePath =
   | "/help"
   | "/receipt-printer"
   | "/serial-devices"
+  | "/initial-count"
   | "/locked"
   | "/locked-close"
   | "/enroll"
@@ -57,6 +58,11 @@ const DEVICES_CONFIGURER: SignedInPerson = {
   user_id: "u5",
   first_name: "Linus",
   abilities: ["configure_serial_devices"],
+};
+const INVENTORY_COUNTER: SignedInPerson = {
+  user_id: "u6",
+  first_name: "Linus",
+  abilities: ["record_initial_inventory"],
 };
 const OPENER: SignedInPerson = {
   user_id: "u2",
@@ -104,6 +110,8 @@ const screenFor: Record<
     screen.getByRole("heading", { level: 1, name: "Impresora de tickets" }),
   "/serial-devices": (screen) =>
     screen.getByRole("heading", { level: 1, name: "Balanza y lector" }),
+  "/initial-count": (screen) =>
+    screen.getByRole("heading", { level: 1, name: "Inventario inicial" }),
   "/locked": (screen) => screen.getByRole("heading", { name: "Caja bloqueada" }),
   "/locked-close": (screen) => screen.getByRole("heading", { name: "¿Quién cierra la caja?" }),
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
@@ -202,6 +210,12 @@ function contextWith(
     }),
     registerSerialDevices: async () => ({ kind: "unavailable" }),
     takeSerialDevicesOffer: async () => false,
+    readInitialCount: async () => ({ kind: "read", offered: true, lines: [] }),
+    recordInitialCountLine: async () => ({ kind: "unavailable" }),
+    withdrawInitialCountLine: async () => ({ kind: "unavailable" }),
+    findCountableProduct: async () => ({ kind: "unavailable" }),
+    searchCountableProducts: async () => ({ kind: "unavailable" }),
+    weighCountedProduct: async () => ({ kind: "unavailable" }),
     refreshCashSession: async () => {},
   };
 }
@@ -564,6 +578,21 @@ describe("the register's router", () => {
     },
     {
       path: "/receipt-printer",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      redirectedTo: "/sign-in",
+    },
+    { path: "/initial-count", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    {
+      path: "/initial-count",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      cashSession: OPEN_SESSION,
+      redirectedTo: "/session",
+    },
+    {
+      path: "/initial-count",
       coreStatus: "up",
       enrollment: "enrolled",
       person: null,
@@ -1042,6 +1071,84 @@ describe("the register's router", () => {
 
     await expect.element(screenFor["/"](screen)).toBeVisible();
     await expect.element(screen.getByRole("link", { name: "Impresora" })).not.toBeInTheDocument();
+  });
+
+  it("renders the initial count screen for a person who may load it while the count is offered", async () => {
+    const router = routerAt("/initial-count", "up", "enrolled", INVENTORY_COUNTER);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/initial-count"](screen)).toBeVisible();
+    expect(router.state.location.pathname).toBe("/initial-count");
+  });
+
+  it("sends a person who may load the initial count home when the count is no longer offered", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", INVENTORY_COUNTER),
+        readInitialCount: async () => ({ kind: "read", offered: false, lines: [] }),
+      },
+      "/initial-count",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/"](screen)).toBeVisible();
+    expect(router.state.location.pathname).toBe("/");
+  });
+
+  it("renders the initial count screen when the core cannot say whether the count is offered, so the screen can offer to read it again", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", INVENTORY_COUNTER),
+        readInitialCount: async () => ({ kind: "unavailable" }),
+      },
+      "/initial-count",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/initial-count"](screen)).toBeVisible();
+    await expect.element(screen.getByText("No se pudo leer lo cargado")).toBeVisible();
+  });
+
+  it("offers the initial count on the home of a person who may load it while it is offered", async () => {
+    const router = routerAt("/", "up", "enrolled", INVENTORY_COUNTER);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect
+      .element(screen.getByText("Cargar el stock con el que arranca el local."))
+      .toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Cargar el inventario" }));
+    await expect.poll(() => router.state.location.pathname).toBe("/initial-count");
+  });
+
+  it("offers no initial count on the home of a person who may not load it", async () => {
+    const router = routerAt("/", "up", "enrolled", PERSON);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/"](screen)).toBeVisible();
+    await expect.element(screen.getByText("Inventario inicial")).not.toBeInTheDocument();
+  });
+
+  it("offers no initial count on the home when it is no longer offered", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", INVENTORY_COUNTER),
+        readInitialCount: async () => ({ kind: "read", offered: false, lines: [] }),
+      },
+      "/",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/"](screen)).toBeVisible();
+    await expect.element(screen.getByText("Inventario inicial")).not.toBeInTheDocument();
   });
 
   it("renders the serial devices screen for a person who may configure them", async () => {

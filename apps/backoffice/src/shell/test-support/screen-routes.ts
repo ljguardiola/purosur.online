@@ -35,6 +35,14 @@ function screenCodeByPaths(): Map<ScreenComponent, string[]> {
   return code;
 }
 
+export function screenCode(path: ScreenPath): ScreenComponent {
+  const component = appRouter().routesByPath[path].options.component;
+  if (component?.preload === undefined) {
+    throw new Error(`${path} opens no screen whose code downloads on its own`);
+  }
+  return component;
+}
+
 // A screen's code downloading on a loaded machine can outlast a test's whole wait on its own, so
 // every screen a test file opens is downloaded before its tests, and opening any other one fails.
 export function opensOnlyScreens(

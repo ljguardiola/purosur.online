@@ -1,10 +1,14 @@
 import type { TagSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { NewTagModal, type NewTagModalServices } from "./new-tag-modal";
 import { vegano } from "./test-support/tags";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 function renderModal({
   createTag = vi.fn<NewTagModalServices["createTag"]>(),
@@ -140,7 +144,6 @@ test("navigates to Mi cuenta when creating comes back forbidden", async () => {
   await submitName(screen, "Vegano");
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("cancel closes the modal without calling the API", async () => {

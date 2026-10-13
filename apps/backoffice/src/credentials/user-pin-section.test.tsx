@@ -1,5 +1,5 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { afterEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { EmitUserPinCodeModalServices } from "./emit-user-pin-code-modal";
@@ -23,7 +23,7 @@ const issued = {
   value: { code: "K7QM2XPA7DTR4HWN", expiresAt: "2026-09-30T12:15:00.000Z" },
 } as const;
 
-afterEach(() => {
+beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 

@@ -190,6 +190,97 @@ describe("observeAlertCondition when the condition holds", () => {
   });
 });
 
+describe("observeAlertCondition when the condition holds with another detail", () => {
+  const stoppedFor = (
+    reason: "legal_name_missing" | "issuer_identification_missing",
+  ): AlertConditionObservation => ({
+    holds: true,
+    alert: {
+      kind: "fiscal_emission_stopped",
+      scope: "register-1",
+      locationId: "location-here",
+      detail: { deviceId: "device-1", reason },
+    },
+  });
+
+  function seedOpenEmissionStopped(store: FakeAlertStore, conditionClearedAt: Date | null = null) {
+    return store.seedAlert(
+      seededAlert({
+        id: "alert-9",
+        kind: "fiscal_emission_stopped",
+        scope: "register-1",
+        level: "critical",
+        audience: "local",
+        locationId: "location-here",
+        escalateAt: null,
+        detail: { deviceId: "device-1", reason: "legal_name_missing" },
+        conditionClearedAt,
+      }),
+    );
+  }
+
+  it("keeps the open alert, showing the latest observation's detail, without delivering it again", async () => {
+    const store = storeWithViewer();
+    seedOpenEmissionStopped(store);
+
+    const outcome = await observe(store, stoppedFor("issuer_identification_missing"));
+
+    expect(outcome).toEqual({ kind: "kept_open", alertId: "alert-9" });
+    const snapshot = store.snapshot();
+    expect(snapshot.alerts).toEqual([
+      expect.objectContaining({
+        id: "alert-9",
+        resolvedAt: null,
+        detail: { deviceId: "device-1", reason: "issuer_identification_missing" },
+      }),
+    ]);
+    expect(snapshot.deliveries).toEqual([]);
+  });
+
+  it("shows the latest detail on an alert whose clearing began less than 10 minutes ago, taking back the clearing", async () => {
+    const store = storeWithViewer();
+    seedOpenEmissionStopped(store, new Date(STABLY_CLEARED_AT.getTime() + 1));
+
+    await observe(store, stoppedFor("issuer_identification_missing"));
+
+    expect(store.snapshot().alerts[0]).toMatchObject({
+      conditionClearedAt: null,
+      detail: { deviceId: "device-1", reason: "issuer_identification_missing" },
+    });
+  });
+
+  it("writes nothing for the same detail written in another order", async () => {
+    const store = storeWithViewer();
+    store.seedAlert(
+      seededAlert({
+        id: "alert-9",
+        kind: "fiscal_emission_stopped",
+        scope: "register-1",
+        detail: { reason: "legal_name_missing", deviceId: "device-1" },
+      }),
+    );
+
+    await observe(store, stoppedFor("legal_name_missing"));
+
+    expect(store.operationOrder).toEqual(["lockOpenAlertOfKey"]);
+  });
+
+  it("leaves the open alert's detail as it was when recording the new one fails", async () => {
+    const store = storeWithViewer();
+    seedOpenEmissionStopped(store);
+    store.failingWrites.add("recordConditionDetail");
+
+    await expect(observe(store, stoppedFor("issuer_identification_missing"))).rejects.toThrow(
+      "recordConditionDetail failed",
+    );
+
+    expect(store.snapshot().alerts[0]?.detail).toEqual({
+      deviceId: "device-1",
+      reason: "legal_name_missing",
+    });
+  });
+});
+
 describe("observeAlertCondition when the condition no longer holds", () => {
   it("marks the open alert as cleared now, without resolving it", async () => {
     const store = storeWithViewer();

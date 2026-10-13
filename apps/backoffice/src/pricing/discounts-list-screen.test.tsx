@@ -1,7 +1,7 @@
 import type { DiscountList } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { notifyManager } from "@tanstack/react-query";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { discountsListFilters } from "./routes";
@@ -21,6 +21,10 @@ import {
   renderScreen,
   rowCells,
 } from "./test-support/discounts-list-screen";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 const everyPromotion = [
   yerbaOff,
@@ -457,7 +461,6 @@ test("navigates to Mi cuenta when the promotions request comes back forbidden", 
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("ends the session when the promotions request finds no open session", async () => {

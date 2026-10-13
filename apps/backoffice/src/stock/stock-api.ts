@@ -1,4 +1,8 @@
 import {
+  type InitialInventoryLotList,
+  type InitialInventoryLotsQuery,
+  initialInventoryLotListSchema,
+  type LotReferenceCostBody,
   type StockAdjustmentBody,
   type StockBalanceList,
   type StockCountBody,
@@ -172,4 +176,58 @@ export function registerCount(body: StockCountBody): Promise<RegisterCountOutcom
     "occurred_in_the_future",
     "count_at_same_moment",
   ]);
+}
+
+export function fetchInitialInventoryLots(
+  filters: InitialInventoryLotsQuery,
+): Promise<CloudReadOutcome<InitialInventoryLotList>> {
+  const query = new URLSearchParams();
+  if (filters.cost !== undefined) {
+    query.set("cost", filters.cost);
+  }
+  if (filters.product !== undefined) {
+    query.set("product", filters.product);
+  }
+  const search = query.size === 0 ? "" : `?${query.toString()}`;
+  return readList(`/api/initial-inventory-lots${search}`, initialInventoryLotListSchema);
+}
+
+export type SetLotReferenceCostOutcome =
+  | { kind: "ok" }
+  | { kind: "validation_failed"; field: string }
+  | { kind: "not_found" }
+  | { kind: "lot_withdrawn" }
+  | { kind: "not_an_initial_count_lot" }
+  | CloudRefusal;
+
+export async function setLotReferenceCost(
+  lotId: string,
+  body: LotReferenceCostBody,
+): Promise<SetLotReferenceCostOutcome> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/initial-inventory-lots/${lotId}/reference-cost`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    return { kind: "ok" };
+  }
+  if (response.status === 400) {
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
+  }
+  if (response.status === 404 || response.status === 409) {
+    const code = ((await response.json().catch(() => undefined)) as { code?: unknown } | undefined)
+      ?.code;
+    if (code === "not_found" || code === "lot_withdrawn" || code === "not_an_initial_count_lot") {
+      return { kind: code };
+    }
+    return { kind: "failed" };
+  }
+  return refusalOf(response);
 }

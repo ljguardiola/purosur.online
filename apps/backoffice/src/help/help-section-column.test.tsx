@@ -1,5 +1,5 @@
 import { defineHelp } from "@purosur/ui";
-import { afterEach, beforeEach, expect, test } from "vitest";
+import { beforeEach, expect, test } from "vitest";
 import { render } from "../shell/test-support/render-with-router";
 import { HelpSectionColumn } from "./help-section-column";
 
@@ -31,10 +31,6 @@ const help = defineHelp("es-AR", {
 
 beforeEach(() => {
   window.history.pushState(null, "", "/help");
-});
-
-afterEach(() => {
-  window.history.pushState(null, "", "/");
 });
 
 test("HelpSectionColumn lists every category as a link, marking the active one", async () => {

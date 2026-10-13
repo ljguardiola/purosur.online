@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { App } from "./app";
@@ -9,8 +9,6 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 opensOnlyScreens(["/", "/alerts", "/help"]);
 
 beforeEach(resetPageState);
-
-afterEach(resetPageState);
 
 test("offers to try again when a screen fails to render, reports the failure, and shows the screen once it works", async () => {
   window.history.pushState(null, "", "/alerts");

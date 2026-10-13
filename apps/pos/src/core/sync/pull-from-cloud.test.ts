@@ -400,8 +400,10 @@ describe("a register migrated past a column its pulled rows lack", () => {
       const database = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
       const { getFromCloud, requests } = cloudAnswering(
         { kind: "ok", body: { changes: [], cursor: 9, has_more: false } },
+        page([], false),
         offlinePointOfSalePage([], null),
         pointOfSalePage([6], 12),
+        page([], false),
       );
 
       const attempt = await pullFromCloud({
@@ -413,8 +415,10 @@ describe("a register migrated past a column its pulled rows lack", () => {
       expect(attempt).toEqual({ kind: "caught_up", cursor: 9 });
       expect(requests.map((request) => request.path)).toEqual([
         "/api/changes?since=9",
+        "/api/changes?since=0&entity=branch_first_cash_session",
         "/api/changes?since=0&entity=register_offline_point_of_sale",
         "/api/changes?since=0&entity=register_point_of_sale",
+        "/api/changes?since=0&entity=stock_movement",
       ]);
       expect(heldCount(database)).toEqual({ count: 12 });
       expect(database.prepare("SELECT * FROM pulled_table_redeliveries").all()).toEqual([]);
@@ -449,8 +453,10 @@ describe("a register migrated past the offline point of sale's tax authority cou
       const database = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
       const { getFromCloud, requests } = cloudAnswering(
         { kind: "ok", body: { changes: [], cursor: 9, has_more: false } },
+        page([], false),
         offlinePointOfSalePage([7], 40),
         pointOfSalePage([], null),
+        page([], false),
       );
 
       const attempt = await pullFromCloud({
@@ -462,8 +468,10 @@ describe("a register migrated past the offline point of sale's tax authority cou
       expect(attempt).toEqual({ kind: "caught_up", cursor: 9 });
       expect(requests.map((request) => request.path)).toEqual([
         "/api/changes?since=9",
+        "/api/changes?since=0&entity=branch_first_cash_session",
         "/api/changes?since=0&entity=register_offline_point_of_sale",
         "/api/changes?since=0&entity=register_point_of_sale",
+        "/api/changes?since=0&entity=stock_movement",
       ]);
       expect(
         database

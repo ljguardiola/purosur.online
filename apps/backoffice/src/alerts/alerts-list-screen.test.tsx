@@ -3,7 +3,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { notifyManager } from "@tanstack/react-query";
 import { act } from "react";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
@@ -12,6 +12,10 @@ import type { FetchAlertsOutcome } from "./alerts-api";
 import { AlertsListScreen } from "./alerts-list-screen";
 import type { AlertsListScreenServices } from "./alerts-list-services";
 import { type AlertsListFilters, alertsListFilters } from "./routes";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 function createServices(
   overrides: Partial<AlertsListScreenServices> = {},
@@ -419,7 +423,6 @@ test("navigates to Mi cuenta when the alerts request comes back forbidden", asyn
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("shows a closed lockout alert's scope as a dash, since it no longer holds the address", async () => {
@@ -814,6 +817,30 @@ test("names a quiet register's alert by its fixed title, with what it means and 
   await expect
     .element(row.getByRole("button", { name: "Ver la alerta «La caja no está sincronizando»" }))
     .toBeVisible();
+});
+
+test("names a register's stopped fiscal emission by its fixed title, with what it means and what to do", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...passkeyAlert,
+        kind: "fiscal_emission_stopped",
+        level: "critical",
+        audience: "local",
+        scopeDisplay: "Caja 1",
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Caja 1/ });
+  await expect.element(row.getByText("Emisión de facturas detenida")).toBeVisible();
+  await expect
+    .element(row.getByText(/Esta caja no puede emitir ningún comprobante fiscal/))
+    .toBeVisible();
+  await expect.element(row.getByText(/Seguir vendiendo igual/)).toBeVisible();
 });
 
 test.each([

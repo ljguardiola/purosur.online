@@ -414,6 +414,32 @@ export {
   withoutQueryParameters,
 } from "./shared/index.js";
 export type {
+  FindCountableProductOutcome,
+  InitialCountLine,
+  ReadInitialCountOutcome,
+  RecordInitialCountLineOutcome,
+  SearchCountableProductsOutcome,
+  StockCoreToRendererMessage,
+  StockRendererToCoreMessage,
+  WeighCountedProductOutcome,
+  WithdrawInitialCountLineOutcome,
+} from "./stock/initial-count-core-messages.js";
+export {
+  recordInitialCountLineMessageSchema,
+  stockCoreToRendererMessageSchema,
+  stockRendererToCoreMessageSchema,
+} from "./stock/initial-count-core-messages.js";
+export type {
+  InitialInventoryLotList,
+  InitialInventoryLotsQuery,
+  LotReferenceCostBody,
+} from "./stock/initial-inventory-lots.js";
+export {
+  initialInventoryLotListSchema,
+  initialInventoryLotsQuerySchema,
+  lotReferenceCostBodySchema,
+} from "./stock/initial-inventory-lots.js";
+export type {
   StockBalance,
   StockBalanceList,
   StockCount,

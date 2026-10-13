@@ -33,6 +33,10 @@ import { ControllableReceiptPrinter } from "../../sales/test-support/controllabl
 import { createActionGate } from "../../sessions/action-gate";
 import { createSignedInPerson } from "../../sessions/signed-in-person";
 import { SqliteSignInStore } from "../../sessions/sqlite-sign-in-store";
+import {
+  recordInitialCountLineFor,
+  withdrawInitialCountLineFor,
+} from "../../stock/initial-count-requests";
 import { CloudEventInbox } from "../cloud-event-inbox";
 import { SqliteLocalOutbox } from "../sqlite-local-outbox";
 
@@ -78,7 +82,7 @@ function expectOutcome(step: string, actual: string, expected: string): void {
 
 function seed(database: ReturnType<typeof openLocalDatabase>): void {
   for (const [role, name, permissions] of [
-    [ROLE, "Cajera", ["sell_and_charge", "record_cash_expense"]],
+    [ROLE, "Cajera", ["sell_and_charge", "record_cash_expense", "record_initial_inventory"]],
     [
       MANAGER_ROLE,
       "Encargada",
@@ -254,6 +258,23 @@ export async function withRegisterSession<TResult>(
       ids: uuidV7Ids,
     });
 
+    for (const [step, request] of [
+      ["count a lot of a product", { productId: YERBA, counted: 12_000, expiresOn: "2027-03-31" }],
+      [
+        "count another lot of the same product",
+        { productId: YERBA, counted: 5000, expiresOn: "2027-09-30" },
+      ],
+      ["count a product sold by weight", { productId: CHEESE, counted: 2500, expiresOn: null }],
+    ] as const) {
+      nextStep();
+      const counted = await recordInitialCountLineFor(deps(), request);
+      expectOutcome(step, counted.kind, "recorded");
+      if (request.counted === 5000 && counted.kind === "recorded") {
+        nextStep();
+        const withdrawn = await withdrawInitialCountLineFor(deps(), counted.line.movement_id);
+        expectOutcome("withdraw a line of the initial count", withdrawn.kind, "withdrawn");
+      }
+    }
     nextStep();
     const opened = await openCashSessionFor(deps(), 10_000);
     if (opened.kind !== "opened" || opened.cash_session === null) {
