@@ -29,4 +29,29 @@ describe("paymentRecord", () => {
       confirmed_at: null,
     });
   });
+
+  it.each([
+    ["TRANSFER", "NONE"],
+    ["STANDALONE_TERMINAL", "EXTERNAL_TERMINAL"],
+  ] as const)("records who confirmed a %s payment and when", (method, provider) => {
+    expect(
+      paymentRecord({
+        id: "payment-2",
+        saleId: "sale-1",
+        kind: "SALE",
+        method,
+        provider,
+        amount: 5000,
+        state: "APPROVED",
+        occurredAt: OCCURRED_AT,
+        authorizedBy: "cashier",
+        confirmedAt: new Date("2026-10-09T12:00:30.000Z"),
+      }),
+    ).toMatchObject({
+      method,
+      provider,
+      authorized_by: "cashier",
+      confirmed_at: "2026-10-09T12:00:30.000Z",
+    });
+  });
 });
