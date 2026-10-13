@@ -136,7 +136,6 @@ interface FiscalEmissionStoppedDetail {
 
 interface OutboxChainBrokenDetail {
   deviceId: string;
-  refusedEventCount: number;
 }
 
 export interface AlertDetails {

@@ -54,6 +54,7 @@ export interface EventApplicationTransaction {
   ): Promise<StockApplication>;
   markApplied(eventId: string, at: Date): Promise<void>;
   recordFailedAttempt(eventId: string, failed: FailedAttempt): Promise<void>;
+  lockDeviceQuarantines(deviceId: string): Promise<void>;
   recordQuarantine(quarantine: EventQuarantine): Promise<void>;
   recordInvariantBreaks(found: EventInvariantBreaks): Promise<void>;
 }

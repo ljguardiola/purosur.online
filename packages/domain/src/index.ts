@@ -609,6 +609,7 @@ export {
   INSTALLATION_REQUEST_LIMITS,
   isPageAfter,
   isPullCursor,
+  isQuarantined,
   isSalesStopReason,
   PULL_PAGE_MAX_CHANGES,
   PULLED_ENTITIES,

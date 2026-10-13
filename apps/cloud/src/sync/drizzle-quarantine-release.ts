@@ -1,3 +1,4 @@
+import { isQuarantined } from "@purosur/domain";
 import type {
   AggregateKey,
   HeldEventRecord,
@@ -5,7 +6,7 @@ import type {
   QuarantineReleaseRecord,
   QuarantineReleaseTransaction,
 } from "@purosur/domain/sync/use-cases";
-import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { resolveQuarantinedEventAlert } from "../alerts/quarantined-event-alert.js";
 import { auditLog, inbox, registerInstallations, registers } from "../platform/db/schema.js";
@@ -87,14 +88,11 @@ class DrizzleQuarantineReleaseTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async deviceHasQuarantinedEvents(deviceId: string): Promise<boolean> {
-    const [row] = await this.tx
-      .select({ eventId: inbox.eventId })
+    const unapplied = await this.tx
+      .select({ appliedAt: inbox.appliedAt, quarantinedAt: inbox.quarantinedAt })
       .from(inbox)
-      .where(
-        and(eq(inbox.deviceId, deviceId), isNull(inbox.appliedAt), isNotNull(inbox.quarantinedAt)),
-      )
-      .limit(1);
-    return row !== undefined;
+      .where(and(eq(inbox.deviceId, deviceId), isNull(inbox.appliedAt)));
+    return unapplied.some(isQuarantined);
   }
 
   async recordDeviceQuarantineCleared(deviceId: string, clearedAt: Date): Promise<void> {

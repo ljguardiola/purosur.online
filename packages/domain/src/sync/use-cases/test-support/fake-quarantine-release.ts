@@ -1,3 +1,4 @@
+import { isQuarantined } from "../../model/quarantine-release.js";
 import type {
   QuarantineRelease,
   QuarantineReleaseTransaction,
@@ -81,8 +82,7 @@ export class FakeQuarantineRelease implements QuarantineRelease {
       deviceHasQuarantinedEvents: async (deviceId) => {
         this.calls.push(`check quarantined events of ${deviceId}`);
         return this.application.state.events.some(
-          (event) =>
-            event.deviceId === deviceId && event.appliedAt === null && event.quarantinedAt !== null,
+          (event) => event.deviceId === deviceId && isQuarantined(event),
         );
       },
       recordDeviceQuarantineCleared: async (deviceId) => {

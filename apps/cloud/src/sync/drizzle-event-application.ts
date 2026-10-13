@@ -244,12 +244,15 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
       .where(eq(inbox.eventId, eventId));
   }
 
+  async lockDeviceQuarantines(deviceId: string): Promise<void> {
+    await lockDeviceQuarantines(this.tx, deviceId);
+  }
+
   async recordQuarantine(quarantine: EventQuarantine): Promise<void> {
     await this.tx
       .update(inbox)
       .set({ quarantineReason: quarantine.reason })
       .where(eq(inbox.eventId, quarantine.eventId));
-    await lockDeviceQuarantines(this.tx, quarantine.deviceId);
     await openQuarantinedEventAlert(this.tx, quarantine, this.now());
   }
 

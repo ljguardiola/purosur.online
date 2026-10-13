@@ -212,6 +212,7 @@ async function recordFailure(
       });
       return { kind: "failure_recorded", quarantined: null };
     }
+    await tx.lockDeviceQuarantines(next.event.deviceId);
     await tx.recordFailedAttempt(event.eventId, {
       attempts,
       nextAttemptAt: null,

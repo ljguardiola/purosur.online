@@ -175,7 +175,6 @@ const fiscalEmissionStoppedDetailSchema = z.object({
 
 const outboxChainBrokenDetailSchema = z.object({
   deviceId: z.string(),
-  refusedEventCount: z.int(),
 });
 
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };

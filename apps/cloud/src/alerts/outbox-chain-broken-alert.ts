@@ -3,7 +3,7 @@ import { openAlert } from "./open-alert.js";
 
 export async function openOutboxChainBrokenAlert<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
-  broken: { deviceId: string; refusedEventCount: number },
+  broken: { deviceId: string },
   at: Date,
 ): Promise<void> {
   await openAlert(
