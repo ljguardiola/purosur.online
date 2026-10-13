@@ -314,6 +314,7 @@ test("walks the prices of a purchase just registered, taking them from the page 
           currentPrice: null,
           secondsSinceReview: null,
           pending: true,
+          costReference: null,
         },
       ],
       pendingCount: 1,
