@@ -13,12 +13,14 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
 import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerPricesListRoute } from "./prices-list-route.js";
+import { insertPurchaseLine } from "./test-support/purchase-line-fixtures.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -227,6 +229,7 @@ describe("GET /prices", () => {
           currentPrice: { id: priceId, unitPrice: 500, validFrom: reviewedAt.toISOString() },
           secondsSinceReview: 3 * 86_400,
           pending: false,
+          costReference: null,
         },
       ],
       categories: [{ id: categoryId, name: "Almacén" }],
@@ -234,6 +237,72 @@ describe("GET /prices", () => {
       activeProductCount: 1,
       reviewWindowDays: 45,
     });
+  });
+
+  it("answers each product's cost reference from its last cost and its price, none for a product without cost", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const categoryId = await insertCategory("Almacén");
+    const priceListId = await seededPriceListId(db);
+    const locationId = await seededLocationId(db);
+    const riceId = await insertProduct("Arroz", categoryId);
+    const noodlesId = await insertProduct("Fideos", categoryId);
+    await insertPrice(riceId, priceListId, 2000, NOON);
+    await insertPrice(noodlesId, priceListId, 900, NOON);
+    await insertPurchaseLine(db, {
+      productId: riceId,
+      locationId,
+      actorId: userId,
+      purchasedOn: "2026-01-02",
+      recordedAt: new Date("2026-01-02T12:00:00.000Z"),
+      costPaidCents: 1200,
+      quantityPerPackage: 1_000,
+    });
+
+    const response = await listPricesRequest(rawSessionId);
+
+    expect(
+      response
+        .json()
+        .products.map((product: { id: string; costReference: unknown }) => [
+          product.id,
+          product.costReference,
+        ]),
+    ).toEqual([
+      [
+        riceId,
+        {
+          lastCostCents: 1200,
+          freightPerUnitCents: 0,
+          totalCostCents: 1200,
+          marginTenthsOfPercent: 400,
+        },
+      ],
+      [noodlesId, null],
+    ]);
+  });
+
+  it("takes the costs of the session's branch only", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const categoryId = await insertCategory("Almacén");
+    const priceListId = await seededPriceListId(db);
+    const otherLocationId = await insertLocation(db);
+    const riceId = await insertProduct("Arroz", categoryId);
+    await insertPrice(riceId, priceListId, 2000, NOON);
+    await insertPurchaseLine(db, {
+      productId: riceId,
+      locationId: otherLocationId,
+      actorId: userId,
+      purchasedOn: "2026-01-02",
+      recordedAt: new Date("2026-01-02T12:00:00.000Z"),
+      costPaidCents: 1200,
+      quantityPerPackage: 1_000,
+    });
+
+    const response = await listPricesRequest(rawSessionId);
+
+    expect(response.json().products).toMatchObject([{ costReference: null }]);
   });
 
   it("hands the review, category and search filters to the reader", async () => {
