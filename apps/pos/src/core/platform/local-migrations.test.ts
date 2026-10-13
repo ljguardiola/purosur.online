@@ -766,6 +766,7 @@ describe("the register's local migrations", () => {
         values: Partial<{
           line_id: string;
           discount_id: string;
+          name: string;
           kind: string;
           percent: number | null;
           buy_qty: number | null;
@@ -774,12 +775,13 @@ describe("the register's local migrations", () => {
       ) {
         database
           .prepare(
-            `INSERT INTO sale_line_promotions (line_id, discount_id, kind, percent, buy_qty, pay_qty)
-             VALUES (@line_id, @discount_id, @kind, @percent, @buy_qty, @pay_qty)`,
+            `INSERT INTO sale_line_promotions (line_id, discount_id, name, kind, percent, buy_qty, pay_qty)
+             VALUES (@line_id, @discount_id, @name, @kind, @percent, @buy_qty, @pay_qty)`,
           )
           .run({
             line_id: "l1",
             discount_id: "d1",
+            name: "Diez por ciento",
             kind: "PERCENT_OFF",
             percent: 10,
             buy_qty: null,
@@ -886,6 +888,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -957,6 +960,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1023,6 +1027,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1088,6 +1093,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1101,6 +1107,8 @@ describe("the register's local migrations", () => {
          VALUES ('l-done', 'done', 1, 'p1', 'Yerba', 1, 1000, 'pl', 1000),
                 ('l-dropped', 'dropped', 1, 'p1', 'Yerba', 1, 1000, 'pl', 1000),
                 ('l-open', 'open', 1, 'p1', 'Yerba', 1, 1000, 'pl', 1000);
+         INSERT INTO discounts (id, name, kind, percent, buy_qty, pay_qty, target_kind, target_id, valid_from, valid_to, weekdays, active, version)
+         VALUES ('ten', 'Diez por ciento', 'PERCENT_OFF', 10, NULL, NULL, 'PRODUCT', 'p1', '2026-09-01', '2026-12-31', '[]', 1, 1);
          INSERT INTO sale_line_promotions (line_id, discount_id, kind, percent)
          VALUES ('l-done', 'ten', 'PERCENT_OFF', 10),
                 ('l-dropped', 'ten', 'PERCENT_OFF', 10),
@@ -1180,6 +1188,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1264,6 +1273,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1352,6 +1362,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1423,6 +1434,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1486,6 +1498,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -2279,6 +2292,8 @@ describe("the register's local migrations", () => {
          VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z');
          INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total, promotion_id, discount_amount)
          VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 2, 1500, 'list-1', 2700, 'd1', 300);
+         INSERT INTO discounts (id, name, kind, percent, buy_qty, pay_qty, target_kind, target_id, valid_from, valid_to, weekdays, active, version)
+         VALUES ('d1', 'Diez por ciento', 'PERCENT_OFF', 10, NULL, NULL, 'PRODUCT', 'p1', '2026-09-01', '2026-12-31', '[]', 1, 1);
          INSERT INTO sale_line_promotions (line_id, discount_id, kind, percent)
          VALUES ('line-1', 'd1', 'PERCENT_OFF', 10);
          INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, sale_unit, quantity, list_unit_price, price_list_id, line_total)
