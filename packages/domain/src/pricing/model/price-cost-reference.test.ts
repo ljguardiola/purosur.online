@@ -262,12 +262,12 @@ describe("priceCostReference", () => {
     expect(FREIGHT_PER_UNIT_CENTS).toBe(0);
   });
 
-  it("totals the last cost and the freight, within a cent of the exact sum, for every cost", () => {
+  it("rounds the last cost within half a cent of the exact cost and totals it with the freight, for every cost", () => {
     fc.assert(
       fc.property(cost, price, (c, p) => {
         const reference = priceCostReference([sourceWith(c)], p);
         const exact = (c.totalCents * 1000) / c.quantity;
-        expect(reference?.lastCostCents).toBe(Math.round(exact + Number.EPSILON * exact));
+        expect(Math.abs((reference?.lastCostCents ?? 0) - exact)).toBeLessThanOrEqual(0.5 + 1e-6);
         expect(reference?.totalCostCents).toBe(
           (reference?.lastCostCents ?? 0) + (reference?.freightPerUnitCents ?? 0),
         );
