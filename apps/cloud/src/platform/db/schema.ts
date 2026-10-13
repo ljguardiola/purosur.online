@@ -626,6 +626,51 @@ export const purchases = pgTable(
   ],
 );
 
+export const freights = pgTable(
+  "freights",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    freightOn: date("freight_on", { mode: "string" }).notNull(),
+    amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
+    description: text("description").notNull(),
+    meansKind: text("means_kind").notNull(),
+    carrierName: text("carrier_name"),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    check("freights_amount_check", sql`${table.amountCents} > 0`),
+    check("freights_means_kind_check", sql`${table.meansKind} in ('carrier', 'own_trip')`),
+    check(
+      "freights_carrier_name_iff_carrier_check",
+      sql`(${table.meansKind} = 'carrier') = (${table.carrierName} is not null)`,
+    ),
+    index("freights_location_id_freight_on_idx").on(table.locationId, table.freightOn),
+  ],
+);
+
+export const freightPurchases = pgTable(
+  "freight_purchases",
+  {
+    freightId: uuid("freight_id")
+      .notNull()
+      .references(() => freights.id),
+    purchaseId: uuid("purchase_id")
+      .notNull()
+      .references(() => purchases.id),
+  },
+  (table) => [
+    primaryKey({ name: "freight_purchases_pkey", columns: [table.freightId, table.purchaseId] }),
+    index("freight_purchases_purchase_id_idx").on(table.purchaseId),
+  ],
+);
+
 // A quantity is in thousandths of the product's sale unit. The cost is the exact pair of what was
 // paid and the quantity per package it was paid for, never rounded.
 export const purchaseLines = pgTable(
