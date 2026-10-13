@@ -1,9 +1,11 @@
+import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { hostname, release, version } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
+import { promisify } from "node:util";
 import { type CoreReadyMessage, mainToCoreMessageSchema } from "@purosur/contracts";
-import { REGISTER_UPDATE_HOLD_LIMIT_MS } from "@purosur/domain";
+import { BATTERY_READ_INTERVAL_MS, REGISTER_UPDATE_HOLD_LIMIT_MS } from "@purosur/domain";
 import * as Sentry from "@sentry/electron/utility";
 import { net } from "electron";
 import {
@@ -35,6 +37,7 @@ import {
 import { initializeErrorReporting } from "./platform/error-reporting";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
+import { createBatteryWatch } from "./register/battery-watch";
 import {
   cashMovementKindsFor,
   currentCashMovements,
@@ -73,6 +76,7 @@ import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
 import { createUpdateHold, gateRendererRequest } from "./register/update-hold";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
+import { windowsBatteryReader } from "./register/windows-battery-reader";
 import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
@@ -273,6 +277,17 @@ const serialDeviceWatch =
         onFailure: (error) => reportFailure("watching the serial devices", error),
       });
 
+const batteryWatch = createBatteryWatch({
+  reader: windowsBatteryReader({ run: promisify(execFile), platform: process.platform }),
+  intervalMs: BATTERY_READ_INTERVAL_MS,
+  scheduleNext: (run, delayMs) => {
+    const timer = setTimeout(run, delayMs);
+    return () => clearTimeout(timer);
+  },
+  clock: { now },
+  onFailure: (error) => reportFailure("reading the battery", error),
+});
+
 const systelScale = createSystelScale({
   path: () => serialDeviceWatch && pathOfMatchingDevice(serialDeviceWatch.reading(), "scale"),
   openLink: openSerialLink,
@@ -325,6 +340,7 @@ const syncSchedule = createSyncSchedule({
                     appVersion: appVersionFromCoreArguments(process.argv),
                     readTelemetry: damagedRegisterTelemetryReader(
                       storageTelemetryReader(localDatabasePath, nodeStorageFileSystem),
+                      () => batteryWatch.report(),
                     ),
                   }),
           pushOutbox: () =>
@@ -343,6 +359,7 @@ const syncSchedule = createSyncSchedule({
                       () => salesStopOf(localDatabase),
                       () => serialDevicesReportOf(serialDeviceWatch.reading()),
                       () => readLatestPreEmissionGateOutcome(localDatabase),
+                      () => batteryWatch.report(),
                     ),
               acceptedPush:
                 localDatabase === undefined
@@ -957,4 +974,5 @@ process.parentPort.on("message", (event) => {
 
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
 syncSchedule.start();
+void batteryWatch.start();
 void barcodeReaderWiring.startWatch();
