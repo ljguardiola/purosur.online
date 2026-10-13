@@ -157,6 +157,12 @@ function upsertOf(entity: PulledEntity, changeSeq: number): SyncChange {
           options: [{ code: 5, description: "Consumidor Final", invoice_class: "C" }],
         },
       };
+    case "refund_completion":
+      return {
+        ...base,
+        entity,
+        row: { done_by: OTHER_ID, done_at: "2026-10-10T16:45:00.000Z" },
+      };
     case "stock_movement":
       return {
         ...base,
