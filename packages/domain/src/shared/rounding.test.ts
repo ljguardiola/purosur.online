@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { roundHalfUp } from "./rounding.js";
+import { roundHalfUp, roundHalfUpSigned } from "./rounding.js";
 
 const LARGE_PRICE_CENTS = 2_147_483_647;
 
@@ -34,6 +34,36 @@ describe("roundHalfUp", () => {
         fc.bigInt({ min: 1n, max: 10n ** 6n }),
         (numerator, denominator) => {
           const rounded = BigInt(roundHalfUp({ numerator, denominator }));
+
+          expect(2n * (numerator - rounded * denominator)).toBeLessThan(denominator);
+          expect(2n * (rounded * denominator - numerator)).toBeLessThanOrEqual(denominator);
+        },
+      ),
+    );
+  });
+});
+
+describe("roundHalfUpSigned", () => {
+  it.each([
+    [0n, 3n, 0],
+    [2n, 3n, 1],
+    [-1n, 3n, 0],
+    [-2n, 3n, -1],
+    [-1n, 2n, 0],
+    [-3n, 2n, -1],
+    [-1500n, 1000n, -1],
+    [-1501n, 1000n, -2],
+  ])("rounds %s / %s to %s, a half towards the larger value", (numerator, denominator, expected) => {
+    expect(roundHalfUpSigned({ numerator, denominator })).toBe(expected);
+  });
+
+  it("is within half a unit of the exact value for every fraction of either sign", () => {
+    fc.assert(
+      fc.property(
+        fc.bigInt({ min: -(10n ** 15n), max: 10n ** 15n }),
+        fc.bigInt({ min: 1n, max: 10n ** 6n }),
+        (numerator, denominator) => {
+          const rounded = BigInt(roundHalfUpSigned({ numerator, denominator }));
 
           expect(2n * (numerator - rounded * denominator)).toBeLessThan(denominator);
           expect(2n * (rounded * denominator - numerator)).toBeLessThanOrEqual(denominator);
