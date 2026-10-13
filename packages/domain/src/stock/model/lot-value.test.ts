@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { isLotInStock, lotValueCents } from "./lot-value.js";
+import { isLotInStock, lotValueCents, lotsValueSummary } from "./lot-value.js";
 
 const cost = { totalCents: 5_000, quantity: 1_000 };
 
@@ -94,5 +94,17 @@ describe("isLotInStock", () => {
 
   it("drops a lot with nothing remaining", () => {
     expect(isLotInStock({ remaining: 0 })).toBe(false);
+  });
+});
+
+describe("lotsValueSummary", () => {
+  it("adds up the value of the lots that have one and counts those that have none", () => {
+    expect(
+      lotsValueSummary([{ valueCents: 20_000 }, { valueCents: null }, { valueCents: 1_250 }]),
+    ).toEqual({ valueCents: 21_250, withoutCostCount: 1 });
+  });
+
+  it("is worth nothing and misses no cost for no lots", () => {
+    expect(lotsValueSummary([])).toEqual({ valueCents: 0, withoutCostCount: 0 });
   });
 });

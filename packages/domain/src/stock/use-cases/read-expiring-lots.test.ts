@@ -55,7 +55,11 @@ describe("readExpiringLots", () => {
   it("reads the warning window of the location and answers it", async () => {
     const { view, expiringLots } = await read([], { windowDays: 45 });
 
-    expect(view).toEqual({ windowDays: 45, lots: [] });
+    expect(view).toEqual({
+      windowDays: 45,
+      lots: [],
+      summary: { valueCents: 0, withoutCostCount: 0 },
+    });
     expect(expiringLots.windowReads).toEqual(["location-1"]);
   });
 
@@ -98,6 +102,18 @@ describe("readExpiringLots", () => {
     ]);
 
     expect(view.lots.map((listed) => listed.valueCents)).toEqual([null, null]);
+  });
+
+  it("summarizes the value of the listed lots and how many have no known value", async () => {
+    const { view } = await read([
+      lot("valued-1", { remaining: 4_000 }),
+      lot("valued-2", { remaining: 1_000 }),
+      lot("no-cost", { cost: null, costIncomplete: true }),
+      lot("technical", { technical: true, remaining: 9_000 }),
+      lot("empty", { remaining: 0 }),
+    ]);
+
+    expect(view.summary).toEqual({ valueCents: 25_000, withoutCostCount: 1 });
   });
 
   it("marks a lot expired only after its expiry day, with a negative count of days", async () => {
