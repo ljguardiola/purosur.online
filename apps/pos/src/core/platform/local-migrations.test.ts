@@ -2509,7 +2509,6 @@ describe("the register's local migrations", () => {
       );
       expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
         "0043_integrated_terminal_payments",
-        "0046_refund_completions",
       );
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
