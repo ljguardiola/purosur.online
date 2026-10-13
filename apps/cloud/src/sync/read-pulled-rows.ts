@@ -8,6 +8,7 @@ import { asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { OFFLINE_AUTHORIZATION_CODE_VERSION } from "../fiscal/offline-authorization-code-version.js";
 import {
+  branchFirstCashSessions,
   buyerIdentificationThresholds,
   buyerTaxStatusSets,
   caeaCodes,
@@ -36,6 +37,7 @@ import { discountFieldsOf } from "../pricing/drizzle-discount-store.js";
 import { PRICE_VERSION } from "../pricing/price-version.js";
 import { STOCK_MOVEMENT_VERSION } from "../stock/stock-movement-version.js";
 import type {
+  BranchFirstCashSessionRow,
   BuyerIdentificationThresholdRow,
   BuyerTaxStatusSetRow,
   CategoryRow,
@@ -54,6 +56,23 @@ import type {
   TagRow,
   UserRow,
 } from "./pulled-changes.js";
+
+export async function readBranchFirstCashSessions<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  locationIds: readonly string[],
+): Promise<Map<string, BranchFirstCashSessionRow>> {
+  if (locationIds.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select({
+      locationId: branchFirstCashSessions.locationId,
+      openedAt: branchFirstCashSessions.openedAt,
+    })
+    .from(branchFirstCashSessions)
+    .where(inArray(branchFirstCashSessions.locationId, [...locationIds]));
+  return new Map(rows.map(({ locationId, openedAt }) => [locationId, { openedAt }]));
+}
 
 export async function readCategories<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,

@@ -1,5 +1,6 @@
 import type { OpenCashSessionOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import type { ReactNode } from "react";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SignedInPerson } from "../shell/signed-in-person";
@@ -15,9 +16,11 @@ const PERSON: SignedInPerson = {
 async function renderScreen({
   registerName = null,
   person = PERSON,
+  offers,
 }: {
   registerName?: string | null;
   person?: SignedInPerson;
+  offers?: ReactNode;
 } = {}) {
   const signOut = vi.fn();
   const openCashSession = vi.fn(
@@ -31,6 +34,7 @@ async function renderScreen({
       registerName={registerName}
       signOut={signOut}
       openCashSession={openCashSession}
+      offers={offers}
     />,
   );
   return { screen, signOut, openCashSession };
@@ -42,6 +46,12 @@ describe("NoSessionScreen", () => {
 
     await expect.element(screen.getByRole("heading", { name: "¿Qué querés hacer?" })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("shows what the screen is given to offer under the question", async () => {
+    const { screen } = await renderScreen({ offers: <p>Una oferta</p> });
+
+    await expect.element(screen.getByText("Una oferta")).toBeVisible();
   });
 
   it("names the register in the eyebrow", async () => {

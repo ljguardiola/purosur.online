@@ -8,6 +8,7 @@ import {
   canManagePurchasePackagings,
   canManageSuppliers,
   canPerformStockCounts,
+  canRecordPurchases,
   canSeeCashArea,
   canSeeCatalogArea,
   canSeePricesArea,
@@ -52,7 +53,9 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
           ? "/suppliers"
           : canManagePurchasePackagings(session)
             ? "/purchase-packagings"
-            : "/purchases";
+            : canRecordPurchases(session)
+              ? "/purchases"
+              : "/initial-inventory";
   const cashTarget = canSeeCashArea(session) ? "/points-of-sale" : "/pending-refunds";
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (

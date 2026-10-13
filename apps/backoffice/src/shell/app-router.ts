@@ -22,7 +22,12 @@ import {
 import { registersListRoute } from "../register/routes";
 import { reportsIndexRoute, salesByDayRoute } from "../sales/routes";
 import { signInRoute } from "../sessions/routes";
-import { stockBalancesRoute, stockCountsRoute, stockMovementsRoute } from "../stock/routes";
+import {
+  initialInventoryRoute,
+  stockBalancesRoute,
+  stockCountsRoute,
+  stockMovementsRoute,
+} from "../stock/routes";
 import { quarantinedEventsRoute } from "../sync/routes";
 import { userDetailRoute, usersListRoute } from "../users/routes";
 import { cashAndFiscalAreaRoute } from "./cash-and-fiscal-area";
@@ -70,6 +75,7 @@ const routeTree = rootRoute.addChildren([
       packagingsListRoute,
       purchasesListRoute,
       newPurchaseRoute,
+      initialInventoryRoute,
     ]),
     cashAndFiscalAreaRoute.addChildren([
       pointsOfSaleRoute,

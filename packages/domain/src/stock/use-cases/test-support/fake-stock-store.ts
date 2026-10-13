@@ -1,6 +1,6 @@
 import type { SaleUnit } from "../../../catalog/index.js";
 import type { Clock } from "../../../shared/index.js";
-import type { NewLot } from "../../model/lot.js";
+import type { NewInitialCountLot, NewLot } from "../../model/lot.js";
 import type { StockLot } from "../../model/lot-allocation.js";
 import type {
   CountedLot,
@@ -9,6 +9,7 @@ import type {
   LotAllocation,
   NewStockCount,
   NewStockMovement,
+  OpeningCountLot,
   ProductStockKey,
   StockStore,
   StockStoreTransaction,
@@ -34,6 +35,8 @@ export interface FakeStockLot extends ProductStockKey, StockLot {
   costQuantity: number | null;
   lotNumber: string | null;
   costComplete: boolean;
+  originMovementId: string | null;
+  withdrawn: boolean;
 }
 
 interface FakeCountedLots {
@@ -58,6 +61,8 @@ type WriteOperation =
   | "recordCountedLots"
   | "addToBalance"
   | "recordLot"
+  | "recordInitialCountLot"
+  | "markOpeningCountWithdrawn"
   | "openTechnicalLot"
   | "allocateToLot";
 
@@ -193,6 +198,8 @@ class FakeStockStoreTransaction implements StockStoreTransaction {
       costQuantity: null,
       lotNumber: null,
       costComplete: false,
+      originMovementId: null,
+      withdrawn: false,
     });
     return id;
   }
@@ -215,8 +222,61 @@ class FakeStockStoreTransaction implements StockStoreTransaction {
       costQuantity: lot.costQuantity,
       lotNumber: lot.lotNumber,
       costComplete: true,
+      originMovementId: null,
+      withdrawn: false,
     });
     return id;
+  }
+
+  async recordInitialCountLot(lot: NewInitialCountLot): Promise<string> {
+    this.beforeWrite("recordInitialCountLot");
+    const id = `lot-${this.state.lots.length + 1}`;
+    this.state.lots.push({
+      id,
+      productId: lot.productId,
+      locationId: lot.locationId,
+      technical: false,
+      expiresOn: lot.expiresOn,
+      purchasedOn: null,
+      receivedAt: this.receptionMoment(),
+      remaining: 0,
+      purchaseLineId: null,
+      quantityReceived: lot.quantityReceived,
+      costTotalCents: null,
+      costQuantity: null,
+      lotNumber: null,
+      costComplete: false,
+      originMovementId: lot.originMovementId,
+      withdrawn: false,
+    });
+    return id;
+  }
+
+  async openingCountLot(
+    locationId: string,
+    movementId: string,
+  ): Promise<OpeningCountLot | undefined> {
+    this.store.operationOrder.push("openingCountLot");
+    const lot = this.state.lots.find(
+      (row) => row.locationId === locationId && row.originMovementId === movementId,
+    );
+    return (
+      lot && {
+        lotId: lot.id,
+        productId: lot.productId,
+        counted: lot.quantityReceived,
+        withdrawn: lot.withdrawn,
+      }
+    );
+  }
+
+  async markOpeningCountWithdrawn(lotId: string): Promise<void> {
+    this.beforeWrite("markOpeningCountWithdrawn");
+    const lot = this.state.lots.find((row) => row.id === lotId);
+    if (!lot) {
+      throw new Error(`lot ${lotId} does not exist`);
+    }
+    lot.withdrawn = true;
   }
 
   async allocateToLot(allocation: LotAllocation): Promise<void> {
@@ -291,6 +351,8 @@ export class FakeStockStore implements StockStore {
       costQuantity: null,
       lotNumber: null,
       costComplete: !lot.technical,
+      originMovementId: null,
+      withdrawn: false,
       ...lot,
     });
   }

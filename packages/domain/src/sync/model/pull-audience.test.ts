@@ -11,11 +11,12 @@ const BRANCH = "branch-a";
 const PRICE_LIST = "price-list-a";
 
 describe("what a register may pull", () => {
-  it("is its branch's settings, users, stock movements, price list and prices, its own register, points of sale and offline number blocks, and everything shared by every branch", () => {
+  it("is its branch's settings, first cash session, users, stock movements, price list and prices, its own register, points of sale and offline number blocks, and everything shared by every branch", () => {
     expect(
       pullAudienceOf({ registerId: REGISTER, locationId: BRANCH, priceListId: PRICE_LIST }),
     ).toEqual({
       branch_settings: { kind: "row", id: BRANCH },
+      branch_first_cash_session: { kind: "row", id: BRANCH },
       category: { kind: "every_row" },
       product: { kind: "every_row" },
       tag: { kind: "every_row" },

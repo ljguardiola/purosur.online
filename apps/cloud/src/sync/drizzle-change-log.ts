@@ -18,6 +18,7 @@ import {
 } from "../platform/db/schema.js";
 import type { PulledCloudChange, RemovedEntity } from "./pulled-changes.js";
 import {
+  readBranchFirstCashSessions,
   readBuyerIdentificationThresholds,
   readBuyerTaxStatusSets,
   readCategories,
@@ -94,6 +95,10 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
     const logged = await this.loggedAfter(audience, since, limit);
 
     // Every change carries the row as it is now, so one read serves every change of that row.
+    const firstCashSessionRows = await readBranchFirstCashSessions(
+      this.tx,
+      idsOf(logged, "branch_first_cash_session"),
+    );
     const categoryRows = await readCategories(this.tx, idsOf(logged, "category"));
     const productRows = await readProducts(this.tx, idsOf(logged, "product"));
     const tagRows = await readTags(this.tx, idsOf(logged, "tag"));
@@ -166,6 +171,14 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
       switch (entity) {
         case "branch_settings":
           pulled.push({ changeSeq, entity, entityId, row: requiredRow(settingsRow, entity) });
+          break;
+        case "branch_first_cash_session":
+          pulled.push({
+            changeSeq,
+            entity,
+            entityId,
+            row: requiredRow(firstCashSessionRows.get(entityId), entity),
+          });
           break;
         case "price_list":
           pulled.push({

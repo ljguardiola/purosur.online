@@ -1,5 +1,11 @@
-import { recordLoss, registerCount } from "@purosur/domain/stock/use-cases";
+import {
+  applyOpeningCount,
+  recordLoss,
+  registerCount,
+  withdrawOpeningCount,
+} from "@purosur/domain/stock/use-cases";
 import { eq } from "drizzle-orm";
+import type { PgliteQueryResultHKT } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   categories,
@@ -672,6 +678,143 @@ describe("DrizzleStockStore recordCountedLots", () => {
     );
     expect(await db.select().from(stockCountLots)).toEqual([
       { movementId: expect.any(String), lotId: soon, counted: 1000 },
+    ]);
+  });
+});
+
+describe("DrizzleStockStore initial count", () => {
+  const MOVEMENT_ID = "6d1f7c3a-5b2e-4f8a-9c4d-1e2f3a4b5c6d";
+
+  async function count(
+    store: DrizzleStockStore<PgliteQueryResultHKT>,
+    input: { productId: string; locationId: string; actorId: string },
+  ) {
+    return store.transaction((tx) =>
+      applyOpeningCount(tx, {
+        ...input,
+        occurredAt: COUNTED_AT,
+        movementId: MOVEMENT_ID,
+        counted: 6_000,
+        expiresOn: "2027-01-31",
+      }),
+    );
+  }
+
+  it("keeps the counted stock in a lot of its own, born from the counting movement with no cost", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct({ saleUnit: "UNIT" });
+    const actorId = await insertUser(locationId);
+
+    const outcome = await count(new DrizzleStockStore(db), { productId, locationId, actorId });
+
+    expect(outcome).toEqual({ kind: "recorded", lotId: expect.any(String) });
+    expect(await db.select().from(lots)).toEqual([
+      expect.objectContaining({
+        id: outcome.kind === "recorded" ? outcome.lotId : "",
+        productId,
+        locationId,
+        purchaseLineId: null,
+        originMovementId: MOVEMENT_ID,
+        technical: false,
+        withdrawn: false,
+        expiresOn: "2027-01-31",
+        purchasedOn: null,
+        costIncomplete: true,
+        costTotalCents: null,
+        costQuantity: null,
+        quantityReceived: 6_000,
+        remaining: 6_000,
+      }),
+    ]);
+    expect(await db.select().from(stockMovements)).toEqual([
+      expect.objectContaining({ id: MOVEMENT_ID, kind: "opening_count", delta: 6_000 }),
+    ]);
+  });
+
+  it("finds the counted line of its branch only, and says nothing of another branch's", async () => {
+    const locationId = await seededLocationId(db);
+    const otherLocationId = await insertLocation();
+    const productId = await insertProduct({ saleUnit: "UNIT" });
+    const actorId = await insertUser(locationId);
+    const store = new DrizzleStockStore(db);
+    await count(store, { productId, locationId, actorId });
+
+    const found = await store.transaction((tx) => tx.openingCountLot(locationId, MOVEMENT_ID));
+    const foreign = await store.transaction((tx) =>
+      tx.openingCountLot(otherLocationId, MOVEMENT_ID),
+    );
+
+    expect(found).toEqual({
+      lotId: expect.any(String),
+      productId,
+      counted: 6_000,
+      withdrawn: false,
+    });
+    expect(foreign).toBeUndefined();
+  });
+
+  it("takes the line back, leaving its lot marked as withdrawn", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct({ saleUnit: "UNIT" });
+    const actorId = await insertUser(locationId);
+    const store = new DrizzleStockStore(db);
+    await count(store, { productId, locationId, actorId });
+    const withdrawalId = "7e2a8d4b-6c3f-4a9b-8d5e-2f3a4b5c6d7e";
+
+    const outcome = await store.transaction((tx) =>
+      withdrawOpeningCount(tx, {
+        locationId,
+        occurredAt: AFTER_COUNT,
+        actorId,
+        movementId: withdrawalId,
+        withdrawnMovementId: MOVEMENT_ID,
+      }),
+    );
+
+    expect(outcome).toMatchObject({ kind: "withdrawn", taken: 6_000, notTaken: 0 });
+    expect(await db.select().from(lots)).toEqual([
+      expect.objectContaining({ withdrawn: true, remaining: 0 }),
+    ]);
+    expect(await store.transaction((tx) => tx.openingCountLot(locationId, MOVEMENT_ID))).toEqual(
+      expect.objectContaining({ withdrawn: true }),
+    );
+    expect((await db.select().from(stockBalances))[0]).toMatchObject({ quantity: 0 });
+  });
+
+  it("records a withdrawal of nothing as a movement when the lot has nothing left to take", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct({ saleUnit: "UNIT" });
+    const actorId = await insertUser(locationId);
+    const store = new DrizzleStockStore(db);
+    await count(store, { productId, locationId, actorId });
+    await db.update(lots).set({ remaining: 0 });
+    const withdrawalId = "7e2a8d4b-6c3f-4a9b-8d5e-2f3a4b5c6d7e";
+
+    await store.transaction((tx) =>
+      withdrawOpeningCount(tx, {
+        locationId,
+        occurredAt: AFTER_COUNT,
+        actorId,
+        movementId: withdrawalId,
+        withdrawnMovementId: MOVEMENT_ID,
+      }),
+    );
+
+    expect(
+      await db.select().from(stockMovements).where(eq(stockMovements.id, withdrawalId)),
+    ).toEqual([expect.objectContaining({ kind: "opening_count_withdrawal", delta: 0 })]);
+  });
+
+  it("notes the counting movement as a change of its branch", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct({ saleUnit: "UNIT" });
+    const actorId = await insertUser(locationId);
+    const before = await lastLoggedChangeSeq(db);
+
+    await count(new DrizzleStockStore(db), { productId, locationId, actorId });
+
+    expect(await changesLoggedAfter(db, before)).toEqual([
+      { entity: "stock_movement", entityId: MOVEMENT_ID, version: 1, op: "insert", locationId },
     ]);
   });
 });

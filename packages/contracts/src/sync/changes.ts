@@ -49,6 +49,12 @@ const pulledChangeShape = {
   entity_id: z.string(),
 };
 
+const branchFirstCashSessionChangeSchema = z.object({
+  ...pulledChangeShape,
+  entity: z.literal("branch_first_cash_session"),
+  row: z.object({ opened_at: z.iso.datetime() }),
+});
+
 const categoryChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("category"),
@@ -263,6 +269,7 @@ export const changesPageSchema = z.object({
     .array(
       z.discriminatedUnion("entity", [
         branchSettingsChangeSchema,
+        branchFirstCashSessionChangeSchema,
         categoryChangeSchema,
         productChangeSchema,
         tagChangeSchema,

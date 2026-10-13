@@ -1,4 +1,5 @@
 import type {
+  InitialInventoryLotList,
   StockBalance,
   StockBalanceList,
   StockCount,
@@ -286,3 +287,44 @@ export const movementReasons: StockMovementReasonList = {
 export function withoutBalance({ balance: _balance, ...product }: StockBalance): StockProduct {
   return product;
 }
+
+type InitialLot = InitialInventoryLotList["lots"][number];
+
+export const initialLotAlmonds: InitialLot = {
+  lotId: "00000000-0000-4000-8000-0000000000b1",
+  productId: almonds.id,
+  productName: almonds.name,
+  categoryName: almonds.categoryName,
+  saleUnit: "KG",
+  expiresOn: "2026-12-01",
+  counted: 4_400,
+  costIncomplete: false,
+  unitCostCents: 1_018_000,
+  valueCents: 4_479_200,
+};
+
+export const initialLotHoney: InitialLot = {
+  lotId: "00000000-0000-4000-8000-0000000000b2",
+  productId: honey.id,
+  productName: honey.name,
+  categoryName: honey.categoryName,
+  saleUnit: "UNIT",
+  expiresOn: null,
+  counted: 24_000,
+  costIncomplete: false,
+  unitCostCents: 544_000,
+  valueCents: 13_056_000,
+};
+
+export const initialLotTeaWithoutCost: InitialLot = {
+  lotId: "00000000-0000-4000-8000-0000000000b3",
+  productId: tea.id,
+  productName: tea.name,
+  categoryName: tea.categoryName,
+  saleUnit: "UNIT",
+  expiresOn: "2027-03-15",
+  counted: 12_000,
+  costIncomplete: true,
+  unitCostCents: null,
+  valueCents: null,
+};

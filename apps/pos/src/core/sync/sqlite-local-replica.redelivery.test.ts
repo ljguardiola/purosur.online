@@ -93,8 +93,10 @@ describe("the redeliveries a register is waiting for", () => {
     const migrated = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
 
     expect(await new SqliteLocalReplica(migrated).pendingRedeliveries()).toEqual([
+      { entity: "branch_first_cash_session", cursor: 0 },
       { entity: "register_offline_point_of_sale", cursor: 0 },
       { entity: "register_point_of_sale", cursor: 0 },
+      { entity: "stock_movement", cursor: 0 },
     ]);
     migrated.close();
   });
@@ -393,7 +395,7 @@ describe("what a register owns, kept by a redelivered page", () => {
     );
     const movements = database.prepare("SELECT * FROM stock_movements").all();
 
-    await redeliver("stock_movement", upsertOf("stock_movement"));
+    await redeliver("stock_movement", withRow(upsertOf("stock_movement"), { delta: -3000 }));
 
     expect(database.prepare("SELECT * FROM stock_movements").all()).toEqual(movements);
   });
