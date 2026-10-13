@@ -172,14 +172,18 @@ export const help = defineHelp("es-AR", {
         { kind: "heading", text: "Qué pasa" },
         {
           kind: "paragraph",
-          text: "La Point integrada necesita internet. Sin conexión aparece como No disponible sin conexión y no se puede elegir. Si la conexión se corta con un cobro ya en la terminal, la caja avisa que no hay conexión con la nube.",
+          text: "La Point integrada necesita internet. Sin conexión aparece como No disponible sin conexión y no se puede elegir. Si la conexión se corta con un cobro ya en la terminal, la caja sigue mostrando el tiempo para pagar.",
+        },
+        {
+          kind: "paragraph",
+          text: "La caja avisa que no hay conexión con la nube cuando envió el cobro a la terminal pero no pudo confirmarlo con la nube, o cuando tocás Cambiar de medio y la cancelación no llega a la nube.",
         },
         { kind: "heading", text: "Qué hacer" },
         {
           kind: "steps",
           items: [
             "Sin conexión, cobrá con otro medio.",
-            "Si el cobro ya estaba en la terminal, cancelalo en la terminal y esperá a que vuelva la conexión.",
+            "Si la caja avisa que no hay conexión con la nube, cancelá el cobro en la terminal y esperá a que vuelva la conexión.",
           ],
         },
       ],
