@@ -10,9 +10,11 @@ export type MercadoPagoPaymentMethod = (typeof MERCADO_PAGO_PAYMENT_METHODS)[num
 
 const CONFIRMED_BY_HAND_METHODS = ["TRANSFER", "STANDALONE_TERMINAL"] as const;
 
+export type ConfirmedByHandMethod = (typeof CONFIRMED_BY_HAND_METHODS)[number];
+
 export function isConfirmedByHand<Payment extends { method: string }>(
   payment: Payment,
-): payment is Payment & { method: (typeof CONFIRMED_BY_HAND_METHODS)[number] } {
+): payment is Payment & { method: ConfirmedByHandMethod } {
   return (CONFIRMED_BY_HAND_METHODS as readonly string[]).includes(payment.method);
 }
 

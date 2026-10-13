@@ -154,7 +154,7 @@ export function StandaloneTerminalChargeModal({
         <InlineNotice
           tone="info"
           icon={<Info />}
-          title="Cobrá en la segunda Point, que funciona sin la caja, y cargá acá lo que muestra la terminal."
+          title="Cobrá primero en la segunda Point y registrá el pago cuando la terminal lo apruebe."
         />
         <form.AppField name="amount" listeners={{ onChange: () => setNotice(undefined) }}>
           {(field) => (

@@ -1,5 +1,5 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
-import type { SalePayment } from "../../payments/index.js";
+import type { ConfirmedByHandMethod, SalePayment } from "../../payments/index.js";
 import { nonCashCharge } from "../../payments/index.js";
 import type { Clock } from "../../shared/index.js";
 import { isSaleRefusal, type PartiallyPaid, saleOpenToNewPayment } from "./chargeable-sale.js";
@@ -30,8 +30,6 @@ export type ChargeSaleConfirmedByHandOutcome =
   | { kind: "exceeds_pending"; pending: number }
   | PartiallyPaid
   | { kind: "completed"; saleId: string; total: number };
-
-export type ConfirmedByHandMethod = "TRANSFER" | "STANDALONE_TERMINAL";
 
 export function chargeSaleConfirmedByHand(
   { ledger, clock, ids }: ChargeSaleConfirmedByHandPorts,
