@@ -13,8 +13,10 @@ const PRESENT = {
   on_battery_minutes: 12,
 };
 
-let logged: string[] = [];
-const route = eventsRouteUnderTest(undefined, { write: (line) => logged.push(line) });
+let logged: { message: string; context: { deviceId: string } }[] = [];
+const route = eventsRouteUnderTest(undefined, (message, context) => {
+  logged.push({ message, context });
+});
 
 beforeEach(() => {
   logged = [];
@@ -102,13 +104,7 @@ describe("the battery a register reports through POST /events", () => {
 
     await push(deviceToken, { ...PRESENT, charge_percent: 150 });
 
-    expect(logged.map((line) => JSON.parse(line))).toEqual([
-      expect.objectContaining({
-        level: 40,
-        deviceId,
-        msg: expect.stringContaining("battery"),
-      }),
-    ]);
+    expect(logged).toEqual([{ message: expect.stringContaining("battery"), context: { deviceId } }]);
   });
 
   it("keeps what it holds when the battery report of a push cannot be read", async () => {

@@ -13,13 +13,9 @@ export interface EventsRouteUnderTest {
   readonly app: FastifyInstance;
 }
 
-export interface LogStream {
-  write(line: string): void;
-}
-
 export function eventsRouteUnderTest(
   enqueueEventApplication: EnqueueEventApplication = async () => {},
-  logStream?: LogStream,
+  warn?: (message: string, context: { deviceId: string }) => void,
 ): EventsRouteUnderTest {
   let testDatabase: TestDatabase;
   let app: FastifyInstance;
@@ -34,7 +30,7 @@ export function eventsRouteUnderTest(
 
   beforeEach(async () => {
     await testDatabase.clear();
-    app = logStream ? Fastify({ logger: { level: "warn", stream: logStream } }) : Fastify();
+    app = Fastify();
     registerRouteAccess(app);
     registerEventsRoute(app, {
       db: testDatabase.db,
@@ -42,6 +38,7 @@ export function eventsRouteUnderTest(
       keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
       now: () => NOW,
       enqueueEventApplication,
+      ...(warn === undefined ? {} : { warn }),
     });
   });
 
