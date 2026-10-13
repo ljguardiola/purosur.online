@@ -1,7 +1,9 @@
 import type { PriceProduct } from "@purosur/contracts";
 import { expect, test, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 import {
   createServices,
+  openRicePriceModal,
   renderScreen,
   rice,
   withoutPrice,
@@ -80,4 +82,31 @@ test("shows a dash for the cost and the margin of a product with no cost", async
   const row = screen.getByRole("row", { name: /Sal/ });
   await expect.element(row.getByText("$ 7.500,00 / kg")).toBeVisible();
   await expect.poll(() => row.getByText("—").elements()).toHaveLength(2);
+});
+
+test("the change-price modal asks the cloud for the margin of the typed price", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    const services = createServices();
+    vi.mocked(services.fetchPriceMargin).mockResolvedValue({
+      kind: "ok",
+      value: {
+        costReference: {
+          lastCostCents: 428000,
+          freightPerUnitCents: 18000,
+          totalCostCents: 446000,
+          marginTenthsOfPercent: 456,
+        },
+      },
+    });
+    const screen = await openRicePriceModal(services);
+
+    await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "8200");
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(services.fetchPriceMargin).toHaveBeenCalledWith("product-2", 820000);
+    await expect.element(screen.getByRole("dialog").getByText("45,6 %")).toBeVisible();
+  } finally {
+    vi.useRealTimers();
+  }
 });
