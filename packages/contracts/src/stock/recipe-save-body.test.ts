@@ -93,7 +93,10 @@ describe("recipeSaveBodySchema", () => {
   });
 
   it.each([undefined, null, "nuts", {}])("rejects the components %j", (components) => {
-    expect(firstFailure({ components, version: null })?.path).toEqual(["components"]);
+    expect(firstFailure({ components, version: null })).toEqual({
+      path: ["components"],
+      message: "components must be a list of components",
+    });
   });
 
   it("declares the quantity's units", () => {
