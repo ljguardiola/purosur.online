@@ -11,6 +11,7 @@ import type { StockMovementsScreenServices } from "./stock-movements-services";
 import {
   almonds,
   almondsAdjustment,
+  almondsExpiredLoss,
   crackers,
   honey,
   honeyLoss,
@@ -109,6 +110,14 @@ test("shows each loss and adjustment with its moment, product, kind, reason and 
   await expect.element(table.getByText("+ 1,200 kg")).toBeVisible();
   await expect.element(screen.getByText("2 movimientos")).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows a loss the system recorded for an expired lot as a loss for expiry", async () => {
+  const screen = await renderScreen(createServices([almondsExpiredLoss]));
+
+  const table = screen.getByRole("table", { name: "Ajustes y pérdidas" });
+  await expect.element(table.getByText("Vencimiento")).toBeVisible();
+  await expect.element(table.getByText("Pérdida", { exact: true })).toBeVisible();
 });
 
 test("filters by the reason the URL names and reads the period it names", async () => {

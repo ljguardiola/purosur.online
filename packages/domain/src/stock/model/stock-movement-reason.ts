@@ -9,6 +9,12 @@ export const LOSS_REASONS = [
 
 export type LossReason = (typeof LOSS_REASONS)[number];
 
+export const SYSTEM_LOSS_REASONS = ["expired"] as const;
+
+type SystemLossReason = (typeof SYSTEM_LOSS_REASONS)[number];
+
+export type RecordedLossReason = LossReason | SystemLossReason;
+
 export const ADJUSTMENT_REASONS = [
   "purchase_correction",
   "supplier_return",

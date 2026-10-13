@@ -1,3 +1,4 @@
+import type { StockMovement } from "@purosur/contracts";
 import type { AdjustmentReason, LossReason } from "@purosur/domain";
 
 export const LOSS_REASON_LABELS = {
@@ -15,7 +16,8 @@ export const ADJUSTMENT_REASON_LABELS = {
   batch_correction: "Corrección de una tanda",
 } satisfies Record<AdjustmentReason, string>;
 
-export const REASON_LABELS: Record<LossReason | AdjustmentReason, string> = {
+export const REASON_LABELS: Record<StockMovement["reason"], string> = {
   ...LOSS_REASON_LABELS,
+  expired: "Vencimiento",
   ...ADJUSTMENT_REASON_LABELS,
 };

@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
+  discardExpiredLot,
   fetchExpectedBalance,
+  fetchExpiringLots,
   fetchInitialInventoryLots,
   fetchStockBalances,
   fetchStockCounts,
@@ -387,4 +389,94 @@ test("setLotReferenceCost answers failed when the request cannot be sent", async
   vi.mocked(fetch).mockRejectedValue(new TypeError("offline"));
 
   expect(await setLotReferenceCost("lot-1", { unitCostCents: 100 })).toEqual({ kind: "failed" });
+});
+
+const expiringLots = {
+  windowDays: 30,
+  lots: [
+    {
+      id: "lot-1",
+      lotNumber: "L-SC02",
+      expiresOn: "2026-10-10",
+      remaining: 1_200,
+      valueCents: 480_000,
+      expired: true,
+      daysToExpiry: -3,
+      product: {
+        id: PRODUCT_ID,
+        name: "Semillas de chía",
+        categoryId: "category-1",
+        categoryName: "Semillas",
+        saleUnit: "KG",
+      },
+    },
+  ],
+  summary: { valueCents: 480_000, withoutCostCount: 0 },
+};
+
+test("fetchExpiringLots reads the lots nearing expiry", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, expiringLots));
+
+  expect(await fetchExpiringLots()).toEqual({ kind: "ok", value: expiringLots });
+  expect(fetch).toHaveBeenCalledWith("/api/expiring-lots");
+});
+
+test.each([
+  [jsonResponse(200, { windowDays: "30" }), { kind: "failed" }],
+  [jsonResponse(401), { kind: "unauthenticated" }],
+  [jsonResponse(403), { kind: "forbidden" }],
+  [
+    jsonResponse(429, undefined, { "Retry-After": "5" }),
+    { kind: "rate_limited", retryAfterSeconds: 5 },
+  ],
+  [jsonResponse(404), { kind: "failed" }],
+  [jsonResponse(502), { kind: "failed" }],
+])("fetchExpiringLots answers a response as %#", async (response, outcome) => {
+  vi.mocked(fetch).mockResolvedValue(response);
+
+  expect(await fetchExpiringLots()).toEqual(outcome);
+});
+
+test("fetchExpiringLots answers failed when the request cannot be sent", async () => {
+  vi.mocked(fetch).mockRejectedValue(new TypeError("offline"));
+
+  expect(await fetchExpiringLots()).toEqual({ kind: "failed" });
+});
+
+const discarded = { movementId: "movement-9", quantity: 1_200, balance: 0, superseded: false };
+
+test("discardExpiredLot posts to the lot and reads what was discarded", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, discarded));
+
+  expect(await discardExpiredLot("lot-1")).toEqual({ kind: "ok", value: discarded });
+  expect(fetch).toHaveBeenCalledWith("/api/expiring-lots/lot-1/discard", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+});
+
+test.each([
+  [jsonResponse(404, { code: "not_found" }), { kind: "not_found" }],
+  [jsonResponse(409, { code: "lot_not_expired" }), { kind: "lot_not_expired" }],
+  [jsonResponse(409, { code: "lot_empty" }), { kind: "lot_empty" }],
+  [jsonResponse(409, { code: "something_else" }), { kind: "failed" }],
+  [jsonResponse(401), { kind: "unauthenticated" }],
+  [jsonResponse(403), { kind: "forbidden" }],
+  [
+    jsonResponse(429, undefined, { "Retry-After": "5" }),
+    { kind: "rate_limited", retryAfterSeconds: 5 },
+  ],
+  [jsonResponse(200, { balance: "x" }), { kind: "failed" }],
+  [jsonResponse(502), { kind: "failed" }],
+])("discardExpiredLot answers a response as %#", async (response, outcome) => {
+  vi.mocked(fetch).mockResolvedValue(response);
+
+  expect(await discardExpiredLot("lot-1")).toEqual(outcome);
+});
+
+test("discardExpiredLot answers failed when the request cannot be sent", async () => {
+  vi.mocked(fetch).mockRejectedValue(new TypeError("offline"));
+
+  expect(await discardExpiredLot("lot-1")).toEqual({ kind: "failed" });
 });
