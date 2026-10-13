@@ -364,6 +364,16 @@ export type {
   WeighProductOutcome,
 } from "./sales/sale.js";
 export type {
+  SalesByProductAndCategoryBody,
+  SalesByProductAndCategoryQuery,
+  SalesReportGroupBody,
+} from "./sales/sales-by-product-and-category.js";
+export {
+  salesByProductAndCategoryQuerySchema,
+  salesByProductAndCategorySchema,
+  salesReportGroupSchema,
+} from "./sales/sales-by-product-and-category.js";
+export type {
   ReceiptCopyShown,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
