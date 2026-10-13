@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { AlertsOpenCountLink } from "../../alerts/alerts-open-count-link";
 import { UserCredentialSections } from "../../credentials/user-credential-sections";
 import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
 import { openSession } from "../../sessions/test-support/open-session";
@@ -222,6 +223,10 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     homeScreen: {
       fetchAlertsOverview: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchRegisterSyncStatus: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    stockTopBarAlertsCount: AlertsOpenCountLink,
+    alertsOpenCountLink: {
+      fetchAlertsOverview: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     alertsListScreen: {
       fetchAlerts: vi.fn().mockReturnValue(new Promise(() => {})),

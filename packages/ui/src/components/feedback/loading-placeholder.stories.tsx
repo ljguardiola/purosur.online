@@ -25,3 +25,7 @@ export const List: Story = {
 export const Rows: Story = {
   args: { variant: "rows", rows: 2 },
 };
+
+export const Pill: Story = {
+  args: { variant: "pill" },
+};
