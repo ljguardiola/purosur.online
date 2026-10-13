@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  inLockOrder,
   isQuantityPerOutputUnit,
   mayBeInRecipe,
   PRODUCTS_A_RECIPE_MAY_USE,
@@ -79,5 +80,31 @@ describe("recipeShapeRefusal", () => {
     expect(
       recipeShapeRefusal("mix", [component("mix"), component("nuts"), component("nuts")]),
     ).toEqual({ kind: "self_component" });
+  });
+});
+
+describe("inLockOrder", () => {
+  const component = (componentProductId: string) => ({
+    componentProductId,
+    quantityPerOutputUnit: 500,
+  });
+
+  it("lists the components by ascending product id without changing the recipe it was given", () => {
+    const recipe = [component("c"), component("a"), component("b")];
+
+    expect(inLockOrder(recipe).map((entry) => entry.componentProductId)).toEqual(["a", "b", "c"]);
+    expect(recipe.map((entry) => entry.componentProductId)).toEqual(["c", "a", "b"]);
+  });
+
+  it("keeps a recipe that is already in order as it is", () => {
+    expect(inLockOrder([component("a"), component("b")])).toEqual([component("a"), component("b")]);
+  });
+
+  it("keeps two components of the same product in the order they were listed", () => {
+    const first = { componentProductId: "a", quantityPerOutputUnit: 100 };
+    const second = { componentProductId: "a", quantityPerOutputUnit: 200 };
+
+    expect(inLockOrder([first, second])).toEqual([first, second]);
+    expect(inLockOrder([second, first])).toEqual([second, first]);
   });
 });
