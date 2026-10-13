@@ -5,7 +5,7 @@ const BOUND_MS = 60_000;
 
 function standInApp(close: () => Promise<void>, exited = false) {
   const launched = {
-    kills: 0,
+    kills: [] as (NodeJS.Signals | number | undefined)[],
     closes: 0,
     app: {
       close: () => {
@@ -15,8 +15,8 @@ function standInApp(close: () => Promise<void>, exited = false) {
       process: () => ({
         exitCode: exited ? 0 : null,
         signalCode: null,
-        kill: () => {
-          launched.kills += 1;
+        kill: (signal?: NodeJS.Signals | number) => {
+          launched.kills.push(signal);
           return true;
         },
       }),
@@ -39,20 +39,20 @@ describe("closing a register", () => {
 
     await closeRegister(launched.app);
 
-    expect(launched.kills).toBe(0);
+    expect(launched.kills).toEqual([]);
   });
 
-  it("kills the register's process, resolves and reports it when it does not close within the bound", async () => {
+  it("kills the register's process with a signal it cannot handle, resolves and reports it when it does not close within the bound", async () => {
     const report = vi.spyOn(console, "error").mockImplementation(() => {});
     const launched = standInApp(() => new Promise<void>(() => {}));
 
     const closing = closeRegister(launched.app);
     await vi.advanceTimersByTimeAsync(BOUND_MS - 1);
-    expect(launched.kills).toBe(0);
+    expect(launched.kills).toEqual([]);
     await vi.advanceTimersByTimeAsync(1);
 
     await expect(closing).resolves.toBeUndefined();
-    expect(launched.kills).toBe(1);
+    expect(launched.kills).toEqual(["SIGKILL"]);
     expect(report).toHaveBeenCalledWith(
       "the register did not close within 60000 ms and was killed",
     );
@@ -65,6 +65,6 @@ describe("closing a register", () => {
     await closeRegister(launched.app);
 
     expect(launched.closes).toBe(0);
-    expect(launched.kills).toBe(0);
+    expect(launched.kills).toEqual([]);
   });
 });
