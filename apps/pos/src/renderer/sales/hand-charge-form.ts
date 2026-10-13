@@ -1,9 +1,17 @@
-import { chargeSaleByTransferMessageSchema } from "@purosur/contracts";
+import {
+  chargeSaleByTransferMessageSchema,
+  chargeSaleOnStandaloneTerminalMessageSchema,
+} from "@purosur/contracts";
 import { parseAmountCents } from "@purosur/ui";
 
 export const chargeSaleByTransferRequestSchema = chargeSaleByTransferMessageSchema.pick({
   amount: true,
 });
+
+export const chargeSaleOnStandaloneTerminalRequestSchema =
+  chargeSaleOnStandaloneTerminalMessageSchema.pick({
+    amount: true,
+  });
 
 export type HandChargeFormValues = { amount: string };
 

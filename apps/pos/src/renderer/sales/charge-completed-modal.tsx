@@ -3,11 +3,13 @@ import type { CompletedCharge } from "./cash-charge-modal";
 import type { CompletedPointPayment } from "./point-payment-wait-modal";
 import type { CompletedQrPayment } from "./qr-payment-wait-modal";
 import { SaleCompletedModal } from "./sale-completed-modal";
+import type { CompletedStandaloneTerminal } from "./standalone-terminal-charge-modal";
 import type { CompletedTransfer } from "./transfer-charge-modal";
 
 export type CompletedPayment =
   | { method: "CASH"; charge: CompletedCharge }
   | { method: "TRANSFER"; charge: CompletedTransfer }
+  | { method: "STANDALONE_TERMINAL"; charge: CompletedStandaloneTerminal }
   | { method: "QR"; charge: CompletedQrPayment }
   | { method: "POINT"; charge: CompletedPointPayment };
 
@@ -41,6 +43,15 @@ export function ChargeCompletedModal({
           {...shared}
           total={payment.charge.total}
           method="TRANSFER"
+          amount={payment.charge.amount}
+        />
+      );
+    case "STANDALONE_TERMINAL":
+      return (
+        <SaleCompletedModal
+          {...shared}
+          total={payment.charge.total}
+          method="STANDALONE_TERMINAL"
           amount={payment.charge.amount}
         />
       );

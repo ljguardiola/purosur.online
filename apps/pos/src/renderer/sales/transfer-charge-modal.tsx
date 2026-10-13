@@ -13,8 +13,8 @@ import {
 import { ArrowLeft, Check, Landmark, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { INVALID_AMOUNT_MESSAGE } from "./cash-charge-form";
-import { CHARGE_IN_PROGRESS_MESSAGE } from "./mercado-pago-charge-messages";
 import { chargeSaleByTransferRequestSchema, handChargeRequestFrom } from "./hand-charge-form";
+import { CHARGE_IN_PROGRESS_MESSAGE } from "./mercado-pago-charge-messages";
 
 const FAILED_MESSAGE = "No se pudo cobrar la venta. Probá de nuevo.";
 
