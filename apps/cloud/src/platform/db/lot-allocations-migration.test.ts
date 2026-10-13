@@ -1,30 +1,8 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { describe, expect, inject, it, onTestFinished } from "vitest";
-import { migrateFreshDatabase } from "../../test-support/test-database-snapshot.js";
-import {
-  addMigrationEntry,
-  findMigrationEntry,
-  type JournalEntry,
-  migrationsFolderBefore,
-} from "./test-support/migration-journal-test-helpers.js";
-
-async function lotAllocationsEntry(): Promise<JournalEntry> {
-  return findMigrationEntry(
-    "_lot_allocations",
-    "test setup: no lot allocations migration in the journal",
-  );
-}
+import { describe, expect, it } from "vitest";
+import { databaseBeforeMigration } from "./test-support/migration-under-test.js";
 
 async function databaseHoldingALot() {
-  const folder = await mkdtemp(join(tmpdir(), "lot-allocations-migration-"));
-  onTestFinished(() => rm(folder, { recursive: true, force: true }));
-  await migrationsFolderBefore(folder, await lotAllocationsEntry());
-  const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
-  onTestFinished(() => client.close());
+  const client = await databaseBeforeMigration("_lot_allocations");
   const first = async (sql: string, params: unknown[] = []) => {
     const { rows } = await client.query<{ id: string }>(sql, params);
     return rows[0]?.id as string;
@@ -58,14 +36,13 @@ async function databaseHoldingALot() {
      values ($1, $2, $3, 500, 1000, 1000) returning id`,
     [productId, locationId, purchaseLineId],
   );
-  return { client, folder, productId, locationId, userId, lotId, first };
+  return { client, productId, locationId, userId, lotId };
 }
 
 async function migrated() {
-  const database = await databaseHoldingALot();
-  await addMigrationEntry(database.folder, await lotAllocationsEntry());
-  await migrate(drizzle(database.client), { migrationsFolder: database.folder });
-  return database;
+  const { client: database, ...ids } = await databaseHoldingALot();
+  const client = await database.applyMigration();
+  return { client, ...ids };
 }
 
 describe("the lot allocations migration applied over a database that already holds a lot", {
