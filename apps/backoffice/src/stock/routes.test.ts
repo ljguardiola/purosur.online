@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import {
   initialInventoryFilters,
+  recipesListFilters,
   stockBalancesFilters,
   stockCountsFilters,
   stockMovementsFilters,
@@ -83,4 +84,13 @@ test("keeps the initial inventory filters a URL names, falling back for a value 
   expect(initialInventoryFilters.parse({ search: 1, cost: "free" })).toEqual(
     initialInventoryFilters.parse({}),
   );
+});
+
+test("opens the recipes without a search", () => {
+  expect(recipesListFilters.parse({})).toEqual({ search: "" });
+});
+
+test("keeps the recipes search a URL names, falling back for a value it does not offer", () => {
+  expect(recipesListFilters.parse({ search: "mix" })).toEqual({ search: "mix" });
+  expect(recipesListFilters.parse({ search: 1 })).toEqual({ search: "" });
 });
