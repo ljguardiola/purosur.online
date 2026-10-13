@@ -1,6 +1,7 @@
 // Secrets are read from the environment of whoever runs `railway config plan`/`apply`; the CLI
 // evaluates this file as ordinary Node, so `process.env` reaches the compiled graph.
-import { bucket, defineRailway, image, postgres, project, ref, service } from "railway/iac";
+import type { BucketNode } from "railway/iac";
+import { bucket, defineRailway, image, postgres, project, service } from "railway/iac";
 import { resolveMercadoPagoConfig } from "../apps/cloud/src/payments/mercado-pago-config.ts";
 // Each environment's custom domain is registered once in the dashboard or with
 // `railway domain <domain> --service "Cloud Server"`, and is deliberately not declared on the
@@ -79,6 +80,14 @@ function cloudAppDatabaseUrl(cloudAppPassword: string): string {
     `:\${{${POSTGRES_RESOURCE_NAME}.PGPORT}}` +
     `/\${{${POSTGRES_RESOURCE_NAME}.PGDATABASE}}`
   );
+}
+
+// Railway stores a reference to a resource whose name has a space with the name quoted
+// (`${{"Register Updates".BUCKET}}`), while the CLI writes `ref()` unquoted, so a `ref()` to such
+// a bucket never matches what Railway holds and is planned again on every apply. The reference is
+// written as a literal in Railway's own stored form instead.
+function bucketReference(target: BucketNode, output: string): string {
+  return `\${{"${target.name}".${output}}}`;
 }
 
 export default defineRailway((ctx) => {
@@ -163,11 +172,14 @@ export default defineRailway((ctx) => {
       ARCA_CERTIFICATE: arcaCertificate,
       ARCA_PRIVATE_KEY: arcaPrivateKey,
       ARCA_ENVIRONMENT: arcaEnvironment,
-      REGISTER_UPDATES_BUCKET_ENDPOINT: ref(registerUpdates, "ENDPOINT"),
-      REGISTER_UPDATES_BUCKET_NAME: ref(registerUpdates, "BUCKET"),
-      REGISTER_UPDATES_BUCKET_REGION: ref(registerUpdates, "REGION"),
-      REGISTER_UPDATES_BUCKET_ACCESS_KEY_ID: ref(registerUpdates, "ACCESS_KEY_ID"),
-      REGISTER_UPDATES_BUCKET_SECRET_ACCESS_KEY: ref(registerUpdates, "SECRET_ACCESS_KEY"),
+      REGISTER_UPDATES_BUCKET_ENDPOINT: bucketReference(registerUpdates, "ENDPOINT"),
+      REGISTER_UPDATES_BUCKET_NAME: bucketReference(registerUpdates, "BUCKET"),
+      REGISTER_UPDATES_BUCKET_REGION: bucketReference(registerUpdates, "REGION"),
+      REGISTER_UPDATES_BUCKET_ACCESS_KEY_ID: bucketReference(registerUpdates, "ACCESS_KEY_ID"),
+      REGISTER_UPDATES_BUCKET_SECRET_ACCESS_KEY: bucketReference(
+        registerUpdates,
+        "SECRET_ACCESS_KEY",
+      ),
       ...(mercadoPago
         ? {
             MERCADOPAGO_ACCESS_TOKEN: mercadoPago.accessToken,
