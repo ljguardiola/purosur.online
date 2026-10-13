@@ -79,4 +79,51 @@ describe("createSafeMomentAsker", () => {
 
     expect(await second).toBe(false);
   });
+
+  it("releases the core's hold once it stops waiting for an answer", async () => {
+    const { asker, sent, timeouts } = setup();
+
+    const answer = asker.ask();
+    timeouts[0]?.();
+    await answer;
+
+    expect(sent).toEqual([
+      { type: "update-safe-moment-request", request_id: "r1" },
+      { type: "update-hold-release" },
+    ]);
+  });
+
+  it("releases the core's hold again when a safe answer arrives after it stopped waiting", async () => {
+    const { asker, sent, timeouts } = setup();
+    const answer = asker.ask();
+    timeouts[0]?.();
+    await answer;
+
+    asker.handleCoreMessage({ type: "update-safe-moment", request_id: "r1", safe: true });
+
+    expect(sent.slice(2)).toEqual([{ type: "update-hold-release" }]);
+  });
+
+  it("releases nothing for a late answer that is not safe or for a question it never asked", async () => {
+    const { asker, sent, timeouts } = setup();
+    const answer = asker.ask();
+    timeouts[0]?.();
+    await answer;
+
+    asker.handleCoreMessage({ type: "update-safe-moment", request_id: "r1", safe: false });
+    asker.handleCoreMessage({ type: "update-safe-moment", request_id: "other", safe: true });
+
+    expect(sent).toHaveLength(2);
+  });
+
+  it("releases nothing when the core answered in time", async () => {
+    const { asker, sent, timeouts } = setup();
+
+    const answer = asker.ask();
+    asker.handleCoreMessage({ type: "update-safe-moment", request_id: "r1", safe: true });
+    timeouts[0]?.();
+    await answer;
+
+    expect(sent).toEqual([{ type: "update-safe-moment-request", request_id: "r1" }]);
+  });
 });

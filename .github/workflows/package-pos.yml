@@ -119,6 +119,8 @@ jobs:
       # binding the packaged app cannot load fails here and not on a store's register. It rewrites
       # that folder's channel.json without a DSN or cloud, and runs after every step that reads it.
       - run: pnpm --filter @purosur/pos test:packaged
+        env:
+          POS_VERSION: 0.0.${{ github.run_number }}
 
   independent-build:
     name: independent build of the production app.asar

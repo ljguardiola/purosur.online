@@ -113,30 +113,21 @@ function loadBuilderConfig(overrides: Record<string, string>): Record<string, un
 }
 
 describe("the register's installer configuration", () => {
-  it("stamps the version the environment names into the packaged app", () => {
-    expect(loadBuilderConfig({ POS_VERSION: "0.0.57" })["extraMetadata"]).toEqual({
-      version: "0.0.57",
-    });
+  it.each([
+    "1.2",
+    "1.2.3.4",
+    "v1.2.3",
+    "01.2.3",
+    "1.2.x",
+    "",
+    "1.2.3-beta",
+    "9007199254740993.0.0",
+  ])("refuses the version %j", (version) => {
+    expect(() => loadBuilderConfig({ POS_VERSION: version })).toThrow(/POS_VERSION/);
   });
 
-  it("leaves the package's own version untouched without one", () => {
-    expect(loadBuilderConfig({})["extraMetadata"]).toBeUndefined();
-  });
-
-  it.each(["1.2", "1.2.3.4", "v1.2.3", "01.2.3", "1.2.x", "", "1.2.3-beta"])(
-    "refuses the version %j",
-    (version) => {
-      expect(() => loadBuilderConfig({ POS_VERSION: version })).toThrow(/POS_VERSION/);
-    },
-  );
-
-  it("publishes nothing from the builder itself, whatever feed the environment names", () => {
-    expect(
-      loadBuilderConfig({
-        POS_VERSION: "0.0.57",
-        POS_UPDATE_FEED_URL: "https://updates.example.com",
-      })["publish"],
-    ).toBeNull();
+  it("accepts a version of three numbers", () => {
+    expect(() => loadBuilderConfig({ POS_VERSION: "0.0.57" })).not.toThrow();
   });
 });
 

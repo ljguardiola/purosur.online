@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   pendingUpdateFiles,
   sha512Hash,
@@ -178,5 +178,26 @@ describe("spawnDetachedInstaller", () => {
     const missing = join(tmpdir(), "register-update-adapters-no-such-installer.exe");
 
     await expect(spawnDetachedInstaller(missing, ["/S"])).rejects.toThrow();
+  });
+
+  it("settles once the installer runs, handing it its arguments", { timeout: 30_000 }, async () => {
+    const root = mkdtempSync(join(tmpdir(), "register-update-adapters-"));
+    const received = join(root, "arguments.json");
+    try {
+      await spawnDetachedInstaller(process.execPath, [
+        "-e",
+        "require('node:fs').writeFileSync(process.argv[1], JSON.stringify(process.argv.slice(2)))",
+        received,
+        "--updated",
+        "/S",
+      ]);
+
+      await vi.waitFor(
+        () => expect(JSON.parse(readFileSync(received, "utf8"))).toEqual(["--updated", "/S"]),
+        { timeout: 20_000 },
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

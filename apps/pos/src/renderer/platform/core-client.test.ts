@@ -1570,6 +1570,17 @@ describe("createCoreClient", () => {
     expect(previous.closed).toBe(true);
   });
 
+  it("fails a request the core refuses while an update installs", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const enrolled = client.enrollmentStatus();
+    port.answer({ type: "refused-while-updating", request_id: "request-1" });
+
+    await expect(enrolled).rejects.toThrow("the core refused the request while an update installs");
+  });
+
   it("ignores anything still arriving on a replaced port", async () => {
     const client = clientWithSequentialIds();
     const previous = new FakePort();

@@ -46,6 +46,7 @@ interface Options {
   downloadChunks?: Uint8Array[];
   downloadResponse?: () => UpdateResponse;
   spawnFails?: boolean;
+  clearPendingFails?: boolean;
 }
 
 function setup(options: Options = {}) {
@@ -58,6 +59,7 @@ function setup(options: Options = {}) {
   const removed: string[] = [];
   const waits: { ms: number; resolve: () => void }[] = [];
   let status: CoreStatus = options.coreStatus ?? "up";
+  let token = "token" in options ? options.token : TOKEN;
   let asked = 0;
   let quits = 0;
   let holdReleases = 0;
@@ -68,7 +70,7 @@ function setup(options: Options = {}) {
     isPackaged: options.isPackaged ?? true,
     cloudUrl: "cloudUrl" in options ? options.cloudUrl : CLOUD,
     installedVersion: "1.4.1",
-    readDeviceToken: () => ("token" in options ? options.token : TOKEN),
+    readDeviceToken: () => token,
     fetch: async (url, init) => {
       requests.push({ url, headers: init?.headers });
       if (url.startsWith(`${CLOUD}/api/register/update`)) {
@@ -84,6 +86,9 @@ function setup(options: Options = {}) {
     },
     files: {
       clearPending: async () => {
+        if (options.clearPendingFails) {
+          throw new Error("EBUSY: pending-update");
+        }
         cleared += 1;
         files.clear();
       },
@@ -159,6 +164,9 @@ function setup(options: Options = {}) {
     setStatus: (next: CoreStatus) => {
       status = next;
     },
+    setToken: (next: string | undefined) => {
+      token = next;
+    },
     counts: () => ({ asked, quits, holdReleases, cleared }),
   };
 }
@@ -170,7 +178,6 @@ describe("createRegisterUpdater", () => {
     it.each([
       ["the app is not packaged", { isPackaged: false }],
       ["the channel has no cloud address", { cloudUrl: undefined }],
-      ["the device has no credentials", { token: undefined }],
     ])("stays off silently when %s", async (_case, options) => {
       const { updater, requests, waits, reported, counts } = setup(options);
 
@@ -181,6 +188,50 @@ describe("createRegisterUpdater", () => {
       expect(waits).toEqual([]);
       expect(reported).toEqual([]);
       expect(counts().cleared).toBe(0);
+    });
+
+    it("checks nothing while the device has no credentials", async () => {
+      const { updater, requests, waits, reported } = setup({ token: undefined });
+
+      await updater.runPass();
+      updater.start();
+      await flush();
+      waits.shift()?.resolve();
+      await flush();
+
+      expect(requests).toEqual([]);
+      expect(reported).toEqual([]);
+      expect(waits.map((wait) => wait.ms)).toEqual([3_600_000]);
+    });
+
+    it("checks at the next check once the register is enrolled while it runs", async () => {
+      const { updater, requests, waits, setToken } = setup({
+        token: undefined,
+        checkResponse: async () => jsonResponse(200, { status: "up_to_date" }),
+      });
+
+      updater.start();
+      await flush();
+      setToken(TOKEN);
+      waits.shift()?.resolve();
+      await flush();
+
+      expect(requests).toHaveLength(1);
+    });
+
+    it("reports a pending folder it can not clear and keeps checking", async () => {
+      const { updater, requests, waits, reported } = setup({
+        clearPendingFails: true,
+        checkResponse: async () => jsonResponse(200, { status: "up_to_date" }),
+      });
+
+      updater.start();
+      await flush();
+      expect(reported).toEqual([new Error("EBUSY: pending-update")]);
+      waits.shift()?.resolve();
+      await flush();
+
+      expect(requests).toHaveLength(1);
     });
 
     it("clears what a previous download left behind when it starts", async () => {
