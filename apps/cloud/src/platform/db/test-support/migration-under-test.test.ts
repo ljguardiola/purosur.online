@@ -2,10 +2,7 @@ import type { PGlite } from "@electric-sql/pglite";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { databaseBeforeMigration } from "./migration-under-test.js";
 
-async function tableExists(
-  database: Pick<PGlite, "query">,
-  table: string,
-): Promise<boolean> {
+async function tableExists(database: Pick<PGlite, "query">, table: string): Promise<boolean> {
   const { rows } = await database.query<{ exists: boolean }>(
     "select to_regclass($1) is not null as exists",
     [table],
