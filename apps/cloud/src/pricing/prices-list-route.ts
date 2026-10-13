@@ -7,6 +7,7 @@ import {
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { readOptionalRecordIds } from "../platform/record-id-params.js";
+import { DrizzlePurchaseCostReader } from "../purchasing/drizzle-purchase-cost-reader.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
@@ -14,7 +15,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
-import { DrizzlePriceCostReader } from "./drizzle-price-cost-reader.js";
+import { DrizzleInitialCountCostReader } from "../stock/drizzle-initial-count-cost-reader.js";
 import { DrizzlePriceReviewReader } from "./drizzle-price-review-reader.js";
 
 export interface PricesRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -76,7 +77,8 @@ export function registerPricesListRoute<TQueryResult extends PgQueryResultHKT>(
   const { now } = options;
   const ports = {
     reviews: new DrizzlePriceReviewReader(options.db),
-    costs: new DrizzlePriceCostReader(options.db),
+    purchaseCosts: new DrizzlePurchaseCostReader(options.db),
+    initialCountCosts: new DrizzleInitialCountCostReader(options.db),
   };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });

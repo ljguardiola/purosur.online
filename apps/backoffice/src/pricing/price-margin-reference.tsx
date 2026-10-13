@@ -1,6 +1,7 @@
 import type { PriceProduct } from "@purosur/contracts";
-import { Card, FigureStat, formatCents, formatTenthsOfPercent } from "@purosur/ui";
+import { Card, FigureStat, formatCents, formatTenthsOfPercent, LoadFailure } from "@purosur/ui";
 import { useEffect, useState } from "react";
+import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { typedUnitPrice } from "./price-form";
 import type { fetchPriceMargin } from "./prices-api";
 import { usePriceMarginQuery } from "./pricing-queries";
@@ -15,6 +16,38 @@ export type PriceMarginReferenceProps = {
   fetchPriceMargin: typeof fetchPriceMargin;
   onSessionEnded: () => void;
 };
+
+type ShownMargin = { unitPrice: number; totalCostCents: number; marginTenthsOfPercent: number };
+
+function MarginFigure({ shown }: { shown: ShownMargin | null }) {
+  return (
+    <Card variant="subtle">
+      {shown === null ? (
+        <FigureStat label={MARGIN_LABEL} size="heading" value="—" />
+      ) : (
+        <FigureStat
+          label={MARGIN_LABEL}
+          size="heading"
+          detail={`${formatCents(shown.unitPrice)} − ${formatCents(shown.totalCostCents)} sobre el precio`}
+          value={formatTenthsOfPercent(shown.marginTenthsOfPercent)}
+        />
+      )}
+    </Card>
+  );
+}
+
+function shownMargin(
+  unitPrice: number,
+  reference: { totalCostCents: number; marginTenthsOfPercent: number | null } | null,
+): ShownMargin | null {
+  return reference === null || reference.marginTenthsOfPercent === null
+    ? null
+    : {
+        unitPrice,
+        totalCostCents: reference.totalCostCents,
+        marginTenthsOfPercent: reference.marginTenthsOfPercent,
+      };
+}
 
 export function PriceMarginReference({
   product,
@@ -37,28 +70,29 @@ export function PriceMarginReference({
     onSessionEnded,
   });
 
-  if (!product.costReference) {
+  const { costReference, currentPrice } = product;
+  if (!costReference) {
     return null;
   }
-
-  const reading = typed !== undefined && (typed !== settled || margin.status === "loading");
-  const reference = margin.status === "loaded" ? margin.value.costReference : null;
-  const tenths = reference?.marginTenthsOfPercent ?? null;
-
-  return (
-    <Card variant="subtle">
-      {reading ? (
+  if (amount.trim() === "") {
+    return (
+      <MarginFigure
+        shown={currentPrice ? shownMargin(currentPrice.unitPrice, costReference) : null}
+      />
+    );
+  }
+  if (typed === undefined) {
+    return <MarginFigure shown={null} />;
+  }
+  if (typed !== settled || margin.status === "loading") {
+    return (
+      <Card variant="subtle">
         <FigureStat label={MARGIN_LABEL} size="heading" loading />
-      ) : typed !== undefined && reference !== null && tenths !== null ? (
-        <FigureStat
-          label={MARGIN_LABEL}
-          size="heading"
-          detail={`${formatCents(typed)} − ${formatCents(reference.totalCostCents)} sobre el precio`}
-          value={formatTenthsOfPercent(tenths)}
-        />
-      ) : (
-        <FigureStat label={MARGIN_LABEL} size="heading" value="—" />
-      )}
-    </Card>
-  );
+      </Card>
+    );
+  }
+  if (margin.status === "failed") {
+    return <LoadFailure {...cloudLoadFailure(margin, "el margen")} />;
+  }
+  return <MarginFigure shown={shownMargin(typed, margin.value.costReference)} />;
 }

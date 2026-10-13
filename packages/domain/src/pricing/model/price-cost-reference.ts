@@ -1,12 +1,10 @@
+import { argentinaCalendarDay, type Fraction, roundHalfUpSigned } from "../../shared/index.js";
 import {
-  argentinaCalendarDay,
-  type Fraction,
-  roundHalfUp,
-  roundHalfUpSigned,
-} from "../../shared/index.js";
-import { type LotCost, STOCK_QUANTITY_PER_UNIT, unitCostCents } from "../../stock/index.js";
-
-export const FREIGHT_PER_UNIT_CENTS = 0;
+  knownLotCost,
+  type LotCost,
+  STOCK_QUANTITY_PER_UNIT,
+  unitCostCents,
+} from "../../stock/index.js";
 
 export type CostSource =
   | {
@@ -47,12 +45,13 @@ function datedCost(source: CostSource): DatedCost | null {
       instant: source.recordedAt.getTime(),
     };
   }
-  if (source.withdrawn || source.costIncomplete || source.cost === null) {
+  const cost = source.withdrawn ? null : knownLotCost(source);
+  if (cost === null) {
     return null;
   }
   return {
     source,
-    cost: source.cost,
+    cost,
     day: argentinaCalendarDay(source.countedAt),
     instant: source.countedAt.getTime(),
   };
@@ -95,27 +94,17 @@ function lastDatedCost(sources: readonly CostSource[]): DatedCost | null {
   return last;
 }
 
-export function lastCostSource(sources: readonly CostSource[]): CostSource | null {
-  return lastDatedCost(sources)?.source ?? null;
-}
-
-function totalCostFraction(
-  { totalCents, quantity }: LotCost,
-  freightPerUnitCents: number,
-): Fraction {
-  const denominator = BigInt(quantity);
+function unitCostFraction({ totalCents, quantity }: LotCost): Fraction {
   return {
-    numerator:
-      BigInt(totalCents) * BigInt(STOCK_QUANTITY_PER_UNIT) +
-      BigInt(freightPerUnitCents) * denominator,
-    denominator,
+    numerator: BigInt(totalCents) * BigInt(STOCK_QUANTITY_PER_UNIT),
+    denominator: BigInt(quantity),
   };
 }
 
-function marginTenthsOfPercent(totalCost: Fraction, unitPrice: number): number {
-  const priceNumerator = BigInt(unitPrice) * totalCost.denominator;
+function marginTenthsOfPercent(cost: Fraction, unitPrice: number): number {
+  const priceNumerator = BigInt(unitPrice) * cost.denominator;
   return roundHalfUpSigned({
-    numerator: (priceNumerator - totalCost.numerator) * 1000n,
+    numerator: (priceNumerator - cost.numerator) * 1000n,
     denominator: priceNumerator,
   });
 }
@@ -123,17 +112,17 @@ function marginTenthsOfPercent(totalCost: Fraction, unitPrice: number): number {
 export function priceCostReference(
   sources: readonly CostSource[],
   unitPrice: number | null,
-  freightPerUnitCents = FREIGHT_PER_UNIT_CENTS,
 ): PriceCostReference | null {
   const last = lastDatedCost(sources);
   if (last === null) {
     return null;
   }
-  const totalCost = totalCostFraction(last.cost, freightPerUnitCents);
+  const lastCostCents = unitCostCents(last.cost.totalCents, last.cost.quantity);
   return {
-    lastCostCents: unitCostCents(last.cost.totalCents, last.cost.quantity),
-    freightPerUnitCents,
-    totalCostCents: roundHalfUp(totalCost),
-    marginTenthsOfPercent: unitPrice === null ? null : marginTenthsOfPercent(totalCost, unitPrice),
+    lastCostCents,
+    freightPerUnitCents: 0,
+    totalCostCents: lastCostCents,
+    marginTenthsOfPercent:
+      unitPrice === null ? null : marginTenthsOfPercent(unitCostFraction(last.cost), unitPrice),
   };
 }

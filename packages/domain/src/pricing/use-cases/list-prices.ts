@@ -1,19 +1,14 @@
-import {
-  type CostSource,
-  type PriceCostReference,
-  priceCostReference,
-} from "../model/price-cost-reference.js";
-import type { PriceCostReader } from "./price-cost-reader.js";
+import { type PriceCostReference, priceCostReference } from "../model/price-cost-reference.js";
 import type {
   PriceReviewReader,
   PricesUnderReview,
   PricesUnderReviewQuery,
   PriceUnderReview,
 } from "./price-review-reader.js";
+import { costSourcesByProductId, type ProductCostPorts } from "./product-cost-sources.js";
 
-export interface ListPricesPorts {
+export interface ListPricesPorts extends ProductCostPorts {
   reviews: PriceReviewReader;
-  costs: PriceCostReader;
 }
 
 export interface PricedProduct extends PriceUnderReview {
@@ -25,24 +20,21 @@ export interface ListedPrices extends Omit<PricesUnderReview, "products"> {
 }
 
 export async function listPrices(
-  { reviews, costs }: ListPricesPorts,
+  ports: ListPricesPorts,
   query: PricesUnderReviewQuery,
 ): Promise<ListedPrices> {
-  const listing = await reviews.pricesUnderReview(query);
-  const found = await costs.costSourcesOf(
+  const listing = await ports.reviews.pricesUnderReview(query);
+  const sources = await costSourcesByProductId(
+    ports,
     query.locationId,
     listing.products.map(({ id }) => id),
   );
-  const sourcesByProductId = new Map<string, CostSource[]>();
-  for (const { productId, source } of found) {
-    sourcesByProductId.set(productId, [...(sourcesByProductId.get(productId) ?? []), source]);
-  }
   return {
     ...listing,
     products: listing.products.map((product) => ({
       ...product,
       costReference: priceCostReference(
-        sourcesByProductId.get(product.id) ?? [],
+        sources.get(product.id) ?? [],
         product.currentPrice?.unitPrice ?? null,
       ),
     })),

@@ -1,8 +1,9 @@
 import { type PriceCostReference, priceCostReference } from "../model/price-cost-reference.js";
-import type { PriceCostReader } from "./price-cost-reader.js";
+import type { ActiveProductReader } from "./active-product-reader.js";
+import { costSourcesByProductId, type ProductCostPorts } from "./product-cost-sources.js";
 
-export interface ReadPriceMarginPorts {
-  costs: PriceCostReader;
+export interface ReadPriceMarginPorts extends ProductCostPorts {
+  products: ActiveProductReader;
 }
 
 export interface ReadPriceMarginInput {
@@ -16,18 +17,15 @@ export type ReadPriceMarginOutcome =
   | { kind: "not_found" };
 
 export async function readPriceMargin(
-  { costs }: ReadPriceMarginPorts,
+  ports: ReadPriceMarginPorts,
   { locationId, productId, unitPrice }: ReadPriceMarginInput,
 ): Promise<ReadPriceMarginOutcome> {
-  if (!(await costs.isActiveProduct(productId))) {
+  if (!(await ports.products.isActiveProduct(productId))) {
     return { kind: "not_found" };
   }
-  const found = await costs.costSourcesOf(locationId, [productId]);
+  const sources = await costSourcesByProductId(ports, locationId, [productId]);
   return {
     kind: "read",
-    costReference: priceCostReference(
-      found.map(({ source }) => source),
-      unitPrice,
-    ),
+    costReference: priceCostReference(sources.get(productId) ?? [], unitPrice),
   };
 }

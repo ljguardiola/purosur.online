@@ -1,6 +1,7 @@
 export type { Clock } from "../../shared/index.js";
 export type { AssignableTargetCandidate } from "../model/discount-target-eligibility.js";
-export type { CostSource, PriceCostReference } from "../model/price-cost-reference.js";
+export type { PriceCostReference } from "../model/price-cost-reference.js";
+export type { ActiveProductReader } from "./active-product-reader.js";
 export type { ConfirmPriceInput, ConfirmPriceOutcome } from "./confirm-price.js";
 export { confirmPrice } from "./confirm-price.js";
 export type { CreateDiscountInput, CreateDiscountOutcome } from "./create-discount.js";
@@ -25,6 +26,7 @@ export type {
 } from "./discount-target-reader.js";
 export type { EditDiscountInput, EditDiscountOutcome } from "./edit-discount.js";
 export { editDiscount } from "./edit-discount.js";
+export type { InitialCountCost, InitialCountCostReader } from "./initial-count-cost-reader.js";
 export type {
   ListDiscountTargetsPorts,
   ListedCategoryTarget,
@@ -37,7 +39,6 @@ export type { ListDiscountsPorts, ListedDiscount } from "./list-discounts.js";
 export { listDiscounts } from "./list-discounts.js";
 export type { ListedPrices, ListPricesPorts, PricedProduct } from "./list-prices.js";
 export { listPrices } from "./list-prices.js";
-export type { PriceCostReader, ProductCostSource } from "./price-cost-reader.js";
 export type {
   PriceReviewCategory,
   PriceReviewFilter,
@@ -59,6 +60,7 @@ export type {
   PricingStoreTransaction,
   RecordedPriceReview,
 } from "./pricing-store.js";
+export type { PurchaseCostReader, PurchaseLineCost } from "./purchase-cost-reader.js";
 export type { ReadDiscountOutcome } from "./read-discount.js";
 export { readDiscount } from "./read-discount.js";
 export type {

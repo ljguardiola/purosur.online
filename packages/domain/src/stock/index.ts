@@ -2,7 +2,7 @@ export type { InitialCountCostFilter } from "./model/initial-count.js";
 export { INITIAL_COUNT_COST_FILTERS } from "./model/initial-count.js";
 export { isReferenceUnitCost } from "./model/lot-reference-cost.js";
 export type { LotCost } from "./model/lot-value.js";
-export { isLotInStock } from "./model/lot-value.js";
+export { isLotInStock, knownLotCost } from "./model/lot-value.js";
 export type {
   OpeningCountRecordedFact,
   OpeningCountWithdrawnFact,

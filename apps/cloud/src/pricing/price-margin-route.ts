@@ -4,6 +4,7 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
+import { DrizzlePurchaseCostReader } from "../purchasing/drizzle-purchase-cost-reader.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
@@ -11,7 +12,8 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
-import { DrizzlePriceCostReader } from "./drizzle-price-cost-reader.js";
+import { DrizzleInitialCountCostReader } from "../stock/drizzle-initial-count-cost-reader.js";
+import { DrizzleActiveProductReader } from "./drizzle-active-product-reader.js";
 import type { PricesRouteOptions } from "./prices-list-route.js";
 
 const NOT_FOUND_RESPONSE = { code: "not_found", message: "no product with that id" } as const;
@@ -21,7 +23,11 @@ export function registerPriceMarginRoute<TQueryResult extends PgQueryResultHKT>(
   options: PricesRouteOptions<TQueryResult>,
 ): void {
   const { now } = options;
-  const ports = { costs: new DrizzlePriceCostReader(options.db) };
+  const ports = {
+    products: new DrizzleActiveProductReader(options.db),
+    purchaseCosts: new DrizzlePurchaseCostReader(options.db),
+    initialCountCosts: new DrizzleInitialCountCostReader(options.db),
+  };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
