@@ -5,9 +5,9 @@ export const chargeSaleByTransferRequestSchema = chargeSaleByTransferMessageSche
   amount: true,
 });
 
-export type TransferChargeFormValues = { amount: string };
+export type HandChargeFormValues = { amount: string };
 
-export function transferChargeRequestFrom({ amount }: TransferChargeFormValues): {
+export function handChargeRequestFrom({ amount }: HandChargeFormValues): {
   amount: number;
 } {
   return { amount: parseAmountCents(amount) ?? Number.NaN };
