@@ -44,3 +44,13 @@ export function recipeShapeRefusal(
   }
   return null;
 }
+
+export function inLockOrder(components: readonly RecipeComponent[]): RecipeComponent[] {
+  return [...components].sort((a, b) =>
+    a.componentProductId < b.componentProductId
+      ? -1
+      : a.componentProductId > b.componentProductId
+        ? 1
+        : 0,
+  );
+}

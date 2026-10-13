@@ -1,5 +1,6 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import {
+  inLockOrder,
   isQuantityPerOutputUnit,
   mayBeInRecipe,
   type RecipeComponent,
@@ -48,11 +49,8 @@ export async function saveRecipe(
         return { kind: "stale_version" };
       }
 
-      const inLockOrder = [...input.components].sort((a, b) =>
-        a.componentProductId < b.componentProductId ? -1 : 1,
-      );
       const withSaleUnits: { component: RecipeComponent; saleUnit: SaleUnit }[] = [];
-      for (const component of inLockOrder) {
+      for (const component of inLockOrder(input.components)) {
         const locked = await tx.lockProduct(component.componentProductId);
         if (locked.kind === "not_found" || !mayBeInRecipe(locked.product)) {
           return { kind: "component_not_found", componentProductId: component.componentProductId };
