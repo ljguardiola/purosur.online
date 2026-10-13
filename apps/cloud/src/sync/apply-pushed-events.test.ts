@@ -6,12 +6,14 @@ import {
   cashSessions,
   inbox,
   paymentRefunds,
+  paymentTransactions,
   prices,
   saleLines,
   salePayments,
   sales,
   users,
 } from "../platform/db/schema.js";
+import { pendingTransaction } from "../payments/test-support/payment-transaction-fixtures.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertProduct } from "../stock/test-support/stock-route-fixtures.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
@@ -23,6 +25,7 @@ import {
   PUSHING_CHAIN_KEY,
   pushingDevice,
   saleCancelled,
+  saleCancelledAfterQrPayment,
   saleCancelledAfterStandaloneTerminalPayment,
   saleCompleted,
 } from "./test-support/pushing-device.js";
@@ -174,6 +177,42 @@ describe("applying what POST /events received", () => {
       provider: "EXTERNAL_TERMINAL",
       amount: 1000,
       state: "PENDING",
+    });
+    expect(await route.db.select().from(alerts)).toEqual([]);
+  });
+
+  it("applies a sale cancelled after a Mercado Pago QR payment its own approved transaction backs, leaving its refund pending and raising no alert", async () => {
+    const { installation, device } = await pushingFromARegister();
+    const sessionId = randomUUID();
+    const saleId = randomUUID();
+    const transaction = pendingTransaction(installation.registerId, {
+      saleId,
+      amount: 1000,
+      state: "APPROVED",
+    });
+    await route.db.insert(paymentTransactions).values(transaction);
+    await device.push([
+      cashSessionOpened(sessionId, "2026-10-06T11:00:00.000Z"),
+      saleCancelledAfterQrPayment({
+        saleId,
+        sessionId,
+        cancelledAt: "2026-10-06T11:25:00.000Z",
+        paymentId: transaction.id,
+        amount: 1000,
+      }),
+    ]);
+
+    await applyAt(NOW);
+
+    const [sale] = await route.db.select().from(sales);
+    expect(sale).toMatchObject({ id: saleId, state: "CANCELLED" });
+    const [refund] = await route.db.select().from(paymentRefunds);
+    expect(refund).toMatchObject({
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      amount: 1000,
+      state: "PENDING",
+      paymentTransactionId: transaction.id,
     });
     expect(await route.db.select().from(alerts)).toEqual([]);
   });
