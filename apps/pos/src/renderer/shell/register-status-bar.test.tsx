@@ -150,9 +150,11 @@ describe("RegisterStatusBar", () => {
     await expect.element(screen.getByRole("dialog", { name: "Avisos de esta caja" })).toBeVisible();
     await expect.element(screen.getByText(SALES_DENIED_TITLE)).toBeVisible();
     await expect
-      .element(screen.getByText(/dejó de abrir ventas nuevas porque encontró un problema/))
+      .element(screen.getByText(/dejó de abrir ventas nuevas porque encontró un problema/).first())
       .toBeVisible();
-    await expect.element(screen.getByText(/Avisar al Administrador de inmediato/)).toBeVisible();
+    await expect
+      .element(screen.getByText(/Avisar al Administrador de inmediato/).first())
+      .toBeVisible();
   });
 
   it("tells why the register can't sell with the reason the core answers", async () => {
@@ -162,9 +164,13 @@ describe("RegisterStatusBar", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
 
-    await expect.element(screen.getByText(/su base de datos está dañada/)).toBeVisible();
+    await expect.element(screen.getByText(/su base de datos está dañada/).first()).toBeVisible();
     await expect
-      .element(screen.getByText(/Restaurar la base de datos de la caja desde su copia de respaldo/))
+      .element(
+        screen
+          .getByText(/Restaurar la base de datos de la caja desde su copia de respaldo/)
+          .first(),
+      )
       .toBeVisible();
   });
 
@@ -277,9 +283,9 @@ describe("RegisterStatusBar", () => {
 
     await expect.element(screen.getByText("Emisión de facturas detenida")).toBeVisible();
     await expect
-      .element(screen.getByText(/no puede emitir ningún comprobante fiscal por ahora/))
+      .element(screen.getByText(/no puede emitir ningún comprobante fiscal por ahora/).first())
       .toBeVisible();
-    await expect.element(screen.getByText(/Seguir vendiendo igual/)).toBeVisible();
+    await expect.element(screen.getByText(/Seguir vendiendo igual/).first()).toBeVisible();
   });
 
   it("has no accessibility violations with a device not detected", async () => {

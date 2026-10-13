@@ -1,13 +1,17 @@
 import type { RegisterStatus } from "@purosur/contracts";
 import {
-  Card,
   formatClockTime,
   LoadFailure,
   LoadingPlaceholder,
-  LocalAlertExplanation,
+  localAlertText,
+  NotificationCard,
+  NotificationPanel,
+  plural,
   StatusIndicator,
+  StatusIndicatorButton,
 } from "@purosur/ui";
-import { TriangleAlert } from "lucide-react";
+import { Ban, CloudOff, Receipt, ScanBarcode, ShieldOff, TriangleAlert } from "lucide-react";
+import type { ReactNode } from "react";
 import type { CoreData } from "../platform/use-core-query";
 import type { CashSessionState } from "../register/cash-session-state";
 import type { SerialDeviceRole } from "../register/serial-device-standing";
@@ -44,6 +48,53 @@ function CloudIndicator({ cloud }: { cloud: RegisterStatus["cloud"] }) {
   );
 }
 
+type Condition = RegisterStatus["conditions"][number];
+
+const CONDITION_ICONS: Record<Condition["kind"], ReactNode> = {
+  sales_denied: <Ban />,
+  installation_revoked: <ShieldOff />,
+  fiscal_emission_stopped: <Receipt />,
+  register_silent: <CloudOff />,
+  serial_device_missing: <ScanBarcode />,
+};
+
+function conditionTone(condition: Condition): "error" | "warning" {
+  return condition.kind === "sales_denied" || condition.kind === "installation_revoked"
+    ? "error"
+    : "warning";
+}
+
+function NoticesPill({ conditions }: { conditions: RegisterStatus["conditions"] }) {
+  const tone = conditions.some((condition) => conditionTone(condition) === "error")
+    ? "error"
+    : "warning";
+  const count = conditions.length;
+  return (
+    <NotificationPanel
+      title="Avisos de esta caja"
+      trigger={
+        <StatusIndicatorButton tone={tone}>
+          {`${count} ${plural(count, { one: "aviso", other: "avisos" })}`}
+        </StatusIndicatorButton>
+      }
+    >
+      {conditions.map((condition) => {
+        const text = localAlertText(condition);
+        return (
+          <NotificationCard
+            key={condition.kind}
+            tone={conditionTone(condition)}
+            icon={CONDITION_ICONS[condition.kind]}
+            title={text.title}
+            description={text.meaning}
+            whatToDo={text.whatToDo}
+          />
+        );
+      })}
+    </NotificationPanel>
+  );
+}
+
 function SerialDeviceIndicator({
   device,
   standing,
@@ -74,6 +125,9 @@ export function RegisterStatusBar({ person, cashSession, status }: RegisterStatu
             <SerialDeviceIndicator device="reader" standing={status.value.serial_devices.reader} />
           </>
         ) : null}
+        {status.status === "loaded" && status.value.conditions.length > 0 ? (
+          <NoticesPill conditions={status.value.conditions} />
+        ) : null}
       </div>
       {status.status === "loading" ? <LoadingPlaceholder variant="card" lines={1} /> : null}
       {status.status === "failed" ? (
@@ -83,13 +137,6 @@ export function RegisterStatusBar({ person, cashSession, status }: RegisterStatu
           onRetry={status.retry}
         />
       ) : null}
-      {status.status === "loaded"
-        ? status.value.conditions.map((condition) => (
-            <Card key={condition.kind} variant="subtle">
-              <LocalAlertExplanation {...condition} title />
-            </Card>
-          ))
-        : null}
     </section>
   );
 }
