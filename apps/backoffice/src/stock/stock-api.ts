@@ -1,4 +1,8 @@
 import {
+  type ExpiredLotDiscardResult,
+  type ExpiringLotList,
+  expiredLotDiscardResultSchema,
+  expiringLotListSchema,
   type InitialInventoryLotList,
   type InitialInventoryLotsQuery,
   initialInventoryLotListSchema,
@@ -113,6 +117,10 @@ export function fetchExpectedBalance(
   return read(`/api/inventory-levels/${productId}?${query.toString()}`, stockProductBalanceSchema);
 }
 
+export function fetchExpiringLots(): Promise<CloudReadOutcome<ExpiringLotList>> {
+  return readList("/api/expiring-lots", expiringLotListSchema);
+}
+
 type WriteOutcome<T, Refusal> =
   | { kind: "ok"; value: T }
   | { kind: "validation_failed"; field: string }
@@ -164,6 +172,18 @@ export function recordLoss(body: StockLossBody): Promise<RecordMovementOutcome> 
 
 export function recordAdjustment(body: StockAdjustmentBody): Promise<RecordMovementOutcome> {
   return post("/api/inventory-adjustments", body, stockMovementResultSchema);
+}
+
+export type DiscardExpiredLotOutcome = WriteOutcome<
+  ExpiredLotDiscardResult,
+  { kind: "lot_not_expired" } | { kind: "lot_empty" }
+>;
+
+export function discardExpiredLot(lotId: string): Promise<DiscardExpiredLotOutcome> {
+  return post(`/api/expiring-lots/${lotId}/discard`, {}, expiredLotDiscardResultSchema, [
+    "lot_not_expired",
+    "lot_empty",
+  ]);
 }
 
 export type RegisterCountOutcome = WriteOutcome<
