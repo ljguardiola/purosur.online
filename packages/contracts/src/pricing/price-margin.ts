@@ -1,14 +1,9 @@
 import { z } from "zod";
 import { priceCostReferenceSchema } from "./price-list.js";
-import { unitPriceSchema } from "./price-set.js";
-
-const WHOLE_NUMBER = /^[0-9]+$/;
+import { unitPriceTextSchema } from "./price-set.js";
 
 export const priceMarginQuerySchema = z.object({
-  unitPrice: z.preprocess(
-    (value) => (typeof value === "string" && WHOLE_NUMBER.test(value) ? Number(value) : value),
-    unitPriceSchema,
-  ),
+  unitPrice: unitPriceTextSchema,
 });
 
 export const priceMarginSchema = z.object({
