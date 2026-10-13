@@ -25,14 +25,9 @@ export type {
   DeferredSaleReference,
 } from "./model/deferred-sale.js";
 export {
-  DEFERRED_SALE_QR_PREFIX,
   deferredSaleDocumentBlock,
-  deferredSaleQrText,
-  formatShortCode,
-  parseDeferredSaleQrText,
   randomShortCode,
   SHORT_CODE_ALPHABET,
-  SHORT_CODE_LENGTH,
 } from "./model/deferred-sale.js";
 export type {
   AuthorizedFacturaC,
