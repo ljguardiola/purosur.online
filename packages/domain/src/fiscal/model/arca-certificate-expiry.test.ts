@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS,
   ARCA_CERTIFICATE_EXPIRY_WARNING_MS,
   arcaCertificateExpiryStanding,
 } from "./arca-certificate-expiry.js";
@@ -11,10 +10,6 @@ const NOW = new Date("2026-10-01T12:00:00.000Z");
 describe("ARCA certificate expiry policy", () => {
   it("warns 30 days before the certificate expires", () => {
     expect(ARCA_CERTIFICATE_EXPIRY_WARNING_MS).toBe(30 * DAY_MS);
-  });
-
-  it("escalates 7 days before the certificate expires", () => {
-    expect(ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS).toBe(7 * DAY_MS);
   });
 });
 

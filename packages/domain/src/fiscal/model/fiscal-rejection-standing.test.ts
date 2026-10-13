@@ -20,7 +20,7 @@ describe("FACTURA_C_DOCUMENT_TYPE", () => {
 });
 
 describe("rejectionStandingChange", () => {
-  it("opens the alert of the point of sale and document type for a content rejection, with what the tax authority said", () => {
+  it("records the point of sale and document type as rejected for a content rejection, with what the tax authority said", () => {
     expect(
       rejectionStandingChange(
         { kind: "rejected", codes: [10242, 10015], rejectionClass: "content" },
@@ -38,7 +38,7 @@ describe("rejectionStandingChange", () => {
     });
   });
 
-  it("opens the alert for a standing rejection with its class", () => {
+  it("records the point of sale and document type as rejected for a standing rejection, with its class", () => {
     expect(
       rejectionStandingChange(
         { kind: "rejected", codes: [10005], rejectionClass: "standing" },
@@ -48,7 +48,7 @@ describe("rejectionStandingChange", () => {
     ).toMatchObject({ kind: "open", rejectionClass: "standing" });
   });
 
-  it("clears the alert of the point of sale and document type for an authorized document", () => {
+  it("clears the rejection standing of the point of sale and document type for an authorized document", () => {
     expect(
       rejectionStandingChange(
         {

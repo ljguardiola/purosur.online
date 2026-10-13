@@ -212,7 +212,7 @@ describe("authorizeFiscalDocument", () => {
     expect(lanes.operations.at(-1)).toBe("leaveLane");
   });
 
-  it("answers a content rejection with its codes, opens the alert of the point of sale and still counts the call as evidence", async () => {
+  it("answers a content rejection with its codes, records the point of sale as rejected and still counts the call as evidence", async () => {
     const rejections = [
       { code: 10242, message: "El valor de CondicionIVAReceptorId es invalido." },
       { code: 10015, message: "Debe informar el documento." },
@@ -243,7 +243,7 @@ describe("authorizeFiscalDocument", () => {
     ]);
   });
 
-  it("answers a standing rejection and opens the alert when the tax authority refused with only the business's standing code and no result", async () => {
+  it("answers a standing rejection and records the point of sale as rejected when the tax authority refused with only the business's standing code and no result", async () => {
     const rejections = [{ code: 601, message: "CUIT representada no incluida en token." }];
     const { lanes, outcome } = authorize({
       solicitation: { kind: "refused_without_result", rejections },
@@ -260,7 +260,7 @@ describe("authorizeFiscalDocument", () => {
     ]);
   });
 
-  it("answers unclear, with no alert and no evidence, when the tax authority refused with errors that are not the business's standing", async () => {
+  it("answers unclear, with no change to the rejection standing and no evidence, when the tax authority refused with errors that are not the business's standing", async () => {
     const { lanes, outcome } = authorize({
       solicitation: {
         kind: "refused_without_result",
@@ -281,7 +281,7 @@ describe("authorizeFiscalDocument", () => {
     expect(lanes.rejectionStandings).toEqual([]);
   });
 
-  it("answers unclear, not rejected, when the number or date does not follow the last authorized, opens no alert and still counts the call as evidence", async () => {
+  it("answers unclear, not rejected, when the number or date does not follow the last authorized, leaves the rejection standing unchanged and still counts the call as evidence", async () => {
     const { lanes, outcome } = authorize({
       solicitation: {
         kind: "rejected",
@@ -340,7 +340,7 @@ describe("authorizeFiscalDocument", () => {
     expect(notAttempted.lanes.taxAuthorityCounts).toEqual([]);
   });
 
-  it("clears the alert of the point of sale and document type when the document is authorized", async () => {
+  it("clears the rejection standing of the point of sale and document type when the document is authorized", async () => {
     const { lanes, outcome } = authorize();
     await outcome;
 
@@ -458,7 +458,7 @@ describe("authorizeFiscalDocument", () => {
     expect(lanes.invoicingCallsOkAt).toEqual([]);
   });
 
-  it("returns a rejection already recorded for the document without changing any alert", async () => {
+  it("returns a rejection already recorded for the document without changing the rejection standing", async () => {
     const rejected = { kind: "rejected", codes: [10242], rejectionClass: "content" } as const;
     const { lanes, outcome } = authorize({ seeded: { answer: rejected } });
 

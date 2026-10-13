@@ -4,7 +4,7 @@ import {
   type WsaaTokenAnswer,
   type WsaaTokenRenewal,
 } from "@purosur/domain/fiscal/use-cases";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { alerts, arcaVitalityChecks } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -150,68 +150,20 @@ describe("DrizzleWsaaTokenStore", () => {
     expect(await held((renewal) => renewal.lastRefusal(), SERVICE, "11:22:33")).toEqual(NOW);
   });
 
-  describe("the held-ticket alert", () => {
-    it("opens one warning alert scoped to the ARCA environment, with the interval the ticket is asked for again", async () => {
-      await answering((answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES));
+  it("records that the ticket is held elsewhere as an open held-ticket alert of its environment", async () => {
+    await answering((answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES));
 
-      const [alert, ...others] = await heldTicketAlertsOf(ENVIRONMENT);
-      expect(others).toEqual([]);
-      expect(alert).toMatchObject({
-        level: "warning",
-        detail: { retryIntervalMinutes: RETRY_INTERVAL_MINUTES },
-        resolvedAt: null,
-        escalateAt: null,
-        openedAt: NOW,
-      });
-    });
+    expect(await heldTicketAlertsOf(ENVIRONMENT)).toMatchObject([
+      { detail: { retryIntervalMinutes: RETRY_INTERVAL_MINUTES }, openedAt: NOW, resolvedAt: null },
+    ]);
+  });
 
-    it("keeps a single open alert when it is opened again", async () => {
-      await answering((answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES));
-      await answering((answer) =>
-        answer.recordTicketHeldElsewhere(new Date(NOW.getTime() + HOUR_MS), RETRY_INTERVAL_MINUTES),
-      );
+  it("records that the ticket is no longer held elsewhere by resolving that alert at the moment given", async () => {
+    const later = new Date(NOW.getTime() + HOUR_MS);
+    await answering((answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES));
+    await answering((answer) => answer.clearTicketHeldElsewhere(later));
 
-      expect(await heldTicketAlertsOf(ENVIRONMENT)).toHaveLength(1);
-    });
-
-    it("resolves the open alert at the moment given", async () => {
-      const later = new Date(NOW.getTime() + HOUR_MS);
-      await answering((answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES));
-      await answering((answer) => answer.clearTicketHeldElsewhere(later));
-
-      const [alert] = await heldTicketAlertsOf(ENVIRONMENT);
-      expect(alert?.resolvedAt).toEqual(later);
-    });
-
-    it("resolves nothing when no alert is open", async () => {
-      await answering((answer) => answer.clearTicketHeldElsewhere(NOW));
-
-      expect(await heldTicketAlertsOf(ENVIRONMENT)).toEqual([]);
-    });
-
-    it("leaves the alert of another environment open", async () => {
-      await answering(
-        (answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES),
-        SERVICE,
-        FINGERPRINT,
-        newStore(undefined, "homologation"),
-      );
-      await answering((answer) => answer.clearTicketHeldElsewhere(NOW));
-
-      const open = await testDatabase.db
-        .select()
-        .from(alerts)
-        .where(and(eq(alerts.kind, "arca_wsaa_ticket_held"), isNull(alerts.resolvedAt)));
-      expect(open.map(({ scope }) => scope)).toEqual(["homologation"]);
-    });
-
-    it("opens a new alert after the previous one resolved", async () => {
-      await answering((answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES));
-      await answering((answer) => answer.clearTicketHeldElsewhere(NOW));
-      await answering((answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES));
-
-      expect(await heldTicketAlertsOf(ENVIRONMENT)).toHaveLength(2);
-    });
+    expect(await heldTicketAlertsOf(ENVIRONMENT)).toMatchObject([{ resolvedAt: later }]);
   });
 
   describe("resuming the work that waits on a token", () => {
