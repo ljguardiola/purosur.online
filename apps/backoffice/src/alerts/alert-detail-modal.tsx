@@ -412,6 +412,8 @@ const CLOSING_NOTES: Record<AlertDetail["closing"], string | null> = {
   with_its_refund: "Se cierra cuando su reembolso se marca como hecho o se descarta.",
   when_its_refund_is_done: "Se cierra cuando su reembolso se marca como hecho.",
   when_its_document_is_resolved: "Se cierra sola cuando se resuelve el comprobante.",
+  when_its_events_are_released:
+    "Se resuelve sola cuando no queda ningún evento de esta caja en cuarentena.",
   by_hand: "No se cierra sola: se cierra a mano después de revisarla.",
 };
 
@@ -517,7 +519,11 @@ function OpenAlertDetailModal({
     data.status === "loaded" && data.value.kind === "found" ? data.value.alert : undefined;
   const isKnownClosed = alert !== undefined && !alert.open;
   const isKnownMissing = data.status === "loaded" && alert === undefined;
-  const offersClose = canCloseAlertsManually(access) && !isKnownClosed && !isKnownMissing;
+  const offersClose =
+    canCloseAlertsManually(access) &&
+    !isKnownClosed &&
+    !isKnownMissing &&
+    alert?.closing !== "when_its_events_are_released";
 
   return (
     <Modal

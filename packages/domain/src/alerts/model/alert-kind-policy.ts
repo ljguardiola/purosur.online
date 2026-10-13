@@ -217,6 +217,7 @@ export const ALERT_CLOSINGS = [
   "with_its_refund",
   "when_its_refund_is_done",
   "when_its_document_is_resolved",
+  "when_its_events_are_released",
   "by_hand",
 ] as const;
 export type AlertClosing = (typeof ALERT_CLOSINGS)[number];
@@ -231,6 +232,9 @@ export function alertClosing(
   }
   if (policy.scopeKind === "fiscalDocument") {
     return "when_its_document_is_resolved";
+  }
+  if (kind === "events_quarantined") {
+    return "when_its_events_are_released";
   }
   if (policy.scopeKind !== "refund") {
     return "by_hand";
