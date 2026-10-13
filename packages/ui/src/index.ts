@@ -152,6 +152,8 @@ export type { AreaNavButtonProps } from "./components/navigation/area-nav-button
 export { AreaNavButton } from "./components/navigation/area-nav-button";
 export type { AreaNavItemProps } from "./components/navigation/area-nav-item";
 export { AreaNavItem } from "./components/navigation/area-nav-item";
+export type { LinkListCardProps, LinkListRowProps } from "./components/navigation/link-list-card";
+export { LinkListCard, LinkListRow } from "./components/navigation/link-list-card";
 export type { PaginationProps } from "./components/navigation/pagination";
 export { Pagination } from "./components/navigation/pagination";
 export type { SectionNavButtonProps } from "./components/navigation/section-nav-button";
