@@ -1,6 +1,6 @@
-import { Check, Loader } from "lucide-react";
+import { Check, Loader, X } from "lucide-react";
 
-export type ProgressStepState = "done" | "current" | "upcoming";
+export type ProgressStepState = "done" | "current" | "error" | "upcoming";
 
 export type ProgressStep = {
   id: string;
@@ -16,6 +16,7 @@ export type ProgressStepsProps = {
 const stateText: Record<ProgressStepState, string> = {
   done: "Completado",
   current: "En curso",
+  error: "Con error",
   upcoming: "Pendiente",
 };
 
@@ -24,6 +25,7 @@ const markerClassName = "flex size-6 shrink-0 items-center justify-center rounde
 const labelClassName: Record<ProgressStepState, string> = {
   done: "text-body text-text",
   current: "text-body font-bold text-text",
+  error: "text-body text-error-strong",
   upcoming: "text-body text-text-subtle",
 };
 
@@ -42,6 +44,13 @@ function Marker({ state }: { state: ProgressStepState }) {
           aria-hidden="true"
           className="size-icon-sm animate-spin motion-reduce:animate-none"
         />
+      </span>
+    );
+  }
+  if (state === "error") {
+    return (
+      <span data-marker className={`${markerClassName} bg-error text-text-inverse`}>
+        <X aria-hidden="true" className="size-icon-sm" />
       </span>
     );
   }

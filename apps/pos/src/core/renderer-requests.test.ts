@@ -301,9 +301,10 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         transferCharges.push(request);
         return { kind: "no_open_sale" };
       },
-      startMercadoPagoQrCharge: undefined,
-      followMercadoPagoQrCharge: undefined,
-      abandonMercadoPagoQrCharge: undefined,
+      startMercadoPagoCharge: undefined,
+      followMercadoPagoCharge: undefined,
+      paymentMethodAvailability: undefined,
+      abandonMercadoPagoCharge: undefined,
       searchProducts: async (query: string): Promise<SearchProductsOutcome> => {
         searches.push(query);
         return { kind: "results", products: [], more: false };
@@ -1201,9 +1202,10 @@ describe("answerRendererRequest", () => {
       payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
       amount: 1200,
       remaining_seconds: 180,
+      wait_seconds: 180,
     } as const;
     const { deps: withQr } = deps(true, {
-      startMercadoPagoQrCharge: async (request) => {
+      startMercadoPagoCharge: async (request) => {
         requests.push(request);
         return outcome;
       },
@@ -1211,19 +1213,55 @@ describe("answerRendererRequest", () => {
 
     expect(
       await answerRendererRequest(withQr, {
-        type: "start-mercado-pago-qr-charge",
+        type: "start-mercado-pago-charge",
         request_id: "r60",
         sale_id: "s1",
+        method: "QR",
         amount: 1200,
       }),
-    ).toEqual({ type: "start-mercado-pago-qr-charge-result", request_id: "r60", outcome });
-    expect(requests).toEqual([{ saleId: "s1", amount: 1200 }]);
+    ).toEqual({ type: "start-mercado-pago-charge-result", request_id: "r60", outcome });
+    expect(requests).toEqual([{ saleId: "s1", method: "QR", amount: 1200 }]);
+  });
+
+  it("answers which payment methods are available for the sale being charged", async () => {
+    const availability = { qr: "available", point: "below_minimum", point_minimum: 1500 } as const;
+    const { deps: withAvailability } = deps(true, {
+      paymentMethodAvailability: async () => availability,
+    });
+
+    expect(
+      await answerRendererRequest(withAvailability, {
+        type: "payment-method-availability",
+        request_id: "r66",
+      }),
+    ).toEqual({ type: "payment-method-availability-result", request_id: "r66", availability });
+  });
+
+  it("answers no availability when the register has no database or reading it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      paymentMethodAvailability: async () => {
+        throw error;
+      },
+    });
+    const message = { type: "payment-method-availability", request_id: "r67" } as const;
+    const none = {
+      type: "payment-method-availability-result",
+      request_id: "r67",
+      availability: null,
+    };
+
+    expect(await answerRendererRequest(failing.deps, message)).toEqual(none);
+    expect(failing.failures).toEqual([
+      { context: "reading which payment methods are available", error },
+    ]);
+    expect(await answerRendererRequest(deps(true).deps, message)).toEqual(none);
   });
 
   it("follows a Mercado Pago QR charge and answers the outcome", async () => {
     const requests: { paymentTransactionId: string }[] = [];
     const { deps: withQr } = deps(true, {
-      followMercadoPagoQrCharge: async (request) => {
+      followMercadoPagoCharge: async (request) => {
         requests.push(request);
         return { kind: "waiting", remaining_seconds: 100 };
       },
@@ -1231,12 +1269,12 @@ describe("answerRendererRequest", () => {
 
     expect(
       await answerRendererRequest(withQr, {
-        type: "follow-mercado-pago-qr-charge",
+        type: "follow-mercado-pago-charge",
         request_id: "r61",
         payment_transaction_id: "qr-1",
       }),
     ).toEqual({
-      type: "follow-mercado-pago-qr-charge-result",
+      type: "follow-mercado-pago-charge-result",
       request_id: "r61",
       outcome: { kind: "waiting", remaining_seconds: 100 },
     });
@@ -1246,7 +1284,7 @@ describe("answerRendererRequest", () => {
   it("abandons a Mercado Pago QR charge and answers the outcome", async () => {
     const requests: { paymentTransactionId: string }[] = [];
     const { deps: withQr } = deps(true, {
-      abandonMercadoPagoQrCharge: async (request) => {
+      abandonMercadoPagoCharge: async (request) => {
         requests.push(request);
         return { kind: "replaced" };
       },
@@ -1254,12 +1292,12 @@ describe("answerRendererRequest", () => {
 
     expect(
       await answerRendererRequest(withQr, {
-        type: "abandon-mercado-pago-qr-charge",
+        type: "abandon-mercado-pago-charge",
         request_id: "r66",
         payment_transaction_id: "qr-1",
       }),
     ).toEqual({
-      type: "abandon-mercado-pago-qr-charge-result",
+      type: "abandon-mercado-pago-charge-result",
       request_id: "r66",
       outcome: { kind: "replaced" },
     });
@@ -1269,17 +1307,17 @@ describe("answerRendererRequest", () => {
   it("answers that abandoning a QR charge is unavailable when it fails or the register has no database, and reports why", async () => {
     const error = new Error("database is locked");
     const failing = deps(true, {
-      abandonMercadoPagoQrCharge: async () => {
+      abandonMercadoPagoCharge: async () => {
         throw error;
       },
     });
     const message = {
-      type: "abandon-mercado-pago-qr-charge",
+      type: "abandon-mercado-pago-charge",
       request_id: "r67",
       payment_transaction_id: "qr-1",
     } as const;
     const unavailable = {
-      type: "abandon-mercado-pago-qr-charge-result",
+      type: "abandon-mercado-pago-charge-result",
       request_id: "r67",
       outcome: { kind: "unavailable" },
     };
@@ -1292,34 +1330,35 @@ describe("answerRendererRequest", () => {
   it("answers that a QR charge is unavailable when it fails, and reports why", async () => {
     const error = new Error("database is locked");
     const failing = deps(true, {
-      startMercadoPagoQrCharge: async () => {
+      startMercadoPagoCharge: async () => {
         throw error;
       },
-      followMercadoPagoQrCharge: async () => {
+      followMercadoPagoCharge: async () => {
         throw error;
       },
     });
 
     expect(
       await answerRendererRequest(failing.deps, {
-        type: "start-mercado-pago-qr-charge",
+        type: "start-mercado-pago-charge",
         request_id: "r62",
         sale_id: "s1",
+        method: "QR",
         amount: 1200,
       }),
     ).toEqual({
-      type: "start-mercado-pago-qr-charge-result",
+      type: "start-mercado-pago-charge-result",
       request_id: "r62",
       outcome: { kind: "unavailable" },
     });
     expect(
       await answerRendererRequest(failing.deps, {
-        type: "follow-mercado-pago-qr-charge",
+        type: "follow-mercado-pago-charge",
         request_id: "r63",
         payment_transaction_id: "qr-1",
       }),
     ).toEqual({
-      type: "follow-mercado-pago-qr-charge-result",
+      type: "follow-mercado-pago-charge-result",
       request_id: "r63",
       outcome: { kind: "unavailable" },
     });
@@ -1334,24 +1373,25 @@ describe("answerRendererRequest", () => {
 
     expect(
       await answerRendererRequest(withoutDatabase, {
-        type: "start-mercado-pago-qr-charge",
+        type: "start-mercado-pago-charge",
         request_id: "r64",
         sale_id: "s1",
+        method: "QR",
         amount: 1200,
       }),
     ).toEqual({
-      type: "start-mercado-pago-qr-charge-result",
+      type: "start-mercado-pago-charge-result",
       request_id: "r64",
       outcome: { kind: "unavailable" },
     });
     expect(
       await answerRendererRequest(withoutDatabase, {
-        type: "follow-mercado-pago-qr-charge",
+        type: "follow-mercado-pago-charge",
         request_id: "r65",
         payment_transaction_id: "qr-1",
       }),
     ).toEqual({
-      type: "follow-mercado-pago-qr-charge-result",
+      type: "follow-mercado-pago-charge-result",
       request_id: "r65",
       outcome: { kind: "unavailable" },
     });
@@ -1586,6 +1626,7 @@ describe("answerRendererRequest", () => {
       lines_lock: null,
       cancel_refusal: null,
       charge_refusal: null,
+      mercado_pago_charge_in_progress: null,
       refunds_on_cancel: [],
       cancel_authorization_required: false,
       adjust_authorization_required: false,

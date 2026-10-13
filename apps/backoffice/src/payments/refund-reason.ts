@@ -9,6 +9,7 @@ const COVERING_METHOD_WORDS = {
   CASH: "en efectivo",
   TRANSFER: "con transferencia",
   QR: "con QR de Mercado Pago",
+  POINT: "con la terminal de Mercado Pago",
 } satisfies Record<CoveringMethod, string>;
 
 function coveringWords(methods: readonly CoveringMethod[]): string {

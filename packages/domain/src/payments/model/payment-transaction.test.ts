@@ -5,12 +5,13 @@ import {
   expiryWithoutOrder,
   isLateApproval,
   isValidOrderAmount,
-  type MercadoPagoQrOrderTransaction,
+  type MercadoPagoOrderTransaction,
+  type MercadoPagoPointPaymentTransaction,
   mayHaveUnrecordedOrder,
   mercadoPagoOrderExpiresAt,
   PAYMENT_TRANSACTION_STATES,
   type PaymentTransaction,
-  type PendingQrSalePayment,
+  type PendingMercadoPagoSalePayment,
   type SalePayment,
 } from "./payment-transaction.js";
 
@@ -33,8 +34,8 @@ describe("PaymentTransaction", () => {
 
   it("records what the register and the cloud each know of a transaction as that transaction", () => {
     expectTypeOf<SalePayment>().toExtend<PaymentTransaction>();
-    expectTypeOf<PendingQrSalePayment>().toExtend<PaymentTransaction>();
-    expectTypeOf<MercadoPagoQrOrderTransaction>().toExtend<PaymentTransaction>();
+    expectTypeOf<PendingMercadoPagoSalePayment>().toExtend<PaymentTransaction>();
+    expectTypeOf<MercadoPagoOrderTransaction>().toExtend<PaymentTransaction>();
   });
 
   it("records only approved payments in a sale", () => {
@@ -44,28 +45,71 @@ describe("PaymentTransaction", () => {
   });
 
   it("records the cloud's Mercado Pago QR transaction as the transaction of a sale and nothing else", () => {
-    type WithoutKind = Omit<MercadoPagoQrOrderTransaction, "kind">;
+    type WithoutKind = Omit<MercadoPagoOrderTransaction, "kind">;
 
-    expectTypeOf<WithoutKind>().not.toExtend<MercadoPagoQrOrderTransaction>();
-    expectTypeOf<WithoutKind & { kind: "REFUND" }>().not.toExtend<MercadoPagoQrOrderTransaction>();
+    expectTypeOf<WithoutKind>().not.toExtend<MercadoPagoOrderTransaction>();
+    expectTypeOf<WithoutKind & { kind: "REFUND" }>().not.toExtend<MercadoPagoOrderTransaction>();
+  });
+});
+
+describe("MercadoPagoPointPaymentTransaction", () => {
+  it("is a payment transaction of a sale by the integrated terminal", () => {
+    expectTypeOf<MercadoPagoPointPaymentTransaction>().toExtend<PaymentTransaction>();
+    expectTypeOf<MercadoPagoPointPaymentTransaction["method"]>().toEqualTypeOf<"POINT">();
+    expectTypeOf<
+      MercadoPagoPointPaymentTransaction["provider"]
+    >().toEqualTypeOf<"MERCADOPAGO_POINT">();
+  });
+
+  it("is a Mercado Pago order beside the QR one, kept on the same model", () => {
+    expectTypeOf<MercadoPagoOrderTransaction["method"]>().toEqualTypeOf<"QR" | "POINT">();
+    expectTypeOf<MercadoPagoOrderTransaction["provider"]>().toEqualTypeOf<
+      "MERCADOPAGO_QR" | "MERCADOPAGO_POINT"
+    >();
+  });
+
+  it("does not mix a QR method with the Point provider", () => {
+    expectTypeOf<
+      Omit<MercadoPagoOrderTransaction, "method" | "provider"> & {
+        method: "QR";
+        provider: "MERCADOPAGO_POINT";
+      }
+    >().not.toExtend<MercadoPagoOrderTransaction>();
+  });
+
+  it("carries nothing about the card that paid", () => {
+    for (const field of ["cardLastDigits", "cardType", "cardBrand", "cardholderName"] as const) {
+      expectTypeOf<MercadoPagoPointPaymentTransaction>().not.toHaveProperty(field);
+    }
+  });
+
+  it("is a pending sale payment as well while its wait runs", () => {
+    expectTypeOf<
+      Extract<PendingMercadoPagoSalePayment, { method: "POINT" }>["provider"]
+    >().toEqualTypeOf<"MERCADOPAGO_POINT">();
   });
 });
 
 describe("mercadoPagoOrderExpiresAt", () => {
-  it("expires when the register's 3-minute wait ends, plus the longest the creation call can take", () => {
-    expect(mercadoPagoOrderExpiresAt(new Date("2026-10-09T12:00:00.000Z"), 10_000)).toEqual(
+  it("expires when the order's lifetime ends, plus the longest the creation call can take", () => {
+    expect(mercadoPagoOrderExpiresAt(new Date("2026-10-09T12:00:00.000Z"), 3, 10_000)).toEqual(
       new Date("2026-10-09T12:03:10.000Z"),
     );
   });
 
-  it("is never earlier than the attempt's start plus the wait plus the longest call", () => {
+  it("is exactly the attempt's start plus the lifetime plus the longest call", () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 0, max: 4_000_000_000_000 }),
+        fc.integer({ min: 1, max: 10 }),
         fc.integer({ min: 0, max: 600_000 }),
-        (attemptStartedAt, longestCallMs) =>
-          mercadoPagoOrderExpiresAt(new Date(attemptStartedAt), longestCallMs).getTime() ===
-          attemptStartedAt + 3 * 60 * 1000 + longestCallMs,
+        (attemptStartedAt, lifetimeMinutes, longestCallMs) =>
+          mercadoPagoOrderExpiresAt(
+            new Date(attemptStartedAt),
+            lifetimeMinutes,
+            longestCallMs,
+          ).getTime() ===
+          attemptStartedAt + lifetimeMinutes * 60 * 1000 + longestCallMs,
       ),
     );
   });
@@ -73,7 +117,7 @@ describe("mercadoPagoOrderExpiresAt", () => {
   it("does not change the attempt's start it is given", () => {
     const attemptStartedAt = new Date("2026-10-09T12:00:00.000Z");
 
-    mercadoPagoOrderExpiresAt(attemptStartedAt, 10_000);
+    mercadoPagoOrderExpiresAt(attemptStartedAt, 3, 10_000);
 
     expect(attemptStartedAt).toEqual(new Date("2026-10-09T12:00:00.000Z"));
   });
@@ -153,7 +197,7 @@ describe("awaitsUnrecordedOrder", () => {
 describe("mayHaveUnrecordedOrder", () => {
   function transactionWhoseCreation(
     outcome: "unknown" | "known",
-    overrides: Partial<Pick<MercadoPagoQrOrderTransaction, "state" | "providerOrderId">> = {},
+    overrides: Partial<Pick<MercadoPagoOrderTransaction, "state" | "providerOrderId">> = {},
   ) {
     return {
       state: "PENDING",

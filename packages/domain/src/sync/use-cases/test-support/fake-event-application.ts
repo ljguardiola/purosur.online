@@ -2,7 +2,7 @@ import type {
   EventInvariantViolatedDetail,
   EventsQuarantinedDetail,
 } from "../../../alerts/index.js";
-import type { MercadoPagoQrPaymentTransaction } from "../../../payments/index.js";
+import type { MercadoPagoOrderTransaction } from "../../../payments/index.js";
 import type { CompletedSale } from "../../../sales/index.js";
 import type { SyncedFact } from "../../model/synced-fact.js";
 import type {
@@ -81,7 +81,7 @@ export class FakeEventApplication implements EventApplication {
   refuseStock = new Map<string, string>();
   providerTransactions = new Map<
     string,
-    Pick<MercadoPagoQrPaymentTransaction, "saleId" | "amount" | "state">
+    Pick<MercadoPagoOrderTransaction, "saleId" | "amount" | "state" | "method">
   >();
   failOpeningInvariantAlert = false;
   heldByAnotherRun = new Set<string>();

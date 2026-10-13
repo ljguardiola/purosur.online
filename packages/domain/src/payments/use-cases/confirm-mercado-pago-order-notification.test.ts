@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { confirmMercadoPagoOrderNotification } from "./confirm-mercado-pago-order-notification.js";
 import {
-  mercadoPagoQrOrderWorld,
+  mercadoPagoOrderWorld,
   NOW,
   orderResult,
   paidOrderResult,
   storedTransaction,
   TRANSACTION_ID,
-} from "./test-support/mercado-pago-qr-order-fixtures.js";
+} from "./test-support/mercado-pago-order-fixtures.js";
 
 const WITH_ORDER = { providerOrderId: "order-1" };
 const INPUT = { providerOrderId: "order-1" };
 
 describe("confirmMercadoPagoOrderNotification", () => {
   it("approves the pending payment of the order when Mercado Pago says it was paid", async () => {
-    const { lanes, mercadoPago, notificationPorts } = mercadoPagoQrOrderWorld({
+    const { lanes, mercadoPago, notificationPorts } = mercadoPagoOrderWorld({
       reading: { kind: "read", result: paidOrderResult() },
     });
     lanes.seed(storedTransaction(WITH_ORDER));
@@ -30,7 +30,7 @@ describe("confirmMercadoPagoOrderNotification", () => {
   });
 
   it("leaves the payment as Mercado Pago's answer says, whatever the notification claimed", async () => {
-    const { lanes, notificationPorts } = mercadoPagoQrOrderWorld({
+    const { lanes, notificationPorts } = mercadoPagoOrderWorld({
       reading: { kind: "read", result: orderResult() },
     });
     lanes.seed(storedTransaction(WITH_ORDER));
@@ -42,7 +42,7 @@ describe("confirmMercadoPagoOrderNotification", () => {
   });
 
   it("answers unknown order, reading nothing from Mercado Pago, when no payment has that order", async () => {
-    const { lanes, mercadoPago, notificationPorts } = mercadoPagoQrOrderWorld();
+    const { lanes, mercadoPago, notificationPorts } = mercadoPagoOrderWorld();
     lanes.seed(storedTransaction({ providerOrderId: "order-2" }));
 
     expect(await confirmMercadoPagoOrderNotification(notificationPorts, INPUT)).toEqual({
@@ -53,7 +53,7 @@ describe("confirmMercadoPagoOrderNotification", () => {
   });
 
   it("answers unknown order when the payment is gone by the time its lane is held", async () => {
-    const { directory, mercadoPago, notificationPorts } = mercadoPagoQrOrderWorld();
+    const { directory, mercadoPago, notificationPorts } = mercadoPagoOrderWorld();
     directory.staleReferenceOfOrder = { id: TRANSACTION_ID, registerId: "register-1" };
 
     expect(await confirmMercadoPagoOrderNotification(notificationPorts, INPUT)).toEqual({
@@ -63,7 +63,7 @@ describe("confirmMercadoPagoOrderNotification", () => {
   });
 
   it("answers provider unavailable and records nothing when Mercado Pago cannot be read", async () => {
-    const { lanes, notificationPorts } = mercadoPagoQrOrderWorld({
+    const { lanes, notificationPorts } = mercadoPagoOrderWorld({
       reading: { kind: "unavailable" },
     });
     lanes.seed(storedTransaction(WITH_ORDER));
@@ -76,7 +76,7 @@ describe("confirmMercadoPagoOrderNotification", () => {
   });
 
   it("does not read again a payment that is no longer pending", async () => {
-    const { lanes, mercadoPago, notificationPorts } = mercadoPagoQrOrderWorld({
+    const { lanes, mercadoPago, notificationPorts } = mercadoPagoOrderWorld({
       reading: { kind: "read", result: orderResult() },
     });
     lanes.seed(storedTransaction({ ...WITH_ORDER, state: "APPROVED" }));
@@ -88,7 +88,7 @@ describe("confirmMercadoPagoOrderNotification", () => {
   });
 
   it("looks the payment up before taking its lane, and reads Mercado Pago only inside the lane", async () => {
-    const { lanes, notificationPorts } = mercadoPagoQrOrderWorld();
+    const { lanes, notificationPorts } = mercadoPagoOrderWorld();
     lanes.seed(storedTransaction(WITH_ORDER));
 
     await confirmMercadoPagoOrderNotification(notificationPorts, INPUT);

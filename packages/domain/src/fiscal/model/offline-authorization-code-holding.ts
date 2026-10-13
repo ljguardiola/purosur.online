@@ -1,5 +1,11 @@
 import { isOutOfService } from "../../register/index.js";
 
+export interface RegisterOfflineAuthorizationCodeHolding {
+  registerId: string;
+  deviceId: string;
+  heldFortnightStarts: readonly string[];
+}
+
 interface CodeHoldingInstallation {
   revokedAt: Date | null;
   offlinePointOfSaleNumber: number | null;

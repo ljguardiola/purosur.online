@@ -1,4 +1,4 @@
-import type { StartMercadoPagoQrChargeOutcome } from "@purosur/contracts";
+import type { StartMercadoPagoChargeOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -7,17 +7,18 @@ import { QrChargeModal } from "./qr-charge-modal";
 
 const TOTAL = 5_070_000;
 const PAYMENT_ID = "019a0000-0000-7000-8000-0000000000a1";
-const ORDER_SHOWN: StartMercadoPagoQrChargeOutcome = {
+const ORDER_SHOWN: StartMercadoPagoChargeOutcome = {
   kind: "order_shown",
   payment_transaction_id: PAYMENT_ID,
   amount: TOTAL,
   remaining_seconds: 180,
+  wait_seconds: 180,
 };
 
 const AMOUNT_FIELD = "Importe a cobrar con este medio";
 const WHOLE_SALE = { total: TOTAL, paid: 0, pending: TOTAL };
 
-type Start = (amount: number) => Promise<StartMercadoPagoQrChargeOutcome>;
+type Start = (amount: number) => Promise<StartMercadoPagoChargeOutcome>;
 
 async function renderModal(
   start: Start = async () => ORDER_SHOWN,
@@ -139,14 +140,14 @@ describe("QrChargeModal", () => {
 
   it("says another QR charge of the sale is still waiting, keeping the way to another method", async () => {
     const { screen, create, callbacks } = await renderModal(async () => ({
-      kind: "qr_charge_in_progress",
+      kind: "mercado_pago_charge_in_progress",
     }));
 
     await userEvent.click(create);
 
     await expect
       .element(screen.getByRole("alert"))
-      .toHaveTextContent("Ya hay un cobro con QR en curso para esta venta.");
+      .toHaveTextContent("Ya hay un cobro con Mercado Pago en curso para esta venta.");
     await expect.element(create).toBeEnabled();
     await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
     expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();

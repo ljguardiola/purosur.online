@@ -58,8 +58,8 @@ describe("cancelling the open sale of a locked register", () => {
     { kind: "unavailable" },
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
     { kind: "rate_limited", retry_after_seconds: 1, attempts_left: 2 },
-    { kind: "qr_charge_in_progress" },
-    { kind: "holds_qr_payment" },
+    { kind: "mercado_pago_charge_in_progress" },
+    { kind: "holds_mercado_pago_payment" },
   ])("accepts the result $kind", (outcome) => {
     const message = { type: "cancel-locked-sale-result", request_id: REQUEST_ID, outcome };
 
@@ -297,6 +297,7 @@ describe("sale answers", () => {
     lines_lock: null,
     cancel_refusal: null,
     charge_refusal: null,
+    mercado_pago_charge_in_progress: null,
     refunds_on_cancel: [],
     cancel_authorization_required: false,
     adjust_authorization_required: false,
@@ -916,6 +917,7 @@ describe("sale line answers", () => {
     lines_lock: null,
     cancel_refusal: null,
     charge_refusal: null,
+    mercado_pago_charge_in_progress: null,
     refunds_on_cancel: [],
     cancel_authorization_required: false,
     adjust_authorization_required: false,

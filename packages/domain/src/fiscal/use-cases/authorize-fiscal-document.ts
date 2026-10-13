@@ -1,9 +1,9 @@
 import type { PushedEvent } from "../../sync/index.js";
 import {
   FACTURA_C_DOCUMENT_TYPE,
-  rejectionAlertChange,
+  rejectionStandingChange,
   type TaxAuthorityRejection,
-} from "../model/fiscal-rejection-alert.js";
+} from "../model/fiscal-rejection-standing.js";
 import {
   authorizationCallDeadline,
   isCompletionEventOfSale,
@@ -148,7 +148,7 @@ export async function authorizeFiscalDocument(
           request.fiscalDocumentId,
           answer,
           answeredAt,
-          rejectionAlertChange(answer, rejectionsOf(solicitation), {
+          rejectionStandingChange(answer, rejectionsOf(solicitation), {
             pointOfSale: request.pointOfSale,
             documentType: FACTURA_C_DOCUMENT_TYPE,
             fiscalDocumentId: request.fiscalDocumentId,

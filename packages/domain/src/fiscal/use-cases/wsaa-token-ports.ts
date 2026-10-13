@@ -19,10 +19,10 @@ export interface WsaaAuthentication {
 export interface WsaaTokenAnswer {
   recordIssuedToken(token: WsaaToken): Promise<void>;
   clearRefusal(): Promise<void>;
-  resolveHeldTicketAlert(resolvedAt: Date): Promise<void>;
+  clearTicketHeldElsewhere(at: Date): Promise<void>;
   resumeWorkWaitingOnToken(): Promise<void>;
   recordRefusal(refusedAt: Date): Promise<void>;
-  openHeldTicketAlert(openedAt: Date, retryIntervalMinutes: number): Promise<void>;
+  recordTicketHeldElsewhere(at: Date, retryIntervalMinutes: number): Promise<void>;
 }
 
 export interface WsaaTokenRenewal {

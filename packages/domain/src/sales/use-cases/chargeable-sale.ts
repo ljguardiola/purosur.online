@@ -1,5 +1,5 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
-import { saleBalance } from "../../payments/index.js";
+import { aMercadoPagoChargeInProgress, saleBalance } from "../../payments/index.js";
 import { buyerIdentificationRefusal } from "../model/buyer-identification-check.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { amountToCharge } from "../model/sale-discount.js";
@@ -65,6 +65,26 @@ export function chargeableSale(
   return { session, sale, total, paid, pending };
 }
 
-export function isSaleRefusal(result: ChargeableSale | SaleRefusal): result is SaleRefusal {
+export type NewPaymentRefusal = SaleRefusal | { kind: "mercado_pago_charge_in_progress" };
+
+export function saleOpenToNewPayment(
+  tx: SaleLedgerTransaction,
+  actorId: string,
+  saleId: string,
+  at: Date,
+): ChargeableSale | NewPaymentRefusal {
+  const chargeable = chargeableSale(tx, actorId, saleId, at);
+  if (isSaleRefusal(chargeable)) {
+    return chargeable;
+  }
+  if (aMercadoPagoChargeInProgress(tx.pendingMercadoPagoPaymentsOf(chargeable.sale.id), at)) {
+    return { kind: "mercado_pago_charge_in_progress" };
+  }
+  return chargeable;
+}
+
+export function isSaleRefusal<Refusal extends { kind: string }>(
+  result: ChargeableSale | Refusal,
+): result is Refusal {
   return "kind" in result;
 }

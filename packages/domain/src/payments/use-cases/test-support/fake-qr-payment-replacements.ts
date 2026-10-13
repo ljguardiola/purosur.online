@@ -1,5 +1,5 @@
 import type { LatePaymentRefund } from "../../model/payment-refund.js";
-import type { LatePaymentRefundOpening } from "../mercado-pago-qr-order-ports.js";
+import type { LatePaymentRefundOpening } from "../mercado-pago-order-ports.js";
 import type {
   QrPaymentReplacement,
   QrPaymentReplacementStore,

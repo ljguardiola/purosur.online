@@ -25,6 +25,7 @@ const SALE_OF_THREE_YERBAS: OpenSale = {
   lines_lock: null,
   cancel_refusal: null,
   charge_refusal: null,
+  mercado_pago_charge_in_progress: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,
@@ -42,6 +43,7 @@ const SALE_OF_ONE_YERBA: OpenSale = {
   lines_lock: null,
   cancel_refusal: null,
   charge_refusal: null,
+  mercado_pago_charge_in_progress: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,
@@ -59,6 +61,7 @@ const SALE_OF_ALFAJOR: OpenSale = {
   lines_lock: null,
   cancel_refusal: null,
   charge_refusal: null,
+  mercado_pago_charge_in_progress: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,
@@ -76,6 +79,7 @@ const EMPTY_SALE: OpenSale = {
   lines_lock: null,
   cancel_refusal: null,
   charge_refusal: null,
+  mercado_pago_charge_in_progress: null,
   refunds_on_cancel: [],
   cancel_authorization_required: false,
   adjust_authorization_required: false,
@@ -431,13 +435,13 @@ describe("SaleScreen cancelling the sale", () => {
   it("tells the sale cannot be cancelled yet while its QR charge is waiting", async () => {
     const { screen } = await renderScreen({
       currentSale: async () => SALE_OF_YERBA,
-      cancelSale: async () => ({ kind: "qr_charge_in_progress" }),
+      cancelSale: async () => ({ kind: "mercado_pago_charge_in_progress" }),
     });
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
     await screen.getByRole("button", { name: "Cancelar la venta" }).click();
 
-    await expect.element(screen.getByText("Hay un cobro con QR en curso")).toBeVisible();
+    await expect.element(screen.getByText("Hay un cobro con Mercado Pago en curso")).toBeVisible();
     await expect
       .element(screen.getByText("Esperá a que termine para cancelar la venta."))
       .toBeVisible();

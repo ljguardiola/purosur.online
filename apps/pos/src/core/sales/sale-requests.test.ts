@@ -258,6 +258,7 @@ describe("scanning a product on the register", () => {
         lines_lock: null,
         cancel_refusal: null,
         charge_refusal: null,
+        mercado_pago_charge_in_progress: null,
         refunds_on_cancel: [],
         cancel_authorization_required: true,
         adjust_authorization_required: true,
@@ -450,6 +451,7 @@ describe("adding a searched product on the register", () => {
         lines_lock: null,
         cancel_refusal: null,
         charge_refusal: null,
+        mercado_pago_charge_in_progress: null,
         refunds_on_cancel: [],
         cancel_authorization_required: true,
         adjust_authorization_required: true,
@@ -551,6 +553,7 @@ describe("adding a product sold by weight on the register", () => {
         lines_lock: null,
         cancel_refusal: null,
         charge_refusal: null,
+        mercado_pago_charge_in_progress: null,
         refunds_on_cancel: [],
         cancel_authorization_required: true,
         adjust_authorization_required: true,
@@ -879,6 +882,7 @@ describe("the sale in progress", () => {
       lines_lock: null,
       cancel_refusal: null,
       charge_refusal: null,
+      mercado_pago_charge_in_progress: null,
       refunds_on_cancel: [],
       cancel_authorization_required: true,
       adjust_authorization_required: true,
@@ -902,22 +906,39 @@ describe("the sale in progress", () => {
     });
   });
 
-  function addQrPayment(saleId: string, state: "PENDING" | "APPROVED", waitEndsAt: Date): void {
+  function addQrPayment(
+    saleId: string,
+    state: "PENDING" | "APPROVED",
+    waitEndsAt: Date,
+    occurredAt: Date = NOW,
+  ): void {
     database
       .prepare(
         "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES ('qr-1', ?, 'SALE', 'QR', 'MERCADOPAGO_QR', 1000, ?, ?, ?)",
       )
-      .run(saleId, state, NOW.toISOString(), waitEndsAt.toISOString());
+      .run(saleId, state, occurredAt.toISOString(), waitEndsAt.toISOString());
   }
 
   it("says that a QR charge in its wait locks the lines and refuses the cancellation", async () => {
     const saleId = await sellTwoForPayments();
-    addQrPayment(saleId, "PENDING", new Date(NOW.getTime() + 60_000));
+    addQrPayment(
+      saleId,
+      "PENDING",
+      new Date(NOW.getTime() + 60_000),
+      new Date(NOW.getTime() - 130_000),
+    );
 
     expect(await currentSaleFor(deps())).toMatchObject({
-      lines_lock: "qr_charge_in_progress",
-      cancel_refusal: "qr_charge_in_progress",
+      lines_lock: "mercado_pago_charge_in_progress",
+      cancel_refusal: "mercado_pago_charge_in_progress",
       refunds_on_cancel: [],
+      mercado_pago_charge_in_progress: {
+        payment_transaction_id: "qr-1",
+        method: "QR",
+        amount: 1000,
+        remaining_seconds: 60,
+        wait_seconds: 190,
+      },
     });
   });
 
@@ -927,7 +948,7 @@ describe("the sale in progress", () => {
 
     expect(await currentSaleFor(deps())).toMatchObject({
       lines_lock: "approved_payment",
-      cancel_refusal: "holds_qr_payment",
+      cancel_refusal: "holds_mercado_pago_payment",
       refunds_on_cancel: [],
     });
   });
@@ -1891,6 +1912,7 @@ describe("removing a line", () => {
         lines_lock: null,
         cancel_refusal: null,
         charge_refusal: null,
+        mercado_pago_charge_in_progress: null,
         refunds_on_cancel: [],
         cancel_authorization_required: true,
         adjust_authorization_required: true,

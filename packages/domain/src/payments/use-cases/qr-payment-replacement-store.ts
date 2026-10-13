@@ -1,7 +1,7 @@
 import type { PaymentMethod } from "../model/payment.js";
 import type { LatePaymentRefund } from "../model/payment-refund.js";
 import type { PaymentTransactionState } from "../model/payment-transaction.js";
-import type { LatePaymentRefundOpening } from "./mercado-pago-qr-order-ports.js";
+import type { LatePaymentRefundOpening } from "./mercado-pago-order-ports.js";
 
 export interface QrPaymentReplacement {
   registerId: string;

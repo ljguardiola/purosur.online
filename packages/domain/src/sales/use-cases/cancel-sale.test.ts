@@ -1,4 +1,7 @@
-import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
+import {
+  PENDING_POINT_TRANSACTION,
+  PENDING_QR_TRANSACTION,
+} from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
 import type { SalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
@@ -173,24 +176,45 @@ describe("cancelSale", () => {
   });
 });
 
-describe("cancelSale with a QR charge", () => {
-  it("refuses while the QR charge is in its wait, changing nothing", () => {
+describe("cancelSale with a terminal charge", () => {
+  it("refuses while the terminal charge is pending, even past its wait, changing nothing", () => {
     const store = ledger({
-      pendingQrPayments: [pendingQrEndingAt(new Date(NOW.getTime() + 60_000))],
+      pendingMercadoPagoPayments: [
+        {
+          ...PENDING_POINT_TRANSACTION,
+          id: "point-1",
+          saleId: "sale-1",
+          amount: 1000,
+          occurredAt: new Date(NOW.getTime() - 600_000),
+          waitEndsAt: new Date(NOW.getTime() - 1),
+        },
+      ],
     });
     const before = structuredClone(store.state);
 
-    expect(cancel(store)).toEqual({ kind: "qr_charge_in_progress" });
+    expect(cancel(store)).toEqual({ kind: "mercado_pago_charge_in_progress" });
+    expect(store.state).toEqual(before);
+  });
+});
+
+describe("cancelSale with a QR charge", () => {
+  it("refuses while the QR charge is in its wait, changing nothing", () => {
+    const store = ledger({
+      pendingMercadoPagoPayments: [pendingQrEndingAt(new Date(NOW.getTime() + 60_000))],
+    });
+    const before = structuredClone(store.state);
+
+    expect(cancel(store)).toEqual({ kind: "mercado_pago_charge_in_progress" });
     expect(store.state).toEqual(before);
   });
 
   it("keeps the sale, cancelled now, after the wait, so its pending QR payment stays known", () => {
     const pending = pendingQrEndingAt(new Date(NOW.getTime() - 1));
-    const store = ledger({ pendingQrPayments: [pending] });
+    const store = ledger({ pendingMercadoPagoPayments: [pending] });
 
     expect(cancel(store)).toEqual({ kind: "cancelled" });
     expect(store.state.sales).toEqual([{ ...OPEN_SALE, state: "CANCELLED", occurredAt: NOW }]);
-    expect(store.state.pendingQrPayments).toEqual([pending]);
+    expect(store.state.pendingMercadoPagoPayments).toEqual([pending]);
     expect(store.state.outbox).toEqual([]);
   });
 });

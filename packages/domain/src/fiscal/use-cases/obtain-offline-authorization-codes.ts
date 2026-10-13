@@ -1,5 +1,5 @@
 import { argentinaCalendarDay } from "../../shared/index.js";
-import type { TaxAuthorityRejection } from "../model/fiscal-rejection-alert.js";
+import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
 import {
   type Fortnight,
   fortnightsWithinRequestWindowOn,

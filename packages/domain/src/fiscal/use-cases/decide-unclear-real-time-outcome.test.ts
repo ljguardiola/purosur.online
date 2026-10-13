@@ -270,24 +270,24 @@ describe("decideUnclearRealTimeOutcome", () => {
       "conflicting",
     ],
   ])(
-    "records the decision together with the resolution of the document's alert, for %s",
+    "records the decision together with clearing the document's warning, for %s",
     async (_name, change, decision) => {
       const { ports, documents, store } = scenario(change);
 
       await decide(ports);
 
-      expect(store.resolvedAlerts).toEqual([
+      expect(store.clearedWarnings).toEqual([
         {
           decision,
-          alert: { kind: "fiscal_unknown", scope: FISCAL_DOCUMENT_ID },
-          resolvedAt: SETTLED_AT,
+          fiscalDocumentId: FISCAL_DOCUMENT_ID,
+          clearedAt: SETTLED_AT,
         },
       ]);
       expect(documents.operations.filter((op) => op.startsWith("recordDecision"))).toHaveLength(1);
     },
   );
 
-  it("resolves no alert for a request that was already decided or is not unclear", async () => {
+  it("clears no warning for a request that was already decided or is not unclear", async () => {
     const decided = scenario({ decision: { kind: "released" } });
     await decide(decided.ports);
     const answered = scenario({
@@ -295,8 +295,8 @@ describe("decideUnclearRealTimeOutcome", () => {
     });
     await decide(answered.ports);
 
-    expect(decided.store.resolvedAlerts).toEqual([]);
-    expect(answered.store.resolvedAlerts).toEqual([]);
+    expect(decided.store.clearedWarnings).toEqual([]);
+    expect(answered.store.clearedWarnings).toEqual([]);
   });
 
   it("records a voucher with other content as conflicting", async () => {
@@ -325,7 +325,7 @@ describe("decideUnclearRealTimeOutcome", () => {
     });
     expect(store.decisions.size).toBe(0);
     expect(documents.operations.some((op) => op.startsWith("recordDecision"))).toBe(false);
-    expect(store.resolvedAlerts).toEqual([]);
+    expect(store.clearedWarnings).toEqual([]);
   });
 
   it("does not look up a voucher or the last authorized number without a token", async () => {

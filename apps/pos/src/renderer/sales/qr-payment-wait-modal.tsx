@@ -1,6 +1,6 @@
 import type {
-  AbandonMercadoPagoQrChargeOutcome,
-  FollowMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
 import {
@@ -14,25 +14,14 @@ import {
   ProgressSteps,
   SummaryRowGroup,
 } from "@purosur/ui";
-import {
-  ArrowRight,
-  CircleCheck,
-  CircleX,
-  Info,
-  Lock,
-  QrCode,
-  TimerOff,
-  TriangleAlert,
-} from "lucide-react";
+import { ArrowRight, CircleX, Info, Lock, QrCode, TimerOff, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { MercadoPagoPaidModal } from "./mercado-pago-paid-modal";
 import type { ShownQrOrder } from "./qr-charge-modal";
 import type { FollowedQrCharge } from "./sales-queries";
 import { useAbandonQrChargeMutation, useQrChargeQuery } from "./sales-queries";
 
-export type CompletedQrPayment = Extract<
-  FollowMercadoPagoQrChargeOutcome,
-  { kind: "completed" }
-> & {
+export type CompletedQrPayment = Extract<FollowMercadoPagoChargeOutcome, { kind: "completed" }> & {
   amount: number;
 };
 
@@ -42,8 +31,8 @@ export type QrPaymentWaitModalProps = {
   total: number;
   paid: number;
   order: ShownQrOrder;
-  follow: (paymentTransactionId: string) => Promise<FollowMercadoPagoQrChargeOutcome>;
-  abandon: (paymentTransactionId: string) => Promise<AbandonMercadoPagoQrChargeOutcome>;
+  follow: (paymentTransactionId: string) => Promise<FollowMercadoPagoChargeOutcome>;
+  abandon: (paymentTransactionId: string) => Promise<AbandonMercadoPagoChargeOutcome>;
   onCancelled: () => void;
   onChooseAnotherMethod: () => void;
   onCompleted: (payment: CompletedQrPayment) => void;
@@ -123,13 +112,14 @@ export function QrPaymentWaitModal({
       case "partially_paid":
       case "waiting":
       case "wait_over":
+      case "expired":
       case "expiry_unconfirmed":
       case "declined":
         break;
     }
   });
 
-  const leaveWhenAbandoned = useEffectEvent((answer: AbandonMercadoPagoQrChargeOutcome) => {
+  const leaveWhenAbandoned = useEffectEvent((answer: AbandonMercadoPagoChargeOutcome) => {
     switch (answer.kind) {
       case "cancelled":
         onCancelled();
@@ -144,6 +134,8 @@ export function QrPaymentWaitModal({
         break;
       case "closed":
       case "replaced":
+      case "cancel_on_terminal":
+      case "unreachable":
       case "unavailable":
         break;
       default:
@@ -191,7 +183,10 @@ export function QrPaymentWaitModal({
 
   if (paidCharge !== undefined) {
     return (
-      <PaidModal
+      <MercadoPagoPaidModal
+        context="QR DE MERCADO PAGO"
+        title="El cliente pagó el QR"
+        paidLabel="Pagado con QR"
         amount={order.amount}
         pending={paidCharge.kind === "partially_paid" ? paidCharge.pending : undefined}
         onContinue={() =>
@@ -296,7 +291,7 @@ export function QrPaymentWaitModal({
           <div className="flex items-center gap-6">
             <CountdownRing
               remainingSeconds={remainingSeconds}
-              totalSeconds={order.remaining_seconds}
+              totalSeconds={order.wait_seconds}
               label="Tiempo para pagar"
             />
             <ProgressSteps
@@ -327,44 +322,6 @@ export function QrPaymentWaitModal({
           title="Al llegar a cero, la orden vence y el cliente ya no puede pagarla."
         />
       </div>
-    </Modal>
-  );
-}
-
-function PaidModal({
-  amount,
-  pending,
-  onContinue,
-}: {
-  amount: number;
-  pending: number | undefined;
-  onContinue: () => void;
-}) {
-  return (
-    <Modal
-      open
-      onOpenChange={() => undefined}
-      width="standard"
-      tone="success"
-      icon={<CircleCheck />}
-      context="QR DE MERCADO PAGO"
-      contextTone="success"
-      title="El cliente pagó el QR"
-      closable={false}
-      footer={
-        <Button size="large" fullWidth icon={<ArrowRight />} onPress={onContinue}>
-          Continuar
-        </Button>
-      }
-    >
-      <SummaryRowGroup
-        rows={[
-          { label: "Pagado con QR", value: formatCents(amount) },
-          ...(pending === undefined
-            ? []
-            : [{ label: "Falta cobrar", value: formatCents(pending) }]),
-        ]}
-      />
     </Modal>
   );
 }
