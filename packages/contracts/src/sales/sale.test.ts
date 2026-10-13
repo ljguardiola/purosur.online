@@ -102,7 +102,6 @@ describe("saleSchema", () => {
     null,
     "mercado_pago_charge_in_progress",
     "holds_mercado_pago_payment",
-    "holds_standalone_terminal_payment",
   ] as const)("accepts a sale whose cancellation is refused by %s", (cancel_refusal) => {
     expect(saleSchema.parse({ ...sale, cancel_refusal }).cancel_refusal).toBe(cancel_refusal);
   });
@@ -564,7 +563,6 @@ describe("cancelPaidSaleOutcomeSchema", () => {
     { kind: "locked", consecutive_failures: PIN_SIGN_IN_LOCKOUT_FAILURES },
     { kind: "mercado_pago_charge_in_progress" },
     { kind: "holds_mercado_pago_payment" },
-    { kind: "holds_standalone_terminal_payment" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(cancelPaidSaleOutcomeSchema.parse(outcome)).toEqual(outcome);
   });
@@ -577,6 +575,7 @@ describe("cancelPaidSaleOutcomeSchema", () => {
       refunds: [{ payment_id: "p2", method: "CARD", amount: 500, state: "PENDING" }],
     },
     { kind: "has_approved_payment" },
+    { kind: "holds_standalone_terminal_payment" },
     { kind: "somewhere_else" },
     {},
   ])("rejects the outcome %j", (outcome) => {

@@ -476,6 +476,85 @@ describe("cancelPaidSale", () => {
     });
   });
 
+  describe("a sale partly paid on the standalone card terminal", () => {
+    it.each(["sale", "locked_register"] as const)(
+      "cancels it from the %s, leaving the terminal payment's refund pending with no cash movement",
+      async (from) => {
+        const store = ledger({ payments: [CASH_PAYMENT, STANDALONE_TERMINAL_PAYMENT] });
+
+        const outcome = await cancel(
+          store,
+          from === "sale" ? OWN_GRANT : CLOSER_GRANT,
+          "sale-1",
+          from,
+        );
+
+        expect(outcome).toMatchObject({
+          kind: "cancelled",
+          refunds: [
+            CASH_REFUND,
+            {
+              id: "id-2",
+              saleId: "sale-1",
+              paymentId: "payment-5",
+              method: "STANDALONE_TERMINAL",
+              provider: "EXTERNAL_TERMINAL",
+              amount: 1200,
+              state: "PENDING",
+              occurredAt: NOW,
+            },
+          ],
+        });
+        expect(store.state.refunds).toHaveLength(2);
+        expect(store.state.movements.filter(({ type }) => type === "REFUND")).toHaveLength(1);
+      },
+    );
+
+    it("refunds a sale paid only there with a pending refund and no cash movement", async () => {
+      const store = ledger({ payments: [STANDALONE_TERMINAL_PAYMENT] });
+
+      await cancel(store);
+
+      expect(store.state.refunds).toEqual([
+        {
+          id: "id-1",
+          saleId: "sale-1",
+          paymentId: "payment-5",
+          method: "STANDALONE_TERMINAL",
+          provider: "EXTERNAL_TERMINAL",
+          amount: 1200,
+          state: "PENDING",
+          occurredAt: NOW,
+        },
+      ]);
+      expect(store.state.movements.filter(({ type }) => type === "REFUND")).toEqual([]);
+    });
+
+    it("tells the cloud with a version 5 event carrying the payment and its pending refund", async () => {
+      const store = ledger({ payments: [STANDALONE_TERMINAL_PAYMENT] });
+
+      await cancel(store);
+
+      const [event] = store.state.outbox;
+      expect(event).toMatchObject({
+        event_type: "sale_cancelled",
+        schema_version: 5,
+        payload: {
+          payments: [{ id: "payment-5", method: "STANDALONE_TERMINAL", state: "APPROVED" }],
+          refunds: [
+            {
+              parent_id: "payment-5",
+              method: "STANDALONE_TERMINAL",
+              provider: "EXTERNAL_TERMINAL",
+              amount: 1200,
+              state: "PENDING",
+            },
+          ],
+        },
+      });
+    });
+  });
+
   describe("what it refuses", () => {
     it.each([
       { from: "sale", method: "QR", payment: QR_PAYMENT },
@@ -496,24 +575,6 @@ describe("cancelPaidSale", () => {
         );
 
         expect(outcome).toEqual({ kind: "holds_mercado_pago_payment" });
-        expect(store.state).toEqual(before);
-      },
-    );
-
-    it.each(["sale", "locked_register"] as const)(
-      "refuses a sale holding an approved standalone terminal payment from the %s, leaving everything as it was",
-      async (from) => {
-        const store = ledger({ payments: [CASH_PAYMENT, STANDALONE_TERMINAL_PAYMENT] });
-        const before = structuredClone(store.state);
-
-        const outcome = await cancel(
-          store,
-          from === "sale" ? OWN_GRANT : CLOSER_GRANT,
-          "sale-1",
-          from,
-        );
-
-        expect(outcome).toEqual({ kind: "holds_standalone_terminal_payment" });
         expect(store.state).toEqual(before);
       },
     );

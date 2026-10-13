@@ -60,7 +60,6 @@ describe("cancelling the open sale of a locked register", () => {
     { kind: "rate_limited", retry_after_seconds: 1, attempts_left: 2 },
     { kind: "mercado_pago_charge_in_progress" },
     { kind: "holds_mercado_pago_payment" },
-    { kind: "holds_standalone_terminal_payment" },
   ])("accepts the result $kind", (outcome) => {
     const message = { type: "cancel-locked-sale-result", request_id: REQUEST_ID, outcome };
 
@@ -72,6 +71,7 @@ describe("cancelling the open sale of a locked register", () => {
     { kind: "closed" },
     { kind: "x" },
     { kind: "has_approved_payment" },
+    { kind: "holds_standalone_terminal_payment" },
     { kind: "cancelled" },
     {
       kind: "cancelled",
