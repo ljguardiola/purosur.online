@@ -1,10 +1,14 @@
 export type { FreightMeans, FreightPeriodDays } from "./model/freight.js";
 export {
+  FREIGHT_CARRIER_NAME_MAX_LENGTH,
+  FREIGHT_DESCRIPTION_MAX_LENGTH,
   FREIGHT_PERIOD_DAYS,
   freightPeriodStart,
   hasFreightPurchases,
   isFreightAmount,
+  isFreightCarrierNameTooLong,
   isFreightDescription,
+  isFreightDescriptionTooLong,
   isValidFreightMeans,
   MIN_FREIGHT_PURCHASES,
 } from "./model/freight.js";

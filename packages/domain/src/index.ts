@@ -369,13 +369,17 @@ export {
 } from "./pricing/index.js";
 export type { FreightMeans, FreightPeriodDays, ReceiptType } from "./purchasing/index.js";
 export {
+  FREIGHT_CARRIER_NAME_MAX_LENGTH,
+  FREIGHT_DESCRIPTION_MAX_LENGTH,
   FREIGHT_PERIOD_DAYS,
   freightPeriodStart,
   hasPurchaseLines,
   hasValidReceiptNumber,
   isCostPaid,
   isFreightAmount,
+  isFreightCarrierNameTooLong,
   isFreightDescription,
+  isFreightDescriptionTooLong,
   isLotNumberTooLong,
   isPackageCount,
   isPackagingNameTooLong,
