@@ -442,6 +442,12 @@ export {
   assemblyBatchPreviewBodySchema,
 } from "./stock/assembly-batch-body.js";
 export type {
+  ExpiredLotDiscardResult,
+  ExpiringLot,
+  ExpiringLotList,
+} from "./stock/expiring-lots.js";
+export { expiredLotDiscardResultSchema, expiringLotListSchema } from "./stock/expiring-lots.js";
+export type {
   FindCountableProductOutcome,
   InitialCountLine,
   ReadInitialCountOutcome,

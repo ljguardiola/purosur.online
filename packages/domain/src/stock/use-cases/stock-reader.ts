@@ -2,7 +2,7 @@ import type { SaleUnit } from "../../catalog/index.js";
 import type { StockLot } from "../model/lot-allocation.js";
 import type { LotCost } from "../model/lot-value.js";
 import type { ManualStockMovementKind } from "../model/stock-movement-kind.js";
-import type { AdjustmentReason, LossReason } from "../model/stock-movement-reason.js";
+import type { AdjustmentReason, RecordedLossReason } from "../model/stock-movement-reason.js";
 import type { ProductStockKey } from "./stock-store.js";
 
 export interface StockProduct {
@@ -64,7 +64,7 @@ export interface RecordedStockMovement {
   categoryName: string;
   saleUnit: SaleUnit;
   kind: ManualStockMovementKind;
-  reason: LossReason | AdjustmentReason;
+  reason: RecordedLossReason | AdjustmentReason;
   delta: number;
   occurredAt: Date;
   superseded: boolean;

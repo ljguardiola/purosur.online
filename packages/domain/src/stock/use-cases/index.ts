@@ -31,11 +31,22 @@ export type {
 } from "./assembly-batch-store.js";
 export type { BatchLotReader, PreviewLot } from "./batch-lot-reader.js";
 export type {
+  DiscardExpiredLotInput,
+  DiscardExpiredLotOutcome,
+} from "./discard-expired-lot.js";
+export { discardExpiredLot } from "./discard-expired-lot.js";
+export type {
   CountableLot,
   ExpectedBalanceAtInput,
   ExpectedBalanceAtOutcome,
 } from "./expected-balance-at.js";
 export { expectedBalanceAt } from "./expected-balance-at.js";
+export type {
+  ExpiringLotProduct,
+  ExpiringLotReader,
+  ExpiringLotRow,
+  ExpiryWarningWindowReader,
+} from "./expiring-lot-reader.js";
 export type {
   FindCountableProductByBarcodeOutcome,
   FoundCountableProduct,
@@ -77,6 +88,12 @@ export type {
   PreviewedBatchLot,
 } from "./preview-assembly-batch.js";
 export { previewAssemblyBatch } from "./preview-assembly-batch.js";
+export type {
+  ExpiringLotsView,
+  ExpiringLotView,
+  ReadExpiringLotsInput,
+} from "./read-expiring-lots.js";
+export { readExpiringLots } from "./read-expiring-lots.js";
 export type { ReadInitialCountOutcome } from "./read-initial-count.js";
 export { readInitialCount } from "./read-initial-count.js";
 export type {

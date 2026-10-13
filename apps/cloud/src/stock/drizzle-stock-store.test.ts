@@ -1,5 +1,6 @@
 import {
   applyOpeningCount,
+  discardExpiredLot,
   recordLoss,
   registerCount,
   withdrawOpeningCount,
@@ -23,7 +24,7 @@ import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/lo
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleStockStore } from "./drizzle-stock-store.js";
-import { insertPurchasedLot } from "./test-support/lot-fixtures.js";
+import { insertInitialCountLot, insertPurchasedLot } from "./test-support/lot-fixtures.js";
 
 const COUNTED_AT = new Date("2026-09-15T21:32:00.000Z");
 const BEFORE_COUNT = new Date("2026-09-15T20:00:00.000Z");
@@ -815,6 +816,90 @@ describe("DrizzleStockStore initial count", () => {
 
     expect(await changesLoggedAfter(db, before)).toEqual([
       { entity: "stock_movement", entityId: MOVEMENT_ID, version: 1, op: "insert", locationId },
+    ]);
+  });
+});
+
+describe("DrizzleStockStoreTransaction.lotProduct", () => {
+  it("answers the product of a lot of the branch", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct();
+    const actorId = await insertUser(locationId);
+    const lotId = await insertPurchasedLot(db, { productId, locationId, actorId });
+    const store = new DrizzleStockStore(db);
+
+    expect(await store.transaction((tx) => tx.lotProduct(lotId, locationId))).toBe(productId);
+  });
+
+  it("answers nothing for a lot of another branch", async () => {
+    const locationId = await seededLocationId(db);
+    const otherLocationId = await insertLocation();
+    const productId = await insertProduct();
+    const actorId = await insertUser(locationId);
+    const lotId = await insertPurchasedLot(db, { productId, locationId, actorId });
+    const store = new DrizzleStockStore(db);
+
+    expect(await store.transaction((tx) => tx.lotProduct(lotId, otherLocationId))).toBeUndefined();
+  });
+
+  it("answers the product of a lot withdrawn from the initial count", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct();
+    const actorId = await insertUser(locationId);
+    const { lotId } = await insertInitialCountLot(db, {
+      productId,
+      locationId,
+      actorId,
+      withdrawn: true,
+    });
+    const store = new DrizzleStockStore(db);
+
+    expect(await store.transaction((tx) => tx.lotProduct(lotId, locationId))).toBe(productId);
+  });
+
+  it("answers nothing for an unknown lot", async () => {
+    const locationId = await seededLocationId(db);
+    const store = new DrizzleStockStore(db);
+
+    expect(
+      await store.transaction((tx) =>
+        tx.lotProduct("00000000-0000-4000-8000-000000000000", locationId),
+      ),
+    ).toBeUndefined();
+  });
+});
+
+describe("discarding an expired lot through the store", () => {
+  it("empties the lot, lowers the balance and records a loss for expiry", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct();
+    const actorId = await insertUser(locationId);
+    const lotId = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId,
+      expiresOn: "2026-09-10",
+      remaining: 4_000,
+    });
+    await db.insert(stockBalances).values({ productId, locationId, quantity: 10_000 });
+
+    const outcome = await discardExpiredLot(portsAt(NOW), { lotId, locationId, actorId });
+
+    expect(outcome).toMatchObject({ kind: "discarded", quantity: 4_000, balance: 6_000 });
+    expect(await db.select({ remaining: lots.remaining }).from(lots)).toEqual([{ remaining: 0 }]);
+    expect(await db.select().from(stockMovements)).toEqual([
+      expect.objectContaining({
+        productId,
+        locationId,
+        kind: "loss",
+        reason: "expired",
+        delta: -4_000,
+        occurredAt: NOW,
+        actorId,
+      }),
+    ]);
+    expect(await db.select().from(lotAllocations)).toEqual([
+      expect.objectContaining({ lotId, quantity: -4_000 }),
     ]);
   });
 });

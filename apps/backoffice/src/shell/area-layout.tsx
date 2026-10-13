@@ -12,6 +12,7 @@ import {
   canRecordPurchases,
   canSeeCashArea,
   canSeeCatalogArea,
+  canSeeExpiringLots,
   canSeePricesArea,
   canSeeRefundsArea,
   canSeeReports,
@@ -56,9 +57,11 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
             ? "/purchase-packagings"
             : canRecordPurchases(session)
               ? "/purchases"
-              : canManageRecipes(session)
-                ? "/recipes"
-                : "/initial-inventory";
+              : canSeeExpiringLots(session)
+                ? "/expiring-lots"
+                : canManageRecipes(session)
+                  ? "/recipes"
+                  : "/initial-inventory";
   const cashTarget = canSeeCashArea(session) ? "/points-of-sale" : "/pending-refunds";
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (

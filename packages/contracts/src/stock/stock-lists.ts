@@ -8,6 +8,7 @@ import {
   STOCK_CORRECTIONS,
   STOCK_DIRECTIONS,
   STOCK_PERIOD_DAYS,
+  SYSTEM_LOSS_REASONS,
 } from "@purosur/domain";
 import { z } from "zod";
 
@@ -118,7 +119,7 @@ const stockMovementSchema = z.object({
   categoryName: z.string(),
   saleUnit: z.enum(SALE_UNITS),
   kind: z.enum(MANUAL_STOCK_MOVEMENT_KINDS),
-  reason: z.enum([...LOSS_REASONS, ...ADJUSTMENT_REASONS]),
+  reason: z.enum([...LOSS_REASONS, ...SYSTEM_LOSS_REASONS, ...ADJUSTMENT_REASONS]),
   delta: z.int(),
   occurredAt: z.iso.datetime(),
   superseded: z.boolean(),
