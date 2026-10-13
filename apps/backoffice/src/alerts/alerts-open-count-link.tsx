@@ -1,7 +1,7 @@
-import { LoadingPlaceholder, PillButton, PillLink } from "@purosur/ui";
+import { LoadFailure, LoadingPlaceholder, PillLink } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
-import { Bell, RotateCw } from "lucide-react";
-import { useState } from "react";
+import { Bell } from "lucide-react";
+import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import {
   type AlertsOpenCountLinkServices,
   defaultAlertsOpenCountLinkServices,
@@ -18,29 +18,16 @@ export type AlertsOpenCountLinkProps = {
 };
 
 export function AlertsOpenCountLink({ onSessionEnded, services }: AlertsOpenCountLinkProps) {
-  const [refused, setRefused] = useState(false);
   const overview = useAlertsOverviewQuery({
     fetchAlertsOverview: (services ?? defaultAlertsOpenCountLinkServices).fetchAlertsOverview,
     onSessionEnded,
-    onForbidden: () => setRefused(true),
+    whenForbidden: "fail",
   });
-  if (refused) {
-    return null;
-  }
   if (overview.status === "loading") {
     return <LoadingPlaceholder variant="pill" />;
   }
   if (overview.status === "failed") {
-    return (
-      <PillButton
-        tone="error"
-        icon={<RotateCw />}
-        aria-label="No se cargaron las alertas. Reintentar"
-        onPress={overview.retry}
-      >
-        No se cargaron las alertas
-      </PillButton>
-    );
+    return <LoadFailure variant="pill" {...cloudLoadFailure(overview, "las alertas")} />;
   }
   const openCount = openAlertsCount(overview.value);
   if (openCount === 0) {

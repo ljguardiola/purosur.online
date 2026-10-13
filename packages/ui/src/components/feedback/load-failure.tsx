@@ -1,8 +1,10 @@
 import { Button } from "../forms/button";
+import { Tooltip } from "../overlays/tooltip";
 import type { Icon } from "../shared/icon";
 import { InlineNotice } from "./inline-notice";
+import { PillButton } from "./pill-button";
 
-export type LoadFailureVariant = "section" | "screen";
+export type LoadFailureVariant = "section" | "screen" | "pill";
 
 export type LoadFailureProps = {
   icon: Icon;
@@ -19,6 +21,16 @@ export function LoadFailure({
   variant = "section",
   onRetry,
 }: LoadFailureProps) {
+  if (variant === "pill") {
+    const pill = (
+      <PillButton tone="error" icon={icon} aria-label={`${title}. Reintentar`} onPress={onRetry}>
+        {title}
+        <span className="underline">Reintentar</span>
+      </PillButton>
+    );
+    return description === undefined ? pill : <Tooltip description={description}>{pill}</Tooltip>;
+  }
+
   const notice = (
     <InlineNotice
       tone="error"

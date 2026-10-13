@@ -58,8 +58,6 @@ export type { NotificationCardProps } from "./components/feedback/notification-c
 export { NotificationCard } from "./components/feedback/notification-card";
 export type { PillProps, PillTone } from "./components/feedback/pill";
 export { Pill } from "./components/feedback/pill";
-export type { PillButtonProps } from "./components/feedback/pill-button";
-export { PillButton } from "./components/feedback/pill-button";
 export type { PillLinkProps } from "./components/feedback/pill-link";
 export { PillLink } from "./components/feedback/pill-link";
 export type {
