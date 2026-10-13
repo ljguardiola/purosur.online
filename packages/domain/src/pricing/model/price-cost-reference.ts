@@ -1,4 +1,9 @@
-import { argentinaCalendarDay, type Fraction, roundHalfUp } from "../../shared/index.js";
+import {
+  argentinaCalendarDay,
+  type Fraction,
+  roundHalfUp,
+  roundHalfUpSigned,
+} from "../../shared/index.js";
 import { type LotCost, STOCK_QUANTITY_PER_UNIT, unitCostCents } from "../../stock/index.js";
 
 export const FREIGHT_PER_UNIT_CENTS = 0;
@@ -94,14 +99,6 @@ export function lastCostSource(sources: readonly CostSource[]): CostSource | nul
   return lastDatedCost(sources)?.source ?? null;
 }
 
-// roundHalfUp truncates a negative quotient toward zero, so the numerator is moved to a
-// non-negative remainder first.
-function roundHalfUpSigned(numerator: bigint, denominator: bigint): number {
-  const wholes = numerator / denominator - 1n;
-  const remainder = numerator - wholes * denominator;
-  return Number(wholes) + roundHalfUp({ numerator: remainder, denominator });
-}
-
 function totalCostFraction(
   { totalCents, quantity }: LotCost,
   freightPerUnitCents: number,
@@ -117,7 +114,10 @@ function totalCostFraction(
 
 function marginTenthsOfPercent(totalCost: Fraction, unitPrice: number): number {
   const priceNumerator = BigInt(unitPrice) * totalCost.denominator;
-  return roundHalfUpSigned((priceNumerator - totalCost.numerator) * 1000n, priceNumerator);
+  return roundHalfUpSigned({
+    numerator: (priceNumerator - totalCost.numerator) * 1000n,
+    denominator: priceNumerator,
+  });
 }
 
 export function priceCostReference(

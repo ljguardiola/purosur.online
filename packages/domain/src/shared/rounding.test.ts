@@ -53,9 +53,12 @@ describe("roundHalfUpSigned", () => {
     [-3n, 2n, -1],
     [-1500n, 1000n, -1],
     [-1501n, 1000n, -2],
-  ])("rounds %s / %s to %s, a half towards the larger value", (numerator, denominator, expected) => {
-    expect(roundHalfUpSigned({ numerator, denominator })).toBe(expected);
-  });
+  ])(
+    "rounds %s / %s to %s, a half towards the larger value",
+    (numerator, denominator, expected) => {
+      expect(roundHalfUpSigned({ numerator, denominator })).toBe(expected);
+    },
+  );
 
   it("is within half a unit of the exact value for every fraction of either sign", () => {
     fc.assert(
