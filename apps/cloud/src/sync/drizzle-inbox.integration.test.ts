@@ -263,6 +263,12 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
         walSizeBytes: 4096,
         diskFreeBytes: 50_000_000,
         diskFreeRatio: 0.42,
+        batteryPresent: null,
+        batteryChargePercent: null,
+        batteryHealthPercent: null,
+        batteryOnBattery: null,
+        batteryOnBatteryMinutes: null,
+        batteryReportedAt: null,
       },
     ]);
   });
@@ -458,6 +464,136 @@ describe("the inbox keeping the state of a register's serial devices, on a real 
     await push(deviceId, linked(event(1)));
 
     expect(await serialDevicesOf(deviceId)).toEqual([]);
+  });
+});
+
+describe("the inbox keeping the latest battery a register reported, on a real Postgres", () => {
+  const PRESENT: RegisterTelemetry = {
+    ...TELEMETRY,
+    battery: {
+      present: true,
+      charge_percent: 64,
+      health_percent: 88,
+      on_battery: true,
+      on_battery_minutes: 12,
+    },
+  };
+
+  async function batteryOf(deviceId: string) {
+    const [row] = await db
+      .select({
+        present: deviceState.batteryPresent,
+        chargePercent: deviceState.batteryChargePercent,
+        healthPercent: deviceState.batteryHealthPercent,
+        onBattery: deviceState.batteryOnBattery,
+        onBatteryMinutes: deviceState.batteryOnBatteryMinutes,
+        reportedAt: deviceState.batteryReportedAt,
+      })
+      .from(deviceState)
+      .where(eq(deviceState.deviceId, deviceId));
+    return row;
+  }
+
+  it("keeps the battery a push reported and when it reported it", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+
+    await push(deviceId, linked(event(1)), "1.4.0", PRESENT);
+
+    expect(await batteryOf(deviceId)).toEqual({
+      present: true,
+      chargePercent: 64,
+      healthPercent: 88,
+      onBattery: true,
+      onBatteryMinutes: 12,
+      reportedAt: NOW,
+    });
+  });
+
+  it("keeps a battery reported without a health with none", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+
+    await push(deviceId, [], "1.4.0", {
+      ...TELEMETRY,
+      battery: { present: true, charge_percent: 20, on_battery: false, on_battery_minutes: 0 },
+    });
+
+    expect(await batteryOf(deviceId)).toMatchObject({ chargePercent: 20, healthPercent: null });
+  });
+
+  it("replaces an earlier report with a later one", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+    await push(deviceId, linked(event(1)), "1.4.0", PRESENT);
+
+    await push(deviceId, [], "1.4.0", {
+      ...TELEMETRY,
+      battery: { present: true, charge_percent: 90, on_battery: false, on_battery_minutes: 0 },
+    });
+
+    expect(await batteryOf(deviceId)).toEqual({
+      present: true,
+      chargePercent: 90,
+      healthPercent: null,
+      onBattery: false,
+      onBatteryMinutes: 0,
+      reportedAt: NOW,
+    });
+  });
+
+  it("keeps no measure for a register that reports having no battery", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+    await push(deviceId, linked(event(1)), "1.4.0", PRESENT);
+
+    await push(deviceId, [], "1.4.0", { ...TELEMETRY, battery: { present: false } });
+
+    expect(await batteryOf(deviceId)).toEqual({
+      present: false,
+      chargePercent: null,
+      healthPercent: null,
+      onBattery: null,
+      onBatteryMinutes: null,
+      reportedAt: NOW,
+    });
+  });
+
+  it("keeps what it holds when a push carries no battery report", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+    await push(deviceId, linked(event(1)), "1.4.0", PRESENT);
+
+    await push(deviceId, [], "1.4.1", TELEMETRY);
+
+    expect(await batteryOf(deviceId)).toMatchObject({ present: true, chargePercent: 64 });
+  });
+
+  it("holds no battery for an installation that never reported one", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+
+    await push(deviceId, linked(event(1)));
+
+    expect(await batteryOf(deviceId)).toEqual({
+      present: null,
+      chargePercent: null,
+      healthPercent: null,
+      onBattery: null,
+      onBatteryMinutes: null,
+      reportedAt: null,
+    });
+  });
+
+  it("keeps the battery of each installation apart", async () => {
+    const first = await insertEnrolledInstallation();
+    const second = await insertEnrolledInstallation();
+    await push(second.deviceId, linked(event(1)));
+
+    await push(first.deviceId, linked(event(1)), "1.4.0", PRESENT);
+
+    expect(await batteryOf(second.deviceId)).toEqual({
+      present: null,
+      chargePercent: null,
+      healthPercent: null,
+      onBattery: null,
+      onBatteryMinutes: null,
+      reportedAt: null,
+    });
   });
 });
 

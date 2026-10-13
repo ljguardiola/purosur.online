@@ -1023,6 +1023,12 @@ export const deviceState = pgTable("device_state", {
   walSizeBytes: bigint("wal_size_bytes", { mode: "number" }),
   diskFreeBytes: bigint("disk_free_bytes", { mode: "number" }),
   diskFreeRatio: doublePrecision("disk_free_ratio"),
+  batteryPresent: boolean("battery_present"),
+  batteryChargePercent: integer("battery_charge_percent"),
+  batteryHealthPercent: integer("battery_health_percent"),
+  batteryOnBattery: boolean("battery_on_battery"),
+  batteryOnBatteryMinutes: integer("battery_on_battery_minutes"),
+  batteryReportedAt: timestamp("battery_reported_at", { withTimezone: true }),
 });
 
 export const serialDeviceState = pgTable(
