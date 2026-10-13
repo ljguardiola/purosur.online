@@ -6,8 +6,10 @@ import {
 } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
 import { sortedItems, textOrder } from "@purosur/ui";
+import { schemaLimit } from "../platform/schema-limit";
 import {
   formatStockQuantityInput,
+  formatStockQuantityLimit,
   parseStockQuantity,
   quantityMessage,
 } from "../platform/stock-quantity";
@@ -37,7 +39,6 @@ export const RECIPE_FIELDS = { components: "components", version: null } as cons
 export const RECIPE_PRODUCT_REQUIRED = "Elegí el producto armado.";
 export const RECIPE_PRODUCT_NOT_FOUND = "Este producto ya no está disponible. Elegí otro.";
 export const RECIPE_NO_COMPONENTS = "Agregá al menos un componente.";
-const RECIPE_QUANTITY_NOT_POSITIVE = "ingresá una cantidad mayor a cero.";
 const RECIPE_COMPONENT_NOT_FOUND = "Este componente ya no está disponible. Quitalo.";
 const RECIPE_COMPONENT_REPEATED = "Este componente está repetido.";
 const RECIPE_COMPONENT_IS_PRODUCT =
@@ -98,6 +99,7 @@ export function recipeSaveRequestFrom(values: RecipeFormValues): RecipeSaveBody 
 }
 
 const componentSchema = recipeSaveBodySchema.shape.components.element;
+const MAX_QUANTITY = schemaLimit(componentSchema.shape.quantityPerOutputUnit.meta()?.["maxValue"]);
 
 function withLowercaseInitial(message: string): string {
   return `${message.charAt(0).toLowerCase()}${message.slice(1)}`;
@@ -120,9 +122,9 @@ export function recipeComponentsMessage({ components }: RecipeFormValues): strin
   if (wrong.quantity.trim() === "") {
     return `${wrong.name}: ingresá la cantidad.`;
   }
-  return parseStockQuantity(wrong.quantity, wrong.saleUnit) === 0
-    ? `${wrong.name}: ${RECIPE_QUANTITY_NOT_POSITIVE}`
-    : `${wrong.name}: ${withLowercaseInitial(quantityMessage(wrong.saleUnit))}`;
+  return parseStockQuantity(wrong.quantity, wrong.saleUnit) === undefined
+    ? `${wrong.name}: ${withLowercaseInitial(quantityMessage(wrong.saleUnit))}`
+    : `${wrong.name}: ingresá una cantidad mayor a cero, de hasta ${formatStockQuantityLimit(MAX_QUANTITY, wrong.saleUnit)}.`;
 }
 
 export function recipeFormValuesOf(recipe: RecipeSummary): RecipeFormValues {

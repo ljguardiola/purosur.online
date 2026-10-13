@@ -1,4 +1,5 @@
 import {
+  MAX_STOCK_QUANTITY,
   mayBeMovementQuantity,
   STOCK_QUANTITY_DECIMALS,
   STOCK_QUANTITY_PER_UNIT,
@@ -13,7 +14,11 @@ const recipeComponentBodySchema = z.object({
   quantityPerOutputUnit: z
     .number({ error: QUANTITY_MESSAGE })
     .refine(mayBeMovementQuantity, QUANTITY_MESSAGE)
-    .meta({ decimals: STOCK_QUANTITY_DECIMALS, perUnit: STOCK_QUANTITY_PER_UNIT }),
+    .meta({
+      decimals: STOCK_QUANTITY_DECIMALS,
+      perUnit: STOCK_QUANTITY_PER_UNIT,
+      maxValue: MAX_STOCK_QUANTITY,
+    }),
 });
 
 export const recipeSaveBodySchema = z.object({
