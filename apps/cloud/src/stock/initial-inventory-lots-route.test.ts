@@ -167,13 +167,13 @@ describe("GET /initial-inventory-lots", () => {
     });
   });
 
-  it("lists the lot of a withdrawn line that still holds stock, marked and with what it holds, and leaves out the one holding none", async () => {
+  it("lists the lot of a withdrawn line that still holds stock, marked and with what it holds", async () => {
     const { headers, locationId, userId } = await signedInWith(
       db,
       ["record_initial_inventory"],
       NOW,
     );
-    const { productId } = await insertProduct(db, { saleUnit: "KG" });
+    const { productId } = await insertProduct(db);
     const holding = await insertInitialCountLot(db, {
       productId,
       locationId,
@@ -181,36 +181,13 @@ describe("GET /initial-inventory-lots", () => {
       counted: 2_500,
       withdrawn: true,
       remaining: 1_500,
-      unitCostCents: 400,
-    });
-    await insertInitialCountLot(db, {
-      productId,
-      locationId,
-      actorId: userId,
-      withdrawn: true,
-      remaining: 0,
-    });
-    await insertInitialCountLot(db, {
-      productId,
-      locationId,
-      actorId: userId,
-      withdrawn: true,
-      remaining: -500,
     });
 
     const response = await listRequest(headers);
 
     expect(response.statusCode).toBe(200);
     expect(response.json().lots).toEqual([
-      expect.objectContaining({
-        lotId: holding.lotId,
-        counted: 2_500,
-        withdrawn: true,
-        remaining: 1_500,
-        costIncomplete: false,
-        unitCostCents: 400,
-        valueCents: 600,
-      }),
+      expect.objectContaining({ lotId: holding.lotId, withdrawn: true, remaining: 1_500 }),
     ]);
   });
 

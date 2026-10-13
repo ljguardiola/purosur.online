@@ -71,13 +71,23 @@ test("shows each lot with its product, expiry, counted quantity, reference cost 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("marks the lot of a withdrawn line under its counted quantity, with what it still holds", async () => {
-  const screen = await renderScreen(createServices([initialLotWithdrawnStillHeld]));
+test.each([
+  [initialLotWithdrawnStillHeld, "2,000 kg", "Línea retirada · en stock: 1,500 kg"],
+  [
+    { ...initialLotWithdrawnStillHeld, saleUnit: "UNIT" as const, remaining: 1_000 },
+    "2 u",
+    "Línea retirada · en stock: 1 u",
+  ],
+])(
+  "marks the lot of a withdrawn line under its counted quantity, with what it still holds: %#",
+  async (lot, counted, mark) => {
+    const screen = await renderScreen(createServices([lot]));
 
-  await expect.element(screen.getByText("Línea retirada · quedan 1,500 kg")).toBeVisible();
-  const rows = screen.getByRole("table", { name: TABLE }).getByRole("row").elements();
-  expect(rows[1]?.textContent).toContain("2,000 kgLínea retirada · quedan 1,500 kg");
-});
+    await expect.element(screen.getByText(mark)).toBeVisible();
+    const rows = screen.getByRole("table", { name: TABLE }).getByRole("row").elements();
+    expect(rows[1]?.textContent).toContain(`${counted}${mark}`);
+  },
+);
 
 test("shows no mark on the lots of lines not withdrawn", async () => {
   const screen = await renderScreen(createServices());

@@ -47,17 +47,23 @@ test("names the product and how much of the lot was counted", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("says a withdrawn line's lot comes from it and how much of the lot is left", async () => {
-  const screen = await renderModal(createProps({ lot: initialLotWithdrawnStillHeld }));
+test.each([
+  [
+    initialLotWithdrawnStillHeld,
+    "Lote de una línea retirada de la puesta en marcha, con 1,500 kg en stock.",
+  ],
+  [
+    { ...initialLotWithdrawnStillHeld, saleUnit: "UNIT" as const, remaining: 1_000 },
+    "Lote de una línea retirada de la puesta en marcha, con 1 u en stock.",
+  ],
+])(
+  "says a withdrawn line's lot comes from it and how much of the lot is left: %#",
+  async (lot, text) => {
+    const screen = await renderModal(createProps({ lot }));
 
-  await expect
-    .element(
-      screen.getByText(
-        "Lote de una línea retirada de la puesta en marcha: quedan 1,500 kg.",
-      ),
-    )
-    .toBeVisible();
-});
+    await expect.element(screen.getByText(text)).toBeVisible();
+  },
+);
 
 test.each([
   [initialLotAlmonds, "Costo de referencia por kg"],
