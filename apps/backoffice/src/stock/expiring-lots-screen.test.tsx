@@ -150,6 +150,22 @@ test("names a window of one day in the singular", async () => {
   ]);
 });
 
+test("names a window of no days as the lots expiring today", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchExpiringLots).mockResolvedValue({
+    kind: "ok",
+    value: { ...expiringLotList([]), windowDays: 0 },
+  });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Ningún lote venció ni vence hoy.")).toBeVisible();
+  expect(await expiryOptions(screen)).toEqual([
+    "Vencidos y los que vencen hoy",
+    "Vencidos",
+    "Por vencer",
+  ]);
+});
+
 test("filters by the category and the name typed, and reports each change", async () => {
   const onFiltersChange = vi.fn();
   const screen = await renderScreen(listed(), { onFiltersChange });
