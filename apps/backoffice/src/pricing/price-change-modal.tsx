@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { formatCentsWithUnit } from "./money";
+import { PriceCostBreakdown } from "./price-cost-breakdown";
 import {
   AMOUNT_UNCHANGED,
   amountMessage,
@@ -20,8 +21,15 @@ import {
   type PriceFormValues,
   priceRequestFrom,
 } from "./price-form";
+import { PriceMarginReference } from "./price-margin-reference";
 import { modalEyebrow } from "./price-review-age";
-import type { ConfirmPriceOutcome, confirmPrice, SetPriceOutcome, setPrice } from "./prices-api";
+import type {
+  ConfirmPriceOutcome,
+  confirmPrice,
+  fetchPriceMargin,
+  SetPriceOutcome,
+  setPrice,
+} from "./prices-api";
 import type { PriceReload } from "./pricing-queries";
 
 const PRICE_LABEL = {
@@ -55,6 +63,7 @@ export type PriceChangeModalProps = {
   onSaved: (product: PriceProduct, outcome: PriceModalOutcome) => void;
   onGone: (product: PriceProduct) => void;
   reload: (id: string) => Promise<PriceReload>;
+  fetchPriceMargin: typeof fetchPriceMargin;
   setPrice: typeof setPrice;
   confirmPrice: typeof confirmPrice;
 };
@@ -67,6 +76,7 @@ export function PriceChangeModal({
   onSaved,
   onGone,
   reload,
+  fetchPriceMargin,
   setPrice,
   confirmPrice,
 }: PriceChangeModalProps) {
@@ -77,7 +87,7 @@ export function PriceChangeModal({
   const [notice, setNotice] = useState<ModalNotice | null>(null);
   const [previousNotice, setPreviousNotice] = useState<ScreenNotice | null>(null);
   const [working, setWorking] = useState(false);
-  const { form, submit, submitting, reset } = useRequestForm({
+  const { form, submit, submitting, reset, values } = useRequestForm({
     defaultValues: EMPTY_PRICE_FORM,
     request: { schema: priceSetBodySchema, from: priceRequestFrom },
     fields: { unitPrice: "amount", expectedCurrentPriceId: null },
@@ -376,6 +386,7 @@ export function PriceChangeModal({
               Recargar el precio
             </Button>
           ) : null}
+          <PriceCostBreakdown product={current} />
           <form.AppField name="amount">
             {(field) => (
               <field.TextField
@@ -391,6 +402,12 @@ export function PriceChangeModal({
               />
             )}
           </form.AppField>
+          <PriceMarginReference
+            product={current}
+            amount={values.amount}
+            fetchPriceMargin={fetchPriceMargin}
+            onSessionEnded={onSessionEnded}
+          />
         </div>
       ) : null}
     </Modal>

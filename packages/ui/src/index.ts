@@ -216,5 +216,6 @@ export { isLocalAlertKind, localAlertText, localAlertTitle } from "./messages/lo
 export type { LocaleProviderProps } from "./messages/locale-provider";
 export { LocaleProvider } from "./messages/locale-provider";
 export { parseAmountCents, parseEsArNumber, parseWeightThousandths } from "./messages/parsers";
+export { formatTenthsOfPercent } from "./messages/tenths-of-percent";
 export type { ItemOrder, ItemsSort } from "./ordering/item-ordering";
 export { sortedItems, textOrder } from "./ordering/item-ordering";

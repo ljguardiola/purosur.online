@@ -1448,6 +1448,10 @@ describe("wiring the prices routes", () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const list = await app.inject({ method: "GET", url: "/api/prices" });
+    const margin = await app.inject({
+      method: "GET",
+      url: "/api/prices/00000000-0000-0000-0000-000000000000/margin?unitPrice=100",
+    });
     const setPrice = await app.inject({
       method: "PUT",
       url: "/api/prices/00000000-0000-0000-0000-000000000000",
@@ -1460,6 +1464,7 @@ describe("wiring the prices routes", () => {
     });
 
     expect(list.statusCode).toBe(404);
+    expect(margin.statusCode).toBe(404);
     expect(setPrice.statusCode).toBe(404);
     expect(confirmation.statusCode).toBe(404);
   });
@@ -1472,6 +1477,10 @@ describe("wiring the prices routes", () => {
     });
 
     const list = await app.inject({ method: "GET", url: "/api/prices" });
+    const margin = await app.inject({
+      method: "GET",
+      url: "/api/prices/00000000-0000-0000-0000-000000000000/margin?unitPrice=100",
+    });
     const setPrice = await app.inject({
       method: "PUT",
       url: "/api/prices/00000000-0000-0000-0000-000000000000",
@@ -1484,6 +1493,7 @@ describe("wiring the prices routes", () => {
     });
 
     expect(list.statusCode).toBe(401);
+    expect(margin.statusCode).toBe(401);
     expect(setPrice.statusCode).toBe(401);
     expect(confirmation.statusCode).toBe(401);
   });
@@ -2520,6 +2530,11 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/prices",
+        access: capabilityAccess("prices_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/prices/:productId/margin",
         access: capabilityAccess("prices_area"),
       },
       {

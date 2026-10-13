@@ -28,6 +28,7 @@ test("every pricing query is keyed under the pricing concept's root key", () => 
     pricesKeys.reviewQueue,
     pricesKeys.reviewQueueOf(["product-1"]),
     pricesKeys.reload,
+    pricesKeys.margin("product-1", 820000),
     discountsKey,
     discountTargetsKey,
   ];

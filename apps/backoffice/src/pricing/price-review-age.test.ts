@@ -15,6 +15,7 @@ const rice: PriceProduct = {
   },
   secondsSinceReview: 3_456_000,
   pending: true,
+  costReference: null,
 };
 
 test.each([
