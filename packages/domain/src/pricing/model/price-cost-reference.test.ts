@@ -75,7 +75,7 @@ describe("lastCostSource", () => {
 
   it("dates an initial count at its Argentina calendar day", () => {
     const counted = initialCount("2026-03-02T01:00:00Z");
-    const bought = purchase("a", "2026-03-01", "2026-03-01T23:00:00Z");
+    const bought = purchase("a", "2026-03-02", "2026-03-02T00:30:00Z");
 
     expect(lastCostSource([bought, counted])).toBe(bought);
   });
