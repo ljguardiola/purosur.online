@@ -54,6 +54,14 @@ export const initialInventoryFilters = z.object({
 
 export type InitialInventoryFilters = z.output<typeof initialInventoryFilters>;
 
+export const expiringLotsFilters = z.object({
+  search: z.string().default("").catch(""),
+  category: z.string().default("ALL").catch("ALL"),
+  expiry: z.enum(["all", "expired", "upcoming"]).default("all").catch("all"),
+});
+
+export type ExpiringLotsFilters = z.output<typeof expiringLotsFilters>;
+
 export const stockBalancesRoute = createRoute({
   getParentRoute: () => stockAreaRoute,
   path: "inventory",

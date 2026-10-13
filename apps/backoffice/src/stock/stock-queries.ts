@@ -1,4 +1,5 @@
 import type {
+  ExpiringLotList,
   InitialInventoryLotList,
   InitialInventoryLotsQuery,
   StockBalanceList,
@@ -14,6 +15,7 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
 import type {
   fetchExpectedBalance,
+  fetchExpiringLots,
   fetchInitialInventoryLots,
   fetchStockBalances,
   fetchStockCounts,
@@ -27,6 +29,7 @@ export const stockKey = ["stock"] as const;
 export const stockKeys = {
   balances: [...stockKey, "balances"] as const,
   products: [...stockKey, "products"] as const,
+  expiringLots: [...stockKey, "expiring-lots"] as const,
   counts: (days: StockPeriodDays) => [...stockKey, "counts", days] as const,
   movements: (days: StockPeriodDays) => [...stockKey, "movements", days] as const,
   movementReasons: [...stockKey, "movement-reasons"] as const,
@@ -45,6 +48,18 @@ export function useStockBalancesQuery(
   return useCloudQuery<StockBalanceList>({
     queryKey: stockKeys.balances,
     read: params.fetchStockBalances,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useExpiringLotsQuery(
+  params: ReadParams & { fetchExpiringLots: typeof fetchExpiringLots },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<ExpiringLotList>({
+    queryKey: stockKeys.expiringLots,
+    read: params.fetchExpiringLots,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
