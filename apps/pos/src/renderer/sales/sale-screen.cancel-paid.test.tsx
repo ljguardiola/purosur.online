@@ -17,10 +17,16 @@ const PAID_SALE: OpenSale = {
   cancel_refusal: null,
   refunds_on_cancel: [CASH_REFUND],
 };
+const STANDALONE_TERMINAL_REFUND = {
+  payment_id: "p2",
+  method: "STANDALONE_TERMINAL",
+  amount: 90_000,
+  state: "PENDING",
+} as const;
 const SALE_WITH_STANDALONE_TERMINAL_PAYMENT: OpenSale = {
   ...PAID_SALE,
-  cancel_refusal: "holds_standalone_terminal_payment",
-  refunds_on_cancel: [],
+  paid: 90_000,
+  refunds_on_cancel: [STANDALONE_TERMINAL_REFUND],
 };
 const CANCELLED: CancelPaidSaleOutcome = {
   kind: "cancelled",
@@ -159,7 +165,7 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
 });
 
 describe("SaleScreen cancelling a sale with an approved standalone terminal payment", () => {
-  it("says it cannot be voided from the register, as the core answers", async () => {
+  it("offers to cancel a sale paid on the standalone terminal, saying its refund stays pending with a person", async () => {
     const cancelPaidSale = vi.fn(async (): Promise<CancelPaidSaleOutcome> => CANCELLED);
     const { screen } = await renderScreen({
       currentSale: async () => SALE_WITH_STANDALONE_TERMINAL_PAYMENT,
@@ -168,14 +174,19 @@ describe("SaleScreen cancelling a sale with an approved standalone terminal paym
 
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
+    const dialog = screen.getByRole("dialog", { name: "¿Cancelar la venta?" });
     await expect
       .element(
-        screen.getByText(
-          "La venta tiene un pago con la terminal independiente: todavía no se puede anular desde la caja.",
+        dialog.getByText("Reembolso pendiente del pago con la terminal independiente por $ 900,00"),
+      )
+      .toBeVisible();
+    await expect
+      .element(
+        dialog.getByText(
+          "Lo devuelve una persona desde la terminal independiente o la app de Mercado Pago, nunca en efectivo.",
         ),
       )
       .toBeVisible();
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     expect(cancelPaidSale).not.toHaveBeenCalled();
   });
 });
