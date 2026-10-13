@@ -5,6 +5,7 @@ import { insertEnrolledInstallation } from "../register/test-support/enrolled-in
 import { applyCancelledSale } from "../sales/test-support/applied-sales.js";
 import { insertLocation, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { aTransferCancelledSale } from "../sync/test-support/synced-facts.js";
+import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleRefundStore } from "./drizzle-refund-store.js";
 import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fixtures.js";
@@ -90,7 +91,66 @@ describe("DrizzleRefundStore", () => {
     });
   });
 
+  it("logs the completion for the branch of the refund, once the refund is marked done", async () => {
+    const { refundId, locationId } = await aPendingRefund();
+    const { userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const since = await lastLoggedChangeSeq(db);
+
+    await store().transaction(async (tx) => {
+      await tx.lockRefund(refundId, locationId);
+      await tx.recordRefundDone(refundId, userId, NOW);
+    });
+
+    expect(await changesLoggedAfter(db, since)).toEqual([
+      { entity: "refund_completion", entityId: refundId, version: 1, op: "insert", locationId },
+    ]);
+  });
+
+  it("logs no completion when the marking is rolled back", async () => {
+    const { refundId, locationId } = await aPendingRefund();
+    const { userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const since = await lastLoggedChangeSeq(db);
+
+    await store()
+      .transaction(async (tx) => {
+        await tx.lockRefund(refundId, locationId);
+        await tx.recordRefundDone(refundId, userId, NOW);
+        throw new Error("rolled back");
+      })
+      .catch(() => undefined);
+
+    expect(await changesLoggedAfter(db, since)).toEqual([]);
+  });
+
+  it("logs no completion when a refund is discarded", async () => {
+    const { refundId, locationId } = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+    const { userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const since = await lastLoggedChangeSeq(db);
+
+    await store().transaction(async (tx) => {
+      await tx.lockRefund(refundId, locationId);
+      await tx.recordRefundDiscarded(refundId, userId, NOW);
+    });
+
+    expect(await changesLoggedAfter(db, since)).toEqual([]);
+  });
+
   describe("the refund of a late payment", () => {
+    it("logs its completion for the branch of its register", async () => {
+      const { refundId, locationId } = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+      const { userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+      const since = await lastLoggedChangeSeq(db);
+
+      await store().transaction(async (tx) => {
+        await tx.lockRefund(refundId, locationId);
+        await tx.recordRefundDone(refundId, userId, NOW);
+      });
+
+      expect(await changesLoggedAfter(db, since)).toEqual([
+        { entity: "refund_completion", entityId: refundId, version: 1, op: "insert", locationId },
+      ]);
+    });
+
     it("locks it for the branch of its register and tells its origin", async () => {
       const { refundId, locationId } = await aPendingLatePaymentRefund(db, { openedAt: NOW });
 
