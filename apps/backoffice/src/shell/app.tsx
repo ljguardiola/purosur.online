@@ -35,6 +35,7 @@ import type { SalesByProductAndCategoryScreenServices } from "../sales/sales-by-
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../sessions/session-api";
 import type { SignInScreenServices } from "../sessions/sign-in-services";
 import type { InitialInventoryScreenServices } from "../stock/initial-inventory-services";
+import type { RecipesListScreenServices } from "../stock/recipes-list-services";
 import type { StockBalancesScreenServices } from "../stock/stock-balances-services";
 import type { StockCountsScreenServices } from "../stock/stock-counts-services";
 import type { StockMovementsScreenServices } from "../stock/stock-movements-services";
@@ -88,6 +89,7 @@ export type AppServices = {
   suppliersListScreen: SuppliersListScreenServices;
   packagingsListScreen: PackagingsListScreenServices;
   purchasesListScreen: PurchasesListScreenServices;
+  recipesListScreen: RecipesListScreenServices;
   newPurchaseScreen: NewPurchaseScreenServices;
   initialInventoryScreen: InitialInventoryScreenServices;
   fiscalConfigurationScreen: FiscalConfigurationScreenServices;

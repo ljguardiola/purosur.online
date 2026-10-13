@@ -4,6 +4,7 @@ import {
   formatStockChange,
   formatStockQuantity,
   formatStockQuantityInput,
+  formatStockQuantityLimit,
   parseStockQuantity,
 } from "./stock-quantity";
 
@@ -54,6 +55,17 @@ test.each([
 ] as const)("does not read %j typed for a %s product", (text, saleUnit) => {
   expect(parseStockQuantity(text, saleUnit)).toBeUndefined();
 });
+
+test.each([
+  [2_147_483_647, "KG", "2.147.483,647 kg"],
+  [2_147_483_647, "UNIT", "2.147.483 u"],
+  [12_000, "UNIT", "12 u"],
+] as const)(
+  "shows the largest quantity a person can type up to %i thousandths of a %s product as %s",
+  (limit, saleUnit, text) => {
+    expect(formatStockQuantityLimit(limit, saleUnit)).toBe(text);
+  },
+);
 
 test.each([
   ["add", 2000, 2000],

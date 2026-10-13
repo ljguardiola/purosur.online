@@ -60,6 +60,15 @@ describe("the register's help", () => {
     expect(titlesFound(word)).toEqual([title]);
   });
 
+  it("explains that the pending refund of a standalone terminal payment is given back from that terminal or the Mercado Pago app, and marked as done in the backoffice", () => {
+    expect(titlesFound("desde esa terminal o la app de Mercado Pago")).toEqual([
+      "Cancelar una venta",
+    ]);
+    expect(titlesFound("Quien lo devolvió lo marca como hecho en el backoffice")).toEqual([
+      "Cancelar una venta",
+    ]);
+  });
+
   it("explains that an order already on the terminal is cancelled there, and another method is offered once the terminal confirms it", () => {
     expect(titlesFound("cancelalo en la terminal")).toContain(
       "Cambiar de medio con un cobro en la Point",

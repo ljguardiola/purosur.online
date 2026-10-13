@@ -459,6 +459,12 @@ export {
   initialInventoryLotsQuerySchema,
   lotReferenceCostBodySchema,
 } from "./stock/initial-inventory-lots.js";
+export type { RecipeSaveBody } from "./stock/recipe-save-body.js";
+export { recipeSaveBodySchema } from "./stock/recipe-save-body.js";
+export type { RecipeSaveRefusal } from "./stock/recipe-save-refusal.js";
+export { recipeSaveRefusalSchema } from "./stock/recipe-save-refusal.js";
+export type { RecipeList, RecipeSummary } from "./stock/recipe-summary.js";
+export { recipeListSchema, recipeSummarySchema } from "./stock/recipe-summary.js";
 export type {
   StockBalance,
   StockBalanceList,
