@@ -81,6 +81,38 @@ describe("the follow of the Mercado Pago charges a stopped register left pending
     await vi.waitFor(() => expect(followed).toEqual([LEFT_PENDING]));
   });
 
+  it("reports charges left pending that could not be taken and follows nothing in this run", async () => {
+    const unreadable = new Error("database disk image is malformed");
+    const reported: [string, unknown][] = [];
+    const followed: unknown[] = [];
+    const takenLeftPending = vi.fn((): typeof LEFT_PENDING => {
+      throw unreadable;
+    });
+    const wiring = createInterruptedChargesWiring({
+      charging: {
+        chargesLeftPending: takenLeftPending,
+        followInterrupted: async (interrupted) => {
+          followed.push(interrupted);
+          return completingSale();
+        },
+      },
+      printing: { afterEachCompletedSale: (follow) => follow },
+      reportFailure: (activity, error) => {
+        reported.push([activity, error]);
+      },
+    });
+
+    await wiring.followAtStartup();
+    wiring.afterEachSync();
+    await wiring.followAtStartup();
+
+    expect(reported).toEqual([
+      ["taking the Mercado Pago charges a stopped register left pending", unreadable],
+    ]);
+    expect(takenLeftPending).toHaveBeenCalledTimes(1);
+    expect(followed).toEqual([]);
+  });
+
   it("follows nothing when the register cannot charge with Mercado Pago", async () => {
     const wiring = createInterruptedChargesWiring({
       charging: { chargesLeftPending: undefined, followInterrupted: undefined },

@@ -134,8 +134,8 @@ describe("printing the receipt of a sale just completed", () => {
 
 describe("printing the receipt of each sale a follow of several charges completed", () => {
   function follow(events: string[]) {
-    return async (runStartedAt: string) => {
-      events.push(`follow ${runStartedAt}`);
+    return async (interrupted: string) => {
+      events.push(`follow ${interrupted}`);
       return {
         followed: [
           { paymentTransactionId: "qr-1", outcome: COMPLETED },
@@ -153,7 +153,10 @@ describe("printing the receipt of each sale a follow of several charges complete
   it("answers the follow unchanged and prints each completed sale once what comes before printing settled, syncing after each", async () => {
     const subject = rig();
 
-    const outcome = await printingEachCompletedSale(subject.deps, follow(subject.events))("run");
+    const outcome = await printingEachCompletedSale(
+      subject.deps,
+      follow(subject.events),
+    )("interrupted charges");
 
     expect(outcome.followed.map(({ paymentTransactionId }) => paymentTransactionId)).toEqual([
       "qr-1",
@@ -164,7 +167,7 @@ describe("printing the receipt of each sale a follow of several charges complete
       expect(subject.events.filter((event) => event === "sync")).toHaveLength(2),
     );
     expect(subject.events.filter((event) => event !== "sync")).toEqual([
-      "follow run",
+      "follow interrupted charges",
       "before printing sale-1",
       "before printing sale-3",
       "print sale-1",
