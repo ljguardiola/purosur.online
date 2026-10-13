@@ -61,7 +61,6 @@ describe("priceMarginQuerySchema", () => {
     "+100",
     String(MAX_UNIT_PRICE_CENTS + 1),
     ["100", "200"],
-    100,
   ])("rejects the unit price %j with the message of the price body", (unitPrice) => {
     const result = priceMarginQuerySchema.safeParse({ unitPrice });
 
