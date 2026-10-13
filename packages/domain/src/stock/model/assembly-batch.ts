@@ -102,8 +102,13 @@ export function batchLotFacts(
   };
 }
 
+export interface InvalidUsedQuantity {
+  kind: "invalid_quantity";
+  componentProductId: string;
+}
+
 export type BatchQuantityRefusal =
-  | { kind: "invalid_quantity"; componentProductId: string }
+  | InvalidUsedQuantity
   | { kind: "nothing_used" }
   | { kind: "invalid_output" };
 
@@ -129,7 +134,7 @@ export function pairedWithRecipe<TComponent extends { componentProductId: string
 
 export function usedQuantityRefusal(
   components: readonly (BatchComponentUse & { saleUnit: SaleUnit })[],
-): BatchQuantityRefusal | null {
+): InvalidUsedQuantity | null {
   for (const { componentProductId, saleUnit, quantity } of components) {
     if (quantity !== 0 && !isMovementQuantity(saleUnit, quantity)) {
       return { kind: "invalid_quantity", componentProductId };
