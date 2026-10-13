@@ -1,7 +1,9 @@
 import type { ElectronApplication, JSHandle, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { launchApp } from "./launch-app";
-import { until, untilLogged } from "./test-support/until";
+import { WAIT_BOUND_MS } from "./test-support/bounds";
+import { closeRegister } from "./test-support/close-register";
+import { until, untilLogged, within } from "./test-support/until";
 
 // A fresh data folder holds no enrollment, so a core that is up shows the enrollment screen.
 const CORE_UP_TEXT = "Dar de alta esta caja";
@@ -40,7 +42,10 @@ async function liveCore(app: ElectronApplication): Promise<UtilityProcessInfo | 
 async function killTheRunningCore(app: ElectronApplication): Promise<void> {
   // A new core hands the window its port as soon as it is forked, before it shows up in the
   // metrics, so the next kill waits for it to be listed.
-  await until(async () => (await liveCore(app)) !== undefined);
+  await until(async () => (await liveCore(app)) !== undefined, {
+    withinMs: WAIT_BOUND_MS,
+    waitingFor: "the core to be listed in the register's processes",
+  });
   const current = await liveCore(app);
   if (current === undefined) {
     throw new Error("expected a core process to kill");
@@ -60,7 +65,10 @@ async function killAndWaitForTheNextCore(
 ): Promise<void> {
   const portsBefore = await portsReceived(ports);
   await killTheRunningCore(app);
-  await until(async () => (await portsReceived(ports)) > portsBefore);
+  await until(async () => (await portsReceived(ports)) > portsBefore, {
+    withinMs: WAIT_BOUND_MS,
+    waitingFor: "the window to receive the next core's port",
+  });
 }
 
 function isAlive(pid: number): boolean {
@@ -104,7 +112,7 @@ describe("the register's own recovery once the core's bounded restarts run out",
   });
 
   afterAll(async () => {
-    await app.close();
+    await closeRegister(app);
   });
 
   it("shows the blocking notice once bounded restarts are exhausted, and clears it once a periodic retry's core is up", async () => {
@@ -166,9 +174,19 @@ describe("the register's own recovery once the core's bounded restarts run out",
     );
     await killTheRunningCore(app);
 
-    expect(await notice.evaluate((probe) => probe.shown)).toEqual({ title: true, body: true });
+    const shown = await within(
+      notice.evaluate((probe) => probe.shown),
+      {
+        withinMs: WAIT_BOUND_MS,
+        waitingFor: "the blocking notice to show or a retry's core to arrive",
+      },
+    );
+    expect(shown).toEqual({ title: true, body: true });
 
-    await until(() => page.getByText(CORE_UP_TEXT).isVisible());
+    await until(() => page.getByText(CORE_UP_TEXT).isVisible(), {
+      withinMs: WAIT_BOUND_MS,
+      waitingFor: "the window to show the core is up again",
+    });
     expect(await page.getByText(CORE_DOWN_TITLE).count()).toBe(0);
 
     const cores = await coreProcesses(app);
@@ -181,7 +199,7 @@ describe("the register's own recovery once the core's bounded restarts run out",
       port?.start();
       port?.postMessage({ type: "bogus" });
     });
-    await untilLogged({ app, logs }, "core: rejected message");
+    await untilLogged({ app, logs }, "core: rejected message", { withinMs: WAIT_BOUND_MS });
     expect(logs.join("")).toContain("core: rejected message");
   });
 });

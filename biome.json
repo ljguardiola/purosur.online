@@ -156,7 +156,9 @@
                       "CredentialsReplacement",
                       "DeviceCredentials",
                       "DeviceCredentialsAnswer",
-                      "DeviceCredentialsRequest"
+                      "DeviceCredentialsRequest",
+                      "RegisterUpdateAnswer",
+                      "UpdateSafeMomentAnswer"
                     ]
                   }
                 }
