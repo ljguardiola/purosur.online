@@ -9,7 +9,13 @@ export const recipeSummarySchema = z.object({
   categoryName: z.string(),
   saleUnit: saleUnitSchema,
   version: z.int(),
-  lastBatch: z.null(),
+  lastBatch: z
+    .object({
+      unitCostCents: z.int().nullable(),
+      costIncomplete: z.boolean(),
+      assembledAt: z.iso.datetime(),
+    })
+    .nullable(),
   components: z.array(
     z.object({
       componentProductId: z.string(),
