@@ -2,7 +2,7 @@ import type { ChargeRefusal } from "../../fiscal/index.js";
 import type { SalePayment } from "../../payments/index.js";
 import { nonCashCharge } from "../../payments/index.js";
 import type { Clock } from "../../shared/index.js";
-import { chargeableSale, isSaleRefusal, type PartiallyPaid } from "./chargeable-sale.js";
+import { isSaleRefusal, type PartiallyPaid, saleOpenToNewPayment } from "./chargeable-sale.js";
 import { completeSale } from "./complete-sale.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
 
@@ -25,6 +25,7 @@ export type ChargeSaleByTransferOutcome =
   | { kind: "empty_sale" }
   | { kind: "zero_total" }
   | ChargeRefusal
+  | { kind: "mercado_pago_charge_in_progress" }
   | { kind: "invalid_amount" }
   | { kind: "exceeds_pending"; pending: number }
   | PartiallyPaid
@@ -36,7 +37,7 @@ export function chargeSaleByTransfer(
 ): ChargeSaleByTransferOutcome {
   return ledger.transaction<ChargeSaleByTransferOutcome>((tx) => {
     const completedAt = clock.now();
-    const chargeable = chargeableSale(tx, actorId, saleId, completedAt);
+    const chargeable = saleOpenToNewPayment(tx, actorId, saleId, completedAt);
     if (isSaleRefusal(chargeable)) {
       return chargeable;
     }

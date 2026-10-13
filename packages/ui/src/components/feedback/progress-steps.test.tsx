@@ -109,6 +109,39 @@ test("fills the current marker blue with a white loader", async () => {
   expect(getComputedStyle(icon).animationName).not.toBe("none");
 });
 
+const failedSteps: ProgressStepsProps["steps"] = [
+  { id: "sent", label: "Cobro enviado", state: "done" },
+  { id: "timeout", label: "Tiempo agotado", state: "error" },
+  { id: "cancel", label: "Esperando la cancelación", state: "current" },
+];
+
+test("fills an error marker red with a white x and tones its label red", async () => {
+  const screen = await render(<ProgressSteps steps={failedSteps} />);
+  const el = marker(screen.container, 1);
+  const icon = el.querySelector("svg") as SVGElement;
+
+  expect(getComputedStyle(el).backgroundColor).toBe(tokenRgb("error"));
+  expect(getComputedStyle(icon).color).toBe(tokenRgb("text-inverse"));
+  expect(icon.getAttribute("aria-hidden")).toBe("true");
+  expect(getComputedStyle(screen.getByText("Tiempo agotado").element()).color).toBe(
+    tokenRgb("error-strong"),
+  );
+});
+
+test("tells assistive technology a step failed and does not mark it as the current step", async () => {
+  const screen = await render(<ProgressSteps steps={failedSteps} />);
+
+  expect(item(screen.container, 1).textContent).toContain("Con error");
+  expect(getComputedStyle(screen.getByText("Con error").element()).position).toBe("absolute");
+  expect(item(screen.container, 1).getAttribute("aria-current")).toBeNull();
+});
+
+test("has no accessibility violations with a failed step", async () => {
+  const screen = await render(<ProgressSteps steps={failedSteps} />);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("stops the loader from moving when the system asks for reduced motion", async () => {
   const session = cdp();
   await session.send("Emulation.setEmulatedMedia", {
@@ -168,6 +201,6 @@ test("has no accessibility violations", async () => {
 
 test("does not accept a step with an unknown state", () => {
   expectTypeOf<{
-    steps: { id: string; label: string; state: "failed" }[];
+    steps: { id: string; label: string; state: "unknown" }[];
   }>().not.toExtend<ProgressStepsProps>();
 });

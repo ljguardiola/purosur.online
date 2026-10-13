@@ -26,11 +26,11 @@ import {
 } from "../fiscal/sqlite-pre-emission-gate";
 import { decideSaleAuthorizationIn } from "../fiscal/sqlite-sale-authorization";
 import {
-  approvePendingQrPayment,
-  insertPendingQrPayment,
+  approvePendingMercadoPagoPayment,
+  insertPendingMercadoPagoPayment,
   markQrPaymentReplaced,
-  readPendingQrPayment,
-  readPendingQrPaymentsOf,
+  readPendingMercadoPagoPayment,
+  readPendingMercadoPagoPaymentsOf,
   readSalePayments,
 } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
@@ -110,12 +110,14 @@ export class SqliteSaleLedger implements SaleLedger {
       salePayments: (saleId) => readSalePayments(this.database, saleId),
       discardOpenSale: (saleId) => this.discardOpenSale(saleId),
       recordPayment: (payment) => this.recordPayment(payment),
-      recordPendingQrPayment: (payment) => insertPendingQrPayment(this.database, payment),
-      pendingQrPayment: (paymentTransactionId) =>
-        readPendingQrPayment(this.database, paymentTransactionId),
-      pendingQrPaymentsOf: (saleId) => readPendingQrPaymentsOf(this.database, saleId),
-      approvePendingQrPayment: (paymentTransactionId) =>
-        approvePendingQrPayment(this.database, paymentTransactionId),
+      recordPendingMercadoPagoPayment: (payment) =>
+        insertPendingMercadoPagoPayment(this.database, payment),
+      pendingMercadoPagoPayment: (paymentTransactionId) =>
+        readPendingMercadoPagoPayment(this.database, paymentTransactionId),
+      pendingMercadoPagoPaymentsOf: (saleId) =>
+        readPendingMercadoPagoPaymentsOf(this.database, saleId),
+      approvePendingMercadoPagoPayment: (paymentTransactionId) =>
+        approvePendingMercadoPagoPayment(this.database, paymentTransactionId),
       markQrPaymentReplaced: (paymentTransactionId, waitEndsAt) =>
         markQrPaymentReplaced(this.database, paymentTransactionId, waitEndsAt),
       saleCashMovements: (saleId) => readMovementsOf(this.database, { type: "sale", id: saleId }),

@@ -2,19 +2,19 @@ import { describe, expect, it } from "vitest";
 import { confirmMercadoPagoOrderNotification } from "./confirm-mercado-pago-order-notification.js";
 import {
   AMOUNT,
-  mercadoPagoQrOrderWorld,
+  mercadoPagoOrderWorld,
   NOW,
   orderResult,
   paidOrderResult,
   storedTransaction,
   TRANSACTION_ID,
-} from "./test-support/mercado-pago-qr-order-fixtures.js";
+} from "./test-support/mercado-pago-order-fixtures.js";
 
 const INPUT = { providerOrderId: "order-2" };
 const HOLDING_ANOTHER_ORDER = { providerOrderId: "order-1", creationOutcomeUnknown: true };
 
 function worldReading(result: ReturnType<typeof orderResult>) {
-  const world = mercadoPagoQrOrderWorld({ reading: { kind: "read", result } });
+  const world = mercadoPagoOrderWorld({ reading: { kind: "read", result } });
   world.lanes.seed(storedTransaction(HOLDING_ANOTHER_ORDER));
   return world;
 }
@@ -23,7 +23,7 @@ function paidOrderNamingThePayment(paid = AMOUNT) {
   return { ...paidOrderResult(paid), externalReference: TRANSACTION_ID };
 }
 
-function openedRefunds(lanes: ReturnType<typeof mercadoPagoQrOrderWorld>["lanes"]) {
+function openedRefunds(lanes: ReturnType<typeof mercadoPagoOrderWorld>["lanes"]) {
   return [...lanes.latePaymentRefunds.values()].map(({ refund }) => refund);
 }
 
@@ -67,7 +67,7 @@ describe("confirmMercadoPagoOrderNotification of a paid order the payment did no
   });
 
   it("opens the task whatever the state of the payment that holds another order", async () => {
-    const { lanes, notificationPorts } = mercadoPagoQrOrderWorld({
+    const { lanes, notificationPorts } = mercadoPagoOrderWorld({
       reading: { kind: "read", result: paidOrderNamingThePayment() },
     });
     lanes.seed(storedTransaction({ ...HOLDING_ANOTHER_ORDER, state: "APPROVED" }));
@@ -113,7 +113,7 @@ describe("confirmMercadoPagoOrderNotification of a paid order the payment did no
   });
 
   it("asks Mercado Pago nothing when no payment's order creation was unclear", async () => {
-    const { lanes, mercadoPago, notificationPorts } = mercadoPagoQrOrderWorld({
+    const { lanes, mercadoPago, notificationPorts } = mercadoPagoOrderWorld({
       reading: { kind: "read", result: paidOrderNamingThePayment() },
     });
     lanes.seed(storedTransaction({ ...HOLDING_ANOTHER_ORDER, creationOutcomeUnknown: false }));
@@ -126,7 +126,7 @@ describe("confirmMercadoPagoOrderNotification of a paid order the payment did no
   });
 
   it("opens nothing for a payment that waits for an order, as that order is recorded for it", async () => {
-    const { lanes, notificationPorts } = mercadoPagoQrOrderWorld({
+    const { lanes, notificationPorts } = mercadoPagoOrderWorld({
       reading: { kind: "read", result: paidOrderNamingThePayment() },
     });
     lanes.seed(storedTransaction({ creationOutcomeUnknown: true }));

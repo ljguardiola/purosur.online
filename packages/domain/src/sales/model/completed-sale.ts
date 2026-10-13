@@ -1,3 +1,4 @@
+import type { PaymentMethod } from "../../payments/index.js";
 import type { CashMovementType } from "../../register/index.js";
 import type { ManualAdjustment } from "./manual-adjustment.js";
 import type { SaleDiscount } from "./sale-discount.js";
@@ -21,7 +22,7 @@ export interface CompletedSaleLine {
 
 export interface CompletedSalePayment {
   id: string;
-  method: "CASH" | "TRANSFER" | "QR";
+  method: PaymentMethod;
   provider: string;
   amount: number;
   tendered: number | null;

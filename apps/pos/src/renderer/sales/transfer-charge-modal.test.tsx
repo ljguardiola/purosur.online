@@ -287,6 +287,19 @@ describe("TransferChargeModal", () => {
       .toEqual([[{ ...COMPLETED, amount: TOTAL }]]);
   });
 
+  it("says a Mercado Pago charge of the sale is still in progress", async () => {
+    const { screen, seen, callbacks } = await renderModal(async () => ({
+      kind: "mercado_pago_charge_in_progress",
+    }));
+
+    await userEvent.click(seen);
+
+    await expect
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent("Ya hay un cobro con Mercado Pago en curso para esta venta.");
+    expect(callbacks.onCompleted).not.toHaveBeenCalled();
+  });
+
   it("treats a failed request as the core being unavailable", async () => {
     const { screen, seen } = await renderModal(() =>
       Promise.reject(new Error("the core connection was replaced")),
