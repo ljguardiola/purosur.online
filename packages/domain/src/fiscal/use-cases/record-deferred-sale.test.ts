@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { DeferredSale } from "../model/deferred-sale.js";
+import { type DeferredSale, SHORT_CODE_ATTEMPTS } from "../model/deferred-sale.js";
 import { ShortCodeTaken } from "./deferred-sale-ports.js";
-import {
-  recordDeferredSale,
-  recordDeferredSaleAsync,
-  SHORT_CODE_ATTEMPTS,
-} from "./record-deferred-sale.js";
+import { recordDeferredSale, recordDeferredSaleAsync } from "./record-deferred-sale.js";
 import { SequentialIds } from "./test-support/fake-sale-authorization.js";
 import { ScriptedShortCodes } from "./test-support/scripted-short-codes.js";
 

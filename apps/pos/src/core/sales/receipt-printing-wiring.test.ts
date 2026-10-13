@@ -10,6 +10,7 @@ import {
   insertHealthCheck,
   insertSaleCompletedEvent,
 } from "../fiscal/test-support/real-time-authorization-database";
+import { scriptedDeferrals } from "../fiscal/test-support/scripted-deferrals";
 import type { CloudClientDeps } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -321,6 +322,7 @@ describe("the register's receipt printing over its local database", () => {
         cloudClient: cloud,
         readDeviceToken,
         now: () => NOW,
+        ...scriptedDeferrals(),
         reportFailure: () => {},
       });
       return printingOverDatabase(authorization.authorizeSale).afterCompletedSale(async () => ({
@@ -439,7 +441,12 @@ describe("the register's receipt printing over its local database", () => {
           "INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('role-cashier', 'reprint_receipt', 1)",
         )
         .run();
-      await settleInterruptedAuthorizations({ database, now: () => NOW, reportFailure: () => {} });
+      await settleInterruptedAuthorizations({
+        database,
+        now: () => NOW,
+        reportFailure: () => {},
+        ...scriptedDeferrals(),
+      });
 
       const reprinted = printingOverDatabase().reprintSaleReceipt?.({
         saleId: "sale-1",

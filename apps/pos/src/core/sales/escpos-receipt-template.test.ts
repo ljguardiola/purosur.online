@@ -846,7 +846,7 @@ describe("the ESC/POS receipt template", () => {
 describe("the ESC/POS receipt of a deferred sale", () => {
   const DEFERRED_BLOCK: DeferredSaleDocumentBlock = {
     invoiceClass: "X",
-    shortCode: "7KQ4-M2P9",
+    shortCode: "7KQ4M2P9",
     qrText: "purosur-deferred-sale:0198-abc:7KQ4M2P9",
   };
 
@@ -882,7 +882,7 @@ describe("the ESC/POS receipt of a deferred sale", () => {
     ...CLOSING,
   ];
 
-  it("marks the sale as no invoice before the logo, and ends with the short code and the QR of its record", () => {
+  it("marks the sale as no invoice before the logo, and ends with the short code in two groups of four and the QR of its record", () => {
     expect(printed(receipt({ fiscal: DEFERRED_BLOCK })).text).toBe(
       [...DEFERRED_HEAD, ...DEFERRED_BODY].join("\n"),
     );
