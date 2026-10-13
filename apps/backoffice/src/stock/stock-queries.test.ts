@@ -6,6 +6,7 @@ test("invalidating the stock key marks every stock read stale", async () => {
   const client = new QueryClient();
   const keys = [
     stockKeys.balances,
+    stockKeys.expiringLots,
     stockKeys.counts(30),
     stockKeys.counts(7),
     stockKeys.movements(90),
