@@ -2,6 +2,7 @@ import {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_TYPES,
   cashMovementReason,
+  isCalendarDay,
   isValidCashAmount,
   isValidCashMovementAmount,
   manualAdjustmentReason,
@@ -14,6 +15,7 @@ import {
   WEIGHT_SOURCES,
 } from "@purosur/domain";
 import { z } from "zod";
+import { recordIdSchema } from "../shared/index.js";
 
 const text = z.string().min(1);
 const instant = z.iso.datetime();
@@ -317,6 +319,18 @@ const qrPaymentReplacedSchema = z.object({
   sale_id: text,
 });
 
+const openingCountRecordedSchema = z.object({
+  movement_id: recordIdSchema(),
+  product_id: recordIdSchema(),
+  counted: z.int().refine(mayBeMovementQuantity),
+  expires_on: z.string().refine(isCalendarDay).nullable(),
+});
+
+const openingCountWithdrawnSchema = z.object({
+  movement_id: recordIdSchema(),
+  withdrawn_movement_id: recordIdSchema(),
+});
+
 const PAYLOAD_SCHEMAS = {
   "sale_completed@1": saleCompletedV1Schema,
   "sale_completed@2": saleCompletedV2Schema,
@@ -337,6 +351,8 @@ const PAYLOAD_SCHEMAS = {
   "cash_movement_recorded@1": cashMovementRecordedSchema,
   "fiscal_gate_failed@1": fiscalGateFailedSchema,
   "qr_payment_replaced@1": qrPaymentReplacedSchema,
+  "opening_count_recorded@1": openingCountRecordedSchema,
+  "opening_count_withdrawn@1": openingCountWithdrawnSchema,
 };
 
 export type SyncedEventPayloads = {

@@ -12,6 +12,17 @@ import { formatStockUnitCost, formatStockValue } from "./stock-cost";
 
 type StockLot = StockBalance["lots"][number];
 
+function originLabel(origin: StockLot["origin"]): string {
+  switch (origin.kind) {
+    case "purchase":
+      return `Compra del ${formatCalendarDayNumeric(origin.purchasedOn)} · ${origin.supplierName}`;
+    case "initial_count":
+      return "Inventario inicial";
+    case "product_sales_without_lots":
+      return "Ventas sin lotes del producto";
+  }
+}
+
 function amountTone(amount: number | null, otherwise: "subtle" | undefined) {
   if (amount === null) {
     return "subtle";
@@ -50,9 +61,7 @@ export function StockBalanceLots({ product }: { product: StockBalance }) {
       header: "Origen",
       render: (lot: StockLot) => (
         <TableCellText size="detail" tone="subtle">
-          {lot.origin.kind === "purchase"
-            ? `Compra del ${formatCalendarDayNumeric(lot.origin.purchasedOn)} · ${lot.origin.supplierName}`
-            : "Ventas sin lotes del producto"}
+          {originLabel(lot.origin)}
         </TableCellText>
       ),
     }),

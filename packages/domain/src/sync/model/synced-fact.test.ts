@@ -6,6 +6,8 @@ import {
   A_GATE_FAILED_FACT,
   A_SESSION_CLOSED_FACT,
   A_SESSION_OPENED_FACT,
+  AN_OPENING_COUNT_RECORDED_FACT,
+  AN_OPENING_COUNT_WITHDRAWN_FACT,
   aCancelledSaleFact,
   aCompletedSaleFact,
 } from "./test-support/synced-facts.js";
@@ -32,9 +34,24 @@ describe("what a synced fact needs applied before it", () => {
   it("is nothing for a failed fiscal gate", () => {
     expect(dependenciesOf(A_GATE_FAILED_FACT)).toEqual([]);
   });
+
+  it("is nothing for a line of the initial count", () => {
+    expect(dependenciesOf(AN_OPENING_COUNT_RECORDED_FACT)).toEqual([]);
+  });
+
+  it("is the line of the initial count that a withdrawal takes back", () => {
+    expect(dependenciesOf(AN_OPENING_COUNT_WITHDRAWN_FACT)).toEqual([
+      { aggregateType: "StockMovement", aggregateId: "movement-1" },
+    ]);
+  });
 });
 
 describe("what a synced fact breaks that only its own history shows", () => {
+  it("is nothing for the lines of the initial count and their withdrawals", () => {
+    expect(invariantBreaksOf(AN_OPENING_COUNT_RECORDED_FACT)).toEqual([]);
+    expect(invariantBreaksOf(AN_OPENING_COUNT_WITHDRAWN_FACT)).toEqual([]);
+  });
+
   it("is that its approved payments are below the total for a sale not fully paid", () => {
     const sale = aCompletedSaleFact({ total: 1501 });
 

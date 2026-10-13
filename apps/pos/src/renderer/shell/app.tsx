@@ -42,6 +42,7 @@ import {
 import { useSerialDevicesOffer } from "../register/serial-devices-offer";
 import { salesKeys } from "../sales/sales-queries";
 import { sessionsKey } from "../sessions/sessions-queries";
+import { stockKeys } from "../stock/stock-queries";
 import { BarcodeReadings } from "./barcode-readings";
 import type { Enrollment, RegisterServiceState } from "./router";
 import { createAppRouter } from "./router";
@@ -404,6 +405,13 @@ function Register({ core }: { core: CoreClient }) {
     registerSerialDevices: (devices: SerialDevicesToRegister) =>
       core.registerSerialDevices(devices),
     takeSerialDevicesOffer,
+    readInitialCount: () => core.readInitialCount(),
+    recordInitialCountLine: (productId: string, counted: number, expiresOn: string | null) =>
+      core.recordInitialCountLine(productId, counted, expiresOn),
+    withdrawInitialCountLine: (movementId: string) => core.withdrawInitialCountLine(movementId),
+    findCountableProduct: (code: string) => core.findCountableProduct(code),
+    searchCountableProducts: (query: string) => core.searchCountableProducts(query),
+    weighCountedProduct: (productId: string) => core.weighCountedProduct(productId),
     // A replaced core connection fails this request; the core coming back up asks again.
     refreshCashSession,
   };
@@ -431,6 +439,7 @@ function Register({ core }: { core: CoreClient }) {
         void queryClient.invalidateQueries({ queryKey: registerKeys.registerName });
         void queryClient.invalidateQueries({ queryKey: registerKeys.status });
         void queryClient.invalidateQueries({ queryKey: lockedClosersKey });
+        void queryClient.invalidateQueries({ queryKey: stockKeys.initialCount });
       }),
     [core, queryClient],
   );

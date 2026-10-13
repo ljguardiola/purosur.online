@@ -1,4 +1,10 @@
-export type { Clock, OperationAuthority, OperationAuthorization } from "../../shared/index.js";
+export type {
+  Clock,
+  OperationAuthority,
+  OperationAuthorization,
+  Scale,
+  ScaleReading,
+} from "../../shared/index.js";
 export type {
   AddScannedProductInput,
   AddScannedProductOutcome,
@@ -172,7 +178,6 @@ export type {
   SellingSession,
 } from "./sale-ledger.js";
 export type { SalesByDayQuery, SalesReportReader } from "./sales-report-reader.js";
-export type { Scale, ScaleReading } from "./scale.js";
 export type {
   FoundProduct,
   SearchProductsByNameInput,

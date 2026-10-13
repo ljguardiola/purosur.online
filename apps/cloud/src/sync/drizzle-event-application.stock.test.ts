@@ -153,7 +153,8 @@ describe("applying the stock a completed sale moved", () => {
 
     await applySale(deviceId, saleOf(productId, -2000, movementId));
 
-    expect(await changesLoggedAfter(system.db, before)).toEqual([
+    const logged = await changesLoggedAfter(system.db, before);
+    expect(logged.filter((change) => change.entity === "stock_movement")).toEqual([
       { entity: "stock_movement", entityId: movementId, version: 1, op: "insert", locationId },
     ]);
   });

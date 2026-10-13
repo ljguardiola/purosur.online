@@ -1,4 +1,11 @@
+export type { InitialCountCostFilter } from "./model/initial-count.js";
+export { INITIAL_COUNT_COST_FILTERS } from "./model/initial-count.js";
+export { isReferenceUnitCost } from "./model/lot-reference-cost.js";
 export { isLotInStock } from "./model/lot-value.js";
+export type {
+  OpeningCountRecordedFact,
+  OpeningCountWithdrawnFact,
+} from "./model/opening-count-facts.js";
 export type { StockCorrection } from "./model/product-valuation.js";
 export { STOCK_CORRECTIONS } from "./model/product-valuation.js";
 export { soldStockDelta } from "./model/sold-stock-delta.js";

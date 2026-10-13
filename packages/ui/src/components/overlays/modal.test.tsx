@@ -8,8 +8,9 @@ import { paletteColor, tokenBackgroundColor, tokenRgb } from "../../test/token-c
 import { Button } from "../forms/button";
 import { Modal, type ModalProps, type ModalWidth } from "./modal";
 
-// The default browser-mode viewport is phone-sized, too narrow for the panel's widest 720px form
-// and a fixed, centered close button that a phone-sized page couldn't scroll into view.
+// The default browser-mode viewport is phone-sized, and a panel keeps a 1.5rem margin on each side of
+// the window, so the tests that measure each width's exact size need a window at least 1088px wide:
+// the 1040px editor plus both margins.
 beforeEach(async () => {
   await page.viewport(1280, 900);
 });
@@ -481,6 +482,25 @@ test("caps the panel below the viewport and lets only the body scroll when conte
     expect(["auto", "scroll"]).toContain(getComputedStyle(body).overflowY);
 
     await expectNoAccessibilityViolations(document.body);
+  } finally {
+    await page.viewport(1280, 900);
+  }
+});
+
+test("keeps the panel inside a viewport narrower than its width", async () => {
+  await page.viewport(414, 896);
+  try {
+    for (const width of ["standard", "editor"] as const) {
+      const screen = await render(<Modal {...baseProps({ width, closable: true })} />);
+      const panel = screen.getByRole("dialog").element().parentElement as HTMLElement;
+
+      const panelRect = panel.getBoundingClientRect();
+      expect(panelRect.left, `${width} left`).toBeGreaterThanOrEqual(24 - 1);
+      expect(panelRect.right, `${width} right`).toBeLessThanOrEqual(window.innerWidth - 24 + 1);
+
+      await expectNoAccessibilityViolations(document.body);
+      await screen.unmount();
+    }
   } finally {
     await page.viewport(1280, 900);
   }

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "vitest-browser-react";
-import { deferred } from "./test-support/sale-screen";
+import { deferred } from "./test-support/deferred";
 import type { ScaleWeighing } from "./use-scale-weighing";
 import { useScaleWeighing } from "./use-scale-weighing";
 
@@ -108,5 +108,12 @@ describe("useScaleWeighing", () => {
 
     expect(await doing).toBe("taken_by_the_scale");
     expect(work).not.toHaveBeenCalled();
+  });
+
+  it("takes a stable reading that carries only the weight", async () => {
+    const reading = { kind: "taken", weightThousandths: 4400 } as const;
+    const { result } = await renderHook(() => useScaleWeighing(async () => reading));
+
+    await expect.poll(() => result.current.phase).toEqual(reading);
   });
 });

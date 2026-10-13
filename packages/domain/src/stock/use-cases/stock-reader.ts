@@ -19,6 +19,7 @@ export interface LotInStock {
   lotNumber: string | null;
   expiresOn: string | null;
   purchase: { purchasedOn: string; supplierName: string } | null;
+  initialCount: boolean;
   remaining: number;
   costIncomplete: boolean;
   cost: LotCost | null;

@@ -1,10 +1,19 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { ArrowDownUp, ClipboardCheck, Package, Scale, ShoppingCart, Truck } from "lucide-react";
+import {
+  ArrowDownUp,
+  ClipboardCheck,
+  ClipboardList,
+  Package,
+  Scale,
+  ShoppingCart,
+  Truck,
+} from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import {
   canManagePurchasePackagings,
   canManageSuppliers,
   canPerformStockCounts,
+  canRecordInitialInventory,
   canRecordPurchases,
   canSeeStockBalances,
   canSeeStockMovements,
@@ -26,6 +35,7 @@ function StockArea() {
   const suppliersShown = Boolean(matchRoute({ to: "/suppliers" }));
   const packagingsShown = Boolean(matchRoute({ to: "/purchase-packagings" }));
   const purchasesShown = Boolean(matchRoute({ to: "/purchases", fuzzy: true }));
+  const initialInventoryShown = Boolean(matchRoute({ to: "/initial-inventory" }));
   return (
     <AreaLayout
       area="stock"
@@ -98,6 +108,17 @@ function StockArea() {
                   icon={<ShoppingCart />}
                   search={purchasesShown ? true : {}}
                   active={purchasesShown}
+                />
+              </li>
+            )}
+            {canRecordInitialInventory(session) && (
+              <li>
+                <SectionLink
+                  to="/initial-inventory"
+                  label="Inventario inicial"
+                  icon={<ClipboardList />}
+                  search={initialInventoryShown ? true : {}}
+                  active={initialInventoryShown}
                 />
               </li>
             )}

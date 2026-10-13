@@ -210,6 +210,7 @@ test("shows CUIT and tax status as plain text, not inputs, with the fields prefi
 });
 
 test("lines up the Ingresos Brutos and Inicio de actividades labels and boxes, side by side in the same row", async () => {
+  await page.viewport(1440, 1000);
   const { dialog } = await renderModal();
 
   const grossIncomeLabel = dialog.getByText("Ingresos Brutos").element() as HTMLElement;

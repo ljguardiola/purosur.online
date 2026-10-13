@@ -51,6 +51,7 @@ const stockLotSchema = z.object({
       purchasedOn: calendarDay,
       supplierName: z.string(),
     }),
+    z.object({ kind: z.literal("initial_count") }),
     z.object({ kind: z.literal("product_sales_without_lots") }),
   ]),
 });
