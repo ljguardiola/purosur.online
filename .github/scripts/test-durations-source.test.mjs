@@ -1,11 +1,22 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { test } from "node:test";
-import { decodeDurations } from "./test-durations.mjs";
+import { fileURLToPath } from "node:url";
+import { decodeDurations } from "./test-durations-payload.mjs";
 import { downloadDurations, findRunWithDurations, runCli } from "./test-durations-source.mjs";
+
+async function inScratchDir(body) {
+  const dir = await mkdtemp(join(tmpdir(), "test-durations-source-"));
+  try {
+    return await body(dir);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
 
 function jsonResponse(body, status = 200) {
   return { ok: status >= 200 && status < 300, status, json: async () => body };
@@ -131,6 +142,38 @@ test("warns and hands the shards no durations when the request itself fails", as
   assert.equal(await runCli(deps), 0);
   assert.deepEqual(handedDurations(calls), {});
   assert.match(calls.errors[0], /network down/);
+});
+
+const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
+const sourceScript = fileURLToPath(new URL("./test-durations-source.mjs", import.meta.url));
+
+async function withRelativeImports(file, found = new Set()) {
+  if (found.has(file)) return found;
+  found.add(file);
+  const code = await readFile(file, "utf8");
+  for (const [, specifier] of code.matchAll(/\b(?:from|import)\s*\(?\s*["'](\.\.?\/[^"']+)["']/g)) {
+    await withRelativeImports(resolve(dirname(file), specifier), found);
+  }
+  return found;
+}
+
+test("runs with nothing installed but Node, as the source job runs it", async () => {
+  await inScratchDir(async (dir) => {
+    for (const file of await withRelativeImports(sourceScript)) {
+      const copy = join(dir, relative(repoRoot, file));
+      await mkdir(dirname(copy), { recursive: true });
+      await copyFile(file, copy);
+    }
+
+    const run = spawnSync(process.execPath, [join(dir, relative(repoRoot, sourceScript))], {
+      cwd: dir,
+      encoding: "utf8",
+      env: { PATH: process.env.PATH },
+    });
+
+    assert.equal(run.status, 1, run.stderr);
+    assert.match(run.stderr, /GITHUB_TOKEN, GITHUB_REPOSITORY and GITHUB_OUTPUT are required/);
+  });
 });
 
 test("fails when the environment is incomplete", async () => {
@@ -290,15 +333,6 @@ test("warns and hands the shards no durations when they are too large to hand ov
   assert.match(calls.errors[0], /too large/);
 });
 
-async function inScratchDir(body) {
-  const dir = await mkdtemp(join(tmpdir(), "test-durations-source-"));
-  try {
-    return await body(dir);
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-}
-
 function fakeGh(onRun) {
   const runs = [];
   const execFileImpl = async (file, args, options) => {
@@ -354,4 +388,44 @@ test("fails the download when gh fails, even after some shards arrived", async (
       /HTTP 503/,
     );
   });
+});
+
+function ghHangingPastAnyTimeout(file, args, options) {
+  return new Promise((_, reject) => {
+    if (options.timeout > 0) {
+      queueMicrotask(() =>
+        reject(
+          Object.assign(new Error(`Command failed: ${file} ${args.join(" ")}`), {
+            killed: true,
+            signal: "SIGTERM",
+          }),
+        ),
+      );
+    }
+  });
+}
+
+function everyPendingStepRun() {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
+test("warns and hands the shards no durations when the gh download hangs", async () => {
+  const { deps, calls } = fakeCli({ artifactsByRun: { 2: [artifact("test-durations-shard-1")] } });
+  deps.download = (runId) =>
+    downloadDurations(runId, {
+      repository: "owner/repo",
+      token: "token",
+      dir: "/never-written",
+      execFileImpl: ghHangingPastAnyTimeout,
+    });
+
+  let exitCode;
+  runCli(deps).then((code) => {
+    exitCode = code;
+  });
+  await everyPendingStepRun();
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(handedDurations(calls), {});
+  assert.match(calls.errors[0], /split by file count: downloading run 2's durations failed/);
 });
