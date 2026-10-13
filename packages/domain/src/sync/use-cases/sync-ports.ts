@@ -155,11 +155,7 @@ export interface InboxTransaction {
     events: readonly PushedEvent[],
     refusedAt: Date,
   ): Promise<void>;
-  revokeForBrokenChain(
-    deviceId: string,
-    refusedEventCount: number,
-    revokedAt: Date,
-  ): Promise<void>;
+  revokeForBrokenChain(deviceId: string, refusedEventCount: number, revokedAt: Date): Promise<void>;
 }
 
 export interface RequestAdmission {
