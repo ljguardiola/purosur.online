@@ -173,6 +173,8 @@ export {
   markedRefundDoneSchema,
   pendingRefundsSchema,
 } from "./payments/pending-refunds.js";
+export type { SalesByPaymentMethodBody } from "./payments/sales-by-payment-method.js";
+export { salesByPaymentMethodSchema } from "./payments/sales-by-payment-method.js";
 export type { PermissionCatalogWire } from "./permissions/permission-catalog.js";
 export { permissionCatalogSchema } from "./permissions/permission-catalog.js";
 export type { RegisterCoverageWire } from "./permissions/register-coverage.js";
