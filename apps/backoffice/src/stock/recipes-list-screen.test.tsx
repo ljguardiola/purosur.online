@@ -343,8 +343,8 @@ test("the confirmation goes away when dismissed", async () => {
 test("opens with the filters it is given, and reports every change to them", async () => {
   const services = createServices();
   const onFiltersChange = vi.fn();
-  const screen = await loaded(services, [mixDeFrutosSecos, cajaDeInfusiones], {
-    filters: { search: "mix" },
+  const screen = await loaded(services, [cajaDeInfusiones, mixDeFrutosSecos], {
+    filters: { search: "mix", sort: "descending" },
     onFiltersChange,
   });
 
@@ -352,8 +352,47 @@ test("opens with the filters it is given, and reports every change to them", asy
   await expect.poll(() => rowTexts(screen)).toHaveLength(1);
   expect(onFiltersChange).not.toHaveBeenCalled();
 
-  await userEvent.fill(screen.getByPlaceholder("Buscar un producto armado"), "caja");
-  await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toEqual({ search: "caja" });
+  await userEvent.fill(screen.getByPlaceholder("Buscar un producto armado"), "");
+  await expect
+    .poll(() => onFiltersChange.mock.lastCall?.[0])
+    .toEqual({ search: "", sort: "descending" });
+
+  await userEvent.click(screen.getByRole("button", { name: "Producto armado" }));
+  await expect
+    .poll(() => onFiltersChange.mock.lastCall?.[0])
+    .toEqual({ search: "", sort: "ascending" });
+});
+
+test("lists the recipes in the product order the filters name", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [cajaDeInfusiones, mixDeFrutosSecos], {
+    filters: { search: "", sort: "descending" },
+  });
+
+  await expect
+    .poll(() => rowTexts(screen).map((text) => text.slice(0, 4)))
+    .toEqual(["Mix ", "Caja"]);
+});
+
+test("a recipe created meanwhile by someone else reads the recipes again", async () => {
+  const services = createServices();
+  vi.mocked(services.saveRecipe).mockResolvedValue({ kind: "stale_version" });
+  const screen = await loaded(services, [cajaDeInfusiones]);
+
+  await userEvent.click(screen.getByRole("button", { name: "Nueva receta" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Producto armado/ }));
+  await expect.element(screen.getByRole("option", { name: "Avena con pasas" })).toBeVisible();
+  (screen.getByRole("option", { name: "Avena con pasas" }).element() as HTMLElement).click();
+  await userEvent.click(dialog.getByRole("button", { name: "Agregar un componente" }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Componente/ }));
+  await expect.element(screen.getByRole("option", { name: "Almendras" })).toBeVisible();
+  (screen.getByRole("option", { name: "Almendras" }).element() as HTMLElement).click();
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Cantidad de Almendras" }), "0,4");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la receta" }));
+
+  await expect.element(dialog.getByText("Otra persona cambió esta receta")).toBeVisible();
+  await expect.poll(() => vi.mocked(services.fetchRecipes).mock.calls.length).toBe(2);
 });
 
 test("has no accessibility violations once loaded, and with the create modal open", async () => {

@@ -107,11 +107,17 @@ describe("recipeComponentsMessage", () => {
     ).toBe("Té verde: escribí una cantidad entera de unidades, por ejemplo 16.");
   });
 
-  it("refuses a quantity of zero", () => {
-    expect(
-      recipeComponentsMessage({ ...EMPTY_RECIPE_FORM, components: [{ ...kgRow, quantity: "0" }] }),
-    ).toContain("Almendras: escribí los kilos");
-  });
+  it.each([
+    ["kilos", kgRow, "0,000", "Almendras: ingresá una cantidad mayor a cero."],
+    ["units", unitRow, "0", "Té verde: ingresá una cantidad mayor a cero."],
+  ])(
+    "asks for a quantity greater than zero when zero %s are typed",
+    (_unit, row, quantity, message) => {
+      expect(
+        recipeComponentsMessage({ ...EMPTY_RECIPE_FORM, components: [{ ...row, quantity }] }),
+      ).toBe(message);
+    },
+  );
 });
 
 describe("recipeProductOptions", () => {

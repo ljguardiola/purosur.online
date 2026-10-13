@@ -95,6 +95,33 @@ describe("saveRecipe", () => {
     expect(outcome).toEqual({ kind: "component_not_found", componentProductId: "retired" });
   });
 
+  it("names the first component listed that is missing or inactive, whatever its id", async () => {
+    const store = storeWithProducts();
+
+    const outcome = await save(store, {
+      components: [
+        nuts,
+        { componentProductId: "zest", quantityPerOutputUnit: 100 },
+        { componentProductId: "retired", quantityPerOutputUnit: 100 },
+        { componentProductId: "almonds", quantityPerOutputUnit: 100 },
+      ],
+    });
+
+    expect(outcome).toEqual({ kind: "component_not_found", componentProductId: "zest" });
+  });
+
+  it("answers component_not_found rather than stale_version when both apply", async () => {
+    const store = storeWithProducts();
+    store.seedRecipe({ productId: "mix", components: [nuts], version: 2 });
+
+    const outcome = await save(store, {
+      components: [{ componentProductId: "missing", quantityPerOutputUnit: 100 }],
+      version: 1,
+    });
+
+    expect(outcome).toEqual({ kind: "component_not_found", componentProductId: "missing" });
+  });
+
   it.each([
     [[], { kind: "no_components" }],
     [

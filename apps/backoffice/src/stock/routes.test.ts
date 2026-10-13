@@ -86,11 +86,12 @@ test("keeps the initial inventory filters a URL names, falling back for a value 
   );
 });
 
-test("opens the recipes without a search", () => {
-  expect(recipesListFilters.parse({})).toEqual({ search: "" });
+test("opens the recipes without a search, by product in ascending order", () => {
+  expect(recipesListFilters.parse({})).toEqual({ search: "", sort: "ascending" });
 });
 
-test("keeps the recipes search a URL names, falling back for a value it does not offer", () => {
-  expect(recipesListFilters.parse({ search: "mix" })).toEqual({ search: "mix" });
-  expect(recipesListFilters.parse({ search: 1 })).toEqual({ search: "" });
+test("keeps the recipes filters a URL names, falling back for a value it does not offer", () => {
+  const filters = { search: "mix", sort: "descending" };
+  expect(recipesListFilters.parse(filters)).toEqual(filters);
+  expect(recipesListFilters.parse({ search: 1, sort: "up" })).toEqual(recipesListFilters.parse({}));
 });

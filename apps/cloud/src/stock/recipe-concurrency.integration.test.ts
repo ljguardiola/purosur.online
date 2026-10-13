@@ -11,8 +11,6 @@ import {
 import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
 import { DrizzleRecipeStore } from "./drizzle-recipe-store.js";
 
-// PGlite serializes every query on one connection, so two saves can only race on a real Postgres
-// pool; the test pins that race by holding the assembled product's row lock until both queue.
 const now = () => new Date("2026-10-15T15:00:00Z");
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;

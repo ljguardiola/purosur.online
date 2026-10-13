@@ -86,7 +86,6 @@ export class FakeRecipeStore implements RecipeStore {
   products: FakeRecipeProductRow[] = [];
   lockLog: string[] = [];
   transactionCount = 0;
-  // Makes the insert of a first recipe lose to a concurrent write that committed first.
   firstRecipeConflicts = false;
   insertFailure: Error | null = null;
 

@@ -236,7 +236,7 @@ test("refuses a quantity of zero", async () => {
   const dialog = await submit(screen);
 
   await expect
-    .element(dialog.getByText("Té verde: escribí una cantidad entera de unidades, por ejemplo 16."))
+    .element(dialog.getByText("Té verde: ingresá una cantidad mayor a cero."))
     .toBeVisible();
   expect(saveRecipe).not.toHaveBeenCalled();
 });
