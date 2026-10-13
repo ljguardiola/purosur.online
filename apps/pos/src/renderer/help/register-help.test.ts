@@ -63,4 +63,16 @@ describe("the register's help", () => {
       "Cambiar de medio con un cobro en la Point",
     );
   });
+
+  it("explains that the register warns of no cloud connection only when it could not confirm the order sent or reach the cloud to cancel it", () => {
+    expect(titlesFound("no pudo confirmarlo con la nube")).toEqual([
+      "Point integrada sin conexión",
+    ]);
+    expect(titlesFound("la cancelación no llega a la nube")).toEqual([
+      "Point integrada sin conexión",
+    ]);
+    expect(titlesFound("sigue mostrando el tiempo para pagar")).toEqual([
+      "Point integrada sin conexión",
+    ]);
+  });
 });
