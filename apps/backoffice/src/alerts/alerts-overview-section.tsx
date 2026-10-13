@@ -6,16 +6,11 @@ import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { CloudData } from "../platform/use-cloud-query";
 import { AlertsLevelCards } from "./alerts-level-cards";
 import { AlertsOpenCountPill } from "./alerts-open-count-pill";
+import { openAlertsCount } from "./open-alerts-count";
 
 export type AlertsOverviewProps = {
   data: CloudData<AlertsOverview>;
 };
-
-export function openAlertsCount(overview: AlertsOverview): number {
-  return (
-    overview.critical.openCount + overview.warning.openCount + overview.informational.openCount
-  );
-}
 
 function OverviewSection({ children }: { children: ReactNode }) {
   const headingId = useId();

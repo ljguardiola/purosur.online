@@ -1,12 +1,16 @@
-import { Link } from "@tanstack/react-router";
-import { focusRingClassName } from "../platform/focus-ring";
+import { LoadingPlaceholder, PillButton, PillLink } from "@purosur/ui";
+import { createLink } from "@tanstack/react-router";
+import { Bell, RotateCw } from "lucide-react";
+import { useState } from "react";
 import {
   type AlertsOpenCountLinkServices,
   defaultAlertsOpenCountLinkServices,
 } from "./alerts-open-count-link-services";
-import { AlertsOpenCountPill } from "./alerts-open-count-pill";
-import { openAlertsCount } from "./alerts-overview-section";
 import { useAlertsOverviewQuery } from "./alerts-queries";
+import { openAlertsCount } from "./open-alerts-count";
+import { openAlertsCountText } from "./open-alerts-count-text";
+
+const AlertsLink = createLink(PillLink);
 
 export type AlertsOpenCountLinkProps = {
   onSessionEnded: () => void;
@@ -14,21 +18,37 @@ export type AlertsOpenCountLinkProps = {
 };
 
 export function AlertsOpenCountLink({ onSessionEnded, services }: AlertsOpenCountLinkProps) {
+  const [refused, setRefused] = useState(false);
   const overview = useAlertsOverviewQuery({
     fetchAlertsOverview: (services ?? defaultAlertsOpenCountLinkServices).fetchAlertsOverview,
     onSessionEnded,
-    onForbidden: () => {},
+    onForbidden: () => setRefused(true),
   });
-  const openCount = overview.status === "loaded" ? openAlertsCount(overview.value) : 0;
+  if (refused) {
+    return null;
+  }
+  if (overview.status === "loading") {
+    return <LoadingPlaceholder variant="pill" />;
+  }
+  if (overview.status === "failed") {
+    return (
+      <PillButton
+        tone="error"
+        icon={<RotateCw />}
+        aria-label="No se cargaron las alertas. Reintentar"
+        onPress={overview.retry}
+      >
+        No se cargaron las alertas
+      </PillButton>
+    );
+  }
+  const openCount = openAlertsCount(overview.value);
   if (openCount === 0) {
     return null;
   }
   return (
-    <Link
-      to="/alerts"
-      className={`rounded-full hover:ring-1 hover:ring-warning-soft ${focusRingClassName}`}
-    >
-      <AlertsOpenCountPill openCount={openCount} />
-    </Link>
+    <AlertsLink to="/alerts" tone="warning" icon={<Bell />}>
+      {openAlertsCountText(openCount)}
+    </AlertsLink>
   );
 }
