@@ -1,33 +1,12 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { describe, expect, inject, it, onTestFinished } from "vitest";
-import { migrateFreshDatabase } from "../../test-support/test-database-snapshot.js";
-import {
-  addMigrationEntry,
-  findMigrationEntry,
-  type JournalEntry,
-  migrationsFolderBefore,
-} from "./test-support/migration-journal-test-helpers.js";
-
-async function caeaCodesEntry(): Promise<JournalEntry> {
-  return findMigrationEntry("_caea_codes", "test setup: no caea codes migration in the journal");
-}
+import { describe, expect, it } from "vitest";
+import { databaseBeforeMigration } from "./test-support/migration-under-test.js";
 
 async function migratedDatabase() {
-  const folder = await mkdtemp(join(tmpdir(), "caea-codes-migration-"));
-  onTestFinished(() => rm(folder, { recursive: true, force: true }));
-  await migrationsFolderBefore(folder, await caeaCodesEntry());
-  const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
-  onTestFinished(() => client.close());
-  await client.query(
+  const database = await databaseBeforeMigration("_caea_codes");
+  await database.query(
     `insert into fiscal_addresses (name, street_address) values ('Deposito', 'Calle Ficticia 123')`,
   );
-  await addMigrationEntry(folder, await caeaCodesEntry());
-  await migrate(drizzle(client), { migrationsFolder: folder });
-  return client;
+  return database.applyMigration();
 }
 
 const insertCode = (obtainedThrough: string, fortnightEnd = "2026-10-15") =>
