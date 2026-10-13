@@ -3,7 +3,7 @@ import { hostname, release, version } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { type CoreReadyMessage, mainToCoreMessageSchema } from "@purosur/contracts";
-import { REGISTER_UPDATE_HOLD_LIMIT_MS } from "@purosur/domain";
+import { REGISTER_UPDATE_HOLD_LIMIT_MS, REGISTER_UPDATE_SETTLE_LIMIT_MS } from "@purosur/domain";
 import * as Sentry from "@sentry/electron/utility";
 import { net } from "electron";
 import {
@@ -885,19 +885,23 @@ const updateHold = createUpdateHold({
     return () => clearTimeout(timer);
   },
   limitMs: REGISTER_UPDATE_HOLD_LIMIT_MS,
+  settleLimitMs: REGISTER_UPDATE_SETTLE_LIMIT_MS,
 });
 
 const rendererConnection = createRendererConnection(
   (data, reply) => {
     gateFromRenderer(
       data,
-      gateRendererRequest(updateHold, (message) => {
-        void answerRendererRequest(answeredRendererRequestDeps, message).then((answer) => {
-          if (answer !== undefined) {
-            reply(answer);
-          }
-        });
-      }),
+      gateRendererRequest(
+        updateHold,
+        (message) =>
+          answerRendererRequest(answeredRendererRequestDeps, message).then((answer) => {
+            if (answer !== undefined) {
+              reply(answer);
+            }
+          }),
+        (requestId) => reply({ type: "refused-while-updating", request_id: requestId }),
+      ),
     );
   },
   () => signedInPerson.clear(),

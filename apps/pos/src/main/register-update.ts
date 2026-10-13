@@ -141,7 +141,7 @@ export function createRegisterUpdater(deps: RegisterUpdaterDependencies): Regist
   }
 
   function isOn(): boolean {
-    return deps.isPackaged && deps.cloudUrl !== undefined && deps.readDeviceToken() !== undefined;
+    return deps.isPackaged && deps.cloudUrl !== undefined;
   }
 
   async function runPass(): Promise<void> {
@@ -159,7 +159,11 @@ export function createRegisterUpdater(deps: RegisterUpdaterDependencies): Regist
   }
 
   async function loop(): Promise<void> {
-    await deps.files.clearPending();
+    try {
+      await deps.files.clearPending();
+    } catch (error) {
+      deps.report(error);
+    }
     await deps.wait(FIRST_CHECK_DELAY_MS);
     while (!installerLaunched) {
       await runPass();

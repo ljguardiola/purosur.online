@@ -85,4 +85,8 @@ export {
   SERIAL_DEVICE_ROLES,
   serialDeviceStandings,
 } from "./model/serial-devices.js";
-export { isSafeMomentToUpdate, REGISTER_UPDATE_HOLD_LIMIT_MS } from "./model/update-safe-moment.js";
+export {
+  isSafeMomentToUpdate,
+  REGISTER_UPDATE_HOLD_LIMIT_MS,
+  REGISTER_UPDATE_SETTLE_LIMIT_MS,
+} from "./model/update-safe-moment.js";
