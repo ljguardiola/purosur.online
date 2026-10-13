@@ -81,9 +81,9 @@ describe("releasing a quarantined event", () => {
     ]);
   });
 
-  it("resolves the quarantine alert of that event only", async () => {
+  it("records only that event's quarantine as released", async () => {
     const { application, releaseWith } = setup([quarantined(), quarantined({ eventId: "other" })]);
-    application.state.quarantineAlerts = ["stuck", "other"].map((eventId) => ({
+    application.state.quarantines = ["stuck", "other"].map((eventId) => ({
       deviceId: "device-1",
       eventId,
       eventType: "cash_session_opened",
@@ -94,8 +94,10 @@ describe("releasing a quarantined event", () => {
 
     await releaseWith("stuck");
 
-    expect(application.state.resolvedQuarantineAlerts).toEqual(["stuck"]);
-    expect(application.state.quarantineAlerts.map((alert) => alert.eventId)).toEqual(["other"]);
+    expect(application.state.releasedQuarantines).toEqual(["stuck"]);
+    expect(application.state.quarantines.map((quarantine) => quarantine.eventId)).toEqual([
+      "other",
+    ]);
   });
 
   it("looks the event up inside the branch, waits for its aggregate, then locks the event, and only then changes anything", async () => {
@@ -110,7 +112,7 @@ describe("releasing a quarantined event", () => {
       "lock event stuck",
       "release stuck",
       "record release of stuck",
-      "resolve alert of stuck",
+      "record quarantine of stuck released",
       "commit",
     ]);
   });
@@ -159,7 +161,7 @@ describe("releasing a quarantined event", () => {
     expect(outcome).toEqual({ kind: "not_quarantined" });
     expect(application.event("stuck")).toEqual(event);
     expect(application.state.releases).toEqual([]);
-    expect(application.state.resolvedQuarantineAlerts).toEqual([]);
+    expect(application.state.releasedQuarantines).toEqual([]);
     expect(release.calls.at(-1)).toBe("commit");
     expect(release.calls.filter((call) => call.startsWith("release "))).toEqual([]);
   });
@@ -176,12 +178,12 @@ describe("releasing a quarantined event", () => {
     expect(release.calls.at(-1)).toBe("rollback");
   });
 
-  it("rolls back the release when resolving the alert fails", async () => {
+  it("rolls back the release when recording its quarantine as released fails", async () => {
     const event = quarantined();
     const { application, release, releaseWith } = setup([structuredClone(event)]);
-    release.failResolvingAlert = true;
+    release.failRecordingQuarantineReleased = true;
 
-    await expect(releaseWith("stuck")).rejects.toThrow("alert store unavailable");
+    await expect(releaseWith("stuck")).rejects.toThrow("quarantine store unavailable");
 
     expect(application.event("stuck")).toEqual(event);
     expect(application.state.releases).toEqual([]);
@@ -240,10 +242,10 @@ describe("what a release does to the events applied after it", () => {
     expect(application.appliedEventIds).toEqual(["stuck", "second", "third"]);
   });
 
-  it("quarantines a released event again after a full new series of failures and opens its alert again", async () => {
+  it("quarantines a released event again after a full new series of failures and records its quarantine again", async () => {
     const { application, releaseWith } = setup([quarantined(), laterMovement("second", 2)]);
     const unreadable = new FakeEventUpcaster({ second: A_CASH_MOVEMENT_FACT });
-    application.state.quarantineAlerts = [];
+    application.state.quarantines = [];
     await releaseWith("stuck");
 
     const attemptsAfterEachRun: number[] = [];
@@ -263,7 +265,9 @@ describe("what a release does to the events applied after it", () => {
     expect(attemptsAfterEachRun).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(namedAfterEachRun).toEqual([[], [], [], [], [], [], [], ["stuck"]]);
     expect(application.event("stuck").quarantinedAt).not.toBeNull();
-    expect(application.state.quarantineAlerts.map((alert) => alert.eventId)).toEqual(["stuck"]);
+    expect(application.state.quarantines.map((quarantine) => quarantine.eventId)).toEqual([
+      "stuck",
+    ]);
     expect(application.appliedEventIds).toEqual([]);
   });
 });

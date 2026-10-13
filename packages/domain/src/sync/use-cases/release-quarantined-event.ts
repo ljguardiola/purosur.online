@@ -43,7 +43,7 @@ export function releaseQuarantinedEvent(
       },
       released,
     });
-    await tx.resolveQuarantineAlert(eventId, releasedAt);
+    await tx.recordQuarantineReleased(eventId, releasedAt);
     return { kind: "released" };
   });
 }

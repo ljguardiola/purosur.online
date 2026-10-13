@@ -1,7 +1,7 @@
-import type { EventQuarantineReason } from "../../alerts/index.js";
 import { qrPaymentIsBacked } from "../../payments/index.js";
 import type { CompletedSale } from "../../sales/index.js";
 import { afterFailedAttempt } from "../model/event-application-retry.js";
+import type { EventQuarantineReason } from "../model/event-quarantine.js";
 import { nextEventToApply } from "../model/next-event-to-apply.js";
 import {
   type AggregateKey,
@@ -151,7 +151,7 @@ async function applyEvent(
   await tx.markApplied(event.eventId, now);
   const breaks = invariantBreaksOf(fact);
   if (breaks.length > 0) {
-    await tx.openInvariantAlert({
+    await tx.recordInvariantBreaks({
       eventId: event.eventId,
       eventType: event.eventType,
       aggregateType: event.aggregateType,
@@ -218,7 +218,7 @@ async function recordFailure(
       quarantinedAt: now,
       error: failure.message,
     });
-    await tx.openQuarantineAlert({
+    await tx.recordQuarantine({
       deviceId: next.event.deviceId,
       eventId: next.event.eventId,
       eventType: next.event.eventType,

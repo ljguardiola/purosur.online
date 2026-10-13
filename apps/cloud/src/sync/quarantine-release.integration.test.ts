@@ -136,9 +136,9 @@ describe("releasing a quarantined event on a real Postgres", () => {
         store.transaction((tx) =>
           work(
             Object.create(tx, {
-              resolveQuarantineAlert: {
+              recordQuarantineReleased: {
                 value: async (id: string, at: Date) => {
-                  await tx.resolveQuarantineAlert(id, at);
+                  await tx.recordQuarantineReleased(id, at);
                   throw new Error("connection lost");
                 },
               },

@@ -12,7 +12,7 @@ export interface FakeRegister {
 export class FakeQuarantineRelease implements QuarantineRelease {
   calls: string[] = [];
   failRecordingRelease = false;
-  failResolvingAlert = false;
+  failRecordingQuarantineReleased = false;
   eventsGoneBeforeLocking = new Set<string>();
   private readonly application: FakeEventApplication;
   private readonly registers: readonly FakeRegister[];
@@ -75,15 +75,15 @@ export class FakeQuarantineRelease implements QuarantineRelease {
         }
         this.application.state.releases.push(record);
       },
-      resolveQuarantineAlert: async (eventId) => {
-        this.calls.push(`resolve alert of ${eventId}`);
-        if (this.failResolvingAlert) {
-          throw new Error("alert store unavailable");
+      recordQuarantineReleased: async (eventId) => {
+        this.calls.push(`record quarantine of ${eventId} released`);
+        if (this.failRecordingQuarantineReleased) {
+          throw new Error("quarantine store unavailable");
         }
-        this.application.state.quarantineAlerts = this.application.state.quarantineAlerts.filter(
-          (alert) => alert.eventId !== eventId,
+        this.application.state.quarantines = this.application.state.quarantines.filter(
+          (quarantine) => quarantine.eventId !== eventId,
         );
-        this.application.state.resolvedQuarantineAlerts.push(eventId);
+        this.application.state.releasedQuarantines.push(eventId);
       },
     };
   }

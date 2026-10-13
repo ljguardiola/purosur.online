@@ -272,8 +272,8 @@ describe("opening the alerts of the events that were not applied normally", () =
       reason: { kind: "unreadable" } as const,
     });
 
-    await system.application.transaction((tx) => tx.openQuarantineAlert(quarantined(firstEvent)));
-    await system.application.transaction((tx) => tx.openQuarantineAlert(quarantined(secondEvent)));
+    await system.application.transaction((tx) => tx.recordQuarantine(quarantined(firstEvent)));
+    await system.application.transaction((tx) => tx.recordQuarantine(quarantined(secondEvent)));
 
     const rows = await system.db.select().from(alerts);
     expect(rows).toHaveLength(2);
@@ -291,7 +291,7 @@ describe("opening the alerts of the events that were not applied normally", () =
     const aggregateId = randomUUID();
 
     await system.application.transaction((tx) =>
-      tx.openInvariantAlert({
+      tx.recordInvariantBreaks({
         eventId,
         eventType: "sale_completed",
         aggregateType: "Sale",

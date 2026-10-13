@@ -1,9 +1,7 @@
-import type {
-  EventInvariantViolatedDetail,
-  EventsQuarantinedDetail,
-} from "../../../alerts/index.js";
 import type { MercadoPagoQrPaymentTransaction } from "../../../payments/index.js";
 import type { CompletedSale } from "../../../sales/index.js";
+import type { EventInvariantBreaks } from "../../model/event-invariant-breaks.js";
+import type { EventQuarantine } from "../../model/event-quarantine.js";
 import type { SyncedFact } from "../../model/synced-fact.js";
 import type {
   AggregateKey,
@@ -30,10 +28,10 @@ export interface FakeEventApplicationState {
   openingCountsWithdrawn: { eventId: string; withdrawnMovementId: string }[];
   writeOrder: string[];
   appliedOrder: string[];
-  quarantineAlerts: EventsQuarantinedDetail[];
-  invariantAlerts: EventInvariantViolatedDetail[];
+  quarantines: EventQuarantine[];
+  invariantBreaks: EventInvariantBreaks[];
   releases: QuarantineReleaseRecord[];
-  resolvedQuarantineAlerts: string[];
+  releasedQuarantines: string[];
 }
 
 const keyOf = (key: AggregateKey) => `${key.aggregateType}/${key.aggregateId}`;
@@ -70,10 +68,10 @@ export class FakeEventApplication implements EventApplication {
     openingCountsWithdrawn: [],
     writeOrder: [],
     appliedOrder: [],
-    quarantineAlerts: [],
-    invariantAlerts: [],
+    quarantines: [],
+    invariantBreaks: [],
     releases: [],
-    resolvedQuarantineAlerts: [],
+    releasedQuarantines: [],
   };
   calls: string[] = [];
   transactions = 0;
@@ -83,7 +81,7 @@ export class FakeEventApplication implements EventApplication {
     string,
     Pick<MercadoPagoQrPaymentTransaction, "saleId" | "amount" | "state">
   >();
-  failOpeningInvariantAlert = false;
+  failRecordingInvariantBreaks = false;
   heldByAnotherRun = new Set<string>();
   beforeTransaction: (transactionNumber: number) => void = () => {};
 
@@ -208,14 +206,14 @@ export class FakeEventApplication implements EventApplication {
       recordFailedAttempt: async (eventId, failed: FailedAttempt) => {
         Object.assign(this.event(eventId), failed);
       },
-      openQuarantineAlert: async (details) => {
-        this.state.quarantineAlerts.push(details);
+      recordQuarantine: async (quarantine) => {
+        this.state.quarantines.push(quarantine);
       },
-      openInvariantAlert: async (details) => {
-        if (this.failOpeningInvariantAlert) {
-          throw new Error("alert store unavailable");
+      recordInvariantBreaks: async (found) => {
+        if (this.failRecordingInvariantBreaks) {
+          throw new Error("invariant breaks unavailable");
         }
-        this.state.invariantAlerts.push(details);
+        this.state.invariantBreaks.push(found);
       },
     };
   }

@@ -5,6 +5,7 @@ import type {
   TaxAuthorityRejection,
 } from "../../fiscal/index.js";
 import type { SalesDeniedReason } from "../../shared/index.js";
+import type { EventQuarantineReason } from "../../sync/index.js";
 import type { AlertKind } from "./alert-catalog.js";
 
 export type PasskeyChangedDetail =
@@ -57,12 +58,7 @@ export interface RegisterEnrolledDetail {
   replacedInstallation: boolean;
 }
 
-export type EventQuarantineReason =
-  | { kind: "unreadable" }
-  | { kind: "missing_dependency"; aggregateType: string; aggregateId: string }
-  | { kind: "not_recorded" };
-
-export interface EventsQuarantinedDetail {
+interface EventsQuarantinedDetail {
   deviceId: string;
   eventId: string;
   eventType: string;
@@ -71,7 +67,7 @@ export interface EventsQuarantinedDetail {
   reason: EventQuarantineReason;
 }
 
-export interface EventInvariantViolatedDetail {
+interface EventInvariantViolatedDetail {
   eventId: string;
   eventType: string;
   aggregateType: string;
