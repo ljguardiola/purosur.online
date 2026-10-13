@@ -13,6 +13,7 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { insertPurchaseLine } from "../purchasing/test-support/purchase-line-fixtures.js";
 import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
@@ -20,7 +21,6 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerPricesListRoute } from "./prices-list-route.js";
-import { insertPurchaseLine } from "./test-support/purchase-line-fixtures.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");

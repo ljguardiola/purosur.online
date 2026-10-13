@@ -1,8 +1,22 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { isLotInStock, lotValueCents } from "./lot-value.js";
+import { isLotInStock, knownLotCost, lotValueCents } from "./lot-value.js";
 
 const cost = { totalCents: 5_000, quantity: 1_000 };
+
+describe("knownLotCost", () => {
+  it("is the lot's cost pair while its cost is complete", () => {
+    expect(knownLotCost({ cost, costIncomplete: false })).toBe(cost);
+  });
+
+  it("is none for a lot without a cost", () => {
+    expect(knownLotCost({ cost: null, costIncomplete: true })).toBeNull();
+  });
+
+  it("is none for a lot flagged incomplete even when it holds a cost", () => {
+    expect(knownLotCost({ cost, costIncomplete: true })).toBeNull();
+  });
+});
 
 describe("lotValueCents", () => {
   it("values the remaining quantity at the lot's cost per quantity", () => {

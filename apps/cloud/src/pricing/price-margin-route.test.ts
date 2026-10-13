@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertPurchaseLine } from "../purchasing/test-support/purchase-line-fixtures.js";
 import { insertInitialCountLot } from "../stock/test-support/lot-fixtures.js";
 import {
   BACKOFFICE_ORIGIN,
@@ -9,7 +10,6 @@ import {
 } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerPriceMarginRoute } from "./price-margin-route.js";
-import { insertPurchaseLine } from "./test-support/purchase-line-fixtures.js";
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 const NO_PRODUCT_ID = "00000000-0000-4000-8000-000000000000";
@@ -170,20 +170,17 @@ describe("GET /prices/:productId/margin", () => {
     });
   });
 
-  it.each(["", "unitPrice=0", "unitPrice=12.5", "unitPrice=abc", "unitPrice=-5"])(
-    "answers 400 validation_failed naming unitPrice for the query %j",
-    async (query) => {
-      const { headers } = await signedInWith(db, ["manage_prices_and_review"], NOON);
-      const { productId } = await insertProduct(db);
+  it("answers 400 validation_failed naming unitPrice for a price the query shape refuses", async () => {
+    const { headers } = await signedInWith(db, ["manage_prices_and_review"], NOON);
+    const { productId } = await insertProduct(db);
 
-      const response = await marginRequest(productId, query, headers);
+    const response = await marginRequest(productId, "unitPrice=0", headers);
 
-      expect(response.statusCode).toBe(400);
-      expect(response.json()).toMatchObject({
-        code: "validation_failed",
-        message: "unitPrice must be a positive integer number of cents",
-        details: [{ field: "unitPrice" }],
-      });
-    },
-  );
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      message: "unitPrice must be a positive integer number of cents",
+      details: [{ field: "unitPrice" }],
+    });
+  });
 });

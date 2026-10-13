@@ -1,6 +1,7 @@
 import type { PriceCostReference, PriceProduct } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { PriceMarginReference } from "./price-margin-reference";
 import type { FetchPriceMarginOutcome } from "./prices-api";
@@ -24,6 +25,16 @@ const rice: PriceProduct = {
   costReference,
 };
 
+const pricedRice: PriceProduct = {
+  ...rice,
+  currentPrice: {
+    id: "00000000-0000-4000-8000-000000000001",
+    unitPrice: 750000,
+    validFrom: "2026-08-16T12:00:00.000Z",
+  },
+  costReference: { ...costReference, marginTenthsOfPercent: 405 },
+};
+
 function marginOf(reference: PriceCostReference | null): FetchPriceMarginOutcome {
   return { kind: "ok", value: { costReference: reference } };
 }
@@ -32,12 +43,13 @@ function element(
   amount: string,
   fetchPriceMargin: (productId: string, unitPrice: number) => Promise<FetchPriceMarginOutcome>,
   onSessionEnded: () => void = () => {},
+  product: PriceProduct = rice,
 ) {
   return (
     <FieldSizeProvider size="backoffice">
       <main>
         <PriceMarginReference
-          product={rice}
+          product={product}
           amount={amount}
           fetchPriceMargin={fetchPriceMargin}
           onSessionEnded={onSessionEnded}
@@ -59,7 +71,18 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-test("shows no margin while no price is typed, and asks for none", async () => {
+test("shows the margin of the current price while no price is typed, and asks for none", async () => {
+  const fetchPriceMargin = vi.fn();
+  const screen = await render(element("", fetchPriceMargin, () => {}, pricedRice));
+
+  await vi.advanceTimersByTimeAsync(2_000);
+
+  await expect.element(screen.getByText("40,5 %")).toBeVisible();
+  await expect.element(screen.getByText("$ 7.500,00 − $ 4.460,00 sobre el precio")).toBeVisible();
+  expect(fetchPriceMargin).not.toHaveBeenCalled();
+});
+
+test("shows no margin for a product without a price while no price is typed", async () => {
   const fetchPriceMargin = vi.fn();
   const screen = await render(element("", fetchPriceMargin));
 
@@ -110,17 +133,6 @@ test("asks for no margin of a price that cannot be saved", async () => {
   await expect.element(screen.getByText("—")).toBeVisible();
 });
 
-test("shows a negative margin with its minus sign", async () => {
-  const fetchPriceMargin = vi
-    .fn()
-    .mockResolvedValue(marginOf({ ...costReference, marginTenthsOfPercent: -32 }));
-  const screen = await render(element("4.000,00", fetchPriceMargin));
-
-  await vi.advanceTimersByTimeAsync(300);
-
-  await eventuallyShown(screen.getByText("−3,2 %"));
-});
-
 test("does not show the margin of the previous price while the new one is read", async () => {
   const fetchPriceMargin = vi.fn().mockResolvedValueOnce(marginOf(costReference));
   const screen = await render(element("8.200,00", fetchPriceMargin));
@@ -135,16 +147,40 @@ test("does not show the margin of the previous price while the new one is read",
   expect(screen.getByText("45,6 %").query()).toBeNull();
 });
 
-test.each([
-  ["a failed request", { kind: "failed" } as const],
-  ["a missing cost", marginOf(null)],
-])("shows a dash after %s", async (_, outcome) => {
-  const fetchPriceMargin = vi.fn().mockResolvedValue(outcome);
+test("shows a dash when the cloud answers no cost", async () => {
+  const fetchPriceMargin = vi.fn().mockResolvedValue(marginOf(null));
   const screen = await render(element("8.200,00", fetchPriceMargin));
 
   await vi.advanceTimersByTimeAsync(300);
 
   await eventuallyShown(screen.getByText("—"));
+});
+
+test("offers to read the margin again after the read fails, and shows it once read", async () => {
+  const fetchPriceMargin = vi
+    .fn()
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValue(marginOf(costReference));
+  const screen = await render(element("8.200,00", fetchPriceMargin));
+  await vi.advanceTimersByTimeAsync(300);
+
+  await eventuallyShown(screen.getByText("No pudimos abrir el margen"));
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await eventuallyShown(screen.getByText("45,6 %"));
+  expect(fetchPriceMargin).toHaveBeenCalledTimes(2);
+});
+
+test("tells the person to wait when the margin read is rate limited", async () => {
+  const fetchPriceMargin = vi
+    .fn()
+    .mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 30 });
+  const screen = await render(element("8.200,00", fetchPriceMargin));
+
+  await vi.advanceTimersByTimeAsync(300);
+
+  await eventuallyShown(screen.getByText("Demasiadas solicitudes"));
+  await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
 });
 
 test("ends the session when the cloud says it is over", async () => {

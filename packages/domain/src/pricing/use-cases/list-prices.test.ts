@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { CostSource } from "../model/price-cost-reference.js";
+import type { InitialCountCost } from "./initial-count-cost-reader.js";
 import { listPrices } from "./list-prices.js";
 import type { PricesUnderReview, PriceUnderReview } from "./price-review-reader.js";
-import { fakePriceCostReader } from "./test-support/fake-price-cost-reader.js";
+import type { PurchaseLineCost } from "./purchase-cost-reader.js";
+import { fakeInitialCountCostReader } from "./test-support/fake-initial-count-cost-reader.js";
 import { fakePriceReviewReader } from "./test-support/fake-price-review-reader.js";
+import { fakePurchaseCostReader } from "./test-support/fake-purchase-cost-reader.js";
 
 function product(id: string, unitPrice: number | null): PriceUnderReview {
   return {
@@ -31,12 +33,22 @@ function listing(products: PriceUnderReview[]): PricesUnderReview {
   };
 }
 
-function purchase(lineId: string, totalCents: number): CostSource {
+function purchase(productId: string, lineId: string, totalCents: number): PurchaseLineCost {
   return {
-    kind: "purchase_line",
+    productId,
     lineId,
     purchasedOn: "2026-03-01",
     recordedAt: new Date("2026-03-01T10:00:00Z"),
+    cost: { totalCents, quantity: 1000 },
+  };
+}
+
+function counted(productId: string, totalCents: number): InitialCountCost {
+  return {
+    productId,
+    countedAt: new Date("2026-03-05T10:00:00Z"),
+    withdrawn: false,
+    costIncomplete: false,
     cost: { totalCents, quantity: 1000 },
   };
 }
@@ -52,10 +64,11 @@ describe("listPrices", () => {
     const result = await listPrices(
       {
         reviews: fakePriceReviewReader(listing([product("a", 2000), product("b", 500)])),
-        costs: fakePriceCostReader([
-          { productId: "a", source: purchase("line-a", 1200) },
-          { productId: "b", source: purchase("line-b", 250) },
+        purchaseCosts: fakePurchaseCostReader([
+          purchase("a", "line-a", 1200),
+          purchase("b", "line-b", 250),
         ]),
+        initialCountCosts: fakeInitialCountCostReader([]),
       },
       query,
     );
@@ -88,7 +101,8 @@ describe("listPrices", () => {
     const result = await listPrices(
       {
         reviews: fakePriceReviewReader(answered),
-        costs: fakePriceCostReader([{ productId: "a", source: purchase("line-a", 1200) }]),
+        purchaseCosts: fakePurchaseCostReader([purchase("a", "line-a", 1200)]),
+        initialCountCosts: fakeInitialCountCostReader([]),
       },
       query,
     );
@@ -111,7 +125,8 @@ describe("listPrices", () => {
     const result = await listPrices(
       {
         reviews: fakePriceReviewReader(listing([product("a", 2000)])),
-        costs: fakePriceCostReader([]),
+        purchaseCosts: fakePurchaseCostReader([]),
+        initialCountCosts: fakeInitialCountCostReader([]),
       },
       query,
     );
@@ -123,7 +138,8 @@ describe("listPrices", () => {
     const result = await listPrices(
       {
         reviews: fakePriceReviewReader(listing([product("a", null)])),
-        costs: fakePriceCostReader([{ productId: "a", source: purchase("line-a", 1200) }]),
+        purchaseCosts: fakePurchaseCostReader([purchase("a", "line-a", 1200)]),
+        initialCountCosts: fakeInitialCountCostReader([]),
       },
       query,
     );
@@ -140,19 +156,8 @@ describe("listPrices", () => {
     const result = await listPrices(
       {
         reviews: fakePriceReviewReader(listing([product("a", 2000)])),
-        costs: fakePriceCostReader([
-          { productId: "a", source: purchase("line-1", 1200) },
-          {
-            productId: "a",
-            source: {
-              kind: "initial_count",
-              countedAt: new Date("2026-03-05T10:00:00Z"),
-              withdrawn: false,
-              costIncomplete: false,
-              cost: { totalCents: 900, quantity: 1000 },
-            },
-          },
-        ]),
+        purchaseCosts: fakePurchaseCostReader([purchase("a", "line-1", 1200)]),
+        initialCountCosts: fakeInitialCountCostReader([counted("a", 900)]),
       },
       query,
     );
@@ -160,13 +165,30 @@ describe("listPrices", () => {
     expect(result.products[0]?.costReference?.lastCostCents).toBe(900);
   });
 
-  it("reads the costs of the listed products at the query's branch only", async () => {
-    const costs = fakePriceCostReader([]);
+  it("takes an initial count's cost for a product with no purchase", async () => {
+    const result = await listPrices(
+      {
+        reviews: fakePriceReviewReader(listing([product("a", 2000), product("b", 500)])),
+        purchaseCosts: fakePurchaseCostReader([purchase("b", "line-b", 250)]),
+        initialCountCosts: fakeInitialCountCostReader([counted("a", 900)]),
+      },
+      query,
+    );
+
+    expect(result.products.map(({ costReference }) => costReference?.lastCostCents)).toEqual([
+      900, 250,
+    ]);
+  });
+
+  it("reads the purchase and initial-count costs of the listed products at the query's branch", async () => {
+    const purchaseCosts = fakePurchaseCostReader([]);
+    const initialCountCosts = fakeInitialCountCostReader([]);
     const reviews = fakePriceReviewReader(listing([product("a", 2000), product("b", 500)]));
 
-    await listPrices({ reviews, costs }, query);
+    await listPrices({ reviews, purchaseCosts, initialCountCosts }, query);
 
     expect(reviews.queries).toEqual([query]);
-    expect(costs.askedProductIds).toEqual([["a", "b"]]);
+    expect(purchaseCosts.asked).toEqual([{ locationId: "location-1", productIds: ["a", "b"] }]);
+    expect(initialCountCosts.asked).toEqual([{ locationId: "location-1", productIds: ["a", "b"] }]);
   });
 });

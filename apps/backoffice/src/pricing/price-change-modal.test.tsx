@@ -464,13 +464,9 @@ test("a confirmation answered that there is no price to confirm offers the reloa
   await expect.element(dialog.getByRole("button", { name: "Recargar el precio" })).toBeVisible();
 });
 
-test("shows the last cost, the freight per unit and the total cost of the product", async () => {
+test("shows the product's cost breakdown", async () => {
   const screen = await renderModal(createProps());
 
-  await expect.element(screen.getByText("Último costo")).toBeVisible();
-  await expect.element(screen.getByText("$ 4.280,00 / kg")).toBeVisible();
-  await expect.element(screen.getByText("Flete por unidad")).toBeVisible();
-  await expect.element(screen.getByText("$ 180,00 / kg")).toBeVisible();
   await expect.element(screen.getByText("Costo total")).toBeVisible();
   await expect.element(screen.getByText("$ 4.460,00 / kg")).toBeVisible();
 });

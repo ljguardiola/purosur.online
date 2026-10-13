@@ -1,11 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import {
-  type CostSource,
-  FREIGHT_PER_UNIT_CENTS,
-  lastCostSource,
-  priceCostReference,
-} from "./price-cost-reference.js";
+import { type CostSource, priceCostReference } from "./price-cost-reference.js";
 
 function purchase(
   lineId: string,
@@ -14,6 +9,15 @@ function purchase(
   cost = { totalCents: 1000, quantity: 1000 },
 ): CostSource {
   return { kind: "purchase_line", lineId, purchasedOn, recordedAt: new Date(recordedAt), cost };
+}
+
+function purchaseCosting(
+  costCents: number,
+  lineId: string,
+  purchasedOn: string,
+  recordedAt: string,
+): CostSource {
+  return purchase(lineId, purchasedOn, recordedAt, { totalCents: costCents, quantity: 1000 });
 }
 
 function initialCount(
@@ -30,110 +34,101 @@ function initialCount(
   };
 }
 
-describe("lastCostSource", () => {
-  it("is none when there is no source", () => {
-    expect(lastCostSource([])).toBeNull();
-  });
+function initialCountCosting(costCents: number, countedAt: string): CostSource {
+  return initialCount(countedAt, { cost: { totalCents: costCents, quantity: 1000 } });
+}
 
-  it("takes the purchase line with the latest purchase day", () => {
-    const older = purchase("a", "2026-03-01", "2026-03-09T12:00:00Z");
-    const newer = purchase("b", "2026-03-02", "2026-03-02T12:00:00Z");
+function lastCostOf(sources: CostSource[]): number | null {
+  return priceCostReference(sources, null)?.lastCostCents ?? null;
+}
 
-    expect(lastCostSource([newer, older])).toBe(newer);
-    expect(lastCostSource([older, newer])).toBe(newer);
+describe("the last cost source", () => {
+  it("is the purchase line with the latest purchase day", () => {
+    const older = purchaseCosting(100, "a", "2026-03-01", "2026-03-09T12:00:00Z");
+    const newer = purchaseCosting(200, "b", "2026-03-02", "2026-03-02T12:00:00Z");
+
+    expect(lastCostOf([newer, older])).toBe(200);
+    expect(lastCostOf([older, newer])).toBe(200);
   });
 
   it("breaks a tie of purchase days with the latest recorded instant", () => {
-    const earlier = purchase("a", "2026-03-01", "2026-03-01T10:00:00Z");
-    const later = purchase("b", "2026-03-01", "2026-03-01T11:00:00Z");
+    const earlier = purchaseCosting(100, "a", "2026-03-01", "2026-03-01T10:00:00Z");
+    const later = purchaseCosting(200, "b", "2026-03-01", "2026-03-01T11:00:00Z");
 
-    expect(lastCostSource([later, earlier])).toBe(later);
-    expect(lastCostSource([earlier, later])).toBe(later);
+    expect(lastCostOf([later, earlier])).toBe(200);
+    expect(lastCostOf([earlier, later])).toBe(200);
   });
 
   it("breaks a tie of day and instant with the lower line id", () => {
-    const low = purchase("a", "2026-03-01", "2026-03-01T10:00:00Z");
-    const high = purchase("b", "2026-03-01", "2026-03-01T10:00:00Z");
+    const low = purchaseCosting(100, "a", "2026-03-01", "2026-03-01T10:00:00Z");
+    const high = purchaseCosting(200, "b", "2026-03-01", "2026-03-01T10:00:00Z");
 
-    expect(lastCostSource([high, low])).toBe(low);
-    expect(lastCostSource([low, high])).toBe(low);
+    expect(lastCostOf([high, low])).toBe(100);
+    expect(lastCostOf([low, high])).toBe(100);
   });
 
-  it("takes an initial count more recent than the last purchase", () => {
-    const bought = purchase("a", "2026-03-01", "2026-03-01T10:00:00Z");
-    const counted = initialCount("2026-03-05T15:00:00Z");
+  it("is an initial count more recent than the last purchase", () => {
+    const bought = purchaseCosting(100, "a", "2026-03-01", "2026-03-01T10:00:00Z");
+    const counted = initialCountCosting(200, "2026-03-05T15:00:00Z");
 
-    expect(lastCostSource([bought, counted])).toBe(counted);
+    expect(lastCostOf([bought, counted])).toBe(200);
   });
 
-  it("takes the purchase line when it is more recent than the initial count", () => {
-    const counted = initialCount("2026-03-01T15:00:00Z");
-    const bought = purchase("a", "2026-03-05", "2026-03-05T10:00:00Z");
+  it("is the purchase line when it is more recent than the initial count", () => {
+    const counted = initialCountCosting(200, "2026-03-01T15:00:00Z");
+    const bought = purchaseCosting(100, "a", "2026-03-05", "2026-03-05T10:00:00Z");
 
-    expect(lastCostSource([counted, bought])).toBe(bought);
+    expect(lastCostOf([counted, bought])).toBe(100);
   });
 
   it("dates an initial count at its Argentina calendar day", () => {
-    const counted = initialCount("2026-03-02T01:00:00Z");
-    const bought = purchase("a", "2026-03-02", "2026-03-02T00:30:00Z");
+    const countedOnTheFirstInArgentina = initialCountCosting(200, "2026-03-02T01:00:00Z");
+    const boughtOnTheSecond = purchaseCosting(100, "a", "2026-03-02", "2026-03-02T00:30:00Z");
 
-    expect(lastCostSource([bought, counted])).toBe(bought);
+    expect(lastCostOf([boughtOnTheSecond, countedOnTheFirstInArgentina])).toBe(100);
   });
 
   it("compares an initial count and a purchase on the same day by instant", () => {
-    const counted = initialCount("2026-03-01T15:00:00Z");
-    const boughtBefore = purchase("a", "2026-03-01", "2026-03-01T14:00:00Z");
-    const boughtAfter = purchase("a", "2026-03-01", "2026-03-01T16:00:00Z");
+    const counted = initialCountCosting(200, "2026-03-01T15:00:00Z");
+    const boughtBefore = purchaseCosting(100, "a", "2026-03-01", "2026-03-01T14:00:00Z");
+    const boughtAfter = purchaseCosting(300, "a", "2026-03-01", "2026-03-01T16:00:00Z");
 
-    expect(lastCostSource([boughtBefore, counted])).toBe(counted);
-    expect(lastCostSource([boughtAfter, counted])).toBe(boughtAfter);
+    expect(lastCostOf([boughtBefore, counted])).toBe(200);
+    expect(lastCostOf([boughtAfter, counted])).toBe(300);
   });
 
   it("prefers the purchase line over an initial count of the same day and instant", () => {
-    const counted = initialCount("2026-03-01T15:00:00Z");
-    const bought = purchase("a", "2026-03-01", "2026-03-01T15:00:00Z");
+    const counted = initialCountCosting(200, "2026-03-01T15:00:00Z");
+    const bought = purchaseCosting(100, "a", "2026-03-01", "2026-03-01T15:00:00Z");
 
-    expect(lastCostSource([counted, bought])).toBe(bought);
-    expect(lastCostSource([bought, counted])).toBe(bought);
+    expect(lastCostOf([counted, bought])).toBe(100);
+    expect(lastCostOf([bought, counted])).toBe(100);
   });
 
   it("keeps the first of two initial counts made at the same instant", () => {
-    const first = initialCount("2026-03-01T15:00:00Z", {
-      cost: { totalCents: 100, quantity: 1000 },
-    });
-    const second = initialCount("2026-03-01T15:00:00Z", {
-      cost: { totalCents: 200, quantity: 1000 },
-    });
+    const first = initialCountCosting(100, "2026-03-01T15:00:00Z");
+    const second = initialCountCosting(200, "2026-03-01T15:00:00Z");
 
-    expect(lastCostSource([first, second])).toBe(first);
-    expect(lastCostSource([second, first])).toBe(second);
+    expect(lastCostOf([first, second])).toBe(100);
+    expect(lastCostOf([second, first])).toBe(200);
   });
 
-  it("ignores a withdrawn initial count", () => {
-    const bought = purchase("a", "2026-03-01", "2026-03-01T10:00:00Z");
+  it("is never a withdrawn initial count", () => {
+    const bought = purchaseCosting(100, "a", "2026-03-01", "2026-03-01T10:00:00Z");
     const withdrawn = initialCount("2026-03-05T15:00:00Z", { withdrawn: true });
 
-    expect(lastCostSource([bought, withdrawn])).toBe(bought);
-    expect(lastCostSource([withdrawn])).toBeNull();
+    expect(lastCostOf([bought, withdrawn])).toBe(100);
+    expect(lastCostOf([withdrawn])).toBeNull();
   });
 
-  it("ignores an initial count whose cost is still incomplete", () => {
-    const bought = purchase("a", "2026-03-01", "2026-03-01T10:00:00Z");
+  it("is never an initial count whose cost is missing or incomplete", () => {
+    const bought = purchaseCosting(100, "a", "2026-03-01", "2026-03-01T10:00:00Z");
     const incomplete = initialCount("2026-03-05T15:00:00Z", { costIncomplete: true });
     const untyped = initialCount("2026-03-05T15:00:00Z", { cost: null });
 
-    expect(lastCostSource([bought, incomplete])).toBe(bought);
-    expect(lastCostSource([incomplete])).toBeNull();
-    expect(lastCostSource([untyped])).toBeNull();
-  });
-
-  it("ignores an initial count with incomplete flag even when a cost is stored", () => {
-    const flagged = initialCount("2026-03-05T15:00:00Z", {
-      costIncomplete: true,
-      cost: { totalCents: 5, quantity: 1000 },
-    });
-
-    expect(lastCostSource([flagged])).toBeNull();
+    expect(lastCostOf([bought, incomplete])).toBe(100);
+    expect(lastCostOf([incomplete])).toBeNull();
+    expect(lastCostOf([untyped])).toBeNull();
   });
 });
 
@@ -147,6 +142,11 @@ function sourceWith(c: { totalCents: number; quantity: number }): CostSource {
   return purchase("a", "2026-03-01", "2026-03-01T10:00:00Z", c);
 }
 
+function marginOf(costCents: number, unitPrice: number): number | null | undefined {
+  return priceCostReference([sourceWith({ totalCents: costCents, quantity: 1000 })], unitPrice)
+    ?.marginTenthsOfPercent;
+}
+
 describe("priceCostReference", () => {
   it("has no cost reference without a cost source", () => {
     expect(priceCostReference([], 2500)).toBeNull();
@@ -155,7 +155,7 @@ describe("priceCostReference", () => {
     );
   });
 
-  it("shows the last cost, a zero freight, the total cost and the margin", () => {
+  it("shows the last cost, no freight, the total cost and the margin", () => {
     const reference = priceCostReference([sourceWith({ totalCents: 1200, quantity: 1000 })], 2000);
 
     expect(reference).toEqual({
@@ -175,19 +175,6 @@ describe("priceCostReference", () => {
     });
   });
 
-  it("uses the cost of the last source", () => {
-    const old = purchase("a", "2026-03-01", "2026-03-01T10:00:00Z", {
-      totalCents: 100,
-      quantity: 1000,
-    });
-    const latest = purchase("b", "2026-03-02", "2026-03-02T10:00:00Z", {
-      totalCents: 300,
-      quantity: 1000,
-    });
-
-    expect(priceCostReference([old, latest], 1000)).toMatchObject({ lastCostCents: 300 });
-  });
-
   it("uses the typed reference cost of an initial count", () => {
     expect(priceCostReference([initialCount("2026-03-01T10:00:00Z")], 1000)).toMatchObject({
       lastCostCents: 700,
@@ -195,47 +182,51 @@ describe("priceCostReference", () => {
     });
   });
 
-  it("rounds each shown cost half up from the exact fraction per sale unit", () => {
-    // 1001 cents for 2000 thousandths is 500.5 cents per unit
-    expect(
-      priceCostReference([sourceWith({ totalCents: 1001, quantity: 2000 })], 1000),
-    ).toMatchObject({ lastCostCents: 501, totalCostCents: 501 });
-    // 1000 cents for 3000 thousandths is 333.33 cents per unit
-    expect(
-      priceCostReference([sourceWith({ totalCents: 1000, quantity: 3000 })], 1000),
-    ).toMatchObject({ lastCostCents: 333, totalCostCents: 333 });
+  it("rounds a cost of half a cent per unit up", () => {
+    const halfCentAbove500 = { totalCents: 1001, quantity: 2000 };
+
+    expect(priceCostReference([sourceWith(halfCentAbove500)], 1000)).toMatchObject({
+      lastCostCents: 501,
+      totalCostCents: 501,
+    });
+  });
+
+  it("rounds a cost of a third of a cent per unit down", () => {
+    const thirdOfACentAbove333 = { totalCents: 1000, quantity: 3000 };
+
+    expect(priceCostReference([sourceWith(thirdOfACentAbove333)], 1000)).toMatchObject({
+      lastCostCents: 333,
+      totalCostCents: 333,
+    });
   });
 
   it("computes the margin from the exact cost, not the rounded one", () => {
-    // exact cost 500.5, price 1001: margin exactly 50.0 %, rounded cost 501 would give 49.95 %
-    expect(
-      priceCostReference([sourceWith({ totalCents: 1001, quantity: 2000 })], 1001),
-    ).toMatchObject({ marginTenthsOfPercent: 500 });
+    const costOfHalfThePrice = { totalCents: 1001, quantity: 2000 };
+
+    expect(priceCostReference([sourceWith(costOfHalfThePrice)], 1001)).toMatchObject({
+      lastCostCents: 501,
+      marginTenthsOfPercent: 500,
+    });
   });
 
-  it("rounds the margin half up to a tenth of a percent", () => {
-    // cost 1, price 8000: 99.9875 % -> 99.99 -> 1000
-    expect(priceCostReference([sourceWith({ totalCents: 1, quantity: 1000 })], 8000)).toMatchObject(
-      { marginTenthsOfPercent: 1000 },
-    );
-    // cost 1999, price 2000: 0.05 % is exactly half a tenth -> rounds up to 1
-    expect(
-      priceCostReference([sourceWith({ totalCents: 1999, quantity: 1000 })], 2000),
-    ).toMatchObject({ marginTenthsOfPercent: 1 });
-    // cost 3, price 8: 62.5 % exactly
-    expect(priceCostReference([sourceWith({ totalCents: 3, quantity: 1000 })], 8)).toMatchObject({
-      marginTenthsOfPercent: 625,
-    });
-    // cost 2, price 3: 33.33 % -> 333
-    expect(priceCostReference([sourceWith({ totalCents: 2, quantity: 1000 })], 3)).toMatchObject({
-      marginTenthsOfPercent: 333,
-    });
+  it("rounds a margin just under a hundred percent up to it", () => {
+    expect(marginOf(1, 8000)).toBe(1000);
+  });
+
+  it("rounds a margin of exactly half a tenth of a percent up", () => {
+    expect(marginOf(1999, 2000)).toBe(1);
+  });
+
+  it("keeps a margin that is a whole tenth of a percent", () => {
+    expect(marginOf(3, 8)).toBe(625);
+  });
+
+  it("rounds a margin of a third of a tenth of a percent down", () => {
+    expect(marginOf(2, 3)).toBe(333);
   });
 
   it("is zero when the price equals the cost", () => {
-    expect(
-      priceCostReference([sourceWith({ totalCents: 500, quantity: 1000 })], 500),
-    ).toMatchObject({ marginTenthsOfPercent: 0 });
+    expect(marginOf(500, 500)).toBe(0);
   });
 
   it("is a hundred percent when the cost is nothing", () => {
@@ -245,64 +236,28 @@ describe("priceCostReference", () => {
     });
   });
 
-  it("is negative when the price is below the cost, rounding half up", () => {
-    // cost 3, price 2: -50 %
-    expect(priceCostReference([sourceWith({ totalCents: 3, quantity: 1000 })], 2)).toMatchObject({
-      marginTenthsOfPercent: -500,
-    });
-    // cost 1000, price 999: -0.1001 % -> -1
-    expect(
-      priceCostReference([sourceWith({ totalCents: 1000, quantity: 1000 })], 999),
-    ).toMatchObject({ marginTenthsOfPercent: -1 });
-    // cost 2001, price 2000: -0.05 % is exactly half a tenth -> rounds up toward zero, to 0
-    expect(
-      priceCostReference([sourceWith({ totalCents: 2001, quantity: 1000 })], 2000),
-    ).toMatchObject({ marginTenthsOfPercent: 0 });
-    // cost 5, price 3: -66.67 % -> -667
-    expect(priceCostReference([sourceWith({ totalCents: 5, quantity: 1000 })], 3)).toMatchObject({
-      marginTenthsOfPercent: -667,
-    });
-    // cost 17, price 3: -466.67 % -> -4667
-    expect(priceCostReference([sourceWith({ totalCents: 17, quantity: 1000 })], 3)).toMatchObject({
-      marginTenthsOfPercent: -4667,
-    });
+  it("is negative when the price is below the cost", () => {
+    expect(marginOf(3, 2)).toBe(-500);
+    expect(marginOf(5, 3)).toBe(-667);
+    expect(marginOf(17, 3)).toBe(-4667);
   });
 
-  it("shows no freight for now", () => {
-    expect(FREIGHT_PER_UNIT_CENTS).toBe(0);
-    expect(
-      priceCostReference([sourceWith({ totalCents: 1200, quantity: 1000 })], 2000)
-        ?.freightPerUnitCents,
-    ).toBe(0);
+  it("rounds a negative margin a little over a tenth of a percent to minus one tenth", () => {
+    expect(marginOf(1000, 999)).toBe(-1);
   });
 
-  it("adds a freight per unit to the exact last cost for the total cost and the margin", () => {
-    // exact last cost 500.5 cents per unit plus 25 of freight is 525.5
-    expect(
-      priceCostReference([sourceWith({ totalCents: 1001, quantity: 2000 })], 1051, 25),
-    ).toEqual({
-      lastCostCents: 501,
-      freightPerUnitCents: 25,
-      totalCostCents: 526,
-      marginTenthsOfPercent: 500,
-    });
+  it("rounds a negative margin of exactly half a tenth of a percent up, to zero", () => {
+    expect(marginOf(2001, 2000)).toBe(0);
   });
 
-  it("adds the freight per unit of a sale unit whatever the cost's quantity", () => {
-    expect(
-      priceCostReference([sourceWith({ totalCents: 1000, quantity: 3000 })], 1000, 100),
-    ).toMatchObject({ lastCostCents: 333, totalCostCents: 433, marginTenthsOfPercent: 567 });
-  });
-
-  it("rounds the last cost within half a cent of the exact cost and totals it with the freight, for every cost", () => {
+  it("rounds the last cost within half a cent of the exact cost, as its total cost, for every cost", () => {
     fc.assert(
       fc.property(cost, price, (c, p) => {
         const reference = priceCostReference([sourceWith(c)], p);
         const exact = (c.totalCents * 1000) / c.quantity;
         expect(Math.abs((reference?.lastCostCents ?? 0) - exact)).toBeLessThanOrEqual(0.5 + 1e-6);
-        expect(reference?.totalCostCents).toBe(
-          (reference?.lastCostCents ?? 0) + (reference?.freightPerUnitCents ?? 0),
-        );
+        expect(reference?.totalCostCents).toBe(reference?.lastCostCents);
+        expect(reference?.freightPerUnitCents).toBe(0);
       }),
     );
   });
@@ -315,19 +270,6 @@ describe("priceCostReference", () => {
         const margin = priceCostReference([sourceWith(c)], p)?.marginTenthsOfPercent;
         expect(margin).not.toBeNull();
         expect(Math.abs((margin ?? 0) - exactTenths)).toBeLessThanOrEqual(0.5 + 1e-6);
-      }),
-    );
-  });
-
-  it("adds the freight to the cost for every cost and freight", () => {
-    fc.assert(
-      fc.property(cost, price, fc.integer({ min: 0, max: 1_000_000 }), (c, p, freight) => {
-        const reference = priceCostReference([sourceWith(c)], p, freight);
-        const exactTotal = (c.totalCents * 1000) / c.quantity + freight;
-        expect(reference?.freightPerUnitCents).toBe(freight);
-        expect(Math.abs((reference?.totalCostCents ?? 0) - exactTotal)).toBeLessThanOrEqual(
-          0.5 + 1e-6,
-        );
       }),
     );
   });
