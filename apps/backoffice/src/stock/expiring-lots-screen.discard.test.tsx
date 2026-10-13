@@ -18,12 +18,11 @@ const DISCARDED = { movementId: "movement-9", quantity: 1_200, balance: 0, super
 
 function servicesListing(...lists: ExpiringLotList[]) {
   const services = createServices();
-  const [first, ...rest] = lists;
   const read = vi.mocked(services.fetchExpiringLots);
-  read.mockResolvedValue({ kind: "ok", value: first as ExpiringLotList });
-  for (const list of rest) {
+  for (const list of lists) {
     read.mockResolvedValueOnce({ kind: "ok", value: list });
   }
+  read.mockResolvedValue({ kind: "ok", value: lists.at(-1) as ExpiringLotList });
   return services;
 }
 

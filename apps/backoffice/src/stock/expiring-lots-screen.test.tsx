@@ -50,8 +50,8 @@ test("says when each lot expires, an expired one apart from the rest", async () 
 test("shows a dash for a lot without a number and for one without a cost", async () => {
   const screen = await renderScreen(listed());
 
-  const row = screen.getByText("Avena arrollada").first().element().closest("tr") as HTMLElement;
   await expect.element(screen.getByText("Venció ayer")).toBeVisible();
+  const row = screen.getByText("Venció ayer").element().closest("tr") as HTMLElement;
   expect(row.textContent).toContain("—");
 });
 
