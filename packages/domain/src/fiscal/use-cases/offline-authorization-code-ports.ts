@@ -1,5 +1,5 @@
 import type { Clock } from "../../shared/index.js";
-import type { TaxAuthorityRejection } from "../model/fiscal-rejection-alert.js";
+import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
 import type { Fortnight } from "../model/offline-authorization-code.js";
 import type { WsaaTokenSource } from "./fiscal-document-authorization-ports.js";
 import type { WsaaToken } from "./wsaa-token-ports.js";

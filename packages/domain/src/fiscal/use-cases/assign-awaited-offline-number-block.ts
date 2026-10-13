@@ -1,4 +1,4 @@
-import { FACTURA_C_DOCUMENT_TYPE } from "../model/fiscal-rejection-alert.js";
+import { FACTURA_C_DOCUMENT_TYPE } from "../model/fiscal-rejection-standing.js";
 import {
   type AssignFirstOfflineNumberBlockOutcome,
   assignFirstOfflineNumberBlockLocked,

@@ -55,10 +55,10 @@ export type { FiscalOnlineSignalEvidence } from "./model/fiscal-online-signal.js
 export { REGISTER_HEALTH_CHECK_INTERVAL_MS } from "./model/fiscal-online-signal.js";
 export type {
   FiscalDocumentType,
-  RejectionAlertChange,
+  RejectionStandingChange,
   TaxAuthorityRejection,
-} from "./model/fiscal-rejection-alert.js";
-export { FACTURA_C_DOCUMENT_TYPE } from "./model/fiscal-rejection-alert.js";
+} from "./model/fiscal-rejection-standing.js";
+export { FACTURA_C_DOCUMENT_TYPE } from "./model/fiscal-rejection-standing.js";
 export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,

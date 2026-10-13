@@ -1,9 +1,9 @@
 import type { Clock } from "../../shared/index.js";
 import type { PushedEvent } from "../../sync/index.js";
 import type {
-  RejectionAlertChange,
+  RejectionStandingChange,
   TaxAuthorityRejection,
-} from "../model/fiscal-rejection-alert.js";
+} from "../model/fiscal-rejection-standing.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
 import type { LastAuthorizedCount } from "./tax-authority-count-ports.js";
 import type { WsaaToken } from "./wsaa-token-ports.js";
@@ -48,7 +48,7 @@ export interface PointOfSaleLane {
     fiscalDocumentId: string,
     answer: RealTimeAuthorizationAnswer,
     answeredAt: Date,
-    rejectionAlertChange: RejectionAlertChange | null,
+    rejectionStanding: RejectionStandingChange | null,
     taxAuthorityCount: LastAuthorizedCount | null,
     unclearCodes: readonly number[],
   ): Promise<void>;

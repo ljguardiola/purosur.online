@@ -1,4 +1,4 @@
-import type { FiscalDocumentType } from "../model/fiscal-rejection-alert.js";
+import type { FiscalDocumentType } from "../model/fiscal-rejection-standing.js";
 import {
   firstOfflineNumberBlock,
   type OfflineNumberBlockRange,

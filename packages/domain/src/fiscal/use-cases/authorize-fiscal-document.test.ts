@@ -230,7 +230,7 @@ describe("authorizeFiscalDocument", () => {
       rejectionClass: "content",
     });
     expect(lanes.invoicingCallsOkAt).toHaveLength(1);
-    expect(lanes.rejectionAlertChanges).toEqual([
+    expect(lanes.rejectionStandings).toEqual([
       {
         kind: "open",
         pointOfSale: 12,
@@ -255,7 +255,7 @@ describe("authorizeFiscalDocument", () => {
       taxAuthorityCodes: [],
     });
     expect(lanes.invoicingCallsOkAt).toHaveLength(1);
-    expect(lanes.rejectionAlertChanges).toEqual([
+    expect(lanes.rejectionStandings).toEqual([
       expect.objectContaining({ kind: "open", rejectionClass: "standing", rejections }),
     ]);
   });
@@ -278,7 +278,7 @@ describe("authorizeFiscalDocument", () => {
     });
     expect(lanes.operations).toContain(`recordAnswer:unclear@${answeredAt.toISOString()}`);
     expect(lanes.invoicingCallsOkAt).toEqual([]);
-    expect(lanes.rejectionAlertChanges).toEqual([]);
+    expect(lanes.rejectionStandings).toEqual([]);
   });
 
   it("answers unclear, not rejected, when the number or date does not follow the last authorized, opens no alert and still counts the call as evidence", async () => {
@@ -296,7 +296,7 @@ describe("authorizeFiscalDocument", () => {
     });
     expect(lanes.answers.get(FISCAL_DOCUMENT_ID)).toEqual({ kind: "unclear" });
     expect(lanes.invoicingCallsOkAt).toHaveLength(1);
-    expect(lanes.rejectionAlertChanges).toEqual([null]);
+    expect(lanes.rejectionStandings).toEqual([null]);
   });
 
   it("hands the lane the number the tax authority just authorized as the point of sale's last authorized count, in the call that records the answer", async () => {
@@ -344,7 +344,7 @@ describe("authorizeFiscalDocument", () => {
     const { lanes, outcome } = authorize();
     await outcome;
 
-    expect(lanes.rejectionAlertChanges).toEqual([
+    expect(lanes.rejectionStandings).toEqual([
       { kind: "clear", pointOfSale: 12, documentType: "factura_c" },
     ]);
   });
@@ -361,7 +361,7 @@ describe("authorizeFiscalDocument", () => {
     expect(lanes.answers.get(FISCAL_DOCUMENT_ID)).toEqual({ kind: "unclear" });
     expect(lanes.operations).toContain(`recordAnswer:unclear@${answeredAt.toISOString()}`);
     expect(lanes.invoicingCallsOkAt).toEqual([]);
-    expect(lanes.rejectionAlertChanges).toEqual([]);
+    expect(lanes.rejectionStandings).toEqual([]);
   });
 
   it("hands the lane every code the tax authority gave when the answer is unclear, observations and errors in the order given", async () => {
@@ -394,7 +394,7 @@ describe("authorizeFiscalDocument", () => {
     });
     expect(lanes.unclearCodes.get(FISCAL_DOCUMENT_ID)).toEqual([10242]);
     expect(lanes.invoicingCallsOkAt).toEqual([]);
-    expect(lanes.rejectionAlertChanges).toEqual([]);
+    expect(lanes.rejectionStandings).toEqual([]);
   });
 
   it("hands the lane no codes when the tax authority gave no answer", async () => {
@@ -463,7 +463,7 @@ describe("authorizeFiscalDocument", () => {
     const { lanes, outcome } = authorize({ seeded: { answer: rejected } });
 
     await expect(outcome).resolves.toEqual({ kind: "already_answered", answer: rejected });
-    expect(lanes.rejectionAlertChanges).toEqual([]);
+    expect(lanes.rejectionStandings).toEqual([]);
   });
 
   it("refuses a document id another register recorded, without reading its answer, recording anything or calling the tax authority", async () => {
@@ -526,7 +526,7 @@ describe("authorizeFiscalDocument", () => {
     expect(lanes.answers.get(FISCAL_DOCUMENT_ID)).toEqual({ kind: "not_attempted" });
     expect(taxAuthority.solicitations).toEqual([]);
     expect(lanes.invoicingCallsOkAt).toEqual([]);
-    expect(lanes.rejectionAlertChanges).toEqual([]);
+    expect(lanes.rejectionStandings).toEqual([]);
   });
 
   it("computes the deadline from the budget and the round trip the request carries", async () => {

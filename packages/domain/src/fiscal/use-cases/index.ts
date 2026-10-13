@@ -2,9 +2,9 @@ export type { Clock } from "../../shared/index.js";
 export type { ArcaReachabilityEvidence } from "../model/arca-reachability.js";
 export type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
 export type {
-  RejectionAlertChange,
+  RejectionStandingChange,
   TaxAuthorityRejection,
-} from "../model/fiscal-rejection-alert.js";
+} from "../model/fiscal-rejection-standing.js";
 export type { Fortnight } from "../model/offline-authorization-code.js";
 export type {
   DeferralReason,

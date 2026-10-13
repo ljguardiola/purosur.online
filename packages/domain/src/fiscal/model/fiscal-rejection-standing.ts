@@ -16,7 +16,7 @@ interface RejectionAlertSubject {
   saleId: string;
 }
 
-export type RejectionAlertChange =
+export type RejectionStandingChange =
   | {
       kind: "open";
       pointOfSale: number;
@@ -28,11 +28,11 @@ export type RejectionAlertChange =
     }
   | { kind: "clear"; pointOfSale: number; documentType: FiscalDocumentType };
 
-export function rejectionAlertChange(
+export function rejectionStandingChange(
   answer: RealTimeAuthorizationAnswer,
   rejections: readonly TaxAuthorityRejection[],
   { pointOfSale, documentType, fiscalDocumentId, saleId }: RejectionAlertSubject,
-): RejectionAlertChange | null {
+): RejectionStandingChange | null {
   switch (answer.kind) {
     case "rejected":
       return {
