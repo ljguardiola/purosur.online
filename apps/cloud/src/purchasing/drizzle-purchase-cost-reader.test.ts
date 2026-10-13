@@ -64,6 +64,7 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf", () => {
       purchasedOn: "2026-03-01",
       recordedAt: new Date("2026-03-02T15:00:00.000Z"),
       cost: { totalCents: 1001, quantity: 2_000 },
+      freights: [],
     });
     expect(lines).toContainEqual({
       productId,
@@ -71,6 +72,7 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf", () => {
       purchasedOn: "2026-03-05",
       recordedAt: new Date("2026-03-05T12:00:00.000Z"),
       cost: { totalCents: 900, quantity: 1_000 },
+      freights: [],
     });
   });
 
