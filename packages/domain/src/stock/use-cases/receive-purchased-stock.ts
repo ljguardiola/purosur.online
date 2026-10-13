@@ -1,7 +1,6 @@
 import { lotOfPurchaseLine } from "../model/lot.js";
-import { receiptAllocations } from "../model/lot-allocation.js";
 import type { PurchaseReceipt } from "../model/stock-receipt.js";
-import { allocateToLots, recordStockMovement } from "./apply-stock-movement.js";
+import { recordLotReceipt } from "./record-lot-receipt.js";
 import type { StockStoreTransaction } from "./stock-store.js";
 
 export type ReceivePurchasedStockOutcome =
@@ -23,28 +22,28 @@ export async function receivePurchasedStock(
   for (const line of receipt.lines) {
     const key = { productId: line.productId, locationId: receipt.locationId };
     const coveringCount = await tx.earliestCountAtOrAfter(key, receipt.occurredAt);
-    const { movementId, balance } = await recordStockMovement(tx, {
-      ...key,
-      purchaseLineId: line.purchaseLineId,
-      kind: "receipt",
-      reason: null,
-      delta: line.quantity,
-      occurredAt: receipt.occurredAt,
-      actorId: receipt.actorId,
-      supersededByCountId: coveringCount?.movementId ?? null,
-    });
-    const lots = await tx.productLots(key);
-    const lotId = await tx.recordLot(
-      lotOfPurchaseLine({
-        ...line,
-        id: line.purchaseLineId,
-        locationId: receipt.locationId,
-        purchasedOn: receipt.purchasedOn,
-      }),
+    await recordLotReceipt(
+      tx,
+      {
+        ...key,
+        purchaseLineId: line.purchaseLineId,
+        kind: "receipt",
+        reason: null,
+        delta: line.quantity,
+        occurredAt: receipt.occurredAt,
+        actorId: receipt.actorId,
+        supersededByCountId: coveringCount?.movementId ?? null,
+      },
+      () =>
+        tx.recordLot(
+          lotOfPurchaseLine({
+            ...line,
+            id: line.purchaseLineId,
+            locationId: receipt.locationId,
+            purchasedOn: receipt.purchasedOn,
+          }),
+        ),
     );
-    if (balance !== null) {
-      await allocateToLots(tx, key, movementId, receiptAllocations(lotId, lots, line.quantity));
-    }
   }
   return { kind: "received" };
 }
