@@ -52,6 +52,12 @@ describe("the register's receipt printing without a local database", () => {
 
     expect(printing.afterCompletedSale(charge)).toBe(charge);
   });
+
+  it("leaves a follow of several charges as it is", () => {
+    const follow = async () => ({ followed: [], failures: [] });
+
+    expect(printing.afterEachCompletedSale(follow)).toBe(follow);
+  });
 });
 
 describe("the register's receipt printing over its local database", () => {
@@ -141,6 +147,29 @@ describe("the register's receipt printing over its local database", () => {
 
     await vi.waitFor(() => expect(connections).toHaveLength(1));
     await vi.waitFor(() => expect(syncs).toBe(1));
+  });
+
+  it("prints the receipt of a sale a follow of several charges completed, after answering it, and then syncs", async () => {
+    saveAddress("10.10.10.2", null);
+    const authorized: string[] = [];
+    const followed = {
+      followed: [
+        {
+          paymentTransactionId: "qr-1",
+          outcome: { kind: "completed", sale_id: "sale-1", total: 3000 },
+        },
+      ],
+      failures: [],
+    };
+    const following = printingOverDatabase(async (saleId) => {
+      authorized.push(saleId);
+    }).afterEachCompletedSale(async () => followed);
+
+    expect(await following?.(undefined)).toBe(followed);
+
+    await vi.waitFor(() => expect(connections).toHaveLength(1));
+    await vi.waitFor(() => expect(syncs).toBe(1));
+    expect(authorized).toEqual(["sale-1"]);
   });
 
   it("connects to the saved address, on the printer's default port when it has none", async () => {

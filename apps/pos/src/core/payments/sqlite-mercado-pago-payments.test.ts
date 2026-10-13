@@ -3,7 +3,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
-import { readPendingMercadoPagoPayments } from "./sqlite-pending-mercado-pago-payments";
+import { SqliteMercadoPagoPayments } from "./sqlite-mercado-pago-payments";
 
 let database: LocalDatabase;
 
@@ -36,12 +36,12 @@ afterEach(() => {
   database.close();
 });
 
-describe("the Mercado Pago payments still pending", () => {
-  it("are the QR and Point payments left pending, with their sale, method, amount and time", () => {
+describe("the Mercado Pago payments the register keeps", () => {
+  it("answer the QR and Point payments in a state, with their sale, method, amount and time, oldest first", () => {
     addPayment("qr-1", "QR", "PENDING", "2026-10-09T12:00:00.000Z");
     addPayment("point-1", "POINT", "PENDING", "2026-10-09T12:05:00.000Z");
 
-    expect(readPendingMercadoPagoPayments(database)).toEqual([
+    expect(new SqliteMercadoPagoPayments(database).unreplacedPaymentsIn("PENDING")).toEqual([
       {
         paymentId: "qr-1",
         saleId: "sale-1",
@@ -59,7 +59,18 @@ describe("the Mercado Pago payments still pending", () => {
     ]);
   });
 
-  it("leave out the payments that ended, were replaced or were made another way", () => {
+  it("answer the payments in the state asked for", () => {
+    addPayment("qr-pending", "QR", "PENDING");
+    addPayment("qr-expired", "QR", "EXPIRED");
+
+    expect(
+      new SqliteMercadoPagoPayments(database)
+        .unreplacedPaymentsIn("EXPIRED")
+        .map(({ paymentId }) => paymentId),
+    ).toEqual(["qr-expired"]);
+  });
+
+  it("leave out the payments in another state, those replaced and those made another way", () => {
     addPayment("qr-approved", "QR", "APPROVED");
     addPayment("qr-expired", "QR", "EXPIRED");
     addPayment("point-declined", "POINT", "DECLINED");
@@ -70,6 +81,6 @@ describe("the Mercado Pago payments still pending", () => {
        VALUES ('cash-1', 'sale-1', 'SALE', 'CASH', 'NONE', 1000, 1000, 'APPROVED', '2026-10-09T12:00:00.000Z')`,
     );
 
-    expect(readPendingMercadoPagoPayments(database)).toEqual([]);
+    expect(new SqliteMercadoPagoPayments(database).unreplacedPaymentsIn("PENDING")).toEqual([]);
   });
 });

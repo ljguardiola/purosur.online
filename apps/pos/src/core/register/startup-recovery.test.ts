@@ -18,7 +18,6 @@ function recovery(overrides: Partial<Parameters<typeof recoverAtStartup>[0]> = {
     },
     followInterruptedCharges: async () => {
       events.push("charges followed");
-      return { failures: [] };
     },
     startSync: () => {
       events.push("sync started");
@@ -43,7 +42,6 @@ describe("recovering at startup", () => {
       followInterruptedCharges: async () => {
         await charges.promise;
         events.push("charges followed");
-        return { failures: [] };
       },
     });
 
@@ -62,7 +60,6 @@ describe("recovering at startup", () => {
     const { events, started } = recovery({
       followInterruptedCharges: async () => {
         await charges.promise;
-        return { failures: [] };
       },
     });
 
@@ -85,47 +82,5 @@ describe("recovering at startup", () => {
 
     expect(failures).toEqual([["settling the interrupted real-time authorizations", broken]]);
     expect(events).toEqual(["charges followed", "sync started"]);
-  });
-
-  it("reports a failure to follow the charges and still starts sync", async () => {
-    const broken = new Error("the charges could not be followed");
-    const { events, failures, started } = recovery({
-      followInterruptedCharges: async () => {
-        throw broken;
-      },
-    });
-
-    await started.finished;
-
-    expect(failures).toEqual([["following the interrupted Mercado Pago charges", broken]]);
-    expect(events).toEqual(["authorizations settled", "sync started"]);
-  });
-
-  it("reports each charge that could not be followed", async () => {
-    const first = new Error("first");
-    const second = new Error("second");
-    const { failures, started } = recovery({
-      followInterruptedCharges: async () => ({
-        failures: [
-          { paymentTransactionId: "qr-1", error: first },
-          { paymentTransactionId: "qr-2", error: second },
-        ],
-      }),
-    });
-
-    await started.finished;
-
-    expect(failures).toEqual([
-      ["following the interrupted Mercado Pago charge qr-1", first],
-      ["following the interrupted Mercado Pago charge qr-2", second],
-    ]);
-  });
-
-  it("starts sync after the authorizations when there is no way to follow charges", async () => {
-    const { events, started } = recovery({ followInterruptedCharges: undefined });
-
-    await started.finished;
-
-    expect(events).toEqual(["authorizations settled", "sync started"]);
   });
 });

@@ -255,9 +255,9 @@ describe("the register's Mercado Pago QR charging", () => {
       ids: { next: () => "id" },
     });
 
-    expect(await charging.followInterrupted?.()).toEqual({
+    expect(await charging.followInterrupted?.(NOW)).toEqual({
       followed: [
-        { paymentTransactionId: "qr-1", outcome: { kind: "waiting", remainingSeconds: 120 } },
+        { paymentTransactionId: "qr-1", outcome: { kind: "waiting", remaining_seconds: 120 } },
       ],
       failures: [],
     });

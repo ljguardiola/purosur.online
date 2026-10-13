@@ -23,6 +23,7 @@ import {
 
 const NOW = CHARGE_NOW;
 const CHAIN_KEY = CHARGE_CHAIN_KEY;
+const RUN_STARTED_AT = new Date(CHARGE_NOW.getTime() + 60_000);
 
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
@@ -502,13 +503,22 @@ describe("following the Mercado Pago charges a stopped register left pending", (
   }
 
   it("completes the open sale with a charge the cloud reports approved, with nobody signed in, and sends it to the cloud once", async () => {
-    await chargeLeftPending();
+    const saleId = await chargeLeftPending();
     const orders = new FakeOrders();
     orders.reading = { kind: "read", state: "APPROVED" };
 
-    await followInterruptedMercadoPagoChargesFor(deps(orders));
-    await followInterruptedMercadoPagoChargesFor(deps(orders));
+    const first = await followInterruptedMercadoPagoChargesFor(deps(orders), RUN_STARTED_AT);
+    await followInterruptedMercadoPagoChargesFor(deps(orders), RUN_STARTED_AT);
 
+    expect(first).toEqual({
+      followed: [
+        {
+          paymentTransactionId: "qr-1",
+          outcome: { kind: "completed", sale_id: saleId, total: 3000 },
+        },
+      ],
+      failures: [],
+    });
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "COMPLETED" }]);
     expect(qrRows()).toMatchObject([{ id: "qr-1", state: "APPROVED" }]);
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
@@ -521,10 +531,35 @@ describe("following the Mercado Pago charges a stopped register left pending", (
     const orders = new FakeOrders();
     orders.reading = { kind: "unreachable" };
 
-    await followInterruptedMercadoPagoChargesFor(deps(orders));
+    await followInterruptedMercadoPagoChargesFor(deps(orders), RUN_STARTED_AT);
 
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
     expect(qrRows()).toMatchObject([{ state: "PENDING" }]);
+  });
+
+  it("does not follow a charge recorded once this run had started", async () => {
+    await chargeLeftPending();
+    const orders = new FakeOrders();
+    orders.reading = { kind: "read", state: "APPROVED" };
+
+    expect(await followInterruptedMercadoPagoChargesFor(deps(orders), CHARGE_NOW)).toEqual({
+      followed: [],
+      failures: [],
+    });
+    expect(qrRows()).toMatchObject([{ state: "PENDING" }]);
+  });
+
+  it("answers a charge it is still waiting for as the charge screen would see it", async () => {
+    await chargeLeftPending();
+    const orders = new FakeOrders();
+    orders.reading = { kind: "read", state: "PENDING" };
+
+    expect(await followInterruptedMercadoPagoChargesFor(deps(orders), RUN_STARTED_AT)).toEqual({
+      followed: [
+        { paymentTransactionId: "qr-1", outcome: { kind: "waiting", remaining_seconds: 180 } },
+      ],
+      failures: [],
+    });
   });
 
   it("records a charge the cloud reports expired", async () => {
@@ -532,7 +567,7 @@ describe("following the Mercado Pago charges a stopped register left pending", (
     const orders = new FakeOrders();
     orders.reading = { kind: "read", state: "EXPIRED" };
 
-    await followInterruptedMercadoPagoChargesFor(deps(orders));
+    await followInterruptedMercadoPagoChargesFor(deps(orders), RUN_STARTED_AT);
 
     expect(qrRows()).toMatchObject([{ state: "EXPIRED" }]);
   });
@@ -544,6 +579,7 @@ describe("following the Mercado Pago charges a stopped register left pending", (
 
     await followInterruptedMercadoPagoChargesFor(
       deps(orders, { readOutboxChainKey: async () => undefined }),
+      RUN_STARTED_AT,
     );
 
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
@@ -558,7 +594,7 @@ describe("following the Mercado Pago charges a stopped register left pending", (
       throw broken;
     };
 
-    expect(await followInterruptedMercadoPagoChargesFor(deps(orders))).toEqual({
+    expect(await followInterruptedMercadoPagoChargesFor(deps(orders), RUN_STARTED_AT)).toEqual({
       followed: [],
       failures: [{ paymentTransactionId: "qr-1", error: broken }],
     });

@@ -14,6 +14,7 @@ import type {
 
 export const CHARGE_NOW = new Date("2026-10-09T12:00:00.000Z");
 export const CHARGE_WAIT_ENDS_AT = new Date("2026-10-09T12:03:00.000Z");
+const CHARGE_RECORDED_AT = new Date("2026-10-09T11:59:00.000Z");
 export const CHARGE_PAYMENT_ID = "019a0000-0000-7000-8000-0000000000a1";
 export const CHARGE_SALE_ID = "019a0000-0000-7000-8000-0000000000b1";
 export const CHARGE_ACTOR_ID = "019a0000-0000-7000-8000-0000000000c1";
@@ -31,6 +32,7 @@ export class FakeMercadoPagoChargeWorld
 {
   readonly operations: string[] = [];
   readonly madeFor = new Map<string, string>();
+  readonly recordedAt = new Map<string, Date>();
   readonly unreadableOrders = new Set<string>();
   readonly charges = new Map<
     string,
@@ -63,6 +65,7 @@ export class FakeMercadoPagoChargeWorld
   seedPending(
     charge: Partial<PendingMercadoPagoCharge> = {},
     actorId: string = CHARGE_ACTOR_ID,
+    recordedAt: Date = CHARGE_RECORDED_AT,
   ): void {
     const pending = {
       paymentTransactionId: CHARGE_PAYMENT_ID,
@@ -73,6 +76,7 @@ export class FakeMercadoPagoChargeWorld
       ...charge,
     };
     this.madeFor.set(pending.paymentTransactionId, actorId);
+    this.recordedAt.set(pending.paymentTransactionId, recordedAt);
     this.charges.set(pending.paymentTransactionId, {
       ...pending,
       state: "PENDING",
@@ -155,9 +159,14 @@ export class FakeMercadoPagoChargeWorld
     return pending;
   }
 
-  pendingCharges(): { paymentTransactionId: string; actorId: string }[] {
+  pendingChargesRecordedBefore(moment: Date): { paymentTransactionId: string; actorId: string }[] {
     return [...this.charges.values()]
-      .filter(({ state, replaced }) => state === "PENDING" && !replaced)
+      .filter(
+        ({ paymentTransactionId, state, replaced }) =>
+          state === "PENDING" &&
+          !replaced &&
+          (this.recordedAt.get(paymentTransactionId) ?? CHARGE_RECORDED_AT) < moment,
+      )
       .map(({ paymentTransactionId }) => ({
         paymentTransactionId,
         actorId: this.madeFor.get(paymentTransactionId) ?? CHARGE_ACTOR_ID,

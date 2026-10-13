@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { printingCompletedSales } from "./printing-completed-sales";
+import { printingCompletedSales, printingEachCompletedSale } from "./printing-completed-sales";
 
 const COMPLETED = { kind: "completed", sale_id: "sale-1", total: 3000 } as const;
 
@@ -129,5 +129,57 @@ describe("printing the receipt of a sale just completed", () => {
 
     expect(subject.failures).toEqual([failure]);
     expect(subject.events).toEqual(["charge sale-1", "print sale-1", "sync"]);
+  });
+});
+
+describe("printing the receipt of each sale a follow of several charges completed", () => {
+  function follow(events: string[]) {
+    return async (runStartedAt: string) => {
+      events.push(`follow ${runStartedAt}`);
+      return {
+        followed: [
+          { paymentTransactionId: "qr-1", outcome: COMPLETED },
+          { paymentTransactionId: "qr-2", outcome: { kind: "waiting", remaining_seconds: 60 } },
+          {
+            paymentTransactionId: "qr-3",
+            outcome: { kind: "completed", sale_id: "sale-3", total: 1000 },
+          },
+        ],
+        failures: [],
+      };
+    };
+  }
+
+  it("answers the follow unchanged and prints each completed sale once what comes before printing settled, syncing after each", async () => {
+    const subject = rig();
+
+    const outcome = await printingEachCompletedSale(subject.deps, follow(subject.events))("run");
+
+    expect(outcome.followed.map(({ paymentTransactionId }) => paymentTransactionId)).toEqual([
+      "qr-1",
+      "qr-2",
+      "qr-3",
+    ]);
+    await vi.waitFor(() =>
+      expect(subject.events.filter((event) => event === "sync")).toHaveLength(2),
+    );
+    expect(subject.events.filter((event) => event !== "sync")).toEqual([
+      "follow run",
+      "before printing sale-1",
+      "before printing sale-3",
+      "print sale-1",
+      "print sale-3",
+    ]);
+  });
+
+  it("prints and syncs nothing when no charge completed a sale", async () => {
+    const subject = rig();
+
+    await printingEachCompletedSale(subject.deps, async () => ({
+      followed: [{ paymentTransactionId: "qr-2", outcome: { kind: "declined" } }],
+      failures: [],
+    }))(undefined);
+
+    expect(subject.events).toEqual([]);
   });
 });

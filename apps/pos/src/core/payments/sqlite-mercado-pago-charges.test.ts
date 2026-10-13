@@ -7,6 +7,7 @@ import { SqliteMercadoPagoCharges } from "./sqlite-mercado-pago-charges";
 
 const OCCURRED_AT = "2026-10-09T12:00:00.000Z";
 const WAIT_ENDS_AT = "2026-10-09T12:03:00.000Z";
+const RUN_STARTED_AT = new Date("2026-10-09T12:01:00.000Z");
 
 let database: LocalDatabase;
 let charges: SqliteMercadoPagoCharges;
@@ -80,7 +81,7 @@ describe("the Mercado Pago QR charges the register keeps", () => {
     expect(charges.pendingCharge("qr-1")).toBeNull();
   });
 
-  it("list every pending QR and Point payment with the person its sale belongs to, oldest first", () => {
+  it("list every QR and Point payment left pending before a moment, with the person its sale belongs to, oldest first", () => {
     database.exec(
       `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
        VALUES ('sale-2', 'register-1', 'device-1', 'session-1', 'u2', 'COMPLETED', '${OCCURRED_AT}')`,
@@ -91,7 +92,7 @@ describe("the Mercado Pago QR charges the register keeps", () => {
       .prepare("UPDATE payment_transactions SET sale_id = 'sale-2' WHERE id = 'point-1'")
       .run();
 
-    expect(charges.pendingCharges()).toEqual([
+    expect(charges.pendingChargesRecordedBefore(RUN_STARTED_AT)).toEqual([
       { paymentTransactionId: "qr-1", actorId: "u1" },
       { paymentTransactionId: "point-1", actorId: "u2" },
     ]);
@@ -104,7 +105,13 @@ describe("the Mercado Pago QR charges the register keeps", () => {
     database.prepare("UPDATE payment_transactions SET replaced = 1 WHERE id = 'qr-replaced'").run();
     addPointPayment("point-cancelled", "CANCELLED");
 
-    expect(charges.pendingCharges()).toEqual([]);
+    expect(charges.pendingChargesRecordedBefore(RUN_STARTED_AT)).toEqual([]);
+  });
+
+  it("list no pending payment recorded at or after the moment", () => {
+    addQrPayment("qr-1", "PENDING");
+
+    expect(charges.pendingChargesRecordedBefore(new Date(OCCURRED_AT))).toEqual([]);
   });
 
   it.each(["DECLINED", "CANCELLED", "EXPIRED"] as const)(
