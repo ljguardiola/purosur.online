@@ -74,6 +74,7 @@ export type {
   PreviewAssemblyBatchInput,
   PreviewAssemblyBatchOutcome,
   PreviewAssemblyBatchPorts,
+  PreviewedBatchLot,
 } from "./preview-assembly-batch.js";
 export { previewAssemblyBatch } from "./preview-assembly-batch.js";
 export type { ReadInitialCountOutcome } from "./read-initial-count.js";

@@ -10,6 +10,7 @@ import {
 } from "../model/assembly-batch.js";
 import { movementAllocations } from "../model/lot-allocation.js";
 import { isMovementQuantity } from "../model/stock-quantity.js";
+import { lotUnitCostCents } from "../model/unit-cost.js";
 import type { BatchLotReader } from "./batch-lot-reader.js";
 import type { RecipeListReader } from "./recipe-list-reader.js";
 
@@ -37,6 +38,10 @@ export interface PlannedComponent {
   allocations: PlannedComponentAllocation[];
 }
 
+export interface PreviewedBatchLot extends BatchLotFacts {
+  unitCostCents: number | null;
+}
+
 export type PreviewAssemblyBatchOutcome =
   | { kind: "no_recipe" }
   | { kind: "invalid_size" }
@@ -49,7 +54,7 @@ export type PreviewAssemblyBatchOutcome =
       proposal: AssemblyProposal;
       used: BatchComponentUse[];
       planned: PlannedComponent[];
-      lot: BatchLotFacts | null;
+      lot: PreviewedBatchLot | null;
     };
 
 export async function previewAssemblyBatch(
@@ -112,15 +117,22 @@ export async function previewAssemblyBatch(
   }
 
   const output = input.output ?? proposal.output;
+  const lot =
+    output !== null && isMovementQuantity(listing.saleUnit, output)
+      ? batchLotFacts(consumed, output)
+      : null;
   return {
     kind: "previewed",
     recipeVersion: listing.version,
     proposal,
     used: paired.map(({ componentProductId, quantity }) => ({ componentProductId, quantity })),
     planned,
-    lot:
-      output !== null && isMovementQuantity(listing.saleUnit, output)
-        ? batchLotFacts(consumed, output)
-        : null,
+    lot: lot && {
+      ...lot,
+      unitCostCents: lotUnitCostCents({
+        cost: { totalCents: lot.costTotalCents, quantity: lot.costQuantity },
+        costIncomplete: lot.costIncomplete,
+      }),
+    },
   };
 }
