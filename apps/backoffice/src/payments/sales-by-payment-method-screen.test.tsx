@@ -218,6 +218,18 @@ test("asks the cloud for no range when the URL has none, and shows the range it 
   expect(services.fetchSalesByPaymentMethod).toHaveBeenCalledWith({});
 });
 
+test("asks the cloud for no range when the URL names one it would refuse, and shows the range it answered", async () => {
+  const services = createServices();
+
+  const screen = await renderScreen(services, {
+    filters: { ...salesByPaymentMethodFilters.parse({}), from: "2026-10-08", to: "2026-10-07" },
+  });
+
+  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
+  expect(dateSegments(screen, "Hasta")).toEqual(["7", "10", "2026"]);
+  expect(services.fetchSalesByPaymentMethod).toHaveBeenCalledWith({});
+});
+
 test("asks the cloud for the range and the register the URL names", async () => {
   const services = createServices();
 
