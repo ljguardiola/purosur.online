@@ -983,6 +983,55 @@ test("cloud-server-never-migrates flags the cloud server reaching the migrate en
   assert.equal(violationsFor(controlReport, "cloud-server-never-migrates").length, 0);
 });
 
+test("cloud-migration-tests-migrate-through-migration-under-test flags a cloud migration test migrating on its own and allows one going through migration-under-test", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/cloud/src/platform/db/brands-migration.test.ts": [
+      'import { migrate } from "drizzle-orm/pglite/migrator";',
+      'import { migrateFreshDatabase } from "../../test-support/test-database-snapshot";',
+      'import { migrationsFolderBefore } from "./test-support/migration-journal-test-helpers";',
+      "export const deps = [migrate, migrateFreshDatabase, migrationsFolderBefore];",
+    ].join("\n"),
+    "apps/cloud/src/test-support/test-database-snapshot.ts":
+      "export function migrateFreshDatabase() {}\n",
+    "apps/cloud/src/platform/db/test-support/migration-journal-test-helpers.ts":
+      "export function migrationsFolderBefore() {}\n",
+    "apps/cloud/src/platform/db/test-support/migration-under-test.ts": [
+      'import { migrate } from "drizzle-orm/pglite/migrator";',
+      'import { migrateFreshDatabase } from "../../../test-support/test-database-snapshot";',
+      'import { migrationsFolderBefore } from "./migration-journal-test-helpers";',
+      "export const databaseBeforeMigration = [migrate, migrateFreshDatabase, migrationsFolderBefore];",
+    ].join("\n"),
+  });
+  await installPnpmPackage(root, "drizzle-orm", "pglite/migrator.js");
+
+  const report = await cruiseFixture(root, ["apps"]);
+  const violationPairs = violationsFor(
+    report,
+    "cloud-migration-tests-migrate-through-migration-under-test",
+  ).map((violation) => `${violation.from} -> ${violation.to}`);
+
+  assert.deepEqual(violationPairs.sort(), [
+    "apps/cloud/src/platform/db/brands-migration.test.ts -> apps/cloud/src/platform/db/test-support/migration-journal-test-helpers.ts",
+    "apps/cloud/src/platform/db/brands-migration.test.ts -> apps/cloud/src/test-support/test-database-snapshot.ts",
+    "apps/cloud/src/platform/db/brands-migration.test.ts -> node_modules/.pnpm/drizzle-orm@1.0.0/node_modules/drizzle-orm/pglite/migrator.js",
+  ]);
+
+  await writeFixtureFile(
+    root,
+    "apps/cloud/src/platform/db/brands-migration.test.ts",
+    [
+      'import { databaseBeforeMigration } from "./test-support/migration-under-test";',
+      "export const deps = [databaseBeforeMigration];",
+    ].join("\n"),
+  );
+  const controlReport = await cruiseFixture(root, ["apps"]);
+  assert.equal(
+    violationsFor(controlReport, "cloud-migration-tests-migrate-through-migration-under-test")
+      .length,
+    0,
+  );
+});
+
 test("screens-types-only-from-domain flags a backoffice value import from domain and allows a type-only one", async (t) => {
   const root = await makeFixture(t, {
     "apps/backoffice/src/catalog/screen.ts": [
