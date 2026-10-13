@@ -88,5 +88,4 @@ export {
 export {
   isSafeMomentToUpdate,
   REGISTER_UPDATE_HOLD_LIMIT_MS,
-  REGISTER_UPDATE_SETTLE_LIMIT_MS,
 } from "./model/update-safe-moment.js";

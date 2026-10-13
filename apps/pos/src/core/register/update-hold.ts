@@ -8,10 +8,9 @@ export interface UpdateHold {
 }
 
 export function createUpdateHold(deps: {
-  hasOpenSale: () => boolean | Promise<boolean>;
+  hasOpenSale: () => boolean;
   schedule: (run: () => void, delayMs: number) => () => void;
   limitMs: number;
-  settleLimitMs: number;
 }): UpdateHold {
   const running = new Set<Promise<unknown>>();
   let held = false;
@@ -23,40 +22,13 @@ export function createUpdateHold(deps: {
     cancelRelease = undefined;
   }
 
-  function runningSettledInTime(): Promise<boolean> {
-    return new Promise((resolve) => {
-      const cancelLimit = deps.schedule(() => resolve(false), deps.settleLimitMs);
-      void Promise.allSettled(running).then(() => {
-        cancelLimit();
-        resolve(true);
-      });
-    });
-  }
-
-  async function isSafeToHold(): Promise<boolean> {
-    if (!(await runningSettledInTime()) || !held) {
-      return false;
-    }
-    const safe = isSafeMomentToUpdate({ hasOpenSale: await deps.hasOpenSale() });
-    return safe && held;
-  }
-
   return {
     async answerSafeMomentRequest(requestId) {
-      cancelRelease?.();
-      cancelRelease = undefined;
-      held = true;
-      let safe: boolean;
-      try {
-        safe = await isSafeToHold();
-      } catch (error) {
-        release();
-        throw error;
-      }
+      release();
+      const safe = running.size === 0 && isSafeMomentToUpdate({ hasOpenSale: deps.hasOpenSale() });
       if (safe) {
+        held = true;
         cancelRelease = deps.schedule(release, deps.limitMs);
-      } else {
-        release();
       }
       return { type: "update-safe-moment", request_id: requestId, safe };
     },

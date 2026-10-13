@@ -429,7 +429,6 @@ export {
   REGISTER_ABILITIES,
   REGISTER_NAME_MAX_LENGTH,
   REGISTER_UPDATE_HOLD_LIMIT_MS,
-  REGISTER_UPDATE_SETTLE_LIMIT_MS,
   registerAbilities,
   registerNameLength,
   registerOperationAccess,
