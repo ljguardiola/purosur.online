@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CAPABILITIES,
+  CAPABILITY_PERMISSIONS,
   type Capability,
   grantedCapabilities,
   grantsCapability,
@@ -24,6 +25,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["manage_suppliers", ["suppliers", "stock_area"]],
   ["manage_purchase_presentations", ["purchase_packagings", "stock_area"]],
   ["record_purchases", ["purchases", "stock_area"]],
+  ["manage_recipes", ["recipes", "stock_area"]],
   ["view_stock_balances", ["stock_balances", "stock_area"]],
   ["perform_stock_counts", ["stock_counts", "stock_area"]],
   ["record_initial_inventory", ["initial_inventory", "stock_area"]],
@@ -156,5 +158,51 @@ describe("grantedCapabilities", () => {
     expect(grantedCapabilities(access)).toEqual(
       CAPABILITIES.filter((capability) => grantsCapability(access, capability)),
     );
+  });
+});
+
+const STOCK_AND_PURCHASING_SCREENS = [
+  "stock_balances",
+  "suppliers",
+  "purchase_packagings",
+  "purchases",
+  "recipes",
+  "stock_counts",
+  "stock_losses",
+  "stock_adjustments",
+  "initial_inventory",
+] as const satisfies readonly Capability[];
+
+describe("the stock and purchasing screens' capabilities", () => {
+  it.each(STOCK_AND_PURCHASING_SCREENS)("%s lists exactly one permission", (screen) => {
+    expect(CAPABILITY_PERMISSIONS[screen]).toHaveLength(1);
+  });
+
+  it("no two of them list the same permission", () => {
+    const permissions = STOCK_AND_PURCHASING_SCREENS.flatMap(
+      (screen) => CAPABILITY_PERMISSIONS[screen],
+    );
+
+    expect(new Set(permissions).size).toBe(permissions.length);
+  });
+
+  it.each(STOCK_AND_PURCHASING_SCREENS)(
+    "a role holding only the permission of %s is granted that screen and none of the others",
+    (screen) => {
+      const [permission] = CAPABILITY_PERMISSIONS[screen];
+
+      const granted = grantedCapabilities({ isAdministrator: false, permissionKeys: [permission] });
+
+      expect(STOCK_AND_PURCHASING_SCREENS.filter((other) => granted.includes(other))).toEqual([
+        screen,
+      ]);
+    },
+  );
+
+  it("the losses and adjustments screen is granted by exactly the permissions of losses and adjustments", () => {
+    expect(CAPABILITY_PERMISSIONS.stock_movements).toEqual([
+      ...CAPABILITY_PERMISSIONS.stock_losses,
+      ...CAPABILITY_PERMISSIONS.stock_adjustments,
+    ]);
   });
 });
