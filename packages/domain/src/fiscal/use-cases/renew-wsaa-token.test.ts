@@ -90,7 +90,7 @@ describe("renewWsaaToken", () => {
       "requestToken",
       "recordIssuedToken",
       "clearRefusal",
-      "resolveHeldTicketAlert",
+      "clearTicketHeldElsewhere",
       "resumeWorkWaitingOnToken",
       "commitAnswer",
       "releaseRenewal",
@@ -136,9 +136,9 @@ describe("renewWsaaToken", () => {
       await expect(outcome).resolves.toEqual({ kind: "already_authenticated" });
 
       expect(store.refusedAt).toEqual(NOW);
-      expect(store.heldTicketAlertOpen).toBe(true);
-      expect(store.heldTicketAlertChangedAt).toEqual(NOW);
-      expect(store.heldTicketAlertRetryIntervalMinutes).toBe(
+      expect(store.ticketHeldElsewhere).toBe(true);
+      expect(store.ticketHeldElsewhereChangedAt).toEqual(NOW);
+      expect(store.ticketHeldElsewhereRetryIntervalMinutes).toBe(
         WSAA_ALREADY_AUTHENTICATED_RETRY_MINUTES,
       );
       expect(store.rows).toEqual([]);
@@ -149,7 +149,7 @@ describe("renewWsaaToken", () => {
         "lastRefusal",
         "requestToken",
         "recordRefusal",
-        "openHeldTicketAlert",
+        "recordTicketHeldElsewhere",
         "commitAnswer",
         "releaseRenewal",
       ]);
@@ -186,7 +186,7 @@ describe("renewWsaaToken", () => {
     it("records the ticket, clears the refusal, resolves the alert and resumes the waiting work when a later attempt is issued one", async () => {
       const store = new FakeWsaaTokenStore();
       store.refusedAt = refusedAgo(WSAA_ALREADY_AUTHENTICATED_RETRY_MS);
-      store.heldTicketAlertOpen = true;
+      store.ticketHeldElsewhere = true;
       const { outcome } = renew(store, { kind: "issued", token: ISSUED });
 
       await expect(outcome).resolves.toEqual({ kind: "renewed" });
@@ -195,8 +195,8 @@ describe("renewWsaaToken", () => {
         { service: SERVICE, certificateFingerprint: FINGERPRINT, token: ISSUED },
       ]);
       expect(store.refusedAt).toBeNull();
-      expect(store.heldTicketAlertOpen).toBe(false);
-      expect(store.heldTicketAlertChangedAt).toEqual(NOW);
+      expect(store.ticketHeldElsewhere).toBe(false);
+      expect(store.ticketHeldElsewhereChangedAt).toEqual(NOW);
       expect(store.resumeCount).toBe(1);
     });
 
@@ -217,7 +217,7 @@ describe("renewWsaaToken", () => {
       await expect(outcome).resolves.toEqual({ kind: "already_authenticated" });
 
       expect(store.refusedAt).toEqual(NOW);
-      expect(store.heldTicketAlertOpen).toBe(true);
+      expect(store.ticketHeldElsewhere).toBe(true);
       expect(store.rows[0]?.token.token).toBe("old-token");
       expect(store.operations).toEqual([
         "holdRenewal",
@@ -225,7 +225,7 @@ describe("renewWsaaToken", () => {
         "lastRefusal",
         "requestToken",
         "recordRefusal",
-        "openHeldTicketAlert",
+        "recordTicketHeldElsewhere",
         "commitAnswer",
         "releaseRenewal",
       ]);
@@ -258,7 +258,7 @@ describe("renewWsaaToken", () => {
         "releaseRenewal",
       ]);
       expect(store.rows).toEqual([]);
-      expect(store.heldTicketAlertOpen).toBe(false);
+      expect(store.ticketHeldElsewhere).toBe(false);
       expect(store.refusedAt).toBeNull();
     });
 
@@ -266,13 +266,13 @@ describe("renewWsaaToken", () => {
       const store = new FakeWsaaTokenStore();
       const refusedAt = refusedAgo(WSAA_ALREADY_AUTHENTICATED_RETRY_MS);
       store.refusedAt = refusedAt;
-      store.heldTicketAlertOpen = true;
+      store.ticketHeldElsewhere = true;
       const { outcome } = renew(store, { kind: "failed" });
 
       await expect(outcome).resolves.toEqual({ kind: "failed" });
 
       expect(store.refusedAt).toEqual(refusedAt);
-      expect(store.heldTicketAlertOpen).toBe(true);
+      expect(store.ticketHeldElsewhere).toBe(true);
     });
   });
 
@@ -281,7 +281,7 @@ describe("renewWsaaToken", () => {
       const store = new FakeWsaaTokenStore();
       store.seed(SERVICE, FINGERPRINT, persisted(0));
       store.refusedAt = refusedAgo(WSAA_ALREADY_AUTHENTICATED_RETRY_MS);
-      store.heldTicketAlertOpen = true;
+      store.ticketHeldElsewhere = true;
       store.failingOperation = "resumeWorkWaitingOnToken";
       const { outcome } = renew(store, { kind: "issued", token: ISSUED });
 
@@ -289,7 +289,7 @@ describe("renewWsaaToken", () => {
 
       expect(store.rows[0]?.token.token).toBe("old-token");
       expect(store.refusedAt).toEqual(refusedAgo(WSAA_ALREADY_AUTHENTICATED_RETRY_MS));
-      expect(store.heldTicketAlertOpen).toBe(true);
+      expect(store.ticketHeldElsewhere).toBe(true);
       expect(store.resumeCount).toBe(0);
       expect(store.operations.slice(-2)).toEqual(["rollbackAnswer", "releaseRenewal"]);
     });
@@ -307,13 +307,13 @@ describe("renewWsaaToken", () => {
 
     it("records no refusal when opening the alert fails", async () => {
       const store = new FakeWsaaTokenStore();
-      store.failingOperation = "openHeldTicketAlert";
+      store.failingOperation = "recordTicketHeldElsewhere";
       const { outcome } = renew(store, { kind: "already_authenticated" });
 
-      await expect(outcome).rejects.toThrow("openHeldTicketAlert failed");
+      await expect(outcome).rejects.toThrow("recordTicketHeldElsewhere failed");
 
       expect(store.refusedAt).toBeNull();
-      expect(store.heldTicketAlertOpen).toBe(false);
+      expect(store.ticketHeldElsewhere).toBe(false);
       expect(store.operations.slice(-2)).toEqual(["rollbackAnswer", "releaseRenewal"]);
     });
   });

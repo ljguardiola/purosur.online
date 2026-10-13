@@ -107,7 +107,7 @@ describe("DrizzleWsaaTokenStore", () => {
       answering(async (answer) => {
         await answer.recordIssuedToken(ISSUED);
         await answer.recordRefusal(NOW);
-        await answer.openHeldTicketAlert(NOW, RETRY_INTERVAL_MINUTES);
+        await answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES);
         throw new Error("the operation failed");
       }),
     ).rejects.toThrow("the operation failed");
@@ -152,7 +152,7 @@ describe("DrizzleWsaaTokenStore", () => {
 
   describe("the held-ticket alert", () => {
     it("opens one warning alert scoped to the ARCA environment, with the interval the ticket is asked for again", async () => {
-      await answering((answer) => answer.openHeldTicketAlert(NOW, RETRY_INTERVAL_MINUTES));
+      await answering((answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES));
 
       const [alert, ...others] = await heldTicketAlertsOf(ENVIRONMENT);
       expect(others).toEqual([]);
@@ -166,9 +166,9 @@ describe("DrizzleWsaaTokenStore", () => {
     });
 
     it("keeps a single open alert when it is opened again", async () => {
-      await answering((answer) => answer.openHeldTicketAlert(NOW, RETRY_INTERVAL_MINUTES));
+      await answering((answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES));
       await answering((answer) =>
-        answer.openHeldTicketAlert(new Date(NOW.getTime() + HOUR_MS), RETRY_INTERVAL_MINUTES),
+        answer.recordTicketHeldElsewhere(new Date(NOW.getTime() + HOUR_MS), RETRY_INTERVAL_MINUTES),
       );
 
       expect(await heldTicketAlertsOf(ENVIRONMENT)).toHaveLength(1);
@@ -176,27 +176,27 @@ describe("DrizzleWsaaTokenStore", () => {
 
     it("resolves the open alert at the moment given", async () => {
       const later = new Date(NOW.getTime() + HOUR_MS);
-      await answering((answer) => answer.openHeldTicketAlert(NOW, RETRY_INTERVAL_MINUTES));
-      await answering((answer) => answer.resolveHeldTicketAlert(later));
+      await answering((answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES));
+      await answering((answer) => answer.clearTicketHeldElsewhere(later));
 
       const [alert] = await heldTicketAlertsOf(ENVIRONMENT);
       expect(alert?.resolvedAt).toEqual(later);
     });
 
     it("resolves nothing when no alert is open", async () => {
-      await answering((answer) => answer.resolveHeldTicketAlert(NOW));
+      await answering((answer) => answer.clearTicketHeldElsewhere(NOW));
 
       expect(await heldTicketAlertsOf(ENVIRONMENT)).toEqual([]);
     });
 
     it("leaves the alert of another environment open", async () => {
       await answering(
-        (answer) => answer.openHeldTicketAlert(NOW, RETRY_INTERVAL_MINUTES),
+        (answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES),
         SERVICE,
         FINGERPRINT,
         newStore(undefined, "homologation"),
       );
-      await answering((answer) => answer.resolveHeldTicketAlert(NOW));
+      await answering((answer) => answer.clearTicketHeldElsewhere(NOW));
 
       const open = await testDatabase.db
         .select()
@@ -206,9 +206,9 @@ describe("DrizzleWsaaTokenStore", () => {
     });
 
     it("opens a new alert after the previous one resolved", async () => {
-      await answering((answer) => answer.openHeldTicketAlert(NOW, RETRY_INTERVAL_MINUTES));
-      await answering((answer) => answer.resolveHeldTicketAlert(NOW));
-      await answering((answer) => answer.openHeldTicketAlert(NOW, RETRY_INTERVAL_MINUTES));
+      await answering((answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES));
+      await answering((answer) => answer.clearTicketHeldElsewhere(NOW));
+      await answering((answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES));
 
       expect(await heldTicketAlertsOf(ENVIRONMENT)).toHaveLength(2);
     });

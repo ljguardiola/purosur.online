@@ -71,8 +71,8 @@ class DrizzleWsaaTokenAnswer<TQueryResult extends PgQueryResultHKT> implements W
       );
   }
 
-  async resolveHeldTicketAlert(resolvedAt: Date): Promise<void> {
-    await resolveWsaaTicketHeldAlert(this.tx, this.options.environment, resolvedAt);
+  async clearTicketHeldElsewhere(at: Date): Promise<void> {
+    await resolveWsaaTicketHeldAlert(this.tx, this.options.environment, at);
   }
 
   async resumeWorkWaitingOnToken(): Promise<void> {
@@ -93,13 +93,8 @@ class DrizzleWsaaTokenAnswer<TQueryResult extends PgQueryResultHKT> implements W
       });
   }
 
-  async openHeldTicketAlert(openedAt: Date, retryIntervalMinutes: number): Promise<void> {
-    await openWsaaTicketHeldAlert(
-      this.tx,
-      this.options.environment,
-      retryIntervalMinutes,
-      openedAt,
-    );
+  async recordTicketHeldElsewhere(at: Date, retryIntervalMinutes: number): Promise<void> {
+    await openWsaaTicketHeldAlert(this.tx, this.options.environment, retryIntervalMinutes, at);
   }
 }
 
