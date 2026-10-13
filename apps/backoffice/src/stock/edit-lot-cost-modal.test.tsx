@@ -4,7 +4,11 @@ import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { EditLotCostModal, type EditLotCostModalProps } from "./edit-lot-cost-modal";
-import { initialLotAlmonds, initialLotHoney } from "./test-support/stock-fixtures";
+import {
+  initialLotAlmonds,
+  initialLotHoney,
+  initialLotWithdrawnStillHeld,
+} from "./test-support/stock-fixtures";
 
 function createProps(overrides: Partial<EditLotCostModalProps> = {}): EditLotCostModalProps {
   return {
@@ -42,6 +46,24 @@ test("names the product and how much of the lot was counted", async () => {
     .toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
 });
+
+test.each([
+  [
+    initialLotWithdrawnStillHeld,
+    "Lote de una línea retirada de la puesta en marcha, con 1,500 kg en stock.",
+  ],
+  [
+    { ...initialLotWithdrawnStillHeld, saleUnit: "UNIT" as const, remaining: 1_000 },
+    "Lote de una línea retirada de la puesta en marcha, con 1 u en stock.",
+  ],
+])(
+  "says a withdrawn line's lot comes from it and how much of the lot is left: %#",
+  async (lot, text) => {
+    const screen = await renderModal(createProps({ lot }));
+
+    await expect.element(screen.getByText(text)).toBeVisible();
+  },
+);
 
 test.each([
   [initialLotAlmonds, "Costo de referencia por kg"],

@@ -12,6 +12,8 @@ function row(id: string, overrides: Record<string, unknown> = {}) {
     saleUnit: "UNIT" as const,
     expiresOn: "2027-01-31" as string | null,
     counted: 6_000,
+    withdrawn: false,
+    remaining: 6_000,
     costIncomplete: true,
     cost: null,
     ...overrides,
@@ -43,6 +45,8 @@ describe("readInitialCountLots", () => {
         saleUnit: "UNIT",
         expiresOn: "2027-01-31",
         counted: 6_000,
+        withdrawn: false,
+        remaining: 6_000,
         costIncomplete: true,
         unitCostCents: null,
         valueCents: null,
@@ -64,6 +68,60 @@ describe("readInitialCountLots", () => {
       unitCostCents: 333,
       valueCents: 833,
     });
+  });
+
+  it("values a lot of a line not withdrawn at what was counted, whatever it holds now", async () => {
+    const { lots } = await read([
+      row("l1", {
+        cost: { totalCents: 333, quantity: 1_000 },
+        costIncomplete: false,
+        counted: 2_500,
+        remaining: 400,
+      }),
+    ]);
+
+    expect(lots[0]).toMatchObject({ remaining: 400, valueCents: 833 });
+  });
+
+  it("keeps a withdrawn line's lot that still holds stock, marked as withdrawn and valued at what it still holds", async () => {
+    const { lots } = await read([
+      row("l1", {
+        withdrawn: true,
+        counted: 2_500,
+        remaining: 1_500,
+        cost: { totalCents: 333, quantity: 1_000 },
+        costIncomplete: false,
+      }),
+    ]);
+
+    expect(lots).toEqual([
+      expect.objectContaining({
+        lotId: "l1",
+        counted: 2_500,
+        withdrawn: true,
+        remaining: 1_500,
+        unitCostCents: 333,
+        valueCents: 500,
+      }),
+    ]);
+  });
+
+  it("shows a withdrawn line's lot that still holds stock without a value while its cost is not typed", async () => {
+    const { lots } = await read([row("l1", { withdrawn: true, remaining: 1 })]);
+
+    expect(lots[0]).toMatchObject({ withdrawn: true, costIncomplete: true, valueCents: null });
+  });
+
+  it.each([0, -1])("leaves out a withdrawn line's lot holding %s", async (remaining) => {
+    const { lots } = await read([row("gone", { withdrawn: true, remaining }), row("l1")]);
+
+    expect(lots.map((lot) => lot.lotId)).toEqual(["l1"]);
+  });
+
+  it.each([0, -1])("keeps the lot of a line not withdrawn holding %s", async (remaining) => {
+    const { lots } = await read([row("l1", { remaining })]);
+
+    expect(lots.map((lot) => lot.lotId)).toEqual(["l1"]);
   });
 
   it("asks only for the branch's lots", async () => {

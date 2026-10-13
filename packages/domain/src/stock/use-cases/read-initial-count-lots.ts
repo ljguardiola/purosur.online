@@ -1,6 +1,10 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import { compareSpanishText } from "../../shared/index.js";
-import { type InitialCountCostFilter, initialCountCostIncomplete } from "../model/initial-count.js";
+import {
+  type InitialCountCostFilter,
+  initialCountCostIncomplete,
+  initialCountLotTakesCost,
+} from "../model/initial-count.js";
 import { lotValueCents } from "../model/lot-value.js";
 import { lotUnitCostCents } from "../model/unit-cost.js";
 import type { InitialCountLotReader } from "./initial-count-lot-reader.js";
@@ -19,6 +23,8 @@ export interface InitialCountLotView {
   saleUnit: SaleUnit;
   expiresOn: string | null;
   counted: number;
+  withdrawn: boolean;
+  remaining: number;
   costIncomplete: boolean;
   unitCostCents: number | null;
   valueCents: number | null;
@@ -39,12 +45,13 @@ export async function readInitialCountLots(
   { initialCountLots }: { initialCountLots: InitialCountLotReader },
   { locationId, cost, productName }: ReadInitialCountLotsInput,
 ): Promise<InitialCountLotView[]> {
-  const rows = await initialCountLots.notWithdrawnInitialCountLots({
+  const rows = await initialCountLots.initialCountLots({
     locationId,
     costIncomplete: cost === undefined ? undefined : initialCountCostIncomplete(cost),
     productName,
   });
   return rows
+    .filter(initialCountLotTakesCost)
     .map((row) => ({
       lotId: row.lotId,
       productId: row.productId,
@@ -53,9 +60,11 @@ export async function readInitialCountLots(
       saleUnit: row.saleUnit,
       expiresOn: row.expiresOn,
       counted: row.counted,
+      withdrawn: row.withdrawn,
+      remaining: row.remaining,
       costIncomplete: row.costIncomplete,
       unitCostCents: lotUnitCostCents(row),
-      valueCents: lotValueCents({ ...row, remaining: row.counted }),
+      valueCents: lotValueCents({ ...row, remaining: row.withdrawn ? row.remaining : row.counted }),
     }))
     .sort(
       (a, b) =>
