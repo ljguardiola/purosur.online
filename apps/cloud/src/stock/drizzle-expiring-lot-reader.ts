@@ -2,7 +2,7 @@ import type { SaleUnit } from "@purosur/domain";
 import type { ExpiringLotReader, ExpiringLotRow } from "@purosur/domain/stock/use-cases";
 import { and, eq, lte } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { branchSettings, categories, lots, products } from "../platform/db/schema.js";
+import { categories, lots, products } from "../platform/db/schema.js";
 
 export class DrizzleExpiringLotReader<TQueryResult extends PgQueryResultHKT>
   implements ExpiringLotReader
@@ -11,17 +11,6 @@ export class DrizzleExpiringLotReader<TQueryResult extends PgQueryResultHKT>
 
   constructor(db: PgDatabase<TQueryResult>) {
     this.db = db;
-  }
-
-  async expiryWarningWindowDays(locationId: string): Promise<number> {
-    const [settings] = await this.db
-      .select({ days: branchSettings.expiringLotAlertDays })
-      .from(branchSettings)
-      .where(eq(branchSettings.locationId, locationId));
-    if (!settings) {
-      throw new Error(`branch settings missing for location ${locationId}`);
-    }
-    return settings.days;
   }
 
   async lotsExpiringBy(locationId: string, lastDay: string): Promise<ExpiringLotRow[]> {
@@ -44,13 +33,7 @@ export class DrizzleExpiringLotReader<TQueryResult extends PgQueryResultHKT>
       .from(lots)
       .innerJoin(products, eq(products.id, lots.productId))
       .innerJoin(categories, eq(categories.id, products.categoryId))
-      .where(
-        and(
-          eq(lots.locationId, locationId),
-          eq(lots.withdrawn, false),
-          lte(lots.expiresOn, lastDay),
-        ),
-      );
+      .where(and(eq(lots.locationId, locationId), lte(lots.expiresOn, lastDay)));
     return rows.map(
       ({
         costTotalCents,

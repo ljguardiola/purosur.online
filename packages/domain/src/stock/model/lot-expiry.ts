@@ -15,11 +15,3 @@ export function isExpired(expiresOn: string, today: string): boolean {
 export function expiryWindowEnd(today: string, windowDays: number): string {
   return shiftCalendarDay(today, windowDays);
 }
-
-export function isWithinExpiryWindow(
-  expiresOn: string,
-  today: string,
-  windowDays: number,
-): boolean {
-  return expiresOn <= expiryWindowEnd(today, windowDays);
-}

@@ -2,6 +2,7 @@ import { expiredLotDiscardResultSchema, expiringLotListSchema } from "@purosur/c
 import { discardExpiredLot, readExpiringLots } from "@purosur/domain/stock/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { DrizzleBranchSettingsReader } from "../branch/drizzle-branch-settings-reader.js";
 import { readRecordIds } from "../platform/record-id-params.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
@@ -28,6 +29,7 @@ export function registerExpiringLotsRoutes<TQueryResult extends PgQueryResultHKT
   const { now } = options;
   const clock = { now };
   const expiringLots = new DrizzleExpiringLotReader(options.db);
+  const branchSettings = new DrizzleBranchSettingsReader(options.db);
   const store = new DrizzleStockStore(options.db);
   registerRouteAccess(app);
   const routeConfig = {
@@ -40,7 +42,7 @@ export function registerExpiringLotsRoutes<TQueryResult extends PgQueryResultHKT
 
   app.get("/expiring-lots", routeConfig, async (request, reply) => {
     const view = await readExpiringLots(
-      { expiringLots, clock },
+      { expiringLots, branchSettings, clock },
       { locationId: openSessionOf(request).locationId },
     );
     await reply.code(200).send(expiringLotListSchema.parse(view));

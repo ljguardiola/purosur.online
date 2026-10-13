@@ -5,6 +5,7 @@ import type {
   ExpiringLotProduct,
   ExpiringLotReader,
   ExpiringLotRow,
+  ExpiryWarningWindowReader,
 } from "./expiring-lot-reader.js";
 
 export interface ReadExpiringLotsInput {
@@ -54,11 +55,20 @@ function lotView(row: ExpiringLotRow & { expiresOn: string }, today: string): Ex
 }
 
 export async function readExpiringLots(
-  { expiringLots, clock }: { expiringLots: ExpiringLotReader; clock: Clock },
+  {
+    expiringLots,
+    branchSettings,
+    clock,
+  }: {
+    expiringLots: ExpiringLotReader;
+    branchSettings: ExpiryWarningWindowReader;
+    clock: Clock;
+  },
   { locationId }: ReadExpiringLotsInput,
 ): Promise<ExpiringLotsView> {
   const today = argentinaCalendarDay(clock.now());
-  const windowDays = await expiringLots.expiryWarningWindowDays(locationId);
+  const { expiringLotAlertDays: windowDays } =
+    await branchSettings.currentBranchSettings(locationId);
   const rows = await expiringLots.lotsExpiringBy(locationId, expiryWindowEnd(today, windowDays));
   const lots = rows
     .filter(

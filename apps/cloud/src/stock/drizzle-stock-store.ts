@@ -163,7 +163,7 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
     const [found] = await this.tx
       .select({ productId: lots.productId })
       .from(lots)
-      .where(and(eq(lots.id, lotId), eq(lots.locationId, locationId), eq(lots.withdrawn, false)));
+      .where(and(eq(lots.id, lotId), eq(lots.locationId, locationId)));
     return found?.productId;
   }
 

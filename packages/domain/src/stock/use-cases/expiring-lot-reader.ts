@@ -21,6 +21,9 @@ export interface ExpiringLotRow {
 }
 
 export interface ExpiringLotReader {
-  expiryWarningWindowDays(locationId: string): Promise<number>;
   lotsExpiringBy(locationId: string, lastDay: string): Promise<ExpiringLotRow[]>;
+}
+
+export interface ExpiryWarningWindowReader {
+  currentBranchSettings(locationId: string): Promise<{ expiringLotAlertDays: number }>;
 }

@@ -31,6 +31,7 @@ export type {
   ExpiringLotProduct,
   ExpiringLotReader,
   ExpiringLotRow,
+  ExpiryWarningWindowReader,
 } from "./expiring-lot-reader.js";
 export type {
   FindCountableProductByBarcodeOutcome,

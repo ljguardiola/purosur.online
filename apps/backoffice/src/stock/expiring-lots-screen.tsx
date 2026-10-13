@@ -52,11 +52,21 @@ const REFUSAL_REASONS = {
   not_found: "El lote ya no existe.",
 } as const;
 
+function nextDays(windowDays: number): string {
+  return plural(windowDays, { one: "el próximo día", other: `los próximos ${windowDays} días` });
+}
+
 function expiryFilterOptions(
-  windowDays: number,
+  windowDays: number | undefined,
 ): [{ value: ExpiryFilter; label: string }, ...{ value: ExpiryFilter; label: string }[]] {
   return [
-    { value: "all", label: `Vencidos y en los próximos ${windowDays} días` },
+    {
+      value: "all",
+      label:
+        windowDays === undefined
+          ? "Vencidos y por vencer"
+          : `Vencidos y en ${nextDays(windowDays)}`,
+    },
     { value: "expired", label: "Vencidos" },
     { value: "upcoming", label: "Por vencer" },
   ];
@@ -132,7 +142,7 @@ export function ExpiringLotsScreen({
     onSessionEnded,
   });
   const lots = data.status === "loaded" ? data.value.lots : NO_LOTS;
-  const windowDays = data.status === "loaded" ? data.value.windowDays : 0;
+  const windowDays = data.status === "loaded" ? data.value.windowDays : undefined;
   const categoryOptions = categoryFilterOptions(lots.map((lot) => lot.product));
   const categoryIsOffered = categoryOptions.some((option) => option.value === category);
 
@@ -284,11 +294,11 @@ export function ExpiringLotsScreen({
           table={table}
           {...cloudTableState(data, "los vencimientos")}
           empty={
-            lots.length === 0
+            windowDays !== undefined && lots.length === 0
               ? {
                   icon: <CalendarClock />,
                   title: "Sin lotes por vencer",
-                  description: `Ningún lote venció ni vence en los próximos ${windowDays} días.`,
+                  description: `Ningún lote venció ni vence en ${nextDays(windowDays)}.`,
                   variant: "blank",
                 }
               : {
