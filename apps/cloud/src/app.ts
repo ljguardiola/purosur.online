@@ -142,6 +142,7 @@ import { registerSessionReadRoute } from "./sessions/session-read-route.js";
 import { registerSessionSignOutRoute } from "./sessions/session-sign-out-route.js";
 import { registerSessionStatusRoute } from "./sessions/session-status-route.js";
 import { registerSignInLookupRoute } from "./sessions/sign-in-lookup-route.js";
+import { registerExpiringLotsRoutes } from "./stock/expiring-lots-route.js";
 import { registerInitialInventoryLotsRoutes } from "./stock/initial-inventory-lots-route.js";
 import { registerStockBalancesRoute } from "./stock/stock-balances-route.js";
 import { registerStockCountsRoutes } from "./stock/stock-counts-route.js";
@@ -528,6 +529,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerStockCountsRoutes(api, { ...options.stock, now });
         registerInitialInventoryLotsRoutes(api, { ...options.stock, now });
         registerStockMovementsRoutes(api, { ...options.stock, now });
+        registerExpiringLotsRoutes(api, { ...options.stock, now });
       }
 
       if (options.salesReports) {
