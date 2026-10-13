@@ -28,6 +28,8 @@ function gate() {
   });
 }
 
+const POINT_PAYMENT_ID = "0b6f2c1e-4a7d-4c1e-9f2a-5d3e8b7a6c41";
+
 function cloudClient(
   requests: { url: string; init: RequestInit }[],
   refusal: { status: number; code: string } = { status: 404, code: "not_found" },
@@ -130,7 +132,7 @@ describe("the register's Mercado Pago QR charging", () => {
     ]);
   });
 
-  it("unlocks the sale when the cloud never recorded a terminal payment whose order it could not be asked for", async () => {
+  it("unlocks the sale once the cloud records as cancelled a terminal payment it never recorded and whose order it could not be asked for", async () => {
     const signedInPerson = createSignedInPerson();
     seedChargeRegister(database);
     signedInPerson.set("u1");
@@ -149,6 +151,17 @@ describe("the register's Mercado Pago QR charging", () => {
       cloudClient: {
         ...notFound,
         fetch: async (url: string, init: RequestInit) => {
+          if (url.endsWith(`/${POINT_PAYMENT_ID}/cancel`)) {
+            return Response.json({
+              payment_transaction_id: POINT_PAYMENT_ID,
+              state: "CANCELLED",
+              needs_review: false,
+              provider: "MERCADOPAGO_POINT",
+              amount: 3000,
+              expires_at: "2026-10-09T12:05:00.000Z",
+              cancel_on_terminal: false,
+            });
+          }
           if (init.method === "POST") {
             throw new TypeError("fetch failed");
           }
@@ -158,14 +171,14 @@ describe("the register's Mercado Pago QR charging", () => {
       readDeviceToken: async () => "prefix.secret",
       readOutboxChainKey: async () => "key",
       now: () => NOW,
-      ids: { next: () => "point-1" },
+      ids: { next: () => POINT_PAYMENT_ID },
     });
 
     expect(await charging.start?.({ saleId, method: "POINT", amount: 3000 })).toMatchObject({
       kind: "order_unconfirmed",
-      payment_transaction_id: "point-1",
+      payment_transaction_id: POINT_PAYMENT_ID,
     });
-    expect(await charging.follow?.({ paymentTransactionId: "point-1" })).toEqual({
+    expect(await charging.follow?.({ paymentTransactionId: POINT_PAYMENT_ID })).toEqual({
       kind: "closed",
     });
     expect(await currentSaleFor({ database, gate: pointGate, now: () => NOW })).toMatchObject({
@@ -257,7 +270,7 @@ describe("the register's Mercado Pago QR charging", () => {
       [
         "https://cloud.example/api/payments/mercado-pago/qr-1/cancel",
         "POST",
-        { authorization: "Bearer prefix.secret" },
+        { authorization: "Bearer prefix.secret", "content-type": "application/json" },
       ],
     ]);
   });
