@@ -3,12 +3,12 @@ import { join } from "node:path";
 import { _electron as electron } from "playwright";
 import { describe, expect, it } from "vitest";
 import { serializeChannelFile } from "../src/shared/channel";
-import { APP_DIR, appEnv } from "./launch-app";
+import { APP_DIR, appEnv, LAUNCH_BOUND_MS } from "./launch-app";
 import {
   SERIAL_DEVICE_WATCH_FAILED,
   SERIAL_DEVICES_LISTED,
 } from "./test-support/serial-device-logs";
-import { untilLogged } from "./test-support/until";
+import { REGISTER_LOG_BOUND_MS, untilLogged } from "./test-support/until";
 
 const PACKAGED_FOLDER = join(APP_DIR, "release", "staging", "win-unpacked");
 const RESOURCES_FOLDER = join(PACKAGED_FOLDER, "resources");
@@ -57,17 +57,23 @@ describe("the packaged register's serial devices", () => {
       executablePath: packagedExecutable(),
       args: [],
       env: appEnv(join(RESOURCES_FOLDER, "channel.json")),
-      timeout: 0,
+      timeout: LAUNCH_BOUND_MS,
     });
     const logs: string[] = [];
     app.process().stdout?.on("data", (chunk: Buffer) => logs.push(chunk.toString()));
     app.process().stderr?.on("data", (chunk: Buffer) => logs.push(chunk.toString()));
+    let started = false;
     try {
-      await untilLogged({ app, logs }, SERIAL_DEVICES_LISTED);
+      await untilLogged({ app, logs }, SERIAL_DEVICES_LISTED, { withinMs: REGISTER_LOG_BOUND_MS });
+      started = true;
 
       expect(logs.join("")).not.toContain(SERIAL_DEVICE_WATCH_FAILED);
     } finally {
-      await app.close();
+      if (started) {
+        await app.close();
+      } else {
+        app.process().kill();
+      }
     }
   });
 });

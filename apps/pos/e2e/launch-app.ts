@@ -42,8 +42,12 @@ export function appEnv(channelFile: string): Record<string, string> {
   return env;
 }
 
-// Launching and every wait on the app have no limit, so each test waits for what it checks however
-// long the machine takes; the job's own timeout ends a run where it never comes.
+// The app starts within seconds on CI; the bound is far above that and only turns one that never
+// starts into a failure carrying Playwright's launch log, which holds what the app wrote.
+export const LAUNCH_BOUND_MS = 60_000;
+
+// Waits on the app's window have no limit, so each test waits for what it checks however long the
+// machine takes; the job's own timeout ends a run where it never comes.
 export async function launchApp(
   channelFile: string = writeChannelFile(E2E_CHANNEL_FILE),
   extraEnv: Record<string, string> = {},
@@ -51,7 +55,7 @@ export async function launchApp(
   const app = await electron.launch({
     args: [APP_DIR, ...platformArgs()],
     env: { ...appEnv(channelFile), ...extraEnv },
-    timeout: 0,
+    timeout: LAUNCH_BOUND_MS,
   });
   app.context().setDefaultTimeout(0);
   const logs: string[] = [];

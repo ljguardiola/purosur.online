@@ -1,7 +1,7 @@
 import type { ElectronApplication, JSHandle, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { launchApp } from "./launch-app";
-import { until, untilLogged } from "./test-support/until";
+import { REGISTER_LOG_BOUND_MS, until, untilLogged } from "./test-support/until";
 
 // A fresh data folder holds no enrollment, so a core that is up shows the enrollment screen.
 const CORE_UP_TEXT = "Dar de alta esta caja";
@@ -181,7 +181,7 @@ describe("the register's own recovery once the core's bounded restarts run out",
       port?.start();
       port?.postMessage({ type: "bogus" });
     });
-    await untilLogged({ app, logs }, "core: rejected message");
+    await untilLogged({ app, logs }, "core: rejected message", { withinMs: REGISTER_LOG_BOUND_MS });
     expect(logs.join("")).toContain("core: rejected message");
   });
 });

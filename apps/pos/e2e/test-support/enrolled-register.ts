@@ -6,7 +6,7 @@ import { expect } from "vitest";
 import { launchApp, writeChannelFile } from "../launch-app";
 import { CORE_READY, coreStartEnded, startEndingsIn } from "./core-start-outcomes";
 import type { StandInCloud } from "./stand-in-cloud";
-import { until, untilLogged } from "./until";
+import { REGISTER_LOG_BOUND_MS, until, untilLogged } from "./until";
 
 export interface EnrolledRegister {
   readonly app: ElectronApplication;
@@ -107,7 +107,7 @@ export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
 
   async function startReady(): Promise<RunningRegister> {
     const started = await start();
-    await untilLogged(started, coreStartEnded);
+    await untilLogged(started, coreStartEnded, { withinMs: REGISTER_LOG_BOUND_MS });
     expect(startEndingsIn(started.logs.join(""))).toEqual([CORE_READY]);
     return started;
   }

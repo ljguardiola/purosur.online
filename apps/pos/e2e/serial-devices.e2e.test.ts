@@ -7,7 +7,7 @@ import {
   SERIAL_DEVICES_LISTED,
 } from "./test-support/serial-device-logs";
 import { startStandInCloud } from "./test-support/stand-in-cloud";
-import { untilLogged } from "./test-support/until";
+import { REGISTER_LOG_BOUND_MS, untilLogged } from "./test-support/until";
 
 const LINUS_ID = "5b0b8f4e-3c2d-4a55-9c1e-0a6f6a1d0a05";
 const LINUS_EMAIL = "linus@example.com";
@@ -20,7 +20,7 @@ describe("the register's serial devices", () => {
     try {
       await launched.app.firstWindow();
 
-      await untilLogged(launched, SERIAL_DEVICES_LISTED);
+      await untilLogged(launched, SERIAL_DEVICES_LISTED, { withinMs: REGISTER_LOG_BOUND_MS });
       expect(launched.logs.join("")).not.toContain(SERIAL_DEVICE_WATCH_FAILED);
     } finally {
       await launched.app.close();
