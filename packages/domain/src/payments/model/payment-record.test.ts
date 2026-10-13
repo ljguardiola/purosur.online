@@ -31,16 +31,15 @@ describe("paymentRecord", () => {
   });
 
   it.each([
-    ["TRANSFER", "NONE"],
-    ["STANDALONE_TERMINAL", "EXTERNAL_TERMINAL"],
-  ] as const)("records who confirmed a %s payment and when", (method, provider) => {
+    { method: "TRANSFER", provider: "NONE" },
+    { method: "STANDALONE_TERMINAL", provider: "EXTERNAL_TERMINAL" },
+  ] as const)("records who confirmed a $method payment and when", (kind) => {
     expect(
       paymentRecord({
         id: "payment-2",
         saleId: "sale-1",
         kind: "SALE",
-        method,
-        provider,
+        ...kind,
         amount: 5000,
         state: "APPROVED",
         occurredAt: OCCURRED_AT,
@@ -48,8 +47,7 @@ describe("paymentRecord", () => {
         confirmedAt: new Date("2026-10-09T12:00:30.000Z"),
       }),
     ).toMatchObject({
-      method,
-      provider,
+      ...kind,
       authorized_by: "cashier",
       confirmed_at: "2026-10-09T12:00:30.000Z",
     });
