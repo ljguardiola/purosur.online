@@ -1,26 +1,37 @@
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
+import { ShortCodeTaken } from "../deferred-sale-ports.js";
 import type {
   RealTimeAuthorizationCall,
   RealTimeAuthorizationResolved,
   RealTimeFiscalDocuments,
   RealTimeTaxAuthority,
+  RequestedFiscalDocument,
   RoundTripSamples,
-  WaitingFiscalDocument,
 } from "../real-time-authorization-ports.js";
 
 export class FakeRealTimeFiscalDocuments implements RealTimeFiscalDocuments {
   readonly resolutions: RealTimeAuthorizationResolved[] = [];
-  private readonly waiting: WaitingFiscalDocument | null;
+  readonly resolutionAttempts: RealTimeAuthorizationResolved[] = [];
+  private readonly waiting: RequestedFiscalDocument | null;
+  private readonly takenShortCodes: readonly string[];
 
-  constructor(waiting: WaitingFiscalDocument | null) {
+  constructor(waiting: RequestedFiscalDocument | null, takenShortCodes: readonly string[] = []) {
     this.waiting = waiting;
+    this.takenShortCodes = takenShortCodes;
   }
 
-  async waitingDocumentOfSale(saleId: string): Promise<WaitingFiscalDocument | null> {
+  async waitingDocumentOfSale(saleId: string): Promise<RequestedFiscalDocument | null> {
     return this.waiting?.saleId === saleId ? this.waiting : null;
   }
 
   async resolve(resolved: RealTimeAuthorizationResolved): Promise<void> {
+    this.resolutionAttempts.push(resolved);
+    if (
+      resolved.deferredSale !== null &&
+      this.takenShortCodes.includes(resolved.deferredSale.shortCode)
+    ) {
+      throw new ShortCodeTaken();
+    }
     this.resolutions.push(resolved);
   }
 }

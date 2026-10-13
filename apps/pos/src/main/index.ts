@@ -18,6 +18,7 @@ import { loadChannelSettings } from "./channel-settings";
 import { buildContentSecurityPolicy } from "./content-security-policy";
 import { establishCoreConnection } from "./core-connection";
 import { forwardCoreOutput } from "./core-output";
+import { reportCoreRefusal } from "./core-refusal";
 import { broadcastCoreStatus, type CoreStatus } from "./core-status-broadcast";
 import { createCoreSupervisor, type SupervisedProcess } from "./core-supervisor";
 import {
@@ -252,6 +253,11 @@ function startRegister(settings: ChannelSettings): void {
         console.error("core process: restart attempts exhausted");
         Sentry.captureMessage("core process: restart attempts exhausted", "fatal");
       },
+      onRefused: () =>
+        reportCoreRefusal({
+          log: console.error,
+          captureMessage: (message, level) => Sentry.captureMessage(message, level),
+        }),
       onStatusChange: setCoreStatus,
     });
     supervisor.start();

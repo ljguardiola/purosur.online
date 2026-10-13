@@ -6,6 +6,7 @@ import {
   realTimeAuthorizationResolution,
 } from "../model/real-time-authorization.js";
 import type { RealTimeAuthorizationPorts } from "./real-time-authorization-ports.js";
+import { recordDeferredSaleAsync } from "./record-deferred-sale.js";
 
 export interface RequestRealTimeAuthorizationInput {
   saleId: string;
@@ -31,7 +32,7 @@ function outcomeOf({
 }
 
 export async function requestRealTimeAuthorization(
-  { documents, roundTrips, taxAuthority, clock }: RealTimeAuthorizationPorts,
+  { documents, roundTrips, taxAuthority, clock, ids, shortCodes }: RealTimeAuthorizationPorts,
   { saleId }: RequestRealTimeAuthorizationInput,
 ): Promise<RequestRealTimeAuthorizationOutcome> {
   const waiting = await documents.waitingDocumentOfSale(saleId);
@@ -40,23 +41,39 @@ export async function requestRealTimeAuthorization(
   }
 
   const roundTripMedianMs = medianRoundTripMs(await roundTrips.recent());
-  const { saleEvent } = waiting;
+  const { saleEvent, reservedAt, ...waitingDocument } = waiting;
   const answer: RealTimeAuthorizationAnswer =
     roundTripMedianMs === null || saleEvent === null
       ? { kind: "not_attempted" }
       : await taxAuthority.authorize({
-          ...waiting,
+          ...waitingDocument,
           saleEvent,
           timeoutMs: REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
           roundTripMedianMs,
         });
 
   const resolution = realTimeAuthorizationResolution(answer);
-  await documents.resolve({
+  const resolved = {
     fiscalDocumentId: waiting.fiscalDocumentId,
     saleId: waiting.saleId,
     resolution,
     resolvedAt: clock.now(),
-  });
+  };
+  if (resolution.state === "AUTHORIZED") {
+    await documents.resolve({ ...resolved, deferredSale: null });
+  } else {
+    await recordDeferredSaleAsync(
+      (deferredSale) => documents.resolve({ ...resolved, deferredSale }),
+      ids,
+      shortCodes,
+      {
+        saleId: waiting.saleId,
+        occurredAt: reservedAt,
+        total: waiting.document.total,
+        reason: resolution.deferralReason,
+        routedAt: resolved.resolvedAt,
+      },
+    );
+  }
   return outcomeOf(resolution);
 }
