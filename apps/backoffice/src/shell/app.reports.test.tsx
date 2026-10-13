@@ -2,11 +2,12 @@ import type { Capability } from "@purosur/domain";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { registers, weekReport } from "../sales/test-support/sales-fixtures";
+import { weekReport } from "../sales/test-support/sales-fixtures";
 import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { registers } from "./test-support/report-fixtures";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens(["/", "/account", "/help", "/reports", "/reports/sales-by-day"]);

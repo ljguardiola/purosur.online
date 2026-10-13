@@ -1,11 +1,11 @@
 import { QueryClient } from "@tanstack/react-query";
 import { expect, test } from "vitest";
+import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import { salesKey, salesKeys } from "./sales-queries";
-import { FRONT_REGISTER_ID } from "./test-support/sales-fixtures";
 
 test("invalidating the sales key marks every sales read stale", async () => {
   const client = new QueryClient();
-  const keys = [salesKeys.report({}), salesKeys.registers];
+  const keys = [salesKeys.report({}), salesKeys.report({ from: "2026-10-01", to: "2026-10-07" })];
   for (const key of keys) {
     client.setQueryData(key, []);
   }
