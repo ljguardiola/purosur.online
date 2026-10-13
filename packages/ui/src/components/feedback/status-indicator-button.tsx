@@ -6,11 +6,9 @@ import {
   statusIndicatorClassName,
 } from "./status-indicator";
 
-export type StatusIndicatorButtonProps = Omit<StatusIndicatorProps, "busy"> & {
-  onPress?: () => void;
-};
+export type StatusIndicatorButtonProps = Omit<StatusIndicatorProps, "busy">;
 
-export function StatusIndicatorButton({ tone, children, onPress }: StatusIndicatorButtonProps) {
+export function StatusIndicatorButton({ tone, children }: StatusIndicatorButtonProps) {
   const className = [
     statusIndicatorClassName,
     toneClassName[tone].surface,
@@ -18,7 +16,7 @@ export function StatusIndicatorButton({ tone, children, onPress }: StatusIndicat
   ].join(" ");
 
   return (
-    <AriaButton className={className} {...(onPress ? { onPress } : {})}>
+    <AriaButton className={className}>
       <StatusIndicatorContent tone={tone}>{children}</StatusIndicatorContent>
     </AriaButton>
   );
