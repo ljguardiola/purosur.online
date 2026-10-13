@@ -98,13 +98,12 @@ describe("saleSchema", () => {
     },
   );
 
-  it.each([
-    null,
-    "mercado_pago_charge_in_progress",
-    "holds_mercado_pago_payment",
-  ] as const)("accepts a sale whose cancellation is refused by %s", (cancel_refusal) => {
-    expect(saleSchema.parse({ ...sale, cancel_refusal }).cancel_refusal).toBe(cancel_refusal);
-  });
+  it.each([null, "mercado_pago_charge_in_progress", "holds_mercado_pago_payment"] as const)(
+    "accepts a sale whose cancellation is refused by %s",
+    (cancel_refusal) => {
+      expect(saleSchema.parse({ ...sale, cancel_refusal }).cancel_refusal).toBe(cancel_refusal);
+    },
+  );
 
   it.each(["QR", "POINT"] as const)(
     "accepts a sale with a %s charge in progress, named to be followed",

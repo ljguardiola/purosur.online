@@ -264,7 +264,7 @@ describe("cancelPaidSale", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "sale_cancelled",
-          schema_version: 4,
+          schema_version: 5,
           payload: {
             id: "sale-1",
             register_id: "register-1",
@@ -480,7 +480,10 @@ describe("cancelPaidSale", () => {
     it.each(["sale", "locked_register"] as const)(
       "cancels it from the %s, leaving the terminal payment's refund pending with no cash movement",
       async (from) => {
-        const store = ledger({ payments: [CASH_PAYMENT, STANDALONE_TERMINAL_PAYMENT] });
+        const store = ledger({
+          accesses: { cashier: CASHIER, closer: VOIDER },
+          payments: [CASH_PAYMENT, STANDALONE_TERMINAL_PAYMENT],
+        });
 
         const outcome = await cancel(
           store,
@@ -494,7 +497,7 @@ describe("cancelPaidSale", () => {
           refunds: [
             CASH_REFUND,
             {
-              id: "id-2",
+              id: "id-3",
               saleId: "sale-1",
               paymentId: "payment-5",
               method: "STANDALONE_TERMINAL",
