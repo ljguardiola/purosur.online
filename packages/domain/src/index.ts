@@ -394,6 +394,8 @@ export {
   SUPPLIER_NOTE_MAX_LENGTH,
 } from "./purchasing/index.js";
 export type {
+  BatteryReading,
+  BatteryReport,
   CashBreakdown,
   CashBreakdownLine,
   CashMovement,
@@ -421,6 +423,9 @@ export type {
   WatchedRegister,
 } from "./register/index.js";
 export {
+  BATTERY_READ_INTERVAL_MS,
+  batteryHealthPercent,
+  batteryReportOf,
   CASH_MOVEMENT_DIRECTIONS,
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
@@ -448,6 +453,7 @@ export {
   isWellFormedInstallationKey,
   lastSuccessfulSyncOfRegister,
   mayAuthorize,
+  nextOnBatterySince,
   nextOperationNumber,
   normalizeEnrollmentCode,
   offersSerialDevicesSetup,

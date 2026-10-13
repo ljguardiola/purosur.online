@@ -38,10 +38,18 @@ describe("batteryHealthPercent", () => {
 
   it("never exceeds the exact percentage", () => {
     fc.assert(
-      fc.property(fc.nat({ max: 100_000 }), fc.integer({ min: 1, max: 100_000 }), (full, design) => {
-        const health = batteryHealthPercent(full, design);
-        return health !== undefined && health <= (full / design) * 100 && health > (full / design) * 100 - 1;
-      }),
+      fc.property(
+        fc.nat({ max: 100_000 }),
+        fc.integer({ min: 1, max: 100_000 }),
+        (full, design) => {
+          const health = batteryHealthPercent(full, design);
+          return (
+            health !== undefined &&
+            health <= (full / design) * 100 &&
+            health > (full / design) * 100 - 1
+          );
+        },
+      ),
     );
   });
 });
@@ -122,7 +130,9 @@ describe("batteryReportOf", () => {
       fc.property(fc.nat({ max: 10_000_000 }), (elapsedMs) => {
         const since = at(0);
         const report = batteryReportOf(onBattery, since, new Date(since.getTime() + elapsedMs));
-        return report?.present === true && report.on_battery_minutes === Math.floor(elapsedMs / 60_000);
+        return (
+          report?.present === true && report.on_battery_minutes === Math.floor(elapsedMs / 60_000)
+        );
       }),
     );
   });
