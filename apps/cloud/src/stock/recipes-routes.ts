@@ -31,8 +31,11 @@ const STALE_VERSION_RESPONSE = {
   message: "this recipe was changed since it was loaded",
 } as const;
 
-function recipeSummary(listing: RecipeListing) {
-  return recipeSummarySchema.parse({ ...listing, lastBatch: null });
+function recipeSummary({ lastBatch, ...listing }: RecipeListing) {
+  return recipeSummarySchema.parse({
+    ...listing,
+    lastBatch: lastBatch && { ...lastBatch, assembledAt: lastBatch.assembledAt.toISOString() },
+  });
 }
 
 export function registerRecipesRoutes<TQueryResult extends PgQueryResultHKT>(
@@ -49,9 +52,9 @@ export function registerRecipesRoutes<TQueryResult extends PgQueryResultHKT>(
   const readGuard = { preHandler: sameOriginGuard(options.backofficeOrigin), config };
   const writeGuard = { preHandler: backofficeOriginGuard(options.backofficeOrigin), config };
 
-  app.get("/recipes", readGuard, async (_request, reply) => {
+  app.get("/recipes", readGuard, async (request, reply) => {
     const [recipes, usableProducts] = await Promise.all([
-      listRecipes(reader),
+      listRecipes(reader, openSessionOf(request).locationId),
       catalog.products(PRODUCTS_A_RECIPE_MAY_USE),
     ]);
     await reply.code(200).send(
@@ -104,7 +107,11 @@ export function registerRecipesRoutes<TQueryResult extends PgQueryResultHKT>(
       return;
     }
 
-    const saved = await findRecipeListing(reader, outcome.recipe.productId);
+    const saved = await findRecipeListing(
+      reader,
+      outcome.recipe.productId,
+      openSessionOf(request).locationId,
+    );
     if (!saved) {
       throw new Error("the recipe vanished after it was written");
     }

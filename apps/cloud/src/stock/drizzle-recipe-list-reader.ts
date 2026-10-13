@@ -1,12 +1,20 @@
-import type { SaleUnit } from "@purosur/domain";
+import { lotUnitCostCents, type SaleUnit } from "@purosur/domain";
 import type {
   RecipeComponentListing,
+  RecipeLastBatch,
   RecipeListing,
   RecipeListReader,
 } from "@purosur/domain/stock/use-cases";
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { categories, products, recipeComponents, recipes } from "../platform/db/schema.js";
+import {
+  assemblyBatches,
+  categories,
+  lots,
+  products,
+  recipeComponents,
+  recipes,
+} from "../platform/db/schema.js";
 
 export class DrizzleRecipeListReader<TQueryResult extends PgQueryResultHKT>
   implements RecipeListReader
@@ -17,16 +25,19 @@ export class DrizzleRecipeListReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  async recipes(): Promise<RecipeListing[]> {
-    return this.listings(undefined);
+  async recipes(locationId: string): Promise<RecipeListing[]> {
+    return this.listings(locationId, undefined);
   }
 
-  async recipe(productId: string): Promise<RecipeListing | undefined> {
-    const [listing] = await this.listings(productId);
+  async recipe(productId: string, locationId: string): Promise<RecipeListing | undefined> {
+    const [listing] = await this.listings(locationId, productId);
     return listing;
   }
 
-  private async listings(productId: string | undefined): Promise<RecipeListing[]> {
+  private async listings(
+    locationId: string,
+    productId: string | undefined,
+  ): Promise<RecipeListing[]> {
     const rows = await this.db
       .select({
         productId: recipes.productId,
@@ -40,12 +51,58 @@ export class DrizzleRecipeListReader<TQueryResult extends PgQueryResultHKT>
       .innerJoin(categories, eq(products.categoryId, categories.id))
       .where(productId === undefined ? undefined : eq(recipes.productId, productId))
       .orderBy(asc(products.name), asc(products.id));
-    const components = await this.componentsOf(rows.map((row) => row.productId));
+    const productIds = rows.map((row) => row.productId);
+    const components = await this.componentsOf(productIds);
+    const lastBatches = await this.lastBatchesOf(productIds, locationId);
     return rows.map((row) => ({
       ...row,
       saleUnit: row.saleUnit as SaleUnit,
+      lastBatch: lastBatches.get(row.productId) ?? null,
       components: components.get(row.productId) ?? [],
     }));
+  }
+
+  private async lastBatchesOf(
+    productIds: readonly string[],
+    locationId: string,
+  ): Promise<Map<string, RecipeLastBatch>> {
+    const lastBatches = new Map<string, RecipeLastBatch>();
+    if (productIds.length === 0) {
+      return lastBatches;
+    }
+    const rows = await this.db
+      .select({
+        productId: assemblyBatches.productId,
+        assembledAt: assemblyBatches.assembledAt,
+        costTotalCents: lots.costTotalCents,
+        costQuantity: lots.costQuantity,
+        costIncomplete: lots.costIncomplete,
+      })
+      .from(assemblyBatches)
+      .innerJoin(lots, eq(lots.assemblyBatchId, assemblyBatches.id))
+      .where(
+        and(
+          inArray(assemblyBatches.productId, [...productIds]),
+          eq(assemblyBatches.locationId, locationId),
+        ),
+      )
+      .orderBy(desc(assemblyBatches.assembledAt), desc(assemblyBatches.id));
+    for (const row of rows) {
+      if (!lastBatches.has(row.productId)) {
+        lastBatches.set(row.productId, {
+          unitCostCents: lotUnitCostCents({
+            cost:
+              row.costTotalCents !== null && row.costQuantity !== null
+                ? { totalCents: row.costTotalCents, quantity: row.costQuantity }
+                : null,
+            costIncomplete: row.costIncomplete,
+          }),
+          costIncomplete: row.costIncomplete,
+          assembledAt: row.assembledAt,
+        });
+      }
+    }
+    return lastBatches;
   }
 
   private async componentsOf(
