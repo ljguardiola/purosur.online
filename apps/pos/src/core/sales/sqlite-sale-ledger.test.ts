@@ -163,6 +163,7 @@ type Benefit =
   | { kind: "BUY_N_PAY_M"; buyQty: number; payQty: number };
 
 interface DiscountOptions {
+  name?: string;
   active?: boolean;
   removed?: boolean;
   validFrom?: string;
@@ -182,12 +183,13 @@ function addDiscount(
          id, name, kind, percent, buy_qty, pay_qty, target_kind, target_id, valid_from, valid_to,
          weekdays, active, version, removed
        ) VALUES (
-         @id, 'Promo', @kind, @percent, @buy_qty, @pay_qty, @target_kind, @target_id, @valid_from,
+         @id, @name, @kind, @percent, @buy_qty, @pay_qty, @target_kind, @target_id, @valid_from,
          @valid_to, @weekdays, @active, 1, @removed
        )`,
     )
     .run({
       id,
+      name: options.name ?? "Promo",
       kind: benefit.kind,
       percent: benefit.kind === "PERCENT_OFF" ? benefit.percent : null,
       buy_qty: benefit.kind === "BUY_N_PAY_M" ? benefit.buyQty : null,
@@ -1368,17 +1370,25 @@ describe("the promotions that target a product", () => {
       "percent",
       { kind: "PRODUCT", id: "p1" },
       { kind: "PERCENT_OFF", percent: 15 },
-      { active: false, validFrom: "2025-01-01", validTo: "2025-01-31", weekdays: [1, 3] },
+      {
+        name: "Quince por ciento",
+        active: false,
+        validFrom: "2025-01-01",
+        validTo: "2025-01-31",
+        weekdays: [1, 3],
+      },
     );
     addDiscount(
       "buy",
       { kind: "PRODUCT", id: "p1" },
       { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+      { name: "Lleve 3, pague 2" },
     );
 
     expect(ledger.transaction((tx) => tx.promotionsTargeting("p1"))).toEqual([
       {
         id: "buy",
+        name: "Lleve 3, pague 2",
         benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
         active: true,
         validFrom: "2026-09-01",
@@ -1387,6 +1397,7 @@ describe("the promotions that target a product", () => {
       },
       {
         id: "percent",
+        name: "Quince por ciento",
         benefit: { kind: "PERCENT_OFF", percent: 15 },
         active: false,
         validFrom: "2025-01-01",
@@ -1402,11 +1413,17 @@ describe("a line's promotions", () => {
     readySeller();
     addProduct("111");
     addPrice("p1", "2026-09-01T00:00:00.000Z", 1000);
-    addDiscount("ten", { kind: "PRODUCT", id: "p1" }, { kind: "PERCENT_OFF", percent: 10 });
+    addDiscount(
+      "ten",
+      { kind: "PRODUCT", id: "p1" },
+      { kind: "PERCENT_OFF", percent: 10 },
+      { name: "Diez por ciento" },
+    );
     addDiscount(
       "three-for-two",
       { kind: "PRODUCT", id: "p1" },
       { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+      { name: "Lleve 3, pague 2" },
     );
   });
 
@@ -1417,8 +1434,12 @@ describe("a line's promotions", () => {
 
     expect(outcome.kind === "open" && outcome.sale.lines[0]).toMatchObject({
       promotions: [
-        { id: "ten", benefit: { kind: "PERCENT_OFF", percent: 10 } },
-        { id: "three-for-two", benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
+        { id: "ten", name: "Diez por ciento", benefit: { kind: "PERCENT_OFF", percent: 10 } },
+        {
+          id: "three-for-two",
+          name: "Lleve 3, pague 2",
+          benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+        },
       ],
       promotionId: "ten",
       discountAmount: 100,
@@ -1437,6 +1458,27 @@ describe("a line's promotions", () => {
     expect(
       outcome.kind === "open" && outcome.sale.lines[0]?.promotions.map((promotion) => promotion.id),
     ).toEqual(["ten", "three-for-two"]);
+  });
+
+  it("keep the name they had when the line was added after the promotion is renamed", () => {
+    scan("111");
+    database.prepare("UPDATE discounts SET name = 'Nombre nuevo' WHERE id = 'ten'").run();
+
+    scan("111");
+    const outcome = currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
+
+    expect(
+      database
+        .prepare("SELECT discount_id, name FROM sale_line_promotions ORDER BY discount_id")
+        .all(),
+    ).toEqual([
+      { discount_id: "ten", name: "Diez por ciento" },
+      { discount_id: "three-for-two", name: "Lleve 3, pague 2" },
+    ]);
+    expect(
+      outcome.kind === "open" &&
+        outcome.sale.lines[0]?.promotions.map((promotion) => promotion.name),
+    ).toEqual(["Diez por ciento", "Lleve 3, pague 2"]);
   });
 
   it("switch the applied promotion, and the discount charged, as the quantity grows", () => {
