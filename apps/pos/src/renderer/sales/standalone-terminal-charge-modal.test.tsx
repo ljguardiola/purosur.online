@@ -169,18 +169,10 @@ describe("StandaloneTerminalChargeModal", () => {
     expect(chargeSale).not.toHaveBeenCalled();
   });
 
-  it("tells the cashier to charge on the second terminal first and register the payment once the terminal approves it", async () => {
+  it("shows no notice besides its title and its buttons before charging", async () => {
     const { screen } = await renderModal();
 
-    await expect
-      .element(
-        screen
-          .getByText(
-            "Cobrá primero en la segunda Point y registrá el pago cuando la terminal lo apruebe.",
-          )
-          .first(),
-      )
-      .toBeVisible();
+    await expect.element(screen.getByRole("status")).not.toBeInTheDocument();
   });
 
   it("says up to which amount can be charged and that the rest stays pending", async () => {
