@@ -1,5 +1,5 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { afterEach, beforeEach, expect, test } from "vitest";
+import { beforeEach, expect, test } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { App } from "./app";
@@ -10,8 +10,6 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 opensOnlyScreens(["/", "/help"]);
 
 beforeEach(resetPageState);
-
-afterEach(resetPageState);
 
 test("redirects an unknown category or article to the closest page that exists", async () => {
   window.history.pushState(null, "", "/help/x/constructor");

@@ -1,4 +1,4 @@
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { PricesListScreenServices } from "./prices-list-services";
 import {
@@ -9,6 +9,10 @@ import {
   rice,
   yerbaMate,
 } from "./test-support/prices-list-screen";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 test("confirming a priced product's price without a change shows a confirmed notice and refreshes the list", async () => {
   const services = createServices();
@@ -191,7 +195,6 @@ test("a row confirmation answered forbidden navigates to Mi cuenta", async () =>
   );
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("an error notice does not leave with time, only with the person's next action", async () => {

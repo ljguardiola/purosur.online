@@ -3,7 +3,11 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import type { ProductSearchResultsProps, SearchResults } from "./product-search-results";
+import type {
+  ProductSearchResultsProps,
+  SearchedProduct,
+  SearchResults,
+} from "./product-search-results";
 import { ProductSearchResults, searchOptionId } from "./product-search-results";
 
 const YERBA: FoundProduct = {
@@ -55,7 +59,10 @@ async function renderResults({
   more = false,
   activeIndex = 0,
   onChoose = vi.fn(),
-}: Partial<SearchResults & Pick<ProductSearchResultsProps, "activeIndex" | "onChoose">> = {}) {
+}: Partial<
+  SearchResults<SearchedProduct> &
+    Pick<ProductSearchResultsProps<SearchedProduct>, "activeIndex" | "onChoose">
+> = {}) {
   await page.viewport(1280, 720);
   const screen = await render(
     <>
@@ -82,6 +89,19 @@ describe("ProductSearchResults", () => {
     await expect.element(options.nth(2)).toHaveTextContent("Alfajor tripleSin precio");
     await expect.element(options.nth(2).getByText("Sin precio")).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("names the way a product is sold instead of a price when the products come without one", async () => {
+    const { screen } = await renderResults({
+      products: [
+        { product_id: "p1", name: "Yerba mate 1 kg", sale_unit: "UNIT", matches: [] },
+        { product_id: "p2", name: "Queso cremoso", sale_unit: "KG", matches: [] },
+      ],
+    });
+
+    const options = screen.getByRole("option");
+    await expect.element(options.nth(0)).toHaveTextContent("Yerba mate 1 kgPor unidad");
+    await expect.element(options.nth(1)).toHaveTextContent("Queso cremosoPor kg");
   });
 
   it("highlights only the matched ranges of each name", async () => {

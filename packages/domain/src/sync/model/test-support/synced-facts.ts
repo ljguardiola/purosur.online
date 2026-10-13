@@ -178,3 +178,25 @@ export const A_GATE_FAILED_FACT: SyncedFact = {
     evaluatedAt: new Date("2026-10-07T10:00:01.000Z"),
   },
 };
+
+export const AN_OPENING_COUNT_RECORDED_FACT: SyncedFact = {
+  kind: "opening_count_recorded",
+  count: {
+    movementId: "movement-1",
+    productId: "product-1",
+    counted: 6_000,
+    expiresOn: "2027-01-31",
+    countedAt: new Date("2026-10-07T09:00:00.000Z"),
+    actorId: "cashier-1",
+  },
+};
+
+export const AN_OPENING_COUNT_WITHDRAWN_FACT: SyncedFact = {
+  kind: "opening_count_withdrawn",
+  withdrawal: {
+    movementId: "movement-2",
+    withdrawnMovementId: "movement-1",
+    withdrawnAt: new Date("2026-10-07T09:10:00.000Z"),
+    actorId: "cashier-1",
+  },
+};

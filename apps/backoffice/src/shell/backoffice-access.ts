@@ -83,6 +83,10 @@ export function canSeeStockArea(access: BackofficeAccess): boolean {
   return grants(access, "stock_area");
 }
 
+export function canRecordInitialInventory(access: BackofficeAccess): boolean {
+  return grants(access, "initial_inventory");
+}
+
 export function canManageSuppliers(access: BackofficeAccess): boolean {
   return grants(access, "suppliers");
 }

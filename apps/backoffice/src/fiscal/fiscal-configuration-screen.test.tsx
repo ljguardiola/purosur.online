@@ -6,7 +6,7 @@ import {
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { BuyerIdentificationThresholds } from "./buyer-identification-threshold-api";
@@ -14,6 +14,10 @@ import { FiscalConfigurationScreen } from "./fiscal-configuration-screen";
 import type { FiscalConfigurationScreenServices } from "./fiscal-configuration-services";
 import { fiscalKey } from "./fiscal-queries";
 import type { IssuerIdentification } from "./issuer-identification-api";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 const inEffect = { id: "threshold-1", amount: 1_000_000_000, validFrom: "2026-01-01" };
 
@@ -142,7 +146,6 @@ test("sends to Mi cuenta when the load comes back forbidden", async () => {
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("ends the session when the load finds it closed", async () => {

@@ -2,20 +2,24 @@ import { useEffect, useRef, useState } from "react";
 
 const PAUSE_BETWEEN_ANSWERS_MS = 250;
 
-export type ScaleWeighing =
+export type StableReading = { weightThousandths: number };
+
+export type ScaleWeighing<Reading extends StableReading = StableReading & { amount: number }> =
   | { kind: "weighing" }
   | { kind: "scale_unavailable" }
-  | { kind: "taken"; weightThousandths: number; amount: number }
+  | ({ kind: "taken" } & Reading)
   | { kind: "closed" };
 
-export type ScaleWeighingPhase =
+export type ScaleWeighingPhase<Reading extends StableReading = StableReading & { amount: number }> =
   | { kind: "weighing" }
   | { kind: "typing" }
   | { kind: "scale_unavailable" }
-  | { kind: "taken"; weightThousandths: number; amount: number };
+  | ({ kind: "taken" } & Reading);
 
-export function useScaleWeighing(weigh: () => Promise<ScaleWeighing>) {
-  const [phase, setPhase] = useState<ScaleWeighingPhase>({ kind: "weighing" });
+export function useScaleWeighing<
+  Reading extends StableReading = StableReading & { amount: number },
+>(weigh: () => Promise<ScaleWeighing<Reading>>) {
+  const [phase, setPhase] = useState<ScaleWeighingPhase<Reading>>({ kind: "weighing" });
   const latestWeigh = useRef(weigh);
   const typing = useRef(false);
   const taken = useRef(false);

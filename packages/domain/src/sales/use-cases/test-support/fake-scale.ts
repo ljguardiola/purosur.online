@@ -1,4 +1,4 @@
-import type { Scale, ScaleReading } from "../scale.js";
+import type { Scale, ScaleReading } from "../../../shared/index.js";
 
 export class FakeScale implements Scale {
   reads = 0;

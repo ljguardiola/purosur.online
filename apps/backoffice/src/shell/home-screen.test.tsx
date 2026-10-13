@@ -1,6 +1,6 @@
 import type { AlertsOverview } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { FetchAlertsOverviewOutcome } from "../alerts/alerts-api";
 import type { FetchRegisterSyncStatusOutcome, RegisterSyncStatus } from "../register/registers-api";
@@ -9,6 +9,10 @@ import { HomeScreen } from "./home-screen";
 import type { HomeScreenServices } from "./home-screen-services";
 import { accessWith, NO_CAPABILITIES_ACCESS } from "./test-support/backoffice-access";
 import { render } from "./test-support/render-with-router";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 const overview: AlertsOverview = {
   critical: { openCount: 1, kinds: ["user_access_increased"] },
@@ -174,7 +178,6 @@ test("navigates to Mi cuenta when the alerts request comes back forbidden", asyn
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("shows the registers' loading state until the registers arrive", async () => {
@@ -240,5 +243,4 @@ test("navigates to Mi cuenta when the registers request comes back forbidden", a
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });

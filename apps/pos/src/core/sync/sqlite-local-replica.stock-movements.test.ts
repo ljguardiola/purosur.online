@@ -129,4 +129,38 @@ describe("the stock movements a register pulls", () => {
 
     expect(balance()).toBe(7000);
   });
+
+  it.each([
+    ["an initial count", "opening_count", 5000, 15_000],
+    ["the withdrawal of an initial count", "opening_count_withdrawal", -5000, 5000],
+  ] as const)("replicate %s recorded at another register", async (_, kind, delta, expected) => {
+    await save(stockMovementChange(1, "other-register-count", { kind, delta }));
+
+    expect(balance()).toBe(expected);
+    expect(
+      database.prepare("SELECT kind, expires_on, withdraws_movement_id FROM stock_movements").all(),
+    ).toEqual([{ kind, expires_on: null, withdraws_movement_id: null }]);
+  });
+
+  it("adopt the delta the cloud applied to an initial count withdrawal the register recorded", async () => {
+    database
+      .prepare(
+        `INSERT INTO stock_movements (id, product_id, kind, delta, occurred_at, withdraws_movement_id)
+         VALUES ('own-withdrawal', ?, 'opening_count_withdrawal', -5000, ?, 'own-count')`,
+      )
+      .run(PRODUCT_ID, COUNTED_AT);
+    addToStockBalance(database, PRODUCT_ID, -5000);
+    const arrival = stockMovementChange(1, "own-withdrawal", {
+      kind: "opening_count_withdrawal",
+      delta: -3000,
+    });
+
+    await save(arrival);
+    await save(arrival);
+
+    expect(balance()).toBe(7000);
+    expect(
+      database.prepare("SELECT delta, withdraws_movement_id FROM stock_movements").all(),
+    ).toEqual([{ delta: -3000, withdraws_movement_id: "own-count" }]);
+  });
 });

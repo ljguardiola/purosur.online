@@ -1,26 +1,15 @@
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { App } from "./app";
 import { emptyHelp } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
-import {
-  requested,
-  startRecordingRequests,
-  stopRecordingRequests,
-} from "./test-support/requested-urls";
-import { opensOnlyScreens } from "./test-support/screen-routes";
+import { opensOnlyScreens, screenCode } from "./test-support/screen-routes";
 
 opensOnlyScreens(["/help"], { downloadedInTest: ["/", "/points-of-sale"] });
 
-beforeEach(async () => {
-  await startRecordingRequests();
+beforeEach(() => {
   window.history.pushState(null, "", "/help");
-});
-
-afterEach(async () => {
-  await stopRecordingRequests();
-  window.history.pushState(null, "", "/");
 });
 
 test("starts downloading a screen's code when the pointer rests on its menu link, before it is opened", async () => {
@@ -28,10 +17,11 @@ test("starts downloading a screen's code when the pointer rests on its menu link
     <App help={emptyHelp} services={createAppServices()} reportError={vi.fn()} />,
   );
   await expect.element(screen.getByRole("link", { name: "Inicio" })).toBeVisible();
+  const homeScreenCode = vi.spyOn(screenCode("/"), "preload");
 
   await userEvent.hover(screen.getByRole("link", { name: "Inicio" }));
 
-  await expect.poll(() => requested("home-page")).toBe(true);
+  await expect.poll(() => homeScreenCode).toHaveBeenCalled();
   expect(window.location.pathname).toBe("/help");
 });
 
@@ -40,9 +30,10 @@ test("starts downloading a screen's code when its menu link receives focus, befo
     <App help={emptyHelp} services={createAppServices()} reportError={vi.fn()} />,
   );
   await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
+  const pointsOfSaleScreenCode = vi.spyOn(screenCode("/points-of-sale"), "preload");
 
   (screen.getByRole("link", { name: "Caja" }).element() as HTMLElement).focus();
 
-  await expect.poll(() => requested("points-of-sale-page")).toBe(true);
+  await expect.poll(() => pointsOfSaleScreenCode).toHaveBeenCalled();
   expect(window.location.pathname).toBe("/help");
 });

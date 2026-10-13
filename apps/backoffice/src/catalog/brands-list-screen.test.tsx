@@ -1,12 +1,16 @@
 import type { BrandSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { BrandsListScreen } from "./brands-list-screen";
 import type { BrandsListScreenServices } from "./brands-list-services";
 import { type BrandsListFilters, brandsListFilters } from "./routes";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 function createServices(
   overrides: Partial<BrandsListScreenServices> = {},
@@ -234,7 +238,6 @@ test("navigates to Mi cuenta when the brands request comes back forbidden", asyn
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("ends the session when the brands request finds no open session", async () => {

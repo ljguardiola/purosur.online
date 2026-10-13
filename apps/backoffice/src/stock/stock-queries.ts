@@ -1,4 +1,6 @@
 import type {
+  InitialInventoryLotList,
+  InitialInventoryLotsQuery,
   StockBalanceList,
   StockCountList,
   StockMovementList,
@@ -12,6 +14,7 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
 import type {
   fetchExpectedBalance,
+  fetchInitialInventoryLots,
   fetchStockBalances,
   fetchStockCounts,
   fetchStockMovementReasons,
@@ -29,6 +32,8 @@ export const stockKeys = {
   movementReasons: [...stockKey, "movement-reasons"] as const,
   expectedBalance: (productId: string, at: string) =>
     [...stockKey, "expected-balance", productId, at] as const,
+  initialLots: ({ cost, product }: InitialInventoryLotsQuery) =>
+    [...stockKey, "initial-lots", cost ?? "all", product ?? ""] as const,
 };
 
 type ReadParams = { onSessionEnded: () => void };
@@ -112,6 +117,22 @@ export function useExpectedBalanceQuery(
       const outcome = await params.fetchExpectedBalance(params.productId, params.at);
       return outcome.kind === "not_found" ? { kind: "failed" } : outcome;
     },
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useInitialInventoryLotsQuery(
+  params: ReadParams & {
+    filters: InitialInventoryLotsQuery;
+    fetchInitialInventoryLots: typeof fetchInitialInventoryLots;
+  },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<InitialInventoryLotList>({
+    queryKey: stockKeys.initialLots(params.filters),
+    keepPreviousData: true,
+    read: () => params.fetchInitialInventoryLots(params.filters),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

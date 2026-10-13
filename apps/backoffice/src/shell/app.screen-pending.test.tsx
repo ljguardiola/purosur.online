@@ -42,7 +42,6 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await releaseHeldDownloads();
-  window.history.pushState(null, "", "/");
 });
 
 test("shows the loading placeholder inside the area, below a top bar the screen keeps once it arrives, while a screen's code downloads", async () => {

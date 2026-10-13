@@ -1,5 +1,5 @@
 import type { Capability } from "@purosur/domain";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { registers, weekReport } from "../sales/test-support/sales-fixtures";
@@ -12,8 +12,6 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 opensOnlyScreens(["/", "/account", "/help", "/reports", "/reports/sales-by-day"]);
 
 beforeEach(resetPageState);
-
-afterEach(resetPageState);
 
 function reportsServices(capabilities: Capability[]) {
   const services = createAppServices({

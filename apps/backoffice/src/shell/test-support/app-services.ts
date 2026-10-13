@@ -130,6 +130,10 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       recordLoss: vi.fn(),
       recordAdjustment: vi.fn(),
     },
+    initialInventoryScreen: {
+      fetchInitialInventoryLots: vi.fn().mockReturnValue(new Promise(() => {})),
+      setLotReferenceCost: vi.fn(),
+    },
     suppliersListScreen: {
       fetchSuppliers: vi.fn().mockReturnValue(new Promise(() => {})),
       createSupplier: vi.fn(),

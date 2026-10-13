@@ -26,6 +26,10 @@ export interface ProductRow {
   version: number;
 }
 
+export interface BranchFirstCashSessionRow {
+  openedAt: Date;
+}
+
 export interface PriceListRow {
   name: string;
   version: number;
@@ -138,6 +142,7 @@ export type RemovedEntity =
 
 export type PulledCloudChange = { changeSeq: number; entityId: string } & (
   | { entity: "branch_settings"; row: BranchSettings }
+  | { entity: "branch_first_cash_session"; row: BranchFirstCashSessionRow }
   | { entity: "category"; row: CategoryRow }
   | { entity: "product"; row: ProductRow }
   | { entity: "tag"; row: TagRow }

@@ -1,13 +1,17 @@
 import type { CategorySummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { drinks, groceries, jams, spreads } from "../platform/test-support/categories";
 import { render } from "../shell/test-support/render-with-router";
 import { CategoriesListScreen } from "./categories-list-screen";
 import type { CategoriesListScreenServices } from "./categories-list-services";
 import { type CategoriesListFilters, categoriesListFilters } from "./routes";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 function createServices(
   overrides: Partial<CategoriesListScreenServices> = {},
@@ -310,7 +314,6 @@ test("navigates to Mi cuenta when the categories request comes back forbidden", 
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("ends the session when the categories request finds no open session", async () => {

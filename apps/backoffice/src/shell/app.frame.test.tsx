@@ -3,7 +3,7 @@ import {
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { App } from "./app";
@@ -24,8 +24,6 @@ opensOnlyScreens([
 ]);
 
 beforeEach(resetPageState);
-
-afterEach(resetPageState);
 
 test("opens Inicio at /, with Inicio and Resumen active", async () => {
   window.history.pushState(null, "", "/");

@@ -34,6 +34,9 @@ import { ScanBarcode, TriangleAlert } from "lucide-react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import type { SearchResults } from "../platform/product-search-results";
+import { ProductSearchResults, searchOptionId } from "../platform/product-search-results";
+import type { ScaleWeighing } from "../platform/use-scale-weighing";
 import { useBarcodeReadings } from "../shell/barcode-readings";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
@@ -46,8 +49,6 @@ import { CancelSaleModal } from "./cancel-sale-modal";
 import { ChangeLineWeightModal } from "./change-line-weight-modal";
 import { changedLineId } from "./changed-line";
 import { PaymentPanel } from "./payment-panel";
-import type { SearchResults } from "./product-search-results";
-import { ProductSearchResults, searchOptionId } from "./product-search-results";
 import { SaleLines } from "./sale-lines";
 import {
   useCurrentSaleQuery,
@@ -58,7 +59,6 @@ import {
 } from "./sales-queries";
 import type { ScanProblem } from "./scan-problem-message";
 import { messageFor, ScanProblemMessage } from "./scan-problem-message";
-import type { ScaleWeighing } from "./use-scale-weighing";
 import { WeighProductModal } from "./weigh-product-modal";
 
 export type SaleScreenProps = {

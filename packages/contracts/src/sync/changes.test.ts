@@ -379,9 +379,32 @@ describe("changesPageSchema", () => {
       change(3, "stock_movement", { ...stockMovementRow, kind: "adjustment", delta: 4000 }),
       change(4, "stock_movement", { ...stockMovementRow, kind: "count", delta: 0 }),
       change(5, "stock_movement", { ...stockMovementRow, kind: "receipt", delta: 24_000 }),
+      change(6, "stock_movement", { ...stockMovementRow, kind: "opening_count", delta: 6000 }),
+      change(7, "stock_movement", {
+        ...stockMovementRow,
+        kind: "opening_count_withdrawal",
+        delta: 0,
+      }),
     );
 
     expect(changesPageSchema.parse(page)).toEqual(page);
+  });
+
+  it("accepts the moment the first cash session of the branch opened", () => {
+    const page = pageOf(
+      change(1, "branch_first_cash_session", { opened_at: "2026-10-09T12:00:00.000Z" }),
+    );
+
+    expect(changesPageSchema.parse(page)).toEqual(page);
+  });
+
+  it.each([
+    ["a day with no time", { opened_at: "2026-10-09" }],
+    ["no moment", {}],
+  ])("refuses the first cash session of the branch with %s", (_, row) => {
+    const page = pageOf(change(1, "branch_first_cash_session", row));
+
+    expect(changesPageSchema.safeParse(page).success).toBe(false);
   });
 
   it("keeps nothing of a stock movement but the fields a register may hold", () => {

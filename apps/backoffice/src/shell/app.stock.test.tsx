@@ -1,5 +1,5 @@
 import type { Capability } from "@purosur/domain";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { openSession } from "../sessions/test-support/open-session";
@@ -15,6 +15,7 @@ opensOnlyScreens([
   "/",
   "/account",
   "/help",
+  "/initial-inventory",
   "/inventory",
   "/inventory-adjustments",
   "/inventory-counts",
@@ -25,8 +26,6 @@ opensOnlyScreens([
 ]);
 
 beforeEach(resetPageState);
-
-afterEach(resetPageState);
 
 function stockServices(capabilities: Capability[]) {
   const services = createAppServices({
@@ -51,6 +50,10 @@ function stockServices(capabilities: Capability[]) {
   vi.mocked(services.stockMovementsScreen.fetchStockMovements).mockResolvedValue({
     kind: "ok",
     value: { movements: [] },
+  });
+  vi.mocked(services.initialInventoryScreen.fetchInitialInventoryLots).mockResolvedValue({
+    kind: "ok",
+    value: { lots: [] },
   });
   vi.mocked(services.suppliersListScreen.fetchSuppliers).mockResolvedValue({
     kind: "ok",
@@ -78,6 +81,7 @@ const SECTION_LABELS = [
   "Proveedores",
   "Presentaciones de compra",
   "Compras",
+  "Inventario inicial",
 ];
 
 test.each([
@@ -88,6 +92,7 @@ test.each([
   ["suppliers", "Proveedores", "/suppliers"],
   ["purchase_packagings", "Presentaciones de compra", "/purchase-packagings"],
   ["purchases", "Compras", "/purchases"],
+  ["initial_inventory", "Inventario inicial", "/initial-inventory"],
 ] as const)(
   "opens only %s's section from the rail's Stock item: %s",
   async (capability, heading, path) => {
@@ -198,6 +203,7 @@ test.each([
   ["/purchase-packagings", "suppliers"],
   ["/purchases", "suppliers"],
   ["/purchases/new", "suppliers"],
+  ["/initial-inventory", "suppliers"],
 ] as const)("sends a user who may not open %s to Mi cuenta", async (path, capability) => {
   const services = stockServices([capability, "stock_area"]);
   window.history.pushState(null, "", path);
