@@ -2,11 +2,7 @@ import { randomUUID } from "node:crypto";
 import { hostname, release, version } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import {
-  type CoreReadyMessage,
-  type CoreRefusedMessage,
-  mainToCoreMessageSchema,
-} from "@purosur/contracts";
+import { type CoreReadyMessage, mainToCoreMessageSchema } from "@purosur/contracts";
 import * as Sentry from "@sentry/electron/utility";
 import { net } from "electron";
 import {
@@ -62,6 +58,7 @@ import {
   installationReportFrom,
 } from "./register/enrollment";
 import { type StartedLocalDatabase, startLocalDatabase } from "./register/local-database-startup";
+import { refuseNewerDatabase } from "./register/newer-database-refusal";
 import { readReceiptPrinterFor, setReceiptPrinterFor } from "./register/receipt-printer-requests";
 import { registerServiceOf } from "./register/register-service-of-database";
 import { registerStatusFor } from "./register/register-status-requests";
@@ -211,12 +208,12 @@ async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefine
 }
 
 const startedLocalDatabase = await startLocalDatabaseFile();
-if (startedLocalDatabase?.kind === "newer_than_version") {
-  console.error("core: refusing a local database migrated by a newer version");
-  process.parentPort.postMessage({
-    type: "core-refused",
-    reason: "newer_database",
-  } satisfies CoreRefusedMessage);
+if (
+  refuseNewerDatabase(startedLocalDatabase, {
+    post: (message) => process.parentPort.postMessage(message),
+    log: (line) => console.error(line),
+  })
+) {
   await new Promise<never>(() => {});
 }
 

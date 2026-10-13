@@ -1,8 +1,8 @@
 import { dirname, join } from "node:path";
-import { localDatabaseVersionOf } from "@purosur/domain";
 import {
   checkLocalDatabase,
   type LocalDatabaseHealth,
+  type LocalDatabaseMigrations,
   reportLocalDatabaseDamage,
 } from "@purosur/domain/register/use-cases";
 import { isDatabaseDamage } from "../platform/database-damage";
@@ -26,22 +26,24 @@ export type StartedLocalDatabase =
 
 const OUT_OF_SERVICE: StartedLocalDatabase = { kind: "out_of_service" };
 
-function versionOfFile(deps: {
+function migrationsOfFile(deps: {
   path: string;
   migrations: readonly LocalMigration[];
-}): ReturnType<typeof localDatabaseVersionOf> {
-  try {
-    return localDatabaseVersionOf({
-      applied: appliedMigrationNames(deps.path),
-      known: deps.migrations.map((migration) => migration.name),
-    });
-  } catch (error) {
-    if (isDatabaseDamage(error)) {
-      throw error;
-    }
-    // Opening the file for writing meets the same failure and the damage marker still decides first.
-    return "known";
-  }
+}): LocalDatabaseMigrations {
+  return {
+    appliedMigrationNames: async () => {
+      try {
+        return appliedMigrationNames(deps.path);
+      } catch (error) {
+        if (isDatabaseDamage(error)) {
+          throw error;
+        }
+        // Opening the file for writing meets the same failure and the damage marker still decides first.
+        return [];
+      }
+    },
+    knownMigrationNames: () => deps.migrations.map((migration) => migration.name),
+  };
 }
 
 export async function startLocalDatabase(deps: {
@@ -60,10 +62,11 @@ export async function startLocalDatabase(deps: {
     integrityHolds: () => sqliteIntegrityHolds(open()),
   });
   try {
-    if (versionOfFile(deps) === "newer_than_version") {
+    const check = await checkLocalDatabase({ health, migrations: migrationsOfFile(deps) });
+    if (check.kind === "newer_than_version") {
       return { kind: "newer_than_version" };
     }
-    if ((await checkLocalDatabase({ health })).kind === "out_of_service") {
+    if (check.kind === "out_of_service") {
       opened?.close();
       return OUT_OF_SERVICE;
     }

@@ -419,7 +419,6 @@ export {
   isWellFormedEnrollmentCode,
   isWellFormedInstallationKey,
   lastSuccessfulSyncOfRegister,
-  localDatabaseVersionOf,
   mayAuthorize,
   nextOperationNumber,
   normalizeEnrollmentCode,
