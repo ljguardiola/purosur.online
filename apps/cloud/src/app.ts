@@ -123,8 +123,8 @@ import { registerRegisterCreationRoute } from "./register/register-creation-rout
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
 import { registerRegisterSyncStatusRoute } from "./register/register-sync-status-route.js";
 import type { RegistersRouteOptions } from "./register/registers-list-route.js";
-import { registerReportRegistersRoute } from "./register/report-registers-route.js";
 import { registerRegistersListRoute } from "./register/registers-list-route.js";
+import { registerReportRegistersRoute } from "./register/report-registers-route.js";
 import {
   registerSalesReportRoutes,
   type SalesReportRouteOptions,

@@ -293,8 +293,6 @@ export type { RegisterCreationBody } from "./register/register-creation.js";
 export { registerCreationBodySchema } from "./register/register-creation.js";
 export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-code.js";
 export { registerEnrollmentCodeSchema } from "./register/register-enrollment-code.js";
-export type { ReportRegisterListBody } from "./register/report-register-list.js";
-export { reportRegisterListSchema } from "./register/report-register-list.js";
 export type { RegisterSummaryBody } from "./register/register-summary.js";
 export { registerListSchema, registerSummarySchema } from "./register/register-summary.js";
 export type { RegisterSyncStatusWire } from "./register/register-sync-status.js";
@@ -302,6 +300,8 @@ export {
   registerSyncStatusListSchema,
   registerSyncStatusSchema,
 } from "./register/register-sync-status.js";
+export type { ReportRegisterListBody } from "./register/report-register-list.js";
+export { reportRegisterListSchema } from "./register/report-register-list.js";
 export type {
   CancelLockedSaleOutcome,
   ReceiptPrintStatusOutcome,

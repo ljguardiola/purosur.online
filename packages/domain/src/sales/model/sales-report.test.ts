@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  SALES_REPORT_SALE_STATE,
-  salesReportTotals,
-} from "./sales-report.js";
+import { SALES_REPORT_SALE_STATE, salesReportTotals } from "./sales-report.js";
 
 describe("salesReportTotals", () => {
   it("adds up the sales and the amounts of every day", () => {
