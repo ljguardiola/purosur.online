@@ -456,6 +456,52 @@ export const priceReviews = pgTable(
   ],
 );
 
+// A batch of an assembled product: what was actually used of each component and the output
+// actually obtained, in thousandths of each product's sale unit. Its movements and its lot point back
+// to it.
+export const assemblyBatches = pgTable(
+  "assembly_batches",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    assembledAt: timestamp("assembled_at", { withTimezone: true }).notNull(),
+    outputQty: bigint("output_qty", { mode: "number" }).notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("assembly_batches_output_qty_check", sql`${table.outputQty} > 0`),
+    index("assembly_batches_location_id_assembled_at_idx").on(table.locationId, table.assembledAt),
+  ],
+);
+
+export const assemblyBatchLines = pgTable(
+  "assembly_batch_lines",
+  {
+    batchId: uuid("batch_id")
+      .notNull()
+      .references(() => assemblyBatches.id),
+    componentProductId: uuid("component_product_id")
+      .notNull()
+      .references(() => products.id),
+    quantity: bigint("quantity", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "assembly_batch_lines_pkey",
+      columns: [table.batchId, table.componentProductId],
+    }),
+    check("assembly_batch_lines_quantity_check", sql`${table.quantity} >= 0`),
+  ],
+);
+
 // Append-only like prices: a quantity is in thousandths of the product's sale unit, and a movement
 // dated at or before a later-registered count keeps superseded_by_count_id set from its insert on,
 // never changing the balance.
@@ -473,6 +519,7 @@ export const stockMovements = pgTable(
     reason: text("reason"),
     saleLineId: uuid("sale_line_id").references(() => saleLines.id),
     purchaseLineId: uuid("purchase_line_id").references(() => purchaseLines.id),
+    assemblyBatchId: uuid("assembly_batch_id").references(() => assemblyBatches.id),
     delta: bigint("delta", { mode: "number" }).notNull(),
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
@@ -486,11 +533,11 @@ export const stockMovements = pgTable(
   (table) => [
     check(
       "stock_movements_kind_check",
-      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal')`,
+      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')`,
     ),
     check(
       "stock_movements_reason_unless_count_sale_or_receipt_check",
-      sql`(${table.kind} in ('count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal')) = (${table.reason} is null)`,
+      sql`(${table.kind} in ('count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')) = (${table.reason} is null)`,
     ),
     check(
       "stock_movements_sale_line_iff_sale_check",
@@ -499,6 +546,10 @@ export const stockMovements = pgTable(
     check(
       "stock_movements_purchase_line_iff_receipt_check",
       sql`(${table.kind} = 'receipt') = (${table.purchaseLineId} is not null)`,
+    ),
+    check(
+      "stock_movements_assembly_batch_iff_assembly_check",
+      sql`(${table.kind} in ('assembly_out', 'assembly_in')) = (${table.assemblyBatchId} is not null)`,
     ),
     index("stock_movements_product_id_location_id_occurred_at_idx").on(
       table.productId,
@@ -667,7 +718,8 @@ export const purchaseLines = pgTable(
 
 // The stock a purchase line brought in, with the line's exact cost pair; a product's technical lot
 // instead gathers what was consumed before any purchase, with no cost, and an initial-count lot is
-// the stock counted when the branch began, born from its opening count movement with no cost.
+// the stock counted when the branch began, born from its opening count movement with no cost, and a
+// batch's lot is the output of an assembled batch with the cost of what was consumed to make it.
 export const lots = pgTable(
   "lots",
   {
@@ -680,6 +732,7 @@ export const lots = pgTable(
       .references(() => locations.id),
     purchaseLineId: uuid("purchase_line_id").references(() => purchaseLines.id),
     originMovementId: uuid("origin_movement_id").references(() => stockMovements.id),
+    assemblyBatchId: uuid("assembly_batch_id").references(() => assemblyBatches.id),
     withdrawn: boolean("withdrawn").notNull().default(false),
     lotNumber: text("lot_number"),
     expiresOn: date("expires_on", { mode: "string" }),
@@ -695,10 +748,11 @@ export const lots = pgTable(
   (table) => [
     unique("lots_purchase_line_id_key").on(table.purchaseLineId),
     unique("lots_origin_movement_id_key").on(table.originMovementId),
+    unique("lots_assembly_batch_id_key").on(table.assemblyBatchId),
     check("lots_cost_quantity_check", sql`${table.costQuantity} > 0`),
     check(
       "lots_exactly_one_origin_check",
-      sql`${table.technical}::int + (${table.purchaseLineId} is not null)::int + (${table.originMovementId} is not null)::int = 1`,
+      sql`${table.technical}::int + (${table.purchaseLineId} is not null)::int + (${table.originMovementId} is not null)::int + (${table.assemblyBatchId} is not null)::int = 1`,
     ),
     check(
       "lots_withdrawn_only_if_initial_count_check",

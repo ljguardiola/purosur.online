@@ -48,4 +48,4 @@ export {
   STOCK_QUANTITY_PER_UNIT,
 } from "./model/stock-quantity.js";
 export type { PurchaseReceipt } from "./model/stock-receipt.js";
-export { unitCostCents } from "./model/unit-cost.js";
+export { lotUnitCostCents, unitCostCents } from "./model/unit-cost.js";

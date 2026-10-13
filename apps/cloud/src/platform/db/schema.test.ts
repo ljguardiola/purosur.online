@@ -1120,14 +1120,12 @@ describe("assembly_batches", () => {
       cause: { constraint: "stock_movements_assembly_batch_iff_assembly_check" },
     });
     await expect(
-      db
-        .insert(stockMovements)
-        .values({
-          ...movement,
-          kind: "loss",
-          reason: "broken_or_spilled",
-          assemblyBatchId: batch.id,
-        }),
+      db.insert(stockMovements).values({
+        ...movement,
+        kind: "loss",
+        reason: "broken_or_spilled",
+        assemblyBatchId: batch.id,
+      }),
     ).rejects.toMatchObject({
       cause: { constraint: "stock_movements_assembly_batch_iff_assembly_check" },
     });

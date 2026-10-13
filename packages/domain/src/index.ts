@@ -588,6 +588,7 @@ export {
   isReferenceUnitCost,
   LOSS_REASONS,
   lossDelta,
+  lotUnitCostCents,
   MANUAL_STOCK_MOVEMENT_KINDS,
   MAX_STOCK_QUANTITY,
   manualStockMovementCapability,
