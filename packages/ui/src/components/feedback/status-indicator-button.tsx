@@ -18,7 +18,7 @@ export function StatusIndicatorButton({ tone, children, onPress }: StatusIndicat
   ].join(" ");
 
   return (
-    <AriaButton className={className} onPress={onPress}>
+    <AriaButton className={className} {...(onPress ? { onPress } : {})}>
       <StatusIndicatorContent tone={tone}>{children}</StatusIndicatorContent>
     </AriaButton>
   );

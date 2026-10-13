@@ -1,4 +1,5 @@
 import type { RegisterStatus } from "@purosur/contracts";
+import type { Icon } from "@purosur/ui";
 import {
   formatClockTime,
   LoadFailure,
@@ -11,7 +12,6 @@ import {
   StatusIndicatorButton,
 } from "@purosur/ui";
 import { Ban, CloudOff, Receipt, ScanBarcode, ShieldOff, TriangleAlert } from "lucide-react";
-import type { ReactNode } from "react";
 import type { CoreData } from "../platform/use-core-query";
 import type { CashSessionState } from "../register/cash-session-state";
 import type { SerialDeviceRole } from "../register/serial-device-standing";
@@ -50,7 +50,7 @@ function CloudIndicator({ cloud }: { cloud: RegisterStatus["cloud"] }) {
 
 type Condition = RegisterStatus["conditions"][number];
 
-const CONDITION_ICONS: Record<Condition["kind"], ReactNode> = {
+const CONDITION_ICONS: Record<Condition["kind"], Icon> = {
   sales_denied: <Ban />,
   installation_revoked: <ShieldOff />,
   fiscal_emission_stopped: <Receipt />,
