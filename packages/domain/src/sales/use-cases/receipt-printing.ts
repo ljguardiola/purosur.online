@@ -101,12 +101,6 @@ async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
           reprintEvent(ids.next(), saleId, copy.orderNumber, grant, reasonOfDuplicate, at),
         );
       }
-      if (delivery.printedAt === null) {
-        tx.recordPrinted(saleId, at);
-        tx.appendOutboxEvent(
-          printStateEvent(ids.next(), saleId, grant, delivery.printAttemptedAt ?? at, at),
-        );
-      }
       handedOver.copy = copy;
       return template.printable(storedReceiptOf(tx, template, saleId), copy);
     }),
@@ -114,6 +108,17 @@ async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
   if (ending.kind === "abandoned") {
     return { kind: "abandoned", copy: decided };
   }
+  ledger.transaction((tx) => {
+    const delivery = tx.receiptDelivery(saleId);
+    if (delivery === undefined || delivery.printedAt !== null) {
+      return;
+    }
+    const at = clock.now();
+    tx.recordPrinted(saleId, at);
+    tx.appendOutboxEvent(
+      printStateEvent(ids.next(), saleId, grant, delivery.printAttemptedAt ?? at, at),
+    );
+  });
   return { kind: "printed", copy: handedOver.copy ?? decided };
 }
 
