@@ -192,6 +192,12 @@ export type RealTimeAuthorizationResolution =
   | { state: "UNKNOWN"; deferralReason: "unclear_outcome" };
 
 export function realTimeAuthorizationResolution(
+  answer: Extract<RealTimeAuthorizationAnswer, { kind: "unclear" | "not_attempted" }>,
+): Extract<RealTimeAuthorizationResolution, { state: "UNKNOWN" }>;
+export function realTimeAuthorizationResolution(
+  answer: RealTimeAuthorizationAnswer,
+): RealTimeAuthorizationResolution;
+export function realTimeAuthorizationResolution(
   answer: RealTimeAuthorizationAnswer,
 ): RealTimeAuthorizationResolution {
   switch (answer.kind) {

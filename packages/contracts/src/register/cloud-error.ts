@@ -17,6 +17,7 @@ const CLOUD_ERRORS = {
   server_unavailable: { status: 503, retryable: true },
   payment_provider_not_configured: { status: 503, retryable: false },
   payment_provider_unavailable: { status: 503, retryable: true },
+  update_feed_unavailable: { status: 503, retryable: true },
 } as const satisfies Record<string, { status: number; retryable: boolean }>;
 
 export type CloudErrorCode = keyof typeof CLOUD_ERRORS;

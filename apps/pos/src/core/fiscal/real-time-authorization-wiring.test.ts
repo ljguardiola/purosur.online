@@ -9,13 +9,16 @@ import {
   startRegisterHealthChecks,
 } from "./real-time-authorization-wiring";
 import {
+  FACTURA_C,
   insertCompletedSale,
   insertDeferredSale,
   insertFiscalDocument,
   insertHealthCheck,
   insertSaleCompletedEvent,
   openFiscalDatabase,
+  SALE_COMPLETED_AT,
 } from "./test-support/real-time-authorization-database";
+import { SCRIPTED_SHORT_CODES, scriptedDeferrals } from "./test-support/scripted-deferrals";
 
 const NOW = new Date("2026-09-30T12:05:02.000Z");
 const CLOUD_URL = "https://staging.purosur.online";
@@ -72,6 +75,7 @@ describe("authorizing a completed sale in real time", () => {
       cloudClient: cloud,
       readDeviceToken,
       now: () => NOW,
+      ...scriptedDeferrals(),
       reportFailure: (error) => failures.push(error),
     });
   }
@@ -108,6 +112,16 @@ describe("authorizing a completed sale in real time", () => {
     await authorization(cloud).authorizeSale("sale-1");
 
     expect(storedState()).toEqual({ state: "UNKNOWN" });
+  });
+
+  it("routes the sale to the deferred flow under the identifier and short code the register is given", async () => {
+    const { cloud } = cloudAnswering(async () => json({ state: "UNCLEAR" }));
+
+    await authorization(cloud).authorizeSale("sale-1");
+
+    expect(database.prepare("SELECT id, short_code FROM deferred_sales").all()).toEqual([
+      { id: "deferred-1", short_code: SCRIPTED_SHORT_CODES[0] },
+    ]);
   });
 
   it("settles the document as unclear and reports it when asking the cloud fails", async () => {
@@ -153,6 +167,7 @@ describe("authorizing a completed sale in real time", () => {
       cloudClient: undefined,
       readDeviceToken: async () => undefined,
       now: () => NOW,
+      ...scriptedDeferrals(),
       reportFailure: () => undefined,
     });
 
@@ -167,12 +182,37 @@ describe("settling, as the register starts, the authorizations its last run left
   });
 
   it("leaves the document unknown and routes its sale to the deferred flow for an unclear outcome", async () => {
-    await settleInterruptedAuthorizations({ database, now: () => NOW, reportFailure: () => {} });
+    await settleInterruptedAuthorizations({
+      database,
+      now: () => NOW,
+      reportFailure: () => {},
+      ...scriptedDeferrals(),
+    });
 
     expect(storedState()).toEqual({ state: "UNKNOWN" });
     expect(database.prepare("SELECT sale_id, reason, routed_at FROM deferred_sales").all()).toEqual(
       [{ sale_id: "sale-1", reason: "unclear_outcome", routed_at: NOW.toISOString() }],
     );
+  });
+
+  it("keeps the sale's date and total in the deferred record, under the identifier and short code the register is given", async () => {
+    await settleInterruptedAuthorizations({
+      database,
+      now: () => NOW,
+      reportFailure: () => {},
+      ...scriptedDeferrals(),
+    });
+
+    expect(
+      database.prepare("SELECT id, occurred_at, total, short_code FROM deferred_sales").all(),
+    ).toEqual([
+      {
+        id: "deferred-1",
+        occurred_at: SALE_COMPLETED_AT.toISOString(),
+        total: FACTURA_C.total,
+        short_code: SCRIPTED_SHORT_CODES[0],
+      },
+    ]);
   });
 
   it("reports a failure without rejecting", async () => {
@@ -183,6 +223,7 @@ describe("settling, as the register starts, the authorizations its last run left
       settleInterruptedAuthorizations({
         database,
         now: () => NOW,
+        ...scriptedDeferrals(),
         reportFailure: (error) => failures.push(error),
       }),
     ).resolves.toBeUndefined();
@@ -194,17 +235,13 @@ describe("settling, as the register starts, the authorizations its last run left
   it("settles none of them and reports it when settling one of them fails", async () => {
     insertCompletedSale(database, "sale-2");
     insertFiscalDocument(database, { id: "doc-2", saleId: "sale-2", pointOfSale: 13 });
-    database
-      .prepare(
-        `INSERT INTO deferred_sales (sale_id, reason, routed_at)
-         VALUES ('sale-2', 'unclear_outcome', '2026-09-30T12:05:01.000Z')`,
-      )
-      .run();
+    insertDeferredSale(database, "sale-2");
     const failures: unknown[] = [];
 
     await settleInterruptedAuthorizations({
       database,
       now: () => NOW,
+      ...scriptedDeferrals(),
       reportFailure: (error) => failures.push(error),
     });
 
@@ -223,6 +260,7 @@ describe("settling, as the register starts, the authorizations its last run left
       settleInterruptedAuthorizations({
         database: undefined,
         now: () => NOW,
+        ...scriptedDeferrals(),
         reportFailure: () => {},
       }),
     ).resolves.toBeUndefined();
@@ -474,7 +512,12 @@ describe("applying the decisions of the documents left with an unclear outcome, 
 
   it("resolves by asking a document a stopped register left requesting", async () => {
     leaveUnclear(1, "REQUESTING");
-    await settleInterruptedAuthorizations({ database, now: () => NOW, reportFailure: () => {} });
+    await settleInterruptedAuthorizations({
+      database,
+      now: () => NOW,
+      reportFailure: () => {},
+      ...scriptedDeferrals(),
+    });
     expect(documentStates()).toEqual([{ id: "doc-1", state: "UNKNOWN" }]);
     const { tick } = ticking(async () => json({ state: "RELEASED" }));
 

@@ -290,6 +290,7 @@ export type {
   DeviceCredentialsAnswer,
   DeviceCredentialsRequest,
   MainToCoreMessage,
+  UpdateSafeMomentAnswer,
 } from "./register/main-messages.js";
 export { coreStatusMessageSchema, mainToCoreMessageSchema } from "./register/main-messages.js";
 export { receiptPrinterAddressTextSchema } from "./register/receipt-printer-address.js";
@@ -304,6 +305,14 @@ export {
   registerSyncStatusListSchema,
   registerSyncStatusSchema,
 } from "./register/register-sync-status.js";
+export type { RegisterUpdateAnswer } from "./register/register-update.js";
+export {
+  registerReleaseEntrySchema,
+  registerUpdateAnswerSchema,
+  registerUpdateQuerySchema,
+  registerVersionSchema,
+  registerVersionText,
+} from "./register/register-update.js";
 export type {
   CancelLockedSaleOutcome,
   ReceiptPrintStatusOutcome,

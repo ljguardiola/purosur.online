@@ -4,9 +4,11 @@ import { dirname, join } from "node:path";
 import type { ElectronApplication, Page } from "playwright";
 import { expect } from "vitest";
 import { launchApp, writeChannelFile } from "../launch-app";
+import { WAIT_BOUND_MS } from "./bounds";
+import { closeRegister } from "./close-register";
 import { CORE_READY, coreStartEnded, startEndingsIn } from "./core-start-outcomes";
 import type { StandInCloud } from "./stand-in-cloud";
-import { until, untilLogged } from "./until";
+import { until, untilLogged, within } from "./until";
 
 export interface EnrolledRegister {
   readonly app: ElectronApplication;
@@ -39,11 +41,21 @@ function isRunning(processId: number): boolean {
 }
 
 async function closeEveryProcessOf(app: ElectronApplication): Promise<void> {
-  const processIds = await app.evaluate(({ app: electronApp }) =>
-    electronApp.getAppMetrics().map((metric) => metric.pid),
-  );
-  await app.close();
-  await until(() => processIds.every((processId) => !isRunning(processId)));
+  let processIds: number[];
+  try {
+    processIds = await within(
+      app.evaluate(({ app: electronApp }) =>
+        electronApp.getAppMetrics().map((metric) => metric.pid),
+      ),
+      { withinMs: WAIT_BOUND_MS, waitingFor: "the register to list its processes" },
+    );
+  } finally {
+    await closeRegister(app);
+  }
+  await until(() => processIds.every((processId) => !isRunning(processId)), {
+    withinMs: WAIT_BOUND_MS,
+    waitingFor: "the register's processes to end",
+  });
 }
 
 async function enroll(page: Page, cloud: StandInCloud): Promise<void> {
@@ -51,7 +63,10 @@ async function enroll(page: Page, cloud: StandInCloud): Promise<void> {
   await page.getByRole("button", { name: "Dar de alta" }).click();
   await Promise.all([
     page.getByRole("heading", { name: "Dar de alta esta caja" }).waitFor({ state: "detached" }),
-    cloud.feedStored,
+    within(cloud.feedStored, {
+      withinMs: WAIT_BOUND_MS,
+      waitingFor: "the stand-in cloud to store the register's change feed",
+    }),
   ]);
 }
 
@@ -59,18 +74,21 @@ async function enroll(page: Page, cloud: StandInCloud): Promise<void> {
 async function removeOnceWindowsReleasesIt(folder: string): Promise<void> {
   const stillHeld = new Set(["EBUSY", "EPERM", "ENOTEMPTY"]);
   let removed = false;
-  await until(async () => {
-    try {
-      await rm(folder, { recursive: true, force: true });
-      removed = true;
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code === undefined || !stillHeld.has(code)) {
-        throw error;
+  await until(
+    async () => {
+      try {
+        await rm(folder, { recursive: true, force: true });
+        removed = true;
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code === undefined || !stillHeld.has(code)) {
+          throw error;
+        }
       }
-    }
-    return removed;
-  });
+      return removed;
+    },
+    { withinMs: WAIT_BOUND_MS, waitingFor: "Windows to release the register's data folder" },
+  );
 }
 
 export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
@@ -88,7 +106,7 @@ export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
   async function start(): Promise<RunningRegister> {
     const { app, logs } = await launchApp(channelFile);
     if (closed) {
-      await app.close();
+      await closeRegister(app);
       throw new Error("the register was closed while it was launching");
     }
     openApp = app;
@@ -107,17 +125,18 @@ export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
 
   async function startReady(): Promise<RunningRegister> {
     const started = await start();
-    await untilLogged(started, coreStartEnded);
+    await untilLogged(started, coreStartEnded, { withinMs: WAIT_BOUND_MS });
     expect(startEndingsIn(started.logs.join(""))).toEqual([CORE_READY]);
     return started;
   }
 
   async function stop(): Promise<void> {
+    const app = openApp;
     running = undefined;
-    if (openApp !== undefined) {
-      await closeEveryProcessOf(openApp);
-    }
     openApp = undefined;
+    if (app !== undefined) {
+      await closeEveryProcessOf(app);
+    }
   }
 
   function current(): RunningRegister {

@@ -119,7 +119,7 @@ export default defineConfig({
       {
         test: {
           name: "register-build",
-          include: ["apps/pos/*.test.ts"],
+          include: ["apps/pos/*.test.ts", "apps/pos/e2e/test-support/*.test.ts"],
           environment: "node",
         },
       },
