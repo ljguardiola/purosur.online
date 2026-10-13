@@ -111,6 +111,11 @@ export interface StockMovementRow {
   version: number;
 }
 
+export interface RefundCompletionRow {
+  doneBy: string;
+  doneAt: Date;
+}
+
 export interface IssuerIdentificationVersionRow {
   legalName: string | null;
   grossIncomeRegistration: string | null;
@@ -158,6 +163,7 @@ export type PulledCloudChange = { changeSeq: number; entityId: string } & (
   | { entity: "buyer_identification_threshold"; row: BuyerIdentificationThresholdRow }
   | { entity: "buyer_tax_status_set"; row: BuyerTaxStatusSetRow }
   | { entity: "stock_movement"; row: StockMovementRow }
+  | { entity: "refund_completion"; row: RefundCompletionRow }
   | { entity: "offline_authorization_code"; row: OfflineAuthorizationCodeRow }
   | { entity: "offline_number_block"; row: OfflineNumberBlockRow }
   | { entity: "removal"; removedEntity: RemovedEntity; version: number }

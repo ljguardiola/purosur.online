@@ -66,27 +66,16 @@ async function eventRow(eventId: string) {
   return row;
 }
 
-async function openQuarantineAlertOf(eventId: string): Promise<string> {
+async function openQuarantineAlertOfDevice(): Promise<string> {
   const outcome = await openAlert(
     db,
-    {
-      kind: "events_quarantined",
-      scope: eventId,
-      detail: {
-        deviceId,
-        eventId,
-        eventType: "sale_completed",
-        aggregateType: "Sale",
-        aggregateId: "sale-1",
-        reason: { kind: "not_recorded" },
-      },
-    },
+    { kind: "events_quarantined", scope: deviceId, detail: { deviceId } },
     { now: () => SESSION_NOON },
   );
   const [alert] = await db
     .select({ id: alerts.id })
     .from(alerts)
-    .where(and(eq(alerts.kind, "events_quarantined"), eq(alerts.scope, eventId)));
+    .where(and(eq(alerts.kind, "events_quarantined"), eq(alerts.scope, deviceId)));
   if (!alert || outcome.kind !== "opened") {
     throw new Error("test setup: opening the quarantine alert did not open one");
   }
@@ -211,18 +200,33 @@ describe("POST /synced-events/:eventId/release", () => {
     ]);
   });
 
-  it("resolves the quarantine alert of that event and no other", async () => {
+  it("resolves the device's quarantine alert once its last quarantined event is released", async () => {
     const session = await sessionHolding(["release_quarantined_events"]);
     const eventId = await insertQuarantinedEvent(db, deviceId);
-    const otherEventId = await insertQuarantinedEvent(db, deviceId);
-    const alertId = await openQuarantineAlertOf(eventId);
-    const otherAlertId = await openQuarantineAlertOf(otherEventId);
+    const alertId = await openQuarantineAlertOfDevice();
 
     await releaseRequest(eventId, session.headers);
 
-    const resolved = await db.select({ id: alerts.id, resolvedAt: alerts.resolvedAt }).from(alerts);
-    expect(resolved.find((alert) => alert.id === alertId)?.resolvedAt).toEqual(SESSION_NOON);
-    expect(resolved.find((alert) => alert.id === otherAlertId)?.resolvedAt).toBeNull();
+    const [alert] = await db
+      .select({ resolvedAt: alerts.resolvedAt })
+      .from(alerts)
+      .where(eq(alerts.id, alertId));
+    expect(alert?.resolvedAt).toEqual(SESSION_NOON);
+  });
+
+  it("leaves the device's quarantine alert open while another of its events stays quarantined", async () => {
+    const session = await sessionHolding(["release_quarantined_events"]);
+    const eventId = await insertQuarantinedEvent(db, deviceId);
+    await insertQuarantinedEvent(db, deviceId);
+    const alertId = await openQuarantineAlertOfDevice();
+
+    await releaseRequest(eventId, session.headers);
+
+    const [alert] = await db
+      .select({ resolvedAt: alerts.resolvedAt })
+      .from(alerts)
+      .where(eq(alerts.id, alertId));
+    expect(alert?.resolvedAt).toBeNull();
   });
 
   it("releases an event that has no open alert", async () => {

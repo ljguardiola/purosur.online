@@ -23,6 +23,7 @@ export const PULLED_TABLES = {
   buyer_tax_status_sets: "buyer_tax_status_set",
   stock_movements: "stock_movement",
   stock_balances: "stock_movement",
+  refund_completions: "refund_completion",
   offline_authorization_codes: "offline_authorization_code",
   offline_number_blocks: "offline_number_block",
 } as const satisfies Record<string, PulledEntity>;

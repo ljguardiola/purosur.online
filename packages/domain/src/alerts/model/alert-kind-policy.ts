@@ -14,7 +14,8 @@ export type AlertScopeKind =
   | "pointOfSaleDocumentType"
   | "registerFortnight"
   | "refund"
-  | "fiscalDocument";
+  | "fiscalDocument"
+  | "syncDevice";
 
 type AlertEscalationRule =
   | { kind: "afterOpening"; delayMs: number }
@@ -93,7 +94,7 @@ const ALERT_KIND_POLICIES = {
     level: "warning",
     escalation: AFTER_OPENING,
     audience: "all",
-    scopeKind: "event",
+    scopeKind: "syncDevice",
     deduplicates: true,
     resolvesAfterStableClear: false,
   },
@@ -193,6 +194,14 @@ const ALERT_KIND_POLICIES = {
     deduplicates: true,
     resolvesAfterStableClear: true,
   },
+  outbox_chain_broken: {
+    level: "warning",
+    escalation: AFTER_OPENING,
+    audience: "all",
+    scopeKind: "syncDevice",
+    deduplicates: false,
+    resolvesAfterStableClear: false,
+  },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;
 
 export function alertKindPolicy(kind: AlertKind): AlertKindPolicy {
@@ -208,6 +217,7 @@ export const ALERT_CLOSINGS = [
   "with_its_refund",
   "when_its_refund_is_done",
   "when_its_document_is_resolved",
+  "when_its_events_are_released",
   "by_hand",
 ] as const;
 export type AlertClosing = (typeof ALERT_CLOSINGS)[number];
@@ -222,6 +232,9 @@ export function alertClosing(
   }
   if (policy.scopeKind === "fiscalDocument") {
     return "when_its_document_is_resolved";
+  }
+  if (kind === "events_quarantined") {
+    return "when_its_events_are_released";
   }
   if (policy.scopeKind !== "refund") {
     return "by_hand";

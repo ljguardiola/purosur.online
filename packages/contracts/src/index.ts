@@ -279,6 +279,7 @@ export { healthCheckSchema } from "./register/health-check.js";
 export type { InstallationKeysBody } from "./register/installation-keys.js";
 export type {
   CoreReadyMessage,
+  CoreRefusedMessage,
   CoreStatusMessage,
   CoreStatusRequest,
   CredentialsReplacement,
@@ -390,7 +391,6 @@ export type {
   AuthorizedBy,
   BranchSettingsBody,
   ErrorReportingConfiguration,
-  EventQuarantineReason,
   IssuerIdentificationBody,
   OpenCashSession,
   PinAttemptRefusal,
@@ -487,6 +487,7 @@ export type { ChangesPage, ChangesQuery, SyncChange } from "./sync/changes.js";
 export { changesPageSchema, changesQuerySchema } from "./sync/changes.js";
 export type { SyncCoreToRendererMessage } from "./sync/core-messages.js";
 export { syncCoreToRendererMessageSchema } from "./sync/core-messages.js";
+export type { EventQuarantineReason } from "./sync/event-quarantine-reason.js";
 export type { PushEventsRequest, PushEventsResponse } from "./sync/events.js";
 export {
   PUSH_EVENTS_REQUEST_MAX_BYTES,

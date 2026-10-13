@@ -61,6 +61,7 @@ import {
   installationReportFrom,
 } from "./register/enrollment";
 import { type StartedLocalDatabase, startLocalDatabase } from "./register/local-database-startup";
+import { refuseNewerDatabase } from "./register/newer-database-refusal";
 import { readReceiptPrinterFor, setReceiptPrinterFor } from "./register/receipt-printer-requests";
 import { registerServiceOf } from "./register/register-service-of-database";
 import { registerStatusFor } from "./register/register-status-requests";
@@ -194,9 +195,12 @@ async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefine
       now,
     });
     console.info(
-      started.kind === "ready"
-        ? "core: the local database is ready"
-        : "core: the local database is damaged, so the register is out of service",
+      {
+        ready: "core: the local database is ready",
+        out_of_service: "core: the local database is damaged, so the register is out of service",
+        newer_than_version:
+          "core: the local database was migrated by a newer version, so it is left untouched",
+      }[started.kind],
     );
     return started;
   } catch (error) {
@@ -209,7 +213,17 @@ async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefine
   }
 }
 
-const register = registerServiceOf(await startLocalDatabaseFile(), () => process.exit(1));
+const startedLocalDatabase = await startLocalDatabaseFile();
+if (
+  refuseNewerDatabase(startedLocalDatabase, {
+    post: (message) => process.parentPort.postMessage(message),
+    log: (line) => console.error(line),
+  })
+) {
+  await new Promise<never>(() => {});
+}
+
+const register = registerServiceOf(startedLocalDatabase, () => process.exit(1));
 const localDatabase = register.database;
 const replica = localDatabase === undefined ? undefined : new SqliteLocalReplica(localDatabase);
 const localOutbox =

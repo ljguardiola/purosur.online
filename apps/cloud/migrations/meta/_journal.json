@@ -645,6 +645,13 @@
       "when": 1791851997628,
       "tag": "0095_point_payment_transactions",
       "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1791871465058,
+      "tag": "0096_quarantine_reasons",
+      "breakpoints": true
     }
   ]
 }

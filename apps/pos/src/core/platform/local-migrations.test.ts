@@ -888,6 +888,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0045_refund_completions",
         "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -960,6 +961,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0045_refund_completions",
         "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1027,6 +1029,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0045_refund_completions",
         "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1093,6 +1096,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0045_refund_completions",
         "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1188,6 +1192,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0045_refund_completions",
         "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1273,6 +1278,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0045_refund_completions",
         "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1362,6 +1368,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0045_refund_completions",
         "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1434,6 +1441,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0045_refund_completions",
         "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1498,6 +1506,7 @@ describe("the register's local migrations", () => {
         "0042_initial_count",
         "0043_integrated_terminal_payments",
         "0044_deferred_sale_records",
+        "0045_refund_completions",
         "0047_sale_line_promotion_names",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -3612,6 +3621,7 @@ describe("the register's local migrations", () => {
       rmSync(folder, { recursive: true, force: true });
     }
   });
+
   it("rebuild deferred sales with an identifier, a short code, and the sale's date and total, carrying over none of the records a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
@@ -3723,6 +3733,57 @@ describe("the register's local migrations", () => {
           )
           .run(),
       ).toThrow(/an authorized fiscal document of its own sale/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("keep who marked a refund done and when, one per refund and whether or not the register holds the refund, none over the refunds it already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0045_refund_completions",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0045_refund_completions",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'CANCELLED', '2026-09-30T12:30:00.000Z');
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, authorized_by, confirmed_at)
+         VALUES ('payment-1', 'sale-1', 'SALE', 'TRANSFER', 'NONE', 2000, 'APPROVED', '2026-09-30T12:00:00.000Z', 'u1', '2026-09-30T12:00:00.000Z');
+         INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
+         VALUES ('refund-1', 'payment-1', 'TRANSFER', 'NONE', 2000, 'PENDING', '2026-09-30T12:30:00.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT id, state FROM payment_refunds").all()).toEqual([
+        { id: "refund-1", state: "PENDING" },
+      ]);
+      expect(after.prepare("SELECT count(*) AS total FROM refund_completions").get()).toEqual({
+        total: 0,
+      });
+      const complete = (refundId: string) =>
+        after
+          .prepare(
+            "INSERT INTO refund_completions (refund_id, done_by, done_at) VALUES (?, 'u1', '2026-10-10T16:45:00.000Z')",
+          )
+          .run(refundId);
+      expect(() => complete("refund-not-held-yet")).not.toThrow();
+      expect(() => complete("refund-1")).not.toThrow();
+      expect(() => complete("refund-1")).toThrow(/UNIQUE|PRIMARY/);
+      expect(() =>
+        after
+          .prepare("INSERT INTO refund_completions (refund_id, done_by) VALUES ('x', 'u1')")
+          .run(),
+      ).toThrow(/NOT NULL/);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

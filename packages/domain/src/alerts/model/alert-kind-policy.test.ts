@@ -55,8 +55,9 @@ describe("alertKindPolicy", () => {
       true,
     ],
     ["arca_wsaa_ticket_held", "warning", null, "all", "environment", true],
-    ["events_quarantined", "warning", afterOpening, "all", "event", true],
+    ["events_quarantined", "warning", afterOpening, "all", "syncDevice", true],
     ["event_invariant_violated", "warning", afterOpening, "all", "event", true],
+    ["outbox_chain_broken", "warning", afterOpening, "all", "syncDevice", false],
     ["update_required", "critical", null, "all", "register", true],
     ["register_silent", "critical", null, "local", "register", true],
     ["sales_denied", "critical", null, "local", "register", true],
@@ -133,7 +134,7 @@ describe("alertClosing", () => {
       backoffice_sign_in_lockout: "by_hand",
       user_access_increased: "by_hand",
       register_enrolled: "by_hand",
-      events_quarantined: "by_hand",
+      events_quarantined: "when_its_events_are_released",
       event_invariant_violated: "by_hand",
       arca_certificate_expiring: "by_hand",
       arca_wsaa_ticket_held: "by_hand",
@@ -146,6 +147,7 @@ describe("alertClosing", () => {
       refund_task: "when_its_refund_is_done",
       fiscal_unknown: "when_its_document_is_resolved",
       fiscal_emission_stopped: "by_itself",
+      outbox_chain_broken: "by_hand",
     });
   });
 
@@ -161,6 +163,13 @@ describe("alertClosing", () => {
     );
   });
 
+  it("closes an alert for quarantined events once none of its device's events is left in quarantine", () => {
+    expect(alertClosing("events_quarantined", [])).toBe("when_its_events_are_released");
+    expect(alertClosing("events_quarantined", ["events_quarantined"])).toBe(
+      "when_its_events_are_released",
+    );
+  });
+
   it("closes an alert not scoped to a refund the same way whatever kinds belong to a discardable refund", () => {
     expect(alertClosing("register_enrolled", ["register_enrolled"])).toBe("by_hand");
     expect(alertClosing("update_required", ["update_required"])).toBe("by_itself");
@@ -172,6 +181,7 @@ describe("alertClosing", () => {
       "with_its_refund",
       "when_its_refund_is_done",
       "when_its_document_is_resolved",
+      "when_its_events_are_released",
       "by_hand",
     ]);
   });
@@ -193,10 +203,7 @@ describe("alertKindsWithScope", () => {
       "sales_denied",
       "fiscal_emission_stopped",
     ]);
-    expect(alertKindsWithScope("event")).toEqual([
-      "events_quarantined",
-      "event_invariant_violated",
-    ]);
+    expect(alertKindsWithScope("event")).toEqual(["event_invariant_violated"]);
     expect(alertKindsWithScope("pointOfSaleDocumentType")).toEqual(["fiscal_rejected"]);
     expect(alertKindsWithScope("environment")).toEqual([
       "arca_certificate_expiring",
@@ -207,5 +214,9 @@ describe("alertKindsWithScope", () => {
     ]);
     expect(alertKindsWithScope("refund")).toEqual(["late_payment_refund", "refund_task"]);
     expect(alertKindsWithScope("fiscalDocument")).toEqual(["fiscal_unknown"]);
+    expect(alertKindsWithScope("syncDevice")).toEqual([
+      "events_quarantined",
+      "outbox_chain_broken",
+    ]);
   });
 });

@@ -1,8 +1,6 @@
 import type { AlertDetail } from "@purosur/contracts";
-import { eventQuarantineReasonText } from "../platform/event-quarantine-reason-text";
 import { ofSyncedAggregate, syncedEventTypeName } from "../platform/synced-event-names";
 
-type QuarantinedEvent = Extract<AlertDetail, { kind: "events_quarantined" }>["detail"];
 type InvariantViolation = Extract<AlertDetail, { kind: "event_invariant_violated" }>["detail"];
 
 const BREAK_DESCRIPTIONS: ReadonlyMap<string, string> = new Map([
@@ -23,9 +21,9 @@ function eventName({ eventType, eventId }: { eventType: string; eventId: string 
   return typeName === undefined ? `evento (${eventId})` : `evento de ${typeName} (${eventId})`;
 }
 
-export function quarantinedEventDescription(detail: QuarantinedEvent): string {
-  const aggregate = ofSyncedAggregate(detail);
-  return `El ${eventName(detail)} ${aggregate} no se pudo aplicar y quedó en cuarentena: ${eventQuarantineReasonText(detail.reason)}. Los eventos siguientes ${aggregate} esperan hasta que se resuelva.`;
+export function quarantinedEventsDescription(registerName: string | null): string {
+  const register = registerName === null ? "Una caja" : `La caja «${registerName}»`;
+  return `${register} tiene eventos que no se pudieron aplicar y quedaron en cuarentena. Los eventos siguientes de cada uno de esos registros esperan hasta que se resuelvan.`;
 }
 
 export function invariantViolationDescription(detail: InvariantViolation): string {

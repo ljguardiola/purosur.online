@@ -132,6 +132,12 @@ describe("alertDetailSchema", () => {
     expect(alertDetailSchema.safeParse({ ...emailChange, [field]: value }).success).toBe(false);
   });
 
+  it("accepts an alert that closes once its events are released", () => {
+    const alert = { ...emailChange, closing: "when_its_events_are_released" };
+
+    expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+  });
+
   const deliveryFields = ["channel", "status", "error", "createdAt", "recipient"];
   it.each(deliveryFields)("requires a delivery's %s", (field) => {
     const { [field as keyof typeof delivery]: _omitted, ...rest } = delivery;
@@ -204,6 +210,9 @@ describe("alertDetailSchema", () => {
     >();
     expectTypeOf<WireDetail<"refund_task">>().toEqualTypeOf<AlertDetails["refund_task"]>();
     expectTypeOf<WireDetail<"fiscal_unknown">>().toEqualTypeOf<AlertDetails["fiscal_unknown"]>();
+    expectTypeOf<WireDetail<"outbox_chain_broken">>().toEqualTypeOf<
+      AlertDetails["outbox_chain_broken"]
+    >();
     expectTypeOf<WireDetail<"fiscal_emission_stopped">>().toEqualTypeOf<
       AlertDetails["fiscal_emission_stopped"]
     >();
@@ -307,18 +316,7 @@ describe("alertDetailSchema", () => {
         windowsVersion: "11",
         replacedInstallation: true,
       },
-      events_quarantined: {
-        deviceId: "device-1",
-        eventId: "event-1",
-        eventType: "sale_completed",
-        aggregateType: "Sale",
-        aggregateId: "sale-1",
-        reason: {
-          kind: "missing_dependency",
-          aggregateType: "CashSession",
-          aggregateId: "session-1",
-        },
-      },
+      events_quarantined: { deviceId: "device-1" },
       event_invariant_violated: {
         eventId: "event-1",
         eventType: "sale_completed",
@@ -353,6 +351,7 @@ describe("alertDetailSchema", () => {
         refundOpenedAt: "2026-10-05T12:00:00.000Z",
       },
       fiscal_emission_stopped: { deviceId: "device-1", reason: "legal_name_missing" },
+      outbox_chain_broken: { deviceId: "device-1" },
       fiscal_unknown: {
         fiscalDocumentId: "document-1",
         saleId: "sale-1",
@@ -573,29 +572,9 @@ describe("alertDetailSchema", () => {
       ).toBe(false);
     });
 
-    it.each([{ kind: "unreadable" }, { kind: "not_recorded" }])(
-      "accepts a quarantine whose reason is %j",
-      (reason) => {
-        const alert = {
-          ...base,
-          kind: "events_quarantined",
-          detail: { ...detailOf.events_quarantined, reason },
-        };
-
-        expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
-      },
-    );
-
-    it.each([
-      { kind: "timed_out" },
-      { kind: "missing_dependency", aggregateType: "CashSession" },
-      { kind: "missing_dependency", aggregateId: "session-1" },
-      "the cash session is not applied yet",
-    ])("refuses a quarantine whose reason is %j", (reason) => {
-      const detail = { ...detailOf.events_quarantined, reason };
-
+    it("refuses a quarantine that does not name its device", () => {
       expect(
-        alertDetailSchema.safeParse({ ...base, kind: "events_quarantined", detail }).success,
+        alertDetailSchema.safeParse({ ...base, kind: "events_quarantined", detail: {} }).success,
       ).toBe(false);
     });
 

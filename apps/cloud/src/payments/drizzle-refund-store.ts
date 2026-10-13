@@ -24,6 +24,9 @@ import {
   sales,
 } from "../platform/db/schema.js";
 import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
+import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
+
+const REFUND_COMPLETION_VERSION = 1;
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -33,9 +36,12 @@ class DrizzleRefundStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements RefundStoreTransaction
 {
   private readonly tx: Transaction<TQueryResult>;
+  private readonly pending: PendingChanges;
+  private readonly branchOfLockedRefund = new Map<string, string>();
 
-  constructor(tx: Transaction<TQueryResult>) {
+  constructor(tx: Transaction<TQueryResult>, pending: PendingChanges) {
     this.tx = tx;
+    this.pending = pending;
   }
 
   async lockRefund(refundId: string, locationId: string): Promise<LockedRefund | undefined> {
@@ -63,10 +69,17 @@ class DrizzleRefundStoreTransaction<TQueryResult extends PgQueryResultHKT>
         ),
       )
       .for("update", { of: paymentRefunds });
+    if (row) {
+      this.branchOfLockedRefund.set(row.id, locationId);
+    }
     return row;
   }
 
   async recordRefundDone(refundId: string, doneBy: string, doneAt: Date): Promise<void> {
+    const locationId = this.branchOfLockedRefund.get(refundId);
+    if (locationId === undefined) {
+      throw new Error("a refund is marked done only after it is locked");
+    }
     await this.tx
       .update(paymentRefunds)
       .set({ state: REFUND_DONE_STATE, doneBy, doneAt })
@@ -78,6 +91,13 @@ class DrizzleRefundStoreTransaction<TQueryResult extends PgQueryResultHKT>
       previousValue: { state: REFUND_PENDING_STATE },
       newValue: { state: REFUND_DONE_STATE, doneAt: doneAt.toISOString() },
       at: doneAt,
+    });
+    this.pending.note({
+      entity: "refund_completion",
+      entityId: refundId,
+      version: REFUND_COMPLETION_VERSION,
+      op: "insert",
+      locationId,
     });
   }
 
@@ -133,6 +153,8 @@ export class DrizzleRefundStore<TQueryResult extends PgQueryResultHKT> implement
   transaction<TOutcome>(
     work: (tx: RefundStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleRefundStoreTransaction(tx)));
+    return withPendingChanges(this.db, undefined, (tx, pending) =>
+      work(new DrizzleRefundStoreTransaction(tx, pending)),
+    );
   }
 }

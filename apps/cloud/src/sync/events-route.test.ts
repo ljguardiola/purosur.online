@@ -505,6 +505,61 @@ describe("POST /events", () => {
       expect(installation).toEqual({ revokedAt: NOW, revocationReason: "outbox_chain_broken" });
     });
 
+    it("opens an alert for the installation whose chain broke", async () => {
+      const { deviceId, deviceToken } = await enroll();
+      const [first, second] = linked(null, [event(1), event(2)]);
+      if (!first || !second) {
+        throw new Error("test setup: the chain holds two events");
+      }
+
+      await push(bodyOf([first, { ...second, payload: { quantity: 9 } }]), `Bearer ${deviceToken}`);
+
+      const rows = await route.db
+        .select()
+        .from(alerts)
+        .where(eq(alerts.kind, "outbox_chain_broken"));
+      expect(rows).toEqual([
+        expect.objectContaining({
+          scope: deviceId,
+          level: "warning",
+          audience: "all",
+          detail: { deviceId },
+        }),
+      ]);
+    });
+
+    it("opens an alert of its own for a new installation of the same register that breaks its chain", async () => {
+      const first = await enroll();
+      await push(
+        bodyOf([{ ...event(1), chain_hmac: "forged-link" }]),
+        `Bearer ${first.deviceToken}`,
+      );
+      const second = await enroll({ existingRegisterId: first.registerId });
+
+      await push(
+        bodyOf([{ ...event(1), chain_hmac: "forged-link" }]),
+        `Bearer ${second.deviceToken}`,
+      );
+
+      const rows = await route.db
+        .select()
+        .from(alerts)
+        .where(eq(alerts.kind, "outbox_chain_broken"));
+      expect(rows.map((row) => row.scope).sort()).toEqual([first.deviceId, second.deviceId].sort());
+    });
+
+    it("opens no alert for a push whose chain holds", async () => {
+      const { deviceToken } = await enroll();
+
+      await push(body(1, 2), `Bearer ${deviceToken}`);
+
+      const rows = await route.db
+        .select()
+        .from(alerts)
+        .where(eq(alerts.kind, "outbox_chain_broken"));
+      expect(rows).toEqual([]);
+    });
+
     it("answers revoked to the installation's next push", async () => {
       const { deviceToken } = await enroll();
       await push(bodyOf([{ ...event(1), chain_hmac: "forged-link" }]), `Bearer ${deviceToken}`);
