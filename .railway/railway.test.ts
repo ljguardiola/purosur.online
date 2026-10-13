@@ -257,6 +257,11 @@ describe("the Cloud Server service's environment", () => {
     });
   });
 
+  it("declares no custom domain, leaving the one registered in Railway as it is", async () => {
+    const cloud = findService(await compile(), "Cloud Server");
+    expect(cloud.networking?.customDomains).toBeUndefined();
+  });
+
   it("waits for the schema to be ready instead of applying any migration itself before deploying", async () => {
     const cloud = findService(await compile(), "Cloud Server");
     expect(cloud.deploy?.preDeployCommand).toEqual(["node dist/wait-for-ready.js"]);
