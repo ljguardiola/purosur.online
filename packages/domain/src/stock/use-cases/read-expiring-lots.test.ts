@@ -159,6 +159,6 @@ describe("readExpiringLots", () => {
       lot("o", { product: { ...BREAD, name: "Ojo de bife" } }),
     ]);
 
-    expect(view.lots.map((listed) => listed.id)).toEqual(["o", "ñ", "z"]);
+    expect(view.lots.map((listed) => listed.id)).toEqual(["ñ", "o", "z"]);
   });
 });
