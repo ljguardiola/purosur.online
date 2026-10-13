@@ -1,4 +1,5 @@
 import {
+  MAX_STOCK_QUANTITY,
   MAX_UNIT_PRICE_CENTS,
   preEmissionGateFailedEvent,
   RECEIPT_REPRINT_REASON_MAX_LENGTH,
@@ -131,6 +132,8 @@ describe("synced event payloads", () => {
       "cash_session_closed@1",
       "cash_session_opened@1",
       "fiscal_gate_failed@1",
+      "opening_count_recorded@1",
+      "opening_count_withdrawn@1",
       "qr_payment_replaced@1",
       "reprint_recorded@1",
       "sale_cancelled@1",
@@ -1437,4 +1440,102 @@ describe("sale_cancelled v1", () => {
       accepts("sale_cancelled", 1, { ...cancelled(), lines: [{ ...line, quantity: 0 }] }),
     ).toBe(false);
   });
+});
+
+describe("the initial count's payloads", () => {
+  const MOVEMENT_ID = "0d7b6f3e-5b1c-4c6e-9a51-3f1f6c1a2b01";
+  const OTHER_MOVEMENT_ID = "6f9c2a54-83de-4f0a-8d77-0b5a9e4c7d12";
+  const PRODUCT_ID = "a1b2c3d4-e5f6-4a8b-9c0d-1e2f3a4b5c6d";
+  const RECORDED = {
+    movement_id: MOVEMENT_ID,
+    product_id: PRODUCT_ID,
+    counted: 6_000,
+    expires_on: "2027-01-31",
+  };
+  const WITHDRAWN = { movement_id: OTHER_MOVEMENT_ID, withdrawn_movement_id: MOVEMENT_ID };
+
+  it("has a schema for each version 1 and none beyond", () => {
+    expect(syncedEventPayloadKey("opening_count_recorded", 1)).toBe("opening_count_recorded@1");
+    expect(syncedEventPayloadKey("opening_count_withdrawn", 1)).toBe("opening_count_withdrawn@1");
+    expect(syncedEventPayloadKey("opening_count_recorded", 2)).toBeUndefined();
+    expect(syncedEventPayloadKey("opening_count_withdrawn", 2)).toBeUndefined();
+  });
+
+  it("accepts a counted line with an expiry and one without", () => {
+    expect(accepts("opening_count_recorded", 1, RECORDED)).toBe(true);
+    expect(accepts("opening_count_recorded", 1, { ...RECORDED, expires_on: null })).toBe(true);
+  });
+
+  it("accepts the largest quantity", () => {
+    expect(accepts("opening_count_recorded", 1, { ...RECORDED, counted: MAX_STOCK_QUANTITY })).toBe(
+      true,
+    );
+  });
+
+  it.each([
+    ["zero", 0],
+    ["negative", -1_000],
+    ["fractional", 1.5],
+    ["above the largest quantity", MAX_STOCK_QUANTITY + 1],
+    ["not a number", "6000"],
+  ])("refuses a counted quantity that is %s", (_case, counted) => {
+    expect(accepts("opening_count_recorded", 1, { ...RECORDED, counted })).toBe(false);
+  });
+
+  it.each([
+    ["not a day", "2027-02-30"],
+    ["not a date", "soon"],
+    ["an instant", "2027-01-31T00:00:00.000Z"],
+    ["missing", undefined],
+  ])("refuses an expiry that is %s", (_case, expires_on) => {
+    expect(accepts("opening_count_recorded", 1, { ...RECORDED, expires_on })).toBe(false);
+  });
+
+  it.each(["movement_id", "product_id"])("refuses a counted line whose %s is no uuid", (field) => {
+    expect(accepts("opening_count_recorded", 1, { ...RECORDED, [field]: "movement-1" })).toBe(
+      false,
+    );
+  });
+
+  it("refuses a counted line without any one of its fields", () => {
+    const accepted = Object.keys(RECORDED).filter((key) => {
+      const { [key]: _removed, ...rest } = RECORDED as Payload;
+      return accepts("opening_count_recorded", 1, rest);
+    });
+
+    expect(accepted).toEqual([]);
+  });
+
+  it("accepts a withdrawal of a line", () => {
+    expect(accepts("opening_count_withdrawn", 1, WITHDRAWN)).toBe(true);
+  });
+
+  it("takes as an id any record id, not only one of a uuid version", () => {
+    const RECORD_ID = "0d7b6f3e-5b1c-0c6e-0a51-3f1f6c1a2b01";
+
+    expect(
+      accepts("opening_count_recorded", 1, {
+        ...RECORDED,
+        movement_id: RECORD_ID,
+        product_id: RECORD_ID,
+      }),
+    ).toBe(true);
+    expect(
+      accepts("opening_count_withdrawn", 1, {
+        movement_id: RECORD_ID,
+        withdrawn_movement_id: RECORD_ID,
+      }),
+    ).toBe(true);
+  });
+
+  it.each(["movement_id", "withdrawn_movement_id"])(
+    "refuses a withdrawal whose %s is no uuid or is missing",
+    (field) => {
+      expect(accepts("opening_count_withdrawn", 1, { ...WITHDRAWN, [field]: "movement-1" })).toBe(
+        false,
+      );
+      const { [field]: _removed, ...rest } = WITHDRAWN as Payload;
+      expect(accepts("opening_count_withdrawn", 1, rest)).toBe(false);
+    },
+  );
 });

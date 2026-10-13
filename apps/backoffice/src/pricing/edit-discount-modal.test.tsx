@@ -32,6 +32,7 @@ import {
 } from "./test-support/discounts";
 
 beforeEach(async () => {
+  window.history.pushState(null, "", "/");
   await page.viewport(1280, 1200);
 });
 
@@ -542,7 +543,6 @@ test("sends the user to Mi cuenta when the cloud refuses the permission", async 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("shows the rate-limited notice with the time to wait", async () => {

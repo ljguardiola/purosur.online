@@ -274,6 +274,26 @@ const FACT_OF: {
     kind: "qr_payment_replaced",
     replacement: { paymentTransactionId: payload.payment_transaction_id, saleId: payload.sale_id },
   }),
+  "opening_count_recorded@1": (payload, event) => ({
+    kind: "opening_count_recorded",
+    count: {
+      movementId: payload.movement_id,
+      productId: payload.product_id,
+      counted: payload.counted,
+      expiresOn: payload.expires_on,
+      countedAt: event.occurredAt,
+      actorId: event.actorId,
+    },
+  }),
+  "opening_count_withdrawn@1": (payload, event) => ({
+    kind: "opening_count_withdrawn",
+    withdrawal: {
+      movementId: payload.movement_id,
+      withdrawnMovementId: payload.withdrawn_movement_id,
+      withdrawnAt: event.occurredAt,
+      actorId: event.actorId,
+    },
+  }),
   "fiscal_gate_failed@1": (payload) => ({
     kind: "fiscal_gate_failed",
     gateFailure: {

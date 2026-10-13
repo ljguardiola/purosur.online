@@ -222,13 +222,7 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
   };
 }
 
-export function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((settle) => {
-    resolve = settle;
-  });
-  return { promise, resolve };
-}
+export { deferred } from "../../platform/test-support/deferred";
 
 export async function scan(field: ReturnType<typeof page.getByRole>, code: string) {
   await field.fill(code);

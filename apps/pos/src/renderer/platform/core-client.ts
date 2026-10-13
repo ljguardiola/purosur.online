@@ -21,6 +21,7 @@ import type {
   CredentialsRendererToCoreMessage,
   CurrentSaleAnswer,
   EnrollmentOutcome,
+  FindCountableProductOutcome,
   FirstPinCodeRequestOutcome,
   FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
@@ -35,12 +36,14 @@ import type {
   PinPolicy,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
   ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
+  RecordInitialCountLineOutcome,
   RegisterCoreToRendererMessage,
   RegisterRendererToCoreMessage,
   RegisterSerialDevicesOutcome,
@@ -53,6 +56,7 @@ import type {
   SalesHistoryOutcome,
   SalesRendererToCoreMessage,
   ScanProductOutcome,
+  SearchCountableProductsOutcome,
   SearchProductsOutcome,
   SessionOpenSale,
   SessionsCoreToRendererMessage,
@@ -62,8 +66,12 @@ import type {
   SignInOutcome,
   SignInUser,
   StartMercadoPagoChargeOutcome,
+  StockCoreToRendererMessage,
+  StockRendererToCoreMessage,
   SyncCoreToRendererMessage,
+  WeighCountedProductOutcome,
   WeighProductOutcome,
+  WithdrawInitialCountLineOutcome,
 } from "@purosur/contracts";
 import {
   credentialsCoreToRendererMessageSchema,
@@ -71,6 +79,7 @@ import {
   registerCoreToRendererMessageSchema,
   salesCoreToRendererMessageSchema,
   sessionsCoreToRendererMessageSchema,
+  stockCoreToRendererMessageSchema,
   syncCoreToRendererMessageSchema,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
@@ -82,6 +91,7 @@ const coreToRendererMessageSchema = z.discriminatedUnion("type", [
   registerCoreToRendererMessageSchema,
   salesCoreToRendererMessageSchema,
   paymentsCoreToRendererMessageSchema,
+  stockCoreToRendererMessageSchema,
   syncCoreToRendererMessageSchema,
 ]);
 
@@ -91,6 +101,7 @@ type CoreToRendererMessage =
   | RegisterCoreToRendererMessage
   | SalesCoreToRendererMessage
   | PaymentsCoreToRendererMessage
+  | StockCoreToRendererMessage
   | SyncCoreToRendererMessage;
 
 type RendererToCoreMessage =
@@ -98,7 +109,8 @@ type RendererToCoreMessage =
   | CredentialsRendererToCoreMessage
   | RegisterRendererToCoreMessage
   | SalesRendererToCoreMessage
-  | PaymentsRendererToCoreMessage;
+  | PaymentsRendererToCoreMessage
+  | StockRendererToCoreMessage;
 
 export interface CorePort {
   postMessage(message: unknown): void;
@@ -156,6 +168,16 @@ export interface CoreClient {
     weightThousandths: number,
   ): Promise<AddWeighedProductOutcome>;
   weighProduct(productId: string): Promise<WeighProductOutcome>;
+  readInitialCount(): Promise<ReadInitialCountOutcome>;
+  recordInitialCountLine(
+    productId: string,
+    counted: number,
+    expiresOn: string | null,
+  ): Promise<RecordInitialCountLineOutcome>;
+  withdrawInitialCountLine(movementId: string): Promise<WithdrawInitialCountLineOutcome>;
+  findCountableProduct(code: string): Promise<FindCountableProductOutcome>;
+  searchCountableProducts(query: string): Promise<SearchCountableProductsOutcome>;
+  weighCountedProduct(productId: string): Promise<WeighCountedProductOutcome>;
   currentSale(): Promise<CurrentSaleAnswer>;
   changeLineQuantity(
     lineId: string,
@@ -665,6 +687,54 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "weigh-product", request_id: deps.newRequestId(), product_id: productId },
         (answer) => (answer.type === "weigh-product-result" ? answer.outcome : undefined),
+      );
+    },
+    readInitialCount() {
+      return ask({ type: "read-initial-count", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "read-initial-count-result" ? answer.outcome : undefined,
+      );
+    },
+    recordInitialCountLine(productId, counted, expiresOn) {
+      return ask(
+        {
+          type: "record-initial-count-line",
+          request_id: deps.newRequestId(),
+          product_id: productId,
+          counted,
+          expires_on: expiresOn,
+        },
+        (answer) =>
+          answer.type === "record-initial-count-line-result" ? answer.outcome : undefined,
+      );
+    },
+    withdrawInitialCountLine(movementId) {
+      return ask(
+        {
+          type: "withdraw-initial-count-line",
+          request_id: deps.newRequestId(),
+          movement_id: movementId,
+        },
+        (answer) =>
+          answer.type === "withdraw-initial-count-line-result" ? answer.outcome : undefined,
+      );
+    },
+    findCountableProduct(code) {
+      return ask(
+        { type: "find-countable-product", request_id: deps.newRequestId(), code },
+        (answer) => (answer.type === "find-countable-product-result" ? answer.outcome : undefined),
+      );
+    },
+    searchCountableProducts(query) {
+      return ask(
+        { type: "search-countable-products", request_id: deps.newRequestId(), query },
+        (answer) =>
+          answer.type === "search-countable-products-result" ? answer.outcome : undefined,
+      );
+    },
+    weighCountedProduct(productId) {
+      return ask(
+        { type: "weigh-counted-product", request_id: deps.newRequestId(), product_id: productId },
+        (answer) => (answer.type === "weigh-counted-product-result" ? answer.outcome : undefined),
       );
     },
     currentSale() {

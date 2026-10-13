@@ -68,6 +68,10 @@ import type {
   PreviewSaleLineAdjustmentRequest,
 } from "./sales/sale-requests";
 import type { SalesHistoryRequest } from "./sales/sales-history-requests";
+import {
+  answerInitialCountRequest,
+  type InitialCountRequests,
+} from "./stock/initial-count-answers";
 
 export interface RendererRequestDeps {
   credentialsPresent: () => Promise<boolean>;
@@ -118,6 +122,7 @@ export interface RendererRequestDeps {
     | ((productId: string, weightThousandths: number) => Promise<AddWeighedProductOutcome>)
     | undefined;
   weighProduct: ((productId: string) => Promise<WeighProductOutcome>) | undefined;
+  initialCount: InitialCountRequests | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
   cashCharge: ((request: ChargeSaleInCashRequest) => Promise<CashChargeAnswer>) | undefined;
   changeLineQuantity:
@@ -999,6 +1004,13 @@ export async function answerRendererRequest(
         ),
       };
     }
+    case "read-initial-count":
+    case "record-initial-count-line":
+    case "withdraw-initial-count-line":
+    case "find-countable-product":
+    case "search-countable-products":
+    case "weigh-counted-product":
+      return answerInitialCountRequest(deps, message);
     case "sale-request": {
       const sale = await readCurrentSale(deps);
       if (sale === "not_permitted") {

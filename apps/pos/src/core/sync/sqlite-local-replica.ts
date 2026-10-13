@@ -91,6 +91,7 @@ export class SqliteLocalReplica
         this.database.prepare("DELETE FROM register_offline_point_of_sale").run();
         this.database.prepare("DELETE FROM offline_number_blocks").run();
         this.database.prepare("DELETE FROM branch_settings").run();
+        this.database.prepare("DELETE FROM branch_first_cash_sessions").run();
         this.database.prepare("DELETE FROM pulled_table_redeliveries").run();
       }
     })();
@@ -211,6 +212,9 @@ export class SqliteLocalReplica
           });
           break;
         }
+        case "branch_first_cash_session":
+          register.firstCashSession(change);
+          break;
         case "category":
           catalog.category(change);
           break;

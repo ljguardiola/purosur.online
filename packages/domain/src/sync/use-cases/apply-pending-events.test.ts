@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   A_CASH_MOVEMENT_FACT,
   A_SESSION_OPENED_FACT,
+  AN_OPENING_COUNT_RECORDED_FACT,
+  AN_OPENING_COUNT_WITHDRAWN_FACT,
   aCompletedSaleFact,
 } from "../model/test-support/synced-facts.js";
 import { applyPendingEvents } from "./apply-pending-events.js";
@@ -418,6 +420,127 @@ describe("an event that cannot be applied yet", () => {
     expect(application.state.quarantineAlerts).toEqual([
       expect.objectContaining({ eventId: "sale-event", reason: { kind: "not_recorded" } }),
     ]);
+  });
+
+  describe("an opening count", () => {
+    const countEvent = (overrides: Partial<FakeStoredEvent> = {}) =>
+      aStoredEvent({
+        eventId: "count-event",
+        aggregateType: "StockMovement",
+        aggregateId: "movement-1",
+        eventType: "opening_count_recorded",
+        schemaVersion: 1,
+        ...overrides,
+      });
+    const upcaster = () => new FakeEventUpcaster({ "count-event": AN_OPENING_COUNT_RECORDED_FACT });
+
+    it("is applied through the stock, and nothing else is recorded", async () => {
+      const application = new FakeEventApplication([countEvent()]);
+
+      await run(application, upcaster());
+
+      expect(application.state.openingCountsApplied).toEqual([
+        { eventId: "count-event", movementId: "movement-1" },
+      ]);
+      expect(application.state.recorded).toEqual([]);
+      expect(application.event("count-event").appliedAt).toEqual(NOW);
+    });
+
+    it("is retried, with the reason, and leaves nothing behind when the stock refuses it", async () => {
+      const application = new FakeEventApplication([countEvent()]);
+      application.refuseStock.set("count-event", "product product-1 is not in the catalog");
+
+      await run(application, upcaster());
+
+      expect(application.event("count-event")).toMatchObject({
+        appliedAt: null,
+        attempts: 1,
+        error: "product product-1 is not in the catalog",
+      });
+      expect(application.state.openingCountsApplied).toEqual([]);
+      expect(application.calls).toContain("rollback");
+    });
+
+    it("is flagged as not recorded when the stock refuses it on its last allowed attempt", async () => {
+      const application = new FakeEventApplication([countEvent({ attempts: 7 })]);
+      application.refuseStock.set("count-event", "product product-1 is not in the catalog");
+
+      await run(application, upcaster());
+
+      expect(application.state.quarantineAlerts).toEqual([
+        expect.objectContaining({ eventId: "count-event", reason: { kind: "not_recorded" } }),
+      ]);
+    });
+  });
+
+  describe("the withdrawal of an opening count", () => {
+    const appliedCount = () =>
+      aStoredEvent({
+        eventId: "count-event",
+        aggregateType: "StockMovement",
+        aggregateId: "movement-1",
+        eventType: "opening_count_recorded",
+        schemaVersion: 1,
+        appliedAt: new Date("2026-10-07T09:00:00.000Z"),
+      });
+    const withdrawalEvent = (overrides: Partial<FakeStoredEvent> = {}) =>
+      aStoredEvent({
+        eventId: "withdrawal-event",
+        deviceSeq: 2,
+        aggregateType: "StockMovement",
+        aggregateId: "movement-2",
+        eventType: "opening_count_withdrawn",
+        schemaVersion: 1,
+        ...overrides,
+      });
+    const upcaster = () =>
+      new FakeEventUpcaster({ "withdrawal-event": AN_OPENING_COUNT_WITHDRAWN_FACT });
+
+    it("is applied through the stock, and nothing else is recorded", async () => {
+      const application = new FakeEventApplication([appliedCount(), withdrawalEvent()]);
+
+      await run(application, upcaster());
+
+      expect(application.state.openingCountsWithdrawn).toEqual([
+        { eventId: "withdrawal-event", withdrawnMovementId: "movement-1" },
+      ]);
+      expect(application.state.recorded).toEqual([]);
+      expect(application.event("withdrawal-event").appliedAt).toEqual(NOW);
+    });
+
+    it("is retried, with the reason, when the stock refuses it", async () => {
+      const application = new FakeEventApplication([appliedCount(), withdrawalEvent()]);
+      application.refuseStock.set(
+        "withdrawal-event",
+        "opening count movement movement-1 was never counted",
+      );
+
+      await run(application, upcaster());
+
+      expect(application.event("withdrawal-event")).toMatchObject({
+        appliedAt: null,
+        attempts: 1,
+        error: "opening count movement movement-1 was never counted",
+      });
+      expect(application.state.openingCountsWithdrawn).toEqual([]);
+    });
+
+    it("is flagged as not recorded when the stock refuses it on its last allowed attempt", async () => {
+      const application = new FakeEventApplication([
+        appliedCount(),
+        withdrawalEvent({ attempts: 7 }),
+      ]);
+      application.refuseStock.set(
+        "withdrawal-event",
+        "opening count movement movement-1 was never counted",
+      );
+
+      await run(application, upcaster());
+
+      expect(application.state.quarantineAlerts).toEqual([
+        expect.objectContaining({ eventId: "withdrawal-event", reason: { kind: "not_recorded" } }),
+      ]);
+    });
   });
 
   describe("a completed sale paid by Mercado Pago QR", () => {

@@ -1,6 +1,6 @@
 import type { PermissionCatalogWire } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import type { RoleSummary } from "../platform/roles-api";
@@ -8,6 +8,10 @@ import { permissionCatalogFixture } from "../platform/test-support/permission-ca
 import { render } from "../shell/test-support/render-with-router";
 import { RolesListScreen } from "./roles-list-screen";
 import type { RolesListScreenServices } from "./roles-list-services";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
 
 function createServices(
   overrides: Partial<RolesListScreenServices> = {},
@@ -398,7 +402,6 @@ test("navigates to Mi cuenta when the roles request comes back forbidden", async
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
-  window.history.pushState(null, "", "/");
 });
 
 test("has no accessibility violations once loaded", async () => {

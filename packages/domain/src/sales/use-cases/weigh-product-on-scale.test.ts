@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { SalePayment } from "../../payments/index.js";
+import type { ScaleReading } from "../../shared/index.js";
 import { MAX_STOCK_QUANTITY } from "../../stock/index.js";
 import type { SaleWithLines } from "../model/sale.js";
-import type { ScaleReading } from "./scale.js";
 import {
   FakeSaleLedger,
   type FakeSaleLedgerState,

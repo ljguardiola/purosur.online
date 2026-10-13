@@ -2,6 +2,7 @@ import type { EventInvariantViolatedDetail, EventsQuarantinedDetail } from "../.
 import type { MercadoPagoOrderTransaction } from "../../payments/index.js";
 import type { CompletedSale } from "../../sales/index.js";
 import type { Clock, JsonValue } from "../../shared/index.js";
+import type { OpeningCountRecordedFact, OpeningCountWithdrawnFact } from "../../stock/index.js";
 import type { HeldEventState } from "../model/next-event-to-apply.js";
 import type { AggregateKey, SyncedFact } from "../model/synced-fact.js";
 
@@ -24,7 +25,7 @@ export interface FailedAttempt {
   error: string;
 }
 
-export type SaleStockApplication = { kind: "applied" } | { kind: "refused"; reason: string };
+export type StockApplication = { kind: "applied" } | { kind: "refused"; reason: string };
 
 export type ProviderTransactionOfPayment = Pick<
   MercadoPagoOrderTransaction,
@@ -41,7 +42,15 @@ export interface EventApplicationTransaction {
     sale: CompletedSale,
     movements: NonNullable<CompletedSale["stockMovements"]>,
     event: UnappliedEvent,
-  ): Promise<SaleStockApplication>;
+  ): Promise<StockApplication>;
+  applyOpeningCount(
+    count: OpeningCountRecordedFact,
+    event: UnappliedEvent,
+  ): Promise<StockApplication>;
+  withdrawOpeningCount(
+    withdrawal: OpeningCountWithdrawnFact,
+    event: UnappliedEvent,
+  ): Promise<StockApplication>;
   markApplied(eventId: string, at: Date): Promise<void>;
   recordFailedAttempt(eventId: string, failed: FailedAttempt): Promise<void>;
   openQuarantineAlert(details: EventsQuarantinedDetail): Promise<void>;

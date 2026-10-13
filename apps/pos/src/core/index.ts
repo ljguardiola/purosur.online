@@ -106,6 +106,7 @@ import { firstSignIn, signIn } from "./sessions/sign-in";
 import { lookUpSignIn } from "./sessions/sign-in-lookup";
 import { createSignedInPerson } from "./sessions/signed-in-person";
 import { SqliteSignInStore } from "./sessions/sqlite-sign-in-store";
+import { createInitialCountRequests } from "./stock/initial-count-answers";
 import {
   checkInstallation,
   installationCheckResultOf,
@@ -780,6 +781,18 @@ const rendererRequestDeps: RendererRequestDeps = {
             { database: localDatabase, gate: actionGate, now, ids: uuidV7Ids, scale: systelScale },
             productId,
           ),
+  initialCount:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : createInitialCountRequests({
+          database: localDatabase,
+          gate: actionGate,
+          readOutboxChainKey: async () =>
+            (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+          now,
+          ids: uuidV7Ids,
+          scale: systelScale,
+        }),
   currentSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined

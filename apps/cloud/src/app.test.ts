@@ -1560,6 +1560,11 @@ describe("wiring the stock routes", () => {
     { method: "GET", url: "/api/inventory-items" },
     { method: "GET", url: "/api/inventory-counts" },
     { method: "POST", url: "/api/inventory-counts" },
+    { method: "GET", url: "/api/initial-inventory-lots" },
+    {
+      method: "PUT",
+      url: "/api/initial-inventory-lots/00000000-0000-0000-0000-000000000000/reference-cost",
+    },
     {
       method: "GET",
       url: "/api/inventory-levels/00000000-0000-0000-0000-000000000000",
@@ -2536,6 +2541,16 @@ describe("the route access inventory", () => {
         method: "GET",
         url: "/api/inventory-levels/:productId",
         access: capabilityAccess("stock_balances"),
+      },
+      {
+        method: "GET",
+        url: "/api/initial-inventory-lots",
+        access: capabilityAccess("initial_inventory"),
+      },
+      {
+        method: "PUT",
+        url: "/api/initial-inventory-lots/:lotId/reference-cost",
+        access: capabilityAccess("initial_inventory"),
       },
       {
         method: "GET",

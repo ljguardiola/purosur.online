@@ -1,13 +1,13 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { afterEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { PurchasesListScreen } from "./purchases-list-screen";
 import type { PurchasesListScreenServices } from "./purchases-list-services";
 import { compraDeAvena, compraDeMiel } from "./test-support/purchases";
 
-afterEach(() => {
+beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 

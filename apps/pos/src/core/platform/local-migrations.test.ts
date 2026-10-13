@@ -883,7 +883,8 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
-        "0042_integrated_terminal_payments",
+        "0042_initial_count",
+        "0043_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -952,7 +953,8 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
-        "0042_integrated_terminal_payments",
+        "0042_initial_count",
+        "0043_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1016,7 +1018,8 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
-        "0042_integrated_terminal_payments",
+        "0042_initial_count",
+        "0043_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1079,7 +1082,8 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
-        "0042_integrated_terminal_payments",
+        "0042_initial_count",
+        "0043_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1169,7 +1173,8 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
-        "0042_integrated_terminal_payments",
+        "0042_initial_count",
+        "0043_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1251,7 +1256,8 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
-        "0042_integrated_terminal_payments",
+        "0042_initial_count",
+        "0043_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1337,7 +1343,8 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
-        "0042_integrated_terminal_payments",
+        "0042_initial_count",
+        "0043_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1406,7 +1413,8 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
-        "0042_integrated_terminal_payments",
+        "0042_initial_count",
+        "0043_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1467,7 +1475,8 @@ describe("the register's local migrations", () => {
         "0039_manual_line_adjustments",
         "0040_unclear_outcome_settlements",
         "0041_sale_total_discounts",
-        "0042_integrated_terminal_payments",
+        "0042_initial_count",
+        "0043_integrated_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -2058,6 +2067,8 @@ describe("the register's local migrations", () => {
           delta: -1000,
           occurred_at: "2026-10-09T12:05:00.000Z",
           superseded_by_count_id: "pulled-count",
+          expires_on: null,
+          withdraws_movement_id: null,
         },
         {
           id: "pulled-count",
@@ -2067,6 +2078,8 @@ describe("the register's local migrations", () => {
           delta: 2000,
           occurred_at: "2026-10-09T13:00:00.000Z",
           superseded_by_count_id: null,
+          expires_on: null,
+          withdraws_movement_id: null,
         },
       ]);
       expect(after.prepare("SELECT * FROM stock_balances").all()).toEqual([
@@ -2483,10 +2496,10 @@ describe("the register's local migrations", () => {
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.filter(
-        (migration) => migration.name < "0042_integrated_terminal_payments",
+        (migration) => migration.name < "0043_integrated_terminal_payments",
       );
       expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
-        "0042_integrated_terminal_payments",
+        "0043_integrated_terminal_payments",
       );
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -2729,8 +2742,10 @@ describe("the register's local migrations", () => {
           .prepare("SELECT table_name, cursor FROM pulled_table_redeliveries ORDER BY table_name")
           .all(),
       ).toEqual([
+        { table_name: "branch_first_cash_sessions", cursor: 0 },
         { table_name: "register_offline_point_of_sale", cursor: 0 },
         { table_name: "register_point_of_sale", cursor: 0 },
+        { table_name: "stock_movements", cursor: 0 },
       ]);
       expect(after.prepare("SELECT pull_cursor FROM sync_state").all()).toEqual([
         { pull_cursor: 9 },
@@ -3368,5 +3383,101 @@ describe("the register's local migrations", () => {
       expect(() => insertRefund(database, { method: "CARD" })).toThrow(/CHECK/);
       database.close();
     });
+  });
+  it("let the stock movements record an initial count and its withdrawal and keep the first cash session of a branch, none over the movements it holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0042_initial_count",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain("0042_initial_count");
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO stock_movements (id, product_id, kind, delta, occurred_at, superseded_by_count_id)
+         VALUES ('m1', 'p1', 'adjustment', 4000, '2026-10-09T15:00:00.000Z', 'count-1'),
+                ('m2', 'p1', 'receipt', 2000, '2026-10-09T16:00:00.000Z', NULL);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            "SELECT id, kind, delta, superseded_by_count_id, expires_on, withdraws_movement_id FROM stock_movements ORDER BY id",
+          )
+          .all(),
+      ).toEqual([
+        {
+          id: "m1",
+          kind: "adjustment",
+          delta: 4000,
+          superseded_by_count_id: "count-1",
+          expires_on: null,
+          withdraws_movement_id: null,
+        },
+        {
+          id: "m2",
+          kind: "receipt",
+          delta: 2000,
+          superseded_by_count_id: null,
+          expires_on: null,
+          withdraws_movement_id: null,
+        },
+      ]);
+      const insert = (values: {
+        id: string;
+        kind: string;
+        expires_on?: string | null;
+        withdraws_movement_id?: string | null;
+      }) =>
+        after
+          .prepare(
+            `INSERT INTO stock_movements (id, product_id, kind, delta, occurred_at, expires_on, withdraws_movement_id)
+             VALUES (@id, 'p1', @kind, 1000, '2026-10-09T17:00:00.000Z', @expires_on, @withdraws_movement_id)`,
+          )
+          .run({ expires_on: null, withdraws_movement_id: null, ...values });
+      expect(() =>
+        insert({ id: "c1", kind: "opening_count", expires_on: "2026-12-31" }),
+      ).not.toThrow();
+      expect(() => insert({ id: "c2", kind: "opening_count" })).not.toThrow();
+      expect(() =>
+        insert({ id: "w1", kind: "opening_count_withdrawal", withdraws_movement_id: "c1" }),
+      ).not.toThrow();
+      expect(() => insert({ id: "w2", kind: "opening_count_withdrawal" })).not.toThrow();
+      expect(() => insert({ id: "x1", kind: "receipt", expires_on: "2026-12-31" })).toThrow(
+        /CHECK/,
+      );
+      expect(() =>
+        insert({ id: "x2", kind: "opening_count", withdraws_movement_id: "c1" }),
+      ).toThrow(/CHECK/);
+      expect(() => insert({ id: "x3", kind: "stolen" })).toThrow(/CHECK/);
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      expect(
+        after
+          .prepare("SELECT name FROM sqlite_schema WHERE name = 'stock_movements_by_product'")
+          .all(),
+      ).toHaveLength(1);
+
+      after
+        .prepare(
+          "INSERT INTO branch_first_cash_sessions (location_id, opened_at) VALUES ('location', ?)",
+        )
+        .run("2026-10-10T12:00:00.000Z");
+      expect(() =>
+        after
+          .prepare(
+            "INSERT INTO branch_first_cash_sessions (location_id, opened_at) VALUES ('location', ?)",
+          )
+          .run("2026-10-11T12:00:00.000Z"),
+      ).toThrow(/UNIQUE|PRIMARY/);
+      expect(
+        after.prepare("SELECT table_name FROM pulled_table_redeliveries ORDER BY table_name").all(),
+      ).toContainEqual({ table_name: "branch_first_cash_sessions" });
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
   });
 });

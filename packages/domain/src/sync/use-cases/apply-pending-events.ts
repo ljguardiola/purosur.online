@@ -3,11 +3,17 @@ import { mercadoPagoPaymentIsBacked } from "../../payments/index.js";
 import type { CompletedSale } from "../../sales/index.js";
 import { afterFailedAttempt } from "../model/event-application-retry.js";
 import { nextEventToApply } from "../model/next-event-to-apply.js";
-import { type AggregateKey, dependenciesOf, invariantBreaksOf } from "../model/synced-fact.js";
+import {
+  type AggregateKey,
+  dependenciesOf,
+  invariantBreaksOf,
+  type SyncedFact,
+} from "../model/synced-fact.js";
 import type {
   ApplyPendingEventsPorts,
   EventApplicationTransaction,
   QuarantinedEvent,
+  StockApplication,
   UnappliedEvent,
 } from "./event-application-ports.js";
 
@@ -90,6 +96,34 @@ async function requireMercadoPagoPaymentsBacked(
   }
 }
 
+async function applyStock(application: Promise<StockApplication>): Promise<void> {
+  const stock = await application;
+  if (stock.kind === "refused") {
+    throw new EventRefused({ kind: "not_recorded" }, stock.reason);
+  }
+}
+
+async function recordFact(
+  tx: EventApplicationTransaction,
+  fact: SyncedFact,
+  event: UnappliedEvent,
+): Promise<void> {
+  switch (fact.kind) {
+    case "opening_count_recorded":
+      return applyStock(tx.applyOpeningCount(fact.count, event));
+    case "opening_count_withdrawn":
+      return applyStock(tx.withdrawOpeningCount(fact.withdrawal, event));
+    case "sale_completed":
+      await tx.record(fact, event);
+      if (fact.sale.stockMovements !== null) {
+        await applyStock(tx.applySaleStock(fact.sale, fact.sale.stockMovements, event));
+      }
+      return;
+    default:
+      return tx.record(fact, event);
+  }
+}
+
 async function applyEvent(
   ports: ApplyPendingEventsPorts,
   tx: EventApplicationTransaction,
@@ -113,13 +147,7 @@ async function applyEvent(
   if (fact.kind === "sale_completed") {
     await requireMercadoPagoPaymentsBacked(tx, fact.sale);
   }
-  await tx.record(fact, event);
-  if (fact.kind === "sale_completed" && fact.sale.stockMovements !== null) {
-    const stock = await tx.applySaleStock(fact.sale, fact.sale.stockMovements, event);
-    if (stock.kind === "refused") {
-      throw new EventRefused({ kind: "not_recorded" }, stock.reason);
-    }
-  }
+  await recordFact(tx, fact, event);
   await tx.markApplied(event.eventId, now);
   const breaks = invariantBreaksOf(fact);
   if (breaks.length > 0) {

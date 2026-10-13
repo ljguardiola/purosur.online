@@ -1,6 +1,6 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { StrictMode, useState } from "react";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { RegisterPasskeyScreen } from "./register-passkey-screen";
@@ -37,10 +37,6 @@ async function fillName(screen: Awaited<ReturnType<typeof render>>, value: strin
 
 beforeEach(() => {
   window.history.pushState(null, "", "/account-recovery/passkey#the-token");
-});
-
-afterEach(() => {
-  window.history.pushState(null, "", "/");
 });
 
 test("reads the token from the URL fragment and strips it right away", async () => {

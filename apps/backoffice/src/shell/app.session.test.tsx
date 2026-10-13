@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { honey } from "../catalog/test-support/products";
@@ -22,8 +22,6 @@ opensOnlyScreens([
 ]);
 
 beforeEach(resetPageState);
-
-afterEach(resetPageState);
 
 test("routes /sign-in to the sign-in screen, outside the Shell, when no session is live", async () => {
   const services = createAppServices({

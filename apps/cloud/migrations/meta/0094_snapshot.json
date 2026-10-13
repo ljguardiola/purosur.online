@@ -1,5 +1,5 @@
 {
-  "id": "da154cb1-58dd-48d6-97bc-94287e99d3a9",
+  "id": "b13aff98-45b0-4aa7-ae95-ce26c111e17f",
   "prevId": "df374d51-69fa-4fae-a48e-b9b9349fa826",
   "version": "7",
   "dialect": "postgresql",
@@ -603,6 +603,41 @@
         }
       },
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.branch_first_cash_sessions": {
+      "name": "branch_first_cash_sessions",
+      "schema": "",
+      "columns": {
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "opened_at": {
+          "name": "opened_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "branch_first_cash_sessions_location_id_locations_id_fk": {
+          "name": "branch_first_cash_sessions_location_id_locations_id_fk",
+          "tableFrom": "branch_first_cash_sessions",
+          "tableTo": "locations",
+          "columnsFrom": ["location_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -2588,6 +2623,19 @@
           "primaryKey": false,
           "notNull": false
         },
+        "origin_movement_id": {
+          "name": "origin_movement_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "withdrawn": {
+          "name": "withdrawn",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "lot_number": {
           "name": "lot_number",
           "type": "text",
@@ -2725,6 +2773,15 @@
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "lots_origin_movement_id_stock_movements_id_fk": {
+          "name": "lots_origin_movement_id_stock_movements_id_fk",
+          "tableFrom": "lots",
+          "tableTo": "stock_movements",
+          "columnsFrom": ["origin_movement_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2733,6 +2790,11 @@
           "name": "lots_purchase_line_id_key",
           "nullsNotDistinct": false,
           "columns": ["purchase_line_id"]
+        },
+        "lots_origin_movement_id_key": {
+          "name": "lots_origin_movement_id_key",
+          "nullsNotDistinct": false,
+          "columns": ["origin_movement_id"]
         }
       },
       "policies": {},
@@ -2741,9 +2803,13 @@
           "name": "lots_cost_quantity_check",
           "value": "\"lots\".\"cost_quantity\" > 0"
         },
-        "lots_technical_iff_no_purchase_line_check": {
-          "name": "lots_technical_iff_no_purchase_line_check",
-          "value": "\"lots\".\"technical\" = (\"lots\".\"purchase_line_id\" is null)"
+        "lots_exactly_one_origin_check": {
+          "name": "lots_exactly_one_origin_check",
+          "value": "\"lots\".\"technical\"::int + (\"lots\".\"purchase_line_id\" is not null)::int + (\"lots\".\"origin_movement_id\" is not null)::int = 1"
+        },
+        "lots_withdrawn_only_if_initial_count_check": {
+          "name": "lots_withdrawn_only_if_initial_count_check",
+          "value": "not \"lots\".\"withdrawn\" or \"lots\".\"origin_movement_id\" is not null"
         },
         "lots_cost_pair_check": {
           "name": "lots_cost_pair_check",
@@ -3536,9 +3602,13 @@
           "name": "payment_transactions_kind_check",
           "value": "\"payment_transactions\".\"kind\" = 'SALE'"
         },
-        "payment_transactions_method_provider_check": {
-          "name": "payment_transactions_method_provider_check",
-          "value": "(\"payment_transactions\".\"method\" = 'QR' and \"payment_transactions\".\"provider\" = 'MERCADOPAGO_QR') or (\"payment_transactions\".\"method\" = 'POINT' and \"payment_transactions\".\"provider\" = 'MERCADOPAGO_POINT')"
+        "payment_transactions_method_check": {
+          "name": "payment_transactions_method_check",
+          "value": "\"payment_transactions\".\"method\" = 'QR'"
+        },
+        "payment_transactions_provider_check": {
+          "name": "payment_transactions_provider_check",
+          "value": "\"payment_transactions\".\"provider\" = 'MERCADOPAGO_QR'"
         },
         "payment_transactions_amount_check": {
           "name": "payment_transactions_amount_check",
@@ -7226,11 +7296,11 @@
       "checkConstraints": {
         "stock_movements_kind_check": {
           "name": "stock_movements_kind_check",
-          "value": "\"stock_movements\".\"kind\" in ('loss', 'adjustment', 'count', 'sale', 'receipt')"
+          "value": "\"stock_movements\".\"kind\" in ('loss', 'adjustment', 'count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal')"
         },
         "stock_movements_reason_unless_count_sale_or_receipt_check": {
           "name": "stock_movements_reason_unless_count_sale_or_receipt_check",
-          "value": "(\"stock_movements\".\"kind\" in ('count', 'sale', 'receipt')) = (\"stock_movements\".\"reason\" is null)"
+          "value": "(\"stock_movements\".\"kind\" in ('count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal')) = (\"stock_movements\".\"reason\" is null)"
         },
         "stock_movements_sale_line_iff_sale_check": {
           "name": "stock_movements_sale_line_iff_sale_check",

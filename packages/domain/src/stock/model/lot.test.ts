@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lotOfPurchaseLine } from "./lot.js";
+import { lotOfOpeningCount, lotOfPurchaseLine } from "./lot.js";
 
 const LINE = {
   id: "purchase-line-1",
@@ -33,5 +33,29 @@ describe("lotOfPurchaseLine", () => {
       lotNumber: null,
       expiresOn: null,
     });
+  });
+});
+
+describe("lotOfOpeningCount", () => {
+  const COUNT = {
+    movementId: "movement-1",
+    productId: "yerba",
+    locationId: "branch-1",
+    counted: 6_000,
+    expiresOn: "2027-01-31",
+  };
+
+  it("makes a lot of the counted quantity that remembers the movement that counted it and its expiry", () => {
+    expect(lotOfOpeningCount(COUNT)).toEqual({
+      productId: "yerba",
+      locationId: "branch-1",
+      originMovementId: "movement-1",
+      quantityReceived: 6_000,
+      expiresOn: "2027-01-31",
+    });
+  });
+
+  it("leaves the expiry empty when the product counted has none", () => {
+    expect(lotOfOpeningCount({ ...COUNT, expiresOn: null })).toMatchObject({ expiresOn: null });
   });
 });

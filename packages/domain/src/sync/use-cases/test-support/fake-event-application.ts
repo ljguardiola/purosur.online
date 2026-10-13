@@ -26,6 +26,8 @@ export interface FakeEventApplicationState {
   events: FakeStoredEvent[];
   recorded: { fact: SyncedFact; eventId: string }[];
   stockApplied: { eventId: string; saleId: string }[];
+  openingCountsApplied: { eventId: string; movementId: string }[];
+  openingCountsWithdrawn: { eventId: string; withdrawnMovementId: string }[];
   writeOrder: string[];
   appliedOrder: string[];
   quarantineAlerts: EventsQuarantinedDetail[];
@@ -64,6 +66,8 @@ export class FakeEventApplication implements EventApplication {
     events: [],
     recorded: [],
     stockApplied: [],
+    openingCountsApplied: [],
+    openingCountsWithdrawn: [],
     writeOrder: [],
     appliedOrder: [],
     quarantineAlerts: [],
@@ -171,6 +175,30 @@ export class FakeEventApplication implements EventApplication {
           return { kind: "refused", reason: refusal };
         }
         this.state.stockApplied.push({ eventId: event.eventId, saleId: sale.id });
+        return { kind: "applied" };
+      },
+      applyOpeningCount: async (count, event) => {
+        this.state.writeOrder.push("opening count");
+        const refusal = this.refuseStock.get(event.eventId);
+        if (refusal !== undefined) {
+          return { kind: "refused", reason: refusal };
+        }
+        this.state.openingCountsApplied.push({
+          eventId: event.eventId,
+          movementId: count.movementId,
+        });
+        return { kind: "applied" };
+      },
+      withdrawOpeningCount: async (withdrawal, event) => {
+        this.state.writeOrder.push("opening count withdrawal");
+        const refusal = this.refuseStock.get(event.eventId);
+        if (refusal !== undefined) {
+          return { kind: "refused", reason: refusal };
+        }
+        this.state.openingCountsWithdrawn.push({
+          eventId: event.eventId,
+          withdrawnMovementId: withdrawal.withdrawnMovementId,
+        });
         return { kind: "applied" };
       },
       markApplied: async (eventId, at) => {

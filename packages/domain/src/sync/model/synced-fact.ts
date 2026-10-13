@@ -12,6 +12,7 @@ import {
   type SaleReprint,
   stockMovementsMatchLines,
 } from "../../sales/index.js";
+import type { OpeningCountRecordedFact, OpeningCountWithdrawnFact } from "../../stock/index.js";
 
 export type SyncedFact =
   | { kind: "sale_completed"; sale: CompletedSale }
@@ -21,6 +22,8 @@ export type SyncedFact =
   | { kind: "cash_session_opened"; session: CashSessionOpenedFact }
   | { kind: "cash_session_closed"; session: CashSessionClosedFact }
   | { kind: "cash_movement_recorded"; movement: CashMovementRecordedFact }
+  | { kind: "opening_count_recorded"; count: OpeningCountRecordedFact }
+  | { kind: "opening_count_withdrawn"; withdrawal: OpeningCountWithdrawnFact }
   | {
       kind: "qr_payment_replaced";
       replacement: { paymentTransactionId: string; saleId: string };
@@ -43,6 +46,9 @@ export type InvariantBreak =
 export function dependenciesOf(fact: SyncedFact): AggregateKey[] {
   if (fact.kind === "sale_completed" || fact.kind === "sale_cancelled") {
     return [{ aggregateType: "CashSession", aggregateId: fact.sale.sessionId }];
+  }
+  if (fact.kind === "opening_count_withdrawn") {
+    return [{ aggregateType: "StockMovement", aggregateId: fact.withdrawal.withdrawnMovementId }];
   }
   return [];
 }

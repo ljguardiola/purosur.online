@@ -544,6 +544,7 @@ export {
 } from "./shared/index.js";
 export type {
   AdjustmentReason,
+  InitialCountCostFilter,
   LossReason,
   ManualStockMovementKind,
   StockCorrection,
@@ -557,10 +558,12 @@ export {
   countResult,
   DEFAULT_STOCK_PERIOD_DAYS,
   expectedBalance,
+  INITIAL_COUNT_COST_FILTERS,
   isCountedQuantity,
   isListedInStockBalances,
   isLotInStock,
   isMovementQuantity,
+  isReferenceUnitCost,
   LOSS_REASONS,
   lossDelta,
   MANUAL_STOCK_MOVEMENT_KINDS,

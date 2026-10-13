@@ -61,6 +61,14 @@ export const branchSettings = pgTable("branch_settings", {
   version: integer("version").notNull().default(1),
 });
 
+// Written once, when the first cash session of the branch opens, and never changed.
+export const branchFirstCashSessions = pgTable("branch_first_cash_sessions", {
+  locationId: uuid("location_id")
+    .primaryKey()
+    .references(() => locations.id),
+  openedAt: timestamp("opened_at", { withTimezone: true }).notNull(),
+});
+
 // day_of_week: 1 = Monday … 7 = Sunday; a day with no rows here is closed.
 export const branchHours = pgTable(
   "branch_hours",
@@ -477,11 +485,11 @@ export const stockMovements = pgTable(
   (table) => [
     check(
       "stock_movements_kind_check",
-      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'receipt')`,
+      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal')`,
     ),
     check(
       "stock_movements_reason_unless_count_sale_or_receipt_check",
-      sql`(${table.kind} in ('count', 'sale', 'receipt')) = (${table.reason} is null)`,
+      sql`(${table.kind} in ('count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal')) = (${table.reason} is null)`,
     ),
     check(
       "stock_movements_sale_line_iff_sale_check",
@@ -620,7 +628,8 @@ export const purchaseLines = pgTable(
 );
 
 // The stock a purchase line brought in, with the line's exact cost pair; a product's technical lot
-// instead gathers what was consumed before any purchase, with no cost.
+// instead gathers what was consumed before any purchase, with no cost, and an initial-count lot is
+// the stock counted when the branch began, born from its opening count movement with no cost.
 export const lots = pgTable(
   "lots",
   {
@@ -632,6 +641,8 @@ export const lots = pgTable(
       .notNull()
       .references(() => locations.id),
     purchaseLineId: uuid("purchase_line_id").references(() => purchaseLines.id),
+    originMovementId: uuid("origin_movement_id").references(() => stockMovements.id),
+    withdrawn: boolean("withdrawn").notNull().default(false),
     lotNumber: text("lot_number"),
     expiresOn: date("expires_on", { mode: "string" }),
     purchasedOn: date("purchased_on", { mode: "string" }),
@@ -645,10 +656,15 @@ export const lots = pgTable(
   },
   (table) => [
     unique("lots_purchase_line_id_key").on(table.purchaseLineId),
+    unique("lots_origin_movement_id_key").on(table.originMovementId),
     check("lots_cost_quantity_check", sql`${table.costQuantity} > 0`),
     check(
-      "lots_technical_iff_no_purchase_line_check",
-      sql`${table.technical} = (${table.purchaseLineId} is null)`,
+      "lots_exactly_one_origin_check",
+      sql`${table.technical}::int + (${table.purchaseLineId} is not null)::int + (${table.originMovementId} is not null)::int = 1`,
+    ),
+    check(
+      "lots_withdrawn_only_if_initial_count_check",
+      sql`not ${table.withdrawn} or ${table.originMovementId} is not null`,
     ),
     check(
       "lots_cost_pair_check",

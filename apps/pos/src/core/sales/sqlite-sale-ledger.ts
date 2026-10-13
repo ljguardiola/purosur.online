@@ -10,8 +10,6 @@ import {
   type SaleDiscount,
   type SaleLine,
   type SalePayment,
-  type SaleUnit,
-  type SearchableProduct,
 } from "@purosur/domain";
 import type {
   CandidatePromotion,
@@ -19,7 +17,6 @@ import type {
   SaleLedger,
   SaleLedgerTransaction,
   SaleRefund,
-  SellableProduct,
   SellingSession,
 } from "@purosur/domain/sales/use-cases";
 import {
@@ -44,6 +41,11 @@ import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { manualAdjustmentColumns } from "./sqlite-manual-adjustment";
 import { type BenefitColumns, readOpenSale, toBenefit } from "./sqlite-open-sale";
 import { saleDiscountColumns } from "./sqlite-sale-discount";
+import {
+  readActiveProductByBarcode,
+  readActiveProductById,
+  readSearchableProducts,
+} from "./sqlite-sellable-products";
 
 interface PriceRow {
   id: string;
@@ -94,9 +96,9 @@ export class SqliteSaleLedger implements SaleLedger {
       openSale: (sessionId) => readOpenSale(this.database, sessionId),
       installationRevoked: () => this.installationRevoked(),
       registerIdentity: () => this.registerIdentity(),
-      activeProductByBarcode: (code) => this.activeProductByBarcode(code),
-      activeProductById: (productId) => this.activeProductById(productId),
-      searchableProducts: () => this.searchableProducts(),
+      activeProductByBarcode: (code) => readActiveProductByBarcode(this.database, code),
+      activeProductById: (productId) => readActiveProductById(this.database, productId),
+      searchableProducts: () => readSearchableProducts(this.database),
       buyerIdentificationThresholds: () => this.buyerIdentificationThresholds(),
       currentPrice: (productId) => this.currentPrice(productId),
       promotionsTargeting: (productId) => this.promotionsTargeting(productId),
@@ -164,57 +166,6 @@ export class SqliteSaleLedger implements SaleLedger {
       )
       .get();
     return row === undefined ? undefined : { registerId: row.register_id, deviceId: row.device_id };
-  }
-
-  private activeProductByBarcode(code: string): SellableProduct | undefined {
-    const row = this.database
-      .prepare<[string], { id: string; name: string; sale_unit: string }>(
-        `SELECT products.id AS id, products.name AS name, products.sale_unit AS sale_unit
-         FROM products
-         JOIN product_barcodes ON product_barcodes.product_id = products.id
-         WHERE product_barcodes.code = ? AND product_barcodes.active = 1
-           AND products.active = 1 AND products.removed = 0
-         ORDER BY products.id
-         LIMIT 1`,
-      )
-      .get(code);
-    return row === undefined
-      ? undefined
-      : { id: row.id, name: row.name, saleUnit: row.sale_unit as SaleUnit };
-  }
-
-  private activeProductById(productId: string): SellableProduct | undefined {
-    const row = this.database
-      .prepare<[string], { id: string; name: string; sale_unit: string }>(
-        `SELECT id, name, sale_unit FROM products
-         WHERE id = ? AND active = 1 AND removed = 0`,
-      )
-      .get(productId);
-    return row === undefined
-      ? undefined
-      : { id: row.id, name: row.name, saleUnit: row.sale_unit as SaleUnit };
-  }
-
-  private searchableProducts(): SearchableProduct[] {
-    return this.database
-      .prepare<[], { id: string; name: string; sale_unit: string; times_sold_here: number }>(
-        `SELECT products.id AS id, products.name AS name, products.sale_unit AS sale_unit,
-           (SELECT count(*) FROM sale_lines
-            JOIN sales ON sales.id = sale_lines.sale_id
-            WHERE sale_lines.product_id = products.id AND sales.state = 'COMPLETED'
-              AND sales.register_id IN (SELECT id FROM own_register WHERE removed = 0)
-           ) AS times_sold_here
-         FROM products
-         WHERE products.active = 1 AND products.removed = 0
-         ORDER BY products.id`,
-      )
-      .all()
-      .map((row) => ({
-        id: row.id,
-        name: row.name,
-        saleUnit: row.sale_unit as SaleUnit,
-        timesSoldHere: row.times_sold_here,
-      }));
   }
 
   private buyerIdentificationThresholds(): BuyerIdentificationThreshold[] {

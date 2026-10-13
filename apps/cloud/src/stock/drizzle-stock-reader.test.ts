@@ -2,7 +2,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { lotAllocations } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleStockReader } from "./drizzle-stock-reader.js";
-import { insertPurchasedLot, insertTechnicalLot } from "./test-support/lot-fixtures.js";
+import {
+  insertInitialCountLot,
+  insertPurchasedLot,
+  insertTechnicalLot,
+} from "./test-support/lot-fixtures.js";
 import {
   insertBalance,
   insertLocation,
@@ -327,6 +331,7 @@ describe("DrizzleStockReader.stockLevels", () => {
         remaining: 4_000,
         costIncomplete: false,
         cost: { totalCents: 5_000, quantity: 1_000 },
+        initialCount: false,
       },
     ]);
   });
@@ -347,8 +352,57 @@ describe("DrizzleStockReader.stockLevels", () => {
         remaining: -2_000,
         costIncomplete: true,
         cost: null,
+        initialCount: false,
       },
     ]);
+  });
+
+  it("answers a lot of the initial count as such, with no cost until one is set and the stock a later count found in a withdrawn one", async () => {
+    const { actorId, locationId } = await seededActor();
+    const { productId } = await insertProduct(db);
+    const counted = await insertInitialCountLot(db, {
+      productId,
+      locationId,
+      actorId,
+      expiresOn: "2027-03-01",
+      remaining: 6_000,
+    });
+    const withdrawn = await insertInitialCountLot(db, {
+      productId,
+      locationId,
+      actorId,
+      withdrawn: true,
+      remaining: 1_500,
+      unitCostCents: 800,
+    });
+
+    const [level] = await new DrizzleStockReader(db).stockLevels(locationId);
+
+    expect(level?.lots).toHaveLength(2);
+    expect(level?.lots).toEqual(
+      expect.arrayContaining([
+        {
+          id: counted.lotId,
+          lotNumber: null,
+          expiresOn: "2027-03-01",
+          purchase: null,
+          remaining: 6_000,
+          costIncomplete: true,
+          cost: null,
+          initialCount: true,
+        },
+        {
+          id: withdrawn.lotId,
+          lotNumber: null,
+          expiresOn: null,
+          purchase: null,
+          remaining: 1_500,
+          costIncomplete: false,
+          cost: { totalCents: 800, quantity: 1_000 },
+          initialCount: true,
+        },
+      ]),
+    );
   });
 
   it("leaves out the lots with nothing remaining and those of other locations, keeping each product's own", async () => {

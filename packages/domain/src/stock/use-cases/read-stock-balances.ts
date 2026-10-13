@@ -16,6 +16,7 @@ export interface ReadStockBalancesInput {
 
 export type LotOrigin =
   | { kind: "purchase"; purchasedOn: string; supplierName: string }
+  | { kind: "initial_count" }
   | { kind: "product_sales_without_lots" };
 
 export interface StockLotView {
@@ -47,18 +48,23 @@ function purchasedOn(lot: LotInStock): string | null {
   return lot.purchase?.purchasedOn ?? null;
 }
 
+function originOf(lot: LotInStock): LotOrigin {
+  if (lot.purchase) {
+    return { kind: "purchase", ...lot.purchase };
+  }
+  return lot.initialCount ? { kind: "initial_count" } : { kind: "product_sales_without_lots" };
+}
+
 function lotView(lot: LotInStock): StockLotView {
   return {
     id: lot.id,
     lotNumber: lot.lotNumber,
     expiresOn: lot.expiresOn,
-    technical: lot.purchase === null,
+    technical: lot.purchase === null && !lot.initialCount,
     remaining: lot.remaining,
     valueCents: lotValueCents(lot),
     unitCostCents: lotUnitCostCents(lot),
-    origin: lot.purchase
-      ? { kind: "purchase", ...lot.purchase }
-      : { kind: "product_sales_without_lots" },
+    origin: originOf(lot),
   };
 }
 

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { afterEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import {
@@ -17,7 +17,7 @@ import { UserDetailScreen } from "./user-detail-screen";
 import type { BranchUser } from "./users-api";
 import { useRefreshUsers } from "./users-queries";
 
-afterEach(() => {
+beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 

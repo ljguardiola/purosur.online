@@ -1,9 +1,8 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, Scale } from "../../shared/index.js";
 import { mayBeSaleLineQuantity } from "../model/sale-line.js";
 import type { AddedLineOutcome, SaleAdditionRefusal } from "./sale-addition.js";
 import { isSaleAdditionRefusal, saleToAddTo } from "./sale-addition.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
-import type { Scale } from "./scale.js";
 import {
   addWeighedLine,
   isNoPrice,
