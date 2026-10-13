@@ -8,28 +8,23 @@ import type {
   StartupPending,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { TableLoadingState } from "@purosur/ui";
 import {
+  actionsColumn,
   Button,
-  EmptyState,
+  dataColumn,
   Eyebrow,
   FloatingNotification,
   formatCents,
   formatClockTime,
-  LoadFailure,
-  LoadingPlaceholder,
   ScreenHeader,
   SidePanel,
   StatusIndicator,
+  Table,
+  TableCellText,
+  useTableModel,
 } from "@purosur/ui";
-import {
-  ArrowRight,
-  CheckCheck,
-  CreditCard,
-  Landmark,
-  Printer,
-  QrCode,
-  TriangleAlert,
-} from "lucide-react";
+import { ArrowRight, CheckCheck, Printer, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import type { CoreData } from "../platform/use-core-query";
 import type { StartupPendingAnswer } from "../register/register-queries";
@@ -38,18 +33,10 @@ import {
   useRefreshStartupPending,
   useStartupPendingQuery,
 } from "../register/register-queries";
-import { hasStartupPendingItems } from "../register/startup-pending-items";
 import { ReprintReceiptModal } from "../sales/reprint-receipt-modal";
 import { receiptCopyPresentation } from "../sales/sale-history-text";
 import { OpenSessionRail } from "./open-session-rail";
 import type { SignedInPerson } from "./signed-in-person";
-import { StartupPendingRow } from "./startup-pending-row";
-
-const CONSULTING = (
-  <StatusIndicator tone="neutral" busy>
-    Consultando
-  </StatusIndicator>
-);
 
 type SaleToPrint = StartupPending["sales_to_print"][number];
 
@@ -94,111 +81,134 @@ function saleText(completedAt: string, total: number): string {
   return `Venta de las ${formatClockTime(completedAt)} por ${formatCents(total)}.`;
 }
 
-function SaleToPrintRow({
-  sale,
-  printing,
-  onPrint,
-}: {
-  sale: SaleToPrint;
-  printing: boolean;
-  onPrint: () => void;
-}) {
-  const original = sale.standing === "never_printed";
-  return (
-    <StartupPendingRow
-      icon={<Printer />}
-      badge="info"
-      title={original ? "Venta sin ticket" : "Ticket sin confirmar"}
-      detail={
-        original
-          ? `${saleText(sale.completed_at, sale.total)} Nunca se imprimió: sale como ticket original.`
-          : `${saleText(sale.completed_at, sale.total)} Puede que el ticket haya salido: se reimprime como duplicado.`
-      }
-      trailing={
-        <Button
-          variant={original ? "primary" : "secondary"}
-          size="large"
-          icon={<Printer />}
-          dataStatus={printing ? "loading" : "loaded"}
-          onPress={onPrint}
-        >
-          {original ? "Imprimir el ticket" : "Reimprimir como duplicado"}
-        </Button>
-      }
-    />
-  );
+type PendingItem = {
+  id: string;
+  title: string;
+  detail: string;
+  sale: SaleToPrint | undefined;
+};
+
+function pendingItemsOf(pending: StartupPendingAnswer): PendingItem[] {
+  if (pending === "not_permitted") {
+    return [];
+  }
+  return [
+    ...pending.sales_to_print.map((sale) =>
+      sale.standing === "never_printed"
+        ? {
+            id: sale.sale_id,
+            title: "Venta sin ticket",
+            detail: `${saleText(sale.completed_at, sale.total)} Nunca se imprimió: sale como ticket original.`,
+            sale,
+          }
+        : {
+            id: sale.sale_id,
+            title: "Ticket sin confirmar",
+            detail: `${saleText(sale.completed_at, sale.total)} Puede que el ticket haya salido: se reimprime como duplicado.`,
+            sale,
+          },
+    ),
+    ...pending.unknown_fiscal_documents.map((document) => ({
+      id: document.id,
+      title: `Factura de las ${formatClockTime(document.completed_at)}`,
+      detail: "Se está consultando a ARCA si quedó autorizada.",
+      sale: undefined,
+    })),
+    ...pending.pending_payments.map((payment) => ({
+      id: payment.payment_id,
+      title: `Cobro con ${payment.method === "QR" ? "QR" : "Point"} sin confirmar`,
+      detail: `${formatCents(payment.amount)} de la venta de las ${formatClockTime(payment.occurred_at)}. Se está consultando a Mercado Pago.`,
+      sale: undefined,
+    })),
+  ];
 }
 
-function PendingItems({
-  pending,
-  printingSaleId,
-  onPrint,
-}: {
-  pending: StartupPending;
-  printingSaleId: string | undefined;
-  onPrint: (sale: SaleToPrint) => void;
-}) {
-  return (
-    <ul className="flex flex-col gap-4">
-      {pending.sales_to_print.map((sale) => (
-        <SaleToPrintRow
-          key={sale.sale_id}
-          sale={sale}
-          printing={printingSaleId === sale.sale_id}
-          onPrint={() => onPrint(sale)}
-        />
-      ))}
-      {pending.unknown_fiscal_documents.map((document) => (
-        <StartupPendingRow
-          key={document.id}
-          icon={<Landmark />}
-          badge="neutral"
-          title={`Factura de las ${formatClockTime(document.completed_at)}`}
-          detail="Se está consultando a ARCA si quedó autorizada."
-          trailing={CONSULTING}
-        />
-      ))}
-      {pending.pending_payments.map((payment) => (
-        <StartupPendingRow
-          key={payment.payment_id}
-          icon={payment.method === "QR" ? <QrCode /> : <CreditCard />}
-          badge="info"
-          title={`Cobro con ${payment.method === "QR" ? "QR" : "Point"} sin confirmar`}
-          detail={`${formatCents(payment.amount)} de la venta de las ${formatClockTime(payment.occurred_at)}. Se está consultando a Mercado Pago.`}
-          trailing={CONSULTING}
-        />
-      ))}
-    </ul>
-  );
+function printLabel(sale: SaleToPrint): string {
+  const time = formatClockTime(sale.completed_at);
+  return sale.standing === "never_printed"
+    ? `Imprimir el ticket de la venta de las ${time}`
+    : `Reimprimir como duplicado la venta de las ${time}`;
 }
 
-function PendingSection({
+function itemState(item: PendingItem, printingSaleIds: ReadonlySet<string>) {
+  if (item.sale === undefined) {
+    return (
+      <StatusIndicator tone="neutral" busy>
+        Consultando
+      </StatusIndicator>
+    );
+  }
+  return printingSaleIds.has(item.sale.sale_id) ? (
+    <StatusIndicator tone="info" busy>
+      Imprimiendo
+    </StatusIndicator>
+  ) : null;
+}
+
+function loadingOf(data: Exclude<CoreData<unknown>, { status: "failed" }>): TableLoadingState {
+  if (data.status === "loading") {
+    return "initial";
+  }
+  return data.refreshing ? "updating" : false;
+}
+
+function PendingTable({
   data,
-  printingSaleId,
+  printingSaleIds,
   onPrint,
 }: {
   data: CoreData<StartupPendingAnswer>;
-  printingSaleId: string | undefined;
+  printingSaleIds: ReadonlySet<string>;
   onPrint: (sale: SaleToPrint) => void;
 }) {
-  if (data.status === "loading") {
-    return <LoadingPlaceholder variant="list" items={3} />;
-  }
-  if (data.status === "failed") {
-    return (
-      <LoadFailure
-        icon={<TriangleAlert />}
-        title="No se pudo leer lo que quedó pendiente"
-        description="Podés ir a vender igual."
-        onRetry={data.retry}
-      />
-    );
-  }
-  const pending = data.value;
-  if (pending === "not_permitted" || !hasStartupPendingItems(pending)) {
-    return <EmptyState variant="blank" icon={<CheckCheck />} title="No queda nada pendiente" />;
-  }
-  return <PendingItems pending={pending} printingSaleId={printingSaleId} onPrint={onPrint} />;
+  const columns = [
+    dataColumn({
+      id: "item",
+      header: "Pendiente",
+      render: (item: PendingItem) => (
+        <TableCellText description={item.detail}>{item.title}</TableCellText>
+      ),
+    }),
+    dataColumn({
+      id: "state",
+      header: "Estado",
+      render: (item: PendingItem) => itemState(item, printingSaleIds),
+    }),
+    actionsColumn({
+      id: "print",
+      header: "Imprimir",
+      actions: [
+        (item: PendingItem) => {
+          const { sale } = item;
+          return sale === undefined
+            ? undefined
+            : { icon: <Printer />, "aria-label": printLabel(sale), onPress: () => onPrint(sale) };
+        },
+      ],
+    }),
+  ] as const;
+  const table = useTableModel({
+    items: data.status === "loaded" ? pendingItemsOf(data.value) : [],
+    id: (item) => item.id,
+    columns,
+  });
+  return (
+    <Table
+      aria-label="Pendientes"
+      table={table}
+      {...(data.status === "failed"
+        ? {
+            failure: {
+              icon: <TriangleAlert />,
+              title: "No se pudo leer lo que quedó pendiente",
+              description: "Podés ir a vender igual.",
+              onRetry: data.retry,
+            },
+          }
+        : { loading: loadingOf(data) })}
+      empty={{ variant: "blank", icon: <CheckCheck />, title: "No queda nada pendiente" }}
+    />
+  );
 }
 
 export function StartupPendingScreen({
@@ -219,16 +229,23 @@ export function StartupPendingScreen({
   const pending = useStartupPendingQuery(loadStartupPending);
   const balance = useCashBalanceQuery(sessionId, loadCashBalance);
   const refreshPending = useRefreshStartupPending();
-  const [printingSaleId, setPrintingSaleId] = useState<string>();
+  const [printingSaleIds, setPrintingSaleIds] = useState<ReadonlySet<string>>(new Set());
   const [duplicateOf, setDuplicateOf] = useState<SaleToPrint>();
   const [sent, setSent] = useState<ReceiptCopyShown>();
   const [problem, setProblem] = useState<{ title: string; description: string }>();
 
   async function printOriginal(saleId: string) {
-    setPrintingSaleId(saleId);
+    if (printingSaleIds.has(saleId)) {
+      return;
+    }
+    setPrintingSaleIds((printing) => new Set(printing).add(saleId));
     setProblem(undefined);
     const outcome = await printOriginalReceipt(saleId).catch((): "failed" => "failed");
-    setPrintingSaleId(undefined);
+    setPrintingSaleIds((printing) => {
+      const still = new Set(printing);
+      still.delete(saleId);
+      return still;
+    });
     if (outcome === "failed") {
       setProblem(FAILED_PROBLEM);
       return;
@@ -283,7 +300,7 @@ export function StartupPendingScreen({
           title="Hay cosas para resolver"
           description="La caja se cerró sin terminar algunas operaciones. Esto es lo que quedó."
         />
-        <PendingSection data={pending} printingSaleId={printingSaleId} onPrint={print} />
+        <PendingTable data={pending} printingSaleIds={printingSaleIds} onPrint={print} />
       </main>
       <SidePanel
         footer={

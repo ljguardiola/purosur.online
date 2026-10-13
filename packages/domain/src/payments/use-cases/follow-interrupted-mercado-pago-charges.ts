@@ -14,14 +14,21 @@ export interface FollowInterruptedMercadoPagoChargesOutcome<Settlement> {
   failures: { paymentTransactionId: string; error: unknown }[];
 }
 
+export interface FollowInterruptedMercadoPagoChargesInput {
+  runStartedAt: Date;
+}
+
 export async function followInterruptedMercadoPagoCharges<Refusal, Settlement>(
   ports: MercadoPagoChargePorts<Refusal, Settlement>,
+  { runStartedAt }: FollowInterruptedMercadoPagoChargesInput,
 ): Promise<FollowInterruptedMercadoPagoChargesOutcome<Settlement>> {
   const outcome: FollowInterruptedMercadoPagoChargesOutcome<Settlement> = {
     followed: [],
     failures: [],
   };
-  for (const { paymentTransactionId, actorId } of ports.charges.pendingCharges()) {
+  for (const { paymentTransactionId, actorId } of ports.charges.pendingChargesRecordedBefore(
+    runStartedAt,
+  )) {
     try {
       outcome.followed.push({
         paymentTransactionId,

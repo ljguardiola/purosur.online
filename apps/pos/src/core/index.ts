@@ -24,6 +24,7 @@ import {
 } from "./fiscal/real-time-authorization-wiring";
 import { readLatestPreEmissionGateOutcome } from "./fiscal/sqlite-pre-emission-gate";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
+import { createInterruptedChargesFollow } from "./payments/interrupted-charges-follow";
 import { createMercadoPagoCharging } from "./payments/mercado-pago-charge-wiring";
 import { paymentMethodAvailabilityFor } from "./payments/payment-method-availability-requests";
 import {
@@ -174,6 +175,7 @@ const cloudClient: CloudClientDeps | undefined =
     : { cloudUrl, fetch: (input, init) => net.fetch(input, init), sleep };
 
 const now = () => new Date();
+const runStartedAt = now();
 const LOCAL_DATABASE_FILE = "register.sqlite";
 const SYNC_INTERVAL_MS = 30_000;
 const SYNC_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
@@ -390,7 +392,10 @@ const syncSchedule = createSyncSchedule({
     return () => clearTimeout(timer);
   },
   onFailure: reportSyncFailure,
-  afterEachSync: () => rendererConnection.tell(PULLED_NOTICE),
+  afterEachSync: () => {
+    rendererConnection.tell(PULLED_NOTICE);
+    void interruptedCharges.followNow();
+  },
 });
 
 const readDeviceToken = async () => (await mainRequests.readCredentials())?.device_token;
@@ -413,22 +418,6 @@ const mercadoPagoCharging = createMercadoPagoCharging({
   ids: uuidV7Ids,
 });
 
-const startupRecovery = recoverAtStartup({
-  settleInterruptedAuthorizations: () =>
-    settleInterruptedAuthorizations({
-      database: localDatabase,
-      now,
-      reportFailure: (error) =>
-        reportFailure("settling the interrupted real-time authorizations", error),
-      ids: uuidV7Ids,
-      shortCodes: cryptoShortCodes,
-    }),
-  followInterruptedCharges: mercadoPagoCharging.followInterrupted,
-  startSync: () => syncSchedule.start(),
-  reportFailure,
-});
-await startupRecovery.authorizationsSettled;
-
 const receiptPrinting = createReceiptPrinting({
   database: localDatabase,
   gate: actionGate,
@@ -440,6 +429,28 @@ const receiptPrinting = createReceiptPrinting({
   reportFailure,
   syncNow: () => syncSchedule.syncNow(),
 });
+
+const interruptedCharges = createInterruptedChargesFollow({
+  follow: receiptPrinting.afterEachCompletedSale(mercadoPagoCharging.followInterrupted),
+  runStartedAt,
+  reportFailure,
+});
+
+const startupRecovery = recoverAtStartup({
+  settleInterruptedAuthorizations: () =>
+    settleInterruptedAuthorizations({
+      database: localDatabase,
+      now,
+      reportFailure: (error) =>
+        reportFailure("settling the interrupted real-time authorizations", error),
+      ids: uuidV7Ids,
+      shortCodes: cryptoShortCodes,
+    }),
+  followInterruptedCharges: interruptedCharges.followNow,
+  startSync: () => syncSchedule.start(),
+  reportFailure,
+});
+await startupRecovery.authorizationsSettled;
 
 const rendererRequestDeps: RendererRequestDeps = {
   credentialsPresent: () => mainRequests.credentialsPresent(),

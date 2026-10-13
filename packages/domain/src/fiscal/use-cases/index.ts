@@ -194,6 +194,11 @@ export type {
 } from "./read-arca-online-status.js";
 export { readArcaOnlineStatus } from "./read-arca-online-status.js";
 export type {
+  CompletedSaleFiscalDocument,
+  CompletedSaleFiscalDocuments,
+} from "./read-unknown-fiscal-documents.js";
+export { readUnknownFiscalDocuments } from "./read-unknown-fiscal-documents.js";
+export type {
   RealTimeAuthorizationCall,
   RealTimeAuthorizationPorts,
   RealTimeAuthorizationResolved,

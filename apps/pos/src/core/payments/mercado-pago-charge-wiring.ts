@@ -3,7 +3,6 @@ import type {
   FollowMercadoPagoChargeOutcome,
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
-import type { FollowInterruptedMercadoPagoChargesOutcome } from "@purosur/domain/payments/use-cases";
 import type { IdGenerator } from "@purosur/domain/sales/use-cases";
 import {
   type CloudClientDeps,
@@ -15,6 +14,7 @@ import type { ActionGate } from "../sessions/action-gate";
 import { CloudMercadoPagoChargeOrders } from "./cloud-mercado-pago-charge-orders";
 import {
   abandonMercadoPagoChargeFor,
+  type FollowedInterruptedMercadoPagoCharges,
   followInterruptedMercadoPagoChargesFor,
   followMercadoPagoChargeFor,
   type MercadoPagoChargeRequestDeps,
@@ -46,7 +46,7 @@ interface MercadoPagoCharging {
     | ((request: { paymentTransactionId: string }) => Promise<AbandonMercadoPagoChargeOutcome>)
     | undefined;
   followInterrupted:
-    | (() => Promise<FollowInterruptedMercadoPagoChargesOutcome<unknown>>)
+    | ((runStartedAt: Date) => Promise<FollowedInterruptedMercadoPagoCharges>)
     | undefined;
 }
 
@@ -86,6 +86,6 @@ export function createMercadoPagoCharging({
     start: (request) => startMercadoPagoChargeFor(deps, request),
     follow: (request) => followMercadoPagoChargeFor(deps, request),
     abandon: (request) => abandonMercadoPagoChargeFor(deps, request),
-    followInterrupted: () => followInterruptedMercadoPagoChargesFor(deps),
+    followInterrupted: (runStartedAt) => followInterruptedMercadoPagoChargesFor(deps, runStartedAt),
   };
 }

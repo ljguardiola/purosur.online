@@ -5,7 +5,7 @@ import type {
 } from "@purosur/contracts";
 import {
   abandonMercadoPagoCharge,
-  type FollowInterruptedMercadoPagoChargesOutcome,
+  type FollowMercadoPagoChargeOutcome as FollowedMercadoPagoCharge,
   followInterruptedMercadoPagoCharges,
   followMercadoPagoCharge,
   type MercadoPagoChargeOrders,
@@ -126,7 +126,12 @@ export async function followMercadoPagoChargeFor(
   if (guarded.kind !== "performed") {
     return notPerformed(guarded.kind);
   }
-  const outcome = guarded.result;
+  return followedOutcome(guarded.result);
+}
+
+function followedOutcome(
+  outcome: FollowedMercadoPagoCharge<MercadoPagoChargeSettlement>,
+): FollowMercadoPagoChargeOutcome {
   switch (outcome.kind) {
     case "waiting":
       return { kind: "waiting", remaining_seconds: outcome.remainingSeconds };
@@ -187,14 +192,30 @@ export async function abandonMercadoPagoChargeFor(
   return { kind: outcome.kind };
 }
 
+export interface FollowedInterruptedMercadoPagoCharges {
+  followed: { paymentTransactionId: string; outcome: FollowMercadoPagoChargeOutcome }[];
+  failures: { paymentTransactionId: string; error: unknown }[];
+}
+
 export async function followInterruptedMercadoPagoChargesFor(
   deps: MercadoPagoChargeRequestDeps,
-): Promise<FollowInterruptedMercadoPagoChargesOutcome<MercadoPagoChargeSettlement>> {
+  runStartedAt: Date,
+): Promise<FollowedInterruptedMercadoPagoCharges> {
   const outboxChainKey = await deps.readOutboxChainKey();
-  return followInterruptedMercadoPagoCharges({
-    sale: mercadoPagoChargeSale(deps, outboxChainKey),
-    orders: deps.orders,
-    charges: new SqliteMercadoPagoCharges(deps.database),
-    clock: { now: deps.now },
-  });
+  const { followed, failures } = await followInterruptedMercadoPagoCharges(
+    {
+      sale: mercadoPagoChargeSale(deps, outboxChainKey),
+      orders: deps.orders,
+      charges: new SqliteMercadoPagoCharges(deps.database),
+      clock: { now: deps.now },
+    },
+    { runStartedAt },
+  );
+  return {
+    followed: followed.map(({ paymentTransactionId, outcome }) => ({
+      paymentTransactionId,
+      outcome: followedOutcome(outcome),
+    })),
+    failures,
+  };
 }

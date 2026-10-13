@@ -2,7 +2,11 @@ import type { ReceiptPrinters } from "@purosur/domain/sales/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import { SqliteReceiptPrinterSettings } from "../register/sqlite-receipt-printer-settings";
 import type { ActionGate } from "../sessions/action-gate";
-import { printingCompletedSales } from "./printing-completed-sales";
+import {
+  type PrintingCompletedSalesDeps,
+  printingCompletedSales,
+  printingEachCompletedSale,
+} from "./printing-completed-sales";
 import { createReceiptPrintJobs } from "./receipt-print-jobs";
 import {
   printCompletedSaleReceiptFor,
@@ -46,6 +50,9 @@ interface ReceiptPrinting {
   afterCompletedSale<TRequest, TOutcome extends { kind: string }>(
     charge: ((request: TRequest) => Promise<TOutcome>) | undefined,
   ): ((request: TRequest) => Promise<TOutcome>) | undefined;
+  afterEachCompletedSale<TRequest, TFollowed extends { followed: { outcome: { kind: string } }[] }>(
+    follow: ((request: TRequest) => Promise<TFollowed>) | undefined,
+  ): ((request: TRequest) => Promise<TFollowed>) | undefined;
   receiptPrintStatus: ((saleId: string) => ReturnType<typeof receiptPrintStatusFor>) | undefined;
   printOriginalReceipt:
     | ((saleId: string) => ReturnType<typeof printOriginalReceiptFor>)
@@ -72,6 +79,7 @@ export function createReceiptPrinting({
   if (database === undefined || gate === undefined) {
     return {
       afterCompletedSale: (charge) => charge,
+      afterEachCompletedSale: (follow) => follow,
       receiptPrintStatus: undefined,
       printOriginalReceipt: undefined,
       reprintSaleReceipt: undefined,
@@ -88,18 +96,15 @@ export function createReceiptPrinting({
     printers: savedReceiptPrinters(new SqliteReceiptPrinterSettings(database), connectPrinter),
     jobs,
   };
+  const printing: PrintingCompletedSalesDeps = {
+    beforePrinting,
+    print: (saleId) => printCompletedSaleReceiptFor(deps, saleId),
+    syncNow,
+    onFailure: (error) => reportFailure("printing a completed sale's receipt", error),
+  };
   return {
-    afterCompletedSale: (charge) =>
-      charge &&
-      printingCompletedSales(
-        {
-          beforePrinting,
-          print: (saleId) => printCompletedSaleReceiptFor(deps, saleId),
-          syncNow,
-          onFailure: (error) => reportFailure("printing a completed sale's receipt", error),
-        },
-        charge,
-      ),
+    afterCompletedSale: (charge) => charge && printingCompletedSales(printing, charge),
+    afterEachCompletedSale: (follow) => follow && printingEachCompletedSale(printing, follow),
     receiptPrintStatus: (saleId) => receiptPrintStatusFor(deps, saleId),
     printOriginalReceipt: (saleId) => printOriginalReceiptFor(deps, saleId),
     reprintSaleReceipt: (request) => reprintSaleReceiptFor(deps, request),
