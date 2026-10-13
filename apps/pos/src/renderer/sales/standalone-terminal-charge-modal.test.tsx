@@ -69,11 +69,12 @@ describe("StandaloneTerminalChargeModal", () => {
 
   it("tells the cashier to charge on the second terminal and enter what it shows, before the amount", async () => {
     const { screen, field } = await renderModal();
-    const instruction = screen.getByText(
-      "Cobrá en la segunda Point, que funciona sin la caja, y cargá acá lo que muestra la terminal.",
-    );
+    const text =
+      "Cobrá en la segunda Point, que funciona sin la caja, y cargá acá lo que muestra la terminal.";
+    const instruction = screen.getByText(text).first();
 
     await expect.element(instruction).toBeVisible();
+    await expect.element(screen.getByRole("status")).toHaveTextContent(text);
     expect(
       instruction.element().compareDocumentPosition(field.element()) &
         Node.DOCUMENT_POSITION_FOLLOWING,
@@ -182,10 +183,10 @@ describe("StandaloneTerminalChargeModal", () => {
     expect(chargeSale).not.toHaveBeenCalled();
   });
 
-  it("shows no notice besides its title and its buttons before charging", async () => {
+  it("shows no error before charging", async () => {
     const { screen } = await renderModal();
 
-    await expect.element(screen.getByRole("status")).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
   });
 
   it("says up to which amount can be charged and that the rest stays pending", async () => {
