@@ -2,9 +2,12 @@
 // evaluates this file as ordinary Node, so `process.env` reaches the compiled graph.
 import { bucket, defineRailway, image, postgres, project, ref, service } from "railway/iac";
 import { resolveMercadoPagoConfig } from "../apps/cloud/src/payments/mercado-pago-config.ts";
-// Railway IaC cannot register a custom domain: it must be added once in the dashboard or with
-// `railway domain <domain> --service "Cloud Server"`, and only then declared in this file.
-// .github/scripts/apply-edge-rules.mjs reads the same file to scope the edge origin secret.
+// Each environment's custom domain is registered once in the dashboard or with
+// `railway domain <domain> --service "Cloud Server"`, and is deliberately not declared on the
+// service: Railway IaC cannot register one, the CLI leaves an undeclared domain as Railway has it,
+// and a declared one fails the apply whenever the CLI's read of the live domains comes back empty.
+// This file only gives the backoffice its origin, and .github/scripts/apply-edge-rules.mjs reads
+// it to scope the edge origin secret.
 import customDomains from "./custom-domains.json" with { type: "json" };
 
 // Bucket regions and service/database regions are different code sets: "iad" is valid only for a
@@ -135,7 +138,6 @@ export default defineRailway((ctx) => {
   const cloud = service("Cloud Server", {
     source: cloudImage,
     regions: { [SERVICE_REGION]: 1 },
-    domains: CUSTOM_DOMAINS[environment] ?? [],
     deploy: {
       registryCredentials,
       // Read-only: waits, connected as `cloud_app`, until the schema that `Schema Migrations`
