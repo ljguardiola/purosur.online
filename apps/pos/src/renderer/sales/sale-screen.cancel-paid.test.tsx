@@ -165,7 +165,7 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
 });
 
 describe("SaleScreen cancelling a sale with an approved standalone terminal payment", () => {
-  it("offers to cancel a sale paid on the standalone terminal, saying its refund stays pending with a person", async () => {
+  it("offers to cancel a sale paid on the standalone terminal, showing its pending refund", async () => {
     const cancelPaidSale = vi.fn(async (): Promise<CancelPaidSaleOutcome> => CANCELLED);
     const { screen } = await renderScreen({
       currentSale: async () => SALE_WITH_STANDALONE_TERMINAL_PAYMENT,
@@ -178,13 +178,6 @@ describe("SaleScreen cancelling a sale with an approved standalone terminal paym
     await expect
       .element(
         dialog.getByText("Reembolso pendiente del pago con la terminal independiente por $ 900,00"),
-      )
-      .toBeVisible();
-    await expect
-      .element(
-        dialog.getByText(
-          "Lo devuelve una persona desde la terminal independiente o la app de Mercado Pago, nunca en efectivo.",
-        ),
       )
       .toBeVisible();
     expect(cancelPaidSale).not.toHaveBeenCalled();

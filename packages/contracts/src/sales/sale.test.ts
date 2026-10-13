@@ -193,6 +193,10 @@ describe("saleSchema", () => {
     ["its cancellation refused for an unknown reason", { ...sale, cancel_refusal: "closed" }],
     ["its cancellation refused by a boolean", { ...sale, cancel_refusal: true }],
     [
+      "its cancellation refused for holding a standalone terminal payment",
+      { ...sale, cancel_refusal: "holds_standalone_terminal_payment" },
+    ],
+    [
       "its discount on the total refused for a reason that needs a discount",
       { ...sale, sale_discount_refusal: "discount_exceeds_sale" },
     ],

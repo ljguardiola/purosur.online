@@ -625,6 +625,7 @@ describe("the open sale of the cash session", () => {
     { ...openSale, cancellable: "yes" },
     { ...openSale, cancel_refusal: "closed" },
     { ...openSale, cancel_refusal: true },
+    { ...openSale, cancel_refusal: "holds_standalone_terminal_payment" },
     { ...openSale, paid: -1 },
     { ...openSale, refunds_on_cancel: [{ ...cashRefund, method: "CARD" }] },
     { ...openSale, refunds_on_cancel: [{ ...cashRefund, state: "DONE" }] },

@@ -579,7 +579,7 @@ describe("synced event payloads", () => {
   });
 
   describe("a sale cancelled after being paid on the standalone terminal", () => {
-    const cancelled = (): Payload => recordedPayload("sale_cancelled", 5);
+    const cancelled = (): Payload => recordedPayload("sale_cancelled", 5, 1);
     const STANDALONE_PAYMENT = {
       ...CASH_PAYMENT_V2,
       id: "pay-5",
