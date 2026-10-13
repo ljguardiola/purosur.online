@@ -24,15 +24,8 @@ export interface SalesOfGroup extends SoldTotals {
   path: readonly string[];
 }
 
-const PATH_ORDER_SEPARATOR = "\u0000";
-
 function pathOrder(a: SalesOfGroup, b: SalesOfGroup): number {
-  const left = a.path.join(PATH_ORDER_SEPARATOR);
-  const right = b.path.join(PATH_ORDER_SEPARATOR);
-  if (left === right) {
-    return 0;
-  }
-  return left < right ? -1 : 1;
+  return a.path.join().localeCompare(b.path.join());
 }
 
 export function salesOfGroups(rows: readonly SoldLinesOfGroup[]): SalesOfGroup[] {
