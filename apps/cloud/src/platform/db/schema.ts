@@ -1465,8 +1465,8 @@ export const changes = pgTable(
     // Set on a price's changes only, so the feed can tell which branch's list a price belongs to
     // after the price itself is gone.
     priceListId: uuid("price_list_id"),
-    // Set on a user's and a stock movement's changes only, so the feed can tell which branch a
-    // user belongs to after the user itself is gone.
+    // Set on a user's, a stock movement's and a refund completion's changes only, so the feed can
+    // tell which branch each belongs to, a user's even after the user itself is gone.
     locationId: uuid("location_id"),
     // Set on an offline number block's changes only, so the feed can tell which register a block
     // belongs to.

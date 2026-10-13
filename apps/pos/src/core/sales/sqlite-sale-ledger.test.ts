@@ -1630,6 +1630,43 @@ describe("the lines of the sale being changed", () => {
     expect(ledger.transaction((tx) => tx.salePayments("id-1"))).toEqual([transfer]);
   });
 
+  it("stores a standalone terminal payment with who confirmed it and when, and reads it back", () => {
+    scan("111");
+    const confirmedAt = new Date("2026-10-01T12:34:56.000Z");
+    const payment = {
+      id: "payment-1",
+      saleId: "id-1",
+      kind: "SALE",
+      method: "STANDALONE_TERMINAL",
+      provider: "EXTERNAL_TERMINAL",
+      amount: 1500,
+      state: "APPROVED",
+      occurredAt: NOW,
+      authorizedBy: "u1",
+      confirmedAt,
+    } as const;
+
+    ledger.transaction((tx) => tx.recordPayment(payment));
+
+    expect(
+      database
+        .prepare(
+          "SELECT method, provider, amount, tendered, authorized_by, confirmed_at FROM payment_transactions",
+        )
+        .all(),
+    ).toEqual([
+      {
+        method: "STANDALONE_TERMINAL",
+        provider: "EXTERNAL_TERMINAL",
+        amount: 1500,
+        tendered: null,
+        authorized_by: "u1",
+        confirmed_at: confirmedAt.toISOString(),
+      },
+    ]);
+    expect(ledger.transaction((tx) => tx.salePayments("id-1"))).toEqual([payment]);
+  });
+
   it("chains only the final lines of a sale charged in cash in its sale_completed event", () => {
     scan("111");
     scan("111");

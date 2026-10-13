@@ -3,6 +3,7 @@ import type {
   CashChargeAnswer,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleOnStandaloneTerminalOutcome,
   CurrentSaleAnswer,
   FollowMercadoPagoChargeOutcome,
   OpenSale,
@@ -43,12 +44,14 @@ import {
   useRefreshCurrentSale,
   useRefreshPaymentMethodAvailability,
 } from "./sales-queries";
+import { StandaloneTerminalChargeModal } from "./standalone-terminal-charge-modal";
 import { TransferChargeModal } from "./transfer-charge-modal";
 
 type Step =
   | { name: "methods" }
   | { name: "cash" }
   | { name: "transfer" }
+  | { name: "standalone-terminal" }
   | { name: "qr" }
   | { name: "qr-wait"; order: ShownQrOrder; sale: OpenSale }
   | { name: "point" }
@@ -65,6 +68,8 @@ function stepOf(method: ChargeMethod): Step {
       return { name: "qr" };
     case "TRANSFER":
       return { name: "transfer" };
+    case "STANDALONE_TERMINAL":
+      return { name: "standalone-terminal" };
   }
 }
 
@@ -93,6 +98,10 @@ export type ChargeScreenProps = {
   cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
+  chargeSaleOnStandaloneTerminal: (
+    saleId: string,
+    amount: number,
+  ) => Promise<ChargeSaleOnStandaloneTerminalOutcome>;
   paymentMethodAvailability: () => Promise<PaymentMethodAvailability | null>;
   startMercadoPagoCharge: (
     saleId: string,
@@ -118,6 +127,7 @@ export function ChargeScreen({
   cashCharge,
   chargeSaleInCash,
   chargeSaleByTransfer,
+  chargeSaleOnStandaloneTerminal,
   paymentMethodAvailability,
   startMercadoPagoCharge,
   followMercadoPagoCharge,
@@ -258,6 +268,25 @@ export function ChargeScreen({
           onChooseAnotherMethod={() => setStep({ name: "methods" })}
           onCompleted={(charge) =>
             setStep({ name: "completed", payment: { method: "TRANSFER", charge }, sale })
+          }
+          onPartiallyPaid={backToMethodsWithBalance}
+          onSaleUnavailable={backToSale}
+          onSessionInvalid={onSessionInvalid}
+        />
+      ) : null}
+      {sale !== undefined && step.name === "standalone-terminal" ? (
+        <StandaloneTerminalChargeModal
+          total={sale.total}
+          paid={sale.paid}
+          pending={sale.pending}
+          charge={(amount) => chargeSaleOnStandaloneTerminal(sale.id, amount)}
+          onChooseAnotherMethod={() => setStep({ name: "methods" })}
+          onCompleted={(charge) =>
+            setStep({
+              name: "completed",
+              payment: { method: "STANDALONE_TERMINAL", charge },
+              sale,
+            })
           }
           onPartiallyPaid={backToMethodsWithBalance}
           onSaleUnavailable={backToSale}

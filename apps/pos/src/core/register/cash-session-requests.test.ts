@@ -916,6 +916,21 @@ describe("the open sale of the session", () => {
     },
   );
 
+  it("tells that a sale holding an approved standalone terminal payment cannot be cancelled at the register", async () => {
+    addOpenSale(await openAs("u1", 5000), 3500);
+    database
+      .prepare(
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, authorized_by, confirmed_at, state, occurred_at) VALUES ('standalone-1', 'sale-1', 'SALE', 'STANDALONE_TERMINAL', 'EXTERNAL_TERMINAL', 2000, 'u1', ?, 'APPROVED', ?)",
+      )
+      .run(NOW.toISOString(), NOW.toISOString());
+
+    expect(sessionOpenSaleFor(database, NOW)).toMatchObject({
+      cancellable: false,
+      cancel_refusal: "holds_standalone_terminal_payment",
+      refunds_on_cancel: [],
+    });
+  });
+
   it("tells what was paid and the refund each approved payment would give back by its own method", async () => {
     addOpenSale(await openAs("u1", 5000), 3500);
     addApprovedPayment("payment-1", "CASH", 1000);

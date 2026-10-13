@@ -73,6 +73,7 @@ export type SaleCompletedModalProps = {
   | { method: "TRANSFER"; amount: number }
   | { method: "QR"; amount: number }
   | { method: "POINT"; amount: number }
+  | { method: "STANDALONE_TERMINAL"; amount: number }
 );
 
 export function SaleCompletedModal(props: SaleCompletedModalProps) {
@@ -87,7 +88,9 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
         ? { label: "QR de Mercado Pago", value: formatCents(props.amount) }
         : props.method === "POINT"
           ? { label: "Point integrada", value: formatCents(props.amount) }
-          : { label: "Efectivo entregado", value: formatCents(props.tendered) };
+          : props.method === "STANDALONE_TERMINAL"
+            ? { label: "Terminal independiente", value: formatCents(props.amount) }
+            : { label: "Efectivo entregado", value: formatCents(props.tendered) };
   const failedStanding = receipt.status === "loaded" ? failedStandingOf(receipt.value) : undefined;
 
   if (receipt.status === "loaded" && failedStanding !== undefined) {
