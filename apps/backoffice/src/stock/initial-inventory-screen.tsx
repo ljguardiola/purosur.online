@@ -71,7 +71,7 @@ const columns = [
         strong
         description={
           lot.withdrawn
-            ? `Línea retirada · quedan ${formatStockQuantity(lot.remaining, lot.saleUnit)}`
+            ? `Línea retirada · en stock: ${formatStockQuantity(lot.remaining, lot.saleUnit)}`
             : undefined
         }
       >
