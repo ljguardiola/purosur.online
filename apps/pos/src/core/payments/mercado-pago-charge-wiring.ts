@@ -3,6 +3,7 @@ import type {
   FollowMercadoPagoChargeOutcome,
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
+import type { FollowInterruptedMercadoPagoChargesOutcome } from "@purosur/domain/payments/use-cases";
 import type { IdGenerator } from "@purosur/domain/sales/use-cases";
 import {
   type CloudClientDeps,
@@ -14,6 +15,7 @@ import type { ActionGate } from "../sessions/action-gate";
 import { CloudMercadoPagoChargeOrders } from "./cloud-mercado-pago-charge-orders";
 import {
   abandonMercadoPagoChargeFor,
+  followInterruptedMercadoPagoChargesFor,
   followMercadoPagoChargeFor,
   type MercadoPagoChargeRequestDeps,
   startMercadoPagoChargeFor,
@@ -43,6 +45,9 @@ interface MercadoPagoCharging {
   abandon:
     | ((request: { paymentTransactionId: string }) => Promise<AbandonMercadoPagoChargeOutcome>)
     | undefined;
+  followInterrupted:
+    | (() => Promise<FollowInterruptedMercadoPagoChargesOutcome<unknown>>)
+    | undefined;
 }
 
 export function createMercadoPagoCharging({
@@ -55,7 +60,12 @@ export function createMercadoPagoCharging({
   ids,
 }: MercadoPagoChargingWiringDeps): MercadoPagoCharging {
   if (database === undefined || gate === undefined || cloudClient === undefined) {
-    return { start: undefined, follow: undefined, abandon: undefined };
+    return {
+      start: undefined,
+      follow: undefined,
+      abandon: undefined,
+      followInterrupted: undefined,
+    };
   }
   const deps: MercadoPagoChargeRequestDeps = {
     database,
@@ -76,5 +86,6 @@ export function createMercadoPagoCharging({
     start: (request) => startMercadoPagoChargeFor(deps, request),
     follow: (request) => followMercadoPagoChargeFor(deps, request),
     abandon: (request) => abandonMercadoPagoChargeFor(deps, request),
+    followInterrupted: () => followInterruptedMercadoPagoChargesFor(deps),
   };
 }

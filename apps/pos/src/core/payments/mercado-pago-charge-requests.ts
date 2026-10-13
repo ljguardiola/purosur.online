@@ -5,6 +5,8 @@ import type {
 } from "@purosur/contracts";
 import {
   abandonMercadoPagoCharge,
+  type FollowInterruptedMercadoPagoChargesOutcome,
+  followInterruptedMercadoPagoCharges,
   followMercadoPagoCharge,
   type MercadoPagoChargeOrders,
   type MercadoPagoChargeSale,
@@ -183,4 +185,16 @@ export async function abandonMercadoPagoChargeFor(
     return { kind: "already_paid", settlement: settledOutcome(outcome.settlement) };
   }
   return { kind: outcome.kind };
+}
+
+export async function followInterruptedMercadoPagoChargesFor(
+  deps: MercadoPagoChargeRequestDeps,
+): Promise<FollowInterruptedMercadoPagoChargesOutcome<MercadoPagoChargeSettlement>> {
+  const outboxChainKey = await deps.readOutboxChainKey();
+  return followInterruptedMercadoPagoCharges({
+    sale: mercadoPagoChargeSale(deps, outboxChainKey),
+    orders: deps.orders,
+    charges: new SqliteMercadoPagoCharges(deps.database),
+    clock: { now: deps.now },
+  });
 }
