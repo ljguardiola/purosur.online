@@ -60,7 +60,7 @@ describe("stockLossBodySchema", () => {
     });
   });
 
-  it.each([undefined, "supplier_return", "count", "THEFT"])("rejects the reason %j", (reason) => {
+  it.each([undefined, "supplier_return", "count", "THEFT", "expired"])("rejects the reason %j", (reason) => {
     expect(firstIssue(stockLossBodySchema, { ...loss, reason })).toEqual({
       field: "reason",
       message: "reason must be one of the loss reasons",
