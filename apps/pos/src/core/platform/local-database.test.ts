@@ -1,8 +1,9 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
-import type { LocalMigration } from "./local-database";
+import { appliedMigrationNames, type LocalMigration } from "./local-database";
 import { migrationClock } from "./test-support/migration-clock";
 import { openLocalDatabase } from "./test-support/open-local-database";
 
@@ -102,5 +103,56 @@ describe("the register's local database", () => {
       .all();
     expect(tables).toEqual([{ name: "half" }, { name: "later" }]);
     fixed.close();
+  });
+});
+
+describe("the migrations a local database file already applied", () => {
+  it("are the names the database recorded", () => {
+    const path = databasePath();
+    openLocalDatabase(path, [FIRST, SECOND], migrationClock).close();
+
+    expect(appliedMigrationNames(path).sort()).toEqual(["0000_notes", "0001_note_authors"]);
+  });
+
+  it("are none when the file does not exist, and it is not created", () => {
+    const path = databasePath();
+
+    expect(appliedMigrationNames(path)).toEqual([]);
+    expect(() => readFileSync(path)).toThrow(/ENOENT/);
+  });
+
+  it("are none when the database never recorded a migration", () => {
+    const path = databasePath();
+    mkdirSync(join(path, ".."), { recursive: true });
+    const database = new Database(path);
+    database.exec("CREATE TABLE notes (id INTEGER PRIMARY KEY)");
+    database.close();
+
+    expect(appliedMigrationNames(path)).toEqual([]);
+  });
+
+  it("are read from a write-ahead database another connection created and closed", () => {
+    const path = databasePath();
+    const writer = openLocalDatabase(path, [FIRST], migrationClock);
+    writer.prepare("INSERT INTO notes (body) VALUES ('hola')").run();
+    writer.close();
+
+    expect(appliedMigrationNames(path)).toEqual(["0000_notes"]);
+  });
+
+  it("are read while another connection holds the database open", () => {
+    const path = databasePath();
+    const writer = openLocalDatabase(path, [FIRST, SECOND], migrationClock);
+
+    expect(appliedMigrationNames(path).sort()).toEqual(["0000_notes", "0001_note_authors"]);
+    writer.close();
+  });
+
+  it("refuse a file that is not a database", () => {
+    const path = databasePath();
+    mkdirSync(join(path, ".."), { recursive: true });
+    writeFileSync(path, Buffer.alloc(8192, 0xab));
+
+    expect(() => appliedMigrationNames(path)).toThrow(/not a database/);
   });
 });

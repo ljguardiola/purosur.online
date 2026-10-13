@@ -279,6 +279,7 @@ export { healthCheckSchema } from "./register/health-check.js";
 export type { InstallationKeysBody } from "./register/installation-keys.js";
 export type {
   CoreReadyMessage,
+  CoreRefusedMessage,
   CoreStatusMessage,
   CoreStatusRequest,
   CredentialsReplacement,
