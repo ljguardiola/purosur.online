@@ -42,6 +42,8 @@ import {
   productTags,
   purchaseLines,
   purchases,
+  recipeComponents,
+  recipes,
   roles,
   sessions,
   suppliers,
@@ -879,6 +881,213 @@ describe("product_packagings", () => {
       }),
     ).rejects.toMatchObject({
       cause: { constraint: "product_packagings_product_id_products_id_fk" },
+    });
+  });
+});
+
+describe("recipes", () => {
+  async function seedProducts(): Promise<{
+    assembledId: string;
+    componentId: string;
+    actorId: string;
+  }> {
+    const actor = await insertUser("ada@example.com");
+    const [category] = await db
+      .insert(categories)
+      .values({ name: "Almacén" })
+      .returning({ id: categories.id });
+    const inserted = await db
+      .insert(products)
+      .values([
+        { name: "Mix de frutos secos", categoryId: category?.id as string, saleUnit: "KG" },
+        { name: "Nueces", categoryId: category?.id as string, saleUnit: "KG" },
+      ])
+      .returning({ id: products.id });
+    return {
+      assembledId: inserted[0]?.id as string,
+      componentId: inserted[1]?.id as string,
+      actorId: actor.id,
+    };
+  }
+
+  it("starts a recipe at version 1", async () => {
+    const { assembledId, actorId } = await seedProducts();
+
+    const [recipe] = await db
+      .insert(recipes)
+      .values({ productId: assembledId, actorId })
+      .returning();
+
+    expect(recipe).toMatchObject({ productId: assembledId, version: 1, actorId });
+  });
+
+  it("rejects a second recipe of the same product", async () => {
+    const { assembledId, actorId } = await seedProducts();
+    await db.insert(recipes).values({ productId: assembledId, actorId });
+
+    await expect(
+      db.insert(recipes).values({ productId: assembledId, actorId }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "recipes_pkey" },
+    });
+  });
+
+  it("rejects a recipe of a product that doesn't exist", async () => {
+    const { actorId } = await seedProducts();
+
+    await expect(
+      db.insert(recipes).values({ productId: MISSING_ID, actorId }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "recipes_product_id_products_id_fk" },
+    });
+  });
+
+  it("rejects a recipe saved by a user that doesn't exist", async () => {
+    const { assembledId } = await seedProducts();
+
+    await expect(
+      db.insert(recipes).values({ productId: assembledId, actorId: MISSING_ID }),
+    ).rejects.toMatchObject({ cause: { constraint: "recipes_actor_id_users_id_fk" } });
+  });
+});
+
+describe("recipe_components", () => {
+  async function seedRecipe() {
+    const actor = await insertUser("ada@example.com");
+    const [category] = await db
+      .insert(categories)
+      .values({ name: "Almacén" })
+      .returning({ id: categories.id });
+    const inserted = await db
+      .insert(products)
+      .values([
+        { name: "Mix de frutos secos", categoryId: category?.id as string, saleUnit: "KG" },
+        { name: "Nueces", categoryId: category?.id as string, saleUnit: "KG" },
+        { name: "Pasas", categoryId: category?.id as string, saleUnit: "KG" },
+      ])
+      .returning({ id: products.id });
+    const [assembledId, nutsId, raisinsId] = inserted.map((row) => row.id) as [
+      string,
+      string,
+      string,
+    ];
+    await db.insert(recipes).values({ productId: assembledId, actorId: actor.id });
+    return { assembledId, nutsId, raisinsId };
+  }
+
+  it("keeps the components of a recipe at the positions they were given", async () => {
+    const { assembledId, nutsId, raisinsId } = await seedRecipe();
+
+    await db.insert(recipeComponents).values([
+      {
+        productId: assembledId,
+        componentProductId: raisinsId,
+        quantityPerOutputUnit: 400,
+        position: 0,
+      },
+      {
+        productId: assembledId,
+        componentProductId: nutsId,
+        quantityPerOutputUnit: 600,
+        position: 1,
+      },
+    ]);
+
+    const stored = await db.select().from(recipeComponents).orderBy(recipeComponents.position);
+    expect(stored.map((row) => row.componentProductId)).toEqual([raisinsId, nutsId]);
+  });
+
+  it("rejects a component repeated in the same recipe", async () => {
+    const { assembledId, nutsId } = await seedRecipe();
+    await db.insert(recipeComponents).values({
+      productId: assembledId,
+      componentProductId: nutsId,
+      quantityPerOutputUnit: 600,
+      position: 0,
+    });
+
+    await expect(
+      db.insert(recipeComponents).values({
+        productId: assembledId,
+        componentProductId: nutsId,
+        quantityPerOutputUnit: 100,
+        position: 1,
+      }),
+    ).rejects.toMatchObject({ cause: { constraint: "recipe_components_pkey" } });
+  });
+
+  it("rejects two components at the same position of a recipe", async () => {
+    const { assembledId, nutsId, raisinsId } = await seedRecipe();
+    await db.insert(recipeComponents).values({
+      productId: assembledId,
+      componentProductId: nutsId,
+      quantityPerOutputUnit: 600,
+      position: 0,
+    });
+
+    await expect(
+      db.insert(recipeComponents).values({
+        productId: assembledId,
+        componentProductId: raisinsId,
+        quantityPerOutputUnit: 400,
+        position: 0,
+      }),
+    ).rejects.toMatchObject({ cause: { constraint: "recipe_components_product_id_position_key" } });
+  });
+
+  it("rejects the assembled product as its own component", async () => {
+    const { assembledId } = await seedRecipe();
+
+    await expect(
+      db.insert(recipeComponents).values({
+        productId: assembledId,
+        componentProductId: assembledId,
+        quantityPerOutputUnit: 600,
+        position: 0,
+      }),
+    ).rejects.toMatchObject({ cause: { constraint: "recipe_components_not_itself_check" } });
+  });
+
+  it.each([0, -1])("rejects the quantity %d", async (quantityPerOutputUnit) => {
+    const { assembledId, nutsId } = await seedRecipe();
+
+    await expect(
+      db.insert(recipeComponents).values({
+        productId: assembledId,
+        componentProductId: nutsId,
+        quantityPerOutputUnit,
+        position: 0,
+      }),
+    ).rejects.toMatchObject({ cause: { constraint: "recipe_components_quantity_check" } });
+  });
+
+  it("rejects a component of a product that doesn't exist", async () => {
+    const { assembledId } = await seedRecipe();
+
+    await expect(
+      db.insert(recipeComponents).values({
+        productId: assembledId,
+        componentProductId: MISSING_ID,
+        quantityPerOutputUnit: 600,
+        position: 0,
+      }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "recipe_components_component_product_id_products_id_fk" },
+    });
+  });
+
+  it("rejects a component of a product that has no recipe", async () => {
+    const { nutsId, raisinsId } = await seedRecipe();
+
+    await expect(
+      db.insert(recipeComponents).values({
+        productId: nutsId,
+        componentProductId: raisinsId,
+        quantityPerOutputUnit: 600,
+        position: 0,
+      }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "recipe_components_product_id_recipes_product_id_fk" },
     });
   });
 });
