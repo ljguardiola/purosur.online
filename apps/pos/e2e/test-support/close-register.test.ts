@@ -42,19 +42,21 @@ describe("closing a register", () => {
     expect(launched.kills).toBe(0);
   });
 
-  it("kills the register's process and fails, saying so, when it does not close within the bound", async () => {
+  it("kills the register's process, resolves and reports it when it does not close within the bound", async () => {
+    const report = vi.spyOn(console, "error").mockImplementation(() => {});
     const launched = standInApp(() => new Promise<void>(() => {}));
 
     const closing = closeRegister(launched.app);
-    const failure = expect(closing).rejects.toThrow(
-      "the register did not close within 60000 ms and was killed",
-    );
     await vi.advanceTimersByTimeAsync(BOUND_MS - 1);
     expect(launched.kills).toBe(0);
     await vi.advanceTimersByTimeAsync(1);
 
-    await failure;
+    await expect(closing).resolves.toBeUndefined();
     expect(launched.kills).toBe(1);
+    expect(report).toHaveBeenCalledWith(
+      "the register did not close within 60000 ms and was killed",
+    );
+    report.mockRestore();
   });
 
   it("closes nothing when the register's process has already exited", async () => {
