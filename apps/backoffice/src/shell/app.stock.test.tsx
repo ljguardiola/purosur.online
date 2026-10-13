@@ -300,6 +300,7 @@ test("shows no alerts count in a Stock screen's top bar while no alert is open",
 
   await expect.element(screen.getByRole("heading", { name: "Saldos", level: 1 })).toBeVisible();
   await expect.poll(() => services.alertsOpenCountLink.fetchAlertsOverview).toHaveBeenCalled();
+  await expect.element(screen.getByText("Cargando…")).not.toBeInTheDocument();
   expect(screen.getByText(/alertas? abiertas?/).query()).toBeNull();
 });
 
