@@ -138,6 +138,22 @@ export function aTransferCancelledSale(overrides: Partial<CancelledSale> = {}): 
   };
 }
 
+export function aStandaloneTerminalCancelledSale(
+  overrides: Partial<CancelledSale> = {},
+): CancelledSale {
+  const base = aTransferCancelledSale(overrides);
+  const [transfer] = base.payments;
+  const [refund] = base.refunds;
+  if (!transfer || !refund) {
+    throw new Error("test setup: the cancelled sale has no payment");
+  }
+  return {
+    ...base,
+    payments: [{ ...transfer, method: "STANDALONE_TERMINAL", provider: "EXTERNAL_TERMINAL" }],
+    refunds: [{ ...refund, method: "STANDALONE_TERMINAL", provider: "EXTERNAL_TERMINAL" }],
+  };
+}
+
 export function aCashSessionOpenedFact(
   overrides: Partial<FactOf<"cash_session_opened">["session"]> = {},
 ): SyncedFact {

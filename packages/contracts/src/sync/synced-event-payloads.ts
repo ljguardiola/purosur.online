@@ -279,14 +279,35 @@ const saleRefundFields = {
   id: text,
   kind: z.literal("REFUND"),
   parent_id: text,
-  provider: z.literal("NONE"),
   amount: cents,
   occurred_at: instant,
 };
 
 const saleRefundSchema = z.discriminatedUnion("method", [
-  z.object({ ...saleRefundFields, method: z.literal("CASH"), state: z.literal("APPROVED") }),
-  z.object({ ...saleRefundFields, method: z.literal("TRANSFER"), state: z.literal("PENDING") }),
+  z.object({
+    ...saleRefundFields,
+    method: z.literal("CASH"),
+    provider: z.literal("NONE"),
+    state: z.literal("APPROVED"),
+  }),
+  z.object({
+    ...saleRefundFields,
+    method: z.literal("TRANSFER"),
+    provider: z.literal("NONE"),
+    state: z.literal("PENDING"),
+  }),
+]);
+
+const standaloneTerminalRefundSchema = z.object({
+  ...saleRefundFields,
+  method: z.literal("STANDALONE_TERMINAL"),
+  provider: z.literal("EXTERNAL_TERMINAL"),
+  state: z.literal("PENDING"),
+});
+
+const saleRefundWithStandaloneTerminalSchema = z.discriminatedUnion("method", [
+  ...saleRefundSchema.options,
+  standaloneTerminalRefundSchema,
 ]);
 
 const saleCancelledV1Schema = z.object({
@@ -307,6 +328,17 @@ const saleCancelledV3Schema = saleCancelledV2Schema.extend({
 const saleCancelledV4Schema = saleCancelledV3Schema.extend({
   sale_discount: saleDiscountSchema.nullable(),
   lines: z.array(discountedSaleLineSchema),
+});
+
+const paymentWithStandaloneTerminalSchema = z.discriminatedUnion("method", [
+  cashPaymentSchema,
+  transferPaymentSchema,
+  standaloneTerminalPaymentSchema,
+]);
+
+const saleCancelledV5Schema = saleCancelledV4Schema.extend({
+  payments: z.array(paymentWithStandaloneTerminalSchema).min(1),
+  refunds: z.array(saleRefundWithStandaloneTerminalSchema).min(1),
 });
 
 const cashSessionOpenedSchema = z.object({
@@ -373,6 +405,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_cancelled@2": saleCancelledV2Schema,
   "sale_cancelled@3": saleCancelledV3Schema,
   "sale_cancelled@4": saleCancelledV4Schema,
+  "sale_cancelled@5": saleCancelledV5Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,
