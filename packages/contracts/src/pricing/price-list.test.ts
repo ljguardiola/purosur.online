@@ -12,12 +12,19 @@ const priced = {
   currentPrice: { id: "price-1", unitPrice: 750000, validFrom: at },
   secondsSinceReview: 0,
   pending: false,
+  costReference: {
+    lastCostCents: 500000,
+    freightPerUnitCents: 0,
+    totalCostCents: 500000,
+    marginTenthsOfPercent: 333,
+  },
 };
 const unpriced = {
   ...priced,
   id: "product-2",
   currentPrice: null,
   secondsSinceReview: null,
+  costReference: { ...priced.costReference, marginTenthsOfPercent: null },
 };
 const almacen = { id: "category-1", name: "Almacén" };
 const list = {
@@ -48,6 +55,73 @@ describe("priceCategorySchema", () => {
 });
 
 describe("priceProductSchema", () => {
+  it("accepts a product with no cost reference", () => {
+    expect(priceProductSchema.safeParse({ ...priced, costReference: null }).data).toEqual({
+      ...priced,
+      costReference: null,
+    });
+  });
+
+  it("requires the cost reference, even when it is null", () => {
+    const { costReference: _omitted, ...rest } = priced;
+
+    expect(priceProductSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it("accepts a negative margin", () => {
+    expect(
+      priceProductSchema.safeParse({
+        ...priced,
+        costReference: { ...priced.costReference, marginTenthsOfPercent: -125 },
+      }).success,
+    ).toBe(true);
+  });
+
+  it.each([
+    "lastCostCents",
+    "freightPerUnitCents",
+    "totalCostCents",
+  ])("refuses a negative or fractional %s", (field) => {
+    for (const value of [-1, 0.5, "10", null]) {
+      expect(
+        priceProductSchema.safeParse({
+          ...priced,
+          costReference: { ...priced.costReference, [field]: value },
+        }).success,
+      ).toBe(false);
+    }
+  });
+
+  it("accepts a zero cost", () => {
+    expect(
+      priceProductSchema.safeParse({
+        ...priced,
+        costReference: { ...priced.costReference, lastCostCents: 0, totalCostCents: 0 },
+      }).success,
+    ).toBe(true);
+  });
+
+  it.each([0.5, "10"])("refuses the margin %j", (marginTenthsOfPercent) => {
+    expect(
+      priceProductSchema.safeParse({
+        ...priced,
+        costReference: { ...priced.costReference, marginTenthsOfPercent },
+      }).success,
+    ).toBe(false);
+  });
+
+  it.each([
+    "lastCostCents",
+    "freightPerUnitCents",
+    "totalCostCents",
+    "marginTenthsOfPercent",
+  ])("requires %s in the cost reference", (field) => {
+    const { [field as keyof typeof priced.costReference]: _omitted, ...rest } =
+      priced.costReference;
+
+    expect(priceProductSchema.safeParse({ ...priced, costReference: rest }).success).toBe(false);
+  });
+
   it("accepts a product with a price and one without", () => {
     expect(priceProductSchema.safeParse(priced).data).toEqual(priced);
     expect(priceProductSchema.safeParse(unpriced).data).toEqual(unpriced);
