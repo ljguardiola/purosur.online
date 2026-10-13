@@ -293,6 +293,8 @@ export type { RegisterCreationBody } from "./register/register-creation.js";
 export { registerCreationBodySchema } from "./register/register-creation.js";
 export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-code.js";
 export { registerEnrollmentCodeSchema } from "./register/register-enrollment-code.js";
+export type { ReportRegisterListBody } from "./register/report-register-list.js";
+export { reportRegisterListSchema } from "./register/report-register-list.js";
 export type { RegisterSummaryBody } from "./register/register-summary.js";
 export { registerListSchema, registerSummarySchema } from "./register/register-summary.js";
 export type { RegisterSyncStatusWire } from "./register/register-sync-status.js";
@@ -348,16 +350,8 @@ export type {
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
 } from "./sales/sales-history.js";
-export type {
-  ReportRegisterListBody,
-  SalesReportBody,
-  SalesReportQuery,
-} from "./sales/sales-report.js";
-export {
-  reportRegisterListSchema,
-  salesReportQuerySchema,
-  salesReportSchema,
-} from "./sales/sales-report.js";
+export type { SalesReportBody } from "./sales/sales-report.js";
+export { salesReportSchema } from "./sales/sales-report.js";
 export type {
   SessionsCoreToRendererMessage,
   SessionsRendererToCoreMessage,
@@ -385,6 +379,7 @@ export type {
   IssuerIdentificationBody,
   OpenCashSession,
   PinAttemptRefusal,
+  ReportQuery,
   SignInUser,
 } from "./shared/index.js";
 export {
@@ -402,6 +397,7 @@ export {
   PIN_HASH_SCHEME,
   pinAttemptRefusalSchema,
   recordIdSchema,
+  reportQuerySchema,
   reportsFailedQuery,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
