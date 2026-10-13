@@ -1,5 +1,6 @@
 import { type FiscalDocumentState, type SaleStanding, saleStandingOf } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { uniqueShortCode } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
@@ -110,9 +111,10 @@ function addSale({
   if (deferred) {
     database
       .prepare(
-        "INSERT INTO deferred_sales (sale_id, reason, routed_at) VALUES (?, 'fiscally_offline', '2026-10-08T12:00:00.000Z')",
+        `INSERT INTO deferred_sales (id, sale_id, occurred_at, total, reason, short_code, routed_at)
+         VALUES (?, ?, '2026-10-08T12:00:00.000Z', 3000, 'fiscally_offline', ?, '2026-10-08T12:00:00.000Z')`,
       )
-      .run(id);
+      .run(`deferred-${id}`, id, uniqueShortCode());
   }
   if (deferred === "satisfied") {
     database

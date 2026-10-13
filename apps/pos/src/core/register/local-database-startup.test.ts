@@ -4,6 +4,7 @@ import {
   mkdirSync,
   mkdtempSync,
   openSync,
+  readFileSync,
   rmSync,
   writeFileSync,
   writeSync,
@@ -68,6 +69,17 @@ function overwritePage(dataFolder: string, page: number): void {
 
 function damageRecordedIn(dataFolder: string): boolean {
   return existsSync(join(dataFolder, "local-database-damaged"));
+}
+
+const MORE: LocalMigration = { name: "0001_more", sql: "CREATE TABLE more (id INTEGER)" };
+
+function bytesOfDatabaseFilesIn(dataFolder: string): { database: string; wal: string } {
+  const path = join(dataFolder, "register.sqlite");
+  const wal = `${path}-wal`;
+  return {
+    database: readFileSync(path).toString("base64"),
+    wal: existsSync(wal) ? readFileSync(wal).toString("base64") : "",
+  };
 }
 
 describe("starting the register's local database", () => {
@@ -179,5 +191,70 @@ describe("starting the register's local database", () => {
 
     await expect(startWith(dataFolder, [broken])).rejects.toThrow();
     expect(damageRecordedIn(dataFolder)).toBe(false);
+  });
+
+  describe("a database migrated by a newer version", () => {
+    function newerDatabaseIn(dataFolder: string): void {
+      healthyDatabaseIn(dataFolder);
+      const database = new Database(join(dataFolder, "register.sqlite"));
+      database.exec(MORE.sql);
+      database.exec(
+        "INSERT INTO applied_migrations VALUES ('0001_more', '2026-02-01T00:00:00.000Z')",
+      );
+      database.close();
+    }
+
+    it("is refused as newer than this version", async () => {
+      const dataFolder = folder();
+      newerDatabaseIn(dataFolder);
+
+      expect(await startWith(dataFolder, [NOTES])).toEqual({ kind: "newer_than_version" });
+    });
+
+    it("is left byte for byte as it was, even with a migration of this version pending", async () => {
+      const dataFolder = folder();
+      newerDatabaseIn(dataFolder);
+      const before = bytesOfDatabaseFilesIn(dataFolder);
+      const pending: LocalMigration = {
+        name: "0002_later",
+        sql: "CREATE TABLE later (id INTEGER)",
+      };
+
+      await startWith(dataFolder, [NOTES, pending]);
+
+      expect(bytesOfDatabaseFilesIn(dataFolder)).toEqual(before);
+    });
+
+    it("is refused before its integrity is checked, recording no damage", async () => {
+      const dataFolder = folder();
+      newerDatabaseIn(dataFolder);
+      overwritePage(dataFolder, 3);
+
+      expect(await startWith(dataFolder, [NOTES])).toEqual({ kind: "newer_than_version" });
+      expect(damageRecordedIn(dataFolder)).toBe(false);
+    });
+
+    it("is refused even while a damage is recorded", async () => {
+      const dataFolder = folder();
+      newerDatabaseIn(dataFolder);
+      writeFileSync(join(dataFolder, "local-database-damaged"), "2026-10-05T00:00:00.000Z");
+
+      expect(await startWith(dataFolder, [NOTES])).toEqual({ kind: "newer_than_version" });
+    });
+  });
+
+  it("applies the migrations a database with fewer of them than this version knows lacks", async () => {
+    const dataFolder = folder();
+    healthyDatabaseIn(dataFolder);
+
+    const started = await startWith(dataFolder, [NOTES, MORE]);
+
+    expect(started.kind).toBe("ready");
+    if (started.kind === "ready") {
+      expect(
+        started.database.prepare("SELECT name FROM applied_migrations ORDER BY name").all(),
+      ).toEqual([{ name: "0000_notes" }, { name: "0001_more" }]);
+      started.database.close();
+    }
   });
 });

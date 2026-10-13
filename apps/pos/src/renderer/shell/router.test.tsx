@@ -37,12 +37,15 @@ type RoutePath =
   | "/enroll"
   | "/starting"
   | "/core-down"
+  | "/updating"
   | "/out-of-service"
+  | "/older-version"
   | "/pin-code-redemption"
   | "/first-sign-in";
 type RenderedScreen = Awaited<ReturnType<typeof render>>;
 
 const CORE_DOWN_TITLE = "Esperá un momento";
+const OLDER_VERSION_TITLE = "Hay que instalar la versión vigente";
 const OUT_OF_SERVICE_TITLE = "La caja necesita restaurarse";
 const SIGNED_IN_TITLE = "¿Qué querés hacer?";
 const SIGN_IN_TITLE = "¿Quién abre la caja?";
@@ -121,7 +124,9 @@ const screenFor: Record<
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
   "/starting": (screen) => screen.getByRole("img", { name: BRAND_LOGO_ALT }),
   "/core-down": (screen) => screen.getByText(CORE_DOWN_TITLE),
+  "/updating": (screen) => screen.getByText("Actualizando la caja"),
   "/out-of-service": (screen) => screen.getByText(OUT_OF_SERVICE_TITLE),
+  "/older-version": (screen) => screen.getByRole("heading", { name: OLDER_VERSION_TITLE }),
   "/pin-code-redemption": (screen) => screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE }),
   "/first-sign-in": (screen) => screen.getByRole("heading", { name: FIRST_SIGN_IN_TITLE }),
 };
@@ -287,6 +292,15 @@ describe("routeFor", () => {
     { coreStatus: "up", enrollment: "unknown", person: PERSON, route: "/starting" },
     { coreStatus: "starting", enrollment: "enrolled", person: PERSON, route: "/starting" },
     { coreStatus: "down", enrollment: "enrolled", person: PERSON, route: "/core-down" },
+    { coreStatus: "refused", enrollment: "enrolled", person: PERSON, route: "/older-version" },
+    {
+      coreStatus: "refused",
+      enrollment: "unknown",
+      person: undefined,
+      registerService: "unknown",
+      route: "/older-version",
+    },
+    { coreStatus: "updating", enrollment: "enrolled", person: PERSON, route: "/updating" },
     {
       coreStatus: "up",
       enrollment: "enrolled",
@@ -439,6 +453,8 @@ describe("the register's router", () => {
     redirectedTo: RoutePath;
   }>([
     { path: "/", coreStatus: "down", enrollment: "enrolled", redirectedTo: "/core-down" },
+    { path: "/", coreStatus: "refused", enrollment: "enrolled", redirectedTo: "/older-version" },
+    { path: "/older-version", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     {
       path: "/",
       coreStatus: "up",

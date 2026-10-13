@@ -1,3 +1,4 @@
+import { ShortCodeTaken } from "../deferred-sale-ports.js";
 import type {
   InterruptedRealTimeAuthorization,
   InterruptedRealTimeAuthorizations,
@@ -7,11 +8,17 @@ import type { RealTimeAuthorizationResolved } from "../real-time-authorization-p
 
 export class FakeInterruptedRealTimeAuthorizations implements InterruptedRealTimeAuthorizations {
   resolutions: readonly RealTimeAuthorizationResolved[] = [];
+  readonly resolutionAttempts: RealTimeAuthorizationResolved[] = [];
   failOnDocument: string | undefined;
   private readonly requesting: readonly InterruptedRealTimeAuthorization[];
+  private readonly takenShortCodes: readonly string[];
 
-  constructor(requesting: readonly InterruptedRealTimeAuthorization[]) {
+  constructor(
+    requesting: readonly InterruptedRealTimeAuthorization[],
+    takenShortCodes: readonly string[] = [],
+  ) {
     this.requesting = requesting;
+    this.takenShortCodes = takenShortCodes;
   }
 
   transaction<TOutcome>(
@@ -22,6 +29,13 @@ export class FakeInterruptedRealTimeAuthorizations implements InterruptedRealTim
       requestingDocuments: () => this.requesting,
       resolve: (resolved) => {
         this.failIfAsked(resolved);
+        this.resolutionAttempts.push(resolved);
+        if (
+          resolved.deferredSale !== null &&
+          this.takenShortCodes.includes(resolved.deferredSale.shortCode)
+        ) {
+          throw new ShortCodeTaken();
+        }
         working.push(resolved);
       },
     });

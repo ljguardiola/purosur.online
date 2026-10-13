@@ -82,7 +82,11 @@ export function createMainRequests(deps: {
       return credentials;
     },
     receive(message) {
-      if (message.type === "health-check") {
+      if (
+        message.type === "health-check" ||
+        message.type === "update-hold-release" ||
+        message.type === "update-safe-moment-request"
+      ) {
         return;
       }
       if (pending.get(message.request_id)?.(message)) {

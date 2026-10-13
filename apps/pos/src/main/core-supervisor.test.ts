@@ -299,6 +299,104 @@ describe("createCoreSupervisor", () => {
     expect(onProcessExited).toHaveBeenLastCalledWith(processes[policy.maxAttempts]);
   });
 
+  describe("a core that refuses a newer database", () => {
+    function refuse(process: FakeProcess | undefined): void {
+      process?.send({ type: "core-refused", reason: "newer_database" });
+    }
+
+    it("is killed and reported as refused, once", () => {
+      const onStatusChange = vi.fn();
+      const onRefused = vi.fn();
+      const { supervisor, processes } = setUp({ onStatusChange, onRefused });
+
+      supervisor.start();
+      refuse(processes[0]);
+      refuse(processes[0]);
+
+      expect(processes[0]?.killed).toBe(true);
+      expect(onStatusChange).toHaveBeenCalledExactlyOnceWith("refused");
+      expect(onRefused).toHaveBeenCalledOnce();
+    });
+
+    it("cancels the readiness deadline", () => {
+      const cancel = vi.fn();
+      const { supervisor, processes } = setUp({
+        scheduleReadinessDeadline: vi.fn(() => cancel),
+      });
+
+      supervisor.start();
+      refuse(processes[0]);
+
+      expect(cancel).toHaveBeenCalledOnce();
+    });
+
+    it("is neither restarted nor retried when it exits", () => {
+      const scheduleRestart = vi.fn();
+      const onRestartsExhausted = vi.fn();
+      const onStatusChange = vi.fn();
+      const { supervisor, processes, fork } = setUp({
+        scheduleRestart,
+        onRestartsExhausted,
+        onStatusChange,
+      });
+
+      supervisor.start();
+      refuse(processes[0]);
+      processes[0]?.exit(null);
+
+      expect(scheduleRestart).not.toHaveBeenCalled();
+      expect(onRestartsExhausted).not.toHaveBeenCalled();
+      expect(fork).toHaveBeenCalledOnce();
+      expect(onStatusChange).toHaveBeenCalledExactlyOnceWith("refused");
+    });
+
+    it("is not reported up by a ready message that follows", () => {
+      const onStatusChange = vi.fn();
+      const { supervisor, processes } = setUp({ onStatusChange });
+
+      supervisor.start();
+      refuse(processes[0]);
+      processes[0]?.becomeReady();
+
+      expect(onStatusChange).toHaveBeenCalledExactlyOnceWith("refused");
+    });
+
+    it("is ignored from a core that already said it is ready", () => {
+      const onStatusChange = vi.fn();
+      const onRefused = vi.fn();
+      const { supervisor, processes } = setUp({ onStatusChange, onRefused });
+
+      supervisor.start();
+      processes[0]?.becomeReady();
+      refuse(processes[0]);
+
+      expect(onStatusChange).toHaveBeenCalledExactlyOnceWith("up");
+      expect(onRefused).not.toHaveBeenCalled();
+      expect(processes[0]?.killed).toBe(false);
+    });
+
+    it("no longer holds once the supervisor is stopped and started again", () => {
+      const onStatusChange = vi.fn();
+      const { supervisor, processes } = setUp({ onStatusChange });
+
+      supervisor.start();
+      refuse(processes[0]);
+      supervisor.stop();
+      supervisor.start();
+      processes[1]?.becomeReady();
+
+      expect(onStatusChange).toHaveBeenLastCalledWith("up");
+    });
+
+    it("needs no onRefused dependency", () => {
+      const { supervisor, processes } = setUp();
+
+      supervisor.start();
+
+      expect(() => refuse(processes[0])).not.toThrow();
+    });
+  });
+
   it("stop() prevents a restart from being scheduled for a later exit", () => {
     const scheduleRestart = vi.fn();
     const { supervisor, processes } = setUp({ scheduleRestart });

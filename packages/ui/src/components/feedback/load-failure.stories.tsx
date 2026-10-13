@@ -46,3 +46,12 @@ export const Screen: Story = {
     title: "No se pudo mostrar la pantalla",
   },
 };
+
+export const PillVariant: Story = {
+  args: {
+    variant: "pill",
+    icon: <ShieldX />,
+    title: "Demasiadas solicitudes",
+    description: "Probá de nuevo en 30 segundos.",
+  },
+};
