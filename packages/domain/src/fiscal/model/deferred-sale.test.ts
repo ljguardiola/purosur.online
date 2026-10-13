@@ -90,6 +90,7 @@ describe("deferred sale QR text", () => {
     ["an invoice QR", "https://www.arca.gob.ar/fe/qr/?p=eyJ2ZXIiOjF9"],
     ["an empty text", ""],
     ["another prefix", "other:0198-abc:7KQ4M2P9"],
+    ["a prefix as long as ours but different", "purosur-deferred-salx:0198-abc:7KQ4M2P9"],
     ["no id", "purosur-deferred-sale::7KQ4M2P9"],
     ["no short code", "purosur-deferred-sale:0198-abc:"],
     ["a short code that is too short", "purosur-deferred-sale:0198-abc:7KQ4M2P"],
