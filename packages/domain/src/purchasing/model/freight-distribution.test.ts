@@ -213,9 +213,9 @@ describe("distributeFreight", () => {
 
 describe("freightPerUnit", () => {
   it("is the line's share over its quantity in sale units, in cents per unit", () => {
-    const freights = [{ amountCents: 1000, lines: [line("a", 100, 4000, 1000), line("b", 300)] }];
+    const freights = [{ amountCents: 1000, lines: [line("a", 100, 4000, 1000), line("b", 400)] }];
     expect(
-      equalFractions(freightPerUnit("a", freights), { numerator: 1000n, denominator: 4n }),
+      equalFractions(freightPerUnit("a", freights), { numerator: 125n, denominator: 1n }),
     ).toBe(true);
   });
 
@@ -225,7 +225,7 @@ describe("freightPerUnit", () => {
       { amountCents: 300, lines: [line("a", 100, 2000, 1000)] },
     ];
     expect(
-      equalFractions(freightPerUnit("a", freights), { numerator: 550n, denominator: 2n }),
+      equalFractions(freightPerUnit("a", freights), { numerator: 350n, denominator: 1n }),
     ).toBe(true);
   });
 
