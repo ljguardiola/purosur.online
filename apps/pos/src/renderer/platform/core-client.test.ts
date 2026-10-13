@@ -1800,6 +1800,24 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to print a sale's original receipt, with no reason and no authorization", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const printed = client.printOriginalReceipt("sale-1");
+    port.answer({
+      type: "print-original-receipt-result",
+      request_id: "request-1",
+      outcome: { kind: "started", copy: { kind: "original" } },
+    });
+
+    expect(await printed).toEqual({ kind: "started", copy: { kind: "original" } });
+    expect(port.posted).toEqual([
+      { type: "print-original-receipt", request_id: "request-1", sale_id: "sale-1" },
+    ]);
+  });
+
   it("asks the core for a page of the sales history and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

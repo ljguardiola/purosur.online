@@ -24,6 +24,7 @@ import type {
   OpenSale,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  PrintOriginalReceiptOutcome,
   ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -255,6 +256,10 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       receiptPrintStatus: async (saleId: string): Promise<ReceiptPrintStatusOutcome> => {
         saleChanges.push(["receipt-status", saleId].join(" "));
         return { kind: "not_found" };
+      },
+      printOriginalReceipt: async (saleId: string): Promise<PrintOriginalReceiptOutcome> => {
+        saleChanges.push(["original-print", saleId].join(" "));
+        return { kind: "already_attempted" };
       },
       reprintSaleReceipt: async (
         request: ReprintSaleReceiptRequest,
@@ -2701,6 +2706,14 @@ describe("answerRendererRequest", () => {
         "reading a receipt's print status",
         "receipt-status s1",
         "receipt-print-status-result",
+      ],
+      [
+        "print-original-receipt",
+        { type: "print-original-receipt", sale_id: "s1" } as const,
+        "printOriginalReceipt",
+        "printing a sale's original receipt",
+        "original-print s1",
+        "print-original-receipt-result",
       ],
       [
         "reprint-sale-receipt",
