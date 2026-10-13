@@ -1,4 +1,4 @@
-import type { Fraction } from "../../shared/index.js";
+import { type Fraction, roundHalfUp } from "../../shared/index.js";
 import { STOCK_QUANTITY_PER_UNIT } from "../../stock/index.js";
 
 export interface FreightLine {
@@ -40,19 +40,29 @@ function compare<T extends string | bigint>(a: T, b: T): number {
   return a > b ? 1 : 0;
 }
 
+function scaledWeights(lines: readonly FreightLine[]): { weights: bigint[]; denominator: bigint } {
+  const values = lines.map(lineValue);
+  const denominator = values.reduce(
+    (common, value) =>
+      (common * value.denominator) / greatestCommonDivisor(common, value.denominator),
+    1n,
+  );
+  return {
+    weights: values.map((value) => value.numerator * (denominator / value.denominator)),
+    denominator,
+  };
+}
+
+export function purchaseValueCents(lines: readonly FreightLine[]): number {
+  const { weights, denominator } = scaledWeights(lines);
+  return roundHalfUp({ numerator: weights.reduce((sum, weight) => sum + weight, 0n), denominator });
+}
+
 export function distributeFreight(
   amountCents: number,
   lines: readonly FreightLine[],
 ): FreightShare[] {
-  const values = lines.map(lineValue);
-  const commonDenominator = values.reduce(
-    (common, { denominator }) =>
-      (common * denominator) / greatestCommonDivisor(common, denominator),
-    1n,
-  );
-  const weights = values.map(
-    ({ numerator, denominator }) => numerator * (commonDenominator / denominator),
-  );
+  const { weights } = scaledWeights(lines);
   const totalWeight = weights.reduce((sum, weight) => sum + weight, 0n);
   if (totalWeight === 0n) {
     throw new Error("A freight cannot be distributed across lines worth nothing");

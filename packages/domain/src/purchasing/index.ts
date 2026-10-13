@@ -18,6 +18,7 @@ export {
   freightPerUnit,
   hasDistributableValue,
   lineValue,
+  purchaseValueCents,
 } from "./model/freight-distribution.js";
 export {
   isPackagingNameTooLong,

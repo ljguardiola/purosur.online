@@ -14,6 +14,13 @@ export type { EditSupplierInput, EditSupplierOutcome } from "./edit-supplier.js"
 export { editSupplier } from "./edit-supplier.js";
 export { findPackagingListing } from "./find-packaging-listing.js";
 export type {
+  FreightListing,
+  FreightListQuery,
+  FreightListReader,
+  FreightPurchaseListing,
+  LinkablePurchaseListing,
+} from "./freight-list-reader.js";
+export type {
   Freight,
   FreightEdit,
   FreightPurchase,
@@ -23,6 +30,10 @@ export type {
   LockFreightResult,
   NewFreightFields,
 } from "./freight-store.js";
+export type { ListedFreights } from "./list-freights.js";
+export { listFreights } from "./list-freights.js";
+export type { LinkablePurchase, LinkablePurchasesQuery } from "./list-linkable-purchases.js";
+export { listLinkablePurchases } from "./list-linkable-purchases.js";
 export type { ListedPackaging } from "./list-packagings.js";
 export { listPackagings } from "./list-packagings.js";
 export type { PurchaseChoices } from "./list-purchase-choices.js";
