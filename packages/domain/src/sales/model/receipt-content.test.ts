@@ -25,8 +25,12 @@ const YERBA = {
   quantity: 3,
   listUnitPrice: 2500,
   promotions: [
-    { id: "other", benefit: { kind: "BUY_N_PAY_M" as const, buyQty: 3, payQty: 2 } },
-    { id: "ten", benefit: { kind: "PERCENT_OFF" as const, percent: 10 } },
+    {
+      id: "other",
+      name: "Lleve 3 pague 2",
+      benefit: { kind: "BUY_N_PAY_M" as const, buyQty: 3, payQty: 2 },
+    },
+    { id: "ten", name: "Diez por ciento", benefit: { kind: "PERCENT_OFF" as const, percent: 10 } },
   ],
   promotionId: "ten",
   manualAdjustment: null,
@@ -73,7 +77,7 @@ describe("receiptContent", () => {
     });
   });
 
-  it("shows each line with the benefit of the promotion it applied, or none", () => {
+  it("shows each line with the name its applied promotion had when the sale was completed, or none", () => {
     expect(receiptContent(source()).lines).toEqual([
       {
         productName: "Yerba 1 kg",
@@ -82,7 +86,7 @@ describe("receiptContent", () => {
         listUnitPrice: 2500,
         chargedUnitPrice: 2500,
         manualAdjustment: null,
-        promotion: { kind: "PERCENT_OFF", percent: 10 },
+        promotion: { name: "Diez por ciento" },
         discountAmount: 750,
         lineTotal: 6750,
       },

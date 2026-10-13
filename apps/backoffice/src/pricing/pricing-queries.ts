@@ -3,6 +3,7 @@ import type {
   DiscountSummary,
   DiscountTargets,
   PriceList,
+  PriceMargin,
   PriceProduct,
 } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
@@ -10,7 +11,7 @@ import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchDiscounts, fetchDiscountTargets } from "./discounts-api";
-import type { FetchPricesInput, fetchPrices } from "./prices-api";
+import type { FetchPricesInput, fetchPriceMargin, fetchPrices } from "./prices-api";
 
 export const pricingKey = ["pricing"] as const;
 
@@ -21,6 +22,8 @@ export const pricesKeys = {
   reviewQueueOf: (productIds: readonly string[]) =>
     [...pricingKey, "review-queue", ...productIds] as const,
   reload: [...pricingKey, "reload"] as const,
+  margin: (productId: string, unitPrice: number | null) =>
+    [...pricingKey, "margin", productId, unitPrice] as const,
 };
 
 export const discountsKey = [...pricingKey, "discounts"] as const;
@@ -39,6 +42,26 @@ export function usePricesQuery(params: {
     queryKey: pricesKeys.list(params.input),
     keepPreviousData: true,
     read: () => params.fetchPrices(params.input),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function usePriceMarginQuery(params: {
+  productId: string;
+  unitPrice: number | undefined;
+  fetchPriceMargin: typeof fetchPriceMargin;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  const { productId, unitPrice } = params;
+  return useCloudQuery<PriceMargin>({
+    queryKey: pricesKeys.margin(productId, unitPrice ?? null),
+    enabled: unitPrice !== undefined,
+    read: () =>
+      unitPrice === undefined
+        ? Promise.resolve({ kind: "failed" })
+        : params.fetchPriceMargin(productId, unitPrice),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

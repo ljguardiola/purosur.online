@@ -43,6 +43,7 @@ describe("ChargeCompletedModal", () => {
     ["TRANSFER", "Transferencia"],
     ["QR", "QR de Mercado Pago"],
     ["POINT", "Point integrada"],
+    ["STANDALONE_TERMINAL", "Terminal independiente"],
   ] as const)(
     "shows what the last %s charge paid, beside the sale's total",
     async (method, label) => {

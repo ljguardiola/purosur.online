@@ -1,8 +1,9 @@
 import type { JsonValue } from "../../shared/index.js";
+import { isConfirmedByHand } from "./payment.js";
 import type { SalePayment } from "./payment-transaction.js";
 
 export function paymentRecord(payment: SalePayment): JsonValue {
-  const transfer = payment.method === "TRANSFER" ? payment : undefined;
+  const confirmed = isConfirmedByHand(payment) ? payment : undefined;
   return {
     id: payment.id,
     kind: payment.kind,
@@ -12,7 +13,7 @@ export function paymentRecord(payment: SalePayment): JsonValue {
     tendered: payment.tendered ?? null,
     state: payment.state,
     occurred_at: payment.occurredAt.toISOString(),
-    authorized_by: transfer?.authorizedBy ?? null,
-    confirmed_at: transfer?.confirmedAt.toISOString() ?? null,
+    authorized_by: confirmed?.authorizedBy ?? null,
+    confirmed_at: confirmed?.confirmedAt.toISOString() ?? null,
   };
 }

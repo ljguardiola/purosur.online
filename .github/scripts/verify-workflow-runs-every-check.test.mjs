@@ -7,6 +7,7 @@ import {
   findPlaywrightImageViolations,
   findPlaywrightInstallViolations,
   findPrePulledJobTimeoutViolations,
+  findShardDownloadViolations,
   findVerifyWorkflowViolations,
 } from "./verify-workflow-runs-every-check.mjs";
 
@@ -1645,6 +1646,53 @@ for (const command of [
 
 test("passes a workflow whose steps never install a Playwright browser or its system packages", () => {
   const violations = findPlaywrightInstallViolations(workflowWithStep("pnpm verify:tests"));
+
+  assert.deepEqual(violations, []);
+});
+
+function workflowWithMatrixStep(stepLines, { matrix = true } = {}) {
+  return [
+    "jobs:",
+    "  tests:",
+    "    runs-on: ubuntu-24.04",
+    ...(matrix ? ["    strategy:", "      matrix:", "        shard: [1, 2]"] : []),
+    "    steps:",
+    "      - run: pnpm install --frozen-lockfile",
+    ...stepLines.map((line, i) => (i === 0 ? `      - ${line}` : `        ${line}`)),
+    "      - run: pnpm verify:tests",
+  ].join("\n");
+}
+
+for (const [label, stepLines] of [
+  ["runs gh run download", ['run: gh run download "$RUN_ID" --dir "$RUNNER_TEMP/d"']],
+  [
+    "runs gh run download inside a longer script",
+    ["run: |", '  mkdir -p "$RUNNER_TEMP/d"', '  gh run download "$RUN_ID" --dir "$RUNNER_TEMP/d"'],
+  ],
+  [
+    "uses actions/download-artifact",
+    ["uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1"],
+  ],
+]) {
+  test(`flags a matrix job whose step ${label}, since each of its jobs could fetch it or not`, () => {
+    const violations = findShardDownloadViolations(workflowWithMatrixStep(stepLines));
+
+    assertSingleViolation(violations, /tests job downloads artifacts in each of its matrix jobs/);
+  });
+}
+
+test("passes a job without a matrix that downloads artifacts once", () => {
+  const violations = findShardDownloadViolations(
+    workflowWithMatrixStep(['run: gh run download "$RUN_ID"'], { matrix: false }),
+  );
+
+  assert.deepEqual(violations, []);
+});
+
+test("passes a matrix job that downloads nothing", () => {
+  const violations = findShardDownloadViolations(
+    workflowWithMatrixStep(["run: gh run list --limit 1"]),
+  );
 
   assert.deepEqual(violations, []);
 });

@@ -3,6 +3,7 @@ import {
   type DiscountBenefit,
   type DiscountTargetKind,
   discountsTargeting,
+  isConfirmedByHand,
   newestPrice,
   nextOperationNumber,
   type OutboxEventDraft,
@@ -56,6 +57,7 @@ interface PriceRow {
 
 interface CandidatePromotionRow extends BenefitColumns {
   id: string;
+  name: string;
   target_kind: DiscountTargetKind;
   target_id: string;
   active: number;
@@ -217,7 +219,7 @@ export class SqliteSaleLedger implements SaleLedger {
       .map((row) => ({ id: row.id, parentId: row.parent_id }));
     const candidates = this.database
       .prepare<[], CandidatePromotionRow>(
-        `SELECT id, kind, percent, buy_qty, pay_qty, active, valid_from, valid_to, weekdays,
+        `SELECT id, name, kind, percent, buy_qty, pay_qty, active, valid_from, valid_to, weekdays,
                 target_kind, target_id
          FROM discounts
          WHERE removed = 0
@@ -228,6 +230,7 @@ export class SqliteSaleLedger implements SaleLedger {
         target: { kind: row.target_kind, id: row.target_id },
         promotion: {
           id: row.id,
+          name: row.name,
           benefit: toBenefit(row),
           active: row.active === 1,
           validFrom: row.valid_from,
@@ -292,13 +295,14 @@ export class SqliteSaleLedger implements SaleLedger {
         ...manualAdjustmentColumns(line.manualAdjustment),
       });
     const freeze = this.database.prepare(
-      `INSERT INTO sale_line_promotions (line_id, discount_id, kind, percent, buy_qty, pay_qty)
-       VALUES (@line_id, @discount_id, @kind, @percent, @buy_qty, @pay_qty)`,
+      `INSERT INTO sale_line_promotions (line_id, discount_id, name, kind, percent, buy_qty, pay_qty)
+       VALUES (@line_id, @discount_id, @name, @kind, @percent, @buy_qty, @pay_qty)`,
     );
     for (const promotion of line.promotions) {
       freeze.run({
         line_id: line.id,
         discount_id: promotion.id,
+        name: promotion.name,
         ...benefitColumns(promotion.benefit),
       });
     }
@@ -373,8 +377,8 @@ export class SqliteSaleLedger implements SaleLedger {
         provider: payment.provider,
         amount: payment.amount,
         tendered: payment.tendered ?? null,
-        authorized_by: payment.method === "TRANSFER" ? payment.authorizedBy : null,
-        confirmed_at: payment.method === "TRANSFER" ? payment.confirmedAt.toISOString() : null,
+        authorized_by: isConfirmedByHand(payment) ? payment.authorizedBy : null,
+        confirmed_at: isConfirmedByHand(payment) ? payment.confirmedAt.toISOString() : null,
         state: payment.state,
         occurred_at: payment.occurredAt.toISOString(),
       });

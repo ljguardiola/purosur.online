@@ -49,6 +49,14 @@ function addTransfer(id: string, saleId: string, amount: number): void {
     .run(id, saleId, amount, CONFIRMED_AT.toISOString(), OCCURRED_AT.toISOString());
 }
 
+function addStandaloneTerminalPayment(id: string, saleId: string, amount: number): void {
+  database
+    .prepare(
+      "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at) VALUES (?, ?, 'SALE', 'STANDALONE_TERMINAL', 'EXTERNAL_TERMINAL', ?, NULL, 'u2', ?, 'APPROVED', ?)",
+    )
+    .run(id, saleId, amount, CONFIRMED_AT.toISOString(), OCCURRED_AT.toISOString());
+}
+
 function addQrPayment(id: string, saleId: string, amount: number, state: string): void {
   database
     .prepare(
@@ -137,6 +145,26 @@ describe("the payments of a sale", () => {
       kind: "SALE",
       method: "TRANSFER",
       provider: "NONE",
+      amount: 1500,
+      authorizedBy: "u2",
+      confirmedAt: CONFIRMED_AT,
+      state: "APPROVED",
+      occurredAt: OCCURRED_AT,
+    });
+    expect(payment).not.toHaveProperty("tendered");
+  });
+
+  it("read back a standalone terminal payment with who confirmed it and when, and nothing tendered", () => {
+    addStandaloneTerminalPayment("payment-1", "sale-1", 1500);
+
+    const [payment] = readSalePayments(database, "sale-1");
+
+    expect(payment).toEqual({
+      id: "payment-1",
+      saleId: "sale-1",
+      kind: "SALE",
+      method: "STANDALONE_TERMINAL",
+      provider: "EXTERNAL_TERMINAL",
       amount: 1500,
       authorizedBy: "u2",
       confirmedAt: CONFIRMED_AT,
