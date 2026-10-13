@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { registers } from "../shell/test-support/report-fixtures";
 import { fetchReportRegisters } from "./report-registers-api";
-import { registers } from "./test-support/report-fixtures";
 
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn());

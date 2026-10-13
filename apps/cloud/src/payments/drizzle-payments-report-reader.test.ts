@@ -29,16 +29,19 @@ beforeEach(async () => {
 
 const reader = () => new DrizzlePaymentsReportReader(db);
 
-function aPayment(
-  method: "CASH" | "TRANSFER" | "QR" | "POINT",
-  amount: number,
-  state = "APPROVED",
-) {
+const PROVIDERS = {
+  CASH: "NONE",
+  TRANSFER: "NONE",
+  QR: "MERCADOPAGO_QR",
+  POINT: "MERCADOPAGO_POINT",
+  STANDALONE_TERMINAL: "EXTERNAL_TERMINAL",
+} as const;
+
+function aPayment(method: keyof typeof PROVIDERS, amount: number, state = "APPROVED") {
   return {
     id: randomUUID(),
     method,
-    provider:
-      method === "QR" ? "MERCADOPAGO_QR" : method === "POINT" ? "MERCADOPAGO_POINT" : "NONE",
+    provider: PROVIDERS[method],
     amount,
     tendered: method === "CASH" ? amount : null,
     state,
@@ -79,6 +82,7 @@ describe("DrizzlePaymentsReportReader.approvedPaymentsByMethod", () => {
     await sold(deviceId, [aPayment("QR", 6_000)]);
     await sold(deviceId, [aPayment("POINT", 2_500)]);
     await sold(deviceId, [aPayment("TRANSFER", 700)]);
+    await sold(deviceId, [aPayment("STANDALONE_TERMINAL", 3_200)]);
 
     const report = await reader().approvedPaymentsByMethod({
       locationId,
@@ -90,10 +94,11 @@ describe("DrizzlePaymentsReportReader.approvedPaymentsByMethod", () => {
       { method: "CASH", salesCount: 2, amount: 5_000 },
       { method: "POINT", salesCount: 1, amount: 2_500 },
       { method: "QR", salesCount: 1, amount: 6_000 },
+      { method: "STANDALONE_TERMINAL", salesCount: 1, amount: 3_200 },
       { method: "TRANSFER", salesCount: 1, amount: 700 },
     ]);
-    expect(report.salesCount).toBe(5);
-    expect(report.total).toBe(14_200);
+    expect(report.salesCount).toBe(6);
+    expect(report.total).toBe(17_400);
   });
 
   it("counts a sale once in the total when it was paid with two payments", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultReportPeriod, isReportPeriodAsked } from "./report-period.js";
+import { defaultReportPeriod, isReportPeriodAsked, reportPeriodOf } from "./report-period.js";
 
 describe("isReportPeriodAsked", () => {
   it("accepts no range at all, which asks for the current day", () => {
@@ -57,4 +57,29 @@ describe("defaultReportPeriod", () => {
       to: "2026-10-07",
     });
   });
+});
+
+describe("reportPeriodOf", () => {
+  const now = new Date("2026-10-06T15:00:00.000Z");
+
+  it("is the asked range when both its bounds are asked", () => {
+    expect(reportPeriodOf({ from: "2026-10-01", to: "2026-10-03" }, now)).toEqual({
+      from: "2026-10-01",
+      to: "2026-10-03",
+    });
+  });
+
+  it("is the current Argentina calendar day when no range is asked", () => {
+    expect(reportPeriodOf({ from: undefined, to: undefined }, now)).toEqual({
+      from: "2026-10-06",
+      to: "2026-10-06",
+    });
+  });
+
+  it.each([[{ from: "2026-10-01", to: undefined }], [{ from: undefined, to: "2026-10-03" }]])(
+    "is the current Argentina calendar day when only one bound is asked (%o)",
+    (asked) => {
+      expect(reportPeriodOf(asked, now)).toEqual({ from: "2026-10-06", to: "2026-10-06" });
+    },
+  );
 });

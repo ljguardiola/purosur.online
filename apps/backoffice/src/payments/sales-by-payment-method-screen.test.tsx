@@ -4,7 +4,13 @@ import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import { FRONT_REGISTER_ID, registers } from "../shell/test-support/report-fixtures";
+import { dateSegments } from "../shell/test-support/report-dates";
+import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
+import {
+  createReportRegisterFilterServices,
+  ReportRegisterFilterForTests,
+  type ReportRegisterFilterServices,
+} from "../shell/test-support/report-register-filter";
 import {
   type SalesByPaymentMethodFilters,
   salesByPaymentMethodFilters,
@@ -14,12 +20,11 @@ import type { SalesByPaymentMethodScreenServices } from "./sales-by-payment-meth
 import { todayPaymentsReport, weekPaymentsReport } from "./test-support/payments-report-fixtures";
 
 function createServices(): SalesByPaymentMethodScreenServices {
-  const services = { fetchSalesByPaymentMethod: vi.fn(), fetchReportRegisters: vi.fn() };
+  const services = { fetchSalesByPaymentMethod: vi.fn() };
   services.fetchSalesByPaymentMethod.mockResolvedValue({
     kind: "ok",
     value: weekPaymentsReport,
   });
-  services.fetchReportRegisters.mockResolvedValue({ kind: "ok", value: registers });
   return services;
 }
 
@@ -34,32 +39,54 @@ function ControlledScreen({
   filters: initial = salesByPaymentMethodFilters.parse({}),
   onFiltersChange = () => {},
   onSessionEnded = () => {},
-}: Handlers & { services: SalesByPaymentMethodScreenServices }) {
+  registerServices,
+}: Handlers & {
+  services: SalesByPaymentMethodScreenServices;
+  registerServices: ReportRegisterFilterServices;
+}) {
   const [filters, setFilters] = useState(initial);
   return (
     <FieldSizeProvider size="backoffice">
-      <main>
-        <SalesByPaymentMethodScreen
-          services={services}
-          filters={filters}
-          onFiltersChange={(next) => {
-            onFiltersChange(next);
-            setFilters(next);
-          }}
-          onSessionEnded={onSessionEnded}
-        />
-      </main>
+      <ReportRegisterFilterForTests services={registerServices} onSessionEnded={onSessionEnded}>
+        <main>
+          <SalesByPaymentMethodScreen
+            services={services}
+            filters={filters}
+            onFiltersChange={(next) => {
+              onFiltersChange(next);
+              setFilters(next);
+            }}
+            onSessionEnded={onSessionEnded}
+          />
+        </main>
+      </ReportRegisterFilterForTests>
     </FieldSizeProvider>
   );
 }
 
-function renderScreen(services: SalesByPaymentMethodScreenServices, handlers: Handlers = {}) {
-  return render(<ControlledScreen services={services} {...handlers} />);
+function renderScreen(
+  services: SalesByPaymentMethodScreenServices,
+  {
+    registerServices = createReportRegisterFilterServices(),
+    ...handlers
+  }: Handlers & {
+    registerServices?: ReportRegisterFilterServices;
+  } = {},
+) {
+  return render(
+    <ControlledScreen services={services} registerServices={registerServices} {...handlers} />,
+  );
 }
 
 type Screen = Awaited<ReturnType<typeof renderScreen>>;
 
-const METHOD_NAMES = ["Efectivo", "QR de Mercado Pago", "Point integrada", "Transferencia"];
+const METHOD_NAMES = [
+  "Efectivo",
+  "QR de Mercado Pago",
+  "Point integrada",
+  "Transferencia",
+  "Terminal independiente",
+];
 
 function shownMethods(screen: Screen) {
   return screen
@@ -78,7 +105,6 @@ test("shows the total sold, the number of sales and the average ticket of the pe
   await expect.element(screen.getByText("Reportes · Ventas", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Total vendido")).toBeVisible();
   await expect.element(screen.getByText("$ 14.000,00")).toBeVisible();
-  await expect.element(screen.getByText("Del 01/10/2026 al 07/10/2026")).toBeVisible();
   await expect.element(screen.getByText("Ventas", { exact: true }).first()).toBeVisible();
   await expect.element(screen.getByText("6", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Ticket promedio")).toBeVisible();
@@ -86,19 +112,12 @@ test("shows the total sold, the number of sales and the average ticket of the pe
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("names the period as a single day when it is one", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchSalesByPaymentMethod).mockResolvedValue({
-    kind: "ok",
-    value: {
-      ...weekPaymentsReport,
-      range: { from: "2026-10-07", to: "2026-10-07" },
-    },
-  });
+test("names the period only in its range fields, never again under the total sold", async () => {
+  const screen = await renderScreen(createServices());
+  await expect.element(screen.getByText("$ 14.000,00")).toBeVisible();
 
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("El 07/10/2026")).toBeVisible();
+  expect(screen.getByText(/01\/10\/2026/).query()).toBeNull();
+  expect(screen.getByText(/07\/10\/2026/).query()).toBeNull();
 });
 
 test("shows each method with its sales, its amount and its share of the total", async () => {
@@ -114,6 +133,27 @@ test("shows each method with its sales, its amount and its share of the total", 
   await expect.element(table.getByRole("row", { name: /QR de Mercado Pago/ })).toBeVisible();
   await expect.element(table.getByRole("row", { name: /Point integrada/ })).toBeVisible();
   await expect.element(table.getByRole("row", { name: /Transferencia/ })).toBeVisible();
+});
+
+test("shows the sales charged on the standalone terminal under its own name", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchSalesByPaymentMethod).mockResolvedValue({
+    kind: "ok",
+    value: {
+      ...weekPaymentsReport,
+      methods: [{ method: "STANDALONE_TERMINAL", sales_count: 2, amount: 70_000 }],
+      totals: { sales_count: 2, total: 70_000, average_ticket: 35_000 },
+    },
+  });
+
+  const screen = await renderScreen(services);
+
+  const standalone = screen
+    .getByRole("table", { name: "Ventas por medio de pago" })
+    .getByRole("row", { name: /Terminal independiente/ });
+  await expect.element(standalone.getByText("$ 700,00")).toBeVisible();
+  await expect.element(standalone.getByText("2", { exact: true })).toBeVisible();
+  await expect.element(standalone.getByText("100 %")).toBeVisible();
 });
 
 test("opens on the method with the biggest amount first", async () => {
@@ -172,11 +212,10 @@ test.each([
 test("asks the cloud for no range when the URL has none, and shows the range it answered", async () => {
   const services = createServices();
 
-  await renderScreen(services);
+  const screen = await renderScreen(services);
 
-  await expect
-    .poll(() => vi.mocked(services.fetchSalesByPaymentMethod).mock.calls.length)
-    .toBeGreaterThan(0);
+  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
+  expect(dateSegments(screen, "Hasta")).toEqual(["7", "10", "2026"]);
   expect(services.fetchSalesByPaymentMethod).toHaveBeenCalledWith({});
 });
 

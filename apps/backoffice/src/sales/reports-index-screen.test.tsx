@@ -1,8 +1,8 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test } from "vitest";
+import { render } from "../shell/test-support/render-with-router";
 import { ReportsIndexScreen } from "./reports-index-screen";
-import { render } from "./test-support/render-with-router";
 
 async function renderScreen() {
   return render(

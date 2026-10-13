@@ -6,19 +6,19 @@ import { userEvent } from "vitest/browser";
 import { type ReportFilters, reportFiltersSearch } from "../shell/report-filters-search";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments } from "../shell/test-support/report-dates";
+import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
-  BACK_REGISTER_ID,
-  FRONT_REGISTER_ID,
-  registers,
-} from "../shell/test-support/report-fixtures";
+  createReportRegisterFilterServices,
+  ReportRegisterFilterForTests,
+  type ReportRegisterFilterServices,
+} from "../shell/test-support/report-register-filter";
 import { SalesByDayScreen } from "./sales-by-day-screen";
 import type { SalesByDayScreenServices } from "./sales-by-day-services";
 import { todayReport, weekReport } from "./test-support/sales-fixtures";
 
 function createServices(): SalesByDayScreenServices {
-  const services = { fetchSalesReport: vi.fn(), fetchReportRegisters: vi.fn() };
+  const services = { fetchSalesReport: vi.fn() };
   services.fetchSalesReport.mockResolvedValue({ kind: "ok", value: weekReport });
-  services.fetchReportRegisters.mockResolvedValue({ kind: "ok", value: registers });
   return services;
 }
 
@@ -33,27 +33,43 @@ function ControlledScreen({
   filters: initial = reportFiltersSearch.parse({}),
   onFiltersChange = () => {},
   onSessionEnded = () => {},
-}: Handlers & { services: SalesByDayScreenServices }) {
+  registerServices,
+}: Handlers & {
+  services: SalesByDayScreenServices;
+  registerServices: ReportRegisterFilterServices;
+}) {
   const [filters, setFilters] = useState(initial);
   return (
     <FieldSizeProvider size="backoffice">
-      <main>
-        <SalesByDayScreen
-          services={services}
-          filters={filters}
-          onFiltersChange={(next) => {
-            onFiltersChange(next);
-            setFilters(next);
-          }}
-          onSessionEnded={onSessionEnded}
-        />
-      </main>
+      <ReportRegisterFilterForTests services={registerServices} onSessionEnded={onSessionEnded}>
+        <main>
+          <SalesByDayScreen
+            services={services}
+            filters={filters}
+            onFiltersChange={(next) => {
+              onFiltersChange(next);
+              setFilters(next);
+            }}
+            onSessionEnded={onSessionEnded}
+          />
+        </main>
+      </ReportRegisterFilterForTests>
     </FieldSizeProvider>
   );
 }
 
-function renderScreen(services: SalesByDayScreenServices, handlers: Handlers = {}) {
-  return render(<ControlledScreen services={services} {...handlers} />);
+function renderScreen(
+  services: SalesByDayScreenServices,
+  {
+    registerServices = createReportRegisterFilterServices(),
+    ...handlers
+  }: Handlers & {
+    registerServices?: ReportRegisterFilterServices;
+  } = {},
+) {
+  return render(
+    <ControlledScreen services={services} registerServices={registerServices} {...handlers} />,
+  );
 }
 
 test("shows each day with its sales and total, and the totals of the range", async () => {
@@ -193,10 +209,10 @@ test("keeps the previous days in view, marked as updating, while another registe
 });
 
 test("still reports the sales when the registers cannot be listed, offering only all of them", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchReportRegisters).mockResolvedValue({ kind: "failed" });
+  const registerServices = createReportRegisterFilterServices();
+  vi.mocked(registerServices.fetchReportRegisters).mockResolvedValue({ kind: "failed" });
 
-  const screen = await renderScreen(services);
+  const screen = await renderScreen(createServices(), { registerServices });
 
   await expect.element(screen.getByText("02/10/2026")).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));

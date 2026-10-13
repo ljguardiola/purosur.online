@@ -38,15 +38,11 @@ function reportsServices(capabilities: Capability[]) {
     kind: "ok",
     value: weekReport,
   });
-  vi.mocked(services.salesByDayScreen.fetchReportRegisters).mockResolvedValue({
-    kind: "ok",
-    value: registers,
-  });
   vi.mocked(services.salesByPaymentMethodScreen.fetchSalesByPaymentMethod).mockResolvedValue({
     kind: "ok",
     value: weekPaymentsReport,
   });
-  vi.mocked(services.salesByPaymentMethodScreen.fetchReportRegisters).mockResolvedValue({
+  vi.mocked(services.reportRegisterFilter.fetchReportRegisters).mockResolvedValue({
     kind: "ok",
     value: registers,
   });
@@ -108,27 +104,20 @@ test("opens the sales by payment method report from the list and reads it from t
   expect(document.title).toBe("Ventas por medio de pago · Puro Sur");
 });
 
-test("opens the sales by payment method report from the side column keeping its filters", async () => {
+test("keeps the sales by payment method report's filters after following its own side column link", async () => {
+  const url = "/reports/sales-by-payment-method?sortBy=method";
   const services = reportsServices(["reports_area"]);
-  window.history.pushState(null, "", "/reports/sales-by-payment-method?sortBy=method");
+  window.history.pushState(null, "", url);
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByText("Efectivo")).toBeVisible();
+  const sectionLink = screen
+    .getByRole("navigation", { name: "Reportes" })
+    .getByRole("link", { name: "Ventas por medio de pago" });
+  await expect.element(sectionLink).toHaveAttribute("href", url);
 
-  await userEvent.click(
-    screen
-      .getByRole("navigation", { name: "Reportes" })
-      .getByRole("link", { name: "Todos los reportes" }),
-  );
-  await userEvent.click(
-    screen
-      .getByRole("navigation", { name: "Reportes" })
-      .getByRole("link", { name: "Ventas por medio de pago" }),
-  );
+  await userEvent.click(sectionLink);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ventas por medio de pago", level: 1 }))
-    .toBeVisible();
-  expect(window.location.pathname).toBe("/reports/sales-by-payment-method");
+  await expect.poll(() => `${window.location.pathname}${window.location.search}`).toBe(url);
 });
 
 test("keeps the filters of the sales by payment method report in the address", async () => {
