@@ -24,6 +24,16 @@ test("keeps the range, the register and the order a URL names", () => {
   expect(salesByPaymentMethodFilters.parse(filters)).toEqual(filters);
 });
 
+test("falls back to no range for one the cloud would refuse, keeping the rest", () => {
+  const parsed = salesByPaymentMethodFilters.parse({
+    from: "2026-10-08",
+    to: "2026-10-07",
+    sortBy: "sales",
+  });
+
+  expect(parsed).toMatchObject({ from: "", to: "", sortBy: "sales" });
+});
+
 test.each([
   ["a column that does not exist", { sortBy: "share" }],
   ["a direction that does not exist", { sort: "up" }],

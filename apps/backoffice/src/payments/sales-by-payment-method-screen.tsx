@@ -15,7 +15,7 @@ import { Receipt } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { paymentMethodLabel } from "../platform/payment-method-label";
 import { ReportFilters } from "../shell/report-filters";
-import { reportQueryOf, withoutRefusedPeriod } from "../shell/report-query";
+import { reportQueryOf } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
@@ -73,13 +73,12 @@ function paymentColumns(total: number) {
 }
 
 export function SalesByPaymentMethodScreen({
-  filters: asked,
+  filters,
   onFiltersChange,
   onSessionEnded,
   registerFilter,
   services,
 }: SalesByPaymentMethodScreenProps) {
-  const filters = withoutRefusedPeriod(asked);
   const registerChosen = filters.register !== "ALL";
   const data = useSalesByPaymentMethodQuery({
     query: reportQueryOf(filters),
