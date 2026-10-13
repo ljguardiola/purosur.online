@@ -120,7 +120,13 @@ describe("GET /initial-inventory-lots", () => {
       actorId: userId,
       counted: 1_000,
     });
-    await insertInitialCountLot(db, { productId, locationId, actorId: userId, withdrawn: true });
+    await insertInitialCountLot(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      withdrawn: true,
+      remaining: 0,
+    });
     await insertInitialCountLot(db, { productId, locationId: otherLocationId, actorId: userId });
     await insertPurchasedLot(db, { productId, locationId, actorId: userId });
 
@@ -137,6 +143,8 @@ describe("GET /initial-inventory-lots", () => {
           saleUnit: "KG",
           expiresOn: "2027-02-01",
           counted: 2_500,
+          withdrawn: false,
+          remaining: 2_500,
           costIncomplete: false,
           unitCostCents: 3_500,
           valueCents: 8_750,
@@ -149,12 +157,38 @@ describe("GET /initial-inventory-lots", () => {
           saleUnit: "KG",
           expiresOn: null,
           counted: 1_000,
+          withdrawn: false,
+          remaining: 1_000,
           costIncomplete: true,
           unitCostCents: null,
           valueCents: null,
         },
       ],
     });
+  });
+
+  it("lists the lot of a withdrawn line that still holds stock, marked and with what it holds", async () => {
+    const { headers, locationId, userId } = await signedInWith(
+      db,
+      ["record_initial_inventory"],
+      NOW,
+    );
+    const { productId } = await insertProduct(db);
+    const holding = await insertInitialCountLot(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      counted: 2_500,
+      withdrawn: true,
+      remaining: 1_500,
+    });
+
+    const response = await listRequest(headers);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().lots).toEqual([
+      expect.objectContaining({ lotId: holding.lotId, withdrawn: true, remaining: 1_500 }),
+    ]);
   });
 
   it("narrows the list by cost and by the product's name", async () => {
@@ -275,7 +309,7 @@ describe("PUT /initial-inventory-lots/:lotId/reference-cost", () => {
     expect(foreign.statusCode).toBe(404);
   });
 
-  it("answers not found for a lot withdrawn from the initial count", async () => {
+  it("sets the reference cost of a withdrawn line's lot that still holds stock", async () => {
     const { headers, locationId, userId } = await signedInWith(
       db,
       ["record_initial_inventory"],
@@ -287,6 +321,33 @@ describe("PUT /initial-inventory-lots/:lotId/reference-cost", () => {
       locationId,
       actorId: userId,
       withdrawn: true,
+      remaining: 1,
+    });
+
+    const response = await setCostRequest(headers, lotId, { unitCostCents: 3_500 });
+
+    expect(response.statusCode).toBe(204);
+    const [lot] = await db.select().from(lots).where(eq(lots.id, lotId));
+    expect(lot).toMatchObject({
+      costTotalCents: 3_500,
+      costQuantity: 1_000,
+      costIncomplete: false,
+    });
+  });
+
+  it("answers not found for a lot withdrawn from the initial count that holds no stock", async () => {
+    const { headers, locationId, userId } = await signedInWith(
+      db,
+      ["record_initial_inventory"],
+      NOW,
+    );
+    const { productId } = await insertProduct(db);
+    const { lotId } = await insertInitialCountLot(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      withdrawn: true,
+      remaining: 0,
     });
 
     const response = await setCostRequest(headers, lotId, { unitCostCents: 100 });

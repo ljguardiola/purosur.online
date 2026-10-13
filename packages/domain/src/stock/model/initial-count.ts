@@ -15,3 +15,13 @@ export function initialCountOffered({
 export function initialCountCostIncomplete(filter: InitialCountCostFilter): boolean {
   return filter === "incomplete";
 }
+
+export function initialCountLotTakesCost({
+  withdrawn,
+  remaining,
+}: {
+  withdrawn: boolean;
+  remaining: number;
+}): boolean {
+  return !withdrawn || remaining > 0;
+}

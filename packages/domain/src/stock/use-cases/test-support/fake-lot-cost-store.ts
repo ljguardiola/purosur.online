@@ -11,6 +11,7 @@ export interface FakeCostLot {
   locationId: string;
   origin: LotOriginKind;
   withdrawn: boolean;
+  remaining: number;
   cost: LotCost | null;
   costIncomplete: boolean;
 }
@@ -33,7 +34,7 @@ export class FakeLotCostStore implements LotCostStore {
         lockLot: async (locationId, lotId): Promise<LockedLot | undefined> => {
           this.lockedLots.push(lotId);
           const lot = this.lots.find((row) => row.id === lotId && row.locationId === locationId);
-          return lot && { origin: lot.origin, withdrawn: lot.withdrawn };
+          return lot && { origin: lot.origin, withdrawn: lot.withdrawn, remaining: lot.remaining };
         },
         setReferenceCost: async (lotId, cost) => {
           if (this.failingWrite) {

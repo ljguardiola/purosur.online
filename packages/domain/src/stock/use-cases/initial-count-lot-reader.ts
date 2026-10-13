@@ -9,6 +9,8 @@ export interface InitialCountLotRow {
   saleUnit: SaleUnit;
   expiresOn: string | null;
   counted: number;
+  withdrawn: boolean;
+  remaining: number;
   costIncomplete: boolean;
   cost: LotCost | null;
 }
@@ -20,5 +22,5 @@ export interface InitialCountLotsQuery {
 }
 
 export interface InitialCountLotReader {
-  notWithdrawnInitialCountLots(query: InitialCountLotsQuery): Promise<InitialCountLotRow[]>;
+  initialCountLots(query: InitialCountLotsQuery): Promise<InitialCountLotRow[]>;
 }

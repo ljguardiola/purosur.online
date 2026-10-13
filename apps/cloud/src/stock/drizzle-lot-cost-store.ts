@@ -23,6 +23,7 @@ class DrizzleLotCostTransaction<TQueryResult extends PgQueryResultHKT>
         technical: lots.technical,
         purchaseLineId: lots.purchaseLineId,
         withdrawn: lots.withdrawn,
+        remaining: lots.remaining,
       })
       .from(lots)
       .where(and(eq(lots.id, lotId), eq(lots.locationId, locationId)))
@@ -35,7 +36,7 @@ class DrizzleLotCostTransaction<TQueryResult extends PgQueryResultHKT>
       : lot.purchaseLineId === null
         ? "initial_count"
         : "purchase";
-    return { origin, withdrawn: lot.withdrawn };
+    return { origin, withdrawn: lot.withdrawn, remaining: lot.remaining };
   }
 
   async setReferenceCost(

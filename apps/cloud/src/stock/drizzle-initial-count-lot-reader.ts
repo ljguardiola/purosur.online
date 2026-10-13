@@ -18,7 +18,7 @@ export class DrizzleInitialCountLotReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  async notWithdrawnInitialCountLots(query: InitialCountLotsQuery): Promise<InitialCountLotRow[]> {
+  async initialCountLots(query: InitialCountLotsQuery): Promise<InitialCountLotRow[]> {
     const rows = await this.db
       .select({
         lotId: lots.id,
@@ -28,6 +28,8 @@ export class DrizzleInitialCountLotReader<TQueryResult extends PgQueryResultHKT>
         saleUnit: products.saleUnit,
         expiresOn: lots.expiresOn,
         counted: lots.quantityReceived,
+        withdrawn: lots.withdrawn,
+        remaining: lots.remaining,
         costIncomplete: lots.costIncomplete,
         costTotalCents: lots.costTotalCents,
         costQuantity: lots.costQuantity,
@@ -38,7 +40,6 @@ export class DrizzleInitialCountLotReader<TQueryResult extends PgQueryResultHKT>
       .where(
         and(
           eq(lots.locationId, query.locationId),
-          eq(lots.withdrawn, false),
           isNotNull(lots.originMovementId),
           query.costIncomplete === undefined
             ? undefined
