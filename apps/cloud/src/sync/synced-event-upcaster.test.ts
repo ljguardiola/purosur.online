@@ -675,10 +675,10 @@ describe("decoding the events the registers pushed", () => {
           ...change,
         },
       });
-    const cancelled = (change: Record<string, unknown> = {}) =>
+    const cancelled = (change: Record<string, unknown> = {}, schemaVersion = 4) =>
       pushed({
         event_type: "sale_cancelled",
-        schema_version: 4,
+        schema_version: schemaVersion,
         payload: {
           ...saleFields,
           lines: sharedLines,
@@ -721,6 +721,46 @@ describe("decoding the events the registers pushed", () => {
                 tendered: null,
                 authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
                 confirmedAt: new Date("2026-10-06T11:21:00.000Z"),
+              },
+            ],
+          },
+        },
+      });
+    });
+
+    it("reads a version 5 cancelled sale with the standalone terminal payment and its pending refund", () => {
+      const standalone = {
+        ...salePayment,
+        method: "STANDALONE_TERMINAL",
+        provider: "EXTERNAL_TERMINAL",
+        tendered: null,
+        authorized_by: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+        confirmed_at: "2026-10-06T11:21:00.000Z",
+      };
+      const pending = {
+        ...refund,
+        parent_id: standalone.id,
+        method: "STANDALONE_TERMINAL",
+        provider: "EXTERNAL_TERMINAL",
+        state: "PENDING",
+      };
+
+      const decoded = upcaster.decode(
+        unappliedEventOf(cancelled({ payments: [standalone], refunds: [pending] }, 5)),
+      );
+
+      expect(decoded).toMatchObject({
+        kind: "fact",
+        fact: {
+          kind: "sale_cancelled",
+          sale: {
+            payments: [{ method: "STANDALONE_TERMINAL", provider: "EXTERNAL_TERMINAL" }],
+            refunds: [
+              {
+                paymentId: standalone.id,
+                method: "STANDALONE_TERMINAL",
+                provider: "EXTERNAL_TERMINAL",
+                state: "PENDING",
               },
             ],
           },

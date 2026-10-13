@@ -14,7 +14,10 @@ import {
   insertLocation,
   signedInWith,
 } from "../stock/test-support/stock-route-fixtures.js";
-import { aTransferCancelledSale } from "../sync/test-support/synced-facts.js";
+import {
+  aStandaloneTerminalCancelledSale,
+  aTransferCancelledSale,
+} from "../sync/test-support/synced-facts.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerRefundRoutes } from "./refund-routes.js";
 import { aPendingRefundOfCancelledSale } from "./test-support/cancelled-sale-refund-fixtures.js";
@@ -58,13 +61,15 @@ function discard(headers: Record<string, string>, refundId: string) {
   return app.inject({ method: "POST", url: `/refunds/${refundId}/discard`, headers });
 }
 
-async function aPendingRefund(): Promise<string> {
+async function aPendingRefund(
+  overrides: ReturnType<typeof aTransferCancelledSale> = aTransferCancelledSale(),
+): Promise<string> {
   const { deviceId } = await insertEnrolledInstallation(db, { now: NOW });
   const cancelled = await applyCancelledSale(db, {
     deviceId,
     cancelledAt: NOW,
     total: 2_000,
-    overrides: aTransferCancelledSale(),
+    overrides,
   });
   const [refund] = cancelled.refunds;
   if (!refund) {
@@ -118,6 +123,18 @@ describe("GET /refunds/pending", () => {
     expect(response.statusCode).toBe(200);
     const body = pendingRefundsSchema.parse(response.json());
     expect(body.refunds.map((refund) => refund.id)).toEqual([refundId]);
+  });
+
+  it("lists the pending refund of a standalone terminal payment with its method", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const refundId = await aPendingRefund(aStandaloneTerminalCancelledSale());
+
+    const response = await pendingRefunds(headers);
+
+    const body = pendingRefundsSchema.parse(response.json());
+    expect(body.refunds.map(({ id, method }) => ({ id, method }))).toEqual([
+      { id: refundId, method: "STANDALONE_TERMINAL" },
+    ]);
   });
 
   it("lists the refund of a late payment beside the refunds of cancelled sales, each with its origin and whether it can be discarded", async () => {
@@ -220,6 +237,22 @@ describe("POST /refunds/:id/completion", () => {
     });
     const [refund] = await db.select().from(paymentRefunds).where(eq(paymentRefunds.id, refundId));
     expect(refund).toMatchObject({ state: "APPROVED", doneBy: userId, doneAt: NOW });
+  });
+
+  it("marks the pending refund of a standalone terminal payment as done by the person of the session", async () => {
+    const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const refundId = await aPendingRefund(aStandaloneTerminalCancelledSale());
+
+    const response = await markDone(headers, refundId);
+
+    expect(response.statusCode).toBe(200);
+    const [refund] = await db.select().from(paymentRefunds).where(eq(paymentRefunds.id, refundId));
+    expect(refund).toMatchObject({
+      method: "STANDALONE_TERMINAL",
+      state: "APPROVED",
+      doneBy: userId,
+      doneAt: NOW,
+    });
   });
 
   it("resolves the alert of a late-payment refund when it is marked as done", async () => {
