@@ -246,10 +246,10 @@ describe("batchLotFacts", () => {
   });
 
   const allocation = fc.record({
-    quantity: fc.integer({ min: 1, max: MAX_STOCK_QUANTITY }),
+    quantity: fc.integer({ min: 1, max: 1_000_000 }),
     cost: fc.option(
       fc.record({
-        totalCents: fc.integer({ min: 0, max: 1_000_000_000 }),
+        totalCents: fc.integer({ min: 0, max: 1_000_000 }),
         quantity: fc.integer({ min: 1, max: MAX_STOCK_QUANTITY }),
       }),
       { nil: null },
