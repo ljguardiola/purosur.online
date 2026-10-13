@@ -216,7 +216,7 @@ describe("current-sale charge refusal", () => {
       id: "qr-1",
       saleId: "sale-1",
       amount: 5000,
-      occurredAt: NOW,
+      occurredAt: new Date(NOW.getTime() - 130_000),
       waitEndsAt: new Date(NOW.getTime() + 60_000),
     };
 
@@ -230,7 +230,7 @@ describe("current-sale charge refusal", () => {
         method: "QR",
         amount: 5000,
         remainingSeconds: 60,
-        waitSeconds: 180,
+        waitSeconds: 190,
       },
     });
   });

@@ -29,18 +29,21 @@ const QR_CHARGE_IN_ITS_WAIT = {
   id: "qr-1",
   method: "QR",
   amount: 3000,
+  occurredAt: new Date("2026-10-09T12:00:00.000Z"),
   waitEndsAt: new Date("2026-10-09T12:03:00.000Z"),
 } as const;
 const QR_CHARGE_PAST_ITS_WAIT = {
   id: "qr-0",
   method: "QR",
   amount: 3000,
+  occurredAt: new Date("2026-10-09T11:57:30.000Z"),
   waitEndsAt: new Date("2026-10-09T12:00:30.000Z"),
 } as const;
 const POINT_CHARGE_PAST_ITS_WAIT = {
   id: "point-1",
   method: "POINT",
   amount: 4000,
+  occurredAt: new Date("2026-10-09T11:57:30.000Z"),
   waitEndsAt: new Date("2026-10-09T12:00:30.000Z"),
 } as const;
 

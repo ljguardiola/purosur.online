@@ -106,6 +106,7 @@ describe("startMercadoPagoCharge", () => {
     expect(await startMercadoPagoCharge(world.ports, INPUT)).toMatchObject({
       kind: "order_shown",
       remainingSeconds: 190,
+      waitSeconds: 190,
     });
     expect(world.pendingCharge(CHARGE_PAYMENT_ID)?.waitEndsAt).toEqual(expiresAt);
     expect(world.operations).toEqual([
@@ -115,7 +116,7 @@ describe("startMercadoPagoCharge", () => {
     ]);
   });
 
-  it("counts the time the cloud took against the wait that ends at the order's expiry", async () => {
+  it("counts the time the cloud took against the wait, which runs from the charge's start to the order's expiry", async () => {
     const world = new FakeMercadoPagoChargeWorld();
     world.requestOrder = async () => {
       world.now = new Date("2026-10-09T12:00:02.000Z");
@@ -124,15 +125,17 @@ describe("startMercadoPagoCharge", () => {
 
     expect(await startMercadoPagoCharge(world.ports, INPUT)).toMatchObject({
       remainingSeconds: 188,
+      waitSeconds: 190,
     });
   });
 
-  it("shows no time left when the order the cloud created has already expired", async () => {
+  it("shows no time left and no wait when the order the cloud created has already expired", async () => {
     const world = new FakeMercadoPagoChargeWorld();
     world.orderAnswer = { kind: "created", expiresAt: new Date("2026-10-08T12:00:00.000Z") };
 
     expect(await startMercadoPagoCharge(world.ports, INPUT)).toMatchObject({
       remainingSeconds: 0,
+      waitSeconds: 0,
     });
   });
 });

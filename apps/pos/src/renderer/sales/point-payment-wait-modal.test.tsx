@@ -273,18 +273,24 @@ describe("PointPaymentWaitModal", () => {
       await expect.element(screen.getByText("de 3:00")).toBeVisible();
     });
 
-    it("offers Elegir otro medio without the expiry notice when the order then expires", async () => {
+    it("tells the order expired and nothing was charged when Mercado Pago then expires it", async () => {
       const { screen, callbacks } = await renderModal(answering(WAIT_OVER, EXPIRED));
 
       await expect
-        .element(screen.getByRole("button", { name: "Elegir otro medio" }), {
+        .element(screen.getByRole("heading", { name: "El cobro venció en la terminal" }), {
           timeout: NEXT_ASK_TIMEOUT_MS,
         })
-        .toBeEnabled();
-      await expect
-        .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
         .toBeVisible();
+      await expect.element(screen.getByText("No se cobró nada.")).toBeVisible();
+      expect(
+        screen.getByText("Cancelá el cobro en la terminal", { exact: true }).elements(),
+      ).toHaveLength(0);
+      expect(buttonLabels(screen)).toEqual(["Elegir otro medio"]);
       expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
+
+      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
+      expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
     });
 
     it("tells to cancel on the terminal and offers Elegir otro medio only once the terminal closes the order", async () => {
@@ -416,6 +422,25 @@ describe("PointPaymentWaitModal", () => {
           timeout: NEXT_ASK_TIMEOUT_MS,
         })
         .toBeEnabled();
+      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
+      expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
+    });
+
+    it("tells the order expired and nothing was charged when Mercado Pago expires it instead", async () => {
+      const { screen, callbacks } = await renderCancelling(answering(WAITING, EXPIRED));
+
+      await expect
+        .element(screen.getByRole("heading", { name: "El cobro venció en la terminal" }), {
+          timeout: NEXT_ASK_TIMEOUT_MS,
+        })
+        .toBeVisible();
+      await expect.element(screen.getByText("No se cobró nada.")).toBeVisible();
+      expect(
+        screen.getByText("Cancelá el cobro en la terminal", { exact: true }).elements(),
+      ).toHaveLength(0);
+      expect(buttonLabels(screen)).toEqual(["Elegir otro medio"]);
+
       await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
 
       expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();

@@ -8,6 +8,7 @@ import {
   mercadoPagoOrderChargeRemainingSeconds,
   mercadoPagoOrderChargeWait,
   mercadoPagoOrderChargeWaitEndsAt,
+  mercadoPagoOrderChargeWaitSeconds,
 } from "./mercado-pago-order-charge-wait.js";
 import { mercadoPagoOrderExpiresAt } from "./payment-transaction.js";
 
@@ -31,6 +32,44 @@ describe("mercadoPagoOrderChargeWaitEndsAt", () => {
       ).getTime() - mercadoPagoOrderChargeWaitEndsAt(attemptStartedAt).getTime(),
     ).toBe(0);
     expect(MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES).toBe(3);
+  });
+});
+
+describe("mercadoPagoOrderChargeWaitSeconds", () => {
+  it("is the whole wait of a charge, from its start to the end of its wait", () => {
+    expect(mercadoPagoOrderChargeWaitSeconds(STARTED_AT, WAIT_ENDS_AT)).toBe(180);
+    expect(
+      mercadoPagoOrderChargeWaitSeconds(STARTED_AT, new Date("2026-10-09T12:03:10.000Z")),
+    ).toBe(190);
+  });
+
+  it("counts a started second of the wait as a whole second", () => {
+    expect(
+      mercadoPagoOrderChargeWaitSeconds(STARTED_AT, new Date("2026-10-09T12:03:10.001Z")),
+    ).toBe(191);
+  });
+
+  it("is no wait when the wait ended before the charge started", () => {
+    expect(
+      mercadoPagoOrderChargeWaitSeconds(STARTED_AT, new Date("2026-10-09T11:59:00.000Z")),
+    ).toBe(0);
+    expect(mercadoPagoOrderChargeWaitSeconds(STARTED_AT, STARTED_AT)).toBe(0);
+  });
+
+  it("never leaves more time than the whole wait", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 400_000 }),
+        fc.integer({ min: 0, max: 400_000 }),
+        (waitMs, elapsedMs) => {
+          const waitEndsAt = new Date(STARTED_AT.getTime() + waitMs);
+          const now = new Date(STARTED_AT.getTime() + elapsedMs);
+          expect(mercadoPagoOrderChargeRemainingSeconds(waitEndsAt, now)).toBeLessThanOrEqual(
+            mercadoPagoOrderChargeWaitSeconds(STARTED_AT, waitEndsAt),
+          );
+        },
+      ),
+    );
   });
 });
 
@@ -131,10 +170,16 @@ describe("aMercadoPagoChargeInProgress", () => {
 
 describe("mercadoPagoChargeInProgress", () => {
   const OVER = new Date("2026-10-09T11:59:00.000Z");
-  const pending = (id: string, method: "QR" | "POINT", waitEndsAt: Date) => ({
+  const pending = (
+    id: string,
+    method: "QR" | "POINT",
+    waitEndsAt: Date,
+    occurredAt = new Date(waitEndsAt.getTime() - 180_000),
+  ) => ({
     id,
     method,
     amount: 3000,
+    occurredAt,
     waitEndsAt,
   });
 
@@ -146,18 +191,21 @@ describe("mercadoPagoChargeInProgress", () => {
     expect(mercadoPagoChargeInProgress([pending("qr-1", "QR", OVER)], STARTED_AT)).toBeNull();
   });
 
-  it("names the QR payment still in its wait, with its amount and the seconds left", () => {
+  it("names the QR payment still in its wait, with its amount, the seconds left and its whole wait up to the order's expiry", () => {
     expect(
       mercadoPagoChargeInProgress(
-        [pending("qr-1", "QR", OVER), pending("qr-2", "QR", WAIT_ENDS_AT)],
+        [
+          pending("qr-1", "QR", OVER),
+          pending("qr-2", "QR", new Date("2026-10-09T12:03:10.000Z"), STARTED_AT),
+        ],
         new Date("2026-10-09T12:01:00.000Z"),
       ),
     ).toEqual({
       paymentTransactionId: "qr-2",
       method: "QR",
       amount: 3000,
-      remainingSeconds: 120,
-      waitSeconds: 180,
+      remainingSeconds: 130,
+      waitSeconds: 190,
     });
   });
 

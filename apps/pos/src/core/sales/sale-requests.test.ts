@@ -906,17 +906,27 @@ describe("the sale in progress", () => {
     });
   });
 
-  function addQrPayment(saleId: string, state: "PENDING" | "APPROVED", waitEndsAt: Date): void {
+  function addQrPayment(
+    saleId: string,
+    state: "PENDING" | "APPROVED",
+    waitEndsAt: Date,
+    occurredAt: Date = NOW,
+  ): void {
     database
       .prepare(
         "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES ('qr-1', ?, 'SALE', 'QR', 'MERCADOPAGO_QR', 1000, ?, ?, ?)",
       )
-      .run(saleId, state, NOW.toISOString(), waitEndsAt.toISOString());
+      .run(saleId, state, occurredAt.toISOString(), waitEndsAt.toISOString());
   }
 
   it("says that a QR charge in its wait locks the lines and refuses the cancellation", async () => {
     const saleId = await sellTwoForPayments();
-    addQrPayment(saleId, "PENDING", new Date(NOW.getTime() + 60_000));
+    addQrPayment(
+      saleId,
+      "PENDING",
+      new Date(NOW.getTime() + 60_000),
+      new Date(NOW.getTime() - 130_000),
+    );
 
     expect(await currentSaleFor(deps())).toMatchObject({
       lines_lock: "mercado_pago_charge_in_progress",
@@ -927,7 +937,7 @@ describe("the sale in progress", () => {
         method: "QR",
         amount: 1000,
         remaining_seconds: 60,
-        wait_seconds: 180,
+        wait_seconds: 190,
       },
     });
   });

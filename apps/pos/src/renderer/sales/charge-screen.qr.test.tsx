@@ -78,6 +78,27 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
       await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
     });
 
+    it("shows the whole wait as the total of a charge reopened part way through it", async () => {
+      const { screen } = await renderScreen({
+        currentSale: readsInTurn({
+          ...saleWithChargeInProgress("QR", 40),
+          mercado_pago_charge_in_progress: {
+            payment_transaction_id: QR_PAYMENT_ID,
+            method: "QR",
+            amount: 476_000,
+            remaining_seconds: 40,
+            wait_seconds: 190,
+          },
+        }),
+        followMercadoPagoCharge: async () => ({ kind: "waiting", remaining_seconds: 40 }),
+      });
+
+      await expect
+        .element(screen.getByRole("heading", { name: "Esperando el pago del cliente" }))
+        .toBeVisible();
+      await expect.element(screen.getByText("de 3:10")).toBeVisible();
+    });
+
     it("keeps the declined notice after the sale stops showing the charge", async () => {
       const { screen, currentSale } = await renderScreen({
         currentSale: readsInTurn(saleWithChargeInProgress("QR", 120), SALE_OF_ONE_LINE),

@@ -100,9 +100,24 @@ describe("QrPaymentWaitModal", () => {
   });
 
   it("counts the time left out of the whole wait the order was shown with", async () => {
-    const { screen } = await renderModal(answering(WAITING), { ...ORDER, remaining_seconds: 190 });
+    const { screen } = await renderModal(answering(WAITING), {
+      ...ORDER,
+      remaining_seconds: 188,
+      wait_seconds: 190,
+    });
 
     await expect.element(screen.getByText("2:41")).toBeVisible();
+    await expect.element(screen.getByText("de 3:10")).toBeVisible();
+  });
+
+  it("shows the whole wait as the total of a charge reopened part way through it", async () => {
+    const { screen } = await renderModal(answering({ kind: "waiting", remaining_seconds: 40 }), {
+      ...ORDER,
+      remaining_seconds: 40,
+      wait_seconds: 190,
+    });
+
+    await expect.element(screen.getByText("0:40")).toBeVisible();
     await expect.element(screen.getByText("de 3:10")).toBeVisible();
   });
 

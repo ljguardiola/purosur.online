@@ -200,18 +200,24 @@ describe("ChargeScreen · Point integrada", () => {
     });
 
     it("tells the order expired and goes back to the methods from Elegir otro medio", async () => {
-      const { screen } = await renderScreen({
-        currentSale: readsInTurn(saleWithChargeInProgress("POINT", 120)),
+      const { screen, currentSale } = await renderScreen({
+        currentSale: readsInTurn(saleWithChargeInProgress("POINT", 120), SALE_OF_ONE_LINE),
         followMercadoPagoCharge: async () => ({ kind: "expired" }),
       });
 
       await expect
         .element(screen.getByRole("heading", { name: "El cobro venció en la terminal" }))
         .toBeVisible();
+      const readsBefore = currentSale.mock.calls.length;
       await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
 
       await expect
-        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
+        .element(screen.getByRole("heading", { name: "El cobro venció en la terminal" }))
+        .not.toBeInTheDocument();
+      expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
+      await choosePoint(screen);
+      await expect
+        .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
         .toBeVisible();
     });
   });

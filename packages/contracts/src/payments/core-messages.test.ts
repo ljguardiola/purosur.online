@@ -81,6 +81,13 @@ describe("starting a Mercado Pago QR charge", () => {
       wait_seconds: 180,
     },
     {
+      kind: "order_shown",
+      payment_transaction_id: PAYMENT_ID,
+      amount: 2000,
+      remaining_seconds: 0,
+      wait_seconds: 0,
+    },
+    {
       kind: "order_unconfirmed",
       payment_transaction_id: PAYMENT_ID,
       amount: 2000,
@@ -162,7 +169,6 @@ describe("starting a Mercado Pago QR charge", () => {
 
   it.each([
     ["without the full wait", undefined],
-    ["with no full wait", 0],
     ["with a negative full wait", -1],
     ["with a full wait in part of a second", 1.5],
   ])("rejects an order shown %s", (_case, wait_seconds) => {
