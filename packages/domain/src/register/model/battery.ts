@@ -29,7 +29,7 @@ export function batteryHealthPercent(
   if (designCapacity <= 0) {
     return undefined;
   }
-  return Math.floor((fullChargeCapacity / designCapacity) * 100);
+  return Math.floor((fullChargeCapacity * 100) / designCapacity);
 }
 
 export function nextOnBatterySince(
