@@ -19,11 +19,7 @@ export interface AssemblyProposal {
   output: number | null;
 }
 
-function proposedQuantity(
-  saleUnit: SaleUnit,
-  quantityPerOutputUnit: number,
-  size: number,
-): number {
+function proposedQuantity(saleUnit: SaleUnit, quantityPerOutputUnit: number, size: number): number {
   const exactTimesUnit = BigInt(quantityPerOutputUnit) * BigInt(size);
   const unit = BigInt(STOCK_QUANTITY_PER_UNIT);
   if (saleUnit === "KG") {

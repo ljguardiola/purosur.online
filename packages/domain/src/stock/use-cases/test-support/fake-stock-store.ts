@@ -1,7 +1,15 @@
 import type { SaleUnit } from "../../../catalog/index.js";
 import type { Clock } from "../../../shared/index.js";
-import type { NewInitialCountLot, NewLot } from "../../model/lot.js";
+import type { NewBatchLot, NewInitialCountLot, NewLot } from "../../model/lot.js";
 import type { StockLot } from "../../model/lot-allocation.js";
+import type { LotCost } from "../../model/lot-value.js";
+import type {
+  AssemblyBatchStore,
+  AssemblyBatchTransaction,
+  BatchLotCost,
+  NewAssemblyBatch,
+} from "../assembly-batch-store.js";
+import type { Recipe } from "../recipe-store.js";
 import type {
   CountedLot,
   CoveringCount,
@@ -12,12 +20,16 @@ import type {
   OpeningCountLot,
   ProductStockKey,
   StockStore,
-  StockStoreTransaction,
 } from "../stock-store.js";
 
 export interface FakeStockProduct {
   id: string;
   saleUnit: SaleUnit;
+  active?: boolean;
+}
+
+export interface FakeAssemblyBatch extends NewAssemblyBatch {
+  id: string;
 }
 
 export interface FakeStockMovement extends NewStockMovement {
@@ -36,6 +48,7 @@ export interface FakeStockLot extends ProductStockKey, StockLot {
   lotNumber: string | null;
   costComplete: boolean;
   originMovementId: string | null;
+  assemblyBatchId: string | null;
   withdrawn: boolean;
 }
 
@@ -52,6 +65,8 @@ export interface FakeStockState {
   countedLots: FakeCountedLots[];
   lots: FakeStockLot[];
   allocations: LotAllocation[];
+  batches: FakeAssemblyBatch[];
+  recipes: Recipe[];
   nextId: number;
 }
 
@@ -64,7 +79,9 @@ type WriteOperation =
   | "recordInitialCountLot"
   | "markOpeningCountWithdrawn"
   | "openTechnicalLot"
-  | "allocateToLot";
+  | "allocateToLot"
+  | "insertAssemblyBatch"
+  | "recordBatchLot";
 
 function cloneState(state: FakeStockState): FakeStockState {
   return {
@@ -78,6 +95,15 @@ function cloneState(state: FakeStockState): FakeStockState {
     })),
     lots: state.lots.map((row) => ({ ...row, receivedAt: new Date(row.receivedAt) })),
     allocations: state.allocations.map((row) => ({ ...row })),
+    batches: state.batches.map((row) => ({
+      ...row,
+      assembledAt: new Date(row.assembledAt),
+      lines: row.lines.map((line) => ({ ...line })),
+    })),
+    recipes: state.recipes.map((row) => ({
+      ...row,
+      components: row.components.map((component) => ({ ...component })),
+    })),
     nextId: state.nextId,
   };
 }
@@ -86,7 +112,7 @@ function sameKey(row: ProductStockKey, key: ProductStockKey): boolean {
   return row.productId === key.productId && row.locationId === key.locationId;
 }
 
-class FakeStockStoreTransaction implements StockStoreTransaction {
+class FakeStockStoreTransaction implements AssemblyBatchTransaction {
   private readonly state: FakeStockState;
   private readonly store: FakeStockStore;
 
@@ -199,6 +225,7 @@ class FakeStockStoreTransaction implements StockStoreTransaction {
       lotNumber: null,
       costComplete: false,
       originMovementId: null,
+      assemblyBatchId: null,
       withdrawn: false,
     });
     return id;
@@ -223,6 +250,7 @@ class FakeStockStoreTransaction implements StockStoreTransaction {
       lotNumber: lot.lotNumber,
       costComplete: true,
       originMovementId: null,
+      assemblyBatchId: null,
       withdrawn: false,
     });
     return id;
@@ -247,9 +275,82 @@ class FakeStockStoreTransaction implements StockStoreTransaction {
       lotNumber: null,
       costComplete: false,
       originMovementId: lot.originMovementId,
+      assemblyBatchId: null,
       withdrawn: false,
     });
     return id;
+  }
+
+  async recordBatchLot(lot: NewBatchLot): Promise<string> {
+    this.beforeWrite("recordBatchLot");
+    const id = `lot-${this.state.lots.length + 1}`;
+    this.state.lots.push({
+      id,
+      productId: lot.productId,
+      locationId: lot.locationId,
+      technical: false,
+      expiresOn: lot.expiresOn,
+      purchasedOn: null,
+      receivedAt: this.receptionMoment(),
+      remaining: 0,
+      purchaseLineId: null,
+      quantityReceived: lot.quantityReceived,
+      costTotalCents: lot.costTotalCents,
+      costQuantity: lot.costQuantity,
+      lotNumber: null,
+      costComplete: !lot.costIncomplete,
+      originMovementId: null,
+      assemblyBatchId: lot.assemblyBatchId,
+      withdrawn: false,
+    });
+    return id;
+  }
+
+  async insertAssemblyBatch(batch: NewAssemblyBatch): Promise<string> {
+    this.beforeWrite("insertAssemblyBatch");
+    const id = `batch-${this.state.batches.length + 1}`;
+    this.state.batches.push({
+      ...batch,
+      id,
+      lines: batch.lines.map((line) => ({ ...line })),
+    });
+    return id;
+  }
+
+  async recipe(productId: string): Promise<Recipe | undefined> {
+    this.store.operationOrder.push("recipe");
+    const recipe = this.state.recipes.find((row) => row.productId === productId);
+    return (
+      recipe && {
+        ...recipe,
+        components: recipe.components.map((component) => ({ ...component })),
+      }
+    );
+  }
+
+  async activeProductIds(productIds: readonly string[]): Promise<string[]> {
+    this.store.operationOrder.push("activeProductIds");
+    return productIds.filter((id) =>
+      this.state.products.some((row) => row.id === id && row.active !== false),
+    );
+  }
+
+  async lotCosts(lotIds: readonly string[]): Promise<BatchLotCost[]> {
+    this.store.operationOrder.push("lotCosts");
+    return this.state.lots
+      .filter((lot) => lotIds.includes(lot.id))
+      .map((lot) => {
+        const cost: LotCost | null =
+          lot.costTotalCents !== null && lot.costQuantity !== null
+            ? { totalCents: lot.costTotalCents, quantity: lot.costQuantity }
+            : null;
+        return {
+          lotId: lot.id,
+          cost,
+          costIncomplete: lot.technical || !lot.costComplete,
+          expiresOn: lot.expiresOn,
+        };
+      });
   }
 
   async openingCountLot(
@@ -312,7 +413,7 @@ class FakeStockStoreTransaction implements StockStoreTransaction {
   }
 }
 
-export class FakeStockStore implements StockStore {
+export class FakeStockStore implements StockStore, AssemblyBatchStore {
   private state: FakeStockState = {
     products: [],
     balances: [],
@@ -321,6 +422,8 @@ export class FakeStockStore implements StockStore {
     countedLots: [],
     lots: [],
     allocations: [],
+    batches: [],
+    recipes: [],
     nextId: 1,
   };
 
@@ -352,8 +455,16 @@ export class FakeStockStore implements StockStore {
       lotNumber: null,
       costComplete: !lot.technical,
       originMovementId: null,
+      assemblyBatchId: null,
       withdrawn: false,
       ...lot,
+    });
+  }
+
+  seedRecipe(recipe: Recipe): void {
+    this.state.recipes.push({
+      ...recipe,
+      components: recipe.components.map((component) => ({ ...component })),
     });
   }
 
@@ -376,7 +487,7 @@ export class FakeStockStore implements StockStore {
   }
 
   async transaction<TOutcome>(
-    work: (tx: StockStoreTransaction) => Promise<TOutcome>,
+    work: (tx: AssemblyBatchTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     const before = cloneState(this.state);
     try {

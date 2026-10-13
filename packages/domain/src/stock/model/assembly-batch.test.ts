@@ -398,3 +398,27 @@ describe("batchQuantityRefusal", () => {
     ).toEqual({ kind: "invalid_quantity", componentProductId: "harina" });
   });
 });
+
+describe("usedQuantityRefusal", () => {
+  it("names the first component whose quantity is neither zero nor valid for its sale unit", () => {
+    expect(
+      usedQuantityRefusal([
+        { componentProductId: "harina", saleUnit: "KG", quantity: 0 },
+        { componentProductId: "caja", saleUnit: "UNIT", quantity: 1_500 },
+        { componentProductId: "azucar", saleUnit: "KG", quantity: -2 },
+      ]),
+    ).toEqual({ kind: "invalid_quantity", componentProductId: "caja" });
+  });
+
+  it("accepts a list of valid quantities, zero included, even when nothing is used", () => {
+    expect(
+      usedQuantityRefusal([
+        { componentProductId: "harina", saleUnit: "KG", quantity: 0 },
+        { componentProductId: "caja", saleUnit: "UNIT", quantity: 2_000 },
+      ]),
+    ).toBeNull();
+    expect(
+      usedQuantityRefusal([{ componentProductId: "harina", saleUnit: "KG", quantity: 0 }]),
+    ).toBeNull();
+  });
+});
