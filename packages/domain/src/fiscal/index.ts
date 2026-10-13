@@ -20,6 +20,21 @@ export {
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export { isValidCuit } from "./model/cuit.js";
 export type {
+  DeferredSale,
+  DeferredSaleDocumentBlock,
+  DeferredSaleReference,
+} from "./model/deferred-sale.js";
+export {
+  DEFERRED_SALE_QR_PREFIX,
+  deferredSaleDocumentBlock,
+  deferredSaleQrText,
+  formatShortCode,
+  parseDeferredSaleQrText,
+  randomShortCode,
+  SHORT_CODE_ALPHABET,
+  SHORT_CODE_LENGTH,
+} from "./model/deferred-sale.js";
+export type {
   AuthorizedFacturaC,
   FacturaCFiscalBlock,
 } from "./model/factura-c-fiscal-block.js";

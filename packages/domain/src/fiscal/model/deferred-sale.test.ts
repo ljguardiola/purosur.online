@@ -94,7 +94,10 @@ describe("deferred sale QR text", () => {
     ["no short code", "purosur-deferred-sale:0198-abc:"],
     ["a short code that is too short", "purosur-deferred-sale:0198-abc:7KQ4M2P"],
     ["a short code that is too long", "purosur-deferred-sale:0198-abc:7KQ4M2P9A"],
-    ["a short code with a character outside the alphabet", "purosur-deferred-sale:0198-abc:7KQ4M2P0"],
+    [
+      "a short code with a character outside the alphabet",
+      "purosur-deferred-sale:0198-abc:7KQ4M2P0",
+    ],
     ["a lowercase short code", "purosur-deferred-sale:0198-abc:7kq4m2p9"],
     ["an extra part", "purosur-deferred-sale:0198-abc:7KQ4M2P9:more"],
     ["text before the prefix", " purosur-deferred-sale:0198-abc:7KQ4M2P9"],
