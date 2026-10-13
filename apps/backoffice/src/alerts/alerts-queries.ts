@@ -55,13 +55,14 @@ export function useAlertsQuery(params: {
 export function useAlertsOverviewQuery(params: {
   fetchAlertsOverview: typeof fetchAlertsOverview;
   onSessionEnded: () => void;
+  onForbidden?: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<AlertsOverview>({
     queryKey: alertsKeys.overview,
     read: params.fetchAlertsOverview,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: params.onForbidden ?? sendToMyAccount,
   });
 }
 

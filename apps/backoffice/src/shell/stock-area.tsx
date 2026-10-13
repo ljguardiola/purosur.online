@@ -15,10 +15,12 @@ import {
   canPerformStockCounts,
   canRecordInitialInventory,
   canRecordPurchases,
+  canSeeAlertsArea,
   canSeeStockBalances,
   canSeeStockMovements,
 } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
+import { StockTopBarAlertsCount } from "./stock-top-bar";
 
 export const stockAreaRoute = createRoute({
   getParentRoute: () => signedInRoute,
@@ -27,7 +29,8 @@ export const stockAreaRoute = createRoute({
 });
 
 function StockArea() {
-  const { session } = stockAreaRoute.useRouteContext();
+  const { session, services, sessionActions } = stockAreaRoute.useRouteContext();
+  const AlertsCount = services.stockTopBarAlertsCount;
   const matchRoute = useMatchRoute();
   const balancesShown = Boolean(matchRoute({ to: "/inventory" }));
   const countsShown = Boolean(matchRoute({ to: "/inventory-counts" }));
@@ -126,7 +129,18 @@ function StockArea() {
         </>
       }
     >
-      <Outlet />
+      <StockTopBarAlertsCount
+        value={
+          canSeeAlertsArea(session) ? (
+            <AlertsCount
+              onSessionEnded={sessionActions.sessionEnded}
+              services={services.alertsOpenCountLink}
+            />
+          ) : null
+        }
+      >
+        <Outlet />
+      </StockTopBarAlertsCount>
     </AreaLayout>
   );
 }
