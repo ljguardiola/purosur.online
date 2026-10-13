@@ -1,5 +1,10 @@
 import { expect, test } from "vitest";
-import { stockBalancesFilters, stockCountsFilters, stockMovementsFilters } from "./routes";
+import {
+  initialInventoryFilters,
+  stockBalancesFilters,
+  stockCountsFilters,
+  stockMovementsFilters,
+} from "./routes";
 
 test("opens the balances on every product of every category", () => {
   expect(stockBalancesFilters.parse({})).toEqual({
@@ -63,4 +68,19 @@ test("opens the losses and adjustments of the last 30 days, for every reason", (
 test("keeps the reason a URL names, falling back for one that is not text", () => {
   expect(stockMovementsFilters.parse({ reason: "theft" }).reason).toBe("theft");
   expect(stockMovementsFilters.parse({ reason: 3 }).reason).toBe("ALL");
+});
+
+test("opens the initial inventory on every lot, whatever its cost", () => {
+  expect(initialInventoryFilters.parse({})).toEqual({ search: "", cost: "all" });
+});
+
+test("keeps the initial inventory filters a URL names, falling back for a value it does not offer", () => {
+  expect(initialInventoryFilters.parse({ search: "miel", cost: "incomplete" })).toEqual({
+    search: "miel",
+    cost: "incomplete",
+  });
+  expect(initialInventoryFilters.parse({ cost: "known" }).cost).toBe("known");
+  expect(initialInventoryFilters.parse({ search: 1, cost: "free" })).toEqual(
+    initialInventoryFilters.parse({}),
+  );
 });

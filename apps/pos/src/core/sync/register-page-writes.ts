@@ -87,8 +87,19 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
      )
      ${saveOfflinePointOfSaleConflict}`,
   );
+  const saveFirstCashSession = database.prepare(
+    `INSERT INTO branch_first_cash_sessions (location_id, opened_at) VALUES (@location_id, @opened_at)
+     ON CONFLICT (location_id) DO UPDATE SET opened_at = excluded.opened_at`,
+  );
 
   return {
+    firstCashSession({
+      entity_id,
+      row,
+    }: Extract<SyncChange, { entity: "branch_first_cash_session" }>): void {
+      saveFirstCashSession.run({ location_id: entity_id, opened_at: row.opened_at });
+    },
+
     save({ entity_id, row }: Extract<SyncChange, { entity: "register" }>): void {
       saveRegister.run({ id: entity_id, name: row.name, version: row.version });
     },

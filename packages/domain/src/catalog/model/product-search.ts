@@ -1,3 +1,4 @@
+import { compareSpanishText } from "../../shared/index.js";
 import type { SaleUnit } from "./product.js";
 import { matchProductName, type NameMatch } from "./product-name-match.js";
 
@@ -20,8 +21,6 @@ export interface ProductSearchRanking {
   more: boolean;
 }
 
-const TEXT_ORDER = new Intl.Collator("es-AR");
-
 export function rankProductSearch(
   products: readonly SearchableProduct[],
   query: string,
@@ -37,7 +36,7 @@ export function rankProductSearch(
 function byMostSoldThenName(a: SearchableProduct, b: SearchableProduct): number {
   return (
     b.timesSoldHere - a.timesSoldHere ||
-    TEXT_ORDER.compare(a.name, b.name) ||
-    TEXT_ORDER.compare(a.id, b.id)
+    compareSpanishText(a.name, b.name) ||
+    compareSpanishText(a.id, b.id)
   );
 }

@@ -17,6 +17,7 @@ type SignedInOperation = OperationOf<
   | "view_sales_history"
   | "configure_receipt_printer"
   | "configure_serial_devices"
+  | "record_initial_inventory"
 >;
 type AuthorizableOperation = OperationOf<
   | "record_cash_movement"

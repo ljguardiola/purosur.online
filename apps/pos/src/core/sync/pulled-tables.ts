@@ -2,6 +2,7 @@ import type { PulledEntity } from "@purosur/domain/sync/use-cases";
 
 export const PULLED_TABLES = {
   branch_settings: "branch_settings",
+  branch_first_cash_sessions: "branch_first_cash_session",
   categories: "category",
   products: "product",
   product_barcodes: "product",

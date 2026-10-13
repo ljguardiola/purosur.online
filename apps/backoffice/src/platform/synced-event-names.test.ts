@@ -14,6 +14,13 @@ describe("the Spanish names of synced events", () => {
     expect(syncedEventTypeName("qr_payment_replaced")).toBe("reemplazo de pago QR");
   });
 
+  test("names the recording and the withdrawal of an initial inventory line", () => {
+    expect(syncedEventTypeName("opening_count_recorded")).toBe("línea del inventario inicial");
+    expect(syncedEventTypeName("opening_count_withdrawn")).toBe(
+      "línea del inventario inicial quitada",
+    );
+  });
+
   test("has no name for an unknown event type", () => {
     expect(syncedEventTypeName("something_new")).toBeUndefined();
   });

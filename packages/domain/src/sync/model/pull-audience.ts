@@ -1,5 +1,6 @@
 export const PULLED_ENTITIES = [
   "branch_settings",
+  "branch_first_cash_session",
   "category",
   "product",
   "tag",
@@ -42,6 +43,7 @@ const NONE: PullReach = { kind: "none" };
 
 const NOTHING: PullAudience = {
   branch_settings: NONE,
+  branch_first_cash_session: NONE,
   category: NONE,
   product: NONE,
   tag: NONE,
@@ -68,6 +70,7 @@ export function pullAudienceOf({
 }: PullingRegister): PullAudience {
   return {
     branch_settings: { kind: "row", id: locationId },
+    branch_first_cash_session: { kind: "row", id: locationId },
     category: EVERY_ROW,
     product: EVERY_ROW,
     tag: EVERY_ROW,

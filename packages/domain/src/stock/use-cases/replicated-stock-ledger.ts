@@ -11,11 +11,13 @@ export interface PulledStockMovement {
 
 export interface ReplicatedStockMovement {
   supersededByCountId: string | null;
+  delta: number;
 }
 
 export interface ReplicatedStockLedger {
   movement(id: string): ReplicatedStockMovement | undefined;
   recordMovement(movement: PulledStockMovement): void;
+  adoptMovementDelta(id: string, delta: number): void;
   markSuperseded(id: string, countId: string): void;
   addToBalance(productId: string, delta: number): void;
 }

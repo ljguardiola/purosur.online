@@ -1,6 +1,6 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import type { Clock } from "../../shared/index.js";
-import type { NewLot } from "../model/lot.js";
+import type { NewInitialCountLot, NewLot } from "../model/lot.js";
 import type { StockLot } from "../model/lot-allocation.js";
 import type { StockMovementKind } from "../model/stock-movement-kind.js";
 import type { AdjustmentReason, LossReason } from "../model/stock-movement-reason.js";
@@ -53,6 +53,13 @@ export interface LotAllocation {
   quantity: number;
 }
 
+export interface OpeningCountLot {
+  lotId: string;
+  productId: string;
+  counted: number;
+  withdrawn: boolean;
+}
+
 export interface StockStore {
   transaction<TOutcome>(work: (tx: StockStoreTransaction) => Promise<TOutcome>): Promise<TOutcome>;
 }
@@ -68,6 +75,9 @@ export interface StockStoreTransaction {
   productLots(key: ProductStockKey): Promise<StockLot[]>;
   openTechnicalLot(key: ProductStockKey): Promise<string>;
   recordLot(lot: NewLot): Promise<string>;
+  recordInitialCountLot(lot: NewInitialCountLot): Promise<string>;
+  openingCountLot(locationId: string, movementId: string): Promise<OpeningCountLot | undefined>;
+  markOpeningCountWithdrawn(lotId: string): Promise<void>;
   allocateToLot(allocation: LotAllocation): Promise<void>;
   addToBalance(key: ProductStockKey, delta: number): Promise<number>;
 }

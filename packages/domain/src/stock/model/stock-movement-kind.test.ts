@@ -16,9 +16,28 @@ describe("MANUAL_STOCK_MOVEMENT_KINDS", () => {
 });
 
 describe("STOCK_MOVEMENT_KINDS", () => {
-  it("lists every movement a balance moves by: the ones recorded by hand, counts, sales and receipts", () => {
-    expect(STOCK_MOVEMENT_KINDS).toEqual(["loss", "adjustment", "count", "sale", "receipt"]);
+  it("lists every movement a balance moves by: the ones recorded by hand, counts, sales, receipts and the initial count's lines and their withdrawals", () => {
+    expect(STOCK_MOVEMENT_KINDS).toEqual([
+      "loss",
+      "adjustment",
+      "count",
+      "sale",
+      "receipt",
+      "opening_count",
+      "opening_count_withdrawal",
+    ]);
     expectTypeOf<(typeof STOCK_MOVEMENT_KINDS)[number]>().toEqualTypeOf<StockMovementKind>();
+  });
+});
+
+describe("MANUAL_STOCK_MOVEMENT_KINDS and the initial count", () => {
+  it("never offers the initial count's movements to be recorded by hand", () => {
+    expect(MANUAL_STOCK_MOVEMENT_KINDS).not.toContain("opening_count");
+    expect(MANUAL_STOCK_MOVEMENT_KINDS).not.toContain("opening_count_withdrawal");
+    expect(visibleManualStockMovementKinds({ isAdministrator: true, permissionKeys: [] })).toEqual([
+      "loss",
+      "adjustment",
+    ]);
   });
 });
 

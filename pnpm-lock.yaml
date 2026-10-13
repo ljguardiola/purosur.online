@@ -242,6 +242,9 @@ importers:
         specifier: ^13.0.0
         version: 13.0.0(supports-color@10.2.2)
     devDependencies:
+      '@internationalized/date':
+        specifier: ^3.12.4
+        version: 3.12.4
       '@purosur/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts

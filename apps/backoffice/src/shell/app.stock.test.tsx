@@ -15,6 +15,7 @@ opensOnlyScreens([
   "/",
   "/account",
   "/help",
+  "/initial-inventory",
   "/inventory",
   "/inventory-adjustments",
   "/inventory-counts",
@@ -50,6 +51,10 @@ function stockServices(capabilities: Capability[]) {
     kind: "ok",
     value: { movements: [] },
   });
+  vi.mocked(services.initialInventoryScreen.fetchInitialInventoryLots).mockResolvedValue({
+    kind: "ok",
+    value: { lots: [] },
+  });
   vi.mocked(services.suppliersListScreen.fetchSuppliers).mockResolvedValue({
     kind: "ok",
     value: [],
@@ -76,6 +81,7 @@ const SECTION_LABELS = [
   "Proveedores",
   "Presentaciones de compra",
   "Compras",
+  "Inventario inicial",
 ];
 
 test.each([
@@ -86,6 +92,7 @@ test.each([
   ["suppliers", "Proveedores", "/suppliers"],
   ["purchase_packagings", "Presentaciones de compra", "/purchase-packagings"],
   ["purchases", "Compras", "/purchases"],
+  ["initial_inventory", "Inventario inicial", "/initial-inventory"],
 ] as const)(
   "opens only %s's section from the rail's Stock item: %s",
   async (capability, heading, path) => {
@@ -196,6 +203,7 @@ test.each([
   ["/purchase-packagings", "suppliers"],
   ["/purchases", "suppliers"],
   ["/purchases/new", "suppliers"],
+  ["/initial-inventory", "suppliers"],
 ] as const)("sends a user who may not open %s to Mi cuenta", async (path, capability) => {
   const services = stockServices([capability, "stock_area"]);
   window.history.pushState(null, "", path);

@@ -24,6 +24,7 @@ const EVERY_CAPABILITY: Record<Capability, true> = {
   stock_adjustments: true,
   stock_movements: true,
   stock_area: true,
+  initial_inventory: true,
   suppliers: true,
   purchase_packagings: true,
   purchases: true,

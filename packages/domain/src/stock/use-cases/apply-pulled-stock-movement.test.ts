@@ -38,7 +38,7 @@ describe("applyPulledStockMovement", () => {
 
     expect(outcome).toEqual({ kind: "applied" });
     expect(ledger.balanceOf(BREAD)).toBe(10_000 + delta);
-    expect(ledger.movement("cloud-movement-1")).toEqual({ supersededByCountId: null });
+    expect(ledger.movement("cloud-movement-1")).toEqual({ supersededByCountId: null, delta });
   });
 
   it("applies a movement recorded elsewhere once, however many times it arrives", () => {
@@ -61,7 +61,10 @@ describe("applyPulledStockMovement", () => {
 
     expect(outcome).toEqual({ kind: "recorded_superseded" });
     expect(ledger.balanceOf(BREAD)).toBe(10_000);
-    expect(ledger.movement("cloud-movement-1")).toEqual({ supersededByCountId: "count-1" });
+    expect(ledger.movement("cloud-movement-1")).toEqual({
+      supersededByCountId: "count-1",
+      delta: -3000,
+    });
   });
 
   it("never counts twice a movement the register itself originated", () => {
@@ -94,7 +97,78 @@ describe("applyPulledStockMovement", () => {
     expect(outcome).toEqual({ kind: "undone" });
     expect(again).toEqual({ kind: "unchanged" });
     expect(ledger.balanceOf(BREAD)).toBe(10_000);
-    expect(ledger.movement("own-sale-movement")).toEqual({ supersededByCountId: "count-1" });
+    expect(ledger.movement("own-sale-movement")).toEqual({
+      supersededByCountId: "count-1",
+      delta: -3000,
+    });
+  });
+
+  describe("a movement the register recorded that the cloud applied with another delta", () => {
+    const COUNTED = "opening-count-movement";
+
+    function ledgerWithOwnCount(): FakeReplicatedStockLedger {
+      const ledger = ledgerAt(0);
+      ledger.recordOwnSale({ id: COUNTED, productId: BREAD, delta: -5000 });
+      return ledger;
+    }
+
+    it("adopts the cloud's delta and moves the balance by the difference", () => {
+      const ledger = ledgerWithOwnCount();
+
+      const outcome = applyPulledStockMovement(
+        ledger,
+        pulled({ id: COUNTED, kind: "opening_count_withdrawal", delta: -3000 }),
+      );
+
+      expect(outcome).toEqual({ kind: "corrected" });
+      expect(ledger.balanceOf(BREAD)).toBe(-3000);
+      expect(ledger.movement(COUNTED)).toEqual({ supersededByCountId: null, delta: -3000 });
+    });
+
+    it("adopts it once, however many times it arrives", () => {
+      const ledger = ledgerWithOwnCount();
+      const arrival = pulled({ id: COUNTED, kind: "opening_count_withdrawal", delta: -3000 });
+
+      applyPulledStockMovement(ledger, arrival);
+      const again = applyPulledStockMovement(ledger, arrival);
+
+      expect(again).toEqual({ kind: "unchanged" });
+      expect(ledger.balanceOf(BREAD)).toBe(-3000);
+    });
+
+    it("undoes what the register had applied when a count supersedes it with another delta", () => {
+      const ledger = ledgerWithOwnCount();
+
+      const outcome = applyPulledStockMovement(
+        ledger,
+        pulled({
+          id: COUNTED,
+          kind: "opening_count_withdrawal",
+          delta: -3000,
+          supersededByCountId: "count-1",
+        }),
+      );
+
+      expect(outcome).toEqual({ kind: "undone" });
+      expect(ledger.balanceOf(BREAD)).toBe(0);
+      expect(ledger.movement(COUNTED)).toEqual({ supersededByCountId: "count-1", delta: -3000 });
+    });
+
+    it("leaves a movement the register holds already superseded as it is", () => {
+      const ledger = ledgerWithOwnCount();
+      applyPulledStockMovement(
+        ledger,
+        pulled({ id: COUNTED, delta: -5000, supersededByCountId: "count-1" }),
+      );
+
+      const outcome = applyPulledStockMovement(
+        ledger,
+        pulled({ id: COUNTED, delta: -3000, supersededByCountId: "count-1" }),
+      );
+
+      expect(outcome).toEqual({ kind: "unchanged" });
+      expect(ledger.balanceOf(BREAD)).toBe(0);
+    });
   });
 
   describe("a sale made offline and a count registered before it reaches the cloud", () => {

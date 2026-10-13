@@ -19,6 +19,7 @@ import type {
 } from "@purosur/domain/alerts/use-cases";
 import { and, asc, count, desc, eq, ilike, inArray, or, type SQL, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { containsPattern } from "../platform/contains-pattern.js";
 import {
   alertDeliveries,
   alerts,
@@ -36,10 +37,6 @@ function sightCondition(sight: VisibleAlertSight): SQL | undefined {
     return undefined;
   }
   return and(eq(alerts.audience, "local"), eq(alerts.locationId, sight.locationId));
-}
-
-function containsPattern(text: string): string {
-  return `%${text.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
 }
 
 const ALERT_COLUMNS = {
