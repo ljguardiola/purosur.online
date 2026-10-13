@@ -1,8 +1,4 @@
-import {
-  argentinaCalendarDay,
-  isValidCashAmount,
-  shiftCalendarDay,
-} from "../../shared/index.js";
+import { argentinaCalendarDay, isValidCashAmount, shiftCalendarDay } from "../../shared/index.js";
 import { isPurchaseNoteTooLong } from "./purchase.js";
 import { isSupplierNameTooLong } from "./supplier.js";
 

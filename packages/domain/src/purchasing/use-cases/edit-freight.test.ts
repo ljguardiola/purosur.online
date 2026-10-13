@@ -210,7 +210,9 @@ describe("editFreight", () => {
       { purchaseIds: ["purchase-1"], amountCents: 100, date: "2026-03-10" },
       { purchaseIds: ["purchase-1"], amountCents: 100, date: "2026-03-10", description: "x" },
     ]) {
-      refusals.push(await editFreight({ store, clock: CLOCK }, { ...everythingWrong, ...overrides }));
+      refusals.push(
+        await editFreight({ store, clock: CLOCK }, { ...everythingWrong, ...overrides }),
+      );
     }
 
     expect(refusals.map(({ kind }) => kind)).toEqual([
@@ -261,7 +263,10 @@ describe("editFreight", () => {
       await editFreight({ store, clock: CLOCK }, input({ purchaseIds: ["purchase-free"] })),
     ).toEqual({ kind: "purchases_without_value" });
     expect(
-      await editFreight({ store, clock: CLOCK }, input({ purchaseIds: ["purchase-free", "missing"] })),
+      await editFreight(
+        { store, clock: CLOCK },
+        input({ purchaseIds: ["purchase-free", "missing"] }),
+      ),
     ).toEqual({ kind: "purchase_not_found" });
     expect(store.snapshot().edits).toEqual([]);
   });

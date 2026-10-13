@@ -1,3 +1,24 @@
+export type { FreightMeans, FreightPeriodDays } from "./model/freight.js";
+export {
+  FREIGHT_PERIOD_DAYS,
+  freightPeriodStart,
+  hasFreightPurchases,
+  isFreightAmount,
+  isFreightDescription,
+  isValidFreightMeans,
+  MIN_FREIGHT_PURCHASES,
+} from "./model/freight.js";
+export type {
+  FreightLine,
+  FreightShare,
+  FreightToDistribute,
+} from "./model/freight-distribution.js";
+export {
+  distributeFreight,
+  freightPerUnit,
+  hasDistributableValue,
+  lineValue,
+} from "./model/freight-distribution.js";
 export {
   isPackagingNameTooLong,
   PACKAGING_NAME_MAX_LENGTH,

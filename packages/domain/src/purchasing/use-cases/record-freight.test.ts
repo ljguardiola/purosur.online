@@ -178,7 +178,9 @@ describe("recordFreight", () => {
       { purchaseIds: ["purchase-1"], amountCents: 100, date: "2026-03-10" },
       { purchaseIds: ["purchase-1"], amountCents: 100, date: "2026-03-10", description: "x" },
     ]) {
-      refusals.push(await recordFreight({ store, clock: CLOCK }, { ...everythingWrong, ...overrides }));
+      refusals.push(
+        await recordFreight({ store, clock: CLOCK }, { ...everythingWrong, ...overrides }),
+      );
     }
 
     expect(refusals.map(({ kind }) => kind)).toEqual([
@@ -203,7 +205,10 @@ describe("recordFreight", () => {
   it("refuses to spread a freight over purchases with nothing to proportion it to", async () => {
     const store = storeWithPurchases();
 
-    const outcome = await recordFreight({ store, clock: CLOCK }, input({ purchaseIds: ["purchase-free"] }));
+    const outcome = await recordFreight(
+      { store, clock: CLOCK },
+      input({ purchaseIds: ["purchase-free"] }),
+    );
 
     expect(outcome).toEqual({ kind: "purchases_without_value" });
     expect(store.snapshot().freights).toEqual([]);

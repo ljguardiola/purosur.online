@@ -6,11 +6,23 @@ export type { DeactivatePackagingOutcome } from "./deactivate-packaging.js";
 export { deactivatePackaging } from "./deactivate-packaging.js";
 export type { DeactivateSupplierOutcome } from "./deactivate-supplier.js";
 export { deactivateSupplier } from "./deactivate-supplier.js";
+export type { EditFreightInput, EditFreightOutcome } from "./edit-freight.js";
+export { editFreight } from "./edit-freight.js";
 export type { EditPackagingInput, EditPackagingOutcome } from "./edit-packaging.js";
 export { editPackaging } from "./edit-packaging.js";
 export type { EditSupplierInput, EditSupplierOutcome } from "./edit-supplier.js";
 export { editSupplier } from "./edit-supplier.js";
 export { findPackagingListing } from "./find-packaging-listing.js";
+export type {
+  Freight,
+  FreightEdit,
+  FreightPurchase,
+  FreightStore,
+  FreightStoreTransaction,
+  FreightValues,
+  LockFreightResult,
+  NewFreightFields,
+} from "./freight-store.js";
 export type { ListedPackaging } from "./list-packagings.js";
 export { listPackagings } from "./list-packagings.js";
 export type { PurchaseChoices } from "./list-purchase-choices.js";
@@ -48,6 +60,12 @@ export type { ReactivatePackagingOutcome } from "./reactivate-packaging.js";
 export { reactivatePackaging } from "./reactivate-packaging.js";
 export type { ReactivateSupplierOutcome } from "./reactivate-supplier.js";
 export { reactivateSupplier } from "./reactivate-supplier.js";
+export type {
+  RecordFreightInput,
+  RecordFreightOutcome,
+  RecordFreightPorts,
+} from "./record-freight.js";
+export { recordFreight } from "./record-freight.js";
 export type {
   RegisteredPurchase,
   RegisteredPurchaseLine,

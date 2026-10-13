@@ -53,9 +53,9 @@ describe("isValidFreightMeans", () => {
 
   it("accepts a carrier with a name up to the supplier name limit", () => {
     expect(isValidFreightMeans({ kind: "carrier", name: "Transportes del Sur" })).toBe(true);
-    expect(isValidFreightMeans({ kind: "carrier", name: "a".repeat(SUPPLIER_NAME_MAX_LENGTH) })).toBe(
-      true,
-    );
+    expect(
+      isValidFreightMeans({ kind: "carrier", name: "a".repeat(SUPPLIER_NAME_MAX_LENGTH) }),
+    ).toBe(true);
   });
 
   it("refuses a carrier without a name or with a blank one", () => {
