@@ -2,6 +2,7 @@ import type { Capability } from "@purosur/domain";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import type { FetchAlertsOverviewOutcome } from "../alerts/alerts-api";
 import { openSession } from "../sessions/test-support/open-session";
 import { stockBalanceList } from "../stock/test-support/stock-fixtures";
 import { App } from "./app";
@@ -243,14 +244,14 @@ test("offers the kinds of stock movement real use of the open tab reports the us
   }
 });
 
-const threeOpenAlerts = {
+const threeOpenAlerts: FetchAlertsOverviewOutcome = {
   kind: "ok",
   value: {
     critical: { openCount: 1, kinds: ["user_access_increased"] },
     warning: { openCount: 2, kinds: ["user_email_changed"] },
     informational: { openCount: 0, kinds: [] },
   },
-} as const;
+};
 
 const STOCK_SCREENS = [
   ["/inventory", "Saldos"],
