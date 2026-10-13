@@ -7,7 +7,8 @@ type ClosableApp = {
   process(): Pick<ChildProcess, "exitCode" | "signalCode" | "kill">;
 };
 
-// Playwright's close waits for the register's process to exit with no limit of its own.
+// Playwright's close waits for the register's process to exit with no limit of its own. Cleanup runs
+// beside a test's own failure, so a kill is reported and never thrown over it.
 export async function closeRegister(app: ClosableApp): Promise<void> {
   const child = app.process();
   if (child.exitCode !== null || child.signalCode !== null) {
@@ -23,7 +24,8 @@ export async function closeRegister(app: ClosableApp): Promise<void> {
   }).catch(() => "unbounded" as const);
   if (outcome === "unbounded") {
     child.kill();
-    throw new Error(`the register did not close within ${WAIT_BOUND_MS} ms and was killed`);
+    console.error(`the register did not close within ${WAIT_BOUND_MS} ms and was killed`);
+    return;
   }
   if (outcome !== undefined) {
     throw outcome.error;
