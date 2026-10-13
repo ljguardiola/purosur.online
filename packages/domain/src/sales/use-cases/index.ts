@@ -99,6 +99,12 @@ export type {
 } from "./preview-sale-line-adjustment.js";
 export { previewSaleLineAdjustment } from "./preview-sale-line-adjustment.js";
 export type {
+  PrintOriginalReceiptInput,
+  PrintOriginalReceiptOutcome,
+  PrintOriginalReceiptPorts,
+} from "./print-original-receipt.js";
+export { printOriginalReceipt } from "./print-original-receipt.js";
+export type {
   PrintSaleReceiptInput,
   PrintSaleReceiptOutcome,
   PrintSaleReceiptPorts,
