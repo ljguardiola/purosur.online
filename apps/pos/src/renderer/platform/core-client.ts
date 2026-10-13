@@ -299,6 +299,13 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       }
       return;
     }
+    if (answer.data.type === "refused-while-updating") {
+      sent
+        .get(answer.data.request_id)
+        ?.fail(new Error("the core refused the request while an update installs"));
+      sent.delete(answer.data.request_id);
+      return;
+    }
     if (sent.get(answer.data.request_id)?.settle(answer.data)) {
       sent.delete(answer.data.request_id);
     }

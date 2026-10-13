@@ -885,6 +885,7 @@ describe("the register's local migrations", () => {
         "0041_sale_total_discounts",
         "0042_initial_count",
         "0043_integrated_terminal_payments",
+        "0044_deferred_sale_records",
         "0045_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -956,6 +957,7 @@ describe("the register's local migrations", () => {
         "0041_sale_total_discounts",
         "0042_initial_count",
         "0043_integrated_terminal_payments",
+        "0044_deferred_sale_records",
         "0045_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1022,6 +1024,7 @@ describe("the register's local migrations", () => {
         "0041_sale_total_discounts",
         "0042_initial_count",
         "0043_integrated_terminal_payments",
+        "0044_deferred_sale_records",
         "0045_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1087,6 +1090,7 @@ describe("the register's local migrations", () => {
         "0041_sale_total_discounts",
         "0042_initial_count",
         "0043_integrated_terminal_payments",
+        "0044_deferred_sale_records",
         "0045_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1179,6 +1183,7 @@ describe("the register's local migrations", () => {
         "0041_sale_total_discounts",
         "0042_initial_count",
         "0043_integrated_terminal_payments",
+        "0044_deferred_sale_records",
         "0045_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1263,6 +1268,7 @@ describe("the register's local migrations", () => {
         "0041_sale_total_discounts",
         "0042_initial_count",
         "0043_integrated_terminal_payments",
+        "0044_deferred_sale_records",
         "0045_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1351,6 +1357,7 @@ describe("the register's local migrations", () => {
         "0041_sale_total_discounts",
         "0042_initial_count",
         "0043_integrated_terminal_payments",
+        "0044_deferred_sale_records",
         "0045_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1422,6 +1429,7 @@ describe("the register's local migrations", () => {
         "0041_sale_total_discounts",
         "0042_initial_count",
         "0043_integrated_terminal_payments",
+        "0044_deferred_sale_records",
         "0045_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1485,6 +1493,7 @@ describe("the register's local migrations", () => {
         "0041_sale_total_discounts",
         "0042_initial_count",
         "0043_integrated_terminal_payments",
+        "0044_deferred_sale_records",
         "0045_standalone_terminal_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -3004,7 +3013,13 @@ describe("the register's local migrations", () => {
       );
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      const after = openLocalDatabase(
+        path,
+        LOCAL_MIGRATIONS.filter(
+          (migration) => migration.name <= "0040_unclear_outcome_settlements",
+        ),
+        migrationClock,
+      );
 
       expect(
         after.prepare("SELECT id, number, state FROM fiscal_documents ORDER BY id").all(),
@@ -3366,12 +3381,20 @@ describe("the register's local migrations", () => {
       database.close();
     });
 
+    let routedSales = 0;
+
     function routeSale(database: Database, values: { sale_id: string; reason: string }) {
+      routedSales += 1;
       database
         .prepare(
-          "INSERT INTO deferred_sales (sale_id, reason, routed_at) VALUES (@sale_id, @reason, '2026-09-30T12:05:00.000Z')",
+          `INSERT INTO deferred_sales (id, sale_id, occurred_at, total, reason, short_code, routed_at)
+           VALUES (@id, @sale_id, '2026-09-30T12:00:00.000Z', 1500, @reason, @short_code, '2026-09-30T12:05:00.000Z')`,
         )
-        .run(values);
+        .run({
+          ...values,
+          id: `deferred-${routedSales}`,
+          short_code: `2222222${"ABCDEFGHJKLMNPQR"[routedSales]}`,
+        });
     }
 
     it.each(DEFERRAL_REASONS)("route a sale to the deferred flow for the reason %s", (reason) => {
@@ -3589,6 +3612,122 @@ describe("the register's local migrations", () => {
       expect(
         after.prepare("SELECT table_name FROM pulled_table_redeliveries ORDER BY table_name").all(),
       ).toContainEqual({ table_name: "branch_first_cash_sessions" });
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+  it("rebuild deferred sales with an identifier, a short code, and the sale's date and total, carrying over none of the records a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0044_deferred_sale_records",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0044_deferred_sale_records",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES
+           ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z'),
+           ('sale-2', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:06:00.000Z');
+         INSERT INTO fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
+           authorization_code, authorization_code_due_on, reserved_at, resolved_at
+         ) VALUES
+           ('doc-2', 'sale-2', 12, 'factura_c', 42, '2026-10-09', '{"total":2550}', 'AUTHORIZED',
+            '75123456789012', '2026-10-19', '2026-10-09T12:06:00.000Z', '2026-10-09T12:06:01.000Z');
+         INSERT INTO deferred_sales (
+           sale_id, reason, routed_at, satisfied_by_fiscal_document_id, satisfied_at
+         ) VALUES
+           ('sale-1', 'fiscally_offline', '2026-10-09T12:05:00.000Z', NULL, NULL),
+           ('sale-2', 'unclear_outcome', '2026-10-09T12:06:06.000Z', 'doc-2', '2026-10-09T12:30:00.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT * FROM deferred_sales").all()).toEqual([]);
+      expect(after.prepare("SELECT id FROM sales ORDER BY id").all()).toEqual([
+        { id: "sale-1" },
+        { id: "sale-2" },
+      ]);
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+
+      const insert = (values: {
+        id: string;
+        sale_id: string;
+        short_code: string;
+        total?: number;
+        satisfied_by_fiscal_document_id?: string | null;
+        satisfied_at?: string | null;
+      }) =>
+        after
+          .prepare(
+            `INSERT INTO deferred_sales (
+               id, sale_id, occurred_at, total, reason, short_code, routed_at,
+               satisfied_by_fiscal_document_id, satisfied_at
+             ) VALUES (
+               @id, @sale_id, '2026-10-09T12:05:00.000Z', @total, 'rejected', @short_code,
+               '2026-10-09T12:05:01.000Z', @satisfied_by_fiscal_document_id, @satisfied_at
+             )`,
+          )
+          .run({
+            total: 1500,
+            satisfied_by_fiscal_document_id: null,
+            satisfied_at: null,
+            ...values,
+          });
+      expect(() => insert({ id: "x1", sale_id: "sale-1", short_code: "7KQ4M2P0" })).toThrow(
+        /CHECK/,
+      );
+      expect(() => insert({ id: "x1", sale_id: "sale-1", short_code: "7KQ4M2P" })).toThrow(/CHECK/);
+      expect(() => insert({ id: "x1", sale_id: "sale-1", short_code: "7kq4m2p9" })).toThrow(
+        /CHECK/,
+      );
+      expect(() =>
+        insert({ id: "x1", sale_id: "sale-1", short_code: "7KQ4M2P9", total: -1 }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insert({
+          id: "x1",
+          sale_id: "sale-1",
+          short_code: "7KQ4M2P9",
+          satisfied_by_fiscal_document_id: "doc-2",
+          satisfied_at: "2026-10-09T12:07:00.000Z",
+        }),
+      ).toThrow(/an authorized fiscal document of its own sale/);
+      expect(() => insert({ id: "x1", sale_id: "sale-1", short_code: "7KQ4M2P9" })).not.toThrow();
+      expect(() => insert({ id: "x2", sale_id: "sale-2", short_code: "7KQ4M2P9" })).toThrow(
+        /UNIQUE/,
+      );
+      expect(() => insert({ id: "x1", sale_id: "sale-2", short_code: "R3XW8H5N" })).toThrow(
+        /UNIQUE|PRIMARY/,
+      );
+      expect(() => insert({ id: "x2", sale_id: "sale-1", short_code: "R3XW8H5N" })).toThrow(
+        /UNIQUE/,
+      );
+      expect(() =>
+        insert({
+          id: "x2",
+          sale_id: "sale-2",
+          short_code: "R3XW8H5N",
+          satisfied_by_fiscal_document_id: "doc-2",
+          satisfied_at: "2026-10-09T12:07:00.000Z",
+        }),
+      ).not.toThrow();
+
+      expect(() =>
+        after
+          .prepare(
+            "UPDATE deferred_sales SET satisfied_by_fiscal_document_id = 'doc-2', satisfied_at = '2026-10-09T12:40:00.000Z' WHERE sale_id = 'sale-1'",
+          )
+          .run(),
+      ).toThrow(/an authorized fiscal document of its own sale/);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

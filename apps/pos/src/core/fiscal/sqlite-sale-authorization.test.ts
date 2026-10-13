@@ -4,12 +4,15 @@ import { decideSaleAuthorizationIn } from "./sqlite-sale-authorization";
 import {
   FACTURA_C,
   insertCompletedSale,
+  insertDeferredSale,
   insertFiscalDocument,
   insertHealthCheck,
   insertPointOfSale,
   openFiscalDatabase,
   POINT_OF_SALE,
+  SALE_COMPLETED_AT,
 } from "./test-support/real-time-authorization-database";
+import { scriptedShortCodes } from "./test-support/scripted-short-codes";
 
 const DECIDED_AT = new Date("2026-09-30T12:05:00.000Z");
 const PASSED = { kind: "passed", document: FACTURA_C } as const;
@@ -19,13 +22,20 @@ let database: LocalDatabase;
 function decide(
   gate: Parameters<typeof decideSaleAuthorizationIn>[1]["gate"] = PASSED,
   saleId = "sale-1",
+  shortCodes = scriptedShortCodes(["7KQ4M2P9", "R3XW8H5N"]),
 ) {
-  decideSaleAuthorizationIn(database, {
-    saleId,
-    gate,
-    decidedAt: DECIDED_AT,
-    ids: { next: () => "doc-new" },
-  });
+  decideSaleAuthorizationIn(
+    database,
+    {
+      saleId,
+      gate,
+      decidedAt: DECIDED_AT,
+      occurredAt: SALE_COMPLETED_AT,
+      total: 12_500,
+      ids: { next: () => "doc-new" },
+    },
+    shortCodes,
+  );
 }
 
 function documents() {
@@ -167,6 +177,44 @@ describe("deciding how a completed sale is authorized, in the local database", (
 
       expect(documents()).toHaveLength(2);
       expect(routings()).toEqual([]);
+    });
+
+    it("records the deferred sale whole: its identifier, the sale's date and total, the reason, a short code and when it was routed", () => {
+      decide({ kind: "failed", reason: "issuer_identification_missing" });
+
+      expect(
+        database
+          .prepare(
+            `SELECT id, sale_id, occurred_at, total, reason, short_code, routed_at,
+                    satisfied_by_fiscal_document_id, satisfied_at
+             FROM deferred_sales`,
+          )
+          .all(),
+      ).toEqual([
+        {
+          id: "doc-new",
+          sale_id: "sale-1",
+          occurred_at: SALE_COMPLETED_AT.toISOString(),
+          total: 12_500,
+          reason: "pre_emission_gate_failed",
+          short_code: "7KQ4M2P9",
+          routed_at: DECIDED_AT.toISOString(),
+          satisfied_by_fiscal_document_id: null,
+          satisfied_at: null,
+        },
+      ]);
+    });
+
+    it("draws another short code when another sale's record already holds the first", () => {
+      insertCompletedSale(database, "sale-0");
+      insertDeferredSale(database, "sale-0");
+      database.prepare("UPDATE deferred_sales SET short_code = '7KQ4M2P9'").run();
+
+      decide({ kind: "failed", reason: "issuer_identification_missing" });
+
+      expect(
+        database.prepare("SELECT short_code FROM deferred_sales WHERE sale_id = 'sale-1'").all(),
+      ).toEqual([{ short_code: "R3XW8H5N" }]);
     });
 
     it("routes the sale with the gate's reason and reserves nothing when the gate failed", () => {

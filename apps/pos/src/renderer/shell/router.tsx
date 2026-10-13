@@ -90,6 +90,7 @@ import { EnrollmentScreen } from "../register/enrollment-screen";
 import { LockedCloseScreen } from "../register/locked-close-screen";
 import { LockedRegisterScreen } from "../register/locked-register-screen";
 import { NoSessionScreen } from "../register/no-session-screen";
+import { OlderVersionScreen } from "../register/older-version-screen";
 import { OutOfServiceScreen } from "../register/out-of-service-screen";
 import { ReceiptPrinterScreen } from "../register/receipt-printer-screen";
 import {
@@ -109,6 +110,7 @@ import { InitialCountScreen } from "../stock/initial-count-screen";
 import { initialCountQueryOptions } from "../stock/stock-queries";
 import { BrandPanelScreen } from "./brand-panel-screen";
 import { CoreDownNotice } from "./core-down-notice";
+import { RegisterUpdatingNotice } from "./register-updating-notice";
 import type { SignedInPerson } from "./signed-in-person";
 import { StatusBarLayout } from "./status-bar-layout";
 
@@ -260,7 +262,9 @@ type ScreenPath =
   | "/enroll"
   | "/starting"
   | "/core-down"
-  | "/out-of-service";
+  | "/updating"
+  | "/out-of-service"
+  | "/older-version";
 
 // Until the core says whether the register is in service and then whether this installation is
 // enrolled, the register stays on the brand panel instead of guessing which screen comes next. The
@@ -275,8 +279,14 @@ export function routeFor({
   RouterContext,
   "coreStatus" | "registerService" | "enrollment" | "person" | "cashSession"
 >): ScreenPath {
+  if (coreStatus === "refused") {
+    return "/older-version";
+  }
   if (coreStatus === "down") {
     return "/core-down";
+  }
+  if (coreStatus === "updating") {
+    return "/updating";
   }
   if (coreStatus === "starting" || registerService === "unknown") {
     return "/starting";
@@ -897,11 +907,25 @@ const coreDownRoute = createRoute({
   component: CoreDownNotice,
 });
 
+const updatingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/updating",
+  beforeLoad: ({ context }) => requireRoute("/updating", context),
+  component: RegisterUpdatingNotice,
+});
+
 const outOfServiceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/out-of-service",
   beforeLoad: ({ context }) => requireRoute("/out-of-service", context),
   component: OutOfServiceScreen,
+});
+
+const olderVersionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/older-version",
+  beforeLoad: ({ context }) => requireRoute("/older-version", context),
+  component: OlderVersionScreen,
 });
 
 export const routeTree = rootRoute.addChildren([
@@ -927,7 +951,9 @@ export const routeTree = rootRoute.addChildren([
   enrollRoute,
   startingRoute,
   coreDownRoute,
+  updatingRoute,
   outOfServiceRoute,
+  olderVersionRoute,
 ]);
 
 export function createRegisterRouter<TRouteTree extends AnyRoute>(

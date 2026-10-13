@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import Database from "better-sqlite3";
 
@@ -47,5 +47,28 @@ export function openLocalDatabaseFile(path: string): LocalDatabase {
   } catch (error) {
     database.close();
     throw error;
+  }
+}
+
+export function appliedMigrationNames(path: string): string[] {
+  if (!existsSync(path)) {
+    return [];
+  }
+  const database = new Database(path, { readonly: true, fileMustExist: true });
+  try {
+    const recorded = database
+      .prepare<[], { name: string }>(
+        "SELECT name FROM sqlite_schema WHERE type = 'table' AND name = 'applied_migrations'",
+      )
+      .get();
+    if (recorded === undefined) {
+      return [];
+    }
+    return database
+      .prepare<[], { name: string }>("SELECT name FROM applied_migrations")
+      .all()
+      .map((row) => row.name);
+  } finally {
+    database.close();
   }
 }

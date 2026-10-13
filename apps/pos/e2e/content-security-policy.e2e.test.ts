@@ -1,6 +1,7 @@
 import type { ElectronApplication, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { launchApp } from "./launch-app";
+import { closeRegister } from "./test-support/close-register";
 
 describe("the register's renderer under its content security policy", () => {
   let app: ElectronApplication;
@@ -12,7 +13,7 @@ describe("the register's renderer under its content security policy", () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    await closeRegister(app);
   });
 
   it("raises no violation while it starts and a control is pressed", async () => {

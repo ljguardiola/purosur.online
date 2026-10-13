@@ -1,7 +1,9 @@
 import {
   applyUnclearOutcomeDecisions,
+  type IdGenerator,
   type RealTimeTaxAuthority,
   recordRegisterHealthCheck,
+  type ShortCodeRandomness,
   settleInterruptedRealTimeAuthorizations,
 } from "@purosur/domain/fiscal/use-cases";
 import {
@@ -26,6 +28,11 @@ export interface RealTimeAuthorizationWiringDeps {
   reportFailure: (error: unknown) => void;
 }
 
+interface DeferralIdentities {
+  ids: IdGenerator;
+  shortCodes: ShortCodeRandomness;
+}
+
 interface RealTimeAuthorization {
   authorizeSale(saleId: string): Promise<void>;
 }
@@ -40,7 +47,9 @@ export function createRealTimeAuthorization({
   readDeviceToken,
   now,
   reportFailure,
-}: RealTimeAuthorizationWiringDeps): RealTimeAuthorization {
+  ids,
+  shortCodes,
+}: RealTimeAuthorizationWiringDeps & DeferralIdentities): RealTimeAuthorization {
   if (database === undefined) {
     return { authorizeSale: async () => undefined };
   }
@@ -55,12 +64,19 @@ export function createRealTimeAuthorization({
   return {
     authorizeSale: async (saleId) => {
       try {
-        await authorizeSaleInRealTime({ database, taxAuthority, now }, saleId);
+        await authorizeSaleInRealTime({ database, taxAuthority, now, ids, shortCodes }, saleId);
       } catch (error) {
         reportFailure(error);
-        await authorizeSaleInRealTime({ database, taxAuthority: UNABLE_TO_ASK, now }, saleId).catch(
-          reportFailure,
-        );
+        await authorizeSaleInRealTime(
+          {
+            database,
+            taxAuthority: UNABLE_TO_ASK,
+            now,
+            ids,
+            shortCodes,
+          },
+          saleId,
+        ).catch(reportFailure);
       }
     },
   };
@@ -70,13 +86,18 @@ export async function settleInterruptedAuthorizations({
   database,
   now,
   reportFailure,
-}: Pick<RealTimeAuthorizationWiringDeps, "database" | "now" | "reportFailure">): Promise<void> {
+  ids,
+  shortCodes,
+}: Pick<RealTimeAuthorizationWiringDeps, "database" | "now" | "reportFailure"> &
+  DeferralIdentities): Promise<void> {
   if (database === undefined) {
     return;
   }
   await settleInterruptedRealTimeAuthorizations({
     documents: new SqliteRealTimeFiscalDocuments(database),
     clock: { now },
+    ids,
+    shortCodes,
   }).catch(reportFailure);
 }
 

@@ -1641,3 +1641,17 @@ describe("serial device messages", () => {
     ).toBe(false);
   });
 });
+
+describe("a request refused while an update installs", () => {
+  it("accepts the refusal of a request", () => {
+    const message = { type: "refused-while-updating", request_id: REQUEST_ID };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects the refusal of a request without its request id", () => {
+    expect(
+      registerCoreToRendererMessageSchema.safeParse({ type: "refused-while-updating" }).success,
+    ).toBe(false);
+  });
+});

@@ -465,7 +465,7 @@ function coreAnswering(
 
 const enrolledCore = coreAnswering(true).core;
 
-function postCoreStatus(status: "starting" | "down" | "up"): void {
+function postCoreStatus(status: "starting" | "down" | "up" | "updating"): void {
   window.postMessage({ channel: "core-status", payload: { type: "core-status", status } }, "*");
 }
 
@@ -864,6 +864,17 @@ describe("App", () => {
     postCoreStatus("down");
 
     await expect.element(screen.getByText(CORE_DOWN_TITLE)).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
+  });
+
+  it("replaces the whole screen with the updating notice while the register updates itself", async () => {
+    const screen = await render(<App core={enrolledCore} />);
+
+    postCoreStatus("updating");
+
+    await expect.element(screen.getByText("Actualizando la caja")).toBeVisible();
     await expect
       .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
       .not.toBeInTheDocument();

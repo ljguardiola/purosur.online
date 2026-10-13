@@ -6,16 +6,11 @@ import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { CloudData } from "../platform/use-cloud-query";
 import { AlertsLevelCards } from "./alerts-level-cards";
 import { AlertsOpenCountPill } from "./alerts-open-count-pill";
+import { openAlertsCount } from "./open-alerts-count";
 
 export type AlertsOverviewProps = {
   data: CloudData<AlertsOverview>;
 };
-
-function openCount(overview: AlertsOverview): number {
-  return (
-    overview.critical.openCount + overview.warning.openCount + overview.informational.openCount
-  );
-}
 
 function OverviewSection({ children }: { children: ReactNode }) {
   const headingId = useId();
@@ -30,7 +25,9 @@ function OverviewSection({ children }: { children: ReactNode }) {
 }
 
 export function AlertsOverviewOpenCount({ data }: AlertsOverviewProps) {
-  return <AlertsOpenCountPill openCount={data.status === "loaded" ? openCount(data.value) : 0} />;
+  return (
+    <AlertsOpenCountPill openCount={data.status === "loaded" ? openAlertsCount(data.value) : 0} />
+  );
 }
 
 export function AlertsOverviewSection({ data }: AlertsOverviewProps) {
@@ -45,7 +42,7 @@ export function AlertsOverviewSection({ data }: AlertsOverviewProps) {
       )}
       {data.status === "failed" && <LoadFailure {...cloudLoadFailure(data, "las alertas")} />}
       {data.status === "loaded" &&
-        (openCount(data.value) === 0 ? (
+        (openAlertsCount(data.value) === 0 ? (
           <EmptyState
             icon={<Bell />}
             title="Sin alertas abiertas"

@@ -12,9 +12,13 @@ import {
   FakeSaleAuthorizationTransaction,
   SequentialIds,
 } from "./test-support/fake-sale-authorization.js";
+import { ScriptedShortCodes } from "./test-support/scripted-short-codes.js";
 
 const DECIDED_AT = new Date("2026-10-02T02:30:00.000Z");
+const OCCURRED_AT = new Date("2026-10-02T02:29:58.000Z");
 const SALE_ID = "sale-1";
+const SALE_TOTAL = 12_500;
+const SHORT_CODES = ["7KQ4M2P9", "R3XW8H5N"];
 
 const DOCUMENT: FacturaC = {
   invoiceClass: "C",
@@ -50,27 +54,40 @@ interface Changes {
   gate?: PreEmissionGateOutcome;
   online?: FiscalOnlineSignalEvidence;
   series?: Partial<RealTimeSeries>;
+  takenShortCodes?: string[];
 }
 
-function decide({ gate = PASSED, online = ONLINE, series = {} }: Changes = {}) {
-  const tx = new FakeSaleAuthorizationTransaction(online, { ...SERIES, ...series });
+function decide({
+  gate = PASSED,
+  online = ONLINE,
+  series = {},
+  takenShortCodes = [],
+}: Changes = {}) {
+  const tx = new FakeSaleAuthorizationTransaction(
+    online,
+    { ...SERIES, ...series },
+    takenShortCodes,
+  );
   const ids = new SequentialIds();
-  const outcome = decideSaleAuthorization(tx, ids, {
+  const shortCodes = new ScriptedShortCodes(SHORT_CODES);
+  const outcome = decideSaleAuthorization(tx, ids, shortCodes, {
     saleId: SALE_ID,
     gate,
     decidedAt: DECIDED_AT,
+    occurredAt: OCCURRED_AT,
+    total: SALE_TOTAL,
   });
   return { tx, ids, outcome };
 }
 
 describe("decideSaleAuthorization", () => {
   it("reserves the next number of the point of sale for the sale and reports the document", () => {
-    const { tx, outcome } = decide();
+    const { tx, ids, outcome } = decide();
 
-    expect(outcome).toEqual({ kind: "reserved", fiscalDocumentId: "fiscal-document-1" });
+    expect(outcome).toEqual({ kind: "reserved", fiscalDocumentId: "id-1" });
     expect(tx.reservations).toEqual([
       {
-        id: "fiscal-document-1",
+        id: "id-1",
         saleId: SALE_ID,
         pointOfSale: 12,
         number: 41,
@@ -80,6 +97,8 @@ describe("decideSaleAuthorization", () => {
       },
     ]);
     expect(tx.routings).toEqual([]);
+    expect(tx.routingAttempts).toEqual([]);
+    expect(ids.issued).toBe(1);
   });
 
   it.each([
@@ -110,9 +129,33 @@ describe("decideSaleAuthorization", () => {
       const { tx, ids, outcome } = decide(changes);
 
       expect(outcome).toEqual({ kind: "deferred", reason });
-      expect(tx.routings).toEqual([{ saleId: SALE_ID, reason, routedAt: DECIDED_AT }]);
+      expect(tx.routings).toEqual([
+        {
+          id: "id-1",
+          saleId: SALE_ID,
+          occurredAt: OCCURRED_AT,
+          total: SALE_TOTAL,
+          reason,
+          shortCode: "7KQ4M2P9",
+          routedAt: DECIDED_AT,
+        },
+      ]);
       expect(tx.reservations).toEqual([]);
-      expect(ids.issued).toBe(0);
+      expect(ids.issued).toBe(1);
     },
   );
+
+  it("draws another short code for the record when the first is already taken", () => {
+    const { tx, outcome } = decide({
+      series: { pointOfSale: null },
+      takenShortCodes: ["7KQ4M2P9"],
+    });
+
+    expect(outcome).toEqual({ kind: "deferred", reason: "point_of_sale_missing" });
+    expect(tx.routingAttempts.map(({ id, shortCode }) => [id, shortCode])).toEqual([
+      ["id-1", "7KQ4M2P9"],
+      ["id-1", "R3XW8H5N"],
+    ]);
+    expect(tx.routings.map(({ shortCode }) => shortCode)).toEqual(["R3XW8H5N"]);
+  });
 });
