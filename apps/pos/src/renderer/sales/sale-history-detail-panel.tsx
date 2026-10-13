@@ -16,13 +16,13 @@ import {
 import { FileSearch, Lock, Printer, ReceiptText, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import type { CoreData } from "../platform/use-core-query";
-import type { SaleDetail } from "./sale-history-text";
+import type { SaleDetail } from "../shell/sale-receipt-text";
 import {
   comprobantePresentation,
   nonEmptyRows,
-  paymentMethodName,
   receiptCopyPresentation,
-} from "./sale-history-text";
+} from "../shell/sale-receipt-text";
+import { paymentMethodName } from "./sale-history-text";
 import type { ShownSaleHistoryDetail } from "./sales-queries";
 import { useSaleHistoryDetailQuery } from "./sales-queries";
 

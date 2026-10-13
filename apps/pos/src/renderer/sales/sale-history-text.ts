@@ -1,13 +1,11 @@
-import type { SaleHistoryDetailOutcome, SalesHistoryOutcome } from "@purosur/contracts";
+import type { SalesHistoryOutcome } from "@purosur/contracts";
 import type { PaymentMethod } from "@purosur/domain";
-import type { SummaryRowGroupProps, SummaryRowProps, TagProps } from "@purosur/ui";
-import { formatInvoiceNumber, formatOperationNumber, formatPointOfSaleNumber } from "@purosur/ui";
+import type { TagProps } from "@purosur/ui";
+import { formatOperationNumber } from "@purosur/ui";
 
 type FoundHistory = Extract<SalesHistoryOutcome, { kind: "found" }>;
 type HistoryRow = FoundHistory["rows"][number];
 
-export type SaleDetail = Extract<SaleHistoryDetailOutcome, { kind: "found" }>["detail"];
-export type ShownComprobante = HistoryRow["comprobante"];
 export type ShownSaleState = HistoryRow["state"];
 
 const PAYMENT_METHOD_NAMES = {
@@ -30,22 +28,6 @@ const STATE_PRESENTATION = {
   deferred: { label: "Diferida", tone: "neutral" },
 } as const satisfies Record<ShownSaleState, { label: string; tone: TagProps["tone"] }>;
 
-export function comprobantePresentation(
-  comprobante: ShownComprobante,
-): { name: string; detail: string } | undefined {
-  switch (comprobante.kind) {
-    case "fiscal":
-      return {
-        name: "Factura C",
-        detail: `PV ${formatPointOfSaleNumber(comprobante.point_of_sale)} · Nº ${formatInvoiceNumber(comprobante.number)}`,
-      };
-    case "deferred_non_fiscal":
-      return { name: "Documento no fiscal", detail: "Venta diferida · falta facturar" };
-    case "none":
-      return undefined;
-  }
-}
-
 export function operationText(operationNumber: number): string {
   return `Operación ${formatOperationNumber(operationNumber)}`;
 }
@@ -65,29 +47,4 @@ export function saleStatePresentation(state: ShownSaleState): {
   tone: TagProps["tone"];
 } {
   return STATE_PRESENTATION[state];
-}
-
-export type NextReceiptCopy =
-  | { kind: "original" }
-  | { kind: "duplicate"; order_number?: number | undefined };
-
-export function receiptCopyPresentation(copy: NextReceiptCopy): {
-  printButton: string;
-  comesOutAs: string;
-  legend: string | undefined;
-} {
-  return copy.kind === "original"
-    ? { printButton: "Imprimir original", comesOutAs: "Sale como original", legend: undefined }
-    : {
-        printButton: "Reimprimir duplicado",
-        comesOutAs: "Sale como duplicado",
-        legend:
-          copy.order_number === undefined ? undefined : `COPIA DUPLICADA Nº ${copy.order_number}`,
-      };
-}
-
-export function nonEmptyRows([first, ...rest]: SummaryRowProps[]):
-  | SummaryRowGroupProps["rows"]
-  | undefined {
-  return first === undefined ? undefined : [first, ...rest];
 }

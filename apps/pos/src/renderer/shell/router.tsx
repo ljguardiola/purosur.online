@@ -103,6 +103,7 @@ import {
 } from "../register/register-queries";
 import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
 import { SerialDevicesScreen } from "../register/serial-devices-screen";
+import { StartupPendingScreen } from "../register/startup-pending-screen";
 import { ChargeScreen } from "../sales/charge-screen";
 import { SaleScreen } from "../sales/sale-screen";
 import { SalesHistoryScreen } from "../sales/sales-history-screen";
@@ -116,7 +117,6 @@ import { CoreDownNotice } from "./core-down-notice";
 import { RegisterUpdatingNotice } from "./register-updating-notice";
 import type { SignedInPerson } from "./signed-in-person";
 import type { StartupPendingGate } from "./startup-pending-gate";
-import { StartupPendingScreen } from "./startup-pending-screen";
 import { StatusBarLayout } from "./status-bar-layout";
 
 export type CoreStatus = CoreStatusMessage["status"];

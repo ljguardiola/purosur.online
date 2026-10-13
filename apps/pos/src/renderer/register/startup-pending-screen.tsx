@@ -27,16 +27,16 @@ import {
 import { ArrowRight, CheckCheck, Printer, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import type { CoreData } from "../platform/use-core-query";
-import type { StartupPendingAnswer } from "../register/register-queries";
+import { OpenSessionRail } from "../shell/open-session-rail";
+import { ReprintReceiptModal } from "../shell/reprint-receipt-modal";
+import { receiptCopyPresentation } from "../shell/sale-receipt-text";
+import type { SignedInPerson } from "../shell/signed-in-person";
+import type { StartupPendingAnswer } from "./register-queries";
 import {
   useCashBalanceQuery,
   useRefreshStartupPending,
   useStartupPendingQuery,
-} from "../register/register-queries";
-import { ReprintReceiptModal } from "../sales/reprint-receipt-modal";
-import { receiptCopyPresentation } from "../sales/sale-history-text";
-import { OpenSessionRail } from "./open-session-rail";
-import type { SignedInPerson } from "./signed-in-person";
+} from "./register-queries";
 
 type SaleToPrint = StartupPending["sales_to_print"][number];
 

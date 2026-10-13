@@ -16,21 +16,21 @@ import {
 } from "@purosur/ui";
 import { Printer, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
-import { AuthorizationSection } from "../shell/authorization-section";
-import type { SignedInPerson } from "../shell/signed-in-person";
-import { useAuthorization } from "../shell/use-authorization";
+import { AuthorizationSection } from "./authorization-section";
 import {
   EMPTY_REPRINT_RECEIPT_FORM,
   invalidReasonMessage,
   reprintReceiptFormRequestSchema,
   reprintReceiptRequestFrom,
 } from "./reprint-receipt-form";
-import type { NextReceiptCopy, SaleDetail } from "./sale-history-text";
+import type { NextReceiptCopy, SaleDetail } from "./sale-receipt-text";
 import {
   comprobantePresentation,
   nonEmptyRows,
   receiptCopyPresentation,
-} from "./sale-history-text";
+} from "./sale-receipt-text";
+import type { SignedInPerson } from "./signed-in-person";
+import { useAuthorization } from "./use-authorization";
 
 const FAILED_MESSAGE = "No se pudo reimprimir. Probá de nuevo.";
 const BUSY_MESSAGE =

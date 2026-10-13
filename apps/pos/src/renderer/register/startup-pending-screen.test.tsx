@@ -9,9 +9,9 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { deferred } from "../platform/test-support/deferred";
-import type { SignedInPerson } from "./signed-in-person";
+import type { SignedInPerson } from "../shell/signed-in-person";
+import { render } from "../shell/test-support/render-with-router";
 import { StartupPendingScreen } from "./startup-pending-screen";
-import { render } from "./test-support/render-with-router";
 
 const CASHIER: SignedInPerson = {
   user_id: "u1",
