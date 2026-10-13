@@ -5,6 +5,7 @@ import {
   canManageRecipes,
   canPerformStockCounts,
   canRecordInitialInventory,
+  canSeeExpiringLots,
   canSeeStockBalances,
   canSeeStockMovements,
 } from "../shell/backoffice-access";
@@ -55,6 +56,13 @@ export const initialInventoryFilters = z.object({
 
 export type InitialInventoryFilters = z.output<typeof initialInventoryFilters>;
 
+export const expiringLotsFilters = z.object({
+  search: z.string().default("").catch(""),
+  category: z.string().default("ALL").catch("ALL"),
+  expiry: z.enum(["all", "expired", "upcoming"]).default("all").catch("all"),
+});
+
+export type ExpiringLotsFilters = z.output<typeof expiringLotsFilters>;
 export const recipesListFilters = z.object({
   search: z.string().default("").catch(""),
   sort: z.enum(["ascending", "descending"]).default("ascending").catch("ascending"),
@@ -96,6 +104,15 @@ export const initialInventoryRoute = createRoute({
   validateSearch: initialInventoryFilters,
   search: { middlewares: [stripSearchParams(initialInventoryFilters.parse({}))] },
   component: lazyScreen(() => import("./initial-inventory-page"), "InitialInventoryPage"),
+});
+
+export const expiringLotsRoute = createRoute({
+  getParentRoute: () => stockAreaRoute,
+  path: "expiring-lots",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeExpiringLots),
+  validateSearch: expiringLotsFilters,
+  search: { middlewares: [stripSearchParams(expiringLotsFilters.parse({}))] },
+  component: lazyScreen(() => import("./expiring-lots-page"), "ExpiringLotsPage"),
 });
 
 export const recipesListRoute = createRoute({

@@ -424,6 +424,12 @@ export {
   withoutQueryParameters,
 } from "./shared/index.js";
 export type {
+  ExpiredLotDiscardResult,
+  ExpiringLot,
+  ExpiringLotList,
+} from "./stock/expiring-lots.js";
+export { expiredLotDiscardResultSchema, expiringLotListSchema } from "./stock/expiring-lots.js";
+export type {
   FindCountableProductOutcome,
   InitialCountLine,
   ReadInitialCountOutcome,

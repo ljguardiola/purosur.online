@@ -17,11 +17,22 @@ export type {
 export { applyRegisterStockMovements } from "./apply-register-stock-movements.js";
 export type { AppliedStockMovement } from "./apply-stock-movement.js";
 export type {
+  DiscardExpiredLotInput,
+  DiscardExpiredLotOutcome,
+} from "./discard-expired-lot.js";
+export { discardExpiredLot } from "./discard-expired-lot.js";
+export type {
   CountableLot,
   ExpectedBalanceAtInput,
   ExpectedBalanceAtOutcome,
 } from "./expected-balance-at.js";
 export { expectedBalanceAt } from "./expected-balance-at.js";
+export type {
+  ExpiringLotProduct,
+  ExpiringLotReader,
+  ExpiringLotRow,
+  ExpiryWarningWindowReader,
+} from "./expiring-lot-reader.js";
 export type {
   FindCountableProductByBarcodeOutcome,
   FoundCountableProduct,
@@ -53,6 +64,12 @@ export type {
   LotCostTransaction,
   LotOriginKind,
 } from "./lot-cost-store.js";
+export type {
+  ExpiringLotsView,
+  ExpiringLotView,
+  ReadExpiringLotsInput,
+} from "./read-expiring-lots.js";
+export { readExpiringLots } from "./read-expiring-lots.js";
 export type { ReadInitialCountOutcome } from "./read-initial-count.js";
 export { readInitialCount } from "./read-initial-count.js";
 export type {
