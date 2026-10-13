@@ -13,6 +13,7 @@ import {
   stockMovementsMatchLines,
 } from "../../sales/index.js";
 import type { OpeningCountRecordedFact, OpeningCountWithdrawnFact } from "../../stock/index.js";
+import type { InvariantBreak } from "./event-invariant-breaks.js";
 
 export type SyncedFact =
   | { kind: "sale_completed"; sale: CompletedSale }
@@ -37,11 +38,6 @@ export interface AggregateKey {
   aggregateType: string;
   aggregateId: string;
 }
-
-export type InvariantBreak =
-  | "approved_payments_below_total"
-  | "refunds_do_not_match_payments"
-  | "stock_movements_do_not_match_lines";
 
 export function dependenciesOf(fact: SyncedFact): AggregateKey[] {
   if (fact.kind === "sale_completed" || fact.kind === "sale_cancelled") {

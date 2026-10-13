@@ -208,7 +208,7 @@ describe("an event that cannot be applied yet", () => {
       error: "depends on CashSession session-1 not applied yet",
     });
     expect(application.state.recorded).toEqual([]);
-    expect(application.state.quarantineAlerts).toEqual([]);
+    expect(application.state.quarantines).toEqual([]);
     expect(outcome).toMatchObject({ applied: 0, retried: 1, quarantined: 0 });
   });
 
@@ -266,7 +266,7 @@ describe("an event that cannot be applied yet", () => {
       appliedAt: null,
       error: "depends on CashSession session-1 not applied yet",
     });
-    expect(application.state.quarantineAlerts).toEqual([
+    expect(application.state.quarantines).toEqual([
       {
         deviceId: "device-4",
         eventId: "sale-event",
@@ -281,6 +281,26 @@ describe("an event that cannot be applied yet", () => {
       },
     ]);
     expect(outcome).toMatchObject({ applied: 0, retried: 0, quarantined: 1 });
+  });
+
+  it("takes the device's quarantine lock after the aggregate's lock and before recording the quarantine", async () => {
+    const application = new FakeEventApplication([
+      saleEvent({ attempts: 7, deviceId: "device-4", aggregateId: "sale-9" }),
+    ]);
+
+    await run(
+      application,
+      new FakeEventUpcaster({ "sale-event": aCompletedSaleFact({ id: "sale-9" }) }),
+    );
+
+    expect(application.calls.slice(application.calls.lastIndexOf("begin"))).toEqual([
+      "begin",
+      "lock Sale/sale-9",
+      "read Sale/sale-9",
+      "lock quarantines of device-4",
+      "record quarantine of sale-event",
+      "commit",
+    ]);
   });
 
   it("names the quarantined event, with its last error, once its quarantine is committed", async () => {
@@ -352,7 +372,7 @@ describe("an event that cannot be applied yet", () => {
 
     await run(application, new FakeEventUpcaster({}));
 
-    expect(application.state.quarantineAlerts).toEqual([
+    expect(application.state.quarantines).toEqual([
       expect.objectContaining({ eventId: "sale-event", reason: { kind: "unreadable" } }),
     ]);
   });
@@ -417,7 +437,7 @@ describe("an event that cannot be applied yet", () => {
 
     await run(application, new FakeEventUpcaster({ "sale-event": sale }));
 
-    expect(application.state.quarantineAlerts).toEqual([
+    expect(application.state.quarantines).toEqual([
       expect.objectContaining({ eventId: "sale-event", reason: { kind: "not_recorded" } }),
     ]);
   });
@@ -467,7 +487,7 @@ describe("an event that cannot be applied yet", () => {
 
       await run(application, upcaster());
 
-      expect(application.state.quarantineAlerts).toEqual([
+      expect(application.state.quarantines).toEqual([
         expect.objectContaining({ eventId: "count-event", reason: { kind: "not_recorded" } }),
       ]);
     });
@@ -537,7 +557,7 @@ describe("an event that cannot be applied yet", () => {
 
       await run(application, upcaster());
 
-      expect(application.state.quarantineAlerts).toEqual([
+      expect(application.state.quarantines).toEqual([
         expect.objectContaining({ eventId: "withdrawal-event", reason: { kind: "not_recorded" } }),
       ]);
     });
@@ -608,7 +628,7 @@ describe("an event that cannot be applied yet", () => {
 
       await run(application, new FakeEventUpcaster({ "sale-event": qrSale() }));
 
-      expect(application.state.quarantineAlerts).toEqual([
+      expect(application.state.quarantines).toEqual([
         expect.objectContaining({ eventId: "sale-event", reason: { kind: "not_recorded" } }),
       ]);
     });
@@ -706,7 +726,7 @@ describe("an event that cannot be applied yet", () => {
     await run(application, new FakeEventUpcaster({ "sale-event": aCompletedSaleFact() }));
 
     expect(application.event("sale-event").error).toBe("reason of Error: deadlock detected");
-    expect(application.state.quarantineAlerts).toEqual([
+    expect(application.state.quarantines).toEqual([
       expect.objectContaining({ eventId: "sale-event", reason: { kind: "not_recorded" } }),
     ]);
   });
@@ -758,9 +778,9 @@ describe("an event that cannot be applied yet", () => {
     expect(application.calls).toContain("rollback");
   });
 
-  it("is retried and leaves nothing half applied when the alert for its invariant break cannot be opened", async () => {
+  it("is retried and leaves nothing half applied when its invariant break cannot be recorded", async () => {
     const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
-    application.failOpeningInvariantAlert = true;
+    application.failRecordingInvariantBreaks = true;
 
     await run(
       application,
@@ -770,7 +790,7 @@ describe("an event that cannot be applied yet", () => {
     expect(application.event("sale-event")).toMatchObject({
       appliedAt: null,
       attempts: 1,
-      error: "reason of Error: alert store unavailable",
+      error: "reason of Error: invariant breaks unavailable",
     });
     expect(application.state.recorded).toEqual([]);
   });
@@ -965,7 +985,7 @@ describe("an event that breaks an invariant of its own aggregate", () => {
       attempts: 0,
     });
     expect(application.state.recorded.map((one) => one.eventId)).toEqual(["sale-event"]);
-    expect(application.state.invariantAlerts).toEqual([
+    expect(application.state.invariantBreaks).toEqual([
       {
         eventId: "sale-event",
         eventType: "sale_completed",
@@ -974,7 +994,7 @@ describe("an event that breaks an invariant of its own aggregate", () => {
         breaks: ["approved_payments_below_total"],
       },
     ]);
-    expect(application.state.quarantineAlerts).toEqual([]);
+    expect(application.state.quarantines).toEqual([]);
     expect(outcome).toMatchObject({ applied: 1, flagged: 1, quarantined: 0 });
   });
 
@@ -989,7 +1009,7 @@ describe("an event that breaks an invariant of its own aggregate", () => {
     const outcome = await run(application, new FakeEventUpcaster({ "sale-event": sale }));
 
     expect(application.state.stockApplied).toEqual([{ eventId: "sale-event", saleId: "sale-1" }]);
-    expect(application.state.invariantAlerts).toEqual([
+    expect(application.state.invariantBreaks).toEqual([
       expect.objectContaining({
         eventId: "sale-event",
         breaks: ["stock_movements_do_not_match_lines"],
@@ -998,7 +1018,7 @@ describe("an event that breaks an invariant of its own aggregate", () => {
     expect(outcome).toMatchObject({ applied: 1, flagged: 1, quarantined: 0 });
   });
 
-  it("is applied without any alert when its lines' frozen prices differ from the current prices", async () => {
+  it("is applied with no invariant break recorded when its lines' frozen prices differ from the current prices", async () => {
     const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
     const fact = aCompletedSaleFact({
       total: 1,
@@ -1036,8 +1056,8 @@ describe("an event that breaks an invariant of its own aggregate", () => {
     const outcome = await run(application, new FakeEventUpcaster({ "sale-event": fact }));
 
     expect(application.event("sale-event").appliedAt).toEqual(NOW);
-    expect(application.state.invariantAlerts).toEqual([]);
-    expect(application.state.quarantineAlerts).toEqual([]);
+    expect(application.state.invariantBreaks).toEqual([]);
+    expect(application.state.quarantines).toEqual([]);
     expect(outcome).toMatchObject({ applied: 1, flagged: 0 });
   });
 });

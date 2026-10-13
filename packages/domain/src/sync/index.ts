@@ -1,5 +1,7 @@
 export type { JsonValue, OutboxEvent, OutboxEventDraft } from "../shared/index.js";
 export { canonicalOutboxEvent, canonicalOutboxPayload } from "../shared/index.js";
+export type { EventInvariantBreaks } from "./model/event-invariant-breaks.js";
+export type { EventQuarantine } from "./model/event-quarantine.js";
 export { INSTALLATION_REQUEST_LIMITS } from "./model/installation-request-limit.js";
 export { PULLED_ENTITIES, pullAudienceOf } from "./model/pull-audience.js";
 export type { PulledChange, PullPage } from "./model/pull-page.js";
@@ -12,6 +14,7 @@ export {
 } from "./model/pull-page.js";
 export type { PushedEvent, RegisterTelemetry, StorageTelemetry } from "./model/push-batch.js";
 export { PUSH_BATCH_MAX_EVENTS } from "./model/push-batch.js";
+export { isQuarantined } from "./model/quarantine-release.js";
 export type { SalesStopReason, SalesStopState } from "./model/sales-stop.js";
 export {
   isInstallationRevoked,

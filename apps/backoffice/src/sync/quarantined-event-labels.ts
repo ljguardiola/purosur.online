@@ -1,8 +1,8 @@
 import { type EventQuarantineReason, quarantinedEventsListSchema } from "@purosur/contracts";
 import { formatDate } from "@purosur/ui";
-import { eventQuarantineReasonText } from "../platform/event-quarantine-reason-text";
 import { schemaText } from "../platform/schema-text";
 import { syncedAggregateTypeName, syncedEventTypeName } from "../platform/synced-event-names";
+import { eventQuarantineReasonText } from "./event-quarantine-reason-text";
 import type { QuarantinedEvent } from "./quarantined-events-api";
 
 const SHORT_ID_LENGTH = 8;

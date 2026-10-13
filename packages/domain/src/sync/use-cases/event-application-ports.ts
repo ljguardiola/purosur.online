@@ -1,8 +1,9 @@
-import type { EventInvariantViolatedDetail, EventsQuarantinedDetail } from "../../alerts/index.js";
 import type { MercadoPagoOrderTransaction } from "../../payments/index.js";
 import type { CompletedSale } from "../../sales/index.js";
 import type { Clock, JsonValue } from "../../shared/index.js";
 import type { OpeningCountRecordedFact, OpeningCountWithdrawnFact } from "../../stock/index.js";
+import type { EventInvariantBreaks } from "../model/event-invariant-breaks.js";
+import type { EventQuarantine } from "../model/event-quarantine.js";
 import type { HeldEventState } from "../model/next-event-to-apply.js";
 import type { AggregateKey, SyncedFact } from "../model/synced-fact.js";
 
@@ -53,8 +54,9 @@ export interface EventApplicationTransaction {
   ): Promise<StockApplication>;
   markApplied(eventId: string, at: Date): Promise<void>;
   recordFailedAttempt(eventId: string, failed: FailedAttempt): Promise<void>;
-  openQuarantineAlert(details: EventsQuarantinedDetail): Promise<void>;
-  openInvariantAlert(details: EventInvariantViolatedDetail): Promise<void>;
+  lockDeviceQuarantines(deviceId: string): Promise<void>;
+  recordQuarantine(quarantine: EventQuarantine): Promise<void>;
+  recordInvariantBreaks(found: EventInvariantBreaks): Promise<void>;
 }
 
 export interface EventApplication {

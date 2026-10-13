@@ -1,7 +1,12 @@
-import type { AlertConditionObservation } from "../../../alerts/index.js";
 import { canonicalOutboxEvent, type OutboxEvent } from "../../../shared/index.js";
 import type { PushedEvent } from "../../model/push-batch.js";
-import type { Inbox, InboxTransaction, PushReport } from "../sync-ports.js";
+import type {
+  Inbox,
+  InboxTransaction,
+  PushReport,
+  RegisterStops,
+  RegisterVersionStanding,
+} from "../sync-ports.js";
 import { FAKE_CHAIN_KEY, fakeEventChain } from "./fake-event-chain.js";
 
 interface FakeReceivedEvent {
@@ -15,15 +20,22 @@ interface FakePushReport extends PushReport {
   at: Date;
 }
 
-interface FakeObservedCondition {
-  observation: AlertConditionObservation;
+interface FakeVersionStanding {
+  standing: RegisterVersionStanding;
+  at: Date;
+}
+
+interface FakeRegisterStops {
+  stops: RegisterStops;
   at: Date;
 }
 
 export interface FakeInboxState {
   received: FakeReceivedEvent[];
   reports: FakePushReport[];
-  observedConditions: FakeObservedCondition[];
+  versionStandings: FakeVersionStanding[];
+  registerStops: FakeRegisterStops[];
+  syncedRegisters: { registerId: string; at: Date }[];
   acceptedPushes: { deviceId: string; at: Date }[];
   everyCycleReports: { deviceId: string; at: Date }[];
   refusedPushes: { deviceId: string; events: readonly PushedEvent[]; refusedAt: Date }[];
@@ -34,7 +46,9 @@ export class FakeInbox implements Inbox {
   state: FakeInboxState = {
     received: [],
     reports: [],
-    observedConditions: [],
+    versionStandings: [],
+    registerStops: [],
+    syncedRegisters: [],
     acceptedPushes: [],
     everyCycleReports: [],
     refusedPushes: [],
@@ -154,9 +168,17 @@ export class FakeInbox implements Inbox {
           locationId: this.locationIds.get(deviceId) ?? `location-of-${deviceId}`,
         };
       },
-      observeAlertCondition: async (observation, at) => {
-        this.calls.push("observeAlertCondition");
-        working.observedConditions.push({ observation: structuredClone(observation), at });
+      recordRegisterVersionStanding: async (standing, at) => {
+        this.calls.push("recordRegisterVersionStanding");
+        working.versionStandings.push({ standing: structuredClone(standing), at });
+      },
+      recordRegisterStops: async (stops, at) => {
+        this.calls.push("recordRegisterStops");
+        working.registerStops.push({ stops: structuredClone(stops), at });
+      },
+      recordRegisterSynced: async (registerId, at) => {
+        this.calls.push("recordRegisterSynced");
+        working.syncedRegisters.push({ registerId, at });
       },
       recordAcceptedPush: async (deviceId, at) => {
         this.calls.push(`recordAcceptedPush ${deviceId}`);

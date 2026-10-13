@@ -1,6 +1,6 @@
 import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { z } from "zod";
-import { eventQuarantineReasonSchema } from "../shared/index.js";
+import { eventQuarantineReasonSchema } from "./event-quarantine-reason.js";
 
 const instantSchema = z.iso.datetime().meta({ timeZone: ARGENTINA_TIME_ZONE });
 

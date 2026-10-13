@@ -57,21 +57,11 @@ export interface RegisterEnrolledDetail {
   replacedInstallation: boolean;
 }
 
-export type EventQuarantineReason =
-  | { kind: "unreadable" }
-  | { kind: "missing_dependency"; aggregateType: string; aggregateId: string }
-  | { kind: "not_recorded" };
-
-export interface EventsQuarantinedDetail {
+interface EventsQuarantinedDetail {
   deviceId: string;
-  eventId: string;
-  eventType: string;
-  aggregateType: string;
-  aggregateId: string;
-  reason: EventQuarantineReason;
 }
 
-export interface EventInvariantViolatedDetail {
+interface EventInvariantViolatedDetail {
   eventId: string;
   eventType: string;
   aggregateType: string;
@@ -144,6 +134,10 @@ interface FiscalEmissionStoppedDetail {
   reason: PreEmissionGateFailureReason;
 }
 
+interface OutboxChainBrokenDetail {
+  deviceId: string;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -164,6 +158,7 @@ export interface AlertDetails {
   refund_task: RefundTaskDetail;
   fiscal_unknown: FiscalUnknownDetail;
   fiscal_emission_stopped: FiscalEmissionStoppedDetail;
+  outbox_chain_broken: OutboxChainBrokenDetail;
 }
 
 export type OpenAlertInput = {
