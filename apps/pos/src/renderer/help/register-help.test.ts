@@ -21,14 +21,30 @@ const STANDALONE_TERMINAL_TITLE = "Point sin internet: la segunda Point";
 
 const PAYMENTS_TITLES = [...POINT_TERMINAL_TITLES, STANDALONE_TERMINAL_TITLE];
 
+const STARTUP_PENDING_TITLE = "Cosas para resolver al empezar";
+
 describe("the register's help", () => {
-  it("starts with the sections on adding products to a sale and on cancelling it, followed by charging on the integrated Point terminal and on the standalone one", () => {
+  it("starts with the sections on adding products to a sale and on cancelling it, followed by charging on the integrated Point terminal and on the standalone one, and ends with what the register left pending when it starts", () => {
     expect(titles).toEqual([
       "Agregar un producto escaneándolo",
       "Agregar un producto buscándolo por nombre",
       "Cancelar una venta",
       ...PAYMENTS_TITLES,
+      STARTUP_PENDING_TITLE,
     ]);
+  });
+
+  it("files the section on what the register left pending under Caja", () => {
+    const startupPending = Object.values(help.articles).find(
+      (article) => article.title === STARTUP_PENDING_TITLE,
+    );
+
+    expect(startupPending && help.categories[startupPending.category].label).toBe("Caja");
+  });
+
+  it("explains that a ticket that may have come out is reprinted only as a duplicate, and that nothing on the list stops selling", () => {
+    expect(titlesFound("duplicado")).toContain(STARTUP_PENDING_TITLE);
+    expect(titlesFound("seguir vendiendo")).toEqual([STARTUP_PENDING_TITLE]);
   });
 
   it("files every section under a category it declares", () => {
@@ -56,6 +72,7 @@ describe("the register's help", () => {
     ["no disponible sin conexión", "Point integrada sin conexión"],
     ["menores a", "Venta menor al mínimo de la Point"],
     ["registrar pago aprobado", STANDALONE_TERMINAL_TITLE],
+    ["nunca se imprimió", STARTUP_PENDING_TITLE],
   ])("finds the section on %s by a word from its body", (word, title) => {
     expect(titlesFound(word)).toEqual([title]);
   });
