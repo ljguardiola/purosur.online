@@ -80,6 +80,33 @@ describe("the Mercado Pago QR charges the register keeps", () => {
     expect(charges.pendingCharge("qr-1")).toBeNull();
   });
 
+  it("list every pending QR and Point payment with the person its sale belongs to, oldest first", () => {
+    database.exec(
+      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+       VALUES ('sale-2', 'register-1', 'device-1', 'session-1', 'u2', 'COMPLETED', '${OCCURRED_AT}')`,
+    );
+    addQrPayment("qr-1", "PENDING");
+    addPointPayment("point-1", "PENDING");
+    database
+      .prepare("UPDATE payment_transactions SET sale_id = 'sale-2' WHERE id = 'point-1'")
+      .run();
+
+    expect(charges.pendingCharges()).toEqual([
+      { paymentTransactionId: "qr-1", actorId: "u1" },
+      { paymentTransactionId: "point-1", actorId: "u2" },
+    ]);
+  });
+
+  it("list no payment that ended, was replaced or is not a QR or Point charge", () => {
+    addQrPayment("qr-approved", "APPROVED");
+    addQrPayment("qr-expired", "EXPIRED");
+    addQrPayment("qr-replaced", "PENDING");
+    database.prepare("UPDATE payment_transactions SET replaced = 1 WHERE id = 'qr-replaced'").run();
+    addPointPayment("point-cancelled", "CANCELLED");
+
+    expect(charges.pendingCharges()).toEqual([]);
+  });
+
   it.each(["DECLINED", "CANCELLED", "EXPIRED"] as const)(
     "record a pending QR payment as %s once its order ends that way",
     (state) => {
