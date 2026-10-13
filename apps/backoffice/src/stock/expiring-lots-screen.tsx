@@ -52,8 +52,10 @@ const REFUSAL_REASONS = {
   not_found: "El lote ya no existe.",
 } as const;
 
-function nextDays(windowDays: number): string {
-  return plural(windowDays, { one: "el próximo día", other: `los próximos ${windowDays} días` });
+function upcomingDays(windowDays: number): string {
+  return windowDays === 0
+    ? "hoy"
+    : `en ${plural(windowDays, { one: "el próximo día", other: `los próximos ${windowDays} días` })}`;
 }
 
 function expiryFilterOptions(
@@ -65,7 +67,9 @@ function expiryFilterOptions(
       label:
         windowDays === undefined
           ? "Vencidos y por vencer"
-          : `Vencidos y en ${nextDays(windowDays)}`,
+          : windowDays === 0
+            ? "Vencidos y los que vencen hoy"
+            : `Vencidos y ${upcomingDays(windowDays)}`,
     },
     { value: "expired", label: "Vencidos" },
     { value: "upcoming", label: "Por vencer" },
@@ -298,7 +302,7 @@ export function ExpiringLotsScreen({
               ? {
                   icon: <CalendarClock />,
                   title: "Sin lotes por vencer",
-                  description: `Ningún lote venció ni vence en ${nextDays(windowDays)}.`,
+                  description: `Ningún lote venció ni vence ${upcomingDays(windowDays)}.`,
                   variant: "blank",
                 }
               : {
