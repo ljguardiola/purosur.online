@@ -8,6 +8,7 @@ import type {
   PullPage,
   RedeliveryReplica,
 } from "@purosur/domain/sync/use-cases";
+import { prepareRefundPageWrites } from "../payments/refund-page-writes";
 import type { LocalDatabase } from "../platform/local-database";
 import { SqliteReplicatedStockLedger } from "../stock/sqlite-stock-ledger";
 import { prepareAccessPageWrites } from "./access-page-writes";
@@ -170,6 +171,7 @@ export class SqliteLocalReplica
     const register = prepareRegisterPageWrites(this.database, mode);
     const discount = prepareDiscountPageWrites(this.database, mode);
     const fiscal = prepareFiscalPageWrites(this.database, mode);
+    const refund = prepareRefundPageWrites(this.database);
     const stock = new SqliteReplicatedStockLedger(this.database);
     const rewritePulledMovement = this.database.prepare(
       "UPDATE stock_movements SET kind = @kind, occurred_at = @occurred_at WHERE id = @id AND sale_line_id IS NULL",
@@ -279,6 +281,9 @@ export class SqliteLocalReplica
               occurred_at: change.row.occurred_at,
             });
           }
+          break;
+        case "refund_completion":
+          refund.completion(change);
           break;
         case "removal": {
           const { removed_entity } = change;
