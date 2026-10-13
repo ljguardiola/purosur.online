@@ -514,7 +514,10 @@ describe("POST /events", () => {
 
       await push(bodyOf([first, { ...second, payload: { quantity: 9 } }]), `Bearer ${deviceToken}`);
 
-      const rows = await route.db.select().from(alerts).where(eq(alerts.kind, "outbox_chain_broken"));
+      const rows = await route.db
+        .select()
+        .from(alerts)
+        .where(eq(alerts.kind, "outbox_chain_broken"));
       expect(rows).toEqual([
         expect.objectContaining({
           scope: deviceId,
@@ -527,12 +530,21 @@ describe("POST /events", () => {
 
     it("opens an alert of its own for a new installation of the same register that breaks its chain", async () => {
       const first = await enroll();
-      await push(bodyOf([{ ...event(1), chain_hmac: "forged-link" }]), `Bearer ${first.deviceToken}`);
+      await push(
+        bodyOf([{ ...event(1), chain_hmac: "forged-link" }]),
+        `Bearer ${first.deviceToken}`,
+      );
       const second = await enroll({ existingRegisterId: first.registerId });
 
-      await push(bodyOf([{ ...event(1), chain_hmac: "forged-link" }]), `Bearer ${second.deviceToken}`);
+      await push(
+        bodyOf([{ ...event(1), chain_hmac: "forged-link" }]),
+        `Bearer ${second.deviceToken}`,
+      );
 
-      const rows = await route.db.select().from(alerts).where(eq(alerts.kind, "outbox_chain_broken"));
+      const rows = await route.db
+        .select()
+        .from(alerts)
+        .where(eq(alerts.kind, "outbox_chain_broken"));
       expect(rows.map((row) => row.scope).sort()).toEqual([first.deviceId, second.deviceId].sort());
     });
 
@@ -541,7 +553,10 @@ describe("POST /events", () => {
 
       await push(body(1, 2), `Bearer ${deviceToken}`);
 
-      const rows = await route.db.select().from(alerts).where(eq(alerts.kind, "outbox_chain_broken"));
+      const rows = await route.db
+        .select()
+        .from(alerts)
+        .where(eq(alerts.kind, "outbox_chain_broken"));
       expect(rows).toEqual([]);
     });
 

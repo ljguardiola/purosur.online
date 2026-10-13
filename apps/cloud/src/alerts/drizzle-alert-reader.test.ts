@@ -11,8 +11,8 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
-import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleAlertReader } from "./drizzle-alert-reader.js";
 
@@ -476,7 +476,10 @@ describe("DrizzleAlertReader displayNames", () => {
   });
 
   it("maps an installation id to the name of its register", async () => {
-    const { deviceId } = await insertEnrolledInstallation(db, { now: NOON, registerName: "Caja 4" });
+    const { deviceId } = await insertEnrolledInstallation(db, {
+      now: NOON,
+      registerName: "Caja 4",
+    });
 
     const names = await new DrizzleAlertReader(db).displayNames([deviceId]);
 
