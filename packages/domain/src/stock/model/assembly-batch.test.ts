@@ -6,6 +6,8 @@ import {
   batchLotFacts,
   batchQuantityRefusal,
   type ConsumedAllocation,
+  pairedWithRecipe,
+  usedQuantityRefusal,
 } from "./assembly-batch.js";
 import { MAX_STOCK_QUANTITY, STOCK_QUANTITY_PER_UNIT } from "./stock-quantity.js";
 
@@ -420,5 +422,29 @@ describe("usedQuantityRefusal", () => {
     expect(
       usedQuantityRefusal([{ componentProductId: "harina", saleUnit: "KG", quantity: 0 }]),
     ).toBeNull();
+  });
+});
+
+describe("pairedWithRecipe", () => {
+  const use = (componentProductId: string, quantity = 1_000) => ({ componentProductId, quantity });
+  const recipe = [
+    { componentProductId: "a", saleUnit: "KG" as const },
+    { componentProductId: "b", saleUnit: "UNIT" as const },
+  ];
+
+  it("gives each component of the recipe, in the recipe's order, the quantity used of it", () => {
+    expect(pairedWithRecipe(recipe, [use("b", 2_000), use("a", 500)])).toEqual([
+      { componentProductId: "a", saleUnit: "KG", quantity: 500 },
+      { componentProductId: "b", saleUnit: "UNIT", quantity: 2_000 },
+    ]);
+  });
+
+  it.each([
+    ["omits a component", [use("a")]],
+    ["adds a component", [use("a"), use("b"), use("c")]],
+    ["repeats a component", [use("a"), use("a"), use("b")]],
+    ["swaps a component for another", [use("a"), use("c")]],
+  ])("refuses a list that %s", (_name, used) => {
+    expect(pairedWithRecipe(recipe, used)).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 export type { Clock, Scale, ScaleReading } from "../../shared/index.js";
-export type { NewInitialCountLot, NewLot } from "../model/lot.js";
+export type { NewBatchLot, NewInitialCountLot, NewLot } from "../model/lot.js";
 export type { StockLot } from "../model/lot-allocation.js";
 export type { PurchaseReceipt } from "../model/stock-receipt.js";
 export type {
@@ -15,7 +15,21 @@ export type {
   RegisterStockMovement,
 } from "./apply-register-stock-movements.js";
 export { applyRegisterStockMovements } from "./apply-register-stock-movements.js";
-export type { AppliedStockMovement } from "./apply-stock-movement.js";
+export type { AppliedLotAllocation, AppliedStockMovement } from "./apply-stock-movement.js";
+export type {
+  AssemblyBatchesQuery,
+  AssemblyBatchLineListing,
+  AssemblyBatchListing,
+  AssemblyBatchListReader,
+} from "./assembly-batch-list-reader.js";
+export type {
+  AssemblyBatchPorts,
+  AssemblyBatchStore,
+  AssemblyBatchTransaction,
+  BatchLotCost,
+  NewAssemblyBatch,
+} from "./assembly-batch-store.js";
+export type { BatchLotReader, PreviewLot } from "./batch-lot-reader.js";
 export type {
   CountableLot,
   ExpectedBalanceAtInput,
@@ -46,6 +60,7 @@ export type {
   InitialCountLotRow,
   InitialCountLotsQuery,
 } from "./initial-count-lot-reader.js";
+export { listAssemblyBatches } from "./list-assembly-batches.js";
 export { findRecipeListing, listRecipes } from "./list-recipes.js";
 export type {
   LockedLot,
@@ -53,6 +68,14 @@ export type {
   LotCostTransaction,
   LotOriginKind,
 } from "./lot-cost-store.js";
+export type {
+  PlannedComponent,
+  PlannedComponentAllocation,
+  PreviewAssemblyBatchInput,
+  PreviewAssemblyBatchOutcome,
+  PreviewAssemblyBatchPorts,
+} from "./preview-assembly-batch.js";
+export { previewAssemblyBatch } from "./preview-assembly-batch.js";
 export type { ReadInitialCountOutcome } from "./read-initial-count.js";
 export { readInitialCount } from "./read-initial-count.js";
 export type {
@@ -72,6 +95,7 @@ export type { ReceivePurchasedStockOutcome } from "./receive-purchased-stock.js"
 export { receivePurchasedStock } from "./receive-purchased-stock.js";
 export type {
   RecipeComponentListing,
+  RecipeLastBatch,
   RecipeListing,
   RecipeListReader,
 } from "./recipe-list-reader.js";
@@ -95,6 +119,12 @@ export type {
 export { recordInitialCountLine } from "./record-initial-count-line.js";
 export type { RecordLossInput, RecordLossOutcome } from "./record-loss.js";
 export { recordLoss } from "./record-loss.js";
+export type {
+  RegisterAssemblyBatchInput,
+  RegisterAssemblyBatchOutcome,
+  RegisteredAssemblyBatch,
+} from "./register-assembly-batch.js";
+export { registerAssemblyBatch } from "./register-assembly-batch.js";
 export type { RegisterCountInput, RegisterCountOutcome } from "./register-count.js";
 export { registerCount } from "./register-count.js";
 export type {

@@ -107,6 +107,37 @@ export type BatchQuantityRefusal =
   | { kind: "nothing_used" }
   | { kind: "invalid_output" };
 
+export function pairedWithRecipe<TComponent extends { componentProductId: string }>(
+  recipeComponents: readonly TComponent[],
+  used: readonly BatchComponentUse[],
+): (TComponent & { quantity: number })[] | null {
+  if (used.length !== recipeComponents.length) {
+    return null;
+  }
+  const paired: (TComponent & { quantity: number })[] = [];
+  for (const component of recipeComponents) {
+    const [quantity, ...repeated] = used
+      .filter((use) => use.componentProductId === component.componentProductId)
+      .map((use) => use.quantity);
+    if (quantity === undefined || repeated.length > 0) {
+      return null;
+    }
+    paired.push({ ...component, quantity });
+  }
+  return paired;
+}
+
+export function usedQuantityRefusal(
+  components: readonly (BatchComponentUse & { saleUnit: SaleUnit })[],
+): BatchQuantityRefusal | null {
+  for (const { componentProductId, saleUnit, quantity } of components) {
+    if (quantity !== 0 && !isMovementQuantity(saleUnit, quantity)) {
+      return { kind: "invalid_quantity", componentProductId };
+    }
+  }
+  return null;
+}
+
 export function batchQuantityRefusal({
   assembledSaleUnit,
   components,
@@ -116,10 +147,9 @@ export function batchQuantityRefusal({
   components: readonly (BatchComponentUse & { saleUnit: SaleUnit })[];
   output: number;
 }): BatchQuantityRefusal | null {
-  for (const { componentProductId, saleUnit, quantity } of components) {
-    if (quantity !== 0 && !isMovementQuantity(saleUnit, quantity)) {
-      return { kind: "invalid_quantity", componentProductId };
-    }
+  const used = usedQuantityRefusal(components);
+  if (used) {
+    return used;
   }
   if (components.every((component) => component.quantity === 0)) {
     return { kind: "nothing_used" };

@@ -187,6 +187,27 @@ describe("previewAssemblyBatch", () => {
     });
   });
 
+  it("refuses an output that is not valid for the product", async () => {
+    expect(await preview({ output: 0 })).toEqual({ kind: "invalid_output" });
+    expect(await preview({ output: 1.5 })).toEqual({ kind: "invalid_output" });
+  });
+
+  it("answers no lot when the proposed output is not a quantity a batch may hold", async () => {
+    const tiny: RecipeListing = {
+      ...SYRUP,
+      components: [
+        { componentProductId: "sugar", name: "Azucar", saleUnit: "KG", quantityPerOutputUnit: 1 },
+      ],
+    };
+
+    const outcome = await previewAssemblyBatch(
+      { recipes: new FakeRecipeListReader([tiny]), lots: new FakeBatchLotReader(LOTS) },
+      { productId: "syrup", locationId: BRANCH, size: 1 },
+    );
+
+    expect(outcome).toMatchObject({ kind: "previewed", proposal: { output: 0 }, lot: null });
+  });
+
   it("refuses a product without a recipe", async () => {
     expect(await preview({ productId: "plain" })).toEqual({ kind: "no_recipe" });
   });
