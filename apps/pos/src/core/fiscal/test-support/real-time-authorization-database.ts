@@ -1,4 +1,4 @@
-import type { DeferralReason, FacturaC, FiscalDocumentState } from "@purosur/domain";
+import type { DeferralReason, DeferredSale, FacturaC, FiscalDocumentState } from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -170,14 +170,43 @@ export function insertOfflineNumberBlock(
     .run(id, pointOfSale, firstNumber, lastNumber);
 }
 
+export const SALE_COMPLETED_AT = new Date("2026-09-30T12:05:00.000Z");
+
+export function deferredSaleOf(overrides: Partial<DeferredSale> = {}): DeferredSale {
+  return {
+    id: "deferred-1",
+    saleId: "sale-1",
+    occurredAt: SALE_COMPLETED_AT,
+    total: FACTURA_C.total,
+    reason: "unclear_outcome",
+    shortCode: "7KQ4M2P9",
+    routedAt: new Date("2026-09-30T12:05:01.000Z"),
+    ...overrides,
+  };
+}
+
+let issuedShortCodes = 0;
+
+export function uniqueShortCode(): string {
+  issuedShortCodes += 1;
+  return [...issuedShortCodes.toString(8)]
+    .map((digit) => String(Number(digit) + 2))
+    .join("")
+    .padStart(8, "2");
+}
+
 export function insertDeferredSale(
   database: LocalDatabase,
   saleId: string,
   reason: DeferralReason = "unclear_outcome",
-): void {
+): DeferredSaleReference {
+  const shortCode = uniqueShortCode();
+  const id = `deferred-of-${saleId}`;
   database
     .prepare(
-      "INSERT INTO deferred_sales (sale_id, reason, routed_at) VALUES (?, ?, '2026-09-30T12:05:01.000Z')",
+      `INSERT INTO deferred_sales (id, sale_id, occurred_at, total, reason, short_code, routed_at)
+       VALUES (?, ?, ?, ?, ?, ?, '2026-09-30T12:05:01.000Z')`,
     )
-    .run(saleId, reason);
+    .run(id, saleId, SALE_COMPLETED_AT.toISOString(), FACTURA_C.total, reason, shortCode);
+  return { id, shortCode };
 }

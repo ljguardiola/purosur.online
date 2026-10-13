@@ -9,12 +9,14 @@ import {
   startRegisterHealthChecks,
 } from "./real-time-authorization-wiring";
 import {
+  FACTURA_C,
   insertCompletedSale,
   insertDeferredSale,
   insertFiscalDocument,
   insertHealthCheck,
   insertSaleCompletedEvent,
   openFiscalDatabase,
+  SALE_COMPLETED_AT,
 } from "./test-support/real-time-authorization-database";
 
 const NOW = new Date("2026-09-30T12:05:02.000Z");
@@ -175,6 +177,21 @@ describe("settling, as the register starts, the authorizations its last run left
     );
   });
 
+  it("keeps the sale's date and total in the deferred record, under a generated identifier and short code", async () => {
+    await settleInterruptedAuthorizations({ database, now: () => NOW, reportFailure: () => {} });
+
+    expect(
+      database.prepare("SELECT id, occurred_at, total, short_code FROM deferred_sales").all(),
+    ).toEqual([
+      {
+        id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+        occurred_at: SALE_COMPLETED_AT.toISOString(),
+        total: FACTURA_C.total,
+        short_code: expect.stringMatching(/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/),
+      },
+    ]);
+  });
+
   it("reports a failure without rejecting", async () => {
     const failures: unknown[] = [];
     database.prepare("DROP TABLE deferred_sales").run();
@@ -194,12 +211,7 @@ describe("settling, as the register starts, the authorizations its last run left
   it("settles none of them and reports it when settling one of them fails", async () => {
     insertCompletedSale(database, "sale-2");
     insertFiscalDocument(database, { id: "doc-2", saleId: "sale-2", pointOfSale: 13 });
-    database
-      .prepare(
-        `INSERT INTO deferred_sales (sale_id, reason, routed_at)
-         VALUES ('sale-2', 'unclear_outcome', '2026-09-30T12:05:01.000Z')`,
-      )
-      .run();
+    insertDeferredSale(database, "sale-2");
     const failures: unknown[] = [];
 
     await settleInterruptedAuthorizations({

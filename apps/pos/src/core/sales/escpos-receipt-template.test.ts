@@ -1,4 +1,9 @@
-import type { FacturaCFiscalBlock, ReceiptContent, ReceiptCopy } from "@purosur/domain";
+import type {
+  DeferredSaleDocumentBlock,
+  FacturaCFiscalBlock,
+  ReceiptContent,
+  ReceiptCopy,
+} from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -819,5 +824,65 @@ describe("the ESC/POS receipt template", () => {
         "Comercio de Prueba                       Responsable Monotributo",
       );
     });
+  });
+});
+
+describe("the ESC/POS receipt of a deferred sale", () => {
+  const DEFERRED_BLOCK: DeferredSaleDocumentBlock = {
+    invoiceClass: "X",
+    shortCode: "7KQ4-M2P9",
+    qrText: "purosur-deferred-sale:0198-abc:7KQ4M2P9",
+  };
+
+  const DEFERRED_HEAD = [
+    "[init]",
+    "[codepage PC850]",
+    "[bold]                       X[/bold]",
+    "[bold]        DOCUMENTO NO VALIDO COMO FACTURA[/bold]",
+    RULE,
+    "[feed dots 24]",
+    "[logo 576x280]",
+    "[feed dots 16]",
+    "[small]                       Av. Belgrano 1450[/small]",
+    "[small]              WhatsApp 11 5555-0100  ·  @puro.sur[/small]",
+  ];
+
+  const DEFERRED_BODY = [
+    RULE,
+    ...OPERATION,
+    ...SALE_OF_MIXED_SALE,
+    RULE,
+    "[bold]Código de consulta                     7KQ4-M2P9[/bold]",
+    "[feed dots 16]",
+    "[align center]",
+    "[qr model 2]",
+    "[qr module 8]",
+    "[qr correction L]",
+    "[qr store purosur-deferred-sale:0198-abc:7KQ4M2P9]",
+    "[qr print]",
+    "[align left]",
+    "[feed dots 8]",
+    "[small]          Volvé con este ticket a retirar tu factura.[/small]",
+    ...CLOSING,
+  ];
+
+  it("marks the sale as no invoice before the logo, and ends with the short code and the QR of its record", () => {
+    expect(printed(receipt({ fiscal: DEFERRED_BLOCK })).text).toBe(
+      [...DEFERRED_HEAD, ...DEFERRED_BODY].join("\n"),
+    );
+  });
+
+  it("puts the duplicate legend right below the store's header, under the mark", () => {
+    expect(
+      printed(receipt({ fiscal: DEFERRED_BLOCK }), { kind: "duplicate", orderNumber: 2 }).text,
+    ).toBe(
+      [...DEFERRED_HEAD, "[bold]              COPIA DUPLICADA Nº 2[/bold]", ...DEFERRED_BODY].join(
+        "\n",
+      ),
+    );
+  });
+
+  it("keeps every row within the paper's width", () => {
+    expect(rowsWithinThePaper(receipt({ fiscal: DEFERRED_BLOCK }))).toBe(true);
   });
 });
