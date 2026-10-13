@@ -11,6 +11,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { generateSessionId, hashSessionId } from "../../sessions/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "../../test-support/build-test-database.js";
 import {
+  assemblyBatches,
+  assemblyBatchLines,
   brands,
   categories,
   discounts,
@@ -30,6 +32,7 @@ import {
   recipes,
   roles,
   sessions,
+  stockMovements,
   suppliers,
   tags,
   userRoles,
@@ -965,6 +968,182 @@ describe("recipe_components", () => {
       }),
     ).rejects.toMatchObject({
       cause: { constraint: "recipe_components_product_id_recipes_product_id_fk" },
+    });
+  });
+});
+
+describe("assembly_batches", () => {
+  async function seedBatchOfMix() {
+    const actor = await insertUser("ada@example.com");
+    const [location] = await db.select({ id: locations.id }).from(locations);
+    const [category] = await db
+      .insert(categories)
+      .values({ name: "Almacén" })
+      .returning({ id: categories.id });
+    const inserted = await db
+      .insert(products)
+      .values([
+        { name: "Mix de frutos secos", categoryId: category?.id as string, saleUnit: "KG" },
+        { name: "Nueces", categoryId: category?.id as string, saleUnit: "KG" },
+      ])
+      .returning({ id: products.id });
+    const [mixId, nutsId] = inserted.map((row) => row.id) as [string, string];
+    const fields = {
+      productId: mixId,
+      locationId: location?.id as string,
+      assembledAt: new Date("2026-05-04T13:00:00.000Z"),
+      outputQty: 14_000,
+      actorId: actor.id,
+    };
+    const [batch] = await db.insert(assemblyBatches).values(fields).returning();
+    return { batch: batch as NonNullable<typeof batch>, fields, mixId, nutsId, actorId: actor.id };
+  }
+
+  it("records when the batch was assembled and when the row was written", async () => {
+    const { batch, fields } = await seedBatchOfMix();
+
+    expect(batch).toMatchObject({ assembledAt: fields.assembledAt, outputQty: 14_000 });
+    expect(batch.createdAt).toBeInstanceOf(Date);
+  });
+
+  it("rejects an output that is not positive", async () => {
+    const { fields } = await seedBatchOfMix();
+
+    await expect(
+      db.insert(assemblyBatches).values({ ...fields, outputQty: 0 }),
+    ).rejects.toMatchObject({ cause: { constraint: "assembly_batches_output_qty_check" } });
+  });
+
+  it("rejects a batch of a product, a branch or a person that doesn't exist", async () => {
+    const { fields } = await seedBatchOfMix();
+
+    await expect(
+      db.insert(assemblyBatches).values({ ...fields, productId: MISSING_ID }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "assembly_batches_product_id_products_id_fk" },
+    });
+    await expect(
+      db.insert(assemblyBatches).values({ ...fields, locationId: MISSING_ID }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "assembly_batches_location_id_locations_id_fk" },
+    });
+    await expect(
+      db.insert(assemblyBatches).values({ ...fields, actorId: MISSING_ID }),
+    ).rejects.toMatchObject({ cause: { constraint: "assembly_batches_actor_id_users_id_fk" } });
+  });
+
+  it("keeps one line per component of a batch, with a quantity that is not negative", async () => {
+    const { batch, nutsId } = await seedBatchOfMix();
+    await db
+      .insert(assemblyBatchLines)
+      .values({ batchId: batch.id, componentProductId: nutsId, quantity: 0 });
+
+    await expect(
+      db
+        .insert(assemblyBatchLines)
+        .values({ batchId: batch.id, componentProductId: nutsId, quantity: 1_000 }),
+    ).rejects.toMatchObject({ cause: { constraint: "assembly_batch_lines_pkey" } });
+    await expect(
+      db
+        .insert(assemblyBatchLines)
+        .values({ batchId: MISSING_ID, componentProductId: nutsId, quantity: 1_000 }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "assembly_batch_lines_batch_id_assembly_batches_id_fk" },
+    });
+    await expect(
+      db
+        .insert(assemblyBatchLines)
+        .values({ batchId: batch.id, componentProductId: MISSING_ID, quantity: 1_000 }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "assembly_batch_lines_component_product_id_products_id_fk" },
+    });
+  });
+
+  it("rejects a negative quantity in a line", async () => {
+    const { batch, nutsId } = await seedBatchOfMix();
+
+    await expect(
+      db
+        .insert(assemblyBatchLines)
+        .values({ batchId: batch.id, componentProductId: nutsId, quantity: -1 }),
+    ).rejects.toMatchObject({ cause: { constraint: "assembly_batch_lines_quantity_check" } });
+  });
+
+  it("gives a batch one lot of its own, as the only origin that lot has", async () => {
+    const { batch, fields, mixId } = await seedBatchOfMix();
+    const lot = {
+      productId: mixId,
+      locationId: fields.locationId,
+      assemblyBatchId: batch.id,
+      quantityReceived: 14_000,
+      costTotalCents: 50_200,
+      costQuantity: 14_000,
+    };
+    await db.insert(lots).values(lot);
+
+    await expect(db.insert(lots).values(lot)).rejects.toMatchObject({
+      cause: { constraint: "lots_assembly_batch_id_key" },
+    });
+    await expect(db.insert(lots).values({ ...lot, assemblyBatchId: null })).rejects.toMatchObject({
+      cause: { constraint: "lots_exactly_one_origin_check" },
+    });
+    await expect(
+      db.insert(lots).values({ ...lot, technical: true, assemblyBatchId: batch.id }),
+    ).rejects.toMatchObject({ cause: { constraint: "lots_exactly_one_origin_check" } });
+    await expect(
+      db.insert(lots).values({ ...lot, assemblyBatchId: MISSING_ID }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "lots_assembly_batch_id_assembly_batches_id_fk" },
+    });
+  });
+
+  it("links the movements of assembling to the batch and no other kind of movement", async () => {
+    const { batch, fields, mixId, actorId } = await seedBatchOfMix();
+    const movement = {
+      productId: mixId,
+      locationId: fields.locationId,
+      delta: 14_000,
+      occurredAt: fields.assembledAt,
+      actorId,
+    };
+
+    await db
+      .insert(stockMovements)
+      .values({ ...movement, kind: "assembly_in", assemblyBatchId: batch.id });
+    await db
+      .insert(stockMovements)
+      .values({ ...movement, kind: "assembly_out", assemblyBatchId: batch.id });
+
+    await expect(
+      db.insert(stockMovements).values({ ...movement, kind: "assembly_in" }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "stock_movements_assembly_batch_iff_assembly_check" },
+    });
+    await expect(
+      db
+        .insert(stockMovements)
+        .values({
+          ...movement,
+          kind: "loss",
+          reason: "broken_or_spilled",
+          assemblyBatchId: batch.id,
+        }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "stock_movements_assembly_batch_iff_assembly_check" },
+    });
+    await expect(
+      db
+        .insert(stockMovements)
+        .values({ ...movement, kind: "assembly_in", reason: "found", assemblyBatchId: batch.id }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "stock_movements_reason_unless_count_sale_or_receipt_check" },
+    });
+    await expect(
+      db
+        .insert(stockMovements)
+        .values({ ...movement, kind: "assembly_in", assemblyBatchId: MISSING_ID }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "stock_movements_assembly_batch_id_assembly_batches_id_fk" },
     });
   });
 });
