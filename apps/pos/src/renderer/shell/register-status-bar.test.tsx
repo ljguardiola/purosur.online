@@ -1,5 +1,5 @@
 import type { RegisterStatus } from "@purosur/contracts";
-import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { expectNoAccessibilityViolations, tokenRgb } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -111,40 +111,23 @@ describe("RegisterStatusBar", () => {
     expect(barText(screen)).not.toContain(SALES_DENIED_TITLE);
   });
 
-  it("shows no condition when the register holds none", async () => {
+  it("shows no notices pill while the register holds no condition", async () => {
     const screen = await renderBar();
 
+    await expect.element(screen.getByRole("button", { name: /aviso/ })).not.toBeInTheDocument();
     await expect.element(screen.getByText(SALES_DENIED_TITLE)).not.toBeInTheDocument();
-    await expect.element(screen.getByText(SILENT_TITLE)).not.toBeInTheDocument();
-    await expect.element(screen.getByText("Qué hacer")).not.toBeInTheDocument();
   });
 
-  it("shows a condition with its title, what it means and what to do", async () => {
+  it("shows no condition's text until the notices pill is pressed", async () => {
     const screen = await renderBar({
       status: loaded({ conditions: [{ kind: "sales_denied", reason: "event_history_broken" }] }),
     });
 
-    await expect.element(screen.getByText(SALES_DENIED_TITLE)).toBeVisible();
-    await expect
-      .element(screen.getByText(/dejó de abrir ventas nuevas porque encontró un problema/))
-      .toBeVisible();
-    await expect.element(screen.getByText("Qué hacer")).toBeVisible();
-    await expect.element(screen.getByText(/Avisar al Administrador de inmediato/)).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "1 aviso" })).toBeVisible();
+    await expect.element(screen.getByText(SALES_DENIED_TITLE)).not.toBeInTheDocument();
   });
 
-  it("tells why the register can't sell with the reason the core answers", async () => {
-    const screen = await renderBar({
-      status: loaded({ conditions: [{ kind: "sales_denied", reason: "local_database_damaged" }] }),
-    });
-
-    await expect.element(screen.getByText(SALES_DENIED_TITLE)).toBeVisible();
-    await expect.element(screen.getByText(/su base de datos está dañada/)).toBeVisible();
-    await expect
-      .element(screen.getByText(/Restaurar la base de datos de la caja desde su copia de respaldo/))
-      .toBeVisible();
-  });
-
-  it("shows every condition it holds, in the order the core gave them", async () => {
+  it("counts several conditions on the pill", async () => {
     const screen = await renderBar({
       status: loaded({
         conditions: [
@@ -154,16 +137,103 @@ describe("RegisterStatusBar", () => {
       }),
     });
 
+    await expect.element(screen.getByRole("button", { name: "2 avisos" })).toBeVisible();
+  });
+
+  it("opens a panel of notices with each condition's title, what it means and what to do", async () => {
+    const screen = await renderBar({
+      status: loaded({ conditions: [{ kind: "sales_denied", reason: "event_history_broken" }] }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+
+    await expect.element(screen.getByRole("dialog", { name: "Avisos de esta caja" })).toBeVisible();
+    await expect.element(screen.getByText(SALES_DENIED_TITLE)).toBeVisible();
+    await expect
+      .element(screen.getByText(/dejó de abrir ventas nuevas porque encontró un problema/))
+      .toBeVisible();
+    await expect.element(screen.getByText(/Avisar al Administrador de inmediato/)).toBeVisible();
+  });
+
+  it("tells why the register can't sell with the reason the core answers", async () => {
+    const screen = await renderBar({
+      status: loaded({ conditions: [{ kind: "sales_denied", reason: "local_database_damaged" }] }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+
+    await expect.element(screen.getByText(/su base de datos está dañada/)).toBeVisible();
+    await expect
+      .element(screen.getByText(/Restaurar la base de datos de la caja desde su copia de respaldo/))
+      .toBeVisible();
+  });
+
+  it("lists every condition in the panel, in the order the core gave them", async () => {
+    const screen = await renderBar({
+      status: loaded({
+        conditions: [
+          { kind: "sales_denied", reason: "event_history_broken" },
+          { kind: "register_silent" },
+        ],
+      }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "2 avisos" }));
+
     await expect.element(screen.getByText(SALES_DENIED_TITLE)).toBeVisible();
     await expect.element(screen.getByText(SILENT_TITLE)).toBeVisible();
-    const text = barText(screen);
+    const text = screen.getByRole("dialog").element().textContent;
     expect(text.indexOf(SALES_DENIED_TITLE)).toBeLessThan(text.indexOf(SILENT_TITLE));
   });
 
-  it("shows a condition even when the cloud can't be reached", async () => {
+  it("closes the panel with its close button", async () => {
+    const screen = await renderBar({
+      status: loaded({ conditions: [{ kind: "register_silent" }] }),
+    });
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("closes the panel with Escape", async () => {
+    const screen = await renderBar({
+      status: loaded({ conditions: [{ kind: "register_silent" }] }),
+    });
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("shows the pill in the error tone when a condition stops sales or revokes the installation", async () => {
+    const screen = await renderBar({
+      status: loaded({
+        conditions: [{ kind: "register_silent" }, { kind: "installation_revoked" }],
+      }),
+    });
+
+    const pill = screen.getByRole("button", { name: "2 avisos" }).element();
+    expect(getComputedStyle(pill).backgroundColor).toBe(tokenRgb("error-subtle"));
+  });
+
+  it("shows the pill in the warning tone when no condition is an error", async () => {
+    const screen = await renderBar({
+      status: loaded({ conditions: [{ kind: "fiscal_emission_stopped" }] }),
+    });
+
+    const pill = screen.getByRole("button", { name: "1 aviso" }).element();
+    expect(getComputedStyle(pill).backgroundColor).toBe(tokenRgb("warning-subtle"));
+  });
+
+  it("shows a notice even when the cloud can't be reached", async () => {
     const screen = await renderBar({
       status: loaded({ conditions: [{ kind: "register_silent" }], cloud: "unreachable" }),
     });
+
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
 
     await expect.element(screen.getByText(SILENT_TITLE)).toBeVisible();
     expect(barText(screen)).toContain("Sin conexión con la nube");
@@ -184,7 +254,7 @@ describe("RegisterStatusBar", () => {
     expect(barText(screen)).not.toMatch(/Balanza|Lector/);
   });
 
-  it("shows the missing scale or reader condition with what to do", async () => {
+  it("shows the missing scale or reader notice with what to do", async () => {
     const screen = await renderBar({
       status: loaded({
         conditions: [{ kind: "serial_device_missing" }],
@@ -192,14 +262,18 @@ describe("RegisterStatusBar", () => {
       }),
     });
 
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+
     await expect.element(screen.getByText("Revisar la balanza o el lector")).toBeVisible();
-    await expect.element(screen.getByText("Qué hacer")).toBeVisible();
+    await expect.element(screen.getByRole("dialog")).toBeVisible();
   });
 
-  it("shows the stopped fiscal emission condition with its title, what it means and what to do, with no connection to the cloud", async () => {
+  it("shows the stopped fiscal emission notice with its title, what it means and what to do, with no connection to the cloud", async () => {
     const screen = await renderBar({
       status: loaded({ conditions: [{ kind: "fiscal_emission_stopped" }], cloud: "unreachable" }),
     });
+
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
 
     await expect.element(screen.getByText("Emisión de facturas detenida")).toBeVisible();
     await expect
@@ -243,6 +317,8 @@ describe("RegisterStatusBar", () => {
         cloud: "unreachable",
       }),
     });
+    await expectNoAccessibilityViolations(withConditions.container);
+    await userEvent.click(withConditions.getByRole("button", { name: "2 avisos" }));
     await expectNoAccessibilityViolations(withConditions.container);
     await withConditions.unmount();
 
