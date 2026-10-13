@@ -2,6 +2,7 @@ import { stockPeriodSchema } from "@purosur/contracts";
 import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import {
+  canManageRecipes,
   canPerformStockCounts,
   canRecordInitialInventory,
   canSeeStockBalances,
@@ -94,4 +95,13 @@ export const initialInventoryRoute = createRoute({
   validateSearch: initialInventoryFilters,
   search: { middlewares: [stripSearchParams(initialInventoryFilters.parse({}))] },
   component: lazyScreen(() => import("./initial-inventory-page"), "InitialInventoryPage"),
+});
+
+export const recipesListRoute = createRoute({
+  getParentRoute: () => stockAreaRoute,
+  path: "recipes",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageRecipes),
+  validateSearch: recipesListFilters,
+  search: { middlewares: [stripSearchParams(recipesListFilters.parse({}))] },
+  component: lazyScreen(() => import("./recipes-list-page"), "RecipesListPage"),
 });
