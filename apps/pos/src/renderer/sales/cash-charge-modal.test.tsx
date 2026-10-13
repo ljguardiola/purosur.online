@@ -480,6 +480,20 @@ describe("CashChargeModal", () => {
     await expect.poll(() => callbacks.onCompleted.mock.calls.length).toBe(1);
   });
 
+  it("says a Mercado Pago charge of the sale is still in progress", async () => {
+    const { screen, field, complete, callbacks } = await renderModal(async () => ({
+      kind: "mercado_pago_charge_in_progress",
+    }));
+
+    await userEvent.fill(field, "5.000,00");
+    await userEvent.click(complete);
+
+    await expect
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent("Ya hay un cobro con Mercado Pago en curso para esta venta.");
+    expect(callbacks.onCompleted).not.toHaveBeenCalled();
+  });
+
   it("says the sale could not be charged when the request fails", async () => {
     const { screen, field, complete } = await renderModal(async () => {
       throw new Error("the core connection was replaced");

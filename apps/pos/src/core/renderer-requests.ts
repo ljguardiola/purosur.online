@@ -1,5 +1,5 @@
 import type {
-  AbandonMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
@@ -20,11 +20,12 @@ import type {
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
-  FollowMercadoPagoQrChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
+  PaymentMethodAvailability,
   PinCodeRedemptionOutcome,
   PinPolicy,
   PreviewSaleDiscountOutcome,
@@ -47,7 +48,7 @@ import type {
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
-  StartMercadoPagoQrChargeOutcome,
+  StartMercadoPagoChargeOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, RegisterService } from "@purosur/domain";
@@ -101,14 +102,19 @@ export interface RendererRequestDeps {
   chargeSaleByTransfer:
     | ((request: ChargeSaleByTransferRequest) => Promise<ChargeSaleByTransferOutcome>)
     | undefined;
-  startMercadoPagoQrCharge:
-    | ((request: { saleId: string; amount: number }) => Promise<StartMercadoPagoQrChargeOutcome>)
+  startMercadoPagoCharge:
+    | ((request: {
+        saleId: string;
+        method: "QR" | "POINT";
+        amount: number;
+      }) => Promise<StartMercadoPagoChargeOutcome>)
     | undefined;
-  followMercadoPagoQrCharge:
-    | ((request: { paymentTransactionId: string }) => Promise<FollowMercadoPagoQrChargeOutcome>)
+  followMercadoPagoCharge:
+    | ((request: { paymentTransactionId: string }) => Promise<FollowMercadoPagoChargeOutcome>)
     | undefined;
-  abandonMercadoPagoQrCharge:
-    | ((request: { paymentTransactionId: string }) => Promise<AbandonMercadoPagoQrChargeOutcome>)
+  paymentMethodAvailability: (() => Promise<PaymentMethodAvailability | null>) | undefined;
+  abandonMercadoPagoCharge:
+    | ((request: { paymentTransactionId: string }) => Promise<AbandonMercadoPagoChargeOutcome>)
     | undefined;
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
@@ -451,36 +457,47 @@ async function attemptChargeSaleInCash(
   }
 }
 
-async function attemptStartMercadoPagoQrCharge(
+async function attemptStartMercadoPagoCharge(
   deps: RendererRequestDeps,
-  request: { saleId: string; amount: number },
-): Promise<StartMercadoPagoQrChargeOutcome> {
+  request: { saleId: string; method: "QR" | "POINT"; amount: number },
+): Promise<StartMercadoPagoChargeOutcome> {
   try {
-    return (await deps.startMercadoPagoQrCharge?.(request)) ?? { kind: "unavailable" };
+    return (await deps.startMercadoPagoCharge?.(request)) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure("starting a Mercado Pago QR charge", error);
     return { kind: "unavailable" };
   }
 }
 
-async function attemptFollowMercadoPagoQrCharge(
+async function readPaymentMethodAvailability(
+  deps: RendererRequestDeps,
+): Promise<PaymentMethodAvailability | null> {
+  try {
+    return (await deps.paymentMethodAvailability?.()) ?? null;
+  } catch (error) {
+    deps.reportFailure("reading which payment methods are available", error);
+    return null;
+  }
+}
+
+async function attemptFollowMercadoPagoCharge(
   deps: RendererRequestDeps,
   request: { paymentTransactionId: string },
-): Promise<FollowMercadoPagoQrChargeOutcome> {
+): Promise<FollowMercadoPagoChargeOutcome> {
   try {
-    return (await deps.followMercadoPagoQrCharge?.(request)) ?? { kind: "unavailable" };
+    return (await deps.followMercadoPagoCharge?.(request)) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure("following a Mercado Pago QR charge", error);
     return { kind: "unavailable" };
   }
 }
 
-async function attemptAbandonMercadoPagoQrCharge(
+async function attemptAbandonMercadoPagoCharge(
   deps: RendererRequestDeps,
   request: { paymentTransactionId: string },
-): Promise<AbandonMercadoPagoQrChargeOutcome> {
+): Promise<AbandonMercadoPagoChargeOutcome> {
   try {
-    return (await deps.abandonMercadoPagoQrCharge?.(request)) ?? { kind: "unavailable" };
+    return (await deps.abandonMercadoPagoCharge?.(request)) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure("abandoning a Mercado Pago QR charge", error);
     return { kind: "unavailable" };
@@ -918,30 +935,37 @@ export async function answerRendererRequest(
           amount: message.amount,
         }),
       };
-    case "start-mercado-pago-qr-charge":
+    case "start-mercado-pago-charge":
       return {
-        type: "start-mercado-pago-qr-charge-result",
+        type: "start-mercado-pago-charge-result",
         request_id: message.request_id,
-        outcome: await attemptStartMercadoPagoQrCharge(deps, {
+        outcome: await attemptStartMercadoPagoCharge(deps, {
           saleId: message.sale_id,
+          method: message.method,
           amount: message.amount,
         }),
       };
-    case "follow-mercado-pago-qr-charge":
+    case "follow-mercado-pago-charge":
       return {
-        type: "follow-mercado-pago-qr-charge-result",
+        type: "follow-mercado-pago-charge-result",
         request_id: message.request_id,
-        outcome: await attemptFollowMercadoPagoQrCharge(deps, {
+        outcome: await attemptFollowMercadoPagoCharge(deps, {
           paymentTransactionId: message.payment_transaction_id,
         }),
       };
-    case "abandon-mercado-pago-qr-charge":
+    case "abandon-mercado-pago-charge":
       return {
-        type: "abandon-mercado-pago-qr-charge-result",
+        type: "abandon-mercado-pago-charge-result",
         request_id: message.request_id,
-        outcome: await attemptAbandonMercadoPagoQrCharge(deps, {
+        outcome: await attemptAbandonMercadoPagoCharge(deps, {
           paymentTransactionId: message.payment_transaction_id,
         }),
+      };
+    case "payment-method-availability":
+      return {
+        type: "payment-method-availability-result",
+        request_id: message.request_id,
+        availability: await readPaymentMethodAvailability(deps),
       };
     case "search-products":
       return {

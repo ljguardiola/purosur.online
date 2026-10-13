@@ -32,8 +32,8 @@ export type ScanProblem =
   | { kind: "remove_failed" }
   | { kind: "cancel_failed" }
   | { kind: "has_approved_payment" }
-  | { kind: "qr_charge_in_progress" }
-  | { kind: "holds_qr_payment" };
+  | { kind: "mercado_pago_charge_in_progress" }
+  | { kind: "holds_mercado_pago_payment" };
 
 type Message = { icon: LucideIcon; title: string; help: string };
 
@@ -141,17 +141,17 @@ export function messageFor(problem: ScanProblem): Message {
         title: "No se puede cancelar la venta",
         help: "Ya tiene un pago aprobado.",
       };
-    case "qr_charge_in_progress":
+    case "mercado_pago_charge_in_progress":
       return {
         icon: Ban,
-        title: "Hay un cobro con QR en curso",
+        title: "Hay un cobro con Mercado Pago en curso",
         help: "Esperá a que termine para cancelar la venta.",
       };
-    case "holds_qr_payment":
+    case "holds_mercado_pago_payment":
       return {
         icon: Ban,
         title: "No se puede cancelar la venta",
-        help: "La venta tiene un pago con QR: todavía no se puede anular desde la caja.",
+        help: "La venta tiene un pago con Mercado Pago: todavía no se puede anular desde la caja.",
       };
     case "search_failed":
       return {

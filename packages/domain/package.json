@@ -52,7 +52,7 @@
       "default": "./dist/payments/use-cases/index.js"
     },
     "./payments/test-support": {
-      "@purosur/source": "./src/payments/test-support/pending-qr-transaction.ts"
+      "@purosur/source": "./src/payments/test-support/pending-mercado-pago-transactions.ts"
     },
     "./users/use-cases": {
       "@purosur/source": "./src/users/use-cases/index.ts",

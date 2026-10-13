@@ -21,7 +21,7 @@ type CompletedSalePayload = SyncedEventPayloads[
   | "sale_completed@6"
   | "sale_completed@7"
   | "sale_completed@8"];
-type SalePayment = SyncedEventPayloads["sale_completed@1" | "sale_completed@5"]["payments"][number];
+type SalePayment = SyncedEventPayloads["sale_completed@1" | "sale_completed@8"]["payments"][number];
 type CancelledSalePayload = SyncedEventPayloads[
   | "sale_cancelled@1"
   | "sale_cancelled@2"
