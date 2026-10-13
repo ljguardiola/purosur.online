@@ -16,6 +16,7 @@ import {
   discounts,
   issuerIdentificationVersions,
   offlineNumberBlocks,
+  paymentRefunds,
   priceLists,
   prices,
   productBarcodes,
@@ -48,6 +49,7 @@ import type {
   PriceListRow,
   PriceRow,
   ProductRow,
+  RefundCompletionRow,
   RegisterOfflinePointOfSaleRow,
   RegisterPointOfSaleRow,
   RegisterRow,
@@ -506,5 +508,24 @@ export async function readStockMovements<TQueryResult extends PgQueryResultHKT>(
       id,
       { ...row, kind: kind as StockMovementKind, version: STOCK_MOVEMENT_VERSION },
     ]),
+  );
+}
+
+export async function readRefundCompletions<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  ids: readonly string[],
+): Promise<Map<string, RefundCompletionRow>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select({ id: paymentRefunds.id, doneBy: paymentRefunds.doneBy, doneAt: paymentRefunds.doneAt })
+    .from(paymentRefunds)
+    .where(inArray(paymentRefunds.id, [...ids]))
+    .orderBy(asc(paymentRefunds.id));
+  return new Map(
+    rows.flatMap(({ id, doneBy, doneAt }) =>
+      doneBy === null || doneAt === null ? [] : [[id, { doneBy, doneAt }]],
+    ),
   );
 }

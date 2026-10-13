@@ -151,6 +151,9 @@ export const qrChargeInProgressOutcome = z.object({
 export const holdsMercadoPagoPaymentOutcome = z.object({
   kind: z.literal("holds_mercado_pago_payment"),
 });
+export const holdsStandaloneTerminalPaymentOutcome = z.object({
+  kind: z.literal("holds_standalone_terminal_payment"),
+});
 
 export const scanProductOutcomeSchema = z.discriminatedUnion("kind", [
   addedOutcome,
@@ -303,6 +306,7 @@ export const cancelPaidSaleOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("no_open_session") }),
   qrChargeInProgressOutcome,
   holdsMercadoPagoPaymentOutcome,
+  holdsStandaloneTerminalPaymentOutcome,
   notPermittedOutcome,
   notSignedInOutcome,
   ...authorizationRefusalSchema.options,
@@ -400,7 +404,7 @@ export const chargeSaleInCashOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type ChargeSaleInCashOutcome = z.infer<typeof chargeSaleInCashOutcomeSchema>;
 
-export const chargeSaleByTransferOutcomeSchema = z.discriminatedUnion("kind", [
+const chargeSaleConfirmedByHandOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("completed"), sale_id: z.string(), total: cents }),
   partiallyPaidOutcomeSchema,
   z.object({ kind: z.literal("invalid_amount") }),
@@ -416,4 +420,10 @@ export const chargeSaleByTransferOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unavailable") }),
   qrChargeInProgressOutcome,
 ]);
+export const chargeSaleByTransferOutcomeSchema = chargeSaleConfirmedByHandOutcomeSchema;
 export type ChargeSaleByTransferOutcome = z.infer<typeof chargeSaleByTransferOutcomeSchema>;
+
+export const chargeSaleOnStandaloneTerminalOutcomeSchema = chargeSaleConfirmedByHandOutcomeSchema;
+export type ChargeSaleOnStandaloneTerminalOutcome = z.infer<
+  typeof chargeSaleOnStandaloneTerminalOutcomeSchema
+>;
