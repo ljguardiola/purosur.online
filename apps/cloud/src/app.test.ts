@@ -2632,12 +2632,12 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
-        url: "/api/reports/sales-by-payment-method",
+        url: "/api/reports/sales-by-product-and-category",
         access: capabilityAccess("reports_area"),
       },
       {
         method: "GET",
-        url: "/api/reports/sales-by-product-and-category",
+        url: "/api/reports/sales-by-payment-method",
         access: capabilityAccess("reports_area"),
       },
       {
