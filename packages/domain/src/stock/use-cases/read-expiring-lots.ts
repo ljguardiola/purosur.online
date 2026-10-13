@@ -1,6 +1,6 @@
 import { argentinaCalendarDay, type Clock, compareSpanishText } from "../../shared/index.js";
 import { daysToExpiry, expiryWindowEnd, isExpired } from "../model/lot-expiry.js";
-import { lotValueCents } from "../model/lot-value.js";
+import { type LotsValueSummary, lotsValueSummary, lotValueCents } from "../model/lot-value.js";
 import type {
   ExpiringLotProduct,
   ExpiringLotReader,
@@ -25,6 +25,7 @@ export interface ExpiringLotView {
 export interface ExpiringLotsView {
   windowDays: number;
   lots: ExpiringLotView[];
+  summary: LotsValueSummary;
 }
 
 function compareText(a: string, b: string): number {
@@ -66,5 +67,5 @@ export async function readExpiringLots(
     )
     .map((row) => lotView(row, today))
     .sort(compareLots);
-  return { windowDays, lots };
+  return { windowDays, lots, summary: lotsValueSummary(lots) };
 }
