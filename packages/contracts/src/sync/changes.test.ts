@@ -429,6 +429,23 @@ describe("changesPageSchema", () => {
   });
 
   it.each([
+    ["written in capitals", "7C9E6679-7425-40DE-944B-E07FC1F90AE7", ENTITY_ID],
+    [
+      "of no standard version or variant",
+      "7c9e6679-7425-00de-044b-e07fc1f90ae7",
+      "7c9e6679-7425-00de-044b-e07fc1f90ae7",
+    ],
+  ])("reads the user of a refund completion as a record id %s", (_, doneBy, read) => {
+    const page = pageOf(
+      change(1, "refund_completion", { ...refundCompletionRow, done_by: doneBy }),
+    );
+
+    expect(changesPageSchema.parse(page).changes[0]).toEqual(
+      change(1, "refund_completion", { ...refundCompletionRow, done_by: read }),
+    );
+  });
+
+  it.each([
     ["a user that is not an id", { done_by: "not-an-id" }],
     ["a day with no time", { done_at: "2026-10-09" }],
     ["no user", { done_by: undefined }],

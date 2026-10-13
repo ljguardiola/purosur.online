@@ -122,6 +122,28 @@ describe("DrizzleRefundStore", () => {
     expect(await changesLoggedAfter(db, since)).toEqual([]);
   });
 
+  it.each([
+    ["never locked", async () => undefined],
+    [
+      "locked only in an earlier transaction",
+      (refundId: string, locationId: string) =>
+        store().transaction((tx) => tx.lockRefund(refundId, locationId)),
+    ],
+  ])("refuses to mark done a refund %s, changing nothing", async (_, lockBefore) => {
+    const { refundId, locationId } = await aPendingRefund();
+    const { userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+    await lockBefore(refundId, locationId);
+    const since = await lastLoggedChangeSeq(db);
+
+    await expect(
+      store().transaction((tx) => tx.recordRefundDone(refundId, userId, NOW)),
+    ).rejects.toThrow("a refund is marked done only after it is locked");
+
+    const [refund] = await db.select().from(paymentRefunds).where(eq(paymentRefunds.id, refundId));
+    expect(refund).toMatchObject({ state: "PENDING", doneBy: null, doneAt: null });
+    expect(await changesLoggedAfter(db, since)).toEqual([]);
+  });
+
   it("logs no completion when a refund is discarded", async () => {
     const { refundId, locationId } = await aPendingLatePaymentRefund(db, { openedAt: NOW });
     const { userId } = await signedInWith(db, ["confirm_refunds"], NOW);
