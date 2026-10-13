@@ -115,7 +115,7 @@ describe("distributeFreight", () => {
   });
 
   it("refuses to distribute when no line is worth anything", () => {
-    expect(() => distributeFreight(100, [line("a", 0)])).toThrow();
+    expect(() => distributeFreight(100, [line("a", 0)])).toThrow("worth nothing");
   });
 
   it("shares add up to exactly the freight's amount", () => {
@@ -227,6 +227,15 @@ describe("freightPerUnit", () => {
     ];
     expect(
       equalFractions(freightPerUnit("a", freights), { numerator: 350n, denominator: 1n }),
+    ).toBe(true);
+  });
+
+  it("finds the line among the freight's lines wherever it is", () => {
+    const freights = [
+      { amountCents: 1000, lines: [line("b", 300, 1000), line("a", 100, 4000, 1000)] },
+    ];
+    expect(
+      equalFractions(freightPerUnit("a", freights), { numerator: 571n, denominator: 4n }),
     ).toBe(true);
   });
 
