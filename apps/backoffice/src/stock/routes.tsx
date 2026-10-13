@@ -54,6 +54,12 @@ export const initialInventoryFilters = z.object({
 
 export type InitialInventoryFilters = z.output<typeof initialInventoryFilters>;
 
+export const recipesListFilters = z.object({
+  search: z.string().default("").catch(""),
+});
+
+export type RecipesListFilters = z.output<typeof recipesListFilters>;
+
 export const stockBalancesRoute = createRoute({
   getParentRoute: () => stockAreaRoute,
   path: "inventory",

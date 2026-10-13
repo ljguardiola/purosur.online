@@ -106,3 +106,7 @@ export function canSeeRefundsArea(access: BackofficeAccess): boolean {
 export function canRecordPurchases(access: BackofficeAccess): boolean {
   return grants(access, "purchases");
 }
+
+export function canManageRecipes(access: BackofficeAccess): boolean {
+  return grants(access, "recipes");
+}
