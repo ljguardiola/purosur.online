@@ -156,7 +156,11 @@ export function EditLotCostModal({
               kind="price"
               label={referenceCostLabel(lot.saleUnit)}
               prefix="$"
-              description={`Lote contado en la puesta en marcha: ${formatStockQuantity(lot.counted, lot.saleUnit)}.`}
+              description={
+                lot.withdrawn
+                  ? `Lote de una línea retirada de la puesta en marcha: quedan ${formatStockQuantity(lot.remaining, lot.saleUnit)}.`
+                  : `Lote contado en la puesta en marcha: ${formatStockQuantity(lot.counted, lot.saleUnit)}.`
+              }
               required
             />
           )}

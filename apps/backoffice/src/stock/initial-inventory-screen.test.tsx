@@ -74,8 +74,8 @@ test("shows each lot with its product, expiry, counted quantity, reference cost 
 test("marks the lot of a withdrawn line under its counted quantity, with what it still holds", async () => {
   const screen = await renderScreen(createServices([initialLotWithdrawnStillHeld]));
 
-  const rows = screen.getByRole("table", { name: TABLE }).getByRole("row").elements();
   await expect.element(screen.getByText("Línea retirada · quedan 1,500 kg")).toBeVisible();
+  const rows = screen.getByRole("table", { name: TABLE }).getByRole("row").elements();
   expect(rows[1]?.textContent).toContain("2,000 kgLínea retirada · quedan 1,500 kg");
 });
 
