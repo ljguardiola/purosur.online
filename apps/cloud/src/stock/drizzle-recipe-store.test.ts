@@ -2,6 +2,7 @@ import { RecipeVersionConflict, saveRecipe } from "@purosur/domain/stock/use-cas
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { recipeComponents, recipes } from "../platform/db/schema.js";
+import { insertActor } from "../purchasing/test-support/purchasing-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleRecipeStore } from "./drizzle-recipe-store.js";
 import { insertProduct, signedInWith } from "./test-support/stock-route-fixtures.js";
@@ -88,7 +89,7 @@ describe("DrizzleRecipeStore", () => {
       version: null,
       actorId,
     });
-    const editor = (await signedInWith(db, [], SECOND_SAVE)).userId;
+    const editor = await insertActor(db);
     now = SECOND_SAVE;
     const replacement = [
       { componentProductId: bag, quantityPerOutputUnit: 1_000 },
