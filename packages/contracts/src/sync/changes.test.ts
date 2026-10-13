@@ -141,6 +141,11 @@ const priceRow = {
   version: 1,
 };
 
+const refundCompletionRow = {
+  done_by: "5a4b3c2d-1e0f-4a9b-8c7d-6e5f4a3b2c1d",
+  done_at: "2026-10-10T16:45:00.000Z",
+};
+
 const stockMovementRow = {
   product_id: "0b1d2f4a-6c3e-4b7d-9a58-1e2f3a4b5c6d",
   kind: "sale",
