@@ -98,6 +98,8 @@ export type {
   ReceivePorts,
   RedeliveryPorts,
   RedeliveryReplica,
+  RegisterStops,
+  RegisterVersionStanding,
   RequestAdmission,
   RequestAdmissionTransaction,
   ResendPorts,

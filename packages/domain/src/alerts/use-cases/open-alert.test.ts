@@ -241,32 +241,21 @@ describe("openAlert", () => {
     expect(outcome).toEqual({ kind: "opened", alertId: "alert-2" });
   });
 
-  it("opens one alert per quarantined event, even for events of the same installation", async () => {
+  it("opens one alert per device with quarantined events, however many of its events are quarantined", async () => {
     const store = storeWithViewers();
-    const quarantined = (eventId: string): OpenAlertInput => ({
+    const quarantined = (deviceId: string): OpenAlertInput => ({
       kind: "events_quarantined",
-      scope: eventId,
-      detail: {
-        deviceId: "device-1",
-        eventId,
-        eventType: "sale_completed",
-        aggregateType: "Sale",
-        aggregateId: "sale-1",
-        reason: {
-          kind: "missing_dependency",
-          aggregateType: "CashSession",
-          aggregateId: "session-1",
-        },
-      },
+      scope: deviceId,
+      detail: { deviceId },
     });
 
-    const first = await open(store, quarantined("event-1"));
-    const sameEvent = await open(store, quarantined("event-1"));
-    const otherEvent = await open(store, quarantined("event-2"));
+    const first = await open(store, quarantined("device-1"));
+    const sameDevice = await open(store, quarantined("device-1"));
+    const otherDevice = await open(store, quarantined("device-2"));
 
     expect(first).toEqual({ kind: "opened", alertId: "alert-1" });
-    expect(sameEvent).toEqual({ kind: "already_open", alertId: "alert-1" });
-    expect(otherEvent).toEqual({ kind: "opened", alertId: "alert-2" });
+    expect(sameDevice).toEqual({ kind: "already_open", alertId: "alert-1" });
+    expect(otherDevice).toEqual({ kind: "opened", alertId: "alert-2" });
   });
 
   it("opens one alert per event for an invariant violation", async () => {

@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { type QuarantineRelease, releaseQuarantinedEvent } from "@purosur/domain/sync/use-cases";
+import {
+  applyPendingEvents,
+  type QuarantineRelease,
+  releaseQuarantinedEvent,
+} from "@purosur/domain/sync/use-cases";
 import { and, eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -11,8 +15,14 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
+import {
+  runQueuedBehindHeldLock,
+  waitForLockWaiters,
+} from "../test-support/queued-behind-held-lock.js";
+import { DrizzleEventApplication } from "./drizzle-event-application.js";
 import { DrizzleQuarantineRelease } from "./drizzle-quarantine-release.js";
+import { syncedEventUpcaster } from "./synced-event-upcaster.js";
+import { insertInboxEvent } from "./test-support/inbox-events.js";
 import { insertQuarantinedEvent, QUARANTINED_AT } from "./test-support/quarantined-events.js";
 
 // PGlite serves every query on one connection, so a release queued behind a held lock, and the
@@ -34,11 +44,13 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
-async function quarantinedEventOf(aggregateId: string) {
-  const { deviceId, locationId } = await insertEnrolledInstallation(db, {
-    now: NOW,
-    registerName: randomUUID(),
-  });
+async function quarantinedEventOf(
+  aggregateId: string,
+  installation?: { deviceId: string; locationId: string },
+) {
+  const { deviceId, locationId } =
+    installation ??
+    (await insertEnrolledInstallation(db, { now: NOW, registerName: randomUUID() }));
   const eventId = await insertQuarantinedEvent(db, deviceId, {
     aggregateType: "CashSession",
     aggregateId,
@@ -54,19 +66,12 @@ async function quarantinedEventOf(aggregateId: string) {
     db,
     {
       kind: "events_quarantined",
-      scope: eventId,
-      detail: {
-        deviceId,
-        eventId,
-        eventType: "sale_completed",
-        aggregateType: "CashSession",
-        aggregateId,
-        reason: { kind: "not_recorded" },
-      },
+      scope: deviceId,
+      detail: { deviceId },
     },
     { now: () => NOW },
   );
-  return { eventId, locationId, userId: user.id };
+  return { eventId, deviceId, locationId, userId: user.id };
 }
 
 function release(input: { eventId: string; locationId: string; releasedBy: string }) {
@@ -74,6 +79,22 @@ function release(input: { eventId: string; locationId: string; releasedBy: strin
     { quarantineRelease: new DrizzleQuarantineRelease(db), clock: { now: () => NOW } },
     input,
   );
+}
+
+function applyEvents() {
+  return applyPendingEvents(
+    {
+      eventApplication: new DrizzleEventApplication(db, () => NOW),
+      upcaster: syncedEventUpcaster,
+      clock: { now: () => NOW },
+      quarantineNotices: { quarantined: () => {} },
+    },
+    { limit: 100 },
+  );
+}
+
+function holdDeviceQuarantinesLock(holder: postgres.ReservedSql, deviceId: string) {
+  return holder`select pg_advisory_xact_lock(hashtextextended(${`device_quarantines:${deviceId}`}, 0))`;
 }
 
 function holdAggregateLock(holder: postgres.ReservedSql, aggregateId: string) {
@@ -86,11 +107,11 @@ async function eventRow(eventId: string) {
   return row;
 }
 
-async function alertOf(eventId: string) {
+async function alertOf(deviceId: string) {
   const [row] = await db
     .select({ resolvedAt: alerts.resolvedAt })
     .from(alerts)
-    .where(and(eq(alerts.kind, "events_quarantined"), eq(alerts.scope, eventId)));
+    .where(and(eq(alerts.kind, "events_quarantined"), eq(alerts.scope, deviceId)));
   return row;
 }
 
@@ -118,27 +139,93 @@ describe("releasing a quarantined event on a real Postgres", () => {
   }, 30_000);
 
   it("releases, records the release and resolves the alert as the cloud's own role", async () => {
-    const { eventId, locationId, userId } = await quarantinedEventOf(randomUUID());
+    const { eventId, deviceId, locationId, userId } = await quarantinedEventOf(randomUUID());
 
     await release({ eventId, locationId, releasedBy: userId });
 
     expect(await eventRow(eventId)).toMatchObject({ attempts: 0, quarantinedAt: null });
-    expect(await alertOf(eventId)).toEqual({ resolvedAt: NOW });
+    expect(await alertOf(deviceId)).toEqual({ resolvedAt: NOW });
     const audit = await db.select().from(auditLog).where(eq(auditLog.entityId, eventId));
     expect(audit).toEqual([expect.objectContaining({ entity: "synced_event", actorId: userId })]);
   }, 30_000);
 
+  it("keeps the device's alert open while another of its events stays quarantined", async () => {
+    const first = await quarantinedEventOf(randomUUID());
+    await quarantinedEventOf(randomUUID(), first);
+
+    await release({
+      eventId: first.eventId,
+      locationId: first.locationId,
+      releasedBy: first.userId,
+    });
+
+    expect(await eventRow(first.eventId)).toMatchObject({ attempts: 0, quarantinedAt: null });
+    expect(await alertOf(first.deviceId)).toEqual({ resolvedAt: null });
+  }, 30_000);
+
+  it("resolves the device's alert when its last two quarantined events are released at the same time", async () => {
+    const first = await quarantinedEventOf(randomUUID());
+    const second = await quarantinedEventOf(randomUUID(), first);
+
+    const [firstOutcome, secondOutcome] = await runQueuedBehindHeldLock(
+      sql,
+      (holder) => holdDeviceQuarantinesLock(holder, first.deviceId),
+      () =>
+        release({ eventId: first.eventId, locationId: first.locationId, releasedBy: first.userId }),
+      () =>
+        release({
+          eventId: second.eventId,
+          locationId: second.locationId,
+          releasedBy: second.userId,
+        }),
+    );
+
+    expect([firstOutcome, secondOutcome]).toEqual([{ kind: "released" }, { kind: "released" }]);
+    expect(await alertOf(first.deviceId)).toEqual({ resolvedAt: NOW });
+  }, 30_000);
+
+  it("keeps the device's alert open when one of its events is quarantined while its last quarantined event is released", async () => {
+    const released = await quarantinedEventOf(randomUUID());
+    const failing = await insertInboxEvent(db, released.deviceId, {
+      aggregateType: "CashSession",
+      aggregateId: randomUUID(),
+      eventType: "cash_movement_recorded",
+      schemaVersion: 1,
+      attempts: 7,
+    });
+
+    const [releaseOutcome] = await runQueuedBehindHeldLock(
+      sql,
+      (holder) => holdDeviceQuarantinesLock(holder, released.deviceId),
+      () =>
+        release({
+          eventId: released.eventId,
+          locationId: released.locationId,
+          releasedBy: released.userId,
+        }),
+      applyEvents,
+    );
+
+    expect(releaseOutcome).toEqual({ kind: "released" });
+    expect(await eventRow(failing)).toMatchObject({ attempts: 8, quarantinedAt: NOW });
+    const deviceAlerts = await db
+      .select({ resolvedAt: alerts.resolvedAt })
+      .from(alerts)
+      .where(and(eq(alerts.kind, "events_quarantined"), eq(alerts.scope, released.deviceId)));
+    expect(deviceAlerts).toContainEqual({ resolvedAt: null });
+  }, 30_000);
+
   it("leaves the event quarantined, unrecorded and its alert open when the release fails midway", async () => {
-    const { eventId, locationId, userId } = await quarantinedEventOf(randomUUID());
+    const { eventId, deviceId, locationId, userId } = await quarantinedEventOf(randomUUID());
     const store = new DrizzleQuarantineRelease(db);
     const failing: QuarantineRelease = {
       transaction: (work) =>
         store.transaction((tx) =>
           work(
             Object.create(tx, {
-              resolveQuarantineAlert: {
+              recordDeviceQuarantineCleared: {
                 value: async (id: string, at: Date) => {
-                  await tx.resolveQuarantineAlert(id, at);
+                  await tx.recordDeviceQuarantineCleared(id, at);
                   throw new Error("connection lost");
                 },
               },
@@ -155,7 +242,7 @@ describe("releasing a quarantined event on a real Postgres", () => {
     ).rejects.toThrow("connection lost");
 
     expect(await eventRow(eventId)).toMatchObject({ attempts: 8, quarantinedAt: QUARANTINED_AT });
-    expect(await alertOf(eventId)).toEqual({ resolvedAt: null });
+    expect(await alertOf(deviceId)).toEqual({ resolvedAt: null });
     expect(await db.select().from(auditLog).where(eq(auditLog.entityId, eventId))).toEqual([]);
   }, 30_000);
 });

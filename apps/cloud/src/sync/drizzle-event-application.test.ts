@@ -3,6 +3,7 @@ import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { alerts, inbox } from "../platform/db/schema.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   APPLICATION_NOW,
   eventApplicationUnderTest,
@@ -259,31 +260,81 @@ describe("locking an aggregate", () => {
 });
 
 describe("opening the alerts of the events that were not applied normally", () => {
-  it("opens one alert for each quarantined event, even for events of the same installation", async () => {
+  it("opens one alert for the device with quarantined events, however many of its events are quarantined", async () => {
     const { deviceId } = await system.enrollInstallation();
-    const [firstEvent, secondEvent] = [randomUUID(), randomUUID()];
-    const aggregateId = randomUUID();
+    const firstEvent = await insertInboxEvent(system.db, deviceId);
+    const secondEvent = await insertInboxEvent(system.db, deviceId);
     const quarantined = (eventId: string) => ({
       deviceId,
       eventId,
       eventType: "sale_completed",
       aggregateType: "Sale",
-      aggregateId,
+      aggregateId: randomUUID(),
       reason: { kind: "unreadable" } as const,
     });
 
-    await system.application.transaction((tx) => tx.openQuarantineAlert(quarantined(firstEvent)));
-    await system.application.transaction((tx) => tx.openQuarantineAlert(quarantined(secondEvent)));
+    await system.application.transaction((tx) => tx.recordQuarantine(quarantined(firstEvent)));
+    await system.application.transaction((tx) => tx.recordQuarantine(quarantined(secondEvent)));
 
     const rows = await system.db.select().from(alerts);
-    expect(rows).toHaveLength(2);
-    for (const eventId of [firstEvent, secondEvent]) {
-      expect(rows.find((row) => row.scope === eventId)).toMatchObject({
+    expect(rows).toEqual([
+      expect.objectContaining({
         kind: "events_quarantined",
+        scope: deviceId,
         openedAt: APPLICATION_NOW,
-        detail: quarantined(eventId),
-      });
-    }
+        detail: { deviceId },
+      }),
+    ]);
+  });
+
+  it("opens one alert for each device with a quarantined event", async () => {
+    const first = await system.enrollInstallation();
+    const second = await insertEnrolledInstallation(system.db, {
+      now: APPLICATION_NOW,
+      registerName: "Caja 2",
+    });
+    const quarantine = async (deviceId: string) => {
+      const eventId = await insertInboxEvent(system.db, deviceId);
+      await system.application.transaction((tx) =>
+        tx.recordQuarantine({
+          deviceId,
+          eventId,
+          eventType: "sale_completed",
+          aggregateType: "Sale",
+          aggregateId: randomUUID(),
+          reason: { kind: "not_recorded" },
+        }),
+      );
+    };
+
+    await quarantine(first.deviceId);
+    await quarantine(second.deviceId);
+
+    const rows = await system.db.select({ scope: alerts.scope }).from(alerts);
+    expect(rows.map((row) => row.scope).sort()).toEqual([first.deviceId, second.deviceId].sort());
+  });
+
+  it("stores the reason on the quarantined event", async () => {
+    const { deviceId } = await system.enrollInstallation();
+    const eventId = await insertInboxEvent(system.db, deviceId);
+
+    await system.application.transaction((tx) =>
+      tx.recordQuarantine({
+        deviceId,
+        eventId,
+        eventType: "sale_completed",
+        aggregateType: "Sale",
+        aggregateId: randomUUID(),
+        reason: { kind: "missing_dependency", aggregateType: "CashSession", aggregateId: "s-1" },
+      }),
+    );
+
+    const [row] = await system.db.select().from(inbox).where(eq(inbox.eventId, eventId));
+    expect(row?.quarantineReason).toEqual({
+      kind: "missing_dependency",
+      aggregateType: "CashSession",
+      aggregateId: "s-1",
+    });
   });
 
   it("opens one alert for the event that broke an invariant", async () => {
@@ -291,7 +342,7 @@ describe("opening the alerts of the events that were not applied normally", () =
     const aggregateId = randomUUID();
 
     await system.application.transaction((tx) =>
-      tx.openInvariantAlert({
+      tx.recordInvariantBreaks({
         eventId,
         eventType: "sale_completed",
         aggregateType: "Sale",

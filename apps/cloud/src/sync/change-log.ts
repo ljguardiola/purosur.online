@@ -11,7 +11,7 @@ interface LoggedChangeFields {
   priceListId?: string;
 }
 
-type BranchEntity = "user" | "stock_movement";
+type BranchEntity = "user" | "stock_movement" | "refund_completion";
 
 export type LoggedChange =
   | (LoggedChangeFields & { entity: BranchEntity; locationId: string; registerId?: never })

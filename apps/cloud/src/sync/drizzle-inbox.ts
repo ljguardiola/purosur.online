@@ -1,5 +1,4 @@
 import { type PushedEvent, SERIAL_DEVICE_ROLES, type SerialDevicesReport } from "@purosur/domain";
-import type { AlertConditionObservation } from "@purosur/domain/alerts/use-cases";
 import type {
   HeldEvent,
   HeldEventPosition,
@@ -7,10 +6,17 @@ import type {
   InboxTransaction,
   InstallationRegister,
   PushReport,
+  RegisterStops,
+  RegisterVersionStanding,
 } from "@purosur/domain/sync/use-cases";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { observeAlertCondition } from "../alerts/observe-alert-condition.js";
+import { openOutboxChainBrokenAlert } from "../alerts/outbox-chain-broken-alert.js";
+import {
+  observeRegisterStops,
+  observeRegisterSynced,
+  observeRegisterVersionStanding,
+} from "../alerts/register-standing-alerts.js";
 import {
   deviceState,
   inbox,
@@ -174,8 +180,16 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
     return installation;
   }
 
-  async observeAlertCondition(observation: AlertConditionObservation, at: Date): Promise<void> {
-    await observeAlertCondition(this.tx, observation, { now: () => at });
+  async recordRegisterVersionStanding(standing: RegisterVersionStanding, at: Date): Promise<void> {
+    await observeRegisterVersionStanding(this.tx, standing, at);
+  }
+
+  async recordRegisterStops(stops: RegisterStops, at: Date): Promise<void> {
+    await observeRegisterStops(this.tx, stops, at);
+  }
+
+  async recordRegisterSynced(registerId: string, at: Date): Promise<void> {
+    await observeRegisterSynced(this.tx, registerId, at);
   }
 
   async recordAcceptedPush(deviceId: string, at: Date): Promise<void> {
@@ -232,6 +246,7 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
       .update(registerInstallations)
       .set({ revokedAt, revocationReason: "outbox_chain_broken" })
       .where(and(eq(registerInstallations.id, deviceId), isNull(registerInstallations.revokedAt)));
+    await openOutboxChainBrokenAlert(this.tx, { deviceId }, revokedAt);
   }
 }
 
