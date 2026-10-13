@@ -4,6 +4,8 @@ import { _electron as electron } from "playwright";
 import { describe, expect, it } from "vitest";
 import { serializeChannelFile } from "../src/shared/channel";
 import { APP_DIR, appEnv } from "./launch-app";
+import { WAIT_BOUND_MS } from "./test-support/bounds";
+import { closeRegister } from "./test-support/close-register";
 import {
   SERIAL_DEVICE_WATCH_FAILED,
   SERIAL_DEVICES_LISTED,
@@ -57,17 +59,16 @@ describe("the packaged register's serial devices", () => {
       executablePath: packagedExecutable(),
       args: [],
       env: appEnv(join(RESOURCES_FOLDER, "channel.json")),
-      timeout: 0,
+      timeout: WAIT_BOUND_MS,
     });
     const logs: string[] = [];
     app.process().stdout?.on("data", (chunk: Buffer) => logs.push(chunk.toString()));
     app.process().stderr?.on("data", (chunk: Buffer) => logs.push(chunk.toString()));
     try {
-      await untilLogged({ app, logs }, SERIAL_DEVICES_LISTED);
-
+      await untilLogged({ app, logs }, SERIAL_DEVICES_LISTED, { withinMs: WAIT_BOUND_MS });
       expect(logs.join("")).not.toContain(SERIAL_DEVICE_WATCH_FAILED);
     } finally {
-      await app.close();
+      await closeRegister(app);
     }
   });
 });

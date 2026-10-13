@@ -1,6 +1,8 @@
 import { expect, expectTypeOf, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
+import { expectFullyRound } from "../../test/fully-round";
+import { tokenRgb } from "../../test/token-colors";
 import { LoadingPlaceholder, type LoadingPlaceholderProps } from "./loading-placeholder";
 
 function shapes(container: HTMLElement): HTMLElement {
@@ -108,10 +110,24 @@ test("draws each summary row as a label line and a value line on one baseline, w
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("draws a pill as one fully round 28px shape, the height of a top bar's pill", async () => {
+  const screen = await render(<LoadingPlaceholder variant="pill" />);
+
+  const pill = shapes(screen.container);
+  expect(pill.children).toHaveLength(0);
+  const rect = pill.getBoundingClientRect();
+  expect(rect.height).toBe(28);
+  expect(rect.width).toBeGreaterThan(rect.height);
+  expect(getComputedStyle(pill).backgroundColor).toBe(tokenRgb("surface-soft"));
+  expectFullyRound(pill);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("requires the count each variant counts by", () => {
   expectTypeOf<{ variant: "form"; lines: number }>().not.toExtend<LoadingPlaceholderProps>();
   expectTypeOf<{ variant: "card"; fields: number }>().not.toExtend<LoadingPlaceholderProps>();
   expectTypeOf<{ variant: "list"; items: number }>().toExtend<LoadingPlaceholderProps>();
   expectTypeOf<{ variant: "rows"; lines: number }>().not.toExtend<LoadingPlaceholderProps>();
   expectTypeOf<{ variant: "rows"; rows: number }>().toExtend<LoadingPlaceholderProps>();
+  expectTypeOf<{ variant: "pill" }>().toExtend<LoadingPlaceholderProps>();
 });

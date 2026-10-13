@@ -872,7 +872,7 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         certificateFingerprint: new X509Certificate(VALID_ARCA_CERTIFICATE).fingerprint256,
       },
-      mercadoPagoQr: { connections: fakeRecovery.connections },
+      mercadoPagoOrders: { connections: fakeRecovery.connections },
       mercadoPagoNotifications: { db: fakeRecovery.db, connections: fakeRecovery.connections },
     });
 
@@ -1540,10 +1540,11 @@ describe("startServer creating Mercado Pago QR orders", () => {
     const mercadoPago = {
       longestCallMs: expect.any(Number),
       createQrOrder: expect.any(Function),
+      createPointOrder: expect.any(Function),
       readOrder: expect.any(Function),
       cancelOrder: expect.any(Function),
     };
-    expect(options.mercadoPagoQr).toEqual({ connections: recovery.connections, mercadoPago });
+    expect(options.mercadoPagoOrders).toEqual({ connections: recovery.connections, mercadoPago });
     expect(options.mercadoPagoNotifications).toEqual({
       db: recovery.db,
       connections: recovery.connections,
@@ -1565,6 +1566,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
     expect(recoveryEnv.mercadoPago).toEqual({
       longestCallMs: expect.any(Number),
       createQrOrder: expect.any(Function),
+      createPointOrder: expect.any(Function),
       readOrder: expect.any(Function),
       cancelOrder: expect.any(Function),
     });
@@ -1583,7 +1585,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
     await started;
 
     const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
-    expect(options.mercadoPagoQr).toEqual({ connections: recovery.connections });
+    expect(options.mercadoPagoOrders).toEqual({ connections: recovery.connections });
     expect(options.mercadoPagoNotifications).toEqual({
       db: recovery.db,
       connections: recovery.connections,

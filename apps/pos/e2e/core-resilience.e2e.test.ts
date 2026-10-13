@@ -1,6 +1,8 @@
 import type { ElectronApplication, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { launchApp } from "./launch-app";
+import { WAIT_BOUND_MS } from "./test-support/bounds";
+import { closeRegister } from "./test-support/close-register";
 import { until, untilLogged } from "./test-support/until";
 
 // Electron's own service name for a Node.js utility process, robust against other utility
@@ -39,7 +41,10 @@ describe("the core process's supervision and message gate", () => {
     logs = launched.logs;
     page = await app.firstWindow();
     await page.waitForLoadState("domcontentloaded");
-    await until(async () => (await coreProcesses(app)).length > 0);
+    await until(async () => (await coreProcesses(app)).length > 0, {
+      withinMs: WAIT_BOUND_MS,
+      waitingFor: "the core process to run",
+    });
 
     // addInitScript runs before any page script, so no port main posts can arrive ahead of its
     // listener; the first document was already loading, so the reload puts the test under it.
@@ -53,11 +58,14 @@ describe("the core process's supervision and message gate", () => {
       });
     });
     await page.reload();
-    await until(async () => (await portCount(page)) >= 1);
+    await until(async () => (await portCount(page)) >= 1, {
+      withinMs: WAIT_BOUND_MS,
+      waitingFor: "the renderer to receive the core's port",
+    });
   });
 
   afterAll(async () => {
-    await app.close();
+    await closeRegister(app);
   });
 
   it("has a core utility process running", async () => {
@@ -74,12 +82,19 @@ describe("the core process's supervision and message gate", () => {
     const portsBefore = await portCount(page);
     process.kill(killed.pid, "SIGKILL");
 
-    await until(async () => {
-      const list = await coreProcesses(app);
-      return (
-        list.some((process) => process.pid !== killed.pid) && (await portCount(page)) > portsBefore
-      );
-    });
+    await until(
+      async () => {
+        const list = await coreProcesses(app);
+        return (
+          list.some((process) => process.pid !== killed.pid) &&
+          (await portCount(page)) > portsBefore
+        );
+      },
+      {
+        withinMs: WAIT_BOUND_MS,
+        waitingFor: "the core to restart and hand the renderer a fresh port",
+      },
+    );
 
     const after = await coreProcesses(app);
     expect(after.some((process) => process.pid !== killed.pid)).toBe(true);
@@ -102,7 +117,7 @@ describe("the core process's supervision and message gate", () => {
       // earlier ping is handled — a wait condition instead of a fixed sleep.
       port?.postMessage({ type: "end-marker" });
     });
-    await untilLogged({ app, logs }, "messageType: 'end-marker'");
+    await untilLogged({ app, logs }, "messageType: 'end-marker'", { withinMs: WAIT_BOUND_MS });
 
     const joined = logs.join("");
     expect(joined).toContain("core: rejected message");

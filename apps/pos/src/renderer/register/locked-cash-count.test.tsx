@@ -69,13 +69,13 @@ const CANCELLABLE_SALE: SessionOpenSale = {
 const SALE_IN_A_QR_WAIT: SessionOpenSale = {
   ...CANCELLABLE_SALE,
   cancellable: false,
-  cancel_refusal: "qr_charge_in_progress",
+  cancel_refusal: "mercado_pago_charge_in_progress",
 };
 const SALE_WITH_QR_PAYMENT: SessionOpenSale = {
   ...CANCELLABLE_SALE,
   paid: 1_000_000,
   cancellable: false,
-  cancel_refusal: "holds_qr_payment",
+  cancel_refusal: "holds_mercado_pago_payment",
 };
 const PART_PAID_SALE: SessionOpenSale = {
   id: "sale-2",
@@ -481,13 +481,13 @@ describe("LockedCashCount", () => {
   it.each<[string, CancelLockedSaleOutcome, string]>([
     [
       "a QR charge is still waiting",
-      { kind: "qr_charge_in_progress" },
-      "Hay un cobro con QR en curso. Esperá a que termine para cancelar la venta.",
+      { kind: "mercado_pago_charge_in_progress" },
+      "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.",
     ],
     [
       "the sale holds a QR payment",
-      { kind: "holds_qr_payment" },
-      "La venta tiene un pago con QR: todavía no se puede anular desde la caja.",
+      { kind: "holds_mercado_pago_payment" },
+      "La venta tiene un pago con Mercado Pago: todavía no se puede anular desde la caja.",
     ],
   ])("keeps the open sale and says why when %s", async (_case, outcome, notice) => {
     const { screen, refused } = await withOpenSale({ cancelSale: async () => outcome });
@@ -504,12 +504,12 @@ describe("LockedCashCount", () => {
     [
       "a QR charge is still waiting",
       SALE_IN_A_QR_WAIT,
-      "Hay un cobro con QR en curso. Esperá a que termine para cancelar la venta.",
+      "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.",
     ],
     [
       "the sale holds a QR payment",
       SALE_WITH_QR_PAYMENT,
-      "La venta tiene un pago con QR: todavía no se puede anular desde la caja.",
+      "La venta tiene un pago con Mercado Pago: todavía no se puede anular desde la caja.",
     ],
   ])(
     "says why the core still refuses to cancel when %s, opening no cancel modal",

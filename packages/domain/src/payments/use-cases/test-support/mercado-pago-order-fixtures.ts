@@ -1,0 +1,115 @@
+import type { MercadoPagoOrderResult } from "../../model/mercado-pago-order-result.js";
+import type { MercadoPagoOrderTransaction } from "../../model/payment-transaction.js";
+import type {
+  MercadoPagoOrderCreation,
+  MercadoPagoOrderReading,
+  MercadoPagoPointOrderCreation,
+} from "../mercado-pago-order-ports.js";
+import { FakeMercadoPagoCancellationKeys } from "./fake-mercado-pago-cancellation-keys.js";
+import { FakeMercadoPagoOrders } from "./fake-mercado-pago-orders.js";
+import { FakePaymentTransactionDirectory } from "./fake-payment-transaction-directory.js";
+import { FakePaymentTransactionLanes } from "./fake-payment-transaction-lanes.js";
+import { FixedClock } from "./fake-refund-store.js";
+
+export const NOW = new Date("2026-10-09T12:00:00.000Z");
+export const REGISTER_ID = "register-1";
+export const TRANSACTION_ID = "transaction-1";
+export const SALE_ID = "sale-1";
+export const AMOUNT = 2500;
+export const QR_CANCELLATION = {
+  registerId: REGISTER_ID,
+  paymentTransactionId: TRANSACTION_ID,
+  saleId: SALE_ID,
+  amount: AMOUNT,
+  provider: "MERCADOPAGO_QR",
+} as const;
+
+export function orderResult(
+  overrides: Partial<MercadoPagoOrderResult> = {},
+): MercadoPagoOrderResult {
+  return {
+    status: "created",
+    statusDetail: "created",
+    externalReference: null,
+    totalPaidAmount: null,
+    payments: [],
+    ...overrides,
+  };
+}
+
+export function paidOrderResult(paid = AMOUNT): MercadoPagoOrderResult {
+  return orderResult({
+    status: "processed",
+    statusDetail: "accredited",
+    totalPaidAmount: paid,
+    payments: [{ status: "processed", statusDetail: "accredited", paidAmount: paid }],
+  });
+}
+
+type QrOrderTransaction = Extract<MercadoPagoOrderTransaction, { method: "QR" }>;
+type PointOrderTransaction = Extract<MercadoPagoOrderTransaction, { method: "POINT" }>;
+
+export function storedPointTransaction(
+  overrides: Partial<PointOrderTransaction> = {},
+): PointOrderTransaction {
+  return {
+    ...storedTransaction(),
+    method: "POINT",
+    provider: "MERCADOPAGO_POINT",
+    expiresAt: new Date("2026-10-09T12:06:00.000Z"),
+    ...overrides,
+  };
+}
+
+export function storedTransaction(overrides: Partial<QrOrderTransaction> = {}): QrOrderTransaction {
+  return {
+    id: TRANSACTION_ID,
+    registerId: REGISTER_ID,
+    saleId: SALE_ID,
+    kind: "SALE",
+    method: "QR",
+    provider: "MERCADOPAGO_QR",
+    amount: AMOUNT,
+    state: "PENDING",
+    needsReview: false,
+    providerOrderId: null,
+    creationOutcomeUnknown: false,
+    replaced: false,
+    createdAt: new Date("2026-10-09T11:59:00.000Z"),
+    expiresAt: new Date("2026-10-09T12:04:00.000Z"),
+    ...overrides,
+  };
+}
+
+export function mercadoPagoOrderWorld(
+  answers: {
+    creation?: MercadoPagoOrderCreation;
+    pointCreation?: MercadoPagoPointOrderCreation;
+    reading?: MercadoPagoOrderReading;
+  } = {},
+  now: Date = NOW,
+) {
+  const lanes = new FakePaymentTransactionLanes();
+  const mercadoPago = new FakeMercadoPagoOrders(lanes, {
+    creation: answers.creation ?? { kind: "created", orderId: "order-1", result: orderResult() },
+    pointCreation: answers.pointCreation ??
+      answers.creation ?? { kind: "created", orderId: "order-1", result: orderResult() },
+    reading: answers.reading ?? { kind: "read", result: orderResult() },
+  });
+  const directory = new FakePaymentTransactionDirectory(lanes);
+  const cancellationKeys = new FakeMercadoPagoCancellationKeys();
+  return {
+    lanes,
+    mercadoPago,
+    directory,
+    cancellationKeys,
+    ports: { lanes, mercadoPago, cancellationKeys, clock: new FixedClock(now) },
+    notificationPorts: {
+      directory,
+      lanes,
+      mercadoPago,
+      cancellationKeys,
+      clock: new FixedClock(now),
+    },
+  };
+}

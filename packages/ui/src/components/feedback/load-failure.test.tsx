@@ -1,10 +1,12 @@
 import { ShieldX } from "lucide-react";
 import { expect, expectTypeOf, test, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
 import { Button } from "../forms/button";
 import { LoadFailure, type LoadFailureProps } from "./load-failure";
+import { Pill } from "./pill";
 
 test("announces the failure and offers Reintentar", async () => {
   const screen = await render(
@@ -158,5 +160,95 @@ test("has no accessibility violations in the screen variant", async () => {
     />,
   );
 
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+function renderPill(onRetry: () => void = () => {}) {
+  return render(
+    <main>
+      <LoadFailure
+        variant="pill"
+        icon={<ShieldX />}
+        title="Demasiadas solicitudes"
+        description="Probá de nuevo en 30 segundos."
+        onRetry={onRetry}
+      />
+    </main>,
+  );
+}
+
+test("draws the pill variant as an error pill that reads its title and Reintentar", async () => {
+  const screen = await renderPill();
+
+  const button = screen
+    .getByRole("button", { name: "Demasiadas solicitudes. Reintentar" })
+    .element() as HTMLElement;
+  expect(button.textContent).toBe("Demasiadas solicitudesReintentar");
+  expect(button.querySelector("svg")?.closest("[aria-hidden='true']")).not.toBeNull();
+
+  const reference = await render(
+    <Pill tone="error" icon={<ShieldX />}>
+      Reference
+    </Pill>,
+  );
+  const pill = reference.getByText("Reference").element() as HTMLElement;
+  for (const property of ["height", "color", "backgroundColor", "borderRadius"] as const) {
+    expect(getComputedStyle(button)[property], property).toBe(getComputedStyle(pill)[property]);
+  }
+});
+
+test("opens the pill variant's description as a tooltip when hovered", async () => {
+  const screen = await renderPill();
+
+  await userEvent.hover(screen.getByRole("button"));
+
+  await expect
+    .element(screen.getByRole("tooltip"))
+    .toHaveTextContent("Probá de nuevo en 30 segundos.");
+});
+
+test("calls onRetry when the pill variant is pressed by pointer or by keyboard", async () => {
+  const onRetry = vi.fn();
+  const screen = await renderPill(onRetry);
+
+  await userEvent.click(screen.getByRole("button", { name: "Demasiadas solicitudes. Reintentar" }));
+  expect(onRetry).toHaveBeenCalledTimes(1);
+
+  await userEvent.keyboard("{Enter}");
+  expect(onRetry).toHaveBeenCalledTimes(2);
+});
+
+test("opens the pill variant's description as a tooltip that describes it when reached by keyboard", async () => {
+  const screen = await renderPill();
+  const button = screen.getByRole("button", { name: "Demasiadas solicitudes. Reintentar" });
+
+  await userEvent.tab();
+
+  expect(document.activeElement).toBe(button.element());
+  await expect
+    .element(screen.getByRole("tooltip"))
+    .toHaveTextContent("Probá de nuevo en 30 segundos.");
+  await expect.element(button).toHaveAccessibleDescription("Probá de nuevo en 30 segundos.");
+});
+
+test("draws the pill variant without a tooltip when there is no description", async () => {
+  const screen = await render(
+    <LoadFailure variant="pill" icon={<ShieldX />} title="Falló" onRetry={() => {}} />,
+  );
+  const button = screen.getByRole("button", { name: "Falló. Reintentar" });
+
+  await userEvent.hover(button);
+  await userEvent.tab();
+
+  expect(document.activeElement).toBe(button.element());
+  expect(screen.getByRole("tooltip").query()).toBeNull();
+});
+
+test("has no accessibility violations in the pill variant, with its tooltip closed or open", async () => {
+  const screen = await renderPill();
+  await expectNoAccessibilityViolations(screen.container);
+
+  await userEvent.tab();
+  await expect.element(screen.getByRole("tooltip")).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
 });

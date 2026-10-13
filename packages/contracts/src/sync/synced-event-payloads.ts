@@ -166,6 +166,15 @@ const mercadoPagoQrPaymentSchema = z.object({
   confirmed_at: z.null(),
 });
 
+const mercadoPagoPointPaymentSchema = z.object({
+  ...approvedPaymentFields,
+  method: z.literal("POINT"),
+  provider: z.literal("MERCADOPAGO_POINT"),
+  tendered: z.null(),
+  authorized_by: z.null(),
+  confirmed_at: z.null(),
+});
+
 const paymentSchema = z.discriminatedUnion("method", [cashPaymentSchema, transferPaymentSchema]);
 
 const paymentWithQrSchema = z.discriminatedUnion("method", [
@@ -217,7 +226,15 @@ const saleCompletedV7Schema = saleCompletedV6Schema.extend({
   lines: z.array(adjustedSaleLineSchema),
 });
 
+const paymentWithMercadoPagoSchema = z.discriminatedUnion("method", [
+  cashPaymentSchema,
+  transferPaymentSchema,
+  mercadoPagoQrPaymentSchema,
+  mercadoPagoPointPaymentSchema,
+]);
+
 const saleCompletedV8Schema = saleCompletedV7Schema.extend({
+  payments: z.array(paymentWithMercadoPagoSchema).min(1),
   sale_discount: saleDiscountSchema.nullable(),
   lines: z.array(discountedSaleLineSchema),
 });

@@ -1,5 +1,5 @@
 import type {
-  AbandonMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
@@ -22,11 +22,12 @@ import type {
   EnrollmentOutcome,
   FindCountableProductOutcome,
   FirstPinCodeRequestOutcome,
-  FollowMercadoPagoQrChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
   ManualAdjustmentRequest,
   OpenCashSessionOutcome,
+  PaymentMethodAvailability,
   PinCodeRedemptionOutcome,
   PinPolicy,
   PreviewSaleDiscountOutcome,
@@ -53,7 +54,7 @@ import type {
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
-  StartMercadoPagoQrChargeOutcome,
+  StartMercadoPagoChargeOutcome,
   WeighCountedProductOutcome,
   WeighProductOutcome,
   WithdrawInitialCountLineOutcome,
@@ -77,6 +78,7 @@ import { HelpScreen } from "../help/help-screen";
 import { help } from "../help/register-help";
 import type {
   CashMovementInput,
+  MercadoPagoMethod,
   SalesHistoryQuery,
   SerialDevicesToRegister,
 } from "../platform/core-client";
@@ -93,7 +95,6 @@ import {
   registerNameQueryOptions,
   registerStatusQueryOptions,
   useRegisterNameQuery,
-  useRegisterStatusQuery,
 } from "../register/register-queries";
 import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
 import { SerialDevicesScreen } from "../register/serial-devices-screen";
@@ -167,16 +168,18 @@ export interface RouterContext {
   cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
-  startMercadoPagoQrCharge: (
+  paymentMethodAvailability: () => Promise<PaymentMethodAvailability | null>;
+  startMercadoPagoCharge: (
     saleId: string,
+    method: MercadoPagoMethod,
     amount: number,
-  ) => Promise<StartMercadoPagoQrChargeOutcome>;
-  followMercadoPagoQrCharge: (
+  ) => Promise<StartMercadoPagoChargeOutcome>;
+  followMercadoPagoCharge: (
     paymentTransactionId: string,
-  ) => Promise<FollowMercadoPagoQrChargeOutcome>;
-  abandonMercadoPagoQrCharge: (
+  ) => Promise<FollowMercadoPagoChargeOutcome>;
+  abandonMercadoPagoCharge: (
     paymentTransactionId: string,
-  ) => Promise<AbandonMercadoPagoQrChargeOutcome>;
+  ) => Promise<AbandonMercadoPagoChargeOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
   addWeighedProduct: (
@@ -625,15 +628,14 @@ const chargeRoute = createRoute({
       cashCharge,
       chargeSaleInCash,
       chargeSaleByTransfer,
-      startMercadoPagoQrCharge,
-      followMercadoPagoQrCharge,
-      abandonMercadoPagoQrCharge,
-      registerStatus,
+      paymentMethodAvailability,
+      startMercadoPagoCharge,
+      followMercadoPagoCharge,
+      abandonMercadoPagoCharge,
       receiptPrintStatus,
       refreshCashSession,
     } = chargeRoute.useRouteContext();
     const registerName = useRegisterName();
-    const status = useRegisterStatusQuery(registerStatus);
     return (
       <ChargeScreen
         sessionId={id}
@@ -644,10 +646,10 @@ const chargeRoute = createRoute({
         cashCharge={cashCharge}
         chargeSaleInCash={chargeSaleInCash}
         chargeSaleByTransfer={chargeSaleByTransfer}
-        registerStatus={status}
-        startMercadoPagoQrCharge={startMercadoPagoQrCharge}
-        followMercadoPagoQrCharge={followMercadoPagoQrCharge}
-        abandonMercadoPagoQrCharge={abandonMercadoPagoQrCharge}
+        paymentMethodAvailability={paymentMethodAvailability}
+        startMercadoPagoCharge={startMercadoPagoCharge}
+        followMercadoPagoCharge={followMercadoPagoCharge}
+        abandonMercadoPagoCharge={abandonMercadoPagoCharge}
         receiptPrintStatus={receiptPrintStatus}
         onSessionInvalid={() => void refreshCashSession()}
       />
@@ -982,9 +984,10 @@ export function createAppRouter(
     | "cashCharge"
     | "chargeSaleInCash"
     | "chargeSaleByTransfer"
-    | "startMercadoPagoQrCharge"
-    | "followMercadoPagoQrCharge"
-    | "abandonMercadoPagoQrCharge"
+    | "paymentMethodAvailability"
+    | "startMercadoPagoCharge"
+    | "followMercadoPagoCharge"
+    | "abandonMercadoPagoCharge"
     | "searchProducts"
     | "addProduct"
     | "addWeighedProduct"

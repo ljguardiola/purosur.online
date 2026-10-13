@@ -66,6 +66,7 @@ describe("currentSale", () => {
       cancellable: true,
       cancelRefusal: null,
       refundsOnCancel: [],
+      mercadoPagoChargeInProgress: null,
     });
   });
 
@@ -215,15 +216,22 @@ describe("current-sale charge refusal", () => {
       id: "qr-1",
       saleId: "sale-1",
       amount: 5000,
-      occurredAt: NOW,
+      occurredAt: new Date(NOW.getTime() - 130_000),
       waitEndsAt: new Date(NOW.getTime() + 60_000),
     };
 
-    expect(read(ledger({ pendingQrPayments: [pending] }))).toMatchObject({
+    expect(read(ledger({ pendingMercadoPagoPayments: [pending] }))).toMatchObject({
       kind: "open",
-      linesLock: "qr_charge_in_progress",
+      linesLock: "mercado_pago_charge_in_progress",
       cancellable: false,
-      cancelRefusal: "qr_charge_in_progress",
+      cancelRefusal: "mercado_pago_charge_in_progress",
+      mercadoPagoChargeInProgress: {
+        paymentTransactionId: "qr-1",
+        method: "QR",
+        amount: 5000,
+        remainingSeconds: 60,
+        waitSeconds: 190,
+      },
     });
   });
 });

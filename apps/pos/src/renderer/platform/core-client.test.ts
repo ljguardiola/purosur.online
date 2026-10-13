@@ -485,33 +485,70 @@ describe("createCoreClient", () => {
     ]);
   });
 
-  it("asks the core to start a Mercado Pago QR charge of an amount of a sale and resolves with the outcome", async () => {
+  it.each(["QR", "POINT"] as const)(
+    "asks the core to start a Mercado Pago %s charge of an amount of a sale and resolves with the outcome",
+    async (method) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const outcome = client.startMercadoPagoCharge("sale-1", method, 300_000);
+      const shown = {
+        kind: "order_shown",
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
+        amount: 300_000,
+        remaining_seconds: 180,
+        wait_seconds: 180,
+      } as const;
+      port.answer({
+        type: "start-mercado-pago-charge-result",
+        request_id: "request-1",
+        outcome: shown,
+      });
+
+      expect(await outcome).toEqual(shown);
+      expect(port.posted).toEqual([
+        {
+          type: "start-mercado-pago-charge",
+          request_id: "request-1",
+          sale_id: "sale-1",
+          method,
+          amount: 300_000,
+        },
+      ]);
+    },
+  );
+
+  it("asks the core which payment methods are available for the sale being charged and resolves with its answer", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
     client.connect(port);
 
-    const outcome = client.startMercadoPagoQrCharge("sale-1", 300_000);
-    const shown = {
-      kind: "order_shown",
-      payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
-      amount: 300_000,
-      remaining_seconds: 180,
-    } as const;
+    const availability = client.paymentMethodAvailability();
+    const answer = { qr: "available", point: "below_minimum", point_minimum: 1500 } as const;
     port.answer({
-      type: "start-mercado-pago-qr-charge-result",
+      type: "payment-method-availability-result",
       request_id: "request-1",
-      outcome: shown,
+      availability: answer,
     });
 
-    expect(await outcome).toEqual(shown);
-    expect(port.posted).toEqual([
-      {
-        type: "start-mercado-pago-qr-charge",
-        request_id: "request-1",
-        sale_id: "sale-1",
-        amount: 300_000,
-      },
-    ]);
+    expect(await availability).toEqual(answer);
+    expect(port.posted).toEqual([{ type: "payment-method-availability", request_id: "request-1" }]);
+  });
+
+  it("resolves with no availability when the core has no sale to charge", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const availability = client.paymentMethodAvailability();
+    port.answer({
+      type: "payment-method-availability-result",
+      request_id: "request-1",
+      availability: null,
+    });
+
+    expect(await availability).toBeNull();
   });
 
   it("asks the core to abandon a Mercado Pago QR charge and resolves with the outcome", async () => {
@@ -519,9 +556,9 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const outcome = client.abandonMercadoPagoQrCharge("019a0000-0000-7000-8000-0000000000a1");
+    const outcome = client.abandonMercadoPagoCharge("019a0000-0000-7000-8000-0000000000a1");
     port.answer({
-      type: "abandon-mercado-pago-qr-charge-result",
+      type: "abandon-mercado-pago-charge-result",
       request_id: "request-1",
       outcome: { kind: "cancelled" },
     });
@@ -529,7 +566,7 @@ describe("createCoreClient", () => {
     expect(await outcome).toEqual({ kind: "cancelled" });
     expect(port.posted).toEqual([
       {
-        type: "abandon-mercado-pago-qr-charge",
+        type: "abandon-mercado-pago-charge",
         request_id: "request-1",
         payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
       },
@@ -541,9 +578,9 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const outcome = client.followMercadoPagoQrCharge("019a0000-0000-7000-8000-0000000000a1");
+    const outcome = client.followMercadoPagoCharge("019a0000-0000-7000-8000-0000000000a1");
     port.answer({
-      type: "follow-mercado-pago-qr-charge-result",
+      type: "follow-mercado-pago-charge-result",
       request_id: "request-1",
       outcome: { kind: "waiting", remaining_seconds: 161 },
     });
@@ -551,7 +588,7 @@ describe("createCoreClient", () => {
     expect(await outcome).toEqual({ kind: "waiting", remaining_seconds: 161 });
     expect(port.posted).toEqual([
       {
-        type: "follow-mercado-pago-qr-charge",
+        type: "follow-mercado-pago-charge",
         request_id: "request-1",
         payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
       },
@@ -1143,6 +1180,7 @@ describe("createCoreClient", () => {
       lines_lock: null,
       cancel_refusal: null,
       charge_refusal: null,
+      mercado_pago_charge_in_progress: null,
       refunds_on_cancel: [],
       cancel_authorization_required: false,
       adjust_authorization_required: false,
@@ -1174,6 +1212,7 @@ describe("createCoreClient", () => {
       lines_lock: null,
       cancel_refusal: null,
       charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 1_000_000_000 },
+      mercado_pago_charge_in_progress: null,
       refunds_on_cancel: [],
       cancel_authorization_required: false,
       adjust_authorization_required: false,

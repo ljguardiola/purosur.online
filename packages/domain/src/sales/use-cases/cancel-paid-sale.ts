@@ -39,8 +39,8 @@ export interface CancelPaidSalePorts<Grant extends CancelPaidSaleGrant, Refusal>
 export type CancelPaidSaleOutcome<Grant extends CancelPaidSaleGrant> =
   | SellingSessionRefusal
   | { kind: "no_open_sale" }
-  | { kind: "qr_charge_in_progress" }
-  | { kind: "holds_qr_payment" }
+  | { kind: "mercado_pago_charge_in_progress" }
+  | { kind: "holds_mercado_pago_payment" }
   | { kind: "unavailable" }
   | { kind: "cancelled"; refunds: SaleRefund[]; grant: Grant };
 
@@ -65,16 +65,16 @@ export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>
     if (sale?.id !== saleId) {
       return { kind: "no_open_sale" };
     }
-    const pendingQrPayments = tx.pendingQrPaymentsOf(sale.id);
+    const pendingMercadoPagoPayments = tx.pendingMercadoPagoPaymentsOf(sale.id);
     const now = clock.now();
     const payments = tx.salePayments(sale.id);
-    const refusal = saleCancelRefusal(payments, pendingQrPayments, now);
+    const refusal = saleCancelRefusal(payments, pendingMercadoPagoPayments, now);
     if (refusal !== null) {
       return { kind: refusal };
     }
     const planned = plannedRefunds(payments);
     if (planned.length === 0) {
-      if (pendingQrPayments.length > 0) {
+      if (pendingMercadoPagoPayments.length > 0) {
         tx.recordCancelledSale(sale.id, now, undefined);
       } else {
         tx.discardOpenSale(sale.id);

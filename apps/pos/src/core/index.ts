@@ -23,7 +23,8 @@ import {
 } from "./fiscal/real-time-authorization-wiring";
 import { readLatestPreEmissionGateOutcome } from "./fiscal/sqlite-pre-emission-gate";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
-import { createMercadoPagoQrCharging } from "./payments/mercado-pago-qr-charge-wiring";
+import { createMercadoPagoCharging } from "./payments/mercado-pago-charge-wiring";
+import { paymentMethodAvailabilityFor } from "./payments/payment-method-availability-requests";
 import {
   type CloudClientDeps,
   getFromCloud,
@@ -389,7 +390,7 @@ await settleInterruptedAuthorizations({
     reportFailure("settling the interrupted real-time authorizations", error),
 });
 
-const mercadoPagoQrCharging = createMercadoPagoQrCharging({
+const mercadoPagoCharging = createMercadoPagoCharging({
   database: localDatabase,
   gate: actionGate,
   cloudClient,
@@ -741,9 +742,19 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             request,
           ),
-  startMercadoPagoQrCharge: mercadoPagoQrCharging.start,
-  followMercadoPagoQrCharge: mercadoPagoQrCharging.follow,
-  abandonMercadoPagoQrCharge: mercadoPagoQrCharging.abandon,
+  startMercadoPagoCharge: mercadoPagoCharging.start,
+  followMercadoPagoCharge: mercadoPagoCharging.follow,
+  paymentMethodAvailability:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : () =>
+          paymentMethodAvailabilityFor({
+            database: localDatabase,
+            gate: actionGate,
+            now,
+            cloud: () => cloudReachability,
+          }),
+  abandonMercadoPagoCharge: mercadoPagoCharging.abandon,
   searchProducts:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -841,11 +852,11 @@ const answeredRendererRequestDeps: RendererRequestDeps = {
   chargeSaleByTransfer: receiptPrinting.afterCompletedSale(
     rendererRequestDeps.chargeSaleByTransfer,
   ),
-  followMercadoPagoQrCharge: receiptPrinting.afterCompletedSale(
-    rendererRequestDeps.followMercadoPagoQrCharge,
+  followMercadoPagoCharge: receiptPrinting.afterCompletedSale(
+    rendererRequestDeps.followMercadoPagoCharge,
   ),
-  abandonMercadoPagoQrCharge: receiptPrinting.afterCompletedSale(
-    rendererRequestDeps.abandonMercadoPagoQrCharge,
+  abandonMercadoPagoCharge: receiptPrinting.afterCompletedSale(
+    rendererRequestDeps.abandonMercadoPagoCharge,
   ),
 };
 

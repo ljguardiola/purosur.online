@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { launchApp, writeChannelFile } from "./launch-app";
+import { WAIT_BOUND_MS } from "./test-support/bounds";
+import { closeRegister } from "./test-support/close-register";
 import { roleChange, userChange } from "./test-support/cloud-changes";
 import { enrolledRegister } from "./test-support/enrolled-register";
 import {
@@ -19,11 +21,10 @@ describe("the register's serial devices", () => {
     );
     try {
       await launched.app.firstWindow();
-
-      await untilLogged(launched, SERIAL_DEVICES_LISTED);
+      await untilLogged(launched, SERIAL_DEVICES_LISTED, { withinMs: WAIT_BOUND_MS });
       expect(launched.logs.join("")).not.toContain(SERIAL_DEVICE_WATCH_FAILED);
     } finally {
-      await launched.app.close();
+      await closeRegister(launched.app);
     }
   });
 

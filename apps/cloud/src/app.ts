@@ -86,9 +86,9 @@ import {
   registerMercadoPagoNotificationRoutes,
 } from "./payments/mercado-pago-notification-routes.js";
 import {
-  type MercadoPagoQrRoutesOptions,
-  registerMercadoPagoQrRoutes,
-} from "./payments/mercado-pago-qr-routes.js";
+  type MercadoPagoOrderRoutesOptions,
+  registerMercadoPagoOrderRoutes,
+} from "./payments/mercado-pago-order-routes.js";
 import { type RefundRouteOptions, registerRefundRoutes } from "./payments/refund-routes.js";
 import { registerPermissionCatalogRoute } from "./permissions/permission-catalog-route.js";
 import { registerRoleCreationRoutes } from "./permissions/role-creation-route.js";
@@ -202,8 +202,8 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   fiscalAuthorization?: WithoutClock<
     Omit<FiscalAuthorizationRouteOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
   >;
-  mercadoPagoQr?: WithoutClock<
-    Omit<MercadoPagoQrRoutesOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
+  mercadoPagoOrders?: WithoutClock<
+    Omit<MercadoPagoOrderRoutesOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
   >;
   mercadoPagoNotifications?: WithoutClock<MercadoPagoNotificationRoutesOptions<TQueryResult>>;
   registerUpdateFeed?: RegisterUpdateFeed;
@@ -223,7 +223,7 @@ type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
     | "enqueueOfflineAuthorizationCodeRequest"
     | "enqueueTaxAuthorityCountOnEnrollment"
     | "fiscalAuthorization"
-    | "mercadoPagoQr"
+    | "mercadoPagoOrders"
     | "mercadoPagoNotifications"
     | "registerUpdateFeed"
   >
@@ -592,10 +592,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
             now,
           });
         }
-        if (options.mercadoPagoQr) {
-          registerMercadoPagoQrRoutes(api, {
+        if (options.mercadoPagoOrders) {
+          registerMercadoPagoOrderRoutes(api, {
             ...options.devices,
-            ...options.mercadoPagoQr,
+            ...options.mercadoPagoOrders,
             now,
           });
         }

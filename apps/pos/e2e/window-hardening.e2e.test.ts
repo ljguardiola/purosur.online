@@ -1,6 +1,8 @@
 import type { ElectronApplication, JSHandle, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { launchApp } from "./launch-app";
+import { WAIT_BOUND_MS } from "./test-support/bounds";
+import { closeRegister } from "./test-support/close-register";
 import { until } from "./test-support/until";
 
 interface NavigationAttempt {
@@ -48,13 +50,13 @@ describe("the register's hardened window", () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    await closeRegister(app);
   });
 
   it("shows the window", async () => {
     const isVisible = (): Promise<boolean> =>
       app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isVisible() ?? false);
-    await until(isVisible);
+    await until(isVisible, { withinMs: WAIT_BOUND_MS, waitingFor: "the window to be shown" });
     expect(await isVisible()).toBe(true);
   });
 
@@ -170,18 +172,24 @@ describe("the register's hardened window", () => {
     });
 
     try {
-      await until(async () => {
-        const [{ blockedUris, inlineRan }, requested] = await Promise.all([
-          pageState(),
-          requestedUrls(),
-        ]);
-        const settled = (url: string) => blockedUris.includes(url) || requested.includes(url);
-        return (
-          settled(remoteImage) &&
-          settled(remoteScript) &&
-          (blockedUris.includes("inline") || inlineRan)
-        );
-      });
+      await until(
+        async () => {
+          const [{ blockedUris, inlineRan }, requested] = await Promise.all([
+            pageState(),
+            requestedUrls(),
+          ]);
+          const settled = (url: string) => blockedUris.includes(url) || requested.includes(url);
+          return (
+            settled(remoteImage) &&
+            settled(remoteScript) &&
+            (blockedUris.includes("inline") || inlineRan)
+          );
+        },
+        {
+          withinMs: WAIT_BOUND_MS,
+          waitingFor: "the policy to settle every remote request and the inline script",
+        },
+      );
     } finally {
       await app.evaluate(({ session }) => session.defaultSession.webRequest.onBeforeRequest(null));
     }
@@ -214,6 +222,10 @@ describe("the register's hardened window", () => {
     await until(
       async () =>
         (await lastNavigationAttemptFor(navigationAttempts, targetUrlPrefix)) !== undefined,
+      {
+        withinMs: WAIT_BOUND_MS,
+        waitingFor: "the navigation to the external site to be attempted",
+      },
     );
     const attempt = await lastNavigationAttemptFor(navigationAttempts, targetUrlPrefix);
 
@@ -230,6 +242,7 @@ describe("the register's hardened window", () => {
 
     await until(
       async () => (await lastNavigationAttemptFor(navigationAttempts, targetUrl)) !== undefined,
+      { withinMs: WAIT_BOUND_MS, waitingFor: "the navigation to the local file to be attempted" },
     );
     const attempt = await lastNavigationAttemptFor(navigationAttempts, targetUrl);
 

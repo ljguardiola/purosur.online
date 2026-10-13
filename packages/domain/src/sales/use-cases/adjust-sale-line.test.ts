@@ -132,6 +132,7 @@ describe("adjustSaleLine", () => {
         cancellable: true,
         cancelRefusal: null,
         refundsOnCancel: [],
+        mercadoPagoChargeInProgress: null,
         chargeRefusal: undefined,
       });
       expect(store.state.outbox).toEqual([]);
