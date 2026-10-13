@@ -59,7 +59,10 @@ export function batteryReportOf(
   }
   const onBatteryMinutes =
     reading.onBattery && onBatterySince !== undefined
-      ? Math.floor((now.getTime() - onBatterySince.getTime()) / MILLISECONDS_PER_MINUTE)
+      ? Math.max(
+          0,
+          Math.floor((now.getTime() - onBatterySince.getTime()) / MILLISECONDS_PER_MINUTE),
+        )
       : 0;
   return {
     present: true,

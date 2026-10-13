@@ -11,8 +11,8 @@ const STATUSES_ON_BATTERY = new Set([1, 4, 5]);
 const BATTERY_SCRIPT = [
   "$ErrorActionPreference = 'Stop'",
   "$batteries = @(Get-CimInstance -ClassName Win32_Battery | Select-Object EstimatedChargeRemaining, BatteryStatus)",
-  "$fullCharge = @(Get-CimInstance -Namespace root/wmi -ClassName BatteryFullChargedCapacity -ErrorAction SilentlyContinue | Select-Object FullChargedCapacity)",
-  "$design = @(Get-CimInstance -Namespace root/wmi -ClassName BatteryStaticData -ErrorAction SilentlyContinue | Select-Object DesignedCapacity)",
+  "$fullCharge = @(Get-CimInstance -Namespace root/wmi -ClassName BatteryFullChargedCapacity -ErrorAction SilentlyContinue | Select-Object InstanceName, FullChargedCapacity)",
+  "$design = @(Get-CimInstance -Namespace root/wmi -ClassName BatteryStaticData -ErrorAction SilentlyContinue | Select-Object InstanceName, DesignedCapacity)",
   "[pscustomobject]@{ batteries = $batteries; fullCharge = $fullCharge; design = $design } | ConvertTo-Json -Compress -Depth 4",
 ].join("; ");
 
@@ -23,8 +23,12 @@ const powershellOutputSchema = z.object({
       BatteryStatus: z.number().nullish(),
     }),
   ),
-  fullCharge: z.array(z.object({ FullChargedCapacity: z.number().nullish() })),
-  design: z.array(z.object({ DesignedCapacity: z.number().nullish() })),
+  fullCharge: z.array(
+    z.object({ InstanceName: z.string().nullish(), FullChargedCapacity: z.number().nullish() }),
+  ),
+  design: z.array(
+    z.object({ InstanceName: z.string().nullish(), DesignedCapacity: z.number().nullish() }),
+  ),
 });
 
 type PowershellOutput = z.output<typeof powershellOutputSchema>;
@@ -47,12 +51,23 @@ function sum(values: number[]): number {
 }
 
 function healthOf({ fullCharge, design }: PowershellOutput): number | undefined {
-  const full = numbersOf(fullCharge.map((entry) => entry.FullChargedCapacity));
-  const designed = numbersOf(design.map((entry) => entry.DesignedCapacity));
-  if (full.length === 0 || designed.length === 0) {
+  if (fullCharge.length === 0 || fullCharge.length !== design.length) {
     return undefined;
   }
-  return batteryHealthPercent(sum(full), sum(designed));
+  const designedByName = new Map(
+    design.map((entry) => [entry.InstanceName, entry.DesignedCapacity] as const),
+  );
+  let full = 0;
+  let designed = 0;
+  for (const { InstanceName, FullChargedCapacity } of fullCharge) {
+    const designedCapacity = InstanceName == null ? undefined : designedByName.get(InstanceName);
+    if (typeof FullChargedCapacity !== "number" || typeof designedCapacity !== "number") {
+      return undefined;
+    }
+    full += FullChargedCapacity;
+    designed += designedCapacity;
+  }
+  return batteryHealthPercent(full, designed);
 }
 
 function readingOf(output: PowershellOutput): BatteryReading {
@@ -80,16 +95,12 @@ export function windowsBatteryReader({ run, platform }: WindowsBatteryReaderDeps
       if (platform !== "win32") {
         return { kind: "unreadable" };
       }
-      try {
-        const { stdout } = await run(
-          "powershell.exe",
-          ["-NoProfile", "-NonInteractive", "-Command", BATTERY_SCRIPT],
-          { timeout: POWERSHELL_TIMEOUT_MS, windowsHide: true },
-        );
-        return readingOf(powershellOutputSchema.parse(JSON.parse(stdout)));
-      } catch {
-        return { kind: "unreadable" };
-      }
+      const { stdout } = await run(
+        "powershell.exe",
+        ["-NoProfile", "-NonInteractive", "-Command", BATTERY_SCRIPT],
+        { timeout: POWERSHELL_TIMEOUT_MS, windowsHide: true },
+      );
+      return readingOf(powershellOutputSchema.parse(JSON.parse(stdout)));
     },
   };
 }

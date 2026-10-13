@@ -29,9 +29,9 @@ const batteryReportSchema = z
     z.strictObject({
       present: z.literal(true),
       charge_percent: z.int().min(0).max(100),
-      health_percent: z.int().nonnegative().optional(),
+      health_percent: z.int32().nonnegative().optional(),
       on_battery: z.boolean(),
-      on_battery_minutes: z.int().nonnegative(),
+      on_battery_minutes: z.int32().nonnegative(),
     }),
   ])
   .or(z.unknown().transform(() => MALFORMED_BATTERY_REPORT));
