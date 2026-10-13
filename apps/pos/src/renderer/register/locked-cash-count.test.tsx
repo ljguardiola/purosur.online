@@ -71,11 +71,11 @@ const SALE_IN_A_QR_WAIT: SessionOpenSale = {
   cancellable: false,
   cancel_refusal: "mercado_pago_charge_in_progress",
 };
-const SALE_WITH_QR_PAYMENT: SessionOpenSale = {
+const SALE_WITH_POINT_PAYMENT: SessionOpenSale = {
   ...CANCELLABLE_SALE,
   paid: 1_000_000,
   cancellable: false,
-  cancel_refusal: "holds_mercado_pago_payment",
+  cancel_refusal: "holds_point_payment",
 };
 const PART_PAID_SALE: SessionOpenSale = {
   id: "sale-2",
@@ -485,9 +485,9 @@ describe("LockedCashCount", () => {
       "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.",
     ],
     [
-      "the sale holds a QR payment",
-      { kind: "holds_mercado_pago_payment" },
-      "La venta tiene un pago con Mercado Pago: todavía no se puede anular desde la caja.",
+      "the sale holds an integrated terminal payment",
+      { kind: "holds_point_payment" },
+      "La venta tiene un pago con la terminal de Mercado Pago: todavía no se puede anular desde la caja.",
     ],
   ])("keeps the open sale and says why when %s", async (_case, outcome, notice) => {
     const { screen, refused } = await withOpenSale({ cancelSale: async () => outcome });
@@ -507,9 +507,9 @@ describe("LockedCashCount", () => {
       "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.",
     ],
     [
-      "the sale holds a QR payment",
-      SALE_WITH_QR_PAYMENT,
-      "La venta tiene un pago con Mercado Pago: todavía no se puede anular desde la caja.",
+      "the sale holds an integrated terminal payment",
+      SALE_WITH_POINT_PAYMENT,
+      "La venta tiene un pago con la terminal de Mercado Pago: todavía no se puede anular desde la caja.",
     ],
   ])(
     "says why the core still refuses to cancel when %s, opening no cancel modal",

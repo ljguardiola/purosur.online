@@ -322,9 +322,9 @@ describe("CancelPaidSaleModal", () => {
         "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.",
       ],
       [
-        "the sale holds a QR payment",
-        { kind: "holds_mercado_pago_payment" },
-        "La venta tiene un pago con Mercado Pago: todavía no se puede anular desde la caja.",
+        "the sale holds an integrated terminal payment",
+        { kind: "holds_point_payment" },
+        "La venta tiene un pago con la terminal de Mercado Pago: todavía no se puede anular desde la caja.",
       ],
     ])("keeps the modal open and says why when %s", async (_case, outcome, notice) => {
       const { screen, onCancelled } = await renderModal({

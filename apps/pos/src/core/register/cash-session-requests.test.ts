@@ -876,14 +876,30 @@ describe("the open sale of the session", () => {
     });
   });
 
-  it("tells that a sale holding an approved QR payment cannot be cancelled at the register", async () => {
+  it("tells that a sale holding an approved QR payment is cancelled leaving a pending refund", async () => {
     addOpenSale(await openAs("u1", 5000), 3500);
     addQrPayment("APPROVED", NOW);
 
     expect(sessionOpenSaleFor(database, NOW)).toMatchObject({
       paid: 2000,
       cancellable: false,
-      cancel_refusal: "holds_mercado_pago_payment",
+      cancel_refusal: null,
+      refunds_on_cancel: [{ payment_id: "qr-1", method: "QR", amount: 2000, state: "PENDING" }],
+    });
+  });
+
+  it("tells that a sale holding an approved integrated terminal payment cannot be cancelled at the register", async () => {
+    addOpenSale(await openAs("u1", 5000), 3500);
+    database
+      .prepare(
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at) VALUES ('point-1', 'sale-1', 'SALE', 'POINT', 'MERCADOPAGO_POINT', 2000, 'APPROVED', ?)",
+      )
+      .run(NOW.toISOString());
+
+    expect(sessionOpenSaleFor(database, NOW)).toMatchObject({
+      paid: 2000,
+      cancellable: false,
+      cancel_refusal: "holds_point_payment",
       refunds_on_cancel: [],
     });
   });

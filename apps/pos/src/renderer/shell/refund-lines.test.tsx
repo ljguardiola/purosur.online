@@ -89,6 +89,21 @@ describe("RefundLines", () => {
       .toBeVisible();
   });
 
+  it("explains under a pending QR refund that the cloud sends it to Mercado Pago once a person confirms it", async () => {
+    const refund: Refund = { payment_id: "p9", method: "QR", amount: 70_000, state: "PENDING" };
+
+    const screen = await render(<RefundLines refunds={[refund]} />);
+
+    await expect
+      .element(
+        screen.getByText(
+          "Queda un reembolso pendiente que la nube envía a Mercado Pago al confirmarlo.",
+          { exact: true },
+        ),
+      )
+      .toBeVisible();
+  });
+
   it("explains nothing under a pending transfer refund", async () => {
     const refund: Refund = {
       payment_id: "p2",

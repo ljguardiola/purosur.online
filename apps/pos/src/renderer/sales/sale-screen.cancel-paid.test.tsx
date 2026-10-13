@@ -28,6 +28,17 @@ const SALE_WITH_STANDALONE_TERMINAL_PAYMENT: OpenSale = {
   paid: 90_000,
   refunds_on_cancel: [STANDALONE_TERMINAL_REFUND],
 };
+const QR_REFUND = {
+  payment_id: "p3",
+  method: "QR",
+  amount: 70_000,
+  state: "PENDING",
+} as const;
+const SALE_WITH_QR_PAYMENT: OpenSale = {
+  ...PAID_SALE,
+  paid: 70_000,
+  refunds_on_cancel: [QR_REFUND],
+};
 const CANCELLED: CancelPaidSaleOutcome = {
   kind: "cancelled",
   refunds: [CASH_REFUND],
@@ -178,6 +189,31 @@ describe("SaleScreen cancelling a sale with an approved standalone terminal paym
     await expect
       .element(
         dialog.getByText("Reembolso pendiente del pago con la terminal independiente por $ 900,00"),
+      )
+      .toBeVisible();
+    expect(cancelPaidSale).not.toHaveBeenCalled();
+  });
+});
+
+describe("SaleScreen cancelling a sale with an approved Mercado Pago QR payment", () => {
+  it("offers to cancel it, showing its pending refund and who sends it", async () => {
+    const cancelPaidSale = vi.fn(async (): Promise<CancelPaidSaleOutcome> => CANCELLED);
+    const { screen } = await renderScreen({
+      currentSale: async () => SALE_WITH_QR_PAYMENT,
+      cancelPaidSale,
+    });
+
+    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+
+    const dialog = screen.getByRole("dialog", { name: "¿Cancelar la venta?" });
+    await expect
+      .element(dialog.getByText("Reembolso pendiente del pago con QR por $ 700,00"))
+      .toBeVisible();
+    await expect
+      .element(
+        dialog.getByText(
+          "Queda un reembolso pendiente que la nube envía a Mercado Pago al confirmarlo.",
+        ),
       )
       .toBeVisible();
     expect(cancelPaidSale).not.toHaveBeenCalled();

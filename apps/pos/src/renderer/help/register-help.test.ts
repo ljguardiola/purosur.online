@@ -69,6 +69,12 @@ describe("the register's help", () => {
     ]);
   });
 
+  it("explains that the pending refund of a Mercado Pago QR payment is sent by the cloud once a person confirms it in the backoffice", () => {
+    expect(titlesFound("el de un pago con QR, lo envía la nube a Mercado Pago")).toEqual([
+      "Cancelar una venta",
+    ]);
+  });
+
   it("explains that an order already on the terminal is cancelled there, and another method is offered once the terminal confirms it", () => {
     expect(titlesFound("cancelalo en la terminal")).toContain(
       "Cambiar de medio con un cobro en la Point",
