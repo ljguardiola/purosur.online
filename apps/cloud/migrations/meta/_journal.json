@@ -659,6 +659,13 @@
       "when": 1791899458086,
       "tag": "0097_device_battery",
       "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1791920079274,
+      "tag": "0098_recipes",
+      "breakpoints": true
     }
   ]
 }

@@ -54,6 +54,8 @@ import {
   productTags,
   purchaseLines,
   purchases,
+  recipeComponents,
+  recipes,
   recoveryRateLimitAttempts,
   recoveryRejectedAttemptAccumulator,
   recoveryTokens,
@@ -694,6 +696,17 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       postponedAt: new Date("2026-01-05T12:00:00.000Z"),
       actorId: user.id,
       purchaseId: purchase?.id as string,
+    });
+    const [component] = await db
+      .insert(products)
+      .values({ name: "Nueces", categoryId: category.id, saleUnit: "KG" })
+      .returning({ id: products.id });
+    await db.insert(recipes).values({ productId: product.id, actorId: user.id });
+    await db.insert(recipeComponents).values({
+      productId: product.id,
+      componentProductId: component?.id as string,
+      quantityPerOutputUnit: 500,
+      position: 0,
     });
     await db.insert(paymentTransactions).values({
       id: "00000000-0000-4000-8000-000000000103",

@@ -65,6 +65,7 @@ describe("GET /inventory-items", () => {
     "perform_stock_counts",
     "adjust_stock",
     "record_stock_losses",
+    "manage_recipes",
   ] as const)("answers a user holding %s", async (permission) => {
     const { headers } = await signedInWith(db, [permission], NOON);
 
