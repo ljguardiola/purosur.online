@@ -49,7 +49,7 @@ test("counts the open alerts as a link that opens the alerts list", async () => 
   await expect.poll(() => window.location.pathname).toBe("/alerts");
 });
 
-const retryName = "No se cargaron las alertas. Reintentar";
+const retryName = "No pudimos abrir las alertas. Reintentar";
 
 test("shows nothing once it reads that no alert is open", async () => {
   const screen = await renderLink(servicesAnswering({ kind: "ok", value: nothingOpen }));
@@ -67,13 +67,20 @@ test("holds the count's place with a loading pill while it loads", async () => {
   expect(screen.getByRole("link").query()).toBeNull();
 });
 
-test("shows nothing, and stays on the screen, when the cloud refuses the count", async () => {
-  const services = servicesAnswering({ kind: "forbidden" });
-  const screen = await renderLink(services);
+test("offers to read the count again, staying on the screen, when the cloud refuses it", async () => {
+  const fetchAlertsOverview = vi
+    .fn<AlertsOpenCountLinkServices["fetchAlertsOverview"]>()
+    .mockResolvedValueOnce({ kind: "forbidden" })
+    .mockResolvedValueOnce({ kind: "ok", value: threeOpen });
+  const screen = await renderLink({ fetchAlertsOverview });
 
-  await expect.poll(() => services.fetchAlertsOverview).toHaveBeenCalled();
-  await expect.element(screen.getByText("Cargando…")).not.toBeInTheDocument();
-  expect(screen.container.querySelector("main")?.textContent).toBe("");
+  const retry = screen.getByRole("button", { name: retryName });
+  await expect.element(retry).toBeVisible();
+  expect(window.location.pathname).toBe("/inventory");
+
+  await userEvent.click(retry);
+
+  await expect.element(screen.getByRole("link", { name: "3 alertas abiertas" })).toBeVisible();
   expect(window.location.pathname).toBe("/inventory");
 });
 
@@ -107,7 +114,9 @@ test("offers to read the count again when the cloud asks to wait before reading 
     servicesAnswering({ kind: "rate_limited", retryAfterSeconds: 30 }),
   );
 
-  await expect.element(screen.getByRole("button", { name: retryName })).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Demasiadas solicitudes. Reintentar" }))
+    .toBeVisible();
 });
 
 test("ends the session when the cloud no longer recognizes it", async () => {
