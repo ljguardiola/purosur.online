@@ -20,6 +20,7 @@ const ALERT_KIND_LABELS = {
   refund_task: "Reembolso pendiente de una venta anulada",
   fiscal_unknown: "Resultado fiscal incierto",
   fiscal_emission_stopped: "Emisión de facturas detenida",
+  outbox_chain_broken: "Cadena de eventos alterada",
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {

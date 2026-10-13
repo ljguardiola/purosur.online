@@ -179,6 +179,11 @@ const fiscalEmissionStoppedDetailSchema = z.object({
   reason: z.enum(PRE_EMISSION_GATE_FAILURE_REASONS),
 });
 
+const outboxChainBrokenDetailSchema = z.object({
+  deviceId: z.string(),
+  refusedEventCount: z.int(),
+});
+
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
 
 const alertBase = {
@@ -291,6 +296,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("fiscal_emission_stopped" satisfies AlertKind),
     detail: fiscalEmissionStoppedDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("outbox_chain_broken" satisfies AlertKind),
+    detail: outboxChainBrokenDetailSchema,
   }),
 ] as const;
 

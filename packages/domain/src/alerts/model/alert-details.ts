@@ -140,6 +140,11 @@ interface FiscalEmissionStoppedDetail {
   reason: PreEmissionGateFailureReason;
 }
 
+interface OutboxChainBrokenDetail {
+  deviceId: string;
+  refusedEventCount: number;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -160,6 +165,7 @@ export interface AlertDetails {
   refund_task: RefundTaskDetail;
   fiscal_unknown: FiscalUnknownDetail;
   fiscal_emission_stopped: FiscalEmissionStoppedDetail;
+  outbox_chain_broken: OutboxChainBrokenDetail;
 }
 
 export type OpenAlertInput = {

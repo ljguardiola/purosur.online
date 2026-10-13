@@ -150,6 +150,8 @@ function alertIcon(kind: string): Icon {
       return <PackageX />;
     case "event_invariant_violated":
       return <TriangleAlert />;
+    case "outbox_chain_broken":
+      return <ShieldAlert />;
     case "update_required":
       return <CloudOff />;
     case "register_silent":
@@ -301,6 +303,7 @@ function alertTitle(alert: AlertDetail): string {
     case "offline_authorization_code_missing":
     case "fiscal_unknown":
     case "fiscal_emission_stopped":
+    case "outbox_chain_broken":
       return alertKindDescription(alert.kind);
     case "late_payment_refund":
       return "Reembolso pendiente por un pago tardío";
@@ -367,6 +370,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return offlineAuthorizationCodeMissingDescription(alert);
     case "fiscal_unknown":
       return fiscalUnknownDescription(alert.detail);
+    case "outbox_chain_broken":
+      return `La caja «${targetName}» envió eventos que no coinciden con su cadena: alguno se alteró, se quitó o se reordenó en el disco de la caja. La nube rechazó el envío y dio de baja la instalación.`;
     case "fiscal_rejected":
       return "Cada venta de este punto de venta queda diferida hasta corregir la causa que indica ARCA.";
     case "register_silent":

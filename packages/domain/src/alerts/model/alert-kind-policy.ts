@@ -14,7 +14,8 @@ export type AlertScopeKind =
   | "pointOfSaleDocumentType"
   | "registerFortnight"
   | "refund"
-  | "fiscalDocument";
+  | "fiscalDocument"
+  | "syncDevice";
 
 type AlertEscalationRule =
   | { kind: "afterOpening"; delayMs: number }
@@ -192,6 +193,14 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "register",
     deduplicates: true,
     resolvesAfterStableClear: true,
+  },
+  outbox_chain_broken: {
+    level: "warning",
+    escalation: AFTER_OPENING,
+    audience: "all",
+    scopeKind: "syncDevice",
+    deduplicates: false,
+    resolvesAfterStableClear: false,
   },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;
 

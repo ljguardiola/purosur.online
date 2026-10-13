@@ -11,6 +11,7 @@ import type {
 } from "@purosur/domain/sync/use-cases";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { openOutboxChainBrokenAlert } from "../alerts/outbox-chain-broken-alert.js";
 import {
   observeRegisterStops,
   observeRegisterSynced,
@@ -240,11 +241,16 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
     );
   }
 
-  async revokeForBrokenChain(deviceId: string, revokedAt: Date): Promise<void> {
+  async revokeForBrokenChain(
+    deviceId: string,
+    refusedEventCount: number,
+    revokedAt: Date,
+  ): Promise<void> {
     await this.tx
       .update(registerInstallations)
       .set({ revokedAt, revocationReason: "outbox_chain_broken" })
       .where(and(eq(registerInstallations.id, deviceId), isNull(registerInstallations.revokedAt)));
+    await openOutboxChainBrokenAlert(this.tx, { deviceId, refusedEventCount }, revokedAt);
   }
 }
 

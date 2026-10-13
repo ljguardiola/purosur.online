@@ -89,7 +89,7 @@ export async function receivePushedEvents(
 
     if (misplaced || !(await chainHolds(tx, eventChain, deviceId, events, references))) {
       await tx.setAsideRefusedPush(deviceId, events, now);
-      await tx.revokeForBrokenChain(deviceId, now);
+      await tx.revokeForBrokenChain(deviceId, events.length, now);
       return { kind: "chain_broken" };
     }
 
