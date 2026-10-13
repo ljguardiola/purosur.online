@@ -41,12 +41,12 @@ export async function requestRealTimeAuthorization(
   }
 
   const roundTripMedianMs = medianRoundTripMs(await roundTrips.recent());
-  const { saleEvent } = waiting;
+  const { saleEvent, reservedAt, ...waitingDocument } = waiting;
   const answer: RealTimeAuthorizationAnswer =
     roundTripMedianMs === null || saleEvent === null
       ? { kind: "not_attempted" }
       : await taxAuthority.authorize({
-          ...waiting,
+          ...waitingDocument,
           saleEvent,
           timeoutMs: REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
           roundTripMedianMs,
@@ -68,7 +68,7 @@ export async function requestRealTimeAuthorization(
       shortCodes,
       {
         saleId: waiting.saleId,
-        occurredAt: waiting.reservedAt,
+        occurredAt: reservedAt,
         total: waiting.document.total,
         reason: resolution.deferralReason,
         routedAt: resolved.resolvedAt,
