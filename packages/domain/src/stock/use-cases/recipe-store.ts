@@ -35,7 +35,5 @@ export interface RecipeStoreTransaction {
 }
 
 export interface RecipeStore {
-  transaction<TOutcome>(
-    work: (tx: RecipeStoreTransaction) => Promise<TOutcome>,
-  ): Promise<TOutcome>;
+  transaction<TOutcome>(work: (tx: RecipeStoreTransaction) => Promise<TOutcome>): Promise<TOutcome>;
 }
