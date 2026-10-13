@@ -1,7 +1,9 @@
 import {
   applyUnclearOutcomeDecisions,
+  type IdGenerator,
   type RealTimeTaxAuthority,
   recordRegisterHealthCheck,
+  type ShortCodeRandomness,
   settleInterruptedRealTimeAuthorizations,
 } from "@purosur/domain/fiscal/use-cases";
 import {
@@ -10,11 +12,9 @@ import {
   postToCloudWithBearer,
 } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
-import { uuidV7Ids } from "../register/uuid-v7-ids";
 import { checkRegisterHealth } from "./check-register-health";
 import { CloudRealTimeTaxAuthority } from "./cloud-real-time-tax-authority";
 import { CloudUnclearOutcomeDecisions } from "./cloud-unclear-outcome-decisions";
-import { cryptoShortCodes } from "./crypto-short-codes";
 import { authorizeSaleInRealTime } from "./real-time-sale-authorization";
 import { startRegisterHealthMonitor } from "./register-health-monitor";
 import { SqliteRealTimeFiscalDocuments } from "./sqlite-real-time-fiscal-documents";
@@ -26,6 +26,11 @@ export interface RealTimeAuthorizationWiringDeps {
   readDeviceToken: () => Promise<string | undefined>;
   now: () => Date;
   reportFailure: (error: unknown) => void;
+}
+
+interface DeferralIdentities {
+  ids: IdGenerator;
+  shortCodes: ShortCodeRandomness;
 }
 
 interface RealTimeAuthorization {
@@ -42,7 +47,9 @@ export function createRealTimeAuthorization({
   readDeviceToken,
   now,
   reportFailure,
-}: RealTimeAuthorizationWiringDeps): RealTimeAuthorization {
+  ids,
+  shortCodes,
+}: RealTimeAuthorizationWiringDeps & DeferralIdentities): RealTimeAuthorization {
   if (database === undefined) {
     return { authorizeSale: async () => undefined };
   }
@@ -57,10 +64,7 @@ export function createRealTimeAuthorization({
   return {
     authorizeSale: async (saleId) => {
       try {
-        await authorizeSaleInRealTime(
-          { database, taxAuthority, now, ids: uuidV7Ids, shortCodes: cryptoShortCodes },
-          saleId,
-        );
+        await authorizeSaleInRealTime({ database, taxAuthority, now, ids, shortCodes }, saleId);
       } catch (error) {
         reportFailure(error);
         await authorizeSaleInRealTime(
@@ -68,8 +72,8 @@ export function createRealTimeAuthorization({
             database,
             taxAuthority: UNABLE_TO_ASK,
             now,
-            ids: uuidV7Ids,
-            shortCodes: cryptoShortCodes,
+            ids,
+            shortCodes,
           },
           saleId,
         ).catch(reportFailure);
@@ -82,15 +86,18 @@ export async function settleInterruptedAuthorizations({
   database,
   now,
   reportFailure,
-}: Pick<RealTimeAuthorizationWiringDeps, "database" | "now" | "reportFailure">): Promise<void> {
+  ids,
+  shortCodes,
+}: Pick<RealTimeAuthorizationWiringDeps, "database" | "now" | "reportFailure"> &
+  DeferralIdentities): Promise<void> {
   if (database === undefined) {
     return;
   }
   await settleInterruptedRealTimeAuthorizations({
     documents: new SqliteRealTimeFiscalDocuments(database),
     clock: { now },
-    ids: uuidV7Ids,
-    shortCodes: cryptoShortCodes,
+    ids,
+    shortCodes,
   }).catch(reportFailure);
 }
 

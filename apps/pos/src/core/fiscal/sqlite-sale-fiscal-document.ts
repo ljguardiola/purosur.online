@@ -3,6 +3,7 @@ import {
   type DeferredSaleReference,
   type FacturaC,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
+  isDeferralPending,
 } from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
 
@@ -22,15 +23,22 @@ interface FiscalDocumentRow {
   authorization_code_due_on: string | null;
 }
 
-function unsatisfiedDeferredSale(database: LocalDatabase, saleId: string): SaleFiscalDocument {
+interface DeferredSaleRow {
+  id: string;
+  short_code: string;
+  satisfied: 0 | 1;
+}
+
+function pendingDeferredSale(database: LocalDatabase, saleId: string): SaleFiscalDocument {
   const deferred = database
-    .prepare<[string], { id: string; short_code: string }>(
-      "SELECT id, short_code FROM deferred_sales WHERE sale_id = ? AND satisfied_at IS NULL",
+    .prepare<[string], DeferredSaleRow>(
+      "SELECT id, short_code, (satisfied_at IS NOT NULL) AS satisfied FROM deferred_sales WHERE sale_id = ?",
     )
     .get(saleId);
-  return deferred === undefined
-    ? { kind: "none" }
-    : { kind: "deferred", deferred: { id: deferred.id, shortCode: deferred.short_code } };
+  if (deferred === undefined || !isDeferralPending({ satisfied: deferred.satisfied === 1 })) {
+    return { kind: "none" };
+  }
+  return { kind: "deferred", deferred: { id: deferred.id, shortCode: deferred.short_code } };
 }
 
 export function readSaleFiscalDocument(
@@ -47,7 +55,7 @@ export function readSaleFiscalDocument(
     )
     .get(saleId, ...IN_PROGRESS_FISCAL_DOCUMENT_STATES);
   if (row === undefined) {
-    return unsatisfiedDeferredSale(database, saleId);
+    return pendingDeferredSale(database, saleId);
   }
   if (row.state !== "AUTHORIZED") {
     return { kind: "awaiting" };

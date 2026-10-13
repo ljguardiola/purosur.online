@@ -1,9 +1,7 @@
-import { type DeferredSale, randomShortCode } from "../model/deferred-sale.js";
+import { type DeferredSale, randomShortCode, SHORT_CODE_ATTEMPTS } from "../model/deferred-sale.js";
 import type { DeferralReason } from "../model/real-time-authorization.js";
 import { type ShortCodeRandomness, ShortCodeTaken } from "./deferred-sale-ports.js";
 import type { IdGenerator } from "./sale-authorization-ports.js";
-
-export const SHORT_CODE_ATTEMPTS = 10;
 
 export interface DeferredSaleFacts {
   saleId: string;

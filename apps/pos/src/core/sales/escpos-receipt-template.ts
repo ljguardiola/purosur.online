@@ -45,6 +45,7 @@ const LEFT_ALIGNMENT = 0;
 const VOUCHER_CODE_DIGITS = 3;
 const LOGO_TOP_MARGIN_DOTS = 24;
 const LOGO_BOTTOM_MARGIN_DOTS = 16;
+const SHORT_CODE_GROUP_LENGTH = 4;
 
 const PAYMENT_NAMES = {
   CASH: "Efectivo",
@@ -353,9 +354,13 @@ function authorization(out: Output, block: FacturaCFiscalBlock): void {
   ]);
 }
 
+function groupedShortCode(shortCode: string): string {
+  return `${shortCode.slice(0, SHORT_CODE_GROUP_LENGTH)}-${shortCode.slice(SHORT_CODE_GROUP_LENGTH)}`;
+}
+
 function deferredSaleReference(out: Output, block: DeferredSaleDocumentBlock): void {
   out.lines([RULE]);
-  out.bold(row("Código de consulta", block.shortCode));
+  out.bold(row("Código de consulta", groupedShortCode(block.shortCode)));
   out.feed(QR_TOP_MARGIN_DOTS);
   out.qr(block.qrText);
   out.feed(QR_BOTTOM_MARGIN_DOTS);

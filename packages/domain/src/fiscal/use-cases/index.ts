@@ -218,12 +218,6 @@ export type {
   RecordBuyerTaxStatusSetOutcome,
 } from "./record-buyer-tax-status-set.js";
 export { recordBuyerTaxStatusSet } from "./record-buyer-tax-status-set.js";
-export type { DeferredSaleFacts } from "./record-deferred-sale.js";
-export {
-  recordDeferredSale,
-  recordDeferredSaleAsync,
-  SHORT_CODE_ATTEMPTS,
-} from "./record-deferred-sale.js";
 export type { RecordRegisterHealthCheckOutcome } from "./record-register-health-check.js";
 export { recordRegisterHealthCheck } from "./record-register-health-check.js";
 export type {
