@@ -276,9 +276,7 @@ function discountText({ manualAdjustment, promotion }: ReceiptContent["lines"][n
   if (promotion === null) {
     return "Descuento";
   }
-  return promotion.kind === "PERCENT_OFF"
-    ? `${formatPercent(promotion.percent)} de descuento`
-    : `Lleve ${formatNumber(promotion.buyQty)}, pague ${formatNumber(promotion.payQty)}`;
+  return promotion.name;
 }
 
 function saleDiscountText(discount: NonNullable<ReceiptContent["totals"]["saleDiscount"]>): string {

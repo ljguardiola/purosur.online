@@ -14,7 +14,11 @@ import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
 const NOW = new Date("2026-09-30T12:34:56.789Z");
 const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
 const SESSION = { id: "session-1", openedBy: "cashier" };
-const TEN_PERCENT = { id: "ten", benefit: { kind: "PERCENT_OFF" as const, percent: 10 } };
+const TEN_PERCENT = {
+  id: "ten",
+  name: "Diez por ciento",
+  benefit: { kind: "PERCENT_OFF" as const, percent: 10 },
+};
 const QUESO_LINE: SaleLine = {
   id: "line-1",
   productId: "queso",
