@@ -3531,7 +3531,9 @@ describe("the register's local migrations", () => {
       expect(() => complete("refund-1")).not.toThrow();
       expect(() => complete("refund-1")).toThrow(/UNIQUE|PRIMARY/);
       expect(() =>
-        after.prepare("INSERT INTO refund_completions (refund_id, done_by) VALUES ('x', 'u1')").run(),
+        after
+          .prepare("INSERT INTO refund_completions (refund_id, done_by) VALUES ('x', 'u1')")
+          .run(),
       ).toThrow(/NOT NULL/);
       after.close();
     } finally {

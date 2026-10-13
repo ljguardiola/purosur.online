@@ -4,8 +4,8 @@ import { alerts, auditLog, paymentRefunds, registers } from "../platform/db/sche
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applyCancelledSale } from "../sales/test-support/applied-sales.js";
 import { insertLocation, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
-import { aTransferCancelledSale } from "../sync/test-support/synced-facts.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
+import { aTransferCancelledSale } from "../sync/test-support/synced-facts.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleRefundStore } from "./drizzle-refund-store.js";
 import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fixtures.js";
