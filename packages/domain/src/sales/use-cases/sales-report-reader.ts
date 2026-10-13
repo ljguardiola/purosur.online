@@ -1,8 +1,9 @@
-import type { SalesOfDay, SalesReportRange } from "../model/sales-report.js";
+import type { ReportPeriod } from "../../shared/index.js";
+import type { SalesOfDay } from "../model/sales-report.js";
 
 export interface SalesByDayQuery {
   locationId: string;
-  range: SalesReportRange;
+  range: ReportPeriod;
   registerId: string | undefined;
 }
 

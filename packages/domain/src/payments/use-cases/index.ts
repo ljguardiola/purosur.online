@@ -107,6 +107,12 @@ export type {
 } from "./open-overdue-refund-task-alerts.js";
 export { openOverdueRefundTaskAlerts } from "./open-overdue-refund-task-alerts.js";
 export type {
+  ApprovedPaymentsByMethod,
+  ApprovedPaymentsQuery,
+  PaymentsReportReader,
+  SalesPaidByMethod,
+} from "./payments-report-reader.js";
+export type {
   QrPaymentReplacement,
   QrPaymentReplacementStore,
   QrPaymentReplacementTransaction,
@@ -117,6 +123,11 @@ export type {
   ReadMercadoPagoOrderPaymentOutcome,
 } from "./read-mercado-pago-order-payment.js";
 export { readMercadoPagoOrderPayment } from "./read-mercado-pago-order-payment.js";
+export type {
+  ReadSalesByPaymentMethodInput,
+  SalesByPaymentMethodReport,
+} from "./read-sales-by-payment-method.js";
+export { readSalesByPaymentMethod } from "./read-sales-by-payment-method.js";
 export type {
   LockedRefund,
   PendingRefund,

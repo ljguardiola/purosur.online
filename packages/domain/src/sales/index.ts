@@ -1,3 +1,4 @@
+export { averageTicket } from "./model/average-ticket.js";
 export type { CancelledSale } from "./model/cancelled-sale.js";
 export type { CompletedSale } from "./model/completed-sale.js";
 export { stockMovementsMatchLines } from "./model/completed-sale.js";
@@ -56,7 +57,7 @@ export {
 } from "./model/sale-history.js";
 export type { ListPrice, SoldProduct } from "./model/sale-line.js";
 export { mayBeSaleLineQuantity, saleTotal } from "./model/sale-line.js";
-export type { SalesOfDay, SalesReportRange, SalesReportTotals } from "./model/sales-report.js";
-export { isSalesReportRangeAsked, SALES_REPORT_SALE_STATE } from "./model/sales-report.js";
+export type { SalesOfDay, SalesReportTotals } from "./model/sales-report.js";
+export { SALES_REPORT_SALE_STATE } from "./model/sales-report.js";
 export type { WeightSource } from "./model/weight-source.js";
 export { WEIGHT_SOURCES } from "./model/weight-source.js";

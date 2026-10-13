@@ -1,13 +1,8 @@
-import {
-  reportRegisterListSchema,
-  salesReportQuerySchema,
-  salesReportSchema,
-} from "@purosur/contracts";
+import { reportQuerySchema, salesReportSchema } from "@purosur/contracts";
 import { readSalesByDay } from "@purosur/domain/sales/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readValidatedBody } from "../platform/request-body-schema.js";
-import { DrizzleBranchRegisterStore } from "../register/drizzle-branch-register-store.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
@@ -31,12 +26,11 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const reader = new DrizzleSalesReportReader(options.db);
-  const branchRegisters = new DrizzleBranchRegisterStore(options.db, now);
   const preHandler = sameOriginGuard(options.backofficeOrigin);
   const config = { access: capabilityAccess("reports_area"), sessionSource };
 
   app.get("/reports/sales-by-day", { preHandler, config }, async (request, reply) => {
-    const query = await readValidatedBody(reply, salesReportQuerySchema, request.query);
+    const query = await readValidatedBody(reply, reportQuerySchema, request.query);
     if (!query) {
       return;
     }
@@ -57,15 +51,6 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
           total,
         })),
         totals: { sales_count: report.totals.salesCount, total: report.totals.total },
-      }),
-    );
-  });
-
-  app.get("/reports/registers", { preHandler, config }, async (request, reply) => {
-    const registers = await branchRegisters.branchRegisters(openSessionOf(request).locationId);
-    await reply.code(200).send(
-      reportRegisterListSchema.parse({
-        registers: registers.map(({ id, name }) => ({ id, name })),
       }),
     );
   });

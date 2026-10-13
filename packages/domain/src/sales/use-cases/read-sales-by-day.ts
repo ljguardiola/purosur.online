@@ -1,8 +1,6 @@
-import type { Clock } from "../../shared/index.js";
+import { type Clock, type ReportPeriod, reportPeriodOf } from "../../shared/index.js";
 import {
-  defaultSalesReportRange,
   type SalesOfDay,
-  type SalesReportRange,
   type SalesReportTotals,
   salesReportTotals,
 } from "../model/sales-report.js";
@@ -15,7 +13,7 @@ export interface ReadSalesByDayInput {
 }
 
 export interface SalesByDayReport {
-  range: SalesReportRange;
+  range: ReportPeriod;
   days: SalesOfDay[];
   totals: SalesReportTotals;
 }
@@ -24,10 +22,7 @@ export async function readSalesByDay(
   { reader, clock }: { reader: SalesReportReader; clock: Clock },
   { locationId, asked, registerId }: ReadSalesByDayInput,
 ): Promise<SalesByDayReport> {
-  const range =
-    asked.from !== undefined && asked.to !== undefined
-      ? { from: asked.from, to: asked.to }
-      : defaultSalesReportRange(clock.now());
+  const range = reportPeriodOf(asked, clock.now());
   const days = await reader.completedSalesByDay({ locationId, range, registerId });
   return { range, days, totals: salesReportTotals(days) };
 }

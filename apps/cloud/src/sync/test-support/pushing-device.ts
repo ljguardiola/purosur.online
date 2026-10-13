@@ -248,3 +248,58 @@ export function saleCancelled(options: {
     },
   };
 }
+
+export function saleCancelledAfterStandaloneTerminalPayment(options: {
+  saleId: string;
+  sessionId: string;
+  cancelledAt: string;
+  amount: number;
+}): PushedEventDraft {
+  const paymentId = randomUUID();
+  return {
+    aggregate_type: "Sale",
+    aggregate_id: options.saleId,
+    event_type: "sale_cancelled",
+    schema_version: 5,
+    occurred_at: options.cancelledAt,
+    payload: {
+      id: options.saleId,
+      register_id: randomUUID(),
+      device_id: randomUUID(),
+      session_id: options.sessionId,
+      actor_id: CASHIER,
+      authorized_by: null,
+      occurred_at: options.cancelledAt,
+      total: options.amount,
+      sale_discount: null,
+      lines: [],
+      cash_movements: [],
+      payments: [
+        {
+          id: paymentId,
+          kind: "SALE",
+          method: "STANDALONE_TERMINAL",
+          provider: "EXTERNAL_TERMINAL",
+          amount: options.amount,
+          tendered: null,
+          state: "APPROVED",
+          occurred_at: options.cancelledAt,
+          authorized_by: CASHIER,
+          confirmed_at: options.cancelledAt,
+        },
+      ],
+      refunds: [
+        {
+          id: randomUUID(),
+          kind: "REFUND",
+          parent_id: paymentId,
+          method: "STANDALONE_TERMINAL",
+          provider: "EXTERNAL_TERMINAL",
+          amount: options.amount,
+          state: "PENDING",
+          occurred_at: options.cancelledAt,
+        },
+      ],
+    },
+  };
+}

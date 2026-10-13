@@ -170,13 +170,28 @@ describe("openSaleStanding", () => {
     });
   });
 
-  it("refuses the cancellation of a sale holding an approved standalone terminal payment, planning no refund", () => {
+  it("plans a pending refund for an approved standalone terminal payment, beside the cash one", () => {
     expect(openSaleStanding(5900, [CASH_PAYMENT, STANDALONE_TERMINAL_PAYMENT], [], NOW)).toEqual({
       balance: { paid: 4000, pending: 1900 },
       linesLock: "approved_payment",
       cancellable: false,
-      cancelRefusal: "holds_standalone_terminal_payment",
-      refundsOnCancel: [],
+      cancelRefusal: null,
+      refundsOnCancel: [
+        {
+          paymentId: CASH_PAYMENT.id,
+          method: "CASH",
+          provider: CASH_PAYMENT.provider,
+          amount: CASH_PAYMENT.amount,
+          state: "APPROVED",
+        },
+        {
+          paymentId: STANDALONE_TERMINAL_PAYMENT.id,
+          method: "STANDALONE_TERMINAL",
+          provider: STANDALONE_TERMINAL_PAYMENT.provider,
+          amount: STANDALONE_TERMINAL_PAYMENT.amount,
+          state: "PENDING",
+        },
+      ],
       mercadoPagoChargeInProgress: null,
     });
   });
@@ -251,12 +266,7 @@ describe("saleCancelRefusal", () => {
     ],
     ["a QR payment is approved", [QR_PAYMENT], [], "holds_mercado_pago_payment"],
     ["a terminal payment is approved", [POINT_PAYMENT], [], "holds_mercado_pago_payment"],
-    [
-      "a standalone terminal payment is approved",
-      [STANDALONE_TERMINAL_PAYMENT],
-      [],
-      "holds_standalone_terminal_payment",
-    ],
+    ["a standalone terminal payment is approved", [STANDALONE_TERMINAL_PAYMENT], [], null],
     [
       "a standalone terminal payment and a QR payment are approved",
       [STANDALONE_TERMINAL_PAYMENT, QR_PAYMENT],

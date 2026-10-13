@@ -954,14 +954,19 @@ describe("the sale in progress", () => {
     });
   });
 
-  it("says that an approved standalone terminal payment refuses the cancellation", async () => {
+  it("says that an approved standalone terminal payment leaves a pending refund on cancelling", async () => {
     const saleId = await sellTwoForPayments();
     await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 1000 });
+    const [payment] = database
+      .prepare<[], { id: string }>("SELECT id FROM payment_transactions")
+      .all();
 
     expect(await currentSaleFor(deps())).toMatchObject({
       lines_lock: "approved_payment",
-      cancel_refusal: "holds_standalone_terminal_payment",
-      refunds_on_cancel: [],
+      cancel_refusal: null,
+      refunds_on_cancel: [
+        { payment_id: payment?.id, method: "STANDALONE_TERMINAL", amount: 1000, state: "PENDING" },
+      ],
     });
   });
 
@@ -2949,6 +2954,27 @@ describe("cancelling the open sale of a locked register", () => {
     ]);
   });
 
+  it("leaves a standalone terminal refund pending when it cancels a sale paid there", async () => {
+    addCloser(["close_anothers_register_session", "void_sale"]);
+    const saleId = await sellTwoForPayments();
+    await chargeSaleOnStandaloneTerminalFor(deps({ ids: idsStartingWith("charged") }), {
+      saleId,
+      amount: 1000,
+    });
+    signedInPerson.clear();
+
+    expect(await cancelLockedSaleFor(lockedDeps(), { saleId, closer: CLOSER })).toMatchObject({
+      kind: "cancelled",
+      refunds: [{ method: "STANDALONE_TERMINAL", state: "PENDING" }],
+    });
+    expect(database.prepare("SELECT method, state FROM payment_refunds").all()).toEqual([
+      { method: "STANDALONE_TERMINAL", state: "PENDING" },
+    ]);
+    expect(database.prepare("SELECT id FROM cash_movements WHERE type = 'REFUND'").all()).toEqual(
+      [],
+    );
+  });
+
   it("refuses a closer who may not void a sale with approved payments, changing nothing", async () => {
     addCloser(["close_anothers_register_session"]);
     const saleId = await lockedWithPartPaidSale();
@@ -3079,20 +3105,40 @@ describe("cancelling the sale in progress after a payment was approved", () => {
     ).toEqual([{ type: "REFUND", amount: 1000, actor_id: "u2", authorized_by: null }]);
   });
 
-  it("refuses it, writing nothing, while it holds an approved standalone terminal payment", async () => {
+  it("cancels it while it holds an approved standalone terminal payment, leaving its refund pending with no cash movement and telling the cloud", async () => {
     addPersonWithPin("u2", "Grace", ["sell_and_charge", "void_sale"]);
     database.prepare("UPDATE cash_sessions SET opened_by = 'u2'").run();
     signedInPerson.set("u2");
     const saleId = await sellTwoForPayments();
     await chargeSaleOnStandaloneTerminalFor(deps({ ids }), { saleId, amount: 1000 });
+    const [payment] = database
+      .prepare<[], { id: string }>("SELECT id FROM payment_transactions")
+      .all();
 
     expect(await cancelPaidSaleFor(withPins(), { saleId })).toEqual({
-      kind: "holds_standalone_terminal_payment",
+      kind: "cancelled",
+      refunds: [
+        { payment_id: payment?.id, method: "STANDALONE_TERMINAL", amount: 1000, state: "PENDING" },
+      ],
+      authorized_by: null,
     });
-    expect(saleStates()).toEqual([{ state: "OPEN" }]);
-    expect(database.prepare("SELECT count(*) AS total FROM payment_refunds").get()).toEqual({
-      total: 0,
-    });
+    expect(saleStates()).toEqual([{ state: "CANCELLED" }]);
+    expect(
+      database.prepare("SELECT method, provider, amount, state FROM payment_refunds").all(),
+    ).toEqual([
+      {
+        method: "STANDALONE_TERMINAL",
+        provider: "EXTERNAL_TERMINAL",
+        amount: 1000,
+        state: "PENDING",
+      },
+    ]);
+    expect(database.prepare("SELECT id FROM cash_movements WHERE type = 'REFUND'").all()).toEqual(
+      [],
+    );
+    expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
+      { event_type: "sale_cancelled", schema_version: 5 },
+    ]);
   });
 
   it("cancels it with the PIN of a person who holds the permission, naming who authorized it", async () => {

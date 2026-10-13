@@ -24,6 +24,7 @@ opensOnlyScreens([
   "/purchase-packagings",
   "/purchases",
   "/purchases/new",
+  "/recipes",
   "/suppliers",
 ]);
 
@@ -65,6 +66,10 @@ function stockServices(capabilities: Capability[]) {
     kind: "ok",
     value: { packagings: [], products: [] },
   });
+  vi.mocked(services.recipesListScreen.fetchRecipes).mockResolvedValue({
+    kind: "ok",
+    value: { recipes: [], products: [] },
+  });
   vi.mocked(services.purchasesListScreen.fetchPurchases).mockResolvedValue({
     kind: "ok",
     value: [],
@@ -83,6 +88,7 @@ const SECTION_LABELS = [
   "Proveedores",
   "Presentaciones de compra",
   "Compras",
+  "Recetas",
   "Inventario inicial",
 ];
 
@@ -94,6 +100,7 @@ test.each([
   ["suppliers", "Proveedores", "/suppliers"],
   ["purchase_packagings", "Presentaciones de compra", "/purchase-packagings"],
   ["purchases", "Compras", "/purchases"],
+  ["recipes", "Recetas", "/recipes"],
   ["initial_inventory", "Inventario inicial", "/initial-inventory"],
 ] as const)(
   "opens only %s's section from the rail's Stock item: %s",
@@ -206,6 +213,9 @@ test.each([
   ["/purchases", "suppliers"],
   ["/purchases/new", "suppliers"],
   ["/initial-inventory", "suppliers"],
+  ["/recipes", "purchases"],
+  ["/suppliers", "recipes"],
+  ["/purchases", "recipes"],
 ] as const)("sends a user who may not open %s to Mi cuenta", async (path, capability) => {
   const services = stockServices([capability, "stock_area"]);
   window.history.pushState(null, "", path);
@@ -262,6 +272,7 @@ const STOCK_SCREENS = [
   ["/purchase-packagings", "Presentaciones de compra"],
   ["/purchases", "Compras"],
   ["/purchases/new", "Registrar compra"],
+  ["/recipes", "Recetas"],
   ["/initial-inventory", "Inventario inicial"],
 ] as const;
 

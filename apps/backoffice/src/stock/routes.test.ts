@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import {
   initialInventoryFilters,
+  recipesListFilters,
   stockBalancesFilters,
   stockCountsFilters,
   stockMovementsFilters,
@@ -83,4 +84,14 @@ test("keeps the initial inventory filters a URL names, falling back for a value 
   expect(initialInventoryFilters.parse({ search: 1, cost: "free" })).toEqual(
     initialInventoryFilters.parse({}),
   );
+});
+
+test("opens the recipes without a search, by product in ascending order", () => {
+  expect(recipesListFilters.parse({})).toEqual({ search: "", sort: "ascending" });
+});
+
+test("keeps the recipes filters a URL names, falling back for a value it does not offer", () => {
+  const filters = { search: "mix", sort: "descending" };
+  expect(recipesListFilters.parse(filters)).toEqual(filters);
+  expect(recipesListFilters.parse({ search: 1, sort: "up" })).toEqual(recipesListFilters.parse({}));
 });
