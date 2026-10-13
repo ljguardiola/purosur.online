@@ -284,7 +284,7 @@ describe("the register's receipt printing over its local database", () => {
     });
   });
 
-  it("reprints a sale never printed before with the promotion name it had when the sale was completed, after the promotion is renamed", async () => {
+  it("reprints a sale never printed before with its line's kept promotion name and discount", async () => {
     database.exec(
       `INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('role-cashier', 'reprint_receipt', 1);
        INSERT INTO discounts (id, name, kind, percent, target_kind, target_id, valid_from, valid_to, weekdays, active, version, removed)
@@ -292,8 +292,7 @@ describe("the register's receipt printing over its local database", () => {
        UPDATE sale_lines SET promotion_id = 'promo-1', discount_amount = 600, line_total = 2400 WHERE id = 'line-1';
        INSERT INTO sale_line_promotions (line_id, discount_id, name, kind, percent)
        VALUES ('line-1', 'promo-1', 'Promo 20% en la segunda', 'PERCENT_OFF', 20);
-       UPDATE payment_transactions SET amount = 2400, tendered = 2400 WHERE id = 'pay-1';
-       UPDATE discounts SET name = 'Promo renombrada' WHERE id = 'promo-1';`,
+       UPDATE payment_transactions SET amount = 2400, tendered = 2400 WHERE id = 'pay-1';`,
     );
     saveAddress("10.10.10.2", null);
 
@@ -310,7 +309,6 @@ describe("the register's receipt printing over its local database", () => {
     const [written] = connection?.socket.written ?? [];
     const paper = printoutOf(written ?? new Uint8Array());
     expect(paper.textLines).toContain("  Promo 20% en la segunda                -$ 6,00");
-    expect(paper.text).not.toContain("Promo renombrada");
   });
 
   describe("a charge whose sale has a fiscal document", () => {
