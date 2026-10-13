@@ -1,3 +1,4 @@
+import type { ReportRegisterListBody } from "@purosur/contracts";
 import type { PermissionKey } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -9,6 +10,7 @@ import type {
   RegisterSummary,
   RegisterSyncStatus,
 } from "./registers-api";
+import type { fetchReportRegisters } from "./report-registers-api";
 
 export const registerKey = ["register"] as const;
 
@@ -16,6 +18,7 @@ export const registerKeys = {
   registers: [...registerKey, "registers"] as const,
   coverage: [...registerKey, "coverage"] as const,
   syncStatus: [...registerKey, "sync-status"] as const,
+  reportRegisters: [...registerKey, "report-registers"] as const,
 };
 
 export function useRegistersQuery(params: {
@@ -52,6 +55,19 @@ export function useRegisterSyncStatusQuery(params: {
   return useCloudQuery<RegisterSyncStatus[]>({
     queryKey: registerKeys.syncStatus,
     read: params.fetchRegisterSyncStatus,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useReportRegistersQuery(params: {
+  fetchReportRegisters: typeof fetchReportRegisters;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<ReportRegisterListBody>({
+    queryKey: registerKeys.reportRegisters,
+    read: params.fetchReportRegisters,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

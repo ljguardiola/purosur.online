@@ -2,7 +2,7 @@ import type { PendingRefundsBody } from "@purosur/contracts";
 import { Button, formatCents, InlineNotice, Modal } from "@purosur/ui";
 import { CircleCheck, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { refundMethodLabel } from "../platform/refund-method-label";
+import { paymentMethodLabel } from "../platform/payment-method-label";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { markRefundDone } from "./refunds-api";
@@ -146,7 +146,7 @@ export function MarkRefundDoneModal({
         {shown ? (
           <p className="text-body text-text">
             Confirmá que ya se lo devolviste al cliente por{" "}
-            {refundMethodLabel(shown.method).toLowerCase()}.
+            {paymentMethodLabel(shown.method).toLowerCase()}.
           </p>
         ) : null}
         {notice?.kind === "attemptFailed" && (

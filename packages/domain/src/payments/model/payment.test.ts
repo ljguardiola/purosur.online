@@ -1,5 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
+  APPROVED_PAYMENT_STATE,
   cancellableWithoutAuthorization,
   hasApprovedPayment,
   holdsApprovedMercadoPagoPayment,
@@ -148,6 +149,12 @@ describe("the Mercado Pago methods and providers", () => {
     for (const method of MERCADO_PAGO_PAYMENT_METHODS) {
       expect(PAYMENT_METHODS).toContain(method);
     }
+  });
+});
+
+describe("APPROVED_PAYMENT_STATE", () => {
+  it("is the state of a payment that was charged", () => {
+    expect(APPROVED_PAYMENT_STATE).toBe("APPROVED");
   });
 });
 
