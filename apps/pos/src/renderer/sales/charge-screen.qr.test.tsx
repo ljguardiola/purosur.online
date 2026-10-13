@@ -41,6 +41,7 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
           method: "QR",
           amount: 476_000,
           remaining_seconds: 120,
+          wait_seconds: 180,
         },
       }),
     });

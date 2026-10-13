@@ -45,6 +45,7 @@ describe("startMercadoPagoCharge on the integrated terminal", () => {
       paymentTransactionId: CHARGE_PAYMENT_ID,
       amount: 5000,
       remainingSeconds: 180,
+      waitSeconds: 180,
     });
     expect(world.pendingCharge(CHARGE_PAYMENT_ID)?.waitEndsAt).toEqual(CHARGE_WAIT_ENDS_AT);
     expect(world.operations).toEqual(["recordPendingPayment", "requestOrder"]);
@@ -83,6 +84,7 @@ describe("startMercadoPagoCharge on the integrated terminal", () => {
       paymentTransactionId: CHARGE_PAYMENT_ID,
       amount: 5000,
       remainingSeconds: 180,
+      waitSeconds: 180,
     });
     expect(world.pendingCharge(CHARGE_PAYMENT_ID)).not.toBeNull();
     expect(world.operations).toEqual(["recordPendingPayment", "requestOrder"]);

@@ -90,17 +90,23 @@ describe("followMercadoPagoCharge on the integrated terminal", () => {
     expect(world.operations).toEqual(["readOrder", "recordEnded:DECLINED"]);
   });
 
-  it.each(["CANCELLED", "EXPIRED"] as const)(
-    "answers closed, ending the payment, when Mercado Pago reports the order %s",
-    async (state) => {
-      const world = followingWorld();
-      world.orderReading = { kind: "read", state };
+  it("answers closed, ending the payment, when Mercado Pago reports the order cancelled", async () => {
+    const world = followingWorld();
+    world.orderReading = { kind: "read", state: "CANCELLED" };
 
-      expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "closed" });
-      expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
-      expect(world.operations).toEqual(["readOrder", ["recordEnded", state].join(":")]);
-    },
-  );
+    expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "closed" });
+    expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
+    expect(world.operations).toEqual(["readOrder", "recordEnded:CANCELLED"]);
+  });
+
+  it("answers expired, ending the payment, when Mercado Pago reports the order expired", async () => {
+    const world = followingWorld();
+    world.orderReading = { kind: "read", state: "EXPIRED" };
+
+    expect(await followMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "expired" });
+    expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
+    expect(world.operations).toEqual(["readOrder", "recordEnded:EXPIRED"]);
+  });
 
   it.each([
     ["before the wait ends", new Date("2026-10-09T12:00:19.000Z")],

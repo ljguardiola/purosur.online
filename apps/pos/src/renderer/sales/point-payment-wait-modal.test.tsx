@@ -16,10 +16,12 @@ const ORDER = {
   payment_transaction_id: PAYMENT_ID,
   amount: 3_000_000,
   remaining_seconds: 180,
+  wait_seconds: 180,
 } as const;
 const WAITING: FollowMercadoPagoChargeOutcome = { kind: "waiting", remaining_seconds: 161 };
 const WAIT_OVER: FollowMercadoPagoChargeOutcome = { kind: "at_terminal_wait_over" };
 const CLOSED: FollowMercadoPagoChargeOutcome = { kind: "closed" };
+const EXPIRED: FollowMercadoPagoChargeOutcome = { kind: "expired" };
 const COMPLETED = { kind: "completed", sale_id: "sale-1", total: TOTAL } as const;
 const PARTIALLY_PAID = {
   kind: "partially_paid",
@@ -109,6 +111,17 @@ describe("PointPaymentWaitModal", () => {
       const { screen } = await renderModal(() => new Promise(() => {}));
 
       await expect.element(screen.getByText("3:00").first()).toBeVisible();
+    });
+
+    it("shows the whole wait as the total of a charge reopened part way through it", async () => {
+      const { screen } = await renderModal(
+        answering({ kind: "waiting", remaining_seconds: 40 }),
+        undefined,
+        { ...ORDER, remaining_seconds: 40 },
+      );
+
+      await expect.element(screen.getByText("0:40")).toBeVisible();
+      await expect.element(screen.getByText("de 3:00")).toBeVisible();
     });
 
     it("offers only Cambiar de medio, with no way to close it", async () => {
@@ -248,6 +261,32 @@ describe("PointPaymentWaitModal", () => {
   });
 
   describe("when the wait is over and the order is still on the terminal", () => {
+    it("shows the whole wait as the total of a charge reopened after its wait", async () => {
+      const { screen } = await renderModal(answering(WAIT_OVER), undefined, {
+        ...ORDER,
+        remaining_seconds: 0,
+      });
+
+      await expect
+        .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
+        .toBeVisible();
+      await expect.element(screen.getByText("de 3:00")).toBeVisible();
+    });
+
+    it("offers Elegir otro medio without the expiry notice when the order then expires", async () => {
+      const { screen, callbacks } = await renderModal(answering(WAIT_OVER, EXPIRED));
+
+      await expect
+        .element(screen.getByRole("button", { name: "Elegir otro medio" }), {
+          timeout: NEXT_ASK_TIMEOUT_MS,
+        })
+        .toBeEnabled();
+      await expect
+        .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
+        .toBeVisible();
+      expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
+    });
+
     it("tells to cancel on the terminal and offers Elegir otro medio only once the terminal closes the order", async () => {
       const { screen, callbacks } = await renderModal(answering(WAIT_OVER, WAIT_OVER, CLOSED));
 
@@ -439,6 +478,27 @@ describe("PointPaymentWaitModal", () => {
       await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       expect(callbacks.onCompleted.mock.calls).toEqual([[{ ...COMPLETED, amount: 3_000_000 }]]);
+    });
+  });
+
+  describe("when Mercado Pago expired the order", () => {
+    it("tells nothing was charged and goes back to the methods only from Elegir otro medio", async () => {
+      const { screen, callbacks } = await renderModal(answering(WAITING, EXPIRED));
+
+      await expect
+        .element(screen.getByRole("heading", { name: "El cobro venció en la terminal" }), {
+          timeout: NEXT_ASK_TIMEOUT_MS,
+        })
+        .toBeVisible();
+      await expect.element(screen.getByText("POINT INTEGRADA")).toBeVisible();
+      await expect.element(screen.getByText("No se cobró nada.")).toBeVisible();
+      expect(buttonLabels(screen)).toEqual(["Elegir otro medio"]);
+      expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
+      await expectNoAccessibilityViolations(screen.container);
+
+      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
+      expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
     });
   });
 

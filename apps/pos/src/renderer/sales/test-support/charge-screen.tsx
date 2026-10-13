@@ -114,6 +114,7 @@ export const QR_ORDER_SHOWN: StartMercadoPagoChargeOutcome = {
   payment_transaction_id: QR_PAYMENT_ID,
   amount: 476_000,
   remaining_seconds: 180,
+  wait_seconds: 180,
 };
 const QR_WAITING: FollowMercadoPagoChargeOutcome = { kind: "waiting", remaining_seconds: 170 };
 
@@ -123,6 +124,7 @@ export const POINT_ORDER_SHOWN: StartMercadoPagoChargeOutcome = {
   payment_transaction_id: POINT_PAYMENT_ID,
   amount: 476_000,
   remaining_seconds: 180,
+  wait_seconds: 180,
 };
 
 export const AVAILABLE: PaymentMethodAvailability = {
@@ -256,6 +258,7 @@ export function saleWithChargeInProgress(
       method,
       amount: 476_000,
       remaining_seconds: remainingSeconds,
+      wait_seconds: 180,
     },
   };
 }

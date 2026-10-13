@@ -112,6 +112,7 @@ describe("saleSchema", () => {
         method,
         amount: 2000,
         remaining_seconds: 0,
+        wait_seconds: 180,
       };
 
       expect(
@@ -130,6 +131,7 @@ describe("saleSchema", () => {
         method: "CASH",
         amount: 2000,
         remaining_seconds: 0,
+        wait_seconds: 180,
       },
     ],
     [
@@ -139,6 +141,36 @@ describe("saleSchema", () => {
         method: "QR",
         amount: 2000,
         remaining_seconds: -1,
+        wait_seconds: 180,
+      },
+    ],
+    [
+      "with a charge in progress without the full wait",
+      {
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000b1",
+        method: "POINT",
+        amount: 2000,
+        remaining_seconds: 0,
+      },
+    ],
+    [
+      "with a charge in progress with no full wait",
+      {
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000b1",
+        method: "POINT",
+        amount: 2000,
+        remaining_seconds: 0,
+        wait_seconds: 0,
+      },
+    ],
+    [
+      "with a charge in progress with a negative full wait",
+      {
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000b1",
+        method: "POINT",
+        amount: 2000,
+        remaining_seconds: 0,
+        wait_seconds: -1,
       },
     ],
   ])("rejects a sale %s", (_case, mercado_pago_charge_in_progress) => {

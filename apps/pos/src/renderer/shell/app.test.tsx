@@ -1940,6 +1940,7 @@ describe("App", () => {
           payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
           amount,
           remaining_seconds: 180,
+          wait_seconds: 180,
         }),
         followMercadoPagoCharge: async () => ({
           kind: "completed",
@@ -2017,6 +2018,7 @@ describe("App", () => {
           payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
           amount,
           remaining_seconds: 180,
+          wait_seconds: 180,
         }),
         followMercadoPagoCharge: async () => ({ kind: "waiting", remaining_seconds: 170 }),
         abandonMercadoPagoCharge: async () => ({

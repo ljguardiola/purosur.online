@@ -230,6 +230,7 @@ describe("current-sale charge refusal", () => {
         method: "QR",
         amount: 5000,
         remainingSeconds: 60,
+        waitSeconds: 180,
       },
     });
   });

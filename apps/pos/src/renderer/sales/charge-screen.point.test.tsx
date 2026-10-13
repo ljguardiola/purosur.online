@@ -171,7 +171,7 @@ describe("ChargeScreen · Point integrada", () => {
         .toBeVisible();
     });
 
-    it("keeps the time the wait started with while the sale is read again", async () => {
+    it("shows the whole wait as the total while the sale is read again", async () => {
       const { screen, currentSale } = await renderScreen({
         currentSale: readsInTurn(
           saleWithChargeInProgress("POINT", 120),
@@ -183,7 +183,35 @@ describe("ChargeScreen · Point integrada", () => {
       await expect
         .poll(() => currentSale.mock.calls.length, { timeout: NEXT_ASK_TIMEOUT_MS })
         .toBeGreaterThan(1);
-      await expect.element(screen.getByText("de 2:00")).toBeVisible();
+      await expect.element(screen.getByText("de 3:00")).toBeVisible();
+    });
+
+    it("shows the whole wait as the total of a charge reopened after its wait", async () => {
+      const { screen } = await renderScreen({
+        currentSale: readsInTurn(saleWithChargeInProgress("POINT", 0)),
+        followMercadoPagoCharge: async () => ({ kind: "at_terminal_wait_over" }),
+      });
+
+      await expect
+        .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
+        .toBeVisible();
+      await expect.element(screen.getByText("de 3:00")).toBeVisible();
+    });
+
+    it("tells the order expired and goes back to the methods from Elegir otro medio", async () => {
+      const { screen } = await renderScreen({
+        currentSale: readsInTurn(saleWithChargeInProgress("POINT", 120)),
+        followMercadoPagoCharge: async () => ({ kind: "expired" }),
+      });
+
+      await expect
+        .element(screen.getByRole("heading", { name: "El cobro venció en la terminal" }))
+        .toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
+      await expect
+        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
+        .toBeVisible();
     });
   });
 
@@ -194,6 +222,7 @@ describe("ChargeScreen · Point integrada", () => {
         payment_transaction_id: POINT_PAYMENT_ID,
         amount: 476_000,
         remaining_seconds: 180,
+        wait_seconds: 180,
       }),
       followMercadoPagoCharge: async () => ({ kind: "waiting", remaining_seconds: 170 }),
     });

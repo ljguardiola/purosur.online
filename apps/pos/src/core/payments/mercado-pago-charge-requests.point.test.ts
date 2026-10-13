@@ -106,6 +106,7 @@ describe("starting a charge on the integrated terminal at the register", () => {
       payment_transaction_id: "qr-1",
       amount: 2000,
       remaining_seconds: 180,
+      wait_seconds: 180,
     });
     expect(orders.pendingRowsWhenAsked).toEqual([{ id: "qr-1", state: "PENDING" }]);
     expect(orders.requested).toEqual([
@@ -167,6 +168,7 @@ describe("starting a charge on the integrated terminal at the register", () => {
       payment_transaction_id: "qr-1",
       amount: 3000,
       remaining_seconds: 180,
+      wait_seconds: 180,
     });
     expect(pointRows()).toMatchObject([{ state: "PENDING" }]);
     expect((await openSale()).lines_lock).toBe("mercado_pago_charge_in_progress");
@@ -234,6 +236,7 @@ describe("a charge on the integrated terminal whose wait ran out, after the regi
         method: "POINT",
         amount: 3000,
         remaining_seconds: 0,
+        wait_seconds: 180,
       },
     });
     const followed =
@@ -282,9 +285,12 @@ describe("a charge on the integrated terminal whose wait ran out, after the regi
     expect(pointRows()).toMatchObject([{ state: "PENDING" }]);
   });
 
-  it.each(["CANCELLED", "EXPIRED"] as const)(
-    "releases the sale once the cloud says the order is %s",
-    async (state) => {
+  it.each([
+    ["CANCELLED", "closed"],
+    ["EXPIRED", "expired"],
+  ] as const)(
+    "releases the sale once the cloud says the order is %s, answering %s",
+    async (state, kind) => {
       const { paymentId } = await pointChargeStarted();
       const orders = new FakeOrders();
       orders.reading = { kind: "read", state };
@@ -293,7 +299,7 @@ describe("a charge on the integrated terminal whose wait ran out, after the regi
         await followMercadoPagoChargeFor(await restarted(orders), {
           paymentTransactionId: paymentId,
         }),
-      ).toEqual({ kind: "closed" });
+      ).toEqual({ kind });
       expect(pointRows()).toMatchObject([{ state }]);
       expect(await currentSaleFor(await restarted(new FakeOrders()))).toMatchObject({
         lines_lock: null,

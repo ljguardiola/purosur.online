@@ -71,18 +71,21 @@ describe("starting a Mercado Pago QR charge", () => {
       payment_transaction_id: PAYMENT_ID,
       amount: 2000,
       remaining_seconds: 180,
+      wait_seconds: 180,
     },
     {
       kind: "order_shown",
       payment_transaction_id: PAYMENT_ID,
       amount: 2000,
       remaining_seconds: 0,
+      wait_seconds: 180,
     },
     {
       kind: "order_unconfirmed",
       payment_transaction_id: PAYMENT_ID,
       amount: 2000,
       remaining_seconds: 180,
+      wait_seconds: 180,
     },
     { kind: "order_refused" },
     { kind: "unreachable" },
@@ -118,6 +121,7 @@ describe("starting a Mercado Pago QR charge", () => {
         payment_transaction_id: PAYMENT_ID,
         amount: 2000,
         remaining_seconds,
+        wait_seconds: 180,
       },
     };
 
@@ -133,6 +137,7 @@ describe("starting a Mercado Pago QR charge", () => {
         payment_transaction_id: PAYMENT_ID,
         amount: 2000,
         remaining_seconds: 190,
+        wait_seconds: 180,
       },
     };
 
@@ -148,6 +153,28 @@ describe("starting a Mercado Pago QR charge", () => {
         payment_transaction_id: PAYMENT_ID,
         amount: 0,
         remaining_seconds: 180,
+        wait_seconds: 180,
+      },
+    };
+
+    expect(paymentsCoreToRendererMessageSchema.safeParse(result).success).toBe(false);
+  });
+
+  it.each([
+    ["without the full wait", undefined],
+    ["with no full wait", 0],
+    ["with a negative full wait", -1],
+    ["with a full wait in part of a second", 1.5],
+  ])("rejects an order shown %s", (_case, wait_seconds) => {
+    const result = {
+      type: "start-mercado-pago-charge-result",
+      request_id: REQUEST_ID,
+      outcome: {
+        kind: "order_shown",
+        payment_transaction_id: PAYMENT_ID,
+        amount: 2000,
+        remaining_seconds: 100,
+        wait_seconds,
       },
     };
 
@@ -182,6 +209,7 @@ describe("following a Mercado Pago QR charge", () => {
     { kind: "wait_over" },
     { kind: "at_terminal_wait_over" },
     { kind: "closed" },
+    { kind: "expired" },
     { kind: "expiry_unconfirmed" },
     { kind: "declined" },
     { kind: "not_pending" },
@@ -285,6 +313,7 @@ describe("abandoning a Mercado Pago QR charge", () => {
     { kind: "already_paid", settlement: { kind: "replaced" } },
     { kind: "already_paid", settlement: { kind: "completed", sale_id: "s1" } },
     { kind: "waiting", remaining_seconds: 10 },
+    { kind: "expired" },
     { kind: "completed", sale_id: "s1", total: 3000 },
   ])("rejects the result %j", (outcome) => {
     const result = {

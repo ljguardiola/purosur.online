@@ -922,6 +922,13 @@ describe("the sale in progress", () => {
       lines_lock: "mercado_pago_charge_in_progress",
       cancel_refusal: "mercado_pago_charge_in_progress",
       refunds_on_cancel: [],
+      mercado_pago_charge_in_progress: {
+        payment_transaction_id: "qr-1",
+        method: "QR",
+        amount: 1000,
+        remaining_seconds: 60,
+        wait_seconds: 180,
+      },
     });
   });
 

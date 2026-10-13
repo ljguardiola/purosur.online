@@ -127,6 +127,7 @@ describe("openSaleStanding", () => {
       method: "POINT",
       amount: 4000,
       remainingSeconds: 0,
+      waitSeconds: 180,
     });
   });
 

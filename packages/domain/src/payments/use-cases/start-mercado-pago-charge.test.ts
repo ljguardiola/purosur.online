@@ -59,6 +59,7 @@ describe("startMercadoPagoCharge", () => {
       paymentTransactionId: CHARGE_PAYMENT_ID,
       amount: 5000,
       remainingSeconds: 180,
+      waitSeconds: 180,
     });
   });
 
