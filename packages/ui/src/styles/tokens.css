@@ -185,6 +185,10 @@
   max-height: calc(100vh - 3rem);
 }
 
+@utility max-w-modal {
+  max-width: calc(100vw - 3rem);
+}
+
 @utility grid-cols-chart {
   grid-template-columns: minmax(4rem, max-content) minmax(0, 1fr);
 }
