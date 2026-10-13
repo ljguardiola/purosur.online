@@ -80,6 +80,7 @@ export function NewRecipeModal({
       }
       if (outcome.kind === "stale_version") {
         setNotice({ kind: "staleVersion" });
+        void refreshStock();
         return;
       }
       if (outcome.kind === "component_not_found" || outcome.kind === "invalid_recipe") {

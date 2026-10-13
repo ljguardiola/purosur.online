@@ -54,7 +54,7 @@ export function RecipesListScreen({
   const [search, setSearch] = useState(filters.search);
   const [sort, setSort] = useState<TableSort<"product">>({
     column: "product",
-    direction: "ascending",
+    direction: filters.sort,
   });
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<RecipeSummary | null>(null);
@@ -62,11 +62,11 @@ export function RecipesListScreen({
   const reportFilters = useEffectEvent(onFiltersChange);
 
   useEffect(() => {
-    const shown: RecipesListFilters = { search };
+    const shown: RecipesListFilters = { search, sort: sort.direction };
     if (!deepEqual(shown, filters)) {
       reportFilters(shown);
     }
-  }, [search, filters]);
+  }, [search, sort.direction, filters]);
 
   useEffect(() => {
     if (data.status === "failed") {

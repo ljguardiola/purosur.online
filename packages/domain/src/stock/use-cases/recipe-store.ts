@@ -27,10 +27,8 @@ export class RecipeVersionConflict extends Error {}
 export interface RecipeStoreTransaction {
   // Holds the product's row, whether it is the assembled product or a component.
   lockProduct(productId: string): Promise<LockRecipeProductResult>;
-  // The version of the product's recipe, or null when it has none.
   recipeVersion(productId: string): Promise<number | null>;
   insertRecipe(fields: NewRecipeFields): Promise<void>;
-  // Replaces the whole recipe, components included.
   replaceRecipe(fields: RecipeReplacementFields): Promise<void>;
 }
 

@@ -37,6 +37,7 @@ export const RECIPE_FIELDS = { components: "components", version: null } as cons
 export const RECIPE_PRODUCT_REQUIRED = "Elegí el producto armado.";
 export const RECIPE_PRODUCT_NOT_FOUND = "Este producto ya no está disponible. Elegí otro.";
 export const RECIPE_NO_COMPONENTS = "Agregá al menos un componente.";
+const RECIPE_QUANTITY_NOT_POSITIVE = "ingresá una cantidad mayor a cero.";
 const RECIPE_COMPONENT_NOT_FOUND = "Este componente ya no está disponible. Quitalo.";
 const RECIPE_COMPONENT_REPEATED = "Este componente está repetido.";
 const RECIPE_COMPONENT_IS_PRODUCT =
@@ -116,8 +117,11 @@ export function recipeComponentsMessage({ components }: RecipeFormValues): strin
   if (!wrong) {
     return "Revisá los componentes.";
   }
-  return wrong.quantity.trim() === ""
-    ? `${wrong.name}: ingresá la cantidad.`
+  if (wrong.quantity.trim() === "") {
+    return `${wrong.name}: ingresá la cantidad.`;
+  }
+  return parseStockQuantity(wrong.quantity, wrong.saleUnit) === 0
+    ? `${wrong.name}: ${RECIPE_QUANTITY_NOT_POSITIVE}`
     : `${wrong.name}: ${withLowercaseInitial(quantityMessage(wrong.saleUnit))}`;
 }
 

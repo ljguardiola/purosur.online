@@ -57,6 +57,7 @@ export type InitialInventoryFilters = z.output<typeof initialInventoryFilters>;
 
 export const recipesListFilters = z.object({
   search: z.string().default("").catch(""),
+  sort: z.enum(["ascending", "descending"]).default("ascending").catch("ascending"),
 });
 
 export type RecipesListFilters = z.output<typeof recipesListFilters>;
