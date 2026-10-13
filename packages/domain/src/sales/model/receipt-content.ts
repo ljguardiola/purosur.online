@@ -6,7 +6,6 @@ import type {
   FacturaCFiscalBlock,
 } from "../../fiscal/index.js";
 import { deferredSaleDocumentBlock, facturaCFiscalBlock } from "../../fiscal/index.js";
-import type { DiscountBenefit } from "../../pricing/index.js";
 import type { CompletedSalePayment } from "./completed-sale.js";
 import type { ManualAdjustmentValue } from "./manual-adjustment.js";
 import type { LinePromotion } from "./sale.js";
@@ -63,7 +62,7 @@ interface ReceiptContentLine {
   listUnitPrice: number;
   chargedUnitPrice: number;
   manualAdjustment: ManualAdjustmentValue | null;
-  promotion: DiscountBenefit | null;
+  promotion: { name: string } | null;
   discountAmount: number;
   lineTotal: number;
 }
@@ -99,6 +98,14 @@ function receiptSaleDiscount(
     : { kind: "AMOUNT", amount };
 }
 
+function appliedPromotion(
+  promotions: LinePromotion[],
+  promotionId: string | null,
+): ReceiptContentLine["promotion"] {
+  const applied = promotions.find(({ id }) => id === promotionId);
+  return applied === undefined ? null : { name: applied.name };
+}
+
 export function receiptContent(source: ReceiptSource): ReceiptContent {
   const lines = source.lines.map(
     ({ promotions, promotionId, ...line }): ReceiptContentLine => ({
@@ -107,7 +114,7 @@ export function receiptContent(source: ReceiptSource): ReceiptContent {
         line.manualAdjustment?.kind === "PRICE"
           ? line.manualAdjustment.unitPrice
           : line.listUnitPrice,
-      promotion: promotions.find(({ id }) => id === promotionId)?.benefit ?? null,
+      promotion: appliedPromotion(promotions, promotionId),
     }),
   );
   const subtotal = lines.reduce((sum, { lineTotal }) => sum + lineTotal, 0);

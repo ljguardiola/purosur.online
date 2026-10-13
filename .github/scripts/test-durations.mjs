@@ -1,6 +1,7 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join, relative } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, relative } from "node:path";
 import { BaseSequencer } from "vitest/node";
+import { decodeDurations } from "./test-durations-payload.mjs";
 
 export function durationKey(projectName, relativeModuleId) {
   return `${projectName}:${relativeModuleId.replaceAll("\\", "/")}`;
@@ -56,49 +57,7 @@ export function shardPlan(entries, durations, { index, count }) {
   };
 }
 
-async function jsonFilesUnder(dir) {
-  const found = [];
-  for (const dirent of await readdir(dir, { withFileTypes: true })) {
-    const path = join(dir, dirent.name);
-    if (dirent.isDirectory()) {
-      found.push(...(await jsonFilesUnder(path)));
-    } else if (dirent.name.endsWith(".json")) {
-      found.push(path);
-    }
-  }
-  return found;
-}
-
-function isDurationsObject(value) {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.values(value).every((ms) => typeof ms === "number" && Number.isFinite(ms))
-  );
-}
-
-export async function readDurations(dir) {
-  if (dir === undefined) return {};
-  let files;
-  try {
-    files = await jsonFilesUnder(dir);
-  } catch (error) {
-    if (error?.code === "ENOENT") return {};
-    throw error;
-  }
-  const merged = {};
-  for (const file of files.sort()) {
-    const parsed = JSON.parse(await readFile(file, "utf8"));
-    if (!isDurationsObject(parsed)) {
-      throw new Error(`test-durations: ${file} is not an object of file keys to milliseconds`);
-    }
-    Object.assign(merged, parsed);
-  }
-  return merged;
-}
-
-export function durationBalancedSequencer(durationsDir) {
+export function durationBalancedSequencer(durationsPayload) {
   return class DurationBalancedSequencer extends BaseSequencer {
     async shard(files) {
       const { root, shard } = this.ctx.config;
@@ -111,10 +70,14 @@ export function durationBalancedSequencer(durationsDir) {
         key,
         project: spec.project.name,
       }));
-      const plan = shardPlan(entries, await readDurations(durationsDir), shard);
+      const durations = decodeDurations(durationsPayload);
+      const plan = shardPlan(entries, durations, shard);
+      const position = `test-durations: shard ${shard.index}/${shard.count} runs ${plan.entries.length} files`;
       this.ctx.logger.log(
-        `test-durations: shard ${shard.index}/${shard.count} runs ${plan.entries.length} files, ` +
-          `about ${Math.round(plan.estimatedMs / 1000)}s, ${plan.measuredCount} with a measured duration`,
+        Object.keys(durations).length === 0
+          ? `${position} without durations, split by file count`
+          : `${position}, about ${Math.round(plan.estimatedMs / 1000)}s, ` +
+              `${plan.measuredCount} with a measured duration`,
       );
       return plan.entries.map((e) => byKey.get(e.key));
     }

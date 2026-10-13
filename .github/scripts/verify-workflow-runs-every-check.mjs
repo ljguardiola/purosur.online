@@ -787,6 +787,34 @@ export function findPlaywrightInstallViolations(workflowSource) {
   return violations;
 }
 
+function downloadsArtifacts(doc, step) {
+  const run = resolveScalar(doc, mapGet(doc, step, "run"));
+  const uses = resolveScalar(doc, mapGet(doc, step, "uses"));
+  return (
+    (typeof run === "string" && /\bgh\s+run\s+download\b/.test(run)) ||
+    (typeof uses === "string" && uses.startsWith("actions/download-artifact@"))
+  );
+}
+
+export function findShardDownloadViolations(workflowSource) {
+  const doc = parseDocument(workflowSource);
+  const jobsNode = resolveNode(doc, doc.get("jobs", true));
+  if (!isMap(jobsNode)) return [];
+
+  const violations = [];
+  for (const jobPair of jobsNode.items) {
+    const jobId = String(resolveScalar(doc, jobPair.key));
+    const job = resolveNode(doc, jobPair.value);
+    if (matrixNode(doc, job) === undefined) continue;
+    if (steps(doc, job).some((step) => downloadsArtifacts(doc, step))) {
+      violations.push(
+        `verify.yml's ${jobId} job downloads artifacts in each of its matrix jobs; a download can fail in one and succeed in another, so they would work from different inputs. Download once in a job they need and hand them its output`,
+      );
+    }
+  }
+  return violations;
+}
+
 export function checkRepository({
   readFile = (path) => readFileSync(path, "utf8"),
   workflowPath = WORKFLOW_PATH,
@@ -812,5 +840,6 @@ export function checkRepository({
     ),
     ...findPrePulledJobTimeoutViolations(workflowSource),
     ...findPlaywrightInstallViolations(workflowSource),
+    ...findShardDownloadViolations(workflowSource),
   ];
 }

@@ -10,7 +10,7 @@ import {
   TextField,
   useRequestForm,
 } from "@purosur/ui";
-import { ArrowLeft, Calculator, Check, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Calculator, Check, Info, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { INVALID_AMOUNT_MESSAGE } from "./cash-charge-form";
 import {
@@ -150,6 +150,11 @@ export function StandaloneTerminalChargeModal({
             { label: "Pagado", value: formatCents(paid) },
             { label: "A cobrar ahora", value: formatCents(pending) },
           ]}
+        />
+        <InlineNotice
+          tone="info"
+          icon={<Info />}
+          title="Cobrá en la segunda Point, que funciona sin la caja, y cargá acá lo que muestra la terminal."
         />
         <form.AppField name="amount" listeners={{ onChange: () => setNotice(undefined) }}>
           {(field) => (
