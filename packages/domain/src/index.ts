@@ -575,6 +575,7 @@ export {
   mayBeCountedQuantity,
   mayBeCountedTogether,
   mayBeMovementQuantity,
+  PRODUCTS_A_RECIPE_MAY_USE,
   STOCK_CORRECTIONS,
   STOCK_DIRECTIONS,
   STOCK_MOVEMENT_KINDS,
