@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { untilLogged } from "./until";
+import { until, untilLogged, within } from "./until";
 
 const BOUND_MS = 60_000;
 
@@ -78,5 +78,132 @@ describe("waiting for the register to log a line", () => {
     await vi.advanceTimersByTimeAsync(BOUND_MS / 2);
 
     await failure;
+  });
+});
+
+describe("waiting for a condition", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("fails once the bound passes, naming what it waited for and the bound", async () => {
+    const waiting = until(() => false, { withinMs: BOUND_MS, waitingFor: "the core to restart" });
+    const failure = expect(waiting).rejects.toThrow(
+      "timed out after 60000 ms waiting for the core to restart",
+    );
+    await vi.advanceTimersByTimeAsync(BOUND_MS);
+
+    await failure;
+  });
+
+  it("keeps waiting until the bound passes", async () => {
+    let settled = false;
+
+    void until(() => false, { withinMs: BOUND_MS, waitingFor: "the core to restart" }).then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      },
+    );
+    await vi.advanceTimersByTimeAsync(BOUND_MS - 1);
+
+    expect(settled).toBe(false);
+  });
+
+  it("ends as soon as the condition holds within the bound", async () => {
+    let holds = false;
+
+    const waiting = until(() => holds, { withinMs: BOUND_MS, waitingFor: "the core to restart" });
+    await vi.advanceTimersByTimeAsync(500);
+    holds = true;
+    await vi.advanceTimersByTimeAsync(500);
+
+    await expect(waiting).resolves.toBeUndefined();
+  });
+
+  it("fails at the bound when checking the condition never ends", async () => {
+    const waiting = until(() => new Promise<boolean>(() => {}), {
+      withinMs: BOUND_MS,
+      waitingFor: "the register to list its processes",
+    });
+    const failure = expect(waiting).rejects.toThrow("the register to list its processes");
+    await vi.advanceTimersByTimeAsync(BOUND_MS);
+
+    await failure;
+  });
+
+  it("fails with the condition's own error when checking it throws", async () => {
+    const waiting = until(() => Promise.reject(new Error("the app is gone")), {
+      withinMs: BOUND_MS,
+      waitingFor: "the core to restart",
+    });
+
+    await expect(waiting).rejects.toThrow("the app is gone");
+  });
+});
+
+describe("waiting for a promise", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("fails once the bound passes, naming what it waited for and the bound", async () => {
+    const waiting = within(new Promise<void>(() => {}), {
+      withinMs: BOUND_MS,
+      waitingFor: "the register to exit",
+    });
+    const failure = expect(waiting).rejects.toThrow(
+      "timed out after 60000 ms waiting for the register to exit",
+    );
+    await vi.advanceTimersByTimeAsync(BOUND_MS);
+
+    await failure;
+  });
+
+  it("keeps waiting until the bound passes", async () => {
+    let settled = false;
+
+    void within(new Promise<void>(() => {}), {
+      withinMs: BOUND_MS,
+      waitingFor: "the register to exit",
+    }).then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      },
+    );
+    await vi.advanceTimersByTimeAsync(BOUND_MS - 1);
+
+    expect(settled).toBe(false);
+  });
+
+  it("resolves with the promise's value when it settles within the bound", async () => {
+    const waiting = within(Promise.resolve(42), {
+      withinMs: BOUND_MS,
+      waitingFor: "the register to exit",
+    });
+
+    await expect(waiting).resolves.toBe(42);
+  });
+
+  it("rejects with the promise's own error when it fails within the bound", async () => {
+    const waiting = within(Promise.reject(new Error("spawn failed")), {
+      withinMs: BOUND_MS,
+      waitingFor: "the register to exit",
+    });
+
+    await expect(waiting).rejects.toThrow("spawn failed");
   });
 });
