@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { STOCK_QUANTITY_PER_UNIT } from "../model/stock-quantity.js";
-import { RecipeVersionConflict } from "./recipe-store.js";
 import { saveRecipe } from "./save-recipe.js";
 import { FakeRecipeStore } from "./test-support/fake-recipe-store.js";
 
@@ -187,14 +186,11 @@ describe("saveRecipe", () => {
     expect(store.lockLog).toEqual(["mix", "bag", "nuts", "raisins"]);
   });
 
-  it("lets an unexpected failure of the store through", async () => {
+  it("lets an unexpected failure of the store through, leaving nothing saved", async () => {
     const store = storeWithProducts();
-    const failing = Object.assign(store, {
-      transaction: async () => {
-        throw new RangeError("down");
-      },
-    });
+    store.insertFailure = new RangeError("down");
 
-    await expect(save(failing)).rejects.toThrow("down");
+    await expect(save(store)).rejects.toThrow("down");
+    expect(store.snapshot().recipes).toEqual([]);
   });
 });

@@ -55,6 +55,9 @@ class FakeRecipeStoreTransaction implements RecipeStoreTransaction {
   }
 
   async insertRecipe(fields: NewRecipeFields): Promise<void> {
+    if (this.store.insertFailure) {
+      throw this.store.insertFailure;
+    }
     if (this.store.firstRecipeConflicts) {
       throw new RecipeVersionConflict();
     }
@@ -85,6 +88,7 @@ export class FakeRecipeStore implements RecipeStore {
   transactionCount = 0;
   // Makes the insert of a first recipe lose to a concurrent write that committed first.
   firstRecipeConflicts = false;
+  insertFailure: Error | null = null;
 
   seedProduct(product: FakeRecipeProductRow): void {
     this.products.push({ ...product });
