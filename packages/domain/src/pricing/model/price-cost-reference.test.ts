@@ -97,6 +97,16 @@ describe("lastCostSource", () => {
     expect(lastCostSource([bought, counted])).toBe(bought);
   });
 
+  it("keeps the first of two initial counts made at the same instant", () => {
+    const first = initialCount("2026-03-01T15:00:00Z", { cost: { totalCents: 100, quantity: 1000 } });
+    const second = initialCount("2026-03-01T15:00:00Z", {
+      cost: { totalCents: 200, quantity: 1000 },
+    });
+
+    expect(lastCostSource([first, second])).toBe(first);
+    expect(lastCostSource([second, first])).toBe(second);
+  });
+
   it("ignores a withdrawn initial count", () => {
     const bought = purchase("a", "2026-03-01", "2026-03-01T10:00:00Z");
     const withdrawn = initialCount("2026-03-05T15:00:00Z", { withdrawn: true });
