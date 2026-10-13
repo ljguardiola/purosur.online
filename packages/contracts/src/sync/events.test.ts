@@ -1,6 +1,10 @@
 import { PRE_EMISSION_GATE_FAILURE_REASONS, PUSH_BATCH_MAX_EVENTS } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import { pushEventsRequestSchema, pushEventsResponseSchema } from "./events.js";
+import {
+  MALFORMED_BATTERY_REPORT,
+  pushEventsRequestSchema,
+  pushEventsResponseSchema,
+} from "./events.js";
 
 const event = {
   event_id: "0199b7a0-0000-7000-8000-000000000001",
@@ -255,6 +259,72 @@ describe("push events request", () => {
       ],
     ])("refuses a report with %s", (_name, report) => {
       expect(withSerialDevices(report).success).toBe(false);
+    });
+  });
+
+  describe("battery report", () => {
+    const present = {
+      present: true,
+      charge_percent: 42,
+      health_percent: 88,
+      on_battery: true,
+      on_battery_minutes: 7,
+    };
+
+    function withBattery(battery: unknown) {
+      return requestWith({ telemetry: { ...telemetry, battery } });
+    }
+
+    it("passes a present battery through", () => {
+      expect(withBattery(present).data?.telemetry.battery).toEqual(present);
+    });
+
+    it("passes a present battery whose health is unknown through", () => {
+      const { health_percent: _omitted, ...withoutHealth } = present;
+
+      expect(withBattery(withoutHealth).data?.telemetry.battery).toEqual(withoutHealth);
+    });
+
+    it("passes a pack above its design capacity and one at its charge limits through", () => {
+      for (const extreme of [
+        { ...present, charge_percent: 0, on_battery_minutes: 0 },
+        { ...present, charge_percent: 100, health_percent: 130, on_battery: false },
+      ]) {
+        expect(withBattery(extreme).data?.telemetry.battery).toEqual(extreme);
+      }
+    });
+
+    it("passes an absent battery through", () => {
+      expect(withBattery({ present: false }).data?.telemetry.battery).toEqual({ present: false });
+    });
+
+    it("leaves a push without a battery report without one", () => {
+      const parsed = requestWith({});
+
+      expect(parsed.success).toBe(true);
+      expect(parsed.data?.telemetry.battery).toBeUndefined();
+    });
+
+    it.each([
+      ["a charge above 100", { ...present, charge_percent: 150 }],
+      ["a negative charge", { ...present, charge_percent: -1 }],
+      ["a fractional charge", { ...present, charge_percent: 50.5 }],
+      ["a negative health", { ...present, health_percent: -1 }],
+      ["a negative time on battery", { ...present, on_battery_minutes: -1 }],
+      ["a charge of the wrong type", { ...present, charge_percent: "42" }],
+      ["a missing charge", { present: true, on_battery: true, on_battery_minutes: 0 }],
+      ["an extra key", { ...present, voltage: 12 }],
+      ["an absent battery with measures", { present: false, charge_percent: 10 }],
+      ["null", null],
+      ["a string", "full"],
+      ["an empty object", {}],
+    ])("marks a report with %s as malformed and still accepts the push", (_name, battery) => {
+      const parsed = withBattery(battery);
+
+      expect(parsed.success).toBe(true);
+      expect(parsed.data?.telemetry.battery).toBe(MALFORMED_BATTERY_REPORT);
+      expect(parsed.data?.telemetry.wal_size_bytes).toBe(telemetry.wal_size_bytes);
+      expect(parsed.data?.events).toHaveLength(1);
     });
   });
 
