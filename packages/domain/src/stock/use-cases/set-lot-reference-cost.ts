@@ -1,3 +1,4 @@
+import { initialCountLotTakesCost } from "../model/initial-count.js";
 import { isReferenceUnitCost, referenceCostOf } from "../model/lot-reference-cost.js";
 import type { LotCostStore } from "./lot-cost-store.js";
 
@@ -29,7 +30,7 @@ export async function setLotReferenceCost(
     if (lot.origin !== "initial_count") {
       return { kind: "not_an_initial_count_lot" };
     }
-    if (lot.withdrawn) {
+    if (!initialCountLotTakesCost(lot)) {
       return { kind: "lot_withdrawn" };
     }
     await tx.setReferenceCost(input.lotId, referenceCostOf(input.unitCostCents));
