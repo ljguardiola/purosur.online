@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SALES_REPORT_GROUPS, salesOfGroups, soldTotals } from "./sold-lines-report.js";
+import { salesOfGroups, soldTotals } from "./sold-lines-report.js";
 
 const unitLines = (id: string | null, path: string[], quantity: number, amount: number) => ({
   id,
@@ -16,12 +16,6 @@ const weighedLines = (
   amount: number,
   weightSource: "SCALE" | "MANUAL" = "SCALE",
 ) => ({ id, path, weightSource, quantity, amount });
-
-describe("SALES_REPORT_GROUPS", () => {
-  it("offers the product and the category", () => {
-    expect(SALES_REPORT_GROUPS).toEqual(["product", "category"]);
-  });
-});
 
 describe("salesOfGroups", () => {
   it("counts the quantity of a line without a weight source in units", () => {

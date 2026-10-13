@@ -2,21 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   salesByProductAndCategoryQuerySchema,
   salesByProductAndCategorySchema,
-  salesReportGroupSchema,
 } from "./sales-by-product-and-category.js";
 
 const REGISTER_ID = "4b0d2c1e-7f3a-4e58-9a61-0c5d8e2f1a77";
 const CATEGORY_ID = "9a3f6c52-1d84-4b07-8c1e-5e7a2b9d4f10";
-
-describe("salesReportGroupSchema", () => {
-  it.each(["product", "category"])("accepts %s", (group) => {
-    expect(salesReportGroupSchema.parse(group)).toBe(group);
-  });
-
-  it("refuses any other group", () => {
-    expect(salesReportGroupSchema.safeParse("brand").success).toBe(false);
-  });
-});
 
 describe("salesByProductAndCategoryQuerySchema", () => {
   it("accepts the group alone", () => {

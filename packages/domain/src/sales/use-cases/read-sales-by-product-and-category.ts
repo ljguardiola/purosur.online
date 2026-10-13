@@ -1,7 +1,7 @@
 import { type Clock, type ReportPeriod, reportPeriodOf } from "../../shared/index.js";
+import type { SalesReportGroup } from "../model/sales-report-group.js";
 import {
   type SalesOfGroup,
-  type SalesReportGroup,
   type SoldTotals,
   salesOfGroups,
   soldTotals,

@@ -1,10 +1,6 @@
 import { saleUnitOfWeightSource, soldQuantity } from "./sale-line.js";
 import type { WeightSource } from "./weight-source.js";
 
-export const SALES_REPORT_GROUPS = ["product", "category"] as const;
-
-export type SalesReportGroup = (typeof SALES_REPORT_GROUPS)[number];
-
 export interface SoldLinesOfGroup {
   id: string | null;
   path: readonly string[];
