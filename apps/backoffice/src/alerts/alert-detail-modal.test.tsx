@@ -937,37 +937,27 @@ test("describes a register that had no installation before without a replaced on
     .toBeVisible();
 });
 
-test("tells which event of a register was quarantined and why", async () => {
+test("tells which register has events in quarantine", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
     ok(
       baseDetail({
         kind: "events_quarantined",
-        scope: "event-1",
-        scopeDisplay: "event-1",
-        detail: {
-          deviceId: "device-1",
-          eventId: "event-1",
-          eventType: "sale_completed",
-          aggregateType: "Sale",
-          aggregateId: "sale-1",
-          reason: {
-            kind: "missing_dependency",
-            aggregateType: "CashSession",
-            aggregateId: "session-1",
-          },
-        },
+        scope: "device-1",
+        scopeDisplay: "Caja 1",
+        scopeKind: "syncDevice",
+        detail: { deviceId: "device-1" },
       }),
     ),
   );
 
   const screen = await renderModal(services);
 
-  await expect.element(screen.getByText("Evento de una caja en cuarentena")).toBeVisible();
+  await expect.element(screen.getByText("Eventos de una caja en cuarentena")).toBeVisible();
   await expect
     .element(
       screen.getByText(
-        "El evento de venta (event-1) de la venta sale-1 no se pudo aplicar y quedó en cuarentena: depende de la sesión de caja session-1, que todavía no se aplicó. Los eventos siguientes de la venta sale-1 esperan hasta que se resuelva.",
+        "La caja «Caja 1» tiene eventos que no se pudieron aplicar y quedaron en cuarentena. Los eventos siguientes de cada uno de esos registros esperan hasta que se resuelvan.",
       ),
     )
     .toBeVisible();
@@ -975,17 +965,10 @@ test("tells which event of a register was quarantined and why", async () => {
 
 const quarantinedEventAlert = baseDetail({
   kind: "events_quarantined",
-  scope: "event-1",
-  scopeDisplay: "event-1",
-  scopeKind: "event",
-  detail: {
-    deviceId: "device-1",
-    eventId: "event-1",
-    eventType: "sale_completed",
-    aggregateType: "Sale",
-    aggregateId: "sale-1",
-    reason: { kind: "missing_dependency", aggregateType: "CashSession", aggregateId: "session-1" },
-  },
+  scope: "device-1",
+  scopeDisplay: "Caja 1",
+  scopeKind: "syncDevice",
+  detail: { deviceId: "device-1" },
 });
 
 test("links a quarantined event's alert to the quarantined events screen for a person who may release them", async () => {
@@ -1006,7 +989,7 @@ test("does not link a quarantined event's alert to the quarantined events screen
 
   const screen = await renderModal(services, { access: accessWith("alerts_area") });
 
-  await expect.element(screen.getByText("Evento de una caja en cuarentena")).toBeVisible();
+  await expect.element(screen.getByText("Eventos de una caja en cuarentena")).toBeVisible();
   expect(screen.getByRole("link", { name: "Ver eventos en cuarentena" }).query()).toBeNull();
 });
 

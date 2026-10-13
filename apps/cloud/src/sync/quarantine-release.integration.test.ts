@@ -34,11 +34,13 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
-async function quarantinedEventOf(aggregateId: string) {
-  const { deviceId, locationId } = await insertEnrolledInstallation(db, {
-    now: NOW,
-    registerName: randomUUID(),
-  });
+async function quarantinedEventOf(
+  aggregateId: string,
+  installation?: { deviceId: string; locationId: string },
+) {
+  const { deviceId, locationId } =
+    installation ??
+    (await insertEnrolledInstallation(db, { now: NOW, registerName: randomUUID() }));
   const eventId = await insertQuarantinedEvent(db, deviceId, {
     aggregateType: "CashSession",
     aggregateId,
@@ -54,19 +56,12 @@ async function quarantinedEventOf(aggregateId: string) {
     db,
     {
       kind: "events_quarantined",
-      scope: eventId,
-      detail: {
-        deviceId,
-        eventId,
-        eventType: "sale_completed",
-        aggregateType: "CashSession",
-        aggregateId,
-        reason: { kind: "not_recorded" },
-      },
+      scope: deviceId,
+      detail: { deviceId },
     },
     { now: () => NOW },
   );
-  return { eventId, locationId, userId: user.id };
+  return { eventId, deviceId, locationId, userId: user.id };
 }
 
 function release(input: { eventId: string; locationId: string; releasedBy: string }) {
@@ -86,11 +81,11 @@ async function eventRow(eventId: string) {
   return row;
 }
 
-async function alertOf(eventId: string) {
+async function alertOf(deviceId: string) {
   const [row] = await db
     .select({ resolvedAt: alerts.resolvedAt })
     .from(alerts)
-    .where(and(eq(alerts.kind, "events_quarantined"), eq(alerts.scope, eventId)));
+    .where(and(eq(alerts.kind, "events_quarantined"), eq(alerts.scope, deviceId)));
   return row;
 }
 
@@ -118,27 +113,37 @@ describe("releasing a quarantined event on a real Postgres", () => {
   }, 30_000);
 
   it("releases, records the release and resolves the alert as the cloud's own role", async () => {
-    const { eventId, locationId, userId } = await quarantinedEventOf(randomUUID());
+    const { eventId, deviceId, locationId, userId } = await quarantinedEventOf(randomUUID());
 
     await release({ eventId, locationId, releasedBy: userId });
 
     expect(await eventRow(eventId)).toMatchObject({ attempts: 0, quarantinedAt: null });
-    expect(await alertOf(eventId)).toEqual({ resolvedAt: NOW });
+    expect(await alertOf(deviceId)).toEqual({ resolvedAt: NOW });
     const audit = await db.select().from(auditLog).where(eq(auditLog.entityId, eventId));
     expect(audit).toEqual([expect.objectContaining({ entity: "synced_event", actorId: userId })]);
   }, 30_000);
 
+  it("keeps the device's alert open while another of its events stays quarantined", async () => {
+    const first = await quarantinedEventOf(randomUUID());
+    await quarantinedEventOf(randomUUID(), first);
+
+    await release({ eventId: first.eventId, locationId: first.locationId, releasedBy: first.userId });
+
+    expect(await eventRow(first.eventId)).toMatchObject({ attempts: 0, quarantinedAt: null });
+    expect(await alertOf(first.deviceId)).toEqual({ resolvedAt: null });
+  }, 30_000);
+
   it("leaves the event quarantined, unrecorded and its alert open when the release fails midway", async () => {
-    const { eventId, locationId, userId } = await quarantinedEventOf(randomUUID());
+    const { eventId, deviceId, locationId, userId } = await quarantinedEventOf(randomUUID());
     const store = new DrizzleQuarantineRelease(db);
     const failing: QuarantineRelease = {
       transaction: (work) =>
         store.transaction((tx) =>
           work(
             Object.create(tx, {
-              recordQuarantineReleased: {
+              recordDeviceQuarantineCleared: {
                 value: async (id: string, at: Date) => {
-                  await tx.recordQuarantineReleased(id, at);
+                  await tx.recordDeviceQuarantineCleared(id, at);
                   throw new Error("connection lost");
                 },
               },
@@ -155,7 +160,7 @@ describe("releasing a quarantined event on a real Postgres", () => {
     ).rejects.toThrow("connection lost");
 
     expect(await eventRow(eventId)).toMatchObject({ attempts: 8, quarantinedAt: QUARANTINED_AT });
-    expect(await alertOf(eventId)).toEqual({ resolvedAt: null });
+    expect(await alertOf(deviceId)).toEqual({ resolvedAt: null });
     expect(await db.select().from(auditLog).where(eq(auditLog.entityId, eventId))).toEqual([]);
   }, 30_000);
 });

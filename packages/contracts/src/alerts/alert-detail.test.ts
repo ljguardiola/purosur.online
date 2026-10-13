@@ -310,18 +310,7 @@ describe("alertDetailSchema", () => {
         windowsVersion: "11",
         replacedInstallation: true,
       },
-      events_quarantined: {
-        deviceId: "device-1",
-        eventId: "event-1",
-        eventType: "sale_completed",
-        aggregateType: "Sale",
-        aggregateId: "sale-1",
-        reason: {
-          kind: "missing_dependency",
-          aggregateType: "CashSession",
-          aggregateId: "session-1",
-        },
-      },
+      events_quarantined: { deviceId: "device-1" },
       event_invariant_violated: {
         eventId: "event-1",
         eventType: "sale_completed",
@@ -587,29 +576,9 @@ describe("alertDetailSchema", () => {
       ).toBe(false);
     });
 
-    it.each([{ kind: "unreadable" }, { kind: "not_recorded" }])(
-      "accepts a quarantine whose reason is %j",
-      (reason) => {
-        const alert = {
-          ...base,
-          kind: "events_quarantined",
-          detail: { ...detailOf.events_quarantined, reason },
-        };
-
-        expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
-      },
-    );
-
-    it.each([
-      { kind: "timed_out" },
-      { kind: "missing_dependency", aggregateType: "CashSession" },
-      { kind: "missing_dependency", aggregateId: "session-1" },
-      "the cash session is not applied yet",
-    ])("refuses a quarantine whose reason is %j", (reason) => {
-      const detail = { ...detailOf.events_quarantined, reason };
-
+    it("refuses a quarantine that does not name its device", () => {
       expect(
-        alertDetailSchema.safeParse({ ...base, kind: "events_quarantined", detail }).success,
+        alertDetailSchema.safeParse({ ...base, kind: "events_quarantined", detail: {} }).success,
       ).toBe(false);
     });
 

@@ -55,7 +55,7 @@ describe("alertKindPolicy", () => {
       true,
     ],
     ["arca_wsaa_ticket_held", "warning", null, "all", "environment", true],
-    ["events_quarantined", "warning", afterOpening, "all", "event", true],
+    ["events_quarantined", "warning", afterOpening, "all", "syncDevice", true],
     ["event_invariant_violated", "warning", afterOpening, "all", "event", true],
     ["outbox_chain_broken", "warning", afterOpening, "all", "syncDevice", false],
     ["update_required", "critical", null, "all", "register", true],
@@ -195,10 +195,7 @@ describe("alertKindsWithScope", () => {
       "sales_denied",
       "fiscal_emission_stopped",
     ]);
-    expect(alertKindsWithScope("event")).toEqual([
-      "events_quarantined",
-      "event_invariant_violated",
-    ]);
+    expect(alertKindsWithScope("event")).toEqual(["event_invariant_violated"]);
     expect(alertKindsWithScope("pointOfSaleDocumentType")).toEqual(["fiscal_rejected"]);
     expect(alertKindsWithScope("environment")).toEqual([
       "arca_certificate_expiring",
@@ -209,6 +206,9 @@ describe("alertKindsWithScope", () => {
     ]);
     expect(alertKindsWithScope("refund")).toEqual(["late_payment_refund", "refund_task"]);
     expect(alertKindsWithScope("fiscalDocument")).toEqual(["fiscal_unknown"]);
-    expect(alertKindsWithScope("syncDevice")).toEqual(["outbox_chain_broken"]);
+    expect(alertKindsWithScope("syncDevice")).toEqual([
+      "events_quarantined",
+      "outbox_chain_broken",
+    ]);
   });
 });

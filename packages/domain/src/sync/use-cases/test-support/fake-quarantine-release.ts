@@ -12,7 +12,7 @@ export interface FakeRegister {
 export class FakeQuarantineRelease implements QuarantineRelease {
   calls: string[] = [];
   failRecordingRelease = false;
-  failRecordingQuarantineReleased = false;
+  failRecordingQuarantineCleared = false;
   eventsGoneBeforeLocking = new Set<string>();
   private readonly application: FakeEventApplication;
   private readonly registers: readonly FakeRegister[];
@@ -61,8 +61,8 @@ export class FakeQuarantineRelease implements QuarantineRelease {
         if (event === undefined) {
           return undefined;
         }
-        const { appliedAt, quarantinedAt, attempts, error } = event;
-        return { appliedAt, quarantinedAt, attempts, lastError: error };
+        const { deviceId, appliedAt, quarantinedAt, attempts, error } = event;
+        return { deviceId, appliedAt, quarantinedAt, attempts, lastError: error };
       },
       releaseForNewSeries: async (eventId, released) => {
         this.calls.push(`release ${eventId}`);
@@ -75,15 +75,22 @@ export class FakeQuarantineRelease implements QuarantineRelease {
         }
         this.application.state.releases.push(record);
       },
-      recordQuarantineReleased: async (eventId) => {
-        this.calls.push(`record quarantine of ${eventId} released`);
-        if (this.failRecordingQuarantineReleased) {
+      lockDeviceQuarantines: async (deviceId) => {
+        this.calls.push(`lock quarantines of ${deviceId}`);
+      },
+      deviceHasQuarantinedEvents: async (deviceId) => {
+        this.calls.push(`check quarantined events of ${deviceId}`);
+        return this.application.state.events.some(
+          (event) =>
+            event.deviceId === deviceId && event.appliedAt === null && event.quarantinedAt !== null,
+        );
+      },
+      recordDeviceQuarantineCleared: async (deviceId) => {
+        this.calls.push(`record quarantine of ${deviceId} cleared`);
+        if (this.failRecordingQuarantineCleared) {
           throw new Error("quarantine store unavailable");
         }
-        this.application.state.quarantines = this.application.state.quarantines.filter(
-          (quarantine) => quarantine.eventId !== eventId,
-        );
-        this.application.state.releasedQuarantines.push(eventId);
+        this.application.state.clearedDeviceQuarantines.push(deviceId);
       },
     };
   }

@@ -31,7 +31,7 @@ export interface FakeEventApplicationState {
   quarantines: EventQuarantine[];
   invariantBreaks: EventInvariantBreaks[];
   releases: QuarantineReleaseRecord[];
-  releasedQuarantines: string[];
+  clearedDeviceQuarantines: string[];
 }
 
 const keyOf = (key: AggregateKey) => `${key.aggregateType}/${key.aggregateId}`;
@@ -71,7 +71,7 @@ export class FakeEventApplication implements EventApplication {
     quarantines: [],
     invariantBreaks: [],
     releases: [],
-    releasedQuarantines: [],
+    clearedDeviceQuarantines: [],
   };
   calls: string[] = [];
   transactions = 0;
