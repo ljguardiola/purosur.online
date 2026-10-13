@@ -351,7 +351,7 @@ describe("alertDetailSchema", () => {
         refundOpenedAt: "2026-10-05T12:00:00.000Z",
       },
       fiscal_emission_stopped: { deviceId: "device-1", reason: "legal_name_missing" },
-      outbox_chain_broken: { deviceId: "device-1", refusedEventCount: 3 },
+      outbox_chain_broken: { deviceId: "device-1" },
       fiscal_unknown: {
         fiscalDocumentId: "document-1",
         saleId: "sale-1",
@@ -420,16 +420,6 @@ describe("alertDetailSchema", () => {
         ...base,
         kind: "sales_denied",
         detail: { deviceId: "device-1", reason: "installation_revoked" },
-      };
-
-      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
-    });
-
-    it("refuses an outbox-chain-broken alert with a fractional count of refused events", () => {
-      const alert = {
-        ...base,
-        kind: "outbox_chain_broken",
-        detail: { deviceId: "device-1", refusedEventCount: 1.5 },
       };
 
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);

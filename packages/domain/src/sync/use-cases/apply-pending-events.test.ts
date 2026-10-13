@@ -283,6 +283,26 @@ describe("an event that cannot be applied yet", () => {
     expect(outcome).toMatchObject({ applied: 0, retried: 0, quarantined: 1 });
   });
 
+  it("takes the device's quarantine lock after the aggregate's lock and before recording the quarantine", async () => {
+    const application = new FakeEventApplication([
+      saleEvent({ attempts: 7, deviceId: "device-4", aggregateId: "sale-9" }),
+    ]);
+
+    await run(
+      application,
+      new FakeEventUpcaster({ "sale-event": aCompletedSaleFact({ id: "sale-9" }) }),
+    );
+
+    expect(application.calls.slice(application.calls.lastIndexOf("begin"))).toEqual([
+      "begin",
+      "lock Sale/sale-9",
+      "read Sale/sale-9",
+      "lock quarantines of device-4",
+      "record quarantine of sale-event",
+      "commit",
+    ]);
+  });
+
   it("names the quarantined event, with its last error, once its quarantine is committed", async () => {
     const application = new FakeEventApplication([
       saleEvent({ attempts: 7, deviceId: "device-4", aggregateId: "sale-9" }),

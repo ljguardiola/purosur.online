@@ -505,7 +505,7 @@ describe("POST /events", () => {
       expect(installation).toEqual({ revokedAt: NOW, revocationReason: "outbox_chain_broken" });
     });
 
-    it("opens an alert for the installation whose chain broke, counting the events it refused", async () => {
+    it("opens an alert for the installation whose chain broke", async () => {
       const { deviceId, deviceToken } = await enroll();
       const [first, second] = linked(null, [event(1), event(2)]);
       if (!first || !second) {
@@ -523,7 +523,7 @@ describe("POST /events", () => {
           scope: deviceId,
           level: "warning",
           audience: "all",
-          detail: { deviceId, refusedEventCount: 2 },
+          detail: { deviceId },
         }),
       ]);
     });

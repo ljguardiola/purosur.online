@@ -206,7 +206,11 @@ export class FakeEventApplication implements EventApplication {
       recordFailedAttempt: async (eventId, failed: FailedAttempt) => {
         Object.assign(this.event(eventId), failed);
       },
+      lockDeviceQuarantines: async (deviceId) => {
+        this.calls.push(`lock quarantines of ${deviceId}`);
+      },
       recordQuarantine: async (quarantine) => {
+        this.calls.push(`record quarantine of ${quarantine.eventId}`);
         this.state.quarantines.push(quarantine);
       },
       recordInvariantBreaks: async (found) => {

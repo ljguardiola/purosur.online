@@ -617,9 +617,7 @@ describe("an event a register pushes again", () => {
     expect(inbox.state.refusedPushes).toEqual([
       { deviceId: DEVICE, events: pushed, refusedAt: NOW },
     ]);
-    expect(inbox.state.brokenChainRevocations).toEqual([
-      { deviceId: DEVICE, refusedEventCount: pushed.length, revokedAt: NOW },
-    ]);
+    expect(inbox.state.brokenChainRevocations).toEqual([{ deviceId: DEVICE, revokedAt: NOW }]);
   }
 
   it("is skipped when it is identical to the one held, storing nothing again and revoking nothing", async () => {
@@ -775,9 +773,7 @@ describe("checking the chain of the events a register pushes", () => {
     expect(inbox.state.refusedPushes).toEqual([
       { deviceId: DEVICE, events: pushed, refusedAt: NOW },
     ]);
-    expect(inbox.state.brokenChainRevocations).toEqual([
-      { deviceId: DEVICE, refusedEventCount: pushed.length, revokedAt: NOW },
-    ]);
+    expect(inbox.state.brokenChainRevocations).toEqual([{ deviceId: DEVICE, revokedAt: NOW }]);
   });
 
   it("keeps aside every event of the refused push, the ones it already holds included", async () => {

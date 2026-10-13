@@ -1044,7 +1044,7 @@ test("tells which register sent events that do not match its chain and that the 
         scope: "installation-1",
         scopeDisplay: "Caja 1",
         scopeKind: "syncDevice",
-        detail: { deviceId: "installation-1", refusedEventCount: 3 },
+        detail: { deviceId: "installation-1" },
       }),
     ),
   );

@@ -25,11 +25,11 @@ describe("OpenAlertInput", () => {
     }>().toExtend<OpenAlertInput>();
   });
 
-  it("accepts the device and how many events were refused for an outbox-chain-broken alert", () => {
+  it("accepts the device for an outbox-chain-broken alert", () => {
     expectTypeOf<{
       kind: "outbox_chain_broken";
       scope: string;
-      detail: { deviceId: string; refusedEventCount: number };
+      detail: { deviceId: string };
     }>().toExtend<OpenAlertInput>();
   });
 
