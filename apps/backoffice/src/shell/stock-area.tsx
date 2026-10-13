@@ -1,6 +1,8 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import {
   ArrowDownUp,
+  BookOpen,
+  CalendarClock,
   ClipboardCheck,
   ClipboardList,
   Package,
@@ -11,11 +13,13 @@ import {
 import { AreaLayout, SectionLink } from "./area-layout";
 import {
   canManagePurchasePackagings,
+  canManageRecipes,
   canManageSuppliers,
   canPerformStockCounts,
   canRecordInitialInventory,
   canRecordPurchases,
   canSeeAlertsArea,
+  canSeeExpiringLots,
   canSeeStockBalances,
   canSeeStockMovements,
 } from "./backoffice-access";
@@ -38,6 +42,8 @@ function StockArea() {
   const suppliersShown = Boolean(matchRoute({ to: "/suppliers" }));
   const packagingsShown = Boolean(matchRoute({ to: "/purchase-packagings" }));
   const purchasesShown = Boolean(matchRoute({ to: "/purchases", fuzzy: true }));
+  const expiringLotsShown = Boolean(matchRoute({ to: "/expiring-lots" }));
+  const recipesShown = Boolean(matchRoute({ to: "/recipes" }));
   const initialInventoryShown = Boolean(matchRoute({ to: "/initial-inventory" }));
   return (
     <AreaLayout
@@ -111,6 +117,28 @@ function StockArea() {
                   icon={<ShoppingCart />}
                   search={purchasesShown ? true : {}}
                   active={purchasesShown}
+                />
+              </li>
+            )}
+            {canSeeExpiringLots(session) && (
+              <li>
+                <SectionLink
+                  to="/expiring-lots"
+                  label="Vencimientos"
+                  icon={<CalendarClock />}
+                  search={expiringLotsShown ? true : {}}
+                  active={expiringLotsShown}
+                />
+              </li>
+            )}
+            {canManageRecipes(session) && (
+              <li>
+                <SectionLink
+                  to="/recipes"
+                  label="Recetas"
+                  icon={<BookOpen />}
+                  search={recipesShown ? true : {}}
+                  active={recipesShown}
                 />
               </li>
             )}

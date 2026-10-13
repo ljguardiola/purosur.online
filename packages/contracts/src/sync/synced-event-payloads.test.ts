@@ -140,6 +140,7 @@ describe("synced event payloads", () => {
       "sale_cancelled@2",
       "sale_cancelled@3",
       "sale_cancelled@4",
+      "sale_cancelled@5",
       "sale_completed@1",
       "sale_completed@2",
       "sale_completed@3",
@@ -168,7 +169,7 @@ describe("synced event payloads", () => {
   it.each([
     ["an unknown event type", "sale_opened", 1],
     ["a sale_completed version nobody emitted", "sale_completed", 9],
-    ["a sale_cancelled version nobody emitted", "sale_cancelled", 5],
+    ["a sale_cancelled version nobody emitted", "sale_cancelled", 6],
     ["version zero", "sale_completed", 0],
     ["a cash_session_opened version nobody emitted", "cash_session_opened", 2],
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
@@ -575,6 +576,107 @@ describe("synced event payloads", () => {
         ).toBe(false);
       },
     );
+  });
+
+  describe("a sale cancelled after being paid on the standalone terminal", () => {
+    const cancelled = (): Payload => recordedPayload("sale_cancelled", 5, 1);
+    const STANDALONE_PAYMENT = {
+      ...CASH_PAYMENT_V2,
+      id: "pay-5",
+      method: "STANDALONE_TERMINAL",
+      provider: "EXTERNAL_TERMINAL",
+      tendered: null,
+      authorized_by: "user-2",
+      confirmed_at: "2026-10-06T11:21:00.000Z",
+    };
+    const REFUND = {
+      id: "refund-5",
+      kind: "REFUND",
+      parent_id: "pay-5",
+      method: "STANDALONE_TERMINAL",
+      provider: "EXTERNAL_TERMINAL",
+      amount: 2700,
+      state: "PENDING",
+      occurred_at: "2026-10-06T11:30:00.000Z",
+    };
+    const CASH_REFUND = {
+      ...REFUND,
+      id: "refund-1",
+      parent_id: "pay-1",
+      method: "CASH",
+      provider: "NONE",
+      state: "APPROVED",
+    };
+
+    it("accepts the standalone terminal payment with its pending refund, alone or beside a cash one", () => {
+      expect(accepts("sale_cancelled", 5, cancelled())).toBe(true);
+      expect(
+        accepts("sale_cancelled", 5, {
+          ...cancelled(),
+          payments: [CASH_PAYMENT_V2, STANDALONE_PAYMENT],
+          refunds: [CASH_REFUND, REFUND],
+        }),
+      ).toBe(true);
+    });
+
+    it.each([
+      ["an approved state", { state: "APPROVED" }],
+      ["the none provider", { provider: "NONE" }],
+      ["a Mercado Pago provider", { provider: "MERCADOPAGO_POINT" }],
+      ["a negative amount", { amount: -1 }],
+    ])("refuses a standalone terminal refund with %s", (_description, change) => {
+      expect(
+        accepts("sale_cancelled", 5, { ...cancelled(), refunds: [{ ...REFUND, ...change }] }),
+      ).toBe(false);
+    });
+
+    it.each([
+      ["a transfer refund on the external terminal provider", { method: "TRANSFER" }],
+      ["a cash refund on the external terminal provider", { method: "CASH", state: "APPROVED" }],
+    ])("refuses %s", (_description, change) => {
+      expect(
+        accepts("sale_cancelled", 5, { ...cancelled(), refunds: [{ ...REFUND, ...change }] }),
+      ).toBe(false);
+    });
+
+    it("refuses a cash refund that is pending", () => {
+      expect(
+        accepts("sale_cancelled", 5, {
+          ...cancelled(),
+          refunds: [{ ...CASH_REFUND, state: "PENDING" }],
+        }),
+      ).toBe(false);
+    });
+
+    it.each([
+      ["a Point payment", { method: "POINT", provider: "MERCADOPAGO_POINT" }],
+      ["a QR payment", { method: "QR", provider: "MERCADOPAGO_QR" }],
+    ])("refuses a cancelled sale holding %s", (_description, change) => {
+      expect(
+        accepts("sale_cancelled", 5, {
+          ...cancelled(),
+          payments: [{ ...STANDALONE_PAYMENT, ...change, authorized_by: null, confirmed_at: null }],
+        }),
+      ).toBe(false);
+    });
+
+    it.each([1, 2, 3, 4])("keeps refusing the standalone terminal payment in version %s", (v) => {
+      expect(
+        accepts("sale_cancelled", v, {
+          ...recordedPayload("sale_cancelled", v),
+          payments: [STANDALONE_PAYMENT],
+        }),
+      ).toBe(false);
+    });
+
+    it.each([1, 2, 3, 4])("keeps refusing the standalone terminal refund in version %s", (v) => {
+      expect(
+        accepts("sale_cancelled", v, {
+          ...recordedPayload("sale_cancelled", v),
+          refunds: [REFUND],
+        }),
+      ).toBe(false);
+    });
   });
 
   describe("a sale's lines recording the source of their weight", () => {
@@ -1390,7 +1492,7 @@ describe("sale_cancelled v1", () => {
   });
 
   it("refuses a version nobody emitted", () => {
-    expect(syncedEventPayloadKey("sale_cancelled", 5)).toBeUndefined();
+    expect(syncedEventPayloadKey("sale_cancelled", 6)).toBeUndefined();
   });
 
   it("refuses a cancelled sale without payments", () => {

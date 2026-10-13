@@ -83,6 +83,10 @@ export function canSeeStockArea(access: BackofficeAccess): boolean {
   return grants(access, "stock_area");
 }
 
+export function canSeeExpiringLots(access: BackofficeAccess): boolean {
+  return grants(access, "stock_expiries");
+}
+
 export function canRecordInitialInventory(access: BackofficeAccess): boolean {
   return grants(access, "initial_inventory");
 }
@@ -105,4 +109,8 @@ export function canSeeRefundsArea(access: BackofficeAccess): boolean {
 
 export function canRecordPurchases(access: BackofficeAccess): boolean {
   return grants(access, "purchases");
+}
+
+export function canManageRecipes(access: BackofficeAccess): boolean {
+  return grants(access, "recipes");
 }

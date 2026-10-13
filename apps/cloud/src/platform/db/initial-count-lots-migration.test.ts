@@ -1,32 +1,10 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { describe, expect, inject, it, onTestFinished } from "vitest";
-import { migrateFreshDatabase } from "../../test-support/test-database-snapshot.js";
-import {
-  addMigrationEntry,
-  findMigrationEntry,
-  type JournalEntry,
-  migrationsFolderBefore,
-} from "./test-support/migration-journal-test-helpers.js";
+import { describe, expect, it } from "vitest";
+import { databaseBeforeMigration } from "./test-support/migration-under-test.js";
 
 const MISSING_ID = "0d9c4f6e-2b1a-4c3d-8e5f-6a7b8c9d0e1f";
 
-async function initialCountLotsEntry(): Promise<JournalEntry> {
-  return findMigrationEntry(
-    "_initial_count_lots",
-    "test setup: no initial count lots migration in the journal",
-  );
-}
-
 async function databaseHoldingLotsAndSessions() {
-  const folder = await mkdtemp(join(tmpdir(), "initial-count-lots-migration-"));
-  onTestFinished(() => rm(folder, { recursive: true, force: true }));
-  await migrationsFolderBefore(folder, await initialCountLotsEntry());
-  const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
-  onTestFinished(() => client.close());
+  const client = await databaseBeforeMigration("_initial_count_lots");
   const first = async (sql: string, params: unknown[] = []) => {
     const { rows } = await client.query<{ id: string }>(sql, params);
     return rows[0]?.id as string;
@@ -64,15 +42,14 @@ async function databaseHoldingLotsAndSessions() {
      values ($1, $2, 0, true, true)`,
     [productId, locationId],
   );
-  return { client, folder, locationId, otherLocationId, productId, userId };
+  return { client, locationId, otherLocationId, productId, userId };
 }
 
 async function migrated() {
-  const database = await databaseHoldingLotsAndSessions();
-  const { rows } = await database.client.query("select change_seq from changes");
-  await addMigrationEntry(database.folder, await initialCountLotsEntry());
-  await migrate(drizzle(database.client), { migrationsFolder: database.folder });
-  return { ...database, changesBefore: rows.length };
+  const { client: database, ...ids } = await databaseHoldingLotsAndSessions();
+  const { rows } = await database.query("select change_seq from changes");
+  const client = await database.applyMigration();
+  return { client, ...ids, changesBefore: rows.length };
 }
 
 describe("the initial count lots migration applied over a database that already holds lots and cash sessions", {

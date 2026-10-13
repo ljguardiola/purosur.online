@@ -1,23 +1,5 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { describe, expect, inject, it, onTestFinished } from "vitest";
-import { migrateFreshDatabase } from "../../test-support/test-database-snapshot.js";
-import {
-  addMigrationEntry,
-  findMigrationEntry,
-  type JournalEntry,
-  migrationsFolderBefore,
-} from "./test-support/migration-journal-test-helpers.js";
-
-async function unclearOutcomeDecisionsEntry(): Promise<JournalEntry> {
-  return findMigrationEntry(
-    "_unclear_outcome_decisions",
-    "test setup: no unclear-outcome-decisions migration in the journal",
-  );
-}
+import { describe, expect, it } from "vitest";
+import { databaseBeforeMigration } from "./test-support/migration-under-test.js";
 
 const INSERT_REQUEST = `insert into fiscal_requests
   (fiscal_document_id, register_id, sale_id, point_of_sale, number, issued_on, total,
@@ -66,34 +48,26 @@ function requestValues(
 }
 
 async function databaseBefore() {
-  const folder = await mkdtemp(join(tmpdir(), "unclear-outcome-decisions-migration-"));
-  onTestFinished(() => rm(folder, { recursive: true, force: true }));
-  await migrationsFolderBefore(folder, await unclearOutcomeDecisionsEntry());
-  const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
-  onTestFinished(() => client.close());
-  const { rows } = await client.query<{ id: string }>(
+  const database = await databaseBeforeMigration("_unclear_outcome_decisions");
+  const { rows } = await database.query<{ id: string }>(
     "insert into registers (location_id, name) select id, 'Caja 1' from locations limit 1 returning id",
   );
   const registerId = rows[0]?.id;
-  const applyMigration = async () => {
-    await addMigrationEntry(folder, await unclearOutcomeDecisionsEntry());
-    await migrate(drizzle(client), { migrationsFolder: folder });
-  };
-  return { client, registerId, applyMigration };
+  return { database, registerId };
 }
 
 async function databaseAfter() {
-  const database = await databaseBefore();
-  await database.applyMigration();
-  return database;
+  const { database, registerId } = await databaseBefore();
+  const migrated = await database.applyMigration();
+  return { migrated, registerId };
 }
 
 describe("the unclear-outcome-decisions migration applied over a database that already holds data", {
   timeout: 30_000,
 }, () => {
   it("keeps every existing request undecided", async () => {
-    const { client, registerId, applyMigration } = await databaseBefore();
-    await client.query(
+    const { database, registerId } = await databaseBefore();
+    await database.query(
       `insert into fiscal_requests
         (fiscal_document_id, register_id, sale_id, point_of_sale, number, issued_on, total,
          buyer_tax_status_code, sale_event, received_at, not_after, answer_kind, answered_at)
@@ -102,9 +76,9 @@ describe("the unclear-outcome-decisions migration applied over a database that a
       [registerId],
     );
 
-    await applyMigration();
+    const migrated = await database.applyMigration();
 
-    const { rows } = await client.query(
+    const { rows } = await migrated.query(
       "select answer_kind, decision, decided_at, adopted_authorization_code from fiscal_requests",
     );
     expect(rows).toEqual([
@@ -118,39 +92,39 @@ describe("the unclear-outcome-decisions migration applied over a database that a
   });
 
   it("counts a question about an unclear outcome of an installation against the limiter", async () => {
-    const { client, registerId } = await databaseAfter();
-    const { rows: installationRows } = await client.query<{ id: string }>(
+    const { migrated, registerId } = await databaseAfter();
+    const { rows: installationRows } = await migrated.query<{ id: string }>(
       `insert into register_installations
          (register_id, token_lookup_prefix, token_hash, token_issued_at, hostname, windows_version, enrolled_at)
        values ($1, 'prefix', 'hash', now(), 'caja-1', 'Windows 11', now()) returning id`,
       [registerId],
     );
 
-    await client.query(
+    await migrated.query(
       "insert into installation_request_attempts (device_id, endpoint, attempted_at) values ($1, 'fiscal_unclear_outcome', now())",
       [installationRows[0]?.id],
     );
 
-    const { rows } = await client.query("select endpoint from installation_request_attempts");
+    const { rows } = await migrated.query("select endpoint from installation_request_attempts");
     expect(rows).toEqual([{ endpoint: "fiscal_unclear_outcome" }]);
   });
 
   it.each(["unclear", "not_attempted"])("accepts a release of a %s request", async (answerKind) => {
-    const { client, registerId } = await databaseAfter();
+    const { migrated, registerId } = await databaseAfter();
 
-    await client.query(
+    await migrated.query(
       INSERT_REQUEST,
       requestValues(registerId, { answerKind, decision: "released", decidedAt: new Date() }),
     );
 
-    const { rows } = await client.query("select decision from fiscal_requests");
+    const { rows } = await migrated.query("select decision from fiscal_requests");
     expect(rows).toEqual([{ decision: "released" }]);
   });
 
   it("accepts an adoption with the authorization code and its due date", async () => {
-    const { client, registerId } = await databaseAfter();
+    const { migrated, registerId } = await databaseAfter();
 
-    await client.query(
+    await migrated.query(
       INSERT_REQUEST,
       requestValues(registerId, {
         decision: "adopted",
@@ -160,7 +134,7 @@ describe("the unclear-outcome-decisions migration applied over a database that a
       }),
     );
 
-    const { rows } = await client.query(
+    const { rows } = await migrated.query(
       "select decision, adopted_authorization_code, adopted_authorization_code_due_on::text from fiscal_requests",
     );
     expect(rows).toEqual([
@@ -173,14 +147,14 @@ describe("the unclear-outcome-decisions migration applied over a database that a
   });
 
   it("accepts a conflict", async () => {
-    const { client, registerId } = await databaseAfter();
+    const { migrated, registerId } = await databaseAfter();
 
-    await client.query(
+    await migrated.query(
       INSERT_REQUEST,
       requestValues(registerId, { decision: "conflicting", decidedAt: new Date() }),
     );
 
-    const { rows } = await client.query("select decision from fiscal_requests");
+    const { rows } = await migrated.query("select decision from fiscal_requests");
     expect(rows).toEqual([{ decision: "conflicting" }]);
   });
 
@@ -220,10 +194,10 @@ describe("the unclear-outcome-decisions migration applied over a database that a
       },
     ],
   ])("refuses %s", async (_case, columns) => {
-    const { client, registerId } = await databaseAfter();
+    const { migrated, registerId } = await databaseAfter();
 
     await expect(
-      client.query(INSERT_REQUEST, requestValues(registerId, columns)),
+      migrated.query(INSERT_REQUEST, requestValues(registerId, columns)),
     ).rejects.toThrow();
   });
 });

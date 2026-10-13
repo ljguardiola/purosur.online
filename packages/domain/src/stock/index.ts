@@ -9,6 +9,7 @@ export type {
 } from "./model/opening-count-facts.js";
 export type { StockCorrection } from "./model/product-valuation.js";
 export { STOCK_CORRECTIONS } from "./model/product-valuation.js";
+export { PRODUCTS_A_RECIPE_MAY_USE } from "./model/recipe.js";
 export { soldStockDelta } from "./model/sold-stock-delta.js";
 export { isListedInStockBalances } from "./model/stock-balance.js";
 export { countResult, expectedBalance, mayBeCountedTogether } from "./model/stock-count.js";
@@ -34,6 +35,7 @@ export {
   LOSS_REASONS,
   lossDelta,
   STOCK_DIRECTIONS,
+  SYSTEM_LOSS_REASONS,
 } from "./model/stock-movement-reason.js";
 export type { StockPeriodDays } from "./model/stock-period.js";
 export { DEFAULT_STOCK_PERIOD_DAYS, STOCK_PERIOD_DAYS } from "./model/stock-period.js";

@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { cruise } from "dependency-cruiser";
 import extractTSConfig from "dependency-cruiser/config-utl/extract-ts-config";
+import migrationTestsConfig from "../../.dependency-cruiser.migration-tests.mjs";
 import config, { CLOUD_ONLY_CONCEPTS } from "../../.dependency-cruiser.mjs";
 
 async function writeFixtureFile(root, relativePath, content) {
@@ -41,17 +42,17 @@ async function makeFixture(t, files) {
   return root;
 }
 
-async function cruiseFixture(root, dirs) {
-  const tsConfigFileName = join(root, config.options.tsConfig.fileName);
+async function cruiseFixture(root, dirs, cruiseConfig = config) {
+  const tsConfigFileName = join(root, cruiseConfig.options.tsConfig.fileName);
   const result = await cruise(
     dirs,
     {
-      ...config.options,
-      tsConfig: { ...config.options.tsConfig, fileName: tsConfigFileName },
+      ...cruiseConfig.options,
+      tsConfig: { ...cruiseConfig.options.tsConfig, fileName: tsConfigFileName },
       baseDir: root,
       outputType: "json",
       validate: true,
-      ruleSet: { forbidden: config.forbidden },
+      ruleSet: { forbidden: cruiseConfig.forbidden },
     },
     undefined,
     { tsConfig: extractTSConfig(tsConfigFileName) },
@@ -981,6 +982,79 @@ test("cloud-server-never-migrates flags the cloud server reaching the migrate en
   );
   const controlReport = await cruiseFixture(root, ["apps"]);
   assert.equal(violationsFor(controlReport, "cloud-server-never-migrates").length, 0);
+});
+
+test("cloud-migration-tests-migrate-through-migration-under-test flags a cloud migration test migrating on its own, directly, through a re-export or through a helper of its own, and allows one going through migration-under-test", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/cloud/src/platform/db/brands-migration.test.ts": [
+      'import { migrate } from "drizzle-orm/pglite/migrator";',
+      'import { migrateFreshDatabase } from "../../test-support/test-database-snapshot";',
+      "export const deps = [migrate, migrateFreshDatabase];",
+    ].join("\n"),
+    "apps/cloud/src/platform/db/tags-migration.test.ts": [
+      'import { migrationsFolderBefore } from "../../test-support/migration-steps";',
+      "export const deps = [migrationsFolderBefore];",
+    ].join("\n"),
+    "apps/cloud/src/test-support/migration-steps.ts":
+      'export { migrationsFolderBefore } from "../platform/db/test-support/migration-journal-test-helpers";\n',
+    "apps/cloud/src/platform/db/prices-migration.test.ts": [
+      'import { partlyMigratedDatabase } from "./test-support/partly-migrated-database";',
+      "export const deps = [partlyMigratedDatabase];",
+    ].join("\n"),
+    "apps/cloud/src/platform/db/test-support/partly-migrated-database.ts": [
+      'import { migrateFreshDatabase } from "../../../test-support/test-database-snapshot";',
+      "export const partlyMigratedDatabase = () => migrateFreshDatabase();",
+    ].join("\n"),
+    "apps/cloud/src/platform/db/alerts-migration.test.ts": [
+      'import { databaseBeforeMigration } from "./test-support/migration-under-test";',
+      "export const deps = [databaseBeforeMigration];",
+    ].join("\n"),
+    "apps/cloud/src/test-support/test-database-snapshot.ts":
+      "export function migrateFreshDatabase() {}\n",
+    "apps/cloud/src/platform/db/test-support/migration-journal-test-helpers.ts":
+      "export function migrationsFolderBefore() {}\n",
+    "apps/cloud/src/platform/db/test-support/migration-under-test.ts": [
+      'import { migrate } from "drizzle-orm/pglite/migrator";',
+      'import { migrateFreshDatabase } from "../../../test-support/test-database-snapshot";',
+      'import { migrationsFolderBefore } from "./migration-journal-test-helpers";',
+      "export const databaseBeforeMigration = [migrate, migrateFreshDatabase, migrationsFolderBefore];",
+    ].join("\n"),
+  });
+  await installPnpmPackage(root, "drizzle-orm", "pglite/migrator.js");
+
+  const report = await cruiseFixture(root, ["apps"], migrationTestsConfig);
+  const violationPairs = violationsFor(
+    report,
+    "cloud-migration-tests-migrate-through-migration-under-test",
+  ).map((violation) => `${violation.from} -> ${violation.to}`);
+
+  assert.deepEqual(violationPairs.sort(), [
+    "apps/cloud/src/platform/db/brands-migration.test.ts -> apps/cloud/src/test-support/test-database-snapshot.ts",
+    "apps/cloud/src/platform/db/brands-migration.test.ts -> node_modules/.pnpm/drizzle-orm@1.0.0/node_modules/drizzle-orm/pglite/migrator.js",
+    "apps/cloud/src/platform/db/prices-migration.test.ts -> apps/cloud/src/test-support/test-database-snapshot.ts",
+    "apps/cloud/src/platform/db/tags-migration.test.ts -> apps/cloud/src/platform/db/test-support/migration-journal-test-helpers.ts",
+  ]);
+
+  for (const migrationTest of [
+    "apps/cloud/src/platform/db/brands-migration.test.ts",
+    "apps/cloud/src/platform/db/tags-migration.test.ts",
+    "apps/cloud/src/platform/db/prices-migration.test.ts",
+  ]) {
+    await writeFixtureFile(
+      root,
+      migrationTest,
+      [
+        'import { databaseBeforeMigration } from "./test-support/migration-under-test";',
+        "export const deps = [databaseBeforeMigration];",
+      ].join("\n"),
+    );
+  }
+  const controlReport = await cruiseFixture(root, ["apps"], migrationTestsConfig);
+  assert.equal(
+    violationsFor(controlReport, "cloud-migration-tests-migrate-through-migration-under-test")
+      .length,
+    0,
+  );
 });
 
 test("screens-types-only-from-domain flags a backoffice value import from domain and allows a type-only one", async (t) => {

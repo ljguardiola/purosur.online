@@ -69,6 +69,39 @@ describe("RefundLines", () => {
       .toBeVisible();
   });
 
+  it("explains under a pending standalone terminal refund that a person gives it back outside the register, never in cash", async () => {
+    const refund: Refund = {
+      payment_id: "p7",
+      method: "STANDALONE_TERMINAL",
+      amount: 90_000,
+      state: "PENDING",
+    };
+
+    const screen = await render(<RefundLines refunds={[refund]} />);
+
+    await expect
+      .element(
+        screen.getByText(
+          "Lo devuelve una persona desde la terminal independiente o la app de Mercado Pago, nunca en efectivo.",
+          { exact: true },
+        ),
+      )
+      .toBeVisible();
+  });
+
+  it("explains nothing under a pending transfer refund", async () => {
+    const refund: Refund = {
+      payment_id: "p2",
+      method: "TRANSFER",
+      amount: 250_000,
+      state: "PENDING",
+    };
+
+    const screen = await render(<RefundLines refunds={[refund]} />);
+
+    await expect.element(screen.getByText(/Lo devuelve una persona/)).not.toBeInTheDocument();
+  });
+
   it("says a standalone terminal payment's refund given back now goes back by that terminal", async () => {
     const refund: Refund = {
       payment_id: "p8",

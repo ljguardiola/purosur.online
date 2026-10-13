@@ -6,7 +6,7 @@ const trackClassName = "h-2.5 w-60 overflow-hidden rounded-full bg-data-subtle";
 
 const fillClassName = "h-full rounded-full bg-data";
 
-function paintedFraction(value: number): number {
+export function paintedFraction(value: number): number {
   if (!Number.isFinite(value)) {
     return 0;
   }

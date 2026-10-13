@@ -4,6 +4,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { FetchAlertsOverviewOutcome } from "../alerts/alerts-api";
 import { openSession } from "../sessions/test-support/open-session";
+import { expiringLotList } from "../stock/test-support/expiring-lots-fixtures";
 import { stockBalanceList } from "../stock/test-support/stock-fixtures";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
@@ -16,6 +17,7 @@ opensOnlyScreens([
   "/",
   "/account",
   "/alerts",
+  "/expiring-lots",
   "/help",
   "/initial-inventory",
   "/inventory",
@@ -24,6 +26,7 @@ opensOnlyScreens([
   "/purchase-packagings",
   "/purchases",
   "/purchases/new",
+  "/recipes",
   "/suppliers",
 ]);
 
@@ -53,6 +56,10 @@ function stockServices(capabilities: Capability[]) {
     kind: "ok",
     value: { movements: [] },
   });
+  vi.mocked(services.expiringLotsScreen.fetchExpiringLots).mockResolvedValue({
+    kind: "ok",
+    value: expiringLotList([]),
+  });
   vi.mocked(services.initialInventoryScreen.fetchInitialInventoryLots).mockResolvedValue({
     kind: "ok",
     value: { lots: [] },
@@ -64,6 +71,10 @@ function stockServices(capabilities: Capability[]) {
   vi.mocked(services.packagingsListScreen.fetchPackagings).mockResolvedValue({
     kind: "ok",
     value: { packagings: [], products: [] },
+  });
+  vi.mocked(services.recipesListScreen.fetchRecipes).mockResolvedValue({
+    kind: "ok",
+    value: { recipes: [], products: [] },
   });
   vi.mocked(services.purchasesListScreen.fetchPurchases).mockResolvedValue({
     kind: "ok",
@@ -83,6 +94,8 @@ const SECTION_LABELS = [
   "Proveedores",
   "Presentaciones de compra",
   "Compras",
+  "Vencimientos",
+  "Recetas",
   "Inventario inicial",
 ];
 
@@ -94,6 +107,8 @@ test.each([
   ["suppliers", "Proveedores", "/suppliers"],
   ["purchase_packagings", "Presentaciones de compra", "/purchase-packagings"],
   ["purchases", "Compras", "/purchases"],
+  ["stock_expiries", "Vencimientos", "/expiring-lots"],
+  ["recipes", "Recetas", "/recipes"],
   ["initial_inventory", "Inventario inicial", "/initial-inventory"],
 ] as const)(
   "opens only %s's section from the rail's Stock item: %s",
@@ -205,7 +220,11 @@ test.each([
   ["/purchase-packagings", "suppliers"],
   ["/purchases", "suppliers"],
   ["/purchases/new", "suppliers"],
+  ["/expiring-lots", "suppliers"],
   ["/initial-inventory", "suppliers"],
+  ["/recipes", "purchases"],
+  ["/suppliers", "recipes"],
+  ["/purchases", "recipes"],
 ] as const)("sends a user who may not open %s to Mi cuenta", async (path, capability) => {
   const services = stockServices([capability, "stock_area"]);
   window.history.pushState(null, "", path);
@@ -262,6 +281,8 @@ const STOCK_SCREENS = [
   ["/purchase-packagings", "Presentaciones de compra"],
   ["/purchases", "Compras"],
   ["/purchases/new", "Registrar compra"],
+  ["/expiring-lots", "Vencimientos"],
+  ["/recipes", "Recetas"],
   ["/initial-inventory", "Inventario inicial"],
 ] as const;
 

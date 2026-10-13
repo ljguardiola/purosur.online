@@ -1,21 +1,16 @@
 import { QueryClient } from "@tanstack/react-query";
 import { expect, test } from "vitest";
+import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import { salesKey, salesKeys } from "./sales-queries";
-import { FRONT_REGISTER_ID } from "./test-support/sales-fixtures";
 
 test("invalidating the sales key marks every sales read stale", async () => {
   const client = new QueryClient();
-  const keys = [salesKeys.report({}), salesKeys.registers];
-  for (const key of keys) {
-    client.setQueryData(key, []);
-  }
+  client.setQueryData(salesKeys.report({}), []);
   client.setQueryData(["stock"], []);
 
   await client.invalidateQueries({ queryKey: salesKey, refetchType: "none" });
 
-  for (const key of keys) {
-    expect(client.getQueryState(key)?.isInvalidated).toBe(true);
-  }
+  expect(client.getQueryState(salesKeys.report({}))?.isInvalidated).toBe(true);
   expect(client.getQueryState(["stock"])?.isInvalidated).toBe(false);
 });
 

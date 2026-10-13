@@ -1,51 +1,28 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { describe, expect, inject, it, onTestFinished } from "vitest";
-import { migrateFreshDatabase } from "../../test-support/test-database-snapshot.js";
-import {
-  addMigrationEntry,
-  findMigrationEntry,
-  type JournalEntry,
-  migrationsFolderBefore,
-} from "./test-support/migration-journal-test-helpers.js";
-
-async function cancelledSalesEntry(): Promise<JournalEntry> {
-  return findMigrationEntry(
-    "_cancelled_sales",
-    "test setup: no cancelled sales migration in the journal",
-  );
-}
+import { describe, expect, it } from "vitest";
+import { databaseBeforeMigration } from "./test-support/migration-under-test.js";
 
 async function databaseBefore() {
-  const folder = await mkdtemp(join(tmpdir(), "cancelled-sales-migration-"));
-  onTestFinished(() => rm(folder, { recursive: true, force: true }));
-  await migrationsFolderBefore(folder, await cancelledSalesEntry());
-  const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
-  onTestFinished(() => client.close());
-  const { rows: locationRows } = await client.query<{ id: string }>(
+  const database = await databaseBeforeMigration("_cancelled_sales");
+  const { rows: locationRows } = await database.query<{ id: string }>(
     "select id from locations limit 1",
   );
-  const { rows: registerRows } = await client.query<{ id: string }>(
+  const { rows: registerRows } = await database.query<{ id: string }>(
     "insert into registers (location_id, name) values ($1, 'Caja 1') returning id",
     [locationRows[0]?.id],
   );
-  const { rows: installationRows } = await client.query<{ id: string }>(
+  const { rows: installationRows } = await database.query<{ id: string }>(
     `insert into register_installations
        (register_id, token_lookup_prefix, token_hash, token_issued_at, hostname, windows_version, enrolled_at)
      values ($1, 'prefix', 'hash', now(), 'CAJA', 'Windows 11', now()) returning id`,
     [registerRows[0]?.id],
   );
-  const { rows: sessionRows } = await client.query<{ id: string }>(
+  const { rows: sessionRows } = await database.query<{ id: string }>(
     `insert into cash_sessions (id, location_id, register_id, device_id, opened_by, opened_at, opening_float)
      values (gen_random_uuid(), $1, $2, $3, 'user-1', now(), 0) returning id`,
     [locationRows[0]?.id, registerRows[0]?.id, installationRows[0]?.id],
   );
   return {
-    client,
-    folder,
+    database,
     locationId: locationRows[0]?.id,
     registerId: registerRows[0]?.id,
     deviceId: installationRows[0]?.id,
@@ -57,17 +34,16 @@ describe("the cancelled sales migration applied over a database that already hol
   timeout: 30_000,
 }, () => {
   it("keeps every recorded sale as a completed one, with its completion time", async () => {
-    const { client, folder, locationId, registerId, deviceId, sessionId } = await databaseBefore();
-    await client.query(
+    const { database, locationId, registerId, deviceId, sessionId } = await databaseBefore();
+    await database.query(
       `insert into sales (id, location_id, register_id, device_id, session_id, actor_id, completed_at, total, applied_at)
        values (gen_random_uuid(), $1, $2, $3, $4, 'user-1', '2026-10-06T11:20:00Z', 4800, now())`,
       [locationId, registerId, deviceId, sessionId],
     );
 
-    await addMigrationEntry(folder, await cancelledSalesEntry());
-    await migrate(drizzle(client), { migrationsFolder: folder });
+    const migrated = await database.applyMigration();
 
-    const { rows } = await client.query(
+    const { rows } = await migrated.query(
       "select state, completed_at, cancelled_at, cancellation_authorized_by, total from sales",
     );
     expect(rows).toEqual([
@@ -82,11 +58,10 @@ describe("the cancelled sales migration applied over a database that already hol
   });
 
   it("refuses a sale whose state disagrees with its timestamps", async () => {
-    const { client, folder, locationId, registerId, deviceId, sessionId } = await databaseBefore();
-    await addMigrationEntry(folder, await cancelledSalesEntry());
-    await migrate(drizzle(client), { migrationsFolder: folder });
+    const { database, locationId, registerId, deviceId, sessionId } = await databaseBefore();
+    const migrated = await database.applyMigration();
     const insertSale = (state: string, completedAt: string | null, cancelledAt: string | null) =>
-      client.query(
+      migrated.query(
         `insert into sales
            (id, location_id, register_id, device_id, session_id, actor_id, state, completed_at, cancelled_at, total, applied_at)
          values (gen_random_uuid(), $1, $2, $3, $4, 'user-1', $5, $6, $7, 100, now())`,
@@ -107,12 +82,11 @@ describe("the cancelled sales migration applied over a database that already hol
   });
 
   it("refuses an authorizer on a sale that was not cancelled", async () => {
-    const { client, folder, locationId, registerId, deviceId, sessionId } = await databaseBefore();
-    await addMigrationEntry(folder, await cancelledSalesEntry());
-    await migrate(drizzle(client), { migrationsFolder: folder });
+    const { database, locationId, registerId, deviceId, sessionId } = await databaseBefore();
+    const migrated = await database.applyMigration();
 
     await expect(
-      client.query(
+      migrated.query(
         `insert into sales
            (id, location_id, register_id, device_id, session_id, actor_id, state, completed_at, cancellation_authorized_by, total, applied_at)
          values (gen_random_uuid(), $1, $2, $3, $4, 'user-1', 'COMPLETED', now(), 'user-2', 100, now())`,
@@ -122,22 +96,21 @@ describe("the cancelled sales migration applied over a database that already hol
   });
 
   it("records a refund of a payment, pending until a person marks it done", async () => {
-    const { client, folder, locationId, registerId, deviceId, sessionId } = await databaseBefore();
-    await addMigrationEntry(folder, await cancelledSalesEntry());
-    await migrate(drizzle(client), { migrationsFolder: folder });
-    const { rows: saleRows } = await client.query<{ id: string }>(
+    const { database, locationId, registerId, deviceId, sessionId } = await databaseBefore();
+    const migrated = await database.applyMigration();
+    const { rows: saleRows } = await migrated.query<{ id: string }>(
       `insert into sales
          (id, location_id, register_id, device_id, session_id, actor_id, state, cancelled_at, total, applied_at)
        values (gen_random_uuid(), $1, $2, $3, $4, 'user-1', 'CANCELLED', now(), 100, now()) returning id`,
       [locationId, registerId, deviceId, sessionId],
     );
-    const { rows: paymentRows } = await client.query<{ id: string }>(
+    const { rows: paymentRows } = await migrated.query<{ id: string }>(
       `insert into sale_payments (id, sale_id, method, provider, amount, state, occurred_at)
        values (gen_random_uuid(), $1, 'TRANSFER', 'NONE', 100, 'APPROVED', now()) returning id`,
       [saleRows[0]?.id],
     );
     const insertRefund = (state: string, doneBy: string | null, doneAt: string | null) =>
-      client.query(
+      migrated.query(
         `insert into payment_refunds (id, sale_id, payment_id, method, provider, amount, state, occurred_at, done_by, done_at)
          values (gen_random_uuid(), $1, $2, 'TRANSFER', 'NONE', 100, $3, now(), $4, $5)`,
         [saleRows[0]?.id, paymentRows[0]?.id, state, doneBy, doneAt],

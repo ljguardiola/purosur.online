@@ -17,11 +17,22 @@ export type {
 export { applyRegisterStockMovements } from "./apply-register-stock-movements.js";
 export type { AppliedStockMovement } from "./apply-stock-movement.js";
 export type {
+  DiscardExpiredLotInput,
+  DiscardExpiredLotOutcome,
+} from "./discard-expired-lot.js";
+export { discardExpiredLot } from "./discard-expired-lot.js";
+export type {
   CountableLot,
   ExpectedBalanceAtInput,
   ExpectedBalanceAtOutcome,
 } from "./expected-balance-at.js";
 export { expectedBalanceAt } from "./expected-balance-at.js";
+export type {
+  ExpiringLotProduct,
+  ExpiringLotReader,
+  ExpiringLotRow,
+  ExpiryWarningWindowReader,
+} from "./expiring-lot-reader.js";
 export type {
   FindCountableProductByBarcodeOutcome,
   FoundCountableProduct,
@@ -46,12 +57,19 @@ export type {
   InitialCountLotRow,
   InitialCountLotsQuery,
 } from "./initial-count-lot-reader.js";
+export { findRecipeListing, listRecipes } from "./list-recipes.js";
 export type {
   LockedLot,
   LotCostStore,
   LotCostTransaction,
   LotOriginKind,
 } from "./lot-cost-store.js";
+export type {
+  ExpiringLotsView,
+  ExpiringLotView,
+  ReadExpiringLotsInput,
+} from "./read-expiring-lots.js";
+export { readExpiringLots } from "./read-expiring-lots.js";
 export type { ReadInitialCountOutcome } from "./read-initial-count.js";
 export { readInitialCount } from "./read-initial-count.js";
 export type {
@@ -69,6 +87,20 @@ export type {
 export { readStockBalances } from "./read-stock-balances.js";
 export type { ReceivePurchasedStockOutcome } from "./receive-purchased-stock.js";
 export { receivePurchasedStock } from "./receive-purchased-stock.js";
+export type {
+  RecipeComponentListing,
+  RecipeListing,
+  RecipeListReader,
+} from "./recipe-list-reader.js";
+export type {
+  LockRecipeProductResult,
+  NewRecipeFields,
+  Recipe,
+  RecipeReplacementFields,
+  RecipeStore,
+  RecipeStoreTransaction,
+} from "./recipe-store.js";
+export { RecipeVersionConflict } from "./recipe-store.js";
 export type { RecordAdjustmentInput, RecordAdjustmentOutcome } from "./record-adjustment.js";
 export { recordAdjustment } from "./record-adjustment.js";
 export type {
@@ -87,6 +119,12 @@ export type {
   ReplicatedStockLedger,
   ReplicatedStockMovement,
 } from "./replicated-stock-ledger.js";
+export type {
+  InvalidRecipeReason,
+  SaveRecipeInput,
+  SaveRecipeOutcome,
+} from "./save-recipe.js";
+export { saveRecipe } from "./save-recipe.js";
 export type {
   SetLotReferenceCostInput,
   SetLotReferenceCostOutcome,

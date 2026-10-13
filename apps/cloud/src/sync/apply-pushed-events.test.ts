@@ -23,6 +23,7 @@ import {
   PUSHING_CHAIN_KEY,
   pushingDevice,
   saleCancelled,
+  saleCancelledAfterStandaloneTerminalPayment,
   saleCompleted,
 } from "./test-support/pushing-device.js";
 
@@ -146,6 +147,34 @@ describe("applying what POST /events received", () => {
     const [sale] = await route.db.select().from(sales);
     expect(sale).toMatchObject({ id: saleId, state: "CANCELLED" });
     expect(await route.db.select().from(paymentRefunds)).toHaveLength(1);
+    expect(await route.db.select().from(alerts)).toEqual([]);
+  });
+
+  it("applies a sale cancelled after a standalone terminal payment, leaving its refund pending and raising no alert", async () => {
+    const { device } = await pushingFromARegister();
+    const sessionId = randomUUID();
+    const saleId = randomUUID();
+    await device.push([
+      cashSessionOpened(sessionId, "2026-10-06T11:00:00.000Z"),
+      saleCancelledAfterStandaloneTerminalPayment({
+        saleId,
+        sessionId,
+        cancelledAt: "2026-10-06T11:25:00.000Z",
+        amount: 1000,
+      }),
+    ]);
+
+    await applyAt(NOW);
+
+    const [sale] = await route.db.select().from(sales);
+    expect(sale).toMatchObject({ id: saleId, state: "CANCELLED" });
+    const [refund] = await route.db.select().from(paymentRefunds);
+    expect(refund).toMatchObject({
+      method: "STANDALONE_TERMINAL",
+      provider: "EXTERNAL_TERMINAL",
+      amount: 1000,
+      state: "PENDING",
+    });
     expect(await route.db.select().from(alerts)).toEqual([]);
   });
 

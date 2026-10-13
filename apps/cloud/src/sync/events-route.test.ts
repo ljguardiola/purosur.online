@@ -173,6 +173,12 @@ describe("POST /events", () => {
         walSizeBytes: 4096,
         diskFreeBytes: 50_000_000,
         diskFreeRatio: 0.42,
+        batteryPresent: null,
+        batteryChargePercent: null,
+        batteryHealthPercent: null,
+        batteryOnBattery: null,
+        batteryOnBatteryMinutes: null,
+        batteryReportedAt: null,
       },
     ]);
   });

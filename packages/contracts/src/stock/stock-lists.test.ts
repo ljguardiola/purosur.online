@@ -297,6 +297,12 @@ describe("stockMovementListSchema", () => {
     expect(stockMovementListSchema.safeParse(list).data).toEqual(list);
   });
 
+  it("accepts a loss for the expiry the system assigned", () => {
+    const list = { movements: [{ ...movement, reason: "expired" }] };
+
+    expect(stockMovementListSchema.safeParse(list).data).toEqual(list);
+  });
+
   it.each([
     ["kind", "count"],
     ["reason", "whatever"],

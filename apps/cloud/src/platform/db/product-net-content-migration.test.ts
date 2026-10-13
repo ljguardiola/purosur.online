@@ -1,48 +1,13 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { describe, expect, inject, it, onTestFinished } from "vitest";
-import { migrateFreshDatabase } from "../../test-support/test-database-snapshot.js";
-import { products } from "./schema.js";
-import {
-  addMigrationEntry,
-  findMigrationEntry,
-  type JournalEntry,
-  migrationsFolderBefore,
-} from "./test-support/migration-journal-test-helpers.js";
-
-const NET_CONTENT_MIGRATION_TAG_SUFFIX = "_product_net_content";
-
-async function netContentEntry(): Promise<JournalEntry> {
-  return findMigrationEntry(
-    NET_CONTENT_MIGRATION_TAG_SUFFIX,
-    "test setup: no product_net_content migration in the journal",
-  );
-}
-
-async function migrationsFolderBeforeNetContent(destFolder: string): Promise<void> {
-  await migrationsFolderBefore(destFolder, await netContentEntry());
-}
-
-async function addNetContentMigration(destFolder: string): Promise<void> {
-  await addMigrationEntry(destFolder, await netContentEntry());
-}
+import { describe, expect, it } from "vitest";
+import { databaseBeforeMigration } from "./test-support/migration-under-test.js";
 
 describe("the product_net_content migration applied to a database that already holds products", {
   timeout: 30_000,
 }, () => {
   it("leaves existing products unchanged, with no net content", async () => {
-    const folder = await mkdtemp(join(tmpdir(), "product-net-content-migration-"));
-    onTestFinished(() => rm(folder, { recursive: true, force: true }));
-    await migrationsFolderBeforeNetContent(folder);
+    const database = await databaseBeforeMigration("_product_net_content");
 
-    const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
-    onTestFinished(() => client.close());
-
-    const { rows: categoryRows } = await client.query<{ id: string }>(
+    const { rows: categoryRows } = await database.query<{ id: string }>(
       "insert into categories (name) values ($1) returning id",
       ["Macetas"],
     );
@@ -50,7 +15,7 @@ describe("the product_net_content migration applied to a database that already h
     if (!category) {
       throw new Error("test setup: seeding the category returned no row");
     }
-    const { rows: productRows } = await client.query<{ id: string }>(
+    const { rows: productRows } = await database.query<{ id: string }>(
       "insert into products (name, category_id, sale_unit) values ($1, $2, $3) returning id",
       ["Maceta 20cm", category.id, "UNIT"],
     );
@@ -59,32 +24,23 @@ describe("the product_net_content migration applied to a database that already h
       throw new Error("test setup: seeding the product returned no row");
     }
 
-    await addNetContentMigration(folder);
-    await migrate(drizzle(client), { migrationsFolder: folder });
+    const migrated = await database.applyMigration();
 
-    const db = drizzle(client);
-    const rows = await db
-      .select({
-        id: products.id,
-        name: products.name,
-        categoryId: products.categoryId,
-        saleUnit: products.saleUnit,
-        active: products.active,
-        netContentQuantity: products.netContentQuantity,
-        netContentUnit: products.netContentUnit,
-      })
-      .from(products)
-      .where(eq(products.id, seededProduct.id));
+    const { rows } = await migrated.query(
+      `select id, name, category_id, sale_unit, active, net_content_quantity::text, net_content_unit
+       from products where id = $1`,
+      [seededProduct.id],
+    );
 
     expect(rows).toMatchObject([
       {
         id: seededProduct.id,
         name: "Maceta 20cm",
-        categoryId: category.id,
-        saleUnit: "UNIT",
+        category_id: category.id,
+        sale_unit: "UNIT",
         active: true,
-        netContentQuantity: null,
-        netContentUnit: null,
+        net_content_quantity: null,
+        net_content_unit: null,
       },
     ]);
   });
