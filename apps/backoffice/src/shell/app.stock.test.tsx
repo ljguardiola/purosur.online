@@ -242,3 +242,73 @@ test("offers the kinds of stock movement real use of the open tab reports the us
     vi.useRealTimers();
   }
 });
+
+const threeOpenAlerts = {
+  kind: "ok",
+  value: {
+    critical: { openCount: 1, kinds: ["user_access_increased"] },
+    warning: { openCount: 2, kinds: ["user_email_changed"] },
+    informational: { openCount: 0, kinds: [] },
+  },
+} as const;
+
+const STOCK_SCREENS = [
+  ["/inventory", "Saldos"],
+  ["/inventory-counts", "Recuentos"],
+  ["/inventory-adjustments", "Ajustes y pérdidas"],
+  ["/suppliers", "Proveedores"],
+  ["/purchase-packagings", "Presentaciones de compra"],
+  ["/purchases", "Compras"],
+  ["/purchases/new", "Nueva compra"],
+  ["/initial-inventory", "Inventario inicial"],
+] as const;
+
+test.each(STOCK_SCREENS)(
+  "counts the open alerts in %s's top bar and opens the alerts list from it",
+  async (path, heading) => {
+    const services = stockServices([]);
+    vi.mocked(services.fetchSession).mockResolvedValue(openSession());
+    vi.mocked(services.alertsOpenCountLink.fetchAlertsOverview).mockResolvedValue(threeOpenAlerts);
+    window.history.pushState(null, "", path);
+
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    await expect.element(screen.getByRole("heading", { name: heading, level: 1 })).toBeVisible();
+    await userEvent.click(screen.getByRole("link", { name: "3 alertas abiertas" }));
+
+    await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toBeVisible();
+    expect(window.location.pathname).toBe("/alerts");
+  },
+);
+
+test("shows no alerts count in a Stock screen's top bar while no alert is open", async () => {
+  const services = stockServices([]);
+  vi.mocked(services.fetchSession).mockResolvedValue(openSession());
+  vi.mocked(services.alertsOpenCountLink.fetchAlertsOverview).mockResolvedValue({
+    kind: "ok",
+    value: {
+      critical: { openCount: 0, kinds: [] },
+      warning: { openCount: 0, kinds: [] },
+      informational: { openCount: 0, kinds: [] },
+    },
+  });
+  window.history.pushState(null, "", "/inventory");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Saldos", level: 1 })).toBeVisible();
+  await expect.poll(() => services.alertsOpenCountLink.fetchAlertsOverview).toHaveBeenCalled();
+  expect(screen.getByText(/alertas? abiertas?/).query()).toBeNull();
+});
+
+test("never asks for the alerts count of a user who may not see alerts", async () => {
+  const services = stockServices(["stock_balances", "stock_area"]);
+  vi.mocked(services.alertsOpenCountLink.fetchAlertsOverview).mockResolvedValue(threeOpenAlerts);
+  window.history.pushState(null, "", "/inventory");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Saldos", level: 1 })).toBeVisible();
+  expect(services.alertsOpenCountLink.fetchAlertsOverview).not.toHaveBeenCalled();
+  expect(screen.getByText(/alertas? abiertas?/).query()).toBeNull();
+});
