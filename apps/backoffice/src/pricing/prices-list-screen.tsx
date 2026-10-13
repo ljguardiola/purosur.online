@@ -2,6 +2,7 @@ import type { PriceCategory, PriceProduct } from "@purosur/contracts";
 import {
   Button,
   dataColumn,
+  formatTenthsOfPercent,
   FloatingNotification,
   IconButton,
   ListFilter,
@@ -439,8 +440,27 @@ export function PricesListScreen({
     dataColumn({
       id: "price",
       header: "Precio",
+      align: "end",
       render: (item: PriceProduct) =>
         item.currentPrice ? formatCentsWithUnit(item.currentPrice.unitPrice, item.saleUnit) : "—",
+    }),
+    dataColumn({
+      id: "total-cost",
+      header: "Costo total",
+      align: "end",
+      render: (item: PriceProduct) =>
+        item.costReference
+          ? formatCentsWithUnit(item.costReference.totalCostCents, item.saleUnit)
+          : "—",
+    }),
+    dataColumn({
+      id: "margin",
+      header: "Margen",
+      align: "end",
+      render: (item: PriceProduct) =>
+        item.costReference?.marginTenthsOfPercent == null
+          ? "—"
+          : formatTenthsOfPercent(item.costReference.marginTenthsOfPercent),
     }),
     dataColumn({
       id: "reviewed",
