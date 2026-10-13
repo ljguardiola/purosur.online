@@ -13,6 +13,7 @@ on:
       - .github/workflows/package-pos.yml
       - .github/scripts/same-app-code.mjs
       - .github/scripts/app-code-hash.mjs
+      - .github/scripts/publish-pos-update.mjs
   push:
     branches: [main]
     paths:
@@ -26,6 +27,7 @@ on:
       - .github/workflows/package-pos.yml
       - .github/scripts/same-app-code.mjs
       - .github/scripts/app-code-hash.mjs
+      - .github/scripts/publish-pos-update.mjs
 
 # On `pull_request`, a new push supersedes the run still going for its previous push. Runs on main
 # get a group of their own per commit, so they are never cancelled or replaced.
@@ -44,7 +46,7 @@ jobs:
     # it merges. Only a merge to main runs under the staging environment, which admits nothing but
     # main, and keeps its staging installer. The job builds the app code once and packages both
     # channels from it, but only the pack:staging step below reads the staging environment's Sentry
-    # DSN and update feed URL — pack:production never receives them. The production installer that
+    # DSN and cloud URL — pack:production never receives them. The production installer that
     # ships comes from the tag-bound release workflow.
     environment: ${{ github.event_name == 'push' && 'staging' || '' }}
     steps:
@@ -67,22 +69,21 @@ jobs:
 
       - run: pnpm --filter @purosur/pos build
 
-      # The built app code carries nothing channel-specific; the channel, its Sentry DSN, its cloud
-      # and its update feed only reach each channel's resources/channel.json and app-update.yml,
-      # outside app.asar. An unset variable leaves that feature off.
+      # The built app code carries nothing channel-specific; the channel, its Sentry DSN and its
+      # cloud only reach each channel's resources/channel.json, outside app.asar. An unset variable
+      # leaves that feature off.
       - run: pnpm --filter @purosur/pos pack:production
         env:
+          POS_VERSION: 0.0.${{ github.run_number }}
           POS_SENTRY_DSN: ""
-          POS_UPDATE_FEED_URL: ""
           POS_CLOUD_URL: ""
 
-      # The staging feed is a separate artifact in the staging bucket. The DSN reaches only the job
-      # running under the staging environment (a push to main), which is also the only run that
-      # keeps the staging installer.
+      # The DSN reaches only the job running under the staging environment (a push to main), which
+      # is also the only run that keeps the staging installer.
       - run: pnpm --filter @purosur/pos pack:staging
         env:
+          POS_VERSION: 0.0.${{ github.run_number }}
           POS_SENTRY_DSN: ${{ github.event_name == 'push' && vars.POS_SENTRY_DSN || '' }}
-          POS_UPDATE_FEED_URL: ${{ vars.POS_UPDATE_FEED_URL }}
           POS_CLOUD_URL: ${{ vars.POS_CLOUD_URL }}
 
       # Each channel's unpacked folder holds its app code, so both can be compared directly.
@@ -118,6 +119,8 @@ jobs:
       # binding the packaged app cannot load fails here and not on a store's register. It rewrites
       # that folder's channel.json without a DSN or cloud, and runs after every step that reads it.
       - run: pnpm --filter @purosur/pos test:packaged
+        env:
+          POS_VERSION: 0.0.${{ github.run_number }}
 
   independent-build:
     name: independent build of the production app.asar
@@ -144,8 +147,8 @@ jobs:
 
       - run: pnpm --filter @purosur/pos pack:production --dir
         env:
+          POS_VERSION: 0.0.${{ github.run_number }}
           POS_SENTRY_DSN: ""
-          POS_UPDATE_FEED_URL: ""
           POS_CLOUD_URL: ""
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -187,3 +190,48 @@ jobs:
           node .github/scripts/same-app-code.mjs
           package-build/app.asar
           independent-build/app.asar
+
+  publish-staging-update:
+    name: publish the staging installer to the update feed
+    needs: [package, independent-build-agrees]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: staging
+    permissions:
+      contents: read
+    # Two merges never write the feed at once, and a later run waits for the earlier one instead of
+    # cancelling it halfway through an upload.
+    concurrency:
+      group: pos-staging-update-feed
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: pos-staging-installer
+          path: staging-installer
+
+      # Publishing stays off until the staging environment names its bucket.
+      - name: Publish the installer, then the feed entry that points at it
+        if: vars.POS_UPDATES_BUCKET_NAME != ''
+        run: node .github/scripts/publish-pos-update.mjs staging-installer
+        env:
+          POS_VERSION: 0.0.${{ github.run_number }}
+          POS_UPDATES_BUCKET_NAME: ${{ vars.POS_UPDATES_BUCKET_NAME }}
+          POS_UPDATES_BUCKET_ENDPOINT: ${{ vars.POS_UPDATES_BUCKET_ENDPOINT }}
+          POS_UPDATES_BUCKET_REGION: ${{ vars.POS_UPDATES_BUCKET_REGION }}
+          POS_UPDATES_BUCKET_ACCESS_KEY_ID: ${{ secrets.POS_UPDATES_BUCKET_ACCESS_KEY_ID }}
+          POS_UPDATES_BUCKET_SECRET_ACCESS_KEY: ${{ secrets.POS_UPDATES_BUCKET_SECRET_ACCESS_KEY }}

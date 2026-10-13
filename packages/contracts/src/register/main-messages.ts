@@ -83,8 +83,16 @@ export type DeviceCredentialsAnswer = z.output<typeof deviceCredentialsAnswerSch
 export const mainToCoreMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("health-check") }),
   ...deviceCredentialsAnswerSchema.options,
+  z.object({ type: z.literal("update-safe-moment-request"), request_id: requestIdSchema }),
+  z.object({ type: z.literal("update-hold-release") }),
 ]);
 export type MainToCoreMessage = z.output<typeof mainToCoreMessageSchema>;
+
+export interface UpdateSafeMomentAnswer {
+  type: "update-safe-moment";
+  request_id: string;
+  safe: boolean;
+}
 
 export interface CoreReadyMessage {
   type: "core-ready";
@@ -92,7 +100,7 @@ export interface CoreReadyMessage {
 
 export const coreStatusMessageSchema = z.object({
   type: z.literal("core-status"),
-  status: z.enum(["starting", "down", "up"]),
+  status: z.enum(["starting", "down", "up", "updating"]),
 });
 export type CoreStatusMessage = z.infer<typeof coreStatusMessageSchema>;
 
