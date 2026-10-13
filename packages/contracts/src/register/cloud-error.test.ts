@@ -58,6 +58,7 @@ describe("cloudErrorStatus", () => {
     ["payment_provider_not_configured", 503],
     ["payment_provider_unavailable", 503],
     ["payment_provider_refused", 502],
+    ["update_feed_unavailable", 503],
   ] as const)("answers %s with HTTP %i", (code, status) => {
     expect(cloudErrorStatus(code)).toBe(status);
   });
@@ -72,6 +73,7 @@ describe("isRetryableCloudError", () => {
     ["rate_limited", true],
     ["server_unavailable", true],
     ["payment_provider_unavailable", true],
+    ["update_feed_unavailable", true],
     ["payment_provider_not_configured", false],
     ["payment_provider_refused", false],
     ["conflict", false],

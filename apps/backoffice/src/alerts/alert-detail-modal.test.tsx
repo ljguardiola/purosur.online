@@ -937,37 +937,27 @@ test("describes a register that had no installation before without a replaced on
     .toBeVisible();
 });
 
-test("tells which event of a register was quarantined and why", async () => {
+test("tells which register has events in quarantine", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
     ok(
       baseDetail({
         kind: "events_quarantined",
-        scope: "event-1",
-        scopeDisplay: "event-1",
-        detail: {
-          deviceId: "device-1",
-          eventId: "event-1",
-          eventType: "sale_completed",
-          aggregateType: "Sale",
-          aggregateId: "sale-1",
-          reason: {
-            kind: "missing_dependency",
-            aggregateType: "CashSession",
-            aggregateId: "session-1",
-          },
-        },
+        scope: "device-1",
+        scopeDisplay: "Caja 1",
+        scopeKind: "syncDevice",
+        detail: { deviceId: "device-1" },
       }),
     ),
   );
 
   const screen = await renderModal(services);
 
-  await expect.element(screen.getByText("Evento de una caja en cuarentena")).toBeVisible();
+  await expect.element(screen.getByText("Eventos de una caja en cuarentena")).toBeVisible();
   await expect
     .element(
       screen.getByText(
-        "El evento de venta (event-1) de la venta sale-1 no se pudo aplicar y quedó en cuarentena: depende de la sesión de caja session-1, que todavía no se aplicó. Los eventos siguientes de la venta sale-1 esperan hasta que se resuelva.",
+        "La caja «Caja 1» tiene eventos que no se pudieron aplicar y quedaron en cuarentena. Los eventos siguientes de cada uno de esos registros esperan hasta que se resuelvan.",
       ),
     )
     .toBeVisible();
@@ -975,17 +965,11 @@ test("tells which event of a register was quarantined and why", async () => {
 
 const quarantinedEventAlert = baseDetail({
   kind: "events_quarantined",
-  scope: "event-1",
-  scopeDisplay: "event-1",
-  scopeKind: "event",
-  detail: {
-    deviceId: "device-1",
-    eventId: "event-1",
-    eventType: "sale_completed",
-    aggregateType: "Sale",
-    aggregateId: "sale-1",
-    reason: { kind: "missing_dependency", aggregateType: "CashSession", aggregateId: "session-1" },
-  },
+  scope: "device-1",
+  scopeDisplay: "Caja 1",
+  scopeKind: "syncDevice",
+  closing: "when_its_events_are_released",
+  detail: { deviceId: "device-1" },
 });
 
 test("links a quarantined event's alert to the quarantined events screen for a person who may release them", async () => {
@@ -1006,7 +990,7 @@ test("does not link a quarantined event's alert to the quarantined events screen
 
   const screen = await renderModal(services, { access: accessWith("alerts_area") });
 
-  await expect.element(screen.getByText("Evento de una caja en cuarentena")).toBeVisible();
+  await expect.element(screen.getByText("Eventos de una caja en cuarentena")).toBeVisible();
   expect(screen.getByRole("link", { name: "Ver eventos en cuarentena" }).query()).toBeNull();
 });
 
@@ -1049,6 +1033,38 @@ test("tells which event was applied with an inconsistency and what it breaks", a
       ),
     )
     .toBeVisible();
+});
+
+test("tells which register sent events that do not match its chain and that the cloud revoked its installation", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "outbox_chain_broken",
+        scope: "installation-1",
+        scopeDisplay: "Caja 1",
+        scopeKind: "syncDevice",
+        detail: { deviceId: "installation-1" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Eventos de una caja alterados en su disco")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "La caja «Caja 1» envió eventos que no coinciden con su cadena: alguno se alteró, se quitó o se reordenó en el disco de la caja. La nube rechazó el envío y dio de baja la instalación.",
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+  await expect
+    .element(screen.getByText("No se cierra sola: se cierra a mano después de revisarla."))
+    .toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
+  await expectNoAccessibilityViolations(document.body);
 });
 
 test("shows an expiring ARCA certificate with the environment it is for and the day it expires", async () => {
@@ -1683,4 +1699,25 @@ test("tells a document ARCA left without a clear answer: its number, since when,
     .toBeVisible();
   await expect.element(screen.getByText("Comprobante", { exact: true })).toBeVisible();
   expect(screen.getByText(/fiscal-document-1/).query()).toBeNull();
+});
+
+test("tells that an alert for quarantined events resolves by itself and still offers closing it by hand", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(quarantinedEventAlert));
+
+  const screen = await renderModal(services, {
+    access: accessWith("quarantined_events", "close_alerts_manually"),
+  });
+
+  await expect
+    .element(
+      screen.getByText(
+        "Se resuelve sola cuando no queda ningún evento de esta caja en cuarentena.",
+        {
+          exact: true,
+        },
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
 });

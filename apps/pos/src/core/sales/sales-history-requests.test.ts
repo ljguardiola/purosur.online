@@ -1,5 +1,6 @@
 import { encodePinHash } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { uniqueShortCode } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
@@ -84,9 +85,10 @@ function addSale({
   if (deferred) {
     database
       .prepare(
-        "INSERT INTO deferred_sales (sale_id, reason, routed_at) VALUES (?, 'fiscally_offline', ?)",
+        `INSERT INTO deferred_sales (id, sale_id, occurred_at, total, reason, short_code, routed_at)
+         VALUES (?, ?, ?, 3000, 'fiscally_offline', ?, ?)`,
       )
-      .run(id, occurredAt);
+      .run(`deferred-${id}`, id, occurredAt, uniqueShortCode(), occurredAt);
   }
   if (authorizedDocumentNumber !== undefined) {
     database

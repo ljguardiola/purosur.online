@@ -18,6 +18,7 @@ const ALERT_KIND_LIST = [
   "refund_task",
   "fiscal_unknown",
   "fiscal_emission_stopped",
+  "outbox_chain_broken",
 ] as const;
 
 export type AlertKind = (typeof ALERT_KIND_LIST)[number];

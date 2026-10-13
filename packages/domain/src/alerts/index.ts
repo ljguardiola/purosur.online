@@ -6,7 +6,6 @@ export {
   isAlertKind,
   isAlertLevel,
 } from "./model/alert-catalog.js";
-export type { AlertConditionObservation } from "./model/alert-condition-observation.js";
 export {
   fiscalRejectionAlertObservation,
   offlineAuthorizationCodeHeldObservation,
@@ -26,9 +25,6 @@ export type {
   AlertRoleSummary,
   ArcaCertificateExpiringDetail,
   EmailChangedDetail,
-  EventInvariantViolatedDetail,
-  EventQuarantineReason,
-  EventsQuarantinedDetail,
   OpenAlertInput,
   PasskeyChangedDetail,
   RecoveryRequestedDetail,

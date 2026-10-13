@@ -13,7 +13,9 @@ import {
   insertSaleCompletedEvent,
   openFiscalDatabase,
   POINT_OF_SALE,
+  SALE_COMPLETED_AT,
 } from "./test-support/real-time-authorization-database";
+import { scriptedShortCodes } from "./test-support/scripted-short-codes";
 
 const ANSWERED_AT = new Date("2026-09-30T12:05:02.000Z");
 
@@ -36,7 +38,13 @@ function authorize(
   saleId = "sale-1",
 ) {
   return authorizeSaleInRealTime(
-    { database, taxAuthority: taxAuthorityAnswering(answer), now: () => ANSWERED_AT },
+    {
+      database,
+      taxAuthority: taxAuthorityAnswering(answer),
+      now: () => ANSWERED_AT,
+      ids: { next: () => "deferred-1" },
+      shortCodes: scriptedShortCodes(["7KQ4M2P9", "R3XW8H5N"]),
+    },
     saleId,
   );
 }
@@ -105,6 +113,28 @@ describe("authorizing a completed sale in real time", () => {
     expect(storedDocument()).toMatchObject({ state: "REJECTED" });
     expect(database.prepare("SELECT sale_id, reason FROM deferred_sales").all()).toEqual([
       { sale_id: "sale-1", reason: "rejected" },
+    ]);
+  });
+
+  it("keeps the rejected sale's date and total in its deferred record, under the drawn identifier and short code", async () => {
+    await authorize({ kind: "rejected", codes: [10015], rejectionClass: "content" });
+
+    expect(
+      database
+        .prepare(
+          "SELECT id, sale_id, occurred_at, total, reason, short_code, routed_at FROM deferred_sales",
+        )
+        .all(),
+    ).toEqual([
+      {
+        id: "deferred-1",
+        sale_id: "sale-1",
+        occurred_at: SALE_COMPLETED_AT.toISOString(),
+        total: FACTURA_C.total,
+        reason: "rejected",
+        short_code: "7KQ4M2P9",
+        routed_at: ANSWERED_AT.toISOString(),
+      },
     ]);
   });
 

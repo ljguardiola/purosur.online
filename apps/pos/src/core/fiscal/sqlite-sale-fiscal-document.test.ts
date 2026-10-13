@@ -4,6 +4,7 @@ import { readSaleFiscalDocument } from "./sqlite-sale-fiscal-document";
 import {
   FACTURA_C,
   insertCompletedSale,
+  insertDeferredSale,
   insertFiscalDocument,
   openFiscalDatabase,
 } from "./test-support/real-time-authorization-database";
@@ -53,5 +54,58 @@ describe("the fiscal document of a sale", () => {
     insertCompletedSale(database, "sale-2");
 
     expect(readSaleFiscalDocument(database, "sale-2")).toEqual({ kind: "none" });
+  });
+
+  describe("when the sale was routed to the deferred flow", () => {
+    it("is the deferred record's identifier and short code while no document stands for the sale", () => {
+      const reference = insertDeferredSale(database, "sale-1", "fiscally_offline");
+
+      expect(readSaleFiscalDocument(database, "sale-1")).toEqual({
+        kind: "deferred",
+        deferred: reference,
+      });
+    });
+
+    it.each(["REJECTED", "UNKNOWN"] as const)(
+      "is the deferred record when its document is %s",
+      (state) => {
+        insertFiscalDocument(database, { state });
+        const reference = insertDeferredSale(database, "sale-1");
+
+        expect(readSaleFiscalDocument(database, "sale-1")).toEqual({
+          kind: "deferred",
+          deferred: reference,
+        });
+      },
+    );
+
+    it("is awaiting while a document is waiting for the tax authority's answer", () => {
+      insertFiscalDocument(database, { state: "REQUESTING" });
+      insertDeferredSale(database, "sale-1");
+
+      expect(readSaleFiscalDocument(database, "sale-1")).toEqual({ kind: "awaiting" });
+    });
+
+    it("is the authorized factura C once one stands for the sale, satisfying its record or not", () => {
+      insertFiscalDocument(database, { state: "AUTHORIZED", number: 41 });
+      insertDeferredSale(database, "sale-1");
+
+      expect(readSaleFiscalDocument(database, "sale-1")).toMatchObject({ kind: "authorized" });
+
+      database
+        .prepare(
+          "UPDATE deferred_sales SET satisfied_by_fiscal_document_id = 'doc-1', satisfied_at = '2026-09-30T12:06:00.000Z'",
+        )
+        .run();
+
+      expect(readSaleFiscalDocument(database, "sale-1")).toMatchObject({ kind: "authorized" });
+    });
+
+    it("is none for another sale's record", () => {
+      insertCompletedSale(database, "sale-2");
+      insertDeferredSale(database, "sale-2");
+
+      expect(readSaleFiscalDocument(database, "sale-1")).toEqual({ kind: "none" });
+    });
   });
 });

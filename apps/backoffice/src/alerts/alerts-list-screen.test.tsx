@@ -751,14 +751,14 @@ test("names an alert for a register's enrollment by its kind and what happened",
 test("names an alert for quarantined events by its kind and what happened", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(
-    ok([{ ...passkeyAlert, kind: "events_quarantined", scopeDisplay: "event-1" }]),
+    ok([{ ...passkeyAlert, kind: "events_quarantined", scopeDisplay: "Caja 1" }]),
   );
 
   const screen = await renderScreen(services);
 
-  const row = screen.getByRole("row", { name: /event-1/ });
+  const row = screen.getByRole("row", { name: /Caja 1/ });
   await expect.element(row.getByText("Cuarentena de eventos")).toBeVisible();
-  await expect.element(row.getByText("Evento de una caja en cuarentena")).toBeVisible();
+  await expect.element(row.getByText("Eventos de una caja en cuarentena")).toBeVisible();
 });
 
 test("names an alert for an event applied with an inconsistency by its kind and what happened", async () => {
@@ -772,6 +772,26 @@ test("names an alert for an event applied with an inconsistency by its kind and 
   const row = screen.getByRole("row", { name: /event-1/ });
   await expect.element(row.getByText("Inconsistencia en un evento")).toBeVisible();
   await expect.element(row.getByText("Evento aplicado con una inconsistencia")).toBeVisible();
+});
+
+test("names an alert for a register's altered events by its kind, what happened and the register", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...passkeyAlert,
+        kind: "outbox_chain_broken",
+        scopeDisplay: "Caja 1",
+        scopeKind: "syncDevice",
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Caja 1/ });
+  await expect.element(row.getByText("Cadena de eventos alterada")).toBeVisible();
+  await expect.element(row.getByText("Eventos de una caja alterados en su disco")).toBeVisible();
 });
 
 test("names an alert for an expiring ARCA certificate by its kind and what happened", async () => {

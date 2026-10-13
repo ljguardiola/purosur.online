@@ -1,7 +1,9 @@
 import {
+  type IdGenerator,
   type RealTimeTaxAuthority,
   type RequestRealTimeAuthorizationOutcome,
   requestRealTimeAuthorization,
+  type ShortCodeRandomness,
 } from "@purosur/domain/fiscal/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import { SqliteRealTimeFiscalDocuments } from "./sqlite-real-time-fiscal-documents";
@@ -11,10 +13,12 @@ export interface RealTimeSaleAuthorizationDeps {
   database: LocalDatabase;
   taxAuthority: RealTimeTaxAuthority;
   now: () => Date;
+  ids: IdGenerator;
+  shortCodes: ShortCodeRandomness;
 }
 
 export async function authorizeSaleInRealTime(
-  { database, taxAuthority, now }: RealTimeSaleAuthorizationDeps,
+  { database, taxAuthority, now, ids, shortCodes }: RealTimeSaleAuthorizationDeps,
   saleId: string,
 ): Promise<RequestRealTimeAuthorizationOutcome> {
   return requestRealTimeAuthorization(
@@ -23,6 +27,8 @@ export async function authorizeSaleInRealTime(
       roundTrips: new SqliteRoundTripSamples(database),
       taxAuthority,
       clock: { now },
+      ids,
+      shortCodes,
     },
     { saleId },
   );
