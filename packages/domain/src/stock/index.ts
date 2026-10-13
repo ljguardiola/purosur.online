@@ -25,7 +25,9 @@ export {
 export type {
   AdjustmentReason,
   LossReason,
+  RecordedLossReason,
   StockDirection,
+  SystemLossReason,
 } from "./model/stock-movement-reason.js";
 export {
   ADJUSTMENT_REASONS,
@@ -33,6 +35,7 @@ export {
   LOSS_REASONS,
   lossDelta,
   STOCK_DIRECTIONS,
+  SYSTEM_LOSS_REASONS,
 } from "./model/stock-movement-reason.js";
 export type { StockPeriodDays } from "./model/stock-period.js";
 export { DEFAULT_STOCK_PERIOD_DAYS, STOCK_PERIOD_DAYS } from "./model/stock-period.js";

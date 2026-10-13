@@ -3,7 +3,7 @@ import type { Clock } from "../../shared/index.js";
 import type { NewInitialCountLot, NewLot } from "../model/lot.js";
 import type { StockLot } from "../model/lot-allocation.js";
 import type { StockMovementKind } from "../model/stock-movement-kind.js";
-import type { AdjustmentReason, LossReason } from "../model/stock-movement-reason.js";
+import type { AdjustmentReason, RecordedLossReason } from "../model/stock-movement-reason.js";
 
 export interface StockPorts {
   store: StockStore;
@@ -29,7 +29,7 @@ export interface NewStockMovement extends ProductStockKey {
   saleLineId?: string;
   purchaseLineId?: string;
   kind: StockMovementKind;
-  reason: LossReason | AdjustmentReason | null;
+  reason: RecordedLossReason | AdjustmentReason | null;
   delta: number;
   occurredAt: Date;
   actorId: string;
