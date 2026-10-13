@@ -14,13 +14,7 @@ function deferred() {
   return { promise, resolve };
 }
 
-function setup(
-  options: {
-    openSale?: () => boolean | Promise<boolean>;
-    limitMs?: number;
-    settleLimitMs?: number;
-  } = {},
-) {
+function setup(options: { openSale?: () => boolean; limitMs?: number } = {}) {
   const hold = createUpdateHold({
     hasOpenSale: options.openSale ?? (() => false),
     schedule: (run, delayMs) => {
@@ -28,7 +22,6 @@ function setup(
       return () => clearTimeout(timer);
     },
     limitMs: options.limitMs ?? 30_000,
-    settleLimitMs: options.settleLimitMs ?? 5_000,
   });
   const handled: Request[] = [];
   const refused: string[] = [];
@@ -70,12 +63,6 @@ describe("createUpdateHold", () => {
     gate(request("q-1"));
 
     expect(handled).toEqual([request("q-1")]);
-  });
-
-  it("waits for an asynchronous open-sale answer", async () => {
-    const { hold } = setup({ openSale: () => Promise.resolve(true) });
-
-    expect((await hold.answerSafeMomentRequest("r-1")).safe).toBe(false);
   });
 
   it("answers safe and refuses requests when no sale is open", async () => {
@@ -138,7 +125,45 @@ describe("createUpdateHold", () => {
     expect(handled).toEqual([request("q-1")]);
   });
 
-  it("answers only once a request already running has settled, seeing the sale it opened", async () => {
+  it("answers not safe and refuses nothing while a request is running and a sale is open", async () => {
+    const { hold, gate, gateRunning, handled, refused } = setup({ openSale: () => true });
+    const scale = deferred();
+    gateRunning(() => scale.promise)(request("q-1"));
+
+    const answer = hold.answerSafeMomentRequest("r-1");
+    gate(request("q-2"));
+    scale.resolve();
+
+    expect((await answer).safe).toBe(false);
+    expect(handled).toEqual([request("q-2")]);
+    expect(refused).toEqual([]);
+  });
+
+  it("answers not safe and refuses nothing while a request is running", async () => {
+    const { hold, gate, gateRunning, handled, refused } = setup();
+    const scale = deferred();
+    gateRunning(() => scale.promise)(request("q-1"));
+
+    const answer = hold.answerSafeMomentRequest("r-1");
+    gate(request("q-2"));
+
+    expect((await answer).safe).toBe(false);
+    expect(handled).toEqual([request("q-2")]);
+    expect(refused).toEqual([]);
+  });
+
+  it("answers safe once the running request has settled", async () => {
+    const { hold, gateRunning } = setup();
+    const scale = deferred();
+    gateRunning(() => scale.promise)(request("q-1"));
+
+    scale.resolve();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect((await hold.answerSafeMomentRequest("r-1")).safe).toBe(true);
+  });
+
+  it("answers not safe while a request that opens a sale is running and sees the sale once it settles", async () => {
     let openSale = false;
     const { hold, gateRunning } = setup({ openSale: () => openSale });
     const scale = deferred();
@@ -147,57 +172,18 @@ describe("createUpdateHold", () => {
       openSale = true;
     })(request("q-1"));
 
-    const answer = hold.answerSafeMomentRequest("r-1");
+    expect((await hold.answerSafeMomentRequest("r-1")).safe).toBe(false);
     scale.resolve();
+    await vi.advanceTimersByTimeAsync(0);
 
-    expect((await answer).safe).toBe(false);
-  });
-
-  it("refuses new requests while it waits for the running ones to settle", async () => {
-    const { hold, gate, gateRunning, handled, refused } = setup();
-    const scale = deferred();
-    gateRunning(() => scale.promise)(request("q-1"));
-
-    const answer = hold.answerSafeMomentRequest("r-1");
-    gate(request("q-2"));
-    scale.resolve();
-
-    expect((await answer).safe).toBe(true);
-    expect(handled).toEqual([]);
-    expect(refused).toEqual(["q-2"]);
-  });
-
-  it("answers not safe and takes requests again when a running request does not settle in time", async () => {
-    const { hold, gate, gateRunning, handled } = setup({ settleLimitMs: 5_000 });
-    gateRunning(() => new Promise<void>(() => {}))(request("q-1"));
-
-    const answer = hold.answerSafeMomentRequest("r-1");
-    await vi.advanceTimersByTimeAsync(4_999);
-    gate(request("q-2"));
-    await vi.advanceTimersByTimeAsync(1);
-
-    expect((await answer).safe).toBe(false);
-    gate(request("q-3"));
-    expect(handled).toEqual([request("q-3")]);
-  });
-
-  it("answers not safe when released while it waits", async () => {
-    const { hold, gate, gateRunning, handled } = setup();
-    const scale = deferred();
-    gateRunning(() => scale.promise)(request("q-1"));
-
-    const answer = hold.answerSafeMomentRequest("r-1");
-    hold.release();
-    scale.resolve();
-
-    expect((await answer).safe).toBe(false);
-    gate(request("q-2"));
-    expect(handled).toEqual([request("q-2")]);
+    expect((await hold.answerSafeMomentRequest("r-2")).safe).toBe(false);
   });
 
   it("takes requests again when the open sale can not be read", async () => {
     const { hold, gate, handled } = setup({
-      openSale: () => Promise.reject(new Error("database is locked")),
+      openSale: () => {
+        throw new Error("database is locked");
+      },
     });
 
     await expect(hold.answerSafeMomentRequest("r-1")).rejects.toThrow("database is locked");
