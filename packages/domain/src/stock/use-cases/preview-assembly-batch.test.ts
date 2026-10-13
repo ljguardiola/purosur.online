@@ -150,6 +150,7 @@ describe("previewAssemblyBatch", () => {
       lot: {
         costTotalCents: 21_000,
         costQuantity: 10_000,
+        unitCostCents: 2_100,
         costIncomplete: false,
         expiresOn: "2027-01-15",
       },
@@ -183,7 +184,7 @@ describe("previewAssemblyBatch", () => {
         { componentProductId: "nuts", allocations: [{ lotId: null, quantity: 6_000 }] },
         {},
       ],
-      lot: { costTotalCents: 1_000, costIncomplete: true },
+      lot: { costTotalCents: 1_000, costIncomplete: true, unitCostCents: null },
     });
   });
 
