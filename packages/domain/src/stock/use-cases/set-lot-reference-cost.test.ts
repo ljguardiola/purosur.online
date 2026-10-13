@@ -85,17 +85,14 @@ describe("setLotReferenceCost", () => {
     },
   );
 
-  it.each([0, -2_000])(
-    "refuses the lot of a withdrawn line that holds %s",
-    async (remaining) => {
-      const store = new FakeLotCostStore([lot("lot-1", { withdrawn: true, remaining })]);
+  it.each([0, -2_000])("refuses the lot of a withdrawn line that holds %s", async (remaining) => {
+    const store = new FakeLotCostStore([lot("lot-1", { withdrawn: true, remaining })]);
 
-      const outcome = await setLotReferenceCost({ store }, input());
+    const outcome = await setLotReferenceCost({ store }, input());
 
-      expect(outcome).toEqual({ kind: "lot_withdrawn" });
-      expect(store.lots[0]).toMatchObject({ cost: null, costIncomplete: true });
-    },
-  );
+    expect(outcome).toEqual({ kind: "lot_withdrawn" });
+    expect(store.lots[0]).toMatchObject({ cost: null, costIncomplete: true });
+  });
 
   it("types the cost of a withdrawn line's lot that still holds stock", async () => {
     const store = new FakeLotCostStore([lot("lot-1", { withdrawn: true, remaining: 1 })]);
