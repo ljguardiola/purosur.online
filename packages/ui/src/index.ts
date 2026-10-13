@@ -182,6 +182,7 @@ export {
   formatPercent,
   formatPointOfSaleNumber,
   formatSignedCents,
+  formatTenthsOfPercent,
   formatTimeAgo,
   formatTimeAgoInHours,
   formatWeight,
