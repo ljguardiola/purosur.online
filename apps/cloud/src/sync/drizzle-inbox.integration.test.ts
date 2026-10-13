@@ -582,10 +582,18 @@ describe("the inbox keeping the latest battery a register reported, on a real Po
   it("keeps the battery of each installation apart", async () => {
     const first = await insertEnrolledInstallation();
     const second = await insertEnrolledInstallation();
+    await push(second.deviceId, linked(event(1)));
 
     await push(first.deviceId, linked(event(1)), "1.4.0", PRESENT);
 
-    expect(await batteryOf(second.deviceId)).toBeUndefined();
+    expect(await batteryOf(second.deviceId)).toEqual({
+      present: null,
+      chargePercent: null,
+      healthPercent: null,
+      onBattery: null,
+      onBatteryMinutes: null,
+      reportedAt: null,
+    });
   });
 });
 

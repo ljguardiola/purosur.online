@@ -160,6 +160,7 @@ describe("watching the register's battery", () => {
     await watch.start();
 
     await advance(1, ON_MAINS);
+    expect(watch.report()).toMatchObject({ present: true, charge_percent: 71 });
     await advance(1, new Error("second"));
 
     expect(onFailure).toHaveBeenCalledTimes(2);

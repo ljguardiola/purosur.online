@@ -2,9 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import {
   batteryOutput,
   CHARGING_ON_MAINS_OUTPUT,
+  capacitiesOutput,
   DISCHARGING_BATTERY_OUTPUT,
+  FIRST_BATTERY,
   HEALTH_UNAVAILABLE_OUTPUT,
   NO_BATTERY_OUTPUT,
+  SECOND_BATTERY,
   TWO_BATTERIES_OUTPUT,
 } from "./test-support/battery-powershell-output";
 import { windowsBatteryReader } from "./windows-battery-reader";
@@ -45,15 +48,18 @@ describe("the Windows battery reader", () => {
     );
   });
 
-  it("reads the capacities from the WMI namespace without failing when it is unavailable", async () => {
+  it("reads the capacities of each battery by name from the WMI namespace without failing when it is unavailable", async () => {
     const { run, reader } = readerPrinting(DISCHARGING_BATTERY_OUTPUT);
 
     await reader.read();
 
     const script = String(run.mock.calls[0]?.[1]?.[3]);
-    expect(script).toContain("BatteryFullChargedCapacity");
-    expect(script).toContain("BatteryStaticData");
-    expect(script).toContain("SilentlyContinue");
+    expect(script).toContain(
+      "BatteryFullChargedCapacity -ErrorAction SilentlyContinue | Select-Object InstanceName, FullChargedCapacity",
+    );
+    expect(script).toContain(
+      "BatteryStaticData -ErrorAction SilentlyContinue | Select-Object InstanceName, DesignedCapacity",
+    );
   });
 
   it("reports a battery that is discharging with its charge and health", async () => {
@@ -85,7 +91,7 @@ describe("the Windows battery reader", () => {
     expect(reading).not.toHaveProperty("healthPercent");
   });
 
-  it("averages the charge of two batteries, adds their capacities and is on battery if either is", async () => {
+  it("averages the charge of two batteries, adds the capacities of each one by name and is on battery if either is", async () => {
     expect(await readerPrinting(TWO_BATTERIES_OUTPUT).reader.read()).toEqual({
       kind: "present",
       chargePercent: 61,
@@ -139,14 +145,71 @@ describe("the Windows battery reader", () => {
   });
 
   it("leaves the health out when the design capacity is zero", async () => {
-    const output = JSON.stringify({
-      batteries: [{ EstimatedChargeRemaining: 50, BatteryStatus: 2 }],
-      fullCharge: [{ FullChargedCapacity: 100 }],
-      design: [{ DesignedCapacity: 0 }],
-    });
+    const output = capacitiesOutput(
+      [{ InstanceName: FIRST_BATTERY, FullChargedCapacity: 100 }],
+      [{ InstanceName: FIRST_BATTERY, DesignedCapacity: 0 }],
+    );
 
     expect(await readerPrinting(output).reader.read()).not.toHaveProperty("healthPercent");
   });
+
+  it.each([
+    [
+      "a full-charge capacity of a battery with no design capacity",
+      [
+        { InstanceName: FIRST_BATTERY, FullChargedCapacity: 30000 },
+        { InstanceName: SECOND_BATTERY, FullChargedCapacity: 20000 },
+      ],
+      [{ InstanceName: FIRST_BATTERY, DesignedCapacity: 40000 }],
+    ],
+    [
+      "a design capacity of a battery with no full-charge capacity",
+      [{ InstanceName: FIRST_BATTERY, FullChargedCapacity: 30000 }],
+      [
+        { InstanceName: FIRST_BATTERY, DesignedCapacity: 40000 },
+        { InstanceName: SECOND_BATTERY, DesignedCapacity: 40000 },
+      ],
+    ],
+    [
+      "capacities of batteries whose names differ",
+      [{ InstanceName: FIRST_BATTERY, FullChargedCapacity: 30000 }],
+      [{ InstanceName: SECOND_BATTERY, DesignedCapacity: 40000 }],
+    ],
+    [
+      "capacities with no battery name",
+      [{ FullChargedCapacity: 30000 }],
+      [{ DesignedCapacity: 40000 }],
+    ],
+    [
+      "a battery whose full-charge capacity is unknown",
+      [
+        { InstanceName: FIRST_BATTERY, FullChargedCapacity: 30000 },
+        { InstanceName: SECOND_BATTERY, FullChargedCapacity: null },
+      ],
+      [
+        { InstanceName: FIRST_BATTERY, DesignedCapacity: 40000 },
+        { InstanceName: SECOND_BATTERY, DesignedCapacity: 40000 },
+      ],
+    ],
+    [
+      "a battery whose design capacity is unknown",
+      [
+        { InstanceName: FIRST_BATTERY, FullChargedCapacity: 30000 },
+        { InstanceName: SECOND_BATTERY, FullChargedCapacity: 20000 },
+      ],
+      [
+        { InstanceName: FIRST_BATTERY, DesignedCapacity: 40000 },
+        { InstanceName: SECOND_BATTERY, DesignedCapacity: null },
+      ],
+    ],
+  ])(
+    "leaves the health out, still reporting the charge, for %s",
+    async (_name, fullCharge, design) => {
+      const reading = await readerPrinting(capacitiesOutput(fullCharge, design)).reader.read();
+
+      expect(reading).toEqual({ kind: "present", chargePercent: 50, onBattery: false });
+    },
+  );
 
   it.each([
     ["is not JSON", "Get-CimInstance : Access denied"],
@@ -157,8 +220,8 @@ describe("the Windows battery reader", () => {
       "has a charge that is not a number",
       batteryOutput([{ EstimatedChargeRemaining: "x" as never, BatteryStatus: 1 }]),
     ],
-  ])("cannot read the battery when what PowerShell printed %s", async (_name, stdout) => {
-    expect(await readerPrinting(stdout).reader.read()).toEqual({ kind: "unreadable" });
+  ])("fails the read when what PowerShell printed %s", async (_name, stdout) => {
+    await expect(readerPrinting(stdout).reader.read()).rejects.toThrow();
   });
 
   it.each([
@@ -167,7 +230,7 @@ describe("the Windows battery reader", () => {
       "PowerShell is missing",
       Object.assign(new Error("spawn powershell.exe ENOENT"), { code: "ENOENT" }),
     ],
-  ])("cannot read the battery when %s", async (_name, failure) => {
-    expect(await readerFailing(failure).read()).toEqual({ kind: "unreadable" });
+  ])("fails the read with the failure when %s", async (_name, failure) => {
+    await expect(readerFailing(failure).read()).rejects.toBe(failure);
   });
 });

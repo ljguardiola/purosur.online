@@ -294,6 +294,16 @@ describe("push events request", () => {
       }
     });
 
+    it("passes a health and a time on battery at the largest whole number the cloud stores through", () => {
+      const largest = {
+        ...present,
+        health_percent: 2_147_483_647,
+        on_battery_minutes: 2_147_483_647,
+      };
+
+      expect(withBattery(largest).data?.telemetry.battery).toEqual(largest);
+    });
+
     it("passes an absent battery through", () => {
       expect(withBattery({ present: false }).data?.telemetry.battery).toEqual({ present: false });
     });
@@ -311,6 +321,11 @@ describe("push events request", () => {
       ["a fractional charge", { ...present, charge_percent: 50.5 }],
       ["a negative health", { ...present, health_percent: -1 }],
       ["a negative time on battery", { ...present, on_battery_minutes: -1 }],
+      ["a health above what the cloud stores", { ...present, health_percent: 2_147_483_648 }],
+      [
+        "a time on battery above what the cloud stores",
+        { ...present, on_battery_minutes: 2_147_483_648 },
+      ],
       ["a charge of the wrong type", { ...present, charge_percent: "42" }],
       ["a missing charge", { present: true, on_battery: true, on_battery_minutes: 0 }],
       ["an extra key", { ...present, voltage: 12 }],

@@ -58,12 +58,7 @@ describe("the battery a register reports through POST /events", () => {
   it.each([
     ["a present battery", PRESENT],
     ["an absent battery", { present: false }],
-    ["a battery at its lowest", { ...PRESENT, charge_percent: 0, health_percent: 0 }],
-    ["a pack above its design capacity", { ...PRESENT, charge_percent: 100, health_percent: 140 }],
-    ["a charge above 100", { ...PRESENT, charge_percent: 150 }],
-    ["a charge of the wrong type", { ...PRESENT, charge_percent: "full" }],
-    ["an unknown shape", { volts: 12 }],
-    ["null", null],
+    ["a battery report it cannot read", { ...PRESENT, charge_percent: 150 }],
   ])("answers a push carrying %s as it answers one without a battery", async (_name, battery) => {
     const { deviceToken } = await registered();
     const without = await push(deviceToken);

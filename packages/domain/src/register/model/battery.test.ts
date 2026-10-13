@@ -123,13 +123,18 @@ describe("batteryReportOf", () => {
     expect(batteryReportOf(onBattery, undefined, at(9))).toMatchObject({ on_battery_minutes: 0 });
   });
 
-  it("counts whole minutes since the start for every elapsed time", () => {
+  it("reports zero minutes when the clock moved back before the streak started", () => {
+    expect(batteryReportOf(onBattery, at(9), at(1))).toMatchObject({ on_battery_minutes: 0 });
+  });
+
+  it("counts whole minutes since the start, never below zero, for every elapsed time", () => {
     fc.assert(
-      fc.property(fc.nat({ max: 10_000_000 }), (elapsedMs) => {
+      fc.property(fc.integer({ min: -10_000_000, max: 10_000_000 }), (elapsedMs) => {
         const since = at(0);
         const report = batteryReportOf(onBattery, since, new Date(since.getTime() + elapsedMs));
         return (
-          report?.present === true && report.on_battery_minutes === Math.floor(elapsedMs / 60_000)
+          report?.present === true &&
+          report.on_battery_minutes === Math.max(0, Math.floor(elapsedMs / 60_000))
         );
       }),
     );
