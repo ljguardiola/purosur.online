@@ -99,6 +99,7 @@ function coreAnswering(
     lockedClosers?: CoreClient["lockedClosers"];
     cashBalance?: CoreClient["cashBalance"];
     sessionOpenSale?: CoreClient["sessionOpenSale"];
+    startupPending?: CoreClient["startupPending"];
     redeemOutcome?: PinCodeRedemptionOutcome;
     cashMovements?: CoreClient["cashMovements"];
     cashMovementKinds?: CoreClient["cashMovementKinds"];
@@ -400,7 +401,9 @@ function coreAnswering(
       return cashDrawer.sessionOpenSale === undefined ? null : cashDrawer.sessionOpenSale();
     },
     async startupPending() {
-      return { sales_to_print: [], unknown_fiscal_documents: [], pending_payments: [] };
+      return cashDrawer.startupPending === undefined
+        ? { sales_to_print: [], unknown_fiscal_documents: [], pending_payments: [] }
+        : cashDrawer.startupPending();
     },
     async cashBalance() {
       return cashDrawer.cashBalance === undefined ? null : cashDrawer.cashBalance();
@@ -1447,6 +1450,73 @@ describe("App", () => {
         .not.toBeInTheDocument();
       await userEvent.click(screen.getByRole("link", { name: "Volver" }));
       await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+    });
+  });
+
+  describe("the startup pending screen", () => {
+    const PENDING: Awaited<ReturnType<CoreClient["startupPending"]>> = {
+      sales_to_print: [
+        {
+          sale_id: "sale-1",
+          completed_at: "2026-09-30T10:15:00.000-03:00",
+          total: 123_450,
+          standing: "never_printed",
+        },
+      ],
+      unknown_fiscal_documents: [],
+      pending_payments: [],
+    };
+
+    it("shows what the last run left after the cashier resumes an open session, and goes on to the sale from Ir a vender", async () => {
+      const { core } = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
+        cashSession: async () => GRACE_SESSION_LOCKED,
+        startupPending: async () => PENDING,
+      });
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+      await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+
+      await resumeLockedRegister(screen);
+
+      await expect
+        .element(screen.getByRole("heading", { name: "Hay cosas para resolver" }))
+        .toBeVisible();
+      await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Ir a vender" }));
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    });
+
+    it("goes straight to the sale when the core lists nothing", async () => {
+      const { core } = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
+        cashSession: async () => GRACE_SESSION_LOCKED,
+      });
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+      await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+
+      await resumeLockedRegister(screen);
+
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    });
+
+    it("does not show it again after Ir a vender when the register is locked and resumed", async () => {
+      const { core } = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
+        cashSession: async () => GRACE_SESSION_LOCKED,
+        startupPending: async () => PENDING,
+      });
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+      await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+      await resumeLockedRegister(screen);
+      await userEvent.click(screen.getByRole("button", { name: "Ir a vender" }));
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+
+      await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+      await userEvent.click(screen.getByRole("button", { name: "Dejar bloqueada" }));
+      await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+      await resumeLockedRegister(screen);
+
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
     });
   });
 
