@@ -1,6 +1,9 @@
-import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
+import {
+  PENDING_POINT_TRANSACTION,
+  PENDING_QR_TRANSACTION,
+} from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
-import type { PendingQrSalePayment } from "../../payments/index.js";
+import type { PendingMercadoPagoSalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { replacePendingQrPayment } from "./replace-pending-qr-payment.js";
 import {
@@ -42,7 +45,7 @@ const OPEN_SALE: SaleWithLines = {
   ],
 };
 
-function pendingQr(waitEndsAt = WAIT_ENDS_AT): PendingQrSalePayment {
+function pendingQr(waitEndsAt = WAIT_ENDS_AT): PendingMercadoPagoSalePayment {
   return {
     ...PENDING_QR_TRANSACTION,
     id: "qr-1",
@@ -59,7 +62,7 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
     identity: { registerId: "register-1", deviceId: "device-1" },
     session: SESSION,
     sales: [OPEN_SALE],
-    pendingQrPayments: [pendingQr()],
+    pendingMercadoPagoPayments: [pendingQr()],
     ...state,
   });
 }
@@ -77,18 +80,18 @@ describe("replacePendingQrPayment", () => {
 
     expect(replace(store)).toEqual({ kind: "replaced" });
     expect(store.state.replacedQrPaymentIds).toEqual(["qr-1"]);
-    expect(store.state.pendingQrPayments).toEqual([pendingQr(REPLACED_AT)]);
+    expect(store.state.pendingMercadoPagoPayments).toEqual([pendingQr(REPLACED_AT)]);
     expect(store.state.payments).toEqual([]);
     expect(store.transactions).toBe(1);
   });
 
   it("keeps the end of a wait that is already over", () => {
     const overAt = new Date("2026-10-09T12:01:00.000Z");
-    const store = ledger({ pendingQrPayments: [pendingQr(overAt)] });
+    const store = ledger({ pendingMercadoPagoPayments: [pendingQr(overAt)] });
 
     replace(store);
 
-    expect(store.state.pendingQrPayments).toEqual([pendingQr(overAt)]);
+    expect(store.state.pendingMercadoPagoPayments).toEqual([pendingQr(overAt)]);
   });
 
   it("records, in the same transaction, a qr_payment_replaced event of the payment and its sale", () => {
@@ -123,7 +126,7 @@ describe("replacePendingQrPayment", () => {
   );
 
   it("answers that no QR payment is pending for an unknown one, changing nothing", () => {
-    const store = ledger({ pendingQrPayments: [] });
+    const store = ledger({ pendingMercadoPagoPayments: [] });
     const before = structuredClone(store.state);
 
     expect(replace(store)).toEqual({ kind: "not_pending" });
@@ -149,6 +152,25 @@ describe("replacePendingQrPayment", () => {
     const before = structuredClone(store.state);
 
     expect(replace(store, "qr-1", actorId)).toEqual(refusal);
+    expect(store.state).toEqual(before);
+  });
+
+  it("never replaces a terminal payment: it answers that no QR payment is pending, changing nothing", () => {
+    const store = ledger({
+      pendingMercadoPagoPayments: [
+        {
+          ...PENDING_POINT_TRANSACTION,
+          id: "point-1",
+          saleId: "sale-1",
+          amount: 1000,
+          occurredAt: new Date("2026-10-09T11:50:00.000Z"),
+          waitEndsAt: new Date("2026-10-09T11:53:00.000Z"),
+        },
+      ],
+    });
+    const before = structuredClone(store.state);
+
+    expect(replace(store, "point-1")).toEqual({ kind: "not_pending" });
     expect(store.state).toEqual(before);
   });
 });

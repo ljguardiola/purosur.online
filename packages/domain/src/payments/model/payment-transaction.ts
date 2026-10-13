@@ -1,5 +1,3 @@
-import { MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES } from "./mercado-pago-qr-charge-wait.js";
-
 export const PAYMENT_TRANSACTION_STATES = [
   "PENDING",
   "APPROVED",
@@ -44,20 +42,33 @@ export interface MercadoPagoQrPaymentTransaction extends SalePaymentTransaction 
   confirmedAt?: never;
 }
 
+export interface MercadoPagoPointPaymentTransaction extends SalePaymentTransaction {
+  method: "POINT";
+  provider: "MERCADOPAGO_POINT";
+  state: PaymentTransactionState;
+  tendered?: never;
+  authorizedBy?: never;
+  confirmedAt?: never;
+}
+
+export type MercadoPagoPaymentTransaction =
+  | MercadoPagoQrPaymentTransaction
+  | MercadoPagoPointPaymentTransaction;
+
 export type PaymentTransaction =
   | CashPaymentTransaction
   | TransferPaymentTransaction
-  | MercadoPagoQrPaymentTransaction;
+  | MercadoPagoPaymentTransaction;
 
 export type SalePayment = PaymentTransaction & { state: "APPROVED"; occurredAt: Date };
 
-export type PendingQrSalePayment = MercadoPagoQrPaymentTransaction & {
+export type PendingMercadoPagoSalePayment = MercadoPagoPaymentTransaction & {
   state: "PENDING";
   occurredAt: Date;
   waitEndsAt: Date;
 };
 
-interface MercadoPagoQrOrder {
+interface MercadoPagoOrder {
   registerId: string;
   needsReview: boolean;
   providerOrderId: string | null;
@@ -67,19 +78,21 @@ interface MercadoPagoQrOrder {
   expiresAt: Date;
 }
 
-export type MercadoPagoQrOrderTransaction = MercadoPagoQrPaymentTransaction & MercadoPagoQrOrder;
+export type MercadoPagoOrderTransaction = MercadoPagoPaymentTransaction & MercadoPagoOrder;
 
-export function mercadoPagoOrderExpiresAt(attemptStartedAt: Date, longestCallMs: number): Date {
-  return new Date(
-    attemptStartedAt.getTime() + MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES * 60 * 1000 + longestCallMs,
-  );
+export function mercadoPagoOrderExpiresAt(
+  attemptStartedAt: Date,
+  lifetimeMinutes: number,
+  longestCallMs: number,
+): Date {
+  return new Date(attemptStartedAt.getTime() + lifetimeMinutes * 60 * 1000 + longestCallMs);
 }
 
 export type ExpiryWithoutOrder = "expired" | "needs_review";
 
 export function expiryWithoutOrder(
   transaction: Pick<
-    MercadoPagoQrOrderTransaction,
+    MercadoPagoOrderTransaction,
     "state" | "providerOrderId" | "expiresAt" | "creationOutcomeUnknown"
   >,
   now: Date,
@@ -95,14 +108,14 @@ export function expiryWithoutOrder(
 }
 
 export function mayHaveUnrecordedOrder(
-  transaction: Pick<MercadoPagoQrOrderTransaction, "creationOutcomeUnknown">,
+  transaction: Pick<MercadoPagoOrderTransaction, "creationOutcomeUnknown">,
 ): boolean {
   return transaction.creationOutcomeUnknown;
 }
 
 export function awaitsUnrecordedOrder(
   transaction: Pick<
-    MercadoPagoQrOrderTransaction,
+    MercadoPagoOrderTransaction,
     "state" | "providerOrderId" | "creationOutcomeUnknown"
   >,
 ): boolean {
@@ -118,7 +131,7 @@ export function isValidOrderAmount(cents: number): boolean {
 }
 
 export function isLateApproval(
-  transaction: Pick<MercadoPagoQrOrderTransaction, "state" | "replaced">,
+  transaction: Pick<MercadoPagoOrderTransaction, "state" | "replaced">,
 ): boolean {
   return transaction.state === "APPROVED" && transaction.replaced;
 }

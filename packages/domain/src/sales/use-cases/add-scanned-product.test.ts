@@ -158,6 +158,7 @@ describe("addScannedProduct", () => {
       cancellable: true,
       cancelRefusal: null,
       refundsOnCancel: [],
+      mercadoPagoChargeInProgress: null,
     });
     expect(store.state.sales).toEqual([sale]);
   });
@@ -824,7 +825,7 @@ describe("add-scanned-product on a sale with an approved payment", () => {
 
 describe("add-scanned-product while a QR charge of the sale is in its wait", () => {
   it("refuses to add a line, writing nothing", () => {
-    const store = ledger({ sales: [OPEN_SALE], pendingQrPayments: [IN_ITS_WAIT] });
+    const store = ledger({ sales: [OPEN_SALE], pendingMercadoPagoPayments: [IN_ITS_WAIT] });
     const before = structuredClone(store.state);
 
     expect(scan(store)).toEqual({ kind: "sale_has_payments" });
@@ -832,7 +833,7 @@ describe("add-scanned-product while a QR charge of the sale is in its wait", () 
   });
 
   it("adds again once the wait has ended, the QR payment still pending", () => {
-    const store = ledger({ sales: [OPEN_SALE], pendingQrPayments: [WAIT_ENDED] });
+    const store = ledger({ sales: [OPEN_SALE], pendingMercadoPagoPayments: [WAIT_ENDED] });
 
     expect(scan(store)).toMatchObject({ kind: "added" });
   });

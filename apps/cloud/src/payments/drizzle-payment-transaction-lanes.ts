@@ -1,6 +1,6 @@
 import type {
   LatePaymentRefund,
-  MercadoPagoQrOrderTransaction,
+  MercadoPagoOrderTransaction,
   PaymentTransactionState,
 } from "@purosur/domain";
 import {
@@ -38,7 +38,7 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
   async recordedTransaction(
     registerId: string,
     paymentTransactionId: string,
-  ): Promise<MercadoPagoQrOrderTransaction | null> {
+  ): Promise<MercadoPagoOrderTransaction | null> {
     const [row] = await this.db
       .select()
       .from(paymentTransactions)
@@ -51,13 +51,11 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
     if (row === undefined) {
       return null;
     }
-    return {
+    const transaction = {
       id: row.id,
       registerId: row.registerId,
       saleId: row.saleId,
       kind: "SALE",
-      method: "QR",
-      provider: "MERCADOPAGO_QR",
       amount: row.amount,
       state: row.state as PaymentTransactionState,
       needsReview: row.needsReview,
@@ -66,10 +64,21 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
       replaced: row.replaced,
       createdAt: row.createdAt,
       expiresAt: row.expiresAt,
-    };
+    } as const;
+    return row.method === "POINT"
+      ? { ...transaction, method: "POINT", provider: "MERCADOPAGO_POINT" }
+      : { ...transaction, method: "QR", provider: "MERCADOPAGO_QR" };
   }
 
-  async recordPendingTransaction(transaction: MercadoPagoQrOrderTransaction): Promise<void> {
+  recordPendingTransaction(transaction: MercadoPagoOrderTransaction): Promise<void> {
+    return this.insertTransaction(transaction);
+  }
+
+  recordCancelledWithoutOrder(transaction: MercadoPagoOrderTransaction): Promise<void> {
+    return this.insertTransaction(transaction);
+  }
+
+  private async insertTransaction(transaction: MercadoPagoOrderTransaction): Promise<void> {
     try {
       await this.db.insert(paymentTransactions).values(transaction);
     } catch (error) {

@@ -130,7 +130,7 @@ describe("SaleScreen reading a barcode reader's codes", () => {
     expect(scanProduct.mock.calls).toEqual([["7790001"]]);
   });
 
-  it.each(["approved_payment", "qr_charge_in_progress"] as const)(
+  it.each(["approved_payment", "mercado_pago_charge_in_progress"] as const)(
     "does not scan the code and warns that the product was not added while the sale's lines are locked by %s",
     async (linesLock) => {
       const scanProduct = vi.fn(

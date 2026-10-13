@@ -47,6 +47,32 @@ describe("RefundLines", () => {
       .toBeVisible();
   });
 
+  it("says a terminal payment's refund stays pending", async () => {
+    const refund: Refund = { payment_id: "p5", method: "POINT", amount: 90_000, state: "PENDING" };
+
+    const screen = await render(<RefundLines refunds={[refund]} />);
+
+    await expect
+      .element(
+        screen.getByText("Reembolso pendiente del pago con la terminal por $ 900,00", {
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+  });
+
+  it("says a terminal payment's refund given back now goes back by the terminal", async () => {
+    const refund: Refund = { payment_id: "p6", method: "POINT", amount: 90_000, state: "APPROVED" };
+
+    const screen = await render(<RefundLines refunds={[refund]} />);
+
+    await expect
+      .element(
+        screen.getByText("Devolver $ 900,00 por la terminal de Mercado Pago", { exact: true }),
+      )
+      .toBeVisible();
+  });
+
   it("says a refund given back now is given back by its payment's means", async () => {
     const refund: Refund = {
       payment_id: "p3",

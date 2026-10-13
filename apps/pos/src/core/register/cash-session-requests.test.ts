@@ -857,7 +857,7 @@ describe("the open sale of the session", () => {
 
     expect(sessionOpenSaleFor(database, NOW)).toMatchObject({
       cancellable: false,
-      cancel_refusal: "qr_charge_in_progress",
+      cancel_refusal: "mercado_pago_charge_in_progress",
       refunds_on_cancel: [],
     });
   });
@@ -871,7 +871,7 @@ describe("the open sale of the session", () => {
       total: 3500,
       paid: 0,
       cancellable: false,
-      cancel_refusal: "qr_charge_in_progress",
+      cancel_refusal: "mercado_pago_charge_in_progress",
       refunds_on_cancel: [],
     });
   });
@@ -883,7 +883,7 @@ describe("the open sale of the session", () => {
     expect(sessionOpenSaleFor(database, NOW)).toMatchObject({
       paid: 2000,
       cancellable: false,
-      cancel_refusal: "holds_qr_payment",
+      cancel_refusal: "holds_mercado_pago_payment",
       refunds_on_cancel: [],
     });
   });

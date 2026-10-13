@@ -1,17 +1,17 @@
 import type {
-  AbandonMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
   Authorization,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
-  FollowMercadoPagoQrChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
   ManualAdjustmentRequest,
   OpenCashSession,
   OpenCashSessionOutcome,
   SaleDiscountRequest,
   SignInOutcome,
-  StartMercadoPagoQrChargeOutcome,
+  StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { LocaleProvider } from "@purosur/ui";
@@ -22,6 +22,7 @@ import { credentialsKey } from "../credentials/credentials-queries";
 import type {
   CashMovementInput,
   CoreClient,
+  MercadoPagoMethod,
   SalesHistoryQuery,
   SerialDevicesToRegister,
 } from "../platform/core-client";
@@ -241,9 +242,9 @@ function Register({ core }: { core: CoreClient }) {
     kind: (
       | ChargeSaleInCashOutcome
       | ChargeSaleByTransferOutcome
-      | StartMercadoPagoQrChargeOutcome
-      | FollowMercadoPagoQrChargeOutcome
-      | AbandonMercadoPagoQrChargeOutcome
+      | StartMercadoPagoChargeOutcome
+      | FollowMercadoPagoChargeOutcome
+      | AbandonMercadoPagoChargeOutcome
     )["kind"],
   ) {
     if (kind === "completed") {
@@ -278,20 +279,20 @@ function Register({ core }: { core: CoreClient }) {
     return outcome;
   }
 
-  async function startMercadoPagoQrCharge(saleId: string, amount: number) {
-    const outcome = await core.startMercadoPagoQrCharge(saleId, amount);
+  async function startMercadoPagoCharge(saleId: string, method: MercadoPagoMethod, amount: number) {
+    const outcome = await core.startMercadoPagoCharge(saleId, method, amount);
     await refreshAfterCharge(outcome.kind);
     return outcome;
   }
 
-  async function followMercadoPagoQrCharge(paymentTransactionId: string) {
-    const outcome = await core.followMercadoPagoQrCharge(paymentTransactionId);
+  async function followMercadoPagoCharge(paymentTransactionId: string) {
+    const outcome = await core.followMercadoPagoCharge(paymentTransactionId);
     await refreshAfterCharge(outcome.kind);
     return outcome;
   }
 
-  async function abandonMercadoPagoQrCharge(paymentTransactionId: string) {
-    const outcome = await core.abandonMercadoPagoQrCharge(paymentTransactionId);
+  async function abandonMercadoPagoCharge(paymentTransactionId: string) {
+    const outcome = await core.abandonMercadoPagoCharge(paymentTransactionId);
     await refreshAfterCharge(
       outcome.kind === "already_paid" ? outcome.settlement.kind : outcome.kind,
     );
@@ -358,9 +359,10 @@ function Register({ core }: { core: CoreClient }) {
     cashCharge: (saleId: string, tendered: number) => core.cashCharge(saleId, tendered),
     chargeSaleInCash,
     chargeSaleByTransfer,
-    startMercadoPagoQrCharge,
-    followMercadoPagoQrCharge,
-    abandonMercadoPagoQrCharge,
+    paymentMethodAvailability: () => core.paymentMethodAvailability(),
+    startMercadoPagoCharge,
+    followMercadoPagoCharge,
+    abandonMercadoPagoCharge,
     searchProducts: (query: string) => core.searchProducts(query),
     addProduct: (productId: string) => core.addProduct(productId),
     addWeighedProduct: (productId: string, weightThousandths: number) =>
@@ -438,6 +440,7 @@ function Register({ core }: { core: CoreClient }) {
         void queryClient.invalidateQueries({ queryKey: credentialsKey });
         void queryClient.invalidateQueries({ queryKey: registerKeys.registerName });
         void queryClient.invalidateQueries({ queryKey: registerKeys.status });
+        void queryClient.invalidateQueries({ queryKey: salesKeys.paymentMethodAvailabilityRoot });
         void queryClient.invalidateQueries({ queryKey: lockedClosersKey });
         void queryClient.invalidateQueries({ queryKey: stockKeys.initialCount });
       }),

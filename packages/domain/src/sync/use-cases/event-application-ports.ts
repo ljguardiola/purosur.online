@@ -1,4 +1,4 @@
-import type { MercadoPagoQrOrderTransaction } from "../../payments/index.js";
+import type { MercadoPagoOrderTransaction } from "../../payments/index.js";
 import type { CompletedSale } from "../../sales/index.js";
 import type { Clock, JsonValue } from "../../shared/index.js";
 import type { OpeningCountRecordedFact, OpeningCountWithdrawnFact } from "../../stock/index.js";
@@ -29,8 +29,8 @@ export interface FailedAttempt {
 export type StockApplication = { kind: "applied" } | { kind: "refused"; reason: string };
 
 export type ProviderTransactionOfPayment = Pick<
-  MercadoPagoQrOrderTransaction,
-  "saleId" | "amount" | "state"
+  MercadoPagoOrderTransaction,
+  "saleId" | "amount" | "state" | "method"
 >;
 
 export interface EventApplicationTransaction {

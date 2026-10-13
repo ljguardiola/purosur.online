@@ -98,7 +98,7 @@ export function added(
     ...openSaleStanding(
       amountToCharge(sale),
       tx.salePayments(sale.id),
-      tx.pendingQrPaymentsOf(sale.id),
+      tx.pendingMercadoPagoPaymentsOf(sale.id),
       moment,
     ),
   };

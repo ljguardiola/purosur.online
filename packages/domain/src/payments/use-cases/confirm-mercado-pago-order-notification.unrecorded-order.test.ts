@@ -3,7 +3,7 @@ import { confirmMercadoPagoOrderNotification } from "./confirm-mercado-pago-orde
 import { createMercadoPagoQrOrder } from "./create-mercado-pago-qr-order.js";
 import {
   AMOUNT,
-  mercadoPagoQrOrderWorld,
+  mercadoPagoOrderWorld,
   NOW,
   orderResult,
   paidOrderResult,
@@ -11,7 +11,7 @@ import {
   SALE_ID,
   storedTransaction,
   TRANSACTION_ID,
-} from "./test-support/mercado-pago-qr-order-fixtures.js";
+} from "./test-support/mercado-pago-order-fixtures.js";
 
 const INPUT = { providerOrderId: "order-1" };
 const AWAITING_ORDER = { creationOutcomeUnknown: true };
@@ -21,7 +21,7 @@ function paidOrderOf(externalReference: string | null) {
 }
 
 function worldReading(result: ReturnType<typeof paidOrderOf>) {
-  return mercadoPagoQrOrderWorld({ reading: { kind: "read", result } });
+  return mercadoPagoOrderWorld({ reading: { kind: "read", result } });
 }
 
 describe("confirmMercadoPagoOrderNotification of an order no payment has recorded", () => {
@@ -102,7 +102,7 @@ describe("confirmMercadoPagoOrderNotification of an order no payment has recorde
   });
 
   it("asks Mercado Pago nothing about an unknown order once a payment's first order creation was answered clearly", async () => {
-    const world = mercadoPagoQrOrderWorld();
+    const world = mercadoPagoOrderWorld();
     await createMercadoPagoQrOrder(world.ports, {
       registerId: REGISTER_ID,
       paymentTransactionId: TRANSACTION_ID,
@@ -121,7 +121,7 @@ describe("confirmMercadoPagoOrderNotification of an order no payment has recorde
   it.each(["refused", "throttled"] as const)(
     "asks Mercado Pago nothing about an unknown order once a retry after a %s order creation created the payment's order",
     async (kind) => {
-      const world = mercadoPagoQrOrderWorld({ creation: { kind } });
+      const world = mercadoPagoOrderWorld({ creation: { kind } });
       const order = {
         registerId: REGISTER_ID,
         paymentTransactionId: TRANSACTION_ID,
@@ -142,7 +142,7 @@ describe("confirmMercadoPagoOrderNotification of an order no payment has recorde
   );
 
   it("answers provider unavailable and records nothing when the order cannot be read", async () => {
-    const { lanes, notificationPorts } = mercadoPagoQrOrderWorld({
+    const { lanes, notificationPorts } = mercadoPagoOrderWorld({
       reading: { kind: "unavailable" },
     });
     lanes.seed(storedTransaction(AWAITING_ORDER));
