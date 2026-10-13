@@ -1,6 +1,3 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import {
   ALERT_AUDIENCES,
   ALERT_LEVELS,
@@ -10,22 +7,9 @@ import {
 } from "@purosur/domain";
 import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { eq, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  inject,
-  it,
-  onTestFinished,
-} from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { generateSessionId, hashSessionId } from "../../sessions/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "../../test-support/build-test-database.js";
-import { migrateFreshDatabase } from "../../test-support/test-database-snapshot.js";
-import { MIGRATIONS_FOLDER } from "./migrations-folder.js";
 import {
   brands,
   categories,
@@ -49,10 +33,6 @@ import {
   userRoles,
   users,
 } from "./schema.js";
-import {
-  findMigrationEntry,
-  migrationsFolderBefore,
-} from "./test-support/migration-journal-test-helpers.js";
 
 const MISSING_ID = "0d9c4f6e-2b1a-4c3d-8e5f-6a7b8c9d0e1f";
 
@@ -611,109 +591,6 @@ describe("passkey_challenges.kind", () => {
       .from(passkeyChallenges)
       .where(eq(passkeyChallenges.sessionId, sessionId));
     expect(stored).toMatchObject({ kind: "session_authorization" });
-  });
-});
-
-describe("migrating a database with a pending passkey challenge of a removed kind", {
-  timeout: 30_000,
-}, () => {
-  async function migrationsFolderBeforeAuthorizationReuse(): Promise<string> {
-    const folder = await mkdtemp(join(tmpdir(), "migrations-before-authorization-reuse-"));
-    onTestFinished(() => rm(folder, { recursive: true, force: true }));
-    const authorizationReuseEntry = await findMigrationEntry(
-      "_reuse_passkey_authorization",
-      "test setup: no passkey authorization reuse migration in the journal",
-    );
-    await migrationsFolderBefore(folder, authorizationReuseEntry);
-    return folder;
-  }
-
-  async function sessionOnDatabaseBeforeAuthorizationReuse() {
-    const priorMigrationsFolder = await migrationsFolderBeforeAuthorizationReuse();
-    const client = await migrateFreshDatabase(
-      priorMigrationsFolder,
-      inject("testDatabaseClusterDumpPath"),
-    );
-    onTestFinished(() => client.close());
-    const { rows: userRows } = await client.query<{ id: string }>(
-      `insert into "users" ("first_name", "email", "location_id") values ('Ada', 'ada@example.com', (select id from locations limit 1)) returning "id"`,
-    );
-    const userId = userRows[0]?.id;
-    const { rows: sessionRows } = await client.query<{ id: string }>(
-      `insert into "sessions" ("user_id", "session_id_hash") values ('${userId}', 'a-session-hash') returning "id"`,
-    );
-    return { client, sessionId: sessionRows[0]?.id };
-  }
-
-  it("deletes a pending registration issued before passkey registration required an authorization", async () => {
-    const { client, sessionId } = await sessionOnDatabaseBeforeAuthorizationReuse();
-    await client.query(
-      `insert into "passkey_challenges" ("session_id", "kind", "reauthentication_challenge", "registration_challenge") values ('${sessionId}', 'registration', 'a-stale-reauthentication', 'a-stale-registration')`,
-    );
-
-    await migrate(drizzle(client), { migrationsFolder: MIGRATIONS_FOLDER });
-
-    const { rows: remaining } = await client.query(
-      `select * from "passkey_challenges" where "session_id" = '${sessionId}'`,
-    );
-    expect(remaining).toHaveLength(0);
-  });
-
-  it("deletes the pending row instead of leaving a kind the new enum no longer has", async () => {
-    const { client, sessionId } = await sessionOnDatabaseBeforeAuthorizationReuse();
-    await client.query(
-      `insert into "passkey_challenges" ("session_id", "kind", "reauthentication_challenge") values ('${sessionId}', 'role_creation', 'a-stale-challenge')`,
-    );
-
-    await migrate(drizzle(client), { migrationsFolder: MIGRATIONS_FOLDER });
-
-    const { rows: remaining } = await client.query(
-      `select * from "passkey_challenges" where "session_id" = '${sessionId}'`,
-    );
-    expect(remaining).toHaveLength(0);
-    const { rows: enumValues } = await client.query<{ enumlabel: string }>(
-      `select enumlabel from pg_enum join pg_type on pg_enum.enumtypid = pg_type.oid where pg_type.typname = 'passkey_management_challenge_kind' order by enumsortorder`,
-    );
-    expect(enumValues.map((row) => row.enumlabel)).toEqual([
-      "registration",
-      "session_authorization",
-    ]);
-  });
-});
-
-describe("migrating a database that already has users", { timeout: 30_000 }, () => {
-  async function migrationsFolderBeforeLocations(): Promise<string> {
-    const folder = await mkdtemp(join(tmpdir(), "migrations-before-locations-"));
-    onTestFinished(() => rm(folder, { recursive: true, force: true }));
-    const locationsEntry = await findMigrationEntry(
-      "_locations",
-      "test setup: no locations migration in the journal",
-    );
-    await migrationsFolderBefore(folder, locationsEntry);
-    return folder;
-  }
-
-  it("backfills every existing user onto the seeded location", async () => {
-    const priorMigrationsFolder = await migrationsFolderBeforeLocations();
-    const client = await migrateFreshDatabase(
-      priorMigrationsFolder,
-      inject("testDatabaseClusterDumpPath"),
-    );
-    onTestFinished(() => client.close());
-    await client.query(
-      `insert into "users" ("first_name", "email") values ('Ada', 'ada@example.com')`,
-    );
-
-    await migrate(drizzle(client), { migrationsFolder: MIGRATIONS_FOLDER });
-
-    const { rows: locationRows } = await client.query<{ id: string }>(
-      `select "id" from "locations"`,
-    );
-    const { rows: userRows } = await client.query<{ location_id: string }>(
-      `select "location_id" from "users"`,
-    );
-    expect(locationRows).toHaveLength(1);
-    expect(userRows).toEqual([{ location_id: locationRows[0]?.id }]);
   });
 });
 

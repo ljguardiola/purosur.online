@@ -1,5 +1,6 @@
 import type { PGlite } from "@electric-sql/pglite";
 import { describe, expect, expectTypeOf, it } from "vitest";
+import { readRealJournal } from "./migration-journal-test-helpers.js";
 import { databaseBeforeMigration } from "./migration-under-test.js";
 
 async function tableExists(database: Pick<PGlite, "query">, table: string): Promise<boolean> {
@@ -8,6 +9,13 @@ async function tableExists(database: Pick<PGlite, "query">, table: string): Prom
     [table],
   );
   return rows[0]?.exists ?? false;
+}
+
+async function appliedMigrationCount(database: Pick<PGlite, "query">): Promise<number> {
+  const { rows } = await database.query<{ count: number }>(
+    "select count(*)::int as count from drizzle.__drizzle_migrations",
+  );
+  return rows[0]?.count ?? 0;
 }
 
 describe("a database migrated up to the migration under test", { timeout: 30_000 }, () => {
@@ -31,12 +39,15 @@ describe("a database migrated up to the migration under test", { timeout: 30_000
   });
 
   it("hands out the client current code needs only after every later migration", async () => {
+    const { entries } = await readRealJournal();
+    const brandsPosition = entries.findIndex((entry) => entry.tag.endsWith("_brands"));
     const database = await databaseBeforeMigration("_brands");
     const migrated = await database.applyMigration();
+    expect(await appliedMigrationCount(migrated)).toBe(brandsPosition + 1);
 
     const client = await migrated.applyEveryLaterMigration();
 
-    expect(await tableExists(client, "register_installations")).toBe(true);
+    expect(await appliedMigrationCount(client)).toBe(entries.length);
   });
 
   it("refuses a migration the journal does not hold", async () => {
