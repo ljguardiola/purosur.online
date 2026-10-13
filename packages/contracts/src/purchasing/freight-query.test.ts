@@ -35,6 +35,24 @@ describe("freightListQuerySchema", () => {
   });
 });
 
+describe("the messages of a refused query", () => {
+  it("names the search and its limit", () => {
+    const result = freightListQuerySchema.safeParse({
+      search: "a".repeat(FREIGHT_DESCRIPTION_MAX_LENGTH + 1),
+    });
+
+    expect(result.error?.issues[0]?.message).toBe(
+      `search must be a string of at most ${FREIGHT_DESCRIPTION_MAX_LENGTH} characters`,
+    );
+  });
+
+  it("names the freight", () => {
+    const result = linkablePurchasesQuerySchema.safeParse({ freightId: "nope" });
+
+    expect(result.error?.issues[0]?.message).toBe("freightId must be a freight's id");
+  });
+});
+
 describe("linkablePurchasesQuerySchema", () => {
   it("reads the period like the freight list does", () => {
     expect(linkablePurchasesQuerySchema.parse({ period: "90" }).period).toBe(90);
