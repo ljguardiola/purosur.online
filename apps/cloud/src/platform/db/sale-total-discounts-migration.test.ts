@@ -1,32 +1,10 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { describe, expect, inject, it, onTestFinished } from "vitest";
-import { migrateFreshDatabase } from "../../test-support/test-database-snapshot.js";
-import {
-  addMigrationEntry,
-  findMigrationEntry,
-  type JournalEntry,
-  migrationsFolderBefore,
-} from "./test-support/migration-journal-test-helpers.js";
-
-async function saleTotalDiscountsEntry(): Promise<JournalEntry> {
-  return findMigrationEntry(
-    "_sale_total_discounts",
-    "test setup: no sale total discounts migration in the journal",
-  );
-}
+import { describe, expect, it } from "vitest";
+import { databaseBeforeMigration } from "./test-support/migration-under-test.js";
 
 async function databaseBefore() {
-  const folder = await mkdtemp(join(tmpdir(), "sale-total-discounts-migration-"));
-  onTestFinished(() => rm(folder, { recursive: true, force: true }));
-  await migrationsFolderBefore(folder, await saleTotalDiscountsEntry());
-  const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
-  onTestFinished(() => client.close());
+  const database = await databaseBeforeMigration("_sale_total_discounts");
   const first = async (sql: string, params: unknown[] = []) => {
-    const { rows } = await client.query<{ id: string }>(sql, params);
+    const { rows } = await database.query<{ id: string }>(sql, params);
     return rows[0]?.id as string;
   };
   const locationId = await first("select id from locations limit 1");
@@ -61,16 +39,12 @@ async function databaseBefore() {
       [locationId, registerId, deviceId, sessionId, userId],
     );
   const insertLine = (saleId: string, columns = "", values = "") =>
-    client.query(
+    database.query(
       `insert into sale_lines (id, sale_id, product_id, product_name, quantity, list_unit_price, price_list_id, discount_amount, line_total${columns})
        values (gen_random_uuid(), $1, $2, 'Yerba', 1, 2500, gen_random_uuid(), 0, 2500${values})`,
       [saleId, productId],
     );
-  const migrated = async () => {
-    await addMigrationEntry(folder, await saleTotalDiscountsEntry());
-    await migrate(drizzle(client), { migrationsFolder: folder });
-  };
-  return { client, insertSale, insertLine, migrated };
+  return { database, insertSale, insertLine };
 }
 
 const DISCOUNT_COLUMNS =
@@ -80,12 +54,12 @@ describe("the sale total discounts migration applied over a database that alread
   timeout: 30_000,
 }, () => {
   it("keeps every recorded sale, none of them discounted, and every line sharing nothing", async () => {
-    const { client, insertSale, insertLine, migrated } = await databaseBefore();
+    const { database, insertSale, insertLine } = await databaseBefore();
     await insertLine(await insertSale());
 
-    await migrated();
+    const migrated = await database.applyMigration();
 
-    const sales = await client.query(`select total${DISCOUNT_COLUMNS} from sales`);
+    const sales = await migrated.query(`select total${DISCOUNT_COLUMNS} from sales`);
     expect(sales.rows).toEqual([
       {
         total: 2500,
@@ -96,7 +70,7 @@ describe("the sale total discounts migration applied over a database that alread
         sale_discount_authorized_by: null,
       },
     ]);
-    const lines = await client.query("select line_total, sale_discount_share from sale_lines");
+    const lines = await migrated.query("select line_total, sale_discount_share from sale_lines");
     expect(lines.rows).toEqual([{ line_total: 2500, sale_discount_share: 0 }]);
   });
 
@@ -108,15 +82,15 @@ describe("the sale total discounts migration applied over a database that alread
   ])(
     "records a sale discounted with a %s of %i that takes %i off, authorized by %s",
     async (kind, value, amount, authorizer) => {
-      const { client, insertSale, migrated } = await databaseBefore();
-      await migrated();
+      const { database, insertSale } = await databaseBefore();
+      const migrated = await database.applyMigration();
 
       await insertSale(
         DISCOUNT_COLUMNS,
         `, '${kind}', ${value}, ${amount}, 'Compra grande', ${authorizer === null ? "null" : `'${authorizer}'`}`,
       );
 
-      const { rows } = await client.query(
+      const { rows } = await migrated.query(
         "select sale_discount_kind, sale_discount_value, sale_discount_amount from sales",
       );
       expect(rows).toEqual([
@@ -140,25 +114,25 @@ describe("the sale total discounts migration applied over a database that alread
     ["a reason without its kind", ", null, null, null, 'Motivo', null"],
     ["an authorizer without a discount", ", null, null, null, null, 'supervisor'"],
   ])("refuses %s", async (_case, values) => {
-    const { insertSale, migrated } = await databaseBefore();
-    await migrated();
+    const { database, insertSale } = await databaseBefore();
+    await database.applyMigration();
 
     await expect(insertSale(DISCOUNT_COLUMNS, values)).rejects.toThrow(/sales_sale_discount/);
   });
 
   it("records a line's share of the discount", async () => {
-    const { client, insertSale, insertLine, migrated } = await databaseBefore();
-    await migrated();
+    const { database, insertSale, insertLine } = await databaseBefore();
+    const migrated = await database.applyMigration();
 
     await insertLine(await insertSale(), ", sale_discount_share", ", 300");
 
-    const { rows } = await client.query("select sale_discount_share from sale_lines");
+    const { rows } = await migrated.query("select sale_discount_share from sale_lines");
     expect(rows).toEqual([{ sale_discount_share: 300 }]);
   });
 
   it("refuses a line whose share of the discount is negative", async () => {
-    const { insertSale, insertLine, migrated } = await databaseBefore();
-    await migrated();
+    const { database, insertSale, insertLine } = await databaseBefore();
+    await database.applyMigration();
 
     await expect(insertLine(await insertSale(), ", sale_discount_share", ", -1")).rejects.toThrow(
       /sale_lines_sale_discount_share/,
