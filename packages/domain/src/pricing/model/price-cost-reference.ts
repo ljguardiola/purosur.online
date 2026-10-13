@@ -56,24 +56,27 @@ function datedCost(source: CostSource): DatedCost | null {
   };
 }
 
-function isMoreRecent(candidate: DatedCost, current: DatedCost): boolean {
-  if (candidate.day !== current.day) {
-    return candidate.day > current.day;
+function compare<T extends string | number>(a: T, b: T): number {
+  if (a < b) {
+    return -1;
   }
-  if (candidate.instant !== current.instant) {
-    return candidate.instant > current.instant;
-  }
-  if (candidate.lineId === null || current.lineId === null) {
-    return candidate.lineId !== null;
-  }
-  return candidate.lineId < current.lineId;
+  return a > b ? 1 : 0;
+}
+
+function compareRecency(a: DatedCost, b: DatedCost): number {
+  return (
+    compare(a.day, b.day) ||
+    compare(a.instant, b.instant) ||
+    compare(a.lineId === null ? 0 : 1, b.lineId === null ? 0 : 1) ||
+    compare(b.lineId ?? "", a.lineId ?? "")
+  );
 }
 
 function lastDatedCost(sources: readonly CostSource[]): DatedCost | null {
   let last: DatedCost | null = null;
   for (const source of sources) {
     const candidate = datedCost(source);
-    if (candidate !== null && (last === null || isMoreRecent(candidate, last))) {
+    if (candidate !== null && (last === null || compareRecency(candidate, last) > 0)) {
       last = candidate;
     }
   }
@@ -84,21 +87,23 @@ export function lastCostSource(sources: readonly CostSource[]): CostSource | nul
   return lastDatedCost(sources)?.source ?? null;
 }
 
-// Half up on a negative fraction rounds toward zero on a tie, which a truncating division gets wrong.
+// roundHalfUp truncates a negative quotient toward zero, so the whole part is floored apart.
 function roundHalfUpSigned(numerator: bigint, denominator: bigint): number {
-  if (numerator >= 0n) {
-    return roundHalfUp({ numerator, denominator });
-  }
-  const shift = (-numerator + denominator - 1n) / denominator;
-  return roundHalfUp({ numerator: numerator + shift * denominator, denominator }) - Number(shift);
+  const truncated = numerator / denominator;
+  const wholes = numerator % denominator < 0n ? truncated - 1n : truncated;
+  const remainder = numerator - wholes * denominator;
+  return Number(wholes) + roundHalfUp({ numerator: remainder, denominator });
 }
 
-function totalCostFraction({ totalCents, quantity }: LotCost): Fraction {
+function totalCostFraction(
+  { totalCents, quantity }: LotCost,
+  freightPerUnitCents: number,
+): Fraction {
   const denominator = BigInt(quantity);
   return {
     numerator:
       BigInt(totalCents) * BigInt(STOCK_QUANTITY_PER_UNIT) +
-      BigInt(FREIGHT_PER_UNIT_CENTS) * denominator,
+      BigInt(freightPerUnitCents) * denominator,
     denominator,
   };
 }
@@ -111,15 +116,16 @@ function marginTenthsOfPercent(totalCost: Fraction, unitPrice: number): number {
 export function priceCostReference(
   sources: readonly CostSource[],
   unitPrice: number | null,
+  freightPerUnitCents = FREIGHT_PER_UNIT_CENTS,
 ): PriceCostReference | null {
   const last = lastDatedCost(sources);
   if (last === null) {
     return null;
   }
-  const totalCost = totalCostFraction(last.cost);
+  const totalCost = totalCostFraction(last.cost, freightPerUnitCents);
   return {
     lastCostCents: unitCostCents(last.cost.totalCents, last.cost.quantity),
-    freightPerUnitCents: FREIGHT_PER_UNIT_CENTS,
+    freightPerUnitCents,
     totalCostCents: roundHalfUp(totalCost),
     marginTenthsOfPercent: unitPrice === null ? null : marginTenthsOfPercent(totalCost, unitPrice),
   };

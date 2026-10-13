@@ -26,7 +26,7 @@ export async function readPriceMargin(
   return {
     kind: "read",
     costReference: priceCostReference(
-      found.filter((entry) => entry.productId === productId).map(({ source }) => source),
+      found.map(({ source }) => source),
       unitPrice,
     ),
   };
