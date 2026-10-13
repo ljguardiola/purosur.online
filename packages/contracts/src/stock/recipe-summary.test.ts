@@ -36,8 +36,47 @@ describe("recipeSummarySchema", () => {
     expect(recipeSummarySchema.safeParse({ ...mix, [key]: undefined }).success).toBe(false);
   });
 
-  it("rejects a last batch, which cannot be registered yet", () => {
-    expect(recipeSummarySchema.safeParse({ ...mix, lastBatch: { id: "b-1" } }).success).toBe(false);
+  it("accepts the last batch with its unit cost and the moment it was assembled", () => {
+    const lastBatch = {
+      unitCostCents: 3_586,
+      costIncomplete: false,
+      assembledAt: "2026-05-04T13:00:00.000Z",
+    };
+
+    expect(recipeSummarySchema.safeParse({ ...mix, lastBatch }).data).toEqual({
+      ...mix,
+      lastBatch,
+    });
+  });
+
+  it("accepts a last batch whose cost is incomplete and has no unit cost", () => {
+    const lastBatch = {
+      unitCostCents: null,
+      costIncomplete: true,
+      assembledAt: "2026-05-04T13:00:00.000Z",
+    };
+
+    expect(recipeSummarySchema.safeParse({ ...mix, lastBatch }).success).toBe(true);
+  });
+
+  it.each(["unitCostCents", "costIncomplete", "assembledAt"])(
+    "rejects a last batch without %s",
+    (key) => {
+      const lastBatch = {
+        unitCostCents: 3_586,
+        costIncomplete: false,
+        assembledAt: "2026-05-04T13:00:00.000Z",
+        [key]: undefined,
+      };
+
+      expect(recipeSummarySchema.safeParse({ ...mix, lastBatch }).success).toBe(false);
+    },
+  );
+
+  it("rejects a last batch moment that is not an ISO date and time", () => {
+    const lastBatch = { unitCostCents: 1, costIncomplete: false, assembledAt: "yesterday" };
+
+    expect(recipeSummarySchema.safeParse({ ...mix, lastBatch }).success).toBe(false);
   });
 
   it.each(["componentProductId", "name", "saleUnit", "quantityPerOutputUnit"])(
