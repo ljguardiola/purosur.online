@@ -16,8 +16,11 @@ export interface WaitingFiscalDocument {
   number: number;
   issuedOn: string;
   document: FacturaC;
-  reservedAt: Date;
   saleEvent: PushedEvent | null;
+}
+
+export interface RequestedFiscalDocument extends WaitingFiscalDocument {
+  reservedAt: Date;
 }
 
 export interface RealTimeAuthorizationResolved {
@@ -29,7 +32,7 @@ export interface RealTimeAuthorizationResolved {
 }
 
 export interface RealTimeFiscalDocuments {
-  waitingDocumentOfSale(saleId: string): Promise<WaitingFiscalDocument | null>;
+  waitingDocumentOfSale(saleId: string): Promise<RequestedFiscalDocument | null>;
   resolve(resolved: RealTimeAuthorizationResolved): Promise<void>;
 }
 
@@ -37,7 +40,7 @@ export interface RoundTripSamples {
   recent(): Promise<readonly number[]>;
 }
 
-export interface RealTimeAuthorizationCall extends Omit<WaitingFiscalDocument, "saleEvent"> {
+export interface RealTimeAuthorizationCall extends Omit<RequestedFiscalDocument, "saleEvent"> {
   saleEvent: PushedEvent;
   timeoutMs: number;
   roundTripMedianMs: number;

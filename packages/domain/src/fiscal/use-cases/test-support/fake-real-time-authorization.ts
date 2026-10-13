@@ -5,22 +5,22 @@ import type {
   RealTimeAuthorizationResolved,
   RealTimeFiscalDocuments,
   RealTimeTaxAuthority,
+  RequestedFiscalDocument,
   RoundTripSamples,
-  WaitingFiscalDocument,
 } from "../real-time-authorization-ports.js";
 
 export class FakeRealTimeFiscalDocuments implements RealTimeFiscalDocuments {
   readonly resolutions: RealTimeAuthorizationResolved[] = [];
   readonly resolutionAttempts: RealTimeAuthorizationResolved[] = [];
-  private readonly waiting: WaitingFiscalDocument | null;
+  private readonly waiting: RequestedFiscalDocument | null;
   private readonly takenShortCodes: readonly string[];
 
-  constructor(waiting: WaitingFiscalDocument | null, takenShortCodes: readonly string[] = []) {
+  constructor(waiting: RequestedFiscalDocument | null, takenShortCodes: readonly string[] = []) {
     this.waiting = waiting;
     this.takenShortCodes = takenShortCodes;
   }
 
-  async waitingDocumentOfSale(saleId: string): Promise<WaitingFiscalDocument | null> {
+  async waitingDocumentOfSale(saleId: string): Promise<RequestedFiscalDocument | null> {
     return this.waiting?.saleId === saleId ? this.waiting : null;
   }
 

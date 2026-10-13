@@ -11,6 +11,7 @@ import type {
   InterruptedRealTimeAuthorizationsTransaction,
   RealTimeAuthorizationResolved,
   RealTimeFiscalDocuments,
+  RequestedFiscalDocument,
   UnclearDocumentSettled,
   UnclearDocumentSettlement,
   UnclearFiscalDocuments,
@@ -26,6 +27,9 @@ interface WaitingDocumentRow {
   number: number;
   issued_on: string;
   document: string;
+}
+
+interface RequestedDocumentRow extends WaitingDocumentRow {
   reserved_at: string;
 }
 
@@ -49,20 +53,22 @@ export class SqliteRealTimeFiscalDocuments
     this.database = database;
   }
 
-  async waitingDocumentOfSale(saleId: string): Promise<WaitingFiscalDocument | null> {
+  async waitingDocumentOfSale(saleId: string): Promise<RequestedFiscalDocument | null> {
     const row = this.database
-      .prepare<[string], WaitingDocumentRow>(
+      .prepare<[string], RequestedDocumentRow>(
         `SELECT id, sale_id, point_of_sale, number, issued_on, document, reserved_at
          FROM fiscal_documents WHERE sale_id = ? AND state = 'REQUESTING'`,
       )
       .get(saleId);
-    return row === undefined ? null : this.waitingDocumentOf(row);
+    return row === undefined
+      ? null
+      : { ...this.waitingDocumentOf(row), reservedAt: new Date(row.reserved_at) };
   }
 
   async unclearDocuments(): Promise<readonly WaitingFiscalDocument[]> {
     return this.database
       .prepare<[], WaitingDocumentRow>(
-        `SELECT id, sale_id, point_of_sale, number, issued_on, document, reserved_at
+        `SELECT id, sale_id, point_of_sale, number, issued_on, document
          FROM fiscal_documents WHERE state = 'UNKNOWN' ORDER BY reserved_at, id`,
       )
       .all()
@@ -107,7 +113,6 @@ export class SqliteRealTimeFiscalDocuments
       number: row.number,
       issuedOn: row.issued_on,
       document: JSON.parse(row.document) as FacturaC,
-      reservedAt: new Date(row.reserved_at),
       saleEvent: this.saleCompletedEvent(row.sale_id),
     };
   }

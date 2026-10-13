@@ -1,4 +1,10 @@
-import type { DeferralReason, DeferredSale, FacturaC, FiscalDocumentState } from "@purosur/domain";
+import type {
+  DeferralReason,
+  DeferredSale,
+  DeferredSaleReference,
+  FacturaC,
+  FiscalDocumentState,
+} from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,

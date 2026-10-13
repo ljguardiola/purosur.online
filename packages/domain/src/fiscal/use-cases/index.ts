@@ -199,6 +199,7 @@ export type {
   RealTimeAuthorizationResolved,
   RealTimeFiscalDocuments,
   RealTimeTaxAuthority,
+  RequestedFiscalDocument,
   RoundTripSamples,
   WaitingFiscalDocument,
 } from "./real-time-authorization-ports.js";

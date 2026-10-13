@@ -7,7 +7,7 @@ import {
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "../test-support/fictional-tax-identities.js";
-import type { WaitingFiscalDocument } from "./real-time-authorization-ports.js";
+import type { RequestedFiscalDocument } from "./real-time-authorization-ports.js";
 import { requestRealTimeAuthorization } from "./request-real-time-authorization.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import {
@@ -89,7 +89,7 @@ function request({
 }: {
   answer?: RealTimeAuthorizationAnswer;
   samples?: readonly number[];
-  waiting?: WaitingFiscalDocument | null;
+  waiting?: RequestedFiscalDocument | null;
   takenShortCodes?: string[];
 } = {}) {
   const clock = new ManualClock(START);
@@ -123,7 +123,6 @@ describe("requestRealTimeAuthorization", () => {
         number: 41,
         issuedOn: "2026-10-01",
         document: DOCUMENT,
-        reservedAt: RESERVED_AT,
         saleEvent: SALE_EVENT,
         timeoutMs: 5_000,
         roundTripMedianMs: 200,
