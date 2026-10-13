@@ -18,6 +18,10 @@ import postgres from "postgres";
 import { alertConditionResolutionJobs } from "./alerts/alert-condition-resolution-task.js";
 import { alertEscalationJobs } from "./alerts/alert-escalation-task.js";
 import {
+  arcaCertificateExpiryJobs,
+  enqueueArcaCertificateExpiryCheck,
+} from "./alerts/arca-certificate-expiry-task.js";
+import {
   type BackofficeErrorReporting,
   type BuildAppOptions,
   buildApp,
@@ -32,10 +36,6 @@ import {
   type RecoveryEmailSenderEnv,
   selectRecoveryEmailSender,
 } from "./credentials/select-recovery-email-sender.js";
-import {
-  arcaCertificateExpiryJobs,
-  enqueueArcaCertificateExpiryCheck,
-} from "./fiscal/arca-certificate-expiry-task.js";
 import { arcaVitalityJobs } from "./fiscal/arca-vitality-task.js";
 import {
   buyerTaxStatusFetchJobs,

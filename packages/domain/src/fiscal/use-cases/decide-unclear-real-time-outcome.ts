@@ -1,4 +1,3 @@
-import { fiscalUnknownAlertKey } from "../../alerts/index.js";
 import {
   awaitsUnclearOutcomeDecision,
   decideUnclearOutcome,
@@ -53,7 +52,6 @@ export async function decideUnclearRealTimeOutcome(
   }
 
   return lanes.inPointOfSaleLane<DecideUnclearRealTimeOutcomeOutcome>(pointOfSale, async (lane) => {
-    const alertKey = fiscalUnknownAlertKey(fiscalDocumentId);
     const request = await lane.unclearRequest(fiscalDocumentId);
     if (request === null) {
       return { kind: "not_found" };
@@ -76,7 +74,10 @@ export async function decideUnclearRealTimeOutcome(
       abandonedAt = now;
     } else if (request.progress.answer.kind === "not_attempted") {
       const decision: UnclearOutcomeDecision = { kind: "released" };
-      await lane.recordDecision(fiscalDocumentId, decision, now, alertKey);
+      await lane.recordDecision(fiscalDocumentId, decision, now, {
+        fiscalDocumentId,
+        clearedAt: now,
+      });
       return { kind: "decided", decision };
     } else {
       abandonedAt = request.progress.answeredAt;
@@ -95,7 +96,7 @@ export async function decideUnclearRealTimeOutcome(
     if (verdict.kind === "pending") {
       return verdict;
     }
-    await lane.recordDecision(fiscalDocumentId, verdict, now, alertKey);
+    await lane.recordDecision(fiscalDocumentId, verdict, now, { fiscalDocumentId, clearedAt: now });
     return { kind: "decided", decision: verdict };
   });
 }

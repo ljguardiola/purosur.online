@@ -5,6 +5,7 @@ export type LotOriginKind = "initial_count" | "purchase" | "technical";
 export interface LockedLot {
   origin: LotOriginKind;
   withdrawn: boolean;
+  remaining: number;
 }
 
 export interface LotCostStore {

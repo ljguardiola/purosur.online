@@ -1,4 +1,4 @@
-import { checkArcaCertificateExpiry } from "@purosur/domain/fiscal/use-cases";
+import { checkArcaCertificateExpiry } from "@purosur/domain/alerts/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { WorkerUtils } from "graphile-worker";

@@ -1,11 +1,17 @@
-import {
-  decideUnclearRealTimeOutcome,
-  openOverdueUnclearOutcomeAlerts,
-} from "@purosur/domain/fiscal/use-cases";
+import { openOverdueUnclearOutcomeAlerts } from "@purosur/domain/alerts/use-cases";
+import { decideUnclearRealTimeOutcome } from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  DrizzleUnclearOutcomeLanes,
+  DrizzleUnclearOutcomeRequests,
+} from "../fiscal/drizzle-unclear-outcome-lanes.js";
+import {
+  anUnclearDocument,
+  UNCLEAR_SINCE,
+} from "../fiscal/test-support/unclear-document-fixtures.js";
 import { alerts } from "../platform/db/schema.js";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
 import {
@@ -14,11 +20,6 @@ import {
 } from "../test-support/integration-database.js";
 import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { DrizzleUnclearOutcomeAlertStore } from "./drizzle-unclear-outcome-alert-store.js";
-import {
-  DrizzleUnclearOutcomeLanes,
-  DrizzleUnclearOutcomeRequests,
-} from "./drizzle-unclear-outcome-lanes.js";
-import { anUnclearDocument, UNCLEAR_SINCE } from "./test-support/unclear-document-fixtures.js";
 
 const MINUTE_MS = 60 * 1000;
 

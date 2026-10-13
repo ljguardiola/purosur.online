@@ -1,8 +1,10 @@
-import type { AlertConditionObservation } from "@purosur/domain/alerts/use-cases";
-import type { MissingOfflineAuthorizationCodeAlerts } from "@purosur/domain/fiscal/use-cases";
+import type {
+  AlertConditionObservation,
+  MissingOfflineAuthorizationCodeAlerts,
+} from "@purosur/domain/alerts/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { DrizzleAlertStore } from "../alerts/drizzle-alert-store.js";
-import { observeAlertCondition } from "../alerts/observe-alert-condition.js";
+import { DrizzleAlertStore } from "./drizzle-alert-store.js";
+import { observeAlertCondition } from "./observe-alert-condition.js";
 
 export class DrizzleMissingOfflineAuthorizationCodeAlerts<TQueryResult extends PgQueryResultHKT>
   implements MissingOfflineAuthorizationCodeAlerts

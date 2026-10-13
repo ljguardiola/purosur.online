@@ -9,14 +9,14 @@ export interface TaxAuthorityRejection {
   message: string;
 }
 
-interface RejectionAlertSubject {
+interface RejectedDocumentSubject {
   pointOfSale: number;
   documentType: FiscalDocumentType;
   fiscalDocumentId: string;
   saleId: string;
 }
 
-export type RejectionAlertChange =
+export type RejectionStandingChange =
   | {
       kind: "open";
       pointOfSale: number;
@@ -28,11 +28,11 @@ export type RejectionAlertChange =
     }
   | { kind: "clear"; pointOfSale: number; documentType: FiscalDocumentType };
 
-export function rejectionAlertChange(
+export function rejectionStandingChange(
   answer: RealTimeAuthorizationAnswer,
   rejections: readonly TaxAuthorityRejection[],
-  { pointOfSale, documentType, fiscalDocumentId, saleId }: RejectionAlertSubject,
-): RejectionAlertChange | null {
+  { pointOfSale, documentType, fiscalDocumentId, saleId }: RejectedDocumentSubject,
+): RejectionStandingChange | null {
   switch (answer.kind) {
     case "rejected":
       return {

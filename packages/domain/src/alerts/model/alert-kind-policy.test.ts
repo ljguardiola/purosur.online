@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS } from "../../fiscal/index.js";
 import { ALERT_KINDS } from "./alert-catalog.js";
 import {
   ALERT_CLOSINGS,
   ALERT_ESCALATION_DELAY_MS,
+  ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS,
   alertClosing,
   alertKindPolicy,
   alertKindsWithScope,
@@ -31,6 +31,10 @@ describe("alertKindPolicy", () => {
   it("opens the alert of an unclear document after 5 minutes and escalates it 30 minutes after the document became unclear", () => {
     expect(FISCAL_UNKNOWN_ALERT_OPENING_DELAY_MS).toBe(5 * 60 * 1000);
     expect(FISCAL_UNKNOWN_ESCALATION_DELAY_MS).toBe(30 * 60 * 1000);
+  });
+
+  it("escalates the expiring ARCA certificate 7 days before it expires", () => {
+    expect(ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS).toBe(7 * 24 * 60 * 60 * 1000);
   });
 
   const afterOpening = { kind: "afterOpening", delayMs: ALERT_ESCALATION_DELAY_MS } as const;

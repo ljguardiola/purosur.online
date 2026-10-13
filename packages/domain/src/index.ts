@@ -30,6 +30,7 @@ export {
   ALERT_ESCALATION_DELAY_MS,
   ALERT_KINDS,
   ALERT_LEVELS,
+  acquisitionUrgencyAlertLevel,
   alertActorId,
   alertClosing,
   alertKindPolicy,
@@ -162,6 +163,7 @@ export type {
   PreEmissionGateOutcome,
   RealTimeAuthorizationAnswer,
   RealTimeAuthorizationResolution,
+  RegisterOfflineAuthorizationCodeHolding,
   RejectionClass,
   TaxAuthorityRejection,
 } from "./fiscal/index.js";

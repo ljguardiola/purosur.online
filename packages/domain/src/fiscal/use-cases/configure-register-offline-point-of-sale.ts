@@ -1,4 +1,4 @@
-import { FACTURA_C_DOCUMENT_TYPE } from "../model/fiscal-rejection-alert.js";
+import { FACTURA_C_DOCUMENT_TYPE } from "../model/fiscal-rejection-standing.js";
 import { mayRegisterClaimPointOfSale } from "../model/point-of-sale.js";
 import { assignFirstOfflineNumberBlock } from "./assign-offline-number-block.js";
 import type {

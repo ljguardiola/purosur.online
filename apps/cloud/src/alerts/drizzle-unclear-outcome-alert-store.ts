@@ -8,13 +8,13 @@ import type {
   UnclearDocumentWithoutAlert,
   UnclearOutcomeAlertStore,
   UnclearOutcomeAlertTransaction,
-} from "@purosur/domain/fiscal/use-cases";
+} from "@purosur/domain/alerts/use-cases";
 import { and, eq, inArray, isNull, notExists, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { openAlert } from "../alerts/open-alert.js";
-import { openAlertCondition } from "../alerts/open-alert-condition.js";
+import { answerOf } from "../fiscal/fiscal-request-answer.js";
 import { alerts, fiscalRequests } from "../platform/db/schema.js";
-import { answerOf } from "./fiscal-request-answer.js";
+import { openAlert } from "./open-alert.js";
+import { openAlertCondition } from "./open-alert-condition.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]

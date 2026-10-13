@@ -1,9 +1,10 @@
-import { hasPulledChange, mustHoldOfflineAuthorizationCode } from "@purosur/domain";
-import type {
-  Fortnight,
-  OfflineAuthorizationCodeHoldingReader,
-  RegisterOfflineAuthorizationCodeHolding,
-} from "@purosur/domain/fiscal/use-cases";
+import {
+  hasPulledChange,
+  mustHoldOfflineAuthorizationCode,
+  type RegisterOfflineAuthorizationCodeHolding,
+} from "@purosur/domain";
+import type { OfflineAuthorizationCodeHoldingReader } from "@purosur/domain/alerts/use-cases";
+import type { Fortnight } from "@purosur/domain/fiscal/use-cases";
 import { and, eq, inArray, min } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {

@@ -10,6 +10,7 @@ import {
   initialLotAlmonds,
   initialLotHoney,
   initialLotTeaWithoutCost,
+  initialLotWithdrawnStillHeld,
 } from "./test-support/stock-fixtures";
 
 beforeEach(async () => {
@@ -68,6 +69,31 @@ test("shows each lot with its product, expiry, counted quantity, reference cost 
     "Té verde en hebras 100 gAlmacén15/03/202712 uSin costo—",
   ]);
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test.each([
+  [initialLotWithdrawnStillHeld, "2,000 kg", "Línea retirada · en stock: 1,500 kg"],
+  [
+    { ...initialLotWithdrawnStillHeld, saleUnit: "UNIT" as const, remaining: 1_000 },
+    "2 u",
+    "Línea retirada · en stock: 1 u",
+  ],
+])(
+  "marks the lot of a withdrawn line under its counted quantity, with what it still holds: %#",
+  async (lot, counted, mark) => {
+    const screen = await renderScreen(createServices([lot]));
+
+    await expect.element(screen.getByText(mark)).toBeVisible();
+    const rows = screen.getByRole("table", { name: TABLE }).getByRole("row").elements();
+    expect(rows[1]?.textContent).toContain(`${counted}${mark}`);
+  },
+);
+
+test("shows no mark on the lots of lines not withdrawn", async () => {
+  const screen = await renderScreen(createServices());
+
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+  expect(screen.container.textContent).not.toContain("Línea retirada");
 });
 
 test("writes a lot with no cost in the tone of an error", async () => {
