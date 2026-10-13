@@ -163,6 +163,7 @@ export type {
   PreEmissionGateOutcome,
   RealTimeAuthorizationAnswer,
   RealTimeAuthorizationResolution,
+  RegisterOfflineAuthorizationCodeHolding,
   RejectionClass,
   TaxAuthorityRejection,
 } from "./fiscal/index.js";

@@ -1,10 +1,7 @@
-import type { Fortnight } from "../../../fiscal/index.js";
+import type { Fortnight, RegisterOfflineAuthorizationCodeHolding } from "../../../fiscal/index.js";
 import type { AlertConditionObservation } from "../../model/alert-condition-observation.js";
-import type {
-  MissingOfflineAuthorizationCodeAlerts,
-  OfflineAuthorizationCodeHoldingReader,
-  RegisterOfflineAuthorizationCodeHolding,
-} from "../missing-offline-authorization-code-ports.js";
+import type { MissingOfflineAuthorizationCodeAlerts } from "../missing-offline-authorization-code-ports.js";
+import type { OfflineAuthorizationCodeHoldingReader } from "../offline-authorization-code-holding-reader.js";
 
 export interface FakeWatchedHolding {
   registerId: string;
