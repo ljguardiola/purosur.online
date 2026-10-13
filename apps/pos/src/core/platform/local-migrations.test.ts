@@ -888,7 +888,7 @@ describe("the register's local migrations", () => {
         "0044_deferred_sale_records",
         "0045_refund_completions",
         "0046_standalone_terminal_payments",
-        "0047_standalone_terminal_refunds",
+        "0048_standalone_terminal_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -962,7 +962,7 @@ describe("the register's local migrations", () => {
         "0044_deferred_sale_records",
         "0045_refund_completions",
         "0046_standalone_terminal_payments",
-        "0047_standalone_terminal_refunds",
+        "0048_standalone_terminal_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1031,7 +1031,7 @@ describe("the register's local migrations", () => {
         "0044_deferred_sale_records",
         "0045_refund_completions",
         "0046_standalone_terminal_payments",
-        "0047_standalone_terminal_refunds",
+        "0048_standalone_terminal_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1099,7 +1099,7 @@ describe("the register's local migrations", () => {
         "0044_deferred_sale_records",
         "0045_refund_completions",
         "0046_standalone_terminal_payments",
-        "0047_standalone_terminal_refunds",
+        "0048_standalone_terminal_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1194,7 +1194,7 @@ describe("the register's local migrations", () => {
         "0044_deferred_sale_records",
         "0045_refund_completions",
         "0046_standalone_terminal_payments",
-        "0047_standalone_terminal_refunds",
+        "0048_standalone_terminal_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1281,7 +1281,7 @@ describe("the register's local migrations", () => {
         "0044_deferred_sale_records",
         "0045_refund_completions",
         "0046_standalone_terminal_payments",
-        "0047_standalone_terminal_refunds",
+        "0048_standalone_terminal_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1372,7 +1372,7 @@ describe("the register's local migrations", () => {
         "0044_deferred_sale_records",
         "0045_refund_completions",
         "0046_standalone_terminal_payments",
-        "0047_standalone_terminal_refunds",
+        "0048_standalone_terminal_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1446,7 +1446,7 @@ describe("the register's local migrations", () => {
         "0044_deferred_sale_records",
         "0045_refund_completions",
         "0046_standalone_terminal_payments",
-        "0047_standalone_terminal_refunds",
+        "0048_standalone_terminal_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1512,7 +1512,7 @@ describe("the register's local migrations", () => {
         "0044_deferred_sale_records",
         "0045_refund_completions",
         "0046_standalone_terminal_payments",
-        "0047_standalone_terminal_refunds",
+        "0048_standalone_terminal_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -2783,10 +2783,10 @@ describe("the register's local migrations", () => {
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.filter(
-        (migration) => migration.name < "0047_standalone_terminal_refunds",
+        (migration) => migration.name < "0048_standalone_terminal_refunds",
       );
       expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
-        "0047_standalone_terminal_refunds",
+        "0048_standalone_terminal_refunds",
       );
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
