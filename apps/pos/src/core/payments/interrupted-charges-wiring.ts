@@ -13,14 +13,27 @@ export interface InterruptedChargesWiring {
   afterEachSync(): void;
 }
 
+function takenLeftPending(
+  chargesLeftPending: InterruptedChargesWiringDeps["charging"]["chargesLeftPending"],
+  reportFailure: InterruptedChargesWiringDeps["reportFailure"],
+) {
+  try {
+    return { taken: true, interrupted: chargesLeftPending?.() ?? [] } as const;
+  } catch (error) {
+    reportFailure("taking the Mercado Pago charges a stopped register left pending", error);
+    return { taken: false, interrupted: [] } as const;
+  }
+}
+
 export function createInterruptedChargesWiring({
   charging,
   printing,
   reportFailure,
 }: InterruptedChargesWiringDeps): InterruptedChargesWiring {
+  const { taken, interrupted } = takenLeftPending(charging.chargesLeftPending, reportFailure);
   const following = createInterruptedChargesFollow({
-    follow: printing.afterEachCompletedSale(charging.followInterrupted),
-    interrupted: charging.chargesLeftPending?.() ?? [],
+    follow: taken ? printing.afterEachCompletedSale(charging.followInterrupted) : undefined,
+    interrupted,
     reportFailure,
   });
   return {
