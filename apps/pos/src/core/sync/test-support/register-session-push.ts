@@ -548,11 +548,7 @@ export async function withRegisterSession<TResult>(
       saleId: onQr.sale.id,
       authorization: { user_id: GRACE, pin: PIN },
     });
-    expectOutcome(
-      "cancel the sale paid by QR authorized by PIN",
-      cancelledOnQr.kind,
-      "cancelled",
-    );
+    expectOutcome("cancel the sale paid by QR authorized by PIN", cancelledOnQr.kind, "cancelled");
     nextStep();
     const replacedScan = await scanProductFor(deps(), "7790001000028");
     if (replacedScan.kind !== "added") {

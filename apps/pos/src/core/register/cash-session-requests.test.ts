@@ -892,9 +892,9 @@ describe("the open sale of the session", () => {
     addOpenSale(await openAs("u1", 5000), 3500);
     database
       .prepare(
-        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at) VALUES ('point-1', 'sale-1', 'SALE', 'POINT', 'MERCADOPAGO_POINT', 2000, 'APPROVED', ?)",
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES ('point-1', 'sale-1', 'SALE', 'POINT', 'MERCADOPAGO_POINT', 2000, 'APPROVED', ?, ?)",
       )
-      .run(NOW.toISOString());
+      .run(NOW.toISOString(), NOW.toISOString());
 
     expect(sessionOpenSaleFor(database, NOW)).toMatchObject({
       paid: 2000,

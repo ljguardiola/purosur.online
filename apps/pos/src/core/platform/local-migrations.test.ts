@@ -3015,7 +3015,7 @@ describe("the register's local migrations", () => {
          INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at, wait_ends_at)
          VALUES ('pay-cash', 'done', 'SALE', 'CASH', 'NONE', 1000, 1500, NULL, NULL, 'APPROVED', '2026-10-09T12:05:00.000Z', NULL),
                 ('pay-standalone', 'done', 'SALE', 'STANDALONE_TERMINAL', 'EXTERNAL_TERMINAL', 600, NULL, 'u1', '2026-10-09T12:09:00.000Z', 'APPROVED', '2026-10-09T12:09:00.000Z', NULL),
-                ('pay-qr', 'done', 'SALE', 'QR', 'MERCADOPAGO_QR', 700, NULL, NULL, NULL, 'APPROVED', '2026-10-09T12:10:00.000Z', NULL);
+                ('pay-qr', 'done', 'SALE', 'QR', 'MERCADOPAGO_QR', 700, NULL, NULL, NULL, 'APPROVED', '2026-10-09T12:10:00.000Z', '2026-10-09T12:13:00.000Z');
          INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
          VALUES ('refund-cash', 'pay-cash', 'CASH', 'NONE', 1000, 'APPROVED', '2026-10-09T12:20:00.000Z'),
                 ('refund-standalone', 'pay-standalone', 'STANDALONE_TERMINAL', 'EXTERNAL_TERMINAL', 600, 'PENDING', '2026-10-09T12:20:00.000Z');`,

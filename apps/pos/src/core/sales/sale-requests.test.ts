@@ -958,9 +958,9 @@ describe("the sale in progress", () => {
     const saleId = await sellTwoForPayments();
     database
       .prepare(
-        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at) VALUES ('point-1', ?, 'SALE', 'POINT', 'MERCADOPAGO_POINT', 1000, 'APPROVED', ?)",
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES ('point-1', ?, 'SALE', 'POINT', 'MERCADOPAGO_POINT', 1000, 'APPROVED', ?, ?)",
       )
-      .run(saleId, NOW.toISOString());
+      .run(saleId, NOW.toISOString(), NOW.toISOString());
 
     expect(await currentSaleFor(deps())).toMatchObject({
       lines_lock: "approved_payment",
@@ -2995,9 +2995,9 @@ describe("cancelling the open sale of a locked register", () => {
     const saleId = await sellTwoForPayments();
     database
       .prepare(
-        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at) VALUES ('qr-1', ?, 'SALE', 'QR', 'MERCADOPAGO_QR', 1000, 'APPROVED', ?)",
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES ('qr-1', ?, 'SALE', 'QR', 'MERCADOPAGO_QR', 1000, 'APPROVED', ?, ?)",
       )
-      .run(saleId, NOW.toISOString());
+      .run(saleId, NOW.toISOString(), NOW.toISOString());
     signedInPerson.clear();
 
     expect(await cancelLockedSaleFor(lockedDeps(), { saleId, closer: CLOSER })).toMatchObject({
@@ -3185,9 +3185,9 @@ describe("cancelling the sale in progress after a payment was approved", () => {
     const saleId = await sellTwoForPayments();
     database
       .prepare(
-        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at) VALUES ('qr-1', ?, 'SALE', 'QR', 'MERCADOPAGO_QR', 1000, 'APPROVED', ?)",
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES ('qr-1', ?, 'SALE', 'QR', 'MERCADOPAGO_QR', 1000, 'APPROVED', ?, ?)",
       )
-      .run(saleId, NOW.toISOString());
+      .run(saleId, NOW.toISOString(), NOW.toISOString());
 
     expect(await cancelPaidSaleFor(withPins(), { saleId })).toEqual({
       kind: "cancelled",
@@ -3213,9 +3213,9 @@ describe("cancelling the sale in progress after a payment was approved", () => {
     const saleId = await sellTwoForPayments();
     database
       .prepare(
-        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at) VALUES ('point-1', ?, 'SALE', 'POINT', 'MERCADOPAGO_POINT', 1000, 'APPROVED', ?)",
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES ('point-1', ?, 'SALE', 'POINT', 'MERCADOPAGO_POINT', 1000, 'APPROVED', ?, ?)",
       )
-      .run(saleId, NOW.toISOString());
+      .run(saleId, NOW.toISOString(), NOW.toISOString());
 
     expect(await cancelPaidSaleFor(withPins(), { saleId })).toEqual({
       kind: "holds_point_payment",

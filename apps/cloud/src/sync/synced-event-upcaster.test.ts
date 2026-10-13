@@ -774,6 +774,8 @@ describe("decoding the events the registers pushed", () => {
         method: "QR",
         provider: "MERCADOPAGO_QR",
         tendered: null,
+        authorized_by: null,
+        confirmed_at: null,
       };
       const pending = {
         ...refund,
