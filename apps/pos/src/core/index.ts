@@ -71,6 +71,7 @@ import { readSerialDevicesFor, registerSerialDevicesFor } from "./register/seria
 import { listSerialPorts, serialportEnumeration } from "./register/serialport-enumeration";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
+import { startupPendingFor } from "./register/startup-pending-requests";
 import { recoverAtStartup } from "./register/startup-recovery";
 import { createUpdateHold, gateRendererRequest } from "./register/update-hold";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
@@ -647,6 +648,10 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (countedCash) => cashCountPreviewFor(localDatabase, countedCash),
   sessionOpenSale:
     localDatabase === undefined ? undefined : () => sessionOpenSaleFor(localDatabase, now()),
+  startupPending:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : () => startupPendingFor({ database: localDatabase, gate: actionGate }),
   cashSession:
     localDatabase === undefined
       ? undefined
