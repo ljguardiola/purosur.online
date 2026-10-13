@@ -69,14 +69,20 @@ describe("the register updates bucket", () => {
   };
 
   it.each(Object.entries(BUCKET_OUTPUTS))(
-    "gives the Cloud Server %s as a reference to the bucket's %s",
+    "gives the Cloud Server %s as the bucket's %s, written the way Railway stores the reference",
     async (variable, output) => {
-      const cloud = findService(await compile(), "Cloud Server");
+      const definition = await compile();
+      const bucket = (definition.resources ?? [])
+        .flat()
+        .find((resource) => resource.type === "bucket" && resource.name === "Register Updates");
+      if (!bucket) {
+        throw new Error("railway.test.ts: no bucket named Register Updates in the compiled project");
+      }
+      const cloud = findService(definition, "Cloud Server");
 
       expect(cloud.variables?.[variable]).toEqual({
-        type: "reference",
-        resource: "bucket.Register Updates",
-        output,
+        type: "literal",
+        value: `\${{"${bucket.name}".${output}}}`,
       });
     },
   );
