@@ -23,6 +23,8 @@ const OPEN_SESSION: CashSessionState = {
 };
 const LOCKED_SESSION: CashSessionState = { ...OPEN_SESSION, locked: true };
 
+type Condition = RegisterStatus["conditions"][number];
+
 const SALES_DENIED_TITLE = "La caja no puede vender";
 const SILENT_TITLE = "La caja no está sincronizando";
 
@@ -54,6 +56,14 @@ function renderBar(
       status={props.status ?? loaded()}
     />,
   );
+}
+
+function noticeCard(panel: Element): HTMLElement {
+  const cards = [...panel.querySelectorAll<HTMLElement>("div")].filter(
+    (element) => getComputedStyle(element).borderLeftWidth === "4px",
+  );
+  expect(cards).toHaveLength(1);
+  return cards[0] as HTMLElement;
 }
 
 function barText(screen: Awaited<ReturnType<typeof renderBar>>): string {
@@ -120,7 +130,9 @@ describe("RegisterStatusBar", () => {
 
   it("shows no condition's text until the notices pill is pressed", async () => {
     const screen = await renderBar({
-      status: loaded({ conditions: [{ kind: "sales_denied", reason: "event_history_broken" }] }),
+      status: loaded({
+        conditions: [{ kind: "sales_denied", reason: "event_history_broken", level: "critical" }],
+      }),
     });
 
     await expect.element(screen.getByRole("button", { name: "1 aviso" })).toBeVisible();
@@ -131,8 +143,8 @@ describe("RegisterStatusBar", () => {
     const screen = await renderBar({
       status: loaded({
         conditions: [
-          { kind: "sales_denied", reason: "event_history_broken" },
-          { kind: "register_silent" },
+          { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+          { kind: "register_silent", level: "critical" },
         ],
       }),
     });
@@ -142,7 +154,9 @@ describe("RegisterStatusBar", () => {
 
   it("opens a panel of notices with each condition's title, what it means and what to do", async () => {
     const screen = await renderBar({
-      status: loaded({ conditions: [{ kind: "sales_denied", reason: "event_history_broken" }] }),
+      status: loaded({
+        conditions: [{ kind: "sales_denied", reason: "event_history_broken", level: "critical" }],
+      }),
     });
 
     await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
@@ -159,7 +173,9 @@ describe("RegisterStatusBar", () => {
 
   it("tells why the register can't sell with the reason the core answers", async () => {
     const screen = await renderBar({
-      status: loaded({ conditions: [{ kind: "sales_denied", reason: "local_database_damaged" }] }),
+      status: loaded({
+        conditions: [{ kind: "sales_denied", reason: "local_database_damaged", level: "critical" }],
+      }),
     });
 
     await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
@@ -178,8 +194,8 @@ describe("RegisterStatusBar", () => {
     const screen = await renderBar({
       status: loaded({
         conditions: [
-          { kind: "sales_denied", reason: "event_history_broken" },
-          { kind: "register_silent" },
+          { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+          { kind: "register_silent", level: "critical" },
         ],
       }),
     });
@@ -194,7 +210,7 @@ describe("RegisterStatusBar", () => {
 
   it("closes the panel with its close button", async () => {
     const screen = await renderBar({
-      status: loaded({ conditions: [{ kind: "register_silent" }] }),
+      status: loaded({ conditions: [{ kind: "register_silent", level: "critical" }] }),
     });
     await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
 
@@ -205,7 +221,7 @@ describe("RegisterStatusBar", () => {
 
   it("closes the panel with Escape", async () => {
     const screen = await renderBar({
-      status: loaded({ conditions: [{ kind: "register_silent" }] }),
+      status: loaded({ conditions: [{ kind: "register_silent", level: "critical" }] }),
     });
     await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
 
@@ -214,10 +230,13 @@ describe("RegisterStatusBar", () => {
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("shows the pill in the error tone when a condition stops sales or revokes the installation", async () => {
+  it("shows the pill in the error tone when a condition is critical", async () => {
     const screen = await renderBar({
       status: loaded({
-        conditions: [{ kind: "register_silent" }, { kind: "installation_revoked" }],
+        conditions: [
+          { kind: "register_silent", level: "critical" },
+          { kind: "serial_device_missing", level: "warning" },
+        ],
       }),
     });
 
@@ -225,18 +244,46 @@ describe("RegisterStatusBar", () => {
     expect(getComputedStyle(pill).backgroundColor).toBe(tokenRgb("error-subtle"));
   });
 
-  it("shows the pill in the warning tone when no condition is an error", async () => {
+  it("shows the pill in the warning tone when no condition is critical", async () => {
     const screen = await renderBar({
-      status: loaded({ conditions: [{ kind: "fiscal_emission_stopped" }] }),
+      status: loaded({ conditions: [{ kind: "serial_device_missing", level: "warning" }] }),
     });
 
     const pill = screen.getByRole("button", { name: "1 aviso" }).element();
     expect(getComputedStyle(pill).backgroundColor).toBe(tokenRgb("warning-subtle"));
   });
 
+  it.each<[Condition, "error-soft" | "warning-soft", string]>([
+    [
+      { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+      "error-soft",
+      "lucide-ban",
+    ],
+    [{ kind: "installation_revoked", level: "critical" }, "error-soft", "lucide-shield-off"],
+    [{ kind: "fiscal_emission_stopped", level: "critical" }, "error-soft", "lucide-receipt"],
+    [{ kind: "register_silent", level: "critical" }, "error-soft", "lucide-cloud-off"],
+    [{ kind: "serial_device_missing", level: "warning" }, "warning-soft", "lucide-scan-barcode"],
+  ])(
+    "shows the notice of %j with the %s border of its level and the %s icon",
+    async (condition, border, icon) => {
+      const screen = await renderBar({ status: loaded({ conditions: [condition] }) });
+
+      await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+
+      const card = noticeCard(
+        screen.getByRole("dialog", { name: "Avisos de esta caja" }).element(),
+      );
+      expect(getComputedStyle(card).borderLeftColor).toBe(tokenRgb(border));
+      expect(card.querySelector(`svg.${icon}`)).not.toBeNull();
+    },
+  );
+
   it("shows a notice even when the cloud can't be reached", async () => {
     const screen = await renderBar({
-      status: loaded({ conditions: [{ kind: "register_silent" }], cloud: "unreachable" }),
+      status: loaded({
+        conditions: [{ kind: "register_silent", level: "critical" }],
+        cloud: "unreachable",
+      }),
     });
 
     await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
@@ -263,7 +310,7 @@ describe("RegisterStatusBar", () => {
   it("shows the missing scale or reader notice with what to do", async () => {
     const screen = await renderBar({
       status: loaded({
-        conditions: [{ kind: "serial_device_missing" }],
+        conditions: [{ kind: "serial_device_missing", level: "warning" }],
         serial_devices: { scale: "not_detected", reader: "matching" },
       }),
     });
@@ -284,7 +331,10 @@ describe("RegisterStatusBar", () => {
 
   it("shows the stopped fiscal emission notice with its title, what it means and what to do, with no connection to the cloud", async () => {
     const screen = await renderBar({
-      status: loaded({ conditions: [{ kind: "fiscal_emission_stopped" }], cloud: "unreachable" }),
+      status: loaded({
+        conditions: [{ kind: "fiscal_emission_stopped", level: "critical" }],
+        cloud: "unreachable",
+      }),
     });
 
     await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
@@ -299,7 +349,7 @@ describe("RegisterStatusBar", () => {
   it("has no accessibility violations with a device not detected", async () => {
     const screen = await renderBar({
       status: loaded({
-        conditions: [{ kind: "serial_device_missing" }],
+        conditions: [{ kind: "serial_device_missing", level: "warning" }],
         serial_devices: { scale: "not_detected", reader: "not_registered" },
       }),
     });
@@ -325,8 +375,8 @@ describe("RegisterStatusBar", () => {
       cashSession: OPEN_SESSION,
       status: loaded({
         conditions: [
-          { kind: "sales_denied", reason: "event_history_broken" },
-          { kind: "register_silent" },
+          { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+          { kind: "register_silent", level: "critical" },
         ],
         cloud: "unreachable",
       }),

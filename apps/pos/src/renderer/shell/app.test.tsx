@@ -1621,7 +1621,7 @@ describe("App", () => {
       ...answering.core,
       async registerStatus() {
         return {
-          conditions: completed ? [{ kind: "fiscal_emission_stopped" }] : [],
+          conditions: completed ? [{ kind: "fiscal_emission_stopped", level: "critical" }] : [],
           cloud: "unreachable",
           serial_devices: { scale: "matching", reader: "matching" },
           serial_devices_setup_offered: false,

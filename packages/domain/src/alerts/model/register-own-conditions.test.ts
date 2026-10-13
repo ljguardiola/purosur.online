@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { SerialDeviceStanding } from "../../register/index.js";
 import { argentinaInstant } from "../../shared/index.js";
-import { ALERT_KINDS } from "./alert-catalog.js";
+import { ALERT_KINDS, isAlertKind } from "./alert-catalog.js";
+import { alertKindPolicy } from "./alert-kind-policy.js";
 import { REGISTER_OWN_CONDITIONS, registerOwnConditions } from "./register-own-conditions.js";
 
 const MINUTE_MS = 60 * 1000;
@@ -54,7 +55,7 @@ describe("registerOwnConditions", () => {
 
   it("holds sales_denied, naming the broken event history as its reason, while sales are stopped because it broke", () => {
     expect(conditions({ salesStop: { stopped: true, reason: "event_history_broken" } })).toEqual([
-      { kind: "sales_denied", reason: "event_history_broken" },
+      { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
     ]);
   });
 
@@ -65,7 +66,7 @@ describe("registerOwnConditions", () => {
   it("holds fiscal_emission_stopped while the latest pre-emission check failed", () => {
     expect(
       conditions({ latestPreEmissionGate: { kind: "failed", reason: "legal_name_missing" } }),
-    ).toEqual([{ kind: "fiscal_emission_stopped" }]);
+    ).toEqual([{ kind: "fiscal_emission_stopped", level: "critical" }]);
   });
 
   it("does not hold fiscal_emission_stopped for a register that never evaluated the pre-emission check", () => {
@@ -78,7 +79,10 @@ describe("registerOwnConditions", () => {
         latestPreEmissionGate: { kind: "failed", reason: "legal_name_missing" },
         lastAcceptedPushAt: minutesBefore(NOW, 60),
       }),
-    ).toEqual([{ kind: "fiscal_emission_stopped" }, { kind: "register_silent" }]);
+    ).toEqual([
+      { kind: "fiscal_emission_stopped", level: "critical" },
+      { kind: "register_silent", level: "critical" },
+    ]);
   });
 
   it("does not hold fiscal_emission_stopped while sales are denied, whatever the latest pre-emission check", () => {
@@ -87,7 +91,7 @@ describe("registerOwnConditions", () => {
         salesStop: { stopped: true, reason: "event_history_broken" },
         latestPreEmissionGate: { kind: "failed", reason: "legal_name_missing" },
       }),
-    ).toEqual([{ kind: "sales_denied", reason: "event_history_broken" }]);
+    ).toEqual([{ kind: "sales_denied", reason: "event_history_broken", level: "critical" }]);
   });
 
   it("does not hold fiscal_emission_stopped for a revoked installation, whatever the latest pre-emission check", () => {
@@ -96,7 +100,7 @@ describe("registerOwnConditions", () => {
         salesStop: { stopped: true, reason: "installation_revoked" },
         latestPreEmissionGate: { kind: "failed", reason: "legal_name_missing" },
       }),
-    ).toEqual([{ kind: "installation_revoked" }]);
+    ).toEqual([{ kind: "installation_revoked", level: "critical" }]);
   });
 
   it("does not hold fiscal_emission_stopped while sales are stopped for a reason it did not record", () => {
@@ -114,18 +118,18 @@ describe("registerOwnConditions", () => {
         salesStop: { stopped: true, reason: "installation_revoked" },
         lastAcceptedPushAt: minutesBefore(NOW, 60),
       }),
-    ).toEqual([{ kind: "installation_revoked" }]);
+    ).toEqual([{ kind: "installation_revoked", level: "critical" }]);
   });
 
   it("does not hold installation_revoked for a register that sells", () => {
-    expect(conditions({ lastAcceptedPushAt: minutesBefore(NOW, 60) })).not.toContainEqual({
-      kind: "installation_revoked",
-    });
+    expect(conditions({ lastAcceptedPushAt: minutesBefore(NOW, 60) })).not.toContainEqual(
+      expect.objectContaining({ kind: "installation_revoked" }),
+    );
   });
 
   it("holds register_silent when the last accepted push is 15 minutes old within business hours", () => {
     expect(conditions({ lastAcceptedPushAt: minutesBefore(NOW, 15) })).toEqual([
-      { kind: "register_silent" },
+      { kind: "register_silent", level: "critical" },
     ]);
   });
 
@@ -159,21 +163,21 @@ describe("registerOwnConditions", () => {
         lastAcceptedPushAt: minutesBefore(NOW, 60),
       }),
     ).toEqual([
-      { kind: "sales_denied", reason: "event_history_broken" },
-      { kind: "register_silent" },
+      { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+      { kind: "register_silent", level: "critical" },
     ]);
   });
 
   it("holds serial_device_missing when the scale is not detected", () => {
     expect(
       conditions({ serialDevices: { scale: { kind: "not_detected" }, reader: MATCHING } }),
-    ).toEqual([{ kind: "serial_device_missing" }]);
+    ).toEqual([{ kind: "serial_device_missing", level: "warning" }]);
   });
 
   it("holds serial_device_missing when the reader is mismatched", () => {
     expect(
       conditions({ serialDevices: { scale: MATCHING, reader: { kind: "mismatched" } } }),
-    ).toEqual([{ kind: "serial_device_missing" }]);
+    ).toEqual([{ kind: "serial_device_missing", level: "warning" }]);
   });
 
   it("does not hold serial_device_missing for devices that are not registered", () => {
@@ -190,7 +194,29 @@ describe("registerOwnConditions", () => {
         salesStop: { stopped: true, reason: "event_history_broken" },
         serialDevices: null,
       }),
-    ).toEqual([{ kind: "sales_denied", reason: "event_history_broken" }]);
+    ).toEqual([{ kind: "sales_denied", reason: "event_history_broken", level: "critical" }]);
+  });
+
+  it("gives each held condition that is an alert kind the level of its alert kind", () => {
+    const held = [
+      ...conditions({ salesStop: { stopped: true, reason: "event_history_broken" } }),
+      ...conditions({
+        latestPreEmissionGate: { kind: "failed", reason: "legal_name_missing" },
+        lastAcceptedPushAt: minutesBefore(NOW, 60),
+      }),
+    ];
+
+    expect(held.map((condition) => condition.kind)).toEqual([
+      "sales_denied",
+      "fiscal_emission_stopped",
+      "register_silent",
+    ]);
+    for (const condition of held) {
+      expect(isAlertKind(condition.kind)).toBe(true);
+      if (isAlertKind(condition.kind)) {
+        expect(condition.level).toBe(alertKindPolicy(condition.kind).level);
+      }
+    }
   });
 
   it("lists serial_device_missing after register_silent", () => {
@@ -199,6 +225,9 @@ describe("registerOwnConditions", () => {
         lastAcceptedPushAt: minutesBefore(NOW, 60),
         serialDevices: { scale: { kind: "not_detected" }, reader: MATCHING },
       }),
-    ).toEqual([{ kind: "register_silent" }, { kind: "serial_device_missing" }]);
+    ).toEqual([
+      { kind: "register_silent", level: "critical" },
+      { kind: "serial_device_missing", level: "warning" },
+    ]);
   });
 });
