@@ -14,6 +14,8 @@ const LOT = {
   saleUnit: "KG",
   expiresOn: "2027-02-01",
   counted: 2_500,
+  withdrawn: false,
+  remaining: 2_500,
   costIncomplete: false,
   unitCostCents: 3_500,
   valueCents: 8_750,
@@ -62,6 +64,14 @@ describe("initialInventoryLotListSchema", () => {
     });
   });
 
+  it("accepts the lot of a withdrawn line with what it still holds", () => {
+    const withdrawn = { ...LOT, withdrawn: true, remaining: 1_000 };
+
+    expect(initialInventoryLotListSchema.parse({ lots: [withdrawn] })).toEqual({
+      lots: [withdrawn],
+    });
+  });
+
   it("accepts a lot that never expires", () => {
     const lot = { ...LOT, expiresOn: null };
 
@@ -71,6 +81,10 @@ describe("initialInventoryLotListSchema", () => {
   it.each([
     ["a sale unit no product has", { saleUnit: "LITER" }],
     ["a fractional quantity", { counted: 0.5 }],
+    ["a fractional remaining quantity", { remaining: 0.5 }],
+    ["a withdrawn mark that is no boolean", { withdrawn: "yes" }],
+    ["no withdrawn mark", { withdrawn: undefined }],
+    ["no remaining quantity", { remaining: undefined }],
     ["an expiry that is no calendar day", { expiresOn: "2027-02-30" }],
   ])("refuses a lot with %s", (_case, override) => {
     expect(

@@ -11,6 +11,7 @@ function lot(id: string, overrides: Partial<FakeCostLot> = {}): FakeCostLot {
     locationId: BRANCH,
     origin: "initial_count",
     withdrawn: false,
+    remaining: 1_000,
     cost: null,
     costIncomplete: true,
     ...overrides,
@@ -84,14 +85,35 @@ describe("setLotReferenceCost", () => {
     },
   );
 
-  it("refuses the lot of a line already withdrawn", async () => {
-    const store = new FakeLotCostStore([lot("lot-1", { withdrawn: true })]);
+  it.each([0, -2_000])("refuses the lot of a withdrawn line that holds %s", async (remaining) => {
+    const store = new FakeLotCostStore([lot("lot-1", { withdrawn: true, remaining })]);
 
     const outcome = await setLotReferenceCost({ store }, input());
 
     expect(outcome).toEqual({ kind: "lot_withdrawn" });
     expect(store.lots[0]).toMatchObject({ cost: null, costIncomplete: true });
   });
+
+  it("types the cost of a withdrawn line's lot that still holds stock", async () => {
+    const store = new FakeLotCostStore([lot("lot-1", { withdrawn: true, remaining: 1 })]);
+
+    const outcome = await setLotReferenceCost({ store }, input());
+
+    expect(outcome).toEqual({ kind: "set" });
+    expect(store.lots[0]).toMatchObject({
+      cost: { totalCents: 1_234, quantity: 1_000 },
+      costIncomplete: false,
+    });
+  });
+
+  it.each([0, -2_000])(
+    "types the cost of a lot of a line not withdrawn that holds %s",
+    async (remaining) => {
+      const store = new FakeLotCostStore([lot("lot-1", { remaining })]);
+
+      expect(await setLotReferenceCost({ store }, input())).toEqual({ kind: "set" });
+    },
+  );
 
   it.each([0, -1, 10.5, MAX_CASH_AMOUNT_CENTS + 1, Number.NaN])(
     "refuses the cost %s without reading anything",

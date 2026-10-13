@@ -67,7 +67,16 @@ const columns = [
     header: "Contado",
     align: "end",
     render: (lot: InitialInventoryLot) => (
-      <TableCellText strong>{formatStockQuantity(lot.counted, lot.saleUnit)}</TableCellText>
+      <TableCellText
+        strong
+        description={
+          lot.withdrawn
+            ? `Línea retirada · en stock: ${formatStockQuantity(lot.remaining, lot.saleUnit)}`
+            : undefined
+        }
+      >
+        {formatStockQuantity(lot.counted, lot.saleUnit)}
+      </TableCellText>
     ),
   }),
   dataColumn({
