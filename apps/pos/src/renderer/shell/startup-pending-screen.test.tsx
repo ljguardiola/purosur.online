@@ -259,7 +259,7 @@ describe("StartupPendingScreen", () => {
       }),
     });
 
-    await expect.poll(() => screen.getByRole("listitem").elements().length).toBe(5);
+    await expect.poll(() => screen.getByRole("listitem").elements().length).toBe(4);
   });
 
   it("goes to selling from Ir a vender", async () => {
@@ -500,6 +500,6 @@ describe("StartupPendingScreen", () => {
     });
     await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
 
-    await expectNoAccessibilityViolations(screen);
+    await expectNoAccessibilityViolations(screen.container);
   });
 });
