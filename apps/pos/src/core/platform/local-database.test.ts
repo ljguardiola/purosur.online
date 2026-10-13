@@ -8,6 +8,7 @@ import {
   applyMigrations,
   type LocalDatabase,
   type LocalMigration,
+  openLocalDatabaseFile,
   openReadOnlyLocalDatabaseFile,
 } from "./local-database";
 import { migrationClock } from "./test-support/migration-clock";
@@ -89,6 +90,20 @@ describe("the register's local database", () => {
 
     const reader = new Database(path, { readonly: true });
     expect(reader.pragma("journal_mode", { simple: true })).toBe("wal");
+    reader.close();
+  });
+
+  it("opens a connection that leaves the file's journal mode as it is", () => {
+    const path = databasePath();
+    mkdirSync(join(path, ".."), { recursive: true });
+    const creator = new Database(path);
+    creator.pragma("journal_mode = DELETE");
+    creator.close();
+
+    openLocalDatabaseFile(path).close();
+
+    const reader = new Database(path, { readonly: true });
+    expect(reader.pragma("journal_mode", { simple: true })).toBe("delete");
     reader.close();
   });
 
