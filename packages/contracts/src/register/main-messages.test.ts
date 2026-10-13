@@ -175,11 +175,14 @@ describe("mainToCoreMessageSchema", () => {
 });
 
 describe("coreStatusMessageSchema", () => {
-  it.each(["starting", "down", "up", "refused"])("accepts a core status of %s", (status) => {
-    expect(coreStatusMessageSchema.safeParse({ type: "core-status", status }).success).toBe(true);
-  });
+  it.each(["starting", "down", "up", "updating", "refused"])(
+    "accepts a core status of %s",
+    (status) => {
+      expect(coreStatusMessageSchema.safeParse({ type: "core-status", status }).success).toBe(true);
+    },
+  );
 
-  it("rejects a status outside starting, down, up and refused", () => {
+  it("rejects an empty or missing status", () => {
     expect(coreStatusMessageSchema.safeParse({ type: "core-status", status: "" }).success).toBe(
       false,
     );
@@ -209,11 +212,5 @@ describe("update messages", () => {
     expect(mainToCoreMessageSchema.safeParse({ type: "update-safe-moment-request" }).success).toBe(
       false,
     );
-  });
-
-  it("accepts the updating core status", () => {
-    const message = { type: "core-status", status: "updating" };
-
-    expect(coreStatusMessageSchema.parse(message)).toEqual(message);
   });
 });
