@@ -18,7 +18,7 @@ import {
   chargeSaleByTransferOutcomeSchema,
   chargeSaleInCashOutcomeSchema,
   chargeSaleOnStandaloneTerminalOutcomeSchema,
-  holdsMercadoPagoPaymentOutcome,
+  holdsPointPaymentOutcome,
   manualAdjustmentReasonSchema,
   manualAdjustmentValueSchema,
   previewSaleDiscountOutcomeSchema,
@@ -243,7 +243,7 @@ const cancelLockedSaleOutcomeSchema = z.discriminatedUnion("kind", [
   ...authorizationRefusalSchema.options,
   z.object({ kind: z.literal("not_locked") }),
   qrChargeInProgressOutcome,
-  holdsMercadoPagoPaymentOutcome,
+  holdsPointPaymentOutcome,
 ]);
 export type CancelLockedSaleOutcome = z.infer<typeof cancelLockedSaleOutcomeSchema>;
 

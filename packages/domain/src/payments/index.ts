@@ -26,7 +26,7 @@ export {
   APPROVED_PAYMENT_STATE,
   cancellableWithoutAuthorization,
   hasApprovedPayment,
-  holdsApprovedMercadoPagoPayment,
+  holdsApprovedPointPayment,
   isConfirmedByHand,
   MERCADO_PAGO_PAYMENT_METHODS,
   MERCADO_PAGO_PROVIDERS,
