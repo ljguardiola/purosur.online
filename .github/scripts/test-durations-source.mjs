@@ -3,7 +3,7 @@ import { appendFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { encodeDurations, readDurations } from "./test-durations.mjs";
+import { encodeDurations, readDurations } from "./test-durations-payload.mjs";
 
 const LOG_PREFIX = "test-durations-source";
 const ARTIFACT_PREFIX = "test-durations-shard-";
