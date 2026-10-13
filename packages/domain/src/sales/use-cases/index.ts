@@ -115,6 +115,12 @@ export type {
 } from "./read-sales-history.js";
 export { readSalesHistory } from "./read-sales-history.js";
 export type {
+  SaleToPrintAtStartup,
+  StartupSale,
+  StartupSales,
+} from "./read-sales-to-print-at-startup.js";
+export { readSalesToPrintAtStartup } from "./read-sales-to-print-at-startup.js";
+export type {
   ReceiptDeliveryOfInput,
   ReceiptDeliveryOfOutcome,
   ReceiptDeliveryOfPorts,
