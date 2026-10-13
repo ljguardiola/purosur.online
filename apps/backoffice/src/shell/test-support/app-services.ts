@@ -92,6 +92,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       printLabels: vi.fn(),
     },
     pricesListScreen: {
+      fetchPriceMargin: vi.fn(),
       fetchPrices: vi.fn().mockReturnValue(new Promise(() => {})),
       setPrice: vi.fn(),
       confirmPrice: vi.fn(),
