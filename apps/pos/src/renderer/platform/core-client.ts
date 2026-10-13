@@ -136,6 +136,11 @@ export type MercadoPagoMethod = Extract<
   { type: "start-mercado-pago-charge" }
 >["method"];
 
+type StartupPendingRead = Extract<
+  RegisterCoreToRendererMessage,
+  { type: "startup-pending" }
+>["pending"];
+
 export interface CoreClient {
   connect(port: CorePort): void;
   enrollmentStatus(): Promise<boolean>;
@@ -245,6 +250,7 @@ export interface CoreClient {
   cashBalance(): Promise<CashBalance | null | "unavailable">;
   cashCountPreview(countedCash: number): Promise<CashCountPreview | null | "unavailable">;
   sessionOpenSale(): Promise<SessionOpenSale | null | "unavailable">;
+  startupPending(): Promise<StartupPendingRead | "not_permitted">;
   onPulled(listener: () => void): () => void;
   onSerialDevicesChanged(listener: () => void): () => void;
   onBarcodeRead(listener: (code: string) => void): () => void;
@@ -900,6 +906,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           return answer.type === "session-open-sale" ? answer.sale : undefined;
         },
       );
+    },
+    startupPending() {
+      return ask({ type: "startup-pending-request", request_id: deps.newRequestId() }, (answer) => {
+        if (answer.type === "startup-pending-unavailable") {
+          throw new Error("the core could not read what the last run left pending");
+        }
+        if (answer.type === "startup-pending-not-permitted") {
+          return "not_permitted";
+        }
+        return answer.type === "startup-pending" ? answer.pending : undefined;
+      });
     },
     onPulled(listener) {
       pulledListeners.add(listener);
