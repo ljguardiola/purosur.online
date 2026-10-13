@@ -11,6 +11,7 @@ import { configureOfflinePointOfSale } from "../../fiscal/test-support/offline-p
 import { insertEnrolledInstallation } from "../../register/test-support/enrolled-installation.js";
 import { DrizzleChangeLog } from "../../sync/drizzle-change-log.js";
 import { migrateFreshDatabase } from "../../test-support/test-database-snapshot.js";
+import { MIGRATIONS_FOLDER } from "./migrations-folder.js";
 import {
   addMigrationEntry,
   findMigrationEntry,
@@ -57,6 +58,7 @@ async function migratedDatabaseWithOneCodeUnlogged() {
 
   await addMigrationEntry(folder, await offlineAuthorizationCodeChangesEntry());
   await migrate(drizzle(client), { migrationsFolder: folder });
+  await migrate(drizzle(client), { migrationsFolder: MIGRATIONS_FOLDER });
 
   return { client, loggedCodeId, unloggedCodeId, changesBefore: before.length };
 }

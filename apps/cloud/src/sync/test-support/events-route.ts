@@ -15,6 +15,7 @@ export interface EventsRouteUnderTest {
 
 export function eventsRouteUnderTest(
   enqueueEventApplication: EnqueueEventApplication = async () => {},
+  warn?: (message: string, context: { deviceId: string }) => void,
 ): EventsRouteUnderTest {
   let testDatabase: TestDatabase;
   let app: FastifyInstance;
@@ -37,6 +38,7 @@ export function eventsRouteUnderTest(
       keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
       now: () => NOW,
       enqueueEventApplication,
+      ...(warn === undefined ? {} : { warn }),
     });
   });
 
