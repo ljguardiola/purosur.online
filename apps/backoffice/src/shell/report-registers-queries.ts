@@ -3,7 +3,7 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchReportRegisters } from "./report-registers-api";
 
-export const reportRegistersKey = ["shell", "report-registers"] as const;
+const reportRegistersKey = ["shell", "report-registers"] as const;
 
 export function useReportRegistersQuery(params: {
   fetchReportRegisters: typeof fetchReportRegisters;
