@@ -311,6 +311,21 @@ describe("applyRegisterStockMovements", () => {
       expect(remainingByLot(store)).toEqual({ soon: 0, late: 0, never: 3000 });
     });
 
+    it("applies a sale of a product holding an expired lot without refusing it, taking the expired lot first", async () => {
+      const store = storeWithProducts();
+      store.seedLot({ ...BREAD, id: "fresh", expiresOn: "2027-06-01", remaining: 4000 });
+      store.seedLot({ ...BREAD, id: "expired", expiresOn: "2026-09-01", remaining: 2000 });
+
+      const outcome = await apply(store, sale(breadSale("sale-1", -3000)));
+
+      expect(outcome).toEqual({ kind: "applied" });
+      expect(store.balanceOf(BREAD)).toBe(7000);
+      expect(store.snapshot().allocations).toEqual([
+        { movementId: "sale-1", lotId: "expired", quantity: -2000 },
+        { movementId: "sale-1", lotId: "fresh", quantity: -1000 },
+      ]);
+    });
+
     it("leaves the lots of another branch and of another product alone", async () => {
       const store = storeWithProducts();
       store.seedLot({ ...BREAD, id: "here", remaining: 5000 });
