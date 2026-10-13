@@ -1,5 +1,6 @@
 import {
   cloudError,
+  MALFORMED_BATTERY_REPORT,
   cloudErrorStatus,
   PUSH_EVENTS_REQUEST_MAX_BYTES,
   type PushEventsResponse,
@@ -113,10 +114,18 @@ export function registerEventsRoute<TQueryResult extends PgQueryResultHKT>(
           return;
         }
 
+        const { deviceId } = authentication.installation;
+        const { battery, ...telemetryWithoutBattery } = push.telemetry;
+        if (battery === MALFORMED_BATTERY_REPORT) {
+          request.log.warn({ deviceId }, "dropped a battery report that does not match its shape");
+        }
         const outcome = await receivePushedEvents(ports, {
-          deviceId: authentication.installation.deviceId,
+          deviceId,
           appVersion: push.app_version,
-          telemetry: push.telemetry,
+          telemetry:
+            battery === MALFORMED_BATTERY_REPORT
+              ? telemetryWithoutBattery
+              : { ...telemetryWithoutBattery, battery },
           events: push.events,
         });
         if (outcome.kind === "chain_broken" || outcome.kind === "revoked") {
