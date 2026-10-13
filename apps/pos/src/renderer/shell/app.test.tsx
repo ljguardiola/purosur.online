@@ -1467,9 +1467,17 @@ describe("App", () => {
       pending_payments: [],
     };
 
+    function lockedUntilResumed() {
+      let reads = 0;
+      return async () => {
+        reads += 1;
+        return reads === 1 ? GRACE_SESSION_LOCKED : GRACE_SESSION;
+      };
+    }
+
     it("shows what the last run left after the cashier resumes an open session, and goes on to the sale from Ir a vender", async () => {
       const { core } = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
-        cashSession: async () => GRACE_SESSION_LOCKED,
+        cashSession: lockedUntilResumed(),
         startupPending: async () => PENDING,
       });
       const screen = await render(<App core={core} />);
@@ -1488,7 +1496,7 @@ describe("App", () => {
 
     it("goes straight to the sale when the core lists nothing", async () => {
       const { core } = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
-        cashSession: async () => GRACE_SESSION_LOCKED,
+        cashSession: lockedUntilResumed(),
       });
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
@@ -1501,7 +1509,7 @@ describe("App", () => {
 
     it("does not show it again after Ir a vender when the register is locked and resumed", async () => {
       const { core } = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
-        cashSession: async () => GRACE_SESSION_LOCKED,
+        cashSession: lockedUntilResumed(),
         startupPending: async () => PENDING,
       });
       const screen = await render(<App core={core} />);

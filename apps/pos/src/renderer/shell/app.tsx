@@ -48,6 +48,7 @@ import { BarcodeReadings } from "./barcode-readings";
 import type { Enrollment, RegisterServiceState } from "./router";
 import { createAppRouter } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
+import { useStartupPendingGate } from "./startup-pending-gate";
 
 export function App({ core }: { core: CoreClient }) {
   const [queryClient] = useState(createQueryClient);
@@ -84,6 +85,7 @@ function Register({ core }: { core: CoreClient }) {
   }
   const [signedInPerson, setPerson] = useState<SignedInPerson>();
   const { offerSerialDevicesAfterSignIn, takeSerialDevicesOffer } = useSerialDevicesOffer();
+  const startupPendingGate = useStartupPendingGate();
   const cashSession = useCashSessionQuery({
     read: () => core.cashSession(),
     enabled: enrollment === "enrolled" && registerService === "in_service",
@@ -407,6 +409,8 @@ function Register({ core }: { core: CoreClient }) {
     registerSerialDevices: (devices: SerialDevicesToRegister) =>
       core.registerSerialDevices(devices),
     takeSerialDevicesOffer,
+    startupPending: () => core.startupPending(),
+    startupPendingGate,
     readInitialCount: () => core.readInitialCount(),
     recordInitialCountLine: (productId: string, counted: number, expiresOn: string | null) =>
       core.recordInitialCountLine(productId, counted, expiresOn),
