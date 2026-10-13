@@ -1,6 +1,6 @@
 import type { PriceProduct } from "@purosur/contracts";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { confirmPrice, fetchPrices, setPrice } from "./prices-api";
+import { confirmPrice, fetchPriceMargin, fetchPrices, setPrice } from "./prices-api";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
   return new Response(
@@ -367,4 +367,62 @@ test("confirmPrice returns failed when the request throws", async () => {
   expect(await confirmPrice("product-1", { expectedCurrentPriceId: "price-1" })).toEqual({
     kind: "failed",
   });
+});
+
+const riceCostReference = {
+  lastCostCents: 428000,
+  freightPerUnitCents: 18000,
+  totalCostCents: 446000,
+  marginTenthsOfPercent: 456,
+};
+
+test("fetchPriceMargin asks for the margin of the typed price and returns the cost reference on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { costReference: riceCostReference }));
+
+  const outcome = await fetchPriceMargin("product-1", 820000);
+
+  expect(outcome).toEqual({ kind: "ok", value: { costReference: riceCostReference } });
+  expect(fetch).toHaveBeenCalledWith("/api/prices/product-1/margin?unitPrice=820000");
+});
+
+test("fetchPriceMargin returns a missing cost reference as it is", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { costReference: null }));
+
+  expect(await fetchPriceMargin("product-1", 820000)).toEqual({
+    kind: "ok",
+    value: { costReference: null },
+  });
+});
+
+test.each([
+  [401, { kind: "unauthenticated" }],
+  [403, { kind: "forbidden" }],
+  [404, { kind: "failed" }],
+  [400, { kind: "failed" }],
+  [500, { kind: "failed" }],
+])("fetchPriceMargin answers a %i as %j", async (status, expected) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+  expect(await fetchPriceMargin("product-1", 820000)).toEqual(expected);
+});
+
+test("fetchPriceMargin reports a rate limit with its retry time", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "12" }));
+
+  expect(await fetchPriceMargin("product-1", 820000)).toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 12,
+  });
+});
+
+test("fetchPriceMargin returns failed when the request cannot be made", async () => {
+  vi.mocked(fetch).mockRejectedValue(new TypeError("offline"));
+
+  expect(await fetchPriceMargin("product-1", 820000)).toEqual({ kind: "failed" });
+});
+
+test("fetchPriceMargin returns failed on a body that does not match", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { costReference: { lastCostCents: 1 } }));
+
+  expect(await fetchPriceMargin("product-1", 820000)).toEqual({ kind: "failed" });
 });
