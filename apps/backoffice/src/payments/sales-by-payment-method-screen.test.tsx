@@ -8,8 +8,8 @@ import { dateSegments } from "../shell/test-support/report-dates";
 import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   createReportRegisterFilterServices,
-  reportRegisterFieldForTests,
   type ReportRegisterFilterServices,
+  reportRegisterFieldForTests,
 } from "../shell/test-support/report-register-filter";
 import {
   type SalesByPaymentMethodFilters,

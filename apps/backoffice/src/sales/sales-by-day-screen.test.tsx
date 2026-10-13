@@ -9,8 +9,8 @@ import { dateSegments } from "../shell/test-support/report-dates";
 import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   createReportRegisterFilterServices,
-  reportRegisterFieldForTests,
   type ReportRegisterFilterServices,
+  reportRegisterFieldForTests,
 } from "../shell/test-support/report-register-filter";
 import { SalesByDayScreen } from "./sales-by-day-screen";
 import type { SalesByDayScreenServices } from "./sales-by-day-services";

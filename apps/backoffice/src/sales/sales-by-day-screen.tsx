@@ -12,10 +12,8 @@ import { Receipt } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
 import { ReportFilters } from "../shell/report-filters";
-import {
-  type ReportFilters as ReportFiltersValue,
-  reportQueryOf,
-} from "../shell/report-filters-search";
+import type { ReportFilters as ReportFiltersValue } from "../shell/report-filters-search";
+import { reportQueryOf, withoutRefusedPeriod } from "../shell/report-query";
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
@@ -55,12 +53,13 @@ const columns = [
 ] as const;
 
 export function SalesByDayScreen({
-  filters,
+  filters: asked,
   onFiltersChange,
   onSessionEnded,
   registerFilter,
   services,
 }: SalesByDayScreenProps) {
+  const filters = withoutRefusedPeriod(asked);
   const registerChosen = filters.register !== "ALL";
   const data = useSalesReportQuery({
     query: reportQueryOf(filters),
