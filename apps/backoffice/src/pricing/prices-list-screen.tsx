@@ -2,8 +2,8 @@ import type { PriceCategory, PriceProduct } from "@purosur/contracts";
 import {
   Button,
   dataColumn,
-  formatTenthsOfPercent,
   FloatingNotification,
+  formatTenthsOfPercent,
   IconButton,
   ListFilter,
   plural,
@@ -102,6 +102,7 @@ export function PricesListScreen({
   const sendToMyAccount = useSendToMyAccount();
   const {
     fetchPrices: fetchPricesService,
+    fetchPriceMargin: fetchPriceMarginService,
     setPrice: setPriceService,
     confirmPrice: confirmPriceService,
   } = services;
@@ -602,6 +603,7 @@ export function PricesListScreen({
         onSaved={handleModalSaved}
         onGone={handleModalProductGone}
         reload={reloadPrice}
+        fetchPriceMargin={fetchPriceMarginService}
         setPrice={setPriceService}
         confirmPrice={confirmPriceService}
       />
