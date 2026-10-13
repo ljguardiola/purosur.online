@@ -218,6 +218,7 @@ describe("requestRealTimeAuthorization", () => {
         saleId: "sale-1",
         resolution: { state: "UNKNOWN", deferralReason: "unclear_outcome" },
         resolvedAt: START,
+        deferredSale: deferredRecord("unclear_outcome", START),
       },
     ]);
   });
