@@ -1,15 +1,14 @@
 import type {
   Authorization,
   CashBalance,
+  PrintOriginalReceiptOutcome,
   ReprintSaleReceiptOutcome,
-  SaleHistoryDetailOutcome,
   StartupPending,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { deferred } from "../platform/test-support/deferred";
-import type { SaleDetail } from "../sales/sale-history-text";
 import type { SignedInPerson } from "./signed-in-person";
 import { StartupPendingScreen } from "./startup-pending-screen";
 import { render } from "./test-support/render-with-router";
@@ -70,26 +69,11 @@ const POINT_PAYMENT: StartupPending["pending_payments"][number] = {
   occurred_at: "2026-09-30T12:45:00.000-03:00",
 };
 
-function detailOf(saleId: string, next_copy: SaleDetail["next_copy"]): SaleDetail {
-  return {
-    sale_id: saleId,
-    occurred_at: "2026-09-30T10:15:00.000-03:00",
-    total: 123_450,
-    comprobante: { kind: "none" },
-    operation_number: null,
-    served_by_first_name: "Ada",
-    line_count: 2,
-    payments: [{ method: "CASH", amount: 123_450 }],
-    state: "completed",
-    next_copy,
-  };
-}
-
 type Overrides = {
   person?: SignedInPerson;
   loadStartupPending?: () => Promise<StartupPending | "not_permitted">;
   loadCashBalance?: () => Promise<CashBalance | null | "unavailable">;
-  saleHistoryDetail?: (saleId: string) => Promise<SaleHistoryDetailOutcome>;
+  printOriginalReceipt?: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
   reprintSaleReceipt?: (
     saleId: string,
     reason: string,
@@ -104,11 +88,11 @@ async function renderScreen(overrides: Overrides = {}) {
   const loadStartupPending = vi.fn(
     overrides.loadStartupPending ?? (async () => ({ ...NOTHING, sales_to_print: [NEVER_PRINTED] })),
   );
-  const saleHistoryDetail = vi.fn(
-    overrides.saleHistoryDetail ??
-      (async (saleId: string): Promise<SaleHistoryDetailOutcome> => ({
-        kind: "found",
-        detail: detailOf(saleId, { kind: "original" }),
+  const printOriginalReceipt = vi.fn(
+    overrides.printOriginalReceipt ??
+      (async (): Promise<PrintOriginalReceiptOutcome> => ({
+        kind: "started",
+        copy: { kind: "original" },
       })),
   );
   const reprintSaleReceipt = vi.fn(
@@ -130,7 +114,7 @@ async function renderScreen(overrides: Overrides = {}) {
       lock={() => {}}
       loadStartupPending={loadStartupPending}
       loadCashBalance={overrides.loadCashBalance ?? (async () => BALANCE)}
-      saleHistoryDetail={saleHistoryDetail}
+      printOriginalReceipt={printOriginalReceipt}
       reprintSaleReceipt={reprintSaleReceipt}
       loadAuthorizers={async () => []}
       onGoSelling={onGoSelling}
@@ -140,7 +124,7 @@ async function renderScreen(overrides: Overrides = {}) {
   return {
     screen,
     loadStartupPending,
-    saleHistoryDetail,
+    printOriginalReceipt,
     reprintSaleReceipt,
     onGoSelling,
     onSessionInvalid,
@@ -320,92 +304,142 @@ describe("StartupPendingScreen", () => {
   });
 
   describe("printing the ticket of a sale never printed", () => {
-    it("reads the sale and opens its print as the original", async () => {
-      const { screen, saleHistoryDetail } = await renderScreen();
+    it("prints the original in one tap through its own request, with no dialog and no reason, and says it comes out when the printer is ready", async () => {
+      const { screen, printOriginalReceipt, reprintSaleReceipt } = await renderScreen();
 
       await userEvent.click(screen.getByRole("button", { name: "Imprimir el ticket" }));
 
-      await expect.element(screen.getByText("IMPRIMIR VENTA DE LAS 10:15")).toBeVisible();
-      expect(saleHistoryDetail).toHaveBeenCalledExactlyOnceWith("sale-1");
-    });
-
-    it("prints through the reprint request with the reason typed, says it comes out when the printer is ready and reads the items again", async () => {
-      const { screen, loadStartupPending, reprintSaleReceipt } = await renderScreen();
-      await userEvent.click(screen.getByRole("button", { name: "Imprimir el ticket" }));
-      await userEvent.fill(
-        screen.getByRole("textbox", { name: "Motivo de la reimpresión" }),
-        "La caja se cortó antes de imprimir",
-      );
-
-      await userEvent.click(
-        screen.getByRole("dialog").getByRole("button", { name: "Imprimir original" }),
-      );
-
-      expect(reprintSaleReceipt).toHaveBeenCalledExactlyOnceWith(
-        "sale-1",
-        "La caja se cortó antes de imprimir",
-        undefined,
-      );
+      expect(printOriginalReceipt).toHaveBeenCalledExactlyOnceWith("sale-1");
       await expect
         .element(screen.getByText("El ticket sale en cuanto la impresora esté lista"))
         .toBeVisible();
-      await expect.element(screen.getByText("IMPRIMIR VENTA DE LAS 10:15")).not.toBeInTheDocument();
-      await expect.poll(() => loadStartupPending.mock.calls.length).toBe(2);
+      await expect.element(screen.getByText("Sale como original.")).toBeVisible();
+      await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+      expect(reprintSaleReceipt).not.toHaveBeenCalled();
     });
 
-    it("drops the item once the core no longer lists it", async () => {
+    it("reads the items again after printing and drops the item once the core no longer lists it", async () => {
       const load = vi
         .fn<() => Promise<StartupPending>>()
         .mockResolvedValueOnce({ ...NOTHING, sales_to_print: [NEVER_PRINTED] })
         .mockResolvedValue(NOTHING);
       const { screen } = await renderScreen({ loadStartupPending: load });
-      await userEvent.click(screen.getByRole("button", { name: "Imprimir el ticket" }));
-      await userEvent.fill(
-        screen.getByRole("textbox", { name: "Motivo de la reimpresión" }),
-        "La caja se cortó antes de imprimir",
-      );
 
-      await userEvent.click(
-        screen.getByRole("dialog").getByRole("button", { name: "Imprimir original" }),
-      );
+      await userEvent.click(screen.getByRole("button", { name: "Imprimir el ticket" }));
 
       await expect.element(screen.getByText("Venta sin ticket")).not.toBeInTheDocument();
+      expect(load).toHaveBeenCalledTimes(2);
     });
 
-    it("closes the print from Cancelar without asking the core to print", async () => {
-      const { screen, reprintSaleReceipt } = await renderScreen();
+    it("asks for the print only once while the first request is still being answered", async () => {
+      const answer = deferred<PrintOriginalReceiptOutcome>();
+      const { screen, printOriginalReceipt } = await renderScreen({
+        printOriginalReceipt: () => answer.promise,
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Imprimir el ticket" }));
       await userEvent.click(screen.getByRole("button", { name: "Imprimir el ticket" }));
 
-      await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
-
-      await expect.element(screen.getByText("IMPRIMIR VENTA DE LAS 10:15")).not.toBeInTheDocument();
-      expect(reprintSaleReceipt).not.toHaveBeenCalled();
+      expect(printOriginalReceipt).toHaveBeenCalledOnce();
     });
 
-    it("says the sale could not be opened when the core cannot read it", async () => {
+    it("offers the sale as an unconfirmed ticket when the core says its print was already attempted", async () => {
+      const load = vi
+        .fn<() => Promise<StartupPending>>()
+        .mockResolvedValueOnce({ ...NOTHING, sales_to_print: [NEVER_PRINTED] })
+        .mockResolvedValue({
+          ...NOTHING,
+          sales_to_print: [{ ...NEVER_PRINTED, standing: "outcome_unknown" }],
+        });
       const { screen } = await renderScreen({
-        saleHistoryDetail: async () => ({ kind: "unavailable" }),
+        loadStartupPending: load,
+        printOriginalReceipt: async () => ({ kind: "already_attempted" }),
       });
 
       await userEvent.click(screen.getByRole("button", { name: "Imprimir el ticket" }));
 
-      await expect.element(screen.getByText("No se pudo abrir la venta")).toBeVisible();
-      await expect.element(screen.getByText("IMPRIMIR VENTA DE LAS 10:15")).not.toBeInTheDocument();
+      await expect.element(screen.getByText("Ticket sin confirmar")).toBeVisible();
+      await expect
+        .element(screen.getByText("El ticket sale en cuanto la impresora esté lista"))
+        .not.toBeInTheDocument();
     });
 
-    it("says the person may not see the sale when the core refuses it", async () => {
-      const { screen } = await renderScreen({
-        saleHistoryDetail: async () => ({ kind: "lacks_permission" }),
+    it("reads the items again when the core no longer finds the sale", async () => {
+      const { screen, loadStartupPending } = await renderScreen({
+        printOriginalReceipt: async () => ({ kind: "not_found" }),
       });
 
       await userEvent.click(screen.getByRole("button", { name: "Imprimir el ticket" }));
 
-      await expect.element(screen.getByText("No tenés permiso para ver la venta")).toBeVisible();
+      await expect.poll(() => loadStartupPending.mock.calls.length).toBe(2);
+    });
+
+    it.each([
+      [
+        { kind: "busy" },
+        "Esa venta ya se está imprimiendo",
+        "Esperá a que termine antes de volver a imprimirla.",
+      ],
+      [
+        { kind: "printer_not_configured" },
+        "La impresora no está configurada",
+        "Cargá su dirección en Impresora y después imprimí el ticket de nuevo.",
+      ],
+      [
+        { kind: "lacks_permission" },
+        "No tenés permiso para imprimir",
+        "Pedile a quien pueda que imprima el ticket.",
+      ],
+      [{ kind: "unavailable" }, "No se pudo imprimir el ticket", "Probá de nuevo."],
+    ] satisfies [PrintOriginalReceiptOutcome, string, string][])(
+      "says why the ticket was not printed when the core answers %j",
+      async (outcome, title, description) => {
+        const { screen } = await renderScreen({ printOriginalReceipt: async () => outcome });
+
+        await userEvent.click(screen.getByRole("button", { name: "Imprimir el ticket" }));
+
+        await expect.element(screen.getByText(title)).toBeVisible();
+        await expect.element(screen.getByText(description)).toBeVisible();
+        await expect
+          .element(screen.getByText("El ticket sale en cuanto la impresora esté lista"))
+          .not.toBeInTheDocument();
+      },
+    );
+
+    it("says the ticket could not be printed when the request itself fails", async () => {
+      const { screen } = await renderScreen({
+        printOriginalReceipt: async () => {
+          throw new Error("the core could not answer");
+        },
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Imprimir el ticket" }));
+
+      await expect.element(screen.getByText("No se pudo imprimir el ticket")).toBeVisible();
+    });
+
+    it("lets the person try again after a failure", async () => {
+      const print = vi
+        .fn<(saleId: string) => Promise<PrintOriginalReceiptOutcome>>()
+        .mockResolvedValueOnce({ kind: "unavailable" })
+        .mockResolvedValue({ kind: "started", copy: { kind: "original" } });
+      const { screen } = await renderScreen({ printOriginalReceipt: print });
+      await userEvent.click(screen.getByRole("button", { name: "Imprimir el ticket" }));
+      await expect.element(screen.getByText("No se pudo imprimir el ticket")).toBeVisible();
+
+      await userEvent.click(screen.getByRole("button", { name: "Imprimir el ticket" }));
+
+      await expect
+        .element(screen.getByText("El ticket sale en cuanto la impresora esté lista"))
+        .toBeVisible();
+      await expect
+        .element(screen.getByText("No se pudo imprimir el ticket"))
+        .not.toBeInTheDocument();
     });
 
     it("tells the route the session is no longer valid when the core finds nobody signed in", async () => {
       const { screen, onSessionInvalid } = await renderScreen({
-        saleHistoryDetail: async () => ({ kind: "not_signed_in" }),
+        printOriginalReceipt: async () => ({ kind: "not_signed_in" }),
       });
 
       await userEvent.click(screen.getByRole("button", { name: "Imprimir el ticket" }));
@@ -416,32 +450,26 @@ describe("StartupPendingScreen", () => {
 
   describe("reprinting the ticket of a sale whose print is unknown", () => {
     const UNKNOWN_ONLY = async () => ({ ...NOTHING, sales_to_print: [OUTCOME_UNKNOWN] });
-    const AS_DUPLICATE = async (saleId: string): Promise<SaleHistoryDetailOutcome> => ({
-      kind: "found",
-      detail: detailOf(saleId, { kind: "duplicate", order_number: 1 }),
-    });
 
-    it("opens the reprint as a duplicate", async () => {
-      const { screen } = await renderScreen({
-        loadStartupPending: UNKNOWN_ONLY,
-        saleHistoryDetail: AS_DUPLICATE,
-      });
+    it("opens the reprint as a duplicate straight from the list, without a number it does not know", async () => {
+      const { screen } = await renderScreen({ loadStartupPending: UNKNOWN_ONLY });
 
       await userEvent.click(screen.getByRole("button", { name: "Reimprimir como duplicado" }));
 
-      await expect.element(screen.getByText("REIMPRIMIR VENTA DE LAS 10:15")).toBeVisible();
+      await expect.element(screen.getByText("REIMPRIMIR VENTA DE LAS 11:40")).toBeVisible();
       await expect.element(screen.getByText("Sale como duplicado")).toBeVisible();
+      await expect.element(screen.getByText(/COPIA DUPLICADA/)).not.toBeInTheDocument();
     });
 
-    it("reprints through the reprint request with the reason typed", async () => {
-      const { screen, reprintSaleReceipt } = await renderScreen({
-        loadStartupPending: UNKNOWN_ONLY,
-        saleHistoryDetail: AS_DUPLICATE,
-        reprintSaleReceipt: async () => ({
-          kind: "started",
-          copy: { kind: "duplicate", order_number: 1 },
-        }),
-      });
+    it("reprints through the reprint request with the reason typed, says it comes out when the printer is ready and reads the items again", async () => {
+      const { screen, reprintSaleReceipt, printOriginalReceipt, loadStartupPending } =
+        await renderScreen({
+          loadStartupPending: UNKNOWN_ONLY,
+          reprintSaleReceipt: async () => ({
+            kind: "started",
+            copy: { kind: "duplicate", order_number: 1 },
+          }),
+        });
       await userEvent.click(screen.getByRole("button", { name: "Reimprimir como duplicado" }));
       await userEvent.fill(
         screen.getByRole("textbox", { name: "Motivo de la reimpresión" }),
@@ -457,9 +485,28 @@ describe("StartupPendingScreen", () => {
         "No se sabe si salió",
         undefined,
       );
+      expect(printOriginalReceipt).not.toHaveBeenCalled();
       await expect
         .element(screen.getByText("El ticket sale en cuanto la impresora esté lista"))
         .toBeVisible();
+      await expect
+        .element(screen.getByText("REIMPRIMIR VENTA DE LAS 11:40"))
+        .not.toBeInTheDocument();
+      await expect.poll(() => loadStartupPending.mock.calls.length).toBe(2);
+    });
+
+    it("closes the reprint from Cancelar without asking the core to print", async () => {
+      const { screen, reprintSaleReceipt } = await renderScreen({
+        loadStartupPending: UNKNOWN_ONLY,
+      });
+      await userEvent.click(screen.getByRole("button", { name: "Reimprimir como duplicado" }));
+
+      await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+      await expect
+        .element(screen.getByText("REIMPRIMIR VENTA DE LAS 11:40"))
+        .not.toBeInTheDocument();
+      expect(reprintSaleReceipt).not.toHaveBeenCalled();
     });
   });
 

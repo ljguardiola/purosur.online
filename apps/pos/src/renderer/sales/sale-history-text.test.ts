@@ -101,4 +101,12 @@ describe("receiptCopyPresentation", () => {
       legend: "COPIA DUPLICADA Nº 2",
     });
   });
+
+  it("carries no legend for a duplicate whose reprint number is not known yet", () => {
+    expect(receiptCopyPresentation({ kind: "duplicate" })).toEqual({
+      printButton: "Reimprimir duplicado",
+      comesOutAs: "Sale como duplicado",
+      legend: undefined,
+    });
+  });
 });

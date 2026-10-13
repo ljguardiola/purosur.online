@@ -295,6 +295,9 @@ function coreAnswering(
         ? { kind: "found", next_copy: { kind: "original" }, printed: true, standing: "printed" }
         : sales.receiptPrintStatus(saleId);
     },
+    async printOriginalReceipt() {
+      return { kind: "unavailable" };
+    },
     async reprintSaleReceipt(saleId, reason, authorization) {
       return sales.reprintSaleReceipt === undefined
         ? { kind: "unavailable" }
