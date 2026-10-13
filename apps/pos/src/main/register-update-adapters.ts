@@ -41,12 +41,28 @@ export function pendingUpdateFiles(folder: string): UpdateFiles {
     pathOf: (name) => join(folder, name),
     open: async (name) => {
       const stream = createWriteStream(join(folder, name));
+      let failure: Error | undefined;
+      stream.on("error", (error) => {
+        failure ??= error;
+      });
+      const settle =
+        (resolve: () => void, reject: (error: Error) => void) => (error?: Error | null) => {
+          const cause = failure ?? error;
+          if (cause) {
+            reject(cause);
+          } else {
+            resolve();
+          }
+        };
       return {
         write: (chunk) =>
           new Promise<void>((resolve, reject) => {
-            stream.write(chunk, (error) => (error ? reject(error) : resolve()));
+            stream.write(chunk, settle(resolve, reject));
           }),
-        close: () => new Promise<void>((resolve) => stream.end(resolve)),
+        close: () =>
+          new Promise<void>((resolve, reject) => {
+            stream.end(settle(resolve, reject));
+          }),
       };
     },
     remove: async (name) => rmSync(join(folder, name), { force: true }),
