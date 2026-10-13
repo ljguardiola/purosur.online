@@ -76,7 +76,9 @@ describe("the register updates bucket", () => {
         .flat()
         .find((resource) => resource.type === "bucket" && resource.name === "Register Updates");
       if (!bucket) {
-        throw new Error("railway.test.ts: no bucket named Register Updates in the compiled project");
+        throw new Error(
+          "railway.test.ts: no bucket named Register Updates in the compiled project",
+        );
       }
       const cloud = findService(definition, "Cloud Server");
 
