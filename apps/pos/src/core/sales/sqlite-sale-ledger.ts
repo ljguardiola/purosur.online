@@ -3,6 +3,7 @@ import {
   type DiscountBenefit,
   type DiscountTargetKind,
   discountsTargeting,
+  isConfirmedByHand,
   newestPrice,
   nextOperationNumber,
   type OutboxEventDraft,
@@ -376,8 +377,8 @@ export class SqliteSaleLedger implements SaleLedger {
         provider: payment.provider,
         amount: payment.amount,
         tendered: payment.tendered ?? null,
-        authorized_by: payment.method === "TRANSFER" ? payment.authorizedBy : null,
-        confirmed_at: payment.method === "TRANSFER" ? payment.confirmedAt.toISOString() : null,
+        authorized_by: isConfirmedByHand(payment) ? payment.authorizedBy : null,
+        confirmed_at: isConfirmedByHand(payment) ? payment.confirmedAt.toISOString() : null,
         state: payment.state,
         occurred_at: payment.occurredAt.toISOString(),
       });

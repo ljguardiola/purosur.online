@@ -3,6 +3,7 @@ import type {
   CashChargeAnswer,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleOnStandaloneTerminalOutcome,
   CurrentSaleAnswer,
   FollowMercadoPagoChargeOutcome,
   OpenSale,
@@ -98,6 +99,12 @@ const TRANSFER_COMPLETED: ChargeSaleByTransferOutcome = {
   total: 476_000,
 };
 
+const STANDALONE_TERMINAL_COMPLETED: ChargeSaleOnStandaloneTerminalOutcome = {
+  kind: "completed",
+  sale_id: "sale-1",
+  total: 476_000,
+};
+
 export const SALE_WITH_PART_PAID: OpenSale = {
   ...SALE_OF_ONE_LINE,
   paid: 100_000,
@@ -151,6 +158,10 @@ export type Overrides = {
   cashCharge?: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash?: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer?: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
+  chargeSaleOnStandaloneTerminal?: (
+    saleId: string,
+    amount: number,
+  ) => Promise<ChargeSaleOnStandaloneTerminalOutcome>;
   receiptPrintStatus?: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
 };
 
@@ -169,6 +180,9 @@ export async function renderScreen(overrides: Overrides = {}) {
   const chargeSaleInCash = vi.fn(overrides.chargeSaleInCash ?? (async () => COMPLETED));
   const chargeSaleByTransfer = vi.fn(
     overrides.chargeSaleByTransfer ?? (async () => TRANSFER_COMPLETED),
+  );
+  const chargeSaleOnStandaloneTerminal = vi.fn(
+    overrides.chargeSaleOnStandaloneTerminal ?? (async () => STANDALONE_TERMINAL_COMPLETED),
   );
   const paymentMethodAvailability = vi.fn(
     overrides.paymentMethodAvailability ?? (async () => AVAILABLE),
@@ -195,6 +209,7 @@ export async function renderScreen(overrides: Overrides = {}) {
       cashCharge={cashCharge}
       chargeSaleInCash={chargeSaleInCash}
       chargeSaleByTransfer={chargeSaleByTransfer}
+      chargeSaleOnStandaloneTerminal={chargeSaleOnStandaloneTerminal}
       paymentMethodAvailability={paymentMethodAvailability}
       startMercadoPagoCharge={startMercadoPagoCharge}
       followMercadoPagoCharge={followMercadoPagoCharge}
@@ -209,6 +224,7 @@ export async function renderScreen(overrides: Overrides = {}) {
     cashCharge,
     chargeSaleInCash,
     chargeSaleByTransfer,
+    chargeSaleOnStandaloneTerminal,
     paymentMethodAvailability,
     startMercadoPagoCharge,
     followMercadoPagoCharge,
@@ -226,6 +242,10 @@ export async function chooseCash(screen: Screen) {
 
 export async function chooseTransfer(screen: Screen) {
   await userEvent.click(screen.getByText("Transferencia", { exact: true }));
+}
+
+export async function chooseStandaloneTerminal(screen: Screen) {
+  await userEvent.click(screen.getByText("Terminal independiente", { exact: true }));
 }
 
 export async function chooseQr(screen: Screen) {

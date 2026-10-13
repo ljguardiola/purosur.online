@@ -89,6 +89,18 @@ const POINT_PAYMENT: SalePayment = {
   method: "POINT",
   provider: "MERCADOPAGO_POINT",
 };
+const STANDALONE_TERMINAL_PAYMENT: SalePayment = {
+  id: "payment-5",
+  saleId: "sale-1",
+  kind: "SALE",
+  method: "STANDALONE_TERMINAL",
+  provider: "EXTERNAL_TERMINAL",
+  amount: 1200,
+  state: "APPROVED",
+  occurredAt: PAID_AT,
+  authorizedBy: "cashier",
+  confirmedAt: PAID_AT,
+};
 const PAYMENT_MOVEMENT: SaleCashMovement = {
   id: "movement-1",
   sessionId: "session-1",
@@ -486,6 +498,24 @@ describe("cancelPaidSale", () => {
         );
 
         expect(outcome).toEqual({ kind: "holds_mercado_pago_payment" });
+        expect(store.state).toEqual(before);
+      },
+    );
+
+    it.each(["sale", "locked_register"] as const)(
+      "refuses a sale holding an approved standalone terminal payment from the %s, leaving everything as it was",
+      async (from) => {
+        const store = ledger({ payments: [CASH_PAYMENT, STANDALONE_TERMINAL_PAYMENT] });
+        const before = structuredClone(store.state);
+
+        const outcome = await cancel(
+          store,
+          from === "sale" ? OWN_GRANT : CLOSER_GRANT,
+          "sale-1",
+          from,
+        );
+
+        expect(outcome).toEqual({ kind: "holds_standalone_terminal_payment" });
         expect(store.state).toEqual(before);
       },
     );

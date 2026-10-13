@@ -697,6 +697,37 @@ describe("decoding the events the registers pushed", () => {
       });
     });
 
+    it("reads a version 8 sale paid on the standalone terminal with who confirmed it and when", () => {
+      const standalone = {
+        ...salePayment,
+        method: "STANDALONE_TERMINAL",
+        provider: "EXTERNAL_TERMINAL",
+        tendered: null,
+        authorized_by: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+        confirmed_at: "2026-10-06T11:21:00.000Z",
+      };
+
+      expect(
+        upcaster.decode(unappliedEventOf(completed({ payments: [standalone] }))),
+      ).toMatchObject({
+        kind: "fact",
+        fact: {
+          kind: "sale_completed",
+          sale: {
+            payments: [
+              {
+                method: "STANDALONE_TERMINAL",
+                provider: "EXTERNAL_TERMINAL",
+                tendered: null,
+                authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+                confirmedAt: new Date("2026-10-06T11:21:00.000Z"),
+              },
+            ],
+          },
+        },
+      });
+    });
+
     it("reads a version 4 cancelled sale with its discount and each line's share of it", () => {
       expect(upcaster.decode(unappliedEventOf(cancelled()))).toMatchObject({
         kind: "fact",

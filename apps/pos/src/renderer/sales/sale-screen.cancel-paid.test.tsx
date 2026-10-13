@@ -17,6 +17,11 @@ const PAID_SALE: OpenSale = {
   cancel_refusal: null,
   refunds_on_cancel: [CASH_REFUND],
 };
+const SALE_WITH_STANDALONE_TERMINAL_PAYMENT: OpenSale = {
+  ...PAID_SALE,
+  cancel_refusal: "holds_standalone_terminal_payment",
+  refunds_on_cancel: [],
+};
 const CANCELLED: CancelPaidSaleOutcome = {
   kind: "cancelled",
   refunds: [CASH_REFUND],
@@ -149,6 +154,28 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
     await expect.element(screen.getByText(/no se cobra nada/)).toBeVisible();
+    expect(cancelPaidSale).not.toHaveBeenCalled();
+  });
+});
+
+describe("SaleScreen cancelling a sale with an approved standalone terminal payment", () => {
+  it("says it cannot be voided from the register, as the core answers", async () => {
+    const cancelPaidSale = vi.fn(async (): Promise<CancelPaidSaleOutcome> => CANCELLED);
+    const { screen } = await renderScreen({
+      currentSale: async () => SALE_WITH_STANDALONE_TERMINAL_PAYMENT,
+      cancelPaidSale,
+    });
+
+    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+
+    await expect
+      .element(
+        screen.getByText(
+          "La venta tiene un pago con la terminal independiente: todavía no se puede anular desde la caja.",
+        ),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     expect(cancelPaidSale).not.toHaveBeenCalled();
   });
 });

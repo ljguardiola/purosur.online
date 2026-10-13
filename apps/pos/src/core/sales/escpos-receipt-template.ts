@@ -52,6 +52,7 @@ const PAYMENT_NAMES = {
   TRANSFER: "Transferencia",
   QR: "QR Mercado Pago",
   POINT: "Point Mercado Pago",
+  STANDALONE_TERMINAL: "Terminal independiente",
 } as const;
 
 class Output {

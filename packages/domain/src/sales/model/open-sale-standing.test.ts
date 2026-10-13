@@ -24,6 +24,13 @@ const POINT_PAYMENT = {
   provider: "MERCADOPAGO_POINT",
 } as const;
 
+const STANDALONE_TERMINAL_PAYMENT = {
+  ...CASH_PAYMENT,
+  id: "payment-5",
+  method: "STANDALONE_TERMINAL",
+  provider: "EXTERNAL_TERMINAL",
+} as const;
+
 const NOW = new Date("2026-10-09T12:01:00.000Z");
 const QR_CHARGE_IN_ITS_WAIT = {
   id: "qr-1",
@@ -163,6 +170,17 @@ describe("openSaleStanding", () => {
     });
   });
 
+  it("refuses the cancellation of a sale holding an approved standalone terminal payment, planning no refund", () => {
+    expect(openSaleStanding(5900, [CASH_PAYMENT, STANDALONE_TERMINAL_PAYMENT], [], NOW)).toEqual({
+      balance: { paid: 4000, pending: 1900 },
+      linesLock: "approved_payment",
+      cancellable: false,
+      cancelRefusal: "holds_standalone_terminal_payment",
+      refundsOnCancel: [],
+      mercadoPagoChargeInProgress: null,
+    });
+  });
+
   it("answers exactly one way to cancel: without authorization, refused, or refunding the payments", () => {
     const payment = fc.record({
       id: fc.string(),
@@ -233,6 +251,24 @@ describe("saleCancelRefusal", () => {
     ],
     ["a QR payment is approved", [QR_PAYMENT], [], "holds_mercado_pago_payment"],
     ["a terminal payment is approved", [POINT_PAYMENT], [], "holds_mercado_pago_payment"],
+    [
+      "a standalone terminal payment is approved",
+      [STANDALONE_TERMINAL_PAYMENT],
+      [],
+      "holds_standalone_terminal_payment",
+    ],
+    [
+      "a standalone terminal payment and a QR payment are approved",
+      [STANDALONE_TERMINAL_PAYMENT, QR_PAYMENT],
+      [],
+      "holds_mercado_pago_payment",
+    ],
+    [
+      "a standalone terminal payment is approved and a QR charge is in its wait",
+      [STANDALONE_TERMINAL_PAYMENT],
+      [QR_CHARGE_IN_ITS_WAIT],
+      "mercado_pago_charge_in_progress",
+    ],
     [
       "a QR payment is approved and another QR charge is in its wait",
       [QR_PAYMENT],
