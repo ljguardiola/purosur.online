@@ -35,7 +35,10 @@ import { hmacEventChain } from "./hmac-event-chain.js";
 export type { EnqueueEventApplication };
 
 export type EventsRouteOptions<TQueryResult extends PgQueryResultHKT> =
-  DeviceTokensOptions<TQueryResult> & { enqueueEventApplication?: EnqueueEventApplication };
+  DeviceTokensOptions<TQueryResult> & {
+    enqueueEventApplication?: EnqueueEventApplication;
+    warn?: (message: string, context: { deviceId: string }) => void;
+  };
 
 const DEVICE_TOKEN_REJECTED = cloudError(
   "device_token_rejected",
@@ -69,6 +72,7 @@ export function registerEventsRoute<TQueryResult extends PgQueryResultHKT>(
   options: EventsRouteOptions<TQueryResult>,
 ): void {
   const tokenPorts = installationTokenPorts(options);
+  const warn = options.warn ?? console.warn;
   const ports = {
     inbox: new DrizzleInbox(
       options.db,
@@ -117,7 +121,7 @@ export function registerEventsRoute<TQueryResult extends PgQueryResultHKT>(
         const { deviceId } = authentication.installation;
         const { battery, ...telemetryWithoutBattery } = push.telemetry;
         if (battery === MALFORMED_BATTERY_REPORT) {
-          request.log.warn({ deviceId }, "dropped a battery report that does not match its shape");
+          warn("dropped a battery report that does not match its shape", { deviceId });
         }
         const outcome = await receivePushedEvents(ports, {
           deviceId,
