@@ -331,16 +331,15 @@ describe("StartupPendingScreen", () => {
       expect(load).toHaveBeenCalledTimes(2);
     });
 
-    it("asks for the print only once while the first request is still being answered", async () => {
+    it("keeps the button disabled while the first request is still being answered", async () => {
       const answer = deferred<PrintOriginalReceiptOutcome>();
-      const { screen, printOriginalReceipt } = await renderScreen({
-        printOriginalReceipt: () => answer.promise,
-      });
+      const { screen } = await renderScreen({ printOriginalReceipt: () => answer.promise });
 
       await userEvent.click(screen.getByRole("button", { name: "Imprimir el ticket" }));
-      await userEvent.click(screen.getByRole("button", { name: "Imprimir el ticket" }));
 
-      expect(printOriginalReceipt).toHaveBeenCalledOnce();
+      await expect
+        .element(screen.getByRole("button", { name: "Imprimir el ticket" }))
+        .toBeDisabled();
     });
 
     it("offers the sale as an unconfirmed ticket when the core says its print was already attempted", async () => {
