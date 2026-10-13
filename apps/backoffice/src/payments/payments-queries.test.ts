@@ -7,12 +7,14 @@ test("invalidating the payments key marks every payments read stale", async () =
   const client = new QueryClient();
   client.setQueryData(paymentsKeys.pendingRefunds, []);
   client.setQueryData(paymentsKeys.salesByPaymentMethod({}), []);
+  client.setQueryData(paymentsKeys.reportRegisters, []);
   client.setQueryData(["sales"], []);
 
   await client.invalidateQueries({ queryKey: paymentsKey, refetchType: "none" });
 
   expect(client.getQueryState(paymentsKeys.pendingRefunds)?.isInvalidated).toBe(true);
   expect(client.getQueryState(paymentsKeys.salesByPaymentMethod({}))?.isInvalidated).toBe(true);
+  expect(client.getQueryState(paymentsKeys.reportRegisters)?.isInvalidated).toBe(true);
   expect(client.getQueryState(["sales"])?.isInvalidated).toBe(false);
 });
 

@@ -1,17 +1,16 @@
 import type { CalendarDate } from "@internationalized/date";
+import type { ReportRegisterListBody } from "@purosur/contracts";
 import { reportQuerySchema } from "@purosur/contracts";
 import { DateField, ListFilter, sortedItems, textOrder } from "@purosur/ui";
 import { useEffect, useEffectEvent, useState } from "react";
+import type { CloudData } from "../platform/use-cloud-query";
 import { calendarDateOf, dayOf, hasFourDigitYear } from "./report-day";
 import type { ReportFilters as ReportFiltersValue } from "./report-filters-search";
-import type { fetchReportRegisters } from "./report-registers-api";
-import { useReportRegistersQuery } from "./report-registers-queries";
 
 export type ReportFiltersProps<Filters extends ReportFiltersValue> = {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
-  onSessionEnded: () => void;
-  fetchReportRegisters: typeof fetchReportRegisters;
+  registers: CloudData<ReportRegisterListBody>;
   answeredPeriod: { from: string; to: string } | undefined;
 };
 
@@ -29,15 +28,13 @@ const registerOrder = textOrder((register: { label: string }) => register.label)
 export function ReportFilters<Filters extends ReportFiltersValue>({
   filters,
   onFiltersChange,
-  onSessionEnded,
-  fetchReportRegisters,
+  registers,
   answeredPeriod,
 }: ReportFiltersProps<Filters>) {
   const [draft, setDraft] = useState<RangeDraft | null>(null);
   const reportFilters = useEffectEvent(onFiltersChange);
   const registerChosen = filters.register !== "ALL";
 
-  const registers = useReportRegistersQuery({ fetchReportRegisters, onSessionEnded });
   const registersListed = registers.status === "loaded";
   const listedOptions = registersListed
     ? sortedItems(

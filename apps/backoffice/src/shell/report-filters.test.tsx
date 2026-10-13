@@ -1,8 +1,10 @@
+import type { ReportRegisterListBody } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { CloudData } from "../platform/use-cloud-query";
 import { ReportFilters } from "./report-filters";
 import {
   type ReportFilters as ReportFiltersValue,
@@ -14,24 +16,24 @@ import { BACK_REGISTER_ID, FRONT_REGISTER_ID, registers } from "./test-support/r
 
 const ANSWERED = { from: "2026-10-01", to: "2026-10-07" };
 
-function createRegistersRead() {
-  const read = vi.fn();
-  read.mockResolvedValue({ kind: "ok", value: registers });
-  return read;
-}
+const loaded: CloudData<ReportRegisterListBody> = {
+  status: "loaded",
+  value: registers,
+  refreshing: false,
+};
+const failed: CloudData<ReportRegisterListBody> = { status: "failed", retry: () => {} };
+const loading: CloudData<ReportRegisterListBody> = { status: "loading" };
 
 type Handlers = {
   filters?: ReportFiltersValue;
   onFiltersChange?: (filters: ReportFiltersValue) => void;
-  onSessionEnded?: () => void;
 };
 
 function ControlledFilters({
-  fetchReportRegisters,
+  registers: registersData,
   filters: initial = reportFiltersSearch.parse({}),
   onFiltersChange = () => {},
-  onSessionEnded = () => {},
-}: Handlers & { fetchReportRegisters: ReturnType<typeof createRegistersRead> }) {
+}: Handlers & { registers: CloudData<ReportRegisterListBody> }) {
   const [filters, setFilters] = useState(initial);
   return (
     <FieldSizeProvider size="backoffice">
@@ -42,8 +44,7 @@ function ControlledFilters({
             onFiltersChange(next);
             setFilters(next);
           }}
-          onSessionEnded={onSessionEnded}
-          fetchReportRegisters={fetchReportRegisters}
+          registers={registersData}
           answeredPeriod={ANSWERED}
         />
       </main>
@@ -51,15 +52,12 @@ function ControlledFilters({
   );
 }
 
-function renderFilters(
-  fetchReportRegisters: ReturnType<typeof createRegistersRead>,
-  handlers: Handlers = {},
-) {
-  return render(<ControlledFilters fetchReportRegisters={fetchReportRegisters} {...handlers} />);
+function renderFilters(registersData: CloudData<ReportRegisterListBody>, handlers: Handlers = {}) {
+  return render(<ControlledFilters registers={registersData} {...handlers} />);
 }
 
 test("shows the period the cloud answered while the URL names none", async () => {
-  const screen = await renderFilters(createRegistersRead());
+  const screen = await renderFilters(loaded);
 
   await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
   expect(dateSegments(screen, "Hasta")).toEqual(["7", "10", "2026"]);
@@ -67,7 +65,7 @@ test("shows the period the cloud answered while the URL names none", async () =>
 });
 
 test("shows the range and the register the URL names", async () => {
-  const screen = await renderFilters(createRegistersRead(), {
+  const screen = await renderFilters(loaded, {
     filters: reportFiltersSearch.parse({
       from: "2026-10-02",
       to: "2026-10-05",
@@ -81,7 +79,7 @@ test("shows the range and the register the URL names", async () => {
 
 test("offers every register of the branch by name and reports the one chosen", async () => {
   const onFiltersChange = vi.fn();
-  const screen = await renderFilters(createRegistersRead(), { onFiltersChange });
+  const screen = await renderFilters(loaded, { onFiltersChange });
   await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
 
   await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
@@ -98,9 +96,7 @@ test("offers every register of the branch by name and reports the one chosen", a
 });
 
 test("offers only all the registers when the registers cannot be listed", async () => {
-  const read = createRegistersRead();
-  read.mockResolvedValue({ kind: "failed" });
-  const screen = await renderFilters(read);
+  const screen = await renderFilters(failed);
 
   await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
 
@@ -108,22 +104,10 @@ test("offers only all the registers when the registers cannot be listed", async 
   expect(screen.getByRole("option").elements()).toHaveLength(1);
 });
 
-test("ends the session when the cloud says it is over", async () => {
-  const read = createRegistersRead();
-  read.mockResolvedValue({ kind: "unauthenticated" });
-  const onSessionEnded = vi.fn();
-
-  await renderFilters(read, { onSessionEnded });
-
-  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
-});
-
 test("keeps reading the register the URL names when the registers cannot be listed", async () => {
-  const read = createRegistersRead();
-  read.mockResolvedValue({ kind: "failed" });
   const onFiltersChange = vi.fn();
 
-  const screen = await renderFilters(read, {
+  const screen = await renderFilters(failed, {
     filters: reportFiltersSearch.parse({ register: BACK_REGISTER_ID }),
     onFiltersChange,
   });
@@ -133,10 +117,7 @@ test("keeps reading the register the URL names when the registers cannot be list
 });
 
 test("shows the register the URL names, never every register, while the registers load", async () => {
-  const read = createRegistersRead();
-  read.mockReturnValue(new Promise(() => {}));
-
-  const screen = await renderFilters(read, {
+  const screen = await renderFilters(loading, {
     filters: reportFiltersSearch.parse({ register: BACK_REGISTER_ID }),
   });
 
@@ -146,7 +127,7 @@ test("shows the register the URL names, never every register, while the register
 test("goes back to every register when the URL names one the branch does not have", async () => {
   const onFiltersChange = vi.fn();
 
-  await renderFilters(createRegistersRead(), {
+  await renderFilters(loaded, {
     filters: reportFiltersSearch.parse({ register: "33333333-3333-4333-8333-333333333333" }),
     onFiltersChange,
   });
@@ -157,9 +138,8 @@ test("goes back to every register when the URL names one the branch does not hav
 });
 
 test("reports the range typed once both days are complete, never a half-typed year", async () => {
-  const read = createRegistersRead();
   const onFiltersChange = vi.fn();
-  const screen = await renderFilters(read, { onFiltersChange });
+  const screen = await renderFilters(loaded, { onFiltersChange });
   await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
 
   await typeDate(screen, "Desde", "02102026");
@@ -175,9 +155,8 @@ test("reports the range typed once both days are complete, never a half-typed ye
 });
 
 test("says the end cannot come before the start and reports nothing", async () => {
-  const read = createRegistersRead();
   const onFiltersChange = vi.fn();
-  const screen = await renderFilters(read, {
+  const screen = await renderFilters(loaded, {
     filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
     onFiltersChange,
   });
@@ -193,7 +172,7 @@ test("says the end cannot come before the start and reports nothing", async () =
 
 test("asks again once a range that was out of order is put right", async () => {
   const onFiltersChange = vi.fn();
-  const screen = await renderFilters(createRegistersRead(), {
+  const screen = await renderFilters(loaded, {
     filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
     onFiltersChange,
   });

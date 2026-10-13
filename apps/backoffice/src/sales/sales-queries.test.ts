@@ -5,7 +5,7 @@ import { salesKey, salesKeys } from "./sales-queries";
 
 test("invalidating the sales key marks every sales read stale", async () => {
   const client = new QueryClient();
-  const keys = [salesKeys.report({}), salesKeys.report({ from: "2026-10-01", to: "2026-10-07" })];
+  const keys = [salesKeys.report({}), salesKeys.registers];
   for (const key of keys) {
     client.setQueryData(key, []);
   }

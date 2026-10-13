@@ -21,7 +21,7 @@ import { reportQueryOf } from "../shell/report-filters-search";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import { paymentMethodShare } from "./payment-method-share";
-import { useSalesByPaymentMethodQuery } from "./payments-queries";
+import { useReportRegistersQuery, useSalesByPaymentMethodQuery } from "./payments-queries";
 import type { SalesByPaymentMethodFilters } from "./sales-by-payment-method-filters";
 import type { SalesByPaymentMethodScreenServices } from "./sales-by-payment-method-services";
 
@@ -93,6 +93,10 @@ export function SalesByPaymentMethodScreen({
   services,
 }: SalesByPaymentMethodScreenProps) {
   const registerChosen = filters.register !== "ALL";
+  const registers = useReportRegistersQuery({
+    fetchReportRegisters: services.fetchReportRegisters,
+    onSessionEnded,
+  });
   const data = useSalesByPaymentMethodQuery({
     query: reportQueryOf(filters),
     fetchSalesByPaymentMethod: services.fetchSalesByPaymentMethod,
@@ -116,8 +120,7 @@ export function SalesByPaymentMethodScreen({
       <ReportFilters
         filters={filters}
         onFiltersChange={onFiltersChange}
-        onSessionEnded={onSessionEnded}
-        fetchReportRegisters={services.fetchReportRegisters}
+        registers={registers}
         answeredPeriod={shown?.range}
       />
       {data.status === "failed" ? null : (
