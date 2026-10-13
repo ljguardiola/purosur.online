@@ -39,6 +39,7 @@ export class DrizzlePurchaseCostReader<TQueryResult extends PgQueryResultHKT>
     return lines.map(({ costPaidCents, quantityPerPackage, ...line }) => ({
       ...line,
       cost: { totalCents: costPaidCents, quantity: quantityPerPackage },
+      freights: [],
     }));
   }
 }
