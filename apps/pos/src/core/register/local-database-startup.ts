@@ -34,10 +34,7 @@ function migrationsOfFile(deps: {
     appliedMigrationNames: async () => {
       try {
         return appliedMigrationNames(deps.path);
-      } catch (error) {
-        if (isDatabaseDamage(error)) {
-          throw error;
-        }
+      } catch {
         // Opening the file for writing meets the same failure and the damage marker still decides first.
         return [];
       }
