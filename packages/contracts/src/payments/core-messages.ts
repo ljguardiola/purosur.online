@@ -58,7 +58,7 @@ const followedOrderFields = {
   payment_transaction_id: recordIdSchema(),
   amount: z.int().positive(),
   remaining_seconds: z.int().min(0),
-  wait_seconds: z.int().positive(),
+  wait_seconds: z.int().min(0),
 };
 
 const startMercadoPagoChargeOutcomeSchema = z.discriminatedUnion("kind", [

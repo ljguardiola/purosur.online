@@ -291,7 +291,7 @@ export function QrPaymentWaitModal({
           <div className="flex items-center gap-6">
             <CountdownRing
               remainingSeconds={remainingSeconds}
-              totalSeconds={order.remaining_seconds}
+              totalSeconds={order.wait_seconds}
               label="Tiempo para pagar"
             />
             <ProgressSteps

@@ -57,6 +57,7 @@ export function openSaleStanding(
     id: string;
     method: MercadoPagoPaymentMethod;
     amount: number;
+    occurredAt: Date;
     waitEndsAt: Date;
   }[],
   now: Date,

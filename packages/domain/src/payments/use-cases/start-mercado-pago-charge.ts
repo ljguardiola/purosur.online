@@ -1,7 +1,7 @@
 import {
-  MERCADO_PAGO_ORDER_CHARGE_WAIT_SECONDS,
   mercadoPagoOrderChargeRemainingSeconds,
   mercadoPagoOrderChargeWaitEndsAt,
+  mercadoPagoOrderChargeWaitSeconds,
 } from "../model/mercado-pago-order-charge-wait.js";
 import type {
   MercadoPagoChargeOrderAnswer,
@@ -32,7 +32,7 @@ export type StartMercadoPagoChargeOutcome<Refusal> =
 
 function startedOnTheTerminal<Refusal>(
   { charges, clock }: Pick<MercadoPagoChargePorts<Refusal, unknown>, "charges" | "clock">,
-  order: { paymentTransactionId: string; amount: number; waitEndsAt: Date },
+  order: { paymentTransactionId: string; amount: number; startedAt: Date; waitEndsAt: Date },
   answer: MercadoPagoChargeOrderAnswer,
 ): StartMercadoPagoChargeOutcome<Refusal> {
   if (
@@ -48,7 +48,7 @@ function startedOnTheTerminal<Refusal>(
     paymentTransactionId: order.paymentTransactionId,
     amount: order.amount,
     remainingSeconds: mercadoPagoOrderChargeRemainingSeconds(order.waitEndsAt, clock.now()),
-    waitSeconds: MERCADO_PAGO_ORDER_CHARGE_WAIT_SECONDS,
+    waitSeconds: mercadoPagoOrderChargeWaitSeconds(order.startedAt, order.waitEndsAt),
   };
 }
 
@@ -80,7 +80,7 @@ export async function startMercadoPagoCharge<Refusal, Settlement>(
   if (method === "POINT") {
     return startedOnTheTerminal(
       { charges, clock },
-      { paymentTransactionId, amount, waitEndsAt },
+      { paymentTransactionId, amount, startedAt, waitEndsAt },
       answer,
     );
   }
@@ -95,6 +95,6 @@ export async function startMercadoPagoCharge<Refusal, Settlement>(
     paymentTransactionId,
     amount,
     remainingSeconds: mercadoPagoOrderChargeRemainingSeconds(answer.expiresAt, clock.now()),
-    waitSeconds: MERCADO_PAGO_ORDER_CHARGE_WAIT_SECONDS,
+    waitSeconds: mercadoPagoOrderChargeWaitSeconds(startedAt, answer.expiresAt),
   };
 }

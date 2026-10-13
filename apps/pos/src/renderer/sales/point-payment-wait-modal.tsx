@@ -233,7 +233,7 @@ export function PointPaymentWaitModal({
     );
   }
 
-  if (outcome?.kind === "expired" && !awaitingCancellation) {
+  if (outcome?.kind === "expired") {
     return (
       <TerminalOrderEndedModal
         title="El cobro venció en la terminal"
@@ -255,7 +255,7 @@ export function PointPaymentWaitModal({
         waitedOut={waitedOut}
         remainingSeconds={waitedOut ? 0 : remainingSeconds}
         totalSeconds={order.wait_seconds}
-        closed={outcome?.kind === "closed" || outcome?.kind === "expired"}
+        closed={outcome?.kind === "closed"}
         followFailure={followFailure}
         onChooseAnotherMethod={onChooseAnotherMethod}
       />
