@@ -67,6 +67,19 @@ describe("StandaloneTerminalChargeModal", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("tells the cashier to charge on the second terminal and enter what it shows, before the amount", async () => {
+    const { screen, field } = await renderModal();
+    const instruction = screen.getByText(
+      "Cobrá en la segunda Point, que funciona sin la caja, y cargá acá lo que muestra la terminal.",
+    );
+
+    await expect.element(instruction).toBeVisible();
+    expect(
+      instruction.element().compareDocumentPosition(field.element()) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("asks for the amount to charge with this method, filled with the whole pending balance", async () => {
     const { field } = await renderModal();
 
