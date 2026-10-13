@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CostSource } from "../model/price-cost-reference.js";
 import { listPrices } from "./list-prices.js";
-import type { PriceUnderReview, PricesUnderReview } from "./price-review-reader.js";
+import type { PricesUnderReview, PriceUnderReview } from "./price-review-reader.js";
 import { fakePriceCostReader } from "./test-support/fake-price-cost-reader.js";
 import { fakePriceReviewReader } from "./test-support/fake-price-review-reader.js";
 

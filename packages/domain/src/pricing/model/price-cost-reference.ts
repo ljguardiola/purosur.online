@@ -1,5 +1,5 @@
-import { type LotCost, STOCK_QUANTITY_PER_UNIT, unitCostCents } from "../../stock/index.js";
 import { argentinaCalendarDay, type Fraction, roundHalfUp } from "../../shared/index.js";
+import { type LotCost, STOCK_QUANTITY_PER_UNIT, unitCostCents } from "../../stock/index.js";
 
 export const FREIGHT_PER_UNIT_CENTS = 0;
 

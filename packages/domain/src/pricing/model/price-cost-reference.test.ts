@@ -144,10 +144,7 @@ describe("priceCostReference", () => {
   });
 
   it("shows the last cost, a zero freight, the total cost and the margin", () => {
-    const reference = priceCostReference(
-      [sourceWith({ totalCents: 1200, quantity: 1000 })],
-      2000,
-    );
+    const reference = priceCostReference([sourceWith({ totalCents: 1200, quantity: 1000 })], 2000);
 
     expect(reference).toEqual({
       lastCostCents: 1200,
@@ -206,21 +203,21 @@ describe("priceCostReference", () => {
 
   it("rounds the margin half up to a tenth of a percent", () => {
     // cost 1, price 8000: 99.9875 % -> 99.99 -> 1000
-    expect(
-      priceCostReference([sourceWith({ totalCents: 1, quantity: 1000 })], 8000),
-    ).toMatchObject({ marginTenthsOfPercent: 1000 });
+    expect(priceCostReference([sourceWith({ totalCents: 1, quantity: 1000 })], 8000)).toMatchObject(
+      { marginTenthsOfPercent: 1000 },
+    );
     // cost 1999, price 2000: 0.05 % is exactly half a tenth -> rounds up to 1
     expect(
       priceCostReference([sourceWith({ totalCents: 1999, quantity: 1000 })], 2000),
     ).toMatchObject({ marginTenthsOfPercent: 1 });
     // cost 3, price 8: 62.5 % exactly
-    expect(
-      priceCostReference([sourceWith({ totalCents: 3, quantity: 1000 })], 8),
-    ).toMatchObject({ marginTenthsOfPercent: 625 });
+    expect(priceCostReference([sourceWith({ totalCents: 3, quantity: 1000 })], 8)).toMatchObject({
+      marginTenthsOfPercent: 625,
+    });
     // cost 2, price 3: 33.33 % -> 333
-    expect(
-      priceCostReference([sourceWith({ totalCents: 2, quantity: 1000 })], 3),
-    ).toMatchObject({ marginTenthsOfPercent: 333 });
+    expect(priceCostReference([sourceWith({ totalCents: 2, quantity: 1000 })], 3)).toMatchObject({
+      marginTenthsOfPercent: 333,
+    });
   });
 
   it("is zero when the price equals the cost", () => {
@@ -230,16 +227,17 @@ describe("priceCostReference", () => {
   });
 
   it("is a hundred percent when the cost is nothing", () => {
-    expect(
-      priceCostReference([sourceWith({ totalCents: 0, quantity: 1000 })], 500),
-    ).toMatchObject({ lastCostCents: 0, marginTenthsOfPercent: 1000 });
+    expect(priceCostReference([sourceWith({ totalCents: 0, quantity: 1000 })], 500)).toMatchObject({
+      lastCostCents: 0,
+      marginTenthsOfPercent: 1000,
+    });
   });
 
   it("is negative when the price is below the cost, rounding half up", () => {
     // cost 3, price 2: -50 %
-    expect(
-      priceCostReference([sourceWith({ totalCents: 3, quantity: 1000 })], 2),
-    ).toMatchObject({ marginTenthsOfPercent: -500 });
+    expect(priceCostReference([sourceWith({ totalCents: 3, quantity: 1000 })], 2)).toMatchObject({
+      marginTenthsOfPercent: -500,
+    });
     // cost 1000, price 999: -0.1001 % -> -1
     expect(
       priceCostReference([sourceWith({ totalCents: 1000, quantity: 1000 })], 999),
@@ -249,13 +247,13 @@ describe("priceCostReference", () => {
       priceCostReference([sourceWith({ totalCents: 2001, quantity: 1000 })], 2000),
     ).toMatchObject({ marginTenthsOfPercent: 0 });
     // cost 5, price 3: -66.67 % -> -667
-    expect(
-      priceCostReference([sourceWith({ totalCents: 5, quantity: 1000 })], 3),
-    ).toMatchObject({ marginTenthsOfPercent: -667 });
+    expect(priceCostReference([sourceWith({ totalCents: 5, quantity: 1000 })], 3)).toMatchObject({
+      marginTenthsOfPercent: -667,
+    });
     // cost 17, price 3: -466.67 % -> -4667
-    expect(
-      priceCostReference([sourceWith({ totalCents: 17, quantity: 1000 })], 3),
-    ).toMatchObject({ marginTenthsOfPercent: -4667 });
+    expect(priceCostReference([sourceWith({ totalCents: 17, quantity: 1000 })], 3)).toMatchObject({
+      marginTenthsOfPercent: -4667,
+    });
   });
 
   it("keeps the freight per unit as a value of the reference", () => {
