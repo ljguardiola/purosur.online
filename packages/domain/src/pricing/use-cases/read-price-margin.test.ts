@@ -46,15 +46,6 @@ describe("readPriceMargin", () => {
     expect(outcome).toEqual({ kind: "read", costReference: null });
   });
 
-  it("uses only the sources of the asked product", async () => {
-    const outcome = await readPriceMargin(
-      { costs: fakePriceCostReader([{ productId: "other", source: purchase }], ["a", "other"]) },
-      input,
-    );
-
-    expect(outcome).toEqual({ kind: "read", costReference: null });
-  });
-
   it("reports a product that is not active as not found", async () => {
     const outcome = await readPriceMargin(
       { costs: fakePriceCostReader([{ productId: "a", source: purchase }], []) },

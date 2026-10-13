@@ -256,8 +256,30 @@ describe("priceCostReference", () => {
     });
   });
 
-  it("keeps the freight per unit as a value of the reference", () => {
+  it("shows no freight for now", () => {
     expect(FREIGHT_PER_UNIT_CENTS).toBe(0);
+    expect(
+      priceCostReference([sourceWith({ totalCents: 1200, quantity: 1000 })], 2000)
+        ?.freightPerUnitCents,
+    ).toBe(0);
+  });
+
+  it("adds a freight per unit to the exact last cost for the total cost and the margin", () => {
+    // exact last cost 500.5 cents per unit plus 25 of freight is 525.5
+    expect(
+      priceCostReference([sourceWith({ totalCents: 1001, quantity: 2000 })], 1051, 25),
+    ).toEqual({
+      lastCostCents: 501,
+      freightPerUnitCents: 25,
+      totalCostCents: 526,
+      marginTenthsOfPercent: 500,
+    });
+  });
+
+  it("adds the freight per unit of a sale unit whatever the cost's quantity", () => {
+    expect(
+      priceCostReference([sourceWith({ totalCents: 1000, quantity: 3000 })], 1000, 100),
+    ).toMatchObject({ lastCostCents: 333, totalCostCents: 433, marginTenthsOfPercent: 567 });
   });
 
   it("rounds the last cost within half a cent of the exact cost and totals it with the freight, for every cost", () => {
@@ -281,6 +303,19 @@ describe("priceCostReference", () => {
         const margin = priceCostReference([sourceWith(c)], p)?.marginTenthsOfPercent;
         expect(margin).not.toBeNull();
         expect(Math.abs((margin ?? 0) - exactTenths)).toBeLessThanOrEqual(0.5 + 1e-6);
+      }),
+    );
+  });
+
+  it("adds the freight to the cost for every cost and freight", () => {
+    fc.assert(
+      fc.property(cost, price, fc.integer({ min: 0, max: 1_000_000 }), (c, p, freight) => {
+        const reference = priceCostReference([sourceWith(c)], p, freight);
+        const exactTotal = (c.totalCents * 1000) / c.quantity + freight;
+        expect(reference?.freightPerUnitCents).toBe(freight);
+        expect(Math.abs((reference?.totalCostCents ?? 0) - exactTotal)).toBeLessThanOrEqual(
+          0.5 + 1e-6,
+        );
       }),
     );
   });
