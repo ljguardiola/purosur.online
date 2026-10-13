@@ -263,6 +263,12 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
         walSizeBytes: 4096,
         diskFreeBytes: 50_000_000,
         diskFreeRatio: 0.42,
+        batteryPresent: null,
+        batteryChargePercent: null,
+        batteryHealthPercent: null,
+        batteryOnBattery: null,
+        batteryOnBatteryMinutes: null,
+        batteryReportedAt: null,
       },
     ]);
   });
