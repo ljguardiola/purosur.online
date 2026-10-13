@@ -1,3 +1,5 @@
+import type { PaymentTransactionState } from "./payment-transaction.js";
+
 export const PAYMENT_METHODS = ["CASH", "TRANSFER", "QR", "POINT", "STANDALONE_TERMINAL"] as const;
 
 export const MERCADO_PAGO_PAYMENT_METHODS = ["QR", "POINT"] as const;
@@ -7,6 +9,8 @@ export const MERCADO_PAGO_PROVIDERS = ["MERCADOPAGO_QR", "MERCADOPAGO_POINT"] as
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export type MercadoPagoPaymentMethod = (typeof MERCADO_PAGO_PAYMENT_METHODS)[number];
+
+export const APPROVED_PAYMENT_STATE = "APPROVED" satisfies PaymentTransactionState;
 
 const CONFIRMED_BY_HAND_METHODS = ["TRANSFER", "STANDALONE_TERMINAL"] as const;
 
@@ -19,7 +23,7 @@ export function isConfirmedByHand<Payment extends { method: string }>(
 }
 
 export function hasApprovedPayment(payments: readonly { state: string }[]): boolean {
-  return payments.some((payment) => payment.state === "APPROVED");
+  return payments.some((payment) => payment.state === APPROVED_PAYMENT_STATE);
 }
 
 export function holdsApprovedMercadoPagoPayment(
@@ -27,7 +31,8 @@ export function holdsApprovedMercadoPagoPayment(
 ): boolean {
   return payments.some(
     (payment) =>
-      payment.state === "APPROVED" && (payment.method === "QR" || payment.method === "POINT"),
+      payment.state === APPROVED_PAYMENT_STATE &&
+      (payment.method === "QR" || payment.method === "POINT"),
   );
 }
 

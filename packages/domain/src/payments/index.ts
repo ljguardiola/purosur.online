@@ -23,6 +23,7 @@ export type {
   PaymentMethod,
 } from "./model/payment.js";
 export {
+  APPROVED_PAYMENT_STATE,
   cancellableWithoutAuthorization,
   hasApprovedPayment,
   holdsApprovedMercadoPagoPayment,

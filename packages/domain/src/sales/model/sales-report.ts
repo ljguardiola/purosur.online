@@ -1,10 +1,4 @@
-import { argentinaCalendarDay, isCalendarDay } from "../../shared/index.js";
 import type { SaleState } from "./sale.js";
-
-export interface SalesReportRange {
-  from: string;
-  to: string;
-}
 
 export interface SalesOfDay {
   day: string;
@@ -15,24 +9,6 @@ export interface SalesOfDay {
 export interface SalesReportTotals {
   salesCount: number;
   total: number;
-}
-
-export function isSalesReportRangeAsked({
-  from,
-  to,
-}: {
-  from: string | undefined;
-  to: string | undefined;
-}): boolean {
-  if (from === undefined || to === undefined) {
-    return from === to;
-  }
-  return isCalendarDay(from) && isCalendarDay(to) && from <= to;
-}
-
-export function defaultSalesReportRange(now: Date): SalesReportRange {
-  const today = argentinaCalendarDay(now);
-  return { from: today, to: today };
 }
 
 export function salesReportTotals(days: readonly SalesOfDay[]): SalesReportTotals {
