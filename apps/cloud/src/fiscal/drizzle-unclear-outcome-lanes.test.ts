@@ -312,6 +312,21 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       expect(await alertOf(other.fiscalDocumentId)).toMatchObject({ resolvedAt: null });
     });
 
+    it("is resolved at the time the warning was cleared, not the time the decision was taken", async () => {
+      const document = await anUnclearDocument(db);
+      await anOpenAlert(document.fiscalDocumentId);
+      const clearedAt = new Date(DECIDED_AT.getTime() + 5_000);
+
+      await unclearLanes.inPointOfSaleLane(document.pointOfSale, (lane) =>
+        lane.recordDecision(document.fiscalDocumentId, { kind: "released" }, DECIDED_AT, {
+          fiscalDocumentId: document.fiscalDocumentId,
+          clearedAt,
+        }),
+      );
+
+      expect(await alertOf(document.fiscalDocumentId)).toMatchObject({ resolvedAt: clearedAt });
+    });
+
     it("is left as it was when the document has no open alert", async () => {
       const document = await anUnclearDocument(db);
       const earlier = new Date(ANSWERED_AT.getTime() - 1_000);
