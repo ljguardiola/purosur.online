@@ -17,13 +17,17 @@ const POINT_TERMINAL_TITLES = [
   "Venta menor al mínimo de la Point",
 ];
 
+const STANDALONE_TERMINAL_TITLE = "Point sin internet: la segunda Point";
+
+const PAYMENTS_TITLES = [...POINT_TERMINAL_TITLES, STANDALONE_TERMINAL_TITLE];
+
 describe("the register's help", () => {
-  it("starts with the sections on adding products to a sale and on cancelling it, followed by charging on the integrated Point terminal", () => {
+  it("starts with the sections on adding products to a sale and on cancelling it, followed by charging on the integrated Point terminal and on the standalone one", () => {
     expect(titles).toEqual([
       "Agregar un producto escaneándolo",
       "Agregar un producto buscándolo por nombre",
       "Cancelar una venta",
-      ...POINT_TERMINAL_TITLES,
+      ...PAYMENTS_TITLES,
     ]);
   });
 
@@ -33,12 +37,12 @@ describe("the register's help", () => {
     }
   });
 
-  it("files the integrated Point terminal's sections under Cobros", () => {
+  it("files the card terminals' sections under Cobros", () => {
     const categories = Object.values(help.articles)
-      .filter((article) => POINT_TERMINAL_TITLES.includes(article.title))
+      .filter((article) => PAYMENTS_TITLES.includes(article.title))
       .map((article) => help.categories[article.category].label);
 
-    expect(categories).toEqual(POINT_TERMINAL_TITLES.map(() => "Cobros"));
+    expect(categories).toEqual(PAYMENTS_TITLES.map(() => "Cobros"));
   });
 
   it.each([
@@ -51,6 +55,7 @@ describe("the register's help", () => {
     ["esperando la cancelación", "Cambiar de medio con un cobro en la Point"],
     ["no disponible sin conexión", "Point integrada sin conexión"],
     ["menores a", "Venta menor al mínimo de la Point"],
+    ["registrar pago aprobado", STANDALONE_TERMINAL_TITLE],
   ])("finds the section on %s by a word from its body", (word, title) => {
     expect(titlesFound(word)).toEqual([title]);
   });
@@ -81,5 +86,23 @@ describe("the register's help", () => {
     expect(titlesFound("sigue mostrando el tiempo para pagar")).toEqual([
       "Point integrada sin conexión",
     ]);
+  });
+
+  it("explains that the standalone terminal's result is entered by hand and recorded against whoever confirms it", () => {
+    expect(titlesFound("cargá a mano")).toEqual([STANDALONE_TERMINAL_TITLE]);
+    expect(titlesFound("a nombre de quien lo confirma")).toEqual([STANDALONE_TERMINAL_TITLE]);
+  });
+
+  it("tells never to switch either card terminal's mode", () => {
+    expect(titlesFound("nadie cambia el modo de ninguna de las dos")).toEqual([
+      STANDALONE_TERMINAL_TITLE,
+    ]);
+  });
+
+  it("points from the integrated Point terminal without connection to the standalone terminal", () => {
+    expect(help.articles["point-terminal-offline"].body).toContainEqual({
+      kind: "articleLink",
+      article: "charge-on-standalone-terminal",
+    });
   });
 });

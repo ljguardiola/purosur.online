@@ -186,6 +186,7 @@ export const help = defineHelp("es-AR", {
             "Si la caja avisa que no hay conexión con la nube, cancelá el cobro en la terminal y esperá a que vuelva la conexión.",
           ],
         },
+        { kind: "articleLink", article: "charge-on-standalone-terminal" },
       ],
     },
     "point-below-minimum": {
@@ -204,6 +205,37 @@ export const help = defineHelp("es-AR", {
             "Si el saldo pendiente es menor al mínimo, cobralo con otro medio.",
             "Si el saldo alcanza, cobrá con la Point al menos el mínimo y el resto con otro medio.",
           ],
+        },
+      ],
+    },
+    "charge-on-standalone-terminal": {
+      category: "payments",
+      title: "Point sin internet: la segunda Point",
+      body: [
+        { kind: "heading", text: "Qué pasa" },
+        {
+          kind: "paragraph",
+          text: "Cuando la caja no llega a Mercado Pago, la Point integrada y el QR no se pueden usar. La segunda Point cobra sin la caja: el cliente paga en ella y vos cargás el resultado en la caja.",
+        },
+        { kind: "heading", text: "Qué hacer" },
+        {
+          kind: "steps",
+          items: [
+            "En Venta en curso, tocá Cobrar y elegí Terminal independiente.",
+            "Revisá el importe a cobrar con este medio. Si cobrás menos que el saldo pendiente, el resto queda para otro medio.",
+            "Cobrá ese mismo importe en la segunda Point.",
+            "Cuando la terminal muestra el pago aprobado, cargá a mano el resultado: tocá Registrar pago aprobado.",
+            "Si la terminal rechaza el pago, no registres nada: tocá Cambiar de medio.",
+          ],
+        },
+        {
+          kind: "note",
+          text: "El pago queda a nombre de quien lo confirma en la caja.",
+        },
+        { kind: "heading", text: "Nunca cambies el modo de las terminales" },
+        {
+          kind: "paragraph",
+          text: "La segunda Point queda siempre en su modo autónomo y la Point integrada en el suyo. Durante un corte nadie cambia el modo de ninguna de las dos.",
         },
       ],
     },

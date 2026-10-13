@@ -21,16 +21,31 @@ describe("roundHalfUp", () => {
     expect(roundHalfUp({ numerator, denominator })).toBe(expected);
   });
 
+  it.each([
+    [-1n, 3n, 0],
+    [-2n, 3n, -1],
+    [-1n, 2n, 0],
+    [-3n, 2n, -1],
+    [-1500n, 1000n, -1],
+    [-1501n, 1000n, -2],
+    [-10n, 5n, -2],
+  ])(
+    "rounds the negative %s / %s to %s, a half towards the larger value",
+    (numerator, denominator, expected) => {
+      expect(roundHalfUp({ numerator, denominator })).toBe(expected);
+    },
+  );
+
   it("is exact for values beyond the safe integer range", () => {
     const numerator = BigInt(LARGE_PRICE_CENTS) * 1_000_000n * 1000n + 500n;
 
     expect(roundHalfUp({ numerator, denominator: 1000n })).toBe(LARGE_PRICE_CENTS * 1_000_000 + 1);
   });
 
-  it("is within half a unit of the exact value for every fraction", () => {
+  it("is within half a unit of the exact value for every fraction of either sign", () => {
     fc.assert(
       fc.property(
-        fc.bigInt({ min: 0n, max: 10n ** 15n }),
+        fc.bigInt({ min: -(10n ** 15n), max: 10n ** 15n }),
         fc.bigInt({ min: 1n, max: 10n ** 6n }),
         (numerator, denominator) => {
           const rounded = BigInt(roundHalfUp({ numerator, denominator }));

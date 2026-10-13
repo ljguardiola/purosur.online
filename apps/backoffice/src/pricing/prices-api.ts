@@ -1,8 +1,10 @@
 import {
   type PriceConfirmationBody,
   type PriceList,
+  type PriceMargin,
   type PriceSetBody,
   priceListSchema,
+  priceMarginSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
@@ -18,6 +20,8 @@ export type FetchPricesInput = {
 };
 
 export type FetchPricesOutcome = CloudReadOutcome<PriceList>;
+
+export type FetchPriceMarginOutcome = CloudReadOutcome<PriceMargin>;
 
 export type SetPriceInput = PriceSetBody;
 
@@ -90,6 +94,32 @@ export async function fetchPrices(input: FetchPricesInput): Promise<FetchPricesO
   }
   const list = priceListSchema.safeParse(await response.json().catch(() => undefined));
   return list.success ? { kind: "ok", value: list.data } : { kind: "failed" };
+}
+
+export async function fetchPriceMargin(
+  productId: string,
+  unitPrice: number,
+): Promise<FetchPriceMarginOutcome> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/prices/${productId}/margin?unitPrice=${unitPrice}`);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 403) {
+    return { kind: "forbidden" };
+  }
+  if (response.status === 429) {
+    return rateLimitOutcome(response);
+  }
+  if (!response.ok) {
+    return { kind: "failed" };
+  }
+  const margin = priceMarginSchema.safeParse(await response.json().catch(() => undefined));
+  return margin.success ? { kind: "ok", value: margin.data } : { kind: "failed" };
 }
 
 export async function setPrice(productId: string, input: SetPriceInput): Promise<SetPriceOutcome> {

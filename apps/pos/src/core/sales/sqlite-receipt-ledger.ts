@@ -65,6 +65,7 @@ interface LineRow extends ManualAdjustmentColumns {
 interface FrozenPromotionRow extends BenefitColumns {
   line_id: string;
   discount_id: string;
+  name: string;
 }
 
 interface StoredReceiptRow {
@@ -195,6 +196,7 @@ export class SqliteReceiptLedger implements ReceiptLedger {
     const frozen = this.database
       .prepare<[string], FrozenPromotionRow>(
         `SELECT sale_line_promotions.line_id, sale_line_promotions.discount_id,
+                sale_line_promotions.name,
                 sale_line_promotions.kind, sale_line_promotions.percent,
                 sale_line_promotions.buy_qty, sale_line_promotions.pay_qty
          FROM sale_line_promotions
@@ -213,6 +215,7 @@ export class SqliteReceiptLedger implements ReceiptLedger {
         .map(
           (promotion): LinePromotion => ({
             id: promotion.discount_id,
+            name: promotion.name,
             benefit: toBenefit(promotion),
           }),
         ),
