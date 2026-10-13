@@ -174,9 +174,11 @@ describe("StandaloneTerminalChargeModal", () => {
 
     await expect
       .element(
-        screen.getByText(
-          "Cobrá en la segunda Point, que funciona sin la caja, y cargá acá lo que muestra la terminal.",
-        ),
+        screen
+          .getByText(
+            "Cobrá en la segunda Point, que funciona sin la caja, y cargá acá lo que muestra la terminal.",
+          )
+          .first(),
       )
       .toBeVisible();
   });
