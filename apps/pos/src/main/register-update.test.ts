@@ -464,16 +464,23 @@ describe("createRegisterUpdater", () => {
       expect(statusChanges).toEqual(["updating"]);
     });
 
-    it.each([
-      ["down", "down"],
-      ["a status added later", "refused"],
-    ])("installs without asking when the core is %s", async (_case, coreStatus) => {
-      const { updater, spawned, counts } = setup({ coreStatus: coreStatus as CoreStatus });
+    it("installs without asking when the core is down", async () => {
+      const { updater, spawned, counts } = setup({ coreStatus: "down" });
 
       await updater.runPass();
 
       expect(counts().asked).toBe(0);
       expect(spawned).toHaveLength(1);
+    });
+
+    it("downloads and installs without asking when the core refused a newer database", async () => {
+      const { updater, files, events, counts } = setup({ coreStatus: "refused" });
+
+      await updater.runPass();
+
+      expect(files.get("update-1.4.2.exe")).toEqual(INSTALLER);
+      expect(events).toEqual(["status:updating", "spawn", "quit"]);
+      expect(counts().asked).toBe(0);
     });
   });
 
@@ -491,6 +498,14 @@ describe("createRegisterUpdater", () => {
       expect(removed).toEqual(["update-1.4.2.exe"]);
       expect(spawned).toEqual([]);
       expect(events).not.toContain("quit");
+    });
+
+    it("puts back the refused status when the core had refused a newer database", async () => {
+      const { updater, statusChanges } = setup({ coreStatus: "refused", spawnFails: true });
+
+      await updater.runPass();
+
+      expect(statusChanges).toEqual(["updating", "refused"]);
     });
 
     it("checks again at the next check", async () => {
