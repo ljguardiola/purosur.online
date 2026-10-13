@@ -166,6 +166,13 @@ class FakeStockStoreTransaction implements StockStoreTransaction {
     this.state.countedLots.push({ movementId, lots: lots.map((lot) => ({ ...lot })) });
   }
 
+  async lotProduct(lotId: string, locationId: string): Promise<string | undefined> {
+    this.store.operationOrder.push("lotProduct");
+    return this.state.lots.find(
+      (row) => row.id === lotId && row.locationId === locationId && !row.withdrawn,
+    )?.productId;
+  }
+
   async productLots(key: ProductStockKey): Promise<StockLot[]> {
     this.store.operationOrder.push("productLots");
     return this.state.lots
