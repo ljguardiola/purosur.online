@@ -15,6 +15,7 @@ const PAST_ACTIVITY_THROTTLE_WINDOW_MS = 120_000;
 opensOnlyScreens([
   "/",
   "/account",
+  "/alerts",
   "/help",
   "/initial-inventory",
   "/inventory",
@@ -260,7 +261,7 @@ const STOCK_SCREENS = [
   ["/suppliers", "Proveedores"],
   ["/purchase-packagings", "Presentaciones de compra"],
   ["/purchases", "Compras"],
-  ["/purchases/new", "Nueva compra"],
+  ["/purchases/new", "Registrar compra"],
   ["/initial-inventory", "Inventario inicial"],
 ] as const;
 
