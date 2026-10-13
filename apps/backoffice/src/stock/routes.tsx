@@ -2,6 +2,7 @@ import { stockPeriodSchema } from "@purosur/contracts";
 import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import {
+  canManageRecipes,
   canPerformStockCounts,
   canRecordInitialInventory,
   canSeeExpiringLots,
@@ -62,6 +63,12 @@ export const expiringLotsFilters = z.object({
 });
 
 export type ExpiringLotsFilters = z.output<typeof expiringLotsFilters>;
+export const recipesListFilters = z.object({
+  search: z.string().default("").catch(""),
+  sort: z.enum(["ascending", "descending"]).default("ascending").catch("ascending"),
+});
+
+export type RecipesListFilters = z.output<typeof recipesListFilters>;
 
 export const stockBalancesRoute = createRoute({
   getParentRoute: () => stockAreaRoute,
@@ -106,4 +113,13 @@ export const expiringLotsRoute = createRoute({
   validateSearch: expiringLotsFilters,
   search: { middlewares: [stripSearchParams(expiringLotsFilters.parse({}))] },
   component: lazyScreen(() => import("./expiring-lots-page"), "ExpiringLotsPage"),
+});
+
+export const recipesListRoute = createRoute({
+  getParentRoute: () => stockAreaRoute,
+  path: "recipes",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageRecipes),
+  validateSearch: recipesListFilters,
+  search: { middlewares: [stripSearchParams(recipesListFilters.parse({}))] },
+  component: lazyScreen(() => import("./recipes-list-page"), "RecipesListPage"),
 });

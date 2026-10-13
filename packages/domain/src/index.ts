@@ -257,6 +257,7 @@ export type {
   SalePayment,
 } from "./payments/index.js";
 export {
+  APPROVED_PAYMENT_STATE,
   cancellableWithoutAuthorization,
   cashCharge,
   DISCARDABLE_REFUND_ALERT_KINDS,
@@ -395,6 +396,8 @@ export {
   SUPPLIER_NOTE_MAX_LENGTH,
 } from "./purchasing/index.js";
 export type {
+  BatteryReading,
+  BatteryReport,
   CashBreakdown,
   CashBreakdownLine,
   CashMovement,
@@ -422,6 +425,9 @@ export type {
   WatchedRegister,
 } from "./register/index.js";
 export {
+  BATTERY_READ_INTERVAL_MS,
+  batteryHealthPercent,
+  batteryReportOf,
   CASH_MOVEMENT_DIRECTIONS,
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
@@ -449,6 +455,7 @@ export {
   isWellFormedInstallationKey,
   lastSuccessfulSyncOfRegister,
   mayAuthorize,
+  nextOnBatterySince,
   nextOperationNumber,
   normalizeEnrollmentCode,
   offersSerialDevicesSetup,
@@ -486,7 +493,6 @@ export type {
   SaleStandingDefinition,
   SaleState,
   SalesOfDay,
-  SalesReportRange,
   SalesReportTotals,
   SaleWithLines,
   SoldProduct,
@@ -496,7 +502,6 @@ export {
   amountToCharge,
   appliedSaleDiscountAmount,
   isDeferralPending,
-  isSalesReportRangeAsked,
   manualAdjustmentReason,
   mayBeManualDiscountAmount,
   mayBeManualDiscountPercent,
@@ -545,13 +550,14 @@ export {
   signInLockoutWindowStart,
   signInLookupAttemptWindowStart,
 } from "./sessions/index.js";
-export type { IsoWeekday, SalesDeniedReason } from "./shared/index.js";
+export type { IsoWeekday, ReportPeriod, SalesDeniedReason } from "./shared/index.js";
 export {
   ARGENTINA_TIME_ZONE,
   argentinaCalendarDay,
   argentinaInstant,
   isCalendarDay,
   isoWeekdayOf,
+  isReportPeriodAsked,
   isValidCashAmount,
   MAX_CASH_AMOUNT_CENTS,
   SALE_COMPLETED_EVENT_TYPE,
@@ -589,6 +595,7 @@ export {
   mayBeCountedQuantity,
   mayBeCountedTogether,
   mayBeMovementQuantity,
+  PRODUCTS_A_RECIPE_MAY_USE,
   STOCK_CORRECTIONS,
   STOCK_DIRECTIONS,
   STOCK_MOVEMENT_KINDS,

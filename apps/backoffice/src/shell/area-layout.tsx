@@ -6,6 +6,7 @@ import { AccountFooter } from "./account-footer";
 import {
   canManageProductsAndCategories,
   canManagePurchasePackagings,
+  canManageRecipes,
   canManageSuppliers,
   canPerformStockCounts,
   canRecordPurchases,
@@ -58,7 +59,9 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               ? "/purchases"
               : canSeeExpiringLots(session)
                 ? "/expiring-lots"
-                : "/initial-inventory";
+                : canManageRecipes(session)
+                  ? "/recipes"
+                  : "/initial-inventory";
   const cashTarget = canSeeCashArea(session) ? "/points-of-sale" : "/pending-refunds";
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (

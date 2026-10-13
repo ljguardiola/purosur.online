@@ -1,6 +1,7 @@
 import {
   cloudError,
   cloudErrorStatus,
+  MALFORMED_BATTERY_REPORT,
   PUSH_EVENTS_REQUEST_MAX_BYTES,
   type PushEventsResponse,
   pushEventsRequestSchema,
@@ -34,7 +35,10 @@ import { hmacEventChain } from "./hmac-event-chain.js";
 export type { EnqueueEventApplication };
 
 export type EventsRouteOptions<TQueryResult extends PgQueryResultHKT> =
-  DeviceTokensOptions<TQueryResult> & { enqueueEventApplication?: EnqueueEventApplication };
+  DeviceTokensOptions<TQueryResult> & {
+    enqueueEventApplication?: EnqueueEventApplication;
+    warn?: (message: string, context: { deviceId: string }) => void;
+  };
 
 const DEVICE_TOKEN_REJECTED = cloudError(
   "device_token_rejected",
@@ -68,6 +72,7 @@ export function registerEventsRoute<TQueryResult extends PgQueryResultHKT>(
   options: EventsRouteOptions<TQueryResult>,
 ): void {
   const tokenPorts = installationTokenPorts(options);
+  const warn = options.warn ?? console.warn;
   const ports = {
     inbox: new DrizzleInbox(
       options.db,
@@ -113,10 +118,18 @@ export function registerEventsRoute<TQueryResult extends PgQueryResultHKT>(
           return;
         }
 
+        const { deviceId } = authentication.installation;
+        const { battery, ...telemetryWithoutBattery } = push.telemetry;
+        if (battery === MALFORMED_BATTERY_REPORT) {
+          warn("dropped a battery report that does not match its shape", { deviceId });
+        }
         const outcome = await receivePushedEvents(ports, {
-          deviceId: authentication.installation.deviceId,
+          deviceId,
           appVersion: push.app_version,
-          telemetry: push.telemetry,
+          telemetry:
+            battery === MALFORMED_BATTERY_REPORT
+              ? telemetryWithoutBattery
+              : { ...telemetryWithoutBattery, battery },
           events: push.events,
         });
         if (outcome.kind === "chain_broken" || outcome.kind === "revoked") {

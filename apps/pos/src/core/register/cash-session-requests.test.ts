@@ -916,7 +916,7 @@ describe("the open sale of the session", () => {
     },
   );
 
-  it("tells that a sale holding an approved standalone terminal payment cannot be cancelled at the register", async () => {
+  it("tells that a sale holding an approved standalone terminal payment is cancelled leaving a pending refund", async () => {
     addOpenSale(await openAs("u1", 5000), 3500);
     database
       .prepare(
@@ -926,8 +926,15 @@ describe("the open sale of the session", () => {
 
     expect(sessionOpenSaleFor(database, NOW)).toMatchObject({
       cancellable: false,
-      cancel_refusal: "holds_standalone_terminal_payment",
-      refunds_on_cancel: [],
+      cancel_refusal: null,
+      refunds_on_cancel: [
+        {
+          payment_id: "standalone-1",
+          method: "STANDALONE_TERMINAL",
+          amount: 2000,
+          state: "PENDING",
+        },
+      ],
     });
   });
 

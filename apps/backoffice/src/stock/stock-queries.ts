@@ -2,6 +2,7 @@ import type {
   ExpiringLotList,
   InitialInventoryLotList,
   InitialInventoryLotsQuery,
+  RecipeList,
   StockBalanceList,
   StockCountList,
   StockMovementList,
@@ -13,6 +14,7 @@ import type {
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
+import type { fetchRecipes } from "./recipes-api";
 import type {
   fetchExpectedBalance,
   fetchExpiringLots,
@@ -30,6 +32,7 @@ export const stockKeys = {
   balances: [...stockKey, "balances"] as const,
   products: [...stockKey, "products"] as const,
   expiringLots: [...stockKey, "expiring-lots"] as const,
+  recipes: [...stockKey, "recipes"] as const,
   counts: (days: StockPeriodDays) => [...stockKey, "counts", days] as const,
   movements: (days: StockPeriodDays) => [...stockKey, "movements", days] as const,
   movementReasons: [...stockKey, "movement-reasons"] as const,
@@ -148,6 +151,16 @@ export function useInitialInventoryLotsQuery(
     queryKey: stockKeys.initialLots(params.filters),
     keepPreviousData: true,
     read: () => params.fetchInitialInventoryLots(params.filters),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useRecipesQuery(params: ReadParams & { fetchRecipes: typeof fetchRecipes }) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<RecipeList>({
+    queryKey: stockKeys.recipes,
+    read: params.fetchRecipes,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

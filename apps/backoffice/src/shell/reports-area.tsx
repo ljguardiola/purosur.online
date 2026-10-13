@@ -1,5 +1,5 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { ChartColumn, List } from "lucide-react";
+import { ChartColumn, List, Wallet } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import { signedInRoute } from "./signed-in-route";
 
@@ -12,6 +12,7 @@ export const reportsAreaRoute = createRoute({
 function ReportsArea() {
   const matchRoute = useMatchRoute();
   const salesByDayShown = Boolean(matchRoute({ to: "/reports/sales-by-day" }));
+  const salesByPaymentMethodShown = Boolean(matchRoute({ to: "/reports/sales-by-payment-method" }));
   return (
     <AreaLayout
       area="reports"
@@ -36,6 +37,15 @@ function ReportsArea() {
                 icon={<ChartColumn />}
                 search={salesByDayShown ? true : {}}
                 active={salesByDayShown}
+              />
+            </li>
+            <li>
+              <SectionLink
+                to="/reports/sales-by-payment-method"
+                label="Ventas por medio de pago"
+                icon={<Wallet />}
+                search={salesByPaymentMethodShown ? true : {}}
+                active={salesByPaymentMethodShown}
               />
             </li>
           </ul>

@@ -57,6 +57,7 @@ export type {
   InitialCountLotRow,
   InitialCountLotsQuery,
 } from "./initial-count-lot-reader.js";
+export { findRecipeListing, listRecipes } from "./list-recipes.js";
 export type {
   LockedLot,
   LotCostStore,
@@ -86,6 +87,20 @@ export type {
 export { readStockBalances } from "./read-stock-balances.js";
 export type { ReceivePurchasedStockOutcome } from "./receive-purchased-stock.js";
 export { receivePurchasedStock } from "./receive-purchased-stock.js";
+export type {
+  RecipeComponentListing,
+  RecipeListing,
+  RecipeListReader,
+} from "./recipe-list-reader.js";
+export type {
+  LockRecipeProductResult,
+  NewRecipeFields,
+  Recipe,
+  RecipeReplacementFields,
+  RecipeStore,
+  RecipeStoreTransaction,
+} from "./recipe-store.js";
+export { RecipeVersionConflict } from "./recipe-store.js";
 export type { RecordAdjustmentInput, RecordAdjustmentOutcome } from "./record-adjustment.js";
 export { recordAdjustment } from "./record-adjustment.js";
 export type {
@@ -104,6 +119,12 @@ export type {
   ReplicatedStockLedger,
   ReplicatedStockMovement,
 } from "./replicated-stock-ledger.js";
+export type {
+  InvalidRecipeReason,
+  SaveRecipeInput,
+  SaveRecipeOutcome,
+} from "./save-recipe.js";
+export { saveRecipe } from "./save-recipe.js";
 export type {
   SetLotReferenceCostInput,
   SetLotReferenceCostOutcome,

@@ -557,6 +557,43 @@ export const productPackagings = pgTable(
   ],
 );
 
+export const recipes = pgTable("recipes", {
+  productId: uuid("product_id")
+    .primaryKey()
+    .references(() => products.id),
+  version: integer("version").notNull().default(1),
+  actorId: uuid("actor_id")
+    .notNull()
+    .references(() => users.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const recipeComponents = pgTable(
+  "recipe_components",
+  {
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => recipes.productId),
+    componentProductId: uuid("component_product_id")
+      .notNull()
+      .references(() => products.id),
+    quantityPerOutputUnit: bigint("quantity_per_output_unit", { mode: "number" }).notNull(),
+    position: integer("position").notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "recipe_components_pkey",
+      columns: [table.productId, table.componentProductId],
+    }),
+    unique("recipe_components_product_id_position_key").on(table.productId, table.position),
+    check("recipe_components_quantity_check", sql`${table.quantityPerOutputUnit} > 0`),
+    check(
+      "recipe_components_not_itself_check",
+      sql`${table.productId} <> ${table.componentProductId}`,
+    ),
+  ],
+);
+
 export const purchases = pgTable(
   "purchases",
   {
@@ -1023,6 +1060,12 @@ export const deviceState = pgTable("device_state", {
   walSizeBytes: bigint("wal_size_bytes", { mode: "number" }),
   diskFreeBytes: bigint("disk_free_bytes", { mode: "number" }),
   diskFreeRatio: doublePrecision("disk_free_ratio"),
+  batteryPresent: boolean("battery_present"),
+  batteryChargePercent: integer("battery_charge_percent"),
+  batteryHealthPercent: integer("battery_health_percent"),
+  batteryOnBattery: boolean("battery_on_battery"),
+  batteryOnBatteryMinutes: integer("battery_on_battery_minutes"),
+  batteryReportedAt: timestamp("battery_reported_at", { withTimezone: true }),
 });
 
 export const serialDeviceState = pgTable(

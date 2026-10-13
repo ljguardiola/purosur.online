@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import {
   expiringLotsFilters,
   initialInventoryFilters,
+  recipesListFilters,
   stockBalancesFilters,
   stockCountsFilters,
   stockMovementsFilters,
@@ -97,4 +98,14 @@ test("keeps the expiring lots filters a URL names, falling back for a value it d
   expect(expiringLotsFilters.parse({ search: 1, category: false, expiry: "soon" })).toEqual(
     expiringLotsFilters.parse({}),
   );
+});
+
+test("opens the recipes without a search, by product in ascending order", () => {
+  expect(recipesListFilters.parse({})).toEqual({ search: "", sort: "ascending" });
+});
+
+test("keeps the recipes filters a URL names, falling back for a value it does not offer", () => {
+  const filters = { search: "mix", sort: "descending" };
+  expect(recipesListFilters.parse(filters)).toEqual(filters);
+  expect(recipesListFilters.parse({ search: 1, sort: "up" })).toEqual(recipesListFilters.parse({}));
 });

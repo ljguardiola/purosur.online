@@ -1,6 +1,7 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import {
   ArrowDownUp,
+  BookOpen,
   CalendarClock,
   ClipboardCheck,
   ClipboardList,
@@ -12,6 +13,7 @@ import {
 import { AreaLayout, SectionLink } from "./area-layout";
 import {
   canManagePurchasePackagings,
+  canManageRecipes,
   canManageSuppliers,
   canPerformStockCounts,
   canRecordInitialInventory,
@@ -41,6 +43,7 @@ function StockArea() {
   const packagingsShown = Boolean(matchRoute({ to: "/purchase-packagings" }));
   const purchasesShown = Boolean(matchRoute({ to: "/purchases", fuzzy: true }));
   const expiringLotsShown = Boolean(matchRoute({ to: "/expiring-lots" }));
+  const recipesShown = Boolean(matchRoute({ to: "/recipes" }));
   const initialInventoryShown = Boolean(matchRoute({ to: "/initial-inventory" }));
   return (
     <AreaLayout
@@ -125,6 +128,17 @@ function StockArea() {
                   icon={<CalendarClock />}
                   search={expiringLotsShown ? true : {}}
                   active={expiringLotsShown}
+                />
+              </li>
+            )}
+            {canManageRecipes(session) && (
+              <li>
+                <SectionLink
+                  to="/recipes"
+                  label="Recetas"
+                  icon={<BookOpen />}
+                  search={recipesShown ? true : {}}
+                  active={recipesShown}
                 />
               </li>
             )}

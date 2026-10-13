@@ -51,12 +51,9 @@ const QR_CHARGE_IN_PROGRESS_MESSAGE =
   "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.";
 const HOLDS_MERCADO_PAGO_PAYMENT_MESSAGE =
   "La venta tiene un pago con Mercado Pago: todavía no se puede anular desde la caja.";
-const HOLDS_STANDALONE_TERMINAL_PAYMENT_MESSAGE =
-  "La venta tiene un pago con la terminal independiente: todavía no se puede anular desde la caja.";
 const CANCEL_REFUSAL_MESSAGES: Record<NonNullable<SessionOpenSale["cancel_refusal"]>, string> = {
   mercado_pago_charge_in_progress: QR_CHARGE_IN_PROGRESS_MESSAGE,
   holds_mercado_pago_payment: HOLDS_MERCADO_PAGO_PAYMENT_MESSAGE,
-  holds_standalone_terminal_payment: HOLDS_STANDALONE_TERMINAL_PAYMENT_MESSAGE,
 };
 
 export type RefusedClose = Extract<
@@ -195,7 +192,6 @@ export function LockedCashCount({
         break;
       case "mercado_pago_charge_in_progress":
       case "holds_mercado_pago_payment":
-      case "holds_standalone_terminal_payment":
         setFailure(CANCEL_REFUSAL_MESSAGES[outcome.kind]);
         break;
       case "unavailable":

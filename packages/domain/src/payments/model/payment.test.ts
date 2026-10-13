@@ -1,9 +1,9 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
+  APPROVED_PAYMENT_STATE,
   cancellableWithoutAuthorization,
   hasApprovedPayment,
   holdsApprovedMercadoPagoPayment,
-  holdsApprovedStandaloneTerminalPayment,
   isConfirmedByHand,
   MERCADO_PAGO_PAYMENT_METHODS,
   MERCADO_PAGO_PROVIDERS,
@@ -151,6 +151,12 @@ describe("the Mercado Pago methods and providers", () => {
   });
 });
 
+describe("APPROVED_PAYMENT_STATE", () => {
+  it("is the state of a payment that was charged", () => {
+    expect(APPROVED_PAYMENT_STATE).toBe("APPROVED");
+  });
+});
+
 describe("a standalone terminal payment of a sale", () => {
   type StandalonePayment = Extract<SalePayment, { method: "STANDALONE_TERMINAL" }>;
 
@@ -190,33 +196,5 @@ describe("isConfirmedByHand", () => {
       expectTypeOf(payment.authorizedBy).toEqualTypeOf<string>();
       expectTypeOf(payment.confirmedAt).toEqualTypeOf<Date>();
     }
-  });
-});
-
-describe("holdsApprovedStandaloneTerminalPayment", () => {
-  const STANDALONE = { state: "APPROVED", method: "STANDALONE_TERMINAL" } as const;
-
-  it("is false for a sale without payments", () => {
-    expect(holdsApprovedStandaloneTerminalPayment([])).toBe(false);
-  });
-
-  it("is true when an approved payment of several is on the standalone terminal", () => {
-    expect(holdsApprovedStandaloneTerminalPayment([APPROVED, STANDALONE])).toBe(true);
-  });
-
-  it("is false when only payments of other methods are approved", () => {
-    expect(
-      holdsApprovedStandaloneTerminalPayment([
-        APPROVED,
-        { state: "APPROVED", method: "TRANSFER" },
-        { state: "APPROVED", method: "POINT" },
-      ]),
-    ).toBe(false);
-  });
-
-  it("is false when the standalone terminal payment is not approved", () => {
-    expect(holdsApprovedStandaloneTerminalPayment([{ ...STANDALONE, state: "PENDING" }])).toBe(
-      false,
-    );
   });
 });

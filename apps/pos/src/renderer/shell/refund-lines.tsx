@@ -26,11 +26,19 @@ function refundLine(refund: Refund): string {
     : `Devolver ${amount} ${GIVEN_BACK_BY[refund.method]}`;
 }
 
+const STANDALONE_TERMINAL_REFUND_EXPLANATION =
+  "Lo devuelve una persona desde la terminal independiente o la app de Mercado Pago, nunca en efectivo.";
+
 export function RefundLines({ refunds }: { refunds: readonly Refund[] }) {
   return (
     <ul className="flex flex-col gap-2 text-body text-text">
       {refunds.map((refund) => (
-        <li key={refund.payment_id}>{refundLine(refund)}</li>
+        <li key={refund.payment_id}>
+          <span>{refundLine(refund)}</span>
+          {refund.method === "STANDALONE_TERMINAL" && refund.state === "PENDING" ? (
+            <p className="text-detail text-text-subtle">{STANDALONE_TERMINAL_REFUND_EXPLANATION}</p>
+          ) : null}
+        </li>
       ))}
     </ul>
   );

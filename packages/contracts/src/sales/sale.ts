@@ -151,9 +151,6 @@ export const qrChargeInProgressOutcome = z.object({
 export const holdsMercadoPagoPaymentOutcome = z.object({
   kind: z.literal("holds_mercado_pago_payment"),
 });
-export const holdsStandaloneTerminalPaymentOutcome = z.object({
-  kind: z.literal("holds_standalone_terminal_payment"),
-});
 
 export const scanProductOutcomeSchema = z.discriminatedUnion("kind", [
   addedOutcome,
@@ -306,7 +303,6 @@ export const cancelPaidSaleOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("no_open_session") }),
   qrChargeInProgressOutcome,
   holdsMercadoPagoPaymentOutcome,
-  holdsStandaloneTerminalPaymentOutcome,
   notPermittedOutcome,
   notSignedInOutcome,
   ...authorizationRefusalSchema.options,
