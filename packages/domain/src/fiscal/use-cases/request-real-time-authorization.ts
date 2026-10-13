@@ -6,6 +6,7 @@ import {
   realTimeAuthorizationResolution,
 } from "../model/real-time-authorization.js";
 import type { RealTimeAuthorizationPorts } from "./real-time-authorization-ports.js";
+import { recordDeferredSaleAsync } from "./record-deferred-sale.js";
 
 export interface RequestRealTimeAuthorizationInput {
   saleId: string;
@@ -31,7 +32,7 @@ function outcomeOf({
 }
 
 export async function requestRealTimeAuthorization(
-  { documents, roundTrips, taxAuthority, clock }: RealTimeAuthorizationPorts,
+  { documents, roundTrips, taxAuthority, clock, ids, shortCodes }: RealTimeAuthorizationPorts,
   { saleId }: RequestRealTimeAuthorizationInput,
 ): Promise<RequestRealTimeAuthorizationOutcome> {
   const waiting = await documents.waitingDocumentOfSale(saleId);
@@ -52,11 +53,27 @@ export async function requestRealTimeAuthorization(
         });
 
   const resolution = realTimeAuthorizationResolution(answer);
-  await documents.resolve({
+  const resolved = {
     fiscalDocumentId: waiting.fiscalDocumentId,
     saleId: waiting.saleId,
     resolution,
     resolvedAt: clock.now(),
-  });
+  };
+  if (resolution.state === "AUTHORIZED") {
+    await documents.resolve({ ...resolved, deferredSale: null });
+  } else {
+    await recordDeferredSaleAsync(
+      (deferredSale) => documents.resolve({ ...resolved, deferredSale }),
+      ids,
+      shortCodes,
+      {
+        saleId: waiting.saleId,
+        occurredAt: waiting.reservedAt,
+        total: waiting.document.total,
+        reason: resolution.deferralReason,
+        routedAt: resolved.resolvedAt,
+      },
+    );
+  }
   return outcomeOf(resolution);
 }

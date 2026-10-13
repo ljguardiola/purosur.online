@@ -111,6 +111,8 @@ export type {
   DecideUnclearRealTimeOutcomeOutcome,
 } from "./decide-unclear-real-time-outcome.js";
 export { decideUnclearRealTimeOutcome } from "./decide-unclear-real-time-outcome.js";
+export type { ShortCodeRandomness } from "./deferred-sale-ports.js";
+export { ShortCodeTaken } from "./deferred-sale-ports.js";
 export type {
   EditFiscalAddressInput,
   EditFiscalAddressOutcome,
@@ -215,6 +217,12 @@ export type {
   RecordBuyerTaxStatusSetOutcome,
 } from "./record-buyer-tax-status-set.js";
 export { recordBuyerTaxStatusSet } from "./record-buyer-tax-status-set.js";
+export type { DeferredSaleFacts } from "./record-deferred-sale.js";
+export {
+  recordDeferredSale,
+  recordDeferredSaleAsync,
+  SHORT_CODE_ATTEMPTS,
+} from "./record-deferred-sale.js";
 export type { RecordRegisterHealthCheckOutcome } from "./record-register-health-check.js";
 export { recordRegisterHealthCheck } from "./record-register-health-check.js";
 export type {
@@ -268,7 +276,6 @@ export type {
   FiscalDocumentReservation,
   IdGenerator,
   SaleAuthorizationTransaction,
-  SaleRoutedToDeferred,
 } from "./sale-authorization-ports.js";
 export type { SettleInterruptedRealTimeAuthorizationsOutcome } from "./settle-interrupted-real-time-authorizations.js";
 export { settleInterruptedRealTimeAuthorizations } from "./settle-interrupted-real-time-authorizations.js";

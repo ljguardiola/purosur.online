@@ -46,6 +46,8 @@ export interface SaleAuthorizationDecision {
   saleId: string;
   gate: PreEmissionGateOutcome;
   decidedAt: Date;
+  occurredAt: Date;
+  total: number;
   ids: IdGenerator;
 }
 
