@@ -9,7 +9,7 @@ import { dateSegments } from "../shell/test-support/report-dates";
 import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   createReportRegisterFilterServices,
-  ReportRegisterFilterForTests,
+  reportRegisterFieldForTests,
   type ReportRegisterFilterServices,
 } from "../shell/test-support/report-register-filter";
 import { SalesByDayScreen } from "./sales-by-day-screen";
@@ -41,19 +41,18 @@ function ControlledScreen({
   const [filters, setFilters] = useState(initial);
   return (
     <FieldSizeProvider size="backoffice">
-      <ReportRegisterFilterForTests services={registerServices} onSessionEnded={onSessionEnded}>
-        <main>
-          <SalesByDayScreen
-            services={services}
-            filters={filters}
-            onFiltersChange={(next) => {
-              onFiltersChange(next);
-              setFilters(next);
-            }}
-            onSessionEnded={onSessionEnded}
-          />
-        </main>
-      </ReportRegisterFilterForTests>
+      <main>
+        <SalesByDayScreen
+          services={services}
+          filters={filters}
+          onFiltersChange={(next) => {
+            onFiltersChange(next);
+            setFilters(next);
+          }}
+          onSessionEnded={onSessionEnded}
+          registerFilter={reportRegisterFieldForTests(registerServices, onSessionEnded)}
+        />
+      </main>
     </FieldSizeProvider>
   );
 }

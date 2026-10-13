@@ -16,6 +16,7 @@ import {
   type ReportFilters as ReportFiltersValue,
   reportQueryOf,
 } from "../shell/report-filters-search";
+import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { SalesByDayScreenServices } from "./sales-by-day-services";
@@ -25,6 +26,7 @@ export type SalesByDayScreenProps = {
   filters: ReportFiltersValue;
   onFiltersChange: (filters: ReportFiltersValue) => void;
   onSessionEnded: () => void;
+  registerFilter: ReportRegisterField;
   services: SalesByDayScreenServices;
 };
 
@@ -56,6 +58,7 @@ export function SalesByDayScreen({
   filters,
   onFiltersChange,
   onSessionEnded,
+  registerFilter,
   services,
 }: SalesByDayScreenProps) {
   const registerChosen = filters.register !== "ALL";
@@ -77,6 +80,7 @@ export function SalesByDayScreen({
         filters={filters}
         onFiltersChange={onFiltersChange}
         answeredPeriod={shown?.range}
+        registerFilter={registerFilter}
       />
       {data.status === "failed" ? null : (
         <Card>

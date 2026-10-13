@@ -8,7 +8,7 @@ import { dateSegments } from "../shell/test-support/report-dates";
 import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   createReportRegisterFilterServices,
-  ReportRegisterFilterForTests,
+  reportRegisterFieldForTests,
   type ReportRegisterFilterServices,
 } from "../shell/test-support/report-register-filter";
 import {
@@ -47,19 +47,18 @@ function ControlledScreen({
   const [filters, setFilters] = useState(initial);
   return (
     <FieldSizeProvider size="backoffice">
-      <ReportRegisterFilterForTests services={registerServices} onSessionEnded={onSessionEnded}>
-        <main>
-          <SalesByPaymentMethodScreen
-            services={services}
-            filters={filters}
-            onFiltersChange={(next) => {
-              onFiltersChange(next);
-              setFilters(next);
-            }}
-            onSessionEnded={onSessionEnded}
-          />
-        </main>
-      </ReportRegisterFilterForTests>
+      <main>
+        <SalesByPaymentMethodScreen
+          services={services}
+          filters={filters}
+          onFiltersChange={(next) => {
+            onFiltersChange(next);
+            setFilters(next);
+          }}
+          onSessionEnded={onSessionEnded}
+          registerFilter={reportRegisterFieldForTests(registerServices, onSessionEnded)}
+        />
+      </main>
     </FieldSizeProvider>
   );
 }

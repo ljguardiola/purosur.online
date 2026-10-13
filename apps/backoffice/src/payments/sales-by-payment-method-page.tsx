@@ -1,6 +1,7 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
+import { reportRegisterFieldOf } from "../shell/report-register-field";
 import { SalesByPaymentMethodScreen } from "./sales-by-payment-method-screen";
 import { defaultSalesByPaymentMethodScreenServices } from "./sales-by-payment-method-services";
 
@@ -16,6 +17,11 @@ export function SalesByPaymentMethodPage(): ReactElement {
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onSessionEnded={sessionActions.sessionEnded}
+      registerFilter={reportRegisterFieldOf({
+        filter: services.reportFiltersRegisterFilter,
+        services: services.reportRegisterFilter,
+        onSessionEnded: sessionActions.sessionEnded,
+      })}
       services={services.salesByPaymentMethodScreen ?? defaultSalesByPaymentMethodScreenServices}
     />
   );

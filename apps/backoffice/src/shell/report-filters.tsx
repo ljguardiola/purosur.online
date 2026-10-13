@@ -1,15 +1,16 @@
 import type { CalendarDate } from "@internationalized/date";
 import { reportQuerySchema } from "@purosur/contracts";
 import { DateField } from "@purosur/ui";
-import { Suspense, useContext, useState } from "react";
+import { Suspense, useState } from "react";
 import { calendarDateOf, dayOf, hasFourDigitYear } from "./report-day";
 import type { ReportFilters as ReportFiltersValue } from "./report-filters-search";
-import { ReportRegisterFilterSlot } from "./report-register-filter-slot";
+import type { ReportRegisterField } from "./report-register-field";
 
 export type ReportFiltersProps<Filters extends ReportFiltersValue> = {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
   answeredPeriod: { from: string; to: string } | undefined;
+  registerFilter: ReportRegisterField;
 };
 
 type RangeDraft = { from: CalendarDate | null; to: CalendarDate | null };
@@ -25,9 +26,9 @@ export function ReportFilters<Filters extends ReportFiltersValue>({
   filters,
   onFiltersChange,
   answeredPeriod,
+  registerFilter,
 }: ReportFiltersProps<Filters>) {
   const [draft, setDraft] = useState<RangeDraft | null>(null);
-  const registerFilter = useContext(ReportRegisterFilterSlot);
 
   const shownPeriod = filters.from === "" ? answeredPeriod : { from: filters.from, to: filters.to };
   const range: RangeDraft = draft ?? {

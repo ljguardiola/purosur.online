@@ -16,6 +16,7 @@ import { cloudTableState } from "../platform/cloud-table-state";
 import { paymentMethodLabel } from "../platform/payment-method-label";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
+import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import { paymentMethodShare } from "./payment-method-share";
@@ -27,6 +28,7 @@ export type SalesByPaymentMethodScreenProps = {
   filters: SalesByPaymentMethodFilters;
   onFiltersChange: (filters: SalesByPaymentMethodFilters) => void;
   onSessionEnded: () => void;
+  registerFilter: ReportRegisterField;
   services: SalesByPaymentMethodScreenServices;
 };
 
@@ -74,6 +76,7 @@ export function SalesByPaymentMethodScreen({
   filters,
   onFiltersChange,
   onSessionEnded,
+  registerFilter,
   services,
 }: SalesByPaymentMethodScreenProps) {
   const registerChosen = filters.register !== "ALL";
@@ -101,6 +104,7 @@ export function SalesByPaymentMethodScreen({
         filters={filters}
         onFiltersChange={onFiltersChange}
         answeredPeriod={shown?.range}
+        registerFilter={registerFilter}
       />
       {data.status === "failed" ? null : (
         <div className="grid grid-cols-3 gap-4">

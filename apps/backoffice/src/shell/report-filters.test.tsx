@@ -8,7 +8,6 @@ import {
   type ReportFilters as ReportFiltersValue,
   reportFiltersSearch,
 } from "./report-filters-search";
-import { ReportRegisterFilterProvider } from "./report-register-filter-slot";
 import { render } from "./test-support/render-with-router";
 import { dateSegments, typeDate } from "./test-support/report-dates";
 import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "./test-support/report-fixtures";
@@ -41,22 +40,17 @@ function ControlledFilters({
   const [filters, setFilters] = useState(initial);
   return (
     <FieldSizeProvider size="backoffice">
-      <ReportRegisterFilterProvider
-        filter={RegisterFilterStub}
-        services={undefined}
-        onSessionEnded={() => {}}
-      >
-        <main>
-          <ReportFilters
-            filters={filters}
-            onFiltersChange={(next) => {
-              onFiltersChange(next);
-              setFilters(next);
-            }}
-            answeredPeriod={ANSWERED}
-          />
-        </main>
-      </ReportRegisterFilterProvider>
+      <main>
+        <ReportFilters
+          filters={filters}
+          onFiltersChange={(next) => {
+            onFiltersChange(next);
+            setFilters(next);
+          }}
+          answeredPeriod={ANSWERED}
+          registerFilter={(field) => <RegisterFilterStub {...field} />}
+        />
+      </main>
     </FieldSizeProvider>
   );
 }
