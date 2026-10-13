@@ -85,9 +85,10 @@ test("shows a dash for the cost and the margin of a product with no cost", async
 });
 
 test("the change-price modal asks the cloud for the margin of the typed price", async () => {
+  const services = createServices();
+  const screen = await openRicePriceModal(services);
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   try {
-    const services = createServices();
     vi.mocked(services.fetchPriceMargin).mockResolvedValue({
       kind: "ok",
       value: {
@@ -99,13 +100,14 @@ test("the change-price modal asks the cloud for the margin of the typed price", 
         },
       },
     });
-    const screen = await openRicePriceModal(services);
 
     await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "8200");
     await vi.advanceTimersByTimeAsync(2_000);
 
-    expect(services.fetchPriceMargin).toHaveBeenCalledWith("product-2", 820000);
-    await expect.element(screen.getByRole("dialog").getByText("45,6 %")).toBeVisible();
+    await vi.waitFor(() =>
+      expect(services.fetchPriceMargin).toHaveBeenCalledWith("product-2", 820000),
+    );
+    await vi.waitFor(() => screen.getByRole("dialog").getByText("45,6 %").element());
   } finally {
     vi.useRealTimers();
   }

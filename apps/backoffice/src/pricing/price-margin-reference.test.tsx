@@ -47,6 +47,10 @@ function element(
   );
 }
 
+function eventuallyShown(locator: { element: () => Element }) {
+  return vi.waitFor(() => locator.element());
+}
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
 });
@@ -74,9 +78,11 @@ test("asks for the margin only once the typed price has settled, then shows it w
   expect(fetchPriceMargin).not.toHaveBeenCalled();
   await vi.advanceTimersByTimeAsync(1);
 
-  expect(fetchPriceMargin).toHaveBeenCalledExactlyOnceWith("product-2", 820000);
-  await expect.element(screen.getByText("45,6 %")).toBeVisible();
-  await expect.element(screen.getByText("$ 8.200,00 − $ 4.460,00 sobre el precio")).toBeVisible();
+  await vi.waitFor(() =>
+    expect(fetchPriceMargin).toHaveBeenCalledExactlyOnceWith("product-2", 820000),
+  );
+  await eventuallyShown(screen.getByText("45,6 %"));
+  await eventuallyShown(screen.getByText("$ 8.200,00 − $ 4.460,00 sobre el precio"));
 });
 
 test("asks only for the price the person stopped on", async () => {
@@ -89,7 +95,9 @@ test("asks only for the price the person stopped on", async () => {
   await screen.rerender(element("8200", fetchPriceMargin));
   await vi.advanceTimersByTimeAsync(300);
 
-  expect(fetchPriceMargin).toHaveBeenCalledExactlyOnceWith("product-2", 820000);
+  await vi.waitFor(() =>
+    expect(fetchPriceMargin).toHaveBeenCalledExactlyOnceWith("product-2", 820000),
+  );
 });
 
 test("asks for no margin of a price that cannot be saved", async () => {
@@ -110,19 +118,20 @@ test("shows a negative margin with its minus sign", async () => {
 
   await vi.advanceTimersByTimeAsync(300);
 
-  await expect.element(screen.getByText("−3,2 %")).toBeVisible();
+  await eventuallyShown(screen.getByText("−3,2 %"));
 });
 
 test("does not show the margin of the previous price while the new one is read", async () => {
   const fetchPriceMargin = vi.fn().mockResolvedValueOnce(marginOf(costReference));
   const screen = await render(element("8.200,00", fetchPriceMargin));
   await vi.advanceTimersByTimeAsync(300);
-  await expect.element(screen.getByText("45,6 %")).toBeVisible();
+  await eventuallyShown(screen.getByText("45,6 %"));
 
   fetchPriceMargin.mockReturnValue(new Promise(() => {}));
   await screen.rerender(element("9.000,00", fetchPriceMargin));
   await vi.advanceTimersByTimeAsync(300);
 
+  await vi.waitFor(() => expect(fetchPriceMargin).toHaveBeenCalledWith("product-2", 900000));
   expect(screen.getByText("45,6 %").query()).toBeNull();
 });
 
@@ -135,7 +144,7 @@ test.each([
 
   await vi.advanceTimersByTimeAsync(300);
 
-  await expect.element(screen.getByText("—")).toBeVisible();
+  await eventuallyShown(screen.getByText("—"));
 });
 
 test("ends the session when the cloud says it is over", async () => {

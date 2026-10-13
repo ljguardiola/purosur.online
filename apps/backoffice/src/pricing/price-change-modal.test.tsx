@@ -512,8 +512,10 @@ test("asks for the margin of the typed price and shows it", async () => {
     await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "8200");
     await vi.advanceTimersByTimeAsync(2_000);
 
-    expect(props.fetchPriceMargin).toHaveBeenCalledWith("product-2", 820000);
-    await expect.element(screen.getByText("45,6 %")).toBeVisible();
+    await vi.waitFor(() =>
+      expect(props.fetchPriceMargin).toHaveBeenCalledWith("product-2", 820000),
+    );
+    await vi.waitFor(() => screen.getByText("45,6 %").element());
   } finally {
     vi.useRealTimers();
   }
