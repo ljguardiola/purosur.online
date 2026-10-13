@@ -3,6 +3,7 @@ import {
   Button,
   dataColumn,
   FloatingNotification,
+  formatTenthsOfPercent,
   IconButton,
   ListFilter,
   plural,
@@ -101,6 +102,7 @@ export function PricesListScreen({
   const sendToMyAccount = useSendToMyAccount();
   const {
     fetchPrices: fetchPricesService,
+    fetchPriceMargin: fetchPriceMarginService,
     setPrice: setPriceService,
     confirmPrice: confirmPriceService,
   } = services;
@@ -439,8 +441,27 @@ export function PricesListScreen({
     dataColumn({
       id: "price",
       header: "Precio",
+      align: "end",
       render: (item: PriceProduct) =>
         item.currentPrice ? formatCentsWithUnit(item.currentPrice.unitPrice, item.saleUnit) : "—",
+    }),
+    dataColumn({
+      id: "total-cost",
+      header: "Costo total",
+      align: "end",
+      render: (item: PriceProduct) =>
+        item.costReference
+          ? formatCentsWithUnit(item.costReference.totalCostCents, item.saleUnit)
+          : "—",
+    }),
+    dataColumn({
+      id: "margin",
+      header: "Margen",
+      align: "end",
+      render: (item: PriceProduct) =>
+        item.costReference?.marginTenthsOfPercent == null
+          ? "—"
+          : formatTenthsOfPercent(item.costReference.marginTenthsOfPercent),
     }),
     dataColumn({
       id: "reviewed",
@@ -582,6 +603,7 @@ export function PricesListScreen({
         onSaved={handleModalSaved}
         onGone={handleModalProductGone}
         reload={reloadPrice}
+        fetchPriceMargin={fetchPriceMarginService}
         setPrice={setPriceService}
         confirmPrice={confirmPriceService}
       />

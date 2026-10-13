@@ -1,4 +1,9 @@
-import { type PushedEvent, SERIAL_DEVICE_ROLES, type SerialDevicesReport } from "@purosur/domain";
+import {
+  type BatteryReport,
+  type PushedEvent,
+  SERIAL_DEVICE_ROLES,
+  type SerialDevicesReport,
+} from "@purosur/domain";
 import type {
   HeldEvent,
   HeldEventPosition,
@@ -131,10 +136,14 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
       diskFreeBytes: telemetry.disk_free_bytes,
       diskFreeRatio: telemetry.disk_free_ratio,
     };
+    const reported = {
+      ...pushed,
+      ...(telemetry.battery && batteryColumnsOf(telemetry.battery, at)),
+    };
     await this.tx
       .insert(deviceState)
-      .values({ deviceId, ...pushed })
-      .onConflictDoUpdate({ target: deviceState.deviceId, set: pushed });
+      .values({ deviceId, ...reported })
+      .onConflictDoUpdate({ target: deviceState.deviceId, set: reported });
     if (telemetry.serial_devices !== undefined) {
       await this.recordSerialDevices(deviceId, telemetry.serial_devices, at);
     }
@@ -248,6 +257,17 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
       .where(and(eq(registerInstallations.id, deviceId), isNull(registerInstallations.revokedAt)));
     await openOutboxChainBrokenAlert(this.tx, { deviceId }, revokedAt);
   }
+}
+
+function batteryColumnsOf(battery: BatteryReport, reportedAt: Date) {
+  return {
+    batteryPresent: battery.present,
+    batteryChargePercent: battery.present ? battery.charge_percent : null,
+    batteryHealthPercent: battery.present ? (battery.health_percent ?? null) : null,
+    batteryOnBattery: battery.present ? battery.on_battery : null,
+    batteryOnBatteryMinutes: battery.present ? battery.on_battery_minutes : null,
+    batteryReportedAt: reportedAt,
+  };
 }
 
 export class DrizzleInbox<TQueryResult extends PgQueryResultHKT> implements Inbox {

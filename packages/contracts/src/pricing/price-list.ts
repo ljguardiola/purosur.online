@@ -7,6 +7,13 @@ const priceRowSchema = z.object({
   validFrom: z.iso.datetime(),
 });
 
+export const priceCostReferenceSchema = z.object({
+  lastCostCents: z.int().nonnegative(),
+  freightPerUnitCents: z.int().nonnegative(),
+  totalCostCents: z.int().nonnegative(),
+  marginTenthsOfPercent: z.int().nullable(),
+});
+
 export const priceProductSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -16,6 +23,7 @@ export const priceProductSchema = z.object({
   currentPrice: priceRowSchema.nullable(),
   secondsSinceReview: z.int().nonnegative().nullable(),
   pending: z.boolean(),
+  costReference: priceCostReferenceSchema.nullable(),
 });
 
 export const priceCategorySchema = z.object({
@@ -31,6 +39,7 @@ export const priceListSchema = z.object({
   reviewWindowDays: z.int(),
 });
 
+export type PriceCostReference = z.output<typeof priceCostReferenceSchema>;
 export type PriceRow = z.output<typeof priceRowSchema>;
 export type PriceProduct = z.output<typeof priceProductSchema>;
 export type PriceCategory = z.output<typeof priceCategorySchema>;

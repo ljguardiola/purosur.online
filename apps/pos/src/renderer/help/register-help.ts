@@ -65,7 +65,7 @@ export const help = defineHelp("es-AR", {
         },
         {
           kind: "note",
-          text: "Un reembolso pendiente lo hace alguien fuera de la caja y lo marca como hecho en el backoffice.",
+          text: "Un reembolso pendiente lo hace alguien fuera de la caja, por el mismo medio con el que se pagó: el de una transferencia, por transferencia; el de un pago con la terminal independiente, desde esa terminal o la app de Mercado Pago, nunca en efectivo. Quien lo devolvió lo marca como hecho en el backoffice.",
         },
       ],
     },

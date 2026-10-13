@@ -10,7 +10,7 @@ import {
 import { accountRecoveryRoute, myAccountRoute, registerPasskeyRoute } from "../credentials/routes";
 import { fiscalConfigurationRoute, pointsOfSaleRoute } from "../fiscal/routes";
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
-import { pendingRefundsRoute } from "../payments/routes";
+import { pendingRefundsRoute, salesByPaymentMethodRoute } from "../payments/routes";
 import { rolesListRoute } from "../permissions/routes";
 import { discountsListRoute, pricesListRoute } from "../pricing/routes";
 import {
@@ -24,6 +24,7 @@ import { reportsIndexRoute, salesByDayRoute } from "../sales/routes";
 import { signInRoute } from "../sessions/routes";
 import {
   initialInventoryRoute,
+  recipesListRoute,
   stockBalancesRoute,
   stockCountsRoute,
   stockMovementsRoute,
@@ -75,6 +76,7 @@ const routeTree = rootRoute.addChildren([
       packagingsListRoute,
       purchasesListRoute,
       newPurchaseRoute,
+      recipesListRoute,
       initialInventoryRoute,
     ]),
     cashAndFiscalAreaRoute.addChildren([
@@ -82,7 +84,7 @@ const routeTree = rootRoute.addChildren([
       fiscalConfigurationRoute,
       pendingRefundsRoute,
     ]),
-    reportsAreaRoute.addChildren([reportsIndexRoute, salesByDayRoute]),
+    reportsAreaRoute.addChildren([reportsIndexRoute, salesByDayRoute, salesByPaymentMethodRoute]),
     settingsAreaRoute.addChildren([
       myAccountRoute,
       usersListRoute,

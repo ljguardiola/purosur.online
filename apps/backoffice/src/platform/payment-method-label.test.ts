@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { refundMethodLabel } from "./refund-method-label";
+import { paymentMethodLabel } from "./payment-method-label";
 
 test.each([
   ["CASH", "Efectivo"],
@@ -7,6 +7,6 @@ test.each([
   ["QR", "QR de Mercado Pago"],
   ["POINT", "Point integrada"],
   ["STANDALONE_TERMINAL", "Terminal independiente"],
-] as const)("names a %s refund %s", (method, label) => {
-  expect(refundMethodLabel(method)).toBe(label);
+] as const)("names the %s payment method %s", (method, label) => {
+  expect(paymentMethodLabel(method)).toBe(label);
 });

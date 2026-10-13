@@ -600,12 +600,6 @@ describe("the open sale of the cash session", () => {
     { ...openSale, total: 0, cancellable: false },
     { ...openSale, cancellable: false, cancel_refusal: "mercado_pago_charge_in_progress" },
     { ...openSale, paid: 3200, cancellable: false, cancel_refusal: "holds_mercado_pago_payment" },
-    {
-      ...openSale,
-      paid: 3200,
-      cancellable: false,
-      cancel_refusal: "holds_standalone_terminal_payment",
-    },
     { ...openSale, paid: 3200, refunds_on_cancel: [cashRefund, transferRefund] },
     null,
   ])("accepts the open sale answered: %j", (sale) => {
@@ -631,6 +625,7 @@ describe("the open sale of the cash session", () => {
     { ...openSale, cancellable: "yes" },
     { ...openSale, cancel_refusal: "closed" },
     { ...openSale, cancel_refusal: true },
+    { ...openSale, cancel_refusal: "holds_standalone_terminal_payment" },
     { ...openSale, paid: -1 },
     { ...openSale, refunds_on_cancel: [{ ...cashRefund, method: "CARD" }] },
     { ...openSale, refunds_on_cancel: [{ ...cashRefund, state: "DONE" }] },

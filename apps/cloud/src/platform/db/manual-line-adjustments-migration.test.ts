@@ -1,32 +1,13 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { describe, expect, inject, it, onTestFinished } from "vitest";
-import { migrateFreshDatabase } from "../../test-support/test-database-snapshot.js";
+import { describe, expect, it } from "vitest";
 import {
-  addMigrationEntry,
-  findMigrationEntry,
-  type JournalEntry,
-  migrationsFolderBefore,
-} from "./test-support/migration-journal-test-helpers.js";
-
-async function manualLineAdjustmentsEntry(): Promise<JournalEntry> {
-  return findMigrationEntry(
-    "_manual_line_adjustments",
-    "test setup: no manual line adjustments migration in the journal",
-  );
-}
+  databaseBeforeMigration,
+  type SqlOnlyDatabase,
+} from "./test-support/migration-under-test.js";
 
 async function databaseBefore() {
-  const folder = await mkdtemp(join(tmpdir(), "manual-line-adjustments-migration-"));
-  onTestFinished(() => rm(folder, { recursive: true, force: true }));
-  await migrationsFolderBefore(folder, await manualLineAdjustmentsEntry());
-  const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
-  onTestFinished(() => client.close());
+  const database = await databaseBeforeMigration("_manual_line_adjustments");
   const first = async (sql: string, params: unknown[] = []) => {
-    const { rows } = await client.query<{ id: string }>(sql, params);
+    const { rows } = await database.query<{ id: string }>(sql, params);
     return rows[0]?.id as string;
   };
   const locationId = await first("select id from locations limit 1");
@@ -59,17 +40,13 @@ async function databaseBefore() {
      values (gen_random_uuid(), $1, $2, $3, $4, $5, 'COMPLETED', now(), 2500, now()) returning id`,
     [locationId, registerId, deviceId, sessionId, userId],
   );
-  const insertLine = (columns = "", values = "") =>
-    client.query(
+  const insertLine = (sql: SqlOnlyDatabase, columns = "", values = "") =>
+    sql.query(
       `insert into sale_lines (id, sale_id, product_id, product_name, quantity, list_unit_price, price_list_id, discount_amount, line_total${columns})
        values (gen_random_uuid(), $1, $2, 'Yerba', 1, 2500, gen_random_uuid(), 0, 2500${values})`,
       [saleId, productId],
     );
-  const migrated = async () => {
-    await addMigrationEntry(folder, await manualLineAdjustmentsEntry());
-    await migrate(drizzle(client), { migrationsFolder: folder });
-  };
-  return { client, insertLine, migrated };
+  return { database, insertLine };
 }
 
 const ADJUSTMENT_COLUMNS =
@@ -79,12 +56,12 @@ describe("the manual line adjustments migration applied over a database that alr
   timeout: 30_000,
 }, () => {
   it("keeps every recorded line, none of them adjusted", async () => {
-    const { client, insertLine, migrated } = await databaseBefore();
-    await insertLine();
+    const { database, insertLine } = await databaseBefore();
+    await insertLine(database);
 
-    await migrated();
+    const migrated = await database.applyMigration();
 
-    const { rows } = await client.query(`select line_total${ADJUSTMENT_COLUMNS} from sale_lines`);
+    const { rows } = await migrated.query(`select line_total${ADJUSTMENT_COLUMNS} from sale_lines`);
     expect(rows).toEqual([
       {
         line_total: 2500,
@@ -105,15 +82,16 @@ describe("the manual line adjustments migration applied over a database that alr
   ])(
     "records a line adjusted with a %s of %i authorized by %s",
     async (kind, value, authorizer) => {
-      const { client, insertLine, migrated } = await databaseBefore();
-      await migrated();
+      const { database, insertLine } = await databaseBefore();
+      const migrated = await database.applyMigration();
 
       await insertLine(
+        migrated,
         ADJUSTMENT_COLUMNS,
         `, '${kind}', ${value}, 'Cliente frecuente', ${authorizer === null ? "null" : `'${authorizer}'`}`,
       );
 
-      const { rows } = await client.query(
+      const { rows } = await migrated.query(
         "select manual_adjustment_kind, manual_adjustment_value from sale_lines",
       );
       expect(rows).toEqual([{ manual_adjustment_kind: kind, manual_adjustment_value: value }]);
@@ -133,10 +111,10 @@ describe("the manual line adjustments migration applied over a database that alr
     ["a reason without its kind", ", null, null, 'Motivo', null"],
     ["an authorizer without an adjustment", ", null, null, null, 'supervisor'"],
   ])("refuses %s", async (_case, values) => {
-    const { insertLine, migrated } = await databaseBefore();
-    await migrated();
+    const { database, insertLine } = await databaseBefore();
+    const migrated = await database.applyMigration();
 
-    await expect(insertLine(ADJUSTMENT_COLUMNS, values)).rejects.toThrow(
+    await expect(insertLine(migrated, ADJUSTMENT_COLUMNS, values)).rejects.toThrow(
       /sale_lines_manual_adjustment/,
     );
   });

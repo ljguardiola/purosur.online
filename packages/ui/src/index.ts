@@ -7,6 +7,8 @@ export type { FigureStatProps } from "./components/data-display/figure-stat";
 export { FigureStat } from "./components/data-display/figure-stat";
 export type { HelpArticleBodyProps } from "./components/data-display/help-article-body";
 export { HelpArticleBody } from "./components/data-display/help-article-body";
+export type { PercentBarProps } from "./components/data-display/percent-bar";
+export { PercentBar } from "./components/data-display/percent-bar";
 export type { ProportionBarProps } from "./components/data-display/proportion-bar";
 export { ProportionBar } from "./components/data-display/proportion-bar";
 export type { SummaryRowProps } from "./components/data-display/summary-row";
@@ -152,6 +154,8 @@ export type { AreaNavButtonProps } from "./components/navigation/area-nav-button
 export { AreaNavButton } from "./components/navigation/area-nav-button";
 export type { AreaNavItemProps } from "./components/navigation/area-nav-item";
 export { AreaNavItem } from "./components/navigation/area-nav-item";
+export type { LinkListCardProps, LinkListRowProps } from "./components/navigation/link-list-card";
+export { LinkListCard, LinkListRow } from "./components/navigation/link-list-card";
 export type { PaginationProps } from "./components/navigation/pagination";
 export { Pagination } from "./components/navigation/pagination";
 export type { SectionNavButtonProps } from "./components/navigation/section-nav-button";
@@ -212,5 +216,6 @@ export { isLocalAlertKind, localAlertText, localAlertTitle } from "./messages/lo
 export type { LocaleProviderProps } from "./messages/locale-provider";
 export { LocaleProvider } from "./messages/locale-provider";
 export { parseAmountCents, parseEsArNumber, parseWeightThousandths } from "./messages/parsers";
+export { formatTenthsOfPercent } from "./messages/tenths-of-percent";
 export type { ItemOrder, ItemsSort } from "./ordering/item-ordering";
 export { sortedItems, textOrder } from "./ordering/item-ordering";

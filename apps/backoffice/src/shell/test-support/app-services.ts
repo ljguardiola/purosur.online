@@ -2,6 +2,7 @@ import { vi } from "vitest";
 import { AlertsOpenCountLink } from "../../alerts/alerts-open-count-link";
 import { UserCredentialSections } from "../../credentials/user-credential-sections";
 import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
+import { ReportRegisterFilter } from "../../register/report-register-filter";
 import { openSession } from "../../sessions/test-support/open-session";
 import type { AppServices } from "../app";
 
@@ -93,6 +94,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       printLabels: vi.fn(),
     },
     pricesListScreen: {
+      fetchPriceMargin: vi.fn().mockResolvedValue({ kind: "ok", value: { costReference: null } }),
       fetchPrices: vi.fn().mockReturnValue(new Promise(() => {})),
       setPrice: vi.fn(),
       confirmPrice: vi.fn(),
@@ -149,6 +151,10 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       deactivatePackaging: vi.fn(),
       reactivatePackaging: vi.fn(),
     },
+    recipesListScreen: {
+      fetchRecipes: vi.fn().mockReturnValue(new Promise(() => {})),
+      saveRecipe: vi.fn(),
+    },
     purchasesListScreen: {
       fetchPurchases: vi.fn().mockReturnValue(new Promise(() => {})),
     },
@@ -158,6 +164,12 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     salesByDayScreen: {
       fetchSalesReport: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    salesByPaymentMethodScreen: {
+      fetchSalesByPaymentMethod: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    reportFiltersRegisterFilter: ReportRegisterFilter,
+    reportRegisterFilter: {
       fetchReportRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     pendingRefundsScreen: {

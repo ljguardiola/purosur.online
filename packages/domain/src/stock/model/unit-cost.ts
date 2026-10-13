@@ -1,5 +1,5 @@
 import { roundHalfUp } from "../../shared/index.js";
-import type { LotCost } from "./lot-value.js";
+import { knownLotCost, type LotCost } from "./lot-value.js";
 import { STOCK_QUANTITY_PER_UNIT } from "./stock-quantity.js";
 
 // The only rounding of a unit cost: the exact pair stays as it was paid and is rounded only to be shown.
@@ -17,5 +17,6 @@ export function lotUnitCostCents({
   cost: LotCost | null;
   costIncomplete: boolean;
 }): number | null {
-  return cost === null || costIncomplete ? null : unitCostCents(cost.totalCents, cost.quantity);
+  const known = knownLotCost({ cost, costIncomplete });
+  return known === null ? null : unitCostCents(known.totalCents, known.quantity);
 }

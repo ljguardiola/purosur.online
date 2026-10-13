@@ -21,7 +21,7 @@ import { deepEqual } from "@tanstack/react-router";
 import { Bell, Eye, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { refundMethodLabel } from "../platform/refund-method-label";
+import { paymentMethodLabel } from "../platform/payment-method-label";
 import type { CloudData } from "../platform/use-cloud-query";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -90,7 +90,7 @@ function localSubjectOf(alert: AlertSummary): LocalAlertSubject | undefined {
 
 function alertScopeCell(alert: AlertSummary, scopeDisplay: string): string {
   if (alert.kind === "refund_task" && alert.refundAmount !== null && alert.refundMethod !== null) {
-    return `${refundMethodLabel(alert.refundMethod)} de ${formatCents(alert.refundAmount)}`;
+    return `${paymentMethodLabel(alert.refundMethod)} de ${formatCents(alert.refundAmount)}`;
   }
   return alertScopeLabel(alert.scopeKind, scopeDisplay);
 }

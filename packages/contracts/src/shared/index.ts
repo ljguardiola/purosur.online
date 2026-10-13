@@ -37,6 +37,8 @@ export { plannedRefundSchema } from "./planned-refund.js";
 export { pointOfSaleNumberSchema } from "./point-of-sale-number.js";
 export { pushedEventSchema } from "./pushed-event.js";
 export { recordIdSchema } from "./record-id.js";
+export type { ReportQuery } from "./report-query.js";
+export { reportQuerySchema } from "./report-query.js";
 export { requestIdSchema } from "./request-id.js";
 export { requiredTextSchema } from "./required-text.js";
 export { saleCancelRefusalSchema } from "./sale-cancel-refusal.js";
