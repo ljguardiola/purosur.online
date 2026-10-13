@@ -519,11 +519,7 @@ function OpenAlertDetailModal({
     data.status === "loaded" && data.value.kind === "found" ? data.value.alert : undefined;
   const isKnownClosed = alert !== undefined && !alert.open;
   const isKnownMissing = data.status === "loaded" && alert === undefined;
-  const offersClose =
-    canCloseAlertsManually(access) &&
-    !isKnownClosed &&
-    !isKnownMissing &&
-    alert?.closing !== "when_its_events_are_released";
+  const offersClose = canCloseAlertsManually(access) && !isKnownClosed && !isKnownMissing;
 
   return (
     <Modal
