@@ -31,14 +31,6 @@ export function holdsApprovedMercadoPagoPayment(
   );
 }
 
-export function holdsApprovedStandaloneTerminalPayment(
-  payments: readonly { state: string; method: string }[],
-): boolean {
-  return payments.some(
-    (payment) => payment.state === "APPROVED" && payment.method === "STANDALONE_TERMINAL",
-  );
-}
-
 export function cancellableWithoutAuthorization(payments: readonly { state: string }[]): boolean {
   return !hasApprovedPayment(payments);
 }

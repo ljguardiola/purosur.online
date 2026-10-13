@@ -3,7 +3,6 @@ import {
   cancellableWithoutAuthorization,
   hasApprovedPayment,
   holdsApprovedMercadoPagoPayment,
-  holdsApprovedStandaloneTerminalPayment,
   isConfirmedByHand,
   MERCADO_PAGO_PAYMENT_METHODS,
   MERCADO_PAGO_PROVIDERS,
@@ -190,33 +189,5 @@ describe("isConfirmedByHand", () => {
       expectTypeOf(payment.authorizedBy).toEqualTypeOf<string>();
       expectTypeOf(payment.confirmedAt).toEqualTypeOf<Date>();
     }
-  });
-});
-
-describe("holdsApprovedStandaloneTerminalPayment", () => {
-  const STANDALONE = { state: "APPROVED", method: "STANDALONE_TERMINAL" } as const;
-
-  it("is false for a sale without payments", () => {
-    expect(holdsApprovedStandaloneTerminalPayment([])).toBe(false);
-  });
-
-  it("is true when an approved payment of several is on the standalone terminal", () => {
-    expect(holdsApprovedStandaloneTerminalPayment([APPROVED, STANDALONE])).toBe(true);
-  });
-
-  it("is false when only payments of other methods are approved", () => {
-    expect(
-      holdsApprovedStandaloneTerminalPayment([
-        APPROVED,
-        { state: "APPROVED", method: "TRANSFER" },
-        { state: "APPROVED", method: "POINT" },
-      ]),
-    ).toBe(false);
-  });
-
-  it("is false when the standalone terminal payment is not approved", () => {
-    expect(holdsApprovedStandaloneTerminalPayment([{ ...STANDALONE, state: "PENDING" }])).toBe(
-      false,
-    );
   });
 });
