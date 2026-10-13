@@ -480,8 +480,8 @@ describe("printing a sale's original receipt", () => {
       kind: "started",
       copy: { kind: "original" },
     });
-    advance(3000);
     printer.becomeReady();
+    advance(3000);
     await vi.waitFor(() => expect(jobs.standingOf("sale-1")).toBe("printed"));
 
     expect(deliveryOf("sale-1")).toEqual({
