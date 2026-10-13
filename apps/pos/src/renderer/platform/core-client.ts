@@ -50,6 +50,7 @@ import type {
   RegisterSerialDevicesOutcome,
   RegisterStatus,
   RemoveSaleLineOutcome,
+  PrintOriginalReceiptOutcome,
   ReprintSaleReceiptOutcome,
   SaleDiscountRequest,
   SaleHistoryDetailOutcome,
@@ -214,6 +215,7 @@ export interface CoreClient {
     authorization: Authorization | undefined,
   ): Promise<CancelPaidSaleOutcome>;
   receiptPrintStatus(saleId: string): Promise<ReceiptPrintStatusOutcome>;
+  printOriginalReceipt(saleId: string): Promise<PrintOriginalReceiptOutcome>;
   reprintSaleReceipt(
     saleId: string,
     reason: string,
@@ -627,6 +629,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "receipt-print-status", request_id: deps.newRequestId(), sale_id: saleId },
         (answer) => (answer.type === "receipt-print-status-result" ? answer.outcome : undefined),
+      );
+    },
+    printOriginalReceipt(saleId) {
+      return ask(
+        { type: "print-original-receipt", request_id: deps.newRequestId(), sale_id: saleId },
+        (answer) => (answer.type === "print-original-receipt-result" ? answer.outcome : undefined),
       );
     },
     reprintSaleReceipt(saleId, reason, authorization) {

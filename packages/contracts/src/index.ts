@@ -313,6 +313,7 @@ export {
 export type { StartupPending } from "./register/startup-pending.js";
 export type {
   CancelLockedSaleOutcome,
+  PrintOriginalReceiptOutcome,
   ReceiptPrintStatusOutcome,
   ReprintSaleReceiptOutcome,
   SalesCoreToRendererMessage,

@@ -6,6 +6,7 @@ import { printingCompletedSales } from "./printing-completed-sales";
 import { createReceiptPrintJobs } from "./receipt-print-jobs";
 import {
   printCompletedSaleReceiptFor,
+  printOriginalReceiptFor,
   type ReceiptRequestDeps,
   receiptPrintStatusFor,
   reprintSaleReceiptFor,
@@ -46,6 +47,9 @@ interface ReceiptPrinting {
     charge: ((request: TRequest) => Promise<TOutcome>) | undefined,
   ): ((request: TRequest) => Promise<TOutcome>) | undefined;
   receiptPrintStatus: ((saleId: string) => ReturnType<typeof receiptPrintStatusFor>) | undefined;
+  printOriginalReceipt:
+    | ((saleId: string) => ReturnType<typeof printOriginalReceiptFor>)
+    | undefined;
   reprintSaleReceipt:
     | ((
         request: Parameters<typeof reprintSaleReceiptFor>[1],
@@ -69,6 +73,7 @@ export function createReceiptPrinting({
     return {
       afterCompletedSale: (charge) => charge,
       receiptPrintStatus: undefined,
+      printOriginalReceipt: undefined,
       reprintSaleReceipt: undefined,
     };
   }
@@ -96,6 +101,7 @@ export function createReceiptPrinting({
         charge,
       ),
     receiptPrintStatus: (saleId) => receiptPrintStatusFor(deps, saleId),
+    printOriginalReceipt: (saleId) => printOriginalReceiptFor(deps, saleId),
     reprintSaleReceipt: (request) => reprintSaleReceiptFor(deps, request),
   };
 }

@@ -39,6 +39,7 @@ import type {
   RegisterSerialDevicesOutcome,
   RegisterStatus,
   RemoveSaleLineOutcome,
+  PrintOriginalReceiptOutcome,
   ReprintSaleReceiptOutcome,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
@@ -161,6 +162,7 @@ export interface RendererRequestDeps {
   cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
   cancelPaidSale: ((request: CancelPaidSaleRequest) => Promise<CancelPaidSaleOutcome>) | undefined;
   receiptPrintStatus: ((saleId: string) => Promise<ReceiptPrintStatusOutcome>) | undefined;
+  printOriginalReceipt: ((saleId: string) => Promise<PrintOriginalReceiptOutcome>) | undefined;
   reprintSaleReceipt:
     | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
     | undefined;
@@ -858,6 +860,18 @@ export async function answerRendererRequest(
           deps,
           "reading a receipt's print status",
           receiptPrintStatus && (() => receiptPrintStatus(message.sale_id)),
+        ),
+      };
+    }
+    case "print-original-receipt": {
+      const { printOriginalReceipt } = deps;
+      return {
+        type: "print-original-receipt-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "printing a sale's original receipt",
+          printOriginalReceipt && (() => printOriginalReceipt(message.sale_id)),
         ),
       };
     }

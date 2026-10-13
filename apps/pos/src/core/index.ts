@@ -890,6 +890,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             devices,
           ),
   receiptPrintStatus: receiptPrinting.receiptPrintStatus,
+  printOriginalReceipt: receiptPrinting.printOriginalReceipt,
   reprintSaleReceipt: receiptPrinting.reprintSaleReceipt,
   reportFailure,
 };
