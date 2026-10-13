@@ -10,9 +10,11 @@ import {
   postToCloudWithBearer,
 } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
+import { uuidV7Ids } from "../register/uuid-v7-ids";
 import { checkRegisterHealth } from "./check-register-health";
 import { CloudRealTimeTaxAuthority } from "./cloud-real-time-tax-authority";
 import { CloudUnclearOutcomeDecisions } from "./cloud-unclear-outcome-decisions";
+import { cryptoShortCodes } from "./crypto-short-codes";
 import { authorizeSaleInRealTime } from "./real-time-sale-authorization";
 import { startRegisterHealthMonitor } from "./register-health-monitor";
 import { SqliteRealTimeFiscalDocuments } from "./sqlite-real-time-fiscal-documents";
@@ -55,12 +57,22 @@ export function createRealTimeAuthorization({
   return {
     authorizeSale: async (saleId) => {
       try {
-        await authorizeSaleInRealTime({ database, taxAuthority, now }, saleId);
+        await authorizeSaleInRealTime(
+          { database, taxAuthority, now, ids: uuidV7Ids, shortCodes: cryptoShortCodes },
+          saleId,
+        );
       } catch (error) {
         reportFailure(error);
-        await authorizeSaleInRealTime({ database, taxAuthority: UNABLE_TO_ASK, now }, saleId).catch(
-          reportFailure,
-        );
+        await authorizeSaleInRealTime(
+          {
+            database,
+            taxAuthority: UNABLE_TO_ASK,
+            now,
+            ids: uuidV7Ids,
+            shortCodes: cryptoShortCodes,
+          },
+          saleId,
+        ).catch(reportFailure);
       }
     },
   };
@@ -77,6 +89,8 @@ export async function settleInterruptedAuthorizations({
   await settleInterruptedRealTimeAuthorizations({
     documents: new SqliteRealTimeFiscalDocuments(database),
     clock: { now },
+    ids: uuidV7Ids,
+    shortCodes: cryptoShortCodes,
   }).catch(reportFailure);
 }
 

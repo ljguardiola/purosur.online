@@ -1,5 +1,6 @@
 import {
   ARGENTINA_TIME_ZONE,
+  type DeferredSaleDocumentBlock,
   type FacturaCFiscalBlock,
   type ReceiptContent,
   type ReceiptCopy,
@@ -206,6 +207,11 @@ function branch(
   ]);
 }
 
+function notAnInvoice(out: Output, block: DeferredSaleDocumentBlock): void {
+  out.bold([...centered(block.invoiceClass), ...centered("DOCUMENTO NO VALIDO COMO FACTURA")]);
+  out.lines([RULE]);
+}
+
 function voucherType(out: Output, block: FacturaCFiscalBlock): void {
   const code = String(block.voucherTypeCode).padStart(VOUCHER_CODE_DIGITS, "0");
   const buyer = block.buyerTaxStatusDescription.toLocaleLowerCase("es-AR");
@@ -346,6 +352,15 @@ function authorization(out: Output, block: FacturaCFiscalBlock): void {
   ]);
 }
 
+function deferredSaleReference(out: Output, block: DeferredSaleDocumentBlock): void {
+  out.lines([RULE]);
+  out.bold(row("Código de consulta", block.shortCode));
+  out.feed(QR_TOP_MARGIN_DOTS);
+  out.qr(block.qrText);
+  out.feed(QR_BOTTOM_MARGIN_DOTS);
+  out.small(centered("Volvé con este ticket a retirar tu factura.", SMALL_COLUMNS));
+}
+
 function closing(out: Output): void {
   out.lines([RULE]);
   out.bold(centered("Gracias por tu compra"));
@@ -363,21 +378,29 @@ const DUPLICATE_LEGENDS: Record<string, (orderNumber: number) => Uint8Array> = {
 };
 
 function render(content: ReceiptContent): StoredReceipt {
+  const invoice = content.fiscal?.invoiceClass === "C" ? content.fiscal : null;
+  const deferred = content.fiscal?.invoiceClass === "X" ? content.fiscal : null;
   const head = new Output();
   initialization(head);
+  if (deferred !== null) {
+    notAnInvoice(head, deferred);
+  }
   logo(head);
   branch(head, content.header);
-  if (content.fiscal !== null) {
-    voucherType(head, content.fiscal);
+  if (invoice !== null) {
+    voucherType(head, invoice);
   }
   const body = new Output();
-  operation(body, content.operation, content.fiscal);
-  if (content.fiscal !== null) {
-    issuer(body, content.fiscal);
+  operation(body, content.operation, invoice);
+  if (invoice !== null) {
+    issuer(body, invoice);
   }
   sale(body, content);
-  if (content.fiscal !== null) {
-    authorization(body, content.fiscal);
+  if (invoice !== null) {
+    authorization(body, invoice);
+  }
+  if (deferred !== null) {
+    deferredSaleReference(body, deferred);
   }
   closing(body);
   return { templateVersion: TEMPLATE_VERSION, head: head.bytes(), body: body.bytes() };

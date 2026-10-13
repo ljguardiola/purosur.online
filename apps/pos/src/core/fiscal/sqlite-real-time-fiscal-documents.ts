@@ -17,6 +17,7 @@ import type {
   WaitingFiscalDocument,
 } from "@purosur/domain/fiscal/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
+import { insertDeferredSale } from "./sqlite-deferred-sales";
 
 interface WaitingDocumentRow {
   id: string;
@@ -25,6 +26,7 @@ interface WaitingDocumentRow {
   number: number;
   issued_on: string;
   document: string;
+  reserved_at: string;
 }
 
 interface SaleEventRow extends Omit<PushedEvent, "payload"> {
@@ -34,6 +36,8 @@ interface SaleEventRow extends Omit<PushedEvent, "payload"> {
 interface RequestingDocumentRow {
   id: string;
   sale_id: string;
+  reserved_at: string;
+  document: string;
 }
 
 export class SqliteRealTimeFiscalDocuments
@@ -48,7 +52,7 @@ export class SqliteRealTimeFiscalDocuments
   async waitingDocumentOfSale(saleId: string): Promise<WaitingFiscalDocument | null> {
     const row = this.database
       .prepare<[string], WaitingDocumentRow>(
-        `SELECT id, sale_id, point_of_sale, number, issued_on, document
+        `SELECT id, sale_id, point_of_sale, number, issued_on, document, reserved_at
          FROM fiscal_documents WHERE sale_id = ? AND state = 'REQUESTING'`,
       )
       .get(saleId);
@@ -58,7 +62,7 @@ export class SqliteRealTimeFiscalDocuments
   async unclearDocuments(): Promise<readonly WaitingFiscalDocument[]> {
     return this.database
       .prepare<[], WaitingDocumentRow>(
-        `SELECT id, sale_id, point_of_sale, number, issued_on, document
+        `SELECT id, sale_id, point_of_sale, number, issued_on, document, reserved_at
          FROM fiscal_documents WHERE state = 'UNKNOWN' ORDER BY reserved_at, id`,
       )
       .all()
@@ -103,6 +107,7 @@ export class SqliteRealTimeFiscalDocuments
       number: row.number,
       issuedOn: row.issued_on,
       document: JSON.parse(row.document) as FacturaC,
+      reservedAt: new Date(row.reserved_at),
       saleEvent: this.saleCompletedEvent(row.sale_id),
     };
   }
@@ -143,7 +148,7 @@ export class SqliteRealTimeFiscalDocuments
     return this.database.transaction(() =>
       work({
         requestingDocuments: () => this.requestingDocuments(),
-        resolve: (resolved) => this.recordResolution(resolved),
+        resolve: (resolved) => this.database.transaction(() => this.recordResolution(resolved))(),
       }),
     )();
   }
@@ -155,12 +160,17 @@ export class SqliteRealTimeFiscalDocuments
   private requestingDocuments(): readonly InterruptedRealTimeAuthorization[] {
     return this.database
       .prepare<string[], RequestingDocumentRow>(
-        `SELECT id, sale_id FROM fiscal_documents
+        `SELECT id, sale_id, reserved_at, document FROM fiscal_documents
          WHERE state IN (${IN_PROGRESS_FISCAL_DOCUMENT_STATES.map(() => "?").join(", ")})
          ORDER BY reserved_at, id`,
       )
       .all(...IN_PROGRESS_FISCAL_DOCUMENT_STATES)
-      .map((row) => ({ fiscalDocumentId: row.id, saleId: row.sale_id }));
+      .map((row) => ({
+        fiscalDocumentId: row.id,
+        saleId: row.sale_id,
+        reservedAt: new Date(row.reserved_at),
+        total: (JSON.parse(row.document) as FacturaC).total,
+      }));
   }
 
   private changeState(
@@ -196,6 +206,7 @@ export class SqliteRealTimeFiscalDocuments
     saleId,
     resolution,
     resolvedAt,
+    deferredSale,
   }: RealTimeAuthorizationResolved): void {
     this.refuseUnlessDocumentOfSale(fiscalDocumentId, saleId);
     this.changeState(
@@ -205,16 +216,8 @@ export class SqliteRealTimeFiscalDocuments
       resolvedAt,
       "the fiscal document is not waiting for an answer",
     );
-    if (resolution.state !== "AUTHORIZED") {
-      this.database
-        .prepare(
-          "INSERT INTO deferred_sales (sale_id, reason, routed_at) VALUES (@sale_id, @reason, @routed_at)",
-        )
-        .run({
-          sale_id: saleId,
-          reason: resolution.deferralReason,
-          routed_at: resolvedAt.toISOString(),
-        });
+    if (deferredSale !== null) {
+      insertDeferredSale(this.database, deferredSale);
     }
   }
 
