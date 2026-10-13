@@ -31,6 +31,7 @@ describe("ALERT_KINDS", () => {
       "refund_task",
       "fiscal_unknown",
       "fiscal_emission_stopped",
+      "outbox_chain_broken",
     ]);
   });
 });

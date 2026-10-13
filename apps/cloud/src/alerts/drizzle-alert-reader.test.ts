@@ -12,6 +12,7 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleAlertReader } from "./drizzle-alert-reader.js";
 
@@ -347,6 +348,22 @@ describe("DrizzleAlertReader listVisibleAlerts", () => {
     );
   });
 
+  it("finds a sync device's alert by the name of its installation's register", async () => {
+    const named = await insertEnrolledInstallation(db, { now: NOON, registerName: "Caja Lucía" });
+    const other = await insertEnrolledInstallation(db, { now: NOON, registerName: "Caja 2" });
+    const byDevice = await insertAlert({ kind: "outbox_chain_broken", scope: named.deviceId });
+    await insertAlert({ kind: "outbox_chain_broken", scope: other.deviceId });
+    const reader = new DrizzleAlertReader(db);
+
+    const page = await reader.listVisibleAlerts(
+      ALL,
+      { search: { text: "lucía", kindsWithMatchingTitle: [] } },
+      1,
+    );
+
+    expect(page.alerts.map((a) => a.id)).toEqual([byDevice]);
+  });
+
   it("finds a register's fortnight alert by the register's name", async () => {
     const [register] = await db
       .insert(registers)
@@ -456,6 +473,14 @@ describe("DrizzleAlertReader displayNames", () => {
 
     expect(names.get(userId)).toBe("Lucía Pérez");
     expect(names.get(register.id)).toBe("Caja 1");
+  });
+
+  it("maps an installation id to the name of its register", async () => {
+    const { deviceId } = await insertEnrolledInstallation(db, { now: NOON, registerName: "Caja 4" });
+
+    const names = await new DrizzleAlertReader(db).displayNames([deviceId]);
+
+    expect(names).toEqual(new Map([[deviceId, "Caja 4"]]));
   });
 
   it("names no register for a refund id", async () => {

@@ -39,7 +39,7 @@ export interface FakeInboxState {
   acceptedPushes: { deviceId: string; at: Date }[];
   everyCycleReports: { deviceId: string; at: Date }[];
   refusedPushes: { deviceId: string; events: readonly PushedEvent[]; refusedAt: Date }[];
-  brokenChainRevocations: { deviceId: string; revokedAt: Date }[];
+  brokenChainRevocations: { deviceId: string; refusedEventCount: number; revokedAt: Date }[];
 }
 
 export class FakeInbox implements Inbox {
@@ -144,9 +144,9 @@ export class FakeInbox implements Inbox {
         }
         working.refusedPushes.push({ deviceId, events: structuredClone(events), refusedAt });
       },
-      revokeForBrokenChain: async (deviceId, revokedAt) => {
+      revokeForBrokenChain: async (deviceId, refusedEventCount, revokedAt) => {
         this.calls.push(`revokeForBrokenChain ${deviceId}`);
-        working.brokenChainRevocations.push({ deviceId, revokedAt });
+        working.brokenChainRevocations.push({ deviceId, refusedEventCount, revokedAt });
       },
       outboxChainKey: async (deviceId) => {
         this.calls.push(`outboxChainKey ${deviceId}`);

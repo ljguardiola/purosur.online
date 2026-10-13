@@ -1051,6 +1051,38 @@ test("tells which event was applied with an inconsistency and what it breaks", a
     .toBeVisible();
 });
 
+test("tells which register sent events that do not match its chain and that the cloud revoked its installation", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "outbox_chain_broken",
+        scope: "installation-1",
+        scopeDisplay: "Caja 1",
+        scopeKind: "syncDevice",
+        detail: { deviceId: "installation-1", refusedEventCount: 3 },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Eventos de una caja alterados en su disco")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "La caja «Caja 1» envió eventos que no coinciden con su cadena: alguno se alteró, se quitó o se reordenó en el disco de la caja. La nube rechazó el envío y dio de baja la instalación.",
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+  await expect
+    .element(screen.getByText("No se cierra sola: se cierra a mano después de revisarla."))
+    .toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("shows an expiring ARCA certificate with the environment it is for and the day it expires", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(

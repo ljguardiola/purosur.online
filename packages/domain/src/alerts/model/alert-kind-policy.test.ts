@@ -57,6 +57,7 @@ describe("alertKindPolicy", () => {
     ["arca_wsaa_ticket_held", "warning", null, "all", "environment", true],
     ["events_quarantined", "warning", afterOpening, "all", "event", true],
     ["event_invariant_violated", "warning", afterOpening, "all", "event", true],
+    ["outbox_chain_broken", "warning", afterOpening, "all", "syncDevice", false],
     ["update_required", "critical", null, "all", "register", true],
     ["register_silent", "critical", null, "local", "register", true],
     ["sales_denied", "critical", null, "local", "register", true],
@@ -146,6 +147,7 @@ describe("alertClosing", () => {
       refund_task: "when_its_refund_is_done",
       fiscal_unknown: "when_its_document_is_resolved",
       fiscal_emission_stopped: "by_itself",
+      outbox_chain_broken: "by_hand",
     });
   });
 
@@ -207,5 +209,6 @@ describe("alertKindsWithScope", () => {
     ]);
     expect(alertKindsWithScope("refund")).toEqual(["late_payment_refund", "refund_task"]);
     expect(alertKindsWithScope("fiscalDocument")).toEqual(["fiscal_unknown"]);
+    expect(alertKindsWithScope("syncDevice")).toEqual(["outbox_chain_broken"]);
   });
 });

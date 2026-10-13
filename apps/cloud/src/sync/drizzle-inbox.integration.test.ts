@@ -331,7 +331,7 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
       .where(eq(registerInstallations.id, deviceId));
 
     await new DrizzleInbox(db, CIPHER, NO_JOB).transaction((tx) =>
-      tx.revokeForBrokenChain(deviceId, NOW),
+      tx.revokeForBrokenChain(deviceId, 1, NOW),
     );
 
     const [installation] = await db
