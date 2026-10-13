@@ -30,6 +30,7 @@ import type { RegistersListScreenServices } from "../register/registers-list-ser
 import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../sessions/session-api";
 import type { SignInScreenServices } from "../sessions/sign-in-services";
+import type { ExpiringLotsScreenServices } from "../stock/expiring-lots-services";
 import type { InitialInventoryScreenServices } from "../stock/initial-inventory-services";
 import type { StockBalancesScreenServices } from "../stock/stock-balances-services";
 import type { StockCountsScreenServices } from "../stock/stock-counts-services";
@@ -74,6 +75,7 @@ export type AppServices = {
   discountsListScreen: DiscountsListScreenServices;
   salesByDayScreen: SalesByDayScreenServices;
   pendingRefundsScreen: PendingRefundsScreenServices;
+  expiringLotsScreen: ExpiringLotsScreenServices;
   stockBalancesScreen: StockBalancesScreenServices;
   stockCountsScreen: StockCountsScreenServices;
   stockMovementsScreen: StockMovementsScreenServices;

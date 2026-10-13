@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   canPerformStockCounts,
   canRecordInitialInventory,
+  canSeeExpiringLots,
   canSeeStockBalances,
   canSeeStockMovements,
 } from "../shell/backoffice-access";
@@ -96,4 +97,13 @@ export const initialInventoryRoute = createRoute({
   validateSearch: initialInventoryFilters,
   search: { middlewares: [stripSearchParams(initialInventoryFilters.parse({}))] },
   component: lazyScreen(() => import("./initial-inventory-page"), "InitialInventoryPage"),
+});
+
+export const expiringLotsRoute = createRoute({
+  getParentRoute: () => stockAreaRoute,
+  path: "expiring-lots",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeExpiringLots),
+  validateSearch: expiringLotsFilters,
+  search: { middlewares: [stripSearchParams(expiringLotsFilters.parse({}))] },
+  component: lazyScreen(() => import("./expiring-lots-page"), "ExpiringLotsPage"),
 });

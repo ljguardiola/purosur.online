@@ -1,6 +1,7 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import {
   ArrowDownUp,
+  CalendarClock,
   ClipboardCheck,
   ClipboardList,
   Package,
@@ -16,6 +17,7 @@ import {
   canRecordInitialInventory,
   canRecordPurchases,
   canSeeAlertsArea,
+  canSeeExpiringLots,
   canSeeStockBalances,
   canSeeStockMovements,
 } from "./backoffice-access";
@@ -38,6 +40,7 @@ function StockArea() {
   const suppliersShown = Boolean(matchRoute({ to: "/suppliers" }));
   const packagingsShown = Boolean(matchRoute({ to: "/purchase-packagings" }));
   const purchasesShown = Boolean(matchRoute({ to: "/purchases", fuzzy: true }));
+  const expiringLotsShown = Boolean(matchRoute({ to: "/expiring-lots" }));
   const initialInventoryShown = Boolean(matchRoute({ to: "/initial-inventory" }));
   return (
     <AreaLayout
@@ -111,6 +114,17 @@ function StockArea() {
                   icon={<ShoppingCart />}
                   search={purchasesShown ? true : {}}
                   active={purchasesShown}
+                />
+              </li>
+            )}
+            {canSeeExpiringLots(session) && (
+              <li>
+                <SectionLink
+                  to="/expiring-lots"
+                  label="Vencimientos"
+                  icon={<CalendarClock />}
+                  search={expiringLotsShown ? true : {}}
+                  active={expiringLotsShown}
                 />
               </li>
             )}
