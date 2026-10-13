@@ -11,7 +11,8 @@ export type LoadingPlaceholderProps =
   | { variant: "form"; fields: number }
   | { variant: "card"; lines: number }
   | { variant: "list"; items: number }
-  | { variant: "rows"; rows: number };
+  | { variant: "rows"; rows: number }
+  | { variant: "pill" };
 
 function FormShapes({ fields }: { fields: number }) {
   return (
@@ -72,6 +73,15 @@ function RowShapes({ rows }: { rows: number }) {
   );
 }
 
+function PillShape() {
+  return (
+    <div
+      aria-hidden="true"
+      className="h-7 w-36 animate-placeholder-reveal rounded-full bg-surface-soft"
+    />
+  );
+}
+
 export function LoadingPlaceholder(props: LoadingPlaceholderProps) {
   return (
     <div>
@@ -80,6 +90,7 @@ export function LoadingPlaceholder(props: LoadingPlaceholderProps) {
       {props.variant === "card" && <CardShapes lines={props.lines} />}
       {props.variant === "list" && <ListShapes items={props.items} />}
       {props.variant === "rows" && <RowShapes rows={props.rows} />}
+      {props.variant === "pill" && <PillShape />}
     </div>
   );
 }

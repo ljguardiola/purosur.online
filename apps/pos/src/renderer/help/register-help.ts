@@ -3,6 +3,7 @@ import { defineHelp } from "@purosur/ui";
 export const help = defineHelp("es-AR", {
   categories: {
     sales: { label: "Ventas" },
+    payments: { label: "Cobros" },
   },
   articles: {
     "add-scanned-product": {
@@ -64,6 +65,145 @@ export const help = defineHelp("es-AR", {
         {
           kind: "note",
           text: "Un reembolso pendiente lo hace alguien fuera de la caja y lo marca como hecho en el backoffice.",
+        },
+      ],
+    },
+    "charge-on-point-terminal": {
+      category: "payments",
+      title: "Cobrar con la Point integrada",
+      body: [
+        {
+          kind: "paragraph",
+          text: "La Point integrada cobra con tarjeta o QR en la terminal, y necesita internet.",
+        },
+        {
+          kind: "steps",
+          items: [
+            "En Venta en curso, tocá Cobrar y elegí Point integrada.",
+            "Revisá el importe a cobrar con este medio. Si cobrás menos que el saldo pendiente, el resto queda para otro medio.",
+            "Tocá Enviar a la terminal. Desde ese momento el importe ya no se puede cambiar.",
+            "El cliente paga con tarjeta o QR en la terminal mientras la caja muestra la cuenta regresiva.",
+            "Cuando la caja muestra que el cliente pagó en la terminal, tocá Continuar.",
+          ],
+        },
+        {
+          kind: "note",
+          text: "Si queda saldo, la caja lo muestra en Falta cobrar y lo cobrás con otro medio.",
+        },
+        { kind: "heading", text: "Si algo no sale como esperabas" },
+        { kind: "articleLink", article: "point-payment-declined" },
+        { kind: "articleLink", article: "point-payment-not-credited" },
+        { kind: "articleLink", article: "change-method-with-point-charge" },
+        { kind: "articleLink", article: "point-terminal-offline" },
+        { kind: "articleLink", article: "point-below-minimum" },
+      ],
+    },
+    "point-payment-declined": {
+      category: "payments",
+      title: "Pago rechazado en la Point",
+      body: [
+        { kind: "heading", text: "Qué pasa" },
+        {
+          kind: "paragraph",
+          text: "La caja muestra que la terminal rechazó el pago: no se aprobó y no se cobró nada.",
+        },
+        { kind: "heading", text: "Qué hacer" },
+        {
+          kind: "steps",
+          items: [
+            "Tocá Elegir otro medio.",
+            "Volvé a intentar con la Point integrada o cobrá con otro medio.",
+          ],
+        },
+      ],
+    },
+    "point-payment-not-credited": {
+      category: "payments",
+      title: "Point que no se acredita a tiempo",
+      body: [
+        { kind: "heading", text: "Qué pasa" },
+        {
+          kind: "paragraph",
+          text: "La caja espera el pago mientras corre la cuenta regresiva. Si el cobro venció en la terminal, no se cobró nada. Si se termina el tiempo de espera y el cobro sigue en la terminal, hay que cancelarlo ahí.",
+        },
+        { kind: "heading", text: "Qué hacer" },
+        {
+          kind: "steps",
+          items: [
+            "Si el cobro venció, tocá Elegir otro medio y volvé a intentar con la Point o cobrá con otro medio.",
+            "Si se terminó el tiempo de espera, cancelá el cobro en la terminal.",
+            "Cuando la terminal confirma la cancelación, tocá Elegir otro medio.",
+          ],
+        },
+        {
+          kind: "note",
+          text: "Si el cliente llegó a pagar antes de la cancelación, la caja muestra que pagó en la terminal y el pago queda cobrado.",
+        },
+      ],
+    },
+    "change-method-with-point-charge": {
+      category: "payments",
+      title: "Cambiar de medio con un cobro en la Point",
+      body: [
+        { kind: "heading", text: "Qué pasa" },
+        {
+          kind: "paragraph",
+          text: "La caja no puede cancelar un cobro que ya está en la terminal: se cancela en la terminal misma.",
+        },
+        { kind: "heading", text: "Qué hacer" },
+        {
+          kind: "steps",
+          items: [
+            "Tocá Cambiar de medio. Si la terminal todavía no tomó el cobro, la caja lo cancela y volvés a elegir medio.",
+            "Si el cobro ya está en la terminal, la caja muestra Esperando la cancelación en la terminal: cancelalo en la terminal.",
+            "Cuando la terminal confirma la cancelación, se habilita Elegir otro medio.",
+          ],
+        },
+        {
+          kind: "note",
+          text: "Si el cliente llegó a pagar antes de la cancelación, la caja muestra que pagó en la terminal y el pago queda cobrado.",
+        },
+      ],
+    },
+    "point-terminal-offline": {
+      category: "payments",
+      title: "Point integrada sin conexión",
+      body: [
+        { kind: "heading", text: "Qué pasa" },
+        {
+          kind: "paragraph",
+          text: "La Point integrada necesita internet. Sin conexión aparece como No disponible sin conexión y no se puede elegir. Si la conexión se corta con un cobro ya en la terminal, la caja sigue mostrando el tiempo para pagar.",
+        },
+        {
+          kind: "paragraph",
+          text: "La caja avisa que no hay conexión con la nube cuando envió el cobro a la terminal pero no pudo confirmarlo con la nube, o cuando tocás Cambiar de medio y la cancelación no llega a la nube.",
+        },
+        { kind: "heading", text: "Qué hacer" },
+        {
+          kind: "steps",
+          items: [
+            "Sin conexión, cobrá con otro medio.",
+            "Si la caja avisa que no hay conexión con la nube, cancelá el cobro en la terminal y esperá a que vuelva la conexión.",
+          ],
+        },
+      ],
+    },
+    "point-below-minimum": {
+      category: "payments",
+      title: "Venta menor al mínimo de la Point",
+      body: [
+        { kind: "heading", text: "Qué pasa" },
+        {
+          kind: "paragraph",
+          text: "La Point integrada no acepta cobros menores a un mínimo. Si el saldo pendiente es menor, no aparece entre los medios y la caja avisa desde qué importe se ofrece. Si escribís un importe menor, la caja te avisa en el campo.",
+        },
+        { kind: "heading", text: "Qué hacer" },
+        {
+          kind: "steps",
+          items: [
+            "Si el saldo pendiente es menor al mínimo, cobralo con otro medio.",
+            "Si el saldo alcanza, cobrá con la Point al menos el mínimo y el resto con otro medio.",
+          ],
         },
       ],
     },
