@@ -152,7 +152,13 @@ describe("mercadoPagoChargeInProgress", () => {
         [pending("qr-1", "QR", OVER), pending("qr-2", "QR", WAIT_ENDS_AT)],
         new Date("2026-10-09T12:01:00.000Z"),
       ),
-    ).toEqual({ paymentTransactionId: "qr-2", method: "QR", amount: 3000, remainingSeconds: 120, waitSeconds: 180 });
+    ).toEqual({
+      paymentTransactionId: "qr-2",
+      method: "QR",
+      amount: 3000,
+      remainingSeconds: 120,
+      waitSeconds: 180,
+    });
   });
 
   it("names a pending terminal payment after its wait, with no time left", () => {
