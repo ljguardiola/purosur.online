@@ -2,9 +2,10 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   appliedMigrationNames,
+  applyMigrations,
   type LocalDatabase,
   type LocalMigration,
   openReadOnlyLocalDatabaseFile,
@@ -21,6 +22,7 @@ function databasePath(): string {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const folder of folders.splice(0)) {
     rmSync(folder, { recursive: true, force: true });
   }
@@ -28,13 +30,9 @@ afterEach(() => {
 
 function connectionSettings(database: LocalDatabase) {
   return Object.fromEntries(
-    [
-      "foreign_keys",
-      "synchronous",
-      "busy_timeout",
-      "wal_autocheckpoint",
-      "journal_size_limit",
-    ].map((name) => [name, database.pragma(name, { simple: true })]),
+    ["foreign_keys", "synchronous", "busy_timeout", "wal_autocheckpoint", "journal_size_limit"].map(
+      (name) => [name, database.pragma(name, { simple: true })],
+    ),
   );
 }
 
@@ -76,6 +74,20 @@ describe("the register's local database", () => {
     const reader = openReadOnlyLocalDatabaseFile(path);
 
     expect(connectionSettings(reader)).toEqual(DURABLE_CONNECTION);
+    expect(reader.pragma("journal_mode", { simple: true })).toBe("wal");
+    reader.close();
+  });
+
+  it("switches a file kept in a rollback journal to writing ahead to a log when it is migrated", () => {
+    const path = databasePath();
+    mkdirSync(join(path, ".."), { recursive: true });
+    const database = new Database(path);
+    database.pragma("journal_mode = DELETE");
+
+    applyMigrations(database, [FIRST], migrationClock);
+    database.close();
+
+    const reader = new Database(path, { readonly: true });
     expect(reader.pragma("journal_mode", { simple: true })).toBe("wal");
     reader.close();
   });
@@ -188,6 +200,21 @@ describe("the migrations a local database file already applied", () => {
 
     expect(appliedMigrationNames(path).sort()).toEqual(["0000_notes", "0001_note_authors"]);
     writer.close();
+  });
+
+  it("are read over a connection with the same settings as every other", () => {
+    const path = databasePath();
+    openLocalDatabase(path, [FIRST], migrationClock).close();
+    const closedConnections: Record<string, unknown>[] = [];
+    const close = Database.prototype.close;
+    vi.spyOn(Database.prototype, "close").mockImplementation(function (this: LocalDatabase) {
+      closedConnections.push(connectionSettings(this));
+      return close.call(this);
+    });
+
+    appliedMigrationNames(path);
+
+    expect(closedConnections).toEqual([DURABLE_CONNECTION]);
   });
 
   it("refuse a file that is not a database", () => {
