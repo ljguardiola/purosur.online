@@ -191,15 +191,19 @@ export type { PriceConfirmationBody } from "./pricing/price-confirmation.js";
 export { priceConfirmationBodySchema } from "./pricing/price-confirmation.js";
 export type {
   PriceCategory,
+  PriceCostReference,
   PriceList,
   PriceProduct,
   PriceRow,
 } from "./pricing/price-list.js";
 export {
   priceCategorySchema,
+  priceCostReferenceSchema,
   priceListSchema,
   priceProductSchema,
 } from "./pricing/price-list.js";
+export type { PriceMargin } from "./pricing/price-margin.js";
+export { priceMarginQuerySchema, priceMarginSchema } from "./pricing/price-margin.js";
 export type { PriceSetBody } from "./pricing/price-set.js";
 export { priceSetBodySchema } from "./pricing/price-set.js";
 export type { PackagingCreationBody } from "./purchasing/packaging-creation.js";

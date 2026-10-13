@@ -77,20 +77,19 @@ describe("priceProductSchema", () => {
     ).toBe(true);
   });
 
-  it.each([
-    "lastCostCents",
-    "freightPerUnitCents",
-    "totalCostCents",
-  ])("refuses a negative or fractional %s", (field) => {
-    for (const value of [-1, 0.5, "10", null]) {
-      expect(
-        priceProductSchema.safeParse({
-          ...priced,
-          costReference: { ...priced.costReference, [field]: value },
-        }).success,
-      ).toBe(false);
-    }
-  });
+  it.each(["lastCostCents", "freightPerUnitCents", "totalCostCents"])(
+    "refuses a negative or fractional %s",
+    (field) => {
+      for (const value of [-1, 0.5, "10", null]) {
+        expect(
+          priceProductSchema.safeParse({
+            ...priced,
+            costReference: { ...priced.costReference, [field]: value },
+          }).success,
+        ).toBe(false);
+      }
+    },
+  );
 
   it("accepts a zero cost", () => {
     expect(
@@ -110,17 +109,15 @@ describe("priceProductSchema", () => {
     ).toBe(false);
   });
 
-  it.each([
-    "lastCostCents",
-    "freightPerUnitCents",
-    "totalCostCents",
-    "marginTenthsOfPercent",
-  ])("requires %s in the cost reference", (field) => {
-    const { [field as keyof typeof priced.costReference]: _omitted, ...rest } =
-      priced.costReference;
+  it.each(["lastCostCents", "freightPerUnitCents", "totalCostCents", "marginTenthsOfPercent"])(
+    "requires %s in the cost reference",
+    (field) => {
+      const { [field as keyof typeof priced.costReference]: _omitted, ...rest } =
+        priced.costReference;
 
-    expect(priceProductSchema.safeParse({ ...priced, costReference: rest }).success).toBe(false);
-  });
+      expect(priceProductSchema.safeParse({ ...priced, costReference: rest }).success).toBe(false);
+    },
+  );
 
   it("accepts a product with a price and one without", () => {
     expect(priceProductSchema.safeParse(priced).data).toEqual(priced);
