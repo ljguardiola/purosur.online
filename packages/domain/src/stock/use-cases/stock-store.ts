@@ -72,6 +72,7 @@ export interface StockStoreTransaction {
   lotAllocationsAfter(key: ProductStockKey, at: Date): Promise<Map<string, number>>;
   recordCount(count: NewStockCount): Promise<void>;
   recordCountedLots(movementId: string, lots: readonly CountedLot[]): Promise<void>;
+  lotProduct(lotId: string, locationId: string): Promise<string | undefined>;
   productLots(key: ProductStockKey): Promise<StockLot[]>;
   openTechnicalLot(key: ProductStockKey): Promise<string>;
   recordLot(lot: NewLot): Promise<string>;

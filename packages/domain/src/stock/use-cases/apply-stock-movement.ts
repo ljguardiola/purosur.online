@@ -18,8 +18,9 @@ export async function applyStockMovement(
   tx: StockStoreTransaction,
   lockedBalance: number,
   movement: NewStockMovement,
+  allocation?: readonly PlannedLotAllocation[],
 ): Promise<AppliedStockMovement> {
-  const { movementId, balance } = await recordStockMovement(tx, movement);
+  const { movementId, balance } = await recordStockMovement(tx, movement, allocation);
   return {
     movementId,
     balance: balance ?? lockedBalance,
@@ -30,6 +31,7 @@ export async function applyStockMovement(
 export async function recordStockMovement(
   tx: StockStoreTransaction,
   movement: NewStockMovement,
+  allocation?: readonly PlannedLotAllocation[],
 ): Promise<{ movementId: string; balance: number | null }> {
   const movementId = await tx.recordMovement(movement);
   if (!movesBalance(movement)) {
@@ -37,8 +39,9 @@ export async function recordStockMovement(
   }
   const balance = await tx.addToBalance(movement, movement.delta);
   if (allocatesToLots(movement.kind)) {
-    const lots = await tx.productLots(movement);
-    await allocateToLots(tx, movement, movementId, movementAllocations(lots, movement.delta));
+    const planned =
+      allocation ?? movementAllocations(await tx.productLots(movement), movement.delta);
+    await allocateToLots(tx, movement, movementId, planned);
   }
   return { movementId, balance };
 }

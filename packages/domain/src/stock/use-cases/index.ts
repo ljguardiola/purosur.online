@@ -17,6 +17,11 @@ export type {
 export { applyRegisterStockMovements } from "./apply-register-stock-movements.js";
 export type { AppliedStockMovement } from "./apply-stock-movement.js";
 export type {
+  DiscardExpiredLotInput,
+  DiscardExpiredLotOutcome,
+} from "./discard-expired-lot.js";
+export { discardExpiredLot } from "./discard-expired-lot.js";
+export type {
   CountableLot,
   ExpectedBalanceAtInput,
   ExpectedBalanceAtOutcome,
