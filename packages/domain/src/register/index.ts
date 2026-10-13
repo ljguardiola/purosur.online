@@ -1,3 +1,10 @@
+export type { BatteryReading, BatteryReport } from "./model/battery.js";
+export {
+  BATTERY_READ_INTERVAL_MS,
+  batteryHealthPercent,
+  batteryReportOf,
+  nextOnBatterySince,
+} from "./model/battery.js";
 export { cashCountDifference } from "./model/cash-count.js";
 export type { CashMovementDirection } from "./model/cash-movement-direction.js";
 export {

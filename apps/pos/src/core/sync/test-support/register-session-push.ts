@@ -26,6 +26,7 @@ import {
   changeLineWeightFor,
   chargeSaleByTransferFor,
   chargeSaleInCashFor,
+  chargeSaleOnStandaloneTerminalFor,
   currentSaleFor,
   scanProductFor,
 } from "../../sales/sale-requests";
@@ -488,6 +489,33 @@ export async function withRegisterSession<TResult>(
       authorization: { user_id: GRACE, pin: PIN },
     });
     expectOutcome("cancel the part-paid sale authorized by PIN", cancelled.kind, "cancelled");
+    nextStep();
+    const onTerminal = await scanProductFor(deps(), "7790001000011");
+    if (onTerminal.kind !== "added") {
+      throw new Error(
+        `The register session's "scan a product to pay on the standalone terminal" ended as "${onTerminal.kind}"`,
+      );
+    }
+    nextStep();
+    const terminalDeposit = await chargeSaleOnStandaloneTerminalFor(deps(), {
+      saleId: onTerminal.sale.id,
+      amount: 700,
+    });
+    expectOutcome(
+      "pay part of a sale on the standalone terminal",
+      terminalDeposit.kind,
+      "partially_paid",
+    );
+    nextStep();
+    const cancelledOnTerminal = await cancelPaidSaleFor(deps(), {
+      saleId: onTerminal.sale.id,
+      authorization: { user_id: GRACE, pin: PIN },
+    });
+    expectOutcome(
+      "cancel the sale paid on the standalone terminal authorized by PIN",
+      cancelledOnTerminal.kind,
+      "cancelled",
+    );
     nextStep();
     const replacedScan = await scanProductFor(deps(), "7790001000028");
     if (replacedScan.kind !== "added") {

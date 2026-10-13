@@ -174,11 +174,6 @@ describe("CancelLockedPaidSaleModal", () => {
       { kind: "holds_mercado_pago_payment" },
       "La venta tiene un pago con Mercado Pago: todavía no se puede anular desde la caja.",
     ],
-    [
-      "the sale holds a standalone terminal payment",
-      { kind: "holds_standalone_terminal_payment" },
-      "La venta tiene un pago con la terminal independiente: todavía no se puede anular desde la caja.",
-    ],
   ])("keeps the modal open and says why when %s", async (_case, outcome, notice) => {
     const { dialog, onClose, onRefused, onCancelled } = await renderModal({
       cancelSale: async () => outcome,

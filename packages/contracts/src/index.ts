@@ -173,6 +173,8 @@ export {
   markedRefundDoneSchema,
   pendingRefundsSchema,
 } from "./payments/pending-refunds.js";
+export type { SalesByPaymentMethodBody } from "./payments/sales-by-payment-method.js";
+export { salesByPaymentMethodSchema } from "./payments/sales-by-payment-method.js";
 export type { PermissionCatalogWire } from "./permissions/permission-catalog.js";
 export { permissionCatalogSchema } from "./permissions/permission-catalog.js";
 export type { RegisterCoverageWire } from "./permissions/register-coverage.js";
@@ -332,6 +334,8 @@ export {
   registerVersionSchema,
   registerVersionText,
 } from "./register/register-update.js";
+export type { ReportRegisterListBody } from "./register/report-register-list.js";
+export { reportRegisterListSchema } from "./register/report-register-list.js";
 export type {
   CancelLockedSaleOutcome,
   ReceiptPrintStatusOutcome,
@@ -382,16 +386,8 @@ export type {
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
 } from "./sales/sales-history.js";
-export type {
-  ReportRegisterListBody,
-  SalesReportBody,
-  SalesReportQuery,
-} from "./sales/sales-report.js";
-export {
-  reportRegisterListSchema,
-  salesReportQuerySchema,
-  salesReportSchema,
-} from "./sales/sales-report.js";
+export type { SalesReportBody } from "./sales/sales-report.js";
+export { salesReportSchema } from "./sales/sales-report.js";
 export type {
   SessionsCoreToRendererMessage,
   SessionsRendererToCoreMessage,
@@ -418,6 +414,7 @@ export type {
   IssuerIdentificationBody,
   OpenCashSession,
   PinAttemptRefusal,
+  ReportQuery,
   SignInUser,
 } from "./shared/index.js";
 export {
@@ -435,6 +432,7 @@ export {
   PIN_HASH_SCHEME,
   pinAttemptRefusalSchema,
   recordIdSchema,
+  reportQuerySchema,
   reportsFailedQuery,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
@@ -469,6 +467,12 @@ export {
   initialInventoryLotsQuerySchema,
   lotReferenceCostBodySchema,
 } from "./stock/initial-inventory-lots.js";
+export type { RecipeSaveBody } from "./stock/recipe-save-body.js";
+export { recipeSaveBodySchema } from "./stock/recipe-save-body.js";
+export type { RecipeSaveRefusal } from "./stock/recipe-save-refusal.js";
+export { recipeSaveRefusalSchema } from "./stock/recipe-save-refusal.js";
+export type { RecipeList, RecipeSummary } from "./stock/recipe-summary.js";
+export { recipeListSchema, recipeSummarySchema } from "./stock/recipe-summary.js";
 export type {
   StockBalance,
   StockBalanceList,
@@ -514,6 +518,7 @@ export { syncCoreToRendererMessageSchema } from "./sync/core-messages.js";
 export type { EventQuarantineReason } from "./sync/event-quarantine-reason.js";
 export type { PushEventsRequest, PushEventsResponse } from "./sync/events.js";
 export {
+  MALFORMED_BATTERY_REPORT,
   PUSH_EVENTS_REQUEST_MAX_BYTES,
   pushEventsRequestSchema,
   pushEventsResponseSchema,
