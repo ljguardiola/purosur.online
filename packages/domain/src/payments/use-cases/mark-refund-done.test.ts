@@ -12,8 +12,10 @@ const PENDING: FakeStoredRefund = {
   locationId: "branch-1",
   state: "PENDING",
   origin: "sale_cancelled",
+  method: "TRANSFER",
 };
-const LATE_PAYMENT: FakeStoredRefund = { ...PENDING, origin: "late_payment" };
+const LATE_PAYMENT: FakeStoredRefund = { ...PENDING, origin: "late_payment", method: "QR" };
+const QR_OF_CANCELLED_SALE: FakeStoredRefund = { ...PENDING, method: "QR" };
 
 function mark(store: FakeRefundStore, input: { refundId?: string; locationId?: string } = {}) {
   return markRefundDone(
@@ -143,5 +145,20 @@ describe("markRefundDone", () => {
     await expect(mark(store)).rejects.toThrow("recordRefundDone failed");
 
     expect(store.refunds).toEqual([PENDING]);
+  });
+
+  it("refuses to mark done a refund of a cancelled sale paid by QR, which the cloud sends to Mercado Pago, leaving it as it was", async () => {
+    const store = new FakeRefundStore([{ ...QR_OF_CANCELLED_SALE }]);
+
+    expect(await mark(store)).toEqual({ kind: "sent_by_cloud" });
+    expect(store.refunds).toEqual([QR_OF_CANCELLED_SALE]);
+    expect(store.resolvedAlerts).toEqual([]);
+    expect(store.operationOrder).toEqual(["lockRefund"]);
+  });
+
+  it("still marks done the late-payment refund of a QR payment, which a person carries out", async () => {
+    const store = new FakeRefundStore([{ ...LATE_PAYMENT }]);
+
+    expect((await mark(store)).kind).toBe("marked_done");
   });
 });

@@ -20,6 +20,10 @@ const TRANSFER_REFUND: FakePendingRefund = {
   providerOrderId: null,
   cancelledBy: "cashier",
   cancelledByName: "Lucia",
+  confirmedAt: null,
+  confirmedByName: null,
+  sentAt: null,
+  lastRefusalReason: null,
   locationId: "branch-1",
 };
 
@@ -34,7 +38,9 @@ describe("listPendingRefunds", () => {
     const refunds = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
 
     const { locationId: _branch, ...listed } = TRANSFER_REFUND;
-    expect(refunds).toEqual([{ ...listed, discardable: false, secondsPending: 11_730 }]);
+    expect(refunds).toEqual([
+      { ...listed, discardable: false, sentByCloud: false, secondsPending: 11_730 },
+    ]);
     expect(store.pendingReads).toEqual(["branch-1"]);
   });
 
@@ -120,5 +126,37 @@ describe("listPendingRefunds", () => {
       saleOccurredAt: new Date("2026-10-07T12:00:00.000Z"),
       coveredBy: ["CASH", "TRANSFER"],
     });
+  });
+
+  it("lists a refund of a cancelled sale paid by QR as one the cloud sends, with how far it got", async () => {
+    const confirmedAt = new Date("2026-10-07T16:00:00.000Z");
+    const qr: FakePendingRefund = {
+      ...TRANSFER_REFUND,
+      method: "QR",
+      confirmedAt,
+      confirmedByName: "Lucia",
+      sentAt: new Date("2026-10-07T16:00:02.000Z"),
+      lastRefusalReason: "insufficient_balance",
+    };
+    const store = new FakeRefundStore([], [TRANSFER_REFUND, qr]);
+
+    const refunds = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
+
+    expect(refunds.map(({ sentByCloud }) => sentByCloud)).toEqual([false, true]);
+    expect(refunds[1]).toMatchObject({
+      confirmedAt,
+      confirmedByName: "Lucia",
+      sentAt: new Date("2026-10-07T16:00:02.000Z"),
+      lastRefusalReason: "insufficient_balance",
+    });
+  });
+
+  it("does not list a late-payment refund of a QR payment as one the cloud sends", async () => {
+    const late: FakePendingRefund = { ...TRANSFER_REFUND, method: "QR", origin: "late_payment" };
+    const store = new FakeRefundStore([], [late]);
+
+    const [refund] = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
+
+    expect(refund?.sentByCloud).toBe(false);
   });
 });
