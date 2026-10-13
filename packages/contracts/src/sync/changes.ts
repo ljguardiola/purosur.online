@@ -248,6 +248,12 @@ const stockMovementChangeSchema = z.object({
   }),
 });
 
+const refundCompletionChangeSchema = z.object({
+  ...pulledChangeShape,
+  entity: z.literal("refund_completion"),
+  row: z.object({ done_by: z.uuid(), done_at: z.iso.datetime() }),
+});
+
 const removalChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("removal"),
@@ -287,6 +293,7 @@ export const changesPageSchema = z.object({
         offlineNumberBlockChangeSchema,
         buyerTaxStatusSetChangeSchema,
         stockMovementChangeSchema,
+        refundCompletionChangeSchema,
         removalChangeSchema,
       ]),
     )
