@@ -7,8 +7,9 @@ import { registerFortnightScope } from "./register-fortnight-scope.js";
 const SCOPE = "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6";
 const ACTOR_ID = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
 
-const kindsScopedTo = (scopeKind: "user" | "register" | "sourceAddress" | "event" | "refund") =>
-  ALERT_KINDS.filter((kind) => alertKindPolicy(kind).scopeKind === scopeKind);
+const kindsScopedTo = (
+  scopeKind: "user" | "register" | "sourceAddress" | "event" | "refund" | "syncDevice",
+) => ALERT_KINDS.filter((kind) => alertKindPolicy(kind).scopeKind === scopeKind);
 
 describe("alertNamedRecordIds", () => {
   it("names the scope of an alert scoped to a user or a register", () => {
@@ -96,6 +97,16 @@ describe("alertScopeRecordId", () => {
       expect(alertScopeRecordId({ kind, scope: SCOPE })).toBeUndefined();
     }
     expect(alertScopeRecordId({ kind: "retired_kind", scope: SCOPE })).toBeUndefined();
+  });
+});
+
+describe("a sync device scope", () => {
+  it("names the installation of the scope, whose register's name is shown", () => {
+    expect(kindsScopedTo("syncDevice")).toEqual(["events_quarantined", "outbox_chain_broken"]);
+    for (const kind of kindsScopedTo("syncDevice")) {
+      expect(alertScopeRecordId({ kind, scope: SCOPE })).toBe(SCOPE);
+      expect(alertNamedRecordIds({ kind, scope: SCOPE })).toEqual([SCOPE]);
+    }
   });
 });
 
