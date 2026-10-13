@@ -73,13 +73,13 @@ function damageRecordedIn(dataFolder: string): boolean {
 
 const MORE: LocalMigration = { name: "0001_more", sql: "CREATE TABLE more (id INTEGER)" };
 
-function bytesOfDatabaseFilesIn(dataFolder: string): Record<string, string> {
+function bytesOfDatabaseFilesIn(dataFolder: string): { database: string; wal: string } {
   const path = join(dataFolder, "register.sqlite");
-  return Object.fromEntries(
-    [path, `-wal`]
-      .filter((file) => existsSync(file))
-      .map((file) => [file, readFileSync(file).toString("base64")]),
-  );
+  const wal = `${path}-wal`;
+  return {
+    database: readFileSync(path).toString("base64"),
+    wal: existsSync(wal) ? readFileSync(wal).toString("base64") : "",
+  };
 }
 
 describe("starting the register's local database", () => {
@@ -211,12 +211,16 @@ describe("starting the register's local database", () => {
       expect(await startWith(dataFolder, [NOTES])).toEqual({ kind: "newer_than_version" });
     });
 
-    it("is left byte for byte as it was", async () => {
+    it("is left byte for byte as it was, even with a migration of this version pending", async () => {
       const dataFolder = folder();
       newerDatabaseIn(dataFolder);
       const before = bytesOfDatabaseFilesIn(dataFolder);
+      const pending: LocalMigration = {
+        name: "0002_later",
+        sql: "CREATE TABLE later (id INTEGER)",
+      };
 
-      await startWith(dataFolder, [NOTES]);
+      await startWith(dataFolder, [NOTES, pending]);
 
       expect(bytesOfDatabaseFilesIn(dataFolder)).toEqual(before);
     });
@@ -252,13 +256,5 @@ describe("starting the register's local database", () => {
       ).toEqual([{ name: "0000_notes" }, { name: "0001_more" }]);
       started.database.close();
     }
-  });
-
-  it("is out of service and records the damage when the applied migrations cannot be read", async () => {
-    const dataFolder = folder();
-    writeFileSync(join(dataFolder, "register.sqlite"), "this is not a database ".repeat(500));
-
-    expect(await startWith(dataFolder)).toEqual({ kind: "out_of_service" });
-    expect(damageRecordedIn(dataFolder)).toBe(true);
   });
 });

@@ -375,6 +375,19 @@ describe("createCoreSupervisor", () => {
       expect(processes[0]?.killed).toBe(false);
     });
 
+    it("no longer holds once the supervisor is stopped and started again", () => {
+      const onStatusChange = vi.fn();
+      const { supervisor, processes } = setUp({ onStatusChange });
+
+      supervisor.start();
+      refuse(processes[0]);
+      supervisor.stop();
+      supervisor.start();
+      processes[1]?.becomeReady();
+
+      expect(onStatusChange).toHaveBeenLastCalledWith("up");
+    });
+
     it("needs no onRefused dependency", () => {
       const { supervisor, processes } = setUp();
 
