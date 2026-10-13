@@ -11,6 +11,8 @@ const QR_CHARGE_IN_PROGRESS_MESSAGE =
   "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.";
 const HOLDS_MERCADO_PAGO_PAYMENT_MESSAGE =
   "La venta tiene un pago con Mercado Pago: todavía no se puede anular desde la caja.";
+const HOLDS_STANDALONE_TERMINAL_PAYMENT_MESSAGE =
+  "La venta tiene un pago con la terminal independiente: todavía no se puede anular desde la caja.";
 
 type Refusal = Extract<
   CancelLockedSaleOutcome,
@@ -69,6 +71,9 @@ export function CancelLockedPaidSaleModal({
         break;
       case "holds_mercado_pago_payment":
         setNotice(HOLDS_MERCADO_PAGO_PAYMENT_MESSAGE);
+        break;
+      case "holds_standalone_terminal_payment":
+        setNotice(HOLDS_STANDALONE_TERMINAL_PAYMENT_MESSAGE);
         break;
       case "unavailable":
         setNotice(FAILED_MESSAGE);

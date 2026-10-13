@@ -19,7 +19,8 @@ type Amounts =
   | { total: number; tendered: number; change: number }
   | { total: number; method: "TRANSFER"; amount: number }
   | { total: number; method: "QR"; amount: number }
-  | { total: number; method: "POINT"; amount: number };
+  | { total: number; method: "POINT"; amount: number }
+  | { total: number; method: "STANDALONE_TERMINAL"; amount: number };
 
 type Overrides = {
   readReceiptStatus?: () => Promise<ReceiptPrintStatusOutcome>;
@@ -114,6 +115,22 @@ describe("SaleCompletedModal", () => {
     await expect.element(screen.getByText("$ 4.760,00")).toBeVisible();
     await expect.element(screen.getByText("VUELTO", { exact: true })).not.toBeInTheDocument();
     await expect.element(screen.getByText("Efectivo entregado")).not.toBeInTheDocument();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("says there is no change to hand over and shows what the standalone terminal charged", async () => {
+    const { screen } = await renderModal({
+      total: 476_000,
+      method: "STANDALONE_TERMINAL",
+      amount: 300_000,
+    });
+
+    await expect
+      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
+      .toBeVisible();
+    await expect.element(screen.getByText("Terminal independiente", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("$ 3.000,00")).toBeVisible();
+    await expect.element(screen.getByText("$ 4.760,00")).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
 
