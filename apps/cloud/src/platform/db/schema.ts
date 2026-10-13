@@ -1340,6 +1340,7 @@ export const paymentRefunds = pgTable(
     saleId: uuid("sale_id").notNull(),
     paymentId: uuid("payment_id"),
     paymentTransactionId: uuid("payment_transaction_id").references(() => paymentTransactions.id),
+    originEventId: uuid("origin_event_id"),
     providerOrderId: text("provider_order_id"),
     origin: text("origin").notNull().default("sale_cancelled"),
     method: text("method").notNull(),
@@ -1373,8 +1374,8 @@ export const paymentRefunds = pgTable(
       sql`${table.origin} in ('sale_cancelled', 'late_payment')`,
     ),
     check(
-      "payment_refunds_one_source_check",
-      sql`(${table.paymentId} is null) <> (${table.paymentTransactionId} is null)`,
+      "payment_refunds_source_check",
+      sql`(${table.origin} = 'late_payment' and ${table.paymentId} is null and ${table.paymentTransactionId} is not null and ${table.originEventId} is null) or (${table.origin} = 'sale_cancelled' and ${table.paymentId} is not null)`,
     ),
     check(
       "payment_refunds_done_check",

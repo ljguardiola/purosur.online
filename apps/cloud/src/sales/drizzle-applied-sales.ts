@@ -59,6 +59,7 @@ async function recordSaleParts<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
   sale: AppliedSale,
   refundAuthorizedBy: string | null,
+  originEventId: string | null,
 ): Promise<void> {
   const { lines, payments, cashMovements: movements } = sale;
   if (lines.length > 0) {
@@ -76,7 +77,14 @@ async function recordSaleParts<TQueryResult extends PgQueryResultHKT>(
   if ("refunds" in sale) {
     await tx
       .insert(paymentRefunds)
-      .values(sale.refunds.map((refund) => ({ ...refund, saleId: sale.id })));
+      .values(
+        sale.refunds.map((refund) => ({
+          ...refund,
+          saleId: sale.id,
+          paymentTransactionId: refund.method === "QR" ? refund.paymentId : null,
+          originEventId,
+        })),
+      );
   }
   if (movements.length > 0) {
     await tx.insert(cashMovements).values(
@@ -114,13 +122,14 @@ export async function recordAppliedSale<TQueryResult extends PgQueryResultHKT>(
     state: "COMPLETED",
     appliedAt,
   });
-  await recordSaleParts(tx, sale, null);
+  await recordSaleParts(tx, sale, null, null);
 }
 
 export async function recordAppliedCancelledSale<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
   origin: AppliedOrigin,
   { sale }: Extract<SyncedFact, { kind: "sale_cancelled" }>,
+  eventId: string,
   appliedAt: Date,
 ): Promise<void> {
   await tx.insert(sales).values({
@@ -135,5 +144,5 @@ export async function recordAppliedCancelledSale<TQueryResult extends PgQueryRes
     cancellationAuthorizedBy: sale.authorizedBy,
     appliedAt,
   });
-  await recordSaleParts(tx, sale, sale.authorizedBy);
+  await recordSaleParts(tx, sale, sale.authorizedBy, eventId);
 }

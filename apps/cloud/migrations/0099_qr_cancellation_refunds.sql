@@ -1,0 +1,3 @@
+ALTER TABLE "payment_refunds" DROP CONSTRAINT "payment_refunds_one_source_check";--> statement-breakpoint
+ALTER TABLE "payment_refunds" ADD COLUMN "origin_event_id" uuid;--> statement-breakpoint
+ALTER TABLE "payment_refunds" ADD CONSTRAINT "payment_refunds_source_check" CHECK (("payment_refunds"."origin" = 'late_payment' and "payment_refunds"."payment_id" is null and "payment_refunds"."payment_transaction_id" is not null and "payment_refunds"."origin_event_id" is null) or ("payment_refunds"."origin" = 'sale_cancelled' and "payment_refunds"."payment_id" is not null));
