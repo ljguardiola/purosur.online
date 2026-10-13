@@ -37,9 +37,9 @@ export const RECIPE_FIELDS = { components: "components", version: null } as cons
 export const RECIPE_PRODUCT_REQUIRED = "Elegí el producto armado.";
 export const RECIPE_PRODUCT_NOT_FOUND = "Este producto ya no está disponible. Elegí otro.";
 export const RECIPE_NO_COMPONENTS = "Agregá al menos un componente.";
-export const RECIPE_COMPONENT_NOT_FOUND = "Este componente ya no está disponible. Quitalo.";
-export const RECIPE_COMPONENT_REPEATED = "Este componente está repetido.";
-export const RECIPE_COMPONENT_IS_PRODUCT =
+const RECIPE_COMPONENT_NOT_FOUND = "Este componente ya no está disponible. Quitalo.";
+const RECIPE_COMPONENT_REPEATED = "Este componente está repetido.";
+const RECIPE_COMPONENT_IS_PRODUCT =
   "El producto armado no puede ser componente de su propia receta.";
 
 type ProductOption = { value: string; label: string };
@@ -64,7 +64,7 @@ export function recipeProductOptions(
 export function recipeComponentOptions(
   products: RecipeList["products"],
   assembledProductId: string | null,
-  components: readonly RecipeComponentValues[],
+  components: readonly Pick<RecipeComponentValues, "productId">[],
 ): ProductOption[] {
   const taken = new Set([
     assembledProductId,

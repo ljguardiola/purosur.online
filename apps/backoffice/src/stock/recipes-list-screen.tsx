@@ -106,7 +106,7 @@ export function RecipesListScreen({
       id: "lastBatch",
       header: "Costo de la última tanda",
       align: "end",
-      render: () => <TableCellText tone="subtle">Sin tandas</TableCellText>,
+      render: (_item: RecipeSummary) => <TableCellText tone="subtle">Sin tandas</TableCellText>,
     }),
     actionsColumn({
       id: "actions",

@@ -3,7 +3,7 @@ import type { RecipeList, RecipeSummary } from "@purosur/contracts";
 export const almendras = { id: "c0000000-0000-4000-8000-000000000001", name: "Almendras" };
 export const nueces = { id: "c0000000-0000-4000-8000-000000000002", name: "Nueces" };
 export const mani = { id: "c0000000-0000-4000-8000-000000000003", name: "Maní" };
-export const pasas = { id: "c0000000-0000-4000-8000-000000000004", name: "Pasas" };
+const pasas = { id: "c0000000-0000-4000-8000-000000000004", name: "Pasas" };
 export const teVerde = { id: "c0000000-0000-4000-8000-000000000005", name: "Té verde" };
 export const miel = { id: "c0000000-0000-4000-8000-000000000006", name: "Miel pura 1 kg" };
 
@@ -56,7 +56,7 @@ export const avenaConPasas = {
   saleUnit: "KG",
 } as const;
 
-export const cajaDeRegalo = {
+const cajaDeRegalo = {
   id: "a0000000-0000-4000-8000-000000000004",
   name: "Caja de regalo",
   saleUnit: "UNIT",
