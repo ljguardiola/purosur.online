@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
-import { appliedMigrationNames, type LocalMigration } from "./local-database";
+import {
+  appliedMigrationNames,
+  type LocalDatabase,
+  type LocalMigration,
+  openReadOnlyLocalDatabaseFile,
+} from "./local-database";
 import { migrationClock } from "./test-support/migration-clock";
 import { openLocalDatabase } from "./test-support/open-local-database";
 
@@ -21,6 +26,26 @@ afterEach(() => {
   }
 });
 
+function connectionSettings(database: LocalDatabase) {
+  return Object.fromEntries(
+    [
+      "foreign_keys",
+      "synchronous",
+      "busy_timeout",
+      "wal_autocheckpoint",
+      "journal_size_limit",
+    ].map((name) => [name, database.pragma(name, { simple: true })]),
+  );
+}
+
+const DURABLE_CONNECTION = {
+  foreign_keys: 1,
+  synchronous: 2,
+  busy_timeout: 5000,
+  wal_autocheckpoint: 1000,
+  journal_size_limit: 67_108_864,
+};
+
 const FIRST: LocalMigration = {
   name: "0000_notes",
   sql: "CREATE TABLE notes (id INTEGER PRIMARY KEY, body TEXT NOT NULL);",
@@ -36,6 +61,23 @@ describe("the register's local database", () => {
 
     expect(database.pragma("journal_mode", { simple: true })).toBe("wal");
     database.close();
+  });
+
+  it("opens a connection that keeps a confirmed transaction through a power cut and bounds its log", () => {
+    const database = openLocalDatabase(databasePath(), [FIRST], migrationClock);
+
+    expect(connectionSettings(database)).toEqual(DURABLE_CONNECTION);
+    database.close();
+  });
+
+  it("opens a read-only connection with the same settings, over a file in write-ahead mode", () => {
+    const path = databasePath();
+    openLocalDatabase(path, [FIRST], migrationClock).close();
+    const reader = openReadOnlyLocalDatabaseFile(path);
+
+    expect(connectionSettings(reader)).toEqual(DURABLE_CONNECTION);
+    expect(reader.pragma("journal_mode", { simple: true })).toBe("wal");
+    reader.close();
   });
 
   it("applies every migration once, in the order of their names", () => {
