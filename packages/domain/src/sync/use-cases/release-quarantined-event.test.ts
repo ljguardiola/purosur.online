@@ -81,21 +81,51 @@ describe("releasing a quarantined event", () => {
     ]);
   });
 
-  it("resolves the quarantine alert of that event only", async () => {
-    const { application, releaseWith } = setup([quarantined(), quarantined({ eventId: "other" })]);
-    application.state.quarantineAlerts = ["stuck", "other"].map((eventId) => ({
-      deviceId: "device-1",
-      eventId,
-      eventType: "cash_session_opened",
-      aggregateType: "CashSession",
-      aggregateId: "session-1",
-      reason: { kind: "not_recorded" },
-    }));
+  it("records the device's quarantine as cleared when its last quarantined event is released", async () => {
+    const { application, releaseWith } = setup([quarantined()]);
 
     await releaseWith("stuck");
 
-    expect(application.state.resolvedQuarantineAlerts).toEqual(["stuck"]);
-    expect(application.state.quarantineAlerts.map((alert) => alert.eventId)).toEqual(["other"]);
+    expect(application.state.clearedDeviceQuarantines).toEqual(["device-1"]);
+  });
+
+  it("records nothing as cleared while another event of the device, of any aggregate, stays quarantined", async () => {
+    const { application, release, releaseWith } = setup([
+      quarantined(),
+      quarantined({ eventId: "other", aggregateId: "session-2" }),
+    ]);
+
+    await releaseWith("stuck");
+
+    expect(application.state.clearedDeviceQuarantines).toEqual([]);
+    expect(release.calls).toContain("check quarantined events of device-1");
+  });
+
+  it("records the quarantine as cleared when the only other quarantined events are of another device", async () => {
+    const { application, releaseWith } = setup([
+      quarantined(),
+      quarantined({ eventId: "other", deviceId: "device-2" }),
+    ]);
+
+    await releaseWith("stuck");
+
+    expect(application.state.clearedDeviceQuarantines).toEqual(["device-1"]);
+  });
+
+  it("does not count events of the device that were applied or are only retrying as quarantined", async () => {
+    const { application, releaseWith } = setup([
+      quarantined(),
+      aStoredEvent({
+        eventId: "applied",
+        appliedAt: QUARANTINED_AT,
+        quarantinedAt: QUARANTINED_AT,
+      }),
+      aStoredEvent({ eventId: "retrying", attempts: 3, nextAttemptAt: NOW }),
+    ]);
+
+    await releaseWith("stuck");
+
+    expect(application.state.clearedDeviceQuarantines).toEqual(["device-1"]);
   });
 
   it("looks the event up inside the branch, waits for its aggregate, then locks the event, and only then changes anything", async () => {
@@ -110,7 +140,9 @@ describe("releasing a quarantined event", () => {
       "lock event stuck",
       "release stuck",
       "record release of stuck",
-      "resolve alert of stuck",
+      "lock quarantines of device-1",
+      "check quarantined events of device-1",
+      "record quarantine of device-1 cleared",
       "commit",
     ]);
   });
@@ -159,9 +191,10 @@ describe("releasing a quarantined event", () => {
     expect(outcome).toEqual({ kind: "not_quarantined" });
     expect(application.event("stuck")).toEqual(event);
     expect(application.state.releases).toEqual([]);
-    expect(application.state.resolvedQuarantineAlerts).toEqual([]);
+    expect(application.state.clearedDeviceQuarantines).toEqual([]);
     expect(release.calls.at(-1)).toBe("commit");
     expect(release.calls.filter((call) => call.startsWith("release "))).toEqual([]);
+    expect(release.calls.filter((call) => call.includes("quarantines of"))).toEqual([]);
   });
 
   it("rolls back everything when recording the release fails", async () => {
@@ -176,12 +209,12 @@ describe("releasing a quarantined event", () => {
     expect(release.calls.at(-1)).toBe("rollback");
   });
 
-  it("rolls back the release when resolving the alert fails", async () => {
+  it("rolls back the release when recording the device's quarantine as cleared fails", async () => {
     const event = quarantined();
     const { application, release, releaseWith } = setup([structuredClone(event)]);
-    release.failResolvingAlert = true;
+    release.failRecordingQuarantineCleared = true;
 
-    await expect(releaseWith("stuck")).rejects.toThrow("alert store unavailable");
+    await expect(releaseWith("stuck")).rejects.toThrow("quarantine store unavailable");
 
     expect(application.event("stuck")).toEqual(event);
     expect(application.state.releases).toEqual([]);
@@ -240,10 +273,10 @@ describe("what a release does to the events applied after it", () => {
     expect(application.appliedEventIds).toEqual(["stuck", "second", "third"]);
   });
 
-  it("quarantines a released event again after a full new series of failures and opens its alert again", async () => {
+  it("quarantines a released event again after a full new series of failures and records its quarantine again", async () => {
     const { application, releaseWith } = setup([quarantined(), laterMovement("second", 2)]);
     const unreadable = new FakeEventUpcaster({ second: A_CASH_MOVEMENT_FACT });
-    application.state.quarantineAlerts = [];
+    application.state.quarantines = [];
     await releaseWith("stuck");
 
     const attemptsAfterEachRun: number[] = [];
@@ -263,7 +296,9 @@ describe("what a release does to the events applied after it", () => {
     expect(attemptsAfterEachRun).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(namedAfterEachRun).toEqual([[], [], [], [], [], [], [], ["stuck"]]);
     expect(application.event("stuck").quarantinedAt).not.toBeNull();
-    expect(application.state.quarantineAlerts.map((alert) => alert.eventId)).toEqual(["stuck"]);
+    expect(application.state.quarantines.map((quarantine) => quarantine.eventId)).toEqual([
+      "stuck",
+    ]);
     expect(application.appliedEventIds).toEqual([]);
   });
 });

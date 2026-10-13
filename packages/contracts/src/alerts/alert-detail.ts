@@ -8,7 +8,6 @@ import {
   SALES_DENIED_REASONS,
 } from "@purosur/domain";
 import { z } from "zod";
-import { eventQuarantineReasonSchema } from "../shared/index.js";
 import { alertAudienceSchema, alertLevelSchema } from "./alert-summary.js";
 
 const alertDeliverySchema = z.object({
@@ -102,11 +101,6 @@ const registerEnrolledDetailSchema = z.object({
 
 const eventsQuarantinedDetailSchema = z.object({
   deviceId: z.string(),
-  eventId: z.string(),
-  eventType: z.string(),
-  aggregateType: z.string(),
-  aggregateId: z.string(),
-  reason: eventQuarantineReasonSchema,
 });
 
 const eventInvariantViolatedDetailSchema = z.object({
@@ -177,6 +171,10 @@ const fiscalUnknownDetailSchema = z.object({
 const fiscalEmissionStoppedDetailSchema = z.object({
   deviceId: z.string(),
   reason: z.enum(PRE_EMISSION_GATE_FAILURE_REASONS),
+});
+
+const outboxChainBrokenDetailSchema = z.object({
+  deviceId: z.string(),
 });
 
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
@@ -291,6 +289,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("fiscal_emission_stopped" satisfies AlertKind),
     detail: fiscalEmissionStoppedDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("outbox_chain_broken" satisfies AlertKind),
+    detail: outboxChainBrokenDetailSchema,
   }),
 ] as const;
 

@@ -7,7 +7,7 @@ const ALERT_KIND_DESCRIPTIONS = {
   backoffice_sign_in_lockout: "Demasiados intentos fallidos de ingreso",
   user_access_increased: "Se amplió el acceso de un usuario",
   register_enrolled: "Se dio de alta una caja",
-  events_quarantined: "Evento de una caja en cuarentena",
+  events_quarantined: "Eventos de una caja en cuarentena",
   event_invariant_violated: "Evento aplicado con una inconsistencia",
   arca_certificate_expiring: "El certificado de ARCA está por vencer",
   arca_wsaa_ticket_held:
@@ -21,6 +21,7 @@ const ALERT_KIND_DESCRIPTIONS = {
   refund_task: "Una venta anulada tiene un reembolso sin marcar como hecho",
   fiscal_unknown: "Un comprobante quedó sin respuesta clara de ARCA",
   fiscal_emission_stopped: "Una caja no puede emitir comprobantes fiscales",
+  outbox_chain_broken: "Eventos de una caja alterados en su disco",
 } satisfies Record<AlertKind, string>;
 
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);

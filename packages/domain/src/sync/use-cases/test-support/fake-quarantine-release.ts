@@ -1,3 +1,4 @@
+import { isQuarantined } from "../../model/quarantine-release.js";
 import type {
   QuarantineRelease,
   QuarantineReleaseTransaction,
@@ -12,7 +13,7 @@ export interface FakeRegister {
 export class FakeQuarantineRelease implements QuarantineRelease {
   calls: string[] = [];
   failRecordingRelease = false;
-  failResolvingAlert = false;
+  failRecordingQuarantineCleared = false;
   eventsGoneBeforeLocking = new Set<string>();
   private readonly application: FakeEventApplication;
   private readonly registers: readonly FakeRegister[];
@@ -61,8 +62,8 @@ export class FakeQuarantineRelease implements QuarantineRelease {
         if (event === undefined) {
           return undefined;
         }
-        const { appliedAt, quarantinedAt, attempts, error } = event;
-        return { appliedAt, quarantinedAt, attempts, lastError: error };
+        const { deviceId, appliedAt, quarantinedAt, attempts, error } = event;
+        return { deviceId, appliedAt, quarantinedAt, attempts, lastError: error };
       },
       releaseForNewSeries: async (eventId, released) => {
         this.calls.push(`release ${eventId}`);
@@ -75,15 +76,21 @@ export class FakeQuarantineRelease implements QuarantineRelease {
         }
         this.application.state.releases.push(record);
       },
-      resolveQuarantineAlert: async (eventId) => {
-        this.calls.push(`resolve alert of ${eventId}`);
-        if (this.failResolvingAlert) {
-          throw new Error("alert store unavailable");
-        }
-        this.application.state.quarantineAlerts = this.application.state.quarantineAlerts.filter(
-          (alert) => alert.eventId !== eventId,
+      lockDeviceQuarantines: async (deviceId) => {
+        this.calls.push(`lock quarantines of ${deviceId}`);
+      },
+      deviceHasQuarantinedEvents: async (deviceId) => {
+        this.calls.push(`check quarantined events of ${deviceId}`);
+        return this.application.state.events.some(
+          (event) => event.deviceId === deviceId && isQuarantined(event),
         );
-        this.application.state.resolvedQuarantineAlerts.push(eventId);
+      },
+      recordDeviceQuarantineCleared: async (deviceId) => {
+        this.calls.push(`record quarantine of ${deviceId} cleared`);
+        if (this.failRecordingQuarantineCleared) {
+          throw new Error("quarantine store unavailable");
+        }
+        this.application.state.clearedDeviceQuarantines.push(deviceId);
       },
     };
   }

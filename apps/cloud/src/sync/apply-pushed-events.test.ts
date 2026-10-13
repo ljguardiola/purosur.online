@@ -385,13 +385,12 @@ describe("applying what POST /events received", () => {
     const [alert] = await route.db.select().from(alerts);
     expect(alert).toMatchObject({
       kind: "events_quarantined",
-      scope: quarantined?.eventId,
-      detail: {
-        deviceId: installation.deviceId,
-        aggregateType: "Sale",
-        aggregateId: saleId,
-        reason: { kind: "missing_dependency", aggregateType: "CashSession" },
-      },
+      scope: installation.deviceId,
+      detail: { deviceId: installation.deviceId },
+    });
+    expect(quarantined?.quarantineReason).toMatchObject({
+      kind: "missing_dependency",
+      aggregateType: "CashSession",
     });
     const [other] = await route.db
       .select()

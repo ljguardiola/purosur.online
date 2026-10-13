@@ -53,8 +53,12 @@ export {
   offlineAuthorizationCodeMissingObservation,
   REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
   REGISTER_OWN_CONDITIONS,
+  registerFiscalEmissionObservation,
   registerFortnightScope,
   registerOwnConditions,
+  registerSalesDeniedObservation,
+  registerSyncedObservation,
+  registerVersionObservation,
   showsAlertScope,
 } from "./alerts/index.js";
 export type { BranchWeeklyHoursRange } from "./branch/index.js";
@@ -594,6 +598,8 @@ export {
   visibleManualStockMovementKinds,
 } from "./stock/index.js";
 export type {
+  EventInvariantBreaks,
+  EventQuarantine,
   JsonValue,
   OutboxEvent,
   OutboxEventDraft,
@@ -613,6 +619,7 @@ export {
   INSTALLATION_REQUEST_LIMITS,
   isPageAfter,
   isPullCursor,
+  isQuarantined,
   isSalesStopReason,
   PULL_PAGE_MAX_CHANGES,
   PULLED_ENTITIES,

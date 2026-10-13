@@ -1,9 +1,3 @@
-import {
-  registerFiscalEmissionObservation,
-  registerSalesDeniedObservation,
-  registerSyncedObservation,
-  registerVersionObservation,
-} from "../../alerts/index.js";
 import { canonicalOutboxEvent } from "../../shared/index.js";
 import { highestContiguousSeq } from "../model/contiguous-seq.js";
 import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
@@ -38,31 +32,14 @@ export async function receivePushedEvents(
     await tx.recordPushReport(deviceId, { appVersion, telemetry }, now);
     const versionAccepted = registerVersionAccepted(appVersion);
     const { registerId, locationId } = await tx.installationRegister(deviceId);
-    await tx.observeAlertCondition(
-      registerVersionObservation({ registerId, deviceId, appVersion, accepted: versionAccepted }),
+    await tx.recordRegisterVersionStanding(
+      { registerId, deviceId, appVersion, accepted: versionAccepted },
       now,
     );
-    const salesDenied = registerSalesDeniedObservation({
-      registerId,
-      deviceId,
-      locationId,
-      report: telemetry,
-    });
-    const fiscalEmission = registerFiscalEmissionObservation({
-      registerId,
-      deviceId,
-      locationId,
-      report: telemetry,
-    });
     const keptInService = async (
       outcome: ReceivePushedEventsOutcome,
     ): Promise<ReceivePushedEventsOutcome> => {
-      if (salesDenied !== undefined) {
-        await tx.observeAlertCondition(salesDenied, now);
-      }
-      if (fiscalEmission !== undefined) {
-        await tx.observeAlertCondition(fiscalEmission, now);
-      }
+      await tx.recordRegisterStops({ registerId, deviceId, locationId, report: telemetry }, now);
       return outcome;
     };
     const ackSeq = highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId));
@@ -118,7 +95,7 @@ export async function receivePushedEvents(
 
     await tx.receive(deviceId, toReceive, now);
     await tx.recordAcceptedPush(deviceId, now);
-    await tx.observeAlertCondition(registerSyncedObservation(registerId), now);
+    await tx.recordRegisterSynced(registerId, now);
     if (events.length === 0) {
       await tx.recordReportsEveryCycle(deviceId, now);
     }
