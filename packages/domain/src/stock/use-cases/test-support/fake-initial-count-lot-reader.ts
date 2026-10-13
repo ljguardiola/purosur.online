@@ -12,7 +12,7 @@ export class FakeInitialCountLotReader implements InitialCountLotReader {
     this.rows = rows;
   }
 
-  async notWithdrawnInitialCountLots(query: InitialCountLotsQuery): Promise<InitialCountLotRow[]> {
+  async initialCountLots(query: InitialCountLotsQuery): Promise<InitialCountLotRow[]> {
     this.queries.push(query);
     const text = query.productName?.toLowerCase();
     return this.rows
