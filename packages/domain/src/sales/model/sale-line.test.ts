@@ -21,9 +21,14 @@ import {
 
 const PRODUCT = { id: "product-1", name: "Yerba 1 kg" };
 const PRICE = { priceListId: "list-1", unitPrice: 2500 };
-const TEN_PERCENT: LinePromotion = { id: "ten", benefit: { kind: "PERCENT_OFF", percent: 10 } };
+const TEN_PERCENT: LinePromotion = {
+  id: "ten",
+  name: "Diez por ciento",
+  benefit: { kind: "PERCENT_OFF", percent: 10 },
+};
 const THREE_FOR_TWO: LinePromotion = {
   id: "three-for-two",
+  name: "Lleve 3 pague 2",
   benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
 };
 
