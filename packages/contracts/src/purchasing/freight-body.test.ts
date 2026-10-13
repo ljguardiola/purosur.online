@@ -112,15 +112,19 @@ describe("freightBodySchema", () => {
     },
   );
 
-  it.each([undefined, null, {}, { kind: "ship" }, { kind: "Own_trip" }])(
-    "rejects the means %j",
-    (means) => {
-      expect(firstFailure({ ...freight, means })).toEqual({
-        path: ["means"],
-        message: "means must be a carrier or the store's own trip",
-      });
-    },
-  );
+  it.each([undefined, null])("rejects the means %j", (means) => {
+    expect(firstFailure({ ...freight, means })).toEqual({
+      path: ["means"],
+      message: "means must be a carrier or the store's own trip",
+    });
+  });
+
+  it.each([{}, { kind: "ship" }, { kind: "Own_trip" }])("rejects the means %j", (means) => {
+    expect(firstFailure({ ...freight, means })).toEqual({
+      path: ["means", "kind"],
+      message: "means must be a carrier or the store's own trip",
+    });
+  });
 
   it.each([undefined, [], "x"])("rejects the purchases %j", (purchaseIds) => {
     expect(firstFailure({ ...freight, purchaseIds })).toEqual({
@@ -137,11 +141,10 @@ describe("freightBodySchema", () => {
   });
 
   it("rejects a purchase linked twice, whatever the letter case of its id", () => {
-    expect(
-      firstFailure({
-        ...freight,
-        purchaseIds: [FIRST_PURCHASE, FIRST_PURCHASE.replace(/1/g, "A")],
-      }),
-    ).toEqual({ path: ["purchaseIds"], message: "purchaseIds must not repeat a purchase" });
+    const id = "abcdefab-abcd-abcd-abcd-abcdefabcdef";
+    expect(firstFailure({ ...freight, purchaseIds: [id, id.toUpperCase()] })).toEqual({
+      path: ["purchaseIds"],
+      message: "purchaseIds must not repeat a purchase",
+    });
   });
 });
