@@ -66,9 +66,9 @@ function insertSaleWithEverything(): void {
     { quantity: 2, unitPrice: 42000, discount: 8400, total: 75600 },
   );
   database.exec(
-    `INSERT INTO sale_line_promotions (line_id, discount_id, kind, percent, buy_qty, pay_qty)
-     VALUES ('line-2', 'promo-1', 'PERCENT_OFF', 10, NULL, NULL),
-            ('line-2', 'promo-0', 'BUY_N_PAY_M', NULL, 3, 2);
+    `INSERT INTO sale_line_promotions (line_id, discount_id, name, kind, percent, buy_qty, pay_qty)
+     VALUES ('line-2', 'promo-1', 'Promo 10% en alfajores', 'PERCENT_OFF', 10, NULL, NULL),
+            ('line-2', 'promo-0', 'Lleve 3, pague 2', 'BUY_N_PAY_M', NULL, 3, 2);
      INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at)
      VALUES ('pay-1', 'sale-1', 'SALE', 'CASH', 'NONE', 500000, 600000, NULL, NULL, 'APPROVED', '${COMPLETED_AT}'),
             ('pay-2', 'sale-1', 'SALE', 'TRANSFER', 'NONE', 237100, NULL, 'u1', '${COMPLETED_AT}', 'APPROVED', '${COMPLETED_AT}');`,
@@ -307,8 +307,16 @@ describe("a receipt ledger's source of a sale", () => {
           quantity: 2,
           listUnitPrice: 42000,
           promotions: [
-            { id: "promo-0", benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
-            { id: "promo-1", benefit: { kind: "PERCENT_OFF", percent: 10 } },
+            {
+              id: "promo-0",
+              name: "Lleve 3, pague 2",
+              benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+            },
+            {
+              id: "promo-1",
+              name: "Promo 10% en alfajores",
+              benefit: { kind: "PERCENT_OFF", percent: 10 },
+            },
           ],
           promotionId: "promo-1",
           manualAdjustment: null,
@@ -322,6 +330,22 @@ describe("a receipt ledger's source of a sale", () => {
       ],
       fiscal: { kind: "none" },
     });
+  });
+
+  it("keeps the name its promotions had when the sale was completed after they are renamed", () => {
+    insertSaleWithEverything();
+    database.exec(
+      `INSERT INTO discounts (id, name, kind, percent, target_kind, target_id, valid_from, valid_to, weekdays, active, version, removed)
+       VALUES ('promo-1', 'Promo 10% en alfajores', 'PERCENT_OFF', 10, 'PRODUCT', 'p-unit', '2026-09-01', '2026-12-31', '[]', 1, 1, 0);
+       UPDATE discounts SET name = 'Promo renombrada' WHERE id = 'promo-1';`,
+    );
+
+    const { lines } = inTransaction((tx) => tx.receiptSource("sale-1"));
+
+    expect(lines[1]?.promotions.map(({ id, name }) => ({ id, name }))).toEqual([
+      { id: "promo-0", name: "Lleve 3, pague 2" },
+      { id: "promo-1", name: "Promo 10% en alfajores" },
+    ]);
   });
 });
 

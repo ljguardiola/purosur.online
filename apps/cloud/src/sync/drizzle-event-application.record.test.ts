@@ -540,6 +540,43 @@ describe("recording the sales of applied events", () => {
     });
   });
 
+  it("keeps a payment on the standalone terminal with who confirmed it and when", async () => {
+    const { deviceId } = await system.enrollInstallation();
+    const sessionId = randomUUID();
+    await openSession(deviceId, sessionId);
+    const base = aCompletedSale({ sessionId });
+    const [cash] = base.payments;
+    if (!cash) {
+      throw new Error("test setup: the sale has no payment");
+    }
+    const standalone = {
+      ...cash,
+      method: "STANDALONE_TERMINAL" as const,
+      provider: "EXTERNAL_TERMINAL" as const,
+      tendered: null,
+      authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+      confirmedAt: new Date("2026-10-06T11:21:00.000Z"),
+    };
+    const completed = { ...base, payments: [standalone], cashMovements: [] };
+
+    await record({ kind: "sale_completed", sale: completed }, { deviceId });
+
+    expect(await system.db.select().from(salePayments)).toEqual([
+      {
+        id: standalone.id,
+        saleId: completed.id,
+        method: "STANDALONE_TERMINAL",
+        provider: "EXTERNAL_TERMINAL",
+        amount: standalone.amount,
+        tendered: null,
+        state: "APPROVED",
+        occurredAt: standalone.occurredAt,
+        authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+        confirmedAt: new Date("2026-10-06T11:21:00.000Z"),
+      },
+    ]);
+  });
+
   it("keeps the cash movements the sale made in its session, tied to the sale", async () => {
     const { deviceId } = await system.enrollInstallation();
     const sessionId = randomUUID();

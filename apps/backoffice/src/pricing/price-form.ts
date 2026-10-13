@@ -33,3 +33,8 @@ export function amountMessage({ amount }: PriceFormValues): string {
   }
   return UNIT_PRICE_SCHEMA.safeParse(cents).success ? AMOUNT_REVIEW : AMOUNT_OUT_OF_RANGE;
 }
+
+export function typedUnitPrice(amount: string): number | undefined {
+  const cents = parseAmountCents(amount);
+  return cents !== undefined && UNIT_PRICE_SCHEMA.safeParse(cents).success ? cents : undefined;
+}

@@ -4,10 +4,19 @@ import { MAX_UNIT_PRICE_CENTS } from "../../pricing/index.js";
 import { chargeLine } from "./line-pricing.js";
 import type { LinePromotion } from "./sale.js";
 
-const TEN_PERCENT: LinePromotion = { id: "ten", benefit: { kind: "PERCENT_OFF", percent: 10 } };
-const HALF: LinePromotion = { id: "half", benefit: { kind: "PERCENT_OFF", percent: 50 } };
+const TEN_PERCENT: LinePromotion = {
+  id: "ten",
+  name: "Diez por ciento",
+  benefit: { kind: "PERCENT_OFF", percent: 10 },
+};
+const HALF: LinePromotion = {
+  id: "half",
+  name: "Promoción half",
+  benefit: { kind: "PERCENT_OFF", percent: 50 },
+};
 const THREE_FOR_TWO: LinePromotion = {
   id: "three-for-two",
+  name: "Lleve 3 pague 2",
   benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
 };
 
@@ -120,30 +129,62 @@ describe("chargeLine choosing among promotions", () => {
   });
 
   it("breaks a tie with the lower identifier whatever the order", () => {
-    const b: LinePromotion = { id: "b", benefit: { kind: "PERCENT_OFF", percent: 20 } };
-    const a: LinePromotion = { id: "a", benefit: { kind: "PERCENT_OFF", percent: 20 } };
+    const b: LinePromotion = {
+      id: "b",
+      name: "Promoción b",
+      benefit: { kind: "PERCENT_OFF", percent: 20 },
+    };
+    const a: LinePromotion = {
+      id: "a",
+      name: "Promoción a",
+      benefit: { kind: "PERCENT_OFF", percent: 20 },
+    };
 
     expect(chargeLine(units(1), 1000, [b, a]).promotionId).toBe("a");
     expect(chargeLine(units(1), 1000, [a, b]).promotionId).toBe("a");
   });
 
   it("keeps the larger discount over a lower identifier giving less", () => {
-    const b: LinePromotion = { id: "b", benefit: { kind: "PERCENT_OFF", percent: 20 } };
-    const a: LinePromotion = { id: "a", benefit: { kind: "PERCENT_OFF", percent: 10 } };
+    const b: LinePromotion = {
+      id: "b",
+      name: "Promoción b",
+      benefit: { kind: "PERCENT_OFF", percent: 20 },
+    };
+    const a: LinePromotion = {
+      id: "a",
+      name: "Promoción a",
+      benefit: { kind: "PERCENT_OFF", percent: 10 },
+    };
 
     expect(chargeLine(units(1), 1000, [b, a]).promotionId).toBe("b");
   });
 
   it("compares identifiers as strings", () => {
-    const ten: LinePromotion = { id: "10", benefit: { kind: "PERCENT_OFF", percent: 20 } };
-    const nine: LinePromotion = { id: "9", benefit: { kind: "PERCENT_OFF", percent: 20 } };
+    const ten: LinePromotion = {
+      id: "10",
+      name: "Promoción 10",
+      benefit: { kind: "PERCENT_OFF", percent: 20 },
+    };
+    const nine: LinePromotion = {
+      id: "9",
+      name: "Promoción 9",
+      benefit: { kind: "PERCENT_OFF", percent: 20 },
+    };
 
     expect(chargeLine(units(1), 1000, [nine, ten]).promotionId).toBe("10");
   });
 
   it("compares identifiers by their characters, not by any language's alphabetical order", () => {
-    const lower: LinePromotion = { id: "a", benefit: { kind: "PERCENT_OFF", percent: 20 } };
-    const upper: LinePromotion = { id: "B", benefit: { kind: "PERCENT_OFF", percent: 20 } };
+    const lower: LinePromotion = {
+      id: "a",
+      name: "Promoción a",
+      benefit: { kind: "PERCENT_OFF", percent: 20 },
+    };
+    const upper: LinePromotion = {
+      id: "B",
+      name: "Promoción B",
+      benefit: { kind: "PERCENT_OFF", percent: 20 },
+    };
 
     expect(chargeLine(units(1), 1000, [lower, upper]).promotionId).toBe("B");
   });

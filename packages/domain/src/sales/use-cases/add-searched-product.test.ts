@@ -46,6 +46,7 @@ const PAYMENT: SalePayment = {
 
 const TEN_PERCENT: CandidatePromotion = {
   id: "ten",
+  name: "Diez por ciento",
   benefit: { kind: "PERCENT_OFF", percent: 10 },
   active: true,
   validFrom: "2026-09-01",
@@ -55,6 +56,7 @@ const TEN_PERCENT: CandidatePromotion = {
 const THREE_FOR_TWO: CandidatePromotion = {
   ...TEN_PERCENT,
   id: "three-for-two",
+  name: "Lleve 3 pague 2",
   benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
 };
 
@@ -162,8 +164,12 @@ describe("addSearchedProduct", () => {
     expect(outcomes.map((outcome) => outcome.kind === "added" && outcome.sale.lines[0])).toEqual([
       expect.objectContaining({
         promotions: [
-          { id: "ten", benefit: { kind: "PERCENT_OFF", percent: 10 } },
-          { id: "three-for-two", benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
+          { id: "ten", name: "Diez por ciento", benefit: { kind: "PERCENT_OFF", percent: 10 } },
+          {
+            id: "three-for-two",
+            name: "Lleve 3 pague 2",
+            benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+          },
         ],
         manualAdjustment: null,
         promotionId: "ten",

@@ -44,6 +44,7 @@ const PAYMENT: SalePayment = {
 };
 const TEN_PERCENT: CandidatePromotion = {
   id: "ten",
+  name: "Diez por ciento",
   benefit: { kind: "PERCENT_OFF", percent: 10 },
   active: true,
   validFrom: "2026-09-01",
@@ -190,7 +191,7 @@ describe("addWeighedProduct", () => {
 
     expect(outcome.kind === "added" && outcome.sale.lines).toEqual([
       expect.objectContaining({
-        promotions: [{ id: "ten", benefit: TEN_PERCENT.benefit }],
+        promotions: [{ id: "ten", name: "Diez por ciento", benefit: TEN_PERCENT.benefit }],
         manualAdjustment: null,
         promotionId: "ten",
         discountAmount: 1800,

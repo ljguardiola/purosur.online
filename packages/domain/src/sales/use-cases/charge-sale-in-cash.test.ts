@@ -99,8 +99,12 @@ const DISCOUNTED_SALE: SaleWithLines = {
       listUnitPrice: 1000,
       priceListId: "list-1",
       promotions: [
-        { id: "d-percent", benefit: { kind: "PERCENT_OFF", percent: 10 } },
-        { id: "d-3x2", benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
+        { id: "d-percent", name: "Diez por ciento", benefit: { kind: "PERCENT_OFF", percent: 10 } },
+        {
+          id: "d-3x2",
+          name: "Lleve 3 pague 2",
+          benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+        },
       ],
       manualAdjustment: null,
       promotionId: "d-3x2",

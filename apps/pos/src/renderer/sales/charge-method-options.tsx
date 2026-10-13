@@ -1,9 +1,9 @@
 import type { PaymentMethodAvailability } from "@purosur/contracts";
 import type { Icon, Options } from "@purosur/ui";
-import { Banknote, CreditCard, Landmark, QrCode, WifiOff } from "lucide-react";
+import { Banknote, Calculator, CreditCard, Landmark, QrCode, WifiOff } from "lucide-react";
 import type { CoreData } from "../platform/use-core-query";
 
-export type ChargeMethod = "CASH" | "POINT" | "QR" | "TRANSFER";
+export type ChargeMethod = "CASH" | "POINT" | "QR" | "TRANSFER" | "STANDALONE_TERMINAL";
 
 type MethodOption = {
   value: ChargeMethod;
@@ -55,6 +55,13 @@ const TRANSFER_OPTION: MethodOption = {
   icon: <Landmark />,
 };
 
+const STANDALONE_TERMINAL_OPTION: MethodOption = {
+  value: "STANDALONE_TERMINAL",
+  label: "Terminal independiente",
+  description: "Segunda Point · cargás el resultado a mano",
+  icon: <Calculator />,
+};
+
 function pointOption(point: PaymentMethodAvailability["point"]): MethodOption | undefined {
   switch (point) {
     case "available":
@@ -75,7 +82,10 @@ export function chargeMethodOptions(
   availability: CoreData<PaymentMethodAvailability>,
 ): ChargeMethodOptions {
   if (availability.status !== "loaded") {
-    return { options: [CASH_OPTION, TRANSFER_OPTION], belowMinimum: undefined };
+    return {
+      options: [CASH_OPTION, TRANSFER_OPTION, STANDALONE_TERMINAL_OPTION],
+      belowMinimum: undefined,
+    };
   }
   const { qr, point, point_minimum: minimum } = availability.value;
   const terminal = pointOption(point);
@@ -85,6 +95,7 @@ export function chargeMethodOptions(
       ...(terminal === undefined ? [] : [terminal]),
       qr === "available" ? QR_OPTION : QR_OPTION_OFFLINE,
       TRANSFER_OPTION,
+      STANDALONE_TERMINAL_OPTION,
     ],
     belowMinimum: point === "below_minimum" ? minimum : undefined,
   };

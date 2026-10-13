@@ -15,6 +15,7 @@ import type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CoreStatusMessage,
@@ -169,6 +170,10 @@ export interface RouterContext {
   cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
+  chargeSaleOnStandaloneTerminal: (
+    saleId: string,
+    amount: number,
+  ) => Promise<ChargeSaleOnStandaloneTerminalOutcome>;
   paymentMethodAvailability: () => Promise<PaymentMethodAvailability | null>;
   startMercadoPagoCharge: (
     saleId: string,
@@ -633,6 +638,7 @@ const chargeRoute = createRoute({
       cashCharge,
       chargeSaleInCash,
       chargeSaleByTransfer,
+      chargeSaleOnStandaloneTerminal,
       paymentMethodAvailability,
       startMercadoPagoCharge,
       followMercadoPagoCharge,
@@ -651,6 +657,7 @@ const chargeRoute = createRoute({
         cashCharge={cashCharge}
         chargeSaleInCash={chargeSaleInCash}
         chargeSaleByTransfer={chargeSaleByTransfer}
+        chargeSaleOnStandaloneTerminal={chargeSaleOnStandaloneTerminal}
         paymentMethodAvailability={paymentMethodAvailability}
         startMercadoPagoCharge={startMercadoPagoCharge}
         followMercadoPagoCharge={followMercadoPagoCharge}
@@ -997,6 +1004,7 @@ export function createAppRouter(
     | "cashCharge"
     | "chargeSaleInCash"
     | "chargeSaleByTransfer"
+    | "chargeSaleOnStandaloneTerminal"
     | "paymentMethodAvailability"
     | "startMercadoPagoCharge"
     | "followMercadoPagoCharge"

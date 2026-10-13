@@ -5,7 +5,7 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
 import type { Scale, ScaleReading } from "@purosur/domain/sales/use-cases";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -28,6 +28,7 @@ import {
   changeLineWeightFor,
   chargeSaleByTransferFor,
   chargeSaleInCashFor,
+  chargeSaleOnStandaloneTerminalFor,
   currentSaleFor,
   type OutboxSaleRequestDeps,
   previewSaleDiscountFor,
@@ -949,6 +950,17 @@ describe("the sale in progress", () => {
     expect(await currentSaleFor(deps())).toMatchObject({
       lines_lock: "approved_payment",
       cancel_refusal: "holds_mercado_pago_payment",
+      refunds_on_cancel: [],
+    });
+  });
+
+  it("says that an approved standalone terminal payment refuses the cancellation", async () => {
+    const saleId = await sellTwoForPayments();
+    await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 1000 });
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      lines_lock: "approved_payment",
+      cancel_refusal: "holds_standalone_terminal_payment",
       refunds_on_cancel: [],
     });
   });
@@ -2412,6 +2424,255 @@ describe("charging the sale in progress by transfer", () => {
   });
 });
 
+describe("charging the sale in progress on the standalone terminal", () => {
+  async function sellTwo(): Promise<string> {
+    await scanProductFor(deps(), "111");
+    const outcome = await scanProductFor(deps(), "111");
+    if (outcome.kind !== "added") {
+      throw new Error("test setup: the product was not added");
+    }
+    return outcome.sale.id;
+  }
+
+  it("completes the sale and answers what was charged", async () => {
+    addFiscalConfiguration();
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 3000 })).toEqual({
+      kind: "completed",
+      sale_id: saleId,
+      total: 3000,
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "COMPLETED" }]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
+      { event_type: "sale_completed" },
+    ]);
+  });
+
+  it("records one approved standalone terminal payment for the amount, confirmed by the signed-in person", async () => {
+    const saleId = await sellTwo();
+
+    await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 3000 });
+
+    expect(
+      database
+        .prepare(
+          "SELECT sale_id, method, amount, tendered, authorized_by, confirmed_at, state FROM payment_transactions",
+        )
+        .all(),
+    ).toEqual([
+      {
+        sale_id: saleId,
+        method: "STANDALONE_TERMINAL",
+        amount: 3000,
+        tendered: null,
+        authorized_by: "u1",
+        confirmed_at: NOW.toISOString(),
+        state: "APPROVED",
+      },
+    ]);
+  });
+
+  it("records the payment on the standalone terminal provider", async () => {
+    const saleId = await sellTwo();
+
+    await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 3000 });
+
+    expect(database.prepare("SELECT method, provider FROM payment_transactions").all()).toEqual([
+      { method: "STANDALONE_TERMINAL", provider: "EXTERNAL_TERMINAL" },
+    ]);
+  });
+
+  it("completes the sale without reaching the cloud", async () => {
+    const reachCloud = vi.fn(async () => {
+      throw new Error("the cloud is unreachable");
+    });
+    vi.stubGlobal("fetch", reachCloud);
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 3000 })).toEqual({
+      kind: "completed",
+      sale_id: saleId,
+      total: 3000,
+    });
+    expect(reachCloud).not.toHaveBeenCalled();
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "COMPLETED" }]);
+    vi.unstubAllGlobals();
+  });
+
+  it("refuses to charge, writing nothing, while a Mercado Pago charge of the sale is in its wait", async () => {
+    const saleId = await sellTwo();
+    database
+      .prepare(
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES ('qr-1', ?, 'SALE', 'QR', 'MERCADOPAGO_QR', 1000, 'PENDING', ?, ?)",
+      )
+      .run(saleId, NOW.toISOString(), new Date(NOW.getTime() + 60_000).toISOString());
+
+    expect(await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 3000 })).toEqual({
+      kind: "mercado_pago_charge_in_progress",
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT id FROM payment_transactions").all()).toEqual([{ id: "qr-1" }]);
+  });
+
+  it("composes the factura C of the completed sale like a cash charge does", async () => {
+    addFiscalConfiguration();
+    const saleId = await sellTwo();
+
+    await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 3000 });
+
+    expect(
+      database.prepare("SELECT sale_id, outcome FROM pre_emission_gate_outcomes").all(),
+    ).toEqual([{ sale_id: saleId, outcome: "PASSED" }]);
+  });
+
+  it("completes nothing when the pre-emission gate of the sale cannot be recorded", async () => {
+    const saleId = await sellTwo();
+    database.exec("DROP TABLE pre_emission_gate_outcomes");
+
+    await expect(
+      chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 3000 }),
+    ).rejects.toThrow();
+
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT count(*) AS total FROM payment_transactions").get()).toEqual({
+      total: 0,
+    });
+  });
+
+  it("answers what is paid and what is pending when the payment does not cover the sale, leaving it open", async () => {
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 1200 })).toEqual({
+      kind: "partially_paid",
+      sale_id: saleId,
+      total: 3000,
+      paid: 1200,
+      pending: 1800,
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT method, amount FROM payment_transactions").all()).toEqual([
+      { method: "STANDALONE_TERMINAL", amount: 1200 },
+    ]);
+  });
+
+  it("answers how much is pending when the payment exceeds it, charging nothing", async () => {
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 3001 })).toEqual({
+      kind: "exceeds_pending",
+      pending: 3000,
+    });
+    expect(database.prepare("SELECT count(*) AS total FROM payment_transactions").get()).toEqual({
+      total: 0,
+    });
+  });
+
+  it("answers the domain's refusal of an amount that is not positive", async () => {
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 0 })).toEqual({
+      kind: "invalid_amount",
+    });
+  });
+
+  it("answers the domain's refusal of a sale that is not the one in progress", async () => {
+    await sellTwo();
+
+    expect(
+      await chargeSaleOnStandaloneTerminalFor(deps(), { saleId: "other-sale", amount: 3000 }),
+    ).toEqual({
+      kind: "no_open_sale",
+    });
+  });
+
+  it("refuses to charge on the standalone terminal a sale that reaches the threshold, leaving it open", async () => {
+    saveThreshold(3000, "2026-09-30");
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 3000 })).toEqual({
+      kind: "reaches_buyer_identification_threshold",
+      threshold: 3000,
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT count(*) AS total FROM payment_transactions").get()).toEqual({
+      total: 0,
+    });
+  });
+
+  it("refuses to charge on the standalone terminal any sale while the register holds no threshold", async () => {
+    database.prepare("DELETE FROM buyer_identification_thresholds").run();
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 3000 })).toEqual({
+      kind: "no_buyer_identification_threshold",
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("answers the domain's refusal of a sale whose total is zero", async () => {
+    const saleId = await sellTwo();
+    database.prepare("UPDATE sale_lines SET line_total = 0").run();
+
+    expect(await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 3000 })).toEqual({
+      kind: "zero_total",
+    });
+  });
+
+  it("answers the domain's refusal of a sale without lines", async () => {
+    const saleId = await sellTwo();
+    database.exec("DELETE FROM sale_line_promotions; DELETE FROM sale_lines");
+
+    expect(await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 3000 })).toEqual({
+      kind: "empty_sale",
+    });
+  });
+
+  it("answers that no session is open", async () => {
+    const saleId = await sellTwo();
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 3000 })).toEqual({
+      kind: "no_open_session",
+    });
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    const saleId = await sellTwo();
+    signedInPerson.clear();
+
+    expect(await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 3000 })).toEqual({
+      kind: "not_signed_in",
+    });
+  });
+
+  it("answers not permitted to a signed-in person without the permission to sell", async () => {
+    const saleId = await sellTwo();
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 3000 })).toEqual({
+      kind: "not_permitted",
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT count(*) AS total FROM payment_transactions").get()).toEqual({
+      total: 0,
+    });
+  });
+
+  it("answers unavailable, charging nothing, when the register holds no outbox chain key", async () => {
+    const saleId = await sellTwo();
+
+    expect(
+      await chargeSaleOnStandaloneTerminalFor(deps({ readOutboxChainKey: async () => undefined }), {
+        saleId,
+        amount: 3000,
+      }),
+    ).toEqual({ kind: "unavailable" });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+  });
+});
+
 describe("what a sale in progress needs when an amount is tendered", () => {
   async function sellTwo(): Promise<string> {
     await scanProductFor(deps(), "111");
@@ -2816,6 +3077,22 @@ describe("cancelling the sale in progress after a payment was approved", () => {
         )
         .all(),
     ).toEqual([{ type: "REFUND", amount: 1000, actor_id: "u2", authorized_by: null }]);
+  });
+
+  it("refuses it, writing nothing, while it holds an approved standalone terminal payment", async () => {
+    addPersonWithPin("u2", "Grace", ["sell_and_charge", "void_sale"]);
+    database.prepare("UPDATE cash_sessions SET opened_by = 'u2'").run();
+    signedInPerson.set("u2");
+    const saleId = await sellTwoForPayments();
+    await chargeSaleOnStandaloneTerminalFor(deps({ ids }), { saleId, amount: 1000 });
+
+    expect(await cancelPaidSaleFor(withPins(), { saleId })).toEqual({
+      kind: "holds_standalone_terminal_payment",
+    });
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT count(*) AS total FROM payment_refunds").get()).toEqual({
+      total: 0,
+    });
   });
 
   it("cancels it with the PIN of a person who holds the permission, naming who authorized it", async () => {

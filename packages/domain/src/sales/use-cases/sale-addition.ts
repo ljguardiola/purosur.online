@@ -113,7 +113,7 @@ export function validPromotions(
   return tx
     .promotionsTargeting(productId)
     .filter((promotion) => discountAppliesOn(promotion, day))
-    .map(({ id, benefit }) => ({ id, benefit }));
+    .map(({ id, name, benefit }) => ({ id, name, benefit }));
 }
 
 function startSale(

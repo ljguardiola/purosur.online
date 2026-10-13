@@ -66,6 +66,7 @@ const CATALOG_INPUT_FILES = new Set([
   ".github/scripts/slow-tests-reporter.mjs",
   ".github/scripts/without-package-output.mjs",
   ".github/scripts/test-durations.mjs",
+  ".github/scripts/test-durations-payload.mjs",
 ]);
 
 export function isCatalogInput(path) {
