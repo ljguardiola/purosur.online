@@ -15,7 +15,7 @@ import { deepEqual } from "@tanstack/react-router";
 import { CircleCheck, CircleX, HandCoins } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { refundMethodLabel } from "../platform/refund-method-label";
+import { paymentMethodLabel } from "../platform/payment-method-label";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import { DiscardRefundModal } from "./discard-refund-modal";
@@ -107,10 +107,10 @@ export function PendingRefundsScreen({
       header: "Medio",
       render: (refund: PendingRefund) =>
         refund.provider_order_id === null ? (
-          refundMethodLabel(refund.method)
+          paymentMethodLabel(refund.method)
         ) : (
           <TableCellText description={`Orden ${refund.provider_order_id}`}>
-            {refundMethodLabel(refund.method)}
+            {paymentMethodLabel(refund.method)}
           </TableCellText>
         ),
     }),

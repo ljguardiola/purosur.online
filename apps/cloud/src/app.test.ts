@@ -1500,10 +1500,7 @@ describe("wiring the prices routes", () => {
 });
 
 describe("wiring the sales report routes", () => {
-  const reportRequests = [
-    { method: "GET", url: "/api/reports/sales-by-day" },
-    { method: "GET", url: "/api/reports/registers" },
-  ] as const;
+  const reportRequests = [{ method: "GET", url: "/api/reports/sales-by-day" }] as const;
 
   async function statusCodes(app: ReturnType<typeof buildApp>): Promise<number[]> {
     const responses = await Promise.all(
@@ -1528,6 +1525,36 @@ describe("wiring the sales report routes", () => {
     });
 
     expect(await statusCodes(app)).toEqual(reportRequests.map(() => 401));
+  });
+});
+
+describe("wiring the payments report routes", () => {
+  const request = { method: "GET", url: "/api/reports/sales-by-payment-method" } as const;
+
+  it("does not register the payments report routes when no paymentsReports option is given", async () => {
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
+
+    const response = await app.inject({
+      ...request,
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers the payments report routes when a paymentsReports option is given", async () => {
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      paymentsReports: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const response = await app.inject({
+      ...request,
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    expect(response.statusCode).toBe(401);
   });
 });
 
@@ -1662,7 +1689,9 @@ describe("wiring the registers routes", () => {
     });
 
     const coverage = await app.inject({ method: "GET", url: "/api/registers/coverage" });
+    const reportRegisters = await app.inject({ method: "GET", url: "/api/reports/registers" });
 
+    expect(reportRegisters.statusCode).toBe(404);
     expect(list.statusCode).toBe(404);
     expect(create.statusCode).toBe(404);
     expect(emitCode.statusCode).toBe(404);
@@ -1689,7 +1718,13 @@ describe("wiring the registers routes", () => {
     });
 
     const coverage = await app.inject({ method: "GET", url: "/api/registers/coverage" });
+    const reportRegisters = await app.inject({
+      method: "GET",
+      url: "/api/reports/registers",
+      headers: { origin: "https://staging.purosur.online" },
+    });
 
+    expect(reportRegisters.statusCode).toBe(401);
     expect(list.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
     expect(emitCode.statusCode).toBe(401);
@@ -2606,7 +2641,7 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
-        url: "/api/reports/registers",
+        url: "/api/reports/sales-by-payment-method",
         access: capabilityAccess("reports_area"),
       },
       {
@@ -2628,6 +2663,11 @@ describe("the route access inventory", () => {
         method: "GET",
         url: "/api/registers",
         access: capabilityAccess("registers_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/registers",
+        access: capabilityAccess("reports_area"),
       },
       {
         method: "GET",
