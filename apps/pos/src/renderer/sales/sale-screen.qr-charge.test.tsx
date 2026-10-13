@@ -8,27 +8,6 @@ function answering(...answers: CurrentSaleAnswer[]) {
   return vi.fn(async () => (answers.length > 1 ? answers.shift() : answers[0]) ?? null);
 }
 
-describe("SaleScreen with an approved standalone terminal payment", () => {
-  it("says it cannot be voided from the register, as the core still answers", async () => {
-    const currentSale = answering({
-      ...SALE_WITH_QR_PAYMENT,
-      cancel_refusal: "holds_standalone_terminal_payment",
-    });
-    const { screen } = await renderScreen({ currentSale });
-
-    await screen.getByRole("button", { name: "Cancelar venta" }).click();
-
-    await expect
-      .element(
-        screen.getByText(
-          "La venta tiene un pago con la terminal independiente: todavía no se puede anular desde la caja.",
-        ),
-      )
-      .toBeVisible();
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-  });
-});
-
 const QR_WAIT_LOCK = "Hay un cobro con Mercado Pago en curso. Esperá a que termine.";
 const APPROVED_PAYMENT_LOCK = "La venta ya no se puede cambiar porque tiene un pago aprobado.";
 

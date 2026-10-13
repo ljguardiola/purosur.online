@@ -169,14 +169,14 @@ describe("StandaloneTerminalChargeModal", () => {
     expect(chargeSale).not.toHaveBeenCalled();
   });
 
-  it("explains that the second terminal charges without the register and its result is loaded by hand", async () => {
+  it("tells the cashier to charge on the second terminal first and register the payment once the terminal approves it", async () => {
     const { screen } = await renderModal();
 
     await expect
       .element(
         screen
           .getByText(
-            "Cobrá en la segunda Point, que funciona sin la caja, y cargá acá lo que muestra la terminal.",
+            "Cobrá primero en la segunda Point y registrá el pago cuando la terminal lo apruebe.",
           )
           .first(),
       )
@@ -232,7 +232,7 @@ describe("StandaloneTerminalChargeModal", () => {
     pending.resolve(COMPLETED);
   });
 
-  it("goes back to the payment methods from No llegó without charging", async () => {
+  it("goes back to the payment methods from Cambiar de medio without charging", async () => {
     const { screen, chargeSale, callbacks } = await renderModal();
 
     await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));

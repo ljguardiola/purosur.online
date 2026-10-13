@@ -2473,7 +2473,7 @@ describe("charging the sale in progress on the standalone terminal", () => {
     ]);
   });
 
-  it("records the payment on the standalone terminal provider, confirmed now by the signed-in person", async () => {
+  it("records the payment on the standalone terminal provider", async () => {
     const saleId = await sellTwo();
 
     await chargeSaleOnStandaloneTerminalFor(deps(), { saleId, amount: 3000 });

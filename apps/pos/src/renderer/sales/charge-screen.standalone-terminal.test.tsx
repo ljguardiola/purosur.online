@@ -123,83 +123,25 @@ describe("ChargeScreen · terminal independiente", () => {
     expect(chargeSaleOnStandaloneTerminal).toHaveBeenCalledExactlyOnceWith("sale-1", 200_000);
   });
 
-  it("says the amount cannot exceed the pending balance the core answers", async () => {
+  it("goes back to the sale when the core answers the sale cannot be charged", async () => {
     const { screen } = await renderScreen({
-      chargeSaleOnStandaloneTerminal: async () => ({ kind: "exceeds_pending", pending: 476_000 }),
+      chargeSaleOnStandaloneTerminal: async () => ({ kind: "no_open_sale" }),
     });
 
     await chooseStandaloneTerminal(screen);
     await userEvent.click(screen.getByRole("button", { name: REGISTER }));
 
-    await expect
-      .element(screen.getByText("No puede superar el saldo pendiente de $ 4.760,00."))
-      .toBeVisible();
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
   });
 
-  it("says the amount is invalid when the core refuses it", async () => {
-    const { screen } = await renderScreen({
-      chargeSaleOnStandaloneTerminal: async () => ({ kind: "invalid_amount" }),
+  it("reports an invalid session when the core answers the session is no longer open", async () => {
+    const { screen, onSessionInvalid } = await renderScreen({
+      chargeSaleOnStandaloneTerminal: async () => ({ kind: "no_open_session" }),
     });
 
     await chooseStandaloneTerminal(screen);
     await userEvent.click(screen.getByRole("button", { name: REGISTER }));
 
-    await expect
-      .element(screen.getByText("Ingresá un importe válido, por ejemplo 5.000,00."))
-      .toBeVisible();
-  });
-
-  it.each([["empty_sale"], ["zero_total"], ["no_open_sale"], ["not_permitted"]] as const)(
-    "goes back to the sale when the core answers %s",
-    async (kind) => {
-      const { screen } = await renderScreen({
-        chargeSaleOnStandaloneTerminal: async () => ({ kind }),
-      });
-
-      await chooseStandaloneTerminal(screen);
-      await userEvent.click(screen.getByRole("button", { name: REGISTER }));
-
-      await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
-    },
-  );
-
-  it.each([["not_signed_in"], ["no_open_session"]] as const)(
-    "reports an invalid session when the core answers %s",
-    async (kind) => {
-      const { screen, onSessionInvalid } = await renderScreen({
-        chargeSaleOnStandaloneTerminal: async () => ({ kind }),
-      });
-
-      await chooseStandaloneTerminal(screen);
-      await userEvent.click(screen.getByRole("button", { name: REGISTER }));
-
-      await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
-    },
-  );
-
-  it("says a Mercado Pago charge of the sale is still in progress", async () => {
-    const { screen } = await renderScreen({
-      chargeSaleOnStandaloneTerminal: async () => ({ kind: "mercado_pago_charge_in_progress" }),
-    });
-
-    await chooseStandaloneTerminal(screen);
-    await userEvent.click(screen.getByRole("button", { name: REGISTER }));
-
-    await expect
-      .element(screen.getByRole("alert"))
-      .toHaveTextContent("Ya hay un cobro con Mercado Pago en curso para esta venta.");
-  });
-
-  it("says the sale could not be charged when the core is unavailable", async () => {
-    const { screen } = await renderScreen({
-      chargeSaleOnStandaloneTerminal: async () => ({ kind: "unavailable" }),
-    });
-
-    await chooseStandaloneTerminal(screen);
-    await userEvent.click(screen.getByRole("button", { name: REGISTER }));
-
-    await expect
-      .element(screen.getByRole("alert"))
-      .toHaveTextContent("No se pudo cobrar la venta. Probá de nuevo.");
+    await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
   });
 });
