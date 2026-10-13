@@ -407,6 +407,33 @@ describe("changesPageSchema", () => {
     expect(changesPageSchema.safeParse(page).success).toBe(false);
   });
 
+  it("accepts who marked a refund done and when", () => {
+    const page = pageOf(change(1, "refund_completion", refundCompletionRow));
+
+    expect(changesPageSchema.parse(page)).toEqual(page);
+  });
+
+  it("keeps nothing of a refund completion but the fields a register may hold", () => {
+    const page = pageOf(
+      change(1, "refund_completion", { ...refundCompletionRow, location_id: ENTITY_ID }),
+    );
+
+    expect(changesPageSchema.parse(page).changes[0]).toEqual(
+      change(1, "refund_completion", refundCompletionRow),
+    );
+  });
+
+  it.each([
+    ["a user that is not an id", { done_by: "not-an-id" }],
+    ["a day with no time", { done_at: "2026-10-09" }],
+    ["no user", { done_by: undefined }],
+    ["no moment", { done_at: undefined }],
+  ])("refuses a refund completion with %s", (_, override) => {
+    const page = pageOf(change(1, "refund_completion", { ...refundCompletionRow, ...override }));
+
+    expect(changesPageSchema.safeParse(page).success).toBe(false);
+  });
+
   it("keeps nothing of a stock movement but the fields a register may hold", () => {
     const page = pageOf(
       change(1, "stock_movement", {
