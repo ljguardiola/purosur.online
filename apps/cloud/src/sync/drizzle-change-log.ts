@@ -29,6 +29,7 @@ import {
   readPriceLists,
   readPrices,
   readProducts,
+  readRefundCompletions,
   readRegisterOfflinePointsOfSale,
   readRegisterPointsOfSale,
   readRegisters,
@@ -129,6 +130,10 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
       idsOf(logged, "buyer_tax_status_set"),
     );
     const stockMovementRows = await readStockMovements(this.tx, idsOf(logged, "stock_movement"));
+    const refundCompletionRows = await readRefundCompletions(
+      this.tx,
+      idsOf(logged, "refund_completion"),
+    );
     const offlineAuthorizationCodeRows = await readOfflineAuthorizationCodes(
       this.tx,
       idsOf(logged, "offline_authorization_code"),
@@ -274,6 +279,14 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
             entity,
             entityId,
             row: requiredRow(stockMovementRows.get(entityId), entity),
+          });
+          break;
+        case "refund_completion":
+          pulled.push({
+            changeSeq,
+            entity,
+            entityId,
+            row: requiredRow(refundCompletionRows.get(entityId), entity),
           });
           break;
         case "offline_authorization_code":

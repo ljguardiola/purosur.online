@@ -141,6 +141,11 @@ const priceRow = {
   version: 1,
 };
 
+const refundCompletionRow = {
+  done_by: "5a4b3c2d-1e0f-4a9b-8c7d-6e5f4a3b2c1d",
+  done_at: "2026-10-10T16:45:00.000Z",
+};
+
 const stockMovementRow = {
   product_id: "0b1d2f4a-6c3e-4b7d-9a58-1e2f3a4b5c6d",
   kind: "sale",
@@ -403,6 +408,50 @@ describe("changesPageSchema", () => {
     ["no moment", {}],
   ])("refuses the first cash session of the branch with %s", (_, row) => {
     const page = pageOf(change(1, "branch_first_cash_session", row));
+
+    expect(changesPageSchema.safeParse(page).success).toBe(false);
+  });
+
+  it("accepts who marked a refund done and when", () => {
+    const page = pageOf(change(1, "refund_completion", refundCompletionRow));
+
+    expect(changesPageSchema.parse(page)).toEqual(page);
+  });
+
+  it("keeps nothing of a refund completion but the fields a register may hold", () => {
+    const page = pageOf(
+      change(1, "refund_completion", { ...refundCompletionRow, location_id: ENTITY_ID }),
+    );
+
+    expect(changesPageSchema.parse(page).changes[0]).toEqual(
+      change(1, "refund_completion", refundCompletionRow),
+    );
+  });
+
+  it.each([
+    ["written in capitals", "7C9E6679-7425-40DE-944B-E07FC1F90AE7", ENTITY_ID],
+    [
+      "of no standard version or variant",
+      "7c9e6679-7425-00de-044b-e07fc1f90ae7",
+      "7c9e6679-7425-00de-044b-e07fc1f90ae7",
+    ],
+  ])("reads the user of a refund completion as a record id %s", (_, doneBy, read) => {
+    const page = pageOf(
+      change(1, "refund_completion", { ...refundCompletionRow, done_by: doneBy }),
+    );
+
+    expect(changesPageSchema.parse(page).changes[0]).toEqual(
+      change(1, "refund_completion", { ...refundCompletionRow, done_by: read }),
+    );
+  });
+
+  it.each([
+    ["a user that is not an id", { done_by: "not-an-id" }],
+    ["a day with no time", { done_at: "2026-10-09" }],
+    ["no user", { done_by: undefined }],
+    ["no moment", { done_at: undefined }],
+  ])("refuses a refund completion with %s", (_, override) => {
+    const page = pageOf(change(1, "refund_completion", { ...refundCompletionRow, ...override }));
 
     expect(changesPageSchema.safeParse(page).success).toBe(false);
   });
