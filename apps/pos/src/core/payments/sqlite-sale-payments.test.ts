@@ -3,7 +3,14 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
-import { readSalePayments } from "./sqlite-sale-payments";
+import {
+  approvePendingMercadoPagoPayment,
+  insertPendingMercadoPagoPayment,
+  markQrPaymentReplaced,
+  readPendingMercadoPagoPayment,
+  readPendingMercadoPagoPaymentsOf,
+  readSalePayments,
+} from "./sqlite-sale-payments";
 
 const OCCURRED_AT = new Date("2026-09-30T12:00:00.000Z");
 const CONFIRMED_AT = new Date("2026-09-30T12:01:00.000Z");
@@ -49,6 +56,33 @@ function addQrPayment(id: string, saleId: string, amount: number, state: string)
     )
     .run(id, saleId, amount, state, OCCURRED_AT.toISOString(), CONFIRMED_AT.toISOString());
 }
+
+function addPointPayment(id: string, saleId: string, amount: number, state: string): void {
+  database
+    .prepare(
+      "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES (?, ?, 'SALE', 'POINT', 'MERCADOPAGO_POINT', ?, ?, ?, ?)",
+    )
+    .run(id, saleId, amount, state, OCCURRED_AT.toISOString(), CONFIRMED_AT.toISOString());
+}
+
+const POINT_PENDING = {
+  id: "point-1",
+  saleId: "sale-1",
+  kind: "SALE",
+  method: "POINT",
+  provider: "MERCADOPAGO_POINT",
+  state: "PENDING",
+  amount: 2500,
+  occurredAt: OCCURRED_AT,
+  waitEndsAt: CONFIRMED_AT,
+} as const;
+
+const QR_PENDING = {
+  ...POINT_PENDING,
+  id: "qr-1",
+  method: "QR",
+  provider: "MERCADOPAGO_QR",
+} as const;
 
 beforeEach(() => {
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
@@ -158,5 +192,66 @@ describe("the payments of a sale", () => {
     expect(readSalePayments(database, "sale-1").map((payment) => payment.id)).toEqual([
       "payment-1",
     ]);
+  });
+});
+
+describe("the payments made on the integrated terminal", () => {
+  it("read back an approved payment with nothing tendered nor confirmed", () => {
+    addPointPayment("payment-1", "sale-1", 1500, "APPROVED");
+
+    const [payment] = readSalePayments(database, "sale-1");
+
+    expect(payment).toEqual({
+      id: "payment-1",
+      saleId: "sale-1",
+      kind: "SALE",
+      method: "POINT",
+      provider: "MERCADOPAGO_POINT",
+      amount: 1500,
+      state: "APPROVED",
+      occurredAt: OCCURRED_AT,
+    });
+  });
+
+  it.each(["PENDING", "DECLINED", "CANCELLED", "EXPIRED"])(
+    "leave out a payment that is %s",
+    (state) => {
+      addPointPayment("payment-1", "sale-1", 1500, state);
+
+      expect(readSalePayments(database, "sale-1")).toEqual([]);
+    },
+  );
+
+  it("store a pending payment and read it back with its method, provider and the end of its wait", () => {
+    insertPendingMercadoPagoPayment(database, POINT_PENDING);
+
+    expect(readPendingMercadoPagoPayment(database, "point-1")).toEqual(POINT_PENDING);
+  });
+
+  it("list the pending payments of a sale of either method in the order they were recorded", () => {
+    insertPendingMercadoPagoPayment(database, QR_PENDING);
+    insertPendingMercadoPagoPayment(database, POINT_PENDING);
+
+    expect(readPendingMercadoPagoPaymentsOf(database, "sale-1")).toEqual([
+      QR_PENDING,
+      POINT_PENDING,
+    ]);
+  });
+
+  it("approve a pending payment", () => {
+    addPointPayment("point-1", "sale-1", 2500, "PENDING");
+
+    approvePendingMercadoPagoPayment(database, "point-1");
+
+    expect(readSalePayments(database, "sale-1").map((payment) => payment.id)).toEqual(["point-1"]);
+    expect(readPendingMercadoPagoPayment(database, "point-1")).toBeUndefined();
+  });
+
+  it("never mark a pending payment as replaced", () => {
+    insertPendingMercadoPagoPayment(database, POINT_PENDING);
+
+    markQrPaymentReplaced(database, "point-1", CONFIRMED_AT);
+
+    expect(readPendingMercadoPagoPayment(database, "point-1")).toEqual(POINT_PENDING);
   });
 });

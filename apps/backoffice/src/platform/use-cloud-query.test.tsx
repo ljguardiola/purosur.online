@@ -36,6 +36,7 @@ type ProbeProps = {
   read: () => Promise<CloudReadOutcome<string>>;
   onSessionEnded?: () => void;
   onForbidden?: () => void;
+  handlesNoForbiddenRead?: boolean;
 };
 
 function Probe({
@@ -47,6 +48,7 @@ function Probe({
   read,
   onSessionEnded = () => {},
   onForbidden = () => {},
+  handlesNoForbiddenRead = false,
 }: ProbeProps) {
   const data = useCloudQuery({
     queryKey,
@@ -54,7 +56,7 @@ function Probe({
     enabled,
     read,
     onSessionEnded,
-    onForbidden,
+    ...(handlesNoForbiddenRead ? {} : { onForbidden }),
     ...(gcTime === undefined ? {} : { gcTime }),
     ...(refetchInterval === undefined ? {} : { refetchInterval }),
   });
@@ -384,14 +386,31 @@ test("an unauthenticated read ends the session once, however often the screen re
   expect(onSessionEnded).toHaveBeenCalledTimes(1);
 });
 
-test("a forbidden read is handed to its forbidden handler", async () => {
+test("a forbidden read is handed to its forbidden handler, and stays loading while the screen leaves", async () => {
   const onForbidden = vi.fn();
 
-  await render(
+  const screen = await render(
     <Probe read={() => Promise.resolve({ kind: "forbidden" })} onForbidden={onForbidden} />,
   );
 
   await expect.poll(() => onForbidden.mock.calls.length).toBe(1);
+  await expect.element(screen.getByText("loading")).toBeVisible();
+});
+
+test("a forbidden read is reported as failed, and read again on retry, when nothing handles it", async () => {
+  const second = deferred<CloudReadOutcome<string>>();
+  const read = vi
+    .fn<() => Promise<CloudReadOutcome<string>>>()
+    .mockResolvedValueOnce({ kind: "forbidden" })
+    .mockReturnValueOnce(second.promise);
+  const screen = await render(<Probe read={read} handlesNoForbiddenRead />);
+  await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "retry" }));
+
+  await expect.element(screen.getByText("loading")).toBeVisible();
+  second.resolve(ok("one"));
+  await expect.element(screen.getByText("loaded:one")).toBeVisible();
 });
 
 function ShownOnDemand(props: ProbeProps) {

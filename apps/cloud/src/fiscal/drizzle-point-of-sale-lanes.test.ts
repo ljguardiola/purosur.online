@@ -1,7 +1,7 @@
 import {
   FiscalDocumentAlreadyRecorded,
   type RealTimeAuthorizationAnswer,
-  type RejectionAlertChange,
+  type RejectionStandingChange,
 } from "@purosur/domain/fiscal/use-cases";
 import { eq, sql } from "drizzle-orm";
 import type { PgliteQueryResultHKT } from "drizzle-orm/pglite";
@@ -115,7 +115,7 @@ const REJECTED: RealTimeAuthorizationAnswer = {
   rejectionClass: "content",
 };
 
-const OPEN_ALERT: RejectionAlertChange = {
+const OPEN_ALERT: RejectionStandingChange = {
   kind: "open",
   pointOfSale: 7,
   documentType: "factura_c",
@@ -125,7 +125,7 @@ const OPEN_ALERT: RejectionAlertChange = {
   rejections: [{ code: 10242, message: "El valor de CondicionIVAReceptorId es invalido." }],
 };
 
-const CLEAR_ALERT: RejectionAlertChange = {
+const CLEAR_ALERT: RejectionStandingChange = {
   kind: "clear",
   pointOfSale: 7,
   documentType: "factura_c",

@@ -1,4 +1,4 @@
-import type { RejectionAlertChange } from "../../model/fiscal-rejection-alert.js";
+import type { RejectionStandingChange } from "../../model/fiscal-rejection-standing.js";
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
 import {
   type AuthorizationRequestRecord,
@@ -21,7 +21,7 @@ export class FakePointOfSaleLanes implements PointOfSaleLanes {
   readonly unclearCodes = new Map<string, readonly number[]>();
   readonly lanesEntered: number[] = [];
   readonly invoicingCallsOkAt: Date[] = [];
-  readonly rejectionAlertChanges: (RejectionAlertChange | null)[] = [];
+  readonly rejectionStandings: (RejectionStandingChange | null)[] = [];
   readonly taxAuthorityCounts: (LastAuthorizedCount | null)[] = [];
   held = false;
   recordingFailure: Error | undefined;
@@ -112,7 +112,7 @@ class FakeLane implements PointOfSaleLane {
     fiscalDocumentId: string,
     answer: RealTimeAuthorizationAnswer,
     answeredAt: Date,
-    rejectionAlertChange: RejectionAlertChange | null,
+    rejectionStanding: RejectionStandingChange | null,
     taxAuthorityCount: LastAuthorizedCount | null,
     unclearCodes: readonly number[],
   ): Promise<void> {
@@ -125,7 +125,7 @@ class FakeLane implements PointOfSaleLane {
     this.lanes.answers.set(fiscalDocumentId, answer);
     this.lanes.unclearCodes.set(fiscalDocumentId, unclearCodes);
     this.lanes.invoicingCallsOkAt.push(new Date(answeredAt));
-    this.lanes.rejectionAlertChanges.push(rejectionAlertChange);
+    this.lanes.rejectionStandings.push(rejectionStanding);
     this.lanes.taxAuthorityCounts.push(taxAuthorityCount);
   }
 }

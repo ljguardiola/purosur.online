@@ -3,19 +3,39 @@ export {
   MERCADO_PAGO_PENDING_CHECK_INTERVAL_MS,
   PAYMENT_NOTIFICATION_LIMIT,
 } from "./model/mercado-pago-notifications.js";
+export type { MercadoPagoChargeInProgress } from "./model/mercado-pago-order-charge-wait.js";
 export {
-  aQrChargeInItsWait,
-  MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS,
-  MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES,
-} from "./model/mercado-pago-qr-charge-wait.js";
+  aMercadoPagoChargeInProgress,
+  MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS,
+  MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
+  mercadoPagoChargeInProgress,
+} from "./model/mercado-pago-order-charge-wait.js";
+export { mercadoPagoPaymentIsBacked } from "./model/mercado-pago-payment-backing.js";
+export {
+  isValidPointOrderAmount,
+  MERCADO_PAGO_POINT_MINIMUM_ORDER_CENTS,
+  MERCADO_PAGO_POINT_ORDER_EXPIRY_MINUTES,
+} from "./model/mercado-pago-point-order.js";
 export { nonCashCharge } from "./model/non-cash-charge.js";
-export type { PaymentMethod } from "./model/payment.js";
+export type { MercadoPagoPaymentMethod, PaymentMethod } from "./model/payment.js";
 export {
   cancellableWithoutAuthorization,
   hasApprovedPayment,
-  holdsApprovedQrPayment,
+  holdsApprovedMercadoPagoPayment,
+  MERCADO_PAGO_PAYMENT_METHODS,
+  MERCADO_PAGO_PROVIDERS,
   PAYMENT_METHODS,
 } from "./model/payment.js";
+export type {
+  PointTerminalAvailability,
+  QrAvailability,
+} from "./model/payment-method-availability.js";
+export {
+  POINT_TERMINAL_AVAILABILITIES,
+  pointTerminalAvailability,
+  QR_AVAILABILITIES,
+  qrAvailability,
+} from "./model/payment-method-availability.js";
 export { paymentRecord } from "./model/payment-record.js";
 export type {
   LatePaymentRefund,
@@ -41,11 +61,13 @@ export {
   refundsSettleApprovedPayments,
 } from "./model/payment-refund.js";
 export type {
-  MercadoPagoQrOrderTransaction,
+  MercadoPagoOrderTransaction,
+  MercadoPagoPaymentTransaction,
+  MercadoPagoPointPaymentTransaction,
   MercadoPagoQrPaymentTransaction,
   PaymentTransaction,
   PaymentTransactionState,
-  PendingQrSalePayment,
+  PendingMercadoPagoSalePayment,
   SalePayment,
 } from "./model/payment-transaction.js";
 export {
@@ -54,6 +76,5 @@ export {
   PAYMENT_TRANSACTION_STATES,
   PENDING_PAYMENT_TRANSACTION_STATE,
 } from "./model/payment-transaction.js";
-export { qrPaymentIsBacked } from "./model/qr-payment-backing.js";
 export type { SaleBalance } from "./model/sale-balance.js";
 export { approvedPaymentsCoverTotal, saleBalance } from "./model/sale-balance.js";

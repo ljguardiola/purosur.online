@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -7,6 +8,7 @@ import {
   BrowserWindow,
   dialog,
   MessageChannelMain,
+  net,
   safeStorage,
   session,
   utilityProcess,
@@ -28,7 +30,15 @@ import { readDeviceCredentialsRequest } from "./device-credentials-messages";
 import { initializeErrorReporting } from "./error-reporting";
 import { localDataFolderFor } from "./local-data-folder";
 import { denyDisallowedNavigation, denyWindowOpen } from "./navigation-guard";
+import { createRegisterUpdater } from "./register-update";
+import {
+  pendingUpdateFiles,
+  sha512Hash,
+  spawnDetachedInstaller,
+  updateFetch,
+} from "./register-update-adapters";
 import { reportStartFailure } from "./start-failure";
+import { createSafeMomentAsker } from "./update-safe-moment-asker";
 import { showWhenReadyAndReviveRenderer } from "./window-lifecycle";
 import { createWindowOptions } from "./window-options";
 
@@ -52,6 +62,8 @@ const RESTART_POLICY = {
 };
 
 const CORE_READINESS_TIMEOUT_MS = 30_000;
+
+const SAFE_MOMENT_ANSWER_TIMEOUT_MS = 10_000;
 
 const DEFAULT_CORE_RETRY_INTERVAL_MS = 90_000;
 
@@ -183,6 +195,20 @@ function startRegister(settings: ChannelSettings): void {
       sendCoreStatusToRenderer();
     }
 
+    const safeMomentAsker = createSafeMomentAsker({
+      sendToCore: (message) => {
+        if (currentCoreProcess === undefined) {
+          return false;
+        }
+        currentCoreProcess.postMessage(message);
+        return true;
+      },
+      newRequestId: () => randomUUID(),
+      startTimeout: (run) => {
+        setTimeout(run, SAFE_MOMENT_ANSWER_TIMEOUT_MS);
+      },
+    });
+
     const supervisor = createCoreSupervisor({
       fork: (): SupervisedProcess => {
         const child = utilityProcess.fork(CORE_ENTRY, coreArguments, {
@@ -190,6 +216,7 @@ function startRegister(settings: ChannelSettings): void {
         });
         forwardCoreOutput(child, process.stdout, process.stderr);
         child.on("message", (message) => {
+          safeMomentAsker.handleCoreMessage(message);
           const request = readDeviceCredentialsRequest(message);
           if (request !== undefined) {
             child.postMessage(answerCoreCredentialsRequest(deviceCredentials, request));
@@ -237,6 +264,24 @@ function startRegister(settings: ChannelSettings): void {
     // Stopping first keeps the core's quit-triggered exit from being taken for a crash and
     // relaunched while the window is going away.
     app.on("before-quit", () => supervisor.stop());
+
+    createRegisterUpdater({
+      isPackaged: app.isPackaged,
+      cloudUrl: settings.cloudUrl,
+      installedVersion: app.getVersion(),
+      readDeviceToken: () => deviceCredentials.read()?.device_token,
+      fetch: updateFetch((url, init) => net.fetch(url, init)),
+      files: pendingUpdateFiles(join(app.getPath("userData"), "pending-update")),
+      createHash: sha512Hash,
+      wait: (ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
+      coreStatus: () => coreStatus,
+      setCoreStatus,
+      askSafeMoment: () => safeMomentAsker.ask(),
+      releaseHold: () => currentCoreProcess?.postMessage({ type: "update-hold-release" }),
+      spawnInstaller: spawnDetachedInstaller,
+      quit: () => app.quit(),
+      report: (error) => Sentry.captureException(error),
+    }).start();
 
     window.webContents.on("did-finish-load", () => {
       rendererHasLoadedOnce = true;

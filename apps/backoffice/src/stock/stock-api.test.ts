@@ -285,6 +285,8 @@ const initialLots = {
       saleUnit: "KG",
       expiresOn: "2026-12-01",
       counted: 4_400,
+      withdrawn: false,
+      remaining: 4_400,
       costIncomplete: false,
       unitCostCents: 1_018_000,
       valueCents: 4_479_200,

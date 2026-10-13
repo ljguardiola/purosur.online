@@ -72,10 +72,10 @@ export function useCloudQuery<T>({
   enabled?: boolean | undefined;
   refetchInterval?: number;
   onSessionEnded: () => void;
-  onForbidden: () => void;
+  onForbidden?: (() => void) | undefined;
 }): CloudData<T> {
   const endSession = useEffectEvent(onSessionEnded);
-  const handleForbidden = useEffectEvent(onForbidden);
+  const handleForbidden = useEffectEvent(() => onForbidden?.());
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey,
@@ -125,7 +125,9 @@ export function useCloudQuery<T>({
     }
   }, [refusalReadWhileShown]);
 
-  const leavingScreen = refusal?.kind === "unauthenticated" || refusal?.kind === "forbidden";
+  const leavingScreen =
+    refusal?.kind === "unauthenticated" ||
+    (refusal?.kind === "forbidden" && onForbidden !== undefined);
   if (query.isError && !query.isFetching && !leavingScreen) {
     return {
       status: "failed",

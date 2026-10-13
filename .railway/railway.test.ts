@@ -49,7 +49,44 @@ function findService(definition: ProjectDefinition, name: string): ServiceNode {
 describe("the project's resources", () => {
   it("are named for what each one is", async () => {
     const names = ((await compile()).resources ?? []).flat().map((resource) => resource.name);
-    expect(names).toEqual(["Database", "Media Storage", "Schema Migrations", "Cloud Server"]);
+    expect(names).toEqual([
+      "Database",
+      "Media Storage",
+      "Register Updates",
+      "Schema Migrations",
+      "Cloud Server",
+    ]);
+  });
+});
+
+describe("the register updates bucket", () => {
+  const BUCKET_OUTPUTS = {
+    REGISTER_UPDATES_BUCKET_ENDPOINT: "ENDPOINT",
+    REGISTER_UPDATES_BUCKET_NAME: "BUCKET",
+    REGISTER_UPDATES_BUCKET_REGION: "REGION",
+    REGISTER_UPDATES_BUCKET_ACCESS_KEY_ID: "ACCESS_KEY_ID",
+    REGISTER_UPDATES_BUCKET_SECRET_ACCESS_KEY: "SECRET_ACCESS_KEY",
+  };
+
+  it.each(Object.entries(BUCKET_OUTPUTS))(
+    "gives the Cloud Server %s as a reference to the bucket's %s",
+    async (variable, output) => {
+      const cloud = findService(await compile(), "Cloud Server");
+
+      expect(cloud.variables?.[variable]).toEqual({
+        type: "reference",
+        resource: "bucket.Register Updates",
+        output,
+      });
+    },
+  );
+
+  it("gives the Schema Migrations service none of its variables", async () => {
+    const migrate = findService(await compile(), "Schema Migrations");
+
+    for (const variable of Object.keys(BUCKET_OUTPUTS)) {
+      expect(migrate.variables ?? {}).not.toHaveProperty(variable);
+    }
   });
 });
 
@@ -165,6 +202,7 @@ describe("the Cloud Server service's environment", () => {
       MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token",
       MERCADOPAGO_QR_EXTERNAL_POS_ID: "STORE01POS01",
       MERCADOPAGO_WEBHOOK_SECRET: "fictional-webhook-secret",
+      MERCADOPAGO_POINT_TERMINAL_ID: "PAX_A910__SMARTPOS1",
     };
 
     function stubMercadoPagoEnv(names: (keyof typeof MERCADO_PAGO_ENV)[]): void {
@@ -178,6 +216,7 @@ describe("the Cloud Server service's environment", () => {
         "MERCADOPAGO_ACCESS_TOKEN",
         "MERCADOPAGO_QR_EXTERNAL_POS_ID",
         "MERCADOPAGO_WEBHOOK_SECRET",
+        "MERCADOPAGO_POINT_TERMINAL_ID",
       ]);
 
       const cloud = findService(await compile(), "Cloud Server");
@@ -185,6 +224,18 @@ describe("the Cloud Server service's environment", () => {
       for (const [name, value] of Object.entries(MERCADO_PAGO_ENV)) {
         expect(cloud.variables?.[name], name).toEqual({ type: "literal", value });
       }
+    });
+
+    it("leaves the integrated terminal out when only the other three are set", async () => {
+      stubMercadoPagoEnv([
+        "MERCADOPAGO_ACCESS_TOKEN",
+        "MERCADOPAGO_QR_EXTERNAL_POS_ID",
+        "MERCADOPAGO_WEBHOOK_SECRET",
+      ]);
+
+      const cloud = findService(await compile(), "Cloud Server");
+
+      expect(cloud.variables).not.toHaveProperty("MERCADOPAGO_POINT_TERMINAL_ID");
     });
 
     it("leaves Mercado Pago out when none is set", async () => {

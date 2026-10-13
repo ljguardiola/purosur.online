@@ -1,156 +1,30 @@
-import { MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES } from "../model/mercado-pago-qr-charge-wait.js";
+import { MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES } from "../model/mercado-pago-order-charge-wait.js";
+import { isValidOrderAmount } from "../model/payment-transaction.js";
 import {
-  isValidOrderAmount,
-  type MercadoPagoQrOrderTransaction,
-  mercadoPagoOrderExpiresAt,
-} from "../model/payment-transaction.js";
-import {
-  type MercadoPagoQrOrderPorts,
-  PaymentTransactionAlreadyRecorded,
-} from "./mercado-pago-qr-order-ports.js";
-import { recordExpiryWithoutOrder } from "./record-expiry-without-order.js";
-import {
-  recordCreatedMercadoPagoOrder,
-  recordMercadoPagoOrderResult,
-} from "./record-mercado-pago-order-result.js";
+  type CreateMercadoPagoOrderInput,
+  type CreateMercadoPagoOrderOutcome,
+  createMercadoPagoOrder,
+  type MercadoPagoOrderKind,
+} from "./create-mercado-pago-order.js";
+import type { MercadoPagoOrderPorts } from "./mercado-pago-order-ports.js";
 
-export interface CreateMercadoPagoQrOrderInput {
-  registerId: string;
-  paymentTransactionId: string;
-  saleId: string;
-  amount: number;
-}
+export type CreateMercadoPagoQrOrderInput = CreateMercadoPagoOrderInput;
 
-export type CreateMercadoPagoQrOrderOutcome =
-  | { kind: "recorded"; transaction: MercadoPagoQrOrderTransaction }
-  | { kind: "invalid_amount" }
-  | { kind: "request_mismatch" }
-  | { kind: "not_owned" }
-  | { kind: "provider_refused" }
-  | { kind: "provider_unavailable" };
+export type CreateMercadoPagoQrOrderOutcome = CreateMercadoPagoOrderOutcome<
+  { kind: "invalid_amount" },
+  never
+>;
 
-export async function createMercadoPagoQrOrder(
-  { lanes, mercadoPago, clock }: MercadoPagoQrOrderPorts,
-  { registerId, paymentTransactionId, saleId, amount }: CreateMercadoPagoQrOrderInput,
+const QR_ORDER: MercadoPagoOrderKind<{ kind: "invalid_amount" }, never> = {
+  identity: { method: "QR", provider: "MERCADOPAGO_QR" },
+  lifetimeMinutes: MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
+  refuseAmount: (amount) => (isValidOrderAmount(amount) ? null : { kind: "invalid_amount" }),
+  create: (mercadoPago, request) => mercadoPago.createQrOrder(request),
+};
+
+export function createMercadoPagoQrOrder(
+  ports: MercadoPagoOrderPorts,
+  input: CreateMercadoPagoQrOrderInput,
 ): Promise<CreateMercadoPagoQrOrderOutcome> {
-  if (!isValidOrderAmount(amount)) {
-    return { kind: "invalid_amount" };
-  }
-
-  return lanes.inPaymentTransactionLane<CreateMercadoPagoQrOrderOutcome>(
-    paymentTransactionId,
-    async (lane) => {
-      const recorded = await lane.recordedTransaction(registerId, paymentTransactionId);
-      if (recorded !== null && (recorded.saleId !== saleId || recorded.amount !== amount)) {
-        return { kind: "request_mismatch" };
-      }
-
-      let transaction: MercadoPagoQrOrderTransaction;
-      if (recorded === null) {
-        const createdAt = clock.now();
-        transaction = {
-          id: paymentTransactionId,
-          registerId,
-          saleId,
-          kind: "SALE",
-          method: "QR",
-          provider: "MERCADOPAGO_QR",
-          amount,
-          state: "PENDING",
-          needsReview: false,
-          providerOrderId: null,
-          creationOutcomeUnknown: true,
-          replaced: false,
-          createdAt,
-          expiresAt: mercadoPagoOrderExpiresAt(createdAt, mercadoPago.longestCallMs),
-        };
-        try {
-          await lane.recordPendingTransaction(transaction);
-        } catch (error) {
-          if (error instanceof PaymentTransactionAlreadyRecorded) {
-            return { kind: "not_owned" };
-          }
-          throw error;
-        }
-      } else {
-        transaction = recorded;
-      }
-
-      if (transaction.state !== "PENDING") {
-        return { kind: "recorded", transaction };
-      }
-
-      let orderId = transaction.providerOrderId;
-      if (orderId === null) {
-        if (recorded !== null) {
-          const attemptStartedAt = clock.now();
-          const ended = await recordExpiryWithoutOrder(lane, transaction, attemptStartedAt);
-          if (ended !== null) {
-            return { kind: "recorded", transaction: ended };
-          }
-          const expiresAt = mercadoPagoOrderExpiresAt(attemptStartedAt, mercadoPago.longestCallMs);
-          await lane.recordCreationAttempt(paymentTransactionId, expiresAt);
-          transaction = { ...transaction, expiresAt };
-        }
-
-        const creation = await mercadoPago.createQrOrder({
-          idempotencyKey: paymentTransactionId,
-          externalReference: paymentTransactionId,
-          amount,
-          expiresAfterMinutes: MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES,
-        });
-        const earlierAttemptMayHaveCreatedOrder = recorded?.creationOutcomeUnknown === true;
-        if (creation.kind === "refused" || creation.kind === "throttled") {
-          if (!earlierAttemptMayHaveCreatedOrder) {
-            await lane.recordCreationCreatedNothing(paymentTransactionId);
-          }
-          return {
-            kind: creation.kind === "refused" ? "provider_refused" : "provider_unavailable",
-          };
-        }
-        if (creation.kind === "unavailable") {
-          return { kind: "provider_unavailable" };
-        }
-        const createdOrderId = creation.orderId;
-        orderId = createdOrderId;
-        transaction = { ...transaction, providerOrderId: createdOrderId };
-
-        if (recorded === null) {
-          return {
-            kind: "recorded",
-            transaction: await recordCreatedMercadoPagoOrder(
-              lane,
-              transaction,
-              createdOrderId,
-              creation.result,
-              clock.now(),
-              false,
-            ),
-          };
-        }
-        await lane.inOneTransaction(async (atomic) => {
-          await atomic.recordOrderCreated(paymentTransactionId, createdOrderId, null);
-          if (!earlierAttemptMayHaveCreatedOrder) {
-            await atomic.recordNoOtherOrderPossible(paymentTransactionId);
-          }
-        });
-        transaction = { ...transaction, creationOutcomeUnknown: earlierAttemptMayHaveCreatedOrder };
-      }
-
-      const reading = await mercadoPago.readOrder(orderId);
-      if (reading.kind === "unavailable") {
-        return { kind: "provider_unavailable" };
-      }
-
-      return {
-        kind: "recorded",
-        transaction: await recordMercadoPagoOrderResult(
-          lane,
-          transaction,
-          reading.result,
-          clock.now(),
-        ),
-      };
-    },
-  );
+  return createMercadoPagoOrder(ports, input, QR_ORDER);
 }

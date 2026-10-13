@@ -3,6 +3,7 @@ import { hostname, release, version } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { type CoreReadyMessage, mainToCoreMessageSchema } from "@purosur/contracts";
+import { REGISTER_UPDATE_HOLD_LIMIT_MS } from "@purosur/domain";
 import * as Sentry from "@sentry/electron/utility";
 import { net } from "electron";
 import {
@@ -22,7 +23,8 @@ import {
 } from "./fiscal/real-time-authorization-wiring";
 import { readLatestPreEmissionGateOutcome } from "./fiscal/sqlite-pre-emission-gate";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
-import { createMercadoPagoQrCharging } from "./payments/mercado-pago-qr-charge-wiring";
+import { createMercadoPagoCharging } from "./payments/mercado-pago-charge-wiring";
+import { paymentMethodAvailabilityFor } from "./payments/payment-method-availability-requests";
 import {
   type CloudClientDeps,
   getFromCloud,
@@ -68,6 +70,7 @@ import { readSerialDevicesFor, registerSerialDevicesFor } from "./register/seria
 import { listSerialPorts, serialportEnumeration } from "./register/serialport-enumeration";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
+import { createUpdateHold, gateRendererRequest } from "./register/update-hold";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
@@ -97,6 +100,7 @@ import {
   weighProductFor,
 } from "./sales/sale-requests";
 import { saleHistoryDetailFor, salesHistoryFor } from "./sales/sales-history-requests";
+import { anySaleIsOpen } from "./sales/sqlite-open-sale-presence";
 import { createSystelScale } from "./sales/systel-scale";
 import { createActionGate } from "./sessions/action-gate";
 import { authorizersOf } from "./sessions/authorizers";
@@ -400,7 +404,7 @@ await settleInterruptedAuthorizations({
     reportFailure("settling the interrupted real-time authorizations", error),
 });
 
-const mercadoPagoQrCharging = createMercadoPagoQrCharging({
+const mercadoPagoCharging = createMercadoPagoCharging({
   database: localDatabase,
   gate: actionGate,
   cloudClient,
@@ -752,9 +756,19 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             request,
           ),
-  startMercadoPagoQrCharge: mercadoPagoQrCharging.start,
-  followMercadoPagoQrCharge: mercadoPagoQrCharging.follow,
-  abandonMercadoPagoQrCharge: mercadoPagoQrCharging.abandon,
+  startMercadoPagoCharge: mercadoPagoCharging.start,
+  followMercadoPagoCharge: mercadoPagoCharging.follow,
+  paymentMethodAvailability:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : () =>
+          paymentMethodAvailabilityFor({
+            database: localDatabase,
+            gate: actionGate,
+            now,
+            cloud: () => cloudReachability,
+          }),
+  abandonMercadoPagoCharge: mercadoPagoCharging.abandon,
   searchProducts:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -852,11 +866,11 @@ const answeredRendererRequestDeps: RendererRequestDeps = {
   chargeSaleByTransfer: receiptPrinting.afterCompletedSale(
     rendererRequestDeps.chargeSaleByTransfer,
   ),
-  followMercadoPagoQrCharge: receiptPrinting.afterCompletedSale(
-    rendererRequestDeps.followMercadoPagoQrCharge,
+  followMercadoPagoCharge: receiptPrinting.afterCompletedSale(
+    rendererRequestDeps.followMercadoPagoCharge,
   ),
-  abandonMercadoPagoQrCharge: receiptPrinting.afterCompletedSale(
-    rendererRequestDeps.abandonMercadoPagoQrCharge,
+  abandonMercadoPagoCharge: receiptPrinting.afterCompletedSale(
+    rendererRequestDeps.abandonMercadoPagoCharge,
   ),
 };
 
@@ -889,15 +903,30 @@ if (cloudClient !== undefined) {
   });
 }
 
+const updateHold = createUpdateHold({
+  hasOpenSale: () => localDatabase !== undefined && anySaleIsOpen(localDatabase),
+  schedule: (run, delayMs) => {
+    const timer = setTimeout(run, delayMs);
+    return () => clearTimeout(timer);
+  },
+  limitMs: REGISTER_UPDATE_HOLD_LIMIT_MS,
+});
+
 const rendererConnection = createRendererConnection(
   (data, reply) => {
-    gateFromRenderer(data, (message) => {
-      void answerRendererRequest(answeredRendererRequestDeps, message).then((answer) => {
-        if (answer !== undefined) {
-          reply(answer);
-        }
-      });
-    });
+    gateFromRenderer(
+      data,
+      gateRendererRequest(
+        updateHold,
+        (message) =>
+          answerRendererRequest(answeredRendererRequestDeps, message).then((answer) => {
+            if (answer !== undefined) {
+              reply(answer);
+            }
+          }),
+        (requestId) => reply({ type: "refused-while-updating", request_id: requestId }),
+      ),
+    );
   },
   () => signedInPerson.clear(),
 );
@@ -908,7 +937,17 @@ process.parentPort.on("message", (event) => {
     rendererConnection.adopt(rendererPort);
     return;
   }
-  gateFromMain(event.data, (message) => mainRequests.receive(message));
+  gateFromMain(event.data, (message) => {
+    if (message.type === "update-safe-moment-request") {
+      void updateHold
+        .answerSafeMomentRequest(message.request_id)
+        .then((answer) => process.parentPort.postMessage(answer));
+    } else if (message.type === "update-hold-release") {
+      updateHold.release();
+    } else {
+      mainRequests.receive(message);
+    }
+  });
 });
 
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);

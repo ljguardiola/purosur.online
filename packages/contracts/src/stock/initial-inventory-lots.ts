@@ -31,6 +31,8 @@ export const initialInventoryLotListSchema = z.object({
       saleUnit: z.enum(SALE_UNITS),
       expiresOn: z.string().refine(isCalendarDay).nullable(),
       counted: z.int(),
+      withdrawn: z.boolean(),
+      remaining: z.int(),
       costIncomplete: z.boolean(),
       unitCostCents: z.int().nullable(),
       valueCents: z.int().nullable(),

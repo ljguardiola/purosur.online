@@ -1,6 +1,6 @@
 import type {
-  AbandonMercadoPagoQrChargeOutcome,
-  FollowMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -16,8 +16,9 @@ const ORDER = {
   payment_transaction_id: PAYMENT_ID,
   amount: 3_000_000,
   remaining_seconds: 180,
+  wait_seconds: 180,
 } as const;
-const WAITING: FollowMercadoPagoQrChargeOutcome = { kind: "waiting", remaining_seconds: 161 };
+const WAITING: FollowMercadoPagoChargeOutcome = { kind: "waiting", remaining_seconds: 161 };
 const COMPLETED = { kind: "completed", sale_id: "sale-1", total: TOTAL } as const;
 const PARTIALLY_PAID = {
   kind: "partially_paid",
@@ -29,13 +30,13 @@ const PARTIALLY_PAID = {
 
 const NEXT_ASK_TIMEOUT_MS = 5_000;
 
-type Follow = (paymentTransactionId: string) => Promise<FollowMercadoPagoQrChargeOutcome>;
+type Follow = (paymentTransactionId: string) => Promise<FollowMercadoPagoChargeOutcome>;
 
-function answering(...outcomes: FollowMercadoPagoQrChargeOutcome[]): Follow {
+function answering(...outcomes: FollowMercadoPagoChargeOutcome[]): Follow {
   return async () => (outcomes.length > 1 ? outcomes.shift() : outcomes[0]) ?? WAITING;
 }
 
-type Abandon = (paymentTransactionId: string) => Promise<AbandonMercadoPagoQrChargeOutcome>;
+type Abandon = (paymentTransactionId: string) => Promise<AbandonMercadoPagoChargeOutcome>;
 
 async function renderModal(
   follow: Follow = answering(WAITING),
@@ -99,9 +100,24 @@ describe("QrPaymentWaitModal", () => {
   });
 
   it("counts the time left out of the whole wait the order was shown with", async () => {
-    const { screen } = await renderModal(answering(WAITING), { ...ORDER, remaining_seconds: 190 });
+    const { screen } = await renderModal(answering(WAITING), {
+      ...ORDER,
+      remaining_seconds: 188,
+      wait_seconds: 190,
+    });
 
     await expect.element(screen.getByText("2:41")).toBeVisible();
+    await expect.element(screen.getByText("de 3:10")).toBeVisible();
+  });
+
+  it("shows the whole wait as the total of a charge reopened part way through it", async () => {
+    const { screen } = await renderModal(answering({ kind: "waiting", remaining_seconds: 40 }), {
+      ...ORDER,
+      remaining_seconds: 40,
+      wait_seconds: 190,
+    });
+
+    await expect.element(screen.getByText("0:40")).toBeVisible();
     await expect.element(screen.getByText("de 3:10")).toBeVisible();
   });
 
@@ -216,8 +232,8 @@ describe("QrPaymentWaitModal", () => {
   });
 
   it("loads the time left again from its placeholder after Reintentar, not from the time the order was shown with", async () => {
-    let answerAgain: (outcome: FollowMercadoPagoQrChargeOutcome) => void = () => undefined;
-    const answers: Promise<FollowMercadoPagoQrChargeOutcome>[] = [
+    let answerAgain: (outcome: FollowMercadoPagoChargeOutcome) => void = () => undefined;
+    const answers: Promise<FollowMercadoPagoChargeOutcome>[] = [
       Promise.resolve({ kind: "unavailable" }),
       new Promise((resolve) => {
         answerAgain = resolve;
@@ -298,7 +314,7 @@ describe("QrPaymentWaitModal", () => {
   });
 
   describe("when the core could not confirm the expiry", () => {
-    const UNCONFIRMED: FollowMercadoPagoQrChargeOutcome = { kind: "expiry_unconfirmed" };
+    const UNCONFIRMED: FollowMercadoPagoChargeOutcome = { kind: "expiry_unconfirmed" };
 
     async function renderUnconfirmed(abandon?: Abandon, follow: Follow = answering(UNCONFIRMED)) {
       const rendered = await renderModal(follow, ORDER, abandon);
@@ -339,7 +355,7 @@ describe("QrPaymentWaitModal", () => {
     });
 
     it("says the order could not be cancelled when the core cannot answer, and lets the cashier try again", async () => {
-      const answers: AbandonMercadoPagoQrChargeOutcome[] = [
+      const answers: AbandonMercadoPagoChargeOutcome[] = [
         { kind: "unavailable" },
         { kind: "cancelled" },
       ];
@@ -365,7 +381,7 @@ describe("QrPaymentWaitModal", () => {
     });
 
     it("disables Elegir otro medio while the order is being cancelled", async () => {
-      let answer: (outcome: AbandonMercadoPagoQrChargeOutcome) => void = () => undefined;
+      let answer: (outcome: AbandonMercadoPagoChargeOutcome) => void = () => undefined;
       const { screen } = await renderUnconfirmed(
         () =>
           new Promise((resolve) => {
@@ -479,7 +495,7 @@ describe("QrPaymentWaitModal", () => {
   });
 
   it("disables Cobrar con otro medio while the core abandons the order, and stops asking about the payment", async () => {
-    let answer: (outcome: AbandonMercadoPagoQrChargeOutcome) => void = () => undefined;
+    let answer: (outcome: AbandonMercadoPagoChargeOutcome) => void = () => undefined;
     const { screen, followCharge, abandonCharge } = await renderModal(
       answering(WAITING),
       ORDER,
@@ -583,8 +599,8 @@ describe("QrPaymentWaitModal", () => {
   ] as const)(
     "keeps showing the customer paid until Continuar when the payment was seen before the cancellation answers the order is %s",
     async (_name, outcome) => {
-      let settleFollow: (outcome: FollowMercadoPagoQrChargeOutcome) => void = () => undefined;
-      let answerAbandon: (outcome: AbandonMercadoPagoQrChargeOutcome) => void = () => undefined;
+      let settleFollow: (outcome: FollowMercadoPagoChargeOutcome) => void = () => undefined;
+      let answerAbandon: (outcome: AbandonMercadoPagoChargeOutcome) => void = () => undefined;
       const { screen, abandonCharge, callbacks } = await renderModal(
         () =>
           new Promise((resolve) => {
@@ -700,7 +716,7 @@ describe("QrPaymentWaitModal", () => {
   );
 
   it("says the order could not be cancelled when the core cannot answer, and lets the cashier try again", async () => {
-    const answers: AbandonMercadoPagoQrChargeOutcome[] = [
+    const answers: AbandonMercadoPagoChargeOutcome[] = [
       { kind: "unavailable" },
       { kind: "cancelled" },
     ];

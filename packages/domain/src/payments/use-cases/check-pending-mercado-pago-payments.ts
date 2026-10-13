@@ -1,6 +1,6 @@
-import { cancelMercadoPagoQrOrderInLane } from "./cancel-mercado-pago-qr-order.js";
+import { cancelMercadoPagoOrderInLane } from "./cancel-mercado-pago-order.js";
 import type { MercadoPagoNotificationPorts } from "./mercado-pago-notification-ports.js";
-import type { MercadoPagoCancellationKeys } from "./mercado-pago-qr-order-ports.js";
+import type { MercadoPagoCancellationKeys } from "./mercado-pago-order-ports.js";
 import { refreshMercadoPagoTransaction } from "./refresh-mercado-pago-transaction.js";
 
 export interface CheckPendingMercadoPagoPaymentsOutcome {
@@ -14,7 +14,7 @@ export type CheckPendingMercadoPagoPaymentsPorts = MercadoPagoNotificationPorts 
 };
 
 function settled(
-  outcome: Awaited<ReturnType<typeof cancelMercadoPagoQrOrderInLane>>,
+  outcome: Awaited<ReturnType<typeof cancelMercadoPagoOrderInLane>>,
 ): { kind: "refreshed" } | { kind: "provider_unavailable" } {
   return outcome.kind === "provider_unavailable" ? outcome : { kind: "refreshed" };
 }
@@ -36,7 +36,7 @@ export async function checkPendingMercadoPagoPayments({
       }
       const ports = { mercadoPago, cancellationKeys, clock };
       return transaction.replaced
-        ? settled(await cancelMercadoPagoQrOrderInLane(lane, ports, transaction))
+        ? settled(await cancelMercadoPagoOrderInLane(lane, ports, transaction))
         : refreshMercadoPagoTransaction(lane, ports, transaction);
     });
     if (refresh?.kind === "refreshed") {

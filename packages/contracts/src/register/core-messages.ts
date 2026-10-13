@@ -506,5 +506,6 @@ export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", 
     outcome: registerSerialDevicesOutcomeSchema,
   }),
   z.object({ type: z.literal("serial-devices-changed") }),
+  z.object({ type: z.literal("refused-while-updating"), request_id: requestId }),
 ]);
 export type RegisterCoreToRendererMessage = z.infer<typeof registerCoreToRendererMessageSchema>;

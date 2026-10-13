@@ -1,0 +1,72 @@
+import { describe, expect, it } from "vitest";
+import { FACTURA_C_DOCUMENT_TYPE, rejectionStandingChange } from "./fiscal-rejection-standing.js";
+
+const SUBJECT = {
+  pointOfSale: 12,
+  documentType: FACTURA_C_DOCUMENT_TYPE,
+  fiscalDocumentId: "fiscal-document-1",
+  saleId: "sale-1",
+} as const;
+
+const REJECTIONS = [
+  { code: 10242, message: "El campo CondicionIVAReceptorId es invalido." },
+  { code: 10015, message: "Debe informar el documento del receptor." },
+];
+
+describe("FACTURA_C_DOCUMENT_TYPE", () => {
+  it("names the invoice class C", () => {
+    expect(FACTURA_C_DOCUMENT_TYPE).toBe("factura_c");
+  });
+});
+
+describe("rejectionStandingChange", () => {
+  it("records the point of sale and document type as rejected for a content rejection, with what the tax authority said", () => {
+    expect(
+      rejectionStandingChange(
+        { kind: "rejected", codes: [10242, 10015], rejectionClass: "content" },
+        REJECTIONS,
+        SUBJECT,
+      ),
+    ).toEqual({
+      kind: "open",
+      pointOfSale: 12,
+      documentType: "factura_c",
+      rejectionClass: "content",
+      fiscalDocumentId: "fiscal-document-1",
+      saleId: "sale-1",
+      rejections: REJECTIONS,
+    });
+  });
+
+  it("records the point of sale and document type as rejected for a standing rejection, with its class", () => {
+    expect(
+      rejectionStandingChange(
+        { kind: "rejected", codes: [10005], rejectionClass: "standing" },
+        [{ code: 10005, message: "El punto de venta no es RECE." }],
+        SUBJECT,
+      ),
+    ).toMatchObject({ kind: "open", rejectionClass: "standing" });
+  });
+
+  it("clears the rejection standing of the point of sale and document type for an authorized document", () => {
+    expect(
+      rejectionStandingChange(
+        {
+          kind: "authorized",
+          authorizationCode: "75123456789012",
+          authorizationCodeDueOn: "2026-10-11",
+        },
+        [],
+        SUBJECT,
+      ),
+    ).toEqual({ kind: "clear", pointOfSale: 12, documentType: "factura_c" });
+  });
+
+  it("changes nothing for an unclear answer", () => {
+    expect(rejectionStandingChange({ kind: "unclear" }, [], SUBJECT)).toBeNull();
+  });
+
+  it("changes nothing when the call was not attempted", () => {
+    expect(rejectionStandingChange({ kind: "not_attempted" }, [], SUBJECT)).toBeNull();
+  });
+});

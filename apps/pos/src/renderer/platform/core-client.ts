@@ -1,5 +1,5 @@
 import type {
-  AbandonMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
@@ -23,12 +23,13 @@ import type {
   EnrollmentOutcome,
   FindCountableProductOutcome,
   FirstPinCodeRequestOutcome,
-  FollowMercadoPagoQrChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
   ManualAdjustmentRequest,
   OpenCashSession,
   OpenCashSessionOutcome,
+  PaymentMethodAvailability,
   PaymentsCoreToRendererMessage,
   PaymentsRendererToCoreMessage,
   PinCodeRedemptionOutcome,
@@ -64,7 +65,7 @@ import type {
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
-  StartMercadoPagoQrChargeOutcome,
+  StartMercadoPagoChargeOutcome,
   StockCoreToRendererMessage,
   StockRendererToCoreMessage,
   SyncCoreToRendererMessage,
@@ -129,6 +130,11 @@ export type SerialDevicesToRegister = Extract<
   RegisterRendererToCoreMessage,
   { type: "register-serial-devices" }
 >["devices"];
+
+export type MercadoPagoMethod = Extract<
+  PaymentsRendererToCoreMessage,
+  { type: "start-mercado-pago-charge" }
+>["method"];
 
 export interface CoreClient {
   connect(port: CorePort): void;
@@ -220,16 +226,14 @@ export interface CoreClient {
   cashCharge(saleId: string, tendered: number): Promise<CashChargeAnswer>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer(saleId: string, amount: number): Promise<ChargeSaleByTransferOutcome>;
-  startMercadoPagoQrCharge(
+  paymentMethodAvailability(): Promise<PaymentMethodAvailability | null>;
+  startMercadoPagoCharge(
     saleId: string,
+    method: MercadoPagoMethod,
     amount: number,
-  ): Promise<StartMercadoPagoQrChargeOutcome>;
-  followMercadoPagoQrCharge(
-    paymentTransactionId: string,
-  ): Promise<FollowMercadoPagoQrChargeOutcome>;
-  abandonMercadoPagoQrCharge(
-    paymentTransactionId: string,
-  ): Promise<AbandonMercadoPagoQrChargeOutcome>;
+  ): Promise<StartMercadoPagoChargeOutcome>;
+  followMercadoPagoCharge(paymentTransactionId: string): Promise<FollowMercadoPagoChargeOutcome>;
+  abandonMercadoPagoCharge(paymentTransactionId: string): Promise<AbandonMercadoPagoChargeOutcome>;
   closeCashSession(sessionId: string, countedCash: number): Promise<CloseCashSessionOutcome>;
   closeLockedCashSession(
     sessionId: string,
@@ -288,6 +292,13 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       for (const listener of barcodeReadListeners) {
         listener(answer.data.code);
       }
+      return;
+    }
+    if (answer.data.type === "refused-while-updating") {
+      sent
+        .get(answer.data.request_id)
+        ?.fail(new Error("the core refused the request while an update installs"));
+      sent.delete(answer.data.request_id);
       return;
     }
     if (sent.get(answer.data.request_id)?.settle(answer.data)) {
@@ -775,38 +786,46 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         (answer) => (answer.type === "charge-sale-by-transfer-result" ? answer.outcome : undefined),
       );
     },
-    startMercadoPagoQrCharge(saleId, amount) {
+    paymentMethodAvailability() {
+      return ask(
+        { type: "payment-method-availability", request_id: deps.newRequestId() },
+        (answer) =>
+          answer.type === "payment-method-availability-result" ? answer.availability : undefined,
+      );
+    },
+    startMercadoPagoCharge(saleId, method, amount) {
       return ask(
         {
-          type: "start-mercado-pago-qr-charge",
+          type: "start-mercado-pago-charge",
           request_id: deps.newRequestId(),
           sale_id: saleId,
+          method,
           amount,
         },
         (answer) =>
-          answer.type === "start-mercado-pago-qr-charge-result" ? answer.outcome : undefined,
+          answer.type === "start-mercado-pago-charge-result" ? answer.outcome : undefined,
       );
     },
-    followMercadoPagoQrCharge(paymentTransactionId) {
+    followMercadoPagoCharge(paymentTransactionId) {
       return ask(
         {
-          type: "follow-mercado-pago-qr-charge",
+          type: "follow-mercado-pago-charge",
           request_id: deps.newRequestId(),
           payment_transaction_id: paymentTransactionId,
         },
         (answer) =>
-          answer.type === "follow-mercado-pago-qr-charge-result" ? answer.outcome : undefined,
+          answer.type === "follow-mercado-pago-charge-result" ? answer.outcome : undefined,
       );
     },
-    abandonMercadoPagoQrCharge(paymentTransactionId) {
+    abandonMercadoPagoCharge(paymentTransactionId) {
       return ask(
         {
-          type: "abandon-mercado-pago-qr-charge",
+          type: "abandon-mercado-pago-charge",
           request_id: deps.newRequestId(),
           payment_transaction_id: paymentTransactionId,
         },
         (answer) =>
-          answer.type === "abandon-mercado-pago-qr-charge-result" ? answer.outcome : undefined,
+          answer.type === "abandon-mercado-pago-charge-result" ? answer.outcome : undefined,
       );
     },
     closeCashSession(sessionId, countedCash) {

@@ -1,4 +1,3 @@
-import type { FiscalUnknownAlertKey } from "../../alerts/index.js";
 import type { Clock } from "../../shared/index.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
 import type {
@@ -26,6 +25,11 @@ export interface UnclearRequest extends FiscalDocumentData {
 
 export type AbandonedRequestRecord = Omit<AuthorizationRequestRecord, "notAfter" | "receivedAt">;
 
+export interface UnclearOutcomeWarningClearance {
+  fiscalDocumentId: string;
+  clearedAt: Date;
+}
+
 export interface UnclearOutcomeLane {
   unclearRequest(fiscalDocumentId: string): Promise<UnclearRequest | null>;
   recordAbandonment(fiscalDocumentId: string, abandonedAt: Date): Promise<void>;
@@ -33,7 +37,7 @@ export interface UnclearOutcomeLane {
     fiscalDocumentId: string,
     decision: UnclearOutcomeDecision,
     decidedAt: Date,
-    resolvedAlert: FiscalUnknownAlertKey,
+    clearedWarning: UnclearOutcomeWarningClearance,
   ): Promise<void>;
   registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;
   recordedRequest(

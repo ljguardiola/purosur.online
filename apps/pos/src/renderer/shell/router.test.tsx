@@ -1,4 +1,9 @@
-import type { CashBalance, ListedCashMovement, RegisterStatus } from "@purosur/contracts";
+import type {
+  CashBalance,
+  ListedCashMovement,
+  PaymentMethodAvailability,
+  RegisterStatus,
+} from "@purosur/contracts";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createRootRouteWithContext, createRoute, RouterProvider } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -32,6 +37,7 @@ type RoutePath =
   | "/enroll"
   | "/starting"
   | "/core-down"
+  | "/updating"
   | "/out-of-service"
   | "/older-version"
   | "/pin-code-redemption"
@@ -118,6 +124,7 @@ const screenFor: Record<
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
   "/starting": (screen) => screen.getByRole("img", { name: BRAND_LOGO_ALT }),
   "/core-down": (screen) => screen.getByText(CORE_DOWN_TITLE),
+  "/updating": (screen) => screen.getByText("Actualizando la caja"),
   "/out-of-service": (screen) => screen.getByText(OUT_OF_SERVICE_TITLE),
   "/older-version": (screen) => screen.getByRole("heading", { name: OLDER_VERSION_TITLE }),
   "/pin-code-redemption": (screen) => screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE }),
@@ -180,9 +187,10 @@ function contextWith(
     cashCharge: async () => ({ kind: "invalid_amount" }),
     chargeSaleInCash: async () => ({ kind: "unavailable" }),
     chargeSaleByTransfer: async () => ({ kind: "unavailable" }),
-    startMercadoPagoQrCharge: async () => ({ kind: "unavailable" }),
-    followMercadoPagoQrCharge: async () => ({ kind: "unavailable" }),
-    abandonMercadoPagoQrCharge: async () => ({ kind: "unavailable" }),
+    paymentMethodAvailability: async () => null,
+    startMercadoPagoCharge: async () => ({ kind: "unavailable" }),
+    followMercadoPagoCharge: async () => ({ kind: "unavailable" }),
+    abandonMercadoPagoCharge: async () => ({ kind: "unavailable" }),
     scanProduct: async () => ({ kind: "unknown_code" }),
     searchProducts: async () => ({ kind: "results", products: [], more: false }),
     addProduct: async () => ({ kind: "product_unavailable" }),
@@ -292,6 +300,7 @@ describe("routeFor", () => {
       registerService: "unknown",
       route: "/older-version",
     },
+    { coreStatus: "updating", enrollment: "enrolled", person: PERSON, route: "/updating" },
     {
       coreStatus: "up",
       enrollment: "enrolled",
@@ -991,6 +1000,7 @@ describe("the register's router", () => {
           lines_lock: null,
           cancel_refusal: null,
           charge_refusal: null,
+          mercado_pago_charge_in_progress: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
           adjust_authorization_required: false,
@@ -1358,6 +1368,7 @@ describe("the register's router", () => {
           lines_lock: null,
           cancel_refusal: null,
           charge_refusal: null,
+          mercado_pago_charge_in_progress: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
           adjust_authorization_required: false,
@@ -1416,6 +1427,7 @@ describe("the register's router", () => {
           lines_lock: null,
           cancel_refusal: null,
           charge_refusal: null,
+          mercado_pago_charge_in_progress: null,
           refunds_on_cancel: [],
           cancel_authorization_required: false,
           adjust_authorization_required: false,
@@ -2171,6 +2183,7 @@ describe("the register's status bar", () => {
       lines_lock: null,
       cancel_refusal: null,
       charge_refusal: null,
+      mercado_pago_charge_in_progress: null,
       refunds_on_cancel: [],
       cancel_authorization_required: false,
       adjust_authorization_required: false,
@@ -2286,6 +2299,7 @@ describe("the charge route's Mercado Pago QR", () => {
       lines_lock: null,
       cancel_refusal: null,
       charge_refusal: null,
+      mercado_pago_charge_in_progress: null,
       refunds_on_cancel: [],
       cancel_authorization_required: false,
       adjust_authorization_required: false,
@@ -2296,59 +2310,54 @@ describe("the charge route's Mercado Pago QR", () => {
     }),
   };
 
-  function chargeRouterWith(registerStatus: () => Promise<RegisterStatus | "unavailable">) {
+  const AVAILABLE = { qr: "available", point: "available", point_minimum: 1500 } as const;
+
+  function chargeRouterWith(
+    paymentMethodAvailability: () => Promise<PaymentMethodAvailability | null>,
+  ) {
     return createRegisterRouter(
       routeTree,
       {
         ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
         ...SALE_TO_CHARGE,
-        registerStatus,
+        paymentMethodAvailability,
       },
       "/charge",
     );
   }
 
-  it("offers the QR once the core answers that it reaches the cloud", async () => {
-    const router = chargeRouterWith(async () => ({
-      conditions: [],
-      cloud: "reachable",
-      serial_devices: { scale: "matching", reader: "matching" },
-      serial_devices_setup_offered: false,
-    }));
+  it("offers the QR and the terminal once the core answers that they are available", async () => {
+    const router = chargeRouterWith(async () => AVAILABLE);
 
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeEnabled();
+    await expect.element(screen.getByRole("radio", { name: "Point integrada" })).toBeEnabled();
   });
 
-  it.each<RegisterStatus["cloud"]>(["unknown", "unreachable"])(
-    "shows the QR as unavailable when the core answers %s",
-    async (cloud) => {
-      const router = chargeRouterWith(async () => ({
-        conditions: [],
-        cloud,
-        serial_devices: { scale: "matching", reader: "matching" },
-        serial_devices_setup_offered: false,
-      }));
+  it("shows the QR and the terminal as unavailable when the core answers that they are offline", async () => {
+    const router = chargeRouterWith(async () => ({
+      qr: "offline",
+      point: "offline",
+      point_minimum: 1500,
+    }));
 
-      const screen = await render(<RouterProvider router={router} />);
+    const screen = await render(<RouterProvider router={router} />);
 
-      await expect.element(screen.getByText("No disponible sin conexión")).toBeVisible();
-      await expect
-        .element(screen.getByRole("radio", { name: "QR de Mercado Pago" }))
-        .toBeDisabled();
-    },
-  );
+    await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeDisabled();
+    await expect.element(screen.getByRole("radio", { name: "Point integrada" })).toBeDisabled();
+  });
 
   it("creates the QR order through the core for the sale in progress", async () => {
-    const started: [string, number][] = [];
+    const started: [string, string, number][] = [];
     const router = createRegisterRouter(
       routeTree,
       {
         ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
         ...SALE_TO_CHARGE,
-        startMercadoPagoQrCharge: async (saleId, amount) => {
-          started.push([saleId, amount]);
+        paymentMethodAvailability: async () => AVAILABLE,
+        startMercadoPagoCharge: async (saleId, method, amount) => {
+          started.push([saleId, method, amount]);
           return { kind: "unavailable" };
         },
       },
@@ -2359,6 +2368,6 @@ describe("the charge route's Mercado Pago QR", () => {
     await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
 
-    await expect.poll(() => started).toEqual([["sale-1", 238_000]]);
+    await expect.poll(() => started).toEqual([["sale-1", "QR", 238_000]]);
   });
 });

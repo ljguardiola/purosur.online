@@ -70,7 +70,7 @@ export function changedLine(
     ...openSaleStanding(
       amountToCharge(changed),
       tx.salePayments(changed.id),
-      tx.pendingQrPaymentsOf(changed.id),
+      tx.pendingMercadoPagoPaymentsOf(changed.id),
       moment,
     ),
   };

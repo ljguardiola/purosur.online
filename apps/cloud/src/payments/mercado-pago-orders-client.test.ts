@@ -17,9 +17,16 @@ import {
   ORDER_EXTERNAL_REFERENCE,
   ORDER_ID,
   orderAlreadyCanceledError,
+  POINT_TERMINAL_ID,
   paidOrder,
   paidWithCardOrder,
   paidWithDiscountOrder,
+  pointAtTerminalOrder,
+  pointCanceledByTerminalOrder,
+  pointCreatedOrder,
+  pointExpiredOrder,
+  pointFailedOrder,
+  pointPaidWithCardOrder,
 } from "./test-support/mercado-pago-documented-orders.js";
 
 const ACCESS_TOKEN = "APP_USR-fictional-access-token-0001";
@@ -37,6 +44,10 @@ function answer(status: number, body: unknown): Response {
 }
 
 function clientAnswering(...responses: (Response | Error)[]) {
+  return clientWith({}, ...responses);
+}
+
+function clientWith(options: { pointTerminalId?: string }, ...responses: (Response | Error)[]) {
   const queue = [...responses];
   const fetch = vi.fn<typeof globalThis.fetch>(async () => {
     const next = queue.shift();
@@ -51,6 +62,7 @@ function clientAnswering(...responses: (Response | Error)[]) {
   const client = createMercadoPagoOrdersClient({
     accessToken: ACCESS_TOKEN,
     externalPosId: EXTERNAL_POS_ID,
+    ...options,
     fetch,
   });
   return { client, fetch };
@@ -90,6 +102,141 @@ function createdResult(overrides: Partial<MercadoPagoOrderResult> = {}): Mercado
 }
 
 type MercadoPagoOrderResult = Extract<MercadoPagoOrderReading, { kind: "read" }>["result"];
+
+describe("creating an order on the integrated terminal", () => {
+  const withTerminal = { pointTerminalId: POINT_TERMINAL_ID };
+
+  it("answers that no terminal is configured without calling Mercado Pago", async () => {
+    const { client, fetch } = clientAnswering();
+
+    expect(await client.createPointOrder(REQUEST)).toEqual({ kind: "not_configured" });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("posts the order of the configured terminal with the idempotency key and the amount in pesos", async () => {
+    const { client, fetch } = clientWith(withTerminal, answer(201, pointCreatedOrder()));
+
+    await client.createPointOrder(REQUEST);
+
+    const { url, init } = sentRequest(fetch);
+    expect(url).toBe("https://api.mercadopago.com/v1/orders");
+    expect(init.method).toBe("POST");
+    expect(init.headers).toEqual({
+      Authorization: `Bearer ${ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+      "X-Idempotency-Key": REQUEST.idempotencyKey,
+    });
+    expect(JSON.parse(init.body as string)).toEqual({
+      type: "point",
+      external_reference: REQUEST.externalReference,
+      expiration_time: "PT5M",
+      transactions: { payments: [{ amount: "50.00" }] },
+      config: { point: { terminal_id: POINT_TERMINAL_ID, print_on_terminal: "no_ticket" } },
+    });
+  });
+
+  it.each([
+    [1500, "15.00"],
+    [1515, "15.15"],
+    [123_456_789, "1234567.89"],
+  ])("writes %i cents as %s pesos", async (cents, pesos) => {
+    const { client, fetch } = clientWith(withTerminal, answer(201, pointCreatedOrder(pesos)));
+
+    await client.createPointOrder({ ...REQUEST, amount: cents });
+
+    const body = JSON.parse(sentRequest(fetch).init.body as string);
+    expect(body.transactions.payments).toEqual([{ amount: pesos }]);
+  });
+
+  it("answers the order that was created with its identifier and its state in the payment vocabulary", async () => {
+    const { client } = clientWith(withTerminal, answer(201, pointCreatedOrder()));
+
+    expect(await client.createPointOrder(REQUEST)).toStrictEqual({
+      kind: "created",
+      orderId: ORDER_ID,
+      result: createdResult(),
+    });
+  });
+
+  it.each([
+    [400, { errors: [{ code: "property_value", message: "bad terminal" }] }],
+    [401, "Unauthorized"],
+    [409, { code: "idempotency_key_already_used" }],
+  ])("refuses the order when Mercado Pago answers %i", async (status, body) => {
+    const { client } = clientWith(withTerminal, answer(status, body));
+
+    expect(await client.createPointOrder(REQUEST)).toStrictEqual({ kind: "refused" });
+  });
+
+  it.each([408, 500, 502, 503])(
+    "cannot tell what became of the order when Mercado Pago answers %i",
+    async (status) => {
+      const { client } = clientWith(withTerminal, answer(status, { errors: [{ code: "later" }] }));
+
+      expect(await client.createPointOrder(REQUEST)).toStrictEqual({ kind: "unavailable" });
+    },
+  );
+
+  it("is throttled, having created nothing, when Mercado Pago answers 429", async () => {
+    const { client } = clientWith(
+      withTerminal,
+      answer(429, { errors: [{ code: "too_many_requests" }] }),
+    );
+
+    expect(await client.createPointOrder(REQUEST)).toStrictEqual({ kind: "throttled" });
+  });
+
+  it("is unavailable when the network fails", async () => {
+    const { client } = clientWith(withTerminal, new TypeError("fetch failed"));
+
+    expect(await client.createPointOrder(REQUEST)).toStrictEqual({ kind: "unavailable" });
+  });
+
+  it.each([
+    ["created", pointCreatedOrder(), "created"],
+    ["at the terminal", pointAtTerminalOrder(), "at_terminal"],
+    ["canceled by the terminal", pointCanceledByTerminalOrder(), "canceled"],
+    ["expired", pointExpiredOrder(), "expired"],
+    ["failed", pointFailedOrder(), "failed"],
+  ])("reads an order %s", async (_name, body, status) => {
+    const { client } = clientAnswering(answer(200, body));
+
+    const reading = await client.readOrder(ORDER_ID);
+
+    expect(reading).toMatchObject({ kind: "read", result: { status } });
+  });
+
+  it("reads an order paid on the terminal with the amount paid and keeps nothing of the card", async () => {
+    const { client } = clientAnswering(answer(200, pointPaidWithCardOrder()));
+
+    const reading = await client.readOrder(ORDER_ID);
+
+    const serialized = JSON.stringify(reading);
+    expect(serialized).not.toContain(ORDER_CARD_FIRST_SIX);
+    expect(serialized).not.toContain(ORDER_CARD_LAST_FOUR);
+    expect(serialized).not.toContain("credit_card");
+    expect(reading).toStrictEqual({
+      kind: "read",
+      result: {
+        status: "processed",
+        statusDetail: "accredited",
+        externalReference: ORDER_EXTERNAL_REFERENCE,
+        totalPaidAmount: 5000,
+        payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 5000 }],
+      },
+    });
+  });
+
+  it("logs nothing of the card when it reads an order paid on the terminal", async () => {
+    const { client } = clientAnswering(answer(200, pointPaidWithCardOrder()));
+
+    await client.readOrder(ORDER_ID);
+
+    const logged = JSON.stringify(consoleCalls);
+    expect(logged).not.toContain(ORDER_CARD_FIRST_SIX);
+    expect(logged).not.toContain(ORDER_CARD_LAST_FOUR);
+  });
+});
 
 describe("the Mercado Pago orders client", () => {
   describe("creating a QR order", () => {

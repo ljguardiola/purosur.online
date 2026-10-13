@@ -464,6 +464,36 @@ describe("startServer", () => {
     );
   });
 
+  it("gives the app the register update feed read from the configured updates bucket", async () => {
+    const buildApp = vi.fn().mockReturnValue(appListeningBy(vi.fn().mockResolvedValue(undefined)));
+
+    await startServer(
+      {
+        EDGE_ORIGIN_SECRET: "edge-secret",
+        REGISTER_UPDATES_BUCKET_ENDPOINT: "https://storage.example.com",
+        REGISTER_UPDATES_BUCKET_NAME: "register-builds",
+        REGISTER_UPDATES_BUCKET_REGION: "auto",
+        REGISTER_UPDATES_BUCKET_ACCESS_KEY_ID: "fictional-key-id",
+        REGISTER_UPDATES_BUCKET_SECRET_ACCESS_KEY: "fictional-secret",
+      },
+      { arcaEndpoints: unreachableArcaEndpoints, initSentry: vi.fn(), buildApp, now },
+    );
+
+    const [options] = buildApp.mock.calls[0] ?? [];
+    const downloadUrl = new URL(
+      await options.registerUpdateFeed.downloadUrl({
+        version: { major: 1, minor: 4, patch: 2 },
+        file: "Setup.exe",
+        size: 1,
+        sha512: "",
+      }),
+    );
+    expect(`${downloadUrl.origin}${downloadUrl.pathname}`).toBe(
+      "https://register-builds.storage.example.com/register-updates/1.4.2/Setup.exe",
+    );
+    expect(downloadUrl.searchParams.get("X-Amz-Credential")).toMatch(/^fictional-key-id\//);
+  });
+
   it("refuses to start with a backoffice DSN and no environment to tell its reports apart by", async () => {
     const buildApp = vi.fn();
 
@@ -842,7 +872,7 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         certificateFingerprint: new X509Certificate(VALID_ARCA_CERTIFICATE).fingerprint256,
       },
-      mercadoPagoQr: { connections: fakeRecovery.connections },
+      mercadoPagoOrders: { connections: fakeRecovery.connections },
       mercadoPagoNotifications: { db: fakeRecovery.db, connections: fakeRecovery.connections },
     });
 
@@ -1510,10 +1540,11 @@ describe("startServer creating Mercado Pago QR orders", () => {
     const mercadoPago = {
       longestCallMs: expect.any(Number),
       createQrOrder: expect.any(Function),
+      createPointOrder: expect.any(Function),
       readOrder: expect.any(Function),
       cancelOrder: expect.any(Function),
     };
-    expect(options.mercadoPagoQr).toEqual({ connections: recovery.connections, mercadoPago });
+    expect(options.mercadoPagoOrders).toEqual({ connections: recovery.connections, mercadoPago });
     expect(options.mercadoPagoNotifications).toEqual({
       db: recovery.db,
       connections: recovery.connections,
@@ -1535,6 +1566,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
     expect(recoveryEnv.mercadoPago).toEqual({
       longestCallMs: expect.any(Number),
       createQrOrder: expect.any(Function),
+      createPointOrder: expect.any(Function),
       readOrder: expect.any(Function),
       cancelOrder: expect.any(Function),
     });
@@ -1553,7 +1585,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
     await started;
 
     const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
-    expect(options.mercadoPagoQr).toEqual({ connections: recovery.connections });
+    expect(options.mercadoPagoOrders).toEqual({ connections: recovery.connections });
     expect(options.mercadoPagoNotifications).toEqual({
       db: recovery.db,
       connections: recovery.connections,

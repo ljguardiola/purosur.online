@@ -1,5 +1,5 @@
-import { offlineAuthorizationCodeAcquisitionLevel } from "../../alerts/index.js";
 import { argentinaCalendarDay } from "../../shared/index.js";
+import { offlineAuthorizationCodeAcquisitionUrgency } from "../model/offline-authorization-code-acquisition-urgency.js";
 import type {
   FortnightAcquisitionOutcome,
   ObtainOfflineAuthorizationCodesOutcome,
@@ -30,12 +30,12 @@ export async function reportOfflineAuthorizationCodeAcquisitionFailures(
     if (!isReportableFailure(outcome)) {
       continue;
     }
-    const level = offlineAuthorizationCodeAcquisitionLevel(fortnight, day);
-    if (level !== "warning" && level !== "critical") {
+    const urgency = offlineAuthorizationCodeAcquisitionUrgency(fortnight, day);
+    if (urgency !== "due" && urgency !== "pressing") {
       continue;
     }
     if (await store.recordFirstReport(fortnight, outcome.kind)) {
-      await notifier.failureNeedsAttention({ fortnight, outcome, level });
+      await notifier.failureNeedsAttention({ fortnight, outcome, urgency });
       notified += 1;
     }
   }

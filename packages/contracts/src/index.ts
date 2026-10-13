@@ -138,25 +138,31 @@ export {
   unclearOutcomeQuestionSchema,
 } from "./fiscal/unclear-outcome-question.js";
 export type {
-  AbandonMercadoPagoQrChargeOutcome,
-  FollowMercadoPagoQrChargeOutcome,
+  AbandonMercadoPagoChargeOutcome,
+  FollowMercadoPagoChargeOutcome,
   PaymentsCoreToRendererMessage,
   PaymentsRendererToCoreMessage,
-  StartMercadoPagoQrChargeOutcome,
+  StartMercadoPagoChargeOutcome,
 } from "./payments/core-messages.js";
 export {
   paymentsCoreToRendererMessageSchema,
   paymentsRendererToCoreMessageSchema,
-  startMercadoPagoQrChargeMessageSchema,
+  startMercadoPagoChargeMessageSchema,
 } from "./payments/core-messages.js";
 export type {
-  MercadoPagoQrOrderRequestBody,
-  MercadoPagoQrPaymentBody,
-} from "./payments/mercado-pago-qr-order.js";
+  MercadoPagoCancellationBody,
+  MercadoPagoCancellationRequestBody,
+  MercadoPagoOrderRequestBody,
+  MercadoPagoPaymentBody,
+} from "./payments/mercado-pago-order.js";
 export {
-  mercadoPagoQrOrderRequestSchema,
-  mercadoPagoQrPaymentSchema,
-} from "./payments/mercado-pago-qr-order.js";
+  mercadoPagoCancellationRequestSchema,
+  mercadoPagoCancellationSchema,
+  mercadoPagoOrderRequestSchema,
+  mercadoPagoPaymentSchema,
+} from "./payments/mercado-pago-order.js";
+export type { PaymentMethodAvailability } from "./payments/payment-method-availability.js";
+export { paymentMethodAvailabilitySchema } from "./payments/payment-method-availability.js";
 export type {
   DiscardedRefundBody,
   MarkedRefundDoneBody,
@@ -281,6 +287,7 @@ export type {
   DeviceCredentialsAnswer,
   DeviceCredentialsRequest,
   MainToCoreMessage,
+  UpdateSafeMomentAnswer,
 } from "./register/main-messages.js";
 export { coreStatusMessageSchema, mainToCoreMessageSchema } from "./register/main-messages.js";
 export { receiptPrinterAddressTextSchema } from "./register/receipt-printer-address.js";
@@ -295,6 +302,14 @@ export {
   registerSyncStatusListSchema,
   registerSyncStatusSchema,
 } from "./register/register-sync-status.js";
+export type { RegisterUpdateAnswer } from "./register/register-update.js";
+export {
+  registerReleaseEntrySchema,
+  registerUpdateAnswerSchema,
+  registerUpdateQuerySchema,
+  registerVersionSchema,
+  registerVersionText,
+} from "./register/register-update.js";
 export type {
   CancelLockedSaleOutcome,
   ReceiptPrintStatusOutcome,

@@ -1765,7 +1765,7 @@ describe("wiring the first PIN code route", () => {
   });
 });
 
-describe("wiring the Mercado Pago QR routes", () => {
+describe("wiring the Mercado Pago order routes", () => {
   function connections(): DedicatedConnections<PgliteQueryResultHKT> {
     return { withConnection: (work) => work(testDatabase.db) };
   }
@@ -1778,12 +1778,12 @@ describe("wiring the Mercado Pago QR routes", () => {
     };
   }
 
-  it("does not register POST /api/payments/mercado-pago-qr/orders when no mercadoPagoQr option is given", async () => {
+  it("does not register POST /api/payments/mercado-pago/orders when no mercadoPagoOrders option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234", devices: devicesOptions() });
 
     const response = await app.inject({
       method: "POST",
-      url: "/api/payments/mercado-pago-qr/orders",
+      url: "/api/payments/mercado-pago/orders",
       payload: {},
     });
 
@@ -1794,12 +1794,12 @@ describe("wiring the Mercado Pago QR routes", () => {
     const app = buildApp({
       now: () => APP_CLOCK,
       version: "abc1234",
-      mercadoPagoQr: { connections: connections() },
+      mercadoPagoOrders: { connections: connections() },
     });
 
     const response = await app.inject({
       method: "POST",
-      url: "/api/payments/mercado-pago-qr/orders",
+      url: "/api/payments/mercado-pago/orders",
       payload: {},
     });
 
@@ -1807,16 +1807,16 @@ describe("wiring the Mercado Pago QR routes", () => {
   });
 
   it.each([
-    ["POST", "/api/payments/mercado-pago-qr/orders"],
-    ["GET", "/api/payments/mercado-pago-qr/0b0a5a42-1f9a-4a53-9f55-3e1c1c0d7a10"],
+    ["POST", "/api/payments/mercado-pago/orders"],
+    ["GET", "/api/payments/mercado-pago/0b0a5a42-1f9a-4a53-9f55-3e1c1c0d7a10"],
   ] as const)(
-    "registers %s %s, refusing a request without a device token, when a devices and a mercadoPagoQr option are given",
+    "registers %s %s, refusing a request without a device token, when a devices and a mercadoPagoOrders option are given",
     async (method, url) => {
       const app = buildApp({
         now: () => APP_CLOCK,
         version: "abc1234",
         devices: devicesOptions(),
-        mercadoPagoQr: { connections: connections() },
+        mercadoPagoOrders: { connections: connections() },
       });
 
       const response = await app.inject({ method, url, payload: {} });
@@ -2641,6 +2641,7 @@ describe("the route access inventory", () => {
       { method: "POST", url: "/api/devices", access: PUBLIC_ACCESS },
       { method: "GET", url: "/api/changes", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/events", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/api/register/update", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/pin-code-redemptions", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/sign-in-lookups", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/current/tokens", access: PUBLIC_ACCESS },
@@ -2977,6 +2978,7 @@ describe("wiring the Mercado Pago notification route", () => {
         mercadoPago: {
           longestCallMs: 1,
           createQrOrder: async () => ({ kind: "unavailable" }),
+          createPointOrder: async () => ({ kind: "unavailable" }),
           readOrder: async () => ({ kind: "unavailable" }),
           cancelOrder: async () => ({ kind: "unavailable" }),
         },

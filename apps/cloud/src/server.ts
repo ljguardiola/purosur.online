@@ -18,6 +18,10 @@ import postgres from "postgres";
 import { alertConditionResolutionJobs } from "./alerts/alert-condition-resolution-task.js";
 import { alertEscalationJobs } from "./alerts/alert-escalation-task.js";
 import {
+  arcaCertificateExpiryJobs,
+  enqueueArcaCertificateExpiryCheck,
+} from "./alerts/arca-certificate-expiry-task.js";
+import {
   type BackofficeErrorReporting,
   type BuildAppOptions,
   buildApp,
@@ -32,10 +36,6 @@ import {
   type RecoveryEmailSenderEnv,
   selectRecoveryEmailSender,
 } from "./credentials/select-recovery-email-sender.js";
-import {
-  arcaCertificateExpiryJobs,
-  enqueueArcaCertificateExpiryCheck,
-} from "./fiscal/arca-certificate-expiry-task.js";
 import { arcaVitalityJobs } from "./fiscal/arca-vitality-task.js";
 import {
   buyerTaxStatusFetchJobs,
@@ -74,6 +74,8 @@ import {
 import { normalizePemNewlines } from "./platform/pem-newlines.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
+import { BucketRegisterReleases } from "./register/bucket-register-releases.js";
+import { resolveRegisterUpdatesBucketConfig } from "./register/register-updates-bucket-config.js";
 import { applySyncedEventsJobs } from "./sync/apply-synced-events-task.js";
 
 export interface ServerEnv {
@@ -103,6 +105,13 @@ export interface ServerEnv {
   MERCADOPAGO_QR_EXTERNAL_POS_ID?: string | undefined;
   /** The secret Mercado Pago signs its notifications with, from its developer panel. */
   MERCADOPAGO_WEBHOOK_SECRET?: string | undefined;
+  /** The identifier of the store's integrated Point terminal at Mercado Pago. */
+  MERCADOPAGO_POINT_TERMINAL_ID?: string | undefined;
+  REGISTER_UPDATES_BUCKET_ENDPOINT?: string | undefined;
+  REGISTER_UPDATES_BUCKET_NAME?: string | undefined;
+  REGISTER_UPDATES_BUCKET_REGION?: string | undefined;
+  REGISTER_UPDATES_BUCKET_ACCESS_KEY_ID?: string | undefined;
+  REGISTER_UPDATES_BUCKET_SECRET_ACCESS_KEY?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
@@ -627,6 +636,10 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
   const recoveryEnv = resolveRecoveryEnv(env);
   const mercadoPagoConfig = resolveMercadoPagoConfig(env);
   const mercadoPago = mercadoPagoConfig && createMercadoPagoOrdersClient(mercadoPagoConfig);
+  const registerUpdatesBucketConfig = resolveRegisterUpdatesBucketConfig(env);
+  const registerReleases =
+    registerUpdatesBucketConfig &&
+    new BucketRegisterReleases(registerUpdatesBucketConfig, { fetch, now });
   const configuration = recoveryEnv
     ? {
         authorizedCuit: requireAuthorizedCuit(env),
@@ -671,6 +684,14 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           ...(invoicing ? { enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob } : {}),
         })
       : {}),
+    ...(registerReleases
+      ? {
+          registerUpdateFeed: {
+            releases: registerReleases,
+            downloadUrl: (release) => registerReleases.downloadUrl(release),
+          },
+        }
+      : {}),
     ...(database && invoicing
       ? {
           enqueueOfflineAuthorizationCodeRequest,
@@ -679,7 +700,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
       : {}),
     ...(database
       ? {
-          mercadoPagoQr: {
+          mercadoPagoOrders: {
             connections: database.recovery.connections,
             ...(mercadoPago ? { mercadoPago } : {}),
           },

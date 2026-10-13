@@ -25,7 +25,7 @@ beforeEach(async () => {
 });
 
 describe("DrizzleInitialCountLotReader", () => {
-  it("lists the lots of the initial count not withdrawn, with their product, category and cost", async () => {
+  it("lists the lots of the initial count, withdrawn or not, with their product, category, cost and what they hold", async () => {
     const { userId: actorId, locationId } = await signedInWith(db, [], new Date());
     const { productId } = await insertProduct(db, {
       name: "Almendras peladas",
@@ -47,16 +47,23 @@ describe("DrizzleInitialCountLotReader", () => {
       counted: 4_000,
       unitCostCents: 3_500,
     });
-    await insertInitialCountLot(db, { productId, locationId, actorId, withdrawn: true });
+    const withdrawn = await insertInitialCountLot(db, {
+      productId,
+      locationId,
+      actorId,
+      counted: 3_000,
+      remaining: 0,
+      withdrawn: true,
+    });
     await insertPurchasedLot(db, { productId, locationId, actorId });
 
-    const rows = await new DrizzleInitialCountLotReader(db).notWithdrawnInitialCountLots({
+    const rows = await new DrizzleInitialCountLotReader(db).initialCountLots({
       locationId,
       costIncomplete: undefined,
       productName: undefined,
     });
 
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(3);
     expect(rows).toEqual(
       expect.arrayContaining([
         {
@@ -67,6 +74,8 @@ describe("DrizzleInitialCountLotReader", () => {
           saleUnit: "KG",
           expiresOn: "2027-02-01",
           counted: 2_500,
+          withdrawn: false,
+          remaining: 1_000,
           costIncomplete: true,
           cost: null,
         },
@@ -78,8 +87,23 @@ describe("DrizzleInitialCountLotReader", () => {
           saleUnit: "KG",
           expiresOn: null,
           counted: 4_000,
+          withdrawn: false,
+          remaining: 4_000,
           costIncomplete: false,
           cost: { totalCents: 3_500, quantity: 1_000 },
+        },
+        {
+          lotId: withdrawn.lotId,
+          productId,
+          productName: "Almendras peladas",
+          categoryName: "Frutos secos",
+          saleUnit: "KG",
+          expiresOn: null,
+          counted: 3_000,
+          withdrawn: true,
+          remaining: 0,
+          costIncomplete: true,
+          cost: null,
         },
       ]),
     );
@@ -91,7 +115,7 @@ describe("DrizzleInitialCountLotReader", () => {
     const { productId } = await insertProduct(db);
     await insertInitialCountLot(db, { productId, locationId: otherLocationId, actorId });
 
-    const rows = await new DrizzleInitialCountLotReader(db).notWithdrawnInitialCountLots({
+    const rows = await new DrizzleInitialCountLotReader(db).initialCountLots({
       locationId,
       costIncomplete: undefined,
       productName: undefined,
@@ -113,7 +137,7 @@ describe("DrizzleInitialCountLotReader", () => {
     const reader = new DrizzleInitialCountLotReader(db);
     const lotIds = async (costIncomplete: boolean) =>
       (
-        await reader.notWithdrawnInitialCountLots({
+        await reader.initialCountLots({
           locationId,
           costIncomplete,
           productName: undefined,
@@ -133,7 +157,7 @@ describe("DrizzleInitialCountLotReader", () => {
     const reader = new DrizzleInitialCountLotReader(db);
     const lotIds = async (productName: string) =>
       (
-        await reader.notWithdrawnInitialCountLots({
+        await reader.initialCountLots({
           locationId,
           costIncomplete: undefined,
           productName,
