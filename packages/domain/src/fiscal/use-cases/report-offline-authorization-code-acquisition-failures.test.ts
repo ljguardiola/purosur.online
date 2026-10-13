@@ -52,26 +52,26 @@ const FAILURES: [string, FortnightAcquisitionOutcome][] = [
 
 describe("reportOfflineAuthorizationCodeAcquisitionFailures", () => {
   it.each(FAILURES)(
-    "notifies a %s outcome at the warning level, naming the outcome and the level",
+    "notifies a %s outcome as due, naming the outcome and the urgency",
     async (_kind, outcome) => {
       const { notifier, report } = setUp(WARNING_DAY);
 
       await expect(report(attempted([SECOND_HALF, outcome]))).resolves.toBe(1);
 
-      expect(notifier.notices).toEqual([{ fortnight: SECOND_HALF, outcome, level: "warning" }]);
+      expect(notifier.notices).toEqual([{ fortnight: SECOND_HALF, outcome, urgency: "due" }]);
     },
   );
 
-  it.each(FAILURES)("notifies a %s outcome at the critical level", async (_kind, outcome) => {
+  it.each(FAILURES)("notifies a %s outcome as pressing", async (_kind, outcome) => {
     const { notifier, report } = setUp(CRITICAL_DAY);
 
     await report(attempted([SECOND_HALF, outcome]));
 
-    expect(notifier.notices).toEqual([{ fortnight: SECOND_HALF, outcome, level: "critical" }]);
+    expect(notifier.notices).toEqual([{ fortnight: SECOND_HALF, outcome, urgency: "pressing" }]);
   });
 
   it.each([
-    ["at the informational level", INFORMATIONAL_DAY],
+    ["as early", INFORMATIONAL_DAY],
     ["before the fortnight's window opens", BEFORE_WINDOW],
     ["after the fortnight ended", AFTER_FORTNIGHT],
   ])("neither records nor notifies a failure %s", async (_name, day) => {
@@ -89,7 +89,7 @@ describe("reportOfflineAuthorizationCodeAcquisitionFailures", () => {
     { kind: "held" },
     { kind: "no_token" },
     { kind: "unexpected_fortnight" },
-  ])("ignores a $kind outcome even at the critical level", async (outcome) => {
+  ])("ignores a $kind outcome even as pressing", async (outcome) => {
     const { store, notifier, report } = setUp(CRITICAL_DAY);
 
     await report(attempted([SECOND_HALF, outcome]));
@@ -129,16 +129,16 @@ describe("reportOfflineAuthorizationCodeAcquisitionFailures", () => {
     ]);
   });
 
-  it("reports each failing fortnight on its own level", async () => {
+  it("reports each failing fortnight on its own urgency", async () => {
     const { notifier, report } = setUp(WARNING_DAY);
 
     await expect(
       report(attempted([FIRST_HALF, { kind: "no_answer" }], [SECOND_HALF, { kind: "no_answer" }])),
     ).resolves.toBe(2);
 
-    expect(notifier.notices.map(({ fortnight, level }) => [fortnight.start, level])).toEqual([
-      ["2026-10-01", "critical"],
-      ["2026-10-16", "warning"],
+    expect(notifier.notices.map(({ fortnight, urgency }) => [fortnight.start, urgency])).toEqual([
+      ["2026-10-01", "pressing"],
+      ["2026-10-16", "due"],
     ]);
   });
 

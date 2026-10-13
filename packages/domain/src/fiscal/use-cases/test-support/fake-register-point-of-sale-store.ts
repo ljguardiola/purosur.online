@@ -1,4 +1,4 @@
-import type { FiscalDocumentType } from "../../model/fiscal-rejection-alert.js";
+import type { FiscalDocumentType } from "../../model/fiscal-rejection-standing.js";
 import type { PointOfSaleMechanism } from "../../model/point-of-sale.js";
 import type {
   OfflineNumberBlockRecord,

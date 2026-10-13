@@ -39,7 +39,7 @@ export async function renewWsaaToken(
         return renewal.recordAnswer<RenewWsaaTokenOutcome>(async (answer) => {
           await answer.recordIssuedToken(result.token);
           await answer.clearRefusal();
-          await answer.resolveHeldTicketAlert(answeredAt);
+          await answer.clearTicketHeldElsewhere(answeredAt);
           await answer.resumeWorkWaitingOnToken();
           return { kind: "renewed" };
         });
@@ -47,7 +47,10 @@ export async function renewWsaaToken(
       if (result.kind === "already_authenticated") {
         return renewal.recordAnswer<RenewWsaaTokenOutcome>(async (answer) => {
           await answer.recordRefusal(answeredAt);
-          await answer.openHeldTicketAlert(answeredAt, WSAA_ALREADY_AUTHENTICATED_RETRY_MINUTES);
+          await answer.recordTicketHeldElsewhere(
+            answeredAt,
+            WSAA_ALREADY_AUTHENTICATED_RETRY_MINUTES,
+          );
           return { kind: "already_authenticated" };
         });
       }

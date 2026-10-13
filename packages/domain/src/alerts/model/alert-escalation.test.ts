@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS } from "../../fiscal/index.js";
 import {
   ALERT_ESCALATION_CHECK_INTERVAL_MS,
   ESCALATED_LEVEL,
@@ -8,6 +7,7 @@ import {
 } from "./alert-escalation.js";
 import {
   ALERT_ESCALATION_DELAY_MS,
+  ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS,
   FISCAL_UNKNOWN_ESCALATION_DELAY_MS,
   LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS,
   REFUND_TASK_ESCALATION_DELAY_MS,

@@ -1,4 +1,4 @@
-export { ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS } from "./model/arca-certificate-expiry.js";
+export { arcaCertificateExpiryStanding } from "./model/arca-certificate-expiry.js";
 export { ARCA_VITALITY_CHECK_INTERVAL_MS } from "./model/arca-reachability.js";
 export type {
   BuyerIdentificationThreshold,
@@ -52,10 +52,10 @@ export type { FiscalOnlineSignalEvidence } from "./model/fiscal-online-signal.js
 export { REGISTER_HEALTH_CHECK_INTERVAL_MS } from "./model/fiscal-online-signal.js";
 export type {
   FiscalDocumentType,
-  RejectionAlertChange,
+  RejectionStandingChange,
   TaxAuthorityRejection,
-} from "./model/fiscal-rejection-alert.js";
-export { FACTURA_C_DOCUMENT_TYPE } from "./model/fiscal-rejection-alert.js";
+} from "./model/fiscal-rejection-standing.js";
+export { FACTURA_C_DOCUMENT_TYPE } from "./model/fiscal-rejection-standing.js";
 export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
@@ -75,6 +75,9 @@ export {
   OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS,
   offlineAuthorizationCodeRequestOpensOn,
 } from "./model/offline-authorization-code.js";
+export type { OfflineAuthorizationCodeAcquisitionUrgency } from "./model/offline-authorization-code-acquisition-urgency.js";
+export { offlineAuthorizationCodeAcquisitionUrgency } from "./model/offline-authorization-code-acquisition-urgency.js";
+export type { RegisterOfflineAuthorizationCodeHolding } from "./model/offline-authorization-code-holding.js";
 export { mustHoldOfflineAuthorizationCode } from "./model/offline-authorization-code-holding.js";
 export type {
   OfflineNumberBlockRange,

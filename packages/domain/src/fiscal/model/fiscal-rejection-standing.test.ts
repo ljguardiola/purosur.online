@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FACTURA_C_DOCUMENT_TYPE, rejectionAlertChange } from "./fiscal-rejection-alert.js";
+import { FACTURA_C_DOCUMENT_TYPE, rejectionStandingChange } from "./fiscal-rejection-standing.js";
 
 const SUBJECT = {
   pointOfSale: 12,
@@ -19,10 +19,10 @@ describe("FACTURA_C_DOCUMENT_TYPE", () => {
   });
 });
 
-describe("rejectionAlertChange", () => {
-  it("opens the alert of the point of sale and document type for a content rejection, with what the tax authority said", () => {
+describe("rejectionStandingChange", () => {
+  it("records the point of sale and document type as rejected for a content rejection, with what the tax authority said", () => {
     expect(
-      rejectionAlertChange(
+      rejectionStandingChange(
         { kind: "rejected", codes: [10242, 10015], rejectionClass: "content" },
         REJECTIONS,
         SUBJECT,
@@ -38,9 +38,9 @@ describe("rejectionAlertChange", () => {
     });
   });
 
-  it("opens the alert for a standing rejection with its class", () => {
+  it("records the point of sale and document type as rejected for a standing rejection, with its class", () => {
     expect(
-      rejectionAlertChange(
+      rejectionStandingChange(
         { kind: "rejected", codes: [10005], rejectionClass: "standing" },
         [{ code: 10005, message: "El punto de venta no es RECE." }],
         SUBJECT,
@@ -48,9 +48,9 @@ describe("rejectionAlertChange", () => {
     ).toMatchObject({ kind: "open", rejectionClass: "standing" });
   });
 
-  it("clears the alert of the point of sale and document type for an authorized document", () => {
+  it("clears the rejection standing of the point of sale and document type for an authorized document", () => {
     expect(
-      rejectionAlertChange(
+      rejectionStandingChange(
         {
           kind: "authorized",
           authorizationCode: "75123456789012",
@@ -63,10 +63,10 @@ describe("rejectionAlertChange", () => {
   });
 
   it("changes nothing for an unclear answer", () => {
-    expect(rejectionAlertChange({ kind: "unclear" }, [], SUBJECT)).toBeNull();
+    expect(rejectionStandingChange({ kind: "unclear" }, [], SUBJECT)).toBeNull();
   });
 
   it("changes nothing when the call was not attempted", () => {
-    expect(rejectionAlertChange({ kind: "not_attempted" }, [], SUBJECT)).toBeNull();
+    expect(rejectionStandingChange({ kind: "not_attempted" }, [], SUBJECT)).toBeNull();
   });
 });

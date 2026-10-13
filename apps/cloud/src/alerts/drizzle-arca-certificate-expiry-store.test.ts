@@ -1,4 +1,4 @@
-import { checkArcaCertificateExpiry } from "@purosur/domain/fiscal/use-cases";
+import { checkArcaCertificateExpiry } from "@purosur/domain/alerts/use-cases";
 import { and, eq, isNull } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { alerts } from "../platform/db/schema.js";

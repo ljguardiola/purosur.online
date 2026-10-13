@@ -2,7 +2,7 @@ import type {
   FiscalDocumentType,
   FiscalEmissionStoppedReport,
   Fortnight,
-  RejectionAlertChange,
+  RejectionStandingChange,
 } from "../../fiscal/index.js";
 import type { SalesDeniedReport } from "../../shared/index.js";
 import type { AlertKind, AlertLevel } from "./alert-catalog.js";
@@ -123,7 +123,7 @@ export function registerFiscalEmissionObservation({
   };
 }
 
-type FiscalRejection = Extract<RejectionAlertChange, { kind: "open" }>;
+type FiscalRejection = Extract<RejectionStandingChange, { kind: "open" }>;
 
 function fiscalRejectedScope(pointOfSale: number, documentType: FiscalDocumentType): string {
   return `${pointOfSale}:${documentType}`;
@@ -169,7 +169,7 @@ export function fiscalDocumentAuthorizedObservation({
 }
 
 export function fiscalRejectionAlertObservation(
-  change: RejectionAlertChange,
+  change: RejectionStandingChange,
 ): AlertConditionObservation {
   return change.kind === "open"
     ? fiscalRejectionObservation(change)

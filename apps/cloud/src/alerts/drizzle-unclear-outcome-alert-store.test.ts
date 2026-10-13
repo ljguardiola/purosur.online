@@ -1,10 +1,13 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { RECEIVED_AT } from "../fiscal/test-support/authorization-request-fixtures.js";
+import {
+  anUnclearDocument,
+  UNCLEAR_SINCE,
+} from "../fiscal/test-support/unclear-document-fixtures.js";
 import { alerts } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleUnclearOutcomeAlertStore } from "./drizzle-unclear-outcome-alert-store.js";
-import { RECEIVED_AT } from "./test-support/authorization-request-fixtures.js";
-import { anUnclearDocument, UNCLEAR_SINCE } from "./test-support/unclear-document-fixtures.js";
 
 const MINUTE_MS = 60 * 1000;
 

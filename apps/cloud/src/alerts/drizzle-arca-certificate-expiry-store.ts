@@ -3,13 +3,13 @@ import type {
   ArcaCertificateExpiryStoreTransaction,
   NewCertificateExpiringAlert,
   OpenCertificateExpiringAlert,
-} from "@purosur/domain/fiscal/use-cases";
+} from "@purosur/domain/alerts/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { openAlert } from "../alerts/open-alert.js";
-import { openAlertCondition } from "../alerts/open-alert-condition.js";
-import { resolveAlert } from "../alerts/resolve-alert.js";
 import { alerts } from "../platform/db/schema.js";
+import { openAlert } from "./open-alert.js";
+import { openAlertCondition } from "./open-alert-condition.js";
+import { resolveAlert } from "./resolve-alert.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]

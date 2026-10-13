@@ -4,7 +4,7 @@ import {
   type WsaaTokenAnswer,
   type WsaaTokenRenewal,
 } from "@purosur/domain/fiscal/use-cases";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { alerts, arcaVitalityChecks } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -41,9 +41,9 @@ beforeEach(async () => {
   await testDatabase.clear();
 });
 
-function newStore(resumeWorkWaitingOnToken?: ResumeWorkWaitingOnToken, environment = ENVIRONMENT) {
+function newStore(resumeWorkWaitingOnToken?: ResumeWorkWaitingOnToken) {
   return new DrizzleWsaaTokenStore(testDatabase.db, {
-    environment,
+    environment: ENVIRONMENT,
     ...(resumeWorkWaitingOnToken ? { resumeWorkWaitingOnToken } : {}),
   });
 }
@@ -66,11 +66,11 @@ function answering<TOutcome>(
   return held((renewal) => renewal.recordAnswer(work), service, fingerprint, store);
 }
 
-function heldTicketAlertsOf(environment: string) {
+function heldTicketAlerts() {
   return testDatabase.db
     .select()
     .from(alerts)
-    .where(and(eq(alerts.kind, "arca_wsaa_ticket_held"), eq(alerts.scope, environment)));
+    .where(and(eq(alerts.kind, "arca_wsaa_ticket_held"), eq(alerts.scope, ENVIRONMENT)));
 }
 
 describe("DrizzleWsaaTokenStore", () => {
@@ -107,14 +107,14 @@ describe("DrizzleWsaaTokenStore", () => {
       answering(async (answer) => {
         await answer.recordIssuedToken(ISSUED);
         await answer.recordRefusal(NOW);
-        await answer.openHeldTicketAlert(NOW, RETRY_INTERVAL_MINUTES);
+        await answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES);
         throw new Error("the operation failed");
       }),
     ).rejects.toThrow("the operation failed");
 
     expect(await held((renewal) => renewal.persistedToken())).toBeNull();
     expect(await held((renewal) => renewal.lastRefusal())).toBeNull();
-    expect(await heldTicketAlertsOf(ENVIRONMENT)).toHaveLength(0);
+    expect(await heldTicketAlerts()).toHaveLength(0);
   });
 
   it("finds no refusal before one is recorded", async () => {
@@ -150,68 +150,20 @@ describe("DrizzleWsaaTokenStore", () => {
     expect(await held((renewal) => renewal.lastRefusal(), SERVICE, "11:22:33")).toEqual(NOW);
   });
 
-  describe("the held-ticket alert", () => {
-    it("opens one warning alert scoped to the ARCA environment, with the interval the ticket is asked for again", async () => {
-      await answering((answer) => answer.openHeldTicketAlert(NOW, RETRY_INTERVAL_MINUTES));
+  it("records that the ticket is held elsewhere as an open held-ticket alert of its environment", async () => {
+    await answering((answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES));
 
-      const [alert, ...others] = await heldTicketAlertsOf(ENVIRONMENT);
-      expect(others).toEqual([]);
-      expect(alert).toMatchObject({
-        level: "warning",
-        detail: { retryIntervalMinutes: RETRY_INTERVAL_MINUTES },
-        resolvedAt: null,
-        escalateAt: null,
-        openedAt: NOW,
-      });
-    });
+    expect(await heldTicketAlerts()).toMatchObject([
+      { detail: { retryIntervalMinutes: RETRY_INTERVAL_MINUTES }, openedAt: NOW, resolvedAt: null },
+    ]);
+  });
 
-    it("keeps a single open alert when it is opened again", async () => {
-      await answering((answer) => answer.openHeldTicketAlert(NOW, RETRY_INTERVAL_MINUTES));
-      await answering((answer) =>
-        answer.openHeldTicketAlert(new Date(NOW.getTime() + HOUR_MS), RETRY_INTERVAL_MINUTES),
-      );
+  it("records that the ticket is no longer held elsewhere by resolving that alert at the moment given", async () => {
+    const later = new Date(NOW.getTime() + HOUR_MS);
+    await answering((answer) => answer.recordTicketHeldElsewhere(NOW, RETRY_INTERVAL_MINUTES));
+    await answering((answer) => answer.clearTicketHeldElsewhere(later));
 
-      expect(await heldTicketAlertsOf(ENVIRONMENT)).toHaveLength(1);
-    });
-
-    it("resolves the open alert at the moment given", async () => {
-      const later = new Date(NOW.getTime() + HOUR_MS);
-      await answering((answer) => answer.openHeldTicketAlert(NOW, RETRY_INTERVAL_MINUTES));
-      await answering((answer) => answer.resolveHeldTicketAlert(later));
-
-      const [alert] = await heldTicketAlertsOf(ENVIRONMENT);
-      expect(alert?.resolvedAt).toEqual(later);
-    });
-
-    it("resolves nothing when no alert is open", async () => {
-      await answering((answer) => answer.resolveHeldTicketAlert(NOW));
-
-      expect(await heldTicketAlertsOf(ENVIRONMENT)).toEqual([]);
-    });
-
-    it("leaves the alert of another environment open", async () => {
-      await answering(
-        (answer) => answer.openHeldTicketAlert(NOW, RETRY_INTERVAL_MINUTES),
-        SERVICE,
-        FINGERPRINT,
-        newStore(undefined, "homologation"),
-      );
-      await answering((answer) => answer.resolveHeldTicketAlert(NOW));
-
-      const open = await testDatabase.db
-        .select()
-        .from(alerts)
-        .where(and(eq(alerts.kind, "arca_wsaa_ticket_held"), isNull(alerts.resolvedAt)));
-      expect(open.map(({ scope }) => scope)).toEqual(["homologation"]);
-    });
-
-    it("opens a new alert after the previous one resolved", async () => {
-      await answering((answer) => answer.openHeldTicketAlert(NOW, RETRY_INTERVAL_MINUTES));
-      await answering((answer) => answer.resolveHeldTicketAlert(NOW));
-      await answering((answer) => answer.openHeldTicketAlert(NOW, RETRY_INTERVAL_MINUTES));
-
-      expect(await heldTicketAlertsOf(ENVIRONMENT)).toHaveLength(2);
-    });
+    expect(await heldTicketAlerts()).toMatchObject([{ resolvedAt: later }]);
   });
 
   describe("resuming the work that waits on a token", () => {

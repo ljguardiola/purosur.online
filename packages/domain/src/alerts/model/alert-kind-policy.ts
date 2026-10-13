@@ -1,4 +1,3 @@
-import { ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS } from "../../fiscal/index.js";
 import {
   ALERT_KINDS,
   type AlertAudience,
@@ -37,6 +36,7 @@ export const REFUND_TASK_ALERT_OPENING_DELAY_MS = 24 * 60 * 60 * 1000;
 export const REFUND_TASK_ESCALATION_DELAY_MS = 72 * 60 * 60 * 1000;
 export const FISCAL_UNKNOWN_ALERT_OPENING_DELAY_MS = 5 * 60 * 1000;
 export const FISCAL_UNKNOWN_ESCALATION_DELAY_MS = 30 * 60 * 1000;
+export const ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS = 7 * 24 * 60 * 60 * 1000;
 
 const AFTER_OPENING = { kind: "afterOpening", delayMs: ALERT_ESCALATION_DELAY_MS } as const;
 
