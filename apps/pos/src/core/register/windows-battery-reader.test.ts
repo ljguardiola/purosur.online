@@ -10,9 +10,9 @@ import {
 import { windowsBatteryReader } from "./windows-battery-reader";
 
 function readerPrinting(stdout: string, platform: NodeJS.Platform = "win32") {
-  const run = vi.fn(
-    async (_file: string, _args: readonly string[], _options: object) => ({ stdout }),
-  );
+  const run = vi.fn(async (_file: string, _args: readonly string[], _options: object) => ({
+    stdout,
+  }));
   return { run, reader: windowsBatteryReader({ run, platform }) };
 }
 
