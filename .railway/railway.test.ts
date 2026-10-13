@@ -69,14 +69,22 @@ describe("the register updates bucket", () => {
   };
 
   it.each(Object.entries(BUCKET_OUTPUTS))(
-    "gives the Cloud Server %s as a reference to the bucket's %s",
+    "gives the Cloud Server %s as the bucket's %s, written the way Railway stores the reference",
     async (variable, output) => {
-      const cloud = findService(await compile(), "Cloud Server");
+      const definition = await compile();
+      const bucket = (definition.resources ?? [])
+        .flat()
+        .find((resource) => resource.type === "bucket" && resource.name === "Register Updates");
+      if (!bucket) {
+        throw new Error(
+          "railway.test.ts: no bucket named Register Updates in the compiled project",
+        );
+      }
+      const cloud = findService(definition, "Cloud Server");
 
       expect(cloud.variables?.[variable]).toEqual({
-        type: "reference",
-        resource: "bucket.Register Updates",
-        output,
+        type: "literal",
+        value: `\${{"${bucket.name}".${output}}}`,
       });
     },
   );
@@ -255,6 +263,11 @@ describe("the Cloud Server service's environment", () => {
         "MERCADOPAGO_QR_EXTERNAL_POS_ID must be set when MERCADOPAGO_ACCESS_TOKEN is set",
       );
     });
+  });
+
+  it("declares no custom domain, leaving the one registered in Railway as it is", async () => {
+    const cloud = findService(await compile(), "Cloud Server");
+    expect(cloud.networking?.customDomains).toBeUndefined();
   });
 
   it("waits for the schema to be ready instead of applying any migration itself before deploying", async () => {

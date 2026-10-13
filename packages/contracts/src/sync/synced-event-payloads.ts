@@ -157,6 +157,15 @@ const transferPaymentSchema = z.object({
   confirmed_at: instant,
 });
 
+const standaloneTerminalPaymentSchema = z.object({
+  ...approvedPaymentFields,
+  method: z.literal("STANDALONE_TERMINAL"),
+  provider: z.literal("EXTERNAL_TERMINAL"),
+  tendered: z.null(),
+  authorized_by: text,
+  confirmed_at: instant,
+});
+
 const mercadoPagoQrPaymentSchema = z.object({
   ...approvedPaymentFields,
   method: z.literal("QR"),
@@ -231,6 +240,7 @@ const paymentWithMercadoPagoSchema = z.discriminatedUnion("method", [
   transferPaymentSchema,
   mercadoPagoQrPaymentSchema,
   mercadoPagoPointPaymentSchema,
+  standaloneTerminalPaymentSchema,
 ]);
 
 const saleCompletedV8Schema = saleCompletedV7Schema.extend({

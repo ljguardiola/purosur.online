@@ -25,7 +25,7 @@ function shown(options: ReturnType<typeof chargeMethodOptions>["options"]) {
 }
 
 describe("chargeMethodOptions", () => {
-  it("offers cash, the terminal, the QR and transfer, in that order, when every method is available", () => {
+  it("offers cash, the terminal, the QR, transfer and the standalone terminal, in that order, when every method is available", () => {
     const { options, belowMinimum } = loaded();
 
     expect(shown(options)).toEqual([
@@ -41,6 +41,11 @@ describe("chargeMethodOptions", () => {
         description: "Confirmás al ver el ingreso en la cuenta del negocio",
         disabled: false,
       },
+      {
+        value: "STANDALONE_TERMINAL",
+        description: "Segunda Point · cargás el resultado a mano",
+        disabled: false,
+      },
     ]);
     expect(belowMinimum).toBeUndefined();
   });
@@ -54,20 +59,40 @@ describe("chargeMethodOptions", () => {
     ]);
   });
 
+  it("keeps the standalone terminal enabled when the integrated methods are offline", () => {
+    const { options } = loaded({ qr: "offline", point: "offline" });
+
+    expect(shown(options).find(({ value }) => value === "STANDALONE_TERMINAL")?.disabled).toBe(
+      false,
+    );
+  });
+
   it("leaves the terminal out below its minimum and names that minimum", () => {
     const { options, belowMinimum } = loaded({ point: "below_minimum" });
 
-    expect(options.map(({ value }) => value)).toEqual(["CASH", "QR", "TRANSFER"]);
+    expect(options.map(({ value }) => value)).toEqual([
+      "CASH",
+      "QR",
+      "TRANSFER",
+      "STANDALONE_TERMINAL",
+    ]);
     expect(belowMinimum).toBe(1500);
   });
 
   it.each([
     ["is still loading", { status: "loading" }],
     ["could not be read", { status: "failed", retry: () => undefined }],
-  ] as const)("offers only cash and transfer while the availability %s", (_state, availability) => {
-    const { options, belowMinimum } = chargeMethodOptions(availability);
+  ] as const)(
+    "offers cash, transfer and the standalone terminal while the availability %s",
+    (_state, availability) => {
+      const { options, belowMinimum } = chargeMethodOptions(availability);
 
-    expect(options.map(({ value }) => value)).toEqual(["CASH", "TRANSFER"]);
-    expect(belowMinimum).toBeUndefined();
-  });
+      expect(options.map(({ value }) => value)).toEqual([
+        "CASH",
+        "TRANSFER",
+        "STANDALONE_TERMINAL",
+      ]);
+      expect(belowMinimum).toBeUndefined();
+    },
+  );
 });

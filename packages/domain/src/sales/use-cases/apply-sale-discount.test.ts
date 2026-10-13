@@ -19,7 +19,11 @@ import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
 const NOW = new Date("2026-10-07T15:30:00.000Z");
 const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
 const SESSION = { id: "session-1", openedBy: "cashier" };
-const TEN_PERCENT = { id: "ten", benefit: { kind: "PERCENT_OFF" as const, percent: 10 } };
+const TEN_PERCENT = {
+  id: "ten",
+  name: "Diez por ciento",
+  benefit: { kind: "PERCENT_OFF" as const, percent: 10 },
+};
 const YERBA_LINE: SaleLine = {
   id: "line-1",
   productId: "yerba",

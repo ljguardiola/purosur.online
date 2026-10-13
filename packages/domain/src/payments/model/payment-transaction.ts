@@ -33,6 +33,15 @@ interface TransferPaymentTransaction extends SalePaymentTransaction {
   confirmedAt: Date;
 }
 
+interface StandaloneTerminalPaymentTransaction extends SalePaymentTransaction {
+  method: "STANDALONE_TERMINAL";
+  provider: "EXTERNAL_TERMINAL";
+  state: "APPROVED";
+  tendered?: never;
+  authorizedBy: string;
+  confirmedAt: Date;
+}
+
 export interface MercadoPagoQrPaymentTransaction extends SalePaymentTransaction {
   method: "QR";
   provider: "MERCADOPAGO_QR";
@@ -58,6 +67,7 @@ export type MercadoPagoPaymentTransaction =
 export type PaymentTransaction =
   | CashPaymentTransaction
   | TransferPaymentTransaction
+  | StandaloneTerminalPaymentTransaction
   | MercadoPagoPaymentTransaction;
 
 export type SalePayment = PaymentTransaction & { state: "APPROVED"; occurredAt: Date };

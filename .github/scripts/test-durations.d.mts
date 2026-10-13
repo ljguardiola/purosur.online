@@ -11,7 +11,7 @@ export declare class TestDurationsReporter implements Reporter {
 }
 
 export declare function durationBalancedSequencer(
-  durationsDir: string | undefined,
+  durationsPayload: string | undefined,
 ): new (
   ...args: ConstructorParameters<typeof import("vitest/node").BaseSequencer>
 ) => TestSequencer;

@@ -60,6 +60,7 @@ describe("cancelling the open sale of a locked register", () => {
     { kind: "rate_limited", retry_after_seconds: 1, attempts_left: 2 },
     { kind: "mercado_pago_charge_in_progress" },
     { kind: "holds_mercado_pago_payment" },
+    { kind: "holds_standalone_terminal_payment" },
   ])("accepts the result $kind", (outcome) => {
     const message = { type: "cancel-locked-sale-result", request_id: REQUEST_ID, outcome };
 
@@ -1097,6 +1098,82 @@ describe("charge sale by transfer answer", () => {
 
   it("rejects a result without its request id", () => {
     const message = { type: "charge-sale-by-transfer-result", outcome: { kind: "empty_sale" } };
+
+    expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("charge sale on the standalone terminal request", () => {
+  const message = {
+    type: "charge-sale-on-standalone-terminal",
+    request_id: REQUEST_ID,
+    sale_id: "s1",
+    amount: 2000,
+  };
+
+  it("accepts a charge of an amount of a sale", () => {
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("does not take who is charging or a tendered amount from the renderer", () => {
+    expect(
+      salesRendererToCoreMessageSchema.parse({ ...message, user_id: "u9", tendered: 5000 }),
+    ).toEqual(message);
+  });
+
+  it.each([0, -100])("leaves the amount %s for the core to refuse as invalid", (amount) => {
+    expect(salesRendererToCoreMessageSchema.parse({ ...message, amount })).toEqual({
+      ...message,
+      amount,
+    });
+  });
+
+  it.each([
+    ["request id", { ...message, request_id: undefined }],
+    ["sale id", { ...message, sale_id: undefined }],
+    ["sale id as text", { ...message, sale_id: 7 }],
+    ["amount", { ...message, amount: undefined }],
+    ["whole number of cents", { ...message, amount: 12.5 }],
+    ["number", { ...message, amount: "2000" }],
+  ])("rejects a charge without a valid %s", (_case, value) => {
+    expect(salesRendererToCoreMessageSchema.safeParse(value).success).toBe(false);
+  });
+});
+
+describe("charge sale on the standalone terminal answer", () => {
+  it.each([
+    { kind: "completed", sale_id: "s1", total: 3000 },
+    { kind: "partially_paid", sale_id: "s1", total: 3000, paid: 1000, pending: 2000 },
+    { kind: "invalid_amount" },
+    { kind: "exceeds_pending", pending: 2000 },
+    { kind: "empty_sale" },
+    { kind: "not_signed_in" },
+    { kind: "unavailable" },
+  ])("accepts the result $kind", (outcome) => {
+    const message = {
+      type: "charge-sale-on-standalone-terminal-result",
+      request_id: REQUEST_ID,
+      outcome,
+    };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a result it does not know", () => {
+    const message = {
+      type: "charge-sale-on-standalone-terminal-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "insufficient_cash", amount_due: 3000 },
+    };
+
+    expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("rejects a result without its request id", () => {
+    const message = {
+      type: "charge-sale-on-standalone-terminal-result",
+      outcome: { kind: "empty_sale" },
+    };
 
     expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });

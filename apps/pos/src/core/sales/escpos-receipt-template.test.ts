@@ -49,7 +49,7 @@ function receipt(overrides: Partial<ReceiptContent> = {}): ReceiptContent {
         listUnitPrice: 420_000,
         chargedUnitPrice: 420_000,
         manualAdjustment: null,
-        promotion: { kind: "PERCENT_OFF", percent: 10 },
+        promotion: { name: "Promo 20% en la segunda" },
         discountAmount: 84_000,
         lineTotal: 756_000,
       },
@@ -133,7 +133,7 @@ const SALE_OF_MIXED_SALE = [
   "  0,350 kg x $ 18.900,00 el kg        $ 6.615,00",
   "Alfajor",
   "  2 x $ 4.200,00                      $ 8.400,00",
-  "  10 % de descuento                    -$ 840,00",
+  "  Promo 20% en la segunda              -$ 840,00",
   "Café molido 250 g                     $ 3.500,00",
   RULE,
   "Subtotal                             $ 17.675,00",
@@ -370,14 +370,14 @@ describe("the ESC/POS receipt template", () => {
           ...MANUAL_PERCENT_LINE,
           productName: "Café molido 250 g",
           manualAdjustment: null,
-          promotion: { kind: "PERCENT_OFF", percent: 2.5 },
+          promotion: { name: "Promo de temporada" },
         },
       ],
     });
     const printedText = textLines.join("\n");
 
     expect(printedText).toContain(`Descuento manual ${formatPercent(12.5)}`);
-    expect(printedText).toContain(`${formatPercent(2.5)} de descuento`);
+    expect(printedText).toContain("  Promo de temporada");
     expect(printedText).toContain(`Descuento sobre el total ${formatPercent(7.5)}`);
   });
 
@@ -405,7 +405,7 @@ describe("the ESC/POS receipt template", () => {
             listUnitPrice: 350_000,
             chargedUnitPrice: 350_000,
             manualAdjustment: null,
-            promotion: { kind: "PERCENT_OFF", percent: 10 },
+            promotion: { name: "Promo café de la mañana" },
             discountAmount: 35_000,
             lineTotal: 315_000,
           },
@@ -414,7 +414,7 @@ describe("the ESC/POS receipt template", () => {
     );
 
     expect(textLines).toContain("Café molido 250 g                     $ 3.500,00");
-    expect(textLines).toContain("  10 % de descuento                    -$ 350,00");
+    expect(textLines).toContain("  Promo café de la mañana              -$ 350,00");
   });
 
   it("prints the weight and the price per kilo of a weighed line, even of one kilo", () => {
@@ -474,6 +474,22 @@ describe("the ESC/POS receipt template", () => {
     );
 
     expect(textLines).toContain("Point Mercado Pago                   $ 10.000,00");
+  });
+
+  it("names a payment on the standalone terminal, aligned with the other payment lines", () => {
+    const { textLines } = printed(
+      receipt({
+        totals: {
+          subtotal: 1_000_000,
+          saleDiscount: null,
+          total: 1_000_000,
+          payments: [{ method: "STANDALONE_TERMINAL", amount: 1_000_000 }],
+          change: 0,
+        },
+      }),
+    );
+
+    expect(textLines).toContain("Terminal independiente               $ 10.000,00");
   });
 
   it("wraps a long product name beside its amount within the columns of the paper", () => {
@@ -542,7 +558,7 @@ describe("the ESC/POS receipt template", () => {
     expect(textLines).toContain("Fecha 30/09/2026                      Hora 23:30");
   });
 
-  it("shows a buy-and-pay promotion by what it asks and what it charges, with no line total", () => {
+  it("shows a promotion by its kept name and the line's discount, with no line total", () => {
     const { textLines } = printed(
       receipt({
         lines: [
@@ -553,7 +569,7 @@ describe("the ESC/POS receipt template", () => {
             listUnitPrice: 420_000,
             chargedUnitPrice: 420_000,
             manualAdjustment: null,
-            promotion: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+            promotion: { name: "Lleve 3, pague 2" },
             discountAmount: 420_000,
             lineTotal: 840_000,
           },
@@ -570,6 +586,33 @@ describe("the ESC/POS receipt template", () => {
       ]),
     );
     expect(textLines.join("\n")).not.toContain("Total de la línea");
+  });
+
+  it("wraps a long promotion name over several rows, keeping the discount on the last", () => {
+    const { textLines } = printed(
+      receipt({
+        lines: [
+          {
+            productName: "Alfajor",
+            saleUnit: "UNIT",
+            quantity: 2,
+            listUnitPrice: 420_000,
+            chargedUnitPrice: 420_000,
+            manualAdjustment: null,
+            promotion: { name: "Promo aniversario de la casa para clientes frecuentes" },
+            discountAmount: 84_000,
+            lineTotal: 756_000,
+          },
+        ],
+      }),
+    );
+
+    expect(textLines).toEqual(
+      expect.arrayContaining([
+        "  Promo aniversario de la casa para",
+        "  clientes frecuentes                  -$ 840,00",
+      ]),
+    );
   });
 
   it("shows the unit price charged, not the list price, for a line whose price was overridden", () => {
