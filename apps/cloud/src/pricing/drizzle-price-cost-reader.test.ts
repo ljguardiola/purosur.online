@@ -178,9 +178,7 @@ describe("DrizzlePriceCostReader.costSourcesOf", () => {
       unitCostCents: 300,
     });
 
-    expect(await new DrizzlePriceCostReader(db).costSourcesOf(locationId, [productId])).toEqual(
-      [],
-    );
+    expect(await new DrizzlePriceCostReader(db).costSourcesOf(locationId, [productId])).toEqual([]);
   });
 
   it("answers a purchase line once, though its lot exists too", async () => {

@@ -1,5 +1,9 @@
 import { priceListSchema, recordIdSchema } from "@purosur/contracts";
-import type { PriceReviewFilter, PricesUnderReview } from "@purosur/domain/pricing/use-cases";
+import {
+  type ListedPrices,
+  listPrices,
+  type PriceReviewFilter,
+} from "@purosur/domain/pricing/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { readOptionalRecordIds } from "../platform/record-id-params.js";
@@ -10,6 +14,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
+import { DrizzlePriceCostReader } from "./drizzle-price-cost-reader.js";
 import { DrizzlePriceReviewReader } from "./drizzle-price-review-reader.js";
 
 export interface PricesRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -18,7 +23,7 @@ export interface PricesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   now: () => Date;
 }
 
-function toPriceListBody(result: PricesUnderReview) {
+function toPriceListBody(result: ListedPrices) {
   return priceListSchema.parse({
     ...result,
     products: result.products.map((product) => ({
@@ -69,7 +74,10 @@ export function registerPricesListRoute<TQueryResult extends PgQueryResultHKT>(
   options: PricesRouteOptions<TQueryResult>,
 ): void {
   const { now } = options;
-  const reader = new DrizzlePriceReviewReader(options.db);
+  const ports = {
+    reviews: new DrizzlePriceReviewReader(options.db),
+    costs: new DrizzlePriceCostReader(options.db),
+  };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
@@ -92,7 +100,7 @@ export function registerPricesListRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
       const search = readSearchFilter(request.query.search);
-      const result = await reader.pricesUnderReview({
+      const result = await listPrices(ports, {
         locationId: openSessionOf(request).locationId,
         now: now(),
         review: readReviewFilter(request.query.review),
