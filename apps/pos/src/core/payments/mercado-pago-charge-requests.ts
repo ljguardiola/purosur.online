@@ -8,6 +8,7 @@ import {
   type FollowMercadoPagoChargeOutcome as FollowedMercadoPagoCharge,
   followInterruptedMercadoPagoCharges,
   followMercadoPagoCharge,
+  type InterruptedMercadoPagoCharge,
   type MercadoPagoChargeOrders,
   type MercadoPagoChargeSale,
   startMercadoPagoCharge,
@@ -197,9 +198,15 @@ export interface FollowedInterruptedMercadoPagoCharges {
   failures: { paymentTransactionId: string; error: unknown }[];
 }
 
+export function mercadoPagoChargesLeftPendingFor(
+  deps: MercadoPagoChargeRequestDeps,
+): InterruptedMercadoPagoCharge[] {
+  return new SqliteMercadoPagoCharges(deps.database).pendingCharges();
+}
+
 export async function followInterruptedMercadoPagoChargesFor(
   deps: MercadoPagoChargeRequestDeps,
-  runStartedAt: Date,
+  interrupted: readonly InterruptedMercadoPagoCharge[],
 ): Promise<FollowedInterruptedMercadoPagoCharges> {
   const outboxChainKey = await deps.readOutboxChainKey();
   const { followed, failures } = await followInterruptedMercadoPagoCharges(
@@ -209,7 +216,7 @@ export async function followInterruptedMercadoPagoChargesFor(
       charges: new SqliteMercadoPagoCharges(deps.database),
       clock: { now: deps.now },
     },
-    { runStartedAt },
+    { interrupted },
   );
   return {
     followed: followed.map(({ paymentTransactionId, outcome }) => ({

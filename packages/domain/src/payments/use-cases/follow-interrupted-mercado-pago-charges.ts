@@ -2,7 +2,10 @@ import {
   type FollowMercadoPagoChargeOutcome,
   followMercadoPagoCharge,
 } from "./follow-mercado-pago-charge.js";
-import type { MercadoPagoChargePorts } from "./mercado-pago-charge-ports.js";
+import type {
+  InterruptedMercadoPagoCharge,
+  MercadoPagoChargePorts,
+} from "./mercado-pago-charge-ports.js";
 
 export interface FollowedInterruptedMercadoPagoCharge<Settlement> {
   paymentTransactionId: string;
@@ -15,20 +18,21 @@ export interface FollowInterruptedMercadoPagoChargesOutcome<Settlement> {
 }
 
 export interface FollowInterruptedMercadoPagoChargesInput {
-  runStartedAt: Date;
+  interrupted: readonly InterruptedMercadoPagoCharge[];
 }
 
 export async function followInterruptedMercadoPagoCharges<Refusal, Settlement>(
   ports: MercadoPagoChargePorts<Refusal, Settlement>,
-  { runStartedAt }: FollowInterruptedMercadoPagoChargesInput,
+  { interrupted }: FollowInterruptedMercadoPagoChargesInput,
 ): Promise<FollowInterruptedMercadoPagoChargesOutcome<Settlement>> {
   const outcome: FollowInterruptedMercadoPagoChargesOutcome<Settlement> = {
     followed: [],
     failures: [],
   };
-  for (const { paymentTransactionId, actorId } of ports.charges.pendingChargesRecordedBefore(
-    runStartedAt,
-  )) {
+  for (const { paymentTransactionId, actorId } of interrupted) {
+    if (ports.charges.pendingCharge(paymentTransactionId) === null) {
+      continue;
+    }
     try {
       outcome.followed.push({
         paymentTransactionId,

@@ -251,8 +251,8 @@ export const help = defineHelp("es-AR", {
         {
           kind: "steps",
           items: [
-            "Venta sin ticket: la venta nunca se imprimió. Tocá Imprimir el ticket y sale como ticket original.",
-            "Ticket sin confirmar: puede que el ticket haya salido. Tocá Reimprimir como duplicado, escribí el motivo y sale como duplicado.",
+            "Venta sin ticket: la venta nunca se imprimió. Tocá la impresora de la fila y el ticket sale enseguida como original.",
+            "Ticket sin confirmar: puede que el ticket haya salido. Tocá la impresora de la fila, escribí el motivo de la reimpresión y tocá Reimprimir duplicado: sale como duplicado.",
             "Factura o cobro en consulta: la caja lo consulta sola, y desaparece de la lista cuando llega la respuesta.",
           ],
         },

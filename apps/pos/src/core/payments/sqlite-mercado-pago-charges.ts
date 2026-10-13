@@ -43,15 +43,15 @@ export class SqliteMercadoPagoCharges implements MercadoPagoCharges {
     };
   }
 
-  pendingChargesRecordedBefore(moment: Date): InterruptedMercadoPagoCharge[] {
+  pendingCharges(): InterruptedMercadoPagoCharge[] {
     return this.database
-      .prepare<[string], { id: string; actor_id: string }>(
+      .prepare<[], { id: string; actor_id: string }>(
         `SELECT payment_transactions.id, sales.actor_id FROM payment_transactions
          JOIN sales ON sales.id = payment_transactions.sale_id
-         WHERE ${PENDING_MERCADO_PAGO_CHARGE} AND payment_transactions.occurred_at < ?
+         WHERE ${PENDING_MERCADO_PAGO_CHARGE}
          ORDER BY payment_transactions.occurred_at, payment_transactions.rowid`,
       )
-      .all(moment.toISOString())
+      .all()
       .map(({ id, actor_id }) => ({ paymentTransactionId: id, actorId: actor_id }));
   }
 

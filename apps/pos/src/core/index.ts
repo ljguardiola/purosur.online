@@ -24,7 +24,7 @@ import {
 } from "./fiscal/real-time-authorization-wiring";
 import { readLatestPreEmissionGateOutcome } from "./fiscal/sqlite-pre-emission-gate";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
-import { createInterruptedChargesFollow } from "./payments/interrupted-charges-follow";
+import { createInterruptedChargesWiring } from "./payments/interrupted-charges-wiring";
 import { createMercadoPagoCharging } from "./payments/mercado-pago-charge-wiring";
 import { paymentMethodAvailabilityFor } from "./payments/payment-method-availability-requests";
 import {
@@ -175,7 +175,6 @@ const cloudClient: CloudClientDeps | undefined =
     : { cloudUrl, fetch: (input, init) => net.fetch(input, init), sleep };
 
 const now = () => new Date();
-const runStartedAt = now();
 const LOCAL_DATABASE_FILE = "register.sqlite";
 const SYNC_INTERVAL_MS = 30_000;
 const SYNC_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
@@ -394,7 +393,7 @@ const syncSchedule = createSyncSchedule({
   onFailure: reportSyncFailure,
   afterEachSync: () => {
     rendererConnection.tell(PULLED_NOTICE);
-    void interruptedCharges.followNow();
+    interruptedCharges.afterEachSync();
   },
 });
 
@@ -430,9 +429,9 @@ const receiptPrinting = createReceiptPrinting({
   syncNow: () => syncSchedule.syncNow(),
 });
 
-const interruptedCharges = createInterruptedChargesFollow({
-  follow: receiptPrinting.afterEachCompletedSale(mercadoPagoCharging.followInterrupted),
-  runStartedAt,
+const interruptedCharges = createInterruptedChargesWiring({
+  charging: mercadoPagoCharging,
+  printing: receiptPrinting,
   reportFailure,
 });
 
@@ -446,7 +445,7 @@ const startupRecovery = recoverAtStartup({
       ids: uuidV7Ids,
       shortCodes: cryptoShortCodes,
     }),
-  followInterruptedCharges: interruptedCharges.followNow,
+  followInterruptedCharges: interruptedCharges.followAtStartup,
   startSync: () => syncSchedule.start(),
   reportFailure,
 });

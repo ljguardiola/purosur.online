@@ -3,6 +3,7 @@ import type {
   FollowMercadoPagoChargeOutcome,
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
+import type { InterruptedMercadoPagoCharge } from "@purosur/domain/payments/use-cases";
 import type { IdGenerator } from "@purosur/domain/sales/use-cases";
 import {
   type CloudClientDeps,
@@ -18,6 +19,7 @@ import {
   followInterruptedMercadoPagoChargesFor,
   followMercadoPagoChargeFor,
   type MercadoPagoChargeRequestDeps,
+  mercadoPagoChargesLeftPendingFor,
   startMercadoPagoChargeFor,
 } from "./mercado-pago-charge-requests";
 
@@ -31,7 +33,7 @@ export interface MercadoPagoChargingWiringDeps {
   ids: IdGenerator;
 }
 
-interface MercadoPagoCharging {
+export interface MercadoPagoCharging {
   start:
     | ((request: {
         saleId: string;
@@ -45,8 +47,11 @@ interface MercadoPagoCharging {
   abandon:
     | ((request: { paymentTransactionId: string }) => Promise<AbandonMercadoPagoChargeOutcome>)
     | undefined;
+  chargesLeftPending: (() => InterruptedMercadoPagoCharge[]) | undefined;
   followInterrupted:
-    | ((runStartedAt: Date) => Promise<FollowedInterruptedMercadoPagoCharges>)
+    | ((
+        interrupted: readonly InterruptedMercadoPagoCharge[],
+      ) => Promise<FollowedInterruptedMercadoPagoCharges>)
     | undefined;
 }
 
@@ -64,6 +69,7 @@ export function createMercadoPagoCharging({
       start: undefined,
       follow: undefined,
       abandon: undefined,
+      chargesLeftPending: undefined,
       followInterrupted: undefined,
     };
   }
@@ -86,6 +92,7 @@ export function createMercadoPagoCharging({
     start: (request) => startMercadoPagoChargeFor(deps, request),
     follow: (request) => followMercadoPagoChargeFor(deps, request),
     abandon: (request) => abandonMercadoPagoChargeFor(deps, request),
-    followInterrupted: (runStartedAt) => followInterruptedMercadoPagoChargesFor(deps, runStartedAt),
+    chargesLeftPending: () => mercadoPagoChargesLeftPendingFor(deps),
+    followInterrupted: (interrupted) => followInterruptedMercadoPagoChargesFor(deps, interrupted),
   };
 }

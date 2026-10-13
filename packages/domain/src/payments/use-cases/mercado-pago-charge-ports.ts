@@ -72,7 +72,7 @@ export interface MercadoPagoChargeOrders {
 
 export interface MercadoPagoCharges {
   pendingCharge(paymentTransactionId: string): PendingMercadoPagoCharge | null;
-  pendingChargesRecordedBefore(moment: Date): InterruptedMercadoPagoCharge[];
+  pendingCharges(): InterruptedMercadoPagoCharge[];
   recordEnded(paymentTransactionId: string, state: EndedMercadoPagoChargeState): void;
   recordWaitEnd(paymentTransactionId: string, waitEndsAt: Date): void;
 }

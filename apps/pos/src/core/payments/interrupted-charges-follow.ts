@@ -1,10 +1,10 @@
-export interface InterruptedChargesFollowDeps {
+export interface InterruptedChargesFollowDeps<Interrupted> {
   follow:
     | ((
-        runStartedAt: Date,
+        interrupted: Interrupted,
       ) => Promise<{ failures: { paymentTransactionId: string; error: unknown }[] }>)
     | undefined;
-  runStartedAt: Date;
+  interrupted: Interrupted;
   reportFailure: (activity: string, error: unknown) => void;
 }
 
@@ -12,11 +12,11 @@ export interface InterruptedChargesFollow {
   followNow(): Promise<void>;
 }
 
-export function createInterruptedChargesFollow({
+export function createInterruptedChargesFollow<Interrupted>({
   follow,
-  runStartedAt,
+  interrupted,
   reportFailure,
-}: InterruptedChargesFollowDeps): InterruptedChargesFollow {
+}: InterruptedChargesFollowDeps<Interrupted>): InterruptedChargesFollow {
   let underWay: Promise<void> | undefined;
 
   async function followOnce(): Promise<void> {
@@ -24,7 +24,7 @@ export function createInterruptedChargesFollow({
       return;
     }
     try {
-      const { failures } = await follow(runStartedAt);
+      const { failures } = await follow(interrupted);
       for (const { paymentTransactionId, error } of failures) {
         reportFailure(
           `following the interrupted Mercado Pago charge ${paymentTransactionId}`,

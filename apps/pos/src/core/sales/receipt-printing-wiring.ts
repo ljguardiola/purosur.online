@@ -46,7 +46,7 @@ export interface ReceiptPrintingWiringDeps {
   syncNow: () => void;
 }
 
-interface ReceiptPrinting {
+export interface ReceiptPrinting {
   afterCompletedSale<TRequest, TOutcome extends { kind: string }>(
     charge: ((request: TRequest) => Promise<TOutcome>) | undefined,
   ): ((request: TRequest) => Promise<TOutcome>) | undefined;
