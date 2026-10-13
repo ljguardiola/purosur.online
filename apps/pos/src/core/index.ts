@@ -71,6 +71,7 @@ import { readSerialDevicesFor, registerSerialDevicesFor } from "./register/seria
 import { listSerialPorts, serialportEnumeration } from "./register/serialport-enumeration";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
+import { recoverAtStartup } from "./register/startup-recovery";
 import { createUpdateHold, gateRendererRequest } from "./register/update-hold";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
@@ -400,15 +401,6 @@ const realTimeAuthorization = createRealTimeAuthorization({
   ids: uuidV7Ids,
   shortCodes: cryptoShortCodes,
 });
-await settleInterruptedAuthorizations({
-  database: localDatabase,
-  now,
-  reportFailure: (error) =>
-    reportFailure("settling the interrupted real-time authorizations", error),
-  ids: uuidV7Ids,
-  shortCodes: cryptoShortCodes,
-});
-
 const mercadoPagoCharging = createMercadoPagoCharging({
   database: localDatabase,
   gate: actionGate,
@@ -418,6 +410,22 @@ const mercadoPagoCharging = createMercadoPagoCharging({
   now,
   ids: uuidV7Ids,
 });
+
+const startupRecovery = recoverAtStartup({
+  settleInterruptedAuthorizations: () =>
+    settleInterruptedAuthorizations({
+      database: localDatabase,
+      now,
+      reportFailure: (error) =>
+        reportFailure("settling the interrupted real-time authorizations", error),
+      ids: uuidV7Ids,
+      shortCodes: cryptoShortCodes,
+    }),
+  followInterruptedCharges: mercadoPagoCharging.followInterrupted,
+  startSync: () => syncSchedule.start(),
+  reportFailure,
+});
+await startupRecovery.authorizationsSettled;
 
 const receiptPrinting = createReceiptPrinting({
   database: localDatabase,
@@ -956,5 +964,4 @@ process.parentPort.on("message", (event) => {
 });
 
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
-syncSchedule.start();
 void barcodeReaderWiring.startWatch();
