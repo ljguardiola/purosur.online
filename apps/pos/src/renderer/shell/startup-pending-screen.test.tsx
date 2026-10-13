@@ -393,6 +393,16 @@ describe("StartupPendingScreen", () => {
       await expect.element(screen.getByText("IMPRIMIR VENTA DE LAS 10:15")).not.toBeInTheDocument();
     });
 
+    it("says the person may not see the sale when the core refuses it", async () => {
+      const { screen } = await renderScreen({
+        saleHistoryDetail: async () => ({ kind: "lacks_permission" }),
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Imprimir el ticket" }));
+
+      await expect.element(screen.getByText("No tenés permiso para ver la venta")).toBeVisible();
+    });
+
     it("tells the route the session is no longer valid when the core finds nobody signed in", async () => {
       const { screen, onSessionInvalid } = await renderScreen({
         saleHistoryDetail: async () => ({ kind: "not_signed_in" }),
