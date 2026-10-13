@@ -248,6 +248,7 @@ export type {
   SalePayment,
 } from "./payments/index.js";
 export {
+  APPROVED_PAYMENT_STATE,
   cancellableWithoutAuthorization,
   cashCharge,
   DISCARDABLE_REFUND_ALERT_KINDS,

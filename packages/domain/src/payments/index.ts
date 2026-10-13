@@ -19,6 +19,7 @@ export {
 export { nonCashCharge } from "./model/non-cash-charge.js";
 export type { MercadoPagoPaymentMethod, PaymentMethod } from "./model/payment.js";
 export {
+  APPROVED_PAYMENT_STATE,
   cancellableWithoutAuthorization,
   hasApprovedPayment,
   holdsApprovedMercadoPagoPayment,
