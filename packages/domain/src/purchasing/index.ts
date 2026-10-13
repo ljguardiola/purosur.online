@@ -4,7 +4,6 @@ export {
   FREIGHT_DESCRIPTION_MAX_LENGTH,
   FREIGHT_PERIOD_DAYS,
   freightPeriodStart,
-  hasFreightPurchases,
   isFreightAmount,
   isFreightCarrierNameTooLong,
   isFreightDescription,
@@ -14,16 +13,9 @@ export {
 } from "./model/freight.js";
 export type {
   FreightLine,
-  FreightShare,
   FreightToDistribute,
 } from "./model/freight-distribution.js";
-export {
-  distributeFreight,
-  freightPerUnit,
-  hasDistributableValue,
-  lineValue,
-  purchaseValueCents,
-} from "./model/freight-distribution.js";
+export { freightPerUnit } from "./model/freight-distribution.js";
 export {
   isPackagingNameTooLong,
   PACKAGING_NAME_MAX_LENGTH,
