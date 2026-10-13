@@ -144,7 +144,7 @@ describe("what a stopped register left pending", () => {
   it("is refused while nobody is signed in", async () => {
     signedInPerson.clear();
 
-    expect(await pendingOf()).toBe("not_permitted");
+    expect(await startupPendingFor({ database, gate: gate() })).toBe("not_permitted");
   });
 
   it("is refused to a person who may not sell", async () => {
@@ -152,6 +152,6 @@ describe("what a stopped register left pending", () => {
       "UPDATE role_permissions SET active = 0 WHERE permission_key = 'sell_and_charge'",
     );
 
-    expect(await pendingOf()).toBe("not_permitted");
+    expect(await startupPendingFor({ database, gate: gate() })).toBe("not_permitted");
   });
 });
