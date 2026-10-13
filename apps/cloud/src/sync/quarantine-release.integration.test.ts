@@ -11,7 +11,10 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
+import {
+  runQueuedBehindHeldLock,
+  waitForLockWaiters,
+} from "../test-support/queued-behind-held-lock.js";
 import { DrizzleQuarantineRelease } from "./drizzle-quarantine-release.js";
 import { insertQuarantinedEvent, QUARANTINED_AT } from "./test-support/quarantined-events.js";
 
@@ -135,6 +138,28 @@ describe("releasing a quarantined event on a real Postgres", () => {
 
     expect(await eventRow(first.eventId)).toMatchObject({ attempts: 0, quarantinedAt: null });
     expect(await alertOf(first.deviceId)).toEqual({ resolvedAt: null });
+  }, 30_000);
+
+  it("resolves the device's alert when its last two quarantined events are released at the same time", async () => {
+    const first = await quarantinedEventOf(randomUUID());
+    const second = await quarantinedEventOf(randomUUID(), first);
+
+    const [firstOutcome, secondOutcome] = await runQueuedBehindHeldLock(
+      sql,
+      (holder) =>
+        holder`select pg_advisory_xact_lock(hashtextextended(${`device_quarantines:${first.deviceId}`}, 0))`,
+      () =>
+        release({ eventId: first.eventId, locationId: first.locationId, releasedBy: first.userId }),
+      () =>
+        release({
+          eventId: second.eventId,
+          locationId: second.locationId,
+          releasedBy: second.userId,
+        }),
+    );
+
+    expect([firstOutcome, secondOutcome]).toEqual([{ kind: "released" }, { kind: "released" }]);
+    expect(await alertOf(first.deviceId)).toEqual({ resolvedAt: NOW });
   }, 30_000);
 
   it("leaves the event quarantined, unrecorded and its alert open when the release fails midway", async () => {

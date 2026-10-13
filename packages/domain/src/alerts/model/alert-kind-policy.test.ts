@@ -134,7 +134,7 @@ describe("alertClosing", () => {
       backoffice_sign_in_lockout: "by_hand",
       user_access_increased: "by_hand",
       register_enrolled: "by_hand",
-      events_quarantined: "by_hand",
+      events_quarantined: "when_its_events_are_released",
       event_invariant_violated: "by_hand",
       arca_certificate_expiring: "by_hand",
       arca_wsaa_ticket_held: "by_hand",
@@ -163,6 +163,13 @@ describe("alertClosing", () => {
     );
   });
 
+  it("closes an alert for quarantined events once none of its device's events is left in quarantine", () => {
+    expect(alertClosing("events_quarantined", [])).toBe("when_its_events_are_released");
+    expect(alertClosing("events_quarantined", ["events_quarantined"])).toBe(
+      "when_its_events_are_released",
+    );
+  });
+
   it("closes an alert not scoped to a refund the same way whatever kinds belong to a discardable refund", () => {
     expect(alertClosing("register_enrolled", ["register_enrolled"])).toBe("by_hand");
     expect(alertClosing("update_required", ["update_required"])).toBe("by_itself");
@@ -174,6 +181,7 @@ describe("alertClosing", () => {
       "with_its_refund",
       "when_its_refund_is_done",
       "when_its_document_is_resolved",
+      "when_its_events_are_released",
       "by_hand",
     ]);
   });

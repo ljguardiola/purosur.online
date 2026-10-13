@@ -132,6 +132,12 @@ describe("alertDetailSchema", () => {
     expect(alertDetailSchema.safeParse({ ...emailChange, [field]: value }).success).toBe(false);
   });
 
+  it("accepts an alert that closes once its events are released", () => {
+    const alert = { ...emailChange, closing: "when_its_events_are_released" };
+
+    expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+  });
+
   const deliveryFields = ["channel", "status", "error", "createdAt", "recipient"];
   it.each(deliveryFields)("requires a delivery's %s", (field) => {
     const { [field as keyof typeof delivery]: _omitted, ...rest } = delivery;

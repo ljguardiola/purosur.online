@@ -968,6 +968,7 @@ const quarantinedEventAlert = baseDetail({
   scope: "device-1",
   scopeDisplay: "Caja 1",
   scopeKind: "syncDevice",
+  closing: "when_its_events_are_released",
   detail: { deviceId: "device-1" },
 });
 
@@ -1698,4 +1699,25 @@ test("tells a document ARCA left without a clear answer: its number, since when,
     .toBeVisible();
   await expect.element(screen.getByText("Comprobante", { exact: true })).toBeVisible();
   expect(screen.getByText(/fiscal-document-1/).query()).toBeNull();
+});
+
+test("tells that an alert for quarantined events resolves by itself and offers no way to close it by hand", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(quarantinedEventAlert));
+
+  const screen = await renderModal(services, {
+    access: accessWith("quarantined_events", "close_alerts_manually"),
+  });
+
+  await expect
+    .element(
+      screen.getByText(
+        "Se resuelve sola cuando no queda ningún evento de esta caja en cuarentena.",
+        {
+          exact: true,
+        },
+      ),
+    )
+    .toBeVisible();
+  expect(screen.getByRole("button", { name: "Cerrar la alerta" }).query()).toBeNull();
 });
