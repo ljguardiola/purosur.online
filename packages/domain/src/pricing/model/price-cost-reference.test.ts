@@ -98,7 +98,9 @@ describe("lastCostSource", () => {
   });
 
   it("keeps the first of two initial counts made at the same instant", () => {
-    const first = initialCount("2026-03-01T15:00:00Z", { cost: { totalCents: 100, quantity: 1000 } });
+    const first = initialCount("2026-03-01T15:00:00Z", {
+      cost: { totalCents: 100, quantity: 1000 },
+    });
     const second = initialCount("2026-03-01T15:00:00Z", {
       cost: { totalCents: 200, quantity: 1000 },
     });

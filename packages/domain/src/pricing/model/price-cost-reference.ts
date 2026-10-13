@@ -87,10 +87,10 @@ export function lastCostSource(sources: readonly CostSource[]): CostSource | nul
   return lastDatedCost(sources)?.source ?? null;
 }
 
-// roundHalfUp truncates a negative quotient toward zero, so the whole part is floored apart.
+// roundHalfUp truncates a negative quotient toward zero, so the numerator is moved to a
+// non-negative remainder first.
 function roundHalfUpSigned(numerator: bigint, denominator: bigint): number {
-  const truncated = numerator / denominator;
-  const wholes = numerator % denominator < 0n ? truncated - 1n : truncated;
+  const wholes = numerator / denominator - 1n;
   const remainder = numerator - wholes * denominator;
   return Number(wholes) + roundHalfUp({ numerator: remainder, denominator });
 }
