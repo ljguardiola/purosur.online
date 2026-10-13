@@ -3,8 +3,8 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { WorkerUtils } from "graphile-worker";
 import type { PoolClient } from "pg";
-import { DrizzleArcaCertificateExpiryStore } from "../alerts/drizzle-arca-certificate-expiry-store.js";
 import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
+import { DrizzleArcaCertificateExpiryStore } from "./drizzle-arca-certificate-expiry-store.js";
 
 export const ARCA_CERTIFICATE_EXPIRY_CHECK_TASK_IDENTIFIER = "arca-certificate-expiry-check";
 
