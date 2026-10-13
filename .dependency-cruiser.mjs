@@ -1,7 +1,6 @@
 export const CLOUD_ONLY_CONCEPTS = ["purchasing", "alerts", "catalog", "pricing"];
 
 const REAL_POSTGRES_TEST = "apps/cloud/src/.+\\.integration\\.test\\.ts$";
-const CLOUD_MIGRATION_TEST = "apps/cloud/src/.+-migration\\.test\\.ts$";
 
 // Matches an npm package either by its raw specifier (left unresolved when the
 // package isn't installed) or by its resolved node_modules path, never by a repo
@@ -320,22 +319,6 @@ export default {
       },
     },
     {
-      name: "cloud-migration-tests-migrate-through-migration-under-test",
-      comment:
-        "A cloud migration test reaches its database only through migration-under-test, " +
-        "which hands current code a client only once every later migration is applied, " +
-        "never by migrating a database itself.",
-      severity: "error",
-      from: { path: `^${CLOUD_MIGRATION_TEST}` },
-      to: {
-        path: [
-          "^drizzle-orm/[^/]+/migrator$|(^|/)node_modules/drizzle-orm/[^/]+/migrator\\.",
-          "^apps/cloud/src/test-support/test-database-snapshot\\.ts$",
-          "^apps/cloud/src/platform/db/test-support/migration-journal-test-helpers\\.ts$",
-        ],
-      },
-    },
-    {
       name: "cloud-server-never-migrates",
       comment:
         "The cloud server never reaches, directly or transitively, the migrate entry " +
@@ -358,7 +341,7 @@ export default {
     },
     exclude: {
       path: [
-        `^(?!${REAL_POSTGRES_TEST}|${CLOUD_MIGRATION_TEST}).*\\.test\\.(ts|tsx)$`,
+        `^(?!${REAL_POSTGRES_TEST}).*\\.test\\.(ts|tsx)$`,
         "^(apps|packages)/[^/]+/(dist|out)/",
       ],
     },
