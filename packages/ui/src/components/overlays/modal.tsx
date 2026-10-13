@@ -87,9 +87,9 @@ export function Modal(props: ModalProps) {
     >
       <AriaModal
         className={[
-          // max-height only clips, never stretches, so short content is unaffected; the backdrop
-          // centers the panel, so hitting the 24px cap leaves that clearance on both sides.
-          "flex max-h-modal shrink-0 flex-col rounded-xl bg-surface",
+          // The max sizes only clip, never stretch, so a panel that fits is unaffected; the
+          // backdrop centers the panel, so hitting a 24px cap leaves that clearance on both sides.
+          "flex max-h-modal max-w-modal shrink-0 flex-col rounded-xl bg-surface",
           "shadow-xl",
           widthClassName[width],
         ].join(" ")}
