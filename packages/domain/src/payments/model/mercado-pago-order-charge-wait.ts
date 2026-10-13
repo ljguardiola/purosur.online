@@ -2,6 +2,8 @@ import type { MercadoPagoPaymentMethod } from "./payment.js";
 
 export const MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES = 3;
 
+export const MERCADO_PAGO_ORDER_CHARGE_WAIT_SECONDS = MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES * 60;
+
 export const MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS = 3_000;
 
 export type MercadoPagoOrderChargeWait =
@@ -9,7 +11,7 @@ export type MercadoPagoOrderChargeWait =
   | { kind: "over" };
 
 export function mercadoPagoOrderChargeWaitEndsAt(chargeStartedAt: Date): Date {
-  return new Date(chargeStartedAt.getTime() + MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES * 60 * 1000);
+  return new Date(chargeStartedAt.getTime() + MERCADO_PAGO_ORDER_CHARGE_WAIT_SECONDS * 1000);
 }
 
 export function mercadoPagoOrderChargeWait(
@@ -33,6 +35,7 @@ export interface MercadoPagoChargeInProgress {
   method: MercadoPagoPaymentMethod;
   amount: number;
   remainingSeconds: number;
+  waitSeconds: number;
 }
 
 function inProgress({ method, waitEndsAt }: { method: string; waitEndsAt: Date }, now: Date) {
@@ -63,5 +66,6 @@ export function mercadoPagoChargeInProgress(
         method: charge.method,
         amount: charge.amount,
         remainingSeconds: mercadoPagoOrderChargeRemainingSeconds(charge.waitEndsAt, now),
+        waitSeconds: MERCADO_PAGO_ORDER_CHARGE_WAIT_SECONDS,
       };
 }

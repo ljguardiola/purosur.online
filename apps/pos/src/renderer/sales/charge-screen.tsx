@@ -77,6 +77,7 @@ function followedChargeStep(
     payment_transaction_id: charge.payment_transaction_id,
     amount: charge.amount,
     remaining_seconds: charge.remaining_seconds,
+    wait_seconds: charge.wait_seconds,
   } as const;
   return charge.method === "POINT"
     ? { name: "point-wait", order, sale }

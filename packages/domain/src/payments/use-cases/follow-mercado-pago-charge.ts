@@ -19,6 +19,7 @@ export type FollowMercadoPagoChargeOutcome<Settlement> =
   | { kind: "wait_over" }
   | { kind: "at_terminal_wait_over" }
   | { kind: "closed" }
+  | { kind: "expired" }
   | { kind: "expiry_unconfirmed" }
   | { kind: "declined" }
   | { kind: "approved"; settlement: Settlement };
@@ -69,7 +70,7 @@ export async function followMercadoPagoCharge<Refusal, Settlement>(
     }
     if (state === "EXPIRED") {
       charges.recordEnded(paymentTransactionId, state);
-      return { kind: charge.method === "POINT" ? "closed" : "wait_over" };
+      return { kind: charge.method === "POINT" ? "expired" : "wait_over" };
     }
     if (state !== "PENDING") {
       charges.recordEnded(paymentTransactionId, state);

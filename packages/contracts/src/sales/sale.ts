@@ -108,6 +108,7 @@ export const saleSchema = z.object({
       method: z.enum(MERCADO_PAGO_PAYMENT_METHODS),
       amount: z.int().positive(),
       remaining_seconds: z.int().min(0),
+      wait_seconds: z.int().positive(),
     })
     .nullable(),
 });

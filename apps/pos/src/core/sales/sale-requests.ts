@@ -234,6 +234,7 @@ function toOpenSale(
             method: mercadoPagoChargeInProgress.method,
             amount: mercadoPagoChargeInProgress.amount,
             remaining_seconds: mercadoPagoChargeInProgress.remainingSeconds,
+            wait_seconds: mercadoPagoChargeInProgress.waitSeconds,
           },
   };
 }

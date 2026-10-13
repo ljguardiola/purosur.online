@@ -58,6 +58,7 @@ const followedOrderFields = {
   payment_transaction_id: recordIdSchema(),
   amount: z.int().positive(),
   remaining_seconds: z.int().min(0),
+  wait_seconds: z.int().positive(),
 };
 
 const startMercadoPagoChargeOutcomeSchema = z.discriminatedUnion("kind", [
@@ -90,6 +91,7 @@ const followMercadoPagoChargeOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("wait_over") }),
   z.object({ kind: z.literal("at_terminal_wait_over") }),
   z.object({ kind: z.literal("closed") }),
+  z.object({ kind: z.literal("expired") }),
   z.object({ kind: z.literal("expiry_unconfirmed") }),
   z.object({ kind: z.literal("declined") }),
   ...settledQrChargeOutcomes,

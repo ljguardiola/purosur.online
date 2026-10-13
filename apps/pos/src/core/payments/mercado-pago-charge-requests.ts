@@ -94,6 +94,7 @@ export async function startMercadoPagoChargeFor(
         payment_transaction_id: outcome.paymentTransactionId,
         amount: outcome.amount,
         remaining_seconds: outcome.remainingSeconds,
+        wait_seconds: outcome.waitSeconds,
       };
     case "exceeds_pending":
       return { kind: outcome.kind, pending: outcome.pending };

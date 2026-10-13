@@ -162,6 +162,7 @@ export function PointPaymentWaitModal({
       case "partially_paid":
       case "waiting":
       case "wait_over":
+      case "expired":
       case "at_terminal_wait_over":
       case "expiry_unconfirmed":
       case "declined":
@@ -223,7 +224,23 @@ export function PointPaymentWaitModal({
   }
 
   if (outcome?.kind === "declined") {
-    return <DeclinedModal onChooseAnotherMethod={onChooseAnotherMethod} />;
+    return (
+      <TerminalOrderEndedModal
+        title="La terminal rechazó el pago"
+        reason="El pago no se aprobó en la terminal, así que no se cobró nada."
+        onChooseAnotherMethod={onChooseAnotherMethod}
+      />
+    );
+  }
+
+  if (outcome?.kind === "expired" && !awaitingCancellation) {
+    return (
+      <TerminalOrderEndedModal
+        title="El cobro venció en la terminal"
+        reason="No se cobró nada."
+        onChooseAnotherMethod={onChooseAnotherMethod}
+      />
+    );
   }
 
   const remainingSeconds =
@@ -237,8 +254,8 @@ export function PointPaymentWaitModal({
         amount={order.amount}
         waitedOut={waitedOut}
         remainingSeconds={waitedOut ? 0 : remainingSeconds}
-        totalSeconds={order.remaining_seconds}
-        closed={outcome?.kind === "closed"}
+        totalSeconds={order.wait_seconds}
+        closed={outcome?.kind === "closed" || outcome?.kind === "expired"}
         followFailure={followFailure}
         onChooseAnotherMethod={onChooseAnotherMethod}
       />
@@ -275,7 +292,7 @@ export function PointPaymentWaitModal({
           <div className="flex items-center gap-6">
             <CountdownRing
               remainingSeconds={remainingSeconds}
-              totalSeconds={order.remaining_seconds}
+              totalSeconds={order.wait_seconds}
               label="Tiempo para pagar"
             />
             <ProgressSteps
@@ -419,7 +436,15 @@ function AwaitingCancellationModal({
   );
 }
 
-function DeclinedModal({ onChooseAnotherMethod }: { onChooseAnotherMethod: () => void }) {
+function TerminalOrderEndedModal({
+  title,
+  reason,
+  onChooseAnotherMethod,
+}: {
+  title: string;
+  reason: string;
+  onChooseAnotherMethod: () => void;
+}) {
   return (
     <Modal
       open
@@ -429,7 +454,7 @@ function DeclinedModal({ onChooseAnotherMethod }: { onChooseAnotherMethod: () =>
       icon={<CircleX />}
       context="POINT INTEGRADA"
       contextTone="error"
-      title="La terminal rechazó el pago"
+      title={title}
       closable={false}
       footer={
         <Button size="large" fullWidth icon={<ArrowRight />} onPress={onChooseAnotherMethod}>
@@ -438,9 +463,7 @@ function DeclinedModal({ onChooseAnotherMethod }: { onChooseAnotherMethod: () =>
       }
     >
       <div className="flex flex-col gap-3">
-        <p className="text-body text-text">
-          El pago no se aprobó en la terminal, así que no se cobró nada.
-        </p>
+        <p className="text-body text-text">{reason}</p>
         <p className="text-detail text-text-subtle">
           Se puede volver a intentar con la Point o cobrar con otro medio.
         </p>

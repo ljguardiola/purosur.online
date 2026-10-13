@@ -112,6 +112,7 @@ export function QrPaymentWaitModal({
       case "partially_paid":
       case "waiting":
       case "wait_over":
+      case "expired":
       case "expiry_unconfirmed":
       case "declined":
         break;
