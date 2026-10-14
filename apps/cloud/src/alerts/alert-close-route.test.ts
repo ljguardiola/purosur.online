@@ -299,6 +299,33 @@ describe("PUT /alerts/:id/closure", () => {
     });
   });
 
+  it("answers a closed alert of lots nearing expiry of another branch as about another branch", async () => {
+    const roleId = await insertRole("closer", ["dismiss_alerts_manually", "view_all_alerts"]);
+    const userId = await insertUserWithRole("Grace", roleId);
+    const rawSessionId = await insertSession(userId);
+    const [expiring] = await db
+      .insert(alerts)
+      .values({
+        kind: "lots_expiring",
+        scope: otherLocationId,
+        level: "informational",
+        audience: "local",
+        locationId: otherLocationId,
+        detail: { lotCount: 2, windowDays: 30 },
+        openedAt: NOON,
+      })
+      .returning({ id: alerts.id });
+    if (!expiring) throw new Error("test setup: inserting the alert returned no row");
+
+    const response = await closeAlertRequest(rawSessionId, expiring.id);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      kind: "lots_expiring",
+      detail: { lotCount: 2, windowDays: 30, aboutViewerBranch: false },
+    });
+  });
+
   it("keeps a lockout alert's source address only while it's open, hashing it on close", async () => {
     const roleId = await insertRole("closer", ["dismiss_alerts_manually", "view_all_alerts"]);
     const userId = await insertUserWithRole("Grace", roleId);

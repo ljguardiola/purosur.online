@@ -15,3 +15,9 @@ export function isExpired(expiresOn: string, today: string): boolean {
 export function expiryWindowEnd(today: string, windowDays: number): string {
   return shiftCalendarDay(today, windowDays);
 }
+
+export function canExpireWithStock<
+  Lot extends { expiresOn: string | null; technical: boolean; remaining: number },
+>(lot: Lot): lot is Lot & { expiresOn: string } {
+  return lot.expiresOn !== null && !lot.technical && lot.remaining > 0;
+}

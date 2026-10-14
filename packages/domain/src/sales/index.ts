@@ -60,5 +60,12 @@ export { mayBeSaleLineQuantity, saleTotal } from "./model/sale-line.js";
 export { UNPRINTED_SALE_STANDINGS } from "./model/sale-print-standing.js";
 export type { SalesOfDay, SalesReportTotals } from "./model/sales-report.js";
 export { SALES_REPORT_SALE_STATE } from "./model/sales-report.js";
+export type { SalesReportGroup } from "./model/sales-report-group.js";
+export { SALES_REPORT_GROUPS } from "./model/sales-report-group.js";
+export type {
+  SalesOfGroup,
+  SoldLinesOfGroup,
+  SoldTotals,
+} from "./model/sold-lines-report.js";
 export type { WeightSource } from "./model/weight-source.js";
 export { WEIGHT_SOURCES } from "./model/weight-source.js";

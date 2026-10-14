@@ -3,6 +3,8 @@ import {
   fiscalDocumentAuthorizedObservation,
   fiscalRejectionAlertObservation,
   fiscalRejectionObservation,
+  lotsExpiringObservation,
+  lotsNoLongerExpiringObservation,
   offlineAuthorizationCodeHeldObservation,
   offlineAuthorizationCodeMissingObservation,
   quietRegisterObservation,
@@ -255,6 +257,32 @@ describe("offlineAuthorizationCodeHeldObservation", () => {
       holds: false,
       kind: "offline_authorization_code_missing",
       scope: "register-1:2026-10-16",
+    });
+  });
+});
+
+describe("lotsExpiringObservation", () => {
+  it("holds the lots-expiring condition of the branch, in the branch, naming how many lots and the window", () => {
+    expect(
+      lotsExpiringObservation({ locationId: "location-1", lotCount: 3, windowDays: 30 }),
+    ).toEqual({
+      holds: true,
+      alert: {
+        kind: "lots_expiring",
+        scope: "location-1",
+        locationId: "location-1",
+        detail: { lotCount: 3, windowDays: 30 },
+      },
+    });
+  });
+});
+
+describe("lotsNoLongerExpiringObservation", () => {
+  it("clears the lots-expiring condition of the scope", () => {
+    expect(lotsNoLongerExpiringObservation("location-1")).toEqual({
+      holds: false,
+      kind: "lots_expiring",
+      scope: "location-1",
     });
   });
 });
