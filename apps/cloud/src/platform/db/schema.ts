@@ -12,6 +12,10 @@ import {
   type OfflineAuthorizationCause,
   POINT_OF_SALE_NUMBER_MAX,
   RECEIPT_TYPES,
+  SNAPSHOT_CORRUPTION_STAGES,
+  SNAPSHOT_FAILURE_REASONS,
+  SNAPSHOT_GENERATION_STATUSES,
+  SNAPSHOT_LIFECYCLE_LIMITS,
 } from "@purosur/domain";
 import { sql } from "drizzle-orm";
 import {
@@ -963,6 +967,18 @@ export const registerPointsOfSale = pgTable(
   ],
 );
 
+export const registerPointTerminals = pgTable(
+  "register_point_terminals",
+  {
+    registerId: uuid("register_id")
+      .primaryKey()
+      .references(() => registers.id),
+    terminalId: text("terminal_id"),
+    version: integer("version").notNull(),
+  },
+  (table) => [uniqueIndex("register_point_terminals_terminal_id_key").on(table.terminalId)],
+);
+
 // The offline point of sale operates from its register's real-time point of sale's fiscal address,
 // which is why it carries none and why a register can't have one before the other.
 export const registerOfflinePointsOfSale = pgTable(
@@ -1100,6 +1116,89 @@ export const registerSnapshotKeys = registerKeyVersions("register_snapshot_keys"
 
 export const registerContingencyTicketKeys = registerKeyVersions(
   "register_contingency_ticket_keys",
+);
+
+export const snapshotGenerationStatus = pgEnum(
+  "snapshot_generation_status",
+  SNAPSHOT_GENERATION_STATUSES,
+);
+
+export const snapshotFailureReason = pgEnum("snapshot_failure_reason", SNAPSHOT_FAILURE_REASONS);
+
+export const snapshotCorruptionStage = pgEnum(
+  "snapshot_corruption_stage",
+  SNAPSHOT_CORRUPTION_STAGES,
+);
+
+export const registerSnapshotGenerations = pgTable(
+  "register_snapshot_generations",
+  {
+    id: uuid("id").primaryKey(),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => registerInstallations.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    size: bigint("size", { mode: "number" }).notNull(),
+    sha256: text("sha256").notNull(),
+    keyVersion: integer("key_version").notNull(),
+    status: snapshotGenerationStatus("status").notNull().default("declared"),
+    failureReason: snapshotFailureReason("failure_reason"),
+    uploadReportedAt: timestamp("upload_reported_at", { withTimezone: true }),
+    pruned: boolean("pruned").notNull().default(false),
+    objectDeleted: boolean("object_deleted").notNull().default(false),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.registerId, table.keyVersion],
+      foreignColumns: [registerSnapshotKeys.registerId, registerSnapshotKeys.version],
+    }),
+    index("register_snapshot_generations_register_id_created_at_idx").on(
+      table.registerId,
+      table.createdAt,
+    ),
+    check("register_snapshot_generations_size_check", sql`${table.size} > 0`),
+    check("register_snapshot_generations_sha256_check", sql`${table.sha256} ~ '^[0-9a-f]{64}$'`),
+    check(
+      "register_snapshot_generations_failure_reason_check",
+      sql`(${table.status} = 'failed') = (${table.failureReason} is not null)`,
+    ),
+  ],
+);
+
+export const registerSnapshotRetentionFreezes = pgTable("register_snapshot_retention_freezes", {
+  registerId: uuid("register_id")
+    .primaryKey()
+    .references(() => registers.id),
+  stage: snapshotCorruptionStage("stage").notNull(),
+  frozenAt: timestamp("frozen_at", { withTimezone: true }).notNull(),
+});
+
+export const registerSnapshotLifecycleRules = pgTable(
+  "register_snapshot_lifecycle_rules",
+  {
+    singleton: boolean("singleton").primaryKey().notNull().default(true),
+    hourly: integer("hourly").notNull(),
+    daily: integer("daily").notNull(),
+    monthly: integer("monthly").notNull(),
+  },
+  (table) => [
+    check("register_snapshot_lifecycle_rules_singleton_check", sql`${table.singleton}`),
+    check(
+      "register_snapshot_lifecycle_rules_hourly_check",
+      sql`${table.hourly} between ${sql.raw(String(SNAPSHOT_LIFECYCLE_LIMITS.hourly.min))} and ${sql.raw(String(SNAPSHOT_LIFECYCLE_LIMITS.hourly.max))}`,
+    ),
+    check(
+      "register_snapshot_lifecycle_rules_daily_check",
+      sql`${table.daily} between ${sql.raw(String(SNAPSHOT_LIFECYCLE_LIMITS.daily.min))} and ${sql.raw(String(SNAPSHOT_LIFECYCLE_LIMITS.daily.max))}`,
+    ),
+    check(
+      "register_snapshot_lifecycle_rules_monthly_check",
+      sql`${table.monthly} between ${sql.raw(String(SNAPSHOT_LIFECYCLE_LIMITS.monthly.min))} and ${sql.raw(String(SNAPSHOT_LIFECYCLE_LIMITS.monthly.max))}`,
+    ),
+  ],
 );
 
 export const deviceState = pgTable("device_state", {

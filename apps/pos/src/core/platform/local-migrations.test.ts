@@ -894,7 +894,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
-        "0051_price_and_discount_lookups",
+        "0051_register_point_terminal",
+        "0052_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -972,7 +973,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
-        "0051_price_and_discount_lookups",
+        "0051_register_point_terminal",
+        "0052_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1045,7 +1047,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
-        "0051_price_and_discount_lookups",
+        "0051_register_point_terminal",
+        "0052_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1117,7 +1120,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
-        "0051_price_and_discount_lookups",
+        "0051_register_point_terminal",
+        "0052_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1218,7 +1222,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
-        "0051_price_and_discount_lookups",
+        "0051_register_point_terminal",
+        "0052_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1309,7 +1314,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
-        "0051_price_and_discount_lookups",
+        "0051_register_point_terminal",
+        "0052_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1404,7 +1410,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
-        "0051_price_and_discount_lookups",
+        "0051_register_point_terminal",
+        "0052_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1482,7 +1489,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
-        "0051_price_and_discount_lookups",
+        "0051_register_point_terminal",
+        "0052_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1552,7 +1560,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
-        "0051_price_and_discount_lookups",
+        "0051_register_point_terminal",
+        "0052_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -4215,10 +4224,10 @@ describe("the register's local migrations", () => {
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.filter(
-        (migration) => migration.name < "0051_price_and_discount_lookups",
+        (migration) => migration.name < "0052_price_and_discount_lookups",
       );
       expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
-        "0051_price_and_discount_lookups",
+        "0052_price_and_discount_lookups",
       );
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -4251,6 +4260,42 @@ describe("the register's local migrations", () => {
       expect(
         planOf("SELECT id FROM discounts WHERE target_kind = 'PRODUCT' AND target_id = 'p1'"),
       ).toMatch(/SEARCH discounts USING (COVERING )?INDEX/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("add the register's Point terminal assignment, none for a register already holding data", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0051_register_point_terminal",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0051_register_point_terminal",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        "INSERT INTO own_register (id, name, version, removed) VALUES ('r1', 'Caja 1', 1, 0)",
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT count(*) AS total FROM register_point_terminal").get()).toEqual({
+        total: 0,
+      });
+      const assign = (assigned: number) =>
+        after
+          .prepare(
+            "INSERT INTO register_point_terminal (register_id, assigned, version) VALUES ('r1', ?, 1)",
+          )
+          .run(assigned);
+      expect(() => assign(2)).toThrow(/CHECK/);
+      expect(() => assign(1)).not.toThrow();
+      expect(() => assign(0)).toThrow(/UNIQUE|PRIMARY/);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

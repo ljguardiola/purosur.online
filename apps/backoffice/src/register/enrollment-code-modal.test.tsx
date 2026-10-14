@@ -10,6 +10,8 @@ const register1: RegisterSummary = {
   pendingCode: null,
   installation: null,
   pointOfSaleNumber: null,
+  pointTerminalId: null,
+  pointTerminalVersion: 0,
 };
 
 function modalFor(

@@ -128,6 +128,7 @@ export default defineRailway((ctx) => {
   const db = postgres(POSTGRES_RESOURCE_NAME, { region: SERVICE_REGION });
   const media = bucket("Media Storage", { region: BUCKET_REGION });
   const registerUpdates = bucket("Register Updates", { region: BUCKET_REGION });
+  const registerSnapshots = bucket("Register Snapshots", { region: BUCKET_REGION });
 
   const registryCredentials = {
     username: "ljguardiola",
@@ -190,20 +191,25 @@ export default defineRailway((ctx) => {
         registerUpdates,
         "SECRET_ACCESS_KEY",
       ),
+      REGISTER_SNAPSHOTS_BUCKET_ENDPOINT: bucketReference(registerSnapshots, "ENDPOINT"),
+      REGISTER_SNAPSHOTS_BUCKET_NAME: bucketReference(registerSnapshots, "BUCKET"),
+      REGISTER_SNAPSHOTS_BUCKET_REGION: bucketReference(registerSnapshots, "REGION"),
+      REGISTER_SNAPSHOTS_BUCKET_ACCESS_KEY_ID: bucketReference(registerSnapshots, "ACCESS_KEY_ID"),
+      REGISTER_SNAPSHOTS_BUCKET_SECRET_ACCESS_KEY: bucketReference(
+        registerSnapshots,
+        "SECRET_ACCESS_KEY",
+      ),
       ...(mercadoPago
         ? {
             MERCADOPAGO_ACCESS_TOKEN: mercadoPago.accessToken,
             MERCADOPAGO_QR_EXTERNAL_POS_ID: mercadoPago.externalPosId,
             MERCADOPAGO_WEBHOOK_SECRET: mercadoPago.webhookSecret,
-            ...(mercadoPago.pointTerminalId
-              ? { MERCADOPAGO_POINT_TERMINAL_ID: mercadoPago.pointTerminalId }
-              : {}),
           }
         : {}),
     },
   });
 
   return project("Puro Sur", {
-    resources: [db, media, registerUpdates, migrate, cloud],
+    resources: [db, media, registerUpdates, registerSnapshots, migrate, cloud],
   });
 });

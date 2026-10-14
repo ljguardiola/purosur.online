@@ -498,6 +498,41 @@ describe("startServer", () => {
     expect(downloadUrl.searchParams.get("X-Amz-Credential")).toMatch(/^fictional-key-id\//);
   });
 
+  it("gives the app the register snapshot URLs presigned for the configured snapshots bucket", async () => {
+    const buildApp = vi.fn().mockReturnValue(appListeningBy(vi.fn().mockResolvedValue(undefined)));
+
+    await startServer(
+      {
+        EDGE_ORIGIN_SECRET: "edge-secret",
+        REGISTER_SNAPSHOTS_BUCKET_ENDPOINT: "https://storage.example.com",
+        REGISTER_SNAPSHOTS_BUCKET_NAME: "register-backups",
+        REGISTER_SNAPSHOTS_BUCKET_REGION: "auto",
+        REGISTER_SNAPSHOTS_BUCKET_ACCESS_KEY_ID: "fictional-key-id",
+        REGISTER_SNAPSHOTS_BUCKET_SECRET_ACCESS_KEY: "fictional-secret",
+      },
+      { arcaEndpoints: unreachableArcaEndpoints, initSentry: vi.fn(), buildApp, now },
+    );
+
+    const [options] = buildApp.mock.calls[0] ?? [];
+    const downloadUrl = new URL(await options.registerSnapshotUrls.downloadUrl("reg-1", "gen-1"));
+    expect(`${downloadUrl.origin}${downloadUrl.pathname}`).toBe(
+      "https://register-backups.storage.example.com/snapshots/reg-1/gen-1",
+    );
+    expect(downloadUrl.searchParams.get("X-Amz-Credential")).toMatch(/^fictional-key-id\//);
+  });
+
+  it("gives the app no register snapshot URLs when no snapshots bucket is configured", async () => {
+    const buildApp = vi.fn().mockReturnValue(appListeningBy(vi.fn().mockResolvedValue(undefined)));
+
+    await startServer(
+      { EDGE_ORIGIN_SECRET: "edge-secret" },
+      { arcaEndpoints: unreachableArcaEndpoints, initSentry: vi.fn(), buildApp, now },
+    );
+
+    const [options] = buildApp.mock.calls[0] ?? [];
+    expect(options).not.toHaveProperty("registerSnapshotUrls");
+  });
+
   it("refuses to start with a backoffice DSN and no environment to tell its reports apart by", async () => {
     const buildApp = vi.fn();
 

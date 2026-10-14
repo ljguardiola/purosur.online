@@ -2711,6 +2711,11 @@ describe("the route access inventory", () => {
         access: capabilityAccess("registers_area"),
       },
       {
+        method: "PUT",
+        url: "/api/registers/:id/point-terminal",
+        access: capabilityAccess("cash_area"),
+      },
+      {
         method: "GET",
         url: "/api/registers/points-of-sale",
         access: capabilityAccess("cash_area"),
@@ -2730,6 +2735,14 @@ describe("the route access inventory", () => {
       { method: "GET", url: "/api/changes", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/events", access: PUBLIC_ACCESS },
       { method: "GET", url: "/api/register/update", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/devices/current/snapshots", access: PUBLIC_ACCESS },
+      {
+        method: "POST",
+        url: "/api/devices/current/snapshots/:generationId/uploaded",
+        access: PUBLIC_ACCESS,
+      },
+      { method: "POST", url: "/api/devices/current/snapshot-corruption", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/api/devices/current/snapshots", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/pin-code-redemptions", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/sign-in-lookups", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/current/tokens", access: PUBLIC_ACCESS },

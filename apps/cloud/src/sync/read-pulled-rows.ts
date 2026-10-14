@@ -24,6 +24,7 @@ import {
   productTags,
   registerOfflinePointsOfSale,
   registerPointsOfSale,
+  registerPointTerminals,
   registers,
   rolePermissions,
   roles,
@@ -52,6 +53,7 @@ import type {
   RefundCompletionRow,
   RegisterOfflinePointOfSaleRow,
   RegisterPointOfSaleRow,
+  RegisterPointTerminalRow,
   RegisterRow,
   RoleRow,
   StockMovementRow,
@@ -325,6 +327,30 @@ export async function readRegisterPointsOfSale<TQueryResult extends PgQueryResul
     .where(inArray(registerPointsOfSale.registerId, [...registerIds]))
     .orderBy(asc(registerPointsOfSale.registerId));
   return new Map(rows.map(({ registerId, ...row }) => [registerId, row]));
+}
+
+export async function readRegisterPointTerminals<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  registerIds: readonly string[],
+): Promise<Map<string, RegisterPointTerminalRow>> {
+  if (registerIds.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select({
+      registerId: registerPointTerminals.registerId,
+      terminalId: registerPointTerminals.terminalId,
+      version: registerPointTerminals.version,
+    })
+    .from(registerPointTerminals)
+    .where(inArray(registerPointTerminals.registerId, [...registerIds]))
+    .orderBy(asc(registerPointTerminals.registerId));
+  return new Map(
+    rows.map(({ registerId, terminalId, version }) => [
+      registerId,
+      { assigned: terminalId !== null, version },
+    ]),
+  );
 }
 
 export async function readRegisterOfflinePointsOfSale<TQueryResult extends PgQueryResultHKT>(
