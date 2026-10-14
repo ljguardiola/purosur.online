@@ -10,7 +10,6 @@ export async function listAssemblyBatches(
 ): Promise<AssemblyBatchListing[]> {
   const batches = await reader.batches(query);
   return [...batches].sort(
-    (a, b) =>
-      b.assembledAt.getTime() - a.assembledAt.getTime() || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0),
+    (a, b) => b.assembledAt.getTime() - a.assembledAt.getTime() || b.id.localeCompare(a.id),
   );
 }

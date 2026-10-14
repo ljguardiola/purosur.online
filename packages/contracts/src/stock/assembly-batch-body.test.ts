@@ -1,4 +1,8 @@
-import { MAX_STOCK_QUANTITY } from "@purosur/domain";
+import {
+  MAX_STOCK_QUANTITY,
+  STOCK_QUANTITY_DECIMALS,
+  STOCK_QUANTITY_PER_UNIT,
+} from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { assemblyBatchBodySchema, assemblyBatchPreviewQuerySchema } from "./assembly-batch-body.js";
 
@@ -108,6 +112,18 @@ describe("assemblyBatchBodySchema", () => {
   it("strips keys it does not define", () => {
     expect(assemblyBatchBodySchema.safeParse({ ...body, locationId: "x" }).data).toEqual(body);
   });
+
+  it("declares the units and the largest value of the used quantity and of the output", () => {
+    const units = {
+      decimals: STOCK_QUANTITY_DECIMALS,
+      perUnit: STOCK_QUANTITY_PER_UNIT,
+      maxValue: MAX_STOCK_QUANTITY,
+    };
+
+    expect(assemblyBatchBodySchema.shape.used.element.shape.quantity.meta()).toEqual(units);
+    expect(assemblyBatchBodySchema.shape.output.meta()).toEqual(units);
+    expect(assemblyBatchPreviewQuerySchema.shape.size.meta()).toEqual(units);
+  });
 });
 
 describe("assemblyBatchPreviewQuerySchema", () => {
@@ -176,6 +192,22 @@ describe("assemblyBatchPreviewQuerySchema", () => {
       ).toBe("used");
     },
   );
+
+  it.each([`${NUTS}:5x`, `${NUTS}:x5`, `x:${NUTS}:5`, `${NUTS}:5:`])(
+    "rejects the used entry %j that only contains a quantity",
+    (entry) => {
+      expect(assemblyBatchPreviewQuerySchema.safeParse({ ...preview, used: [entry] }).success).toBe(
+        false,
+      );
+    },
+  );
+
+  it("rejects a used entry that is not text", () => {
+    expect(firstFailure(assemblyBatchPreviewQuerySchema, { ...preview, used: [5] })).toEqual({
+      path: ["used", 0],
+      message: "quantity must be a non-negative integer number of thousandths",
+    });
+  });
 
   it("rejects a used entry for something that is not a product's id", () => {
     expect(

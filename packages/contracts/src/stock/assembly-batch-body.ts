@@ -50,19 +50,19 @@ const queryQuantity = (message: string) =>
 const usedEntrySchema = z
   .string({ error: USED_MESSAGE })
   .transform((entry) => {
-    const [componentProductId, quantity, ...rest] = entry.split(":");
+    const match = /^([^:]*):(\d+)$/.exec(entry);
     return {
-      componentProductId,
-      quantity: rest.length === 0 && /^\d+$/.test(quantity ?? "") ? Number(quantity) : Number.NaN,
+      componentProductId: match?.[1],
+      quantity: match ? Number(match[2]) : Number.NaN,
     };
   })
   .pipe(usedSchema.element);
 
 export const assemblyBatchPreviewQuerySchema = z.object({
   productId,
-  size: queryQuantity(SIZE_MESSAGE).pipe(
-    z.number().refine(mayBeMovementQuantity, SIZE_MESSAGE).meta(QUANTITY_UNITS),
-  ),
+  size: queryQuantity(SIZE_MESSAGE)
+    .pipe(z.number().refine(mayBeMovementQuantity, SIZE_MESSAGE))
+    .meta(QUANTITY_UNITS),
   used: z
     .preprocess((value) => (typeof value === "string" ? [value] : value), z.array(usedEntrySchema))
     .optional(),
