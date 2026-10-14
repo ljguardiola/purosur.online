@@ -28,7 +28,7 @@ export interface FakeStockProduct {
   active?: boolean;
 }
 
-export interface FakeAssemblyBatch extends NewAssemblyBatch {
+interface FakeAssemblyBatch extends NewAssemblyBatch {
   id: string;
 }
 
