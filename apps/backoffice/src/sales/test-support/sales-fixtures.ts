@@ -1,4 +1,8 @@
-import type { SalesByProductAndCategoryBody, SalesReportBody } from "@purosur/contracts";
+import type {
+  SalesByCashierBody,
+  SalesByProductAndCategoryBody,
+  SalesReportBody,
+} from "@purosur/contracts";
 
 export const weekReport: SalesReportBody = {
   range: { from: "2026-10-01", to: "2026-10-07" },
@@ -69,3 +73,59 @@ export function manyProductsReport(count: number): SalesByProductAndCategoryBody
     },
   };
 }
+
+const ANA_ID = "11111111-1111-4111-8111-111111111111";
+const BETO_ID = "22222222-2222-4222-8222-222222222222";
+const UNKNOWN_CASHIER_ID = "33333333-3333-4333-8333-333333333333";
+
+export const cashierSalesReport: SalesByCashierBody = {
+  range: { from: "2026-10-01", to: "2026-10-07" },
+  rows: [
+    {
+      cashier_id: ANA_ID,
+      name: "Ana",
+      sessions: 1,
+      sales_count: 40,
+      total: 800_000,
+      average_ticket: 20_000,
+    },
+    {
+      cashier_id: BETO_ID,
+      name: "Beto",
+      sessions: 4,
+      sales_count: 25,
+      total: 875_000,
+      average_ticket: 35_000,
+    },
+    {
+      cashier_id: UNKNOWN_CASHIER_ID,
+      name: null,
+      sessions: 2,
+      sales_count: 5,
+      total: 75_000,
+      average_ticket: 15_000,
+    },
+  ],
+  totals: { cashiers: 3, sales_count: 70, total: 1_750_000, average_ticket: 25_000 },
+};
+
+export const singleSaleCashierReport: SalesByCashierBody = {
+  range: { from: "2026-10-07", to: "2026-10-07" },
+  rows: [
+    {
+      cashier_id: ANA_ID,
+      name: "Ana",
+      sessions: 1,
+      sales_count: 1,
+      total: 4_800,
+      average_ticket: 4_800,
+    },
+  ],
+  totals: { cashiers: 1, sales_count: 1, total: 4_800, average_ticket: 4_800 },
+};
+
+export const noCashierSalesReport: SalesByCashierBody = {
+  range: { from: "2026-10-07", to: "2026-10-07" },
+  rows: [],
+  totals: { cashiers: 0, sales_count: 0, total: 0, average_ticket: null },
+};

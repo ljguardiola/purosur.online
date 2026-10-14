@@ -22,6 +22,7 @@ import {
   openSessionOf,
   originGuard,
   PUBLIC_ACCESS,
+  RELEASE_CHECK_ACCESS,
   recordAccess,
   registerRouteAccess,
   routeSessionSource,
@@ -32,6 +33,7 @@ import { generateSessionId, hashSessionId } from "./session-id.js";
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
+const RELEASE_CHECK_TOKEN = "release-check-token-for-tests";
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -103,6 +105,16 @@ beforeEach(async () => {
     answerWithSession,
   );
   app.get("/test-only/public", { config: { access: PUBLIC_ACCESS } }, answer);
+  app.get(
+    "/test-only/release-check",
+    { config: { access: RELEASE_CHECK_ACCESS, releaseCheckToken: RELEASE_CHECK_TOKEN } },
+    answer,
+  );
+  app.get(
+    "/test-only/release-check-without-token",
+    { config: { access: RELEASE_CHECK_ACCESS, releaseCheckToken: undefined } },
+    answer,
+  );
   app.get("/test-only/undeclared", answer);
   app.get(
     "/test-only/origin-guarded",
@@ -505,6 +517,68 @@ describe("the declared access, enforced before every handler", () => {
     expect(foreign.json()).toEqual({ code: "origin_rejected" });
     expect(own.statusCode).toBe(200);
     expect(handlerRuns).toBe(1);
+  });
+
+  it("grants a release-check route to its configured bearer token, with no session", async () => {
+    const response = await callRoute("/test-only/release-check", undefined, {
+      authorization: `Bearer ${RELEASE_CHECK_TOKEN}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(handlerRuns).toBe(1);
+  });
+
+  it("refuses a release-check route without its token, with another token, or without the Bearer scheme, with 401 unauthenticated and a Bearer challenge", async () => {
+    const userId = await insertUser(await seededAdministratorRoleId(), "admin@example.com");
+    const administratorSessionId = await insertSession(userId);
+
+    const responses = [
+      await callRoute("/test-only/release-check"),
+      await callRoute("/test-only/release-check", administratorSessionId),
+      await callRoute("/test-only/release-check", undefined, {
+        authorization: "Bearer another-token",
+      }),
+      await callRoute("/test-only/release-check", undefined, {
+        authorization: RELEASE_CHECK_TOKEN,
+      }),
+    ];
+
+    for (const response of responses) {
+      expect(response.statusCode).toBe(401);
+      expect(response.headers["www-authenticate"]).toBe("Bearer");
+      expect(response.json()).toMatchObject({ code: "unauthenticated" });
+    }
+    expect(handlerRuns).toBe(0);
+  });
+
+  it("refuses every request to a release-check route whose token is not configured", async () => {
+    const responses = [
+      await callRoute("/test-only/release-check-without-token"),
+      await callRoute("/test-only/release-check-without-token", undefined, {
+        authorization: "Bearer ",
+      }),
+      await callRoute("/test-only/release-check-without-token", undefined, {
+        authorization: `Bearer ${RELEASE_CHECK_TOKEN}`,
+      }),
+    ];
+
+    expect(responses.map((response) => response.statusCode)).toEqual([401, 401, 401]);
+    expect(handlerRuns).toBe(0);
+  });
+
+  it("registers a release-check route without a session source", async () => {
+    const bareApp = Fastify();
+    registerRouteAccess(bareApp);
+
+    expect(() =>
+      bareApp.get(
+        "/release-check",
+        { config: { access: RELEASE_CHECK_ACCESS, releaseCheckToken: RELEASE_CHECK_TOKEN } },
+        async () => "ok",
+      ),
+    ).not.toThrow();
+
+    await bareApp.close();
   });
 
   it("refuses to register a route whose declared access needs a session but names no session source", async () => {
