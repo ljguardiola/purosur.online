@@ -1,7 +1,6 @@
 import type {
   DeferredSaleDocumentBlock,
   FacturaCFiscalBlock,
-  OfflineFacturaCFiscalBlock,
   ReceiptContent,
   ReceiptCopy,
 } from "@purosur/domain";
@@ -890,7 +889,7 @@ describe("the ESC/POS receipt template", () => {
 describe("a factura C authorized by a pre-obtained code", () => {
   const OFFLINE_QR_TEXT =
     QR_URL + btoa(JSON.stringify({ ...QR_DATA, tipoCodAut: "A", codAut: 36251478963214 }));
-  const OFFLINE_BLOCK: OfflineFacturaCFiscalBlock = {
+  const OFFLINE_BLOCK: Extract<NonNullable<ReceiptContent["fiscal"]>, { fortnight: unknown }> = {
     invoiceClass: "C",
     voucherTypeCode: FISCAL_BLOCK.voucherTypeCode,
     issuer: FISCAL_BLOCK.issuer,

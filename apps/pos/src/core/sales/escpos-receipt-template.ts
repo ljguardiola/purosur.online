@@ -1,7 +1,6 @@
 import {
   ARGENTINA_TIME_ZONE,
   type DeferredSaleDocumentBlock,
-  type FacturaCFiscalBlock,
   type ReceiptContent,
   type ReceiptCopy,
   STOCK_QUANTITY_DECIMALS,
@@ -19,6 +18,9 @@ import {
 } from "@purosur/ui/formatters";
 import { encodePc850 } from "./pc850";
 import { RECEIPT_LOGO } from "./receipt-logo";
+
+type InvoiceBlock = Extract<NonNullable<ReceiptContent["fiscal"]>, { invoiceClass: "C" }>;
+type OfflineInvoiceBlock = Extract<InvoiceBlock, { fortnight: unknown }>;
 
 const TEMPLATE_VERSION = "1";
 const COLUMNS = 48;
@@ -215,7 +217,7 @@ function notAnInvoice(out: Output, block: DeferredSaleDocumentBlock): void {
   out.lines([RULE]);
 }
 
-function voucherType(out: Output, block: FacturaCFiscalBlock): void {
+function voucherType(out: Output, block: InvoiceBlock): void {
   const code = String(block.voucherTypeCode).padStart(VOUCHER_CODE_DIGITS, "0");
   const buyer = block.buyerTaxStatusDescription.toLocaleLowerCase("es-AR");
   out.lines([RULE]);
@@ -226,7 +228,7 @@ function voucherType(out: Output, block: FacturaCFiscalBlock): void {
 function operation(
   out: Output,
   { occurredAt, servedByFirstName, operationNumber }: ReceiptContent["operation"],
-  block: FacturaCFiscalBlock | null,
+  block: InvoiceBlock | null,
 ): void {
   const date = formatDate(occurredAt, {
     day: "2-digit",
@@ -257,7 +259,7 @@ function operation(
   ]);
 }
 
-function issuer(out: Output, { issuer }: FacturaCFiscalBlock): void {
+function issuer(out: Output, { issuer }: InvoiceBlock): void {
   out.small([
     ...smallRow(issuer.legalName, issuer.taxStatus),
     ...smallRow(`CUIT ${issuer.cuit}`, `IIBB ${issuer.grossIncomeRegistration}`),
@@ -340,16 +342,25 @@ function calendarDay(day: string): string {
   });
 }
 
-function authorization(out: Output, block: FacturaCFiscalBlock): void {
+function isOffline(block: InvoiceBlock): block is OfflineInvoiceBlock {
+  return "fortnight" in block;
+}
+
+function authorizationLine(block: InvoiceBlock): string {
+  if (isOffline(block)) {
+    const firstDay = Number(block.fortnight.start.slice(-2));
+    return `CAEA ${block.authorizationCode}  ·  Quincena ${firstDay} al ${calendarDay(block.fortnight.end)}`;
+  }
+  return `CAE ${block.authorizationCode}  ·  Vto. ${calendarDay(block.authorizationCodeDueOn)}`;
+}
+
+function authorization(out: Output, block: InvoiceBlock): void {
   out.feed(QR_TOP_MARGIN_DOTS);
   out.qr(block.qrText);
   out.feed(QR_BOTTOM_MARGIN_DOTS);
   out.small([
     ...centered("Comprobante autorizado", SMALL_COLUMNS),
-    ...centered(
-      `CAE ${block.authorizationCode}  ·  Vto. ${calendarDay(block.authorizationCodeDueOn)}`,
-      SMALL_COLUMNS,
-    ),
+    ...centered(authorizationLine(block), SMALL_COLUMNS),
   ]);
 }
 
