@@ -625,6 +625,7 @@ export type {
   RegisterTelemetry,
   SalesStopReason,
   SalesStopState,
+  StorageSalesStop,
   StorageTelemetry,
 } from "./sync/index.js";
 export {

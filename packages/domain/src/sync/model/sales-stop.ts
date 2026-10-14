@@ -1,4 +1,4 @@
-import type { SalesDeniedReport } from "../../shared/index.js";
+import type { SalesDeniedReason, SalesDeniedReport } from "../../shared/index.js";
 
 export const SALES_STOP_REASONS = ["event_history_broken", "installation_revoked"] as const;
 
@@ -14,9 +14,21 @@ export type SalesStopState =
   | { stopped: false }
   | { stopped: true; reason: SalesStopReason | undefined };
 
-export function salesDeniedReportOf(state: SalesStopState): SalesDeniedReport {
+export type StorageSalesStop = "short_at_startup" | "disk_full";
+
+const STORAGE_SALES_DENIED_REASONS = {
+  short_at_startup: "disk_space_short_at_startup",
+  disk_full: "disk_full",
+} as const satisfies Record<StorageSalesStop, SalesDeniedReason>;
+
+export function salesDeniedReportOf(
+  state: SalesStopState,
+  storageStop?: StorageSalesStop,
+): SalesDeniedReport {
   if (!state.stopped) {
-    return { sales_denied: false };
+    return storageStop === undefined
+      ? { sales_denied: false }
+      : { sales_denied: true, sales_denied_reason: STORAGE_SALES_DENIED_REASONS[storageStop] };
   }
   if (state.reason === "event_history_broken") {
     return { sales_denied: true, sales_denied_reason: "event_history_broken" };
