@@ -104,6 +104,20 @@ export function registerCoreProgram(repoRoot: string): ts.Program {
   return ts.createProgram([path.join(registerDir, "src", "core", "index.ts")], config.options);
 }
 
-export function emittedEventVersions(_repoRoot: string): string[] {
-  return [];
+export function emittedEventVersions(repoRoot: string): string[] {
+  const { versions, unreadable } = eventVersionsBuiltBy(registerCoreProgram(repoRoot), repoRoot);
+  if (unreadable.length > 0) {
+    throw new Error(
+      ["Event versions that cannot be read from the source:", ...unreadable].join("\n"),
+    );
+  }
+  return versions.map((version) => version.replace(" v", "@")).sort();
+}
+
+if (import.meta.main) {
+  const repoRoot = process.argv[2];
+  if (repoRoot === undefined) {
+    throw new Error("usage: register-event-versions.ts <repository root>");
+  }
+  process.stdout.write(`${JSON.stringify(emittedEventVersions(path.resolve(repoRoot)))}\n`);
 }
