@@ -21,6 +21,7 @@ interface DocumentedOrder {
   amount: string;
   paidAmount?: string;
   payments: DocumentedPayment[];
+  refunds?: Record<string, unknown>[];
 }
 
 function documentedOrder(order: DocumentedOrder): Record<string, unknown> {
@@ -43,6 +44,7 @@ function documentedOrder(order: DocumentedOrder): Record<string, unknown> {
         ? { point: { terminal_id: POINT_TERMINAL_ID, print_on_terminal: "no_ticket" } }
         : { qr: { external_pos_id: "STORE01POS01", mode: "static" } },
     transactions: {
+      ...(order.refunds === undefined ? {} : { refunds: order.refunds }),
       payments: order.payments.map((payment, index) => ({
         id: `PAY01JQ4S4KY8HWQ6NA5PXB65B3D${String(index)}`,
         reference_id: `01JQ4S4KY8HWQ6NA5PXB65B3D${String(index)}`,
@@ -283,15 +285,22 @@ export function refundedOrder(amount = "50.00", refundStatus = "processing") {
 }
 
 export function refundedOrderRead(amount = "50.00", refundStatus = "processed") {
-  return {
-    ...(paidOrder(amount) as Record<string, unknown>),
+  return documentedOrder({
     status: "refunded",
-    status_detail: "refunded",
-    transactions: {
-      ...(paidOrder(amount).transactions as Record<string, unknown>),
-      refunds: [documentedRefund(refundStatus, amount)],
-    },
-  };
+    statusDetail: "refunded",
+    amount,
+    paidAmount: amount,
+    payments: [
+      {
+        status: "refunded",
+        statusDetail: "refunded",
+        amount,
+        paidAmount: amount,
+        paymentMethod: { id: "account_money", type: "account_money" },
+      },
+    ],
+    refunds: [documentedRefund(refundStatus, amount)],
+  });
 }
 
 export function insufficientMoneyForRefundError(): Record<string, unknown> {
