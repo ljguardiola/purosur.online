@@ -18,6 +18,7 @@ function createServices(
   return {
     fetchRegisterPointsOfSale: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+    fetchFortnightPresentations: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     configureRegisterPointOfSale: vi.fn(),
     configureRegisterOfflinePointOfSale: vi.fn(),
     createFiscalAddress: vi.fn(),
@@ -349,4 +350,57 @@ test("has no accessibility violations with registers and fiscal addresses shown"
   await expect.element(screen.getByText("00012")).toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("lists the fortnight reports of each offline point of sale between the registers and the fiscal addresses, naming the register still missing vouchers", async () => {
+  const services = serving([configuredRegister], [depot]);
+  services.fetchFortnightPresentations = vi.fn().mockResolvedValue({
+    kind: "ok",
+    value: [
+      {
+        registerId: configuredRegister.registerId,
+        pointOfSaleNumber: 13,
+        fortnight: { start: "2026-09-01", end: "2026-09-15" },
+        deadline: "2026-09-23",
+        state: "blocked",
+      },
+    ],
+  });
+
+  const screen = await renderScreen(services);
+
+  const reports = screen.getByRole("table", { name: "Informes quincenales" });
+  await expect.element(reports.getByText("Faltan comprobantes de Caja 1")).toBeVisible();
+  await expect.element(reports.getByText("Bloqueado")).toBeVisible();
+  const positions = ["Caja 1", "Informes quincenales", "Domicilios fiscales"].map((name) =>
+    screen
+      .getByRole(name === "Caja 1" ? "heading" : "table", {
+        name,
+        ...(name === "Caja 1" ? { level: 2 } : {}),
+      })
+      .element(),
+  );
+  expect(
+    positions[0]?.compareDocumentPosition(positions[1] as Element) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(
+    positions[1]?.compareDocumentPosition(positions[2] as Element) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+});
+
+test("keeps the registers on screen when the fortnight reports fail to load, and Reintentar loads them again", async () => {
+  const services = serving([configuredRegister], [depot]);
+  services.fetchFortnightPresentations = vi
+    .fn()
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValueOnce({ kind: "ok", value: [] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir los informes quincenales")).toBeVisible();
+  await expect.element(screen.getByText("00012")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("Todavía no hay informes quincenales")).toBeVisible();
 });
