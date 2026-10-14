@@ -18,6 +18,18 @@ export {
 } from "./model/mercado-pago-point-order.js";
 export { nonCashCharge } from "./model/non-cash-charge.js";
 export type {
+  LocalStateOfPaidOrder,
+  PaidOrderClassification,
+} from "./model/paid-order-discovery.js";
+export {
+  classifyPaidOrder,
+  PAID_ORDER_DISCOVERY_WINDOW_HOURS,
+  PAID_ORDER_PAYMENT_STATE,
+  PAID_ORDER_REPLACED,
+  paidOrderDiscoveryStart,
+  paidOrderWithoutSaleBlocksSelling,
+} from "./model/paid-order-discovery.js";
+export type {
   ConfirmedByHandMethod,
   MercadoPagoPaymentMethod,
   PaymentMethod,
