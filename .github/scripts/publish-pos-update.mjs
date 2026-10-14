@@ -189,6 +189,18 @@ async function main() {
   }
 }
 
+export function bucketFromEnv() {
+  return { bucket: {}, missing: [] };
+}
+
+export async function installerSha512() {
+  return "";
+}
+
+export async function readPublishedEntry() {
+  return undefined;
+}
+
 if (import.meta.main) {
   main();
 }

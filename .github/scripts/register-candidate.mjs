@@ -212,6 +212,10 @@ export async function runCli({
   }
 }
 
+export function hardwareTestNotes() {
+  return "";
+}
+
 if (import.meta.main) {
   runCli().then(
     (exitCode) => process.exit(exitCode),

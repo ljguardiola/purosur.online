@@ -69,6 +69,10 @@ export async function runCli({
   }
 }
 
+export async function readStagingRelease() {
+  return undefined;
+}
+
 if (import.meta.main) {
   runCli().then(
     (exitCode) => process.exit(exitCode),
