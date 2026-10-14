@@ -872,6 +872,24 @@ describe("startup pending query", () => {
     expect(read).toHaveBeenCalledTimes(3);
   });
 
+  it.each([
+    ["a paid order without a sale", { ...NOTHING_PENDING, selling_blocked: true }],
+    [
+      "a search for paid orders still pending",
+      { ...NOTHING_PENDING, paid_order_discovery: "pending" },
+    ],
+    ["a search for paid orders deferred", { ...NOTHING_PENDING, paid_order_discovery: "deferred" }],
+  ] satisfies [string, StartupPending][])("keeps reading again with %s", async (_name, pending) => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const read = vi.fn<StartupPendingRead>(async () => pending);
+    await renderStartupPending(read);
+    await expect.poll(() => read.mock.calls.length).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(3000);
+
+    await expect.poll(() => read.mock.calls.length).toBe(2);
+  });
+
   it("does not read again while the person may not see what is pending", async () => {
     vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
     const read = vi.fn<StartupPendingRead>(async () => "not_permitted");

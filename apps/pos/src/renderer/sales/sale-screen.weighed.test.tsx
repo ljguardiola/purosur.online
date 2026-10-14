@@ -149,6 +149,7 @@ describe("SaleScreen adding a product sold by weight", () => {
     [{ kind: "not_sold_by_weight" }, "Queso cremoso ya no se vende por kilo"],
     [{ kind: "not_permitted" }, "No tenés el permiso de vender y cobrar"],
     [{ kind: "installation_revoked" }, "Esta caja ya no puede empezar ventas"],
+    [{ kind: "paid_order_without_sale" }, "Hay un cobro pagado sin venta"],
     [{ kind: "unavailable" }, "No se pudo agregar el producto"],
   ] satisfies [AddWeighedProductOutcome, string][])(
     "closes the modal and shows why the product was not added: %j",
@@ -314,6 +315,7 @@ describe("SaleScreen weighing a product on the scale", () => {
     [{ kind: "not_sold_by_weight" }, "Queso cremoso ya no se vende por kilo"],
     [{ kind: "not_permitted" }, "No tenés el permiso de vender y cobrar"],
     [{ kind: "installation_revoked" }, "Esta caja ya no puede empezar ventas"],
+    [{ kind: "paid_order_without_sale" }, "Hay un cobro pagado sin venta"],
     [{ kind: "unavailable" }, "No se pudo agregar el producto"],
   ] satisfies [WeighProductOutcome, string][])(
     "closes the modal and shows why the product was not weighed: %j",

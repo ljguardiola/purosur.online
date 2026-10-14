@@ -62,6 +62,19 @@ const NOTHING_PENDING: StartupPending = {
   paid_order_discovery: "checked",
   selling_blocked: false,
 };
+const BLOCKED_BY_PAID_ORDER: StartupPending = {
+  ...NOTHING_PENDING,
+  paid_orders_without_sale: [
+    {
+      payment_transaction_id: "tx-1",
+      sale_id: "sale-7",
+      method: "QR",
+      amount: 80_000,
+      created_at: "2026-09-30T15:30:00.000-03:00",
+    },
+  ],
+  selling_blocked: true,
+};
 const SALE_TO_PRINT_PENDING: StartupPending = {
   ...NOTHING_PENDING,
   sales_to_print: [
@@ -232,6 +245,7 @@ function contextWith(
     cancelPaidSale: async () => ({ kind: "unavailable" }),
     receiptPrintStatus: async () => ({ kind: "unavailable" }),
     printOriginalReceipt: async () => ({ kind: "unavailable" }),
+    convertPaidOrderIntoRefund: async () => ({ kind: "unavailable" }),
     reprintSaleReceipt: async () => ({ kind: "unavailable" }),
     salesHistory: async () => ({ kind: "unavailable" }),
     saleHistoryDetail: async () => ({ kind: "unavailable" }),
@@ -1345,6 +1359,77 @@ describe("the register's router", () => {
       await render(<RouterProvider router={router} />);
 
       await expect.poll(() => router.state.location.pathname).toBe("/session");
+    });
+
+    it("keeps landing on it while a paid order without a sale blocks selling, even after Ir a vender", async () => {
+      let answer = SALE_TO_PRINT_PENDING;
+      const router = routerWithPending(async () => answer);
+      const screen = await render(<RouterProvider router={router} />);
+      await userEvent.click(screen.getByRole("button", { name: "Ir a vender" }));
+      await expect.element(screenFor["/session"](screen)).toBeVisible();
+      answer = BLOCKED_BY_PAID_ORDER;
+
+      await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+      await userEvent.click(screen.getByRole("link", { name: "Venta" }));
+
+      await expect.element(screenFor["/startup-pending"](screen)).toBeVisible();
+      expect(router.state.location.pathname).toBe("/startup-pending");
+    });
+
+    it("stays on it when opened after being dismissed while a paid order still blocks selling", async () => {
+      const gate = startupPendingGate();
+      gate.dismiss();
+      await gate.lands(async () => BLOCKED_BY_PAID_ORDER);
+      const router = createRegisterRouter(
+        routeTree,
+        {
+          ...contextWith("up", "enrolled", PERSON, undefined, OPEN_SESSION),
+          startupPending: async () => BLOCKED_BY_PAID_ORDER,
+          startupPendingGate: gate,
+        },
+        "/startup-pending",
+      );
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect.element(screenFor["/startup-pending"](screen)).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Pasar a reembolso el cobro de las 15:30" }))
+        .toBeVisible();
+    });
+
+    it("passes the order to refund through the core and lets the person sell afterwards", async () => {
+      let answer = BLOCKED_BY_PAID_ORDER;
+      const convertPaidOrderIntoRefund = vi.fn<RouterContext["convertPaidOrderIntoRefund"]>(
+        async () => {
+          answer = NOTHING_PENDING;
+          return { kind: "converted" };
+        },
+      );
+      const router = createRegisterRouter(
+        routeTree,
+        {
+          ...contextWith("up", "enrolled", PERSON, undefined, OPEN_SESSION),
+          startupPending: async () => answer,
+          startupPendingGate: startupPendingGate(),
+          convertPaidOrderIntoRefund,
+        },
+        "/session",
+      );
+      const screen = await render(<RouterProvider router={router} />);
+      await userEvent.click(
+        screen.getByRole("button", { name: "Pasar a reembolso el cobro de las 15:30" }),
+      );
+      await userEvent.click(
+        screen
+          .getByRole("dialog", { name: "¿Pasar el cobro a reembolso?" })
+          .getByRole("button", { name: "Pasar a reembolso" }),
+      );
+
+      expect(convertPaidOrderIntoRefund).toHaveBeenCalledExactlyOnceWith("tx-1");
+      await userEvent.click(screen.getByRole("button", { name: "Ir a vender" }));
+
+      await expect.element(screenFor["/session"](screen)).toBeVisible();
     });
 
     it("keeps the rail's Caja reachable from it", async () => {

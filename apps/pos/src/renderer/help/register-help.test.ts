@@ -42,9 +42,18 @@ describe("the register's help", () => {
     expect(startupPending && help.categories[startupPending.category].label).toBe("Caja");
   });
 
-  it("explains that a ticket that may have come out is reprinted only as a duplicate, and that nothing on the list stops selling", () => {
+  it("explains that a ticket that may have come out is reprinted only as a duplicate, and that nothing on the list stops selling but a paid order without a sale", () => {
     expect(titlesFound("duplicado")).toContain(STARTUP_PENDING_TITLE);
     expect(titlesFound("seguir vendiendo")).toEqual([STARTUP_PENDING_TITLE]);
+    expect(titlesFound("salvo un cobro pagado sin venta")).toEqual([STARTUP_PENDING_TITLE]);
+  });
+
+  it("explains how to pass a paid order without a sale to refund, and the warning shown when there was no connection to look for one", () => {
+    expect(titlesFound("Pasar a reembolso")).toEqual([STARTUP_PENDING_TITLE]);
+    expect(titlesFound("no deja vender hasta que lo pases a reembolso")).toEqual([
+      STARTUP_PENDING_TITLE,
+    ]);
+    expect(titlesFound("cuando vuelve la conexión")).toEqual([STARTUP_PENDING_TITLE]);
   });
 
   it("points to the row's printer, the only thing the row shows to print with, and names the duplicate modal's own button", () => {
@@ -71,7 +80,7 @@ describe("the register's help", () => {
   it.each([
     ["lector", "Agregar un producto escaneándolo"],
     ["flechas", "Agregar un producto buscándolo por nombre"],
-    ["reembolso", "Cancelar una venta"],
+    ["reembolsos que corresponden", "Cancelar una venta"],
     ["enviar a la terminal", "Cobrar con la Point integrada"],
     ["rechazó", "Pago rechazado en la Point"],
     ["venció", "Point que no se acredita a tiempo"],

@@ -470,6 +470,11 @@ describe("SaleScreen searching by name", () => {
         title: "Esta caja ya no puede empezar ventas",
       },
       {
+        name: "a paid order without a sale",
+        outcome: { kind: "paid_order_without_sale" },
+        title: "Hay un cobro pagado sin venta",
+      },
+      {
         name: "the core being unable to add it",
         outcome: { kind: "unavailable" },
         title: "No se pudo agregar el producto",
