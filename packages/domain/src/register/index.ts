@@ -96,3 +96,24 @@ export {
   isSafeMomentToUpdate,
   REGISTER_UPDATE_HOLD_LIMIT_MS,
 } from "./model/update-safe-moment.js";
+export type {
+  SnapshotCorruptionStage,
+  SnapshotFailureReason,
+  SnapshotGenerationStatus,
+} from "./model/snapshot-generation.js";
+export {
+  isPastSnapshotUploadDeadline,
+  SNAPSHOT_CORRUPTION_STAGES,
+  SNAPSHOT_FAILURE_REASONS,
+  SNAPSHOT_GENERATION_STATUSES,
+  SNAPSHOT_UPLOAD_DEADLINE_MS,
+} from "./model/snapshot-generation.js";
+export type { SnapshotLifecycleRules } from "./model/snapshot-lifecycle-rules.js";
+export {
+  DEFAULT_SNAPSHOT_LIFECYCLE_RULES,
+  isValidSnapshotLifecycleRules,
+  SNAPSHOT_LIFECYCLE_LIMITS,
+  SNAPSHOT_RECENT_GENERATIONS,
+} from "./model/snapshot-lifecycle-rules.js";
+export type { RetainableSnapshotGeneration } from "./model/snapshot-retention.js";
+export { snapshotGenerationsToPrune } from "./model/snapshot-retention.js";
