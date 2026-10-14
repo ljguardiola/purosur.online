@@ -740,7 +740,9 @@ describe("StartupPendingScreen", () => {
       );
 
       await expect
-        .element(screen.getByText("No hay conexión con la nube. Probá de nuevo cuando vuelva.").first())
+        .element(
+          screen.getByText("No hay conexión con la nube. Probá de nuevo cuando vuelva.").first(),
+        )
         .toBeVisible();
       await expect.element(screen.getByRole("button", { name: "Ir a vender" })).toBeDisabled();
     });

@@ -18,6 +18,7 @@ import type {
   ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  ConvertPaidOrderIntoRefundOutcome,
   CoreStatusMessage,
   CurrentSaleAnswer,
   EnrollmentOutcome,
@@ -232,6 +233,9 @@ export interface RouterContext {
   ) => Promise<CancelPaidSaleOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
   printOriginalReceipt: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
+  convertPaidOrderIntoRefund: (
+    paymentTransactionId: string,
+  ) => Promise<ConvertPaidOrderIntoRefundOutcome>;
   reprintSaleReceipt: (
     saleId: string,
     reason: string,
@@ -661,6 +665,7 @@ const startupPendingRoute = createRoute({
       cashBalance,
       printOriginalReceipt,
       reprintSaleReceipt,
+      convertPaidOrderIntoRefund,
       authorizers,
       refreshCashSession,
     } = startupPendingRoute.useRouteContext();
@@ -678,6 +683,7 @@ const startupPendingRoute = createRoute({
         loadCashBalance={cashBalance}
         printOriginalReceipt={printOriginalReceipt}
         reprintSaleReceipt={reprintSaleReceipt}
+        convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
         loadAuthorizers={authorizers}
         onGoSelling={() => {
           startupPendingGate.dismiss();
@@ -1092,6 +1098,7 @@ export function createAppRouter(
     | "cancelPaidSale"
     | "receiptPrintStatus"
     | "printOriginalReceipt"
+    | "convertPaidOrderIntoRefund"
     | "reprintSaleReceipt"
     | "salesHistory"
     | "saleHistoryDetail"
