@@ -34,5 +34,7 @@ test("names the alert of lots nearing their expiry", () => {
 });
 
 test("names the alert of an offsite dump that could not be verified", () => {
-  expect(alertKindLabel("offsite_dump_unverified")).toBe("Copia de seguridad externa sin verificar");
+  expect(alertKindLabel("offsite_dump_unverified")).toBe(
+    "Copia de seguridad externa sin verificar",
+  );
 });
