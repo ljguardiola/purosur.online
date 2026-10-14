@@ -87,7 +87,7 @@ describe("ticketChangeTenths", () => {
   });
 
   it("rounds to the nearest tenth", () => {
-    expect(ticketChangeTenths({ current: 1_001, previous: 3_000 })).toBe(-667);
+    expect(ticketChangeTenths({ current: 1_001, previous: 3_000 })).toBe(-666);
     expect(ticketChangeTenths({ current: 4_001, previous: 3_000 })).toBe(334);
   });
 
