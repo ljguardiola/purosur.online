@@ -45,7 +45,7 @@ async function renderModal(
 
 describe("QrChargeModal", () => {
   it("asks how much is charged by QR and shows what is owed", async () => {
-    const { screen } = await renderModal(undefined, {
+    const { screen, field } = await renderModal(undefined, {
       total: TOTAL,
       paid: 1_000_000,
       pending: 4_070_000,
@@ -64,6 +64,7 @@ describe("QrChargeModal", () => {
       .element(screen.getByRole("status"))
       .toHaveTextContent("La orden se crea por este importe. Después ya no se puede cambiar.");
     await expectNoAccessibilityViolations(screen.container);
+    await expect.element(field).toHaveAttribute("inputmode", "decimal");
   });
 
   it("fills the amount with the pending balance and says it may be less, showing the balance once", async () => {

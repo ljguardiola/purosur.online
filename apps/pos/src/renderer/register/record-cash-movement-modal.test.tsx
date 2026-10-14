@@ -129,6 +129,9 @@ describe("RecordCashMovementModal", () => {
     await expect.element(screen.getByText("Se paga algo")).toBeVisible();
     await expect.element(screen.getByText("Sale a caja fuerte")).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Registrar ingreso" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("textbox", { name: "Importe" }))
+      .toHaveAttribute("inputmode", "decimal");
   });
 
   it("heads the kinds of movement with the design system's eyebrow, left to the group to announce", async () => {
