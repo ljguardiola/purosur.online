@@ -75,7 +75,7 @@ export function batchLotFacts(
   let numerator = 0n;
   let denominator = 1n;
   let costIncomplete = false;
-  let expiresOn: string | null = null;
+  const expiries: string[] = [];
   for (const allocation of allocations) {
     const known = knownLotCost(allocation);
     if (known === null) {
@@ -90,15 +90,15 @@ export function batchLotFacts(
       numerator /= divisor;
       denominator /= divisor;
     }
-    if (allocation.expiresOn !== null && (expiresOn === null || allocation.expiresOn < expiresOn)) {
-      expiresOn = allocation.expiresOn;
+    if (allocation.expiresOn !== null) {
+      expiries.push(allocation.expiresOn);
     }
   }
   return {
     costTotalCents: roundHalfUp({ numerator, denominator }),
     costQuantity: output,
     costIncomplete,
-    expiresOn,
+    expiresOn: expiries.sort()[0] ?? null,
   };
 }
 
@@ -121,13 +121,13 @@ export function pairedWithRecipe<TComponent extends { componentProductId: string
   }
   const paired: (TComponent & { quantity: number })[] = [];
   for (const component of recipeComponents) {
-    const [quantity, ...repeated] = used
-      .filter((use) => use.componentProductId === component.componentProductId)
-      .map((use) => use.quantity);
-    if (quantity === undefined || repeated.length > 0) {
+    const use = used.find(
+      (candidate) => candidate.componentProductId === component.componentProductId,
+    );
+    if (use === undefined) {
       return null;
     }
-    paired.push({ ...component, quantity });
+    paired.push({ ...component, quantity: use.quantity });
   }
   return paired;
 }
