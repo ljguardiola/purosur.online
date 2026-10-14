@@ -1,5 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
+import { appendOutboxEvent } from "../sync/sqlite-outbox";
+import { CHAIN_KEY } from "../sync/test-support/sqlite-local-outbox";
 import { decideSaleAuthorizationIn } from "./sqlite-sale-authorization";
 import {
   FACTURA_C,
@@ -7,7 +9,14 @@ import {
   insertDeferredSale,
   insertFiscalDocument,
   insertHealthCheck,
+  insertOfflineAuthorizationCode,
+  insertOfflineFiscalDocument,
+  insertOfflineNumberBlock,
+  insertOfflinePointOfSale,
   insertPointOfSale,
+  insertSaleCompletedEvent,
+  OFFLINE_CODE,
+  OFFLINE_POINT_OF_SALE,
   openFiscalDatabase,
   POINT_OF_SALE,
   SALE_COMPLETED_AT,
@@ -24,6 +33,7 @@ function decide(
   saleId = "sale-1",
   shortCodes = scriptedShortCodes(["7KQ4M2P9", "R3XW8H5N"]),
 ) {
+  let issued = 0;
   decideSaleAuthorizationIn(
     database,
     {
@@ -32,8 +42,14 @@ function decide(
       decidedAt: DECIDED_AT,
       occurredAt: SALE_COMPLETED_AT,
       total: 12_500,
-      ids: { next: () => "doc-new" },
+      ids: {
+        next: () => {
+          issued += 1;
+          return issued === 1 ? "doc-new" : `id-${issued}`;
+        },
+      },
     },
+    (event) => appendOutboxEvent(database, CHAIN_KEY, event),
     shortCodes,
   );
 }
@@ -305,5 +321,312 @@ describe("deciding how a completed sale is authorized, in the local database", (
 
     expect(() => decide()).toThrow(/UNIQUE/);
     expect(documents()).toHaveLength(1);
+  });
+});
+
+function offlineDocuments() {
+  return database
+    .prepare(
+      `SELECT id, sale_id, point_of_sale, document_type, number, issued_on, generated_at,
+              generation_stamp, offline_authorization_code, fortnight_start, fortnight_end,
+              document, buyer_document_type, buyer_document_number, cause
+       FROM offline_fiscal_documents ORDER BY number`,
+    )
+    .all();
+}
+
+function alreadyIssued(pointOfSale: number, ...numbers: number[]): void {
+  for (const number of numbers) {
+    const saleId = `earlier-sale-${pointOfSale}-${number}`;
+    insertCompletedSale(database, saleId);
+    insertOfflineFiscalDocument(database, {
+      id: `earlier-doc-${pointOfSale}-${number}`,
+      saleId,
+      pointOfSale,
+      number,
+    });
+  }
+}
+
+function outboxEvents() {
+  return database
+    .prepare(
+      "SELECT device_seq, aggregate_id, event_type, actor_id, payload FROM outbox ORDER BY device_seq",
+    )
+    .all() as {
+    device_seq: number;
+    aggregate_id: string;
+    event_type: string;
+    actor_id: string;
+    payload: string;
+  }[];
+}
+
+describe("deciding a sale's authorization when the register holds a code for its fortnight", () => {
+  beforeEach(() => {
+    insertSaleCompletedEvent(database, "sale-1");
+    insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE, 0);
+    insertOfflineNumberBlock(database, "block-1", 1, 1000, OFFLINE_POINT_OF_SALE);
+    insertOfflineAuthorizationCode(database);
+  });
+
+  describe("while the register is not online for fiscal purposes", () => {
+    it("issues the document whole under the code of the sale's fortnight, with the block's first number", () => {
+      decide();
+
+      expect(offlineDocuments()).toEqual([
+        {
+          id: "doc-new",
+          sale_id: "sale-1",
+          point_of_sale: OFFLINE_POINT_OF_SALE,
+          document_type: "factura_c",
+          number: 1,
+          issued_on: "2026-09-30",
+          generated_at: DECIDED_AT.toISOString(),
+          generation_stamp: "20260930090500",
+          offline_authorization_code: OFFLINE_CODE,
+          fortnight_start: "2026-09-16",
+          fortnight_end: "2026-09-30",
+          document: JSON.stringify(FACTURA_C),
+          buyer_document_type: 99,
+          buyer_document_number: 0,
+          cause: "no_connectivity",
+        },
+      ]);
+      expect(documents()).toEqual([]);
+      expect(routings()).toEqual([]);
+    });
+
+    it("appends the document's event right after the sale's, in the same chain, with the register and person of the sale", () => {
+      decide();
+
+      const [completed, issued] = outboxEvents();
+      expect(completed?.event_type).toBe("sale_completed");
+      expect(issued).toMatchObject({
+        device_seq: 2,
+        aggregate_id: "sale-1",
+        event_type: "offline_fiscal_document_issued",
+        actor_id: "u1",
+      });
+      expect(JSON.parse(issued?.payload ?? "")).toMatchObject({
+        fiscal_document_id: "doc-new",
+        sale_id: "sale-1",
+        register_id: "register-1",
+        point_of_sale: OFFLINE_POINT_OF_SALE,
+        number: 1,
+        offline_authorization_code: OFFLINE_CODE,
+        fortnight_start: "2026-09-16",
+        fortnight_end: "2026-09-30",
+        total: 12_500,
+        cause: "no_connectivity",
+      });
+      expect(outboxEvents()).toHaveLength(2);
+    });
+
+    it("takes the lowest unused number of the block after the documents already issued", () => {
+      alreadyIssued(OFFLINE_POINT_OF_SALE, 1, 2);
+
+      decide();
+
+      expect(offlineDocuments().map((row) => (row as { number: number }).number)).toEqual([
+        1, 2, 3,
+      ]);
+    });
+
+    it("continues after the tax authority's last authorized number when it is above the documents issued", () => {
+      database
+        .prepare(
+          "UPDATE register_offline_point_of_sale SET tax_authority_last_authorized_number = 40",
+        )
+        .run();
+      database
+        .prepare("UPDATE offline_number_blocks SET first_number = 41, last_number = 1040")
+        .run();
+
+      decide();
+
+      expect(offlineDocuments().map((row) => (row as { number: number }).number)).toEqual([41]);
+    });
+
+    it("moves to the next block once the first is used up", () => {
+      insertOfflineNumberBlock(database, "block-2", 1001, 2000, OFFLINE_POINT_OF_SALE);
+      alreadyIssued(OFFLINE_POINT_OF_SALE, 1000);
+
+      decide();
+
+      expect(offlineDocuments().map((row) => (row as { number: number }).number)).toEqual([
+        1000, 1001,
+      ]);
+    });
+
+    it("ignores the documents and blocks of another offline point of sale", () => {
+      insertOfflineNumberBlock(database, "other", 5001, 6000, POINT_OF_SALE);
+      alreadyIssued(POINT_OF_SALE, 5001);
+
+      decide();
+
+      expect(offlineDocuments().map((row) => (row as { number: number }).number)).toEqual([
+        1, 5001,
+      ]);
+    });
+
+    it("gives the same document whatever the register's clock says", () => {
+      try {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2031-03-20T00:00:00.000Z"));
+        decide();
+      } finally {
+        vi.useRealTimers();
+      }
+
+      expect(offlineDocuments()).toMatchObject([{ number: 1, fortnight_start: "2026-09-16" }]);
+    });
+
+    it("defers the sale as fiscally offline, issuing and appending nothing, when no code covers the sale's date", () => {
+      database.prepare("DELETE FROM offline_authorization_codes").run();
+      insertOfflineAuthorizationCode(database, {
+        fortnightStart: "2026-10-01",
+        fortnightEnd: "2026-10-15",
+      });
+
+      decide();
+
+      expect(offlineDocuments()).toEqual([]);
+      expect(routings()).toMatchObject([{ sale_id: "sale-1", reason: "fiscally_offline" }]);
+      expect(outboxEvents()).toHaveLength(1);
+    });
+
+    it.each([
+      ["every block is used up", () => alreadyIssued(OFFLINE_POINT_OF_SALE, 1000)],
+      [
+        "the register has no block",
+        () => database.prepare("DELETE FROM offline_number_blocks").run(),
+      ],
+      [
+        "the tax authority's last authorized number is unknown",
+        () =>
+          database
+            .prepare(
+              "UPDATE register_offline_point_of_sale SET tax_authority_last_authorized_number = NULL",
+            )
+            .run(),
+      ],
+      [
+        "the register has no offline point of sale",
+        () => database.prepare("DELETE FROM register_offline_point_of_sale").run(),
+      ],
+    ])("defers the sale as fiscally offline, taking no number, when %s", (_case, arrange) => {
+      arrange();
+
+      decide();
+
+      expect(
+        offlineDocuments().filter((row) => (row as { sale_id: string }).sale_id === "sale-1"),
+      ).toEqual([]);
+      expect(routings()).toMatchObject([{ sale_id: "sale-1", reason: "fiscally_offline" }]);
+      expect(outboxEvents()).toHaveLength(1);
+    });
+
+    it("defers a sale whose gate failed, even holding a code", () => {
+      decide({ kind: "failed", reason: "issuer_identification_missing" });
+
+      expect(offlineDocuments()).toEqual([]);
+      expect(routings()).toMatchObject([{ reason: "pre_emission_gate_failed" }]);
+    });
+
+    it("uses the code of the fortnight the sale's own date falls in, not the one of the moment it is decided", () => {
+      database.prepare("DELETE FROM offline_authorization_codes").run();
+      insertOfflineAuthorizationCode(database, {
+        code: "11111111111111",
+        fortnightStart: "2026-10-01",
+        fortnightEnd: "2026-10-15",
+      });
+      insertOfflineAuthorizationCode(database, { code: "22222222222222" });
+
+      decideSaleAuthorizationIn(
+        database,
+        {
+          saleId: "sale-1",
+          gate: PASSED,
+          decidedAt: new Date("2026-10-01T03:00:30.000Z"),
+          occurredAt: new Date("2026-10-01T02:59:59.000Z"),
+          total: 12_500,
+          ids: { next: () => "doc-new" },
+        },
+        (event) => appendOutboxEvent(database, CHAIN_KEY, event),
+      );
+
+      expect(offlineDocuments()).toMatchObject([
+        {
+          offline_authorization_code: "22222222222222",
+          issued_on: "2026-09-30",
+          fortnight_start: "2026-09-16",
+        },
+      ]);
+    });
+
+    it("leaves nothing behind when the document's event cannot be appended", () => {
+      database.exec(
+        `CREATE TRIGGER refuse_events BEFORE INSERT ON outbox
+         WHEN NEW.event_type = 'offline_fiscal_document_issued'
+         BEGIN SELECT RAISE(ABORT, 'refused'); END`,
+      );
+
+      expect(() => database.transaction(() => decide())()).toThrow("refused");
+
+      expect(offlineDocuments()).toEqual([]);
+    });
+  });
+
+  describe("while the register is online and the real-time series holds an unclear document", () => {
+    beforeEach(() => {
+      insertHealthCheck(database);
+      insertPointOfSale(database, 40);
+      insertCompletedSale(database, "sale-0");
+      insertFiscalDocument(database, {
+        id: "doc-0",
+        saleId: "sale-0",
+        number: 41,
+        state: "UNKNOWN",
+      });
+    });
+
+    it("issues the document under the code, recorded as an unclear outcome and not as a connectivity problem", () => {
+      decide();
+
+      expect(offlineDocuments()).toMatchObject([
+        { sale_id: "sale-1", number: 1, cause: "unclear_outcome" },
+      ]);
+      expect(documents()).toHaveLength(1);
+      expect(routings()).toEqual([]);
+    });
+
+    it("defers the sale for the waiting document when no code covers its date", () => {
+      database.prepare("DELETE FROM offline_authorization_codes").run();
+
+      decide();
+
+      expect(offlineDocuments()).toEqual([]);
+      expect(routings()).toMatchObject([{ reason: "document_waiting" }]);
+    });
+  });
+
+  describe("while the register is online and the real-time series holds a document still requested", () => {
+    it("defers the sale for the waiting document, holding a code", () => {
+      insertHealthCheck(database);
+      insertPointOfSale(database, 40);
+      insertCompletedSale(database, "sale-0");
+      insertFiscalDocument(database, {
+        id: "doc-0",
+        saleId: "sale-0",
+        number: 41,
+        state: "REQUESTING",
+      });
+
+      decide();
+
+      expect(offlineDocuments()).toEqual([]);
+      expect(routings()).toMatchObject([{ reason: "document_waiting" }]);
+    });
   });
 });
