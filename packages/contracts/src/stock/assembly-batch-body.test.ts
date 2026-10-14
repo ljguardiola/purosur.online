@@ -1,6 +1,6 @@
 import { MAX_STOCK_QUANTITY } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import { assemblyBatchBodySchema, assemblyBatchPreviewBodySchema } from "./assembly-batch-body.js";
+import { assemblyBatchBodySchema, assemblyBatchPreviewQuerySchema } from "./assembly-batch-body.js";
 
 const MIX = "11111111-1111-1111-1111-111111111111";
 const NUTS = "22222222-2222-2222-2222-222222222222";
@@ -17,7 +17,7 @@ const body = {
 };
 
 function firstFailure(
-  schema: typeof assemblyBatchBodySchema | typeof assemblyBatchPreviewBodySchema,
+  schema: typeof assemblyBatchBodySchema | typeof assemblyBatchPreviewQuerySchema,
   value: unknown,
 ): { path: unknown[]; message: unknown } | undefined {
   const result = schema.safeParse(value);
@@ -110,44 +110,79 @@ describe("assemblyBatchBodySchema", () => {
   });
 });
 
-describe("assemblyBatchPreviewBodySchema", () => {
-  const preview = { productId: MIX, size: 10_000 };
+describe("assemblyBatchPreviewQuerySchema", () => {
+  const preview = { productId: MIX, size: "10000" };
+  const parsed = { productId: MIX, size: 10_000 };
 
   it("reads the product and the size of the batch alone", () => {
-    expect(assemblyBatchPreviewBodySchema.safeParse(preview).data).toEqual(preview);
+    expect(assemblyBatchPreviewQuerySchema.safeParse(preview).data).toEqual(parsed);
   });
 
-  it("reads the quantities used and the output when they are given", () => {
-    const full = { ...preview, used: body.used, output: 14_000 };
+  it("reads the quantities used, one per component, and the output when they are given", () => {
+    const query = {
+      ...preview,
+      used: [`${NUTS}:12000`, `${BAG}:0`],
+      output: "14000",
+    };
 
-    expect(assemblyBatchPreviewBodySchema.safeParse(full).data).toEqual(full);
+    expect(assemblyBatchPreviewQuerySchema.safeParse(query).data).toEqual({
+      ...parsed,
+      used: body.used,
+      output: 14_000,
+    });
   });
 
-  it.each([undefined, 0, -1, 1.5, "1000", MAX_STOCK_QUANTITY + 1])(
+  it("reads a single quantity used as a list of one", () => {
+    expect(
+      assemblyBatchPreviewQuerySchema.safeParse({ ...preview, used: `${NUTS}:500` }).data,
+    ).toEqual({ ...parsed, used: [{ componentProductId: NUTS, quantity: 500 }] });
+  });
+
+  it.each([undefined, "", "abc", "0", "-1", "1.5", "1e3", String(MAX_STOCK_QUANTITY + 1)])(
     "rejects the size %j",
     (size) => {
-      expect(firstFailure(assemblyBatchPreviewBodySchema, { ...preview, size })).toEqual({
+      expect(firstFailure(assemblyBatchPreviewQuerySchema, { ...preview, size })).toEqual({
         path: ["size"],
         message: "size must be a positive integer number of thousandths",
       });
     },
   );
 
+  it("accepts the largest size", () => {
+    expect(
+      assemblyBatchPreviewQuerySchema.safeParse({ ...preview, size: String(MAX_STOCK_QUANTITY) })
+        .success,
+    ).toBe(true);
+  });
+
   it.each([undefined, "", "not-a-uuid"])("rejects the product id %j", (productId) => {
-    expect(firstFailure(assemblyBatchPreviewBodySchema, { ...preview, productId })?.path).toEqual([
+    expect(firstFailure(assemblyBatchPreviewQuerySchema, { ...preview, productId })?.path).toEqual([
       "productId",
     ]);
   });
 
-  it("rejects an invalid output or used quantity like a batch does", () => {
-    expect(firstFailure(assemblyBatchPreviewBodySchema, { ...preview, output: 0 })?.path).toEqual([
-      "output",
-    ]);
+  it.each(["0", "-1", "1.5", "abc", ""])("rejects the output %j", (output) => {
+    expect(firstFailure(assemblyBatchPreviewQuerySchema, { ...preview, output })).toEqual({
+      path: ["output"],
+      message: "output must be a positive integer number of thousandths",
+    });
+  });
+
+  it.each([`${NUTS}`, `${NUTS}:`, `${NUTS}:x`, `${NUTS}:-1`, `${NUTS}:1.5`, `${NUTS}:1:2`, ":5"])(
+    "rejects the used entry %j",
+    (entry) => {
+      expect(
+        firstFailure(assemblyBatchPreviewQuerySchema, { ...preview, used: [entry] })?.path[0],
+      ).toBe("used");
+    },
+  );
+
+  it("rejects a used entry for something that is not a product's id", () => {
     expect(
-      firstFailure(assemblyBatchPreviewBodySchema, {
-        ...preview,
-        used: [{ componentProductId: NUTS, quantity: -1 }],
-      })?.path,
-    ).toEqual(["used", 0, "quantity"]);
+      firstFailure(assemblyBatchPreviewQuerySchema, { ...preview, used: ["not-a-uuid:5"] }),
+    ).toEqual({
+      path: ["used", 0, "componentProductId"],
+      message: "componentProductId must be a product's id",
+    });
   });
 });

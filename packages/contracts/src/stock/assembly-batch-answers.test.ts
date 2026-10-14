@@ -63,15 +63,31 @@ describe("assemblyBatchResultSchema", () => {
   });
 });
 
+const recipe = {
+  productId: "p-1",
+  productName: "Mix de frutos secos",
+  categoryName: "Mezclas",
+  saleUnit: "KG",
+  version: 2,
+  lastBatch: null,
+  components: [
+    { componentProductId: "p-2", name: "Nueces", saleUnit: "KG", quantityPerOutputUnit: 600 },
+  ],
+};
+
 describe("assemblyBatchListSchema", () => {
-  it("accepts the batches with the components they used", () => {
-    expect(assemblyBatchListSchema.safeParse({ batches: [batch] }).data).toEqual({
-      batches: [batch],
-    });
+  it("accepts the batches with the components they used, and the recipes a batch may be made from", () => {
+    const list = { batches: [batch], recipes: [recipe] };
+
+    expect(assemblyBatchListSchema.safeParse(list).data).toEqual(list);
+  });
+
+  it("rejects a list without its recipes", () => {
+    expect(assemblyBatchListSchema.safeParse({ batches: [batch] }).success).toBe(false);
   });
 
   it("accepts no batches", () => {
-    expect(assemblyBatchListSchema.safeParse({ batches: [] }).success).toBe(true);
+    expect(assemblyBatchListSchema.safeParse({ batches: [], recipes: [] }).success).toBe(true);
   });
 
   it.each([
@@ -87,7 +103,8 @@ describe("assemblyBatchListSchema", () => {
     "lines",
   ])("rejects a batch without %s", (key) => {
     expect(
-      assemblyBatchListSchema.safeParse({ batches: [{ ...batch, [key]: undefined }] }).success,
+      assemblyBatchListSchema.safeParse({ batches: [{ ...batch, [key]: undefined }], recipes: [] })
+        .success,
     ).toBe(false);
   });
 
@@ -98,6 +115,7 @@ describe("assemblyBatchListSchema", () => {
       expect(
         assemblyBatchListSchema.safeParse({
           batches: [{ ...batch, lines: [{ ...line, [key]: undefined }] }],
+          recipes: [],
         }).success,
       ).toBe(false);
     },
@@ -105,7 +123,8 @@ describe("assemblyBatchListSchema", () => {
 
   it("rejects a sale unit other than the unit or the kilo", () => {
     expect(
-      assemblyBatchListSchema.safeParse({ batches: [{ ...batch, saleUnit: "LITER" }] }).success,
+      assemblyBatchListSchema.safeParse({ batches: [{ ...batch, saleUnit: "LITER" }], recipes: [] })
+        .success,
     ).toBe(false);
   });
 });
