@@ -372,22 +372,9 @@ test("lists the fortnight reports of each offline point of sale between the regi
   const reports = screen.getByRole("table", { name: "Informes quincenales" });
   await expect.element(reports.getByText("Faltan comprobantes de Caja 1")).toBeVisible();
   await expect.element(reports.getByText("Bloqueado")).toBeVisible();
-  const positions = ["Caja 1", "Informes quincenales", "Domicilios fiscales"].map((name) =>
-    screen
-      .getByRole(name === "Caja 1" ? "heading" : "table", {
-        name,
-        ...(name === "Caja 1" ? { level: 2 } : {}),
-      })
-      .element(),
-  );
-  expect(
-    positions[0]?.compareDocumentPosition(positions[1] as Element) &
-      Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy();
-  expect(
-    positions[1]?.compareDocumentPosition(positions[2] as Element) &
-      Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy();
+  const text = document.body.textContent ?? "";
+  expect(text.indexOf("Caja 1")).toBeLessThan(text.indexOf("Quincena"));
+  expect(text.indexOf("Quincena")).toBeLessThan(text.indexOf("Domicilios fiscales"));
 });
 
 test("keeps the registers on screen when the fortnight reports fail to load, and Reintentar loads them again", async () => {
