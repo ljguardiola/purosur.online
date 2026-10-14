@@ -297,6 +297,9 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       }
       return;
     }
+    if (answer.data.type === "storage-standing-changed") {
+      return;
+    }
     if (answer.data.type === "barcode-read") {
       for (const listener of barcodeReadListeners) {
         listener(answer.data.code);

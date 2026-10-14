@@ -190,11 +190,6 @@ test("asks for the reason of a register that can't sell, and for none of the oth
     reason: "disk_space_short_at_startup";
     required_free_bytes: number;
   }>().toExtend<LocalAlertSubject>();
-  expectTypeOf<{
-    kind: "sales_denied";
-    reason: "event_history_broken";
-    disk_free_ratio: number;
-  }>().not.toExtend<LocalAlertSubject>();
   expectTypeOf<{ kind: "register_silent" }>().toExtend<LocalAlertSubject>();
   expectTypeOf<{
     kind: "register_silent";

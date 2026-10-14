@@ -137,9 +137,9 @@ function secondPaidOrderText(providerOrderId: string): LocalAlertText {
 
 export function localAlertText(subject: LocalAlertSubject): LocalAlertText {
   if (subject.kind === "sales_denied") {
-    return subject.reason === "event_history_broken" || subject.reason === "local_database_damaged"
-      ? FIXED_SALES_DENIED_TEXTS[subject.reason]
-      : diskSalesDeniedText(subject);
+    return subject.reason === "disk_space_short_at_startup" || subject.reason === "disk_full"
+      ? diskSalesDeniedText(subject)
+      : FIXED_SALES_DENIED_TEXTS[subject.reason];
   }
   if (subject.kind === "late_payment_refund" && subject.providerOrderId !== null) {
     return secondPaidOrderText(subject.providerOrderId);

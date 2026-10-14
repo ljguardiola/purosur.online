@@ -437,7 +437,11 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
     return <p className="text-text text-body">{alertDescription(alert)}</p>;
   }
   if (alert.kind === "sales_denied") {
-    return <LocalAlertExplanation kind={alert.kind} reason={alert.detail.reason} />;
+    const { reason } = alert.detail;
+    if (reason === "disk_space_short_at_startup" || reason === "disk_full") {
+      return <p className="text-text text-body">{alertDescription(alert)}</p>;
+    }
+    return <LocalAlertExplanation kind={alert.kind} reason={reason} />;
   }
   if (alert.kind === "late_payment_refund") {
     return (
