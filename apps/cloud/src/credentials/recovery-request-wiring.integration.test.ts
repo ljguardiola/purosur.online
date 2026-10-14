@@ -22,7 +22,10 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { FICTIONAL_RECOVERY_REPLY_TO } from "../test-support/recovery-reply-to.js";
+import {
+  FICTIONAL_RECOVERY_REPLY_TO,
+  FICTIONAL_RECOVERY_SENDER,
+} from "../test-support/recovery-email.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import type { AccessEmailSender, SendRecoveryLinkInput } from "./recovery-email-sender.js";
 import { hashDestinationAddress } from "./recovery-rate-limiter.js";
@@ -154,7 +157,7 @@ async function startRealServer(
         PORT: String(port),
         DATABASE_URL: databaseUrl,
         RESEND_API_KEY: "unused-a-fake-sender-is-injected-below",
-        RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+        RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
         RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
         BACKOFFICE_ORIGIN,
         EDGE_ORIGIN_SECRET: TEST_EDGE_ORIGIN_SECRET,

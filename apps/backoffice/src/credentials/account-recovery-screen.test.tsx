@@ -59,7 +59,7 @@ test("rejects an email longer than any address can be without calling the API", 
   const services = createServices();
   const screen = await render(<AccountRecoveryScreen services={services} />);
 
-  await fillEmail(screen, `${"a".repeat(250)}@purosur.online`);
+  await fillEmail(screen, `${"a".repeat(250)}@example.com`);
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
 
   await expect.element(screen.getByText("Ingresá un correo válido.")).toBeVisible();
@@ -72,7 +72,7 @@ test("shows the email the cloud refused on the email field, not as a notice", as
   });
   const screen = await render(<AccountRecoveryScreen services={services} />);
 
-  await fillEmail(screen, "lucia.perez@purosur.online");
+  await fillEmail(screen, "lucia.perez@example.com");
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
 
   await expect.element(screen.getByText("Revisá tu correo.")).toBeVisible();
@@ -85,7 +85,7 @@ test("a field the form does not have that the cloud refused shows the generic no
   });
   const screen = await render(<AccountRecoveryScreen services={services} />);
 
-  await fillEmail(screen, "lucia.perez@purosur.online");
+  await fillEmail(screen, "lucia.perez@example.com");
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
 
   await expect.element(screen.getByText("No pudimos enviar el enlace")).toBeVisible();
@@ -97,7 +97,7 @@ test("confirms the link was sent, with the uniform notice, after a successful su
   });
   const screen = await render(<AccountRecoveryScreen services={services} />);
 
-  await fillEmail(screen, "lucia.perez@purosur.online");
+  await fillEmail(screen, "lucia.perez@example.com");
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
 
   await expect
@@ -113,7 +113,7 @@ test("confirms the link was sent, with the uniform notice, after a successful su
       ),
     )
     .toBeVisible();
-  expect(services.requestRecoveryLink).toHaveBeenCalledWith("lucia.perez@purosur.online");
+  expect(services.requestRecoveryLink).toHaveBeenCalledWith("lucia.perez@example.com");
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -127,7 +127,7 @@ test("shows a rate-limited notice that does not blame the connection, naming whe
   });
   const screen = await render(<AccountRecoveryScreen services={services} />);
 
-  await fillEmail(screen, "lucia.perez@purosur.online");
+  await fillEmail(screen, "lucia.perez@example.com");
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
 
   await expect.element(screen.getByText("Demasiados pedidos de recuperación")).toBeVisible();
@@ -143,7 +143,7 @@ test("shows a generic error notice on any other failure", async () => {
   });
   const screen = await render(<AccountRecoveryScreen services={services} />);
 
-  await fillEmail(screen, "lucia.perez@purosur.online");
+  await fillEmail(screen, "lucia.perez@example.com");
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
 
   await expect.element(screen.getByText("No pudimos enviar el enlace")).toBeVisible();
