@@ -23,6 +23,14 @@ describe("restorableSnapshotsSchema", () => {
 
   it.each([
     ["a download URL that is not https", { download_url: "http://bucket.example.test/x" }],
+    [
+      "a download URL whose scheme ends in https",
+      { download_url: "xhttps://bucket.example.test/x" },
+    ],
+    [
+      "a download URL whose scheme starts with https",
+      { download_url: "httpsx://bucket.example.test/x" },
+    ],
     ["a creation time that is not an instant", { created_at: "yesterday" }],
     ["an uppercase hash", { sha256: "AB".repeat(32) }],
     ["a size of zero", { size: 0 }],

@@ -50,11 +50,12 @@ describe("snapshotUploadAnswerSchema", () => {
     expect(snapshotUploadAnswerSchema.parse(ANSWER)).toEqual(ANSWER);
   });
 
-  it("refuses an upload URL that is not https", () => {
-    expect(
-      snapshotUploadAnswerSchema.safeParse({ ...ANSWER, upload_url: "http://bucket.example.test" })
-        .success,
-    ).toBe(false);
+  it.each([
+    ["that is not https", "http://bucket.example.test"],
+    ["whose scheme ends in https", "xhttps://bucket.example.test"],
+    ["whose scheme starts with https", "httpsx://bucket.example.test"],
+  ])("refuses an upload URL %s", (_name, upload_url) => {
+    expect(snapshotUploadAnswerSchema.safeParse({ ...ANSWER, upload_url }).success).toBe(false);
   });
 
   it("refuses an expiry that is not an instant", () => {
