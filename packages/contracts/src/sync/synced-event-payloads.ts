@@ -15,6 +15,7 @@ import {
   WEIGHT_SOURCES,
 } from "@purosur/domain";
 import { z } from "zod";
+import { offlineFiscalDocumentIssuedSchema } from "../fiscal/offline-fiscal-document-issued.js";
 import { recordIdSchema } from "../shared/index.js";
 
 const text = z.string().min(1);
@@ -410,6 +411,7 @@ const PAYLOAD_SCHEMAS = {
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,
   "fiscal_gate_failed@1": fiscalGateFailedSchema,
+  "offline_fiscal_document_issued@1": offlineFiscalDocumentIssuedSchema,
   "qr_payment_replaced@1": qrPaymentReplacedSchema,
   "opening_count_recorded@1": openingCountRecordedSchema,
   "opening_count_withdrawn@1": openingCountWithdrawnSchema,
