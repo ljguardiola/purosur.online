@@ -7,6 +7,7 @@ import {
 import type { LocalDatabase } from "../platform/local-database";
 import { currentSaleFor, type SaleRequestDeps } from "../sales/sale-requests";
 import type { CloudReachability } from "../sync/cloud-reachability";
+import { pointTerminalAssigned } from "./sqlite-point-terminal-assignment";
 
 export async function paymentMethodAvailabilityFor({
   database,
@@ -25,7 +26,7 @@ export async function paymentMethodAvailabilityFor({
   return {
     qr: qrAvailability(cloudReachable),
     point: pointTerminalAvailability({
-      terminalAssigned: true,
+      terminalAssigned: pointTerminalAssigned(database),
       cloudReachable,
       pendingCents: sale.pending,
     }),
