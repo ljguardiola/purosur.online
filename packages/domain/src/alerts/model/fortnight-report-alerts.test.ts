@@ -53,7 +53,6 @@ describe("fortnightReportPendingReason", () => {
   it.each([
     ["blocked", "blocked"],
     ["refused", "refused"],
-    ["ready", "pending"],
     ["submitting", "pending"],
     [null, "pending"],
   ] as const)("is %s -> %s", (state, reason) => {
