@@ -11,6 +11,7 @@ const purchase: PurchaseLineCost = {
   purchasedOn: "2026-03-01",
   recordedAt: new Date("2026-03-01T10:00:00Z"),
   cost: { totalCents: 1200, quantity: 1000 },
+  freights: [],
 };
 
 const input = { locationId: "location-1", productId: "a", unitPrice: 2000 };
@@ -42,6 +43,30 @@ describe("readPriceMargin", () => {
         freightPerUnitCents: 0,
         totalCostCents: 1200,
         marginTenthsOfPercent: 400,
+      },
+    });
+  });
+
+  it("adds the freight of the purchase line the last cost comes from", async () => {
+    const freighted: PurchaseLineCost = {
+      ...purchase,
+      freights: [
+        {
+          amountCents: 300,
+          lines: [{ id: "line-a", costPaidCents: 1200, quantity: 1000, quantityPerPackage: 1000 }],
+        },
+      ],
+    };
+
+    const outcome = await readPriceMargin(ports([freighted]), input);
+
+    expect(outcome).toEqual({
+      kind: "read",
+      costReference: {
+        lastCostCents: 1200,
+        freightPerUnitCents: 300,
+        totalCostCents: 1500,
+        marginTenthsOfPercent: 250,
       },
     });
   });

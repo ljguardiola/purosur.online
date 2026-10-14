@@ -33,13 +33,19 @@ function listing(products: PriceUnderReview[]): PricesUnderReview {
   };
 }
 
-function purchase(productId: string, lineId: string, totalCents: number): PurchaseLineCost {
+function purchase(
+  productId: string,
+  lineId: string,
+  totalCents: number,
+  freights: PurchaseLineCost["freights"] = [],
+): PurchaseLineCost {
   return {
     productId,
     lineId,
     purchasedOn: "2026-03-01",
     recordedAt: new Date("2026-03-01T10:00:00Z"),
     cost: { totalCents, quantity: 1000 },
+    freights,
   };
 }
 
@@ -118,6 +124,31 @@ describe("listPrices", () => {
       currentPrice: answered.products[0]?.currentPrice,
       pending: false,
       secondsSinceReview: 60,
+    });
+  });
+
+  it("adds the freight of the purchase line the last cost comes from", async () => {
+    const freights = [
+      {
+        amountCents: 300,
+        lines: [{ id: "line-a", costPaidCents: 1200, quantity: 1000, quantityPerPackage: 1000 }],
+      },
+    ];
+
+    const result = await listPrices(
+      {
+        reviews: fakePriceReviewReader(listing([product("a", 2000)])),
+        purchaseCosts: fakePurchaseCostReader([purchase("a", "line-a", 1200, freights)]),
+        initialCountCosts: fakeInitialCountCostReader([]),
+      },
+      query,
+    );
+
+    expect(result.products[0]?.costReference).toEqual({
+      lastCostCents: 1200,
+      freightPerUnitCents: 300,
+      totalCostCents: 1500,
+      marginTenthsOfPercent: 250,
     });
   });
 
