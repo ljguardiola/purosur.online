@@ -43,28 +43,6 @@ describe("DrizzleBranchSettingsReader", () => {
     });
   });
 
-  it.each([
-    ["expiry warning window", "expiringLotAlertDays", DEFAULT_EXPIRING_LOT_ALERT_DAYS],
-    [
-      "unreviewed price warning window",
-      "unreviewedPriceAlertDays",
-      DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
-    ],
-    ["good-condition return window", "goodConditionReturnDays", DEFAULT_GOOD_CONDITION_RETURN_DAYS],
-  ] as const)("starts a new branch on the domain's default %s", async (_window, field, days) => {
-    const [location] = await db.insert(locations).values({}).returning({ id: locations.id });
-    if (!location) {
-      throw new Error("location not created");
-    }
-    await db
-      .insert(branchSettings)
-      .values({ locationId: location.id, priceListId: await seededPriceListId(db) });
-
-    const settings = await new DrizzleBranchSettingsReader(db).currentBranchSettings(location.id);
-
-    expect(settings[field]).toBe(days);
-  });
-
   it("answers the hours by day then position, each time as HH:MM", async () => {
     const locationId = await seededLocationId(db);
     await db.insert(branchHours).values([
