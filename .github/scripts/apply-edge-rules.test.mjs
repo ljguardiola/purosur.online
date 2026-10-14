@@ -1,46 +1,51 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import customDomains from "../../.railway/custom-domains.json" with { type: "json" };
 import {
+  buildEnvironmentHeaderTransformRules,
   buildRateLimitRules,
-  buildRequestHeaderTransformRules,
-  CLOUD_HOSTNAMES,
-  cloudHostnames,
   EDGE_ORIGIN_SECRET_HEADER,
   putRulesetPhase,
   runCli,
 } from "./apply-edge-rules.mjs";
 
-test("builds one rewrite rule that sets the edge origin secret header only for the given hostnames", () => {
-  const body = buildRequestHeaderTransformRules("a-secret-value", ["staging.purosur.online"]);
+function buildFor(domainsByEnvironment) {
+  const secrets = Object.fromEntries(
+    Object.keys(domainsByEnvironment).map((environment) => [
+      `EDGE_ORIGIN_SECRET_${environment.toUpperCase()}`,
+      `${environment}-secret-value`,
+    ]),
+  );
+  return buildEnvironmentHeaderTransformRules(domainsByEnvironment, secrets);
+}
 
-  assert.equal(body.rules.length, 1);
-  const [rule] = body.rules;
-  assert.equal(rule.action, "rewrite");
-  assert.equal(rule.expression, 'http.host in {"staging.purosur.online"}');
-  assert.equal(typeof rule.description, "string");
-  assert.ok(rule.description.length > 0);
-  assert.deepEqual(rule.action_parameters, {
+test("builds one rewrite rule per environment that sets its own secret header only for its hostnames", () => {
+  const body = buildFor({ staging: ["staging.purosur.online"], production: ["purosur.online"] });
+
+  assert.equal(body.rules.length, 2);
+  const [stagingRule, productionRule] = body.rules;
+  assert.equal(stagingRule.action, "rewrite");
+  assert.equal(stagingRule.expression, 'http.host eq "staging.purosur.online"');
+  assert.ok(stagingRule.description.length > 0);
+  assert.deepEqual(stagingRule.action_parameters, {
     headers: {
-      [EDGE_ORIGIN_SECRET_HEADER]: { operation: "set", value: "a-secret-value" },
+      [EDGE_ORIGIN_SECRET_HEADER]: { operation: "set", value: "staging-secret-value" },
     },
   });
-});
-
-test("lists every given hostname in the header transform rule's expression", () => {
-  const body = buildRequestHeaderTransformRules("a-secret-value", [
-    "staging.purosur.online",
-    "purosur.online",
-  ]);
-
+  assert.equal(productionRule.expression, 'http.host eq "purosur.online"');
   assert.equal(
-    body.rules[0].expression,
-    'http.host in {"staging.purosur.online" "purosur.online"}',
+    productionRule.action_parameters.headers[EDGE_ORIGIN_SECRET_HEADER].value,
+    "production-secret-value",
   );
 });
 
-test("refuses to build the header transform rule for an empty hostname list", () => {
-  assert.throws(() => buildRequestHeaderTransformRules("a-secret-value", []), /hostname/);
+test("lists every hostname of an environment with several in its rule's expression", () => {
+  const body = buildFor({ production: ["purosur.online", "www.purosur.online"] });
+
+  assert.equal(body.rules[0].expression, 'http.host in {"purosur.online" "www.purosur.online"}');
+});
+
+test("refuses to build a header transform rule for an environment without hostnames", () => {
+  assert.throws(() => buildFor({ production: [] }), /hostname/);
 });
 
 for (const hostname of [
@@ -53,24 +58,9 @@ for (const hostname of [
   "-staging.purosur.online",
 ]) {
   test(`refuses to build the header transform rule for the hostname ${JSON.stringify(hostname)}`, () => {
-    assert.throws(() => buildRequestHeaderTransformRules("a-secret-value", [hostname]), /hostname/);
+    assert.throws(() => buildFor({ production: [hostname] }), /hostname/);
   });
 }
-
-test("scopes the header transform rule to the custom domains Railway serves the cloud service on", () => {
-  assert.deepEqual(CLOUD_HOSTNAMES, Object.values(customDomains).flat());
-  assert.ok(CLOUD_HOSTNAMES.includes("staging.purosur.online"));
-});
-
-test("collects the cloud service's hostnames from every environment's custom domains", () => {
-  assert.deepEqual(
-    cloudHostnames({
-      staging: ["staging.purosur.online"],
-      production: ["purosur.online", "www.purosur.online"],
-    }),
-    ["staging.purosur.online", "purosur.online", "www.purosur.online"],
-  );
-});
 
 test("uses a lowercase header name outside Cloudflare's cf-/x-cf- namespace", () => {
   assert.equal(EDGE_ORIGIN_SECRET_HEADER, EDGE_ORIGIN_SECRET_HEADER.toLowerCase());
