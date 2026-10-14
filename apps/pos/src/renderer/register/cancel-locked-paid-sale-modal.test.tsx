@@ -21,7 +21,8 @@ const TRANSFER_REFUND: Refund = {
 };
 const CASH_LINE = "Devolver $ 1.000,00 en efectivo";
 const TRANSFER_LINE = "Reembolso pendiente de la transferencia por $ 2.500,00";
-const PENDING_NOTE = "No se hace desde la caja: se atiende en el backoffice.";
+const PENDING_NOTE =
+  "Un reembolso pendiente no se hace desde la caja: se atiende en el backoffice.";
 const FAILED_NOTICE = "No se pudo cancelar la venta. Probá de nuevo.";
 
 type CancelSale = () => Promise<CancelLockedSaleOutcome>;
