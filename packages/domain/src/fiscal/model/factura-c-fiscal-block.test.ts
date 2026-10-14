@@ -6,6 +6,7 @@ import {
 } from "../test-support/fictional-tax-identities.js";
 import {
   AUTHORIZATION_CODE_TYPE_CAE,
+  AUTHORIZATION_CODE_TYPE_CAEA,
   type AuthorizedFacturaC,
   CURRENCY_PESOS,
   EXCHANGE_RATE_PESOS,
@@ -13,6 +14,8 @@ import {
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
   facturaCFiscalBlock,
+  type OfflineAuthorizedFacturaC,
+  offlineFacturaCFiscalBlock,
   TAX_AUTHORITY_QR_URL,
 } from "./factura-c-fiscal-block.js";
 
@@ -56,6 +59,7 @@ describe("ARCA codes", () => {
       CURRENCY_PESOS,
       EXCHANGE_RATE_PESOS,
       AUTHORIZATION_CODE_TYPE_CAE,
+      AUTHORIZATION_CODE_TYPE_CAEA,
       TAX_AUTHORITY_QR_URL,
     }).toStrictEqual({
       FACTURA_C_VOUCHER_TYPE: 11,
@@ -64,6 +68,7 @@ describe("ARCA codes", () => {
       CURRENCY_PESOS: "PES",
       EXCHANGE_RATE_PESOS: 1,
       AUTHORIZATION_CODE_TYPE_CAE: "E",
+      AUTHORIZATION_CODE_TYPE_CAEA: "A",
       TAX_AUTHORITY_QR_URL: "https://www.arca.gob.ar/fe/qr/?p=",
     });
   });
@@ -106,5 +111,53 @@ describe("facturaCFiscalBlock", () => {
     const { qrText } = facturaCFiscalBlock(authorized(5900));
     expect(qrText.slice(TAX_AUTHORITY_QR_URL.length)).toMatch(/^[A-Za-z0-9+/]+=*$/);
     expect(qrText.length % 4).toBe(TAX_AUTHORITY_QR_URL.length % 4);
+  });
+});
+
+function offlineAuthorized(total: number): OfflineAuthorizedFacturaC {
+  const { document } = authorized(total);
+  return {
+    pointOfSale: 7,
+    number: 101,
+    issuedOn: "2026-10-15",
+    document,
+    offlineAuthorizationCode: "71234567890123",
+    fortnight: { start: "2026-10-01", end: "2026-10-15" },
+  };
+}
+
+describe("offlineFacturaCFiscalBlock", () => {
+  it("carries the voucher, the issuer, the code and the fortnight it belongs to", () => {
+    expect(offlineFacturaCFiscalBlock(offlineAuthorized(5900))).toMatchObject({
+      invoiceClass: "C",
+      voucherTypeCode: 11,
+      issuer: { legalName: FICTIONAL_LEGAL_NAME, cuit: FICTIONAL_CUIT },
+      buyerTaxStatusDescription: "Consumidor Final",
+      pointOfSale: 7,
+      number: 101,
+      authorizationCode: "71234567890123",
+      fortnight: { start: "2026-10-01", end: "2026-10-15" },
+    });
+  });
+
+  it("encodes the code in the QR as authorized by a pre-obtained code", () => {
+    const { qrText } = offlineFacturaCFiscalBlock(offlineAuthorized(123456));
+    expect(JSON.stringify(qrPayload(qrText))).toBe(
+      '{"ver":1,"fecha":"2026-10-15","cuit":20000000001,"ptoVta":7,"tipoCmp":11,"nroCmp":101,"importe":1234.56,"moneda":"PES","ctz":1,"tipoDocRec":99,"nroDocRec":0,"tipoCodAut":"A","codAut":71234567890123}',
+    );
+  });
+
+  it("holds exactly what the document shows: no buyer identification, legend or VAT line", () => {
+    expect(Object.keys(offlineFacturaCFiscalBlock(offlineAuthorized(5900))).sort()).toEqual([
+      "authorizationCode",
+      "buyerTaxStatusDescription",
+      "fortnight",
+      "invoiceClass",
+      "issuer",
+      "number",
+      "pointOfSale",
+      "qrText",
+      "voucherTypeCode",
+    ]);
   });
 });

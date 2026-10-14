@@ -684,8 +684,15 @@
     {
       "idx": 97,
       "version": "7",
-      "when": 1791986342900,
-      "tag": "0101_register_snapshot_generations",
+      "when": 1791982149291,
+      "tag": "0101_offline_fiscal_documents",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1792003523910,
+      "tag": "0102_register_snapshot_generations",
       "breakpoints": true
     }
   ]

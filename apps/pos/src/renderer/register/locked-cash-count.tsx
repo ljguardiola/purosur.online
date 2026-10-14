@@ -248,7 +248,7 @@ export function LockedCashCount({
                   kind="counted-cash"
                   prefix="$"
                   label="Efectivo contado"
-                  inputMode="numeric"
+                  inputMode="decimal"
                   disabled={busy}
                 />
               )}
