@@ -1,4 +1,10 @@
-import { alertScopeRecordId, isAlertKind, showsAlertScope } from "@purosur/domain";
+import {
+  alertKindPolicy,
+  alertScopeRecordId,
+  isAlertKind,
+  pointOfSaleFortnightScopeDisplay,
+  showsAlertScope,
+} from "@purosur/domain";
 
 interface ScopedAlert {
   kind: string;
@@ -25,6 +31,9 @@ export function scopeDisplay(
 ): string | null {
   if (holdsOnlySourceAddressHash(alert)) {
     return null;
+  }
+  if (isAlertKind(alert.kind) && alertKindPolicy(alert.kind).scopeKind === "pointOfSaleFortnight") {
+    return pointOfSaleFortnightScopeDisplay(alert.scope);
   }
   const recordId = alertScopeRecordId(alert);
   return recordId === undefined ? alert.scope : (namesById.get(recordId) ?? recordId);
