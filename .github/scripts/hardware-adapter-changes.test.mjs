@@ -177,12 +177,14 @@ test("refuses a baseline it cannot resolve", async () => {
   }
 });
 
+const SECRET_ACCESS_KEY = "fictional-bucket-secret";
+
 const BUCKET_ENV = {
   POS_UPDATES_BUCKET_ENDPOINT: "https://storage.example.test",
   POS_UPDATES_BUCKET_NAME: "register-updates",
   POS_UPDATES_BUCKET_REGION: "auto",
   POS_UPDATES_BUCKET_ACCESS_KEY_ID: "fictional-access-key-id",
-  POS_UPDATES_BUCKET_SECRET_ACCESS_KEY: "fictional-bucket-secret",
+  POS_UPDATES_BUCKET_SECRET_ACCESS_KEY: SECRET_ACCESS_KEY,
 };
 
 function cliHarness({ sha, runGit, served, candidates = {}, env = {} }) {
