@@ -110,6 +110,7 @@ export type {
   PrintSaleReceiptPorts,
 } from "./print-sale-receipt.js";
 export { printSaleReceipt } from "./print-sale-receipt.js";
+export type { ProductSalesReportReader, SoldLinesQuery } from "./product-sales-report-reader.js";
 export type {
   ReadSaleHistoryDetailInput,
   ReadSaleHistoryDetailOutcome,
@@ -119,6 +120,11 @@ export type {
 export { readSaleHistoryDetail } from "./read-sale-history-detail.js";
 export type { ReadSalesByDayInput, SalesByDayReport } from "./read-sales-by-day.js";
 export { readSalesByDay } from "./read-sales-by-day.js";
+export type {
+  ReadSalesByProductAndCategoryInput,
+  SalesByProductAndCategoryReport,
+} from "./read-sales-by-product-and-category.js";
+export { readSalesByProductAndCategory } from "./read-sales-by-product-and-category.js";
 export type {
   ReadSalesHistoryInput,
   ReadSalesHistoryPorts,

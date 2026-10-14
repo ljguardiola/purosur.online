@@ -20,7 +20,7 @@ test("groups the sales reports in a card titled Ventas", async () => {
   await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   const sales = screen.getByRole("region", { name: "Ventas" });
   await expect.element(sales).toBeVisible();
-  expect(sales.getByRole("link").elements()).toHaveLength(2);
+  expect(sales.getByRole("link").elements()).toHaveLength(3);
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -38,4 +38,12 @@ test("lists the sales by payment method report as a link to it", async () => {
   await expect
     .element(screen.getByRole("link", { name: "Ventas por medio de pago" }))
     .toHaveAttribute("href", "/reports/sales-by-payment-method");
+});
+
+test("lists the sales by product and category report as a link to it", async () => {
+  const screen = await renderScreen();
+
+  await expect
+    .element(screen.getByRole("link", { name: "Ventas por producto y por categoría" }))
+    .toHaveAttribute("href", "/reports/sales-by-product-and-category");
 });
