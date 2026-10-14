@@ -18,11 +18,15 @@ import {
   chargeSaleByTransfer,
   chargeSaleInCash,
   currentSale,
+  printSaleReceipt,
   removeSaleLine,
 } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   insertHealthCheck,
+  insertOfflineAuthorizationCode,
+  insertOfflineNumberBlock,
+  insertOfflinePointOfSale,
   insertPointOfSale,
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
@@ -32,7 +36,11 @@ import { openLocalDatabase } from "../platform/test-support/open-local-database"
 import { cashBalanceFor } from "../register/cash-session-requests";
 import { SqliteCashLedger } from "../register/sqlite-cash-ledger";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
+import { escPosReceiptTemplate } from "./escpos-receipt-template";
+import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
 import { SqliteSaleLedger } from "./sqlite-sale-ledger";
+import { printoutOf } from "./test-support/escpos-printout";
+import { ReceiptPrintObserver } from "./test-support/receipt-print-watch";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
@@ -905,6 +913,89 @@ describe("charging an open sale in cash", () => {
     ]);
     expect(database.prepare("SELECT count(*) AS total FROM deferred_sales").get()).toEqual({
       total: 0,
+    });
+  });
+
+  describe("when real-time authorization is not available", () => {
+    beforeEach(() => {
+      insertOfflinePointOfSale(database, 31, 0);
+      insertOfflineNumberBlock(database, "block-1", 1, 1000, 31);
+    });
+
+    function outbox() {
+      return database
+        .prepare("SELECT device_seq, aggregate_id, event_type FROM outbox ORDER BY device_seq")
+        .all();
+    }
+
+    async function printedReceipt(saleId: string): Promise<string[]> {
+      database.exec(
+        `INSERT INTO branch_settings (location_id, address, whatsapp_number, instagram_handle, weekly_hours, expiring_lot_alert_days, unreviewed_price_alert_days, good_condition_return_days, version)
+         VALUES ('location-1', 'Av. Belgrano 1450', '11 5555-0100', '@puro.sur', '{}', 30, 30, 15, 1)`,
+      );
+      const printouts: Uint8Array[] = [];
+      await printSaleReceipt(
+        {
+          ledger: new SqliteReceiptLedger(database, CHAIN_KEY),
+          clock: { now: () => NOW },
+          ids,
+          template: escPosReceiptTemplate,
+          printers: {
+            configured: () => ({
+              print: async (_watch, sending) => {
+                printouts.push(sending());
+                return { kind: "sent" };
+              },
+            }),
+          },
+          authority: {
+            authorize: async () => ({
+              kind: "granted",
+              grant: { actorId: "u1", authorizedBy: undefined },
+            }),
+          },
+        },
+        { saleId },
+        new ReceiptPrintObserver().watch,
+      );
+      return printoutOf(printouts[0] ?? new Uint8Array()).textLines;
+    }
+
+    it("issues the document under the code held for the sale's fortnight, sends it after the sale and prints the code with the fortnight", async () => {
+      insertOfflineAuthorizationCode(database, { code: "36251478963214" });
+      const saleId = sellTwo();
+
+      charge(saleId, 3000);
+
+      expect(
+        database
+          .prepare("SELECT sale_id, point_of_sale, number, cause FROM offline_fiscal_documents")
+          .all(),
+      ).toEqual([{ sale_id: saleId, point_of_sale: 31, number: 1, cause: "no_connectivity" }]);
+      expect(outbox()).toEqual([
+        { device_seq: 1, aggregate_id: saleId, event_type: "sale_completed" },
+        { device_seq: 2, aggregate_id: saleId, event_type: "offline_fiscal_document_issued" },
+      ]);
+      expect(database.prepare("SELECT count(*) AS total FROM deferred_sales").get()).toEqual({
+        total: 0,
+      });
+      expect(await printedReceipt(saleId)).toContain(
+        `${" ".repeat(7)}CAEA 36251478963214  ·  Quincena 16 al 30/09/2026`,
+      );
+    });
+
+    it("leaves nothing behind when the document cannot be issued with the sale", () => {
+      insertOfflineAuthorizationCode(database);
+      database.exec(
+        `CREATE TRIGGER refuse_offline_documents BEFORE INSERT ON offline_fiscal_documents
+         BEGIN SELECT RAISE(ABORT, 'refused'); END`,
+      );
+      const saleId = sellTwo();
+
+      expect(() => charge(saleId, 3000)).toThrow("refused");
+
+      expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+      expect(database.prepare("SELECT count(*) AS total FROM outbox").get()).toEqual({ total: 0 });
     });
   });
 

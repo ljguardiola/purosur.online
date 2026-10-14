@@ -108,6 +108,14 @@ test("asks for the amount and the day the threshold starts, under its own title"
   await expect.element(dialog.getByRole("button", { name: "Cargar el umbral" })).toBeVisible();
 });
 
+test("asks for a keyboard with the decimal comma for the amount", async () => {
+  const { dialog } = await renderModal();
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Importe/ }))
+    .toHaveAttribute("inputmode", "decimal");
+});
+
 test("Cancelar asks to close without calling the cloud", async () => {
   const services = createServices();
   const onClose = vi.fn();

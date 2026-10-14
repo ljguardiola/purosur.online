@@ -48,7 +48,7 @@ async function renderModal(
 
 describe("PointChargeModal", () => {
   it("asks how much is charged on the terminal and shows what is owed", async () => {
-    const { screen } = await renderModal(undefined, {
+    const { screen, field } = await renderModal(undefined, {
       total: TOTAL,
       paid: 1_000_000,
       pending: 4_070_000,
@@ -69,6 +69,7 @@ describe("PointChargeModal", () => {
         "El cobro se envía a la terminal por este importe. Después ya no se puede cambiar.",
       );
     await expectNoAccessibilityViolations(screen.container);
+    await expect.element(field).toHaveAttribute("inputmode", "decimal");
   });
 
   it("fills the amount with the pending balance and says it may be less", async () => {

@@ -893,7 +893,8 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
-        "0050_price_and_discount_lookups",
+        "0050_offline_fiscal_documents",
+        "0051_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -970,7 +971,8 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
-        "0050_price_and_discount_lookups",
+        "0050_offline_fiscal_documents",
+        "0051_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1042,7 +1044,8 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
-        "0050_price_and_discount_lookups",
+        "0050_offline_fiscal_documents",
+        "0051_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1113,7 +1116,8 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
-        "0050_price_and_discount_lookups",
+        "0050_offline_fiscal_documents",
+        "0051_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1213,7 +1217,8 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
-        "0050_price_and_discount_lookups",
+        "0050_offline_fiscal_documents",
+        "0051_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1303,7 +1308,8 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
-        "0050_price_and_discount_lookups",
+        "0050_offline_fiscal_documents",
+        "0051_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1397,7 +1403,8 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
-        "0050_price_and_discount_lookups",
+        "0050_offline_fiscal_documents",
+        "0051_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1474,7 +1481,8 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
-        "0050_price_and_discount_lookups",
+        "0050_offline_fiscal_documents",
+        "0051_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1543,7 +1551,8 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
-        "0050_price_and_discount_lookups",
+        "0050_offline_fiscal_documents",
+        "0051_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -3007,6 +3016,84 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("add the documents issued under a pre-obtained code, keeping the sales and fiscal documents a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0050_offline_fiscal_documents",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0050_offline_fiscal_documents",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('done', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z'),
+                ('later', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:06:00.000Z'),
+                ('third', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:07:00.000Z');
+         INSERT INTO fiscal_documents (id, sale_id, point_of_sale, document_type, number, issued_on, document, state, reserved_at, resolved_at)
+         VALUES ('doc-1', 'done', 12, 'factura_c', 41, '2026-10-09', '{}', 'REJECTED', '2026-10-09T12:05:00.000Z', '2026-10-09T12:05:01.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT id, state FROM fiscal_documents").all()).toEqual([
+        { id: "doc-1", state: "REJECTED" },
+      ]);
+      expect(after.prepare("SELECT count(*) AS total FROM offline_fiscal_documents").get()).toEqual(
+        {
+          total: 0,
+        },
+      );
+      const insert = after.prepare(
+        `INSERT INTO offline_fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
+           offline_authorization_code, fortnight_start, fortnight_end, document,
+           buyer_document_type, buyer_document_number, cause
+         ) VALUES (
+           @id, @sale_id, 31, @document_type, @number, '2026-10-09', '2026-10-09T12:05:00.000Z', '20261009090500',
+           '36251478963214', '2026-10-01', '2026-10-15', '{}', 99, 0, @cause
+         )`,
+      );
+      const issued = {
+        id: "offline-1",
+        sale_id: "done",
+        document_type: "factura_c",
+        number: 1,
+        cause: "no_connectivity",
+      };
+      insert.run(issued);
+      expect(() => insert.run({ ...issued, id: "offline-2", number: 2 })).toThrow(/UNIQUE/);
+      expect(() => insert.run({ ...issued, id: "offline-3", sale_id: "later" })).toThrow(/UNIQUE/);
+      expect(() =>
+        insert.run({ ...issued, id: "offline-4", sale_id: "later", document_type: "factura_a" }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insert.run({ ...issued, id: "offline-5", sale_id: "later", number: 2, cause: "other" }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insert.run({ ...issued, id: "offline-6", sale_id: "missing", number: 3 }),
+      ).toThrow(/FOREIGN KEY/);
+      for (const cause of ["unclear_outcome", "numbering_conflict"]) {
+        insert.run({
+          ...issued,
+          id: `offline-${cause}`,
+          sale_id: cause === "unclear_outcome" ? "later" : "third",
+          number: cause === "unclear_outcome" ? 2 : 3,
+          cause,
+        });
+      }
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("let a refund be pending on Mercado Pago QR, keeping the refunds a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
@@ -4128,10 +4215,10 @@ describe("the register's local migrations", () => {
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.filter(
-        (migration) => migration.name < "0050_price_and_discount_lookups",
+        (migration) => migration.name < "0051_price_and_discount_lookups",
       );
       expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
-        "0050_price_and_discount_lookups",
+        "0051_price_and_discount_lookups",
       );
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(

@@ -156,6 +156,9 @@ describe("LockedCashCount", () => {
     await expect.element(screen.getByRole("navigation")).not.toBeInTheDocument();
     await expect.element(screen.getByLabelText("PIN")).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
+    await expect
+      .element(screen.getByRole("textbox", { name: "Efectivo contado" }))
+      .toHaveAttribute("inputmode", "decimal");
   });
 
   it("warns when cash is missing", async () => {

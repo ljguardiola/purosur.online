@@ -9,7 +9,9 @@ export const APPLICATION_NOW = new Date("2026-10-06T15:00:00.000Z");
 export interface EventApplicationUnderTest {
   readonly db: TestDatabase["db"];
   readonly application: EventApplication;
-  enrollInstallation(): ReturnType<typeof insertEnrolledInstallation>;
+  enrollInstallation(options?: {
+    registerName: string;
+  }): ReturnType<typeof insertEnrolledInstallation>;
 }
 
 export function eventApplicationUnderTest(): EventApplicationUnderTest {
@@ -36,8 +38,8 @@ export function eventApplicationUnderTest(): EventApplicationUnderTest {
     get application() {
       return application;
     },
-    enrollInstallation() {
-      return insertEnrolledInstallation(testDatabase.db, { now: APPLICATION_NOW });
+    enrollInstallation(options) {
+      return insertEnrolledInstallation(testDatabase.db, { now: APPLICATION_NOW, ...options });
     },
   };
 }

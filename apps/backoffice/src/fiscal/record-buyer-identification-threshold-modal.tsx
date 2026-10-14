@@ -227,7 +227,15 @@ export function RecordBuyerIdentificationThresholdModal({
             />
           ) : null}
           <form.AppField name="amount">
-            {(field) => <field.TextField kind="price" label="Importe" prefix="$" required />}
+            {(field) => (
+              <field.TextField
+                kind="price"
+                label="Importe"
+                prefix="$"
+                inputMode="decimal"
+                required
+              />
+            )}
           </form.AppField>
           <form.AppField name="validFrom">
             {(field) => <field.DateField label="Vigente desde" required />}

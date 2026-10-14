@@ -94,6 +94,9 @@ describe("CountLineModal", () => {
       )
       .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
+    await expect
+      .element(screen.getByRole("textbox", { name: "Cantidad contada" }))
+      .toHaveAttribute("inputmode", "decimal");
   });
 
   it("titles the window with the product sold by unit and gives no scale help", async () => {
@@ -104,6 +107,9 @@ describe("CountLineModal", () => {
       .element(screen.getByText("Podés pesarlo en la balanza o escribir el peso."))
       .not.toBeInTheDocument();
     expect(weighing).not.toHaveBeenCalled();
+    await expect
+      .element(screen.getByRole("textbox", { name: "Cantidad contada" }))
+      .toHaveAttribute("inputmode", "numeric");
   });
 
   it("fills the weight with the stable reading of the scale", async () => {
