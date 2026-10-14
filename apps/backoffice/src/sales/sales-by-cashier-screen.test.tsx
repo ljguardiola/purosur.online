@@ -137,7 +137,7 @@ test("names the cashier with the most sales in the report, whatever order the ta
   const screen = await renderScreen(createServices(), {
     filters: salesByCashierFilters.parse({ sortBy: "amount", sort: "descending" }),
   });
-  await expect.element(screen.getByText("Más ventas")).toBeVisible();
+  await expect.element(screen.getByRole("table").getByText("Beto")).toBeVisible();
 
   await expect.element(screen.getByText("40 ventas")).toBeVisible();
   expect(shownCashiers(screen)[0]).toBe("Beto");
@@ -157,7 +157,7 @@ test("counts a single sale as 1 venta", async () => {
 
 test("opens on the cashier with the most sales first", async () => {
   const screen = await renderScreen(createServices());
-  await expect.element(screen.getByText("Más ventas")).toBeVisible();
+  await expect.element(screen.getByRole("table").getByText("Beto")).toBeVisible();
 
   expect(shownCashiers(screen)).toEqual(["Ana", "Beto", "Sin identificar"]);
 });
@@ -173,7 +173,7 @@ test.each([
   const screen = await renderScreen(createServices(), {
     filters: salesByCashierFilters.parse(order),
   });
-  await expect.element(screen.getByText("Más ventas")).toBeVisible();
+  await expect.element(screen.getByRole("table").getByText("Beto")).toBeVisible();
 
   expect(shownCashiers(screen)).toEqual(cashiers);
 });
@@ -188,7 +188,7 @@ test.each([
   async (header, order) => {
     const onFiltersChange = vi.fn();
     const screen = await renderScreen(createServices(), { onFiltersChange });
-    await expect.element(screen.getByText("Más ventas")).toBeVisible();
+    await expect.element(screen.getByRole("table").getByText("Beto")).toBeVisible();
 
     await userEvent.click(
       screen.getByRole("table").getByRole("button", { name: header, exact: true }),
@@ -201,7 +201,7 @@ test.each([
 test("reports the opposite direction when the column it is ordered by is pressed again", async () => {
   const onFiltersChange = vi.fn();
   const screen = await renderScreen(createServices(), { onFiltersChange });
-  await expect.element(screen.getByText("Más ventas")).toBeVisible();
+  await expect.element(screen.getByRole("table").getByText("Beto")).toBeVisible();
 
   await userEvent.click(
     screen.getByRole("table").getByRole("button", { name: "Ventas", exact: true }),
@@ -241,7 +241,7 @@ test("asks the cloud for the range and the register the URL names", async () => 
 test("asks the cloud again for the register chosen in the filters", async () => {
   const services = createServices();
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Más ventas")).toBeVisible();
+  await expect.element(screen.getByRole("table").getByText("Beto")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Caja principal" }));
@@ -254,7 +254,7 @@ test("asks the cloud again for the register chosen in the filters", async () => 
 test("keeps the previous rows, marked as updating, while another register loads", async () => {
   const services = createServices();
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Más ventas")).toBeVisible();
+  await expect.element(screen.getByRole("table").getByText("Beto")).toBeVisible();
   vi.mocked(services.fetchSalesByCashier).mockReturnValue(new Promise(() => {}));
 
   await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
@@ -345,7 +345,7 @@ test("navigates to Mi cuenta when the report request comes back forbidden", asyn
 
 test("shows every cashier on one page, with no pages and no export", async () => {
   const screen = await renderScreen(createServices());
-  await expect.element(screen.getByText("Más ventas")).toBeVisible();
+  await expect.element(screen.getByRole("table").getByText("Beto")).toBeVisible();
 
   expect(screen.getByRole("navigation", { name: /Páginas/ }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Exportar" }).query()).toBeNull();
