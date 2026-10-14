@@ -44,6 +44,42 @@ describe("salesDeniedReportOf", () => {
   });
 });
 
+describe("salesDeniedReportOf with a storage stop", () => {
+  it("reports a register short of disk space at startup as unable to sell, and why", () => {
+    expect(salesDeniedReportOf({ stopped: false }, "short_at_startup")).toEqual({
+      sales_denied: true,
+      sales_denied_reason: "disk_space_short_at_startup",
+    });
+  });
+
+  it("reports a register whose disk is full as unable to sell, and why", () => {
+    expect(salesDeniedReportOf({ stopped: false }, "disk_full")).toEqual({
+      sales_denied: true,
+      sales_denied_reason: "disk_full",
+    });
+  });
+
+  it("reports that a register with no storage stop can sell", () => {
+    expect(salesDeniedReportOf({ stopped: false }, undefined)).toEqual({ sales_denied: false });
+  });
+
+  it("keeps the reason of a persisted stop over a storage stop", () => {
+    expect(
+      salesDeniedReportOf({ stopped: true, reason: "event_history_broken" }, "disk_full"),
+    ).toEqual({ sales_denied: true, sales_denied_reason: "event_history_broken" });
+  });
+
+  it("reports nothing of a revoked installation, whatever the storage stop", () => {
+    expect(
+      salesDeniedReportOf({ stopped: true, reason: "installation_revoked" }, "short_at_startup"),
+    ).toEqual({});
+  });
+
+  it("reports nothing of a stop with no recorded reason, whatever the storage stop", () => {
+    expect(salesDeniedReportOf({ stopped: true, reason: undefined }, "disk_full")).toEqual({});
+  });
+});
+
 describe("SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE", () => {
   it("reports that a register whose local database is damaged can't sell, and why", () => {
     expect(SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE).toEqual({
