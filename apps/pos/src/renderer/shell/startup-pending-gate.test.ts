@@ -6,6 +6,9 @@ const NOTHING: StartupPending = {
   sales_to_print: [],
   unknown_fiscal_documents: [],
   pending_payments: [],
+  paid_orders_without_sale: [],
+  paid_order_discovery: "checked",
+  selling_blocked: false,
 };
 const A_SALE_TO_PRINT: StartupPending = {
   ...NOTHING,

@@ -665,6 +665,35 @@ describe("the installation's revocation", () => {
   });
 });
 
+describe("a paid order without a sale", () => {
+  function recordPaidOrder(resolvedAt: string | null): void {
+    database
+      .prepare(
+        `INSERT INTO paid_orders_without_sale (
+           payment_transaction_id, sale_id, method, provider, amount, created_at, recorded_at, resolved_at
+         ) VALUES ('payment-1', 'sale-gone', 'QR', 'MERCADOPAGO_QR', 5000,
+                   '2026-09-30T10:00:00.000Z', '2026-09-30T11:00:00.000Z', ?)`,
+      )
+      .run(resolvedAt);
+  }
+
+  it("is none on a register that holds no paid order without a sale", () => {
+    expect(ledger.transaction((tx) => tx.paidOrderWithoutSaleUnresolved())).toBe(false);
+  });
+
+  it("is unresolved until it is converted into a refund", () => {
+    recordPaidOrder(null);
+
+    expect(ledger.transaction((tx) => tx.paidOrderWithoutSaleUnresolved())).toBe(true);
+  });
+
+  it("is no longer unresolved once resolved", () => {
+    recordPaidOrder("2026-09-30T11:30:00.000Z");
+
+    expect(ledger.transaction((tx) => tx.paidOrderWithoutSaleUnresolved())).toBe(false);
+  });
+});
+
 describe("the buyer-identification thresholds", () => {
   it("are none until the register receives one", () => {
     expect(ledger.transaction((tx) => tx.buyerIdentificationThresholds())).toEqual([]);

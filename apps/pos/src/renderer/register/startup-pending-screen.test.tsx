@@ -35,6 +35,9 @@ const NOTHING: StartupPending = {
   sales_to_print: [],
   unknown_fiscal_documents: [],
   pending_payments: [],
+  paid_orders_without_sale: [],
+  paid_order_discovery: "checked",
+  selling_blocked: false,
 };
 const NEVER_PRINTED: StartupPending["sales_to_print"][number] = {
   sale_id: "sale-1",
@@ -222,6 +225,9 @@ describe("StartupPendingScreen", () => {
       loadStartupPending: async () => ({
         ...NOTHING,
         pending_payments: [QR_PAYMENT, POINT_PAYMENT],
+        paid_orders_without_sale: [],
+        paid_order_discovery: "checked",
+        selling_blocked: false,
       }),
     });
 
@@ -246,6 +252,9 @@ describe("StartupPendingScreen", () => {
         sales_to_print: [NEVER_PRINTED, OUTCOME_UNKNOWN],
         unknown_fiscal_documents: [UNKNOWN_DOCUMENT],
         pending_payments: [QR_PAYMENT],
+        paid_orders_without_sale: [],
+        paid_order_discovery: "checked",
+        selling_blocked: false,
       }),
     });
     const table = screen.getByRole("table", { name: "Pendientes" });
@@ -580,6 +589,9 @@ describe("StartupPendingScreen", () => {
         sales_to_print: [NEVER_PRINTED, OUTCOME_UNKNOWN],
         unknown_fiscal_documents: [UNKNOWN_DOCUMENT],
         pending_payments: [QR_PAYMENT, POINT_PAYMENT],
+        paid_orders_without_sale: [],
+        paid_order_discovery: "checked",
+        selling_blocked: false,
       }),
     });
     await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();

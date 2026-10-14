@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { PaidOrderDiscoveryState } from "../payments/paid-order-discovery-wiring";
 import { seedChargeRegister } from "../payments/test-support/mercado-pago-charge-requests";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -13,6 +14,7 @@ const NOW = new Date("2026-10-13T12:00:00.000Z");
 
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
+let discoveryState: PaidOrderDiscoveryState;
 
 function gate() {
   return createActionGate({
@@ -25,7 +27,11 @@ function gate() {
 }
 
 async function pendingOf() {
-  const answer = await startupPendingFor({ database, gate: gate() });
+  const answer = await startupPendingFor({
+    database,
+    gate: gate(),
+    paidOrderDiscovery: () => discoveryState,
+  });
   if (answer === "not_permitted") {
     throw new Error("test setup: the person may not sell");
   }
@@ -58,6 +64,7 @@ beforeEach(() => {
   seedChargeRegister(database);
   signedInPerson = createSignedInPerson();
   signedInPerson.set("u1");
+  discoveryState = "checked";
 });
 
 afterEach(() => {
@@ -70,6 +77,9 @@ describe("what a stopped register left pending", () => {
       sales_to_print: [],
       unknown_fiscal_documents: [],
       pending_payments: [],
+      paid_orders_without_sale: [],
+      paid_order_discovery: "checked",
+      selling_blocked: false,
     });
   });
 
@@ -141,10 +151,57 @@ describe("what a stopped register left pending", () => {
     ]);
   });
 
+  it("lists the paid orders without a sale not yet converted into a refund, and blocks selling", async () => {
+    database.exec(
+      `INSERT INTO paid_orders_without_sale (payment_transaction_id, sale_id, method, provider, amount, created_at, recorded_at, resolved_at)
+       VALUES ('order-1', 'sale-gone', 'QR', 'MERCADOPAGO_QR', 5000,
+               '2026-10-13T10:00:00.000Z', '2026-10-13T11:00:00.000Z', NULL),
+              ('order-2', 'sale-gone-too', 'POINT', 'MERCADOPAGO_POINT', 7000,
+               '2026-10-13T10:30:00.000Z', '2026-10-13T11:00:00.000Z', '2026-10-13T11:30:00.000Z')`,
+    );
+
+    const pending = await pendingOf();
+
+    expect(pending.paid_orders_without_sale).toEqual([
+      {
+        payment_transaction_id: "order-1",
+        sale_id: "sale-gone",
+        method: "QR",
+        amount: 5000,
+        created_at: "2026-10-13T10:00:00.000Z",
+      },
+    ]);
+    expect(pending.selling_blocked).toBe(true);
+  });
+
+  it("does not block selling once every paid order without a sale was converted", async () => {
+    database.exec(
+      `INSERT INTO paid_orders_without_sale (payment_transaction_id, sale_id, method, provider, amount, created_at, recorded_at, resolved_at)
+       VALUES ('order-2', 'sale-gone-too', 'POINT', 'MERCADOPAGO_POINT', 7000,
+               '2026-10-13T10:30:00.000Z', '2026-10-13T11:00:00.000Z', '2026-10-13T11:30:00.000Z')`,
+    );
+
+    const pending = await pendingOf();
+
+    expect(pending.paid_orders_without_sale).toEqual([]);
+    expect(pending.selling_blocked).toBe(false);
+  });
+
+  it.each(["pending", "deferred", "checked"] as const)(
+    "tells the paid-order check of this run is %s",
+    async (state) => {
+      discoveryState = state;
+
+      expect((await pendingOf()).paid_order_discovery).toBe(state);
+    },
+  );
+
   it("is refused while nobody is signed in", async () => {
     signedInPerson.clear();
 
-    expect(await startupPendingFor({ database, gate: gate() })).toBe("not_permitted");
+    expect(
+      await startupPendingFor({ database, gate: gate(), paidOrderDiscovery: () => discoveryState }),
+    ).toBe("not_permitted");
   });
 
   it("is refused to a person who may not sell", async () => {
@@ -152,6 +209,8 @@ describe("what a stopped register left pending", () => {
       "UPDATE role_permissions SET active = 0 WHERE permission_key = 'sell_and_charge'",
     );
 
-    expect(await startupPendingFor({ database, gate: gate() })).toBe("not_permitted");
+    expect(
+      await startupPendingFor({ database, gate: gate(), paidOrderDiscovery: () => discoveryState }),
+    ).toBe("not_permitted");
   });
 });

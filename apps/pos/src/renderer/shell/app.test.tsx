@@ -383,6 +383,9 @@ function coreAnswering(
         ? { kind: "unavailable" }
         : sales.abandonMercadoPagoCharge(paymentTransactionId);
     },
+    async convertPaidOrderIntoRefund() {
+      return { kind: "unavailable" };
+    },
     async closeCashSession(sessionId, countedCash) {
       closed.push([sessionId, countedCash]);
       return cashDrawer.closeCashSession === undefined
@@ -411,7 +414,14 @@ function coreAnswering(
     },
     async startupPending() {
       return cashDrawer.startupPending === undefined
-        ? { sales_to_print: [], unknown_fiscal_documents: [], pending_payments: [] }
+        ? {
+            sales_to_print: [],
+            unknown_fiscal_documents: [],
+            pending_payments: [],
+            paid_orders_without_sale: [],
+            paid_order_discovery: "checked",
+            selling_blocked: false,
+          }
         : cashDrawer.startupPending();
     },
     async cashBalance() {
@@ -1474,6 +1484,9 @@ describe("App", () => {
       ],
       unknown_fiscal_documents: [],
       pending_payments: [],
+      paid_orders_without_sale: [],
+      paid_order_discovery: "checked",
+      selling_blocked: false,
     };
 
     function lockedUntilResumed() {

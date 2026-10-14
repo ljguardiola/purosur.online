@@ -23,10 +23,21 @@ const PENDING_PAYMENT = {
   occurred_at: "2026-10-13T12:10:00.000Z",
 };
 
+const PAID_ORDER_WITHOUT_SALE = {
+  payment_transaction_id: "payment-2",
+  sale_id: "sale-4",
+  method: "POINT",
+  amount: 75000,
+  created_at: "2026-10-13T11:00:00.000Z",
+};
+
 const PENDING = {
   sales_to_print: [SALE_TO_PRINT],
   unknown_fiscal_documents: [UNKNOWN_FISCAL_DOCUMENT],
   pending_payments: [PENDING_PAYMENT],
+  paid_orders_without_sale: [PAID_ORDER_WITHOUT_SALE],
+  paid_order_discovery: "checked",
+  selling_blocked: true,
 };
 
 describe("startupPendingSchema", () => {
@@ -35,7 +46,14 @@ describe("startupPendingSchema", () => {
   });
 
   it("accepts a register that left nothing pending", () => {
-    const nothing = { sales_to_print: [], unknown_fiscal_documents: [], pending_payments: [] };
+    const nothing = {
+      sales_to_print: [],
+      unknown_fiscal_documents: [],
+      pending_payments: [],
+      paid_orders_without_sale: [],
+      paid_order_discovery: "checked",
+      selling_blocked: false,
+    };
 
     expect(startupPendingSchema.parse(nothing)).toEqual(nothing);
   });
@@ -56,6 +74,85 @@ describe("startupPendingSchema", () => {
         pending_payments: [{ ...PENDING_PAYMENT, method }],
       }).success,
     ).toBe(true);
+  });
+
+  it.each(["pending", "deferred", "checked"])("accepts the paid-order check being %s", (state) => {
+    expect(
+      startupPendingSchema.safeParse({ ...PENDING, paid_order_discovery: state }).success,
+    ).toBe(true);
+  });
+
+  it.each(["QR", "POINT"])("accepts a paid order without a sale paid by %s", (method) => {
+    expect(
+      startupPendingSchema.safeParse({
+        ...PENDING,
+        paid_orders_without_sale: [{ ...PAID_ORDER_WITHOUT_SALE, method }],
+      }).success,
+    ).toBe(true);
+  });
+
+  it.each([
+    ["a list of paid orders without a sale", { ...PENDING, paid_orders_without_sale: undefined }],
+    ["the state of the paid-order check", { ...PENDING, paid_order_discovery: undefined }],
+    ["whether selling is blocked", { ...PENDING, selling_blocked: undefined }],
+    [
+      "the payment of a paid order without a sale",
+      {
+        ...PENDING,
+        paid_orders_without_sale: [
+          { ...PAID_ORDER_WITHOUT_SALE, payment_transaction_id: undefined },
+        ],
+      },
+    ],
+    [
+      "the sale of a paid order without a sale",
+      {
+        ...PENDING,
+        paid_orders_without_sale: [{ ...PAID_ORDER_WITHOUT_SALE, sale_id: undefined }],
+      },
+    ],
+    [
+      "the method of a paid order without a sale",
+      {
+        ...PENDING,
+        paid_orders_without_sale: [{ ...PAID_ORDER_WITHOUT_SALE, method: undefined }],
+      },
+    ],
+    [
+      "the amount of a paid order without a sale",
+      {
+        ...PENDING,
+        paid_orders_without_sale: [{ ...PAID_ORDER_WITHOUT_SALE, amount: undefined }],
+      },
+    ],
+    [
+      "the time of a paid order without a sale",
+      {
+        ...PENDING,
+        paid_orders_without_sale: [{ ...PAID_ORDER_WITHOUT_SALE, created_at: undefined }],
+      },
+    ],
+  ])("rejects it without %s", (_field, pending) => {
+    expect(startupPendingSchema.safeParse(pending).success).toBe(false);
+  });
+
+  it.each([
+    ["a paid order paid by cash", { ...PAID_ORDER_WITHOUT_SALE, method: "CASH" }],
+    ["a paid order of nothing", { ...PAID_ORDER_WITHOUT_SALE, amount: 0 }],
+    [
+      "a paid order of an amount that is not a whole number",
+      { ...PAID_ORDER_WITHOUT_SALE, amount: 1.5 },
+    ],
+  ])("rejects %s", (_name, paidOrder) => {
+    expect(
+      startupPendingSchema.safeParse({ ...PENDING, paid_orders_without_sale: [paidOrder] }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a state of the paid-order check it does not know", () => {
+    expect(
+      startupPendingSchema.safeParse({ ...PENDING, paid_order_discovery: "skipped" }).success,
+    ).toBe(false);
   });
 
   it.each([

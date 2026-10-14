@@ -58,6 +58,9 @@ const NOTHING_PENDING: StartupPending = {
   sales_to_print: [],
   unknown_fiscal_documents: [],
   pending_payments: [],
+  paid_orders_without_sale: [],
+  paid_order_discovery: "checked",
+  selling_blocked: false,
 };
 const SALE_TO_PRINT_PENDING: StartupPending = {
   ...NOTHING_PENDING,

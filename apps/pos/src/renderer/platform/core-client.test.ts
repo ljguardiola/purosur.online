@@ -596,6 +596,28 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to convert a paid order without a sale into a refund and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.convertPaidOrderIntoRefund("019a0000-0000-7000-8000-0000000000a1");
+    port.answer({
+      type: "convert-paid-order-into-refund-result",
+      request_id: "request-1",
+      outcome: { kind: "converted" },
+    });
+
+    expect(await outcome).toEqual({ kind: "converted" });
+    expect(port.posted).toEqual([
+      {
+        type: "convert-paid-order-into-refund",
+        request_id: "request-1",
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
+      },
+    ]);
+  });
+
   it("asks the core how a Mercado Pago QR charge is going and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -1546,6 +1568,9 @@ describe("createCoreClient", () => {
       ],
       unknown_fiscal_documents: [],
       pending_payments: [],
+      paid_orders_without_sale: [],
+      paid_order_discovery: "checked",
+      selling_blocked: false,
     };
 
     const asked = client.startupPending();
