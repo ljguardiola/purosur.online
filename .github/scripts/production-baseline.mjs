@@ -7,6 +7,7 @@ import { buildHealthUrl, fetchHealth, MAX_REQUEST_TIMEOUT_MS } from "./verify-cl
 
 const LOG_PREFIX = "production-baseline";
 const SHA_RE = /^[0-9a-f]{40}$/;
+export const DEPLOYMENT_LIST_LIMIT = 1000;
 
 function reportedVersion(health) {
   const version =
