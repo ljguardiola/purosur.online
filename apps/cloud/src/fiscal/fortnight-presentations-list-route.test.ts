@@ -12,7 +12,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { registerFortnightPresentationsListRoute } from "./fortnight-presentations-list-route.js";
-import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
+import { configureOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
 
 const DECEMBER_SECOND_HALF = { start: "2025-12-16", end: "2025-12-31" };
 const OFFLINE_POINT_OF_SALE = 8;
@@ -92,7 +92,12 @@ describe("GET /registers/fortnight-presentations", () => {
   });
 
   it("lists the session's branch presentations with their state and deadline, and none of another branch's", async () => {
-    const registerId = await seedOfflinePointOfSale(db);
+    const registerId = await configureOfflinePointOfSale(db, {
+      registerName: "caja-1",
+      realTimePointOfSale: 7,
+      offlinePointOfSale: OFFLINE_POINT_OF_SALE,
+      now: SESSION_NOON,
+    });
     await keepDecemberCode(OFFLINE_POINT_OF_SALE);
     await new DrizzleFortnightReportStore(db).holdReport(
       { pointOfSaleNumber: OFFLINE_POINT_OF_SALE, fortnight: DECEMBER_SECOND_HALF },

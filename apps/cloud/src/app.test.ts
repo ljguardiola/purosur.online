@@ -2717,6 +2717,11 @@ describe("the route access inventory", () => {
         access: capabilityAccess("cash_area"),
       },
       {
+        method: "GET",
+        url: "/api/registers/fortnight-presentations",
+        access: capabilityAccess("cash_area"),
+      },
+      {
         method: "PUT",
         url: "/api/registers/:id/point-of-sale",
         access: capabilityAccess("cash_area"),
