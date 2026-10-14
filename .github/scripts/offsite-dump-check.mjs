@@ -294,12 +294,13 @@ export async function runCli({
 }
 
 if (import.meta.main) {
-  const postgresImage = readPostgresImage(
-    readFileSync(new URL("../../docker-compose.yml", import.meta.url), "utf8"),
-  );
   runCli({
-    decryptAndList: ({ identityPath, dumpPath }) =>
-      runPipeline(restoreListCommands({ identityPath, postgresImage }), dumpPath),
+    decryptAndList: ({ identityPath, dumpPath }) => {
+      const postgresImage = readPostgresImage(
+        readFileSync(new URL("../../docker-compose.yml", import.meta.url), "utf8"),
+      );
+      return runPipeline(restoreListCommands({ identityPath, postgresImage }), dumpPath);
+    },
   }).then(
     (exitCode) => process.exit(exitCode),
     (error) => {

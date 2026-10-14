@@ -79,7 +79,7 @@ describe("dumpToFile", () => {
   it("does not leave the command's arguments in its failure message", async () => {
     const failing = {
       file: process.execPath,
-      args: ["-e", "process.exit(1)", "--", "--dbname=postgresql://u:s3cret@host/db"],
+      args: ["-e", "process.exit(1)", "--", "--dbname=postgresql://offsite_dump:s3cret@host/db"],
     };
 
     const failure = await dumpToFile({ dump: failing, encrypt: UPPERCASE }, join(directory, "out"))

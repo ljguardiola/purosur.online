@@ -1,0 +1,57 @@
+name: Check the nightly offsite dump
+
+# The dump runs at 06:00 UTC (.railway/railway.ts); this finds it four hours later, well before the
+# 15:00 UTC deadline after which the cloud raises an alert for a night nobody verified.
+on:
+  schedule:
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: offsite-dump-check
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    # The Postgres image the check lists the archive with is private on ghcr.io.
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+
+      - name: Install age
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends age
+
+      - name: Sign in to ghcr.io and pull the Postgres image
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker pull "$(sed -n 's/^ *image: *\(.*postgres.*\)$/\1/p' docker-compose.yml)"
+
+      - name: Check the dump and report it to the cloud
+        env:
+          OFFSITE_DUMP_AGE_IDENTITY: ${{ secrets.OFFSITE_DUMP_AGE_IDENTITY }}
+          OFFSITE_DUMP_READ_ACCESS_KEY_ID: ${{ secrets.OFFSITE_DUMP_READ_ACCESS_KEY_ID }}
+          OFFSITE_DUMP_READ_SECRET_ACCESS_KEY: ${{ secrets.OFFSITE_DUMP_READ_SECRET_ACCESS_KEY }}
+          OFFSITE_DUMP_CHECK_TOKEN: ${{ secrets.OFFSITE_DUMP_CHECK_TOKEN }}
+          OFFSITE_DUMP_BUCKET_ENDPOINT: ${{ vars.OFFSITE_DUMP_BUCKET_ENDPOINT }}
+          OFFSITE_DUMP_BUCKET_NAME: ${{ vars.OFFSITE_DUMP_BUCKET_NAME }}
+          OFFSITE_DUMP_BUCKET_REGION: ${{ vars.OFFSITE_DUMP_BUCKET_REGION }}
+          OFFSITE_DUMP_CHECK_CLOUD_ORIGIN: ${{ vars.OFFSITE_DUMP_CHECK_CLOUD_ORIGIN }}
+        run: node .github/scripts/offsite-dump-check.mjs
