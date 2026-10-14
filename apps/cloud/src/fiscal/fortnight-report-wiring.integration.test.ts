@@ -144,6 +144,24 @@ describe("the fortnight report the server sets up on a real Postgres", () => {
     expect(fakeWsfe.requests[1]).toContain("FICTIONAL-TOKEN-0001");
   }, 90_000);
 
+  it("declares the closed fortnight when no event reaches past its close but the register was caught up after it", async () => {
+    await sql`delete from inbox`;
+    await sql`delete from register_installations`;
+    const deviceId = await syncEventOccurringAt("2026-10-15T20:00:00.000Z");
+    await sql`insert into device_state (device_id, caught_up_at)
+              values (${deviceId}, ${"2026-10-16T09:00:00.000Z"}::timestamptz)`;
+    fakeWsfe.behave(
+      answersInTurn(
+        "fe-caea-sin-movimiento-consultar-not-held.xml",
+        "fe-caea-sin-movimiento-informar-accepted.xml",
+      ),
+    );
+
+    await reportOnDemand(2);
+
+    expect(await sql`select state from fortnight_reports`).toEqual([{ state: "accepted" }]);
+  }, 90_000);
+
   it("records the fortnight as blocked and never declares it while no event reaches past its close", async () => {
     await sql`delete from inbox`;
     await sql`delete from register_installations`;

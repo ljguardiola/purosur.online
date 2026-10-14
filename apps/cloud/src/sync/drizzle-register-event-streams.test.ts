@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { deviceState } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleRegisterEventStreams } from "./drizzle-register-event-streams.js";
@@ -36,7 +37,7 @@ describe("DrizzleRegisterEventStreams.installationsOf", () => {
     const { registerId } = await insertEnrolledInstallation(db, { now: NOW });
 
     expect(await new DrizzleRegisterEventStreams(db).installationsOf(registerId)).toEqual([
-      { enrolledAt: A_DAY_BEFORE, revokedAt: null, latestOccurredAt: null },
+      { enrolledAt: A_DAY_BEFORE, revokedAt: null, latestOccurredAt: null, caughtUpAt: null },
     ]);
   });
 
@@ -48,7 +49,17 @@ describe("DrizzleRegisterEventStreams.installationsOf", () => {
     await insertInboxEvent(db, deviceId, { occurredAt: new Date("2026-10-15T22:00:00.000Z") });
 
     expect(await new DrizzleRegisterEventStreams(db).installationsOf(registerId)).toEqual([
-      { enrolledAt: A_DAY_BEFORE, revokedAt: null, latestOccurredAt: latest },
+      { enrolledAt: A_DAY_BEFORE, revokedAt: null, latestOccurredAt: latest, caughtUpAt: null },
+    ]);
+  });
+
+  it("answers the moment the installation was last caught up", async () => {
+    const { registerId, deviceId } = await insertEnrolledInstallation(db, { now: NOW });
+    const caughtUpAt = new Date("2026-10-16T08:00:00.000Z");
+    await db.insert(deviceState).values({ deviceId, caughtUpAt });
+
+    expect(await new DrizzleRegisterEventStreams(db).installationsOf(registerId)).toEqual([
+      { enrolledAt: A_DAY_BEFORE, revokedAt: null, latestOccurredAt: null, caughtUpAt },
     ]);
   });
 
@@ -71,8 +82,13 @@ describe("DrizzleRegisterEventStreams.installationsOf", () => {
     expect(installations).toHaveLength(2);
     expect(installations).toEqual(
       expect.arrayContaining([
-        { enrolledAt: A_DAY_BEFORE, revokedAt, latestOccurredAt: revokedLatest },
-        { enrolledAt: A_DAY_BEFORE, revokedAt: null, latestOccurredAt: activeLatest },
+        { enrolledAt: A_DAY_BEFORE, revokedAt, latestOccurredAt: revokedLatest, caughtUpAt: null },
+        {
+          enrolledAt: A_DAY_BEFORE,
+          revokedAt: null,
+          latestOccurredAt: activeLatest,
+          caughtUpAt: null,
+        },
       ]),
     );
   });
@@ -83,7 +99,7 @@ describe("DrizzleRegisterEventStreams.installationsOf", () => {
     await insertInboxEvent(db, other.deviceId);
 
     expect(await new DrizzleRegisterEventStreams(db).installationsOf(registerId)).toEqual([
-      { enrolledAt: A_DAY_BEFORE, revokedAt: null, latestOccurredAt: null },
+      { enrolledAt: A_DAY_BEFORE, revokedAt: null, latestOccurredAt: null, caughtUpAt: null },
     ]);
   });
 });

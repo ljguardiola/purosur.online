@@ -93,4 +93,40 @@ describe("the fortnight reports migration applied over a database that already h
       client.query(insertReport("blocked", { start: "2026-09-16", end: "2026-09-30" })),
     ).rejects.toThrow();
   });
+
+  it("keeps what an installation reported and leaves it not caught up", async () => {
+    const database = await databaseBeforeMigration("_fortnight_reports");
+    const { rows: locationRows } = await database.query<{ id: string }>(
+      "select id from locations limit 1",
+    );
+    const { rows: registerRows } = await database.query<{ id: string }>(
+      "insert into registers (location_id, name) values ($1, 'Caja 1') returning id",
+      [locationRows[0]?.id],
+    );
+    const { rows: installationRows } = await database.query<{ id: string }>(
+      `insert into register_installations
+         (register_id, token_lookup_prefix, token_hash, token_issued_at, hostname, windows_version,
+          enrolled_at)
+       values ($1, 'prefix', 'hash', now(), 'CAJA', 'Windows 11', now()) returning id`,
+      [registerRows[0]?.id],
+    );
+    await database.query(
+      `insert into device_state (device_id, app_version, reports_every_cycle_since)
+       values ($1, '1.4.0', '2026-10-06T12:00:00Z')`,
+      [installationRows[0]?.id],
+    );
+
+    const migrated = await database.applyMigration();
+
+    const { rows } = await migrated.query<Record<string, unknown>>(
+      "select app_version, reports_every_cycle_since, caught_up_at from device_state",
+    );
+    expect(rows).toEqual([
+      {
+        app_version: "1.4.0",
+        reports_every_cycle_since: new Date("2026-10-06T12:00:00Z"),
+        caught_up_at: null,
+      },
+    ]);
+  });
 });
