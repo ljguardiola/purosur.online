@@ -23,7 +23,7 @@ export function fortnightReportDeadline(
   taxAuthorityDeadline: string,
 ): string {
   const eighthDay = shiftCalendarDay(fortnight.end, DAYS_TO_REPORT_AFTER_CLOSE);
-  return taxAuthorityDeadline < eighthDay ? taxAuthorityDeadline : eighthDay;
+  return [taxAuthorityDeadline, eighthDay].sort()[0] ?? eighthDay;
 }
 
 export function fortnightReportStanding(
