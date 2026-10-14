@@ -1,4 +1,3 @@
-import { fortnightClosesAt } from "@purosur/domain";
 import type {
   FortnightReportChange,
   FortnightReportKey,
@@ -7,9 +6,10 @@ import type {
   OwedFortnightReport,
   RecordedFortnightReport,
 } from "@purosur/domain/fiscal/use-cases";
-import { and, eq, lt, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { caeaCodes, fortnightReports, pointOfSaleClaims } from "../platform/db/schema.js";
+import { fortnightReports } from "../platform/db/schema.js";
+import { owedFortnightReportsWithState } from "./owed-fortnight-reports.js";
 
 const STATES_THAT_ARE_AN_ATTEMPT = new Set<FortnightReportChange["state"]>([
   "submitting",
@@ -81,42 +81,8 @@ export class DrizzleFortnightReportStore<TQueryResult extends PgQueryResultHKT>
   }
 
   async owedReports(today: string): Promise<OwedFortnightReport[]> {
-    const codes = await this.db.select().from(caeaCodes).where(lt(caeaCodes.fortnightEnd, today));
-    const claims = await this.db
-      .select({
-        pointOfSaleNumber: pointOfSaleClaims.pointOfSaleNumber,
-        registerId: pointOfSaleClaims.registerId,
-        claimedAt: pointOfSaleClaims.claimedAt,
-      })
-      .from(pointOfSaleClaims)
-      .where(eq(pointOfSaleClaims.mechanism, "offline"));
-    const accepted = await this.db
-      .select({
-        pointOfSaleNumber: fortnightReports.pointOfSaleNumber,
-        fortnightStart: fortnightReports.fortnightStart,
-      })
-      .from(fortnightReports)
-      .where(eq(fortnightReports.state, "accepted"));
-    const isAccepted = new Set(
-      accepted.map(
-        ({ pointOfSaleNumber, fortnightStart }) => `${pointOfSaleNumber}:${fortnightStart}`,
-      ),
-    );
-
-    return codes.flatMap((code) => {
-      const fortnight = { start: code.fortnightStart, end: code.fortnightEnd };
-      const closesAt = fortnightClosesAt(fortnight);
-      return claims
-        .filter(
-          ({ pointOfSaleNumber, claimedAt }) =>
-            claimedAt < closesAt && !isAccepted.has(`${pointOfSaleNumber}:${fortnight.start}`),
-        )
-        .map(({ pointOfSaleNumber, registerId }) => ({
-          pointOfSaleNumber,
-          registerId,
-          code: { code: code.code, fortnight, reportDeadline: code.reportDeadline },
-        }));
-    });
+    const owed = await owedFortnightReportsWithState(this.db, today);
+    return owed.map(({ owed: report }) => report);
   }
 
   async holdReport<TOutcome>(
