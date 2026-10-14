@@ -1,5 +1,6 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { type Locator, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
@@ -273,7 +274,15 @@ function ReloadingModal({
   services: AssignPointTerminalModalServices;
   changed: RegisterSummary;
 }) {
-  return modalElement({ services, reload: () => reloaded(changed) });
+  const [target, setTarget] = useState(assigned);
+  return modalElement({
+    target,
+    services,
+    reload: () => {
+      setTarget(changed);
+      return reloaded(changed);
+    },
+  });
 }
 
 test("shows a stale-version notice, and Recargar reads the data again so the second save sends the new version", async () => {
