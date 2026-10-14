@@ -87,6 +87,9 @@ export function runOfCommit(runs, sha) {
   return Math.max(...numbers);
 }
 
+export const registerReleaseNotes = () => undefined;
+export const recordHardwareTest = () => undefined;
+
 function parseRuns(text) {
   let runs;
   try {
