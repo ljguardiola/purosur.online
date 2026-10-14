@@ -6,7 +6,7 @@ import {
   linkablePurchaseListSchema,
   linkablePurchasesQuerySchema,
 } from "@purosur/contracts";
-import { freightPeriodStart } from "@purosur/domain";
+import { argentinaCalendarDay, freightPeriodStart } from "@purosur/domain";
 import {
   type EditFreightOutcome,
   editFreight,
@@ -116,7 +116,9 @@ export function registerFreightsRoutes<TQueryResult extends PgQueryResultHKT>(
       since: freightPeriodStart(query.period, now()),
       ...(query.freightId === undefined ? {} : { freightId: query.freightId }),
     });
-    await reply.code(200).send(linkablePurchaseListSchema.parse(purchases));
+    await reply
+      .code(200)
+      .send(linkablePurchaseListSchema.parse({ purchases, today: argentinaCalendarDay(now()) }));
   });
 
   app.post("/freights", writeGuard, async (request, reply) => {

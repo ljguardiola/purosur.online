@@ -1,4 +1,4 @@
-import { RECEIPT_TYPES } from "@purosur/domain";
+import { isCalendarDay, RECEIPT_TYPES } from "@purosur/domain";
 import { z } from "zod";
 
 export const linkablePurchaseSummarySchema = z.object({
@@ -10,6 +10,9 @@ export const linkablePurchaseSummarySchema = z.object({
   valueCents: z.int().nonnegative(),
 });
 
-export const linkablePurchaseListSchema = z.array(linkablePurchaseSummarySchema);
+export const linkablePurchaseListSchema = z.object({
+  purchases: z.array(linkablePurchaseSummarySchema),
+  today: z.string().refine(isCalendarDay),
+});
 
 export type LinkablePurchaseSummary = z.output<typeof linkablePurchaseSummarySchema>;

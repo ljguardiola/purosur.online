@@ -1,20 +1,11 @@
-import {
-  DEFAULT_FREIGHT_PERIOD_DAYS,
-  FREIGHT_DESCRIPTION_MAX_LENGTH,
-  FREIGHT_PERIOD_DAYS,
-  isFreightDescriptionTooLong,
-} from "@purosur/domain";
+import { FREIGHT_DESCRIPTION_MAX_LENGTH, isFreightDescriptionTooLong } from "@purosur/domain";
 import { z } from "zod";
 import { recordIdSchema } from "../shared/index.js";
+import { freightPeriodSchema } from "./freight-period.js";
 import { optionalLimitedTextSchema } from "./optional-text.js";
 
-const periodSchema = z.coerce
-  .number()
-  .pipe(z.literal(FREIGHT_PERIOD_DAYS))
-  .default(DEFAULT_FREIGHT_PERIOD_DAYS);
-
 export const freightListQuerySchema = z.object({
-  period: periodSchema,
+  period: freightPeriodSchema,
   search: optionalLimitedTextSchema(
     "search",
     FREIGHT_DESCRIPTION_MAX_LENGTH,
@@ -23,6 +14,6 @@ export const freightListQuerySchema = z.object({
 });
 
 export const linkablePurchasesQuerySchema = z.object({
-  period: periodSchema,
+  period: freightPeriodSchema,
   freightId: recordIdSchema("freightId must be a freight's id").optional(),
 });

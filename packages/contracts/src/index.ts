@@ -216,6 +216,8 @@ export type { PriceSetBody } from "./pricing/price-set.js";
 export { priceSetBodySchema } from "./pricing/price-set.js";
 export type { FreightBody } from "./purchasing/freight-body.js";
 export { freightBodySchema } from "./purchasing/freight-body.js";
+export type { FreightPeriod } from "./purchasing/freight-period.js";
+export { freightPeriodDaysSchema, freightPeriodSchema } from "./purchasing/freight-period.js";
 export {
   freightListQuerySchema,
   linkablePurchasesQuerySchema,
