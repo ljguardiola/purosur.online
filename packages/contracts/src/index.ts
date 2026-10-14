@@ -4,6 +4,8 @@ export type { AlertListPage, AlertSummary } from "./alerts/alert-summary.js";
 export { alertListPageSchema, alertSummarySchema } from "./alerts/alert-summary.js";
 export type { AlertsOverview } from "./alerts/alerts-overview.js";
 export { alertsOverviewSchema } from "./alerts/alerts-overview.js";
+export type { OffsiteDumpCheckReport } from "./backups/offsite-dump-check-report.js";
+export { offsiteDumpCheckReportSchema } from "./backups/offsite-dump-check-report.js";
 export type { BranchSettingsEditBody } from "./branch/branch-settings-edit.js";
 export { branchSettingsEditBodySchema } from "./branch/branch-settings-edit.js";
 export type { BrandCreationBody } from "./catalog/brand-creation.js";

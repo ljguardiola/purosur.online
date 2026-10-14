@@ -3,6 +3,7 @@ import {
   type AlertKind,
   ARGENTINA_TIME_ZONE,
   FACTURA_C_DOCUMENT_TYPE,
+  OFFSITE_DUMP_UNVERIFIED_REASONS,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   REJECTION_CLASSES,
   SALES_DENIED_REASONS,
@@ -177,6 +178,11 @@ const outboxChainBrokenDetailSchema = z.object({
   deviceId: z.string(),
 });
 
+const offsiteDumpUnverifiedDetailSchema = z.object({
+  night: z.string(),
+  reason: z.enum(OFFSITE_DUMP_UNVERIFIED_REASONS),
+});
+
 const lotsExpiringDetailSchema = z.object({
   lotCount: z.int(),
   windowDays: z.int(),
@@ -305,6 +311,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("lots_expiring" satisfies AlertKind),
     detail: lotsExpiringDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("offsite_dump_unverified" satisfies AlertKind),
+    detail: offsiteDumpUnverifiedDetailSchema,
   }),
 ] as const;
 
