@@ -81,7 +81,6 @@ export {
   fortnightContaining,
   fortnightsWithinRequestWindowOn,
   hasFortnightStarted,
-  isSecondHalfOfMonth,
   OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS,
   offlineAuthorizationCodePeriod,
   offlineAuthorizationCodeRequestOpensOn,
