@@ -886,6 +886,63 @@ describe("the ESC/POS receipt template", () => {
   });
 });
 
+describe("a factura C authorized by a pre-obtained code", () => {
+  const OFFLINE_QR_TEXT =
+    QR_URL + btoa(JSON.stringify({ ...QR_DATA, tipoCodAut: "A", codAut: 36251478963214 }));
+  const OFFLINE_BLOCK: Extract<NonNullable<ReceiptContent["fiscal"]>, { fortnight: unknown }> = {
+    invoiceClass: "C",
+    voucherTypeCode: FISCAL_BLOCK.voucherTypeCode,
+    issuer: FISCAL_BLOCK.issuer,
+    buyerTaxStatusDescription: FISCAL_BLOCK.buyerTaxStatusDescription,
+    pointOfSale: FISCAL_BLOCK.pointOfSale,
+    number: FISCAL_BLOCK.number,
+    authorizationCode: "36251478963214",
+    fortnight: { start: "2026-09-16", end: "2026-09-30" },
+    qrText: OFFLINE_QR_TEXT,
+  };
+  const OFFLINE_BODY = FISCAL_BODY.map((line) => {
+    if (line === `[qr store ${QR_TEXT}]`) {
+      return `[qr store ${OFFLINE_QR_TEXT}]`;
+    }
+    if (line.startsWith("[small]             CAE ")) {
+      return `[small]       CAEA 36251478963214  ·  Quincena 16 al 30/09/2026[/small]`;
+    }
+    return line;
+  });
+
+  it("lays out the voucher as any factura C, with the code and its fortnight in place of the authorization code and its due date", () => {
+    expect(printed(receipt({ fiscal: OFFLINE_BLOCK })).text).toBe(
+      [...FISCAL_HEAD, ...OFFLINE_BODY].join("\n"),
+    );
+  });
+
+  it("prints the first half of a month as the days 1 to 15", () => {
+    const { textLines } = printed(
+      receipt({
+        fiscal: { ...OFFLINE_BLOCK, fortnight: { start: "2026-10-01", end: "2026-10-15" } },
+      }),
+    );
+
+    expect(textLines).toContain(`${" ".repeat(8)}CAEA 36251478963214  ·  Quincena 1 al 15/10/2026`);
+  });
+
+  it("prints no buyer identification, no transparency legend, no line about VAT and no extra printout", () => {
+    const { textLines } = printed(receipt({ fiscal: OFFLINE_BLOCK }));
+
+    expect(
+      textLines.some((line) => /Importe neto|IVA|Transparencia|CUIT del cliente|DNI/i.test(line)),
+    ).toBe(false);
+    expect(textLines.filter((line) => line.includes("Comprobante autorizado"))).toHaveLength(1);
+    expect(textLines.filter((line) => line.includes("Gracias por tu compra"))).toHaveLength(1);
+  });
+
+  it("prints no row wider than the paper", () => {
+    for (const copy of [ORIGINAL, { kind: "duplicate", orderNumber: 12 } as const]) {
+      expect(rowsWithinThePaper(receipt({ fiscal: OFFLINE_BLOCK }), copy)).toBe(true);
+    }
+  });
+});
+
 describe("the ESC/POS receipt of a deferred sale", () => {
   const DEFERRED_BLOCK: DeferredSaleDocumentBlock = {
     invoiceClass: "X",

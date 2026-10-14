@@ -680,6 +680,13 @@
       "when": 1791979205076,
       "tag": "0100_freights",
       "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1791982149291,
+      "tag": "0101_offline_fiscal_documents",
+      "breakpoints": true
     }
   ]
 }

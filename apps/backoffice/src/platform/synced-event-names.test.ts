@@ -21,6 +21,10 @@ describe("the Spanish names of synced events", () => {
     );
   });
 
+  test("names a factura issued under a pre-obtained code", () => {
+    expect(syncedEventTypeName("offline_fiscal_document_issued")).toBe("factura emitida con CAEA");
+  });
+
   test("has no name for an unknown event type", () => {
     expect(syncedEventTypeName("something_new")).toBeUndefined();
   });

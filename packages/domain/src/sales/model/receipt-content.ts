@@ -4,8 +4,14 @@ import type {
   DeferredSaleDocumentBlock,
   DeferredSaleReference,
   FacturaCFiscalBlock,
+  OfflineAuthorizedFacturaC,
+  OfflineFacturaCFiscalBlock,
 } from "../../fiscal/index.js";
-import { deferredSaleDocumentBlock, facturaCFiscalBlock } from "../../fiscal/index.js";
+import {
+  deferredSaleDocumentBlock,
+  facturaCFiscalBlock,
+  offlineFacturaCFiscalBlock,
+} from "../../fiscal/index.js";
 import type { CompletedSalePayment } from "./completed-sale.js";
 import type { ManualAdjustmentValue } from "./manual-adjustment.js";
 import type { LinePromotion } from "./sale.js";
@@ -41,7 +47,8 @@ type ReceiptSourceFiscalDocument =
   | { kind: "none" }
   | { kind: "awaiting" }
   | { kind: "deferred"; deferred: DeferredSaleReference }
-  | { kind: "authorized"; authorized: AuthorizedFacturaC };
+  | { kind: "authorized"; authorized: AuthorizedFacturaC }
+  | { kind: "offline_authorized"; authorized: OfflineAuthorizedFacturaC };
 
 export interface ReceiptSource {
   header: ReceiptHeader;
@@ -82,7 +89,7 @@ export interface ReceiptContent {
     payments: { method: PaymentMethod; amount: number }[];
     change: number;
   };
-  fiscal: FacturaCFiscalBlock | DeferredSaleDocumentBlock | null;
+  fiscal: FacturaCFiscalBlock | OfflineFacturaCFiscalBlock | DeferredSaleDocumentBlock | null;
 }
 
 function receiptSaleDiscount(
@@ -148,6 +155,8 @@ function fiscalBlock(fiscal: ReceiptSourceFiscalDocument): ReceiptContent["fisca
   switch (fiscal.kind) {
     case "authorized":
       return facturaCFiscalBlock(fiscal.authorized);
+    case "offline_authorized":
+      return offlineFacturaCFiscalBlock(fiscal.authorized);
     case "deferred":
       return deferredSaleDocumentBlock(fiscal.deferred);
     case "none":

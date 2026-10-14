@@ -19,6 +19,7 @@ import { and, asc, eq, isNull, min, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openEventInvariantAlert } from "../alerts/event-invariant-alert.js";
 import { openQuarantinedEventAlert } from "../alerts/quarantined-event-alert.js";
+import { recordAppliedOfflineFiscalDocument } from "../fiscal/drizzle-applied-offline-fiscal-documents.js";
 import { recordAppliedQrPaymentReplacement } from "../payments/drizzle-applied-qr-payment-replacement.js";
 import { providerTransactionOfPayment } from "../payments/drizzle-provider-transactions.js";
 import { describeDatabaseFailure, errorCode } from "../platform/db/describe-database-failure.js";
@@ -144,6 +145,13 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
         return recordAppliedReprint(this.tx, await this.originOf(event), fact);
       case "qr_payment_replaced":
         return recordAppliedQrPaymentReplacement(
+          this.tx,
+          await this.originOf(event),
+          fact,
+          this.now(),
+        );
+      case "offline_fiscal_document_issued":
+        return recordAppliedOfflineFiscalDocument(
           this.tx,
           await this.originOf(event),
           fact,
