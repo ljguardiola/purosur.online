@@ -240,6 +240,7 @@ export {
 } from "./fiscal/index.js";
 export type {
   LatePaymentRefund,
+  LocalStateOfPaidOrder,
   MercadoPagoChargeInProgress,
   MercadoPagoOrderTransaction,
   MercadoPagoPaymentTransaction,
@@ -276,12 +277,15 @@ export {
   MERCADO_PAGO_POINT_ORDER_EXPIRY_MINUTES,
   MERCADO_PAGO_PROVIDERS,
   methodsCoveringRefundedSale,
+  PAID_ORDER_PAYMENT_STATE,
+  PAID_ORDER_REPLACED,
   PAYMENT_METHODS,
   PAYMENT_NOTIFICATION_LIMIT,
   PAYMENT_TRANSACTION_STATES,
   PENDING_PAYMENT_TRANSACTION_STATE,
   PLANNED_REFUND_STATES,
   POINT_TERMINAL_AVAILABILITIES,
+  paidOrderWithoutSaleBlocksSelling,
   pointTerminalAvailability,
   QR_AVAILABILITIES,
   qrAvailability,

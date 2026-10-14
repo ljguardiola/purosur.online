@@ -20,6 +20,7 @@ export type SaleAdditionRefusal =
   | { kind: "not_permitted" }
   | { kind: "no_open_session" }
   | { kind: "installation_revoked" }
+  | { kind: "paid_order_without_sale" }
   | { kind: "unavailable" }
   | { kind: "sale_has_payments" };
 
@@ -54,6 +55,9 @@ export function saleToAddTo(
   }
   if (!existing && tx.installationRevoked()) {
     return { kind: "installation_revoked" };
+  }
+  if (!existing && tx.paidOrderWithoutSaleUnresolved()) {
+    return { kind: "paid_order_without_sale" };
   }
   const target = existing ?? tx.registerIdentity();
   if (!target) {

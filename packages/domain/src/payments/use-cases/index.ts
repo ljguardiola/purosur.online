@@ -31,6 +31,12 @@ export type {
 } from "./confirm-mercado-pago-order-notification.js";
 export { confirmMercadoPagoOrderNotification } from "./confirm-mercado-pago-order-notification.js";
 export type {
+  ConvertPaidOrderIntoRefundInput,
+  ConvertPaidOrderIntoRefundOutcome,
+  ConvertPaidOrderIntoRefundPorts,
+} from "./convert-paid-order-into-refund.js";
+export { convertPaidOrderIntoRefund } from "./convert-paid-order-into-refund.js";
+export type {
   CreateMercadoPagoPointOrderInput,
   CreateMercadoPagoPointOrderOutcome,
 } from "./create-mercado-pago-point-order.js";
@@ -46,6 +52,8 @@ export type {
   DiscardRefundPorts,
 } from "./discard-refund.js";
 export { discardRefund } from "./discard-refund.js";
+export type { DiscoverPaidOrdersWithoutSaleOutcome } from "./discover-paid-orders-without-sale.js";
+export { discoverPaidOrdersWithoutSale } from "./discover-paid-orders-without-sale.js";
 export type {
   FollowedInterruptedMercadoPagoCharge,
   FollowInterruptedMercadoPagoChargesInput,
@@ -121,7 +129,14 @@ export type {
 export { openRegisterLatePaymentRefund } from "./open-register-late-payment-refund.js";
 export type {
   ApprovedOrderOfRegister,
+  ApprovedOrdersAnswer,
   ApprovedOrdersOfRegister,
+  LatePaymentRefundRequestAnswer,
+  LatePaymentRefundRequests,
+  LocalPaidOrders,
+  PaidOrderDiscoveryPorts,
+  PaidOrdersOfRegister,
+  PaidOrderWithoutSale,
 } from "./paid-order-ports.js";
 export type {
   ApprovedPaymentsByMethod,
@@ -146,6 +161,11 @@ export type {
   ReadMercadoPagoOrderPaymentOutcome,
 } from "./read-mercado-pago-order-payment.js";
 export { readMercadoPagoOrderPayment } from "./read-mercado-pago-order-payment.js";
+export type {
+  ReadPaidOrdersWithoutSaleOutcome,
+  ReadPaidOrdersWithoutSalePorts,
+} from "./read-paid-orders-without-sale.js";
+export { readPaidOrdersWithoutSale } from "./read-paid-orders-without-sale.js";
 export type {
   MercadoPagoPaymentSummary,
   MercadoPagoPayments,

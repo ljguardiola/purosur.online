@@ -80,6 +80,7 @@ export interface SaleLedgerTransaction {
   openSession(): SellingSession | undefined;
   openSale(sessionId: string): SaleWithLines | undefined;
   installationRevoked(): boolean;
+  paidOrderWithoutSaleUnresolved(): boolean;
   registerIdentity(): RegisterIdentity | undefined;
   activeProductByBarcode(code: string): SellableProduct | undefined;
   activeProductById(productId: string): SellableProduct | undefined;
