@@ -2,6 +2,7 @@ export interface InstallationStreamReach {
   enrolledAt: Date;
   revokedAt: Date | null;
   latestOccurredAt: Date | null;
+  caughtUpAt: Date | null;
 }
 
 export function streamReachesPast(
@@ -12,5 +13,9 @@ export function streamReachesPast(
     .filter(
       ({ enrolledAt, revokedAt }) => enrolledAt < until && (revokedAt === null || revokedAt > from),
     )
-    .every(({ latestOccurredAt }) => latestOccurredAt !== null && latestOccurredAt > until);
+    .every(
+      ({ latestOccurredAt, caughtUpAt }) =>
+        (latestOccurredAt !== null && latestOccurredAt > until) ||
+        (caughtUpAt !== null && caughtUpAt > until),
+    );
 }

@@ -98,6 +98,7 @@ export async function receivePushedEvents(
     await tx.recordRegisterSynced(registerId, now);
     if (events.length === 0) {
       await tx.recordReportsEveryCycle(deviceId, now);
+      await tx.recordCaughtUp(deviceId, now);
     }
     return keptInService({
       kind: "received",
