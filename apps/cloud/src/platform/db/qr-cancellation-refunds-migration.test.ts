@@ -102,4 +102,125 @@ describe("the QR cancellation refunds migration applied over a database that alr
       ),
     ).rejects.toThrow();
   });
+
+  it("keeps every recorded refund unconfirmed, unsent and unrefused", async () => {
+    const { database } = await databaseBefore();
+
+    const migrated = await database.applyMigration();
+
+    const { rows } = await migrated.query(
+      `select confirmed_by, confirmed_at, sent_at, provider_refund_id, attempt_key, last_refusal_reason
+         from payment_refunds`,
+    );
+    expect(rows).toEqual([
+      {
+        confirmed_by: null,
+        confirmed_at: null,
+        sent_at: null,
+        provider_refund_id: null,
+        attempt_key: null,
+        last_refusal_reason: null,
+      },
+      {
+        confirmed_by: null,
+        confirmed_at: null,
+        sent_at: null,
+        provider_refund_id: null,
+        attempt_key: null,
+        last_refusal_reason: null,
+      },
+    ]);
+  });
+
+  describe("the progress of a refund sent by the cloud", () => {
+    async function migratedWithRefund() {
+      const { database, saleId, paymentId, transactionId } = await databaseBefore();
+      const migrated = await database.applyMigration();
+      const { rows } = await migrated.query<{ id: string }>(
+        `insert into payment_refunds
+           (id, sale_id, payment_id, payment_transaction_id, origin_event_id, origin, method, provider, amount, state, occurred_at)
+         values (gen_random_uuid(), $1, $2, $3, gen_random_uuid(), 'sale_cancelled', 'QR', 'MERCADOPAGO_QR', 100, 'PENDING', now())
+         returning id`,
+        [saleId, paymentId, transactionId],
+      );
+      return { migrated, refundId: rows[0]?.id as string, saleId, paymentId, transactionId };
+    }
+
+    it("records the confirmation, the attempt, what Mercado Pago answered and why it refused", async () => {
+      const { migrated, refundId } = await migratedWithRefund();
+
+      await expect(
+        migrated.query(
+          `update payment_refunds
+              set confirmed_by = 'manager', confirmed_at = now(), attempt_key = 'key-1',
+                  sent_at = now(), provider_refund_id = 'REF-1', last_refusal_reason = 'insufficient_balance'
+            where id = $1`,
+          [refundId],
+        ),
+      ).resolves.toBeDefined();
+    });
+
+    it("refuses a confirmation recorded without who made it, or who without when", async () => {
+      const { migrated, refundId } = await migratedWithRefund();
+
+      await expect(
+        migrated.query("update payment_refunds set confirmed_at = now() where id = $1", [refundId]),
+      ).rejects.toThrow();
+      await expect(
+        migrated.query("update payment_refunds set confirmed_by = 'manager' where id = $1", [
+          refundId,
+        ]),
+      ).rejects.toThrow();
+    });
+
+    it("refuses an attempt key or a sending of a refund nobody confirmed", async () => {
+      const { migrated, refundId } = await migratedWithRefund();
+
+      await expect(
+        migrated.query("update payment_refunds set attempt_key = 'key-1' where id = $1", [
+          refundId,
+        ]),
+      ).rejects.toThrow();
+      await expect(
+        migrated.query(
+          "update payment_refunds set sent_at = now(), provider_refund_id = 'REF-1' where id = $1",
+          [refundId],
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("refuses a sending recorded without Mercado Pago's refund, or its refund without when", async () => {
+      const { migrated, refundId } = await migratedWithRefund();
+      const confirm =
+        "update payment_refunds set confirmed_by = 'manager', confirmed_at = now(), %s where id = $1";
+
+      await expect(
+        migrated.query(confirm.replace("%s", "sent_at = now()"), [refundId]),
+      ).rejects.toThrow();
+      await expect(
+        migrated.query(confirm.replace("%s", "provider_refund_id = 'REF-1'"), [refundId]),
+      ).rejects.toThrow();
+    });
+
+    it("refuses an attempt key another refund already used", async () => {
+      const { migrated, refundId, saleId, paymentId, transactionId } = await migratedWithRefund();
+      await migrated.query(
+        "update payment_refunds set confirmed_by = 'manager', confirmed_at = now(), attempt_key = 'key-1' where id = $1",
+        [refundId],
+      );
+      const { rows } = await migrated.query<{ id: string }>(
+        `insert into payment_refunds
+           (id, sale_id, payment_id, payment_transaction_id, origin_event_id, origin, method, provider, amount, state, occurred_at, confirmed_by, confirmed_at)
+         values (gen_random_uuid(), $1, $2, $3, gen_random_uuid(), 'sale_cancelled', 'QR', 'MERCADOPAGO_QR', 100, 'PENDING', now(), 'manager', now())
+         returning id`,
+        [saleId, paymentId, transactionId],
+      );
+
+      await expect(
+        migrated.query("update payment_refunds set attempt_key = 'key-1' where id = $1", [
+          rows[0]?.id,
+        ]),
+      ).rejects.toThrow();
+    });
+  });
 });
