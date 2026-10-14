@@ -193,6 +193,7 @@ export {
   fiscalEmissionStoppedReportOf,
   fiscalEmissionStopReasonOf,
   fortnightAfter,
+  fortnightClosesAt,
   fortnightContaining,
   fortnightsWithinRequestWindowOn,
   hasFortnightStarted,
