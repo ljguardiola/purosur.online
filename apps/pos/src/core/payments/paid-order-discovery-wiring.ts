@@ -1,4 +1,5 @@
 import type { ConvertPaidOrderIntoRefundOutcome } from "@purosur/contracts";
+import type { PaidOrderDiscoveryState } from "@purosur/domain";
 import {
   type DiscoverPaidOrdersWithoutSaleOutcome,
   discoverPaidOrdersWithoutSale,
@@ -16,8 +17,6 @@ import { CloudPaidOrdersOfRegister } from "./cloud-paid-orders-of-register";
 import { convertPaidOrderIntoRefundFor } from "./paid-order-refund-requests";
 import { paidOrderSale } from "./paid-order-sale";
 import { SqliteLocalPaidOrders } from "./sqlite-local-paid-orders";
-
-export type PaidOrderDiscoveryState = "pending" | "deferred" | "checked";
 
 export interface PaidOrderDiscovery {
   discoverAtStartup(): Promise<void>;

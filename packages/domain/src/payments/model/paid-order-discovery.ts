@@ -16,11 +16,11 @@ export function paidOrderDiscoveryStart(now: Date): Date {
   return new Date(now.getTime() - PAID_ORDER_DISCOVERY_WINDOW_HOURS * 60 * 60 * 1000);
 }
 
-type SaleStateOfPaidOrder = "OPEN" | "COMPLETED" | "VOIDED" | "CANCELLED";
+export type LocalSaleOfPaidOrder = "open" | "closed";
 
 export interface LocalStateOfPaidOrder {
   payment: PaymentTransactionState | undefined;
-  sale: SaleStateOfPaidOrder | undefined;
+  sale: LocalSaleOfPaidOrder | undefined;
 }
 
 export type PaidOrderClassification =
@@ -40,7 +40,7 @@ export function classifyPaidOrder({
   if (payment === PENDING_PAYMENT_TRANSACTION_STATE) {
     return "charge_under_way";
   }
-  if (sale === "OPEN") {
+  if (sale === "open") {
     return "apply_to_open_sale";
   }
   return sale === undefined ? "without_sale" : "duplicate_charge";
@@ -56,9 +56,33 @@ export function paidOrderWithoutSaleBlocksSelling(
   return paidOrders.some((paidOrder) => !paidOrder.resolved);
 }
 
+export const PAID_ORDER_DISCOVERY_STATES = ["pending", "deferred", "checked"] as const;
+
+export type PaidOrderDiscoveryState = (typeof PAID_ORDER_DISCOVERY_STATES)[number];
+
+export interface StartingASale {
+  openSale: boolean;
+  discovery: PaidOrderDiscoveryState;
+}
+
+export type PaidOrdersSellingRefusal = "paid_order_without_sale" | "paid_orders_not_checked";
+
+export function paidOrdersSellingRefusal(
+  paidOrders: readonly PaidOrderResolution[],
+  { openSale, discovery }: StartingASale,
+): PaidOrdersSellingRefusal | undefined {
+  if (openSale) {
+    return undefined;
+  }
+  if (paidOrderWithoutSaleBlocksSelling(paidOrders)) {
+    return "paid_order_without_sale";
+  }
+  return discovery === "pending" ? "paid_orders_not_checked" : undefined;
+}
+
 export function paidOrdersWithoutSaleLetSell(
   paidOrders: readonly PaidOrderResolution[],
-  { openSale }: { openSale: boolean },
+  startingASale: StartingASale,
 ): boolean {
-  return openSale || !paidOrderWithoutSaleBlocksSelling(paidOrders);
+  return paidOrdersSellingRefusal(paidOrders, startingASale) === undefined;
 }

@@ -1,3 +1,4 @@
+import type { SaleState } from "@purosur/domain";
 import type {
   ApprovedOrderOfRegister,
   LocalPaidOrders,
@@ -57,11 +58,12 @@ export class SqliteLocalPaidOrders implements LocalPaidOrders {
       )
       .get(order.paymentTransactionId);
     const sale = this.deps.database
-      .prepare<[string], { state: LocalStateOfPaidOrder["sale"] }>(
-        "SELECT state FROM sales WHERE id = ?",
-      )
+      .prepare<[string], { state: SaleState }>("SELECT state FROM sales WHERE id = ?")
       .get(order.saleId);
-    return { payment: payment?.state, sale: sale?.state };
+    return {
+      payment: payment?.state,
+      sale: sale === undefined ? undefined : sale.state === "OPEN" ? "open" : "closed",
+    };
   }
 
   actorOfSale(saleId: string): string | undefined {

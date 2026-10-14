@@ -45,6 +45,7 @@ type SaleToPrint = StartupPending["sales_to_print"][number];
 type PaidOrder = StartupPending["paid_orders_without_sale"][number];
 
 const SELLING_BLOCKED_REASON = "Pasá el cobro a reembolso para empezar a vender.";
+const CHECKING_REASON = "Esperá a que la caja termine de consultar los cobros pagados.";
 const UNCHECKED_PAID_ORDERS =
   "Puede haber un cobro pagado para esta caja sin venta. La caja lo va a consultar cuando vuelva la conexión.";
 const CONSULTING_PAID_ORDERS =
@@ -87,6 +88,7 @@ export type StartupPendingScreenProps = {
   ) => Promise<ConvertPaidOrderIntoRefundOutcome>;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   onGoSelling: () => void;
+  onNothingLeft: () => void;
   onSessionInvalid: () => void;
 };
 
@@ -298,6 +300,7 @@ export function StartupPendingScreen({
   convertPaidOrderIntoRefund,
   loadAuthorizers,
   onGoSelling,
+  onNothingLeft,
   onSessionInvalid,
 }: StartupPendingScreenProps) {
   const pending = useStartupPendingQuery(loadStartupPending);
@@ -354,22 +357,24 @@ export function StartupPendingScreen({
     }
   }
 
-  const nothingLeft =
+  const settled =
     pending.status === "loaded" &&
     pending.value !== "not_permitted" &&
     pending.value.may_go_selling &&
-    !hasStartupPendingItems(pending.value);
+    !hasStartupPendingItems(pending.value) &&
+    !refunded &&
+    sent === undefined;
 
   useEffect(() => {
-    if (nothingLeft) {
-      onGoSelling();
+    if (settled) {
+      onNothingLeft();
     }
-  }, [nothingLeft, onGoSelling]);
+  }, [settled, onNothingLeft]);
 
   const keptFromSelling =
-    pending.status === "loaded" &&
-    pending.value !== "not_permitted" &&
-    !pending.value.may_go_selling;
+    pending.status === "loaded" && pending.value !== "not_permitted" && !pending.value.may_go_selling
+      ? pending.value
+      : undefined;
   const since = `Desde las ${formatClockTime(openedAt)}`;
   const openingFloat =
     balance.status === "loaded"
@@ -406,7 +411,9 @@ export function StartupPendingScreen({
               size="sale"
               fullWidth
               icon={<ArrowRight />}
-              disabledReason={SELLING_BLOCKED_REASON}
+              disabledReason={
+                keptFromSelling.selling_blocked ? SELLING_BLOCKED_REASON : CHECKING_REASON
+              }
             >
               Ir a vender
             </Button>

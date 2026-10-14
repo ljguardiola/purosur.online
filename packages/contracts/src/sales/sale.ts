@@ -144,6 +144,7 @@ const notSignedInOutcome = z.object({ kind: z.literal("not_signed_in") });
 const noOpenSessionOutcome = z.object({ kind: z.literal("no_open_session") });
 const installationRevokedOutcome = z.object({ kind: z.literal("installation_revoked") });
 const paidOrderWithoutSaleOutcome = z.object({ kind: z.literal("paid_order_without_sale") });
+const paidOrdersNotCheckedOutcome = z.object({ kind: z.literal("paid_orders_not_checked") });
 const unavailableOutcome = z.object({ kind: z.literal("unavailable") });
 const saleHasPaymentsOutcome = z.object({ kind: z.literal("sale_has_payments") });
 export const qrChargeInProgressOutcome = z.object({
@@ -165,6 +166,7 @@ export const scanProductOutcomeSchema = z.discriminatedUnion("kind", [
   noOpenSessionOutcome,
   installationRevokedOutcome,
   paidOrderWithoutSaleOutcome,
+  paidOrdersNotCheckedOutcome,
   unavailableOutcome,
 ]);
 export type ScanProductOutcome = z.infer<typeof scanProductOutcomeSchema>;
@@ -323,6 +325,7 @@ export const addProductOutcomeSchema = z.discriminatedUnion("kind", [
   noOpenSessionOutcome,
   installationRevokedOutcome,
   paidOrderWithoutSaleOutcome,
+  paidOrdersNotCheckedOutcome,
   unavailableOutcome,
 ]);
 export type AddProductOutcome = z.infer<typeof addProductOutcomeSchema>;
@@ -339,6 +342,7 @@ export const addWeighedProductOutcomeSchema = z.discriminatedUnion("kind", [
   noOpenSessionOutcome,
   installationRevokedOutcome,
   paidOrderWithoutSaleOutcome,
+  paidOrdersNotCheckedOutcome,
   unavailableOutcome,
 ]);
 export type AddWeighedProductOutcome = z.infer<typeof addWeighedProductOutcomeSchema>;
@@ -356,6 +360,7 @@ export const weighProductOutcomeSchema = z.discriminatedUnion("kind", [
   noOpenSessionOutcome,
   installationRevokedOutcome,
   paidOrderWithoutSaleOutcome,
+  paidOrdersNotCheckedOutcome,
   unavailableOutcome,
 ]);
 export type WeighProductOutcome = z.infer<typeof weighProductOutcomeSchema>;

@@ -729,7 +729,16 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : (code) =>
-          scanProductFor({ database: localDatabase, gate: actionGate, now, ids: uuidV7Ids }, code),
+          scanProductFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              now,
+              ids: uuidV7Ids,
+              paidOrderDiscovery: paidOrderDiscovery.state,
+            },
+            code,
+          ),
   changeLineQuantity:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -860,7 +869,13 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (productId) =>
           addSearchedProductFor(
-            { database: localDatabase, gate: actionGate, now, ids: uuidV7Ids },
+            {
+              database: localDatabase,
+              gate: actionGate,
+              now,
+              ids: uuidV7Ids,
+              paidOrderDiscovery: paidOrderDiscovery.state,
+            },
             productId,
           ),
   addWeighedProduct:
@@ -868,7 +883,13 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (productId, weightThousandths) =>
           addWeighedProductFor(
-            { database: localDatabase, gate: actionGate, now, ids: uuidV7Ids },
+            {
+              database: localDatabase,
+              gate: actionGate,
+              now,
+              ids: uuidV7Ids,
+              paidOrderDiscovery: paidOrderDiscovery.state,
+            },
             productId,
             weightThousandths,
           ),
@@ -877,7 +898,14 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (productId) =>
           weighProductFor(
-            { database: localDatabase, gate: actionGate, now, ids: uuidV7Ids, scale: systelScale },
+            {
+              database: localDatabase,
+              gate: actionGate,
+              now,
+              ids: uuidV7Ids,
+              paidOrderDiscovery: paidOrderDiscovery.state,
+              scale: systelScale,
+            },
             productId,
           ),
   initialCount:

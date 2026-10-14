@@ -1,4 +1,5 @@
 import type { StartupPending } from "@purosur/contracts";
+import type { PaidOrderDiscoveryState } from "@purosur/domain";
 import { readUnknownFiscalDocuments } from "@purosur/domain/fiscal/use-cases";
 import {
   readPaidOrdersWithoutSale,
@@ -6,7 +7,6 @@ import {
 } from "@purosur/domain/payments/use-cases";
 import { readSalesToPrintAtStartup } from "@purosur/domain/sales/use-cases";
 import { SqliteCompletedSaleFiscalDocuments } from "../fiscal/sqlite-completed-sale-fiscal-documents";
-import type { PaidOrderDiscoveryState } from "../payments/paid-order-discovery-wiring";
 import { SqliteLocalPaidOrders } from "../payments/sqlite-local-paid-orders";
 import { SqliteMercadoPagoPayments } from "../payments/sqlite-mercado-pago-payments";
 import type { LocalDatabase } from "../platform/local-database";
@@ -30,7 +30,10 @@ export async function startupPendingFor({
     const session = readOpenSession(database);
     const { paidOrders, sellingBlocked, mayGoSelling } = readPaidOrdersWithoutSale(
       { local: new SqliteLocalPaidOrders({ database }) },
-      { openSale: session !== undefined && readOpenSale(database, session.id) !== undefined },
+      {
+        openSale: session !== undefined && readOpenSale(database, session.id) !== undefined,
+        discovery: paidOrderDiscovery(),
+      },
     );
     return {
       sales_to_print: readSalesToPrintAtStartup({ sales: new SqliteStartupSales(database) }).map(

@@ -1,6 +1,7 @@
 import {
   isValidOrderAmount,
   MERCADO_PAGO_PAYMENT_METHODS,
+  PAID_ORDER_DISCOVERY_STATES,
   UNPRINTED_SALE_STANDINGS,
 } from "@purosur/domain";
 import { z } from "zod";
@@ -40,7 +41,7 @@ export const startupPendingSchema = z.object({
   unknown_fiscal_documents: z.array(startupUnknownFiscalDocumentSchema),
   pending_payments: z.array(startupPendingPaymentSchema),
   paid_orders_without_sale: z.array(startupPaidOrderWithoutSaleSchema),
-  paid_order_discovery: z.enum(["pending", "deferred", "checked"]),
+  paid_order_discovery: z.enum(PAID_ORDER_DISCOVERY_STATES),
   selling_blocked: z.boolean(),
   may_go_selling: z.boolean(),
 });
