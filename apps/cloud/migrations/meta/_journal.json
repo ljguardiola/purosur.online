@@ -691,8 +691,15 @@
     {
       "idx": 98,
       "version": "7",
-      "when": 1792003595394,
-      "tag": "0102_offsite_dump_checks",
+      "when": 1792003523910,
+      "tag": "0102_register_snapshot_generations",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1792007713025,
+      "tag": "0103_offsite_dump_checks",
       "breakpoints": true
     }
   ]
