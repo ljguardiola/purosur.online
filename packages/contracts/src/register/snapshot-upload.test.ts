@@ -1,0 +1,65 @@
+import { describe, expect, it } from "vitest";
+import { snapshotUploadAnswerSchema, snapshotUploadBodySchema } from "./snapshot-upload.js";
+
+const BODY = {
+  generation_id: "0f8fad5b-d9cb-469f-a165-70867728950e",
+  size: 4096,
+  sha256: "ab".repeat(32),
+  key_version: 2,
+};
+
+describe("snapshotUploadBodySchema", () => {
+  it("reads a declaration", () => {
+    expect(snapshotUploadBodySchema.parse(BODY)).toEqual(BODY);
+  });
+
+  it.each([
+    ["a generation id that is not a uuid", { generation_id: "generation-1" }],
+    ["a size of zero", { size: 0 }],
+    ["a fractional size", { size: 10.5 }],
+    ["a negative size", { size: -1 }],
+    ["a size beyond the safe integers", { size: 2 ** 53 }],
+    ["an uppercase hash", { sha256: "AB".repeat(32) }],
+    ["a short hash", { sha256: "ab".repeat(31) }],
+    ["a long hash", { sha256: "ab".repeat(33) }],
+    ["a hash that is not hexadecimal", { sha256: "zz".repeat(32) }],
+    ["a key version of zero", { key_version: 0 }],
+    ["a fractional key version", { key_version: 1.5 }],
+  ])("refuses %s", (_name, override) => {
+    expect(snapshotUploadBodySchema.safeParse({ ...BODY, ...override }).success).toBe(false);
+  });
+
+  it.each(["generation_id", "size", "sha256", "key_version"])("requires %s", (field) => {
+    const { [field]: _omitted, ...rest } = BODY as Record<string, unknown>;
+    expect(snapshotUploadBodySchema.safeParse(rest).success).toBe(false);
+  });
+
+  it("refuses a field it does not know", () => {
+    expect(snapshotUploadBodySchema.safeParse({ ...BODY, object_key: "x" }).success).toBe(false);
+  });
+});
+
+describe("snapshotUploadAnswerSchema", () => {
+  const ANSWER = {
+    upload_url: "https://bucket.example.test/snapshots/r/g?X-Amz-Signature=abc",
+    required_headers: { "x-amz-meta-key-version": "2" },
+    expires_at: "2026-10-14T15:15:00.000Z",
+  };
+
+  it("reads the upload URL, the headers to send and when it expires", () => {
+    expect(snapshotUploadAnswerSchema.parse(ANSWER)).toEqual(ANSWER);
+  });
+
+  it("refuses an upload URL that is not https", () => {
+    expect(
+      snapshotUploadAnswerSchema.safeParse({ ...ANSWER, upload_url: "http://bucket.example.test" })
+        .success,
+    ).toBe(false);
+  });
+
+  it("refuses an expiry that is not an instant", () => {
+    expect(
+      snapshotUploadAnswerSchema.safeParse({ ...ANSWER, expires_at: "tomorrow" }).success,
+    ).toBe(false);
+  });
+});
