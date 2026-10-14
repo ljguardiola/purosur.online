@@ -112,6 +112,8 @@ const pointOfSaleRow = {
   version: 1,
 };
 
+const pointTerminalRow = { assigned: true, version: 1 };
+
 const thresholdRow = { amount: 1_000_000, valid_from: "2026-10-01", revision: 2 };
 
 const taxStatusSetRow = {
@@ -292,6 +294,11 @@ describe("changesPageSchema", () => {
         ...pointOfSaleRow,
         tax_authority_last_authorized_number: 0,
       }),
+    ],
+    ["the point terminal of a register", change(1, "register_point_terminal", pointTerminalRow)],
+    [
+      "the point terminal of a register left with none",
+      change(1, "register_point_terminal", { assigned: false, version: 2 }),
     ],
     [
       "the offline point of sale of a register",
@@ -506,6 +513,7 @@ describe("changesPageSchema", () => {
     ["a buyer-identification threshold", "buyer_identification_threshold", thresholdRow],
     ["a set of buyer tax statuses", "buyer_tax_status_set", taxStatusSetRow],
     ["the point of sale of a register", "register_point_of_sale", pointOfSaleRow],
+    ["the point terminal of a register", "register_point_terminal", pointTerminalRow],
     [
       "the offline point of sale of a register",
       "register_offline_point_of_sale",
@@ -781,6 +789,22 @@ describe("changesPageSchema", () => {
       pageOf(
         change(1, "register_point_of_sale", { ...pointOfSaleRow, fiscal_address_id: undefined }),
       ),
+    ],
+    [
+      "a point terminal without its assigned flag",
+      pageOf(change(1, "register_point_terminal", { version: 1 })),
+    ],
+    [
+      "a point terminal whose assigned flag is not a boolean",
+      pageOf(change(1, "register_point_terminal", { assigned: "yes", version: 1 })),
+    ],
+    [
+      "a point terminal of version zero",
+      pageOf(change(1, "register_point_terminal", { assigned: true, version: 0 })),
+    ],
+    [
+      "a point terminal of a fractional version",
+      pageOf(change(1, "register_point_terminal", { assigned: true, version: 1.5 })),
     ],
     [
       "a point of sale of version zero",

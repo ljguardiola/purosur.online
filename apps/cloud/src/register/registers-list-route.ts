@@ -55,6 +55,8 @@ function toRegisterWire(register: BranchRegisterSummary): RegisterSummaryBody {
         }
       : null,
     point_of_sale_number: register.pointOfSaleNumber,
+    point_terminal_id: register.pointTerminal.terminalId,
+    point_terminal_version: register.pointTerminal.version,
     installation: toInstallationWire(register.installation),
   };
 }

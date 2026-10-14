@@ -1,5 +1,7 @@
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
 import { vi } from "vitest";
+import type { BackofficeAccess } from "../../shell/backoffice-access";
+import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access";
 import { render } from "../../shell/test-support/render-with-router";
 import { registerKey } from "../register-queries";
 import type { RegisterSummary } from "../registers-api";
@@ -13,6 +15,7 @@ export function createServices(
     fetchRegisters: vi.fn(),
     fetchRegisterCoverage: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     createRegister: vi.fn(),
+    assignPointTerminal: vi.fn(),
     emitEnrollmentCode: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
@@ -26,6 +29,8 @@ export const register1: RegisterSummary = {
   name: "Caja 1",
   pendingCode: null,
   pointOfSaleNumber: null,
+  pointTerminalId: null,
+  pointTerminalVersion: 0,
   installation: null,
 };
 export const register2: RegisterSummary = {
@@ -33,6 +38,8 @@ export const register2: RegisterSummary = {
   name: "Caja 2",
   pendingCode: { secondsSinceIssued: 240, secondsUntilExpiry: 660 },
   pointOfSaleNumber: 3,
+  pointTerminalId: "TERM-0042",
+  pointTerminalVersion: 2,
   installation: null,
 };
 export const enrolledRegister: RegisterSummary = {
@@ -40,6 +47,8 @@ export const enrolledRegister: RegisterSummary = {
   name: "Caja 3",
   pendingCode: null,
   pointOfSaleNumber: null,
+  pointTerminalId: null,
+  pointTerminalVersion: 0,
   installation: {
     state: "enrolled",
     hostname: "CAJA-MOSTRADOR",
@@ -52,6 +61,8 @@ export const revokedRegister: RegisterSummary = {
   name: "Caja 4",
   pendingCode: null,
   pointOfSaleNumber: null,
+  pointTerminalId: null,
+  pointTerminalVersion: 0,
   installation: {
     state: "revoked",
     hostname: "CAJA-DEPOSITO",
@@ -89,10 +100,11 @@ function RefreshRegisters() {
 export function renderScreen(
   services: RegistersListScreenServices,
   onSessionEnded: () => void = () => {},
+  access: BackofficeAccess = ADMINISTRATOR_ACCESS,
 ) {
   return render(
     <main>
-      <RegistersListScreen services={services} onSessionEnded={onSessionEnded} />
+      <RegistersListScreen access={access} services={services} onSessionEnded={onSessionEnded} />
       <FetchesInFlight />
       <RefreshRegisters />
     </main>,
