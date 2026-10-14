@@ -893,6 +893,7 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
+        "0050_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -969,6 +970,7 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
+        "0050_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1040,6 +1042,7 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
+        "0050_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1110,6 +1113,7 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
+        "0050_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1209,6 +1213,7 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
+        "0050_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1298,6 +1303,7 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
+        "0050_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1391,6 +1397,7 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
+        "0050_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1467,6 +1474,7 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
+        "0050_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1535,6 +1543,7 @@ describe("the register's local migrations", () => {
         "0047_sale_line_promotion_names",
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
+        "0050_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
