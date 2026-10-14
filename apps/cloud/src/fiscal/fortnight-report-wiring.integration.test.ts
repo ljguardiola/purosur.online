@@ -22,6 +22,7 @@ import {
   startFakeWsfeServer,
   UNREACHABLE_WSFE_ENDPOINT,
 } from "./test-support/fake-wsfe-server.js";
+import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
 import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
 
 const UNUSED_EMAIL_SENDER: AccessEmailSender = {
@@ -77,6 +78,12 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await sql`delete from fortnight_reports`;
+  const admin = postgres(integrationDb.adminDatabaseUrl, { max: 1 });
+  try {
+    await admin`delete from offline_fiscal_documents`;
+  } finally {
+    await admin.end({ timeout: 1 });
+  }
   fakeWsfe.requests.length = 0;
 });
 
@@ -107,6 +114,25 @@ async function reportOnDemand(expectedRequests: number) {
       async () => {
         expect(await sql`select 1 from fortnight_reports`).toHaveLength(1);
         expect(fakeWsfe.requests).toHaveLength(expectedRequests);
+      },
+      { timeout: 20_000, interval: 100 },
+    );
+  } finally {
+    await recovery.close();
+  }
+}
+
+async function reportOnDemandUntilDone() {
+  const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+    emailSender: UNUSED_EMAIL_SENDER,
+  });
+  try {
+    await recovery.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
+    await vi.waitFor(
+      async () => {
+        expect(
+          await sql`select 1 from graphile_worker.jobs where task_identifier = ${FORTNIGHT_REPORT_TASK_IDENTIFIER}`,
+        ).toHaveLength(0);
       },
       { timeout: 20_000, interval: 100 },
     );
@@ -172,5 +198,24 @@ describe("the fortnight report the server sets up on a real Postgres", () => {
 
     expect(await sql`select state from fortnight_reports`).toEqual([{ state: "blocked" }]);
     expect(fakeWsfe.requests.join("")).not.toContain("FECAEASinMovimientoInformar");
+  }, 90_000);
+
+  it("never declares a fortnight without movement when the point of sale issued documents under its code", async () => {
+    await sql`delete from inbox`;
+    await sql`delete from register_installations`;
+    await syncEventOccurringAt("2026-10-16T10:00:00.000Z");
+    await insertOfflineFiscalDocument(drizzle(sql), {
+      registerId,
+      pointOfSale: 8,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 1,
+    });
+    fakeWsfe.behave(answersInTurn("fe-caea-sin-movimiento-consultar-not-held.xml"));
+
+    await reportOnDemandUntilDone();
+
+    expect(fakeWsfe.requests).toHaveLength(1);
+    expect(fakeWsfe.requests[0]).toContain("FECAEASinMovimientoConsultar");
+    expect(await sql`select state from fortnight_reports`).toEqual([]);
   }, 90_000);
 });
