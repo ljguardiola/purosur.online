@@ -22,17 +22,14 @@ describe("fortnightPresentationListSchema", () => {
     expect(fortnightPresentationListSchema.parse([])).toEqual([]);
   });
 
-  it.each([
-    "blocked",
-    "ready",
-    "submitting",
-    "refused",
-    "accepted",
-  ] as const)("reads the %s state", (state) => {
-    expect(fortnightPresentationListSchema.parse([{ ...presentation, state }])).toEqual([
-      { ...presentation, state },
-    ]);
-  });
+  it.each(["blocked", "ready", "submitting", "refused", "accepted"] as const)(
+    "reads the %s state",
+    (state) => {
+      expect(fortnightPresentationListSchema.parse([{ ...presentation, state }])).toEqual([
+        { ...presentation, state },
+      ]);
+    },
+  );
 
   it("refuses a state the domain does not know", () => {
     expect(

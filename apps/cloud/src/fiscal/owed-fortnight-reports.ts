@@ -5,7 +5,12 @@ import type {
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq, lt } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { caeaCodes, fortnightReports, pointOfSaleClaims, registers } from "../platform/db/schema.js";
+import {
+  caeaCodes,
+  fortnightReports,
+  pointOfSaleClaims,
+  registers,
+} from "../platform/db/schema.js";
 
 export interface OwedFortnightReportWithState {
   owed: OwedFortnightReport;
