@@ -422,6 +422,7 @@ export type {
   SerialDeviceRole,
   SerialDeviceStanding,
   SerialDevicesReport,
+  SnapshotCorruptionStage,
   WatchedRegister,
 } from "./register/index.js";
 export {
@@ -467,6 +468,7 @@ export {
   registerOperationAccess,
   SERIAL_DEVICE_REPORT_STANDINGS,
   SERIAL_DEVICE_ROLES,
+  SNAPSHOT_CORRUPTION_STAGES,
   serialDeviceStandings,
 } from "./register/index.js";
 export type {
