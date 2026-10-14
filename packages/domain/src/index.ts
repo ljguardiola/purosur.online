@@ -200,6 +200,7 @@ export {
   fortnightAfter,
   fortnightClosesAt,
   fortnightContaining,
+  fortnightReportDeadline,
   fortnightsWithinRequestWindowOn,
   hasFortnightStarted,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,

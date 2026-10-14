@@ -152,6 +152,10 @@ export type {
 } from "./fiscal-document-authorization-ports.js";
 export { FiscalDocumentAlreadyRecorded } from "./fiscal-document-authorization-ports.js";
 export type {
+  BranchFortnightPresentation,
+  FortnightPresentationReader,
+} from "./fortnight-presentation-reader.js";
+export type {
   FortnightReportChange,
   FortnightReportKey,
   FortnightReportPorts,

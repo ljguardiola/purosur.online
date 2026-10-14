@@ -3,9 +3,9 @@ import type {
   OwedFortnightReport,
   RecordedFortnightReport,
 } from "@purosur/domain/fiscal/use-cases";
-import { eq, lt } from "drizzle-orm";
+import { and, eq, lt } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { caeaCodes, fortnightReports, pointOfSaleClaims } from "../platform/db/schema.js";
+import { caeaCodes, fortnightReports, pointOfSaleClaims, registers } from "../platform/db/schema.js";
 
 export interface OwedFortnightReportWithState {
   owed: OwedFortnightReport;
@@ -16,6 +16,15 @@ export async function owedFortnightReportsWithState<TQueryResult extends PgQuery
   db: PgDatabase<TQueryResult>,
   today: string,
 ): Promise<OwedFortnightReportWithState[]> {
+  const presentations = await closedFortnightPresentations(db, today);
+  return presentations.filter(({ state }) => state !== "accepted");
+}
+
+export async function closedFortnightPresentations<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  today: string,
+  locationId?: string,
+): Promise<OwedFortnightReportWithState[]> {
   const codes = await db.select().from(caeaCodes).where(lt(caeaCodes.fortnightEnd, today));
   const claims = await db
     .select({
@@ -24,7 +33,13 @@ export async function owedFortnightReportsWithState<TQueryResult extends PgQuery
       claimedAt: pointOfSaleClaims.claimedAt,
     })
     .from(pointOfSaleClaims)
-    .where(eq(pointOfSaleClaims.mechanism, "offline"));
+    .innerJoin(registers, eq(registers.id, pointOfSaleClaims.registerId))
+    .where(
+      and(
+        eq(pointOfSaleClaims.mechanism, "offline"),
+        locationId === undefined ? undefined : eq(registers.locationId, locationId),
+      ),
+    );
   const recorded = await db
     .select({
       pointOfSaleNumber: fortnightReports.pointOfSaleNumber,
@@ -51,7 +66,6 @@ export async function owedFortnightReportsWithState<TQueryResult extends PgQuery
           code: { code: code.code, fortnight, reportDeadline: code.reportDeadline },
         },
         state: stateOf.get(`${pointOfSaleNumber}:${fortnight.start}`) ?? null,
-      }))
-      .filter(({ state }) => state !== "accepted");
+      }));
   });
 }
