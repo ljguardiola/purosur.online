@@ -13,7 +13,7 @@ import {
   SNAPSHOT_UPLOAD_DEADLINE_MS,
   SNAPSHOT_VERIFICATION_INTERVAL_MS,
   SNAPSHOT_WORKER_TIME_LIMIT_MS,
-  snapshotUploadUrlLifetimeSeconds,
+  snapshotUploadUrlExpiry,
 } from "./snapshot-generation.js";
 
 const CREATED_AT = new Date("2026-10-14T12:00:00.000Z");
@@ -47,7 +47,9 @@ describe("snapshot generation", () => {
   });
 
   it("lets an upload URL live 15 minutes when the deadline is further away", () => {
-    expect(snapshotUploadUrlLifetimeSeconds(CREATED_AT, CREATED_AT)).toBe(900);
+    expect(snapshotUploadUrlExpiry(CREATED_AT, CREATED_AT)).toEqual(
+      new Date("2026-10-14T12:15:00.000Z"),
+    );
   });
 
   it("stops a snapshot worker 60 seconds after it starts", () => {
@@ -55,38 +57,35 @@ describe("snapshot generation", () => {
   });
 
   it("ends an upload URL early enough for an upload begun with it to finish before the deadline", () => {
-    expect(snapshotUploadUrlLifetimeSeconds(CREATED_AT, new Date("2026-10-14T12:45:00.000Z"))).toBe(
-      840,
+    expect(snapshotUploadUrlExpiry(CREATED_AT, new Date("2026-10-14T12:45:00.000Z"))).toEqual(
+      new Date("2026-10-14T12:59:00.000Z"),
     );
-    expect(snapshotUploadUrlLifetimeSeconds(CREATED_AT, new Date("2026-10-14T12:58:00.000Z"))).toBe(
-      60,
-    );
-  });
-
-  it("lets an upload URL live only the whole seconds left before it has to end", () => {
-    expect(snapshotUploadUrlLifetimeSeconds(CREATED_AT, new Date("2026-10-14T12:58:58.500Z"))).toBe(
-      1,
+    expect(snapshotUploadUrlExpiry(CREATED_AT, new Date("2026-10-14T12:58:00.000Z"))).toEqual(
+      new Date("2026-10-14T12:59:00.000Z"),
     );
   });
 
-  it("authorizes no upload URL once less than a whole second would be left", () => {
-    expect(
-      snapshotUploadUrlLifetimeSeconds(CREATED_AT, new Date("2026-10-14T12:58:59.500Z")),
-    ).toBeUndefined();
+  it("authorizes an upload URL while any time is left before it has to end", () => {
+    expect(snapshotUploadUrlExpiry(CREATED_AT, new Date("2026-10-14T12:58:59.500Z"))).toEqual(
+      new Date("2026-10-14T12:59:00.000Z"),
+    );
+    expect(snapshotUploadUrlExpiry(CREATED_AT, new Date("2026-10-14T12:58:59.999Z"))).toEqual(
+      new Date("2026-10-14T12:59:00.000Z"),
+    );
   });
 
   it("authorizes no upload URL once an upload begun now could outlast the deadline", () => {
     expect(
-      snapshotUploadUrlLifetimeSeconds(CREATED_AT, new Date("2026-10-14T12:59:00.000Z")),
+      snapshotUploadUrlExpiry(CREATED_AT, new Date("2026-10-14T12:59:00.000Z")),
     ).toBeUndefined();
   });
 
   it("authorizes no upload URL once the upload deadline is reached", () => {
     expect(
-      snapshotUploadUrlLifetimeSeconds(CREATED_AT, new Date("2026-10-14T13:00:00.000Z")),
+      snapshotUploadUrlExpiry(CREATED_AT, new Date("2026-10-14T13:00:00.000Z")),
     ).toBeUndefined();
     expect(
-      snapshotUploadUrlLifetimeSeconds(CREATED_AT, new Date("2026-10-14T14:00:00.000Z")),
+      snapshotUploadUrlExpiry(CREATED_AT, new Date("2026-10-14T14:00:00.000Z")),
     ).toBeUndefined();
   });
 

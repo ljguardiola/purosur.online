@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { SnapshotUploadWindowClosed } from "@purosur/domain/register/use-cases";
 import { describe, expect, it } from "vitest";
 import { BucketRegisterSnapshots } from "./bucket-register-snapshots.js";
 
@@ -32,17 +33,15 @@ const unused = () => new Response("", { status: 500 });
 const UPLOAD = {
   registerId: REGISTER_ID,
   generationId: GENERATION_ID,
-  size: 4096,
-  sha256: "ab".repeat(32),
   keyVersion: 3,
   issuedAt: NOW,
-  lifetimeSeconds: 900,
+  expiresAt: new Date("2026-10-14T15:15:00.000Z"),
 };
 
-describe("BucketRegisterSnapshots.uploadAuthorization", () => {
+describe("BucketRegisterSnapshots.authorizeUpload", () => {
   async function authorize(overrides: Partial<typeof UPLOAD> = {}) {
     const { snapshots, requests } = bucketAnswering(unused);
-    const authorization = await snapshots.uploadAuthorization({ ...UPLOAD, ...overrides });
+    const authorization = await snapshots.authorizeUpload({ ...UPLOAD, ...overrides });
     return { authorization, requests, url: new URL(authorization.url) };
   }
 
@@ -62,7 +61,9 @@ describe("BucketRegisterSnapshots.uploadAuthorization", () => {
   });
 
   it("expires sooner when the authorized upload ends sooner", async () => {
-    const { authorization, url } = await authorize({ lifetimeSeconds: 600 });
+    const { authorization, url } = await authorize({
+      expiresAt: new Date("2026-10-14T15:10:00.000Z"),
+    });
 
     expect(url.searchParams.get("X-Amz-Expires")).toBe("600");
     expect(authorization.expiresAt).toEqual(new Date("2026-10-14T15:10:00.000Z"));
@@ -71,7 +72,7 @@ describe("BucketRegisterSnapshots.uploadAuthorization", () => {
   it("signs from the moment the upload was authorized, not from its own clock", async () => {
     const { authorization, url } = await authorize({
       issuedAt: new Date("2026-10-14T14:59:30.000Z"),
-      lifetimeSeconds: 1,
+      expiresAt: new Date("2026-10-14T14:59:31.000Z"),
     });
 
     expect(url.searchParams.get("X-Amz-Date")).toBe("20261014T145930Z");
@@ -82,10 +83,29 @@ describe("BucketRegisterSnapshots.uploadAuthorization", () => {
   it("answers the expiry of the whole second the URL is signed at", async () => {
     const { authorization, url } = await authorize({
       issuedAt: new Date("2026-10-14T15:00:00.750Z"),
+      expiresAt: new Date("2026-10-14T15:15:00.750Z"),
     });
 
     expect(url.searchParams.get("X-Amz-Date")).toBe("20261014T150000Z");
+    expect(url.searchParams.get("X-Amz-Expires")).toBe("900");
     expect(authorization.expiresAt).toEqual(new Date("2026-10-14T15:15:00.000Z"));
+  });
+
+  it("ends the URL at the last whole second before the authorized upload ends", async () => {
+    const { authorization, url } = await authorize({
+      expiresAt: new Date("2026-10-14T15:00:01.400Z"),
+    });
+
+    expect(url.searchParams.get("X-Amz-Expires")).toBe("1");
+    expect(authorization.expiresAt).toEqual(new Date("2026-10-14T15:00:01.000Z"));
+  });
+
+  it("refuses to sign when not a whole second is left before the authorized upload ends", async () => {
+    const { snapshots } = bucketAnswering(unused);
+
+    await expect(
+      snapshots.authorizeUpload({ ...UPLOAD, expiresAt: new Date("2026-10-14T15:00:00.500Z") }),
+    ).rejects.toBeInstanceOf(SnapshotUploadWindowClosed);
   });
 
   it("signs the key version as object metadata the register has to send", async () => {
@@ -107,7 +127,7 @@ describe("BucketRegisterSnapshots.uploadAuthorization", () => {
     const { snapshots } = bucketAnswering(unused);
     const of = async (keyVersion: number) =>
       new URL(
-        (await snapshots.uploadAuthorization({ ...UPLOAD, keyVersion })).url,
+        (await snapshots.authorizeUpload({ ...UPLOAD, keyVersion })).url,
       ).searchParams.get("X-Amz-Signature");
 
     expect(await of(1)).not.toBe(await of(2));

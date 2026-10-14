@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { requestSnapshotUpload } from "./request-snapshot-upload.js";
 import { FixedClock } from "./test-support/fake-register-store.js";
-import { FakeSnapshotStore } from "./test-support/fake-snapshot-store.js";
+import { FakeSnapshotStore, FakeSnapshotUploads } from "./test-support/fake-snapshot-store.js";
 
 const NOW = new Date("2026-10-14T15:00:00.000Z");
 const DECLARATION = {
@@ -19,11 +19,25 @@ function storeWithKeys(): FakeSnapshotStore {
   return store;
 }
 
-function request(store: FakeSnapshotStore, overrides: Partial<typeof DECLARATION> = {}) {
+function request(
+  store: FakeSnapshotStore,
+  overrides: Partial<typeof DECLARATION> = {},
+  uploads = new FakeSnapshotUploads(store),
+) {
   return requestSnapshotUpload(
-    { store, clock: new FixedClock(NOW) },
+    { store, uploads, clock: new FixedClock(NOW) },
     { ...DECLARATION, ...overrides },
   );
+}
+
+function seedDeclared(store: FakeSnapshotStore, createdAt: string) {
+  store.seedGeneration({
+    id: "generation-1",
+    createdAt: new Date(createdAt),
+    size: 4096,
+    sha256: "b".repeat(64),
+    keyVersion: 2,
+  });
 }
 
 describe("requestSnapshotUpload", () => {
@@ -51,19 +65,32 @@ describe("requestSnapshotUpload", () => {
     ]);
   });
 
-  it("answers what the route needs to authorize the upload", async () => {
+  it("authorizes the upload for 15 minutes from the cloud's own time", async () => {
+    const store = storeWithKeys();
+    const uploads = new FakeSnapshotUploads(store);
+
+    await request(store, {}, uploads);
+
+    expect(uploads.authorized.map(({ upload }) => upload)).toEqual([
+      {
+        registerId: "register-1",
+        generationId: "generation-1",
+        keyVersion: 2,
+        issuedAt: NOW,
+        expiresAt: new Date("2026-10-14T15:15:00.000Z"),
+      },
+    ]);
+  });
+
+  it("answers the authorization the bucket signed", async () => {
     const outcome = await request(storeWithKeys());
 
     expect(outcome).toEqual({
       kind: "authorized",
-      generation: {
-        registerId: "register-1",
-        generationId: "generation-1",
-        size: 4096,
-        sha256: "b".repeat(64),
-        keyVersion: 2,
-        issuedAt: NOW,
-        lifetimeSeconds: 900,
+      authorization: {
+        url: "https://bucket.example.test/register-1/generation-1",
+        requiredHeaders: { "x-amz-meta-key-version": "2" },
+        expiresAt: new Date("2026-10-14T15:15:00.000Z"),
       },
     });
   });
@@ -146,18 +173,35 @@ describe("requestSnapshotUpload", () => {
 
   it("authorizes the same declaration again only until its upload deadline", async () => {
     const store = storeWithKeys();
-    store.seedGeneration({
-      id: "generation-1",
-      createdAt: new Date("2026-10-14T14:10:00.000Z"),
-      size: 4096,
-      sha256: "b".repeat(64),
-      keyVersion: 2,
-    });
+    seedDeclared(store, "2026-10-14T14:10:00.500Z");
+    const uploads = new FakeSnapshotUploads(store);
 
-    expect(await request(store)).toMatchObject({
-      kind: "authorized",
-      generation: { issuedAt: NOW, lifetimeSeconds: 540 },
-    });
+    await request(store, {}, uploads);
+
+    expect(uploads.authorized.map(({ upload }) => upload.expiresAt)).toEqual([
+      new Date("2026-10-14T15:09:00.500Z"),
+    ]);
+  });
+
+  it("authorizes the same declaration again while less than a second is left", async () => {
+    const store = storeWithKeys();
+    seedDeclared(store, "2026-10-14T14:01:00.500Z");
+    const uploads = new FakeSnapshotUploads(store);
+
+    await request(store, {}, uploads);
+
+    expect(uploads.authorized.map(({ upload }) => upload.expiresAt)).toEqual([
+      new Date("2026-10-14T15:00:00.500Z"),
+    ]);
+  });
+
+  it("refuses the upload when the bucket cannot sign a URL ending by then", async () => {
+    const store = storeWithKeys();
+    seedDeclared(store, "2026-10-14T14:01:00.500Z");
+    const uploads = new FakeSnapshotUploads(store);
+    uploads.windowClosed = true;
+
+    expect(await request(store, {}, uploads)).toEqual({ kind: "upload_deadline_passed" });
   });
 
   it("refuses to authorize the same declaration again once its upload deadline is reached", async () => {
@@ -171,7 +215,10 @@ describe("requestSnapshotUpload", () => {
       status: "uploaded",
     });
 
-    expect(await request(store)).toEqual({ kind: "upload_deadline_passed" });
+    const uploads = new FakeSnapshotUploads(store);
+
+    expect(await request(store, {}, uploads)).toEqual({ kind: "upload_deadline_passed" });
+    expect(uploads.authorized).toEqual([]);
   });
 
   it("locks the register's snapshots before reading anything", async () => {
@@ -184,7 +231,39 @@ describe("requestSnapshotUpload", () => {
       "snapshotKeyVersions",
       "findGeneration:register-1",
       "recordDeclaredGeneration",
+      "authorizeUpload",
     ]);
+  });
+
+  it("signs the upload only once the declaration is committed", async () => {
+    const store = storeWithKeys();
+    const uploads = new FakeSnapshotUploads(store);
+
+    await request(store, {}, uploads);
+
+    expect(uploads.authorized.map(({ duringTransaction }) => duringTransaction)).toEqual([false]);
+  });
+
+  it("keeps the declaration recorded when signing the upload fails", async () => {
+    const store = storeWithKeys();
+    const uploads = new FakeSnapshotUploads(store);
+    uploads.failing = true;
+
+    await expect(request(store, {}, uploads)).rejects.toThrow("authorizeUpload failed");
+
+    expect(store.snapshot().generations).toMatchObject([
+      { id: "generation-1", status: "declared" },
+    ]);
+  });
+
+  it("signs nothing when recording fails", async () => {
+    const store = storeWithKeys();
+    store.failingWrites.add("recordDeclaredGeneration");
+    const uploads = new FakeSnapshotUploads(store);
+
+    await expect(request(store, {}, uploads)).rejects.toThrow("recordDeclaredGeneration failed");
+
+    expect(uploads.authorized).toEqual([]);
   });
 
   it("leaves nothing behind when recording fails", async () => {

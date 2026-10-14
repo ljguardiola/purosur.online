@@ -4,6 +4,7 @@ import {
 } from "../../model/snapshot-generation.js";
 import type { SnapshotLifecycleRules } from "../../model/snapshot-lifecycle-rules.js";
 import {
+  type AuthorizedSnapshotUpload,
   type NewSnapshotGeneration,
   type RegisterSnapshotLanes,
   type SnapshotGeneration,
@@ -13,6 +14,9 @@ import {
   type SnapshotSettlement,
   type SnapshotStore,
   type SnapshotStoreTransaction,
+  type SnapshotUploadAuthorization,
+  type SnapshotUploads,
+  SnapshotUploadWindowClosed,
 } from "../snapshot-generations.js";
 
 export interface FakeRetentionFreeze {
@@ -198,6 +202,7 @@ export class FakeSnapshotStore implements SnapshotStore, RegisterSnapshotLanes {
   failingWrites = new Set<WriteOperation>();
   operationOrder: string[] = [];
   transactionsOpened = 0;
+  openTransactions = 0;
 
   seedKeyVersions(registerId: string, ...versions: number[]): void {
     for (const version of versions) {
@@ -276,12 +281,15 @@ export class FakeSnapshotStore implements SnapshotStore, RegisterSnapshotLanes {
     work: (tx: SnapshotStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     this.transactionsOpened += 1;
+    this.openTransactions += 1;
     const before = structuredClone(this.state);
     try {
       return await work(new FakeSnapshotStoreTransaction(this.state, this, heldLane));
     } catch (error) {
       this.state = before;
       throw error;
+    } finally {
+      this.openTransactions -= 1;
     }
   }
 }
@@ -320,5 +328,40 @@ export class FakeSnapshotObjects implements SnapshotObjects {
     }
     this.removed.push(key);
     this.objects.delete(key);
+  }
+}
+
+export interface FakeAuthorizedUpload {
+  upload: AuthorizedSnapshotUpload;
+  duringTransaction: boolean;
+}
+
+export class FakeSnapshotUploads implements SnapshotUploads {
+  private readonly store: FakeSnapshotStore;
+  readonly authorized: FakeAuthorizedUpload[] = [];
+  windowClosed = false;
+  failing = false;
+
+  constructor(store: FakeSnapshotStore) {
+    this.store = store;
+  }
+
+  async authorizeUpload(upload: AuthorizedSnapshotUpload): Promise<SnapshotUploadAuthorization> {
+    this.store.operationOrder.push("authorizeUpload");
+    this.authorized.push({
+      upload: structuredClone(upload),
+      duringTransaction: this.store.openTransactions > 0,
+    });
+    if (this.windowClosed) {
+      throw new SnapshotUploadWindowClosed();
+    }
+    if (this.failing) {
+      throw new Error("authorizeUpload failed");
+    }
+    return {
+      url: `https://bucket.example.test/${upload.registerId}/${upload.generationId}`,
+      requiredHeaders: { "x-amz-meta-key-version": String(upload.keyVersion) },
+      expiresAt: new Date(upload.expiresAt),
+    };
   }
 }

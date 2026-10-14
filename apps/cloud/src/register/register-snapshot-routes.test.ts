@@ -46,10 +46,10 @@ afterEach(async () => {
 });
 
 const urls: RegisterSnapshotUrls = {
-  uploadAuthorization: async (generation) => ({
-    url: `https://bucket.example.test/snapshots/${generation.registerId}/${generation.generationId}?sig=up`,
-    requiredHeaders: { "x-amz-meta-key-version": String(generation.keyVersion) },
-    expiresAt: new Date(generation.issuedAt.getTime() + generation.lifetimeSeconds * 1000),
+  authorizeUpload: async (upload) => ({
+    url: `https://bucket.example.test/snapshots/${upload.registerId}/${upload.generationId}?sig=up`,
+    requiredHeaders: { "x-amz-meta-key-version": String(upload.keyVersion) },
+    expiresAt: upload.expiresAt,
   }),
   downloadUrl: async (registerId, generationId) =>
     `https://bucket.example.test/snapshots/${registerId}/${generationId}?sig=down`,
@@ -307,7 +307,7 @@ describe("POST /devices/current/snapshots", () => {
     build({
       urls: {
         ...urls,
-        uploadAuthorization: async () => {
+        authorizeUpload: async () => {
           throw new Error("signing failed");
         },
       },
