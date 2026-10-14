@@ -198,6 +198,27 @@ describe("followMercadoPagoRefunds", () => {
     expect(world.mercadoPago.refundRequests).toEqual([]);
   });
 
+  it("sends again a refund whose provider refund is known but whose sending was never recorded", async () => {
+    const world = refundWorld([aConfirmedRefund({ providerRefundId: "REF-1", sentAt: null })]);
+
+    const outcome = await followMercadoPagoRefunds(world.ports);
+
+    expect(outcome).toEqual({ kind: "followed", followed: 1, done: 0, unavailable: 0 });
+    expect(world.mercadoPago.refundReadings).toEqual([]);
+    expect(world.mercadoPago.refundRequests).toEqual([
+      { orderId: "ORD-1", idempotencyKey: "refund-key-0" },
+    ]);
+  });
+
+  it("refuses to follow a refund marked confirmed without the person who confirmed it", async () => {
+    const world = refundWorld([aConfirmedRefund({ confirmedBy: null })]);
+
+    await expect(followMercadoPagoRefunds(world.ports)).rejects.toThrow(
+      "refund refund-1 is sent without a person's confirmation",
+    );
+    expect(world.mercadoPago.refundRequests).toEqual([]);
+  });
+
   describe("when a refund changes after it was listed and before it is followed", () => {
     function changedAfterListing(
       world: ReturnType<typeof refundWorld>,
