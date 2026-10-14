@@ -32,6 +32,8 @@ const STANDALONE_TERMINAL_REFUND_EXPLANATION =
 const QR_REFUND_EXPLANATION =
   "La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.";
 
+const BACKOFFICE_REFUND_EXPLANATION = "No se hace desde la caja: se atiende en el backoffice.";
+
 function pendingRefundExplanation(refund: Refund): string | null {
   if (refund.state !== "PENDING") {
     return null;
@@ -42,7 +44,7 @@ function pendingRefundExplanation(refund: Refund): string | null {
     case "QR":
       return QR_REFUND_EXPLANATION;
     default:
-      return null;
+      return BACKOFFICE_REFUND_EXPLANATION;
   }
 }
 

@@ -124,11 +124,6 @@ export function CancelLockedPaidSaleModal({
           ]}
         />
         <RefundLines refunds={refunds} />
-        {refunds.some((refund) => refund.state === "PENDING") ? (
-          <p className="text-detail text-text-subtle">
-            Un reembolso pendiente no se hace desde la caja: se atiende en el backoffice.
-          </p>
-        ) : null}
         {notice === undefined ? null : (
           <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
         )}

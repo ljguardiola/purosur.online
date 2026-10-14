@@ -19,7 +19,6 @@ export {
 export type {
   MercadoPagoOrderRefund,
   MercadoPagoRefundAnswer,
-  MercadoPagoRefundStage,
 } from "./model/mercado-pago-refund.js";
 export {
   MERCADO_PAGO_REFUND_FOLLOW_INTERVAL_MS,
