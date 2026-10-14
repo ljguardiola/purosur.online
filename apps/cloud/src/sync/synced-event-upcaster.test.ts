@@ -768,6 +768,41 @@ describe("decoding the events the registers pushed", () => {
       });
     });
 
+    it("reads a version 6 cancelled sale with its QR payment and pending QR refund", () => {
+      const qr = {
+        ...salePayment,
+        method: "QR",
+        provider: "MERCADOPAGO_QR",
+        tendered: null,
+        authorized_by: null,
+        confirmed_at: null,
+      };
+      const pending = {
+        ...refund,
+        parent_id: qr.id,
+        method: "QR",
+        provider: "MERCADOPAGO_QR",
+        state: "PENDING",
+      };
+
+      const decoded = upcaster.decode(
+        unappliedEventOf(cancelled({ payments: [qr], refunds: [pending] }, 6)),
+      );
+
+      expect(decoded).toMatchObject({
+        kind: "fact",
+        fact: {
+          kind: "sale_cancelled",
+          sale: {
+            payments: [{ method: "QR", provider: "MERCADOPAGO_QR" }],
+            refunds: [
+              { paymentId: qr.id, method: "QR", provider: "MERCADOPAGO_QR", state: "PENDING" },
+            ],
+          },
+        },
+      });
+    });
+
     it("reads a version 4 cancelled sale with its discount and each line's share of it", () => {
       expect(upcaster.decode(unappliedEventOf(cancelled()))).toMatchObject({
         kind: "fact",

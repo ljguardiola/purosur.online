@@ -1,4 +1,5 @@
 import {
+  confirmedRefundSchema,
   discardedRefundSchema,
   markedRefundDoneSchema,
   pendingRefundsSchema,
@@ -21,7 +22,9 @@ import {
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerRefundRoutes } from "./refund-routes.js";
 import { aPendingRefundOfCancelledSale } from "./test-support/cancelled-sale-refund-fixtures.js";
+import { FakeMercadoPagoOrders, ORDER_ID } from "./test-support/fake-mercado-pago-orders.js";
 import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fixtures.js";
+import { aPendingQrRefundOfCancelledSale } from "./test-support/qr-refund-fixtures.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 const UNKNOWN_REFUND = "00000000-0000-4000-8000-000000000000";
@@ -29,6 +32,7 @@ const UNKNOWN_REFUND = "00000000-0000-4000-8000-000000000000";
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let app: FastifyInstance;
+let mercadoPago: FakeMercadoPagoOrders;
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -41,9 +45,27 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
-  app = Fastify();
-  registerRefundRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => NOW });
+  mercadoPago = new FakeMercadoPagoOrders();
+  await serve({ mercadoPago });
 });
+
+async function serve(sending: { mercadoPago: FakeMercadoPagoOrders } | undefined) {
+  await app?.close();
+  app = Fastify();
+  registerRefundRoutes(app, {
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => NOW,
+    ...(sending
+      ? {
+          sending: {
+            mercadoPago: sending.mercadoPago,
+            connections: { withConnection: (work) => work(db) },
+          },
+        }
+      : {}),
+  });
+}
 
 afterEach(async () => {
   await app.close();
@@ -55,6 +77,10 @@ function pendingRefunds(headers: Record<string, string>) {
 
 function markDone(headers: Record<string, string>, refundId: string) {
   return app.inject({ method: "POST", url: `/refunds/${refundId}/completion`, headers });
+}
+
+function confirm(headers: Record<string, string>, refundId: string) {
+  return app.inject({ method: "POST", url: `/refunds/${refundId}/confirmation`, headers });
 }
 
 function discard(headers: Record<string, string>, refundId: string) {
@@ -87,6 +113,10 @@ describe.each([
   [
     "POST /refunds/:id/discard",
     (headers: Record<string, string>) => discard(headers, UNKNOWN_REFUND),
+  ],
+  [
+    "POST /refunds/:id/confirmation",
+    (headers: Record<string, string>) => confirm(headers, UNKNOWN_REFUND),
   ],
 ])("%s access", (_name, request) => {
   it("returns 401 when no session cookie was sent", async () => {
@@ -223,6 +253,53 @@ describe("GET /refunds/pending", () => {
   });
 });
 
+describe("GET /refunds/pending, a QR refund of a cancelled sale", () => {
+  it("lists it as one the cloud sends, at the stage the domain answers for it", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const pending = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+
+    const body = pendingRefundsSchema.parse((await pendingRefunds(headers)).json());
+
+    expect(body.refunds).toEqual([
+      expect.objectContaining({
+        id: pending.refundId,
+        method: "QR",
+        sent_by_cloud: true,
+        delivery_stage: "unconfirmed",
+        last_refusal_reason: null,
+      }),
+    ]);
+  });
+
+  it("lists a refund of another method as one a person carries out", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    await aPendingRefund();
+
+    const body = pendingRefundsSchema.parse((await pendingRefunds(headers)).json());
+
+    expect(body.refunds.map((refund) => [refund.sent_by_cloud, refund.delivery_stage])).toEqual([
+      [false, null],
+    ]);
+  });
+});
+
+describe("POST /refunds/:id/completion, a QR refund of a cancelled sale", () => {
+  it("answers 409 and leaves the refund pending, because the cloud sends it to Mercado Pago", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const pending = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+
+    const response = await markDone(headers, pending.refundId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "refund_sent_by_cloud" });
+    const [refund] = await db
+      .select()
+      .from(paymentRefunds)
+      .where(eq(paymentRefunds.id, pending.refundId));
+    expect(refund?.state).toBe("PENDING");
+  });
+});
+
 describe("POST /refunds/:id/completion", () => {
   it("marks the pending refund as done by the person of the session", async () => {
     const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
@@ -327,6 +404,210 @@ describe("POST /refunds/:id/completion", () => {
     const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
 
     const response = await markDone(headers, "refund-1");
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+});
+
+describe("POST /refunds/:id/confirmation", () => {
+  async function storedRefund(refundId: string) {
+    const [refund] = await db.select().from(paymentRefunds).where(eq(paymentRefunds.id, refundId));
+    return refund;
+  }
+
+  it("confirms the refund on behalf of the person of the session and asks Mercado Pago to refund the order, leaving it pending while it is in process", async () => {
+    const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const pending = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+
+    const response = await confirm(headers, pending.refundId);
+
+    expect(response.statusCode).toBe(200);
+    expect(confirmedRefundSchema.parse(response.json())).toEqual({
+      refund_id: pending.refundId,
+      outcome: "sent",
+    });
+    const refund = await storedRefund(pending.refundId);
+    expect(refund).toMatchObject({
+      state: "PENDING",
+      confirmedBy: userId,
+      confirmedAt: NOW,
+      sentAt: NOW,
+      providerRefundId: "REF01JQ4S4KY8HWQ6NA5PXB65B3D3",
+    });
+    expect(mercadoPago.refunds).toEqual([
+      { orderId: ORDER_ID, idempotencyKey: refund?.attemptKey },
+    ]);
+  });
+
+  it("marks the refund done by the person who confirmed it, resolving its refund task alert, when Mercado Pago already processed it", async () => {
+    const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const pending = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+    const [alert] = await db
+      .insert(alerts)
+      .values({
+        kind: "refund_task",
+        scope: pending.refundId,
+        level: "warning",
+        audience: "local",
+        locationId: pending.locationId,
+        detail: {},
+        openedAt: NOW,
+      })
+      .returning({ id: alerts.id });
+    mercadoPago.refund = { kind: "refunded", providerRefundId: "REF-1", processed: true };
+
+    const response = await confirm(headers, pending.refundId);
+
+    expect(confirmedRefundSchema.parse(response.json())).toEqual({
+      refund_id: pending.refundId,
+      outcome: "done",
+      done_at: NOW.toISOString(),
+    });
+    expect(await storedRefund(pending.refundId)).toMatchObject({
+      state: "APPROVED",
+      doneBy: userId,
+      doneAt: NOW,
+    });
+    const [resolved] = await db
+      .select()
+      .from(alerts)
+      .where(eq(alerts.id, alert?.id ?? ""));
+    expect(resolved).toMatchObject({ resolvedAt: NOW, resolvedBy: userId });
+  });
+
+  it("leaves an audit entry for the confirmation", async () => {
+    const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const pending = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+
+    await confirm(headers, pending.refundId);
+
+    const audits = await db.select().from(auditLog).where(eq(auditLog.entityId, pending.refundId));
+    expect(audits).toContainEqual(
+      expect.objectContaining({ entity: "payment_refund", actorId: userId, at: NOW }),
+    );
+  });
+
+  it.each([
+    [
+      "insufficient_balance",
+      { kind: "insufficient_balance" } as const,
+      { outcome: "insufficient_balance" },
+    ],
+    [
+      "refused",
+      { kind: "refused", reason: "refund_period_exceeded" } as const,
+      { outcome: "refused", reason: "refund_period_exceeded" },
+    ],
+    ["provider_unavailable", { kind: "unavailable" } as const, { outcome: "provider_unavailable" }],
+  ])(
+    "answers 200 with the %s outcome, the confirmation standing",
+    async (_name, answer, expected) => {
+      const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+      const pending = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+      mercadoPago.refund = answer;
+
+      const response = await confirm(headers, pending.refundId);
+
+      expect(response.statusCode).toBe(200);
+      expect(confirmedRefundSchema.parse(response.json())).toEqual({
+        refund_id: pending.refundId,
+        ...expected,
+      });
+      expect(await storedRefund(pending.refundId)).toMatchObject({
+        state: "PENDING",
+        confirmedBy: userId,
+      });
+    },
+  );
+
+  type Setup = () => Promise<string>;
+  const markRefund = (refundId: string, values: Partial<typeof paymentRefunds.$inferInsert>) =>
+    db.update(paymentRefunds).set(values).where(eq(paymentRefunds.id, refundId));
+
+  it.each<[string, string, Setup]>([
+    ["refund_not_confirmable", "a refund of another method", () => aPendingRefund()],
+    [
+      "already_done",
+      "a refund already done",
+      async () => {
+        const { refundId } = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+        await markRefund(refundId, { state: "APPROVED", doneBy: "manager", doneAt: NOW });
+        return refundId;
+      },
+    ],
+    [
+      "already_confirmed",
+      "a refund already confirmed",
+      async () => {
+        const { refundId } = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+        await markRefund(refundId, { confirmedBy: "manager", confirmedAt: NOW });
+        return refundId;
+      },
+    ],
+    [
+      "refund_not_backed",
+      "a refund whose cancelling event the cloud does not hold",
+      async () =>
+        (await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW, cancellingEvent: false }))
+          .refundId,
+    ],
+    [
+      "exceeds_refundable",
+      "a refund over what its payment still holds",
+      async () => {
+        const { refundId } = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+        await markRefund(refundId, { amount: 2_451 });
+        return refundId;
+      },
+    ],
+  ])("answers 409 %s to %s, sending nothing", async (code, _scenario, setUp) => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const refundId = await setUp();
+
+    const response = await confirm(headers, refundId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code });
+    expect(mercadoPago.refunds).toEqual([]);
+  });
+
+  it("answers 404 to a refund that does not exist", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+
+    const response = await confirm(headers, UNKNOWN_REFUND);
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "refund_not_found" });
+  });
+
+  it("answers 404 to a refund of another branch", async () => {
+    const pending = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+    const locationId = await insertLocation(db);
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW, { locationId });
+
+    const response = await confirm(headers, pending.refundId);
+
+    expect(response.statusCode).toBe(404);
+    expect(mercadoPago.refunds).toEqual([]);
+  });
+
+  it("answers 503 and sends nothing when Mercado Pago is not configured", async () => {
+    await serve(undefined);
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const pending = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+
+    const response = await confirm(headers, pending.refundId);
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({ code: "payment_provider_not_configured" });
+    expect((await storedRefund(pending.refundId))?.confirmedAt).toBeNull();
+  });
+
+  it("answers 400 to an id that is not a record id", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+
+    const response = await confirm(headers, "refund-1");
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "validation_failed" });

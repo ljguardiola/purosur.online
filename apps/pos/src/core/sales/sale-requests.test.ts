@@ -943,13 +943,28 @@ describe("the sale in progress", () => {
     });
   });
 
-  it("says that an approved QR payment refuses the cancellation", async () => {
+  it("says that an approved QR payment leaves a pending refund on cancelling", async () => {
     const saleId = await sellTwoForPayments();
     addQrPayment(saleId, "APPROVED", NOW);
 
     expect(await currentSaleFor(deps())).toMatchObject({
       lines_lock: "approved_payment",
-      cancel_refusal: "holds_mercado_pago_payment",
+      cancel_refusal: null,
+      refunds_on_cancel: [{ payment_id: "qr-1", method: "QR", amount: 1000, state: "PENDING" }],
+    });
+  });
+
+  it("says that an approved payment on the integrated terminal refuses the cancellation", async () => {
+    const saleId = await sellTwoForPayments();
+    database
+      .prepare(
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES ('point-1', ?, 'SALE', 'POINT', 'MERCADOPAGO_POINT', 1000, 'APPROVED', ?, ?)",
+      )
+      .run(saleId, NOW.toISOString(), NOW.toISOString());
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      lines_lock: "approved_payment",
+      cancel_refusal: "holds_point_payment",
       refunds_on_cancel: [],
     });
   });
@@ -2975,6 +2990,28 @@ describe("cancelling the open sale of a locked register", () => {
     );
   });
 
+  it("leaves a QR refund pending when it cancels a sale paid there", async () => {
+    addCloser(["close_anothers_register_session", "void_sale"]);
+    const saleId = await sellTwoForPayments();
+    database
+      .prepare(
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES ('qr-1', ?, 'SALE', 'QR', 'MERCADOPAGO_QR', 1000, 'APPROVED', ?, ?)",
+      )
+      .run(saleId, NOW.toISOString(), NOW.toISOString());
+    signedInPerson.clear();
+
+    expect(await cancelLockedSaleFor(lockedDeps(), { saleId, closer: CLOSER })).toMatchObject({
+      kind: "cancelled",
+      refunds: [{ method: "QR", state: "PENDING" }],
+    });
+    expect(database.prepare("SELECT method, provider, state FROM payment_refunds").all()).toEqual([
+      { method: "QR", provider: "MERCADOPAGO_QR", state: "PENDING" },
+    ]);
+    expect(database.prepare("SELECT id FROM cash_movements WHERE type = 'REFUND'").all()).toEqual(
+      [],
+    );
+  });
+
   it("refuses a closer who may not void a sale with approved payments, changing nothing", async () => {
     addCloser(["close_anothers_register_session"]);
     const saleId = await lockedWithPartPaidSale();
@@ -3137,8 +3174,56 @@ describe("cancelling the sale in progress after a payment was approved", () => {
       [],
     );
     expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
-      { event_type: "sale_cancelled", schema_version: 5 },
+      { event_type: "sale_cancelled", schema_version: 6 },
     ]);
+  });
+
+  it("cancels it while it holds an approved QR payment, leaving its refund pending with no cash movement and telling the cloud", async () => {
+    addPersonWithPin("u2", "Grace", ["sell_and_charge", "void_sale"]);
+    database.prepare("UPDATE cash_sessions SET opened_by = 'u2'").run();
+    signedInPerson.set("u2");
+    const saleId = await sellTwoForPayments();
+    database
+      .prepare(
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES ('qr-1', ?, 'SALE', 'QR', 'MERCADOPAGO_QR', 1000, 'APPROVED', ?, ?)",
+      )
+      .run(saleId, NOW.toISOString(), NOW.toISOString());
+
+    expect(await cancelPaidSaleFor(withPins(), { saleId })).toEqual({
+      kind: "cancelled",
+      refunds: [{ payment_id: "qr-1", method: "QR", amount: 1000, state: "PENDING" }],
+      authorized_by: null,
+    });
+    expect(saleStates()).toEqual([{ state: "CANCELLED" }]);
+    expect(
+      database.prepare("SELECT method, provider, amount, state FROM payment_refunds").all(),
+    ).toEqual([{ method: "QR", provider: "MERCADOPAGO_QR", amount: 1000, state: "PENDING" }]);
+    expect(database.prepare("SELECT id FROM cash_movements WHERE type = 'REFUND'").all()).toEqual(
+      [],
+    );
+    expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
+      { event_type: "sale_cancelled", schema_version: 6 },
+    ]);
+  });
+
+  it("refuses it, writing nothing, while it holds an approved payment on the integrated terminal", async () => {
+    addPersonWithPin("u2", "Grace", ["sell_and_charge", "void_sale"]);
+    database.prepare("UPDATE cash_sessions SET opened_by = 'u2'").run();
+    signedInPerson.set("u2");
+    const saleId = await sellTwoForPayments();
+    database
+      .prepare(
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES ('point-1', ?, 'SALE', 'POINT', 'MERCADOPAGO_POINT', 1000, 'APPROVED', ?, ?)",
+      )
+      .run(saleId, NOW.toISOString(), NOW.toISOString());
+
+    expect(await cancelPaidSaleFor(withPins(), { saleId })).toEqual({
+      kind: "holds_point_payment",
+    });
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT count(*) AS total FROM payment_refunds").get()).toEqual({
+      total: 0,
+    });
   });
 
   it("cancels it with the PIN of a person who holds the permission, naming who authorized it", async () => {

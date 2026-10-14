@@ -32,7 +32,7 @@ const TRANSFER_REFUND: OpenSale["refunds_on_cancel"][number] = {
 const CASH_LINE = "Devolver $ 1.000,00 en efectivo";
 const TRANSFER_LINE = "Reembolso pendiente de la transferencia por $ 2.500,00";
 const PENDING_NOTE =
-  "Un reembolso pendiente lo hace alguien fuera de la caja y lo marca como hecho en el backoffice.";
+  "Un reembolso pendiente no se hace desde la caja: se atiende en el backoffice.";
 const CANCEL = "Cancelar la venta";
 
 type Props = {
@@ -121,6 +121,19 @@ describe("CancelPaidSaleModal", () => {
       .toBeVisible();
     await expect.element(screen.getByText(PENDING_NOTE, { exact: true })).toBeVisible();
     await expect.element(screen.getByText(/transferencia/)).not.toBeInTheDocument();
+  });
+
+  it("adds no note of its own under a pending QR refund, whose line already says how it is handled", async () => {
+    const { screen } = await renderModal({
+      refunds: [{ payment_id: "p9", method: "QR", amount: 70_000, state: "PENDING" }],
+    });
+
+    await expect
+      .element(
+        screen.getByText("Reembolso pendiente del pago con QR por $ 700,00", { exact: true }),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByText(/se atiende en el backoffice/)).not.toBeInTheDocument();
   });
 
   it("says nothing about a pending refund when every payment was in cash", async () => {
@@ -322,9 +335,9 @@ describe("CancelPaidSaleModal", () => {
         "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.",
       ],
       [
-        "the sale holds a QR payment",
-        { kind: "holds_mercado_pago_payment" },
-        "La venta tiene un pago con Mercado Pago: todavía no se puede anular desde la caja.",
+        "the sale holds an integrated terminal payment",
+        { kind: "holds_point_payment" },
+        "La venta tiene un pago con la terminal de Mercado Pago: todavía no se puede anular desde la caja.",
       ],
     ])("keeps the modal open and says why when %s", async (_case, outcome, notice) => {
       const { screen, onCancelled } = await renderModal({

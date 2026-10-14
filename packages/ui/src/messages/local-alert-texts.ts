@@ -54,9 +54,9 @@ const FIXED_LOCAL_ALERT_TEXTS = {
   },
   refund_task: {
     title: "Reembolso pendiente de confirmar",
-    meaning: "Hay un reembolso aprobado que todavía no quedó marcado como hecho en el sistema.",
+    meaning: "Hay un reembolso de una venta anulada que todavía no se completó.",
     whatToDo:
-      "Si ese reembolso ya se hizo por fuera del sistema, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes. El Administrador ya fue avisado.",
+      "Si es de un pago con QR, confirmarlo en Reembolsos pendientes para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo por fuera del sistema, marcarlo como hecho, y si todavía no se hizo, hacerlo cuanto antes. El Administrador ya fue avisado.",
   },
   fiscal_emission_stopped: {
     title: "Emisión de facturas detenida",

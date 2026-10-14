@@ -3,7 +3,7 @@ import {
   APPROVED_PAYMENT_STATE,
   cancellableWithoutAuthorization,
   hasApprovedPayment,
-  holdsApprovedMercadoPagoPayment,
+  holdsApprovedPointPayment,
   isConfirmedByHand,
   MERCADO_PAGO_PAYMENT_METHODS,
   MERCADO_PAGO_PROVIDERS,
@@ -56,34 +56,26 @@ describe("hasApprovedPayment", () => {
   });
 });
 
-describe("holdsApprovedMercadoPagoPayment", () => {
+describe("holdsApprovedPointPayment", () => {
   const QR = { state: "APPROVED", method: "QR" } as const;
   const POINT = { state: "APPROVED", method: "POINT" } as const;
 
   it("is false for a sale without payments", () => {
-    expect(holdsApprovedMercadoPagoPayment([])).toBe(false);
+    expect(holdsApprovedPointPayment([])).toBe(false);
   });
 
-  it("is true when an approved payment of several is by QR", () => {
-    expect(holdsApprovedMercadoPagoPayment([APPROVED, QR])).toBe(true);
+  it("is true when an approved payment of several is on the integrated terminal", () => {
+    expect(holdsApprovedPointPayment([APPROVED, POINT])).toBe(true);
   });
 
-  it("is false when only payments of other methods are approved", () => {
-    expect(holdsApprovedMercadoPagoPayment([APPROVED, { ...APPROVED, method: "TRANSFER" }])).toBe(
+  it("is false when only payments of other methods are approved, a QR payment included", () => {
+    expect(holdsApprovedPointPayment([APPROVED, { ...APPROVED, method: "TRANSFER" }, QR])).toBe(
       false,
     );
   });
 
-  it("is true when an approved payment of several is by the integrated terminal", () => {
-    expect(holdsApprovedMercadoPagoPayment([APPROVED, POINT])).toBe(true);
-  });
-
-  it("is false when the QR payment is not approved", () => {
-    expect(holdsApprovedMercadoPagoPayment([{ ...QR, state: "PENDING" }])).toBe(false);
-  });
-
   it("is false when the integrated terminal payment is not approved", () => {
-    expect(holdsApprovedMercadoPagoPayment([{ ...POINT, state: "PENDING" }])).toBe(false);
+    expect(holdsApprovedPointPayment([{ ...POINT, state: "PENDING" }])).toBe(false);
   });
 });
 

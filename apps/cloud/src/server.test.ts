@@ -1559,6 +1559,8 @@ describe("startServer creating Mercado Pago QR orders", () => {
       createPointOrder: expect.any(Function),
       readOrder: expect.any(Function),
       cancelOrder: expect.any(Function),
+      refundOrder: expect.any(Function),
+      readOrderRefunds: expect.any(Function),
     };
     expect(options.mercadoPagoOrders).toEqual({ connections: recovery.connections, mercadoPago });
     expect(options.mercadoPagoNotifications).toEqual({
@@ -1585,6 +1587,8 @@ describe("startServer creating Mercado Pago QR orders", () => {
       createPointOrder: expect.any(Function),
       readOrder: expect.any(Function),
       cancelOrder: expect.any(Function),
+      refundOrder: expect.any(Function),
+      readOrderRefunds: expect.any(Function),
     });
   });
 
