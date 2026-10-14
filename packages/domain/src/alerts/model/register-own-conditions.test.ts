@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import type { SerialDeviceStanding } from "../../register/index.js";
 import { argentinaInstant } from "../../shared/index.js";
 import { ALERT_KINDS, isAlertKind } from "./alert-catalog.js";
@@ -253,12 +253,10 @@ describe("registerOwnConditions", () => {
     ]);
   });
 
-  it("holds nothing of storage while no reading of it is current", () => {
-    expect(conditions({ storage: null })).toEqual([]);
-  });
-
-  it("holds nothing of storage for a register given no reading of it", () => {
-    expect(conditions({ storage: undefined })).toEqual([]);
+  it("is given a storage standing every time, never none", () => {
+    expectTypeOf<
+      Parameters<typeof registerOwnConditions>[0]["storage"]
+    >().toEqualTypeOf<StorageStanding>();
   });
 
   it("holds disk_space_low as a warning while the disk is low", () => {
