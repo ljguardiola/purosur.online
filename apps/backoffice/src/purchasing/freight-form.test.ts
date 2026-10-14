@@ -70,14 +70,16 @@ describe("freightRequestFrom", () => {
     expect(freightBodySchema.safeParse(freightRequestFrom(values())).success).toBe(true);
   });
 
-  it.each([
+  const refusedValues: [string, Partial<FreightFormValues>][] = [
     ["a missing date", { date: null }],
     ["an amount that is not a number", { amount: "mucho" }],
     ["an amount of zero", { amount: "0" }],
     ["a missing carrier", { carrierName: "  " }],
     ["a missing description", { description: " " }],
     ["no purchase", { purchaseIds: [] }],
-  ] as const)("builds a body the contract refuses for %s", (_name, overrides) => {
+  ];
+
+  it.each(refusedValues)("builds a body the contract refuses for %s", (_name, overrides) => {
     expect(freightBodySchema.safeParse(freightRequestFrom(values(overrides))).success).toBe(false);
   });
 
