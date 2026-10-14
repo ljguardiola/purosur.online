@@ -1,5 +1,5 @@
 {
-  "id": "c3d84caf-9b51-4df9-a376-0db838ea09c3",
+  "id": "efc494f1-4eaf-49aa-b46e-54d02b796260",
   "prevId": "cf7d05bb-4f4c-497f-a5bf-48b81fbe44d4",
   "version": "7",
   "dialect": "postgresql",
@@ -3425,10 +3425,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "offsite_dump_checks_status_check": {
-          "name": "offsite_dump_checks_status_check",
-          "value": "\"offsite_dump_checks\".\"status\" in ('verified', 'failed')"
-        },
         "offsite_dump_checks_result_shape_check": {
           "name": "offsite_dump_checks_result_shape_check",
           "value": "(\"offsite_dump_checks\".\"status\" = 'verified' and \"offsite_dump_checks\".\"size_bytes\" is not null and \"offsite_dump_checks\".\"failure_reason\" is null) or (\"offsite_dump_checks\".\"status\" = 'failed' and \"offsite_dump_checks\".\"size_bytes\" is null and \"offsite_dump_checks\".\"failure_reason\" is not null)"

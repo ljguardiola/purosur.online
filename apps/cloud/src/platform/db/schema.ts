@@ -2213,7 +2213,6 @@ export const offsiteDumpChecks = pgTable(
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    check("offsite_dump_checks_status_check", sql`${table.status} in ('verified', 'failed')`),
     check(
       "offsite_dump_checks_result_shape_check",
       sql`(${table.status} = 'verified' and ${table.sizeBytes} is not null and ${table.failureReason} is null) or (${table.status} = 'failed' and ${table.sizeBytes} is null and ${table.failureReason} is not null)`,
