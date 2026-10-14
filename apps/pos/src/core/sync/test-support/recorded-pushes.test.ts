@@ -4,7 +4,7 @@ import { recordedEvents, sentEvents } from "@purosur/contracts/sync/test-support
 import ts from "typescript";
 import { beforeAll, describe, expect, it } from "vitest";
 import { shapeOf } from "./event-shape.js";
-import { eventVersionsBuiltBy } from "./register-event-versions.js";
+import { eventVersionsBuiltBy } from "../register-event-versions.js";
 import { registerSessionPush } from "./register-session-push.js";
 
 const REPO_DIR = fileURLToPath(new URL("../../../../../../", import.meta.url));
