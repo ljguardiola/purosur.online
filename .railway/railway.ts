@@ -65,6 +65,21 @@ function releaseCheckVariables(environment: string): Record<string, string> {
     : {};
 }
 
+// The nightly offsite dump exists in production only: staging holds no real data worth a copy
+// outside Railway, and receives none of these variables.
+function offsiteDumpPasswordVariables(environment: string): Record<string, string> {
+  return environment === "production"
+    ? { OFFSITE_DUMP_DATABASE_PASSWORD: requireEnv("OFFSITE_DUMP_DATABASE_PASSWORD") }
+    : {};
+}
+
+// The token the daily offsite dump check reports with, like the release check token.
+function offsiteDumpCheckVariables(environment: string): Record<string, string> {
+  return environment === "production"
+    ? { OFFSITE_DUMP_CHECK_TOKEN: requireEnv("OFFSITE_DUMP_CHECK_TOKEN") }
+    : {};
+}
+
 function requireRecoveryEmailFrom(environment: string): string {
   const from = RECOVERY_EMAIL_FROM[environment];
   if (!from) {
@@ -75,20 +90,25 @@ function requireRecoveryEmailFrom(environment: string): string {
 
 const POSTGRES_RESOURCE_NAME = "Database";
 const CLOUD_APP_ROLE = "cloud_app";
+const OFFSITE_DUMP_ROLE = "offsite_dump";
 
 // `db.env.DATABASE_URL` is a reference object, not a string (it has no `toString`, so
 // interpolating it into a template literal yields "[object Object]"), and it always resolves to
 // the admin credential anyway. `cloud_app`'s own connection string is instead built as a plain
 // literal that embeds Railway's own `${{<resource>.<field>}}` reference syntax as literal text,
 // which the CLI resolves against the named resource only when it applies the config.
-function cloudAppDatabaseUrl(cloudAppPassword: string): string {
+function roleDatabaseUrl(role: string, password: string): string {
   return (
-    `postgresql://${CLOUD_APP_ROLE}:` +
-    encodeURIComponent(cloudAppPassword) +
+    `postgresql://${role}:` +
+    encodeURIComponent(password) +
     `@\${{${POSTGRES_RESOURCE_NAME}.PGHOST}}` +
     `:\${{${POSTGRES_RESOURCE_NAME}.PGPORT}}` +
     `/\${{${POSTGRES_RESOURCE_NAME}.PGDATABASE}}`
   );
+}
+
+function cloudAppDatabaseUrl(cloudAppPassword: string): string {
+  return roleDatabaseUrl(CLOUD_APP_ROLE, cloudAppPassword);
 }
 
 // Railway stores a reference to a resource whose name has a space with the name quoted
@@ -151,6 +171,7 @@ export default defineRailway((ctx) => {
     env: {
       DATABASE_URL: db.env.DATABASE_URL,
       CLOUD_APP_DATABASE_PASSWORD: cloudAppDatabasePassword,
+      ...offsiteDumpPasswordVariables(environment),
     },
   });
 
@@ -183,6 +204,7 @@ export default defineRailway((ctx) => {
       ARCA_PRIVATE_KEY: arcaPrivateKey,
       ARCA_ENVIRONMENT: arcaEnvironment,
       ...releaseCheckVariables(environment),
+      ...offsiteDumpCheckVariables(environment),
       REGISTER_UPDATES_BUCKET_ENDPOINT: bucketReference(registerUpdates, "ENDPOINT"),
       REGISTER_UPDATES_BUCKET_NAME: bucketReference(registerUpdates, "BUCKET"),
       REGISTER_UPDATES_BUCKET_REGION: bucketReference(registerUpdates, "REGION"),
@@ -212,7 +234,41 @@ export default defineRailway((ctx) => {
     },
   });
 
+  const offsiteDump =
+    environment === "production"
+      ? [
+          // Cron times are UTC: the dump runs early enough for the daily check at 10:00 UTC to
+          // find it, with hours to spare before the 15:00 UTC deadline. Connected as the
+          // read-only `offsite_dump` role and holding only the age recipient (the public key) and
+          // a storage credential that can create objects, never read or delete them.
+          service("Offsite Dump", {
+            source: cloudImage,
+            regions: { [SERVICE_REGION]: 1 },
+            deploy: {
+              registryCredentials,
+              startCommand: "node dist/dump-offsite.js",
+              cronSchedule: "0 6 * * *",
+              restartPolicyType: "NEVER",
+            },
+            env: {
+              OFFSITE_DUMP_DATABASE_URL: roleDatabaseUrl(
+                OFFSITE_DUMP_ROLE,
+                requireEnv("OFFSITE_DUMP_DATABASE_PASSWORD"),
+              ),
+              OFFSITE_DUMP_AGE_RECIPIENT: requireEnv("OFFSITE_DUMP_AGE_RECIPIENT"),
+              OFFSITE_DUMP_BUCKET_ENDPOINT: requireEnv("OFFSITE_DUMP_BUCKET_ENDPOINT"),
+              OFFSITE_DUMP_BUCKET_NAME: requireEnv("OFFSITE_DUMP_BUCKET_NAME"),
+              OFFSITE_DUMP_BUCKET_REGION: requireEnv("OFFSITE_DUMP_BUCKET_REGION"),
+              OFFSITE_DUMP_BUCKET_ACCESS_KEY_ID: requireEnv("OFFSITE_DUMP_BUCKET_ACCESS_KEY_ID"),
+              OFFSITE_DUMP_BUCKET_SECRET_ACCESS_KEY: requireEnv(
+                "OFFSITE_DUMP_BUCKET_SECRET_ACCESS_KEY",
+              ),
+            },
+          }),
+        ]
+      : [];
+
   return project("Puro Sur", {
-    resources: [db, media, registerUpdates, registerSnapshots, migrate, cloud],
+    resources: [db, media, registerUpdates, registerSnapshots, migrate, cloud, ...offsiteDump],
   });
 });

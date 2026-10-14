@@ -73,6 +73,7 @@ describe("the project's resources", () => {
 
 describe("the offsite dump", () => {
   beforeEach(() => {
+    vi.stubEnv("RELEASE_CHECK_TOKEN", "release-check-token");
     for (const [name, value] of Object.entries(OFFSITE_DUMP_ENV)) {
       vi.stubEnv(name, value);
     }
