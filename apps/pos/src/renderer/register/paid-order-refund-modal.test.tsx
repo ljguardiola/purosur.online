@@ -103,7 +103,7 @@ describe("PaidOrderRefundModal", () => {
 
     await userEvent.click(confirmButton(dialog));
 
-    await expect.element(dialog.getByText(message)).toBeVisible();
+    await expect.element(dialog.getByText(message).first()).toBeVisible();
     expect(onConverted).not.toHaveBeenCalled();
     expect(onGone).not.toHaveBeenCalled();
     await expectNoAccessibilityViolations(screen.container);
@@ -118,7 +118,7 @@ describe("PaidOrderRefundModal", () => {
 
     await userEvent.click(confirmButton(dialog));
     await expect
-      .element(dialog.getByText("No se pudo pasar el cobro a reembolso. Probá de nuevo."))
+      .element(dialog.getByText("No se pudo pasar el cobro a reembolso. Probá de nuevo.").first())
       .toBeVisible();
     await userEvent.click(confirmButton(dialog));
 

@@ -598,9 +598,9 @@ describe("StartupPendingScreen", () => {
       });
       const rows = screen.getByRole("table", { name: "Pendientes" }).getByRole("row");
 
-      await expect.element(rows.nth(1)).toHaveTextContent("Cobro con QR pagado sin venta");
-      await expect.element(rows.nth(2)).toHaveTextContent("Cobro con Point pagado sin venta");
-      await expect.element(rows.nth(3)).toHaveTextContent("Venta sin ticket");
+      await expect.element(rows.nth(1)).toHaveTextContent(/Cobro con QR pagado sin venta/);
+      await expect.element(rows.nth(2)).toHaveTextContent(/Cobro con Point pagado sin venta/);
+      await expect.element(rows.nth(3)).toHaveTextContent(/Venta sin ticket/);
       await expect
         .element(screen.getByText("$ 800,00 cobrados a las 15:30. La venta no quedó en la caja."))
         .toBeVisible();
@@ -740,7 +740,7 @@ describe("StartupPendingScreen", () => {
       );
 
       await expect
-        .element(screen.getByText("No hay conexión con la nube. Probá de nuevo cuando vuelva."))
+        .element(screen.getByText("No hay conexión con la nube. Probá de nuevo cuando vuelva.").first())
         .toBeVisible();
       await expect.element(screen.getByRole("button", { name: "Ir a vender" })).toBeDisabled();
     });
