@@ -1,4 +1,6 @@
 import {
+  type AverageTicketBody,
+  averageTicketSchema,
   type ReportQuery,
   type SalesByCashierBody,
   type SalesByProductAndCategoryBody,
@@ -53,4 +55,19 @@ export function fetchSalesByCashier(
   const search = params.toString();
   const path = "/api/reports/sales-by-cashier";
   return readCloudJson(search ? `${path}?${search}` : path, salesByCashierSchema);
+}
+
+export function fetchAverageTicket(
+  query: ReportQuery,
+): Promise<CloudReadOutcome<AverageTicketBody>> {
+  const params = new URLSearchParams();
+  for (const key of ["from", "to", "register_id"] as const) {
+    const value = query[key];
+    if (value !== undefined) {
+      params.set(key, value);
+    }
+  }
+  const search = params.toString();
+  const path = "/api/reports/average-ticket";
+  return readCloudJson(search ? `${path}?${search}` : path, averageTicketSchema);
 }
