@@ -83,14 +83,12 @@ describe("DrizzleApprovedOrdersOfRegister", () => {
   it("leaves out an order that is not approved", async () => {
     const registerId = await insertRegister(db, "Caja 1");
     for (const state of ["PENDING", "DECLINED", "CANCELLED", "EXPIRED"] as const) {
-      await db
-        .insert(paymentTransactions)
-        .values(
-          pendingTransaction(registerId, {
-            state,
-            createdAt: new Date("2026-10-12T09:00:00.000Z"),
-          }),
-        );
+      await db.insert(paymentTransactions).values(
+        pendingTransaction(registerId, {
+          state,
+          createdAt: new Date("2026-10-12T09:00:00.000Z"),
+        }),
+      );
     }
 
     expect(await orders().approvedUnreplacedSince(registerId, SINCE)).toEqual([]);

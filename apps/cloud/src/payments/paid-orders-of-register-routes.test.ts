@@ -138,18 +138,16 @@ describe("the paid orders of a register routes", () => {
       const { registerId, deviceToken } = await enroll();
       const other = await enroll("Caja 2");
       const inWindow = hoursBeforeNow(5);
-      await route.db
-        .insert(paymentTransactions)
-        .values([
-          pendingTransaction(registerId, { state: "PENDING", createdAt: inWindow }),
-          pendingTransaction(registerId, {
-            state: "APPROVED",
-            replaced: true,
-            createdAt: inWindow,
-          }),
-          pendingTransaction(registerId, { state: "APPROVED", createdAt: hoursBeforeNow(73) }),
-          pendingTransaction(other.registerId, { state: "APPROVED", createdAt: inWindow }),
-        ]);
+      await route.db.insert(paymentTransactions).values([
+        pendingTransaction(registerId, { state: "PENDING", createdAt: inWindow }),
+        pendingTransaction(registerId, {
+          state: "APPROVED",
+          replaced: true,
+          createdAt: inWindow,
+        }),
+        pendingTransaction(registerId, { state: "APPROVED", createdAt: hoursBeforeNow(73) }),
+        pendingTransaction(other.registerId, { state: "APPROVED", createdAt: inWindow }),
+      ]);
 
       const response = await listApproved(`Bearer ${deviceToken}`);
 
