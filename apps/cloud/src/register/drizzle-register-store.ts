@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { enrollmentAttemptWindowStart, SNAPSHOT_STATUSES_RETAINED } from "@purosur/domain";
+import { enrollmentAttemptWindowStart, isRetainedSnapshotGeneration } from "@purosur/domain";
 import type {
   EnrollmentAlert,
   EnrollmentAttemptKey,
@@ -302,17 +302,15 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   private async retainedSnapshotKeyVersions(registerId: string): Promise<number[]> {
-    const rows = await this.tx
-      .selectDistinct({ keyVersion: registerSnapshotGenerations.keyVersion })
+    const kinds = await this.tx
+      .selectDistinct({
+        keyVersion: registerSnapshotGenerations.keyVersion,
+        status: registerSnapshotGenerations.status,
+        pruned: registerSnapshotGenerations.pruned,
+      })
       .from(registerSnapshotGenerations)
-      .where(
-        and(
-          eq(registerSnapshotGenerations.registerId, registerId),
-          inArray(registerSnapshotGenerations.status, [...SNAPSHOT_STATUSES_RETAINED]),
-          eq(registerSnapshotGenerations.pruned, false),
-        ),
-      );
-    return rows.map((row) => row.keyVersion);
+      .where(eq(registerSnapshotGenerations.registerId, registerId));
+    return [...new Set(kinds.filter(isRetainedSnapshotGeneration).map((kind) => kind.keyVersion))];
   }
 
   async recordSnapshotKey(registerId: string, key: VersionedKey): Promise<void> {

@@ -45,24 +45,24 @@ export class BucketRegisterSnapshots implements SnapshotObjects {
   async uploadAuthorization(
     generation: AuthorizedSnapshotUpload,
   ): Promise<SnapshotUploadAuthorization> {
-    const now = this.deps.now();
-    const lifetimeSeconds = Math.floor((generation.expiresAt.getTime() - now.getTime()) / 1000);
-    if (lifetimeSeconds < 1) {
-      throw new Error("the upload would expire before it could start");
-    }
+    const signedAt = Math.floor(generation.issuedAt.getTime() / 1000) * 1000;
     const requiredHeaders = { [KEY_VERSION_HEADER]: String(generation.keyVersion) };
     const signed = await this.client.sign(
-      this.presignableUrl(generation.registerId, generation.generationId, lifetimeSeconds),
+      this.presignableUrl(
+        generation.registerId,
+        generation.generationId,
+        generation.lifetimeSeconds,
+      ),
       {
         method: "PUT",
         headers: requiredHeaders,
-        aws: { signQuery: true, datetime: amzDate(now) },
+        aws: { signQuery: true, datetime: amzDate(generation.issuedAt) },
       },
     );
     return {
       url: signed.url,
       requiredHeaders,
-      expiresAt: new Date(now.getTime() + lifetimeSeconds * 1000),
+      expiresAt: new Date(signedAt + generation.lifetimeSeconds * 1000),
     };
   }
 

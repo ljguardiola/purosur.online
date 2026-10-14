@@ -1,7 +1,7 @@
 import type { Clock } from "../../shared/index.js";
 import {
   isAwaitingSnapshotVerification,
-  snapshotUploadUrlExpiry,
+  snapshotUploadUrlLifetimeSeconds,
 } from "../model/snapshot-generation.js";
 import { SnapshotGenerationIdTaken, type SnapshotStore } from "./snapshot-generations.js";
 
@@ -25,7 +25,8 @@ export interface AuthorizedSnapshotUpload {
   size: number;
   sha256: string;
   keyVersion: number;
-  expiresAt: Date;
+  issuedAt: Date;
+  lifetimeSeconds: number;
 }
 
 export type RequestSnapshotUploadOutcome =
@@ -61,8 +62,8 @@ export async function requestSnapshotUpload(
     }
 
     const now = clock.now();
-    const expiresAt = snapshotUploadUrlExpiry(existing?.createdAt ?? now, now);
-    if (!expiresAt) {
+    const lifetimeSeconds = snapshotUploadUrlLifetimeSeconds(existing?.createdAt ?? now, now);
+    if (lifetimeSeconds === undefined) {
       return { kind: "upload_deadline_passed" };
     }
     if (!existing) {
@@ -91,7 +92,8 @@ export async function requestSnapshotUpload(
         size: input.size,
         sha256: input.sha256,
         keyVersion: input.keyVersion,
-        expiresAt,
+        issuedAt: now,
+        lifetimeSeconds,
       },
     };
   });

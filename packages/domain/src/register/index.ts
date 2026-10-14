@@ -94,13 +94,13 @@ export {
 } from "./model/serial-devices.js";
 export type { SnapshotCorruptionStage } from "./model/snapshot-generation.js";
 export {
+  isRetainedSnapshotGeneration,
   SNAPSHOT_CORRUPTION_STAGES,
   SNAPSHOT_DOWNLOAD_URL_LIFETIME_MS,
   SNAPSHOT_FAILURE_REASONS,
   SNAPSHOT_GENERATION_STATUSES,
   SNAPSHOT_RETENTION_INTERVAL_MS,
   SNAPSHOT_STATUSES_AWAITING_VERIFICATION,
-  SNAPSHOT_STATUSES_RETAINED,
   SNAPSHOT_VERIFICATION_INTERVAL_MS,
 } from "./model/snapshot-generation.js";
 export type { SnapshotLifecycleRules } from "./model/snapshot-lifecycle-rules.js";

@@ -470,6 +470,7 @@ export {
   isNewerRegisterVersion,
   isOutOfService,
   isRegisterNameTooLong,
+  isRetainedSnapshotGeneration,
   isSafeMomentToUpdate,
   isValidCashMovementAmount,
   isWatchedForQuietness,
@@ -496,7 +497,6 @@ export {
   SNAPSHOT_LIFECYCLE_LIMITS,
   SNAPSHOT_RETENTION_INTERVAL_MS,
   SNAPSHOT_STATUSES_AWAITING_VERIFICATION,
-  SNAPSHOT_STATUSES_RETAINED,
   SNAPSHOT_VERIFICATION_INTERVAL_MS,
   serialDeviceStandings,
 } from "./register/index.js";
