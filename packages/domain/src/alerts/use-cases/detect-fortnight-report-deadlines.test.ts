@@ -132,11 +132,11 @@ describe("detectFortnightReportDeadlines", () => {
     expect(alerts.observations).toEqual([pending("warning", { reason: "pending" })]);
   });
 
-  it("says a blocked presentation is blocked, as a warning while the deadline is not pressing", async () => {
+  it("says a blocked presentation is blocked, at the critical level from the first day", async () => {
     const { alerts, outcome } = detect([owed({ state: "blocked" })], at("2026-09-16"));
     await outcome;
 
-    expect(alerts.observations).toEqual([pending("warning", { reason: "blocked" })]);
+    expect(alerts.observations).toEqual([pending("critical", { reason: "blocked" })]);
   });
 
   it("says a presentation the tax authority refused is refused", async () => {

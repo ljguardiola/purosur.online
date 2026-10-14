@@ -103,23 +103,12 @@ describe("fortnightReportPendingObservation", () => {
     });
   });
 
-  it("keeps a blocked presentation a warning while the deadline is not pressing", () => {
+  it("raises it to critical while it is blocked, however far the deadline is", () => {
     expect(
       fortnightReportPendingObservation({
         ...PRESENTATION,
         daysLeft: 6,
         pressing: false,
-        state: "blocked",
-      }),
-    ).toMatchObject({ level: "warning", alert: { detail: { reason: "blocked" } } });
-  });
-
-  it("raises a blocked presentation to critical when the deadline is pressing", () => {
-    expect(
-      fortnightReportPendingObservation({
-        ...PRESENTATION,
-        daysLeft: 1,
-        pressing: true,
         state: "blocked",
       }),
     ).toMatchObject({ level: "critical", alert: { detail: { reason: "blocked" } } });
