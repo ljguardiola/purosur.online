@@ -5,6 +5,7 @@ import {
   LOSS_REASONS,
   lossDelta,
   STOCK_DIRECTIONS,
+  SYSTEM_LOSS_REASONS,
   signedDelta,
 } from "./stock-movement-reason.js";
 
@@ -18,6 +19,15 @@ describe("LOSS_REASONS", () => {
       "store_consumption",
       "theft",
     ]);
+  });
+});
+
+describe("SYSTEM_LOSS_REASONS", () => {
+  it("lists the reasons the system assigns to a loss, which a person never picks", () => {
+    expect(SYSTEM_LOSS_REASONS).toEqual(["expired"]);
+    for (const reason of SYSTEM_LOSS_REASONS) {
+      expect(LOSS_REASONS).not.toContain(reason);
+    }
   });
 });
 

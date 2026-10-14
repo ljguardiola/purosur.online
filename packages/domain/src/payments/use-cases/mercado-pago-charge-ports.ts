@@ -21,6 +21,11 @@ export interface PendingMercadoPagoCharge {
   waitEndsAt: Date;
 }
 
+export interface InterruptedMercadoPagoCharge {
+  paymentTransactionId: string;
+  actorId: string;
+}
+
 export type EndedMercadoPagoChargeState = Exclude<PaymentTransactionState, "PENDING" | "APPROVED">;
 
 export interface MercadoPagoChargeSale<Refusal, Settlement, ReplacementRefusal = unknown> {
@@ -67,6 +72,7 @@ export interface MercadoPagoChargeOrders {
 
 export interface MercadoPagoCharges {
   pendingCharge(paymentTransactionId: string): PendingMercadoPagoCharge | null;
+  pendingCharges(): InterruptedMercadoPagoCharge[];
   recordEnded(paymentTransactionId: string, state: EndedMercadoPagoChargeState): void;
   recordWaitEnd(paymentTransactionId: string, waitEndsAt: Date): void;
 }

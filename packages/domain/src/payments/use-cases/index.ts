@@ -52,6 +52,12 @@ export type {
 } from "./discard-refund.js";
 export { discardRefund } from "./discard-refund.js";
 export type {
+  FollowedInterruptedMercadoPagoCharge,
+  FollowInterruptedMercadoPagoChargesInput,
+  FollowInterruptedMercadoPagoChargesOutcome,
+} from "./follow-interrupted-mercado-pago-charges.js";
+export { followInterruptedMercadoPagoCharges } from "./follow-interrupted-mercado-pago-charges.js";
+export type {
   FollowMercadoPagoChargeInput,
   FollowMercadoPagoChargeOutcome,
 } from "./follow-mercado-pago-charge.js";
@@ -71,6 +77,7 @@ export type {
 export { markRefundDone } from "./mark-refund-done.js";
 export type {
   EndedMercadoPagoChargeState,
+  InterruptedMercadoPagoCharge,
   MercadoPagoChargeOrder,
   MercadoPagoChargeOrderAnswer,
   MercadoPagoChargeOrderCancellation,
@@ -140,6 +147,11 @@ export type {
   ReadMercadoPagoOrderPaymentOutcome,
 } from "./read-mercado-pago-order-payment.js";
 export { readMercadoPagoOrderPayment } from "./read-mercado-pago-order-payment.js";
+export type {
+  MercadoPagoPaymentSummary,
+  MercadoPagoPayments,
+} from "./read-pending-mercado-pago-payments.js";
+export { readPendingMercadoPagoPayments } from "./read-pending-mercado-pago-payments.js";
 export type {
   ReadSalesByPaymentMethodInput,
   SalesByPaymentMethodReport,

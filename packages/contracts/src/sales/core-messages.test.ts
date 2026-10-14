@@ -1382,6 +1382,57 @@ describe("reprinting a sale's receipt from the history", () => {
   });
 });
 
+describe("printing a sale's original receipt", () => {
+  const print = { type: "print-original-receipt", request_id: REQUEST_ID, sale_id: "sale-1" };
+
+  it("accepts a request naming the sale", () => {
+    expect(salesRendererToCoreMessageSchema.parse(print)).toEqual(print);
+  });
+
+  it.each(["request_id", "sale_id"])("rejects a request missing its %s", (field) => {
+    const message = Object.fromEntries(Object.entries(print).filter(([key]) => key !== field));
+
+    expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("carries no reason and no authorization", () => {
+    const message = {
+      ...print,
+      reason: "otra copia",
+      authorization: { user_id: "u2", pin: "1234" },
+    };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(print);
+  });
+
+  it.each([
+    { kind: "started", copy: { kind: "original" } },
+    { kind: "started", copy: { kind: "duplicate", order_number: 3 } },
+    { kind: "busy" },
+    { kind: "already_attempted" },
+    { kind: "printer_not_configured" },
+    { kind: "not_found" },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+  ])("accepts the result $kind", (outcome) => {
+    const message = { type: "print-original-receipt-result", request_id: REQUEST_ID, outcome };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "invalid_reason", max_length: 200 },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+    { kind: "locked", consecutive_failures: 8 },
+    { kind: "started", copy: { kind: "duplicate", order_number: 1.5 } },
+  ])("rejects the result %j", (outcome) => {
+    const message = { type: "print-original-receipt-result", request_id: REQUEST_ID, outcome };
+
+    expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
 describe("asking for the register's sales history", () => {
   const ask = {
     type: "sales-history",
