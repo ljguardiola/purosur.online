@@ -166,7 +166,8 @@ function fakeCli({ env = {}, responses } = {}) {
     env: {
       CLOUDFLARE_API_TOKEN: "cf-token",
       CLOUDFLARE_ZONE_ID: "zone-123",
-      EDGE_ORIGIN_SECRET: "edge-secret",
+      EDGE_ORIGIN_SECRET_STAGING: "staging-edge-secret",
+      EDGE_ORIGIN_SECRET_PRODUCTION: "production-edge-secret",
       ...env,
     },
     fetchImpl: async (url, options) => {
@@ -201,18 +202,59 @@ test("runCli PUTs the header transform rules, then the rate limit rules", async 
   assert.match(calls.fetch[1].url, /http_ratelimit/);
 });
 
-test("runCli sends the header only to the cloud service's hostnames and rate-limits the whole zone", async () => {
+test("runCli sends one rewrite rule per environment, each scoped to its hostnames with its own secret", async () => {
   const { deps, calls } = fakeCli();
 
   await runCli(deps);
 
-  const [transformRule] = JSON.parse(calls.fetch[0].options.body).rules;
+  const { rules } = JSON.parse(calls.fetch[0].options.body);
+  assert.equal(rules.length, 2);
+  const [stagingRule, productionRule] = rules;
+  assert.equal(stagingRule.expression, 'http.host eq "staging.purosur.online"');
   assert.equal(
-    transformRule.expression,
-    'http.host in {"staging.purosur.online" "purosur.online"}',
+    stagingRule.action_parameters.headers[EDGE_ORIGIN_SECRET_HEADER].value,
+    "staging-edge-secret",
   );
+  assert.equal(productionRule.expression, 'http.host eq "purosur.online"');
+  assert.equal(
+    productionRule.action_parameters.headers[EDGE_ORIGIN_SECRET_HEADER].value,
+    "production-edge-secret",
+  );
+});
+
+test("runCli rate-limits the whole zone", async () => {
+  const { deps, calls } = fakeCli();
+
+  await runCli(deps);
+
   const [rateLimitRule] = JSON.parse(calls.fetch[1].options.body).rules;
   assert.equal(rateLimitRule.expression, "true");
+});
+
+test("runCli refuses, naming the variable and making no request, when an environment's secret is missing", async () => {
+  const { deps, calls } = fakeCli({ env: { EDGE_ORIGIN_SECRET_PRODUCTION: undefined } });
+
+  const exitCode = await runCli(deps);
+
+  assert.equal(exitCode, 1);
+  assert.equal(calls.fetch.length, 0);
+  assert.ok(calls.errors.some((message) => message.includes("EDGE_ORIGIN_SECRET_PRODUCTION")));
+});
+
+test("runCli refuses, making no request, when two environments share a secret, without logging it", async () => {
+  const { deps, calls } = fakeCli({
+    env: {
+      EDGE_ORIGIN_SECRET_STAGING: "shared-edge-secret",
+      EDGE_ORIGIN_SECRET_PRODUCTION: "shared-edge-secret",
+    },
+  });
+
+  const exitCode = await runCli(deps);
+
+  assert.equal(exitCode, 1);
+  assert.equal(calls.fetch.length, 0);
+  assert.ok(calls.errors.length > 0);
+  assert.ok(calls.errors.every((message) => !message.includes("shared-edge-secret")));
 });
 
 test("runCli exits non-zero and reports Cloudflare's errors when a PUT fails", async () => {
