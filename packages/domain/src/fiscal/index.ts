@@ -90,6 +90,15 @@ export { offlineAuthorizationCodeAcquisitionUrgency } from "./model/offline-auth
 export type { RegisterOfflineAuthorizationCodeHolding } from "./model/offline-authorization-code-holding.js";
 export { mustHoldOfflineAuthorizationCode } from "./model/offline-authorization-code-holding.js";
 export type {
+  OfflineFiscalDocument,
+  OfflineFiscalDocumentIssue,
+} from "./model/offline-fiscal-document.js";
+export {
+  OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE,
+  offlineFiscalDocument,
+  offlineFiscalDocumentIssuedEvent,
+} from "./model/offline-fiscal-document.js";
+export type {
   OfflineNumberBlockRange,
   OfflineNumberBlockStatus,
 } from "./model/offline-number-block.js";
@@ -112,6 +121,7 @@ export { preEmissionGateFailedEvent } from "./model/pre-emission-gate-failed-eve
 export type {
   DeferralReason,
   FiscalDocumentState,
+  OfflineAuthorizationCause,
   RealTimeAuthorizationAnswer,
   RealTimeAuthorizationResolution,
   RejectionClass,
@@ -121,6 +131,7 @@ export {
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   invoiceDateOf,
   NUMBER_CONSUMING_STATES,
+  OFFLINE_AUTHORIZATION_CAUSES,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
   REJECTION_CLASSES,
   SERIES_WAITING_STATES,
