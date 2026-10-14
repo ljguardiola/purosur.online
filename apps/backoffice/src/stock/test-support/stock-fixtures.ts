@@ -270,6 +270,19 @@ export const almondsAdjustment: StockMovement = {
   superseded: false,
 };
 
+export const almondsExpiredLoss: StockMovement = {
+  id: "movement-3",
+  productId: almonds.id,
+  productName: almonds.name,
+  categoryName: almonds.categoryName,
+  saleUnit: "KG",
+  kind: "loss",
+  reason: "expired",
+  delta: -4300,
+  occurredAt: "2026-09-13T13:00:00.000Z",
+  superseded: false,
+};
+
 export const movementReasons: StockMovementReasonList = {
   reasons: [
     { kind: "loss", reason: "broken_or_spilled", directions: ["subtract"] },

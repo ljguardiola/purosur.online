@@ -1,48 +1,16 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { describe, expect, inject, it, onTestFinished } from "vitest";
-import { migrateFreshDatabase } from "../../test-support/test-database-snapshot.js";
+import { describe, expect, it } from "vitest";
 import {
-  addMigrationEntry,
-  findMigrationEntry,
-  type JournalEntry,
-  migrationsFolderBefore,
-} from "./test-support/migration-journal-test-helpers.js";
-
-async function offlineNumberBlocksEntry(): Promise<JournalEntry> {
-  return findMigrationEntry(
-    "_offline_number_blocks",
-    "test setup: no offline number blocks migration in the journal",
-  );
-}
-
-async function databaseBeforeMigration() {
-  const folder = await mkdtemp(join(tmpdir(), "offline-number-blocks-migration-"));
-  onTestFinished(() => rm(folder, { recursive: true, force: true }));
-  await migrationsFolderBefore(folder, await offlineNumberBlocksEntry());
-  const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
-  onTestFinished(() => client.close());
-  return { folder, client };
-}
-
-type Client = Awaited<ReturnType<typeof databaseBeforeMigration>>["client"];
-
-async function applyMigration(folder: string, client: Client) {
-  await addMigrationEntry(folder, await offlineNumberBlocksEntry());
-  await migrate(drizzle(client), { migrationsFolder: folder });
-}
+  databaseBeforeMigration,
+  type SqlOnlyDatabase,
+} from "./test-support/migration-under-test.js";
 
 async function migratedDatabase() {
-  const { folder, client } = await databaseBeforeMigration();
-  await applyMigration(folder, client);
-  return client;
+  const database = await databaseBeforeMigration("_offline_number_blocks");
+  return database.applyMigration();
 }
 
 async function claimOfflinePointOfSale(
-  client: Client,
+  client: SqlOnlyDatabase,
   pointOfSaleNumber: number,
   mechanism = "offline",
 ) {
@@ -87,12 +55,12 @@ describe("the offline number blocks migration applied over a database that alrea
   timeout: 30_000,
 }, () => {
   it("gives every code already held an identity of its own", async () => {
-    const { folder, client } = await databaseBeforeMigration();
+    const database = await databaseBeforeMigration("_offline_number_blocks");
     for (const [start, end] of [
       ["2026-10-01", "2026-10-15"],
       ["2026-10-16", "2026-10-31"],
     ]) {
-      await client.query(
+      await database.query(
         `insert into caea_codes
            (fortnight_start, fortnight_end, code, report_deadline, obtained_at, obtained_through)
          values ($1, $2, '21403471111111', '2026-11-15', '2026-09-28T12:00:00Z', 'requested')`,
@@ -100,9 +68,9 @@ describe("the offline number blocks migration applied over a database that alrea
       );
     }
 
-    await applyMigration(folder, client);
+    const migrated = await database.applyMigration();
 
-    const { rows } = await client.query<{ id: string }>("select id from caea_codes");
+    const { rows } = await migrated.query<{ id: string }>("select id from caea_codes");
     expect(rows).toHaveLength(2);
     expect(new Set(rows.map((row) => row.id)).size).toBe(2);
   });
@@ -121,22 +89,22 @@ describe("the offline number blocks migration applied over a database that alrea
   });
 
   it("lets a change be about a register, and leaves the changes already logged about none", async () => {
-    const { folder, client } = await databaseBeforeMigration();
-    await client.query(
+    const database = await databaseBeforeMigration("_offline_number_blocks");
+    await database.query(
       `insert into changes (entity, entity_id, version, op)
        values ('category', gen_random_uuid(), 1, 'insert')`,
     );
-    const { rows: before } = await client.query<{ last: string }>(
+    const { rows: before } = await database.query<{ last: string }>(
       "select max(change_seq) as last from changes",
     );
-    await applyMigration(folder, client);
+    const migrated = await database.applyMigration();
 
-    await client.query(
+    await migrated.query(
       `insert into changes (entity, entity_id, version, op, register_id)
        values ('offline_number_block', gen_random_uuid(), 1, 'insert', gen_random_uuid())`,
     );
 
-    const { rows } = await client.query<{ entity: string; has_register: boolean }>(
+    const { rows } = await migrated.query<{ entity: string; has_register: boolean }>(
       `select entity, register_id is not null as has_register from changes
        where change_seq >= $1 order by change_seq`,
       [before[0]?.last],

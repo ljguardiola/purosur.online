@@ -651,6 +651,64 @@ describe("the open sale of the cash session", () => {
   });
 });
 
+describe("what a stopped register left pending", () => {
+  const pending = {
+    sales_to_print: [
+      {
+        sale_id: "sale-1",
+        completed_at: "2026-10-13T12:00:00.000Z",
+        total: 345000,
+        standing: "outcome_unknown",
+      },
+    ],
+    unknown_fiscal_documents: [],
+    pending_payments: [],
+  };
+
+  it("accepts a request for it", () => {
+    const message = { type: "startup-pending-request", request_id: REQUEST_ID };
+
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request for it without its request id", () => {
+    expect(
+      registerRendererToCoreMessageSchema.safeParse({ type: "startup-pending-request" }).success,
+    ).toBe(false);
+  });
+
+  it("accepts what was left pending", () => {
+    const message = { type: "startup-pending", request_id: REQUEST_ID, pending };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects an answer without what was left pending", () => {
+    expect(
+      registerCoreToRendererMessageSchema.safeParse({
+        type: "startup-pending",
+        request_id: REQUEST_ID,
+      }).success,
+    ).toBe(false);
+  });
+
+  it.each(["startup-pending-unavailable", "startup-pending-not-permitted"])(
+    "accepts the answer %s",
+    (type) => {
+      const message = { type, request_id: REQUEST_ID };
+
+      expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+    },
+  );
+
+  it.each(["startup-pending-unavailable", "startup-pending-not-permitted"])(
+    "rejects the answer %s without its request id",
+    (type) => {
+      expect(registerCoreToRendererMessageSchema.safeParse({ type }).success).toBe(false);
+    },
+  );
+});
+
 describe("identifying who closes a locked register", () => {
   const identify = {
     type: "identify-locked-closer",
@@ -1219,15 +1277,18 @@ describe("register status messages", () => {
 
   it.each([
     [[], "unknown"],
-    [[{ kind: "sales_denied", reason: "event_history_broken" }], "reachable"],
-    [[{ kind: "sales_denied", reason: "local_database_damaged" }], "reachable"],
+    [[{ kind: "sales_denied", reason: "event_history_broken", level: "critical" }], "reachable"],
+    [[{ kind: "sales_denied", reason: "local_database_damaged", level: "critical" }], "reachable"],
     [
-      [{ kind: "sales_denied", reason: "event_history_broken" }, { kind: "register_silent" }],
+      [
+        { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+        { kind: "register_silent", level: "critical" },
+      ],
       "unreachable",
     ],
-    [[{ kind: "installation_revoked" }], "unreachable"],
-    [[{ kind: "serial_device_missing" }], "reachable"],
-    [[{ kind: "fiscal_emission_stopped" }], "unreachable"],
+    [[{ kind: "installation_revoked", level: "critical" }], "unreachable"],
+    [[{ kind: "serial_device_missing", level: "warning" }], "reachable"],
+    [[{ kind: "fiscal_emission_stopped", level: "critical" }], "unreachable"],
   ])("accepts the status with conditions %j and the cloud %s", (conditions, cloud) => {
     const message = {
       type: "register-status",
@@ -1242,7 +1303,7 @@ describe("register status messages", () => {
     [
       "a condition the register does not detect itself",
       {
-        conditions: [{ kind: "stock_low" }],
+        conditions: [{ kind: "stock_low", level: "warning" }],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -1260,7 +1321,7 @@ describe("register status messages", () => {
     [
       "a sales denial without its reason",
       {
-        conditions: [{ kind: "sales_denied" }],
+        conditions: [{ kind: "sales_denied", level: "critical" }],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -1269,7 +1330,34 @@ describe("register status messages", () => {
     [
       "a sales denial with a reason it does not know",
       {
-        conditions: [{ kind: "sales_denied", reason: "installation_revoked" }],
+        conditions: [{ kind: "sales_denied", reason: "installation_revoked", level: "critical" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a condition without its level",
+      {
+        conditions: [{ kind: "register_silent" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a sales denial without its level",
+      {
+        conditions: [{ kind: "sales_denied", reason: "event_history_broken" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a condition with a level it does not know",
+      {
+        conditions: [{ kind: "register_silent", level: "urgent" }],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -1558,7 +1646,7 @@ describe("serial device messages", () => {
         type: "register-status",
         request_id: REQUEST_ID,
         status: {
-          conditions: [{ kind: "serial_device_missing" }],
+          conditions: [{ kind: "serial_device_missing", level: "warning" }],
           cloud: "reachable",
           serial_devices: { scale: kind, reader: "not_registered" },
           serial_devices_setup_offered: false,

@@ -1,32 +1,10 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { describe, expect, inject, it, onTestFinished } from "vitest";
-import { migrateFreshDatabase } from "../../test-support/test-database-snapshot.js";
-import {
-  addMigrationEntry,
-  findMigrationEntry,
-  type JournalEntry,
-  migrationsFolderBefore,
-} from "./test-support/migration-journal-test-helpers.js";
-
-async function saleStockMovementsEntry(): Promise<JournalEntry> {
-  return findMigrationEntry(
-    "_sale_stock_movements",
-    "test setup: no sale stock movements migration in the journal",
-  );
-}
+import { describe, expect, it } from "vitest";
+import { databaseBeforeMigration } from "./test-support/migration-under-test.js";
 
 async function databaseBefore() {
-  const folder = await mkdtemp(join(tmpdir(), "sale-stock-movements-migration-"));
-  onTestFinished(() => rm(folder, { recursive: true, force: true }));
-  await migrationsFolderBefore(folder, await saleStockMovementsEntry());
-  const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
-  onTestFinished(() => client.close());
+  const database = await databaseBeforeMigration("_sale_stock_movements");
   const first = async (sql: string, params: unknown[] = []) => {
-    const { rows } = await client.query<{ id: string }>(sql, params);
+    const { rows } = await database.query<{ id: string }>(sql, params);
     return rows[0]?.id as string;
   };
   const locationId = await first("select id from locations limit 1");
@@ -70,29 +48,28 @@ async function databaseBefore() {
     lineId: string | null,
     delta = -1000,
   ) =>
-    client.query(
+    database.query(
       `insert into stock_movements (product_id, location_id, kind, reason, delta, occurred_at, actor_id, sale_line_id)
        values ($1, $2, $3, $4, $5, now(), $6, $7)`,
       [productId, locationId, kind, reason, delta, userId, lineId],
     );
-  return { client, folder, saleLineId, insertMovement, productId, locationId, userId };
+  return { database, saleLineId, insertMovement, productId, locationId, userId };
 }
 
 describe("the sale stock movements migration applied over a database that already holds data", {
   timeout: 30_000,
 }, () => {
   it("keeps every recorded movement, none of them tied to a sale line", async () => {
-    const { client, folder, productId, locationId, userId } = await databaseBefore();
-    await client.query(
+    const { database, productId, locationId, userId } = await databaseBefore();
+    await database.query(
       `insert into stock_movements (product_id, location_id, kind, reason, delta, occurred_at, actor_id)
        values ($1, $2, 'loss', 'broken_or_spilled', -1000, now(), $3), ($1, $2, 'count', null, 0, now(), $3)`,
       [productId, locationId, userId],
     );
 
-    await addMigrationEntry(folder, await saleStockMovementsEntry());
-    await migrate(drizzle(client), { migrationsFolder: folder });
+    const migrated = await database.applyMigration();
 
-    const { rows } = await client.query(
+    const { rows } = await migrated.query(
       "select kind, reason, delta, sale_line_id from stock_movements order by kind",
     );
     expect(rows).toEqual([
@@ -102,20 +79,18 @@ describe("the sale stock movements migration applied over a database that alread
   });
 
   it("records a sale's movement against its sale line, with no reason", async () => {
-    const { client, folder, saleLineId, insertMovement } = await databaseBefore();
-    await addMigrationEntry(folder, await saleStockMovementsEntry());
-    await migrate(drizzle(client), { migrationsFolder: folder });
+    const { database, saleLineId, insertMovement } = await databaseBefore();
+    const migrated = await database.applyMigration();
 
     await insertMovement("sale", null, saleLineId);
 
-    const { rows } = await client.query("select kind, reason, sale_line_id from stock_movements");
+    const { rows } = await migrated.query("select kind, reason, sale_line_id from stock_movements");
     expect(rows).toEqual([{ kind: "sale", reason: null, sale_line_id: saleLineId }]);
   });
 
   it("refuses a sale movement with a reason, without a sale line, or of a sale line that does not exist", async () => {
-    const { client, folder, saleLineId, insertMovement } = await databaseBefore();
-    await addMigrationEntry(folder, await saleStockMovementsEntry());
-    await migrate(drizzle(client), { migrationsFolder: folder });
+    const { database, saleLineId, insertMovement } = await databaseBefore();
+    await database.applyMigration();
 
     await expect(insertMovement("sale", "broken_or_spilled", saleLineId)).rejects.toThrow(
       /stock_movements_reason_unless_count_or_sale_check/,
@@ -129,9 +104,8 @@ describe("the sale stock movements migration applied over a database that alread
   });
 
   it("refuses a sale line on a movement that is not a sale's", async () => {
-    const { client, folder, saleLineId, insertMovement } = await databaseBefore();
-    await addMigrationEntry(folder, await saleStockMovementsEntry());
-    await migrate(drizzle(client), { migrationsFolder: folder });
+    const { database, saleLineId, insertMovement } = await databaseBefore();
+    await database.applyMigration();
 
     await expect(insertMovement("loss", "broken_or_spilled", saleLineId)).rejects.toThrow(
       /stock_movements_sale_line_iff_sale_check/,

@@ -1,5 +1,5 @@
 import type { RegisterStatus } from "@purosur/contracts";
-import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { expectNoAccessibilityViolations, tokenRgb } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -22,6 +22,8 @@ const OPEN_SESSION: CashSessionState = {
   locked: false,
 };
 const LOCKED_SESSION: CashSessionState = { ...OPEN_SESSION, locked: true };
+
+type Condition = RegisterStatus["conditions"][number];
 
 const SALES_DENIED_TITLE = "La caja no puede vender";
 const SILENT_TITLE = "La caja no está sincronizando";
@@ -54,6 +56,14 @@ function renderBar(
       status={props.status ?? loaded()}
     />,
   );
+}
+
+function noticeCard(panel: Element): HTMLElement {
+  const cards = [...panel.querySelectorAll<HTMLElement>("div")].filter(
+    (element) => getComputedStyle(element).borderLeftWidth === "4px",
+  );
+  expect(cards).toHaveLength(1);
+  return cards[0] as HTMLElement;
 }
 
 function barText(screen: Awaited<ReturnType<typeof renderBar>>): string {
@@ -111,59 +121,172 @@ describe("RegisterStatusBar", () => {
     expect(barText(screen)).not.toContain(SALES_DENIED_TITLE);
   });
 
-  it("shows no condition when the register holds none", async () => {
+  it("shows no notices pill while the register holds no condition", async () => {
     const screen = await renderBar();
 
+    await expect.element(screen.getByRole("button", { name: /aviso/ })).not.toBeInTheDocument();
     await expect.element(screen.getByText(SALES_DENIED_TITLE)).not.toBeInTheDocument();
-    await expect.element(screen.getByText(SILENT_TITLE)).not.toBeInTheDocument();
-    await expect.element(screen.getByText("Qué hacer")).not.toBeInTheDocument();
   });
 
-  it("shows a condition with its title, what it means and what to do", async () => {
+  it("shows no condition's text until the notices pill is pressed", async () => {
     const screen = await renderBar({
-      status: loaded({ conditions: [{ kind: "sales_denied", reason: "event_history_broken" }] }),
+      status: loaded({
+        conditions: [{ kind: "sales_denied", reason: "event_history_broken", level: "critical" }],
+      }),
     });
 
-    await expect.element(screen.getByText(SALES_DENIED_TITLE)).toBeVisible();
-    await expect
-      .element(screen.getByText(/dejó de abrir ventas nuevas porque encontró un problema/))
-      .toBeVisible();
-    await expect.element(screen.getByText("Qué hacer")).toBeVisible();
-    await expect.element(screen.getByText(/Avisar al Administrador de inmediato/)).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "1 aviso" })).toBeVisible();
+    await expect.element(screen.getByText(SALES_DENIED_TITLE)).not.toBeInTheDocument();
   });
 
-  it("tells why the register can't sell with the reason the core answers", async () => {
-    const screen = await renderBar({
-      status: loaded({ conditions: [{ kind: "sales_denied", reason: "local_database_damaged" }] }),
-    });
-
-    await expect.element(screen.getByText(SALES_DENIED_TITLE)).toBeVisible();
-    await expect.element(screen.getByText(/su base de datos está dañada/)).toBeVisible();
-    await expect
-      .element(screen.getByText(/Restaurar la base de datos de la caja desde su copia de respaldo/))
-      .toBeVisible();
-  });
-
-  it("shows every condition it holds, in the order the core gave them", async () => {
+  it("counts several conditions on the pill", async () => {
     const screen = await renderBar({
       status: loaded({
         conditions: [
-          { kind: "sales_denied", reason: "event_history_broken" },
-          { kind: "register_silent" },
+          { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+          { kind: "register_silent", level: "critical" },
         ],
       }),
     });
 
+    await expect.element(screen.getByRole("button", { name: "2 avisos" })).toBeVisible();
+  });
+
+  it("opens a panel of notices with each condition's title, what it means and what to do", async () => {
+    const screen = await renderBar({
+      status: loaded({
+        conditions: [{ kind: "sales_denied", reason: "event_history_broken", level: "critical" }],
+      }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+
+    await expect.element(screen.getByRole("dialog", { name: "Avisos de esta caja" })).toBeVisible();
+    await expect.element(screen.getByText(SALES_DENIED_TITLE)).toBeVisible();
+    await expect
+      .element(screen.getByText(/dejó de abrir ventas nuevas porque encontró un problema/).first())
+      .toBeVisible();
+    await expect
+      .element(screen.getByText(/Avisar al Administrador de inmediato/).first())
+      .toBeVisible();
+  });
+
+  it("tells why the register can't sell with the reason the core answers", async () => {
+    const screen = await renderBar({
+      status: loaded({
+        conditions: [{ kind: "sales_denied", reason: "local_database_damaged", level: "critical" }],
+      }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+
+    await expect.element(screen.getByText(/su base de datos está dañada/).first()).toBeVisible();
+    await expect
+      .element(
+        screen
+          .getByText(/Restaurar la base de datos de la caja desde su copia de respaldo/)
+          .first(),
+      )
+      .toBeVisible();
+  });
+
+  it("lists every condition in the panel, in the order the core gave them", async () => {
+    const screen = await renderBar({
+      status: loaded({
+        conditions: [
+          { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+          { kind: "register_silent", level: "critical" },
+        ],
+      }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "2 avisos" }));
+
     await expect.element(screen.getByText(SALES_DENIED_TITLE)).toBeVisible();
     await expect.element(screen.getByText(SILENT_TITLE)).toBeVisible();
-    const text = barText(screen);
+    const text = screen.getByRole("dialog").element().textContent;
     expect(text.indexOf(SALES_DENIED_TITLE)).toBeLessThan(text.indexOf(SILENT_TITLE));
   });
 
-  it("shows a condition even when the cloud can't be reached", async () => {
+  it("closes the panel with its close button", async () => {
     const screen = await renderBar({
-      status: loaded({ conditions: [{ kind: "register_silent" }], cloud: "unreachable" }),
+      status: loaded({ conditions: [{ kind: "register_silent", level: "critical" }] }),
     });
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("closes the panel with Escape", async () => {
+    const screen = await renderBar({
+      status: loaded({ conditions: [{ kind: "register_silent", level: "critical" }] }),
+    });
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("shows the pill in the error tone when a condition is critical", async () => {
+    const screen = await renderBar({
+      status: loaded({
+        conditions: [
+          { kind: "register_silent", level: "critical" },
+          { kind: "serial_device_missing", level: "warning" },
+        ],
+      }),
+    });
+
+    const pill = screen.getByRole("button", { name: "2 avisos" }).element();
+    expect(getComputedStyle(pill).backgroundColor).toBe(tokenRgb("error-subtle"));
+  });
+
+  it("shows the pill in the warning tone when no condition is critical", async () => {
+    const screen = await renderBar({
+      status: loaded({ conditions: [{ kind: "serial_device_missing", level: "warning" }] }),
+    });
+
+    const pill = screen.getByRole("button", { name: "1 aviso" }).element();
+    expect(getComputedStyle(pill).backgroundColor).toBe(tokenRgb("warning-subtle"));
+  });
+
+  it.each<[Condition, "error-soft" | "warning-soft", string]>([
+    [
+      { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+      "error-soft",
+      "lucide-ban",
+    ],
+    [{ kind: "installation_revoked", level: "critical" }, "error-soft", "lucide-shield-off"],
+    [{ kind: "fiscal_emission_stopped", level: "critical" }, "error-soft", "lucide-receipt"],
+    [{ kind: "register_silent", level: "critical" }, "error-soft", "lucide-cloud-off"],
+    [{ kind: "serial_device_missing", level: "warning" }, "warning-soft", "lucide-scan-barcode"],
+  ])(
+    "shows the notice of %j with the %s border of its level and the %s icon",
+    async (condition, border, icon) => {
+      const screen = await renderBar({ status: loaded({ conditions: [condition] }) });
+
+      await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+
+      const card = noticeCard(
+        screen.getByRole("dialog", { name: "Avisos de esta caja" }).element(),
+      );
+      expect(getComputedStyle(card).borderLeftColor).toBe(tokenRgb(border));
+      expect(card.querySelector(`svg.${icon}`)).not.toBeNull();
+    },
+  );
+
+  it("shows a notice even when the cloud can't be reached", async () => {
+    const screen = await renderBar({
+      status: loaded({
+        conditions: [{ kind: "register_silent", level: "critical" }],
+        cloud: "unreachable",
+      }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
 
     await expect.element(screen.getByText(SILENT_TITLE)).toBeVisible();
     expect(barText(screen)).toContain("Sin conexión con la nube");
@@ -184,34 +307,49 @@ describe("RegisterStatusBar", () => {
     expect(barText(screen)).not.toMatch(/Balanza|Lector/);
   });
 
-  it("shows the missing scale or reader condition with what to do", async () => {
+  it("shows the missing scale or reader notice with what to do", async () => {
     const screen = await renderBar({
       status: loaded({
-        conditions: [{ kind: "serial_device_missing" }],
+        conditions: [{ kind: "serial_device_missing", level: "warning" }],
         serial_devices: { scale: "not_detected", reader: "matching" },
       }),
     });
 
-    await expect.element(screen.getByText("Revisar la balanza o el lector")).toBeVisible();
-    await expect.element(screen.getByText("Qué hacer")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+
+    const panel = screen.getByRole("dialog", { name: "Avisos de esta caja" });
+    await expect.element(panel.getByText("Revisar la balanza o el lector")).toBeVisible();
+    await expect
+      .element(
+        panel.getByText(
+          "Revisar que esté conectado y encendido. Mientras tanto, tipear el peso a mano y buscar los productos por nombre. Si el problema sigue, avisar al Administrador.",
+          { exact: true },
+        ),
+      )
+      .toBeVisible();
   });
 
-  it("shows the stopped fiscal emission condition with its title, what it means and what to do, with no connection to the cloud", async () => {
+  it("shows the stopped fiscal emission notice with its title, what it means and what to do, with no connection to the cloud", async () => {
     const screen = await renderBar({
-      status: loaded({ conditions: [{ kind: "fiscal_emission_stopped" }], cloud: "unreachable" }),
+      status: loaded({
+        conditions: [{ kind: "fiscal_emission_stopped", level: "critical" }],
+        cloud: "unreachable",
+      }),
     });
+
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
 
     await expect.element(screen.getByText("Emisión de facturas detenida")).toBeVisible();
     await expect
-      .element(screen.getByText(/no puede emitir ningún comprobante fiscal por ahora/))
+      .element(screen.getByText(/no puede emitir ningún comprobante fiscal por ahora/).first())
       .toBeVisible();
-    await expect.element(screen.getByText(/Seguir vendiendo igual/)).toBeVisible();
+    await expect.element(screen.getByText(/Seguir vendiendo igual/).first()).toBeVisible();
   });
 
   it("has no accessibility violations with a device not detected", async () => {
     const screen = await renderBar({
       status: loaded({
-        conditions: [{ kind: "serial_device_missing" }],
+        conditions: [{ kind: "serial_device_missing", level: "warning" }],
         serial_devices: { scale: "not_detected", reader: "not_registered" },
       }),
     });
@@ -237,12 +375,14 @@ describe("RegisterStatusBar", () => {
       cashSession: OPEN_SESSION,
       status: loaded({
         conditions: [
-          { kind: "sales_denied", reason: "event_history_broken" },
-          { kind: "register_silent" },
+          { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+          { kind: "register_silent", level: "critical" },
         ],
         cloud: "unreachable",
       }),
     });
+    await expectNoAccessibilityViolations(withConditions.container);
+    await userEvent.click(withConditions.getByRole("button", { name: "2 avisos" }));
     await expectNoAccessibilityViolations(withConditions.container);
     await withConditions.unmount();
 

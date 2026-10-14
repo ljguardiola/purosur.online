@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import {
+  expiringLotsFilters,
   initialInventoryFilters,
   recipesListFilters,
   stockBalancesFilters,
@@ -83,6 +84,19 @@ test("keeps the initial inventory filters a URL names, falling back for a value 
   expect(initialInventoryFilters.parse({ cost: "known" }).cost).toBe("known");
   expect(initialInventoryFilters.parse({ search: 1, cost: "free" })).toEqual(
     initialInventoryFilters.parse({}),
+  );
+});
+
+test("opens the expiring lots on every lot, whatever its category or expiry", () => {
+  expect(expiringLotsFilters.parse({})).toEqual({ search: "", category: "ALL", expiry: "all" });
+});
+
+test("keeps the expiring lots filters a URL names, falling back for a value it does not offer", () => {
+  const filters = { search: "chía", category: "category-2", expiry: "expired" };
+  expect(expiringLotsFilters.parse(filters)).toEqual(filters);
+  expect(expiringLotsFilters.parse({ expiry: "upcoming" }).expiry).toBe("upcoming");
+  expect(expiringLotsFilters.parse({ search: 1, category: false, expiry: "soon" })).toEqual(
+    expiringLotsFilters.parse({}),
   );
 });
 

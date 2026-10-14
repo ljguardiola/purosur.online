@@ -2639,6 +2639,16 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/expiring-lots",
+        access: capabilityAccess("stock_expiries"),
+      },
+      {
+        method: "POST",
+        url: "/api/expiring-lots/:lotId/discard",
+        access: capabilityAccess("stock_expiries"),
+      },
+      {
+        method: "GET",
         url: "/api/reports/sales-by-day",
         access: capabilityAccess("reports_area"),
       },
