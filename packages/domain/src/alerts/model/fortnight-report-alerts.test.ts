@@ -5,6 +5,7 @@ import {
   fortnightReportPendingObservation,
   fortnightReportPendingReason,
   pointOfSaleFortnightScope,
+  pointOfSaleFortnightScopeDisplay,
 } from "./fortnight-report-alerts.js";
 
 const REGISTER_ID = "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6";
@@ -28,6 +29,20 @@ describe("pointOfSaleFortnightScope", () => {
     ]);
 
     expect(scopes.size).toBe(3);
+  });
+});
+
+describe("pointOfSaleFortnightScopeDisplay", () => {
+  it.each([
+    ["4:2026-09-01", "4:2026-09-01:2026-09-15"],
+    ["4:2026-09-16", "4:2026-09-16:2026-09-30"],
+    ["12:2027-02-16", "12:2027-02-16:2027-02-28"],
+  ])("adds the day the fortnight ends to the scope %s", (scope, display) => {
+    expect(pointOfSaleFortnightScopeDisplay(scope)).toBe(display);
+  });
+
+  it.each(["", "4", "4:", "4:not-a-day"])("shows the scope %j as it is", (scope) => {
+    expect(pointOfSaleFortnightScopeDisplay(scope)).toBe(scope);
   });
 });
 
