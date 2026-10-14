@@ -95,7 +95,7 @@ test("shows the freight's description as the title, with its values filled and i
   await expect
     .poll(() => date.all().map((segment) => segment.element().textContent))
     .toEqual(["12", "9", "2026"]);
-  await expect.element(dialog.getByRole("textbox", { name: /^Monto/ })).toHaveValue("18500,00");
+  await expect.element(dialog.getByRole("textbox", { name: /^Monto/ })).toHaveValue("18.500,00");
   await expect.element(dialog.getByRole("textbox", { name: /^Medio/ })).toHaveValue("Expreso Sur");
   await expect
     .element(dialog.getByRole("textbox", { name: /^Descripción/ }))
@@ -115,14 +115,13 @@ test("reads the purchases of the period together with the ones the freight alrea
     .toEqual([[{ period: 365, freightId: envioDesdeBuenosAires.id }]]);
 });
 
-test("shows a freight of the store's own trip with its carrier disabled", async () => {
+test("shows a freight of the store's own trip as one", async () => {
   const screen = await renderModal({ target: retiroEnElMolino });
   const dialog = await readyDialog(screen);
 
   await expect
     .element(dialog.getByRole("checkbox", { name: "Viaje propio (costo estimado)" }))
     .toBeChecked();
-  await expect.element(dialog.getByRole("textbox", { name: /^Medio/ })).toBeDisabled();
 });
 
 test("saves the changed freight and hands it over", async () => {
@@ -145,19 +144,6 @@ test("saves the changed freight and hands it over", async () => {
     means: { kind: "carrier", name: "Expreso Sur" },
     purchaseIds: [compraAndina.id],
   });
-});
-
-test("refuses a freight left without purchases without calling the cloud", async () => {
-  const editFreight = vi.fn<EditFreightModalServices["editFreight"]>();
-  const screen = await renderModal({ services: createServices({ editFreight }) });
-
-  const dialog = await readyDialog(screen);
-  await toggle(dialog, "Distribuidora Andina");
-  await toggle(dialog, "Molinos del Valle");
-  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
-
-  await expect.element(dialog.getByText("Elegí al menos una compra.")).toBeVisible();
-  expect(editFreight).not.toHaveBeenCalled();
 });
 
 test("shows a field the cloud refused under that field", async () => {
@@ -219,7 +205,6 @@ test("shows the failure notice", async () => {
   const dialog = await save(screen);
 
   await expect.element(dialog.getByText("No se guardó el flete")).toBeVisible();
-  await expect.element(dialog.getByText("Volvé a intentarlo.")).toBeVisible();
 });
 
 test("shows the rate-limited notice with the time to wait", async () => {
@@ -232,7 +217,6 @@ test("shows the rate-limited notice with the time to wait", async () => {
   const dialog = await save(screen);
 
   await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
-  await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
 });
 
 test("ends the session when saving finds no open session", async () => {

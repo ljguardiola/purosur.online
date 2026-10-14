@@ -57,12 +57,11 @@ describe("listFreights", () => {
     await listFreights(reader, {
       locationId: BRANCH,
       from: "2026-03-01",
-      to: "2026-03-31",
       search: "flete",
     });
 
     expect(reader.freightQueries).toEqual([
-      { locationId: BRANCH, from: "2026-03-01", to: "2026-03-31", search: "flete" },
+      { locationId: BRANCH, from: "2026-03-01", search: "flete" },
     ]);
   });
 

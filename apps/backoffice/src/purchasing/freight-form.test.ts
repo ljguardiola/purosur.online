@@ -107,7 +107,7 @@ describe("freightFormValuesOf", () => {
   it("fills the form with a carried freight's date, amount, carrier, description and purchases", () => {
     expect(freightFormValuesOf(envioDesdeBuenosAires)).toEqual({
       date: new CalendarDate(2026, 9, 12),
-      amount: "18500,00",
+      amount: "18.500,00",
       ownTrip: false,
       carrierName: "Expreso Sur",
       description: "Envío desde Buenos Aires",
@@ -119,7 +119,7 @@ describe("freightFormValuesOf", () => {
     expect(freightFormValuesOf(retiroEnElMolino)).toMatchObject({
       ownTrip: true,
       carrierName: "",
-      amount: "9000,00",
+      amount: "9.000,00",
     });
   });
 

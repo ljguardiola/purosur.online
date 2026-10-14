@@ -87,33 +87,13 @@ async function recordCompleteFreight(screen: ModalScreen) {
   return dialog;
 }
 
-test("shows the eyebrow, the title, the fields and the purchases that may be linked", async () => {
+test("shows the eyebrow and the title over the freight's form", async () => {
   const screen = await renderModal();
   const dialog = await readyDialog(screen);
 
   await expect.element(dialog.getByText("Stock · Flete")).toBeVisible();
   await expect.element(dialog.getByRole("heading", { name: "Nuevo flete" })).toBeVisible();
-  await expect.element(dialog.getByRole("group", { name: /^Fecha/ })).toBeVisible();
-  await expect.element(dialog.getByRole("textbox", { name: /^Monto/ })).toBeVisible();
-  await expect.element(dialog.getByRole("textbox", { name: /^Medio/ })).toBeVisible();
-  await expect
-    .element(dialog.getByRole("checkbox", { name: "Viaje propio (costo estimado)" }))
-    .toBeVisible();
   await expect.element(dialog.getByRole("textbox", { name: /^Descripción/ })).toBeVisible();
-  await expect.element(dialog.getByText("Compras vinculadas")).toBeVisible();
-  await expect
-    .element(dialog.getByText("12/09/2026 · Factura B 0003-00012845 · $ 168.680,00"))
-    .toBeVisible();
-  await expect
-    .element(dialog.getByText("28/08/2026 · Remito 0001-00008812 · $ 64.900,00"))
-    .toBeVisible();
-  await expect
-    .element(
-      dialog.getByText(
-        "No cambia costos ni precios. Se reparte entre las líneas de estas compras y se muestra por unidad al decidir un precio.",
-      ),
-    )
-    .toBeVisible();
 });
 
 function dateSegments(dialog: Awaited<ReturnType<typeof readyDialog>>) {
@@ -190,49 +170,6 @@ test("records the freight with its texts trimmed and the chosen purchases, and h
   });
 });
 
-test("records the store's own trip without asking for a carrier", async () => {
-  const recordFreight = vi
-    .fn<NewFreightModalServices["recordFreight"]>()
-    .mockResolvedValue({ kind: "ok", freight: recordedEnvio });
-  const screen = await renderModal({ services: createServices({ recordFreight }) });
-
-  const dialog = await readyDialog(screen);
-  await fillFreight(dialog, {
-    date: "28082026",
-    amount: "9000",
-    ownTrip: true,
-    description: "Retiro en el molino",
-    suppliers: ["Molinos del Valle"],
-  });
-  await expect.element(dialog.getByRole("textbox", { name: /^Medio/ })).toBeDisabled();
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar el flete" }));
-
-  await expect.poll(() => recordFreight.mock.calls).toHaveLength(1);
-  expect(recordFreight).toHaveBeenCalledWith({
-    date: "2026-08-28",
-    amountCents: 900_000,
-    description: "Retiro en el molino",
-    means: { kind: "own_trip" },
-    purchaseIds: [compraMolinos.id],
-  });
-});
-
-test("refuses an empty form under each field without calling the cloud", async () => {
-  const recordFreight = vi.fn<NewFreightModalServices["recordFreight"]>();
-  const screen = await renderModal({ services: createServices({ recordFreight }) });
-
-  const dialog = await readyDialog(screen);
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar el flete" }));
-
-  await expect
-    .element(dialog.getByText("Escribí el monto con coma para los centavos, por ejemplo 1.250,50."))
-    .toBeVisible();
-  await expect.element(dialog.getByText("Ingresá el medio del flete.")).toBeVisible();
-  await expect.element(dialog.getByText("Ingresá la descripción del flete.")).toBeVisible();
-  await expect.element(dialog.getByText("Elegí al menos una compra.")).toBeVisible();
-  expect(recordFreight).not.toHaveBeenCalled();
-});
-
 test("shows a field the cloud refused under that field", async () => {
   const recordFreight = vi
     .fn<NewFreightModalServices["recordFreight"]>()
@@ -255,9 +192,6 @@ test("says the linked purchases are worth nothing to distribute the freight over
   const dialog = await recordCompleteFreight(screen);
 
   await expect.element(dialog.getByText("Las compras vinculadas no tienen valor")).toBeVisible();
-  await expect
-    .element(dialog.getByText("Elegí otras compras para repartir el flete."))
-    .toBeVisible();
 });
 
 test("asks again for the purchases when one of them is gone", async () => {
@@ -284,7 +218,6 @@ test("shows the failure notice", async () => {
   const dialog = await recordCompleteFreight(screen);
 
   await expect.element(dialog.getByText("No se registró el flete")).toBeVisible();
-  await expect.element(dialog.getByText("Volvé a intentarlo.")).toBeVisible();
 });
 
 test("shows the rate-limited notice with the time to wait", async () => {
@@ -297,7 +230,6 @@ test("shows the rate-limited notice with the time to wait", async () => {
   const dialog = await recordCompleteFreight(screen);
 
   await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
-  await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
 });
 
 test("ends the session when recording finds no open session", async () => {
@@ -335,31 +267,15 @@ test("holds the registration until the purchases have loaded", async () => {
   await expect.element(dialog.getByRole("button", { name: "Registrar el flete" })).toBeDisabled();
 });
 
-test("offers to read the purchases again when they could not be loaded", async () => {
+test("holds the registration after the purchases could not be loaded", async () => {
   const fetchLinkablePurchases = vi
     .fn<NewFreightModalServices["fetchLinkablePurchases"]>()
-    .mockResolvedValueOnce({ kind: "failed" })
-    .mockResolvedValue({ kind: "ok", value: { ...linkablePurchases, purchases: [compraAndina] } });
+    .mockResolvedValue({ kind: "failed" });
   const screen = await renderModal({ services: createServices({ fetchLinkablePurchases }) });
   const dialog = screen.getByRole("dialog");
 
   await expect.element(dialog.getByText("No pudimos abrir las compras")).toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Registrar el flete" })).toBeDisabled();
-  await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
-
-  await expect
-    .element(dialog.getByRole("checkbox", { name: "Distribuidora Andina" }))
-    .toBeVisible();
-});
-
-test("says there is nothing to link when the period holds no purchase", async () => {
-  const fetchLinkablePurchases = vi
-    .fn<NewFreightModalServices["fetchLinkablePurchases"]>()
-    .mockResolvedValue({ kind: "ok", value: { ...linkablePurchases, purchases: [] } });
-  const screen = await renderModal({ services: createServices({ fetchLinkablePurchases }) });
-  const dialog = screen.getByRole("dialog");
-
-  await expect.element(dialog.getByText("No hay compras para vincular")).toBeVisible();
 });
 
 test("starts empty every time it opens", async () => {

@@ -1302,6 +1302,40 @@ test("a toggle shows its state and its description, and submits the state it was
   expect(onSubmit).toHaveBeenCalledWith(true);
 });
 
+function CheckboxProbe({ onSubmit }: { onSubmit: (ownTrip: boolean) => Promise<void> }) {
+  const { form, submit } = useRequestForm({
+    defaultValues: { ownTrip: false },
+    request: { schema: z.object({ ownTrip: z.boolean() }), from: ({ ownTrip }) => ({ ownTrip }) },
+    fields: { ownTrip: "ownTrip" },
+    messages: { ownTrip: "Revisá el viaje." },
+    onSubmit: (request) => onSubmit(request.ownTrip),
+  });
+  return (
+    <>
+      <form.AppField name="ownTrip">
+        {(field) => <field.Checkbox description="Sin transportista.">Viaje propio</field.Checkbox>}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
+test("a checkbox shows its state and its description, and submits the state it was left in", async () => {
+  const onSubmit = vi.fn<(ownTrip: boolean) => Promise<void>>(() => Promise.resolve());
+  const screen = await render(<CheckboxProbe onSubmit={onSubmit} />);
+  await expect.element(screen.getByRole("checkbox", { name: "Viaje propio" })).not.toBeChecked();
+  await expect.element(screen.getByText("Sin transportista.")).toBeVisible();
+
+  await userEvent.click(screen.getByText("Viaje propio"));
+  await expect.element(screen.getByRole("checkbox", { name: "Viaje propio" })).toBeChecked();
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
+  expect(onSubmit).toHaveBeenCalledWith(true);
+});
+
 function nativeFieldNames(screen: Awaited<ReturnType<typeof render>>): (string | null)[] {
   return [...screen.container.querySelectorAll("input, select")].map((field) =>
     field.getAttribute("name"),
@@ -1334,4 +1368,12 @@ test("a bound toggle is named after its form field", async () => {
   expect(screen.getByRole("switch", { name: "Se aplica" }).element().getAttribute("name")).toBe(
     "active",
   );
+});
+
+test("a bound checkbox is named after its form field", async () => {
+  const screen = await render(<CheckboxProbe onSubmit={() => Promise.resolve()} />);
+
+  expect(
+    screen.getByRole("checkbox", { name: "Viaje propio" }).element().getAttribute("name"),
+  ).toBe("ownTrip");
 });

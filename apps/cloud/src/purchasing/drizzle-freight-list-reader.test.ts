@@ -96,9 +96,9 @@ describe("DrizzleFreightListReader.freights", () => {
     expect(listed?.means).toEqual({ kind: "own_trip" });
   });
 
-  it("lists the newest first, the one recorded last first among a day's, and keeps the period's ends", async () => {
+  it("lists the newest first, the one recorded last first among a day's, from the period's first day on", async () => {
     const { purchaseId } = await purchase();
-    const old = await freight([purchaseId], { date: "2026-02-28" });
+    await freight([purchaseId], { date: "2026-02-28" });
     const first = await freight([purchaseId], {
       date: "2026-03-05",
       recordedAt: new Date("2026-03-05T10:00:00.000Z"),
@@ -107,19 +107,12 @@ describe("DrizzleFreightListReader.freights", () => {
       date: "2026-03-05",
       recordedAt: new Date("2026-03-05T11:00:00.000Z"),
     });
-    const last = await freight([purchaseId], { date: "2026-03-31" });
-    const after = await freight([purchaseId], { date: "2026-04-01" });
+    const firstDay = await freight([purchaseId], { date: "2026-03-01" });
+    const last = await freight([purchaseId], { date: "2026-04-01" });
 
-    const listed = await reader().freights({
-      locationId,
-      from: "2026-03-01",
-      to: "2026-03-31",
-    });
+    const listed = await reader().freights({ locationId, from: "2026-03-01" });
 
-    expect(listed.map(({ id }) => id)).toEqual([last, second, first]);
-    expect(
-      (await reader().freights({ locationId, from: "2026-02-28" })).map(({ id }) => id),
-    ).toEqual([after, last, second, first, old]);
+    expect(listed.map(({ id }) => id)).toEqual([last, second, first, firstDay]);
   });
 
   it("lists only the branch's own freights", async () => {

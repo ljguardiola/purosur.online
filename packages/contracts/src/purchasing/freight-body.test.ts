@@ -140,11 +140,11 @@ describe("freightBodySchema", () => {
     });
   });
 
-  it("rejects a purchase linked twice, whatever the letter case of its id", () => {
+  it("hands a purchase listed twice on to the domain, which links it once", () => {
     const id = "abcdefab-abcd-abcd-abcd-abcdefabcdef";
-    expect(firstFailure({ ...freight, purchaseIds: [id, id.toUpperCase()] })).toEqual({
-      path: ["purchaseIds"],
-      message: "purchaseIds must not repeat a purchase",
-    });
+    expect(
+      freightBodySchema.safeParse({ ...freight, purchaseIds: [id, id.toUpperCase()] }).data
+        ?.purchaseIds,
+    ).toEqual([id, id]);
   });
 });
