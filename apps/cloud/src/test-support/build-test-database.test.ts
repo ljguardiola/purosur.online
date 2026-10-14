@@ -28,6 +28,7 @@ import {
   discounts,
   fiscalAddresses,
   fiscalRequests,
+  fortnightReports,
   freightPurchases,
   freights,
   inbox,
@@ -640,6 +641,13 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
         entityId: (code as { id: string }).id,
         version: 1,
         op: "insert",
+      });
+      await tx.insert(fortnightReports).values({
+        pointOfSaleNumber: 4,
+        fortnightStart: "2026-10-01",
+        fortnightEnd: "2026-10-15",
+        state: "blocked",
+        recordedAt: new Date("2026-10-16T12:00:00.000Z"),
       });
     });
     const [supplier] = await db

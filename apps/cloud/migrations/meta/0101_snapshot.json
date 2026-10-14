@@ -1,5 +1,5 @@
 {
-  "id": "bb700316-ef26-4330-a530-5285b7e70685",
+  "id": "350729c7-d012-433d-b2fe-323d535b6300",
   "prevId": "cf7d05bb-4f4c-497f-a5bf-48b81fbe44d4",
   "version": "7",
   "dialect": "postgresql",
@@ -1662,6 +1662,12 @@
         },
         "reports_every_cycle_since": {
           "name": "reports_every_cycle_since",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "caught_up_at": {
+          "name": "caught_up_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
