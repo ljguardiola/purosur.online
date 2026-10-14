@@ -166,6 +166,13 @@ describe("synced event payloads", () => {
     expect(accepts("fiscal_gate_failed", 1, payload)).toBe(true);
   });
 
+  it("has a schema for the event of a document issued under a pre-obtained code", () => {
+    expect(syncedEventPayloadKey("offline_fiscal_document_issued", 1)).toBe(
+      "offline_fiscal_document_issued@1",
+    );
+    expect(syncedEventPayloadKey("offline_fiscal_document_issued", 2)).toBeUndefined();
+  });
+
   it.each([
     ["an unknown event type", "sale_opened", 1],
     ["a sale_completed version nobody emitted", "sale_completed", 9],

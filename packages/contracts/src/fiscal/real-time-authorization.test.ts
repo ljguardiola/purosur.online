@@ -39,6 +39,18 @@ describe("realTimeAuthorizationRequestSchema", () => {
     expect(realTimeAuthorizationRequestSchema.parse(request)).toEqual(request);
   });
 
+  it.each(["generation_stamp", "CbteFchHsGen", "generated_at"])(
+    "never carries a generation stamp: drops %s",
+    (field) => {
+      const parsed = realTimeAuthorizationRequestSchema.parse({
+        ...request,
+        [field]: "20261001085959",
+      });
+
+      expect(parsed).toEqual(request);
+    },
+  );
+
   it.each(Object.keys(request))("refuses a request without its %s", (field) => {
     expect(requestWith({ [field]: undefined }).success).toBe(false);
   });
