@@ -897,6 +897,7 @@ describe("the register's local migrations", () => {
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
+        "0054_assembly_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -977,6 +978,7 @@ describe("the register's local migrations", () => {
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
+        "0054_assembly_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1052,6 +1054,7 @@ describe("the register's local migrations", () => {
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
+        "0054_assembly_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1126,6 +1129,7 @@ describe("the register's local migrations", () => {
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
+        "0054_assembly_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1229,6 +1233,7 @@ describe("the register's local migrations", () => {
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
+        "0054_assembly_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1322,6 +1327,7 @@ describe("the register's local migrations", () => {
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
+        "0054_assembly_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1419,6 +1425,7 @@ describe("the register's local migrations", () => {
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
+        "0054_assembly_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1499,6 +1506,7 @@ describe("the register's local migrations", () => {
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
+        "0054_assembly_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1571,6 +1579,7 @@ describe("the register's local migrations", () => {
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
+        "0054_assembly_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -3963,6 +3972,86 @@ describe("the register's local migrations", () => {
       database.close();
     });
   });
+  it("let the stock movements record the two sides of an assembled batch and have the cloud send every stock movement again, over the movements a register holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0054_assembly_movements",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0054_assembly_movements",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO stock_movements (id, product_id, kind, delta, occurred_at, superseded_by_count_id)
+         VALUES ('m1', 'p1', 'adjustment', 4000, '2026-10-09T15:00:00.000Z', 'count-1'),
+                ('m2', 'p1', 'opening_count', 2000, '2026-10-09T16:00:00.000Z', NULL);
+         UPDATE pulled_table_redeliveries SET cursor = 9 WHERE table_name = 'stock_movements';`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            "SELECT id, kind, delta, superseded_by_count_id, expires_on, withdraws_movement_id FROM stock_movements ORDER BY id",
+          )
+          .all(),
+      ).toEqual([
+        {
+          id: "m1",
+          kind: "adjustment",
+          delta: 4000,
+          superseded_by_count_id: "count-1",
+          expires_on: null,
+          withdraws_movement_id: null,
+        },
+        {
+          id: "m2",
+          kind: "opening_count",
+          delta: 2000,
+          superseded_by_count_id: null,
+          expires_on: null,
+          withdraws_movement_id: null,
+        },
+      ]);
+      const insert = (values: { id: string; kind: string; expires_on?: string | null }) =>
+        after
+          .prepare(
+            `INSERT INTO stock_movements (id, product_id, kind, delta, occurred_at, expires_on)
+             VALUES (@id, 'p1', @kind, 1000, '2026-10-09T17:00:00.000Z', @expires_on)`,
+          )
+          .run({ expires_on: null, ...values });
+      expect(() => insert({ id: "a1", kind: "assembly_out" })).not.toThrow();
+      expect(() => insert({ id: "a2", kind: "assembly_in" })).not.toThrow();
+      expect(() => insert({ id: "a3", kind: "assembly_in", expires_on: "2026-12-31" })).toThrow(
+        /CHECK/,
+      );
+      expect(() => insert({ id: "a4", kind: "assembly" })).toThrow(/CHECK/);
+      expect(() =>
+        insert({ id: "a5", kind: "opening_count", expires_on: "2026-12-31" }),
+      ).not.toThrow();
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      expect(
+        after
+          .prepare("SELECT name FROM sqlite_schema WHERE name = 'stock_movements_by_product'")
+          .all(),
+      ).toHaveLength(1);
+      expect(
+        after
+          .prepare(
+            "SELECT cursor FROM pulled_table_redeliveries WHERE table_name = 'stock_movements'",
+          )
+          .all(),
+      ).toEqual([{ cursor: 0 }]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("let the stock movements record an initial count and its withdrawal and keep the first cash session of a branch, none over the movements it holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {

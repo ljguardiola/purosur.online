@@ -11,6 +11,8 @@ import {
   arcaVitalityChecks,
   arcaWsaaTicketRefusals,
   arcaWsaaTokens,
+  assemblyBatches,
+  assemblyBatchLines,
   auditLog,
   backofficeRateLimitAttempts,
   branchFirstCashSessions,
@@ -753,6 +755,21 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       componentProductId: component?.id as string,
       quantityPerOutputUnit: 500,
       position: 0,
+    });
+    const [batch] = await db
+      .insert(assemblyBatches)
+      .values({
+        productId: product.id,
+        locationId: await seededLocationId(db),
+        assembledAt: new Date("2026-01-05T12:00:00.000Z"),
+        outputQty: 1000,
+        actorId: user.id,
+      })
+      .returning({ id: assemblyBatches.id });
+    await db.insert(assemblyBatchLines).values({
+      batchId: batch?.id as string,
+      componentProductId: component?.id as string,
+      quantity: 500,
     });
     const [freight] = await db
       .insert(freights)

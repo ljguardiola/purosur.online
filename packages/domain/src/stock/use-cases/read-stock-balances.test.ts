@@ -25,6 +25,7 @@ function purchasedLot(id: string, overrides: Partial<LotInStock> = {}): LotInSto
     expiresOn: null,
     purchase: { purchasedOn: "2026-10-01", supplierName: "Distribuidora Sur" },
     initialCount: false,
+    assemblyBatch: null,
     remaining: 4_000,
     costIncomplete: false,
     cost: { totalCents: 5_000, quantity: 1_000 },
@@ -39,6 +40,7 @@ function initialCountLot(id: string, overrides: Partial<LotInStock> = {}): LotIn
     expiresOn: "2027-03-01",
     purchase: null,
     initialCount: true,
+    assemblyBatch: null,
     remaining: 6_000,
     costIncomplete: true,
     cost: null,
@@ -53,6 +55,7 @@ function technicalLot(id: string, remaining: number): LotInStock {
     expiresOn: null,
     purchase: null,
     initialCount: false,
+    assemblyBatch: null,
     remaining,
     costIncomplete: true,
     cost: null,
@@ -141,6 +144,35 @@ describe("readStockBalances", () => {
         origin: { kind: "purchase", purchasedOn: "2026-10-01", supplierName: "Distribuidora Sur" },
       },
     ]);
+  });
+
+  it("gives the lot of an assembled batch its own origin, not a technical lot's, ordered by its expiry with the rest", async () => {
+    const assembledAt = new Date("2026-05-04T13:00:00.000Z");
+    const batchLot = {
+      ...technicalLot("l2", 14_000),
+      expiresOn: "2027-01-15",
+      costIncomplete: false,
+      cost: { totalCents: 50_200, quantity: 14_000 },
+      assemblyBatch: { assembledAt },
+    };
+    const { products } = await read([
+      level("p1", {
+        balance: 18_000,
+        lots: [purchasedLot("l1", { expiresOn: "2027-06-01" }), batchLot],
+      }),
+    ]);
+
+    expect(products[0]?.lots.map((lot) => lot.id)).toEqual(["l2", "l1"]);
+    expect(products[0]?.lots[0]).toEqual({
+      id: "l2",
+      lotNumber: null,
+      expiresOn: "2027-01-15",
+      technical: false,
+      remaining: 14_000,
+      valueCents: 50_200,
+      unitCostCents: 3_586,
+      origin: { kind: "assembly_batch", assembledAt },
+    });
   });
 
   it("gives a lot of the initial count its own origin, not a technical lot, with no value while its cost is incomplete", async () => {

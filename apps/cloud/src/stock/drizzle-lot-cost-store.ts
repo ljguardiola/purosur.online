@@ -22,6 +22,7 @@ class DrizzleLotCostTransaction<TQueryResult extends PgQueryResultHKT>
       .select({
         technical: lots.technical,
         purchaseLineId: lots.purchaseLineId,
+        assemblyBatchId: lots.assemblyBatchId,
         withdrawn: lots.withdrawn,
         remaining: lots.remaining,
       })
@@ -33,9 +34,11 @@ class DrizzleLotCostTransaction<TQueryResult extends PgQueryResultHKT>
     }
     const origin: LotOriginKind = lot.technical
       ? "technical"
-      : lot.purchaseLineId === null
-        ? "initial_count"
-        : "purchase";
+      : lot.assemblyBatchId !== null
+        ? "assembly_batch"
+        : lot.purchaseLineId === null
+          ? "initial_count"
+          : "purchase";
     return { origin, withdrawn: lot.withdrawn, remaining: lot.remaining };
   }
 

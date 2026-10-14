@@ -17,6 +17,7 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { ScreenLayout } from "../shell/screen-layout";
 import { StockTopBar } from "../shell/stock-top-bar";
+import { BATCH_COST_INCOMPLETE, batchDayText, batchUnitCostText } from "./assembly-batch-text";
 import { EditRecipeModal } from "./edit-recipe-modal";
 import { NewRecipeModal } from "./new-recipe-modal";
 import {
@@ -42,6 +43,23 @@ const NO_RECIPES: RecipeSummary[] = [];
 const NO_PRODUCTS: never[] = [];
 
 const productNameOrder = textOrder((recipe: RecipeSummary) => recipe.productName);
+
+function LastBatchCell({ recipe }: { recipe: RecipeSummary }) {
+  const { lastBatch } = recipe;
+  if (lastBatch === null) {
+    return <TableCellText tone="subtle">Sin tandas</TableCellText>;
+  }
+  const cost = batchUnitCostText(lastBatch, recipe.saleUnit);
+  return (
+    <TableCellText
+      strong={cost !== null}
+      tone={cost === null ? "subtle" : undefined}
+      description={batchDayText(lastBatch.assembledAt)}
+    >
+      {cost ?? BATCH_COST_INCOMPLETE}
+    </TableCellText>
+  );
+}
 
 export function RecipesListScreen({
   filters,
@@ -106,7 +124,7 @@ export function RecipesListScreen({
       id: "lastBatch",
       header: "Costo de la última tanda",
       align: "end",
-      render: (_item: RecipeSummary) => <TableCellText tone="subtle">Sin tandas</TableCellText>,
+      render: (item: RecipeSummary) => <LastBatchCell recipe={item} />,
     }),
     actionsColumn({
       id: "actions",

@@ -194,6 +194,7 @@ describe("DrizzleStockStore", () => {
         recordedAt: expect.any(Date),
         actorId,
         supersededByCountId: null,
+        assemblyBatchId: null,
       },
     ]);
   });

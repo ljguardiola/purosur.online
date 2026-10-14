@@ -493,6 +493,24 @@ export {
   withoutQueryParameters,
 } from "./shared/index.js";
 export type {
+  AssemblyBatch,
+  AssemblyBatchList,
+  AssemblyBatchPreview,
+  AssemblyBatchRefusal,
+  AssemblyBatchResult,
+} from "./stock/assembly-batch-answers.js";
+export {
+  assemblyBatchListSchema,
+  assemblyBatchPreviewSchema,
+  assemblyBatchRefusalSchema,
+  assemblyBatchResultSchema,
+} from "./stock/assembly-batch-answers.js";
+export type { AssemblyBatchBody, AssemblyBatchPreviewQuery } from "./stock/assembly-batch-body.js";
+export {
+  assemblyBatchBodySchema,
+  assemblyBatchPreviewQuerySchema,
+} from "./stock/assembly-batch-body.js";
+export type {
   ExpiredLotDiscardResult,
   ExpiringLot,
   ExpiringLotList,
