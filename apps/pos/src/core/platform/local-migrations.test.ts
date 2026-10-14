@@ -896,6 +896,7 @@ describe("the register's local migrations", () => {
         "0050_offline_fiscal_documents",
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
+        "0053_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -975,6 +976,7 @@ describe("the register's local migrations", () => {
         "0050_offline_fiscal_documents",
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
+        "0053_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1049,6 +1051,7 @@ describe("the register's local migrations", () => {
         "0050_offline_fiscal_documents",
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
+        "0053_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1122,6 +1125,7 @@ describe("the register's local migrations", () => {
         "0050_offline_fiscal_documents",
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
+        "0053_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1224,6 +1228,7 @@ describe("the register's local migrations", () => {
         "0050_offline_fiscal_documents",
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
+        "0053_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1316,6 +1321,7 @@ describe("the register's local migrations", () => {
         "0050_offline_fiscal_documents",
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
+        "0053_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1412,6 +1418,7 @@ describe("the register's local migrations", () => {
         "0050_offline_fiscal_documents",
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
+        "0053_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1491,6 +1498,7 @@ describe("the register's local migrations", () => {
         "0050_offline_fiscal_documents",
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
+        "0053_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1562,6 +1570,7 @@ describe("the register's local migrations", () => {
         "0050_offline_fiscal_documents",
         "0051_register_point_terminal",
         "0052_paid_orders_without_sale",
+        "0053_price_and_discount_lookups",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -4213,6 +4222,53 @@ describe("the register's local migrations", () => {
           .prepare("INSERT INTO refund_completions (refund_id, done_by) VALUES ('x', 'u1')")
           .run(),
       ).toThrow(/NOT NULL/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("let the prices be looked up by product and the discounts by what they target, keeping the ones a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0053_price_and_discount_lookups",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0053_price_and_discount_lookups",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO prices (id, product_id, price_list_id, unit_price, valid_from, version)
+         VALUES ('price-1', 'p1', 'list-1', 1500, '2026-09-01T00:00:00.000Z', 1);
+         INSERT INTO discounts (id, name, kind, percent, target_kind, target_id, valid_from, valid_to, weekdays, active, version)
+         VALUES ('discount-1', 'Promo', 'PERCENT_OFF', 10, 'PRODUCT', 'p1', '2026-09-01', '2026-12-31', '[]', 1, 1);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT id, unit_price FROM prices").all()).toEqual([
+        { id: "price-1", unit_price: 1500 },
+      ]);
+      expect(after.prepare("SELECT id, target_id FROM discounts").all()).toEqual([
+        { id: "discount-1", target_id: "p1" },
+      ]);
+      const planOf = (sql: string): string =>
+        after
+          .prepare<[], { detail: string }>(`EXPLAIN QUERY PLAN ${sql}`)
+          .all()
+          .map(({ detail }) => detail)
+          .join("\n");
+      expect(
+        planOf(
+          "SELECT id FROM prices WHERE product_id = 'p1' AND valid_from = '2026-09-01T00:00:00.000Z'",
+        ),
+      ).toMatch(/SEARCH prices USING (COVERING )?INDEX \S+ \(product_id=\? AND valid_from=\?\)/);
+      expect(
+        planOf("SELECT id FROM discounts WHERE target_kind = 'PRODUCT' AND target_id = 'p1'"),
+      ).toMatch(/SEARCH discounts USING (COVERING )?INDEX/);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

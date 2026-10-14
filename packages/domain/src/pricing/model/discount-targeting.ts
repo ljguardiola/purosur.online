@@ -16,16 +16,23 @@ export interface TargetedProduct {
   tags: readonly ProductTagLink[];
 }
 
+export function discountTargetKeys(
+  product: TargetedProduct,
+  categories: readonly CategoryLink[],
+): Record<DiscountTargetKind, ReadonlySet<string>> {
+  return {
+    PRODUCT: new Set([product.id]),
+    CATEGORY: categoryAndAncestors(product.categoryId, categories),
+    TAG: new Set(product.tags.filter((tag) => tag.active).map((tag) => tag.tagId)),
+  };
+}
+
 export function discountsTargeting<TDiscount extends { target: DiscountTarget }>(
   discounts: readonly TDiscount[],
   product: TargetedProduct,
   categories: readonly CategoryLink[],
 ): TDiscount[] {
-  const targetedIds: Record<DiscountTargetKind, ReadonlySet<string>> = {
-    PRODUCT: new Set([product.id]),
-    CATEGORY: categoryAndAncestors(product.categoryId, categories),
-    TAG: new Set(product.tags.filter((tag) => tag.active).map((tag) => tag.tagId)),
-  };
+  const targetedIds = discountTargetKeys(product, categories);
   return discounts.filter(({ target }) => targetedIds[target.kind].has(target.id));
 }
 
