@@ -70,15 +70,12 @@ export interface StorageStanding {
 
 function salesDeniedConditionOf(
   salesStop: SalesStopState,
-  storage: StorageStanding | null,
+  storage: StorageStanding,
 ): SalesDeniedCondition | null {
   if (salesStop.stopped) {
     return salesStop.reason === "event_history_broken"
       ? { kind: "sales_denied", reason: "event_history_broken" }
       : null;
-  }
-  if (storage === null) {
-    return null;
   }
   if (storage.startupShortOf !== null) {
     return {
@@ -99,7 +96,7 @@ interface RegisterOwnStanding {
   hours: readonly BranchWeeklyHoursRange[];
   now: Date;
   serialDevices: Record<SerialDeviceRole, SerialDeviceStanding> | null;
-  storage?: StorageStanding | null | undefined;
+  storage: StorageStanding;
 }
 
 export function registerOwnConditions({
@@ -109,7 +106,7 @@ export function registerOwnConditions({
   hours,
   now,
   serialDevices,
-  storage = null,
+  storage,
 }: RegisterOwnStanding): HeldRegisterOwnCondition[] {
   const revoked = isInstallationRevoked(salesStop);
   const held: {
@@ -131,8 +128,8 @@ export function registerOwnConditions({
       serialDevices !== null && isSerialDeviceMissing(serialDevices)
         ? { kind: "serial_device_missing" }
         : null,
-    disk_space_low: storage?.diskStanding === "low" ? { kind: "disk_space_low" } : null,
-    wal_oversized: storage?.walOversized === true ? { kind: "wal_oversized" } : null,
+    disk_space_low: storage.diskStanding === "low" ? { kind: "disk_space_low" } : null,
+    wal_oversized: storage.walOversized ? { kind: "wal_oversized" } : null,
   };
   return REGISTER_OWN_CONDITIONS.flatMap((condition) => {
     const detected = held[condition];
