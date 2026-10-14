@@ -150,6 +150,18 @@ describe("pendingRefundsSchema, declared time zone", () => {
     });
   });
 
+  it("declares the zone the moment a refund was confirmed is shown in", () => {
+    expect(pendingRefundsSchema.shape.refunds.element.shape.confirmed_at.unwrap().meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
+  });
+
+  it("declares the zone the moment a refund was sent is shown in", () => {
+    expect(pendingRefundsSchema.shape.refunds.element.shape.sent_at.unwrap().meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
+  });
+
   it("declares the zone the moment of a refund is shown in", () => {
     expect(pendingRefundsSchema.shape.refunds.element.shape.occurred_at.meta()).toEqual({
       timeZone: ARGENTINA_TIME_ZONE,
