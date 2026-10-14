@@ -142,6 +142,7 @@ test("the CLI outputs the devices a release changes, empty when none", async () 
       await runCli({ ...options, env: { TARGET_SHA: withDevices, GITHUB_OUTPUT: "out" } }),
       0,
     );
+    git("tag", "pos-v1.1.0");
     const withoutDevices = commit("later", { "README.md": "2" });
     assert.equal(
       await runCli({ ...options, env: { TARGET_SHA: withoutDevices, GITHUB_OUTPUT: "out" } }),
