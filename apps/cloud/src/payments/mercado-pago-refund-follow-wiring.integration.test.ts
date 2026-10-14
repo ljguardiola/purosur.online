@@ -6,6 +6,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import { FICTIONAL_RECOVERY_REPLY_TO } from "../test-support/recovery-reply-to.js";
 import { MERCADO_PAGO_REFUND_FOLLOW_TASK_IDENTIFIER } from "./mercado-pago-refund-follow-task.js";
 import { FakeMercadoPagoOrders } from "./test-support/fake-mercado-pago-orders.js";
 
@@ -48,7 +49,7 @@ describe("the Mercado Pago refund follow the server sets up on a real Postgres",
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
         emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
-        emailReplyTo: "purosur.comarca@gmail.com",
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
         backofficeOrigin: "https://staging.purosur.online",
         arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
         arcaVitality: { endpoint: "http://127.0.0.1:1/unused" },
