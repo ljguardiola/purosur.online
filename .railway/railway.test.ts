@@ -274,7 +274,6 @@ describe("the Cloud Server service's environment", () => {
       MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token",
       MERCADOPAGO_QR_EXTERNAL_POS_ID: "STORE01POS01",
       MERCADOPAGO_WEBHOOK_SECRET: "fictional-webhook-secret",
-      MERCADOPAGO_POINT_TERMINAL_ID: "PAX_A910__SMARTPOS1",
     };
 
     function stubMercadoPagoEnv(names: (keyof typeof MERCADO_PAGO_ENV)[]): void {
@@ -288,7 +287,6 @@ describe("the Cloud Server service's environment", () => {
         "MERCADOPAGO_ACCESS_TOKEN",
         "MERCADOPAGO_QR_EXTERNAL_POS_ID",
         "MERCADOPAGO_WEBHOOK_SECRET",
-        "MERCADOPAGO_POINT_TERMINAL_ID",
       ]);
 
       const cloud = findService(await compile(), "Cloud Server");
@@ -296,18 +294,6 @@ describe("the Cloud Server service's environment", () => {
       for (const [name, value] of Object.entries(MERCADO_PAGO_ENV)) {
         expect(cloud.variables?.[name], name).toEqual({ type: "literal", value });
       }
-    });
-
-    it("leaves the integrated terminal out when only the other three are set", async () => {
-      stubMercadoPagoEnv([
-        "MERCADOPAGO_ACCESS_TOKEN",
-        "MERCADOPAGO_QR_EXTERNAL_POS_ID",
-        "MERCADOPAGO_WEBHOOK_SECRET",
-      ]);
-
-      const cloud = findService(await compile(), "Cloud Server");
-
-      expect(cloud.variables).not.toHaveProperty("MERCADOPAGO_POINT_TERMINAL_ID");
     });
 
     it("leaves Mercado Pago out when none is set", async () => {

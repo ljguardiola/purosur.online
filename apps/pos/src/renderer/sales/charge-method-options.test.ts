@@ -59,6 +59,14 @@ describe("chargeMethodOptions", () => {
     ]);
   });
 
+  it("shows the terminal as not configured on the register, disabled, while keeping the QR available", () => {
+    const { options } = loaded({ point: "not_configured" });
+
+    expect(shown(options).filter(({ disabled }) => disabled)).toEqual([
+      { value: "POINT", description: "No configurada en esta caja", disabled: true },
+    ]);
+  });
+
   it("keeps the standalone terminal enabled when the integrated methods are offline", () => {
     const { options } = loaded({ qr: "offline", point: "offline" });
 

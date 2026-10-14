@@ -9,7 +9,7 @@ import {
   createMercadoPagoOrder,
   type MercadoPagoOrderKind,
 } from "./create-mercado-pago-order.js";
-import type { MercadoPagoOrderPorts } from "./mercado-pago-order-ports.js";
+import type { MercadoPagoPointOrderPorts } from "./mercado-pago-order-ports.js";
 
 export type CreateMercadoPagoPointOrderInput = CreateMercadoPagoOrderInput;
 
@@ -22,7 +22,11 @@ export type CreateMercadoPagoPointOrderOutcome = CreateMercadoPagoOrderOutcome<
   PointOrderNotCreated
 >;
 
-const POINT_ORDER: MercadoPagoOrderKind<PointAmountRefusal, PointOrderNotCreated> = {
+const POINT_ORDER: MercadoPagoOrderKind<
+  PointAmountRefusal,
+  PointOrderNotCreated,
+  MercadoPagoPointOrderPorts
+> = {
   identity: { method: "POINT", provider: "MERCADOPAGO_POINT" },
   lifetimeMinutes: MERCADO_PAGO_POINT_ORDER_EXPIRY_MINUTES,
   refuseAmount: (amount) => {
@@ -31,16 +35,16 @@ const POINT_ORDER: MercadoPagoOrderKind<PointAmountRefusal, PointOrderNotCreated
     }
     return isValidOrderAmount(amount) ? { kind: "below_minimum" } : { kind: "invalid_amount" };
   },
-  create: async (mercadoPago, request) => {
-    const creation = await mercadoPago.createPointOrder(request);
-    return creation.kind === "not_configured"
-      ? { kind: "not_created", outcome: creation }
-      : creation;
+  create: async ({ mercadoPago, pointTerminals }, registerId, request) => {
+    const terminalId = await pointTerminals.terminalOfRegister(registerId);
+    return terminalId === null
+      ? { kind: "not_created", outcome: { kind: "not_configured" } }
+      : mercadoPago.createPointOrder({ ...request, terminalId });
   },
 };
 
 export function createMercadoPagoPointOrder(
-  ports: MercadoPagoOrderPorts,
+  ports: MercadoPagoPointOrderPorts,
   input: CreateMercadoPagoPointOrderInput,
 ): Promise<CreateMercadoPagoPointOrderOutcome> {
   return createMercadoPagoOrder(ports, input, POINT_ORDER);

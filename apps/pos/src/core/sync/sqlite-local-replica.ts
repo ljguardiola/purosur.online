@@ -8,6 +8,7 @@ import type {
   PullPage,
   RedeliveryReplica,
 } from "@purosur/domain/sync/use-cases";
+import { preparePointTerminalPageWrites } from "../payments/point-terminal-page-writes";
 import { prepareRefundPageWrites } from "../payments/refund-page-writes";
 import type { LocalDatabase } from "../platform/local-database";
 import { SqliteReplicatedStockLedger } from "../stock/sqlite-stock-ledger";
@@ -89,6 +90,7 @@ export class SqliteLocalReplica
         this.database.prepare("DELETE FROM remembered_users").run();
         this.database.prepare("DELETE FROM own_register").run();
         this.database.prepare("DELETE FROM register_point_of_sale").run();
+        this.database.prepare("DELETE FROM register_point_terminal").run();
         this.database.prepare("DELETE FROM register_offline_point_of_sale").run();
         this.database.prepare("DELETE FROM offline_number_blocks").run();
         this.database.prepare("DELETE FROM branch_settings").run();
@@ -172,6 +174,7 @@ export class SqliteLocalReplica
     const discount = prepareDiscountPageWrites(this.database, mode);
     const fiscal = prepareFiscalPageWrites(this.database, mode);
     const refund = prepareRefundPageWrites(this.database);
+    const pointTerminal = preparePointTerminalPageWrites(this.database, mode);
     const stock = new SqliteReplicatedStockLedger(this.database);
     const rewritePulledMovement = this.database.prepare(
       "UPDATE stock_movements SET kind = @kind, occurred_at = @occurred_at WHERE id = @id AND sale_line_id IS NULL",
@@ -243,6 +246,9 @@ export class SqliteLocalReplica
           break;
         case "register_point_of_sale":
           register.pointOfSale(change);
+          break;
+        case "register_point_terminal":
+          pointTerminal.assignment(change);
           break;
         case "register_offline_point_of_sale":
           register.offlinePointOfSale(change);

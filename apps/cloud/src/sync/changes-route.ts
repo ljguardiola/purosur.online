@@ -143,6 +143,13 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
           version: change.row.version,
         },
       };
+    case "register_point_terminal":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: { assigned: change.row.assigned, version: change.row.version },
+      };
     case "register_offline_point_of_sale":
       return {
         change_seq,
