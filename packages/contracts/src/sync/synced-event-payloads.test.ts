@@ -402,6 +402,8 @@ describe("synced event payloads", () => {
     it.each([
       ["a cause nobody recorded", { cause: "tired" }],
       ["a generation stamp that is not fourteen digits", { generation_stamp: "2026-10-16" }],
+      ["a generation stamp with text before its digits", { generation_stamp: "x20261016113600" }],
+      ["a generation stamp with text after its digits", { generation_stamp: "20261016113600x" }],
       ["a generation moment that is not an instant", { generated_at: "yesterday" }],
       ["an issue date that is not a calendar day", { issued_on: "2026-13-01" }],
       ["a fortnight start that is not a calendar day", { fortnight_start: "soon" }],
