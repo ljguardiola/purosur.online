@@ -1,12 +1,17 @@
 import type {
   ReportQuery,
+  SalesByCashierBody,
   SalesByProductAndCategoryBody,
   SalesByProductAndCategoryQuery,
   SalesReportBody,
 } from "@purosur/contracts";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
-import type { fetchSalesByProductAndCategory, fetchSalesReport } from "./sales-report-api";
+import type {
+  fetchSalesByCashier,
+  fetchSalesByProductAndCategory,
+  fetchSalesReport,
+} from "./sales-report-api";
 
 export const salesKey = ["sales"] as const;
 
@@ -22,6 +27,8 @@ export const salesKeys = {
       query.to ?? "",
       query.register_id ?? "",
     ] as const,
+  cashiers: (query: ReportQuery) =>
+    [...salesKey, "cashiers", query.from ?? "", query.to ?? "", query.register_id ?? ""] as const,
 };
 
 type ReadParams = { onSessionEnded: () => void };
@@ -50,6 +57,19 @@ export function useSalesByProductAndCategoryQuery(
     queryKey: salesKeys.productsAndCategories(params.query),
     keepPreviousData: true,
     read: () => params.fetchSalesByProductAndCategory(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useSalesByCashierQuery(
+  params: ReadParams & { query: ReportQuery; fetchSalesByCashier: typeof fetchSalesByCashier },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<SalesByCashierBody>({
+    queryKey: salesKeys.cashiers(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchSalesByCashier(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
