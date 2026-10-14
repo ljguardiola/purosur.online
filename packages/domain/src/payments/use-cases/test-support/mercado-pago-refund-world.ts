@@ -9,7 +9,7 @@ import { FakePaymentTransactionLanes } from "./fake-payment-transaction-lanes.js
 import { FixedClock } from "./fake-refund-store.js";
 
 export const NOW = new Date("2026-10-13T15:00:00.000Z");
-export const CONFIRMED_AT = new Date("2026-10-13T14:00:00.000Z");
+const CONFIRMED_AT = new Date("2026-10-13T14:00:00.000Z");
 export const SENT_AT = new Date("2026-10-13T14:00:02.000Z");
 
 export function aQrRefundOfCancelledSale(
