@@ -168,6 +168,7 @@ export type {
   FiscalDocumentType,
   FiscalEmissionStoppedReport,
   FiscalOnlineSignalEvidence,
+  FortnightReportState,
   IssuerIdentificationInEffect,
   LatestPreEmissionGateOutcome,
   OfflineNumberBlockRange,
