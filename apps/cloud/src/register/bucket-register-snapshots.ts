@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { SNAPSHOT_DOWNLOAD_URL_LIFETIME_MS } from "@purosur/domain";
 import type {
   AuthorizedSnapshotUpload,
   SnapshotObjectContent,
@@ -7,7 +8,6 @@ import type {
 import { AwsClient } from "aws4fetch";
 import type { RegisterSnapshotsBucketConfig } from "./register-snapshots-bucket-config.js";
 
-const URL_LIFETIME_SECONDS = 900;
 const KEY_VERSION_HEADER = "x-amz-meta-key-version";
 
 interface BucketRegisterSnapshotsDeps {
@@ -46,9 +46,13 @@ export class BucketRegisterSnapshots implements SnapshotObjects {
     generation: AuthorizedSnapshotUpload,
   ): Promise<SnapshotUploadAuthorization> {
     const now = this.deps.now();
+    const lifetimeSeconds = Math.floor((generation.expiresAt.getTime() - now.getTime()) / 1000);
+    if (lifetimeSeconds < 1) {
+      throw new Error("the upload would expire before it could start");
+    }
     const requiredHeaders = { [KEY_VERSION_HEADER]: String(generation.keyVersion) };
     const signed = await this.client.sign(
-      this.presignableUrl(generation.registerId, generation.generationId),
+      this.presignableUrl(generation.registerId, generation.generationId, lifetimeSeconds),
       {
         method: "PUT",
         headers: requiredHeaders,
@@ -58,15 +62,18 @@ export class BucketRegisterSnapshots implements SnapshotObjects {
     return {
       url: signed.url,
       requiredHeaders,
-      expiresAt: new Date(now.getTime() + URL_LIFETIME_SECONDS * 1000),
+      expiresAt: new Date(now.getTime() + lifetimeSeconds * 1000),
     };
   }
 
   async downloadUrl(registerId: string, generationId: string): Promise<string> {
-    const signed = await this.client.sign(this.presignableUrl(registerId, generationId), {
-      method: "GET",
-      aws: { signQuery: true, datetime: amzDate(this.deps.now()) },
-    });
+    const signed = await this.client.sign(
+      this.presignableUrl(registerId, generationId, SNAPSHOT_DOWNLOAD_URL_LIFETIME_MS / 1000),
+      {
+        method: "GET",
+        aws: { signQuery: true, datetime: amzDate(this.deps.now()) },
+      },
+    );
     return signed.url;
   }
 
@@ -104,9 +111,9 @@ export class BucketRegisterSnapshots implements SnapshotObjects {
     }
   }
 
-  private presignableUrl(registerId: string, generationId: string): URL {
+  private presignableUrl(registerId: string, generationId: string, lifetimeSeconds: number): URL {
     const url = new URL(`${this.origin}/snapshots/${registerId}/${generationId}`);
-    url.searchParams.set("X-Amz-Expires", String(URL_LIFETIME_SECONDS));
+    url.searchParams.set("X-Amz-Expires", String(lifetimeSeconds));
     return url;
   }
 

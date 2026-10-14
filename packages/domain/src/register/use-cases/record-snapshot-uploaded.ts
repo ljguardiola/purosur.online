@@ -19,8 +19,8 @@ export async function recordSnapshotUploaded(
 ): Promise<RecordSnapshotUploadedOutcome> {
   return store.transaction<RecordSnapshotUploadedOutcome>(async (tx) => {
     await tx.lockRegisterSnapshots(registerId);
-    const generation = await tx.findGeneration(generationId);
-    if (!generation || generation.registerId !== registerId) {
+    const generation = await tx.findGeneration(registerId, generationId);
+    if (!generation) {
       return { kind: "generation_unknown" };
     }
     if (generation.status === "declared") {

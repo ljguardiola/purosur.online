@@ -1,10 +1,16 @@
-import type { SnapshotCorruptionStage, SnapshotLifecycleRules } from "@purosur/domain";
-import type {
-  NewSnapshotGeneration,
-  SnapshotGeneration,
-  SnapshotSettlement,
-  SnapshotStore,
-  SnapshotStoreTransaction,
+import {
+  SNAPSHOT_STATUSES_AWAITING_VERIFICATION,
+  type SnapshotCorruptionStage,
+  type SnapshotLifecycleRules,
+} from "@purosur/domain";
+import {
+  type NewSnapshotGeneration,
+  type RegisterSnapshotLanes,
+  type SnapshotGeneration,
+  SnapshotGenerationIdTaken,
+  type SnapshotSettlement,
+  type SnapshotStore,
+  type SnapshotStoreTransaction,
 } from "@purosur/domain/register/use-cases";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -14,10 +20,15 @@ import {
   registerSnapshotLifecycleRules,
   registerSnapshotRetentionFreezes,
 } from "../platform/db/schema.js";
+import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
 >[0];
+
+function registerSnapshotsLockKey(registerId: string) {
+  return sql`hashtextextended(${`register_snapshots:${registerId}`}, 0)`;
+}
 
 const generationColumns = {
   id: registerSnapshotGenerations.id,
@@ -45,7 +56,7 @@ class DrizzleSnapshotStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
   async lockRegisterSnapshots(registerId: string): Promise<void> {
     await this.tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`register_snapshots:${registerId}`}, 0))`,
+      sql`select pg_advisory_xact_lock(${registerSnapshotsLockKey(registerId)})`,
     );
   }
 
@@ -57,16 +68,31 @@ class DrizzleSnapshotStoreTransaction<TQueryResult extends PgQueryResultHKT>
     return rows.map((row) => row.version);
   }
 
-  async findGeneration(generationId: string): Promise<SnapshotGeneration | undefined> {
+  async findGeneration(
+    registerId: string,
+    generationId: string,
+  ): Promise<SnapshotGeneration | undefined> {
     const [row] = await this.tx
       .select(generationColumns)
       .from(registerSnapshotGenerations)
-      .where(eq(registerSnapshotGenerations.id, generationId));
+      .where(
+        and(
+          eq(registerSnapshotGenerations.registerId, registerId),
+          eq(registerSnapshotGenerations.id, generationId),
+        ),
+      );
     return row;
   }
 
   async recordDeclaredGeneration(generation: NewSnapshotGeneration): Promise<void> {
-    await this.tx.insert(registerSnapshotGenerations).values(generation);
+    const recorded = await this.tx
+      .insert(registerSnapshotGenerations)
+      .values(generation)
+      .onConflictDoNothing({ target: registerSnapshotGenerations.id })
+      .returning({ id: registerSnapshotGenerations.id });
+    if (recorded.length === 0) {
+      throw new SnapshotGenerationIdTaken();
+    }
   }
 
   async recordUploadReported(generationId: string, reportedAt: Date): Promise<void> {
@@ -85,7 +111,9 @@ class DrizzleSnapshotStoreTransaction<TQueryResult extends PgQueryResultHKT>
     return this.tx
       .select(generationColumns)
       .from(registerSnapshotGenerations)
-      .where(inArray(registerSnapshotGenerations.status, ["declared", "uploaded"]));
+      .where(
+        inArray(registerSnapshotGenerations.status, [...SNAPSHOT_STATUSES_AWAITING_VERIFICATION]),
+      );
   }
 
   async settleGeneration(generationId: string, settlement: SnapshotSettlement): Promise<void> {
@@ -98,7 +126,7 @@ class DrizzleSnapshotStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .where(
         and(
           eq(registerSnapshotGenerations.id, generationId),
-          inArray(registerSnapshotGenerations.status, ["declared", "uploaded"]),
+          inArray(registerSnapshotGenerations.status, [...SNAPSHOT_STATUSES_AWAITING_VERIFICATION]),
         ),
       );
   }
@@ -186,5 +214,29 @@ export class DrizzleSnapshotStore<TQueryResult extends PgQueryResultHKT> impleme
     work: (tx: SnapshotStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return this.db.transaction((tx) => work(new DrizzleSnapshotStoreTransaction(tx)));
+  }
+}
+
+export class DrizzleRegisterSnapshotLanes<TQueryResult extends PgQueryResultHKT>
+  implements RegisterSnapshotLanes
+{
+  private readonly connections: DedicatedConnections<TQueryResult>;
+
+  constructor(connections: DedicatedConnections<TQueryResult>) {
+    this.connections = connections;
+  }
+
+  inRegisterSnapshotLane<TOutcome>(
+    registerId: string,
+    work: (store: SnapshotStore) => Promise<TOutcome>,
+  ): Promise<TOutcome> {
+    return this.connections.withConnection(async (db) => {
+      await db.execute(sql`select pg_advisory_lock(${registerSnapshotsLockKey(registerId)})`);
+      try {
+        return await work(new DrizzleSnapshotStore(db));
+      } finally {
+        await db.execute(sql`select pg_advisory_unlock(${registerSnapshotsLockKey(registerId)})`);
+      }
+    });
   }
 }

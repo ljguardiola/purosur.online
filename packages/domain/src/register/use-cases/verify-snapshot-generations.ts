@@ -1,7 +1,11 @@
 import type { Clock } from "../../shared/index.js";
-import { isPastSnapshotUploadDeadline } from "../model/snapshot-generation.js";
+import {
+  isAwaitingSnapshotVerification,
+  isPastSnapshotUploadDeadline,
+} from "../model/snapshot-generation.js";
 import type {
   SnapshotGeneration,
+  SnapshotObjectContent,
   SnapshotObjects,
   SnapshotSettlement,
   SnapshotStore,
@@ -17,11 +21,12 @@ export interface SnapshotVerificationSummary {
   verified: number;
   failed: number;
   waiting: number;
+  unreadable: number;
 }
 
 function settlementOf(
   generation: SnapshotGeneration,
-  content: { size: number; sha256: string } | undefined,
+  content: SnapshotObjectContent | undefined,
   now: Date,
 ): SnapshotSettlement | undefined {
   if (!content) {
@@ -44,10 +49,21 @@ export async function verifySnapshotGenerations({
   objects,
 }: VerifySnapshotGenerationsPorts): Promise<SnapshotVerificationSummary> {
   const unsettled = await store.transaction((tx) => tx.unsettledGenerations());
-  const summary: SnapshotVerificationSummary = { verified: 0, failed: 0, waiting: 0 };
+  const summary: SnapshotVerificationSummary = {
+    verified: 0,
+    failed: 0,
+    waiting: 0,
+    unreadable: 0,
+  };
 
   for (const generation of unsettled) {
-    const content = await objects.inspect(generation.registerId, generation.id);
+    let content: SnapshotObjectContent | undefined;
+    try {
+      content = await objects.inspect(generation.registerId, generation.id);
+    } catch {
+      summary.unreadable += 1;
+      continue;
+    }
     const settlement = settlementOf(generation, content, clock.now());
     if (!settlement) {
       summary.waiting += 1;
@@ -55,8 +71,8 @@ export async function verifySnapshotGenerations({
     }
     const settled = await store.transaction(async (tx) => {
       await tx.lockRegisterSnapshots(generation.registerId);
-      const current = await tx.findGeneration(generation.id);
-      if (!current || (current.status !== "declared" && current.status !== "uploaded")) {
+      const current = await tx.findGeneration(generation.registerId, generation.id);
+      if (!current || !isAwaitingSnapshotVerification(current.status)) {
         return false;
       }
       await tx.settleGeneration(generation.id, settlement);

@@ -174,6 +174,7 @@ export type {
 export { setReceiptPrinterAddress } from "./set-receipt-printer-address.js";
 export type {
   NewSnapshotGeneration,
+  RegisterSnapshotLanes,
   SnapshotGeneration,
   SnapshotObjectContent,
   SnapshotObjects,
@@ -181,6 +182,7 @@ export type {
   SnapshotStore,
   SnapshotStoreTransaction,
 } from "./snapshot-generations.js";
+export { SnapshotGenerationIdTaken } from "./snapshot-generations.js";
 export type {
   SnapshotVerificationSummary,
   VerifySnapshotGenerationsPorts,

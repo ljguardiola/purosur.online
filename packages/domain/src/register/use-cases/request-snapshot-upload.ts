@@ -1,5 +1,9 @@
 import type { Clock } from "../../shared/index.js";
-import type { SnapshotStore } from "./snapshot-generations.js";
+import {
+  isAwaitingSnapshotVerification,
+  snapshotUploadUrlExpiry,
+} from "../model/snapshot-generation.js";
+import { SnapshotGenerationIdTaken, type SnapshotStore } from "./snapshot-generations.js";
 
 export interface RequestSnapshotUploadPorts {
   store: SnapshotStore;
@@ -21,13 +25,15 @@ export interface AuthorizedSnapshotUpload {
   size: number;
   sha256: string;
   keyVersion: number;
+  expiresAt: Date;
 }
 
 export type RequestSnapshotUploadOutcome =
   | { kind: "authorized"; generation: AuthorizedSnapshotUpload }
   | { kind: "unknown_key_version" }
   | { kind: "generation_conflict" }
-  | { kind: "generation_settled" };
+  | { kind: "generation_settled" }
+  | { kind: "upload_deadline_passed" };
 
 export async function requestSnapshotUpload(
   { store, clock }: RequestSnapshotUploadPorts,
@@ -40,7 +46,44 @@ export async function requestSnapshotUpload(
       return { kind: "unknown_key_version" };
     }
 
-    const authorized: RequestSnapshotUploadOutcome = {
+    const existing = await tx.findGeneration(input.registerId, input.generationId);
+    if (existing) {
+      const sameDeclaration =
+        existing.size === input.size &&
+        existing.sha256 === input.sha256 &&
+        existing.keyVersion === input.keyVersion;
+      if (!sameDeclaration) {
+        return { kind: "generation_conflict" };
+      }
+      if (!isAwaitingSnapshotVerification(existing.status)) {
+        return { kind: "generation_settled" };
+      }
+    }
+
+    const now = clock.now();
+    const expiresAt = snapshotUploadUrlExpiry(existing?.createdAt ?? now, now);
+    if (!expiresAt) {
+      return { kind: "upload_deadline_passed" };
+    }
+    if (!existing) {
+      try {
+        await tx.recordDeclaredGeneration({
+          id: input.generationId,
+          registerId: input.registerId,
+          deviceId: input.deviceId,
+          createdAt: now,
+          size: input.size,
+          sha256: input.sha256,
+          keyVersion: input.keyVersion,
+        });
+      } catch (error) {
+        if (error instanceof SnapshotGenerationIdTaken) {
+          return { kind: "generation_conflict" };
+        }
+        throw error;
+      }
+    }
+    return {
       kind: "authorized",
       generation: {
         registerId: input.registerId,
@@ -48,33 +91,8 @@ export async function requestSnapshotUpload(
         size: input.size,
         sha256: input.sha256,
         keyVersion: input.keyVersion,
+        expiresAt,
       },
     };
-    const existing = await tx.findGeneration(input.generationId);
-    if (!existing) {
-      await tx.recordDeclaredGeneration({
-        id: input.generationId,
-        registerId: input.registerId,
-        deviceId: input.deviceId,
-        createdAt: clock.now(),
-        size: input.size,
-        sha256: input.sha256,
-        keyVersion: input.keyVersion,
-      });
-      return authorized;
-    }
-
-    const sameDeclaration =
-      existing.registerId === input.registerId &&
-      existing.size === input.size &&
-      existing.sha256 === input.sha256 &&
-      existing.keyVersion === input.keyVersion;
-    if (!sameDeclaration) {
-      return { kind: "generation_conflict" };
-    }
-    if (existing.status === "verified" || existing.status === "failed") {
-      return { kind: "generation_settled" };
-    }
-    return authorized;
   });
 }

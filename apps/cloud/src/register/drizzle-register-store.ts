@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { enrollmentAttemptWindowStart } from "@purosur/domain";
+import { enrollmentAttemptWindowStart, SNAPSHOT_STATUSES_RETAINED } from "@purosur/domain";
 import type {
   EnrollmentAlert,
   EnrollmentAttemptKey,
@@ -14,7 +14,7 @@ import type {
   StoredDeviceToken,
   VersionedKey,
 } from "@purosur/domain/register/use-cases";
-import { and, asc, desc, eq, gt, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import type { EnqueueTaxAuthorityCount } from "../fiscal/graphile-tax-authority-count-queue.js";
@@ -308,7 +308,7 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .where(
         and(
           eq(registerSnapshotGenerations.registerId, registerId),
-          ne(registerSnapshotGenerations.status, "failed"),
+          inArray(registerSnapshotGenerations.status, [...SNAPSHOT_STATUSES_RETAINED]),
           eq(registerSnapshotGenerations.pruned, false),
         ),
       );

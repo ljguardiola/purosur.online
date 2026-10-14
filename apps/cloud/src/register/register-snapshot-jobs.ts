@@ -12,7 +12,7 @@ import {
   crontabLineEvery,
   databaseOfClient,
 } from "../platform/background-jobs.js";
-import { DrizzleSnapshotStore } from "./drizzle-snapshot-store.js";
+import { DrizzleRegisterSnapshotLanes, DrizzleSnapshotStore } from "./drizzle-snapshot-store.js";
 
 export const REGISTER_SNAPSHOT_VERIFICATION_TASK_IDENTIFIER = "register-snapshot-verification";
 export const REGISTER_SNAPSHOT_RETENTION_TASK_IDENTIFIER = "register-snapshot-retention";
@@ -39,6 +39,7 @@ export async function applyRegisterSnapshotRetentionTask<TQueryResult extends Pg
 ): Promise<void> {
   await applySnapshotRetention({
     store: new DrizzleSnapshotStore(db),
+    lanes: new DrizzleRegisterSnapshotLanes({ withConnection: (work) => work(db) }),
     clock: { now: deps.now },
     objects: deps.objects,
   });

@@ -17,15 +17,3 @@ export const SNAPSHOT_LIFECYCLE_LIMITS = {
   daily: { min: 1, max: 90 },
   monthly: { min: 1, max: 24 },
 } as const;
-
-function isWithinLimits(value: number, limits: { min: number; max: number }): boolean {
-  return Number.isInteger(value) && value >= limits.min && value <= limits.max;
-}
-
-export function isValidSnapshotLifecycleRules(rules: SnapshotLifecycleRules): boolean {
-  return (
-    isWithinLimits(rules.hourly, SNAPSHOT_LIFECYCLE_LIMITS.hourly) &&
-    isWithinLimits(rules.daily, SNAPSHOT_LIFECYCLE_LIMITS.daily) &&
-    isWithinLimits(rules.monthly, SNAPSHOT_LIFECYCLE_LIMITS.monthly)
-  );
-}

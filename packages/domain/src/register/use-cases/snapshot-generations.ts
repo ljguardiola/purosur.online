@@ -43,10 +43,19 @@ export interface SnapshotStore {
   ): Promise<TOutcome>;
 }
 
+export interface RegisterSnapshotLanes {
+  inRegisterSnapshotLane<TOutcome>(
+    registerId: string,
+    work: (store: SnapshotStore) => Promise<TOutcome>,
+  ): Promise<TOutcome>;
+}
+
+export class SnapshotGenerationIdTaken extends Error {}
+
 export interface SnapshotStoreTransaction {
   lockRegisterSnapshots(registerId: string): Promise<void>;
   snapshotKeyVersions(registerId: string): Promise<number[]>;
-  findGeneration(generationId: string): Promise<SnapshotGeneration | undefined>;
+  findGeneration(registerId: string, generationId: string): Promise<SnapshotGeneration | undefined>;
   recordDeclaredGeneration(generation: NewSnapshotGeneration): Promise<void>;
   recordUploadReported(generationId: string, reportedAt: Date): Promise<void>;
   unsettledGenerations(): Promise<SnapshotGeneration[]>;
