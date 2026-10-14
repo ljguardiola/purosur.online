@@ -5,7 +5,11 @@ import {
   RECEIPT_REPRINT_REASON_MAX_LENGTH,
 } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import { syncedEventPayloadKey, syncedEventPayloadSchema } from "./synced-event-payloads.js";
+import {
+  READABLE_EVENT_VERSIONS,
+  syncedEventPayloadKey,
+  syncedEventPayloadSchema,
+} from "./synced-event-payloads.js";
 import { recordedEvents } from "./test-support/recorded-pushes.js";
 
 type Payload = Record<string, unknown>;
@@ -1696,4 +1700,40 @@ describe("the initial count's payloads", () => {
       expect(accepts("opening_count_withdrawn", 1, rest)).toBe(false);
     },
   );
+});
+
+describe("the readable event versions", () => {
+  it("lists each version once", () => {
+    expect(new Set(READABLE_EVENT_VERSIONS).size).toBe(READABLE_EVENT_VERSIONS.length);
+  });
+
+  it("lists every version the decoder knows, and only those", () => {
+    const listed = READABLE_EVENT_VERSIONS.map((version) => {
+      const [eventType = "", schemaVersion = ""] = version.split("@");
+      return { eventType, schemaVersion: Number(schemaVersion) };
+    });
+    const eventTypes = new Set(listed.map(({ eventType }) => eventType));
+    const highest = Math.max(...listed.map(({ schemaVersion }) => schemaVersion));
+
+    const decoded: string[] = [];
+    for (const eventType of [...eventTypes, "unknown_event"]) {
+      for (let schemaVersion = 0; schemaVersion <= highest + 1; schemaVersion += 1) {
+        if (syncedEventPayloadKey(eventType, schemaVersion) !== undefined) {
+          decoded.push([eventType, schemaVersion].join("@"));
+        }
+      }
+    }
+
+    expect(decoded).not.toEqual([]);
+    expect(decoded.sort()).toEqual([...READABLE_EVENT_VERSIONS].sort());
+  });
+
+  it("lists the version of every recorded event", () => {
+    const recorded = new Set(
+      recordedEvents().map((event) => [event.event_type, event.schema_version].join("@")),
+    );
+
+    expect(recorded.size).toBeGreaterThan(0);
+    expect(READABLE_EVENT_VERSIONS).toEqual(expect.arrayContaining([...recorded]));
+  });
 });

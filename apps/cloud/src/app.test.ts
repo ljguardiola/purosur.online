@@ -2540,6 +2540,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/sync/readable-event-versions",
+        access: RELEASE_CHECK_ACCESS,
+      },
+      {
+        method: "GET",
         url: "/api/prices",
         access: capabilityAccess("prices_area"),
       },
