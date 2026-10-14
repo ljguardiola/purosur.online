@@ -3,7 +3,15 @@ import { applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { pendingTransaction } from "../payments/test-support/payment-transaction-fixtures.js";
-import { inbox, paymentTransactions, salePayments, sales, users } from "../platform/db/schema.js";
+import {
+  alerts,
+  inbox,
+  paymentRefunds,
+  paymentTransactions,
+  salePayments,
+  sales,
+  users,
+} from "../platform/db/schema.js";
 import { syncedEventUpcaster } from "./synced-event-upcaster.js";
 import { eventApplicationUnderTest } from "./test-support/drizzle-event-application.js";
 import { insertInboxEvent } from "./test-support/inbox-events.js";
@@ -14,13 +22,7 @@ const CASHIER = "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03";
 const OCCURRED_AT = "2026-10-06T11:20:00.000Z";
 const AMOUNT = 30_700;
 
-async function pushSaleCharged(options: {
-  deviceId: string;
-  locationId: string;
-  saleId: string;
-  paymentId: string;
-  amount: number;
-}): Promise<string> {
+async function openSession(options: { deviceId: string; locationId: string }): Promise<string> {
   const sessionId = randomUUID();
   await system.db
     .insert(users)
@@ -38,6 +40,17 @@ async function pushSaleCharged(options: {
     schemaVersion: 1,
     payload: { opened_by: CASHIER, opened_at: OCCURRED_AT, opening_float: 10_000 },
   });
+  return sessionId;
+}
+
+async function pushSaleCharged(options: {
+  deviceId: string;
+  locationId: string;
+  saleId: string;
+  paymentId: string;
+  amount: number;
+}): Promise<string> {
+  const sessionId = await openSession(options);
   return insertInboxEvent(system.db, options.deviceId, {
     aggregateId: options.saleId,
     schemaVersion: 5,
@@ -65,6 +78,60 @@ async function pushSaleCharged(options: {
           occurred_at: OCCURRED_AT,
           authorized_by: null,
           confirmed_at: null,
+        },
+      ],
+    },
+  });
+}
+
+async function pushSaleCancelled(options: {
+  deviceId: string;
+  locationId: string;
+  saleId: string;
+  paymentId: string;
+  amount: number;
+}): Promise<string> {
+  const sessionId = await openSession(options);
+  return insertInboxEvent(system.db, options.deviceId, {
+    aggregateId: options.saleId,
+    eventType: "sale_cancelled",
+    schemaVersion: 6,
+    payload: {
+      id: options.saleId,
+      register_id: randomUUID(),
+      device_id: options.deviceId,
+      session_id: sessionId,
+      actor_id: CASHIER,
+      authorized_by: null,
+      occurred_at: OCCURRED_AT,
+      total: options.amount,
+      sale_discount: null,
+      lines: [],
+      cash_movements: [],
+      payments: [
+        {
+          id: options.paymentId,
+          kind: "SALE",
+          method: "QR",
+          provider: "MERCADOPAGO_QR",
+          amount: options.amount,
+          tendered: null,
+          state: "APPROVED",
+          occurred_at: OCCURRED_AT,
+          authorized_by: null,
+          confirmed_at: null,
+        },
+      ],
+      refunds: [
+        {
+          id: randomUUID(),
+          kind: "REFUND",
+          parent_id: options.paymentId,
+          method: "QR",
+          provider: "MERCADOPAGO_QR",
+          amount: options.amount,
+          state: "PENDING",
+          occurred_at: OCCURRED_AT,
         },
       ],
     },
@@ -183,4 +250,85 @@ describe("applying a pushed sale paid by Mercado Pago QR", () => {
     expect(event?.appliedAt).toBeNull();
     expect(await system.db.select().from(sales)).toEqual([]);
   });
+});
+
+describe("applying a pushed cancellation of a sale paid by Mercado Pago QR", () => {
+  it("applies the cancellation, leaving the QR refund pending on the provider's transaction and on the event that justifies it, with no alert yet", async () => {
+    const { deviceId, locationId, registerId } = await system.enrollInstallation();
+    const saleId = randomUUID();
+    const backing = pendingTransaction(registerId, {
+      id: randomUUID(),
+      saleId,
+      amount: AMOUNT,
+      state: "APPROVED",
+    });
+    await system.db.insert(paymentTransactions).values(backing);
+    const eventId = await pushSaleCancelled({
+      deviceId,
+      locationId,
+      saleId,
+      paymentId: backing.id,
+      amount: AMOUNT,
+    });
+
+    const outcome = await applyPending();
+
+    expect(outcome).toMatchObject({ kind: "processed", applied: 2, retried: 0 });
+    const [sale] = await system.db.select().from(sales).where(eq(sales.id, saleId));
+    expect(sale).toMatchObject({ state: "CANCELLED", total: AMOUNT });
+    const [refund] = await system.db.select().from(paymentRefunds);
+    expect(refund).toMatchObject({
+      saleId,
+      paymentId: backing.id,
+      paymentTransactionId: backing.id,
+      originEventId: eventId,
+      origin: "sale_cancelled",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      amount: AMOUNT,
+      state: "PENDING",
+    });
+    expect(await system.db.select().from(alerts)).toEqual([]);
+  });
+
+  it.each([
+    [
+      "is still pending",
+      (registerId: string, saleId: string) =>
+        pendingTransaction(registerId, { saleId, amount: AMOUNT, state: "PENDING" }),
+    ],
+    [
+      "belongs to another sale",
+      (registerId: string) => pendingTransaction(registerId, { amount: AMOUNT, state: "APPROVED" }),
+    ],
+    [
+      "is for another amount",
+      (registerId: string, saleId: string) =>
+        pendingTransaction(registerId, { saleId, amount: AMOUNT - 100, state: "APPROVED" }),
+    ],
+  ])(
+    "applies nothing, and retries the event, when the transaction %s",
+    async (_description, transaction) => {
+      const { deviceId, locationId, registerId } = await system.enrollInstallation();
+      const saleId = randomUUID();
+      const backing = transaction(registerId, saleId);
+      await system.db.insert(paymentTransactions).values(backing);
+      const eventId = await pushSaleCancelled({
+        deviceId,
+        locationId,
+        saleId,
+        paymentId: backing.id,
+        amount: AMOUNT,
+      });
+
+      const outcome = await applyPending();
+
+      expect(outcome).toMatchObject({ kind: "processed", applied: 1, retried: 1 });
+      const [event] = await system.db.select().from(inbox).where(eq(inbox.eventId, eventId));
+      expect(event).toMatchObject({ appliedAt: null, attempts: 1 });
+      expect(event?.lastError).toMatch(/not backed by an approved Mercado Pago transaction/);
+      expect(await system.db.select().from(sales)).toEqual([]);
+      expect(await system.db.select().from(paymentRefunds)).toEqual([]);
+    },
+  );
 });
