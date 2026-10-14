@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { decideBaseline, runCli } from "./production-baseline.mjs";
+import { DEPLOYMENT_LIST_LIMIT, decideBaseline, runCli } from "./production-baseline.mjs";
 import { runCli as runRegisterMinimumCheck } from "./register-minimum-check.mjs";
 
 const PREFIX = "cloud-v";
@@ -25,6 +25,57 @@ test("production with no deployment yet has no baseline release", () => {
 
   assert.equal(decision.refused, false);
   assert.equal(decision.tag, null);
+});
+
+test("production whose every deployment failed or was skipped has never served, so it has no baseline release", () => {
+  const decision = decideBaseline({
+    deploymentList: {
+      deployments: [
+        { id: "d2", status: "SKIPPED" },
+        { id: "d1", status: "FAILED" },
+      ],
+      error: null,
+    },
+    health: null,
+    prefix: PREFIX,
+  });
+
+  assert.equal(decision.refused, false);
+  assert.equal(decision.tag, null);
+});
+
+test("refuses when a deployment may have served and production's health does not answer", () => {
+  for (const status of ["CRASHED", "REMOVED", "REMOVING", "SUCCESS", "BUILDING", "SOMETHING_NEW"]) {
+    const decision = decideBaseline({
+      deploymentList: {
+        deployments: [
+          { id: "d2", status: "FAILED" },
+          { id: "d1", status },
+        ],
+        error: null,
+      },
+      health: null,
+      prefix: PREFIX,
+    });
+
+    assert.equal(decision.refused, true, status);
+  }
+});
+
+test("refuses when the list is as long as Railway returns, so an older deployment may have served", () => {
+  const decision = decideBaseline({
+    deploymentList: {
+      deployments: Array.from({ length: DEPLOYMENT_LIST_LIMIT }, (_, index) => ({
+        id: `d${index}`,
+        status: "FAILED",
+      })),
+      error: null,
+    },
+    health: null,
+    prefix: PREFIX,
+  });
+
+  assert.equal(decision.refused, true);
 });
 
 test("the baseline is the release tag on the commit production reports", () => {
@@ -236,7 +287,7 @@ test("asks Railway for the deployments of the service in the environment, and pr
         "production",
         "--json",
         "--limit",
-        "1",
+        String(DEPLOYMENT_LIST_LIMIT),
       ],
     ]);
     assert.deepEqual(calls.fetched, ["https://prod.example.test/api/health"]);
@@ -255,6 +306,62 @@ test("writes an empty baseline for the first release, without asking production'
     assert.deepEqual(calls.outputs, [{ path: "/output", text: "previous_tag=\n" }]);
     assert.deepEqual(calls.fetched, []);
     assert.notEqual(calls.logs.length, 0);
+  });
+});
+
+test("writes an empty baseline when every production deployment failed, without asking production's health", async () => {
+  await withReleases(async ({ runGit }) => {
+    const { deps, calls } = baselineDeps({
+      runGit,
+      railway: {
+        exitOk: true,
+        stdout: JSON.stringify([
+          { id: "d2", status: "FAILED" },
+          { id: "d1", status: "SKIPPED" },
+        ]),
+      },
+      health: null,
+    });
+
+    assert.equal(await runCli(deps), 0);
+    assert.deepEqual(calls.outputs, [{ path: "/output", text: "previous_tag=\n" }]);
+    assert.deepEqual(calls.fetched, []);
+    assert.notEqual(calls.logs.length, 0);
+  });
+});
+
+test("names the release an older successful deployment serves behind a newer failed one", async () => {
+  await withReleases(async ({ runGit, v100 }) => {
+    const { deps, calls } = baselineDeps({
+      runGit,
+      railway: {
+        exitOk: true,
+        stdout: JSON.stringify([
+          { id: "d2", status: "FAILED" },
+          { id: "d1", status: "SUCCESS" },
+        ]),
+      },
+      health: healthy(v100),
+    });
+
+    assert.equal(await runCli(deps), 0);
+    assert.deepEqual(calls.outputs, [{ path: "/output", text: "previous_tag=cloud-v1.0.0\n" }]);
+  });
+});
+
+test("refuses the promotion when a crashed, removed or unknown deployment is listed and production's health does not answer", async () => {
+  await withReleases(async ({ runGit }) => {
+    for (const status of ["CRASHED", "REMOVED", "SOMETHING_NEW"]) {
+      const { deps, calls } = baselineDeps({
+        runGit,
+        railway: { exitOk: true, stdout: JSON.stringify([{ id: "d1", status }]) },
+        health: null,
+      });
+
+      assert.equal(await runCli(deps), 1, status);
+      assert.deepEqual(calls.outputs, []);
+      assert.notEqual(calls.errors.length, 0);
+    }
   });
 });
 
