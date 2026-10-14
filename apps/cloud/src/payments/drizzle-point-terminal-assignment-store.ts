@@ -105,18 +105,16 @@ export class DrizzlePointTerminalAssignmentStore<TQueryResult extends PgQueryRes
 {
   private readonly db: PgDatabase<TQueryResult>;
   private readonly now: () => Date;
-  private readonly pending: PendingChanges | undefined;
 
-  constructor(db: PgDatabase<TQueryResult>, now: () => Date, pending?: PendingChanges) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date) {
     this.db = db;
     this.now = now;
-    this.pending = pending;
   }
 
   transaction<TOutcome>(
     work: (tx: PointTerminalAssignmentStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return withPendingChanges(this.db, this.pending, (tx, pending) =>
+    return withPendingChanges(this.db, undefined, (tx, pending) =>
       work(new DrizzlePointTerminalAssignmentStoreTransaction(tx, this.now, pending)),
     );
   }

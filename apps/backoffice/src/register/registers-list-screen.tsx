@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { type BackofficeAccess, canAssignPointTerminal } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { AssignPointTerminalModal } from "./assign-point-terminal-modal";
@@ -30,6 +31,7 @@ import {
   useRefreshRegisters,
   useRegisterCoverageQuery,
   useRegistersQuery,
+  useReloadRegister,
 } from "./register-queries";
 import type {
   EmitEnrollmentCodeOutcome,
@@ -39,6 +41,7 @@ import type {
 import type { RegistersListScreenServices } from "./registers-list-services";
 
 export type RegistersListScreenProps = {
+  access: BackofficeAccess;
   onSessionEnded: () => void;
   services: RegistersListScreenServices;
 };
@@ -58,7 +61,11 @@ const NO_REGISTERS: RegisterSummary[] = [];
 
 const COUNTDOWN_TICK_SECONDS = 30;
 
-export function RegistersListScreen({ onSessionEnded, services }: RegistersListScreenProps) {
+export function RegistersListScreen({
+  access,
+  onSessionEnded,
+  services,
+}: RegistersListScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
   const {
     fetchRegisters,
@@ -71,6 +78,7 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
   const data = useRegistersQuery({ fetchRegisters, onSessionEnded });
   const coverage = useRegisterCoverageQuery({ fetchRegisterCoverage, onSessionEnded });
   const refreshRegisters = useRefreshRegisters();
+  const reloadRegister = useReloadRegister({ fetchRegisters });
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [terminalTarget, setTerminalTarget] = useState<RegisterSummary | null>(null);
   const [emission, setEmission] = useState<EmissionState>({ kind: "closed" });
@@ -150,6 +158,17 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
     void refreshRegisters();
   }
 
+  const emitAction = (item: RegisterSummary) => ({
+    icon: <KeySquare />,
+    "aria-label": `Emitir código de alta para ${item.name}`,
+    onPress: () => void handleEmitClick(item),
+  });
+  const assignTerminalAction = (item: RegisterSummary) => ({
+    icon: <CreditCard />,
+    "aria-label": `Asignar terminal Point a ${item.name}`,
+    onPress: () => setTerminalTarget(item),
+  });
+
   const columns = [
     dataColumn({
       id: "register",
@@ -228,18 +247,7 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
     actionsColumn({
       id: "actions",
       header: "Acciones",
-      actions: [
-        (item: RegisterSummary) => ({
-          icon: <KeySquare />,
-          "aria-label": `Emitir código de alta para ${item.name}`,
-          onPress: () => void handleEmitClick(item),
-        }),
-        (item: RegisterSummary) => ({
-          icon: <CreditCard />,
-          "aria-label": `Asignar terminal Point a ${item.name}`,
-          onPress: () => setTerminalTarget(item),
-        }),
-      ],
+      actions: canAssignPointTerminal(access) ? [emitAction, assignTerminalAction] : [emitAction],
     }),
   ] as const;
 
@@ -302,16 +310,7 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
           setTerminalTarget(null);
           void refreshRegisters();
         }}
-        reload={async () => {
-          const outcome = await fetchRegisters();
-          void refreshRegisters();
-          if (outcome.kind === "ok") {
-            setTerminalTarget((current) =>
-              current === null ? null : (outcome.value.find(({ id }) => id === current.id) ?? null),
-            );
-          }
-          return outcome;
-        }}
+        reload={reloadRegister}
         onSessionEnded={onSessionEnded}
         services={services}
       />

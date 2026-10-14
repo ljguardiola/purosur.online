@@ -1,8 +1,9 @@
 import type { ReportRegisterListBody } from "@purosur/contracts";
 import type { PermissionKey } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { useCloudQuery } from "../platform/use-cloud-query";
+import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type {
   fetchRegisterCoverage,
   fetchRegisterSyncStatus,
@@ -76,4 +77,26 @@ export function useReportRegistersQuery(params: {
 export function useRefreshRegisters(): () => Promise<void> {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: registerKey });
+}
+
+export type RegisterReload =
+  | { kind: "found"; register: RegisterSummary }
+  | { kind: "not_found" }
+  | Exclude<CloudReadOutcome<never>, { kind: "ok" }>;
+
+export function useReloadRegister(params: {
+  fetchRegisters: typeof fetchRegisters;
+}): (id: string) => Promise<RegisterReload> {
+  const client = useQueryClient();
+  return async (id) => {
+    const listed = await fetchCloudQuery(client, {
+      queryKey: registerKeys.registers,
+      read: params.fetchRegisters,
+    });
+    if (listed.kind !== "ok") {
+      return listed;
+    }
+    const register = listed.value.find((listedRegister) => listedRegister.id === id);
+    return register ? { kind: "found", register } : { kind: "not_found" };
+  };
 }

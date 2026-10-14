@@ -1,45 +1,34 @@
 import { pointTerminalAssignmentBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
-import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, CreditCard, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useAuthorization } from "../platform/authorization-modal";
-import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import type {
-  authorizeSession,
-  fetchSessionAuthorizationOptions,
-} from "../platform/session-authorization-api";
 import {
   EMPTY_POINT_TERMINAL_FORM,
   pointTerminalFormValuesFrom,
   pointTerminalMessage,
   pointTerminalRequestFrom,
 } from "./point-terminal-form";
-import type {
-  AssignPointTerminalOutcome,
-  assignPointTerminal,
-  RegisterSummary,
-} from "./registers-api";
+import type { RegisterReload } from "./register-queries";
+import type { assignPointTerminal, RegisterSummary } from "./registers-api";
 
 export type AssignPointTerminalModalServices = {
   assignPointTerminal: typeof assignPointTerminal;
-  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
-  authorizeSession: typeof authorizeSession;
-  startAuthentication: typeof startAuthentication;
 };
 
 type ModalNotice =
   | { kind: "attemptFailed" }
   | { kind: "staleVersion" }
+  | { kind: "notFound" }
+  | { kind: "reloadFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number };
 
 type AssignPointTerminalModalProps = {
   target: RegisterSummary | null;
   onClose: () => void;
   onSaved: () => void;
-  reload: () => Promise<CloudReadOutcome<RegisterSummary[]>>;
+  reload: (id: string) => Promise<RegisterReload>;
   onSessionEnded: () => void;
   services: AssignPointTerminalModalServices;
 };
@@ -53,27 +42,18 @@ export function AssignPointTerminalModal({
   services,
 }: AssignPointTerminalModalProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const {
-    assignPointTerminal,
-    fetchSessionAuthorizationOptions,
-    authorizeSession,
-    startAuthentication,
-  } = services;
+  const { assignPointTerminal } = services;
   const open = target !== null;
   const [seededFrom, setSeededFrom] = useState<RegisterSummary | null>(null);
+  const [loaded, setLoaded] = useState<RegisterSummary | null>(null);
   const [notice, setNotice] = useState<ModalNotice | null>(null);
   const [reloading, setReloading] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const { run, modal } = useAuthorization<AssignPointTerminalOutcome>({
-    actionName: "Guardar la terminal Point",
-    onSessionEnded,
-    services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
-  });
 
-  async function settle(outcome: Awaited<ReturnType<typeof run>>): Promise<boolean> {
-    if (outcome.kind === "cancelled") {
-      return true;
-    }
+  async function settle(
+    outcome: Awaited<ReturnType<typeof assignPointTerminal>>,
+    register: RegisterSummary,
+  ): Promise<boolean> {
     if (outcome.kind === "ok") {
       onSaved();
       return true;
@@ -87,7 +67,7 @@ export function AssignPointTerminalModal({
       return true;
     }
     if (outcome.kind === "not_found") {
-      await reload();
+      applyReload(await reload(register.id));
       return true;
     }
     if (outcome.kind === "stale_version") {
@@ -111,8 +91,8 @@ export function AssignPointTerminalModal({
         return;
       }
       setNotice(null);
-      const outcome = await run(() => assignPointTerminal(target.id, request));
-      if (await settle(outcome)) {
+      const outcome = await assignPointTerminal(target.id, request);
+      if (await settle(outcome, target)) {
         return;
       }
       if (outcome.kind === "point_terminal_taken") {
@@ -131,27 +111,48 @@ export function AssignPointTerminalModal({
       if (seededFrom !== null) {
         reset();
         setSeededFrom(null);
+        setLoaded(null);
       }
     } else if (target !== seededFrom && !dirty) {
       reset(pointTerminalFormValuesFrom(target));
       setSeededFrom(target);
+      setLoaded(target);
       setNotice(null);
     }
   }, [target, seededFrom, dirty, reset]);
 
   async function handleRemove() {
-    if (target === null) {
+    if (loaded === null) {
       return;
     }
     setNotice(null);
     setRemoving(true);
-    const outcome = await run(() =>
-      assignPointTerminal(target.id, { terminal_id: null, version: target.pointTerminalVersion }),
-    );
-    if (!(await settle(outcome))) {
+    const outcome = await assignPointTerminal(loaded.id, {
+      terminal_id: null,
+      version: loaded.pointTerminalVersion,
+    });
+    if (!(await settle(outcome, loaded))) {
       setNotice({ kind: "attemptFailed" });
     }
     setRemoving(false);
+  }
+
+  function applyReload(outcome: RegisterReload) {
+    if (outcome.kind === "found") {
+      reset(pointTerminalFormValuesFrom(outcome.register));
+      setLoaded(outcome.register);
+      setNotice(null);
+    } else if (outcome.kind === "not_found") {
+      setNotice({ kind: "notFound" });
+    } else if (outcome.kind === "unauthenticated") {
+      onSessionEnded();
+    } else if (outcome.kind === "forbidden") {
+      sendToMyAccount();
+    } else if (outcome.kind === "rate_limited") {
+      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+    } else {
+      setNotice({ kind: "reloadFailed" });
+    }
   }
 
   async function handleReload() {
@@ -159,112 +160,120 @@ export function AssignPointTerminalModal({
       return;
     }
     setReloading(true);
-    const outcome = await reload();
-    const reloaded =
-      outcome.kind === "ok" ? outcome.value.find(({ id }) => id === target.id) : undefined;
-    if (reloaded !== undefined) {
-      reset(pointTerminalFormValuesFrom(reloaded));
-      setSeededFrom(reloaded);
-      setNotice(null);
-    }
+    applyReload(await reload(target.id));
     setReloading(false);
   }
 
   const busy = submitting || reloading || removing;
+  const actionsDisabled = busy || notice?.kind === "notFound";
+  const offersReload = notice?.kind === "staleVersion" || notice?.kind === "reloadFailed";
 
   return (
-    <>
-      <Modal
-        open={open}
-        onOpenChange={(open) => {
-          if (!open) {
-            onClose();
-          }
-        }}
-        width="standard"
-        tone="info"
-        icon={<CreditCard />}
-        context={target?.name ?? ""}
-        title="Terminal Point integrada"
-        closable
-        footer={
-          <>
-            <Button variant="secondary" size="large" icon={<X />} disabled={busy} onPress={onClose}>
-              Cancelar
-            </Button>
-            {notice?.kind === "staleVersion" ? (
-              <Button
-                variant="primary"
-                size="large"
-                icon={<RotateCcw />}
-                fullWidth
-                disabled={busy}
-                onPress={() => void handleReload()}
-              >
-                Recargar
-              </Button>
-            ) : (
-              <Button
-                variant="primary"
-                size="large"
-                icon={<Check />}
-                fullWidth
-                disabled={busy}
-                onPress={() => void submit()}
-              >
-                Guardar
-              </Button>
-            )}
-          </>
+    <Modal
+      open={open}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
         }
-      >
-        {target ? (
-          <div className="flex flex-col gap-4">
-            {notice?.kind === "attemptFailed" && (
-              <InlineNotice
-                tone="error"
-                icon={<TriangleAlert />}
-                title="No se pudo guardar la terminal"
-                description="Probá de nuevo."
-              />
+      }}
+      width="standard"
+      tone="info"
+      icon={<CreditCard />}
+      context={target?.name ?? ""}
+      title="Terminal Point integrada"
+      closable
+      footer={
+        <>
+          <Button variant="secondary" size="large" icon={<X />} disabled={busy} onPress={onClose}>
+            Cancelar
+          </Button>
+          {offersReload ? (
+            <Button
+              variant="primary"
+              size="large"
+              icon={<RotateCcw />}
+              fullWidth
+              disabled={busy}
+              onPress={() => void handleReload()}
+            >
+              Recargar
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              size="large"
+              icon={<Check />}
+              fullWidth
+              disabled={actionsDisabled}
+              onPress={() => void submit()}
+            >
+              Guardar
+            </Button>
+          )}
+        </>
+      }
+    >
+      {target ? (
+        <div className="flex flex-col gap-4">
+          {notice?.kind === "attemptFailed" && (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title="No se pudo guardar la terminal"
+              description="Probá de nuevo."
+            />
+          )}
+          {notice?.kind === "rateLimited" && (
+            <InlineNotice
+              tone="error"
+              icon={<ShieldX />}
+              title="Demasiadas solicitudes"
+              description={retryAfterDetail(notice.retryAfterSeconds)}
+            />
+          )}
+          {notice?.kind === "staleVersion" && (
+            <InlineNotice
+              tone="error"
+              icon={<RotateCcw />}
+              title="La terminal de la caja cambió mientras la editabas"
+              description="Recargá los datos y volvé a hacer el cambio."
+            />
+          )}
+          {notice?.kind === "notFound" && (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title="La caja ya no existe"
+              description="Cerrá esta ventana: la lista ya se actualizó."
+            />
+          )}
+          {notice?.kind === "reloadFailed" && (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title="No se pudieron recargar los datos"
+              description="Probá de nuevo."
+            />
+          )}
+          <form.AppField name="terminalId">
+            {(field) => (
+              <field.TextField kind="plain-text" label="Identificador de la terminal" required />
             )}
-            {notice?.kind === "rateLimited" && (
-              <InlineNotice
-                tone="error"
-                icon={<ShieldX />}
-                title="Demasiadas solicitudes"
-                description={retryAfterDetail(notice.retryAfterSeconds)}
-              />
-            )}
-            {notice?.kind === "staleVersion" && (
-              <InlineNotice
-                tone="error"
-                icon={<RotateCcw />}
-                title="La terminal de la caja cambió mientras la editabas"
-                description="Recargá los datos y volvé a hacer el cambio."
-              />
-            )}
-            <form.AppField name="terminalId">
-              {(field) => (
-                <field.TextField kind="plain-text" label="Identificador de la terminal" required />
-              )}
-            </form.AppField>
-            {target.pointTerminalId !== null && (
-              <div className="flex">
-                <Button
-                  variant="text"
-                  destructive
-                  disabled={busy}
-                  onPress={() => void handleRemove()}
-                >
-                  Quitar terminal
-                </Button>
-              </div>
-            )}
-          </div>
-        ) : null}
-      </Modal>
-      {modal}
-    </>
+          </form.AppField>
+          {loaded !== null && loaded.pointTerminalId !== null && (
+            <div className="flex">
+              <Button
+                variant="text"
+                destructive
+                disabled={actionsDisabled}
+                onPress={() => void handleRemove()}
+              >
+                Quitar terminal
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : null}
+    </Modal>
   );
 }

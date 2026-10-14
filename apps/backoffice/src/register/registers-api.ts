@@ -67,7 +67,6 @@ export type AssignPointTerminalOutcome =
   | { kind: "not_found" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
-  | { kind: "authorization_required" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
@@ -123,7 +122,7 @@ function registerFromWire(row: RegisterSummaryBody): RegisterSummary {
   };
 }
 
-// Every register action is gated by the shared passkey-authorization window: a 401 here means
+// Creating a register and emitting its code are gated by the shared passkey-authorization window: a 401 here means
 // either the session ended or that window has lapsed, never a rejected assertion.
 type GatedActionErrorOutcome =
   | { kind: "unauthenticated" }
@@ -273,5 +272,14 @@ export async function assignPointTerminal(
       ? { kind: code }
       : { kind: "failed" };
   }
-  return gatedActionErrorOutcome(response);
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 403) {
+    return { kind: "forbidden" };
+  }
+  if (response.status === 429) {
+    return rateLimitOutcome(response);
+  }
+  return { kind: "failed" };
 }
