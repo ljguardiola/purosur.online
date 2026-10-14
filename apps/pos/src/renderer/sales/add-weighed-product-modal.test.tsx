@@ -46,6 +46,7 @@ describe("AddWeighedProductModal", () => {
     await expect.element(screen.getByRole("button", { name: "Agregar" })).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Cancelar" })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
+    await expect.element(field).toHaveAttribute("inputmode", "decimal");
   });
 
   it("adds the product with the typed weight in thousandths of a kilogram", async () => {

@@ -55,7 +55,11 @@ export function parseStockQuantity(value: string, saleUnit: SaleUnit): number | 
 }
 
 export function quantityFieldKind(saleUnit: SaleUnit) {
-  return { kind: "plain-text" as const, suffix: saleUnit === "KG" ? "kg" : "u" };
+  return {
+    kind: "plain-text" as const,
+    suffix: saleUnit === "KG" ? "kg" : "u",
+    ...(saleUnit === "KG" ? { inputMode: "decimal" as const } : {}),
+  };
 }
 
 export function quantityMessage(saleUnit: SaleUnit): string {

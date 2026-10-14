@@ -41,6 +41,17 @@ export const AmountFilled: Story = {
   args: { kind: "amount", label: "Monto", value: "60000", onChange: () => {}, prefix: "$" },
 };
 
+export const DecimalAmount: Story = {
+  args: {
+    kind: "amount",
+    label: "Monto",
+    value: "1.234,50",
+    onChange: () => {},
+    prefix: "$",
+    inputMode: "decimal",
+  },
+};
+
 export const CountedCash: Story = {
   args: {
     kind: "counted-cash",

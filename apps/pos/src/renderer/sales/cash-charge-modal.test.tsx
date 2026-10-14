@@ -83,7 +83,7 @@ function deferred<T>() {
 
 describe("CashChargeModal", () => {
   it("asks for the amount handed over and shows what is owed", async () => {
-    const { screen } = await renderModal();
+    const { screen, field } = await renderModal();
 
     await expect.element(screen.getByText("COBRO EN EFECTIVO")).toBeVisible();
     await expect
@@ -97,6 +97,7 @@ describe("CashChargeModal", () => {
       .element(screen.getByText("Con menos de lo que falta, el resto queda pendiente."))
       .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
+    await expect.element(field).toHaveAttribute("inputmode", "decimal");
   });
 
   it("takes the typed amount as soon as it opens", async () => {
