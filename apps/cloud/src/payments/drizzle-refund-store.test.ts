@@ -51,7 +51,12 @@ describe("DrizzleRefundStore", () => {
 
     const locked = await store().transaction((tx) => tx.lockRefund(refundId, locationId));
 
-    expect(locked).toEqual({ id: refundId, state: "PENDING", origin: "sale_cancelled" });
+    expect(locked).toEqual({
+      id: refundId,
+      state: "PENDING",
+      origin: "sale_cancelled",
+      method: "TRANSFER",
+    });
   });
 
   it("finds no refund that belongs to another branch, nor one that does not exist", async () => {
@@ -178,7 +183,12 @@ describe("DrizzleRefundStore", () => {
 
       const locked = await store().transaction((tx) => tx.lockRefund(refundId, locationId));
 
-      expect(locked).toEqual({ id: refundId, state: "PENDING", origin: "late_payment" });
+      expect(locked).toEqual({
+        id: refundId,
+        state: "PENDING",
+        origin: "late_payment",
+        method: "QR",
+      });
     });
 
     it("finds none that belongs to another branch", async () => {

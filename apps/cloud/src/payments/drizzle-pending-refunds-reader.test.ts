@@ -9,6 +9,7 @@ import { aTransferCancelledSale } from "../sync/test-support/synced-facts.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzlePendingRefundsReader } from "./drizzle-pending-refunds-reader.js";
 import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fixtures.js";
+import { aPendingQrRefundOfCancelledSale } from "./test-support/qr-refund-fixtures.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 
@@ -63,6 +64,10 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         providerOrderId: null,
         cancelledBy: userId,
         cancelledByName: "Ada Lucero",
+        confirmedAt: null,
+        confirmedByName: null,
+        sentAt: null,
+        lastRefusalReason: null,
       },
     ]);
   });
@@ -128,6 +133,48 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
     expect(await reader().pendingRefunds(otherLocationId)).toHaveLength(1);
   });
 
+  describe("the refund of a QR payment of a cancelled sale", () => {
+    it("lists how far the cloud got with it: who confirmed it, when it was sent and why Mercado Pago did not refund it", async () => {
+      const pending = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+      const { userId } = await signedInWith(db, [], NOW);
+      const sentAt = new Date("2026-10-07T15:10:00.000Z");
+      await db
+        .update(paymentRefunds)
+        .set({
+          confirmedBy: userId,
+          confirmedAt: NOW,
+          sentAt,
+          providerRefundId: "REF-1",
+          lastRefusalReason: "insufficient_balance",
+        })
+        .where(eq(paymentRefunds.id, pending.refundId));
+
+      const [refund] = await reader().pendingRefunds(pending.locationId);
+
+      expect(refund).toMatchObject({
+        id: pending.refundId,
+        method: "QR",
+        origin: "sale_cancelled",
+        confirmedAt: NOW,
+        confirmedByName: "Ada Lucero",
+        sentAt,
+        lastRefusalReason: "insufficient_balance",
+      });
+    });
+
+    it("names nobody as having confirmed it when the person is not a known user", async () => {
+      const pending = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+      await db
+        .update(paymentRefunds)
+        .set({ confirmedBy: "not-a-known-user", confirmedAt: NOW })
+        .where(eq(paymentRefunds.id, pending.refundId));
+
+      const [refund] = await reader().pendingRefunds(pending.locationId);
+
+      expect(refund).toMatchObject({ confirmedAt: NOW, confirmedByName: null });
+    });
+  });
+
   describe("the refund of a late payment", () => {
     it("lists it with the channel it was paid by, its sale and register, and nobody who cancelled it", async () => {
       const late = await aPendingLatePaymentRefund(db, { openedAt: NOW, registerName: "Caja 7" });
@@ -147,6 +194,10 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
           providerOrderId: null,
           cancelledBy: null,
           cancelledByName: null,
+          confirmedAt: null,
+          confirmedByName: null,
+          sentAt: null,
+          lastRefusalReason: null,
         },
       ]);
     });
