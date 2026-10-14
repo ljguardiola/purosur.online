@@ -633,7 +633,7 @@ describe("GET /freights/linkable-purchases", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    const listed = linkablePurchaseListSchema.parse(response.json());
+    const listed = linkablePurchaseListSchema.parse(response.json()).purchases;
     expect(listed.map(({ id }) => id)).toEqual([newer.purchaseId, older.purchaseId]);
     expect(listed[0]).toMatchObject({ valueCents: 2_500, receiptType: "sin_comprobante" });
   });
@@ -654,10 +654,25 @@ describe("GET /freights/linkable-purchases", () => {
       headers,
     });
 
-    expect(linkablePurchaseListSchema.parse(response.json()).map(({ id }) => id)).toEqual([
+    expect(
+      linkablePurchaseListSchema.parse(response.json()).purchases.map(({ id }) => id),
+    ).toEqual([
       recent.purchaseId,
       old.purchaseId,
     ]);
+  });
+
+  it("answers today's day in Argentina, which a new freight is dated by", async () => {
+    now = new Date("2026-10-06T01:30:00.000Z");
+    const { headers } = await signedInWith(db, ["manage_freight"], now);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/freights/linkable-purchases",
+      headers,
+    });
+
+    expect(linkablePurchaseListSchema.parse(response.json()).today).toBe("2026-10-05");
   });
 
   it("returns 400 for a freight id that is not an id", async () => {

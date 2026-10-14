@@ -11,21 +11,38 @@ const purchase = {
 };
 
 describe("linkablePurchaseListSchema", () => {
-  it("accepts purchases with their supplier, receipt and value", () => {
-    expect(linkablePurchaseListSchema.safeParse([purchase]).data).toEqual([purchase]);
+  it("accepts purchases with their supplier, receipt and value, and today's day", () => {
+    const list = { purchases: [purchase], today: "2026-03-10" };
+    expect(linkablePurchaseListSchema.safeParse(list).data).toEqual(list);
+  });
+
+  it.each(["2026-02-30", "10/03/2026", "", 20260310])("refuses %j as today", (today) => {
+    expect(linkablePurchaseListSchema.safeParse({ purchases: [], today }).success).toBe(false);
+  });
+
+  it("refuses a list without today", () => {
+    expect(linkablePurchaseListSchema.safeParse({ purchases: [purchase] }).success).toBe(false);
   });
 
   it("accepts a purchase without a receipt", () => {
     const bare = { ...purchase, receiptType: "sin_comprobante", receiptNumber: null };
-    expect(linkablePurchaseListSchema.safeParse([bare]).data).toEqual([bare]);
+    const list = { purchases: [bare], today: "2026-03-10" };
+    expect(linkablePurchaseListSchema.safeParse(list).data).toEqual(list);
   });
 
   it("refuses a receipt type that does not exist and a fractional value", () => {
+    const today = "2026-03-10";
     expect(
-      linkablePurchaseListSchema.safeParse([{ ...purchase, receiptType: "factura_a" }]).success,
+      linkablePurchaseListSchema.safeParse({
+        purchases: [{ ...purchase, receiptType: "factura_a" }],
+        today,
+      }).success,
     ).toBe(false);
-    expect(linkablePurchaseListSchema.safeParse([{ ...purchase, valueCents: 1.5 }]).success).toBe(
-      false,
-    );
+    expect(
+      linkablePurchaseListSchema.safeParse({
+        purchases: [{ ...purchase, valueCents: 1.5 }],
+        today,
+      }).success,
+    ).toBe(false);
   });
 });
