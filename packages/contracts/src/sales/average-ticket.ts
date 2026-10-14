@@ -13,9 +13,9 @@ const ticketOfPeriod = z.object({
 
 export const averageTicketSchema = z.object({
   range: dayRange,
-  previous_range: dayRange,
+  previous_range: dayRange.nullable(),
   current: ticketOfPeriod,
-  previous: ticketOfPeriod,
+  previous: ticketOfPeriod.nullable(),
   change_tenths: z.int().nullable(),
   weeks: z.array(
     z.object({

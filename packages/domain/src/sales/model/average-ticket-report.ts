@@ -1,6 +1,11 @@
-import { type ReportPeriod, roundHalfUp, shiftCalendarDay } from "../../shared/index.js";
+import {
+  isCalendarDay,
+  type ReportPeriod,
+  roundHalfUp,
+  shiftCalendarDay,
+} from "../../shared/index.js";
 import { averageTicket } from "./average-ticket.js";
-import type { SalesOfDay } from "./sales-report.js";
+import { type SalesOfDay, salesReportTotals } from "./sales-report.js";
 
 const DAYS_PER_WEEK = 7;
 const TENTHS_OF_A_PERCENT = 1_000n;
@@ -16,11 +21,9 @@ function dayCountOf({ from, to }: ReportPeriod): number {
   return (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS + 1;
 }
 
-export function previousReportPeriod(range: ReportPeriod): ReportPeriod {
-  return {
-    from: shiftCalendarDay(range.from, -dayCountOf(range)),
-    to: shiftCalendarDay(range.from, -1),
-  };
+export function previousReportPeriod(range: ReportPeriod): ReportPeriod | null {
+  const from = shiftCalendarDay(range.from, -dayCountOf(range));
+  return isCalendarDay(from) ? { from, to: shiftCalendarDay(range.from, -1) } : null;
 }
 
 export function ticketChangeTenths({
@@ -41,19 +44,14 @@ export function ticketChangeTenths({
 
 export function salesOfWeeks(range: ReportPeriod, days: readonly SalesOfDay[]): SalesOfWeek[] {
   const weeks: SalesOfWeek[] = [];
+  if (salesReportTotals(days).salesCount === 0) {
+    return weeks;
+  }
   let to = range.to;
   for (let remaining = dayCountOf(range); remaining > 0; remaining -= DAYS_PER_WEEK) {
     const from = shiftCalendarDay(to, 1 - Math.min(DAYS_PER_WEEK, remaining));
-    const inWeek = days.filter((day) => day.day >= from && day.day <= to);
-    const salesCount = inWeek.reduce((sum, day) => sum + day.salesCount, 0);
-    const total = inWeek.reduce((sum, day) => sum + day.total, 0);
-    weeks.push({
-      from,
-      to,
-      salesCount,
-      total,
-      averageTicket: averageTicket({ total, salesCount }),
-    });
+    const totals = salesReportTotals(days.filter((day) => day.day >= from && day.day <= to));
+    weeks.push({ from, to, ...totals, averageTicket: averageTicket(totals) });
     to = shiftCalendarDay(to, -DAYS_PER_WEEK);
   }
   return weeks;

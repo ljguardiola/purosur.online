@@ -153,7 +153,7 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
         range: report.range,
         previous_range: report.previousRange,
         current: ticketOf(report.current),
-        previous: ticketOf(report.previous),
+        previous: report.previous === null ? null : ticketOf(report.previous),
         change_tenths: report.changeTenths,
         weeks: report.weeks.map((week) => ({
           from: week.from,

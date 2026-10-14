@@ -21,9 +21,9 @@ export interface TicketOfPeriod extends SalesReportTotals {
 
 export interface AverageTicketReport {
   range: ReportPeriod;
-  previousRange: ReportPeriod;
+  previousRange: ReportPeriod | null;
   current: TicketOfPeriod;
-  previous: TicketOfPeriod;
+  previous: TicketOfPeriod | null;
   changeTenths: number | null;
   weeks: SalesOfWeek[];
 }
@@ -39,13 +39,15 @@ export async function readAverageTicket(
   const range = reportPeriodOf(asked, clock.now());
   const previousRange = previousReportPeriod(range);
   const days = await reader.completedSalesByDay({ locationId, range, registerId });
-  const previousDays = await reader.completedSalesByDay({
-    locationId,
-    range: previousRange,
-    registerId,
-  });
+  const previous =
+    previousRange === null
+      ? null
+      : ticketOf(
+          salesReportTotals(
+            await reader.completedSalesByDay({ locationId, range: previousRange, registerId }),
+          ),
+        );
   const current = ticketOf(salesReportTotals(days));
-  const previous = ticketOf(salesReportTotals(previousDays));
   return {
     range,
     previousRange,
@@ -53,7 +55,7 @@ export async function readAverageTicket(
     previous,
     changeTenths: ticketChangeTenths({
       current: current.averageTicket,
-      previous: previous.averageTicket,
+      previous: previous?.averageTicket ?? null,
     }),
     weeks: salesOfWeeks(range, days),
   };

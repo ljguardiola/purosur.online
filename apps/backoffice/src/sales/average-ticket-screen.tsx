@@ -96,7 +96,7 @@ export function AverageTicketScreen({
   });
   const shown = data.status === "loaded" ? data.value : data.lastValue;
   const table = useTableModel({
-    items: shown === undefined || shown.current.sales_count === 0 ? NO_WEEKS : shown.weeks,
+    items: shown?.weeks ?? NO_WEEKS,
     id: (row) => row.from,
     columns: weekColumns,
     sort: { column: filters.sortBy, direction: filters.sort },
@@ -136,8 +136,12 @@ export function AverageTicketScreen({
                 <FigureStat
                   size="heading"
                   label="Período anterior"
-                  value={averageTicketText(shown.previous.average_ticket)}
-                  detail={reportPeriodText(shown.previous_range)}
+                  value={averageTicketText(shown.previous?.average_ticket ?? null)}
+                  detail={
+                    shown.previous_range === null
+                      ? undefined
+                      : reportPeriodText(shown.previous_range)
+                  }
                 />
               </Card>
               <Card>
