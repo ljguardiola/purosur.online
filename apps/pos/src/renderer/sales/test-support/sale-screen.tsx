@@ -178,6 +178,7 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
     vi.fn(async (): Promise<CancelPaidSaleOutcome> => ({ kind: "unavailable" }));
   const loadAuthorizers = overrides.loadAuthorizers ?? vi.fn(async () => []);
   const onSessionInvalid = overrides.onSessionInvalid ?? vi.fn();
+  const registerStatus = overrides.registerStatus ?? vi.fn(async () => "unavailable" as const);
   const readers = new Set<(code: string) => void>();
   const screen = await render(
     <BarcodeReadings
@@ -210,6 +211,7 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
         cancelPaidSale={cancelPaidSale}
         loadAuthorizers={loadAuthorizers}
         onSessionInvalid={onSessionInvalid}
+        registerStatus={registerStatus}
       />
     </BarcodeReadings>,
   );
