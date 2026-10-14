@@ -32,6 +32,7 @@ import {
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
 import { DrizzlePaymentTransactionLanes } from "./drizzle-payment-transaction-lanes.js";
+import { DrizzlePointTerminals } from "./drizzle-point-terminals.js";
 import { randomMercadoPagoCancellationKeys } from "./mercado-pago-cancellation-keys.js";
 
 export type MercadoPagoOrderRoutesOptions<TQueryResult extends PgQueryResultHKT> =
@@ -101,6 +102,7 @@ export function registerMercadoPagoOrderRoutes<TQueryResult extends PgQueryResul
   const clock = { now: options.now };
   const admission = { admission: new DrizzleRequestAdmission(options.db), clock };
   const lanes = new DrizzlePaymentTransactionLanes(options.connections);
+  const pointTerminals = new DrizzlePointTerminals(options.db);
 
   async function installationRegisterId(
     authorization: string | undefined,
@@ -158,7 +160,7 @@ export function registerMercadoPagoOrderRoutes<TQueryResult extends PgQueryResul
         };
         const outcome =
           body.provider === "MERCADOPAGO_POINT"
-            ? await createMercadoPagoPointOrder({ lanes, mercadoPago, clock }, input)
+            ? await createMercadoPagoPointOrder({ lanes, mercadoPago, pointTerminals, clock }, input)
             : await createMercadoPagoQrOrder({ lanes, mercadoPago, clock }, input);
 
         switch (outcome.kind) {

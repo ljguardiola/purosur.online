@@ -111,13 +111,14 @@ export type {
   MercadoPagoOrderReading,
   MercadoPagoOrderRefundsReading,
   MercadoPagoOrders,
-  MercadoPagoPointOrderCreation,
+  MercadoPagoPointOrderPorts,
   MercadoPagoPointOrderRequest,
   MercadoPagoQrOrderRequest,
   PaymentTransactionLane,
   PaymentTransactionLanes,
   PaymentTransactionOutcome,
   PaymentTransactionReading,
+  PointTerminals,
   RecordedOrderState,
 } from "./mercado-pago-order-ports.js";
 export { PaymentTransactionAlreadyRecorded } from "./mercado-pago-order-ports.js";

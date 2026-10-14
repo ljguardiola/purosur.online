@@ -18,17 +18,6 @@ describe("resolveMercadoPagoConfig", () => {
     });
   });
 
-  it("does not read the integrated terminal's variable, which a register's assignment replaces", () => {
-    const env = { MERCADOPAGO_POINT_TERMINAL_ID: "PAX_A910__SMARTPOS1" };
-
-    expect(resolveMercadoPagoConfig(env)).toBeUndefined();
-    expect(resolveMercadoPagoConfig({ ...COMPLETE, ...env })).toEqual({
-      accessToken: ACCESS_TOKEN,
-      externalPosId: "STORE01POS01",
-      webhookSecret: WEBHOOK_SECRET,
-    });
-  });
-
   it.each([
     ["none is set", {}],
     [
