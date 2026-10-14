@@ -192,11 +192,14 @@ export class SqliteSaleLedger implements SaleLedger {
   private currentPrice(productId: string): { priceListId: string; unitPrice: number } | undefined {
     const candidates = this.database
       .prepare<[string, string], PriceRow>(
-        `SELECT id, price_list_id, unit_price, valid_from
+        `SELECT id, price_list_id, unit_price,
+                strftime('%Y-%m-%dT%H:%M:%fZ', valid_from) AS valid_from
          FROM prices
          WHERE product_id = ? AND removed = 0
-           AND valid_from = (
-             SELECT max(valid_from) FROM prices WHERE product_id = ? AND removed = 0
+           AND strftime('%Y-%m-%dT%H:%M:%fZ', valid_from) = (
+             SELECT max(strftime('%Y-%m-%dT%H:%M:%fZ', valid_from))
+             FROM prices
+             WHERE product_id = ? AND removed = 0
            )`,
       )
       .all(productId, productId)
