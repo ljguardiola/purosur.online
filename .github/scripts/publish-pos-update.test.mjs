@@ -352,3 +352,31 @@ test("the CLI exits 1 naming what is missing when run without its inputs", async
   assert.equal(result.status, 1);
   assert.match(result.output, /POS_UPDATES_BUCKET_ENDPOINT/);
 });
+
+test("the CLI with --require-newer publishes into an empty feed", async () => {
+  await withInstallerDir((installerDir) =>
+    withFakeBucket({}, async ({ endpoint, port, puts }) => {
+      const result = await runCli(["--require-newer", installerDir], cliEnv(endpoint, port));
+
+      assert.equal(result.status, 0, result.output);
+      assert.equal(puts.length, 2);
+    }),
+  );
+});
+
+for (const published of ["0.0.57", "0.0.60"]) {
+  test(`the CLI with --require-newer exits 1 uploading nothing when the feed holds ${published}`, async () => {
+    await withInstallerDir((installerDir) =>
+      withFakeBucket(
+        { stored: { [`${BUCKET_NAME}/register-updates/latest.json`]: entryJson(published) } },
+        async ({ endpoint, port, puts }) => {
+          const result = await runCli(["--require-newer", installerDir], cliEnv(endpoint, port));
+
+          assert.equal(result.status, 1);
+          assert.match(result.output, /::error::.*not older/);
+          assert.deepEqual(puts, []);
+        },
+      ),
+    );
+  });
+}
