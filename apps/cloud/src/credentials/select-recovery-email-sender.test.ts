@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { FICTIONAL_RECOVERY_REPLY_TO } from "../test-support/recovery-reply-to.js";
 import { selectRecoveryEmailSender } from "./select-recovery-email-sender.js";
 
 describe("selectRecoveryEmailSender", () => {
@@ -11,7 +12,7 @@ describe("selectRecoveryEmailSender", () => {
       {
         emailSender: { transport: "resend", resendApiKey: "re_test_key" },
         emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
-        emailReplyTo: "purosur.comarca@gmail.com",
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
       },
       { createResendRecoveryEmailSender, createLogRecoveryEmailSender },
     );
@@ -19,7 +20,7 @@ describe("selectRecoveryEmailSender", () => {
     expect(createResendRecoveryEmailSender).toHaveBeenCalledWith({
       apiKey: "re_test_key",
       from: "Puro Sur <acceso@mail.staging.purosur.online>",
-      replyTo: "purosur.comarca@gmail.com",
+      replyTo: FICTIONAL_RECOVERY_REPLY_TO,
     });
     expect(createLogRecoveryEmailSender).not.toHaveBeenCalled();
     expect(sender).toBe(fakeSender);
@@ -34,7 +35,7 @@ describe("selectRecoveryEmailSender", () => {
       {
         emailSender: { transport: "log" },
         emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
-        emailReplyTo: "purosur.comarca@gmail.com",
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
       },
       { createResendRecoveryEmailSender, createLogRecoveryEmailSender },
     );
