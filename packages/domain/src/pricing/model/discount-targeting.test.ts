@@ -1,6 +1,7 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import type { DiscountTarget } from "./discount-target.js";
-import { type CategoryLink, discountsTargeting } from "./discount-targeting.js";
+import { DISCOUNT_TARGET_KINDS, type DiscountTarget } from "./discount-target.js";
+import { type CategoryLink, discountsTargeting, discountTargetKeys } from "./discount-targeting.js";
 
 const categories: CategoryLink[] = [
   { id: "root", parentId: null },
@@ -111,5 +112,68 @@ describe("discountsTargeting", () => {
         looping,
       ),
     ).toEqual(["CATEGORY:middle"]);
+  });
+});
+
+describe("discountTargetKeys", () => {
+  const tagged = {
+    ...product,
+    tags: [
+      { tagId: "on", active: true },
+      { tagId: "off", active: false },
+    ],
+  };
+
+  it("names the product, its category with every category above it, and its active tags", () => {
+    const keys = discountTargetKeys(tagged, categories);
+
+    expect([...keys.PRODUCT]).toEqual(["p1"]);
+    expect([...keys.CATEGORY]).toEqual(["own", "middle", "root"]);
+    expect([...keys.TAG]).toEqual(["on"]);
+  });
+
+  it("names only the product's own category when it is missing from the tree", () => {
+    expect([...discountTargetKeys(product, []).CATEGORY]).toEqual(["own"]);
+  });
+
+  it("stops where a corrupt parent chain loops back on itself", () => {
+    const looping: CategoryLink[] = [
+      { id: "own", parentId: "middle" },
+      { id: "middle", parentId: "own" },
+    ];
+
+    expect([...discountTargetKeys(product, looping).CATEGORY]).toEqual(["own", "middle"]);
+  });
+});
+
+describe("discountsTargeting over the discounts a key narrows", () => {
+  const id = fc.constantFrom("a", "b", "c", "d", "e");
+  const categoryTree = fc.uniqueArray(fc.record({ id, parentId: fc.option(id, { nil: null }) }), {
+    selector: (category) => category.id,
+  });
+  const target = fc.record({ kind: fc.constantFrom(...DISCOUNT_TARGET_KINDS), id });
+  const targetedProduct = fc.record({
+    id,
+    categoryId: id,
+    tags: fc.array(fc.record({ tagId: id, active: fc.boolean() })),
+  });
+
+  it("keeps the same discounts as over every discount, and only the categories of the chain", () => {
+    fc.assert(
+      fc.property(
+        fc.array(target.map((aim) => ({ id: `${aim.kind}:${aim.id}`, target: aim }))),
+        targetedProduct,
+        categoryTree,
+        (discounts, aimedProduct, tree) => {
+          const keys = discountTargetKeys(aimedProduct, tree);
+          const narrowed = discounts.filter(({ target: aim }) => keys[aim.kind].has(aim.id));
+          const chain = tree.filter(({ id: categoryId }) => keys.CATEGORY.has(categoryId));
+
+          expect(discountsTargeting(narrowed, aimedProduct, chain)).toEqual(
+            discountsTargeting(discounts, aimedProduct, tree),
+          );
+        },
+      ),
+    );
   });
 });

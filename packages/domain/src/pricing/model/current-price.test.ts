@@ -47,4 +47,24 @@ describe("newestPrice", () => {
       ),
     );
   });
+
+  it("is the same price over the whole history as over only the prices that start last", () => {
+    const candidate = fc.record({
+      id: fc.constantFrom("a", "b", "c", "d", "e"),
+      validFrom: fc.constantFrom(EARLIER, LATER, new Date("2026-10-01T00:00:00.000Z")),
+    });
+    fc.assert(
+      fc.property(
+        fc.uniqueArray(candidate, { minLength: 1, selector: (price) => price.id }),
+        (history) => {
+          const newestStart = Math.max(...history.map(({ validFrom }) => validFrom.getTime()));
+          const startingLast = history.filter(
+            ({ validFrom }) => validFrom.getTime() === newestStart,
+          );
+
+          expect(newestPrice(startingLast)).toBe(newestPrice(history));
+        },
+      ),
+    );
+  });
 });

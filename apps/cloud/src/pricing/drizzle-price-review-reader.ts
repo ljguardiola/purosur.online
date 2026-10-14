@@ -7,8 +7,8 @@ import type {
   PricesUnderReviewQuery,
   PriceUnderReview,
 } from "@purosur/domain/pricing/use-cases";
-import { and, desc, eq, isNull } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { and, desc, eq, isNull, max, sql } from "drizzle-orm";
+import { alias, type PgDatabase, type PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   branchSettings,
   categories,
@@ -87,15 +87,40 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
       .innerJoin(categories, eq(products.categoryId, categories.id))
       .where(eq(products.active, true));
 
-    const priceRows = await this.db
+    const every = alias(prices, "every_price");
+    const newestPrices = this.db
       .select({
-        productId: prices.productId,
         id: prices.id,
         unitPrice: prices.unitPrice,
         validFrom: prices.validFrom,
       })
       .from(prices)
-      .where(eq(prices.priceListId, settings.priceListId));
+      .where(
+        and(
+          eq(prices.productId, products.id),
+          eq(prices.priceListId, settings.priceListId),
+          eq(
+            prices.validFrom,
+            this.db
+              .select({ validFrom: max(every.validFrom) })
+              .from(every)
+              .where(
+                and(eq(every.productId, products.id), eq(every.priceListId, settings.priceListId)),
+              ),
+          ),
+        ),
+      )
+      .as("newest_prices");
+    const priceRows = await this.db
+      .select({
+        productId: products.id,
+        id: newestPrices.id,
+        unitPrice: newestPrices.unitPrice,
+        validFrom: newestPrices.validFrom,
+      })
+      .from(products)
+      .innerJoinLateral(newestPrices, sql`true`)
+      .where(eq(products.active, true));
 
     const latestReviewRows = await this.db
       .selectDistinctOn([priceReviews.productId], {

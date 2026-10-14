@@ -375,6 +375,7 @@ export {
   discountAppliesOn,
   discountNameLength,
   discountsTargeting,
+  discountTargetKeys,
   isDiscountNameTooLong,
   isDiscountWindowOrdered,
   isTargetKindAllowedFor,
