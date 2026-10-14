@@ -33,6 +33,7 @@ import type { ReportRegisterFilterServices } from "../register/report-register-f
 import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../sessions/session-api";
 import type { SignInScreenServices } from "../sessions/sign-in-services";
+import type { AssemblyBatchesScreenServices } from "../stock/assembly-batches-services";
 import type { ExpiringLotsScreenServices } from "../stock/expiring-lots-services";
 import type { InitialInventoryScreenServices } from "../stock/initial-inventory-services";
 import type { RecipesListScreenServices } from "../stock/recipes-list-services";
@@ -90,6 +91,7 @@ export type AppServices = {
   packagingsListScreen: PackagingsListScreenServices;
   purchasesListScreen: PurchasesListScreenServices;
   recipesListScreen: RecipesListScreenServices;
+  assemblyBatchesScreen: AssemblyBatchesScreenServices;
   newPurchaseScreen: NewPurchaseScreenServices;
   initialInventoryScreen: InitialInventoryScreenServices;
   fiscalConfigurationScreen: FiscalConfigurationScreenServices;

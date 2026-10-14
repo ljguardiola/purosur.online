@@ -23,6 +23,7 @@ import { registersListRoute } from "../register/routes";
 import { reportsIndexRoute, salesByDayRoute } from "../sales/routes";
 import { signInRoute } from "../sessions/routes";
 import {
+  assemblyBatchesRoute,
   expiringLotsRoute,
   initialInventoryRoute,
   recipesListRoute,
@@ -79,6 +80,7 @@ const routeTree = rootRoute.addChildren([
       newPurchaseRoute,
       expiringLotsRoute,
       recipesListRoute,
+      assemblyBatchesRoute,
       initialInventoryRoute,
     ]),
     cashAndFiscalAreaRoute.addChildren([

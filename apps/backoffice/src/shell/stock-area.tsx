@@ -5,6 +5,7 @@ import {
   CalendarClock,
   ClipboardCheck,
   ClipboardList,
+  Layers,
   Package,
   Scale,
   ShoppingCart,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import {
+  canManageBatches,
   canManagePurchasePackagings,
   canManageRecipes,
   canManageSuppliers,
@@ -44,6 +46,7 @@ function StockArea() {
   const purchasesShown = Boolean(matchRoute({ to: "/purchases", fuzzy: true }));
   const expiringLotsShown = Boolean(matchRoute({ to: "/expiring-lots" }));
   const recipesShown = Boolean(matchRoute({ to: "/recipes" }));
+  const batchesShown = Boolean(matchRoute({ to: "/assembly-batches" }));
   const initialInventoryShown = Boolean(matchRoute({ to: "/initial-inventory" }));
   return (
     <AreaLayout
@@ -139,6 +142,17 @@ function StockArea() {
                   icon={<BookOpen />}
                   search={recipesShown ? true : {}}
                   active={recipesShown}
+                />
+              </li>
+            )}
+            {canManageBatches(session) && (
+              <li>
+                <SectionLink
+                  to="/assembly-batches"
+                  label="Tandas"
+                  icon={<Layers />}
+                  search={batchesShown ? true : {}}
+                  active={batchesShown}
                 />
               </li>
             )}
