@@ -22,6 +22,10 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import {
+  FICTIONAL_RECOVERY_REPLY_TO,
+  FICTIONAL_RECOVERY_SENDER,
+} from "../test-support/recovery-email.js";
 
 const UNUSED_EMAIL_SENDER: AccessEmailSender = {
   async sendRecoveryLink() {},
@@ -74,8 +78,8 @@ describe("the background worker the server sets up on a real Postgres", () => {
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
-        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
-        emailReplyTo: "purosur.comarca@gmail.com",
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
         backofficeOrigin: "https://staging.purosur.online",
         arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
         arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
@@ -121,8 +125,8 @@ describe("the background worker the server sets up on a real Postgres", () => {
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
-        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
-        emailReplyTo: "purosur.comarca@gmail.com",
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
         backofficeOrigin: "https://staging.purosur.online",
         arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
         arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
@@ -167,8 +171,8 @@ describe("the background worker the server sets up on a real Postgres", () => {
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
-        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
-        emailReplyTo: "purosur.comarca@gmail.com",
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
         backofficeOrigin: "https://staging.purosur.online",
         arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
         arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
@@ -241,8 +245,8 @@ describe("the background worker the server sets up on a real Postgres", () => {
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
-        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
-        emailReplyTo: "contacto@example.com",
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
         backofficeOrigin: "https://staging.purosur.online",
         arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
         arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
