@@ -15,6 +15,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import { FICTIONAL_RECOVERY_REPLY_TO } from "../test-support/recovery-reply-to.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import {
   REGISTER_SNAPSHOT_RETENTION_TASK_IDENTIFIER,
@@ -85,7 +86,7 @@ describe("the background worker the server sets up with a snapshots bucket on a 
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
         emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
-        emailReplyTo: "purosur.comarca@gmail.com",
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
         backofficeOrigin: "https://staging.purosur.online",
         arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
         arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
