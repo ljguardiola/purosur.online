@@ -372,6 +372,7 @@ test("lists the archive with the pinned image's pg_restore, reading it from stan
       "-i",
       "ghcr.io/example/postgres:18-alpine@sha256:abc",
       "pg_restore",
+      "--format=custom",
       "--list",
     ],
   });
