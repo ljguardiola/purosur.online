@@ -14,6 +14,10 @@ export type FreightFill = {
   suppliers?: string[];
 };
 
+export async function toggle(dialog: FreightDialog, label: string) {
+  await userEvent.click(dialog.getByText(label, { exact: true }).element());
+}
+
 export async function fillFreight(dialog: FreightDialog, fill: FreightFill) {
   if (fill.date !== undefined) {
     await userEvent.click(dialog.getByRole("group", { name: /^Fecha/ }).getByRole("spinbutton").first());
@@ -23,7 +27,7 @@ export async function fillFreight(dialog: FreightDialog, fill: FreightFill) {
     await userEvent.fill(dialog.getByRole("textbox", { name: /^Monto/ }), fill.amount);
   }
   if (fill.ownTrip === true) {
-    await userEvent.click(dialog.getByRole("checkbox", { name: "Viaje propio (costo estimado)" }));
+    await toggle(dialog, "Viaje propio (costo estimado)");
   }
   if (fill.carrierName !== undefined) {
     await userEvent.fill(dialog.getByRole("textbox", { name: /^Medio/ }), fill.carrierName);
@@ -32,6 +36,6 @@ export async function fillFreight(dialog: FreightDialog, fill: FreightFill) {
     await userEvent.fill(dialog.getByRole("textbox", { name: /^Descripción/ }), fill.description);
   }
   for (const supplier of fill.suppliers ?? []) {
-    await userEvent.click(dialog.getByRole("checkbox", { name: supplier }));
+    await toggle(dialog, supplier);
   }
 }

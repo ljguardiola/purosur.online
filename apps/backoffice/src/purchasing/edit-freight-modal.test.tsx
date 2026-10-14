@@ -5,7 +5,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { EditFreightModal, type EditFreightModalServices } from "./edit-freight-modal";
-import { fillFreight } from "./test-support/freight-form-fill";
+import { fillFreight, toggle } from "./test-support/freight-form-fill";
 import {
   compraAndina,
   compraMolinos,
@@ -130,7 +130,7 @@ test("saves the changed freight and hands it over", async () => {
 
   const dialog = await readyDialog(screen);
   await fillFreight(dialog, { amount: "20000,50" });
-  await userEvent.click(dialog.getByRole("checkbox", { name: "Molinos del Valle" }));
+  await toggle(dialog, "Molinos del Valle");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => onSaved.mock.calls).toEqual([[recordedEnvio]]);
@@ -148,8 +148,8 @@ test("refuses a freight left without purchases without calling the cloud", async
   const screen = await renderModal({ services: createServices({ editFreight }) });
 
   const dialog = await readyDialog(screen);
-  await userEvent.click(dialog.getByRole("checkbox", { name: "Distribuidora Andina" }));
-  await userEvent.click(dialog.getByRole("checkbox", { name: "Molinos del Valle" }));
+  await toggle(dialog, "Distribuidora Andina");
+  await toggle(dialog, "Molinos del Valle");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.element(dialog.getByText("Elegí al menos una compra.")).toBeVisible();
@@ -177,7 +177,7 @@ test("says the freight no longer exists", async () => {
 
   const dialog = await save(screen);
 
-  await expect.element(dialog.getByText("Este flete ya no existe")).toBeVisible();
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Este flete ya no existe");
 });
 
 test("says the linked purchases are worth nothing to distribute the freight over", async () => {
