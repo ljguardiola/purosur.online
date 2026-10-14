@@ -1,10 +1,19 @@
 import { execFile } from "node:child_process";
-import { appendFile } from "node:fs/promises";
+import { appendFile, mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { promisify } from "node:util";
-import { releaseTagsNewestFirst } from "./release-version.mjs";
+import {
+  bucketFromEnv,
+  readPublishedEntry as readPublishedEntryFromBucket,
+} from "./publish-pos-update.mjs";
+import {
+  candidateImage,
+  parseCandidateManifest,
+  runNumberOfVersion,
+} from "./register-candidate.mjs";
 
 const LOG_PREFIX = "hardware-adapter-changes";
-const TAG_PREFIX = "pos-v";
 const SALES = "apps/pos/src/core/sales";
 
 const PRINTER = "printer";
@@ -29,17 +38,27 @@ export function devicesChanged(paths) {
   return DEVICES.filter((device) => changed.has(device));
 }
 
-export async function changedPaths({ sha, excludeTag, runGit }) {
-  const tags = releaseTagsNewestFirst(
-    (await runGit(["tag", "--list", `${TAG_PREFIX}*`, "--merged", sha])).split("\n"),
-    TAG_PREFIX,
-  ).filter((tag) => tag !== excludeTag);
-  const [previousTag] = tags;
+export async function changedPaths({ sha, baseline, runGit }) {
   const listing =
-    previousTag === undefined
-      ? await runGit(["log", "--name-only", "--format=", sha])
-      : await runGit(["diff", "--name-only", `${previousTag}..${sha}`]);
+    baseline === undefined
+      ? await runGit(["log", "--no-renames", "--name-only", "--format=", sha])
+      : await runGit(["diff", "--no-renames", "--name-only", `${baseline}..${sha}`]);
   return [...new Set(listing.split("\n").filter((path) => path !== ""))].sort();
+}
+
+export async function productionBaseline({ servedVersion, readCandidateManifest }) {
+  if (servedVersion === undefined) {
+    return undefined;
+  }
+  const manifest = parseCandidateManifest(
+    await readCandidateManifest(candidateImage(runNumberOfVersion(servedVersion))),
+  );
+  if (manifest.version !== servedVersion) {
+    throw new Error(
+      `${LOG_PREFIX}: production serves ${servedVersion}, but its candidate records ${manifest.version}`,
+    );
+  }
+  return manifest.sha;
 }
 
 async function runGitViaChildProcess(args) {
@@ -47,32 +66,67 @@ async function runGitViaChildProcess(args) {
   return stdout;
 }
 
+async function pullCandidateManifestWithOras(image) {
+  const directory = await mkdtemp(join(tmpdir(), "register-candidate-"));
+  try {
+    await promisify(execFile)("oras", ["pull", image, "--output", directory]);
+    return await readFile(join(directory, "candidate.json"), "utf8");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+function parseDevices(text = "") {
+  return text.split(",").filter((device) => device !== "");
+}
+
+function gate({ DEVICES: devicesText, HARDWARE_TEST }, { log, logError }) {
+  const devices = parseDevices(devicesText);
+  if (devices.length > 0 && (HARDWARE_TEST ?? "").trim() === "") {
+    logError(
+      `${LOG_PREFIX}: this release changes the ${devices.join(", ")} adapter code and needs a recorded hands-on hardware test`,
+    );
+    return 1;
+  }
+  log(`${LOG_PREFIX}: the release has the hardware test it needs`);
+  return 0;
+}
+
 export async function runCli({
   argv = process.argv.slice(2),
   env = process.env,
   runGit = runGitViaChildProcess,
+  readPublishedEntry = readPublishedEntryFromBucket,
+  pullCandidateManifest = pullCandidateManifestWithOras,
   appendOutput = appendFile,
   log = console.log,
   logError = console.error,
 } = {}) {
-  const { TARGET_SHA, RELEASE_TAG, GITHUB_OUTPUT, HARDWARE_TEST } = env;
-  if (!TARGET_SHA || !GITHUB_OUTPUT) {
-    logError(`${LOG_PREFIX}: TARGET_SHA and GITHUB_OUTPUT are required`);
+  if (argv[0] === "gate") {
+    return gate(env, { log, logError });
+  }
+  const { TARGET_SHA, GITHUB_OUTPUT } = env;
+  const { bucket, missing: missingBucket } = bucketFromEnv(env);
+  const missing = [
+    ...["TARGET_SHA", "GITHUB_OUTPUT"].filter((name) => !env[name]),
+    ...missingBucket,
+  ];
+  if (missing.length > 0) {
+    logError(`${LOG_PREFIX}: ${missing.join(", ")} required`);
     return 1;
   }
   try {
-    const paths = await changedPaths({
-      sha: TARGET_SHA,
-      excludeTag: RELEASE_TAG || undefined,
-      runGit,
+    const served = await readPublishedEntry({ bucket });
+    const baseline = await productionBaseline({
+      servedVersion: served?.version,
+      readCandidateManifest: pullCandidateManifest,
     });
-    const devices = devicesChanged(paths);
-    if (argv[0] === "gate" && devices.length > 0 && (HARDWARE_TEST ?? "").trim() === "") {
-      logError(
-        `${LOG_PREFIX}: this release changes the ${devices.join(", ")} adapter code and needs a recorded hands-on hardware test`,
-      );
-      return 1;
-    }
+    log(
+      baseline === undefined
+        ? `${LOG_PREFIX}: production serves no register yet; comparing the whole history`
+        : `${LOG_PREFIX}: comparing with ${baseline}, the commit of the register production serves`,
+    );
+    const devices = devicesChanged(await changedPaths({ sha: TARGET_SHA, baseline, runGit }));
     log(
       devices.length === 0
         ? `${LOG_PREFIX}: no hardware adapter changed`
@@ -84,10 +138,6 @@ export async function runCli({
     logError(error instanceof Error ? error.message : String(error));
     return 1;
   }
-}
-
-export async function productionBaseline() {
-  return undefined;
 }
 
 if (import.meta.main) {

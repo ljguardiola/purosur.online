@@ -47,7 +47,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Read the installer version the staging feed serves
+      - name: Read the installer version and digest the staging feed serves
         id: staging
         env:
           POS_UPDATES_BUCKET_NAME: ${{ vars.POS_UPDATES_BUCKET_NAME }}
@@ -87,10 +87,17 @@ jobs:
 
       - uses: oras-project/setup-oras@005458ad77f1c8facd38a094e4af2e69e5607ff4 # v2.0.2
 
-      - name: Require the candidate to exist
+      - name: Pull the candidate
         env:
           CANDIDATE_IMAGE: ${{ steps.candidate.outputs.image }}
-        run: oras manifest fetch --descriptor "$CANDIDATE_IMAGE"
+        run: oras pull "$CANDIDATE_IMAGE" --output "$RUNNER_TEMP/candidate"
+
+      - name: Require the candidate's staging installer to be the one staging serves
+        env:
+          MANIFEST_FILE: ${{ runner.temp }}/candidate/candidate.json
+          EXPECTED_SHA: ${{ steps.commit.outputs.sha }}
+          EXPECTED_STAGING_INSTALLER_SHA512: ${{ steps.staging.outputs.sha512 }}
+        run: node .github/scripts/register-candidate.mjs read-manifest
 
       - name: Calculate the version and the release notes
         id: version
@@ -101,17 +108,10 @@ jobs:
           RELEASE_NOTES_FILE: ${{ runner.temp }}/release-notes.md
         run: node .github/scripts/release-version.mjs plan
 
-      - name: Flag the hardware adapters this release changes
-        id: hardware
-        env:
-          TARGET_SHA: ${{ steps.commit.outputs.sha }}
-        run: node .github/scripts/hardware-adapter-changes.mjs
-
-      - name: Add the installer version and the hardware test to the release notes
+      - name: Add the installer version to the release notes
         env:
           RELEASE_NOTES_FILE: ${{ runner.temp }}/release-notes.md
           INSTALLER_VERSION: ${{ steps.staging.outputs.version }}
-          DEVICES: ${{ steps.hardware.outputs.devices }}
         run: node .github/scripts/register-candidate.mjs release-notes
 
       - name: Create the tag and the release

@@ -2,7 +2,11 @@ import { readFile as readFileFromDisk } from "node:fs/promises";
 
 const LOG_PREFIX = "readable-event-versions-check";
 const REQUEST_TIMEOUT_MS = 30_000;
-const EVENT_VERSION_RE = /^[^@\s]+@\d+$/;
+
+async function readableEventVersionsSchema() {
+  const contracts = await import("../../packages/contracts/src/sync/readable-event-versions.ts");
+  return contracts.readableEventVersionsSchema;
+}
 
 export function unreadableVersions({ emitted, readable }) {
   const known = new Set(readable);
@@ -26,26 +30,23 @@ export async function fetchReadableVersions({ origin, token, fetchImpl = fetch }
       `${LOG_PREFIX}: GET readable-event-versions answered status ${response.status}`,
     );
   }
-  const body = await response.json().catch(() => undefined);
-  if (
-    !Array.isArray(body?.event_versions) ||
-    !body.event_versions.every((version) => typeof version === "string")
-  ) {
+  const body = (await readableEventVersionsSchema()).safeParse(
+    await response.json().catch(() => undefined),
+  );
+  if (!body.success) {
     throw new Error(`${LOG_PREFIX}: GET readable-event-versions answered a malformed body`);
   }
-  return body.event_versions;
+  return body.data.event_versions;
 }
 
 async function readEmittedVersions(path, readFile) {
-  const emitted = JSON.parse(await readFile(path));
-  if (
-    !Array.isArray(emitted) ||
-    emitted.length === 0 ||
-    !emitted.every((version) => typeof version === "string" && EVENT_VERSION_RE.test(version))
-  ) {
+  const emitted = (await readableEventVersionsSchema()).shape.event_versions.safeParse(
+    JSON.parse(await readFile(path)),
+  );
+  if (!emitted.success || emitted.data.length === 0) {
     throw new Error(`${LOG_PREFIX}: ${path} is not a list of emitted type@N event versions`);
   }
-  return emitted;
+  return emitted.data;
 }
 
 export async function runCli({
