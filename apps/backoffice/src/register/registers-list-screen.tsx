@@ -9,13 +9,14 @@ import {
   Tag,
   useTableModel,
 } from "@purosur/ui";
-import { KeySquare, Laptop, Plus } from "lucide-react";
+import { CreditCard, KeySquare, Laptop, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
+import { AssignPointTerminalModal } from "./assign-point-terminal-modal";
 import { type EmissionState, EnrollmentCodeModal } from "./enrollment-code-modal";
 import { installationLines } from "./installation-text";
 import { NewRegisterModal } from "./new-register-modal";
@@ -71,6 +72,7 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
   const coverage = useRegisterCoverageQuery({ fetchRegisterCoverage, onSessionEnded });
   const refreshRegisters = useRefreshRegisters();
   const [newModalOpen, setNewModalOpen] = useState(false);
+  const [terminalTarget, setTerminalTarget] = useState<RegisterSummary | null>(null);
   const [emission, setEmission] = useState<EmissionState>({ kind: "closed" });
   const { run: runEmission, modal: emissionAuthModal } =
     useAuthorization<EmitEnrollmentCodeOutcome>({
@@ -209,6 +211,16 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
         ),
     }),
     dataColumn({
+      id: "pointTerminal",
+      header: "Terminal Point",
+      render: (item: RegisterSummary) =>
+        item.pointTerminalId === null ? (
+          <span className="text-text-subtle text-detail">Sin asignar</span>
+        ) : (
+          <span className="text-text text-detail">{item.pointTerminalId}</span>
+        ),
+    }),
+    dataColumn({
       id: "status",
       header: "Estado",
       render: (item: RegisterSummary) => installationStatus(item.installation),
@@ -221,6 +233,11 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
           icon: <KeySquare />,
           "aria-label": `Emitir código de alta para ${item.name}`,
           onPress: () => void handleEmitClick(item),
+        }),
+        (item: RegisterSummary) => ({
+          icon: <CreditCard />,
+          "aria-label": `Asignar terminal Point a ${item.name}`,
+          onPress: () => setTerminalTarget(item),
         }),
       ],
     }),
@@ -274,6 +291,26 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
         onCreated={() => {
           setNewModalOpen(false);
           void refreshRegisters();
+        }}
+        onSessionEnded={onSessionEnded}
+        services={services}
+      />
+      <AssignPointTerminalModal
+        target={terminalTarget}
+        onClose={() => setTerminalTarget(null)}
+        onSaved={() => {
+          setTerminalTarget(null);
+          void refreshRegisters();
+        }}
+        reload={async () => {
+          const outcome = await fetchRegisters();
+          void refreshRegisters();
+          if (outcome.kind === "ok") {
+            setTerminalTarget((current) =>
+              current === null ? null : (outcome.value.find(({ id }) => id === current.id) ?? null),
+            );
+          }
+          return outcome;
         }}
         onSessionEnded={onSessionEnded}
         services={services}
