@@ -25,6 +25,7 @@ export type {
   AlertRoleSummary,
   ArcaCertificateExpiringDetail,
   EmailChangedDetail,
+  OffsiteDumpUnverifiedDetail,
   OpenAlertInput,
   PasskeyChangedDetail,
   RecoveryRequestedDetail,
@@ -69,6 +70,8 @@ export {
   acquisitionUrgencyAlertLevel,
   offlineAuthorizationCodeAcquisitionLevel,
 } from "./model/offline-authorization-code-acquisition.js";
+export type { OffsiteDumpUnverifiedReason } from "./model/offsite-dump-unverified-reason.js";
+export { OFFSITE_DUMP_UNVERIFIED_REASONS } from "./model/offsite-dump-unverified-reason.js";
 export { isOpenAlert } from "./model/open-alert-state.js";
 export { refundTaskAlertIsDue, refundTaskAlertLevel } from "./model/refund-task-alert.js";
 export {

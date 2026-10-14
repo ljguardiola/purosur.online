@@ -6,6 +6,7 @@ import type {
 } from "../../fiscal/index.js";
 import type { SalesDeniedReason } from "../../shared/index.js";
 import type { AlertKind } from "./alert-catalog.js";
+import type { OffsiteDumpUnverifiedReason } from "./offsite-dump-unverified-reason.js";
 
 export type PasskeyChangedDetail =
   | { action: "registered" | "removed"; passkeyName: string; actorId: string; via: "self" }
@@ -143,6 +144,11 @@ interface LotsExpiringDetail {
   windowDays: number;
 }
 
+export interface OffsiteDumpUnverifiedDetail {
+  night: string;
+  reason: OffsiteDumpUnverifiedReason;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -165,6 +171,7 @@ export interface AlertDetails {
   fiscal_emission_stopped: FiscalEmissionStoppedDetail;
   outbox_chain_broken: OutboxChainBrokenDetail;
   lots_expiring: LotsExpiringDetail;
+  offsite_dump_unverified: OffsiteDumpUnverifiedDetail;
 }
 
 export type OpenAlertInput = {

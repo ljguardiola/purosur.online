@@ -50,6 +50,8 @@ export { detectExpiringLots } from "./detect-expiring-lots.js";
 export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
 export type { QuietRegisterDetectionPorts } from "./detect-quiet-registers.js";
 export { detectQuietRegisters } from "./detect-quiet-registers.js";
+export type { DetectUnverifiedOffsiteDumpOutcome } from "./detect-unverified-offsite-dump.js";
+export { detectUnverifiedOffsiteDump } from "./detect-unverified-offsite-dump.js";
 export { escalateOverdueAlerts } from "./escalate-overdue-alerts.js";
 export type {
   BranchExpiringLotReader,
@@ -81,4 +83,9 @@ export type {
   UnclearOutcomeAlertStore,
   UnclearOutcomeAlertTransaction,
 } from "./unclear-outcome-alert-ports.js";
+export type {
+  OffsiteDumpAlerts,
+  OffsiteDumpCheckReader,
+  UnverifiedOffsiteDumpDetectionPorts,
+} from "./unverified-offsite-dump-ports.js";
 export type { WatchedRegisterReader } from "./watched-register-reader.js";

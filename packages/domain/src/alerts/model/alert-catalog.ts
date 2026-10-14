@@ -20,6 +20,7 @@ const ALERT_KIND_LIST = [
   "fiscal_emission_stopped",
   "outbox_chain_broken",
   "lots_expiring",
+  "offsite_dump_unverified",
 ] as const;
 
 export type AlertKind = (typeof ALERT_KIND_LIST)[number];
