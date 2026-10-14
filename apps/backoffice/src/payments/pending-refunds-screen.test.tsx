@@ -14,9 +14,9 @@ import {
   noPendingRefunds,
   pendingRefunds,
   pendingRefundsOfEveryCloudRefundStage,
-  pendingRefundsWithUnconfirmedCloudRefund,
   pendingRefundsWithLatePayment,
   pendingRefundsWithLatePaymentOfOtherOrder,
+  pendingRefundsWithUnconfirmedCloudRefund,
   SECOND_REFUND_ID,
   TRANSFER_REFUND_ID,
 } from "./test-support/refund-fixtures";
@@ -168,12 +168,16 @@ test("lists a cancelled sale's refund and a late QR payment's refund together, e
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("explains under the table that refunds are made outside the system and marked as done here", async () => {
+test("explains under the table which refunds are sent to Mercado Pago from here and which are made outside the system and marked as done", async () => {
   const services = createServices();
   const screen = await loaded(services);
 
   await expect
-    .element(screen.getByText("Se hacen fuera del sistema y acá se marcan como hechos"))
+    .element(
+      screen.getByText(
+        "Los de Mercado Pago se envían al confirmarlos acá; los demás se hacen fuera del sistema y acá se marcan como hechos.",
+      ),
+    )
     .toBeVisible();
 });
 
@@ -512,12 +516,12 @@ test("offers sending a QR refund of a cancelled sale to Mercado Pago and never m
     screen.getByRole("button", { name: "Marcar como hecho el reembolso de $ 3.400,00" }).query(),
   ).toBeNull();
   await expect
-    .element(
-      screen.getByRole("button", { name: "Marcar como hecho el reembolso de $ 2.500,00" }),
-    )
+    .element(screen.getByRole("button", { name: "Marcar como hecho el reembolso de $ 2.500,00" }))
     .toBeVisible();
   expect(
-    screen.getByRole("button", { name: "Enviar a Mercado Pago el reembolso de $ 2.500,00" }).query(),
+    screen
+      .getByRole("button", { name: "Enviar a Mercado Pago el reembolso de $ 2.500,00" })
+      .query(),
   ).toBeNull();
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -544,19 +548,6 @@ test("tells how far each QR refund the cloud sends got and offers no action once
   expect(screen.getByRole("button", { name: /^Enviar a Mercado Pago/ }).all()).toHaveLength(1);
   expect(screen.getByRole("button", { name: /^Marcar como hecho/ }).all()).toHaveLength(0);
   await expectNoAccessibilityViolations(screen.container);
-});
-
-test("says in the footer which refunds are sent from here and which are made outside", async () => {
-  const services = createServices();
-  const screen = await loaded(services);
-
-  await expect
-    .element(
-      screen.getByText(
-        "Los de Mercado Pago se envían al confirmarlos acá; los demás se hacen fuera del sistema y acá se marcan como hechos.",
-      ),
-    )
-    .toBeVisible();
 });
 
 test("sending a refund asks first, then sends it, refreshes the list and tells Mercado Pago's answer", async () => {
@@ -595,13 +586,19 @@ test("tells that Mercado Pago refused the refund and why", async () => {
   });
   vi.mocked(services.confirmRefund).mockResolvedValue({
     kind: "ok",
-    value: { refund_id: CLOUD_SENT_REFUND_ID, outcome: "refused", reason: "refund_period_exceeded" },
+    value: {
+      refund_id: CLOUD_SENT_REFUND_ID,
+      outcome: "refused",
+      reason: "refund_period_exceeded",
+    },
   });
   const screen = await renderScreen(services);
   await userEvent.click(
     screen.getByRole("button", { name: "Enviar a Mercado Pago el reembolso de $ 3.400,00" }),
   );
-  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Enviar a Mercado Pago" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Enviar a Mercado Pago" }),
+  );
 
   await expect.element(screen.getByText("Mercado Pago rechazó el reembolso")).toBeVisible();
   await expect.element(screen.getByText("Pasó el plazo para reembolsar.")).toBeVisible();
@@ -620,7 +617,9 @@ test("a refusal of the confirmation keeps the question open and refreshes nothin
   const dialog = screen.getByRole("dialog");
   await userEvent.click(dialog.getByRole("button", { name: "Enviar a Mercado Pago" }));
 
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Este reembolso ya estaba confirmado");
+  await expect
+    .element(dialog.getByRole("alert"))
+    .toHaveTextContent("Este reembolso ya estaba confirmado");
   expect(services.fetchPendingRefunds).toHaveBeenCalledTimes(1);
   await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
 
