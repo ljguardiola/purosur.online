@@ -10,8 +10,10 @@ import {
   signedInWith,
 } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerFreightsRoutes } from "./freights-routes.js";
 import { insertFreightRow, insertPurchaseWithLines } from "./test-support/freight-fixtures.js";
+import { insertActor } from "./test-support/purchasing-fixtures.js";
 
 const NOW = new Date("2026-10-05T15:00:00.000Z");
 const MISSING_ID = "00000000-0000-4000-8000-000000000000";
@@ -227,18 +229,19 @@ describe("POST /freights", () => {
 
 describe("PUT /freights/:id", () => {
   async function recordedFreight() {
-    const recorder = await freightManager();
-    const purchase = await purchaseAt(recorder.locationId, recorder.userId);
+    const recorderId = await insertActor(db);
+    const locationId = await seededLocationId(db);
+    const purchase = await purchaseAt(locationId, recorderId);
     const id = await insertFreightRow(db, {
-      locationId: recorder.locationId,
-      actorId: recorder.userId,
+      locationId,
+      actorId: recorderId,
       purchaseIds: [purchase.purchaseId],
       amountCents: 10_000,
       date: "2026-10-01",
       description: "Flete de la semana",
       recordedAt: new Date("2026-10-01T12:00:00.000Z"),
     });
-    return { ...recorder, id, purchase };
+    return { id, purchase, recorderId, locationId };
   }
 
   it("returns 401 when no session cookie was sent", async () => {
@@ -270,11 +273,12 @@ describe("PUT /freights/:id", () => {
 
   it("rejects an Origin that is not the backoffice's own, changing nothing", async () => {
     const freight = await recordedFreight();
+    const manager = await freightManager();
 
     const response = await app.inject({
       method: "PUT",
       url: `/freights/${freight.id}`,
-      headers: { ...freight.headers, origin: "https://attacker.example" },
+      headers: { ...manager.headers, origin: "https://attacker.example" },
       payload: bodyWith([freight.purchase.purchaseId]),
     });
 
@@ -298,11 +302,12 @@ describe("PUT /freights/:id", () => {
 
   it("rejects a body the contract refuses with 400, changing nothing", async () => {
     const freight = await recordedFreight();
+    const manager = await freightManager();
 
     const response = await app.inject({
       method: "PUT",
       url: `/freights/${freight.id}`,
-      headers: freight.headers,
+      headers: manager.headers,
       payload: bodyWith([freight.purchase.purchaseId], { amountCents: 0 }),
     });
 
@@ -313,12 +318,13 @@ describe("PUT /freights/:id", () => {
 
   it("edits the freight and answers it", async () => {
     const freight = await recordedFreight();
-    const replacement = await purchaseAt(freight.locationId, freight.userId);
+    const manager = await freightManager();
+    const replacement = await purchaseAt(freight.locationId, freight.recorderId);
 
     const response = await app.inject({
       method: "PUT",
       url: `/freights/${freight.id}`,
-      headers: freight.headers,
+      headers: manager.headers,
       payload: bodyWith([replacement.purchaseId], {
         amountCents: 15_500,
         means: { kind: "own_trip" },
@@ -342,12 +348,12 @@ describe("PUT /freights/:id", () => {
 
   it("keeps who recorded the freight when another person edits it, and records who edited it", async () => {
     const freight = await recordedFreight();
-    const editor = await signedInWith(db, ["manage_freight"], NOW);
+    const manager = await freightManager();
 
     const response = await app.inject({
       method: "PUT",
       url: `/freights/${freight.id}`,
-      headers: editor.headers,
+      headers: manager.headers,
       payload: bodyWith([freight.purchase.purchaseId], { amountCents: 13_000 }),
     });
 
@@ -355,7 +361,7 @@ describe("PUT /freights/:id", () => {
     expect(await db.select().from(freights).where(eq(freights.id, freight.id))).toMatchObject([
       {
         amountCents: 13_000,
-        actorId: freight.userId,
+        actorId: freight.recorderId,
         recordedAt: new Date("2026-10-01T12:00:00.000Z"),
       },
     ]);
@@ -363,50 +369,58 @@ describe("PUT /freights/:id", () => {
       {
         entity: "freight",
         entityId: freight.id,
-        actorId: editor.userId,
+        actorId: manager.userId,
         at: NOW,
         previousValue: { amountCents: 10_000, date: "2026-10-01" },
         newValue: { amountCents: 13_000, date: "2026-10-04" },
       },
     ]);
-    expect(editor.userId).not.toBe(freight.userId);
   });
 
   it("returns 404 for a freight that does not exist or is another branch's, changing nothing", async () => {
-    const freight = await recordedFreight();
-    const foreign = await signedInWith(db, ["manage_freight"], NOW, {
-      locationId: await insertLocation(db),
+    const own = await recordedFreight();
+    const manager = await freightManager();
+    const foreignLocation = await insertLocation(db);
+    const foreignPurchase = await purchaseAt(foreignLocation, own.recorderId);
+    const foreignFreight = await insertFreightRow(db, {
+      locationId: foreignLocation,
+      actorId: own.recorderId,
+      purchaseIds: [foreignPurchase.purchaseId],
+      amountCents: 7_000,
     });
-    const foreignPurchase = await purchaseAt(foreign.locationId, foreign.userId);
 
     const missing = await app.inject({
       method: "PUT",
       url: `/freights/${MISSING_ID}`,
-      headers: freight.headers,
-      payload: bodyWith([freight.purchase.purchaseId]),
+      headers: manager.headers,
+      payload: bodyWith([own.purchase.purchaseId]),
     });
     const other = await app.inject({
       method: "PUT",
-      url: `/freights/${freight.id}`,
-      headers: foreign.headers,
-      payload: bodyWith([foreignPurchase.purchaseId]),
+      url: `/freights/${foreignFreight}`,
+      headers: manager.headers,
+      payload: bodyWith([own.purchase.purchaseId]),
     });
 
     expect(missing.statusCode).toBe(404);
     expect(missing.json()).toMatchObject({ code: "freight_not_found" });
     expect(other.statusCode).toBe(404);
     expect(other.json()).toMatchObject({ code: "freight_not_found" });
+    expect(await db.select().from(freights).where(eq(freights.id, foreignFreight))).toMatchObject([
+      { amountCents: 7_000 },
+    ]);
     expect(await db.select().from(auditLog)).toEqual([]);
   });
 
   it("returns 404 when a purchase is not the branch's, changing nothing", async () => {
     const freight = await recordedFreight();
-    const foreign = await purchaseAt(await insertLocation(db), freight.userId);
+    const manager = await freightManager();
+    const foreign = await purchaseAt(await insertLocation(db), freight.recorderId);
 
     const response = await app.inject({
       method: "PUT",
       url: `/freights/${freight.id}`,
-      headers: freight.headers,
+      headers: manager.headers,
       payload: bodyWith([foreign.purchaseId]),
     });
 
@@ -418,14 +432,15 @@ describe("PUT /freights/:id", () => {
 
   it("returns 409 when the purchases are worth nothing, changing nothing", async () => {
     const freight = await recordedFreight();
-    const free = await purchaseAt(freight.locationId, freight.userId, {
+    const manager = await freightManager();
+    const free = await purchaseAt(freight.locationId, freight.recorderId, {
       lines: [{ productId, costPaidCents: 0, quantity: 2_000, quantityPerPackage: 1_000 }],
     });
 
     const response = await app.inject({
       method: "PUT",
       url: `/freights/${freight.id}`,
-      headers: freight.headers,
+      headers: manager.headers,
       payload: bodyWith([free.purchaseId]),
     });
 
@@ -436,11 +451,12 @@ describe("PUT /freights/:id", () => {
 
   it("returns 400 for a date in the future, changing nothing", async () => {
     const freight = await recordedFreight();
+    const manager = await freightManager();
 
     const response = await app.inject({
       method: "PUT",
       url: `/freights/${freight.id}`,
-      headers: freight.headers,
+      headers: manager.headers,
       payload: bodyWith([freight.purchase.purchaseId], { date: "2026-10-07" }),
     });
 
@@ -553,7 +569,8 @@ describe("GET /freights", () => {
   });
 
   it("measures the period from the clock it was given", async () => {
-    const { headers, userId, locationId } = await freightManager();
+    now = new Date("2026-10-07T15:00:00.000Z");
+    const { headers, userId, locationId } = await signedInWith(db, ["manage_freight"], now);
     const { purchaseId } = await purchaseAt(locationId, userId);
     await insertFreightRow(db, {
       locationId,
@@ -561,7 +578,6 @@ describe("GET /freights", () => {
       purchaseIds: [purchaseId],
       date: "2026-07-07",
     });
-    now = new Date("2026-10-07T15:00:00.000Z");
 
     const response = await app.inject({ method: "GET", url: "/freights", headers });
 

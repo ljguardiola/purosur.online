@@ -2456,13 +2456,13 @@ describe("the route access inventory", () => {
       { method: "POST", url: "/api/purchases", access: capabilityAccess("purchases") },
       { method: "GET", url: "/api/purchase-choices", access: capabilityAccess("purchases") },
       { method: "GET", url: "/api/freights", access: capabilityAccess("freights") },
-      { method: "POST", url: "/api/freights", access: capabilityAccess("freights") },
-      { method: "PUT", url: "/api/freights/:id", access: capabilityAccess("freights") },
       {
         method: "GET",
         url: "/api/freights/linkable-purchases",
         access: capabilityAccess("freights"),
       },
+      { method: "POST", url: "/api/freights", access: capabilityAccess("freights") },
+      { method: "PUT", url: "/api/freights/:id", access: capabilityAccess("freights") },
       {
         method: "GET",
         url: "/api/tags",
