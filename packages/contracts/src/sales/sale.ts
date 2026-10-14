@@ -148,8 +148,8 @@ const saleHasPaymentsOutcome = z.object({ kind: z.literal("sale_has_payments") }
 export const qrChargeInProgressOutcome = z.object({
   kind: z.literal("mercado_pago_charge_in_progress"),
 });
-export const holdsMercadoPagoPaymentOutcome = z.object({
-  kind: z.literal("holds_mercado_pago_payment"),
+export const holdsPointPaymentOutcome = z.object({
+  kind: z.literal("holds_point_payment"),
 });
 
 export const scanProductOutcomeSchema = z.discriminatedUnion("kind", [
@@ -302,7 +302,7 @@ export const cancelPaidSaleOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("no_open_sale") }),
   z.object({ kind: z.literal("no_open_session") }),
   qrChargeInProgressOutcome,
-  holdsMercadoPagoPaymentOutcome,
+  holdsPointPaymentOutcome,
   notPermittedOutcome,
   notSignedInOutcome,
   ...authorizationRefusalSchema.options,

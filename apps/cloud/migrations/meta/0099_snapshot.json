@@ -1,5 +1,5 @@
 {
-  "id": "9db7b925-67f0-4214-a77a-a8d783a53931",
+  "id": "5aec732e-05ae-4b48-b6cb-932d6622bc1a",
   "prevId": "cb568710-da2a-48f8-a675-88d079cbb57b",
   "version": "7",
   "dialect": "postgresql",
@@ -3303,6 +3303,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "origin_event_id": {
+          "name": "origin_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "provider_order_id": {
           "name": "provider_order_id",
           "type": "text",
@@ -3369,9 +3375,61 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "confirmed_by": {
+          "name": "confirmed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "confirmed_at": {
+          "name": "confirmed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sent_at": {
+          "name": "sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_refund_id": {
+          "name": "provider_refund_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attempt_key": {
+          "name": "attempt_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_refusal_reason": {
+          "name": "last_refusal_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
+        "payment_refunds_attempt_key_unique": {
+          "name": "payment_refunds_attempt_key_unique",
+          "columns": [
+            {
+              "expression": "attempt_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"payment_refunds\".\"attempt_key\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "payment_refunds_transaction_without_order_unique": {
           "name": "payment_refunds_transaction_without_order_unique",
           "columns": [
@@ -3474,9 +3532,9 @@
           "name": "payment_refunds_origin_check",
           "value": "\"payment_refunds\".\"origin\" in ('sale_cancelled', 'late_payment')"
         },
-        "payment_refunds_one_source_check": {
-          "name": "payment_refunds_one_source_check",
-          "value": "(\"payment_refunds\".\"payment_id\" is null) <> (\"payment_refunds\".\"payment_transaction_id\" is null)"
+        "payment_refunds_source_check": {
+          "name": "payment_refunds_source_check",
+          "value": "(\"payment_refunds\".\"origin\" = 'late_payment' and \"payment_refunds\".\"payment_id\" is null and \"payment_refunds\".\"payment_transaction_id\" is not null and \"payment_refunds\".\"origin_event_id\" is null) or (\"payment_refunds\".\"origin\" = 'sale_cancelled' and \"payment_refunds\".\"payment_id\" is not null)"
         },
         "payment_refunds_done_check": {
           "name": "payment_refunds_done_check",
@@ -3485,6 +3543,18 @@
         "payment_refunds_discarded_check": {
           "name": "payment_refunds_discarded_check",
           "value": "(\"payment_refunds\".\"discarded_by\" is null) = (\"payment_refunds\".\"discarded_at\" is null) and (\"payment_refunds\".\"state\" = 'DISCARDED' or \"payment_refunds\".\"discarded_by\" is null)"
+        },
+        "payment_refunds_confirmation_check": {
+          "name": "payment_refunds_confirmation_check",
+          "value": "(\"payment_refunds\".\"confirmed_by\" is null) = (\"payment_refunds\".\"confirmed_at\" is null)"
+        },
+        "payment_refunds_attempt_confirmed_check": {
+          "name": "payment_refunds_attempt_confirmed_check",
+          "value": "\"payment_refunds\".\"attempt_key\" is null or \"payment_refunds\".\"confirmed_at\" is not null"
+        },
+        "payment_refunds_sent_check": {
+          "name": "payment_refunds_sent_check",
+          "value": "(\"payment_refunds\".\"sent_at\" is null) = (\"payment_refunds\".\"provider_refund_id\" is null) and (\"payment_refunds\".\"sent_at\" is null or \"payment_refunds\".\"confirmed_at\" is not null)"
         }
       },
       "isRLSEnabled": false
@@ -5917,159 +5987,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.register_snapshot_generations": {
-      "name": "register_snapshot_generations",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "register_id": {
-          "name": "register_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "device_id": {
-          "name": "device_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "size": {
-          "name": "size",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sha256": {
-          "name": "sha256",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "key_version": {
-          "name": "key_version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "snapshot_generation_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'declared'"
-        },
-        "failure_reason": {
-          "name": "failure_reason",
-          "type": "snapshot_failure_reason",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "upload_reported_at": {
-          "name": "upload_reported_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "pruned": {
-          "name": "pruned",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "object_deleted": {
-          "name": "object_deleted",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        }
-      },
-      "indexes": {
-        "register_snapshot_generations_register_id_created_at_idx": {
-          "name": "register_snapshot_generations_register_id_created_at_idx",
-          "columns": [
-            {
-              "expression": "register_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "register_snapshot_generations_register_id_registers_id_fk": {
-          "name": "register_snapshot_generations_register_id_registers_id_fk",
-          "tableFrom": "register_snapshot_generations",
-          "tableTo": "registers",
-          "columnsFrom": ["register_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "register_snapshot_generations_device_id_register_installations_id_fk": {
-          "name": "register_snapshot_generations_device_id_register_installations_id_fk",
-          "tableFrom": "register_snapshot_generations",
-          "tableTo": "register_installations",
-          "columnsFrom": ["device_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "register_snapshot_generations_register_id_key_version_register_snapshot_keys_register_id_version_fk": {
-          "name": "register_snapshot_generations_register_id_key_version_register_snapshot_keys_register_id_version_fk",
-          "tableFrom": "register_snapshot_generations",
-          "tableTo": "register_snapshot_keys",
-          "columnsFrom": ["register_id", "key_version"],
-          "columnsTo": ["register_id", "version"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "register_snapshot_generations_size_check": {
-          "name": "register_snapshot_generations_size_check",
-          "value": "\"register_snapshot_generations\".\"size\" > 0"
-        },
-        "register_snapshot_generations_sha256_check": {
-          "name": "register_snapshot_generations_sha256_check",
-          "value": "\"register_snapshot_generations\".\"sha256\" ~ '^[0-9a-f]{64}$'"
-        },
-        "register_snapshot_generations_failure_reason_check": {
-          "name": "register_snapshot_generations_failure_reason_check",
-          "value": "(\"register_snapshot_generations\".\"status\" = 'failed') = (\"register_snapshot_generations\".\"failure_reason\" is not null)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.register_snapshot_keys": {
       "name": "register_snapshot_keys",
       "schema": "",
@@ -6118,103 +6035,6 @@
           "columns": ["register_id", "version"]
         }
       },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.register_snapshot_lifecycle_rules": {
-      "name": "register_snapshot_lifecycle_rules",
-      "schema": "",
-      "columns": {
-        "singleton": {
-          "name": "singleton",
-          "type": "boolean",
-          "primaryKey": true,
-          "notNull": true,
-          "default": true
-        },
-        "hourly": {
-          "name": "hourly",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "daily": {
-          "name": "daily",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "monthly": {
-          "name": "monthly",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "register_snapshot_lifecycle_rules_singleton_check": {
-          "name": "register_snapshot_lifecycle_rules_singleton_check",
-          "value": "\"register_snapshot_lifecycle_rules\".\"singleton\""
-        },
-        "register_snapshot_lifecycle_rules_hourly_check": {
-          "name": "register_snapshot_lifecycle_rules_hourly_check",
-          "value": "\"register_snapshot_lifecycle_rules\".\"hourly\" between 1 and 72"
-        },
-        "register_snapshot_lifecycle_rules_daily_check": {
-          "name": "register_snapshot_lifecycle_rules_daily_check",
-          "value": "\"register_snapshot_lifecycle_rules\".\"daily\" between 1 and 90"
-        },
-        "register_snapshot_lifecycle_rules_monthly_check": {
-          "name": "register_snapshot_lifecycle_rules_monthly_check",
-          "value": "\"register_snapshot_lifecycle_rules\".\"monthly\" between 1 and 24"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.register_snapshot_retention_freezes": {
-      "name": "register_snapshot_retention_freezes",
-      "schema": "",
-      "columns": {
-        "register_id": {
-          "name": "register_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "stage": {
-          "name": "stage",
-          "type": "snapshot_corruption_stage",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "frozen_at": {
-          "name": "frozen_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "register_snapshot_retention_freezes_register_id_registers_id_fk": {
-          "name": "register_snapshot_retention_freezes_register_id_registers_id_fk",
-          "tableFrom": "register_snapshot_retention_freezes",
-          "tableTo": "registers",
-          "columnsFrom": ["register_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -8342,21 +8162,6 @@
       "name": "register_enrollment_attempt_key_kind",
       "schema": "public",
       "values": ["source_address", "register"]
-    },
-    "public.snapshot_corruption_stage": {
-      "name": "snapshot_corruption_stage",
-      "schema": "public",
-      "values": ["copy", "integrity_check", "foreign_key_check"]
-    },
-    "public.snapshot_failure_reason": {
-      "name": "snapshot_failure_reason",
-      "schema": "public",
-      "values": ["hash_mismatch", "size_mismatch", "never_uploaded"]
-    },
-    "public.snapshot_generation_status": {
-      "name": "snapshot_generation_status",
-      "schema": "public",
-      "values": ["declared", "uploaded", "verified", "failed"]
     }
   },
   "schemas": {},

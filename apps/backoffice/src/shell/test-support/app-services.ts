@@ -162,6 +162,17 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     purchasesListScreen: {
       fetchPurchases: vi.fn().mockReturnValue(new Promise(() => {})),
     },
+    freightsListScreen: {
+      fetchFreights: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: { items: [], count: 0, totalCents: 0 },
+      }),
+      fetchLinkablePurchases: vi
+        .fn()
+        .mockResolvedValue({ kind: "ok", value: { purchases: [], today: "2026-09-16" } }),
+      recordFreight: vi.fn(),
+      editFreight: vi.fn(),
+    },
     newPurchaseScreen: {
       fetchPurchaseChoices: vi.fn().mockReturnValue(new Promise(() => {})),
       registerPurchase: vi.fn(),
@@ -186,6 +197,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchPendingRefunds: vi.fn().mockReturnValue(new Promise(() => {})),
       markRefundDone: vi.fn(),
       discardRefund: vi.fn(),
+      confirmRefund: vi.fn(),
     },
     userDetailScreen: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),

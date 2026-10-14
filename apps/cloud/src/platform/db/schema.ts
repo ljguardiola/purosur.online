@@ -639,6 +639,51 @@ export const purchases = pgTable(
   ],
 );
 
+export const freights = pgTable(
+  "freights",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    freightOn: date("freight_on", { mode: "string" }).notNull(),
+    amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
+    description: text("description").notNull(),
+    meansKind: text("means_kind").notNull(),
+    carrierName: text("carrier_name"),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    check("freights_amount_check", sql`${table.amountCents} > 0`),
+    check("freights_means_kind_check", sql`${table.meansKind} in ('carrier', 'own_trip')`),
+    check(
+      "freights_carrier_name_iff_carrier_check",
+      sql`(${table.meansKind} = 'carrier') = (${table.carrierName} is not null)`,
+    ),
+    index("freights_location_id_freight_on_idx").on(table.locationId, table.freightOn),
+  ],
+);
+
+export const freightPurchases = pgTable(
+  "freight_purchases",
+  {
+    freightId: uuid("freight_id")
+      .notNull()
+      .references(() => freights.id),
+    purchaseId: uuid("purchase_id")
+      .notNull()
+      .references(() => purchases.id),
+  },
+  (table) => [
+    primaryKey({ name: "freight_purchases_pkey", columns: [table.freightId, table.purchaseId] }),
+    index("freight_purchases_purchase_id_idx").on(table.purchaseId),
+  ],
+);
+
 // A quantity is in thousandths of the product's sale unit. The cost is the exact pair of what was
 // paid and the quantity per package it was paid for, never rounded.
 export const purchaseLines = pgTable(
@@ -1436,6 +1481,7 @@ export const paymentRefunds = pgTable(
     saleId: uuid("sale_id").notNull(),
     paymentId: uuid("payment_id"),
     paymentTransactionId: uuid("payment_transaction_id").references(() => paymentTransactions.id),
+    originEventId: uuid("origin_event_id"),
     providerOrderId: text("provider_order_id"),
     origin: text("origin").notNull().default("sale_cancelled"),
     method: text("method").notNull(),
@@ -1447,8 +1493,17 @@ export const paymentRefunds = pgTable(
     doneAt: timestamp("done_at", { withTimezone: true }),
     discardedBy: text("discarded_by"),
     discardedAt: timestamp("discarded_at", { withTimezone: true }),
+    confirmedBy: text("confirmed_by"),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    providerRefundId: text("provider_refund_id"),
+    attemptKey: text("attempt_key"),
+    lastRefusalReason: text("last_refusal_reason"),
   },
   (table) => [
+    uniqueIndex("payment_refunds_attempt_key_unique")
+      .on(table.attemptKey)
+      .where(sql`${table.attemptKey} is not null`),
     uniqueIndex("payment_refunds_transaction_without_order_unique")
       .on(table.paymentTransactionId)
       .where(sql`${table.providerOrderId} is null`),
@@ -1469,8 +1524,8 @@ export const paymentRefunds = pgTable(
       sql`${table.origin} in ('sale_cancelled', 'late_payment')`,
     ),
     check(
-      "payment_refunds_one_source_check",
-      sql`(${table.paymentId} is null) <> (${table.paymentTransactionId} is null)`,
+      "payment_refunds_source_check",
+      sql`(${table.origin} = 'late_payment' and ${table.paymentId} is null and ${table.paymentTransactionId} is not null and ${table.originEventId} is null) or (${table.origin} = 'sale_cancelled' and ${table.paymentId} is not null)`,
     ),
     check(
       "payment_refunds_done_check",
@@ -1479,6 +1534,18 @@ export const paymentRefunds = pgTable(
     check(
       "payment_refunds_discarded_check",
       sql`(${table.discardedBy} is null) = (${table.discardedAt} is null) and (${table.state} = 'DISCARDED' or ${table.discardedBy} is null)`,
+    ),
+    check(
+      "payment_refunds_confirmation_check",
+      sql`(${table.confirmedBy} is null) = (${table.confirmedAt} is null)`,
+    ),
+    check(
+      "payment_refunds_attempt_confirmed_check",
+      sql`${table.attemptKey} is null or ${table.confirmedAt} is not null`,
+    ),
+    check(
+      "payment_refunds_sent_check",
+      sql`(${table.sentAt} is null) = (${table.providerRefundId} is null) and (${table.sentAt} is null or ${table.confirmedAt} is not null)`,
     ),
     index("payment_refunds_pending_idx")
       .on(table.occurredAt)

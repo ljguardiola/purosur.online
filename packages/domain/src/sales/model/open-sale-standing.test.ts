@@ -159,12 +159,38 @@ describe("openSaleStanding", () => {
     });
   });
 
-  it("refuses the cancellation of a sale holding an approved QR payment, planning no refund", () => {
+  it("plans a pending refund for an approved QR payment, beside the cash one", () => {
     expect(openSaleStanding(5900, [CASH_PAYMENT, QR_PAYMENT], [], NOW)).toEqual({
       balance: { paid: 4000, pending: 1900 },
       linesLock: "approved_payment",
       cancellable: false,
-      cancelRefusal: "holds_mercado_pago_payment",
+      cancelRefusal: null,
+      refundsOnCancel: [
+        {
+          paymentId: CASH_PAYMENT.id,
+          method: "CASH",
+          provider: CASH_PAYMENT.provider,
+          amount: CASH_PAYMENT.amount,
+          state: "APPROVED",
+        },
+        {
+          paymentId: QR_PAYMENT.id,
+          method: "QR",
+          provider: QR_PAYMENT.provider,
+          amount: QR_PAYMENT.amount,
+          state: "PENDING",
+        },
+      ],
+      mercadoPagoChargeInProgress: null,
+    });
+  });
+
+  it("refuses the cancellation of a sale holding an approved integrated terminal payment, planning no refund", () => {
+    expect(openSaleStanding(5900, [CASH_PAYMENT, POINT_PAYMENT], [], NOW)).toEqual({
+      balance: { paid: 4000, pending: 1900 },
+      linesLock: "approved_payment",
+      cancellable: false,
+      cancelRefusal: "holds_point_payment",
       refundsOnCancel: [],
       mercadoPagoChargeInProgress: null,
     });
@@ -264,14 +290,14 @@ describe("saleCancelRefusal", () => {
       [POINT_CHARGE_PAST_ITS_WAIT],
       "mercado_pago_charge_in_progress",
     ],
-    ["a QR payment is approved", [QR_PAYMENT], [], "holds_mercado_pago_payment"],
-    ["a terminal payment is approved", [POINT_PAYMENT], [], "holds_mercado_pago_payment"],
+    ["a QR payment is approved", [QR_PAYMENT], [], null],
+    ["a terminal payment is approved", [POINT_PAYMENT], [], "holds_point_payment"],
     ["a standalone terminal payment is approved", [STANDALONE_TERMINAL_PAYMENT], [], null],
     [
-      "a standalone terminal payment and a QR payment are approved",
-      [STANDALONE_TERMINAL_PAYMENT, QR_PAYMENT],
+      "a standalone terminal payment and a terminal payment are approved",
+      [STANDALONE_TERMINAL_PAYMENT, POINT_PAYMENT],
       [],
-      "holds_mercado_pago_payment",
+      "holds_point_payment",
     ],
     [
       "a standalone terminal payment is approved and a QR charge is in its wait",
