@@ -61,7 +61,7 @@ export function fortnightReportPendingObservation({
   const reason = fortnightReportPendingReason(state);
   return {
     holds: true,
-    level: pressing ? "critical" : "warning",
+    level: pressing || reason === "blocked" ? "critical" : "warning",
     alert: {
       kind: "fortnight_report_pending",
       scope: pointOfSaleFortnightScope(
