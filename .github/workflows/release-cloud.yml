@@ -1,0 +1,92 @@
+name: Release cloud
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: release-cloud
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: tag and release the build staging serves
+    # Run from main, so the tag is cut by the pipeline's own current code; the promotion then runs
+    # bound to the tag it creates.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: write
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+
+      - name: Require an administrator
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.triggering_actor }}
+        run: node .github/scripts/actor-is-admin.mjs
+
+      - name: Read the commit staging serves
+        id: staging
+        env:
+          CLOUD_HEALTH_DOMAIN: staging.purosur.online
+        run: node .github/scripts/staging-version.mjs
+
+      - name: Name the image staging validated for that commit
+        id: validated
+        env:
+          TARGET_SHA: ${{ steps.staging.outputs.sha }}
+        run: node .github/scripts/staging-validated-image.mjs tag
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Require the validated image to exist
+        env:
+          VALIDATED_IMAGE: ${{ steps.validated.outputs.image }}
+        run: docker buildx imagetools inspect "$VALIDATED_IMAGE"
+
+      - name: Calculate the version and the release notes
+        id: version
+        env:
+          RELEASE_TAG_PREFIX: cloud-v
+          RELEASE_ROOT_PACKAGES: "@purosur/cloud,@purosur/backoffice"
+          TARGET_SHA: ${{ steps.staging.outputs.sha }}
+          RELEASE_NOTES_FILE: ${{ runner.temp }}/release-notes.md
+        run: node .github/scripts/release-version.mjs plan
+
+      - name: Create the tag and the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          TARGET_SHA: ${{ steps.staging.outputs.sha }}
+          RELEASE_NOTES_FILE: ${{ runner.temp }}/release-notes.md
+        run: gh release create "$RELEASE_TAG" --target "$TARGET_SHA" --title "$RELEASE_TAG" --notes-file "$RELEASE_NOTES_FILE"
+
+      # A tag created with the workflow token starts no workflow of its own; a dispatch does.
+      - name: Start the promotion bound to the tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: gh workflow run promote-cloud-production.yml --ref "$RELEASE_TAG"

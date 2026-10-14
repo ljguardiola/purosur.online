@@ -534,6 +534,14 @@ export {
   releaseQuarantinedEventErrorSchema,
 } from "./sync/quarantined-events.js";
 export type {
+  RegistersBelowMinimum,
+  RegistersBelowMinimumQuery,
+} from "./sync/registers-below-minimum.js";
+export {
+  registersBelowMinimumQuerySchema,
+  registersBelowMinimumSchema,
+} from "./sync/registers-below-minimum.js";
+export type {
   SyncedEventPayloadKey,
   SyncedEventPayloads,
 } from "./sync/synced-event-payloads.js";

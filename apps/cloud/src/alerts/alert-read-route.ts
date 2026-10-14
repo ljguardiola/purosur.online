@@ -7,6 +7,7 @@ import {
   argentinaCalendarDay,
   DISCARDABLE_REFUND_ALERT_KINDS,
   hasFortnightStarted,
+  isAlertOfViewerBranch,
   isOpenAlert,
 } from "@purosur/domain";
 import type { AlertDelivery, AlertDetailView } from "@purosur/domain/alerts/use-cases";
@@ -59,6 +60,16 @@ function detailWithFortnightStarted(
   };
 }
 
+function detailWithViewerBranch(
+  alert: Pick<AlertDetailView, "kind" | "locationId">,
+  detail: Record<string, unknown>,
+  viewer: { locationId: string },
+): Record<string, unknown> {
+  return alert.kind === "lots_expiring"
+    ? { ...detail, aboutViewerBranch: isAlertOfViewerBranch(viewer, alert) }
+    : detail;
+}
+
 function toAlertDelivery(row: AlertDelivery): AlertDetail["deliveries"][number] {
   return {
     channel: row.channel,
@@ -90,6 +101,7 @@ export function toAlertDetailBody(
   deliveries: AlertDelivery[],
   namesById: ReadonlyMap<string, string>,
   now: Date,
+  viewer: { locationId: string },
 ): AlertDetail {
   return alertDetailSchema.parse({
     id: alert.id,
@@ -99,10 +111,14 @@ export function toAlertDetailBody(
     scopeKind: alertKindPolicy(alert.kind).scopeKind,
     level: alert.level,
     audience: alert.audience,
-    detail: detailWithFortnightStarted(
+    detail: detailWithViewerBranch(
       alert,
-      detailWithActorName(detailWithoutSourceAddressHash(alert), namesById),
-      argentinaCalendarDay(now),
+      detailWithFortnightStarted(
+        alert,
+        detailWithActorName(detailWithoutSourceAddressHash(alert), namesById),
+        argentinaCalendarDay(now),
+      ),
+      viewer,
     ),
     openedAt: alert.openedAt.toISOString(),
     escalatedAt: alert.escalatedAt?.toISOString() ?? null,
@@ -148,7 +164,9 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
 
       const deliveries = await reader.deliveriesOf(alert.id);
       const namesById = await reader.displayNames(alertNamedRecordIds(alert));
-      await reply.code(200).send(toAlertDetailBody(alert, deliveries, namesById, now()));
+      await reply
+        .code(200)
+        .send(toAlertDetailBody(alert, deliveries, namesById, now(), openSession));
     },
   );
 }

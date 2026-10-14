@@ -11,12 +11,6 @@ const HTTP_RATELIMIT_PHASE = "http_ratelimit";
 // Must match the header name the cloud's edge origin guard checks.
 export const EDGE_ORIGIN_SECRET_HEADER = "x-edge-origin-secret";
 
-export function cloudHostnames(domainsByEnvironment) {
-  return Object.values(domainsByEnvironment).flat();
-}
-
-export const CLOUD_HOSTNAMES = cloudHostnames(customDomains);
-
 const RATE_LIMIT_PERIOD_SECONDS = 10;
 const RATE_LIMIT_REQUESTS_PER_PERIOD = 300;
 const RATE_LIMIT_MITIGATION_TIMEOUT_SECONDS = 10;
@@ -34,24 +28,50 @@ function hostInExpression(hostnames) {
       throw new Error(`${LOG_PREFIX}: invalid cloud hostname ${JSON.stringify(hostname)}`);
     }
   }
+  if (hostnames.length === 1) {
+    return `http.host eq "${hostnames[0]}"`;
+  }
   return `http.host in {${hostnames.map((hostname) => `"${hostname}"`).join(" ")}}`;
 }
 
-export function buildRequestHeaderTransformRules(edgeOriginSecret, hostnames) {
+function headerTransformRule(edgeOriginSecret, hostnames, environment) {
   return {
-    rules: [
-      {
-        action: "rewrite",
-        expression: hostInExpression(hostnames),
-        description:
-          "Set the edge origin secret header the cloud app requires on every request forwarded to its origin.",
-        action_parameters: {
-          headers: {
-            [EDGE_ORIGIN_SECRET_HEADER]: { operation: "set", value: edgeOriginSecret },
-          },
-        },
+    action: "rewrite",
+    expression: hostInExpression(hostnames),
+    description: `Set the ${environment} edge origin secret header the cloud app requires on every request forwarded to its origin.`,
+    action_parameters: {
+      headers: {
+        [EDGE_ORIGIN_SECRET_HEADER]: { operation: "set", value: edgeOriginSecret },
       },
-    ],
+    },
+  };
+}
+
+function edgeOriginSecretVariable(environment) {
+  return `EDGE_ORIGIN_SECRET_${environment.toUpperCase()}`;
+}
+
+export function buildEnvironmentHeaderTransformRules(domainsByEnvironment, env) {
+  const environments = Object.keys(domainsByEnvironment);
+  const secrets = new Map();
+  for (const environment of environments) {
+    const variable = edgeOriginSecretVariable(environment);
+    if (!env[variable]) {
+      throw new Error(`${LOG_PREFIX}: ${variable} is required`);
+    }
+    secrets.set(environment, env[variable]);
+  }
+  if (new Set(secrets.values()).size !== secrets.size) {
+    throw new Error(
+      `${LOG_PREFIX}: every environment needs its own edge origin secret, but ${environments
+        .map(edgeOriginSecretVariable)
+        .join(", ")} are not all different`,
+    );
+  }
+  return {
+    rules: environments.map((environment) =>
+      headerTransformRule(secrets.get(environment), domainsByEnvironment[environment], environment),
+    ),
   };
 }
 
@@ -104,20 +124,19 @@ export async function runCli({
   log = console.log,
   logError = console.error,
 } = {}) {
-  const { CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID, EDGE_ORIGIN_SECRET } = env;
-  if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ZONE_ID || !EDGE_ORIGIN_SECRET) {
-    logError(
-      `${LOG_PREFIX}: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID and EDGE_ORIGIN_SECRET are required`,
-    );
+  const { CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID } = env;
+  if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ZONE_ID) {
+    logError(`${LOG_PREFIX}: CLOUDFLARE_API_TOKEN and CLOUDFLARE_ZONE_ID are required`);
     return 1;
   }
 
   try {
+    const headerTransformBody = buildEnvironmentHeaderTransformRules(customDomains, env);
     await putRulesetPhase({
       zoneId: CLOUDFLARE_ZONE_ID,
       token: CLOUDFLARE_API_TOKEN,
       phase: HTTP_REQUEST_LATE_TRANSFORM_PHASE,
-      body: buildRequestHeaderTransformRules(EDGE_ORIGIN_SECRET, CLOUD_HOSTNAMES),
+      body: headerTransformBody,
       fetchImpl,
     });
     log(`${LOG_PREFIX}: applied ${HTTP_REQUEST_LATE_TRANSFORM_PHASE}`);

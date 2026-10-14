@@ -58,6 +58,7 @@ describe("alertKindPolicy", () => {
     ["events_quarantined", "warning", afterOpening, "all", "syncDevice", true],
     ["event_invariant_violated", "warning", afterOpening, "all", "event", true],
     ["outbox_chain_broken", "warning", afterOpening, "all", "syncDevice", false],
+    ["lots_expiring", "informational", null, "local", "branch", true],
     ["update_required", "critical", null, "all", "register", true],
     ["register_silent", "critical", null, "local", "register", true],
     ["sales_denied", "critical", null, "local", "register", true],
@@ -111,6 +112,7 @@ describe("alertKindPolicy", () => {
       "fiscal_rejected",
       "offline_authorization_code_missing",
       "fiscal_emission_stopped",
+      "lots_expiring",
     ]);
   });
 
@@ -148,6 +150,7 @@ describe("alertClosing", () => {
       fiscal_unknown: "when_its_document_is_resolved",
       fiscal_emission_stopped: "by_itself",
       outbox_chain_broken: "by_hand",
+      lots_expiring: "by_itself",
     });
   });
 
@@ -218,5 +221,6 @@ describe("alertKindsWithScope", () => {
       "events_quarantined",
       "outbox_chain_broken",
     ]);
+    expect(alertKindsWithScope("branch")).toEqual(["lots_expiring"]);
   });
 });
