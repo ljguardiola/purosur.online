@@ -106,16 +106,15 @@ async function presentFortnight(
 
   const call = { token, pointOfSaleNumber, code: code.code };
   const held = await declarations.lookUp(call);
-  switch (held.kind) {
-    case "held":
-      await report.record({ state: "accepted", at: clock.now() });
-      return { kind: "already_declared" };
-    case "refused":
-      return { kind: "lookup_refused", rejections: held.rejections };
-    case "no_answer":
-      return { kind: "lookup_no_answer" };
-    case "not_held":
-      break;
+  if (held.kind === "held") {
+    await report.record({ state: "accepted", at: clock.now() });
+    return { kind: "already_declared" };
+  }
+  if (held.kind === "refused") {
+    return { kind: "lookup_refused", rejections: held.rejections };
+  }
+  if (held.kind === "no_answer") {
+    return { kind: "lookup_no_answer" };
   }
 
   if ((await documents.countOn(pointOfSaleNumber, code.fortnight)) > 0) {
