@@ -2,9 +2,9 @@ import type { SaleHistoryDetailOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import type { SaleDetail } from "../shell/sale-receipt-text";
 import { render } from "../shell/test-support/render-with-router";
 import { SaleHistoryDetailPanel } from "./sale-history-detail-panel";
-import type { SaleDetail } from "./sale-history-text";
 
 const FISCAL_SALE: SaleDetail = {
   sale_id: "sale-1",

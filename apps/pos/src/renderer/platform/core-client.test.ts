@@ -1531,6 +1531,52 @@ describe("createCoreClient", () => {
     expect(await asked).toBe("unavailable");
   });
 
+  it("asks the core what the last run left pending and resolves with it", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const pending = {
+      sales_to_print: [
+        {
+          sale_id: "sale-1",
+          completed_at: "2026-10-13T12:00:00.000Z",
+          total: 1500,
+          standing: "outcome_unknown" as const,
+        },
+      ],
+      unknown_fiscal_documents: [],
+      pending_payments: [],
+    };
+
+    const asked = client.startupPending();
+    port.answer({ type: "startup-pending", request_id: "request-1", pending });
+
+    expect(await asked).toEqual(pending);
+    expect(port.posted).toEqual([{ type: "startup-pending-request", request_id: "request-1" }]);
+  });
+
+  it("resolves that what the last run left pending is not permitted when the core says so", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.startupPending();
+    port.answer({ type: "startup-pending-not-permitted", request_id: "request-1" });
+
+    expect(await asked).toBe("not_permitted");
+  });
+
+  it("rejects when the core cannot read what the last run left pending", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.startupPending();
+    port.answer({ type: "startup-pending-unavailable", request_id: "request-1" });
+
+    await expect(asked).rejects.toThrow();
+  });
+
   it("asks the core to enroll with the code as typed and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -1751,6 +1797,24 @@ describe("createCoreClient", () => {
         sale_id: "sale-1",
         reason: "Otra copia",
       },
+    ]);
+  });
+
+  it("asks the core to print a sale's original receipt, with no reason and no authorization", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const printed = client.printOriginalReceipt("sale-1");
+    port.answer({
+      type: "print-original-receipt-result",
+      request_id: "request-1",
+      outcome: { kind: "started", copy: { kind: "original" } },
+    });
+
+    expect(await printed).toEqual({ kind: "started", copy: { kind: "original" } });
+    expect(port.posted).toEqual([
+      { type: "print-original-receipt", request_id: "request-1", sale_id: "sale-1" },
     ]);
   });
 

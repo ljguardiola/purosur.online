@@ -9,6 +9,7 @@ import type {
   RegisterStatus,
   SessionOpenSale,
   SignInUser,
+  StartupPending,
 } from "@purosur/contracts";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { setQueryAnswer } from "../platform/set-query-answer";
@@ -16,6 +17,7 @@ import type { CoreData } from "../platform/use-core-query";
 import { coreQueryOptions, useCoreQuery } from "../platform/use-core-query";
 import type { CashSessionState } from "./cash-session-state";
 import { cashSessionStateOf } from "./cash-session-state";
+import { hasStartupPendingItems } from "./startup-pending-items";
 
 const registerKey = ["register"] as const;
 
@@ -31,6 +33,7 @@ export const registerKeys = {
   status: [...registerKey, "status"] as const,
   receiptPrinter: [...registerKey, "receipt-printer"] as const,
   serialDevices: [...registerKey, "serial-devices"] as const,
+  startupPending: [...registerKey, "startup-pending"] as const,
   lockedClosers: (sessionId: string) => [...lockedClosersKey, sessionId] as const,
   cashBalance: (sessionId: string) => [...cashKey, sessionId, "balance"] as const,
   cashCountPreview: (sessionId: string, countedCash: number | undefined) =>
@@ -234,4 +237,30 @@ export function useSerialDevicesQuery(
 export function useRefreshSerialDevices(): () => Promise<void> {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: registerKeys.serialDevices });
+}
+
+const STARTUP_PENDING_REREAD_MS = 3000;
+
+export type StartupPendingAnswer = StartupPending | "not_permitted";
+
+export function startupPendingQueryOptions(read: () => Promise<StartupPendingAnswer>) {
+  return coreQueryOptions({ queryKey: registerKeys.startupPending, read });
+}
+
+export function useStartupPendingQuery(
+  read: () => Promise<StartupPendingAnswer>,
+): CoreData<StartupPendingAnswer> {
+  return useCoreQuery({
+    queryKey: registerKeys.startupPending,
+    read,
+    refetchInterval: (answer) =>
+      answer !== undefined && answer !== "not_permitted" && hasStartupPendingItems(answer)
+        ? STARTUP_PENDING_REREAD_MS
+        : false,
+  });
+}
+
+export function useRefreshStartupPending(): () => Promise<void> {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: registerKeys.startupPending });
 }

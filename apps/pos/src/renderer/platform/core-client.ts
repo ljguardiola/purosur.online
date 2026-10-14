@@ -37,6 +37,7 @@ import type {
   PinPolicy,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  PrintOriginalReceiptOutcome,
   ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -67,6 +68,7 @@ import type {
   SignInOutcome,
   SignInUser,
   StartMercadoPagoChargeOutcome,
+  StartupPending,
   StockCoreToRendererMessage,
   StockRendererToCoreMessage,
   SyncCoreToRendererMessage,
@@ -213,6 +215,7 @@ export interface CoreClient {
     authorization: Authorization | undefined,
   ): Promise<CancelPaidSaleOutcome>;
   receiptPrintStatus(saleId: string): Promise<ReceiptPrintStatusOutcome>;
+  printOriginalReceipt(saleId: string): Promise<PrintOriginalReceiptOutcome>;
   reprintSaleReceipt(
     saleId: string,
     reason: string,
@@ -250,6 +253,7 @@ export interface CoreClient {
   cashBalance(): Promise<CashBalance | null | "unavailable">;
   cashCountPreview(countedCash: number): Promise<CashCountPreview | null | "unavailable">;
   sessionOpenSale(): Promise<SessionOpenSale | null | "unavailable">;
+  startupPending(): Promise<StartupPending | "not_permitted">;
   onPulled(listener: () => void): () => void;
   onSerialDevicesChanged(listener: () => void): () => void;
   onBarcodeRead(listener: (code: string) => void): () => void;
@@ -627,6 +631,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         (answer) => (answer.type === "receipt-print-status-result" ? answer.outcome : undefined),
       );
     },
+    printOriginalReceipt(saleId) {
+      return ask(
+        { type: "print-original-receipt", request_id: deps.newRequestId(), sale_id: saleId },
+        (answer) => (answer.type === "print-original-receipt-result" ? answer.outcome : undefined),
+      );
+    },
     reprintSaleReceipt(saleId, reason, authorization) {
       return ask(
         {
@@ -917,6 +927,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           return answer.type === "session-open-sale" ? answer.sale : undefined;
         },
       );
+    },
+    startupPending() {
+      return ask({ type: "startup-pending-request", request_id: deps.newRequestId() }, (answer) => {
+        if (answer.type === "startup-pending-unavailable") {
+          throw new Error("the core could not read what the last run left pending");
+        }
+        if (answer.type === "startup-pending-not-permitted") {
+          return "not_permitted";
+        }
+        return answer.type === "startup-pending" ? answer.pending : undefined;
+      });
     },
     onPulled(listener) {
       pulledListeners.add(listener);

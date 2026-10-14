@@ -1,5 +1,6 @@
 import type {
   Authorization,
+  PrintOriginalReceiptOutcome,
   ReceiptCopyShown,
   ReceiptPrintStatusOutcome,
   ReprintSaleReceiptOutcome,
@@ -10,6 +11,7 @@ import {
   type IdGenerator,
   type OperationAuthority,
   type OperationAuthorization,
+  printOriginalReceipt,
   printSaleReceipt,
   type ReceiptPrinters,
   type ReceiptPrintGrant,
@@ -148,6 +150,42 @@ export async function printCompletedSaleReceiptFor(
       ),
     { unattended: true },
   );
+}
+
+export async function printOriginalReceiptFor(
+  deps: ReceiptRequestDeps,
+  saleId: string,
+): Promise<PrintOriginalReceiptOutcome> {
+  const chainKey = await deps.readOutboxChainKey();
+  const started: Started = { copy: undefined };
+  const start = await deps.jobs.start(saleId, ({ watch, printers }) =>
+    printOriginalReceipt(
+      printingPorts(
+        deps,
+        chainKey,
+        signedSellerAuthority(deps, saleId, started),
+        printers(deps.printers),
+      ),
+      { saleId },
+      watch,
+    ),
+  );
+  switch (start.kind) {
+    case "busy":
+      return { kind: "busy" };
+    case "failed":
+      return { kind: "unavailable" };
+    case "sent":
+      return started.copy === undefined
+        ? { kind: "unavailable" }
+        : { kind: "started", copy: toWireCopy(started.copy) };
+    case "answered": {
+      const { outcome } = start;
+      return outcome.kind === "printed" || outcome.kind === "abandoned"
+        ? { kind: "started", copy: toWireCopy(outcome.copy) }
+        : outcome;
+    }
+  }
 }
 
 export async function reprintSaleReceiptFor(

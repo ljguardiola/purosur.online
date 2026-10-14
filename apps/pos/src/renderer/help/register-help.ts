@@ -4,6 +4,7 @@ export const help = defineHelp("es-AR", {
   categories: {
     sales: { label: "Ventas" },
     payments: { label: "Cobros" },
+    register: { label: "Caja" },
   },
   articles: {
     "add-scanned-product": {
@@ -236,6 +237,24 @@ export const help = defineHelp("es-AR", {
         {
           kind: "paragraph",
           text: "La segunda Point queda siempre en su modo autónomo y la Point integrada en el suyo. Durante un corte nadie cambia el modo de ninguna de las dos.",
+        },
+      ],
+    },
+    "startup-pending": {
+      category: "register",
+      title: "Cosas para resolver al empezar",
+      body: [
+        {
+          kind: "paragraph",
+          text: "Si la caja se cerró sin terminar algunas operaciones, al entrar muestra lo que quedó antes de ir a Venta en curso. Podés resolverlo en ese momento o tocar Ir a vender y seguir vendiendo: nada de esta lista frena la caja.",
+        },
+        {
+          kind: "steps",
+          items: [
+            "Venta sin ticket: la venta nunca se imprimió. Tocá la impresora de la fila y el ticket sale enseguida como original.",
+            "Ticket sin confirmar: puede que el ticket haya salido. Tocá la impresora de la fila, escribí el motivo de la reimpresión y tocá Reimprimir duplicado: sale como duplicado.",
+            "Factura o cobro en consulta: la caja lo consulta sola, y desaparece de la lista cuando llega la respuesta.",
+          ],
         },
       ],
     },

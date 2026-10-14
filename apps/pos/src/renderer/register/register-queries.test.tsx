@@ -9,6 +9,7 @@ import type {
   RegisterStatus,
   SessionOpenSale,
   SignInUser,
+  StartupPending,
 } from "@purosur/contracts";
 import type { QueryClient } from "@tanstack/react-query";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
@@ -35,6 +36,7 @@ import {
   useSerialDevicesQuery,
   useSessionOpenSaleQuery,
   useSetSessionOpenSale,
+  useStartupPendingQuery,
 } from "./register-queries";
 
 const BALANCE: CashBalance = {
@@ -796,5 +798,85 @@ describe("serial devices query", () => {
 
   it("is keyed under the register's root key", () => {
     expect(registerKeys.serialDevices.at(0)).toBe("register");
+  });
+});
+
+const NOTHING_PENDING: StartupPending = {
+  sales_to_print: [],
+  unknown_fiscal_documents: [],
+  pending_payments: [],
+};
+const PAYMENT_PENDING: StartupPending = {
+  ...NOTHING_PENDING,
+  pending_payments: [
+    {
+      payment_id: "pay-1",
+      sale_id: "sale-1",
+      method: "QR",
+      amount: 80_000,
+      occurred_at: "2026-09-30T12:30:00.000Z",
+    },
+  ],
+};
+
+type StartupPendingRead = () => Promise<StartupPending | "not_permitted">;
+
+function StartupPendingProbe({ read }: { read: StartupPendingRead }) {
+  const pending = useStartupPendingQuery(read);
+  return (
+    <p>
+      {pending.status === "loaded"
+        ? ["pending", JSON.stringify(pending.value)].join(" ")
+        : pending.status}
+    </p>
+  );
+}
+
+function renderStartupPending(read: StartupPendingRead) {
+  return render(
+    <QueryClientProvider client={createQueryClient()}>
+      <StartupPendingProbe read={read} />
+    </QueryClientProvider>,
+  );
+}
+
+describe("startup pending query", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("is keyed under the register's root key", () => {
+    expect(registerKeys.startupPending.at(0)).toBe("register");
+  });
+
+  it("reads again every three seconds while something is pending, and stops once nothing is", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const answers = [PAYMENT_PENDING, PAYMENT_PENDING, NOTHING_PENDING];
+    const read = vi.fn<StartupPendingRead>(async () => answers.shift() ?? NOTHING_PENDING);
+    const screen = await renderStartupPending(read);
+    await expect.poll(() => read.mock.calls.length).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(2999);
+    expect(read).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect.poll(() => read.mock.calls.length).toBe(2);
+    await vi.advanceTimersByTimeAsync(3000);
+    await expect
+      .element(screen.getByText(["pending", JSON.stringify(NOTHING_PENDING)].join(" ")))
+      .toBeVisible();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(read).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not read again while the person may not see what is pending", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const read = vi.fn<StartupPendingRead>(async () => "not_permitted");
+    const screen = await renderStartupPending(read);
+    await expect.element(screen.getByText('pending "not_permitted"')).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(read).toHaveBeenCalledOnce();
   });
 });

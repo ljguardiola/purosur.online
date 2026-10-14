@@ -26,6 +26,7 @@ import {
 } from "./fiscal/real-time-authorization-wiring";
 import { readLatestPreEmissionGateOutcome } from "./fiscal/sqlite-pre-emission-gate";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
+import { createInterruptedChargesWiring } from "./payments/interrupted-charges-wiring";
 import { createMercadoPagoCharging } from "./payments/mercado-pago-charge-wiring";
 import { paymentMethodAvailabilityFor } from "./payments/payment-method-availability-requests";
 import {
@@ -74,6 +75,8 @@ import { readSerialDevicesFor, registerSerialDevicesFor } from "./register/seria
 import { listSerialPorts, serialportEnumeration } from "./register/serialport-enumeration";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
+import { startupPendingFor } from "./register/startup-pending-requests";
+import { recoverAtStartup } from "./register/startup-recovery";
 import { createUpdateHold, gateRendererRequest } from "./register/update-hold";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { windowsBatteryReader } from "./register/windows-battery-reader";
@@ -405,7 +408,10 @@ const syncSchedule = createSyncSchedule({
     return () => clearTimeout(timer);
   },
   onFailure: reportSyncFailure,
-  afterEachSync: () => rendererConnection.tell(PULLED_NOTICE),
+  afterEachSync: () => {
+    rendererConnection.tell(PULLED_NOTICE);
+    interruptedCharges.afterEachSync();
+  },
 });
 
 const readDeviceToken = async () => (await mainRequests.readCredentials())?.device_token;
@@ -418,15 +424,6 @@ const realTimeAuthorization = createRealTimeAuthorization({
   ids: uuidV7Ids,
   shortCodes: cryptoShortCodes,
 });
-await settleInterruptedAuthorizations({
-  database: localDatabase,
-  now,
-  reportFailure: (error) =>
-    reportFailure("settling the interrupted real-time authorizations", error),
-  ids: uuidV7Ids,
-  shortCodes: cryptoShortCodes,
-});
-
 const mercadoPagoCharging = createMercadoPagoCharging({
   database: localDatabase,
   gate: actionGate,
@@ -448,6 +445,28 @@ const receiptPrinting = createReceiptPrinting({
   reportFailure,
   syncNow: () => syncSchedule.syncNow(),
 });
+
+const interruptedCharges = createInterruptedChargesWiring({
+  charging: mercadoPagoCharging,
+  printing: receiptPrinting,
+  reportFailure,
+});
+
+const startupRecovery = recoverAtStartup({
+  settleInterruptedAuthorizations: () =>
+    settleInterruptedAuthorizations({
+      database: localDatabase,
+      now,
+      reportFailure: (error) =>
+        reportFailure("settling the interrupted real-time authorizations", error),
+      ids: uuidV7Ids,
+      shortCodes: cryptoShortCodes,
+    }),
+  followInterruptedCharges: interruptedCharges.followAtStartup,
+  startSync: () => syncSchedule.start(),
+  reportFailure,
+});
+await startupRecovery.authorizationsSettled;
 
 const rendererRequestDeps: RendererRequestDeps = {
   credentialsPresent: () => mainRequests.credentialsPresent(),
@@ -657,6 +676,10 @@ const rendererRequestDeps: RendererRequestDeps = {
       : (countedCash) => cashCountPreviewFor(localDatabase, countedCash),
   sessionOpenSale:
     localDatabase === undefined ? undefined : () => sessionOpenSaleFor(localDatabase, now()),
+  startupPending:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : () => startupPendingFor({ database: localDatabase, gate: actionGate }),
   cashSession:
     localDatabase === undefined
       ? undefined
@@ -894,6 +917,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             devices,
           ),
   receiptPrintStatus: receiptPrinting.receiptPrintStatus,
+  printOriginalReceipt: receiptPrinting.printOriginalReceipt,
   reprintSaleReceipt: receiptPrinting.reprintSaleReceipt,
   reportFailure,
 };
@@ -992,6 +1016,5 @@ process.parentPort.on("message", (event) => {
 });
 
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
-syncSchedule.start();
 void batteryWatch.start();
 void barcodeReaderWiring.startWatch();

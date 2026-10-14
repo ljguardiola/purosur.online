@@ -100,13 +100,15 @@ describe("reprintSaleReceipt", () => {
     const atSend = rig.printer.sent[0]?.ledgerStateWhenSent;
     expect(atSend?.sales[0]?.printAttemptedAt).toEqual(FIRST_PRINT_AT);
     expect(atSend?.sales[0]?.reprints).toEqual([]);
-    expect(atSend?.outbox.map(({ event_type }) => event_type)).toEqual([
-      "sale_print_state_changed",
-    ]);
+    expect(atSend?.sales[0]?.printedAt).toBeNull();
+    expect(atSend?.outbox).toEqual([]);
     expect(textOf(rig.printer.sent[0]?.bytes ?? new Uint8Array())).toBe(
       "HEAD[v1] total 6750\nBODY 1 lines\n",
     );
     expect(await printing).toEqual({ kind: "printed", copy: { kind: "original" } });
+    expect(rig.ledger.state.outbox.map(({ event_type }) => event_type)).toEqual([
+      "sale_print_state_changed",
+    ]);
   });
 
   it("records the reprint with the typed reason and who authorized it as it sends the duplicate", async () => {

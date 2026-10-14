@@ -318,8 +318,10 @@ export {
 } from "./register/register-update.js";
 export type { ReportRegisterListBody } from "./register/report-register-list.js";
 export { reportRegisterListSchema } from "./register/report-register-list.js";
+export type { StartupPending } from "./register/startup-pending.js";
 export type {
   CancelLockedSaleOutcome,
+  PrintOriginalReceiptOutcome,
   ReceiptPrintStatusOutcome,
   ReprintSaleReceiptOutcome,
   SalesCoreToRendererMessage,
