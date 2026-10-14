@@ -18,6 +18,7 @@ import type {
   ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  ConvertPaidOrderIntoRefundOutcome,
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
@@ -124,6 +125,9 @@ export interface RendererRequestDeps {
   paymentMethodAvailability: (() => Promise<PaymentMethodAvailability | null>) | undefined;
   abandonMercadoPagoCharge:
     | ((request: { paymentTransactionId: string }) => Promise<AbandonMercadoPagoChargeOutcome>)
+    | undefined;
+  convertPaidOrderIntoRefund:
+    | ((request: { paymentTransactionId: string }) => Promise<ConvertPaidOrderIntoRefundOutcome>)
     | undefined;
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
@@ -522,6 +526,18 @@ async function attemptAbandonMercadoPagoCharge(
     return (await deps.abandonMercadoPagoCharge?.(request)) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure("abandoning a Mercado Pago QR charge", error);
+    return { kind: "unavailable" };
+  }
+}
+
+async function attemptConvertPaidOrderIntoRefund(
+  deps: RendererRequestDeps,
+  request: { paymentTransactionId: string },
+): Promise<ConvertPaidOrderIntoRefundOutcome> {
+  try {
+    return (await deps.convertPaidOrderIntoRefund?.(request)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("converting a paid order into a refund", error);
     return { kind: "unavailable" };
   }
 }
@@ -1013,6 +1029,14 @@ export async function answerRendererRequest(
         type: "abandon-mercado-pago-charge-result",
         request_id: message.request_id,
         outcome: await attemptAbandonMercadoPagoCharge(deps, {
+          paymentTransactionId: message.payment_transaction_id,
+        }),
+      };
+    case "convert-paid-order-into-refund":
+      return {
+        type: "convert-paid-order-into-refund-result",
+        request_id: message.request_id,
+        outcome: await attemptConvertPaidOrderIntoRefund(deps, {
           paymentTransactionId: message.payment_transaction_id,
         }),
       };

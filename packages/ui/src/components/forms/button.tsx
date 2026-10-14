@@ -1,6 +1,11 @@
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
-import { Button as AriaButton, type ButtonProps as AriaButtonProps } from "react-aria-components";
+import {
+  Button as AriaButton,
+  type ButtonProps as AriaButtonProps,
+  Focusable as AriaFocusable,
+} from "react-aria-components";
+import { Tooltip } from "../overlays/tooltip";
 import { type Icon, iconSlotClassName } from "../shared/icon";
 import type { LoadStatus } from "../shared/load-status";
 
@@ -11,6 +16,7 @@ export type ButtonTextSize = Extract<ButtonSize, "small" | "large">;
 
 type ButtonCommonProps = Pick<AriaButtonProps, "onPress" | "type"> & {
   disabled?: boolean;
+  disabledReason?: string;
   dataStatus?: LoadStatus;
   // TypeScript can't tell a label from other content, so an empty string or an icon passed as
   // children still compiles; icon-only actions belong to IconButton, which requires an aria-label.
@@ -41,6 +47,10 @@ const shapeClassName =
   "transition-background-text-border outline-none";
 
 const baseClassName = `${shapeClassName} data-focus-visible:focus-ring data-disabled:opacity-disabled`;
+
+// A disabled button takes neither focus nor hover, so one that says why it is disabled stays
+// focusable and is only announced disabled, which is what lets its tooltip open.
+const withReasonClassName = `${shapeClassName} focus-visible:focus-ring opacity-disabled`;
 
 const sizeClassName: Record<ButtonSize, string> = {
   small: "h-control-lg text-body",
@@ -116,6 +126,7 @@ export function Button({
   fullWidth = false,
   children,
   disabled = false,
+  disabledReason,
   dataStatus,
   ...props
 }: ButtonProps) {
@@ -123,7 +134,7 @@ export function Button({
   const resolvedSize = size ?? defaultSize[variant];
   const className = [
     widthClassName[fullWidth ? "full" : "content"],
-    baseClassName,
+    disabledReason === undefined ? baseClassName : withReasonClassName,
     sizeClassName[resolvedSize],
     fullWidth ? stretchedHeightClassName[resolvedSize] : "",
     variantClassName[variant],
@@ -136,6 +147,27 @@ export function Button({
 
   const glyph = variant === "text" && destructive ? <X aria-hidden="true" /> : icon;
   const sizedIcon = glyph ? <span className={iconWrapperClassName[variant]}>{glyph}</span> : null;
+  const content = (
+    <>
+      {variant !== "primary" && sizedIcon}
+      {/* truncate on this justify-center flex container itself would clip both ends with no
+          ellipsis; it needs its own box to truncate correctly. */}
+      <span className="truncate">{children}</span>
+      {variant === "primary" && sizedIcon}
+    </>
+  );
+
+  if (disabledReason !== undefined) {
+    return (
+      <Tooltip description={disabledReason}>
+        <AriaFocusable>
+          <button type="button" aria-disabled="true" className={className}>
+            {content}
+          </button>
+        </AriaFocusable>
+      </Tooltip>
+    );
+  }
 
   return (
     <AriaButton
@@ -143,11 +175,7 @@ export function Button({
       isDisabled={disabled || (dataStatus !== undefined && dataStatus !== "loaded")}
       className={className}
     >
-      {variant !== "primary" && sizedIcon}
-      {/* truncate on this justify-center flex container itself would clip both ends with no
-          ellipsis; it needs its own box to truncate correctly. */}
-      <span className="truncate">{children}</span>
-      {variant === "primary" && sizedIcon}
+      {content}
     </AriaButton>
   );
 }
