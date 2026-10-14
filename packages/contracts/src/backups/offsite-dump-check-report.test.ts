@@ -47,6 +47,14 @@ describe("offsiteDumpCheckReportSchema", () => {
     expect(isAccepted(body)).toBe(false);
   });
 
+  it("tells a refused night to be written as a calendar day YYYY-MM-DD", () => {
+    const result = offsiteDumpCheckReportSchema.safeParse({ ...passed, night: "14/10/2026" });
+
+    expect(result.error?.issues.map((issue) => [issue.path, issue.message])).toEqual([
+      [["night"], "night must be a calendar day written YYYY-MM-DD"],
+    ]);
+  });
+
   it("is typed as the passed or failed check of a night", () => {
     expectTypeOf<OffsiteDumpCheckReport>().toEqualTypeOf<
       | { night: string; outcome: "passed"; sizeBytes: number }
