@@ -4249,6 +4249,12 @@ describe("the register's local migrations", () => {
       expect(() => assign(2)).toThrow(/CHECK/);
       expect(() => assign(1)).not.toThrow();
       expect(() => assign(0)).toThrow(/UNIQUE|PRIMARY/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("keep the paid orders without a sale, one per payment, none over the payments a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
