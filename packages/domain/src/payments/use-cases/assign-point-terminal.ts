@@ -47,7 +47,7 @@ export async function assignPointTerminal(
 
       if (terminalId !== null) {
         const holder = await tx.lockPointTerminalHolder(terminalId);
-        if (holder !== undefined && holder !== input.registerId) {
+        if (holder !== undefined) {
           return { kind: "terminal_taken" };
         }
       }
