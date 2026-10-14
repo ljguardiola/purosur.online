@@ -31,7 +31,7 @@ const STALE_VERSION_RESPONSE = {
   message: "this recipe was changed since it was loaded",
 } as const;
 
-function recipeSummary({ lastBatch, ...listing }: RecipeListing) {
+export function recipeSummary({ lastBatch, ...listing }: RecipeListing) {
   return recipeSummarySchema.parse({
     ...listing,
     lastBatch: lastBatch && { ...lastBatch, assembledAt: lastBatch.assembledAt.toISOString() },

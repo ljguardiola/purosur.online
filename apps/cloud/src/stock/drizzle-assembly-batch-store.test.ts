@@ -1,5 +1,5 @@
 import { registerAssemblyBatch, saveRecipe } from "@purosur/domain/stock/use-cases";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   assemblyBatches,
@@ -208,22 +208,17 @@ describe("DrizzleAssemblyBatchStore", () => {
     expect(await db.select().from(stockMovements)).toEqual([]);
   });
 
-  it("writes nothing when a write fails midway", async () => {
+  it("writes nothing, not even the balance rows it locked, when the batch's first write is refused", async () => {
     const seeded = await seededMix();
-    await db.execute(
-      sql`alter table lots add constraint lots_test_refuses_batch_lots check (assembly_batch_id is null)`,
-    );
 
-    try {
-      await expect(register(seeded)).rejects.toThrow();
-    } finally {
-      await db.execute(sql`alter table lots drop constraint lots_test_refuses_batch_lots`);
-    }
+    await expect(
+      register({ ...seeded, actorId: "00000000-0000-4000-8000-000000000000" }),
+    ).rejects.toThrow();
 
     expect(await db.select().from(assemblyBatches)).toEqual([]);
     expect(await db.select().from(stockMovements)).toEqual([]);
-    expect((await db.select().from(lots).where(eq(lots.id, seeded.soon)))[0]?.remaining).toBe(
-      5_000,
-    );
+    expect(
+      await db.select().from(stockBalances).where(eq(stockBalances.productId, seeded.mix)),
+    ).toEqual([]);
   });
 });

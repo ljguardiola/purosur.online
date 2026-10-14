@@ -18,8 +18,8 @@ export interface PreviewAssemblyBatchInput {
   productId: string;
   locationId: string;
   size: number;
-  used?: readonly BatchComponentUse[];
-  output?: number;
+  used?: readonly BatchComponentUse[] | undefined;
+  output?: number | undefined;
 }
 
 export interface PreviewAssemblyBatchPorts {
