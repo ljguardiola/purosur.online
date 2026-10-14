@@ -5,9 +5,19 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-server.js";
 import { configureOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
-import { alerts, branchHours, deviceState } from "../platform/db/schema.js";
+import {
+  alerts,
+  branchHours,
+  categories,
+  deviceState,
+  locations,
+  lots,
+  products,
+  users,
+} from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { setUpRecovery } from "../server.js";
+import { insertPurchasedLot } from "../stock/test-support/lot-fixtures.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -19,6 +29,7 @@ const UNUSED_EMAIL_SENDER: AccessEmailSender = {
 };
 
 const NOW = new Date("2020-01-05T12:00:00.000Z");
+const STABLE_CLEAR_MS = 11 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 
 let integrationDb: IntegrationDatabase;
@@ -194,4 +205,85 @@ describe("the background worker the server sets up on a real Postgres", () => {
       await recovery.close();
     }
   }, 60_000);
+
+  it("keeps an informational alert open for a branch with a lot inside its expiry window, then resolves it once the lot is gone and the condition stayed cleared", async () => {
+    const [location] = await db.select({ id: locations.id }).from(locations).limit(1);
+    const [actor] = await db
+      .insert(users)
+      .values({ firstName: "Ada", email: "ada-lots@example.com", locationId: location?.id })
+      .returning({ id: users.id });
+    const [category] = await db
+      .insert(categories)
+      .values({ name: "Frutos secos" })
+      .returning({ id: categories.id });
+    const [product] = await db
+      .insert(products)
+      .values({ name: "Almendras", categoryId: category?.id ?? "", saleUnit: "KG" })
+      .returning({ id: products.id });
+    if (!location || !actor || !product) {
+      throw new Error("test setup: seeding the branch, user and product returned no row");
+    }
+    const lotId = await insertPurchasedLot(db, {
+      productId: product.id,
+      locationId: location.id,
+      actorId: actor.id,
+      purchasedOn: "2019-12-20",
+      expiresOn: "2020-01-20",
+    });
+    let currentTime = NOW;
+    const recovery = await setUpRecovery(
+      {
+        databaseUrl: integrationDb.databaseUrl,
+        emailSender: { transport: "log" },
+        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
+        emailReplyTo: "purosur.comarca@gmail.com",
+        backofficeOrigin: "https://staging.purosur.online",
+        arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
+        arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
+      },
+      () => currentTime,
+      { emailSender: UNUSED_EMAIL_SENDER },
+    );
+
+    try {
+      await sql`select graphile_worker.add_job('alert-condition-resolution')`;
+      await vi.waitFor(
+        async () => {
+          const [row] = await db.select().from(alerts).where(eq(alerts.scope, location.id));
+          expect(row).toMatchObject({
+            kind: "lots_expiring",
+            level: "informational",
+            audience: "local",
+            locationId: location.id,
+            detail: { lotCount: 1, windowDays: 30 },
+            resolvedAt: null,
+            conditionClearedAt: null,
+          });
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+
+      await db.update(lots).set({ remaining: 0 }).where(eq(lots.id, lotId));
+      await sql`select graphile_worker.add_job('alert-condition-resolution')`;
+      await vi.waitFor(
+        async () => {
+          const [row] = await db.select().from(alerts).where(eq(alerts.scope, location.id));
+          expect(row).toMatchObject({ conditionClearedAt: NOW, resolvedAt: null });
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+
+      currentTime = new Date(NOW.getTime() + STABLE_CLEAR_MS);
+      await sql`select graphile_worker.add_job('alert-condition-resolution')`;
+      await vi.waitFor(
+        async () => {
+          const [row] = await db.select().from(alerts).where(eq(alerts.scope, location.id));
+          expect(row?.resolvedAt).toEqual(currentTime);
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+    } finally {
+      await recovery.close();
+    }
+  }, 90_000);
 });

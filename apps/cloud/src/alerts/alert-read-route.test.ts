@@ -253,6 +253,37 @@ describe("GET /alerts/:id", () => {
     expect(closesByItself.json()).toMatchObject({ closing: "by_itself" });
   });
 
+  it("shows an alert of lots nearing expiry to someone who holds the local alerts of its branch, scoped to the branch", async () => {
+    const roleId = await insertRole("local", ["view_branch_alerts"]);
+    const userId = await insertUserWithRole("Cajera", roleId);
+    const rawSessionId = await insertSession(userId);
+    const [expiring] = await db
+      .insert(alerts)
+      .values({
+        kind: "lots_expiring",
+        scope: ownLocationId,
+        level: "informational",
+        audience: "local",
+        locationId: ownLocationId,
+        detail: { lotCount: 6, windowDays: 30 },
+        openedAt: NOON,
+      })
+      .returning({ id: alerts.id });
+    if (!expiring) throw new Error("test setup: inserting the alert returned no row");
+
+    const response = await getAlert(rawSessionId, expiring.id);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      kind: "lots_expiring",
+      level: "informational",
+      scopeKind: "branch",
+      detail: { lotCount: 6, windowDays: 30 },
+      closing: "by_itself",
+      open: true,
+    });
+  });
+
   it("lists the deliveries by when they were written, ties in a stable order", async () => {
     const viewerRoleId = await insertRole("supervisor", ["view_all_alerts"]);
     const viewerId = await insertUserWithRole("Grace", viewerRoleId);
