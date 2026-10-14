@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
+  assignPointTerminal,
   createRegister,
   emitEnrollmentCode,
   fetchRegisterCoverage,
@@ -28,6 +29,8 @@ const register1: RegisterSummary = {
   name: "Caja 1",
   pendingCode: null,
   pointOfSaleNumber: null,
+  pointTerminalId: null,
+  pointTerminalVersion: 0,
   installation: null,
 };
 const register2Wire = {
@@ -35,6 +38,8 @@ const register2Wire = {
   name: "Caja 2",
   pending_code: { seconds_since_issued: 240, seconds_until_expiry: 660 },
   point_of_sale_number: 3,
+  point_terminal_id: "TERM-0042",
+  point_terminal_version: 2,
   installation: null,
 };
 const register2: RegisterSummary = {
@@ -42,6 +47,8 @@ const register2: RegisterSummary = {
   name: "Caja 2",
   pendingCode: { secondsSinceIssued: 240, secondsUntilExpiry: 660 },
   pointOfSaleNumber: 3,
+  pointTerminalId: "TERM-0042",
+  pointTerminalVersion: 2,
   installation: null,
 };
 
@@ -53,6 +60,8 @@ test("fetchRegisters lists every register, translating pending_code and point_of
         name: "Caja 1",
         pending_code: null,
         point_of_sale_number: null,
+        point_terminal_id: null,
+        point_terminal_version: 0,
         installation: null,
       },
       register2Wire,
@@ -73,6 +82,8 @@ test("fetchRegisters translates an enrolled and a revoked installation from the 
         name: "Caja 1",
         pending_code: null,
         point_of_sale_number: null,
+        point_terminal_id: null,
+        point_terminal_version: 0,
         installation: {
           state: "enrolled",
           hostname: "CAJA-MOSTRADOR",
@@ -85,6 +96,8 @@ test("fetchRegisters translates an enrolled and a revoked installation from the 
         name: "Caja 2",
         pending_code: null,
         point_of_sale_number: null,
+        point_terminal_id: null,
+        point_terminal_version: 0,
         installation: {
           state: "revoked",
           hostname: "CAJA-DEPOSITO",
@@ -438,4 +451,110 @@ test("fetchRegisterSyncStatus returns failed on a body that is not a list of reg
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ id: "register-1", name: "Caja 1" }]));
 
   expect(await fetchRegisterSyncStatus()).toEqual({ kind: "failed" });
+});
+
+const assignmentAnswer = { register_id: "register-1", terminal_id: "TERM-0042", version: 3 };
+
+test("assignPointTerminal puts the terminal and the version, and returns ok on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, assignmentAnswer));
+
+  const outcome = await assignPointTerminal("register-1", { terminal_id: "TERM-0042", version: 2 });
+
+  expect(outcome).toEqual({ kind: "ok" });
+  expect(fetch).toHaveBeenCalledWith("/api/registers/register-1/point-terminal", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ terminal_id: "TERM-0042", version: 2 }),
+  });
+});
+
+test("assignPointTerminal sends a null terminal to remove the assignment", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...assignmentAnswer, terminal_id: null }));
+
+  expect(await assignPointTerminal("register-1", { terminal_id: null, version: 3 })).toEqual({
+    kind: "ok",
+  });
+});
+
+test("assignPointTerminal returns failed on a 200 of another shape", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { assigned: true }));
+
+  expect(await assignPointTerminal("register-1", { terminal_id: "T", version: 0 })).toEqual({
+    kind: "failed",
+  });
+});
+
+test("assignPointTerminal returns validation_failed on the named field for a 400", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, {
+      code: "validation_failed",
+      message: "terminal_id must be a Point terminal id without spaces",
+      details: [{ field: "terminal_id" }],
+    }),
+  );
+
+  expect(await assignPointTerminal("register-1", { terminal_id: "A B", version: 0 })).toEqual({
+    kind: "validation_failed",
+    field: "terminal_id",
+  });
+});
+
+test("assignPointTerminal returns not_found on 404", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
+
+  expect(await assignPointTerminal("register-9", { terminal_id: "T", version: 0 })).toEqual({
+    kind: "not_found",
+  });
+});
+
+test("assignPointTerminal tells a taken terminal from a stale version on 409", async () => {
+  vi.mocked(fetch).mockResolvedValueOnce(
+    jsonResponse(409, { code: "point_terminal_taken", details: [{ field: "terminal_id" }] }),
+  );
+  vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(409, { code: "stale_version" }));
+
+  expect(await assignPointTerminal("register-1", { terminal_id: "T", version: 0 })).toEqual({
+    kind: "point_terminal_taken",
+  });
+  expect(await assignPointTerminal("register-1", { terminal_id: "T", version: 0 })).toEqual({
+    kind: "stale_version",
+  });
+});
+
+test("assignPointTerminal returns failed on a 409 of another code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "conflict" }));
+
+  expect(await assignPointTerminal("register-1", { terminal_id: "T", version: 0 })).toEqual({
+    kind: "failed",
+  });
+});
+
+test.each([
+  ["a plain 401", jsonResponse(401), { kind: "unauthenticated" }],
+  [
+    "a 401 asking for authorization",
+    jsonResponse(401, { code: "authorization_required" }),
+    { kind: "authorization_required" },
+  ],
+  ["a 403", jsonResponse(403), { kind: "forbidden" }],
+  [
+    "a 429",
+    jsonResponse(429, undefined, { "Retry-After": "30" }),
+    { kind: "rate_limited", retryAfterSeconds: 30 },
+  ],
+  ["a 500", jsonResponse(500), { kind: "failed" }],
+])("assignPointTerminal maps %s", async (_name, response, expected) => {
+  vi.mocked(fetch).mockResolvedValue(response);
+
+  expect(await assignPointTerminal("register-1", { terminal_id: "T", version: 0 })).toEqual(
+    expected,
+  );
+});
+
+test("assignPointTerminal returns failed when the request cannot be made", async () => {
+  vi.mocked(fetch).mockRejectedValue(new TypeError("network"));
+
+  expect(await assignPointTerminal("register-1", { terminal_id: "T", version: 0 })).toEqual({
+    kind: "failed",
+  });
 });

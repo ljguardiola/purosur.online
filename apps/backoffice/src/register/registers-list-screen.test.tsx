@@ -84,6 +84,8 @@ test("shows recién for a code issued less than a minute ago", async () => {
     name: "Caja 3",
     pendingCode: { secondsSinceIssued: 20, secondsUntilExpiry: 880 },
     pointOfSaleNumber: null,
+    pointTerminalId: null,
+    pointTerminalVersion: 0,
     installation: null,
   };
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [justIssued] });
@@ -367,6 +369,8 @@ test("creates a register and shows it in the list", async () => {
         name: "Caja 3",
         pendingCode: null,
         pointOfSaleNumber: null,
+        pointTerminalId: null,
+        pointTerminalVersion: 0,
         installation: null,
       },
     ],
@@ -677,6 +681,8 @@ test("keeps the current rows visible while the list refreshes after creating a r
         name: "Caja 3",
         pendingCode: null,
         pointOfSaleNumber: null,
+        pointTerminalId: null,
+        pointTerminalVersion: 0,
         installation: null,
       },
     ],
@@ -712,6 +718,8 @@ test("shows loading placeholders, not an empty table, while the list refreshes f
         name: "Caja 3",
         pendingCode: null,
         pointOfSaleNumber: null,
+        pointTerminalId: null,
+        pointTerminalVersion: 0,
         installation: null,
       },
     ],
@@ -816,4 +824,65 @@ test("has no accessibility violations once loaded, with the create modal open, a
 
   await openEmitModal(screen, "Caja 1");
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("shows each register's Point terminal, or Sin asignar when it has none", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({
+    kind: "ok",
+    value: [register1, register2],
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("columnheader", { name: "Terminal Point" })).toBeVisible();
+  await expect.element(screen.getByText("TERM-0042")).toBeVisible();
+  await expect.element(screen.getByText("Sin asignar")).toBeVisible();
+});
+
+async function openTerminalModal(screen: Awaited<ReturnType<typeof renderScreen>>, name: string) {
+  await userEvent.click(screen.getByRole("button", { name: `Asignar terminal Point a ${name}` }));
+  return screen.getByRole("dialog", { name: "Terminal Point integrada" });
+}
+
+test("the row action opens the terminal modal for that register with its current terminal", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({
+    kind: "ok",
+    value: [register1, register2],
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 2")).toBeVisible();
+
+  const dialog = await openTerminalModal(screen, "Caja 2");
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Identificador de la terminal/ }))
+    .toHaveValue("TERM-0042");
+});
+
+test("assigning a terminal closes the modal and reads the list again", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({
+    kind: "ok",
+    value: [{ ...register1, pointTerminalId: "TERM-0100", pointTerminalVersion: 1 }],
+  });
+  vi.mocked(services.assignPointTerminal).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Sin asignar")).toBeVisible();
+  const dialog = await openTerminalModal(screen, "Caja 1");
+
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Identificador de la terminal/ }),
+    "TERM-0100",
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar" }));
+
+  expect(services.assignPointTerminal).toHaveBeenCalledWith("register-1", {
+    terminal_id: "TERM-0100",
+    version: 0,
+  });
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("TERM-0100")).toBeVisible();
 });
