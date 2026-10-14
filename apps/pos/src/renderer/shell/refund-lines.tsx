@@ -32,7 +32,8 @@ const STANDALONE_TERMINAL_REFUND_EXPLANATION =
 const QR_REFUND_EXPLANATION =
   "La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.";
 
-const BACKOFFICE_REFUND_EXPLANATION = "No se hace desde la caja: se atiende en el backoffice.";
+const BACKOFFICE_REFUND_NOTE =
+  "Un reembolso pendiente no se hace desde la caja: se atiende en el backoffice.";
 
 function pendingRefundExplanation(refund: Refund): string | null {
   if (refund.state !== "PENDING") {
@@ -44,24 +45,33 @@ function pendingRefundExplanation(refund: Refund): string | null {
     case "QR":
       return QR_REFUND_EXPLANATION;
     default:
-      return BACKOFFICE_REFUND_EXPLANATION;
+      return null;
   }
+}
+
+function needsBackofficeNote(refunds: readonly Refund[]): boolean {
+  return refunds.some((refund) => refund.state === "PENDING" && refund.method !== "QR");
 }
 
 export function RefundLines({ refunds }: { refunds: readonly Refund[] }) {
   return (
-    <ul className="flex flex-col gap-2 text-body text-text">
-      {refunds.map((refund) => {
-        const explanation = pendingRefundExplanation(refund);
-        return (
-          <li key={refund.payment_id}>
-            <span>{refundLine(refund)}</span>
-            {explanation === null ? null : (
-              <p className="text-detail text-text-subtle">{explanation}</p>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+    <div className="flex flex-col gap-2">
+      <ul className="flex flex-col gap-2 text-body text-text">
+        {refunds.map((refund) => {
+          const explanation = pendingRefundExplanation(refund);
+          return (
+            <li key={refund.payment_id}>
+              <span>{refundLine(refund)}</span>
+              {explanation === null ? null : (
+                <p className="text-detail text-text-subtle">{explanation}</p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {needsBackofficeNote(refunds) ? (
+        <p className="text-detail text-text-subtle">{BACKOFFICE_REFUND_NOTE}</p>
+      ) : null}
+    </div>
   );
 }
