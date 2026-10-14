@@ -7,7 +7,11 @@ import {
 } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { installationRequestAttempts, paymentTransactions } from "../platform/db/schema.js";
+import {
+  installationRequestAttempts,
+  paymentTransactions,
+  registerPointTerminals,
+} from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";
 import { createMercadoPagoOrdersClient } from "./mercado-pago-orders-client.js";
@@ -44,6 +48,10 @@ function orderRequest(
 
 function enroll(registerName = "Caja 1") {
   return insertEnrolledInstallation(route.db, { now: NOW, registerName });
+}
+
+async function assignTerminal(registerId: string, terminalId: string) {
+  await route.db.insert(registerPointTerminals).values({ registerId, terminalId, version: 1 });
 }
 
 function createOrder(payload: unknown, authorization?: string) {
@@ -331,6 +339,7 @@ describe("the Mercado Pago order routes", () => {
 
     it("creates the order on the terminal and answers the pending payment of that provider", async () => {
       const { deviceToken, registerId } = await enroll();
+      await assignTerminal(registerId, POINT_TERMINAL_ID);
       const body = pointOrderRequest();
 
       const response = await createOrder(body, `Bearer ${deviceToken}`);
@@ -348,6 +357,7 @@ describe("the Mercado Pago order routes", () => {
           externalReference: body.payment_transaction_id,
           amount: 5000,
           expiresAfterMinutes: 5,
+          terminalId: POINT_TERMINAL_ID,
         },
       ]);
       expect(route.mercadoPago.creations).toEqual([]);
@@ -376,14 +386,31 @@ describe("the Mercado Pago order routes", () => {
       expect(await transactions()).toEqual([]);
     });
 
-    it("answers that the provider is not configured when no terminal is configured", async () => {
-      route.mercadoPago.pointCreation = { kind: "not_configured" };
-      const { deviceToken } = await enroll();
+    it("sends each register's order to the terminal assigned to that register", async () => {
+      const first = await enroll("Caja 1");
+      const second = await enroll("Caja 2");
+      await assignTerminal(first.registerId, "PAX_A910__SMARTPOS1");
+      await assignTerminal(second.registerId, "PAX_A910__SMARTPOS2");
+
+      await createOrder(pointOrderRequest(), `Bearer ${second.deviceToken}`);
+      await createOrder(pointOrderRequest(), `Bearer ${first.deviceToken}`);
+
+      expect(route.mercadoPago.pointCreations.map((order) => order.terminalId)).toEqual([
+        "PAX_A910__SMARTPOS2",
+        "PAX_A910__SMARTPOS1",
+      ]);
+    });
+
+    it("answers that the provider is not configured when the register has no terminal, even if another register has one", async () => {
+      const withTerminal = await enroll("Caja 1");
+      await assignTerminal(withTerminal.registerId, POINT_TERMINAL_ID);
+      const { deviceToken } = await enroll("Caja 2");
 
       const response = await createOrder(pointOrderRequest(), `Bearer ${deviceToken}`);
 
       expect(response.statusCode).toBe(503);
       expect(cloudErrorSchema.parse(response.json()).code).toBe("payment_provider_not_configured");
+      expect(route.mercadoPago.pointCreations).toEqual([]);
     });
 
     it.each([
@@ -391,7 +418,8 @@ describe("the Mercado Pago order routes", () => {
       ["unavailable", { kind: "unavailable" }, 503, "payment_provider_unavailable"],
     ] as const)("answers that the provider is %s", async (_name, creation, status, code) => {
       route.mercadoPago.pointCreation = creation;
-      const { deviceToken } = await enroll();
+      const { deviceToken, registerId } = await enroll();
+      await assignTerminal(registerId, POINT_TERMINAL_ID);
 
       const response = await createOrder(pointOrderRequest(), `Bearer ${deviceToken}`);
 
@@ -400,7 +428,8 @@ describe("the Mercado Pago order routes", () => {
     });
 
     it("answers the payment still pending while the order is at the terminal", async () => {
-      const { deviceToken } = await enroll();
+      const { deviceToken, registerId } = await enroll();
+      await assignTerminal(registerId, POINT_TERMINAL_ID);
       const body = pointOrderRequest();
       await createOrder(body, `Bearer ${deviceToken}`);
       route.mercadoPago.reading = { kind: "read", result: AT_TERMINAL_ORDER };
@@ -415,7 +444,8 @@ describe("the Mercado Pago order routes", () => {
     });
 
     it("cancels an order that is not at the terminal yet", async () => {
-      const { deviceToken } = await enroll();
+      const { deviceToken, registerId } = await enroll();
+      await assignTerminal(registerId, POINT_TERMINAL_ID);
       const body = pointOrderRequest();
       await createOrder(body, `Bearer ${deviceToken}`);
 
@@ -430,7 +460,8 @@ describe("the Mercado Pago order routes", () => {
     });
 
     it("answers that the order can only be cancelled on the terminal once it is there", async () => {
-      const { deviceToken } = await enroll();
+      const { deviceToken, registerId } = await enroll();
+      await assignTerminal(registerId, POINT_TERMINAL_ID);
       const body = pointOrderRequest();
       await createOrder(body, `Bearer ${deviceToken}`);
       route.mercadoPago.cancellation = { kind: "cannot_cancel" };
@@ -687,11 +718,11 @@ describe("the Mercado Pago order routes", () => {
         createMercadoPagoOrdersClient({
           accessToken: "APP_USR-fictional-access-token-0001",
           externalPosId: "STORE01POS01",
-          pointTerminalId: POINT_TERMINAL_ID,
           fetch,
         }),
       );
-      const { deviceToken } = await enroll();
+      const { deviceToken, registerId } = await enroll();
+      await assignTerminal(registerId, POINT_TERMINAL_ID);
       const body = orderRequest({ provider: "MERCADOPAGO_POINT" });
 
       const created = await createOrder(body, `Bearer ${deviceToken}`);

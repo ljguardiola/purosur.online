@@ -274,6 +274,7 @@ export {
   DISCARDABLE_REFUND_ALERT_KINDS,
   isConfirmedByHand,
   isLateApproval,
+  isPointTerminalId,
   isRefundPending,
   isValidOrderAmount,
   isValidPointOrderAmount,

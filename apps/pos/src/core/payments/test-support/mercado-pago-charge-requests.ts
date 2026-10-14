@@ -96,6 +96,12 @@ export function chargeRequestDeps(
   };
 }
 
+export function assignPointTerminalToChargeRegister(database: LocalDatabase): void {
+  database.exec(
+    "INSERT INTO register_point_terminal (register_id, assigned, version) VALUES ('register-1', 1, 1)",
+  );
+}
+
 export function seedChargeRegister(database: LocalDatabase): void {
   database.exec(
     `INSERT INTO roles (id, name, is_administrator, version) VALUES ('cashier', 'Cajera', 0, 1);

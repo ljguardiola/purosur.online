@@ -170,6 +170,15 @@ const registerPointOfSaleChangeSchema = z.object({
   }),
 });
 
+const registerPointTerminalChangeSchema = z.object({
+  ...pulledChangeShape,
+  entity: z.literal("register_point_terminal"),
+  row: z.object({
+    assigned: z.boolean(),
+    version: z.int().positive(),
+  }),
+});
+
 const registerOfflinePointOfSaleChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("register_offline_point_of_sale"),
@@ -289,6 +298,7 @@ export const changesPageSchema = z.object({
         issuerIdentificationChangeSchema,
         buyerIdentificationThresholdChangeSchema,
         registerPointOfSaleChangeSchema,
+        registerPointTerminalChangeSchema,
         registerOfflinePointOfSaleChangeSchema,
         offlineAuthorizationCodeChangeSchema,
         offlineNumberBlockChangeSchema,

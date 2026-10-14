@@ -7,6 +7,7 @@ import {
   recordAuthorizedCuit,
   recordBuyerIdentificationThreshold,
 } from "@purosur/domain/fiscal/use-cases";
+import { assignPointTerminal } from "@purosur/domain/payments/use-cases";
 import { createRole } from "@purosur/domain/permissions/use-cases";
 import { setPrice } from "@purosur/domain/pricing/use-cases";
 import { pullChanges } from "@purosur/domain/sync/use-cases";
@@ -24,6 +25,7 @@ import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-regist
 import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-point-of-sale-store.js";
 import { enqueueOfflineAuthorizationCodeRequest } from "../fiscal/graphile-offline-authorization-code-queue.js";
 import { OFFLINE_AUTHORIZATION_CODE_REQUEST_TASK_IDENTIFIER } from "../fiscal/offline-authorization-code-task.js";
+import { DrizzlePointTerminalAssignmentStore } from "../payments/drizzle-point-terminal-assignment-store.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import {
   buyerTaxStatusSets,
@@ -172,6 +174,13 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     if (pointOfSale.kind !== "configured") {
       throw new Error("test setup: the point of sale was not configured");
     }
+    const pointTerminal = await assignPointTerminal(
+      new DrizzlePointTerminalAssignmentStore(db, () => NOW),
+      { locationId, registerId, terminalId: "PAX_A910__SMARTPOS1", version: 0, actorId: actor.id },
+    );
+    if (pointTerminal.kind !== "assigned") {
+      throw new Error("test setup: the Point terminal was not assigned");
+    }
     await db
       .insert(taxAuthorityLastAuthorizedNumbers)
       .values({ pointOfSaleNumber: 8, lastAuthorized: 0, readAt: NOW });
@@ -208,6 +217,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       "product",
       "register_offline_point_of_sale",
       "register_point_of_sale",
+      "register_point_terminal",
       "role",
       "role",
       "tag",
