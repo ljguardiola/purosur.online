@@ -1,9 +1,10 @@
+import type { MercadoPagoOrderRefund, MercadoPagoRefundAnswer } from "@purosur/domain";
 import type {
   MercadoPagoOrderCancellation,
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
+  MercadoPagoOrderRefundsReading,
   MercadoPagoOrders,
-  MercadoPagoPointOrderCreation,
   MercadoPagoPointOrderRequest,
   MercadoPagoQrOrderRequest,
 } from "@purosur/domain/payments/use-cases";
@@ -12,7 +13,6 @@ import { z } from "zod";
 export interface MercadoPagoOrdersClientOptions {
   accessToken: string;
   externalPosId: string;
-  pointTerminalId?: string;
   fetch?: typeof globalThis.fetch;
 }
 
@@ -23,6 +23,15 @@ const DECIMAL_AMOUNT = /^(\d+)(?:\.(\d{1,2}))?$/;
 const REQUEST_TIMEOUT = 408;
 const TOO_MANY_REQUESTS = 429;
 const CONFLICT = 409;
+const UNPROCESSABLE = 422;
+const BAD_REQUEST = 400;
+const INSUFFICIENT_MONEY = 428;
+const ALREADY_REFUNDED_CODE = "order_already_refunded";
+const FINAL_REFUSAL_CODES: ReadonlyMap<number, readonly string[]> = new Map([
+  [CONFLICT, ["cannot_refund_order", "refund_period_exceeded", "idempotency_key_already_used"]],
+  [UNPROCESSABLE, ["payment_not_refundable"]],
+  [BAD_REQUEST, ["in_store_payment_refund_order"]],
+]);
 
 function pesosOfCents(cents: number): string {
   const pesos = Math.floor(cents / CENTS_PER_PESO);
@@ -89,6 +98,20 @@ function parsedOrder(body: unknown) {
   };
 }
 
+const refundsSchema = z.object({
+  transactions: z
+    .object({
+      refunds: z.array(z.object({ id: z.string().min(1), status: z.string() })).optional(),
+    })
+    .optional(),
+});
+
+const refundedAnswerSchema = z.object({
+  transactions: z.object({
+    refunds: z.array(z.object({ id: z.string().min(1), status: z.string() })).min(1),
+  }),
+});
+
 const conflictAnswerSchema = z.object({ errors: z.array(z.object({ code: z.string() })).min(1) });
 const ERROR_CODE_SHAPE = /^[a-z][a-z0-9_]{0,63}$/;
 
@@ -100,6 +123,37 @@ function conflictCode(body: unknown): string | null {
 function loggableErrorCode(body: unknown): string | null {
   const code = conflictCode(body);
   return code !== null && ERROR_CODE_SHAPE.test(code) ? code : null;
+}
+
+function notRefunded(status: AnswerStatus, body: unknown): MercadoPagoRefundAnswer {
+  warnOfAnswer("Mercado Pago did not refund the order", status, body);
+  return { kind: "unavailable" };
+}
+
+function notReadRefunds(status: AnswerStatus, body: unknown): MercadoPagoOrderRefundsReading {
+  warnOfAnswer("Mercado Pago did not answer the refunds of the order", status, body);
+  return { kind: "unavailable" };
+}
+
+function refundAnswerOf(status: number, body: unknown): MercadoPagoRefundAnswer {
+  if (status >= 200 && status < 300) {
+    const parsed = refundedAnswerSchema.safeParse(body);
+    const refund = parsed.success ? parsed.data.transactions.refunds.at(-1) : undefined;
+    return refund === undefined
+      ? notRefunded(status, body)
+      : { kind: "refunded", providerRefundId: refund.id, processed: refund.status === "processed" };
+  }
+  const code = conflictCode(body);
+  if (status === INSUFFICIENT_MONEY && code === "insufficient_money_for_refund") {
+    return { kind: "insufficient_balance" };
+  }
+  if (status === CONFLICT && code === ALREADY_REFUNDED_CODE) {
+    return { kind: "already_refunded" };
+  }
+  if (code !== null && FINAL_REFUSAL_CODES.get(status)?.includes(code)) {
+    return { kind: "refused", reason: code };
+  }
+  return notRefunded(status, body);
 }
 
 type AnswerStatus = number | "unreachable";
@@ -188,17 +242,13 @@ export function createMercadoPagoOrdersClient(
 
     async createPointOrder(
       request: MercadoPagoPointOrderRequest,
-    ): Promise<MercadoPagoPointOrderCreation> {
-      const { pointTerminalId } = options;
-      if (pointTerminalId === undefined) {
-        return { kind: "not_configured" };
-      }
+    ): Promise<MercadoPagoOrderCreation> {
       return createOrder(request, {
         type: "point",
         external_reference: request.externalReference,
         expiration_time: `PT${request.expiresAfterMinutes}M`,
         transactions: { payments: [{ amount: pesosOfCents(request.amount) }] },
-        config: { point: { terminal_id: pointTerminalId, print_on_terminal: "no_ticket" } },
+        config: { point: { terminal_id: request.terminalId, print_on_terminal: "no_ticket" } },
       });
     },
 
@@ -217,6 +267,35 @@ export function createMercadoPagoOrdersClient(
       return order === null
         ? notRead(answer.status, answer.body)
         : { kind: "read", result: order.result };
+    },
+
+    async refundOrder(orderId: string, idempotencyKey: string): Promise<MercadoPagoRefundAnswer> {
+      const answer = await call(`/v1/orders/${encodeURIComponent(orderId)}/refund`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${options.accessToken}`,
+          "X-Idempotency-Key": idempotencyKey,
+        },
+      });
+      return answer.kind === "unreachable"
+        ? notRefunded("unreachable", null)
+        : refundAnswerOf(answer.status, answer.body);
+    },
+
+    async readOrderRefunds(orderId: string): Promise<MercadoPagoOrderRefundsReading> {
+      const answer = await call(`/v1/orders/${encodeURIComponent(orderId)}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${options.accessToken}` },
+      });
+      if (answer.kind === "unreachable") {
+        return notReadRefunds("unreachable", null);
+      }
+      const parsed = refundsSchema.safeParse(answer.body);
+      if (answer.status < 200 || answer.status >= 300 || !parsed.success) {
+        return notReadRefunds(answer.status, answer.body);
+      }
+      const refunds: MercadoPagoOrderRefund[] = parsed.data.transactions?.refunds ?? [];
+      return { kind: "read", refunds };
     },
 
     async cancelOrder(

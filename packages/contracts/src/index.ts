@@ -139,6 +139,7 @@ export {
 } from "./fiscal/unclear-outcome-question.js";
 export type {
   AbandonMercadoPagoChargeOutcome,
+  ConvertPaidOrderIntoRefundOutcome,
   FollowMercadoPagoChargeOutcome,
   PaymentsCoreToRendererMessage,
   PaymentsRendererToCoreMessage,
@@ -161,18 +162,38 @@ export {
   mercadoPagoOrderRequestSchema,
   mercadoPagoPaymentSchema,
 } from "./payments/mercado-pago-order.js";
+export type {
+  ApprovedOrdersOfRegisterBody,
+  LatePaymentRefundOpeningBody,
+  LatePaymentRefundRefusalDetail,
+} from "./payments/paid-orders-of-register.js";
+export {
+  approvedOrdersOfRegisterSchema,
+  latePaymentRefundOpeningSchema,
+  latePaymentRefundRefusalDetailSchema,
+} from "./payments/paid-orders-of-register.js";
 export type { PaymentMethodAvailability } from "./payments/payment-method-availability.js";
 export { paymentMethodAvailabilitySchema } from "./payments/payment-method-availability.js";
 export type {
+  ConfirmedRefundBody,
   DiscardedRefundBody,
   MarkedRefundDoneBody,
   PendingRefundsBody,
 } from "./payments/pending-refunds.js";
 export {
+  confirmedRefundSchema,
   discardedRefundSchema,
   markedRefundDoneSchema,
   pendingRefundsSchema,
 } from "./payments/pending-refunds.js";
+export type {
+  PointTerminalAssignmentAnswer,
+  PointTerminalAssignmentBody,
+} from "./payments/point-terminal-assignment.js";
+export {
+  pointTerminalAssignmentBodySchema,
+  pointTerminalAssignmentSchema,
+} from "./payments/point-terminal-assignment.js";
 export type { SalesByPaymentMethodBody } from "./payments/sales-by-payment-method.js";
 export { salesByPaymentMethodSchema } from "./payments/sales-by-payment-method.js";
 export type { PermissionCatalogWire } from "./permissions/permission-catalog.js";
@@ -214,6 +235,29 @@ export type { PriceMargin } from "./pricing/price-margin.js";
 export { priceMarginQuerySchema, priceMarginSchema } from "./pricing/price-margin.js";
 export type { PriceSetBody } from "./pricing/price-set.js";
 export { priceSetBodySchema } from "./pricing/price-set.js";
+export type { FreightBody } from "./purchasing/freight-body.js";
+export { freightBodySchema } from "./purchasing/freight-body.js";
+export type { FreightPeriod } from "./purchasing/freight-period.js";
+export { freightPeriodDaysSchema, freightPeriodSchema } from "./purchasing/freight-period.js";
+export {
+  freightListQuerySchema,
+  linkablePurchasesQuerySchema,
+} from "./purchasing/freight-query.js";
+export type { Freight, FreightList, FreightSummary } from "./purchasing/freight-summary.js";
+export {
+  freightListSchema,
+  freightMeansSchema,
+  freightSchema,
+  freightSummarySchema,
+} from "./purchasing/freight-summary.js";
+export type {
+  LinkablePurchaseList,
+  LinkablePurchaseSummary,
+} from "./purchasing/linkable-purchase-summary.js";
+export {
+  linkablePurchaseListSchema,
+  linkablePurchaseSummarySchema,
+} from "./purchasing/linkable-purchase-summary.js";
 export type { PackagingCreationBody } from "./purchasing/packaging-creation.js";
 export { packagingCreationBodySchema } from "./purchasing/packaging-creation.js";
 export type { PackagingEditBody } from "./purchasing/packaging-edit.js";
@@ -318,7 +362,18 @@ export {
 } from "./register/register-update.js";
 export type { ReportRegisterListBody } from "./register/report-register-list.js";
 export { reportRegisterListSchema } from "./register/report-register-list.js";
+export type { RestorableSnapshots } from "./register/restorable-snapshots.js";
+export { restorableSnapshotsSchema } from "./register/restorable-snapshots.js";
+export type { SnapshotCorruptionBody } from "./register/snapshot-corruption.js";
+export { snapshotCorruptionBodySchema } from "./register/snapshot-corruption.js";
+export type { SnapshotUploadAnswer, SnapshotUploadBody } from "./register/snapshot-upload.js";
+export {
+  snapshotUploadAnswerSchema,
+  snapshotUploadBodySchema,
+} from "./register/snapshot-upload.js";
 export type { StartupPending } from "./register/startup-pending.js";
+export type { AverageTicketBody } from "./sales/average-ticket.js";
+export { averageTicketSchema } from "./sales/average-ticket.js";
 export type {
   CancelLockedSaleOutcome,
   PrintOriginalReceiptOutcome,
@@ -365,6 +420,16 @@ export type {
   SearchProductsOutcome,
   WeighProductOutcome,
 } from "./sales/sale.js";
+export type { SalesByCashierBody } from "./sales/sales-by-cashier.js";
+export { salesByCashierSchema } from "./sales/sales-by-cashier.js";
+export type {
+  SalesByProductAndCategoryBody,
+  SalesByProductAndCategoryQuery,
+} from "./sales/sales-by-product-and-category.js";
+export {
+  salesByProductAndCategoryQuerySchema,
+  salesByProductAndCategorySchema,
+} from "./sales/sales-by-product-and-category.js";
 export type {
   ReceiptCopyShown,
   SaleHistoryDetailOutcome,
@@ -372,6 +437,8 @@ export type {
 } from "./sales/sales-history.js";
 export type { SalesReportBody } from "./sales/sales-report.js";
 export { salesReportSchema } from "./sales/sales-report.js";
+export type { SalesReportGroupBody } from "./sales/sales-report-group.js";
+export { salesReportGroupSchema } from "./sales/sales-report-group.js";
 export type {
   SessionsCoreToRendererMessage,
   SessionsRendererToCoreMessage,
@@ -521,6 +588,14 @@ export {
   quarantinedEventsListSchema,
   releaseQuarantinedEventErrorSchema,
 } from "./sync/quarantined-events.js";
+export type {
+  RegistersBelowMinimum,
+  RegistersBelowMinimumQuery,
+} from "./sync/registers-below-minimum.js";
+export {
+  registersBelowMinimumQuerySchema,
+  registersBelowMinimumSchema,
+} from "./sync/registers-below-minimum.js";
 export type {
   SyncedEventPayloadKey,
   SyncedEventPayloads,

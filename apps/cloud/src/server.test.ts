@@ -45,6 +45,10 @@ import {
   VALID_ARCA_CERTIFICATE,
   VALID_ARCA_CERTIFICATE_SINGLE_LINE,
 } from "./test-support/arca-certificate-fixtures.js";
+import {
+  FICTIONAL_RECOVERY_REPLY_TO,
+  FICTIONAL_RECOVERY_SENDER,
+} from "./test-support/recovery-email.js";
 
 describe("resolveVersion", () => {
   it("returns APP_VERSION when set", () => {
@@ -282,8 +286,8 @@ describe("resolveRecoveryEnv", () => {
   const FULL_RECOVERY_ENV = {
     DATABASE_URL: "postgres://user:pass@db/purosur",
     RESEND_API_KEY: "re_test_key",
-    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-    RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+    RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
   };
 
@@ -291,8 +295,8 @@ describe("resolveRecoveryEnv", () => {
     expect(resolveRecoveryEnv(FULL_RECOVERY_ENV)).toEqual({
       databaseUrl: "postgres://user:pass@db/purosur",
       emailSender: { transport: "resend", resendApiKey: "re_test_key" },
-      emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
-      emailReplyTo: "purosur.comarca@gmail.com",
+      emailFrom: FICTIONAL_RECOVERY_SENDER,
+      emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
       backofficeOrigin: "https://staging.purosur.online",
     });
   });
@@ -321,8 +325,8 @@ describe("resolveRecoveryEnv", () => {
       expect(resolveRecoveryEnv(env)).toEqual({
         databaseUrl: "postgres://user:pass@db/purosur",
         emailSender: { transport: "log" },
-        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
-        emailReplyTo: "purosur.comarca@gmail.com",
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
         backofficeOrigin: "http://localhost:5173",
       });
     });
@@ -337,8 +341,8 @@ describe("resolveRecoveryEnv", () => {
       expect(resolveRecoveryEnv(env)).toEqual({
         databaseUrl: "postgres://user:pass@db/purosur",
         emailSender: { transport: "log" },
-        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
-        emailReplyTo: "purosur.comarca@gmail.com",
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
         backofficeOrigin: "http://127.0.0.1:5173",
       });
     });
@@ -494,6 +498,41 @@ describe("startServer", () => {
     expect(downloadUrl.searchParams.get("X-Amz-Credential")).toMatch(/^fictional-key-id\//);
   });
 
+  it("gives the app the register snapshot URLs presigned for the configured snapshots bucket", async () => {
+    const buildApp = vi.fn().mockReturnValue(appListeningBy(vi.fn().mockResolvedValue(undefined)));
+
+    await startServer(
+      {
+        EDGE_ORIGIN_SECRET: "edge-secret",
+        REGISTER_SNAPSHOTS_BUCKET_ENDPOINT: "https://storage.example.com",
+        REGISTER_SNAPSHOTS_BUCKET_NAME: "register-backups",
+        REGISTER_SNAPSHOTS_BUCKET_REGION: "auto",
+        REGISTER_SNAPSHOTS_BUCKET_ACCESS_KEY_ID: "fictional-key-id",
+        REGISTER_SNAPSHOTS_BUCKET_SECRET_ACCESS_KEY: "fictional-secret",
+      },
+      { arcaEndpoints: unreachableArcaEndpoints, initSentry: vi.fn(), buildApp, now },
+    );
+
+    const [options] = buildApp.mock.calls[0] ?? [];
+    const downloadUrl = new URL(await options.registerSnapshotUrls.downloadUrl("reg-1", "gen-1"));
+    expect(`${downloadUrl.origin}${downloadUrl.pathname}`).toBe(
+      "https://register-backups.storage.example.com/snapshots/reg-1/gen-1",
+    );
+    expect(downloadUrl.searchParams.get("X-Amz-Credential")).toMatch(/^fictional-key-id\//);
+  });
+
+  it("gives the app no register snapshot URLs when no snapshots bucket is configured", async () => {
+    const buildApp = vi.fn().mockReturnValue(appListeningBy(vi.fn().mockResolvedValue(undefined)));
+
+    await startServer(
+      { EDGE_ORIGIN_SECRET: "edge-secret" },
+      { arcaEndpoints: unreachableArcaEndpoints, initSentry: vi.fn(), buildApp, now },
+    );
+
+    const [options] = buildApp.mock.calls[0] ?? [];
+    expect(options).not.toHaveProperty("registerSnapshotUrls");
+  });
+
   it("refuses to start with a backoffice DSN and no environment to tell its reports apart by", async () => {
     const buildApp = vi.fn();
 
@@ -568,8 +607,8 @@ describe("startServer", () => {
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
       RESEND_API_KEY: "re_test_key",
-      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-      RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+      RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+      RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
     };
 
@@ -606,8 +645,8 @@ describe("startServer", () => {
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
       RESEND_API_KEY: "re_test_key",
-      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-      RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+      RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+      RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
     };
@@ -630,8 +669,8 @@ describe("startServer", () => {
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
       RESEND_API_KEY: "re_test_key",
-      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-      RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+      RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+      RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
       ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
@@ -656,8 +695,8 @@ describe("startServer", () => {
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
       RESEND_API_KEY: "re_test_key",
-      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-      RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+      RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+      RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
       ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
@@ -685,8 +724,8 @@ describe("startServer", () => {
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
       RESEND_API_KEY: "re_test_key",
-      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-      RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+      RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+      RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
       ARCA_CERTIFICATE: ARCA_CERTIFICATE_WITH_WRONG_CHECK_DIGIT,
@@ -723,10 +762,11 @@ describe("startServer", () => {
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
       RESEND_API_KEY: "re_test_key",
-      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-      RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+      RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+      RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
+      RELEASE_CHECK_TOKEN: "release-check-token",
       ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
       ARCA_ENVIRONMENT: "homologation",
       DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
@@ -748,8 +788,8 @@ describe("startServer", () => {
       {
         databaseUrl: "postgres://user:pass@db/purosur",
         emailSender: { transport: "resend", resendApiKey: "re_test_key" },
-        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
-        emailReplyTo: "purosur.comarca@gmail.com",
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
         backofficeOrigin: "https://staging.purosur.online",
         arcaCertificate: {
           environment: "homologation",
@@ -830,6 +870,10 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
       },
+      registersBelowMinimum: {
+        db: fakeRecovery.db,
+        releaseCheckToken: "release-check-token",
+      },
       prices: {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
@@ -889,8 +933,8 @@ describe("startServer recording the certificate's CUIT", () => {
   const env = {
     DATABASE_URL: "postgres://user:pass@db/purosur",
     RESEND_API_KEY: "re_test_key",
-    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-    RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+    RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
     EDGE_ORIGIN_SECRET: "edge-secret",
     ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
@@ -953,8 +997,8 @@ describe("startServer checking the certificate's expiry", () => {
   const env = {
     DATABASE_URL: "postgres://user:pass@db/purosur",
     RESEND_API_KEY: "re_test_key",
-    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-    RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+    RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
     EDGE_ORIGIN_SECRET: "edge-secret",
     ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
@@ -1033,8 +1077,8 @@ describe("startServer with the ARCA private key", () => {
   const baseEnv = {
     DATABASE_URL: "postgres://user:pass@db/purosur",
     RESEND_API_KEY: "re_test_key",
-    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-    RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+    RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
     EDGE_ORIGIN_SECRET: "edge-secret",
     ARCA_CERTIFICATE: credentials.certificatePem,
@@ -1213,8 +1257,8 @@ describe("startServer fetching the buyer tax-status values", () => {
   const env = {
     DATABASE_URL: "postgres://user:pass@db/purosur",
     RESEND_API_KEY: "re_test_key",
-    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-    RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+    RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
     EDGE_ORIGIN_SECRET: "edge-secret",
     ARCA_CERTIFICATE: credentials.certificatePem,
@@ -1305,8 +1349,8 @@ describe("startServer authorizing sales in real time", () => {
   const env = {
     DATABASE_URL: "postgres://user:pass@db/purosur",
     RESEND_API_KEY: "re_test_key",
-    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-    RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+    RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
     EDGE_ORIGIN_SECRET: "edge-secret",
     ARCA_CERTIFICATE: credentials.certificatePem,
@@ -1492,8 +1536,8 @@ describe("startServer creating Mercado Pago QR orders", () => {
   const env = {
     DATABASE_URL: "postgres://user:pass@db/purosur",
     RESEND_API_KEY: "re_test_key",
-    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-    RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+    RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
     EDGE_ORIGIN_SECRET: "edge-secret",
     ARCA_CERTIFICATE: credentials.certificatePem,
@@ -1547,6 +1591,8 @@ describe("startServer creating Mercado Pago QR orders", () => {
       createPointOrder: expect.any(Function),
       readOrder: expect.any(Function),
       cancelOrder: expect.any(Function),
+      refundOrder: expect.any(Function),
+      readOrderRefunds: expect.any(Function),
     };
     expect(options.mercadoPagoOrders).toEqual({ connections: recovery.connections, mercadoPago });
     expect(options.mercadoPagoNotifications).toEqual({
@@ -1573,6 +1619,8 @@ describe("startServer creating Mercado Pago QR orders", () => {
       createPointOrder: expect.any(Function),
       readOrder: expect.any(Function),
       cancelOrder: expect.any(Function),
+      refundOrder: expect.any(Function),
+      readOrderRefunds: expect.any(Function),
     });
   });
 
@@ -1642,8 +1690,8 @@ describe("startServer with the real app", () => {
       {
         DATABASE_URL: "postgres://user:pass@db/purosur",
         RESEND_API_KEY: "re_test_key",
-        RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-        RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+        RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+        RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
         BACKOFFICE_ORIGIN: "https://staging.purosur.online",
         EDGE_ORIGIN_SECRET: "edge-secret",
         ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
@@ -1902,8 +1950,8 @@ describe("startServer ARCA endpoints", () => {
       {
         DATABASE_URL: "postgres://user:pass@db/purosur",
         RESEND_API_KEY: "re_test_key",
-        RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-        RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+        RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+        RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
         BACKOFFICE_ORIGIN: "https://staging.purosur.online",
         EDGE_ORIGIN_SECRET: "edge-secret",
         ARCA_CERTIFICATE: credentials.certificatePem,

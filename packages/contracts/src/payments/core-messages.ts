@@ -29,6 +29,12 @@ const abandonMercadoPagoChargeMessageSchema = z.object({
   payment_transaction_id: z.string(),
 });
 
+const convertPaidOrderIntoRefundMessageSchema = z.object({
+  type: z.literal("convert-paid-order-into-refund"),
+  request_id: requestIdSchema,
+  payment_transaction_id: z.string(),
+});
+
 const paymentMethodAvailabilityMessageSchema = z.object({
   type: z.literal("payment-method-availability"),
   request_id: requestIdSchema,
@@ -38,6 +44,7 @@ export const paymentsRendererToCoreMessageSchema = z.discriminatedUnion("type", 
   startMercadoPagoChargeMessageSchema,
   followMercadoPagoChargeMessageSchema,
   abandonMercadoPagoChargeMessageSchema,
+  convertPaidOrderIntoRefundMessageSchema,
   paymentMethodAvailabilityMessageSchema,
 ]);
 export type PaymentsRendererToCoreMessage = z.infer<typeof paymentsRendererToCoreMessageSchema>;
@@ -112,6 +119,20 @@ const abandonMercadoPagoChargeOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type AbandonMercadoPagoChargeOutcome = z.infer<typeof abandonMercadoPagoChargeOutcomeSchema>;
 
+const convertPaidOrderIntoRefundOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("converted") }),
+  z.object({ kind: z.literal("already_resolved") }),
+  z.object({ kind: z.literal("not_found") }),
+  z.object({ kind: z.literal("refused") }),
+  z.object({ kind: z.literal("unreachable") }),
+  z.object({ kind: z.literal("not_permitted") }),
+  z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type ConvertPaidOrderIntoRefundOutcome = z.infer<
+  typeof convertPaidOrderIntoRefundOutcomeSchema
+>;
+
 export const paymentsCoreToRendererMessageSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("payment-method-availability-result"),
@@ -132,6 +153,11 @@ export const paymentsCoreToRendererMessageSchema = z.discriminatedUnion("type", 
     type: z.literal("abandon-mercado-pago-charge-result"),
     request_id: requestIdSchema,
     outcome: abandonMercadoPagoChargeOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("convert-paid-order-into-refund-result"),
+    request_id: requestIdSchema,
+    outcome: convertPaidOrderIntoRefundOutcomeSchema,
   }),
 ]);
 export type PaymentsCoreToRendererMessage = z.infer<typeof paymentsCoreToRendererMessageSchema>;

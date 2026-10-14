@@ -32,6 +32,7 @@ import {
   readRefundCompletions,
   readRegisterOfflinePointsOfSale,
   readRegisterPointsOfSale,
+  readRegisterPointTerminals,
   readRegisters,
   readRoles,
   readStockMovements,
@@ -111,6 +112,10 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
     const registerPointOfSaleRows = await readRegisterPointsOfSale(
       this.tx,
       idsOf(logged, "register_point_of_sale"),
+    );
+    const registerPointTerminalRows = await readRegisterPointTerminals(
+      this.tx,
+      idsOf(logged, "register_point_terminal"),
     );
     const registerOfflinePointOfSaleRows = await readRegisterOfflinePointsOfSale(
       this.tx,
@@ -234,6 +239,14 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
             entity,
             entityId,
             row: requiredRow(registerPointOfSaleRows.get(entityId), entity),
+          });
+          break;
+        case "register_point_terminal":
+          pulled.push({
+            changeSeq,
+            entity,
+            entityId,
+            row: requiredRow(registerPointTerminalRows.get(entityId), entity),
           });
           break;
         case "register_offline_point_of_sale":

@@ -1,9 +1,10 @@
+import type { MercadoPagoRefundAnswer } from "@purosur/domain";
 import type {
   MercadoPagoOrderCancellation,
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
+  MercadoPagoOrderRefundsReading,
   MercadoPagoOrders,
-  MercadoPagoPointOrderCreation,
   MercadoPagoPointOrderRequest,
   MercadoPagoQrOrderRequest,
 } from "@purosur/domain/payments/use-cases";
@@ -49,23 +50,29 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   readonly pointCreations: MercadoPagoPointOrderRequest[] = [];
   readonly readings: string[] = [];
   readonly cancellations: { orderId: string; idempotencyKey: string }[] = [];
+  readonly refunds: { orderId: string; idempotencyKey: string }[] = [];
+  readonly refundReadings: string[] = [];
   creation: MercadoPagoOrderCreation = { kind: "created", orderId: ORDER_ID, result: UNPAID_ORDER };
-  pointCreation: MercadoPagoPointOrderCreation = {
+  pointCreation: MercadoPagoOrderCreation = {
     kind: "created",
     orderId: ORDER_ID,
     result: UNPAID_ORDER,
   };
   reading: MercadoPagoOrderReading = { kind: "read", result: UNPAID_ORDER };
   cancellation: MercadoPagoOrderCancellation = { kind: "cancelled", result: CANCELLED_ORDER };
+  refund: MercadoPagoRefundAnswer = {
+    kind: "refunded",
+    providerRefundId: "REF01JQ4S4KY8HWQ6NA5PXB65B3D3",
+    processed: false,
+  };
+  orderRefunds: MercadoPagoOrderRefundsReading = { kind: "read", refunds: [] };
 
   async createQrOrder(request: MercadoPagoQrOrderRequest): Promise<MercadoPagoOrderCreation> {
     this.creations.push(request);
     return this.creation;
   }
 
-  async createPointOrder(
-    request: MercadoPagoPointOrderRequest,
-  ): Promise<MercadoPagoPointOrderCreation> {
+  async createPointOrder(request: MercadoPagoPointOrderRequest): Promise<MercadoPagoOrderCreation> {
     this.pointCreations.push(request);
     return this.pointCreation;
   }
@@ -81,5 +88,15 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   ): Promise<MercadoPagoOrderCancellation> {
     this.cancellations.push({ orderId, idempotencyKey });
     return this.cancellation;
+  }
+
+  async refundOrder(orderId: string, idempotencyKey: string): Promise<MercadoPagoRefundAnswer> {
+    this.refunds.push({ orderId, idempotencyKey });
+    return this.refund;
+  }
+
+  async readOrderRefunds(orderId: string): Promise<MercadoPagoOrderRefundsReading> {
+    this.refundReadings.push(orderId);
+    return this.orderRefunds;
   }
 }

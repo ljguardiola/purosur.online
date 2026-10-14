@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { isValidCuit } from "@purosur/domain";
 import { recordAuthorizedCuit } from "@purosur/domain/fiscal/use-cases";
 import type { MercadoPagoOrders } from "@purosur/domain/payments/use-cases";
+import type { SnapshotObjects } from "@purosur/domain/register/use-cases";
 import * as Sentry from "@sentry/node";
 import {
   drizzle,
@@ -67,6 +68,7 @@ import { WsfeTaxAuthorityVouchers } from "./fiscal/wsfe-tax-authority-vouchers.j
 import { resolveMercadoPagoConfig } from "./payments/mercado-pago-config.js";
 import { createMercadoPagoOrdersClient } from "./payments/mercado-pago-orders-client.js";
 import { mercadoPagoPendingCheckJobs } from "./payments/mercado-pago-pending-check-task.js";
+import { mercadoPagoRefundFollowJobs } from "./payments/mercado-pago-refund-follow-task.js";
 import {
   type DedicatedConnections,
   postgresDedicatedConnections,
@@ -75,6 +77,9 @@ import { normalizePemNewlines } from "./platform/pem-newlines.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
 import { BucketRegisterReleases } from "./register/bucket-register-releases.js";
+import { BucketRegisterSnapshots } from "./register/bucket-register-snapshots.js";
+import { registerSnapshotJobs } from "./register/register-snapshot-jobs.js";
+import { resolveRegisterSnapshotsBucketConfig } from "./register/register-snapshots-bucket-config.js";
 import { resolveRegisterUpdatesBucketConfig } from "./register/register-updates-bucket-config.js";
 import { applySyncedEventsJobs } from "./sync/apply-synced-events-task.js";
 
@@ -94,6 +99,7 @@ export interface ServerEnv {
   BACKOFFICE_ORIGIN?: string | undefined;
   RECOVERY_EMAIL_TRANSPORT?: string | undefined;
   EDGE_ORIGIN_SECRET?: string | undefined;
+  RELEASE_CHECK_TOKEN?: string | undefined;
   /** PEM text of the ARCA X.509 certificate authorizing this business at the tax authority. */
   ARCA_CERTIFICATE?: string | undefined;
   /** The ARCA environment the certificate belongs to: `homologation` or `production`. */
@@ -105,13 +111,16 @@ export interface ServerEnv {
   MERCADOPAGO_QR_EXTERNAL_POS_ID?: string | undefined;
   /** The secret Mercado Pago signs its notifications with, from its developer panel. */
   MERCADOPAGO_WEBHOOK_SECRET?: string | undefined;
-  /** The identifier of the store's integrated Point terminal at Mercado Pago. */
-  MERCADOPAGO_POINT_TERMINAL_ID?: string | undefined;
   REGISTER_UPDATES_BUCKET_ENDPOINT?: string | undefined;
   REGISTER_UPDATES_BUCKET_NAME?: string | undefined;
   REGISTER_UPDATES_BUCKET_REGION?: string | undefined;
   REGISTER_UPDATES_BUCKET_ACCESS_KEY_ID?: string | undefined;
   REGISTER_UPDATES_BUCKET_SECRET_ACCESS_KEY?: string | undefined;
+  REGISTER_SNAPSHOTS_BUCKET_ENDPOINT?: string | undefined;
+  REGISTER_SNAPSHOTS_BUCKET_NAME?: string | undefined;
+  REGISTER_SNAPSHOTS_BUCKET_REGION?: string | undefined;
+  REGISTER_SNAPSHOTS_BUCKET_ACCESS_KEY_ID?: string | undefined;
+  REGISTER_SNAPSHOTS_BUCKET_SECRET_ACCESS_KEY?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
@@ -383,6 +392,7 @@ export interface SetUpRecoveryEnv extends RecoveryEnv {
   arcaBuyerTaxStatus?: { endpoint: string; cuit: string; certificateFingerprint: string };
   arcaInvoicing?: { endpoint: string; cuit: string; certificateFingerprint: string };
   mercadoPago?: MercadoPagoOrders;
+  registerSnapshotObjects?: SnapshotObjects;
 }
 
 function wsaaRenewalInput(
@@ -499,9 +509,18 @@ export async function setUpRecovery(
         }),
       }),
       applySyncedEventsJobs({ now }),
+      ...(recoveryEnv.registerSnapshotObjects
+        ? [registerSnapshotJobs({ now, objects: recoveryEnv.registerSnapshotObjects })]
+        : []),
       ...(recoveryEnv.mercadoPago
         ? [
             mercadoPagoPendingCheckJobs({
+              now,
+              mercadoPago: recoveryEnv.mercadoPago,
+              db,
+              connections,
+            }),
+            mercadoPagoRefundFollowJobs({
               now,
               mercadoPago: recoveryEnv.mercadoPago,
               db,
@@ -640,6 +659,10 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
   const registerReleases =
     registerUpdatesBucketConfig &&
     new BucketRegisterReleases(registerUpdatesBucketConfig, { fetch, now });
+  const registerSnapshotsBucketConfig = resolveRegisterSnapshotsBucketConfig(env);
+  const registerSnapshots =
+    registerSnapshotsBucketConfig &&
+    new BucketRegisterSnapshots(registerSnapshotsBucketConfig, { fetch, now });
   const configuration = recoveryEnv
     ? {
         authorizedCuit: requireAuthorizedCuit(env),
@@ -655,6 +678,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           arcaVitality: { endpoint: arcaEndpoints(requireArcaEnvironment(env)).wsfe },
           ...resolveArcaSigning(env, arcaEndpoints),
           ...(mercadoPago ? { mercadoPago } : {}),
+          ...(registerSnapshots ? { registerSnapshotObjects: registerSnapshots } : {}),
         },
       }
     : undefined;
@@ -681,7 +705,13 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           certificateFingerprint: database.certificateFingerprint,
           deviceTokenRotationKey: database.deviceTokenRotationKey,
           installationKeysEncryptionKey: database.installationKeysEncryptionKey,
+          releaseCheckToken: env.RELEASE_CHECK_TOKEN,
           ...(invoicing ? { enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob } : {}),
+          ...(mercadoPago
+            ? {
+                refundSending: { connections: database.recovery.connections, mercadoPago },
+              }
+            : {}),
         })
       : {}),
     ...(registerReleases
@@ -692,6 +722,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           },
         }
       : {}),
+    ...(registerSnapshots ? { registerSnapshotUrls: registerSnapshots } : {}),
     ...(database && invoicing
       ? {
           enqueueOfflineAuthorizationCodeRequest,

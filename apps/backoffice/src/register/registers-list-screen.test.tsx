@@ -2,6 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { act, StrictMode } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import type { RegisterSummary } from "./registers-api";
 import { RegistersListScreen } from "./registers-list-screen";
@@ -84,6 +85,8 @@ test("shows recién for a code issued less than a minute ago", async () => {
     name: "Caja 3",
     pendingCode: { secondsSinceIssued: 20, secondsUntilExpiry: 880 },
     pointOfSaleNumber: null,
+    pointTerminalId: null,
+    pointTerminalVersion: 0,
     installation: null,
   };
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [justIssued] });
@@ -367,6 +370,8 @@ test("creates a register and shows it in the list", async () => {
         name: "Caja 3",
         pendingCode: null,
         pointOfSaleNumber: null,
+        pointTerminalId: null,
+        pointTerminalVersion: 0,
         installation: null,
       },
     ],
@@ -461,7 +466,11 @@ test("under StrictMode, clicking the row action emits the code exactly once and 
   const screen = await render(
     <StrictMode>
       <main>
-        <RegistersListScreen services={services} onSessionEnded={() => {}} />
+        <RegistersListScreen
+          access={ADMINISTRATOR_ACCESS}
+          services={services}
+          onSessionEnded={() => {}}
+        />
       </main>
     </StrictMode>,
   );
@@ -677,6 +686,8 @@ test("keeps the current rows visible while the list refreshes after creating a r
         name: "Caja 3",
         pendingCode: null,
         pointOfSaleNumber: null,
+        pointTerminalId: null,
+        pointTerminalVersion: 0,
         installation: null,
       },
     ],
@@ -712,6 +723,8 @@ test("shows loading placeholders, not an empty table, while the list refreshes f
         name: "Caja 3",
         pendingCode: null,
         pointOfSaleNumber: null,
+        pointTerminalId: null,
+        pointTerminalVersion: 0,
         installation: null,
       },
     ],
@@ -816,4 +829,129 @@ test("has no accessibility violations once loaded, with the create modal open, a
 
   await openEmitModal(screen, "Caja 1");
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("shows each register's Point terminal, or Sin asignar when it has none", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({
+    kind: "ok",
+    value: [register1, register2],
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("columnheader", { name: "Terminal Point" })).toBeVisible();
+  await expect.element(screen.getByText("TERM-0042")).toBeVisible();
+  await expect.element(screen.getByText("Sin asignar")).toBeVisible();
+});
+
+async function openTerminalModal(screen: Awaited<ReturnType<typeof renderScreen>>, name: string) {
+  await userEvent.click(screen.getByRole("button", { name: `Asignar terminal Point a ${name}` }));
+  return screen.getByRole("dialog", { name: "Terminal Point integrada" });
+}
+
+test("the row action opens the terminal modal for that register with its current terminal", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({
+    kind: "ok",
+    value: [register1, register2],
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 2")).toBeVisible();
+
+  const dialog = await openTerminalModal(screen, "Caja 2");
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Identificador de la terminal/ }))
+    .toHaveValue("TERM-0042");
+});
+
+test("assigning a terminal closes the modal and reads the list again", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({
+    kind: "ok",
+    value: [{ ...register1, pointTerminalId: "TERM-0100", pointTerminalVersion: 1 }],
+  });
+  vi.mocked(services.assignPointTerminal).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Sin asignar")).toBeVisible();
+  const dialog = await openTerminalModal(screen, "Caja 1");
+
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Identificador de la terminal/ }),
+    "TERM-0100",
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar" }));
+
+  expect(services.assignPointTerminal).toHaveBeenCalledWith("register-1", {
+    terminal_id: "TERM-0100",
+    version: 0,
+  });
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("TERM-0100")).toBeVisible();
+});
+
+test("offers the Point terminal action only to who may assign it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
+
+  const withoutIt = await renderScreen(services, () => {}, accessWith("registers_area"));
+  await expect.element(withoutIt.getByText("Caja 1")).toBeVisible();
+  expect(
+    withoutIt.getByRole("button", { name: "Asignar terminal Point a Caja 1" }).query(),
+  ).toBeNull();
+  await expect
+    .element(withoutIt.getByRole("button", { name: "Emitir código de alta para Caja 1" }))
+    .toBeVisible();
+  await withoutIt.unmount();
+
+  const withIt = await renderScreen(services, () => {}, accessWith("registers_area", "cash_area"));
+  await expect
+    .element(withIt.getByRole("button", { name: "Asignar terminal Point a Caja 1" }))
+    .toBeVisible();
+});
+
+test("Recargar in the terminal modal reads the registers once and shows what changed", async () => {
+  const services = createServices();
+  const changed = { ...register1, pointTerminalId: "TERM-0077", pointTerminalVersion: 5 };
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [changed] });
+  vi.mocked(services.assignPointTerminal).mockResolvedValue({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  const dialog = await openTerminalModal(screen, "Caja 1");
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Identificador de la terminal/ }),
+    "TERM-0100",
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar" }));
+  await expect.element(dialog.getByRole("button", { name: "Recargar" })).toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Identificador de la terminal/ }))
+    .toHaveValue("TERM-0077");
+  await expect.element(screen.getByRole("cell", { name: "TERM-0077" })).toBeVisible();
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+});
+
+test("a register that disappears while its terminal is edited is reported in the modal and dropped from the list", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.assignPointTerminal).mockResolvedValue({ kind: "not_found" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  const dialog = await openTerminalModal(screen, "Caja 1");
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Identificador de la terminal/ }),
+    "TERM-0100",
+  );
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar" }));
+
+  await expect.element(dialog.getByText("La caja ya no existe")).toBeVisible();
+  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
 });

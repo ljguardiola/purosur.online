@@ -1,7 +1,7 @@
 import axe from "axe-core";
 import { Check, X } from "lucide-react";
 import { expect, expectTypeOf, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio } from "../../styles/contrast";
 import { expectNoAccessibilityViolations } from "../../test/axe";
@@ -1396,4 +1396,71 @@ test("takes only the three load statuses", () => {
   expectTypeOf<ButtonProps["dataStatus"]>().toEqualTypeOf<
     "loading" | "failed" | "loaded" | undefined
   >();
+});
+
+const lockedReason = "Pasá el cobro a reembolso para empezar a vender.";
+
+async function renderLocked(onPress = vi.fn()) {
+  await page.viewport(1280, 900);
+  const session = cdp();
+  await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
+  window.focus();
+  const screen = await render(
+    <Button disabledReason={lockedReason} onPress={onPress}>
+      Ir a vender
+    </Button>,
+  );
+  return { screen, button: screen.getByRole("button", { name: "Ir a vender" }) };
+}
+
+test("is announced disabled and dimmed, and ignores a press, when given the reason it is disabled", async () => {
+  const onPress = vi.fn();
+  const { button } = await renderLocked(onPress);
+
+  button.element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await userEvent.tab();
+  await userEvent.keyboard("{Enter}");
+
+  await expect.element(button).toHaveAttribute("aria-disabled", "true");
+  expect(getComputedStyle(button.element()).opacity).toBe("0.45");
+  expect(getComputedStyle(button.element()).cursor).toBe("default");
+  expect(onPress).not.toHaveBeenCalled();
+});
+
+test("opens the reason it is disabled as a tooltip when hovered", async () => {
+  const { screen, button } = await renderLocked();
+
+  await userEvent.hover(button);
+
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent(lockedReason);
+});
+
+test("opens the reason it is disabled as a tooltip when reached by keyboard", async () => {
+  const { screen, button } = await renderLocked();
+
+  await userEvent.tab();
+
+  expect(document.activeElement).toBe(button.element());
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent(lockedReason);
+});
+
+test("keeps its size, shape and colors when given the reason it is disabled", async () => {
+  const locked = await buttonStyle("Locked", { size: "sale", disabledReason: lockedReason });
+  const disabled = await buttonStyle("Disabled", { size: "sale", disabled: true });
+
+  expect([locked.height, locked.borderRadius, locked.backgroundColor, locked.color]).toEqual([
+    disabled.height,
+    disabled.borderRadius,
+    disabled.backgroundColor,
+    disabled.color,
+  ]);
+});
+
+test("has no accessibility violations with the reason it is disabled, closed or open", async () => {
+  const { screen } = await renderLocked();
+  await expectNoAccessibilityViolations(screen.container);
+
+  await userEvent.tab();
+  await expect.element(screen.getByRole("tooltip")).toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
 });

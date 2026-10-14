@@ -4,6 +4,10 @@ export type CategoryNode = { id: string; name: string; parentId: string | null }
 
 const PATH_SEPARATOR = " › ";
 
+export function categoryPathText(names: readonly string[]): string {
+  return names.join(PATH_SEPARATOR);
+}
+
 export function categoryPathLabels<T extends CategoryNode>(
   categories: readonly T[],
 ): Map<string, string> {

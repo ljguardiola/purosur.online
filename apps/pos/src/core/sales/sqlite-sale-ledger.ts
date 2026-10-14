@@ -7,6 +7,7 @@ import {
   newestPrice,
   nextOperationNumber,
   type OutboxEventDraft,
+  type PaidOrderDiscoveryState,
   type Sale,
   type SaleDiscount,
   type SaleLine,
@@ -26,6 +27,7 @@ import {
   readIssuerIdentificationInEffect,
 } from "../fiscal/sqlite-pre-emission-gate";
 import { decideSaleAuthorizationIn } from "../fiscal/sqlite-sale-authorization";
+import { SqliteLocalPaidOrders } from "../payments/sqlite-local-paid-orders";
 import {
   approvePendingMercadoPagoPayment,
   insertPendingMercadoPagoPayment,
@@ -76,15 +78,18 @@ export class SqliteSaleLedger implements SaleLedger {
   private readonly database: LocalDatabase;
   private readonly people: Pick<SignInStore, "activePerson">;
   private readonly outboxChainKey: string | undefined;
+  private readonly paidOrderDiscovery: () => PaidOrderDiscoveryState;
 
   constructor(
     database: LocalDatabase,
     people: Pick<SignInStore, "activePerson">,
     outboxChainKey?: string,
+    paidOrderDiscovery: () => PaidOrderDiscoveryState = () => "pending",
   ) {
     this.database = database;
     this.people = people;
     this.outboxChainKey = outboxChainKey;
+    this.paidOrderDiscovery = paidOrderDiscovery;
   }
 
   transaction<TOutcome>(work: (tx: SaleLedgerTransaction) => TOutcome): TOutcome {
@@ -97,6 +102,9 @@ export class SqliteSaleLedger implements SaleLedger {
       openSession: () => this.openSession(),
       openSale: (sessionId) => readOpenSale(this.database, sessionId),
       installationRevoked: () => this.installationRevoked(),
+      paidOrdersWithoutSale: () =>
+        new SqliteLocalPaidOrders({ database: this.database }).paidOrdersWithoutSale(),
+      paidOrderDiscovery: () => this.paidOrderDiscovery(),
       registerIdentity: () => this.registerIdentity(),
       activeProductByBarcode: (code) => readActiveProductByBarcode(this.database, code),
       activeProductById: (productId) => readActiveProductById(this.database, productId),
@@ -137,7 +145,10 @@ export class SqliteSaleLedger implements SaleLedger {
       issuerIdentificationInEffect: () => readIssuerIdentificationInEffect(this.database),
       buyerTaxStatusSetInEffect: () => readBuyerTaxStatusSetInEffect(this.database),
       recordPreEmissionGate: (recorded) => insertPreEmissionGateOutcome(this.database, recorded),
-      decideSaleAuthorization: (decision) => decideSaleAuthorizationIn(this.database, decision),
+      decideSaleAuthorization: (decision) =>
+        decideSaleAuthorizationIn(this.database, decision, (draft) =>
+          this.appendOutboxEvent(draft),
+        ),
     };
   }
 

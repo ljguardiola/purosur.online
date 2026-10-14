@@ -13,7 +13,7 @@ test("asks for the email when it is empty once trimmed", () => {
 
 test("calls an email invalid when the shape it is given refuses it", () => {
   expect(
-    emailFieldMessage(userEditBodySchema.shape.email, MESSAGES)({ email: " ana ejemplo.com " }),
+    emailFieldMessage(userEditBodySchema.shape.email, MESSAGES)({ email: " ana example.com " }),
   ).toBe("Invalid.");
 });
 
@@ -23,7 +23,7 @@ test("asks to review an email the shape it is given accepts", () => {
       recoveryRequestBodySchema.shape.email,
       MESSAGES,
     )({
-      email: " ana@ejemplo.com ",
+      email: " ana@example.com ",
     }),
   ).toBe("Review.");
 });

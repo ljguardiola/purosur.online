@@ -273,6 +273,24 @@ describe("addWeighedProduct", () => {
     expect(weigh(ledger({ revoked: true, sales: [OPEN_SALE] })).kind).toBe("added");
   });
 
+  it("refuses to open a sale while a paid order without a sale is unresolved", () => {
+    expect(weigh(ledger({ paidOrdersWithoutSale: [{ resolved: false }] }))).toEqual({
+      kind: "paid_order_without_sale",
+    });
+  });
+
+  it("adds to the open sale while a paid order without a sale is unresolved", () => {
+    expect(
+      weigh(ledger({ sales: [OPEN_SALE], paidOrdersWithoutSale: [{ resolved: false }] })).kind,
+    ).toBe("added");
+  });
+
+  it("refuses to open a sale while this run's paid-order check waits for the cloud", () => {
+    expect(weigh(ledger({ paidOrderDiscovery: "pending" }))).toEqual({
+      kind: "paid_orders_not_checked",
+    });
+  });
+
   it("refuses to open a sale when the register has no identity yet", () => {
     expect(weigh(ledger({ identity: undefined }))).toEqual({ kind: "unavailable" });
   });

@@ -12,6 +12,10 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import {
+  FICTIONAL_RECOVERY_REPLY_TO,
+  FICTIONAL_RECOVERY_SENDER,
+} from "../test-support/recovery-email.js";
+import {
   ARCA_CERTIFICATE_EXPIRY_CHECK_TASK_IDENTIFIER,
   enqueueArcaCertificateExpiryCheck,
 } from "./arca-certificate-expiry-task.js";
@@ -56,8 +60,8 @@ async function runCheckOfCertificateExpiringAt(notAfter: Date): Promise<void> {
     {
       databaseUrl: integrationDb.databaseUrl,
       emailSender: { transport: "log" },
-      emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
-      emailReplyTo: "purosur.comarca@gmail.com",
+      emailFrom: FICTIONAL_RECOVERY_SENDER,
+      emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
       backofficeOrigin: "https://staging.purosur.online",
       arcaCertificate: { environment: "production", notAfter },
       arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },

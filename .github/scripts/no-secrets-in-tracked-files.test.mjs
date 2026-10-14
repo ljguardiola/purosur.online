@@ -287,6 +287,27 @@ test("every secret a workflow reads is covered by the deployment secret check", 
   });
 });
 
+test("flags the per-environment edge origin secrets of the edge rules script", async () => {
+  await withTempRepo(async (dir) => {
+    trackFile(
+      dir,
+      "edge.env.sh",
+      [
+        `EDGE_ORIGIN_SECRET_STAGING=${UUID_SHAPED_VALUE}`,
+        `EDGE_ORIGIN_SECRET_PRODUCTION=${UUID_SHAPED_VALUE}`,
+      ].join("\n"),
+    );
+
+    const files = findTrackedFiles(dir);
+    const violations = await checkFiles(files, { cwd: dir, configFilePath: repoConfigFilePath });
+
+    assert.deepEqual(
+      violations.map((violation) => violation.line).sort((a, b) => a - b),
+      [1, 2],
+    );
+  });
+});
+
 test("never includes the secret value in a reported message", async () => {
   await withTempRepo(async (dir) => {
     trackFile(dir, "config/key.txt", PRIVATE_KEY);

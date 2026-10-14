@@ -16,6 +16,7 @@ export const PULLED_TABLES = {
   role_permissions: "role",
   own_register: "register",
   register_point_of_sale: "register_point_of_sale",
+  register_point_terminal: "register_point_terminal",
   register_offline_point_of_sale: "register_offline_point_of_sale",
   discounts: "discount",
   issuer_identification_versions: "issuer_identification",

@@ -16,7 +16,27 @@ export {
   MERCADO_PAGO_POINT_MINIMUM_ORDER_CENTS,
   MERCADO_PAGO_POINT_ORDER_EXPIRY_MINUTES,
 } from "./model/mercado-pago-point-order.js";
+export type {
+  MercadoPagoOrderRefund,
+  MercadoPagoRefundAnswer,
+} from "./model/mercado-pago-refund.js";
+export {
+  MERCADO_PAGO_REFUND_FOLLOW_INTERVAL_MS,
+  MERCADO_PAGO_REFUND_STAGES,
+} from "./model/mercado-pago-refund.js";
 export { nonCashCharge } from "./model/non-cash-charge.js";
+export type {
+  PaidOrderDiscoveryState,
+  PaidOrderResolution,
+} from "./model/paid-order-discovery.js";
+export {
+  PAID_ORDER_DISCOVERY_STATES,
+  PAID_ORDER_PAYMENT_STATE,
+  PAID_ORDER_REPLACED,
+  paidOrdersSellingRefusal,
+  paidOrderWithoutSaleBlocksSelling,
+  SALE_PAYMENT_STATE_HOLDING_PAID_ORDER,
+} from "./model/paid-order-discovery.js";
 export type {
   ConfirmedByHandMethod,
   MercadoPagoPaymentMethod,
@@ -26,7 +46,7 @@ export {
   APPROVED_PAYMENT_STATE,
   cancellableWithoutAuthorization,
   hasApprovedPayment,
-  holdsApprovedMercadoPagoPayment,
+  holdsApprovedPointPayment,
   isConfirmedByHand,
   MERCADO_PAGO_PAYMENT_METHODS,
   MERCADO_PAGO_PROVIDERS,
@@ -82,5 +102,6 @@ export {
   PAYMENT_TRANSACTION_STATES,
   PENDING_PAYMENT_TRANSACTION_STATE,
 } from "./model/payment-transaction.js";
+export { isPointTerminalId } from "./model/point-terminal-id.js";
 export type { SaleBalance } from "./model/sale-balance.js";
 export { approvedPaymentsCoverTotal, saleBalance } from "./model/sale-balance.js";

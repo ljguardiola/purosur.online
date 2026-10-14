@@ -1,10 +1,11 @@
+import type { MercadoPagoRefundAnswer } from "../../model/mercado-pago-refund.js";
 import type { MercadoPagoOrderTransaction } from "../../model/payment-transaction.js";
 import type {
   MercadoPagoOrderCancellation,
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
+  MercadoPagoOrderRefundsReading,
   MercadoPagoOrders,
-  MercadoPagoPointOrderCreation,
   MercadoPagoPointOrderRequest,
   MercadoPagoQrOrderRequest,
 } from "../mercado-pago-order-ports.js";
@@ -16,12 +17,21 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   readonly pointCreationRequests: MercadoPagoPointOrderRequest[] = [];
   readonly readOrders: string[] = [];
   readonly cancellations: { orderId: string; idempotencyKey: string }[] = [];
+  readonly refundRequests: { orderId: string; idempotencyKey: string }[] = [];
+  readonly refundReadings: string[] = [];
+  refundAnswer: MercadoPagoRefundAnswer = {
+    kind: "refunded",
+    providerRefundId: "REF-1",
+    processed: false,
+  };
+  readonly queuedRefundAnswers: MercadoPagoRefundAnswer[] = [];
+  orderRefunds: MercadoPagoOrderRefundsReading = { kind: "read", refunds: [] };
   heldLaneDuringCall: boolean | undefined;
   transactionsRecordedDuringCall: string[] | undefined;
   recordedDuringCreation: MercadoPagoOrderTransaction | undefined;
   creationStopsMidway = false;
   creation: MercadoPagoOrderCreation;
-  pointCreation: MercadoPagoPointOrderCreation;
+  pointCreation: MercadoPagoOrderCreation;
   reading: MercadoPagoOrderReading;
   cancellation: MercadoPagoOrderCancellation = {
     kind: "cancelled",
@@ -41,7 +51,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
     lanes: FakePaymentTransactionLanes,
     answers: {
       creation: MercadoPagoOrderCreation;
-      pointCreation: MercadoPagoPointOrderCreation;
+      pointCreation: MercadoPagoOrderCreation;
       reading: MercadoPagoOrderReading;
     },
   ) {
@@ -63,9 +73,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
     return this.creation;
   }
 
-  async createPointOrder(
-    request: MercadoPagoPointOrderRequest,
-  ): Promise<MercadoPagoPointOrderCreation> {
+  async createPointOrder(request: MercadoPagoPointOrderRequest): Promise<MercadoPagoOrderCreation> {
     this.lanes.operations.push("createPointOrder");
     this.pointCreationRequests.push(request);
     this.observeLane();
@@ -92,6 +100,20 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
     this.cancellations.push({ orderId, idempotencyKey });
     this.observeLane();
     return this.cancellation;
+  }
+
+  async refundOrder(orderId: string, idempotencyKey: string): Promise<MercadoPagoRefundAnswer> {
+    this.lanes.operations.push("refundOrder");
+    this.refundRequests.push({ orderId, idempotencyKey });
+    this.observeLane();
+    return this.queuedRefundAnswers.shift() ?? this.refundAnswer;
+  }
+
+  async readOrderRefunds(orderId: string): Promise<MercadoPagoOrderRefundsReading> {
+    this.lanes.operations.push("readOrderRefunds");
+    this.refundReadings.push(orderId);
+    this.observeLane();
+    return this.orderRefunds;
   }
 
   private observeLane() {

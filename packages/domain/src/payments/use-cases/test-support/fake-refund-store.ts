@@ -39,7 +39,9 @@ class FakeRefundStoreTransaction implements RefundStoreTransaction {
     const refund = this.refunds.find(
       (stored) => stored.id === refundId && stored.locationId === locationId,
     );
-    return refund && { id: refund.id, state: refund.state, origin: refund.origin };
+    return (
+      refund && { id: refund.id, state: refund.state, origin: refund.origin, method: refund.method }
+    );
   }
 
   async recordRefundDone(refundId: string, doneBy: string, doneAt: Date): Promise<void> {

@@ -22,6 +22,7 @@ const CUSTOM_DOMAINS: Record<string, string[]> = customDomains;
 // across every environment, so it is a plain constant rather than a per-environment map.
 const RECOVERY_EMAIL_FROM: Record<string, string> = {
   staging: "Puro Sur <acceso@mail.staging.purosur.online>",
+  production: "Puro Sur <acceso@mail.purosur.online>",
 };
 const RECOVERY_EMAIL_REPLY_TO = "purosur.comarca@gmail.com";
 
@@ -54,6 +55,14 @@ function requireBackofficeOrigin(environment: string): string {
     throw new Error(`.railway/railway.ts: no backoffice domain configured for ${environment}`);
   }
   return `https://${domain}`;
+}
+
+// Only production receives the token the release pipeline presents when it asks the cloud which
+// registers a raised minimum version would cut off; staging has no such pipeline and no secret.
+function releaseCheckVariables(environment: string): Record<string, string> {
+  return environment === "production"
+    ? { RELEASE_CHECK_TOKEN: requireEnv("RELEASE_CHECK_TOKEN") }
+    : {};
 }
 
 function requireRecoveryEmailFrom(environment: string): string {
@@ -119,6 +128,7 @@ export default defineRailway((ctx) => {
   const db = postgres(POSTGRES_RESOURCE_NAME, { region: SERVICE_REGION });
   const media = bucket("Media Storage", { region: BUCKET_REGION });
   const registerUpdates = bucket("Register Updates", { region: BUCKET_REGION });
+  const registerSnapshots = bucket("Register Snapshots", { region: BUCKET_REGION });
 
   const registryCredentials = {
     username: "ljguardiola",
@@ -172,6 +182,7 @@ export default defineRailway((ctx) => {
       ARCA_CERTIFICATE: arcaCertificate,
       ARCA_PRIVATE_KEY: arcaPrivateKey,
       ARCA_ENVIRONMENT: arcaEnvironment,
+      ...releaseCheckVariables(environment),
       REGISTER_UPDATES_BUCKET_ENDPOINT: bucketReference(registerUpdates, "ENDPOINT"),
       REGISTER_UPDATES_BUCKET_NAME: bucketReference(registerUpdates, "BUCKET"),
       REGISTER_UPDATES_BUCKET_REGION: bucketReference(registerUpdates, "REGION"),
@@ -180,20 +191,25 @@ export default defineRailway((ctx) => {
         registerUpdates,
         "SECRET_ACCESS_KEY",
       ),
+      REGISTER_SNAPSHOTS_BUCKET_ENDPOINT: bucketReference(registerSnapshots, "ENDPOINT"),
+      REGISTER_SNAPSHOTS_BUCKET_NAME: bucketReference(registerSnapshots, "BUCKET"),
+      REGISTER_SNAPSHOTS_BUCKET_REGION: bucketReference(registerSnapshots, "REGION"),
+      REGISTER_SNAPSHOTS_BUCKET_ACCESS_KEY_ID: bucketReference(registerSnapshots, "ACCESS_KEY_ID"),
+      REGISTER_SNAPSHOTS_BUCKET_SECRET_ACCESS_KEY: bucketReference(
+        registerSnapshots,
+        "SECRET_ACCESS_KEY",
+      ),
       ...(mercadoPago
         ? {
             MERCADOPAGO_ACCESS_TOKEN: mercadoPago.accessToken,
             MERCADOPAGO_QR_EXTERNAL_POS_ID: mercadoPago.externalPosId,
             MERCADOPAGO_WEBHOOK_SECRET: mercadoPago.webhookSecret,
-            ...(mercadoPago.pointTerminalId
-              ? { MERCADOPAGO_POINT_TERMINAL_ID: mercadoPago.pointTerminalId }
-              : {}),
           }
         : {}),
     },
   });
 
   return project("Puro Sur", {
-    resources: [db, media, registerUpdates, migrate, cloud],
+    resources: [db, media, registerUpdates, registerSnapshots, migrate, cloud],
   });
 });

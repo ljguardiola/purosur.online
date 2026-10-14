@@ -1343,6 +1343,21 @@ test("asks for digits when its input mode is numeric", async () => {
   expect(fieldInput(screen, "PIN").inputMode).toBe("numeric");
 });
 
+test("asks for a keyboard with the decimal comma when its input mode is decimal", async () => {
+  const screen = await render(
+    <TextField
+      kind="amount"
+      inputMode="decimal"
+      prefix="$"
+      label="Monto"
+      value=""
+      onChange={() => {}}
+    />,
+  );
+
+  expect(fieldInput(screen, "Monto").inputMode).toBe("decimal");
+});
+
 test("has no accessibility violations when it hides what is typed", async () => {
   const screen = await render(
     <TextField

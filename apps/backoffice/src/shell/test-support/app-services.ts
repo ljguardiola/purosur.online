@@ -162,12 +162,32 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     purchasesListScreen: {
       fetchPurchases: vi.fn().mockReturnValue(new Promise(() => {})),
     },
+    freightsListScreen: {
+      fetchFreights: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: { items: [], count: 0, totalCents: 0 },
+      }),
+      fetchLinkablePurchases: vi
+        .fn()
+        .mockResolvedValue({ kind: "ok", value: { purchases: [], today: "2026-09-16" } }),
+      recordFreight: vi.fn(),
+      editFreight: vi.fn(),
+    },
     newPurchaseScreen: {
       fetchPurchaseChoices: vi.fn().mockReturnValue(new Promise(() => {})),
       registerPurchase: vi.fn(),
     },
     salesByDayScreen: {
       fetchSalesReport: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    salesByProductAndCategoryScreen: {
+      fetchSalesByProductAndCategory: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    salesByCashierScreen: {
+      fetchSalesByCashier: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    averageTicketScreen: {
+      fetchAverageTicket: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     salesByPaymentMethodScreen: {
       fetchSalesByPaymentMethod: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -180,6 +200,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchPendingRefunds: vi.fn().mockReturnValue(new Promise(() => {})),
       markRefundDone: vi.fn(),
       discardRefund: vi.fn(),
+      confirmRefund: vi.fn(),
     },
     userDetailScreen: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -204,6 +225,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchRegisterCoverage: vi.fn().mockReturnValue(new Promise(() => {})),
       createRegister: vi.fn(),
+      assignPointTerminal: vi.fn(),
       emitEnrollmentCode: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),

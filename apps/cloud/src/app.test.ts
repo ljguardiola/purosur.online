@@ -9,12 +9,7 @@ import {
   openSessionSchema,
   passkeyListSchema,
 } from "@purosur/contracts";
-import {
-  CAPABILITY_PERMISSIONS,
-  mayRequestPinCodeFor,
-  PERMISSION_KEYS,
-  type PermissionKey,
-} from "@purosur/domain";
+import { mayRequestPinCodeFor } from "@purosur/domain";
 import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import type { PgliteQueryResultHKT } from "drizzle-orm/pglite";
@@ -29,14 +24,13 @@ import {
   it,
   vi,
 } from "vitest";
-import { type BuildAppOptions, buildApp as buildRealApp, databaseRouteOptions } from "./app.js";
+import { type BuildAppOptions, buildApp as buildRealApp } from "./app.js";
 import { insertRegisterWithPointOfSale } from "./fiscal/test-support/authorization-request-fixtures.js";
 import { seedOfflinePointOfSale } from "./fiscal/test-support/offline-point-of-sale-fixtures.js";
 import {
   arcaVitalityChecks,
   passkeys,
   registerEnrollmentCodes,
-  rolePermissions,
   roles,
   sessions,
   userRoles,
@@ -50,14 +44,19 @@ import {
   OPEN_SESSION_ACCESS,
   OPEN_SESSION_PEEK_ACCESS,
   PUBLIC_ACCESS,
-  type RouteAccess,
-  type RouteAccessEntry,
+  RELEASE_CHECK_ACCESS,
   recordAccess,
   SESSION_COOKIE_ACCESS,
 } from "./sessions/route-access.js";
 import { SESSION_COOKIE_NAME } from "./sessions/session-cookie.js";
 import { generateSessionId, hashSessionId } from "./sessions/session-id.js";
 import { insertRequestsUpToLimit } from "./sync/test-support/admitted-requests.js";
+import {
+  APP_CLOCK,
+  BACKOFFICE_ORIGIN,
+  buildProductionWiredApp,
+  removeProductionStaticDirs,
+} from "./test-support/app.js";
 import {
   buildTestApp as buildApp,
   TEST_EDGE_ORIGIN_SECRET,
@@ -80,8 +79,6 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
 });
-
-const APP_CLOCK = new Date("2020-06-15T12:00:00.000Z");
 
 describe("BuildAppOptions", () => {
   it("refuses options without the clock", () => {
@@ -1289,6 +1286,10 @@ describe("wiring the purchasing routes", () => {
       app.inject({ method: "GET", url: "/api/purchases" }),
       app.inject({ method: "POST", url: "/api/purchases", headers: ORIGIN }),
       app.inject({ method: "GET", url: "/api/purchase-choices" }),
+      app.inject({ method: "GET", url: "/api/freights" }),
+      app.inject({ method: "POST", url: "/api/freights", headers: ORIGIN }),
+      app.inject({ method: "PUT", url: `/api/freights/${ID}`, headers: ORIGIN }),
+      app.inject({ method: "GET", url: "/api/freights/linkable-purchases" }),
     ]);
     return responses.map((response) => response.statusCode);
   }
@@ -1296,7 +1297,7 @@ describe("wiring the purchasing routes", () => {
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(13).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(17).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1306,7 +1307,7 @@ describe("wiring the purchasing routes", () => {
       purchasing: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(13).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(17).fill(401));
   });
 });
 
@@ -1500,7 +1501,12 @@ describe("wiring the prices routes", () => {
 });
 
 describe("wiring the sales report routes", () => {
-  const reportRequests = [{ method: "GET", url: "/api/reports/sales-by-day" }] as const;
+  const reportRequests = [
+    { method: "GET", url: "/api/reports/sales-by-day" },
+    { method: "GET", url: "/api/reports/sales-by-product-and-category" },
+    { method: "GET", url: "/api/reports/sales-by-cashier" },
+    { method: "GET", url: "/api/reports/average-ticket" },
+  ] as const;
 
   async function statusCodes(app: ReturnType<typeof buildApp>): Promise<number[]> {
     const responses = await Promise.all(
@@ -2192,34 +2198,12 @@ describe("wiring the passkeys routes", () => {
   });
 });
 
-const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
-
-const productionStaticDirs: string[] = [];
-
 afterAll(() => {
-  for (const dir of productionStaticDirs.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
-  }
+  removeProductionStaticDirs();
 });
 
 function productionWiredApp() {
-  const staticDir = mkdtempSync(join(tmpdir(), "cloud-static-"));
-  productionStaticDirs.push(staticDir);
-  writeFileSync(join(staticDir, "index.html"), "<!doctype html><title>backoffice</title>");
-  return buildApp({
-    now: () => APP_CLOCK,
-    version: "abc1234",
-    staticDir,
-    ...databaseRouteOptions({
-      db: testDatabase.db,
-      backofficeOrigin: BACKOFFICE_ORIGIN,
-      recoveryJobQueue: { async enqueueRecoveryRequest() {} },
-      authorizedCuit: FICTIONAL_CERTIFICATE_CUIT,
-      certificateFingerprint: "AA:BB",
-      deviceTokenRotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
-      installationKeysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
-    }),
-  });
+  return buildProductionWiredApp(testDatabase.db);
 }
 
 describe("wiring the register and device routes", () => {
@@ -2451,6 +2435,14 @@ describe("the route access inventory", () => {
       { method: "GET", url: "/api/purchases", access: capabilityAccess("purchases") },
       { method: "POST", url: "/api/purchases", access: capabilityAccess("purchases") },
       { method: "GET", url: "/api/purchase-choices", access: capabilityAccess("purchases") },
+      { method: "GET", url: "/api/freights", access: capabilityAccess("freights") },
+      {
+        method: "GET",
+        url: "/api/freights/linkable-purchases",
+        access: capabilityAccess("freights"),
+      },
+      { method: "POST", url: "/api/freights", access: capabilityAccess("freights") },
+      { method: "PUT", url: "/api/freights/:id", access: capabilityAccess("freights") },
       {
         method: "GET",
         url: "/api/tags",
@@ -2528,6 +2520,11 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/api/synced-events/:eventId/release",
         access: capabilityAccess("quarantined_events"),
+      },
+      {
+        method: "GET",
+        url: "/api/sync/registers-below-minimum",
+        access: RELEASE_CHECK_ACCESS,
       },
       {
         method: "GET",
@@ -2651,6 +2648,21 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/reports/sales-by-product-and-category",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/sales-by-cashier",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/average-ticket",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
         url: "/api/reports/sales-by-payment-method",
         access: capabilityAccess("reports_area"),
       },
@@ -2662,6 +2674,11 @@ describe("the route access inventory", () => {
       {
         method: "POST",
         url: "/api/refunds/:id/completion",
+        access: capabilityAccess("refunds_area"),
+      },
+      {
+        method: "POST",
+        url: "/api/refunds/:id/confirmation",
         access: capabilityAccess("refunds_area"),
       },
       {
@@ -2700,6 +2717,11 @@ describe("the route access inventory", () => {
         access: capabilityAccess("registers_area"),
       },
       {
+        method: "PUT",
+        url: "/api/registers/:id/point-terminal",
+        access: capabilityAccess("cash_area"),
+      },
+      {
         method: "GET",
         url: "/api/registers/points-of-sale",
         access: capabilityAccess("cash_area"),
@@ -2719,6 +2741,14 @@ describe("the route access inventory", () => {
       { method: "GET", url: "/api/changes", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/events", access: PUBLIC_ACCESS },
       { method: "GET", url: "/api/register/update", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/devices/current/snapshots", access: PUBLIC_ACCESS },
+      {
+        method: "POST",
+        url: "/api/devices/current/snapshots/:generationId/uploaded",
+        access: PUBLIC_ACCESS,
+      },
+      { method: "POST", url: "/api/devices/current/snapshot-corruption", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/api/devices/current/snapshots", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/pin-code-redemptions", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/sign-in-lookups", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/current/tokens", access: PUBLIC_ACCESS },
@@ -2839,189 +2869,6 @@ describe("the former session and passkey read paths", () => {
   });
 });
 
-describe("every route enforces the access it declares", () => {
-  const ENDED_BEFORE = new Date("2020-01-01T00:00:00.000Z");
-
-  function routesDeclaring(app: ReturnType<typeof buildApp>, levels: RouteAccess["level"][]) {
-    const routes = app
-      .routeAccessInventory()
-      .filter((route) => route.access !== undefined && levels.includes(route.access.level));
-    expect(routes.length, `no route declares ${levels.join(" or ")}`).toBeGreaterThan(0);
-    return routes;
-  }
-
-  function resolvedPath(url: string): string {
-    return url.replace(/:\w+/g, "00000000-0000-0000-0000-000000000000").replace(/\*$/, "help");
-  }
-
-  function send(app: ReturnType<typeof buildApp>, route: RouteAccessEntry, rawSessionId?: string) {
-    return app.inject({
-      method: route.method as "GET" | "HEAD" | "POST",
-      url: resolvedPath(route.url),
-      headers: {
-        origin: BACKOFFICE_ORIGIN,
-        ...(rawSessionId ? { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` } : {}),
-      },
-    });
-  }
-
-  function codeOf(body: string): unknown {
-    try {
-      return (JSON.parse(body) as { code?: unknown }).code;
-    } catch {
-      return undefined;
-    }
-  }
-
-  async function signedInWithRole(permissionKeys: readonly string[]): Promise<string> {
-    const db = testDatabase.db;
-    const [role] = await db
-      .insert(roles)
-      .values({ name: `Rol ${generateSessionId()}`, isAdministrator: false })
-      .returning({ id: roles.id });
-    if (!role) {
-      throw new Error("test setup: seeding the role returned no row");
-    }
-    if (permissionKeys.length > 0) {
-      await db
-        .insert(rolePermissions)
-        .values(permissionKeys.map((permissionKey) => ({ roleId: role.id, permissionKey })));
-    }
-    const [user] = await db
-      .insert(users)
-      .values({
-        firstName: "Grace Villalba",
-        email: `${generateSessionId()}@example.com`,
-        locationId: await seededLocationId(db),
-      })
-      .returning({ id: users.id });
-    if (!user) {
-      throw new Error("test setup: seeding the user returned no row");
-    }
-    await db.insert(userRoles).values({ userId: user.id, roleId: role.id });
-    const rawSessionId = generateSessionId();
-    await db.insert(sessions).values({
-      userId: user.id,
-      sessionIdHash: hashSessionId(rawSessionId),
-      createdAt: APP_CLOCK,
-      lastSeenAt: APP_CLOCK,
-    });
-    return rawSessionId;
-  }
-
-  it("sweeps every access level a route declares", async () => {
-    const app = productionWiredApp();
-    await app.ready();
-
-    const declaredLevels = new Set(app.routeAccessInventory().map((route) => route.access?.level));
-
-    expect(declaredLevels).toEqual(
-      new Set([
-        "public",
-        "open_session",
-        "open_session_peek",
-        "session_cookie",
-        "capability",
-        "record",
-      ]),
-    );
-  });
-
-  it("lets every public route through without a session", async () => {
-    const app = productionWiredApp();
-    await app.ready();
-
-    for (const route of routesDeclaring(app, ["public"])) {
-      const response = await send(app, route);
-
-      expect(
-        ["unauthenticated", "forbidden"].includes(String(codeOf(response.body))),
-        `${route.method} ${route.url} responded ${response.statusCode}, body: ${response.body}`,
-      ).toBe(false);
-    }
-  });
-
-  it("answers 401 unauthenticated on every session route without a session", async () => {
-    const app = productionWiredApp();
-    await app.ready();
-
-    for (const route of routesDeclaring(app, [
-      "open_session",
-      "open_session_peek",
-      "session_cookie",
-      "capability",
-      "record",
-    ])) {
-      const response = await send(app, route);
-
-      expect(
-        response.statusCode,
-        `${route.method} ${route.url} responded ${response.statusCode}, body: ${response.body}`,
-      ).toBe(401);
-      expect(response.json()).toMatchObject({ code: "unauthenticated" });
-    }
-  });
-
-  it("answers 401 unauthenticated on every open-session route to an already ended session", async () => {
-    const app = productionWiredApp();
-    await app.ready();
-
-    for (const route of routesDeclaring(app, ["open_session", "open_session_peek", "record"])) {
-      const rawSessionId = await signedInWithRole([]);
-      await testDatabase.db
-        .update(sessions)
-        .set({ createdAt: ENDED_BEFORE, lastSeenAt: ENDED_BEFORE })
-        .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)));
-
-      const response = await send(app, route, rawSessionId);
-
-      expect(
-        response.statusCode,
-        `${route.method} ${route.url} responded ${response.statusCode}, body: ${response.body}`,
-      ).toBe(401);
-    }
-  });
-
-  it("answers 403 forbidden on every capability route to a user missing every permission of its capability", async () => {
-    const app = productionWiredApp();
-    await app.ready();
-
-    for (const route of routesDeclaring(app, ["capability"])) {
-      const access = route.access as Extract<RouteAccess, { level: "capability" }>;
-      const capabilityPermissions: readonly PermissionKey[] =
-        CAPABILITY_PERMISSIONS[access.capability];
-      const rawSessionId = await signedInWithRole(
-        PERMISSION_KEYS.filter((key) => !capabilityPermissions.includes(key)),
-      );
-
-      const response = await send(app, route, rawSessionId);
-
-      expect(
-        response.statusCode,
-        `${route.method} ${route.url} responded ${response.statusCode}, body: ${response.body}`,
-      ).toBe(403);
-      expect(response.json()).toMatchObject({ code: "forbidden" });
-    }
-  });
-
-  it("answers 403 forbidden on every record route to a user without permissions aiming at another person's record", async () => {
-    const app = productionWiredApp();
-    await app.ready();
-
-    for (const route of routesDeclaring(app, ["record"])) {
-      const rawSessionId = await signedInWithRole([]);
-
-      const response = await send(app, route, rawSessionId);
-
-      expect(
-        response.statusCode,
-        `${route.method} ${route.url} responded ${response.statusCode}, body: ${response.body}`,
-      ).toBe(403);
-      expect(response.json()).toMatchObject({ code: "forbidden" });
-    }
-  });
-});
-
 describe("wiring the Mercado Pago notification route", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -3058,6 +2905,8 @@ describe("wiring the Mercado Pago notification route", () => {
           createPointOrder: async () => ({ kind: "unavailable" }),
           readOrder: async () => ({ kind: "unavailable" }),
           cancelOrder: async () => ({ kind: "unavailable" }),
+          refundOrder: async () => ({ kind: "unavailable" }),
+          readOrderRefunds: async () => ({ kind: "unavailable" }),
         },
       },
     });

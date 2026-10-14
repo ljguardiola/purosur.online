@@ -1,6 +1,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  isLeftBehindByMinimum,
+  isWellFormedRegisterVersion,
   MINIMUM_ACCEPTED_REGISTER_VERSION,
   registerVersionAccepted,
   versionAtLeast,
@@ -82,5 +84,38 @@ describe("versionAtLeast", () => {
   it("holds when the numbers are beyond what a double keeps apart", () => {
     expect(versionAtLeast("1.0.9007199254740993", "1.0.9007199254740992")).toBe(true);
     expect(versionAtLeast("1.0.9007199254740992", "1.0.9007199254740993")).toBe(false);
+  });
+});
+
+describe("isWellFormedRegisterVersion", () => {
+  it.each(["0.0.0", "1.4.0", "10.20.30"])("accepts %s", (version) => {
+    expect(isWellFormedRegisterVersion(version)).toBe(true);
+  });
+
+  it.each(["", "1.4", "v1.4.0", "1.4.0-beta", "01.4.0", "1.4.0\n", " 1.4.0"])(
+    "does not accept %j",
+    (version) => {
+      expect(isWellFormedRegisterVersion(version)).toBe(false);
+    },
+  );
+});
+
+describe("isLeftBehindByMinimum", () => {
+  it("leaves behind an installation that never reported a version", () => {
+    expect(isLeftBehindByMinimum(null, "0.0.0")).toBe(true);
+  });
+
+  it("leaves behind a version older than the minimum", () => {
+    expect(isLeftBehindByMinimum("1.3.9", "1.4.0")).toBe(true);
+    expect(isLeftBehindByMinimum("1.9.0", "1.10.0")).toBe(true);
+  });
+
+  it("does not leave behind the minimum itself or a newer version", () => {
+    expect(isLeftBehindByMinimum("1.4.0", "1.4.0")).toBe(false);
+    expect(isLeftBehindByMinimum("2.0.0", "1.4.0")).toBe(false);
+  });
+
+  it("leaves behind a reported version that is not of the form X.Y.Z", () => {
+    expect(isLeftBehindByMinimum("garbage", "0.0.0")).toBe(true);
   });
 });

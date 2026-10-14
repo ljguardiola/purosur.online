@@ -203,3 +203,27 @@ export function offlineAuthorizationCodeMissingObservation({
 export function offlineAuthorizationCodeHeldObservation(scope: string): AlertConditionObservation {
   return { holds: false, kind: "offline_authorization_code_missing", scope };
 }
+
+export function lotsExpiringObservation({
+  locationId,
+  lotCount,
+  windowDays,
+}: {
+  locationId: string;
+  lotCount: number;
+  windowDays: number;
+}): AlertConditionObservation {
+  return {
+    holds: true,
+    alert: {
+      kind: "lots_expiring",
+      scope: locationId,
+      locationId,
+      detail: { lotCount, windowDays },
+    },
+  };
+}
+
+export function lotsNoLongerExpiringObservation(scope: string): AlertConditionObservation {
+  return { holds: false, kind: "lots_expiring", scope };
+}

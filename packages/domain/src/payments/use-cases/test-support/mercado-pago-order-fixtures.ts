@@ -3,16 +3,17 @@ import type { MercadoPagoOrderTransaction } from "../../model/payment-transactio
 import type {
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
-  MercadoPagoPointOrderCreation,
 } from "../mercado-pago-order-ports.js";
 import { FakeMercadoPagoCancellationKeys } from "./fake-mercado-pago-cancellation-keys.js";
 import { FakeMercadoPagoOrders } from "./fake-mercado-pago-orders.js";
 import { FakePaymentTransactionDirectory } from "./fake-payment-transaction-directory.js";
 import { FakePaymentTransactionLanes } from "./fake-payment-transaction-lanes.js";
+import { FakePointTerminals } from "./fake-point-terminals.js";
 import { FixedClock } from "./fake-refund-store.js";
 
 export const NOW = new Date("2026-10-09T12:00:00.000Z");
 export const REGISTER_ID = "register-1";
+export const TERMINAL_ID = "terminal-1";
 export const TRANSACTION_ID = "transaction-1";
 export const SALE_ID = "sale-1";
 export const AMOUNT = 2500;
@@ -84,7 +85,7 @@ export function storedTransaction(overrides: Partial<QrOrderTransaction> = {}): 
 export function mercadoPagoOrderWorld(
   answers: {
     creation?: MercadoPagoOrderCreation;
-    pointCreation?: MercadoPagoPointOrderCreation;
+    pointCreation?: MercadoPagoOrderCreation;
     reading?: MercadoPagoOrderReading;
   } = {},
   now: Date = NOW,
@@ -96,6 +97,8 @@ export function mercadoPagoOrderWorld(
       answers.creation ?? { kind: "created", orderId: "order-1", result: orderResult() },
     reading: answers.reading ?? { kind: "read", result: orderResult() },
   });
+  const pointTerminals = new FakePointTerminals(lanes.operations);
+  pointTerminals.assign(REGISTER_ID, TERMINAL_ID);
   const directory = new FakePaymentTransactionDirectory(lanes);
   const cancellationKeys = new FakeMercadoPagoCancellationKeys();
   return {
@@ -103,7 +106,8 @@ export function mercadoPagoOrderWorld(
     mercadoPago,
     directory,
     cancellationKeys,
-    ports: { lanes, mercadoPago, cancellationKeys, clock: new FixedClock(now) },
+    pointTerminals,
+    ports: { lanes, mercadoPago, cancellationKeys, pointTerminals, clock: new FixedClock(now) },
     notificationPorts: {
       directory,
       lanes,

@@ -3,7 +3,12 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { weekPaymentsReport } from "../payments/test-support/payments-report-fixtures";
-import { weekReport } from "../sales/test-support/sales-fixtures";
+import {
+  averageTicketReport,
+  cashierSalesReport,
+  categoryProductsReport,
+  weekReport,
+} from "../sales/test-support/sales-fixtures";
 import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
@@ -18,6 +23,9 @@ opensOnlyScreens([
   "/reports",
   "/reports/sales-by-day",
   "/reports/sales-by-payment-method",
+  "/reports/sales-by-product-and-category",
+  "/reports/sales-by-cashier",
+  "/reports/average-ticket",
 ]);
 
 beforeEach(resetPageState);
@@ -41,6 +49,17 @@ function reportsServices(capabilities: Capability[]) {
   vi.mocked(services.salesByPaymentMethodScreen.fetchSalesByPaymentMethod).mockResolvedValue({
     kind: "ok",
     value: weekPaymentsReport,
+  });
+  vi.mocked(
+    services.salesByProductAndCategoryScreen.fetchSalesByProductAndCategory,
+  ).mockResolvedValue({ kind: "ok", value: categoryProductsReport });
+  vi.mocked(services.salesByCashierScreen.fetchSalesByCashier).mockResolvedValue({
+    kind: "ok",
+    value: cashierSalesReport,
+  });
+  vi.mocked(services.averageTicketScreen.fetchAverageTicket).mockResolvedValue({
+    kind: "ok",
+    value: averageTicketReport,
   });
   vi.mocked(services.reportRegisterFilter.fetchReportRegisters).mockResolvedValue({
     kind: "ok",
@@ -66,6 +85,11 @@ test("opens the list of reports from the rail's Reportes item", async () => {
   await expect
     .element(sections.getByRole("link", { name: "Ventas por medio de pago" }))
     .toBeVisible();
+  await expect
+    .element(sections.getByRole("link", { name: "Ventas por producto y por categoría" }))
+    .toBeVisible();
+  await expect.element(sections.getByRole("link", { name: "Ventas por cajero" })).toBeVisible();
+  await expect.element(sections.getByRole("link", { name: "Ticket promedio" })).toBeVisible();
 });
 
 test("opens the sales by day report from the list and reads it from the cloud", async () => {
@@ -102,6 +126,194 @@ test("opens the sales by payment method report from the list and reads it from t
   await expect.element(screen.getByText("Efectivo")).toBeVisible();
   expect(services.salesByPaymentMethodScreen.fetchSalesByPaymentMethod).toHaveBeenCalledWith({});
   expect(document.title).toBe("Ventas por medio de pago · Puro Sur");
+});
+
+test("opens the sales by product and category report from the list and reads it from the cloud", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(
+    screen.getByRole("main").getByRole("link", { name: "Ventas por producto y por categoría" }),
+  );
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Ventas por producto y por categoría", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/reports/sales-by-product-and-category");
+  await expect.element(screen.getByText("Fiambres")).toBeVisible();
+  expect(
+    services.salesByProductAndCategoryScreen.fetchSalesByProductAndCategory,
+  ).toHaveBeenCalledWith({ group: "category" });
+  expect(document.title).toBe("Ventas por producto y por categoría · Puro Sur");
+});
+
+test("keeps the sales by product and category report's filters after following its own side column link", async () => {
+  const url = "/reports/sales-by-product-and-category?group=product&sortBy=name";
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", url);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByText("Fiambres")).toBeVisible();
+  const sectionLink = screen
+    .getByRole("navigation", { name: "Reportes" })
+    .getByRole("link", { name: "Ventas por producto y por categoría" });
+  await expect.element(sectionLink).toHaveAttribute("href", url);
+
+  await userEvent.click(sectionLink);
+
+  await expect.poll(() => `${window.location.pathname}${window.location.search}`).toBe(url);
+});
+
+test("keeps the grouping of the sales by product and category report in the address", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports/sales-by-product-and-category");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByText("Fiambres")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: /Agrupar:/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Por producto" }));
+
+  await expect.poll(() => window.location.search).toBe("?group=product");
+});
+
+test("rewrites a refused range of the sales by product and category report out of the address", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(
+    null,
+    "",
+    "/reports/sales-by-product-and-category?from=2026-10-08&to=2026-10-07&group=product",
+  );
+
+  await render(<App help={emptyHelp} services={services} />);
+
+  await expect.poll(() => window.location.search).toBe("?group=product");
+  expect(
+    services.salesByProductAndCategoryScreen.fetchSalesByProductAndCategory,
+  ).toHaveBeenCalledWith({ group: "product" });
+});
+
+test("opens the sales by cashier report from the list and reads it from the cloud", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("main").getByRole("link", { name: "Ventas por cajero" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Ventas por cajero", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/reports/sales-by-cashier");
+  await expect.element(screen.getByRole("table").getByText("Beto")).toBeVisible();
+  expect(services.salesByCashierScreen.fetchSalesByCashier).toHaveBeenCalledWith({});
+  expect(document.title).toBe("Ventas por cajero · Puro Sur");
+});
+
+test("keeps the sales by cashier report's filters after following its own side column link", async () => {
+  const url = "/reports/sales-by-cashier?sort=ascending&sortBy=averageTicket";
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", url);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("table").getByText("Beto")).toBeVisible();
+  const sectionLink = screen
+    .getByRole("navigation", { name: "Reportes" })
+    .getByRole("link", { name: "Ventas por cajero" });
+  await expect.element(sectionLink).toHaveAttribute("href", url);
+
+  await userEvent.click(sectionLink);
+
+  await expect.poll(() => `${window.location.pathname}${window.location.search}`).toBe(url);
+});
+
+test("keeps the order of the sales by cashier report in the address", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports/sales-by-cashier");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("table").getByText("Beto")).toBeVisible();
+
+  await userEvent.click(
+    screen.getByRole("table").getByRole("button", { name: "Importe", exact: true }),
+  );
+
+  await expect.poll(() => window.location.search).toBe("?sortBy=amount");
+});
+
+test("rewrites a refused range of the sales by cashier report out of the address", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(
+    null,
+    "",
+    "/reports/sales-by-cashier?from=2026-10-08&to=2026-10-07&sortBy=name",
+  );
+
+  await render(<App help={emptyHelp} services={services} />);
+
+  await expect.poll(() => window.location.search).toBe("?sortBy=name");
+  expect(services.salesByCashierScreen.fetchSalesByCashier).toHaveBeenCalledWith({});
+});
+
+test("opens the average ticket report from the list and reads it from the cloud", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("main").getByRole("link", { name: "Ticket promedio" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Ticket promedio", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/reports/average-ticket");
+  await expect
+    .element(screen.getByRole("table").getByText("Del 08/10/2026 al 14/10/2026"))
+    .toBeVisible();
+  expect(services.averageTicketScreen.fetchAverageTicket).toHaveBeenCalledWith({});
+  expect(document.title).toBe("Ticket promedio · Puro Sur");
+});
+
+test("keeps the average ticket report's filters after following its own side column link", async () => {
+  const url = "/reports/average-ticket?sort=ascending&sortBy=amount";
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", url);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect
+    .element(screen.getByRole("table").getByText("Del 08/10/2026 al 14/10/2026"))
+    .toBeVisible();
+  const sectionLink = screen
+    .getByRole("navigation", { name: "Reportes" })
+    .getByRole("link", { name: "Ticket promedio" });
+  await expect.element(sectionLink).toHaveAttribute("href", url);
+
+  await userEvent.click(sectionLink);
+
+  await expect.poll(() => `${window.location.pathname}${window.location.search}`).toBe(url);
+});
+
+test("keeps the order of the average ticket report in the address", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports/average-ticket");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect
+    .element(screen.getByRole("table").getByText("Del 08/10/2026 al 14/10/2026"))
+    .toBeVisible();
+
+  await userEvent.click(
+    screen.getByRole("table").getByRole("button", { name: "Importe", exact: true }),
+  );
+
+  await expect.poll(() => window.location.search).toBe("?sortBy=amount");
+});
+
+test("rewrites a refused range of the average ticket report out of the address", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(
+    null,
+    "",
+    "/reports/average-ticket?from=2026-10-08&to=2026-10-07&sortBy=sales",
+  );
+
+  await render(<App help={emptyHelp} services={services} />);
+
+  await expect.poll(() => window.location.search).toBe("?sortBy=sales");
+  expect(services.averageTicketScreen.fetchAverageTicket).toHaveBeenCalledWith({});
 });
 
 test("keeps the sales by payment method report's filters after following its own side column link", async () => {
@@ -168,18 +380,25 @@ test("shows the Reportes item in the rail to an Administrator", async () => {
   await expect.element(screen.getByRole("link", { name: "Reportes" })).toBeVisible();
 });
 
-test.each(["/reports", "/reports/sales-by-day", "/reports/sales-by-payment-method"])(
-  "sends a user without the reports permission who opens %s to Mi cuenta",
-  async (path) => {
-    const services = reportsServices(["stock_area"]);
-    window.history.pushState(null, "", path);
+test.each([
+  "/reports",
+  "/reports/sales-by-day",
+  "/reports/sales-by-payment-method",
+  "/reports/sales-by-product-and-category",
+  "/reports/sales-by-cashier",
+  "/reports/average-ticket",
+])("sends a user without the reports permission who opens %s to Mi cuenta", async (path) => {
+  const services = reportsServices(["stock_area"]);
+  window.history.pushState(null, "", path);
 
-    const screen = await render(<App help={emptyHelp} services={services} />);
+  const screen = await render(<App help={emptyHelp} services={services} />);
 
-    await expect
-      .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
-      .toBeVisible();
-    expect(services.salesByDayScreen.fetchSalesReport).not.toHaveBeenCalled();
-    expect(services.salesByPaymentMethodScreen.fetchSalesByPaymentMethod).not.toHaveBeenCalled();
-  },
-);
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(services.salesByDayScreen.fetchSalesReport).not.toHaveBeenCalled();
+  expect(services.salesByPaymentMethodScreen.fetchSalesByPaymentMethod).not.toHaveBeenCalled();
+  expect(
+    services.salesByProductAndCategoryScreen.fetchSalesByProductAndCategory,
+  ).not.toHaveBeenCalled();
+  expect(services.salesByCashierScreen.fetchSalesByCashier).not.toHaveBeenCalled();
+  expect(services.averageTicketScreen.fetchAverageTicket).not.toHaveBeenCalled();
+});

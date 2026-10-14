@@ -14,6 +14,11 @@ export type {
 } from "./apply-qr-payment-replacement.js";
 export { applyQrPaymentReplacement } from "./apply-qr-payment-replacement.js";
 export type {
+  AssignPointTerminalInput,
+  AssignPointTerminalOutcome,
+} from "./assign-point-terminal.js";
+export { assignPointTerminal } from "./assign-point-terminal.js";
+export type {
   CancelMercadoPagoOrderInput,
   CancelMercadoPagoOrderOutcome,
   CancelMercadoPagoOrderPorts,
@@ -31,6 +36,17 @@ export type {
 } from "./confirm-mercado-pago-order-notification.js";
 export { confirmMercadoPagoOrderNotification } from "./confirm-mercado-pago-order-notification.js";
 export type {
+  ConfirmMercadoPagoRefundInput,
+  ConfirmMercadoPagoRefundOutcome,
+} from "./confirm-mercado-pago-refund.js";
+export { confirmMercadoPagoRefund } from "./confirm-mercado-pago-refund.js";
+export type {
+  ConvertPaidOrderIntoRefundInput,
+  ConvertPaidOrderIntoRefundOutcome,
+  ConvertPaidOrderIntoRefundPorts,
+} from "./convert-paid-order-into-refund.js";
+export { convertPaidOrderIntoRefund } from "./convert-paid-order-into-refund.js";
+export type {
   CreateMercadoPagoPointOrderInput,
   CreateMercadoPagoPointOrderOutcome,
 } from "./create-mercado-pago-point-order.js";
@@ -46,6 +62,8 @@ export type {
   DiscardRefundPorts,
 } from "./discard-refund.js";
 export { discardRefund } from "./discard-refund.js";
+export type { DiscoverPaidOrdersWithoutSaleOutcome } from "./discover-paid-orders-without-sale.js";
+export { discoverPaidOrdersWithoutSale } from "./discover-paid-orders-without-sale.js";
 export type {
   FollowedInterruptedMercadoPagoCharge,
   FollowInterruptedMercadoPagoChargesInput,
@@ -57,6 +75,8 @@ export type {
   FollowMercadoPagoChargeOutcome,
 } from "./follow-mercado-pago-charge.js";
 export { followMercadoPagoCharge } from "./follow-mercado-pago-charge.js";
+export type { FollowMercadoPagoRefundsOutcome } from "./follow-mercado-pago-refunds.js";
+export { followMercadoPagoRefunds } from "./follow-mercado-pago-refunds.js";
 export type {
   ListPendingRefundsInput,
   ListPendingRefundsPorts,
@@ -97,22 +117,52 @@ export type {
   MercadoPagoOrderCreation,
   MercadoPagoOrderPorts,
   MercadoPagoOrderReading,
+  MercadoPagoOrderRefundsReading,
   MercadoPagoOrders,
-  MercadoPagoPointOrderCreation,
+  MercadoPagoPointOrderPorts,
   MercadoPagoPointOrderRequest,
   MercadoPagoQrOrderRequest,
   PaymentTransactionLane,
   PaymentTransactionLanes,
   PaymentTransactionOutcome,
   PaymentTransactionReading,
+  PointTerminals,
   RecordedOrderState,
 } from "./mercado-pago-order-ports.js";
 export { PaymentTransactionAlreadyRecorded } from "./mercado-pago-order-ports.js";
+export type {
+  MercadoPagoRefundKeys,
+  MercadoPagoRefundPorts,
+  MercadoPagoRefundRecord,
+  MercadoPagoRefundReference,
+  MercadoPagoRefundStore,
+  MercadoPagoRefundTransaction,
+  OriginCancellation,
+} from "./mercado-pago-refund-ports.js";
 export type {
   OpenOverdueRefundTaskAlertsOutcome,
   OpenOverdueRefundTaskAlertsPorts,
 } from "./open-overdue-refund-task-alerts.js";
 export { openOverdueRefundTaskAlerts } from "./open-overdue-refund-task-alerts.js";
+export type {
+  OpenRegisterLatePaymentRefundInput,
+  OpenRegisterLatePaymentRefundOutcome,
+  OpenRegisterLatePaymentRefundPorts,
+} from "./open-register-late-payment-refund.js";
+export { openRegisterLatePaymentRefund } from "./open-register-late-payment-refund.js";
+export type {
+  ApprovedOrderOfRegister,
+  ApprovedOrdersAnswer,
+  ApprovedOrdersOfRegister,
+  LatePaymentRefundRequestAnswer,
+  LatePaymentRefundRequests,
+  LocalPaidOrders,
+  PaidOrderDiscoveryPorts,
+  PaidOrderSale,
+  PaidOrderSettlement,
+  PaidOrdersOfRegister,
+  PaidOrderWithoutSale,
+} from "./paid-order-ports.js";
 export type {
   ApprovedPaymentsByMethod,
   ApprovedPaymentsQuery,
@@ -120,16 +170,35 @@ export type {
   SalesPaidByMethod,
 } from "./payments-report-reader.js";
 export type {
+  PointTerminalAssignment,
+  PointTerminalAssignmentRecord,
+  PointTerminalAssignmentStore,
+  PointTerminalAssignmentStoreTransaction,
+} from "./point-terminal-assignment-store.js";
+export { PointTerminalAlreadyAssigned } from "./point-terminal-assignment-store.js";
+export type {
   QrPaymentReplacement,
   QrPaymentReplacementStore,
   QrPaymentReplacementTransaction,
   ReplacedQrPayment,
 } from "./qr-payment-replacement-store.js";
 export type {
+  ReadApprovedOrdersOfRegisterInput,
+  ReadApprovedOrdersOfRegisterOutcome,
+  ReadApprovedOrdersOfRegisterPorts,
+} from "./read-approved-orders-of-register.js";
+export { readApprovedOrdersOfRegister } from "./read-approved-orders-of-register.js";
+export type {
   ReadMercadoPagoOrderPaymentInput,
   ReadMercadoPagoOrderPaymentOutcome,
 } from "./read-mercado-pago-order-payment.js";
 export { readMercadoPagoOrderPayment } from "./read-mercado-pago-order-payment.js";
+export type {
+  ReadPaidOrdersWithoutSaleInput,
+  ReadPaidOrdersWithoutSaleOutcome,
+  ReadPaidOrdersWithoutSalePorts,
+} from "./read-paid-orders-without-sale.js";
+export { readPaidOrdersWithoutSale } from "./read-paid-orders-without-sale.js";
 export type {
   MercadoPagoPaymentSummary,
   MercadoPagoPayments,

@@ -19,7 +19,7 @@ const QR_ORDER: MercadoPagoOrderKind<{ kind: "invalid_amount" }, never> = {
   identity: { method: "QR", provider: "MERCADOPAGO_QR" },
   lifetimeMinutes: MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
   refuseAmount: (amount) => (isValidOrderAmount(amount) ? null : { kind: "invalid_amount" }),
-  create: (mercadoPago, request) => mercadoPago.createQrOrder(request),
+  create: ({ mercadoPago }, _registerId, request) => mercadoPago.createQrOrder(request),
 };
 
 export function createMercadoPagoQrOrder(

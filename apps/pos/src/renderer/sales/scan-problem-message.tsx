@@ -17,7 +17,9 @@ export type ScanProblem =
           | "no_price"
           | "line_quantity_limit"
           | "not_permitted"
-          | "installation_revoked";
+          | "installation_revoked"
+          | "paid_order_without_sale"
+          | "paid_orders_not_checked";
       }
     >
   | { kind: "not_sold_by_weight"; product_name: string }
@@ -33,7 +35,7 @@ export type ScanProblem =
   | { kind: "cancel_failed" }
   | { kind: "has_approved_payment" }
   | { kind: "mercado_pago_charge_in_progress" }
-  | { kind: "holds_mercado_pago_payment" };
+  | { kind: "holds_point_payment" };
 
 type Message = { icon: LucideIcon; title: string; help: string };
 
@@ -80,6 +82,18 @@ export function messageFor(problem: ScanProblem): Message {
         icon: Ban,
         title: "Esta caja ya no puede empezar ventas",
         help: "El motivo y qué hacer se muestran arriba de la pantalla.",
+      };
+    case "paid_order_without_sale":
+      return {
+        icon: Ban,
+        title: "Hay un cobro pagado sin venta",
+        help: "Pasalo a reembolso en Antes de empezar.",
+      };
+    case "paid_orders_not_checked":
+      return {
+        icon: Ban,
+        title: "La caja todavía está consultando los cobros pagados",
+        help: "Esperá a que termine para empezar una venta.",
       };
     case "manual_discount_removed":
       return {
@@ -147,11 +161,11 @@ export function messageFor(problem: ScanProblem): Message {
         title: "Hay un cobro con Mercado Pago en curso",
         help: "Esperá a que termine para cancelar la venta.",
       };
-    case "holds_mercado_pago_payment":
+    case "holds_point_payment":
       return {
         icon: Ban,
         title: "No se puede cancelar la venta",
-        help: "La venta tiene un pago con Mercado Pago: todavía no se puede anular desde la caja.",
+        help: "La venta tiene un pago con la terminal de Mercado Pago: todavía no se puede anular desde la caja.",
       };
     case "search_failed":
       return {

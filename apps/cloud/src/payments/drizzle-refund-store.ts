@@ -28,16 +28,16 @@ import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 
 const REFUND_COMPLETION_VERSION = 1;
 
-type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
+export type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
 >[0];
 
-class DrizzleRefundStoreTransaction<TQueryResult extends PgQueryResultHKT>
+export class DrizzleRefundStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements RefundStoreTransaction
 {
-  private readonly tx: Transaction<TQueryResult>;
-  private readonly pending: PendingChanges;
-  private readonly branchOfLockedRefund = new Map<string, string>();
+  protected readonly tx: Transaction<TQueryResult>;
+  protected readonly pending: PendingChanges;
+  protected readonly branchOfLockedRefund = new Map<string, string>();
 
   constructor(tx: Transaction<TQueryResult>, pending: PendingChanges) {
     this.tx = tx;
@@ -50,6 +50,7 @@ class DrizzleRefundStoreTransaction<TQueryResult extends PgQueryResultHKT>
         id: paymentRefunds.id,
         state: paymentRefunds.state,
         origin: paymentRefunds.origin,
+        method: paymentRefunds.method,
       })
       .from(paymentRefunds)
       .leftJoin(salePayments, eq(salePayments.id, paymentRefunds.paymentId))

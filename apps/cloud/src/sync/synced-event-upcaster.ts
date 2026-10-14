@@ -27,7 +27,8 @@ type CancelledSalePayload = SyncedEventPayloads[
   | "sale_cancelled@2"
   | "sale_cancelled@3"
   | "sale_cancelled@4"
-  | "sale_cancelled@5"];
+  | "sale_cancelled@5"
+  | "sale_cancelled@6"];
 
 type ManualAdjustmentPayload = NonNullable<
   SyncedEventPayloads["sale_completed@7"]["lines"][number]["manual_adjustment"]
@@ -238,6 +239,7 @@ const FACT_OF: {
   "sale_cancelled@3": cancelledSale,
   "sale_cancelled@4": cancelledSale,
   "sale_cancelled@5": cancelledSale,
+  "sale_cancelled@6": cancelledSale,
   "cash_session_opened@1": (payload, event) => ({
     kind: "cash_session_opened",
     session: {
@@ -302,6 +304,29 @@ const FACT_OF: {
       saleId: payload.sale_id,
       reason: payload.reason,
       evaluatedAt: new Date(payload.evaluated_at),
+    },
+  }),
+  "offline_fiscal_document_issued@1": (payload) => ({
+    kind: "offline_fiscal_document_issued",
+    document: {
+      fiscalDocumentId: payload.fiscal_document_id,
+      saleId: payload.sale_id,
+      registerId: payload.register_id,
+      pointOfSale: payload.point_of_sale,
+      documentType: payload.document_type,
+      number: payload.number,
+      issuedOn: payload.issued_on,
+      generatedAt: new Date(payload.generated_at),
+      generationStamp: payload.generation_stamp,
+      offlineAuthorizationCode: payload.offline_authorization_code,
+      fortnightStart: payload.fortnight_start,
+      fortnightEnd: payload.fortnight_end,
+      buyerDocumentType: payload.buyer_document_type,
+      buyerDocumentNumber: payload.buyer_document_number,
+      buyerTaxStatusCode: payload.buyer_tax_status_code,
+      total: payload.total,
+      netAmount: payload.net_amount,
+      cause: payload.cause,
     },
   }),
 };

@@ -98,7 +98,7 @@ describe("saleSchema", () => {
     },
   );
 
-  it.each([null, "mercado_pago_charge_in_progress", "holds_mercado_pago_payment"] as const)(
+  it.each([null, "mercado_pago_charge_in_progress", "holds_point_payment"] as const)(
     "accepts a sale whose cancellation is refused by %s",
     (cancel_refusal) => {
       expect(saleSchema.parse({ ...sale, cancel_refusal }).cancel_refusal).toBe(cancel_refusal);
@@ -195,6 +195,10 @@ describe("saleSchema", () => {
     [
       "its cancellation refused for holding a standalone terminal payment",
       { ...sale, cancel_refusal: "holds_standalone_terminal_payment" },
+    ],
+    [
+      "its cancellation refused for holding a Mercado Pago payment",
+      { ...sale, cancel_refusal: "holds_mercado_pago_payment" },
     ],
     [
       "its discount on the total refused for a reason that needs a discount",
@@ -367,6 +371,8 @@ describe("scanProductOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "installation_revoked" },
+    { kind: "paid_order_without_sale" },
+    { kind: "paid_orders_not_checked" },
     { kind: "sale_has_payments" },
     { kind: "unavailable" },
   ])("accepts the outcome $kind", (outcome) => {
@@ -452,6 +458,8 @@ describe("addWeighedProductOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "installation_revoked" },
+    { kind: "paid_order_without_sale" },
+    { kind: "paid_orders_not_checked" },
     { kind: "unavailable" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(addWeighedProductOutcomeSchema.parse(outcome)).toEqual(outcome);
@@ -482,6 +490,8 @@ describe("weighProductOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "installation_revoked" },
+    { kind: "paid_order_without_sale" },
+    { kind: "paid_orders_not_checked" },
     { kind: "unavailable" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(weighProductOutcomeSchema.parse(outcome)).toEqual(outcome);
@@ -565,7 +575,7 @@ describe("cancelPaidSaleOutcomeSchema", () => {
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
     { kind: "locked", consecutive_failures: PIN_SIGN_IN_LOCKOUT_FAILURES },
     { kind: "mercado_pago_charge_in_progress" },
-    { kind: "holds_mercado_pago_payment" },
+    { kind: "holds_point_payment" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(cancelPaidSaleOutcomeSchema.parse(outcome)).toEqual(outcome);
   });
@@ -579,6 +589,7 @@ describe("cancelPaidSaleOutcomeSchema", () => {
     },
     { kind: "has_approved_payment" },
     { kind: "holds_standalone_terminal_payment" },
+    { kind: "holds_mercado_pago_payment" },
     { kind: "somewhere_else" },
     {},
   ])("rejects the outcome %j", (outcome) => {
@@ -1065,6 +1076,8 @@ describe("addProductOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "installation_revoked" },
+    { kind: "paid_order_without_sale" },
+    { kind: "paid_orders_not_checked" },
     { kind: "sale_has_payments" },
     { kind: "unavailable" },
   ])("accepts the outcome $kind", (outcome) => {

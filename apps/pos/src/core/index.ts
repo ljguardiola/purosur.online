@@ -32,6 +32,7 @@ import { readLatestPreEmissionGateOutcome } from "./fiscal/sqlite-pre-emission-g
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
 import { createInterruptedChargesWiring } from "./payments/interrupted-charges-wiring";
 import { createMercadoPagoCharging } from "./payments/mercado-pago-charge-wiring";
+import { createPaidOrderDiscoveryWiring } from "./payments/paid-order-discovery-wiring";
 import { paymentMethodAvailabilityFor } from "./payments/payment-method-availability-requests";
 import {
   type CloudClientDeps,
@@ -444,6 +445,7 @@ const syncSchedule = createSyncSchedule({
   afterEachSync: () => {
     rendererConnection.tell(PULLED_NOTICE);
     interruptedCharges.afterEachSync();
+    paidOrderDiscovery.afterEachSync();
   },
 });
 
@@ -485,6 +487,18 @@ const interruptedCharges = createInterruptedChargesWiring({
   reportFailure,
 });
 
+const paidOrderDiscovery = createPaidOrderDiscoveryWiring({
+  database: localDatabase,
+  gate: actionGate,
+  printing: receiptPrinting,
+  cloudClient,
+  readDeviceToken,
+  readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+  now,
+  ids: uuidV7Ids,
+  reportFailure,
+});
+
 const startupRecovery = recoverAtStartup({
   settleInterruptedAuthorizations: () =>
     settleInterruptedAuthorizations({
@@ -496,6 +510,7 @@ const startupRecovery = recoverAtStartup({
       shortCodes: cryptoShortCodes,
     }),
   followInterruptedCharges: interruptedCharges.followAtStartup,
+  discoverPaidOrders: paidOrderDiscovery.discoverAtStartup,
   startSync: () => syncSchedule.start(),
   reportFailure,
 });
@@ -713,7 +728,12 @@ const rendererRequestDeps: RendererRequestDeps = {
   startupPending:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : () => startupPendingFor({ database: localDatabase, gate: actionGate }),
+      : () =>
+          startupPendingFor({
+            database: localDatabase,
+            gate: actionGate,
+            paidOrderDiscovery: paidOrderDiscovery.state,
+          }),
   cashSession:
     localDatabase === undefined
       ? undefined
@@ -743,7 +763,16 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : (code) =>
-          scanProductFor({ database: localDatabase, gate: actionGate, now, ids: uuidV7Ids }, code),
+          scanProductFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              now,
+              ids: uuidV7Ids,
+              paidOrderDiscovery: paidOrderDiscovery.state,
+            },
+            code,
+          ),
   changeLineQuantity:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -864,6 +893,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             cloud: () => cloudReachability,
           }),
   abandonMercadoPagoCharge: mercadoPagoCharging.abandon,
+  convertPaidOrderIntoRefund: paidOrderDiscovery.convertIntoRefund,
   searchProducts:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -873,7 +903,13 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (productId) =>
           addSearchedProductFor(
-            { database: localDatabase, gate: actionGate, now, ids: uuidV7Ids },
+            {
+              database: localDatabase,
+              gate: actionGate,
+              now,
+              ids: uuidV7Ids,
+              paidOrderDiscovery: paidOrderDiscovery.state,
+            },
             productId,
           ),
   addWeighedProduct:
@@ -881,7 +917,13 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (productId, weightThousandths) =>
           addWeighedProductFor(
-            { database: localDatabase, gate: actionGate, now, ids: uuidV7Ids },
+            {
+              database: localDatabase,
+              gate: actionGate,
+              now,
+              ids: uuidV7Ids,
+              paidOrderDiscovery: paidOrderDiscovery.state,
+            },
             productId,
             weightThousandths,
           ),
@@ -890,7 +932,14 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (productId) =>
           weighProductFor(
-            { database: localDatabase, gate: actionGate, now, ids: uuidV7Ids, scale: systelScale },
+            {
+              database: localDatabase,
+              gate: actionGate,
+              now,
+              ids: uuidV7Ids,
+              paidOrderDiscovery: paidOrderDiscovery.state,
+              scale: systelScale,
+            },
             productId,
           ),
   initialCount:
