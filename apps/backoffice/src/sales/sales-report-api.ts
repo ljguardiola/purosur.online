@@ -1,8 +1,10 @@
 import {
   type ReportQuery,
+  type SalesByCashierBody,
   type SalesByProductAndCategoryBody,
   type SalesByProductAndCategoryQuery,
   type SalesReportBody,
+  salesByCashierSchema,
   salesByProductAndCategorySchema,
   salesReportSchema,
 } from "@purosur/contracts";
@@ -36,4 +38,19 @@ export function fetchSalesByProductAndCategory(
     `/api/reports/sales-by-product-and-category?${params.toString()}`,
     salesByProductAndCategorySchema,
   );
+}
+
+export function fetchSalesByCashier(
+  query: ReportQuery,
+): Promise<CloudReadOutcome<SalesByCashierBody>> {
+  const params = new URLSearchParams();
+  for (const key of ["from", "to", "register_id"] as const) {
+    const value = query[key];
+    if (value !== undefined) {
+      params.set(key, value);
+    }
+  }
+  const search = params.toString();
+  const path = "/api/reports/sales-by-cashier";
+  return readCloudJson(search ? `${path}?${search}` : path, salesByCashierSchema);
 }

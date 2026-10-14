@@ -4,6 +4,7 @@ import { lazyScreen } from "../shell/lazy-screen";
 import { reportFiltersSearch } from "../shell/report-filters-search";
 import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout } from "../shell/signed-in-route";
+import { salesByCashierFilters } from "./sales-by-cashier-filters";
 import { salesByProductAndCategoryFilters } from "./sales-by-product-and-category-filters";
 
 export const reportsIndexRoute = createRoute({
@@ -32,4 +33,13 @@ export const salesByProductAndCategoryRoute = createRoute({
     () => import("./sales-by-product-and-category-page"),
     "SalesByProductAndCategoryPage",
   ),
+});
+
+export const salesByCashierRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/sales-by-cashier",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: salesByCashierFilters,
+  search: { middlewares: [stripSearchParams(salesByCashierFilters.parse({}))] },
+  component: lazyScreen(() => import("./sales-by-cashier-page"), "SalesByCashierPage"),
 });
