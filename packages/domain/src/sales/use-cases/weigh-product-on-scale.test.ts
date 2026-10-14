@@ -219,6 +219,12 @@ describe("weighProductOnScale", () => {
     ).toEqual({ kind: "paid_order_without_sale" });
   });
 
+  it("refuses to open a sale while this run's paid-order check waits for the cloud", async () => {
+    expect(
+      await weigh(ledger({ paidOrderDiscovery: "pending" }), STABLE_1250, "queso"),
+    ).toEqual({ kind: "paid_orders_not_checked" });
+  });
+
   it("weighs onto the open sale while a paid order without a sale is unresolved", async () => {
     const outcome = await weigh(
       ledger({ sales: [OPEN_SALE], paidOrdersWithoutSale: [{ resolved: false }] }),

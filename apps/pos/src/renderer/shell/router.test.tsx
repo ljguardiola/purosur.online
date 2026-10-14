@@ -1363,10 +1363,53 @@ describe("the register's router", () => {
       await expect.poll(() => router.state.location.pathname).toBe("/session");
     });
 
+    it.each([
+      ["lists nothing left", async () => NOTHING_PENDING],
+      ["refuses the person", async (): Promise<"not_permitted"> => "not_permitted"],
+    ])(
+      "sends the person to the sale from its own guard, before it shows, when the core %s",
+      async (_name, startupPending) => {
+        const router = routerWithPending(startupPending, "/startup-pending");
+
+        await router.load();
+
+        expect(router.state.location.pathname).toBe("/session");
+      },
+    );
+
+    it("keeps the person on it, with Ir a vender locked, until the core lets the cashier sell after the paid-order check", async () => {
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
+      let answer: StartupPending = {
+        ...NOTHING_PENDING,
+        paid_order_discovery: "pending",
+        may_go_selling: false,
+      };
+      const router = routerWithPending(async () => answer);
+      const screen = await render(<RouterProvider router={router} />);
+      await expect.element(screenFor["/startup-pending"](screen)).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Ir a vender" }))
+        .toHaveAttribute("aria-disabled", "true");
+      answer = { ...NOTHING_PENDING, paid_order_discovery: "deferred" };
+
+      await vi.advanceTimersByTimeAsync(3000);
+      await expect
+        .element(screen.getByRole("button", { name: "Ir a vender" }))
+        .not.toHaveAttribute("aria-disabled");
+      await userEvent.click(screen.getByRole("button", { name: "Ir a vender" }));
+
+      await expect.element(screenFor["/session"](screen)).toBeVisible();
+      expect(router.state.location.pathname).toBe("/session");
+    });
+
     it("lands on it while the search for paid orders without a sale has not run yet", async () => {
       const router = routerWithPending(async () => ({
         ...NOTHING_PENDING,
         paid_order_discovery: "pending",
+        may_go_selling: false,
       }));
       const screen = await render(<RouterProvider router={router} />);
 
@@ -1445,7 +1488,7 @@ describe("the register's router", () => {
         .toBeVisible();
     });
 
-    it("passes the order to refund through the core and goes on to the sale by itself afterwards", async () => {
+    it("passes the order to refund through the core and goes on to the sale by itself once its notice is dismissed", async () => {
       let answer = BLOCKED_BY_PAID_ORDER;
       const convertPaidOrderIntoRefund = vi.fn<RouterContext["convertPaidOrderIntoRefund"]>(
         async () => {
@@ -1474,6 +1517,9 @@ describe("the register's router", () => {
       );
 
       expect(convertPaidOrderIntoRefund).toHaveBeenCalledExactlyOnceWith("tx-1");
+      await expect.element(screen.getByText("El cobro quedó como reembolso")).toBeVisible();
+      expect(router.state.location.pathname).toBe("/startup-pending");
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
 
       await expect.element(screenFor["/session"](screen)).toBeVisible();
       expect(router.state.location.pathname).toBe("/session");

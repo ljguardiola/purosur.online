@@ -15,7 +15,7 @@ function openSaleOf(
   local: ReturnType<typeof paidOrderWorld>["local"],
   order: ReturnType<typeof anApprovedOrder>,
 ) {
-  local.sales.set(order.saleId, "OPEN");
+  local.sales.set(order.saleId, "open");
   local.saleActors.set(order.saleId, "cashier-1");
 }
 
@@ -42,7 +42,7 @@ describe("discoverPaidOrdersWithoutSale", () => {
     const order = anApprovedOrder();
     const { refunds, local, sale, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
     local.payments.set(order.paymentTransactionId, "APPROVED");
-    local.sales.set(order.saleId, "COMPLETED");
+    local.sales.set(order.saleId, "closed");
 
     expect(await discoverPaidOrdersWithoutSale(ports)).toEqual(NOTHING_FOUND);
 
@@ -141,7 +141,7 @@ describe("discoverPaidOrdersWithoutSale", () => {
   it("applies nothing when the open sale's cashier is unknown", async () => {
     const order = anApprovedOrder();
     const { local, sale, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
-    local.sales.set(order.saleId, "OPEN");
+    local.sales.set(order.saleId, "open");
 
     expect(await discoverPaidOrdersWithoutSale(ports)).toEqual({ ...NOTHING_FOUND, failed: 1 });
 
@@ -149,31 +149,25 @@ describe("discoverPaidOrdersWithoutSale", () => {
     expect(local.payments.has(order.paymentTransactionId)).toBe(false);
   });
 
-  it.each(["COMPLETED", "CANCELLED"] as const)(
-    "asks the cloud to refund an order charged again for a %s sale",
-    async (state) => {
-      const order = anApprovedOrder();
-      const { refunds, local, sale, ports } = paidOrderWorld({
-        kind: "listed",
-        orders: [order],
-      });
-      local.sales.set(order.saleId, state);
+  it("asks the cloud to refund an order charged again for a closed sale", async () => {
+    const order = anApprovedOrder();
+    const { refunds, local, sale, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
+    local.sales.set(order.saleId, "closed");
 
-      expect(await discoverPaidOrdersWithoutSale(ports)).toEqual({
-        ...NOTHING_FOUND,
-        duplicateCharges: 1,
-      });
+    expect(await discoverPaidOrdersWithoutSale(ports)).toEqual({
+      ...NOTHING_FOUND,
+      duplicateCharges: 1,
+    });
 
-      expect(refunds.pendingRefunds).toEqual([order.paymentTransactionId]);
-      expect(local.recordedOrders.size).toBe(0);
-      expect(sale.settled).toEqual([]);
-    },
-  );
+    expect(refunds.pendingRefunds).toEqual([order.paymentTransactionId]);
+    expect(local.recordedOrders.size).toBe(0);
+    expect(sale.settled).toEqual([]);
+  });
 
   it("counts a duplicate charge whose refund was already open", async () => {
     const order = anApprovedOrder();
     const { refunds, local, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
-    local.sales.set(order.saleId, "COMPLETED");
+    local.sales.set(order.saleId, "closed");
 
     await discoverPaidOrdersWithoutSale(ports);
     const again = await discoverPaidOrdersWithoutSale(ports);
@@ -230,7 +224,7 @@ describe("discoverPaidOrdersWithoutSale", () => {
     });
     openSaleOf(local, failing);
     sale.answer = new Error("the local database refused the payment");
-    local.sales.set(duplicate.saleId, "COMPLETED");
+    local.sales.set(duplicate.saleId, "closed");
 
     expect(await discoverPaidOrdersWithoutSale(ports)).toEqual({
       kind: "checked",
@@ -251,7 +245,7 @@ describe("discoverPaidOrdersWithoutSale", () => {
         kind: "listed",
         orders: [duplicate, lost],
       });
-      local.sales.set("sale-1", "COMPLETED");
+      local.sales.set("sale-1", "closed");
       refunds.answers.set("duplicate", { kind: answer });
 
       expect(await discoverPaidOrdersWithoutSale(ports)).toEqual({

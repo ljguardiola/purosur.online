@@ -228,7 +228,12 @@ function readySeller(): void {
 beforeEach(() => {
   idCount = 0;
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
-  ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), CHAIN_KEY);
+  ledger = new SqliteSaleLedger(
+    database,
+    new SqliteSignInStore(database),
+    CHAIN_KEY,
+    () => "checked",
+  );
 });
 
 afterEach(() => {
@@ -617,7 +622,12 @@ describe("the sale after the register restarts", () => {
       const path = join(folder, "register.sqlite");
       database.close();
       database = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
-      ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), CHAIN_KEY);
+      ledger = new SqliteSaleLedger(
+        database,
+        new SqliteSignInStore(database),
+        CHAIN_KEY,
+        () => "checked",
+      );
       readySeller();
       addProduct("111");
       addPrice("p1", "2026-09-01T00:00:00.000Z", 1000);
@@ -626,7 +636,12 @@ describe("the sale after the register restarts", () => {
       database.close();
 
       database = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
-      ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), CHAIN_KEY);
+      ledger = new SqliteSaleLedger(
+        database,
+        new SqliteSignInStore(database),
+        CHAIN_KEY,
+        () => "checked",
+      );
 
       expect(currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" })).toMatchObject({
         kind: "open",
@@ -662,6 +677,25 @@ describe("the installation's revocation", () => {
       .run();
 
     expect(ledger.transaction((tx) => tx.installationRevoked())).toBe(true);
+  });
+});
+
+describe("this run's paid-order check", () => {
+  it("is what the register's discovery answers", () => {
+    const checked = new SqliteSaleLedger(
+      database,
+      new SqliteSignInStore(database),
+      CHAIN_KEY,
+      () => "deferred",
+    );
+
+    expect(checked.transaction((tx) => tx.paidOrderDiscovery())).toBe("deferred");
+  });
+
+  it("is still pending for a ledger the discovery was not given to", () => {
+    const withoutDiscovery = new SqliteSaleLedger(database, new SqliteSignInStore(database));
+
+    expect(withoutDiscovery.transaction((tx) => tx.paidOrderDiscovery())).toBe("pending");
   });
 });
 

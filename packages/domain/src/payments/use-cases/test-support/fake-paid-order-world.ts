@@ -1,5 +1,7 @@
-import type { SaleState } from "../../../sales/index.js";
-import type { LocalStateOfPaidOrder } from "../../model/paid-order-discovery.js";
+import type {
+  LocalSaleOfPaidOrder,
+  LocalStateOfPaidOrder,
+} from "../../model/paid-order-discovery.js";
 import type { PaymentTransactionState } from "../../model/payment-transaction.js";
 import type {
   ApprovedOrderOfRegister,
@@ -69,7 +71,7 @@ class FakeLatePaymentRefundRequests implements LatePaymentRefundRequests {
 
 class FakeLocalPaidOrders implements LocalPaidOrders {
   readonly payments = new Map<string, PaymentTransactionState>();
-  readonly sales = new Map<string, SaleState>();
+  readonly sales = new Map<string, LocalSaleOfPaidOrder>();
   readonly saleActors = new Map<string, string>();
   readonly recordedOrders = new Map<string, PaidOrderWithoutSale>();
   readonly steps: string[] = [];

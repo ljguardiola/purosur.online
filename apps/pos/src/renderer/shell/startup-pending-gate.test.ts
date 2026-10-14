@@ -79,7 +79,7 @@ describe("startupPendingGate", () => {
     const gate = startupPendingGate();
 
     expect(await gate.lands(async () => pending)).toBe(true);
-    expect(gate.dismissed()).toBe(false);
+    expect(await gate.lands(async () => A_SALE_TO_PRINT)).toBe(true);
   });
 
   it("keeps landing on the pending screen until it is dismissed", async () => {
@@ -97,14 +97,14 @@ describe("startupPendingGate", () => {
     expect(await gate.lands(async () => A_SALE_TO_PRINT)).toBe(false);
     expect(await gate.lands(read)).toBe(false);
     expect(read).toHaveBeenCalledTimes(2);
-    expect(gate.dismissed()).toBe(true);
+    expect(await gate.lands(async () => A_SALE_TO_PRINT)).toBe(false);
   });
 
   it("goes on to selling when the person may not see what is pending", async () => {
     const gate = startupPendingGate();
 
     expect(await gate.lands(async () => "not_permitted")).toBe(false);
-    expect(gate.dismissed()).toBe(true);
+    expect(await gate.lands(async () => A_SALE_TO_PRINT)).toBe(false);
   });
 
   it("goes on to selling when the read fails", async () => {
@@ -115,7 +115,7 @@ describe("startupPendingGate", () => {
         throw new Error("the core could not answer");
       }),
     ).toBe(false);
-    expect(gate.dismissed()).toBe(true);
+    expect(await gate.lands(async () => A_SALE_TO_PRINT)).toBe(false);
   });
 
   it("stops landing on the pending screen once dismissed", async () => {
@@ -124,7 +124,7 @@ describe("startupPendingGate", () => {
     gate.dismiss();
 
     expect(await gate.lands(async () => A_SALE_TO_PRINT)).toBe(false);
-    expect(gate.dismissed()).toBe(true);
+    expect(await gate.lands(async () => A_SALE_TO_PRINT)).toBe(false);
   });
 
   it("keeps landing on the pending screen after being dismissed while selling is blocked", async () => {
@@ -132,7 +132,7 @@ describe("startupPendingGate", () => {
     gate.dismiss();
 
     expect(await gate.lands(async () => A_PAID_ORDER_WITHOUT_SALE)).toBe(true);
-    expect(gate.dismissed()).toBe(false);
+    expect(await gate.lands(async () => A_PAID_ORDER_WITHOUT_SALE)).toBe(true);
   });
 
   it("does not let selling start while the core blocks it, even if the person had gone on to sell", async () => {
@@ -148,7 +148,7 @@ describe("startupPendingGate", () => {
     await gate.lands(async () => A_PAID_ORDER_WITHOUT_SALE);
 
     expect(await gate.lands(async () => NOTHING)).toBe(false);
-    expect(gate.dismissed()).toBe(true);
+    expect(await gate.lands(async () => A_SALE_TO_PRINT)).toBe(false);
   });
 
   it("still lands on the pending screen when the search not run yet turns out deferred", async () => {
@@ -164,7 +164,7 @@ describe("startupPendingGate", () => {
 
     gate.dismiss();
 
-    expect(gate.dismissed()).toBe(true);
+    expect(await gate.lands(async () => A_SALE_TO_PRINT)).toBe(false);
     expect(await gate.lands(async () => BLOCKED_WITH_AN_OPEN_SALE)).toBe(false);
   });
 });

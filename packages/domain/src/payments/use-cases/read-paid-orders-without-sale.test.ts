@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readPaidOrdersWithoutSale } from "./read-paid-orders-without-sale.js";
 import { anApprovedOrder, NOW, paidOrderWorld } from "./test-support/fake-paid-order-world.js";
 
-const NO_OPEN_SALE = { openSale: false };
+const NO_OPEN_SALE = { openSale: false, discovery: "checked" } as const;
 
 describe("readPaidOrdersWithoutSale", () => {
   it("does not block selling when the register has none", () => {
@@ -33,7 +33,7 @@ describe("readPaidOrdersWithoutSale", () => {
     const { local, ports } = paidOrderWorld();
     local.recordPaidOrderWithoutSale(anApprovedOrder(), NOW);
 
-    const read = readPaidOrdersWithoutSale(ports, { openSale: true });
+    const read = readPaidOrdersWithoutSale(ports, { openSale: true, discovery: "checked" });
 
     expect([read.sellingBlocked, read.mayGoSelling]).toEqual([true, true]);
   });
@@ -67,5 +67,32 @@ describe("readPaidOrdersWithoutSale", () => {
     ]);
     expect(read.sellingBlocked).toBe(true);
     expect(read.mayGoSelling).toBe(false);
+  });
+
+  it("keeps the cashier from starting a sale while this run's check waits for the cloud", () => {
+    const { ports } = paidOrderWorld();
+
+    expect(readPaidOrdersWithoutSale(ports, { openSale: false, discovery: "pending" })).toEqual({
+      kind: "read",
+      paidOrders: [],
+      sellingBlocked: false,
+      mayGoSelling: false,
+    });
+  });
+
+  it("lets the cashier go back to the sale already open while the check waits for the cloud", () => {
+    const { ports } = paidOrderWorld();
+
+    const read = readPaidOrdersWithoutSale(ports, { openSale: true, discovery: "pending" });
+
+    expect(read.mayGoSelling).toBe(true);
+  });
+
+  it("lets the cashier start a sale once the check is deferred", () => {
+    const { ports } = paidOrderWorld();
+
+    const read = readPaidOrdersWithoutSale(ports, { openSale: false, discovery: "deferred" });
+
+    expect(read.mayGoSelling).toBe(true);
   });
 });

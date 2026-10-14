@@ -257,6 +257,7 @@ export async function withRegisterSession<TResult>(
       readOutboxChainKey: async () => OUTBOX_CHAIN_KEY,
       now,
       ids: uuidV7Ids,
+      paidOrderDiscovery: () => "checked" as const,
     });
 
     for (const [step, request] of [

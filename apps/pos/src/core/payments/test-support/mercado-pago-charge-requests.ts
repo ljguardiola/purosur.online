@@ -138,6 +138,7 @@ export async function openSaleOfTwoYerbas(register: ChargeRegister): Promise<str
         };
       })(),
     },
+    paidOrderDiscovery: () => "checked" as const,
   };
   await scanProductFor(saleDeps, "111");
   const outcome = await scanProductFor(saleDeps, "111");

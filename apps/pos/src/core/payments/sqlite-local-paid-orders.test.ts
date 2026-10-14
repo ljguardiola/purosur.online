@@ -70,13 +70,13 @@ describe("the local state of a paid order", () => {
     });
   });
 
-  it("is the state of the payment the register holds and of the order's sale", async () => {
+  it("is the state of the payment the register holds and whether the order's sale is still open", async () => {
     const saleId = await openSale();
     addQrPayment("PENDING", saleId);
 
     expect(localPaidOrders().localStateOf(anOrder({ saleId }))).toEqual({
       payment: "PENDING",
-      sale: "OPEN",
+      sale: "open",
     });
   });
 
@@ -88,7 +88,7 @@ describe("the local state of a paid order", () => {
       )
       .run(saleId);
 
-    expect(localPaidOrders().localStateOf(anOrder({ saleId })).sale).toBe("CANCELLED");
+    expect(localPaidOrders().localStateOf(anOrder({ saleId })).sale).toBe("closed");
   });
 });
 

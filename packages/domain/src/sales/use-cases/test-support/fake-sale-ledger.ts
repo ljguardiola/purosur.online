@@ -5,7 +5,11 @@ import {
   latestBuyerTaxStatusSet,
   latestIssuerIdentification,
 } from "../../../fiscal/index.js";
-import type { PendingMercadoPagoSalePayment, SalePayment } from "../../../payments/index.js";
+import type {
+  PaidOrderDiscoveryState,
+  PendingMercadoPagoSalePayment,
+  SalePayment,
+} from "../../../payments/index.js";
 import type { RoleAccess } from "../../../permissions/index.js";
 import { newestPrice } from "../../../pricing/index.js";
 import { type CashMovement, nextOperationNumber } from "../../../register/index.js";
@@ -44,6 +48,7 @@ export interface FakeSaleLedgerState {
   identity: RegisterIdentity | undefined;
   revoked: boolean;
   paidOrdersWithoutSale: { resolved: boolean }[];
+  paidOrderDiscovery: PaidOrderDiscoveryState;
   session: SellingSession | undefined;
   products: SellableProduct[];
   barcodes: Record<string, string>;
@@ -103,6 +108,7 @@ export class FakeSaleLedger implements SaleLedger {
       identity: undefined,
       revoked: false,
       paidOrdersWithoutSale: [],
+      paidOrderDiscovery: "checked",
       session: undefined,
       products: [],
       barcodes: {},
@@ -142,6 +148,7 @@ export class FakeSaleLedger implements SaleLedger {
       },
       installationRevoked: () => working.revoked,
       paidOrdersWithoutSale: () => structuredClone(working.paidOrdersWithoutSale),
+      paidOrderDiscovery: () => working.paidOrderDiscovery,
       registerIdentity: () => working.identity,
       activeProductByBarcode: (code) => {
         this.barcodeLookups += 1;

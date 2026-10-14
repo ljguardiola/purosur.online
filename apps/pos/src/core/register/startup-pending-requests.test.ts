@@ -1,5 +1,5 @@
+import type { PaidOrderDiscoveryState } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { PaidOrderDiscoveryState } from "../payments/paid-order-discovery-wiring";
 import { seedChargeRegister } from "../payments/test-support/mercado-pago-charge-requests";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -212,6 +212,30 @@ describe("what a stopped register left pending", () => {
       expect((await pendingOf()).paid_order_discovery).toBe(state);
     },
   );
+
+  it("keeps the cashier from going selling while this run's paid-order check waits for the cloud", async () => {
+    discoveryState = "pending";
+
+    const pending = await pendingOf();
+
+    expect([pending.selling_blocked, pending.may_go_selling]).toEqual([false, false]);
+  });
+
+  it("lets the cashier go back to the sale left open while this run's paid-order check waits for the cloud", async () => {
+    discoveryState = "pending";
+    database.exec(
+      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+       VALUES ('open-sale', 'register-1', 'device-1', 'session-1', 'u1', 'OPEN', NULL)`,
+    );
+
+    expect((await pendingOf()).may_go_selling).toBe(true);
+  });
+
+  it("lets the cashier go selling once this run's paid-order check is deferred", async () => {
+    discoveryState = "deferred";
+
+    expect((await pendingOf()).may_go_selling).toBe(true);
+  });
 
   it("is refused while nobody is signed in", async () => {
     signedInPerson.clear();

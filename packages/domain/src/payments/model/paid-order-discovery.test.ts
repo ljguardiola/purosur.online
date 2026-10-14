@@ -1,12 +1,14 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import type { SaleState } from "../../sales/index.js";
 import {
   classifyPaidOrder,
   type LocalStateOfPaidOrder,
+  PAID_ORDER_DISCOVERY_STATES,
   PAID_ORDER_DISCOVERY_WINDOW_HOURS,
   PAID_ORDER_PAYMENT_STATE,
   PAID_ORDER_REPLACED,
+  type PaidOrderDiscoveryState,
   paidOrderDiscoveryStart,
+  paidOrdersSellingRefusal,
   paidOrdersWithoutSaleLetSell,
   paidOrderWithoutSaleBlocksSelling,
   SALE_PAYMENT_STATE_HOLDING_PAID_ORDER,
@@ -42,23 +44,23 @@ describe("paid order of a register", () => {
 });
 
 describe("the local state of a paid order", () => {
-  it("names its sale by the states a sale can be in, and nothing else", () => {
-    expectTypeOf<NonNullable<LocalStateOfPaidOrder["sale"]>>().toEqualTypeOf<SaleState>();
+  it("tells only whether the order's sale is still open or already closed", () => {
+    expectTypeOf<NonNullable<LocalStateOfPaidOrder["sale"]>>().toEqualTypeOf<"open" | "closed">();
     expectTypeOf<string>().not.toExtend<LocalStateOfPaidOrder["sale"]>();
   });
 });
 
 describe("classifying a paid order against the register's local state", () => {
   it("has nothing to do when the local payment is already approved", () => {
-    expect(classifyPaidOrder({ payment: "APPROVED", sale: "COMPLETED" })).toBe("recorded");
-    expect(classifyPaidOrder({ payment: "APPROVED", sale: "OPEN" })).toBe("recorded");
+    expect(classifyPaidOrder({ payment: "APPROVED", sale: "closed" })).toBe("recorded");
+    expect(classifyPaidOrder({ payment: "APPROVED", sale: "open" })).toBe("recorded");
     expect(classifyPaidOrder({ payment: "APPROVED", sale: undefined })).toBe("recorded");
   });
 
   it("leaves to the charge under way a payment the register still has pending", () => {
-    expect(classifyPaidOrder({ payment: "PENDING", sale: "OPEN" })).toBe("charge_under_way");
+    expect(classifyPaidOrder({ payment: "PENDING", sale: "open" })).toBe("charge_under_way");
     expect(classifyPaidOrder({ payment: "PENDING", sale: undefined })).toBe("charge_under_way");
-    expect(classifyPaidOrder({ payment: "PENDING", sale: "COMPLETED" })).toBe("charge_under_way");
+    expect(classifyPaidOrder({ payment: "PENDING", sale: "closed" })).toBe("charge_under_way");
   });
 
   it.each([
@@ -67,16 +69,13 @@ describe("classifying a paid order against the register's local state", () => {
     ["a cancelled local payment", "CANCELLED"],
     ["an expired local payment", "EXPIRED"],
   ] as const)("applies it to the open sale when there is %s", (_name, payment) => {
-    expect(classifyPaidOrder({ payment, sale: "OPEN" })).toBe("apply_to_open_sale");
+    expect(classifyPaidOrder({ payment, sale: "open" })).toBe("apply_to_open_sale");
   });
 
-  it.each(["COMPLETED", "CANCELLED", "VOIDED"] as const)(
-    "is a duplicate charge when the sale is %s and the local payment is not approved",
-    (sale) => {
-      expect(classifyPaidOrder({ payment: undefined, sale })).toBe("duplicate_charge");
-      expect(classifyPaidOrder({ payment: "DECLINED", sale })).toBe("duplicate_charge");
-    },
-  );
+  it("is a duplicate charge when the sale is closed and the local payment is not approved", () => {
+    expect(classifyPaidOrder({ payment: undefined, sale: "closed" })).toBe("duplicate_charge");
+    expect(classifyPaidOrder({ payment: "DECLINED", sale: "closed" })).toBe("duplicate_charge");
+  });
 
   it("is a paid order without a sale when the register has no such sale", () => {
     expect(classifyPaidOrder({ payment: undefined, sale: undefined })).toBe("without_sale");
@@ -95,15 +94,66 @@ describe("blocking sales", () => {
   });
 
   it("lets the cashier sell when no paid order without a sale is unresolved", () => {
-    expect(paidOrdersWithoutSaleLetSell([{ resolved: true }], { openSale: false })).toBe(true);
-    expect(paidOrdersWithoutSaleLetSell([], { openSale: true })).toBe(true);
+    expect(
+      paidOrdersWithoutSaleLetSell([{ resolved: true }], { openSale: false, discovery: "checked" }),
+    ).toBe(true);
+    expect(paidOrdersWithoutSaleLetSell([], { openSale: true, discovery: "checked" })).toBe(true);
   });
 
   it("keeps the cashier from starting a sale while one is unresolved", () => {
-    expect(paidOrdersWithoutSaleLetSell([{ resolved: false }], { openSale: false })).toBe(false);
+    expect(
+      paidOrdersWithoutSaleLetSell([{ resolved: false }], {
+        openSale: false,
+        discovery: "checked",
+      }),
+    ).toBe(false);
   });
 
   it("lets the cashier go on with the sale already open while one is unresolved", () => {
-    expect(paidOrdersWithoutSaleLetSell([{ resolved: false }], { openSale: true })).toBe(true);
+    expect(
+      paidOrdersWithoutSaleLetSell([{ resolved: false }], { openSale: true, discovery: "pending" }),
+    ).toBe(true);
+  });
+
+  it("keeps the cashier from starting a sale before the cloud answered this run's check", () => {
+    expect(paidOrdersWithoutSaleLetSell([], { openSale: false, discovery: "pending" })).toBe(false);
+  });
+
+  it("lets the cashier start a sale once the check is deferred or done", () => {
+    expect(paidOrdersWithoutSaleLetSell([], { openSale: false, discovery: "deferred" })).toBe(true);
+    expect(paidOrdersWithoutSaleLetSell([], { openSale: false, discovery: "checked" })).toBe(true);
+  });
+});
+
+describe("the paid-order check of a register's run", () => {
+  it("is pending until the cloud answers, deferred without it, and checked once handled", () => {
+    expect(PAID_ORDER_DISCOVERY_STATES).toEqual(["pending", "deferred", "checked"]);
+    expectTypeOf<PaidOrderDiscoveryState>().toEqualTypeOf<"pending" | "deferred" | "checked">();
+  });
+});
+
+describe("why starting a sale is refused", () => {
+  it("names the paid order without a sale before a check still pending", () => {
+    expect(
+      paidOrdersSellingRefusal([{ resolved: false }], { openSale: false, discovery: "pending" }),
+    ).toBe("paid_order_without_sale");
+  });
+
+  it("names the pending check when no paid order without a sale is unresolved", () => {
+    expect(
+      paidOrdersSellingRefusal([{ resolved: true }], { openSale: false, discovery: "pending" }),
+    ).toBe("paid_orders_not_checked");
+  });
+
+  it("refuses nothing on the sale already open", () => {
+    expect(
+      paidOrdersSellingRefusal([{ resolved: false }], { openSale: true, discovery: "pending" }),
+    ).toBeUndefined();
+  });
+
+  it("refuses nothing once the check is deferred and nothing is unresolved", () => {
+    expect(
+      paidOrdersSellingRefusal([{ resolved: true }], { openSale: false, discovery: "deferred" }),
+    ).toBeUndefined();
   });
 });

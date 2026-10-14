@@ -285,6 +285,12 @@ describe("addWeighedProduct", () => {
     ).toBe("added");
   });
 
+  it("refuses to open a sale while this run's paid-order check waits for the cloud", () => {
+    expect(weigh(ledger({ paidOrderDiscovery: "pending" }))).toEqual({
+      kind: "paid_orders_not_checked",
+    });
+  });
+
   it("refuses to open a sale when the register has no identity yet", () => {
     expect(weigh(ledger({ identity: undefined }))).toEqual({ kind: "unavailable" });
   });

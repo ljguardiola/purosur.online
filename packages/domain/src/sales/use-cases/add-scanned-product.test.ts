@@ -438,6 +438,24 @@ describe("addScannedProduct", () => {
     expect(scan(ledger({ paidOrdersWithoutSale: [{ resolved: true }] })).kind).toBe("added");
   });
 
+  it("refuses to open a new sale while this run's paid-order check waits for the cloud", () => {
+    const store = ledger({ paidOrderDiscovery: "pending" });
+    const before = structuredClone(store.state);
+
+    expect(scan(store)).toEqual({ kind: "paid_orders_not_checked" });
+    nothingRecorded(store, before);
+  });
+
+  it("keeps accepting lines on an open sale while this run's paid-order check waits for the cloud", () => {
+    const store = ledger({ sales: [OPEN_SALE], paidOrderDiscovery: "pending" });
+
+    expect(scan(store).kind).toBe("added");
+  });
+
+  it("opens a new sale once this run's paid-order check is deferred", () => {
+    expect(scan(ledger({ paidOrderDiscovery: "deferred" })).kind).toBe("added");
+  });
+
   it("checks the installation's revocation before a paid order without a sale, and that before the register's identity", () => {
     expect(scan(ledger({ revoked: true, paidOrdersWithoutSale: [{ resolved: false }] }))).toEqual({
       kind: "installation_revoked",

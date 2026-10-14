@@ -31,6 +31,7 @@ import {
   chargeSaleOnStandaloneTerminalFor,
   currentSaleFor,
   type OutboxSaleRequestDeps,
+  type SellingRequestDeps,
   previewSaleDiscountFor,
   previewSaleLineAdjustmentFor,
   removeSaleLineFor,
@@ -51,7 +52,9 @@ const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
 
-function deps(overrides: Partial<OutboxSaleRequestDeps> = {}): OutboxSaleRequestDeps {
+function deps(
+  overrides: Partial<OutboxSaleRequestDeps & SellingRequestDeps> = {},
+): OutboxSaleRequestDeps & SellingRequestDeps {
   let count = 0;
   return {
     database,
@@ -70,6 +73,7 @@ function deps(overrides: Partial<OutboxSaleRequestDeps> = {}): OutboxSaleRequest
         return `id-${count}`;
       },
     },
+    paidOrderDiscovery: () => "checked",
     ...overrides,
   };
 }
@@ -369,6 +373,12 @@ describe("scanning a product on the register", () => {
       .run();
 
     expect(await scanProductFor(deps(), "111")).toEqual({ kind: "installation_revoked" });
+  });
+
+  it("answers that this run's paid-order check still waits for the cloud when no sale was started", async () => {
+    expect(await scanProductFor(deps({ paidOrderDiscovery: () => "pending" }), "111")).toEqual({
+      kind: "paid_orders_not_checked",
+    });
   });
 
   it("answers unavailable when the register does not know its own identity yet", async () => {

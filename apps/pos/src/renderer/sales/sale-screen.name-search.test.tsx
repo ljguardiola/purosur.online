@@ -475,6 +475,11 @@ describe("SaleScreen searching by name", () => {
         title: "Hay un cobro pagado sin venta",
       },
       {
+        name: "a paid-order check still waiting for the cloud",
+        outcome: { kind: "paid_orders_not_checked" },
+        title: "La caja todavía está consultando los cobros pagados",
+      },
+      {
         name: "the core being unable to add it",
         outcome: { kind: "unavailable" },
         title: "No se pudo agregar el producto",
