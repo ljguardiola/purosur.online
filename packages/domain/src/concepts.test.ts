@@ -19,6 +19,7 @@ const CONCEPTS = [
   "purchasing",
   "alerts",
   "branch",
+  "backups",
 ] as const;
 
 const OUTSIDE_ANY_CONCEPT = ["shared"];
