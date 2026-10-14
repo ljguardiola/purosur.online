@@ -76,3 +76,12 @@ test("describes a branch with lots already expired or nearing their expiry date"
     "Hay lotes de productos vencidos o por llegar a su fecha de vencimiento.",
   );
 });
+
+test("describes a fortnight's report not yet presented and one whose deadline was missed", () => {
+  expect(alertKindDescription("fortnight_report_pending")).toBe(
+    "Falta presentar a ARCA el informe de una quincena de un punto de venta",
+  );
+  expect(alertKindDescription("fortnight_report_overdue")).toBe(
+    "Venció el plazo para presentar a ARCA el informe de una quincena de un punto de venta",
+  );
+});

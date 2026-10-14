@@ -1815,3 +1815,152 @@ test("does not link the alert of lots nearing their expiry to the expiring lots 
   await expect.element(screen.getByText("Productos por vencer", { exact: true })).toBeVisible();
   expect(screen.getByRole("link", { name: "Ver vencimientos" }).query()).toBeNull();
 });
+
+const REPORT_PRESENTATION = {
+  pointOfSaleNumber: 4,
+  registerId: "register-1",
+  registerName: "Caja 1",
+  fortnightStart: "2026-09-01",
+  fortnightEnd: "2026-09-15",
+  deadline: "2026-09-23",
+};
+const REPORT_FORTNIGHT = formatCalendarDayRange("2026-09-01", "2026-09-15");
+const REPORT_DEADLINE = formatCalendarDay("2026-09-23");
+
+function pendingReportAlert(
+  detail: Partial<Extract<AlertDetail, { kind: "fortnight_report_pending" }>["detail"]>,
+  level: AlertDetail["level"] = "warning",
+) {
+  return baseDetail({
+    kind: "fortnight_report_pending",
+    level,
+    audience: "all",
+    scope: "4:2026-09-01",
+    scopeDisplay: "4:2026-09-01:2026-09-15",
+    scopeKind: "pointOfSaleFortnight",
+    closing: "by_itself",
+    detail: { ...REPORT_PRESENTATION, daysLeft: 3, reason: "pending", ...detail },
+  });
+}
+
+function overdueReportAlert(
+  detail: Partial<Extract<AlertDetail, { kind: "fortnight_report_overdue" }>["detail"]> = {},
+) {
+  return baseDetail({
+    kind: "fortnight_report_overdue",
+    level: "critical",
+    audience: "all",
+    scope: "4:2026-09-01",
+    scopeDisplay: "4:2026-09-01:2026-09-15",
+    scopeKind: "pointOfSaleFortnight",
+    closing: "by_hand",
+    detail: { ...REPORT_PRESENTATION, ...detail },
+  });
+}
+
+test.each([
+  [3, `Vence el ${REPORT_DEADLINE}. Quedan 3 días.`],
+  [1, `Vence el ${REPORT_DEADLINE}. Queda 1 día.`],
+  [0, `Vence hoy, ${REPORT_DEADLINE}.`],
+] as const)(
+  "tells which fortnight's report of which point of sale is pending and what is left of its deadline (%i days left)",
+  async (daysLeft, deadlineText) => {
+    const services = createServices();
+    vi.mocked(services.fetchAlert).mockResolvedValue(ok(pendingReportAlert({ daysLeft })));
+
+    const screen = await renderModal(services);
+
+    await expect
+      .element(screen.getByText("Informe de quincena pendiente", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          `Falta presentar a ARCA el informe de la quincena ${REPORT_FORTNIGHT} del punto de venta 00004.`,
+          { exact: true },
+        ),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByText(deadlineText, { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Advertencia")).toBeVisible();
+    await expect
+      .element(screen.getByText(`Punto de venta 00004 · ${REPORT_FORTNIGHT}`, { exact: true }))
+      .toBeVisible();
+  },
+);
+
+test.each([
+  ["pending", "La nube lo presentará sola en cuanto pueda."],
+  ["blocked", "Se puede presentar cuando la caja «Caja 1» termine de sincronizar."],
+  [
+    "refused",
+    "ARCA rechazó la presentación. La nube la vuelve a intentar sola; si sigue rechazándola, conviene revisar el punto de venta en ARCA.",
+  ],
+] as const)("tells what a pending report waits for when it is %s", async (reason, text) => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(pendingReportAlert({ reason })));
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText(text, { exact: true })).toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("tells a blocked report waits for its register to finish syncing even when the register's name is unknown", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(pendingReportAlert({ reason: "blocked", registerName: undefined })),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText("Se puede presentar cuando la caja termine de sincronizar.", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+});
+
+test("tells that a pending report closes by itself once it is presented", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(pendingReportAlert({})));
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Informe de quincena pendiente")).toBeVisible();
+  expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
+});
+
+test("tells the deadline of a fortnight's report was missed, that it keeps being attempted and that a person closes the alert by hand", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(overdueReportAlert()));
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Informe de quincena vencido", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        `Venció el ${REPORT_DEADLINE} el plazo para presentar a ARCA el informe de la quincena ${REPORT_FORTNIGHT} del punto de venta 00004.`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Se sigue intentando presentarlo y se registra lo que responda ARCA. Después de regularizar la situación con ARCA, hay que cerrar esta alerta a mano.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(screen.getByText("No se cierra sola: se cierra a mano después de revisarla."))
+    .toBeVisible();
+  await expect.element(screen.getByText("Crítica")).toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+});
