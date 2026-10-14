@@ -56,3 +56,14 @@ export function isSecondHalfOfMonth({ start }: Fortnight): boolean {
 export function isSameFortnight(one: Fortnight, other: Fortnight): boolean {
   return one.start === other.start && one.end === other.end;
 }
+
+export function offlineAuthorizationCodePeriod(fortnight: Fortnight): {
+  period: number;
+  order: 1 | 2;
+} {
+  const { start } = fortnight;
+  return {
+    period: Number(`${start.slice(0, 4)}${start.slice(5, 7)}`),
+    order: isSecondHalfOfMonth(fortnight) ? 2 : 1,
+  };
+}

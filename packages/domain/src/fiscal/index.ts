@@ -83,6 +83,7 @@ export {
   hasFortnightStarted,
   isSecondHalfOfMonth,
   OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS,
+  offlineAuthorizationCodePeriod,
   offlineAuthorizationCodeRequestOpensOn,
 } from "./model/offline-authorization-code.js";
 export type { OfflineAuthorizationCodeAcquisitionUrgency } from "./model/offline-authorization-code-acquisition-urgency.js";
