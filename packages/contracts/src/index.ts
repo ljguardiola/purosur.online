@@ -319,6 +319,8 @@ export {
 export type { ReportRegisterListBody } from "./register/report-register-list.js";
 export { reportRegisterListSchema } from "./register/report-register-list.js";
 export type { StartupPending } from "./register/startup-pending.js";
+export type { AverageTicketBody } from "./sales/average-ticket.js";
+export { averageTicketSchema } from "./sales/average-ticket.js";
 export type {
   CancelLockedSaleOutcome,
   PrintOriginalReceiptOutcome,
