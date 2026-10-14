@@ -20,6 +20,7 @@ export interface LotInStock {
   expiresOn: string | null;
   purchase: { purchasedOn: string; supplierName: string } | null;
   initialCount: boolean;
+  assemblyBatch: { assembledAt: Date } | null;
   remaining: number;
   costIncomplete: boolean;
   cost: LotCost | null;
