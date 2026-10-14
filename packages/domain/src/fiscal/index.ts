@@ -32,15 +32,19 @@ export {
 export type {
   AuthorizedFacturaC,
   FacturaCFiscalBlock,
+  OfflineAuthorizedFacturaC,
+  OfflineFacturaCFiscalBlock,
 } from "./model/factura-c-fiscal-block.js";
 export {
   AUTHORIZATION_CODE_TYPE_CAE,
+  AUTHORIZATION_CODE_TYPE_CAEA,
   CURRENCY_PESOS,
   EXCHANGE_RATE_PESOS,
   FACTURA_C_VOUCHER_TYPE,
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
   facturaCFiscalBlock,
+  offlineFacturaCFiscalBlock,
   TAX_AUTHORITY_QR_URL,
 } from "./model/factura-c-fiscal-block.js";
 export {
