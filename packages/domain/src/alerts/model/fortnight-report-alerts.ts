@@ -1,4 +1,8 @@
-import type { Fortnight, FortnightReportState } from "../../fiscal/index.js";
+import {
+  type Fortnight,
+  type FortnightReportState,
+  fortnightContaining,
+} from "../../fiscal/index.js";
 import type { AlertConditionObservation } from "./alert-condition-observation.js";
 import type { FortnightReportPendingReason, OpenAlertInput } from "./alert-details.js";
 
@@ -14,6 +18,13 @@ export function pointOfSaleFortnightScope(
   fortnightStart: string,
 ): string {
   return `${pointOfSaleNumber}:${fortnightStart}`;
+}
+
+export function pointOfSaleFortnightScopeDisplay(scope: string): string {
+  const fortnightStart = scope.split(":")[1];
+  return fortnightStart !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(fortnightStart)
+    ? `${scope}:${fortnightContaining(fortnightStart).end}`
+    : scope;
 }
 
 export function fortnightReportPendingReason(
