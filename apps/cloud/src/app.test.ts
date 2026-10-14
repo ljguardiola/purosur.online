@@ -50,6 +50,7 @@ import {
   OPEN_SESSION_ACCESS,
   OPEN_SESSION_PEEK_ACCESS,
   PUBLIC_ACCESS,
+  RELEASE_CHECK_ACCESS,
   type RouteAccess,
   type RouteAccessEntry,
   recordAccess,
@@ -1500,7 +1501,10 @@ describe("wiring the prices routes", () => {
 });
 
 describe("wiring the sales report routes", () => {
-  const reportRequests = [{ method: "GET", url: "/api/reports/sales-by-day" }] as const;
+  const reportRequests = [
+    { method: "GET", url: "/api/reports/sales-by-day" },
+    { method: "GET", url: "/api/reports/sales-by-product-and-category" },
+  ] as const;
 
   async function statusCodes(app: ReturnType<typeof buildApp>): Promise<number[]> {
     const responses = await Promise.all(
@@ -2531,6 +2535,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/sync/registers-below-minimum",
+        access: RELEASE_CHECK_ACCESS,
+      },
+      {
+        method: "GET",
         url: "/api/prices",
         access: capabilityAccess("prices_area"),
       },
@@ -2647,6 +2656,11 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/reports/sales-by-day",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/sales-by-product-and-category",
         access: capabilityAccess("reports_area"),
       },
       {
@@ -2923,8 +2937,24 @@ describe("every route enforces the access it declares", () => {
         "session_cookie",
         "capability",
         "record",
+        "release_check",
       ]),
     );
+  });
+
+  it("answers 401 unauthenticated on every release-check route without the release-check token", async () => {
+    const app = productionWiredApp();
+    await app.ready();
+
+    for (const route of routesDeclaring(app, ["release_check"])) {
+      const response = await send(app, route);
+
+      expect(
+        response.statusCode,
+        `${route.method} ${route.url} responded ${response.statusCode}, body: ${response.body}`,
+      ).toBe(401);
+      expect(response.json()).toMatchObject({ code: "unauthenticated" });
+    }
   });
 
   it("lets every public route through without a session", async () => {

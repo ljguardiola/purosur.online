@@ -3,6 +3,7 @@ import type { AlertConditionObservation } from "../model/alert-condition-observa
 import { ALERT_CONDITION_STABLE_CLEAR_MS } from "../model/alert-condition-resolution.js";
 import type { OpenAlertInput } from "../model/alert-details.js";
 import { observeAlertCondition } from "./observe-alert-condition.js";
+import { resolveStablyClearedAlerts } from "./resolve-stably-cleared-alerts.js";
 import { NOW, seededAlert } from "./test-support/alert-fixtures.js";
 import { FakeAlertStore, FixedClock, PrefixHasher } from "./test-support/fake-alert-store.js";
 
@@ -504,5 +505,80 @@ describe("observeAlertCondition when the condition holds at a level", () => {
     await observe(store, HOLDS);
 
     expect(store.levelOf("alert-9")).toBe("informational");
+  });
+});
+
+describe("observeAlertCondition for lots nearing expiry", () => {
+  const lotsExpiring = (lotCount: number): AlertConditionObservation => ({
+    holds: true,
+    alert: {
+      kind: "lots_expiring",
+      scope: "location-here",
+      locationId: "location-here",
+      detail: { lotCount, windowDays: 30 },
+    },
+  });
+
+  function storeWithLocalViewer(): FakeAlertStore {
+    const store = new FakeAlertStore();
+    store.seedViewer({
+      userId: "local-viewer",
+      locationId: "location-here",
+      permissionKeys: ["view_branch_alerts"],
+      isAdministrator: false,
+      active: true,
+    });
+    return store;
+  }
+
+  it("opens an informational alert for the branch, delivering it to the branch's local-alerts holders", async () => {
+    const store = storeWithLocalViewer();
+
+    const outcome = await observe(store, lotsExpiring(2));
+
+    expect(outcome).toEqual({ kind: "opened", alertId: "alert-1" });
+    const snapshot = store.snapshot();
+    expect(snapshot.alerts).toEqual([
+      expect.objectContaining({
+        kind: "lots_expiring",
+        scope: "location-here",
+        level: "informational",
+        audience: "local",
+        locationId: "location-here",
+        resolvedAt: null,
+        detail: { lotCount: 2, windowDays: 30 },
+      }),
+    ]);
+    expect(snapshot.deliveries).toHaveLength(1);
+  });
+
+  it("keeps the open alert showing the latest count of lots", async () => {
+    const store = storeWithLocalViewer();
+    await observe(store, lotsExpiring(2));
+
+    const outcome = await observe(store, lotsExpiring(5));
+
+    expect(outcome).toEqual({ kind: "kept_open", alertId: "alert-1" });
+    expect(store.snapshot().alerts[0]?.detail).toEqual({ lotCount: 5, windowDays: 30 });
+  });
+
+  it("resolves the alert once its condition stays cleared", async () => {
+    const store = storeWithLocalViewer();
+    await observe(store, lotsExpiring(2));
+    const cleared: AlertConditionObservation = {
+      holds: false,
+      kind: "lots_expiring",
+      scope: "location-here",
+    };
+
+    await observe(store, cleared, NOW);
+    const later = new Date(NOW.getTime() + ALERT_CONDITION_STABLE_CLEAR_MS);
+    await resolveStablyClearedAlerts({
+      store,
+      clock: new FixedClock(later),
+      hasher: new PrefixHasher(),
+    });
+
+    expect(store.snapshot().alerts[0]?.resolvedAt).toEqual(later);
   });
 });

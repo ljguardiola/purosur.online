@@ -12,6 +12,8 @@ import { applySyncedEventsTask } from "../sync/apply-synced-events-task.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerSalesReportRoutes } from "./sales-report-routes.js";
+import { applyCompletedSale } from "./test-support/applied-sales.js";
+import { aSoldLine, insertCategoryNamed, insertProductIn } from "./test-support/sold-lines.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 const USER = "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03";
@@ -197,5 +199,162 @@ describe("GET /reports/sales-by-day", () => {
     const response = await salesByDay(headers);
 
     expect(response.json().totals).toEqual({ sales_count: 0, total: 0 });
+  });
+});
+
+function salesByProductAndCategory(headers: Record<string, string>, query = "?group=product") {
+  return app.inject({
+    method: "GET",
+    url: `/reports/sales-by-product-and-category${query}`,
+    headers,
+  });
+}
+
+describe("GET /reports/sales-by-product-and-category access", () => {
+  const request = salesByProductAndCategory;
+
+  it("returns 401 when no session cookie was sent", async () => {
+    const response = await request({ origin: BACKOFFICE_ORIGIN });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("rejects an Origin that is not the backoffice's own", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await request({ ...headers, origin: "https://attacker.example" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "origin_rejected" });
+  });
+
+  it("rejects a user who may not view reports", async () => {
+    const { headers } = await signedInWith(db, ["view_stock_balances"], NOW);
+
+    const response = await request(headers);
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("answers a user who may view reports", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await request(headers);
+
+    expect(response.statusCode).toBe(200);
+  });
+});
+
+describe("GET /reports/sales-by-product-and-category", () => {
+  it.each([
+    ["no group", ""],
+    ["a group that is not offered", "?group=brand"],
+    ["a range ending before it starts", "?group=product&from=2026-10-06&to=2026-10-05"],
+    ["a parameter given twice", "?group=product&group=category"],
+  ])("answers 400 to %s", async (_name, query) => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await salesByProductAndCategory(headers, query);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
+  it("reports the current Argentina day when no range is asked", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await salesByProductAndCategory(headers, "?group=category");
+
+    expect(response.json()).toEqual({
+      range: { from: "2026-10-07", to: "2026-10-07" },
+      group: "category",
+      rows: [],
+      totals: { units: 0, thousandths: 0, amount: 0 },
+    });
+  });
+
+  it("answers the units, the weight and the amount of each product or category", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { deviceId } = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 1" });
+    const grocery = await insertCategoryNamed(db, "Almacén");
+    const sweets = await insertCategoryNamed(db, "Dulces", grocery);
+    const sugar = await insertProductIn(db, grocery, "Azúcar");
+    const cheese = await insertProductIn(db, sweets, "Dulce de leche");
+    const lines = [
+      aSoldLine(sugar, "Azúcar", 3, 7_200),
+      aSoldLine(cheese, "Dulce de leche", 1_500, 9_000, "SCALE"),
+    ];
+    await applyCompletedSale(db, {
+      deviceId,
+      completedAt: new Date("2026-10-07T14:00:00.000Z"),
+      total: 16_200,
+      overrides: { lines },
+    });
+
+    const byProduct = await salesByProductAndCategory(headers, "?group=product");
+    const byCategory = await salesByProductAndCategory(headers, "?group=category");
+
+    expect(byProduct.json()).toEqual({
+      range: { from: "2026-10-07", to: "2026-10-07" },
+      group: "product",
+      rows: [
+        { id: cheese, path: ["Dulce de leche"], units: 0, thousandths: 1_500, amount: 9_000 },
+        { id: sugar, path: ["Azúcar"], units: 3, thousandths: 0, amount: 7_200 },
+      ],
+      totals: { units: 3, thousandths: 1_500, amount: 16_200 },
+    });
+    expect(byCategory.json()).toEqual({
+      range: { from: "2026-10-07", to: "2026-10-07" },
+      group: "category",
+      rows: [
+        { id: sweets, path: ["Almacén", "Dulces"], units: 0, thousandths: 1_500, amount: 9_000 },
+        { id: grocery, path: ["Almacén"], units: 3, thousandths: 0, amount: 7_200 },
+      ],
+      totals: { units: 3, thousandths: 1_500, amount: 16_200 },
+    });
+  });
+
+  it("filters by an asked register of the branch", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { deviceId, registerId } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      registerName: "Caja 1",
+    });
+    await applyCompletedSale(db, {
+      deviceId,
+      completedAt: new Date("2026-10-07T14:00:00.000Z"),
+      total: 500,
+      overrides: { lines: [aSoldLine(randomUUID(), "Retirado", 1, 500)] },
+    });
+
+    const ofTheRegister = await salesByProductAndCategory(
+      headers,
+      `?group=product&register_id=${registerId}`,
+    );
+    const ofAnotherRegister = await salesByProductAndCategory(
+      headers,
+      `?group=product&register_id=${randomUUID()}`,
+    );
+
+    expect(ofTheRegister.json().totals.amount).toBe(500);
+    expect(ofAnotherRegister.json().totals.amount).toBe(0);
+  });
+
+  it("reports the branch of the session and never another", async () => {
+    const otherLocationId = await insertLocation(db);
+    const { headers } = await signedInWith(db, ["view_reports"], NOW, {
+      locationId: otherLocationId,
+    });
+    const { deviceId } = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 1" });
+    await applyCompletedSale(db, {
+      deviceId,
+      completedAt: new Date("2026-10-07T14:00:00.000Z"),
+      total: 500,
+      overrides: { lines: [aSoldLine(randomUUID(), "Retirado", 1, 500)] },
+    });
+
+    const response = await salesByProductAndCategory(headers, "?group=category");
+
+    expect(response.json().rows).toEqual([]);
   });
 });

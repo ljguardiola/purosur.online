@@ -1,5 +1,6 @@
 import { ALERT_CONDITION_EVALUATION_INTERVAL_MS } from "@purosur/domain";
 import {
+  detectExpiringLots,
   detectMissingOfflineAuthorizationCodes,
   detectQuietRegisters,
   openOverdueUnclearOutcomeAlerts,
@@ -9,6 +10,7 @@ import { openOverdueRefundTaskAlerts } from "@purosur/domain/payments/use-cases"
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
+import { DrizzleBranchExpiryWindowReader } from "../branch/drizzle-branch-expiry-window-reader.js";
 import { DrizzleBranchHoursReader } from "../branch/drizzle-branch-hours-reader.js";
 import { DrizzleOfflineAuthorizationCodeHoldingReader } from "../fiscal/drizzle-offline-authorization-code-holding-reader.js";
 import { DrizzleRefundTaskAlertStore } from "../payments/drizzle-refund-task-alert-store.js";
@@ -19,7 +21,9 @@ import {
 } from "../platform/background-jobs.js";
 import { DrizzleWatchedRegisterReader } from "../register/drizzle-watched-register-reader.js";
 import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
+import { DrizzleExpiringLotReader } from "../stock/drizzle-expiring-lot-reader.js";
 import { DrizzleAlertStore } from "./drizzle-alert-store.js";
+import { DrizzleExpiringLotAlerts } from "./drizzle-expiring-lot-alerts.js";
 import { DrizzleMissingOfflineAuthorizationCodeAlerts } from "./drizzle-missing-offline-authorization-code-alerts.js";
 import { DrizzleUnclearOutcomeAlertStore } from "./drizzle-unclear-outcome-alert-store.js";
 
@@ -80,6 +84,18 @@ function openUnclearOutcomeAlertsTask<TQueryResult extends PgQueryResultHKT>(
   });
 }
 
+function detectExpiringLotsTask<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  deps: { now: () => Date },
+): Promise<number> {
+  return detectExpiringLots({
+    branches: new DrizzleBranchExpiryWindowReader(db),
+    lots: new DrizzleExpiringLotReader(db),
+    alerts: new DrizzleExpiringLotAlerts(db, deps.now),
+    clock: { now: deps.now },
+  });
+}
+
 export interface AlertConditionResolutionJobsDeps {
   createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
   resolve?: typeof resolveClearedConditionAlertsTask;
@@ -87,6 +103,7 @@ export interface AlertConditionResolutionJobsDeps {
   detectMissingCodes?: typeof detectMissingOfflineAuthorizationCodesTask;
   openRefundTaskAlerts?: typeof openRefundTaskAlertsTask;
   openUnclearOutcomeAlerts?: typeof openUnclearOutcomeAlertsTask;
+  detectExpiringLots?: typeof detectExpiringLotsTask;
 }
 
 export function alertConditionResolutionJobs(
@@ -100,6 +117,7 @@ export function alertConditionResolutionJobs(
     deps.detectMissingCodes ?? detectMissingOfflineAuthorizationCodesTask;
   const doOpenRefundTaskAlerts = deps.openRefundTaskAlerts ?? openRefundTaskAlertsTask;
   const doOpenUnclearOutcomeAlerts = deps.openUnclearOutcomeAlerts ?? openUnclearOutcomeAlertsTask;
+  const doDetectExpiringLots = deps.detectExpiringLots ?? detectExpiringLotsTask;
   return {
     taskList: {
       [ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER]: async (_payload, helpers) => {
@@ -110,6 +128,7 @@ export function alertConditionResolutionJobs(
           await doDetectMissingCodes(db, { now: options.now });
           await doOpenRefundTaskAlerts(db, { now: options.now });
           await doOpenUnclearOutcomeAlerts(db, { now: options.now });
+          await doDetectExpiringLots(db, { now: options.now });
         });
       },
     },
