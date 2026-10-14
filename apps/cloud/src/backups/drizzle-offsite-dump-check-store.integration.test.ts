@@ -145,6 +145,6 @@ describe("DrizzleOffsiteDumpCheckStore", () => {
       .values({ night: "2026-09-08", status: "pending", recordedAt: NOW })
       .catch((cause: unknown) => cause);
 
-    expect(constraintViolatedBy(error, "offsite_dump_checks_status_check")).toBe(true);
+    expect(constraintViolatedBy(error, "offsite_dump_checks_result_shape_check")).toBe(true);
   });
 });
