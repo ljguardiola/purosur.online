@@ -25,12 +25,14 @@ export type {
   AlertRoleSummary,
   ArcaCertificateExpiringDetail,
   EmailChangedDetail,
+  FortnightReportPendingReason,
   OpenAlertInput,
   PasskeyChangedDetail,
   RecoveryRequestedDetail,
   RegisterEnrolledDetail,
   SignInLockoutDetail,
 } from "./model/alert-details.js";
+export { FORTNIGHT_REPORT_PENDING_REASONS } from "./model/alert-details.js";
 export {
   ALERT_ESCALATION_CHECK_INTERVAL_MS,
   ESCALATED_LEVEL,

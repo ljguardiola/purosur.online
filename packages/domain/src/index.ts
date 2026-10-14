@@ -42,6 +42,7 @@ export {
   canSeeAlert,
   ESCALATED_LEVEL,
   escalatesAt,
+  FORTNIGHT_REPORT_PENDING_REASONS,
   fiscalRejectionAlertObservation,
   fiscalUnknownAlertKey,
   isAlertKind,

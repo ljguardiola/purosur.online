@@ -143,6 +143,23 @@ interface LotsExpiringDetail {
   windowDays: number;
 }
 
+export const FORTNIGHT_REPORT_PENDING_REASONS = ["blocked", "refused", "pending"] as const;
+
+export type FortnightReportPendingReason = (typeof FORTNIGHT_REPORT_PENDING_REASONS)[number];
+
+interface FortnightReportOverdueDetail {
+  pointOfSaleNumber: number;
+  registerId: string;
+  fortnightStart: string;
+  fortnightEnd: string;
+  deadline: string;
+}
+
+interface FortnightReportPendingDetail extends FortnightReportOverdueDetail {
+  daysLeft: number;
+  reason: FortnightReportPendingReason;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -165,6 +182,8 @@ export interface AlertDetails {
   fiscal_emission_stopped: FiscalEmissionStoppedDetail;
   outbox_chain_broken: OutboxChainBrokenDetail;
   lots_expiring: LotsExpiringDetail;
+  fortnight_report_pending: FortnightReportPendingDetail;
+  fortnight_report_overdue: FortnightReportOverdueDetail;
 }
 
 export type OpenAlertInput = {
