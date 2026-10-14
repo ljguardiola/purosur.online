@@ -42,7 +42,8 @@ describe("PaidOrderRefundModal", () => {
 
     await expect.element(dialog.getByText("Cobro con QR")).toBeVisible();
     await expect.element(dialog.getByText("$ 800,00")).toBeVisible();
-    await expect.element(dialog.getByText(/cobrado a las 15:30/i)).toBeVisible();
+    await expect.element(dialog.getByText("Cobrado a las")).toBeVisible();
+    await expect.element(dialog.getByText("15:30")).toBeVisible();
     await expect.element(dialog.getByText(/se confirma después en el backoffice/)).toBeVisible();
     await expect.element(dialog.getByText(/no se le cobra de nuevo/)).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
