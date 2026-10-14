@@ -1,6 +1,15 @@
+import {
+  offlineFiscalDocument,
+  offlineFiscalDocumentIssuedEvent,
+} from "../model/offline-fiscal-document.js";
 import type { PreEmissionGateOutcome } from "../model/pre-emission-gate.js";
-import type { DeferralReason } from "../model/real-time-authorization.js";
-import { decideRealTimeAuthorization, invoiceDateOf } from "../model/real-time-authorization.js";
+import {
+  type DeferralReason,
+  decideSaleAuthorizationRoute,
+  invoiceDateOf,
+  invoiceOwnFortnight,
+  type OfflineAuthorizationCause,
+} from "../model/real-time-authorization.js";
 import type { ShortCodeRandomness } from "./deferred-sale-ports.js";
 import { recordDeferredSale } from "./record-deferred-sale.js";
 import type { IdGenerator, SaleAuthorizationTransaction } from "./sale-authorization-ports.js";
@@ -15,6 +24,7 @@ export interface DecideSaleAuthorizationInput {
 
 export type DecideSaleAuthorizationOutcome =
   | { kind: "reserved"; fiscalDocumentId: string }
+  | { kind: "issued_offline"; fiscalDocumentId: string; cause: OfflineAuthorizationCause }
   | { kind: "deferred"; reason: DeferralReason };
 
 export function decideSaleAuthorization(
@@ -23,30 +33,56 @@ export function decideSaleAuthorization(
   shortCodes: ShortCodeRandomness,
   { saleId, gate, decidedAt, occurredAt, total }: DecideSaleAuthorizationInput,
 ): DecideSaleAuthorizationOutcome {
-  const decision = decideRealTimeAuthorization({
+  const route = decideSaleAuthorizationRoute({
     gate,
     online: tx.fiscalOnlineEvidence(),
     now: decidedAt,
+    occurredAt,
     series: tx.realTimeSeries(),
+    offlineSeries: tx.offlineSeries(),
+    offlineAuthorizationCode: tx.offlineAuthorizationCodeOf(invoiceOwnFortnight(occurredAt)),
   });
-  if (decision.kind === "defer") {
+  if (route.kind === "defer") {
     recordDeferredSale((sale) => tx.routeSaleToDeferred(sale), ids, shortCodes, {
       saleId,
       occurredAt,
       total,
-      reason: decision.reason,
+      reason: route.reason,
       routedAt: decidedAt,
     });
-    return { kind: "deferred", reason: decision.reason };
+    return { kind: "deferred", reason: route.reason };
   }
   const fiscalDocumentId = ids.next();
+  if (route.kind === "issue_offline") {
+    const document = offlineFiscalDocument({
+      id: fiscalDocumentId,
+      saleId,
+      pointOfSale: route.pointOfSale,
+      number: route.number,
+      issuedOn: route.issuedOn,
+      generatedAt: decidedAt,
+      offlineAuthorizationCode: route.offlineAuthorizationCode,
+      fortnight: route.fortnight,
+      document: route.document,
+      cause: route.cause,
+    });
+    tx.issueOfflineFiscalDocument(document);
+    tx.appendOutboxEvent(
+      offlineFiscalDocumentIssuedEvent({
+        eventId: ids.next(),
+        ...tx.originOfSale(saleId),
+        document,
+      }),
+    );
+    return { kind: "issued_offline", fiscalDocumentId, cause: route.cause };
+  }
   tx.reserveFiscalDocument({
     id: fiscalDocumentId,
     saleId,
-    pointOfSale: decision.pointOfSale,
-    number: decision.number,
+    pointOfSale: route.pointOfSale,
+    number: route.number,
     issuedOn: invoiceDateOf(decidedAt),
-    document: decision.document,
+    document: route.document,
     reservedAt: decidedAt,
   });
   return { kind: "reserved", fiscalDocumentId };

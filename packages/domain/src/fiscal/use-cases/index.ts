@@ -6,8 +6,11 @@ export type {
   TaxAuthorityRejection,
 } from "../model/fiscal-rejection-standing.js";
 export type { Fortnight } from "../model/offline-authorization-code.js";
+export type { OfflineFiscalDocument } from "../model/offline-fiscal-document.js";
 export type {
   DeferralReason,
+  OfflineAuthorizationCause,
+  OfflineSeries,
   RealTimeAuthorizationAnswer,
   RealTimeAuthorizationResolution,
   RealTimeSeries,
@@ -301,6 +304,7 @@ export type {
   FiscalDocumentReservation,
   IdGenerator,
   SaleAuthorizationTransaction,
+  SaleOrigin,
 } from "./sale-authorization-ports.js";
 export type { SettleInterruptedRealTimeAuthorizationsOutcome } from "./settle-interrupted-real-time-authorizations.js";
 export { settleInterruptedRealTimeAuthorizations } from "./settle-interrupted-real-time-authorizations.js";

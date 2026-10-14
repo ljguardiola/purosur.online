@@ -7,7 +7,9 @@ import {
   type EventQuarantine,
   FACTURA_C_DOCUMENT_TYPE,
   type JsonValue,
+  OFFLINE_AUTHORIZATION_CAUSES,
   OFFLINE_NUMBER_BLOCK_STATUSES,
+  type OfflineAuthorizationCause,
   POINT_OF_SALE_NUMBER_MAX,
   RECEIPT_TYPES,
   type TaxAuthorityRejection,
@@ -2040,6 +2042,53 @@ export const offlineAuthorizationCodeAcquisitionReports = pgTable(
       name: "offline_authorization_code_acquisition_reports_pk",
       columns: [table.fortnightStart, table.outcomeKind],
     }),
+  ],
+);
+
+// Permanent: a document issued under a pre-obtained code is never changed or deleted.
+export const offlineFiscalDocuments = pgTable(
+  "offline_fiscal_documents",
+  {
+    id: uuid("id").primaryKey(),
+    saleId: uuid("sale_id").notNull().unique(),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    pointOfSale: integer("point_of_sale").notNull(),
+    documentType: text("document_type").notNull(),
+    number: integer("number").notNull(),
+    issuedOn: date("issued_on", { mode: "string" }).notNull(),
+    generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
+    generationStamp: text("generation_stamp").notNull(),
+    offlineAuthorizationCode: text("offline_authorization_code").notNull(),
+    fortnightStart: date("fortnight_start", { mode: "string" }).notNull(),
+    fortnightEnd: date("fortnight_end", { mode: "string" }).notNull(),
+    buyerDocumentType: integer("buyer_document_type").notNull(),
+    buyerDocumentNumber: bigint("buyer_document_number", { mode: "number" }).notNull(),
+    buyerTaxStatusCode: integer("buyer_tax_status_code").notNull(),
+    total: bigint("total", { mode: "number" }).notNull(),
+    netAmount: bigint("net_amount", { mode: "number" }).notNull(),
+    cause: text("cause").$type<OfflineAuthorizationCause>().notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    unique("offline_fiscal_documents_number_key").on(
+      table.pointOfSale,
+      table.documentType,
+      table.number,
+    ),
+    check(
+      "offline_fiscal_documents_document_type_known",
+      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}'`)})`,
+    ),
+    check(
+      "offline_fiscal_documents_cause_known",
+      sql`${table.cause} in (${sql.raw(OFFLINE_AUTHORIZATION_CAUSES.map((cause) => `'${cause}'`).join(", "))})`,
+    ),
+    check(
+      "offline_fiscal_documents_generation_stamp_shape",
+      sql`${table.generationStamp} ~ '^[0-9]{14}$'`,
+    ),
   ],
 );
 

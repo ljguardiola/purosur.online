@@ -137,7 +137,10 @@ export class SqliteSaleLedger implements SaleLedger {
       issuerIdentificationInEffect: () => readIssuerIdentificationInEffect(this.database),
       buyerTaxStatusSetInEffect: () => readBuyerTaxStatusSetInEffect(this.database),
       recordPreEmissionGate: (recorded) => insertPreEmissionGateOutcome(this.database, recorded),
-      decideSaleAuthorization: (decision) => decideSaleAuthorizationIn(this.database, decision),
+      decideSaleAuthorization: (decision) =>
+        decideSaleAuthorizationIn(this.database, decision, (draft) =>
+          this.appendOutboxEvent(draft),
+        ),
     };
   }
 

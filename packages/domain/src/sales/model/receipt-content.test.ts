@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { deferredSaleDocumentBlock, facturaCFiscalBlock } from "../../fiscal/index.js";
+import {
+  deferredSaleDocumentBlock,
+  facturaCFiscalBlock,
+  offlineFacturaCFiscalBlock,
+} from "../../fiscal/index.js";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -274,6 +278,24 @@ describe("receiptContent", () => {
       );
 
       expect(content.fiscal).toEqual(facturaCFiscalBlock(AUTHORIZED));
+    });
+
+    it("is the fiscal block of the factura C of the sale authorized by a pre-obtained code", () => {
+      const { document } = AUTHORIZED;
+      const authorized = {
+        pointOfSale: 7,
+        number: 101,
+        issuedOn: "2026-10-07",
+        document,
+        offlineAuthorizationCode: "71234567890123",
+        fortnight: { start: "2026-10-01", end: "2026-10-15" },
+      };
+
+      const content = receiptContent(
+        source({ fiscal: { kind: "offline_authorized", authorized } }),
+      );
+
+      expect(content.fiscal).toEqual(offlineFacturaCFiscalBlock(authorized));
     });
 
     it("is the non-fiscal document block of the deferred sale of the sale", () => {

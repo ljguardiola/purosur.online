@@ -178,7 +178,7 @@ export function CountLineModal({
                 kind="weight"
                 suffix="kg"
                 label="Cantidad contada"
-                inputMode="numeric"
+                inputMode="decimal"
                 description="Podés pesarlo en la balanza o escribir el peso."
                 disabled={submitting}
               />

@@ -1,4 +1,7 @@
-import type { PreEmissionGateFailureReason } from "../../fiscal/index.js";
+import type {
+  OfflineFiscalDocumentIssuedFact,
+  PreEmissionGateFailureReason,
+} from "../../fiscal/index.js";
 import { approvedPaymentsCoverTotal, refundsSettleApprovedPayments } from "../../payments/index.js";
 import type {
   CashMovementRecordedFact,
@@ -32,7 +35,8 @@ export type SyncedFact =
   | {
       kind: "fiscal_gate_failed";
       gateFailure: { saleId: string; reason: PreEmissionGateFailureReason; evaluatedAt: Date };
-    };
+    }
+  | { kind: "offline_fiscal_document_issued"; document: OfflineFiscalDocumentIssuedFact };
 
 export interface AggregateKey {
   aggregateType: string;

@@ -58,7 +58,7 @@ type TextFieldCommonProps = {
   // instead of the ordinary visible caption.
   labelVisuallyHidden?: boolean;
   type?: "text" | "password";
-  inputMode?: "text" | "numeric";
+  inputMode?: "text" | "numeric" | "decimal";
 };
 
 type TextFieldKindProps =

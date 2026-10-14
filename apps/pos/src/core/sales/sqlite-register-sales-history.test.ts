@@ -19,6 +19,7 @@ interface SaleSeed {
   payments?: { method: "CASH" | "TRANSFER" | "QR"; amount: number }[];
   fiscal?: { state: FiscalDocumentState; pointOfSale?: number; number?: number };
   deferred?: boolean | "satisfied";
+  offlineDocument?: { pointOfSale: number; number: number };
 }
 
 const DECIDED_STANDINGS = ["completed", "in_progress", "deferred"] as const;
@@ -46,6 +47,7 @@ function addSale({
   payments,
   fiscal,
   deferred = false,
+  offlineDocument,
 }: SaleSeed): void {
   database
     .prepare(
@@ -107,6 +109,20 @@ function addSale({
         fiscal.state === "AUTHORIZED" ? "2026-10-18" : null,
         fiscal.state === "REQUESTING" ? null : "2026-10-08T12:00:01.000Z",
       );
+  }
+  if (offlineDocument !== undefined) {
+    database
+      .prepare(
+        `INSERT INTO offline_fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
+           offline_authorization_code, fortnight_start, fortnight_end, document,
+           buyer_document_type, buyer_document_number, cause
+         ) VALUES (
+           ?, ?, ?, 'factura_c', ?, '2026-10-08', '2026-10-08T12:00:00.000Z', '20261008090000',
+           '36251478963214', '2026-10-01', '2026-10-15', '{}', 99, 0, 'no_connectivity'
+         )`,
+      )
+      .run(`offline-doc-${id}`, id, offlineDocument.pointOfSale, offlineDocument.number);
   }
   if (deferred) {
     database
@@ -298,6 +314,20 @@ describe("SqliteRegisterSalesHistory", () => {
           documentType: "factura_c",
           pointOfSale: 7,
           number: 1204,
+        },
+      });
+    });
+
+    it("shows the document issued under a pre-obtained code as its fiscal document", () => {
+      addSale({ id: "sale-1", offlineDocument: { pointOfSale: 8, number: 412 } });
+
+      expect(all().entries[0]?.fiscal).toEqual({
+        deferred: false,
+        fiscalDocument: {
+          state: "AUTHORIZED",
+          documentType: "factura_c",
+          pointOfSale: 8,
+          number: 412,
         },
       });
     });
