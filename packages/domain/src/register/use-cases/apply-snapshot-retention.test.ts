@@ -64,6 +64,15 @@ describe("applySnapshotRetention", () => {
     expect(objects.has("register-1", "old")).toBe(true);
   });
 
+  it("writes no pruning when every generation is kept", async () => {
+    const store = new FakeSnapshotStore();
+    seedRecent(store);
+
+    await apply(store, objectsFor(store));
+
+    expect(store.operationOrder).not.toContain("markPruned");
+  });
+
   it("uses the stored lifecycle rules when there are some", async () => {
     const store = new FakeSnapshotStore();
     seedRecent(store);

@@ -59,6 +59,12 @@ describe("snapshotGenerationsToPrune", () => {
     expect(pruned(generations, { hourly: 4, daily: 1, monthly: 1 })).toEqual([]);
   });
 
+  it("counts the current hour as the first of the configured hours", () => {
+    const generations = [...newest6(), verified("two-hours-back", minutesBefore(120))];
+    expect(pruned(generations, { hourly: 2, daily: 1, monthly: 1 })).toEqual(["two-hours-back"]);
+    expect(pruned(generations, { hourly: 3, daily: 1, monthly: 1 })).toEqual([]);
+  });
+
   it("counts hours, days and months on Argentina's calendar", () => {
     const recent = newest6();
     const lateOnTheThirteenth = verified("late-13th", new Date("2026-10-14T01:30:00.000Z"));
