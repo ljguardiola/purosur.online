@@ -1,5 +1,7 @@
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
 import { vi } from "vitest";
+import type { BackofficeAccess } from "../../shell/backoffice-access";
+import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access";
 import { render } from "../../shell/test-support/render-with-router";
 import { registerKey } from "../register-queries";
 import type { RegisterSummary } from "../registers-api";
@@ -98,10 +100,11 @@ function RefreshRegisters() {
 export function renderScreen(
   services: RegistersListScreenServices,
   onSessionEnded: () => void = () => {},
+  access: BackofficeAccess = ADMINISTRATOR_ACCESS,
 ) {
   return render(
     <main>
-      <RegistersListScreen services={services} onSessionEnded={onSessionEnded} />
+      <RegistersListScreen access={access} services={services} onSessionEnded={onSessionEnded} />
       <FetchesInFlight />
       <RefreshRegisters />
     </main>,

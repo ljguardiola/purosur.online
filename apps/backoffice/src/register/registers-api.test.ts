@@ -532,9 +532,9 @@ test("assignPointTerminal returns failed on a 409 of another code", async () => 
 test.each([
   ["a plain 401", jsonResponse(401), { kind: "unauthenticated" }],
   [
-    "a 401 asking for authorization",
+    "a 401 whatever its body",
     jsonResponse(401, { code: "authorization_required" }),
-    { kind: "authorization_required" },
+    { kind: "unauthenticated" },
   ],
   ["a 403", jsonResponse(403), { kind: "forbidden" }],
   [

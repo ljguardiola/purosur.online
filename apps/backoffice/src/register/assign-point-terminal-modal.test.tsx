@@ -1,6 +1,5 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { type Locator, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
@@ -8,6 +7,7 @@ import {
   AssignPointTerminalModal,
   type AssignPointTerminalModalServices,
 } from "./assign-point-terminal-modal";
+import type { RegisterReload } from "./register-queries";
 import type { RegisterSummary } from "./registers-api";
 
 function createServices(
@@ -15,9 +15,6 @@ function createServices(
 ): AssignPointTerminalModalServices {
   return {
     assignPointTerminal: vi.fn(),
-    fetchSessionAuthorizationOptions: vi.fn(),
-    authorizeSession: vi.fn(),
-    startAuthentication: vi.fn(),
     ...overrides,
   };
 }
@@ -39,12 +36,12 @@ type ModalOptions = {
   services?: AssignPointTerminalModalServices;
   onClose?: () => void;
   onSaved?: () => void;
-  reload?: () => Promise<{ kind: "ok"; value: RegisterSummary[] }>;
+  reload?: (id: string) => Promise<RegisterReload>;
   onSessionEnded?: () => void;
 };
 
-function reloaded(...value: RegisterSummary[]) {
-  return Promise.resolve({ kind: "ok", value } as const);
+function found(register: RegisterSummary) {
+  return Promise.resolve({ kind: "found", register } as const);
 }
 
 function modalElement({
@@ -52,7 +49,7 @@ function modalElement({
   services = createServices(),
   onClose = () => {},
   onSaved = () => {},
-  reload = () => reloaded(assigned),
+  reload = () => found(assigned),
   onSessionEnded = () => {},
 }: ModalOptions) {
   return (
@@ -235,57 +232,48 @@ test("navigates to Mi cuenta when the save comes back forbidden", async () => {
   await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
-test("reads the data again when the register no longer exists", async () => {
+test("reads the register again when the save finds it missing, and says it no longer exists when it is gone", async () => {
   const services = createServices();
   vi.mocked(services.assignPointTerminal).mockResolvedValue({ kind: "not_found" });
-  const reload = vi.fn(() => reloaded());
+  const reload = vi.fn(() => Promise.resolve({ kind: "not_found" } as const));
   const { dialog } = await renderModal({ services, reload });
 
   await save(dialog);
 
-  await expect.poll(() => reload.mock.calls.length).toBe(1);
+  await expect.element(dialog.getByText("La caja ya no existe")).toBeVisible();
+  expect(reload).toHaveBeenCalledWith("register-1");
+  await expect.element(dialog.getByRole("button", { name: "Guardar" })).toBeDisabled();
+  await expect.element(dialog.getByRole("button", { name: "Cancelar" })).toBeEnabled();
 });
 
-test("opens the authorization modal on authorization_required, then authorizes and retries", async () => {
+test("offers to reload when the register could not be read again after the save found it missing", async () => {
   const services = createServices();
-  vi.mocked(services.assignPointTerminal).mockResolvedValueOnce({ kind: "authorization_required" });
-  vi.mocked(services.assignPointTerminal).mockResolvedValueOnce({ kind: "ok" });
-  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
-    kind: "ok",
-    value: { challenge: "session-auth" } as never,
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue({ id: "existing-cred" } as never);
-  vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
-  const onSaved = vi.fn();
-  const { screen, dialog } = await renderModal({ services, onSaved });
+  vi.mocked(services.assignPointTerminal).mockResolvedValue({ kind: "not_found" });
+  const reload = vi.fn(() => Promise.resolve({ kind: "failed" } as const));
+  const { dialog } = await renderModal({ services, reload });
 
   await save(dialog);
-  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
-  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
 
-  await expect.poll(() => onSaved.mock.calls.length).toBe(1);
-  expect(services.assignPointTerminal).toHaveBeenCalledTimes(2);
+  await expect.element(dialog.getByText("No se pudieron recargar los datos")).toBeVisible();
+  await expect.element(dialog.getByRole("button", { name: "Recargar" })).toBeVisible();
 });
 
-function ReloadingModal({
-  services,
-  changed,
-}: {
-  services: AssignPointTerminalModalServices;
-  changed: RegisterSummary;
-}) {
-  const [target, setTarget] = useState(assigned);
-  return modalElement({
-    target,
+test("ends the session when reading the register again finds no open session", async () => {
+  const services = createServices();
+  vi.mocked(services.assignPointTerminal).mockResolvedValue({ kind: "not_found" });
+  const onSessionEnded = vi.fn();
+  const { dialog } = await renderModal({
     services,
-    reload: () => {
-      setTarget(changed);
-      return reloaded(changed);
-    },
+    onSessionEnded,
+    reload: () => Promise.resolve({ kind: "unauthenticated" } as const),
   });
-}
 
-test("shows a stale-version notice, and Recargar reads the data again so the second save sends the new version", async () => {
+  await save(dialog);
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("shows a stale-version notice, and Recargar reads the register again so the second save sends the new version", async () => {
   const services = createServices();
   vi.mocked(services.assignPointTerminal).mockResolvedValueOnce({ kind: "stale_version" });
   const changed: RegisterSummary = {
@@ -293,8 +281,7 @@ test("shows a stale-version notice, and Recargar reads the data again so the sec
     pointTerminalId: "TERM-0077",
     pointTerminalVersion: 5,
   };
-  const screen = await render(<ReloadingModal services={services} changed={changed} />);
-  const dialog = screen.getByRole("dialog", { name: "Terminal Point integrada" });
+  const { dialog } = await renderModal({ services, reload: () => found(changed) });
   await save(dialog);
   await expect
     .element(dialog.getByText("La terminal de la caja cambió mientras la editabas"))
@@ -308,6 +295,29 @@ test("shows a stale-version notice, and Recargar reads the data again so the sec
   await expect.poll(() => vi.mocked(services.assignPointTerminal).mock.calls.length).toBe(2);
   expect(services.assignPointTerminal).toHaveBeenLastCalledWith("register-1", {
     terminal_id: "TERM-0077",
+    version: 5,
+  });
+});
+
+test("removing after a reload sends the reloaded version", async () => {
+  const services = createServices();
+  vi.mocked(services.assignPointTerminal).mockResolvedValueOnce({ kind: "stale_version" });
+  const changed: RegisterSummary = {
+    ...assigned,
+    pointTerminalId: "TERM-0077",
+    pointTerminalVersion: 5,
+  };
+  const { dialog } = await renderModal({ services, reload: () => found(changed) });
+  await save(dialog);
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
+  await expect.element(terminalField(dialog)).toHaveValue("TERM-0077");
+  vi.mocked(services.assignPointTerminal).mockResolvedValueOnce({ kind: "ok" });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Quitar terminal" }));
+
+  await expect.poll(() => vi.mocked(services.assignPointTerminal).mock.calls.length).toBe(2);
+  expect(services.assignPointTerminal).toHaveBeenLastCalledWith("register-1", {
+    terminal_id: null,
     version: 5,
   });
 });
