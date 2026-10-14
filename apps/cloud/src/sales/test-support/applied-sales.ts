@@ -17,11 +17,12 @@ export async function applyCompletedSale<TQueryResult extends PgQueryResultHKT>(
     completedAt: Date;
     total: number;
     overrides?: Partial<CompletedSale>;
+    inOpenSession?: string;
   },
 ): Promise<string> {
-  const { deviceId, completedAt, total, overrides } = sale;
+  const { deviceId, completedAt, total, overrides, inOpenSession } = sale;
   const application = new DrizzleEventApplication(db, () => completedAt);
-  const sessionId = randomUUID();
+  const sessionId = inOpenSession ?? randomUUID();
   const completed = aCompletedSale({
     sessionId,
     completedAt,
@@ -47,10 +48,12 @@ export async function applyCompletedSale<TQueryResult extends PgQueryResultHKT>(
       { deviceId },
     );
   await application.transaction(async (tx) => {
-    await tx.record(
-      aCashSessionOpenedFact({ id: sessionId, openedAt: completedAt }),
-      eventOf("CashSession", sessionId, "cash_session_opened"),
-    );
+    if (inOpenSession === undefined) {
+      await tx.record(
+        aCashSessionOpenedFact({ id: sessionId, openedAt: completedAt }),
+        eventOf("CashSession", sessionId, "cash_session_opened"),
+      );
+    }
     await tx.record(
       { kind: "sale_completed", sale: completed },
       eventOf("Sale", completed.id, "sale_completed"),

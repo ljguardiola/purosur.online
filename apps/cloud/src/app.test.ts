@@ -1504,6 +1504,7 @@ describe("wiring the sales report routes", () => {
   const reportRequests = [
     { method: "GET", url: "/api/reports/sales-by-day" },
     { method: "GET", url: "/api/reports/sales-by-product-and-category" },
+    { method: "GET", url: "/api/reports/sales-by-cashier" },
   ] as const;
 
   async function statusCodes(app: ReturnType<typeof buildApp>): Promise<number[]> {
@@ -2666,6 +2667,11 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/reports/sales-by-product-and-category",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/sales-by-cashier",
         access: capabilityAccess("reports_area"),
       },
       {
