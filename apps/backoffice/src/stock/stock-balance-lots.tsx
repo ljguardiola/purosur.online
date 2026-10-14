@@ -8,6 +8,7 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { formatStockQuantity } from "../platform/stock-quantity";
+import { batchDayText } from "./assembly-batch-text";
 import { formatStockUnitCost, formatStockValue } from "./stock-cost";
 
 type StockLot = StockBalance["lots"][number];
@@ -18,6 +19,8 @@ function originLabel(origin: StockLot["origin"]): string {
       return `Compra del ${formatCalendarDayNumeric(origin.purchasedOn)} · ${origin.supplierName}`;
     case "initial_count":
       return "Inventario inicial";
+    case "assembly_batch":
+      return batchDayText(origin.assembledAt);
     case "product_sales_without_lots":
       return "Ventas sin lotes del producto";
   }
