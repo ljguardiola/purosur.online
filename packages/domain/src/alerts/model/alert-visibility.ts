@@ -39,6 +39,13 @@ export function canSeeAlert(
   }
 }
 
+export function isAlertOfViewerBranch(
+  viewer: Pick<AlertViewer, "locationId">,
+  alert: { locationId: string | null },
+): boolean {
+  return alert.locationId === viewer.locationId;
+}
+
 export function alertLocationId(
   audience: AlertAudience,
   locationId: string | undefined,

@@ -70,3 +70,9 @@ test("gives no description to a kind that shares its name with a member every ob
   expect(alertKindDescription("constructor")).toBe("");
   expect(alertKindDescription("toString")).toBe("");
 });
+
+test("describes a branch with lots already expired or nearing their expiry date", () => {
+  expect(alertKindDescription("lots_expiring")).toBe(
+    "Hay lotes de productos vencidos o por llegar a su fecha de vencimiento.",
+  );
+});

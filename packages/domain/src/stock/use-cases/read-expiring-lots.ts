@@ -1,5 +1,10 @@
 import { argentinaCalendarDay, type Clock, compareSpanishText } from "../../shared/index.js";
-import { daysToExpiry, expiryWindowEnd, isExpired } from "../model/lot-expiry.js";
+import {
+  canExpireWithStock,
+  daysToExpiry,
+  expiryWindowEnd,
+  isExpired,
+} from "../model/lot-expiry.js";
 import { type LotsValueSummary, lotsValueSummary, lotValueCents } from "../model/lot-value.js";
 import type {
   ExpiringLotProduct,
@@ -71,10 +76,7 @@ export async function readExpiringLots(
     await branchSettings.currentBranchSettings(locationId);
   const rows = await expiringLots.lotsExpiringBy(locationId, expiryWindowEnd(today, windowDays));
   const lots = rows
-    .filter(
-      (row): row is ExpiringLotRow & { expiresOn: string } =>
-        row.expiresOn !== null && !row.technical && row.remaining > 0,
-    )
+    .filter((row): row is ExpiringLotRow & { expiresOn: string } => canExpireWithStock(row))
     .map((row) => lotView(row, today))
     .sort(compareLots);
   return { windowDays, lots, summary: lotsValueSummary(lots) };
