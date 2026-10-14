@@ -64,7 +64,7 @@ function soldColumns(group: SalesByProductAndCategoryBody["group"], total: numbe
     }),
     dataColumn({
       id: "units",
-      header: "Unidades",
+      header: "Cantidad",
       align: "end",
       render: (row: SoldRow) => soldQuantityText(row),
     }),
@@ -156,7 +156,7 @@ export function SalesByProductAndCategoryScreen({
               <Card>
                 <FigureStat
                   size="heading"
-                  label="Unidades"
+                  label="Cantidad"
                   value={soldQuantityText(shown.totals)}
                 />
               </Card>
@@ -177,7 +177,7 @@ export function SalesByProductAndCategoryScreen({
                 <FigureStat size="heading" label="Total vendido" loading />
               </Card>
               <Card>
-                <FigureStat size="heading" label="Unidades" loading />
+                <FigureStat size="heading" label="Cantidad" loading />
               </Card>
               <Card>
                 <FigureStat

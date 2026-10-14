@@ -20,8 +20,18 @@ export interface SalesOfGroup extends SoldTotals {
   path: readonly string[];
 }
 
-function pathOrder(a: SalesOfGroup, b: SalesOfGroup): number {
-  return a.path.join().localeCompare(b.path.join());
+const PATH_ORDER_SEPARATOR = "\u0000";
+
+function codeUnitOrder(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+function groupOrder(a: SalesOfGroup, b: SalesOfGroup): number {
+  return (
+    b.amount - a.amount ||
+    codeUnitOrder(a.path.join(PATH_ORDER_SEPARATOR), b.path.join(PATH_ORDER_SEPARATOR)) ||
+    codeUnitOrder(String(a.id), String(b.id))
+  );
 }
 
 export function salesOfGroups(rows: readonly SoldLinesOfGroup[]): SalesOfGroup[] {
@@ -45,7 +55,7 @@ export function salesOfGroups(rows: readonly SoldLinesOfGroup[]): SalesOfGroup[]
       amount: group.amount + row.amount,
     });
   }
-  return [...groups.values()].sort((a, b) => b.amount - a.amount || pathOrder(a, b));
+  return [...groups.values()].sort(groupOrder);
 }
 
 export function soldTotals(groups: readonly SalesOfGroup[]): SoldTotals {
