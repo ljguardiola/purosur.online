@@ -1,3 +1,4 @@
+import { parseDate } from "@internationalized/date";
 import type { Freight } from "@purosur/contracts";
 import { Button, Modal } from "@purosur/ui";
 import { Check, Truck, X } from "lucide-react";
@@ -38,6 +39,7 @@ export function NewFreightModal({
   const sendToMyAccount = useSendToMyAccount();
   const refreshPurchasing = useRefreshPurchasing();
   const [notice, setNotice] = useState<FreightNotice | null>(null);
+  const [datedOn, setDatedOn] = useState<string | null>(null);
   const purchases = useLinkablePurchasesQuery({
     input: { period },
     enabled: open,
@@ -80,12 +82,25 @@ export function NewFreightModal({
     },
   );
 
+  const today = purchases.status === "loaded" ? purchases.value.today : null;
+
   useEffect(() => {
     if (open) {
       reset();
       setNotice(null);
+      setDatedOn(null);
     }
   }, [open, reset]);
+
+  useEffect(() => {
+    if (!open || today === null || today === datedOn) {
+      return;
+    }
+    if ((form.getFieldValue("date")?.toString() ?? null) === datedOn) {
+      form.setFieldValue("date", parseDate(today), { dontUpdateMeta: true });
+    }
+    setDatedOn(today);
+  }, [open, today, datedOn, form]);
 
   return (
     <Modal

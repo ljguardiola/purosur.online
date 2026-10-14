@@ -229,7 +229,10 @@ export {
   freightSchema,
   freightSummarySchema,
 } from "./purchasing/freight-summary.js";
-export type { LinkablePurchaseSummary } from "./purchasing/linkable-purchase-summary.js";
+export type {
+  LinkablePurchaseList,
+  LinkablePurchaseSummary,
+} from "./purchasing/linkable-purchase-summary.js";
 export {
   linkablePurchaseListSchema,
   linkablePurchaseSummarySchema,

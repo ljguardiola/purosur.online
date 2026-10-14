@@ -15,4 +15,5 @@ export const linkablePurchaseListSchema = z.object({
   today: z.string().refine(isCalendarDay),
 });
 
+export type LinkablePurchaseList = z.output<typeof linkablePurchaseListSchema>;
 export type LinkablePurchaseSummary = z.output<typeof linkablePurchaseSummarySchema>;

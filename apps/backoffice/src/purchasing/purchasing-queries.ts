@@ -1,6 +1,6 @@
 import type {
   FreightList,
-  LinkablePurchaseSummary,
+  LinkablePurchaseList,
   PackagingList,
   PackagingSummary,
   PurchaseChoices,
@@ -105,7 +105,7 @@ export function useLinkablePurchasesQuery(params: {
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
-  return useCloudQuery<LinkablePurchaseSummary[]>({
+  return useCloudQuery<LinkablePurchaseList>({
     queryKey: [...purchasingKeys.linkablePurchases, params.input],
     enabled: params.enabled,
     read: () => params.fetchLinkablePurchases(params.input),

@@ -1,6 +1,7 @@
 import {
   type FreightBody,
   freightBodySchema,
+  type LinkablePurchaseList,
   type LinkablePurchaseSummary,
 } from "@purosur/contracts";
 import {
@@ -133,7 +134,7 @@ function PurchasesChoice({ purchases }: { purchases: LinkablePurchaseSummary[] }
   );
 }
 
-function PurchasesField({ purchases }: { purchases: CloudData<LinkablePurchaseSummary[]> }) {
+function PurchasesField({ purchases }: { purchases: CloudData<LinkablePurchaseList> }) {
   return (
     <SharedFieldError>
       {() => {
@@ -143,7 +144,7 @@ function PurchasesField({ purchases }: { purchases: CloudData<LinkablePurchaseSu
         if (purchases.status === "failed") {
           return <LoadFailure {...cloudLoadFailure(purchases, "las compras")} />;
         }
-        if (purchases.value.length === 0) {
+        if (purchases.value.purchases.length === 0) {
           return (
             <EmptyState
               icon={<ShoppingCart />}
@@ -153,7 +154,7 @@ function PurchasesField({ purchases }: { purchases: CloudData<LinkablePurchaseSu
             />
           );
         }
-        return <PurchasesChoice purchases={purchases.value} />;
+        return <PurchasesChoice purchases={purchases.value.purchases} />;
       }}
     </SharedFieldError>
   );
@@ -164,7 +165,7 @@ export function FreightFields({
   purchases,
 }: {
   form: FreightRequestForm;
-  purchases: CloudData<LinkablePurchaseSummary[]>;
+  purchases: CloudData<LinkablePurchaseList>;
 }) {
   return (
     <div className="flex flex-col gap-4">

@@ -1,13 +1,13 @@
 import { type CalendarDate, parseDate } from "@internationalized/date";
 import {
   type FreightBody,
+  type FreightPeriod,
   type FreightSummary,
   freightBodySchema,
-  freightListQuerySchema,
+  freightPeriodDaysSchema,
 } from "@purosur/contracts";
 import { parseAmountCents } from "@purosur/ui";
 import { schemaLimit } from "../platform/schema-limit";
-import type { FreightPeriod } from "./freights-api";
 
 const { description: descriptionSchema, means: meansSchema } = freightBodySchema.shape;
 
@@ -110,9 +110,7 @@ export const FREIGHT_FIELD_MESSAGES = {
   purchaseIds: freightPurchasesMessage,
 };
 
-const periods: readonly FreightPeriod[] = [
-  ...freightListQuerySchema.shape.period.def.innerType.def.out.values,
-];
+const periods: readonly FreightPeriod[] = [...freightPeriodDaysSchema.values];
 
 const [firstPeriodOption, ...otherPeriodOptions] = periods.map((days) => ({
   value: String(days),

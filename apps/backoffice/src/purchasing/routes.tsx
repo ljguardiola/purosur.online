@@ -1,4 +1,4 @@
-import { freightListQuerySchema } from "@purosur/contracts";
+import { freightPeriodSchema } from "@purosur/contracts";
 import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import {
@@ -59,11 +59,9 @@ export const newPurchaseRoute = createRoute({
   component: lazyScreen(() => import("./new-purchase-page"), "NewPurchasePage"),
 });
 
-const freightPeriodFilter = freightListQuerySchema.shape.period;
-
 export const freightsListFilters = z.object({
   search: z.string().default("").catch(""),
-  period: freightPeriodFilter.catch(freightPeriodFilter.parse(undefined)),
+  period: freightPeriodSchema.catch(freightPeriodSchema.parse(undefined)),
 });
 
 export type FreightsListFilters = z.output<typeof freightsListFilters>;

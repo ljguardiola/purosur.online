@@ -2,18 +2,17 @@ import {
   type Freight,
   type FreightBody,
   type FreightList,
-  type freightListQuerySchema,
+  type FreightPeriod,
   freightListSchema,
   freightSchema,
-  type LinkablePurchaseSummary,
+  type LinkablePurchaseList,
   linkablePurchaseListSchema,
 } from "@purosur/contracts";
-import type { z } from "zod";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
-export type FreightPeriod = z.output<typeof freightListQuerySchema>["period"];
+export type { FreightPeriod };
 
 export type FetchFreightsInput = { period: FreightPeriod; search: string };
 
@@ -21,7 +20,7 @@ export type FetchLinkablePurchasesInput = { period: FreightPeriod; freightId?: s
 
 export type FetchFreightsOutcome = CloudReadOutcome<FreightList>;
 
-export type FetchLinkablePurchasesOutcome = CloudReadOutcome<LinkablePurchaseSummary[]>;
+export type FetchLinkablePurchasesOutcome = CloudReadOutcome<LinkablePurchaseList>;
 
 type RequestRefusal =
   | { kind: "forbidden" }
