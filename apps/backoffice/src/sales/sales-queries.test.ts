@@ -8,6 +8,7 @@ test("invalidating the sales key marks every sales read stale", async () => {
   client.setQueryData(salesKeys.report({}), []);
   client.setQueryData(salesKeys.productsAndCategories({ group: "category" }), []);
   client.setQueryData(salesKeys.cashiers({}), []);
+  client.setQueryData(salesKeys.averageTicket({}), []);
   client.setQueryData(["stock"], []);
 
   await client.invalidateQueries({ queryKey: salesKey, refetchType: "none" });
@@ -17,6 +18,7 @@ test("invalidating the sales key marks every sales read stale", async () => {
     client.getQueryState(salesKeys.productsAndCategories({ group: "category" }))?.isInvalidated,
   ).toBe(true);
   expect(client.getQueryState(salesKeys.cashiers({}))?.isInvalidated).toBe(true);
+  expect(client.getQueryState(salesKeys.averageTicket({}))?.isInvalidated).toBe(true);
   expect(client.getQueryState(["stock"])?.isInvalidated).toBe(false);
 });
 
@@ -53,6 +55,19 @@ test("each range and register has its own sales by cashier key", () => {
     salesKeys.cashiers({ register_id: FRONT_REGISTER_ID }),
     salesKeys.report({ register_id: FRONT_REGISTER_ID }),
     salesKeys.productsAndCategories({ group: "category" }),
+  ];
+
+  expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(keys.length);
+});
+
+test("each range and register has its own average ticket key", () => {
+  const keys = [
+    salesKeys.averageTicket({}),
+    salesKeys.averageTicket({ from: "2026-10-01", to: "2026-10-07" }),
+    salesKeys.averageTicket({ from: "2026-10-01", to: "2026-10-08" }),
+    salesKeys.averageTicket({ register_id: FRONT_REGISTER_ID }),
+    salesKeys.cashiers({ register_id: FRONT_REGISTER_ID }),
+    salesKeys.report({ register_id: FRONT_REGISTER_ID }),
   ];
 
   expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(keys.length);

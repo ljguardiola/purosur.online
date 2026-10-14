@@ -18,6 +18,7 @@ import type {
   ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  ConvertPaidOrderIntoRefundOutcome,
   CoreStatusMessage,
   CurrentSaleAnswer,
   EnrollmentOutcome,
@@ -71,6 +72,7 @@ import {
   createRouter,
   Outlet,
   redirect,
+  useRouter,
 } from "@tanstack/react-router";
 import { pinPolicyQueryOptions } from "../credentials/credentials-queries";
 import { FirstSignInCodeStep } from "../credentials/first-sign-in-code-step";
@@ -232,6 +234,9 @@ export interface RouterContext {
   ) => Promise<CancelPaidSaleOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
   printOriginalReceipt: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
+  convertPaidOrderIntoRefund: (
+    paymentTransactionId: string,
+  ) => Promise<ConvertPaidOrderIntoRefundOutcome>;
   reprintSaleReceipt: (
     saleId: string,
     reason: string,
@@ -642,9 +647,15 @@ const openSessionRoute = createRoute({
 const startupPendingRoute = createRoute({
   getParentRoute: () => statusBarRoute,
   path: "/startup-pending",
-  beforeLoad: ({ context }) => {
+  beforeLoad: async ({ context }) => {
     const { id, openedAt, openedBy, person } = requireOpenSession(context);
-    if (context.startupPendingGate.dismissed()) {
+    const landsOnStartupPending = await context.startupPendingGate.lands(() =>
+      context.queryClient.fetchQuery({
+        ...startupPendingQueryOptions(context.startupPending),
+        staleTime: 0,
+      }),
+    );
+    if (!landsOnStartupPending) {
       throw redirect({ to: "/session" });
     }
     return { id, openedAt, openedBy, person };
@@ -661,11 +672,13 @@ const startupPendingRoute = createRoute({
       cashBalance,
       printOriginalReceipt,
       reprintSaleReceipt,
+      convertPaidOrderIntoRefund,
       authorizers,
       refreshCashSession,
     } = startupPendingRoute.useRouteContext();
     const registerName = useRegisterName();
     const navigate = startupPendingRoute.useNavigate();
+    const router = useRouter();
     return (
       <StartupPendingScreen
         sessionId={id}
@@ -678,11 +691,13 @@ const startupPendingRoute = createRoute({
         loadCashBalance={cashBalance}
         printOriginalReceipt={printOriginalReceipt}
         reprintSaleReceipt={reprintSaleReceipt}
+        convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
         loadAuthorizers={authorizers}
         onGoSelling={() => {
           startupPendingGate.dismiss();
           void navigate({ to: "/session" });
         }}
+        onNothingLeft={() => void router.invalidate()}
         onSessionInvalid={() => void refreshCashSession()}
       />
     );
@@ -1092,6 +1107,7 @@ export function createAppRouter(
     | "cancelPaidSale"
     | "receiptPrintStatus"
     | "printOriginalReceipt"
+    | "convertPaidOrderIntoRefund"
     | "reprintSaleReceipt"
     | "salesHistory"
     | "saleHistoryDetail"

@@ -31,6 +31,7 @@ import type { SuppliersListScreenServices } from "../purchasing/suppliers-list-s
 import type { RegistersListScreenServices } from "../register/registers-list-services";
 import type { ReportRegisterFilterProps } from "../register/report-register-filter";
 import type { ReportRegisterFilterServices } from "../register/report-register-filter-services";
+import type { AverageTicketScreenServices } from "../sales/average-ticket-services";
 import type { SalesByCashierScreenServices } from "../sales/sales-by-cashier-services";
 import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
 import type { SalesByProductAndCategoryScreenServices } from "../sales/sales-by-product-and-category-services";
@@ -83,6 +84,7 @@ export type AppServices = {
   salesByDayScreen: SalesByDayScreenServices;
   salesByProductAndCategoryScreen: SalesByProductAndCategoryScreenServices;
   salesByCashierScreen: SalesByCashierScreenServices;
+  averageTicketScreen: AverageTicketScreenServices;
   salesByPaymentMethodScreen: SalesByPaymentMethodScreenServices;
   reportFiltersRegisterFilter: ComponentType<ReportRegisterFilterProps>;
   reportRegisterFilter: ReportRegisterFilterServices;

@@ -122,7 +122,12 @@ function readySeller(): void {
 beforeEach(() => {
   idCount = 0;
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
-  ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), CHAIN_KEY);
+  ledger = new SqliteSaleLedger(
+    database,
+    new SqliteSignInStore(database),
+    CHAIN_KEY,
+    () => "checked",
+  );
 });
 
 afterEach(() => {
@@ -516,7 +521,12 @@ describe("the sale after the register restarts", () => {
       const path = join(folder, "register.sqlite");
       database.close();
       database = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
-      ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), CHAIN_KEY);
+      ledger = new SqliteSaleLedger(
+        database,
+        new SqliteSignInStore(database),
+        CHAIN_KEY,
+        () => "checked",
+      );
       readySeller();
       addProduct(database, "111");
       addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 1000);
@@ -525,7 +535,12 @@ describe("the sale after the register restarts", () => {
       database.close();
 
       database = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
-      ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), CHAIN_KEY);
+      ledger = new SqliteSaleLedger(
+        database,
+        new SqliteSignInStore(database),
+        CHAIN_KEY,
+        () => "checked",
+      );
 
       expect(currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" })).toMatchObject({
         kind: "open",
@@ -561,6 +576,58 @@ describe("the installation's revocation", () => {
       .run();
 
     expect(ledger.transaction((tx) => tx.installationRevoked())).toBe(true);
+  });
+});
+
+describe("this run's paid-order check", () => {
+  it("is what the register's discovery answers", () => {
+    const checked = new SqliteSaleLedger(
+      database,
+      new SqliteSignInStore(database),
+      CHAIN_KEY,
+      () => "deferred",
+    );
+
+    expect(checked.transaction((tx) => tx.paidOrderDiscovery())).toBe("deferred");
+  });
+
+  it("is still pending for a ledger the discovery was not given to", () => {
+    const withoutDiscovery = new SqliteSaleLedger(database, new SqliteSignInStore(database));
+
+    expect(withoutDiscovery.transaction((tx) => tx.paidOrderDiscovery())).toBe("pending");
+  });
+});
+
+describe("a paid order without a sale", () => {
+  function recordPaidOrder(resolvedAt: string | null): void {
+    database
+      .prepare(
+        `INSERT INTO paid_orders_without_sale (
+           payment_transaction_id, sale_id, method, provider, amount, created_at, recorded_at, resolved_at
+         ) VALUES ('payment-1', 'sale-gone', 'QR', 'MERCADOPAGO_QR', 5000,
+                   '2026-09-30T10:00:00.000Z', '2026-09-30T11:00:00.000Z', ?)`,
+      )
+      .run(resolvedAt);
+  }
+
+  it("is none on a register that holds no paid order without a sale", () => {
+    expect(ledger.transaction((tx) => tx.paidOrdersWithoutSale())).toEqual([]);
+  });
+
+  it("is unresolved until it is converted into a refund", () => {
+    recordPaidOrder(null);
+
+    expect(ledger.transaction((tx) => tx.paidOrdersWithoutSale())).toMatchObject([
+      { paymentTransactionId: "payment-1", resolved: false },
+    ]);
+  });
+
+  it("is resolved once converted", () => {
+    recordPaidOrder("2026-09-30T11:30:00.000Z");
+
+    expect(ledger.transaction((tx) => tx.paidOrdersWithoutSale())).toMatchObject([
+      { paymentTransactionId: "payment-1", resolved: true },
+    ]);
   });
 });
 

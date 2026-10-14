@@ -716,6 +716,18 @@ describe("SaleScreen", () => {
         help: "El motivo y qué hacer se muestran arriba de la pantalla.",
       },
       {
+        name: "a paid order without a sale",
+        outcome: { kind: "paid_order_without_sale" },
+        title: "Hay un cobro pagado sin venta",
+        help: "Pasalo a reembolso en Antes de empezar.",
+      },
+      {
+        name: "a paid-order check still waiting for the cloud",
+        outcome: { kind: "paid_orders_not_checked" },
+        title: "La caja todavía está consultando los cobros pagados",
+        help: "Esperá a que termine para empezar una venta.",
+      },
+      {
         name: "the core being unable to add it",
         outcome: { kind: "unavailable" },
         title: "No se pudo agregar el producto",
@@ -756,6 +768,8 @@ describe("SaleScreen", () => {
       { kind: "no_price", product_name: "Yerba mate 1 kg" },
       { kind: "line_quantity_limit", product_name: "Yerba mate 1 kg" },
       { kind: "installation_revoked" },
+      { kind: "paid_order_without_sale" },
+      { kind: "paid_orders_not_checked" },
       { kind: "unavailable" },
       { kind: "not_permitted" },
     ])("has the next code the scanner types replace one refused as $kind", async (outcome) => {

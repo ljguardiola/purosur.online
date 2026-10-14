@@ -246,7 +246,7 @@ export const help = defineHelp("es-AR", {
       body: [
         {
           kind: "paragraph",
-          text: "Si la caja se cerró sin terminar algunas operaciones, al entrar muestra lo que quedó antes de ir a Venta en curso. Podés resolverlo en ese momento o tocar Ir a vender y seguir vendiendo: nada de esta lista frena la caja.",
+          text: "Si la caja se cerró sin terminar algunas operaciones, al entrar muestra lo que quedó antes de ir a Venta en curso. Podés resolverlo en ese momento o tocar Ir a vender y seguir vendiendo: nada de esta lista frena la caja, salvo un cobro pagado sin venta y la consulta de los cobros pagados mientras sigue en curso.",
         },
         {
           kind: "steps",
@@ -254,6 +254,8 @@ export const help = defineHelp("es-AR", {
             "Venta sin ticket: la venta nunca se imprimió. Tocá la impresora de la fila y el ticket sale enseguida como original.",
             "Ticket sin confirmar: puede que el ticket haya salido. Tocá la impresora de la fila, escribí el motivo de la reimpresión y tocá Reimprimir duplicado: sale como duplicado.",
             "Factura o cobro en consulta: la caja lo consulta sola, y desaparece de la lista cuando llega la respuesta.",
+            "Cobro pagado sin venta: el cliente pagó con QR o Point y la venta no quedó en la caja. La caja no deja empezar una venta nueva hasta que lo pases a reembolso: si quedó una venta abierta, Ir a vender lleva a terminarla; si no, Ir a vender queda desactivado. Tocá la flecha de vuelta de la fila y confirmá con Pasar a reembolso: el cobro queda como un reembolso que se marca como hecho en el backoffice, y al cliente no se le cobra de nuevo.",
+            "Cobros pagados sin consultar: la caja todavía no sabe si hay un cobro pagado sin venta, porque lo está consultando o porque no había conexión. Si la caja lo está consultando, no deja empezar una venta nueva hasta que termine: si quedó una venta abierta, Ir a vender lleva a terminarla; si no, Ir a vender queda desactivado. Si no había conexión, se puede seguir vendiendo: la caja lo consulta cuando vuelve la conexión y, si lo encuentra, lo agrega a la lista.",
           ],
         },
       ],

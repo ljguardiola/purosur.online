@@ -17,6 +17,7 @@ export function ReportsIndexScreen() {
           label="Ventas por producto y por categoría"
         />
         <ReportRow to="/reports/sales-by-cashier" label="Ventas por cajero" />
+        <ReportRow to="/reports/average-ticket" label="Ticket promedio" />
       </LinkListCard>
     </ScreenLayout>
   );

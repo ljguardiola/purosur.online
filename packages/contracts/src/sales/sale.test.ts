@@ -371,6 +371,8 @@ describe("scanProductOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "installation_revoked" },
+    { kind: "paid_order_without_sale" },
+    { kind: "paid_orders_not_checked" },
     { kind: "sale_has_payments" },
     { kind: "unavailable" },
   ])("accepts the outcome $kind", (outcome) => {
@@ -456,6 +458,8 @@ describe("addWeighedProductOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "installation_revoked" },
+    { kind: "paid_order_without_sale" },
+    { kind: "paid_orders_not_checked" },
     { kind: "unavailable" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(addWeighedProductOutcomeSchema.parse(outcome)).toEqual(outcome);
@@ -486,6 +490,8 @@ describe("weighProductOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "installation_revoked" },
+    { kind: "paid_order_without_sale" },
+    { kind: "paid_orders_not_checked" },
     { kind: "unavailable" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(weighProductOutcomeSchema.parse(outcome)).toEqual(outcome);
@@ -1070,6 +1076,8 @@ describe("addProductOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "installation_revoked" },
+    { kind: "paid_order_without_sale" },
+    { kind: "paid_orders_not_checked" },
     { kind: "sale_has_payments" },
     { kind: "unavailable" },
   ])("accepts the outcome $kind", (outcome) => {

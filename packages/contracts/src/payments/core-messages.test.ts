@@ -386,3 +386,57 @@ describe("asking which payment methods are available", () => {
     ).toBe(false);
   });
 });
+
+describe("converting a paid order without a sale into a refund", () => {
+  const message = {
+    type: "convert-paid-order-into-refund",
+    request_id: REQUEST_ID,
+    payment_transaction_id: PAYMENT_ID,
+  };
+
+  it("accepts the paid order to convert", () => {
+    expect(paymentsRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("does not take who is converting from the renderer", () => {
+    expect(paymentsRendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(
+      message,
+    );
+  });
+
+  it.each([
+    ["request id", { ...message, request_id: undefined }],
+    ["payment", { ...message, payment_transaction_id: undefined }],
+  ])("rejects a conversion without a %s", (_case, value) => {
+    expect(paymentsRendererToCoreMessageSchema.safeParse(value).success).toBe(false);
+  });
+
+  it.each([
+    "converted",
+    "already_resolved",
+    "not_found",
+    "refused",
+    "unreachable",
+    "not_permitted",
+    "not_signed_in",
+    "unavailable",
+  ])("accepts the result %s", (kind) => {
+    const result = {
+      type: "convert-paid-order-into-refund-result",
+      request_id: REQUEST_ID,
+      outcome: { kind },
+    };
+
+    expect(paymentsCoreToRendererMessageSchema.parse(result)).toEqual(result);
+  });
+
+  it("rejects a result of another kind", () => {
+    expect(
+      paymentsCoreToRendererMessageSchema.safeParse({
+        type: "convert-paid-order-into-refund-result",
+        request_id: REQUEST_ID,
+        outcome: { kind: "refunded" },
+      }).success,
+    ).toBe(false);
+  });
+});

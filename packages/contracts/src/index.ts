@@ -139,6 +139,7 @@ export {
 } from "./fiscal/unclear-outcome-question.js";
 export type {
   AbandonMercadoPagoChargeOutcome,
+  ConvertPaidOrderIntoRefundOutcome,
   FollowMercadoPagoChargeOutcome,
   PaymentsCoreToRendererMessage,
   PaymentsRendererToCoreMessage,
@@ -161,6 +162,16 @@ export {
   mercadoPagoOrderRequestSchema,
   mercadoPagoPaymentSchema,
 } from "./payments/mercado-pago-order.js";
+export type {
+  ApprovedOrdersOfRegisterBody,
+  LatePaymentRefundOpeningBody,
+  LatePaymentRefundRefusalDetail,
+} from "./payments/paid-orders-of-register.js";
+export {
+  approvedOrdersOfRegisterSchema,
+  latePaymentRefundOpeningSchema,
+  latePaymentRefundRefusalDetailSchema,
+} from "./payments/paid-orders-of-register.js";
 export type { PaymentMethodAvailability } from "./payments/payment-method-availability.js";
 export { paymentMethodAvailabilitySchema } from "./payments/payment-method-availability.js";
 export type {
@@ -361,6 +372,8 @@ export {
   snapshotUploadBodySchema,
 } from "./register/snapshot-upload.js";
 export type { StartupPending } from "./register/startup-pending.js";
+export type { AverageTicketBody } from "./sales/average-ticket.js";
+export { averageTicketSchema } from "./sales/average-ticket.js";
 export type {
   CancelLockedSaleOutcome,
   PrintOriginalReceiptOutcome,
