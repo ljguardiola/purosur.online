@@ -1,4 +1,9 @@
 import type { BranchSettingsBody } from "@purosur/contracts";
+import {
+  DEFAULT_EXPIRING_LOT_ALERT_DAYS,
+  DEFAULT_GOOD_CONDITION_RETURN_DAYS,
+  DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
+} from "@purosur/domain";
 import type { BranchHoursRange } from "@purosur/domain/branch/use-cases";
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -10,9 +15,9 @@ export const BRANCH_SETTINGS_DEFAULTS = {
   address: "",
   whatsappNumber: "",
   instagramHandle: "",
-  expiringLotAlertDays: 30,
-  unreviewedPriceAlertDays: 30,
-  goodConditionReturnDays: 15,
+  expiringLotAlertDays: DEFAULT_EXPIRING_LOT_ALERT_DAYS,
+  unreviewedPriceAlertDays: DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
+  goodConditionReturnDays: DEFAULT_GOOD_CONDITION_RETURN_DAYS,
 };
 
 type BranchSettingsFields = typeof BRANCH_SETTINGS_DEFAULTS;
