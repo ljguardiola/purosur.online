@@ -445,6 +445,8 @@ export type {
   SerialDeviceRole,
   SerialDeviceStanding,
   SerialDevicesReport,
+  SnapshotCorruptionStage,
+  SnapshotLifecycleRules,
   WatchedRegister,
 } from "./register/index.js";
 export {
@@ -472,6 +474,7 @@ export {
   isNewerRegisterVersion,
   isOutOfService,
   isRegisterNameTooLong,
+  isRetainedSnapshotGeneration,
   isSafeMomentToUpdate,
   isValidCashMovementAmount,
   isWatchedForQuietness,
@@ -491,6 +494,14 @@ export {
   registerOperationAccess,
   SERIAL_DEVICE_REPORT_STANDINGS,
   SERIAL_DEVICE_ROLES,
+  SNAPSHOT_CORRUPTION_STAGES,
+  SNAPSHOT_DOWNLOAD_URL_LIFETIME_MS,
+  SNAPSHOT_FAILURE_REASONS,
+  SNAPSHOT_GENERATION_STATUSES,
+  SNAPSHOT_LIFECYCLE_LIMITS,
+  SNAPSHOT_RETENTION_INTERVAL_MS,
+  SNAPSHOT_STATUSES_AWAITING_VERIFICATION,
+  SNAPSHOT_VERIFICATION_INTERVAL_MS,
   serialDeviceStandings,
 } from "./register/index.js";
 export type {
