@@ -71,7 +71,9 @@ describe("the offsite_dump role runMigrations creates", () => {
   });
 
   it("reads drizzle's migrations bookkeeping table", async () => {
-    const rows = await offsiteDump<{ hash: string }[]>`select hash from drizzle.__drizzle_migrations`;
+    const rows = await offsiteDump<
+      { hash: string }[]
+    >`select hash from drizzle.__drizzle_migrations`;
     expect(rows.length).toBeGreaterThan(0);
   });
 
@@ -101,9 +103,9 @@ describe("the offsite_dump role runMigrations creates", () => {
   });
 
   it("cannot create a table in the public schema", async () => {
-    await expect(offsiteDump`create table offsite_dump_role_test_table (id int)`).rejects.toMatchObject(
-      { code: PERMISSION_DENIED },
-    );
+    await expect(
+      offsiteDump`create table offsite_dump_role_test_table (id int)`,
+    ).rejects.toMatchObject({ code: PERMISSION_DENIED });
   });
 
   it("cannot read graphile-worker's queue, which its row-level security keeps from every role but its owner", async () => {
