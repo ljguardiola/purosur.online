@@ -1,6 +1,9 @@
 import {
   ALERT_AUDIENCES,
   ALERT_LEVELS,
+  DEFAULT_EXPIRING_LOT_ALERT_DAYS,
+  DEFAULT_GOOD_CONDITION_RETURN_DAYS,
+  DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
   type EventQuarantine,
   FACTURA_C_DOCUMENT_TYPE,
   type JsonValue,
@@ -52,9 +55,15 @@ export const branchSettings = pgTable("branch_settings", {
   address: text("address").notNull().default(""),
   whatsappNumber: text("whatsapp_number").notNull().default(""),
   instagramHandle: text("instagram_handle").notNull().default(""),
-  expiringLotAlertDays: integer("expiring_lot_alert_days").notNull().default(30),
-  unreviewedPriceAlertDays: integer("unreviewed_price_alert_days").notNull().default(30),
-  goodConditionReturnDays: integer("good_condition_return_days").notNull().default(15),
+  expiringLotAlertDays: integer("expiring_lot_alert_days")
+    .notNull()
+    .default(DEFAULT_EXPIRING_LOT_ALERT_DAYS),
+  unreviewedPriceAlertDays: integer("unreviewed_price_alert_days")
+    .notNull()
+    .default(DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS),
+  goodConditionReturnDays: integer("good_condition_return_days")
+    .notNull()
+    .default(DEFAULT_GOOD_CONDITION_RETURN_DAYS),
   priceListId: uuid("price_list_id")
     .notNull()
     .references(() => priceLists.id),

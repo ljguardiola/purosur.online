@@ -1,3 +1,8 @@
+import {
+  DEFAULT_EXPIRING_LOT_ALERT_DAYS,
+  DEFAULT_GOOD_CONDITION_RETURN_DAYS,
+  DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
+} from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { branchHours, branchSettings, locations } from "../platform/db/schema.js";
@@ -31,11 +36,33 @@ describe("DrizzleBranchSettingsReader", () => {
       whatsappNumber: "",
       instagramHandle: "",
       hours: [],
-      expiringLotAlertDays: 30,
-      unreviewedPriceAlertDays: 30,
-      goodConditionReturnDays: 15,
+      expiringLotAlertDays: DEFAULT_EXPIRING_LOT_ALERT_DAYS,
+      unreviewedPriceAlertDays: DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
+      goodConditionReturnDays: DEFAULT_GOOD_CONDITION_RETURN_DAYS,
       version: 1,
     });
+  });
+
+  it.each([
+    ["expiry warning window", "expiringLotAlertDays", DEFAULT_EXPIRING_LOT_ALERT_DAYS],
+    [
+      "unreviewed price warning window",
+      "unreviewedPriceAlertDays",
+      DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
+    ],
+    ["good-condition return window", "goodConditionReturnDays", DEFAULT_GOOD_CONDITION_RETURN_DAYS],
+  ] as const)("starts a new branch on the domain's default %s", async (_window, field, days) => {
+    const [location] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!location) {
+      throw new Error("location not created");
+    }
+    await db
+      .insert(branchSettings)
+      .values({ locationId: location.id, priceListId: await seededPriceListId(db) });
+
+    const settings = await new DrizzleBranchSettingsReader(db).currentBranchSettings(location.id);
+
+    expect(settings[field]).toBe(days);
   });
 
   it("answers the hours by day then position, each time as HH:MM", async () => {
