@@ -46,10 +46,19 @@ export type {
   ClosedAlert,
 } from "./close-alert.js";
 export { closeAlert } from "./close-alert.js";
+export { detectExpiringLots } from "./detect-expiring-lots.js";
 export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
 export type { QuietRegisterDetectionPorts } from "./detect-quiet-registers.js";
 export { detectQuietRegisters } from "./detect-quiet-registers.js";
 export { escalateOverdueAlerts } from "./escalate-overdue-alerts.js";
+export type {
+  BranchExpiringLotReader,
+  BranchExpiryWindow,
+  BranchExpiryWindowReader,
+  ExpiringLotAlerts,
+  ExpiringLotCandidate,
+  ExpiringLotDetectionPorts,
+} from "./expiring-lot-alert-ports.js";
 export type {
   MissingOfflineAuthorizationCodeAlerts,
   MissingOfflineAuthorizationCodeDetectionPorts,

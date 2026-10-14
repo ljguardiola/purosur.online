@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { enrollmentAttemptWindowStart } from "@purosur/domain";
+import { enrollmentAttemptWindowStart, isRetainedSnapshotGeneration } from "@purosur/domain";
 import type {
   EnrollmentAlert,
   EnrollmentAttemptKey,
@@ -25,6 +25,7 @@ import {
   registerEnrollmentCodes,
   registerInstallations,
   registerPointsOfSale,
+  registerSnapshotGenerations,
   registerSnapshotKeys,
   taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
@@ -292,11 +293,24 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
     };
     return {
       snapshotKeys: await versionsOf(registerSnapshotKeys, snapshotKeyPurpose),
+      retainedSnapshotKeyVersions: await this.retainedSnapshotKeyVersions(registerId),
       contingencyTicketKeys: await versionsOf(
         registerContingencyTicketKeys,
         contingencyTicketKeyPurpose,
       ),
     };
+  }
+
+  private async retainedSnapshotKeyVersions(registerId: string): Promise<number[]> {
+    const kinds = await this.tx
+      .selectDistinct({
+        keyVersion: registerSnapshotGenerations.keyVersion,
+        status: registerSnapshotGenerations.status,
+        pruned: registerSnapshotGenerations.pruned,
+      })
+      .from(registerSnapshotGenerations)
+      .where(eq(registerSnapshotGenerations.registerId, registerId));
+    return [...new Set(kinds.filter(isRetainedSnapshotGeneration).map((kind) => kind.keyVersion))];
   }
 
   async recordSnapshotKey(registerId: string, key: VersionedKey): Promise<void> {

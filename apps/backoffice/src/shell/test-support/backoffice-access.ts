@@ -31,6 +31,7 @@ const EVERY_CAPABILITY: Record<Capability, true> = {
   purchases: true,
   recipes: true,
   batches: true,
+  freights: true,
   reports_area: true,
   refunds_area: true,
 };

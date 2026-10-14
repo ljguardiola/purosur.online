@@ -95,6 +95,7 @@ describe("CashOpeningPanel", () => {
       .element(screen.getByRole("button", { name: "Abrir caja" }))
       .not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
+    await expect.element(field).toHaveAttribute("inputmode", "decimal");
   });
 
   it("goes back to the invitation and forgets the typed float on Cancelar", async () => {

@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { AccountFooter } from "./account-footer";
 import {
   canManageBatches,
+  canManageFreights,
   canManageProductsAndCategories,
   canManagePurchasePackagings,
   canManageRecipes,
@@ -60,11 +61,13 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               ? "/purchases"
               : canSeeExpiringLots(session)
                 ? "/expiring-lots"
-                : canManageRecipes(session)
-                  ? "/recipes"
-                  : canManageBatches(session)
-                    ? "/assembly-batches"
-                    : "/initial-inventory";
+                : canManageFreights(session)
+                  ? "/freights"
+                  : canManageRecipes(session)
+                    ? "/recipes"
+                    : canManageBatches(session)
+                      ? "/assembly-batches"
+                      : "/initial-inventory";
   const cashTarget = canSeeCashArea(session) ? "/points-of-sale" : "/pending-refunds";
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (

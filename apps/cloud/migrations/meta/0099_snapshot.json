@@ -1,5 +1,5 @@
 {
-  "id": "8106da95-bc40-43bd-851c-4469c69f2329",
+  "id": "5aec732e-05ae-4b48-b6cb-932d6622bc1a",
   "prevId": "cb568710-da2a-48f8-a675-88d079cbb57b",
   "version": "7",
   "dialect": "postgresql",
@@ -458,178 +458,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.assembly_batch_lines": {
-      "name": "assembly_batch_lines",
-      "schema": "",
-      "columns": {
-        "batch_id": {
-          "name": "batch_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "component_product_id": {
-          "name": "component_product_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "quantity": {
-          "name": "quantity",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "assembly_batch_lines_batch_id_assembly_batches_id_fk": {
-          "name": "assembly_batch_lines_batch_id_assembly_batches_id_fk",
-          "tableFrom": "assembly_batch_lines",
-          "tableTo": "assembly_batches",
-          "columnsFrom": ["batch_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "assembly_batch_lines_component_product_id_products_id_fk": {
-          "name": "assembly_batch_lines_component_product_id_products_id_fk",
-          "tableFrom": "assembly_batch_lines",
-          "tableTo": "products",
-          "columnsFrom": ["component_product_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "assembly_batch_lines_pkey": {
-          "name": "assembly_batch_lines_pkey",
-          "columns": ["batch_id", "component_product_id"]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "assembly_batch_lines_quantity_check": {
-          "name": "assembly_batch_lines_quantity_check",
-          "value": "\"assembly_batch_lines\".\"quantity\" >= 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.assembly_batches": {
-      "name": "assembly_batches",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "product_id": {
-          "name": "product_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "location_id": {
-          "name": "location_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "assembled_at": {
-          "name": "assembled_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "output_qty": {
-          "name": "output_qty",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "actor_id": {
-          "name": "actor_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "assembly_batches_location_id_assembled_at_idx": {
-          "name": "assembly_batches_location_id_assembled_at_idx",
-          "columns": [
-            {
-              "expression": "location_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "assembled_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "assembly_batches_product_id_products_id_fk": {
-          "name": "assembly_batches_product_id_products_id_fk",
-          "tableFrom": "assembly_batches",
-          "tableTo": "products",
-          "columnsFrom": ["product_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "assembly_batches_location_id_locations_id_fk": {
-          "name": "assembly_batches_location_id_locations_id_fk",
-          "tableFrom": "assembly_batches",
-          "tableTo": "locations",
-          "columnsFrom": ["location_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "assembly_batches_actor_id_users_id_fk": {
-          "name": "assembly_batches_actor_id_users_id_fk",
-          "tableFrom": "assembly_batches",
-          "tableTo": "users",
-          "columnsFrom": ["actor_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "assembly_batches_output_qty_check": {
-          "name": "assembly_batches_output_qty_check",
-          "value": "\"assembly_batches\".\"output_qty\" > 0"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.audit_log": {
@@ -2843,12 +2671,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "assembly_batch_id": {
-          "name": "assembly_batch_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "withdrawn": {
           "name": "withdrawn",
           "type": "boolean",
@@ -3002,15 +2824,6 @@
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
-        },
-        "lots_assembly_batch_id_assembly_batches_id_fk": {
-          "name": "lots_assembly_batch_id_assembly_batches_id_fk",
-          "tableFrom": "lots",
-          "tableTo": "assembly_batches",
-          "columnsFrom": ["assembly_batch_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3024,11 +2837,6 @@
           "name": "lots_origin_movement_id_key",
           "nullsNotDistinct": false,
           "columns": ["origin_movement_id"]
-        },
-        "lots_assembly_batch_id_key": {
-          "name": "lots_assembly_batch_id_key",
-          "nullsNotDistinct": false,
-          "columns": ["assembly_batch_id"]
         }
       },
       "policies": {},
@@ -3039,7 +2847,7 @@
         },
         "lots_exactly_one_origin_check": {
           "name": "lots_exactly_one_origin_check",
-          "value": "\"lots\".\"technical\"::int + (\"lots\".\"purchase_line_id\" is not null)::int + (\"lots\".\"origin_movement_id\" is not null)::int + (\"lots\".\"assembly_batch_id\" is not null)::int = 1"
+          "value": "\"lots\".\"technical\"::int + (\"lots\".\"purchase_line_id\" is not null)::int + (\"lots\".\"origin_movement_id\" is not null)::int = 1"
         },
         "lots_withdrawn_only_if_initial_count_check": {
           "name": "lots_withdrawn_only_if_initial_count_check",
@@ -3495,6 +3303,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "origin_event_id": {
+          "name": "origin_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "provider_order_id": {
           "name": "provider_order_id",
           "type": "text",
@@ -3561,9 +3375,61 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "confirmed_by": {
+          "name": "confirmed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "confirmed_at": {
+          "name": "confirmed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sent_at": {
+          "name": "sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_refund_id": {
+          "name": "provider_refund_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attempt_key": {
+          "name": "attempt_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_refusal_reason": {
+          "name": "last_refusal_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
+        "payment_refunds_attempt_key_unique": {
+          "name": "payment_refunds_attempt_key_unique",
+          "columns": [
+            {
+              "expression": "attempt_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"payment_refunds\".\"attempt_key\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "payment_refunds_transaction_without_order_unique": {
           "name": "payment_refunds_transaction_without_order_unique",
           "columns": [
@@ -3666,9 +3532,9 @@
           "name": "payment_refunds_origin_check",
           "value": "\"payment_refunds\".\"origin\" in ('sale_cancelled', 'late_payment')"
         },
-        "payment_refunds_one_source_check": {
-          "name": "payment_refunds_one_source_check",
-          "value": "(\"payment_refunds\".\"payment_id\" is null) <> (\"payment_refunds\".\"payment_transaction_id\" is null)"
+        "payment_refunds_source_check": {
+          "name": "payment_refunds_source_check",
+          "value": "(\"payment_refunds\".\"origin\" = 'late_payment' and \"payment_refunds\".\"payment_id\" is null and \"payment_refunds\".\"payment_transaction_id\" is not null and \"payment_refunds\".\"origin_event_id\" is null) or (\"payment_refunds\".\"origin\" = 'sale_cancelled' and \"payment_refunds\".\"payment_id\" is not null)"
         },
         "payment_refunds_done_check": {
           "name": "payment_refunds_done_check",
@@ -3677,6 +3543,18 @@
         "payment_refunds_discarded_check": {
           "name": "payment_refunds_discarded_check",
           "value": "(\"payment_refunds\".\"discarded_by\" is null) = (\"payment_refunds\".\"discarded_at\" is null) and (\"payment_refunds\".\"state\" = 'DISCARDED' or \"payment_refunds\".\"discarded_by\" is null)"
+        },
+        "payment_refunds_confirmation_check": {
+          "name": "payment_refunds_confirmation_check",
+          "value": "(\"payment_refunds\".\"confirmed_by\" is null) = (\"payment_refunds\".\"confirmed_at\" is null)"
+        },
+        "payment_refunds_attempt_confirmed_check": {
+          "name": "payment_refunds_attempt_confirmed_check",
+          "value": "\"payment_refunds\".\"attempt_key\" is null or \"payment_refunds\".\"confirmed_at\" is not null"
+        },
+        "payment_refunds_sent_check": {
+          "name": "payment_refunds_sent_check",
+          "value": "(\"payment_refunds\".\"sent_at\" is null) = (\"payment_refunds\".\"provider_refund_id\" is null) and (\"payment_refunds\".\"sent_at\" is null or \"payment_refunds\".\"confirmed_at\" is not null)"
         }
       },
       "isRLSEnabled": false
@@ -7516,12 +7394,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "assembly_batch_id": {
-          "name": "assembly_batch_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "delta": {
           "name": "delta",
           "type": "bigint",
@@ -7641,15 +7513,6 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "stock_movements_assembly_batch_id_assembly_batches_id_fk": {
-          "name": "stock_movements_assembly_batch_id_assembly_batches_id_fk",
-          "tableFrom": "stock_movements",
-          "tableTo": "assembly_batches",
-          "columnsFrom": ["assembly_batch_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "stock_movements_actor_id_users_id_fk": {
           "name": "stock_movements_actor_id_users_id_fk",
           "tableFrom": "stock_movements",
@@ -7675,11 +7538,11 @@
       "checkConstraints": {
         "stock_movements_kind_check": {
           "name": "stock_movements_kind_check",
-          "value": "\"stock_movements\".\"kind\" in ('loss', 'adjustment', 'count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')"
+          "value": "\"stock_movements\".\"kind\" in ('loss', 'adjustment', 'count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal')"
         },
         "stock_movements_reason_unless_count_sale_or_receipt_check": {
           "name": "stock_movements_reason_unless_count_sale_or_receipt_check",
-          "value": "(\"stock_movements\".\"kind\" in ('count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')) = (\"stock_movements\".\"reason\" is null)"
+          "value": "(\"stock_movements\".\"kind\" in ('count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal')) = (\"stock_movements\".\"reason\" is null)"
         },
         "stock_movements_sale_line_iff_sale_check": {
           "name": "stock_movements_sale_line_iff_sale_check",
@@ -7688,10 +7551,6 @@
         "stock_movements_purchase_line_iff_receipt_check": {
           "name": "stock_movements_purchase_line_iff_receipt_check",
           "value": "(\"stock_movements\".\"kind\" = 'receipt') = (\"stock_movements\".\"purchase_line_id\" is not null)"
-        },
-        "stock_movements_assembly_batch_iff_assembly_check": {
-          "name": "stock_movements_assembly_batch_iff_assembly_check",
-          "value": "(\"stock_movements\".\"kind\" in ('assembly_out', 'assembly_in')) = (\"stock_movements\".\"assembly_batch_id\" is not null)"
         }
       },
       "isRLSEnabled": false

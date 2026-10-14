@@ -9,6 +9,10 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import {
+  FICTIONAL_RECOVERY_REPLY_TO,
+  FICTIONAL_RECOVERY_SENDER,
+} from "../test-support/recovery-email.js";
+import {
   type ArcaTestCredentials,
   generateArcaTestCredentials,
 } from "./test-support/arca-test-credentials.js";
@@ -54,8 +58,8 @@ function setUp(
     {
       databaseUrl: integrationDb.databaseUrl,
       emailSender: { transport: "log" },
-      emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
-      emailReplyTo: "purosur.comarca@gmail.com",
+      emailFrom: FICTIONAL_RECOVERY_SENDER,
+      emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
       backofficeOrigin: "https://staging.purosur.online",
       arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
       arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },

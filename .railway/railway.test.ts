@@ -53,19 +53,23 @@ describe("the project's resources", () => {
       "Database",
       "Media Storage",
       "Register Updates",
+      "Register Snapshots",
       "Schema Migrations",
       "Cloud Server",
     ]);
   });
 });
 
-describe("the register updates bucket", () => {
+describe.each([
+  ["Register Updates", "REGISTER_UPDATES_BUCKET"],
+  ["Register Snapshots", "REGISTER_SNAPSHOTS_BUCKET"],
+])("the %s bucket", (bucketName, prefix) => {
   const BUCKET_OUTPUTS = {
-    REGISTER_UPDATES_BUCKET_ENDPOINT: "ENDPOINT",
-    REGISTER_UPDATES_BUCKET_NAME: "BUCKET",
-    REGISTER_UPDATES_BUCKET_REGION: "REGION",
-    REGISTER_UPDATES_BUCKET_ACCESS_KEY_ID: "ACCESS_KEY_ID",
-    REGISTER_UPDATES_BUCKET_SECRET_ACCESS_KEY: "SECRET_ACCESS_KEY",
+    [`${prefix}_ENDPOINT`]: "ENDPOINT",
+    [`${prefix}_NAME`]: "BUCKET",
+    [`${prefix}_REGION`]: "REGION",
+    [`${prefix}_ACCESS_KEY_ID`]: "ACCESS_KEY_ID",
+    [`${prefix}_SECRET_ACCESS_KEY`]: "SECRET_ACCESS_KEY",
   };
 
   it.each(Object.entries(BUCKET_OUTPUTS))(
@@ -74,11 +78,9 @@ describe("the register updates bucket", () => {
       const definition = await compile();
       const bucket = (definition.resources ?? [])
         .flat()
-        .find((resource) => resource.type === "bucket" && resource.name === "Register Updates");
+        .find((resource) => resource.type === "bucket" && resource.name === bucketName);
       if (!bucket) {
-        throw new Error(
-          "railway.test.ts: no bucket named Register Updates in the compiled project",
-        );
+        throw new Error(`railway.test.ts: no bucket named ${bucketName} in the compiled project`);
       }
       const cloud = findService(definition, "Cloud Server");
 
@@ -171,6 +173,68 @@ describe("the Cloud Server service's environment", () => {
       type: "literal",
       value: "homologation",
     });
+  });
+
+  describe("in production", () => {
+    beforeEach(() => {
+      vi.stubEnv("RELEASE_CHECK_TOKEN", "release-check-token");
+    });
+
+    it("serves the backoffice from the production domain", async () => {
+      const cloud = findService(await compile("production"), "Cloud Server");
+      expect(cloud.variables?.["BACKOFFICE_ORIGIN"]).toEqual({
+        type: "literal",
+        value: "https://purosur.online",
+      });
+    });
+
+    it("sends the recovery email from the production domain", async () => {
+      const cloud = findService(await compile("production"), "Cloud Server");
+      expect(cloud.variables?.["RECOVERY_EMAIL_FROM"]).toEqual({
+        type: "literal",
+        value: "Puro Sur <acceso@mail.purosur.online>",
+      });
+    });
+
+    it("runs against ARCA's production environment", async () => {
+      const cloud = findService(await compile("production"), "Cloud Server");
+      expect(cloud.variables?.["ARCA_ENVIRONMENT"]).toEqual({
+        type: "literal",
+        value: "production",
+      });
+    });
+
+    it("carries the release check token the promotion asks the cloud with", async () => {
+      const cloud = findService(await compile("production"), "Cloud Server");
+      expect(cloud.variables?.["RELEASE_CHECK_TOKEN"]).toEqual({
+        type: "literal",
+        value: "release-check-token",
+      });
+    });
+
+    it("does not compile without the release check token", async () => {
+      vi.stubEnv("RELEASE_CHECK_TOKEN", "");
+
+      await expect(compile("production")).rejects.toThrow(
+        "missing required environment variable RELEASE_CHECK_TOKEN",
+      );
+    });
+  });
+
+  it("compiles staging without a release check token and gives it none", async () => {
+    vi.stubEnv("RELEASE_CHECK_TOKEN", "");
+
+    const cloud = findService(await compile("staging"), "Cloud Server");
+
+    expect(cloud.variables?.["RELEASE_CHECK_TOKEN"]).toBeUndefined();
+  });
+
+  it("gives staging no release check token even when the environment holds one", async () => {
+    vi.stubEnv("RELEASE_CHECK_TOKEN", "release-check-token");
+
+    const cloud = findService(await compile("staging"), "Cloud Server");
+
+    expect(cloud.variables?.["RELEASE_CHECK_TOKEN"]).toBeUndefined();
   });
 
   it("refuses an environment with no ARCA environment", async () => {

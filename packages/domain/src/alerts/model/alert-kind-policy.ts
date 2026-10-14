@@ -15,7 +15,8 @@ export type AlertScopeKind =
   | "registerFortnight"
   | "refund"
   | "fiscalDocument"
-  | "syncDevice";
+  | "syncDevice"
+  | "branch";
 
 type AlertEscalationRule =
   | { kind: "afterOpening"; delayMs: number }
@@ -201,6 +202,14 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "syncDevice",
     deduplicates: false,
     resolvesAfterStableClear: false,
+  },
+  lots_expiring: {
+    level: "informational",
+    escalation: null,
+    audience: "local",
+    scopeKind: "branch",
+    deduplicates: true,
+    resolvesAfterStableClear: true,
   },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;
 

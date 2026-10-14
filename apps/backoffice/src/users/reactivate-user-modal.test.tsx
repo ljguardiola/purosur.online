@@ -20,7 +20,7 @@ function createServices(
 const sofia: BranchUser = {
   id: "user-5",
   firstName: "Sofía Díaz",
-  email: "sofia.diaz@purosur.online",
+  email: "sofia.diaz@example.com",
   version: 1,
   active: false,
   role: {

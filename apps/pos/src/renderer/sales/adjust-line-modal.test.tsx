@@ -143,6 +143,9 @@ describe("AdjustLineModal", () => {
     await expect
       .element(screen.getByText("Reemplaza la promoción de la línea, si tiene."))
       .toBeVisible();
+    await expect
+      .element(screen.getByRole("textbox", { name: "Porcentaje de descuento" }))
+      .toHaveAttribute("inputmode", "numeric");
   });
 
   it("offers only the price when choosing a new price, with no promotion hint", async () => {
@@ -154,6 +157,9 @@ describe("AdjustLineModal", () => {
     await expect.element(screen.getByRole("radio", { name: "%" })).not.toBeInTheDocument();
     await expect.element(screen.getByText(/Reemplaza la promoción/)).not.toBeInTheDocument();
     await expect.element(screen.getByRole("button", { name: "Aplicar el precio" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("textbox", { name: "Precio nuevo" }))
+      .toHaveAttribute("inputmode", "decimal");
   });
 
   it("names a line sold by weight with its weight", async () => {

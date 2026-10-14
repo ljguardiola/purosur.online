@@ -23,6 +23,7 @@ import type { RolesListScreenServices } from "../permissions/roles-list-services
 import { createQueryClient } from "../platform/query-client";
 import type { DiscountsListScreenServices } from "../pricing/discounts-list-services";
 import type { PricesListScreenServices } from "../pricing/prices-list-services";
+import type { FreightsListScreenServices } from "../purchasing/freights-list-services";
 import type { NewPurchaseScreenServices } from "../purchasing/new-purchase-services";
 import type { PackagingsListScreenServices } from "../purchasing/packagings-list-services";
 import type { PurchasesListScreenServices } from "../purchasing/purchases-list-services";
@@ -30,6 +31,7 @@ import type { SuppliersListScreenServices } from "../purchasing/suppliers-list-s
 import type { RegistersListScreenServices } from "../register/registers-list-services";
 import type { ReportRegisterFilterProps } from "../register/report-register-filter";
 import type { ReportRegisterFilterServices } from "../register/report-register-filter-services";
+import type { SalesByCashierScreenServices } from "../sales/sales-by-cashier-services";
 import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
 import type { SalesByProductAndCategoryScreenServices } from "../sales/sales-by-product-and-category-services";
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../sessions/session-api";
@@ -81,6 +83,7 @@ export type AppServices = {
   discountsListScreen: DiscountsListScreenServices;
   salesByDayScreen: SalesByDayScreenServices;
   salesByProductAndCategoryScreen: SalesByProductAndCategoryScreenServices;
+  salesByCashierScreen: SalesByCashierScreenServices;
   salesByPaymentMethodScreen: SalesByPaymentMethodScreenServices;
   reportFiltersRegisterFilter: ComponentType<ReportRegisterFilterProps>;
   reportRegisterFilter: ReportRegisterFilterServices;
@@ -92,6 +95,7 @@ export type AppServices = {
   suppliersListScreen: SuppliersListScreenServices;
   packagingsListScreen: PackagingsListScreenServices;
   purchasesListScreen: PurchasesListScreenServices;
+  freightsListScreen: FreightsListScreenServices;
   recipesListScreen: RecipesListScreenServices;
   assemblyBatchesScreen: AssemblyBatchesScreenServices;
   newPurchaseScreen: NewPurchaseScreenServices;

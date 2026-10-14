@@ -9,6 +9,24 @@ describe("AlertDetails", () => {
 });
 
 describe("OpenAlertInput", () => {
+  it("accepts the lots count and the window in days, with the branch, for a lots-expiring alert", () => {
+    expectTypeOf<{
+      kind: "lots_expiring";
+      scope: string;
+      locationId: string;
+      detail: { lotCount: number; windowDays: number };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses a lots-expiring alert without the window in days", () => {
+    expectTypeOf<{
+      kind: "lots_expiring";
+      scope: string;
+      locationId: string;
+      detail: { lotCount: number };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("accepts the expiry of the certificate for an expiring-certificate alert", () => {
     expectTypeOf<{
       kind: "arca_certificate_expiring";

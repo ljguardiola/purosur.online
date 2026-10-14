@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { inbox } from "../platform/db/schema.js";
+import { inbox, users } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   BACKOFFICE_ORIGIN,
@@ -354,6 +354,165 @@ describe("GET /reports/sales-by-product-and-category", () => {
     });
 
     const response = await salesByProductAndCategory(headers, "?group=category");
+
+    expect(response.json().rows).toEqual([]);
+  });
+});
+
+function salesByCashier(headers: Record<string, string>, query = "") {
+  return app.inject({ method: "GET", url: `/reports/sales-by-cashier${query}`, headers });
+}
+
+describe("GET /reports/sales-by-cashier access", () => {
+  const request = salesByCashier;
+
+  it("returns 401 when no session cookie was sent", async () => {
+    const response = await request({ origin: BACKOFFICE_ORIGIN });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("rejects an Origin that is not the backoffice's own", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await request({ ...headers, origin: "https://attacker.example" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "origin_rejected" });
+  });
+
+  it("rejects a user who may not view reports", async () => {
+    const { headers } = await signedInWith(db, ["view_stock_balances"], NOW);
+
+    const response = await request(headers);
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("answers a user who may view reports", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await request(headers);
+
+    expect(response.statusCode).toBe(200);
+  });
+});
+
+describe("GET /reports/sales-by-cashier", () => {
+  it.each([
+    ["a range ending before it starts", "?from=2026-10-06&to=2026-10-05"],
+    ["a register that is not an id", "?register_id=caja-1"],
+    ["a parameter given twice", "?from=2026-10-01&from=2026-10-02&to=2026-10-03"],
+  ])("answers 400 to %s", async (_name, query) => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await salesByCashier(headers, query);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
+  it("reports the current Argentina day when no range is asked", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await salesByCashier(headers);
+
+    expect(response.json()).toEqual({
+      range: { from: "2026-10-07", to: "2026-10-07" },
+      rows: [],
+      totals: { cashiers: 0, sales_count: 0, total: 0, average_ticket: null },
+    });
+  });
+
+  it("answers the sessions, sales, amount and average ticket of each cashier, the one with most sales first", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { deviceId, locationId } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      registerName: "Caja 1",
+    });
+    const ana = randomUUID();
+    const stranger = randomUUID();
+    await db.insert(users).values({
+      id: ana,
+      firstName: "Ana",
+      email: "ana@example.com",
+      locationId,
+    });
+    const completedAt = new Date("2026-10-07T14:00:00.000Z");
+    const soldBy = (actorId: string, total: number) =>
+      applyCompletedSale(db, { deviceId, completedAt, total, overrides: { actorId, lines: [] } });
+    await soldBy(ana, 1_000);
+    await soldBy(ana, 2_000);
+    await soldBy(stranger, 9_000);
+
+    const response = await salesByCashier(headers);
+
+    expect(response.json()).toEqual({
+      range: { from: "2026-10-07", to: "2026-10-07" },
+      rows: [
+        {
+          cashier_id: ana,
+          name: "Ana",
+          sessions: 2,
+          sales_count: 2,
+          total: 3_000,
+          average_ticket: 1_500,
+        },
+        {
+          cashier_id: stranger,
+          name: null,
+          sessions: 1,
+          sales_count: 1,
+          total: 9_000,
+          average_ticket: 9_000,
+        },
+      ],
+      totals: { cashiers: 2, sales_count: 3, total: 12_000, average_ticket: 4_000 },
+    });
+  });
+
+  it("shows a pushed sale only once its event was applied", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    await receiveSale(4_800);
+
+    const before = await salesByCashier(headers, "?from=2026-10-07&to=2026-10-07");
+    await applySyncedEventsTask(db, { now: () => NOW });
+    const after = await salesByCashier(headers, "?from=2026-10-07&to=2026-10-07");
+
+    expect(before.json().rows).toEqual([]);
+    expect(after.json().rows).toEqual([
+      {
+        cashier_id: USER,
+        name: null,
+        sessions: 1,
+        sales_count: 1,
+        total: 4_800,
+        average_ticket: 4_800,
+      },
+    ]);
+  });
+
+  it("filters by an asked register of the branch", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { registerId } = await receiveSale(4_800);
+    await applySyncedEventsTask(db, { now: () => NOW });
+
+    const ofTheRegister = await salesByCashier(headers, `?register_id=${registerId}`);
+    const ofAnotherRegister = await salesByCashier(headers, `?register_id=${randomUUID()}`);
+
+    expect(ofTheRegister.json().totals.total).toBe(4_800);
+    expect(ofAnotherRegister.json().totals.total).toBe(0);
+  });
+
+  it("reports the branch of the session and never another", async () => {
+    const otherLocationId = await insertLocation(db);
+    const { headers } = await signedInWith(db, ["view_reports"], NOW, {
+      locationId: otherLocationId,
+    });
+    await receiveSale(4_800);
+    await applySyncedEventsTask(db, { now: () => NOW });
+
+    const response = await salesByCashier(headers);
 
     expect(response.json().rows).toEqual([]);
   });

@@ -2,6 +2,7 @@ import {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_TYPES,
   cashMovementReason,
+  FACTURA_C_DOCUMENT_TYPE,
   isCalendarDay,
   isValidCashAmount,
   isValidCashMovementAmount,
@@ -10,12 +11,13 @@ import {
   mayBeManualDiscountPercent,
   mayBeMovementQuantity,
   mayBeOverriddenUnitPrice,
+  OFFLINE_AUTHORIZATION_CAUSES,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   receiptReprintReason,
   WEIGHT_SOURCES,
 } from "@purosur/domain";
 import { z } from "zod";
-import { recordIdSchema } from "../shared/index.js";
+import { pointOfSaleNumberSchema, recordIdSchema } from "../shared/index.js";
 
 const text = z.string().min(1);
 const instant = z.iso.datetime();
@@ -341,6 +343,30 @@ const saleCancelledV5Schema = saleCancelledV4Schema.extend({
   refunds: z.array(saleRefundWithStandaloneTerminalSchema).min(1),
 });
 
+const qrRefundSchema = z.object({
+  ...saleRefundFields,
+  method: z.literal("QR"),
+  provider: z.literal("MERCADOPAGO_QR"),
+  state: z.literal("PENDING"),
+});
+
+const saleRefundWithQrSchema = z.discriminatedUnion("method", [
+  ...saleRefundWithStandaloneTerminalSchema.options,
+  qrRefundSchema,
+]);
+
+const paymentWithQrAndStandaloneTerminalSchema = z.discriminatedUnion("method", [
+  cashPaymentSchema,
+  transferPaymentSchema,
+  standaloneTerminalPaymentSchema,
+  mercadoPagoQrPaymentSchema,
+]);
+
+const saleCancelledV6Schema = saleCancelledV5Schema.extend({
+  payments: z.array(paymentWithQrAndStandaloneTerminalSchema).min(1),
+  refunds: z.array(saleRefundWithQrSchema).min(1),
+});
+
 const cashSessionOpenedSchema = z.object({
   opened_by: text,
   opened_at: instant,
@@ -371,6 +397,27 @@ const fiscalGateFailedSchema = z.object({
   register_id: text,
   reason: z.enum(PRE_EMISSION_GATE_FAILURE_REASONS),
   evaluated_at: instant,
+});
+
+const offlineFiscalDocumentIssuedSchema = z.object({
+  fiscal_document_id: text,
+  sale_id: text,
+  register_id: text,
+  point_of_sale: pointOfSaleNumberSchema,
+  document_type: z.literal(FACTURA_C_DOCUMENT_TYPE),
+  number: z.int().positive(),
+  issued_on: z.string().refine(isCalendarDay),
+  generated_at: instant,
+  generation_stamp: z.string().regex(/^\d{14}$/),
+  offline_authorization_code: text,
+  fortnight_start: z.string().refine(isCalendarDay),
+  fortnight_end: z.string().refine(isCalendarDay),
+  buyer_document_type: z.int().nonnegative(),
+  buyer_document_number: z.int().nonnegative(),
+  buyer_tax_status_code: z.int(),
+  total: cents,
+  net_amount: cents,
+  cause: z.enum(OFFLINE_AUTHORIZATION_CAUSES),
 });
 
 const qrPaymentReplacedSchema = z.object({
@@ -406,10 +453,12 @@ const PAYLOAD_SCHEMAS = {
   "sale_cancelled@3": saleCancelledV3Schema,
   "sale_cancelled@4": saleCancelledV4Schema,
   "sale_cancelled@5": saleCancelledV5Schema,
+  "sale_cancelled@6": saleCancelledV6Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,
   "fiscal_gate_failed@1": fiscalGateFailedSchema,
+  "offline_fiscal_document_issued@1": offlineFiscalDocumentIssuedSchema,
   "qr_payment_replaced@1": qrPaymentReplacedSchema,
   "opening_count_recorded@1": openingCountRecordedSchema,
   "opening_count_withdrawn@1": openingCountWithdrawnSchema,

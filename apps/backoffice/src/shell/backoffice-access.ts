@@ -118,3 +118,7 @@ export function canManageRecipes(access: BackofficeAccess): boolean {
 export function canManageBatches(access: BackofficeAccess): boolean {
   return grants(access, "batches");
 }
+
+export function canManageFreights(access: BackofficeAccess): boolean {
+  return grants(access, "freights");
+}

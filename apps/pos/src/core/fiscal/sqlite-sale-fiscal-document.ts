@@ -4,6 +4,7 @@ import {
   type FacturaC,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   isDeferralPending,
+  type ReceiptSource,
 } from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
 
@@ -11,7 +12,8 @@ type SaleFiscalDocument =
   | { kind: "none" }
   | { kind: "awaiting" }
   | { kind: "deferred"; deferred: DeferredSaleReference }
-  | { kind: "authorized"; authorized: AuthorizedFacturaC };
+  | { kind: "authorized"; authorized: AuthorizedFacturaC }
+  | Extract<ReceiptSource["fiscal"], { kind: "offline_authorized" }>;
 
 interface FiscalDocumentRow {
   state: string;
@@ -21,6 +23,16 @@ interface FiscalDocumentRow {
   document: string;
   authorization_code: string | null;
   authorization_code_due_on: string | null;
+}
+
+interface OfflineFiscalDocumentRow {
+  point_of_sale: number;
+  number: number;
+  issued_on: string;
+  document: string;
+  offline_authorization_code: string;
+  fortnight_start: string;
+  fortnight_end: string;
 }
 
 interface DeferredSaleRow {
@@ -41,6 +53,30 @@ function pendingDeferredSale(database: LocalDatabase, saleId: string): SaleFisca
   return { kind: "deferred", deferred: { id: deferred.id, shortCode: deferred.short_code } };
 }
 
+function offlineDocumentOf(database: LocalDatabase, saleId: string): SaleFiscalDocument | null {
+  const row = database
+    .prepare<[string], OfflineFiscalDocumentRow>(
+      `SELECT point_of_sale, number, issued_on, document, offline_authorization_code,
+              fortnight_start, fortnight_end
+       FROM offline_fiscal_documents WHERE sale_id = ?`,
+    )
+    .get(saleId);
+  if (row === undefined) {
+    return null;
+  }
+  return {
+    kind: "offline_authorized",
+    authorized: {
+      pointOfSale: row.point_of_sale,
+      number: row.number,
+      issuedOn: row.issued_on,
+      document: JSON.parse(row.document) as FacturaC,
+      offlineAuthorizationCode: row.offline_authorization_code,
+      fortnight: { start: row.fortnight_start, end: row.fortnight_end },
+    },
+  };
+}
+
 export function readSaleFiscalDocument(
   database: LocalDatabase,
   saleId: string,
@@ -55,7 +91,7 @@ export function readSaleFiscalDocument(
     )
     .get(saleId, ...IN_PROGRESS_FISCAL_DOCUMENT_STATES);
   if (row === undefined) {
-    return pendingDeferredSale(database, saleId);
+    return offlineDocumentOf(database, saleId) ?? pendingDeferredSale(database, saleId);
   }
   if (row.state !== "AUTHORIZED") {
     return { kind: "awaiting" };

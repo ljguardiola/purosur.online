@@ -1,5 +1,6 @@
 export type { InitialCountCostFilter } from "./model/initial-count.js";
 export { INITIAL_COUNT_COST_FILTERS } from "./model/initial-count.js";
+export { canExpireWithStock, expiryWindowEnd } from "./model/lot-expiry.js";
 export { isReferenceUnitCost } from "./model/lot-reference-cost.js";
 export type { LotCost } from "./model/lot-value.js";
 export { isLotCostIncomplete, isLotInStock, knownLotCost } from "./model/lot-value.js";

@@ -93,7 +93,7 @@ export function AddWeighedProductModal({
               kind="weight"
               suffix="kg"
               label="Peso en kg"
-              inputMode="numeric"
+              inputMode="decimal"
               value={field.state.value}
               onChange={field.handleChange}
               disabled={submitting}

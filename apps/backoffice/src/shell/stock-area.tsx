@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   CookingPot,
+  Container,
   Package,
   Scale,
   ShoppingCart,
@@ -14,6 +15,7 @@ import {
 import { AreaLayout, SectionLink } from "./area-layout";
 import {
   canManageBatches,
+  canManageFreights,
   canManagePurchasePackagings,
   canManageRecipes,
   canManageSuppliers,
@@ -45,6 +47,7 @@ function StockArea() {
   const packagingsShown = Boolean(matchRoute({ to: "/purchase-packagings" }));
   const purchasesShown = Boolean(matchRoute({ to: "/purchases", fuzzy: true }));
   const expiringLotsShown = Boolean(matchRoute({ to: "/expiring-lots" }));
+  const freightsShown = Boolean(matchRoute({ to: "/freights" }));
   const recipesShown = Boolean(matchRoute({ to: "/recipes" }));
   const batchesShown = Boolean(matchRoute({ to: "/assembly-batches" }));
   const initialInventoryShown = Boolean(matchRoute({ to: "/initial-inventory" }));
@@ -131,6 +134,17 @@ function StockArea() {
                   icon={<CalendarClock />}
                   search={expiringLotsShown ? true : {}}
                   active={expiringLotsShown}
+                />
+              </li>
+            )}
+            {canManageFreights(session) && (
+              <li>
+                <SectionLink
+                  to="/freights"
+                  label="Flete"
+                  icon={<Container />}
+                  search={freightsShown ? true : {}}
+                  active={freightsShown}
                 />
               </li>
             )}

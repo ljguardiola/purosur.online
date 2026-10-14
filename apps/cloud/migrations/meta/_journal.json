@@ -670,8 +670,36 @@
     {
       "idx": 95,
       "version": "7",
-      "when": 1791934399521,
-      "tag": "0099_assembly_batches",
+      "when": 1791937138674,
+      "tag": "0099_qr_cancellation_refunds",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1791979205076,
+      "tag": "0100_freights",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1791982149291,
+      "tag": "0101_offline_fiscal_documents",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1792003523910,
+      "tag": "0102_register_snapshot_generations",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1792009132671,
+      "tag": "0103_assembly_batches",
       "breakpoints": true
     }
   ]

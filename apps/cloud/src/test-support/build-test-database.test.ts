@@ -30,6 +30,8 @@ import {
   discounts,
   fiscalAddresses,
   fiscalRequests,
+  freightPurchases,
+  freights,
   inbox,
   installationRequestAttempts,
   issuerIdentification,
@@ -38,6 +40,7 @@ import {
   lotAllocations,
   lots,
   offlineAuthorizationCodeAcquisitionReports,
+  offlineFiscalDocuments,
   offlineNumberBlocks,
   passkeyChallenges,
   passkeys,
@@ -68,7 +71,10 @@ import {
   registerInstallations,
   registerOfflinePointsOfSale,
   registerPointsOfSale,
+  registerSnapshotGenerations,
   registerSnapshotKeys,
+  registerSnapshotLifecycleRules,
+  registerSnapshotRetentionFreezes,
   registers,
   rolePermissions,
   roles,
@@ -462,6 +468,21 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       version: 1,
       key: "sealed-snapshot-key",
     });
+    await db.insert(registerSnapshotGenerations).values({
+      id: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e51",
+      registerId: register.id,
+      deviceId: installation.id,
+      createdAt: new Date("2026-01-05T12:00:00.000Z"),
+      size: 4096,
+      sha256: "ab".repeat(32),
+      keyVersion: 1,
+    });
+    await db.insert(registerSnapshotRetentionFreezes).values({
+      registerId: register.id,
+      stage: "copy",
+      frozenAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(registerSnapshotLifecycleRules).values({ hourly: 24, daily: 30, monthly: 12 });
     await db.insert(registerContingencyTicketKeys).values({
       registerId: register.id,
       version: 1,
@@ -623,6 +644,27 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       receivedAt: new Date("2026-01-05T12:00:00.000Z"),
       notAfter: new Date("2026-01-05T12:00:04.000Z"),
     });
+    await db.insert(offlineFiscalDocuments).values({
+      id: "00000000-0000-4000-8000-000000000103",
+      saleId: "00000000-0000-4000-8000-000000000104",
+      registerId: register.id,
+      pointOfSale: 7,
+      documentType: "factura_c",
+      number: 43,
+      issuedOn: "2026-01-05",
+      generatedAt: new Date("2026-01-05T12:00:00.000Z"),
+      generationStamp: "20260105090000",
+      offlineAuthorizationCode: "21403471111111",
+      fortnightStart: "2026-01-01",
+      fortnightEnd: "2026-01-15",
+      buyerDocumentType: 99,
+      buyerDocumentNumber: 0,
+      buyerTaxStatusCode: 5,
+      total: 10_000,
+      netAmount: 10_000,
+      cause: "no_connectivity",
+      recordedAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
     await db.transaction(async (tx) => {
       const [code] = await tx
         .insert(caeaCodes)
@@ -725,6 +767,22 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       componentProductId: component?.id as string,
       quantity: 500,
     });
+    const [freight] = await db
+      .insert(freights)
+      .values({
+        locationId: await seededLocationId(db),
+        freightOn: "2026-01-05",
+        amountCents: 5_000,
+        description: "Flete de la semana",
+        meansKind: "own_trip",
+        recordedAt: new Date("2026-01-05T12:00:00.000Z"),
+        actorId: user.id,
+        updatedAt: new Date("2026-01-05T12:00:00.000Z"),
+      })
+      .returning({ id: freights.id });
+    await db
+      .insert(freightPurchases)
+      .values({ freightId: freight?.id as string, purchaseId: purchase?.id as string });
     await db.insert(paymentTransactions).values({
       id: "00000000-0000-4000-8000-000000000103",
       registerId: register.id,

@@ -43,6 +43,7 @@ describe("ChangeLineWeightModal", () => {
     await expect.element(screen.getByRole("button", { name: "Cambiar peso" })).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Cancelar" })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
+    await expect.element(field).toHaveAttribute("inputmode", "decimal");
   });
 
   it("changes the line to the typed weight in thousandths of a kilogram", async () => {
