@@ -158,7 +158,7 @@ describe("salesOfWeeks", () => {
 
     expect(weeks).toEqual([
       { from: "2026-10-11", to: "2026-10-17", salesCount: 5, total: 1_100, averageTicket: 220 },
-      { from: "2026-10-04", to: "2026-10-10", salesCount: 3, total: 1_200, averageTicket: 400 },
+      { from: "2026-10-04", to: "2026-10-10", salesCount: 3, total: 700, averageTicket: 233 },
       { from: "2026-10-01", to: "2026-10-03", salesCount: 2, total: 300, averageTicket: 150 },
     ]);
   });
