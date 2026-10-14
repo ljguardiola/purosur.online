@@ -27,6 +27,22 @@ describe("OpenAlertInput", () => {
     }>().not.toExtend<OpenAlertInput>();
   });
 
+  it("accepts the night and the reason it is unverified for an unverified-dump alert", () => {
+    expectTypeOf<{
+      kind: "offsite_dump_unverified";
+      scope: string;
+      detail: { night: string; reason: "not_reported" | "shrank" | "hash_mismatch" };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses an unverified-dump alert with a reason the check cannot give", () => {
+    expectTypeOf<{
+      kind: "offsite_dump_unverified";
+      scope: string;
+      detail: { night: string; reason: "disk_full" };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("accepts the expiry of the certificate for an expiring-certificate alert", () => {
     expectTypeOf<{
       kind: "arca_certificate_expiring";
