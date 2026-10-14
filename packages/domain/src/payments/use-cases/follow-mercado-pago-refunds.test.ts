@@ -197,4 +197,52 @@ describe("followMercadoPagoRefunds", () => {
     expect(outcome).toEqual({ kind: "followed", followed: 0, done: 0, unavailable: 0 });
     expect(world.mercadoPago.refundRequests).toEqual([]);
   });
+
+  describe("when a refund changes after it was listed and before it is followed", () => {
+    function changedAfterListing(
+      world: ReturnType<typeof refundWorld>,
+      change: (refunds: typeof world.store.refunds) => void,
+    ) {
+      const list = world.store.confirmedPendingRefunds.bind(world.store);
+      world.store.confirmedPendingRefunds = async () => {
+        const listed = await list();
+        change(world.store.refunds);
+        return listed;
+      };
+    }
+
+    it("sends nothing for a refund that is no longer stored", async () => {
+      const world = refundWorld([aConfirmedRefund()]);
+      changedAfterListing(world, (refunds) => refunds.splice(0));
+
+      const outcome = await followMercadoPagoRefunds(world.ports);
+
+      expect(outcome).toEqual({ kind: "followed", followed: 0, done: 0, unavailable: 0 });
+      expect(world.mercadoPago.refundRequests).toEqual([]);
+    });
+
+    it("sends nothing for a refund a person carried out meanwhile", async () => {
+      const world = refundWorld([aConfirmedRefund()]);
+      changedAfterListing(world, ([refund]) => {
+        if (refund) refund.state = "APPROVED";
+      });
+
+      const outcome = await followMercadoPagoRefunds(world.ports);
+
+      expect(outcome).toEqual({ kind: "followed", followed: 0, done: 0, unavailable: 0 });
+      expect(world.mercadoPago.refundRequests).toEqual([]);
+    });
+
+    it("sends nothing for a refund Mercado Pago refused meanwhile for a reason that will not change", async () => {
+      const world = refundWorld([aConfirmedRefund()]);
+      changedAfterListing(world, ([refund]) => {
+        if (refund) refund.lastRefusalReason = "payment_not_refundable";
+      });
+
+      const outcome = await followMercadoPagoRefunds(world.ports);
+
+      expect(outcome).toEqual({ kind: "followed", followed: 0, done: 0, unavailable: 0 });
+      expect(world.mercadoPago.refundRequests).toEqual([]);
+    });
+  });
 });
