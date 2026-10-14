@@ -1,6 +1,7 @@
 export {
   ARGENTINA_TIME_ZONE,
   argentinaCalendarDay,
+  argentinaCompactTimestamp,
   argentinaInstant,
 } from "./argentina-calendar.js";
 export { isCalendarDay, shiftCalendarDay } from "./calendar-day.js";
