@@ -2202,3 +2202,21 @@ export const priceReviewPostponements = pgTable(
       .where(sql`${table.resolvedByReviewId} is null`),
   ],
 );
+
+export const offsiteDumpChecks = pgTable(
+  "offsite_dump_checks",
+  {
+    night: date("night", { mode: "string" }).primaryKey(),
+    status: text("status").notNull(),
+    sizeBytes: bigint("size_bytes", { mode: "number" }),
+    failureReason: text("failure_reason"),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    check("offsite_dump_checks_status_check", sql`${table.status} in ('verified', 'failed')`),
+    check(
+      "offsite_dump_checks_result_shape_check",
+      sql`(${table.status} = 'verified' and ${table.sizeBytes} is not null and ${table.failureReason} is null) or (${table.status} = 'failed' and ${table.sizeBytes} is null and ${table.failureReason} is not null)`,
+    ),
+  ],
+);
