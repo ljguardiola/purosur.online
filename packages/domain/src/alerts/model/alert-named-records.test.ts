@@ -134,3 +134,11 @@ describe("alertActorId", () => {
     expect(alertActorId(detail)).toBeUndefined();
   });
 });
+
+describe("a branch scope", () => {
+  it("names no record, since the scope is the branch's own identifier", () => {
+    expect(kindsScopedTo("branch")).toEqual(["lots_expiring"]);
+    expect(alertScopeRecordId({ kind: "lots_expiring", scope: SCOPE })).toBeUndefined();
+    expect(alertNamedRecordIds({ kind: "lots_expiring", scope: SCOPE })).toEqual([]);
+  });
+});
