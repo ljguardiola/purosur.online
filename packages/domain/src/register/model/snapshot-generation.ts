@@ -14,6 +14,10 @@ export const SNAPSHOT_CORRUPTION_STAGES = ["copy", "integrity_check", "foreign_k
 
 export type SnapshotCorruptionStage = (typeof SNAPSHOT_CORRUPTION_STAGES)[number];
 
+export const SNAPSHOT_VERIFICATION_INTERVAL_MS = 60 * 1000;
+
+export const SNAPSHOT_RETENTION_INTERVAL_MS = 15 * 60 * 1000;
+
 export const SNAPSHOT_UPLOAD_DEADLINE_MS = 60 * 60 * 1000;
 
 export function isPastSnapshotUploadDeadline(declaredAt: Date, now: Date): boolean {

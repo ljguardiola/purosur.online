@@ -93,7 +93,15 @@ export {
   serialDeviceStandings,
 } from "./model/serial-devices.js";
 export type { SnapshotCorruptionStage } from "./model/snapshot-generation.js";
-export { SNAPSHOT_CORRUPTION_STAGES } from "./model/snapshot-generation.js";
+export {
+  SNAPSHOT_CORRUPTION_STAGES,
+  SNAPSHOT_FAILURE_REASONS,
+  SNAPSHOT_GENERATION_STATUSES,
+  SNAPSHOT_RETENTION_INTERVAL_MS,
+  SNAPSHOT_VERIFICATION_INTERVAL_MS,
+} from "./model/snapshot-generation.js";
+export type { SnapshotLifecycleRules } from "./model/snapshot-lifecycle-rules.js";
+export { SNAPSHOT_LIFECYCLE_LIMITS } from "./model/snapshot-lifecycle-rules.js";
 export {
   isSafeMomentToUpdate,
   REGISTER_UPDATE_HOLD_LIMIT_MS,

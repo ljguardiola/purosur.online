@@ -14,7 +14,7 @@ import type {
   StoredDeviceToken,
   VersionedKey,
 } from "@purosur/domain/register/use-cases";
-import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import type { EnqueueTaxAuthorityCount } from "../fiscal/graphile-tax-authority-count-queue.js";
@@ -25,6 +25,7 @@ import {
   registerEnrollmentCodes,
   registerInstallations,
   registerPointsOfSale,
+  registerSnapshotGenerations,
   registerSnapshotKeys,
   taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
@@ -292,12 +293,26 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
     };
     return {
       snapshotKeys: await versionsOf(registerSnapshotKeys, snapshotKeyPurpose),
-      retainedSnapshotKeyVersions: [],
+      retainedSnapshotKeyVersions: await this.retainedSnapshotKeyVersions(registerId),
       contingencyTicketKeys: await versionsOf(
         registerContingencyTicketKeys,
         contingencyTicketKeyPurpose,
       ),
     };
+  }
+
+  private async retainedSnapshotKeyVersions(registerId: string): Promise<number[]> {
+    const rows = await this.tx
+      .selectDistinct({ keyVersion: registerSnapshotGenerations.keyVersion })
+      .from(registerSnapshotGenerations)
+      .where(
+        and(
+          eq(registerSnapshotGenerations.registerId, registerId),
+          ne(registerSnapshotGenerations.status, "failed"),
+          eq(registerSnapshotGenerations.pruned, false),
+        ),
+      );
+    return rows.map((row) => row.keyVersion);
   }
 
   async recordSnapshotKey(registerId: string, key: VersionedKey): Promise<void> {

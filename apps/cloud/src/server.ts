@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { isValidCuit } from "@purosur/domain";
 import { recordAuthorizedCuit } from "@purosur/domain/fiscal/use-cases";
 import type { MercadoPagoOrders } from "@purosur/domain/payments/use-cases";
+import type { SnapshotObjects } from "@purosur/domain/register/use-cases";
 import * as Sentry from "@sentry/node";
 import {
   drizzle,
@@ -75,6 +76,9 @@ import { normalizePemNewlines } from "./platform/pem-newlines.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
 import { BucketRegisterReleases } from "./register/bucket-register-releases.js";
+import { BucketRegisterSnapshots } from "./register/bucket-register-snapshots.js";
+import { registerSnapshotJobs } from "./register/register-snapshot-jobs.js";
+import { resolveRegisterSnapshotsBucketConfig } from "./register/register-snapshots-bucket-config.js";
 import { resolveRegisterUpdatesBucketConfig } from "./register/register-updates-bucket-config.js";
 import { applySyncedEventsJobs } from "./sync/apply-synced-events-task.js";
 
@@ -112,6 +116,11 @@ export interface ServerEnv {
   REGISTER_UPDATES_BUCKET_REGION?: string | undefined;
   REGISTER_UPDATES_BUCKET_ACCESS_KEY_ID?: string | undefined;
   REGISTER_UPDATES_BUCKET_SECRET_ACCESS_KEY?: string | undefined;
+  REGISTER_SNAPSHOTS_BUCKET_ENDPOINT?: string | undefined;
+  REGISTER_SNAPSHOTS_BUCKET_NAME?: string | undefined;
+  REGISTER_SNAPSHOTS_BUCKET_REGION?: string | undefined;
+  REGISTER_SNAPSHOTS_BUCKET_ACCESS_KEY_ID?: string | undefined;
+  REGISTER_SNAPSHOTS_BUCKET_SECRET_ACCESS_KEY?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
@@ -383,6 +392,7 @@ export interface SetUpRecoveryEnv extends RecoveryEnv {
   arcaBuyerTaxStatus?: { endpoint: string; cuit: string; certificateFingerprint: string };
   arcaInvoicing?: { endpoint: string; cuit: string; certificateFingerprint: string };
   mercadoPago?: MercadoPagoOrders;
+  registerSnapshotObjects?: SnapshotObjects;
 }
 
 function wsaaRenewalInput(
@@ -499,6 +509,9 @@ export async function setUpRecovery(
         }),
       }),
       applySyncedEventsJobs({ now }),
+      ...(recoveryEnv.registerSnapshotObjects
+        ? [registerSnapshotJobs({ now, objects: recoveryEnv.registerSnapshotObjects })]
+        : []),
       ...(recoveryEnv.mercadoPago
         ? [
             mercadoPagoPendingCheckJobs({
@@ -640,6 +653,10 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
   const registerReleases =
     registerUpdatesBucketConfig &&
     new BucketRegisterReleases(registerUpdatesBucketConfig, { fetch, now });
+  const registerSnapshotsBucketConfig = resolveRegisterSnapshotsBucketConfig(env);
+  const registerSnapshots =
+    registerSnapshotsBucketConfig &&
+    new BucketRegisterSnapshots(registerSnapshotsBucketConfig, { fetch, now });
   const configuration = recoveryEnv
     ? {
         authorizedCuit: requireAuthorizedCuit(env),
@@ -655,6 +672,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           arcaVitality: { endpoint: arcaEndpoints(requireArcaEnvironment(env)).wsfe },
           ...resolveArcaSigning(env, arcaEndpoints),
           ...(mercadoPago ? { mercadoPago } : {}),
+          ...(registerSnapshots ? { registerSnapshotObjects: registerSnapshots } : {}),
         },
       }
     : undefined;
@@ -692,6 +710,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           },
         }
       : {}),
+    ...(registerSnapshots ? { registerSnapshotUrls: registerSnapshots } : {}),
     ...(database && invoicing
       ? {
           enqueueOfflineAuthorizationCodeRequest,
