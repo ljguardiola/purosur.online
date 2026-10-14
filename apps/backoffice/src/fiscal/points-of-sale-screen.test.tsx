@@ -102,7 +102,7 @@ test("shows each register with its point of sale padded to five digits and its f
   const screen = await renderScreen(serving([configuredRegister], [depot, shop]));
 
   await expect.element(screen.getByRole("heading", { name: "Caja 1", level: 2 })).toBeVisible();
-  await expect.element(screen.getByText("Punto de venta", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Punto de venta", { exact: true }).first()).toBeVisible();
   await expect.element(screen.getByText("00012")).toBeVisible();
   await expect.element(screen.getByText("Punto de venta CAEA", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("00013")).toBeVisible();
@@ -152,7 +152,7 @@ test("shows a load failure for the registers, and Reintentar loads them again", 
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("No pudimos abrir los puntos de venta")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }).first());
 
   await expect.element(screen.getByText("00012")).toBeVisible();
 });
