@@ -1352,8 +1352,17 @@ export const paymentRefunds = pgTable(
     doneAt: timestamp("done_at", { withTimezone: true }),
     discardedBy: text("discarded_by"),
     discardedAt: timestamp("discarded_at", { withTimezone: true }),
+    confirmedBy: text("confirmed_by"),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    providerRefundId: text("provider_refund_id"),
+    attemptKey: text("attempt_key"),
+    lastRefusalReason: text("last_refusal_reason"),
   },
   (table) => [
+    uniqueIndex("payment_refunds_attempt_key_unique")
+      .on(table.attemptKey)
+      .where(sql`${table.attemptKey} is not null`),
     uniqueIndex("payment_refunds_transaction_without_order_unique")
       .on(table.paymentTransactionId)
       .where(sql`${table.providerOrderId} is null`),
@@ -1384,6 +1393,18 @@ export const paymentRefunds = pgTable(
     check(
       "payment_refunds_discarded_check",
       sql`(${table.discardedBy} is null) = (${table.discardedAt} is null) and (${table.state} = 'DISCARDED' or ${table.discardedBy} is null)`,
+    ),
+    check(
+      "payment_refunds_confirmation_check",
+      sql`(${table.confirmedBy} is null) = (${table.confirmedAt} is null)`,
+    ),
+    check(
+      "payment_refunds_attempt_confirmed_check",
+      sql`${table.attemptKey} is null or ${table.confirmedAt} is not null`,
+    ),
+    check(
+      "payment_refunds_sent_check",
+      sql`(${table.sentAt} is null) = (${table.providerRefundId} is null) and (${table.sentAt} is null or ${table.confirmedAt} is not null)`,
     ),
     index("payment_refunds_pending_idx")
       .on(table.occurredAt)

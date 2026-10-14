@@ -1,5 +1,5 @@
 {
-  "id": "f1aabaff-b57c-4137-98ae-678b8476b422",
+  "id": "5aec732e-05ae-4b48-b6cb-932d6622bc1a",
   "prevId": "cb568710-da2a-48f8-a675-88d079cbb57b",
   "version": "7",
   "dialect": "postgresql",
@@ -3540,9 +3540,61 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "confirmed_by": {
+          "name": "confirmed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "confirmed_at": {
+          "name": "confirmed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sent_at": {
+          "name": "sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_refund_id": {
+          "name": "provider_refund_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attempt_key": {
+          "name": "attempt_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_refusal_reason": {
+          "name": "last_refusal_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
+        "payment_refunds_attempt_key_unique": {
+          "name": "payment_refunds_attempt_key_unique",
+          "columns": [
+            {
+              "expression": "attempt_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"payment_refunds\".\"attempt_key\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "payment_refunds_transaction_without_order_unique": {
           "name": "payment_refunds_transaction_without_order_unique",
           "columns": [
@@ -3666,6 +3718,18 @@
         "payment_refunds_discarded_check": {
           "name": "payment_refunds_discarded_check",
           "value": "(\"payment_refunds\".\"discarded_by\" is null) = (\"payment_refunds\".\"discarded_at\" is null) and (\"payment_refunds\".\"state\" = 'DISCARDED' or \"payment_refunds\".\"discarded_by\" is null)"
+        },
+        "payment_refunds_confirmation_check": {
+          "name": "payment_refunds_confirmation_check",
+          "value": "(\"payment_refunds\".\"confirmed_by\" is null) = (\"payment_refunds\".\"confirmed_at\" is null)"
+        },
+        "payment_refunds_attempt_confirmed_check": {
+          "name": "payment_refunds_attempt_confirmed_check",
+          "value": "\"payment_refunds\".\"attempt_key\" is null or \"payment_refunds\".\"confirmed_at\" is not null"
+        },
+        "payment_refunds_sent_check": {
+          "name": "payment_refunds_sent_check",
+          "value": "(\"payment_refunds\".\"sent_at\" is null) = (\"payment_refunds\".\"provider_refund_id\" is null) and (\"payment_refunds\".\"sent_at\" is null or \"payment_refunds\".\"confirmed_at\" is not null)"
         }
       },
       "isRLSEnabled": false
