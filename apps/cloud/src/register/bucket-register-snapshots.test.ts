@@ -140,7 +140,7 @@ describe("BucketRegisterSnapshots.inspect", () => {
     const { snapshots } = bucketAnswering(() => new Response(body));
 
     expect(await snapshots.inspect(REGISTER_ID, GENERATION_ID)).toEqual({
-      size: 24,
+      size: 23,
       sha256: createHash("sha256").update(Buffer.concat(chunks)).digest("hex"),
     });
   });

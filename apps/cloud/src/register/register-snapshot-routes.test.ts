@@ -397,6 +397,7 @@ describe("GET /devices/current/snapshots", () => {
     await seedGeneration(installation, {
       id: "22222222-2222-4222-8222-222222222222",
       status: "failed",
+      failureReason: "never_uploaded",
     });
     build();
 

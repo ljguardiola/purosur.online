@@ -21,11 +21,11 @@ describe("resolveRegisterSnapshotsBucketConfig", () => {
   });
 
   it("ignores the updates bucket's variables", () => {
-    expect(
-      resolveRegisterSnapshotsBucketConfig({
-        REGISTER_UPDATES_BUCKET_ENDPOINT: "https://t3.storageapi.test",
-      }),
-    ).toBeUndefined();
+    const updatesOnly: Record<string, string> = {
+      REGISTER_UPDATES_BUCKET_ENDPOINT: "https://t3.storageapi.test",
+    };
+
+    expect(resolveRegisterSnapshotsBucketConfig(updatesOnly)).toBeUndefined();
   });
 
   it("configures no bucket when none of its variables is set", () => {
