@@ -3,8 +3,10 @@ import {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
+import type { AssignPointTerminalModalServices } from "./assign-point-terminal-modal";
 import type { NewRegisterModalServices } from "./new-register-modal";
 import {
+  assignPointTerminal,
   createRegister,
   emitEnrollmentCode,
   fetchRegisterCoverage,
@@ -18,12 +20,14 @@ export type RegistersListScreenServices = {
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
   authorizeSession: typeof authorizeSession;
   startAuthentication: typeof startAuthentication;
-} & NewRegisterModalServices;
+} & NewRegisterModalServices &
+  AssignPointTerminalModalServices;
 
 export const defaultRegistersListScreenServices: RegistersListScreenServices = {
   fetchRegisters,
   fetchRegisterCoverage,
   createRegister,
+  assignPointTerminal,
   emitEnrollmentCode,
   fetchSessionAuthorizationOptions,
   authorizeSession,

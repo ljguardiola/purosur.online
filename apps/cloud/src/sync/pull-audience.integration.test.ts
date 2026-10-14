@@ -6,6 +6,7 @@ import {
   createFiscalAddress,
   recordBuyerIdentificationThreshold,
 } from "@purosur/domain/fiscal/use-cases";
+import { assignPointTerminal } from "@purosur/domain/payments/use-cases";
 import { createRole } from "@purosur/domain/permissions/use-cases";
 import { createDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
 import { pullChanges } from "@purosur/domain/sync/use-cases";
@@ -20,6 +21,7 @@ import { DrizzleOfflineAuthorizationCodeRequests } from "../fiscal/drizzle-offli
 import { DrizzleOfflineAuthorizationCodeStore } from "../fiscal/drizzle-offline-authorization-code-store.js";
 import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
 import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-point-of-sale-store.js";
+import { DrizzlePointTerminalAssignmentStore } from "../payments/drizzle-point-terminal-assignment-store.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import {
   branchSettings,
@@ -378,6 +380,24 @@ beforeAll(async () => {
     );
   }
 
+  const pointTerminals = new DrizzlePointTerminalAssignmentStore(db, () => NOW);
+  for (const [terminalId, installation] of [
+    ["PAX_A910__SMARTPOS1", registerA1],
+    ["PAX_A910__SMARTPOS2", registerA2],
+    ["PAX_A910__SMARTPOS3", registerB],
+  ] as const) {
+    expectOutcome(
+      await assignPointTerminal(pointTerminals, {
+        locationId: installation.locationId,
+        registerId: installation.registerId,
+        terminalId,
+        version: 0,
+        actorId: actorA,
+      }),
+      "assigned",
+    );
+  }
+
   await db.insert(taxAuthorityLastAuthorizedNumbers).values(
     [17, 18, 19].map((pointOfSaleNumber) => ({
       pointOfSaleNumber,
@@ -430,6 +450,7 @@ beforeAll(async () => {
   const everyRegister = (installation: Installation): Pulled[] => [
     { entity: "register", entityId: installation.registerId },
     { entity: "register_point_of_sale", entityId: installation.registerId },
+    { entity: "register_point_terminal", entityId: installation.registerId },
     { entity: "register_offline_point_of_sale", entityId: installation.registerId },
     {
       entity: "offline_number_block",
@@ -473,11 +494,11 @@ afterAll(async () => {
 });
 
 describe("the rows a register pulls", () => {
-  it("gives a register of the first branch its branch's settings, price list, prices and users, its own register, points of sale and offline number blocks, and every shared row", async () => {
+  it("gives a register of the first branch its branch's settings, price list, prices and users, its own register, points of sale, Point terminal and offline number blocks, and every shared row", async () => {
     expect(await pullEverything(registerA1)).toEqual(expectedForA1);
   });
 
-  it("gives the other register of the same branch the same rows, except that it gets its own register, points of sale and offline number blocks", async () => {
+  it("gives the other register of the same branch the same rows, except that it gets its own register, points of sale, Point terminal and offline number blocks", async () => {
     expect(await pullEverything(registerA2)).toEqual(expectedForA2);
   });
 

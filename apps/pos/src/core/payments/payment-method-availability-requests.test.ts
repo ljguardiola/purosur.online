@@ -8,6 +8,7 @@ import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in
 import type { CloudReachability } from "../sync/cloud-reachability";
 import { paymentMethodAvailabilityFor } from "./payment-method-availability-requests";
 import {
+  assignPointTerminalToChargeRegister,
   CHARGE_CHAIN_KEY,
   CHARGE_NOW,
   chargeRequestDeps,
@@ -36,6 +37,7 @@ function availability(cloud: CloudReachability) {
 beforeEach(() => {
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   seedChargeRegister(database);
+  assignPointTerminalToChargeRegister(database);
   signedInPerson = createSignedInPerson();
   signedInPerson.set("u1");
 });
@@ -97,5 +99,30 @@ describe("the payment methods available for the sale being charged", () => {
       point: "below_minimum",
       point_minimum: 1500,
     });
+  });
+
+  it("leave the terminal not configured while the register has no terminal assigned, keeping the QR available", async () => {
+    database.exec("DELETE FROM register_point_terminal");
+    await openSaleOfTwoYerbas({ database, signedInPerson });
+
+    expect(await availability("reachable")).toEqual({
+      qr: "available",
+      point: "not_configured",
+      point_minimum: 1500,
+    });
+  });
+
+  it("leave the terminal not configured once the cloud has withdrawn the assignment", async () => {
+    database.exec("UPDATE register_point_terminal SET assigned = 0, version = 2");
+    await openSaleOfTwoYerbas({ database, signedInPerson });
+
+    expect(await availability("reachable")).toMatchObject({ point: "not_configured" });
+  });
+
+  it("leave the terminal not configured while offline, since it is not assigned", async () => {
+    database.exec("DELETE FROM register_point_terminal");
+    await openSaleOfTwoYerbas({ database, signedInPerson });
+
+    expect(await availability("unreachable")).toMatchObject({ point: "not_configured" });
   });
 });

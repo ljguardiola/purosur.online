@@ -227,6 +227,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchRegisterCoverage: vi.fn().mockReturnValue(new Promise(() => {})),
       createRegister: vi.fn(),
+      assignPointTerminal: vi.fn(),
       emitEnrollmentCode: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),

@@ -8,6 +8,7 @@ import {
   pointOfSaleClaims,
   registerEnrollmentCodes,
   registerPointsOfSale,
+  registerPointTerminals,
   registers,
   users,
 } from "../platform/db/schema.js";
@@ -129,6 +130,9 @@ describe("branchRegisters of DrizzleBranchRegisterStore", () => {
       fiscalAddressId: await insertFiscalAddress(),
       version: 1,
     });
+    await db
+      .insert(registerPointTerminals)
+      .values({ registerId: configuredId, terminalId: "PAX_A910__SMARTPOS1", version: 2 });
 
     const listed = await new DrizzleBranchRegisterStore(db, () => NOW).branchRegisters(locationId);
 
@@ -138,6 +142,7 @@ describe("branchRegisters of DrizzleBranchRegisterStore", () => {
         name: "Caja 1",
         enrollmentCode: null,
         pointOfSaleNumber: null,
+        pointTerminal: { terminalId: null, version: 0 },
         installations: [],
       },
       {
@@ -145,6 +150,7 @@ describe("branchRegisters of DrizzleBranchRegisterStore", () => {
         name: "Caja 2",
         enrollmentCode: null,
         pointOfSaleNumber: 7,
+        pointTerminal: { terminalId: "PAX_A910__SMARTPOS1", version: 2 },
         installations: [],
       },
     ]);

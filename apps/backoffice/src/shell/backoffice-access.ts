@@ -55,6 +55,10 @@ export function canSeeCashArea(access: BackofficeAccess): boolean {
   return grants(access, "cash_area");
 }
 
+export function canAssignPointTerminal(access: BackofficeAccess): boolean {
+  return grants(access, "cash_area");
+}
+
 export function canSeeAlertsArea(access: BackofficeAccess): boolean {
   return grants(access, "alerts_area");
 }
