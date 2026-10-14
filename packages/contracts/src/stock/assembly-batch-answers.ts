@@ -1,5 +1,6 @@
 import { isCalendarDay, SALE_UNITS } from "@purosur/domain";
 import { z } from "zod";
+import { recipeSummarySchema } from "./recipe-summary.js";
 
 const saleUnitSchema = z.enum(SALE_UNITS);
 const calendarDay = z.string().refine(isCalendarDay);
@@ -41,7 +42,10 @@ const assemblyBatchSchema = z.object({
   ),
 });
 
-export const assemblyBatchListSchema = z.object({ batches: z.array(assemblyBatchSchema) });
+export const assemblyBatchListSchema = z.object({
+  batches: z.array(assemblyBatchSchema),
+  recipes: z.array(recipeSummarySchema),
+});
 
 export type AssemblyBatch = z.output<typeof assemblyBatchSchema>;
 export type AssemblyBatchList = z.output<typeof assemblyBatchListSchema>;

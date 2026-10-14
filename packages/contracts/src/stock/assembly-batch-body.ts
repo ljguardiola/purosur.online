@@ -44,14 +44,31 @@ export const assemblyBatchBodySchema = z.object({
 
 export type AssemblyBatchBody = z.input<typeof assemblyBatchBodySchema>;
 
-export const assemblyBatchPreviewBodySchema = z.object({
+const queryQuantity = (message: string) =>
+  z.string({ error: message }).regex(/^\d+$/, message).transform(Number);
+
+const usedEntrySchema = z
+  .string({ error: USED_MESSAGE })
+  .transform((entry) => {
+    const [componentProductId, quantity, ...rest] = entry.split(":");
+    return {
+      componentProductId,
+      quantity: rest.length === 0 && /^\d+$/.test(quantity ?? "") ? Number(quantity) : Number.NaN,
+    };
+  })
+  .pipe(usedSchema.element);
+
+export const assemblyBatchPreviewQuerySchema = z.object({
   productId,
-  size: z
-    .number({ error: SIZE_MESSAGE })
-    .refine(mayBeMovementQuantity, SIZE_MESSAGE)
-    .meta(QUANTITY_UNITS),
-  used: usedSchema.optional(),
-  output: outputSchema.optional(),
+  size: queryQuantity(SIZE_MESSAGE).pipe(
+    z.number().refine(mayBeMovementQuantity, SIZE_MESSAGE).meta(QUANTITY_UNITS),
+  ),
+  used: z
+    .preprocess((value) => (typeof value === "string" ? [value] : value), z.array(usedEntrySchema))
+    .optional(),
+  output: queryQuantity(OUTPUT_MESSAGE)
+    .pipe(z.number().refine(mayBeMovementQuantity, OUTPUT_MESSAGE))
+    .optional(),
 });
 
-export type AssemblyBatchPreviewBody = z.input<typeof assemblyBatchPreviewBodySchema>;
+export type AssemblyBatchPreviewQuery = z.input<typeof assemblyBatchPreviewQuerySchema>;

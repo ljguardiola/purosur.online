@@ -436,10 +436,10 @@ export {
   assemblyBatchRefusalSchema,
   assemblyBatchResultSchema,
 } from "./stock/assembly-batch-answers.js";
-export type { AssemblyBatchBody, AssemblyBatchPreviewBody } from "./stock/assembly-batch-body.js";
+export type { AssemblyBatchBody, AssemblyBatchPreviewQuery } from "./stock/assembly-batch-body.js";
 export {
   assemblyBatchBodySchema,
-  assemblyBatchPreviewBodySchema,
+  assemblyBatchPreviewQuerySchema,
 } from "./stock/assembly-batch-body.js";
 export type {
   ExpiredLotDiscardResult,
