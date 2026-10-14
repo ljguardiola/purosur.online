@@ -73,6 +73,24 @@ test("shows the space left on a full disk without the float noise of a ratio", (
   ).toBe("No se pueden abrir ventas nuevas: queda 0 % de disco");
 });
 
+test("words a register short of disk space at startup without the space it requires when none is given", () => {
+  expect(
+    localAlertText({ kind: "sales_denied", reason: "disk_space_short_at_startup" }),
+  ).toMatchObject({
+    title: "La caja no puede vender: falta espacio en el disco",
+    meaning:
+      "Esta caja no habilita las ventas porque necesita más espacio libre en el disco de la notebook del que tiene.",
+  });
+});
+
+test("words a register whose disk is full without the space left when none is given", () => {
+  expect(localAlertText({ kind: "sales_denied", reason: "disk_full" })).toMatchObject({
+    title: "No se pueden abrir ventas nuevas: el disco está casi lleno",
+    meaning:
+      "La venta en curso se puede completar y cobrar. Para volver a vender hay que liberar espacio en la notebook.",
+  });
+});
+
 test("gives a register whose disk is running low its title, what it means and what to do", () => {
   expect(localAlertText({ kind: "disk_space_low" })).toEqual({
     title: "Queda poco espacio en el disco",
@@ -175,7 +193,7 @@ test("gives no title to a kind that shares its name with a member every object h
 test("asks for the reason of a register that can't sell, and for none of the other kinds", () => {
   expectTypeOf<{ kind: "sales_denied" }>().not.toExtend<LocalAlertSubject>();
   expectTypeOf<{ kind: "sales_denied"; reason: "unknown" }>().not.toExtend<LocalAlertSubject>();
-  expectTypeOf<{ kind: "sales_denied"; reason: "disk_full" }>().not.toExtend<LocalAlertSubject>();
+  expectTypeOf<{ kind: "sales_denied"; reason: "disk_full" }>().toExtend<LocalAlertSubject>();
   expectTypeOf<{
     kind: "sales_denied";
     reason: "disk_full";
@@ -184,7 +202,7 @@ test("asks for the reason of a register that can't sell, and for none of the oth
   expectTypeOf<{
     kind: "sales_denied";
     reason: "disk_space_short_at_startup";
-  }>().not.toExtend<LocalAlertSubject>();
+  }>().toExtend<LocalAlertSubject>();
   expectTypeOf<{
     kind: "sales_denied";
     reason: "disk_space_short_at_startup";
