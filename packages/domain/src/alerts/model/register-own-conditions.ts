@@ -4,13 +4,18 @@ import {
   type LatestPreEmissionGateOutcome,
 } from "../../fiscal/index.js";
 import {
-  type DiskStanding,
   isSerialDeviceMissing,
   type SerialDeviceRole,
   type SerialDeviceStanding,
+  type StorageStanding,
+  storageSalesStopOf,
 } from "../../register/index.js";
-import type { SalesDeniedReason } from "../../shared/index.js";
-import { isInstallationRevoked, type SalesStopState } from "../../sync/index.js";
+import {
+  isInstallationRevoked,
+  type SalesDenial,
+  type SalesStopState,
+  salesDenialOf,
+} from "../../sync/index.js";
 import { type AlertKind, type AlertLevel, isAlertKind } from "./alert-catalog.js";
 import { alertKindPolicy } from "./alert-kind-policy.js";
 import { isRegisterQuiet } from "./quiet-register.js";
@@ -33,12 +38,7 @@ export const REGISTER_OWN_CONDITIONS = [
 
 export type RegisterOwnCondition = (typeof REGISTER_OWN_CONDITIONS)[number];
 
-type StorageSalesDeniedReason = "disk_space_short_at_startup" | "disk_full";
-
-type SalesDeniedCondition =
-  | { kind: "sales_denied"; reason: Exclude<SalesDeniedReason, StorageSalesDeniedReason> }
-  | { kind: "sales_denied"; reason: "disk_space_short_at_startup"; required_free_bytes: number }
-  | { kind: "sales_denied"; reason: "disk_full"; disk_free_ratio: number };
+type SalesDeniedCondition = { kind: "sales_denied" } & SalesDenial;
 
 type DetectedRegisterOwnCondition = {
   [Kind in RegisterOwnCondition]: Kind extends "sales_denied"
@@ -61,34 +61,6 @@ function levelOf(condition: RegisterOwnCondition): AlertLevel {
     : LEVELS_OF_CONDITIONS_THAT_ARE_NOT_ALERTS[condition];
 }
 
-export interface StorageStanding {
-  startupShortOf: { requiredFreeBytes: number } | null;
-  diskStanding: DiskStanding;
-  diskFreeRatio: number;
-  walOversized: boolean;
-}
-
-function salesDeniedConditionOf(
-  salesStop: SalesStopState,
-  storage: StorageStanding,
-): SalesDeniedCondition | null {
-  if (salesStop.stopped) {
-    return salesStop.reason === "event_history_broken"
-      ? { kind: "sales_denied", reason: "event_history_broken" }
-      : null;
-  }
-  if (storage.startupShortOf !== null) {
-    return {
-      kind: "sales_denied",
-      reason: "disk_space_short_at_startup",
-      required_free_bytes: storage.startupShortOf.requiredFreeBytes,
-    };
-  }
-  return storage.diskStanding === "full"
-    ? { kind: "sales_denied", reason: "disk_full", disk_free_ratio: storage.diskFreeRatio }
-    : null;
-}
-
 interface RegisterOwnStanding {
   salesStop: SalesStopState;
   latestPreEmissionGate: LatestPreEmissionGateOutcome | undefined;
@@ -109,11 +81,12 @@ export function registerOwnConditions({
   storage,
 }: RegisterOwnStanding): HeldRegisterOwnCondition[] {
   const revoked = isInstallationRevoked(salesStop);
+  const denial = salesDenialOf(salesStop, storageSalesStopOf(storage));
   const held: {
     [Kind in RegisterOwnCondition]: Extract<DetectedRegisterOwnCondition, { kind: Kind }> | null;
   } = {
     installation_revoked: revoked ? { kind: "installation_revoked" } : null,
-    sales_denied: salesDeniedConditionOf(salesStop, storage),
+    sales_denied: denial === undefined ? null : { kind: "sales_denied", ...denial },
     fiscal_emission_stopped:
       !salesStop.stopped && fiscalEmissionStopReasonOf(latestPreEmissionGate) !== undefined
         ? { kind: "fiscal_emission_stopped" }
@@ -128,7 +101,10 @@ export function registerOwnConditions({
       serialDevices !== null && isSerialDeviceMissing(serialDevices)
         ? { kind: "serial_device_missing" }
         : null,
-    disk_space_low: storage.diskStanding === "low" ? { kind: "disk_space_low" } : null,
+    disk_space_low:
+      storage.diskStanding !== "enough" && denial?.reason !== "disk_full"
+        ? { kind: "disk_space_low" }
+        : null,
     wal_oversized: storage.walOversized ? { kind: "wal_oversized" } : null,
   };
   return REGISTER_OWN_CONDITIONS.flatMap((condition) => {

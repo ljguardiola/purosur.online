@@ -1,3 +1,5 @@
+import type { StorageSalesDeniedReason } from "../../shared/index.js";
+
 export const STORAGE_READ_INTERVAL_MS = 60_000;
 
 export const RETAINED_SNAPSHOT_GENERATIONS = 6;
@@ -38,7 +40,7 @@ export function walOversized(walSizeBytes: number): boolean {
   return walSizeBytes > WAL_SIZE_LIMIT_BYTES;
 }
 
-export type StartupDiskVerdict = { kind: "fine" } | { kind: "short"; required_free_bytes: number };
+type StartupDiskVerdict = { kind: "fine" } | { kind: "short"; required_free_bytes: number };
 
 export function startupDiskVerdict({
   freeBytes,
@@ -49,4 +51,37 @@ export function startupDiskVerdict({
 }): StartupDiskVerdict {
   const required = requiredFreeBytes(databaseSizeBytes);
   return freeBytes < required ? { kind: "short", required_free_bytes: required } : { kind: "fine" };
+}
+
+export interface StorageStanding {
+  startupShortOf: { requiredFreeBytes: number } | null;
+  diskStanding: DiskStanding;
+  diskFreeRatio: number | undefined;
+  walOversized: boolean;
+}
+
+export type StorageSalesStop =
+  | {
+      reason: Extract<StorageSalesDeniedReason, "disk_space_short_at_startup">;
+      required_free_bytes: number;
+    }
+  | { reason: Extract<StorageSalesDeniedReason, "disk_full">; disk_free_ratio?: number };
+
+export function storageSalesStopOf({
+  startupShortOf,
+  diskStanding,
+  diskFreeRatio,
+}: StorageStanding): StorageSalesStop | undefined {
+  if (startupShortOf !== null) {
+    return {
+      reason: "disk_space_short_at_startup",
+      required_free_bytes: startupShortOf.requiredFreeBytes,
+    };
+  }
+  if (diskStanding !== "full") {
+    return undefined;
+  }
+  return diskFreeRatio === undefined
+    ? { reason: "disk_full" }
+    : { reason: "disk_full", disk_free_ratio: diskFreeRatio };
 }

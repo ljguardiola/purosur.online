@@ -7,6 +7,7 @@ import {
   isAuthorizablePermissionKey,
   REGISTER_OWN_CONDITIONS,
   SALES_DENIED_REASONS,
+  STORAGE_SALES_DENIED_REASONS,
 } from "@purosur/domain";
 import { z } from "zod";
 import {
@@ -327,8 +328,6 @@ const SERIAL_DEVICE_STANDING_KINDS = [
   "unknown",
 ] as const;
 
-const STORAGE_SALES_DENIED_REASONS = ["disk_space_short_at_startup", "disk_full"] as const;
-
 const salesDeniedConditionSchema = z.discriminatedUnion("reason", [
   z.strictObject({
     kind: z.literal("sales_denied"),
@@ -344,7 +343,7 @@ const salesDeniedConditionSchema = z.discriminatedUnion("reason", [
   z.strictObject({
     kind: z.literal("sales_denied"),
     reason: z.literal("disk_full"),
-    disk_free_ratio: z.number().min(0).max(1),
+    disk_free_ratio: z.number().min(0).max(1).optional(),
     level: z.enum(ALERT_LEVELS),
   }),
 ]);

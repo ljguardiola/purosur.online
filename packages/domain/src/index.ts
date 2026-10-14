@@ -19,7 +19,6 @@ export type {
   RegisterEnrolledDetail,
   RegisterOwnCondition,
   SignInLockoutDetail,
-  StorageStanding,
   VisibleAlertSight,
 } from "./alerts/index.js";
 export {
@@ -424,7 +423,8 @@ export type {
   SerialDeviceRole,
   SerialDeviceStanding,
   SerialDevicesReport,
-  StartupDiskVerdict,
+  StorageSalesStop,
+  StorageStanding,
   WatchedRegister,
 } from "./register/index.js";
 export {
@@ -466,17 +466,15 @@ export {
   REGISTER_ABILITIES,
   REGISTER_NAME_MAX_LENGTH,
   REGISTER_UPDATE_HOLD_LIMIT_MS,
-  RETAINED_SNAPSHOT_GENERATIONS,
   registerAbilities,
   registerNameLength,
   registerOperationAccess,
-  requiredFreeBytes,
   SERIAL_DEVICE_REPORT_STANDINGS,
   SERIAL_DEVICE_ROLES,
   STORAGE_READ_INTERVAL_MS,
   serialDeviceStandings,
   startupDiskVerdict,
-  WAL_SIZE_LIMIT_BYTES,
+  storageSalesStopOf,
   walOversized,
 } from "./register/index.js";
 export type {
@@ -573,6 +571,7 @@ export {
   MAX_CASH_AMOUNT_CENTS,
   SALE_COMPLETED_EVENT_TYPE,
   SALES_DENIED_REASONS,
+  STORAGE_SALES_DENIED_REASONS,
   shiftCalendarDay,
 } from "./shared/index.js";
 export type {
@@ -628,7 +627,6 @@ export type {
   RegisterTelemetry,
   SalesStopReason,
   SalesStopState,
-  StorageSalesStop,
   StorageTelemetry,
 } from "./sync/index.js";
 export {

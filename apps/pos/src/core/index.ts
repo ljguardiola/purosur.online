@@ -81,7 +81,6 @@ import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
 import { startupPendingFor } from "./register/startup-pending-requests";
 import { recoverAtStartup } from "./register/startup-recovery";
-import { startupStorageShortOf } from "./register/storage-startup-check";
 import { createStorageWatch } from "./register/storage-watch";
 import { createUpdateHold, gateRendererRequest } from "./register/update-hold";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
@@ -306,27 +305,22 @@ const batteryWatch = createBatteryWatch({
   onFailure: (error) => reportFailure("reading the battery", error),
 });
 
-const readStorage =
+const storageWatch =
   localDatabase === undefined
     ? undefined
-    : storageReadingReader(localDatabase.name, nodeStorageFileSystem);
-const storageWatch =
-  readStorage === undefined
-    ? undefined
     : createStorageWatch({
-        read: readStorage,
+        read: storageReadingReader(localDatabase.name, nodeStorageFileSystem),
         intervalMs: STORAGE_READ_INTERVAL_MS,
         scheduleNext: (run, delayMs) => {
           const timer = setTimeout(run, delayMs);
           return () => clearTimeout(timer);
         },
-        startupShortOf: await startupStorageShortOf({
-          read: readStorage,
-          onFailure: (error) => reportFailure("checking the free disk space at startup", error),
-        }),
         onChange: () => rendererConnection.tell(STORAGE_STANDING_CHANGED_NOTICE),
         onFailure: (error) => reportFailure("watching the storage", error),
+        onStartupFailure: (error) =>
+          reportFailure("checking the free disk space at startup", error),
       });
+await storageWatch?.checkAtStartup();
 
 const systelScale = createSystelScale({
   path: () => serialDeviceWatch && pathOfMatchingDevice(serialDeviceWatch.reading(), "scale"),

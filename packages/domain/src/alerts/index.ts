@@ -74,7 +74,7 @@ export {
   REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
   registerFortnightScope,
 } from "./model/register-fortnight-scope.js";
-export type { RegisterOwnCondition, StorageStanding } from "./model/register-own-conditions.js";
+export type { RegisterOwnCondition } from "./model/register-own-conditions.js";
 export {
   REGISTER_OWN_CONDITIONS,
   registerOwnConditions,

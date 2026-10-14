@@ -92,14 +92,12 @@ export {
   SERIAL_DEVICE_ROLES,
   serialDeviceStandings,
 } from "./model/serial-devices.js";
-export type { DiskStanding, StartupDiskVerdict } from "./model/storage.js";
+export type { DiskStanding, StorageSalesStop, StorageStanding } from "./model/storage.js";
 export {
   diskStanding,
-  RETAINED_SNAPSHOT_GENERATIONS,
-  requiredFreeBytes,
   STORAGE_READ_INTERVAL_MS,
   startupDiskVerdict,
-  WAL_SIZE_LIMIT_BYTES,
+  storageSalesStopOf,
   walOversized,
 } from "./model/storage.js";
 export {

@@ -1,8 +1,11 @@
+export const STORAGE_SALES_DENIED_REASONS = ["disk_space_short_at_startup", "disk_full"] as const;
+
+export type StorageSalesDeniedReason = (typeof STORAGE_SALES_DENIED_REASONS)[number];
+
 export const SALES_DENIED_REASONS = [
   "event_history_broken",
   "local_database_damaged",
-  "disk_space_short_at_startup",
-  "disk_full",
+  ...STORAGE_SALES_DENIED_REASONS,
 ] as const;
 
 export type SalesDeniedReason = (typeof SALES_DENIED_REASONS)[number];

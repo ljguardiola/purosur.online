@@ -39,8 +39,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import type { SearchResults } from "../platform/product-search-results";
 import { ProductSearchResults, searchOptionId } from "../platform/product-search-results";
+import type { CoreData } from "../platform/use-core-query";
 import type { ScaleWeighing } from "../platform/use-scale-weighing";
-import { useRegisterStatusQuery } from "../register/register-queries";
 import { useBarcodeReadings } from "../shell/barcode-readings";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
@@ -113,7 +113,7 @@ export type SaleScreenProps = {
   ) => Promise<CancelPaidSaleOutcome>;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   onSessionInvalid: () => void;
-  registerStatus: () => Promise<RegisterStatus | "unavailable">;
+  registerStatus: CoreData<RegisterStatus>;
 };
 
 type SaleEditOutcome =
@@ -211,10 +211,9 @@ export function SaleScreen({
   const navigate = useNavigate();
   const field = useRef<HTMLFormElement>(null);
   const current = useCurrentSaleQuery({ sessionId, userId: person.user_id, read: currentSale });
-  const status = useRegisterStatusQuery(registerStatus);
   const diskFull =
-    status.status === "loaded"
-      ? status.value.conditions.find(
+    registerStatus.status === "loaded"
+      ? registerStatus.value.conditions.find(
           (condition) => condition.kind === "sales_denied" && condition.reason === "disk_full",
         )
       : undefined;

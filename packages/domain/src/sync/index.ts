@@ -15,10 +15,11 @@ export {
 export type { PushedEvent, RegisterTelemetry, StorageTelemetry } from "./model/push-batch.js";
 export { PUSH_BATCH_MAX_EVENTS } from "./model/push-batch.js";
 export { isQuarantined } from "./model/quarantine-release.js";
-export type { SalesStopReason, SalesStopState, StorageSalesStop } from "./model/sales-stop.js";
+export type { SalesDenial, SalesStopReason, SalesStopState } from "./model/sales-stop.js";
 export {
   isInstallationRevoked,
   isSalesStopReason,
   SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,
+  salesDenialOf,
   salesDeniedReportOf,
 } from "./model/sales-stop.js";
