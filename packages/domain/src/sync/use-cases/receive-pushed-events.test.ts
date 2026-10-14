@@ -66,6 +66,7 @@ describe("receiving the events a register pushes", () => {
       syncedRegisters: [],
       acceptedPushes: [],
       everyCycleReports: [],
+      caughtUps: [],
       refusedPushes: [],
       brokenChainRevocations: [],
     });
@@ -260,6 +261,7 @@ describe("receiving the events a register pushes", () => {
       syncedRegisters: [],
       acceptedPushes: [],
       everyCycleReports: [],
+      caughtUps: [],
       refusedPushes: [],
       brokenChainRevocations: [],
     });
@@ -399,6 +401,44 @@ describe("reporting how the register stands", () => {
     expect(inbox.calls.indexOf("recordReportsEveryCycle device-1")).toBeGreaterThan(
       inbox.calls.indexOf("recordAcceptedPush device-1"),
     );
+  });
+
+  it("records the moment the installation was caught up once it accepts a push of no events", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, []);
+
+    expect(inbox.state.caughtUps).toEqual([{ deviceId: DEVICE, at: NOW }]);
+  });
+
+  it("records the moment the installation was caught up on every push of no events, not only the first", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, []);
+    await receive(inbox, []);
+
+    expect(inbox.state.caughtUps).toHaveLength(2);
+  });
+
+  it("records no caught-up moment for a push that carries events", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, eventsOf(1));
+
+    expect(inbox.state.caughtUps).toEqual([]);
+  });
+
+  it("records no caught-up moment for a push of no events it does not accept", async () => {
+    const revoked = new FakeInbox();
+    revoked.revokedDevices.add(DEVICE);
+    const notAccepted = [
+      await pushReceivedBy(revoked, []),
+      await pushReceivedBy(new FakeInbox(), [], { appVersion: "not-a-version" }),
+    ];
+
+    for (const inbox of notAccepted) {
+      expect(inbox.state.caughtUps).toEqual([]);
+    }
   });
 
   it("records no every-cycle report for a push that carries events", async () => {

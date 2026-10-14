@@ -39,6 +39,7 @@ function reachingInstallation(
     enrolledAt: new Date("2026-01-01T12:00:00.000Z"),
     revokedAt: null,
     latestOccurredAt: new Date("2026-10-02T12:00:00.000Z"),
+    caughtUpAt: null,
     ...overrides,
   };
 }
