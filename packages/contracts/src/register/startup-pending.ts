@@ -23,9 +23,20 @@ const startupPendingPaymentSchema = z.object({
   occurred_at: z.string(),
 });
 
+const startupPaidOrderWithoutSaleSchema = z.object({
+  payment_transaction_id: z.string(),
+  sale_id: z.string(),
+  method: z.enum(["QR", "POINT"]),
+  amount: z.int().positive(),
+  created_at: z.string(),
+});
+
 export const startupPendingSchema = z.object({
   sales_to_print: z.array(startupSaleToPrintSchema),
   unknown_fiscal_documents: z.array(startupUnknownFiscalDocumentSchema),
   pending_payments: z.array(startupPendingPaymentSchema),
+  paid_orders_without_sale: z.array(startupPaidOrderWithoutSaleSchema),
+  paid_order_discovery: z.enum(["pending", "deferred", "checked"]),
+  selling_blocked: z.boolean(),
 });
 export type StartupPending = z.infer<typeof startupPendingSchema>;

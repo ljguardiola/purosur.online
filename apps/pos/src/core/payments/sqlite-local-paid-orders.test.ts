@@ -24,7 +24,11 @@ function localPaidOrders(canSignEvents = true) {
   return new SqliteLocalPaidOrders({
     database,
     settlement: {
-      ledger: new SqliteSaleLedger(database, new SqliteSignInStore(database), canSignEvents ? CHARGE_CHAIN_KEY : undefined),
+      ledger: new SqliteSaleLedger(
+        database,
+        new SqliteSignInStore(database),
+        canSignEvents ? CHARGE_CHAIN_KEY : undefined,
+      ),
       clock: { now: () => CHARGE_NOW },
       ids: { next: () => "generated-id" },
     },

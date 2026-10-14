@@ -139,6 +139,7 @@ export {
 } from "./fiscal/unclear-outcome-question.js";
 export type {
   AbandonMercadoPagoChargeOutcome,
+  ConvertPaidOrderIntoRefundOutcome,
   FollowMercadoPagoChargeOutcome,
   PaymentsCoreToRendererMessage,
   PaymentsRendererToCoreMessage,

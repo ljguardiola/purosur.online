@@ -18,6 +18,7 @@ import type {
   ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  ConvertPaidOrderIntoRefundOutcome,
   CredentialsCoreToRendererMessage,
   CredentialsRendererToCoreMessage,
   CurrentSaleAnswer,
@@ -242,6 +243,9 @@ export interface CoreClient {
   ): Promise<StartMercadoPagoChargeOutcome>;
   followMercadoPagoCharge(paymentTransactionId: string): Promise<FollowMercadoPagoChargeOutcome>;
   abandonMercadoPagoCharge(paymentTransactionId: string): Promise<AbandonMercadoPagoChargeOutcome>;
+  convertPaidOrderIntoRefund(
+    paymentTransactionId: string,
+  ): Promise<ConvertPaidOrderIntoRefundOutcome>;
   closeCashSession(sessionId: string, countedCash: number): Promise<CloseCashSessionOutcome>;
   closeLockedCashSession(
     sessionId: string,
@@ -853,6 +857,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         },
         (answer) =>
           answer.type === "abandon-mercado-pago-charge-result" ? answer.outcome : undefined,
+      );
+    },
+    convertPaidOrderIntoRefund(paymentTransactionId) {
+      return ask(
+        {
+          type: "convert-paid-order-into-refund",
+          request_id: deps.newRequestId(),
+          payment_transaction_id: paymentTransactionId,
+        },
+        (answer) =>
+          answer.type === "convert-paid-order-into-refund-result" ? answer.outcome : undefined,
       );
     },
     closeCashSession(sessionId, countedCash) {

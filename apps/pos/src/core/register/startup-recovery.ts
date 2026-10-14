@@ -1,6 +1,7 @@
 export interface StartupRecoveryDeps {
   settleInterruptedAuthorizations: () => Promise<void>;
   followInterruptedCharges: () => Promise<void>;
+  discoverPaidOrders: () => Promise<void>;
   startSync: () => void;
   reportFailure: (activity: string, error: unknown) => void;
 }
@@ -13,6 +14,7 @@ export interface StartupRecovery {
 export function recoverAtStartup({
   settleInterruptedAuthorizations,
   followInterruptedCharges,
+  discoverPaidOrders,
   startSync,
   reportFailure,
 }: StartupRecoveryDeps): StartupRecovery {
@@ -21,6 +23,7 @@ export function recoverAtStartup({
   );
   const finished = authorizationsSettled.then(async () => {
     await followInterruptedCharges();
+    await discoverPaidOrders();
     startSync();
   });
   return { authorizationsSettled, finished };
