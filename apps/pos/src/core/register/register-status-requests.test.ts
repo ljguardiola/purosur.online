@@ -4,6 +4,7 @@ import {
   type RegisteredSerialDevices,
   type SerialDeviceRole,
   type SerialDeviceStanding,
+  type StorageStanding,
 } from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
@@ -90,9 +91,17 @@ const NO_DEVICES: Record<SerialDeviceRole, SerialDeviceStanding> = {
   reader: { kind: "not_registered" },
 };
 
+const ROOMY_STORAGE: StorageStanding = {
+  startupShortOf: null,
+  diskStanding: "enough",
+  diskFreeRatio: 0.5,
+  walOversized: false,
+};
+
 function status(
   cloud: CloudReachability = "unknown",
   serialDevices: Record<SerialDeviceRole, SerialDeviceStanding> = NO_DEVICES,
+  storage: StorageStanding = ROOMY_STORAGE,
 ) {
   return registerStatusFor({
     database,
@@ -100,6 +109,7 @@ function status(
     now: () => NOW,
     signedInPerson,
     serialDevices: () => ({ kind: "listed", standings: serialDevices, registered: {} }),
+    storage: () => storage,
   });
 }
 
@@ -124,6 +134,7 @@ function statusWatchedBy(watch: SerialDeviceWatch) {
     now: () => NOW,
     signedInPerson,
     serialDevices: watch.reading,
+    storage: () => ROOMY_STORAGE,
   });
 }
 
@@ -388,5 +399,57 @@ describe("whether the register offers the serial devices setup", () => {
         })
       ).serial_devices_setup_offered,
     ).toBe(false);
+  });
+});
+
+describe("the register's storage conditions on its status", () => {
+  it("holds no storage condition while the disk and the log are fine", async () => {
+    expect((await status()).conditions).toEqual([]);
+  });
+
+  it("holds a low disk as a warning", async () => {
+    const { conditions } = await status("unknown", NO_DEVICES, {
+      ...ROOMY_STORAGE,
+      diskStanding: "low",
+    });
+
+    expect(conditions).toEqual([{ kind: "disk_space_low", level: "warning" }]);
+  });
+
+  it("holds an oversized log as a warning", async () => {
+    const { conditions } = await status("unknown", NO_DEVICES, {
+      ...ROOMY_STORAGE,
+      walOversized: true,
+    });
+
+    expect(conditions).toEqual([{ kind: "wal_oversized", level: "warning" }]);
+  });
+
+  it("holds a full disk as the reason sales are denied, with the free space left", async () => {
+    const { conditions } = await status("unknown", NO_DEVICES, {
+      ...ROOMY_STORAGE,
+      diskStanding: "full",
+      diskFreeRatio: 0.03,
+    });
+
+    expect(conditions).toEqual([
+      { kind: "sales_denied", reason: "disk_full", disk_free_ratio: 0.03, level: "critical" },
+    ]);
+  });
+
+  it("holds a disk that was short of space at startup as the reason sales are denied, with the space required", async () => {
+    const { conditions } = await status("unknown", NO_DEVICES, {
+      ...ROOMY_STORAGE,
+      startupShortOf: { requiredFreeBytes: 3_000_000_000 },
+    });
+
+    expect(conditions).toEqual([
+      {
+        kind: "sales_denied",
+        reason: "disk_space_short_at_startup",
+        required_free_bytes: 3_000_000_000,
+        level: "critical",
+      },
+    ]);
   });
 });
