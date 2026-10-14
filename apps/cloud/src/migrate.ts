@@ -15,6 +15,8 @@ export interface RunMigrationsOptions {
   sleep?: (ms: number) => Promise<void>;
   now: () => number;
   onWaiting?: (error: unknown, elapsedMs: number) => void;
+  /** Gives `offsite_dump` its login; without it the role cannot log in. */
+  offsiteDumpPassword?: string;
 }
 
 const DEFAULT_WAIT_FOR_DATABASE_SECONDS = 60;
@@ -23,6 +25,7 @@ const DEFAULT_WAIT_INTERVAL_MS = 1000;
 // This repository never sets GRAPHILE_WORKER_SCHEMA, so graphile-worker installs under its default name.
 const GRAPHILE_WORKER_SCHEMA = "graphile_worker";
 const CLOUD_APP_ROLE = "cloud_app";
+const OFFSITE_DUMP_ROLE = "offsite_dump";
 const CLOUD_APP_POLICY = "cloud_app_full_access";
 
 // 57P03 is Postgres's own SQLSTATE for "the database system is starting up" (cannot_connect_now);
@@ -165,15 +168,23 @@ export function scramSha256Verifier(password: string): string {
  * `ALTER ROLE ... PASSWORD` takes a literal, not a bind parameter; `format('%L', ...)` (an
  * ordinary function call, which does bind) builds the safely quoted statement instead.
  */
-async function setCloudAppPassword(sql: postgres.Sql, password: string): Promise<void> {
-  const formatString = `alter role ${CLOUD_APP_ROLE} login password %L`;
+async function setRolePassword(sql: postgres.Sql, role: string, password: string): Promise<void> {
+  const formatString = `alter role ${role} login password %L`;
   const [row] = await sql<{ statement: string }[]>`
     select format(${formatString}::text, ${scramSha256Verifier(password)}::text) as statement
   `;
   if (!row) {
-    throw new Error("migrate: building the cloud_app password statement returned no row");
+    throw new Error(`migrate: building the ${role} password statement returned no row`);
   }
   await sql.unsafe(row.statement);
+}
+
+async function setOffsiteDumpLogin(sql: postgres.Sql, password: string | undefined): Promise<void> {
+  if (password === undefined) {
+    await sql.unsafe(`alter role ${OFFSITE_DUMP_ROLE} nologin password null`);
+  } else {
+    await setRolePassword(sql, OFFSITE_DUMP_ROLE, password);
+  }
 }
 
 /**
@@ -239,7 +250,8 @@ export async function runMigrations(
     }
 
     await grantCloudAppGraphileWorkerAccess(sql);
-    await setCloudAppPassword(sql, cloudAppPassword);
+    await setRolePassword(sql, CLOUD_APP_ROLE, cloudAppPassword);
+    await setOffsiteDumpLogin(sql, options.offsiteDumpPassword);
   } finally {
     await sql.end({ timeout: 1 });
   }
@@ -255,7 +267,11 @@ if (import.meta.main) {
     console.error("migrate: CLOUD_APP_DATABASE_PASSWORD is not set");
     process.exit(1);
   } else {
-    runMigrations(databaseUrl, cloudAppPassword, { now: Date.now })
+    const offsiteDumpPassword = process.env["OFFSITE_DUMP_DATABASE_PASSWORD"];
+    runMigrations(databaseUrl, cloudAppPassword, {
+      now: Date.now,
+      ...(offsiteDumpPassword ? { offsiteDumpPassword } : {}),
+    })
       .then(() => {
         console.log("migrate: done");
       })
