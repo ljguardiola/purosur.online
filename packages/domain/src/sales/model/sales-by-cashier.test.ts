@@ -140,6 +140,18 @@ describe("salesOfCashiers on ties, whatever order the rows arrive in", () => {
   });
 });
 
+function permutationsOf<T>(items: readonly T[]): T[][] {
+  if (items.length <= 1) {
+    return [[...items]];
+  }
+  return items.flatMap((item, index) =>
+    permutationsOf([...items.slice(0, index), ...items.slice(index + 1)]).map((rest) => [
+      item,
+      ...rest,
+    ]),
+  );
+}
+
 describe("salesOfCashiers by name in every arrival order", () => {
   const rows = [
     cashier("u4", "B", 1, 1, 100),
@@ -147,21 +159,9 @@ describe("salesOfCashiers by name in every arrival order", () => {
     cashier("u2", "a", 1, 1, 100),
     cashier("u1", "Ángel", 1, 1, 100),
   ];
-  const arrivals = [0, 1, 2, 3].flatMap((first) =>
-    [0, 1, 2, 3]
-      .filter((second) => second !== first)
-      .map((second) => {
-        const rest = [0, 1, 2, 3].filter((index) => index !== first && index !== second);
-        return [first, second, ...rest, ...rest.slice().reverse()].slice(0, 4);
-      }),
-  );
 
-  it.each(arrivals)("orders names as code units for arrival %s,%s,%s,%s", (...indexes) => {
-    const names = salesOfCashiers(indexes.map((index) => rows[index] ?? rows[0] as never)).map(
-      (row) => row.name,
-    );
-
-    expect(names).toEqual(["B", "Zoe", "a", "Ángel"]);
+  it.each(permutationsOf(rows))("orders names as code units for arrival %#", (...arrival) => {
+    expect(salesOfCashiers(arrival).map((row) => row.name)).toEqual(["B", "Zoe", "a", "Ángel"]);
   });
 });
 
