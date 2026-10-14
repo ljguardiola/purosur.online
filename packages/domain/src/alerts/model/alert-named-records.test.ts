@@ -166,6 +166,19 @@ describe("a point-of-sale fortnight scope", () => {
     }
   });
 
+  it("names the register of a detail only for a point-of-sale fortnight scope", () => {
+    expect(
+      alertNamedRecordIds({
+        kind: "fiscal_unknown",
+        scope: SCOPE,
+        detail: { registerId: ACTOR_ID },
+      }),
+    ).toEqual([]);
+    expect(
+      alertNamedRecordIds({ kind: "retired_kind", scope: SCOPE, detail: { registerId: ACTOR_ID } }),
+    ).toEqual([]);
+  });
+
   it("names nothing when the detail holds no register", () => {
     expect(alertNamedRecordIds({ kind: "fortnight_report_pending", scope })).toEqual([]);
     expect(

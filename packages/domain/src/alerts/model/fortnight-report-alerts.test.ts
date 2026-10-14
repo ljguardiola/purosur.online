@@ -41,9 +41,12 @@ describe("pointOfSaleFortnightScopeDisplay", () => {
     expect(pointOfSaleFortnightScopeDisplay(scope)).toBe(display);
   });
 
-  it.each(["", "4", "4:", "4:not-a-day"])("shows the scope %j as it is", (scope) => {
-    expect(pointOfSaleFortnightScopeDisplay(scope)).toBe(scope);
-  });
+  it.each(["", "4", "4:", "4:not-a-day", "4:x2026-09-01", "4:2026-09-01x"])(
+    "shows the scope %j as it is",
+    (scope) => {
+      expect(pointOfSaleFortnightScopeDisplay(scope)).toBe(scope);
+    },
+  );
 });
 
 describe("fortnightReportPendingReason", () => {

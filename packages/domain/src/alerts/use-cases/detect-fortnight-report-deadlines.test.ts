@@ -257,6 +257,20 @@ describe("detectFortnightReportDeadlines", () => {
     expect(alerts.observations).toEqual([pending("warning", { daysLeft: 5 })]);
   });
 
+  it("neither holds nor opens anything for a presentation already accepted or whose fortnight has not closed", async () => {
+    const { alerts, outcome } = detect(
+      [
+        owed({ state: "accepted" }),
+        owed({ pointOfSaleNumber: 5, fortnight: { start: "2026-09-16", end: "2026-09-30" } }),
+      ],
+      at("2026-09-30"),
+    );
+
+    await expect(outcome).resolves.toBe(0);
+    expect(alerts.observations).toEqual([]);
+    expect(alerts.overdueAlerts).toEqual([]);
+  });
+
   it("does not open an overdue alert for a presentation still within its deadline", async () => {
     const { alerts, outcome } = detect([owed()], at("2026-09-23"));
     await outcome;
