@@ -15,6 +15,7 @@ const withoutCode = {
   name: "Caja 1",
   pending_code: null,
   point_of_sale_number: null,
+  point_terminal_id: null,
   installation: null,
 };
 const enrolledInstallation = {
@@ -33,6 +34,7 @@ const withCode = {
   name: "Caja 2",
   pending_code: pendingCode,
   point_of_sale_number: 3,
+  point_terminal_id: "PAX_A910__SMARTPOS1234567890",
   installation: null,
 };
 
@@ -78,7 +80,7 @@ describe("registerSummarySchema", () => {
     expect(parsed.data).toEqual(withCode);
   });
 
-  it.each(["id", "name", "pending_code", "point_of_sale_number", "installation"])(
+  it.each(["id", "name", "pending_code", "point_of_sale_number", "point_terminal_id", "installation"])(
     "requires %s",
     (field) => {
       const { [field as keyof typeof withCode]: _omitted, ...rest } = withCode;
@@ -114,6 +116,10 @@ describe("registerSummarySchema", () => {
     ["installation", { ...enrolledInstallation, enrolled_at: undefined }],
     ["installation", { ...revokedInstallation, revoked_at: null }],
     ["installation", { ...revokedInstallation, revoked_at: undefined }],
+    ["point_terminal_id", undefined],
+    ["point_terminal_id", ""],
+    ["point_terminal_id", "PAX A910"],
+    ["point_terminal_id", 7],
     ["point_of_sale_number", undefined],
     ["point_of_sale_number", 0],
     ["point_of_sale_number", 1.5],
