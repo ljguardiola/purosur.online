@@ -287,6 +287,7 @@ describe("DrizzleRegisterStore", () => {
     const held = await adapterStore().transaction((tx) => tx.lockRegisterKeys(registerId));
     expect(held).toEqual({
       snapshotKeys: outcome.keys.snapshotKeyVersions,
+      retainedSnapshotKeyVersions: [],
       contingencyTicketKeys: [outcome.keys.contingencyTicketKey],
     });
     const outboxChainKey = await adapterStore().transaction((tx) =>
@@ -330,7 +331,11 @@ describe("DrizzleRegisterStore", () => {
 
     const held = await adapterStore().transaction((tx) => tx.lockRegisterKeys(registerId));
 
-    expect(held).toEqual({ snapshotKeys: [], contingencyTicketKeys: [] });
+    expect(held).toEqual({
+      snapshotKeys: [],
+      retainedSnapshotKeyVersions: [],
+      contingencyTicketKeys: [],
+    });
   });
 
   it("refuses to open a key copied from one row to another", async () => {
