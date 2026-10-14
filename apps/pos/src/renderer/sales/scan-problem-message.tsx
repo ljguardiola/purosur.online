@@ -17,7 +17,9 @@ export type ScanProblem =
           | "no_price"
           | "line_quantity_limit"
           | "not_permitted"
-          | "installation_revoked";
+          | "installation_revoked"
+          | "paid_order_without_sale"
+          | "paid_orders_not_checked";
       }
     >
   | { kind: "not_sold_by_weight"; product_name: string }
@@ -80,6 +82,18 @@ export function messageFor(problem: ScanProblem): Message {
         icon: Ban,
         title: "Esta caja ya no puede empezar ventas",
         help: "El motivo y qué hacer se muestran arriba de la pantalla.",
+      };
+    case "paid_order_without_sale":
+      return {
+        icon: Ban,
+        title: "Hay un cobro pagado sin venta",
+        help: "Pasalo a reembolso en Antes de empezar.",
+      };
+    case "paid_orders_not_checked":
+      return {
+        icon: Ban,
+        title: "La caja todavía está consultando los cobros pagados",
+        help: "Esperá a que termine para empezar una venta.",
       };
     case "manual_discount_removed":
       return {

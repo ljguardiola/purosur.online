@@ -698,8 +698,15 @@
     {
       "idx": 99,
       "version": "7",
-      "when": 1792007713025,
-      "tag": "0103_offsite_dump_checks",
+      "when": 1792007629613,
+      "tag": "0103_register_point_terminals",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1792019001420,
+      "tag": "0104_offsite_dump_checks",
       "breakpoints": true
     }
   ]

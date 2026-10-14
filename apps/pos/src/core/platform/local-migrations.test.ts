@@ -894,6 +894,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
+        "0051_register_point_terminal",
+        "0052_paid_orders_without_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -971,6 +973,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
+        "0051_register_point_terminal",
+        "0052_paid_orders_without_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1043,6 +1047,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
+        "0051_register_point_terminal",
+        "0052_paid_orders_without_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1114,6 +1120,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
+        "0051_register_point_terminal",
+        "0052_paid_orders_without_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1214,6 +1222,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
+        "0051_register_point_terminal",
+        "0052_paid_orders_without_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1304,6 +1314,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
+        "0051_register_point_terminal",
+        "0052_paid_orders_without_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1398,6 +1410,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
+        "0051_register_point_terminal",
+        "0052_paid_orders_without_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1475,6 +1489,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
+        "0051_register_point_terminal",
+        "0052_paid_orders_without_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1544,6 +1560,8 @@ describe("the register's local migrations", () => {
         "0048_standalone_terminal_refunds",
         "0049_qr_refunds",
         "0050_offline_fiscal_documents",
+        "0051_register_point_terminal",
+        "0052_paid_orders_without_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -4195,6 +4213,99 @@ describe("the register's local migrations", () => {
           .prepare("INSERT INTO refund_completions (refund_id, done_by) VALUES ('x', 'u1')")
           .run(),
       ).toThrow(/NOT NULL/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("add the register's Point terminal assignment, none for a register already holding data", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0051_register_point_terminal",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0051_register_point_terminal",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        "INSERT INTO own_register (id, name, version, removed) VALUES ('r1', 'Caja 1', 1, 0)",
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT count(*) AS total FROM register_point_terminal").get()).toEqual({
+        total: 0,
+      });
+      const assign = (assigned: number) =>
+        after
+          .prepare(
+            "INSERT INTO register_point_terminal (register_id, assigned, version) VALUES ('r1', ?, 1)",
+          )
+          .run(assigned);
+      expect(() => assign(2)).toThrow(/CHECK/);
+      expect(() => assign(1)).not.toThrow();
+      expect(() => assign(0)).toThrow(/UNIQUE|PRIMARY/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("keep the paid orders without a sale, one per payment, none over the payments a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0052_paid_orders_without_sale",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0052_paid_orders_without_sale",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
+         VALUES ('payment-1', 'sale-1', 'SALE', 'CASH', 'NONE', 2000, 2000, 'APPROVED', '2026-09-30T12:00:00.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT id, state FROM payment_transactions").all()).toEqual([
+        { id: "payment-1", state: "APPROVED" },
+      ]);
+      expect(after.prepare("SELECT count(*) AS total FROM paid_orders_without_sale").get()).toEqual(
+        {
+          total: 0,
+        },
+      );
+      const record = (id: string, method = "QR", provider = "MERCADOPAGO_QR") =>
+        after
+          .prepare(
+            `INSERT INTO paid_orders_without_sale (payment_transaction_id, sale_id, method, provider, amount, created_at, recorded_at)
+             VALUES (?, 'sale-gone', ?, ?, 5000, '2026-10-10T16:00:00.000Z', '2026-10-10T16:45:00.000Z')`,
+          )
+          .run(id, method, provider);
+      expect(() => record("order-1")).not.toThrow();
+      expect(() => record("order-2", "POINT", "MERCADOPAGO_POINT")).not.toThrow();
+      expect(() => record("order-1")).toThrow(/UNIQUE|PRIMARY/);
+      expect(() => record("order-3", "CASH", "NONE")).toThrow(/CHECK/);
+      expect(() => record("order-4", "QR", "MERCADOPAGO_POINT")).toThrow(/CHECK/);
+      expect(
+        after
+          .prepare("SELECT payment_transaction_id, resolved_at FROM paid_orders_without_sale")
+          .all(),
+      ).toEqual([
+        { payment_transaction_id: "order-1", resolved_at: null },
+        { payment_transaction_id: "order-2", resolved_at: null },
+      ]);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

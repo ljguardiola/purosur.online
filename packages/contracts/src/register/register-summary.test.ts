@@ -15,6 +15,8 @@ const withoutCode = {
   name: "Caja 1",
   pending_code: null,
   point_of_sale_number: null,
+  point_terminal_id: null,
+  point_terminal_version: 0,
   installation: null,
 };
 const enrolledInstallation = {
@@ -33,6 +35,8 @@ const withCode = {
   name: "Caja 2",
   pending_code: pendingCode,
   point_of_sale_number: 3,
+  point_terminal_id: "PAX_A910__SMARTPOS1234567890",
+  point_terminal_version: 3,
   installation: null,
 };
 
@@ -78,14 +82,19 @@ describe("registerSummarySchema", () => {
     expect(parsed.data).toEqual(withCode);
   });
 
-  it.each(["id", "name", "pending_code", "point_of_sale_number", "installation"])(
-    "requires %s",
-    (field) => {
-      const { [field as keyof typeof withCode]: _omitted, ...rest } = withCode;
+  it.each([
+    "id",
+    "name",
+    "pending_code",
+    "point_of_sale_number",
+    "point_terminal_id",
+    "point_terminal_version",
+    "installation",
+  ])("requires %s", (field) => {
+    const { [field as keyof typeof withCode]: _omitted, ...rest } = withCode;
 
-      expect(registerSummarySchema.safeParse(rest).success).toBe(false);
-    },
-  );
+    expect(registerSummarySchema.safeParse(rest).success).toBe(false);
+  });
 
   it.each(["seconds_since_issued", "seconds_until_expiry"])(
     "requires the pending code's %s",
@@ -114,6 +123,15 @@ describe("registerSummarySchema", () => {
     ["installation", { ...enrolledInstallation, enrolled_at: undefined }],
     ["installation", { ...revokedInstallation, revoked_at: null }],
     ["installation", { ...revokedInstallation, revoked_at: undefined }],
+    ["point_terminal_id", undefined],
+    ["point_terminal_id", ""],
+    ["point_terminal_id", "PAX A910"],
+    ["point_terminal_id", 7],
+    ["point_terminal_version", undefined],
+    ["point_terminal_version", null],
+    ["point_terminal_version", -1],
+    ["point_terminal_version", 1.5],
+    ["point_terminal_version", "1"],
     ["point_of_sale_number", undefined],
     ["point_of_sale_number", 0],
     ["point_of_sale_number", 1.5],

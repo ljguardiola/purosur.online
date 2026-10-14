@@ -967,6 +967,18 @@ export const registerPointsOfSale = pgTable(
   ],
 );
 
+export const registerPointTerminals = pgTable(
+  "register_point_terminals",
+  {
+    registerId: uuid("register_id")
+      .primaryKey()
+      .references(() => registers.id),
+    terminalId: text("terminal_id"),
+    version: integer("version").notNull(),
+  },
+  (table) => [uniqueIndex("register_point_terminals_terminal_id_key").on(table.terminalId)],
+);
+
 // The offline point of sale operates from its register's real-time point of sale's fiscal address,
 // which is why it carries none and why a register can't have one before the other.
 export const registerOfflinePointsOfSale = pgTable(

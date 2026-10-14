@@ -1,3 +1,4 @@
+import type { PaidOrderDiscoveryState } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { seedChargeRegister } from "../payments/test-support/mercado-pago-charge-requests";
 import type { LocalDatabase } from "../platform/local-database";
@@ -13,6 +14,7 @@ const NOW = new Date("2026-10-13T12:00:00.000Z");
 
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
+let discoveryState: PaidOrderDiscoveryState;
 
 function gate() {
   return createActionGate({
@@ -25,7 +27,11 @@ function gate() {
 }
 
 async function pendingOf() {
-  const answer = await startupPendingFor({ database, gate: gate() });
+  const answer = await startupPendingFor({
+    database,
+    gate: gate(),
+    paidOrderDiscovery: () => discoveryState,
+  });
   if (answer === "not_permitted") {
     throw new Error("test setup: the person may not sell");
   }
@@ -58,6 +64,7 @@ beforeEach(() => {
   seedChargeRegister(database);
   signedInPerson = createSignedInPerson();
   signedInPerson.set("u1");
+  discoveryState = "checked";
 });
 
 afterEach(() => {
@@ -70,6 +77,10 @@ describe("what a stopped register left pending", () => {
       sales_to_print: [],
       unknown_fiscal_documents: [],
       pending_payments: [],
+      paid_orders_without_sale: [],
+      paid_order_discovery: "checked",
+      selling_blocked: false,
+      may_go_selling: true,
     });
   });
 
@@ -141,10 +152,97 @@ describe("what a stopped register left pending", () => {
     ]);
   });
 
+  it("lists the paid orders without a sale not yet converted into a refund, and blocks selling", async () => {
+    database.exec(
+      `INSERT INTO paid_orders_without_sale (payment_transaction_id, sale_id, method, provider, amount, created_at, recorded_at, resolved_at)
+       VALUES ('order-1', 'sale-gone', 'QR', 'MERCADOPAGO_QR', 5000,
+               '2026-10-13T10:00:00.000Z', '2026-10-13T11:00:00.000Z', NULL),
+              ('order-2', 'sale-gone-too', 'POINT', 'MERCADOPAGO_POINT', 7000,
+               '2026-10-13T10:30:00.000Z', '2026-10-13T11:00:00.000Z', '2026-10-13T11:30:00.000Z')`,
+    );
+
+    const pending = await pendingOf();
+
+    expect(pending.paid_orders_without_sale).toEqual([
+      {
+        payment_transaction_id: "order-1",
+        sale_id: "sale-gone",
+        method: "QR",
+        amount: 5000,
+        created_at: "2026-10-13T10:00:00.000Z",
+      },
+    ]);
+    expect(pending.selling_blocked).toBe(true);
+    expect(pending.may_go_selling).toBe(false);
+  });
+
+  it("lets the cashier go back to the sale left open while a paid order without a sale blocks starting another", async () => {
+    database.exec(
+      `INSERT INTO paid_orders_without_sale (payment_transaction_id, sale_id, method, provider, amount, created_at, recorded_at, resolved_at)
+       VALUES ('order-1', 'sale-gone', 'QR', 'MERCADOPAGO_QR', 5000,
+               '2026-10-13T10:00:00.000Z', '2026-10-13T11:00:00.000Z', NULL);
+       INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+       VALUES ('open-sale', 'register-1', 'device-1', 'session-1', 'u1', 'OPEN', NULL)`,
+    );
+
+    const pending = await pendingOf();
+
+    expect([pending.selling_blocked, pending.may_go_selling]).toEqual([true, true]);
+  });
+
+  it("does not block selling once every paid order without a sale was converted", async () => {
+    database.exec(
+      `INSERT INTO paid_orders_without_sale (payment_transaction_id, sale_id, method, provider, amount, created_at, recorded_at, resolved_at)
+       VALUES ('order-2', 'sale-gone-too', 'POINT', 'MERCADOPAGO_POINT', 7000,
+               '2026-10-13T10:30:00.000Z', '2026-10-13T11:00:00.000Z', '2026-10-13T11:30:00.000Z')`,
+    );
+
+    const pending = await pendingOf();
+
+    expect(pending.paid_orders_without_sale).toEqual([]);
+    expect(pending.selling_blocked).toBe(false);
+    expect(pending.may_go_selling).toBe(true);
+  });
+
+  it.each(["pending", "deferred", "checked"] as const)(
+    "tells the paid-order check of this run is %s",
+    async (state) => {
+      discoveryState = state;
+
+      expect((await pendingOf()).paid_order_discovery).toBe(state);
+    },
+  );
+
+  it("keeps the cashier from going selling while this run's paid-order check waits for the cloud", async () => {
+    discoveryState = "pending";
+
+    const pending = await pendingOf();
+
+    expect([pending.selling_blocked, pending.may_go_selling]).toEqual([false, false]);
+  });
+
+  it("lets the cashier go back to the sale left open while this run's paid-order check waits for the cloud", async () => {
+    discoveryState = "pending";
+    database.exec(
+      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+       VALUES ('open-sale', 'register-1', 'device-1', 'session-1', 'u1', 'OPEN', NULL)`,
+    );
+
+    expect((await pendingOf()).may_go_selling).toBe(true);
+  });
+
+  it("lets the cashier go selling once this run's paid-order check is deferred", async () => {
+    discoveryState = "deferred";
+
+    expect((await pendingOf()).may_go_selling).toBe(true);
+  });
+
   it("is refused while nobody is signed in", async () => {
     signedInPerson.clear();
 
-    expect(await startupPendingFor({ database, gate: gate() })).toBe("not_permitted");
+    expect(
+      await startupPendingFor({ database, gate: gate(), paidOrderDiscovery: () => discoveryState }),
+    ).toBe("not_permitted");
   });
 
   it("is refused to a person who may not sell", async () => {
@@ -152,6 +250,8 @@ describe("what a stopped register left pending", () => {
       "UPDATE role_permissions SET active = 0 WHERE permission_key = 'sell_and_charge'",
     );
 
-    expect(await startupPendingFor({ database, gate: gate() })).toBe("not_permitted");
+    expect(
+      await startupPendingFor({ database, gate: gate(), paidOrderDiscovery: () => discoveryState }),
+    ).toBe("not_permitted");
   });
 });

@@ -34,6 +34,12 @@ const POINT_OPTION_OFFLINE: MethodOption = {
   disabled: true,
 };
 
+const POINT_OPTION_NOT_CONFIGURED: MethodOption = {
+  ...POINT_OPTION,
+  description: "No configurada en esta caja",
+  disabled: true,
+};
+
 const QR_OPTION: MethodOption = {
   value: "QR",
   label: "QR de Mercado Pago",
@@ -68,6 +74,8 @@ function pointOption(point: PaymentMethodAvailability["point"]): MethodOption | 
       return POINT_OPTION;
     case "offline":
       return POINT_OPTION_OFFLINE;
+    case "not_configured":
+      return POINT_OPTION_NOT_CONFIGURED;
     case "below_minimum":
       return undefined;
   }

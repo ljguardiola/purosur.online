@@ -34,6 +34,7 @@ export interface PaymentTransactionLane {
     registerId: string,
     paymentTransactionId: string,
   ): Promise<MercadoPagoOrderTransaction | null>;
+  paidOrderHeldBySale(paymentTransactionId: string): Promise<boolean>;
   recordPendingTransaction(transaction: MercadoPagoOrderTransaction): Promise<void>;
   recordCancelledWithoutOrder(transaction: MercadoPagoOrderTransaction): Promise<void>;
   recordCreationAttempt(paymentTransactionId: string, expiresAt: Date): Promise<void>;
@@ -79,6 +80,7 @@ export interface MercadoPagoPointOrderRequest {
   externalReference: string;
   amount: number;
   expiresAfterMinutes: number;
+  terminalId: string;
 }
 
 export type MercadoPagoOrderCreation =
@@ -86,8 +88,6 @@ export type MercadoPagoOrderCreation =
   | { kind: "refused" }
   | { kind: "throttled" }
   | { kind: "unavailable" };
-
-export type MercadoPagoPointOrderCreation = MercadoPagoOrderCreation | { kind: "not_configured" };
 
 export type MercadoPagoOrderReading =
   | { kind: "read"; result: MercadoPagoOrderResult }
@@ -105,7 +105,7 @@ export type MercadoPagoOrderCancellation =
 export interface MercadoPagoOrders {
   readonly longestCallMs: number;
   createQrOrder(request: MercadoPagoQrOrderRequest): Promise<MercadoPagoOrderCreation>;
-  createPointOrder(request: MercadoPagoPointOrderRequest): Promise<MercadoPagoPointOrderCreation>;
+  createPointOrder(request: MercadoPagoPointOrderRequest): Promise<MercadoPagoOrderCreation>;
   readOrder(orderId: string): Promise<MercadoPagoOrderReading>;
   cancelOrder(orderId: string, idempotencyKey: string): Promise<MercadoPagoOrderCancellation>;
   refundOrder(orderId: string, idempotencyKey: string): Promise<MercadoPagoRefundAnswer>;
@@ -121,3 +121,11 @@ export interface MercadoPagoOrderPorts {
   mercadoPago: MercadoPagoOrders;
   clock: Clock;
 }
+
+export interface PointTerminals {
+  terminalOfRegister(registerId: string): Promise<string | null>;
+}
+
+export type MercadoPagoPointOrderPorts = MercadoPagoOrderPorts & {
+  pointTerminals: PointTerminals;
+};

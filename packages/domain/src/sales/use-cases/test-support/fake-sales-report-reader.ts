@@ -11,6 +11,8 @@ export class FakeSalesReportReader implements SalesReportReader {
 
   async completedSalesByDay(query: SalesByDayQuery): Promise<SalesOfDay[]> {
     this.salesByDayReads.push({ ...query, range: { ...query.range } });
-    return this.days.map((day) => ({ ...day }));
+    return this.days
+      .filter((day) => day.day >= query.range.from && day.day <= query.range.to)
+      .map((day) => ({ ...day }));
   }
 }

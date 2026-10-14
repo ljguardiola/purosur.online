@@ -1506,6 +1506,7 @@ describe("wiring the sales report routes", () => {
     { method: "GET", url: "/api/reports/sales-by-day" },
     { method: "GET", url: "/api/reports/sales-by-product-and-category" },
     { method: "GET", url: "/api/reports/sales-by-cashier" },
+    { method: "GET", url: "/api/reports/average-ticket" },
   ] as const;
 
   async function statusCodes(app: ReturnType<typeof buildApp>): Promise<number[]> {
@@ -2663,6 +2664,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/reports/average-ticket",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
         url: "/api/reports/sales-by-payment-method",
         access: capabilityAccess("reports_area"),
       },
@@ -2715,6 +2721,11 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/api/registers/:id/device-codes",
         access: capabilityAccess("registers_area"),
+      },
+      {
+        method: "PUT",
+        url: "/api/registers/:id/point-terminal",
+        access: capabilityAccess("cash_area"),
       },
       {
         method: "GET",
