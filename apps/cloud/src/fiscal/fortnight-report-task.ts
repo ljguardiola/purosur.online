@@ -17,8 +17,8 @@ import { reportError } from "../platform/error-reporting.js";
 import { DrizzleRegisterEventStreams } from "../sync/drizzle-register-event-streams.js";
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
+import { DrizzleOfflineDocumentsOfFortnight } from "./drizzle-offline-documents-of-fortnight.js";
 import { DrizzleWsaaTokenSource } from "./drizzle-wsaa-token-source.js";
-import { NoOfflineDocumentsYet } from "./no-offline-documents-yet.js";
 import { rejectionsText } from "./offline-authorization-code-acquisition-description.js";
 import { WSFE_SERVICE } from "./wsaa-token-renewal-task.js";
 
@@ -57,7 +57,7 @@ export function fortnightReportJobs(
     const db = doCreateDatabase(client);
     const outcome = await reportFortnights({
       reports: new DrizzleFortnightReportStore(db),
-      documents: new NoOfflineDocumentsYet(),
+      documents: new DrizzleOfflineDocumentsOfFortnight(db),
       streams: new DrizzleRegisterEventStreams(db),
       declarations,
       codeStore: new DrizzleOfflineAuthorizationCodeStore(db),

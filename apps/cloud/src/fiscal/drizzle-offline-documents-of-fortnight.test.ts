@@ -27,9 +27,7 @@ beforeEach(async () => {
 
 describe("DrizzleOfflineDocumentsOfFortnight", () => {
   it("counts no document on a point of sale that issued none under the fortnight's code", async () => {
-    expect(
-      await new DrizzleOfflineDocumentsOfFortnight(db).countOn(8, OCTOBER_FIRST_HALF),
-    ).toBe(0);
+    expect(await new DrizzleOfflineDocumentsOfFortnight(db).countOn(8, OCTOBER_FIRST_HALF)).toBe(0);
   });
 
   it("counts the documents the point of sale issued under the fortnight's code, and only those", async () => {
