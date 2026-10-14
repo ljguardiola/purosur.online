@@ -635,7 +635,7 @@ describe("locked register closers query", () => {
 });
 
 const STATUS: RegisterStatus = {
-  conditions: [{ kind: "sales_denied", reason: "event_history_broken" }],
+  conditions: [{ kind: "sales_denied", reason: "event_history_broken", level: "critical" }],
   cloud: "reachable",
   serial_devices: { scale: "matching", reader: "matching" },
   serial_devices_setup_offered: false,

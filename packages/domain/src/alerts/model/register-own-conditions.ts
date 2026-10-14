@@ -14,7 +14,8 @@ import {
   type SalesStopState,
   salesDeniedReportOf,
 } from "../../sync/index.js";
-import type { AlertKind } from "./alert-catalog.js";
+import { type AlertKind, type AlertLevel, isAlertKind } from "./alert-catalog.js";
+import { alertKindPolicy } from "./alert-kind-policy.js";
 import { isRegisterQuiet } from "./quiet-register.js";
 
 export const REGISTER_OWN_CONDITIONS = [
@@ -27,11 +28,24 @@ export const REGISTER_OWN_CONDITIONS = [
 
 export type RegisterOwnCondition = (typeof REGISTER_OWN_CONDITIONS)[number];
 
-type HeldRegisterOwnCondition = {
+type DetectedRegisterOwnCondition = {
   [Kind in RegisterOwnCondition]: Kind extends "sales_denied"
     ? { kind: Kind; reason: SalesDeniedReason }
     : { kind: Kind };
 }[RegisterOwnCondition];
+
+type HeldRegisterOwnCondition = DetectedRegisterOwnCondition & { level: AlertLevel };
+
+const LEVELS_OF_CONDITIONS_THAT_ARE_NOT_ALERTS = {
+  installation_revoked: "critical",
+  serial_device_missing: "warning",
+} as const satisfies Record<Exclude<RegisterOwnCondition, AlertKind>, AlertLevel>;
+
+function levelOf(condition: RegisterOwnCondition): AlertLevel {
+  return isAlertKind(condition)
+    ? alertKindPolicy(condition).level
+    : LEVELS_OF_CONDITIONS_THAT_ARE_NOT_ALERTS[condition];
+}
 
 interface RegisterOwnStanding {
   salesStop: SalesStopState;
@@ -53,7 +67,7 @@ export function registerOwnConditions({
   const revoked = isInstallationRevoked(salesStop);
   const salesDenied = salesDeniedReportOf(salesStop);
   const held: {
-    [Kind in RegisterOwnCondition]: Extract<HeldRegisterOwnCondition, { kind: Kind }> | null;
+    [Kind in RegisterOwnCondition]: Extract<DetectedRegisterOwnCondition, { kind: Kind }> | null;
   } = {
     installation_revoked: revoked ? { kind: "installation_revoked" } : null,
     sales_denied:
@@ -75,5 +89,8 @@ export function registerOwnConditions({
         ? { kind: "serial_device_missing" }
         : null,
   };
-  return REGISTER_OWN_CONDITIONS.flatMap((condition) => held[condition] ?? []);
+  return REGISTER_OWN_CONDITIONS.flatMap((condition) => {
+    const detected = held[condition];
+    return detected === null ? [] : [{ ...detected, level: levelOf(condition) }];
+  });
 }
