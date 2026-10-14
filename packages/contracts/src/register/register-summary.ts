@@ -31,6 +31,7 @@ export const registerSummarySchema = z.object({
     .nullable(),
   point_of_sale_number: pointOfSaleNumberSchema.nullable(),
   point_terminal_id: pointTerminalIdSchema.nullable(),
+  point_terminal_version: z.int().nonnegative(),
   installation: installationSchema.nullable(),
 });
 
