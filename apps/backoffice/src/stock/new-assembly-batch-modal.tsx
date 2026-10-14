@@ -10,7 +10,7 @@ import {
   textOrder,
   useRequestForm,
 } from "@purosur/ui";
-import { Check, Layers, X } from "lucide-react";
+import { Check, CookingPot, X } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -200,7 +200,7 @@ export function NewAssemblyBatchModal({
       }}
       width="wide"
       tone="info"
-      icon={<Layers />}
+      icon={<CookingPot />}
       context="Stock · Tandas"
       title="Nueva tanda"
       closable={!submitting}
@@ -230,7 +230,7 @@ export function NewAssemblyBatchModal({
     >
       {firstOption === undefined ? (
         <EmptyState
-          icon={<Layers />}
+          icon={<CookingPot />}
           title="No hay productos armados"
           description="Creá una receta en Recetas para registrar una tanda."
           variant="blank"

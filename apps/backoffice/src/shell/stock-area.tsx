@@ -5,7 +5,7 @@ import {
   CalendarClock,
   ClipboardCheck,
   ClipboardList,
-  Layers,
+  CookingPot,
   Package,
   Scale,
   ShoppingCart,
@@ -150,7 +150,7 @@ function StockArea() {
                 <SectionLink
                   to="/assembly-batches"
                   label="Tandas"
-                  icon={<Layers />}
+                  icon={<CookingPot />}
                   search={batchesShown ? true : {}}
                   active={batchesShown}
                 />

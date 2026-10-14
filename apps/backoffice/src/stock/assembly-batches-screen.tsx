@@ -10,7 +10,7 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
-import { Check, Layers, Plus, Search, SearchX } from "lucide-react";
+import { Check, CookingPot, Plus, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
@@ -182,7 +182,7 @@ export function AssemblyBatchesScreen({
           empty={
             batches.length === 0
               ? {
-                  icon: <Layers />,
+                  icon: <CookingPot />,
                   title: `Sin tandas en los últimos ${days} días`,
                   description: "Cada tanda registra lo que se usó y lo que se obtuvo.",
                   variant: "blank",
