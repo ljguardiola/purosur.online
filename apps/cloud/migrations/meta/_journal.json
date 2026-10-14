@@ -670,8 +670,15 @@
     {
       "idx": 95,
       "version": "7",
-      "when": 1791941007318,
-      "tag": "0099_register_point_terminals",
+      "when": 1791937138674,
+      "tag": "0099_qr_cancellation_refunds",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1791979218113,
+      "tag": "0100_register_point_terminals",
       "breakpoints": true
     }
   ]

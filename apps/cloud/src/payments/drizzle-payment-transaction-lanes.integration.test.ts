@@ -1,3 +1,4 @@
+import type { MercadoPagoRefundAnswer } from "@purosur/domain";
 import {
   cancelMercadoPagoOrder,
   createMercadoPagoQrOrder,
@@ -5,6 +6,7 @@ import {
   type MercadoPagoOrderCreation,
   type MercadoPagoOrderPorts,
   type MercadoPagoOrderReading,
+  type MercadoPagoOrderRefundsReading,
   type MercadoPagoOrders,
   type MercadoPagoPointOrderCreation,
   type MercadoPagoQrOrderRequest,
@@ -78,6 +80,14 @@ class HeldMercadoPago implements MercadoPagoOrders {
   }
 
   async cancelOrder(): Promise<MercadoPagoOrderCancellation> {
+    return { kind: "unavailable" };
+  }
+
+  async refundOrder(): Promise<MercadoPagoRefundAnswer> {
+    return { kind: "unavailable" };
+  }
+
+  async readOrderRefunds(): Promise<MercadoPagoOrderRefundsReading> {
     return { kind: "unavailable" };
   }
 

@@ -46,6 +46,9 @@ export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
         transactionCreatedAt: paymentTransactions.createdAt,
         cancelledBy: sales.actorId,
         cancelledByName: users.firstName,
+        confirmedAt: paymentRefunds.confirmedAt,
+        sentAt: paymentRefunds.sentAt,
+        lastRefusalReason: paymentRefunds.lastRefusalReason,
       })
       .from(paymentRefunds)
       .leftJoin(salePayments, eq(salePayments.id, paymentRefunds.paymentId))

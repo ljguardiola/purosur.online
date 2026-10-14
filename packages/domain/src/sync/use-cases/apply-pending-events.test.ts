@@ -4,6 +4,7 @@ import {
   A_SESSION_OPENED_FACT,
   AN_OPENING_COUNT_RECORDED_FACT,
   AN_OPENING_COUNT_WITHDRAWN_FACT,
+  aCancelledSaleFact,
   aCompletedSaleFact,
 } from "../model/test-support/synced-facts.js";
 import { applyPendingEvents } from "./apply-pending-events.js";
@@ -662,6 +663,84 @@ describe("an event that cannot be applied yet", () => {
         "read provider transaction qr-payment-2",
       ]);
       expect(application.event("sale-event").appliedAt).toBeNull();
+    });
+  });
+
+  describe("a cancelled sale paid by Mercado Pago QR", () => {
+    const qrPayment = {
+      id: "qr-payment-1",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      amount: 1500,
+      tendered: null,
+      state: "APPROVED",
+      occurredAt: new Date("2026-10-07T10:00:00.000Z"),
+      authorizedBy: null,
+      confirmedAt: null,
+    } as const;
+    const qrRefund = {
+      id: "qr-refund-1",
+      paymentId: "qr-payment-1",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      amount: 1500,
+      state: "PENDING",
+      occurredAt: new Date("2026-10-07T10:05:00.000Z"),
+    } as const;
+    const qrCancellation = () =>
+      aCancelledSaleFact({ payments: [qrPayment], refunds: [qrRefund], cashMovements: [] });
+    const approvedTransaction = {
+      saleId: "sale-1",
+      amount: 1500,
+      state: "APPROVED",
+      method: "QR",
+    } as const;
+
+    it("is applied when the provider's own approved transaction backs the payment", async () => {
+      const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
+      application.providerTransactions.set("qr-payment-1", approvedTransaction);
+
+      await run(application, new FakeEventUpcaster({ "sale-event": qrCancellation() }));
+
+      expect(application.event("sale-event").appliedAt).toEqual(NOW);
+      expect(application.state.recorded).toHaveLength(1);
+    });
+
+    it.each([
+      ["has no transaction", undefined],
+      ["has a pending transaction", { ...approvedTransaction, state: "PENDING" as const }],
+      ["has a transaction of another sale", { ...approvedTransaction, saleId: "sale-2" }],
+      ["has a transaction of another amount", { ...approvedTransaction, amount: 1400 }],
+    ])("is retried and left unrecorded when the payment %s", async (_description, transaction) => {
+      const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
+      if (transaction !== undefined) {
+        application.providerTransactions.set("qr-payment-1", transaction);
+      }
+
+      await run(application, new FakeEventUpcaster({ "sale-event": qrCancellation() }));
+
+      expect(application.event("sale-event")).toMatchObject({
+        appliedAt: null,
+        attempts: 1,
+        error:
+          "payment qr-payment-1 is not backed by an approved Mercado Pago transaction of this sale and amount",
+      });
+      expect(application.state.recorded).toEqual([]);
+    });
+
+    it("checks the QR payments of the sale and none of the cash ones", async () => {
+      const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
+      application.providerTransactions.set("qr-payment-1", approvedTransaction);
+      const cancellation = aCancelledSaleFact({
+        payments: [...aCancelledSaleFact().sale.payments, qrPayment],
+        refunds: [...aCancelledSaleFact().sale.refunds, qrRefund],
+      });
+
+      await run(application, new FakeEventUpcaster({ "sale-event": cancellation }));
+
+      expect(application.calls.filter((call) => call.startsWith("read provider"))).toEqual([
+        "read provider transaction qr-payment-1",
+      ]);
     });
   });
 

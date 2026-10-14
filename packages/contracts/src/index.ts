@@ -164,11 +164,13 @@ export {
 export type { PaymentMethodAvailability } from "./payments/payment-method-availability.js";
 export { paymentMethodAvailabilitySchema } from "./payments/payment-method-availability.js";
 export type {
+  ConfirmedRefundBody,
   DiscardedRefundBody,
   MarkedRefundDoneBody,
   PendingRefundsBody,
 } from "./payments/pending-refunds.js";
 export {
+  confirmedRefundSchema,
   discardedRefundSchema,
   markedRefundDoneSchema,
   pendingRefundsSchema,

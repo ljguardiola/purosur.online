@@ -1,5 +1,5 @@
 {
-  "id": "f184c1e0-9367-48a8-8415-4291ccd7f80c",
+  "id": "5aec732e-05ae-4b48-b6cb-932d6622bc1a",
   "prevId": "cb568710-da2a-48f8-a675-88d079cbb57b",
   "version": "7",
   "dialect": "postgresql",
@@ -3303,6 +3303,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "origin_event_id": {
+          "name": "origin_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "provider_order_id": {
           "name": "provider_order_id",
           "type": "text",
@@ -3369,9 +3375,61 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "confirmed_by": {
+          "name": "confirmed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "confirmed_at": {
+          "name": "confirmed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sent_at": {
+          "name": "sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_refund_id": {
+          "name": "provider_refund_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attempt_key": {
+          "name": "attempt_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_refusal_reason": {
+          "name": "last_refusal_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
+        "payment_refunds_attempt_key_unique": {
+          "name": "payment_refunds_attempt_key_unique",
+          "columns": [
+            {
+              "expression": "attempt_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"payment_refunds\".\"attempt_key\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "payment_refunds_transaction_without_order_unique": {
           "name": "payment_refunds_transaction_without_order_unique",
           "columns": [
@@ -3474,9 +3532,9 @@
           "name": "payment_refunds_origin_check",
           "value": "\"payment_refunds\".\"origin\" in ('sale_cancelled', 'late_payment')"
         },
-        "payment_refunds_one_source_check": {
-          "name": "payment_refunds_one_source_check",
-          "value": "(\"payment_refunds\".\"payment_id\" is null) <> (\"payment_refunds\".\"payment_transaction_id\" is null)"
+        "payment_refunds_source_check": {
+          "name": "payment_refunds_source_check",
+          "value": "(\"payment_refunds\".\"origin\" = 'late_payment' and \"payment_refunds\".\"payment_id\" is null and \"payment_refunds\".\"payment_transaction_id\" is not null and \"payment_refunds\".\"origin_event_id\" is null) or (\"payment_refunds\".\"origin\" = 'sale_cancelled' and \"payment_refunds\".\"payment_id\" is not null)"
         },
         "payment_refunds_done_check": {
           "name": "payment_refunds_done_check",
@@ -3485,6 +3543,18 @@
         "payment_refunds_discarded_check": {
           "name": "payment_refunds_discarded_check",
           "value": "(\"payment_refunds\".\"discarded_by\" is null) = (\"payment_refunds\".\"discarded_at\" is null) and (\"payment_refunds\".\"state\" = 'DISCARDED' or \"payment_refunds\".\"discarded_by\" is null)"
+        },
+        "payment_refunds_confirmation_check": {
+          "name": "payment_refunds_confirmation_check",
+          "value": "(\"payment_refunds\".\"confirmed_by\" is null) = (\"payment_refunds\".\"confirmed_at\" is null)"
+        },
+        "payment_refunds_attempt_confirmed_check": {
+          "name": "payment_refunds_attempt_confirmed_check",
+          "value": "\"payment_refunds\".\"attempt_key\" is null or \"payment_refunds\".\"confirmed_at\" is not null"
+        },
+        "payment_refunds_sent_check": {
+          "name": "payment_refunds_sent_check",
+          "value": "(\"payment_refunds\".\"sent_at\" is null) = (\"payment_refunds\".\"provider_refund_id\" is null) and (\"payment_refunds\".\"sent_at\" is null or \"payment_refunds\".\"confirmed_at\" is not null)"
         }
       },
       "isRLSEnabled": false
@@ -5837,63 +5907,6 @@
           "value": "\"register_offline_points_of_sale\".\"mechanism\" = 'offline'"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.register_point_terminals": {
-      "name": "register_point_terminals",
-      "schema": "",
-      "columns": {
-        "register_id": {
-          "name": "register_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "terminal_id": {
-          "name": "terminal_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "register_point_terminals_terminal_id_key": {
-          "name": "register_point_terminals_terminal_id_key",
-          "columns": [
-            {
-              "expression": "terminal_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "register_point_terminals_register_id_registers_id_fk": {
-          "name": "register_point_terminals_register_id_registers_id_fk",
-          "tableFrom": "register_point_terminals",
-          "tableTo": "registers",
-          "columnsFrom": ["register_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.register_points_of_sale": {
