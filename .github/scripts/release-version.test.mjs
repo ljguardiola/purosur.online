@@ -20,7 +20,7 @@ const SPEC = {
   rootPackages: ["@purosur/cloud", "@purosur/backoffice"],
 };
 
-function manifest(name, { dependencies = {}, devDependencies = {} } = {}) {
+function manifest(name, { dependencies = [], devDependencies = [] } = {}) {
   const workspaceSpecs = (names) => Object.fromEntries(names.map((dep) => [dep, "workspace:*"]));
   return JSON.stringify({
     name,
@@ -161,7 +161,7 @@ test("releases 1.0.0 when no release tag exists, listing every included change",
     assert.equal(release.previousTag, null);
     assert.deepEqual(
       release.commits.map((commit) => commit.subject),
-      ["feat: sell by weight (#10)"],
+      ["feat: sell by weight (#10)", "chore: scaffold the workspace"],
     );
   });
 });
@@ -414,7 +414,10 @@ test("the command writes the version, the tag and the notes file", async () => {
       { path: "/output", text: "version=1.0.0\ntag=cloud-v1.0.0\n" },
     ]);
     assert.deepEqual(calls.notes, [
-      { path: "/notes.md", text: "## Features\n\n- feat: sell by weight (#10)\n" },
+      {
+        path: "/notes.md",
+        text: "## Features\n\n- feat: sell by weight (#10)\n\n## Other changes\n\n- chore: scaffold the workspace\n",
+      },
     ]);
   });
 });
