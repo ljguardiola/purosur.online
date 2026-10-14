@@ -4244,8 +4244,12 @@ describe("the register's local migrations", () => {
           .map(({ detail }) => detail)
           .join("\n");
       expect(
-        planOf("SELECT id FROM prices WHERE product_id = 'p1' AND valid_from = '2026-09-01'"),
-      ).toMatch(/SEARCH prices USING (COVERING )?INDEX/);
+        planOf(
+          `SELECT id FROM prices
+           WHERE product_id = 'p1'
+             AND strftime('%Y-%m-%dT%H:%M:%fZ', valid_from) = '2026-09-01T00:00:00.000Z'`,
+        ),
+      ).toMatch(/SEARCH prices USING (COVERING )?INDEX \S+ \(product_id=\? AND <expr>=\?\)/);
       expect(
         planOf("SELECT id FROM discounts WHERE target_kind = 'PRODUCT' AND target_id = 'p1'"),
       ).toMatch(/SEARCH discounts USING (COVERING )?INDEX/);

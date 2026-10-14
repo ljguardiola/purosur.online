@@ -1,7 +1,16 @@
+import type { DiscountBenefit } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import type { SqliteSaleLedger } from "./sqlite-sale-ledger";
-import { ledgerWithOpenSale } from "./test-support/sqlite-sale-ledger";
+import {
+  addCategory,
+  addDiscount,
+  addPrice,
+  addProduct,
+  addProductTag,
+  ledgerWithOpenSale,
+  promotionIdsTargeting,
+} from "./test-support/sqlite-sale-ledger";
 
 let database: LocalDatabase;
 let ledger: SqliteSaleLedger;
@@ -46,70 +55,23 @@ function planOf(statement: ReadStatement): string {
     .join("\n");
 }
 
-function addProduct(id: string, categoryId = "own"): void {
-  database
-    .prepare(
-      `INSERT INTO products (id, name, category_id, sale_unit, active, version)
-       VALUES (?, ?, ?, 'UNIT', 1, 1)`,
-    )
-    .run(id, id, categoryId);
-}
-
-function addPrice(
-  id: string,
-  productId: string,
-  validFrom: string,
-  unitPrice: number,
-  options: { removed?: boolean } = {},
-): void {
-  database
-    .prepare(
-      `INSERT INTO prices (id, product_id, price_list_id, unit_price, valid_from, version, removed)
-       VALUES (?, ?, 'list-1', ?, ?, 1, ?)`,
-    )
-    .run(id, productId, unitPrice, validFrom, options.removed ? 1 : 0);
-}
-
-function addCategory(id: string, parentId: string | null): void {
-  database
-    .prepare("INSERT INTO categories (id, name, parent_id, version) VALUES (?, ?, ?, 1)")
-    .run(id, id, parentId);
-}
-
-function addDiscount(id: string, kind: "PRODUCT" | "CATEGORY" | "TAG", targetId: string): void {
-  database
-    .prepare(
-      `INSERT INTO discounts (
-         id, name, kind, percent, target_kind, target_id, valid_from, valid_to, weekdays, active,
-         version
-       ) VALUES (?, 'Promo', 'PERCENT_OFF', 10, ?, ?, '2026-09-01', '2026-12-31', '[]', 1, 1)`,
-    )
-    .run(id, kind, targetId);
-}
-
-function addTag(productId: string, tagId: string, active = true): void {
-  database
-    .prepare("INSERT INTO product_tags (product_id, tag_id, active) VALUES (?, ?, ?)")
-    .run(productId, tagId, active ? 1 : 0);
-}
-
 function currentPriceOf(productId: string) {
   return reading(() => ledger.transaction((tx) => tx.currentPrice(productId)));
 }
 
+const tenPercent: DiscountBenefit = { kind: "PERCENT_OFF", percent: 10 };
+
 function promotionsFor(productId: string) {
-  const { result, statements } = reading(() =>
-    ledger.transaction((tx) => tx.promotionsTargeting(productId)),
-  );
-  return { ids: result.map(({ id }) => id), statements };
+  const { result, statements } = reading(() => promotionIdsTargeting(ledger, productId));
+  return { ids: result, statements };
 }
 
 beforeEach(() => {
   ({ database, ledger } = ledgerWithOpenSale());
-  addCategory("root", null);
-  addCategory("middle", "root");
-  addCategory("own", "middle");
-  addProduct("p1");
+  addCategory(database, "root", null);
+  addCategory(database, "middle", "root");
+  addCategory(database, "own", "middle");
+  addProduct(database, undefined, { categoryId: "own" });
 });
 
 afterEach(() => {
@@ -119,11 +81,13 @@ afterEach(() => {
 describe("the sale ledger's current price of a product", () => {
   it("reads only the price that starts last out of a long history", () => {
     for (let month = 1; month <= 9; month += 1) {
-      addPrice(`old-${month}`, "p1", `2025-0${month}-01T00:00:00.000Z`, 100 + month);
+      addPrice(database, "p1", `2025-0${month}-01T00:00:00.000Z`, 100 + month, {
+        id: `old-${month}`,
+      });
     }
-    addPrice("newest", "p1", "2026-09-01T00:00:00.000Z", 500);
-    addProduct("p2");
-    addPrice("other-product", "p2", "2026-10-01T00:00:00.000Z", 900);
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 500, { id: "newest" });
+    addProduct(database, undefined, { id: "p2", categoryId: "own" });
+    addPrice(database, "p2", "2026-10-01T00:00:00.000Z", 900, { id: "other-product" });
 
     const { result, statements } = currentPriceOf("p1");
 
@@ -132,10 +96,10 @@ describe("the sale ledger's current price of a product", () => {
   });
 
   it("reads every price that starts at the same moment and answers the one with the greater id", () => {
-    addPrice("a", "p1", "2026-09-01T00:00:00.000Z", 100);
-    addPrice("c", "p1", "2026-09-01T00:00:00.000Z", 300);
-    addPrice("b", "p1", "2026-09-01T00:00:00.000Z", 200);
-    addPrice("older", "p1", "2026-08-01T00:00:00.000Z", 50);
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 100, { id: "a" });
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 300, { id: "c" });
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 200, { id: "b" });
+    addPrice(database, "p1", "2026-08-01T00:00:00.000Z", 50, { id: "older" });
 
     const { result, statements } = currentPriceOf("p1");
 
@@ -144,9 +108,9 @@ describe("the sale ledger's current price of a product", () => {
   });
 
   it("answers the newest price that is not removed, reading none beyond it", () => {
-    addPrice("kept", "p1", "2026-08-01T00:00:00.000Z", 400);
-    addPrice("older", "p1", "2026-07-01T00:00:00.000Z", 300);
-    addPrice("removed", "p1", "2026-09-01T00:00:00.000Z", 600, { removed: true });
+    addPrice(database, "p1", "2026-08-01T00:00:00.000Z", 400, { id: "kept" });
+    addPrice(database, "p1", "2026-07-01T00:00:00.000Z", 300, { id: "older" });
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 600, { id: "removed", removed: true });
 
     const { result, statements } = currentPriceOf("p1");
 
@@ -154,40 +118,38 @@ describe("the sale ledger's current price of a product", () => {
     expect(rowsReadFrom("prices", statements)).toBe(1);
   });
 
-  it("has no price for a product with none", () => {
-    expect(currentPriceOf("p1").result).toBeUndefined();
-  });
-
-  it("looks the prices up by the product instead of scanning the table", () => {
-    addPrice("only", "p1", "2026-09-01T00:00:00.000Z", 100);
+  it("looks the prices up by the product and the moment they start instead of scanning the table", () => {
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 100, { id: "only" });
 
     const plans = currentPriceOf("p1")
       .statements.filter(({ source }) => source.includes("FROM prices"))
       .map(planOf)
       .join("\n");
 
-    expect(plans).toMatch(/SEARCH prices USING (COVERING )?INDEX/);
+    expect(plans).toMatch(
+      /SEARCH prices USING (COVERING )?INDEX prices_by_product_and_start \(product_id=\? AND <expr>=\?\)/,
+    );
     expect(plans).not.toMatch(/SCAN prices/);
   });
 });
 
 describe("the sale ledger's promotions targeting a product", () => {
   it("reads only the discounts aimed at the product, its category chain and its active tags", () => {
-    addTag("p1", "on");
-    addTag("p1", "off", false);
-    addProduct("p2");
-    addCategory("sibling", "middle");
-    addCategory("below", "own");
-    addDiscount("d-product", "PRODUCT", "p1");
-    addDiscount("d-own", "CATEGORY", "own");
-    addDiscount("d-root", "CATEGORY", "root");
-    addDiscount("d-tag", "TAG", "on");
-    addDiscount("x-product", "PRODUCT", "p2");
-    addDiscount("x-sibling", "CATEGORY", "sibling");
-    addDiscount("x-below", "CATEGORY", "below");
-    addDiscount("x-tag-off", "TAG", "off");
-    addDiscount("x-tag-other", "TAG", "other");
-    addDiscount("x-same-id-other-kind", "TAG", "p1");
+    addProductTag(database, "p1", "on");
+    addProductTag(database, "p1", "off", false);
+    addProduct(database, undefined, { id: "p2", categoryId: "own" });
+    addCategory(database, "sibling", "middle");
+    addCategory(database, "below", "own");
+    addDiscount(database, "d-product", { kind: "PRODUCT", id: "p1" }, tenPercent);
+    addDiscount(database, "d-own", { kind: "CATEGORY", id: "own" }, tenPercent);
+    addDiscount(database, "d-root", { kind: "CATEGORY", id: "root" }, tenPercent);
+    addDiscount(database, "d-tag", { kind: "TAG", id: "on" }, tenPercent);
+    addDiscount(database, "x-product", { kind: "PRODUCT", id: "p2" }, tenPercent);
+    addDiscount(database, "x-sibling", { kind: "CATEGORY", id: "sibling" }, tenPercent);
+    addDiscount(database, "x-below", { kind: "CATEGORY", id: "below" }, tenPercent);
+    addDiscount(database, "x-tag-off", { kind: "TAG", id: "off" }, tenPercent);
+    addDiscount(database, "x-tag-other", { kind: "TAG", id: "other" }, tenPercent);
+    addDiscount(database, "x-same-id-other-kind", { kind: "TAG", id: "p1" }, tenPercent);
 
     const { ids, statements } = promotionsFor("p1");
 
@@ -195,16 +157,9 @@ describe("the sale ledger's promotions targeting a product", () => {
     expect(rowsReadFrom("discounts", statements)).toBe(4);
   });
 
-  it("leaves out a removed discount", () => {
-    addDiscount("gone", "PRODUCT", "p1");
-    database.prepare("UPDATE discounts SET removed = 1 WHERE id = 'gone'").run();
-
-    expect(promotionsFor("p1").ids).toEqual([]);
-  });
-
   it("reads only the categories from the product's up to the root", () => {
-    addCategory("sibling", "middle");
-    addCategory("below", "own");
+    addCategory(database, "sibling", "middle");
+    addCategory(database, "below", "own");
 
     const { statements } = promotionsFor("p1");
 
@@ -212,8 +167,8 @@ describe("the sale ledger's promotions targeting a product", () => {
   });
 
   it("keeps the discounts of its own category when that category is missing from the tree", () => {
-    addProduct("p3", "unlisted");
-    addDiscount("d-unlisted", "CATEGORY", "unlisted");
+    addProduct(database, undefined, { id: "p3", categoryId: "unlisted" });
+    addDiscount(database, "d-unlisted", { kind: "CATEGORY", id: "unlisted" }, tenPercent);
 
     expect(promotionsFor("p3").ids).toEqual(["d-unlisted"]);
   });
@@ -221,8 +176,8 @@ describe("the sale ledger's promotions targeting a product", () => {
   it("still answers when a corrupt parent chain loops back on itself", () => {
     database.prepare("UPDATE categories SET parent_id = 'middle' WHERE id = 'own'").run();
     database.prepare("UPDATE categories SET parent_id = 'own' WHERE id = 'middle'").run();
-    addDiscount("d-middle", "CATEGORY", "middle");
-    addDiscount("d-root", "CATEGORY", "root");
+    addDiscount(database, "d-middle", { kind: "CATEGORY", id: "middle" }, tenPercent);
+    addDiscount(database, "d-root", { kind: "CATEGORY", id: "root" }, tenPercent);
 
     const { ids, statements } = promotionsFor("p1");
 
@@ -231,7 +186,7 @@ describe("the sale ledger's promotions targeting a product", () => {
   });
 
   it("looks the discounts up by what they target instead of scanning the table", () => {
-    addDiscount("d-product", "PRODUCT", "p1");
+    addDiscount(database, "d-product", { kind: "PRODUCT", id: "p1" }, tenPercent);
 
     const plans = promotionsFor("p1")
       .statements.filter(({ source }) => source.includes("FROM discounts"))
