@@ -609,6 +609,7 @@ const openSessionRoute = createRoute({
       cancelPaidSale,
       authorizers,
       refreshCashSession,
+      registerStatus,
     } = openSessionRoute.useRouteContext();
     const registerName = useRegisterName();
     return (
@@ -634,6 +635,7 @@ const openSessionRoute = createRoute({
         cancelPaidSale={cancelPaidSale}
         loadAuthorizers={authorizers}
         onSessionInvalid={() => void refreshCashSession()}
+        registerStatus={registerStatus}
       />
     );
   },
