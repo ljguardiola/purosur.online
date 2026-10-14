@@ -41,9 +41,9 @@ export function ticketChangeTenths({
 
 export function salesOfWeeks(range: ReportPeriod, days: readonly SalesOfDay[]): SalesOfWeek[] {
   const weeks: SalesOfWeek[] = [];
-  for (let to = range.to; to >= range.from; to = shiftCalendarDay(to, -DAYS_PER_WEEK)) {
-    const earliest = shiftCalendarDay(to, 1 - DAYS_PER_WEEK);
-    const from = earliest < range.from ? range.from : earliest;
+  let to = range.to;
+  for (let remaining = dayCountOf(range); remaining > 0; remaining -= DAYS_PER_WEEK) {
+    const from = shiftCalendarDay(to, 1 - Math.min(DAYS_PER_WEEK, remaining));
     const inWeek = days.filter((day) => day.day >= from && day.day <= to);
     const salesCount = inWeek.reduce((sum, day) => sum + day.salesCount, 0);
     const total = inWeek.reduce((sum, day) => sum + day.total, 0);
@@ -54,6 +54,7 @@ export function salesOfWeeks(range: ReportPeriod, days: readonly SalesOfDay[]): 
       total,
       averageTicket: averageTicket({ total, salesCount }),
     });
+    to = shiftCalendarDay(to, -DAYS_PER_WEEK);
   }
   return weeks;
 }
