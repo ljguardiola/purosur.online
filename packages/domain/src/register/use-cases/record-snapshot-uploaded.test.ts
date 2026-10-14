@@ -43,6 +43,18 @@ describe("recordSnapshotUploaded", () => {
     expect(store.snapshot()).toEqual(before);
   });
 
+  it.each(["uploaded", "verified", "failed"] as const)(
+    "records no report for a generation already %s",
+    async (status) => {
+      const store = new FakeSnapshotStore();
+      store.seedGeneration({ id: "generation-1", status });
+
+      await report(store);
+
+      expect(store.operationOrder).not.toContain("recordUploadReported");
+    },
+  );
+
   it("refuses a generation nobody declared", async () => {
     expect(await report(new FakeSnapshotStore())).toEqual({ kind: "generation_unknown" });
   });
