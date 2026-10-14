@@ -26,7 +26,6 @@ jobs:
       sha: ${{ steps.commit.outputs.sha }}
       tag: ${{ github.ref_name }}
       image_ref: ${{ steps.digest.outputs.image_ref }}
-      previous_tag: ${{ steps.previous.outputs.previous_tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -40,16 +39,6 @@ jobs:
       - name: Resolve the commit the tag points at
         id: commit
         run: echo "sha=$(git rev-parse "$GITHUB_REF^{commit}")" >> "$GITHUB_OUTPUT"
-
-      - name: Find the release production ran before this one
-        id: previous
-        env:
-          RELEASE_TAG_PREFIX: cloud-v
-          RELEASE_ROOT_PACKAGES: "@purosur/cloud,@purosur/backoffice"
-          RELEASE_TAG: ${{ github.ref_name }}
-          TARGET_SHA: ${{ steps.commit.outputs.sha }}
-          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node .github/scripts/release-version.mjs previous-tag
 
       - name: Name the image staging validated for that commit
         id: validated
@@ -77,16 +66,62 @@ jobs:
           MANIFEST_FILE: ${{ runner.temp }}/validated-manifest.json
         run: node .github/scripts/staging-validated-image.mjs digest
 
+  baseline:
+    name: find the release production serves now
+    if: startsWith(github.ref, 'refs/tags/cloud-v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: production
+    permissions:
+      contents: read
+    outputs:
+      previous_tag: ${{ steps.baseline.outputs.previous_tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+
+      # The package's postinstall downloads the platform binary from GitHub releases, which can
+      # fail transiently.
+      - name: Install the Railway CLI
+        run: |
+          for attempt in 1 2 3; do
+            if npm install -g @railway/cli@5.58.0; then
+              exit 0
+            fi
+            echo "npm install -g @railway/cli failed (attempt $attempt/3)"
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 10))
+            fi
+          done
+          echo "::error::npm install -g @railway/cli failed after 3 attempts"
+          exit 1
+
+      - name: Name the release of the commit production reports
+        id: baseline
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE: Cloud Server
+          RAILWAY_ENVIRONMENT: production
+          PRODUCTION_DOMAIN: purosur.online
+          RELEASE_TAG_PREFIX: cloud-v
+        run: node .github/scripts/production-baseline.mjs
+
   previous-contract:
     name: previous release's route tests on the new schema
-    needs: resolve
+    needs: [resolve, baseline]
     if: startsWith(github.ref, 'refs/tags/cloud-v')
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
       contents: read
     env:
-      PREVIOUS_TAG: ${{ needs.resolve.outputs.previous_tag }}
+      PREVIOUS_TAG: ${{ needs.baseline.outputs.previous_tag }}
     steps:
       - name: Note that there is no previous release
         if: env.PREVIOUS_TAG == ''
@@ -142,7 +177,7 @@ jobs:
 
   register-minimum:
     name: no active register falls below a raised minimum version
-    needs: resolve
+    needs: [resolve, baseline]
     if: startsWith(github.ref, 'refs/tags/cloud-v')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -162,7 +197,7 @@ jobs:
       - name: Compare the minimum register version with the registers in the field
         env:
           TARGET_SHA: ${{ needs.resolve.outputs.sha }}
-          PREVIOUS_TAG: ${{ needs.resolve.outputs.previous_tag }}
+          PREVIOUS_TAG: ${{ needs.baseline.outputs.previous_tag }}
           PRODUCTION_ORIGIN: https://purosur.online
           RELEASE_CHECK_TOKEN: ${{ secrets.RELEASE_CHECK_TOKEN }}
         run: node .github/scripts/register-minimum-check.mjs
@@ -262,8 +297,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Only a digest production serves gets the release's tag, which the next promotion reads as
-      # the release production runs. Nothing is rebuilt.
+      # The release's own tag on the exact digest staging validated; nothing is rebuilt.
       - name: Tag the validated digest with the release
         env:
           SOURCE_IMAGE: ${{ needs.resolve.outputs.image_ref }}

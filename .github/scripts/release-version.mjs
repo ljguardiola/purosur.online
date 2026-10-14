@@ -1,7 +1,6 @@
 import { execFile } from "node:child_process";
 import { appendFile, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
-import { releaseImagePromoted } from "./release-image.mjs";
 
 const LOG_PREFIX = "release-version";
 
@@ -103,26 +102,22 @@ export function isReleaseTag(tag, prefix) {
   return new RegExp(`^${escapeRegExp(prefix)}\\d+\\.\\d+\\.\\d+$`).test(tag);
 }
 
+export function releaseTagsNewestFirst(tags, prefix) {
+  return tags
+    .filter((tag) => isReleaseTag(tag, prefix))
+    .sort((a, b) => compareVersions(b.slice(prefix.length), a.slice(prefix.length)));
+}
+
 async function releaseTags({ prefix, runGit, mergedInto }) {
   const args = ["tag", "--list", `${prefix}*`];
   if (mergedInto !== undefined) args.push("--merged", mergedInto);
   const stdout = await runGit(args);
-  return stdout
-    .split("\n")
-    .filter((tag) => isReleaseTag(tag, prefix))
-    .sort((a, b) => compareVersions(b.slice(prefix.length), a.slice(prefix.length)));
+  return releaseTagsNewestFirst(stdout.split("\n"), prefix);
 }
 
 async function newestReleaseTag({ prefix, sha, runGit }) {
   const [newest] = await releaseTags({ prefix, runGit, mergedInto: sha });
   return newest ?? null;
-}
-
-async function previousPromotedReleaseTag({ prefix, sha, excludeTag, runGit, isPromoted }) {
-  for (const tag of await releaseTags({ prefix, runGit, mergedInto: sha })) {
-    if (tag !== excludeTag && (await isPromoted(tag))) return tag;
-  }
-  return null;
 }
 
 async function assertNotAlreadyReleased({ prefix, sha, runGit }) {
@@ -231,7 +226,6 @@ export async function runCli({
   runGit = runGitViaChildProcess,
   appendOutput = appendFile,
   writeNotes = writeFile,
-  isPromoted,
   log = console.log,
   logError = console.error,
 } = {}) {
@@ -240,8 +234,6 @@ export async function runCli({
     RELEASE_ROOT_PACKAGES,
     TARGET_SHA,
     RELEASE_NOTES_FILE,
-    RELEASE_TAG,
-    REGISTRY_TOKEN,
     GITHUB_OUTPUT,
   } = env;
   const [command] = argv;
@@ -268,33 +260,11 @@ export async function runCli({
       await appendOutput(GITHUB_OUTPUT, `version=${release.version}\ntag=${release.tag}\n`);
       return 0;
     }
-    if (command === "previous-tag") {
-      if (!RELEASE_TAG || !isReleaseTag(RELEASE_TAG, RELEASE_TAG_PREFIX)) {
-        logError(
-          `${LOG_PREFIX}: ${JSON.stringify(RELEASE_TAG)} is not a ${RELEASE_TAG_PREFIX}X.Y.Z tag`,
-        );
-        return 1;
-      }
-      if (isPromoted === undefined && !REGISTRY_TOKEN) {
-        logError(`${LOG_PREFIX}: REGISTRY_TOKEN is required to find the releases production ran`);
-        return 1;
-      }
-      const previous = await previousPromotedReleaseTag({
-        prefix: RELEASE_TAG_PREFIX,
-        sha: TARGET_SHA,
-        excludeTag: RELEASE_TAG,
-        runGit,
-        isPromoted: isPromoted ?? ((tag) => releaseImagePromoted({ tag, token: REGISTRY_TOKEN })),
-      });
-      log(`${LOG_PREFIX}: the promoted release before ${RELEASE_TAG} is ${previous ?? "none"}`);
-      await appendOutput(GITHUB_OUTPUT, `previous_tag=${previous ?? ""}\n`);
-      return 0;
-    }
   } catch (error) {
     logError(error instanceof Error ? error.message : String(error));
     return 1;
   }
-  logError(`${LOG_PREFIX}: the command must be "plan" or "previous-tag"`);
+  logError(`${LOG_PREFIX}: the command must be "plan"`);
   return 1;
 }
 
