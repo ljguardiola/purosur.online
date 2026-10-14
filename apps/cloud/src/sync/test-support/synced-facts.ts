@@ -236,3 +236,32 @@ export function aReprintFact(
     },
   };
 }
+
+export function anOfflineFiscalDocumentFact(
+  overrides: Partial<FactOf<"offline_fiscal_document_issued">["document"]> = {},
+): FactOf<"offline_fiscal_document_issued"> {
+  return {
+    kind: "offline_fiscal_document_issued",
+    document: {
+      fiscalDocumentId: randomUUID(),
+      saleId: randomUUID(),
+      registerId: randomUUID(),
+      pointOfSale: 7,
+      documentType: "factura_c",
+      number: 12,
+      issuedOn: "2026-10-06",
+      generatedAt: new Date("2026-10-06T11:20:00.000Z"),
+      generationStamp: "20261006082000",
+      offlineAuthorizationCode: "21403471111111",
+      fortnightStart: "2026-10-01",
+      fortnightEnd: "2026-10-15",
+      buyerDocumentType: 99,
+      buyerDocumentNumber: 0,
+      buyerTaxStatusCode: 5,
+      total: 4800,
+      netAmount: 4800,
+      cause: "no_connectivity",
+      ...overrides,
+    },
+  };
+}

@@ -1339,6 +1339,64 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 
+  it("reads the document issued under a pre-obtained code", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "offline_fiscal_document_issued",
+          schema_version: 1,
+          payload: {
+            fiscal_document_id: "01a1122a-0305-7189-87d0-8256a353fd41",
+            sale_id: SALE,
+            register_id: "01a1122a-0305-7189-87d0-8256a353fd42",
+            point_of_sale: 7,
+            document_type: "factura_c",
+            number: 12,
+            issued_on: "2026-10-06",
+            generated_at: "2026-10-06T11:20:00.000Z",
+            generation_stamp: "20261006082000",
+            offline_authorization_code: "21403471111111",
+            fortnight_start: "2026-10-01",
+            fortnight_end: "2026-10-15",
+            buyer_document_type: 99,
+            buyer_document_number: 0,
+            buyer_tax_status_code: 5,
+            total: 4800,
+            net_amount: 4800,
+            cause: "unclear_outcome",
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "offline_fiscal_document_issued",
+        document: {
+          fiscalDocumentId: "01a1122a-0305-7189-87d0-8256a353fd41",
+          saleId: SALE,
+          registerId: "01a1122a-0305-7189-87d0-8256a353fd42",
+          pointOfSale: 7,
+          documentType: "factura_c",
+          number: 12,
+          issuedOn: "2026-10-06",
+          generatedAt: new Date("2026-10-06T11:20:00.000Z"),
+          generationStamp: "20261006082000",
+          offlineAuthorizationCode: "21403471111111",
+          fortnightStart: "2026-10-01",
+          fortnightEnd: "2026-10-15",
+          buyerDocumentType: 99,
+          buyerDocumentNumber: 0,
+          buyerTaxStatusCode: 5,
+          total: 4800,
+          netAmount: 4800,
+          cause: "unclear_outcome",
+        },
+      },
+    });
+  });
+
   it("reads the replacement of a pending QR payment", () => {
     const decoded = upcaster.decode(
       unappliedEventOf(
