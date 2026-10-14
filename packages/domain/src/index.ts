@@ -18,6 +18,7 @@ export type {
   RecoveryRequestedDetail,
   RegisterEnrolledDetail,
   RegisterOwnCondition,
+  StorageStanding,
   SignInLockoutDetail,
   VisibleAlertSight,
 } from "./alerts/index.js";
