@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { FICTIONAL_RECOVERY_REPLY_TO } from "../test-support/recovery-reply-to.js";
 import { createResendRecoveryEmailSender } from "./resend-email-sender.js";
 
 function fakeFetch(response: { ok: boolean; status: number; body?: unknown }) {
@@ -15,7 +16,7 @@ describe("createResendRecoveryEmailSender", () => {
     const sender = createResendRecoveryEmailSender({
       apiKey: "re_test_key",
       from: "Puro Sur <acceso@mail.staging.purosur.online>",
-      replyTo: "purosur.comarca@gmail.com",
+      replyTo: FICTIONAL_RECOVERY_REPLY_TO,
       fetch,
     });
 
@@ -36,7 +37,7 @@ describe("createResendRecoveryEmailSender", () => {
     expect(body).toMatchObject({
       from: "Puro Sur <acceso@mail.staging.purosur.online>",
       to: ["ada@example.com"],
-      reply_to: "purosur.comarca@gmail.com",
+      reply_to: FICTIONAL_RECOVERY_REPLY_TO,
     });
     expect(body.subject).toBe("Recuperar el acceso a Puro Sur");
     expect(body.text).toBe(
@@ -64,7 +65,7 @@ describe("createResendRecoveryEmailSender", () => {
     const sender = createResendRecoveryEmailSender({
       apiKey: "re_test_key",
       from: "Puro Sur <acceso@mail.staging.purosur.online>",
-      replyTo: "purosur.comarca@gmail.com",
+      replyTo: FICTIONAL_RECOVERY_REPLY_TO,
       fetch,
     });
 
@@ -85,7 +86,7 @@ describe("createResendRecoveryEmailSender", () => {
     const sender = createResendRecoveryEmailSender({
       apiKey: "re_test_key",
       from: "Puro Sur <acceso@mail.staging.purosur.online>",
-      replyTo: "purosur.comarca@gmail.com",
+      replyTo: FICTIONAL_RECOVERY_REPLY_TO,
       fetch,
     });
 
@@ -100,7 +101,7 @@ describe("createResendRecoveryEmailSender sending a first PIN code", () => {
     return createResendRecoveryEmailSender({
       apiKey: "re_test_key",
       from: "Puro Sur <acceso@mail.staging.purosur.online>",
-      replyTo: "purosur.comarca@gmail.com",
+      replyTo: FICTIONAL_RECOVERY_REPLY_TO,
       fetch,
     });
   }
@@ -118,7 +119,7 @@ describe("createResendRecoveryEmailSender sending a first PIN code", () => {
     expect(body).toMatchObject({
       from: "Puro Sur <acceso@mail.staging.purosur.online>",
       to: ["ada@example.com"],
-      reply_to: "purosur.comarca@gmail.com",
+      reply_to: FICTIONAL_RECOVERY_REPLY_TO,
       subject: "Tu código para crear el PIN",
     });
     expect(body.text).toBe(
@@ -180,7 +181,7 @@ describe("createResendRecoveryEmailSender when Resend does not answer", () => {
     return createResendRecoveryEmailSender({
       apiKey: "re_test_key",
       from: "Puro Sur <acceso@mail.staging.purosur.online>",
-      replyTo: "purosur.comarca@gmail.com",
+      replyTo: FICTIONAL_RECOVERY_REPLY_TO,
       fetch,
     });
   }
