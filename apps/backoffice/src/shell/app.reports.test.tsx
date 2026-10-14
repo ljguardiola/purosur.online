@@ -202,7 +202,7 @@ test("opens the sales by cashier report from the list and reads it from the clou
 });
 
 test("keeps the sales by cashier report's filters after following its own side column link", async () => {
-  const url = "/reports/sales-by-cashier?sortBy=averageTicket&sort=ascending";
+  const url = "/reports/sales-by-cashier?sort=ascending&sortBy=averageTicket";
   const services = reportsServices(["reports_area"]);
   window.history.pushState(null, "", url);
   const screen = await render(<App help={emptyHelp} services={services} />);
