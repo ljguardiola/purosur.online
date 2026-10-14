@@ -9,8 +9,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SalesHistoryQuery } from "../platform/core-client";
+import type { SaleDetail } from "../shell/sale-receipt-text";
 import { render } from "../shell/test-support/render-with-router";
-import type { SaleDetail } from "./sale-history-text";
 import type { SalesHistoryScreenProps } from "./sales-history-screen";
 import { SalesHistoryScreen } from "./sales-history-screen";
 

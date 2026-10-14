@@ -3,6 +3,7 @@ import {
   type CategoryNode,
   categoriesInTreeOrder,
   categoryPathLabels,
+  categoryPathText,
   leafCategories,
   selfAndDescendantIds,
 } from "./category-path";
@@ -69,4 +70,14 @@ test("categoriesInTreeOrder lists each category right before its subcategories, 
     "mermeladas",
     "bebidas",
   ]);
+});
+
+test("categoryPathText joins the names of a path from the root with the design separator", () => {
+  expect(categoryPathText(["Almacén", "Untables", "Mermeladas"])).toBe(
+    "Almacén › Untables › Mermeladas",
+  );
+});
+
+test("categoryPathText is the name alone for a top-level category", () => {
+  expect(categoryPathText(["Almacén"])).toBe("Almacén");
 });

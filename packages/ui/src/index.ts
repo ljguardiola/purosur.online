@@ -58,6 +58,8 @@ export type { LocalAlertExplanationProps } from "./components/feedback/local-ale
 export { LocalAlertExplanation } from "./components/feedback/local-alert-explanation";
 export type { NotificationCardProps } from "./components/feedback/notification-card";
 export { NotificationCard } from "./components/feedback/notification-card";
+export type { NotificationPanelProps } from "./components/feedback/notification-panel";
+export { NotificationPanel } from "./components/feedback/notification-panel";
 export type { PillProps, PillTone } from "./components/feedback/pill";
 export { Pill } from "./components/feedback/pill";
 export type { PillLinkProps } from "./components/feedback/pill-link";
@@ -70,6 +72,8 @@ export type {
 export { ProgressSteps } from "./components/feedback/progress-steps";
 export type { StatusIndicatorProps } from "./components/feedback/status-indicator";
 export { StatusIndicator } from "./components/feedback/status-indicator";
+export type { StatusIndicatorButtonProps } from "./components/feedback/status-indicator-button";
+export { StatusIndicatorButton } from "./components/feedback/status-indicator-button";
 export type { AvatarOptionCardGroupProps } from "./components/forms/avatar-option-card-group";
 export { AvatarOptionCardGroup } from "./components/forms/avatar-option-card-group";
 export type {

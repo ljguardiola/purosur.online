@@ -493,9 +493,13 @@ export type {
   SaleStandingDefinition,
   SaleState,
   SalesOfDay,
+  SalesOfGroup,
+  SalesReportGroup,
   SalesReportTotals,
   SaleWithLines,
+  SoldLinesOfGroup,
   SoldProduct,
+  SoldTotals,
   WeightSource,
 } from "./sales/index.js";
 export {
@@ -520,12 +524,14 @@ export {
   SALE_STANDING_DEFINITIONS,
   SALE_STANDINGS,
   SALES_HISTORY_PAGE_SIZE,
+  SALES_REPORT_GROUPS,
   SALES_REPORT_SALE_STATE,
   saleComprobanteOf,
   saleDiscountUnavailability,
   saleStandingOf,
   saleTotal,
   startedReceiptPrint,
+  UNPRINTED_SALE_STANDINGS,
   WEIGHT_SOURCES,
 } from "./sales/index.js";
 export {

@@ -20,7 +20,11 @@ import {
   suppliersListRoute,
 } from "../purchasing/routes";
 import { registersListRoute } from "../register/routes";
-import { reportsIndexRoute, salesByDayRoute } from "../sales/routes";
+import {
+  reportsIndexRoute,
+  salesByDayRoute,
+  salesByProductAndCategoryRoute,
+} from "../sales/routes";
 import { signInRoute } from "../sessions/routes";
 import {
   assemblyBatchesRoute,
@@ -88,7 +92,12 @@ const routeTree = rootRoute.addChildren([
       fiscalConfigurationRoute,
       pendingRefundsRoute,
     ]),
-    reportsAreaRoute.addChildren([reportsIndexRoute, salesByDayRoute, salesByPaymentMethodRoute]),
+    reportsAreaRoute.addChildren([
+      reportsIndexRoute,
+      salesByDayRoute,
+      salesByPaymentMethodRoute,
+      salesByProductAndCategoryRoute,
+    ]),
     settingsAreaRoute.addChildren([
       myAccountRoute,
       usersListRoute,

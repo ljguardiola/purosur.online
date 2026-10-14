@@ -318,8 +318,10 @@ export {
 } from "./register/register-update.js";
 export type { ReportRegisterListBody } from "./register/report-register-list.js";
 export { reportRegisterListSchema } from "./register/report-register-list.js";
+export type { StartupPending } from "./register/startup-pending.js";
 export type {
   CancelLockedSaleOutcome,
+  PrintOriginalReceiptOutcome,
   ReceiptPrintStatusOutcome,
   ReprintSaleReceiptOutcome,
   SalesCoreToRendererMessage,
@@ -364,12 +366,22 @@ export type {
   WeighProductOutcome,
 } from "./sales/sale.js";
 export type {
+  SalesByProductAndCategoryBody,
+  SalesByProductAndCategoryQuery,
+} from "./sales/sales-by-product-and-category.js";
+export {
+  salesByProductAndCategoryQuerySchema,
+  salesByProductAndCategorySchema,
+} from "./sales/sales-by-product-and-category.js";
+export type {
   ReceiptCopyShown,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
 } from "./sales/sales-history.js";
 export type { SalesReportBody } from "./sales/sales-report.js";
 export { salesReportSchema } from "./sales/sales-report.js";
+export type { SalesReportGroupBody } from "./sales/sales-report-group.js";
+export { salesReportGroupSchema } from "./sales/sales-report-group.js";
 export type {
   SessionsCoreToRendererMessage,
   SessionsRendererToCoreMessage,

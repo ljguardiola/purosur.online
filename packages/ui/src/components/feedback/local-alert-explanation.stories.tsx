@@ -21,32 +21,16 @@ export const SalesDenied: Story = {
   args: { kind: "sales_denied", reason: "event_history_broken" },
 };
 
-export const SalesDeniedWithTitle: Story = {
-  args: { kind: "sales_denied", reason: "event_history_broken", title: true },
-};
-
 export const SalesDeniedDamagedDatabase: Story = {
   args: { kind: "sales_denied", reason: "local_database_damaged" },
-};
-
-export const SalesDeniedDamagedDatabaseWithTitle: Story = {
-  args: { kind: "sales_denied", reason: "local_database_damaged", title: true },
 };
 
 export const RegisterSilent: Story = {
   args: { kind: "register_silent" },
 };
 
-export const RegisterSilentWithTitle: Story = {
-  args: { kind: "register_silent", title: true },
-};
-
 export const InstallationRevoked: Story = {
   args: { kind: "installation_revoked" },
-};
-
-export const InstallationRevokedWithTitle: Story = {
-  args: { kind: "installation_revoked", title: true },
 };
 
 export const LatePaymentRefund: Story = {

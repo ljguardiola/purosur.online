@@ -1,9 +1,13 @@
 import type {
   EndedMercadoPagoChargeState,
+  InterruptedMercadoPagoCharge,
   MercadoPagoCharges,
   PendingMercadoPagoCharge,
 } from "@purosur/domain/payments/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
+
+const PENDING_MERCADO_PAGO_CHARGE =
+  "payment_transactions.method IN ('QR', 'POINT') AND payment_transactions.state = 'PENDING' AND payment_transactions.replaced = 0";
 
 interface PendingChargeRow {
   id: string;
@@ -24,7 +28,7 @@ export class SqliteMercadoPagoCharges implements MercadoPagoCharges {
     const row = this.database
       .prepare<[string], PendingChargeRow>(
         `SELECT id, sale_id, method, amount, wait_ends_at FROM payment_transactions
-         WHERE id = ? AND method IN ('QR', 'POINT') AND state = 'PENDING' AND replaced = 0`,
+         WHERE id = ? AND ${PENDING_MERCADO_PAGO_CHARGE}`,
       )
       .get(paymentTransactionId);
     if (row === undefined) {
@@ -37,6 +41,18 @@ export class SqliteMercadoPagoCharges implements MercadoPagoCharges {
       amount: row.amount,
       waitEndsAt: new Date(row.wait_ends_at),
     };
+  }
+
+  pendingCharges(): InterruptedMercadoPagoCharge[] {
+    return this.database
+      .prepare<[], { id: string; actor_id: string }>(
+        `SELECT payment_transactions.id, sales.actor_id FROM payment_transactions
+         JOIN sales ON sales.id = payment_transactions.sale_id
+         WHERE ${PENDING_MERCADO_PAGO_CHARGE}
+         ORDER BY payment_transactions.occurred_at, payment_transactions.rowid`,
+      )
+      .all()
+      .map(({ id, actor_id }) => ({ paymentTransactionId: id, actorId: actor_id }));
   }
 
   recordEnded(paymentTransactionId: string, state: EndedMercadoPagoChargeState): void {

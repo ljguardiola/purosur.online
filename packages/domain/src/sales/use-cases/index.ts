@@ -99,11 +99,18 @@ export type {
 } from "./preview-sale-line-adjustment.js";
 export { previewSaleLineAdjustment } from "./preview-sale-line-adjustment.js";
 export type {
+  PrintOriginalReceiptInput,
+  PrintOriginalReceiptOutcome,
+  PrintOriginalReceiptPorts,
+} from "./print-original-receipt.js";
+export { printOriginalReceipt } from "./print-original-receipt.js";
+export type {
   PrintSaleReceiptInput,
   PrintSaleReceiptOutcome,
   PrintSaleReceiptPorts,
 } from "./print-sale-receipt.js";
 export { printSaleReceipt } from "./print-sale-receipt.js";
+export type { ProductSalesReportReader, SoldLinesQuery } from "./product-sales-report-reader.js";
 export type {
   ReadSaleHistoryDetailInput,
   ReadSaleHistoryDetailOutcome,
@@ -114,12 +121,23 @@ export { readSaleHistoryDetail } from "./read-sale-history-detail.js";
 export type { ReadSalesByDayInput, SalesByDayReport } from "./read-sales-by-day.js";
 export { readSalesByDay } from "./read-sales-by-day.js";
 export type {
+  ReadSalesByProductAndCategoryInput,
+  SalesByProductAndCategoryReport,
+} from "./read-sales-by-product-and-category.js";
+export { readSalesByProductAndCategory } from "./read-sales-by-product-and-category.js";
+export type {
   ReadSalesHistoryInput,
   ReadSalesHistoryPorts,
   SalesHistoryPageShown,
   SalesHistoryRow,
 } from "./read-sales-history.js";
 export { readSalesHistory } from "./read-sales-history.js";
+export type {
+  SaleToPrintAtStartup,
+  StartupSale,
+  StartupSales,
+} from "./read-sales-to-print-at-startup.js";
+export { readSalesToPrintAtStartup } from "./read-sales-to-print-at-startup.js";
 export type {
   ReceiptDeliveryOfInput,
   ReceiptDeliveryOfOutcome,

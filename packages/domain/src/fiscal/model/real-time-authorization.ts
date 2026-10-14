@@ -86,6 +86,8 @@ export const SERIES_WAITING_STATES: readonly FiscalDocumentState[] = ["REQUESTIN
 
 export const IN_PROGRESS_FISCAL_DOCUMENT_STATES: readonly FiscalDocumentState[] = ["REQUESTING"];
 
+export const OUTCOME_UNKNOWN_FISCAL_DOCUMENT_STATES: readonly FiscalDocumentState[] = ["UNKNOWN"];
+
 export const NUMBER_CONSUMING_STATES: readonly FiscalDocumentState[] = [
   "AUTHORIZED",
   "CONFLICTING",

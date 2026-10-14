@@ -99,6 +99,7 @@ function coreAnswering(
     lockedClosers?: CoreClient["lockedClosers"];
     cashBalance?: CoreClient["cashBalance"];
     sessionOpenSale?: CoreClient["sessionOpenSale"];
+    startupPending?: CoreClient["startupPending"];
     redeemOutcome?: PinCodeRedemptionOutcome;
     cashMovements?: CoreClient["cashMovements"];
     cashMovementKinds?: CoreClient["cashMovementKinds"];
@@ -294,6 +295,9 @@ function coreAnswering(
         ? { kind: "found", next_copy: { kind: "original" }, printed: true, standing: "printed" }
         : sales.receiptPrintStatus(saleId);
     },
+    async printOriginalReceipt() {
+      return { kind: "unavailable" };
+    },
     async reprintSaleReceipt(saleId, reason, authorization) {
       return sales.reprintSaleReceipt === undefined
         ? { kind: "unavailable" }
@@ -404,6 +408,11 @@ function coreAnswering(
     },
     async sessionOpenSale() {
       return cashDrawer.sessionOpenSale === undefined ? null : cashDrawer.sessionOpenSale();
+    },
+    async startupPending() {
+      return cashDrawer.startupPending === undefined
+        ? { sales_to_print: [], unknown_fiscal_documents: [], pending_payments: [] }
+        : cashDrawer.startupPending();
     },
     async cashBalance() {
       return cashDrawer.cashBalance === undefined ? null : cashDrawer.cashBalance();
@@ -1453,6 +1462,81 @@ describe("App", () => {
     });
   });
 
+  describe("the startup pending screen", () => {
+    const PENDING: Awaited<ReturnType<CoreClient["startupPending"]>> = {
+      sales_to_print: [
+        {
+          sale_id: "sale-1",
+          completed_at: "2026-09-30T10:15:00.000-03:00",
+          total: 123_450,
+          standing: "never_printed",
+        },
+      ],
+      unknown_fiscal_documents: [],
+      pending_payments: [],
+    };
+
+    function lockedUntilResumed() {
+      let reads = 0;
+      return async () => {
+        reads += 1;
+        return reads === 1 ? GRACE_SESSION_LOCKED : GRACE_SESSION;
+      };
+    }
+
+    it("shows what the last run left after the cashier resumes an open session, and goes on to the sale from Ir a vender", async () => {
+      const { core } = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
+        cashSession: lockedUntilResumed(),
+        startupPending: async () => PENDING,
+      });
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+      await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+
+      await resumeLockedRegister(screen);
+
+      await expect
+        .element(screen.getByRole("heading", { name: "Hay cosas para resolver" }))
+        .toBeVisible();
+      await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Ir a vender" }));
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    });
+
+    it("goes straight to the sale when the core lists nothing", async () => {
+      const { core } = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
+        cashSession: lockedUntilResumed(),
+      });
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+      await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+
+      await resumeLockedRegister(screen);
+
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    });
+
+    it("does not show it again after Ir a vender when the register is locked and resumed", async () => {
+      const { core } = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
+        cashSession: lockedUntilResumed(),
+        startupPending: async () => PENDING,
+      });
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+      await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+      await resumeLockedRegister(screen);
+      await userEvent.click(screen.getByRole("button", { name: "Ir a vender" }));
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+
+      await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+      await userEvent.click(screen.getByRole("button", { name: "Dejar bloqueada" }));
+      await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+      await resumeLockedRegister(screen);
+
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    });
+  });
+
   it("shows the sale in progress", async () => {
     const reads: string[] = [];
     const { core } = coreAnswering(
@@ -1621,7 +1705,7 @@ describe("App", () => {
       ...answering.core,
       async registerStatus() {
         return {
-          conditions: completed ? [{ kind: "fiscal_emission_stopped" }] : [],
+          conditions: completed ? [{ kind: "fiscal_emission_stopped", level: "critical" }] : [],
           cloud: "unreachable",
           serial_devices: { scale: "matching", reader: "matching" },
           serial_devices_setup_offered: false,
@@ -1645,7 +1729,7 @@ describe("App", () => {
       .element(
         screen
           .getByRole("region", { name: "Estado de la caja" })
-          .getByText("Emisión de facturas detenida"),
+          .getByRole("button", { name: "1 aviso" }),
       )
       .toBeVisible();
   });

@@ -3,6 +3,7 @@ import type {
   ListedCashMovement,
   PaymentMethodAvailability,
   RegisterStatus,
+  StartupPending,
 } from "@purosur/contracts";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createRootRouteWithContext, createRoute, RouterProvider } from "@tanstack/react-router";
@@ -18,6 +19,7 @@ import { serialDevicesOffer } from "../register/serial-devices-offer";
 import type { CoreStatus, Enrollment, RegisterServiceState, RouterContext } from "./router";
 import { createRegisterRouter, routeFor, routeTree } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
+import { startupPendingGate } from "./startup-pending-gate";
 import { GuardedCashInForm } from "./test-support/guarded-cash-in-form";
 
 type RoutePath =
@@ -32,6 +34,7 @@ type RoutePath =
   | "/receipt-printer"
   | "/serial-devices"
   | "/initial-count"
+  | "/startup-pending"
   | "/locked"
   | "/locked-close"
   | "/enroll"
@@ -50,6 +53,23 @@ const OUT_OF_SERVICE_TITLE = "La caja necesita restaurarse";
 const SIGNED_IN_TITLE = "¿Qué querés hacer?";
 const SIGN_IN_TITLE = "¿Quién abre la caja?";
 const SESSION_TITLE = "Venta en curso";
+const STARTUP_PENDING_TITLE = "Hay cosas para resolver";
+const NOTHING_PENDING: StartupPending = {
+  sales_to_print: [],
+  unknown_fiscal_documents: [],
+  pending_payments: [],
+};
+const SALE_TO_PRINT_PENDING: StartupPending = {
+  ...NOTHING_PENDING,
+  sales_to_print: [
+    {
+      sale_id: "sale-1",
+      completed_at: "2026-09-30T10:15:00.000-03:00",
+      total: 123_450,
+      standing: "never_printed",
+    },
+  ],
+};
 const PERSON: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
 const HELP_READER: SignedInPerson = {
   user_id: "u3",
@@ -119,6 +139,7 @@ const screenFor: Record<
     screen.getByRole("heading", { level: 1, name: "Balanza y lector" }),
   "/initial-count": (screen) =>
     screen.getByRole("heading", { level: 1, name: "Inventario inicial" }),
+  "/startup-pending": (screen) => screen.getByRole("heading", { name: STARTUP_PENDING_TITLE }),
   "/locked": (screen) => screen.getByRole("heading", { name: "Caja bloqueada" }),
   "/locked-close": (screen) => screen.getByRole("heading", { name: "¿Quién cierra la caja?" }),
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
@@ -207,6 +228,7 @@ function contextWith(
     cancelSale: async () => ({ kind: "unavailable" }),
     cancelPaidSale: async () => ({ kind: "unavailable" }),
     receiptPrintStatus: async () => ({ kind: "unavailable" }),
+    printOriginalReceipt: async () => ({ kind: "unavailable" }),
     reprintSaleReceipt: async () => ({ kind: "unavailable" }),
     salesHistory: async () => ({ kind: "unavailable" }),
     saleHistoryDetail: async () => ({ kind: "unavailable" }),
@@ -220,6 +242,8 @@ function contextWith(
     }),
     registerSerialDevices: async () => ({ kind: "unavailable" }),
     takeSerialDevicesOffer: async () => false,
+    startupPending: async () => NOTHING_PENDING,
+    startupPendingGate: startupPendingGate(),
     readInitialCount: async () => ({ kind: "read", offered: true, lines: [] }),
     recordInitialCountLine: async () => ({ kind: "unavailable" }),
     withdrawInitialCountLine: async () => ({ kind: "unavailable" }),
@@ -759,6 +783,21 @@ describe("the register's router", () => {
       redirectedTo: "/locked",
     },
     {
+      path: "/startup-pending",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      cashSession: OPEN_SESSION,
+      redirectedTo: "/locked",
+    },
+    {
+      path: "/startup-pending",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      cashSession: NO_SESSION,
+      redirectedTo: "/",
+    },
+    {
       path: "/locked",
       coreStatus: "up",
       enrollment: "enrolled",
@@ -1227,6 +1266,92 @@ describe("the register's router", () => {
     await expect
       .element(screen.getByRole("link", { name: "Balanza y lector" }))
       .not.toBeInTheDocument();
+  });
+
+  describe("the startup pending screen", () => {
+    function routerWithPending(
+      startupPending: RouterContext["startupPending"],
+      path: "/session" | "/startup-pending" = "/session",
+    ) {
+      return createRegisterRouter(
+        routeTree,
+        {
+          ...contextWith("up", "enrolled", PERSON, undefined, OPEN_SESSION),
+          startupPending,
+          startupPendingGate: startupPendingGate(),
+        },
+        path,
+      );
+    }
+
+    it("lands on it, before the sale, when the core lists something the last run left", async () => {
+      const router = routerWithPending(async () => SALE_TO_PRINT_PENDING);
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect.element(screenFor["/startup-pending"](screen)).toBeVisible();
+      expect(router.state.location.pathname).toBe("/startup-pending");
+    });
+
+    it.each([
+      ["lists nothing", async () => NOTHING_PENDING],
+      ["refuses the person", async (): Promise<"not_permitted"> => "not_permitted"],
+      [
+        "fails to answer",
+        async (): Promise<StartupPending> => {
+          throw new Error("the core could not answer");
+        },
+      ],
+    ])("goes straight to the sale when the core %s", async (_name, startupPending) => {
+      const router = routerWithPending(startupPending);
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect.element(screenFor["/session"](screen)).toBeVisible();
+      expect(router.state.location.pathname).toBe("/session");
+    });
+
+    it("goes to the sale from Ir a vender and does not come back to it while the app runs", async () => {
+      const startupPending = vi.fn(async () => SALE_TO_PRINT_PENDING);
+      const router = routerWithPending(startupPending);
+      const screen = await render(<RouterProvider router={router} />);
+      await expect.element(screenFor["/startup-pending"](screen)).toBeVisible();
+
+      await userEvent.click(screen.getByRole("button", { name: "Ir a vender" }));
+      await expect.element(screenFor["/session"](screen)).toBeVisible();
+      await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+      await userEvent.click(screen.getByRole("link", { name: "Venta" }));
+
+      await expect.element(screenFor["/session"](screen)).toBeVisible();
+      expect(router.state.location.pathname).toBe("/session");
+    });
+
+    it("sends the person to the sale when it is opened after being dismissed", async () => {
+      const gate = startupPendingGate();
+      gate.dismiss();
+      const router = createRegisterRouter(
+        routeTree,
+        {
+          ...contextWith("up", "enrolled", PERSON, undefined, OPEN_SESSION),
+          startupPending: async () => SALE_TO_PRINT_PENDING,
+          startupPendingGate: gate,
+        },
+        "/startup-pending",
+      );
+
+      await render(<RouterProvider router={router} />);
+
+      await expect.poll(() => router.state.location.pathname).toBe("/session");
+    });
+
+    it("keeps the rail's Caja reachable from it", async () => {
+      const router = routerWithPending(async () => SALE_TO_PRINT_PENDING);
+      const screen = await render(<RouterProvider router={router} />);
+
+      await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+
+      await expect.poll(() => router.state.location.pathname).toBe("/cash");
+    });
   });
 
   describe("the offer to register the scale and reader after signing in", () => {
@@ -2260,7 +2385,13 @@ describe("the register's status bar", () => {
     const context = {
       ...contextWith("up", "enrolled", PERSON, undefined, NO_SESSION),
       registerStatus: async () => ({
-        conditions: [{ kind: "sales_denied" as const, reason: "event_history_broken" as const }],
+        conditions: [
+          {
+            kind: "sales_denied" as const,
+            reason: "event_history_broken" as const,
+            level: "critical" as const,
+          },
+        ],
         cloud: "unreachable" as const,
         serial_devices: { scale: "matching" as const, reader: "matching" as const },
         serial_devices_setup_offered: false,
@@ -2270,7 +2401,7 @@ describe("the register's status bar", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByText("La caja no puede vender")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "1 aviso" })).toBeVisible();
     await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
   });
 });
