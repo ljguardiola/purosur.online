@@ -1,0 +1,132 @@
+name: Release register
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: release-register
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: tag and release the register staging serves
+    # Run from main, so the tag is cut by the pipeline's own current code; the promotion then runs
+    # bound to the tag it creates. The staging environment gives the job read access to the staging
+    # feed, which is the only place that says which installer staging serves.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: staging
+    permissions:
+      actions: write
+      contents: write
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Require an administrator
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.triggering_actor }}
+        run: node .github/scripts/actor-is-admin.mjs
+
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Read the installer version the staging feed serves
+        id: staging
+        env:
+          POS_UPDATES_BUCKET_NAME: ${{ vars.POS_UPDATES_BUCKET_NAME }}
+          POS_UPDATES_BUCKET_ENDPOINT: ${{ vars.POS_UPDATES_BUCKET_ENDPOINT }}
+          POS_UPDATES_BUCKET_REGION: ${{ vars.POS_UPDATES_BUCKET_REGION }}
+          POS_UPDATES_BUCKET_ACCESS_KEY_ID: ${{ secrets.POS_UPDATES_BUCKET_ACCESS_KEY_ID }}
+          POS_UPDATES_BUCKET_SECRET_ACCESS_KEY: ${{ secrets.POS_UPDATES_BUCKET_SECRET_ACCESS_KEY }}
+        run: node .github/scripts/staging-register-version.mjs
+
+      - name: Name the run and the candidate behind that version
+        id: candidate
+        env:
+          INSTALLER_VERSION: ${{ steps.staging.outputs.version }}
+        run: node .github/scripts/register-candidate.mjs run-of-version
+
+      - name: List the register's packaging runs on main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: >-
+          gh run list --workflow package-pos.yml --branch main --event push --status success
+          --limit 1000 --json number,headSha,headBranch,event,conclusion
+          > "$RUNNER_TEMP/runs.json"
+
+      - name: Find the commit that run packaged
+        id: commit
+        env:
+          RUN_NUMBER: ${{ steps.candidate.outputs.run_number }}
+          RUNS_FILE: ${{ runner.temp }}/runs.json
+        run: node .github/scripts/register-candidate.mjs commit-of-run
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: oras-project/setup-oras@005458ad77f1c8facd38a094e4af2e69e5607ff4 # v2.0.2
+
+      - name: Require the candidate to exist
+        env:
+          CANDIDATE_IMAGE: ${{ steps.candidate.outputs.image }}
+        run: oras manifest fetch --descriptor "$CANDIDATE_IMAGE"
+
+      - name: Calculate the version and the release notes
+        id: version
+        env:
+          RELEASE_TAG_PREFIX: pos-v
+          RELEASE_ROOT_PACKAGES: "@purosur/pos"
+          TARGET_SHA: ${{ steps.commit.outputs.sha }}
+          RELEASE_NOTES_FILE: ${{ runner.temp }}/release-notes.md
+        run: node .github/scripts/release-version.mjs plan
+
+      - name: Flag the hardware adapters this release changes
+        id: hardware
+        env:
+          TARGET_SHA: ${{ steps.commit.outputs.sha }}
+        run: node .github/scripts/hardware-adapter-changes.mjs
+
+      - name: Add the installer version and the hardware test to the release notes
+        env:
+          RELEASE_NOTES_FILE: ${{ runner.temp }}/release-notes.md
+          INSTALLER_VERSION: ${{ steps.staging.outputs.version }}
+          DEVICES: ${{ steps.hardware.outputs.devices }}
+        run: node .github/scripts/register-candidate.mjs release-notes
+
+      - name: Create the tag and the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          TARGET_SHA: ${{ steps.commit.outputs.sha }}
+          RELEASE_NOTES_FILE: ${{ runner.temp }}/release-notes.md
+        run: gh release create "$RELEASE_TAG" --target "$TARGET_SHA" --title "$RELEASE_TAG" --notes-file "$RELEASE_NOTES_FILE"
+
+      # A tag created with the workflow token starts no workflow of its own; a dispatch does.
+      - name: Start the promotion bound to the tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: gh workflow run promote-register-production.yml --ref "$RELEASE_TAG"
