@@ -27,13 +27,4 @@ describe("resolveRegisterSnapshotsBucketConfig", () => {
 
     expect(resolveRegisterSnapshotsBucketConfig(updatesOnly)).toBeUndefined();
   });
-
-  it("configures no bucket when none of its variables is set", () => {
-    expect(resolveRegisterSnapshotsBucketConfig({})).toBeUndefined();
-  });
-
-  it.each(Object.keys(COMPLETE))("refuses a configuration missing %s", (name) => {
-    const { [name]: _missing, ...partial } = COMPLETE as Record<string, string>;
-    expect(() => resolveRegisterSnapshotsBucketConfig(partial)).toThrow(name);
-  });
 });

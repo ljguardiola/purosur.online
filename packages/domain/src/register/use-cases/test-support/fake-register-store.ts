@@ -1,4 +1,8 @@
 import type { Clock } from "../../../shared/index.js";
+import {
+  isRetainedSnapshotGeneration,
+  type SnapshotGenerationStatus,
+} from "../../model/snapshot-generation.js";
 import type {
   DeviceTokenIssuer,
   DeviceTokenRotator,
@@ -43,7 +47,7 @@ export interface FakeRegisterKey extends VersionedKey {
 export interface FakeSnapshotGenerationKeyUse {
   registerId: string;
   keyVersion: number;
-  status: "declared" | "uploaded" | "verified" | "failed";
+  status: SnapshotGenerationStatus;
   pruned: boolean;
 }
 
@@ -229,9 +233,7 @@ class FakeRegisterStoreTransaction implements RegisterStoreTransaction {
         .map(({ version, key }) => ({ version, key }));
     const retained = this.state.snapshotGenerations.filter(
       (generation) =>
-        generation.registerId === registerId &&
-        generation.status !== "failed" &&
-        !generation.pruned,
+        generation.registerId === registerId && isRetainedSnapshotGeneration(generation),
     );
     return {
       snapshotKeys: ofRegister(this.state.snapshotKeys),

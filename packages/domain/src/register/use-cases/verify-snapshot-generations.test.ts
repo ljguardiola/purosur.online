@@ -33,7 +33,7 @@ describe("verifySnapshotGenerations", () => {
 
       const summary = await verify(store, objects);
 
-      expect(summary).toEqual({ verified: 1, failed: 0, waiting: 0 });
+      expect(summary).toEqual({ verified: 1, failed: 0, waiting: 0, unreadable: 0 });
       expect(store.snapshot().generations[0]).toMatchObject({
         status: "verified",
         failureReason: null,
@@ -48,7 +48,7 @@ describe("verifySnapshotGenerations", () => {
 
     const summary = await verify(store, objects);
 
-    expect(summary).toEqual({ verified: 0, failed: 1, waiting: 0 });
+    expect(summary).toEqual({ verified: 0, failed: 1, waiting: 0, unreadable: 0 });
     expect(store.snapshot().generations[0]).toMatchObject({
       status: "failed",
       failureReason: "hash_mismatch",
@@ -76,7 +76,7 @@ describe("verifySnapshotGenerations", () => {
 
     const summary = await verify(store, new FakeSnapshotObjects());
 
-    expect(summary).toEqual({ verified: 0, failed: 0, waiting: 1 });
+    expect(summary).toEqual({ verified: 0, failed: 0, waiting: 1, unreadable: 0 });
     expect(store.snapshot().generations[0]?.status).toBe("declared");
   });
 
@@ -88,7 +88,7 @@ describe("verifySnapshotGenerations", () => {
 
     const summary = await verify(store, new FakeSnapshotObjects());
 
-    expect(summary).toEqual({ verified: 0, failed: 1, waiting: 0 });
+    expect(summary).toEqual({ verified: 0, failed: 1, waiting: 0, unreadable: 0 });
     expect(store.snapshot().generations[0]).toMatchObject({
       status: "failed",
       failureReason: "never_uploaded",
@@ -102,7 +102,7 @@ describe("verifySnapshotGenerations", () => {
 
     const summary = await verify(store, objects);
 
-    expect(summary).toEqual({ verified: 0, failed: 0, waiting: 0 });
+    expect(summary).toEqual({ verified: 0, failed: 0, waiting: 0, unreadable: 0 });
     expect(objects.inspected).toEqual([]);
   });
 
@@ -115,7 +115,24 @@ describe("verifySnapshotGenerations", () => {
 
     const summary = await verify(store, objects);
 
-    expect(summary).toEqual({ verified: 1, failed: 1, waiting: 0 });
+    expect(summary).toEqual({ verified: 1, failed: 1, waiting: 0, unreadable: 0 });
+  });
+
+  it("leaves a generation whose object cannot be read unsettled and settles the rest", async () => {
+    const store = storeWithGeneration({ id: "unreadable" });
+    store.seedGeneration({ id: "good", size: 2048, sha256: SHA });
+    const objects = new FakeSnapshotObjects();
+    objects.seed("register-1", "unreadable", { size: 2048, sha256: SHA });
+    objects.seed("register-1", "good", { size: 2048, sha256: SHA });
+    objects.failingInspections.add("register-1/unreadable");
+
+    const summary = await verify(store, objects);
+
+    expect(summary).toEqual({ verified: 1, failed: 0, waiting: 0, unreadable: 1 });
+    expect(store.snapshot().generations.map(({ id, status }) => ({ id, status }))).toEqual([
+      { id: "unreadable", status: "declared" },
+      { id: "good", status: "verified" },
+    ]);
   });
 
   it("reads the object outside any transaction and settles under the register's lock", async () => {
@@ -135,7 +152,7 @@ describe("verifySnapshotGenerations", () => {
     expect(store.operationOrder).toEqual([
       "unsettledGenerations",
       "lockRegisterSnapshots:register-1",
-      "findGeneration",
+      "findGeneration:register-1",
       "settleGeneration",
     ]);
   });
@@ -155,7 +172,7 @@ describe("verifySnapshotGenerations", () => {
 
     const summary = await verify(store, objects);
 
-    expect(summary).toEqual({ verified: 0, failed: 0, waiting: 0 });
+    expect(summary).toEqual({ verified: 0, failed: 0, waiting: 0, unreadable: 0 });
     expect(store.snapshot().generations[0]).toMatchObject({
       status: "verified",
       failureReason: null,

@@ -48,7 +48,7 @@ const urls: RegisterSnapshotUrls = {
   uploadAuthorization: async (generation) => ({
     url: `https://bucket.example.test/snapshots/${generation.registerId}/${generation.generationId}?sig=up`,
     requiredHeaders: { "x-amz-meta-key-version": String(generation.keyVersion) },
-    expiresAt: new Date("2026-10-14T15:15:00.000Z"),
+    expiresAt: generation.expiresAt,
   }),
   downloadUrl: async (registerId, generationId) =>
     `https://bucket.example.test/snapshots/${registerId}/${generationId}?sig=down`,
@@ -217,6 +217,20 @@ describe("POST /devices/current/snapshots", () => {
   it("answers conflict for a generation that is already verified", async () => {
     const installation = await enrolled();
     await seedGeneration(installation, { status: "verified" });
+    build();
+
+    const response = await call("POST", "/devices/current/snapshots", {
+      authorization: `Bearer ${installation.deviceToken}`,
+      payload: BODY,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(cloudErrorSchema.parse(response.json()).code).toBe("conflict");
+  });
+
+  it("answers conflict for a generation whose upload deadline is reached", async () => {
+    const installation = await enrolled();
+    await seedGeneration(installation, { createdAt: new Date("2026-10-14T14:00:00.000Z") });
     build();
 
     const response = await call("POST", "/devices/current/snapshots", {

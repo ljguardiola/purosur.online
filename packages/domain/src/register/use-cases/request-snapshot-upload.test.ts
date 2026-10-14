@@ -62,6 +62,7 @@ describe("requestSnapshotUpload", () => {
         size: 4096,
         sha256: "b".repeat(64),
         keyVersion: 2,
+        expiresAt: new Date("2026-10-14T15:15:00.000Z"),
       },
     });
   });
@@ -96,6 +97,7 @@ describe("requestSnapshotUpload", () => {
     const store = storeWithKeys();
     store.seedGeneration({
       id: "generation-1",
+      createdAt: NOW,
       size: 4096,
       sha256: "b".repeat(64),
       keyVersion: 2,
@@ -141,6 +143,36 @@ describe("requestSnapshotUpload", () => {
     },
   );
 
+  it("authorizes the same declaration again only until its upload deadline", async () => {
+    const store = storeWithKeys();
+    store.seedGeneration({
+      id: "generation-1",
+      createdAt: new Date("2026-10-14T14:10:00.000Z"),
+      size: 4096,
+      sha256: "b".repeat(64),
+      keyVersion: 2,
+    });
+
+    expect(await request(store)).toMatchObject({
+      kind: "authorized",
+      generation: { expiresAt: new Date("2026-10-14T15:09:00.000Z") },
+    });
+  });
+
+  it("refuses to authorize the same declaration again once its upload deadline is reached", async () => {
+    const store = storeWithKeys();
+    store.seedGeneration({
+      id: "generation-1",
+      createdAt: new Date("2026-10-14T14:00:00.000Z"),
+      size: 4096,
+      sha256: "b".repeat(64),
+      keyVersion: 2,
+      status: "uploaded",
+    });
+
+    expect(await request(store)).toEqual({ kind: "upload_deadline_passed" });
+  });
+
   it("locks the register's snapshots before reading anything", async () => {
     const store = storeWithKeys();
 
@@ -149,7 +181,7 @@ describe("requestSnapshotUpload", () => {
     expect(store.operationOrder).toEqual([
       "lockRegisterSnapshots:register-1",
       "snapshotKeyVersions",
-      "findGeneration",
+      "findGeneration:register-1",
       "recordDeclaredGeneration",
     ]);
   });

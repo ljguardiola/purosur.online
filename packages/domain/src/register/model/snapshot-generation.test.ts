@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  isAwaitingSnapshotVerification,
   isPastSnapshotUploadDeadline,
+  isRetainedSnapshotGeneration,
   SNAPSHOT_CORRUPTION_STAGES,
+  SNAPSHOT_DOWNLOAD_URL_LIFETIME_MS,
   SNAPSHOT_FAILURE_REASONS,
+  SNAPSHOT_GENERATION_STATUSES,
   SNAPSHOT_RETENTION_INTERVAL_MS,
+  SNAPSHOT_STATUSES_AWAITING_VERIFICATION,
+  SNAPSHOT_STATUSES_RETAINED,
   SNAPSHOT_UPLOAD_DEADLINE_MS,
   SNAPSHOT_VERIFICATION_INTERVAL_MS,
+  SNAPSHOT_WORKER_TIME_LIMIT_MS,
+  snapshotUploadUrlExpiry,
 } from "./snapshot-generation.js";
 
 const CREATED_AT = new Date("2026-10-14T12:00:00.000Z");
@@ -36,5 +44,80 @@ describe("snapshot generation", () => {
   it("is past the upload deadline after an hour", () => {
     const afterwards = new Date(CREATED_AT.getTime() + SNAPSHOT_UPLOAD_DEADLINE_MS + 1);
     expect(isPastSnapshotUploadDeadline(CREATED_AT, afterwards)).toBe(true);
+  });
+
+  it("lets an upload URL live 15 minutes when the deadline is further away", () => {
+    expect(snapshotUploadUrlExpiry(CREATED_AT, CREATED_AT)).toEqual(
+      new Date("2026-10-14T12:15:00.000Z"),
+    );
+  });
+
+  it("stops a snapshot worker 60 seconds after it starts", () => {
+    expect(SNAPSHOT_WORKER_TIME_LIMIT_MS).toBe(60 * 1000);
+  });
+
+  it("ends an upload URL early enough for an upload begun with it to finish before the deadline", () => {
+    expect(snapshotUploadUrlExpiry(CREATED_AT, new Date("2026-10-14T12:45:00.000Z"))).toEqual(
+      new Date("2026-10-14T12:59:00.000Z"),
+    );
+    expect(snapshotUploadUrlExpiry(CREATED_AT, new Date("2026-10-14T12:58:00.000Z"))).toEqual(
+      new Date("2026-10-14T12:59:00.000Z"),
+    );
+  });
+
+  it("authorizes no upload URL once an upload begun now could outlast the deadline", () => {
+    expect(
+      snapshotUploadUrlExpiry(CREATED_AT, new Date("2026-10-14T12:59:00.000Z")),
+    ).toBeUndefined();
+  });
+
+  it("authorizes no upload URL once the upload deadline is reached", () => {
+    expect(
+      snapshotUploadUrlExpiry(CREATED_AT, new Date("2026-10-14T13:00:00.000Z")),
+    ).toBeUndefined();
+    expect(
+      snapshotUploadUrlExpiry(CREATED_AT, new Date("2026-10-14T14:00:00.000Z")),
+    ).toBeUndefined();
+  });
+
+  it("lets a download URL live 15 minutes", () => {
+    expect(SNAPSHOT_DOWNLOAD_URL_LIFETIME_MS).toBe(15 * 60 * 1000);
+  });
+
+  it.each([
+    ["declared", true],
+    ["uploaded", true],
+    ["verified", false],
+    ["failed", false],
+  ] as const)("judges a %s generation awaiting verification: %s", (status, awaiting) => {
+    expect(isAwaitingSnapshotVerification(status)).toBe(awaiting);
+  });
+
+  it("lists exactly the statuses awaiting verification", () => {
+    expect(
+      SNAPSHOT_GENERATION_STATUSES.filter((status) => isAwaitingSnapshotVerification(status)),
+    ).toEqual([...SNAPSHOT_STATUSES_AWAITING_VERIFICATION]);
+  });
+
+  it.each([
+    ["declared", false, true],
+    ["uploaded", false, true],
+    ["verified", false, true],
+    ["failed", false, false],
+    ["verified", true, false],
+    ["declared", true, false],
+  ] as const)(
+    "judges a %s generation, pruned: %s, retained by the cloud: %s",
+    (status, pruned, retained) => {
+      expect(isRetainedSnapshotGeneration({ status, pruned })).toBe(retained);
+    },
+  );
+
+  it("lists exactly the statuses of a generation the cloud retains until it is pruned", () => {
+    expect(
+      SNAPSHOT_GENERATION_STATUSES.filter((status) =>
+        isRetainedSnapshotGeneration({ status, pruned: false }),
+      ),
+    ).toEqual([...SNAPSHOT_STATUSES_RETAINED]);
   });
 });

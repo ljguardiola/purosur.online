@@ -57,7 +57,7 @@ describe("recordSnapshotUploaded", () => {
     expect(store.snapshot()).toEqual(before);
   });
 
-  it("locks the register's snapshots before looking the generation up", async () => {
+  it("locks the register's snapshots before looking the generation up among its own", async () => {
     const store = new FakeSnapshotStore();
     store.seedGeneration({ id: "generation-1" });
 
@@ -65,7 +65,7 @@ describe("recordSnapshotUploaded", () => {
 
     expect(store.operationOrder).toEqual([
       "lockRegisterSnapshots:register-1",
-      "findGeneration",
+      "findGeneration:register-1",
       "recordUploadReported",
     ]);
   });

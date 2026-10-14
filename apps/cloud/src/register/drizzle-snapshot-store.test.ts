@@ -1,8 +1,12 @@
-import type { NewSnapshotGeneration } from "@purosur/domain/register/use-cases";
+import {
+  type NewSnapshotGeneration,
+  SnapshotGenerationIdTaken,
+} from "@purosur/domain/register/use-cases";
+import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { registerSnapshotLifecycleRules } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
-import { DrizzleSnapshotStore } from "./drizzle-snapshot-store.js";
+import { DrizzleRegisterSnapshotLanes, DrizzleSnapshotStore } from "./drizzle-snapshot-store.js";
 import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
 import { keyStore } from "./test-support/key-store.js";
 
@@ -71,7 +75,9 @@ describe("DrizzleSnapshotStore", () => {
     const installation = await registerWithKeys();
     const generation = await declare(installation);
 
-    const found = await store().transaction((tx) => tx.findGeneration(FIRST));
+    const found = await store().transaction((tx) =>
+      tx.findGeneration(installation.registerId, FIRST),
+    );
 
     expect(found).toEqual({
       ...generation,
@@ -84,7 +90,21 @@ describe("DrizzleSnapshotStore", () => {
   });
 
   it("finds no generation nobody declared", async () => {
-    expect(await store().transaction((tx) => tx.findGeneration(FIRST))).toBeUndefined();
+    const installation = await registerWithKeys();
+
+    expect(
+      await store().transaction((tx) => tx.findGeneration(installation.registerId, FIRST)),
+    ).toBeUndefined();
+  });
+
+  it("finds no generation another register declared", async () => {
+    const first = await registerWithKeys("Caja 1");
+    const second = await registerWithKeys("Caja 2");
+    await declare(second);
+
+    expect(
+      await store().transaction((tx) => tx.findGeneration(first.registerId, FIRST)),
+    ).toBeUndefined();
   });
 
   it("refuses a generation declared with a key version its register does not hold", async () => {
@@ -97,7 +117,15 @@ describe("DrizzleSnapshotStore", () => {
     const installation = await registerWithKeys();
     await declare(installation);
 
-    await expect(declare(installation)).rejects.toThrow();
+    await expect(declare(installation)).rejects.toBeInstanceOf(SnapshotGenerationIdTaken);
+  });
+
+  it("refuses a generation id another register declared", async () => {
+    const first = await registerWithKeys("Caja 1");
+    const second = await registerWithKeys("Caja 2");
+    await declare(second);
+
+    await expect(declare(first)).rejects.toBeInstanceOf(SnapshotGenerationIdTaken);
   });
 
   it("answers the key versions of the register asked about only", async () => {
@@ -120,7 +148,9 @@ describe("DrizzleSnapshotStore", () => {
     await store().transaction((tx) => tx.recordUploadReported(FIRST, later));
     await store().transaction((tx) => tx.recordUploadReported(FIRST, evenLater));
 
-    const found = await store().transaction((tx) => tx.findGeneration(FIRST));
+    const found = await store().transaction((tx) =>
+      tx.findGeneration(installation.registerId, FIRST),
+    );
     expect(found).toMatchObject({ status: "uploaded", uploadReportedAt: later });
   });
 
@@ -149,7 +179,9 @@ describe("DrizzleSnapshotStore", () => {
 
     await store().transaction((tx) => tx.settleGeneration(FIRST, { kind: "verified" }));
 
-    expect(await store().transaction((tx) => tx.findGeneration(FIRST))).toMatchObject({
+    expect(
+      await store().transaction((tx) => tx.findGeneration(installation.registerId, FIRST)),
+    ).toMatchObject({
       status: "verified",
       failureReason: null,
     });
@@ -163,7 +195,9 @@ describe("DrizzleSnapshotStore", () => {
       tx.settleGeneration(FIRST, { kind: "failed", reason: "hash_mismatch" }),
     );
 
-    expect(await store().transaction((tx) => tx.findGeneration(FIRST))).toMatchObject({
+    expect(
+      await store().transaction((tx) => tx.findGeneration(installation.registerId, FIRST)),
+    ).toMatchObject({
       status: "failed",
       failureReason: "hash_mismatch",
     });
@@ -178,7 +212,9 @@ describe("DrizzleSnapshotStore", () => {
       tx.settleGeneration(FIRST, { kind: "failed", reason: "size_mismatch" }),
     );
 
-    expect(await store().transaction((tx) => tx.findGeneration(FIRST))).toMatchObject({
+    expect(
+      await store().transaction((tx) => tx.findGeneration(installation.registerId, FIRST)),
+    ).toMatchObject({
       status: "verified",
       failureReason: null,
     });
@@ -269,9 +305,48 @@ describe("DrizzleSnapshotStore", () => {
       }),
     ).rejects.toThrow("boom");
 
-    expect(await store().transaction((tx) => tx.findGeneration(FIRST))).toMatchObject({
+    expect(
+      await store().transaction((tx) => tx.findGeneration(installation.registerId, FIRST)),
+    ).toMatchObject({
       status: "declared",
     });
+  });
+});
+
+describe("DrizzleRegisterSnapshotLanes", () => {
+  async function advisoryLocksHeld(): Promise<number> {
+    const result = await db.execute<{ held: number }>(
+      sql`select count(*)::int as held from pg_locks where locktype = 'advisory' and granted`,
+    );
+    return result.rows[0]?.held ?? 0;
+  }
+
+  it("holds the register's snapshot lock across the lane's transactions and releases it after", async () => {
+    const installation = await registerWithKeys();
+    const lanes = new DrizzleRegisterSnapshotLanes({ withConnection: (work) => work(db) });
+    const heldInLane: number[] = [];
+
+    await lanes.inRegisterSnapshotLane(installation.registerId, async (laneStore) => {
+      heldInLane.push(await advisoryLocksHeld());
+      await laneStore.transaction((tx) => tx.lockRegisterSnapshots(installation.registerId));
+      heldInLane.push(await advisoryLocksHeld());
+    });
+
+    expect(heldInLane).toEqual([1, 1]);
+    expect(await advisoryLocksHeld()).toBe(0);
+  });
+
+  it("releases the register's snapshot lock when the lane's work fails", async () => {
+    const installation = await registerWithKeys();
+    const lanes = new DrizzleRegisterSnapshotLanes({ withConnection: (work) => work(db) });
+
+    await expect(
+      lanes.inRegisterSnapshotLane(installation.registerId, async () => {
+        throw new Error("boom");
+      }),
+    ).rejects.toThrow("boom");
+
+    expect(await advisoryLocksHeld()).toBe(0);
   });
 });
 

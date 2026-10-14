@@ -1,13 +1,18 @@
-import type { SnapshotCorruptionStage } from "../../model/snapshot-generation.js";
+import {
+  isAwaitingSnapshotVerification,
+  type SnapshotCorruptionStage,
+} from "../../model/snapshot-generation.js";
 import type { SnapshotLifecycleRules } from "../../model/snapshot-lifecycle-rules.js";
-import type {
-  NewSnapshotGeneration,
-  SnapshotGeneration,
-  SnapshotObjectContent,
-  SnapshotObjects,
-  SnapshotSettlement,
-  SnapshotStore,
-  SnapshotStoreTransaction,
+import {
+  type NewSnapshotGeneration,
+  type RegisterSnapshotLanes,
+  type SnapshotGeneration,
+  SnapshotGenerationIdTaken,
+  type SnapshotObjectContent,
+  type SnapshotObjects,
+  type SnapshotSettlement,
+  type SnapshotStore,
+  type SnapshotStoreTransaction,
 } from "../snapshot-generations.js";
 
 export interface FakeRetentionFreeze {
@@ -34,13 +39,18 @@ type WriteOperation =
 class FakeSnapshotStoreTransaction implements SnapshotStoreTransaction {
   private readonly state: FakeSnapshotState;
   private readonly store: FakeSnapshotStore;
+  private readonly heldLane: string | undefined;
 
-  constructor(state: FakeSnapshotState, store: FakeSnapshotStore) {
+  constructor(state: FakeSnapshotState, store: FakeSnapshotStore, heldLane: string | undefined) {
     this.state = state;
     this.store = store;
+    this.heldLane = heldLane;
   }
 
   async lockRegisterSnapshots(registerId: string): Promise<void> {
+    if (registerId !== this.heldLane) {
+      await this.store.untilLaneIsFree(registerId);
+    }
     this.store.operationOrder.push(`lockRegisterSnapshots:${registerId}`);
   }
 
@@ -51,14 +61,22 @@ class FakeSnapshotStoreTransaction implements SnapshotStoreTransaction {
       .map((key) => key.version);
   }
 
-  async findGeneration(generationId: string): Promise<SnapshotGeneration | undefined> {
-    this.store.operationOrder.push("findGeneration");
-    const found = this.state.generations.find((generation) => generation.id === generationId);
+  async findGeneration(
+    registerId: string,
+    generationId: string,
+  ): Promise<SnapshotGeneration | undefined> {
+    this.store.operationOrder.push(`findGeneration:${registerId}`);
+    const found = this.state.generations.find(
+      (generation) => generation.registerId === registerId && generation.id === generationId,
+    );
     return found ? structuredClone(found) : undefined;
   }
 
   async recordDeclaredGeneration(generation: NewSnapshotGeneration): Promise<void> {
     this.beforeWrite("recordDeclaredGeneration");
+    if (this.state.generations.some((existing) => existing.id === generation.id)) {
+      throw new SnapshotGenerationIdTaken();
+    }
     this.state.generations.push({
       ...structuredClone(generation),
       status: "declared",
@@ -81,7 +99,7 @@ class FakeSnapshotStoreTransaction implements SnapshotStoreTransaction {
   async unsettledGenerations(): Promise<SnapshotGeneration[]> {
     this.store.operationOrder.push("unsettledGenerations");
     return this.state.generations
-      .filter((generation) => generation.status === "declared" || generation.status === "uploaded")
+      .filter((generation) => isAwaitingSnapshotVerification(generation.status))
       .map((generation) => structuredClone(generation));
   }
 
@@ -163,7 +181,13 @@ class FakeSnapshotStoreTransaction implements SnapshotStoreTransaction {
   }
 }
 
-export class FakeSnapshotStore implements SnapshotStore {
+export class FakeSnapshotStore implements SnapshotStore, RegisterSnapshotLanes {
+  private readonly heldLanes = new Map<string, Promise<void>>();
+  private announceWaitForLane: () => void = () => {};
+  readonly someoneWaitedForALane = new Promise<void>((resolve) => {
+    this.announceWaitForLane = resolve;
+  });
+
   private state: FakeSnapshotState = {
     keyVersions: [],
     generations: [],
@@ -210,13 +234,51 @@ export class FakeSnapshotStore implements SnapshotStore {
     return structuredClone(this.state);
   }
 
-  async transaction<TOutcome>(
+  transaction<TOutcome>(
+    work: (tx: SnapshotStoreTransaction) => Promise<TOutcome>,
+  ): Promise<TOutcome> {
+    return this.transactionHolding(undefined, work);
+  }
+
+  async inRegisterSnapshotLane<TOutcome>(
+    registerId: string,
+    work: (store: SnapshotStore) => Promise<TOutcome>,
+  ): Promise<TOutcome> {
+    await this.untilLaneIsFree(registerId);
+    let release: () => void = () => {};
+    this.heldLanes.set(
+      registerId,
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+    );
+    this.operationOrder.push(`registerSnapshotLane:${registerId}`);
+    try {
+      return await work({
+        transaction: (laneWork) => this.transactionHolding(registerId, laneWork),
+      });
+    } finally {
+      this.operationOrder.push(`registerSnapshotLaneReleased:${registerId}`);
+      this.heldLanes.delete(registerId);
+      release();
+    }
+  }
+
+  async untilLaneIsFree(registerId: string): Promise<void> {
+    for (let held = this.heldLanes.get(registerId); held; held = this.heldLanes.get(registerId)) {
+      this.announceWaitForLane();
+      await held;
+    }
+  }
+
+  private async transactionHolding<TOutcome>(
+    heldLane: string | undefined,
     work: (tx: SnapshotStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     this.transactionsOpened += 1;
     const before = structuredClone(this.state);
     try {
-      return await work(new FakeSnapshotStoreTransaction(this.state, this));
+      return await work(new FakeSnapshotStoreTransaction(this.state, this, heldLane));
     } catch (error) {
       this.state = before;
       throw error;
@@ -229,6 +291,7 @@ export class FakeSnapshotObjects implements SnapshotObjects {
   readonly inspected: string[] = [];
   readonly removed: string[] = [];
   readonly failingRemovals = new Set<string>();
+  readonly failingInspections = new Set<string>();
 
   seed(registerId: string, generationId: string, content: SnapshotObjectContent): void {
     this.objects.set(`${registerId}/${generationId}`, { ...content });
@@ -243,6 +306,9 @@ export class FakeSnapshotObjects implements SnapshotObjects {
     generationId: string,
   ): Promise<SnapshotObjectContent | undefined> {
     this.inspected.push(`${registerId}/${generationId}`);
+    if (this.failingInspections.has(`${registerId}/${generationId}`)) {
+      throw new Error(`reading ${registerId}/${generationId} failed`);
+    }
     const content = this.objects.get(`${registerId}/${generationId}`);
     return content ? { ...content } : undefined;
   }

@@ -29,16 +29,19 @@ function bucketAnswering(respond: (request: Request) => Response | Promise<Respo
 
 const unused = () => new Response("", { status: 500 });
 
+const UPLOAD = {
+  registerId: REGISTER_ID,
+  generationId: GENERATION_ID,
+  size: 4096,
+  sha256: "ab".repeat(32),
+  keyVersion: 3,
+  expiresAt: new Date("2026-10-14T15:15:00.000Z"),
+};
+
 describe("BucketRegisterSnapshots.uploadAuthorization", () => {
-  async function authorize() {
+  async function authorize(overrides: Partial<typeof UPLOAD> = {}) {
     const { snapshots, requests } = bucketAnswering(unused);
-    const authorization = await snapshots.uploadAuthorization({
-      registerId: REGISTER_ID,
-      generationId: GENERATION_ID,
-      size: 4096,
-      sha256: "ab".repeat(32),
-      keyVersion: 3,
-    });
+    const authorization = await snapshots.uploadAuthorization({ ...UPLOAD, ...overrides });
     return { authorization, requests, url: new URL(authorization.url) };
   }
 
@@ -49,12 +52,41 @@ describe("BucketRegisterSnapshots.uploadAuthorization", () => {
     expect(requests).toEqual([]);
   });
 
-  it("expires 15 minutes after it is handed out", async () => {
+  it("expires when the authorized upload does", async () => {
     const { authorization, url } = await authorize();
 
     expect(url.searchParams.get("X-Amz-Expires")).toBe("900");
     expect(url.searchParams.get("X-Amz-Date")).toBe("20261014T150000Z");
     expect(authorization.expiresAt).toEqual(new Date("2026-10-14T15:15:00.000Z"));
+  });
+
+  it("expires sooner when the authorized upload ends sooner", async () => {
+    const { authorization, url } = await authorize({
+      expiresAt: new Date("2026-10-14T15:10:00.000Z"),
+    });
+
+    expect(url.searchParams.get("X-Amz-Expires")).toBe("600");
+    expect(authorization.expiresAt).toEqual(new Date("2026-10-14T15:10:00.000Z"));
+  });
+
+  it("never expires after the authorized upload ends", async () => {
+    const { authorization, url } = await authorize({
+      expiresAt: new Date("2026-10-14T15:10:00.999Z"),
+    });
+
+    expect(url.searchParams.get("X-Amz-Expires")).toBe("600");
+    expect(authorization.expiresAt).toEqual(new Date("2026-10-14T15:10:00.000Z"));
+  });
+
+  it("refuses to sign a URL that would expire within its first second", async () => {
+    const { snapshots } = bucketAnswering(unused);
+
+    await expect(
+      snapshots.uploadAuthorization({
+        ...UPLOAD,
+        expiresAt: new Date("2026-10-14T15:00:00.999Z"),
+      }),
+    ).rejects.toThrow("the upload would expire before it could start");
   });
 
   it("signs the key version as object metadata the register has to send", async () => {
@@ -76,15 +108,7 @@ describe("BucketRegisterSnapshots.uploadAuthorization", () => {
     const { snapshots } = bucketAnswering(unused);
     const of = async (keyVersion: number) =>
       new URL(
-        (
-          await snapshots.uploadAuthorization({
-            registerId: REGISTER_ID,
-            generationId: GENERATION_ID,
-            size: 4096,
-            sha256: "ab".repeat(32),
-            keyVersion,
-          })
-        ).url,
+        (await snapshots.uploadAuthorization({ ...UPLOAD, keyVersion })).url,
       ).searchParams.get("X-Amz-Signature");
 
     expect(await of(1)).not.toBe(await of(2));

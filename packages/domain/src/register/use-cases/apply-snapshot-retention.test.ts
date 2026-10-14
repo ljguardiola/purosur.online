@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applySnapshotRetention } from "./apply-snapshot-retention.js";
+import { reportSnapshotCorruption } from "./report-snapshot-corruption.js";
 import { FixedClock } from "./test-support/fake-register-store.js";
 import { FakeSnapshotObjects, FakeSnapshotStore } from "./test-support/fake-snapshot-store.js";
 
@@ -10,7 +11,7 @@ function minutesBefore(minutes: number): Date {
 }
 
 function apply(store: FakeSnapshotStore, objects: FakeSnapshotObjects) {
-  return applySnapshotRetention({ store, clock: new FixedClock(NOW), objects });
+  return applySnapshotRetention({ store, lanes: store, clock: new FixedClock(NOW), objects });
 }
 
 function seedRecent(store: FakeSnapshotStore, registerId = "register-1"): void {
@@ -119,6 +120,7 @@ describe("applySnapshotRetention", () => {
     const store = new FakeSnapshotStore();
     seedRecent(store);
     store.seedGeneration({ id: "failed", status: "failed" });
+    store.seedGeneration({ id: "pruned-earlier", status: "verified", pruned: true });
     store.seedFreeze({ registerId: "register-1", stage: "copy", frozenAt: NOW });
     const before = store.snapshot();
     const objects = objectsFor(store);
@@ -162,19 +164,55 @@ describe("applySnapshotRetention", () => {
     expect(prunedWhenRemoving).toBe(true);
   });
 
-  it("locks the register before reading its generations", async () => {
+  it("holds the register's snapshot lane from reading its generations until each deletion is recorded", async () => {
     const store = new FakeSnapshotStore();
     seedRecent(store);
+    store.seedGeneration({ id: "failed", status: "failed" });
 
     await apply(store, objectsFor(store));
 
-    expect(store.operationOrder.slice(0, 5)).toEqual([
+    expect(store.operationOrder).toEqual([
       "registersWithGenerations",
+      "registerSnapshotLane:register-1",
       "lockRegisterSnapshots:register-1",
       "retentionFrozen",
       "lifecycleRules",
       "generationsOf",
+      "markPruned",
+      "prunedWithObject",
+      "markObjectDeleted",
+      "registerSnapshotLaneReleased:register-1",
     ]);
+  });
+
+  it("makes a corruption report arriving while objects are deleted wait until the deletions are recorded", async () => {
+    const store = new FakeSnapshotStore();
+    seedRecent(store);
+    store.seedGeneration({ id: "failed-1", status: "failed" });
+    store.seedGeneration({ id: "failed-2", status: "failed" });
+    const objects = objectsFor(store);
+    const remove = objects.remove.bind(objects);
+    let report: Promise<unknown> | undefined;
+    objects.remove = async (registerId, generationId) => {
+      if (!report) {
+        report = reportSnapshotCorruption(
+          { store, clock: new FixedClock(NOW) },
+          { registerId, stage: "copy" },
+        );
+        await Promise.race([report, store.someoneWaitedForALane]);
+      }
+      return remove(registerId, generationId);
+    };
+
+    const summary = await apply(store, objects);
+    await report;
+
+    expect(summary).toEqual({ pruned: 2, objectsDeleted: 2, objectsPending: 0 });
+    const order = store.operationOrder;
+    expect(order.indexOf("freezeRetention")).toBeGreaterThan(
+      order.lastIndexOf("markObjectDeleted"),
+    );
+    expect(store.snapshot().freezes).toHaveLength(1);
   });
 
   it("retries next run an object it failed to delete, without pruning it again", async () => {
