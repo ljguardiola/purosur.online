@@ -17,6 +17,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import { FICTIONAL_RECOVERY_REPLY_TO } from "../test-support/recovery-reply-to.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
 import { findFreePort } from "./test-support/find-free-port.js";
@@ -55,7 +56,7 @@ async function startRealServer(): Promise<StartedFixture> {
       DATABASE_URL: integrationDb.databaseUrl,
       RESEND_API_KEY: "unused-redeem-never-sends-email",
       RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-      RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+      RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
       BACKOFFICE_ORIGIN,
       EDGE_ORIGIN_SECRET: TEST_EDGE_ORIGIN_SECRET,
       ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
