@@ -684,8 +684,15 @@
     {
       "idx": 97,
       "version": "7",
-      "when": 1791983543244,
-      "tag": "0101_register_point_terminals",
+      "when": 1791982149291,
+      "tag": "0101_offline_fiscal_documents",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1792006486964,
+      "tag": "0102_register_point_terminals",
       "breakpoints": true
     }
   ]

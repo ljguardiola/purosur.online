@@ -81,6 +81,14 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+test("asks for a keyboard with the decimal comma for the price", async () => {
+  const screen = await renderModal(createProps());
+
+  await expect
+    .element(screen.getByLabelText("Precio de venta por kilo"))
+    .toHaveAttribute("inputmode", "decimal");
+});
+
 test("shows the reason a typed price can't be saved without calling the server", async () => {
   const props = createProps();
   const screen = await renderModal(props);

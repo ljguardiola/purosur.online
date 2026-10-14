@@ -204,7 +204,7 @@ export function CashChargeModal({
               kind="amount"
               prefix="$"
               label="Importe entregado por el cliente"
-              inputMode="numeric"
+              inputMode="decimal"
               value={field.state.value}
               onChange={field.handleChange}
               disabled={submitting}

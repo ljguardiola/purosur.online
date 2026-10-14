@@ -74,6 +74,14 @@ test.each([
   await expect.element(screen.getByLabelText(label)).toBeVisible();
 });
 
+test("asks for a keyboard with the decimal comma for the cost", async () => {
+  const screen = await renderModal(createProps());
+
+  await expect
+    .element(screen.getByLabelText("Costo de referencia por kg"))
+    .toHaveAttribute("inputmode", "decimal");
+});
+
 test("shows the reason a typed cost can't be saved without calling the cloud", async () => {
   const props = createProps();
   const screen = await renderModal(props);

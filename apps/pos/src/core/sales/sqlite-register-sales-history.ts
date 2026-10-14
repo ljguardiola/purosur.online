@@ -188,10 +188,13 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
 
   private fiscalFactsOf(saleId: string): SaleFiscalFacts {
     const document = this.database
-      .prepare<[string], FiscalDocumentRow>(
-        "SELECT state, point_of_sale, number FROM fiscal_documents WHERE sale_id = ?",
+      .prepare<[{ sale_id: string }], FiscalDocumentRow>(
+        `SELECT state, point_of_sale, number FROM fiscal_documents WHERE sale_id = @sale_id
+         UNION ALL
+         SELECT 'AUTHORIZED', point_of_sale, number FROM offline_fiscal_documents
+         WHERE sale_id = @sale_id`,
       )
-      .get(saleId);
+      .get({ sale_id: saleId });
     const deferredRecord = this.database
       .prepare<[string], { satisfied: 0 | 1 }>(
         `SELECT ${DEFERRED_SALE_SATISFIED} AS satisfied FROM deferred_sales WHERE sale_id = ?`,

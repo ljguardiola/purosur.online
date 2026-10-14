@@ -1,5 +1,5 @@
 {
-  "id": "bb49bffa-5e5a-4943-bd59-8db45588c552",
+  "id": "b30f0a5c-a914-466c-b22b-f169ac80881d",
   "prevId": "cf7d05bb-4f4c-497f-a5bf-48b81fbe44d4",
   "version": "7",
   "dialect": "postgresql",
@@ -6102,63 +6102,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.register_point_terminals": {
-      "name": "register_point_terminals",
-      "schema": "",
-      "columns": {
-        "register_id": {
-          "name": "register_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "terminal_id": {
-          "name": "terminal_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "register_point_terminals_terminal_id_key": {
-          "name": "register_point_terminals_terminal_id_key",
-          "columns": [
-            {
-              "expression": "terminal_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "register_point_terminals_register_id_registers_id_fk": {
-          "name": "register_point_terminals_register_id_registers_id_fk",
-          "tableFrom": "register_point_terminals",
-          "tableTo": "registers",
-          "columnsFrom": ["register_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.register_points_of_sale": {
       "name": "register_points_of_sale",
       "schema": "",
@@ -8322,6 +8265,167 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.offline_fiscal_documents": {
+      "name": "offline_fiscal_documents",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "sale_id": {
+          "name": "sale_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "register_id": {
+          "name": "register_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "point_of_sale": {
+          "name": "point_of_sale",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "document_type": {
+          "name": "document_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "number": {
+          "name": "number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issued_on": {
+          "name": "issued_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "generated_at": {
+          "name": "generated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "generation_stamp": {
+          "name": "generation_stamp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "offline_authorization_code": {
+          "name": "offline_authorization_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fortnight_start": {
+          "name": "fortnight_start",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fortnight_end": {
+          "name": "fortnight_end",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "buyer_document_type": {
+          "name": "buyer_document_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "buyer_document_number": {
+          "name": "buyer_document_number",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "buyer_tax_status_code": {
+          "name": "buyer_tax_status_code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total": {
+          "name": "total",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "net_amount": {
+          "name": "net_amount",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cause": {
+          "name": "cause",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recorded_at": {
+          "name": "recorded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "offline_fiscal_documents_register_id_registers_id_fk": {
+          "name": "offline_fiscal_documents_register_id_registers_id_fk",
+          "tableFrom": "offline_fiscal_documents",
+          "tableTo": "registers",
+          "columnsFrom": ["register_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "offline_fiscal_documents_sale_id_unique": {
+          "name": "offline_fiscal_documents_sale_id_unique",
+          "nullsNotDistinct": false,
+          "columns": ["sale_id"]
+        },
+        "offline_fiscal_documents_number_key": {
+          "name": "offline_fiscal_documents_number_key",
+          "nullsNotDistinct": false,
+          "columns": ["point_of_sale", "document_type", "number"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "offline_fiscal_documents_document_type_known": {
+          "name": "offline_fiscal_documents_document_type_known",
+          "value": "\"offline_fiscal_documents\".\"document_type\" in ('factura_c')"
+        },
+        "offline_fiscal_documents_cause_known": {
+          "name": "offline_fiscal_documents_cause_known",
+          "value": "\"offline_fiscal_documents\".\"cause\" in ('no_connectivity', 'unclear_outcome', 'numbering_conflict')"
+        },
+        "offline_fiscal_documents_generation_stamp_shape": {
+          "name": "offline_fiscal_documents_generation_stamp_shape",
+          "value": "\"offline_fiscal_documents\".\"generation_stamp\" ~ '^[0-9]{14}$'"
+        }
+      },
       "isRLSEnabled": false
     }
   },
