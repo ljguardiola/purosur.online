@@ -160,7 +160,10 @@ export function registerMercadoPagoOrderRoutes<TQueryResult extends PgQueryResul
         };
         const outcome =
           body.provider === "MERCADOPAGO_POINT"
-            ? await createMercadoPagoPointOrder({ lanes, mercadoPago, pointTerminals, clock }, input)
+            ? await createMercadoPagoPointOrder(
+                { lanes, mercadoPago, pointTerminals, clock },
+                input,
+              )
             : await createMercadoPagoQrOrder({ lanes, mercadoPago, clock }, input);
 
         switch (outcome.kind) {

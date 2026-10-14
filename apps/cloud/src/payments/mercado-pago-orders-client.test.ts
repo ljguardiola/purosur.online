@@ -178,9 +178,7 @@ describe("creating an order on the integrated terminal", () => {
   );
 
   it("is throttled, having created nothing, when Mercado Pago answers 429", async () => {
-    const { client } = clientAnswering(
-      answer(429, { errors: [{ code: "too_many_requests" }] }),
-    );
+    const { client } = clientAnswering(answer(429, { errors: [{ code: "too_many_requests" }] }));
 
     expect(await client.createPointOrder(POINT_REQUEST)).toStrictEqual({ kind: "throttled" });
   });

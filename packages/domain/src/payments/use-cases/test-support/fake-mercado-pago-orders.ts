@@ -73,9 +73,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
     return this.creation;
   }
 
-  async createPointOrder(
-    request: MercadoPagoPointOrderRequest,
-  ): Promise<MercadoPagoOrderCreation> {
+  async createPointOrder(request: MercadoPagoPointOrderRequest): Promise<MercadoPagoOrderCreation> {
     this.lanes.operations.push("createPointOrder");
     this.pointCreationRequests.push(request);
     this.observeLane();
