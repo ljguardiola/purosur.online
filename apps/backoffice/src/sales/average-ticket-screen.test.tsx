@@ -136,7 +136,7 @@ test("counts a single sale as 1 venta and names a single previous day", async ()
 test("has no previous average and no difference when the previous period had no sales", async () => {
   const screen = await renderScreen(withReport(singleDayAverageTicketReport));
 
-  await expect.element(screen.getByText("Diferencia")).toBeVisible();
+  await expect.element(screen.getByText("El 06/10/2026")).toBeVisible();
   expect(screen.getByText("—", { exact: true }).elements()).toHaveLength(2);
 });
 
