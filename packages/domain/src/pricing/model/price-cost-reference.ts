@@ -1,3 +1,4 @@
+import { type FreightToDistribute, freightPerUnit } from "../../purchasing/index.js";
 import { argentinaCalendarDay, type Fraction, roundHalfUp } from "../../shared/index.js";
 import {
   knownLotCost,
@@ -13,6 +14,7 @@ export type CostSource =
       purchasedOn: string;
       recordedAt: Date;
       cost: LotCost;
+      freights: FreightToDistribute[];
     }
   | {
       kind: "initial_count";
@@ -109,6 +111,23 @@ function marginTenthsOfPercent(cost: Fraction, unitPrice: number): number {
   });
 }
 
+function noFreight(): Fraction {
+  return { numerator: 0n, denominator: 1n };
+}
+
+function freightFraction({ source }: DatedCost): Fraction {
+  return source.kind === "purchase_line"
+    ? freightPerUnit(source.lineId, source.freights)
+    : noFreight();
+}
+
+function sum(left: Fraction, right: Fraction): Fraction {
+  return {
+    numerator: left.numerator * right.denominator + right.numerator * left.denominator,
+    denominator: left.denominator * right.denominator,
+  };
+}
+
 export function priceCostReference(
   sources: readonly CostSource[],
   unitPrice: number | null,
@@ -117,12 +136,13 @@ export function priceCostReference(
   if (last === null) {
     return null;
   }
-  const lastCostCents = unitCostCents(last.cost.totalCents, last.cost.quantity);
+  const lastCost = unitCostFraction(last.cost);
+  const freight = freightFraction(last);
+  const totalCost = sum(lastCost, freight);
   return {
-    lastCostCents,
-    freightPerUnitCents: 0,
-    totalCostCents: lastCostCents,
-    marginTenthsOfPercent:
-      unitPrice === null ? null : marginTenthsOfPercent(unitCostFraction(last.cost), unitPrice),
+    lastCostCents: unitCostCents(last.cost.totalCents, last.cost.quantity),
+    freightPerUnitCents: roundHalfUp(freight),
+    totalCostCents: roundHalfUp(totalCost),
+    marginTenthsOfPercent: unitPrice === null ? null : marginTenthsOfPercent(totalCost, unitPrice),
   };
 }

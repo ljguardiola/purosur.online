@@ -28,6 +28,8 @@ import {
   discounts,
   fiscalAddresses,
   fiscalRequests,
+  freightPurchases,
+  freights,
   inbox,
   installationRequestAttempts,
   issuerIdentification,
@@ -712,6 +714,22 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       quantityPerOutputUnit: 500,
       position: 0,
     });
+    const [freight] = await db
+      .insert(freights)
+      .values({
+        locationId: await seededLocationId(db),
+        freightOn: "2026-01-05",
+        amountCents: 5_000,
+        description: "Flete de la semana",
+        meansKind: "own_trip",
+        recordedAt: new Date("2026-01-05T12:00:00.000Z"),
+        actorId: user.id,
+        updatedAt: new Date("2026-01-05T12:00:00.000Z"),
+      })
+      .returning({ id: freights.id });
+    await db
+      .insert(freightPurchases)
+      .values({ freightId: freight?.id as string, purchaseId: purchase?.id as string });
     await db.insert(paymentTransactions).values({
       id: "00000000-0000-4000-8000-000000000103",
       registerId: register.id,
