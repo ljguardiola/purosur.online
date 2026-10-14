@@ -18,8 +18,8 @@ export type {
   RecoveryRequestedDetail,
   RegisterEnrolledDetail,
   RegisterOwnCondition,
-  StorageStanding,
   SignInLockoutDetail,
+  StorageStanding,
   VisibleAlertSight,
 } from "./alerts/index.js";
 export {

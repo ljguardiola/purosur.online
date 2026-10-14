@@ -128,6 +128,7 @@ describe("the register's telemetry", () => {
       () => devices,
       () => undefined,
       () => undefined,
+      () => undefined,
     );
 
     const before = await read();
@@ -162,6 +163,7 @@ describe("the register's telemetry", () => {
       () => SERIAL_DEVICES,
       () => undefined,
       () => battery,
+      () => undefined,
     );
 
     const before = await read();
@@ -178,6 +180,7 @@ describe("the register's telemetry", () => {
       async () => STORAGE,
       () => stop,
       () => SERIAL_DEVICES,
+      () => undefined,
       () => undefined,
       () => undefined,
     );
@@ -197,6 +200,7 @@ describe("the register's telemetry", () => {
       () => ({ stopped: false }),
       () => SERIAL_DEVICES,
       () => latest,
+      () => undefined,
       () => undefined,
     );
 
