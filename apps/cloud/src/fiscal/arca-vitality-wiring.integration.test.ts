@@ -6,7 +6,10 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { FICTIONAL_RECOVERY_REPLY_TO } from "../test-support/recovery-reply-to.js";
+import {
+  FICTIONAL_RECOVERY_REPLY_TO,
+  FICTIONAL_RECOVERY_SENDER,
+} from "../test-support/recovery-email.js";
 import { ARCA_VITALITY_CHECK_TASK_IDENTIFIER } from "./arca-vitality-task.js";
 import {
   answers,
@@ -64,7 +67,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
-        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
         emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
         backofficeOrigin: "https://staging.purosur.online",
         arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
@@ -113,7 +116,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
-        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
         emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
         backofficeOrigin: "https://staging.purosur.online",
         arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
@@ -150,7 +153,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
-        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
         emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
         backofficeOrigin: "https://staging.purosur.online",
         arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
