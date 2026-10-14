@@ -517,3 +517,154 @@ describe("GET /reports/sales-by-cashier", () => {
     expect(response.json().rows).toEqual([]);
   });
 });
+
+function averageTicket(headers: Record<string, string>, query = "") {
+  return app.inject({ method: "GET", url: `/reports/average-ticket${query}`, headers });
+}
+
+describe("GET /reports/average-ticket access", () => {
+  const request = averageTicket;
+
+  it("returns 401 when no session cookie was sent", async () => {
+    const response = await request({ origin: BACKOFFICE_ORIGIN });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("rejects an Origin that is not the backoffice's own", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await request({ ...headers, origin: "https://attacker.example" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "origin_rejected" });
+  });
+
+  it("rejects a user who may not view reports", async () => {
+    const { headers } = await signedInWith(db, ["view_stock_balances"], NOW);
+
+    const response = await request(headers);
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("answers a user who may view reports", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await request(headers);
+
+    expect(response.statusCode).toBe(200);
+  });
+});
+
+describe("GET /reports/average-ticket", () => {
+  it.each([
+    ["a range ending before it starts", "?from=2026-10-06&to=2026-10-05"],
+    ["a register that is not an id", "?register_id=caja-1"],
+    ["a parameter given twice", "?from=2026-10-01&from=2026-10-02&to=2026-10-03"],
+  ])("answers 400 to %s", async (_name, query) => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await averageTicket(headers, query);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
+  it("compares the current Argentina day with the day before when no range is asked", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await averageTicket(headers);
+
+    expect(response.json()).toEqual({
+      range: { from: "2026-10-07", to: "2026-10-07" },
+      previous_range: { from: "2026-10-06", to: "2026-10-06" },
+      current: { sales_count: 0, total: 0, average_ticket: null },
+      previous: { sales_count: 0, total: 0, average_ticket: null },
+      change_tenths: null,
+      weeks: [
+        { from: "2026-10-07", to: "2026-10-07", sales_count: 0, total: 0, average_ticket: null },
+      ],
+    });
+  });
+
+  it("answers the average ticket of the range, of the range before it and their difference", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { deviceId } = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 1" });
+    const soldOn = (completedAt: string, total: number) =>
+      applyCompletedSale(db, { deviceId, completedAt: new Date(completedAt), total });
+    await soldOn("2026-10-06T14:00:00.000Z", 1_000);
+    await soldOn("2026-10-06T15:00:00.000Z", 3_000);
+    await soldOn("2026-10-07T14:00:00.000Z", 3_000);
+    await soldOn("2026-10-07T15:00:00.000Z", 3_600);
+
+    const response = await averageTicket(headers, "?from=2026-10-07&to=2026-10-07");
+
+    expect(response.json()).toEqual({
+      range: { from: "2026-10-07", to: "2026-10-07" },
+      previous_range: { from: "2026-10-06", to: "2026-10-06" },
+      current: { sales_count: 2, total: 6_600, average_ticket: 3_300 },
+      previous: { sales_count: 2, total: 4_000, average_ticket: 2_000 },
+      change_tenths: 650,
+      weeks: [
+        {
+          from: "2026-10-07",
+          to: "2026-10-07",
+          sales_count: 2,
+          total: 6_600,
+          average_ticket: 3_300,
+        },
+      ],
+    });
+  });
+
+  it("cuts a longer range into weeks counted back from its last day", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await averageTicket(headers, "?from=2026-09-30&to=2026-10-07");
+
+    expect(
+      response.json().weeks.map(({ from, to }: { from: string; to: string }) => [from, to]),
+    ).toEqual([
+      ["2026-10-01", "2026-10-07"],
+      ["2026-09-30", "2026-09-30"],
+    ]);
+  });
+
+  it("shows a pushed sale only once its event was applied", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    await receiveSale(4_800);
+
+    const before = await averageTicket(headers, "?from=2026-10-07&to=2026-10-07");
+    await applySyncedEventsTask(db, { now: () => NOW });
+    const after = await averageTicket(headers, "?from=2026-10-07&to=2026-10-07");
+
+    expect(before.json().current).toEqual({ sales_count: 0, total: 0, average_ticket: null });
+    expect(after.json().current).toEqual({ sales_count: 1, total: 4_800, average_ticket: 4_800 });
+  });
+
+  it("filters by an asked register of the branch", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { registerId } = await receiveSale(4_800);
+    await applySyncedEventsTask(db, { now: () => NOW });
+
+    const ofTheRegister = await averageTicket(headers, `?register_id=${registerId}`);
+    const ofAnotherRegister = await averageTicket(headers, `?register_id=${randomUUID()}`);
+
+    expect(ofTheRegister.json().current.total).toBe(4_800);
+    expect(ofAnotherRegister.json().current.total).toBe(0);
+  });
+
+  it("reports the branch of the session and never another", async () => {
+    const otherLocationId = await insertLocation(db);
+    const { headers } = await signedInWith(db, ["view_reports"], NOW, {
+      locationId: otherLocationId,
+    });
+    await receiveSale(4_800);
+    await applySyncedEventsTask(db, { now: () => NOW });
+
+    const response = await averageTicket(headers);
+
+    expect(response.json().current.sales_count).toBe(0);
+  });
+});
