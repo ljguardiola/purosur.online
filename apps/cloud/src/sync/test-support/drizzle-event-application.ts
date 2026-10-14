@@ -38,7 +38,7 @@ export function eventApplicationUnderTest(): EventApplicationUnderTest {
     get application() {
       return application;
     },
-    enrollInstallation() {
+    enrollInstallation(options) {
       return insertEnrolledInstallation(testDatabase.db, { now: APPLICATION_NOW, ...options });
     },
   };
