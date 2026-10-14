@@ -162,6 +162,15 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     purchasesListScreen: {
       fetchPurchases: vi.fn().mockReturnValue(new Promise(() => {})),
     },
+    freightsListScreen: {
+      fetchFreights: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: { items: [], count: 0, totalCents: 0 },
+      }),
+      fetchLinkablePurchases: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+      recordFreight: vi.fn(),
+      editFreight: vi.fn(),
+    },
     newPurchaseScreen: {
       fetchPurchaseChoices: vi.fn().mockReturnValue(new Promise(() => {})),
       registerPurchase: vi.fn(),
