@@ -18,32 +18,15 @@ describe("resolveMercadoPagoConfig", () => {
     });
   });
 
-  it("adds the integrated terminal's identifier when it is set", () => {
-    expect(
-      resolveMercadoPagoConfig({
-        ...COMPLETE,
-        MERCADOPAGO_POINT_TERMINAL_ID: "PAX_A910__SMARTPOS1",
-      }),
-    ).toEqual({
-      accessToken: ACCESS_TOKEN,
-      externalPosId: "STORE01POS01",
-      webhookSecret: WEBHOOK_SECRET,
-      pointTerminalId: "PAX_A910__SMARTPOS1",
-    });
-  });
+  it("does not read the integrated terminal's variable, which a register's assignment replaces", () => {
+    const env = { MERCADOPAGO_POINT_TERMINAL_ID: "PAX_A910__SMARTPOS1" };
 
-  it("leaves the integrated terminal out when its variable is empty", () => {
-    expect(resolveMercadoPagoConfig({ ...COMPLETE, MERCADOPAGO_POINT_TERMINAL_ID: "" })).toEqual({
+    expect(resolveMercadoPagoConfig(env)).toBeUndefined();
+    expect(resolveMercadoPagoConfig({ ...COMPLETE, ...env })).toEqual({
       accessToken: ACCESS_TOKEN,
       externalPosId: "STORE01POS01",
       webhookSecret: WEBHOOK_SECRET,
     });
-  });
-
-  it("refuses only the integrated terminal being set, naming the access token", () => {
-    expect(() =>
-      resolveMercadoPagoConfig({ MERCADOPAGO_POINT_TERMINAL_ID: "PAX_A910__SMARTPOS1" }),
-    ).toThrow("MERCADOPAGO_ACCESS_TOKEN must be set when MERCADOPAGO_POINT_TERMINAL_ID is set");
   });
 
   it.each([
@@ -54,7 +37,6 @@ describe("resolveMercadoPagoConfig", () => {
         MERCADOPAGO_ACCESS_TOKEN: "",
         MERCADOPAGO_QR_EXTERNAL_POS_ID: "",
         MERCADOPAGO_WEBHOOK_SECRET: "",
-        MERCADOPAGO_POINT_TERMINAL_ID: "",
       },
     ],
   ])("leaves Mercado Pago unconfigured when %s", (_name, env) => {

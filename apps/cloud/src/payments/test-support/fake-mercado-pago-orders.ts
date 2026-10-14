@@ -5,7 +5,6 @@ import type {
   MercadoPagoOrderReading,
   MercadoPagoOrderRefundsReading,
   MercadoPagoOrders,
-  MercadoPagoPointOrderCreation,
   MercadoPagoPointOrderRequest,
   MercadoPagoQrOrderRequest,
 } from "@purosur/domain/payments/use-cases";
@@ -54,7 +53,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   readonly refunds: { orderId: string; idempotencyKey: string }[] = [];
   readonly refundReadings: string[] = [];
   creation: MercadoPagoOrderCreation = { kind: "created", orderId: ORDER_ID, result: UNPAID_ORDER };
-  pointCreation: MercadoPagoPointOrderCreation = {
+  pointCreation: MercadoPagoOrderCreation = {
     kind: "created",
     orderId: ORDER_ID,
     result: UNPAID_ORDER,
@@ -75,7 +74,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
 
   async createPointOrder(
     request: MercadoPagoPointOrderRequest,
-  ): Promise<MercadoPagoPointOrderCreation> {
+  ): Promise<MercadoPagoOrderCreation> {
     this.pointCreations.push(request);
     return this.pointCreation;
   }

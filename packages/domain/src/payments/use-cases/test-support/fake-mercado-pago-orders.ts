@@ -6,7 +6,6 @@ import type {
   MercadoPagoOrderReading,
   MercadoPagoOrderRefundsReading,
   MercadoPagoOrders,
-  MercadoPagoPointOrderCreation,
   MercadoPagoPointOrderRequest,
   MercadoPagoQrOrderRequest,
 } from "../mercado-pago-order-ports.js";
@@ -32,7 +31,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   recordedDuringCreation: MercadoPagoOrderTransaction | undefined;
   creationStopsMidway = false;
   creation: MercadoPagoOrderCreation;
-  pointCreation: MercadoPagoPointOrderCreation;
+  pointCreation: MercadoPagoOrderCreation;
   reading: MercadoPagoOrderReading;
   cancellation: MercadoPagoOrderCancellation = {
     kind: "cancelled",
@@ -52,7 +51,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
     lanes: FakePaymentTransactionLanes,
     answers: {
       creation: MercadoPagoOrderCreation;
-      pointCreation: MercadoPagoPointOrderCreation;
+      pointCreation: MercadoPagoOrderCreation;
       reading: MercadoPagoOrderReading;
     },
   ) {
@@ -76,7 +75,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
 
   async createPointOrder(
     request: MercadoPagoPointOrderRequest,
-  ): Promise<MercadoPagoPointOrderCreation> {
+  ): Promise<MercadoPagoOrderCreation> {
     this.lanes.operations.push("createPointOrder");
     this.pointCreationRequests.push(request);
     this.observeLane();
