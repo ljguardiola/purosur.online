@@ -40,13 +40,17 @@ async function keepCode(fortnight: Fortnight, code: string, reportDeadline: stri
   );
 }
 
-async function claimedBeforeEveryFortnight(pointOfSaleNumber: number) {
+async function claimedAt(pointOfSaleNumber: number, instant: string) {
   await testDatabase.asMigrator(() =>
     db
       .update(pointOfSaleClaims)
-      .set({ claimedAt: new Date("2026-09-20T12:00:00.000Z") })
+      .set({ claimedAt: new Date(instant) })
       .where(eq(pointOfSaleClaims.pointOfSaleNumber, pointOfSaleNumber)),
   );
+}
+
+function claimedBeforeEveryFortnight(pointOfSaleNumber: number) {
+  return claimedAt(pointOfSaleNumber, "2026-09-20T12:00:00.000Z");
 }
 
 function record(pointOfSaleNumber: number, fortnight: Fortnight, state: "blocked" | "accepted") {
@@ -163,7 +167,7 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
   it("answers nothing for a point of sale claimed after the fortnight closed or a fortnight that has not closed", async () => {
     await seedOfflinePointOfSale(db);
     await keepCode(OCTOBER_FIRST_HALF, "36123456789012", "2026-10-20");
-    await keepCode(OCTOBER_SECOND_HALF, "36123456789013", "2026-11-05");
+    await claimedAt(OFFLINE_POINT_OF_SALE, "2026-10-17T12:00:00.000Z");
 
     expect(await presentations("2026-10-16")).toEqual([]);
 
