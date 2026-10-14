@@ -4,6 +4,7 @@ import {
   diskStanding,
   RETAINED_SNAPSHOT_GENERATIONS,
   requiredFreeBytes,
+  startupDiskVerdict,
   STORAGE_READ_INTERVAL_MS,
   WAL_SIZE_LIMIT_BYTES,
   walOversized,
@@ -92,5 +93,32 @@ describe("walOversized", () => {
 
   it("is false for an empty WAL", () => {
     expect(walOversized(0)).toBe(false);
+  });
+});
+
+describe("startupDiskVerdict", () => {
+  const databaseSizeBytes = 500 * MEGABYTE;
+  const required = requiredFreeBytes(databaseSizeBytes);
+
+  it("is fine with exactly the required free space", () => {
+    expect(startupDiskVerdict({ freeBytes: required, databaseSizeBytes })).toEqual({
+      kind: "fine",
+    });
+  });
+
+  it("is short, naming the required free space, one byte under it", () => {
+    expect(startupDiskVerdict({ freeBytes: required - 1, databaseSizeBytes })).toEqual({
+      kind: "short",
+      required_free_bytes: required,
+    });
+  });
+
+  it("is short for any free space under the requirement and fine for any at or over it", () => {
+    fc.assert(
+      fc.property(fc.nat(GIGABYTE), fc.nat(20 * GIGABYTE), (size, free) => {
+        const verdict = startupDiskVerdict({ freeBytes: free, databaseSizeBytes: size });
+        expect(verdict.kind).toBe(free < requiredFreeBytes(size) ? "short" : "fine");
+      }),
+    );
   });
 });
