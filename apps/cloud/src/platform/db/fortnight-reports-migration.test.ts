@@ -27,10 +27,15 @@ async function seedClaimAndCode(client: SqlOnlyDatabase) {
      select 7, registers.id, 'offline', users.id from registers, users`,
   );
   await client.query(
-    `insert into caea_codes
-       (fortnight_start, fortnight_end, code, report_deadline, obtained_at, obtained_through)
-     values ('2026-10-01', '2026-10-15', '36123456789012', '2026-10-20',
-             '2026-09-28T12:00:00Z', 'requested')`,
+    `with kept as (
+       insert into caea_codes
+         (fortnight_start, fortnight_end, code, report_deadline, obtained_at, obtained_through)
+       values ('2026-10-01', '2026-10-15', '36123456789012', '2026-10-20',
+               '2026-09-28T12:00:00Z', 'requested')
+       returning id
+     )
+     insert into changes (entity, entity_id, version, op)
+     select 'offline_authorization_code', id, 1, 'insert' from kept`,
   );
 }
 
