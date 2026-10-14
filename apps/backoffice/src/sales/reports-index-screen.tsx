@@ -16,6 +16,7 @@ export function ReportsIndexScreen() {
           to="/reports/sales-by-product-and-category"
           label="Ventas por producto y por categoría"
         />
+        <ReportRow to="/reports/sales-by-cashier" label="Ventas por cajero" />
       </LinkListCard>
     </ScreenLayout>
   );
