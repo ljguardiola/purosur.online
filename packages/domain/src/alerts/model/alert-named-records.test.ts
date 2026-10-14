@@ -2,13 +2,22 @@ import { describe, expect, it } from "vitest";
 import { ALERT_KINDS } from "./alert-catalog.js";
 import { alertKindPolicy } from "./alert-kind-policy.js";
 import { alertActorId, alertNamedRecordIds, alertScopeRecordId } from "./alert-named-records.js";
+import { pointOfSaleFortnightScope } from "./fortnight-report-alerts.js";
 import { registerFortnightScope } from "./register-fortnight-scope.js";
 
 const SCOPE = "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6";
 const ACTOR_ID = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
 
 const kindsScopedTo = (
-  scopeKind: "user" | "register" | "sourceAddress" | "event" | "refund" | "syncDevice" | "branch",
+  scopeKind:
+    | "user"
+    | "register"
+    | "sourceAddress"
+    | "event"
+    | "refund"
+    | "syncDevice"
+    | "branch"
+    | "pointOfSaleFortnight",
 ) => ALERT_KINDS.filter((kind) => alertKindPolicy(kind).scopeKind === scopeKind);
 
 describe("alertNamedRecordIds", () => {
@@ -140,5 +149,27 @@ describe("a branch scope", () => {
     expect(kindsScopedTo("branch")).toEqual(["lots_expiring"]);
     expect(alertScopeRecordId({ kind: "lots_expiring", scope: SCOPE })).toBeUndefined();
     expect(alertNamedRecordIds({ kind: "lots_expiring", scope: SCOPE })).toEqual([]);
+  });
+});
+
+describe("a point-of-sale fortnight scope", () => {
+  const scope = pointOfSaleFortnightScope(4, "2026-09-01");
+
+  it("names the register of the detail, since the scope holds no record id", () => {
+    expect(kindsScopedTo("pointOfSaleFortnight")).toEqual([
+      "fortnight_report_pending",
+      "fortnight_report_overdue",
+    ]);
+    for (const kind of kindsScopedTo("pointOfSaleFortnight")) {
+      expect(alertScopeRecordId({ kind, scope })).toBeUndefined();
+      expect(alertNamedRecordIds({ kind, scope, detail: { registerId: SCOPE } })).toEqual([SCOPE]);
+    }
+  });
+
+  it("names nothing when the detail holds no register", () => {
+    expect(alertNamedRecordIds({ kind: "fortnight_report_pending", scope })).toEqual([]);
+    expect(
+      alertNamedRecordIds({ kind: "fortnight_report_pending", scope, detail: { registerId: 7 } }),
+    ).toEqual([]);
   });
 });
