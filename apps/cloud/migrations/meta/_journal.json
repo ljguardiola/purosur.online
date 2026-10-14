@@ -691,8 +691,15 @@
     {
       "idx": 98,
       "version": "7",
-      "when": 1792006486964,
-      "tag": "0102_register_point_terminals",
+      "when": 1792003523910,
+      "tag": "0102_register_snapshot_generations",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1792007629613,
+      "tag": "0103_register_point_terminals",
       "breakpoints": true
     }
   ]

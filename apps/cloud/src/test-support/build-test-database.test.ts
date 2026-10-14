@@ -70,7 +70,10 @@ import {
   registerOfflinePointsOfSale,
   registerPointsOfSale,
   registerPointTerminals,
+  registerSnapshotGenerations,
   registerSnapshotKeys,
+  registerSnapshotLifecycleRules,
+  registerSnapshotRetentionFreezes,
   registers,
   rolePermissions,
   roles,
@@ -467,6 +470,21 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       version: 1,
       key: "sealed-snapshot-key",
     });
+    await db.insert(registerSnapshotGenerations).values({
+      id: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e51",
+      registerId: register.id,
+      deviceId: installation.id,
+      createdAt: new Date("2026-01-05T12:00:00.000Z"),
+      size: 4096,
+      sha256: "ab".repeat(32),
+      keyVersion: 1,
+    });
+    await db.insert(registerSnapshotRetentionFreezes).values({
+      registerId: register.id,
+      stage: "copy",
+      frozenAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(registerSnapshotLifecycleRules).values({ hourly: 24, daily: 30, monthly: 12 });
     await db.insert(registerContingencyTicketKeys).values({
       registerId: register.id,
       version: 1,

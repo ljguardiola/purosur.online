@@ -53,19 +53,23 @@ describe("the project's resources", () => {
       "Database",
       "Media Storage",
       "Register Updates",
+      "Register Snapshots",
       "Schema Migrations",
       "Cloud Server",
     ]);
   });
 });
 
-describe("the register updates bucket", () => {
+describe.each([
+  ["Register Updates", "REGISTER_UPDATES_BUCKET"],
+  ["Register Snapshots", "REGISTER_SNAPSHOTS_BUCKET"],
+])("the %s bucket", (bucketName, prefix) => {
   const BUCKET_OUTPUTS = {
-    REGISTER_UPDATES_BUCKET_ENDPOINT: "ENDPOINT",
-    REGISTER_UPDATES_BUCKET_NAME: "BUCKET",
-    REGISTER_UPDATES_BUCKET_REGION: "REGION",
-    REGISTER_UPDATES_BUCKET_ACCESS_KEY_ID: "ACCESS_KEY_ID",
-    REGISTER_UPDATES_BUCKET_SECRET_ACCESS_KEY: "SECRET_ACCESS_KEY",
+    [`${prefix}_ENDPOINT`]: "ENDPOINT",
+    [`${prefix}_NAME`]: "BUCKET",
+    [`${prefix}_REGION`]: "REGION",
+    [`${prefix}_ACCESS_KEY_ID`]: "ACCESS_KEY_ID",
+    [`${prefix}_SECRET_ACCESS_KEY`]: "SECRET_ACCESS_KEY",
   };
 
   it.each(Object.entries(BUCKET_OUTPUTS))(
@@ -74,11 +78,9 @@ describe("the register updates bucket", () => {
       const definition = await compile();
       const bucket = (definition.resources ?? [])
         .flat()
-        .find((resource) => resource.type === "bucket" && resource.name === "Register Updates");
+        .find((resource) => resource.type === "bucket" && resource.name === bucketName);
       if (!bucket) {
-        throw new Error(
-          "railway.test.ts: no bucket named Register Updates in the compiled project",
-        );
+        throw new Error(`railway.test.ts: no bucket named ${bucketName} in the compiled project`);
       }
       const cloud = findService(definition, "Cloud Server");
 
