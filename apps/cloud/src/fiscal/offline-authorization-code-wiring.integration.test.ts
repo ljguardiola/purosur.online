@@ -8,6 +8,10 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import {
+  FICTIONAL_RECOVERY_REPLY_TO,
+  FICTIONAL_RECOVERY_SENDER,
+} from "../test-support/recovery-email.js";
 import { OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER } from "./offline-authorization-code-task.js";
 import {
   answers,
@@ -52,8 +56,8 @@ function recoveryEnv() {
   return {
     databaseUrl: integrationDb.databaseUrl,
     emailSender: { transport: "log" as const },
-    emailFrom: "Almacén de Prueba <acceso@mail.example.test>",
-    emailReplyTo: "consultas@example.test",
+    emailFrom: FICTIONAL_RECOVERY_SENDER,
+    emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
     backofficeOrigin: "https://backoffice.example.test",
     arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
     arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },

@@ -696,7 +696,7 @@ describe("personal data in text", () => {
     const event = {
       message: "no customer for ana.perez@example.com",
       breadcrumbs: [
-        { message: "sent to Juan_Diaz+caja@mail.example.com.ar", data: { to: "ana@example.com" } },
+        { message: "sent to Juan_Diaz+caja@mail.example.com", data: { to: "ana@example.com" } },
       ],
     };
 

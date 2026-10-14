@@ -28,3 +28,11 @@ export function versionAtLeast(version: string, minimum: string): boolean {
 export function registerVersionAccepted(appVersion: string): boolean {
   return versionAtLeast(appVersion, MINIMUM_ACCEPTED_REGISTER_VERSION);
 }
+
+export function isWellFormedRegisterVersion(version: string): boolean {
+  return VERSION_PATTERN.test(version);
+}
+
+export function isLeftBehindByMinimum(reportedVersion: string | null, minimum: string): boolean {
+  return reportedVersion === null || !versionAtLeast(reportedVersion, minimum);
+}

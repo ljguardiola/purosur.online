@@ -1,3 +1,4 @@
 {
-  "staging": ["staging.purosur.online"]
+  "staging": ["staging.purosur.online"],
+  "production": ["purosur.online"]
 }

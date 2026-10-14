@@ -388,6 +388,8 @@ export type {
   SearchProductsOutcome,
   WeighProductOutcome,
 } from "./sales/sale.js";
+export type { SalesByCashierBody } from "./sales/sales-by-cashier.js";
+export { salesByCashierSchema } from "./sales/sales-by-cashier.js";
 export type {
   SalesByProductAndCategoryBody,
   SalesByProductAndCategoryQuery,
@@ -554,6 +556,14 @@ export {
   quarantinedEventsListSchema,
   releaseQuarantinedEventErrorSchema,
 } from "./sync/quarantined-events.js";
+export type {
+  RegistersBelowMinimum,
+  RegistersBelowMinimumQuery,
+} from "./sync/registers-below-minimum.js";
+export {
+  registersBelowMinimumQuerySchema,
+  registersBelowMinimumSchema,
+} from "./sync/registers-below-minimum.js";
 export type {
   SyncedEventPayloadKey,
   SyncedEventPayloads,
