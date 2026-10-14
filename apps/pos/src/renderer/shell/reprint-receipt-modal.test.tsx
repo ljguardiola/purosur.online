@@ -7,10 +7,11 @@ import type {
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import type { SignedInPerson } from "../shell/signed-in-person";
-import { render } from "../shell/test-support/render-with-router";
+import { deferred } from "../platform/test-support/deferred";
+import type { ReprintReceiptModalProps } from "./reprint-receipt-modal";
 import { ReprintReceiptModal } from "./reprint-receipt-modal";
-import { deferred } from "./test-support/sale-screen";
+import type { SignedInPerson } from "./signed-in-person";
+import { render } from "./test-support/render-with-router";
 
 type Sale = Extract<SaleHistoryDetailOutcome, { kind: "found" }>["detail"];
 
@@ -41,7 +42,7 @@ const REPRINT = "Reimprimir duplicado";
 const REASON = "Motivo de la reimpresión";
 
 type Props = {
-  sale?: Sale;
+  sale?: ReprintReceiptModalProps["sale"];
   person?: SignedInPerson;
   reprintSaleReceipt?: (
     saleId: string,
@@ -123,6 +124,50 @@ describe("ReprintReceiptModal", () => {
     });
 
     await expect.element(screen.getByText("000482", { exact: true })).toBeVisible();
+  });
+
+  it("names neither a comprobante nor an operation for a sale known only by its time", async () => {
+    const { screen } = await renderModal({
+      sale: {
+        sale_id: "sale-1",
+        occurred_at: SALE.occurred_at,
+        next_copy: { kind: "duplicate" },
+      },
+    });
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Sale como duplicado" }))
+      .toBeVisible();
+    await expect.element(screen.getByText("Operación")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Comprobante")).not.toBeInTheDocument();
+  });
+
+  it("names the operation of a sale whose comprobante it is not given", async () => {
+    const { screen } = await renderModal({
+      sale: {
+        sale_id: "sale-1",
+        occurred_at: SALE.occurred_at,
+        operation_number: 482,
+        next_copy: { kind: "duplicate" },
+      },
+    });
+
+    await expect.element(screen.getByText("000482", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Comprobante")).not.toBeInTheDocument();
+  });
+
+  it("names the comprobante of a sale whose operation it is not given", async () => {
+    const { screen } = await renderModal({
+      sale: {
+        sale_id: "sale-1",
+        occurred_at: SALE.occurred_at,
+        comprobante: SALE.comprobante,
+        next_copy: { kind: "duplicate" },
+      },
+    });
+
+    await expect.element(screen.getByText("Factura C · PV 00004 · Nº 00000319")).toBeVisible();
+    await expect.element(screen.getByText("Operación")).not.toBeInTheDocument();
   });
 
   it("asks for no authorization when the person may reprint", async () => {

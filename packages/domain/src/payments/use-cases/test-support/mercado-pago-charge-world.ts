@@ -30,6 +30,8 @@ export class FakeMercadoPagoChargeWorld
     MercadoPagoChargeSale<SaleRefusal, SaleSettlement, SaleRefusal>
 {
   readonly operations: string[] = [];
+  readonly madeFor = new Map<string, string>();
+  readonly unreadableOrders = new Set<string>();
   readonly charges = new Map<
     string,
     PendingMercadoPagoCharge & { state: PaymentTransactionState; replaced: boolean }
@@ -58,7 +60,10 @@ export class FakeMercadoPagoChargeWorld
 
   readonly clock = { now: () => this.now };
 
-  seedPending(charge: Partial<PendingMercadoPagoCharge> = {}): void {
+  seedPending(
+    charge: Partial<PendingMercadoPagoCharge> = {},
+    actorId: string = CHARGE_ACTOR_ID,
+  ): void {
     const pending = {
       paymentTransactionId: CHARGE_PAYMENT_ID,
       saleId: CHARGE_SALE_ID,
@@ -67,6 +72,7 @@ export class FakeMercadoPagoChargeWorld
       waitEndsAt: CHARGE_WAIT_ENDS_AT,
       ...charge,
     };
+    this.madeFor.set(pending.paymentTransactionId, actorId);
     this.charges.set(pending.paymentTransactionId, {
       ...pending,
       state: "PENDING",
@@ -128,6 +134,9 @@ export class FakeMercadoPagoChargeWorld
   async readOrder(paymentTransactionId: string): Promise<MercadoPagoChargeOrderReading> {
     this.operations.push("readOrder");
     this.readOrders.push(paymentTransactionId);
+    if (this.unreadableOrders.has(paymentTransactionId)) {
+      throw new Error(`order ${paymentTransactionId} could not be read`);
+    }
     return this.scriptedReadings.shift() ?? this.orderReading;
   }
 
@@ -144,6 +153,15 @@ export class FakeMercadoPagoChargeWorld
     }
     const { state: _state, replaced: _replaced, ...pending } = charge;
     return pending;
+  }
+
+  pendingCharges(): { paymentTransactionId: string; actorId: string }[] {
+    return [...this.charges.values()]
+      .filter(({ state, replaced }) => state === "PENDING" && !replaced)
+      .map(({ paymentTransactionId }) => ({
+        paymentTransactionId,
+        actorId: this.madeFor.get(paymentTransactionId) ?? CHARGE_ACTOR_ID,
+      }));
   }
 
   recordEnded(paymentTransactionId: string, state: EndedMercadoPagoChargeState): void {

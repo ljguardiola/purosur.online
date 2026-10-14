@@ -7,8 +7,10 @@ import { chargeSaleInCashFor } from "../sales/sale-requests";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import {
   abandonMercadoPagoChargeFor,
+  followInterruptedMercadoPagoChargesFor,
   followMercadoPagoChargeFor,
   type MercadoPagoChargeRequestDeps,
+  mercadoPagoChargesLeftPendingFor,
   startMercadoPagoChargeFor,
 } from "./mercado-pago-charge-requests";
 import {
@@ -485,5 +487,157 @@ describe("abandoning a Mercado Pago QR charge at the register", () => {
       await abandonMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
     ).toEqual({ kind: "not_signed_in" });
     expect(orders.cancelled).toEqual([]);
+  });
+});
+
+describe("following the Mercado Pago charges a stopped register left pending", () => {
+  async function chargeLeftPending(): Promise<string> {
+    const saleId = await saleOfTwoYerbas();
+    await startMercadoPagoChargeFor(deps(new FakeOrders()), {
+      saleId,
+      method: "QR",
+      amount: 3000,
+    });
+    signedInPerson.clear();
+    return saleId;
+  }
+
+  it("completes the open sale with a charge the cloud reports approved, with nobody signed in, and sends it to the cloud once", async () => {
+    const saleId = await chargeLeftPending();
+    const orders = new FakeOrders();
+    orders.reading = { kind: "read", state: "APPROVED" };
+
+    const leftPending = mercadoPagoChargesLeftPendingFor(deps(orders));
+    const first = await followInterruptedMercadoPagoChargesFor(deps(orders), leftPending);
+    await followInterruptedMercadoPagoChargesFor(deps(orders), leftPending);
+
+    expect(first).toEqual({
+      followed: [
+        {
+          paymentTransactionId: "qr-1",
+          outcome: { kind: "completed", sale_id: saleId, total: 3000 },
+        },
+      ],
+      failures: [],
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "COMPLETED" }]);
+    expect(qrRows()).toMatchObject([{ id: "qr-1", state: "APPROVED" }]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
+      { event_type: "sale_completed" },
+    ]);
+  });
+
+  it("leaves the charge pending on its open sale while the cloud cannot be reached", async () => {
+    await chargeLeftPending();
+    const orders = new FakeOrders();
+    orders.reading = { kind: "unreachable" };
+
+    await followInterruptedMercadoPagoChargesFor(
+      deps(orders),
+      mercadoPagoChargesLeftPendingFor(deps(orders)),
+    );
+
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(qrRows()).toMatchObject([{ state: "PENDING" }]);
+  });
+
+  it("does not follow a charge started after the charges left pending were taken", async () => {
+    const orders = new FakeOrders();
+    const leftPending = mercadoPagoChargesLeftPendingFor(deps(orders));
+    await chargeLeftPending();
+    orders.reading = { kind: "read", state: "APPROVED" };
+
+    expect(await followInterruptedMercadoPagoChargesFor(deps(orders), leftPending)).toEqual({
+      followed: [],
+      failures: [],
+    });
+    expect(qrRows()).toMatchObject([{ state: "PENDING" }]);
+  });
+
+  it("follows a charge left pending even when the register's clock was set back since it was recorded", async () => {
+    const saleId = await chargeLeftPending();
+    const orders = new FakeOrders();
+    orders.reading = { kind: "read", state: "APPROVED" };
+    const setBack = deps(orders, { now: () => new Date("2026-10-09T11:30:00.000Z") });
+
+    expect(
+      await followInterruptedMercadoPagoChargesFor(
+        setBack,
+        mercadoPagoChargesLeftPendingFor(setBack),
+      ),
+    ).toEqual({
+      followed: [
+        {
+          paymentTransactionId: "qr-1",
+          outcome: { kind: "completed", sale_id: saleId, total: 3000 },
+        },
+      ],
+      failures: [],
+    });
+  });
+
+  it("answers a charge it is still waiting for as the charge screen would see it", async () => {
+    await chargeLeftPending();
+    const orders = new FakeOrders();
+    orders.reading = { kind: "read", state: "PENDING" };
+
+    expect(
+      await followInterruptedMercadoPagoChargesFor(
+        deps(orders),
+        mercadoPagoChargesLeftPendingFor(deps(orders)),
+      ),
+    ).toEqual({
+      followed: [
+        { paymentTransactionId: "qr-1", outcome: { kind: "waiting", remaining_seconds: 180 } },
+      ],
+      failures: [],
+    });
+  });
+
+  it("records a charge the cloud reports expired", async () => {
+    await chargeLeftPending();
+    const orders = new FakeOrders();
+    orders.reading = { kind: "read", state: "EXPIRED" };
+
+    await followInterruptedMercadoPagoChargesFor(
+      deps(orders),
+      mercadoPagoChargesLeftPendingFor(deps(orders)),
+    );
+
+    expect(qrRows()).toMatchObject([{ state: "EXPIRED" }]);
+  });
+
+  it("leaves an approved charge pending while the outbox cannot sign events", async () => {
+    await chargeLeftPending();
+    const orders = new FakeOrders();
+    orders.reading = { kind: "read", state: "APPROVED" };
+
+    const withoutChainKey = deps(orders, { readOutboxChainKey: async () => undefined });
+    await followInterruptedMercadoPagoChargesFor(
+      withoutChainKey,
+      mercadoPagoChargesLeftPendingFor(withoutChainKey),
+    );
+
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(qrRows()).toMatchObject([{ state: "PENDING" }]);
+  });
+
+  it("answers the failures of the charges it could not follow", async () => {
+    await chargeLeftPending();
+    const orders = new FakeOrders();
+    const broken = new Error("the cloud client broke");
+    orders.readOrder = async () => {
+      throw broken;
+    };
+
+    expect(
+      await followInterruptedMercadoPagoChargesFor(
+        deps(orders),
+        mercadoPagoChargesLeftPendingFor(deps(orders)),
+      ),
+    ).toEqual({
+      followed: [],
+      failures: [{ paymentTransactionId: "qr-1", error: broken }],
+    });
   });
 });

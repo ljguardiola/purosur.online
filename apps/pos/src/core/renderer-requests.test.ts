@@ -24,6 +24,7 @@ import type {
   OpenSale,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  PrintOriginalReceiptOutcome,
   ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -49,6 +50,7 @@ import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
 import type { WireSerialDevices } from "./register/serial-devices-requests";
+import type { StartupPendingAnswer } from "./register/startup-pending-requests";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type {
@@ -59,6 +61,12 @@ import type {
   PreviewSaleLineAdjustmentRequest,
 } from "./sales/sale-requests";
 import type { SalesHistoryRequest } from "./sales/sales-history-requests";
+
+const NOTHING_PENDING = {
+  sales_to_print: [],
+  unknown_fiscal_documents: [],
+  pending_payments: [],
+};
 
 function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const enrolledCodes: string[] = [];
@@ -249,6 +257,10 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         saleChanges.push(["receipt-status", saleId].join(" "));
         return { kind: "not_found" };
       },
+      printOriginalReceipt: async (saleId: string): Promise<PrintOriginalReceiptOutcome> => {
+        saleChanges.push(["original-print", saleId].join(" "));
+        return { kind: "already_attempted" };
+      },
       reprintSaleReceipt: async (
         request: ReprintSaleReceiptRequest,
       ): Promise<ReprintSaleReceiptOutcome> => {
@@ -369,6 +381,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       },
       lockedClosers: () => [{ id: "u2", first_name: "Grace" }],
       sessionOpenSale: (): SessionOpenSale | null => null,
+      startupPending: async (): Promise<StartupPendingAnswer> => NOTHING_PENDING,
       authorizers: (permission: AuthorizablePermissionKey) => {
         authorizerLookups.push(permission);
         return [{ id: "u2", first_name: "Grace" }];
@@ -2345,6 +2358,65 @@ describe("answerRendererRequest", () => {
     expect(failing.failures).toEqual([{ context: "reading the open sale", error }]);
   });
 
+  it("answers what a stopped register left pending", async () => {
+    const pending = {
+      sales_to_print: [
+        {
+          sale_id: "sale-1",
+          completed_at: "2026-10-13T12:00:00.000Z",
+          total: 1500,
+          standing: "never_printed" as const,
+        },
+      ],
+      unknown_fiscal_documents: [],
+      pending_payments: [],
+    };
+
+    expect(
+      await answerRendererRequest(deps(true, { startupPending: async () => pending }).deps, {
+        type: "startup-pending-request",
+        request_id: "r40",
+      }),
+    ).toEqual({ type: "startup-pending", request_id: "r40", pending });
+  });
+
+  it("answers that what was left pending is not permitted when the core refuses it", async () => {
+    expect(
+      await answerRendererRequest(
+        deps(true, { startupPending: async () => "not_permitted" }).deps,
+        { type: "startup-pending-request", request_id: "r41" },
+      ),
+    ).toEqual({ type: "startup-pending-not-permitted", request_id: "r41" });
+  });
+
+  it("answers that what was left pending cannot be read when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { startupPending: undefined }).deps, {
+        type: "startup-pending-request",
+        request_id: "r42",
+      }),
+    ).toEqual({ type: "startup-pending-unavailable", request_id: "r42" });
+  });
+
+  it("answers that what was left pending cannot be read when reading it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      startupPending: async () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "startup-pending-request",
+        request_id: "r43",
+      }),
+    ).toEqual({ type: "startup-pending-unavailable", request_id: "r43" });
+    expect(failing.failures).toEqual([
+      { context: "reading what the last run left pending", error },
+    ]);
+  });
+
   it("answers nothing to a ping", async () => {
     expect(await answerRendererRequest(deps(true).deps, { type: "ping" })).toBeUndefined();
   });
@@ -2634,6 +2706,14 @@ describe("answerRendererRequest", () => {
         "reading a receipt's print status",
         "receipt-status s1",
         "receipt-print-status-result",
+      ],
+      [
+        "print-original-receipt",
+        { type: "print-original-receipt", sale_id: "s1" } as const,
+        "printOriginalReceipt",
+        "printing a sale's original receipt",
+        "original-print s1",
+        "print-original-receipt-result",
       ],
       [
         "reprint-sale-receipt",

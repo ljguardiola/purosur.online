@@ -31,6 +31,7 @@ import type {
   PinPolicy,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  PrintOriginalReceiptOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
   ReceiptPrintStatusOutcome,
@@ -56,6 +57,7 @@ import type { AuthorizablePermissionKey, RegisterService } from "@purosur/domain
 import { isDatabaseDamage } from "./platform/database-damage";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
 import type { WireSerialDevices } from "./register/serial-devices-requests";
+import type { StartupPendingAnswer } from "./register/startup-pending-requests";
 import type { CoreToRendererMessage, RendererToCoreMessage } from "./renderer-messages";
 import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type {
@@ -160,6 +162,7 @@ export interface RendererRequestDeps {
   cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
   cancelPaidSale: ((request: CancelPaidSaleRequest) => Promise<CancelPaidSaleOutcome>) | undefined;
   receiptPrintStatus: ((saleId: string) => Promise<ReceiptPrintStatusOutcome>) | undefined;
+  printOriginalReceipt: ((saleId: string) => Promise<PrintOriginalReceiptOutcome>) | undefined;
   reprintSaleReceipt:
     | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
     | undefined;
@@ -190,6 +193,7 @@ export interface RendererRequestDeps {
   cashBalance: (() => CashBalance | null) | undefined;
   cashCountPreview: ((countedCash: number) => CashCountPreview | null) | undefined;
   sessionOpenSale: (() => SessionOpenSale | null) | undefined;
+  startupPending: (() => Promise<StartupPendingAnswer>) | undefined;
   authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
   lockedClosers: (() => SignInUser[]) | undefined;
   signOut: () => void;
@@ -364,6 +368,17 @@ function readCashCountPreview(
     return deps.cashCountPreview?.(countedCash);
   } catch (error) {
     deps.reportFailure("reading the count preview", error);
+    return undefined;
+  }
+}
+
+async function readStartupPending(
+  deps: RendererRequestDeps,
+): Promise<StartupPendingAnswer | undefined> {
+  try {
+    return await deps.startupPending?.();
+  } catch (error) {
+    deps.reportFailure("reading what the last run left pending", error);
     return undefined;
   }
 }
@@ -848,6 +863,18 @@ export async function answerRendererRequest(
         ),
       };
     }
+    case "print-original-receipt": {
+      const { printOriginalReceipt } = deps;
+      return {
+        type: "print-original-receipt-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "printing a sale's original receipt",
+          printOriginalReceipt && (() => printOriginalReceipt(message.sale_id)),
+        ),
+      };
+    }
     case "reprint-sale-receipt": {
       const { reprintSaleReceipt } = deps;
       return {
@@ -1109,6 +1136,15 @@ export async function answerRendererRequest(
       return sale === undefined
         ? { type: "session-open-sale-unavailable", request_id: message.request_id }
         : { type: "session-open-sale", request_id: message.request_id, sale };
+    }
+    case "startup-pending-request": {
+      const pending = await readStartupPending(deps);
+      if (pending === "not_permitted") {
+        return { type: "startup-pending-not-permitted", request_id: message.request_id };
+      }
+      return pending === undefined
+        ? { type: "startup-pending-unavailable", request_id: message.request_id }
+        : { type: "startup-pending", request_id: message.request_id, pending };
     }
     case "authorizers": {
       const users = readAuthorizers(deps, message.permission);
