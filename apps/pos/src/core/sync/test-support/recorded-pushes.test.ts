@@ -2,7 +2,10 @@ import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { recordedEvents, sentEvents } from "@purosur/contracts/sync/test-support";
 import { beforeAll, describe, expect, it } from "vitest";
-import { eventVersionsBuiltBy, registerCoreProgram } from "../register-event-versions.js";
+import {
+  eventVersionsBuiltBy,
+  registerCoreProgram,
+} from "../../../../scripts/register-event-versions.js";
 import { shapeOf } from "./event-shape.js";
 import { registerSessionPush } from "./register-session-push.js";
 

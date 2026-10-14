@@ -54,6 +54,9 @@ test("refuses an answer that is not a 200 with a list of event versions", async 
     [200, {}, /malformed/],
     [200, { event_versions: "sale@1" }, /malformed/],
     [200, { event_versions: [1] }, /malformed/],
+    [200, { event_versions: ["sale"] }, /malformed/],
+    [200, { event_versions: ["sale@0"] }, /malformed/],
+    [200, { event_versions: ["Sale@1"] }, /malformed/],
   ]) {
     await assert.rejects(
       fetchReadableVersions({ origin: ORIGIN, token: TOKEN, fetchImpl: answer(status, body) }),
@@ -120,7 +123,19 @@ test("the CLI refuses when production's answer is unusable", async () => {
 });
 
 test("the CLI refuses an emitted list that is not event versions", async () => {
-  for (const emitted of [{}, "sale@1", [1], ["sale"], ["sale@x"], ["@1"], []]) {
+  for (const emitted of [
+    {},
+    "sale@1",
+    [1],
+    ["sale"],
+    ["sale@x"],
+    ["@1"],
+    [],
+    ["sale@0"],
+    ["sale@01"],
+    ["Sale@1"],
+    ["sale-completed@1"],
+  ]) {
     const harness = cliHarness({ emitted });
 
     assert.equal(await runCli(harness.options), 1, JSON.stringify(emitted));

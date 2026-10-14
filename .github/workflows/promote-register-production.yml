@@ -122,7 +122,7 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: List the event versions the register at the tag emits
-        run: node apps/pos/src/core/sync/register-event-versions.ts "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/emitted-event-versions.json"
+        run: node apps/pos/scripts/register-event-versions.ts "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/emitted-event-versions.json"
 
       - name: Compare the emitted event versions with the ones production reads
         env:

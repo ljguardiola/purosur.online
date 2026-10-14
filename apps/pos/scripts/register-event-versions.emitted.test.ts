@@ -4,7 +4,7 @@ import { READABLE_EVENT_VERSIONS } from "@purosur/contracts";
 import { beforeAll, describe, expect, it } from "vitest";
 import { emittedEventVersions } from "./register-event-versions.js";
 
-const REPO_DIR = fileURLToPath(new URL("../../../../../", import.meta.url));
+const REPO_DIR = fileURLToPath(new URL("../../../", import.meta.url));
 const MODULE = fileURLToPath(new URL("./register-event-versions.ts", import.meta.url));
 
 describe("the event versions a checkout's register emits", { timeout: 0 }, () => {

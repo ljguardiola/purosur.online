@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { test } from "node:test";
-import { readStagingVersion, runCli } from "./staging-register-version.mjs";
+import { readStagingRelease, runCli } from "./staging-register-version.mjs";
 
 const bucket = {
   endpoint: "https://storage.example.test",
@@ -10,12 +11,15 @@ const bucket = {
   secretAccessKey: "fictional-secret-access-key-0123456789",
 };
 
-const entry = (version) => JSON.stringify({ version, file: "Setup.exe", size: 1, sha512: "x" });
+const SHA512 = createHash("sha512").update("staging installer").digest("base64");
 
-test("reads the installer version the staging feed serves, signed, from the bucket", async () => {
+const entry = (version, fields = {}) =>
+  JSON.stringify({ version, file: "Setup.exe", size: 1, sha512: SHA512, ...fields });
+
+test("reads the installer version and digest the staging feed serves, signed, from the bucket", async () => {
   const requests = [];
 
-  const version = await readStagingVersion({
+  const release = await readStagingRelease({
     bucket,
     fetchImpl: async (request) => {
       requests.push({ url: request.url, authorization: request.headers.get("authorization") });
@@ -23,7 +27,7 @@ test("reads the installer version the staging feed serves, signed, from the buck
     },
   });
 
-  assert.equal(version, "0.0.57");
+  assert.deepEqual(release, { version: "0.0.57", sha512: SHA512 });
   assert.equal(
     requests[0].url,
     "https://register-updates-staging.storage.example.test/register-updates/latest.json",
@@ -37,9 +41,11 @@ test("refuses a feed that is empty, unreadable, or serves something else than 0.
     [new Response("", { status: 403 }), /403/],
     [new Response("not json"), /not a release entry/],
     [new Response(entry("1.2.3")), /0\.0\.N/],
-    [new Response(JSON.stringify({})), /0\.0\.N/],
+    [new Response(JSON.stringify({})), /not a release entry/],
+    [new Response(entry("0.0.57", { sha512: "x" })), /not a release entry/],
+    [new Response(entry("0.0.57", { size: 0 })), /not a release entry/],
   ]) {
-    await assert.rejects(readStagingVersion({ bucket, fetchImpl: async () => response }), message);
+    await assert.rejects(readStagingRelease({ bucket, fetchImpl: async () => response }), message);
   }
 });
 
@@ -67,11 +73,11 @@ function cliHarness(env, response = new Response(entry("0.0.57"))) {
   };
 }
 
-test("the CLI outputs the version", async () => {
+test("the CLI outputs the version and the installer's digest", async () => {
   const harness = cliHarness({});
 
   assert.equal(await runCli(harness.options), 0);
-  assert.deepEqual(harness.outputs, ["version=0.0.57\n"]);
+  assert.deepEqual(harness.outputs, [`version=0.0.57\nsha512=${SHA512}\n`]);
 });
 
 test("the CLI refuses an unusable feed without printing the secret", async () => {
