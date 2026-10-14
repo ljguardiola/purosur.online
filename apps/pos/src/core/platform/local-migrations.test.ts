@@ -3078,6 +3078,13 @@ describe("the register's local migrations", () => {
           cause,
         });
       }
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("let a refund be pending on Mercado Pago QR, keeping the refunds a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
