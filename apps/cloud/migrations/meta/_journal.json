@@ -666,6 +666,13 @@
       "when": 1791920079274,
       "tag": "0098_recipes",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1791955047734,
+      "tag": "0099_offline_fiscal_documents",
+      "breakpoints": true
     }
   ]
 }

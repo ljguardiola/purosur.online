@@ -304,6 +304,29 @@ const FACT_OF: {
       evaluatedAt: new Date(payload.evaluated_at),
     },
   }),
+  "offline_fiscal_document_issued@1": (payload) => ({
+    kind: "offline_fiscal_document_issued",
+    document: {
+      fiscalDocumentId: payload.fiscal_document_id,
+      saleId: payload.sale_id,
+      registerId: payload.register_id,
+      pointOfSale: payload.point_of_sale,
+      documentType: payload.document_type,
+      number: payload.number,
+      issuedOn: payload.issued_on,
+      generatedAt: new Date(payload.generated_at),
+      generationStamp: payload.generation_stamp,
+      offlineAuthorizationCode: payload.offline_authorization_code,
+      fortnightStart: payload.fortnight_start,
+      fortnightEnd: payload.fortnight_end,
+      buyerDocumentType: payload.buyer_document_type,
+      buyerDocumentNumber: payload.buyer_document_number,
+      buyerTaxStatusCode: payload.buyer_tax_status_code,
+      total: payload.total,
+      netAmount: payload.net_amount,
+      cause: payload.cause,
+    },
+  }),
 };
 
 function decodeAs<Key extends SyncedEventPayloadKey>(

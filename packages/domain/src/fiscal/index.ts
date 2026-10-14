@@ -96,6 +96,7 @@ export { mustHoldOfflineAuthorizationCode } from "./model/offline-authorization-
 export type {
   OfflineFiscalDocument,
   OfflineFiscalDocumentIssue,
+  OfflineFiscalDocumentIssuedFact,
 } from "./model/offline-fiscal-document.js";
 export {
   OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE,

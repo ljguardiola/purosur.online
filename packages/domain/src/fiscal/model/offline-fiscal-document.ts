@@ -40,6 +40,27 @@ export function offlineFiscalDocument(issue: OfflineFiscalDocumentIssue): Offlin
   };
 }
 
+export interface OfflineFiscalDocumentIssuedFact {
+  fiscalDocumentId: string;
+  saleId: string;
+  registerId: string;
+  pointOfSale: number;
+  documentType: FiscalDocumentType;
+  number: number;
+  issuedOn: string;
+  generatedAt: Date;
+  generationStamp: string;
+  offlineAuthorizationCode: string;
+  fortnightStart: string;
+  fortnightEnd: string;
+  buyerDocumentType: number;
+  buyerDocumentNumber: number;
+  buyerTaxStatusCode: number;
+  total: number;
+  netAmount: number;
+  cause: OfflineAuthorizationCause;
+}
+
 export interface OfflineFiscalDocumentIssuedEventInput {
   eventId: string;
   registerId: string;
