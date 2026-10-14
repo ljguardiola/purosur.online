@@ -259,9 +259,6 @@ export class SqliteSaleLedger implements SaleLedger {
     const aimed = DISCOUNT_TARGET_KINDS.map((kind) => ({ kind, ids: [...keys[kind]] })).filter(
       ({ ids }) => ids.length > 0,
     );
-    if (aimed.length === 0) {
-      return [];
-    }
     const conditions = aimed.map(
       ({ ids }) => `(target_kind = ? AND target_id IN (${ids.map(() => "?").join(", ")}))`,
     );
