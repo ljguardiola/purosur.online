@@ -35,6 +35,7 @@ export type {
   ConfirmMercadoPagoRefundOutcome,
 } from "./confirm-mercado-pago-refund.js";
 export { confirmMercadoPagoRefund } from "./confirm-mercado-pago-refund.js";
+export type {
   ConvertPaidOrderIntoRefundInput,
   ConvertPaidOrderIntoRefundOutcome,
   ConvertPaidOrderIntoRefundPorts,
