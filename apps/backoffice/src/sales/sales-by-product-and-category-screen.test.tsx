@@ -103,7 +103,7 @@ test("names the report, the grouping and the figures of the period", async () =>
   await expect.element(screen.getByText("Reportes · Ventas", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Total vendido")).toBeVisible();
   await expect.element(screen.getByText("$ 10.000,00")).toBeVisible();
-  await expect.element(screen.getByText("Unidades", { exact: true }).first()).toBeVisible();
+  await expect.element(screen.getByText("Cantidad", { exact: true }).first()).toBeVisible();
   await expect.element(screen.getByText("1.842 u · 186,400 kg")).toBeVisible();
   await expect.element(screen.getByText("Categoría principal")).toBeVisible();
   await expect.element(screen.getByText("Almacén › Dulces").first()).toBeVisible();
@@ -119,12 +119,12 @@ test("names the period only in its range fields, never again under the total sol
   expect(screen.getByText(/07\/10\/2026/).query()).toBeNull();
 });
 
-test("shows each category by its path with its units, its amount and its share of the total", async () => {
+test("shows each category by its path with its quantity sold, its amount and its share of the total", async () => {
   const screen = await renderScreen(createServices());
 
   const table = screen.getByRole("table", { name: "Ventas por producto y por categoría" });
   await expect.element(table.getByRole("columnheader", { name: "Categoría" })).toBeVisible();
-  await expect.element(table.getByRole("columnheader", { name: "Unidades" })).toBeVisible();
+  await expect.element(table.getByRole("columnheader", { name: "Cantidad" })).toBeVisible();
   await expect.element(table.getByRole("columnheader", { name: "Importe" })).toBeVisible();
   await expect.element(table.getByRole("columnheader", { name: "Parte del total" })).toBeVisible();
   const sweets = table.getByRole("row", { name: /Almacén › Dulces/ });
@@ -192,12 +192,12 @@ test.each([
   },
 );
 
-test("does not offer to order by the units column", async () => {
+test("does not offer to order by the quantity column", async () => {
   const screen = await renderScreen(createServices());
   await expect.element(screen.getByText("Fiambres")).toBeVisible();
 
   expect(
-    screen.getByRole("table").getByRole("button", { name: "Unidades", exact: true }).query(),
+    screen.getByRole("table").getByRole("button", { name: "Cantidad", exact: true }).query(),
   ).toBeNull();
 });
 
@@ -383,6 +383,15 @@ test("ends the session when the cloud says it is over", async () => {
   await renderScreen(services, { onSessionEnded });
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("navigates to Mi cuenta when the report request comes back forbidden", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchSalesByProductAndCategory).mockResolvedValue({ kind: "forbidden" });
+
+  await renderScreen(services);
+
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test("pages a report with more rows than a page and counts them", async () => {

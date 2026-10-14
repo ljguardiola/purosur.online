@@ -80,6 +80,36 @@ describe("salesOfGroups", () => {
     ).toEqual(["a", "m1", "m2", "z"]);
   });
 
+  it("orders groups of the same amount by the code units of their path, whatever the locale", () => {
+    expect(
+      salesOfGroups([
+        unitLines("lower", ["a"], 1, 100),
+        unitLines("upper", ["B"], 1, 100),
+        unitLines("enye", ["Ñandú"], 1, 100),
+        unitLines("n", ["Nuez"], 1, 100),
+      ]).map((sales) => sales.id),
+    ).toEqual(["upper", "n", "lower", "enye"]);
+  });
+
+  it("orders a group of the same amount right after its parent, before a sibling of the parent sharing its name", () => {
+    expect(
+      salesOfGroups([
+        unitLines("sibling", ["Mate (cebado)"], 1, 100),
+        unitLines("child", ["Mate", "Yerba"], 1, 100),
+        unitLines("parent", ["Mate"], 1, 100),
+      ]).map((sales) => sales.id),
+    ).toEqual(["parent", "child", "sibling"]);
+  });
+
+  it.each([[["q1", "q2"]], [["q2", "q1"]]])(
+    "orders groups of the same amount and the same path by their id, whatever comes first in %j",
+    (ids) => {
+      expect(
+        salesOfGroups(ids.map((id) => unitLines(id, ["Queso"], 1, 100))).map((sales) => sales.id),
+      ).toEqual(["q1", "q2"]);
+    },
+  );
+
   it("is empty without rows", () => {
     expect(salesOfGroups([])).toEqual([]);
   });
