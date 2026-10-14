@@ -1,5 +1,5 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { ChartColumn, List, Package, Users, Wallet } from "lucide-react";
+import { ChartColumn, List, Package, Receipt, Users, Wallet } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import { signedInRoute } from "./signed-in-route";
 
@@ -17,6 +17,7 @@ function ReportsArea() {
     matchRoute({ to: "/reports/sales-by-product-and-category" }),
   );
   const salesByCashierShown = Boolean(matchRoute({ to: "/reports/sales-by-cashier" }));
+  const averageTicketShown = Boolean(matchRoute({ to: "/reports/average-ticket" }));
   return (
     <AreaLayout
       area="reports"
@@ -68,6 +69,15 @@ function ReportsArea() {
                 icon={<Users />}
                 search={salesByCashierShown ? true : {}}
                 active={salesByCashierShown}
+              />
+            </li>
+            <li>
+              <SectionLink
+                to="/reports/average-ticket"
+                label="Ticket promedio"
+                icon={<Receipt />}
+                search={averageTicketShown ? true : {}}
+                active={averageTicketShown}
               />
             </li>
           </ul>
