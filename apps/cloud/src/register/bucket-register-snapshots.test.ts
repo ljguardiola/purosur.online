@@ -35,7 +35,8 @@ const UPLOAD = {
   size: 4096,
   sha256: "ab".repeat(32),
   keyVersion: 3,
-  expiresAt: new Date("2026-10-14T15:15:00.000Z"),
+  issuedAt: NOW,
+  lifetimeSeconds: 900,
 };
 
 describe("BucketRegisterSnapshots.uploadAuthorization", () => {
@@ -61,32 +62,30 @@ describe("BucketRegisterSnapshots.uploadAuthorization", () => {
   });
 
   it("expires sooner when the authorized upload ends sooner", async () => {
-    const { authorization, url } = await authorize({
-      expiresAt: new Date("2026-10-14T15:10:00.000Z"),
-    });
+    const { authorization, url } = await authorize({ lifetimeSeconds: 600 });
 
     expect(url.searchParams.get("X-Amz-Expires")).toBe("600");
     expect(authorization.expiresAt).toEqual(new Date("2026-10-14T15:10:00.000Z"));
   });
 
-  it("never expires after the authorized upload ends", async () => {
+  it("signs from the moment the upload was authorized, not from its own clock", async () => {
     const { authorization, url } = await authorize({
-      expiresAt: new Date("2026-10-14T15:10:00.999Z"),
+      issuedAt: new Date("2026-10-14T14:59:30.000Z"),
+      lifetimeSeconds: 1,
     });
 
-    expect(url.searchParams.get("X-Amz-Expires")).toBe("600");
-    expect(authorization.expiresAt).toEqual(new Date("2026-10-14T15:10:00.000Z"));
+    expect(url.searchParams.get("X-Amz-Date")).toBe("20261014T145930Z");
+    expect(url.searchParams.get("X-Amz-Expires")).toBe("1");
+    expect(authorization.expiresAt).toEqual(new Date("2026-10-14T14:59:31.000Z"));
   });
 
-  it("refuses to sign a URL that would expire within its first second", async () => {
-    const { snapshots } = bucketAnswering(unused);
+  it("answers the expiry of the whole second the URL is signed at", async () => {
+    const { authorization, url } = await authorize({
+      issuedAt: new Date("2026-10-14T15:00:00.750Z"),
+    });
 
-    await expect(
-      snapshots.uploadAuthorization({
-        ...UPLOAD,
-        expiresAt: new Date("2026-10-14T15:00:00.999Z"),
-      }),
-    ).rejects.toThrow("the upload would expire before it could start");
+    expect(url.searchParams.get("X-Amz-Date")).toBe("20261014T150000Z");
+    expect(authorization.expiresAt).toEqual(new Date("2026-10-14T15:15:00.000Z"));
   });
 
   it("signs the key version as object metadata the register has to send", async () => {

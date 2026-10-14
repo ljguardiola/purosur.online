@@ -62,7 +62,8 @@ describe("requestSnapshotUpload", () => {
         size: 4096,
         sha256: "b".repeat(64),
         keyVersion: 2,
-        expiresAt: new Date("2026-10-14T15:15:00.000Z"),
+        issuedAt: NOW,
+        lifetimeSeconds: 900,
       },
     });
   });
@@ -155,7 +156,7 @@ describe("requestSnapshotUpload", () => {
 
     expect(await request(store)).toMatchObject({
       kind: "authorized",
-      generation: { expiresAt: new Date("2026-10-14T15:09:00.000Z") },
+      generation: { issuedAt: NOW, lifetimeSeconds: 540 },
     });
   });
 

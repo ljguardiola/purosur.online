@@ -10,6 +10,7 @@ import {
   registerSnapshotRetentionFreezes,
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { BucketRegisterSnapshots } from "./bucket-register-snapshots.js";
 import type { RegisterSnapshotUrls } from "./register-snapshot-routes.js";
 import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
 import { keyStore } from "./test-support/key-store.js";
@@ -48,7 +49,7 @@ const urls: RegisterSnapshotUrls = {
   uploadAuthorization: async (generation) => ({
     url: `https://bucket.example.test/snapshots/${generation.registerId}/${generation.generationId}?sig=up`,
     requiredHeaders: { "x-amz-meta-key-version": String(generation.keyVersion) },
-    expiresAt: generation.expiresAt,
+    expiresAt: new Date(generation.issuedAt.getTime() + generation.lifetimeSeconds * 1000),
   }),
   downloadUrl: async (registerId, generationId) =>
     `https://bucket.example.test/snapshots/${registerId}/${generationId}?sig=down`,
@@ -240,6 +241,32 @@ describe("POST /devices/current/snapshots", () => {
 
     expect(response.statusCode).toBe(409);
     expect(cloudErrorSchema.parse(response.json()).code).toBe("conflict");
+  });
+
+  it("answers conflict when less than a second of upload would be left before the deadline", async () => {
+    const installation = await enrolled();
+    await seedGeneration(installation, { createdAt: new Date("2026-10-14T14:01:00.500Z") });
+    build({
+      urls: new BucketRegisterSnapshots(
+        {
+          endpoint: "https://t3.storageapi.test",
+          bucket: "register-snapshots-fictional",
+          region: "auto",
+          accessKeyId: "FICTIONALKEYID0001",
+          secretAccessKey: "fictional-secret-access-key-0001",
+        },
+        { fetch: async () => new Response("", { status: 500 }), now: () => NOW },
+      ),
+    });
+
+    const response = await call("POST", "/devices/current/snapshots", {
+      authorization: `Bearer ${installation.deviceToken}`,
+      payload: BODY,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(cloudErrorSchema.parse(response.json()).code).toBe("conflict");
+    expect(reported).toEqual([]);
   });
 
   it("answers validation_failed for a key version the register does not hold", async () => {
