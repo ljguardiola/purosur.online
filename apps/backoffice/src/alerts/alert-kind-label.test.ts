@@ -28,3 +28,7 @@ test("names a kind that shares its name with a member every object has by the ki
   expect(alertKindLabel("constructor")).toBe("constructor");
   expect(alertKindLabel("toString")).toBe("toString");
 });
+
+test("names the alert of lots nearing their expiry", () => {
+  expect(alertKindLabel("lots_expiring")).toBe("Productos por vencer");
+});

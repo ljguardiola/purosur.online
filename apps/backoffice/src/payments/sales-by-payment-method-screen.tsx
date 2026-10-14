@@ -14,12 +14,12 @@ import {
 import { Receipt } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { paymentMethodLabel } from "../platform/payment-method-label";
+import { shareOfTotal } from "../platform/share-of-total";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
-import { paymentMethodShare } from "./payment-method-share";
 import { useSalesByPaymentMethodQuery } from "./payments-queries";
 import type { SalesByPaymentMethodFilters } from "./sales-by-payment-method-filters";
 import type { SalesByPaymentMethodScreenServices } from "./sales-by-payment-method-services";
@@ -65,9 +65,7 @@ function paymentColumns(total: number) {
     dataColumn({
       id: "share",
       header: "Parte del total",
-      render: (sales: SalesOfMethod) => (
-        <PercentBar value={paymentMethodShare(sales.amount, total)} />
-      ),
+      render: (sales: SalesOfMethod) => <PercentBar value={shareOfTotal(sales.amount, total)} />,
     }),
   ] as const;
 }

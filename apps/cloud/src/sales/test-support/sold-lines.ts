@@ -1,0 +1,56 @@
+import { randomUUID } from "node:crypto";
+import { categories, products } from "../../platform/db/schema.js";
+import type { CompletedSale } from "../../sync/test-support/synced-facts.js";
+import type { TestDatabase } from "../../test-support/build-test-database.js";
+
+type Db = TestDatabase["db"];
+type SoldLine = CompletedSale["lines"][number];
+
+export function aSoldLine(
+  productId: string,
+  productName: string,
+  quantity: number,
+  lineTotal: number,
+  weightSource: SoldLine["weightSource"] = null,
+): SoldLine {
+  return {
+    id: randomUUID(),
+    productId,
+    productName,
+    weightSource,
+    manualAdjustment: null,
+    quantity,
+    listUnitPrice: lineTotal,
+    priceListId: randomUUID(),
+    promotionId: null,
+    discountAmount: 0,
+    saleDiscountShare: 0,
+    lineTotal,
+  };
+}
+
+export async function insertCategoryNamed(
+  db: Db,
+  name: string,
+  parentId?: string,
+): Promise<string> {
+  const [category] = await db
+    .insert(categories)
+    .values({ name, parentId })
+    .returning({ id: categories.id });
+  if (!category) {
+    throw new Error("test setup: seeding the category returned no row");
+  }
+  return category.id;
+}
+
+export async function insertProductIn(db: Db, categoryId: string, name: string): Promise<string> {
+  const [product] = await db
+    .insert(products)
+    .values({ name, categoryId, saleUnit: "UNIT" })
+    .returning({ id: products.id });
+  if (!product) {
+    throw new Error("test setup: seeding the product returned no row");
+  }
+  return product.id;
+}

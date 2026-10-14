@@ -21,6 +21,7 @@ const ALERT_KIND_LABELS = {
   fiscal_unknown: "Resultado fiscal incierto",
   fiscal_emission_stopped: "Emisión de facturas detenida",
   outbox_chain_broken: "Cadena de eventos alterada",
+  lots_expiring: "Productos por vencer",
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {
