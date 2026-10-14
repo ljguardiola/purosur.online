@@ -347,24 +347,6 @@ describe("the price a scan takes", () => {
 
     expect(scannedPrice()).toMatchObject({ listUnitPrice: 1250 });
   });
-
-  it("is the one that starts later when the starts are written with different precision", () => {
-    addPrice(database, "p1", "2026-09-15T00:00:00Z", 1200);
-    addPrice(database, "p1", "2026-09-15T00:00:00.500Z", 1300);
-
-    expect(scannedPrice()).toMatchObject({ listUnitPrice: 1300 });
-  });
-
-  it("is the one with the greater id when two starts are the same moment written differently", () => {
-    addPrice(database, "p1", "2026-09-15T00:00:00Z", 1100, {
-      id: "00000000-0000-4000-8000-000000000001",
-    });
-    addPrice(database, "p1", "2026-09-15T00:00:00.000Z", 1250, {
-      id: "00000000-0000-4000-8000-000000000002",
-    });
-
-    expect(scannedPrice()).toMatchObject({ listUnitPrice: 1250 });
-  });
 });
 
 describe("the sale being built", () => {

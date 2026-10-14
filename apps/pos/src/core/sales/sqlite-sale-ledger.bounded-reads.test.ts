@@ -127,7 +127,7 @@ describe("the sale ledger's current price of a product", () => {
       .join("\n");
 
     expect(plans).toMatch(
-      /SEARCH prices USING (COVERING )?INDEX prices_by_product_and_start \(product_id=\? AND <expr>=\?\)/,
+      /SEARCH prices USING (COVERING )?INDEX prices_by_product_and_start \(product_id=\? AND valid_from=\?\)/,
     );
     expect(plans).not.toMatch(/SCAN prices/);
   });
