@@ -1,5 +1,6 @@
 import type { CalendarDate } from "@internationalized/date";
 import { type ReactNode, useId } from "react";
+import { Checkbox, type CheckboxProps } from "../checkbox";
 import { ComboBox, type ComboBoxProps } from "../combo-box";
 import { DateField, type DateFieldProps } from "../date-field";
 import { OptionCardGroup, type OptionCardGroupProps } from "../option-card-group";
@@ -134,6 +135,18 @@ export function BoundToggle(props: Omit<ToggleProps, "name" | "checked" | "onChe
   const field = useFieldContext<boolean>();
   return (
     <Toggle
+      {...props}
+      name={field.name}
+      checked={field.state.value}
+      onCheckedChange={field.handleChange}
+    />
+  );
+}
+
+export function BoundCheckbox(props: Omit<CheckboxProps, "name" | "checked" | "onCheckedChange">) {
+  const field = useFieldContext<boolean>();
+  return (
+    <Checkbox
       {...props}
       name={field.name}
       checked={field.state.value}

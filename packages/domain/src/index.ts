@@ -376,11 +376,20 @@ export {
   newestPrice,
   priceReviewAt,
 } from "./pricing/index.js";
-export type { ReceiptType } from "./purchasing/index.js";
+export type { FreightMeans, FreightPeriodDays, ReceiptType } from "./purchasing/index.js";
 export {
+  DEFAULT_FREIGHT_PERIOD_DAYS,
+  FREIGHT_CARRIER_NAME_MAX_LENGTH,
+  FREIGHT_DESCRIPTION_MAX_LENGTH,
+  FREIGHT_PERIOD_DAYS,
+  freightPeriodStart,
   hasPurchaseLines,
   hasValidReceiptNumber,
   isCostPaid,
+  isFreightAmount,
+  isFreightCarrierNameTooLong,
+  isFreightDescription,
+  isFreightDescriptionTooLong,
   isLotNumberTooLong,
   isPackageCount,
   isPackagingNameTooLong,
@@ -390,7 +399,9 @@ export {
   isSupplierContactTooLong,
   isSupplierNameTooLong,
   isSupplierNoteTooLong,
+  isValidFreightMeans,
   LOT_NUMBER_MAX_LENGTH,
+  MIN_FREIGHT_PURCHASES,
   MIN_PURCHASE_LINES,
   ONE_SALE_UNIT_QUANTITY,
   PACKAGING_NAME_MAX_LENGTH,

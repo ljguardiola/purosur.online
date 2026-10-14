@@ -5,6 +5,7 @@ import {
   CalendarClock,
   ClipboardCheck,
   ClipboardList,
+  Container,
   Package,
   Scale,
   ShoppingCart,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import {
+  canManageFreights,
   canManagePurchasePackagings,
   canManageRecipes,
   canManageSuppliers,
@@ -43,6 +45,7 @@ function StockArea() {
   const packagingsShown = Boolean(matchRoute({ to: "/purchase-packagings" }));
   const purchasesShown = Boolean(matchRoute({ to: "/purchases", fuzzy: true }));
   const expiringLotsShown = Boolean(matchRoute({ to: "/expiring-lots" }));
+  const freightsShown = Boolean(matchRoute({ to: "/freights" }));
   const recipesShown = Boolean(matchRoute({ to: "/recipes" }));
   const initialInventoryShown = Boolean(matchRoute({ to: "/initial-inventory" }));
   return (
@@ -128,6 +131,17 @@ function StockArea() {
                   icon={<CalendarClock />}
                   search={expiringLotsShown ? true : {}}
                   active={expiringLotsShown}
+                />
+              </li>
+            )}
+            {canManageFreights(session) && (
+              <li>
+                <SectionLink
+                  to="/freights"
+                  label="Flete"
+                  icon={<Container />}
+                  search={freightsShown ? true : {}}
+                  active={freightsShown}
                 />
               </li>
             )}
