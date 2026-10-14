@@ -167,7 +167,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
         kind: "ok",
         value: { items: [], count: 0, totalCents: 0 },
       }),
-      fetchLinkablePurchases: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+      fetchLinkablePurchases: vi
+        .fn()
+        .mockResolvedValue({ kind: "ok", value: { purchases: [], today: "2026-09-16" } }),
       recordFreight: vi.fn(),
       editFreight: vi.fn(),
     },

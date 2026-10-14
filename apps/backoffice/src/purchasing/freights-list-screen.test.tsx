@@ -9,9 +9,8 @@ import type { FreightsListScreenServices } from "./freights-list-services";
 import { type FreightsListFilters, freightsListFilters } from "./routes";
 import { fillFreight } from "./test-support/freight-form-fill";
 import {
-  compraAndina,
-  compraMolinos,
   envioDesdeBuenosAires,
+  linkablePurchases,
   recordedEnvio,
   retiroEnElMolino,
 } from "./test-support/freights";
@@ -37,7 +36,7 @@ function createServices(
       .mockResolvedValue({ kind: "ok", value: twoFreights }),
     fetchLinkablePurchases: vi
       .fn<FreightsListScreenServices["fetchLinkablePurchases"]>()
-      .mockResolvedValue({ kind: "ok", value: [compraAndina, compraMolinos] }),
+      .mockResolvedValue({ kind: "ok", value: linkablePurchases }),
     recordFreight: vi.fn<FreightsListScreenServices["recordFreight"]>(),
     editFreight: vi.fn<FreightsListScreenServices["editFreight"]>(),
     ...overrides,

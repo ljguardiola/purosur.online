@@ -5,6 +5,7 @@ import {
   compraAndina,
   compraMolinos,
   envioDesdeBuenosAires,
+  linkablePurchases,
   recordedEnvio,
   retiroEnElMolino,
 } from "./test-support/freights";
@@ -93,17 +94,17 @@ describe("fetchFreights", () => {
 
 describe("fetchLinkablePurchases", () => {
   test("lists the purchases a freight may be linked to on 200", async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [compraAndina, compraMolinos]));
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, linkablePurchases));
 
     expect(await fetchLinkablePurchases({ period: 365 })).toEqual({
       kind: "ok",
-      value: [compraAndina, compraMolinos],
+      value: linkablePurchases,
     });
     expect(fetch).toHaveBeenCalledWith("/api/freights/linkable-purchases?period=365");
   });
 
   test("asks for the purchases a freight already covers as well", async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, []));
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { purchases: [], today: "2026-09-16" }));
 
     await fetchLinkablePurchases({ period: 90, freightId: envioDesdeBuenosAires.id });
 
@@ -113,7 +114,7 @@ describe("fetchLinkablePurchases", () => {
   });
 
   test("returns failed when the list does not have the expected shape", async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ id: "x" }]));
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { purchases: [{ id: "x" }] }));
 
     expect(await fetchLinkablePurchases({ period: 90 })).toEqual({ kind: "failed" });
   });

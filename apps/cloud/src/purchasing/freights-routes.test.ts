@@ -654,12 +654,9 @@ describe("GET /freights/linkable-purchases", () => {
       headers,
     });
 
-    expect(
-      linkablePurchaseListSchema.parse(response.json()).purchases.map(({ id }) => id),
-    ).toEqual([
-      recent.purchaseId,
-      old.purchaseId,
-    ]);
+    expect(linkablePurchaseListSchema.parse(response.json()).purchases.map(({ id }) => id)).toEqual(
+      [recent.purchaseId, old.purchaseId],
+    );
   });
 
   it("answers today's day in Argentina, which a new freight is dated by", async () => {

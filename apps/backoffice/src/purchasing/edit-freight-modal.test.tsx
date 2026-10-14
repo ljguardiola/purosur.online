@@ -8,8 +8,8 @@ import { EditFreightModal, type EditFreightModalServices } from "./edit-freight-
 import { fillFreight, toggle } from "./test-support/freight-form-fill";
 import {
   compraAndina,
-  compraMolinos,
   envioDesdeBuenosAires,
+  linkablePurchases,
   recordedEnvio,
   retiroEnElMolino,
 } from "./test-support/freights";
@@ -25,7 +25,7 @@ function createServices(
     editFreight: vi.fn<EditFreightModalServices["editFreight"]>(),
     fetchLinkablePurchases: vi
       .fn<EditFreightModalServices["fetchLinkablePurchases"]>()
-      .mockResolvedValue({ kind: "ok", value: [compraAndina, compraMolinos] }),
+      .mockResolvedValue({ kind: "ok", value: linkablePurchases }),
     ...overrides,
   };
 }

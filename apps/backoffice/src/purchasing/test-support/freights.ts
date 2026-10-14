@@ -1,4 +1,9 @@
-import type { Freight, FreightSummary, LinkablePurchaseSummary } from "@purosur/contracts";
+import type {
+  Freight,
+  FreightSummary,
+  LinkablePurchaseList,
+  LinkablePurchaseSummary,
+} from "@purosur/contracts";
 
 const distribuidoraAndina = {
   id: "5a900000-0000-4000-8000-000000000001",
@@ -26,6 +31,11 @@ export const compraMolinos: LinkablePurchaseSummary = {
   receiptType: "remito",
   receiptNumber: "0001-00008812",
   valueCents: 6_490_000,
+};
+
+export const linkablePurchases: LinkablePurchaseList = {
+  purchases: [compraAndina, compraMolinos],
+  today: "2026-09-16",
 };
 
 export const envioDesdeBuenosAires: FreightSummary = {

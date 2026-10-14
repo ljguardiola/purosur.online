@@ -6,7 +6,12 @@ import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { NewFreightModal, type NewFreightModalServices } from "./new-freight-modal";
 import { fillFreight } from "./test-support/freight-form-fill";
-import { compraAndina, compraMolinos, recordedEnvio } from "./test-support/freights";
+import {
+  compraAndina,
+  compraMolinos,
+  linkablePurchases,
+  recordedEnvio,
+} from "./test-support/freights";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -17,7 +22,7 @@ function createServices(overrides: Partial<NewFreightModalServices> = {}): NewFr
     recordFreight: vi.fn<NewFreightModalServices["recordFreight"]>(),
     fetchLinkablePurchases: vi
       .fn<NewFreightModalServices["fetchLinkablePurchases"]>()
-      .mockResolvedValue({ kind: "ok", value: [compraAndina, compraMolinos] }),
+      .mockResolvedValue({ kind: "ok", value: linkablePurchases }),
     ...overrides,
   };
 }
@@ -111,6 +116,42 @@ test("shows the eyebrow, the title, the fields and the purchases that may be lin
     .toBeVisible();
 });
 
+function dateSegments(dialog: Awaited<ReturnType<typeof readyDialog>>) {
+  return dialog
+    .getByRole("group", { name: /^Fecha/ })
+    .getByRole("spinbutton")
+    .all()
+    .map((segment) => segment.element().textContent);
+}
+
+test("opens dated the day the cloud answers as today", async () => {
+  const screen = await renderModal();
+  const dialog = await readyDialog(screen);
+
+  await expect.poll(() => dateSegments(dialog)).toEqual(["16", "9", "2026"]);
+});
+
+test("keeps the date the person chose when the cloud later answers another day", async () => {
+  const fetchLinkablePurchases = vi
+    .fn<NewFreightModalServices["fetchLinkablePurchases"]>()
+    .mockResolvedValueOnce({ kind: "ok", value: linkablePurchases })
+    .mockResolvedValue({ kind: "ok", value: { ...linkablePurchases, today: "2026-09-17" } });
+  const recordFreight = vi
+    .fn<NewFreightModalServices["recordFreight"]>()
+    .mockResolvedValue({ kind: "purchase_not_found" });
+  const screen = await renderModal({
+    services: createServices({ fetchLinkablePurchases, recordFreight }),
+  });
+
+  const dialog = await recordCompleteFreight(screen);
+
+  await expect.poll(() => fetchLinkablePurchases.mock.calls.length).toBe(2);
+  await expect
+    .element(dialog.getByText("Alguna de las compras ya no está disponible. Elegí otras."))
+    .toBeVisible();
+  expect(dateSegments(dialog)).toEqual(["12", "9", "2026"]);
+});
+
 test("reads the purchases of the period the list shows, and nothing while closed", async () => {
   const services = createServices();
   const screen = await renderModal({ services, period: 30, open: false });
@@ -183,7 +224,6 @@ test("refuses an empty form under each field without calling the cloud", async (
   const dialog = await readyDialog(screen);
   await userEvent.click(dialog.getByRole("button", { name: "Registrar el flete" }));
 
-  await expect.element(dialog.getByText("Ingresá la fecha del flete.")).toBeVisible();
   await expect
     .element(dialog.getByText("Escribí el monto con coma para los centavos, por ejemplo 1.250,50."))
     .toBeVisible();
@@ -299,7 +339,7 @@ test("offers to read the purchases again when they could not be loaded", async (
   const fetchLinkablePurchases = vi
     .fn<NewFreightModalServices["fetchLinkablePurchases"]>()
     .mockResolvedValueOnce({ kind: "failed" })
-    .mockResolvedValue({ kind: "ok", value: [compraAndina] });
+    .mockResolvedValue({ kind: "ok", value: { ...linkablePurchases, purchases: [compraAndina] } });
   const screen = await renderModal({ services: createServices({ fetchLinkablePurchases }) });
   const dialog = screen.getByRole("dialog");
 
@@ -315,7 +355,7 @@ test("offers to read the purchases again when they could not be loaded", async (
 test("says there is nothing to link when the period holds no purchase", async () => {
   const fetchLinkablePurchases = vi
     .fn<NewFreightModalServices["fetchLinkablePurchases"]>()
-    .mockResolvedValue({ kind: "ok", value: [] });
+    .mockResolvedValue({ kind: "ok", value: { ...linkablePurchases, purchases: [] } });
   const screen = await renderModal({ services: createServices({ fetchLinkablePurchases }) });
   const dialog = screen.getByRole("dialog");
 
