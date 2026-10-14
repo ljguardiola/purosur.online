@@ -1740,6 +1740,7 @@ describe("wiring the registers routes", () => {
 describe("wiring the register point of sale routes", () => {
   it.each([
     ["GET", "/api/registers/points-of-sale"],
+    ["GET", "/api/registers/fortnight-presentations"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/offline-point-of-sale"],
   ])("%s %s: answers according to the registersPointsOfSale option", async (method, url) => {
