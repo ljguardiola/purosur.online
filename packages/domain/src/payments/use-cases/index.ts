@@ -114,6 +114,16 @@ export type {
 } from "./open-overdue-refund-task-alerts.js";
 export { openOverdueRefundTaskAlerts } from "./open-overdue-refund-task-alerts.js";
 export type {
+  OpenRegisterLatePaymentRefundInput,
+  OpenRegisterLatePaymentRefundOutcome,
+  OpenRegisterLatePaymentRefundPorts,
+} from "./open-register-late-payment-refund.js";
+export { openRegisterLatePaymentRefund } from "./open-register-late-payment-refund.js";
+export type {
+  ApprovedOrderOfRegister,
+  ApprovedOrdersOfRegister,
+} from "./paid-order-ports.js";
+export type {
   ApprovedPaymentsByMethod,
   ApprovedPaymentsQuery,
   PaymentsReportReader,
@@ -125,6 +135,12 @@ export type {
   QrPaymentReplacementTransaction,
   ReplacedQrPayment,
 } from "./qr-payment-replacement-store.js";
+export type {
+  ReadApprovedOrdersOfRegisterInput,
+  ReadApprovedOrdersOfRegisterOutcome,
+  ReadApprovedOrdersOfRegisterPorts,
+} from "./read-approved-orders-of-register.js";
+export { readApprovedOrdersOfRegister } from "./read-approved-orders-of-register.js";
 export type {
   ReadMercadoPagoOrderPaymentInput,
   ReadMercadoPagoOrderPaymentOutcome,
