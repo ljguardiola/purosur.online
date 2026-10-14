@@ -420,6 +420,29 @@ describe("addScannedProduct", () => {
     nothingRecorded(store, before);
   });
 
+  it("refuses to open a new sale while the disk stops new sales", () => {
+    const store = ledger({ newSalesStoppedByDisk: true });
+    const before = structuredClone(store.state);
+
+    expect(scan(store)).toEqual({ kind: "disk_space_short" });
+    nothingRecorded(store, before);
+  });
+
+  it("keeps accepting lines on an open sale while the disk stops new sales", () => {
+    const store = ledger({ sales: [OPEN_SALE], newSalesStoppedByDisk: true });
+
+    expect(scan(store).kind).toBe("added");
+  });
+
+  it("checks the disk before a paid order without a sale", () => {
+    expect(
+      scan(ledger({ newSalesStoppedByDisk: true, paidOrdersWithoutSale: [{ resolved: false }] })),
+    ).toEqual({ kind: "disk_space_short" });
+    expect(scan(ledger({ revoked: true, newSalesStoppedByDisk: true }))).toEqual({
+      kind: "installation_revoked",
+    });
+  });
+
   it("refuses to open a new sale while a paid order without a sale is unresolved", () => {
     const store = ledger({ paidOrdersWithoutSale: [{ resolved: false }] });
     const before = structuredClone(store.state);

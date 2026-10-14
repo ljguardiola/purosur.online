@@ -716,6 +716,12 @@ describe("SaleScreen", () => {
         help: "El motivo y qué hacer se muestran arriba de la pantalla.",
       },
       {
+        name: "the disk stopping new sales",
+        outcome: { kind: "disk_space_short" },
+        title: "No se pueden abrir ventas nuevas",
+        help: "El motivo y qué hacer se muestran arriba de la pantalla.",
+      },
+      {
         name: "a paid order without a sale",
         outcome: { kind: "paid_order_without_sale" },
         title: "Hay un cobro pagado sin venta",
@@ -768,6 +774,7 @@ describe("SaleScreen", () => {
       { kind: "no_price", product_name: "Yerba mate 1 kg" },
       { kind: "line_quantity_limit", product_name: "Yerba mate 1 kg" },
       { kind: "installation_revoked" },
+      { kind: "disk_space_short" },
       { kind: "paid_order_without_sale" },
       { kind: "paid_orders_not_checked" },
       { kind: "unavailable" },

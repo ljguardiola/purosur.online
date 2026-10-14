@@ -267,6 +267,7 @@ describe("addWeighedProduct", () => {
 
   it("refuses to open a sale when the installation was revoked", () => {
     expect(weigh(ledger({ revoked: true }))).toEqual({ kind: "installation_revoked" });
+    expect(weigh(ledger({ newSalesStoppedByDisk: true }))).toEqual({ kind: "disk_space_short" });
   });
 
   it("adds to the open sale even when the installation was revoked", () => {

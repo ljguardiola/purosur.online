@@ -248,6 +248,13 @@ describe("weighProductOnScale", () => {
     expect(
       await weigh(ledger({ revoked: true, identity: undefined }), STABLE_1250, "unknown"),
     ).toEqual({ kind: "installation_revoked" });
+    expect(
+      await weigh(
+        ledger({ newSalesStoppedByDisk: true, identity: undefined }),
+        STABLE_1250,
+        "unknown",
+      ),
+    ).toEqual({ kind: "disk_space_short" });
     expect(await weigh(ledger({ identity: undefined }), STABLE_1250, "unknown")).toEqual({
       kind: "unavailable",
     });
