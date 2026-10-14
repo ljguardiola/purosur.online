@@ -174,7 +174,9 @@ export function FreightFields({
         </div>
         <div className="min-w-45 flex-1">
           <form.AppField name="amount">
-            {(field) => <field.TextField kind="price" prefix="$" label="Monto" required />}
+            {(field) => (
+              <field.TextField kind="price" prefix="$" label="Monto" inputMode="decimal" required />
+            )}
           </form.AppField>
         </div>
         <div className="min-w-45 flex-1">
