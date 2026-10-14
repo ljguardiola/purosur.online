@@ -17,6 +17,7 @@ opensOnlyScreens([
   "/",
   "/account",
   "/alerts",
+  "/assembly-batches",
   "/expiring-lots",
   "/help",
   "/initial-inventory",
@@ -76,6 +77,10 @@ function stockServices(capabilities: Capability[]) {
     kind: "ok",
     value: { recipes: [], products: [] },
   });
+  vi.mocked(services.assemblyBatchesScreen.fetchAssemblyBatches).mockResolvedValue({
+    kind: "ok",
+    value: { batches: [], recipes: [] },
+  });
   vi.mocked(services.purchasesListScreen.fetchPurchases).mockResolvedValue({
     kind: "ok",
     value: [],
@@ -96,6 +101,7 @@ const SECTION_LABELS = [
   "Compras",
   "Vencimientos",
   "Recetas",
+  "Tandas",
   "Inventario inicial",
 ];
 
@@ -109,6 +115,7 @@ test.each([
   ["purchases", "Compras", "/purchases"],
   ["stock_expiries", "Vencimientos", "/expiring-lots"],
   ["recipes", "Recetas", "/recipes"],
+  ["batches", "Tandas", "/assembly-batches"],
   ["initial_inventory", "Inventario inicial", "/initial-inventory"],
 ] as const)(
   "opens only %s's section from the rail's Stock item: %s",
@@ -223,6 +230,8 @@ test.each([
   ["/expiring-lots", "suppliers"],
   ["/initial-inventory", "suppliers"],
   ["/recipes", "purchases"],
+  ["/assembly-batches", "recipes"],
+  ["/recipes", "batches"],
   ["/suppliers", "recipes"],
   ["/purchases", "recipes"],
 ] as const)("sends a user who may not open %s to Mi cuenta", async (path, capability) => {
@@ -283,6 +292,7 @@ const STOCK_SCREENS = [
   ["/purchases/new", "Registrar compra"],
   ["/expiring-lots", "Vencimientos"],
   ["/recipes", "Recetas"],
+  ["/assembly-batches", "Tandas"],
   ["/initial-inventory", "Inventario inicial"],
 ] as const;
 

@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import {
+  assemblyBatchesFilters,
   expiringLotsFilters,
   initialInventoryFilters,
   recipesListFilters,
@@ -108,4 +109,18 @@ test("keeps the recipes filters a URL names, falling back for a value it does no
   const filters = { search: "mix", sort: "descending" };
   expect(recipesListFilters.parse(filters)).toEqual(filters);
   expect(recipesListFilters.parse({ search: 1, sort: "up" })).toEqual(recipesListFilters.parse({}));
+});
+
+test("opens the batches of the last 30 days without a search", () => {
+  expect(assemblyBatchesFilters.parse({})).toEqual({ search: "", period: "30" });
+});
+
+test("keeps the batches filters a URL names, falling back for a value it does not offer", () => {
+  expect(assemblyBatchesFilters.parse({ search: "mix", period: "90" })).toEqual({
+    search: "mix",
+    period: "90",
+  });
+  expect(assemblyBatchesFilters.parse({ search: 1, period: "12" })).toEqual(
+    assemblyBatchesFilters.parse({}),
+  );
 });
