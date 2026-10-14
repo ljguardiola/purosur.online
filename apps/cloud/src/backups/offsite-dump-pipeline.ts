@@ -7,6 +7,7 @@ import { pipeline } from "node:stream/promises";
 export interface PipelineCommand {
   file: string;
   args: string[];
+  env?: Record<string, string>;
 }
 
 export interface DumpedFile {
@@ -20,6 +21,9 @@ export function offsiteDumpCommands(input: { databaseUrl: string; ageRecipient: 
   dump: PipelineCommand;
   encrypt: PipelineCommand;
 } {
+  const database = new URL(input.databaseUrl);
+  const password = decodeURIComponent(database.password);
+  database.password = "";
   return {
     dump: {
       file: "pg_dump",
@@ -28,8 +32,9 @@ export function offsiteDumpCommands(input: { databaseUrl: string; ageRecipient: 
         // graphile-worker's tables have row-level security with no policy for this role, which
         // makes pg_dump refuse them; its own migration recreates the schema on a restore.
         "--exclude-schema=graphile_worker",
-        `--dbname=${input.databaseUrl}`,
+        `--dbname=${database.href}`,
       ],
+      env: { PGPASSWORD: password },
     },
     encrypt: { file: "age", args: ["--encrypt", "--recipient", input.ageRecipient] },
   };
@@ -41,7 +46,10 @@ interface Running {
 }
 
 function start(label: string, command: PipelineCommand): Running {
-  const child = spawn(command.file, command.args, { stdio: ["pipe", "pipe", "pipe"] });
+  const child = spawn(command.file, command.args, {
+    stdio: ["pipe", "pipe", "pipe"],
+    env: { ...process.env, ...command.env },
+  });
   let stderrTail = "";
   child.stderr?.on("data", (chunk: Buffer) => {
     stderrTail = (stderrTail + chunk.toString("utf8")).slice(-STDERR_TAIL_BYTES);
