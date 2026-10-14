@@ -133,6 +133,8 @@ describe("the stock movements a register pulls", () => {
   it.each([
     ["an initial count", "opening_count", 5000, 15_000],
     ["the withdrawal of an initial count", "opening_count_withdrawal", -5000, 5000],
+    ["the components an assembled batch consumed", "assembly_out", -4000, 6000],
+    ["the output an assembled batch made", "assembly_in", 14_000, 24_000],
   ] as const)("replicate %s recorded at another register", async (_, kind, delta, expected) => {
     await save(stockMovementChange(1, "other-register-count", { kind, delta }));
 
