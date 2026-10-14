@@ -14,7 +14,7 @@ export const compraAndina: LinkablePurchaseSummary = {
   id: "c0a00000-0000-4000-8000-000000000001",
   purchasedOn: "2026-09-12",
   supplier: distribuidoraAndina,
-  receiptType: "factura_a",
+  receiptType: "factura_b",
   receiptNumber: "0003-00012845",
   valueCents: 16_868_000,
 };
