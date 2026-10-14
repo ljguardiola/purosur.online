@@ -169,6 +169,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     salesByDayScreen: {
       fetchSalesReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
+    salesByProductAndCategoryScreen: {
+      fetchSalesByProductAndCategory: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
     salesByPaymentMethodScreen: {
       fetchSalesByPaymentMethod: vi.fn().mockReturnValue(new Promise(() => {})),
     },

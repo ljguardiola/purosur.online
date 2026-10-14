@@ -31,6 +31,7 @@ import type { RegistersListScreenServices } from "../register/registers-list-ser
 import type { ReportRegisterFilterProps } from "../register/report-register-filter";
 import type { ReportRegisterFilterServices } from "../register/report-register-filter-services";
 import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
+import type { SalesByProductAndCategoryScreenServices } from "../sales/sales-by-product-and-category-services";
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../sessions/session-api";
 import type { SignInScreenServices } from "../sessions/sign-in-services";
 import type { ExpiringLotsScreenServices } from "../stock/expiring-lots-services";
@@ -78,6 +79,7 @@ export type AppServices = {
   pricesListScreen: PricesListScreenServices;
   discountsListScreen: DiscountsListScreenServices;
   salesByDayScreen: SalesByDayScreenServices;
+  salesByProductAndCategoryScreen: SalesByProductAndCategoryScreenServices;
   salesByPaymentMethodScreen: SalesByPaymentMethodScreenServices;
   reportFiltersRegisterFilter: ComponentType<ReportRegisterFilterProps>;
   reportRegisterFilter: ReportRegisterFilterServices;

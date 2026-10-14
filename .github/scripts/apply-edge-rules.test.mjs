@@ -1,46 +1,51 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import customDomains from "../../.railway/custom-domains.json" with { type: "json" };
 import {
+  buildEnvironmentHeaderTransformRules,
   buildRateLimitRules,
-  buildRequestHeaderTransformRules,
-  CLOUD_HOSTNAMES,
-  cloudHostnames,
   EDGE_ORIGIN_SECRET_HEADER,
   putRulesetPhase,
   runCli,
 } from "./apply-edge-rules.mjs";
 
-test("builds one rewrite rule that sets the edge origin secret header only for the given hostnames", () => {
-  const body = buildRequestHeaderTransformRules("a-secret-value", ["staging.purosur.online"]);
+function buildFor(domainsByEnvironment) {
+  const secrets = Object.fromEntries(
+    Object.keys(domainsByEnvironment).map((environment) => [
+      `EDGE_ORIGIN_SECRET_${environment.toUpperCase()}`,
+      `${environment}-secret-value`,
+    ]),
+  );
+  return buildEnvironmentHeaderTransformRules(domainsByEnvironment, secrets);
+}
 
-  assert.equal(body.rules.length, 1);
-  const [rule] = body.rules;
-  assert.equal(rule.action, "rewrite");
-  assert.equal(rule.expression, 'http.host in {"staging.purosur.online"}');
-  assert.equal(typeof rule.description, "string");
-  assert.ok(rule.description.length > 0);
-  assert.deepEqual(rule.action_parameters, {
+test("builds one rewrite rule per environment that sets its own secret header only for its hostnames", () => {
+  const body = buildFor({ staging: ["staging.purosur.online"], production: ["purosur.online"] });
+
+  assert.equal(body.rules.length, 2);
+  const [stagingRule, productionRule] = body.rules;
+  assert.equal(stagingRule.action, "rewrite");
+  assert.equal(stagingRule.expression, 'http.host eq "staging.purosur.online"');
+  assert.ok(stagingRule.description.length > 0);
+  assert.deepEqual(stagingRule.action_parameters, {
     headers: {
-      [EDGE_ORIGIN_SECRET_HEADER]: { operation: "set", value: "a-secret-value" },
+      [EDGE_ORIGIN_SECRET_HEADER]: { operation: "set", value: "staging-secret-value" },
     },
   });
-});
-
-test("lists every given hostname in the header transform rule's expression", () => {
-  const body = buildRequestHeaderTransformRules("a-secret-value", [
-    "staging.purosur.online",
-    "purosur.online",
-  ]);
-
+  assert.equal(productionRule.expression, 'http.host eq "purosur.online"');
   assert.equal(
-    body.rules[0].expression,
-    'http.host in {"staging.purosur.online" "purosur.online"}',
+    productionRule.action_parameters.headers[EDGE_ORIGIN_SECRET_HEADER].value,
+    "production-secret-value",
   );
 });
 
-test("refuses to build the header transform rule for an empty hostname list", () => {
-  assert.throws(() => buildRequestHeaderTransformRules("a-secret-value", []), /hostname/);
+test("lists every hostname of an environment with several in its rule's expression", () => {
+  const body = buildFor({ production: ["purosur.online", "www.purosur.online"] });
+
+  assert.equal(body.rules[0].expression, 'http.host in {"purosur.online" "www.purosur.online"}');
+});
+
+test("refuses to build a header transform rule for an environment without hostnames", () => {
+  assert.throws(() => buildFor({ production: [] }), /hostname/);
 });
 
 for (const hostname of [
@@ -53,24 +58,9 @@ for (const hostname of [
   "-staging.purosur.online",
 ]) {
   test(`refuses to build the header transform rule for the hostname ${JSON.stringify(hostname)}`, () => {
-    assert.throws(() => buildRequestHeaderTransformRules("a-secret-value", [hostname]), /hostname/);
+    assert.throws(() => buildFor({ production: [hostname] }), /hostname/);
   });
 }
-
-test("scopes the header transform rule to the custom domains Railway serves the cloud service on", () => {
-  assert.deepEqual(CLOUD_HOSTNAMES, Object.values(customDomains).flat());
-  assert.ok(CLOUD_HOSTNAMES.includes("staging.purosur.online"));
-});
-
-test("collects the cloud service's hostnames from every environment's custom domains", () => {
-  assert.deepEqual(
-    cloudHostnames({
-      staging: ["staging.purosur.online"],
-      production: ["purosur.online", "www.purosur.online"],
-    }),
-    ["staging.purosur.online", "purosur.online", "www.purosur.online"],
-  );
-});
 
 test("uses a lowercase header name outside Cloudflare's cf-/x-cf- namespace", () => {
   assert.equal(EDGE_ORIGIN_SECRET_HEADER, EDGE_ORIGIN_SECRET_HEADER.toLowerCase());
@@ -166,7 +156,8 @@ function fakeCli({ env = {}, responses } = {}) {
     env: {
       CLOUDFLARE_API_TOKEN: "cf-token",
       CLOUDFLARE_ZONE_ID: "zone-123",
-      EDGE_ORIGIN_SECRET: "edge-secret",
+      EDGE_ORIGIN_SECRET_STAGING: "staging-edge-secret",
+      EDGE_ORIGIN_SECRET_PRODUCTION: "production-edge-secret",
       ...env,
     },
     fetchImpl: async (url, options) => {
@@ -201,15 +192,59 @@ test("runCli PUTs the header transform rules, then the rate limit rules", async 
   assert.match(calls.fetch[1].url, /http_ratelimit/);
 });
 
-test("runCli sends the header only to the cloud service's hostnames and rate-limits the whole zone", async () => {
+test("runCli sends one rewrite rule per environment, each scoped to its hostnames with its own secret", async () => {
   const { deps, calls } = fakeCli();
 
   await runCli(deps);
 
-  const [transformRule] = JSON.parse(calls.fetch[0].options.body).rules;
-  assert.equal(transformRule.expression, 'http.host in {"staging.purosur.online"}');
+  const { rules } = JSON.parse(calls.fetch[0].options.body);
+  assert.equal(rules.length, 2);
+  const [stagingRule, productionRule] = rules;
+  assert.equal(stagingRule.expression, 'http.host eq "staging.purosur.online"');
+  assert.equal(
+    stagingRule.action_parameters.headers[EDGE_ORIGIN_SECRET_HEADER].value,
+    "staging-edge-secret",
+  );
+  assert.equal(productionRule.expression, 'http.host eq "purosur.online"');
+  assert.equal(
+    productionRule.action_parameters.headers[EDGE_ORIGIN_SECRET_HEADER].value,
+    "production-edge-secret",
+  );
+});
+
+test("runCli rate-limits the whole zone", async () => {
+  const { deps, calls } = fakeCli();
+
+  await runCli(deps);
+
   const [rateLimitRule] = JSON.parse(calls.fetch[1].options.body).rules;
   assert.equal(rateLimitRule.expression, "true");
+});
+
+test("runCli refuses, naming the variable and making no request, when an environment's secret is missing", async () => {
+  const { deps, calls } = fakeCli({ env: { EDGE_ORIGIN_SECRET_PRODUCTION: undefined } });
+
+  const exitCode = await runCli(deps);
+
+  assert.equal(exitCode, 1);
+  assert.equal(calls.fetch.length, 0);
+  assert.ok(calls.errors.some((message) => message.includes("EDGE_ORIGIN_SECRET_PRODUCTION")));
+});
+
+test("runCli refuses, making no request, when two environments share a secret, without logging it", async () => {
+  const { deps, calls } = fakeCli({
+    env: {
+      EDGE_ORIGIN_SECRET_STAGING: "shared-edge-secret",
+      EDGE_ORIGIN_SECRET_PRODUCTION: "shared-edge-secret",
+    },
+  });
+
+  const exitCode = await runCli(deps);
+
+  assert.equal(exitCode, 1);
+  assert.equal(calls.fetch.length, 0);
+  assert.ok(calls.errors.length > 0);
+  assert.ok(calls.errors.every((message) => !message.includes("shared-edge-secret")));
 });
 
 test("runCli exits non-zero and reports Cloudflare's errors when a PUT fails", async () => {

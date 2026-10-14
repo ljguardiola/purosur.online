@@ -44,3 +44,7 @@ test("shows an ARCA environment that shares its name with a member every object 
   expect(alertScopeLabel("environment", "constructor")).toBe("constructor");
   expect(alertScopeLabel("environment", "toString")).toBe("toString");
 });
+
+test("names the branch of an alert instead of showing its id", () => {
+  expect(alertScopeLabel("branch", "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6")).toBe("Sucursal");
+});

@@ -25,6 +25,9 @@ export function alertScopeLabel(scopeKind: string | null, scopeDisplay: string):
   if (scopeKind === ("fiscalDocument" satisfies AlertScopeKind)) {
     return "Comprobante";
   }
+  if (scopeKind === ("branch" satisfies AlertScopeKind)) {
+    return "Sucursal";
+  }
   return scopeKind === ("environment" satisfies AlertScopeKind)
     ? (ARCA_ENVIRONMENT_LABELS.get(scopeDisplay) ?? scopeDisplay)
     : scopeDisplay;

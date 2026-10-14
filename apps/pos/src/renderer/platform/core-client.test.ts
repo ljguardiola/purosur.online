@@ -368,8 +368,8 @@ describe("createCoreClient", () => {
     client.connect(port);
     const status = {
       conditions: [
-        { kind: "sales_denied", reason: "event_history_broken" },
-        { kind: "register_silent" },
+        { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+        { kind: "register_silent", level: "critical" },
       ],
       cloud: "unreachable",
       serial_devices: { scale: "matching", reader: "not_registered" },
