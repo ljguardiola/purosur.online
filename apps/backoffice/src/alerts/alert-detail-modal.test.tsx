@@ -1892,7 +1892,6 @@ test.each([
 );
 
 test.each([
-  ["pending", "La nube lo presentará sola en cuanto pueda."],
   ["blocked", "Se puede presentar cuando la caja «Caja 1» termine de sincronizar."],
   [
     "refused",
@@ -1906,6 +1905,19 @@ test.each([
 
   await expect.element(screen.getByText(text, { exact: true })).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("promises nothing about how a pending report with no recorded attempt will be presented", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(pendingReportAlert({ reason: "pending" })));
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText(`Vence el ${REPORT_DEADLINE}. Quedan 3 días.`))
+    .toBeVisible();
+  expect(screen.getByText(/present(ará|a) sol/).query()).toBeNull();
+  expect(screen.getByText(/Se puede presentar/).query()).toBeNull();
 });
 
 test("tells a blocked report waits for its register to finish syncing even when the register's name is unknown", async () => {
@@ -1935,7 +1947,7 @@ test("tells that a pending report closes by itself once it is presented", async 
   expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
 });
 
-test("tells the deadline of a fortnight's report was missed, that it keeps being attempted and that a person closes the alert by hand", async () => {
+test("tells the deadline of a fortnight's report was missed, that it is to be put in order with ARCA and that a person closes the alert by hand", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(ok(overdueReportAlert()));
 
@@ -1954,12 +1966,12 @@ test("tells the deadline of a fortnight's report was missed, that it keeps being
     .toBeVisible();
   await expect
     .element(
-      screen.getByText(
-        "Se sigue intentando presentarlo y se registra lo que responda ARCA. Después de regularizar la situación con ARCA, hay que cerrar esta alerta a mano.",
-        { exact: true },
-      ),
+      screen.getByText("Conviene regularizar la situación del punto de venta con ARCA.", {
+        exact: true,
+      }),
     )
     .toBeVisible();
+  expect(screen.getByText(/Se sigue intentando/).query()).toBeNull();
   await expect
     .element(screen.getByText("No se cierra sola: se cierra a mano después de revisarla."))
     .toBeVisible();

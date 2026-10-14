@@ -6,7 +6,9 @@ import {
   fortnightClosesAt,
   fortnightReportDeadline,
   fortnightReportStanding,
+  isFortnightReportOutstanding,
   isFortnightReportRetryDue,
+  owesFortnightReport,
 } from "./fortnight-report.js";
 import { fortnightContaining } from "./offline-authorization-code.js";
 
@@ -55,14 +57,14 @@ describe("fortnightReportDeadline", () => {
 });
 
 describe("fortnightReportStanding", () => {
-  const report = (state: FortnightReportState) => ({
+  const report = (state: FortnightReportState | null) => ({
     fortnight: FIRST_HALF,
     deadline: "2026-09-23",
     state,
   });
 
   it("is not due while the fortnight is still running, its last day included", () => {
-    expect(fortnightReportStanding(report("ready"), "2026-09-10")).toEqual({ kind: "not_due" });
+    expect(fortnightReportStanding(report(null), "2026-09-10")).toEqual({ kind: "not_due" });
     expect(fortnightReportStanding(report("blocked"), "2026-09-15")).toEqual({ kind: "not_due" });
   });
 
@@ -72,7 +74,7 @@ describe("fortnightReportStanding", () => {
   });
 
   it("is pending with the days left to its deadline from the day after the fortnight closes", () => {
-    expect(fortnightReportStanding(report("ready"), "2026-09-16")).toEqual({
+    expect(fortnightReportStanding(report(null), "2026-09-16")).toEqual({
       kind: "pending",
       daysLeft: 7,
       pressing: false,
@@ -80,12 +82,12 @@ describe("fortnightReportStanding", () => {
   });
 
   it("is pressing the day before the deadline and on the deadline itself", () => {
-    expect(fortnightReportStanding(report("ready"), "2026-09-21")).toEqual({
+    expect(fortnightReportStanding(report(null), "2026-09-21")).toEqual({
       kind: "pending",
       daysLeft: 2,
       pressing: false,
     });
-    expect(fortnightReportStanding(report("ready"), "2026-09-22")).toEqual({
+    expect(fortnightReportStanding(report(null), "2026-09-22")).toEqual({
       kind: "pending",
       daysLeft: 1,
       pressing: true,
@@ -97,14 +99,14 @@ describe("fortnightReportStanding", () => {
     });
   });
 
-  it("is pending whatever the stored state that is not accepted", () => {
-    for (const state of ["blocked", "ready", "submitting", "refused"] as const) {
+  it("is pending with no stored state or whatever the stored state that is not accepted", () => {
+    for (const state of [null, "blocked", "submitting", "refused"] as const) {
       expect(fortnightReportStanding(report(state), "2026-09-18").kind).toBe("pending");
     }
   });
 
-  it("is missed from the day after the deadline, whatever the stored state that is not accepted", () => {
-    for (const state of ["blocked", "ready", "submitting", "refused"] as const) {
+  it("is missed from the day after the deadline, with no stored state or whatever the stored state that is not accepted", () => {
+    for (const state of [null, "blocked", "submitting", "refused"] as const) {
       expect(fortnightReportStanding(report(state), "2026-09-24")).toEqual({ kind: "missed" });
     }
   });
@@ -113,7 +115,7 @@ describe("fortnightReportStanding", () => {
     fc.assert(
       fc.property(anyFortnight, anyDay, (fortnight, today) => {
         const deadline = shiftCalendarDay(fortnight.end, 8);
-        const standing = fortnightReportStanding({ fortnight, deadline, state: "ready" }, today);
+        const standing = fortnightReportStanding({ fortnight, deadline, state: null }, today);
         if (today <= fortnight.end) {
           expect(standing).toEqual({ kind: "not_due" });
         } else if (today <= deadline) {
@@ -123,6 +125,47 @@ describe("fortnightReportStanding", () => {
         }
       }),
     );
+  });
+});
+
+describe("owesFortnightReport", () => {
+  const claimedBeforeClose = new Date("2026-09-10T12:00:00.000Z");
+
+  it("is owed from the day after the fortnight closes by a point of sale claimed before its close", () => {
+    expect(
+      owesFortnightReport({ fortnight: FIRST_HALF, claimedAt: claimedBeforeClose }, "2026-09-16"),
+    ).toBe(true);
+    expect(
+      owesFortnightReport({ fortnight: FIRST_HALF, claimedAt: claimedBeforeClose }, "2026-10-30"),
+    ).toBe(true);
+  });
+
+  it("is not owed while the fortnight is still running, its last day included", () => {
+    expect(
+      owesFortnightReport({ fortnight: FIRST_HALF, claimedAt: claimedBeforeClose }, "2026-09-15"),
+    ).toBe(false);
+  });
+
+  it("is owed by a point of sale claimed just before the fortnight closes, and not by one claimed at its close or after", () => {
+    const owedWhenClaimedAt = (claimedAt: string) =>
+      owesFortnightReport({ fortnight: FIRST_HALF, claimedAt: new Date(claimedAt) }, "2026-09-20");
+
+    expect(owedWhenClaimedAt("2026-09-16T02:59:59.999Z")).toBe(true);
+    expect(owedWhenClaimedAt("2026-09-16T03:00:00.000Z")).toBe(false);
+    expect(owedWhenClaimedAt("2026-09-18T12:00:00.000Z")).toBe(false);
+  });
+});
+
+describe("isFortnightReportOutstanding", () => {
+  it.each([null, "blocked", "submitting", "refused"] as const)(
+    "is outstanding with the stored state %s",
+    (state) => {
+      expect(isFortnightReportOutstanding(state)).toBe(true);
+    },
+  );
+
+  it("is no longer outstanding once accepted", () => {
+    expect(isFortnightReportOutstanding("accepted")).toBe(false);
   });
 });
 

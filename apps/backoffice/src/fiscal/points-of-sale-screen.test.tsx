@@ -352,7 +352,7 @@ test("has no accessibility violations with registers and fiscal addresses shown"
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("lists the fortnight reports of each offline point of sale between the registers and the fiscal addresses, naming the register still missing vouchers", async () => {
+test("lists the fortnight reports of each offline point of sale between the registers and the fiscal addresses, naming the register a blocked one waits for", async () => {
   const services = serving([configuredRegister], [depot]);
   services.fetchFortnightPresentations = vi.fn().mockResolvedValue({
     kind: "ok",
@@ -370,8 +370,10 @@ test("lists the fortnight reports of each offline point of sale between the regi
   const screen = await renderScreen(services);
 
   const reports = screen.getByRole("table", { name: "Informes quincenales" });
-  await expect.element(reports.getByText("Faltan comprobantes de Caja 1")).toBeVisible();
   await expect.element(reports.getByText("Bloqueado")).toBeVisible();
+  await expect
+    .element(screen.getByText("Caja 1 todavía no terminó de sincronizar", { exact: true }))
+    .toBeVisible();
   const text = document.body.textContent ?? "";
   expect(text.indexOf("Caja 1")).toBeLessThan(text.indexOf("Quincena"));
   expect(text.indexOf("Quincena")).toBeLessThan(text.indexOf("Domicilios fiscales"));

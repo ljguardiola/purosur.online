@@ -53,7 +53,7 @@ describe("the fortnight reports migration applied over a database that already h
   it("keeps the existing data and accepts a report of each state", async () => {
     const client = await migratedDatabase();
 
-    for (const state of ["blocked", "ready", "submitting", "refused", "accepted"]) {
+    for (const state of ["blocked", "submitting", "refused", "accepted"]) {
       await client.query("delete from fortnight_reports");
       await client.query(insertReport(state));
     }
@@ -66,11 +66,14 @@ describe("the fortnight reports migration applied over a database that already h
     expect(addresses).toEqual([{ name: "Deposito" }]);
   });
 
-  it("refuses a state other than the ones a presentation goes through", async () => {
-    const client = await migratedDatabase();
+  it.each(["guessed", "ready"])(
+    "refuses the state %s, which a presentation never goes through",
+    async (state) => {
+      const client = await migratedDatabase();
 
-    await expect(client.query(insertReport("guessed"))).rejects.toThrow();
-  });
+      await expect(client.query(insertReport(state))).rejects.toThrow();
+    },
+  );
 
   it("refuses a fortnight that does not end after it starts", async () => {
     const client = await migratedDatabase();

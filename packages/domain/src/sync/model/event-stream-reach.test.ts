@@ -13,6 +13,7 @@ function installation(overrides: Partial<InstallationStreamReach> = {}): Install
     revokedAt: null,
     latestOccurredAt: new Date("2026-09-16T03:00:00.001Z"),
     caughtUpAt: null,
+    holdsUnappliedEvents: false,
     ...overrides,
   };
 }
@@ -92,6 +93,41 @@ describe("streamReachesPast", () => {
     ).toBe(false);
   });
 
+  it("fails when an installation whose applied events reach past the period still holds events not applied", () => {
+    expect(streamReachesPast([installation({ holdsUnappliedEvents: true })], PERIOD)).toBe(false);
+  });
+
+  it("fails when an installation caught up past the period still holds events not applied", () => {
+    expect(
+      streamReachesPast(
+        [
+          installation({
+            latestOccurredAt: null,
+            caughtUpAt: new Date("2026-09-20T12:00:00.000Z"),
+            holdsUnappliedEvents: true,
+          }),
+        ],
+        PERIOD,
+      ),
+    ).toBe(false);
+  });
+
+  it("ignores the events not applied of an installation that was not active in the period", () => {
+    expect(
+      streamReachesPast(
+        [
+          installation(),
+          installation({
+            enrolledAt: PERIOD.until,
+            latestOccurredAt: null,
+            holdsUnappliedEvents: true,
+          }),
+        ],
+        PERIOD,
+      ),
+    ).toBe(true);
+  });
+
   it("fails when an active installation never synced an event", () => {
     expect(streamReachesPast([installation({ latestOccurredAt: null })], PERIOD)).toBe(false);
   });
@@ -163,7 +199,7 @@ describe("streamReachesPast", () => {
     ).toBe(false);
   });
 
-  it("holds exactly when every installation active in the period reaches past its end", () => {
+  it("holds exactly when every installation active in the period reaches past its end with every event it pushed applied", () => {
     const moment = fc
       .integer({ min: 0, max: 40 })
       .map((hours) => new Date(PERIOD.from.getTime() + (hours - 10) * 12 * 60 * 60 * 1000));
@@ -172,6 +208,7 @@ describe("streamReachesPast", () => {
       revokedAt: fc.option(moment, { nil: null }),
       latestOccurredAt: fc.option(moment, { nil: null }),
       caughtUpAt: fc.option(moment, { nil: null }),
+      holdsUnappliedEvents: fc.boolean(),
     });
     fc.assert(
       fc.property(fc.array(anInstallation, { maxLength: 6 }), (installations) => {
@@ -181,9 +218,10 @@ describe("streamReachesPast", () => {
               enrolledAt < PERIOD.until && (revokedAt === null || revokedAt > PERIOD.from),
           )
           .every(
-            ({ latestOccurredAt, caughtUpAt }) =>
-              (latestOccurredAt !== null && latestOccurredAt > PERIOD.until) ||
-              (caughtUpAt !== null && caughtUpAt > PERIOD.until),
+            ({ latestOccurredAt, caughtUpAt, holdsUnappliedEvents }) =>
+              !holdsUnappliedEvents &&
+              ((latestOccurredAt !== null && latestOccurredAt > PERIOD.until) ||
+                (caughtUpAt !== null && caughtUpAt > PERIOD.until)),
           );
         expect(streamReachesPast(installations, PERIOD)).toBe(expected);
       }),

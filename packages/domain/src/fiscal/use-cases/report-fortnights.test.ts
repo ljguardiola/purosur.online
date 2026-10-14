@@ -27,6 +27,7 @@ const ON_OCTOBER_3 = new Date("2026-10-03T15:00:00.000Z");
 const ON_OCTOBER_20 = new Date("2026-10-20T15:00:00.000Z");
 const REGISTER_ID = "register-1";
 const POINT_OF_SALE = 7;
+const CLAIMED_AT = new Date("2026-09-01T12:00:00.000Z");
 
 function codeFor(fortnight: Fortnight): OfflineAuthorizationCode {
   return { code: `code-${fortnight.start}`, fortnight, reportDeadline: "2026-10-05" };
@@ -40,6 +41,7 @@ function reachingInstallation(
     revokedAt: null,
     latestOccurredAt: new Date("2026-10-02T12:00:00.000Z"),
     caughtUpAt: null,
+    holdsUnappliedEvents: false,
     ...overrides,
   };
 }
@@ -56,7 +58,9 @@ function setUp({ now = ON_OCTOBER_3, token = TOKEN as typeof TOKEN | null, keptC
     });
   }
   const reports = new FakeFortnightReportStore(codeStore, operations);
-  reports.pointsOfSale = [{ pointOfSaleNumber: POINT_OF_SALE, registerId: REGISTER_ID }];
+  reports.pointsOfSale = [
+    { pointOfSaleNumber: POINT_OF_SALE, registerId: REGISTER_ID, claimedAt: CLAIMED_AT },
+  ];
   const documents = new FakeOfflineDocumentsOfFortnight(operations);
   const streams = new FakeRegisterEventStreams();
   streams.installations.set(REGISTER_ID, [reachingInstallation()]);
@@ -157,9 +161,9 @@ describe("reportFortnights", () => {
     it("declares each point of sale of the fortnight separately", async () => {
       const { reports, streams, documents, declarations, run } = setUp();
       reports.pointsOfSale = [
-        { pointOfSaleNumber: 7, registerId: REGISTER_ID },
-        { pointOfSaleNumber: 8, registerId: "register-2" },
-        { pointOfSaleNumber: 9, registerId: "register-3" },
+        { pointOfSaleNumber: 7, registerId: REGISTER_ID, claimedAt: CLAIMED_AT },
+        { pointOfSaleNumber: 8, registerId: "register-2", claimedAt: CLAIMED_AT },
+        { pointOfSaleNumber: 9, registerId: "register-3", claimedAt: CLAIMED_AT },
       ];
       streams.installations.set("register-2", [reachingInstallation()]);
       streams.installations.set("register-3", [reachingInstallation({ latestOccurredAt: null })]);

@@ -1,4 +1,5 @@
 import type { InstallationStreamReach } from "../../../sync/index.js";
+import { isFortnightReportOutstanding, owesFortnightReport } from "../../model/fortnight-report.js";
 import type { Fortnight } from "../../model/offline-authorization-code.js";
 import type {
   FortnightReportChange,
@@ -19,6 +20,7 @@ import type { FakeOfflineAuthorizationCodeStore } from "./fake-offline-authoriza
 export interface OfflinePointOfSaleOfRegister {
   pointOfSaleNumber: number;
   registerId: string;
+  claimedAt: Date;
 }
 
 function keyOf({ pointOfSaleNumber, fortnight }: FortnightReportKey): string {
@@ -68,17 +70,18 @@ export class FakeFortnightReportStore implements FortnightReportStore {
 
   async owedReports(today: string): Promise<OwedFortnightReport[]> {
     this.operations.push("owedReports");
-    return this.codes.kept
-      .filter(({ code }) => code.fortnight.end < today)
-      .flatMap(({ code }) =>
-        this.pointsOfSale
-          .filter(
-            ({ pointOfSaleNumber }) =>
+    return this.codes.kept.flatMap(({ code }) =>
+      this.pointsOfSale
+        .filter(
+          ({ pointOfSaleNumber, claimedAt }) =>
+            owesFortnightReport({ fortnight: code.fortnight, claimedAt }, today) &&
+            isFortnightReportOutstanding(
               this.recordedReports.get(keyOf({ pointOfSaleNumber, fortnight: code.fortnight }))
-                ?.state !== "accepted",
-          )
-          .map(({ pointOfSaleNumber, registerId }) => ({ pointOfSaleNumber, registerId, code })),
-      );
+                ?.state ?? null,
+            ),
+        )
+        .map(({ pointOfSaleNumber, registerId }) => ({ pointOfSaleNumber, registerId, code })),
+    );
   }
 
   async holdReport<TOutcome>(

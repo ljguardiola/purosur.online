@@ -1,3 +1,4 @@
+import { formatCalendarDayRange } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -59,17 +60,18 @@ test("lists each presentation with its fortnight, its point of sale and its dead
   );
 
   const table = screen.getByRole("table", { name: "Informes quincenales" });
-  for (const header of ["Quincena", "Punto de venta", "Comprobantes", "Estado", "Vence"]) {
+  for (const header of ["Quincena", "Punto de venta", "Estado", "Vence"]) {
     await expect.element(table.getByRole("columnheader", { name: header })).toBeVisible();
   }
-  await expect.element(table.getByText("16 al 31/08/2026")).toBeVisible();
+  await expect
+    .element(table.getByText(formatCalendarDayRange("2026-08-16", "2026-08-31"), { exact: true }))
+    .toBeVisible();
   await expect.element(table.getByText("00004")).toBeVisible();
   await expect.element(table.getByText("08/09/2026")).toBeVisible();
 });
 
 test.each([
   [null, "Pendiente"],
-  ["ready", "Listo para presentar"],
   ["submitting", "Presentando"],
   ["refused", "Rechazado"],
   ["blocked", "Bloqueado"],
@@ -80,30 +82,24 @@ test.each([
   await expect.element(screen.getByRole("table").getByText(label, { exact: true })).toBeVisible();
 });
 
-test("says an accepted presentation had no movement", async () => {
-  const screen = await render(sectionFor(loaded([presentation({ state: "accepted" })])));
+test("shows no column inferring from the state what a presentation declared", async () => {
+  const screen = await render(
+    sectionFor(
+      loaded([
+        presentation({ fortnight: augustSecondHalf, state: "accepted" }),
+        presentation({ state: "blocked" }),
+      ]),
+    ),
+  );
 
-  await expect.element(screen.getByText("Sin movimiento")).toBeVisible();
+  const table = screen.getByRole("table");
+  await expect.element(table).toBeVisible();
+  expect(table.getByRole("columnheader", { name: "Comprobantes" }).query()).toBeNull();
+  expect(table.getByText("Sin movimiento").query()).toBeNull();
+  expect(table.getByText(/Faltan comprobantes/).query()).toBeNull();
 });
 
-test("says which register is still missing vouchers on a blocked presentation", async () => {
-  const screen = await render(sectionFor(loaded([presentation({ state: "blocked" })])));
-
-  await expect
-    .element(screen.getByRole("table").getByText("Faltan comprobantes de Caja 1"))
-    .toBeVisible();
-});
-
-test.each([null, "ready", "submitting", "refused"] as const)(
-  "shows a dash for the vouchers of a %s presentation",
-  async (state) => {
-    const screen = await render(sectionFor(loaded([presentation({ state })])));
-
-    await expect.element(screen.getByRole("table").getByText("—")).toBeVisible();
-  },
-);
-
-test("warns above the table of each blocked presentation, naming its register", async () => {
+test("warns above the table of each blocked presentation which register still has to finish syncing", async () => {
   const screen = await render(
     sectionFor(
       loaded([
@@ -119,19 +115,28 @@ test("warns above the table of each blocked presentation, naming its register", 
   );
 
   await expect
-    .element(screen.getByText("No se puede presentar el informe del 1 al 15/09"))
+    .element(screen.getByText("Caja 1 todavía no terminó de sincronizar", { exact: true }))
     .toBeVisible();
   await expect
     .element(
       screen.getByText(
-        "Caja 1 estuvo sin conexión y la nube todavía no tiene todos sus comprobantes de esa quincena. Se puede presentar cuando termine de sincronizar.",
+        `El informe ${formatCalendarDayRange("2026-09-01", "2026-09-15")} del punto de venta 00004 se puede presentar cuando termine.`,
+        { exact: true },
       ),
     )
     .toBeVisible();
   await expect
-    .element(screen.getByText("No se puede presentar el informe del 16 al 31/08"))
+    .element(screen.getByText("Caja 2 todavía no terminó de sincronizar", { exact: true }))
     .toBeVisible();
-  await expect.element(screen.getByText(/^Caja 2 estuvo sin conexión/)).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        `El informe ${formatCalendarDayRange("2026-08-16", "2026-08-31")} del punto de venta 00005 se puede presentar cuando termine.`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  expect(screen.getByText(/No se puede presentar/).query()).toBeNull();
 });
 
 test("shows no warning while no presentation is blocked", async () => {
@@ -140,7 +145,7 @@ test("shows no warning while no presentation is blocked", async () => {
   );
 
   await expect.element(screen.getByRole("table")).toBeVisible();
-  expect(screen.getByText(/No se puede presentar el informe/).query()).toBeNull();
+  expect(screen.getByText(/terminó de sincronizar/).query()).toBeNull();
 });
 
 test("shows the empty state when no fortnight has closed", async () => {

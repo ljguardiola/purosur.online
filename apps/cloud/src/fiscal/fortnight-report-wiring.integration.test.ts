@@ -146,8 +146,22 @@ async function syncEventOccurringAt(occurredAt: string) {
     now: NOW,
     existingRegisterId: registerId,
   });
-  await insertInboxEvent(drizzle(sql), deviceId, { occurredAt: new Date(occurredAt) });
+  await insertInboxEvent(drizzle(sql), deviceId, {
+    occurredAt: new Date(occurredAt),
+    appliedAt: new Date(occurredAt),
+  });
   return deviceId;
+}
+
+async function receiveOfflineDocumentEvent(deviceId: string, quarantinedAt: Date | null) {
+  await insertInboxEvent(drizzle(sql), deviceId, {
+    aggregateType: "OfflineFiscalDocument",
+    eventType: "offline_fiscal_document_issued",
+    schemaVersion: 1,
+    occurredAt: new Date("2026-10-10T15:00:00.000Z"),
+    receivedAt: new Date("2026-10-16T12:00:00.000Z"),
+    quarantinedAt,
+  });
 }
 
 describe("the fortnight report the server sets up on a real Postgres", () => {
@@ -199,6 +213,28 @@ describe("the fortnight report the server sets up on a real Postgres", () => {
     expect(await sql`select state from fortnight_reports`).toEqual([{ state: "blocked" }]);
     expect(fakeWsfe.requests.join("")).not.toContain("FECAEASinMovimientoInformar");
   }, 90_000);
+
+  it.each([
+    ["received but not applied yet", null],
+    ["quarantined", new Date("2026-10-16T12:05:00.000Z")],
+  ])(
+    "never declares a fortnight without movement while a document event of the register is %s, even when its stream reaches past the close",
+    async (_standing, quarantinedAt) => {
+      await sql`delete from inbox`;
+      await sql`delete from register_installations`;
+      const deviceId = await syncEventOccurringAt("2026-10-16T10:00:00.000Z");
+      await sql`insert into device_state (device_id, caught_up_at)
+                values (${deviceId}, ${"2026-10-16T13:00:00.000Z"}::timestamptz)`;
+      await receiveOfflineDocumentEvent(deviceId, quarantinedAt);
+      fakeWsfe.behave(answersInTurn("fe-caea-sin-movimiento-consultar-not-held.xml"));
+
+      await reportOnDemandUntilDone();
+
+      expect(await sql`select state from fortnight_reports`).toEqual([{ state: "blocked" }]);
+      expect(fakeWsfe.requests.join("")).not.toContain("FECAEASinMovimientoInformar");
+    },
+    90_000,
+  );
 
   it("never declares a fortnight without movement when the point of sale issued documents under its code", async () => {
     await sql`delete from inbox`;

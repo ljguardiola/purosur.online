@@ -22,7 +22,7 @@ describe("fortnightPresentationListSchema", () => {
     expect(fortnightPresentationListSchema.parse([])).toEqual([]);
   });
 
-  it.each(["blocked", "ready", "submitting", "refused", "accepted"] as const)(
+  it.each(["blocked", "submitting", "refused", "accepted"] as const)(
     "reads the %s state",
     (state) => {
       expect(fortnightPresentationListSchema.parse([{ ...presentation, state }])).toEqual([
@@ -31,10 +31,10 @@ describe("fortnightPresentationListSchema", () => {
     },
   );
 
-  it("refuses a state the domain does not know", () => {
-    expect(
-      fortnightPresentationListSchema.safeParse([{ ...presentation, state: "paused" }]).success,
-    ).toBe(false);
+  it.each(["paused", "ready"])("refuses the state %s, which the domain does not know", (state) => {
+    expect(fortnightPresentationListSchema.safeParse([{ ...presentation, state }]).success).toBe(
+      false,
+    );
   });
 
   it.each([
