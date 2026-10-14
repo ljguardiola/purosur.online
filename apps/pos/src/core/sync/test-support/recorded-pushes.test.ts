@@ -1,29 +1,14 @@
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { recordedEvents, sentEvents } from "@purosur/contracts/sync/test-support";
-import ts from "typescript";
 import { beforeAll, describe, expect, it } from "vitest";
+import { eventVersionsBuiltBy, registerCoreProgram } from "../register-event-versions.js";
 import { shapeOf } from "./event-shape.js";
-import { eventVersionsBuiltBy } from "../register-event-versions.js";
 import { registerSessionPush } from "./register-session-push.js";
 
 const REPO_DIR = fileURLToPath(new URL("../../../../../../", import.meta.url));
-const REGISTER_DIR = fileURLToPath(new URL("../../../../", import.meta.url));
 
 const RECORDED_EVENTS = recordedEvents();
-
-function registerCoreProgram(): ts.Program {
-  const config = ts.getParsedCommandLineOfConfigFile(`${REGISTER_DIR}tsconfig.json`, undefined, {
-    ...ts.sys,
-    onUnRecoverableConfigFileDiagnostic: (diagnostic) => {
-      throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
-    },
-  });
-  if (!config) {
-    throw new Error("apps/pos/tsconfig.json could not be read");
-  }
-  return ts.createProgram([`${REGISTER_DIR}src/core/index.ts`], config.options);
-}
 
 const RECORD_HINT =
   "A register change that moves an event to a form no recorded event has must bump the event's schema_version, or record the new form with: REGISTER_PUSH_RECORDING=<name> pnpm record:register-push";
@@ -40,7 +25,7 @@ describe("the recorded pushes", { timeout: 0 }, () => {
   }, 0);
 
   it("hold an event of every version the register's core builds, sent by a register session", () => {
-    const program = registerCoreProgram();
+    const program = registerCoreProgram(REPO_DIR);
     const built = eventVersionsBuiltBy(program, REPO_DIR);
     const sent = new Set(sentEvents(session.sentBody).map(describeEvent));
 

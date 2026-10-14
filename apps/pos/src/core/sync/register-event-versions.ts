@@ -85,3 +85,25 @@ export function eventVersionsBuiltBy(program: ts.Program, sourceDir: string): Bu
 
   return { versions: [...versions].sort(), unreadable };
 }
+
+export function registerCoreProgram(repoRoot: string): ts.Program {
+  const registerDir = path.join(repoRoot, "apps", "pos");
+  const config = ts.getParsedCommandLineOfConfigFile(
+    path.join(registerDir, "tsconfig.json"),
+    undefined,
+    {
+      ...ts.sys,
+      onUnRecoverableConfigFileDiagnostic: (diagnostic) => {
+        throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
+      },
+    },
+  );
+  if (!config) {
+    throw new Error("apps/pos/tsconfig.json could not be read");
+  }
+  return ts.createProgram([path.join(registerDir, "src", "core", "index.ts")], config.options);
+}
+
+export function emittedEventVersions(_repoRoot: string): string[] {
+  return [];
+}
