@@ -33,6 +33,18 @@ describe("dumpToFile", () => {
     expect(await readFile(outputPath, "utf8")).toBe("PLAIN-DUMP-BYTES");
   });
 
+  it("runs a command with the environment it is given", async () => {
+    const outputPath = join(directory, "out");
+    const dump = {
+      ...node("process.stdout.write(process.env.PGPASSWORD ?? 'none')"),
+      env: { PGPASSWORD: "given" },
+    };
+
+    await dumpToFile({ dump, encrypt: UPPERCASE }, outputPath);
+
+    expect(await readFile(outputPath, "utf8")).toBe("GIVEN");
+  });
+
   it("reports the size and SHA-256 of the file it wrote", async () => {
     const outputPath = join(directory, "out");
 
@@ -100,9 +112,12 @@ describe("offsiteDumpCommands", () => {
   it("dumps the database in pg_dump's custom archive format", () => {
     expect(commands.dump.file).toBe("pg_dump");
     expect(commands.dump.args).toContain("--format=custom");
-    expect(commands.dump.args).toContain(
-      "--dbname=postgresql://offsite_dump:pw@db.internal:5432/app",
-    );
+    expect(commands.dump.args).toContain("--dbname=postgresql://offsite_dump@db.internal:5432/app");
+  });
+
+  it("hands pg_dump the password through its environment, never on its command line", () => {
+    expect(commands.dump.env).toEqual({ PGPASSWORD: "pw" });
+    expect(commands.dump.args.join(" ")).not.toContain("pw@");
   });
 
   it("leaves out graphile-worker's queue, which its row-level security hides from this role and its own migration recreates", () => {
