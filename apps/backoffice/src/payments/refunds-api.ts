@@ -1,4 +1,6 @@
 import {
+  type ConfirmedRefundBody,
+  confirmedRefundSchema,
   discardedRefundSchema,
   markedRefundDoneSchema,
   type PendingRefundsBody,
@@ -27,6 +29,25 @@ export type DiscardRefundOutcome =
   | { kind: "already_done" }
   | { kind: "already_discarded" }
   | RequestRefusal;
+
+export type ConfirmRefundOutcome =
+  | { kind: "ok"; value: ConfirmedRefundBody }
+  | { kind: "not_found" }
+  | { kind: "not_confirmable" }
+  | { kind: "already_done" }
+  | { kind: "already_confirmed" }
+  | { kind: "not_backed" }
+  | { kind: "exceeds_refundable" }
+  | { kind: "not_configured" }
+  | RequestRefusal;
+
+const CONFIRM_CONFLICTS = {
+  refund_not_confirmable: "not_confirmable",
+  already_done: "already_done",
+  already_confirmed: "already_confirmed",
+  refund_not_backed: "not_backed",
+  exceeds_refundable: "exceeds_refundable",
+} as const;
 
 async function conflictCode(response: Response): Promise<string | undefined> {
   const body = (await response.json().catch(() => undefined)) as { code?: unknown } | undefined;
@@ -107,6 +128,33 @@ export async function discardRefund(refundId: string): Promise<DiscardRefundOutc
       return { kind: code };
     }
     return { kind: "failed" };
+  }
+  return refusal(response);
+}
+
+export async function confirmRefund(refundId: string): Promise<ConfirmRefundOutcome> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/refunds/${refundId}/confirmation`, { method: "POST" });
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const parsed = confirmedRefundSchema.safeParse(await response.json().catch(() => undefined));
+    return parsed.success ? { kind: "ok", value: parsed.data } : { kind: "failed" };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 409) {
+    const code = await conflictCode(response);
+    const kind = Object.entries(CONFIRM_CONFLICTS).find(([conflict]) => conflict === code)?.[1];
+    return kind ? { kind } : { kind: "failed" };
+  }
+  if (response.status === 503) {
+    return (await conflictCode(response)) === "payment_provider_not_configured"
+      ? { kind: "not_configured" }
+      : { kind: "failed" };
   }
   return refusal(response);
 }

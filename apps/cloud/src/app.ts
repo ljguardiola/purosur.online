@@ -113,6 +113,7 @@ import { registerPriceMarginRoute } from "./pricing/price-margin-route.js";
 import { registerPriceSetRoute } from "./pricing/price-set-route.js";
 import type { PricesRouteOptions } from "./pricing/prices-list-route.js";
 import { registerPricesListRoute } from "./pricing/prices-list-route.js";
+import { registerFreightsRoutes } from "./purchasing/freights-routes.js";
 import { registerPackagingsRoutes } from "./purchasing/packagings-routes.js";
 import { registerPurchasesRoutes } from "./purchasing/purchases-routes.js";
 import type { PurchasingRouteOptions } from "./purchasing/purchasing-route-options.js";
@@ -258,6 +259,7 @@ interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
   deviceTokenRotationKey: Uint8Array;
   installationKeysEncryptionKey: Uint8Array;
   enqueueTaxAuthorityCount?: EnqueueTaxAuthorityCount;
+  refundSending?: NonNullable<RefundRouteOptions<TQueryResult>["sending"]>;
   releaseCheckToken?: string | undefined;
 }
 
@@ -298,7 +300,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     stock: backoffice,
     salesReports: backoffice,
     paymentsReports: backoffice,
-    refunds: backoffice,
+    refunds: wiring.refundSending ? { ...backoffice, sending: wiring.refundSending } : backoffice,
     devices,
     firstPinCodes: devices,
     health: { db, certificateFingerprint: wiring.certificateFingerprint },
@@ -494,6 +496,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerSuppliersRoutes(api, { ...options.purchasing, now });
         registerPackagingsRoutes(api, { ...options.purchasing, now });
         registerPurchasesRoutes(api, { ...options.purchasing, now });
+        registerFreightsRoutes(api, { ...options.purchasing, now });
       }
 
       if (options.tags) {

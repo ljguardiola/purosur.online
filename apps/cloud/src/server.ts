@@ -69,6 +69,7 @@ import { WsfeTaxAuthorityVouchers } from "./fiscal/wsfe-tax-authority-vouchers.j
 import { resolveMercadoPagoConfig } from "./payments/mercado-pago-config.js";
 import { createMercadoPagoOrdersClient } from "./payments/mercado-pago-orders-client.js";
 import { mercadoPagoPendingCheckJobs } from "./payments/mercado-pago-pending-check-task.js";
+import { mercadoPagoRefundFollowJobs } from "./payments/mercado-pago-refund-follow-task.js";
 import {
   type DedicatedConnections,
   postgresDedicatedConnections,
@@ -510,6 +511,12 @@ export async function setUpRecovery(
               db,
               connections,
             }),
+            mercadoPagoRefundFollowJobs({
+              now,
+              mercadoPago: recoveryEnv.mercadoPago,
+              db,
+              connections,
+            }),
           ]
         : []),
       ...(recoveryEnv.arcaWsaa
@@ -694,6 +701,11 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           installationKeysEncryptionKey: database.installationKeysEncryptionKey,
           releaseCheckToken: env.RELEASE_CHECK_TOKEN,
           ...(invoicing ? { enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob } : {}),
+          ...(mercadoPago
+            ? {
+                refundSending: { connections: database.recovery.connections, mercadoPago },
+              }
+            : {}),
         })
       : {}),
     ...(registerReleases

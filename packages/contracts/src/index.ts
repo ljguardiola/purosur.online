@@ -164,11 +164,13 @@ export {
 export type { PaymentMethodAvailability } from "./payments/payment-method-availability.js";
 export { paymentMethodAvailabilitySchema } from "./payments/payment-method-availability.js";
 export type {
+  ConfirmedRefundBody,
   DiscardedRefundBody,
   MarkedRefundDoneBody,
   PendingRefundsBody,
 } from "./payments/pending-refunds.js";
 export {
+  confirmedRefundSchema,
   discardedRefundSchema,
   markedRefundDoneSchema,
   pendingRefundsSchema,
@@ -214,6 +216,29 @@ export type { PriceMargin } from "./pricing/price-margin.js";
 export { priceMarginQuerySchema, priceMarginSchema } from "./pricing/price-margin.js";
 export type { PriceSetBody } from "./pricing/price-set.js";
 export { priceSetBodySchema } from "./pricing/price-set.js";
+export type { FreightBody } from "./purchasing/freight-body.js";
+export { freightBodySchema } from "./purchasing/freight-body.js";
+export type { FreightPeriod } from "./purchasing/freight-period.js";
+export { freightPeriodDaysSchema, freightPeriodSchema } from "./purchasing/freight-period.js";
+export {
+  freightListQuerySchema,
+  linkablePurchasesQuerySchema,
+} from "./purchasing/freight-query.js";
+export type { Freight, FreightList, FreightSummary } from "./purchasing/freight-summary.js";
+export {
+  freightListSchema,
+  freightMeansSchema,
+  freightSchema,
+  freightSummarySchema,
+} from "./purchasing/freight-summary.js";
+export type {
+  LinkablePurchaseList,
+  LinkablePurchaseSummary,
+} from "./purchasing/linkable-purchase-summary.js";
+export {
+  linkablePurchaseListSchema,
+  linkablePurchaseSummarySchema,
+} from "./purchasing/linkable-purchase-summary.js";
 export type { PackagingCreationBody } from "./purchasing/packaging-creation.js";
 export { packagingCreationBodySchema } from "./purchasing/packaging-creation.js";
 export type { PackagingEditBody } from "./purchasing/packaging-edit.js";

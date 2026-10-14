@@ -19,6 +19,9 @@ export const transferRefund: PendingRefundsBody["refunds"][number] = {
   provider_order_id: null,
   cancelled_by: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
   cancelled_by_name: "Lucía",
+  sent_by_cloud: false,
+  delivery_stage: null,
+  last_refusal_reason: null,
 };
 
 const secondRefund: PendingRefundsBody["refunds"][number] = {
@@ -37,6 +40,9 @@ const secondRefund: PendingRefundsBody["refunds"][number] = {
   provider_order_id: null,
   cancelled_by: "ffffffff-ffff-4fff-8fff-ffffffffffff",
   cancelled_by_name: null,
+  sent_by_cloud: false,
+  delivery_stage: null,
+  last_refusal_reason: null,
 };
 
 export const LATE_PAYMENT_REFUND_ID = "99999999-9999-4999-8999-999999999999";
@@ -57,6 +63,9 @@ export const latePaymentRefund: PendingRefundsBody["refunds"][number] = {
   provider_order_id: null,
   cancelled_by: null,
   cancelled_by_name: null,
+  sent_by_cloud: false,
+  delivery_stage: null,
+  last_refusal_reason: null,
 };
 
 const OTHER_ORDER_REFUND_ID = "77777777-7777-4777-8777-777777777777";
@@ -79,4 +88,55 @@ export const pendingRefundsWithLatePayment: PendingRefundsBody = {
 
 export const pendingRefundsWithLatePaymentOfOtherOrder: PendingRefundsBody = {
   refunds: [transferRefund, latePaymentOfOtherOrderRefund],
+};
+
+export const CLOUD_SENT_REFUND_ID = "55555555-5555-4555-8555-555555555555";
+
+type PendingRefund = PendingRefundsBody["refunds"][number];
+
+export const unconfirmedCloudRefund: PendingRefund = {
+  ...transferRefund,
+  id: CLOUD_SENT_REFUND_ID,
+  register_id: "44444444-4444-4444-8444-444444444444",
+  register_name: "Caja de la entrada",
+  method: "QR",
+  amount: 340_000,
+  sent_by_cloud: true,
+  delivery_stage: "unconfirmed",
+};
+
+export const confirmedUnsentCloudRefund: PendingRefund = {
+  ...unconfirmedCloudRefund,
+  delivery_stage: "confirmed",
+};
+
+export const sentCloudRefund: PendingRefund = {
+  ...unconfirmedCloudRefund,
+  delivery_stage: "sent",
+};
+
+export const noBalanceCloudRefund: PendingRefund = {
+  ...unconfirmedCloudRefund,
+  delivery_stage: "waiting_for_balance",
+  last_refusal_reason: "insufficient_balance",
+};
+
+export const refusedCloudRefund: PendingRefund = {
+  ...unconfirmedCloudRefund,
+  delivery_stage: "refused",
+  last_refusal_reason: "refund_period_exceeded",
+};
+
+export const pendingRefundsWithUnconfirmedCloudRefund: PendingRefundsBody = {
+  refunds: [transferRefund, unconfirmedCloudRefund],
+};
+
+export const pendingRefundsOfEveryCloudRefundStage: PendingRefundsBody = {
+  refunds: [
+    unconfirmedCloudRefund,
+    { ...confirmedUnsentCloudRefund, id: "66666666-6666-4666-8666-666666666661" },
+    { ...sentCloudRefund, id: "66666666-6666-4666-8666-666666666662" },
+    { ...noBalanceCloudRefund, id: "66666666-6666-4666-8666-666666666663" },
+    { ...refusedCloudRefund, id: "66666666-6666-4666-8666-666666666664" },
+  ],
 };
