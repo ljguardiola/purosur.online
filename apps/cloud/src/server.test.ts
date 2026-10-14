@@ -45,7 +45,10 @@ import {
   VALID_ARCA_CERTIFICATE,
   VALID_ARCA_CERTIFICATE_SINGLE_LINE,
 } from "./test-support/arca-certificate-fixtures.js";
-import { FICTIONAL_RECOVERY_REPLY_TO } from "./test-support/recovery-reply-to.js";
+import {
+  FICTIONAL_RECOVERY_REPLY_TO,
+  FICTIONAL_RECOVERY_SENDER,
+} from "./test-support/recovery-email.js";
 
 describe("resolveVersion", () => {
   it("returns APP_VERSION when set", () => {
@@ -283,7 +286,7 @@ describe("resolveRecoveryEnv", () => {
   const FULL_RECOVERY_ENV = {
     DATABASE_URL: "postgres://user:pass@db/purosur",
     RESEND_API_KEY: "re_test_key",
-    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
     RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
   };
@@ -292,7 +295,7 @@ describe("resolveRecoveryEnv", () => {
     expect(resolveRecoveryEnv(FULL_RECOVERY_ENV)).toEqual({
       databaseUrl: "postgres://user:pass@db/purosur",
       emailSender: { transport: "resend", resendApiKey: "re_test_key" },
-      emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
+      emailFrom: FICTIONAL_RECOVERY_SENDER,
       emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
       backofficeOrigin: "https://staging.purosur.online",
     });
@@ -322,7 +325,7 @@ describe("resolveRecoveryEnv", () => {
       expect(resolveRecoveryEnv(env)).toEqual({
         databaseUrl: "postgres://user:pass@db/purosur",
         emailSender: { transport: "log" },
-        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
         emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
         backofficeOrigin: "http://localhost:5173",
       });
@@ -338,7 +341,7 @@ describe("resolveRecoveryEnv", () => {
       expect(resolveRecoveryEnv(env)).toEqual({
         databaseUrl: "postgres://user:pass@db/purosur",
         emailSender: { transport: "log" },
-        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
         emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
         backofficeOrigin: "http://127.0.0.1:5173",
       });
@@ -569,7 +572,7 @@ describe("startServer", () => {
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
       RESEND_API_KEY: "re_test_key",
-      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+      RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
       RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
     };
@@ -607,7 +610,7 @@ describe("startServer", () => {
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
       RESEND_API_KEY: "re_test_key",
-      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+      RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
       RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
@@ -631,7 +634,7 @@ describe("startServer", () => {
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
       RESEND_API_KEY: "re_test_key",
-      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+      RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
       RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
@@ -657,7 +660,7 @@ describe("startServer", () => {
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
       RESEND_API_KEY: "re_test_key",
-      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+      RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
       RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
@@ -686,7 +689,7 @@ describe("startServer", () => {
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
       RESEND_API_KEY: "re_test_key",
-      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+      RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
       RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
@@ -724,7 +727,7 @@ describe("startServer", () => {
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
       RESEND_API_KEY: "re_test_key",
-      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+      RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
       RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
@@ -750,7 +753,7 @@ describe("startServer", () => {
       {
         databaseUrl: "postgres://user:pass@db/purosur",
         emailSender: { transport: "resend", resendApiKey: "re_test_key" },
-        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
         emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
         backofficeOrigin: "https://staging.purosur.online",
         arcaCertificate: {
@@ -895,7 +898,7 @@ describe("startServer recording the certificate's CUIT", () => {
   const env = {
     DATABASE_URL: "postgres://user:pass@db/purosur",
     RESEND_API_KEY: "re_test_key",
-    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
     RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
     EDGE_ORIGIN_SECRET: "edge-secret",
@@ -959,7 +962,7 @@ describe("startServer checking the certificate's expiry", () => {
   const env = {
     DATABASE_URL: "postgres://user:pass@db/purosur",
     RESEND_API_KEY: "re_test_key",
-    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
     RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
     EDGE_ORIGIN_SECRET: "edge-secret",
@@ -1039,7 +1042,7 @@ describe("startServer with the ARCA private key", () => {
   const baseEnv = {
     DATABASE_URL: "postgres://user:pass@db/purosur",
     RESEND_API_KEY: "re_test_key",
-    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
     RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
     EDGE_ORIGIN_SECRET: "edge-secret",
@@ -1219,7 +1222,7 @@ describe("startServer fetching the buyer tax-status values", () => {
   const env = {
     DATABASE_URL: "postgres://user:pass@db/purosur",
     RESEND_API_KEY: "re_test_key",
-    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
     RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
     EDGE_ORIGIN_SECRET: "edge-secret",
@@ -1311,7 +1314,7 @@ describe("startServer authorizing sales in real time", () => {
   const env = {
     DATABASE_URL: "postgres://user:pass@db/purosur",
     RESEND_API_KEY: "re_test_key",
-    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
     RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
     EDGE_ORIGIN_SECRET: "edge-secret",
@@ -1498,7 +1501,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
   const env = {
     DATABASE_URL: "postgres://user:pass@db/purosur",
     RESEND_API_KEY: "re_test_key",
-    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
     RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
     EDGE_ORIGIN_SECRET: "edge-secret",
@@ -1648,7 +1651,7 @@ describe("startServer with the real app", () => {
       {
         DATABASE_URL: "postgres://user:pass@db/purosur",
         RESEND_API_KEY: "re_test_key",
-        RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+        RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
         RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
         BACKOFFICE_ORIGIN: "https://staging.purosur.online",
         EDGE_ORIGIN_SECRET: "edge-secret",
@@ -1908,7 +1911,7 @@ describe("startServer ARCA endpoints", () => {
       {
         DATABASE_URL: "postgres://user:pass@db/purosur",
         RESEND_API_KEY: "re_test_key",
-        RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+        RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
         RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
         BACKOFFICE_ORIGIN: "https://staging.purosur.online",
         EDGE_ORIGIN_SECRET: "edge-secret",

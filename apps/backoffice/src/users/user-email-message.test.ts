@@ -9,9 +9,9 @@ test("asks for the email when it is empty", () => {
 });
 
 test("asks for a valid email when the user's shape refuses it", () => {
-  expect(message({ email: "ana ejemplo.com" })).toBe("Ingresá un correo válido.");
+  expect(message({ email: "ana example.com" })).toBe("Ingresá un correo válido.");
 });
 
 test("asks to review an email the user's shape accepts", () => {
-  expect(message({ email: "ana@ejemplo.com" })).toBe("Revisá el correo.");
+  expect(message({ email: "ana@example.com" })).toBe("Revisá el correo.");
 });
