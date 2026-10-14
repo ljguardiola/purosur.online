@@ -22,6 +22,11 @@ export const pendingRefundsSchema = z.object({
       provider_order_id: z.string().min(1).nullable(),
       cancelled_by: z.string().nullable(),
       cancelled_by_name: z.string().nullable(),
+      sent_by_cloud: z.boolean(),
+      confirmed_at: instant.meta({ timeZone: ARGENTINA_TIME_ZONE }).nullable(),
+      confirmed_by_name: z.string().nullable(),
+      sent_at: instant.meta({ timeZone: ARGENTINA_TIME_ZONE }).nullable(),
+      last_refusal_reason: z.string().nullable(),
     }),
   ),
 });
@@ -38,3 +43,14 @@ export const discardedRefundSchema = z.object({
   discarded_at: instant,
 });
 export type DiscardedRefundBody = z.output<typeof discardedRefundSchema>;
+
+const confirmedRefund = { refund_id: recordIdSchema() };
+
+export const confirmedRefundSchema = z.discriminatedUnion("outcome", [
+  z.object({ ...confirmedRefund, outcome: z.literal("sent") }),
+  z.object({ ...confirmedRefund, outcome: z.literal("done"), done_at: instant }),
+  z.object({ ...confirmedRefund, outcome: z.literal("insufficient_balance") }),
+  z.object({ ...confirmedRefund, outcome: z.literal("refused"), reason: z.string().min(1) }),
+  z.object({ ...confirmedRefund, outcome: z.literal("provider_unavailable") }),
+]);
+export type ConfirmedRefundBody = z.output<typeof confirmedRefundSchema>;
