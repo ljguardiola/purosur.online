@@ -21,26 +21,34 @@ async function aRegister(client: SqlOnlyDatabase) {
 }
 
 function insertDocument(
+  client: SqlOnlyDatabase,
   registerId: string,
-  overrides: { number?: number; saleId?: string; documentType?: string; cause?: string } = {},
+  overrides: {
+    number?: number;
+    saleId?: string;
+    documentType?: string;
+    cause?: string;
+    generationStamp?: string;
+  } = {},
 ) {
-  return {
-    text: `insert into offline_fiscal_documents
+  return client.query(
+    `insert into offline_fiscal_documents
              (id, sale_id, register_id, point_of_sale, document_type, number, issued_on,
               generated_at, generation_stamp, offline_authorization_code, fortnight_start,
               fortnight_end, buyer_document_type, buyer_document_number, buyer_tax_status_code,
               total, net_amount, cause, recorded_at)
            values (gen_random_uuid(), $1, $2, 7, $3, $4, '2026-10-06', '2026-10-06T11:20:00Z',
-                   '20261006082000', '21403471111111', '2026-10-01', '2026-10-15', 99, 0, 5,
+                   $6, '21403471111111', '2026-10-01', '2026-10-15', 99, 0, 5,
                    4800, 4800, $5, '2026-10-06T15:00:00Z')`,
-    values: [
+    [
       overrides.saleId ?? crypto.randomUUID(),
       registerId,
       overrides.documentType ?? "factura_c",
       overrides.number ?? 12,
       overrides.cause ?? "no_connectivity",
+      overrides.generationStamp ?? "20261006082000",
     ],
-  };
+  );
 }
 
 describe("the offline fiscal documents migration applied over a database that already holds data", {
@@ -55,7 +63,7 @@ describe("the offline fiscal documents migration applied over a database that al
       "unclear_outcome",
       "numbering_conflict",
     ].entries()) {
-      await client.query(insertDocument(registerId, { number: index + 1, cause }));
+      await insertDocument(client, registerId, { number: index + 1, cause });
     }
 
     const { rows: documents } = await client.query(
@@ -74,7 +82,7 @@ describe("the offline fiscal documents migration applied over a database that al
     const client = await migratedDatabase();
     const registerId = await aRegister(client);
 
-    await expect(client.query(insertDocument(registerId, { cause: "boredom" }))).rejects.toThrow();
+    await expect(insertDocument(client, registerId, { cause: "boredom" })).rejects.toThrow();
   });
 
   it("refuses a document type other than factura C", async () => {
@@ -82,27 +90,25 @@ describe("the offline fiscal documents migration applied over a database that al
     const registerId = await aRegister(client);
 
     await expect(
-      client.query(insertDocument(registerId, { documentType: "factura_a" })),
+      insertDocument(client, registerId, { documentType: "factura_a" }),
     ).rejects.toThrow();
   });
 
   it("refuses a second document under the same number of a point of sale", async () => {
     const client = await migratedDatabase();
     const registerId = await aRegister(client);
-    await client.query(insertDocument(registerId));
+    await insertDocument(client, registerId);
 
-    await expect(client.query(insertDocument(registerId))).rejects.toThrow();
+    await expect(insertDocument(client, registerId)).rejects.toThrow();
   });
 
   it("refuses a second document for the same sale", async () => {
     const client = await migratedDatabase();
     const registerId = await aRegister(client);
     const saleId = crypto.randomUUID();
-    await client.query(insertDocument(registerId, { saleId }));
+    await insertDocument(client, registerId, { saleId });
 
-    await expect(
-      client.query(insertDocument(registerId, { saleId, number: 13 })),
-    ).rejects.toThrow();
+    await expect(insertDocument(client, registerId, { saleId, number: 13 })).rejects.toThrow();
   });
 
   it("refuses a generation stamp that is not fourteen digits", async () => {
@@ -110,10 +116,7 @@ describe("the offline fiscal documents migration applied over a database that al
     const registerId = await aRegister(client);
 
     await expect(
-      client.query({
-        ...insertDocument(registerId),
-        text: insertDocument(registerId).text.replace("'20261006082000'", "'2026-10-06'"),
-      }),
+      insertDocument(client, registerId, { generationStamp: "2026-10-06" }),
     ).rejects.toThrow();
   });
 

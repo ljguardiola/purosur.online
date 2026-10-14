@@ -95,7 +95,7 @@ describe("recording the document a register issued under a pre-obtained code", (
 
   it("refuses a document that names another register than the one that pushed it", async () => {
     const { deviceId } = await system.enrollInstallation();
-    const other = await system.enrollInstallation();
+    const other = await system.enrollInstallation({ registerName: "Caja 2" });
 
     await expect(
       record(anOfflineFiscalDocumentFact({ registerId: other.registerId }), deviceId),
