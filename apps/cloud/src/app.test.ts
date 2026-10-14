@@ -44,6 +44,7 @@ import {
   OPEN_SESSION_ACCESS,
   OPEN_SESSION_PEEK_ACCESS,
   PUBLIC_ACCESS,
+  OFFSITE_DUMP_CHECK_ACCESS,
   RELEASE_CHECK_ACCESS,
   recordAccess,
   SESSION_COOKIE_ACCESS,
@@ -2524,6 +2525,11 @@ describe("the route access inventory", () => {
         method: "GET",
         url: "/api/sync/registers-below-minimum",
         access: RELEASE_CHECK_ACCESS,
+      },
+      {
+        method: "POST",
+        url: "/api/backups/offsite-dump-checks",
+        access: OFFSITE_DUMP_CHECK_ACCESS,
       },
       {
         method: "GET",
