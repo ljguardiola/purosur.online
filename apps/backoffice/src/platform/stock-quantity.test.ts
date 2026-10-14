@@ -6,6 +6,7 @@ import {
   formatStockQuantityInput,
   formatStockQuantityLimit,
   parseStockQuantity,
+  quantityFieldKind,
 } from "./stock-quantity";
 
 test.each([
@@ -102,3 +103,8 @@ test.each([
     );
   },
 );
+
+test("asks for a keyboard with the decimal comma for kilos and for none for units", () => {
+  expect(quantityFieldKind("KG")).toMatchObject({ inputMode: "decimal" });
+  expect(quantityFieldKind("UNIT")).not.toHaveProperty("inputMode");
+});

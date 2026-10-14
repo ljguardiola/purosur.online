@@ -149,6 +149,9 @@ describe("ApplySaleDiscountModal", () => {
     await expect
       .element(screen.getByText("Se suma a las promociones y a los descuentos de línea."))
       .toBeVisible();
+    await expect
+      .element(screen.getByRole("textbox", { name: "Porcentaje de descuento" }))
+      .toHaveAttribute("inputmode", "numeric");
   });
 
   it("heads the modal with the percent icon", async () => {
@@ -223,6 +226,9 @@ describe("ApplySaleDiscountModal", () => {
     await expect
       .element(screen.getByRole("textbox", { name: "Monto de descuento" }))
       .toHaveValue("");
+    await expect
+      .element(screen.getByRole("textbox", { name: "Monto de descuento" }))
+      .toHaveAttribute("inputmode", "decimal");
   });
 
   it("sends a percentage with its reason and tells the screen the sale it returns", async () => {

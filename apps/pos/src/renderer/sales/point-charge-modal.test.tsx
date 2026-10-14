@@ -69,6 +69,7 @@ describe("PointChargeModal", () => {
         "El cobro se envía a la terminal por este importe. Después ya no se puede cambiar.",
       );
     await expectNoAccessibilityViolations(screen.container);
+    await expect.element(field).toHaveAttribute("inputmode", "decimal");
   });
 
   it("fills the amount with the pending balance and says it may be less", async () => {

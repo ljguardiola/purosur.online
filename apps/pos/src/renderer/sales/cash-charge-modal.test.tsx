@@ -97,6 +97,7 @@ describe("CashChargeModal", () => {
       .element(screen.getByText("Con menos de lo que falta, el resto queda pendiente."))
       .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
+    await expect.element(field).toHaveAttribute("inputmode", "decimal");
   });
 
   it("takes the typed amount as soon as it opens", async () => {

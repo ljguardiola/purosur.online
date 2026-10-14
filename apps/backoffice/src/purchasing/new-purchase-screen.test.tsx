@@ -251,6 +251,21 @@ test("says a product has no active packaging to load a line by", async () => {
     .toBeVisible();
 });
 
+test("asks for a keyboard with the decimal comma for the cost and the kilos of a line", async () => {
+  window.history.pushState(null, "", "/purchases/new");
+  const screen = await opened(createServices());
+
+  await fillQuantityLine(screen);
+
+  const group = line(screen, 1);
+  await expect
+    .element(group.getByRole("textbox", { name: /^Cantidad/ }))
+    .toHaveAttribute("inputmode", "decimal");
+  await expect
+    .element(group.getByRole("textbox", { name: /^Costo por kg/ }))
+    .toHaveAttribute("inputmode", "decimal");
+});
+
 test("registers a purchase with a line loaded by quantity, then goes back to the list with a confirmation to show", async () => {
   window.history.pushState(null, "", "/purchases/new");
   const services = createServices();

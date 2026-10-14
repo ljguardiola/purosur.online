@@ -64,6 +64,7 @@ describe("QrChargeModal", () => {
       .element(screen.getByRole("status"))
       .toHaveTextContent("La orden se crea por este importe. Después ya no se puede cambiar.");
     await expectNoAccessibilityViolations(screen.container);
+    await expect.element(field).toHaveAttribute("inputmode", "decimal");
   });
 
   it("fills the amount with the pending balance and says it may be less, showing the balance once", async () => {
