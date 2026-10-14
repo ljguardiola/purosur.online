@@ -1,4 +1,5 @@
 import type {
+  AverageTicketBody,
   ReportQuery,
   SalesByCashierBody,
   SalesByProductAndCategoryBody,
@@ -8,6 +9,7 @@ import type {
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
 import type {
+  fetchAverageTicket,
   fetchSalesByCashier,
   fetchSalesByProductAndCategory,
   fetchSalesReport,
@@ -29,6 +31,14 @@ export const salesKeys = {
     ] as const,
   cashiers: (query: ReportQuery) =>
     [...salesKey, "cashiers", query.from ?? "", query.to ?? "", query.register_id ?? ""] as const,
+  averageTicket: (query: ReportQuery) =>
+    [
+      ...salesKey,
+      "average-ticket",
+      query.from ?? "",
+      query.to ?? "",
+      query.register_id ?? "",
+    ] as const,
 };
 
 type ReadParams = { onSessionEnded: () => void };
@@ -70,6 +80,19 @@ export function useSalesByCashierQuery(
     queryKey: salesKeys.cashiers(params.query),
     keepPreviousData: true,
     read: () => params.fetchSalesByCashier(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useAverageTicketQuery(
+  params: ReadParams & { query: ReportQuery; fetchAverageTicket: typeof fetchAverageTicket },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<AverageTicketBody>({
+    queryKey: salesKeys.averageTicket(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchAverageTicket(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
