@@ -7,11 +7,12 @@ import {
   snapshotUploadBodySchema,
 } from "@purosur/contracts";
 import {
-  type AuthorizedSnapshotUpload,
   listRestorableSnapshotGenerations,
   recordSnapshotUploaded,
   reportSnapshotCorruption,
   requestSnapshotUpload,
+  type SnapshotUploads,
+  SnapshotUploadWindowClosed,
 } from "@purosur/domain/register/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -23,12 +24,7 @@ import { authenticateDevice } from "./device-authentication.js";
 import { DrizzleSnapshotStore } from "./drizzle-snapshot-store.js";
 import { type DeviceTokensOptions, installationTokenPorts } from "./installation-token-ports.js";
 
-export interface RegisterSnapshotUrls {
-  uploadAuthorization(generation: AuthorizedSnapshotUpload): Promise<{
-    url: string;
-    requiredHeaders: Record<string, string>;
-    expiresAt: Date;
-  }>;
+export interface RegisterSnapshotUrls extends SnapshotUploads {
   downloadUrl(registerId: string, generationId: string): Promise<string>;
 }
 
@@ -46,6 +42,25 @@ const SNAPSHOT_BACKUPS_UNAVAILABLE = cloudError(
   "snapshot_backups_unavailable",
   "the register backups are not available right now",
 );
+
+class SnapshotBucketUnavailable extends Error {}
+
+function reportingBucketUnavailable(uploads: SnapshotUploads): SnapshotUploads {
+  return {
+    async authorizeUpload(upload) {
+      try {
+        return await uploads.authorizeUpload(upload);
+      } catch (error) {
+        if (error instanceof SnapshotUploadWindowClosed) {
+          throw error;
+        }
+        throw new SnapshotBucketUnavailable("the register snapshots bucket cannot sign", {
+          cause: error,
+        });
+      }
+    },
+  };
+}
 
 interface AuthenticatedRegister {
   registerId: string;
@@ -106,17 +121,26 @@ export function registerRegisterSnapshotRoutes<TQueryResult extends PgQueryResul
           return;
         }
 
-        const outcome = await requestSnapshotUpload(
-          { store, clock },
-          {
-            registerId: register.registerId,
-            deviceId: register.deviceId,
-            generationId: body.generation_id,
-            size: body.size,
-            sha256: body.sha256,
-            keyVersion: body.key_version,
-          },
-        );
+        let outcome: Awaited<ReturnType<typeof requestSnapshotUpload>>;
+        try {
+          outcome = await requestSnapshotUpload(
+            { store, uploads: reportingBucketUnavailable(urls), clock },
+            {
+              registerId: register.registerId,
+              deviceId: register.deviceId,
+              generationId: body.generation_id,
+              size: body.size,
+              sha256: body.sha256,
+              keyVersion: body.key_version,
+            },
+          );
+        } catch (error) {
+          if (error instanceof SnapshotBucketUnavailable) {
+            await unavailable(reply, error.cause);
+            return;
+          }
+          throw error;
+        }
         if (outcome.kind === "unknown_key_version") {
           await reply
             .code(cloudErrorStatus("validation_failed"))
@@ -135,18 +159,14 @@ export function registerRegisterSnapshotRoutes<TQueryResult extends PgQueryResul
             );
           return;
         }
-        try {
-          const authorization = await urls.uploadAuthorization(outcome.generation);
-          await reply.code(200).send(
-            snapshotUploadAnswerSchema.parse({
-              upload_url: authorization.url,
-              required_headers: authorization.requiredHeaders,
-              expires_at: authorization.expiresAt.toISOString(),
-            }),
-          );
-        } catch (error) {
-          await unavailable(reply, error);
-        }
+        const { authorization } = outcome;
+        await reply.code(200).send(
+          snapshotUploadAnswerSchema.parse({
+            upload_url: authorization.url,
+            required_headers: authorization.requiredHeaders,
+            expires_at: authorization.expiresAt.toISOString(),
+          }),
+        );
       },
     );
 

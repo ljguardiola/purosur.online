@@ -52,6 +52,26 @@ export interface RegisterSnapshotLanes {
 
 export class SnapshotGenerationIdTaken extends Error {}
 
+export interface AuthorizedSnapshotUpload {
+  registerId: string;
+  generationId: string;
+  keyVersion: number;
+  issuedAt: Date;
+  expiresAt: Date;
+}
+
+export interface SnapshotUploadAuthorization {
+  url: string;
+  requiredHeaders: Record<string, string>;
+  expiresAt: Date;
+}
+
+export class SnapshotUploadWindowClosed extends Error {}
+
+export interface SnapshotUploads {
+  authorizeUpload(upload: AuthorizedSnapshotUpload): Promise<SnapshotUploadAuthorization>;
+}
+
 export interface SnapshotStoreTransaction {
   lockRegisterSnapshots(registerId: string): Promise<void>;
   snapshotKeyVersions(registerId: string): Promise<number[]>;

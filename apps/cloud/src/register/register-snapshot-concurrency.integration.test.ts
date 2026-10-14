@@ -4,6 +4,7 @@ import {
   reportSnapshotCorruption,
   requestSnapshotUpload,
   type SnapshotObjects,
+  type SnapshotUploads,
 } from "@purosur/domain/register/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -74,13 +75,21 @@ async function registerWithInstallationAndKey(name = "Caja 1") {
   return { registerId: register.id, deviceId: installation.id };
 }
 
+const signedUploads: SnapshotUploads = {
+  authorizeUpload: async (upload) => ({
+    url: `https://bucket.example.test/${upload.registerId}/${upload.generationId}`,
+    requiredHeaders: {},
+    expiresAt: upload.expiresAt,
+  }),
+};
+
 describe("declaring one snapshot generation twice at once on a real Postgres through postgres-js", () => {
   it("lets the second wait for the first and find the generation it declared", async () => {
     const { registerId, deviceId } = await registerWithInstallationAndKey();
     const store = new DrizzleSnapshotStore(db);
     const declare = () =>
       requestSnapshotUpload(
-        { store, clock: { now: () => NOW } },
+        { store, uploads: signedUploads, clock: { now: () => NOW } },
         {
           registerId,
           deviceId,

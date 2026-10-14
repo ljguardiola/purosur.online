@@ -1,12 +1,20 @@
 import type { Clock } from "../../shared/index.js";
 import {
   isAwaitingSnapshotVerification,
-  snapshotUploadUrlLifetimeSeconds,
+  snapshotUploadUrlExpiry,
 } from "../model/snapshot-generation.js";
-import { SnapshotGenerationIdTaken, type SnapshotStore } from "./snapshot-generations.js";
+import {
+  type AuthorizedSnapshotUpload,
+  SnapshotGenerationIdTaken,
+  type SnapshotStore,
+  type SnapshotUploadAuthorization,
+  type SnapshotUploads,
+  SnapshotUploadWindowClosed,
+} from "./snapshot-generations.js";
 
 export interface RequestSnapshotUploadPorts {
   store: SnapshotStore;
+  uploads: SnapshotUploads;
   clock: Clock;
 }
 
@@ -19,28 +27,23 @@ export interface RequestSnapshotUploadInput {
   keyVersion: number;
 }
 
-export interface AuthorizedSnapshotUpload {
-  registerId: string;
-  generationId: string;
-  size: number;
-  sha256: string;
-  keyVersion: number;
-  issuedAt: Date;
-  lifetimeSeconds: number;
-}
-
-export type RequestSnapshotUploadOutcome =
-  | { kind: "authorized"; generation: AuthorizedSnapshotUpload }
+type RequestSnapshotUploadRefusal =
   | { kind: "unknown_key_version" }
   | { kind: "generation_conflict" }
   | { kind: "generation_settled" }
   | { kind: "upload_deadline_passed" };
 
+export type RequestSnapshotUploadOutcome =
+  | { kind: "authorized"; authorization: SnapshotUploadAuthorization }
+  | RequestSnapshotUploadRefusal;
+
 export async function requestSnapshotUpload(
-  { store, clock }: RequestSnapshotUploadPorts,
+  { store, uploads, clock }: RequestSnapshotUploadPorts,
   input: RequestSnapshotUploadInput,
 ): Promise<RequestSnapshotUploadOutcome> {
-  return store.transaction<RequestSnapshotUploadOutcome>(async (tx) => {
+  const declared = await store.transaction<
+    { kind: "declared"; upload: AuthorizedSnapshotUpload } | RequestSnapshotUploadRefusal
+  >(async (tx) => {
     await tx.lockRegisterSnapshots(input.registerId);
     const keyVersions = await tx.snapshotKeyVersions(input.registerId);
     if (!keyVersions.includes(input.keyVersion)) {
@@ -62,8 +65,8 @@ export async function requestSnapshotUpload(
     }
 
     const now = clock.now();
-    const lifetimeSeconds = snapshotUploadUrlLifetimeSeconds(existing?.createdAt ?? now, now);
-    if (lifetimeSeconds === undefined) {
+    const expiresAt = snapshotUploadUrlExpiry(existing?.createdAt ?? now, now);
+    if (expiresAt === undefined) {
       return { kind: "upload_deadline_passed" };
     }
     if (!existing) {
@@ -85,16 +88,26 @@ export async function requestSnapshotUpload(
       }
     }
     return {
-      kind: "authorized",
-      generation: {
+      kind: "declared",
+      upload: {
         registerId: input.registerId,
         generationId: input.generationId,
-        size: input.size,
-        sha256: input.sha256,
         keyVersion: input.keyVersion,
         issuedAt: now,
-        lifetimeSeconds,
+        expiresAt,
       },
     };
   });
+  if (declared.kind !== "declared") {
+    return declared;
+  }
+
+  try {
+    return { kind: "authorized", authorization: await uploads.authorizeUpload(declared.upload) };
+  } catch (error) {
+    if (error instanceof SnapshotUploadWindowClosed) {
+      return { kind: "upload_deadline_passed" };
+    }
+    throw error;
+  }
 }

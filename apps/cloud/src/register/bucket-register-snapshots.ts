@@ -1,9 +1,12 @@
 import { createHash } from "node:crypto";
 import { SNAPSHOT_DOWNLOAD_URL_LIFETIME_MS } from "@purosur/domain";
-import type {
-  AuthorizedSnapshotUpload,
-  SnapshotObjectContent,
-  SnapshotObjects,
+import {
+  type AuthorizedSnapshotUpload,
+  type SnapshotObjectContent,
+  type SnapshotObjects,
+  type SnapshotUploadAuthorization,
+  type SnapshotUploads,
+  SnapshotUploadWindowClosed,
 } from "@purosur/domain/register/use-cases";
 import { AwsClient } from "aws4fetch";
 import type { RegisterSnapshotsBucketConfig } from "./register-snapshots-bucket-config.js";
@@ -15,17 +18,11 @@ interface BucketRegisterSnapshotsDeps {
   now: () => Date;
 }
 
-export interface SnapshotUploadAuthorization {
-  url: string;
-  requiredHeaders: Record<string, string>;
-  expiresAt: Date;
-}
-
 function amzDate(date: Date): string {
   return date.toISOString().replace(/[-:]|\.\d{3}/g, "");
 }
 
-export class BucketRegisterSnapshots implements SnapshotObjects {
+export class BucketRegisterSnapshots implements SnapshotObjects, SnapshotUploads {
   private readonly client: AwsClient;
   private readonly origin: string;
   private readonly deps: BucketRegisterSnapshotsDeps;
@@ -42,27 +39,25 @@ export class BucketRegisterSnapshots implements SnapshotObjects {
     this.origin = `${endpoint.protocol}//${config.bucket}.${endpoint.host}`;
   }
 
-  async uploadAuthorization(
-    generation: AuthorizedSnapshotUpload,
-  ): Promise<SnapshotUploadAuthorization> {
-    const signedAt = Math.floor(generation.issuedAt.getTime() / 1000) * 1000;
-    const requiredHeaders = { [KEY_VERSION_HEADER]: String(generation.keyVersion) };
+  async authorizeUpload(upload: AuthorizedSnapshotUpload): Promise<SnapshotUploadAuthorization> {
+    const signedAt = Math.floor(upload.issuedAt.getTime() / 1000) * 1000;
+    const lifetimeSeconds = Math.floor((upload.expiresAt.getTime() - signedAt) / 1000);
+    if (lifetimeSeconds < 1) {
+      throw new SnapshotUploadWindowClosed();
+    }
+    const requiredHeaders = { [KEY_VERSION_HEADER]: String(upload.keyVersion) };
     const signed = await this.client.sign(
-      this.presignableUrl(
-        generation.registerId,
-        generation.generationId,
-        generation.lifetimeSeconds,
-      ),
+      this.presignableUrl(upload.registerId, upload.generationId, lifetimeSeconds),
       {
         method: "PUT",
         headers: requiredHeaders,
-        aws: { signQuery: true, datetime: amzDate(generation.issuedAt) },
+        aws: { signQuery: true, datetime: amzDate(upload.issuedAt) },
       },
     );
     return {
       url: signed.url,
       requiredHeaders,
-      expiresAt: new Date(signedAt + generation.lifetimeSeconds * 1000),
+      expiresAt: new Date(signedAt + lifetimeSeconds * 1000),
     };
   }
 

@@ -150,7 +150,6 @@ export type {
 } from "./report-snapshot-corruption.js";
 export { reportSnapshotCorruption } from "./report-snapshot-corruption.js";
 export type {
-  AuthorizedSnapshotUpload,
   RequestSnapshotUploadInput,
   RequestSnapshotUploadOutcome,
   RequestSnapshotUploadPorts,
@@ -173,6 +172,7 @@ export type {
 } from "./set-receipt-printer-address.js";
 export { setReceiptPrinterAddress } from "./set-receipt-printer-address.js";
 export type {
+  AuthorizedSnapshotUpload,
   NewSnapshotGeneration,
   RegisterSnapshotLanes,
   SnapshotGeneration,
@@ -181,8 +181,13 @@ export type {
   SnapshotSettlement,
   SnapshotStore,
   SnapshotStoreTransaction,
+  SnapshotUploadAuthorization,
+  SnapshotUploads,
 } from "./snapshot-generations.js";
-export { SnapshotGenerationIdTaken } from "./snapshot-generations.js";
+export {
+  SnapshotGenerationIdTaken,
+  SnapshotUploadWindowClosed,
+} from "./snapshot-generations.js";
 export type {
   SnapshotVerificationSummary,
   VerifySnapshotGenerationsPorts,

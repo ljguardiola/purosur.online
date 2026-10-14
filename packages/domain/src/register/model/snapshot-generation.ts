@@ -30,16 +30,12 @@ const SNAPSHOT_UPLOAD_URL_LIFETIME_MS = 15 * 60 * 1000;
 
 export const SNAPSHOT_DOWNLOAD_URL_LIFETIME_MS = 15 * 60 * 1000;
 
-export function snapshotUploadUrlLifetimeSeconds(declaredAt: Date, now: Date): number | undefined {
-  const lifetimeMs = Math.min(
-    SNAPSHOT_UPLOAD_URL_LIFETIME_MS,
-    declaredAt.getTime() +
-      SNAPSHOT_UPLOAD_DEADLINE_MS -
-      SNAPSHOT_WORKER_TIME_LIMIT_MS -
-      now.getTime(),
+export function snapshotUploadUrlExpiry(declaredAt: Date, now: Date): Date | undefined {
+  const expiresAt = Math.min(
+    now.getTime() + SNAPSHOT_UPLOAD_URL_LIFETIME_MS,
+    declaredAt.getTime() + SNAPSHOT_UPLOAD_DEADLINE_MS - SNAPSHOT_WORKER_TIME_LIMIT_MS,
   );
-  const lifetimeSeconds = Math.floor(lifetimeMs / 1000);
-  return lifetimeSeconds >= 1 ? lifetimeSeconds : undefined;
+  return expiresAt > now.getTime() ? new Date(expiresAt) : undefined;
 }
 
 export const SNAPSHOT_STATUSES_AWAITING_VERIFICATION = [
