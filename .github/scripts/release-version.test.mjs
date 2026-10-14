@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { runCli as runRegisterMinimumCheck } from "./register-minimum-check.mjs";
 import {
   classifyCommit,
   includedPathsAt,
@@ -19,6 +20,20 @@ const SPEC = {
   prefix: "cloud-v",
   rootPackages: ["@purosur/cloud", "@purosur/backoffice"],
 };
+
+const REGISTER_VERSION_PATH = "packages/domain/src/sync/model/register-version.ts";
+
+function registerVersionSource(minimum) {
+  return `export const MINIMUM_ACCEPTED_REGISTER_VERSION = "${minimum}";
+export function versionAtLeast(version: string, minimum: string): boolean {
+  const [a, b] = [version, minimum].map((value) => value.split(".").map(Number));
+  for (const [index, part] of a.entries()) {
+    if (part !== b[index]) return part > b[index];
+  }
+  return true;
+}
+`;
+}
 
 function manifest(name, { dependencies = [], devDependencies = [] } = {}) {
   const workspaceSpecs = (names) => Object.fromEntries(names.map((dep) => [dep, "workspace:*"]));
@@ -121,6 +136,7 @@ test("includes the root packages' folders, every workspace package they depend o
     });
 
     assert.deepEqual(paths, [
+      ".dockerignore",
       ".node-version",
       "apps/backoffice",
       "apps/cloud",
@@ -445,16 +461,45 @@ test("the command fails without its inputs", async () => {
   });
 });
 
+function promotedOnly(...tags) {
+  const asked = [];
+  return {
+    asked,
+    isPromoted: async (tag) => {
+      asked.push(tag);
+      return tags.includes(tag);
+    },
+  };
+}
+
 test("the previous-tag command names the newest release before the tag being promoted", async () => {
   await withRepo(async (repo) => {
     repo.tag("cloud-v1.0.0");
     repo.commit("fix: round (#50)", { "apps/cloud/src/round.ts": "1" });
     repo.tag("cloud-v1.0.1");
     const { deps, calls } = cliDeps(repo, { RELEASE_TAG: "cloud-v1.0.1" });
+    const { isPromoted } = promotedOnly("cloud-v1.0.0");
 
-    const exitCode = await runCli({ argv: ["previous-tag"], ...deps });
+    const exitCode = await runCli({ argv: ["previous-tag"], ...deps, isPromoted });
 
     assert.equal(exitCode, 0);
+    assert.deepEqual(calls.outputs, [{ path: "/output", text: "previous_tag=cloud-v1.0.0\n" }]);
+  });
+});
+
+test("the previous-tag command skips a release whose promotion never reached production", async () => {
+  await withRepo(async (repo) => {
+    repo.tag("cloud-v1.0.0");
+    repo.commit("feat: raise the minimum (#51)", { "apps/cloud/src/minimum.ts": "1" });
+    repo.tag("cloud-v1.1.0");
+    repo.commit("fix: round (#52)", { "apps/cloud/src/round.ts": "1" });
+    repo.tag("cloud-v1.1.1");
+    const { deps, calls } = cliDeps(repo, { RELEASE_TAG: "cloud-v1.1.1" });
+    const { isPromoted, asked } = promotedOnly("cloud-v1.0.0");
+
+    await runCli({ argv: ["previous-tag"], ...deps, isPromoted });
+
+    assert.deepEqual(asked, ["cloud-v1.1.0", "cloud-v1.0.0"]);
     assert.deepEqual(calls.outputs, [{ path: "/output", text: "previous_tag=cloud-v1.0.0\n" }]);
   });
 });
@@ -464,9 +509,97 @@ test("the previous-tag command writes an empty value for the first release", asy
     repo.tag("cloud-v1.0.0");
     const { deps, calls } = cliDeps(repo, { RELEASE_TAG: "cloud-v1.0.0" });
 
-    await runCli({ argv: ["previous-tag"], ...deps });
+    await runCli({ argv: ["previous-tag"], ...deps, isPromoted: promotedOnly().isPromoted });
 
     assert.deepEqual(calls.outputs, [{ path: "/output", text: "previous_tag=\n" }]);
+  });
+});
+
+test("the previous-tag command writes an empty value when no earlier release was promoted", async () => {
+  await withRepo(async (repo) => {
+    repo.tag("cloud-v1.0.0");
+    repo.commit("fix: round (#53)", { "apps/cloud/src/round.ts": "1" });
+    repo.tag("cloud-v1.0.1");
+    const { deps, calls } = cliDeps(repo, { RELEASE_TAG: "cloud-v1.0.1" });
+
+    await runCli({ argv: ["previous-tag"], ...deps, isPromoted: promotedOnly().isPromoted });
+
+    assert.deepEqual(calls.outputs, [{ path: "/output", text: "previous_tag=\n" }]);
+  });
+});
+
+test("the previous-tag command fails when it cannot tell whether a release was promoted", async () => {
+  await withRepo(async (repo) => {
+    repo.tag("cloud-v1.0.0");
+    repo.commit("fix: round (#54)", { "apps/cloud/src/round.ts": "1" });
+    repo.tag("cloud-v1.0.1");
+    const { deps, calls } = cliDeps(repo, { RELEASE_TAG: "cloud-v1.0.1" });
+    const isPromoted = async () => {
+      throw new Error("registry unreachable");
+    };
+
+    assert.equal(await runCli({ argv: ["previous-tag"], ...deps, isPromoted }), 1);
+    assert.match(calls.errors.join("\n"), /registry unreachable/);
+    assert.deepEqual(calls.outputs, []);
+  });
+});
+
+test("the previous-tag command needs a registry token to ask which releases were promoted", async () => {
+  await withRepo(async (repo) => {
+    repo.tag("cloud-v1.0.0");
+    const { deps, calls } = cliDeps(repo, { RELEASE_TAG: "cloud-v1.0.0" });
+
+    assert.equal(await runCli({ argv: ["previous-tag"], ...deps }), 1);
+    assert.match(calls.errors.join("\n"), /REGISTRY_TOKEN/);
+    assert.deepEqual(calls.outputs, []);
+  });
+});
+
+test("a release after a refused one that raised the minimum asks production about its registers", async () => {
+  await withRepo(async (repo) => {
+    repo.commit("chore: accept every register (#60)", {
+      [REGISTER_VERSION_PATH]: registerVersionSource("1.0.0"),
+    });
+    repo.tag("cloud-v1.0.0");
+    repo.commit("feat: raise the minimum register version (#61)", {
+      [REGISTER_VERSION_PATH]: registerVersionSource("2.0.0"),
+    });
+    repo.tag("cloud-v1.1.0");
+    repo.commit("fix: round (#62)", { "apps/cloud/src/round.ts": "1" });
+    repo.tag("cloud-v1.1.1");
+    const { deps, calls } = cliDeps(repo, { RELEASE_TAG: "cloud-v1.1.1" });
+    await runCli({
+      argv: ["previous-tag"],
+      ...deps,
+      isPromoted: promotedOnly("cloud-v1.0.0").isPromoted,
+    });
+    const previousTag = /^previous_tag=(.*)$/m.exec(calls.outputs[0].text)[1];
+    const asked = [];
+
+    const exitCode = await runRegisterMinimumCheck({
+      env: {
+        TARGET_SHA: deps.env.TARGET_SHA,
+        PREVIOUS_TAG: previousTag,
+        PRODUCTION_ORIGIN: "https://prod.example.test",
+        RELEASE_CHECK_TOKEN: "release-token",
+      },
+      runGit: repo.runGit,
+      fetchImpl: async (url) => {
+        asked.push(url);
+        return {
+          status: 200,
+          json: async () => ({ registers: [{ register_name: "Caja 1", app_version: "1.5.0" }] }),
+        };
+      },
+      log: () => {},
+      logError: () => {},
+    });
+
+    assert.equal(previousTag, "cloud-v1.0.0");
+    assert.deepEqual(asked, [
+      "https://prod.example.test/api/sync/registers-below-minimum?minimum=2.0.0",
+    ]);
+    assert.equal(exitCode, 1);
   });
 });
 

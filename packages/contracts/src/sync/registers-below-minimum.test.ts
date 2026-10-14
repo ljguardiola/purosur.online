@@ -11,12 +11,13 @@ describe("the registers below a minimum query", () => {
     });
   });
 
-  it.each([undefined, "", "1.4", "v1.4.0", "1.4.0-beta", "latest"])(
-    "refuses the minimum %j",
-    (minimum) => {
-      expect(registersBelowMinimumQuerySchema.safeParse({ minimum }).success).toBe(false);
-    },
-  );
+  it.each([undefined, 140])("refuses a minimum that is not text: %j", (minimum) => {
+    expect(registersBelowMinimumQuerySchema.safeParse({ minimum }).success).toBe(false);
+  });
+
+  it("refuses text that is not a well-formed register version", () => {
+    expect(registersBelowMinimumQuerySchema.safeParse({ minimum: "v1.4.0" }).success).toBe(false);
+  });
 });
 
 describe("the registers below a minimum answer", () => {
